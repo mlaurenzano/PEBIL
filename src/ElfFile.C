@@ -457,8 +457,9 @@ void ElfFile::readRelocLineInfoTable(){
 void ElfFile::briefPrint() 
 { 
 
-    if(fileHeader) 
+    if(fileHeader){
         fileHeader->print(); 
+    }
     for (uint32_t i = 0; i < numberOfPrograms; i++){
         programHeaders[i]->print();
     }
@@ -474,10 +475,6 @@ void ElfFile::briefPrint()
     for (uint32_t i = 0; i < numberOfRelocationTables; i++){
         relocationTables[i]->print();
     }
-/*
-    if(aOutHeader) 
-        aOutHeader->print(); 
-*/
 }
 
 void ElfFile::print(){

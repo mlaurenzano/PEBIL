@@ -1,4 +1,4 @@
-DBG         = -g
+#DBG         = -g
 OPT         = -O3
 #NATIVE_CPP  = CC
 #CFLAGS      = -bmaxdata:0x80000000 $(DBG) $(OPT)

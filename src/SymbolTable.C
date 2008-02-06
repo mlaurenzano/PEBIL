@@ -130,10 +130,16 @@ uint32_t Symbol32::read(BinaryInputFile* binaryInputFile){
 }
 
 uint32_t Symbol64::read(BinaryInputFile* binaryInputFile){
-    PRINT_INFOR("Reading symbol64 %d", index);
-    
+    binaryInputFile->setInPointer(symbolPtr);
+    setFileOffset(binaryInputFile->currentOffset());
 
-    return sizeInBytes;
+    if(!binaryInputFile->copyBytesIterate(&entry,Size__64_bit_Symbol)){
+        PRINT_ERROR("Symbol (64) can not be read");
+    }
+
+    verify(Size__64_bit_Symbol);
+
+    return sizeInBytes;    
 }
 
 uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
@@ -170,14 +176,18 @@ void SymbolTable::print(){
 }
 
 void SymbolTable::printSymbol64(uint32_t idx){
+    ASSERT(idx < numberOfSymbols && "idx out of symbols[] bounds");
+    ASSERT(symbols[idx]);
+    Symbol32* sym = (Symbol32*)symbols[idx];
+
+    PRINT_INFOR("\tSYM32(%d):\t%d\t%24s\t%#16x\t%d\t%d\t%d\t%d", idx, sym->GET(st_name), getSymbolName(idx), 
+        sym->GET(st_value), sym->GET(st_size), sym->GET(st_info), sym->GET(st_other), sym->GET(st_shndx));
 }
 
 void SymbolTable::printSymbol32(uint32_t idx){
     ASSERT(idx < numberOfSymbols && "idx out of symbols[] bounds");
     ASSERT(symbols[idx]);
     Symbol32* sym = (Symbol32*)symbols[idx];
-
-
 
     PRINT_INFOR("\tSYM32(%d):\t%d\t%24s\t%#16x\t%d\t%d\t%d\t%d", idx, sym->GET(st_name), getSymbolName(idx), 
         sym->GET(st_value), sym->GET(st_size), sym->GET(st_info), sym->GET(st_other), sym->GET(st_shndx));

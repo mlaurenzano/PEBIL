@@ -3,12 +3,15 @@ OPT         = -O0
 
 GNU_CC      = gcc $(DBG) 
 GNU_CPP     = g++ $(DBG) 
+GNU_F77     = f77
 
-NATIVE_CC   = xlc -g 
-NATIVE_CPP  = xlC -g 
+NATIVE_CC   = icc 
+NATIVE_CPP  = icc 
+NATIVE_F77  = ifort
 
-CC          = $(GNU_CC) $(OPT)
+CC          = $(GNU_CC)  $(OPT)
 CPP         = $(GNU_CPP) $(OPT) -DCPP
+F77         = $(GNU_F77) $(OPT)
 
 SRCDIR      = ../test
 BINDIR      = ./compiled
@@ -18,7 +21,7 @@ OBJS        = foo.o bar.o dum.o main.o
 SRCSCPP		= classes.C
 OBJSCPP		= classes.o
 
-EXECUTABLE  = cTest cppTest
+EXECUTABLE  = cTest cppTest htcoef
 
 build : all install
 
@@ -35,7 +38,10 @@ cTest: $(OBJS)
 
 cppTest: $(OBJSCPP)
 	$(CPP) -o $@ $(OBJSCPP)
-	
+
+htcoef:
+	$(F77) -o $@ $@.f
+
 install: $(EXECUTABLE)
 	cp $(EXECUTABLE) $(BINDIR)
 

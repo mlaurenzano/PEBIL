@@ -58,7 +58,7 @@ public:
 
 class FileHeader64 : public FileHeader {
 protected:
-    Elf32_Ehdr entry;
+    Elf64_Ehdr entry;
 
 public:
 

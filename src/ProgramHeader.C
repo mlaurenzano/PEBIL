@@ -3,20 +3,16 @@
 #include <BinaryFile.h>
 
 void ProgramHeader32::print() { 
-    PRINT_INFOR("PROGRAMHEADER(%d)", index);
+    PRINT_INFOR("PROGRAMHEADER32(%d)", index);
     PRINT_INFOR("\tType(%#x)\tOffset(%#x)\tVaddr(%#x)\tPaddr(%#x)", entry.p_type, entry.p_offset, entry.p_vaddr, entry.p_paddr);
-    PRINT_INFOR("\tFileSz(%d)\tMemSz(%d)\tFlags(%#x)\tAlign(%d)", entry.p_filesz, entry.p_memsz, entry.p_flags, entry.p_align);
+    PRINT_INFOR("\tFileSz(%#lx -- %d)\tMemSz(%#lx -- %d)\tFlags(%#x)\tAlign(%d)", entry.p_filesz, entry.p_filesz, entry.p_memsz, 
+entry.p_memsz, entry.p_flags, entry.p_align);
 }
 void ProgramHeader64::print() { 
-    PRINT_INFOR("PROGRAMHEADER");
-    PRINT_INFOR("\tType         : %#x", entry.p_type);
-    PRINT_INFOR("\tOffset       : %#x", entry.p_offset);
-    PRINT_INFOR("\tVaddr        : %#x", entry.p_vaddr);
-    PRINT_INFOR("\tPaddr        : %#x", entry.p_paddr);
-    PRINT_INFOR("\tSize in File : %d bytes", entry.p_filesz);
-    PRINT_INFOR("\tSize in Mem  : %d bytes", entry.p_memsz);
-    PRINT_INFOR("\tFlags        : %#x", entry.p_flags);
-    PRINT_INFOR("\tAlignment    : %d", entry.p_align);
+    PRINT_INFOR("PROGRAMHEADER64(%d)", index);
+    PRINT_INFOR("\tType(%#x)\tOffset(%#llx)\tVaddr(%#llx)\tPaddr(%#llx)", entry.p_type, entry.p_offset, entry.p_vaddr, entry.p_paddr);
+    PRINT_INFOR("\tFileSz(%#llx -- %d)\tMemSz(%#llx -- %d)\tFlags(%#x)\tAlign(%d)", entry.p_filesz, entry.p_filesz, entry.p_memsz, 
+entry.p_memsz, entry.p_flags, entry.p_align);
 }
 
 uint32_t ProgramHeader32::read(BinaryInputFile* binaryInputFile){
