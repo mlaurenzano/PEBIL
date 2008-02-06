@@ -1,0 +1,32 @@
+Base.o: Base.C ../include/Base.h ../include/CStructures.h
+ElfFile.o: ElfFile.C ../include/FileHeader.h ../include/Base.h \
+  ../include/CStructures.h ../include/defines/FileHeader.d \
+  ../include/ProgramHeader.h ../include/defines/ProgramHeader.d \
+  ../include/SectionHeader.h ../include/defines/SectionHeader.d \
+  ../include/ElfFile.h ../include/BinaryFile.h ../include/StringTable.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
+  ../include/RelocationTable.h ../include/defines/RelocationTable.d \
+  ../include/BitSet.h
+BinaryFile.o: BinaryFile.C ../include/Base.h ../include/CStructures.h \
+  ../include/ElfFile.h ../include/BinaryFile.h
+FileHeader.o: FileHeader.C ../include/BinaryFile.h ../include/Base.h \
+  ../include/CStructures.h ../include/FileHeader.h \
+  ../include/defines/FileHeader.d
+ProgramHeader.o: ProgramHeader.C ../include/Base.h \
+  ../include/CStructures.h ../include/ProgramHeader.h \
+  ../include/defines/ProgramHeader.d ../include/BinaryFile.h
+SectionHeader.o: SectionHeader.C ../include/SectionHeader.h \
+  ../include/Base.h ../include/CStructures.h \
+  ../include/defines/SectionHeader.d ../include/BinaryFile.h
+StringTable.o: StringTable.C ../include/StringTable.h ../include/Base.h \
+  ../include/CStructures.h ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d ../include/BinaryFile.h
+SymbolTable.o: SymbolTable.C ../include/SymbolTable.h ../include/Base.h \
+  ../include/CStructures.h ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d ../include/defines/SymbolTable.d \
+  ../include/StringTable.h ../include/ElfFile.h ../include/BinaryFile.h
+RelocationTable.o: RelocationTable.C ../include/SymbolTable.h \
+  ../include/Base.h ../include/CStructures.h ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d ../include/defines/SymbolTable.d \
+  ../include/RelocationTable.h ../include/defines/RelocationTable.d \
+  ../include/ElfFile.h ../include/BinaryFile.h
