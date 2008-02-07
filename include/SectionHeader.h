@@ -4,8 +4,6 @@
 #include <Base.h>
 #include <defines/SectionHeader.d>
 
-//class RelocationTable;
-//class LineInfoTable;
 class ElfFile;
 
 class SectionHeader : public Base {
@@ -15,23 +13,18 @@ protected:
     char* lineInfoPointer;
     uint32_t numOfRelocations;
     uint32_t numOfLineInfo;
-//    RelocationTable* relocationTable;
-//    LineInfoTable* lineInfoTable;
 
     char* sectionNamePtr;
-
-    SectionHeader* overFlowSection;
+    ElfClassTypes sectionType;
 
     uint16_t index;
+//    RawSection* rawSectionPtr;
 
 protected:
     SectionHeader() : Base(ElfClassTypes_sect_header),
                    rawDataPtr(NULL), relocationPtr(NULL), lineInfoPointer(NULL),
                    numOfRelocations(0),numOfLineInfo(0),
-/*
-                   relocationTable(NULL),lineInfoTable(NULL),
-*/
-overFlowSection(NULL),index(0),sectionNamePtr(NULL) {}
+                   index(0),sectionNamePtr(NULL),sectionType(ElfClassTypes_no_type) {}
     ~SectionHeader() {}
     bool verify();
 
@@ -41,29 +34,20 @@ public:
 
     void print() { __SHOULD_NOT_ARRIVE; }
     void initFilePointers(BinaryInputFile* b);
-    bool isStringTable();
-    bool isSymbolTable();
 
     bool hasWriteBit();
     bool hasAllocBit();
     bool hasExecInstrBit();
 
-    ElfSectType getSectionType();
-    void setOverFlowSection(SectionHeader* sh);
-    SectionHeader* getOverFlowSection() { return overFlowSection; }
+    ElfClassTypes setSectionType();
+    ElfClassTypes getSectionType() { return sectionType; }
 
     void setSectionNamePtr(char* namePtr) { sectionNamePtr = namePtr; }
     char* getSectionNamePtr() { return sectionNamePtr; }
     const char* getTypeName();
 
     char* getRawDataPtr() { return rawDataPtr; }
-//    uint64_t getRawDataSize() { return GET(s_size); }
-
-//    RelocationTable* readRelocTable(BinaryInputFile* binaryInputFile,ElfFile* elf);
-//    LineInfoTable* readLineInfoTable(BinaryInputFile* binaryInputFile,ElfFile* elf);
-
-//    RelocationTable* getRelocationTable() { return relocationTable; }
-//    LineInfoTable* getLineInfoTable() { return lineInfoTable; }
+    uint64_t getRawDataSize() { return GET(sh_size); }
 
     uint16_t getIndex() { return index; }
 

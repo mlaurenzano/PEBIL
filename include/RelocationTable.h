@@ -3,6 +3,7 @@
 
 #include <Base.h>
 #include <SectionHeader.h>
+#include <ElfFile.h>
 #include <defines/RelocationTable.d>
 
 class SymbolTable;
@@ -75,32 +76,66 @@ public:
     RELOCATION_MACROS_CLASS("For the get_X field macros check the defines directory");
 };
 
-class RelocationTable : public Base {
+class RelocationTable : public RawSection {
 protected:
     
-    char* relocationTablePtr;
     ElfRelType type;
     SymbolTable* symbolTable;
-    SectionHeader* sectionToRelocate;
-    ElfFile* elfFile;
+    RawSection* relocationSection;
     uint32_t index;
 
     uint32_t numberOfRelocations;
     Relocation** relocations;
-    uint32_t relocationSize;
-    SectionHeader* sectionHeader;
 
 public:
 
-    RelocationTable(char* ptr, uint32_t sz, uint32_t nr, ElfRelType typ, ElfFile* elf, uint32_t idx, SectionHeader* sh);
+    RelocationTable::RelocationTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
+        : RawSection(ElfClassTypes_relocation_table,rawPtr,size,scnIdx,elf),index(idx),symbolTable(NULL),relocationSection(NULL)
+    {
+        ASSERT(elfFile);
+        ASSERT(elfFile->getSectionHeader(sectionIndex));
+
+        sizeInBytes = size;
+        uint32_t relocationSize;
+        uint32_t typ = elfFile->getSectionHeader(sectionIndex)->GET(sh_type);
+        PRINT_INFOR("type is %d for section %d", type, index);
+        ASSERT((typ == SHT_REL || typ == SHT_RELA) && "Section header type field must be relocation");
+
+
+        if (elfFile->is64Bit()){
+            if (typ == SHT_RELA){
+                relocationSize = Size__64_bit_Relocation_Addend;
+                type = ElfRelType_rela;
+            } else {
+                relocationSize = Size__64_bit_Relocation;
+                type = ElfRelType_rel;
+            }
+        } else {
+            if (typ == SHT_RELA){
+                relocationSize = Size__32_bit_Relocation_Addend;
+                type = ElfRelType_rela;
+            } else {
+                relocationSize = Size__32_bit_Relocation;
+                type = ElfRelType_rel;
+            }
+        }
+        ASSERT(sizeInBytes % relocationSize == 0 && "Section size is bad");
+        numberOfRelocations = sizeInBytes / relocationSize;
+
+        relocations = new Relocation*[numberOfRelocations];
+    }
+
+
     void print();
     uint32_t read(BinaryInputFile* b);
 
     uint32_t getNumberOfRelocations() { return numberOfRelocations; }
 
     ElfFile* getElfFile() { return elfFile; }
-    uint32_t getSectionIndex() { ASSERT(sectionHeader); return sectionHeader->getIndex(); }
     uint32_t getIndex() { return index; }
+
+    uint16_t setSymbolTable();
+    uint16_t setRelocationSection();
 
     const char* briefName() { return "RelocationTable"; }
 //    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);

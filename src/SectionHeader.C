@@ -1,9 +1,27 @@
-//#include <RelocationTable.h>
-//#include <LineInfoTable.h>
 #include <SectionHeader.h>
 #include <BinaryFile.h>
 
-#define LINE_RELOC_OVERFLOW 0xffff
+#define DWARF_SCN_NAME_PREFIX ".debug_\0"
+
+ElfClassTypes SectionHeader::setSectionType(){
+//    PRINT_INFOR("Setting type for section %d", index);    
+//    print();
+    if (GET(sh_type) == SHT_STRTAB){
+        sectionType = ElfClassTypes_string_table;
+    } else if (GET(sh_type) == SHT_SYMTAB || GET(sh_type) == SHT_DYNSYM){
+        sectionType = ElfClassTypes_symbol_table;
+    } else if (GET(sh_type) == SHT_REL || GET(sh_type) == SHT_RELA){
+        sectionType = ElfClassTypes_relocation_table;
+    } else if (GET(sh_type) == SHT_PROGBITS){
+        if (!hasWriteBit() && !hasAllocBit() && !hasExecInstrBit()){
+            sectionType = ElfClassTypes_dwarf_section;
+        }
+
+    }
+
+//    PRINT_INFOR("Found type %d", sectionType);
+    return sectionType;
+}
 
 bool SectionHeader::hasWriteBit(){
     return (GET(sh_flags) & SHF_WRITE);
@@ -13,10 +31,6 @@ bool SectionHeader::hasAllocBit(){
 }
 bool SectionHeader::hasExecInstrBit(){
     return (GET(sh_flags) & SHF_EXECINSTR);
-}
-
-ElfSectType SectionHeader::getSectionType(){
-    return ElfSectType_undefined;
 }
 
 void SectionHeader::initFilePointers(BinaryInputFile* binaryInputFile){

@@ -1,26 +1,25 @@
 #include <StringTable.h>
 #include <BinaryFile.h>
-#include <SectionHeader.h>
 
 char* StringTable::getString(uint32_t offset){
-    PRINT_DEBUG("Offset is %d in %d",offset,sizeInBytes);
+//    PRINT_INFOR("Offset is %d in %d",offset,sizeInBytes);
     ASSERT(offset < sizeInBytes); 
     if(!offset)
         return "";
-    return stringTablePtr + offset; 
+    return getFilePointer() + offset; 
 }
 
 void StringTable::print() { 
-    PRINT_INFOR("STRINGTABLE(%d): Section %d", index, sectionHeader->getIndex());
-    if(stringTablePtr && sizeInBytes){
-        PRINT_INFOR("\tSize  : %d, ptr(%#x)", sizeInBytes, stringTablePtr);
+    PRINT_INFOR("STRINGTABLE(%d): Section %d", index, getSectionIndex());
+    if(getFilePointer() && sizeInBytes){
+        PRINT_INFOR("\tSize  : %d, ptr(%#x)", sizeInBytes, getFilePointer());
     } else {
         PRINT_INFOR("\tSize  : 0 EMPTY");
     }
 
     PRINT_INFOR("\tStrs  :");
     for (uint32_t currByte = 0; currByte < sizeInBytes; currByte++){
-        char* ptr = (char*)(stringTablePtr + currByte);
+        char* ptr = (char*)(getFilePointer() + currByte);
         char* demangled = ptr;
         ASSERT(demangled && "FATAL : demangling should always return non-null pointer");
 
@@ -32,7 +31,7 @@ void StringTable::print() {
 
 uint32_t StringTable::read(BinaryInputFile* binaryInputFile){
     
-    binaryInputFile->setInPointer(stringTablePtr);
+    binaryInputFile->setInPointer(getFilePointer());
     setFileOffset(binaryInputFile->currentOffset());
 
     DEBUG(

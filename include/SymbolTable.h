@@ -2,7 +2,8 @@
 #define _SymbolTable_h_
 
 #include <Base.h>
-#include <SectionHeader.h>
+#include <RawSection.h>
+#include <ElfFile.h>
 #include <defines/SymbolTable.d>
 
 class StringTable;
@@ -61,24 +62,39 @@ public:
     unsigned char getSymbolType();
 };
 
-class SymbolTable : public Base {
+class SymbolTable : public RawSection {
 protected:
-    char* symbolTablePtr;
     uint32_t numberOfSymbols;
     Symbol** symbols;
     StringTable* stringTable;
-    uint16_t strTableSectionIdx;
-    uint32_t lastLocalIdx;
     uint32_t index;
-    ElfFile* elfFile;
-    SectionHeader* sectionHeader;
 
 public:
 
-    SymbolTable(char* ptr,uint32_t nsyms,uint16_t strtabSectionIdx, uint32_t llIdx, uint32_t idx,ElfFile* elf, SectionHeader* sh);
+    SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
+        : RawSection(ElfClassTypes_symbol_table,rawPtr,size,scnIdx,elf),index(idx)
+    {
+        sizeInBytes = size;
+
+        uint32_t symbolSize;
+
+        ASSERT(elfFile);
+        if (elf->is64Bit()){
+            symbolSize = Size__64_bit_Symbol;
+        } else {
+            symbolSize = Size__32_bit_Symbol;
+        }
+
+        ASSERT(sizeInBytes % symbolSize == 0 && "Symbol table section must have size n*symbolSize");
+        numberOfSymbols = sizeInBytes / symbolSize;
+
+        symbols = new Symbol*[numberOfSymbols];
+    }
+
+
+
     ~SymbolTable();
 
-    char* getSymbolTablePtr() { return symbolTablePtr; }
     uint32_t getNumberOfSymbols() { return numberOfSymbols; }
 
     void print();
@@ -88,19 +104,14 @@ public:
     uint32_t read(BinaryInputFile* b);
     bool verify();
 
-    void setStringTable(StringTable* st) { stringTable = st; }
+    uint16_t setStringTable();
 
     Symbol* getSymbol(uint32_t index) { ASSERT(index < numberOfSymbols); return symbols[index]; }
     char* getSymbolName(uint32_t index);
 
-    ElfFile* getElfFile() { return elfFile; }
-    uint32_t getSectionIndex() { ASSERT(sectionHeader); return sectionHeader->getIndex(); }
     uint32_t getIndex() { return index; }
 
     const char* briefName() { return "SymbolTable"; }
-
-//    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
-
 };
 
 #endif /* _SymbolTable_h_ */

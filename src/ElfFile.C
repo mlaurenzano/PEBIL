@@ -3,9 +3,11 @@
 #include <SectionHeader.h>
 #include <ElfFile.h>
 #include <BinaryFile.h>
+#include <RawSection.h>
 #include <StringTable.h>
 #include <SymbolTable.h>
 #include <RelocationTable.h>
+#include <DwarfSection.h>
 
 TIMER(
 	extern double cfg_s1;
@@ -43,24 +45,39 @@ bool ElfFile::verify(){
 
     uint32_t hashSectionCount = 0;
     uint32_t dynlinkSectionCount = 0;
+    uint32_t symtabSectionCount = 0;
+    uint32_t dynsymSectionCount = 0;
     for (uint32_t i = 0; i < numberOfSections; i++){
         if (sectionHeaders[i]->GET(sh_type) == SHT_HASH){
             hashSectionCount++;
         } else if (sectionHeaders[i]->GET(sh_type) == SHT_DYNAMIC){
             dynlinkSectionCount++;
+        } else if (sectionHeaders[i]->GET(sh_type) == SHT_SYMTAB){
+            symtabSectionCount++;
+        } else if (sectionHeaders[i]->GET(sh_type) == SHT_DYNSYM){
+            dynsymSectionCount++;
         }
     }
-        // enfoce that an elf file can have only one hash section
-    if (hashSectionCount > 1){
+        // enforce that an elf file can have only one hash section
+    if (hashSectionCount > MAX_SHT_HASH_COUNT){
         PRINT_ERROR("Elf file cannot have more than one hash section");
         return false;
     }
-        // enfoce that an elf file can have only one dynamic linking section
-    if (dynlinkSectionCount > 1){
-        PRINT_ERROR("Elf file cannot have more than one dynamic linking section");
+        // enforce that an elf file can have only one dynamic linking section
+    if (dynlinkSectionCount > MAX_SHT_DYNAMIC_COUNT){
+        PRINT_ERROR("Elf file cannot have more than %d dynamic linking section", MAX_SHT_DYNAMIC_COUNT);
         return false;
     }
-
+        // enforce that an elf file can have only one symbol table section
+    if (dynlinkSectionCount > MAX_SHT_SYMTAB_COUNT){
+        PRINT_ERROR("Elf file cannot have more than %d symbol table section", MAX_SHT_SYMTAB_COUNT);
+        return false;
+    }
+        // enforce that an elf file can have only one dynamic symtab section
+    if (dynlinkSectionCount > MAX_SHT_DYNSYM_COUNT){
+        PRINT_ERROR("Elf file cannot have more than %d dynamic symtab section", MAX_SHT_DYNSYM_COUNT);
+        return false;
+    }
 }
 
 /*
@@ -119,10 +136,8 @@ void ElfFile::parse(){
     readFileHeader();
     readProgramHeaders();
     readSectionHeaders();
-    readStringTables();
-    readSymbolTables();
-    readRelocationTables();
     readRawSections();
+    initRawSectionFilePointers();
 
 }
 
@@ -149,30 +164,6 @@ void ElfFile::readFileHeader() {
 
 }
 
-void ElfFile::readSectionHeaders(){
-    PRINT_INFOR("Parsing the section header table");
-    sectionHeaders = new SectionHeader*[numberOfSections];
-    ASSERT(sectionHeaders);
-
-    binaryInputFile.setInPointer(fileHeader->getSectionHeaderTablePtr());
-    PRINT_INFOR("Found %d section header entries, reading at location %#x\n", numberOfSections, binaryInputFile.currentOffset());
-
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        if(is64Bit()){
-            sectionHeaders[i] = new SectionHeader64(i);
-        } else {
-            sectionHeaders[i] = new SectionHeader32(i);
-        }
-        ASSERT(sectionHeaders[i]);
-        sectionHeaders[i]->read(&binaryInputFile);
-        DEBUG(
-            readBytes += sectionHeaders[i]->getSizeInBytes();
-            ASSERT(binaryInputFile.alreadyRead() == readBytes);
-            PRINT_DEBUG("read %d bytes for section header %d", sectionHeaders[i]->getSizeInBytes(), i);
-        );
-    }
-}
-
 void ElfFile::readProgramHeaders(){
 
     PRINT_INFOR("Parsing the program header table");
@@ -197,31 +188,61 @@ void ElfFile::readProgramHeaders(){
     }
 }
 
-uint16_t ElfFile::setSectionNameStrTabIdx(){
-    ASSERT(fileHeader->GET(e_shstrndx) && "No section name string table");
+void ElfFile::readSectionHeaders(){
+    PRINT_INFOR("Parsing the section header table");
+    sectionHeaders = new SectionHeader*[numberOfSections];
+    ASSERT(sectionHeaders);
 
-    for (uint32_t i = 0; i < numberOfStringTables; i++){
-        if ((stringTables[i]->getSectionHeader())->getIndex() == fileHeader->GET(e_shstrndx)){
-            sectionNameStrTabIdx = i;
-            return sectionNameStrTabIdx;
+    binaryInputFile.setInPointer(fileHeader->getSectionHeaderTablePtr());
+    PRINT_INFOR("Found %d section header entries, reading at location %#x\n", numberOfSections, binaryInputFile.currentOffset());
+
+        // first read each section header
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        if(is64Bit()){
+            sectionHeaders[i] = new SectionHeader64(i);
+        } else {
+            sectionHeaders[i] = new SectionHeader32(i);
+        }
+        ASSERT(sectionHeaders[i]);
+        sectionHeaders[i]->read(&binaryInputFile);
+        DEBUG(
+            readBytes += sectionHeaders[i]->getSizeInBytes();
+            ASSERT(binaryInputFile.alreadyRead() == readBytes);
+            PRINT_DEBUG("read %d bytes for section header %d", sectionHeaders[i]->getSizeInBytes(), i);
+        );
+    }
+
+        // determine and set section type for each section header
+    PRINT_INFOR("Setting section types");
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        ElfClassTypes typ = sectionHeaders[i]->setSectionType();
+        switch(typ){
+            case (ElfClassTypes_string_table) : numberOfStringTables++;
+            case (ElfClassTypes_symbol_table) : numberOfSymbolTables++;
+            case (ElfClassTypes_relocation_table) : numberOfRelocationTables++;
+            case (ElfClassTypes_dwarf_section)  : numberOfDwarfSections++;
+            default: ;
         }
     }
 
-    ASSERT(0 && "should have found section header strtab");
 }
 
-void ElfFile::setSectionNames(){
-    PRINT_INFOR("Reading the scnhdr string table");
+void ElfFile::initRawSectionFilePointers(){
+        // find the string table for section names
+    ASSERT(fileHeader->GET(e_shstrndx) && "No section name string table");
+    for (uint32_t i = 0; i < numberOfStringTables; i++){
+        if (stringTables[i]->getSectionIndex() == fileHeader->GET(e_shstrndx)){
+            sectionNameStrTabIdx = i;
+        }
+    }
 
+        // set section names
+    PRINT_INFOR("Reading the scnhdr string table");
     ASSERT(sectionHeaders && "Section headers not present");
     ASSERT(sectionNameStrTabIdx && "Section header string table index must be defined");
-
-    char* stringTablePtr = getStringTable(sectionNameStrTabIdx)->getStringTablePtr();
-    uint64_t stringTableSize = getStringTable(sectionNameStrTabIdx)->getStringTableSize();
-
-    PRINT_INFOR("String table is located at %#x and has %d bytes", stringTablePtr, stringTableSize);
+    char* stringTablePtr = getStringTable(sectionNameStrTabIdx)->getFilePointer();
+    PRINT_INFOR("String table is located at %#x", stringTablePtr);
     PRINT_INFOR("Setting section header names from string table");
-
     // skip first section header since it is reserved and its values are null
     for (uint32_t i = 1; i < numberOfSections; i++){
         ASSERT(sectionHeaders[i]->getSectionNamePtr() == NULL && "Section Header name shouldn't already be set");
@@ -229,229 +250,59 @@ void ElfFile::setSectionNames(){
         ASSERT(sectionNameOffset && "Section header name should be in string table");
         sectionHeaders[i]->setSectionNamePtr(stringTablePtr + sectionNameOffset);
     }
-}
 
-void ElfFile::readStringTables(){
-    if (!sectionHeaders){
-        return;
-    }
-    ASSERT(numberOfStringTables == 0 && "string tables should not have been set yet");
-
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        if (sectionHeaders[i]->GET(sh_type) == SHT_STRTAB){
-            numberOfStringTables++;
-        }
+        // find the string table for each symbol table
+    for (uint32_t i = 0; i < numberOfSymbolTables; i++){
+        getSymbolTable(i)->setStringTable();
     }
 
-    PRINT_INFOR("Found %d string tables", numberOfStringTables);
-    ASSERT(numberOfStringTables && "File contains no string tables");
-
-    stringTables = new StringTable*[numberOfStringTables];
-    uint32_t currIdx = 0;
-
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        if (sectionHeaders[i]->GET(sh_type) == SHT_STRTAB){
-
-            PRINT_INFOR("\tSetting string table %d", currIdx);
-            ASSERT(currIdx < numberOfStringTables);
-
-            char* stringTablePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[i]->GET(sh_offset));
-            uint64_t stringTableSize = (uint64_t)sectionHeaders[i]->GET(sh_size);
-
-            stringTables[currIdx] = new StringTable(stringTablePtr, stringTableSize, currIdx, sectionHeaders[i]);
-            stringTables[currIdx]->read(&binaryInputFile);
-            currIdx++;
-        }
+        // find the symbol table + relocation section for each relocation table
+    for (uint32_t i = 0; i < numberOfRelocationTables; i++){
+        getRelocationTable(i)->setSymbolTable();
+        getRelocationTable(i)->setRelocationSection();
     }
-
-    setSectionNameStrTabIdx();
-    ASSERT(sectionNameStrTabIdx != SHN_UNDEF && "File has no string table");
-    ASSERT(sectionNameStrTabIdx <= numberOfSections && "String Table section idx out of section header table boundary");
-    setSectionNames();
-}
-
-void ElfFile::readSymbolTables(){
-    if (!sectionHeaders){
-        return;
-    }
-    ASSERT(numberOfSymbolTables == 0 && "string tables should not have been set yet");
-
-    uint32_t numberOfShtSymtab = 0;
-    uint32_t numberOfShtDynsym = 0;
-
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        if (sectionHeaders[i]->GET(sh_type) == SHT_SYMTAB){
-            numberOfSymbolTables++;
-            numberOfShtSymtab++;
-        } else if (sectionHeaders[i]->GET(sh_type) == SHT_DYNSYM){
-            numberOfSymbolTables++;
-            numberOfShtDynsym++;
-        }
-    }
-
-    ASSERT(numberOfShtSymtab <= MAX_SHT_SYMTAB_COUNT && "Cannot have multiple sections of this type");
-    ASSERT(numberOfShtDynsym <= MAX_SHT_DYNSYM_COUNT && "Cannot have multiple sections of this type");
-
-    ASSERT(numberOfSymbolTables && "No symbol table sections found");
-
-    symbolTables = new SymbolTable*[numberOfSymbolTables];
-    uint32_t currIdx = 0;
-
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        if (sectionHeaders[i]->GET(sh_type) == SHT_SYMTAB || sectionHeaders[i]->GET(sh_type) == SHT_DYNSYM){
-
-            ASSERT(currIdx < numberOfSymbolTables);
-
-            uint64_t symbolTableSize = (uint64_t)sectionHeaders[i]->GET(sh_size);
-            char* symbolTablePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[i]->GET(sh_offset));
-            uint32_t numberOfSymbols = 0;
-            uint16_t strtabSectionIdx = sectionHeaders[i]->GET(sh_link);
-            uint32_t lastLocalIdx = sectionHeaders[i]->GET(sh_info);
-
-            if (is64Bit()){
-                ASSERT(symbolTableSize % sizeof(Elf64_Sym) == 0 && "Symbol table must be just symbols");
-                numberOfSymbols = symbolTableSize / sizeof(Elf64_Sym);
-            } else {
-                ASSERT(symbolTableSize % sizeof(Elf32_Sym) == 0 && "Symbol table must be just symbols");
-                numberOfSymbols = symbolTableSize / sizeof(Elf32_Sym);
-            }
-            symbolTables[currIdx] = new SymbolTable(symbolTablePtr, numberOfSymbols, strtabSectionIdx, lastLocalIdx, currIdx, this, sectionHeaders[i]);
-            symbolTables[currIdx]->read(&binaryInputFile);
-            currIdx++;
-        }
-    }
-
-}
-
-void ElfFile::readRelocationTables(){
-    ASSERT(numberOfRelocationTables == 0 && "Relocation tables should not have been read yet");
-    PRINT_INFOR("Parsing relocation tables");
-
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        if (sectionHeaders[i]->GET(sh_type) == SHT_REL){
-            numberOfRelocationTables++;
-        } else if (sectionHeaders[i]->GET(sh_type) == SHT_RELA){
-            numberOfRelocationTables++;
-        }
-    }
-
-    relocationTables = new RelocationTable*[numberOfRelocationTables];
-    PRINT_INFOR("Found %d relocation tables", numberOfRelocationTables);
-
-    numberOfRelocationTables = 0;
-    for (uint32_t i = 0; i < numberOfSections; i++){
-
-        char* relocationTablePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[i]->GET(sh_offset));
-        uint64_t relocationTableSize = sectionHeaders[i]->GET(sh_size);
-        uint32_t sz;
-        ElfRelType typ;
-
-        if (sectionHeaders[i]->GET(sh_type) == SHT_REL){
-            typ = ElfRelType_rel;
-            if (is64Bit()){
-                sz = Size__64_bit_Relocation;
-            } else {
-                sz = Size__32_bit_Relocation;
-            }
-        } else if (sectionHeaders[i]->GET(sh_type) == SHT_RELA){
-            typ = ElfRelType_rela;
-            if (is64Bit()){
-                sz = Size__64_bit_Relocation_Addend;
-            } else {
-                sz = Size__32_bit_Relocation_Addend;
-            }
-        }
-
-        if (sectionHeaders[i]->GET(sh_type) == SHT_REL || sectionHeaders[i]->GET(sh_type) == SHT_RELA){
-            ASSERT(relocationTableSize % sz == 0 && "Relocation table must contain only relocation entries");
-            relocationTables[numberOfRelocationTables] = new RelocationTable(relocationTablePtr,sz,(relocationTableSize/sz),typ,this,numberOfRelocationTables,sectionHeaders[i]);
-            relocationTables[numberOfRelocationTables]->read(&binaryInputFile);
-            numberOfRelocationTables++;
-        }
-
-    }    
 }
 
 void ElfFile::readRawSections(){
-}
+    ASSERT(sectionHeaders && "We should have read the section headers already");
 
-void ElfFile::processOverflowSections(){
-/*
-    PRINT_INFOR("Processing the overflow sections");
-    for(uint32_t i=1;i<=numberOfSections;i++){
-        if(sectionHeaders[i]->IS_SECT_TYPE(OVRFLO)){
-            uint32_t whichSection = sectionHeaders[i]->GET(s_nreloc);
-            ASSERT((whichSection <= numberOfSections) && "FATAL : Which section is this??\n");
-            ASSERT(!sectionHeaders[whichSection]->getOverFlowSection() && "FATAL : More than 1 overflow??\n");
-            sectionHeaders[whichSection]->setOverFlowSection(sectionHeaders[i]);
-        }
-    }
-*/
-}
+    rawSections = new RawSection*[numberOfSections];
 
-void ElfFile::readRawSectionData(){
-/*
-    PRINT_INFOR("Parsing the raw section data");
+    stringTables = new StringTable*[numberOfStringTables];
+    symbolTables = new SymbolTable*[numberOfSymbolTables];
+    relocationTables = new RelocationTable*[numberOfRelocationTables];
+    dwarfSections = new DwarfSection*[numberOfDwarfSections];
 
-    rawSections = new RawSection*[numberOfSections + 1];
-    ASSERT(rawSections);
+    numberOfStringTables = numberOfSymbolTables = numberOfRelocationTables = numberOfDwarfSections = 0;
 
-    rawSections[0] = NULL;
-    for(uint32_t i=1;i<=numberOfSections;i++){
-        rawSections[i] = RawSection::newRawSection(sectionHeaders[i],this);
-        if(rawSections[i]){
-            rawSections[i]->read(&binaryInputFile);
-        }
-    }
-*/
-}
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[i]->GET(sh_offset));
+        uint64_t sectionSize = (uint64_t)sectionHeaders[i]->GET(sh_size);
+//        PRINT_INFOR("Using section type %d for section %d", sectionHeaders[i]->getSectionType(), i);
 
-/*
-void ElfFile::readSymbolStringTable(DebugSection* debugRawSect){
-
-    PRINT_INFOR("Parsing the string and symbol tables");
-
-    uint32_t numberOfSyms = fileHeader->GET(f_nsyms);
-    if(numberOfSyms){
-        char* startPtr = fileHeader->getSymbolTablePtr();
-        ASSERT(startPtr && "FATAL : Somehow the symbol table exists but the data does not");
-
-        char* stringTablePtr = startPtr + (numberOfSyms * Size__NN_bit_SymbolTable_Entry);
-        if(binaryInputFile.isInBuffer(stringTablePtr)){
-            stringTable = new StringTable(stringTablePtr);
-            stringTable->read(&binaryInputFile);
+        if (sectionHeaders[i]->getSectionType() == ElfClassTypes_string_table){
+            rawSections[i] = new StringTable(sectionFilePtr, sectionSize, i, numberOfStringTables, this);
+            stringTables[numberOfStringTables] = (StringTable*)rawSections[i];
+            numberOfStringTables++;
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_symbol_table){
+            rawSections[i] = new SymbolTable(sectionFilePtr, sectionSize, i, numberOfSymbolTables, this);
+            symbolTables[numberOfSymbolTables] = (SymbolTable*)rawSections[i];
+            numberOfSymbolTables++;
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_relocation_table){
+            rawSections[i] = new RelocationTable(sectionFilePtr, sectionSize, i, numberOfRelocationTables, this);
+            relocationTables[numberOfRelocationTables] = (RelocationTable*)rawSections[i];
+            numberOfRelocationTables++;
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_dwarf_section){
+            rawSections[i] = new DwarfSection(sectionFilePtr, sectionSize, i, numberOfDwarfSections, this);
+            dwarfSections[numberOfDwarfSections] = (DwarfSection*)rawSections[i];
+            numberOfDwarfSections++;
         } else {
-            ASSERT(NULL && "FATAL : Some how the string table does not exist");
+            rawSections[i] = new RawSection(ElfClassTypes_no_type, sectionFilePtr, sectionSize, i, this);
         }
-
-        symbolTable = new SymbolTable(startPtr,numberOfSyms,this);
-        symbolTable->setStringTable(stringTable);
-        symbolTable->setDebugSection(debugRawSect);
-        symbolTable->read(&binaryInputFile);
-    } else {
-        ASSERT(numberOfSyms && "FATAL : At this moment we can not handle executables with no symbol table");
+        rawSections[i]->read(&binaryInputFile);
     }
 
-}
-*/
-
-void ElfFile::readRelocLineInfoTable(){
-/*
-    PRINT_INFOR("Parsing the LineInformation and Relocation tables");
-
-    processOverflowSections();
-
-    for(uint32_t i=1;i<=numberOfSections;i++){
-        RelocationTable* relocationTable = sectionHeaders[i]->readRelocTable(&binaryInputFile,this);
-        if(relocationTable){
-            relocationTable->setSymbolTable(symbolTable);
-        }
-        LineInfoTable* lineInfoTable = sectionHeaders[i]->readLineInfoTable(&binaryInputFile,this);
-        if(lineInfoTable){
-            lineInfoTable->setSymbolTable(symbolTable);
-        }
-    }
-*/
+    PRINT_INFOR("Found sections: %d %d %d %d", numberOfStringTables, numberOfSymbolTables, numberOfRelocationTables, numberOfDwarfSections);
 }
 
 void ElfFile::briefPrint() 
@@ -478,22 +329,6 @@ void ElfFile::briefPrint()
 }
 
 void ElfFile::print(){
-/*
-    if(fileHeader) fileHeader->print();
-    if(aOutHeader) aOutHeader->print();
-    for(uint32_t i=1;i<=numberOfSections;i++){
-        sectionHeaders[i]->print();
-        rawSections[i]->print();
-    }
-    for(uint32_t i=1;i<=numberOfSections;i++){
-        if(sectionHeaders[i]->getRelocationTable())
-            sectionHeaders[i]->getRelocationTable()->print();
-        if(sectionHeaders[i]->getLineInfoTable())
-            sectionHeaders[i]->getLineInfoTable()->print();
-    }
-    if(symbolTable) symbolTable->print();
-    if(stringTable) stringTable->print();
-*/
 }
 
 void ElfFile::displaySymbols(){
@@ -650,28 +485,4 @@ void ElfFile::findLoops(){
 */
 }
 
-StringTable* ElfFile::findStringTableWithSectionIdx(uint32_t idx){
-    for (uint32_t i = 0; i < numberOfStringTables; i++){
-        if (idx == stringTables[i]->getSectionIndex()){
-            return stringTables[i];
-        }
-    }
-    return NULL;
-}
-SymbolTable* ElfFile::findSymbolTableWithSectionIdx(uint32_t idx){
-    for (uint32_t i = 0; i < numberOfSymbolTables; i++){
-        if (idx == symbolTables[i]->getSectionIndex()){
-            return symbolTables[i];
-        }
-    }
-    return NULL;
-}
-RelocationTable* ElfFile::findRelocationTableWithSectionIdx(uint32_t idx){
-    for (uint32_t i = 0; i < numberOfRelocationTables; i++){
-        if (idx == relocationTables[i]->getSectionIndex()){
-            return relocationTables[i];
-        }
-    }
-    return NULL;
-}
 

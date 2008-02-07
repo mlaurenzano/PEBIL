@@ -109,28 +109,10 @@ public:
 
 typedef enum {
     ElfSectType_undefined = 0,
-    ElfSectType_bss,
-    ElfSectType_comment,
-    ElfSectType_data,
-    ElfSectType_debug,
-    ElfSectType_dynamic,
-    ElfSectType_dynstr,
-    ElfSectType_dynsym,
-    ElfSectType_fini,
-    ElfSectType_got,
-    ElfSectType_hash,
-    ElfSectType_init,
-    ElfSectType_interp,
-    ElfSectType_line,
-    ElfSectType_note,
-    ElfSectType_plt,
-    ElfSectType_rel,
-    ElfSectType_rela,
-    ElfSectType_rodata,
-    ElfSectType_shstrtab,
     ElfSectType_strtab,
     ElfSectType_symtab,
-    ElfSectType_text,
+    ElfSectType_reltab,
+    ElfSectType_dwarf,
     ElfSectType_Total_Types
 } ElfSectType;
 
@@ -148,10 +130,11 @@ typedef enum {
     ElfClassTypes_program_header,
     ElfClassTypes_sect_header,
     ElfClassTypes_sect_rawdata,
-    ElfClassTypes_relocation,
+    ElfClassTypes_relocation_table,
     ElfClassTypes_line_info,
     ElfClassTypes_symbol_table,
     ElfClassTypes_string_table,
+    ElfClassTypes_dwarf_section,
     ElfClassTypes_Total_Types
 } ElfClassTypes;
 

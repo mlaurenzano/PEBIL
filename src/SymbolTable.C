@@ -1,3 +1,4 @@
+#include <SectionHeader.h>
 #include <SymbolTable.h>
 #include <StringTable.h>
 #include <ElfFile.h>
@@ -87,20 +88,17 @@ bool SymbolTable::verify(){
     return true;
 }
 
-SymbolTable::SymbolTable(char* ptr, uint32_t nsyms, uint16_t strtabSecIdx, uint32_t llIdx, uint32_t idx, ElfFile* elf, SectionHeader* sh) 
-    : Base(ElfClassTypes_symbol_table),symbolTablePtr(ptr),
-      numberOfSymbols(nsyms),symbols(NULL),stringTable(NULL),
-      strTableSectionIdx(strtabSecIdx),lastLocalIdx(llIdx),index(idx),elfFile(elf),sectionHeader(sh)
-{
-    symbols = new Symbol*[numberOfSymbols];
+
+uint16_t SymbolTable::setStringTable(){
     ASSERT(elfFile);
-    ASSERT(elfFile->getSectionHeader(strTableSectionIdx));
-    for (uint32_t i = 0; i < elfFile->getNumberOfStringTables(); i++){
-        if ((elfFile->getStringTable(i))->getSectionHeader() == elfFile->getSectionHeader(strTableSectionIdx)){
-            stringTable = elfFile->getStringTable(i);
-        }
-    }
-    ASSERT(stringTable);    
+    ASSERT(elfFile->getSectionHeader(getSectionIndex()));
+    SectionHeader* sh = elfFile->getSectionHeader(getSectionIndex());
+    ASSERT(elfFile->getRawSection(sh->GET(sh_link)));
+
+    RawSection* st = elfFile->getRawSection(sh->GET(sh_link));
+    ASSERT(st->getType() == ElfClassTypes_string_table);
+    stringTable = (StringTable*)st;
+    return stringTable->getSectionIndex();
 }
 
 SymbolTable::~SymbolTable(){
@@ -144,16 +142,16 @@ uint32_t Symbol64::read(BinaryInputFile* binaryInputFile){
 
 uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
     
-    binaryInputFile->setInPointer(symbolTablePtr);
+    binaryInputFile->setInPointer(getFilePointer());
     setFileOffset(binaryInputFile->currentOffset());
 
     PRINT_INFOR("Reading %d symbols for symtable %d", numberOfSymbols, index);
 
     for (uint32_t i = 0; i < numberOfSymbols; i++){
         if (elfFile->is64Bit()){
-            symbols[i] = new Symbol64(symbolTablePtr + (i * Size__64_bit_Symbol), i);
+            symbols[i] = new Symbol64(getFilePointer() + (i * Size__64_bit_Symbol), i);
         } else {
-            symbols[i] = new Symbol32(symbolTablePtr + (i * Size__32_bit_Symbol), i);
+            symbols[i] = new Symbol32(getFilePointer() + (i * Size__32_bit_Symbol), i);
         }
         symbols[i]->read(binaryInputFile);
     }
@@ -189,6 +187,7 @@ void SymbolTable::printSymbol32(uint32_t idx){
     ASSERT(symbols[idx]);
     Symbol32* sym = (Symbol32*)symbols[idx];
 
+//    PRINT_INFOR("going to use name offset %d for symbol %d", sym->GET(st_name), idx);
     PRINT_INFOR("\tSYM32(%d):\t%d\t%24s\t%#16x\t%d\t%d\t%d\t%d", idx, sym->GET(st_name), getSymbolName(idx), 
         sym->GET(st_value), sym->GET(st_size), sym->GET(st_info), sym->GET(st_other), sym->GET(st_shndx));
 

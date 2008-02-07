@@ -7,9 +7,11 @@
 class FileHeader;
 class ProgramHeader;
 class SectionHeader;
+class RawSection;
 class StringTable;
 class SymbolTable;
 class RelocationTable;
+class DwarfSection;
 
 class ElfFile {
 private:
@@ -22,9 +24,11 @@ private:
     FileHeader*  fileHeader;
     ProgramHeader**  programHeaders;
     SectionHeader** sectionHeaders;
+    RawSection** rawSections;
     StringTable** stringTables;
     SymbolTable** symbolTables;
     RelocationTable** relocationTables;
+    DwarfSection** dwarfSections;
 
     uint32_t numberOfPrograms;
     uint32_t numberOfSections;
@@ -32,6 +36,7 @@ private:
     uint16_t sectionNameStrTabIdx;
     uint32_t numberOfSymbolTables;
     uint32_t numberOfRelocationTables;
+    uint32_t numberOfDwarfSections;
 
     uint32_t numberOfFunctions;
     uint32_t numberOfBlocks;
@@ -41,18 +46,10 @@ private:
     void readFileHeader();
 
     void readSectionHeaders();
+    void setSectionTypes();
     void readProgramHeaders();
-    void setSectionNames();
-    void readStringTables();
-    void readSymbolTables();
-    void readRelocationTables();
     void readRawSections();
-
-    void processOverflowSections();
-    void readRawSectionData();
-//    void readSymbolStringTable(DebugSection* dbg);
-    void readRelocLineInfoTable();
-
+    void initRawSectionFilePointers();
 
     void findFunctions();
     void generateCFGs();
@@ -63,13 +60,11 @@ public:
 
     ElfFile(char* f): is64BitFlag(false),elfFileName(f),
                   fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
-/*
-rawSections(NULL),
-                  symbolTable(NULL),stringTable(NULL),
-*/
+                  rawSections(NULL),
                   stringTables(NULL),symbolTables(NULL),relocationTables(NULL),numberOfPrograms(0),              
                   numberOfSections(0),
                   numberOfStringTables(0),sectionNameStrTabIdx(0),numberOfSymbolTables(0),numberOfRelocationTables(0),
+                  numberOfDwarfSections(0),
                   numberOfFunctions(0),numberOfBlocks(0),numberOfMemoryOps(0),numberOfFloatPOps(0) {}
 
     ~ElfFile() { }
@@ -82,34 +77,27 @@ rawSections(NULL),
     void print();
     void displaySymbols();
 
-//    RawSection* findRawSection(uint64_t addr);
+    RawSection* findRawSection(uint64_t addr);
 
     char* getElfFileName() { return elfFileName; }
-
-    uint32_t      getNumberOfPrograms() { return numberOfPrograms; }
-    uint32_t      getNumberOfSections() { return numberOfSections; }
 
     FileHeader*  getFileHeader() { return fileHeader; }
     ProgramHeader* getProgramHeader(uint32_t idx) { return programHeaders[idx]; }
     SectionHeader* getSectionHeader(uint32_t idx) { return sectionHeaders[idx]; }
-
-    uint16_t getSectionNameStrTabIdx() { return sectionNameStrTabIdx; }
-    uint16_t setSectionNameStrTabIdx();
-
-    uint32_t getNumberOfStringTables() { return numberOfStringTables; }
-    uint32_t getNumberOfSymbolTables() { return numberOfSymbolTables; }
-    uint32_t getNumberOfRelocationTables() { return numberOfRelocationTables; }
-
+    RawSection* getRawSection(uint32_t idx) { return rawSections[idx]; }
     StringTable* getStringTable(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfStringTables); return stringTables[idx]; }
     SymbolTable* getSymbolTable(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfSymbolTables); return symbolTables[idx]; }
     RelocationTable* getRelocationTable(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfRelocationTables); return relocationTables[idx]; }
+    DwarfSection* getDwarfSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfDwarfSections); return dwarfSections[idx]; }
 
-    StringTable* findStringTableWithSectionIdx(uint32_t idx);
-    SymbolTable* findSymbolTableWithSectionIdx(uint32_t idx);
-    RelocationTable* findRelocationTableWithSectionIdx(uint32_t idx);
+    uint16_t getSectionNameStrTabIdx() { return sectionNameStrTabIdx; }
 
-//    RawSection* getRawSection(uint32_t idx) { return rawSections[idx]; }
-//    LineInfoTable* getLineInfoTable(uint32_t idx);
+    uint32_t getNumberOfPrograms() { return numberOfPrograms; }
+    uint32_t getNumberOfSections() { return numberOfSections; }
+    uint32_t getNumberOfStringTables() { return numberOfStringTables; }
+    uint32_t getNumberOfSymbolTables() { return numberOfSymbolTables; }
+    uint32_t getNumberOfRelocationTables() { return numberOfRelocationTables; }
+    uint32_t getNumberOfDwarfSections() { return numberOfDwarfSections; }
 
     uint32_t getNumberOfFunctions() { return numberOfFunctions; }
     uint32_t getNumberOfBlocks()    { return numberOfBlocks; }
@@ -121,10 +109,8 @@ rawSections(NULL),
 
     uint32_t getFileSize();
 
-//    RawSection* getLoaderSection();
     uint64_t getDataSectionVAddr();
     uint32_t getDataSectionSize();
-//    RawSection* getBSSSection();
     uint64_t getBSSSectionVAddr();
     uint64_t getTextSectionVAddr();
 
