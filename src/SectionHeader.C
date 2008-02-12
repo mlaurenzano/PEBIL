@@ -118,4 +118,11 @@ uint32_t SectionHeader64::read(BinaryInputFile* binaryInputFile){
     return Size__64_bit_Section_Header;
 }
 
+void SectionHeader32::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    binaryOutputFile->copyBytes(charStream(),Size__32_bit_Section_Header,offset);
+}
+
+void SectionHeader64::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    binaryOutputFile->copyBytes(charStream(),Size__64_bit_Section_Header,offset);
+}
 

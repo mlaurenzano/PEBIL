@@ -150,6 +150,7 @@ uint32_t BinaryOutputFile::alreadyWritten(){
 }
 
 void BinaryOutputFile::open(char* fileName) { 
+    PRINT_INFOR("Opening output file %s", fileName);
     outFile = fopen(fileName,"w");
 }
 

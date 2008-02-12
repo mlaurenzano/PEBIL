@@ -38,6 +38,8 @@ public:
     bool hasWriteBit();
     bool hasAllocBit();
     bool hasExecInstrBit();
+    virtual bool hasBitsInFile() { __SHOULD_NOT_ARRIVE; }
+
 
     ElfClassTypes setSectionType();
     ElfClassTypes getSectionType() { return sectionType; }
@@ -45,6 +47,7 @@ public:
     void setSectionNamePtr(char* namePtr) { sectionNamePtr = namePtr; }
     char* getSectionNamePtr() { return sectionNamePtr; }
     const char* getTypeName();
+    virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
 
     char* getRawDataPtr() { return rawDataPtr; }
     uint64_t getRawDataSize() { return GET(sh_size); }
@@ -67,7 +70,10 @@ public:
     SectionHeader32(uint16_t idx) { sizeInBytes = Size__32_bit_Section_Header; index = idx; }
     ~SectionHeader32() {}
     uint32_t read(BinaryInputFile* b);
+    bool hasBitsInFile() { return (GET(sh_type) != SHT_NOBITS); }
     void print();
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    char* charStream() { return (char*)&entry; }
 //    uint32_t instrument(char* buffer,ElfFileGen* xCoffGen,BaseGen* gen);
 };
 
@@ -82,7 +88,10 @@ public:
     SectionHeader64(uint16_t idx) { sizeInBytes = Size__64_bit_Section_Header; index = idx; }
     ~SectionHeader64() {}
     uint32_t read(BinaryInputFile* b);
+    bool hasBitsInFile() { return (GET(sh_type) != SHT_NOBITS); }
     void print();
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    char* charStream() { return (char*)&entry; }
 //    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
 };
 

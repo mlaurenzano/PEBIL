@@ -146,14 +146,6 @@ class BinaryOutputFile;
 class Base {
 protected:
     const static uint32_t invalidOffset = 0xffffffff;
-    static bool isPowerOfTwo(uint32_t n){
-        uint32_t currVal = 1;
-        for (uint32_t i = 0; i < sizeof(uint32_t) * 8; i++){
-            if (n == currVal) return true;
-            currVal *= 2;
-        }
-        return false;
-    }
 
     uint8_t type;
     uint32_t sizeInBytes;
@@ -231,6 +223,8 @@ public:
 };
 
 
+extern bool isPowerOfTwo(uint32_t n);
+extern uint64_t nextAlignAddress(uint64_t addr, uint32_t align);
 extern uint64_t nextAlignAddressHalfWord(uint64_t addr);
 extern uint64_t nextAlignAddressWord(uint64_t addr);
 extern uint64_t nextAlignAddressDouble(uint64_t addr);

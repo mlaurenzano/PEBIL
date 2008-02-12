@@ -207,6 +207,7 @@ int main(int argc,char* argv[]){
 
     elfFile.parse();
     elfFile.briefPrint();
+    elfFile.dump(extension);
 
     TIMER(double t2 = timer();PRINT_INFOR("___timer: Instrumentation Step I parse  : %.2f",t2-t1);t1=t2);
 

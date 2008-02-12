@@ -2,6 +2,33 @@
 
 char* VersionTag::tag = "revision REVISION";
 
+extern bool isPowerOfTwo(uint32_t n){
+    uint32_t currVal = 1;
+    for (uint32_t i = 0; i < sizeof(uint32_t) * 8; i++){
+        if (n == currVal) return true;
+        currVal *= 2;
+    }
+    return false;
+}
+
+
+extern uint64_t nextAlignAddress(uint64_t addr, uint32_t align){
+    if (align == 0 || align == 1){
+        return addr;
+    }
+    ASSERT(isPowerOfTwo(align) && "alignment must be a power of 2 to call this function");
+    if (align == 8){
+        return nextAlignAddressDouble(addr);
+    } else if (align == 4) {
+        return nextAlignAddressWord(addr);
+    } else if (align == 2) {
+        return nextAlignAddressHalfWord(addr);
+    } else {
+        return (addr + (addr % align));
+    }
+}
+
+
 extern uint64_t nextAlignAddressHalfWord(uint64_t addr){
     addr += (addr % 2 ? 2 : 0);
     addr >>= 1;
@@ -20,6 +47,7 @@ extern uint64_t nextAlignAddressDouble(uint64_t addr){
     addr <<= 3;
     return addr;
 }
+
 
 HashCode::HashCode(uint32_t s){
     entry.bits = INVALID_FIELD;

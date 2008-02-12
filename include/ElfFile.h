@@ -20,6 +20,8 @@ private:
     char*        elfFileName;
 
     BinaryInputFile   binaryInputFile;
+    BinaryOutputFile  binaryOutputFile;
+
 
     FileHeader*  fileHeader;
     ProgramHeader**  programHeaders;
@@ -72,6 +74,7 @@ public:
     bool is64Bit() { return is64BitFlag; }
 
     void parse();
+    void dump(char* extension);
 
     void briefPrint();
     void print();

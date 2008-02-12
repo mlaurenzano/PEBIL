@@ -2,6 +2,7 @@
 #define _RawSection_h_
 
 #include <Base.h>
+#include <BinaryFile.h>
 #include <defines/RawSection.d>
 
 class ElfFile;
@@ -19,6 +20,9 @@ public:
 
     uint32_t read(BinaryInputFile* b) {}
     virtual void print() { __SHOULD_NOT_ARRIVE; }
+
+    char* charStream() { return rawDataPtr; }
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { binaryOutputFile->copyBytes(charStream(),getSizeInBytes(),offset); }
 
     char* getFilePointer() { return rawDataPtr; }
     uint16_t getSectionIndex() { return sectionIndex; }

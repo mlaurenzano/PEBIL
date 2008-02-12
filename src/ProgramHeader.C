@@ -51,5 +51,14 @@ bool ProgramHeader::verify(){
             return false;
         }
     }
-
 }
+
+void ProgramHeader32::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    binaryOutputFile->copyBytes(charStream(),Size__32_bit_Program_Header,offset);
+}
+
+void ProgramHeader64::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    binaryOutputFile->copyBytes(charStream(),Size__64_bit_Program_Header,offset);
+}
+
+

@@ -39,6 +39,7 @@ public:
     char* getProgramHeaderTablePtr() { return programHeaderTablePtr; }
     char* getSectionHeaderTablePtr() { return sectionHeaderTablePtr; }
     const char* briefName() { return "FileHeader"; }
+    virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
 };
 
 class FileHeader32 : public FileHeader {
@@ -53,6 +54,9 @@ public:
     ~FileHeader32() {}
     uint32_t read(BinaryInputFile* b);
     void print();
+
+    char* charStream() { return (char*)&entry; }
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 //    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
 };
 
@@ -68,6 +72,9 @@ public:
     ~FileHeader64() {}
     uint32_t read(BinaryInputFile* b);
     void print();
+
+    char* charStream() { return (char*)&entry; }
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 //    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
 };
 

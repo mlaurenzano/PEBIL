@@ -23,6 +23,46 @@ uint32_t readBytes = 0;
 
 #include <BitSet.h>
 
+
+void ElfFile::dump(char* extension){
+    uint32_t currentOffset;
+
+    char fileName[80] = "";
+    sprintf(fileName,"%s.%s", elfFileName, extension);
+
+    PRINT_INFOR("Output file is %s", fileName);
+
+    binaryOutputFile.open(fileName);
+    if(!binaryOutputFile){
+        PRINT_ERROR("The output file can not be opened %s",fileName);
+    }
+
+    currentOffset = ELF_FILE_HEADER_OFFSET;
+    fileHeader->dump(&binaryOutputFile,currentOffset);
+
+    currentOffset = fileHeader->GET(e_phoff);
+    for (uint32_t i = 0; i < numberOfPrograms; i++){
+        programHeaders[i]->dump(&binaryOutputFile,currentOffset);
+        currentOffset += programHeaders[i]->getSizeInBytes();
+    }
+
+    currentOffset = fileHeader->GET(e_shoff);
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        sectionHeaders[i]->dump(&binaryOutputFile,currentOffset);
+        currentOffset += sectionHeaders[i]->getSizeInBytes();
+    }
+
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        currentOffset = sectionHeaders[i]->GET(sh_offset);
+        if (sectionHeaders[i]->hasBitsInFile()){
+            rawSections[i]->dump(&binaryOutputFile,currentOffset);
+        }
+    }
+
+    binaryOutputFile.close();
+
+}
+
 bool ElfFile::verify(){
 
         // enforce constrainst on where PT_INTERP segments fall
@@ -79,6 +119,7 @@ bool ElfFile::verify(){
         return false;
     }
 }
+
 
 /*
 void ElfFile::testBitSet(){
