@@ -16,16 +16,16 @@ BINDIR      = ../bin
 LIBDIR      = ../lib
 
 SRCS        = Base.C ElfFile.C BinaryFile.C FileHeader.C ProgramHeader.C SectionHeader.C \
-              StringTable.C SymbolTable.C RelocationTable.C
+              StringTable.C SymbolTable.C RelocationTable.C main.C
 OBJS        = Base.o ElfFile.o BinaryFile.o FileHeader.o ProgramHeader.o SectionHeader.o \
-              StringTable.o SymbolTable.o RelocationTable.o
+              StringTable.o SymbolTable.o RelocationTable.o main.o
 
 TARGET_BIN  = x86inst
 
 all: $(TARGET_BIN)
 
 $(TARGET_BIN) : $(OBJS)
-	$(CPP) -o $@ main.C $(OBJS) $(EXTRA_LIBS) -I$(INCLUDE)
+	$(CPP) -o $@ $(OBJS) $(EXTRA_LIBS) -I$(INCLUDE)
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< -I$(INCLUDE)

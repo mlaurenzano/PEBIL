@@ -53,12 +53,19 @@ private:
     void readRawSections();
     void initRawSectionFilePointers();
 
+    uint32_t findSectionNameInStrTab(char* name);
     void findFunctions();
     void generateCFGs();
     void findMemoryFloatOps();
     bool verify();
 
+
+
 public:
+    void addToStringTable(StringTable* stTable, char* newSt);
+    void addDataSection(uint64_t size, char* bytes);
+    void addTextSection(uint64_t size, char* bytes);
+    void addSharedLibrary();
 
     ElfFile(char* f): is64BitFlag(false),elfFileName(f),
                   fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
@@ -72,6 +79,8 @@ public:
     ~ElfFile() { }
 
     bool is64Bit() { return is64BitFlag; }
+
+    uint32_t getAddressAlignment(){ if (is64Bit()) { return sizeof(Elf64_Addr); } else { return sizeof(Elf32_Addr); } }
 
     void parse();
     void dump(char* extension);

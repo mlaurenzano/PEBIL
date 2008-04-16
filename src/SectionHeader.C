@@ -119,6 +119,7 @@ uint32_t SectionHeader64::read(BinaryInputFile* binaryInputFile){
 }
 
 void SectionHeader32::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+  //    PRINT_INFOR("dumping section header %d", index);
     binaryOutputFile->copyBytes(charStream(),Size__32_bit_Section_Header,offset);
 }
 

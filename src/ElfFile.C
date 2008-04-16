@@ -23,9 +23,96 @@ uint32_t readBytes = 0;
 
 #include <BitSet.h>
 
+uint32_t ElfFile::findSectionNameInStrTab(char* name){
+    if (!stringTables){
+        return 0;
+    }
+
+    StringTable* st = stringTables[sectionNameStrTabIdx];
+
+    for (uint32_t currByte = 0; currByte < st->getSizeInBytes(); currByte++){
+        char* ptr = (char*)(st->getFilePointer() + currByte);
+        if (strcmp(name,ptr) == 0){
+            PRINT_INFOR("Found section name `%s` at offset %d in string table %d", name, currByte, sectionNameStrTabIdx);
+            return currByte;
+        }
+    }
+
+    return 0;
+}
+
+void ElfFile::addDataSection(uint64_t size, char* bytes){
+    PRINT_INFOR("Adding data section");
+
+    size = nextAlignAddress(size,getAddressAlignment());
+
+    /* this extra section is located after all other existing sections */
+    uint32_t extraSectionIdx = numberOfSections + 1;
+    SectionHeader32* extraSectionHeader = new SectionHeader32(extraSectionIdx);
+    Elf32_Shdr extraEntry;
+
+    /* get the section offset for this extra section */
+    Elf32_Addr extraSectionOffset = sectionHeaders[numberOfSections-1]->GET(sh_offset) +
+            sectionHeaders[numberOfSections-1]->GET(sh_size);
+    extraSectionOffset = (nextAlignAddress(extraSectionOffset,getAddressAlignment()));
+
+    /* initialize the extra section's header */
+    PRINT_INFOR("Adding data section -- idx=%d", extraSectionIdx);
+    extraEntry.sh_name = findSectionNameInStrTab(".data");
+    extraEntry.sh_type = SHT_PROGBITS;
+    extraEntry.sh_flags = 0x3;
+    extraEntry.sh_addr = 0x0;
+    extraEntry.sh_offset = extraSectionOffset;
+    extraEntry.sh_size = size;
+    extraEntry.sh_link = 0;
+    extraEntry.sh_info = 0;
+    extraEntry.sh_addralign = getAddressAlignment();
+    extraEntry.sh_entsize = 0;
+    memcpy(extraSectionHeader->charStream(), (char*)&extraEntry, Size__32_bit_Section_Header);
+    extraSectionHeader->setSectionNamePtr(extraEntry.sh_name + getStringTable(sectionNameStrTabIdx)->getFilePointer());
+    
+    RawSection* extraRawSection = new RawSection(ElfClassTypes_no_type, bytes, size, extraSectionIdx, this);
+
+    /* update the file header to reflect the presence of the new section */
+    Elf32_Ehdr extraFileHeader;
+    FileHeader32* myFileHeader = (FileHeader32*)fileHeader;
+
+    memcpy((char*)&extraFileHeader, myFileHeader->charStream(), Size__32_bit_File_Header);
+    extraFileHeader.e_shoff += size;
+    extraFileHeader.e_shnum += 1;
+    memcpy(myFileHeader->charStream(), (char*)&extraFileHeader, Size__32_bit_File_Header);
+
+    /* add the new section+header to the file */
+    SectionHeader** newScnHdrs = new SectionHeader*[numberOfSections+1];
+    RawSection** newRawScns = new RawSection*[numberOfSections+1];
+
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        newScnHdrs[i] = sectionHeaders[i];
+        newRawScns[i] = rawSections[i];
+    }
+    newScnHdrs[numberOfSections] = extraSectionHeader;
+    newRawScns[numberOfSections] = extraRawSection;
+
+    delete[] sectionHeaders;
+    delete[] rawSections;
+
+    sectionHeaders = newScnHdrs;
+    rawSections = newRawScns; 
+    numberOfSections++;
+    //    briefPrint();
+    PRINT_INFOR("new raw section: %s", rawSections[numberOfSections-1]->charStream());
+}
+
+void ElfFile::addTextSection(uint64_t size, char* bytes){
+}
+
+void ElfFile::addSharedLibrary(){
+}
+
 
 void ElfFile::dump(char* extension){
     uint32_t currentOffset;
+    uint32_t elfFileAlignment = getAddressAlignment();
 
     char fileName[80] = "";
     sprintf(fileName,"%s.%s", elfFileName, extension);
@@ -39,25 +126,31 @@ void ElfFile::dump(char* extension){
 
     currentOffset = ELF_FILE_HEADER_OFFSET;
     fileHeader->dump(&binaryOutputFile,currentOffset);
+    PRINT_INFOR("dumped file header");
 
     currentOffset = fileHeader->GET(e_phoff);
     for (uint32_t i = 0; i < numberOfPrograms; i++){
         programHeaders[i]->dump(&binaryOutputFile,currentOffset);
         currentOffset += programHeaders[i]->getSizeInBytes();
     }
+    PRINT_INFOR("dumped %d program headers", numberOfPrograms);
 
     currentOffset = fileHeader->GET(e_shoff);
     for (uint32_t i = 0; i < numberOfSections; i++){
         sectionHeaders[i]->dump(&binaryOutputFile,currentOffset);
         currentOffset += sectionHeaders[i]->getSizeInBytes();
+	//        PRINT_INFOR("dumped section header[%d]", i);
     }
+    PRINT_INFOR("dumped %d raw sections", numberOfSections);
 
     for (uint32_t i = 0; i < numberOfSections; i++){
         currentOffset = sectionHeaders[i]->GET(sh_offset);
         if (sectionHeaders[i]->hasBitsInFile()){
             rawSections[i]->dump(&binaryOutputFile,currentOffset);
         }
+	//        PRINT_INFOR("dumped raw section[%d]", i);
     }
+    PRINT_INFOR("dumped %d section headers", numberOfSections);
 
     binaryOutputFile.close();
 
@@ -288,7 +381,8 @@ void ElfFile::initRawSectionFilePointers(){
     for (uint32_t i = 1; i < numberOfSections; i++){
         ASSERT(sectionHeaders[i]->getSectionNamePtr() == NULL && "Section Header name shouldn't already be set");
         uint32_t sectionNameOffset = sectionHeaders[i]->GET(sh_name);
-        ASSERT(sectionNameOffset && "Section header name should be in string table");
+//        ASSERT(sectionNameOffset < stringTables[sectionNameStrTabIdx]->getSizeInBytes() && "Section header name idx 
+//should be in string table");
         sectionHeaders[i]->setSectionNamePtr(stringTablePtr + sectionNameOffset);
     }
 

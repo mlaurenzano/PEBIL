@@ -223,6 +223,7 @@ public:
 };
 
 
+extern bool isAddressAligned(uint64_t addr, uint32_t align);
 extern bool isPowerOfTwo(uint32_t n);
 extern uint64_t nextAlignAddress(uint64_t addr, uint32_t align);
 extern uint64_t nextAlignAddressHalfWord(uint64_t addr);

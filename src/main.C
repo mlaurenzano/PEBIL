@@ -183,15 +183,6 @@ int main(int argc,char* argv[]){
 
     ASSERT((instType == simulation_inst_type) || (instType == simucntr_inst_type) || (phaseNo == 0));
 
-/*
-    if (sizeof(PowerPCInstruction) != 4){
-        PRINT_ERROR("Size of instruction has to be 4 bytes");
-    }
-
-    if (sizeof(HashCode) != 8){
-        PRINT_ERROR("Development error; The size of hashCode has to be 8 bytes");
-    }
-*/
     if(!libPath){
         libPath = getenv("X86INST_LIB_HOME");
         if (!libPath){
@@ -207,90 +198,29 @@ int main(int argc,char* argv[]){
 
     elfFile.parse();
     elfFile.briefPrint();
-    elfFile.dump(extension);
 
     TIMER(double t2 = timer();PRINT_INFOR("___timer: Instrumentation Step I parse  : %.2f",t2-t1);t1=t2);
-
-    DEBUG_MORE(
-//        xcoffFile.displaySymbols();
- //       xcoffFile.print();
-    );
-
-    if(extdPrnt){
-//        xcoffFile.setLineInfoFinder();
-    }
-
     TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step II Line  : %.2f",t2-t1);t1=t2);
-
-//    DEBUG(xcoffFile.testBitSet(););
-    if(extdPrnt){
-//        xcoffFile.findLoops();
-    }
-
     TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step III Loop : %.2f",t2-t1);t1=t2);
 
-//    XCoffFileGen* xcoffFileGen = NULL;
     if (instType == identical_inst_type){
-
-//        xcoffFileGen = new IdenticalInstrumentor(&xcoffFile,extension);
-
+        elfFile.dump(extension);
     } else if (instType == data_extender_type){
+        char* fakeSect = "I'm in your elf executable, stealin' your bytes.";
+        PRINT_INFOR("%s", fakeSect);
 
-//        xcoffFileGen = new DataExtender(&xcoffFile,extension);
+        elfFile.addDataSection(96,fakeSect);
+        elfFile.briefPrint();
+        elfFile.dump(extension);
 
-    } else if (instType == frequency_inst_type){
-
-//        xcoffFileGen = new BasicBlockCounter(&xcoffFile,extension,(uint32_t)phaseNo);
-
-    } else if (instType == bbtrace_inst_type){
-
-//        xcoffFileGen = new BasicBlockTracer(&xcoffFile,extension,(uint32_t)phaseNo);
-
-    } else if (instType == countblocks_inst_type){
-
-//        xcoffFileGen = new CountAllBlocks(&xcoffFile,extension,(uint32_t)phaseNo);
-
-    } else if (instType == simulation_inst_type){
-
-//        xcoffFileGen = new CacheSimulator(&xcoffFile,extension,(uint32_t)phaseNo,inptName,false,loopIncl);
-
-    } else if (instType == simucntr_inst_type){
-
-//        xcoffFileGen = new CacheSimulator(&xcoffFile,extension,(uint32_t)phaseNo,inptName,true,loopIncl);
-
+        delete[] fakeSect;
     } else {
-        PRINT_ERROR("Error : unknown instrumentation type, so quiting");
+        PRINT_ERROR("Error : invalid instrumentation type");
     }
-
-    if((instType == frequency_inst_type) ||
-       (instType == simulation_inst_type) ||
-       (instType == simucntr_inst_type)){
-//        ((CommonMethods*)xcoffFileGen)->setExtendedPrint(extdPrnt);
-    }
-
-//    xcoffFileGen->setPathToInstLib(libPath);
-
-/*
-    PRINT_INFOR("******** Function  Count  %d          ********",xcoffFileGen->getNumberOfAllFunctions());
-    PRINT_INFOR("******** Basic Block Cou  %d          ********",xcoffFileGen->getNumberOfAllBlocks());
-    PRINT_INFOR("******** Memory Op Count  %d          ********",xcoffFileGen->getNumberOfAllMemoryOps());
-    PRINT_INFOR("******** FloatP Op Count  %d          ********",xcoffFileGen->getNumberOfAllFloatPOps());
-    PRINT_INFOR("******** Instrument Point %d          ********",xcoffFileGen->getNumberOfInstPoints(NULL));
-*/
-
-//    xcoffFileGen->instrument();
 
     TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step IV Instr : %.2f",t2-t1);t1=t2);
 
-//    PRINT_INFOR("******** Original File Si %d          ********",xcoffFile.getFileSize());
-//    PRINT_INFOR("******** Instrumented Siz %d          ********",xcoffFileGen->getInstrumentedFileSize());
-
-//    uint32_t written = xcoffFileGen->dump();
-//    PRINT_INFOR("******** Output File Siz  %d          ********",written);
-
     TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step V Dump   : %.2f",t2-t1);t1=t2);
-
-//    xcoffFileGen->verify(written);
 
     PRINT_INFOR("******** Instrumentation Successfull ********");
 
