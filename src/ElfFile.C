@@ -9,7 +9,6 @@
 #include <RelocationTable.h>
 #include <DwarfSection.h>
 
-#include <arc-dis.h>
 #include <dis-asm.h>
 
 

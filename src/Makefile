@@ -9,9 +9,13 @@ CPP         = $(GNU_CPP)
 EXTRA_CFLGS =
 AR          = ar ruv
 RANLIB      = ranlib
-#EXTRA_LIBS  = -lopcodes
+
+## batman
 EXTRA_LIBS  = /scratch/slocal/michaell/downloads/binutils-2.12.90/opcodes/libopcodes.a
 EXTRA_INC   = -I/scratch/slocal/michaell/downloads/binutils-2.12.90/opcodes
+## ranger
+EXTRA_LIBS  = /share/apps/binutils-amd/070220/lib64/libopcodes.a
+EXTRA_INC   = -I/share/apps/binutils-amd/070220/include/
 
 INCLUDE     = ../include
 SRCDIR      = ../src
