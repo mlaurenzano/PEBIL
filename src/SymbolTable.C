@@ -145,7 +145,7 @@ uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
     binaryInputFile->setInPointer(getFilePointer());
     setFileOffset(binaryInputFile->currentOffset());
 
-    PRINT_INFOR("Reading %d symbols for symtable %d", numberOfSymbols, index);
+    //    PRINT_INFOR("Reading %d symbols for symtable %d", numberOfSymbols, index);
 
     for (uint32_t i = 0; i < numberOfSymbols; i++){
         if (elfFile->is64Bit()){

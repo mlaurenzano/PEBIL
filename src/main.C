@@ -24,7 +24,8 @@ void printBriefOptions(){
 void printUsage(char* argv[],bool shouldExt=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : %s\n",argv[0]);
-	fprintf(stderr,"\t--typ (ide|dat|bbt|cnt|jbb|sim|csc)\n");
+        //fprintf(stderr,"\t--typ (ide|dat|bbt|cnt|jbb|sim|csc)\n");
+        fprintf(stderr,"\t--typ (ide|dat|dis)\n");
 	fprintf(stderr,"\t--app <executable_path>\n");
 	fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
 	fprintf(stderr,"\t[--lib <shared_lib_topdir>]\n");
@@ -49,6 +50,7 @@ typedef enum {
     bbtrace_inst_type,
     countblocks_inst_type,
     data_extender_type,
+    disassembler_type,
     Total_InstrumentationType
 } InstrumentationType;
 
@@ -88,6 +90,9 @@ int main(int argc,char* argv[]){
                 extension = "ideinst";
             } else if (!strcmp(argv[i],"dat")){
                 instType = data_extender_type;
+                extension = "datinst";
+            } else if (!strcmp(argv[i],"dis")){
+                instType = disassembler_type;
                 extension = "datinst";
             } else if (!strcmp(argv[i],"jbb")){
                 instType = frequency_inst_type;
@@ -210,10 +215,12 @@ int main(int argc,char* argv[]){
         PRINT_INFOR("%s", fakeSect);
 
         elfFile.addDataSection(96,fakeSect);
-        elfFile.briefPrint();
+        //        elfFile.briefPrint();
         elfFile.dump(extension);
 
         delete[] fakeSect;
+    } else if (instType == disassembler_type){
+        elfFile.printDisassembledCode_libopcodes();
     } else {
         PRINT_ERROR("Error : invalid instrumentation type");
     }

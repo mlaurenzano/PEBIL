@@ -12,9 +12,9 @@ uint16_t RelocationTable::setSymbolTable(){
     ASSERT(elfFile->getRawSection(sh->GET(sh_link)));
     
     RawSection* sy = elfFile->getRawSection(sh->GET(sh_link));
-    sh->print();
-    print();
-    sy->print();
+    //    sh->print();
+    //print();
+    //sy->print();
     ASSERT(sy->getType() == ElfClassTypes_symbol_table);
     symbolTable = (SymbolTable*)sy;
     return symbolTable->getSectionIndex();
@@ -83,7 +83,7 @@ uint32_t RelocationAddend64::read(BinaryInputFile* binaryInputFile){
 uint32_t RelocationTable::read(BinaryInputFile* binaryInputFile){
     binaryInputFile->setInPointer(getFilePointer());
 
-    PRINT_INFOR("Reading %d relocations for reltable %d", numberOfRelocations, index);
+    //    PRINT_INFOR("Reading %d relocations for reltable %d", numberOfRelocations, index);
 
     for (uint32_t i = 0; i < numberOfRelocations; i++){
         if (elfFile->is64Bit() && type == ElfRelType_rel){

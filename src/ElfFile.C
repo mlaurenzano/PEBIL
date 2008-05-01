@@ -9,6 +9,10 @@
 #include <RelocationTable.h>
 #include <DwarfSection.h>
 
+#include <arc-dis.h>
+#include <dis-asm.h>
+
+
 TIMER(
 	extern double cfg_s1;
 	extern double cfg_s2;
@@ -22,6 +26,58 @@ uint32_t readBytes = 0;
 );
 
 #include <BitSet.h>
+
+int x86inst_intern_read_mem_func(bfd_vma memaddr, bfd_byte *myaddr, uint32_t length, struct disassemble_info *info){
+    memcpy (myaddr, info->buffer + (memaddr - info->buffer_vma), length);
+    return 0;
+}
+
+void set_disassemble_info_x86inst(struct disassemble_info* dis_info, char* options){
+    (*dis_info).mach = bfd_mach_i386_i386;
+    (*dis_info).arch = bfd_arch_i386;
+    (*dis_info).endian = BFD_ENDIAN_LITTLE;
+    (*dis_info).display_endian = BFD_ENDIAN_LITTLE;
+    (*dis_info).buffer_length = 2^31;
+    (*dis_info).read_memory_func = x86inst_intern_read_mem_func;
+    (*dis_info).disassembler_options = options;
+}
+
+void no_print_fprintf(char* msg){
+}
+
+void ElfFile::printDisassembledCode_libopcodes(){
+    struct disassemble_info disInfo;
+    INIT_DISASSEMBLE_INFO(disInfo, stdout, fprintf);
+    if (is64Bit()){
+        set_disassemble_info_x86inst(&disInfo, "x86-64");
+    } else {
+        set_disassemble_info_x86inst(&disInfo, "i386");
+    }
+
+    PRINT_INFOR("disassemble_info size = %d, priv points to %x", sizeof(struct disassemble_info), disInfo.private_data);
+
+    uint32_t currByte = 0;
+    uint32_t instructionLength = 0;
+    uint32_t instructionCount = 0;
+    bfd_vma instructionAddress;
+
+    for (uint32_t i = 1; i < numberOfSections; i++){
+        if (sectionHeaders[i]->hasExecInstrBit()){
+            PRINT_INFOR("\tSection %d is a text section with name %s", i, sectionHeaders[i]->getSectionNamePtr());
+            sectionHeaders[i]->print();
+            instructionCount = 0;
+
+            for (currByte = 0; currByte < sectionHeaders[i]->GET(sh_size); currByte += instructionLength, instructionCount++){
+                instructionAddress = (bfd_vma)(rawSections[i]->charStream() + currByte);
+                instructionLength = print_insn_i386(instructionAddress, &disInfo);
+                fprintf(stdout, "\n");
+            }
+            PRINT_INFOR("Found %d instructions (%d bytes) in section %d", instructionCount, currByte, i);
+
+        }
+    }
+
+}
 
 uint32_t ElfFile::findSectionNameInStrTab(char* name){
     if (!stringTables){
@@ -42,8 +98,6 @@ uint32_t ElfFile::findSectionNameInStrTab(char* name){
 }
 
 void ElfFile::addDataSection(uint64_t size, char* bytes){
-    PRINT_INFOR("Adding data section");
-
     size = nextAlignAddress(size,getAddressAlignment());
 
     /* this extra section is located after all other existing sections */
@@ -305,7 +359,7 @@ void ElfFile::readProgramHeaders(){
     ASSERT(programHeaders);
 
     binaryInputFile.setInPointer(fileHeader->getProgramHeaderTablePtr());
-    PRINT_INFOR("Found %d program header entries, reading at location %#x\n", numberOfPrograms, binaryInputFile.currentOffset());
+    //    PRINT_INFOR("Found %d program header entries, reading at location %#x\n", numberOfPrograms, binaryInputFile.currentOffset());
 
     for (uint32_t i = 0; i < numberOfPrograms; i++){
         if(is64Bit()){
@@ -328,7 +382,7 @@ void ElfFile::readSectionHeaders(){
     ASSERT(sectionHeaders);
 
     binaryInputFile.setInPointer(fileHeader->getSectionHeaderTablePtr());
-    PRINT_INFOR("Found %d section header entries, reading at location %#x\n", numberOfSections, binaryInputFile.currentOffset());
+    //PRINT_INFOR("Found %d section header entries, reading at location %#x\n", numberOfSections, binaryInputFile.currentOffset());
 
         // first read each section header
     for (uint32_t i = 0; i < numberOfSections; i++){
@@ -347,7 +401,7 @@ void ElfFile::readSectionHeaders(){
     }
 
         // determine and set section type for each section header
-    PRINT_INFOR("Setting section types");
+    //PRINT_INFOR("Setting section types");
     for (uint32_t i = 0; i < numberOfSections; i++){
         ElfClassTypes typ = sectionHeaders[i]->setSectionType();
         switch(typ){
@@ -437,7 +491,7 @@ void ElfFile::readRawSections(){
         rawSections[i]->read(&binaryInputFile);
     }
 
-    PRINT_INFOR("Found sections: %d %d %d %d", numberOfStringTables, numberOfSymbolTables, numberOfRelocationTables, numberOfDwarfSections);
+    //    PRINT_INFOR("Found sections: %d %d %d %d", numberOfStringTables, numberOfSymbolTables, numberOfRelocationTables, numberOfDwarfSections);
 }
 
 void ElfFile::briefPrint() 

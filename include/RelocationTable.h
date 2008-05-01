@@ -98,7 +98,7 @@ public:
         sizeInBytes = size;
         uint32_t relocationSize;
         uint32_t typ = elfFile->getSectionHeader(sectionIndex)->GET(sh_type);
-        PRINT_INFOR("type is %d for section %d", type, index);
+        //        PRINT_INFOR("type is %d for section %d", type, index);
         ASSERT((typ == SHT_REL || typ == SHT_RELA) && "Section header type field must be relocation");
 
 
