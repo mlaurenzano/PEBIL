@@ -32,7 +32,8 @@ extern "C" {
 #endif
 
 #include <stdio.h>
-#include "bfd.h"
+#include <ansidecl.h>
+#include <stdint.h>
 
 typedef int (*fprintf_ftype) PARAMS((PTR, const char*, ...));
 
@@ -46,6 +47,67 @@ enum dis_insn_type {
   dis_dref,			/* Data reference instruction */
   dis_dref2			/* Two data references in instruction */
 };
+
+
+    //*********************************************************
+    //        extracted from bfd.h
+    // ********************************************************
+
+    // 64 bit
+#define sprintf_vma(s,x) sprintf (s, "%016lx", x)
+#define fprintf_vma(f,x) fprintf (f, "%016lx", x)
+
+    /*
+#define _bfd_int64_low(x) ((unsigned long) (((x) & 0xffffffff)))
+#define _bfd_int64_high(x) ((unsigned long) (((x) >> 32) & 0xffffffff))
+#define fprintf_vma(s,x) \
+  fprintf ((s), "%08lx%08lx", _bfd_int64_high (x), _bfd_int64_low (x))
+#define sprintf_vma(s,x) \
+  sprintf ((s), "%08lx%08lx", _bfd_int64_high (x), _bfd_int64_low (x))
+    */
+
+enum binary_flavour
+{
+    binary_target_unknown_flavour,
+    binary_target_aout_flavour,
+    binary_target_coff_flavour,
+    binary_target_ecoff_flavour,
+    binary_target_xcoff_flavour,
+    binary_target_elf_flavour,
+    binary_target_ieee_flavour,
+    binary_target_nlm_flavour,
+    binary_target_oasys_flavour,
+    binary_target_tekhex_flavour,
+    binary_target_srec_flavour,
+    binary_target_ihex_flavour,
+    binary_target_som_flavour,
+    binary_target_os9k_flavour,
+    binary_target_versados_flavour,
+    binary_target_msdos_flavour,
+    binary_target_ovax_flavour,
+    binary_target_evax_flavour,
+    binary_target_mmo_flavour
+};
+
+
+    /* Extracted from archures.c.  */
+enum mach_architecture
+{
+    mach_arch_unknown,   /* File arch not known.  */
+    mach_arch_obscure,   /* Arch known, not one of these.  */
+    mach_arch_i386,      /* Intel 386 */
+#define mach_i386_i386 0
+#define mach_i386_i8086 1
+#define mach_i386_i386_intel_syntax 2
+#define mach_x86_64 3
+#define mach_x86_64_intel_syntax 4
+};
+
+enum byte_endian { BYTE_ENDIAN_BIG, BYTE_ENDIAN_LITTLE, BYTE_ENDIAN_UNKNOWN };
+
+    //*********************************************************************
+
+
 
 /* This struct is passed into the instruction decoding routine, 
    and is passed back out into each callback.  The various fields are used
@@ -65,33 +127,19 @@ typedef struct disassemble_info {
   /* Target description.  We could replace this with a pointer to the bfd,
      but that would require one.  There currently isn't any such requirement
      so to avoid introducing one we record these explicitly.  */
-  /* The bfd_flavour.  This can be bfd_target_unknown_flavour.  */
-  enum bfd_flavour flavour;
-  /* The bfd_arch value.  */
-  enum bfd_architecture arch;
-  /* The bfd_mach value.  */
+  /* The binary_flavour.  This can be binary_target_unknown_flavour.  */
+  enum binary_flavour flavour;
+  /* The mach_arch value.  */
+  enum mach_architecture arch;
+  /* The mach_mach value.  */
   unsigned long mach;
   /* Endianness (for bi-endian cpus).  Mono-endian cpus can ignore this.  */
-  enum bfd_endian endian;
+  enum byte_endian endian;
   /* An arch/mach-specific bitmask of selected instruction subsets, mainly
      for processors with run-time-switchable instruction sets.  The default,
      zero, means that there is no constraint.  CGEN-based opcodes ports
      may use ISA_foo masks.  */
   unsigned long insn_sets;
-
-  /* Some targets need information about the current section to accurately
-     display insns.  If this is NULL, the target disassembler function
-     will have to make its best guess.  */
-  asection *section;
-
-  /* An array of pointers to symbols either at the location being disassembled
-     or at the start of the function being disassembled.  The array is sorted
-     so that the first symbol is intended to be the one used.  The others are
-     present for any misc. purposes.  This is not set reliably, but if it is
-     not NULL, it is correct.  */
-  asymbol **symbols;
-  /* Number of symbols in array.  */
-  int num_symbols;
 
   /* For use by the disassembler.
      The top 16 bits are reserved for public use (and are documented here).
@@ -106,7 +154,7 @@ typedef struct disassemble_info {
      INFO is a pointer to this struct.
      Returns an errno value or 0 for success.  */
   int (*read_memory_func)
-    PARAMS ((bfd_vma memaddr, bfd_byte *myaddr, unsigned int length,
+    PARAMS ((uint64_t memaddr, uint8_t *myaddr, unsigned int length,
 	     struct disassemble_info *info));
 
   /* Function which should be called if we get an error that we can't
@@ -114,11 +162,11 @@ typedef struct disassemble_info {
      MEMADDR is the address that we were trying to read.  INFO is a
      pointer to this struct.  */
   void (*memory_error_func)
-    PARAMS ((int status, bfd_vma memaddr, struct disassemble_info *info));
+    PARAMS ((int status, uint64_t memaddr, struct disassemble_info *info));
 
   /* Function called to print ADDR.  */
   void (*print_address_func)
-    PARAMS ((bfd_vma addr, struct disassemble_info *info));
+    PARAMS ((uint64_t addr, struct disassemble_info *info));
 
   /* Function called to determine if there is a symbol at the given ADDR.
      If there is, the function returns 1, otherwise it returns 0.
@@ -128,11 +176,11 @@ typedef struct disassemble_info {
      address, (normally because there is a symbol associated with
      that address), but sometimes we want to mask out the overlay bits.  */
   int (* symbol_at_address_func)
-    PARAMS ((bfd_vma addr, struct disassemble_info * info));
+    PARAMS ((uint64_t addr, struct disassemble_info * info));
 
   /* These are for buffer_read_memory.  */
-  bfd_byte *buffer;
-  bfd_vma buffer_vma;
+  uint8_t *buffer;
+  uint64_t buffer_vma;
   unsigned int buffer_length;
 
   /* This variable may be set by the instruction decoder.  It suggests
@@ -147,7 +195,7 @@ typedef struct disassemble_info {
      00:   00000000 00000000
      with the chunks displayed according to "display_endian". */
   int bytes_per_chunk;
-  enum bfd_endian display_endian;
+  enum byte_endian display_endian;
 
   /* Number of octets per incremented target address 
      Normally one, but some DSPs have byte sizes of 16 or 32 bits.  */
@@ -165,9 +213,9 @@ typedef struct disassemble_info {
 				   a branch takes effect.  (0 = normal) */
   char data_size;		/* Size of data reference in insn, in bytes */
   enum dis_insn_type insn_type;	/* Type of instruction */
-  bfd_vma target;		/* Target address of branch or dref, if known;
+  uint64_t target;		/* Target address of branch or dref, if known;
 				   zero if unknown.  */
-  bfd_vma target2;		/* Second target address for dref2 */
+  uint64_t target2;		/* Second target address for dref2 */
 
   /* Command line options specific to the target disassembler.  */
   char * disassembler_options;
@@ -178,23 +226,12 @@ typedef struct disassemble_info {
 /* Standard disassemblers.  Disassemble one instruction at the given
    target address.  Return number of octets processed.  */
 typedef int (*disassembler_ftype)
-     PARAMS((bfd_vma, disassemble_info *));
+     PARAMS((uint64_t, disassemble_info *));
 
-extern int print_insn_i386		PARAMS ((bfd_vma, disassemble_info *));
-extern int print_insn_i386_att		PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_i386_intel	PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_i386		PARAMS ((uint64_t, disassemble_info *));
+extern int print_insn_i386_att		PARAMS ((uint64_t, disassemble_info*));
+extern int print_insn_i386_intel	PARAMS ((uint64_t, disassemble_info*));
 
-extern disassembler_ftype arc_get_disassembler PARAMS ((void *));
-extern disassembler_ftype cris_get_disassembler PARAMS ((bfd *));
-
-extern void print_arm_disassembler_options PARAMS ((FILE *));
-extern void parse_arm_disassembler_option  PARAMS ((char *));
-extern int  get_arm_regname_num_options    PARAMS ((void));
-extern int  set_arm_regname_option         PARAMS ((int));
-extern int  get_arm_regnames               PARAMS ((int, const char **, const char **, const char ***));
-
-/* Fetch the disassembler for a given BFD, if that support is available.  */
-extern disassembler_ftype disassembler	PARAMS ((bfd *));
 
 /* Document any target specific options available from the disassembler.  */
 extern void disassembler_usage          PARAMS ((FILE *));
@@ -206,31 +243,31 @@ extern void disassembler_usage          PARAMS ((FILE *));
 /* Here is a function which callers may wish to use for read_memory_func.
    It gets bytes from a buffer.  */
 extern int buffer_read_memory
-  PARAMS ((bfd_vma, bfd_byte *, unsigned int, struct disassemble_info *));
+  PARAMS ((uint64_t, uint8_t *, unsigned int, struct disassemble_info *));
 
 /* This function goes with buffer_read_memory.
    It prints a message using info->fprintf_func and info->stream.  */
-extern void perror_memory PARAMS ((int, bfd_vma, struct disassemble_info *));
+extern void perror_memory PARAMS ((int, uint64_t, struct disassemble_info *));
 
 
 /* Just print the address in hex.  This is included for completeness even
    though both GDB and objdump provide their own (to print symbolic
    addresses).  */
 extern void generic_print_address
-  PARAMS ((bfd_vma, struct disassemble_info *));
+  PARAMS ((uint64_t, struct disassemble_info *));
 
 /* Always true.  */
 extern int generic_symbol_at_address
-  PARAMS ((bfd_vma, struct disassemble_info *));
+  PARAMS ((uint64_t, struct disassemble_info *));
 
 /* Macro to initialize a disassemble_info struct.  This should be called
    by all applications creating such a struct.  */
 #define INIT_DISASSEMBLE_INFO(INFO, STREAM, FPRINTF_FUNC) \
-  (INFO).flavour = bfd_target_unknown_flavour, \
-  (INFO).arch = bfd_arch_unknown, \
+  (INFO).flavour = binary_target_unknown_flavour, \
+  (INFO).arch = mach_arch_unknown, \
   (INFO).mach = 0, \
   (INFO).insn_sets = 0, \
-  (INFO).endian = BFD_ENDIAN_UNKNOWN, \
+  (INFO).endian = BYTE_ENDIAN_UNKNOWN, \
   (INFO).octets_per_byte = 1, \
   INIT_DISASSEMBLE_INFO_NO_ARCH(INFO, STREAM, FPRINTF_FUNC)
 
@@ -242,9 +279,6 @@ extern int generic_symbol_at_address
 #define INIT_DISASSEMBLE_INFO_NO_ARCH(INFO, STREAM, FPRINTF_FUNC) \
   (INFO).fprintf_func = (fprintf_ftype)(FPRINTF_FUNC), \
   (INFO).stream = (PTR)(STREAM), \
-  (INFO).section = NULL, \
-  (INFO).symbols = NULL, \
-  (INFO).num_symbols = 0, \
   (INFO).private_data = NULL, \
   (INFO).buffer = NULL, \
   (INFO).buffer_vma = 0, \
@@ -256,7 +290,7 @@ extern int generic_symbol_at_address
   (INFO).flags = 0, \
   (INFO).bytes_per_line = 0, \
   (INFO).bytes_per_chunk = 0, \
-  (INFO).display_endian = BFD_ENDIAN_UNKNOWN, \
+  (INFO).display_endian = BYTE_ENDIAN_UNKNOWN, \
   (INFO).disassembler_options = NULL, \
   (INFO).insn_info_valid = 0
 

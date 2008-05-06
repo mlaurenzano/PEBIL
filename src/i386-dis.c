@@ -39,6 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 //#include "sysdep.h"
 //#include "opintl.h"
 #include <errno.h>
+#include <stdint.h>
 
 #define MAXLEN 20
 
@@ -56,7 +57,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 void
     perror_memory (status, memaddr, info)
      int status;
-     bfd_vma memaddr;
+     uint64_t memaddr;
      struct disassemble_info *info;
 {
     if (status != EIO)
@@ -72,7 +73,7 @@ void
 
 void
 generic_print_address (addr, info)
-     bfd_vma addr;
+     uint64_t addr;
      struct disassemble_info *info;
 {
     char buf[30];
@@ -86,7 +87,7 @@ generic_print_address (addr, info)
 
 int
 generic_symbol_at_address (addr, info)
-     bfd_vma addr ATTRIBUTE_UNUSED;
+     uint64_t addr ATTRIBUTE_UNUSED;
      struct disassemble_info *info ATTRIBUTE_UNUSED;
 {
     return 1;
@@ -96,10 +97,10 @@ generic_symbol_at_address (addr, info)
 
 
 
-static int fetch_data PARAMS ((struct disassemble_info *, bfd_byte *));
+static int fetch_data PARAMS ((struct disassemble_info *, uint8_t *));
 static void ckprefix PARAMS ((void));
 static const char *prefix_name PARAMS ((int, int));
-static int print_insn PARAMS ((bfd_vma, disassemble_info *));
+static int print_insn PARAMS ((uint64_t, disassemble_info *));
 static void dofloat PARAMS ((int));
 static void OP_ST PARAMS ((int, int));
 static void OP_STi  PARAMS ((int, int));
@@ -107,14 +108,14 @@ static int putop PARAMS ((const char *, int));
 static void oappend PARAMS ((const char *));
 static void append_seg PARAMS ((void));
 static void OP_indirE PARAMS ((int, int));
-static void print_operand_value PARAMS ((char *, int, bfd_vma));
+static void print_operand_value PARAMS ((char *, int, uint64_t));
 static void OP_E PARAMS ((int, int));
 static void OP_G PARAMS ((int, int));
-static bfd_vma get64 PARAMS ((void));
-static bfd_signed_vma get32 PARAMS ((void));
-static bfd_signed_vma get32s PARAMS ((void));
+static uint64_t get64 PARAMS ((void));
+static int64_t get32 PARAMS ((void));
+static int64_t get32s PARAMS ((void));
 static int get16 PARAMS ((void));
-static void set_op PARAMS ((bfd_vma, int));
+static void set_op PARAMS ((uint64_t, int));
 static void OP_REG PARAMS ((int, int));
 static void OP_IMREG PARAMS ((int, int));
 static void OP_I PARAMS ((int, int));
@@ -145,9 +146,9 @@ static void BadOp PARAMS ((void));
 
 struct dis_private {
   /* Points to first byte not fetched.  */
-  bfd_byte *max_fetched;
-  bfd_byte the_buffer[MAXLEN];
-  bfd_vma insn_start;
+  uint8_t *max_fetched;
+  uint8_t the_buffer[MAXLEN];
+  uint64_t insn_start;
   int orig_sizeflag;
   jmp_buf bailout;
 };
@@ -210,11 +211,11 @@ static int used_prefixes;
 static int
 fetch_data (info, addr)
      struct disassemble_info *info;
-     bfd_byte *addr;
+     uint8_t *addr;
 {
   int status;
   struct dis_private *priv = (struct dis_private *) info->private_data;
-  bfd_vma start = priv->insn_start + (priv->max_fetched - priv->the_buffer);
+  uint64_t start = priv->insn_start + (priv->max_fetched - priv->the_buffer);
 
   status = (*info->read_memory_func) (start,
 				      priv->max_fetched,
@@ -1867,9 +1868,9 @@ prefix_name (pref, sizeflag)
 
 static char op1out[100], op2out[100], op3out[100];
 static int op_ad, op_index[3];
-static bfd_vma op_address[3];
-static bfd_vma op_riprel[3];
-static bfd_vma start_pc;
+static uint64_t op_address[3];
+static uint64_t op_riprel[3];
+static uint64_t start_pc;
 
 /*
  *   On the 386's of 1988, the maximum length of an instruction is 15 bytes.
@@ -1891,7 +1892,7 @@ static char scale_char;
    disappear, and print_insn_i386 be merged into print_insn.  */
 int
 print_insn_i386_att (pc, info)
-     bfd_vma pc;
+     uint64_t pc;
      disassemble_info *info;
 {
   intel_syntax = 0;
@@ -1901,7 +1902,7 @@ print_insn_i386_att (pc, info)
 
 int
 print_insn_i386_intel (pc, info)
-     bfd_vma pc;
+     uint64_t pc;
      disassemble_info *info;
 {
   intel_syntax = 1;
@@ -1911,7 +1912,7 @@ print_insn_i386_intel (pc, info)
 
 int
 print_insn_i386 (pc, info)
-     bfd_vma pc;
+     uint64_t pc;
      disassemble_info *info;
 {
   intel_syntax = -1;
@@ -1921,7 +1922,7 @@ print_insn_i386 (pc, info)
 
 static int
 print_insn (pc, info)
-     bfd_vma pc;
+     uint64_t pc;
      disassemble_info *info;
 {
   const struct dis386 *dp;
@@ -1934,19 +1935,19 @@ print_insn (pc, info)
   const char *p;
   struct dis_private priv;
 
-  mode_64bit = (info->mach == bfd_mach_x86_64_intel_syntax
-		|| info->mach == bfd_mach_x86_64);
+  mode_64bit = (info->mach == mach_x86_64_intel_syntax
+		|| info->mach == mach_x86_64);
 
   if (intel_syntax == -1)
-    intel_syntax = (info->mach == bfd_mach_i386_i386_intel_syntax
-		    || info->mach == bfd_mach_x86_64_intel_syntax);
+    intel_syntax = (info->mach == mach_i386_i386_intel_syntax
+		    || info->mach == mach_x86_64_intel_syntax);
 
-  if (info->mach == bfd_mach_i386_i386
-      || info->mach == bfd_mach_x86_64
-      || info->mach == bfd_mach_i386_i386_intel_syntax
-      || info->mach == bfd_mach_x86_64_intel_syntax)
+  if (info->mach == mach_i386_i386
+      || info->mach == mach_x86_64
+      || info->mach == mach_i386_i386_intel_syntax
+      || info->mach == mach_x86_64_intel_syntax)
     priv.orig_sizeflag = AFLAG | DFLAG;
-  else if (info->mach == bfd_mach_i386_i8086)
+  else if (info->mach == mach_i386_i8086)
     priv.orig_sizeflag = 0;
   else
     abort ();
@@ -2276,7 +2277,7 @@ print_insn (pc, info)
   if (*first)
     {
       if (op_index[0] != -1 && !op_riprel[0])
-	(*info->print_address_func) ((bfd_vma) op_address[op_index[0]], info);
+	(*info->print_address_func) ((uint64_t) op_address[op_index[0]], info);
       else
 	(*info->fprintf_func) (info->stream, "%s", first);
       needcomma = 1;
@@ -2286,7 +2287,7 @@ print_insn (pc, info)
       if (needcomma)
 	(*info->fprintf_func) (info->stream, ",");
       if (op_index[1] != -1 && !op_riprel[1])
-	(*info->print_address_func) ((bfd_vma) op_address[op_index[1]], info);
+	(*info->print_address_func) ((uint64_t) op_address[op_index[1]], info);
       else
 	(*info->fprintf_func) (info->stream, "%s", second);
       needcomma = 1;
@@ -2296,7 +2297,7 @@ print_insn (pc, info)
       if (needcomma)
 	(*info->fprintf_func) (info->stream, ",");
       if (op_index[2] != -1 && !op_riprel[2])
-	(*info->print_address_func) ((bfd_vma) op_address[op_index[2]], info);
+	(*info->print_address_func) ((uint64_t) op_address[op_index[2]], info);
       else
 	(*info->fprintf_func) (info->stream, "%s", third);
     }
@@ -2304,7 +2305,7 @@ print_insn (pc, info)
     if (op_index[i] != -1 && op_riprel[i])
       {
 	(*info->fprintf_func) (info->stream, "        # ");
-	(*info->print_address_func) ((bfd_vma) (start_pc + codep - start_codep
+	(*info->print_address_func) ((uint64_t) (start_pc + codep - start_codep
 						+ op_address[op_index[i]]), info);
       }
   return codep - priv.the_buffer;
@@ -2948,7 +2949,7 @@ static void
 print_operand_value (buf, hex, disp)
   char *buf;
   int hex;
-  bfd_vma disp;
+  uint64_t disp;
 {
   if (mode_64bit)
     {
@@ -2964,7 +2965,7 @@ print_operand_value (buf, hex, disp)
 	}
       else
 	{
-	  bfd_signed_vma v = disp;
+	  int64_t v = disp;
 	  char tmp[30];
 	  int i;
 	  if (v < 0)
@@ -3009,7 +3010,7 @@ OP_E (bytemode, sizeflag)
      int bytemode;
      int sizeflag;
 {
-  bfd_vma disp;
+  uint64_t disp;
   int add = 0;
   int riprel = 0;
   USED_REX (REX_EXTZ);
@@ -3214,7 +3215,7 @@ OP_E (bytemode, sizeflag)
 		/* Don't print zero displacements.  */
                 if (disp != 0)
                   {
-		    if ((bfd_signed_vma) disp > 0)
+		    if ((int64_t) disp > 0)
 		      {
 			*obufp++ = '+';
 			*obufp = '\0';
@@ -3331,10 +3332,10 @@ OP_G (bytemode, sizeflag)
     }
 }
 
-static bfd_vma
+static uint64_t
 get64 ()
 {
-  bfd_vma x;
+  uint64_t x;
 #ifdef BFD64
   unsigned int a;
   unsigned int b;
@@ -3348,7 +3349,7 @@ get64 ()
   b |= (*codep++ & 0xff) << 8;
   b |= (*codep++ & 0xff) << 16;
   b |= (*codep++ & 0xff) << 24;
-  x = a + ((bfd_vma) b << 32);
+  x = a + ((uint64_t) b << 32);
 #else
   abort ();
   x = 0;
@@ -3356,31 +3357,31 @@ get64 ()
   return x;
 }
 
-static bfd_signed_vma
+static int64_t
 get32 ()
 {
-  bfd_signed_vma x = 0;
+  int64_t x = 0;
 
   FETCH_DATA (the_info, codep + 4);
-  x = *codep++ & (bfd_signed_vma) 0xff;
-  x |= (*codep++ & (bfd_signed_vma) 0xff) << 8;
-  x |= (*codep++ & (bfd_signed_vma) 0xff) << 16;
-  x |= (*codep++ & (bfd_signed_vma) 0xff) << 24;
+  x = *codep++ & (int64_t) 0xff;
+  x |= (*codep++ & (int64_t) 0xff) << 8;
+  x |= (*codep++ & (int64_t) 0xff) << 16;
+  x |= (*codep++ & (int64_t) 0xff) << 24;
   return x;
 }
 
-static bfd_signed_vma
+static int64_t
 get32s ()
 {
-  bfd_signed_vma x = 0;
+  int64_t x = 0;
 
   FETCH_DATA (the_info, codep + 4);
-  x = *codep++ & (bfd_signed_vma) 0xff;
-  x |= (*codep++ & (bfd_signed_vma) 0xff) << 8;
-  x |= (*codep++ & (bfd_signed_vma) 0xff) << 16;
-  x |= (*codep++ & (bfd_signed_vma) 0xff) << 24;
+  x = *codep++ & (int64_t) 0xff;
+  x |= (*codep++ & (int64_t) 0xff) << 8;
+  x |= (*codep++ & (int64_t) 0xff) << 16;
+  x |= (*codep++ & (int64_t) 0xff) << 24;
 
-  x = (x ^ ((bfd_signed_vma) 1 << 31)) - ((bfd_signed_vma) 1 << 31);
+  x = (x ^ ((int64_t) 1 << 31)) - ((int64_t) 1 << 31);
 
   return x;
 }
@@ -3398,7 +3399,7 @@ get16 ()
 
 static void
 set_op (op, riprel)
-     bfd_vma op;
+     uint64_t op;
      int riprel;
 {
   op_index[op_ad] = op_ad;
@@ -3531,8 +3532,8 @@ OP_I (bytemode, sizeflag)
      int bytemode;
      int sizeflag;
 {
-  bfd_signed_vma op;
-  bfd_signed_vma mask = -1;
+  int64_t op;
+  int64_t mask = -1;
 
   switch (bytemode)
     {
@@ -3585,8 +3586,8 @@ OP_I64 (bytemode, sizeflag)
      int bytemode;
      int sizeflag;
 {
-  bfd_signed_vma op;
-  bfd_signed_vma mask = -1;
+  int64_t op;
+  int64_t mask = -1;
 
   if (!mode_64bit)
     {
@@ -3638,8 +3639,8 @@ OP_sI (bytemode, sizeflag)
      int bytemode;
      int sizeflag;
 {
-  bfd_signed_vma op;
-  bfd_signed_vma mask = -1;
+  int64_t op;
+  int64_t mask = -1;
 
   switch (bytemode)
     {
@@ -3689,8 +3690,8 @@ OP_J (bytemode, sizeflag)
      int bytemode;
      int sizeflag;
 {
-  bfd_vma disp;
-  bfd_vma mask = -1;
+  uint64_t disp;
+  uint64_t mask = -1;
 
   switch (bytemode)
     {
@@ -3760,7 +3761,7 @@ OP_OFF (bytemode, sizeflag)
      int bytemode ATTRIBUTE_UNUSED;
      int sizeflag;
 {
-  bfd_vma off;
+  uint64_t off;
 
   append_seg ();
 
@@ -3787,7 +3788,7 @@ OP_OFF64 (bytemode, sizeflag)
      int bytemode ATTRIBUTE_UNUSED;
      int sizeflag ATTRIBUTE_UNUSED;
 {
-  bfd_vma off;
+  uint64_t off;
 
   if (!mode_64bit)
     {

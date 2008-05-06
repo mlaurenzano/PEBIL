@@ -25,23 +25,20 @@ uint32_t readBytes = 0;
 
 #include <BitSet.h>
 
-int x86inst_intern_read_mem_func(bfd_vma memaddr, bfd_byte *myaddr, uint32_t length, struct disassemble_info *info){
+int x86inst_intern_read_mem_func(uint64_t memaddr, uint8_t *myaddr, uint32_t length, struct disassemble_info *info){
     memcpy (myaddr, info->buffer + (memaddr - info->buffer_vma), length);
     return 0;
 }
 
 void set_disassemble_info_x86inst(struct disassemble_info* dis_info, char* options){
-    (*dis_info).flavour = bfd_target_unknown_flavour;
-    (*dis_info).arch = bfd_arch_i386;
-    (*dis_info).mach = bfd_mach_i386_i386;
+    (*dis_info).flavour = binary_target_unknown_flavour;
+    (*dis_info).arch = mach_arch_i386;
+    (*dis_info).mach = mach_i386_i386;
     (*dis_info).insn_sets = 0;
-    (*dis_info).endian = BFD_ENDIAN_LITTLE;
+    (*dis_info).endian = BYTE_ENDIAN_LITTLE;
     (*dis_info).octets_per_byte = 1;
     (*dis_info).fprintf_func = (fprintf_ftype)(fprintf);
     (*dis_info).stream = (PTR)(stdout);
-    (*dis_info).section = NULL;
-    (*dis_info).symbols = NULL;
-    (*dis_info).num_symbols = 0;
     (*dis_info).private_data = NULL;
     (*dis_info).buffer = NULL;
     (*dis_info).buffer_vma = 0;
@@ -53,7 +50,7 @@ void set_disassemble_info_x86inst(struct disassemble_info* dis_info, char* optio
     (*dis_info).flags = 0;
     (*dis_info).bytes_per_line = 0;
     (*dis_info).bytes_per_chunk = 0;
-    (*dis_info).display_endian = BFD_ENDIAN_LITTLE;
+    (*dis_info).display_endian = BYTE_ENDIAN_LITTLE;
     (*dis_info).disassembler_options = options;
     (*dis_info).insn_info_valid = 0;
 }
@@ -74,7 +71,7 @@ void ElfFile::printDisassembledCode_libopcodes(){
     uint32_t currByte = 0;
     uint32_t instructionLength = 0;
     uint32_t instructionCount = 0;
-    bfd_vma instructionAddress;
+    uint64_t instructionAddress;
 
     for (uint32_t i = 1; i < numberOfSections; i++){
         if (sectionHeaders[i]->hasExecInstrBit()){
@@ -83,7 +80,7 @@ void ElfFile::printDisassembledCode_libopcodes(){
             instructionCount = 0;
 
             for (currByte = 0; currByte < sectionHeaders[i]->GET(sh_size); currByte += instructionLength, instructionCount++){
-                instructionAddress = (bfd_vma)(rawSections[i]->charStream() + currByte);
+                instructionAddress = (uint64_t)(rawSections[i]->charStream() + currByte);
                 instructionLength = print_insn_i386(instructionAddress, &disInfo);
                 fprintf(stdout, "\n");
             }
