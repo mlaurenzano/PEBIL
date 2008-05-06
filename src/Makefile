@@ -1,21 +1,24 @@
 #DBG         = -g
 OPT         = -O3
-#NATIVE_CPP  = CC
 #CFLAGS      = -bmaxdata:0x80000000 $(DBG) $(OPT)
 NATIVE_CPP  = CC
 GNU_CPP     = g++
+GNU_CC      = gcc
 CFLAGS      = $(DBG) $(OPT)
 CPP         = $(GNU_CPP) 
+CC          = $(GNU_CC)
 EXTRA_CFLGS =
 AR          = ar ruv
 RANLIB      = ranlib
 
 ## batman
-EXTRA_LIBS  = /scratch/slocal/michaell/downloads/binutils-2.12.90/opcodes/libopcodes.a
-EXTRA_INC   = -I/scratch/slocal/michaell/downloads/binutils-2.12.90/opcodes
+#EXTRA_LIBS  = -L/scratch/slocal/michaell/downloads/binutils-2.12.90/opcodes/
+#EXTRA_INC   = -I/scratch/slocal/michaell/downloads/binutils-2.12.90/opcodes
+#EXTRA_LIBS   = -lopcodes -lbfd -liberty
+
 ## ranger
-EXTRA_LIBS  = /share/apps/binutils-amd/070220/lib64/libopcodes.a
-EXTRA_INC   = -I/share/apps/binutils-amd/070220/include/
+#EXTRA_LIBS  = /share/apps/binutils-amd/070220/lib64/libopcodes.a
+#EXTRA_INC   = -I/share/apps/binutils-amd/070220/include/
 
 INCLUDE     = ../include
 SRCDIR      = ../src
@@ -26,13 +29,17 @@ SRCS        = Base.C ElfFile.C BinaryFile.C FileHeader.C ProgramHeader.C Section
               StringTable.C SymbolTable.C RelocationTable.C main.C
 OBJS        = Base.o ElfFile.o BinaryFile.o FileHeader.o ProgramHeader.o SectionHeader.o \
               StringTable.o SymbolTable.o RelocationTable.o main.o
+C_OBJS      = i386-dis.o
 
 TARGET_BIN  = x86inst
 
 all: $(TARGET_BIN)
 
-$(TARGET_BIN) : $(OBJS)
-	$(CPP) -o $@ $(OBJS) -I$(INCLUDE) $(EXTRA_LIBS)
+$(TARGET_BIN) : $(OBJS) i386-dis.o
+	$(CPP) -o $@ $(OBJS) $(C_OBJS) -I$(INCLUDE) $(EXTRA_LIBS)
+
+i386-dis.o:
+	$(CC) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ i386-dis.c -I$(INCLUDE)
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< -I$(INCLUDE) $(EXTRA_INC)

@@ -129,6 +129,7 @@ public:
     void setLineInfoFinder();
     void findLoops();
     void printDisassembledCode_libopcodes();
+    void disassemble_libopcodes();
 
     void testBitSet();
 

@@ -8,7 +8,6 @@
 #include <SymbolTable.h>
 #include <RelocationTable.h>
 #include <DwarfSection.h>
-
 #include <dis-asm.h>
 
 
@@ -32,21 +31,38 @@ int x86inst_intern_read_mem_func(bfd_vma memaddr, bfd_byte *myaddr, uint32_t len
 }
 
 void set_disassemble_info_x86inst(struct disassemble_info* dis_info, char* options){
-    (*dis_info).mach = bfd_mach_i386_i386;
+    (*dis_info).flavour = bfd_target_unknown_flavour;
     (*dis_info).arch = bfd_arch_i386;
+    (*dis_info).mach = bfd_mach_i386_i386;
+    (*dis_info).insn_sets = 0;
     (*dis_info).endian = BFD_ENDIAN_LITTLE;
-    (*dis_info).display_endian = BFD_ENDIAN_LITTLE;
+    (*dis_info).octets_per_byte = 1;
+    (*dis_info).fprintf_func = (fprintf_ftype)(fprintf);
+    (*dis_info).stream = (PTR)(stdout);
+    (*dis_info).section = NULL;
+    (*dis_info).symbols = NULL;
+    (*dis_info).num_symbols = 0;
+    (*dis_info).private_data = NULL;
+    (*dis_info).buffer = NULL;
+    (*dis_info).buffer_vma = 0;
     (*dis_info).buffer_length = 2^31;
     (*dis_info).read_memory_func = x86inst_intern_read_mem_func;
+    (*dis_info).memory_error_func = perror_memory;
+    (*dis_info).print_address_func = generic_print_address;
+    (*dis_info).symbol_at_address_func = generic_symbol_at_address;
+    (*dis_info).flags = 0;
+    (*dis_info).bytes_per_line = 0;
+    (*dis_info).bytes_per_chunk = 0;
+    (*dis_info).display_endian = BFD_ENDIAN_LITTLE;
     (*dis_info).disassembler_options = options;
+    (*dis_info).insn_info_valid = 0;
 }
 
-void no_print_fprintf(char* msg){
+void my_fprintf(char* msg){
 }
 
 void ElfFile::printDisassembledCode_libopcodes(){
     struct disassemble_info disInfo;
-    INIT_DISASSEMBLE_INFO(disInfo, stdout, fprintf);
     if (is64Bit()){
         set_disassemble_info_x86inst(&disInfo, "x86-64");
     } else {
@@ -76,6 +92,9 @@ void ElfFile::printDisassembledCode_libopcodes(){
         }
     }
 
+}
+
+void ElfFile::disassemble_libopcodes(){
 }
 
 uint32_t ElfFile::findSectionNameInStrTab(char* name){
