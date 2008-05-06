@@ -8,7 +8,7 @@
 #include <SymbolTable.h>
 #include <RelocationTable.h>
 #include <DwarfSection.h>
-#include <dis-asm.h>
+#include <Disassemble.h>
 
 
 TIMER(

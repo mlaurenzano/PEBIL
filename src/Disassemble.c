@@ -35,9 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
  * the Intel manual for details.
  */
 
-#include "dis-asm.h"
-//#include "sysdep.h"
-//#include "opintl.h"
+#include <Disassemble.h>
 #include <errno.h>
 #include <stdint.h>
 

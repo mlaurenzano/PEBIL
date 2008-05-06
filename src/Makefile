@@ -26,23 +26,22 @@ BINDIR      = ../bin
 LIBDIR      = ../lib
 
 SRCS        = Base.C ElfFile.C BinaryFile.C FileHeader.C ProgramHeader.C SectionHeader.C \
-              StringTable.C SymbolTable.C RelocationTable.C main.C
+              StringTable.C SymbolTable.C RelocationTable.C main.C Disassemble.c
 OBJS        = Base.o ElfFile.o BinaryFile.o FileHeader.o ProgramHeader.o SectionHeader.o \
-              StringTable.o SymbolTable.o RelocationTable.o main.o
-C_OBJS      = i386-dis.o
+              StringTable.o SymbolTable.o RelocationTable.o main.o Disassemble.o
 
 TARGET_BIN  = x86inst
 
 all: $(TARGET_BIN)
 
-$(TARGET_BIN) : $(OBJS) i386-dis.o
-	$(CPP) -o $@ $(OBJS) $(C_OBJS) -I$(INCLUDE) $(EXTRA_LIBS)
-
-i386-dis.o:
-	$(CC) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ i386-dis.c -I$(INCLUDE)
+$(TARGET_BIN) : $(OBJS)
+	$(CPP) -o $@ $(OBJS) -I$(INCLUDE) $(EXTRA_LIBS)
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< -I$(INCLUDE) $(EXTRA_INC)
+
+%.o: %.c
+	$(CC)  $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< -I$(INCLUDE) $(EXTRA_INC)
 
 # it used to be shared library and compiled with -G option $(CPP) -G -o $@ $(OBJS)
 # but now it is static library that is included in executable 
