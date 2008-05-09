@@ -2005,7 +2005,7 @@ extern "C" {
     
     extern int print_insn		PARAMS ((uint64_t, disassemble_info*, uint32_t));
     extern int x86inst_intern_read_mem_func     PARAMS((uint64_t, uint8_t *, uint32_t, disassemble_info*));
-    extern void x86inst_set_disassemble_info    PARAMS((disassemble_info*));
+    extern void x86inst_set_disassemble_info    PARAMS((disassemble_info*, uint32_t));
     
     
     /* Just print the address in hex.  This is included for completeness even

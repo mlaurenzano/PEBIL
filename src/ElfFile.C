@@ -38,7 +38,7 @@ void ElfFile::findFunctions(){
 
 void ElfFile::printDisassembledCode(){
     struct disassemble_info disInfo;
-    x86inst_set_disassemble_info(&disInfo);
+    x86inst_set_disassemble_info(&disInfo,(uint32_t)is64Bit());
 
     PRINT_INFOR("disassemble_info size = %d, priv points to %x", sizeof(struct disassemble_info), disInfo.private_data);
 
@@ -78,7 +78,7 @@ void ElfFile::printDisassembledCode(){
 
 void ElfFile::disassemble(){
     struct disassemble_info disInfo;
-    x86inst_set_disassemble_info(&disInfo);
+    x86inst_set_disassemble_info(&disInfo,(uint32_t)is64Bit());
 
     uint32_t currByte = 0;
     uint32_t instructionLength = 0;

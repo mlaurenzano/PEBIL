@@ -57,8 +57,12 @@ int x86inst_intern_read_mem_func(uint64_t memaddr, uint8_t *myaddr, uint32_t len
 
 fprintf_ftype disasm_fprintf_func = (fprintf_ftype)(fprintf);
 
-void x86inst_set_disassemble_info(struct disassemble_info* dis_info){
-    (*dis_info).mach = mach_i386_i386;
+void x86inst_set_disassemble_info(struct disassemble_info* dis_info, uint32_t is64bit){
+    if (is64bit){
+        (*dis_info).mach = mach_x86_64;
+    } else {
+        (*dis_info).mach = mach_i386_i386;
+    }
     (*dis_info).private_data = NULL;
     (*dis_info).buffer = NULL;
     (*dis_info).buffer_vma = 0;
@@ -129,7 +133,7 @@ static void BadOp PARAMS ((void));
    ? 1 : fetch_data ((info), (addr)))
 
 
- int fetch_data (struct disassemble_info* info, uint8_t* addr)
+int fetch_data (struct disassemble_info* info, uint8_t* addr)
 {
     int status;
     struct dis_private *priv = (struct dis_private *) info->private_data;
@@ -145,7 +149,7 @@ static void BadOp PARAMS ((void));
     return 1;
 }
 
- void ckprefix()
+void ckprefix()
 {
     int newrex;
     rex = 0;
@@ -174,7 +178,7 @@ static void BadOp PARAMS ((void));
 	case 0x4d:
 	case 0x4e:
 	case 0x4f:
-            //fprintf(stdout, "GOGOGOGO: rex prefix found\n");
+            //fprintf(stdout, "PREFIX: rex prefix found\n");
 	    if (mode_64bit)
                 newrex = *codep;
 	    else
@@ -209,6 +213,7 @@ static void BadOp PARAMS ((void));
             break;
 	case 0x66:
             prefixes |= PREFIX_DATA;
+            //fprintf(stdout, "PREFIX: data prefix found\n");
             break;
 	case 0x67:
             prefixes |= PREFIX_ADDR;
@@ -220,13 +225,13 @@ static void BadOp PARAMS ((void));
             if (prefixes){
                 prefixes |= PREFIX_FWAIT;
                 codep++;
-                //fprintf(stdout, "GOGOGOGO: fwait prefix\n");
+                //fprintf(stdout, "PREFIX: fwait prefix\n");
                 return;
 	    }
             prefixes = PREFIX_FWAIT;
             break;
 	default:
-            //fprintf(stdout, "GOGOGOGO: no prefix found\n");
+            //fprintf(stdout, "PREFIX: no prefix found\n");
             return;
 	}
         /* Rex is ignored when followed by another prefix.  */
@@ -235,7 +240,7 @@ static void BadOp PARAMS ((void));
             oappend (" ");
         }
         rex = newrex;
-        //fprintf(stdout, "GOGOGOGO: have a prefix\n");
+        //fprintf(stdout, "PREFIX: have a prefix\n");
         codep++;
     }
 }
@@ -243,7 +248,7 @@ static void BadOp PARAMS ((void));
 /* Return the name of the prefix byte PREF, or NULL if PREF is not a
    prefix byte.  */
 
- const char* prefix_name(int pref, int sizeflag)
+const char* prefix_name(int pref, int sizeflag)
 {
     switch (pref){
         /* REX prefixes family.  */
@@ -406,7 +411,7 @@ int print_insn (uint64_t pc, disassemble_info* info, uint32_t is64bit){
     sizeflag = priv.orig_sizeflag;
 
     FETCH_DATA(info, codep + 1);
-    //fprintf(stdout, "fetched data, codep=%lx %lx %lx %lx %lx %lx %lx %lx\n", *codep, *(codep+1), *(codep+2), *(codep+3), *(codep+4), *(codep+5), *(codep+6), *(codep+7));
+    //fprintf(stdout, "MEMREAD: codep=%lx %lx %lx %lx %lx %lx %lx %lx\n", *codep, *(codep+1), *(codep+2), *(codep+3), *(codep+4), *(codep+5), *(codep+6), *(codep+7));
 
     two_source_ops = (*codep == 0x62) || (*codep == 0xc8);
 
@@ -1287,7 +1292,7 @@ void OP_G (int bytemode, int sizeflag)
 uint64_t get64()
 {
     uint64_t x;
-#ifdef BFD64
+
     unsigned int a;
     unsigned int b;
     
@@ -1301,10 +1306,7 @@ uint64_t get64()
     b |= (*codep++ & 0xff) << 16;
     b |= (*codep++ & 0xff) << 24;
     x = a + ((uint64_t) b << 32);
-#else
-    abort();
-    x = 0;
-#endif
+
     return x;
 }
 
@@ -1554,7 +1556,7 @@ void OP_I64 (int bytemode, int sizeflag)
     scratchbuf[0] = '\0';
 }
 
- void OP_sI (int bytemode, int sizeflag)
+void OP_sI (int bytemode, int sizeflag)
 {
     int64_t op;
     int64_t mask = -1;

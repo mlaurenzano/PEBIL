@@ -178,7 +178,7 @@ void SymbolTable::printSymbol64(uint32_t idx){
     ASSERT(symbols[idx]);
     Symbol32* sym = (Symbol32*)symbols[idx];
 
-    PRINT_INFOR("\tSYM32(%d):\t%d\t%24s\t%#16x\t%d\t%d\t%d\t%d", idx, sym->GET(st_name), getSymbolName(idx), 
+    PRINT_INFOR("\tSYM64(%d):\t%d\t%24s\t%#16x\t%d\t%d\t%d\t%d", idx, sym->GET(st_name), getSymbolName(idx), 
         sym->GET(st_value), sym->GET(st_size), sym->GET(st_info), sym->GET(st_other), sym->GET(st_shndx));
 }
 
