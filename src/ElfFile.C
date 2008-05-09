@@ -9,6 +9,7 @@
 #include <RelocationTable.h>
 #include <DwarfSection.h>
 #include <Disassemble.h>
+#include <BitSet.h>
 
 
 TIMER(
@@ -23,48 +24,21 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
-#include <BitSet.h>
 
-int x86inst_intern_read_mem_func(uint64_t memaddr, uint8_t *myaddr, uint32_t length, struct disassemble_info *info){
-    memcpy (myaddr, info->buffer + (memaddr - info->buffer_vma), length);
-    return 0;
-}
-
-void set_disassemble_info_x86inst(struct disassemble_info* dis_info, char* options){
-    (*dis_info).flavour = binary_target_unknown_flavour;
-    (*dis_info).arch = mach_arch_i386;
-    (*dis_info).mach = mach_i386_i386;
-    (*dis_info).insn_sets = 0;
-    (*dis_info).endian = BYTE_ENDIAN_LITTLE;
-    (*dis_info).octets_per_byte = 1;
-    (*dis_info).fprintf_func = (fprintf_ftype)(fprintf);
-    (*dis_info).stream = (PTR)(stdout);
-    (*dis_info).private_data = NULL;
-    (*dis_info).buffer = NULL;
-    (*dis_info).buffer_vma = 0;
-    (*dis_info).buffer_length = 2^31;
-    (*dis_info).read_memory_func = x86inst_intern_read_mem_func;
-    (*dis_info).memory_error_func = perror_memory;
-    (*dis_info).print_address_func = generic_print_address;
-    (*dis_info).symbol_at_address_func = generic_symbol_at_address;
-    (*dis_info).flags = 0;
-    (*dis_info).bytes_per_line = 0;
-    (*dis_info).bytes_per_chunk = 0;
-    (*dis_info).display_endian = BYTE_ENDIAN_LITTLE;
-    (*dis_info).disassembler_options = options;
-    (*dis_info).insn_info_valid = 0;
-}
-
-void my_fprintf(char* msg){
-}
-
-void ElfFile::printDisassembledCode_libopcodes(){
-    struct disassemble_info disInfo;
-    if (is64Bit()){
-        set_disassemble_info_x86inst(&disInfo, "x86-64");
-    } else {
-        set_disassemble_info_x86inst(&disInfo, "i386");
+void ElfFile::findFunctions(){
+/*
+    ASSERT(symbolTable && "FATAL : Symbol table is missing");
+    ASSERT(rawSections && "FATAL : Raw data is not read");
+    for(uint32_t i=1;i<=numberOfSections;i++){
+        rawSections[i]->findFunctions();
     }
+*/
+}
+
+
+void ElfFile::printDisassembledCode(){
+    struct disassemble_info disInfo;
+    x86inst_set_disassemble_info(&disInfo);
 
     PRINT_INFOR("disassemble_info size = %d, priv points to %x", sizeof(struct disassemble_info), disInfo.private_data);
 
@@ -75,14 +49,25 @@ void ElfFile::printDisassembledCode_libopcodes(){
 
     for (uint32_t i = 1; i < numberOfSections; i++){
         if (sectionHeaders[i]->hasExecInstrBit()){
-            PRINT_INFOR("\tSection %d is a text section with name %s", i, sectionHeaders[i]->getSectionNamePtr());
+            PRINT_INFOR("Disassembly of Section %s", sectionHeaders[i]->getSectionNamePtr());
             sectionHeaders[i]->print();
             instructionCount = 0;
 
             for (currByte = 0; currByte < sectionHeaders[i]->GET(sh_size); currByte += instructionLength, instructionCount++){
-                instructionAddress = (uint64_t)(rawSections[i]->charStream() + currByte);
-                instructionLength = print_insn_i386(instructionAddress, &disInfo);
-                fprintf(stdout, "\n");
+                instructionAddress = (uint64_t)((uint32_t)rawSections[i]->charStream() + currByte);
+                fprintf(stdout, "(0x%lx) 0x%lx:\t", (uint32_t)(rawSections[i]->charStream() + currByte), sectionHeaders[i]->GET(sh_addr) + currByte);
+
+                instructionLength = print_insn(instructionAddress, &disInfo, is64Bit());
+
+                fprintf(stdout, "\t(bytes -- ");
+                uint8_t* bytePtr;
+                for (uint32_t j = 0; j < instructionLength; j++){
+                    bytePtr = (uint8_t*)rawSections[i]->charStream() + currByte + j;
+                    fprintf(stdout, "%2.2lx ", *bytePtr);
+                }
+
+
+                fprintf(stdout, ")\n");
             }
             PRINT_INFOR("Found %d instructions (%d bytes) in section %d", instructionCount, currByte, i);
 
@@ -91,7 +76,28 @@ void ElfFile::printDisassembledCode_libopcodes(){
 
 }
 
-void ElfFile::disassemble_libopcodes(){
+void ElfFile::disassemble(){
+    struct disassemble_info disInfo;
+    x86inst_set_disassemble_info(&disInfo);
+
+    uint32_t currByte = 0;
+    uint32_t instructionLength = 0;
+    uint32_t instructionCount = 0;
+    uint64_t instructionAddress;
+
+    for (uint32_t i = 1; i < numberOfSections; i++){
+        if (sectionHeaders[i]->hasExecInstrBit()){
+            instructionCount = 0;
+
+            for (currByte = 0; currByte < sectionHeaders[i]->GET(sh_size); currByte += instructionLength, instructionCount++){
+                instructionAddress = (uint64_t)((uint32_t)rawSections[i]->charStream() + currByte);
+                instructionLength = print_insn(instructionAddress, &disInfo, is64Bit());
+                fprintf(stdout, "\n");
+            }
+            PRINT_INFOR("Found %d instructions (%d bytes) in section %d", instructionCount, currByte, i);
+
+        }
+    }
 }
 
 uint32_t ElfFile::findSectionNameInStrTab(char* name){
@@ -555,15 +561,6 @@ void ElfFile::displaySymbols(){
 */
 }
 
-void ElfFile::findFunctions(){
-/*
-    ASSERT(symbolTable && "FATAL : Symbol table is missing");
-    ASSERT(rawSections && "FATAL : Raw data is not read");
-    for(uint32_t i=1;i<=numberOfSections;i++){
-        rawSections[i]->findFunctions();
-    }
-*/
-}
 
 void ElfFile::generateCFGs(){
 /*
