@@ -4,21 +4,6 @@
 #include <Base.h>
 #include <defines/FileHeader.d>
 
-#define ELF_HDR_MAX_MACHINES 9
-
-static char machine_names[ELF_HDR_MAX_MACHINES][80] = {
-"No Machine",
-"AT&T WE 32100",
-"SPARC",
-"Intel 80386",
-"Motorola 68000",
-"Motorola 88000",
-"N/A",
-"Intel 80860",
-"MIPS RS3000"};
-
-#define GET_ELF_MACH_STR(__id) machine_names[__id]
-
 
 class FileHeader : public Base {
 protected:

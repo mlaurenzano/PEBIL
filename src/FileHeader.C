@@ -50,12 +50,11 @@ bool FileHeader::verify(uint16_t targetSize){
         }
     }
     if (GET(e_ident)[EI_CLASS] == ELFCLASS64){
-/*
         if (GET(e_ehsize) != Size__64_bit_File_Header){
             PRINT_ERROR("File header size is wrong: %d != %d", GET(e_ehsize), Size__64_bit_File_Header);
             return false;
         }
-*/
+
         if (GET(e_phentsize) != Size__64_bit_Program_Header){
             PRINT_ERROR("Program header size is wrong: %d != %d", GET(e_phentsize), Size__64_bit_Program_Header);
             return false;           
@@ -99,11 +98,11 @@ void FileHeader::print() {
 
     unsigned char* ident = GET(e_ident);
 
-    PRINT_INFOR("Magic\t\tMagicStr\tClass\tData\tID-Ver\tOS-ABI\tABIVer\tType\tArch\t%16s\tVersion\t\tEntry\t\t\tFlags", "ArchName");
-    PRINT_INFOR("0x%08x\t0x%02x+%c%c%c\t0x%02x\t0x%02x\t0x%02x\t0x%02x\t0x%04hx\t0x%04hx\t0x%04hx\t%16s\t0x%08x\t0x%016llx\t0x%08x", 
+    PRINT_INFOR("Magic\t\tMagicStr\tClass\tData\tID-Ver\tOS-ABI\tABIVer\tType\tArch\tVersion\t\tEntry\t\t\tFlags");
+    PRINT_INFOR("0x%08x\t0x%02x+%c%c%c\t0x%02x\t0x%02x\t0x%02x\t0x%02x\t0x%04hx\t0x%04hx\t0x%04hx\t0x%08x\t0x%016llx\t0x%08x", 
                 ELFHDR_GETMAGIC, ident[EI_MAG0], ident[EI_MAG1], ident[EI_MAG2], ident[EI_MAG3], ident[EI_CLASS], 
                 ident[EI_DATA], ident[EI_VERSION], ident[EI_OSABI], ident[EI_ABIVERSION], GET(e_type), GET(e_machine),
-                GET_ELF_MACH_STR(GET(e_machine)), GET(e_version), GET(e_entry), GET(e_flags));
+                GET(e_version), GET(e_entry), GET(e_flags));
 
     if (GET(e_phoff)){
         PRINT_INFOR("ProgHdr Table:\tFile Offset\t\tNum Entries\tEntry Size");
