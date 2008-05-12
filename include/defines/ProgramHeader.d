@@ -13,21 +13,21 @@ Offset	Length	Offset	Length	Name		Description
 ##################################################################
 */
 #define PROGRAMHEADER_MACROS_BASIS(__str) /** __str **/ \
-    GET_FIELD_BASIS(Elf64_Word, p_type); \
-    GET_FIELD_BASIS(Elf64_Word, p_offset); \
-    GET_FIELD_BASIS(Elf64_Off,  p_vaddr); \
-    GET_FIELD_BASIS(Elf64_Addr, p_paddr); \
-    GET_FIELD_BASIS(Elf64_Addr, p_filesz); \
-    GET_FIELD_BASIS(Elf64_Xword,p_memsz); \
-    GET_FIELD_BASIS(Elf64_Xword,p_flags); \
-    GET_FIELD_BASIS(Elf64_Xword,p_align);
+    GET_FIELD_BASIS(uint32_t,p_type); \
+    GET_FIELD_BASIS(uint32_t,p_offset); \
+    GET_FIELD_BASIS(uint64_t,p_vaddr); \
+    GET_FIELD_BASIS(uint64_t,p_paddr); \
+    GET_FIELD_BASIS(uint64_t,p_filesz); \
+    GET_FIELD_BASIS(uint64_t,p_memsz); \
+    GET_FIELD_BASIS(uint64_t,p_flags); \
+    GET_FIELD_BASIS(uint64_t,p_align);
 
 #define PROGRAMHEADER_MACROS_CLASS(__str) /** __str **/ \
-    GET_FIELD_CLASS(Elf64_Word, p_type); \
-    GET_FIELD_CLASS(Elf64_Word, p_offset); \
-    GET_FIELD_CLASS(Elf64_Off,  p_vaddr); \
-    GET_FIELD_CLASS(Elf64_Addr, p_paddr); \
-    GET_FIELD_CLASS(Elf64_Addr, p_filesz); \
-    GET_FIELD_CLASS(Elf64_Xword,p_memsz); \
-    GET_FIELD_CLASS(Elf64_Xword,p_flags); \
-    GET_FIELD_CLASS(Elf64_Xword,p_align);
+    GET_FIELD_CLASS(uint32_t,p_type); \
+    GET_FIELD_CLASS(uint32_t,p_offset); \
+    GET_FIELD_CLASS(uint64_t,p_vaddr); \
+    GET_FIELD_CLASS(uint64_t,p_paddr); \
+    GET_FIELD_CLASS(uint64_t,p_filesz); \
+    GET_FIELD_CLASS(uint64_t,p_memsz); \
+    GET_FIELD_CLASS(uint64_t,p_flags); \
+    GET_FIELD_CLASS(uint64_t,p_align);

@@ -14,7 +14,7 @@ public:
 
     PROGRAMHEADER_MACROS_BASIS("For the get_X field macros check the defines directory");
 
-    void print() { __SHOULD_NOT_ARRIVE; }
+    void print();
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
 
     const char* briefName() { return "ProgramHeader"; }
@@ -34,7 +34,6 @@ public:
     uint32_t read(BinaryInputFile* b);
 
     char* charStream() { return (char*)&entry; }
-    void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 //    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
 };
@@ -52,7 +51,6 @@ public:
     uint32_t read(BinaryInputFile* b);
 
     char* charStream() { return (char*)&entry; }
-    void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 //    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
 };

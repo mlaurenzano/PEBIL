@@ -16,11 +16,11 @@
 #define GET_FIELD_BASIS(__type,__field) virtual __type get_ ## __field() \
                                         { __SHOULD_NOT_ARRIVE; return ( __type )0; }
 #define GET_FIELD_CLASS(__type,__field) inline __type get_ ## __field() \
-                                        { return entry.__field ; }
+                                        { return (__type)(entry.__field) ; }
 #define GET_FIELD_BASIS_U(__type,__field,__union) virtual __type get_ ## __field() \
                                         { __SHOULD_NOT_ARRIVE; return ( __type )0; }
 #define GET_FIELD_CLASS_U(__type,__field,__union) inline __type get_ ## __field() \
-                                        { return entry.__union.__field ; }
+                                        { return (__type)(entry.__union.__field) ; }
 #define GET_FIELD_BASIS_A(__type,__field,__union) virtual __type get_ ## __union ## _ ## __field() \
                                         { __SHOULD_NOT_ARRIVE; return ( __type )0; }
 

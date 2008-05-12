@@ -12,17 +12,17 @@ Offset	Length	Offset	Length	Name		Description
 */
 
 #define SYMBOL_MACROS_BASIS(__str) /** __str **/ \
-    GET_FIELD_BASIS(Elf64_Word,st_name); \
+    GET_FIELD_BASIS(uint32_t,st_name); \
     GET_FIELD_BASIS(unsigned char,st_info); \
     GET_FIELD_BASIS(unsigned char,st_other); \
-    GET_FIELD_BASIS(Elf64_Section,st_shndx); \
-    GET_FIELD_BASIS(Elf64_Addr,st_value); \
-    GET_FIELD_BASIS(Elf64_Xword,st_size);
+    GET_FIELD_BASIS(uint16_t,st_shndx); \
+    GET_FIELD_BASIS(uint64_t,st_value); \
+    GET_FIELD_BASIS(uint64_t,st_size);
 
 #define SYMBOL_MACROS_CLASS(__str) /** __str **/ \
-    GET_FIELD_CLASS(Elf64_Word,st_name); \
+    GET_FIELD_CLASS(uint32_t,st_name); \
     GET_FIELD_CLASS(unsigned char,st_info); \
     GET_FIELD_CLASS(unsigned char,st_other); \
-    GET_FIELD_CLASS(Elf64_Section,st_shndx); \
-    GET_FIELD_CLASS(Elf64_Addr,st_value); \
-    GET_FIELD_CLASS(Elf64_Xword,st_size);
+    GET_FIELD_CLASS(uint16_t,st_shndx); \
+    GET_FIELD_CLASS(uint64_t,st_value); \
+    GET_FIELD_CLASS(uint64_t,st_size);

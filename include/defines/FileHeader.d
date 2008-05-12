@@ -21,32 +21,32 @@ Offset	Length	Offset	Length	Name		Description
 
 #define FILEHEADER_MACROS_BASIS(__str) /** __str **/ \
     GET_FIELD_BASIS(unsigned char*,e_ident); \
-    GET_FIELD_BASIS(Elf64_Half,e_type); \
-    GET_FIELD_BASIS(Elf64_Half,e_machine); \
-    GET_FIELD_BASIS(Elf64_Word,e_version); \
-    GET_FIELD_BASIS(Elf64_Addr,e_entry); \
-    GET_FIELD_BASIS(Elf64_Off, e_phoff); \
-    GET_FIELD_BASIS(Elf64_Off, e_shoff); \
-    GET_FIELD_BASIS(Elf64_Word,e_flags); \
-    GET_FIELD_BASIS(Elf64_Half,e_ehsize); \
-    GET_FIELD_BASIS(Elf64_Half,e_phentsize); \
-    GET_FIELD_BASIS(Elf64_Half,e_phnum); \
-    GET_FIELD_BASIS(Elf64_Half,e_shentsize); \
-    GET_FIELD_BASIS(Elf64_Half,e_shnum); \
-    GET_FIELD_BASIS(Elf64_Half,e_shstrndx);
+    GET_FIELD_BASIS(uint16_t,e_type); \
+    GET_FIELD_BASIS(uint16_t,e_machine); \
+    GET_FIELD_BASIS(uint32_t,e_version); \
+    GET_FIELD_BASIS(uint64_t,e_entry); \
+    GET_FIELD_BASIS(uint64_t,e_phoff); \
+    GET_FIELD_BASIS(uint64_t,e_shoff); \
+    GET_FIELD_BASIS(uint32_t,e_flags); \
+    GET_FIELD_BASIS(uint16_t,e_ehsize); \
+    GET_FIELD_BASIS(uint16_t,e_phentsize); \
+    GET_FIELD_BASIS(uint16_t,e_phnum); \
+    GET_FIELD_BASIS(uint16_t,e_shentsize); \
+    GET_FIELD_BASIS(uint16_t,e_shnum); \
+    GET_FIELD_BASIS(uint16_t,e_shstrndx);
 
 #define FILEHEADER_MACROS_CLASS(__str) /** __str **/ \
     GET_FIELD_CLASS(unsigned char*,e_ident); \
-    GET_FIELD_CLASS(Elf64_Half,e_type); \
-    GET_FIELD_CLASS(Elf64_Half,e_machine); \
-    GET_FIELD_CLASS(Elf64_Word,e_version); \
-    GET_FIELD_CLASS(Elf64_Addr,e_entry); \
-    GET_FIELD_CLASS(Elf64_Off, e_phoff); \
-    GET_FIELD_CLASS(Elf64_Off, e_shoff); \
-    GET_FIELD_CLASS(Elf64_Word,e_flags); \
-    GET_FIELD_CLASS(Elf64_Half,e_ehsize); \
-    GET_FIELD_CLASS(Elf64_Half,e_phentsize); \
-    GET_FIELD_CLASS(Elf64_Half,e_phnum); \
-    GET_FIELD_CLASS(Elf64_Half,e_shentsize); \
-    GET_FIELD_CLASS(Elf64_Half,e_shnum); \
-    GET_FIELD_CLASS(Elf64_Half,e_shstrndx);
+    GET_FIELD_CLASS(uint16_t,e_type); \
+    GET_FIELD_CLASS(uint16_t,e_machine); \
+    GET_FIELD_CLASS(uint32_t,e_version); \
+    GET_FIELD_CLASS(uint64_t,e_entry); \
+    GET_FIELD_CLASS(uint64_t,e_phoff); \
+    GET_FIELD_CLASS(uint64_t,e_shoff); \
+    GET_FIELD_CLASS(uint32_t,e_flags); \
+    GET_FIELD_CLASS(uint16_t,e_ehsize); \
+    GET_FIELD_CLASS(uint16_t,e_phentsize); \
+    GET_FIELD_CLASS(uint16_t,e_phnum); \
+    GET_FIELD_CLASS(uint16_t,e_shentsize); \
+    GET_FIELD_CLASS(uint16_t,e_shnum); \
+    GET_FIELD_CLASS(uint16_t,e_shstrndx);

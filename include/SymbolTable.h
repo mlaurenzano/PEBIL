@@ -9,6 +9,8 @@
 class StringTable;
 class ElfFile;
 
+static char* symbol_without_name = "NULL";
+
 class Symbol : public Base {
 public:
 
@@ -20,6 +22,7 @@ public:
 
     SYMBOL_MACROS_BASIS("For the get_X field macros check the defines directory");
 
+    void print(char* symbolName);
     uint32_t getIndex() { return index; }
     char* getSymbolPtr() { return symbolPtr; }
     bool verify(uint16_t targetSize);
@@ -35,7 +38,7 @@ private:
     Elf32_Sym entry;
 protected:
 public:
-    Symbol32(char* symPtr, uint32_t idx) : Symbol(symPtr,idx){}
+    Symbol32(char* symPtr, uint32_t idx) : Symbol(symPtr,idx){ sizeInBytes = Size__32_bit_Symbol; }
     ~Symbol32() {}
     char* charStream() { return (char*)&entry; }
 
@@ -44,6 +47,7 @@ public:
     uint32_t read(BinaryInputFile* binaryInputFile);
     unsigned char getSymbolBinding();
     unsigned char getSymbolType();
+
 };
 
 class Symbol64 : public Symbol {
@@ -51,7 +55,7 @@ private:
     Elf64_Sym entry;
 protected:
 public:
-    Symbol64(char* symPtr, uint32_t idx) : Symbol(symPtr, idx) {}
+    Symbol64(char* symPtr, uint32_t idx) : Symbol(symPtr, idx) { sizeInBytes = Size__64_bit_Symbol; }
     ~Symbol64() {}
     char* charStream() { return (char*)&entry; }
 
@@ -98,9 +102,6 @@ public:
     uint32_t getNumberOfSymbols() { return numberOfSymbols; }
 
     void print();
-    void printSymbol(uint32_t index);
-    void printSymbol32(uint32_t index);
-    void printSymbol64(uint32_t index);
     uint32_t read(BinaryInputFile* b);
     bool verify();
 

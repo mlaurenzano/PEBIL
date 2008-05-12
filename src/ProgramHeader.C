@@ -2,18 +2,20 @@
 #include <ProgramHeader.h>
 #include <BinaryFile.h>
 
-void ProgramHeader32::print() { 
-    PRINT_INFOR("PROGRAMHEADER32(%d)", index);
-    PRINT_INFOR("\tType(%#x)\tOffset(%#x)\tVaddr(%#x)\tPaddr(%#x)", entry.p_type, entry.p_offset, entry.p_vaddr, entry.p_paddr);
-    PRINT_INFOR("\tFileSz(%#lx -- %d)\tMemSz(%#lx -- %d)\tFlags(%#x)\tAlign(%d)", entry.p_filesz, entry.p_filesz, entry.p_memsz, 
-entry.p_memsz, entry.p_flags, entry.p_align);
+void ProgramHeader::print() { 
+    char sizeStr[3];
+    if (getSizeInBytes() == Size__32_bit_Program_Header){
+        sprintf(sizeStr,"32");
+    } else {
+        sprintf(sizeStr,"64");
+    }
+
+    PRINT_INFOR("ProgHdr%2s(%d):\t0x%08x\t0x%016llx\t0x%016llx\t0x%016llx", 
+                sizeStr, index, GET(p_type), GET(p_filesz), GET(p_vaddr), GET(p_paddr));
+    PRINT_INFOR("\t\t\t0x%08x\t0x%016llx\t0x%016llx\t0x%016llx",
+                GET(p_offset), GET(p_memsz), GET(p_flags), GET(p_align));
 }
-void ProgramHeader64::print() { 
-    PRINT_INFOR("PROGRAMHEADER64(%d)", index);
-    PRINT_INFOR("\tType(%#x)\tOffset(%#llx)\tVaddr(%#llx)\tPaddr(%#llx)", entry.p_type, entry.p_offset, entry.p_vaddr, entry.p_paddr);
-    PRINT_INFOR("\tFileSz(%#llx -- %d)\tMemSz(%#llx -- %d)\tFlags(%#x)\tAlign(%d)", entry.p_filesz, entry.p_filesz, entry.p_memsz, 
-entry.p_memsz, entry.p_flags, entry.p_align);
-}
+
 
 uint32_t ProgramHeader32::read(BinaryInputFile* binaryInputFile){
     setFileOffset(binaryInputFile->currentOffset());

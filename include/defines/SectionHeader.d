@@ -16,25 +16,25 @@ Offset	Length	Offset	Length	Name		Description
 */
 
 #define SECTIONHEADER_MACROS_BASIS(__str) /** __str **/ \
-    GET_FIELD_BASIS(Elf64_Word, sh_name); \
-    GET_FIELD_BASIS(Elf64_Word, sh_type); \
-    GET_FIELD_BASIS(Elf64_Xword,sh_flags); \
-    GET_FIELD_BASIS(Elf64_Addr, sh_addr); \
-    GET_FIELD_BASIS(Elf64_Off , sh_offset); \
-    GET_FIELD_BASIS(Elf64_Xword, sh_size); \
-    GET_FIELD_BASIS(Elf64_Word, sh_link); \
-    GET_FIELD_BASIS(Elf64_Word, sh_info); \
-    GET_FIELD_BASIS(Elf64_Xword,sh_addralign); \
-    GET_FIELD_BASIS(Elf64_Xword,sh_entsize); 
+    GET_FIELD_BASIS(uint32_t,sh_name); \
+    GET_FIELD_BASIS(uint32_t,sh_type); \
+    GET_FIELD_BASIS(uint64_t,sh_flags); \
+    GET_FIELD_BASIS(uint64_t,sh_addr); \
+    GET_FIELD_BASIS(uint64_t,sh_offset); \
+    GET_FIELD_BASIS(uint64_t,sh_size); \
+    GET_FIELD_BASIS(uint32_t,sh_link); \
+    GET_FIELD_BASIS(uint32_t,sh_info); \
+    GET_FIELD_BASIS(uint64_t,sh_addralign); \
+    GET_FIELD_BASIS(uint64_t,sh_entsize); 
 
 #define SECTIONHEADER_MACROS_CLASS(__str) /** __str **/ \
-    GET_FIELD_CLASS(Elf64_Word, sh_name); \
-    GET_FIELD_CLASS(Elf64_Word, sh_type); \
-    GET_FIELD_CLASS(Elf64_Xword,sh_flags); \
-    GET_FIELD_CLASS(Elf64_Addr, sh_addr); \
-    GET_FIELD_CLASS(Elf64_Off , sh_offset); \
-    GET_FIELD_CLASS(Elf64_Xword,sh_size); \
-    GET_FIELD_CLASS(Elf64_Word, sh_link); \
-    GET_FIELD_CLASS(Elf64_Word, sh_info); \
-    GET_FIELD_CLASS(Elf64_Xword,sh_addralign); \
-    GET_FIELD_CLASS(Elf64_Xword,sh_entsize); 
+    GET_FIELD_CLASS(uint32_t,sh_name); \
+    GET_FIELD_CLASS(uint32_t,sh_type); \
+    GET_FIELD_CLASS(uint64_t,sh_flags); \
+    GET_FIELD_CLASS(uint64_t,sh_addr); \
+    GET_FIELD_CLASS(uint64_t,sh_offset); \
+    GET_FIELD_CLASS(uint64_t,sh_size); \
+    GET_FIELD_CLASS(uint32_t,sh_link); \
+    GET_FIELD_CLASS(uint32_t,sh_info); \
+    GET_FIELD_CLASS(uint64_t,sh_addralign); \
+    GET_FIELD_CLASS(uint64_t,sh_entsize); 

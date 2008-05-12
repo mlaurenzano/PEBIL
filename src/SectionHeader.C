@@ -77,20 +77,21 @@ bool SectionHeader::verify() {
     return true;
 }
 
-void SectionHeader32::print() { 
-    PRINT_INFOR("SECTIONHEADER32(%d)", index);
+void SectionHeader::print() { 
+    char sizeStr[3];
+    if (getSizeInBytes() == Size__32_bit_Section_Header){
+        sprintf(sizeStr,"32");
+    } else {
+        sprintf(sizeStr,"64");
+    }
 
-    PRINT_INFOR("\tName(%d -- %s)\tType(%#x)\tFlags(%#x)\tMemVaddr(%#x)\tFilAddr(%#x)", entry.sh_name, sectionNamePtr, 
-        entry.sh_type, entry.sh_flags, entry.sh_addr, entry.sh_offset);
-    PRINT_INFOR("\tSize(%d)\tLink(%d)\tInfo(%#x)\tAlign(%d)\tEntrySz(%d)", entry.sh_size, entry.sh_link, entry.sh_info, entry.sh_addralign, entry.sh_entsize); 
-}
-void SectionHeader64::print() { 
-    PRINT_INFOR("SECTIONHEADER64(%d)", index);
+    PRINT_INFOR("SecHdr%s(%d):\t%16s\t0x%08x\t\t0x%016lx\t0x%016lx\t0x%016lx",
+                sizeStr, index, getSectionNamePtr(), GET(sh_type), GET(sh_flags), GET(sh_addr), GET(sh_offset));
+    PRINT_INFOR("\t\t\t%8d\t\t0x%08x\t\t0x%016lx\t0x%016lx\t0x%016lx",
+                GET(sh_link), GET(sh_info), GET(sh_size), GET(sh_addralign), GET(sh_entsize));
 
-    PRINT_INFOR("\tName(%d -- %s)\tType(%#x)\tFlags(%#llx)\tMemVaddr(%#llx)\tFilAddr(%#llx)", entry.sh_name, sectionNamePtr, 
-        entry.sh_type, entry.sh_flags, entry.sh_addr, entry.sh_offset);
-    PRINT_INFOR("\tSize(%d)\tLink(%d)\tInfo(%#x)\tAlign(%d)\tEntrySz(%d)", entry.sh_size, entry.sh_link, entry.sh_info, entry.sh_addralign, entry.sh_entsize); 
 }
+
 
 uint32_t SectionHeader32::read(BinaryInputFile* binaryInputFile){
 

@@ -5,48 +5,23 @@
 #include <BinaryFile.h>
 
 unsigned char Symbol32::getSymbolBinding(){
-    return ELF32_ST_BIND(entry.st_info);
+    return ELF32_ST_BIND(GET(st_info));
 }
 unsigned char Symbol64::getSymbolBinding(){
-    return ELF64_ST_BIND(entry.st_info);
+    return ELF64_ST_BIND(GET(st_info));
 }
 unsigned char Symbol32::getSymbolType(){
-    return ELF32_ST_TYPE(entry.st_info);
+    return ELF32_ST_TYPE(GET(st_info));
 }
 unsigned char Symbol64::getSymbolType(){
-    return ELF64_ST_TYPE(entry.st_info);
+    return ELF64_ST_TYPE(GET(st_info));
 }
 
 int compareSymbolValue(const void* arg1,const void* arg2){
-/*
-    Symbol* sym1 = *((Symbol**)arg1);
-    Symbol* sym2 = *((Symbol**)arg2);
-    uint64_t vl1 = sym1->GET(n_value);
-    uint64_t vl2 = sym2->GET(n_value);
-
-    if(vl1 < vl2)
-        return -1;
-    if(vl1 > vl2)
-        return 1;
-
-    ASSERT((sym1->GET(n_scnum) == sym2->GET(n_scnum)) && 
-           "FATAL: Two symbols with the same address but different sections");
-
-*/
     return 0;
 }
 
 int searchSymbolValue(const void* arg1,const void* arg2){
-/*
-    uint64_t key = *((uint64_t*)arg1);
-    Symbol* sym = *((Symbol**)arg2);
-    uint64_t val = sym->GET(n_value);
-
-    if(key < val)
-        return -1;
-    if(key > val)
-        return 1;
-*/
     return 0;
 }
 
@@ -162,48 +137,35 @@ uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
 char* SymbolTable::getSymbolName(uint32_t idx){
     ASSERT(stringTable);
     ASSERT(symbols[idx]);
-    return stringTable->getString(symbols[idx]->GET(st_name));
+
+    // idx 0 in the string table is null
+    if (!symbols[idx]->GET(st_name)){
+        return symbol_without_name;
+    } else {
+        return stringTable->getString(symbols[idx]->GET(st_name));
+    }
 }
 
 void SymbolTable::print(){
-    PRINT_INFOR("SYMBOLTABLE(%d): %d symbols, section(%d)", index, numberOfSymbols, getSectionIndex());
-    PRINT_INFOR("TYPE(IDX):\tVALUE\tSIZE\tINFO\tOTHER\tSCNIDX\tNAMEIDX\tNAME");
+    PRINT_INFOR("SymbolTable(%d): section %d, %d symbols", index, getSectionIndex(), numberOfSymbols);
+    PRINT_INFOR("TYPE(IDX):\tNameIdx\t%24s\t%18s\tSize\tInfo\tBind\tType\tOther\tScnIdx", "Name", "Value");
+
     for (uint32_t i = 0; i < numberOfSymbols; i++){
-        printSymbol(i);
+        symbols[i]->print(getSymbolName(i));
     }
 }
 
-void SymbolTable::printSymbol64(uint32_t idx){
-    ASSERT(idx < numberOfSymbols && "idx out of symbols[] bounds");
-    ASSERT(symbols[idx]);
-    Symbol32* sym = (Symbol32*)symbols[idx];
 
-    PRINT_INFOR("\tSYM64(%d):\t%d\t%24s\t%#16x\t%d\t%d\t%d\t%d", idx, sym->GET(st_name), getSymbolName(idx), 
-        sym->GET(st_value), sym->GET(st_size), sym->GET(st_info), sym->GET(st_other), sym->GET(st_shndx));
-}
+void Symbol::print(char* symbolName){
+    char sizeStr[3];
 
-void SymbolTable::printSymbol32(uint32_t idx){
-    ASSERT(idx < numberOfSymbols && "idx out of symbols[] bounds");
-    ASSERT(symbols[idx]);
-    Symbol32* sym = (Symbol32*)symbols[idx];
-
-//    PRINT_INFOR("going to use name offset %d for symbol %d", sym->GET(st_name), idx);
-    PRINT_INFOR("\tSYM32(%d):\t%d\t%24s\t%#16x\t%d\t%d\t%d\t%d", idx, sym->GET(st_name), getSymbolName(idx), 
-        sym->GET(st_value), sym->GET(st_size), sym->GET(st_info), sym->GET(st_other), sym->GET(st_shndx));
-
-/*
-    PRINT_INFOR("\tSYM32(%d): %#9x\t%d\t%d\t%d\t%d\t%d\t%s", idx, sym->GET(st_value), sym->GET(st_size), sym->GET(st_info),
-        sym->GET(st_other), sym->GET(st_shndx), sym->GET(st_name), getSymbolName(idx));
-*/
-}
-
-void SymbolTable::printSymbol(uint32_t idx){
-
-    ASSERT(elfFile);
-    if (elfFile->is64Bit()){
-        printSymbol64(idx);
+    if (getSizeInBytes() == Size__32_bit_Symbol){
+        sprintf(sizeStr,"32");
     } else {
-        printSymbol32(idx);
+        sprintf(sizeStr,"64");
     }
+
+    PRINT_INFOR("\tSym%s(%d):\t%d\t%24s\t0x%016llx\t%lld\t0x%02hhx\t0x%02hhx\t0x%02hhx\t%hhd\t%hd", sizeStr, index, GET(st_name), symbolName, 
+        GET(st_value), GET(st_size), GET(st_info), getSymbolBinding(), getSymbolType(), GET(st_other), GET(st_shndx));
 
 }

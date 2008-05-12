@@ -32,7 +32,7 @@ public:
 
     SECTIONHEADER_MACROS_BASIS("For the get_X field macros check the defines directory");
 
-    void print() { __SHOULD_NOT_ARRIVE; }
+    void print();
     void initFilePointers(BinaryInputFile* b);
 
     bool hasWriteBit();
@@ -71,7 +71,6 @@ public:
     ~SectionHeader32() {}
     uint32_t read(BinaryInputFile* b);
     bool hasBitsInFile() { return (GET(sh_type) != SHT_NOBITS); }
-    void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     char* charStream() { return (char*)&entry; }
 //    uint32_t instrument(char* buffer,ElfFileGen* xCoffGen,BaseGen* gen);
@@ -89,7 +88,6 @@ public:
     ~SectionHeader64() {}
     uint32_t read(BinaryInputFile* b);
     bool hasBitsInFile() { return (GET(sh_type) != SHT_NOBITS); }
-    void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     char* charStream() { return (char*)&entry; }
 //    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);

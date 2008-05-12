@@ -25,6 +25,47 @@ uint32_t readBytes = 0;
 );
 
 
+void ElfFile::print() 
+{ 
+
+    if(fileHeader){
+        fileHeader->print(); 
+    }
+
+    PRINT_INFOR("");
+    PRINT_INFOR("Program Header Table");
+    PRINT_INFOR("\t\t\tType\t\tSize in File\t\tVirtual Address\t\tPhysical Address");
+    PRINT_INFOR("\t\t\tOffset\t\tSize in Memory\t\tFlags\t\t\tAlignment");
+    for (uint32_t i = 0; i < numberOfPrograms; i++){
+        programHeaders[i]->print();
+    }
+
+    
+    PRINT_INFOR("");
+    PRINT_INFOR("Section Header Table");
+    PRINT_INFOR("\t\t\t\tName\t\tType\t\t\tFlags\t\t\tAddress\t\t\tOffset");
+    PRINT_INFOR("\t\t\t\tLink\t\tInfo\t\t\tSize\t\t\tAlignment\t\tEntry Size");
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        sectionHeaders[i]->print();
+    }
+
+    PRINT_INFOR("");
+    for (uint32_t i = 0; i < numberOfStringTables; i++){       
+        stringTables[i]->print();
+    }
+
+    PRINT_INFOR("");
+    for (uint32_t i = 0; i < numberOfSymbolTables; i++){
+        symbolTables[i]->print();
+    }
+
+    PRINT_INFOR("");
+    for (uint32_t i = 0; i < numberOfRelocationTables; i++){
+        relocationTables[i]->print();
+    }
+}
+
+
 void ElfFile::findFunctions(){
 /*
     ASSERT(symbolTable && "FATAL : Symbol table is missing");
@@ -127,7 +168,7 @@ void ElfFile::addDataSection(uint64_t size, char* bytes){
     Elf32_Shdr extraEntry;
 
     /* get the section offset for this extra section */
-    Elf32_Addr extraSectionOffset = sectionHeaders[numberOfSections-1]->GET(sh_offset) +
+    uint64_t extraSectionOffset = sectionHeaders[numberOfSections-1]->GET(sh_offset) +
             sectionHeaders[numberOfSections-1]->GET(sh_size);
     extraSectionOffset = (nextAlignAddress(extraSectionOffset,getAddressAlignment()));
 
@@ -515,30 +556,8 @@ void ElfFile::readRawSections(){
     //    PRINT_INFOR("Found sections: %d %d %d %d", numberOfStringTables, numberOfSymbolTables, numberOfRelocationTables, numberOfDwarfSections);
 }
 
-void ElfFile::briefPrint() 
-{ 
 
-    if(fileHeader){
-        fileHeader->print(); 
-    }
-    for (uint32_t i = 0; i < numberOfPrograms; i++){
-        programHeaders[i]->print();
-    }
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        sectionHeaders[i]->print();
-    }
-    for (uint32_t i = 0; i < numberOfStringTables; i++){       
-        stringTables[i]->print();
-    }
-    for (uint32_t i = 0; i < numberOfSymbolTables; i++){
-        symbolTables[i]->print();
-    }
-    for (uint32_t i = 0; i < numberOfRelocationTables; i++){
-        relocationTables[i]->print();
-    }
-}
-
-void ElfFile::print(){
+void ElfFile::briefPrint(){
 }
 
 void ElfFile::displaySymbols(){

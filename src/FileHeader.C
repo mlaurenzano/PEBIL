@@ -89,38 +89,33 @@ bool FileHeader::verify(uint16_t targetSize){
 }
 
 
-void FileHeader32::print() { 
-    PRINT_INFOR("FILEHEADER32");
+void FileHeader::print() { 
 
-    PRINT_INFOR("\tIdentification       : Magic(%#x -- %#x %c%c%c)\tClass(%d)\tData(%d)\tVer(%d)\tOS-ABI(%d)\tABIVer(%d)",ELFHDR_GETMAGIC, entry.e_ident[EI_MAG0], entry.e_ident[EI_MAG1], 
-entry.e_ident[EI_MAG2], entry.e_ident[EI_MAG3], entry.e_ident[EI_CLASS], entry.e_ident[EI_DATA], entry.e_ident[EI_VERSION], entry.e_ident[EI_OSABI], entry.e_ident[EI_ABIVERSION]);
-    PRINT_INFOR("\tGeneral Info         : Type(%#x)\tArch(%d -- %s)\tVer(%d)\tEntry(%#x)\tFlags(%#x)", entry.e_type, entry.e_machine,
-GET_ELF_MACH_STR(entry.e_machine), entry.e_version, entry.e_entry, entry.e_flags);
+    if (getSizeInBytes() == Size__32_bit_File_Header){
+        PRINT_INFOR("FileHeader32");
+    } else {
+        PRINT_INFOR("FileHeader64");
+    }
+
+    unsigned char* ident = GET(e_ident);
+
+    PRINT_INFOR("Magic\t\tMagicStr\tClass\tData\tID-Ver\tOS-ABI\tABIVer\tType\tArch\t%16s\tVersion\t\tEntry\t\t\tFlags", "ArchName");
+    PRINT_INFOR("0x%08x\t0x%02x+%c%c%c\t0x%02x\t0x%02x\t0x%02x\t0x%02x\t0x%04hx\t0x%04hx\t0x%04hx\t%16s\t0x%08x\t0x%016llx\t0x%08x", 
+                ELFHDR_GETMAGIC, ident[EI_MAG0], ident[EI_MAG1], ident[EI_MAG2], ident[EI_MAG3], ident[EI_CLASS], 
+                ident[EI_DATA], ident[EI_VERSION], ident[EI_OSABI], ident[EI_ABIVERSION], GET(e_type), GET(e_machine),
+                GET_ELF_MACH_STR(GET(e_machine)), GET(e_version), GET(e_entry), GET(e_flags));
 
     if (GET(e_phoff)){
-        PRINT_INFOR("\tProgram Header Table : (offset vaddr: %#x) (%d entries) (%d bytes each)", entry.e_phoff, entry.e_phnum, entry.e_phentsize);
+        PRINT_INFOR("ProgHdr Table:\tFile Offset\t\tNum Entries\tEntry Size");
+        PRINT_INFOR("\t\t\t0x%016llx\t0x%04hd\t\t0x%04hd", GET(e_phoff), GET(e_phnum), GET(e_phentsize));
     }
     if (GET(e_shoff)){
-        PRINT_INFOR("\tSection Header Table : (offset vaddr: %#x) (%d entries) (%d bytes each)", entry.e_shoff, entry.e_shnum, entry.e_shentsize);
-        PRINT_INFOR("\t\t(Section Header idx to String Table: %d)", entry.e_shstrndx); 
-    } 
-}
-void FileHeader64::print() { 
-    PRINT_INFOR("FILEHEADER64");
-    PRINT_INFOR("\tIdentification       : Magic(%#x -- %#x %c%c%c)\tClass(%d)\tData(%d)\tVer(%d)\tOS-ABI(%d)\tABIVer(%d)",ELFHDR_GETMAGIC, entry.e_ident[EI_MAG0], entry.e_ident[EI_MAG1], 
-entry.e_ident[EI_MAG2], entry.e_ident[EI_MAG3], entry.e_ident[EI_CLASS], entry.e_ident[EI_DATA], entry.e_ident[EI_VERSION], entry.e_ident[EI_OSABI], entry.e_ident[EI_ABIVERSION]);
-    PRINT_INFOR("\tGeneral Info         : Type(%#x)\tArch(%d -- %s)\tVer(%d)\tEntry(%#x)\tFlags(%#llx)", entry.e_type, entry.e_machine,
-GET_ELF_MACH_STR(entry.e_machine), entry.e_version, entry.e_entry, entry.e_flags);
-
-    if (GET(e_phoff)){
-        PRINT_INFOR("\tProgram Header Table : (offset vaddr: %#x) (%d entries) (%d bytes each)", entry.e_phoff, entry.e_phnum, entry.e_phentsize);
+        PRINT_INFOR("SectHdr Table:\tFile Offset\t\tNum Entries\tEntry Size");
+        PRINT_INFOR("\t\t\t0x%016llx\t0x%04hd\t\t0x%04hd", GET(e_shoff), GET(e_shnum), GET(e_shentsize));
     }
-    if (GET(e_shoff)){
-        PRINT_INFOR("\tSection Header Table : (offset vaddr: %#x) (%d entries) (%d bytes each)", entry.e_shoff, entry.e_shnum, entry.e_shentsize);
-        PRINT_INFOR("\t\t(Section Header idx to String Table: %d)", entry.e_shstrndx); 
-    } 
 
 }
+
 
 void FileHeader::initFilePointers(BinaryInputFile* binaryInputFile){
 

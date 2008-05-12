@@ -61,6 +61,7 @@ public:
     void print();
 
     RELOCATION_MACROS_CLASS("For the get_X field macros check the defines directory");
+    RELOCATIONADDEND_MACROS_CLASS("For the get_X field macros check the defines directory");
 };
 
 class RelocationAddend64 : public Relocation {
@@ -74,6 +75,7 @@ public:
     void print();
 
     RELOCATION_MACROS_CLASS("For the get_X field macros check the defines directory");
+    RELOCATIONADDEND_MACROS_CLASS("For the get_X field macros check the defines directory");
 };
 
 class RelocationTable : public RawSection {

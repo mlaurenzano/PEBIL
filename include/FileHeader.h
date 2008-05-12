@@ -35,7 +35,7 @@ public:
     FILEHEADER_MACROS_BASIS("For the get_X field macros check the defines directory");
 
     void initFilePointers(BinaryInputFile* b);
-    void print() { __SHOULD_NOT_ARRIVE; }
+    void print();
     char* getProgramHeaderTablePtr() { return programHeaderTablePtr; }
     char* getSectionHeaderTablePtr() { return sectionHeaderTablePtr; }
     const char* briefName() { return "FileHeader"; }
@@ -53,7 +53,6 @@ public:
     FileHeader32() { sizeInBytes = Size__32_bit_File_Header; }
     ~FileHeader32() {}
     uint32_t read(BinaryInputFile* b);
-    void print();
 
     char* charStream() { return (char*)&entry; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
@@ -71,7 +70,6 @@ public:
     FileHeader64() { sizeInBytes = Size__64_bit_File_Header; }
     ~FileHeader64() {}
     uint32_t read(BinaryInputFile* b);
-    void print();
 
     char* charStream() { return (char*)&entry; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);

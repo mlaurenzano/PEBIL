@@ -80,7 +80,7 @@ public:
 
     bool is64Bit() { return is64BitFlag; }
 
-    uint32_t getAddressAlignment(){ if (is64Bit()) { return sizeof(Elf64_Addr); } else { return sizeof(Elf32_Addr); } }
+    uint32_t getAddressAlignment(){ if (is64Bit()) { return sizeof(uint64_t); } else { return sizeof(uint32_t); } }
 
     void parse();
     void dump(char* extension);
