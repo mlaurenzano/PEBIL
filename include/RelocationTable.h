@@ -4,11 +4,13 @@
 #include <Base.h>
 #include <SectionHeader.h>
 #include <ElfFile.h>
+#include <RawSection.h>
 #include <defines/RelocationTable.d>
 
 class SymbolTable;
 class ElfFile;
 class SectionHeader;
+class RawSection;
 
 class Relocation {
 protected:

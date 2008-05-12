@@ -5,7 +5,7 @@ NATIVE_CPP  = CC
 GNU_CPP     = g++
 GNU_CC      = gcc
 CFLAGS      = $(DBG) $(OPT)
-CPP         = $(GNU_CPP)
+CPP         = $(GNU_CPP) --save-temps
 CC          = $(GNU_CC)
 EXTRA_CFLGS =
 AR          = ar ruv
@@ -26,9 +26,9 @@ BINDIR      = ../bin
 LIBDIR      = ../lib
 
 SRCS        = Base.C ElfFile.C BinaryFile.C FileHeader.C ProgramHeader.C SectionHeader.C \
-              StringTable.C SymbolTable.C RelocationTable.C main.C Disassemble.c
+              StringTable.C SymbolTable.C RelocationTable.C RawSection.C main.C Disassemble.c
 OBJS        = Base.o ElfFile.o BinaryFile.o FileHeader.o ProgramHeader.o SectionHeader.o \
-              StringTable.o SymbolTable.o RelocationTable.o main.o Disassemble.o
+              StringTable.o SymbolTable.o RelocationTable.o RawSection.o main.o Disassemble.o
 
 TARGET_BIN  = x86inst
 

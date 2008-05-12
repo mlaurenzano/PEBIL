@@ -23,10 +23,10 @@ public:
 
     char* charStream() { return rawDataPtr; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { binaryOutputFile->copyBytes(charStream(),getSizeInBytes(),offset); }
+    void printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine);
 
     char* getFilePointer() { return rawDataPtr; }
     uint16_t getSectionIndex() { return sectionIndex; }
     ElfFile* getElfFile() { return elfFile; }
-
 };
 #endif /* _RawSection_h_ */

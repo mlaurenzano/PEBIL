@@ -165,7 +165,7 @@ void Symbol::print(char* symbolName){
         sprintf(sizeStr,"64");
     }
 
-    PRINT_INFOR("\tSym%s(%d):\t%d\t%24s\t0x%016llx\t%lld\t0x%02hhx\t0x%02hhx\t0x%02hhx\t%hhd\t%hd", sizeStr, index, GET(st_name), symbolName, 
+    PRINT_INFOR("\tSym%s(%d):\t%d\t%24s\t0x%016llx\t%lld\t0x%02hhx\t0x%02hhx\t0x%02hhx\t%hhu\t%hu", sizeStr, index, GET(st_name), symbolName, 
         GET(st_value), GET(st_size), GET(st_info), getSymbolBinding(), getSymbolType(), GET(st_other), GET(st_shndx));
 
 }
