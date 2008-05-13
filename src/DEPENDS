@@ -7,8 +7,8 @@ ElfFile.o: ElfFile.C ../include/FileHeader.h ../include/Base.h \
   ../include/defines/RawSection.d ../include/StringTable.h \
   ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/RelocationTable.h ../include/defines/RelocationTable.d \
-  ../include/DwarfSection.h ../include/Disassembler.h \
-  ../include/CStructuresX86.h ../include/BitSet.h
+  ../include/Disassembler.h ../include/CStructuresX86.h \
+  ../include/BitSet.h
 BinaryFile.o: BinaryFile.C ../include/Base.h ../include/CStructuresElf.h \
   ../include/ElfFile.h ../include/BinaryFile.h
 FileHeader.o: FileHeader.C ../include/BinaryFile.h ../include/Base.h \
@@ -38,8 +38,11 @@ RelocationTable.o: RelocationTable.C ../include/SymbolTable.h \
 RawSection.o: RawSection.C ../include/RawSection.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/BinaryFile.h \
   ../include/defines/RawSection.d
+Disassembler.o: Disassembler.C ../include/Disassembler.h \
+  ../include/Base.h ../include/CStructuresElf.h \
+  ../include/CStructuresX86.h ../include/ElfFile.h \
+  ../include/BinaryFile.h
+Instruction.o: Instruction.C ../include/Instruction.h ../include/Base.h \
+  ../include/CStructuresElf.h ../include/BinaryFile.h
 main.o: main.C ../include/Base.h ../include/CStructuresElf.h \
   ../include/ElfFile.h ../include/BinaryFile.h
-Disassembler.o: Disassembler.C ../include/Disassembler.h \
-  ../include/Base.h ../include/CStructuresElf.h ../include/BinaryFile.h \
-  ../include/defines/RawSection.d ../include/CStructuresX86.h

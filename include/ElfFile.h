@@ -12,6 +12,7 @@ class StringTable;
 class SymbolTable;
 class RelocationTable;
 class DwarfSection;
+class TextSection;
 class Disassembler;
 
 class ElfFile {
@@ -32,6 +33,7 @@ private:
     SymbolTable** symbolTables;
     RelocationTable** relocationTables;
     DwarfSection** dwarfSections;
+    TextSection** textSections;
 
     uint32_t numberOfPrograms;
     uint32_t numberOfSections;
@@ -40,6 +42,7 @@ private:
     uint32_t numberOfSymbolTables;
     uint32_t numberOfRelocationTables;
     uint32_t numberOfDwarfSections;
+    uint32_t numberOfTextSections;
 
     uint32_t numberOfFunctions;
     uint32_t numberOfBlocks;
@@ -93,6 +96,7 @@ public:
     RawSection* findRawSection(uint64_t addr);
 
     char* getElfFileName() { return elfFileName; }
+    Disassembler* getDisassembler() { return disassembler; }
 
     FileHeader*  getFileHeader() { return fileHeader; }
     ProgramHeader* getProgramHeader(uint32_t idx) { return programHeaders[idx]; }
@@ -102,6 +106,7 @@ public:
     SymbolTable* getSymbolTable(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfSymbolTables); return symbolTables[idx]; }
     RelocationTable* getRelocationTable(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfRelocationTables); return relocationTables[idx]; }
     DwarfSection* getDwarfSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfDwarfSections); return dwarfSections[idx]; }
+    TextSection* getTextSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfTextSections); return textSections[idx]; }
 
     uint16_t getSectionNameStrTabIdx() { return sectionNameStrTabIdx; }
 
@@ -111,6 +116,7 @@ public:
     uint32_t getNumberOfSymbolTables() { return numberOfSymbolTables; }
     uint32_t getNumberOfRelocationTables() { return numberOfRelocationTables; }
     uint32_t getNumberOfDwarfSections() { return numberOfDwarfSections; }
+    uint32_t getNumberOfTextSections() { return numberOfTextSections; }
 
     uint32_t getNumberOfFunctions() { return numberOfFunctions; }
     uint32_t getNumberOfBlocks()    { return numberOfBlocks; }
@@ -129,8 +135,7 @@ public:
 
     void setLineInfoFinder();
     void findLoops();
-    void printDisassembledCode();
-    void disassemble();
+    uint32_t disassemble();
 
     void testBitSet();
 

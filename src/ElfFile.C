@@ -7,7 +7,6 @@
 #include <StringTable.h>
 #include <SymbolTable.h>
 #include <RelocationTable.h>
-#include <DwarfSection.h>
 #include <Disassembler.h>
 #include <CStructuresX86.h>
 #include <BitSet.h>
@@ -78,64 +77,15 @@ void ElfFile::findFunctions(){
 }
 
 
-void ElfFile::printDisassembledCode(){
-    disassembler = new Disassembler(this);
+uint32_t ElfFile::disassemble(){
+    uint32_t numInstrs = 0;
 
-    uint32_t currByte = 0;
-    uint32_t instructionLength = 0;
-    uint32_t instructionCount = 0;
-    uint64_t instructionAddress;
+    disassembler = new Disassembler(is64Bit());
 
-    for (uint32_t i = 1; i < numberOfSections; i++){
-        if (sectionHeaders[i]->hasExecInstrBit()){
-            PRINT_INFOR("Disassembly of Section %s", sectionHeaders[i]->getSectionNamePtr());
-            instructionCount = 0;
-
-            for (currByte = 0; currByte < sectionHeaders[i]->GET(sh_size); currByte += instructionLength, instructionCount++){
-                instructionAddress = (uint64_t)((uint32_t)rawSections[i]->charStream() + currByte);
-                fprintf(stdout, "(0x%lx) 0x%lx:\t", (uint32_t)(rawSections[i]->charStream() + currByte), sectionHeaders[i]->GET(sh_addr) + currByte);
-
-                instructionLength = disassembler->print_insn(instructionAddress);
-
-                fprintf(stdout, "\t(bytes -- ");
-                uint8_t* bytePtr;
-                for (uint32_t j = 0; j < instructionLength; j++){
-                    bytePtr = (uint8_t*)rawSections[i]->charStream() + currByte + j;
-                    fprintf(stdout, "%2.2lx ", *bytePtr);
-                }
-
-
-                fprintf(stdout, ")\n");
-            }
-            PRINT_INFOR("Found %d instructions (%d bytes) in section %d", instructionCount, currByte, i);
-
-        }
+    for (uint32_t i = 0; i < numberOfTextSections; i++){
+        numInstrs += textSections[i]->disassemble();
     }
-
-}
-
-void ElfFile::disassemble(){
-    struct disassemble_info disInfo;
-    x86inst_set_disassemble_info(&disInfo,(uint32_t)is64Bit());
-
-    uint32_t currByte = 0;
-    uint32_t instructionLength = 0;
-    uint32_t instructionCount = 0;
-    uint64_t instructionAddress;
-
-    for (uint32_t i = 1; i < numberOfSections; i++){
-        if (sectionHeaders[i]->hasExecInstrBit()){
-            instructionCount = 0;
-
-            for (currByte = 0; currByte < sectionHeaders[i]->GET(sh_size); currByte += instructionLength, instructionCount++){
-                instructionAddress = (uint64_t)((uint32_t)rawSections[i]->charStream() + currByte);
-                //instructionLength = print_insn(instructionAddress, &disInfo, is64Bit());
-                fprintf(stdout, "\n");
-            }
-            PRINT_INFOR("Found %d instructions (%d bytes) in section %d", instructionCount, currByte, i);
-
-        }
-    }
+    return numInstrs;
 }
 
 uint32_t ElfFile::findSectionNameInStrTab(char* name){
@@ -464,11 +414,12 @@ void ElfFile::readSectionHeaders(){
     for (uint32_t i = 0; i < numberOfSections; i++){
         ElfClassTypes typ = sectionHeaders[i]->setSectionType();
         switch(typ){
-            case (ElfClassTypes_string_table) : numberOfStringTables++;
-            case (ElfClassTypes_symbol_table) : numberOfSymbolTables++;
-            case (ElfClassTypes_relocation_table) : numberOfRelocationTables++;
-            case (ElfClassTypes_dwarf_section)  : numberOfDwarfSections++;
-            default: ;
+        case (ElfClassTypes_string_table) : numberOfStringTables++;
+        case (ElfClassTypes_symbol_table) : numberOfSymbolTables++;
+        case (ElfClassTypes_relocation_table) : numberOfRelocationTables++;
+        case (ElfClassTypes_dwarf_section)  : numberOfDwarfSections++;
+        case (ElfClassTypes_text_section) : numberOfTextSections++;
+        default: ;
         }
     }
 
@@ -520,8 +471,9 @@ void ElfFile::readRawSections(){
     symbolTables = new SymbolTable*[numberOfSymbolTables];
     relocationTables = new RelocationTable*[numberOfRelocationTables];
     dwarfSections = new DwarfSection*[numberOfDwarfSections];
+    textSections = new TextSection*[numberOfTextSections];
 
-    numberOfStringTables = numberOfSymbolTables = numberOfRelocationTables = numberOfDwarfSections = 0;
+    numberOfStringTables = numberOfSymbolTables = numberOfRelocationTables = numberOfDwarfSections = numberOfTextSections = 0;
 
     for (uint32_t i = 0; i < numberOfSections; i++){
         char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[i]->GET(sh_offset));
@@ -544,13 +496,17 @@ void ElfFile::readRawSections(){
             rawSections[i] = new DwarfSection(sectionFilePtr, sectionSize, i, numberOfDwarfSections, this);
             dwarfSections[numberOfDwarfSections] = (DwarfSection*)rawSections[i];
             numberOfDwarfSections++;
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_text_section){
+            rawSections[i] = new TextSection(sectionFilePtr, sectionSize, i, numberOfTextSections, this);
+            textSections[numberOfTextSections] = (TextSection*)rawSections[i];
+            numberOfTextSections++;
         } else {
             rawSections[i] = new RawSection(ElfClassTypes_no_type, sectionFilePtr, sectionSize, i, this);
         }
         rawSections[i]->read(&binaryInputFile);
     }
 
-    //    PRINT_INFOR("Found sections: %d %d %d %d", numberOfStringTables, numberOfSymbolTables, numberOfRelocationTables, numberOfDwarfSections);
+    PRINT_INFOR("Found sections: %d %d %d %d %d", numberOfStringTables, numberOfSymbolTables, numberOfRelocationTables, numberOfDwarfSections, numberOfTextSections);
 }
 
 

@@ -4,13 +4,18 @@
 #include <Base.h>
 #include <CStructuresX86.h>
 
-class ElfFile;
+static void noprint_fprintf(FILE* stream, const char* format, ...){
+}
+
 
 class Disassembler : public Base {
 protected:
-    ElfFile* elfFile;
+    uint32_t is64Bit;
     uint64_t machineType;
     struct disassemble_info disassembleInfo;
+
+    fprintf_ftype fprintf_func;
+    FILE* fprintf_stream;
 
     char obuf[100];
     char *obufp;
@@ -38,6 +43,12 @@ protected:
     uint64_t op_riprel[3];
     uint64_t start_pc;
 
+    int mode_64bit;
+    int prefixes;
+    int rex;
+    int rex_used;
+    int used_prefixes;
+
     /*
      *   On the 386's of 1988, the maximum length of an instruction is 15 bytes.
      *   (see topic "Redundant prefixes" in the "Differences from 8086"
@@ -55,13 +66,11 @@ protected:
 
 
 public:
-    Disassembler(ElfFile* elffile);
+    Disassembler(uint32_t is64bit);
     ~Disassembler();
-
     void print();
-
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) {}
-    ElfFile* getElfFile() { return elfFile; }
+    void setPrintFunction(fprintf_ftype pf_func, FILE* pf_stream);
 
     void get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag);
 
@@ -81,8 +90,9 @@ public:
     int32_t get16();
     void set_op(uint64_t op, int riprel);
     void ptr_reg(uint32_t code, uint32_t sizeflag);
+    void generic_print_address(uint64_t addr, struct disassemble_info* info);
 
-    /* functions to deal with different op modes */
+    /* functions to deal with different op types */
     void OP_ST(uint32_t bytemode, uint32_t sizeflag);
     void OP_STi(uint32_t bytemode, uint32_t sizeflag);
     void OP_indirE(uint32_t bytemode, uint32_t sizeflag);
@@ -117,4 +127,5 @@ public:
 
 
 };
+
 #endif /* _Disassembler_h_ */

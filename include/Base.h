@@ -135,6 +135,7 @@ typedef enum {
     ElfClassTypes_symbol_table,
     ElfClassTypes_string_table,
     ElfClassTypes_dwarf_section,
+    ElfClassTypes_text_section,
     ElfClassTypes_Total_Types
 } ElfClassTypes;
 

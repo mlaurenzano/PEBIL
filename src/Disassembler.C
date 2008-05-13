@@ -38,16 +38,24 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <Disassembler.h>
 #include <CStructuresX86.h>
 #include <ElfFile.h>
+#include <stdio.h>
 
-Disassembler::Disassembler(ElfFile* elffile){
-    elfFile = elffile;
-    if (elfFile->is64Bit()){
+Disassembler::Disassembler(uint32_t is64bit){
+    is64Bit = is64bit;
+    if (is64Bit){
         machineType = mach_x86_64;
     } else {
         machineType = mach_i386_i386;
     }
+    fprintf_func = (fprintf_ftype)fprintf;
+    fprintf_stream = stdout;
 
-    x86inst_set_disassemble_info(&disassembleInfo, elfFile->is64Bit());
+    x86inst_set_disassemble_info(&disassembleInfo, is64Bit);
+}
+
+void Disassembler::setPrintFunction(fprintf_ftype pf_func, FILE* pf_stream){
+    fprintf_func = pf_func;
+    fprintf_stream = pf_stream;
 }
 
 Disassembler::~Disassembler(){
@@ -106,11 +114,11 @@ void x86inst_set_disassemble_info(struct disassemble_info* dis_info, uint32_t is
     (*dis_info).buffer_vma = 0;
 }
 
-void generic_print_address(uint64_t addr, struct disassemble_info* info)
+void Disassembler::generic_print_address(uint64_t addr, struct disassemble_info* info)
 {
     char buf[30];
     sprintf_vma (buf, addr);
-    fprintf(stdout, "0x%s", buf);
+    (*fprintf_func)(fprintf_stream, "0x%s", buf);
 }
 
 
@@ -303,6 +311,10 @@ const char* Disassembler::prefix_name(int pref, int sizeflag){
 }
 
 void Disassembler::get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag){
+
+    //    fprintf(stdout, "\n");
+    //PRINT_INFOR("Op function = %d", op);
+
     switch(op){
     case func_OP_ST:
         OP_ST(bytemode, sizeflag);
@@ -485,7 +497,7 @@ uint32_t Disassembler::print_insn(uint64_t pc){
         name = prefix_name (priv.the_buffer[0], priv.orig_sizeflag);
         if (name == NULL)
             name = INTERNAL_DISASSEMBLER_ERROR;
-        fprintf (stdout, "%s", name);
+        (*fprintf_func)(fprintf_stream, "%s", name);
         return 1;
     }
 
@@ -609,7 +621,7 @@ uint32_t Disassembler::print_insn(uint64_t pc){
         name = prefix_name (priv.the_buffer[0], priv.orig_sizeflag);
         if (name == NULL)
             name = INTERNAL_DISASSEMBLER_ERROR;
-        fprintf (stdout, "%s", name);
+        (*fprintf_func)(fprintf_stream, "%s", name);
         return 1;
     }
     if (rex & ~rex_used){
@@ -617,14 +629,14 @@ uint32_t Disassembler::print_insn(uint64_t pc){
         name = prefix_name (rex | 0x40, priv.orig_sizeflag);
         if (name == NULL)
             name = INTERNAL_DISASSEMBLER_ERROR;
-        fprintf (stdout, "%s ", name);
+        (*fprintf_func)(fprintf_stream, "%s ", name);
     }
 
     obufp = obuf + strlen (obuf);
     for (i = strlen (obuf); i < 6; i++)
         oappend (" ");
     oappend (" ");
-    fprintf (stdout, "%s", obuf);
+    (*fprintf_func)(fprintf_stream, "%s", obuf);
 
     /* The enter and bound instructions are printed with operands in the same
        order as the intel book; everything else is printed in reverse order.  */
@@ -646,29 +658,29 @@ uint32_t Disassembler::print_insn(uint64_t pc){
         if (op_index[0] != -1 && !op_riprel[0])
             generic_print_address((uint64_t) op_address[op_index[0]], &disassembleInfo);
         else
-            fprintf (stdout, "%s", first);
+            (*fprintf_func)(fprintf_stream, "%s", first);
         needcomma = 1;
     }
     if (*second) {
         if (needcomma)
-            fprintf (stdout, ",");
+            (*fprintf_func)(fprintf_stream, ",");
         if (op_index[1] != -1 && !op_riprel[1])
             generic_print_address((uint64_t) op_address[op_index[1]], &disassembleInfo);
         else
-            fprintf (stdout, "%s", second);
+            (*fprintf_func)(fprintf_stream, "%s", second);
         needcomma = 1;
     }
     if (*third){
         if (needcomma)
-            fprintf (stdout, ",");
+            (*fprintf_func)(fprintf_stream, ",");
         if (op_index[2] != -1 && !op_riprel[2])
             generic_print_address((uint64_t) op_address[op_index[2]], &disassembleInfo);
         else
-            fprintf (stdout, "%s", third);
+            (*fprintf_func)(fprintf_stream, "%s", third);
     }
     for (i = 0; i < 3; i++){
         if (op_index[i] != -1 && op_riprel[i]){
-            fprintf (stdout, "        # ");
+            (*fprintf_func)(fprintf_stream, "        # ");
             generic_print_address((uint64_t) (start_pc + codep - start_codep
                                                      + op_address[op_index[i]]), &disassembleInfo);
         }
@@ -1646,7 +1658,7 @@ void Disassembler::OP_sI(uint32_t bytemode, uint32_t sizeflag){
 
 void Disassembler::OP_J(uint32_t bytemode, uint32_t sizeflag){
     uint64_t disp;
-    uint64_t mask = (uint64_t)-1;
+    int64_t mask = -1;
 
     switch (bytemode){
     case b_mode:

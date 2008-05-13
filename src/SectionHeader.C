@@ -15,6 +15,8 @@ ElfClassTypes SectionHeader::setSectionType(){
     } else if (GET(sh_type) == SHT_PROGBITS){
         if (!hasWriteBit() && !hasAllocBit() && !hasExecInstrBit()){
             sectionType = ElfClassTypes_dwarf_section;
+        } else if (hasExecInstrBit()){
+            sectionType = ElfClassTypes_text_section;
         }
 
     }

@@ -220,8 +220,7 @@ int main(int argc,char* argv[]){
 
         delete[] fakeSect;
     } else if (instType == disassembler_type){
-        elfFile.printDisassembledCode();
-        //elfFile.disassemble();
+        elfFile.disassemble();
     } else {
         PRINT_ERROR("Error : invalid instrumentation type");
     }

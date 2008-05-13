@@ -126,16 +126,6 @@ extern "C" {
        when we can.  */
 #define FWAIT_OPCODE (0x9b)
     
-    /* Set to 1 for 64bit mode disassembly.  */
-    static int mode_64bit;
-    
-    /* Flags for the prefixes for the current instruction.  See below.  */
-    static int prefixes;
-    
-    /* REX prefix the current instruction.  See below.  */
-    static int rex;
-    /* Bits of REX we've already used.  */
-    static int rex_used;
 #define REX_MODE64      8
 #define REX_EXTX        4
 #define REX_EXTY        2
@@ -150,10 +140,6 @@ extern "C" {
     else                                                \
         rex_used |= 0x40;                               \
 }
-    
-    /* Flags for prefixes which we somehow handled when printing the
-       current instruction.  */
-    static int used_prefixes;
     
     
     /* Flags stored in PREFIXES.  */
