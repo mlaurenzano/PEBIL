@@ -5,16 +5,16 @@
 #include <BinaryFile.h>
 
 unsigned char Symbol32::getSymbolBinding(){
-    return ELF32_ST_BIND(GET(st_info));
+    return ELF32_ST_BIND(entry.st_info);
 }
 unsigned char Symbol64::getSymbolBinding(){
-    return ELF64_ST_BIND(GET(st_info));
+    return ELF64_ST_BIND(entry.st_info);
 }
 unsigned char Symbol32::getSymbolType(){
-    return ELF32_ST_TYPE(GET(st_info));
+    return ELF32_ST_TYPE(entry.st_info);
 }
 unsigned char Symbol64::getSymbolType(){
-    return ELF64_ST_TYPE(GET(st_info));
+    return ELF64_ST_TYPE(entry.st_info);
 }
 
 int compareSymbolValue(const void* arg1,const void* arg2){

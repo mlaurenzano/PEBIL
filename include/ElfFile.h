@@ -12,6 +12,7 @@ class StringTable;
 class SymbolTable;
 class RelocationTable;
 class DwarfSection;
+class Disassembler;
 
 class ElfFile {
 private:
@@ -22,7 +23,7 @@ private:
     BinaryInputFile   binaryInputFile;
     BinaryOutputFile  binaryOutputFile;
 
-
+    Disassembler* disassembler;
     FileHeader*  fileHeader;
     ProgramHeader**  programHeaders;
     SectionHeader** sectionHeaders;

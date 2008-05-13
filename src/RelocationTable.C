@@ -34,13 +34,13 @@ uint16_t RelocationTable::setRelocationSection(){
 
 void RelocationTable::print(){
     if (elfFile->is64Bit() && type == ElfRelType_rel){
-        PRINT_INFOR("RelocationTable64(%d): REL_, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
+        PRINT_INFOR("RelocationTable64(%d): type REL_, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
     } else if (elfFile->is64Bit() && type == ElfRelType_rela){
-        PRINT_INFOR("RelocationTable64(%d): RELA, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
+        PRINT_INFOR("RelocationTable64(%d): type RELA, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
     } else if (!elfFile->is64Bit() && type == ElfRelType_rel){
-        PRINT_INFOR("RelocationTable32(%d): REL_, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
+        PRINT_INFOR("RelocationTable32(%d): type REL_, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
     } else {
-        PRINT_INFOR("RelocationTable32(%d): RELA, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
+        PRINT_INFOR("RelocationTable32(%d): type RELA, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
     }
 
     PRINT_INFOR("\tSymbol table section   : %d", elfFile->getSectionHeader(getSectionIndex())->GET(sh_link));
@@ -58,16 +58,16 @@ void RelocationTable::print(){
 }
 
 void Relocation32::print(){
-    PRINT_INFOR("Relocation32(%d):\t0x%016llx\t0x%016llx\t%d\t0x%04x", index, GET(r_offset), GET(r_info), ELF32_R_SYM(GET(r_info)), ELF32_R_TYPE(GET(r_info)));
+    PRINT_INFOR("Relocation32(%d):\t0x%016llx\t0x%016llx\t%d\t0x%08x", index, GET(r_offset), GET(r_info), ELF32_R_SYM(entry.r_info), ELF32_R_TYPE(entry.r_info));
 }
 void Relocation64::print(){
-    PRINT_INFOR("Relocation64(%d):\t0x%016llx\t0x%016llx\t%d\t0x%04x", index, GET(r_offset), GET(r_info), ELF64_R_SYM(GET(r_info)), ELF64_R_TYPE(GET(r_info)));
+    PRINT_INFOR("Relocation64(%d):\t0x%016llx\t0x%016llx\t%d\t0x%08x", index, GET(r_offset), GET(r_info), ELF64_R_SYM(entry.r_info), ELF64_R_TYPE(entry.r_info));
 }
 void RelocationAddend32::print(){
-    PRINT_INFOR("RelAddend32(%d):\t0x%016llx\t0x%016llx\t%d\t0x%04x\t0x%016llx", index, GET(r_offset), GET(r_info), ELF32_R_SYM(GET(r_info)), ELF32_R_TYPE(GET(r_info)), GET(r_addend));
+    PRINT_INFOR("RelAddend32(%d):\t0x%016llx\t0x%016llx\t%d\t0x%08x\t0x%016llx", index, GET(r_offset), GET(r_info), ELF32_R_SYM(entry.r_info), ELF32_R_TYPE(entry.r_info), GET(r_addend));
 }
 void RelocationAddend64::print(){
-    PRINT_INFOR("RelAddend64(%d):\t0x%016llx\t0x%016x\t%d\t0x%04x\t0x%016llx", index, GET(r_offset), GET(r_info), ELF64_R_SYM(GET(r_info)), ELF64_R_TYPE(GET(r_info)), GET(r_addend));
+    PRINT_INFOR("RelAddend64(%d):\t0x%016llx\t0x%016x\t%d\t0x%08x\t0x%016llx", index, GET(r_offset), GET(r_info), ELF64_R_SYM(entry.r_info), ELF64_R_TYPE(entry.r_info), GET(r_addend));
 }
 
 uint32_t Relocation32::read(BinaryInputFile* binaryInputFile){

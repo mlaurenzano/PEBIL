@@ -35,9 +35,28 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
  * the Intel manual for details.
  */
 
-#include <Disassemble.h>
+#include <Disassembler.h>
+#include <CStructuresX86.h>
+#include <ElfFile.h>
 
-int x86inst_intern_read_mem_func(uint64_t memaddr, uint8_t *myaddr, uint32_t length, struct disassemble_info *info){
+Disassembler::Disassembler(ElfFile* elffile){
+    elfFile = elffile;
+    if (elfFile->is64Bit()){
+        machineType = mach_x86_64;
+    } else {
+        machineType = mach_i386_i386;
+    }
+
+    x86inst_set_disassemble_info(&disassembleInfo, elfFile->is64Bit());
+}
+
+Disassembler::~Disassembler(){
+}
+
+void Disassembler::print(){
+}
+
+uint32_t Disassembler::readMemory(uint64_t memaddr, uint8_t* myaddr, uint32_t length, struct disassemble_info* info){
     // check if memory locations are valid
     uint8_t* dest_addr = myaddr;
     uint8_t* source_addr = info->buffer + (memaddr - info->buffer_vma);
@@ -45,7 +64,7 @@ int x86inst_intern_read_mem_func(uint64_t memaddr, uint8_t *myaddr, uint32_t len
     // check if any bytes in source are part of destination
     if (dest_addr < source_addr && dest_addr + length >= source_addr){
         return 0;
-    // check if any bytes in destination are part of source
+        // check if any bytes in destination are part of source
     } else if (source_addr < dest_addr && source_addr + length >= dest_addr){
         return 0;
     } else {
@@ -53,9 +72,28 @@ int x86inst_intern_read_mem_func(uint64_t memaddr, uint8_t *myaddr, uint32_t len
         memcpy(myaddr, source_addr, length);
         return length;
     }
+
 }
 
-fprintf_ftype disasm_fprintf_func = (fprintf_ftype)(fprintf);
+int x86inst_intern_read_mem_func(uint64_t memaddr, uint8_t* myaddr, uint32_t length, struct disassemble_info* info){
+    // check if memory locations are valid
+    uint8_t* dest_addr = myaddr;
+    uint8_t* source_addr = info->buffer + (memaddr - info->buffer_vma);
+
+    // check if any bytes in source are part of destination
+    if (dest_addr < source_addr && dest_addr + length >= source_addr){
+        return 0;
+        // check if any bytes in destination are part of source
+    } else if (source_addr < dest_addr && source_addr + length >= dest_addr){
+        return 0;
+    } else {
+        //fprintf(stdout, "MEMREAD: %x(%lx) -> %x(%lx), %d\n", (source_addr), *(source_addr), (dest_addr), *(dest_addr), length);
+        memcpy(myaddr, source_addr, length);
+        return length;
+    }
+
+}
+
 
 void x86inst_set_disassemble_info(struct disassemble_info* dis_info, uint32_t is64bit){
     if (is64bit){
@@ -68,73 +106,23 @@ void x86inst_set_disassemble_info(struct disassemble_info* dis_info, uint32_t is
     (*dis_info).buffer_vma = 0;
 }
 
-void generic_print_address (uint64_t addr, struct disassemble_info* info)
+void generic_print_address(uint64_t addr, struct disassemble_info* info)
 {
     char buf[30];
     sprintf_vma (buf, addr);
-    (*disasm_fprintf_func)(stdout, "0x%s", buf);
+    fprintf(stdout, "0x%s", buf);
 }
 
-
-/*
-static int fetch_data PARAMS ((struct disassemble_info *, uint8_t *));
-static void ckprefix PARAMS ((void));
-static const char *prefix_name PARAMS ((int, int));
-int print_insn PARAMS ((uint64_t, disassemble_info *, uint32_t));
-static void dofloat PARAMS ((int));
-static void OP_ST PARAMS ((int, int));
-static void OP_STi  PARAMS ((int, int));
-static int putop PARAMS ((const char *, int));
-static void oappend PARAMS ((const char *));
-static void append_seg PARAMS ((void));
-static void OP_indirE PARAMS ((int, int));
-static void print_operand_value PARAMS ((char *, int, uint64_t));
-static void OP_E PARAMS ((int, int));
-static void OP_G PARAMS ((int, int));
-static uint64_t get64 PARAMS ((void));
-static int64_t get32 PARAMS ((void));
-static int64_t get32s PARAMS ((void));
-static int get16 PARAMS ((void));
-static void set_op PARAMS ((uint64_t, int));
-static void OP_REG PARAMS ((int, int));
-static void OP_IMREG PARAMS ((int, int));
-static void OP_I PARAMS ((int, int));
-static void OP_I64 PARAMS ((int, int));
-static void OP_sI PARAMS ((int, int));
-static void OP_J PARAMS ((int, int));
-static void OP_SEG PARAMS ((int, int));
-static void OP_DIR PARAMS ((int, int));
-static void OP_OFF PARAMS ((int, int));
-static void OP_OFF64 PARAMS ((int, int));
-static void ptr_reg PARAMS ((int, int));
-static void OP_ESreg PARAMS ((int, int));
-static void OP_DSreg PARAMS ((int, int));
-static void OP_C PARAMS ((int, int));
-static void OP_D PARAMS ((int, int));
-static void OP_T PARAMS ((int, int));
-static void OP_Rd PARAMS ((int, int));
-static void OP_MMX PARAMS ((int, int));
-static void OP_XMM PARAMS ((int, int));
-static void OP_EM PARAMS ((int, int));
-static void OP_EX PARAMS ((int, int));
-static void OP_MS PARAMS ((int, int));
-static void OP_XS PARAMS ((int, int));
-static void OP_3DNowSuffix PARAMS ((int, int));
-static void OP_SIMD_Suffix PARAMS ((int, int));
-static void SIMD_Fixup PARAMS ((int, int));
-static void BadOp PARAMS ((void));
-*/
 
 /* Make sure that bytes from INFO->PRIVATE_DATA->BUFFER (inclusive)
    to ADDR (exclusive) are valid.  Returns 1 for success, longjmps
    on error.  */
 #define FETCH_DATA(info, addr) \
-  ((addr) <= ((struct dis_private *) (info->private_data))->max_fetched \
+  ((addr) <= ((struct dis_private *) ((info)->private_data))->max_fetched \
    ? 1 : fetch_data ((info), (addr)))
 
 
-int fetch_data (struct disassemble_info* info, uint8_t* addr)
-{
+int fetch_data (struct disassemble_info* info, uint8_t* addr){
     int status;
     struct dis_private *priv = (struct dis_private *) info->private_data;
     uint64_t start = priv->insn_start + (priv->max_fetched - priv->the_buffer);
@@ -149,8 +137,7 @@ int fetch_data (struct disassemble_info* info, uint8_t* addr)
     return 1;
 }
 
-void ckprefix()
-{
+void Disassembler::ckprefix(){
     int newrex;
     rex = 0;
     prefixes = 0;
@@ -248,8 +235,7 @@ void ckprefix()
 /* Return the name of the prefix byte PREF, or NULL if PREF is not a
    prefix byte.  */
 
-const char* prefix_name(int pref, int sizeflag)
-{
+const char* Disassembler::prefix_name(int pref, int sizeflag){
     switch (pref){
         /* REX prefixes family.  */
     case 0x40:
@@ -316,29 +302,105 @@ const char* prefix_name(int pref, int sizeflag)
     }
 }
 
-static char op1out[100], op2out[100], op3out[100];
-static int op_ad, op_index[3];
-static uint64_t op_address[3];
-static uint64_t op_riprel[3];
-static uint64_t start_pc;
-
-/*
- *   On the 386's of 1988, the maximum length of an instruction is 15 bytes.
- *   (see topic "Redundant prefixes" in the "Differences from 8086"
- *   section of the "Virtual 8086 Mode" chapter.)
- * 'pc' should be the address of this instruction, it will
- *   be used to print the target address if this is a relative jump or call
- * The function returns the length of this instruction in bytes.
- */
+void Disassembler::get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag){
+    switch(op){
+    case func_OP_ST:
+        OP_ST(bytemode, sizeflag);
+        break;
+    case func_OP_STi:
+        OP_STi(bytemode, sizeflag);
+        break;
+    case func_OP_indirE:
+        OP_indirE(bytemode, sizeflag);
+        break;
+    case func_OP_E:
+        OP_E(bytemode, sizeflag);
+        break;
+    case func_OP_G:
+        OP_G(bytemode, sizeflag);
+        break;
+    case func_OP_REG:
+        OP_REG(bytemode, sizeflag);
+        break;
+    case func_OP_IMREG:
+        OP_IMREG(bytemode, sizeflag);
+        break;
+    case func_OP_I:
+        OP_I(bytemode, sizeflag);
+        break;
+    case func_OP_I64:
+        OP_I64(bytemode, sizeflag);
+        break;
+    case func_OP_sI:
+        OP_sI(bytemode, sizeflag);
+        break;
+    case func_OP_J:
+        OP_J(bytemode, sizeflag);
+        break;
+    case func_OP_SEG:
+        OP_SEG(bytemode, sizeflag);
+        break;
+    case func_OP_DIR:
+        OP_DIR(bytemode, sizeflag);
+        break;
+    case func_OP_OFF:
+        OP_OFF(bytemode, sizeflag);
+        break;
+    case func_OP_OFF64:
+        OP_OFF64(bytemode, sizeflag);
+        break;
+    case func_OP_ESreg:
+        OP_ESreg(bytemode, sizeflag);
+        break;
+    case func_OP_DSreg:
+        OP_DSreg(bytemode, sizeflag);
+        break;
+    case func_OP_C:
+        OP_C(bytemode, sizeflag);
+        break;
+    case func_OP_D:
+        OP_D(bytemode, sizeflag);
+        break;
+    case func_OP_T:
+        OP_T(bytemode, sizeflag);
+        break;
+    case func_OP_Rd:
+        OP_Rd(bytemode, sizeflag);
+        break;
+    case func_OP_MMX:
+        OP_MMX(bytemode, sizeflag);
+        break;
+    case func_OP_XMM:
+        OP_XMM(bytemode, sizeflag);
+        break;
+    case func_OP_EM:
+        OP_EM(bytemode, sizeflag);
+        break;
+    case func_OP_EX:
+        OP_EX(bytemode, sizeflag);
+        break;
+    case func_OP_MS:
+        OP_MS(bytemode, sizeflag);
+        break;
+    case func_OP_XS:
+        OP_XS(bytemode, sizeflag);
+        break;
+    case func_OP_3DNowSuffix:
+        OP_3DNowSuffix(bytemode, sizeflag);
+        break;
+    case func_OP_SIMD_Suffix:
+        OP_SIMD_Suffix(bytemode, sizeflag);
+        break;
+    case func_SIMD_Fixup:
+        SIMD_Fixup(bytemode, sizeflag);
+        break;
+    default:
+        PRINT_ERROR("Op handling function not known");
+        break;
+    }
+}
 
-static char intel_syntax;
-static char open_char;
-static char close_char;
-static char separator_char;
-static char scale_char;
-
-
-int print_insn (uint64_t pc, disassemble_info* info, uint32_t is64bit){
+uint32_t Disassembler::print_insn(uint64_t pc){
     const struct dis386 *dp;
     int i;
     int two_source_ops;
@@ -349,12 +411,12 @@ int print_insn (uint64_t pc, disassemble_info* info, uint32_t is64bit){
     const char *p;
     struct dis_private priv;
 
-    mode_64bit = (info->mach == mach_x86_64_intel_syntax || info->mach == mach_x86_64);
-    intel_syntax = (info->mach == mach_i386_i386_intel_syntax || info->mach == mach_x86_64_intel_syntax);
+    mode_64bit = (disassembleInfo.mach == mach_x86_64_intel_syntax || disassembleInfo.mach == mach_x86_64);
+    intel_syntax = (disassembleInfo.mach == mach_i386_i386_intel_syntax || disassembleInfo.mach == mach_x86_64_intel_syntax);
 
-    if (info->mach == mach_i386_i386 || info->mach == mach_x86_64 || info->mach == mach_i386_i386_intel_syntax || info->mach == mach_x86_64_intel_syntax){
+    if (disassembleInfo.mach == mach_i386_i386 || disassembleInfo.mach == mach_x86_64 || disassembleInfo.mach == mach_i386_i386_intel_syntax || disassembleInfo.mach == mach_x86_64_intel_syntax){
         priv.orig_sizeflag = AFLAG | DFLAG;
-    } else if (info->mach == mach_i386_i8086){
+    } else if (disassembleInfo.mach == mach_i386_i8086){
         priv.orig_sizeflag = 0;
     } else { 
         fprintf(stderr, "ERROR: mach field of info struct not set correctly\n");
@@ -388,7 +450,7 @@ int print_insn (uint64_t pc, disassemble_info* info, uint32_t is64bit){
         scale_char = ',';
     }
 
-    info->private_data = (PTR) &priv;
+    disassembleInfo.private_data = (PTR) &priv;
     priv.max_fetched = priv.the_buffer;
     priv.insn_start = pc;
 
@@ -399,7 +461,7 @@ int print_insn (uint64_t pc, disassemble_info* info, uint32_t is64bit){
 
     op_index[0] = op_index[1] = op_index[2] = -1;
     
-    the_info = info;
+    the_info = &disassembleInfo;
     start_pc = pc;
     start_codep = priv.the_buffer;
     codep = priv.the_buffer;
@@ -410,7 +472,7 @@ int print_insn (uint64_t pc, disassemble_info* info, uint32_t is64bit){
     insn_codep = codep;
     sizeflag = priv.orig_sizeflag;
 
-    FETCH_DATA(info, codep + 1);
+    FETCH_DATA(&disassembleInfo, codep + 1);
     //fprintf(stdout, "MEMREAD: codep=%lx %lx %lx %lx %lx %lx %lx %lx\n", *codep, *(codep+1), *(codep+2), *(codep+3), *(codep+4), *(codep+5), *(codep+6), *(codep+7));
 
     two_source_ops = (*codep == 0x62) || (*codep == 0xc8);
@@ -423,12 +485,12 @@ int print_insn (uint64_t pc, disassemble_info* info, uint32_t is64bit){
         name = prefix_name (priv.the_buffer[0], priv.orig_sizeflag);
         if (name == NULL)
             name = INTERNAL_DISASSEMBLER_ERROR;
-        (*disasm_fprintf_func) (stdout, "%s", name);
+        fprintf (stdout, "%s", name);
         return 1;
     }
 
     if (*codep == 0x0f){
-        FETCH_DATA(info, codep + 2);
+        FETCH_DATA(&disassembleInfo, codep + 2);
         dp = &dis386_twobyte[*++codep];
         need_modrm = twobyte_has_modrm[*codep];
         uses_SSE_prefix = twobyte_uses_SSE_prefix[*codep];
@@ -475,7 +537,7 @@ int print_insn (uint64_t pc, disassemble_info* info, uint32_t is64bit){
     }
 
     if (need_modrm){
-        FETCH_DATA(info, codep + 1);
+        FETCH_DATA(&disassembleInfo, codep + 1);
         mod = (*codep >> 6) & 3;
         reg = (*codep >> 3) & 7;
         rm = *codep & 7;
@@ -523,17 +585,17 @@ int print_insn (uint64_t pc, disassemble_info* info, uint32_t is64bit){
             obufp = op1out;
             op_ad = 2;
             if (dp->op1)
-                (*dp->op1) (dp->bytemode1, sizeflag);
+                get_ops(dp->op1,dp->bytemode1,sizeflag);
             
             obufp = op2out;
             op_ad = 1;
             if (dp->op2)
-                (*dp->op2) (dp->bytemode2, sizeflag);
+                get_ops(dp->op2,dp->bytemode2,sizeflag);
             
             obufp = op3out;
             op_ad = 0;
             if (dp->op3)
-                (*dp->op3) (dp->bytemode3, sizeflag);
+                get_ops(dp->op3,dp->bytemode3,sizeflag);
 	}
     }
 
@@ -547,7 +609,7 @@ int print_insn (uint64_t pc, disassemble_info* info, uint32_t is64bit){
         name = prefix_name (priv.the_buffer[0], priv.orig_sizeflag);
         if (name == NULL)
             name = INTERNAL_DISASSEMBLER_ERROR;
-        (*disasm_fprintf_func) (stdout, "%s", name);
+        fprintf (stdout, "%s", name);
         return 1;
     }
     if (rex & ~rex_used){
@@ -555,14 +617,14 @@ int print_insn (uint64_t pc, disassemble_info* info, uint32_t is64bit){
         name = prefix_name (rex | 0x40, priv.orig_sizeflag);
         if (name == NULL)
             name = INTERNAL_DISASSEMBLER_ERROR;
-        (*disasm_fprintf_func) (stdout, "%s ", name);
+        fprintf (stdout, "%s ", name);
     }
 
     obufp = obuf + strlen (obuf);
     for (i = strlen (obuf); i < 6; i++)
         oappend (" ");
     oappend (" ");
-    (*disasm_fprintf_func) (stdout, "%s", obuf);
+    fprintf (stdout, "%s", obuf);
 
     /* The enter and bound instructions are printed with operands in the same
        order as the intel book; everything else is printed in reverse order.  */
@@ -582,40 +644,40 @@ int print_insn (uint64_t pc, disassemble_info* info, uint32_t is64bit){
     needcomma = 0;
     if (*first) {
         if (op_index[0] != -1 && !op_riprel[0])
-            generic_print_address((uint64_t) op_address[op_index[0]], info);
+            generic_print_address((uint64_t) op_address[op_index[0]], &disassembleInfo);
         else
-            (*disasm_fprintf_func) (stdout, "%s", first);
+            fprintf (stdout, "%s", first);
         needcomma = 1;
     }
     if (*second) {
         if (needcomma)
-            (*disasm_fprintf_func) (stdout, ",");
+            fprintf (stdout, ",");
         if (op_index[1] != -1 && !op_riprel[1])
-            generic_print_address((uint64_t) op_address[op_index[1]], info);
+            generic_print_address((uint64_t) op_address[op_index[1]], &disassembleInfo);
         else
-            (*disasm_fprintf_func) (stdout, "%s", second);
+            fprintf (stdout, "%s", second);
         needcomma = 1;
     }
     if (*third){
         if (needcomma)
-            (*disasm_fprintf_func) (stdout, ",");
+            fprintf (stdout, ",");
         if (op_index[2] != -1 && !op_riprel[2])
-            generic_print_address((uint64_t) op_address[op_index[2]], info);
+            generic_print_address((uint64_t) op_address[op_index[2]], &disassembleInfo);
         else
-            (*disasm_fprintf_func) (stdout, "%s", third);
+            fprintf (stdout, "%s", third);
     }
     for (i = 0; i < 3; i++){
         if (op_index[i] != -1 && op_riprel[i]){
-            (*disasm_fprintf_func) (stdout, "        # ");
+            fprintf (stdout, "        # ");
             generic_print_address((uint64_t) (start_pc + codep - start_codep
-                                                     + op_address[op_index[i]]), info);
+                                                     + op_address[op_index[i]]), &disassembleInfo);
         }
     }
     return codep - priv.the_buffer;
 }
 
 
-void dofloat (int sizeflag){
+void Disassembler::dofloat(uint32_t sizeflag){
     const struct dis386 *dp;
     unsigned char floatop;
 
@@ -649,35 +711,28 @@ void dofloat (int sizeflag){
         
         obufp = op1out;
         if (dp->op1)
-            (*dp->op1) (dp->bytemode1, sizeflag);
+            get_ops(dp->op1, dp->bytemode1, sizeflag);
         obufp = op2out;
         if (dp->op2)
-            (*dp->op2) (dp->bytemode2, sizeflag);
+            get_ops(dp->op2, dp->bytemode2, sizeflag);
     }
 }
 
-void OP_ST (bytemode, sizeflag)
-     int bytemode ATTRIBUTE_UNUSED;
-     int sizeflag ATTRIBUTE_UNUSED;
-{
+void Disassembler::OP_ST(uint32_t bytemode, uint32_t sizeflag){
     oappend ("%st");
 }
 
-void OP_STi (bytemode, sizeflag)
-     int bytemode ATTRIBUTE_UNUSED;
-     int sizeflag ATTRIBUTE_UNUSED;
-{
+void Disassembler::OP_STi(uint32_t bytemode, uint32_t sizeflag){
     sprintf (scratchbuf, "%%st(%d)", rm);
     oappend (scratchbuf + intel_syntax);
 }
 
 /* Capital letters in template are macros.  */
-int putop (const char* template, int sizeflag)
-{
+uint32_t Disassembler::putop(const char* templatevar, int32_t sizeflag){
     const char *p;
     int alt;
     
-    for (p = template; *p; p++){
+    for (p = templatevar; *p; p++){
         switch (*p){
 	default:
             *obufp++ = *p;
@@ -914,13 +969,12 @@ int putop (const char* template, int sizeflag)
     return 0;
 }
 
-void oappend (const char* s)
-{
+void Disassembler::oappend(const char* s){
     strcpy (obufp, s);
     obufp += strlen (s);
 }
 
-void append_seg(){
+void Disassembler::append_seg(){
     if (prefixes & PREFIX_CS){
         used_prefixes |= PREFIX_CS;
         oappend ("%cs:" + intel_syntax);
@@ -947,13 +1001,13 @@ void append_seg(){
     }
 }
 
-void OP_indirE (int bytemode, int sizeflag){
+void Disassembler::OP_indirE(uint32_t bytemode, uint32_t sizeflag){
     if (!intel_syntax)
         oappend ("*");
-    OP_E (bytemode, sizeflag);
+    OP_E(bytemode, sizeflag);
 }
 
-void print_operand_value (char* buf, int hex, uint64_t disp){
+void Disassembler::print_operand_value(char* buf, uint32_t hex, uint64_t disp){
     if (mode_64bit){
         if (hex){
             char tmp[30];
@@ -1000,7 +1054,7 @@ void print_operand_value (char* buf, int hex, uint64_t disp){
     }
 }
 
-void OP_E (int bytemode, int sizeflag){
+void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
     uint64_t disp;
     int add = 0;
     int riprel = 0;
@@ -1250,8 +1304,7 @@ void OP_E (int bytemode, int sizeflag){
     }
 }
 
-void OP_G (int bytemode, int sizeflag)
-{
+void Disassembler::OP_G(uint32_t bytemode, uint32_t sizeflag){
     int add = 0;
     USED_REX (REX_EXTX);
     if (rex & REX_EXTX)
@@ -1289,8 +1342,7 @@ void OP_G (int bytemode, int sizeflag)
     }
 }
 
-uint64_t get64()
-{
+uint64_t Disassembler::get64(){
     uint64_t x;
 
     unsigned int a;
@@ -1310,8 +1362,7 @@ uint64_t get64()
     return x;
 }
 
- int64_t get32()
-{
+int64_t Disassembler::get32(){
     int64_t x = 0;
     
     FETCH_DATA(the_info, codep + 4);
@@ -1322,8 +1373,7 @@ uint64_t get64()
     return x;
 }
 
-int64_t get32s()
-{
+int64_t Disassembler::get32s(){
     int64_t x = 0;
     
     FETCH_DATA(the_info, codep + 4);
@@ -1337,8 +1387,7 @@ int64_t get32s()
     return x;
 }
 
-int get16()
-{
+int32_t Disassembler::get16(){
     int x = 0;
     
     FETCH_DATA(the_info, codep + 2);
@@ -1347,8 +1396,7 @@ int get16()
     return x;
 }
 
-void set_op (uint64_t op, int riprel)
-{
+void Disassembler::set_op(uint64_t op, int riprel){
     op_index[op_ad] = op_ad;
     if (mode_64bit){
         op_address[op_ad] = op;
@@ -1361,8 +1409,7 @@ void set_op (uint64_t op, int riprel)
     }
 }
 
-void OP_REG (int code, int sizeflag)
-{
+void Disassembler::OP_REG(uint32_t code, uint32_t sizeflag){
     const char *s;
     int add = 0;
     USED_REX (REX_EXTZ);
@@ -1418,8 +1465,7 @@ void OP_REG (int code, int sizeflag)
     oappend (s);
 }
 
-void OP_IMREG (int code, int sizeflag)
-{
+void Disassembler::OP_IMREG(uint32_t code, uint32_t sizeflag){
     const char *s;
 
     switch (code){
@@ -1463,8 +1509,7 @@ void OP_IMREG (int code, int sizeflag)
     oappend (s);
 }
 
-void OP_I (int bytemode, int sizeflag)
-{
+void Disassembler::OP_I(uint32_t bytemode, uint32_t sizeflag){
     int64_t op;
     int64_t mask = -1;
     
@@ -1510,8 +1555,7 @@ void OP_I (int bytemode, int sizeflag)
     scratchbuf[0] = '\0';
 }
 
-void OP_I64 (int bytemode, int sizeflag)
-{
+void Disassembler::OP_I64(uint32_t bytemode, uint32_t sizeflag){
     int64_t op;
     int64_t mask = -1;
     
@@ -1556,8 +1600,7 @@ void OP_I64 (int bytemode, int sizeflag)
     scratchbuf[0] = '\0';
 }
 
-void OP_sI (int bytemode, int sizeflag)
-{
+void Disassembler::OP_sI(uint32_t bytemode, uint32_t sizeflag){
     int64_t op;
     int64_t mask = -1;
 
@@ -1601,10 +1644,9 @@ void OP_sI (int bytemode, int sizeflag)
     oappend (scratchbuf + intel_syntax);
 }
 
-void OP_J (int bytemode, int sizeflag)
-{
+void Disassembler::OP_J(uint32_t bytemode, uint32_t sizeflag){
     uint64_t disp;
-    uint64_t mask = -1;
+    uint64_t mask = (uint64_t)-1;
 
     switch (bytemode){
     case b_mode:
@@ -1634,17 +1676,11 @@ void OP_J (int bytemode, int sizeflag)
     oappend (scratchbuf);
 }
 
-void OP_SEG (dummy, sizeflag)
-     int dummy ATTRIBUTE_UNUSED;
-     int sizeflag ATTRIBUTE_UNUSED;
-{
+void Disassembler::OP_SEG(uint32_t dummy, uint32_t sizeflag){
     oappend (names_seg[reg]);
 }
 
-void OP_DIR (dummy, sizeflag)
-     int dummy ATTRIBUTE_UNUSED;
-     int sizeflag;
-{
+void Disassembler::OP_DIR(uint32_t dummy, uint32_t sizeflag){
     int seg, offset;
     
     if (sizeflag & DFLAG){
@@ -1663,10 +1699,7 @@ void OP_DIR (dummy, sizeflag)
     oappend (scratchbuf);
 }
 
- void OP_OFF (bytemode, sizeflag)
-     int bytemode ATTRIBUTE_UNUSED;
-     int sizeflag;
-{
+void Disassembler::OP_OFF(uint32_t bytemode, uint32_t sizeflag){
     uint64_t off;
 
     append_seg();
@@ -1686,10 +1719,7 @@ void OP_DIR (dummy, sizeflag)
     oappend (scratchbuf);
 }
 
-void OP_OFF64 (bytemode, sizeflag)
-     int bytemode ATTRIBUTE_UNUSED;
-     int sizeflag ATTRIBUTE_UNUSED;
-{
+void Disassembler::OP_OFF64(uint32_t bytemode, uint32_t sizeflag){
     uint64_t off;
     
     if (!mode_64bit){
@@ -1711,8 +1741,7 @@ void OP_OFF64 (bytemode, sizeflag)
     oappend (scratchbuf);
 }
 
-void ptr_reg (int code, int sizeflag)
-{
+void Disassembler::ptr_reg(uint32_t code, uint32_t sizeflag){
     const char *s;
     if (intel_syntax)
         oappend ("[");
@@ -1737,14 +1766,12 @@ void ptr_reg (int code, int sizeflag)
         oappend (")");
 }
 
-void OP_ESreg (int code, int sizeflag)
-{
+void Disassembler::OP_ESreg(uint32_t code, uint32_t sizeflag){
     oappend ("%es:" + intel_syntax);
     ptr_reg (code, sizeflag);
 }
 
-void OP_DSreg (int code, int sizeflag)
-{
+void Disassembler::OP_DSreg(uint32_t code, uint32_t sizeflag){
     if ((prefixes
          & (PREFIX_CS
             | PREFIX_DS
@@ -1757,10 +1784,7 @@ void OP_DSreg (int code, int sizeflag)
     ptr_reg (code, sizeflag);
 }
 
- void OP_C (dummy, sizeflag)
-     int dummy ATTRIBUTE_UNUSED;
-     int sizeflag ATTRIBUTE_UNUSED;
-{
+void Disassembler::OP_C(uint32_t dummy, uint32_t sizeflag){
     int add = 0;
     USED_REX (REX_EXTX);
     if (rex & REX_EXTX)
@@ -1769,10 +1793,7 @@ void OP_DSreg (int code, int sizeflag)
     oappend (scratchbuf + intel_syntax);
 }
 
- void OP_D (dummy, sizeflag)
-     int dummy ATTRIBUTE_UNUSED;
-     int sizeflag ATTRIBUTE_UNUSED;
-{
+void Disassembler::OP_D(uint32_t dummy, uint32_t sizeflag){
     int add = 0;
     USED_REX (REX_EXTX);
     if (rex & REX_EXTX)
@@ -1784,26 +1805,19 @@ void OP_DSreg (int code, int sizeflag)
     oappend (scratchbuf);
 }
 
-void OP_T (dummy, sizeflag)
-     int dummy ATTRIBUTE_UNUSED;
-     int sizeflag ATTRIBUTE_UNUSED;
-{
+void Disassembler::OP_T(uint32_t dummy, uint32_t sizeflag){
     sprintf (scratchbuf, "%%tr%d", reg);
     oappend (scratchbuf + intel_syntax);
 }
 
-void OP_Rd (int bytemode, int sizeflag)
-{
+void Disassembler::OP_Rd(uint32_t bytemode, uint32_t sizeflag){
     if (mod == 3)
         OP_E (bytemode, sizeflag);
     else
         BadOp();
 }
 
-void OP_MMX (bytemode, sizeflag)
-     int bytemode ATTRIBUTE_UNUSED;
-     int sizeflag ATTRIBUTE_UNUSED;
-{
+void Disassembler::OP_MMX(uint32_t bytemode, uint32_t sizeflag){
     int add = 0;
     USED_REX (REX_EXTX);
     if (rex & REX_EXTX)
@@ -1816,10 +1830,7 @@ void OP_MMX (bytemode, sizeflag)
     oappend (scratchbuf + intel_syntax);
 }
 
-void OP_XMM (bytemode, sizeflag)
-     int bytemode ATTRIBUTE_UNUSED;
-     int sizeflag ATTRIBUTE_UNUSED;
-{
+void Disassembler::OP_XMM(uint32_t bytemode, uint32_t sizeflag){
     int add = 0;
     USED_REX (REX_EXTX);
     if (rex & REX_EXTX)
@@ -1828,8 +1839,7 @@ void OP_XMM (bytemode, sizeflag)
     oappend (scratchbuf + intel_syntax);
 }
 
-void OP_EM (int bytemode, int sizeflag)
-{
+void Disassembler::OP_EM(uint32_t bytemode, uint32_t sizeflag){
     int add = 0;
     if (mod != 3){
         OP_E (bytemode, sizeflag);
@@ -1850,8 +1860,7 @@ void OP_EM (int bytemode, int sizeflag)
     oappend (scratchbuf + intel_syntax);
 }
 
-void OP_EX (int bytemode, int sizeflag)
-{
+void Disassembler::OP_EX(uint32_t bytemode, uint32_t sizeflag){
     int add = 0;
     if (mod != 3){
         OP_E (bytemode, sizeflag);
@@ -1868,26 +1877,21 @@ void OP_EX (int bytemode, int sizeflag)
     oappend (scratchbuf + intel_syntax);
 }
 
-void OP_MS (int bytemode, int sizeflag)
-{
+void Disassembler::OP_MS(uint32_t bytemode, uint32_t sizeflag){
     if (mod == 3)
         OP_EM (bytemode, sizeflag);
     else
         BadOp();
 }
 
-void OP_XS (int bytemode, int sizeflag)
-{
+void Disassembler::OP_XS(uint32_t bytemode, uint32_t sizeflag){
     if (mod == 3)
         OP_EX (bytemode, sizeflag);
     else
         BadOp();
 }
 
-void OP_3DNowSuffix (bytemode, sizeflag)
-     int bytemode ATTRIBUTE_UNUSED;
-     int sizeflag ATTRIBUTE_UNUSED;
-{
+void Disassembler::OP_3DNowSuffix(uint32_t bytemode, uint32_t sizeflag){
     const char *mnemonic;
 
     FETCH_DATA(the_info, codep + 1);
@@ -1909,10 +1913,7 @@ void OP_3DNowSuffix (bytemode, sizeflag)
     }
 }
 
-void OP_SIMD_Suffix (bytemode, sizeflag)
-     int bytemode ATTRIBUTE_UNUSED;
-     int sizeflag ATTRIBUTE_UNUSED;
-{
+void Disassembler::OP_SIMD_Suffix(uint32_t bytemode, uint32_t sizeflag){
     unsigned int cmp_type;
 
     FETCH_DATA(the_info, codep + 1);
@@ -1946,10 +1947,7 @@ void OP_SIMD_Suffix (bytemode, sizeflag)
     }
 }
 
-void SIMD_Fixup (extrachar, sizeflag)
-     int extrachar;
-     int sizeflag ATTRIBUTE_UNUSED;
-{
+void Disassembler::SIMD_Fixup(int32_t extrachar, uint32_t sizeflag){
     /* Change movlps/movhps to movhlps/movlhps for 2 register operand
        forms of these instructions.  */
     if (mod == 3){
@@ -1962,8 +1960,7 @@ void SIMD_Fixup (extrachar, sizeflag)
     }
 }
 
-void BadOp (void)
-{
+void Disassembler::BadOp(void){
     /* Throw away prefixes and 1st. opcode byte.  */
     codep = insn_codep + 1;
     oappend ("(bad)");

@@ -26,9 +26,11 @@ BINDIR      = ../bin
 LIBDIR      = ../lib
 
 SRCS        = Base.C ElfFile.C BinaryFile.C FileHeader.C ProgramHeader.C SectionHeader.C \
-              StringTable.C SymbolTable.C RelocationTable.C RawSection.C main.C Disassemble.c
+              StringTable.C SymbolTable.C RelocationTable.C RawSection.C Disassembler.C \
+              main.C
 OBJS        = Base.o ElfFile.o BinaryFile.o FileHeader.o ProgramHeader.o SectionHeader.o \
-              StringTable.o SymbolTable.o RelocationTable.o RawSection.o main.o Disassemble.o
+              StringTable.o SymbolTable.o RelocationTable.o RawSection.o Disassembler.o \
+              main.o
 
 TARGET_BIN  = x86inst
 

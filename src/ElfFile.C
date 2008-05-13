@@ -8,7 +8,8 @@
 #include <SymbolTable.h>
 #include <RelocationTable.h>
 #include <DwarfSection.h>
-#include <Disassemble.h>
+#include <Disassembler.h>
+#include <CStructuresX86.h>
 #include <BitSet.h>
 
 
@@ -78,10 +79,7 @@ void ElfFile::findFunctions(){
 
 
 void ElfFile::printDisassembledCode(){
-    struct disassemble_info disInfo;
-    x86inst_set_disassemble_info(&disInfo,(uint32_t)is64Bit());
-
-    PRINT_INFOR("disassemble_info size = %d, priv points to %x", sizeof(struct disassemble_info), disInfo.private_data);
+    disassembler = new Disassembler(this);
 
     uint32_t currByte = 0;
     uint32_t instructionLength = 0;
@@ -91,14 +89,13 @@ void ElfFile::printDisassembledCode(){
     for (uint32_t i = 1; i < numberOfSections; i++){
         if (sectionHeaders[i]->hasExecInstrBit()){
             PRINT_INFOR("Disassembly of Section %s", sectionHeaders[i]->getSectionNamePtr());
-            sectionHeaders[i]->print();
             instructionCount = 0;
 
             for (currByte = 0; currByte < sectionHeaders[i]->GET(sh_size); currByte += instructionLength, instructionCount++){
                 instructionAddress = (uint64_t)((uint32_t)rawSections[i]->charStream() + currByte);
                 fprintf(stdout, "(0x%lx) 0x%lx:\t", (uint32_t)(rawSections[i]->charStream() + currByte), sectionHeaders[i]->GET(sh_addr) + currByte);
 
-                instructionLength = print_insn(instructionAddress, &disInfo, is64Bit());
+                instructionLength = disassembler->print_insn(instructionAddress);
 
                 fprintf(stdout, "\t(bytes -- ");
                 uint8_t* bytePtr;
@@ -132,7 +129,7 @@ void ElfFile::disassemble(){
 
             for (currByte = 0; currByte < sectionHeaders[i]->GET(sh_size); currByte += instructionLength, instructionCount++){
                 instructionAddress = (uint64_t)((uint32_t)rawSections[i]->charStream() + currByte);
-                instructionLength = print_insn(instructionAddress, &disInfo, is64Bit());
+                //instructionLength = print_insn(instructionAddress, &disInfo, is64Bit());
                 fprintf(stdout, "\n");
             }
             PRINT_INFOR("Found %d instructions (%d bytes) in section %d", instructionCount, currByte, i);

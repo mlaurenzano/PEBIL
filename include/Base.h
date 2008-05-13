@@ -8,7 +8,7 @@
 #include <strings.h>
 #include <string.h>
 #include <unistd.h>
-#include <CStructures.h>
+#include <CStructuresElf.h>
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE assert(0 && "Should not be called")

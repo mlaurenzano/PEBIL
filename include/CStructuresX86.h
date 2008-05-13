@@ -35,6 +35,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdio.h>
 
+
     /* This struct is passed into the instruction decoding routine, 
        and is passed back out into each callback.  The various fields are used
        for conveying information from your main routine into your callbacks,
@@ -61,50 +62,49 @@ extern "C" {
     extern int fetch_data PARAMS ((struct disassemble_info *, uint8_t *));
     extern void ckprefix PARAMS ((void));
     extern const char *prefix_name PARAMS ((int, int));
-    int print_insn PARAMS ((uint64_t, disassemble_info *, uint32_t));
+    extern int print_insn PARAMS ((uint64_t, disassemble_info *));
     extern void dofloat PARAMS ((int));
-    extern void OP_ST PARAMS ((int, int));
-    extern void OP_STi  PARAMS ((int, int));
+    //extern void OP_ST PARAMS ((int, int));
+    //extern void OP_STi  PARAMS ((int, int));
     extern int putop PARAMS ((const char *, int));
     extern void oappend PARAMS ((const char *));
     extern void append_seg PARAMS ((void));
-    extern void OP_indirE PARAMS ((int, int));
+    //extern void OP_indirE PARAMS ((int, int));
     extern void print_operand_value PARAMS ((char *, int, uint64_t));
-    extern void OP_E PARAMS ((int, int));
-    extern void OP_G PARAMS ((int, int));
+    //extern void OP_E PARAMS ((int, int));
+    //extern void OP_G PARAMS ((int, int));
     extern uint64_t get64 PARAMS ((void));
     extern int64_t get32 PARAMS ((void));
     extern int64_t get32s PARAMS ((void));
     extern int get16 PARAMS ((void));
     extern void set_op PARAMS ((uint64_t, int));
-    extern void OP_REG PARAMS ((int, int));
-    extern void OP_IMREG PARAMS ((int, int));
-    extern void OP_I PARAMS ((int, int));
-    extern void OP_I64 PARAMS ((int, int));
-    extern void OP_sI PARAMS ((int, int));
-    extern void OP_J PARAMS ((int, int));
-    extern void OP_SEG PARAMS ((int, int));
-    extern void OP_DIR PARAMS ((int, int));
-    extern void OP_OFF PARAMS ((int, int));
-    extern void OP_OFF64 PARAMS ((int, int));
+    //extern void OP_REG PARAMS ((int, int));
+    //extern void OP_IMREG PARAMS ((int, int));
+    //extern void OP_I PARAMS ((int, int));
+    //extern void OP_I64 PARAMS ((int, int));
+    //extern void OP_sI PARAMS ((int, int));
+    //extern void OP_J PARAMS ((int, int));
+    //extern void OP_SEG PARAMS ((int, int));
+    //extern void OP_DIR PARAMS ((int, int));
+    //extern void OP_OFF PARAMS ((int, int));
+    //extern void OP_OFF64 PARAMS ((int, int));
     extern void ptr_reg PARAMS ((int, int));
-    extern void OP_ESreg PARAMS ((int, int));
-    extern void OP_DSreg PARAMS ((int, int));
-    extern void OP_C PARAMS ((int, int));
-    extern void OP_D PARAMS ((int, int));
-    extern void OP_T PARAMS ((int, int));
-    extern void OP_Rd PARAMS ((int, int));
-    extern void OP_MMX PARAMS ((int, int));
-    extern void OP_XMM PARAMS ((int, int));
-    extern void OP_EM PARAMS ((int, int));
-    extern void OP_EX PARAMS ((int, int));
-    extern void OP_MS PARAMS ((int, int));
-    extern void OP_XS PARAMS ((int, int));
-    extern void OP_3DNowSuffix PARAMS ((int, int));
-    extern void OP_SIMD_Suffix PARAMS ((int, int));
+    //extern void OP_ESreg PARAMS ((int, int));
+    //extern void OP_DSreg PARAMS ((int, int));
+    //extern void OP_C PARAMS ((int, int));
+    //extern void OP_D PARAMS ((int, int));
+    //extern void OP_T PARAMS ((int, int));
+    //extern void OP_Rd PARAMS ((int, int));
+    //extern void OP_MMX PARAMS ((int, int));
+    //extern void OP_XMM PARAMS ((int, int));
+    //extern void OP_EM PARAMS ((int, int));
+    //extern void OP_EX PARAMS ((int, int));
+    //extern void OP_MS PARAMS ((int, int));
+    //extern void OP_XS PARAMS ((int, int));
+    //extern void OP_3DNowSuffix PARAMS ((int, int));
+    //extern void OP_SIMD_Suffix PARAMS ((int, int));
     extern void SIMD_Fixup PARAMS ((int, int));
     extern void BadOp PARAMS ((void));
-
 
 #define MAXLEN 20
 
@@ -171,116 +171,116 @@ extern "C" {
 #define PREFIX_FWAIT 0x800
 
 
-#define XX NULL, 0
+#define XX func_NULL, 0
 
-#define Eb OP_E, b_mode
-#define Ev OP_E, v_mode
-#define Ed OP_E, d_mode
-#define indirEb OP_indirE, b_mode
-#define indirEv OP_indirE, v_mode
-#define Ew OP_E, w_mode
-#define Ma OP_E, v_mode
-#define M OP_E, 0               /* lea, lgdt, etc. */
-#define Mp OP_E, 0              /* 32 or 48 bit memory operand for LDS, LES etc */
-#define Gb OP_G, b_mode
-#define Gv OP_G, v_mode
-#define Gd OP_G, d_mode
-#define Gw OP_G, w_mode
-#define Rd OP_Rd, d_mode
-#define Rm OP_Rd, m_mode
-#define Ib OP_I, b_mode
-#define sIb OP_sI, b_mode       /* sign extened byte */
-#define Iv OP_I, v_mode
-#define Iq OP_I, q_mode
-#define Iv64 OP_I64, v_mode
-#define Iw OP_I, w_mode
-#define Jb OP_J, b_mode
-#define Jv OP_J, v_mode
-#define Cm OP_C, m_mode
-#define Dm OP_D, m_mode
-#define Td OP_T, d_mode
+#define Eb func_OP_E, b_mode
+#define Ev func_OP_E, v_mode
+#define Ed func_OP_E, d_mode
+#define indirEb func_OP_indirE, b_mode
+#define indirEv func_OP_indirE, v_mode
+#define Ew func_OP_E, w_mode
+#define Ma func_OP_E, v_mode
+#define M func_OP_E, 0               /* lea, lgdt, etc. */
+#define Mp func_OP_E, 0              /* 32 or 48 bit memory operand for LDS, LES etc */
+#define Gb func_OP_G, b_mode
+#define Gv func_OP_G, v_mode
+#define Gd func_OP_G, d_mode
+#define Gw func_OP_G, w_mode
+#define Rd func_OP_Rd, d_mode
+#define Rm func_OP_Rd, m_mode
+#define Ib func_OP_I, b_mode
+#define sIb func_OP_sI, b_mode       /* sign extened byte */
+#define Iv func_OP_I, v_mode
+#define Iq func_OP_I, q_mode
+#define Iv64 func_OP_I64, v_mode
+#define Iw func_OP_I, w_mode
+#define Jb func_OP_J, b_mode
+#define Jv func_OP_J, v_mode
+#define Cm func_OP_C, m_mode
+#define Dm func_OP_D, m_mode
+#define Td func_OP_T, d_mode
 
 
-#define RMeAX OP_REG, eAX_reg
-#define RMeBX OP_REG, eBX_reg
-#define RMeCX OP_REG, eCX_reg
-#define RMeDX OP_REG, eDX_reg
-#define RMeSP OP_REG, eSP_reg
-#define RMeBP OP_REG, eBP_reg
-#define RMeSI OP_REG, eSI_reg
-#define RMeDI OP_REG, eDI_reg
-#define RMrAX OP_REG, rAX_reg
-#define RMrBX OP_REG, rBX_reg
-#define RMrCX OP_REG, rCX_reg
-#define RMrDX OP_REG, rDX_reg
-#define RMrSP OP_REG, rSP_reg
-#define RMrBP OP_REG, rBP_reg
-#define RMrSI OP_REG, rSI_reg
-#define RMrDI OP_REG, rDI_reg
-#define RMAL OP_REG, al_reg
-#define RMAL OP_REG, al_reg
-#define RMCL OP_REG, cl_reg
-#define RMDL OP_REG, dl_reg
-#define RMBL OP_REG, bl_reg
-#define RMAH OP_REG, ah_reg
-#define RMCH OP_REG, ch_reg
-#define RMDH OP_REG, dh_reg
-#define RMBH OP_REG, bh_reg
-#define RMAX OP_REG, ax_reg
-#define RMDX OP_REG, dx_reg
+#define RMeAX func_OP_REG, eAX_reg
+#define RMeBX func_OP_REG, eBX_reg
+#define RMeCX func_OP_REG, eCX_reg
+#define RMeDX func_OP_REG, eDX_reg
+#define RMeSP func_OP_REG, eSP_reg
+#define RMeBP func_OP_REG, eBP_reg
+#define RMeSI func_OP_REG, eSI_reg
+#define RMeDI func_OP_REG, eDI_reg
+#define RMrAX func_OP_REG, rAX_reg
+#define RMrBX func_OP_REG, rBX_reg
+#define RMrCX func_OP_REG, rCX_reg
+#define RMrDX func_OP_REG, rDX_reg
+#define RMrSP func_OP_REG, rSP_reg
+#define RMrBP func_OP_REG, rBP_reg
+#define RMrSI func_OP_REG, rSI_reg
+#define RMrDI func_OP_REG, rDI_reg
+#define RMAL func_OP_REG, al_reg
+#define RMAL func_OP_REG, al_reg
+#define RMCL func_OP_REG, cl_reg
+#define RMDL func_OP_REG, dl_reg
+#define RMBL func_OP_REG, bl_reg
+#define RMAH func_OP_REG, ah_reg
+#define RMCH func_OP_REG, ch_reg
+#define RMDH func_OP_REG, dh_reg
+#define RMBH func_OP_REG, bh_reg
+#define RMAX func_OP_REG, ax_reg
+#define RMDX func_OP_REG, dx_reg
 
-#define eAX OP_IMREG, eAX_reg
-#define eBX OP_IMREG, eBX_reg
-#define eCX OP_IMREG, eCX_reg
-#define eDX OP_IMREG, eDX_reg
-#define eSP OP_IMREG, eSP_reg
-#define eBP OP_IMREG, eBP_reg
-#define eSI OP_IMREG, eSI_reg
-#define eDI OP_IMREG, eDI_reg
-#define AL OP_IMREG, al_reg
-#define AL OP_IMREG, al_reg
-#define CL OP_IMREG, cl_reg
-#define DL OP_IMREG, dl_reg
-#define BL OP_IMREG, bl_reg
-#define AH OP_IMREG, ah_reg
-#define CH OP_IMREG, ch_reg
-#define DH OP_IMREG, dh_reg
-#define BH OP_IMREG, bh_reg
-#define AX OP_IMREG, ax_reg
-#define DX OP_IMREG, dx_reg
-#define indirDX OP_IMREG, indir_dx_reg
+#define eAX func_OP_IMREG, eAX_reg
+#define eBX func_OP_IMREG, eBX_reg
+#define eCX func_OP_IMREG, eCX_reg
+#define eDX func_OP_IMREG, eDX_reg
+#define eSP func_OP_IMREG, eSP_reg
+#define eBP func_OP_IMREG, eBP_reg
+#define eSI func_OP_IMREG, eSI_reg
+#define eDI func_OP_IMREG, eDI_reg
+#define AL func_OP_IMREG, al_reg
+#define AL func_OP_IMREG, al_reg
+#define CL func_OP_IMREG, cl_reg
+#define DL func_OP_IMREG, dl_reg
+#define BL func_OP_IMREG, bl_reg
+#define AH func_OP_IMREG, ah_reg
+#define CH func_OP_IMREG, ch_reg
+#define DH func_OP_IMREG, dh_reg
+#define BH func_OP_IMREG, bh_reg
+#define AX func_OP_IMREG, ax_reg
+#define DX func_OP_IMREG, dx_reg
+#define indirDX func_OP_IMREG, indir_dx_reg
 
-#define Sw OP_SEG, w_mode
-#define Ap OP_DIR, 0
-#define Ob OP_OFF, b_mode
-#define Ob64 OP_OFF64, b_mode
-#define Ov OP_OFF, v_mode
-#define Ov64 OP_OFF64, v_mode
-#define Xb OP_DSreg, eSI_reg
-#define Xv OP_DSreg, eSI_reg
-#define Yb OP_ESreg, eDI_reg
-#define Yv OP_ESreg, eDI_reg
-#define DSBX OP_DSreg, eBX_reg
+#define Sw func_OP_SEG, w_mode
+#define Ap func_OP_DIR, 0
+#define Ob func_OP_OFF, b_mode
+#define Ob64 func_OP_OFF64, b_mode
+#define Ov func_OP_OFF, v_mode
+#define Ov64 func_OP_OFF64, v_mode
+#define Xb func_OP_DSreg, eSI_reg
+#define Xv func_OP_DSreg, eSI_reg
+#define Yb func_OP_ESreg, eDI_reg
+#define Yv func_OP_ESreg, eDI_reg
+#define DSBX func_OP_DSreg, eBX_reg
 
-#define es OP_REG, es_reg
-#define ss OP_REG, ss_reg
-#define cs OP_REG, cs_reg
-#define ds OP_REG, ds_reg
-#define fs OP_REG, fs_reg
-#define gs OP_REG, gs_reg
+#define es func_OP_REG, es_reg
+#define ss func_OP_REG, ss_reg
+#define cs func_OP_REG, cs_reg
+#define ds func_OP_REG, ds_reg
+#define fs func_OP_REG, fs_reg
+#define gs func_OP_REG, gs_reg
 
-#define MX OP_MMX, 0
-#define XM OP_XMM, 0
-#define EM OP_EM, v_mode
-#define EX OP_EX, v_mode
-#define MS OP_MS, v_mode
-#define XS OP_XS, v_mode
-#define None OP_E, 0
-#define OPSUF OP_3DNowSuffix, 0
-#define OPSIMD OP_SIMD_Suffix, 0
+#define MX func_OP_MMX, 0
+#define XM func_OP_XMM, 0
+#define EM func_OP_EM, v_mode
+#define EX func_OP_EX, v_mode
+#define MS func_OP_MS, v_mode
+#define XS func_OP_XS, v_mode
+#define None func_OP_E, 0
+#define OPSUF func_OP_3DNowSuffix, 0
+#define OPSIMD func_OP_SIMD_Suffix, 0
 
-#define cond_jump_flag NULL, cond_jump_mode
-#define loop_jcxz_flag NULL, loop_jcxz_mode
+#define cond_jump_flag func_NULL, cond_jump_mode
+#define loop_jcxz_flag func_NULL, loop_jcxz_mode
 
     /* bits in sizeflag */
 #define SUFFIX_ALWAYS 4
@@ -347,71 +347,105 @@ extern "C" {
 #define USE_PREFIX_USER_TABLE 3
 #define X86_64_SPECIAL 4
 
-#define FLOAT     NULL, NULL, FLOATCODE, NULL, 0, NULL, 0
+#define FLOAT     NULL, func_NULL, FLOATCODE, func_NULL, 0, func_NULL, 0
 
-#define GRP1b     NULL, NULL, USE_GROUPS, NULL,  0, NULL, 0
-#define GRP1S     NULL, NULL, USE_GROUPS, NULL,  1, NULL, 0
-#define GRP1Ss    NULL, NULL, USE_GROUPS, NULL,  2, NULL, 0
-#define GRP2b     NULL, NULL, USE_GROUPS, NULL,  3, NULL, 0
-#define GRP2S     NULL, NULL, USE_GROUPS, NULL,  4, NULL, 0
-#define GRP2b_one NULL, NULL, USE_GROUPS, NULL,  5, NULL, 0
-#define GRP2S_one NULL, NULL, USE_GROUPS, NULL,  6, NULL, 0
-#define GRP2b_cl  NULL, NULL, USE_GROUPS, NULL,  7, NULL, 0
-#define GRP2S_cl  NULL, NULL, USE_GROUPS, NULL,  8, NULL, 0
-#define GRP3b     NULL, NULL, USE_GROUPS, NULL,  9, NULL, 0
-#define GRP3S     NULL, NULL, USE_GROUPS, NULL, 10, NULL, 0
-#define GRP4      NULL, NULL, USE_GROUPS, NULL, 11, NULL, 0
-#define GRP5      NULL, NULL, USE_GROUPS, NULL, 12, NULL, 0
-#define GRP6      NULL, NULL, USE_GROUPS, NULL, 13, NULL, 0
-#define GRP7      NULL, NULL, USE_GROUPS, NULL, 14, NULL, 0
-#define GRP8      NULL, NULL, USE_GROUPS, NULL, 15, NULL, 0
-#define GRP9      NULL, NULL, USE_GROUPS, NULL, 16, NULL, 0
-#define GRP10     NULL, NULL, USE_GROUPS, NULL, 17, NULL, 0
-#define GRP11     NULL, NULL, USE_GROUPS, NULL, 18, NULL, 0
-#define GRP12     NULL, NULL, USE_GROUPS, NULL, 19, NULL, 0
-#define GRP13     NULL, NULL, USE_GROUPS, NULL, 20, NULL, 0
-#define GRP14     NULL, NULL, USE_GROUPS, NULL, 21, NULL, 0
-#define GRPAMD    NULL, NULL, USE_GROUPS, NULL, 22, NULL, 0
+#define GRP1b     NULL, func_NULL, USE_GROUPS, func_NULL,  0, func_NULL, 0
+#define GRP1S     NULL, func_NULL, USE_GROUPS, func_NULL,  1, func_NULL, 0
+#define GRP1Ss    NULL, func_NULL, USE_GROUPS, func_NULL,  2, func_NULL, 0
+#define GRP2b     NULL, func_NULL, USE_GROUPS, func_NULL,  3, func_NULL, 0
+#define GRP2S     NULL, func_NULL, USE_GROUPS, func_NULL,  4, func_NULL, 0
+#define GRP2b_one NULL, func_NULL, USE_GROUPS, func_NULL,  5, func_NULL, 0
+#define GRP2S_one NULL, func_NULL, USE_GROUPS, func_NULL,  6, func_NULL, 0
+#define GRP2b_cl  NULL, func_NULL, USE_GROUPS, func_NULL,  7, func_NULL, 0
+#define GRP2S_cl  NULL, func_NULL, USE_GROUPS, func_NULL,  8, func_NULL, 0
+#define GRP3b     NULL, func_NULL, USE_GROUPS, func_NULL,  9, func_NULL, 0
+#define GRP3S     NULL, func_NULL, USE_GROUPS, func_NULL, 10, func_NULL, 0
+#define GRP4      NULL, func_NULL, USE_GROUPS, func_NULL, 11, func_NULL, 0
+#define GRP5      NULL, func_NULL, USE_GROUPS, func_NULL, 12, func_NULL, 0
+#define GRP6      NULL, func_NULL, USE_GROUPS, func_NULL, 13, func_NULL, 0
+#define GRP7      NULL, func_NULL, USE_GROUPS, func_NULL, 14, func_NULL, 0
+#define GRP8      NULL, func_NULL, USE_GROUPS, func_NULL, 15, func_NULL, 0
+#define GRP9      NULL, func_NULL, USE_GROUPS, func_NULL, 16, func_NULL, 0
+#define GRP10     NULL, func_NULL, USE_GROUPS, func_NULL, 17, func_NULL, 0
+#define GRP11     NULL, func_NULL, USE_GROUPS, func_NULL, 18, func_NULL, 0
+#define GRP12     NULL, func_NULL, USE_GROUPS, func_NULL, 19, func_NULL, 0
+#define GRP13     NULL, func_NULL, USE_GROUPS, func_NULL, 20, func_NULL, 0
+#define GRP14     NULL, func_NULL, USE_GROUPS, func_NULL, 21, func_NULL, 0
+#define GRPAMD    NULL, func_NULL, USE_GROUPS, func_NULL, 22, func_NULL, 0
 
-#define PREGRP0   NULL, NULL, USE_PREFIX_USER_TABLE, NULL,  0, NULL, 0
-#define PREGRP1   NULL, NULL, USE_PREFIX_USER_TABLE, NULL,  1, NULL, 0
-#define PREGRP2   NULL, NULL, USE_PREFIX_USER_TABLE, NULL,  2, NULL, 0
-#define PREGRP3   NULL, NULL, USE_PREFIX_USER_TABLE, NULL,  3, NULL, 0
-#define PREGRP4   NULL, NULL, USE_PREFIX_USER_TABLE, NULL,  4, NULL, 0
-#define PREGRP5   NULL, NULL, USE_PREFIX_USER_TABLE, NULL,  5, NULL, 0
-#define PREGRP6   NULL, NULL, USE_PREFIX_USER_TABLE, NULL,  6, NULL, 0
-#define PREGRP7   NULL, NULL, USE_PREFIX_USER_TABLE, NULL,  7, NULL, 0
-#define PREGRP8   NULL, NULL, USE_PREFIX_USER_TABLE, NULL,  8, NULL, 0
-#define PREGRP9   NULL, NULL, USE_PREFIX_USER_TABLE, NULL,  9, NULL, 0
-#define PREGRP10  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 10, NULL, 0
-#define PREGRP11  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 11, NULL, 0
-#define PREGRP12  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 12, NULL, 0
-#define PREGRP13  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 13, NULL, 0
-#define PREGRP14  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 14, NULL, 0
-#define PREGRP15  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 15, NULL, 0
-#define PREGRP16  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 16, NULL, 0
-#define PREGRP17  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 17, NULL, 0
-#define PREGRP18  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 18, NULL, 0
-#define PREGRP19  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 19, NULL, 0
-#define PREGRP20  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 20, NULL, 0
-#define PREGRP21  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 21, NULL, 0
-#define PREGRP22  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 22, NULL, 0
-#define PREGRP23  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 23, NULL, 0
-#define PREGRP24  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 24, NULL, 0
-#define PREGRP25  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 25, NULL, 0
-#define PREGRP26  NULL, NULL, USE_PREFIX_USER_TABLE, NULL, 26, NULL, 0
+#define PREGRP0   NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL,  0, func_NULL, 0
+#define PREGRP1   NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL,  1, func_NULL, 0
+#define PREGRP2   NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL,  2, func_NULL, 0
+#define PREGRP3   NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL,  3, func_NULL, 0
+#define PREGRP4   NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL,  4, func_NULL, 0
+#define PREGRP5   NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL,  5, func_NULL, 0
+#define PREGRP6   NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL,  6, func_NULL, 0
+#define PREGRP7   NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL,  7, func_NULL, 0
+#define PREGRP8   NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL,  8, func_NULL, 0
+#define PREGRP9   NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL,  9, func_NULL, 0
+#define PREGRP10  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 10, func_NULL, 0
+#define PREGRP11  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 11, func_NULL, 0
+#define PREGRP12  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 12, func_NULL, 0
+#define PREGRP13  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 13, func_NULL, 0
+#define PREGRP14  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 14, func_NULL, 0
+#define PREGRP15  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 15, func_NULL, 0
+#define PREGRP16  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 16, func_NULL, 0
+#define PREGRP17  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 17, func_NULL, 0
+#define PREGRP18  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 18, func_NULL, 0
+#define PREGRP19  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 19, func_NULL, 0
+#define PREGRP20  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 20, func_NULL, 0
+#define PREGRP21  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 21, func_NULL, 0
+#define PREGRP22  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 22, func_NULL, 0
+#define PREGRP23  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 23, func_NULL, 0
+#define PREGRP24  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 24, func_NULL, 0
+#define PREGRP25  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 25, func_NULL, 0
+#define PREGRP26  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 26, func_NULL, 0
 
-#define X86_64_0  NULL, NULL, X86_64_SPECIAL, NULL,  0, NULL, 0
+#define X86_64_0  NULL, func_NULL, X86_64_SPECIAL, func_NULL,  0, func_NULL, 0
 
-    typedef void (*op_rtn) PARAMS ((int bytemode, int sizeflag));
+    //    typedef void (*op_rtn) PARAMS ((int bytemode, int sizeflag));
+
+    enum op_func {
+        func_NULL = 0,
+        func_OP_ST,
+        func_OP_STi,
+        func_OP_indirE,
+        func_OP_E, 
+        func_OP_G,
+        func_OP_REG,
+        func_OP_IMREG,
+        func_OP_I,
+        func_OP_I64,
+        func_OP_sI,
+        func_OP_J,
+        func_OP_SEG,
+        func_OP_DIR,
+        func_OP_OFF,
+        func_OP_OFF64,
+        func_OP_ESreg,
+        func_OP_DSreg,
+        func_OP_C,
+        func_OP_D,
+        func_OP_T,
+        func_OP_Rd,
+        func_OP_MMX,
+        func_OP_XMM,
+        func_OP_EM,
+        func_OP_EX,
+        func_OP_MS,
+        func_OP_XS,
+        func_OP_3DNowSuffix,
+        func_OP_SIMD_Suffix,
+        func_SIMD_Fixup
+    };
 
     struct dis386 {
         const char *name;
-        op_rtn op1;
+        op_func op1;
         int bytemode1;
-        op_rtn op2;
+        op_func op2;
         int bytemode2;
-        op_rtn op3;
+        op_func op3;
         int bytemode3;
     };
 
@@ -759,12 +793,12 @@ extern "C" {
         /* 10 */
         { PREGRP8 },
         { PREGRP9 },
-        { "movlpX",         XM, EX, SIMD_Fixup, 'h' }, /* really only 2 operands */
-        { "movlpX",         EX, XM, SIMD_Fixup, 'h' },
+        { "movlpX",         XM, EX, func_SIMD_Fixup, 'h' }, /* really only 2 operands */
+        { "movlpX",         EX, XM, func_SIMD_Fixup, 'h' },
         { "unpcklpX",       XM, EX, XX },
         { "unpckhpX",       XM, EX, XX },
-        { "movhpX",         XM, EX, SIMD_Fixup, 'l' },
-        { "movhpX",         EX, XM, SIMD_Fixup, 'l' },
+        { "movhpX",         XM, EX, func_SIMD_Fixup, 'l' },
+        { "movhpX",         EX, XM, func_SIMD_Fixup, 'l' },
         /* 18 */
         { GRP14 },
         { "(bad)",          XX, XX, XX },
@@ -1097,30 +1131,10 @@ extern "C" {
         /*       0 1 2 3 4 5 6 7 8 9 a b c d e f        */
     };
 
-    static char obuf[100];
-    static char *obufp;
-    static char scratchbuf[100];
-    static unsigned char *start_codep;
-    static unsigned char *insn_codep;
-    static unsigned char *codep;
-    static disassemble_info *the_info;
-    static int mod;
-    static int rm;
-    static int reg;
-    static unsigned char need_modrm;
-
     /* If we are accessing mod/rm/reg without need_modrm set, then the
    values are stale.  Hitting this abort likely indicates that you
    need to update onebyte_has_modrm or twobyte_has_modrm.  */
 #define MODRM_CHECK  if (!need_modrm) abort()
-
-    static const char **names64;
-    static const char **names32;
-    static const char **names16;
-    static const char **names8;
-    static const char **names8rex;
-    static const char **names_seg;
-    static const char **index16;
 
     static const char *intel_names64[] = {
         "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
@@ -1708,18 +1722,18 @@ extern "C" {
         "fistpll",
     };
 
-#define ST OP_ST, 0
-#define STi OP_STi, 0
+#define ST func_OP_ST, 0
+#define STi func_OP_STi, 0
 
-#define FGRPd9_2 NULL, NULL, 0, NULL, 0, NULL, 0
-#define FGRPd9_4 NULL, NULL, 1, NULL, 0, NULL, 0
-#define FGRPd9_5 NULL, NULL, 2, NULL, 0, NULL, 0
-#define FGRPd9_6 NULL, NULL, 3, NULL, 0, NULL, 0
-#define FGRPd9_7 NULL, NULL, 4, NULL, 0, NULL, 0
-#define FGRPda_5 NULL, NULL, 5, NULL, 0, NULL, 0
-#define FGRPdb_4 NULL, NULL, 6, NULL, 0, NULL, 0
-#define FGRPde_3 NULL, NULL, 7, NULL, 0, NULL, 0
-#define FGRPdf_4 NULL, NULL, 8, NULL, 0, NULL, 0
+#define FGRPd9_2 NULL, func_NULL, 0, func_NULL, 0, func_NULL, 0
+#define FGRPd9_4 NULL, func_NULL, 1, func_NULL, 0, func_NULL, 0
+#define FGRPd9_5 NULL, func_NULL, 2, func_NULL, 0, func_NULL, 0
+#define FGRPd9_6 NULL, func_NULL, 3, func_NULL, 0, func_NULL, 0
+#define FGRPd9_7 NULL, func_NULL, 4, func_NULL, 0, func_NULL, 0
+#define FGRPda_5 NULL, func_NULL, 5, func_NULL, 0, func_NULL, 0
+#define FGRPdb_4 NULL, func_NULL, 6, func_NULL, 0, func_NULL, 0
+#define FGRPde_3 NULL, func_NULL, 7, func_NULL, 0, func_NULL, 0
+#define FGRPdf_4 NULL, func_NULL, 8, func_NULL, 0, func_NULL, 0
 
     static const struct dis386 float_reg[][8] = {
         /* d8 */
@@ -2003,7 +2017,6 @@ extern "C" {
     //*********************************************************************
     
     
-    extern int print_insn		PARAMS ((uint64_t, disassemble_info*, uint32_t));
     extern int x86inst_intern_read_mem_func     PARAMS((uint64_t, uint8_t *, uint32_t, disassemble_info*));
     extern void x86inst_set_disassemble_info    PARAMS((disassemble_info*, uint32_t));
     
