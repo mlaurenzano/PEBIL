@@ -4,18 +4,20 @@
 #include <Base.h>
 #include <CStructuresX86.h>
 
+class Instruction;
+
 static void noprint_fprintf(FILE* stream, const char* format, ...){
 }
-
 
 class Disassembler : public Base {
 protected:
     uint32_t is64Bit;
     uint64_t machineType;
     struct disassemble_info disassembleInfo;
+    Instruction* currentInstruction;
 
     fprintf_ftype fprintf_func;
-    FILE* fprintf_stream;
+    void* fprintf_stream;
 
     char obuf[100];
     char *obufp;
@@ -70,12 +72,14 @@ public:
     ~Disassembler();
     void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) {}
-    void setPrintFunction(fprintf_ftype pf_func, FILE* pf_stream);
+    void setPrintFunction(fprintf_ftype pf_func, void* pf_stream);
+    uint32_t print_insn(uint64_t addr, Instruction* targetInstruction);
 
+
+private:
     void get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag);
 
     /* legacy functions from GNU libopcodes. at least some of these should eventually be gone */
-    uint32_t print_insn(uint64_t addr);
     uint32_t readMemory(long long unsigned int, uint8_t*, unsigned int, disassemble_info*);
     void ckprefix();
     const char* prefix_name(int pref, int sizeflag);

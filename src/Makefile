@@ -30,7 +30,7 @@ SRCS        = Base.C ElfFile.C BinaryFile.C FileHeader.C ProgramHeader.C Section
               Instruction.C main.C
 OBJS        = Base.o ElfFile.o BinaryFile.o FileHeader.o ProgramHeader.o SectionHeader.o \
               StringTable.o SymbolTable.o RelocationTable.o RawSection.o Disassembler.o \
-              Instruction.C main.o
+              Instruction.o main.o
 
 TARGET_BIN  = x86inst
 

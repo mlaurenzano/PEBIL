@@ -24,8 +24,8 @@
    interface, for making instruction-processing programs more independent
    of the instruction set being processed.  */
 
-#ifndef DIS_ASM_H
-#define DIS_ASM_H
+#ifndef _CStructuresX86_h_
+#define _CStructuresX86_h_
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,53 +58,6 @@ extern "C" {
         uint64_t buffer_vma;
         
     } disassemble_info;
-
-    extern int fetch_data PARAMS ((struct disassemble_info *, uint8_t *));
-    extern void ckprefix PARAMS ((void));
-    extern const char *prefix_name PARAMS ((int, int));
-    extern int print_insn PARAMS ((uint64_t, disassemble_info *));
-    extern void dofloat PARAMS ((int));
-    //extern void OP_ST PARAMS ((int, int));
-    //extern void OP_STi  PARAMS ((int, int));
-    extern int putop PARAMS ((const char *, int));
-    extern void oappend PARAMS ((const char *));
-    extern void append_seg PARAMS ((void));
-    //extern void OP_indirE PARAMS ((int, int));
-    extern void print_operand_value PARAMS ((char *, int, uint64_t));
-    //extern void OP_E PARAMS ((int, int));
-    //extern void OP_G PARAMS ((int, int));
-    extern uint64_t get64 PARAMS ((void));
-    extern int64_t get32 PARAMS ((void));
-    extern int64_t get32s PARAMS ((void));
-    extern int get16 PARAMS ((void));
-    extern void set_op PARAMS ((uint64_t, int));
-    //extern void OP_REG PARAMS ((int, int));
-    //extern void OP_IMREG PARAMS ((int, int));
-    //extern void OP_I PARAMS ((int, int));
-    //extern void OP_I64 PARAMS ((int, int));
-    //extern void OP_sI PARAMS ((int, int));
-    //extern void OP_J PARAMS ((int, int));
-    //extern void OP_SEG PARAMS ((int, int));
-    //extern void OP_DIR PARAMS ((int, int));
-    //extern void OP_OFF PARAMS ((int, int));
-    //extern void OP_OFF64 PARAMS ((int, int));
-    extern void ptr_reg PARAMS ((int, int));
-    //extern void OP_ESreg PARAMS ((int, int));
-    //extern void OP_DSreg PARAMS ((int, int));
-    //extern void OP_C PARAMS ((int, int));
-    //extern void OP_D PARAMS ((int, int));
-    //extern void OP_T PARAMS ((int, int));
-    //extern void OP_Rd PARAMS ((int, int));
-    //extern void OP_MMX PARAMS ((int, int));
-    //extern void OP_XMM PARAMS ((int, int));
-    //extern void OP_EM PARAMS ((int, int));
-    //extern void OP_EX PARAMS ((int, int));
-    //extern void OP_MS PARAMS ((int, int));
-    //extern void OP_XS PARAMS ((int, int));
-    //extern void OP_3DNowSuffix PARAMS ((int, int));
-    //extern void OP_SIMD_Suffix PARAMS ((int, int));
-    extern void SIMD_Fixup PARAMS ((int, int));
-    extern void BadOp PARAMS ((void));
 
 #define MAXLEN 20
 
@@ -1948,7 +1901,7 @@ extern "C" {
         "neq",
         "nlt",
         "nle",
-    "ord"
+        "ord"
     };
 
 
@@ -2017,4 +1970,4 @@ extern "C" {
 };
 #endif
 
-#endif /* ! defined (DIS_ASM_H) */
+#endif /* _CStructuresX86_h_ */

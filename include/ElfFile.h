@@ -71,7 +71,7 @@ public:
     void addTextSection(uint64_t size, char* bytes);
     void addSharedLibrary();
 
-    ElfFile(char* f): is64BitFlag(false),elfFileName(f),
+    ElfFile(char* f): is64BitFlag(false),elfFileName(f),disassembler(NULL),
                   fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
                   rawSections(NULL),
                   stringTables(NULL),symbolTables(NULL),relocationTables(NULL),numberOfPrograms(0),              
@@ -136,6 +136,7 @@ public:
     void setLineInfoFinder();
     void findLoops();
     uint32_t disassemble();
+    uint32_t printDisassembledCode();
 
     void testBitSet();
 

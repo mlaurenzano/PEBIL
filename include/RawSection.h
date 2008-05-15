@@ -45,6 +45,7 @@ public:
 
     uint32_t getIndex() { return index; }
     uint32_t disassemble();
+    uint32_t printDisassembledCode();
 
     const char* briefName() { return "TextSection"; }
 

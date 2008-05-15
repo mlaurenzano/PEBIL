@@ -80,13 +80,30 @@ void ElfFile::findFunctions(){
 uint32_t ElfFile::disassemble(){
     uint32_t numInstrs = 0;
 
-    disassembler = new Disassembler(is64Bit());
+    if (!disassembler){
+        disassembler = new Disassembler(is64Bit());
+    }
 
     for (uint32_t i = 0; i < numberOfTextSections; i++){
         numInstrs += textSections[i]->disassemble();
     }
     return numInstrs;
 }
+
+uint32_t ElfFile::printDisassembledCode(){
+    uint32_t numInstrs = 0;
+
+    if (!disassembler){
+        disassembler = new Disassembler(is64Bit());
+    }
+
+    for (uint32_t i = 0; i < numberOfTextSections; i++){
+        numInstrs += textSections[i]->printDisassembledCode();
+    }
+    return numInstrs;
+}
+
+
 
 uint32_t ElfFile::findSectionNameInStrTab(char* name){
     if (!stringTables){
