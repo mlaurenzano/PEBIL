@@ -80,7 +80,7 @@ private:
     void get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag);
 
     /* legacy functions from GNU libopcodes. at least some of these should eventually be gone */
-    uint32_t readMemory(long long unsigned int, uint8_t*, unsigned int, disassemble_info*);
+    uint32_t readMemory(uint64_t, uint8_t*, unsigned int, disassemble_info*);
     void ckprefix();
     const char* prefix_name(int pref, int sizeflag);
     void dofloat(uint32_t sizeflag);

@@ -49,7 +49,7 @@ void RelocationTable::print(){
     if (type == ElfRelType_rel){
         PRINT_INFOR("Type(index):\tOffset\t\t\tInfo\t\t\tSymbol\tType");
     } else {
-        PRINT_INFOR("Type(index):\tOffset\t\t\tInfo\t\t\tSymbol\tType\tAddend");
+        PRINT_INFOR("Type(index):\tOffset\t\t\tInfo\t\t\tSymbol\tType\t\tAddend");
     }
 
     for (uint32_t i = 0; i < numberOfRelocations; i++){

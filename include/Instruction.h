@@ -11,6 +11,7 @@ class ElfFile;
 #define MAX_OPERANDS 3
 
 enum x86_insn_format {
+    x86_insn_format_unknown = 0,
     x86_insn_format_onebyte,
     x86_insn_format_twobyte,
     x86_insn_format_groups,

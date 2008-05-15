@@ -28,7 +28,7 @@ uint64_t Instruction::setNextAddress(){
 
 
 uint32_t Instruction::setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2){
-    //    PRINT_INFOR("Setting instruction type %d 0x%08x 0x%08x", formatType, idx1, idx2);
+    PRINT_INFOR("Setting instruction type %d 0x%08x 0x%08x", formatType, idx1, idx2);
 
     switch(formatType){
     case x86_insn_format_onebyte:
