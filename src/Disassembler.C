@@ -670,11 +670,11 @@ uint32_t Disassembler::print_insn(uint64_t pc, Instruction* targetInstruction){
     needcomma = 0;
     if (*first) {
         if (op_index[0] != -1 && !op_riprel[0]){
-            fprintf(stdout, "OPERAND: found first.op: %llx\n", op_address[op_index[0]]);
+            fprintf(stdout, "OPERAND: found first.op: %llx %d\n", op_address[op_index[0]], op_ad);
             generic_print_address((uint64_t) op_address[op_index[0]], &disassembleInfo);
         }
         else {
-            fprintf(stdout, "OPERAND: found first: %s\n", first);
+            fprintf(stdout, "OPERAND: found first: %s %d\n", first, op_ad);
             (*fprintf_func)(fprintf_stream, "%s", first);
         }
         needcomma = 1;
@@ -683,11 +683,11 @@ uint32_t Disassembler::print_insn(uint64_t pc, Instruction* targetInstruction){
         if (needcomma)
             (*fprintf_func)(fprintf_stream, ",");
         if (op_index[1] != -1 && !op_riprel[1]){
-            fprintf(stdout, "OPERAND: found second.op: %llx\n", op_address[op_index[1]]);
+            fprintf(stdout, "OPERAND: found second.op: %llx %d\n", op_address[op_index[1]], op_ad);
             generic_print_address((uint64_t) op_address[op_index[1]], &disassembleInfo);
         }
         else{
-            fprintf(stdout, "OPERAND: found second: %s\n", second);
+            fprintf(stdout, "OPERAND: found second: %s %d\n", second, op_ad);
             (*fprintf_func)(fprintf_stream, "%s", second);
         } 
         needcomma = 1;
@@ -696,11 +696,11 @@ uint32_t Disassembler::print_insn(uint64_t pc, Instruction* targetInstruction){
         if (needcomma)
             (*fprintf_func)(fprintf_stream, ",");
         if (op_index[2] != -1 && !op_riprel[2]){
-            fprintf(stdout, "OPERAND: found third.op: %llx\n", op_address[op_index[2]]);
+            fprintf(stdout, "OPERAND: found third.op: %llx %d\n", op_address[op_index[2]], op_ad);
             generic_print_address((uint64_t) op_address[op_index[2]], &disassembleInfo);
         }
         else {
-            fprintf(stdout, "OPERAND: found third: %s\n", third);
+            fprintf(stdout, "OPERAND: found third: %s %d\n", third, op_ad);
             (*fprintf_func)(fprintf_stream, "%s", third);
         }
     }
@@ -774,7 +774,7 @@ uint32_t Disassembler::putop(const char* templatevar, int32_t sizeflag){
     const char *p;
     int alt;
 
-    //fprintf(stdout, "\ndisasm.putop: %s\n", templatevar);
+    fprintf(stdout, "OPERAND: disasm.putop: %s\n", templatevar);
     
     for (p = templatevar; *p; p++){
         switch (*p){
@@ -1052,6 +1052,7 @@ void Disassembler::OP_indirE(uint32_t bytemode, uint32_t sizeflag){
 }
 
 void Disassembler::print_operand_value(char* buf, uint32_t hex, uint64_t disp){
+
     if (mode_64bit){
         if (hex){
             char tmp[30];
@@ -1091,6 +1092,9 @@ void Disassembler::print_operand_value(char* buf, uint32_t hex, uint64_t disp){
 	}
     }
     else{
+        fprintf(stdout, "OPERAND: called print_operand_value: 0x%x %d\n", (unsigned int)disp, op_ad);
+        currentInstruction->setOperand(op_ad,disp);
+
         if (hex)
             sprintf (buf, "0x%x", (unsigned int) disp);
         else
@@ -1110,7 +1114,7 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
     MODRM_CHECK;
     codep++;
     
-    fprintf(stdout, "OPERAND: called OP_E\n");
+    fprintf(stdout, "OPERAND: called OP_E xxx %d\n", op_ad);
 
     if (mod == 3){
         switch (bytemode){
@@ -1277,6 +1281,7 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
                 if (!intel_syntax || (intel_syntax && bytemode != b_mode && bytemode != w_mode && bytemode != v_mode)){
                     *obufp++ = scale_char;
                     *obufp = '\0';
+                    fprintf(stdout, "OPERAND: in OP_E scale: %d %d\n", 1 << scale, scale);
                     sprintf (scratchbuf, "%d", 1 << scale);
                     oappend (scratchbuf);
                 }
@@ -1356,7 +1361,7 @@ void Disassembler::OP_G(uint32_t bytemode, uint32_t sizeflag){
     if (rex & REX_EXTX)
         add += 8;
 
-    fprintf(stdout, "OPERAND: found OP_G: %x %x\n", reg, add);
+    fprintf(stdout, "OPERAND: found OP_G: %x %x, %d\n", reg, add, op_ad);
 
     switch (bytemode){
     case b_mode:
@@ -1456,6 +1461,8 @@ void Disassembler::set_op(uint64_t op, int riprel){
         op_address[op_ad] = op & 0xffffffff;
         op_riprel[op_ad] = riprel & 0xffffffff;
     }
+    fprintf(stdout, "OPERAND: called set_op %x %d\n", op_address[op_ad], op_ad);
+    currentInstruction->setOperand(op_ad,op_address[op_ad]);
 }
 
 void Disassembler::OP_REG(uint32_t code, uint32_t sizeflag){
@@ -1511,7 +1518,7 @@ void Disassembler::OP_REG(uint32_t code, uint32_t sizeflag){
         s = INTERNAL_DISASSEMBLER_ERROR;
         break;
     }
-    fprintf(stdout, "OPERAND: called OP_REG: %s\n", s);
+    fprintf(stdout, "OPERAND: called OP_REG: %s %d\n", s, op_ad);
     oappend (s);
 }
 
@@ -1556,7 +1563,7 @@ void Disassembler::OP_IMREG(uint32_t code, uint32_t sizeflag){
         s = INTERNAL_DISASSEMBLER_ERROR;
         break;
     }
-    fprintf(stdout, "OPERAND: found OP_IMREG: %s\n", s);
+    fprintf(stdout, "OPERAND: found OP_IMREG: %s %d\n", s, op_ad);
     oappend (s);
 }
 
@@ -1601,7 +1608,7 @@ void Disassembler::OP_I(uint32_t bytemode, uint32_t sizeflag){
     
     op &= mask;
     scratchbuf[0] = '$';
-    fprintf(stdout, "OPERAND: found OP_I: %x\n", op);
+    fprintf(stdout, "OPERAND: found OP_I: %x %d\n", op, op_ad);
     print_operand_value (scratchbuf + 1, 1, op);
     oappend (scratchbuf + intel_syntax);
     scratchbuf[0] = '\0';
@@ -1647,7 +1654,7 @@ void Disassembler::OP_I64(uint32_t bytemode, uint32_t sizeflag){
     
     op &= mask;
     scratchbuf[0] = '$';
-    fprintf(stdout, "OPERAND: found OP_I64: %llx\n", op);
+    fprintf(stdout, "OPERAND: found OP_I64: %llx %d\n", op, op_ad);
     print_operand_value (scratchbuf + 1, 1, op);
     oappend (scratchbuf + intel_syntax);
     scratchbuf[0] = '\0';
@@ -1693,7 +1700,7 @@ void Disassembler::OP_sI(uint32_t bytemode, uint32_t sizeflag){
     }
 
     scratchbuf[0] = '$';
-    fprintf(stdout, "OPERAND: found OP_sI: %llx\n", op);
+    fprintf(stdout, "OPERAND: found OP_sI: %llx %d\n", op, op_ad);
     print_operand_value (scratchbuf + 1, 1, op);
     oappend (scratchbuf + intel_syntax);
 }
@@ -1725,14 +1732,14 @@ void Disassembler::OP_J(uint32_t bytemode, uint32_t sizeflag){
         return;
     }
     disp = (start_pc + codep - start_codep + disp) & mask;
-    set_op (disp, 0);
-    fprintf(stdout, "OPERAND: found OP_J: %llx\n", disp);
-    print_operand_value (scratchbuf, 1, disp);
-    oappend (scratchbuf);
+    set_op(disp, 0);
+    fprintf(stdout, "OPERAND: found OP_J: %llx %d\n", disp, op_ad);
+    print_operand_value(scratchbuf, 1, disp);
+    oappend(scratchbuf);
 }
 
 void Disassembler::OP_SEG(uint32_t dummy, uint32_t sizeflag){
-    fprintf(stdout, "OPERAND: found OP_SEG: %s\n", names_seg[reg]);
+    fprintf(stdout, "OPERAND: found OP_SEG: %s %d\n", names_seg[reg], op_ad);
     oappend (names_seg[reg]);
 }
 
@@ -1749,11 +1756,11 @@ void Disassembler::OP_DIR(uint32_t dummy, uint32_t sizeflag){
     }
     used_prefixes |= (prefixes & PREFIX_DATA);
     if (intel_syntax)
-        sprintf (scratchbuf, "0x%x,0x%x", seg, offset);
+        sprintf(scratchbuf, "0x%x,0x%x", seg, offset);
     else
-        sprintf (scratchbuf, "$0x%x,$0x%x", seg, offset);
-    fprintf(stdout, "OPERAND: found OP_DIR: %s\n", scratchbuf);
-    oappend (scratchbuf);
+        sprintf(scratchbuf, "$0x%x,$0x%x", seg, offset);
+    fprintf(stdout, "OPERAND: found OP_DIR: %s %d\n", scratchbuf, op_ad);
+    oappend(scratchbuf);
 }
 
 void Disassembler::OP_OFF(uint32_t bytemode, uint32_t sizeflag){
@@ -1772,7 +1779,7 @@ void Disassembler::OP_OFF(uint32_t bytemode, uint32_t sizeflag){
             oappend (":");
 	}
     }
-    fprintf(stdout, "OPERAND: found OP_OFF: %llx\n", off);
+    fprintf(stdout, "OPERAND: found OP_OFF: %llx %d\n", off, op_ad);
     print_operand_value (scratchbuf, 1, off);
     oappend (scratchbuf);
 }
@@ -1795,7 +1802,7 @@ void Disassembler::OP_OFF64(uint32_t bytemode, uint32_t sizeflag){
             oappend (":");
 	}
     }
-    fprintf(stdout, "OPERAND: found OP_OFF: %llx\n", off);
+    fprintf(stdout, "OPERAND: found OP_OFF: %llx %d\n", off, op_ad);
     print_operand_value (scratchbuf, 1, off);
     oappend (scratchbuf);
 }
@@ -1818,7 +1825,7 @@ void Disassembler::ptr_reg(uint32_t code, uint32_t sizeflag){
         s = names32[code - eAX_reg];
     else
         s = names16[code - eAX_reg];
-    fprintf(stdout, "OPERAND: found ptr_reg: s\n", s);
+    fprintf(stdout, "OPERAND: found ptr_reg: %s %d\n", s, op_ad);
     oappend (s);
     if (intel_syntax)
         oappend ("]");
@@ -1827,7 +1834,7 @@ void Disassembler::ptr_reg(uint32_t code, uint32_t sizeflag){
 }
 
 void Disassembler::OP_ESreg(uint32_t code, uint32_t sizeflag){
-    fprintf(stdout, "OPERAND: found OP_ESReg: %es\n");
+    fprintf(stdout, "OPERAND: found OP_ESReg: %es %d\n", op_ad);
     oappend ("%es:" + intel_syntax);
     ptr_reg (code, sizeflag);
 }
@@ -1841,7 +1848,7 @@ void Disassembler::OP_DSreg(uint32_t code, uint32_t sizeflag){
             | PREFIX_FS
             | PREFIX_GS)) == 0)
         prefixes |= PREFIX_DS;
-    fprintf(stdout, "OPERAND: found OP_DSReg\n");
+    fprintf(stdout, "OPERAND: found OP_DSReg xxx %d\n", op_ad);
     append_seg();
     ptr_reg (code, sizeflag);
 }
@@ -1851,7 +1858,7 @@ void Disassembler::OP_C(uint32_t dummy, uint32_t sizeflag){
     USED_REX (REX_EXTX);
     if (rex & REX_EXTX)
         add = 8;
-    fprintf(stdout, "OPERAND: found OP_C: %x\n", reg+add);
+    fprintf(stdout, "OPERAND: found OP_C: %x %d\n", reg+add, op_ad);
     sprintf (scratchbuf, "%%cr%d", reg + add);
     oappend (scratchbuf + intel_syntax);
 }
@@ -1865,12 +1872,12 @@ void Disassembler::OP_D(uint32_t dummy, uint32_t sizeflag){
         sprintf (scratchbuf, "db%d", reg + add);
     else
         sprintf (scratchbuf, "%%db%d", reg + add);
-    fprintf(stdout, "OPERAND: found OP_D: %s\n", scratchbuf);
+    fprintf(stdout, "OPERAND: found OP_D: %s %d\n", scratchbuf, op_ad);
     oappend (scratchbuf);
 }
 
 void Disassembler::OP_T(uint32_t dummy, uint32_t sizeflag){
-    fprintf(stdout, "OPERAND: found OP_T: %x\n", reg);
+    fprintf(stdout, "OPERAND: found OP_T: %x %d\n", reg, op_ad);
     sprintf (scratchbuf, "%%tr%d", reg);
     oappend (scratchbuf + intel_syntax);
 }

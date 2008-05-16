@@ -215,13 +215,10 @@ int main(int argc,char* argv[]){
         PRINT_INFOR("%s", fakeSect);
 
         elfFile.addDataSection(96,fakeSect);
-        //        elfFile.briefPrint();
         elfFile.dump(extension);
 
-        delete[] fakeSect;
     } else if (instType == disassembler_type){
         elfFile.disassemble();
-        //elfFile.printDisassembledCode();
     } else {
         PRINT_ERROR("Error : invalid instrumentation type");
     }

@@ -7,9 +7,14 @@ Operand::Operand(uint32_t typ, uint64_t val){
     value = val;
 }
 
+uint64_t Operand::setValue(uint64_t val){
+    value = val;
+    return value;
+}
 
-Operand* Instruction::setOperand(uint32_t idx){
+Operand* Instruction::setOperand(uint32_t idx, uint64_t value){
     ASSERT(idx >= 0 && idx < MAX_OPERANDS && "Index into operand table has a limited range");
+    operands[idx]->setValue(value);
     return operands[idx];
 }
 
@@ -18,6 +23,7 @@ uint64_t Instruction::setNextAddress(){
     switch(type){
     case x86_insn_type_cond_branch:
     case x86_insn_type_branch:
+        nextAddress = operands[2]->getValue();
         break;
     default:
         nextAddress = virtualAddress + instructionLength;
@@ -124,6 +130,9 @@ Operand* Instruction::getOperand(uint32_t idx){
 
 void Instruction::print(){
     PRINT_INFOR("Instruction (type %d) at address 0x%016llx has %d bytes -> 0x%016llx", type, virtualAddress, instructionLength, nextAddress);
+    if (!nextAddress){
+        PRINT_INFOR("BAD NEXT ADDRESS");
+    }
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i]->getType()){
             PRINT_INFOR("\t\tOperand %d: %d 0x%016llx", i, operands[i]->getType(), operands[i]->getValue());
@@ -222,40 +231,40 @@ uint32_t Instruction::computeOpcodeTypeTwoByte(uint32_t idx){
 
     switch(idx){
     case 0x00: case 0x01: case 0x02: case 0x03:
-        type = x86_insn_type_int;
+        typ = x86_insn_type_int;
         break;
     case 0x04: case 0x05:
         typ = x86_insn_type_syscall;
         break;
     case 0x06:
-        type = x86_insn_type_int;
+        typ = x86_insn_type_int;
         break;
     case 0x07:
-        type = x86_insn_type_syscall;
+        typ = x86_insn_type_syscall;
         break;
     case 0x08: case 0x09: case 0x0a: case 0x0b: case 0x0c: case 0x0d: case 0x0e: case 0x0f:
-        type = x86_insn_type_int;
+        typ = x86_insn_type_int;
         break;
     case 0x10: case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
-        type = x86_insn_type_simd;
+        typ = x86_insn_type_simd;
         break;
     case 0x18: case 0x19: case 0x1a: case 0x1b: case 0x1c: case 0x1d: case 0x1e: case 0x1f:
     case 0x20: case 0x21: case 0x22: case 0x23: case 0x24: case 0x25: case 0x26: case 0x27:
-        type = x86_insn_type_int;
+        typ = x86_insn_type_int;
         break;
     case 0x28: case 0x29: case 0x2a: case 0x2b: case 0x2c: case 0x2d: case 0x2e: case 0x2f:
-        type = x86_insn_type_float;
+        typ = x86_insn_type_float;
         break;
     case 0x30: case 0x31: case 0x32: case 0x33:
-        type = x86_insn_type_hwcount;
+        typ = x86_insn_type_hwcount;
         break;
     case 0x34: case 0x35: case 0x36: case 0x37:
-        type = x86_insn_type_syscall;
+        typ = x86_insn_type_syscall;
         break;
     case 0x38: case 0x39: case 0x3a: case 0x3b: case 0x3c: case 0x3d: case 0x3e: case 0x3f:
     case 0x40: case 0x41: case 0x42: case 0x43: case 0x44: case 0x45: case 0x46: case 0x47:
     case 0x48: case 0x49: case 0x4a: case 0x4b: case 0x4c: case 0x4d: case 0x4e: case 0x4f:
-        type = x86_insn_type_int;
+        typ = x86_insn_type_int;
         break;
     case 0x50: case 0x51: case 0x52: case 0x53: case 0x54: case 0x55: case 0x56: case 0x57:
     case 0x58: case 0x59: case 0x5a: case 0x5b: case 0x5c: case 0x5d: case 0x5e: case 0x5f:
@@ -270,7 +279,7 @@ uint32_t Instruction::computeOpcodeTypeTwoByte(uint32_t idx){
         break;
     case 0x80: case 0x81: case 0x82: case 0x83: case 0x84: case 0x85: case 0x86: case 0x87:
     case 0x88: case 0x89: case 0x8a: case 0x8b: case 0x8c: case 0x8d: case 0x8e: case 0x8f:
-        type = x86_insn_type_cond_branch;
+        typ = x86_insn_type_cond_branch;
         break;
     case 0x90: case 0x91: case 0x92: case 0x93: case 0x94: case 0x95: case 0x96: case 0x97:
     case 0x98: case 0x99: case 0x9a: case 0x9b: case 0x9c: case 0x9d: case 0x9e: case 0x9f:

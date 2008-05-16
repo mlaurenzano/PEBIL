@@ -57,6 +57,8 @@ public:
 
     uint32_t getType() { return type; }
     uint64_t getValue() { return value; }
+
+    uint64_t setValue(uint64_t val);
 };
 
 class Instruction {
@@ -88,7 +90,7 @@ public:
     uint64_t setAddress(uint64_t addr);
     uint32_t setLength(uint32_t len);
     char* setBytes(char* bytes);
-    Operand* setOperand(uint32_t idx);
+    Operand* setOperand(uint32_t idx, uint64_t val);
 
     char* setDisassembledString(char* disStr);
 
