@@ -93,7 +93,7 @@ protected:
 
 public:
 
-    RelocationTable::RelocationTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
+    RelocationTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
         : RawSection(ElfClassTypes_relocation_table,rawPtr,size,scnIdx,elf),index(idx),symbolTable(NULL),relocationSection(NULL)
     {
         ASSERT(elfFile);

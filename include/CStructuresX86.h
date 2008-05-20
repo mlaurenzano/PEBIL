@@ -31,10 +31,8 @@
 extern "C" {
 #endif
 
-#include <ansidecl.h>
 #include <stdint.h>
 #include <stdio.h>
-
 
     /* This struct is passed into the instruction decoding routine, 
        and is passed back out into each callback.  The various fields are used
@@ -51,7 +49,7 @@ extern "C" {
         unsigned long mach;
         
 #define INSN_HAS_RELOC	0x80000000
-        PTR private_data;
+        void* private_data;
         
         /* These are for buffer_read_memory.  */
         uint8_t *buffer;
@@ -341,8 +339,6 @@ extern "C" {
 #define PREGRP26  NULL, func_NULL, USE_PREFIX_USER_TABLE, func_NULL, 26, func_NULL, 0
 
 #define X86_64_0  NULL, func_NULL, X86_64_SPECIAL, func_NULL,  0, func_NULL, 0
-
-    //    typedef void (*op_rtn) PARAMS ((int bytemode, int sizeflag));
 
     enum op_func {
         func_NULL = 0,
@@ -1905,10 +1901,6 @@ extern "C" {
     };
 
 
-
-
-    typedef int (*fprintf_ftype) PARAMS((PTR, const char*, ...));
-
     enum dis_insn_type {
         dis_noninsn,		/* Not a valid instruction */
         dis_nonbranch,		/* Not a branch instruction */
@@ -1926,17 +1918,18 @@ extern "C" {
     // ********************************************************
     
     // 64 bit
-#define sprintf_vma(s,x) sprintf (s, "%016lx", x)
-#define fprintf_vma(f,x) fprintf (f, "%016lx", x)
-    
     /*
+#define sprintf_vma(s,x) sprintf (s, "%016lx", (uint64_t)x)
+#define fprintf_vma(f,x) fprintf (f, "%016lx", (uint64_t)x)
+    */    
+
       #define _bfd_int64_low(x) ((unsigned long) (((x) & 0xffffffff)))
       #define _bfd_int64_high(x) ((unsigned long) (((x) >> 32) & 0xffffffff))
       #define fprintf_vma(s,x) \
       fprintf ((s), "%08lx%08lx", _bfd_int64_high (x), _bfd_int64_low (x))
       #define sprintf_vma(s,x) \
       sprintf ((s), "%08lx%08lx", _bfd_int64_high (x), _bfd_int64_low (x))
-    */
+
     
     /* Extracted from archures.c.  */
     enum mach_architecture
@@ -1956,14 +1949,14 @@ extern "C" {
     //*********************************************************************
     
     
-    extern int x86inst_intern_read_mem_func     PARAMS((uint64_t, uint8_t *, uint32_t, disassemble_info*));
-    extern void x86inst_set_disassemble_info    PARAMS((disassemble_info*, uint32_t));
+    extern int x86inst_intern_read_mem_func(uint64_t, uint8_t *, uint32_t, disassemble_info*);
+    extern void x86inst_set_disassemble_info(disassemble_info*, uint32_t);
     
     
     /* Just print the address in hex.  This is included for completeness even
        though both GDB and objdump provide their own (to print symbolic
        addresses).  */
-    extern void generic_print_address PARAMS ((uint64_t, struct disassemble_info *));
+    extern void generic_print_address(uint64_t, struct disassemble_info *);
     
     
 #ifdef __cplusplus

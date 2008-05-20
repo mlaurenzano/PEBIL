@@ -10,6 +10,13 @@
 #include <unistd.h>
 #include <CStructuresElf.h>
 
+typedef void (*fprintf_ftype)(FILE*, const char*, ...);
+
+//#define DEVELOPMENT
+//#define DEBUG_OPERAND
+//#define DEBUG_OPTARGET
+//#define DEBUG_OPCODE
+
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE assert(0 && "Should not be called")
 
@@ -39,13 +46,41 @@
                          fprintf(stdout,"\n"); \
                          fflush(stdout);
 
-//#define DEVELOPMENT
-#ifdef  DEVELOPMENT
+#ifdef DEBUG_OPCODE
+#define PRINT_DEBUG_OPCODE(...) fprintf(stdout,"OPCODE : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_OPCODE(...)
+#endif
 
+#ifdef DEBUG_OPERAND
+#define PRINT_DEBUG_OPERAND(...) fprintf(stdout,"OPERAND : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_OPERAND(...)
+#endif
+
+#ifdef DEBUG_OPTARGET
+#define PRINT_DEBUG_OPTARGET(...) fprintf(stdout,"OPTARGET : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_OPTARGET(...)
+#endif
+
+
+#ifdef  DEVELOPMENT
 
 #define PRINT_DEBUG(...) fprintf(stdout,"----------- DEBUG : "); \
                          fprintf(stdout,## __VA_ARGS__); \
-                         fprintf(stdout,"\n");
+                         fprintf(stdout,"\n"); \
+                         fflush(stdout);
+
 
 #define ASSERT(__str) assert(__str);
 #define DEBUG(...) __VA_ARGS__

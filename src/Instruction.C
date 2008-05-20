@@ -12,10 +12,21 @@ uint64_t Operand::setValue(uint64_t val){
     return value;
 }
 
-Operand* Instruction::setOperand(uint32_t idx, uint64_t value){
+uint32_t Operand::setType(uint32_t typ){
+    type = typ;
+    return type;
+}
+
+uint64_t Instruction::setOperandValue(uint32_t idx, uint64_t value){
     ASSERT(idx >= 0 && idx < MAX_OPERANDS && "Index into operand table has a limited range");
     operands[idx]->setValue(value);
-    return operands[idx];
+    return operands[idx]->getValue();
+}
+
+uint32_t Instruction::setOperandType(uint32_t idx, uint32_t type){
+    ASSERT(idx >= 0 && idx < MAX_OPERANDS && "Index into operand table has a limited range");
+    operands[idx]->setType(type);
+    return operands[idx]->getType();
 }
 
 
@@ -23,18 +34,24 @@ uint64_t Instruction::setNextAddress(){
     switch(type){
     case x86_insn_type_cond_branch:
     case x86_insn_type_branch:
-        nextAddress = operands[2]->getValue();
+        if (operands[JUMP_TARGET_OPERAND]->getType() == x86_operand_type_immrel){
+            nextAddress = getAddress() + operands[JUMP_TARGET_OPERAND]->getValue();
+            PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx", nextAddress,  getAddress(), operands[JUMP_TARGET_OPERAND]->getValue());
+        } else {
+            nextAddress = operands[JUMP_TARGET_OPERAND]->getValue();
+        }
         break;
     default:
         nextAddress = virtualAddress + instructionLength;
         break;
     }
+    PRINT_DEBUG_OPTARGET("Set next address to 0x%llx", nextAddress);
     return nextAddress;
 }
 
 
 uint32_t Instruction::setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2){
-    PRINT_INFOR("Setting instruction type %d 0x%08x 0x%08x", formatType, idx1, idx2);
+    PRINT_DEBUG_OPCODE("Setting instruction type %d 0x%08x 0x%08x", formatType, idx1, idx2);
 
     switch(formatType){
     case x86_insn_format_onebyte:
@@ -130,12 +147,10 @@ Operand* Instruction::getOperand(uint32_t idx){
 
 void Instruction::print(){
     PRINT_INFOR("Instruction (type %d) at address 0x%016llx has %d bytes -> 0x%016llx", type, virtualAddress, instructionLength, nextAddress);
-    if (!nextAddress){
-        PRINT_INFOR("BAD NEXT ADDRESS");
-    }
+
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i]->getType()){
-            PRINT_INFOR("\t\tOperand %d: %d 0x%016llx", i, operands[i]->getType(), operands[i]->getValue());
+            PRINT_INFOR("\tOperand %d: %d 0x%016llx", i, operands[i]->getType(), operands[i]->getValue());
         }
     }
 }
