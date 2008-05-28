@@ -22,6 +22,8 @@ public:
     virtual char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
     virtual uint32_t read(BinaryInputFile* binaryInputFile) { __SHOULD_NOT_ARRIVE; }
     virtual void print() { __SHOULD_NOT_ARRIVE; }
+    virtual uint64_t getSymbol() { __SHOULD_NOT_ARRIVE; }
+    virtual uint64_t getType() { __SHOULD_NOT_ARRIVE; }
 
     RELOCATION_MACROS_BASIS("For the get_X field macros check the defines directory");
 };
@@ -35,6 +37,8 @@ public:
     char* charStream() { return (char*)&entry; }
     uint32_t read(BinaryInputFile* binaryInputFile);
     void print();
+    uint64_t getSymbol() { return (uint64_t)ELF32_R_SYM (GET(r_info)); }
+    uint64_t getType()   { return (uint64_t)ELF32_R_TYPE(GET(r_info)); }
 
     RELOCATION_MACROS_CLASS("For the get_X field macros check the defines directory");
 };
@@ -61,8 +65,12 @@ public:
     char* charStream() { return (char*)&entry; }
     uint32_t read(BinaryInputFile* binaryInputFile);
     void print();
+    uint64_t getSymbol() { return (uint64_t)ELF32_R_SYM (GET(r_info)); }
+    uint64_t getType()   { return (uint64_t)ELF32_R_TYPE(GET(r_info)); }
+
 
     RELOCATION_MACROS_CLASS("For the get_X field macros check the defines directory");
+    // need a seperate macro set (actually just 1) for the relocation addend structure
     RELOCATIONADDEND_MACROS_CLASS("For the get_X field macros check the defines directory");
 };
 
@@ -75,8 +83,11 @@ public:
     char* charStream() { return (char*)&entry; }
     uint32_t read(BinaryInputFile* binaryInputFile);
     void print();
+    uint64_t getSymbol() { return (uint64_t)ELF64_R_SYM (GET(r_info)); }
+    uint64_t getType()   { return (uint64_t)ELF64_R_TYPE(GET(r_info)); }
 
     RELOCATION_MACROS_CLASS("For the get_X field macros check the defines directory");
+    // need a seperate macro set (actually just 1) for the relocation addend structure
     RELOCATIONADDEND_MACROS_CLASS("For the get_X field macros check the defines directory");
 };
 
@@ -102,7 +113,7 @@ public:
         sizeInBytes = size;
         uint32_t relocationSize;
         uint32_t typ = elfFile->getSectionHeader(sectionIndex)->GET(sh_type);
-        //        PRINT_INFOR("type is %d for section %d", type, index);
+
         ASSERT((typ == SHT_REL || typ == SHT_RELA) && "Section header type field must be relocation");
 
 
