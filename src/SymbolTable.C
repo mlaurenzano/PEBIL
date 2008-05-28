@@ -147,7 +147,7 @@ char* SymbolTable::getSymbolName(uint32_t idx){
 }
 
 void SymbolTable::print(){
-    PRINT_INFOR("SymbolTable(%d): section %d, %d symbols", index, getSectionIndex(), numberOfSymbols);
+    PRINT_INFOR("SymbolTable(%d): section %d, %d symbols, is dynamic? %d", index, getSectionIndex(), numberOfSymbols, isDynamic());
     PRINT_INFOR("TYPE(IDX):\tNameIdx\t%24s\t%18s\tSize\tInfo\tBind\tType\tOther\tScnIdx", "Name", "Value");
 
     for (uint32_t i = 0; i < numberOfSymbols; i++){

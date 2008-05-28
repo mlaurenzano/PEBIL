@@ -17,6 +17,9 @@
 #define MAX_SHT_SYMTAB_COUNT  1
 #define MAX_SHT_DYNSYM_COUNT  1
 
+#define GOT_SYM_NAME "_GLOBAL_OFFSET_TABLE_"
+#define DYN_SYM_NAME "_DYNAMIC"
+
 
 /* The ELF file header.  This appears at the start of every ELF file.  */
 

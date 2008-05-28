@@ -25,6 +25,147 @@ uint32_t readBytes = 0;
 );
 
 
+uint64_t ElfFile::getGOTEntry(uint32_t idx){
+    ASSERT(gotSectionIdx && "Must find GOT section before calling this function");
+    uint32_t entrySz = getSectionHeader(gotSectionIdx)->GET(sh_entsize);
+    uint64_t entryValue;
+    if (is64Bit()){
+        ASSERT(entrySz == sizeof(uint64_t) && "GOT entry size is incorrect");
+        entryValue = *((uint64_t*)gotBaseAddress + idx*entrySz);
+    } else {
+        ASSERT(entrySz == sizeof(uint32_t) && "GOT entry size is incorrect");
+        entryValue = (uint64_t)(*((uint32_t*)gotBaseAddress + idx*entrySz));
+    }
+
+    return entryValue;
+}
+
+void ElfFile::printGlobalOffsetTable(){
+    PRINT_INFOR("Global Offset Table -- section %d, section address 0x%016llx, GOT base 0x%016llx", 
+                gotSectionIdx, getSectionHeader(gotSectionIdx)->GET(sh_addr), gotBaseAddress);
+
+    for (uint32_t i = 0; i < numberOfGOTEntries; i++){
+        PRINT_INFOR("GOT[%d]: 0x%016llx", i, getGOTEntry(i));
+    }
+
+}
+
+
+void ElfFile::initRawSectionFilePointers(){
+
+    // find the string table for section names
+    ASSERT(fileHeader->GET(e_shstrndx) && "No section name string table");
+    for (uint32_t i = 0; i < numberOfStringTables; i++){
+        if (stringTables[i]->getSectionIndex() == fileHeader->GET(e_shstrndx)){
+            sectionNameStrTabIdx = i;
+        }
+    }
+
+    // set section names
+    PRINT_INFOR("Reading the scnhdr string table");
+    ASSERT(sectionHeaders && "Section headers not present");
+    ASSERT(sectionNameStrTabIdx && "Section header string table index must be defined");
+
+    char* stringTablePtr = getStringTable(sectionNameStrTabIdx)->getFilePointer();
+    PRINT_INFOR("String table is located at %#x", stringTablePtr);
+    PRINT_INFOR("Setting section header names from string table");
+
+    // skip first section header since it is reserved and its values are null
+    for (uint32_t i = 1; i < numberOfSections; i++){
+        ASSERT(sectionHeaders[i]->getSectionNamePtr() == NULL && "Section Header name shouldn't already be set");
+        uint32_t sectionNameOffset = sectionHeaders[i]->GET(sh_name);
+        sectionHeaders[i]->setSectionNamePtr(stringTablePtr + sectionNameOffset);
+    }
+
+    // find the string table for each symbol table
+    for (uint32_t i = 0; i < numberOfSymbolTables; i++){
+        getSymbolTable(i)->setStringTable();
+    }
+
+    // find the symbol table + relocation section for each relocation table
+    for (uint32_t i = 0; i < numberOfRelocationTables; i++){
+        getRelocationTable(i)->setSymbolTable();
+        getRelocationTable(i)->setRelocationSection();
+    }
+
+
+    // find the dynamic symbol table
+    dynamicSymtabIdx = numberOfSymbolTables;
+    for (uint32_t i = 0; i < numberOfSymbolTables; i++){
+        if (getSymbolTable(i)->isDynamic()){
+            ASSERT(dynamicSymtabIdx == numberOfSymbolTables && "Cannot have multiple dynamic symbol tables");
+            dynamicSymtabIdx = i;
+        }
+    }
+    ASSERT(dynamicSymtabIdx != numberOfSymbolTables && "Cannot analyze a file if it doesn't have a dynamic symbol table");
+    PRINT_INFOR("Dynamic symbol table is symbol table %d (actual section is %d)", dynamicSymtabIdx, getSymbolTable(dynamicSymtabIdx)->getSectionIndex());
+
+    SymbolTable* dynsymTab = getSymbolTable(dynamicSymtabIdx);
+
+
+    // find the global offset table's address
+    gotBaseAddress = 0;
+    for (uint32_t i = 0; i < dynsymTab->getNumberOfSymbols(); i++){
+
+        // yes, we actually have to look for this symbol's name to find it!
+        char* symName = dynsymTab->getSymbolName(i);
+        if (!strcmp(symName,GOT_SYM_NAME)){
+            ASSERT(!gotBaseAddress && "Cannot have multiple symbols for the global offset table address");
+            gotBaseAddress = dynsymTab->getSymbol(i)->GET(st_value);
+        }
+    }
+    ASSERT(gotBaseAddress && "Cannot find a symbol for the global offset table");
+    PRINT_INFOR("Global Offset Table found at address 0x%016llx", gotBaseAddress);
+
+    // find the global offset table
+    gotSectionIdx = 0;
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        if (sectionHeaders[i]->inRange(gotBaseAddress)){
+            ASSERT(!gotSectionIdx && "Cannot have multiple global offset tables");
+            gotSectionIdx = i;
+        }
+    }
+    ASSERT(gotSectionIdx && "Cannot find a section for the global offset table");
+    ASSERT(getSectionHeader(gotSectionIdx)->GET(sh_type) == SHT_PROGBITS && "Global Offset Table section header is wrong type");
+    PRINT_INFOR("Global Offset Table is in section %d", gotSectionIdx);
+
+    // determine the number of entries in the GOT
+    ASSERT(getSectionHeader(gotSectionIdx)->GET(sh_size) % getSectionHeader(gotSectionIdx)->GET(sh_entsize) == 0 &&
+           "The number of bytes in the Global Offset Table must be divisible by the entry size");
+    numberOfGOTEntries = getSectionHeader(gotSectionIdx)->GET(sh_size) / getSectionHeader(gotSectionIdx)->GET(sh_entsize);
+
+    // find the dynamic section's address
+    uint64_t dynamicSectionAddress = 0;
+    for (uint32_t i = 0; i < dynsymTab->getNumberOfSymbols(); i++){
+
+        // yes, we actually have to look for this symbol's name to find it!
+        char* symName = dynsymTab->getSymbolName(i);
+        if (!strcmp(symName,DYN_SYM_NAME)){
+            ASSERT(!dynamicSectionAddress && "Cannot have multiple symbols for the dynamic section address");
+            dynamicSectionAddress = dynsymTab->getSymbol(i)->GET(st_value);
+        }
+    }
+    ASSERT(dynamicSectionAddress && "Cannot find a symbol for the dynamic section");
+    PRINT_INFOR("Dynamic section found at address 0x%016llx", dynamicSectionAddress);
+
+    // find the dynamic
+    dynamicSectionIdx = 0;
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        if (sectionHeaders[i]->GET(sh_addr) == dynamicSectionAddress){
+            ASSERT(!dynamicSectionIdx && "Cannot have multiple dynamic sections");
+            dynamicSectionIdx = i;
+        }
+    }
+    ASSERT(dynamicSectionIdx && "Cannot find a section for the dynamic section");
+    ASSERT(getSectionHeader(dynamicSectionIdx)->GET(sh_type) == SHT_DYNAMIC && "Dynamic Section section header is wrong type");
+    ASSERT(getSectionHeader(dynamicSectionIdx)->hasAllocBit() && "Dynamic Section section header missing an attribute");
+
+    PRINT_INFOR("Dynamic Section is in section %d", dynamicSectionIdx);
+
+
+}
+
+
 void ElfFile::print() 
 { 
 
@@ -63,6 +204,10 @@ void ElfFile::print()
     for (uint32_t i = 0; i < numberOfRelocationTables; i++){
         relocationTables[i]->print();
     }
+
+    PRINT_INFOR("");
+    printGlobalOffsetTable();
+
 }
 
 
@@ -273,22 +418,22 @@ bool ElfFile::verify(){
     }
         // enforce that an elf file can have only one hash section
     if (hashSectionCount > MAX_SHT_HASH_COUNT){
-        PRINT_ERROR("Elf file cannot have more than one hash section");
+        PRINT_ERROR("Elf file cannot have more than one hash sections");
         return false;
     }
         // enforce that an elf file can have only one dynamic linking section
     if (dynlinkSectionCount > MAX_SHT_DYNAMIC_COUNT){
-        PRINT_ERROR("Elf file cannot have more than %d dynamic linking section", MAX_SHT_DYNAMIC_COUNT);
+        PRINT_ERROR("Elf file cannot have more than %d dynamic linking sections", MAX_SHT_DYNAMIC_COUNT);
         return false;
     }
         // enforce that an elf file can have only one symbol table section
     if (dynlinkSectionCount > MAX_SHT_SYMTAB_COUNT){
-        PRINT_ERROR("Elf file cannot have more than %d symbol table section", MAX_SHT_SYMTAB_COUNT);
+        PRINT_ERROR("Elf file cannot have more than %d symbol table sections", MAX_SHT_SYMTAB_COUNT);
         return false;
     }
         // enforce that an elf file can have only one dynamic symtab section
     if (dynlinkSectionCount > MAX_SHT_DYNSYM_COUNT){
-        PRINT_ERROR("Elf file cannot have more than %d dynamic symtab section", MAX_SHT_DYNSYM_COUNT);
+        PRINT_ERROR("Elf file cannot have more than %d dynamic symtab sections", MAX_SHT_DYNSYM_COUNT);
         return false;
     }
 }
@@ -442,43 +587,6 @@ void ElfFile::readSectionHeaders(){
 
 }
 
-void ElfFile::initRawSectionFilePointers(){
-        // find the string table for section names
-    ASSERT(fileHeader->GET(e_shstrndx) && "No section name string table");
-    for (uint32_t i = 0; i < numberOfStringTables; i++){
-        if (stringTables[i]->getSectionIndex() == fileHeader->GET(e_shstrndx)){
-            sectionNameStrTabIdx = i;
-        }
-    }
-
-        // set section names
-    PRINT_INFOR("Reading the scnhdr string table");
-    ASSERT(sectionHeaders && "Section headers not present");
-    ASSERT(sectionNameStrTabIdx && "Section header string table index must be defined");
-    char* stringTablePtr = getStringTable(sectionNameStrTabIdx)->getFilePointer();
-    PRINT_INFOR("String table is located at %#x", stringTablePtr);
-    PRINT_INFOR("Setting section header names from string table");
-    // skip first section header since it is reserved and its values are null
-    for (uint32_t i = 1; i < numberOfSections; i++){
-        ASSERT(sectionHeaders[i]->getSectionNamePtr() == NULL && "Section Header name shouldn't already be set");
-        uint32_t sectionNameOffset = sectionHeaders[i]->GET(sh_name);
-//        ASSERT(sectionNameOffset < stringTables[sectionNameStrTabIdx]->getSizeInBytes() && "Section header name idx 
-//should be in string table");
-        sectionHeaders[i]->setSectionNamePtr(stringTablePtr + sectionNameOffset);
-    }
-
-        // find the string table for each symbol table
-    for (uint32_t i = 0; i < numberOfSymbolTables; i++){
-        getSymbolTable(i)->setStringTable();
-    }
-
-        // find the symbol table + relocation section for each relocation table
-    for (uint32_t i = 0; i < numberOfRelocationTables; i++){
-        getRelocationTable(i)->setSymbolTable();
-        getRelocationTable(i)->setRelocationSection();
-    }
-}
-
 void ElfFile::readRawSections(){
     ASSERT(sectionHeaders && "We should have read the section headers already");
 
@@ -495,7 +603,6 @@ void ElfFile::readRawSections(){
     for (uint32_t i = 0; i < numberOfSections; i++){
         char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[i]->GET(sh_offset));
         uint64_t sectionSize = (uint64_t)sectionHeaders[i]->GET(sh_size);
-//        PRINT_INFOR("Using section type %d for section %d", sectionHeaders[i]->getSectionType(), i);
 
         if (sectionHeaders[i]->getSectionType() == ElfClassTypes_string_table){
             rawSections[i] = new StringTable(sectionFilePtr, sectionSize, i, numberOfStringTables, this);
@@ -523,7 +630,7 @@ void ElfFile::readRawSections(){
         rawSections[i]->read(&binaryInputFile);
     }
 
-    PRINT_INFOR("Found sections: %d %d %d %d %d", numberOfStringTables, numberOfSymbolTables, numberOfRelocationTables, numberOfDwarfSections, numberOfTextSections);
+    PRINT_INFOR("Found sections: strtab=%d symtab=%d reltab=%d dwarf=%d text=%d", numberOfStringTables, numberOfSymbolTables, numberOfRelocationTables, numberOfDwarfSections, numberOfTextSections);
 }
 
 

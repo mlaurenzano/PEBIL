@@ -1,11 +1,7 @@
 #include <SectionHeader.h>
 #include <BinaryFile.h>
 
-#define DWARF_SCN_NAME_PREFIX ".debug_\0"
-
 ElfClassTypes SectionHeader::setSectionType(){
-//    PRINT_INFOR("Setting type for section %d", index);    
-//    print();
     if (GET(sh_type) == SHT_STRTAB){
         sectionType = ElfClassTypes_string_table;
     } else if (GET(sh_type) == SHT_SYMTAB || GET(sh_type) == SHT_DYNSYM){
@@ -20,8 +16,6 @@ ElfClassTypes SectionHeader::setSectionType(){
         }
 
     }
-
-//    PRINT_INFOR("Found type %d", sectionType);
     return sectionType;
 }
 
@@ -39,7 +33,12 @@ void SectionHeader::initFilePointers(BinaryInputFile* binaryInputFile){
 }
 
 bool SectionHeader::inRange(uint64_t address){ 
-    return true;
+    uint64_t minAddr = GET(sh_addr);
+    uint64_t maxAddr = GET(sh_addr) + GET(sh_size);
+    if (address >= minAddr && address < maxAddr){
+        return true;
+    }
+    return false;
 }
 
 bool SectionHeader::verify() {

@@ -4,6 +4,7 @@
 #include <Base.h>
 #include <RawSection.h>
 #include <ElfFile.h>
+#include <SectionHeader.h>
 #include <defines/SymbolTable.d>
 
 class StringTable;
@@ -72,6 +73,7 @@ protected:
     Symbol** symbols;
     StringTable* stringTable;
     uint32_t index;
+    bool dynamic;
 
 public:
 
@@ -89,6 +91,14 @@ public:
             symbolSize = Size__32_bit_Symbol;
         }
 
+        SectionHeader *scnHdr = elfFile->getSectionHeader(scnIdx);
+        if (scnHdr->GET(sh_type) == SHT_DYNSYM){
+            ASSERT(scnHdr->hasAllocBit() && "Dynamic symbol table must be have alloc attribute");
+            dynamic = 1;
+        } else {
+            dynamic = 0;
+        }
+
         ASSERT(sizeInBytes % symbolSize == 0 && "Symbol table section must have size n*symbolSize");
         numberOfSymbols = sizeInBytes / symbolSize;
 
@@ -104,6 +114,7 @@ public:
     void print();
     uint32_t read(BinaryInputFile* b);
     bool verify();
+    bool isDynamic() { return dynamic; }
 
     uint16_t setStringTable();
 

@@ -40,6 +40,11 @@ private:
     uint32_t numberOfStringTables;
     uint16_t sectionNameStrTabIdx;
     uint32_t numberOfSymbolTables;
+    uint16_t dynamicSymtabIdx;
+    uint16_t gotSectionIdx;
+    uint64_t gotBaseAddress;
+    uint32_t numberOfGOTEntries;
+    uint16_t dynamicSectionIdx;
     uint32_t numberOfRelocationTables;
     uint32_t numberOfDwarfSections;
     uint32_t numberOfTextSections;
@@ -72,13 +77,13 @@ public:
     void addSharedLibrary();
 
     ElfFile(char* f): is64BitFlag(false),elfFileName(f),disassembler(NULL),
-                  fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
-                  rawSections(NULL),
-                  stringTables(NULL),symbolTables(NULL),relocationTables(NULL),numberOfPrograms(0),              
-                  numberOfSections(0),
-                  numberOfStringTables(0),sectionNameStrTabIdx(0),numberOfSymbolTables(0),numberOfRelocationTables(0),
-                  numberOfDwarfSections(0),
-                  numberOfFunctions(0),numberOfBlocks(0),numberOfMemoryOps(0),numberOfFloatPOps(0) {}
+        fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
+        rawSections(NULL),
+        stringTables(NULL),symbolTables(NULL),relocationTables(NULL),numberOfPrograms(0),              
+        numberOfSections(0),
+        numberOfStringTables(0),sectionNameStrTabIdx(0),numberOfSymbolTables(0),dynamicSymtabIdx(0),gotSectionIdx(0),gotBaseAddress(0),
+        numberOfGOTEntries(0),dynamicSectionIdx(0),numberOfRelocationTables(0),numberOfDwarfSections(0),
+        numberOfFunctions(0),numberOfBlocks(0),numberOfMemoryOps(0),numberOfFloatPOps(0) {}
 
     ~ElfFile() { }
 
@@ -132,6 +137,9 @@ public:
     uint32_t getDataSectionSize();
     uint64_t getBSSSectionVAddr();
     uint64_t getTextSectionVAddr();
+
+    uint64_t getGOTEntry(uint32_t idx);
+    void printGlobalOffsetTable();
 
     void setLineInfoFinder();
     void findLoops();
