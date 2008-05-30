@@ -37,14 +37,19 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define GET_A(__field,__union) get_ ## __union ## _ ## __field()
 
 #define PRINT_ERROR(...) fprintf(stderr,"*********** ERROR : "); \
-                         fprintf(stderr,## __VA_ARGS__); \
-                         fprintf(stderr,"\n"); \
-                         exit(-1);
+    fprintf(stderr,## __VA_ARGS__);                              \
+    fprintf(stderr,"\n");                                \
+    exit(-1);
+
+#define PRINT_WARN(...)  fprintf(stderr,"*** WARNING : "); \
+    fprintf(stdout,## __VA_ARGS__);                              \
+    fprintf(stdout,"\n");                                        \
+    fflush(stdout);
 
 #define PRINT_INFOR(...) fprintf(stdout,"Information : "); \
-                         fprintf(stdout,## __VA_ARGS__); \
-                         fprintf(stdout,"\n"); \
-                         fflush(stdout);
+    fprintf(stdout,## __VA_ARGS__);                        \
+    fprintf(stdout,"\n");                                  \
+    fflush(stdout);
 
 #ifdef DEBUG_OPCODE
 #define PRINT_DEBUG_OPCODE(...) fprintf(stdout,"OPCODE : "); \

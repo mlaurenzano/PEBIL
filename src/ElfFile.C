@@ -96,6 +96,7 @@ void ElfFile::initRawSectionFilePointers(){
             ASSERT(dynamicSymtabIdx == numberOfSymbolTables && "Cannot have multiple dynamic symbol tables");
             dynamicSymtabIdx = i;
         }
+
     }
     ASSERT(dynamicSymtabIdx != numberOfSymbolTables && "Cannot analyze a file if it doesn't have a dynamic symbol table");
     PRINT_INFOR("Dynamic symbol table is symbol table %d (actual section is %d)", dynamicSymtabIdx, getSymbolTable(dynamicSymtabIdx)->getSectionIndex());
@@ -105,17 +106,26 @@ void ElfFile::initRawSectionFilePointers(){
 
     // find the global offset table's address
     gotBaseAddress = 0;
-    for (uint32_t i = 0; i < dynsymTab->getNumberOfSymbols(); i++){
+    for (uint32_t i = 0; i < numberOfSymbolTables; i++){
+        SymbolTable* currentSymtab = getSymbolTable(i);
+        for (uint32_t j = 0; j < currentSymtab->getNumberOfSymbols(); j++){
 
-        // yes, we actually have to look for this symbol's name to find it!
-        char* symName = dynsymTab->getSymbolName(i);
-        if (!strcmp(symName,GOT_SYM_NAME)){
-            ASSERT(!gotBaseAddress && "Cannot have multiple symbols for the global offset table address");
-            gotBaseAddress = dynsymTab->getSymbol(i)->GET(st_value);
+            // yes, we actually have to look for this symbol's name to find it!
+            char* symName = currentSymtab->getSymbolName(j);
+            if (!strcmp(symName,GOT_SYM_NAME)){
+                PRINT_INFOR("Found a GOT symbol at %d,%d", i, j);
+                if (gotBaseAddress){
+                    PRINT_WARN("Found mutiple symbols for Global Offset Table (symbols named %s), addresses are 0x%016llx, 0x%016llx", 
+                               GOT_SYM_NAME, gotBaseAddress, currentSymtab->getSymbol(j)->GET(st_value));
+                    ASSERT(gotBaseAddress == currentSymtab->getSymbol(j)->GET(st_value) && "Two different addresses for Global Offset Table Found!");
+                }
+                gotBaseAddress = currentSymtab->getSymbol(j)->GET(st_value);
+            }
         }
     }
     ASSERT(gotBaseAddress && "Cannot find a symbol for the global offset table");
     PRINT_INFOR("Global Offset Table found at address 0x%016llx", gotBaseAddress);
+
 
     // find the global offset table
     gotSectionIdx = 0;
@@ -136,13 +146,21 @@ void ElfFile::initRawSectionFilePointers(){
 
     // find the dynamic section's address
     uint64_t dynamicSectionAddress = 0;
-    for (uint32_t i = 0; i < dynsymTab->getNumberOfSymbols(); i++){
+ 
+    for (uint32_t i = 0; i < numberOfSymbolTables; i++){
+        SymbolTable* currentSymtab = getSymbolTable(i);
+        for (uint32_t j = 0; j < currentSymtab->getNumberOfSymbols(); j++){
 
-        // yes, we actually have to look for this symbol's name to find it!
-        char* symName = dynsymTab->getSymbolName(i);
-        if (!strcmp(symName,DYN_SYM_NAME)){
-            ASSERT(!dynamicSectionAddress && "Cannot have multiple symbols for the dynamic section address");
-            dynamicSectionAddress = dynsymTab->getSymbol(i)->GET(st_value);
+            // yes, we actually have to look for this symbol's name to find it!
+            char* symName = currentSymtab->getSymbolName(j);
+            if (!strcmp(symName,DYN_SYM_NAME)){
+                if (dynamicSectionAddress){
+                    PRINT_WARN("Found mutiple symbols for Dynamic Section (symbols named %s), addresses are 0x%016llx, 0x%016llx",
+                               DYN_SYM_NAME, dynamicSectionAddress, currentSymtab->getSymbol(j)->GET(st_value));
+                    ASSERT(dynamicSectionAddress == currentSymtab->getSymbol(j)->GET(st_value) && "Two different addresses for Dynamic Section Found!");
+                }
+                dynamicSectionAddress = currentSymtab->getSymbol(j)->GET(st_value);
+            }
         }
     }
     ASSERT(dynamicSectionAddress && "Cannot find a symbol for the dynamic section");
