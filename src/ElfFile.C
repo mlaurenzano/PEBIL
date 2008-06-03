@@ -10,6 +10,7 @@
 #include <Disassembler.h>
 #include <CStructuresX86.h>
 #include <BitSet.h>
+#include <GlobalOffsetTable.h>
 
 
 TIMER(
@@ -23,32 +24,6 @@ TIMER(
 DEBUG(
 uint32_t readBytes = 0;
 );
-
-
-uint64_t ElfFile::getGOTEntry(uint32_t idx){
-    ASSERT(gotSectionIdx && "Must find GOT section before calling this function");
-    uint32_t entrySz = getSectionHeader(gotSectionIdx)->GET(sh_entsize);
-    uint64_t entryValue;
-    if (is64Bit()){
-        ASSERT(entrySz == sizeof(uint64_t) && "GOT entry size is incorrect");
-        entryValue = *((uint64_t*)gotBaseAddress + idx*entrySz);
-    } else {
-        ASSERT(entrySz == sizeof(uint32_t) && "GOT entry size is incorrect");
-        entryValue = (uint64_t)(*((uint32_t*)gotBaseAddress + idx*entrySz));
-    }
-
-    return entryValue;
-}
-
-void ElfFile::printGlobalOffsetTable(){
-    PRINT_INFOR("Global Offset Table -- section %d, section address 0x%016llx, GOT base 0x%016llx", 
-                gotSectionIdx, getSectionHeader(gotSectionIdx)->GET(sh_addr), gotBaseAddress);
-
-    for (uint32_t i = 0; i < numberOfGOTEntries; i++){
-        PRINT_INFOR("GOT[%d]: 0x%016llx", i, getGOTEntry(i));
-    }
-
-}
 
 
 void ElfFile::initRawSectionFilePointers(){
@@ -101,11 +76,9 @@ void ElfFile::initRawSectionFilePointers(){
     ASSERT(dynamicSymtabIdx != numberOfSymbolTables && "Cannot analyze a file if it doesn't have a dynamic symbol table");
     PRINT_INFOR("Dynamic symbol table is symbol table %d (actual section is %d)", dynamicSymtabIdx, getSymbolTable(dynamicSymtabIdx)->getSectionIndex());
 
-    SymbolTable* dynsymTab = getSymbolTable(dynamicSymtabIdx);
-
 
     // find the global offset table's address
-    gotBaseAddress = 0;
+    uint64_t gotBaseAddress = 0;
     for (uint32_t i = 0; i < numberOfSymbolTables; i++){
         SymbolTable* currentSymtab = getSymbolTable(i);
         for (uint32_t j = 0; j < currentSymtab->getNumberOfSymbols(); j++){
@@ -128,7 +101,7 @@ void ElfFile::initRawSectionFilePointers(){
 
 
     // find the global offset table
-    gotSectionIdx = 0;
+    uint16_t gotSectionIdx = 0;
     for (uint32_t i = 0; i < numberOfSections; i++){
         if (sectionHeaders[i]->inRange(gotBaseAddress)){
             ASSERT(!gotSectionIdx && "Cannot have multiple global offset tables");
@@ -139,10 +112,20 @@ void ElfFile::initRawSectionFilePointers(){
     ASSERT(getSectionHeader(gotSectionIdx)->GET(sh_type) == SHT_PROGBITS && "Global Offset Table section header is wrong type");
     PRINT_INFOR("Global Offset Table is in section %d", gotSectionIdx);
 
-    // determine the number of entries in the GOT
-    ASSERT(getSectionHeader(gotSectionIdx)->GET(sh_size) % getSectionHeader(gotSectionIdx)->GET(sh_entsize) == 0 &&
-           "The number of bytes in the Global Offset Table must be divisible by the entry size");
-    numberOfGOTEntries = getSectionHeader(gotSectionIdx)->GET(sh_size) / getSectionHeader(gotSectionIdx)->GET(sh_entsize);
+
+    // The raw section for the global offset table should already have been initialized as a generic RawSection
+    // we will destroy it and create it as a GlobalOffsetTable
+    ASSERT(rawSections[gotSectionIdx] && "Global Offset Table not yet created");
+    delete rawSections[gotSectionIdx];
+    
+    char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[gotSectionIdx]->GET(sh_offset));
+    uint64_t sectionSize = (uint64_t)sectionHeaders[gotSectionIdx]->GET(sh_size);    
+    rawSections[gotSectionIdx] = new GlobalOffsetTable(sectionFilePtr, sectionSize, gotSectionIdx, this);
+    globalOffsetTable = (GlobalOffsetTable*)rawSections[gotSectionIdx];
+    globalOffsetTable->read(&binaryInputFile);
+    
+    globalOffsetTable->print();
+
 
     // find the dynamic section's address
     uint64_t dynamicSectionAddress = 0;
@@ -224,8 +207,7 @@ void ElfFile::print()
     }
 
     PRINT_INFOR("");
-    printGlobalOffsetTable();
-
+    globalOffsetTable->print();
 }
 
 

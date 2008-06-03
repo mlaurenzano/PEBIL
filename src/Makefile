@@ -27,10 +27,10 @@ LIBDIR      = ../lib
 
 SRCS        = Base.C ElfFile.C BinaryFile.C FileHeader.C ProgramHeader.C SectionHeader.C \
               StringTable.C SymbolTable.C RelocationTable.C RawSection.C Disassembler.C \
-              Instruction.C main.C
+              Instruction.C GlobalOffsetTable.C main.C
 OBJS        = Base.o ElfFile.o BinaryFile.o FileHeader.o ProgramHeader.o SectionHeader.o \
               StringTable.o SymbolTable.o RelocationTable.o RawSection.o Disassembler.o \
-              Instruction.o main.o
+              Instruction.o GlobalOffsetTable.o main.o
 
 TARGET_BIN  = x86inst
 

@@ -14,6 +14,7 @@ class RelocationTable;
 class DwarfSection;
 class TextSection;
 class Disassembler;
+class GlobalOffsetTable;
 
 class ElfFile {
 private:
@@ -34,6 +35,7 @@ private:
     RelocationTable** relocationTables;
     DwarfSection** dwarfSections;
     TextSection** textSections;
+    GlobalOffsetTable* globalOffsetTable;
 
     uint32_t numberOfPrograms;
     uint32_t numberOfSections;
@@ -41,9 +43,6 @@ private:
     uint16_t sectionNameStrTabIdx;
     uint32_t numberOfSymbolTables;
     uint16_t dynamicSymtabIdx;
-    uint16_t gotSectionIdx;
-    uint64_t gotBaseAddress;
-    uint32_t numberOfGOTEntries;
     uint16_t dynamicSectionIdx;
     uint32_t numberOfRelocationTables;
     uint32_t numberOfDwarfSections;
@@ -81,8 +80,8 @@ public:
         rawSections(NULL),
         stringTables(NULL),symbolTables(NULL),relocationTables(NULL),numberOfPrograms(0),              
         numberOfSections(0),
-        numberOfStringTables(0),sectionNameStrTabIdx(0),numberOfSymbolTables(0),dynamicSymtabIdx(0),gotSectionIdx(0),gotBaseAddress(0),
-        numberOfGOTEntries(0),dynamicSectionIdx(0),numberOfRelocationTables(0),numberOfDwarfSections(0),
+        numberOfStringTables(0),sectionNameStrTabIdx(0),numberOfSymbolTables(0),dynamicSymtabIdx(0),
+        dynamicSectionIdx(0),numberOfRelocationTables(0),numberOfDwarfSections(0),
         numberOfFunctions(0),numberOfBlocks(0),numberOfMemoryOps(0),numberOfFloatPOps(0) {}
 
     ~ElfFile() { }
@@ -112,6 +111,7 @@ public:
     RelocationTable* getRelocationTable(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfRelocationTables); return relocationTables[idx]; }
     DwarfSection* getDwarfSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfDwarfSections); return dwarfSections[idx]; }
     TextSection* getTextSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfTextSections); return textSections[idx]; }
+    GlobalOffsetTable* getGlobalOffsetTable() { return globalOffsetTable; }
 
     uint16_t getSectionNameStrTabIdx() { return sectionNameStrTabIdx; }
 
@@ -137,9 +137,6 @@ public:
     uint32_t getDataSectionSize();
     uint64_t getBSSSectionVAddr();
     uint64_t getTextSectionVAddr();
-
-    uint64_t getGOTEntry(uint32_t idx);
-    void printGlobalOffsetTable();
 
     void setLineInfoFinder();
     void findLoops();
