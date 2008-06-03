@@ -120,12 +120,10 @@ void ElfFile::initRawSectionFilePointers(){
     
     char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[gotSectionIdx]->GET(sh_offset));
     uint64_t sectionSize = (uint64_t)sectionHeaders[gotSectionIdx]->GET(sh_size);    
-    rawSections[gotSectionIdx] = new GlobalOffsetTable(sectionFilePtr, sectionSize, gotSectionIdx, this);
+    rawSections[gotSectionIdx] = new GlobalOffsetTable(sectionFilePtr, sectionSize, gotSectionIdx, gotBaseAddress, this);
     globalOffsetTable = (GlobalOffsetTable*)rawSections[gotSectionIdx];
     globalOffsetTable->read(&binaryInputFile);
     
-    globalOffsetTable->print();
-
 
     // find the dynamic section's address
     uint64_t dynamicSectionAddress = 0;

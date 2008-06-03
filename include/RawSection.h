@@ -41,7 +41,7 @@ public:
     TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
         : RawSection(ElfClassTypes_text_section,filePtr,size,scnIdx,elf),index(idx) {}
 
-    ~TextSection() {};
+    ~TextSection();
 
     uint32_t getIndex() { return index; }
     uint32_t disassemble();

@@ -715,7 +715,6 @@ uint32_t Disassembler::print_insn(uint64_t pc, Instruction* targetInstruction){
                                                      + op_address[op_index[i]]), &disassembleInfo);
         }
     }
-    currentInstruction->setLength(codep-priv.the_buffer);
     return codep - priv.the_buffer;
 }
 

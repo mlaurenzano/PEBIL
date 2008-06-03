@@ -17,7 +17,7 @@ protected:
 
     uint64_t* entries;
 public:
-    GlobalOffsetTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf);
+    GlobalOffsetTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint64_t gotSymAddr, ElfFile* elf);
     ~GlobalOffsetTable();
 
     void print();

@@ -53,9 +53,12 @@ bool SectionHeader::verify() {
         }
     }
 
-    if (index >= SHN_LORESERVE && index <= SHN_HIRESERVE){
-        PRINT_ERROR("Section header table cannot use reserved indices");
-        return false;
+    if (index >= SHN_LORESERVE){
+        // currently this will always be true since SHN_HIRESERVE=0xffff
+        if (index <= SHN_HIRESERVE){
+            PRINT_ERROR("Section header table cannot use reserved indices");
+            return false;
+        }
     }
 
     if(hasAllocBit()){
@@ -66,7 +69,7 @@ bool SectionHeader::verify() {
     }
 
     if (!isPowerOfTwo(GET(sh_addralign)) && GET(sh_addralign) != 0){
-        PRINT_ERROR("Section's address alignment musrt be 0 or a power of 2");
+        PRINT_ERROR("Section's address alignment must be 0 or a power of 2");
         return false;
     }
     if (GET(sh_addralign) != 0){

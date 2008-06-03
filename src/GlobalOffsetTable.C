@@ -42,7 +42,7 @@ uint64_t GlobalOffsetTable::getEntry(uint32_t idx){
 }
 
 
-GlobalOffsetTable::GlobalOffsetTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
+GlobalOffsetTable::GlobalOffsetTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint64_t gotSymAddr, ElfFile* elf)
     : RawSection(ElfClassTypes_string_table,rawPtr,size,scnIdx,elf)
 {
 
@@ -54,12 +54,17 @@ GlobalOffsetTable::GlobalOffsetTable(char* rawPtr, uint32_t size, uint16_t scnId
         ASSERT(entrySize == sizeof(uint32_t) && "GOT entry size is incorrect"); 
     }
 
-    baseAddress = elfFile->getSectionHeader(sectionIndex)->GET(sh_addr);
 
-    // determine the number of entries in the GOT
+    baseAddress = gotSymAddr;
+
+    uint64_t addrOffset = baseAddress - elfFile->getSectionHeader(sectionIndex)->GET(sh_addr);
+    ASSERT(addrOffset % entrySize == 0 &&
+           "The byte offset in the Global Offset Table must be divisible by the entry size");
+    tableBaseIdx = addrOffset / entrySize;
+
+
     ASSERT(sizeInBytes % entrySize == 0 &&
            "The number of bytes in the Global Offset Table must be divisible by the entry size");
-
     numberOfEntries = sizeInBytes / entrySize;
 
     entries = new uint64_t[numberOfEntries];

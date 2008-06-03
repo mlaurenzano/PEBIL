@@ -15,6 +15,7 @@ void RawSection::printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine){
     uint32_t currByte = 0;
 
     fprintf(stdout, "\n");
+    PRINT_INFOR("Raw bytes for section %d:", sectionIndex);
     for (currByte = 0; currByte < sizeInBytes; currByte++){
         
         if (currByte % bytesPerLine == 0){
@@ -34,6 +35,9 @@ Instruction* TextSection::getInstruction(uint32_t idx){
     ASSERT(idx <= 0 && idx < numberOfInstructions && "Array index out of bounds");
 
     return instructions[idx];
+}
+
+TextSection::~TextSection(){
 }
 
 uint32_t TextSection::disassemble(){
@@ -56,7 +60,7 @@ uint32_t TextSection::disassemble(){
     PRINT_INFOR("Disassembling Section %s(%d)", sHdr->getSectionNamePtr(), sectionIndex);
 
     for (currByte = 0; currByte < sHdr->GET(sh_size); currByte += instructionLength, numberOfInstructions++){
-        instructionAddress = (uint64_t)((uint32_t)charStream() + currByte);
+        instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
         instructionLength = disassembler->print_insn(instructionAddress, dummyInstruction);
     }
     instructions = new Instruction*[numberOfInstructions];
@@ -67,7 +71,7 @@ uint32_t TextSection::disassemble(){
     disassembler->setPrintFunction((fprintf_ftype)fprintf,stdout);
 
     for (currByte = 0; currByte < sHdr->GET(sh_size); currByte += instructionLength, numberOfInstructions++){
-        instructionAddress = (uint64_t)((uint32_t)charStream() + currByte);
+        instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
 
         fprintf(stdout, " 0x%lx:\t", sHdr->GET(sh_addr) + currByte);
 
@@ -76,9 +80,23 @@ uint32_t TextSection::disassemble(){
         instructions[numberOfInstructions]->setBytes(charStream() + currByte);
 
         instructionLength = disassembler->print_insn(instructionAddress, instructions[numberOfInstructions]);        
+        if (!instructionLength){
+            instructionLength = 1;
+        }
+        instructions[numberOfInstructions]->setLength(instructionLength);
+
+        fprintf(stdout, "\t(bytes -- ");
+        uint8_t* bytePtr;
+        for (uint32_t j = 0; j < instructionLength; j++){
+            bytePtr = (uint8_t*)charStream() + currByte + j;
+            fprintf(stdout, "%2.2lx ", *bytePtr);
+        }
+
+
         fprintf(stdout, "\n");
+
         instructions[numberOfInstructions]->setNextAddress();
-        //        instructions[numberOfInstructions]->print();
+        instructions[numberOfInstructions]->print();
     }
     PRINT_INFOR("Found %d instructions (%d bytes) in section %d", numberOfInstructions, currByte, sectionIndex);
 
@@ -104,8 +122,8 @@ uint32_t TextSection::printDisassembledCode(){
     PRINT_INFOR("Disassembly output of Section %s(%d)", sHdr->getSectionNamePtr(), sectionIndex);
 
     for (currByte = 0; currByte < sHdr->GET(sh_size); currByte += instructionLength, instructionCount++){
-        instructionAddress = (uint64_t)((uint32_t)charStream() + currByte);
-        fprintf(stdout, "(0x%lx) 0x%lx:\t", (uint32_t)(charStream() + currByte), sHdr->GET(sh_addr) + currByte);
+        instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
+        fprintf(stdout, "(0x%lx) 0x%lx:\t", (uint64_t)(charStream() + currByte), sHdr->GET(sh_addr) + currByte);
 
         instructionLength = disassembler->print_insn(instructionAddress, dummyInstruction);
 
