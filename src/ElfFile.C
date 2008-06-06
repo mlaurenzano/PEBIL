@@ -172,6 +172,7 @@ void ElfFile::initRawSectionFilePointers(){
             dynamicSegmentIdx = i;
         }
     }
+    PRINT_INFOR("Dynamic segment is %d", dynamicSegmentIdx);
     ASSERT(dynamicSegmentIdx && "Cannot find a segment for the dynamic table");
     ASSERT(getProgramHeader(dynamicSegmentIdx)->GET(p_vaddr) == dynamicSectionAddress && "Dynamic segment address from symbol and programHeader don't match");
 

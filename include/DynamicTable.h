@@ -19,6 +19,7 @@ protected:
     uint16_t segmentIndex;
 
     Dynamic** dynamics;
+
 public:
     DynamicTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint16_t segmentIdx, ElfFile* elf);
     ~DynamicTable();
@@ -30,6 +31,13 @@ public:
     Dynamic* getDynamic(uint32_t index);
     uint32_t getNumberOfDynamics() { return numberOfDynamics; }
     uint16_t getSegmentIndex() { return segmentIndex; }
+    uint32_t getNumberOfSharedLibraries();
+    uint64_t getStringTableAddress();
+    uint64_t getHashTableAddress();
+    uint64_t getSymbolTableAddress();
+    uint32_t getNumberOfRelocationTables();
+    uint32_t getRelocationTableAddresses(uint64_t* relocAddresses);
+
     bool verify();
 
     const char* briefName() { return "DynamicTable"; }

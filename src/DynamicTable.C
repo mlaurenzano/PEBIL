@@ -2,6 +2,7 @@
 #include <ElfFile.h>
 #include <StringTable.h>
 #include <SectionHeader.h>
+#include <RelocationTable.h>
 
 DynamicTable::DynamicTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint16_t segmentIdx, ElfFile* elf) :
     RawSection(ElfClassTypes_dynamic_table,rawPtr, size, scnIdx, elf)
@@ -24,12 +25,9 @@ DynamicTable::DynamicTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint16_
     
 }
 
-void DynamicTable::printSharedLibraries(BinaryInputFile* b){
-    Dynamic* dyn;
+uint64_t DynamicTable::getStringTableAddress(){
     uint64_t strTabAddr = 0;
-    StringTable* strTab;
-
-    PRINT_INFOR("Looking for shared library deps in the Dynamic Table");
+    Dynamic* dyn;
 
     // find the string table that contains the shared library names
     for (uint32_t i = 0; i < numberOfDynamics; i++){
@@ -38,7 +36,7 @@ void DynamicTable::printSharedLibraries(BinaryInputFile* b){
         } else {
             dyn = (Dynamic32*)dynamics[i];
         }
-        
+
         if (dyn->GET(d_tag) == DT_STRTAB){
             if (strTabAddr){
                 PRINT_ERROR("Cannot have multiple entries in the Dynamic Table with type DT_STRTAB");
@@ -47,6 +45,70 @@ void DynamicTable::printSharedLibraries(BinaryInputFile* b){
         }
     }
 
+    ASSERT(strTabAddr && "There should be an entry in the dynamic table with type DT_STRTAB");
+
+    return strTabAddr;
+
+}
+
+
+uint64_t DynamicTable::getHashTableAddress(){
+    uint64_t hashTabAddr = 0;
+    Dynamic* dyn;
+
+    // find the string table that contains the shared library names
+    for (uint32_t i = 0; i < numberOfDynamics; i++){
+        if (elfFile->is64Bit()){
+            dyn = (Dynamic64*)dynamics[i];
+        } else {
+            dyn = (Dynamic32*)dynamics[i];
+        }
+
+        if (dyn->GET(d_tag) == DT_HASH){
+            if (hashTabAddr){
+                PRINT_ERROR("Cannot have multiple entries in the Dynamic Table with type DT_HASH");
+            }
+            hashTabAddr = dyn->GET_A(d_ptr,d_un);
+        }
+    }
+
+    ASSERT(hashTabAddr && "There should be an entry in the dynamic table with type DT_HASH");
+
+    return hashTabAddr;
+}
+
+
+uint64_t DynamicTable::getSymbolTableAddress(){
+    uint64_t symTabAddr = 0;
+    Dynamic* dyn;
+
+    // find the string table that contains the shared library names
+    for (uint32_t i = 0; i < numberOfDynamics; i++){
+        if (elfFile->is64Bit()){
+            dyn = (Dynamic64*)dynamics[i];
+        } else {
+            dyn = (Dynamic32*)dynamics[i];
+        }
+        if (dyn->GET(d_tag) == DT_SYMTAB){
+            if (symTabAddr){
+                PRINT_ERROR("Cannot have multiple entries in the Dynamic Table with type DT_SYMTAB");
+            }
+            symTabAddr = dyn->GET_A(d_ptr,d_un);
+        }
+    }
+
+    ASSERT(symTabAddr && "There should be an entry in the dynamic table with type DT_SYMTAB");
+
+    return symTabAddr;
+}
+
+void DynamicTable::printSharedLibraries(BinaryInputFile* b){
+    Dynamic* dyn;
+    uint64_t strTabAddr = getStringTableAddress();
+    StringTable* strTab = NULL;
+
+    PRINT_INFOR("shared library deps in the Dynamic Table: %d libraries", getNumberOfSharedLibraries());
+
     // locate the stringTable being referred to by strTabAddr
     for (uint32_t i = 0; i < elfFile->getNumberOfStringTables(); i++){
         uint16_t scnIdx = elfFile->getStringTable(i)->getSectionIndex();
@@ -54,6 +116,8 @@ void DynamicTable::printSharedLibraries(BinaryInputFile* b){
             strTab = elfFile->getStringTable(i);
         }
     }
+
+    ASSERT(strTab && "Cannot find the string table indicated by the DT_STRTAB entry in the dynamic table");
 
     // look through the dynamic entries to find references to shared objects, print them using the string table we just found
     for (uint32_t i = 0; i < numberOfDynamics; i++){
@@ -69,8 +133,42 @@ void DynamicTable::printSharedLibraries(BinaryInputFile* b){
 
 }
 
+uint32_t DynamicTable::getNumberOfRelocationTables(){
+    uint32_t numberOfRelocationTables = 0;
+    Dynamic* dyn;
+    for (uint32_t i = 0; i < numberOfDynamics; i++){
+        if (elfFile->is64Bit()){
+            dyn = (Dynamic64*)dynamics[i];
+        } else {
+            dyn = (Dynamic32*)dynamics[i];
+        }
+        if (dyn->GET(d_tag) == DT_REL || dyn->GET(d_tag) == DT_RELA){
+            numberOfRelocationTables++;
+        }
+    }
+    return numberOfRelocationTables;
+}
+
+uint32_t DynamicTable::getRelocationTableAddresses(uint64_t* relocAddresses){
+    uint32_t numberOfRelocationTables = 0;
+    Dynamic* dyn;
+    for (uint32_t i = 0; i < numberOfDynamics; i++){
+        if (elfFile->is64Bit()){
+            dyn = (Dynamic64*)dynamics[i];
+        } else {
+            dyn = (Dynamic32*)dynamics[i];
+        }
+        if (dyn->GET(d_tag) == DT_REL || dyn->GET(d_tag) == DT_RELA){
+            relocAddresses[numberOfRelocationTables] = dyn->GET_A(d_ptr,d_un);
+            numberOfRelocationTables++;
+        }
+    }
+    return numberOfRelocationTables;
+}
+
 uint32_t DynamicTable::getNumberOfSharedLibraries(){
     uint32_t numberOfSharedLibs = 0;
+    Dynamic* dyn;
     for (uint32_t i = 0; i < numberOfDynamics; i++){
         if (elfFile->is64Bit()){
             dyn = (Dynamic64*)dynamics[i];
@@ -86,8 +184,14 @@ uint32_t DynamicTable::getNumberOfSharedLibraries(){
 
 bool DynamicTable::verify(){
     Dynamic* dyn;
-
+    uint64_t relocDynamicAddr = 0;
+    uint64_t relocDynamicSize = 0;
+    uint64_t relocDynamicEnt = 0;
+    uint64_t relocAddendDynamicAddr = 0;
+    uint64_t relocAddendDynamicSize = 0;
+    uint64_t relocAddendDynamicEnt = 0;
     uint32_t entryCounts[DT_JMPREL];
+    
     for (uint32_t i = 0; i < DT_JMPREL; i++){
         entryCounts[i] = 0;
     }
@@ -108,6 +212,53 @@ bool DynamicTable::verify(){
             entryCounts[dyn->GET(d_tag)]++;
         } 
 
+        if (dyn->GET(d_tag) == DT_PLTREL){
+            if (dyn->GET_A(d_val,d_un) != DT_REL && dyn->GET_A(d_val,d_un) != DT_RELA){
+                PRINT_ERROR("Dynamic Table entry with type DT_PLTREL contains an illegal value");
+            }
+        }
+
+        if (dyn->GET(d_tag) == DT_RELAENT){
+            uint64_t correctRelSize;
+            if (elfFile->is64Bit()){
+                correctRelSize = Size__64_bit_Relocation_Addend;
+            } else {
+                correctRelSize = Size__32_bit_Relocation_Addend;
+            }
+            if (dyn->GET_A(d_val,d_un) != correctRelSize){
+                PRINT_ERROR("Relocation addend size found in dynamic table is not correct");
+            }
+            relocAddendDynamicEnt = dyn->GET_A(d_val,d_un);
+        }
+        if (dyn->GET(d_tag) == DT_RELENT){
+            uint64_t correctRelSize;
+            if (elfFile->is64Bit()){
+                correctRelSize = Size__64_bit_Relocation;
+            } else {
+                correctRelSize = Size__32_bit_Relocation;
+            }
+            if (dyn->GET_A(d_val,d_un) != correctRelSize){
+                PRINT_ERROR("Relocation size found in dynamic table is not correct");
+            }
+            relocDynamicEnt = dyn->GET_A(d_val,d_un);
+        }
+
+        if (dyn->GET(d_tag) == DT_RELA){
+            relocAddendDynamicAddr = dyn->GET_A(d_ptr,d_un);
+        }
+        if (dyn->GET(d_tag) == DT_REL){
+            relocDynamicAddr = dyn->GET_A(d_ptr,d_un);
+        }
+
+        if (dyn->GET(d_tag) == DT_RELASZ){
+            relocAddendDynamicSize = dyn->GET_A(d_ptr,d_un);
+        }
+        if (dyn->GET(d_tag) == DT_RELSZ){
+            relocDynamicSize = dyn->GET_A(d_ptr,d_un);
+        }
+
+        
+
     }
 
     if (entryCounts[DT_HASH] != 1){
@@ -120,9 +271,17 @@ bool DynamicTable::verify(){
         PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_SYMTAB, %d found", entryCounts[DT_SYMTAB]);
     }
 
+
     // some type of relocation table must be present (and it's entries will have either implicit or explicit addends)
     if (entryCounts[DT_RELA] + entryCounts[DT_REL] < 1){
         PRINT_ERROR("There must be at least one Dynamic Table entry of type DT_RELA/DT_REL, %d found", entryCounts[DT_RELA] + entryCounts[DT_REL]);
+    }
+
+    if (entryCounts[DT_RELA] > 1){
+        PRINT_ERROR("There must be no more than one entry of type DT_RELA");
+    }
+    if (entryCounts[DT_REL] > 1){
+        PRINT_ERROR("There must be no more than one entry of type DT_REL");
     }
 
     // if relocations with explicit addends are present
@@ -144,6 +303,58 @@ bool DynamicTable::verify(){
             PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_RELENT, %d found", entryCounts[DT_RELENT]);
         }
     }
+
+    // make sure the relocation addend entries found in the dynamic table match up to some relocation table in the executable
+    if (relocAddendDynamicAddr){
+        if (elfFile->is64Bit()){
+            if (relocAddendDynamicEnt != Size__64_bit_Relocation_Addend){
+                PRINT_ERROR("Relocation addend 64 entry size found in dynamic table is not correct");
+            }
+        } else {
+            if (relocAddendDynamicEnt != Size__32_bit_Relocation_Addend){
+                PRINT_ERROR("Relocation addend 32 entry size found in dynamic table is not correct");
+            }
+        }
+        for (uint32_t i = 0; i < elfFile->getNumberOfRelocationTables(); i++){
+            uint16_t scnIdx = elfFile->getRelocationTable(i)->getSectionIndex();
+            if (elfFile->getSectionHeader(scnIdx)->GET(sh_addr) == relocAddendDynamicAddr){
+                relocAddendDynamicAddr = 0;
+                if (elfFile->getSectionHeader(scnIdx)->GET(sh_size) != relocAddendDynamicSize){
+                    PRINT_ERROR("Size of section containing the relocation addend table does not match the size given in the dynamic table");
+                }
+            }
+        }
+    }
+    if (relocAddendDynamicAddr){
+        PRINT_ERROR("Did not find a relocation table matching the address indicated by a DT_RELA entry in the dynamic table");
+    }
+
+    // make sure the relocation entries found in the dynamic table match up to some relocation table in the executable
+    if (relocDynamicAddr){
+        if (elfFile->is64Bit()){
+            if (relocDynamicEnt != Size__64_bit_Relocation_Addend){
+                PRINT_ERROR("Relocation addend 64 entry size found in dynamic table is not correct");
+            }
+        } else {
+            if (relocDynamicEnt != Size__32_bit_Relocation_Addend){
+                PRINT_ERROR("Relocation addend 32 entry size found in dynamic table is not correct");
+            }
+        }
+        for (uint32_t i = 0; i < elfFile->getNumberOfRelocationTables(); i++){
+            uint16_t scnIdx = elfFile->getRelocationTable(i)->getSectionIndex();
+            if (elfFile->getSectionHeader(scnIdx)->GET(sh_addr) == relocDynamicAddr){
+                relocDynamicAddr = 0;
+                if (elfFile->getSectionHeader(scnIdx)->GET(sh_size) != relocDynamicSize){
+                    PRINT_ERROR("Size of section containing the relocation addend table does not match the size given in the dynamic table");
+                }
+            }
+        }
+    }
+    if (relocDynamicAddr){
+        PRINT_ERROR("Did not find a relocation table matching the address indicated by a DT_REL entry in the dynamic table");
+    }
+
+
 
     if (entryCounts[DT_STRSZ] != 1){
         PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_STRSZ, %d found", entryCounts[DT_STRSZ]);
@@ -189,6 +400,7 @@ uint32_t DynamicTable::read(BinaryInputFile* binaryInputFile){
 
     for (uint32_t i = 0; i < numberOfDynamics; i++){
         if (elfFile->is64Bit()){
+            dynamics[i] = new Dynamic64(getFilePointer() + (i * Size__64_bit_Dynamic_Entry), i);
         } else {
             dynamics[i] = new Dynamic32(getFilePointer() + (i * Size__32_bit_Dynamic_Entry), i);
         }
