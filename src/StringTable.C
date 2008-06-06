@@ -3,8 +3,6 @@
 
 char* StringTable::getString(uint32_t offset){
     ASSERT(offset < sizeInBytes); 
-    if(!offset)
-        return stringtable_entry_without_name;
     return getFilePointer() + offset; 
 }
 
@@ -14,7 +12,6 @@ void StringTable::print() {
 
     for (uint32_t currByte = 0; currByte < sizeInBytes; currByte++){
         char* ptr = getString(currByte);
-        // at some point we need to implement name demangling for C++
         PRINT_INFOR("%9d: %s",currByte,ptr);
         currByte += strlen(ptr);
     }

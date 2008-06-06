@@ -6,9 +6,6 @@
 
 class ElfFile;
 
-#define DEMANGLED_BUFFER_SIZE 128
-static char* stringtable_entry_without_name = "NULL";
-
 class StringTable : public RawSection {
 protected:
     uint32_t index;

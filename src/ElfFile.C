@@ -11,6 +11,7 @@
 #include <CStructuresX86.h>
 #include <BitSet.h>
 #include <GlobalOffsetTable.h>
+#include <DynamicTable.h>
 
 
 TIMER(
@@ -90,7 +91,7 @@ void ElfFile::initRawSectionFilePointers(){
                 if (gotBaseAddress){
                     PRINT_WARN("Found mutiple symbols for Global Offset Table (symbols named %s), addresses are 0x%016llx, 0x%016llx", 
                                GOT_SYM_NAME, gotBaseAddress, currentSymtab->getSymbol(j)->GET(st_value));
-                    ASSERT(gotBaseAddress == currentSymtab->getSymbol(j)->GET(st_value) && "Two different addresses for Global Offset Table Found!");
+                    ASSERT(gotBaseAddress == currentSymtab->getSymbol(j)->GET(st_value) && "Conflicting addresses for Global Offset Table Found!");
                 }
                 gotBaseAddress = currentSymtab->getSymbol(j)->GET(st_value);
             }
@@ -121,6 +122,7 @@ void ElfFile::initRawSectionFilePointers(){
     char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[gotSectionIdx]->GET(sh_offset));
     uint64_t sectionSize = (uint64_t)sectionHeaders[gotSectionIdx]->GET(sh_size);    
     rawSections[gotSectionIdx] = new GlobalOffsetTable(sectionFilePtr, sectionSize, gotSectionIdx, gotBaseAddress, this);
+    ASSERT(!globalOffsetTable && "global offset table should not be initialized");
     globalOffsetTable = (GlobalOffsetTable*)rawSections[gotSectionIdx];
     globalOffsetTable->read(&binaryInputFile);
     
@@ -147,20 +149,44 @@ void ElfFile::initRawSectionFilePointers(){
     ASSERT(dynamicSectionAddress && "Cannot find a symbol for the dynamic section");
     PRINT_INFOR("Dynamic section found at address 0x%016llx", dynamicSectionAddress);
 
-    // find the dynamic
-    dynamicSectionIdx = 0;
+    // find the dynamic table
+    uint16_t dynamicTableSectionIdx = 0;
+
     for (uint32_t i = 0; i < numberOfSections; i++){
         if (sectionHeaders[i]->GET(sh_addr) == dynamicSectionAddress){
-            ASSERT(!dynamicSectionIdx && "Cannot have multiple dynamic sections");
-            dynamicSectionIdx = i;
+            ASSERT(!dynamicTableSectionIdx && "Cannot have multiple dynamic sections");
+            dynamicTableSectionIdx = i;
         }
     }
-    ASSERT(dynamicSectionIdx && "Cannot find a section for the dynamic section");
-    ASSERT(getSectionHeader(dynamicSectionIdx)->GET(sh_type) == SHT_DYNAMIC && "Dynamic Section section header is wrong type");
-    ASSERT(getSectionHeader(dynamicSectionIdx)->hasAllocBit() && "Dynamic Section section header missing an attribute");
+    ASSERT(dynamicTableSectionIdx && "Cannot find a section for the dynamic table");
+    ASSERT(getSectionHeader(dynamicTableSectionIdx)->GET(sh_type) == SHT_DYNAMIC && "Dynamic Section section header is wrong type");
+    ASSERT(getSectionHeader(dynamicTableSectionIdx)->hasAllocBit() && "Dynamic Section section header missing an attribute");
 
-    PRINT_INFOR("Dynamic Section is in section %d", dynamicSectionIdx);
+    PRINT_INFOR("Dynamic Section is in section %d", dynamicTableSectionIdx);
 
+
+    uint16_t dynamicSegmentIdx = 0;
+    for (uint32_t i = 0; i < numberOfPrograms; i++){
+        if (programHeaders[i]->GET(p_type) == PT_DYNAMIC){
+            ASSERT(!dynamicSegmentIdx && "Cannot have multiple segments for the dynamic section");
+            dynamicSegmentIdx = i;
+        }
+    }
+    ASSERT(dynamicSegmentIdx && "Cannot find a segment for the dynamic table");
+    ASSERT(getProgramHeader(dynamicSegmentIdx)->GET(p_vaddr) == dynamicSectionAddress && "Dynamic segment address from symbol and programHeader don't match");
+
+    // The raw section for the dynamic table should already have been initialized as a generic RawSection
+    // we will destroy it and create it as a DynamicTable
+    ASSERT(rawSections[dynamicTableSectionIdx] && "Dynamic Table raw section not yet created");
+    delete rawSections[dynamicTableSectionIdx];
+
+    sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[dynamicTableSectionIdx]->GET(sh_offset));
+    sectionSize = (uint64_t)sectionHeaders[dynamicTableSectionIdx]->GET(sh_size);
+
+    rawSections[dynamicTableSectionIdx] = new DynamicTable(sectionFilePtr, sectionSize, dynamicTableSectionIdx, dynamicSegmentIdx, this);
+    ASSERT(!dynamicTable && "dynamic table should not be initialized");
+    dynamicTable = (DynamicTable*)rawSections[dynamicTableSectionIdx];
+    dynamicTable->read(&binaryInputFile);
 
 }
 
@@ -206,6 +232,13 @@ void ElfFile::print()
 
     PRINT_INFOR("");
     globalOffsetTable->print();
+
+    PRINT_INFOR("");
+    dynamicTable->print();
+
+    PRINT_INFOR("");
+    dynamicTable->printSharedLibraries(&binaryInputFile);
+
 }
 
 

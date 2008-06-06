@@ -21,18 +21,17 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define __SHOULD_NOT_ARRIVE assert(0 && "Should not be called")
 
 #define GET_FIELD_BASIS(__type,__field) virtual __type get_ ## __field() \
-                                        { __SHOULD_NOT_ARRIVE; return ( __type )0; }
+    { __SHOULD_NOT_ARRIVE; return ( __type )0; }
 #define GET_FIELD_CLASS(__type,__field) inline __type get_ ## __field() \
-                                        { return (__type)(entry.__field) ; }
+    { return (__type)(entry.__field); }
 #define GET_FIELD_BASIS_U(__type,__field,__union) virtual __type get_ ## __field() \
-                                        { __SHOULD_NOT_ARRIVE; return ( __type )0; }
+    { __SHOULD_NOT_ARRIVE; return ( __type )0; }
 #define GET_FIELD_CLASS_U(__type,__field,__union) inline __type get_ ## __field() \
-                                        { return (__type)(entry.__union.__field) ; }
+    { return (__type)(entry.__union.__field); }
 #define GET_FIELD_BASIS_A(__type,__field,__union) virtual __type get_ ## __union ## _ ## __field() \
-                                        { __SHOULD_NOT_ARRIVE; return ( __type )0; }
-
-#define GET_FIELD_CLASS_A(__type,__field,__union) inline __type get_ ## __union ## _ ## __field() 
-
+    { __SHOULD_NOT_ARRIVE; return ( __type )0; }
+#define GET_FIELD_CLASS_A(__type,__field,__union) inline __type get_ ## __union ## _ ## __field() \
+    { return (__type)(entry.__union.__field); }
 #define GET(__field) get_ ## __field()
 #define GET_A(__field,__union) get_ ## __union ## _ ## __field()
 
@@ -117,6 +116,10 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Size__64_bit_Relocation             sizeof(Elf64_Rel)
 #define Size__32_bit_Relocation_Addend      sizeof(Elf32_Rela)
 #define Size__64_bit_Relocation_Addend      sizeof(Elf64_Rela)
+#define Size__32_bit_Global_Offset_Table_Entry sizeof (uint32_t)
+#define Size__64_bit_Global_Offset_Table_Entry sizeof (uint64_t)
+#define Size__32_bit_Dynamic_Entry          sizeof(Elf32_Dyn)
+#define Size__64_bit_Dynamic_Entry          sizeof(Elf64_Dyn)
 
 
 #define Size__32_bit_ExceptionTable_Entry     EXCEPTSZ
@@ -176,6 +179,8 @@ typedef enum {
     ElfClassTypes_string_table,
     ElfClassTypes_dwarf_section,
     ElfClassTypes_text_section,
+    ElfClassTypes_global_offset_table,
+    ElfClassTypes_dynamic_table,
     ElfClassTypes_Total_Types
 } ElfClassTypes;
 

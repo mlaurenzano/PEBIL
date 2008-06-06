@@ -4,6 +4,48 @@
 #include <ElfFile.h>
 #include <BinaryFile.h>
 
+
+SymbolTable::SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
+    : RawSection(ElfClassTypes_symbol_table,rawPtr,size,scnIdx,elf)
+{
+    index = idx;
+    sizeInBytes = size;
+
+    uint32_t symbolSize;
+
+    ASSERT(elfFile && "elfFile should be initialized");
+    if (elf->is64Bit()){
+        symbolSize = Size__64_bit_Symbol;
+    } else {
+        symbolSize = Size__32_bit_Symbol;
+    }
+
+    SectionHeader *scnHdr = elfFile->getSectionHeader(scnIdx);
+    if (scnHdr->GET(sh_type) == SHT_DYNSYM){
+        ASSERT(scnHdr->hasAllocBit() && "Dynamic symbol table must be have alloc attribute");
+        dynamic = 1;
+    } else {
+        dynamic = 0;
+    }
+
+    ASSERT(sizeInBytes % symbolSize == 0 && "Symbol table section must have size n*symbolSize");
+    numberOfSymbols = sizeInBytes / symbolSize;
+
+    symbols = new Symbol*[numberOfSymbols];
+}
+
+SymbolTable::~SymbolTable(){
+    if (symbols){
+        for (uint32_t i = 0; i < numberOfSymbols; i++){
+            if (symbols[i]){
+                delete symbols[i];
+            }
+        }
+        delete[] symbols;
+    }
+}
+
+
 unsigned char Symbol32::getSymbolBinding(){
     return ELF32_ST_BIND(entry.st_info);
 }
@@ -76,13 +118,6 @@ uint16_t SymbolTable::setStringTable(){
     return stringTable->getSectionIndex();
 }
 
-SymbolTable::~SymbolTable(){
-/*
-    for(uint32_t i=0;i<numberOfSymbols;i++)
-        delete symbols[i];
-    delete[] symbols;
- */
-}
 
 bool Symbol::verify(uint16_t targetSize){
     return true;
@@ -121,6 +156,7 @@ uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
     setFileOffset(binaryInputFile->currentOffset());
 
     //    PRINT_INFOR("Reading %d symbols for symtable %d", numberOfSymbols, index);
+    uint32_t totalBytesRead = 0;
 
     for (uint32_t i = 0; i < numberOfSymbols; i++){
         if (elfFile->is64Bit()){
@@ -128,9 +164,10 @@ uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
         } else {
             symbols[i] = new Symbol32(getFilePointer() + (i * Size__32_bit_Symbol), i);
         }
-        symbols[i]->read(binaryInputFile);
+        totalBytesRead += symbols[i]->read(binaryInputFile);
     }
 
+    ASSERT(sizeInBytes == totalBytesRead && "size read from file does not match theorietical size of Symbol Table");
     return sizeInBytes;
 }
 

@@ -43,7 +43,7 @@ uint64_t GlobalOffsetTable::getEntry(uint32_t idx){
 
 
 GlobalOffsetTable::GlobalOffsetTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint64_t gotSymAddr, ElfFile* elf)
-    : RawSection(ElfClassTypes_string_table,rawPtr,size,scnIdx,elf)
+    : RawSection(ElfClassTypes_global_offset_table,rawPtr,size,scnIdx,elf)
 {
 
     entrySize = elfFile->getSectionHeader(sectionIndex)->GET(sh_entsize);

@@ -563,21 +563,21 @@ typedef struct
 
 typedef struct
 {
-  int32_t	d_tag;			/* Dynamic entry type */
-  union
+    int32_t	d_tag;			/* Dynamic entry type */
+    union
     {
-      uint32_t d_val;			/* Integer value */
-      uint32_t d_ptr;			/* Address value */
+        uint32_t d_val;			/* Integer value */
+        uint32_t d_ptr;			/* Address value */
     } d_un;
 } Elf32_Dyn;
 
 typedef struct
 {
-  int64_t	d_tag;			/* Dynamic entry type */
-  union
+    int64_t	d_tag;			/* Dynamic entry type */
+    union
     {
-      uint64_t d_val;		/* Integer value */
-      uint64_t d_ptr;			/* Address value */
+        uint64_t d_val;		/* Integer value */
+        uint64_t d_ptr;		/* Address value */
     } d_un;
 } Elf64_Dyn;
 
