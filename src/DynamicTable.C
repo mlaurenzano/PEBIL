@@ -3,6 +3,16 @@
 #include <StringTable.h>
 #include <SectionHeader.h>
 #include <RelocationTable.h>
+#include <HashTable.h>
+
+void DynamicTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    uint32_t currByte = 0;
+
+    for (uint32_t i = 0; i < numberOfDynamics; i++){
+        binaryOutputFile->copyBytes(getDynamic(i)->charStream(),dynamicSize,offset+currByte);
+        currByte += dynamicSize;
+    }
+}
 
 DynamicTable::DynamicTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint16_t segmentIdx, ElfFile* elf) :
     RawSection(ElfClassTypes_dynamic_table,rawPtr, size, scnIdx, elf)
@@ -10,7 +20,6 @@ DynamicTable::DynamicTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint16_
     sizeInBytes = size;
     segmentIndex = segmentIdx;
 
-    uint32_t dynamicSize;
     ASSERT(elfFile && "elfFile should be initialized");
 
     if (elfFile->is64Bit()){
@@ -190,6 +199,8 @@ bool DynamicTable::verify(){
     uint64_t relocAddendDynamicAddr = 0;
     uint64_t relocAddendDynamicSize = 0;
     uint64_t relocAddendDynamicEnt = 0;
+    uint64_t hashTableAddress = 0;
+
     uint32_t entryCounts[DT_JMPREL];
     
     for (uint32_t i = 0; i < DT_JMPREL; i++){
@@ -257,11 +268,17 @@ bool DynamicTable::verify(){
             relocDynamicSize = dyn->GET_A(d_ptr,d_un);
         }
 
-        
-
+        if (dyn->GET(d_tag) == DT_HASH){
+            hashTableAddress = dyn->GET_A(d_ptr,d_un);
+        }
     }
 
-    if (entryCounts[DT_HASH] != 1){
+    if (entryCounts[DT_HASH] == 1){
+        uint16_t scnIdx = elfFile->getHashTable()->getSectionIndex();
+        if (hashTableAddress != elfFile->getSectionHeader(scnIdx)->GET(sh_addr)){
+            PRINT_ERROR("Hash table address in the dynamic table is inconsistent with the hash table address found in the section header");
+        }
+    } else {
         PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_HASH, %d found", entryCounts[DT_HASH]);
     }
     if (entryCounts[DT_STRTAB] != 1){
@@ -332,12 +349,12 @@ bool DynamicTable::verify(){
     // make sure the relocation entries found in the dynamic table match up to some relocation table in the executable
     if (relocDynamicAddr){
         if (elfFile->is64Bit()){
-            if (relocDynamicEnt != Size__64_bit_Relocation_Addend){
-                PRINT_ERROR("Relocation addend 64 entry size found in dynamic table is not correct");
+            if (relocDynamicEnt != Size__64_bit_Relocation){
+                PRINT_ERROR("Relocation 64 entry size found in dynamic table is not correct");
             }
         } else {
-            if (relocDynamicEnt != Size__32_bit_Relocation_Addend){
-                PRINT_ERROR("Relocation addend 32 entry size found in dynamic table is not correct");
+            if (relocDynamicEnt != Size__32_bit_Relocation){
+                PRINT_ERROR("Relocation 32 entry size found in dynamic table is not correct");
             }
         }
         for (uint32_t i = 0; i < elfFile->getNumberOfRelocationTables(); i++){
@@ -353,8 +370,6 @@ bool DynamicTable::verify(){
     if (relocDynamicAddr){
         PRINT_ERROR("Did not find a relocation table matching the address indicated by a DT_REL entry in the dynamic table");
     }
-
-
 
     if (entryCounts[DT_STRSZ] != 1){
         PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_STRSZ, %d found", entryCounts[DT_STRSZ]);
@@ -406,8 +421,6 @@ uint32_t DynamicTable::read(BinaryInputFile* binaryInputFile){
         }
         totalBytesRead += dynamics[i]->read(binaryInputFile);
     }
-
-    verify();
 
     ASSERT(sizeInBytes == totalBytesRead && "size read from file does not match theorietical size of Dynamic Table");
     return sizeInBytes;

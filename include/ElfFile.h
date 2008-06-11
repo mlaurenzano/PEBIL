@@ -16,6 +16,7 @@ class TextSection;
 class Disassembler;
 class GlobalOffsetTable;
 class DynamicTable;
+class HashTable;
 
 class ElfFile {
 private:
@@ -38,6 +39,7 @@ private:
     TextSection** textSections;
     GlobalOffsetTable* globalOffsetTable;
     DynamicTable* dynamicTable;
+    HashTable* hashTable;
 
     uint32_t numberOfPrograms;
     uint32_t numberOfSections;
@@ -66,11 +68,11 @@ private:
     void findFunctions();
     void generateCFGs();
     void findMemoryFloatOps();
-    bool verify();
-
 
 
 public:
+    bool verify();
+
     void addToStringTable(StringTable* stTable, char* newSt);
     void addDataSection(uint64_t size, char* bytes);
     void addTextSection(uint64_t size, char* bytes);
@@ -78,7 +80,7 @@ public:
 
     ElfFile(char* f): is64BitFlag(false),elfFileName(f),disassembler(NULL),
         fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
-        rawSections(NULL),globalOffsetTable(NULL),dynamicTable(NULL),
+        rawSections(NULL),globalOffsetTable(NULL),dynamicTable(NULL),hashTable(NULL),
         stringTables(NULL),symbolTables(NULL),relocationTables(NULL),numberOfPrograms(0),              
         numberOfSections(0),
         numberOfStringTables(0),sectionNameStrTabIdx(0),numberOfSymbolTables(0),dynamicSymtabIdx(0),
@@ -114,6 +116,7 @@ public:
     TextSection* getTextSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfTextSections); return textSections[idx]; }
     GlobalOffsetTable* getGlobalOffsetTable() { return globalOffsetTable; }
     DynamicTable* getDynamicTable() { return dynamicTable; }
+    HashTable* getHashTable() { return hashTable; }
 
     uint16_t getSectionNameStrTabIdx() { return sectionNameStrTabIdx; }
 

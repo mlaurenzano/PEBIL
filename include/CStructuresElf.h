@@ -20,6 +20,18 @@
 #define GOT_SYM_NAME "_GLOBAL_OFFSET_TABLE_"
 #define DYN_SYM_NAME "_DYNAMIC"
 
+static uint64_t elf_hash(const char* name){
+    uint64_t h = 0, g;
+    while (*name){
+        h = (h << 4) + *name++;
+        if (g = h & 0xf0000000){
+            h ^= g >> 24;
+        }
+        h &= ~g;
+    }
+    return h;
+}
+
 
 /* The ELF file header.  This appears at the start of every ELF file.  */
 

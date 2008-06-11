@@ -137,7 +137,7 @@ uint32_t BinaryInputFile::bytesLeftInBuffer(){
 void BinaryOutputFile::copyBytes(char* buffer,uint32_t size,uint32_t offset) {
     int32_t error_code = fseek(outFile,offset,SEEK_SET);
     if(error_code){
-        PRINT_ERROR("Error skeeing to the output file");
+        PRINT_ERROR("Error seeking to the output file");
     }
     error_code = fwrite(buffer,sizeof(char),size,outFile);
     if((uint32_t)error_code != size){

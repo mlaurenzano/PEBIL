@@ -12,6 +12,7 @@
 #include <BitSet.h>
 #include <GlobalOffsetTable.h>
 #include <DynamicTable.h>
+#include <HashTable.h>
 
 
 TIMER(
@@ -188,7 +189,7 @@ void ElfFile::initRawSectionFilePointers(){
     ASSERT(!dynamicTable && "dynamic table should not be initialized");
     dynamicTable = (DynamicTable*)rawSections[dynamicTableSectionIdx];
     dynamicTable->read(&binaryInputFile);
-
+    dynamicTable->verify();
 }
 
 
@@ -199,47 +200,76 @@ void ElfFile::print()
         fileHeader->print(); 
     }
 
-    PRINT_INFOR("");
-    PRINT_INFOR("Program Header Table");
-    PRINT_INFOR("\t\t\tType\t\tSize in File\t\tVirtual Address\t\tPhysical Address");
-    PRINT_INFOR("\t\t\tOffset\t\tSize in Memory\t\tFlags\t\t\tAlignment");
-    for (uint32_t i = 0; i < numberOfPrograms; i++){
-        programHeaders[i]->print();
+    if (programHeaders){
+        PRINT_INFOR("");
+        PRINT_INFOR("Program Header Table");
+        PRINT_INFOR("\t\t\tType\t\tSize in File\t\tVirtual Address\t\tPhysical Address");
+        PRINT_INFOR("\t\t\tOffset\t\tSize in Memory\t\tFlags\t\t\tAlignment");
+        for (uint32_t i = 0; i < numberOfPrograms; i++){
+            if (programHeaders[i]){
+                programHeaders[i]->print();
+            }
+        }
     }
-
     
-    PRINT_INFOR("");
-    PRINT_INFOR("Section Header Table");
-    PRINT_INFOR("\t\t\t\tName\t\tType\t\t\tFlags\t\t\tAddress\t\t\tOffset");
-    PRINT_INFOR("\t\t\t\tLink\t\tInfo\t\t\tSize\t\t\tAlignment\t\tEntry Size");
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        sectionHeaders[i]->print();
+    if (sectionHeaders){
+        PRINT_INFOR("");
+        PRINT_INFOR("Section Header Table");
+        PRINT_INFOR("\t\t\t\tName\t\tType\t\t\tFlags\t\t\tAddress\t\t\tOffset");
+        PRINT_INFOR("\t\t\t\tLink\t\tInfo\t\t\tSize\t\t\tAlignment\t\tEntry Size");
+        for (uint32_t i = 0; i < numberOfSections; i++){
+            if (sectionHeaders[i]){
+                sectionHeaders[i]->print();
+            }
+        }
     }
 
-    PRINT_INFOR("");
-    for (uint32_t i = 0; i < numberOfStringTables; i++){       
-        stringTables[i]->print();
+    if (stringTables){
+        PRINT_INFOR("");
+        for (uint32_t i = 0; i < numberOfStringTables; i++){       
+            if (stringTables[i]){
+                stringTables[i]->print();
+            }
+        }
     }
 
-    PRINT_INFOR("");
-    for (uint32_t i = 0; i < numberOfSymbolTables; i++){
-        symbolTables[i]->print();
+    if (symbolTables){
+        PRINT_INFOR("");
+        for (uint32_t i = 0; i < numberOfSymbolTables; i++){
+            if (symbolTables[i])
+                symbolTables[i]->print();
+        }
     }
 
-    PRINT_INFOR("");
-    for (uint32_t i = 0; i < numberOfRelocationTables; i++){
-        relocationTables[i]->print();
+
+    if (relocationTables){
+        PRINT_INFOR("");
+        for (uint32_t i = 0; i < numberOfRelocationTables; i++){
+            if (relocationTables[i]){
+                relocationTables[i]->print();
+            }
+        }
     }
 
-    PRINT_INFOR("");
-    globalOffsetTable->print();
+    if (globalOffsetTable){
+        PRINT_INFOR("");
+        globalOffsetTable->print();
+    }
 
-    PRINT_INFOR("");
-    dynamicTable->print();
+    if (dynamicTable){
+        PRINT_INFOR("");
+        dynamicTable->print();
+    }
 
-    PRINT_INFOR("");
-    dynamicTable->printSharedLibraries(&binaryInputFile);
+    if (dynamicTable){
+        PRINT_INFOR("");
+        dynamicTable->printSharedLibraries(&binaryInputFile);
+    }
 
+    if (hashTable){
+        PRINT_INFOR("");
+        hashTable->print();
+    }
 }
 
 
@@ -405,7 +435,7 @@ void ElfFile::dump(char* extension){
         if (sectionHeaders[i]->hasBitsInFile()){
             rawSections[i]->dump(&binaryOutputFile,currentOffset);
         }
-	//        PRINT_INFOR("dumped raw section[%d]", i);
+        //        PRINT_INFOR("dumped raw section[%d]", i);
     }
     PRINT_INFOR("dumped %d section headers", numberOfSections);
 
@@ -415,7 +445,7 @@ void ElfFile::dump(char* extension){
 
 bool ElfFile::verify(){
 
-        // enforce constrainst on where PT_INTERP segments fall
+    // enforce constrainst on where PT_INTERP segments fall
     uint32_t ptInterpIdx = numberOfPrograms;
     for (uint32_t i = 0; i < numberOfPrograms; i++){
         if (programHeaders[i]->GET(p_type) == PT_INTERP){
@@ -425,8 +455,10 @@ bool ElfFile::verify(){
             }
             ptInterpIdx = i;
         }
+    }
+    for (uint32_t i = 0; i < numberOfPrograms; i++){    
         if (programHeaders[i]->GET(p_type) == PT_LOAD){
-            if (ptInterpIdx < numberOfPrograms){
+            if (i < ptInterpIdx){
                 PRINT_ERROR("PT_INTERP segment must preceed any loadable segment");
                 return false;
             }
@@ -467,6 +499,10 @@ bool ElfFile::verify(){
     if (dynlinkSectionCount > MAX_SHT_DYNSYM_COUNT){
         PRINT_ERROR("Elf file cannot have more than %d dynamic symtab sections", MAX_SHT_DYNSYM_COUNT);
         return false;
+    }
+
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        rawSections[i]->verify();
     }
 }
 
@@ -656,6 +692,10 @@ void ElfFile::readRawSections(){
             rawSections[i] = new TextSection(sectionFilePtr, sectionSize, i, numberOfTextSections, this);
             textSections[numberOfTextSections] = (TextSection*)rawSections[i];
             numberOfTextSections++;
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_hash_table){
+            ASSERT(!hashTable && "Cannot have multiple hash table sections");
+            rawSections[i] = new HashTable(sectionFilePtr, sectionSize, i, this);
+            hashTable = (HashTable*)rawSections[i];
         } else {
             rawSections[i] = new RawSection(ElfClassTypes_no_type, sectionFilePtr, sectionSize, i, this);
         }

@@ -16,6 +16,7 @@ class Dynamic;
 class DynamicTable : public RawSection {
 protected:
     uint32_t numberOfDynamics;
+    uint32_t dynamicSize;
     uint16_t segmentIndex;
 
     Dynamic** dynamics;
@@ -27,6 +28,7 @@ public:
     void print();
     void printSharedLibraries(BinaryInputFile* b);
     uint32_t read(BinaryInputFile* b);
+    virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     Dynamic* getDynamic(uint32_t index);
     uint32_t getNumberOfDynamics() { return numberOfDynamics; }
@@ -38,7 +40,7 @@ public:
     uint32_t getNumberOfRelocationTables();
     uint32_t getRelocationTableAddresses(uint64_t* relocAddresses);
 
-    bool verify();
+    virtual bool verify();
 
     const char* briefName() { return "DynamicTable"; }
 };
@@ -50,6 +52,7 @@ public:
     char* dynPtr;
 
     virtual uint32_t read(BinaryInputFile* binaryInputFile) { __SHOULD_NOT_ARRIVE; }
+    virtual char* charStream() { __SHOULD_NOT_ARRIVE; }
 
     char* getDynamicPtr() { return dynPtr; }
     Dynamic(char* dPtr, uint32_t idx);
@@ -67,7 +70,7 @@ public:
     Dynamic32(char* dPtr, uint32_t idx) : Dynamic(dPtr,idx){}
     ~Dynamic32() {}
 
-    char* charStream() { return (char*)&entry; }
+    virtual char* charStream() { return (char*)&entry; }
 
     DYNAMIC_MACROS_CLASS("For the get_X field macros check the defines directory");
 
@@ -82,7 +85,7 @@ public:
     Dynamic64(char* dPtr, uint32_t idx) : Dynamic(dPtr,idx){}
     ~Dynamic64() {}
 
-    char* charStream() { return (char*)&entry; }
+    virtual char* charStream() { return (char*)&entry; }
 
     DYNAMIC_MACROS_CLASS("For the get_X field macros check the defines directory");
 

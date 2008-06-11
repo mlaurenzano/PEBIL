@@ -1,5 +1,21 @@
 #include <GlobalOffsetTable.h>
 
+void GlobalOffsetTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    uint32_t currByte = 0;
+
+    for (uint32_t i = 0; i < numberOfEntries; i++){
+        if (elfFile->is64Bit()){
+            binaryOutputFile->copyBytes((char*)&entries[i],entrySize,offset+currByte);
+        } else {
+            uint32_t tmpEntry = (uint32_t)entries[i];
+            binaryOutputFile->copyBytes((char*)&tmpEntry,entrySize,offset+currByte);
+        }
+        currByte += entrySize;
+    }
+    
+}
+
+
 uint32_t GlobalOffsetTable::read(BinaryInputFile* binaryInputFile){
 
     binaryInputFile->setInPointer(rawDataPtr);

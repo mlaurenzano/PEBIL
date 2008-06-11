@@ -82,8 +82,10 @@ bool SymbolTable::verify(){
 
     uint32_t fileSymbolIdx = numberOfSymbols;
     uint32_t firstLocalSym = numberOfSymbols;
-    for (uint32_t i = 0; i < numberOfSymbols; i++){
+    for (uint32_t i = 1; i < numberOfSymbols; i++){
         if (symbols[i]->getSymbolBinding() == STB_LOCAL && firstLocalSym == numberOfSymbols){
+            PRINT_INFOR("Found local symbol at idx %d", i);
+            symbols[i]->print(getSymbolName(i));
             firstLocalSym = i;
         }
         if (symbols[i]->getSymbolType() == STT_FILE){
@@ -91,16 +93,16 @@ bool SymbolTable::verify(){
                 PRINT_ERROR("File symbols must use absolute addressing");
                 return false;
             }
-            if (fileSymbolIdx < numberOfSymbols){
-                PRINT_ERROR("Only one symbol of type STT_FILE allowed in a symbol table");
+            if (symbols[i]->getSymbolBinding() != STB_LOCAL){
+                PRINT_ERROR("A file symbol must have local binding");
                 return false;
             }
-            if (symbols[i]->getSymbolBinding() == STB_LOCAL && i > firstLocalSym){
-                PRINT_ERROR("If a file symbol has local binding, it must precede all other symbols with local binding");
-                return false;
-            }
-            fileSymbolIdx = i;
         }
+        if (symbols[i]->getSymbolType() >= STT_LOPROC && symbols[i]->getSymbolType() <= STT_HIPROC){
+            PRINT_ERROR("Symbol has a type that is reserved for precessor-specific semantics");
+            return false;
+        }
+
     }
     return true;
 }

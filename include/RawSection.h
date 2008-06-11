@@ -19,11 +19,12 @@ public:
         : Base(classType),rawDataPtr(rawPtr),sectionIndex(scnIdx),elfFile(elf) { sizeInBytes = size; }
     ~RawSection() {}
 
-    uint32_t read(BinaryInputFile* b) {}
+    virtual uint32_t read(BinaryInputFile* b) {}
     virtual void print() { __SHOULD_NOT_ARRIVE; }
+    virtual bool verify() { return true; }
 
     char* charStream() { return rawDataPtr; }
-    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { binaryOutputFile->copyBytes(charStream(),getSizeInBytes(),offset); }
+    virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { binaryOutputFile->copyBytes(charStream(),getSizeInBytes(),offset); }
     void printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine);
 
     char* getFilePointer() { return rawDataPtr; }
