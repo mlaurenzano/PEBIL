@@ -11,27 +11,16 @@ class ElfFile;
 
 class HashTable : public RawSection {
 private:
-
-    // we have 64 bit versions of some of these functions but they are
-    // currently unused. the documentation is sparse about the hash tables
-    // in 64-bit executables. they look to be the same as 32-bit currently
-    // but we keep the other code in case this is not true
-    void dump32(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-    void dump64(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-
-    uint32_t read32(BinaryInputFile* binaryInputFile);
-    uint32_t read64(BinaryInputFile* binaryInputFile);
-
     bool verify();
 
 protected:
     uint16_t symTabIdx;
 
-    uint64_t numberOfBuckets;
-    uint64_t numberOfChains;
+    uint32_t numberOfBuckets;
+    uint32_t numberOfChains;
 
-    uint64_t* bucket;
-    uint64_t* chain;
+    uint32_t* bucket;
+    uint32_t* chain;
 
     uint32_t hashEntrySize;
 public:
@@ -41,12 +30,12 @@ public:
     void print();
     uint32_t read(BinaryInputFile* b);
 
-    uint64_t getBucket(uint32_t index);
-    uint64_t getChain(uint32_t index);
-    uint64_t getNumberOfBuckets() { return numberOfBuckets; }
-    uint64_t getNumberOfChains() { return numberOfChains; }
+    uint32_t getBucket(uint32_t index);
+    uint32_t getChain(uint32_t index);
+    uint32_t getNumberOfBuckets() { return numberOfBuckets; }
+    uint32_t getNumberOfChains() { return numberOfChains; }
 
-    uint64_t findSymbol(const char* symbolName);
+    uint32_t findSymbol(const char* symbolName);
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 

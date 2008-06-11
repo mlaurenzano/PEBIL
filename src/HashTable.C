@@ -1,9 +1,9 @@
 #include <HashTable.h>
 
-uint64_t HashTable::findSymbol(const char* symbolName){
+uint32_t HashTable::findSymbol(const char* symbolName){
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
-    uint64_t x = bucket[elf_hash(symbolName)%numberOfBuckets];
-    uint64_t chainVal;
+    uint32_t x = bucket[elf_hash(symbolName)%numberOfBuckets];
+    uint32_t chainVal;
 
     while (strcmp(symbolName,symTab->getSymbolName(x))){
         x = chain[x];
@@ -19,7 +19,7 @@ bool HashTable::verify(){
         PRINT_ERROR("In the hash table, the number of chains should be equal to the number of symbols in the corresponding symbol table");
     }
 
-    for (uint64_t i = 1; i < numberOfChains; i++){
+    for (uint32_t i = 1; i < numberOfChains; i++){
         if (findSymbol(symTab->getSymbolName(i)) != i){
             PRINT_ERROR("Hash Table search function is erroneous");
         }
@@ -29,127 +29,25 @@ bool HashTable::verify(){
     return true;
 }
 
-void HashTable::dump32(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    uint32_t currByte = 0;
-    uint32_t tmpEntry;
-
-    tmpEntry = (uint32_t)numberOfBuckets;
-    ASSERT(tmpEntry == numberOfBuckets && "Hash table entry does not fit in 32 bits");
-    binaryOutputFile->copyBytes((char*)&tmpEntry,Size__32_bit_Hash_Entry,offset+currByte);
-    currByte += Size__32_bit_Hash_Entry;
-
-    tmpEntry = (uint32_t)numberOfChains;
-    ASSERT(tmpEntry == numberOfChains && "Hash table entry does not fit in 32 bits");
-    binaryOutputFile->copyBytes((char*)&tmpEntry,Size__32_bit_Hash_Entry,offset+currByte);
-    currByte += Size__32_bit_Hash_Entry;
-
-    for (uint64_t i = 0; i < numberOfBuckets; i++){
-        tmpEntry = (uint32_t)bucket[i];
-        ASSERT(tmpEntry == bucket[i] && "Hash table entry does not fit in 32 bits");
-        binaryOutputFile->copyBytes((char*)&tmpEntry,Size__32_bit_Hash_Entry,offset+currByte);
-        currByte += Size__32_bit_Hash_Entry;
-    }
-
-    for (uint64_t i = 0; i < numberOfChains; i++){
-        tmpEntry = (uint32_t)chain[i];
-        ASSERT(tmpEntry == chain[i] && "Hash table entry does not fit in 32 bits");
-        binaryOutputFile->copyBytes((char*)&tmpEntry,Size__32_bit_Hash_Entry,offset+currByte);
-        currByte += Size__32_bit_Hash_Entry;
-    }
-}
-
-void HashTable::dump64(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    uint32_t currByte = 0;
-
-    binaryOutputFile->copyBytes((char*)&numberOfBuckets,Size__64_bit_Hash_Entry,offset+currByte);
-    currByte += Size__64_bit_Hash_Entry;
-
-    binaryOutputFile->copyBytes((char*)&numberOfChains,Size__64_bit_Hash_Entry,offset+currByte);
-    currByte += Size__64_bit_Hash_Entry;
-
-    for (uint64_t i = 0; i < numberOfBuckets; i++){
-        binaryOutputFile->copyBytes((char*)&bucket[i],Size__64_bit_Hash_Entry,offset+currByte);
-        currByte += Size__64_bit_Hash_Entry;
-    }
-
-    for (uint64_t i = 0; i < numberOfChains; i++){
-        binaryOutputFile->copyBytes((char*)&chain[i],Size__64_bit_Hash_Entry,offset+currByte);
-        currByte += Size__64_bit_Hash_Entry;
-    }
-}
-
 void HashTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    if (elfFile->is64Bit()){
-        dump32(binaryOutputFile, offset);
-    } else {
-        dump32(binaryOutputFile, offset);
-    }
-}
-
-uint32_t HashTable::read32(BinaryInputFile* binaryInputFile){
-
+    uint32_t currByte = 0;
     uint32_t tmpEntry;
 
-    if (!binaryInputFile->copyBytesIterate((char*)&tmpEntry, Size__32_bit_Hash_Entry)){
-        PRINT_ERROR("Cannot read nbucket from Hash Table");
-    }
-    numberOfBuckets = (uint64_t)tmpEntry;
-    bucket = new uint64_t[numberOfBuckets];
+    binaryOutputFile->copyBytes((char*)&numberOfBuckets,hashEntrySize,offset+currByte);
+    currByte += hashEntrySize;
 
-    if (!binaryInputFile->copyBytesIterate((char*)&tmpEntry, Size__32_bit_Hash_Entry)){
-        PRINT_ERROR("Cannot read nchain from Hash Table");
-    }
-    numberOfChains = (uint64_t)tmpEntry;
-    chain = new uint64_t[numberOfChains];
+    binaryOutputFile->copyBytes((char*)&numberOfChains,hashEntrySize,offset+currByte);
+    currByte += hashEntrySize;
 
-    PRINT_INFOR("%d %lld", sizeInBytes, hashEntrySize*(numberOfBuckets + numberOfChains + 2));
-    ASSERT(sizeInBytes == hashEntrySize*(numberOfBuckets + numberOfChains + 2) && "Hash Table size is inconsistent with its internal information");
-
-    for (uint64_t i = 0; i < numberOfBuckets; i++){
-        if (!binaryInputFile->copyBytesIterate((char*)&tmpEntry, Size__32_bit_Hash_Entry)){
-            PRINT_ERROR("Cannot read bucket[%lld] from Hash Table (32)", i);
-        }
-        bucket[i] = (uint64_t)tmpEntry;
+    for (uint32_t i = 0; i < numberOfBuckets; i++){
+        binaryOutputFile->copyBytes((char*)&bucket[i],hashEntrySize,offset+currByte);
+        currByte += hashEntrySize;
     }
 
-    for (uint64_t i = 0; i < numberOfChains; i++){
-        if (!binaryInputFile->copyBytesIterate((char*)&tmpEntry, Size__32_bit_Hash_Entry)){
-            PRINT_ERROR("Cannot read chain[%lld] from Hash Table (32)", i);
-        }
-        chain[i] = (uint64_t)tmpEntry;
+    for (uint32_t i = 0; i < numberOfChains; i++){
+        binaryOutputFile->copyBytes((char*)&chain[i],hashEntrySize,offset+currByte);
+        currByte += hashEntrySize;
     }
-
-    return sizeInBytes;
-}
-
-uint32_t HashTable::read64(BinaryInputFile* binaryInputFile){
-
-    if (!binaryInputFile->copyBytesIterate((char*)&numberOfBuckets, Size__64_bit_Hash_Entry)){
-        PRINT_ERROR("Cannot read nbucket from Hash Table");
-    }
-
-    bucket = new uint64_t[numberOfBuckets];
-
-    if (!binaryInputFile->copyBytesIterate((char*)&numberOfChains, Size__64_bit_Hash_Entry)){
-        PRINT_ERROR("Cannot read nchain from Hash Table");
-    }
-    chain = new uint64_t[numberOfChains];
-
-    ASSERT(sizeInBytes == hashEntrySize*(numberOfBuckets + numberOfChains + 2) && "Hash Table size is inconsistent with its internal information");
-
-    for (uint64_t i = 0; i < numberOfBuckets; i++){
-        if (!binaryInputFile->copyBytesIterate((char*)&bucket[i], Size__64_bit_Hash_Entry)){
-            PRINT_ERROR("Cannot read bucket[%lld] from Hash Table (64)", i);
-        }
-    }
-
-    for (uint64_t i = 0; i < numberOfChains; i++){
-        if (!binaryInputFile->copyBytesIterate((char*)&chain[i], Size__64_bit_Hash_Entry)){
-            PRINT_ERROR("Cannot read chain[%lld] from Hash Table (64)", i);
-        }
-    }
-
-    return sizeInBytes;
 }
 
 uint32_t HashTable::read(BinaryInputFile* binaryInputFile){
@@ -159,10 +57,28 @@ uint32_t HashTable::read(BinaryInputFile* binaryInputFile){
 
     ASSERT(sizeInBytes >= hashEntrySize * 2 && "Hash Table must contain at least 2 entries");
 
-    if (elfFile->is64Bit()){
-        read32(binaryInputFile);
-    } else {
-        read32(binaryInputFile);
+    if (!binaryInputFile->copyBytesIterate((char*)&numberOfBuckets, hashEntrySize)){
+        PRINT_ERROR("Cannot read nbucket from Hash Table");
+    }
+    bucket = new uint32_t[numberOfBuckets];
+
+    if (!binaryInputFile->copyBytesIterate((char*)&numberOfChains, hashEntrySize)){
+        PRINT_ERROR("Cannot read nchain from Hash Table");
+    }
+    chain = new uint32_t[numberOfChains];
+
+    ASSERT(sizeInBytes == hashEntrySize*(numberOfBuckets + numberOfChains + 2) && "Hash Table size is inconsistent with its internal information");
+
+    for (uint32_t i = 0; i < numberOfBuckets; i++){
+        if (!binaryInputFile->copyBytesIterate((char*)&bucket[i], hashEntrySize)){
+            PRINT_ERROR("Cannot read bucket[%d] from Hash Table", i);
+        }
+    }
+
+    for (uint32_t i = 0; i < numberOfChains; i++){
+        if (!binaryInputFile->copyBytesIterate((char*)&chain[i], hashEntrySize)){
+            PRINT_ERROR("Cannot read chain[%d] from Hash Table)", i);
+        }
     }
 
     return sizeInBytes;
@@ -173,26 +89,26 @@ uint32_t HashTable::read(BinaryInputFile* binaryInputFile){
 void HashTable::print(){
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
 
-    PRINT_INFOR("Hash Table: section %hd, %lld buckets, %lld chains", sectionIndex, numberOfBuckets, numberOfChains);
+    PRINT_INFOR("Hash Table: section %hd, %d buckets, %d chains", sectionIndex, numberOfBuckets, numberOfChains);
 
     printBytes(0,0);
 
-    for (uint64_t i = 0; i < numberOfBuckets; i++){
-        PRINT_INFOR("BKT[%lld]\t%lld", i, bucket[i]);
+    for (uint32_t i = 0; i < numberOfBuckets; i++){
+        PRINT_INFOR("BKT[%d]\t%d", i, bucket[i]);
     }
-    for (uint64_t i = 0; i < numberOfChains; i++){
-        PRINT_INFOR("CHN[%lld]\t%lld\t%s", i, chain[i], symTab->getSymbolName(i));
+    for (uint32_t i = 0; i < numberOfChains; i++){
+        PRINT_INFOR("CHN[%d]\t%d\t%s", i, chain[i], symTab->getSymbolName(i));
     }
 }
 
-uint64_t HashTable::getBucket(uint32_t idx){
+uint32_t HashTable::getBucket(uint32_t idx){
     ASSERT(idx >= 0 && idx < numberOfBuckets && "index into Hash Table bucket array is out of bounds");
     ASSERT(bucket && "bucket array should be initialized");
 
     return bucket[idx];
 }
 
-uint64_t HashTable::getChain(uint32_t idx){
+uint32_t HashTable::getChain(uint32_t idx){
     ASSERT(idx >= 0 && idx < numberOfChains && "index into Hash Table chain array is out of bounds");
     ASSERT(chain && "chain array should be initialized");
 
@@ -213,7 +129,7 @@ HashTable::HashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
     }
 
     if (elfFile->is64Bit()){
-        hashEntrySize = Size__32_bit_Hash_Entry;
+        hashEntrySize = Size__64_bit_Hash_Entry;
     } else {
         hashEntrySize = Size__32_bit_Hash_Entry;
     }
