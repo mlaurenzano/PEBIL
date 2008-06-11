@@ -84,7 +84,6 @@ GlobalOffsetTable::GlobalOffsetTable(char* rawPtr, uint32_t size, uint16_t scnId
     numberOfEntries = sizeInBytes / entrySize;
 
     entries = new uint64_t[numberOfEntries];
-
 }
 
 GlobalOffsetTable::~GlobalOffsetTable(){

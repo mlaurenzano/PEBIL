@@ -11,6 +11,11 @@ class ElfFile;
 
 class HashTable : public RawSection {
 private:
+
+    // we have 64 bit versions of some of these functions but they are
+    // currently unused. the documentation is sparse about the hash tables
+    // in 64-bit executables. they look to be the same as 32-bit currently
+    // but we keep the other code in case this is not true
     void dump32(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     void dump64(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 

@@ -621,7 +621,7 @@ void ElfFile::readSectionHeaders(){
     ASSERT(sectionHeaders);
 
     binaryInputFile.setInPointer(fileHeader->getSectionHeaderTablePtr());
-    //PRINT_INFOR("Found %d section header entries, reading at location %#x\n", numberOfSections, binaryInputFile.currentOffset());
+    PRINT_INFOR("Found %d section header entries, reading at location %#x\n", numberOfSections, binaryInputFile.currentOffset());
 
         // first read each section header
     for (uint32_t i = 0; i < numberOfSections; i++){
@@ -640,7 +640,7 @@ void ElfFile::readSectionHeaders(){
     }
 
         // determine and set section type for each section header
-    //PRINT_INFOR("Setting section types");
+    PRINT_INFOR("Setting section types");
     for (uint32_t i = 0; i < numberOfSections; i++){
         ElfClassTypes typ = sectionHeaders[i]->setSectionType();
         switch(typ){
@@ -671,6 +671,8 @@ void ElfFile::readRawSections(){
     for (uint32_t i = 0; i < numberOfSections; i++){
         char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[i]->GET(sh_offset));
         uint64_t sectionSize = (uint64_t)sectionHeaders[i]->GET(sh_size);
+
+        PRINT_INFOR("Readrawsections... processing section %d", i);
 
         if (sectionHeaders[i]->getSectionType() == ElfClassTypes_string_table){
             rawSections[i] = new StringTable(sectionFilePtr, sectionSize, i, numberOfStringTables, this);
