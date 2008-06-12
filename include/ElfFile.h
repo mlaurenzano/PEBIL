@@ -17,6 +17,7 @@ class Disassembler;
 class GlobalOffsetTable;
 class DynamicTable;
 class HashTable;
+class NoteSection;
 
 class ElfFile {
 private:
@@ -40,6 +41,7 @@ private:
     GlobalOffsetTable* globalOffsetTable;
     DynamicTable* dynamicTable;
     HashTable* hashTable;
+    NoteSection** noteSections;
 
     uint32_t numberOfPrograms;
     uint32_t numberOfSections;
@@ -50,6 +52,7 @@ private:
     uint32_t numberOfRelocationTables;
     uint32_t numberOfDwarfSections;
     uint32_t numberOfTextSections;
+    uint32_t numberOfNoteSections;
 
     uint32_t numberOfFunctions;
     uint32_t numberOfBlocks;
@@ -81,10 +84,11 @@ public:
     ElfFile(char* f): is64BitFlag(false),elfFileName(f),disassembler(NULL),
         fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
         rawSections(NULL),globalOffsetTable(NULL),dynamicTable(NULL),hashTable(NULL),
+        noteSections(NULL),
         stringTables(NULL),symbolTables(NULL),relocationTables(NULL),numberOfPrograms(0),              
         numberOfSections(0),
         numberOfStringTables(0),sectionNameStrTabIdx(0),numberOfSymbolTables(0),dynamicSymtabIdx(0),
-        numberOfRelocationTables(0),numberOfDwarfSections(0),
+        numberOfRelocationTables(0),numberOfDwarfSections(0),numberOfNoteSections(0),
         numberOfFunctions(0),numberOfBlocks(0),numberOfMemoryOps(0),numberOfFloatPOps(0) {}
 
     ~ElfFile() { }
@@ -117,6 +121,7 @@ public:
     GlobalOffsetTable* getGlobalOffsetTable() { return globalOffsetTable; }
     DynamicTable* getDynamicTable() { return dynamicTable; }
     HashTable* getHashTable() { return hashTable; }
+    NoteSection* getNoteSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfNoteSections); return noteSections[idx]; }
 
     uint16_t getSectionNameStrTabIdx() { return sectionNameStrTabIdx; }
 
@@ -127,6 +132,7 @@ public:
     uint32_t getNumberOfRelocationTables() { return numberOfRelocationTables; }
     uint32_t getNumberOfDwarfSections() { return numberOfDwarfSections; }
     uint32_t getNumberOfTextSections() { return numberOfTextSections; }
+    uint32_t getNumberOfNoteSections() { return numberOfNoteSections; }
 
     uint32_t getNumberOfFunctions() { return numberOfFunctions; }
     uint32_t getNumberOfBlocks()    { return numberOfBlocks; }

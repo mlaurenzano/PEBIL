@@ -122,6 +122,8 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Size__64_bit_Dynamic_Entry          sizeof(Elf64_Dyn)
 #define Size__32_bit_Hash_Entry             sizeof(uint32_t)
 #define Size__64_bit_Hash_Entry             sizeof(uint32_t)
+#define Size__32_bit_Note_Section_Entry     sizeof(uint32_t)
+#define Size__64_bit_Note_Section_Entry     sizeof(uint32_t)
 
 #define Size__32_bit_ExceptionTable_Entry     EXCEPTSZ
 #define Size__64_bit_ExceptionTable_Entry     EXCEPTSZ_64
@@ -183,6 +185,7 @@ typedef enum {
     ElfClassTypes_global_offset_table,
     ElfClassTypes_dynamic_table,
     ElfClassTypes_hash_table,
+    ElfClassTypes_note_section,
     ElfClassTypes_Total_Types
 } ElfClassTypes;
 

@@ -16,6 +16,8 @@ ElfClassTypes SectionHeader::setSectionType(){
         }
     } else if (GET(sh_type) == SHT_HASH){
         sectionType = ElfClassTypes_hash_table;
+    } else if (GET(sh_type) == SHT_NOTE){
+        sectionType = ElfClassTypes_note_section;
     }
     return sectionType;
 }

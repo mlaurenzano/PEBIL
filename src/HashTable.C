@@ -6,6 +6,10 @@ uint32_t HashTable::findSymbol(const char* symbolName){
     uint32_t chainVal;
 
     while (strcmp(symbolName,symTab->getSymbolName(x))){
+        if (x == chain[x]){
+            PRINT_ERROR("The symbol being searched (%s) is non-existent", symbolName);
+            return -1;
+        }
         x = chain[x];
     }
     return x;
@@ -24,8 +28,6 @@ bool HashTable::verify(){
             PRINT_ERROR("Hash Table search function is erroneous");
         }
     }
-
-    PRINT_INFOR("finished verifying hash table at section %hd", sectionIndex);
     return true;
 }
 

@@ -13,7 +13,7 @@
 #include <GlobalOffsetTable.h>
 #include <DynamicTable.h>
 #include <HashTable.h>
-
+#include <NoteSection.h>
 
 TIMER(
 	extern double cfg_s1;
@@ -90,7 +90,7 @@ void ElfFile::initRawSectionFilePointers(){
             if (!strcmp(symName,GOT_SYM_NAME)){
                 PRINT_INFOR("Found a GOT symbol at %d,%d", i, j);
                 if (gotBaseAddress){
-                    PRINT_WARN("Found mutiple symbols for Global Offset Table (symbols named %s), addresses are 0x%016llx, 0x%016llx", 
+                    PRINT_WARN("Found mutiple symbols for Global Offset Table (symbols named %s), addresses are 0x%016llx, 0x%016llx",
                                GOT_SYM_NAME, gotBaseAddress, currentSymtab->getSymbol(j)->GET(st_value));
                     ASSERT(gotBaseAddress == currentSymtab->getSymbol(j)->GET(st_value) && "Conflicting addresses for Global Offset Table Found!");
                 }
@@ -100,7 +100,6 @@ void ElfFile::initRawSectionFilePointers(){
     }
     ASSERT(gotBaseAddress && "Cannot find a symbol for the global offset table");
     PRINT_INFOR("Global Offset Table found at address 0x%016llx", gotBaseAddress);
-
 
     // find the global offset table
     uint16_t gotSectionIdx = 0;
@@ -112,7 +111,6 @@ void ElfFile::initRawSectionFilePointers(){
     }
     ASSERT(gotSectionIdx && "Cannot find a section for the global offset table");
     ASSERT(getSectionHeader(gotSectionIdx)->GET(sh_type) == SHT_PROGBITS && "Global Offset Table section header is wrong type");
-    PRINT_INFOR("Global Offset Table is in section %d", gotSectionIdx);
 
 
     // The raw section for the global offset table should already have been initialized as a generic RawSection
@@ -269,6 +267,13 @@ void ElfFile::print()
     if (hashTable){
         PRINT_INFOR("");
         hashTable->print();
+    }
+
+    if (noteSections){
+        PRINT_INFOR("");
+        for (uint32_t i = 0; i < numberOfNoteSections; i++){
+            noteSections[i]->print();
+        }
     }
 }
 
@@ -649,6 +654,7 @@ void ElfFile::readSectionHeaders(){
         case (ElfClassTypes_relocation_table) : numberOfRelocationTables++;
         case (ElfClassTypes_dwarf_section)  : numberOfDwarfSections++;
         case (ElfClassTypes_text_section) : numberOfTextSections++;
+        case (ElfClassTypes_note_section) : numberOfNoteSections++;
         default: ;
         }
     }
@@ -665,14 +671,14 @@ void ElfFile::readRawSections(){
     relocationTables = new RelocationTable*[numberOfRelocationTables];
     dwarfSections = new DwarfSection*[numberOfDwarfSections];
     textSections = new TextSection*[numberOfTextSections];
+    noteSections = new NoteSection*[numberOfNoteSections];
 
-    numberOfStringTables = numberOfSymbolTables = numberOfRelocationTables = numberOfDwarfSections = numberOfTextSections = 0;
+    numberOfStringTables = numberOfSymbolTables = numberOfRelocationTables = 
+    numberOfDwarfSections = numberOfTextSections = numberOfNoteSections = 0;
 
     for (uint32_t i = 0; i < numberOfSections; i++){
         char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[i]->GET(sh_offset));
         uint64_t sectionSize = (uint64_t)sectionHeaders[i]->GET(sh_size);
-
-        PRINT_INFOR("Readrawsections... processing section %d", i);
 
         if (sectionHeaders[i]->getSectionType() == ElfClassTypes_string_table){
             rawSections[i] = new StringTable(sectionFilePtr, sectionSize, i, numberOfStringTables, this);
@@ -698,13 +704,15 @@ void ElfFile::readRawSections(){
             ASSERT(!hashTable && "Cannot have multiple hash table sections");
             rawSections[i] = new HashTable(sectionFilePtr, sectionSize, i, this);
             hashTable = (HashTable*)rawSections[i];
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_note_section){
+            rawSections[i] = new NoteSection(sectionFilePtr, sectionSize, i, numberOfNoteSections, this);
+            noteSections[numberOfNoteSections] = (NoteSection*)rawSections[i];
+            numberOfNoteSections++;
         } else {
             rawSections[i] = new RawSection(ElfClassTypes_no_type, sectionFilePtr, sectionSize, i, this);
         }
         rawSections[i]->read(&binaryInputFile);
     }
-
-    PRINT_INFOR("Found sections: strtab=%d symtab=%d reltab=%d dwarf=%d text=%d", numberOfStringTables, numberOfSymbolTables, numberOfRelocationTables, numberOfDwarfSections, numberOfTextSections);
 }
 
 
