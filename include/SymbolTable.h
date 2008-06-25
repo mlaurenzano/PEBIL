@@ -32,6 +32,8 @@ public:
     virtual unsigned char getSymbolType() { __SHOULD_NOT_ARRIVE; }
 
     static Symbol* findSymbol(Symbol** symbols,uint32_t symbolCount,uint64_t value);
+
+    virtual void setValue(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
 };
 
 class Symbol32 : public Symbol {
@@ -49,7 +51,7 @@ public:
     unsigned char getSymbolBinding();
     unsigned char getSymbolType();
 
-    void setValue(uint32_t newVal) { entry.st_value = newVal; }
+    void setValue(uint64_t newVal);
 };
 
 class Symbol64 : public Symbol {
@@ -66,6 +68,8 @@ public:
     uint32_t read(BinaryInputFile* binaryInputFile);
     unsigned char getSymbolBinding();
     unsigned char getSymbolType();
+
+    void setValue(uint64_t newVal);
 };
 
 class SymbolTable : public RawSection {

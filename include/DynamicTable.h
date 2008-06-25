@@ -62,6 +62,8 @@ public:
     void print();
 
     DYNAMIC_MACROS_BASIS("For the get_X field macros check the defines directory");
+
+    virtual void setPointer(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
 };
 
 
@@ -92,7 +94,7 @@ public:
     DYNAMIC_MACROS_CLASS("For the get_X field macros check the defines directory");
 
     uint32_t read(BinaryInputFile* binaryInputFile);
-
+    void setPointer(uint64_t newVal);
 };
 
 #endif /* _DynamicTable_h_ */

@@ -3,7 +3,7 @@
 
 void FileHeader32::setSectionHeaderOffset(uint64_t newVal){
     if ((uint32_t)newVal != newVal){
-        PRINT_WARN("Losing bits when casting new Program Header vaddr: %d != %lld", (uint32_t)newVal, newVal);
+        PRINT_WARN("Losing bits when casting new File Header shoff: %d != %lld", (uint32_t)newVal, newVal);
     }
     entry.e_shoff = (uint32_t)newVal;
 }

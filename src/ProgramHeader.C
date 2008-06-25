@@ -15,7 +15,7 @@ bool ProgramHeader::inRange(uint64_t addr){
 
 void ProgramHeader32::setOffset(uint64_t newVal){
     if ((uint32_t)newVal != newVal){
-        PRINT_WARN("Losing bits when casting new Program Header vaddr: %d != %lld", (uint32_t)newVal, newVal);
+        PRINT_WARN("Losing bits when casting new Program Header offset: %d != %lld", (uint32_t)newVal, newVal);
     }
     entry.p_offset = (uint32_t)newVal;
 }
@@ -36,14 +36,14 @@ void ProgramHeader32::setPhysicalAddress(uint64_t newVal){
 
 void ProgramHeader32::setMemorySize(uint64_t newVal){
     if ((uint32_t)newVal != newVal){
-        PRINT_WARN("Losing bits when casting new Program Header paddr: %d != %lld", (uint32_t)newVal, newVal);
+        PRINT_WARN("Losing bits when casting new Program Header memsz: %d != %lld", (uint32_t)newVal, newVal);
     }
     entry.p_memsz = (uint32_t)newVal;
 }
 
 void ProgramHeader32::setFileSize(uint64_t newVal){
     if ((uint32_t)newVal != newVal){
-        PRINT_WARN("Losing bits when casting new Program Header paddr: %d != %lld", (uint32_t)newVal, newVal);
+        PRINT_WARN("Losing bits when casting new Program Header filesz: %d != %lld", (uint32_t)newVal, newVal);
     }
     entry.p_filesz = (uint32_t)newVal;
 }

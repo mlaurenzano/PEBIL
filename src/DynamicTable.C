@@ -6,6 +6,13 @@
 #include <HashTable.h>
 
 void Dynamic32::setPointer(uint64_t newVal){
+    if ((uint32_t)newVal != newVal){
+        PRINT_WARN("Losing bits on casting new dynamic pointer value: %d != %lld", (uint32_t)newVal, newVal);
+    }
+    entry.d_un.d_ptr = (uint32_t)newVal;
+}
+
+void Dynamic64::setPointer(uint64_t newVal){
     entry.d_un.d_ptr = newVal;
 }
 

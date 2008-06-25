@@ -78,7 +78,7 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
     // but we will try to keep the binary as consistent as possible
     SymbolTable* symTab = getSymbolTable(1);
     for (uint32_t i = 0; i < symTab->getNumberOfSymbols(); i++){
-        Symbol32* sym = (Symbol32*)symTab->getSymbol(i);
+        Symbol* sym = symTab->getSymbol(i);
         if (sym->getSymbolType() == STT_SECTION && sym->GET(st_value) < lowestTextAddress){
             sym->setValue(sym->GET(st_value)-size);
         }
@@ -96,7 +96,7 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
     // Likewise, displace the offset of any section that falls during/after the program's code so that
     // the code will be put in the correct location within the text segment.
     for (uint32_t i = 1; i < numberOfSections; i++){
-        SectionHeader32* sHdr = (SectionHeader32*)getSectionHeader(i);
+        SectionHeader* sHdr = getSectionHeader(i);
         if (i < lowestTextSectionIdx){
             ASSERT(getSectionHeader(i)->GET(sh_addr) < lowestTextAddress && "No section that occurs before the first text section should have a larger address");
             // strictly speaking the loader doesn't use these, but for consistency we change these
@@ -113,7 +113,7 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
 
     // update the dynamic table to correctly point to the displaced elf control sections
     for (uint32_t i = 0; i < getDynamicTable()->getNumberOfDynamics(); i++){
-        Dynamic32* dyn = (Dynamic32*)getDynamicTable()->getDynamic(i);
+        Dynamic* dyn = getDynamicTable()->getDynamic(i);
         uint64_t tag = dyn->GET(d_tag);
         if (tag == DT_HASH || tag == DT_STRTAB || tag == DT_SYMTAB ||
             tag == DT_VERSYM || tag == DT_VERNEED ||

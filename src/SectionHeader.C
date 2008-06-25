@@ -1,12 +1,27 @@
 #include <SectionHeader.h>
 #include <BinaryFile.h>
 
-void SectionHeader32::setAddress(uint64_t newVal){
+void SectionHeader64::setAddress(uint64_t newVal){
     entry.sh_addr = newVal;
 }
+void SectionHeader64::setOffset(uint64_t newVal){
+    entry.sh_offset = newVal;
+}
+
+void SectionHeader32::setAddress(uint64_t newVal){
+    if ((uint32_t)newVal != newVal){
+        PRINT_WARN("Losing bits when casting new Section Header addr: %d != %lld", (uint32_t)newVal, newVal);
+    }
+    entry.sh_addr = (uint32_t)newVal;
+}
+
 void SectionHeader32::setOffset(uint64_t newVal){
+    if ((uint32_t)newVal != newVal){
+        PRINT_WARN("Losing bits when casting new Section Header offset: %d != %lld", (uint32_t)newVal, newVal);
+    }
     entry.sh_offset = (uint32_t)newVal;
 }
+
 
 
 ElfClassTypes SectionHeader::setSectionType(){

@@ -52,10 +52,11 @@ public:
     uint64_t getRawDataSize() { return GET(sh_size); }
 
     uint16_t getIndex() { return index; }
-
     bool inRange(uint64_t address);
-
     const char* briefName() { return "SectionHeader"; }
+
+    virtual void setAddress(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
+    virtual void setOffset(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }    
 };
 
 class SectionHeader32 : public SectionHeader {
@@ -73,6 +74,7 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     char* charStream() { return (char*)&entry; }
 //    uint32_t instrument(char* buffer,ElfFileGen* xCoffGen,BaseGen* gen);
+
     void setAddress(uint64_t newVal);
     void setOffset(uint64_t newVal);
 };
@@ -92,6 +94,9 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     char* charStream() { return (char*)&entry; }
 //    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
+
+    void setAddress(uint64_t newVal);
+    void setOffset(uint64_t newVal);
 };
 
 #endif /* _SectionHeader_h_ */
