@@ -1,6 +1,14 @@
 #include <SectionHeader.h>
 #include <BinaryFile.h>
 
+void SectionHeader32::setAddress(uint64_t newVal){
+    entry.sh_addr = newVal;
+}
+void SectionHeader32::setOffset(uint64_t newVal){
+    entry.sh_offset = (uint32_t)newVal;
+}
+
+
 ElfClassTypes SectionHeader::setSectionType(){
     if (GET(sh_type) == SHT_STRTAB){
         sectionType = ElfClassTypes_string_table;
@@ -14,7 +22,7 @@ ElfClassTypes SectionHeader::setSectionType(){
         } else if (hasExecInstrBit()){
             sectionType = ElfClassTypes_text_section;
         }
-    } else if (GET(sh_type) == SHT_HASH){
+    } else if (GET(sh_type) == SHT_HASH || GET(sh_type) == SHT_GNU_HASH){
         sectionType = ElfClassTypes_hash_table;
     } else if (GET(sh_type) == SHT_NOTE){
         sectionType = ElfClassTypes_note_section;
@@ -92,9 +100,9 @@ void SectionHeader::print() {
         sprintf(sizeStr,"64");
     }
 
-    PRINT_INFOR("SecHdr%s(%d):\t%16s\t0x%08x\t\t0x%016lx\t0x%016lx\t0x%016lx",
+    PRINT_INFOR("SecHdr%s(%hd):\t%16s\t0x%08x\t\t0x%016llx\t0x%016llx\t0x%016llx",
                 sizeStr, index, getSectionNamePtr(), GET(sh_type), GET(sh_flags), GET(sh_addr), GET(sh_offset));
-    PRINT_INFOR("\t\t\t%8d\t\t0x%08x\t\t0x%016lx\t0x%016lx\t0x%016lx",
+    PRINT_INFOR("\t\t\t%8d\t\t0x%08x\t\t0x%016llx\t0x%016llx\t0x%016llx",
                 GET(sh_link), GET(sh_info), GET(sh_size), GET(sh_addralign), GET(sh_entsize));
 
 }

@@ -212,10 +212,16 @@ int main(int argc,char* argv[]){
     if (instType == identical_inst_type){
         elfFile.dump(extension);
     } else if (instType == data_extender_type){
+        /* extend the data section 
         char* fakeSect = "I'm in your elf executable, stealin' your bytes.";
         PRINT_INFOR("%s", fakeSect);
-
         elfFile.addDataSection(96,fakeSect);
+        */
+        /* extend the text section */
+        elfFile.extendTextSection(0x1000);
+        elfFile.print();
+
+
         elfFile.dump(extension);
 
     } else if (instType == disassembler_type){

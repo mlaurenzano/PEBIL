@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define DEFAULT_PAGE_ALIGNMENT 0x1000
+
 #define _S_(name) name ## _64
 
 #define ISELFMAGIC(__a,__b,__c,__d) ((ELFMAG0 == (__a)) && (ELFMAG1 == (__b)) && (ELFMAG2 == (__c)) && (ELFMAG3 == (__d)))
@@ -20,7 +22,7 @@
 #define GOT_SYM_NAME "_GLOBAL_OFFSET_TABLE_"
 #define DYN_SYM_NAME "_DYNAMIC"
 
-static uint32_t elf_hash(const char* name){
+static uint32_t elf_sysv_hash(const char* name){
     uint32_t h = 0, g;
     while (*name){
         h = (h << 4) + *name++;
@@ -32,6 +34,14 @@ static uint32_t elf_hash(const char* name){
     return h;
 }
 
+static uint32_t elf_gnu_hash(const char *name)
+{
+    uint32_t h = 5381;
+    for (unsigned char c = *name; c != '\0'; c = *++name)
+        h = h * 33 + c;
+    return h & 0xffffffff;
+}
+
 
 /* The ELF file header.  This appears at the start of every ELF file.  */
 
@@ -39,38 +49,38 @@ static uint32_t elf_hash(const char* name){
 
 typedef struct
 {
-  unsigned char	e_ident[EI_NIDENT];	/* Magic number and other info */
-  uint16_t	e_type;			/* Object file type */
-  uint16_t	e_machine;		/* Architecture */
-  uint32_t	e_version;		/* Object file version */
-  uint32_t	e_entry;		/* Entry point virtual address */
-  uint32_t	e_phoff;		/* Program header table file offset */
-  uint32_t	e_shoff;		/* Section header table file offset */
-  uint32_t	e_flags;		/* Processor-specific flags */
-  uint16_t	e_ehsize;		/* ELF header size in bytes */
-  uint16_t	e_phentsize;		/* Program header table entry size */
-  uint16_t	e_phnum;		/* Program header table entry count */
-  uint16_t	e_shentsize;		/* Section header table entry size */
-  uint16_t	e_shnum;		/* Section header table entry count */
-  uint16_t	e_shstrndx;		/* Section header string table index */
+    unsigned char	e_ident[EI_NIDENT];	/* Magic number and other info */
+    uint16_t	e_type;			/* Object file type */
+    uint16_t	e_machine;		/* Architecture */
+    uint32_t	e_version;		/* Object file version */
+    uint32_t	e_entry;		/* Entry point virtual address */
+    uint32_t	e_phoff;		/* Program header table file offset */
+    uint32_t	e_shoff;		/* Section header table file offset */
+    uint32_t	e_flags;		/* Processor-specific flags */
+    uint16_t	e_ehsize;		/* ELF header size in bytes */
+    uint16_t	e_phentsize;		/* Program header table entry size */
+    uint16_t	e_phnum;		/* Program header table entry count */
+    uint16_t	e_shentsize;		/* Section header table entry size */
+    uint16_t	e_shnum;		/* Section header table entry count */
+    uint16_t	e_shstrndx;		/* Section header string table index */
 } Elf32_Ehdr;
 
 typedef struct
 {
-  unsigned char	e_ident[EI_NIDENT];	/* Magic number and other info */
-  uint16_t	e_type;			/* Object file type */
-  uint16_t	e_machine;		/* Architecture */
-  uint32_t	e_version;		/* Object file version */
-  uint64_t	e_entry;		/* Entry point virtual address */
-  uint64_t	e_phoff;		/* Program header table file offset */
-  uint64_t	e_shoff;		/* Section header table file offset */
-  uint32_t	e_flags;		/* Processor-specific flags */
-  uint16_t	e_ehsize;		/* ELF header size in bytes */
-  uint16_t	e_phentsize;		/* Program header table entry size */
-  uint16_t	e_phnum;		/* Program header table entry count */
-  uint16_t	e_shentsize;		/* Section header table entry size */
-  uint16_t	e_shnum;		/* Section header table entry count */
-  uint16_t	e_shstrndx;		/* Section header string table index */
+    unsigned char	e_ident[EI_NIDENT];	/* Magic number and other info */
+    uint16_t	e_type;			/* Object file type */
+    uint16_t	e_machine;		/* Architecture */
+    uint32_t	e_version;		/* Object file version */
+    uint64_t	e_entry;		/* Entry point virtual address */
+    uint64_t	e_phoff;		/* Program header table file offset */
+    uint64_t	e_shoff;		/* Section header table file offset */
+    uint32_t	e_flags;		/* Processor-specific flags */
+    uint16_t	e_ehsize;		/* ELF header size in bytes */
+    uint16_t	e_phentsize;		/* Program header table entry size */
+    uint16_t	e_phnum;		/* Program header table entry count */
+    uint16_t	e_shentsize;		/* Section header table entry size */
+    uint16_t	e_shnum;		/* Section header table entry count */
+    uint16_t	e_shstrndx;		/* Section header string table index */
 } Elf64_Ehdr;
 
 /* Fields in the e_ident array.  The EI_* macros are indices into the
@@ -298,6 +308,7 @@ typedef struct
 #define SHT_SYMTAB_SHNDX  18		/* Extended section indeces */
 #define	SHT_NUM		  19		/* Number of defined types.  */
 #define SHT_LOOS	  0x60000000	/* Start OS-specific */
+#define SHT_GNU_HASH      0x6ffffff6    /* Gnu-style symbol hash table */
 #define SHT_GNU_LIBLIST	  0x6ffffff7	/* Prelink library list */
 #define SHT_CHECKSUM	  0x6ffffff8	/* Checksum for DSO content.  */
 #define SHT_LOSUNW	  0x6ffffffa	/* Sun-specific low bound.  */
@@ -541,6 +552,9 @@ typedef struct
 
 /* Legal values for p_flags (segment flags).  */
 
+#define ISPF_X(__flag) ((__flag >> 0) & 0x0000000000000001)
+#define ISPF_W(__flag) ((__flag >> 1) & 0x0000000000000001)
+#define ISPF_R(__flag) ((__flag >> 2) & 0x0000000000000001)
 #define PF_X		(1 << 0)	/* Segment is executable */
 #define PF_W		(1 << 1)	/* Segment is writable */
 #define PF_R		(1 << 2)	/* Segment is readable */
@@ -661,7 +675,9 @@ typedef struct
 
    If any adjustment is made to the ELF object after it has been
    built these entries will need to be adjusted.  */
+
 #define DT_ADDRRNGLO	0x6ffffe00
+#define DT_GNU_HASH     0x6ffffef5
 #define DT_GNU_CONFLICT	0x6ffffef8	/* Start of conflict section */
 #define DT_GNU_LIBLIST	0x6ffffef9	/* Library list */
 #define DT_CONFIG	0x6ffffefa	/* Configuration information.  */

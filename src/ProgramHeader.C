@@ -1,6 +1,29 @@
 #include <Base.h>
 #include <ProgramHeader.h>
 #include <BinaryFile.h>
+#include <CStructuresElf.h>
+
+bool ProgramHeader32::inRange(uint64_t addr){
+    uint64_t minAddr = GET(p_vaddr);
+    uint64_t maxAddr = GET(p_vaddr) + GET(p_memsz);
+
+    PRINT_INFOR("Checking if %llx <= %llx < %llx", minAddr, addr, maxAddr);
+
+    if (addr >= minAddr && addr < maxAddr){
+        return true;
+    }
+    return false;
+}
+
+bool ProgramHeader64::inRange(uint64_t addr){
+    uint64_t minAddr = GET(p_vaddr);
+    uint64_t maxAddr = GET(p_vaddr) + GET(p_memsz);
+    if (addr >= minAddr && addr < maxAddr){
+        return true;
+    }
+    return false;
+}
+
 
 void ProgramHeader::print() { 
     char sizeStr[3];
@@ -48,11 +71,16 @@ bool ProgramHeader::verify(){
     }
 
     if (GET(p_align) > 1){
-        if (GET(p_vaddr) != GET(p_offset) % GET(p_align)){
-            PRINT_ERROR("Segment virtual address does not conform to alignment");
+        if (GET(p_vaddr) % GET(p_align) != GET(p_offset) % GET(p_align)){
+            PRINT_ERROR("Segment(%d) virtual address(%016llx)/offset(%08x) does not conform to alignment(%016llx)", index, GET(p_vaddr), GET(p_offset), GET(p_align));
             return false;
         }
     }
+
+    if (GET(p_vaddr) % DEFAULT_PAGE_ALIGNMENT != GET(p_paddr) % DEFAULT_PAGE_ALIGNMENT){
+        PRINT_ERROR("Physical and virtual address must be congruent mod pagesize");
+    }
+
 }
 
 void ProgramHeader32::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){

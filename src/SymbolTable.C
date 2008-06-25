@@ -4,6 +4,38 @@
 #include <ElfFile.h>
 #include <BinaryFile.h>
 
+void SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, unsigned char info, unsigned char other, uint16_t shndx){
+    ASSERT(symbols && "symbols array should be initialized");
+
+    Symbol** newsyms = new Symbol*[numberOfSymbols+1];
+
+    for (uint32_t i = 0; i < numberOfSymbols; i++){
+        newsyms[i] = symbols[i];
+    }
+
+    if (elfFile->is64Bit()){
+    } else {
+        Symbol32* newsym = new Symbol32(NULL, numberOfSymbols);
+        Elf32_Sym newsymentry;
+        newsymentry.st_name = name;
+        newsymentry.st_value = (uint32_t)value;
+        newsymentry.st_size = (uint32_t)size;
+        newsymentry.st_info = info;
+        newsymentry.st_other = other;
+        newsymentry.st_shndx = shndx;
+
+        memcpy(newsym->charStream(), &newsymentry, sizeof(Elf32_Sym));
+
+        PRINT_INFOR("Added new symbol");
+        newsyms[numberOfSymbols] = newsym;
+        newsyms[numberOfSymbols]->print(getSymbolName(numberOfSymbols));
+
+    }
+
+    symbols = newsyms;
+
+}
+
 
 SymbolTable::SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
     : RawSection(ElfClassTypes_symbol_table,rawPtr,size,scnIdx,elf)
@@ -84,8 +116,6 @@ bool SymbolTable::verify(){
     uint32_t firstLocalSym = numberOfSymbols;
     for (uint32_t i = 1; i < numberOfSymbols; i++){
         if (symbols[i]->getSymbolBinding() == STB_LOCAL && firstLocalSym == numberOfSymbols){
-            PRINT_INFOR("Found local symbol at idx %d", i);
-            symbols[i]->print(getSymbolName(i));
             firstLocalSym = i;
         }
         if (symbols[i]->getSymbolType() == STT_FILE){
@@ -192,6 +222,22 @@ void SymbolTable::print(){
     for (uint32_t i = 0; i < numberOfSymbols; i++){
         symbols[i]->print(getSymbolName(i));
     }
+}
+
+void SymbolTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    uint32_t currByte = 0;
+
+    for (uint32_t i = 0; i < numberOfSymbols; i++){
+        if (elfFile->is64Bit()){
+            binaryOutputFile->copyBytes(((Symbol64*)getSymbol(i))->charStream(),Size__64_bit_Symbol,offset+currByte);
+            currByte += Size__64_bit_Symbol;
+        } else {
+            binaryOutputFile->copyBytes(((Symbol32*)getSymbol(i))->charStream(),Size__32_bit_Symbol,offset+currByte);
+            currByte += Size__32_bit_Symbol;
+        }
+    }
+
+    ASSERT(currByte == sizeInBytes && "Number of bytes written should be the same as the size of the section");
 }
 
 

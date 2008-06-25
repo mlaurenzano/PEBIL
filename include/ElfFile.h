@@ -25,9 +25,6 @@ private:
 
     char*        elfFileName;
 
-    BinaryInputFile   binaryInputFile;
-    BinaryOutputFile  binaryOutputFile;
-
     Disassembler* disassembler;
     FileHeader*  fileHeader;
     ProgramHeader**  programHeaders;
@@ -54,18 +51,24 @@ private:
     uint32_t numberOfTextSections;
     uint32_t numberOfNoteSections;
 
+    uint16_t textSegmentIdx;
+    uint16_t dataSegmentIdx;
+
     uint32_t numberOfFunctions;
     uint32_t numberOfBlocks;
     uint32_t numberOfMemoryOps;
     uint32_t numberOfFloatPOps;
-    
+
+    BinaryInputFile   binaryInputFile;
+    BinaryOutputFile  binaryOutputFile;
+
     void readFileHeader();
 
     void readSectionHeaders();
     void setSectionTypes();
     void readProgramHeaders();
     void readRawSections();
-    void initRawSectionFilePointers();
+    void initSectionFilePointers();
 
     uint32_t findSectionNameInStrTab(char* name);
     void findFunctions();
@@ -76,21 +79,22 @@ private:
 public:
     bool verify();
 
-    void addToStringTable(StringTable* stTable, char* newSt);
     void addDataSection(uint64_t size, char* bytes);
-    void addTextSection(uint64_t size, char* bytes);
-    void addSharedLibrary();
+    void addExitFunction(const char* libname, const char* funcname);
+    void relocateSection(uint16_t scnIdx);
+    uint64_t getProgramBaseAddress();
+    uint64_t extendTextSection(uint64_t size);
 
-    ElfFile(char* f): is64BitFlag(false),elfFileName(f),disassembler(NULL),
-        fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
-        rawSections(NULL),globalOffsetTable(NULL),dynamicTable(NULL),hashTable(NULL),
-        noteSections(NULL),
-        stringTables(NULL),symbolTables(NULL),relocationTables(NULL),numberOfPrograms(0),              
-        numberOfSections(0),
+    ElfFile(char* f): is64BitFlag(false),elfFileName(f),
+        disassembler(NULL),fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
+        rawSections(NULL),stringTables(NULL),symbolTables(NULL),relocationTables(NULL),
+        dwarfSections(NULL),textSections(NULL),globalOffsetTable(NULL),dynamicTable(NULL),
+        hashTable(NULL),noteSections(NULL),
+        numberOfPrograms(0),numberOfSections(0),
         numberOfStringTables(0),sectionNameStrTabIdx(0),numberOfSymbolTables(0),dynamicSymtabIdx(0),
-        numberOfRelocationTables(0),numberOfDwarfSections(0),numberOfNoteSections(0),
+        numberOfRelocationTables(0),numberOfDwarfSections(0),numberOfTextSections(0),numberOfNoteSections(0),
+        textSegmentIdx(0),dataSegmentIdx(0),
         numberOfFunctions(0),numberOfBlocks(0),numberOfMemoryOps(0),numberOfFloatPOps(0) {}
-
     ~ElfFile() { }
 
     bool is64Bit() { return is64BitFlag; }

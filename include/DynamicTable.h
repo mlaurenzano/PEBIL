@@ -40,6 +40,8 @@ public:
     uint32_t getNumberOfRelocationTables();
     uint32_t getRelocationTableAddresses(uint64_t* relocAddresses);
 
+    void relocateStringTable(uint64_t newAddr);
+
     virtual bool verify();
 
     const char* briefName() { return "DynamicTable"; }
@@ -75,7 +77,7 @@ public:
     DYNAMIC_MACROS_CLASS("For the get_X field macros check the defines directory");
 
     uint32_t read(BinaryInputFile* binaryInputFile);
-
+    void setPointer(uint64_t newVal);
 };
 
 class Dynamic64 : public Dynamic {

@@ -122,6 +122,8 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Size__64_bit_Dynamic_Entry          sizeof(Elf64_Dyn)
 #define Size__32_bit_Hash_Entry             sizeof(uint32_t)
 #define Size__64_bit_Hash_Entry             sizeof(uint32_t)
+#define Size__32_bit_GNU_Hash_Bloom_Entry   sizeof(uint32_t)
+#define Size__64_bit_GNU_Hash_Bloom_Entry   sizeof(uint64_t)
 #define Size__32_bit_Note_Section_Entry     sizeof(uint32_t)
 #define Size__64_bit_Note_Section_Entry     sizeof(uint32_t)
 

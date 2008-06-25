@@ -70,7 +70,7 @@ bool FileHeader::verify(uint16_t targetSize){
             return false;
         }
         if (GET(e_phentsize) != Size__32_bit_Program_Header){
-            PRINT_ERROR("Program header size is wrong");
+            PRINT_ERROR("Program header size is wrong; %d != %d", GET(e_phentsize), Size__32_bit_Program_Header);
             return false;           
         }
         if (GET(e_shentsize) != Size__32_bit_Section_Header){
@@ -106,11 +106,11 @@ void FileHeader::print() {
 
     if (GET(e_phoff)){
         PRINT_INFOR("ProgHdr Table:\tFile Offset\t\tNum Entries\tEntry Size");
-        PRINT_INFOR("\t\t\t0x%016llx\t0x%04hd\t\t0x%04hd", GET(e_phoff), GET(e_phnum), GET(e_phentsize));
+        PRINT_INFOR("\t\t\t0x%016llx\t%hd\t\t%hd", GET(e_phoff), GET(e_phnum), GET(e_phentsize));
     }
     if (GET(e_shoff)){
         PRINT_INFOR("SectHdr Table:\tFile Offset\t\tNum Entries\tEntry Size");
-        PRINT_INFOR("\t\t\t0x%016llx\t0x%04hd\t\t0x%04hd", GET(e_shoff), GET(e_shnum), GET(e_shentsize));
+        PRINT_INFOR("\t\t\t0x%016llx\t%hd\t\t%hd", GET(e_shoff), GET(e_shnum), GET(e_shentsize));
     }
 
 }

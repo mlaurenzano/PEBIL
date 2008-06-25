@@ -5,6 +5,10 @@
 #include <RelocationTable.h>
 #include <HashTable.h>
 
+void Dynamic32::setPointer(uint64_t newVal){
+    entry.d_un.d_ptr = newVal;
+}
+
 void DynamicTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
 
@@ -61,6 +65,22 @@ uint64_t DynamicTable::getStringTableAddress(){
 }
 
 
+void DynamicTable::relocateStringTable(uint64_t newAddr){
+    for (uint32_t i = 0; i < numberOfDynamics; i++){
+        if (elfFile->is64Bit()){
+            Dynamic64* dyn = (Dynamic64*)dynamics[i];
+        } else {
+            Dynamic32* dyn = (Dynamic32*)dynamics[i];
+            if (dyn->GET(d_tag) == DT_STRTAB){
+                Elf32_Dyn dynEntry;
+                memcpy(&dynEntry,dyn->charStream(),sizeof(dynEntry));
+                dynEntry.d_un.d_ptr = newAddr;
+                memcpy(dyn->charStream(),&dynEntry,sizeof(dynEntry));
+            }
+        }
+    }
+}
+
 uint64_t DynamicTable::getHashTableAddress(){
     uint64_t hashTabAddr = 0;
     Dynamic* dyn;
@@ -73,7 +93,7 @@ uint64_t DynamicTable::getHashTableAddress(){
             dyn = (Dynamic32*)dynamics[i];
         }
 
-        if (dyn->GET(d_tag) == DT_HASH){
+        if (dyn->GET(d_tag) == DT_HASH || dyn->GET(d_tag) == DT_GNU_HASH){
             if (hashTabAddr){
                 PRINT_ERROR("Cannot have multiple entries in the Dynamic Table with type DT_HASH");
             }
@@ -222,6 +242,10 @@ bool DynamicTable::verify(){
         if (dyn->GET(d_tag) < DT_JMPREL){
             entryCounts[dyn->GET(d_tag)]++;
         } 
+        // special case: we will count DT_GNU_HASH as DT_HASH
+        if (dyn->GET(d_tag) == DT_GNU_HASH){
+            entryCounts[DT_HASH]++;
+        }
 
         if (dyn->GET(d_tag) == DT_PLTREL){
             if (dyn->GET_A(d_val,d_un) != DT_REL && dyn->GET_A(d_val,d_un) != DT_RELA){
@@ -268,7 +292,7 @@ bool DynamicTable::verify(){
             relocDynamicSize = dyn->GET_A(d_ptr,d_un);
         }
 
-        if (dyn->GET(d_tag) == DT_HASH){
+        if (dyn->GET(d_tag) == DT_HASH || dyn->GET(d_tag) == DT_GNU_HASH){
             hashTableAddress = dyn->GET_A(d_ptr,d_un);
         }
     }
@@ -278,9 +302,13 @@ bool DynamicTable::verify(){
         if (hashTableAddress != elfFile->getSectionHeader(scnIdx)->GET(sh_addr)){
             PRINT_ERROR("Hash table address in the dynamic table is inconsistent with the hash table address found in the section header");
         }
-    } else {
+    } 
+    // must have a DT_HASH entry only if the executable participates in dynamic linking
+    /*
+    else {
         PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_HASH, %d found", entryCounts[DT_HASH]);
     }
+    */
     if (entryCounts[DT_STRTAB] != 1){
         PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_STRTAB, %d found", entryCounts[DT_STRTAB]);
     }

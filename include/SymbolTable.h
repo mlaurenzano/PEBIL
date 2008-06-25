@@ -49,6 +49,7 @@ public:
     unsigned char getSymbolBinding();
     unsigned char getSymbolType();
 
+    void setValue(uint32_t newVal) { entry.st_value = newVal; }
 };
 
 class Symbol64 : public Symbol {
@@ -80,6 +81,7 @@ public:
     SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf);
     ~SymbolTable();
 
+    void addSymbol(uint32_t name, uint64_t value, uint64_t size, unsigned char info, unsigned char other, uint16_t shndx);
     uint32_t getNumberOfSymbols() { return numberOfSymbols; }
 
     void print();
@@ -93,8 +95,11 @@ public:
     char* getSymbolName(uint32_t index);
 
     uint32_t getIndex() { return index; }
+    StringTable* getStringTable(){ return stringTable; }
 
     const char* briefName() { return "SymbolTable"; }
+
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 };
 
 #endif /* _SymbolTable_h_ */

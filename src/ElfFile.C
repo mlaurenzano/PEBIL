@@ -28,7 +28,173 @@ uint32_t readBytes = 0;
 );
 
 
-void ElfFile::initRawSectionFilePointers(){
+uint64_t ElfFile::extendTextSection(uint64_t size){
+    size = nextAlignAddress(size,DEFAULT_PAGE_ALIGNMENT);
+    uint64_t lowestTextAddress = -1;
+    uint16_t lowestTextSectionIdx = -1;
+
+    ProgramHeader* textHeader = getProgramHeader(textSegmentIdx);
+    ProgramHeader* dataHeader = getProgramHeader(dataSegmentIdx);
+
+    // first we will find the address of the first text section. we will be moving all elf
+    // control structures that occur prior to this address with the extension of the text
+    // segment (the interp and note.ABI-tag sections must be in the first text page and it
+    // will make certain things easier for all control sections together)
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        if (getSectionHeader(i)->GET(sh_type) == SHT_PROGBITS &&
+            getSectionHeader(i)->hasAllocBit() && getSectionHeader(i)->hasExecInstrBit()){
+            if (lowestTextAddress > getSectionHeader(i)->GET(sh_addr)){
+                ASSERT(lowestTextAddress == -1 && "Text section addresses should appear in increasing order");
+                lowestTextAddress = getSectionHeader(i)->GET(sh_addr);
+                lowestTextSectionIdx = i;
+            }
+        }
+    }
+
+
+    // for each segment that is contained within the loadable text segment,
+    // update its address to reflect the new base address of the text segment
+    for (uint32_t i = 0; i < numberOfPrograms; i++){
+        ProgramHeader* subHeader = getProgramHeader(i);
+        if (textHeader->inRange(subHeader->GET(p_vaddr)) && i != textSegmentIdx){
+            PRINT_INFOR("Found a segment(%d) that is in the text segment", i);
+            Elf32_Phdr subEntry;
+            memcpy(&subEntry,((ProgramHeader32*)subHeader)->charStream(),sizeof(subEntry));
+            subEntry.p_vaddr -= (uint32_t)size;
+            subEntry.p_paddr -= (uint32_t)size;
+            memcpy(((ProgramHeader32*)subHeader)->charStream(),&subEntry,sizeof(subEntry));
+        } 
+    }
+
+
+    // for each segment that is (or is contained within) the data segment,
+    // update its offset to reflect the the base address of the executable
+    // (ie the base address of the text segment)
+    for (uint32_t i = 0; i < numberOfPrograms; i++){
+        ProgramHeader* subHeader = getProgramHeader(i);
+        if (dataHeader->inRange(subHeader->GET(p_vaddr))){
+            Elf32_Phdr subEntry;
+            memcpy(&subEntry,((ProgramHeader32*)subHeader)->charStream(),sizeof(subEntry));
+            subEntry.p_offset += (uint32_t)size;
+            memcpy(((ProgramHeader32*)subHeader)->charStream(),&subEntry,sizeof(subEntry));
+        }
+    }
+
+
+    // update section symbols for the sections that were moved. technically the loader won't use them 
+    // but we will try to keep the binary as consistent as possible
+    SymbolTable* symTab = getSymbolTable(1);
+    for (uint32_t i = 0; i < symTab->getNumberOfSymbols(); i++){
+        Symbol32* sym = (Symbol32*)symTab->getSymbol(i);
+        if (sym->getSymbolType() == STT_SECTION && sym->GET(st_value) < lowestTextAddress){
+            sym->setValue(sym->GET(st_value)-size);
+        }
+    }
+    
+    // modify the base address of the text segment
+    Elf32_Phdr textEntry;
+    memcpy(&textEntry,((ProgramHeader32*)textHeader)->charStream(),sizeof(textEntry));
+    textEntry.p_vaddr -= (uint32_t)size;
+    textEntry.p_paddr -= (uint32_t)size;
+    textEntry.p_memsz += (uint32_t)size;
+    textEntry.p_filesz += (uint32_t)size;
+    memcpy(((ProgramHeader32*)textHeader)->charStream(),&textEntry,sizeof(textEntry));
+
+
+    // For any section that falls before the program's code, displace its address so that it is in the
+    // same location relative to the base address.
+    // Likewise, displace the offset of any section that falls during/after the program's code so that
+    // the code will be put in the correct location within the text segment.
+    for (uint32_t i = 1; i < numberOfSections; i++){
+        SectionHeader32* sHdr = (SectionHeader32*)getSectionHeader(i);
+        if (i < lowestTextSectionIdx){
+            ASSERT(getSectionHeader(i)->GET(sh_addr) < lowestTextAddress && "No section that occurs before the first text section should have a larger address");
+            // strictly speaking the loader doesn't use these, but for consistency we change these
+            sHdr->setAddress(sHdr->GET(sh_addr)-size);
+        } else {
+            sHdr->setOffset(sHdr->GET(sh_offset)+size);            
+        }
+    }
+
+    // since some sections were displaced in the file, displace the section header table also so
+    // that it occurs after all of the sections in the file
+    Elf32_Ehdr elfEntry;
+    memcpy(&elfEntry,((FileHeader32*)getFileHeader())->charStream(),sizeof(elfEntry));
+    elfEntry.e_shoff += (uint32_t)size;
+    memcpy(((FileHeader32*)getFileHeader())->charStream(),&elfEntry,sizeof(elfEntry));
+
+
+    // update the dynamic table to correctly point to the displaced elf control sections
+    for (uint32_t i = 0; i < getDynamicTable()->getNumberOfDynamics(); i++){
+        Dynamic32* dyn = (Dynamic32*)getDynamicTable()->getDynamic(i);
+        uint64_t tag = dyn->GET(d_tag);
+        if (tag == DT_HASH || tag == DT_STRTAB || tag == DT_SYMTAB ||
+            tag == DT_VERSYM || tag == DT_VERNEED ||
+            tag == DT_REL || tag == DT_RELA || tag == DT_JMPREL){
+            dyn->setPointer(dyn->GET_A(d_ptr,d_un)-size);
+        }
+    }
+
+    return size;
+}
+
+void ElfFile::relocateSection(uint16_t scnIdx){
+    scnIdx = getSymbolTable(dynamicSymtabIdx)->getStringTable()->getSectionIndex();
+
+    SectionHeader32* header = (SectionHeader32*)getSectionHeader(scnIdx);
+    RawSection* raw = getRawSection(scnIdx);
+    uint64_t maxUsedAddr = 0;
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        if (getSectionHeader(i)->GET(sh_addr) + getSectionHeader(i)->GET(sh_size) > maxUsedAddr){
+            maxUsedAddr = getSectionHeader(i)->GET(sh_addr) + getSectionHeader(i)->GET(sh_size);
+        }
+    }
+
+    maxUsedAddr = nextAlignAddress(maxUsedAddr,DEFAULT_PAGE_ALIGNMENT);
+
+    Elf32_Shdr hdrEntry;
+    memcpy(&hdrEntry,header->charStream(),sizeof(hdrEntry));
+    hdrEntry.sh_addr = maxUsedAddr;
+    memcpy(header->charStream(),&hdrEntry,sizeof(hdrEntry));
+
+    getDynamicTable()->relocateStringTable(maxUsedAddr);
+
+    uint64_t segmentBaseAddr = getProgramBaseAddress();
+
+    verify();
+}
+
+// get the smallest virtual address of all loadable segments (ie, the base address for the program)
+uint64_t ElfFile::getProgramBaseAddress(){
+    uint64_t segmentBase = -1;
+
+    for (uint32_t i = 0; i < numberOfPrograms; i++){
+        if (getProgramHeader(i)->GET(p_type) == PT_LOAD){
+            if (getProgramHeader(i)->GET(p_vaddr) < segmentBase){
+                segmentBase = getProgramHeader(i)->GET(p_vaddr);
+            }
+        }
+    }
+
+    ASSERT(segmentBase != -1 && "No loadable segments found (or their v_addr fields are incorrect)");
+    return segmentBase;
+}
+
+
+void ElfFile::addExitFunction(const char* libname, const char* funcname){
+    StringTable* dynStrings = getSymbolTable(dynamicSymtabIdx)->getStringTable();
+
+    /* the addString function is not properly functional at the moment
+    PRINT_INFOR("Adding shared library name to string table: %s", libname);
+    dynStrings->addString(libname);
+    PRINT_INFOR("Adding function name to string table: %s", funcname);
+    dynStrings->addString(funcname);
+    */
+
+}
+
+
+void ElfFile::initSectionFilePointers(){
 
     // find the string table for section names
     ASSERT(fileHeader->GET(e_shstrndx) && "No section name string table");
@@ -188,6 +354,7 @@ void ElfFile::initRawSectionFilePointers(){
     dynamicTable = (DynamicTable*)rawSections[dynamicTableSectionIdx];
     dynamicTable->read(&binaryInputFile);
     dynamicTable->verify();
+
 }
 
 
@@ -393,12 +560,8 @@ void ElfFile::addDataSection(uint64_t size, char* bytes){
     numberOfSections++;
     //    briefPrint();
     PRINT_INFOR("new raw section: %s", rawSections[numberOfSections-1]->charStream());
-}
 
-void ElfFile::addTextSection(uint64_t size, char* bytes){
-}
-
-void ElfFile::addSharedLibrary(){
+    verify();
 }
 
 
@@ -433,22 +596,53 @@ void ElfFile::dump(char* extension){
         currentOffset += sectionHeaders[i]->getSizeInBytes();
 	//        PRINT_INFOR("dumped section header[%d]", i);
     }
-    PRINT_INFOR("dumped %d raw sections", numberOfSections);
+    PRINT_INFOR("dumped %d section headers", numberOfSections);
 
     for (uint32_t i = 0; i < numberOfSections; i++){
         currentOffset = sectionHeaders[i]->GET(sh_offset);
         if (sectionHeaders[i]->hasBitsInFile()){
             rawSections[i]->dump(&binaryOutputFile,currentOffset);
         }
-        //        PRINT_INFOR("dumped raw section[%d]", i);
     }
-    PRINT_INFOR("dumped %d section headers", numberOfSections);
+    PRINT_INFOR("dumped %d raw sections", numberOfSections);
 
     binaryOutputFile.close();
 
 }
 
 bool ElfFile::verify(){
+
+    if (numberOfPrograms != getFileHeader()->GET(e_phnum)){
+        PRINT_ERROR("Number of segments in file header is inconsistent with our internal count");
+    }
+    if (numberOfSections != getFileHeader()->GET(e_shnum)){
+        PRINT_ERROR("Number of sections in file header is inconsistent with our internal count");
+    }
+    
+    // verify that there is only 1 text and 1 data segment
+    uint32_t textSegCount = 0;
+    uint32_t dataSegCount = 0;
+    for (uint32_t i = 0; i < numberOfPrograms; i++){
+        ProgramHeader* phdr = getProgramHeader(i);
+        if (phdr->GET(p_type) == PT_LOAD){
+            if (phdr->isReadable() && phdr->isExecutable()){
+                textSegmentIdx = i;
+                textSegCount++;
+            } else if (phdr->isReadable() && phdr->isWritable()){
+                dataSegmentIdx = i;
+                dataSegCount++;
+            } else {
+                PRINT_ERROR("Segment(%d) with type PT_LOAD has attributes that are not consistent with text or data");
+            }
+        }
+    }
+    if (textSegCount != 1){
+        PRINT_ERROR("Exactly 1 text segment allowed, %d found", textSegCount);
+    }
+    if (dataSegCount != 1){
+        PRINT_ERROR("Exactly 1 data segment allowed, %d found", dataSegCount);
+    }
+
 
     // enforce constrainst on where PT_INTERP segments fall
     uint32_t ptInterpIdx = numberOfPrograms;
@@ -475,7 +669,7 @@ bool ElfFile::verify(){
     uint32_t symtabSectionCount = 0;
     uint32_t dynsymSectionCount = 0;
     for (uint32_t i = 0; i < numberOfSections; i++){
-        if (sectionHeaders[i]->GET(sh_type) == SHT_HASH){
+        if (sectionHeaders[i]->GET(sh_type) == SHT_HASH || sectionHeaders[i]->GET(sh_type) == SHT_GNU_HASH){
             hashSectionCount++;
         } else if (sectionHeaders[i]->GET(sh_type) == SHT_DYNAMIC){
             dynlinkSectionCount++;
@@ -509,6 +703,15 @@ bool ElfFile::verify(){
     for (uint32_t i = 0; i < numberOfSections; i++){
         rawSections[i]->verify();
     }
+
+    for (uint32_t i = 0; i < numberOfPrograms; i++){
+        getProgramHeader(i)->verify();
+    }
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        getSectionHeader(i)->verify();
+        getRawSection(i)->verify();
+    }
+
 }
 
 
@@ -569,7 +772,7 @@ void ElfFile::parse(){
     readProgramHeaders();
     readSectionHeaders();
     readRawSections();
-    initRawSectionFilePointers();
+    initSectionFilePointers();
 
 }
 
@@ -603,7 +806,10 @@ void ElfFile::readProgramHeaders(){
     ASSERT(programHeaders);
 
     binaryInputFile.setInPointer(fileHeader->getProgramHeaderTablePtr());
-    //    PRINT_INFOR("Found %d program header entries, reading at location %#x\n", numberOfPrograms, binaryInputFile.currentOffset());
+    PRINT_INFOR("Found %d program header entries, reading at location %#x\n", numberOfPrograms, binaryInputFile.currentOffset());
+    for (uint32_t i = 0; i < numberOfPrograms; i++){
+        ProgramHeader* phdr = getProgramHeader(i);
+    }
 
     for (uint32_t i = 0; i < numberOfPrograms; i++){
         if(is64Bit()){
@@ -613,10 +819,15 @@ void ElfFile::readProgramHeaders(){
         }
         ASSERT(programHeaders[i]);
         programHeaders[i]->read(&binaryInputFile);
-        DEBUG(
-            readBytes += programHeaders[i]->getSizeInBytes();
-            ASSERT(binaryInputFile.alreadyRead() == readBytes);
-        );
+        programHeaders[i]->verify();
+
+        if (programHeaders[i]->GET(p_type) == PT_LOAD){
+            if (programHeaders[i]->isReadable() && programHeaders[i]->isExecutable()){
+                textSegmentIdx = i;
+            } else if (programHeaders[i]->isReadable() && programHeaders[i]->isWritable()){
+                dataSegmentIdx = i;
+            }
+        }
     }
 }
 
@@ -712,6 +923,7 @@ void ElfFile::readRawSections(){
             rawSections[i] = new RawSection(ElfClassTypes_no_type, sectionFilePtr, sectionSize, i, this);
         }
         rawSections[i]->read(&binaryInputFile);
+        PRINT_INFOR("Finished reading section %d", i);
     }
 }
 

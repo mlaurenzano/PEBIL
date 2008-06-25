@@ -18,17 +18,15 @@ protected:
     ElfClassTypes sectionType;
 
     uint16_t index;
-//    RawSection* rawSectionPtr;
-
 protected:
     SectionHeader() : Base(ElfClassTypes_sect_header),
-                   rawDataPtr(NULL), relocationPtr(NULL), lineInfoPointer(NULL),
-                   numOfRelocations(0),numOfLineInfo(0),
-                   index(0),sectionNamePtr(NULL),sectionType(ElfClassTypes_no_type) {}
+        rawDataPtr(NULL), relocationPtr(NULL), lineInfoPointer(NULL),
+        numOfRelocations(0),numOfLineInfo(0),
+        index(0),sectionNamePtr(NULL),sectionType(ElfClassTypes_no_type) {}
     ~SectionHeader() {}
-    bool verify();
 
 public:
+    bool verify();
 
     SECTIONHEADER_MACROS_BASIS("For the get_X field macros check the defines directory");
 
@@ -38,6 +36,7 @@ public:
     bool hasWriteBit();
     bool hasAllocBit();
     bool hasExecInstrBit();
+    bool isReadOnly() { return (!hasWriteBit() && hasAllocBit() && !hasExecInstrBit()); }
     virtual bool hasBitsInFile() { __SHOULD_NOT_ARRIVE; }
 
 
@@ -74,6 +73,8 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     char* charStream() { return (char*)&entry; }
 //    uint32_t instrument(char* buffer,ElfFileGen* xCoffGen,BaseGen* gen);
+    void setAddress(uint64_t newVal);
+    void setOffset(uint64_t newVal);
 };
 
 class SectionHeader64 : public SectionHeader {

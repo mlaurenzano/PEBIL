@@ -140,6 +140,7 @@ uint32_t NoteSection::read(BinaryInputFile* binaryInputFile){
     }
 
     delete[] rawData;
+    PRINT_INFOR("Finished reading notes section");
     return sizeInBytes;
 }
 

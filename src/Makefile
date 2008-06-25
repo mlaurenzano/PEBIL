@@ -4,8 +4,8 @@ OPT         = -O3
 NATIVE_CPP  = CC
 GNU_CPP     = g++
 GNU_CC      = gcc
-CFLAGS      = $(DBG) $(OPT)
-CPP         = $(GNU_CPP) ##--save-temps
+CFLAGS      = $(DBG) $(OPT) ##--save-temps
+CPP         = $(GNU_CPP)
 CC          = $(GNU_CC)
 EXTRA_CFLGS =
 AR          = ar ruv
@@ -37,7 +37,7 @@ TARGET_BIN  = x86inst
 all: $(TARGET_BIN)
 
 $(TARGET_BIN) : $(OBJS)
-	$(CPP) -o $@ $(OBJS) -I$(INCLUDE) $(EXTRA_LIBS)
+	$(CPP) -o $@ $(OBJS) -I$(INCLUDE) $(EXTRA_LIBS) -Wl,--hash-style=sysv
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< -I$(INCLUDE) $(EXTRA_INC)

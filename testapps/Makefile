@@ -1,20 +1,21 @@
 DBG         = -save-temps -g #-Wall
 OPT         = -O0 
+LINK_FLAGS  = -Wl,--hash-style=sysv
 
 GNU_CC      = gcc $(DBG) 
 GNU_CPP     = g++ $(DBG) 
-GNU_F77     = f77
+GNU_F77     = g77
 
-NATIVE_CC   = icc 
-NATIVE_CPP  = icc 
-NATIVE_F77  = ifort
+NATIVE_CC   = cc 
+NATIVE_CPP  = cc 
+NATIVE_F77  = f77
 
-CC          = $(GNU_CC)  $(OPT)
+CC          = $(NATIVE_CC)  $(OPT)
 CPP         = $(GNU_CPP) $(OPT) -DCPP
-F77         = $(GNU_F77) $(OPT)
+F77         = $(NATIVE_F77) $(OPT)
 
 SRCDIR      = ../test
-BINDIR      = ./compiled
+BINDIR      = ../src
 
 SRCS        = foo.c bar.c dum.c main.c
 OBJS        = foo.o bar.o dum.o main.o
@@ -34,13 +35,13 @@ all: $(EXECUTABLE)
 	$(CPP) -c -o $@ $< 
 
 cTest: $(OBJS)
-	$(CC) -o $@ $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LINK_FLAGS)
 
 cppTest: $(OBJSCPP)
-	$(CPP) -o $@ $(OBJSCPP)
+	$(CPP) -o $@ $(OBJSCPP) $(LINK_FLAGS)
 
 htcoef:
-	$(F77) -o $@ $@.f
+	$(F77) -o $@ $@.f $(LINK_FLAGS)
 
 install: $(EXECUTABLE)
 	cp $(EXECUTABLE) $(BINDIR)
