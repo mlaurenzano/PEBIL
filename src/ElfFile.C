@@ -40,7 +40,7 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
     // control structures that occur prior to this address with the extension of the text
     // segment (the interp and note.ABI-tag sections must be in the first text page and it
     // will make certain things easier for all control sections together)
-    for (uint32_t i = 0; i < numberOfSections; i++){
+    for (uint32_t i = 1; i < numberOfSections; i++){
         if (getSectionHeader(i)->GET(sh_type) == SHT_PROGBITS &&
             getSectionHeader(i)->hasAllocBit() && getSectionHeader(i)->hasExecInstrBit()){
             if (lowestTextAddress > getSectionHeader(i)->GET(sh_addr)){
@@ -57,12 +57,8 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
     for (uint32_t i = 0; i < numberOfPrograms; i++){
         ProgramHeader* subHeader = getProgramHeader(i);
         if (textHeader->inRange(subHeader->GET(p_vaddr)) && i != textSegmentIdx){
-            PRINT_INFOR("Found a segment(%d) that is in the text segment", i);
-            Elf32_Phdr subEntry;
-            memcpy(&subEntry,((ProgramHeader32*)subHeader)->charStream(),sizeof(subEntry));
-            subEntry.p_vaddr -= (uint32_t)size;
-            subEntry.p_paddr -= (uint32_t)size;
-            memcpy(((ProgramHeader32*)subHeader)->charStream(),&subEntry,sizeof(subEntry));
+            subHeader->setVirtualAddress(subHeader->GET(p_vaddr)-size);
+            subHeader->setPhysicalAddress(subHeader->GET(p_paddr)-size);
         } 
     }
 
@@ -73,10 +69,7 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
     for (uint32_t i = 0; i < numberOfPrograms; i++){
         ProgramHeader* subHeader = getProgramHeader(i);
         if (dataHeader->inRange(subHeader->GET(p_vaddr))){
-            Elf32_Phdr subEntry;
-            memcpy(&subEntry,((ProgramHeader32*)subHeader)->charStream(),sizeof(subEntry));
-            subEntry.p_offset += (uint32_t)size;
-            memcpy(((ProgramHeader32*)subHeader)->charStream(),&subEntry,sizeof(subEntry));
+            subHeader->setOffset(subHeader->GET(p_offset)+size);
         }
     }
 
@@ -91,14 +84,11 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
         }
     }
     
-    // modify the base address of the text segment
-    Elf32_Phdr textEntry;
-    memcpy(&textEntry,((ProgramHeader32*)textHeader)->charStream(),sizeof(textEntry));
-    textEntry.p_vaddr -= (uint32_t)size;
-    textEntry.p_paddr -= (uint32_t)size;
-    textEntry.p_memsz += (uint32_t)size;
-    textEntry.p_filesz += (uint32_t)size;
-    memcpy(((ProgramHeader32*)textHeader)->charStream(),&textEntry,sizeof(textEntry));
+    // modify the base address of the text segment and increase its size so it ends at the same address
+    textHeader->setVirtualAddress(textHeader->GET(p_vaddr)-size);
+    textHeader->setPhysicalAddress(textHeader->GET(p_paddr)-size);
+    textHeader->setMemorySize(textHeader->GET(p_memsz)+size);
+    textHeader->setFileSize(textHeader->GET(p_filesz)+size);
 
 
     // For any section that falls before the program's code, displace its address so that it is in the
@@ -118,10 +108,7 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
 
     // since some sections were displaced in the file, displace the section header table also so
     // that it occurs after all of the sections in the file
-    Elf32_Ehdr elfEntry;
-    memcpy(&elfEntry,((FileHeader32*)getFileHeader())->charStream(),sizeof(elfEntry));
-    elfEntry.e_shoff += (uint32_t)size;
-    memcpy(((FileHeader32*)getFileHeader())->charStream(),&elfEntry,sizeof(elfEntry));
+    getFileHeader()->setSectionHeaderOffset(getFileHeader()->GET(e_shoff)+size);
 
 
     // update the dynamic table to correctly point to the displaced elf control sections

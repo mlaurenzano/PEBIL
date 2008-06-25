@@ -1,6 +1,17 @@
 #include <BinaryFile.h>
 #include <FileHeader.h>
 
+void FileHeader32::setSectionHeaderOffset(uint64_t newVal){
+    if ((uint32_t)newVal != newVal){
+        PRINT_WARN("Losing bits when casting new Program Header vaddr: %d != %lld", (uint32_t)newVal, newVal);
+    }
+    entry.e_shoff = (uint32_t)newVal;
+}
+
+void FileHeader64::setSectionHeaderOffset(uint64_t newVal){
+    entry.e_shoff = newVal;
+}
+
 bool FileHeader::verify(uint16_t targetSize){
     if (!ISELFMAGIC(GET(e_ident)[EI_MAG0],GET(e_ident)[EI_MAG1],GET(e_ident)[EI_MAG2],GET(e_ident)[EI_MAG3])){
         PRINT_ERROR("Magic number incorrect");

@@ -19,7 +19,13 @@ public:
     bool isReadable() { return ISPF_R(GET(p_flags)); }
     bool isWritable() { return ISPF_W(GET(p_flags)); } 
     bool isExecutable() { return ISPF_X(GET(p_flags)); } 
-    virtual bool inRange(uint64_t addr) { __SHOULD_NOT_ARRIVE; }
+
+    bool inRange(uint64_t addr);
+    virtual void setOffset(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
+    virtual void setVirtualAddress(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
+    virtual void setPhysicalAddress(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
+    virtual void setMemorySize(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
+    virtual void setFileSize(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
 
     const char* briefName() { return "ProgramHeader"; }
     bool verify();
@@ -39,8 +45,13 @@ public:
 
     char* charStream() { return (char*)&entry; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-//    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
+
     bool inRange(uint64_t addr);
+    void setOffset(uint64_t newVal);
+    void setVirtualAddress(uint64_t newVal);
+    void setPhysicalAddress(uint64_t newVal);
+    void setMemorySize(uint64_t newVal);
+    void setFileSize(uint64_t newVal);
 };
 
 class ProgramHeader64 : public ProgramHeader {
@@ -57,8 +68,13 @@ public:
 
     char* charStream() { return (char*)&entry; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-//    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
+
     bool inRange(uint64_t addr);
+    void setOffset(uint64_t newVal);
+    void setVirtualAddress(uint64_t newVal);
+    void setPhysicalAddress(uint64_t newVal);
+    void setMemorySize(uint64_t newVal);
+    void setFileSize(uint64_t newVal);
 };
 
 

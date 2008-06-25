@@ -3,11 +3,9 @@
 #include <BinaryFile.h>
 #include <CStructuresElf.h>
 
-bool ProgramHeader32::inRange(uint64_t addr){
+bool ProgramHeader::inRange(uint64_t addr){
     uint64_t minAddr = GET(p_vaddr);
     uint64_t maxAddr = GET(p_vaddr) + GET(p_memsz);
-
-    PRINT_INFOR("Checking if %llx <= %llx < %llx", minAddr, addr, maxAddr);
 
     if (addr >= minAddr && addr < maxAddr){
         return true;
@@ -15,15 +13,60 @@ bool ProgramHeader32::inRange(uint64_t addr){
     return false;
 }
 
-bool ProgramHeader64::inRange(uint64_t addr){
-    uint64_t minAddr = GET(p_vaddr);
-    uint64_t maxAddr = GET(p_vaddr) + GET(p_memsz);
-    if (addr >= minAddr && addr < maxAddr){
-        return true;
+void ProgramHeader32::setOffset(uint64_t newVal){
+    if ((uint32_t)newVal != newVal){
+        PRINT_WARN("Losing bits when casting new Program Header vaddr: %d != %lld", (uint32_t)newVal, newVal);
     }
-    return false;
+    entry.p_offset = (uint32_t)newVal;
 }
 
+void ProgramHeader32::setVirtualAddress(uint64_t newVal){
+    if ((uint32_t)newVal != newVal){
+        PRINT_WARN("Losing bits when casting new Program Header vaddr: %d != %lld", (uint32_t)newVal, newVal);
+    }
+    entry.p_vaddr = (uint32_t)newVal;
+}
+
+void ProgramHeader32::setPhysicalAddress(uint64_t newVal){
+    if ((uint32_t)newVal != newVal){
+        PRINT_WARN("Losing bits when casting new Program Header paddr: %d != %lld", (uint32_t)newVal, newVal);
+    }
+    entry.p_paddr = (uint32_t)newVal;
+}
+
+void ProgramHeader32::setMemorySize(uint64_t newVal){
+    if ((uint32_t)newVal != newVal){
+        PRINT_WARN("Losing bits when casting new Program Header paddr: %d != %lld", (uint32_t)newVal, newVal);
+    }
+    entry.p_memsz = (uint32_t)newVal;
+}
+
+void ProgramHeader32::setFileSize(uint64_t newVal){
+    if ((uint32_t)newVal != newVal){
+        PRINT_WARN("Losing bits when casting new Program Header paddr: %d != %lld", (uint32_t)newVal, newVal);
+    }
+    entry.p_filesz = (uint32_t)newVal;
+}
+
+void ProgramHeader64::setVirtualAddress(uint64_t newVal){
+    entry.p_vaddr = newVal;
+}
+
+void ProgramHeader64::setOffset(uint64_t newVal){
+    entry.p_offset = newVal;
+}
+
+void ProgramHeader64::setPhysicalAddress(uint64_t newVal){
+    entry.p_paddr = newVal;
+}
+
+void ProgramHeader64::setMemorySize(uint64_t newVal){
+    entry.p_memsz = newVal;
+}
+
+void ProgramHeader64::setFileSize(uint64_t newVal){
+    entry.p_filesz = newVal;
+}
 
 void ProgramHeader::print() { 
     char sizeStr[3];

@@ -25,6 +25,7 @@ public:
     char* getSectionHeaderTablePtr() { return sectionHeaderTablePtr; }
     const char* briefName() { return "FileHeader"; }
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
+    virtual void setSectionHeaderOffset(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
 };
 
 class FileHeader32 : public FileHeader {
@@ -41,7 +42,8 @@ public:
 
     char* charStream() { return (char*)&entry; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-//    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
+
+    void setSectionHeaderOffset(uint64_t newVal);
 };
 
 class FileHeader64 : public FileHeader {
@@ -58,7 +60,8 @@ public:
 
     char* charStream() { return (char*)&entry; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-//    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
+
+    void setSectionHeaderOffset(uint64_t newVal);
 };
 
 #endif /* _FileHeader_h_ */
