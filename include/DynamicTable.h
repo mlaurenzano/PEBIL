@@ -30,6 +30,8 @@ public:
     uint32_t read(BinaryInputFile* b);
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
+    uint32_t findEmptyDynamic();
+
     Dynamic* getDynamic(uint32_t index);
     uint32_t getNumberOfDynamics() { return numberOfDynamics; }
     uint16_t getSegmentIndex() { return segmentIndex; }
@@ -37,6 +39,7 @@ public:
     uint64_t getStringTableAddress();
     uint64_t getHashTableAddress();
     uint64_t getSymbolTableAddress();
+    uint64_t getDynamicTableAddress();
     uint32_t getNumberOfRelocationTables();
     uint32_t getRelocationTableAddresses(uint64_t* relocAddresses);
 
@@ -64,6 +67,7 @@ public:
     DYNAMIC_MACROS_BASIS("For the get_X field macros check the defines directory");
 
     virtual void setPointer(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
+    virtual void setTag(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
 };
 
 
@@ -79,7 +83,9 @@ public:
     DYNAMIC_MACROS_CLASS("For the get_X field macros check the defines directory");
 
     uint32_t read(BinaryInputFile* binaryInputFile);
+
     void setPointer(uint64_t newVal);
+    void setTag(uint64_t newVal);
 };
 
 class Dynamic64 : public Dynamic {
@@ -95,6 +101,7 @@ public:
 
     uint32_t read(BinaryInputFile* binaryInputFile);
     void setPointer(uint64_t newVal);
+    void setTag(uint64_t newVal);
 };
 
 #endif /* _DynamicTable_h_ */

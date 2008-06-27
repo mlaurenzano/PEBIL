@@ -5,15 +5,37 @@
 #include <RelocationTable.h>
 #include <HashTable.h>
 
+
+uint32_t DynamicTable::findEmptyDynamic(){
+    for (uint32_t i = 0; i < numberOfDynamics; i++){
+        Dynamic* dyn = getDynamic(i);
+        if (dyn->GET(d_tag) == 0 && dyn->GET_A(d_ptr,d_un) == 0){
+            return i;
+        }
+    }
+    return numberOfDynamics;
+}
+
 void Dynamic32::setPointer(uint64_t newVal){
     if ((uint32_t)newVal != newVal){
-        PRINT_WARN("Losing bits on casting new dynamic pointer value: %d != %lld", (uint32_t)newVal, newVal);
+        PRINT_WARN("Losing bits on casting new Dynamic ptr: %d != %lld", (uint32_t)newVal, newVal);
     }
     entry.d_un.d_ptr = (uint32_t)newVal;
 }
 
+void Dynamic32::setTag(uint64_t newVal){
+    if ((uint32_t)newVal != newVal){
+        PRINT_WARN("Losing bits on casting new Dynamic tag: %d != %lld", (uint32_t)newVal, newVal);
+    }
+    entry.d_tag = (uint32_t)newVal;
+}
+
 void Dynamic64::setPointer(uint64_t newVal){
     entry.d_un.d_ptr = newVal;
+}
+
+void Dynamic64::setTag(uint64_t newVal){
+    entry.d_tag = newVal;
 }
 
 void DynamicTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){

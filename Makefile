@@ -2,7 +2,7 @@
 DOXYGEN = doxygen
 
 
-SUBDIRS = src testapps
+SUBDIRS = src testapps instcode
 
 .PHONY: subdirs $(SUBDIRS)
 
@@ -19,7 +19,9 @@ doxygen:
 clean:
 	$(MAKE) -C src clean
 	$(MAKE) -C testapps clean
+	$(MAKE) -C instcode clean
 
 depend:
 	$(MAKE) -C src depend
 	$(MAKE) -C testapps depend
+	$(MAKE) -C instcode depend

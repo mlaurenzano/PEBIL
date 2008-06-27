@@ -50,7 +50,8 @@ private:
     uint32_t numberOfDwarfSections;
     uint32_t numberOfTextSections;
     uint32_t numberOfNoteSections;
-
+    uint64_t dynamicSectionAddress;
+    uint16_t dynamicTableSectionIdx;
     uint16_t textSegmentIdx;
     uint16_t dataSegmentIdx;
 
@@ -79,11 +80,6 @@ private:
 public:
     bool verify();
 
-    void addDataSection(uint64_t size, char* bytes);
-    void addExitFunction(const char* libname, const char* funcname);
-    void relocateSection(uint16_t scnIdx);
-    uint64_t getProgramBaseAddress();
-    uint64_t extendTextSection(uint64_t size);
 
     ElfFile(char* f): is64BitFlag(false),elfFileName(f),
         disassembler(NULL),fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
@@ -93,7 +89,7 @@ public:
         numberOfPrograms(0),numberOfSections(0),
         numberOfStringTables(0),sectionNameStrTabIdx(0),numberOfSymbolTables(0),dynamicSymtabIdx(0),
         numberOfRelocationTables(0),numberOfDwarfSections(0),numberOfTextSections(0),numberOfNoteSections(0),
-        textSegmentIdx(0),dataSegmentIdx(0),
+        dynamicSectionAddress(0),dynamicTableSectionIdx(0),textSegmentIdx(0),dataSegmentIdx(0),
         numberOfFunctions(0),numberOfBlocks(0),numberOfMemoryOps(0),numberOfFloatPOps(0) {}
     ~ElfFile() { }
 
@@ -112,6 +108,7 @@ public:
 
     char* getElfFileName() { return elfFileName; }
     Disassembler* getDisassembler() { return disassembler; }
+    void sortSectionHeaders();
 
     FileHeader*  getFileHeader() { return fileHeader; }
     ProgramHeader* getProgramHeader(uint32_t idx) { return programHeaders[idx]; }
@@ -143,8 +140,11 @@ public:
     uint32_t getNumberOfMemoryOps() { return numberOfMemoryOps; }
     uint32_t getNumberOfFloatPOps() { return numberOfFloatPOps; }
 
-//    BasicBlock* findBasicBlock(HashCode* hashCode);
-//    uint32_t getAllBlocks(BasicBlock** arr);
+    uint64_t getDynamicSectionAddress() { return dynamicSectionAddress; }
+    uint16_t getDynamicTableSectionIdx() { return dynamicTableSectionIdx; }
+    uint16_t getTextSegmentIdx() { return textSegmentIdx; }
+    uint16_t getDataSegmentIdx() { return dataSegmentIdx; }
+    uint32_t getDynamicSymtabIdx() { return dynamicSymtabIdx; }
 
     uint32_t getFileSize();
 
@@ -161,5 +161,31 @@ public:
     void testBitSet();
 
 };
+
+class ElfFileInst {
+private:
+    ElfFile* elfFile;
+    uint64_t extraTextOffset;
+    uint32_t extraTextSize;
+    uint64_t extraDataOffset;
+    uint64_t extraDataAddress;
+    uint32_t extraDataSize;
+
+public:
+    ElfFileInst(ElfFile elf);
+    ~ElfFileInst() {}
+    ElfFile* getElfFile() { return elfFile; }
+
+    // instrumentation functions
+    void addExitFunction(const char* libname, const char* funcname);
+    void addSharedLibrary(const char* libname);
+    void addInitFunction(const char* funcname);
+    uint64_t relocateDynamicSection();
+    uint64_t getProgramBaseAddress();
+    uint64_t extendTextSection(uint64_t size);
+    uint64_t extendDataSection(uint64_t size);
+    
+};
+
 
 #endif /* _ElfFile_h_ */

@@ -24,7 +24,7 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     char* getString(uint32_t offset);
-    void addString(const char* name);
+    uint32_t addString(const char* name);
     uint32_t getIndex() { return index; }
 
     const char* briefName() { return "StringTable"; }

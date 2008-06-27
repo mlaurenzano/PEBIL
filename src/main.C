@@ -212,17 +212,17 @@ int main(int argc,char* argv[]){
     if (instType == identical_inst_type){
         elfFile.dump(extension);
     } else if (instType == data_extender_type){
-        /* extend the data section 
-        char* fakeSect = "I'm in your elf executable, stealin' your bytes.";
-        PRINT_INFOR("%s", fakeSect);
-        elfFile.addDataSection(96,fakeSect);
-        */
+        ElfFileInst* elfInst = new ElfFileInst(elfFile);
+
         /* extend the text section */
-        elfFile.extendTextSection(0x1000);
-        elfFile.print();
+        elfInst->extendTextSection(0x1000);
+        elfInst->extendDataSection(0x4000);
 
-
-        elfFile.dump(extension);
+        elfInst->addSharedLibrary("libtest.so");
+        elfInst->addSharedLibrary("libtest_64.so");
+        elfInst->addInitFunction("smalltest");
+        elfInst->getElfFile()->print();
+        elfInst->getElfFile()->dump(extension);
 
     } else if (instType == disassembler_type){
         elfFile.disassemble();

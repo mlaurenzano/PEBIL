@@ -57,6 +57,7 @@ public:
 
     virtual void setAddress(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
     virtual void setOffset(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }    
+    virtual void setSize(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
 };
 
 class SectionHeader32 : public SectionHeader {
@@ -77,6 +78,7 @@ public:
 
     void setAddress(uint64_t newVal);
     void setOffset(uint64_t newVal);
+    void setSize(uint64_t newVal);
 };
 
 class SectionHeader64 : public SectionHeader {
@@ -97,6 +99,7 @@ public:
 
     void setAddress(uint64_t newVal);
     void setOffset(uint64_t newVal);
+    void setSize(uint64_t newVal);
 };
 
 #endif /* _SectionHeader_h_ */

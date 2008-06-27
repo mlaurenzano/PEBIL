@@ -6,7 +6,11 @@ char* StringTable::getString(uint32_t offset){
     return strings + offset; 
 }
 
-void StringTable::addString(const char* name){
+uint32_t StringTable::addString(const char* name){
+
+    uint32_t stringSize = strlen(name);
+    uint32_t currentSize = sizeInBytes;
+
     PRINT_INFOR("Stringtable::addstring -- adding string %s with length %d", name, strlen(name));
 
     ASSERT(strings && "strings array should be initialized");
@@ -23,19 +27,7 @@ void StringTable::addString(const char* name){
     sizeInBytes += strlen(name) + 1;
     PRINT_INFOR("size=%d", sizeInBytes);
 
-    // now we must also update this sections header
-    SectionHeader* scnHdr = elfFile->getSectionHeader(sectionIndex);
-    if (elfFile->is64Bit()){
-    } else {
-        Elf32_Shdr scnHdrEntry;
-        memcpy(&scnHdrEntry, ((SectionHeader32*)scnHdr)->charStream(), sizeof(Elf32_Shdr));
-        scnHdrEntry.sh_size = sizeInBytes;
-        memcpy(((SectionHeader32*)scnHdr)->charStream(), &scnHdrEntry, sizeof(Elf32_Shdr));
-    }
-
-    print();
-
-    ASSERT(scnHdr->GET(sh_size) == sizeInBytes && "Section header size attribute should be equal to the actual size of the section");
+    return currentSize;
 }
 
 void StringTable::print() { 

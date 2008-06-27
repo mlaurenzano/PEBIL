@@ -48,6 +48,13 @@ void ProgramHeader32::setFileSize(uint64_t newVal){
     entry.p_filesz = (uint32_t)newVal;
 }
 
+void ProgramHeader32::setFlags(uint64_t newVal){
+    if ((uint32_t)newVal != newVal){
+        PRINT_WARN("Losing bits when casting new Program Header flags: %d != %lld", (uint32_t)newVal, newVal);
+    }
+    entry.p_flags = (uint32_t)newVal;
+}
+
 void ProgramHeader64::setVirtualAddress(uint64_t newVal){
     entry.p_vaddr = newVal;
 }
@@ -66,6 +73,10 @@ void ProgramHeader64::setMemorySize(uint64_t newVal){
 
 void ProgramHeader64::setFileSize(uint64_t newVal){
     entry.p_filesz = newVal;
+}
+
+void ProgramHeader64::setFlags(uint64_t newVal){
+    entry.p_flags = newVal;
 }
 
 void ProgramHeader::print() { 

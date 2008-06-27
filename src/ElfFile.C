@@ -27,25 +27,141 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
+ElfFileInst::ElfFileInst(ElfFile elf){
+    elfFile = &elf;
+    extraTextOffset = 0;
+    extraTextSize = 0;
+    extraDataOffset = 0;
+    extraDataAddress = 0;
+    extraDataSize = 0;
+}
 
-uint64_t ElfFile::extendTextSection(uint64_t size){
+void ElfFileInst::addInitFunction(const char* funcname){
+    DynamicTable* dynamicTable = elfFile->getDynamicTable();
+    uint32_t emptyDynamicIdx = dynamicTable->findEmptyDynamic();
+    ASSERT(emptyDynamicIdx < dynamicTable->getNumberOfDynamics() && "No free entries found in the dynamic table");
+    
+    dynamicTable->getDynamic(emptyDynamicIdx)->setTag(DT_INIT);
+    dynamicTable->getDynamic(emptyDynamicIdx)->setPointer(0);
+}
+
+void ElfFileInst::addSharedLibrary(const char* libname){
+    DynamicTable* dynamicTable = elfFile->getDynamicTable();
+    uint32_t libNameSize = strlen(libname) + 1;
+    ASSERT(libNameSize < extraTextSize && "There is not enough extra space in the text section to extend the string table");
+
+    // find the string table we will be adding to
+    uint64_t stringTableAddr = dynamicTable->getStringTableAddress();
+    uint16_t stringTableIdx = elfFile->getNumberOfStringTables();
+    for (uint32_t i = 0; i < elfFile->getNumberOfStringTables(); i++){
+        StringTable* strTab = elfFile->getStringTable(i);
+        SectionHeader* sHdr = elfFile->getSectionHeader(strTab->getSectionIndex());
+        if (sHdr->GET(sh_addr) == stringTableAddr){
+            ASSERT(stringTableIdx == elfFile->getNumberOfStringTables() && "Cannot have multiple string tables linked to the dynamic table");
+            stringTableIdx = i;
+        }
+    }
+    ASSERT(stringTableIdx != elfFile->getNumberOfStringTables() && "There must be a string table that is identifiable with the dynamic table");
+
+    PRINT_INFOR("Found string table for dynamic table at section %d", stringTableIdx);
+    StringTable* dynamicStringTable = elfFile->getStringTable(stringTableIdx);
+
+    // add the name of the library to the string table
+    uint32_t origSize = dynamicStringTable->getSizeInBytes(); 
+    uint32_t stringOffset = dynamicStringTable->addString(libname);
+    uint32_t extraSize = nextAlignAddressDouble(strlen(libname)+1);
+
+    SectionHeader* dynamicStringSection = elfFile->getSectionHeader(5);
+    dynamicStringSection->setSize(dynamicStringSection->GET(sh_size)+extraSize);
+    
+
+    // displace every section in the text segment that comes after the dynamic string section 
+    for (uint32_t i = 6; i < 10; i++){
+        SectionHeader* sHdr = elfFile->getSectionHeader(i);
+        sHdr->setOffset(sHdr->GET(sh_offset) + extraSize);
+        sHdr->setAddress(sHdr->GET(sh_addr) + extraSize);
+        sHdr->setSize(sHdr->GET(sh_size) + extraSize);
+    }
+
+
+    for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
+        Dynamic* dyn = dynamicTable->getDynamic(i);
+        uint64_t tag = dyn->GET(d_tag);
+        if (tag == DT_VERSYM || tag == DT_VERNEED ||
+            tag == DT_REL || tag == DT_RELA || tag == DT_JMPREL){
+
+            dyn->setPointer(dyn->GET_A(d_ptr,d_un) + extraSize);
+        }
+
+    }
+
+    // add a DT_NEEDED entry to the dynamic table
+    uint32_t emptyDynamicIdx = dynamicTable->findEmptyDynamic();
+
+    ASSERT(emptyDynamicIdx < dynamicTable->getNumberOfDynamics() && "No free entries found in the dynamic table");
+
+    dynamicTable->getDynamic(emptyDynamicIdx)->setTag(DT_NEEDED);
+    dynamicTable->getDynamic(emptyDynamicIdx)->setPointer(stringOffset);
+
+}
+
+
+uint64_t ElfFileInst::extendDataSection(uint64_t size){
+
+    ASSERT(!extraDataOffset && !extraDataSize && !extraDataAddress && "Cannot extend the data segment more than once");
+
+    ProgramHeader* dataHeader = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
+
+    // we first find the bss section. Since the bss has to be the last section in the data
+    // segment, we will extend the size of the bss segment then place any extra data in this
+    // extra space in the bss section.
+    uint16_t bssSectionIdx = 0;
+    for (uint32_t i = 1; i < elfFile->getNumberOfSections(); i++){
+        if (elfFile->getSectionHeader(i)->GET(sh_type) == SHT_NOBITS){
+            // for now we assume that any section of type NOBITS is a bss section
+            ASSERT(!bssSectionIdx && "Cannot have more than 1 bss section (defined by having type SHT_NOBITS)");
+            bssSectionIdx = i;
+        }
+    }
+    SectionHeader* bssSection = elfFile->getSectionHeader(bssSectionIdx);
+
+    // increase the memory size of the bss section (note: this section has no size in the file)
+    extraDataSize = size;
+    extraDataOffset = bssSection->GET(sh_offset) + bssSection->GET(sh_size);
+    extraDataAddress = bssSection->GET(sh_addr) + bssSection->GET(sh_size);
+    bssSection->setSize(bssSection->GET(sh_size)+size);
+
+    // increase the memory size of the data segment
+    dataHeader->setMemorySize(dataHeader->GET(p_memsz)+size);
+
+    PRINT_INFOR("Extra data space available: [0x%016llx,0x%016llx) -- %d bytes", extraDataOffset, (extraDataOffset + extraDataSize), extraDataSize)
+
+    elfFile->verify();
+
+    return 0;
+}
+
+uint64_t ElfFileInst::extendTextSection(uint64_t size){
     size = nextAlignAddress(size,DEFAULT_PAGE_ALIGNMENT);
     uint64_t lowestTextAddress = -1;
     uint16_t lowestTextSectionIdx = -1;
 
-    ProgramHeader* textHeader = getProgramHeader(textSegmentIdx);
-    ProgramHeader* dataHeader = getProgramHeader(dataSegmentIdx);
+    ASSERT(!extraTextOffset && !extraTextSize && "Cannot extend the text segment more than once");
+    extraTextSize = size;
+
+    ProgramHeader* textHeader = elfFile->getProgramHeader(elfFile->getTextSegmentIdx());
+    ProgramHeader* dataHeader = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
 
     // first we will find the address of the first text section. we will be moving all elf
     // control structures that occur prior to this address with the extension of the text
     // segment (the interp and note.ABI-tag sections must be in the first text page and it
     // will make certain things easier for all control sections together)
-    for (uint32_t i = 1; i < numberOfSections; i++){
-        if (getSectionHeader(i)->GET(sh_type) == SHT_PROGBITS &&
-            getSectionHeader(i)->hasAllocBit() && getSectionHeader(i)->hasExecInstrBit()){
-            if (lowestTextAddress > getSectionHeader(i)->GET(sh_addr)){
+    for (uint32_t i = 1; i < elfFile->getNumberOfSections(); i++){
+        if (elfFile->getSectionHeader(i)->GET(sh_type) == SHT_PROGBITS &&
+            elfFile->getSectionHeader(i)->hasAllocBit() && elfFile->getSectionHeader(i)->hasExecInstrBit()){
+            if (lowestTextAddress > elfFile->getSectionHeader(i)->GET(sh_addr)){
                 ASSERT(lowestTextAddress == -1 && "Text section addresses should appear in increasing order");
-                lowestTextAddress = getSectionHeader(i)->GET(sh_addr);
+                lowestTextAddress = elfFile->getSectionHeader(i)->GET(sh_addr);
                 lowestTextSectionIdx = i;
             }
         }
@@ -54,9 +170,9 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
 
     // for each segment that is contained within the loadable text segment,
     // update its address to reflect the new base address of the text segment
-    for (uint32_t i = 0; i < numberOfPrograms; i++){
-        ProgramHeader* subHeader = getProgramHeader(i);
-        if (textHeader->inRange(subHeader->GET(p_vaddr)) && i != textSegmentIdx){
+    for (uint32_t i = 0; i < elfFile->getNumberOfPrograms(); i++){
+        ProgramHeader* subHeader = elfFile->getProgramHeader(i);
+        if (textHeader->inRange(subHeader->GET(p_vaddr)) && i != elfFile->getTextSegmentIdx()){
             subHeader->setVirtualAddress(subHeader->GET(p_vaddr)-size);
             subHeader->setPhysicalAddress(subHeader->GET(p_paddr)-size);
         } 
@@ -66,8 +182,8 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
     // for each segment that is (or is contained within) the data segment,
     // update its offset to reflect the the base address of the executable
     // (ie the base address of the text segment)
-    for (uint32_t i = 0; i < numberOfPrograms; i++){
-        ProgramHeader* subHeader = getProgramHeader(i);
+    for (uint32_t i = 0; i < elfFile->getNumberOfPrograms(); i++){
+        ProgramHeader* subHeader = elfFile->getProgramHeader(i);
         if (dataHeader->inRange(subHeader->GET(p_vaddr))){
             subHeader->setOffset(subHeader->GET(p_offset)+size);
         }
@@ -76,11 +192,13 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
 
     // update section symbols for the sections that were moved. technically the loader won't use them 
     // but we will try to keep the binary as consistent as possible
-    SymbolTable* symTab = getSymbolTable(1);
-    for (uint32_t i = 0; i < symTab->getNumberOfSymbols(); i++){
-        Symbol* sym = symTab->getSymbol(i);
-        if (sym->getSymbolType() == STT_SECTION && sym->GET(st_value) < lowestTextAddress){
-            sym->setValue(sym->GET(st_value)-size);
+    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+        SymbolTable* symTab = elfFile->getSymbolTable(i);
+        for (uint32_t j = 0; j < symTab->getNumberOfSymbols(); j++){
+            Symbol* sym = symTab->getSymbol(j);
+            if (sym->getSymbolType() == STT_SECTION && sym->GET(st_value) < lowestTextAddress && sym->GET(st_value)){
+                sym->setValue(sym->GET(st_value)-size);
+            }
         }
     }
     
@@ -95,12 +213,14 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
     // same location relative to the base address.
     // Likewise, displace the offset of any section that falls during/after the program's code so that
     // the code will be put in the correct location within the text segment.
-    for (uint32_t i = 1; i < numberOfSections; i++){
-        SectionHeader* sHdr = getSectionHeader(i);
+    for (uint32_t i = 1; i < elfFile->getNumberOfSections(); i++){
+        SectionHeader* sHdr = elfFile->getSectionHeader(i);
         if (i < lowestTextSectionIdx){
-            ASSERT(getSectionHeader(i)->GET(sh_addr) < lowestTextAddress && "No section that occurs before the first text section should have a larger address");
+            ASSERT(elfFile->getSectionHeader(i)->GET(sh_addr) < lowestTextAddress && "No section that occurs before the first text section should have a larger address");
             // strictly speaking the loader doesn't use these, but for consistency we change these
             sHdr->setAddress(sHdr->GET(sh_addr)-size);
+            // the extra text offset will be at the end of the last elf control section
+            extraTextOffset = sHdr->GET(sh_offset)+sHdr->GET(sh_size);
         } else {
             sHdr->setOffset(sHdr->GET(sh_offset)+size);            
         }
@@ -108,12 +228,12 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
 
     // since some sections were displaced in the file, displace the section header table also so
     // that it occurs after all of the sections in the file
-    getFileHeader()->setSectionHeaderOffset(getFileHeader()->GET(e_shoff)+size);
+    elfFile->getFileHeader()->setSectionHeaderOffset(elfFile->getFileHeader()->GET(e_shoff)+size);
 
 
     // update the dynamic table to correctly point to the displaced elf control sections
-    for (uint32_t i = 0; i < getDynamicTable()->getNumberOfDynamics(); i++){
-        Dynamic* dyn = getDynamicTable()->getDynamic(i);
+    for (uint32_t i = 0; i < elfFile->getDynamicTable()->getNumberOfDynamics(); i++){
+        Dynamic* dyn = elfFile->getDynamicTable()->getDynamic(i);
         uint64_t tag = dyn->GET(d_tag);
         if (tag == DT_HASH || tag == DT_STRTAB || tag == DT_SYMTAB ||
             tag == DT_VERSYM || tag == DT_VERNEED ||
@@ -122,43 +242,82 @@ uint64_t ElfFile::extendTextSection(uint64_t size){
         }
     }
 
+    elfFile->verify();
+
+    PRINT_INFOR("Extra text space available: [0x%016llx,0x%016llx) -- %d bytes", extraTextOffset, (extraTextOffset + extraTextSize), extraTextSize);
+
     return size;
 }
 
-void ElfFile::relocateSection(uint16_t scnIdx){
-    scnIdx = getSymbolTable(dynamicSymtabIdx)->getStringTable()->getSectionIndex();
+uint64_t ElfFileInst::relocateDynamicSection(){
+    
+    ASSERT(0 && "This function should not be used, relocating the dynamic table is not easy and we won't do unless absolutely necessary");
+    
+    // move the dynamic section to the end of the elf control sections in the text segment
+    ASSERT(elfFile->getDynamicSectionAddress() && "We should have found the dynamic table for this executable prior to this");
+    ASSERT(elfFile->getDynamicTableSectionIdx() && "We should have found the dynamic table for this executable prior to this");
 
-    SectionHeader32* header = (SectionHeader32*)getSectionHeader(scnIdx);
-    RawSection* raw = getRawSection(scnIdx);
-    uint64_t maxUsedAddr = 0;
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        if (getSectionHeader(i)->GET(sh_addr) + getSectionHeader(i)->GET(sh_size) > maxUsedAddr){
-            maxUsedAddr = getSectionHeader(i)->GET(sh_addr) + getSectionHeader(i)->GET(sh_size);
+    SectionHeader* dynamicSection = elfFile->getSectionHeader(elfFile->getDynamicTableSectionIdx());
+    ASSERT(dynamicSection->GET(sh_size) <= extraTextSize && "There is not enough extra space in the data section to move the dynamic table");
+    dynamicSection->setOffset(extraTextOffset);
+    dynamicSection->setAddress(getProgramBaseAddress() + extraTextOffset);
+    extraTextOffset += dynamicSection->GET(sh_size);
+    extraTextSize -= dynamicSection->GET(sh_size);
+
+    elfFile->sortSectionHeaders();
+
+    // point the _DYNAMIC symbol(s) to the new location of the dynamic section
+    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+        SymbolTable* symTab = elfFile->getSymbolTable(i);
+        for (uint32_t j = 0; j < symTab->getNumberOfSymbols(); j++){
+            Symbol* sym = symTab->getSymbol(j);
+            if (!strcmp(symTab->getSymbolName(j),DYN_SYM_NAME)){
+                sym->setValue(dynamicSection->GET(sh_addr));
+            }
+        }
+    }
+    
+    // move the dynamic segment to point to the new dynamic section
+    for (uint32_t i = 0; i < elfFile->getNumberOfPrograms(); i++){
+        ProgramHeader* pHdr = elfFile->getProgramHeader(i);
+        if (pHdr->GET(p_type) == PT_DYNAMIC){
+            pHdr->setOffset(dynamicSection->GET(sh_offset));
+            pHdr->setVirtualAddress(dynamicSection->GET(sh_addr));
+            pHdr->setPhysicalAddress(dynamicSection->GET(sh_addr));
+            pHdr->setFlags(7);
         }
     }
 
-    maxUsedAddr = nextAlignAddress(maxUsedAddr,DEFAULT_PAGE_ALIGNMENT);
+    elfFile->verify();
 
-    Elf32_Shdr hdrEntry;
-    memcpy(&hdrEntry,header->charStream(),sizeof(hdrEntry));
-    hdrEntry.sh_addr = maxUsedAddr;
-    memcpy(header->charStream(),&hdrEntry,sizeof(hdrEntry));
+    return 0;
+}
 
-    getDynamicTable()->relocateStringTable(maxUsedAddr);
 
-    uint64_t segmentBaseAddr = getProgramBaseAddress();
+// this will sort the sections header by their offsets in increasing order
+void ElfFile::sortSectionHeaders(){
+    SectionHeader* tmp;
 
-    verify();
+    // we will just use a bubble sort since there shouldn't be very many sections
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        for (uint32_t j = 0; j < i; j++){
+            if (sectionHeaders[i]->GET(sh_offset) < sectionHeaders[j]->GET(sh_offset)){
+                tmp = sectionHeaders[i];
+                sectionHeaders[i] = sectionHeaders[j];
+                sectionHeaders[j] = tmp;
+            }
+        }
+    }
 }
 
 // get the smallest virtual address of all loadable segments (ie, the base address for the program)
-uint64_t ElfFile::getProgramBaseAddress(){
+uint64_t ElfFileInst::getProgramBaseAddress(){
     uint64_t segmentBase = -1;
 
-    for (uint32_t i = 0; i < numberOfPrograms; i++){
-        if (getProgramHeader(i)->GET(p_type) == PT_LOAD){
-            if (getProgramHeader(i)->GET(p_vaddr) < segmentBase){
-                segmentBase = getProgramHeader(i)->GET(p_vaddr);
+    for (uint32_t i = 0; i < elfFile->getNumberOfPrograms(); i++){
+        if (elfFile->getProgramHeader(i)->GET(p_type) == PT_LOAD){
+            if (elfFile->getProgramHeader(i)->GET(p_vaddr) < segmentBase){
+                segmentBase = elfFile->getProgramHeader(i)->GET(p_vaddr);
             }
         }
     }
@@ -168,8 +327,8 @@ uint64_t ElfFile::getProgramBaseAddress(){
 }
 
 
-void ElfFile::addExitFunction(const char* libname, const char* funcname){
-    StringTable* dynStrings = getSymbolTable(dynamicSymtabIdx)->getStringTable();
+void ElfFileInst::addExitFunction(const char* libname, const char* funcname){
+    StringTable* dynStrings = elfFile->getSymbolTable(elfFile->getDynamicSymtabIdx())->getStringTable();
 
     /* the addString function is not properly functional at the moment
     PRINT_INFOR("Adding shared library name to string table: %s", libname);
@@ -280,8 +439,7 @@ void ElfFile::initSectionFilePointers(){
     
 
     // find the dynamic section's address
-    uint64_t dynamicSectionAddress = 0;
- 
+    dynamicSectionAddress = 0;
     for (uint32_t i = 0; i < numberOfSymbolTables; i++){
         SymbolTable* currentSymtab = getSymbolTable(i);
         for (uint32_t j = 0; j < currentSymtab->getNumberOfSymbols(); j++){
@@ -302,8 +460,7 @@ void ElfFile::initSectionFilePointers(){
     PRINT_INFOR("Dynamic section found at address 0x%016llx", dynamicSectionAddress);
 
     // find the dynamic table
-    uint16_t dynamicTableSectionIdx = 0;
-
+    dynamicTableSectionIdx = 0;
     for (uint32_t i = 0; i < numberOfSections; i++){
         if (sectionHeaders[i]->GET(sh_addr) == dynamicSectionAddress){
             ASSERT(!dynamicTableSectionIdx && "Cannot have multiple dynamic sections");
@@ -487,68 +644,6 @@ uint32_t ElfFile::findSectionNameInStrTab(char* name){
     }
 
     return 0;
-}
-
-void ElfFile::addDataSection(uint64_t size, char* bytes){
-    size = nextAlignAddress(size,getAddressAlignment());
-
-    /* this extra section is located after all other existing sections */
-    uint32_t extraSectionIdx = numberOfSections + 1;
-    SectionHeader32* extraSectionHeader = new SectionHeader32(extraSectionIdx);
-    Elf32_Shdr extraEntry;
-
-    /* get the section offset for this extra section */
-    uint64_t extraSectionOffset = sectionHeaders[numberOfSections-1]->GET(sh_offset) +
-            sectionHeaders[numberOfSections-1]->GET(sh_size);
-    extraSectionOffset = (nextAlignAddress(extraSectionOffset,getAddressAlignment()));
-
-    /* initialize the extra section's header */
-    PRINT_INFOR("Adding data section -- idx=%d", extraSectionIdx);
-    extraEntry.sh_name = findSectionNameInStrTab(".data");
-    extraEntry.sh_type = SHT_PROGBITS;
-    extraEntry.sh_flags = 0x3;
-    extraEntry.sh_addr = 0x0;
-    extraEntry.sh_offset = extraSectionOffset;
-    extraEntry.sh_size = size;
-    extraEntry.sh_link = 0;
-    extraEntry.sh_info = 0;
-    extraEntry.sh_addralign = getAddressAlignment();
-    extraEntry.sh_entsize = 0;
-    memcpy(extraSectionHeader->charStream(), (char*)&extraEntry, Size__32_bit_Section_Header);
-    extraSectionHeader->setSectionNamePtr(extraEntry.sh_name + getStringTable(sectionNameStrTabIdx)->getFilePointer());
-    
-    RawSection* extraRawSection = new RawSection(ElfClassTypes_no_type, bytes, size, extraSectionIdx, this);
-
-    /* update the file header to reflect the presence of the new section */
-    Elf32_Ehdr extraFileHeader;
-    FileHeader32* myFileHeader = (FileHeader32*)fileHeader;
-
-    memcpy((char*)&extraFileHeader, myFileHeader->charStream(), Size__32_bit_File_Header);
-    extraFileHeader.e_shoff += size;
-    extraFileHeader.e_shnum += 1;
-    memcpy(myFileHeader->charStream(), (char*)&extraFileHeader, Size__32_bit_File_Header);
-
-    /* add the new section+header to the file */
-    SectionHeader** newScnHdrs = new SectionHeader*[numberOfSections+1];
-    RawSection** newRawScns = new RawSection*[numberOfSections+1];
-
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        newScnHdrs[i] = sectionHeaders[i];
-        newRawScns[i] = rawSections[i];
-    }
-    newScnHdrs[numberOfSections] = extraSectionHeader;
-    newRawScns[numberOfSections] = extraRawSection;
-
-    delete[] sectionHeaders;
-    delete[] rawSections;
-
-    sectionHeaders = newScnHdrs;
-    rawSections = newRawScns; 
-    numberOfSections++;
-    //    briefPrint();
-    PRINT_INFOR("new raw section: %s", rawSections[numberOfSections-1]->charStream());
-
-    verify();
 }
 
 

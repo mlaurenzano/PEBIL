@@ -10,9 +10,9 @@ NATIVE_CC   = cc
 NATIVE_CPP  = cc 
 NATIVE_F77  = f77
 
-CC          = $(GNU_CC)  $(OPT)
+CC          = $(NATIVE_CC)  $(OPT)
 CPP         = $(GNU_CPP) $(OPT) -DCPP
-F77         = $(GNU_F77) $(OPT)
+F77         = $(NATIVE_F77) $(OPT)
 
 SRCDIR      = ../test
 BINDIR      = ../src

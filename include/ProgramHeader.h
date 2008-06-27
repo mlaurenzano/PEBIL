@@ -26,6 +26,7 @@ public:
     virtual void setPhysicalAddress(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
     virtual void setMemorySize(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
     virtual void setFileSize(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
+    virtual void setFlags(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
 
     const char* briefName() { return "ProgramHeader"; }
     bool verify();
@@ -52,6 +53,7 @@ public:
     void setPhysicalAddress(uint64_t newVal);
     void setMemorySize(uint64_t newVal);
     void setFileSize(uint64_t newVal);
+    void setFlags(uint64_t newVal);
 };
 
 class ProgramHeader64 : public ProgramHeader {
@@ -75,6 +77,7 @@ public:
     void setPhysicalAddress(uint64_t newVal);
     void setMemorySize(uint64_t newVal);
     void setFileSize(uint64_t newVal);
+    void setFlags(uint64_t newVal);
 };
 
 
