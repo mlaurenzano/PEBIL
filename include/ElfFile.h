@@ -80,7 +80,6 @@ private:
 public:
     bool verify();
 
-
     ElfFile(char* f): is64BitFlag(false),elfFileName(f),
         disassembler(NULL),fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
         rawSections(NULL),stringTables(NULL),symbolTables(NULL),relocationTables(NULL),
@@ -157,6 +156,8 @@ public:
     void findLoops();
     uint32_t disassemble();
     uint32_t printDisassembledCode();
+    uint64_t addSection(uint16_t idx, ElfClassTypes classtype, char* bytes, uint32_t name, uint32_t type, uint64_t flags, uint64_t addr, uint64_t offset, 
+                        uint64_t size, uint32_t link, uint32_t info, uint64_t addralign, uint64_t entsize);
 
     void testBitSet();
 
@@ -165,26 +166,39 @@ public:
 class ElfFileInst {
 private:
     ElfFile* elfFile;
+
+    // for the text sections/segment we just keep the offset since we can compute
+    // the address from the base address of the program
     uint64_t extraTextOffset;
     uint32_t extraTextSize;
+
+    uint64_t pltAddress;
+    uint32_t pltSize;
+
+    // for data sections/segment we keep (file) offset and (memory) address
     uint64_t extraDataOffset;
     uint64_t extraDataAddress;
     uint32_t extraDataSize;
+
+    uint64_t gotOffset;
+    uint64_t gotAddress;
+    uint32_t gotSize;
 
 public:
     ElfFileInst(ElfFile elf);
     ~ElfFileInst() {}
     ElfFile* getElfFile() { return elfFile; }
 
+    void print();
+
     // instrumentation functions
-    void addExitFunction(const char* libname, const char* funcname);
     void addSharedLibrary(const char* libname);
-    void addInitFunction(const char* funcname);
     uint64_t relocateDynamicSection();
     uint64_t getProgramBaseAddress();
-    uint64_t extendTextSection(uint64_t size);
-    uint64_t extendDataSection(uint64_t size);
-    
+    uint64_t extendTextSection(uint32_t size);
+    uint64_t extendDataSection(uint32_t size);
+    uint64_t reserveProcedureLinkageTable(uint32_t size);
+    uint64_t reserveGlobalOffsetTable(uint32_t size);
 };
 
 

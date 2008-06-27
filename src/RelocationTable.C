@@ -43,6 +43,8 @@ void RelocationTable::print(){
         PRINT_INFOR("RelocationTable32(%d): type RELA, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
     }
 
+    ASSERT(elfFile->getSectionHeader(getSectionIndex()) && "Section header doesn't exist");
+
     PRINT_INFOR("\tSymbol table section   : %d", elfFile->getSectionHeader(getSectionIndex())->GET(sh_link));
     PRINT_INFOR("\tSection for relocation : %d", elfFile->getSectionHeader(getSectionIndex())->GET(sh_info));
 

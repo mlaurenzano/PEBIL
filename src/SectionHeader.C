@@ -34,7 +34,21 @@ void SectionHeader32::setSize(uint64_t newVal){
     entry.sh_size = (uint32_t)newVal;
 }
 
+SectionHeader32::SectionHeader32(uint16_t idx)
+    : SectionHeader()
+{ 
+    sizeInBytes = Size__32_bit_Section_Header; 
+    index = idx; 
+    bzero(&entry,sizeof(Elf32_Shdr));
+}
 
+SectionHeader64::SectionHeader64(uint16_t idx)
+    : SectionHeader()
+{ 
+    sizeInBytes = Size__64_bit_Section_Header; 
+    index = idx; 
+    bzero(&entry,sizeof(Elf64_Shdr));
+}
 
 ElfClassTypes SectionHeader::setSectionType(){
     if (GET(sh_type) == SHT_STRTAB){

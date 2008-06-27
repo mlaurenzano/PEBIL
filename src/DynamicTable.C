@@ -9,7 +9,7 @@
 uint32_t DynamicTable::findEmptyDynamic(){
     for (uint32_t i = 0; i < numberOfDynamics; i++){
         Dynamic* dyn = getDynamic(i);
-        if (dyn->GET(d_tag) == 0 && dyn->GET_A(d_ptr,d_un) == 0){
+        if (dyn->GET(d_tag) == DT_NULL || dyn->GET(d_tag) == DT_INIT){
             return i;
         }
     }

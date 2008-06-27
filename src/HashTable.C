@@ -1,6 +1,8 @@
 #include <HashTable.h>
 
 bool HashTable::isGnuStyleHash(){
+    PRINT_INFOR("Getting section %hd", sectionIndex);
+    ASSERT(elfFile->getSectionHeader(sectionIndex) && "Section header should exist");
     if (elfFile->getSectionHeader(sectionIndex)->GET(sh_type) == SHT_GNU_HASH){
         return true;
     } else if (elfFile->getSectionHeader(sectionIndex)->GET(sh_type) == SHT_HASH){
@@ -36,9 +38,16 @@ uint32_t HashTable::findSymbolSysv(const char* symbolName){
 }
 
 bool HashTable::verify(){
+    PRINT_INFOR("Verifying hash");
+    isGnuStyleHash();
+    PRINT_INFOR("Verifying hash");
+    
+
     if (!isGnuStyleHash()){
+        PRINT_INFOR("Verifying hash");
         verifySysv();
     } else {
+        PRINT_INFOR("Verifying hash");
         PRINT_ERROR("GNU hash tables not supported -- try to relink the target with `-Wl,--hash-style=sysv`");
     }
     return true;
@@ -46,6 +55,10 @@ bool HashTable::verify(){
 
 bool HashTable::verifySysv(){
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
+
+    if (!symTab){
+        PRINT_ERROR("Couldn't get symbol table %d from elfFile", symTabIdx);
+    }
 
     if (numberOfChains != symTab->getNumberOfSymbols()){
         PRINT_ERROR("In the hash table, the number of chains should be equal to the number of symbols in the corresponding symbol table");

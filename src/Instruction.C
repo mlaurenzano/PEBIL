@@ -90,6 +90,7 @@ uint32_t Instruction::setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t
 Instruction::Instruction(){
     instructionLength = 0;
     rawBytes = NULL;
+    isLocalBytes = false;
     virtualAddress = 0;
     type = x86_insn_type_unknown;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
@@ -101,6 +102,9 @@ Instruction::~Instruction(){
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         delete operands[i];
     }
+    if (rawBytes && isLocalBytes){
+        delete rawBytes;
+    }
 }
 
 uint32_t Instruction::getLength(){
@@ -111,7 +115,13 @@ char* Instruction::getBytes(){
     return rawBytes;
 }
 
-char* Instruction::setBytes(char* bytes){
+char* Instruction::setBytes(char* bytes, bool islocal){
+    isLocalBytes = islocal;
+    if (rawBytes && isLocalBytes){
+        delete rawBytes;
+    }
+    rawBytes = new char[instructionLength];
+    memcpy(rawBytes,bytes,instructionLength);
     rawBytes = bytes;
     return rawBytes;
 }

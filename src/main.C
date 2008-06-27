@@ -220,13 +220,14 @@ int main(int argc,char* argv[]){
 
         elfInst->addSharedLibrary("libtest.so");
         elfInst->addSharedLibrary("libtest_64.so");
-        elfInst->addInitFunction("smalltest");
-        elfInst->getElfFile()->print();
+        elfInst->reserveProcedureLinkageTable(0x100);
+        //        elfInst->reserveGlobalOffsetTable(0x40);
+        elfInst->print();
         elfInst->getElfFile()->dump(extension);
 
     } else if (instType == disassembler_type){
         elfFile.disassemble();
-        //elfFile.printDisassembledCode();
+        //        elfFile.printDisassembledCode();
     } else {
         PRINT_ERROR("Error : invalid instrumentation type");
     }

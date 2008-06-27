@@ -77,7 +77,7 @@ uint32_t TextSection::disassemble(){
 
         instructions[numberOfInstructions] = new Instruction();
         instructions[numberOfInstructions]->setAddress(sHdr->GET(sh_addr) + currByte);
-        instructions[numberOfInstructions]->setBytes(charStream() + currByte);
+        instructions[numberOfInstructions]->setBytes(charStream() + currByte, false);
 
         instructionLength = disassembler->print_insn(instructionAddress, instructions[numberOfInstructions]);        
         if (!instructionLength){
@@ -96,7 +96,7 @@ uint32_t TextSection::disassemble(){
         fprintf(stdout, "\n");
 
         instructions[numberOfInstructions]->setNextAddress();
-        instructions[numberOfInstructions]->print();
+        //        instructions[numberOfInstructions]->print();
     }
     PRINT_INFOR("Found %d instructions (%d bytes) in section %d", numberOfInstructions, currByte, sectionIndex);
 

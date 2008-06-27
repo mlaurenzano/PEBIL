@@ -8,8 +8,22 @@ void FileHeader32::setSectionHeaderOffset(uint64_t newVal){
     entry.e_shoff = (uint32_t)newVal;
 }
 
+void FileHeader32::setSectionCount(uint64_t newVal){
+    if ((uint16_t)newVal != newVal){
+        PRINT_WARN("Losing bits when casting new File Header shnum: %d != %lld", (uint32_t)newVal, newVal);
+    }
+    entry.e_shnum = (uint16_t)newVal;
+}
+
 void FileHeader64::setSectionHeaderOffset(uint64_t newVal){
     entry.e_shoff = newVal;
+}
+
+void FileHeader64::setSectionCount(uint64_t newVal){
+    if ((uint16_t)newVal != newVal){
+        PRINT_WARN("Losing bits when casting new File Header shnum: %d != %lld", (uint32_t)newVal, newVal);
+    }
+    entry.e_shnum = (uint16_t)newVal;
 }
 
 bool FileHeader::verify(uint16_t targetSize){

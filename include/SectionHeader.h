@@ -30,6 +30,8 @@ public:
 
     SECTIONHEADER_MACROS_BASIS("For the get_X field macros check the defines directory");
 
+    virtual char* charStream() { __SHOULD_NOT_ARRIVE; }
+
     void print();
     void initFilePointers(BinaryInputFile* b);
 
@@ -58,6 +60,8 @@ public:
     virtual void setAddress(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
     virtual void setOffset(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }    
     virtual void setSize(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
+
+    void setIndex(uint16_t newidx) { index = newidx; }
 };
 
 class SectionHeader32 : public SectionHeader {
@@ -68,7 +72,7 @@ public:
 
     SECTIONHEADER_MACROS_CLASS("For the get_X field macros check the defines directory");
 
-    SectionHeader32(uint16_t idx) { sizeInBytes = Size__32_bit_Section_Header; index = idx; }
+    SectionHeader32(uint16_t idx);
     ~SectionHeader32() {}
     uint32_t read(BinaryInputFile* b);
     bool hasBitsInFile() { return (GET(sh_type) != SHT_NOBITS); }
@@ -89,7 +93,7 @@ public:
 
     SECTIONHEADER_MACROS_CLASS("For the get_X field macros check the defines directory");
 
-    SectionHeader64(uint16_t idx) { sizeInBytes = Size__64_bit_Section_Header; index = idx; }
+    SectionHeader64(uint16_t idx);
     ~SectionHeader64() {}
     uint32_t read(BinaryInputFile* b);
     bool hasBitsInFile() { return (GET(sh_type) != SHT_NOBITS); }
