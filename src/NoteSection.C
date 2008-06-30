@@ -1,7 +1,8 @@
 #include <NoteSection.h>
 
 
-Note::Note(uint32_t index, uint32_t namsz, uint32_t dessz, uint32_t typ, char* nam, char* des){
+Note::Note(uint32_t idx, uint32_t namsz, uint32_t dessz, uint32_t typ, char* nam, char* des){
+    index = idx;
     namesz = namsz;
     descsz = dessz;
     type = typ;
@@ -70,6 +71,7 @@ NoteSection::~NoteSection(){
                 delete notes[i];
             }
         }
+        delete[] notes;
     }
 }
 

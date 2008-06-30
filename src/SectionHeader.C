@@ -126,7 +126,8 @@ bool SectionHeader::verify() {
     }
     if (GET(sh_addralign) != 0){
         if (GET(sh_addr) % GET(sh_addralign) != 0){
-            PRINT_ERROR("Section address does not conform to alignment");
+            print();
+            PRINT_ERROR("Section (%d) address does not conform to alignment", index);
             return false;
         }
     }

@@ -1,12 +1,13 @@
 #include <HashTable.h>
 
 bool HashTable::isGnuStyleHash(){
-    PRINT_INFOR("Getting section %hd", sectionIndex);
-    ASSERT(elfFile->getSectionHeader(sectionIndex) && "Section header should exist");
-    if (elfFile->getSectionHeader(sectionIndex)->GET(sh_type) == SHT_GNU_HASH){
-        return true;
-    } else if (elfFile->getSectionHeader(sectionIndex)->GET(sh_type) == SHT_HASH){
+    SectionHeader* mySection = elfFile->getSectionHeader(sectionIndex);
+
+    ASSERT(mySection && "Section header should exist");
+    if (mySection->GET(sh_type) == SHT_HASH){
         return false;
+    } else if (mySection->GET(sh_type) == SHT_GNU_HASH){
+        return true;
     }
     ASSERT(0 && "Hash table type should be either SHT_HASH or SHT_GNU_HASH");
 }
@@ -39,13 +40,13 @@ uint32_t HashTable::findSymbolSysv(const char* symbolName){
 
 bool HashTable::verify(){
     PRINT_INFOR("Verifying hash");
-    isGnuStyleHash();
+    //    isGnuStyleHash();
     PRINT_INFOR("Verifying hash");
     
+    verifySysv();
 
     if (!isGnuStyleHash()){
         PRINT_INFOR("Verifying hash");
-        verifySysv();
     } else {
         PRINT_INFOR("Verifying hash");
         PRINT_ERROR("GNU hash tables not supported -- try to relink the target with `-Wl,--hash-style=sysv`");
@@ -197,18 +198,25 @@ uint32_t HashTable::getChain(uint32_t idx){
     return chains[idx];
 }
 
+void HashTable::initFilePointers(){
 
-HashTable::HashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
-    : RawSection(ElfClassTypes_hash_table,rawPtr,size,scnIdx,elf)
-{
     // locate the symbol table for this hash table (should be the dynamic symbol table
     for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+        PRINT_INFOR("Symbol Table %d is section %d", i, elfFile->getSymbolTable(i)->getSectionIndex());
         if (elfFile->getSymbolTable(i)->getSectionIndex() == elfFile->getSectionHeader(sectionIndex)->GET(sh_link)){
             ASSERT(elfFile->getSymbolTable(i)->isDynamic() && "Hash table should be linked with a symbol table that is dynamic");
             symTabIdx = i;
         }
-
     }
+    ASSERT(symTabIdx < elfFile->getNumberOfSymbolTables() && "Could not find a symbol table for the Hash Table");
+
+}
+
+
+HashTable::HashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
+    : RawSection(ElfClassTypes_hash_table,rawPtr,size,scnIdx,elf)
+{
+    symTabIdx = elfFile->getNumberOfSymbolTables();
 
     if (elfFile->is64Bit()){
         hashEntrySize = Size__64_bit_Hash_Entry;

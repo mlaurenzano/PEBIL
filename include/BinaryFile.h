@@ -10,7 +10,7 @@ private:
     char*        inBuffer;
 public:
     BinaryInputFile() : inBufferPointer(NULL),inBufferSize(0),inBuffer(NULL) {}
-    ~BinaryInputFile() {}
+    ~BinaryInputFile();
 
     void     readFileInMemory(char* f);
 

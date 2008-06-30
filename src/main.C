@@ -212,7 +212,7 @@ int main(int argc,char* argv[]){
     if (instType == identical_inst_type){
         elfFile.dump(extension);
     } else if (instType == data_extender_type){
-        ElfFileInst* elfInst = new ElfFileInst(elfFile);
+        ElfFileInst* elfInst = new ElfFileInst(&elfFile);
 
         /* extend the text section */
         elfInst->extendTextSection(0x1000);
@@ -221,9 +221,11 @@ int main(int argc,char* argv[]){
         elfInst->addSharedLibrary("libtest.so");
         elfInst->addSharedLibrary("libtest_64.so");
         elfInst->reserveProcedureLinkageTable(0x100);
-        //        elfInst->reserveGlobalOffsetTable(0x40);
+        elfInst->reserveGlobalOffsetTable(0x40);
         elfInst->print();
         elfInst->getElfFile()->dump(extension);
+
+        delete elfInst;
 
     } else if (instType == disassembler_type){
         elfFile.disassemble();

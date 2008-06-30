@@ -88,7 +88,7 @@ GlobalOffsetTable::GlobalOffsetTable(char* rawPtr, uint32_t size, uint16_t scnId
 
 GlobalOffsetTable::~GlobalOffsetTable(){
     if (entries){
-        delete entries;
+        delete[] entries;
     }
 }
 

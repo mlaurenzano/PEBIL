@@ -45,7 +45,7 @@ public:
 
     void print();
     uint32_t read(BinaryInputFile* b);
-
+    void initFilePointers();
     bool isGnuStyleHash();
 
     uint32_t findSymbol(const char* symbolName);

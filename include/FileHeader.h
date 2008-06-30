@@ -12,11 +12,11 @@ protected:
 
 protected:
     FileHeader() : Base(ElfClassTypes_file_header),programHeaderTablePtr(0),sectionHeaderTablePtr(0){}
-    virtual ~FileHeader() {}
     bool verify(uint16_t targetSize);
 
 public:
 
+    virtual ~FileHeader() {}
     FILEHEADER_MACROS_BASIS("For the get_X field macros check the defines directory");
 
     void initFilePointers(BinaryInputFile* b);

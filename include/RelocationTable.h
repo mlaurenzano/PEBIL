@@ -15,10 +15,10 @@ class RawSection;
 class Relocation {
 protected:
     Relocation(char* relPtr, uint32_t idx) : relocationPtr(relPtr), index(idx) {}
-    virtual ~Relocation() {}
     char* relocationPtr;
     uint32_t index;
 public:
+    virtual ~Relocation() {}
     virtual char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
     virtual uint32_t read(BinaryInputFile* binaryInputFile) { __SHOULD_NOT_ARRIVE; }
     virtual void print() { __SHOULD_NOT_ARRIVE; }
@@ -138,6 +138,16 @@ public:
         numberOfRelocations = sizeInBytes / relocationSize;
 
         relocations = new Relocation*[numberOfRelocations];
+    }
+    ~RelocationTable(){
+        if (relocations){
+            for (uint32_t i = 0; i < numberOfRelocations; i++){
+                if (relocations[i]){
+                    delete relocations[i];
+                }
+            }
+            delete[] relocations;
+        }
     }
 
 

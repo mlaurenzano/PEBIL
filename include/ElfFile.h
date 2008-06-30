@@ -90,7 +90,8 @@ public:
         numberOfRelocationTables(0),numberOfDwarfSections(0),numberOfTextSections(0),numberOfNoteSections(0),
         dynamicSectionAddress(0),dynamicTableSectionIdx(0),textSegmentIdx(0),dataSegmentIdx(0),
         numberOfFunctions(0),numberOfBlocks(0),numberOfMemoryOps(0),numberOfFloatPOps(0) {}
-    ~ElfFile() { }
+
+    ~ElfFile();
 
     bool is64Bit() { return is64BitFlag; }
 
@@ -110,9 +111,9 @@ public:
     void sortSectionHeaders();
 
     FileHeader*  getFileHeader() { return fileHeader; }
-    ProgramHeader* getProgramHeader(uint32_t idx) { return programHeaders[idx]; }
-    SectionHeader* getSectionHeader(uint32_t idx) { return sectionHeaders[idx]; }
-    RawSection* getRawSection(uint32_t idx) { return rawSections[idx]; }
+    ProgramHeader* getProgramHeader(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfPrograms); ASSERT(programHeaders); ASSERT(programHeaders[idx]); return programHeaders[idx]; }
+    SectionHeader* getSectionHeader(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfSections); return sectionHeaders[idx]; }
+    RawSection* getRawSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfSections); return rawSections[idx]; }
     StringTable* getStringTable(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfStringTables); return stringTables[idx]; }
     SymbolTable* getSymbolTable(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfSymbolTables); return symbolTables[idx]; }
     RelocationTable* getRelocationTable(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfRelocationTables); return relocationTables[idx]; }
@@ -185,7 +186,7 @@ private:
     uint32_t gotSize;
 
 public:
-    ElfFileInst(ElfFile elf);
+    ElfFileInst(ElfFile* elf);
     ~ElfFileInst() {}
     ElfFile* getElfFile() { return elfFile; }
 

@@ -7,11 +7,11 @@
 class ProgramHeader : public Base {
 protected:
     ProgramHeader() : Base(ElfClassTypes_program_header),index(0) {}
-    virtual ~ProgramHeader() {}
 
     uint16_t index;
 public:
 
+    virtual ~ProgramHeader() {}
     PROGRAMHEADER_MACROS_BASIS("For the get_X field macros check the defines directory");
 
     void print();

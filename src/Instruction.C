@@ -119,10 +119,11 @@ char* Instruction::setBytes(char* bytes, bool islocal){
     isLocalBytes = islocal;
     if (rawBytes && isLocalBytes){
         delete rawBytes;
+        rawBytes = new char[instructionLength];
+        memcpy(rawBytes,bytes,instructionLength);
+    } else {
+        rawBytes = bytes;
     }
-    rawBytes = new char[instructionLength];
-    memcpy(rawBytes,bytes,instructionLength);
-    rawBytes = bytes;
     return rawBytes;
 }
 

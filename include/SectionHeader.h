@@ -23,11 +23,11 @@ protected:
         rawDataPtr(NULL), relocationPtr(NULL), lineInfoPointer(NULL),
         numOfRelocations(0),numOfLineInfo(0),
         index(0),sectionNamePtr(NULL),sectionType(ElfClassTypes_no_type) {}
-    ~SectionHeader() {}
 
 public:
     bool verify();
 
+    ~SectionHeader() {}
     SECTIONHEADER_MACROS_BASIS("For the get_X field macros check the defines directory");
 
     virtual char* charStream() { __SHOULD_NOT_ARRIVE; }

@@ -18,8 +18,8 @@ uint32_t StringTable::addString(const char* name){
     char* newstrings = new char[sizeInBytes + strlen(name) + 1];
     memcpy(newstrings, strings, sizeInBytes);
     memcpy(newstrings + sizeInBytes, name, strlen(name));
-    PRINT_INFOR("new string: %s", newstrings + sizeInBytes);
     newstrings[sizeInBytes + strlen(name)] = '\0';
+    PRINT_INFOR("new string: %s", newstrings + sizeInBytes);
 
     delete[] strings;
     strings = newstrings;

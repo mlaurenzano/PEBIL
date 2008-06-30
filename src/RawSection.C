@@ -38,6 +38,14 @@ Instruction* TextSection::getInstruction(uint32_t idx){
 }
 
 TextSection::~TextSection(){
+    if (instructions){
+        for (uint32_t i = 0; i < numberOfInstructions; i++){
+            if (instructions[i]){
+                delete instructions[i];
+            }
+        }
+        delete[] instructions;
+    }
 }
 
 uint32_t TextSection::disassemble(){
@@ -99,6 +107,8 @@ uint32_t TextSection::disassemble(){
         //        instructions[numberOfInstructions]->print();
     }
     PRINT_INFOR("Found %d instructions (%d bytes) in section %d", numberOfInstructions, currByte, sectionIndex);
+
+    delete dummyInstruction;
 
 }
 

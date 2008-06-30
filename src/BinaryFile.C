@@ -41,6 +41,12 @@ void BinaryInputFile::readFileInMemory(char* fileName) {
 
 }
 
+BinaryInputFile::~BinaryInputFile(){
+    if(inBuffer){
+        delete[] inBuffer;
+    }
+}
+
 
 char* BinaryInputFile::copyBytes(void* buff,uint32_t bytes) 
 { 
