@@ -13,6 +13,10 @@ void SectionHeader64::setSize(uint64_t newVal){
     entry.sh_size = newVal;
 }
 
+void SectionHeader64::setLink(uint32_t newVal){
+    entry.sh_link = newVal;
+}
+
 void SectionHeader32::setAddress(uint64_t newVal){
     if ((uint32_t)newVal != newVal){
         PRINT_WARN("Losing bits when casting new Section Header addr: %d != %lld", (uint32_t)newVal, newVal);
@@ -33,6 +37,11 @@ void SectionHeader32::setSize(uint64_t newVal){
     }
     entry.sh_size = (uint32_t)newVal;
 }
+
+void SectionHeader32::setLink(uint32_t newVal){
+    entry.sh_link = newVal;
+}
+
 
 SectionHeader32::SectionHeader32(uint16_t idx)
     : SectionHeader()

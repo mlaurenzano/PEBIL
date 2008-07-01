@@ -11,14 +11,22 @@ void Symbol32::setValue(uint64_t newVal){
     entry.st_value = (uint32_t)newVal;
 }
 
+void Symbol32::setSectionLink(uint16_t newVal){
+    entry.st_shndx = newVal;
+}
+
 void Symbol64::setValue(uint64_t newVal){
     entry.st_value = newVal;
+}
+
+void Symbol64::setSectionLink(uint16_t newVal){
+    entry.st_shndx = newVal;
 }
 
 
 
 
-void SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, unsigned char info, unsigned char other, uint16_t shndx){
+uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t shndx){
     ASSERT(symbols && "symbols array should be initialized");
 
     Symbol** newsyms = new Symbol*[numberOfSymbols+1];
@@ -28,25 +36,40 @@ void SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, unsign
     }
 
     if (elfFile->is64Bit()){
+        Symbol64* sym = new Symbol64(NULL, numberOfSymbols);
+        Elf64_Sym symEntry;
+        symEntry.st_name = name;
+        symEntry.st_value = value;
+        symEntry.st_size = size;
+        symEntry.st_info = ELF64_ST_INFO(bind,type);
+        symEntry.st_other = other;
+        symEntry.st_shndx = shndx;
+
+        memcpy(sym->charStream(), &symEntry, Size__64_bit_Symbol);
+        newsyms[numberOfSymbols] = sym;
+
+        sizeInBytes += Size__64_bit_Symbol;
     } else {
-        Symbol32* newsym = new Symbol32(NULL, numberOfSymbols);
-        Elf32_Sym newsymentry;
-        newsymentry.st_name = name;
-        newsymentry.st_value = (uint32_t)value;
-        newsymentry.st_size = (uint32_t)size;
-        newsymentry.st_info = info;
-        newsymentry.st_other = other;
-        newsymentry.st_shndx = shndx;
+        Symbol32* sym = new Symbol32(NULL, numberOfSymbols);
+        Elf32_Sym symEntry;
+        symEntry.st_name = name;
+        symEntry.st_value = (uint32_t)value;
+        symEntry.st_size = (uint32_t)size;
+        symEntry.st_info = ELF32_ST_INFO(bind,type);
+        symEntry.st_other = other;
+        symEntry.st_shndx = shndx;
 
-        memcpy(newsym->charStream(), &newsymentry, sizeof(Elf32_Sym));
-
-        PRINT_INFOR("Added new symbol");
-        newsyms[numberOfSymbols] = newsym;
-        newsyms[numberOfSymbols]->print(getSymbolName(numberOfSymbols));
-
+        memcpy(sym->charStream(), &symEntry, Size__32_bit_Symbol);
+        newsyms[numberOfSymbols] = sym;
+        
+        sizeInBytes += Size__32_bit_Symbol;
     }
 
+    delete[] symbols;
     symbols = newsyms;
+    numberOfSymbols++;
+
+    return numberOfSymbols-1;
 
 }
 
@@ -218,8 +241,10 @@ uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
 }
 
 char* SymbolTable::getSymbolName(uint32_t idx){
-    ASSERT(stringTable);
-    ASSERT(symbols[idx]);
+    ASSERT(stringTable && "String Table should be initialized");
+    ASSERT(idx >= 0 && idx < numberOfSymbols && "Symbol Table index out of bounds");
+    ASSERT(symbols && "Symbols array should be initialized");
+    ASSERT(symbols[idx] && "Symbol should be initialized");
 
     // idx 0 in the string table is null
     if (!symbols[idx]->GET(st_name)){

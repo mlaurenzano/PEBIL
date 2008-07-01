@@ -15,6 +15,10 @@ void FileHeader32::setSectionCount(uint64_t newVal){
     entry.e_shnum = (uint16_t)newVal;
 }
 
+void FileHeader32::setStringTableIndex(uint16_t newVal){
+    entry.e_shstrndx = newVal;
+}
+
 void FileHeader64::setSectionHeaderOffset(uint64_t newVal){
     entry.e_shoff = newVal;
 }
@@ -24,6 +28,10 @@ void FileHeader64::setSectionCount(uint64_t newVal){
         PRINT_WARN("Losing bits when casting new File Header shnum: %d != %lld", (uint32_t)newVal, newVal);
     }
     entry.e_shnum = (uint16_t)newVal;
+}
+
+void FileHeader64::setStringTableIndex(uint16_t newVal){
+    entry.e_shstrndx = newVal;
 }
 
 bool FileHeader::verify(uint16_t targetSize){

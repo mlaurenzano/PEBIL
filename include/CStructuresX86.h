@@ -57,7 +57,7 @@ extern "C" {
         
     } disassemble_info;
 
-#define MAXLEN 20
+#define MAX_X86_INSTRUCTION_LENGTH 20
 
 #ifndef UNIXWARE_COMPAT
     /* Set non-zero for broken, compatible instructions.  Set to zero for
@@ -68,7 +68,7 @@ extern "C" {
     struct dis_private {
         /* Points to first byte not fetched.  */
         uint8_t *max_fetched;
-        uint8_t the_buffer[MAXLEN];
+        uint8_t the_buffer[MAX_X86_INSTRUCTION_LENGTH];
         uint64_t insn_start;
         int orig_sizeflag;
     };

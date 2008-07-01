@@ -185,6 +185,11 @@ private:
     uint64_t gotAddress;
     uint32_t gotSize;
 
+    uint32_t addStringToDynamicStringTable(const char* str);
+    uint32_t addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx);
+    uint32_t expandHashTable();
+    uint32_t fillPLTBytes(char* bytes, uint64_t gotAddress, uint64_t pltBase);
+
 public:
     ElfFileInst(ElfFile* elf);
     ~ElfFileInst() {}
@@ -194,6 +199,7 @@ public:
 
     // instrumentation functions
     void addSharedLibrary(const char* libname);
+    void addInstrumentationFunction(const char* funcname);
     uint64_t relocateDynamicSection();
     uint64_t getProgramBaseAddress();
     uint64_t extendTextSection(uint32_t size);

@@ -27,6 +27,7 @@ public:
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
     virtual void setSectionHeaderOffset(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
     virtual void setSectionCount(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
+    virtual void setStringTableIndex(uint16_t newVal) { __SHOULD_NOT_ARRIVE; }
 };
 
 class FileHeader32 : public FileHeader {
@@ -46,6 +47,7 @@ public:
 
     void setSectionHeaderOffset(uint64_t newVal);
     void setSectionCount(uint64_t newVal);
+    void setStringTableIndex(uint16_t newVal);
 };
 
 class FileHeader64 : public FileHeader {
@@ -65,6 +67,7 @@ public:
 
     void setSectionHeaderOffset(uint64_t newVal);
     void setSectionCount(uint64_t newVal);
+    void setStringTableIndex(uint16_t newVal);
 };
 
 #endif /* _FileHeader_h_ */

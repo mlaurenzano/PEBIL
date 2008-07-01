@@ -34,6 +34,7 @@ public:
     static Symbol* findSymbol(Symbol** symbols,uint32_t symbolCount,uint64_t value);
 
     virtual void setValue(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
+    virtual void setSectionLink(uint16_t newVal) { __SHOULD_NOT_ARRIVE; }
 };
 
 class Symbol32 : public Symbol {
@@ -52,6 +53,7 @@ public:
     unsigned char getSymbolType();
 
     void setValue(uint64_t newVal);
+    void setSectionLink(uint16_t newVal);
 };
 
 class Symbol64 : public Symbol {
@@ -70,6 +72,7 @@ public:
     unsigned char getSymbolType();
 
     void setValue(uint64_t newVal);
+    void setSectionLink(uint16_t newVal);
 };
 
 class SymbolTable : public RawSection {
@@ -85,7 +88,7 @@ public:
     SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf);
     ~SymbolTable();
 
-    void addSymbol(uint32_t name, uint64_t value, uint64_t size, unsigned char info, unsigned char other, uint16_t shndx);
+    uint32_t addSymbol(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t shndx);
     uint32_t getNumberOfSymbols() { return numberOfSymbols; }
 
     void print();

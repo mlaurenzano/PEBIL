@@ -1,5 +1,86 @@
 #include <HashTable.h>
 
+
+// while maintaining a fixed-size table, we will increment the number of chains,
+// decrement the number of buckets, then rebuild the table
+void HashTable::addChain(){
+    buildTable(numberOfChains+1, numberOfBuckets-1);
+}
+
+void HashTable::buildTable(uint32_t numChains, uint32_t numBuckets){
+
+    ASSERT(buckets && "buckets should be initialized");
+    ASSERT(chains && "chains should be initialized");
+
+    numberOfChains = numChains;
+    numberOfBuckets = numBuckets;
+
+    ASSERT(numberOfBuckets > 0 && "The hash table must be expanded in order to create room for more buckets");
+    
+    delete[] chains;
+    delete[] buckets;
+
+    chains = new uint32_t[numberOfChains];
+    buckets = new uint32_t[numberOfBuckets];
+
+    SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
+
+    ASSERT(symTab->getNumberOfSymbols() == numberOfChains && "Symbol table should have the same number of symbols as there are chains in the hash table");
+
+    PRINT_INFOR("Building hash table with c=%d and b=%d", numberOfChains, numberOfBuckets);
+
+    // temporarily set chain[i] to the bucket index a name lookup on chain[i] with have to pass through
+    for (uint32_t i = 0; i < numberOfChains; i++){
+        chains[i] = elf_sysv_hash(symTab->getSymbolName(i)) % numberOfBuckets;
+        //        PRINT_INFOR("Chain[%d] = (%d)%d -- %s", i, chains[i] % numberOfBuckets, chains[i], symTab->getSymbolName(i));
+    }
+
+    // set bucket[i] to the last chain index which uses that bucket (ie, where chains[i] == i)
+    for (uint32_t i = 0; i < numberOfBuckets; i++){
+        buckets[i] = numberOfChains;
+        int32_t chainidx = numberOfChains-1;
+        while (buckets[i] == numberOfChains && chainidx >= 0){
+            if (chains[chainidx] == i){
+                buckets[i] = chainidx;
+            }
+            chainidx--;
+        }
+        if (buckets[i] == numberOfChains){
+            buckets[i] = 0;
+        }
+        //        PRINT_INFOR("Bucket[%d] = %d", i, buckets[i]);
+    }
+
+    // point chain[i] to chain[j] where j<i and the symbol names for symbols i,j hash to the same bucket
+    for (int32_t i = numberOfChains-1; i >= 0; i--){
+        bool isChanged = false;
+        //PRINT_INFOR("Need to find an earlier chain that is the same as chain[%d]=%d", i, chains[i]);
+        for (int32_t j = i-1; j >= 0; j--){
+            //PRINT_INFOR("\t\tExamining chain[%d]=%d", j, chains[j]);
+            if (chains[i] == chains[j]){
+                //PRINT_INFOR("\t\tGREAT SUCCESS");
+                chains[i] = j;
+                j = -1;
+                isChanged = true;
+            }
+        }
+        if (!isChanged){
+            chains[i] = 0;
+        }
+        //        PRINT_INFOR("real Chain[%d] = %d", i, chains[i]);
+
+    }
+
+    print();
+
+}
+
+
+uint32_t HashTable::expandSize(uint32_t amt){
+    buildTable(numberOfChains, numberOfBuckets + amt);
+    return amt;
+}
+
 bool HashTable::isGnuStyleHash(){
     SectionHeader* mySection = elfFile->getSectionHeader(sectionIndex);
 
@@ -13,19 +94,12 @@ bool HashTable::isGnuStyleHash(){
 }
 
 uint32_t HashTable::findSymbol(const char* symbolName){
-    if (!isGnuStyleHash()){
-        return findSymbolSysv(symbolName);
-    } else {
-        ASSERT(0 && "GNU hash tables not supported -- try to relink the target with `-Wl,--hash-style=sysv`");
-        return 0;
-    }
-}
-
-uint32_t HashTable::findSymbolSysv(const char* symbolName){
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
 
     uint32_t x = buckets[elf_sysv_hash(symbolName)%numberOfBuckets];
     uint32_t chainVal;
+
+    //    PRINT_INFOR("Symbol with name %s has hash buckets[%d]=%d", symbolName, elf_sysv_hash(symbolName)%numberOfBuckets, x);
 
     while (strcmp(symbolName,symTab->getSymbolName(x))){
         if (x == chains[x]){
@@ -38,27 +112,16 @@ uint32_t HashTable::findSymbolSysv(const char* symbolName){
 
 }
 
+
 bool HashTable::verify(){
-    PRINT_INFOR("Verifying hash");
-    //    isGnuStyleHash();
-    PRINT_INFOR("Verifying hash");
-    
-    verifySysv();
-
-    if (!isGnuStyleHash()){
-        PRINT_INFOR("Verifying hash");
-    } else {
-        PRINT_INFOR("Verifying hash");
-        PRINT_ERROR("GNU hash tables not supported -- try to relink the target with `-Wl,--hash-style=sysv`");
-    }
-    return true;
-}
-
-bool HashTable::verifySysv(){
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
 
     if (!symTab){
         PRINT_ERROR("Couldn't get symbol table %d from elfFile", symTabIdx);
+    }
+
+    if (isGnuStyleHash()){
+        PRINT_ERROR("This hash table should use sysv-style hashing");
     }
 
     if (numberOfChains != symTab->getNumberOfSymbols()){
@@ -80,20 +143,15 @@ bool HashTable::verifySysv(){
         PRINT_ERROR("Section type for hash table must be SHT_HASH or SHT_GNU_HASH");
     }
     
-    if (isGnuStyleHash()){
-        PRINT_ERROR("This hash table should use sysv-style hashing");
+    for (uint32_t i = 0; i < symTab->getNumberOfSymbols(); i++){
+        if (findSymbol(symTab->getSymbolName(i)) != i){
+            PRINT_ERROR("Hash Table search failed for symbol %s", symTab->getSymbolName(i));
+        }
     }
 }
+
 
 void HashTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    if (!isGnuStyleHash()){
-        dumpSysv(binaryOutputFile, offset);
-    } else {
-        ASSERT(0 && "GNU hash tables not supported -- try to relink the target with `-Wl,--hash-style=sysv`");
-    }
-}
-
-void HashTable::dumpSysv(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
     uint32_t tmpEntry;
 
@@ -115,15 +173,6 @@ void HashTable::dumpSysv(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 uint32_t HashTable::read(BinaryInputFile* binaryInputFile){
-    if (!isGnuStyleHash()){
-        return readSysv(binaryInputFile);
-    } else {
-        ASSERT(0 && "GNU hash tables not supported -- try to relink the target with `-Wl,--hash-style=sysv`");
-    }
-    return sizeInBytes;   
-}
-
-uint32_t HashTable::readSysv(BinaryInputFile* binaryInputFile){
     binaryInputFile->setInPointer(rawDataPtr);
     setFileOffset(binaryInputFile->currentOffset());
 
@@ -152,17 +201,11 @@ uint32_t HashTable::readSysv(BinaryInputFile* binaryInputFile){
             PRINT_ERROR("Cannot read chain[%d] from Hash Table)", i);
         }
     }
+
+    return sizeInBytes;
 }
 
 void HashTable::print(){
-    if (!isGnuStyleHash()){
-        printSysv();
-    } else {
-        ASSERT(0 && "GNU hash tables not supported -- try to relink the target with `-Wl,--hash-style=sysv`");
-    }
-}
-
-void HashTable::printSysv(){
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
 
     PRINT_INFOR("Hash Table: section %hd, %d buckets, %d chains", sectionIndex, numberOfBuckets, numberOfChains);
@@ -177,12 +220,6 @@ void HashTable::printSysv(){
     }
 }
 
-uint64_t HashTable::getBloom(uint32_t idx){
-    ASSERT(idx >= 0 && idx < numberOfBlooms && "index into Hash table bloom array is out of bounds");
-    ASSERT(blooms && "bloom array should be initialized");
-
-    return blooms[idx];
-}
 
 uint32_t HashTable::getBucket(uint32_t idx){
     ASSERT(idx >= 0 && idx < numberOfBuckets && "index into Hash Table bucket array is out of bounds");
@@ -220,10 +257,8 @@ HashTable::HashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
 
     if (elfFile->is64Bit()){
         hashEntrySize = Size__64_bit_Hash_Entry;
-        bloomEntrySize = Size__64_bit_GNU_Hash_Bloom_Entry;
     } else {
         hashEntrySize = Size__32_bit_Hash_Entry;
-        bloomEntrySize = Size__32_bit_GNU_Hash_Bloom_Entry;
     }
 
     numberOfBuckets = 0;
@@ -232,8 +267,6 @@ HashTable::HashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
     numberOfChains = 0;
     chains = NULL;
 
-    numberOfBlooms = 0;
-    blooms = NULL;
 }
 
 
@@ -243,9 +276,6 @@ HashTable::~HashTable(){
     }
     if (chains){
         delete[] chains;
-    }
-    if (blooms){
-        delete[] blooms;
     }
 }
 

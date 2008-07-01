@@ -68,7 +68,6 @@ class Instruction {
 protected:
     uint32_t instructionLength;
     char* rawBytes;
-    bool isLocalBytes;
     uint64_t virtualAddress;
     uint64_t nextAddress;
     uint32_t type;
@@ -93,7 +92,7 @@ public:
     uint64_t setNextAddress();
     uint64_t setAddress(uint64_t addr);
     uint32_t setLength(uint32_t len);
-    char* setBytes(char* bytes, bool islocal);
+    char* setBytes(char* bytes);
     uint64_t setOperandValue(uint32_t idx, uint64_t val);
     uint32_t setOperandType(uint32_t idx, uint32_t typ);
 

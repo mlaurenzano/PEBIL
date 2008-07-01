@@ -10,6 +10,7 @@ CC          = $(GNU_CC)
 EXTRA_CFLGS =
 AR          = ar ruv
 RANLIB      = ranlib
+LINKER_FLGS = -Wl,--hash-style=sysv
 
 ## batman
 #EXTRA_LIBS  = -L/scratch/slocal/michaell/downloads/binutils-2.12.90/opcodes/
@@ -26,10 +27,10 @@ BINDIR      = ../bin
 LIBDIR      = ../lib
 
 SRCS        = Base.C ElfFile.C BinaryFile.C FileHeader.C ProgramHeader.C SectionHeader.C \
-              StringTable.C SymbolTable.C RelocationTable.C RawSection.C Disassembler.C \
+              StringTable.C SymbolTable.C RelocationTable.C RawSection.C TextSection.C Disassembler.C \
               Instruction.C GlobalOffsetTable.C DynamicTable.C HashTable.C NoteSection.C main.C
 OBJS        = Base.o ElfFile.o BinaryFile.o FileHeader.o ProgramHeader.o SectionHeader.o \
-              StringTable.o SymbolTable.o RelocationTable.o RawSection.o Disassembler.o \
+              StringTable.o SymbolTable.o RelocationTable.o RawSection.o TextSection.o Disassembler.o \
               Instruction.o GlobalOffsetTable.o DynamicTable.o HashTable.o NoteSection.o main.o
 
 TARGET_BIN  = x86inst
@@ -37,7 +38,7 @@ TARGET_BIN  = x86inst
 all: $(TARGET_BIN)
 
 $(TARGET_BIN) : $(OBJS)
-	$(CPP) -o $@ $(OBJS) -I$(INCLUDE) $(EXTRA_LIBS) -Wl,--hash-style=sysv
+	$(CPP) -o $@ $(OBJS) -I$(INCLUDE) $(EXTRA_LIBS) $(LINKER_FLGS)
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< -I$(INCLUDE) $(EXTRA_INC)
