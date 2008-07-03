@@ -16,28 +16,6 @@ uint32_t DynamicTable::findEmptyDynamic(){
     return numberOfDynamics;
 }
 
-void Dynamic32::setPointer(uint64_t newVal){
-    if ((uint32_t)newVal != newVal){
-        PRINT_WARN("Losing bits on casting new Dynamic ptr: %d != %lld", (uint32_t)newVal, newVal);
-    }
-    entry.d_un.d_ptr = (uint32_t)newVal;
-}
-
-void Dynamic32::setTag(uint64_t newVal){
-    if ((uint32_t)newVal != newVal){
-        PRINT_WARN("Losing bits on casting new Dynamic tag: %d != %lld", (uint32_t)newVal, newVal);
-    }
-    entry.d_tag = (uint32_t)newVal;
-}
-
-void Dynamic64::setPointer(uint64_t newVal){
-    entry.d_un.d_ptr = newVal;
-}
-
-void Dynamic64::setTag(uint64_t newVal){
-    entry.d_tag = newVal;
-}
-
 void DynamicTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
 
@@ -249,6 +227,14 @@ bool DynamicTable::verify(){
     uint64_t relocAddendDynamicSize = 0;
     uint64_t relocAddendDynamicEnt = 0;
     uint64_t hashTableAddress = 0;
+    uint64_t stringTableAddress = 0;
+    uint64_t symbolTableAddress = 0;
+    uint64_t pltgotAddress = 0;
+    uint64_t finiFunctionAddress = 0;
+    uint64_t initFunctionAddress = 0;
+    uint64_t verneedAddress = 0;
+    uint64_t versymAddress = 0;
+
 
     uint32_t entryCounts[DT_JMPREL];
     
@@ -321,9 +307,57 @@ bool DynamicTable::verify(){
             relocDynamicSize = dyn->GET_A(d_ptr,d_un);
         }
 
-        if (dyn->GET(d_tag) == DT_HASH || dyn->GET(d_tag) == DT_GNU_HASH){
+        if (dyn->GET(d_tag) == DT_PLTGOT){
+            pltgotAddress = dyn->GET_A(d_ptr,d_un);
+        } else if (dyn->GET(d_tag) == DT_HASH || dyn->GET(d_tag) == DT_GNU_HASH){
             hashTableAddress = dyn->GET_A(d_ptr,d_un);
+        } else if (dyn->GET(d_tag) == DT_INIT){
+            initFunctionAddress = dyn->GET_A(d_ptr,d_un);
+        } else if (dyn->GET(d_tag) == DT_FINI){
+            finiFunctionAddress = dyn->GET_A(d_ptr,d_un);
+        } else if (dyn->GET(d_tag) == DT_STRTAB){
+            stringTableAddress= dyn->GET_A(d_ptr,d_un);
+        } else if (dyn->GET(d_tag) == DT_SYMTAB){
+            symbolTableAddress= dyn->GET_A(d_ptr,d_un);
+        } else if (dyn->GET(d_tag) == DT_VERNEED){
+            verneedAddress= dyn->GET_A(d_ptr,d_un);
+        } else if (dyn->GET(d_tag) == DT_VERSYM){
+            versymAddress= dyn->GET_A(d_ptr,d_un);
         }
+    }
+
+    // enforce an order on the addresses of certain sections
+    if (hashTableAddress >= symbolTableAddress){
+        PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+    }
+    if (symbolTableAddress >= stringTableAddress){
+        PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+    }
+    if (stringTableAddress >= versymAddress){
+        PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+    }
+    if (versymAddress >= verneedAddress){
+        PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+    }
+    uint64_t textAddress = 0;
+    if (initFunctionAddress){
+        if (verneedAddress >= initFunctionAddress){
+            PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+        }
+        if (initFunctionAddress > textAddress){
+            textAddress = initFunctionAddress;
+        }
+    }
+    if (finiFunctionAddress){
+        if (verneedAddress >= finiFunctionAddress){
+            PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+        }
+        if (finiFunctionAddress > textAddress){
+            textAddress = finiFunctionAddress;
+        }
+    }
+    if (textAddress >= pltgotAddress){
+        PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
     }
 
     if (entryCounts[DT_HASH] == 1){

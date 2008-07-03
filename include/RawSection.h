@@ -3,7 +3,6 @@
 
 #include <Base.h>
 #include <BinaryFile.h>
-#include <defines/RawSection.d>
 
 class ElfFile;
 class Instruction;

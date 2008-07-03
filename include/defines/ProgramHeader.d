@@ -20,7 +20,16 @@ Offset	Length	Offset	Length	Name		Description
     GET_FIELD_BASIS(uint64_t,p_filesz); \
     GET_FIELD_BASIS(uint64_t,p_memsz); \
     GET_FIELD_BASIS(uint64_t,p_flags); \
-    GET_FIELD_BASIS(uint64_t,p_align);
+    GET_FIELD_BASIS(uint64_t,p_align); \
+        \
+    SET_FIELD_BASIS(uint32_t,p_type); \
+    SET_FIELD_BASIS(uint32_t,p_offset); \
+    SET_FIELD_BASIS(uint64_t,p_vaddr); \
+    SET_FIELD_BASIS(uint64_t,p_paddr); \
+    SET_FIELD_BASIS(uint64_t,p_filesz); \
+    SET_FIELD_BASIS(uint64_t,p_memsz); \
+    SET_FIELD_BASIS(uint64_t,p_flags); \
+    SET_FIELD_BASIS(uint64_t,p_align);
 
 #define PROGRAMHEADER_MACROS_CLASS(__str) /** __str **/ \
     GET_FIELD_CLASS(uint32_t,p_type); \
@@ -30,4 +39,13 @@ Offset	Length	Offset	Length	Name		Description
     GET_FIELD_CLASS(uint64_t,p_filesz); \
     GET_FIELD_CLASS(uint64_t,p_memsz); \
     GET_FIELD_CLASS(uint64_t,p_flags); \
-    GET_FIELD_CLASS(uint64_t,p_align);
+    GET_FIELD_CLASS(uint64_t,p_align); \
+        \
+    SET_FIELD_CLASS(uint32_t,p_type); \
+    SET_FIELD_CLASS(uint32_t,p_offset); \
+    SET_FIELD_CLASS(uint64_t,p_vaddr); \
+    SET_FIELD_CLASS(uint64_t,p_paddr); \
+    SET_FIELD_CLASS(uint64_t,p_filesz); \
+    SET_FIELD_CLASS(uint64_t,p_memsz); \
+    SET_FIELD_CLASS(uint64_t,p_flags); \
+    SET_FIELD_CLASS(uint64_t,p_align);

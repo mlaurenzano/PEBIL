@@ -102,7 +102,7 @@ Instruction::~Instruction(){
         delete operands[i];
     }
     if (rawBytes){
-        delete rawBytes;
+        delete[] rawBytes;
     }
 }
 
@@ -116,10 +116,10 @@ char* Instruction::getBytes(){
 
 char* Instruction::setBytes(char* bytes){
     if (rawBytes){
-        delete rawBytes;
-        rawBytes = new char[instructionLength];
-        memcpy(rawBytes,bytes,instructionLength);
+        delete[] rawBytes;
     }
+    rawBytes = new char[instructionLength];
+    memcpy(rawBytes,bytes,instructionLength);
     return rawBytes;
 }
 

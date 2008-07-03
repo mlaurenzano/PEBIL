@@ -1,48 +1,6 @@
 #include <SectionHeader.h>
 #include <BinaryFile.h>
 
-void SectionHeader64::setAddress(uint64_t newVal){
-    entry.sh_addr = newVal;
-}
-
-void SectionHeader64::setOffset(uint64_t newVal){
-    entry.sh_offset = newVal;
-}
-
-void SectionHeader64::setSize(uint64_t newVal){
-    entry.sh_size = newVal;
-}
-
-void SectionHeader64::setLink(uint32_t newVal){
-    entry.sh_link = newVal;
-}
-
-void SectionHeader32::setAddress(uint64_t newVal){
-    if ((uint32_t)newVal != newVal){
-        PRINT_WARN("Losing bits when casting new Section Header addr: %d != %lld", (uint32_t)newVal, newVal);
-    }
-    entry.sh_addr = (uint32_t)newVal;
-}
-
-void SectionHeader32::setOffset(uint64_t newVal){
-    if ((uint32_t)newVal != newVal){
-        PRINT_WARN("Losing bits when casting new Section Header offset: %d != %lld", (uint32_t)newVal, newVal);
-    }
-    entry.sh_offset = (uint32_t)newVal;
-}
-
-void SectionHeader32::setSize(uint64_t newVal){
-    if ((uint32_t)newVal != newVal){
-        PRINT_WARN("Losing bits when casting new Section Header size: %d != %lld", (uint32_t)newVal, newVal);
-    }
-    entry.sh_size = (uint32_t)newVal;
-}
-
-void SectionHeader32::setLink(uint32_t newVal){
-    entry.sh_link = newVal;
-}
-
-
 SectionHeader32::SectionHeader32(uint16_t idx)
     : SectionHeader()
 { 
@@ -104,6 +62,7 @@ bool SectionHeader::inRange(uint64_t address){
 
 bool SectionHeader::verify() {
     if (index == 0){
+        PRINT_INFOR("Verifying section 0");
         if (GET(sh_link) != SHN_UNDEF ||
             GET(sh_info) != 0         ||
             GET(sh_addralign) != 0    ||

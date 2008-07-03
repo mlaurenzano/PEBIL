@@ -21,7 +21,7 @@ public:
     Symbol(char* symPtr, uint32_t idx) : symbolPtr(symPtr),index(idx) {}
         ~Symbol(){};
 
-    SYMBOL_MACROS_BASIS("For the get_X field macros check the defines directory");
+    SYMBOL_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 
     void print(char* symbolName);
     uint32_t getIndex() { return index; }
@@ -32,9 +32,6 @@ public:
     virtual unsigned char getSymbolType() { __SHOULD_NOT_ARRIVE; }
 
     static Symbol* findSymbol(Symbol** symbols,uint32_t symbolCount,uint64_t value);
-
-    virtual void setValue(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
-    virtual void setSectionLink(uint16_t newVal) { __SHOULD_NOT_ARRIVE; }
 };
 
 class Symbol32 : public Symbol {
@@ -46,14 +43,11 @@ public:
     ~Symbol32() {}
     char* charStream() { return (char*)&entry; }
 
-    SYMBOL_MACROS_CLASS("For the get_X field macros check the defines directory");
+    SYMBOL_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     uint32_t read(BinaryInputFile* binaryInputFile);
     unsigned char getSymbolBinding();
     unsigned char getSymbolType();
-
-    void setValue(uint64_t newVal);
-    void setSectionLink(uint16_t newVal);
 };
 
 class Symbol64 : public Symbol {
@@ -65,14 +59,11 @@ public:
     ~Symbol64() {}
     char* charStream() { return (char*)&entry; }
 
-    SYMBOL_MACROS_CLASS("For the get_X field macros check the defines directory");
+    SYMBOL_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     uint32_t read(BinaryInputFile* binaryInputFile);
     unsigned char getSymbolBinding();
     unsigned char getSymbolType();
-
-    void setValue(uint64_t newVal);
-    void setSectionLink(uint16_t newVal);
 };
 
 class SymbolTable : public RawSection {

@@ -4,28 +4,6 @@
 #include <ElfFile.h>
 #include <BinaryFile.h>
 
-void Symbol32::setValue(uint64_t newVal){
-    if ((uint32_t)newVal != newVal){
-        PRINT_WARN("Losing bits when casting new Symbol value: %d != %lld", (uint32_t)newVal, newVal);
-    }
-    entry.st_value = (uint32_t)newVal;
-}
-
-void Symbol32::setSectionLink(uint16_t newVal){
-    entry.st_shndx = newVal;
-}
-
-void Symbol64::setValue(uint64_t newVal){
-    entry.st_value = newVal;
-}
-
-void Symbol64::setSectionLink(uint16_t newVal){
-    entry.st_shndx = newVal;
-}
-
-
-
-
 uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t shndx){
     ASSERT(symbols && "symbols array should be initialized");
 

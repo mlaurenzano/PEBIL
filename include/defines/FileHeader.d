@@ -33,7 +33,21 @@ Offset	Length	Offset	Length	Name		Description
     GET_FIELD_BASIS(uint16_t,e_phnum); \
     GET_FIELD_BASIS(uint16_t,e_shentsize); \
     GET_FIELD_BASIS(uint16_t,e_shnum); \
-    GET_FIELD_BASIS(uint16_t,e_shstrndx);
+    GET_FIELD_BASIS(uint16_t,e_shstrndx); \
+        \
+    SET_FIELD_BASIS(uint16_t,e_type); \
+    SET_FIELD_BASIS(uint16_t,e_machine); \
+    SET_FIELD_BASIS(uint32_t,e_version); \
+    SET_FIELD_BASIS(uint64_t,e_entry); \
+    SET_FIELD_BASIS(uint64_t,e_phoff); \
+    SET_FIELD_BASIS(uint64_t,e_shoff); \
+    SET_FIELD_BASIS(uint32_t,e_flags); \
+    SET_FIELD_BASIS(uint16_t,e_ehsize); \
+    SET_FIELD_BASIS(uint16_t,e_phentsize); \
+    SET_FIELD_BASIS(uint16_t,e_phnum); \
+    SET_FIELD_BASIS(uint16_t,e_shentsize); \
+    SET_FIELD_BASIS(uint16_t,e_shnum); \
+    SET_FIELD_BASIS(uint16_t,e_shstrndx);
 
 #define FILEHEADER_MACROS_CLASS(__str) /** __str **/ \
     GET_FIELD_CLASS(unsigned char*,e_ident); \
@@ -49,4 +63,18 @@ Offset	Length	Offset	Length	Name		Description
     GET_FIELD_CLASS(uint16_t,e_phnum); \
     GET_FIELD_CLASS(uint16_t,e_shentsize); \
     GET_FIELD_CLASS(uint16_t,e_shnum); \
-    GET_FIELD_CLASS(uint16_t,e_shstrndx);
+    GET_FIELD_CLASS(uint16_t,e_shstrndx); \
+        \
+    SET_FIELD_CLASS(uint16_t,e_type); \
+    SET_FIELD_CLASS(uint16_t,e_machine); \
+    SET_FIELD_CLASS(uint32_t,e_version); \
+    SET_FIELD_CLASS(uint64_t,e_entry); \
+    SET_FIELD_CLASS(uint64_t,e_phoff); \
+    SET_FIELD_CLASS(uint64_t,e_shoff); \
+    SET_FIELD_CLASS(uint32_t,e_flags); \
+    SET_FIELD_CLASS(uint16_t,e_ehsize); \
+    SET_FIELD_CLASS(uint16_t,e_phentsize); \
+    SET_FIELD_CLASS(uint16_t,e_phnum); \
+    SET_FIELD_CLASS(uint16_t,e_shentsize); \
+    SET_FIELD_CLASS(uint16_t,e_shnum); \
+    SET_FIELD_CLASS(uint16_t,e_shstrndx);

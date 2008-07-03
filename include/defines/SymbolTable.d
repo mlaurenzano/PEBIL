@@ -17,7 +17,14 @@ Offset	Length	Offset	Length	Name		Description
     GET_FIELD_BASIS(unsigned char,st_other); \
     GET_FIELD_BASIS(uint16_t,st_shndx); \
     GET_FIELD_BASIS(uint64_t,st_value); \
-    GET_FIELD_BASIS(uint64_t,st_size);
+    GET_FIELD_BASIS(uint64_t,st_size); \
+        \
+    SET_FIELD_BASIS(uint32_t,st_name); \
+    SET_FIELD_BASIS(unsigned char,st_info); \
+    SET_FIELD_BASIS(unsigned char,st_other); \
+    SET_FIELD_BASIS(uint16_t,st_shndx); \
+    SET_FIELD_BASIS(uint64_t,st_value); \
+    SET_FIELD_BASIS(uint64_t,st_size);
 
 #define SYMBOL_MACROS_CLASS(__str) /** __str **/ \
     GET_FIELD_CLASS(uint32_t,st_name); \
@@ -25,4 +32,11 @@ Offset	Length	Offset	Length	Name		Description
     GET_FIELD_CLASS(unsigned char,st_other); \
     GET_FIELD_CLASS(uint16_t,st_shndx); \
     GET_FIELD_CLASS(uint64_t,st_value); \
-    GET_FIELD_CLASS(uint64_t,st_size);
+    GET_FIELD_CLASS(uint64_t,st_size); \
+        \
+    SET_FIELD_CLASS(uint32_t,st_name); \
+    SET_FIELD_CLASS(unsigned char,st_info); \
+    SET_FIELD_CLASS(unsigned char,st_other); \
+    SET_FIELD_CLASS(uint16_t,st_shndx); \
+    SET_FIELD_CLASS(uint64_t,st_value); \
+    SET_FIELD_CLASS(uint64_t,st_size);

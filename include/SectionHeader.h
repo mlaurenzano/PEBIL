@@ -28,7 +28,7 @@ public:
     bool verify();
 
     ~SectionHeader() {}
-    SECTIONHEADER_MACROS_BASIS("For the get_X field macros check the defines directory");
+    SECTIONHEADER_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 
     virtual char* charStream() { __SHOULD_NOT_ARRIVE; }
 
@@ -57,11 +57,6 @@ public:
     bool inRange(uint64_t address);
     const char* briefName() { return "SectionHeader"; }
 
-    virtual void setAddress(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
-    virtual void setOffset(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }    
-    virtual void setSize(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
-    virtual void setLink(uint32_t newVal) { __SHOULD_NOT_ARRIVE; }
-
     void setIndex(uint16_t newidx) { index = newidx; }
 };
 
@@ -71,7 +66,7 @@ protected:
 
 public:
 
-    SECTIONHEADER_MACROS_CLASS("For the get_X field macros check the defines directory");
+    SECTIONHEADER_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     SectionHeader32(uint16_t idx);
     ~SectionHeader32() {}
@@ -80,11 +75,6 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     char* charStream() { return (char*)&entry; }
 //    uint32_t instrument(char* buffer,ElfFileGen* xCoffGen,BaseGen* gen);
-
-    void setAddress(uint64_t newVal);
-    void setOffset(uint64_t newVal);
-    void setSize(uint64_t newVal);
-    void setLink(uint32_t newVal);
 };
 
 class SectionHeader64 : public SectionHeader {
@@ -93,7 +83,7 @@ protected:
 
 public:
 
-    SECTIONHEADER_MACROS_CLASS("For the get_X field macros check the defines directory");
+    SECTIONHEADER_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     SectionHeader64(uint16_t idx);
     ~SectionHeader64() {}
@@ -102,11 +92,6 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     char* charStream() { return (char*)&entry; }
 //    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
-
-    void setAddress(uint64_t newVal);
-    void setOffset(uint64_t newVal);
-    void setSize(uint64_t newVal);
-    void setLink(uint32_t newVal);
 };
 
 #endif /* _SectionHeader_h_ */

@@ -13,12 +13,18 @@ Offset	Length	Offset	Length	Name		Description
 #define DYNAMIC_MACROS_BASIS(__str) /** __str **/ \
         GET_FIELD_BASIS_A(uint64_t,d_val,d_un); \
         GET_FIELD_BASIS_A(uint64_t,d_ptr,d_un); \
-        GET_FIELD_BASIS(int64_t,d_tag);
+        GET_FIELD_BASIS(int64_t,d_tag); \
+        SET_FIELD_BASIS_A(uint64_t,d_val,d_un); \
+        SET_FIELD_BASIS_A(uint64_t,d_ptr,d_un); \
+        SET_FIELD_BASIS(int64_t,d_tag);
 /** END of definitions **/
 
 #define DYNAMIC_MACROS_CLASS(__str) /** __str **/ \
         GET_FIELD_CLASS_A(uint64_t,d_val,d_un); \
         GET_FIELD_CLASS_A(uint64_t,d_ptr,d_un); \
-        GET_FIELD_CLASS(int64_t,d_tag);
+        GET_FIELD_CLASS(int64_t,d_tag); \
+        SET_FIELD_CLASS_A(uint64_t,d_val,d_un); \
+        SET_FIELD_CLASS_A(uint64_t,d_ptr,d_un); \
+        SET_FIELD_CLASS(int64_t,d_tag);
 /** END of definitions **/
 

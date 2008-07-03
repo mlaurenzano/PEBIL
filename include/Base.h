@@ -35,6 +35,18 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define GET(__field) get_ ## __field()
 #define GET_A(__field,__union) get_ ## __union ## _ ## __field()
 
+#define SET_FIELD_BASIS(__type,__field) virtual __type set_ ## __field(__type __value) \
+    { __SHOULD_NOT_ARRIVE; return ( __type )0; }
+#define SET_FIELD_CLASS(__type,__field) inline __type set_ ## __field(__type __value) \
+    { entry.__field = __value; return (__type)(entry.__field); }
+#define SET_FIELD_BASIS_A(__type,__field,__union) virtual __type set_ ## __union ## _ ## __field(__type __value) \
+    { __SHOULD_NOT_ARRIVE; return ( __type )0; }
+#define SET_FIELD_CLASS_A(__type,__field,__union) inline __type set_ ## __union ## _ ## __field(__type __value) \
+    { entry.__union.__field = __value; return (__type)(entry.__union.__field); }
+#define SET(__field,__value) set_ ## __field(__value)
+#define SET_A(__field,__union,__value) set_ ## __union ## _ ## __field(__value)
+
+
 #define PRINT_ERROR(...) fprintf(stderr,"*********** ERROR : "); \
     fprintf(stderr,## __VA_ARGS__);                              \
     fprintf(stderr,"\n");                                \

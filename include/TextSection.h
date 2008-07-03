@@ -25,9 +25,10 @@ public:
     uint32_t disassemble();
     uint32_t printDisassembledCode();
     uint32_t addInstruction(char* bytes, uint32_t length, uint64_t addr);
+    uint32_t read(BinaryInputFile* b);
 
     const char* briefName() { return "TextSection"; }
-    //    void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     uint32_t getNumberOfInstruction() { return numberOfInstructions; }
     Instruction* getInstruction(uint32_t idx);

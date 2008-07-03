@@ -17,7 +17,7 @@ protected:
 public:
 
     virtual ~FileHeader() {}
-    FILEHEADER_MACROS_BASIS("For the get_X field macros check the defines directory");
+    FILEHEADER_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 
     void initFilePointers(BinaryInputFile* b);
     void print();
@@ -25,9 +25,6 @@ public:
     char* getSectionHeaderTablePtr() { return sectionHeaderTablePtr; }
     const char* briefName() { return "FileHeader"; }
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
-    virtual void setSectionHeaderOffset(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
-    virtual void setSectionCount(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
-    virtual void setStringTableIndex(uint16_t newVal) { __SHOULD_NOT_ARRIVE; }
 };
 
 class FileHeader32 : public FileHeader {
@@ -36,7 +33,7 @@ protected:
 
 public:
 
-    FILEHEADER_MACROS_CLASS("For the get_X field macros check the defines directory");
+    FILEHEADER_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     FileHeader32() { sizeInBytes = Size__32_bit_File_Header; }
     ~FileHeader32() {}
@@ -44,10 +41,6 @@ public:
 
     char* charStream() { return (char*)&entry; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-
-    void setSectionHeaderOffset(uint64_t newVal);
-    void setSectionCount(uint64_t newVal);
-    void setStringTableIndex(uint16_t newVal);
 };
 
 class FileHeader64 : public FileHeader {
@@ -56,7 +49,7 @@ protected:
 
 public:
 
-    FILEHEADER_MACROS_CLASS("For the get_X field macros check the defines directory");
+    FILEHEADER_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     FileHeader64() { sizeInBytes = Size__64_bit_File_Header; }
     ~FileHeader64() {}
@@ -64,10 +57,6 @@ public:
 
     char* charStream() { return (char*)&entry; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-
-    void setSectionHeaderOffset(uint64_t newVal);
-    void setSectionCount(uint64_t newVal);
-    void setStringTableIndex(uint16_t newVal);
 };
 
 #endif /* _FileHeader_h_ */

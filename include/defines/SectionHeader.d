@@ -25,7 +25,18 @@ Offset	Length	Offset	Length	Name		Description
     GET_FIELD_BASIS(uint32_t,sh_link); \
     GET_FIELD_BASIS(uint32_t,sh_info); \
     GET_FIELD_BASIS(uint64_t,sh_addralign); \
-    GET_FIELD_BASIS(uint64_t,sh_entsize); 
+    GET_FIELD_BASIS(uint64_t,sh_entsize); \
+        \
+    SET_FIELD_BASIS(uint32_t,sh_name); \
+    SET_FIELD_BASIS(uint32_t,sh_type); \
+    SET_FIELD_BASIS(uint64_t,sh_flags); \
+    SET_FIELD_BASIS(uint64_t,sh_addr); \
+    SET_FIELD_BASIS(uint64_t,sh_offset); \
+    SET_FIELD_BASIS(uint64_t,sh_size); \
+    SET_FIELD_BASIS(uint32_t,sh_link); \
+    SET_FIELD_BASIS(uint32_t,sh_info); \
+    SET_FIELD_BASIS(uint64_t,sh_addralign); \
+    SET_FIELD_BASIS(uint64_t,sh_entsize); 
 
 #define SECTIONHEADER_MACROS_CLASS(__str) /** __str **/ \
     GET_FIELD_CLASS(uint32_t,sh_name); \
@@ -37,4 +48,15 @@ Offset	Length	Offset	Length	Name		Description
     GET_FIELD_CLASS(uint32_t,sh_link); \
     GET_FIELD_CLASS(uint32_t,sh_info); \
     GET_FIELD_CLASS(uint64_t,sh_addralign); \
-    GET_FIELD_CLASS(uint64_t,sh_entsize); 
+    GET_FIELD_CLASS(uint64_t,sh_entsize);\
+        \
+    SET_FIELD_CLASS(uint32_t,sh_name); \
+    SET_FIELD_CLASS(uint32_t,sh_type); \
+    SET_FIELD_CLASS(uint64_t,sh_flags); \
+    SET_FIELD_CLASS(uint64_t,sh_addr); \
+    SET_FIELD_CLASS(uint64_t,sh_offset); \
+    SET_FIELD_CLASS(uint64_t,sh_size); \
+    SET_FIELD_CLASS(uint32_t,sh_link); \
+    SET_FIELD_CLASS(uint32_t,sh_info); \
+    SET_FIELD_CLASS(uint64_t,sh_addralign); \
+    SET_FIELD_CLASS(uint64_t,sh_entsize); 

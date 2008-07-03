@@ -12,7 +12,7 @@ protected:
 public:
 
     virtual ~ProgramHeader() {}
-    PROGRAMHEADER_MACROS_BASIS("For the get_X field macros check the defines directory");
+    PROGRAMHEADER_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 
     void print();
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
@@ -21,12 +21,6 @@ public:
     bool isExecutable() { return ISPF_X(GET(p_flags)); } 
 
     bool inRange(uint64_t addr);
-    virtual void setOffset(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
-    virtual void setVirtualAddress(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
-    virtual void setPhysicalAddress(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
-    virtual void setMemorySize(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
-    virtual void setFileSize(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
-    virtual void setFlags(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
 
     const char* briefName() { return "ProgramHeader"; }
     bool verify();
@@ -38,7 +32,7 @@ protected:
 
 public:
 
-    PROGRAMHEADER_MACROS_CLASS("For the get_X field macros check the defines directory");
+    PROGRAMHEADER_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     ProgramHeader32(uint32_t idx) { sizeInBytes = Size__32_bit_Program_Header; index = idx; }
     ~ProgramHeader32() {}
@@ -48,12 +42,6 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     bool inRange(uint64_t addr);
-    void setOffset(uint64_t newVal);
-    void setVirtualAddress(uint64_t newVal);
-    void setPhysicalAddress(uint64_t newVal);
-    void setMemorySize(uint64_t newVal);
-    void setFileSize(uint64_t newVal);
-    void setFlags(uint64_t newVal);
 };
 
 class ProgramHeader64 : public ProgramHeader {
@@ -62,7 +50,7 @@ protected:
 
 public:
 
-    PROGRAMHEADER_MACROS_CLASS("For the get_X field macros check the defines directory");
+    PROGRAMHEADER_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     ProgramHeader64(uint32_t idx) { sizeInBytes = Size__64_bit_Program_Header; index = idx; }
     ~ProgramHeader64() {}
@@ -72,12 +60,6 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     bool inRange(uint64_t addr);
-    void setOffset(uint64_t newVal);
-    void setVirtualAddress(uint64_t newVal);
-    void setPhysicalAddress(uint64_t newVal);
-    void setMemorySize(uint64_t newVal);
-    void setFileSize(uint64_t newVal);
-    void setFlags(uint64_t newVal);
 };
 
 

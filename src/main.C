@@ -222,10 +222,8 @@ int main(int argc,char* argv[]){
         elfInst->reserveProcedureLinkageTable(0x100);
         elfInst->reserveGlobalOffsetTable(0x40);
 
-        /*
         elfInst->addInstrumentationFunction("smalltest");
         elfInst->addInstrumentationFunction("foo");
-        */
 
         elfInst->print();
         elfInst->getElfFile()->dump(extension);
@@ -233,8 +231,7 @@ int main(int argc,char* argv[]){
         delete elfInst;
 
     } else if (instType == disassembler_type){
-        elfFile.disassemble();
-        //        elfFile.printDisassembledCode();
+        elfFile.printDisassembledCode();
     } else {
         PRINT_ERROR("Error : invalid instrumentation type");
     }

@@ -64,10 +64,7 @@ public:
     ~Dynamic() {}
     void print();
 
-    DYNAMIC_MACROS_BASIS("For the get_X field macros check the defines directory");
-
-    virtual void setPointer(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
-    virtual void setTag(uint64_t newVal) { __SHOULD_NOT_ARRIVE; }
+    DYNAMIC_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 };
 
 
@@ -80,12 +77,9 @@ public:
 
     virtual char* charStream() { return (char*)&entry; }
 
-    DYNAMIC_MACROS_CLASS("For the get_X field macros check the defines directory");
+    DYNAMIC_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     uint32_t read(BinaryInputFile* binaryInputFile);
-
-    void setPointer(uint64_t newVal);
-    void setTag(uint64_t newVal);
 };
 
 class Dynamic64 : public Dynamic {
@@ -97,11 +91,9 @@ public:
 
     virtual char* charStream() { return (char*)&entry; }
 
-    DYNAMIC_MACROS_CLASS("For the get_X field macros check the defines directory");
+    DYNAMIC_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     uint32_t read(BinaryInputFile* binaryInputFile);
-    void setPointer(uint64_t newVal);
-    void setTag(uint64_t newVal);
 };
 
 #endif /* _DynamicTable_h_ */
