@@ -12,9 +12,9 @@ class ElfFile;
 class SectionHeader;
 class RawSection;
 
-class Relocation {
+class Relocation : public Base {
 protected:
-    Relocation(char* relPtr, uint32_t idx) : relocationPtr(relPtr), index(idx) {}
+    Relocation(char* relPtr, uint32_t idx) : Base(ElfClassTypes_Relocation), relocationPtr(relPtr), index(idx) {}
     char* relocationPtr;
     uint32_t index;
 public:
@@ -24,6 +24,7 @@ public:
     virtual void print() { __SHOULD_NOT_ARRIVE; }
     virtual uint64_t getSymbol() { __SHOULD_NOT_ARRIVE; }
     virtual uint64_t getType() { __SHOULD_NOT_ARRIVE; }
+    virtual bool verify() { return true; }
 
     RELOCATION_MACROS_BASIS("For the get_X field macros check the defines directory");
 };
@@ -104,55 +105,13 @@ protected:
 
 public:
 
-    RelocationTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
-        : RawSection(ElfClassTypes_relocation_table,rawPtr,size,scnIdx,elf),index(idx),symbolTable(NULL),relocationSection(NULL)
-    {
-        ASSERT(elfFile);
-        ASSERT(elfFile->getSectionHeader(sectionIndex));
-
-        sizeInBytes = size;
-        uint32_t relocationSize;
-        uint32_t typ = elfFile->getSectionHeader(sectionIndex)->GET(sh_type);
-
-        ASSERT((typ == SHT_REL || typ == SHT_RELA) && "Section header type field must be relocation");
-
-
-        if (elfFile->is64Bit()){
-            if (typ == SHT_RELA){
-                relocationSize = Size__64_bit_Relocation_Addend;
-                type = ElfRelType_rela;
-            } else {
-                relocationSize = Size__64_bit_Relocation;
-                type = ElfRelType_rel;
-            }
-        } else {
-            if (typ == SHT_RELA){
-                relocationSize = Size__32_bit_Relocation_Addend;
-                type = ElfRelType_rela;
-            } else {
-                relocationSize = Size__32_bit_Relocation;
-                type = ElfRelType_rel;
-            }
-        }
-        ASSERT(sizeInBytes % relocationSize == 0 && "Section size is bad");
-        numberOfRelocations = sizeInBytes / relocationSize;
-
-        relocations = new Relocation*[numberOfRelocations];
-    }
-    ~RelocationTable(){
-        if (relocations){
-            for (uint32_t i = 0; i < numberOfRelocations; i++){
-                if (relocations[i]){
-                    delete relocations[i];
-                }
-            }
-            delete[] relocations;
-        }
-    }
-
+    RelocationTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf);
+    ~RelocationTable();
 
     void print();
     uint32_t read(BinaryInputFile* b);
+
+    bool verify() { return true; }
 
     uint32_t getNumberOfRelocations() { return numberOfRelocations; }
 
@@ -163,7 +122,6 @@ public:
     uint16_t setRelocationSection();
 
     const char* briefName() { return "RelocationTable"; }
-//    uint32_t instrument(char* buffer,XCoffFileGen* xCoffGen,BaseGen* gen);
 };
 
 #endif

@@ -9,7 +9,7 @@ class Instruction;
 static void noprint_fprintf(FILE* stream, const char* format, ...){
 }
 
-class Disassembler : public Base {
+class Disassembler {
 protected:
     uint32_t is64Bit;
     uint64_t machineType;

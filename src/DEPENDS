@@ -8,9 +8,9 @@ ElfFile.o: ElfFile.C ../include/FileHeader.h ../include/Base.h \
   ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/RelocationTable.h ../include/defines/RelocationTable.d \
   ../include/Disassembler.h ../include/CStructuresX86.h \
-  ../include/BitSet.h ../include/GlobalOffsetTable.h \
-  ../include/DynamicTable.h ../include/defines/DynamicTable.d \
-  ../include/HashTable.h ../include/NoteSection.h
+  ../include/GlobalOffsetTable.h ../include/DynamicTable.h \
+  ../include/defines/DynamicTable.d ../include/HashTable.h \
+  ../include/NoteSection.h
 BinaryFile.o: BinaryFile.C ../include/Base.h ../include/CStructuresElf.h \
   ../include/ElfFile.h ../include/BinaryFile.h
 FileHeader.o: FileHeader.C ../include/BinaryFile.h ../include/Base.h \

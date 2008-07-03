@@ -16,7 +16,7 @@ protected:
     
 public:
     TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
-        : RawSection(ElfClassTypes_text_section,filePtr,size,scnIdx,elf),index(idx),numberOfInstructions(0),instructions(NULL) {}
+        : RawSection(ElfClassTypes_TextSection,filePtr,size,scnIdx,elf),index(idx),numberOfInstructions(0),instructions(NULL) {}
 
     ~TextSection();
 

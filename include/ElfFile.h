@@ -135,11 +135,6 @@ public:
     uint32_t getNumberOfTextSections() { return numberOfTextSections; }
     uint32_t getNumberOfNoteSections() { return numberOfNoteSections; }
 
-    uint32_t getNumberOfFunctions() { return numberOfFunctions; }
-    uint32_t getNumberOfBlocks()    { return numberOfBlocks; }
-    uint32_t getNumberOfMemoryOps() { return numberOfMemoryOps; }
-    uint32_t getNumberOfFloatPOps() { return numberOfFloatPOps; }
-
     uint64_t getDynamicSectionAddress() { return dynamicSectionAddress; }
     uint16_t getDynamicTableSectionIdx() { return dynamicTableSectionIdx; }
     uint16_t getTextSegmentIdx() { return textSegmentIdx; }

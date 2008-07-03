@@ -37,7 +37,7 @@ class DwarfSection : public RawSection {
 
  public:
     DwarfSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
-        : RawSection(ElfClassTypes_dwarf_section,filePtr,size,index,elf),index(idx) {}
+        : RawSection(ElfClassTypes_DwarfSection,filePtr,size,index,elf),index(idx) {}
     ~DwarfSection() {}
 
     uint32_t getIndex() { return index; }

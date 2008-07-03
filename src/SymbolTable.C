@@ -53,7 +53,7 @@ uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, ui
 
 
 SymbolTable::SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
-    : RawSection(ElfClassTypes_symbol_table,rawPtr,size,scnIdx,elf)
+    : RawSection(ElfClassTypes_SymbolTable,rawPtr,size,scnIdx,elf)
 {
     index = idx;
     sizeInBytes = size;
@@ -160,7 +160,7 @@ uint16_t SymbolTable::setStringTable(){
     ASSERT(elfFile->getRawSection(sh->GET(sh_link)));
 
     RawSection* st = elfFile->getRawSection(sh->GET(sh_link));
-    ASSERT(st->getType() == ElfClassTypes_string_table);
+    ASSERT(st->getType() == ElfClassTypes_StringTable);
     stringTable = (StringTable*)st;
     return stringTable->getSectionIndex();
 }
@@ -246,10 +246,10 @@ void SymbolTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 
     for (uint32_t i = 0; i < numberOfSymbols; i++){
         if (elfFile->is64Bit()){
-            binaryOutputFile->copyBytes(((Symbol64*)getSymbol(i))->charStream(),Size__64_bit_Symbol,offset+currByte);
+            binaryOutputFile->copyBytes(getSymbol(i)->charStream(),Size__64_bit_Symbol,offset+currByte);
             currByte += Size__64_bit_Symbol;
         } else {
-            binaryOutputFile->copyBytes(((Symbol32*)getSymbol(i))->charStream(),Size__32_bit_Symbol,offset+currByte);
+            binaryOutputFile->copyBytes(getSymbol(i)->charStream(),Size__32_bit_Symbol,offset+currByte);
             currByte += Size__32_bit_Symbol;
         }
     }

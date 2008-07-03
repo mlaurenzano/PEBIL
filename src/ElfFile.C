@@ -10,7 +10,6 @@
 #include <RelocationTable.h>
 #include <Disassembler.h>
 #include <CStructuresX86.h>
-#include <BitSet.h>
 #include <GlobalOffsetTable.h>
 #include <DynamicTable.h>
 #include <HashTable.h>
@@ -27,6 +26,163 @@ TIMER(
 DEBUG(
 uint32_t readBytes = 0;
 );
+
+bool ElfFile::verify(){
+
+    if (!getFileHeader()){
+        PRINT_ERROR("File Header should exist");
+    }
+
+    if (numberOfPrograms != getFileHeader()->GET(e_phnum)){
+        PRINT_ERROR("Number of segments in file header is inconsistent with our internal count");
+    }
+    if (numberOfSections != getFileHeader()->GET(e_shnum)){
+        PRINT_ERROR("Number of sections in file header is inconsistent with our internal count");
+    }
+    
+    // verify that there is only 1 text and 1 data segment
+    uint32_t textSegCount = 0;
+    uint32_t dataSegCount = 0;
+    for (uint32_t i = 0; i < numberOfPrograms; i++){
+        ProgramHeader* phdr = getProgramHeader(i);
+        if (!phdr){
+            PRINT_ERROR("Program header %d should exist", i)
+        }
+        if (phdr->GET(p_type) == PT_LOAD){
+            if (phdr->isReadable() && phdr->isExecutable()){
+                textSegmentIdx = i;
+                textSegCount++;
+            } else if (phdr->isReadable() && phdr->isWritable()){
+                dataSegmentIdx = i;
+                dataSegCount++;
+            } else {
+                PRINT_ERROR("Segment(%d) with type PT_LOAD has attributes that are not consistent with text or data");
+            }
+        }
+    }
+    if (textSegCount != 1){
+        PRINT_ERROR("Exactly 1 loadable text segment must be present, %d found", textSegCount);
+    }
+    if (dataSegCount != 1){
+        PRINT_ERROR("Exactly 1 loadable data segment must be present, %d found", dataSegCount);
+    }
+
+
+    // enforce constrainst on where PT_INTERP segments fall
+    uint32_t ptInterpIdx = numberOfPrograms;
+    for (uint32_t i = 0; i < numberOfPrograms; i++){
+        if (programHeaders[i]->GET(p_type) == PT_INTERP){
+            if (ptInterpIdx < numberOfPrograms){
+                PRINT_ERROR("Cannot have multiple PT_INTERP segments");
+                return false;
+            }
+            ptInterpIdx = i;
+        }
+    }
+    for (uint32_t i = 0; i < numberOfPrograms; i++){    
+        if (programHeaders[i]->GET(p_type) == PT_LOAD){
+            if (i < ptInterpIdx){
+                PRINT_ERROR("PT_INTERP segment must preceed any loadable segment");
+                return false;
+            }
+        }
+    }
+
+
+    uint64_t hashSectionAddress_DT = dynamicTable->getHashTableAddress();
+    uint64_t dynstrSectionAddress_DT = dynamicTable->getStringTableAddress();
+    uint64_t dynsymSectionAddress_DT = dynamicTable->getSymbolTableAddress();
+    if (dynamicTable->getNumberOfRelocationTables() != 1){
+        PRINT_ERROR("Can only have one relocation table referenced by the dynamic table");
+    }
+    uint64_t relocationSectionAddress_DT = 0;
+    dynamicTable->getRelocationTableAddresses(&relocationSectionAddress_DT);
+
+
+    // here we will enforce an ordering on the sections in the file.
+    // The file must start with note and interp sections
+    uint64_t hashSectionAddress = 0;
+    uint64_t dynamicSectionAddress = 0;
+    uint64_t dynstrSectionAddress = 0;
+    uint64_t dynsymSectionAddress = 0;
+    uint64_t textSectionAddress = 0;
+    uint64_t relocationSectionAddress = 0;
+    uint64_t pltgotSectionAddress = 0;
+    uint64_t versymSectionAddress = 0;
+    uint64_t verneedSectionAddress = 0;
+
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        if (!sectionHeaders[i]){
+            PRINT_ERROR("Section header %d should exist", i);
+        }
+        if (sectionHeaders[i]->getSectionType() == ElfClassTypes_HashTable){
+            if (hashSectionAddress){
+                PRINT_ERROR("Cannot have more than one hash section");
+            }
+            if (dynstrSectionAddress){
+                PRINT_ERROR("Hash table should come before dynamic string table");
+            }
+            hashSectionAddress = sectionHeaders[i]->GET(sh_addr);
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_SymbolTable &&
+            sectionHeaders[i]->GET(sh_type) == SHT_DYNSYM){
+            if (dynsymSectionAddress){
+                PRINT_ERROR("Cannot have more than one dynamic symbol table -- already found one at 0x%016llx", dynsymSectionAddress);
+            }
+            if (dynstrSectionAddress){
+                PRINT_ERROR("Dynamic symbol table should come before dynamic string table");
+            }
+            dynsymSectionAddress = sectionHeaders[i]->GET(sh_addr);
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_StringTable &&
+            sectionHeaders[i]->GET(sh_addr) == dynstrSectionAddress_DT){
+            if (dynstrSectionAddress){
+                PRINT_ERROR("Cannot have more than one dynamic string table");
+            }
+            if (relocationSectionAddress){
+                PRINT_ERROR("Dynamic string table should come before versym table");
+            }
+            dynstrSectionAddress = sectionHeaders[i]->GET(sh_addr);
+        } else if (sectionHeaders[i]->GET(sh_type) == SHT_GNU_versym){
+            if (versymSectionAddress){
+                PRINT_ERROR("Cannot have more than one versym section");
+            }
+            if (verneedSectionAddress){
+                PRINT_ERROR("Versym section should come before verneed section");
+            }
+            versymSectionAddress = sectionHeaders[i]->GET(sh_addr);
+        } else if (sectionHeaders[i]->GET(sh_type) == SHT_GNU_verneed){
+            if (verneedSectionAddress){
+                PRINT_ERROR("Cannot have more than one verneed section");
+            }
+            if (verneedSectionAddress){
+                PRINT_ERROR("Verneed section should come before plt/got section");
+            }
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_RelocationTable &&
+            sectionHeaders[i]->GET(sh_addr) == relocationSectionAddress_DT){
+            if (relocationSectionAddress){
+                PRINT_ERROR("Cannot have more than one relocation table");
+            }
+            if (pltgotSectionAddress){
+                PRINT_ERROR("Relocation table should come before plt/got section");
+            }
+            relocationSectionAddress = sectionHeaders[i]->GET(sh_addr);
+        }
+
+    }
+
+
+
+    for (uint32_t i = 0; i < numberOfPrograms; i++){
+        getProgramHeader(i)->verify();
+    }
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        getSectionHeader(i)->verify();
+        getRawSection(i)->verify();
+    }
+
+}
+
+
+
 
 uint32_t ElfFileInst::fillPLTBytes(char* bytes, uint64_t gotAddress, uint64_t pltBase){
     uint32_t size = 0;
@@ -174,7 +330,9 @@ uint64_t ElfFile::addSection(uint16_t idx, ElfClassTypes classtype, char* bytes,
         memcpy(newSectionHeaders[idx]->charStream(),&entry,sizeof(entry));        
     }
 
-    if (classtype == ElfClassTypes_text_section){
+    newSectionHeaders[idx]->setSectionType();
+
+    if (classtype == ElfClassTypes_TextSection){
         TextSection** newTextSections = new TextSection*[numberOfTextSections+1];
         newTextSections[numberOfTextSections] = new TextSection(bytes,size,idx,numberOfTextSections,this);
         newRawSections[idx] = (RawSection*)newTextSections[numberOfTextSections];
@@ -263,7 +421,7 @@ uint64_t ElfFileInst::reserveGlobalOffsetTable(uint32_t size){
     ASSERT(lowestDataIdx != elfFile->getNumberOfSections() && "Could not find the BSS section in the file");
 
     SectionHeader* dataHdr = elfFile->getSectionHeader(lowestDataIdx);
-    gotAddress = elfFile->addSection(lowestDataIdx+1, ElfClassTypes_global_offset_table, elfFile->getElfFileName(), dataHdr->GET(sh_name), SHT_PROGBITS,
+    gotAddress = elfFile->addSection(lowestDataIdx+1, ElfClassTypes_GlobalOffsetTable, elfFile->getElfFileName(), dataHdr->GET(sh_name), SHT_PROGBITS,
                                      dataHdr->GET(sh_flags), extraDataAddress, extraDataOffset, size, dataHdr->GET(sh_link), 
                                      dataHdr->GET(sh_info), 0, dataHdr->GET(sh_entsize));
 
@@ -302,7 +460,7 @@ uint64_t ElfFileInst::reserveProcedureLinkageTable(uint32_t size){
     ASSERT(lowestTextIdx != elfFile->getNumberOfSections() && "Could not find any text sections in the file");
 
     SectionHeader* textHdr = elfFile->getSectionHeader(lowestTextIdx);
-    pltAddress = elfFile->addSection(lowestTextIdx, ElfClassTypes_text_section, elfFile->getElfFileName(), textHdr->GET(sh_name), textHdr->GET(sh_type),
+    pltAddress = elfFile->addSection(lowestTextIdx, ElfClassTypes_TextSection, elfFile->getElfFileName(), textHdr->GET(sh_name), textHdr->GET(sh_type),
                                      textHdr->GET(sh_flags), textHdr->GET(sh_addr)-size, textHdr->GET(sh_offset)-size, size, textHdr->GET(sh_link), 
                                      textHdr->GET(sh_info), textHdr->GET(sh_addralign), textHdr->GET(sh_entsize));
     pltSize = size;
@@ -1125,117 +1283,6 @@ void ElfFile::dump(char* extension){
 
 }
 
-bool ElfFile::verify(){
-
-    if (!getFileHeader()){
-        PRINT_ERROR("File Header should exist");
-    }
-
-    if (numberOfPrograms != getFileHeader()->GET(e_phnum)){
-        PRINT_ERROR("Number of segments in file header is inconsistent with our internal count");
-    }
-    if (numberOfSections != getFileHeader()->GET(e_shnum)){
-        PRINT_ERROR("Number of sections in file header is inconsistent with our internal count");
-    }
-    
-    // verify that there is only 1 text and 1 data segment
-    uint32_t textSegCount = 0;
-    uint32_t dataSegCount = 0;
-    for (uint32_t i = 0; i < numberOfPrograms; i++){
-        ProgramHeader* phdr = getProgramHeader(i);
-        if (!phdr){
-            PRINT_ERROR("Program header %d should exist", i)
-        }
-        if (phdr->GET(p_type) == PT_LOAD){
-            if (phdr->isReadable() && phdr->isExecutable()){
-                textSegmentIdx = i;
-                textSegCount++;
-            } else if (phdr->isReadable() && phdr->isWritable()){
-                dataSegmentIdx = i;
-                dataSegCount++;
-            } else {
-                PRINT_ERROR("Segment(%d) with type PT_LOAD has attributes that are not consistent with text or data");
-            }
-        }
-    }
-    if (textSegCount != 1){
-        PRINT_ERROR("Exactly 1 loadable text segment must be present, %d found", textSegCount);
-    }
-    if (dataSegCount != 1){
-        PRINT_ERROR("Exactly 1 loadable data segment must be present, %d found", dataSegCount);
-    }
-
-
-    // enforce constrainst on where PT_INTERP segments fall
-    uint32_t ptInterpIdx = numberOfPrograms;
-    for (uint32_t i = 0; i < numberOfPrograms; i++){
-        if (programHeaders[i]->GET(p_type) == PT_INTERP){
-            if (ptInterpIdx < numberOfPrograms){
-                PRINT_ERROR("Cannot have multiple PT_INTERP segments");
-                return false;
-            }
-            ptInterpIdx = i;
-        }
-    }
-    for (uint32_t i = 0; i < numberOfPrograms; i++){    
-        if (programHeaders[i]->GET(p_type) == PT_LOAD){
-            if (i < ptInterpIdx){
-                PRINT_ERROR("PT_INTERP segment must preceed any loadable segment");
-                return false;
-            }
-        }
-    }
-
-    uint32_t hashSectionCount = 0;
-    uint32_t dynlinkSectionCount = 0;
-    uint32_t symtabSectionCount = 0;
-    uint32_t dynsymSectionCount = 0;
-
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        if (!sectionHeaders[i]){
-            PRINT_ERROR("Section header %d should exist", i);
-        }
-        if (sectionHeaders[i]->GET(sh_type) == SHT_HASH || sectionHeaders[i]->GET(sh_type) == SHT_GNU_HASH){
-            hashSectionCount++;
-        } else if (sectionHeaders[i]->GET(sh_type) == SHT_DYNAMIC){
-            dynlinkSectionCount++;
-        } else if (sectionHeaders[i]->GET(sh_type) == SHT_SYMTAB){
-            symtabSectionCount++;
-        } else if (sectionHeaders[i]->GET(sh_type) == SHT_DYNSYM){
-            dynsymSectionCount++;
-        }
-    }
-        // enforce that an elf file can have only one hash section
-    if (hashSectionCount > MAX_SHT_HASH_COUNT){
-        PRINT_ERROR("Elf file cannot have more than one hash sections");
-        return false;
-    }
-        // enforce that an elf file can have only one dynamic linking section
-    if (dynlinkSectionCount > MAX_SHT_DYNAMIC_COUNT){
-        PRINT_ERROR("Elf file cannot have more than %d dynamic linking sections", MAX_SHT_DYNAMIC_COUNT);
-        return false;
-    }
-        // enforce that an elf file can have only one symbol table section
-    if (dynlinkSectionCount > MAX_SHT_SYMTAB_COUNT){
-        PRINT_ERROR("Elf file cannot have more than %d symbol table sections", MAX_SHT_SYMTAB_COUNT);
-        return false;
-    }
-        // enforce that an elf file can have only one dynamic symtab section
-    if (dynlinkSectionCount > MAX_SHT_DYNSYM_COUNT){
-        PRINT_ERROR("Elf file cannot have more than %d dynamic symtab sections", MAX_SHT_DYNSYM_COUNT);
-        return false;
-    }
-
-    for (uint32_t i = 0; i < numberOfPrograms; i++){
-        getProgramHeader(i)->verify();
-    }
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        getSectionHeader(i)->verify();
-        getRawSection(i)->verify();
-    }
-
-}
-
 
 /*
 void ElfFile::testBitSet(){
@@ -1297,6 +1344,8 @@ void ElfFile::parse(){
     readRawSections();
     initSectionFilePointers();
 
+    verify();
+
 }
 
 void ElfFile::readFileHeader() {
@@ -1328,7 +1377,7 @@ void ElfFile::readProgramHeaders(){
     programHeaders = new ProgramHeader*[numberOfPrograms];
     ASSERT(programHeaders);
 
-    binaryInputFile.setInPointer(fileHeader->getProgramHeaderTablePtr());
+    binaryInputFile.setInPointer(binaryInputFile.fileOffsetToPointer(fileHeader->GET(e_phoff)));
     PRINT_INFOR("Found %d program header entries, reading at location %#x\n", numberOfPrograms, binaryInputFile.currentOffset());
 
     for (uint32_t i = 0; i < numberOfPrograms; i++){
@@ -1356,7 +1405,7 @@ void ElfFile::readSectionHeaders(){
     sectionHeaders = new SectionHeader*[numberOfSections];
     ASSERT(sectionHeaders);
 
-    binaryInputFile.setInPointer(fileHeader->getSectionHeaderTablePtr());
+    binaryInputFile.setInPointer(binaryInputFile.fileOffsetToPointer(fileHeader->GET(e_shoff)));
     PRINT_INFOR("Found %d section header entries, reading at location %#x\n", numberOfSections, binaryInputFile.currentOffset());
 
         // first read each section header
@@ -1368,24 +1417,19 @@ void ElfFile::readSectionHeaders(){
         }
         ASSERT(sectionHeaders[i]);
         sectionHeaders[i]->read(&binaryInputFile);
-        DEBUG(
-            readBytes += sectionHeaders[i]->getSizeInBytes();
-            ASSERT(binaryInputFile.alreadyRead() == readBytes);
-            PRINT_DEBUG("read %d bytes for section header %d", sectionHeaders[i]->getSizeInBytes(), i);
-        );
     }
 
         // determine and set section type for each section header
     PRINT_INFOR("Setting section types");
     for (uint32_t i = 0; i < numberOfSections; i++){
-        ElfClassTypes typ = sectionHeaders[i]->setSectionType();
+        uint32_t typ = sectionHeaders[i]->getSectionType();
         switch(typ){
-        case (ElfClassTypes_string_table) : numberOfStringTables++;
-        case (ElfClassTypes_symbol_table) : numberOfSymbolTables++;
-        case (ElfClassTypes_relocation_table) : numberOfRelocationTables++;
-        case (ElfClassTypes_dwarf_section)  : numberOfDwarfSections++;
-        case (ElfClassTypes_text_section) : numberOfTextSections++;
-        case (ElfClassTypes_note_section) : numberOfNoteSections++;
+        case (ElfClassTypes_StringTable) : numberOfStringTables++;
+        case (ElfClassTypes_SymbolTable) : numberOfSymbolTables++;
+        case (ElfClassTypes_RelocationTable) : numberOfRelocationTables++;
+        case (ElfClassTypes_DwarfSection)  : numberOfDwarfSections++;
+        case (ElfClassTypes_TextSection) : numberOfTextSections++;
+        case (ElfClassTypes_NoteSection) : numberOfNoteSections++;
         default: ;
         }
     }
@@ -1411,31 +1455,31 @@ void ElfFile::readRawSections(){
         char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[i]->GET(sh_offset));
         uint64_t sectionSize = (uint64_t)sectionHeaders[i]->GET(sh_size);
 
-        if (sectionHeaders[i]->getSectionType() == ElfClassTypes_string_table){
+        if (sectionHeaders[i]->getSectionType() == ElfClassTypes_StringTable){
             rawSections[i] = new StringTable(sectionFilePtr, sectionSize, i, numberOfStringTables, this);
             stringTables[numberOfStringTables] = (StringTable*)rawSections[i];
             numberOfStringTables++;
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_symbol_table){
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_SymbolTable){
             rawSections[i] = new SymbolTable(sectionFilePtr, sectionSize, i, numberOfSymbolTables, this);
             symbolTables[numberOfSymbolTables] = (SymbolTable*)rawSections[i];
             numberOfSymbolTables++;
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_relocation_table){
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_RelocationTable){
             rawSections[i] = new RelocationTable(sectionFilePtr, sectionSize, i, numberOfRelocationTables, this);
             relocationTables[numberOfRelocationTables] = (RelocationTable*)rawSections[i];
             numberOfRelocationTables++;
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_dwarf_section){
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_DwarfSection){
             rawSections[i] = new DwarfSection(sectionFilePtr, sectionSize, i, numberOfDwarfSections, this);
             dwarfSections[numberOfDwarfSections] = (DwarfSection*)rawSections[i];
             numberOfDwarfSections++;
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_text_section){
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_TextSection){
             rawSections[i] = new TextSection(sectionFilePtr, sectionSize, i, numberOfTextSections, this);
             textSections[numberOfTextSections] = (TextSection*)rawSections[i];
             numberOfTextSections++;
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_hash_table){
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_HashTable){
             ASSERT(!hashTable && "Cannot have multiple hash table sections");
             rawSections[i] = new HashTable(sectionFilePtr, sectionSize, i, this);
             hashTable = (HashTable*)rawSections[i];
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_note_section){
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_NoteSection){
             rawSections[i] = new NoteSection(sectionFilePtr, sectionSize, i, numberOfNoteSections, this);
             noteSections[numberOfNoteSections] = (NoteSection*)rawSections[i];
             numberOfNoteSections++;

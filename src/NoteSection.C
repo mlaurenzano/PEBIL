@@ -1,13 +1,28 @@
 #include <NoteSection.h>
 
 
-Note::Note(uint32_t idx, uint32_t namsz, uint32_t dessz, uint32_t typ, char* nam, char* des){
+Note::Note(uint32_t idx, uint32_t namsz, uint32_t dessz, uint32_t typ, char* nam, char* des)
+    : Base(ElfClassTypes_Note)
+{
     index = idx;
     namesz = namsz;
     descsz = dessz;
     type = typ;
-    name = nam;
-    desc = des;
+
+    name = new char[namesz];
+    memcpy(name,nam,namesz);
+
+    desc = new char[descsz];
+    memcpy(desc,des,descsz);
+}
+
+Note::~Note(){
+    if (name){
+        delete[] name;
+    }
+    if (desc){
+        delete[] desc;
+    }
 }
 
 uint32_t Note::getNumberOfDescriptors(){
@@ -35,18 +50,36 @@ bool Note::verify(){
 }
 
 void Note::print(){
-    PRINT_INFOR("\tNOTE[%d]:\t%d\t%d\t%d\t%s", index, type, namesz, descsz, name);    
+    PRINT_INFO();
+    PRINT_OUT("\tNOTE[%d]:\t%d\t%d\t%d\t%16s", index, type, namesz, descsz, name);    
 
     // print the list of descriptors
-    fprintf(stdout, "\t\tDESC(0-%d):", getNumberOfDescriptors());
     for (uint32_t i = 0; i < getNumberOfDescriptors(); i++){
-        fprintf(stdout, "\t%d", getDescriptor(i));
+        PRINT_OUT("\t%d", getDescriptor(i));
     }
-    fprintf(stdout, "\n");
+    PRINT_OUT("\n");
+}
+
+void NoteSection::print(){
+    PRINT_INFOR("NoteSection %d: section idx %d, %d notes", index, sectionIndex, numberOfNotes);
+
+#ifdef DEBUG_NOTE
+    printBytes(0,0);
+#endif
+
+    PRINT_INFOR("\t\t\tTYPE\tNAMESZ\tDESCSZ\t%16s\tDESC...", "NAME");
+
+    for (uint32_t i = 0; i < numberOfNotes; i++){
+        ASSERT(notes[i] && "numberOfNotes should indicate the number of elements in the notes array");
+        notes[i]->print();
+    }
 }
 
 bool NoteSection::verify(){
     for (uint32_t i = 0; i < numberOfNotes; i++){
+        if (!notes[i]){
+            PRINT_ERROR("Notes[%d] should exist in the Note Table", i);
+        }
         if (!notes[i]->verify()){
             return false;
         }
@@ -56,7 +89,7 @@ bool NoteSection::verify(){
 
 
 NoteSection::NoteSection(char* rawPtr, uint32_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
-    : RawSection(ElfClassTypes_hash_table,rawPtr,size,scnIdx,elf)
+    : RawSection(ElfClassTypes_NoteSection,rawPtr,size,scnIdx,elf)
 {
     index = idx;
 
@@ -75,17 +108,6 @@ NoteSection::~NoteSection(){
     }
 }
 
-void NoteSection::print(){
-    PRINT_INFOR("NoteSection %d: section idx %d, %d notes", index, sectionIndex, numberOfNotes);
-    printBytes(0,0);
-
-    PRINT_INFOR("\t\t\tTYPE\tNAMESZ\tDESCSZ\tNAME");
-
-    for (uint32_t i = 0; i < numberOfNotes; i++){
-        ASSERT(notes[i] && "numberOfNotes should indicate the number of elements in the notes array");
-        notes[i]->print();
-    }
-}
 
 uint32_t NoteSection::read(BinaryInputFile* binaryInputFile){
 

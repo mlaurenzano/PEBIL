@@ -14,15 +14,16 @@ bool ProgramHeader::inRange(uint64_t addr){
 }
 
 void ProgramHeader::print() { 
-    char sizeStr[3];
+    PRINT_INFO();
     if (getSizeInBytes() == Size__32_bit_Program_Header){
-        sprintf(sizeStr,"32");
+        PRINT_OUT("ProgHdr32:");
     } else {
-        sprintf(sizeStr,"64");
+        PRINT_OUT("ProgHdr64:");
     }
 
-    PRINT_INFOR("ProgHdr%2s(%d):\t0x%08x\t0x%016llx\t0x%016llx\t0x%016llx", 
-                sizeStr, index, GET(p_type), GET(p_filesz), GET(p_vaddr), GET(p_paddr));
+    PRINT_OUT("\t0x%08x\t0x%016llx\t0x%016llx\t0x%016llx", 
+                index, GET(p_type), GET(p_filesz), GET(p_vaddr), GET(p_paddr));
+    PRINT_OUT("\n");
     PRINT_INFOR("\t\t\t0x%08x\t0x%016llx\t0x%016llx\t0x%016llx",
                 GET(p_offset), GET(p_memsz), GET(p_flags), GET(p_align));
 }

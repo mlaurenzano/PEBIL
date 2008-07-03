@@ -26,7 +26,7 @@ void DynamicTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 DynamicTable::DynamicTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint16_t segmentIdx, ElfFile* elf) :
-    RawSection(ElfClassTypes_dynamic_table,rawPtr, size, scnIdx, elf)
+    RawSection(ElfClassTypes_DynamicTable,rawPtr, size, scnIdx, elf)
 {
     sizeInBytes = size;
     segmentIndex = segmentIdx;
@@ -514,6 +514,8 @@ uint32_t DynamicTable::read(BinaryInputFile* binaryInputFile){
     }
 
     ASSERT(sizeInBytes == totalBytesRead && "size read from file does not match theorietical size of Dynamic Table");
+
+    verify();
     return sizeInBytes;
 }
 
@@ -546,7 +548,9 @@ uint32_t Dynamic64::read(BinaryInputFile* binaryInputFile){
 }
 
 
-Dynamic::Dynamic(char* dPtr, uint32_t idx){
+Dynamic::Dynamic(char* dPtr, uint32_t idx) :
+    Base(ElfClassTypes_Dynamic)
+{
     dynPtr = dPtr;
     index = idx;
 }

@@ -15,11 +15,10 @@ private:
     char* name;
     char* desc;
 
-    char* notePtr;
     uint32_t index;
 public:
     Note(uint32_t index, uint32_t namsz, uint32_t dessz, uint32_t typ, char* nam, char* des);
-    ~Note() {}
+    ~Note();
 
     bool verify();
     void print();

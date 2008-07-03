@@ -6,7 +6,7 @@
 
 class ProgramHeader : public Base {
 protected:
-    ProgramHeader() : Base(ElfClassTypes_program_header),index(0) {}
+    ProgramHeader() : Base(ElfClassTypes_ProgramHeader),index(0) {}
 
     uint16_t index;
 public:
@@ -40,8 +40,6 @@ public:
 
     char* charStream() { return (char*)&entry; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-
-    bool inRange(uint64_t addr);
 };
 
 class ProgramHeader64 : public ProgramHeader {
@@ -58,8 +56,6 @@ public:
 
     char* charStream() { return (char*)&entry; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-
-    bool inRange(uint64_t addr);
 };
 
 

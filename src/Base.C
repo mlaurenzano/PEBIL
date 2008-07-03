@@ -1,6 +1,5 @@
 #include <Base.h>
 
-char* VersionTag::tag = "revision REVISION";
 
 extern bool isPowerOfTwo(uint32_t n){
     uint32_t currVal = 1;

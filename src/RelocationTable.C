@@ -5,6 +5,56 @@
 #include <SectionHeader.h>
 #include <RawSection.h>
 
+RelocationTable::RelocationTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
+    : RawSection(ElfClassTypes_RelocationTable,rawPtr,size,scnIdx,elf),index(idx),symbolTable(NULL),relocationSection(NULL)
+{
+    ASSERT(elfFile);
+    ASSERT(elfFile->getSectionHeader(sectionIndex));
+
+    sizeInBytes = size;
+    uint32_t relocationSize;
+    uint32_t typ = elfFile->getSectionHeader(sectionIndex)->GET(sh_type);
+
+    ASSERT((typ == SHT_REL || typ == SHT_RELA) && "Section header type field must be relocation");
+
+
+    if (elfFile->is64Bit()){
+        if (typ == SHT_RELA){
+            relocationSize = Size__64_bit_Relocation_Addend;
+            type = ElfRelType_rela;
+        } else {
+            relocationSize = Size__64_bit_Relocation;
+            type = ElfRelType_rel;
+        }
+    } else {
+        if (typ == SHT_RELA){
+            relocationSize = Size__32_bit_Relocation_Addend;
+            type = ElfRelType_rela;
+        } else {
+            relocationSize = Size__32_bit_Relocation;
+            type = ElfRelType_rel;
+        }
+    }
+    ASSERT(sizeInBytes % relocationSize == 0 && "Section size is bad");
+    numberOfRelocations = sizeInBytes / relocationSize;
+
+    relocations = new Relocation*[numberOfRelocations];
+}
+
+
+RelocationTable::~RelocationTable(){
+    if (relocations){
+        for (uint32_t i = 0; i < numberOfRelocations; i++){
+            if (relocations[i]){
+                delete relocations[i];
+            }
+        }
+        delete[] relocations;
+    }
+}
+
+
+
 uint16_t RelocationTable::setSymbolTable(){
     ASSERT(elfFile);
     ASSERT(elfFile->getSectionHeader(getSectionIndex()));
@@ -15,7 +65,7 @@ uint16_t RelocationTable::setSymbolTable(){
     //    sh->print();
     //print();
     //sy->print();
-    ASSERT(sy->getType() == ElfClassTypes_symbol_table);
+    ASSERT(sy->getType() == ElfClassTypes_SymbolTable);
     symbolTable = (SymbolTable*)sy;
     return symbolTable->getSectionIndex();
 }
@@ -79,6 +129,8 @@ uint32_t Relocation32::read(BinaryInputFile* binaryInputFile){
         PRINT_ERROR("Relocation (32) can not be read");
     }
 
+    verify();
+
     return Size__32_bit_Relocation;
 }
 
@@ -88,6 +140,8 @@ uint32_t Relocation64::read(BinaryInputFile* binaryInputFile){
     if(!binaryInputFile->copyBytesIterate(&entry,Size__64_bit_Relocation)){
         PRINT_ERROR("Relocation (64) can not be read");
     }
+
+    verify();
 
     return Size__64_bit_Relocation;
 }
@@ -99,6 +153,8 @@ uint32_t RelocationAddend32::read(BinaryInputFile* binaryInputFile){
         PRINT_ERROR("Relocation Addend (32) can not be read");
     }
 
+    verify();
+    
     return Size__32_bit_Relocation_Addend;
 }
 
@@ -108,6 +164,8 @@ uint32_t RelocationAddend64::read(BinaryInputFile* binaryInputFile){
     if(!binaryInputFile->copyBytesIterate(&entry,Size__64_bit_Relocation_Addend)){
         PRINT_ERROR("Relocation Addend (64) can not be read");
     }
+
+    verify();
 
     return Size__64_bit_Relocation_Addend;
 }
@@ -132,6 +190,8 @@ uint32_t RelocationTable::read(BinaryInputFile* binaryInputFile){
 
         relocations[i]->read(binaryInputFile);
     }
+
+    verify();
 
     return sizeInBytes;
 }

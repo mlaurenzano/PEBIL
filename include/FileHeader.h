@@ -7,22 +7,19 @@
 
 class FileHeader : public Base {
 protected:
-    char* programHeaderTablePtr;
-    char* sectionHeaderTablePtr;
-
-protected:
-    FileHeader() : Base(ElfClassTypes_file_header),programHeaderTablePtr(0),sectionHeaderTablePtr(0){}
-    bool verify(uint16_t targetSize);
 
 public:
+
+    FileHeader() : Base(ElfClassTypes_FileHeader){}
+    bool verify();
 
     virtual ~FileHeader() {}
     FILEHEADER_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 
     void initFilePointers(BinaryInputFile* b);
     void print();
-    char* getProgramHeaderTablePtr() { return programHeaderTablePtr; }
-    char* getSectionHeaderTablePtr() { return sectionHeaderTablePtr; }
+    virtual char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
+
     const char* briefName() { return "FileHeader"; }
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
 };

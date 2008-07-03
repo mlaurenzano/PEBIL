@@ -27,12 +27,12 @@ void HashTable::buildTable(uint32_t numChains, uint32_t numBuckets){
 
     ASSERT(symTab->getNumberOfSymbols() == numberOfChains && "Symbol table should have the same number of symbols as there are chains in the hash table");
 
-    PRINT_INFOR("Building hash table with c=%d and b=%d", numberOfChains, numberOfBuckets);
+    PRINT_DEBUG_HASH("Building hash table with c=%d and b=%d", numberOfChains, numberOfBuckets);
 
     // temporarily set chain[i] to the bucket index a name lookup on chain[i] with have to pass through
     for (uint32_t i = 0; i < numberOfChains; i++){
         chains[i] = elf_sysv_hash(symTab->getSymbolName(i)) % numberOfBuckets;
-        //        PRINT_INFOR("Chain[%d] = (%d)%d -- %s", i, chains[i] % numberOfBuckets, chains[i], symTab->getSymbolName(i));
+        PRINT_DEBUG_HASH("Chain[%d] = (%d)%d -- %s", i, chains[i] % numberOfBuckets, chains[i], symTab->getSymbolName(i));
     }
 
     // set bucket[i] to the last chain index which uses that bucket (ie, where chains[i] == i)
@@ -48,17 +48,14 @@ void HashTable::buildTable(uint32_t numChains, uint32_t numBuckets){
         if (buckets[i] == numberOfChains){
             buckets[i] = 0;
         }
-        //        PRINT_INFOR("Bucket[%d] = %d", i, buckets[i]);
+        PRINT_DEBUG_HASH("Bucket[%d] = %d", i, buckets[i]);
     }
 
     // point chain[i] to chain[j] where j<i and the symbol names for symbols i,j hash to the same bucket
     for (int32_t i = numberOfChains-1; i >= 0; i--){
         bool isChanged = false;
-        //PRINT_INFOR("Need to find an earlier chain that is the same as chain[%d]=%d", i, chains[i]);
         for (int32_t j = i-1; j >= 0; j--){
-            //PRINT_INFOR("\t\tExamining chain[%d]=%d", j, chains[j]);
             if (chains[i] == chains[j]){
-                //PRINT_INFOR("\t\tGREAT SUCCESS");
                 chains[i] = j;
                 j = -1;
                 isChanged = true;
@@ -67,9 +64,10 @@ void HashTable::buildTable(uint32_t numChains, uint32_t numBuckets){
         if (!isChanged){
             chains[i] = 0;
         }
-        //        PRINT_INFOR("real Chain[%d] = %d", i, chains[i]);
-
+        PRINT_DEBUG_HASH("real Chain[%d] = %d", i, chains[i]);
     }
+    sizeInBytes = hashEntrySize * (2 + numberOfBuckets + numberOfChains);
+
 
     print();
 
@@ -89,8 +87,11 @@ bool HashTable::isGnuStyleHash(){
         return false;
     } else if (mySection->GET(sh_type) == SHT_GNU_HASH){
         return true;
+    } else {
+        ASSERT(0 && "Hash table type should be either SHT_HASH or SHT_GNU_HASH");
     }
-    ASSERT(0 && "Hash table type should be either SHT_HASH or SHT_GNU_HASH");
+
+    return false;
 }
 
 uint32_t HashTable::findSymbol(const char* symbolName){
@@ -99,7 +100,7 @@ uint32_t HashTable::findSymbol(const char* symbolName){
     uint32_t x = buckets[elf_sysv_hash(symbolName)%numberOfBuckets];
     uint32_t chainVal;
 
-    //    PRINT_INFOR("Symbol with name %s has hash buckets[%d]=%d", symbolName, elf_sysv_hash(symbolName)%numberOfBuckets, x);
+    PRINT_DEBUG_HASH("Symbol with name %s has hash buckets[%d]=%d", symbolName, elf_sysv_hash(symbolName)%numberOfBuckets, x);
 
     while (strcmp(symbolName,symTab->getSymbolName(x))){
         if (x == chains[x]){
@@ -147,6 +148,10 @@ bool HashTable::verify(){
         if (findSymbol(symTab->getSymbolName(i)) != i){
             PRINT_ERROR("Hash Table search failed for symbol %s", symTab->getSymbolName(i));
         }
+    }
+
+    if (sizeInBytes != hashEntrySize * (2 + numberOfChains + numberOfBuckets)){
+        PRINT_ERROR("Hash Table size is incorrect");
     }
 }
 
@@ -208,15 +213,27 @@ uint32_t HashTable::read(BinaryInputFile* binaryInputFile){
 void HashTable::print(){
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
 
-    PRINT_INFOR("Hash Table: section %hd, %d buckets, %d chains", sectionIndex, numberOfBuckets, numberOfChains);
-    
+    PRINT_INFOR("HASH SECTION: section %hd, %d buckets, %d chains", sectionIndex, numberOfBuckets, numberOfChains);
+
+#ifdef DEBUG_HASH
     printBytes(0,0);
+#endif
     
+    PRINT_INFOR("Bucket Table");
     for (uint32_t i = 0; i < numberOfBuckets; i++){
-        PRINT_INFOR("BKT[%d]\t%d", i, buckets[i]);
+        PRINT_INFO();
+        PRINT_OUT("\tBUCKET[%3d]", i);
+
+        uint32_t chainidx = buckets[i];
+        while (chainidx){
+            PRINT_OUT(" -> CHAIN[%3d]", chainidx);
+            chainidx = chains[chainidx];
+        }
+        PRINT_OUT(" -> CHAIN[  0]\n");
     }
+    PRINT_INFOR("Chain Table")
     for (uint32_t i = 0; i < numberOfChains; i++){
-        PRINT_INFOR("CHN[%d]\t%d\t%s", i, chains[i], symTab->getSymbolName(i));
+        PRINT_INFOR("\tCHAIN[%3d]\t%d\t%s", i, chains[i], symTab->getSymbolName(i));
     }
 }
 
@@ -238,8 +255,9 @@ uint32_t HashTable::getChain(uint32_t idx){
 void HashTable::initFilePointers(){
 
     // locate the symbol table for this hash table (should be the dynamic symbol table
+    symTabIdx = elfFile->getNumberOfSymbolTables();
     for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
-        PRINT_INFOR("Symbol Table %d is section %d", i, elfFile->getSymbolTable(i)->getSectionIndex());
+        PRINT_DEBUG_HASH("Symbol Table %d is section %d", i, elfFile->getSymbolTable(i)->getSectionIndex());
         if (elfFile->getSymbolTable(i)->getSectionIndex() == elfFile->getSectionHeader(sectionIndex)->GET(sh_link)){
             ASSERT(elfFile->getSymbolTable(i)->isDynamic() && "Hash table should be linked with a symbol table that is dynamic");
             symTabIdx = i;
@@ -251,7 +269,7 @@ void HashTable::initFilePointers(){
 
 
 HashTable::HashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
-    : RawSection(ElfClassTypes_hash_table,rawPtr,size,scnIdx,elf)
+    : RawSection(ElfClassTypes_HashTable,rawPtr,size,scnIdx,elf)
 {
     symTabIdx = elfFile->getNumberOfSymbolTables();
 

@@ -1,41 +1,7 @@
 #include <BinaryFile.h>
 #include <FileHeader.h>
 
-/*
-void FileHeader32::setSectionHeaderOffset(uint64_t newVal){
-    if ((uint32_t)newVal != newVal){
-        PRINT_WARN("Losing bits when casting new File Header shoff: %d != %lld", (uint32_t)newVal, newVal);
-    }
-    entry.e_shoff = (uint32_t)newVal;
-}
-
-void FileHeader32::setSectionCount(uint64_t newVal){
-    if ((uint16_t)newVal != newVal){
-        PRINT_WARN("Losing bits when casting new File Header shnum: %d != %lld", (uint32_t)newVal, newVal);
-    }
-    entry.e_shnum = (uint16_t)newVal;
-}
-
-void FileHeader32::setStringTableIndex(uint16_t newVal){
-    entry.e_shstrndx = newVal;
-}
-
-void FileHeader64::setSectionHeaderOffset(uint64_t newVal){
-    entry.e_shoff = newVal;
-}
-
-void FileHeader64::setSectionCount(uint64_t newVal){
-    if ((uint16_t)newVal != newVal){
-        PRINT_WARN("Losing bits when casting new File Header shnum: %d != %lld", (uint32_t)newVal, newVal);
-    }
-    entry.e_shnum = (uint16_t)newVal;
-}
-
-void FileHeader64::setStringTableIndex(uint16_t newVal){
-    entry.e_shstrndx = newVal;
-}
-*/
-bool FileHeader::verify(uint16_t targetSize){
+bool FileHeader::verify(){
     if (!ISELFMAGIC(GET(e_ident)[EI_MAG0],GET(e_ident)[EI_MAG1],GET(e_ident)[EI_MAG2],GET(e_ident)[EI_MAG3])){
         PRINT_ERROR("Magic number incorrect");
         return false;
@@ -84,11 +50,13 @@ bool FileHeader::verify(uint16_t targetSize){
         }
     }
     if (GET(e_ident)[EI_CLASS] == ELFCLASS64){
+        if (sizeInBytes != Size__64_bit_File_Header){
+            PRINT_ERROR("Program Header size is incorrect");
+        }
         if (GET(e_ehsize) != Size__64_bit_File_Header){
             PRINT_ERROR("File header size is wrong: %d != %d", GET(e_ehsize), Size__64_bit_File_Header);
             return false;
         }
-
         if (GET(e_phentsize) != Size__64_bit_Program_Header){
             PRINT_ERROR("Program header size is wrong: %d != %d", GET(e_phentsize), Size__64_bit_Program_Header);
             return false;           
@@ -99,6 +67,9 @@ bool FileHeader::verify(uint16_t targetSize){
         }
         
     } else if (GET(e_ident)[EI_CLASS] == ELFCLASS32){
+        if (sizeInBytes != Size__32_bit_File_Header){
+            PRINT_ERROR("Program Header size is incorrect");
+        }
         if (GET(e_ehsize) != Size__32_bit_File_Header){
             PRINT_ERROR("File header size is wrong");
             return false;
@@ -118,6 +89,7 @@ bool FileHeader::verify(uint16_t targetSize){
         PRINT_ERROR("Elf file class invalid");
         return false;
     }
+
     return true;
 }
 
@@ -132,11 +104,14 @@ void FileHeader::print() {
 
     unsigned char* ident = GET(e_ident);
 
-    PRINT_INFOR("Magic\t\tMagicStr\tClass\tData\tID-Ver\tOS-ABI\tABIVer\tType\tArch\tVersion\t\tEntry\t\t\tFlags");
-    PRINT_INFOR("0x%08x\t0x%02x+%c%c%c\t0x%02x\t0x%02x\t0x%02x\t0x%02x\t0x%04hx\t0x%04hx\t0x%04hx\t0x%08x\t0x%016llx\t0x%08x", 
+    PRINT_INFOR("Magic\t\tMagicStr\tClass\tData\tID-Ver\tOS-ABI\tABIVer\tType\tArch\tVersion");
+    PRINT_INFOR("0x%08x\t0x%02x+%c%c%c\t0x%02x\t0x%02x\t0x%02x\t0x%02x\t0x%04hx\t0x%04hx\t0x%04hx\t0x%08x", 
                 ELFHDR_GETMAGIC, ident[EI_MAG0], ident[EI_MAG1], ident[EI_MAG2], ident[EI_MAG3], ident[EI_CLASS], 
                 ident[EI_DATA], ident[EI_VERSION], ident[EI_OSABI], ident[EI_ABIVERSION], GET(e_type), GET(e_machine),
-                GET(e_version), GET(e_entry), GET(e_flags));
+                GET(e_version));
+    PRINT_INFOR("ESize\t\tEntry\t\t\tFlags\t\tScnStrIdx");
+    PRINT_INFOR("%d\t\t0x%016llx\t0x%08x\t%hd", GET(e_ehsize), GET(e_entry), GET(e_flags), GET(e_shstrndx));
+
 
     if (GET(e_phoff)){
         PRINT_INFOR("ProgHdr Table:\tFile Offset\t\tNum Entries\tEntry Size");
@@ -151,14 +126,6 @@ void FileHeader::print() {
 
 
 void FileHeader::initFilePointers(BinaryInputFile* binaryInputFile){
-
-    if(GET(e_phoff)){
-        programHeaderTablePtr = binaryInputFile->fileOffsetToPointer(GET(e_phoff));
-    }
-    if(GET(e_shoff)){
-        sectionHeaderTablePtr = binaryInputFile->fileOffsetToPointer(GET(e_shoff));
-    }
-
 }
 
 uint32_t FileHeader32::read(BinaryInputFile* binaryInputFile){
@@ -169,8 +136,9 @@ uint32_t FileHeader32::read(BinaryInputFile* binaryInputFile){
         PRINT_ERROR("File header (32) can not be read");
     }
 
-    verify(Size__32_bit_Program_Header);
     initFilePointers(binaryInputFile);
+
+    verify();
 
     return Size__32_bit_File_Header;
 }
@@ -182,8 +150,9 @@ uint32_t FileHeader64::read(BinaryInputFile* binaryInputFile){
         PRINT_ERROR("File header (64) can not be read");
     }
 
-    verify(Size__64_bit_Program_Header);
     initFilePointers(binaryInputFile);
+
+    verify();
 
     return Size__64_bit_File_Header;
 }

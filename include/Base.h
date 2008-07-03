@@ -16,18 +16,16 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_OPERAND
 //#define DEBUG_OPTARGET
 //#define DEBUG_OPCODE
+//#define DEBUG_HASH
+//#define DEBUG_NOTE
 
 #define __MAX_STRING_SIZE 1024
-#define __SHOULD_NOT_ARRIVE assert(0 && "Should not be called")
+#define __SHOULD_NOT_ARRIVE ASSERT(0 && "Should not be called")
 
 #define GET_FIELD_BASIS(__type,__field) virtual __type get_ ## __field() \
     { __SHOULD_NOT_ARRIVE; return ( __type )0; }
 #define GET_FIELD_CLASS(__type,__field) inline __type get_ ## __field() \
     { return (__type)(entry.__field); }
-#define GET_FIELD_BASIS_U(__type,__field,__union) virtual __type get_ ## __field() \
-    { __SHOULD_NOT_ARRIVE; return ( __type )0; }
-#define GET_FIELD_CLASS_U(__type,__field,__union) inline __type get_ ## __field() \
-    { return (__type)(entry.__union.__field); }
 #define GET_FIELD_BASIS_A(__type,__field,__union) virtual __type get_ ## __union ## _ ## __field() \
     { __SHOULD_NOT_ARRIVE; return ( __type )0; }
 #define GET_FIELD_CLASS_A(__type,__field,__union) inline __type get_ ## __union ## _ ## __field() \
@@ -62,6 +60,12 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     fprintf(stdout,"\n");                                  \
     fflush(stdout);
 
+#define PRINT_INFO() fprintf(stdout,"Information : "); \
+    fflush(stdout);
+
+#define PRINT_OUT(...) fprintf(stdout,## __VA_ARGS__); \
+    fflush(stdout);
+
 #ifdef DEBUG_OPCODE
 #define PRINT_DEBUG_OPCODE(...) fprintf(stdout,"OPCODE : "); \
     fprintf(stdout,## __VA_ARGS__); \
@@ -87,6 +91,15 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     fflush(stdout);
 #else
 #define PRINT_DEBUG_OPTARGET(...)
+#endif
+
+#ifdef DEBUG_HASH
+#define PRINT_DEBUG_HASH(...) fprintf(stdout,"HASH : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_HASH(...)
 #endif
 
 
@@ -139,42 +152,6 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Size__32_bit_Note_Section_Entry     sizeof(uint32_t)
 #define Size__64_bit_Note_Section_Entry     sizeof(uint32_t)
 
-#define Size__32_bit_ExceptionTable_Entry     EXCEPTSZ
-#define Size__64_bit_ExceptionTable_Entry     EXCEPTSZ_64
-#define Size__32_bit_LineInfoTable_Entry     LINESZ
-#define Size__64_bit_LineInfoTable_Entry     LINESZ_64
-
-#define Size__32_bit_Loader_Section_Header LDHDRSZ
-#define Size__64_bit_Loader_Section_Header LDHDRSZ_64
-#define Size__32_bit_Loader_Section_Symbol LDSYMSZ
-#define Size__64_bit_Loader_Section_Symbol LDSYMSZ_64
-#define Size__32_bit_Loader_Section_Relocation LDRELSZ
-#define Size__64_bit_Loader_Section_Relocation LDRELSZ_64
-
-#define Type__Auxilary_Symbol_No_Type 0
-#define Type__Auxilary_Symbol_Section 1
-#define Type__Auxilary_Symbol_Exception _AUX_EXCEPT
-#define Type__Auxilary_Symbol_Function _AUX_FCN
-#define Type__Auxilary_Symbol_Block _AUX_SYM
-#define Type__Auxilary_Symbol_File _AUX_FILE
-#define Type__Auxilary_Symbol_CSect _AUX_CSECT
-
-class VersionTag {
-protected:
-	static char* tag;
-
-public:
-	static char* getLibraryVersionTag() { return tag; }
-};
-
-typedef enum {
-    ElfSectType_undefined = 0,
-    ElfSectType_strtab,
-    ElfSectType_symtab,
-    ElfSectType_reltab,
-    ElfSectType_dwarf,
-    ElfSectType_Total_Types
-} ElfSectType;
 
 
 typedef enum {
@@ -186,27 +163,29 @@ typedef enum {
 
 typedef enum {
     ElfClassTypes_no_type = 0,
-    ElfClassTypes_file_header,
-    ElfClassTypes_program_header,
-    ElfClassTypes_sect_header,
-    ElfClassTypes_sect_rawdata,
-    ElfClassTypes_relocation_table,
-    ElfClassTypes_line_info,
-    ElfClassTypes_symbol_table,
-    ElfClassTypes_string_table,
-    ElfClassTypes_dwarf_section,
-    ElfClassTypes_text_section,
-    ElfClassTypes_global_offset_table,
-    ElfClassTypes_dynamic_table,
-    ElfClassTypes_hash_table,
-    ElfClassTypes_note_section,
+    ElfClassTypes_FileHeader,
+    ElfClassTypes_ProgramHeader,
+    ElfClassTypes_SectionHeader,
+    ElfClassTypes_RawSection,
+    ElfClassTypes_RelocationTable,
+    ElfClassTypes_Relocation,
+    ElfClassTypes_SymbolTable,
+    ElfClassTypes_Symbol,
+    ElfClassTypes_StringTable,
+    ElfClassTypes_DwarfSection,
+    ElfClassTypes_TextSection,
+    ElfClassTypes_GlobalOffsetTable,
+    ElfClassTypes_DynamicTable,
+    ElfClassTypes_Dynamic,
+    ElfClassTypes_HashTable,
+    ElfClassTypes_NoteSection,
+    ElfClassTypes_Note,
     ElfClassTypes_Total_Types
 } ElfClassTypes;
 
 
 class BinaryInputFile;
 class BinaryOutputFile;
-//class Instruction;
 
 class Base {
 protected:
@@ -225,7 +204,7 @@ public:
     uint32_t getSizeInBytes() { return sizeInBytes; }
 
     virtual void print() { __SHOULD_NOT_ARRIVE; }
-    virtual uint32_t read(BinaryInputFile* b) { return 0; }
+    virtual uint32_t read(BinaryInputFile* b) { __SHOULD_NOT_ARRIVE; return 0; }
 
 
     uint32_t getFileOffset() { return fileOffset; }

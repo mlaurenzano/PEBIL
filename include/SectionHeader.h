@@ -19,7 +19,7 @@ protected:
 
     uint16_t index;
 protected:
-    SectionHeader() : Base(ElfClassTypes_sect_header),
+    SectionHeader() : Base(ElfClassTypes_SectionHeader),
         rawDataPtr(NULL), relocationPtr(NULL), lineInfoPointer(NULL),
         numOfRelocations(0),numOfLineInfo(0),
         index(0),sectionNamePtr(NULL),sectionType(ElfClassTypes_no_type) {}

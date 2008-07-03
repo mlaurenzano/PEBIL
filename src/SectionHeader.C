@@ -18,23 +18,54 @@ SectionHeader64::SectionHeader64(uint16_t idx)
 }
 
 ElfClassTypes SectionHeader::setSectionType(){
-    if (GET(sh_type) == SHT_STRTAB){
-        sectionType = ElfClassTypes_string_table;
-    } else if (GET(sh_type) == SHT_SYMTAB || GET(sh_type) == SHT_DYNSYM){
-        sectionType = ElfClassTypes_symbol_table;
-    } else if (GET(sh_type) == SHT_REL || GET(sh_type) == SHT_RELA){
-        sectionType = ElfClassTypes_relocation_table;
-    } else if (GET(sh_type) == SHT_PROGBITS){
+    uint32_t type = GET(sh_type);
+
+    switch (GET(sh_type)){
+    case SHT_NULL:
+        sectionType = ElfClassTypes_no_type;
+        break;
+    case SHT_PROGBITS:
         if (!hasWriteBit() && !hasAllocBit() && !hasExecInstrBit()){
-            sectionType = ElfClassTypes_dwarf_section;
+            sectionType = ElfClassTypes_DwarfSection;
         } else if (hasExecInstrBit()){
-            sectionType = ElfClassTypes_text_section;
+            sectionType = ElfClassTypes_TextSection;
         }
-    } else if (GET(sh_type) == SHT_HASH || GET(sh_type) == SHT_GNU_HASH){
-        sectionType = ElfClassTypes_hash_table;
-    } else if (GET(sh_type) == SHT_NOTE){
-        sectionType = ElfClassTypes_note_section;
+        break;
+    case SHT_SYMTAB:
+        sectionType = ElfClassTypes_SymbolTable;
+        break;
+    case SHT_STRTAB:
+        sectionType = ElfClassTypes_StringTable;
+        break;
+    case SHT_RELA:
+        sectionType = ElfClassTypes_RelocationTable;
+        break;
+    case SHT_HASH:
+        sectionType = ElfClassTypes_HashTable;
+        break;
+    case SHT_DYNAMIC:
+        sectionType = ElfClassTypes_DynamicTable;
+        break;
+    case SHT_NOTE:
+        sectionType = ElfClassTypes_NoteSection;
+        break;
+    case SHT_NOBITS:
+        sectionType = ElfClassTypes_no_type;
+        break;
+    case SHT_REL:
+        sectionType = ElfClassTypes_RelocationTable;
+        break;
+    case SHT_SHLIB:
+        sectionType = ElfClassTypes_no_type;
+        break;
+    case SHT_DYNSYM:
+        sectionType = ElfClassTypes_SymbolTable;
+        break;
+    case SHT_GNU_HASH:
+        sectionType = ElfClassTypes_HashTable;
+        break;
     }
+
     return sectionType;
 }
 
@@ -125,8 +156,9 @@ uint32_t SectionHeader32::read(BinaryInputFile* binaryInputFile){
     if(!binaryInputFile->copyBytesIterate(&entry,Size__32_bit_Section_Header)){
         PRINT_ERROR("Section header (32) can not be read");
     }
+
+    setSectionType();
     verify();
-//    initFilePointers(binaryInputFile);
     
     return Size__32_bit_Section_Header;
 }
@@ -138,14 +170,14 @@ uint32_t SectionHeader64::read(BinaryInputFile* binaryInputFile){
     if(!binaryInputFile->copyBytesIterate(&entry,Size__64_bit_Section_Header)){
         PRINT_ERROR("Section header (64) can not be read");
     }
-//    verify();
-//    initFilePointers(binaryInputFile);
+
+    setSectionType();
+    verify();
 
     return Size__64_bit_Section_Header;
 }
 
 void SectionHeader32::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-  //    PRINT_INFOR("dumping section header %d", index);
     binaryOutputFile->copyBytes(charStream(),Size__32_bit_Section_Header,offset);
 }
 

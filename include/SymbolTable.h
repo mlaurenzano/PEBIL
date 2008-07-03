@@ -18,7 +18,7 @@ public:
     uint32_t index;
     char* symbolPtr;
 
-    Symbol(char* symPtr, uint32_t idx) : symbolPtr(symPtr),index(idx) {}
+    Symbol(char* symPtr, uint32_t idx) : Base(ElfClassTypes_Symbol),symbolPtr(symPtr),index(idx) {}
         ~Symbol(){};
 
     SYMBOL_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
@@ -27,6 +27,7 @@ public:
     uint32_t getIndex() { return index; }
     char* getSymbolPtr() { return symbolPtr; }
     bool verify(uint16_t targetSize);
+    virtual char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
 
     virtual unsigned char getSymbolBinding() { __SHOULD_NOT_ARRIVE; }
     virtual unsigned char getSymbolType() { __SHOULD_NOT_ARRIVE; }
