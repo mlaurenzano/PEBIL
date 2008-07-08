@@ -94,33 +94,46 @@ bool FileHeader::verify(){
 }
 
 
+const char* ETypeNames[] = { "NONE","REL","EXEC","DYN","CORE" };
+const char* EMachNames[] = { "NONE","M32","SPARC","386","68K","88K","860","MPIS" };
+const char* EKlazNames[] = { "NONE","32-Bit","64-Bit" };
+const char* EDataNames[] = { "NONE","LeastSB","MostSB" };
+
 void FileHeader::print() { 
 
-    if (getSizeInBytes() == Size__32_bit_File_Header){
-        PRINT_INFOR("FileHeader32");
-    } else {
-        PRINT_INFOR("FileHeader64");
-    }
-
+    PRINT_INFOR("FileHeader:");
+    PRINT_INFOR("===========");
+    PRINT_INFOR("\tMagic\tClass\tData\tVersion\tPadding");
     unsigned char* ident = GET(e_ident);
+    ASSERT(ident[EI_CLASS] <= ELFCLASS64);
+    ASSERT(ident[EI_VERSION] == EV_CURRENT);
+    PRINT_INFOR("\t%hx-%c%c%c\t%s\t%s\t%d\t%d",
+        ident[EI_MAG0],ident[EI_MAG1],ident[EI_MAG2],ident[EI_MAG3],
+        EKlazNames[ident[EI_CLASS]],EDataNames[ident[EI_DATA]],ident[EI_VERSION],ident[EI_PAD]);
 
-    PRINT_INFOR("Magic\t\tMagicStr\tClass\tData\tID-Ver\tOS-ABI\tABIVer\tType\tArch\tVersion");
-    PRINT_INFOR("0x%08x\t0x%02x+%c%c%c\t0x%02x\t0x%02x\t0x%02x\t0x%02x\t0x%04hx\t0x%04hx\t0x%04hx\t0x%08x", 
-                ELFHDR_GETMAGIC, ident[EI_MAG0], ident[EI_MAG1], ident[EI_MAG2], ident[EI_MAG3], ident[EI_CLASS], 
-                ident[EI_DATA], ident[EI_VERSION], ident[EI_OSABI], ident[EI_ABIVERSION], GET(e_type), GET(e_machine),
-                GET(e_version));
-    PRINT_INFOR("ESize\t\tEntry\t\t\tFlags\t\tScnStrIdx");
-    PRINT_INFOR("%d\t\t0x%016llx\t0x%08x\t%hd", GET(e_ehsize), GET(e_entry), GET(e_flags), GET(e_shstrndx));
-
-
-    if (GET(e_phoff)){
-        PRINT_INFOR("ProgHdr Table:\tFile Offset\t\tNum Entries\tEntry Size");
-        PRINT_INFOR("\t\t\t0x%016llx\t%hd\t\t%hd", GET(e_phoff), GET(e_phnum), GET(e_phentsize));
+    ASSERT(GET(e_type) < ET_LOPROC);
+    PRINT_INFOR("\tehsz : %dB",GET(e_ehsize));
+    PRINT_INFOR("\ttype : %s",ETypeNames[GET(e_type)]);
+    PRINT_INFOR("\tmach : %s",EMachNames[GET(e_machine)]);
+    ASSERT(ident[EI_VERSION] == GET(e_version));
+    PRINT_INFOR("\tvers : %d",GET(e_version));
+    PRINT_INFOR("\tentr : 0x%llx",GET(e_entry));
+    if(GET(e_phoff)){
+        PRINT_INFOR("\tPhdr : @%llu (%ux%uB)",GET(e_phoff),GET(e_phnum),GET(e_phentsize));
+    } else {
+        PRINT_INFOR("\tPhdr : none");
     }
-    if (GET(e_shoff)){
-        PRINT_INFOR("SectHdr Table:\tFile Offset\t\tNum Entries\tEntry Size");
-        PRINT_INFOR("\t\t\t0x%016llx\t%hd\t\t%hd", GET(e_shoff), GET(e_shnum), GET(e_shentsize));
+    if(GET(e_shoff)){
+        PRINT_INFOR("\tShdr : @%llu (%ux%uB)",GET(e_shoff),GET(e_shnum),GET(e_shentsize));
+    } else {
+        PRINT_INFOR("\tShdr : none");
     }
+    if(GET(e_shstrndx) != SHN_UNDEF){
+        PRINT_INFOR("\tSnam : sect%d", GET(e_shstrndx));
+    } else {
+        PRINT_INFOR("\tSnam : no string table for section names");
+    }
+    ASSERT(!GET(e_flags));
 
 }
 

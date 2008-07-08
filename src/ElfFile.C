@@ -1115,16 +1115,16 @@ void ElfFile::print()
     }
 
     if (programHeaders){
-        PRINT_INFOR("");
-        PRINT_INFOR("Program Header Table");
-        PRINT_INFOR("\t\t\tType\t\tSize in File\t\tVirtual Address\t\tPhysical Address");
-        PRINT_INFOR("\t\t\tOffset\t\tSize in Memory\t\tFlags\t\t\tAlignment");
+        PRINT_INFOR("Program Headers:");
+        PRINT_INFOR("================");
         for (uint32_t i = 0; i < numberOfPrograms; i++){
             if (programHeaders[i]){
+                PRINT_INFOR("hidx : %u",i);
                 programHeaders[i]->print();
             }
         }
     }
+    exit(-1);
     
     if (sectionHeaders){
         PRINT_INFOR("");

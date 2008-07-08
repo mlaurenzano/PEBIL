@@ -13,19 +13,45 @@ bool ProgramHeader::inRange(uint64_t addr){
     return false;
 }
 
+const char* PTypeNames[] = { "NULL","LOAD","DYNAMIC","INTERP","NOTE","SHLIB","PHDR" };
+
 void ProgramHeader::print() { 
-    PRINT_INFO();
-    if (getSizeInBytes() == Size__32_bit_Program_Header){
-        PRINT_OUT("ProgHdr32:");
+
+    if(GET(p_type) <= PT_PHDR){
+        PRINT_INFOR("\tPtyp : %s",PTypeNames[GET(p_type)]);
     } else {
-        PRINT_OUT("ProgHdr64:");
+        char* ptr = "UNK";
+        switch(GET(p_type)){
+            case PT_LOOS         : ptr = "LOOS"; break;
+            case PT_GNU_EH_FRAME : ptr = "GNU_EH_FRAME"; break;
+            case PT_GNU_STACK    : ptr = "GNU_STACK"; break;
+            case PT_LOSUNW       : ptr = "LOSUNW"; break;
+            case PT_SUNWSTACK    : ptr = "SUNWSTACK"; break;
+            case PT_HISUNW       : ptr = "HISUNW"; break;
+            case PT_LOPROC       : ptr = "LOPROC"; break;
+            case PT_HIPROC       : ptr = "HIPROC"; break;
+            default              : ptr = "UNK"; break;
+        }
+        PRINT_INFOR("\tPtyp : %s (0x%x)",ptr,GET(p_type));
     }
 
-    PRINT_OUT("\t0x%08x\t0x%016llx\t0x%016llx\t0x%016llx", 
-                index, GET(p_type), GET(p_filesz), GET(p_vaddr), GET(p_paddr));
-    PRINT_OUT("\n");
-    PRINT_INFOR("\t\t\t0x%08x\t0x%016llx\t0x%016llx\t0x%016llx",
-                GET(p_offset), GET(p_memsz), GET(p_flags), GET(p_align));
+    PRINT_INFOR("\tPoff : @%llu for %lluB",GET(p_offset),GET(p_filesz));
+    PRINT_INFOR("\tPvad : 0x%llx for %lluB",GET(p_vaddr),GET(p_memsz));
+    PRINT_INFOR("\tPpad : 0x%llx",GET(p_paddr));
+    uint32_t alignment = GET(p_align);
+    for(uint32_t i=0;i<32;i++){
+        if((alignment >> i) & 0x1){
+            alignment = i;
+        }
+    }
+    PRINT_INFOR("\talig : 2**%u",alignment);
+
+    uint32_t flags  = GET(p_flags);
+    PRINT_INFOR("\tflgs : %c%c%c%c%c",ISPF_R(flags) ? 'r' : '-',
+                                      ISPF_W(flags) ? 'w' : '-',
+                                      ISPF_X(flags) ? 'x' : '-',
+                                      flags == PF_MASKOS ? 'o' : '-',
+                                      flags == PF_MASKPROC ? 'p' : '-');
 }
 
 
