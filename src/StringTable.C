@@ -32,10 +32,10 @@ uint32_t StringTable::addString(const char* name){
 
 void StringTable::print() { 
 
-    PRINT_INFOR("tidx : %d aka sect %d %uB",index,getSectionIndex(),sizeInBytes);
+    PRINT_INFOR("StringTable : %d aka sect %d %uB",index,getSectionIndex(),sizeInBytes);
     for (uint32_t currByte = 0; currByte < sizeInBytes; currByte++){
         char* ptr = getString(currByte);
-        PRINT_INFOR("\t%9d : %s",currByte,ptr);
+        PRINT_INFOR("\t%7d : %s",currByte,ptr);
         currByte += strlen(ptr);
     }
 

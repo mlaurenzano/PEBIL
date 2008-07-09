@@ -143,7 +143,7 @@ void DynamicTable::printSharedLibraries(BinaryInputFile* b){
     uint64_t strTabAddr = getStringTableAddress();
     StringTable* strTab = NULL;
 
-    PRINT_INFOR("shared library deps in the Dynamic Table: %d libraries", getNumberOfSharedLibraries());
+    PRINT_INFOR("SharedLibDeps : %d",getNumberOfSharedLibraries());
 
     // locate the stringTable being referred to by strTabAddr
     for (uint32_t i = 0; i < elfFile->getNumberOfStringTables(); i++){
@@ -163,7 +163,7 @@ void DynamicTable::printSharedLibraries(BinaryInputFile* b){
             dyn = (Dynamic32*)dynamics[i];
         }
         if (dyn->GET(d_tag) == DT_NEEDED){
-            PRINT_INFOR("\t\t%s", strTab->getString(dyn->GET_A(d_ptr,d_un)));
+            PRINT_INFOR("\tlib%5d -- %s",i,strTab->getString(dyn->GET_A(d_ptr,d_un)));
         }
     }
 
@@ -491,7 +491,9 @@ DynamicTable::~DynamicTable(){
 }
 
 void DynamicTable::print(){
-    PRINT_INFOR("Dynamic Table: section %d, segment %d, %d entries", sectionIndex, segmentIndex, numberOfDynamics);
+    PRINT_INFOR("DynamicTable : with %d",numberOfDynamics);
+    PRINT_INFOR("\tsect : %d",sectionIndex);
+    PRINT_INFOR("\tphdr : %d",segmentIndex);
     for (uint32_t i = 0; i < numberOfDynamics; i++){
         dynamics[i]->print();
     }
@@ -555,17 +557,40 @@ Dynamic::Dynamic(char* dPtr, uint32_t idx) :
     index = idx;
 }
 
+const char* DTagNames[] = { "NULL", "NEEDED", "PLTRELSZ", "PLTGOT", "HASH", "STRTAB", "SYMTAB", 
+                            "RELA", "RELASZ", "RELAENT", "STRSZ", "SYMENT", "INIT", "FINI", "SONAME", 
+                            "RPATH", "SYMBOLIC", "REL", "RELSZ", "RELENT", "PLTREL", "DEBUG", "TEXTREL",
+                            "JMPREL", "BIND_NOW", "INIT_ARRAY", "FINI_ARRAY", "INIT_ARRAYSZ", "FINI_ARRAYSZ", 
+                            "RUNPATH", "FLAGS", "UNK31", "ENCODING", "PREINIT_ARRAYSZ", "NUM" };
+
 void Dynamic::print(){
     uint64_t tag = GET(d_tag);
-    uint8_t treatDun = DYNAMIC_ENT_D_UN_IGNORED;
+    uint8_t treatDun = DYNAMIC_ENT_D_UN_IS_D_PTR;
+
+    char tmpstr[__MAX_STRING_SIZE];
+    sprintf(tmpstr,"Th%llx",tag);
+    if(tag <= DT_NUM){
+        sprintf(tmpstr,"%s",DTagNames[tag]);
+    }
 
     // check if d_un is to be interpreted as d_val or d_ptr
     switch(GET(d_tag)){
     case DT_NULL:
-        treatDun = DYNAMIC_ENT_D_UN_IS_D_PTR;
+    case DT_TEXTREL:
+    case DT_SYMBOLIC:
+        treatDun = DYNAMIC_ENT_D_UN_IGNORED;
         break;
+    case DT_RELASZ:
+    case DT_RELAENT:
+    case DT_STRSZ:
+    case DT_SYMENT:
     case DT_NEEDED:
     case DT_PLTRELSZ:
+    case DT_SONAME:
+    case DT_RPATH:
+    case DT_RELSZ:
+    case DT_RELENT:
+    case DT_PLTREL:
         treatDun = DYNAMIC_ENT_D_UN_IS_D_VAL;
         break;
     case DT_PLTGOT:
@@ -573,54 +598,25 @@ void Dynamic::print(){
     case DT_STRTAB:
     case DT_SYMTAB:
     case DT_RELA:
-        treatDun = DYNAMIC_ENT_D_UN_IS_D_PTR;
-        break;
-    case DT_RELASZ:
-    case DT_RELAENT:
-    case DT_STRSZ:
-    case DT_SYMENT:
-        treatDun = DYNAMIC_ENT_D_UN_IS_D_VAL;
-        break;
     case DT_INIT:
     case DT_FINI:
-        treatDun = DYNAMIC_ENT_D_UN_IS_D_PTR;
-        break;
-    case DT_SONAME:
-    case DT_RPATH:
-        treatDun = DYNAMIC_ENT_D_UN_IS_D_VAL;
-        break;
-    case DT_SYMBOLIC:
-        treatDun = DYNAMIC_ENT_D_UN_IGNORED;
-        break;
     case DT_REL:
-        treatDun = DYNAMIC_ENT_D_UN_IS_D_PTR;
-        break;
-    case DT_RELSZ:
-    case DT_RELENT:
-    case DT_PLTREL:
-        treatDun = DYNAMIC_ENT_D_UN_IS_D_VAL;
-        break;
     case DT_DEBUG:
-        treatDun = DYNAMIC_ENT_D_UN_IS_D_PTR;
-        break;
-    case DT_TEXTREL:
-        treatDun = DYNAMIC_ENT_D_UN_IGNORED;
-        break;
     case DT_JMPREL:
         treatDun = DYNAMIC_ENT_D_UN_IS_D_PTR;
         break;
     default:
-        treatDun = DYNAMIC_ENT_D_UN_IS_D_VAL;
+        break;
     }
 
     if (treatDun == DYNAMIC_ENT_D_UN_IGNORED){
-        PRINT_INFOR("DYN[%d]\tTAG 0x%016llx", index, GET(d_tag));
+        PRINT_INFOR("\tdyn%5d -- typ:%11s",index,tmpstr);
     } else if (treatDun == DYNAMIC_ENT_D_UN_IS_D_VAL){
-        PRINT_INFOR("DYN[%d]\tTAG 0x%016llx\tVAL 0x%016llx", index, GET(d_tag), GET_A(d_val,d_un));        
+        PRINT_INFOR("\tdyn%5d -- typ:%11s val:%lld",index,tmpstr,GET_A(d_val,d_un));        
     } else if (treatDun == DYNAMIC_ENT_D_UN_IS_D_PTR){
-        PRINT_INFOR("DYN[%d]\tTAG 0x%016llx\tPTR 0x%016llx", index, GET(d_tag), GET_A(d_ptr,d_un));        
+        PRINT_INFOR("\tdyn%5d -- typ:%11s ptr:%#llx",index,tmpstr,GET_A(d_ptr,d_un));        
     } else {
-        PRINT_ERROR("Dynamic tag type was not interpreted correctly: %d", treatDun);
+        PRINT_INFOR("\tdyn%5d -- typ:%#llx v?p:%#llx",index,GET(d_tag),GET_A(d_ptr,d_un));        
     }
 }
 

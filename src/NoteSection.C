@@ -50,29 +50,24 @@ bool Note::verify(){
 }
 
 void Note::print(){
-    PRINT_INFO();
-    PRINT_OUT("\tNOTE[%d]:\t%d\t%d\t%d\t%16s", index, type, namesz, descsz, name);    
-
+    PRINT_INFOR("\tnot%5d -- typ:%5d nsz:%5d dsz:%5dB name:%10s",
+        index,type,namesz,descsz,name);
     // print the list of descriptors
     for (uint32_t i = 0; i < getNumberOfDescriptors(); i++){
-        PRINT_OUT("\t%d", getDescriptor(i));
+        PRINT_INFOR("\t\tdsc:%d", getDescriptor(i));
     }
-    PRINT_OUT("\n");
 }
 
 void NoteSection::print(){
-    PRINT_INFOR("NoteSection %d: section idx %d, %d notes", index, sectionIndex, numberOfNotes);
-
-#ifdef DEBUG_NOTE
-    printBytes(0,0);
-#endif
-
-    PRINT_INFOR("\t\t\tTYPE\tNAMESZ\tDESCSZ\t%16s\tDESC...", "NAME");
-
+    PRINT_INFOR("NoteSection : %d with %d notes",index,numberOfNotes);
+    PRINT_INFOR("\tsect : %d",sectionIndex);
     for (uint32_t i = 0; i < numberOfNotes; i++){
         ASSERT(notes[i] && "numberOfNotes should indicate the number of elements in the notes array");
         notes[i]->print();
     }
+#ifdef DEBUG_NOTE
+    printBytes(0,0);
+#endif
 }
 
 bool NoteSection::verify(){

@@ -102,7 +102,6 @@ const char* EDataNames[] = { "NONE","LeastSB","MostSB" };
 void FileHeader::print() { 
 
     PRINT_INFOR("FileHeader:");
-    PRINT_INFOR("===========");
     PRINT_INFOR("\tMagic\tClass\tData\tVersion\tPadding");
     unsigned char* ident = GET(e_ident);
     ASSERT(ident[EI_CLASS] <= ELFCLASS64);
@@ -117,7 +116,7 @@ void FileHeader::print() {
     PRINT_INFOR("\tmach : %s",EMachNames[GET(e_machine)]);
     ASSERT(ident[EI_VERSION] == GET(e_version));
     PRINT_INFOR("\tvers : %d",GET(e_version));
-    PRINT_INFOR("\tentr : 0x%llx",GET(e_entry));
+    PRINT_INFOR("\tentr : %#llx",GET(e_entry));
     if(GET(e_phoff)){
         PRINT_INFOR("\tPhdr : @%llu (%ux%uB)",GET(e_phoff),GET(e_phnum),GET(e_phentsize));
     } else {

@@ -140,6 +140,7 @@ const char* SFlagNames[] = { "WRITE","ALLOC","EXEC","MERGE","STRINGS","INFO_LINK
 void SectionHeader::print() { 
 
     char tmpstr[__MAX_STRING_SIZE];
+    PRINT_INFOR("SHeader : %d",index);
     PRINT_INFOR("\tSnam : %s",getSectionNamePtr() ? getSectionNamePtr() : "<none>");
     if(GET(sh_type) <= SHT_DYNSYM){
         PRINT_INFOR("\tStyp : %s",STypeNames[GET(sh_type)]);
@@ -180,7 +181,7 @@ void SectionHeader::print() {
     PRINT_INFOR("\tSflg : %s",tmpstr);
     PRINT_INFOR("\tSoff : @%llu with %lluB",GET(sh_offset),GET(sh_size));
     if(GET(sh_addr)){
-        PRINT_INFOR("\tSvad : 0x%llx",GET(sh_addr));
+        PRINT_INFOR("\tSvad : %#llx",GET(sh_addr));
     } else {
         PRINT_INFOR("\tSvad : <no virtual address>");
     }

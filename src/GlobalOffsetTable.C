@@ -40,13 +40,12 @@ uint32_t GlobalOffsetTable::read(BinaryInputFile* binaryInputFile){
 
 
 void GlobalOffsetTable::print(){
-    PRINT_INFOR("Global Offset Table -- section %d at address 0x%016llx, %d entries at %d bytes each, base entry is %d",
-                sectionIndex, baseAddress, numberOfEntries, entrySize, tableBaseIdx);
-
-    printBytes(0,0);
-
+    PRINT_INFOR("GOT : with %d x %dB",numberOfEntries,entrySize);
+    PRINT_INFOR("\tsect : %d",sectionIndex);
+    PRINT_INFOR("\tbase : %d",tableBaseIdx);
+    PRINT_INFOR("\taddr : %#llx",baseAddress);
     for (int32_t i = minIndex(); i < maxIndex(); i++){
-        PRINT_INFOR("GOT[%d]: 0x%016llx", i, getEntry(i));
+        PRINT_INFOR("\t%d : %#llx",i,getEntry(i));
     }
 }
 

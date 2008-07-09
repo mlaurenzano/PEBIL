@@ -17,6 +17,7 @@ const char* PTypeNames[] = { "NULL","LOAD","DYNAMIC","INTERP","NOTE","SHLIB","PH
 
 void ProgramHeader::print() { 
 
+    PRINT_INFOR("PHeader : %d",index);
     if(GET(p_type) <= PT_PHDR){
         PRINT_INFOR("\tPtyp : %s",PTypeNames[GET(p_type)]);
     } else {
@@ -32,12 +33,12 @@ void ProgramHeader::print() {
             case PT_HIPROC       : ptr = "HIPROC"; break;
             default              : ptr = "UNK"; break;
         }
-        PRINT_INFOR("\tPtyp : %s (0x%x)",ptr,GET(p_type));
+        PRINT_INFOR("\tPtyp : %s (%#x)",ptr,GET(p_type));
     }
 
     PRINT_INFOR("\tPoff : @%llu for %lluB",GET(p_offset),GET(p_filesz));
-    PRINT_INFOR("\tPvad : 0x%llx for %lluB",GET(p_vaddr),GET(p_memsz));
-    PRINT_INFOR("\tPpad : 0x%llx",GET(p_paddr));
+    PRINT_INFOR("\tPvad : %#llx for %lluB",GET(p_vaddr),GET(p_memsz));
+    PRINT_INFOR("\tPpad : %#llx",GET(p_paddr));
     uint32_t alignment = GET(p_align);
     for(uint32_t i=0;i<32;i++){
         if((alignment >> i) & 0x1){

@@ -83,43 +83,45 @@ uint16_t RelocationTable::setRelocationSection(){
 
 
 void RelocationTable::print(){
-    if (elfFile->is64Bit() && type == ElfRelType_rel){
-        PRINT_INFOR("RelocationTable64(%d): type REL_, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
-    } else if (elfFile->is64Bit() && type == ElfRelType_rela){
-        PRINT_INFOR("RelocationTable64(%d): type RELA, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
-    } else if (!elfFile->is64Bit() && type == ElfRelType_rel){
-        PRINT_INFOR("RelocationTable32(%d): type REL_, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
-    } else {
-        PRINT_INFOR("RelocationTable32(%d): type RELA, %d entries, section %d", index, numberOfRelocations, getSectionIndex());
-    }
+    PRINT_INFOR("RelocTable : %d aka sect %d with %d relocations",index,getSectionIndex(),numberOfRelocations);
+    PRINT_INFOR("\tadd? : %s", type == ElfRelType_rela ? "yes" : "no");
+    PRINT_INFOR("\tsect : %d", elfFile->getSectionHeader(getSectionIndex())->GET(sh_info));
+    PRINT_INFOR("\tstbs : %d", elfFile->getSectionHeader(getSectionIndex())->GET(sh_link));
 
     ASSERT(elfFile->getSectionHeader(getSectionIndex()) && "Section header doesn't exist");
-
-    PRINT_INFOR("\tSymbol table section   : %d", elfFile->getSectionHeader(getSectionIndex())->GET(sh_link));
-    PRINT_INFOR("\tSection for relocation : %d", elfFile->getSectionHeader(getSectionIndex())->GET(sh_info));
-
-    if (type == ElfRelType_rel){
-        PRINT_INFOR("Type(index):\tOffset\t\t\tInfo\t\t\tSymbol\tType");
-    } else {
-        PRINT_INFOR("Type(index):\tOffset\t\t\tInfo\t\t\tSymbol\tType\t\tAddend");
-    }
 
     for (uint32_t i = 0; i < numberOfRelocations; i++){
         relocations[i]->print();
     }
 }
 
+const char* RTypeNames[] = { "noreloc","Direct","PCRelative","OffsetTable","LinkageTable",
+                             "CopyAtRuntime","CreateGOTEntry","CreatePLTEntry","AdjustByBase",
+                             "Offset2GOT","PCRelative2GOT","R_386_32PLT/R_X86_64_32S",
+                             "Direct16Extended","Direct16ExtendedPCRelative",
+                             "OffsetStaticTLS","GOTAddress4TLS","GOTEntry4TLS","OffsetRelativeToTLS",
+                             "GNUVersionDirectGeneral","GNUVersionDirectLocal",
+                             "_16","PC16","_8","PC8","GD_32","GD_PUSH","GD_CALL","GD_POP",
+                             "LDM_32","LDM_PUSH","LDM_CALL","LDM_POP","LDO_32","IE_32","LE_32",
+                             "DTPMOD","DTPOFF","TPOFF"};
+
 void Relocation32::print(){
-    PRINT_INFOR("Relocation32(%d):\t0x%016llx\t0x%016llx\t%lld\t0x%016llx", index, GET(r_offset), GET(r_info), getSymbol(), getType());
+    PRINT_INFOR("\trel%5d -- off:%#12llx stx:%5lld %s",index,GET(r_offset),ELF32_R_SYM(GET(r_info)),
+                ELF32_R_TYPE(GET(r_info)) < R_386_NUM ? RTypeNames[ELF32_R_TYPE(GET(r_info))] : "UNK");
 }
 void Relocation64::print(){
-    PRINT_INFOR("Relocation64(%d):\t0x%016llx\t0x%016llx\t%lld\t0x%016llx", index, GET(r_offset), GET(r_info), getSymbol(), getType());
+    PRINT_INFOR("\trel%5d -- off:%#12llx stx:%5lld %s",index,GET(r_offset),ELF64_R_SYM(GET(r_info)),
+                ELF64_R_TYPE(GET(r_info)) <= R_386_NUM ? RTypeNames[ELF64_R_TYPE(GET(r_info))] : "UNK");
 }
 void RelocationAddend32::print(){
-    PRINT_INFOR("RelAddend32(%d):\t0x%016llx\t0x%016llx\t%lld\t0x%016llx\t0x%016llx", index, GET(r_offset), GET(r_info), getSymbol(), getType(), GET(r_addend));
+    PRINT_INFOR("\trel%5d -- off:%#12llx stx:%5lld ad:%12lld %s",index,GET(r_offset),ELF32_R_SYM(GET(r_info)),
+                GET(r_addend),
+                ELF32_R_TYPE(GET(r_info)) <= R_386_NUM ? RTypeNames[ELF32_R_TYPE(GET(r_info))] : "UNK");
 }
 void RelocationAddend64::print(){
-    PRINT_INFOR("RelAddend64(%d):\t0x%016llx\t0x%016llx\t%lld\t0x%016llx\t0x%016llx", index, GET(r_offset), GET(r_info), getSymbol(), getType(), GET(r_addend));
+    PRINT_INFOR("\trel%5d -- off:%#12llx stx:%5lld ad:%12lld %s",index,GET(r_offset),ELF64_R_SYM(GET(r_info)),
+                GET(r_addend),
+                ELF64_R_TYPE(GET(r_info)) <= R_386_NUM ? RTypeNames[ELF64_R_TYPE(GET(r_info))] : "UNK");
 }
 
 uint32_t Relocation32::read(BinaryInputFile* binaryInputFile){

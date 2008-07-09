@@ -234,7 +234,7 @@ char* SymbolTable::getSymbolName(uint32_t idx){
 
 void SymbolTable::print(){
     char tmpstr[__MAX_STRING_SIZE];
-    PRINT_INFOR("tidx : %d aka sect %d with %d symbols",index,getSectionIndex(),numberOfSymbols);
+    PRINT_INFOR("SymbolTable : %d aka sect %d with %d symbols",index,getSectionIndex(),numberOfSymbols);
     PRINT_INFOR("\tdyn? : %s", isDynamic() ? "yes" : "no");
     for (uint32_t i = 0; i < numberOfSymbols; i++){
         symbols[i]->print(getSymbolName(i));

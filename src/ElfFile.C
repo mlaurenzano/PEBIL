@@ -1110,35 +1110,62 @@ void ElfFile::initSectionFilePointers(){
 void ElfFile::print() 
 { 
 
+    PRINT_INFOR("File Header");
+    PRINT_INFOR("===========");
     if(fileHeader){
         fileHeader->print(); 
     }
-
-    if (programHeaders){
-        PRINT_INFOR("Program Headers: %d",numberOfPrograms);
-        PRINT_INFOR("================");
-        for (uint32_t i = 0; i < numberOfPrograms; i++){
-            if (programHeaders[i]){
-                PRINT_INFOR("hidx : %u",i);
-                programHeaders[i]->print();
-            }
-        }
-    }
     
+    PRINT_INFOR("Section Headers: %d",numberOfSections);
+    PRINT_INFOR("=================");
     if (sectionHeaders){
-        PRINT_INFOR("Section Headers: %d",numberOfSections);
-        PRINT_INFOR("================:");
         for (uint32_t i = 0; i < numberOfSections; i++){
             if (sectionHeaders[i]){
-                PRINT_INFOR("sidx : %u",i);
                 sectionHeaders[i]->print();
             }
         }
     }
 
+    PRINT_INFOR("Program Headers: %d",numberOfPrograms);
+    PRINT_INFOR("================");
+    if (programHeaders){
+        for (uint32_t i = 0; i < numberOfPrograms; i++){
+            if (programHeaders[i]){
+                programHeaders[i]->print();
+            }
+        }
+    }
+
+    PRINT_INFOR("Note Sections: %d",numberOfNoteSections);
+    PRINT_INFOR("=================");
+    if (noteSections){
+        for (uint32_t i = 0; i < numberOfNoteSections; i++){
+            noteSections[i]->print();
+        }
+    }
+
+    PRINT_INFOR("Symbol Tables: %d",numberOfSymbolTables);
+    PRINT_INFOR("==============");
+    if (symbolTables){
+        for (uint32_t i = 0; i < numberOfSymbolTables; i++){
+            if (symbolTables[i])
+                symbolTables[i]->print();
+        }
+    }
+
+    PRINT_INFOR("Relocation Tables: %d",numberOfRelocationTables);
+    PRINT_INFOR("==================");
+    if (relocationTables){
+        for (uint32_t i = 0; i < numberOfRelocationTables; i++){
+            if (relocationTables[i]){
+                relocationTables[i]->print();
+            }
+        }
+    }
+
+    PRINT_INFOR("String Tables: %d",numberOfStringTables);
+    PRINT_INFOR("==============");
     if (stringTables){
-        PRINT_INFOR("String Tables: %d",numberOfStringTables);
-        PRINT_INFOR("==============");
         for (uint32_t i = 0; i < numberOfStringTables; i++){       
             if (stringTables[i]){
                 stringTables[i]->print();
@@ -1146,51 +1173,21 @@ void ElfFile::print()
         }
     }
 
-    if (symbolTables){
-        PRINT_INFOR("Symbol Tables: %d",numberOfSymbolTables);
-        PRINT_INFOR("==============");
-        for (uint32_t i = 0; i < numberOfSymbolTables; i++){
-            if (symbolTables[i])
-                symbolTables[i]->print();
-        }
-    }
-
-    if (relocationTables){
-        PRINT_INFOR("Relocation Tables: %d",numberOfRelocationTables);
-        PRINT_INFOR("==================");
-        for (uint32_t i = 0; i < numberOfRelocationTables; i++){
-            if (relocationTables[i]){
-                relocationTables[i]->print();
-            }
-        }
-    }
-    /*exit(-1);*/
-
+    PRINT_INFOR("Global Offset Table");
+    PRINT_INFOR("===================");
     if (globalOffsetTable){
-        PRINT_INFOR("");
         globalOffsetTable->print();
     }
 
+    PRINT_INFOR("Dynamic Table");
+    PRINT_INFOR("=============");
     if (dynamicTable){
-        PRINT_INFOR("");
         dynamicTable->print();
-    }
-
-    if (dynamicTable){
-        PRINT_INFOR("");
         dynamicTable->printSharedLibraries(&binaryInputFile);
     }
 
     if (hashTable){
-        PRINT_INFOR("");
         hashTable->print();
-    }
-
-    if (noteSections){
-        PRINT_INFOR("");
-        for (uint32_t i = 0; i < numberOfNoteSections; i++){
-            noteSections[i]->print();
-        }
     }
 }
 
