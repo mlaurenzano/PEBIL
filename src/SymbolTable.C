@@ -233,9 +233,9 @@ char* SymbolTable::getSymbolName(uint32_t idx){
 }
 
 void SymbolTable::print(){
-    PRINT_INFOR("SymbolTable(%d): section %d, %d symbols, is dynamic? %d", index, getSectionIndex(), numberOfSymbols, isDynamic());
-    PRINT_INFOR("TYPE(IDX):\tNameIdx\t%24s\t%18s\tSize\tInfo\tBind\tType\tOther\tScnIdx", "Name", "Value");
-
+    char tmpstr[__MAX_STRING_SIZE];
+    PRINT_INFOR("tidx : %d aka sect %d with %d symbols",index,getSectionIndex(),numberOfSymbols);
+    PRINT_INFOR("\tdyn? : %s", isDynamic() ? "yes" : "no");
     for (uint32_t i = 0; i < numberOfSymbols; i++){
         symbols[i]->print(getSymbolName(i));
     }
@@ -258,16 +258,40 @@ void SymbolTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 
-void Symbol::print(char* symbolName){
-    char sizeStr[3];
 
-    if (getSizeInBytes() == Size__32_bit_Symbol){
-        sprintf(sizeStr,"32");
-    } else {
-        sprintf(sizeStr,"64");
+void Symbol::print(char* symbolName){
+
+    char* bindstr = "UNK";
+    switch(ELF32_ST_BIND(GET(st_info))){
+        case STB_LOCAL: bindstr="LOC";break;
+        case STB_GLOBAL:bindstr="GLB";break;
+        case STB_WEAK:  bindstr="WEA";break;
+        case STB_NUM:   bindstr="NUM";break;
+        case STB_LOOS:  bindstr="LOS";break;
+        case STB_HIOS:  bindstr="HIS";break;
+        case STB_LOPROC:bindstr="LOP";break;
+        case STB_HIPROC:bindstr="HIP";break;
+        default: break;  
     }
 
-    PRINT_INFOR("\tSym%s(%d):\t%d\t%24s\t0x%016llx\t%lld\t0x%02hhx\t0x%02hhx\t0x%02hhx\t%hhu\t%hu", sizeStr, index, GET(st_name), symbolName, 
-        GET(st_value), GET(st_size), GET(st_info), getSymbolBinding(), getSymbolType(), GET(st_other), GET(st_shndx));
+    char* typestr = "UNK";
+    switch(ELF32_ST_TYPE(GET(st_info))){
+        case STT_NOTYPE: typestr="NOTY";break;
+        case STT_OBJECT: typestr="OBJT";break;
+        case STT_FUNC:   typestr="FUNC";break;
+        case STT_SECTION:typestr="SECT";break;
+        case STT_FILE:   typestr="FILE";break;
+        case STT_COMMON: typestr="COMM";break;
+        case STT_TLS:    typestr="TLS ";break;
+        case STT_NUM:    typestr="NUM ";break;
+        case STT_LOOS:   typestr="LOOS";break;
+        case STT_HIOS:   typestr="HIOS";break;
+        case STT_LOPROC: typestr="LOPR";break;
+        case STT_HIPROC: typestr="HIPR";break;
+        default:break;
+    }
 
+    PRINT_INFOR("\tsym%5d -- sx:%5d sz:%8lld bxt: %3s.%4s vl:%#12llx ot:%3d nx:%8u\t%s",index,
+            GET(st_shndx),GET(st_size),bindstr,typestr,GET(st_value),GET(st_other),
+            GET(st_name),symbolName ? symbolName : "");
 }

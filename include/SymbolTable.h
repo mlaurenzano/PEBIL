@@ -10,7 +10,7 @@
 class StringTable;
 class ElfFile;
 
-static char* symbol_without_name = "NULL";
+static char* symbol_without_name = "<__no_name__x86_instrumentor>";
 
 class Symbol : public Base {
 public:
