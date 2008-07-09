@@ -1124,15 +1124,13 @@ void ElfFile::print()
             }
         }
     }
-    exit(-1);
     
     if (sectionHeaders){
-        PRINT_INFOR("");
-        PRINT_INFOR("Section Header Table");
-        PRINT_INFOR("\t\t\t\tName\t\tType\t\t\tFlags\t\t\tAddress\t\t\tOffset");
-        PRINT_INFOR("\t\t\t\tLink\t\tInfo\t\t\tSize\t\t\tAlignment\t\tEntry Size");
+        PRINT_INFOR("Section Headers:");
+        PRINT_INFOR("================:");
         for (uint32_t i = 0; i < numberOfSections; i++){
             if (sectionHeaders[i]){
+                PRINT_INFOR("sidx : %u",i);
                 sectionHeaders[i]->print();
             }
         }
@@ -1146,6 +1144,8 @@ void ElfFile::print()
             }
         }
     }
+
+    /*exit(-1);*/
 
     if (symbolTables){
         PRINT_INFOR("");

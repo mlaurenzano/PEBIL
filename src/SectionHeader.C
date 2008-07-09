@@ -106,7 +106,7 @@ bool SectionHeader::verify() {
 
     if (index >= SHN_LORESERVE){
         // currently this will always be true since SHN_HIRESERVE=0xffff
-        if (index <= SHN_HIRESERVE){
+        if (index <= (uint16_t)SHN_HIRESERVE){
             PRINT_ERROR("Section header table cannot use reserved indices");
             return false;
         }
@@ -133,19 +133,104 @@ bool SectionHeader::verify() {
     return true;
 }
 
+const char* STypeNames[] = { "NULL","PROGBITS","SYMTAB","STRTAB","RELA","HASH",
+                             "DYNAMIC","NOTE","NOBITS","REL","SHLIB","DYNSYM" };
+const char* SFlagNames[] = { "WRITE","ALLOC","EXEC","MERGE","STRINGS","INFO_LINK",
+                             "LINK_ORDER","OS_NONCONFORMING","GROUP","TLS" };
 void SectionHeader::print() { 
-    char sizeStr[3];
-    if (getSizeInBytes() == Size__32_bit_Section_Header){
-        sprintf(sizeStr,"32");
+
+    char tmpstr[__MAX_STRING_SIZE];
+    PRINT_INFOR("\tSnam : %s",getSectionNamePtr() ? getSectionNamePtr() : "<none>");
+    if(GET(sh_type) <= SHT_DYNSYM){
+        PRINT_INFOR("\tStyp : %s",STypeNames[GET(sh_type)]);
     } else {
-        sprintf(sizeStr,"64");
+        char* ptr = "UNK";
+        switch(GET(sh_type)){
+            case SHT_INIT_ARRAY: ptr="INIT_ARRAY"; break;
+            case SHT_FINI_ARRAY: ptr="FINI_ARRAY"; break;
+            case SHT_PREINIT_ARRAY: ptr="PREINIT_ARRAY"; break;
+            case SHT_GROUP: ptr="GROUP"; break;
+            case SHT_SYMTAB_SHNDX: ptr="SYMTAB_SHNDX"; break;
+            case SHT_NUM: ptr="NUM"; break;
+            case SHT_LOOS: ptr="LOOS"; break;
+            case SHT_GNU_HASH: ptr="GNU_HASH"; break;
+            case SHT_GNU_LIBLIST: ptr="GNU_LIBLIST"; break;
+            case SHT_CHECKSUM: ptr="CHECKSUM"; break;
+            case SHT_LOSUNW: ptr="LOSUNW"; break;
+            case SHT_SUNW_COMDAT: ptr="SUNW_COMDAT"; break;
+            case SHT_SUNW_syminfo: ptr="SUNW_syminfo"; break;
+            case SHT_GNU_verdef: ptr="GNU_verdef"; break;
+            case SHT_GNU_verneed: ptr="GNU_verneed"; break;
+            case SHT_GNU_versym: ptr="GNU_versym"; break;
+            case SHT_LOPROC: ptr="LOPROC"; break;
+            case SHT_HIPROC: ptr="HIPROC"; break;
+            case SHT_LOUSER: ptr="LOUSER"; break;
+            case SHT_HIUSER: ptr="HIUSER"; break;
+            default: break;
+        }
+        PRINT_INFOR("\tStyp : %s",ptr);
     }
+    sprintf(tmpstr,"READ");
+    for(uint32_t i=0;i<=10;i++){
+        if(GET(sh_flags) & (0x1 << i)){
+            strcat(tmpstr," + ");
+            strcat(tmpstr,SFlagNames[i]);
+        }
+    }
+    PRINT_INFOR("\tSflg : %s",tmpstr);
+    PRINT_INFOR("\tSoff : @%llu with %lluB",GET(sh_offset),GET(sh_size));
+    if(GET(sh_addr)){
+        PRINT_INFOR("\tSvad : 0x%llx",GET(sh_addr));
+    } else {
+        PRINT_INFOR("\tSvad : <no virtual address>");
+    }
+    if(GET(sh_entsize)){
+        PRINT_INFOR("\tSent : %lldB each",GET(sh_entsize));
+    } else {
+        PRINT_INFOR("\tSent : <no fixed-size entries>",GET(sh_addr));
+    }
+    uint64_t alignment = GET(sh_addralign);
+    for(uint32_t i=0;i<64;i++){
+        if((alignment >> i) & 0x1){
+            alignment = i;
+        }
+    }
+    PRINT_INFOR("\talig : 2**%llu",alignment);
 
-    PRINT_INFOR("SecHdr%s(%hd):\t%16s\t0x%08x\t\t0x%016llx\t0x%016llx\t0x%016llx",
-                sizeStr, index, getSectionNamePtr(), GET(sh_type), GET(sh_flags), GET(sh_addr), GET(sh_offset));
-    PRINT_INFOR("\t\t\t%8d\t\t0x%08x\t\t0x%016llx\t0x%016llx\t0x%016llx",
-                GET(sh_link), GET(sh_info), GET(sh_size), GET(sh_addralign), GET(sh_entsize));
-
+    uint32_t linkValue = GET(sh_link);
+    uint32_t infoValue = GET(sh_info);
+    switch(GET(sh_type)){
+        case SHT_DYNAMIC:
+        {
+            sprintf(tmpstr,"string table at sect %d",linkValue);
+            ASSERT(!infoValue);
+            break;
+        }
+        case SHT_HASH:
+        {
+            sprintf(tmpstr,"symbol table at sect %d",linkValue);
+            ASSERT(!infoValue);
+            break;
+        }
+        case SHT_REL:
+        case SHT_RELA:
+            sprintf(tmpstr,"symbol table at sect %d and relocation applies to sect %d",linkValue,infoValue);
+            break;
+        case SHT_SYMTAB:
+        case SHT_DYNSYM:
+            sprintf(tmpstr,"string table at sect %d and symbol table index of last local sym %d",linkValue,infoValue-1);
+            break;
+        default: {
+            if((linkValue != SHN_UNDEF) || infoValue){
+                sprintf(tmpstr,"unknown link %d and %d",linkValue,infoValue-1);
+            } else {
+                sprintf(tmpstr,"<no extra info>");
+                ASSERT(linkValue == SHN_UNDEF);
+                ASSERT(!infoValue);
+            }
+        }
+    }
+    PRINT_INFOR("\tinfo : %s",tmpstr);
 }
 
 

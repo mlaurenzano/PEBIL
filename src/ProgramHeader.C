@@ -27,7 +27,7 @@ void ProgramHeader::print() {
             case PT_GNU_STACK    : ptr = "GNU_STACK"; break;
             case PT_LOSUNW       : ptr = "LOSUNW"; break;
             case PT_SUNWSTACK    : ptr = "SUNWSTACK"; break;
-            case PT_HISUNW       : ptr = "HISUNW"; break;
+            case PT_HIOS         : ptr = "HIOS"; break;
             case PT_LOPROC       : ptr = "LOPROC"; break;
             case PT_HIPROC       : ptr = "HIPROC"; break;
             default              : ptr = "UNK"; break;
