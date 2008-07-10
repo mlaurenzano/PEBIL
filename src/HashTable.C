@@ -211,30 +211,23 @@ uint32_t HashTable::read(BinaryInputFile* binaryInputFile){
 }
 
 void HashTable::print(){
+
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
+    PRINT_INFOR("HashTable: sect %d ( for sect(dynsym?) %d) with %d x %d",
+        sectionIndex,symTab->getSectionIndex(),numberOfBuckets,numberOfChains);
 
-    PRINT_INFOR("HASH SECTION: section %hd, %d buckets, %d chains", sectionIndex, numberOfBuckets, numberOfChains);
+    for (uint32_t i = 0; i < numberOfBuckets; i++){
+        PRINT_INFOR("\tbuc%5d",i);
+        uint32_t chainidx = buckets[i];
+        while (chainidx){
+            PRINT_INFOR("\t\tchn%5d -- %s",chainidx,symTab->getSymbolName(chainidx));
+            chainidx = chains[chainidx];
 
+        }
+    }
 #ifdef DEBUG_HASH
     printBytes(0,0);
 #endif
-    
-    PRINT_INFOR("Bucket Table");
-    for (uint32_t i = 0; i < numberOfBuckets; i++){
-        PRINT_INFO();
-        PRINT_OUT("\tBUCKET[%3d]", i);
-
-        uint32_t chainidx = buckets[i];
-        while (chainidx){
-            PRINT_OUT(" -> CHAIN[%3d]", chainidx);
-            chainidx = chains[chainidx];
-        }
-        PRINT_OUT(" -> CHAIN[  0]\n");
-    }
-    PRINT_INFOR("Chain Table")
-    for (uint32_t i = 0; i < numberOfChains; i++){
-        PRINT_INFOR("\tCHAIN[%3d]\t%d\t%s", i, chains[i], symTab->getSymbolName(i));
-    }
 }
 
 

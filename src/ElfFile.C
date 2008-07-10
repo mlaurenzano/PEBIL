@@ -1179,15 +1179,17 @@ void ElfFile::print()
         globalOffsetTable->print();
     }
 
+    PRINT_INFOR("Hash Table");
+    PRINT_INFOR("=============");
+    if (hashTable){
+        hashTable->print();
+    }
+
     PRINT_INFOR("Dynamic Table");
     PRINT_INFOR("=============");
     if (dynamicTable){
         dynamicTable->print();
         dynamicTable->printSharedLibraries(&binaryInputFile);
-    }
-
-    if (hashTable){
-        hashTable->print();
     }
 }
 
