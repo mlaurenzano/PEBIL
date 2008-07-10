@@ -44,8 +44,15 @@ void GlobalOffsetTable::print(){
     PRINT_INFOR("\tsect : %d",sectionIndex);
     PRINT_INFOR("\tbase : %d",tableBaseIdx);
     PRINT_INFOR("\taddr : %#llx",baseAddress);
+
+    char tmpStr[__MAX_STRING_SIZE+1];
     for (int32_t i = minIndex(); i < maxIndex(); i++){
-        PRINT_INFOR("\t%d : %#llx",i,getEntry(i));
+        uint64_t val = getEntry(i);
+        char* namestr = NULL;
+        Symbol* foundsymbols[3];
+        getElfFile()->findSymbol4Addr(val,foundsymbols,3,&namestr);
+        PRINT_INFOR("\t%5d : %#12llx -- %s",i,val,namestr);
+        delete[] namestr;
     }
 }
 

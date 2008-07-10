@@ -1107,6 +1107,33 @@ void ElfFile::initSectionFilePointers(){
 }
 
 
+uint32_t ElfFile::findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t bufCnt,char** namestr){
+    uint32_t retValue = 0;
+    if(namestr){
+        *namestr = new char[__MAX_STRING_SIZE+2];
+        **namestr = '\0';
+    }
+
+    if (symbolTables){
+        for (uint32_t i = 0; i < numberOfSymbolTables; i++){
+            if (symbolTables[i]){
+                char* localnames = NULL;
+                uint32_t cnt = symbolTables[i]->findSymbol4Addr(addr,buffer,bufCnt,&localnames);
+                if(cnt){
+                    if((__MAX_STRING_SIZE-strlen(*namestr)) > strlen(localnames)){
+                        sprintf(*namestr+strlen(*namestr),"%s ",localnames);
+                    }
+                }
+                delete[] localnames;
+            }
+        }
+    }
+    if(namestr && !strlen(*namestr)){
+        sprintf(*namestr,"<__no_symbol_found>");
+    }
+    return retValue;
+}
+
 void ElfFile::print() 
 { 
 

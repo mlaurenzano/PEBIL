@@ -21,7 +21,7 @@ public:
     virtual ~Relocation() {}
     virtual char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
     virtual uint32_t read(BinaryInputFile* binaryInputFile) { __SHOULD_NOT_ARRIVE; }
-    virtual void print() { __SHOULD_NOT_ARRIVE; }
+    virtual void print(char*) { __SHOULD_NOT_ARRIVE; }
     virtual uint64_t getSymbol() { __SHOULD_NOT_ARRIVE; }
     virtual uint64_t getType() { __SHOULD_NOT_ARRIVE; }
     virtual bool verify() { return true; }
@@ -37,7 +37,7 @@ public:
     ~Relocation32() {}
     char* charStream() { return (char*)&entry; }
     uint32_t read(BinaryInputFile* binaryInputFile);
-    void print();
+    void print(char*);
     uint64_t getSymbol() { return (uint64_t)ELF32_R_SYM (GET(r_info)); }
     uint64_t getType()   { return (uint64_t)ELF32_R_TYPE(GET(r_info)); }
 
@@ -52,7 +52,7 @@ public:
     ~Relocation64() {}
     char* charStream() { return (char*)&entry; }
     uint32_t read(BinaryInputFile* binaryInputFile);
-    void print();
+    void print(char*);
 
     RELOCATION_MACROS_CLASS("For the get_X field macros check the defines directory");
 };
@@ -65,7 +65,7 @@ public:
     ~RelocationAddend32() {}
     char* charStream() { return (char*)&entry; }
     uint32_t read(BinaryInputFile* binaryInputFile);
-    void print();
+    void print(char*);
     uint64_t getSymbol() { return (uint64_t)ELF32_R_SYM (GET(r_info)); }
     uint64_t getType()   { return (uint64_t)ELF32_R_TYPE(GET(r_info)); }
 
@@ -83,7 +83,7 @@ public:
     ~RelocationAddend64() {}
     char* charStream() { return (char*)&entry; }
     uint32_t read(BinaryInputFile* binaryInputFile);
-    void print();
+    void print(char*);
     uint64_t getSymbol() { return (uint64_t)ELF64_R_SYM (GET(r_info)); }
     uint64_t getType()   { return (uint64_t)ELF64_R_TYPE(GET(r_info)); }
 

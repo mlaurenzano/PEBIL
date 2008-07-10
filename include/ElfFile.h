@@ -18,6 +18,7 @@ class GlobalOffsetTable;
 class DynamicTable;
 class HashTable;
 class NoteSection;
+class Symbol;
 
 class ElfFile {
 private:
@@ -156,6 +157,7 @@ public:
 
     void testBitSet();
 
+    uint32_t findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t bufCnt,char** namestr=NULL);
 };
 
 class ElfFileInst {

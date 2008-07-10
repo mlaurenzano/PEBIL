@@ -75,6 +75,7 @@ protected:
     uint32_t index;
     bool dynamic;
 
+    Symbol** sortedSymbols;
 public:
 
     SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf);
@@ -99,6 +100,8 @@ public:
     const char* briefName() { return "SymbolTable"; }
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+
+    uint32_t findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t bufCnt,char** namestr=NULL);
 };
 
 #endif /* _SymbolTable_h_ */

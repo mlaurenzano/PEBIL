@@ -91,7 +91,11 @@ void RelocationTable::print(){
     ASSERT(elfFile->getSectionHeader(getSectionIndex()) && "Section header doesn't exist");
 
     for (uint32_t i = 0; i < numberOfRelocations; i++){
-        relocations[i]->print();
+        char* namestr = NULL;
+        Symbol* foundsymbols[3];
+        symbolTable->findSymbol4Addr(relocations[i]->GET(r_offset),foundsymbols,3,&namestr);
+        relocations[i]->print(namestr);
+        delete[] namestr;
     }
 }
 
@@ -105,23 +109,27 @@ const char* RTypeNames[] = { "noreloc","Direct","PCRelative","OffsetTable","Link
                              "LDM_32","LDM_PUSH","LDM_CALL","LDM_POP","LDO_32","IE_32","LE_32",
                              "DTPMOD","DTPOFF","TPOFF"};
 
-void Relocation32::print(){
-    PRINT_INFOR("\trel%5d -- off:%#12llx stx:%5lld %s",index,GET(r_offset),ELF32_R_SYM(GET(r_info)),
-                ELF32_R_TYPE(GET(r_info)) < R_386_NUM ? RTypeNames[ELF32_R_TYPE(GET(r_info))] : "UNK");
+void Relocation32::print(char* str){
+    if(!str) str = "";
+    PRINT_INFOR("\trel%5d -- off:%#12llx stx:%5lld %25s -- %s",index,GET(r_offset),ELF32_R_SYM(GET(r_info)),
+                ELF32_R_TYPE(GET(r_info)) < R_386_NUM ? RTypeNames[ELF32_R_TYPE(GET(r_info))] : "UNK",str);
 }
-void Relocation64::print(){
-    PRINT_INFOR("\trel%5d -- off:%#12llx stx:%5lld %s",index,GET(r_offset),ELF64_R_SYM(GET(r_info)),
-                ELF64_R_TYPE(GET(r_info)) <= R_386_NUM ? RTypeNames[ELF64_R_TYPE(GET(r_info))] : "UNK");
+void Relocation64::print(char* str){
+    if(!str) str = "";
+    PRINT_INFOR("\trel%5d -- off:%#12llx stx:%5lld %25s -- %s",index,GET(r_offset),ELF64_R_SYM(GET(r_info)),
+                ELF64_R_TYPE(GET(r_info)) <= R_386_NUM ? RTypeNames[ELF64_R_TYPE(GET(r_info))] : "UNK",str);
 }
-void RelocationAddend32::print(){
-    PRINT_INFOR("\trel%5d -- off:%#12llx stx:%5lld ad:%12lld %s",index,GET(r_offset),ELF32_R_SYM(GET(r_info)),
+void RelocationAddend32::print(char* str){
+    if(!str) str = "";
+    PRINT_INFOR("\trel%5d -- off:%#12llx stx:%5lld ad:%12lld %25s -- %s",index,GET(r_offset),ELF32_R_SYM(GET(r_info)),
                 GET(r_addend),
-                ELF32_R_TYPE(GET(r_info)) <= R_386_NUM ? RTypeNames[ELF32_R_TYPE(GET(r_info))] : "UNK");
+                ELF32_R_TYPE(GET(r_info)) <= R_386_NUM ? RTypeNames[ELF32_R_TYPE(GET(r_info))] : "UNK",str);
 }
-void RelocationAddend64::print(){
-    PRINT_INFOR("\trel%5d -- off:%#12llx stx:%5lld ad:%12lld %s",index,GET(r_offset),ELF64_R_SYM(GET(r_info)),
+void RelocationAddend64::print(char* str){
+    if(!str) str = "";
+    PRINT_INFOR("\trel%5d -- off:%#12llx stx:%5lld ad:%12lld %25s -- %s",index,GET(r_offset),ELF64_R_SYM(GET(r_info)),
                 GET(r_addend),
-                ELF64_R_TYPE(GET(r_info)) <= R_386_NUM ? RTypeNames[ELF64_R_TYPE(GET(r_info))] : "UNK");
+                ELF64_R_TYPE(GET(r_info)) <= R_386_NUM ? RTypeNames[ELF64_R_TYPE(GET(r_info))] : "UNK",str);
 }
 
 uint32_t Relocation32::read(BinaryInputFile* binaryInputFile){

@@ -4,6 +4,88 @@
 #include <ElfFile.h>
 #include <BinaryFile.h>
 
+int compareSymbolValue(const void* arg1,const void* arg2){
+    Symbol* sym1 = *((Symbol**)arg1);
+    Symbol* sym2 = *((Symbol**)arg2);
+    uint64_t vl1 = sym1->GET(st_value);
+    uint64_t vl2 = sym2->GET(st_value);
+
+    if(vl1 < vl2)
+        return -1;
+    if(vl1 > vl2)
+        return 1;
+
+    return 0;
+}
+int searchSymbolValue(const void* arg1,const void* arg2){
+    uint64_t key = *((uint64_t*)arg1);
+    Symbol* sym = *((Symbol**)arg2);
+    uint64_t val = sym->GET(st_value);
+
+    if(key < val)
+        return -1;
+    if(key > val)
+        return 1;
+    return 0;
+}
+
+uint32_t SymbolTable::findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t buffCnt,char** namestr){
+    uint32_t retValue = 0;
+    if(!sortedSymbols){
+        sortedSymbols  = new Symbol*[numberOfSymbols];
+        for(uint32_t i=0;i<numberOfSymbols;i++){
+            sortedSymbols[i] = symbols[i];
+        }
+        qsort(sortedSymbols,numberOfSymbols,sizeof(Symbol*),compareSymbolValue);
+    }
+    ASSERT(sortedSymbols);
+
+    void* checkRes = bsearch(&addr,sortedSymbols,numberOfSymbols,sizeof(Symbol*),searchSymbolValue);
+    if(checkRes){
+
+        uint32_t sidx = (((char*)checkRes)-((char*)sortedSymbols))/sizeof(Symbol*);
+        uint32_t eidx = sidx;
+        for(;eidx < numberOfSymbols;eidx++){
+            Symbol* sym = sortedSymbols[eidx];
+            if(sym->GET(st_value) != addr){
+                break;
+            }
+        }
+        eidx--;
+        ASSERT(eidx < numberOfSymbols);
+
+        retValue = 0;
+        for(;sidx<=eidx;sidx++){
+            if(retValue < buffCnt){
+                buffer[retValue++] = sortedSymbols[sidx];
+            } else {
+                break;
+            }
+        }
+    }
+
+    if(namestr){
+        if(!retValue){
+            *namestr = new char[__MAX_STRING_SIZE];
+            sprintf(*namestr,"<__no_symbol_found>");
+        } else {
+            char* allnames = new char[__MAX_STRING_SIZE+2];
+            *allnames = '\0';
+            for(uint32_t i=0;i<retValue;i++){
+                char* nm = getSymbolName(buffer[i]->getIndex());
+                if((__MAX_STRING_SIZE-strlen(allnames)) > strlen(nm)){
+                    sprintf(allnames+strlen(allnames),"%s ",nm);
+                } else {
+                    sprintf(allnames+strlen(allnames),"?");
+                }
+            }
+            *namestr = allnames;
+        }
+    }
+
+    return retValue;
+}
+
 uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t shndx){
     ASSERT(symbols && "symbols array should be initialized");
 
@@ -79,6 +161,7 @@ SymbolTable::SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t 
     numberOfSymbols = sizeInBytes / symbolSize;
 
     symbols = new Symbol*[numberOfSymbols];
+    sortedSymbols = NULL;
 }
 
 SymbolTable::~SymbolTable(){
@@ -89,6 +172,9 @@ SymbolTable::~SymbolTable(){
             }
         }
         delete[] symbols;
+    }
+    if(sortedSymbols){
+        delete[] sortedSymbols;
     }
 }
 
@@ -104,14 +190,6 @@ unsigned char Symbol32::getSymbolType(){
 }
 unsigned char Symbol64::getSymbolType(){
     return ELF64_ST_TYPE(entry.st_info);
-}
-
-int compareSymbolValue(const void* arg1,const void* arg2){
-    return 0;
-}
-
-int searchSymbolValue(const void* arg1,const void* arg2){
-    return 0;
 }
 
 bool SymbolTable::verify(){
@@ -295,3 +373,5 @@ void Symbol::print(char* symbolName){
             GET(st_shndx),GET(st_size),bindstr,typestr,GET(st_value),GET(st_other),
             GET(st_name),symbolName ? symbolName : "");
 }
+
+
