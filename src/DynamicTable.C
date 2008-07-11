@@ -494,8 +494,13 @@ void DynamicTable::print(){
     PRINT_INFOR("DynamicTable : with %d",numberOfDynamics);
     PRINT_INFOR("\tsect : %d",sectionIndex);
     PRINT_INFOR("\tphdr : %d",segmentIndex);
+
     for (uint32_t i = 0; i < numberOfDynamics; i++){
-        dynamics[i]->print();
+        char* namestr = NULL;
+        Symbol* foundsymbols[3];
+        getElfFile()->findSymbol4Addr(dynamics[i]->GET_A(d_ptr,d_un),foundsymbols,3,&namestr);
+        dynamics[i]->print(namestr);
+        delete[] namestr;
     }
 
 }
@@ -563,7 +568,7 @@ const char* DTagNames[] = { "NULL", "NEEDED", "PLTRELSZ", "PLTGOT", "HASH", "STR
                             "JMPREL", "BIND_NOW", "INIT_ARRAY", "FINI_ARRAY", "INIT_ARRAYSZ", "FINI_ARRAYSZ", 
                             "RUNPATH", "FLAGS", "UNK31", "ENCODING", "PREINIT_ARRAYSZ", "NUM" };
 
-void Dynamic::print(){
+void Dynamic::print(char* str){
     uint64_t tag = GET(d_tag);
     uint8_t treatDun = DYNAMIC_ENT_D_UN_IS_D_PTR;
 
@@ -609,14 +614,15 @@ void Dynamic::print(){
         break;
     }
 
+
     if (treatDun == DYNAMIC_ENT_D_UN_IGNORED){
         PRINT_INFOR("\tdyn%5d -- typ:%11s",index,tmpstr);
     } else if (treatDun == DYNAMIC_ENT_D_UN_IS_D_VAL){
         PRINT_INFOR("\tdyn%5d -- typ:%11s val:%lld",index,tmpstr,GET_A(d_val,d_un));        
     } else if (treatDun == DYNAMIC_ENT_D_UN_IS_D_PTR){
-        PRINT_INFOR("\tdyn%5d -- typ:%11s ptr:%#llx",index,tmpstr,GET_A(d_ptr,d_un));        
+        PRINT_INFOR("\tdyn%5d -- typ:%11s ptr:%#llx -- %s",index,tmpstr,GET_A(d_ptr,d_un),str);        
     } else {
-        PRINT_INFOR("\tdyn%5d -- typ:%#llx v?p:%#llx",index,GET(d_tag),GET_A(d_ptr,d_un));        
+        PRINT_INFOR("\tdyn%5d -- typ:%#llx v?p:%#llx -- %s",index,GET(d_tag),GET_A(d_ptr,d_un),str);        
     }
 }
 

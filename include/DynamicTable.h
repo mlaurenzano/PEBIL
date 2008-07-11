@@ -62,7 +62,7 @@ public:
     char* getDynamicPtr() { return dynPtr; }
     Dynamic(char* dPtr, uint32_t idx);
     ~Dynamic() {}
-    void print();
+    void print(char* s);
 
     DYNAMIC_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 };
