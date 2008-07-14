@@ -42,8 +42,12 @@ bool Note::verify(){
         PRINT_ERROR("Note with namesz=0 is reserved for system use");
         return false;
     }
-    if (!name || namesz != strlen(name) + 1){
-        PRINT_ERROR("Actual name size does not match claimed name size");
+    if (!name){
+        PRINT_ERROR("Name pointer in note section should be non-null");
+        return false;
+    } if (namesz != strlen(name) + 1 && namesz != nextAlignAddress(strlen(name) + 1, Size__32_bit_Note_Section_Entry)){
+        print();
+        PRINT_ERROR("Actual name size does not match claimed name size in note section -- %d != %d", namesz, strlen(name) + 1);
         return false;
     }
     return true;

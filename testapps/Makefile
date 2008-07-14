@@ -1,18 +1,26 @@
 DBG         = -save-temps -g #-Wall
-OPT         = -O0 
-LINK_FLAGS  = -Wl,--hash-style=sysv
+OPT         = -O3
+#LINK_FLAGS  = -Wl,--hash-style=sysv
 
-GNU_CC      = gcc $(DBG) 
-GNU_CPP     = g++ $(DBG) 
+GNU_CC      = gcc
+GNU_CPP     = g++ -DCPP
 GNU_F77     = g77
 
-NATIVE_CC   = cc 
-NATIVE_CPP  = cc 
-NATIVE_F77  = f77
+INTEL_CC    = icc
+INTEL_CPP   = icc -lstdc++
+INTEL_F77   = ifort
 
-CC          = $(NATIVE_CC)  $(OPT)
-CPP         = $(GNU_CPP) $(OPT) -DCPP
-F77         = $(NATIVE_F77) $(OPT)
+PGI_CC      = pgcc
+PGI_CPP     = pgCC
+PGI_F77     = pgf95
+
+SUN_CC      = suncc
+SUN_CPP     = sunCC
+SUN_F77     = sunf77
+
+CC          = $(GNU_CC)  $(OPT)
+CPP         = $(GNU_CPP) $(OPT)
+F77         = $(GNU_F77) $(OPT)
 
 SRCDIR      = ../test
 BINDIR      = ../src
