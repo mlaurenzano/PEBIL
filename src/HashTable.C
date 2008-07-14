@@ -278,6 +278,16 @@ HashTable::HashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
     numberOfChains = 0;
     chains = NULL;
 
+    if (elfFile->getSectionHeader(scnIdx)->GET(sh_type) != SHT_HASH){
+        if (elfFile->getSectionHeader(scnIdx)->GET(sh_type) == SHT_GNU_HASH){
+            PRINT_ERROR("Hash table cannot use gnu-style hash table, relink with -Wl,--hash-style=sysv");
+            __SHOULD_NOT_ARRIVE;
+        } else {
+            PRINT_ERROR("Hash table has a non-hash section type; this is very wrong");
+            __SHOULD_NOT_ARRIVE;
+        }
+    }
+
 }
 
 

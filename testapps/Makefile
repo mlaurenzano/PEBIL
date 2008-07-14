@@ -1,6 +1,6 @@
 DBG         = -save-temps -g #-Wall
 OPT         = -O3
-#LINK_FLAGS  = -Wl,--hash-style=sysv
+LINK_FLAGS  = -Wl,--hash-style=sysv
 
 GNU_CC      = gcc
 GNU_CPP     = g++ -DCPP
@@ -18,9 +18,9 @@ SUN_CC      = suncc
 SUN_CPP     = sunCC
 SUN_F77     = sunf77
 
-CC          = $(INTEL_CC)  $(OPT)
-CPP         = $(INTEL_CPP) $(OPT)
-F77         = $(INTEL_F77) $(OPT)
+CC          = $(GNU_CC)  $(OPT)
+CPP         = $(GNU_CPP) $(OPT)
+F77         = $(GNU_F77) $(OPT)
 
 SRCDIR      = ../test
 BINDIR      = ../src

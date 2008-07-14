@@ -12,6 +12,14 @@ DATEXT         = datinst
 all: ide dat
 ide: ide32bit ide64bit
 ide32bit:
+	$(EXECUTABLE) --app $(32BITBIN)/cTest.gnu             --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
+	diff -s $(32BITBIN)/cTest.gnu $(32BITBIN)/cTest.gnu.$(IDEEXT) | egrep $(DIFFREGEXP)
+	$(EXECUTABLE) --app $(32BITBIN)/cppTest.gnu           --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
+	diff -s $(32BITBIN)/cppTest.gnu $(32BITBIN)/cppTest.gnu.$(IDEEXT) | egrep $(DIFFREGEXP)
+	$(EXECUTABLE) --app $(32BITBIN)/htcoef.gnu            --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
+	diff -s $(32BITBIN)/htcoef.gnu $(32BITBIN)/htcoef.gnu.$(IDEEXT) | egrep $(DIFFREGEXP)
+	rm -f $(32BITBIN)/*.$(IDEEXT)
+
 ide64bit:
 	$(EXECUTABLE) --app $(64BITBIN)/cTest.gnu             --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
 	diff -s $(64BITBIN)/cTest.gnu $(64BITBIN)/cTest.gnu.$(IDEEXT) | egrep $(DIFFREGEXP)
@@ -45,6 +53,14 @@ ide64bit:
 
 dat: dat32bit dat64bit
 dat32bit:
+	$(EXECUTABLE) --app $(32BITBIN)/cTest.gnu             --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
+	$(32BITBIN)/cTest.gnu.$(DATEXT) | egrep $(TESTAPPREGEXP)
+	$(EXECUTABLE) --app $(32BITBIN)/cppTest.gnu             --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
+	$(32BITBIN)/cppTest.gnu.$(DATEXT) | egrep $(TESTAPPREGEXP)
+	$(EXECUTABLE) --app $(32BITBIN)/htcoef.gnu             --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
+	$(32BITBIN)/htcoef.gnu.$(DATEXT) | egrep $(TESTAPPREGEXP)
+	rm -f $(32BITBIN)/*.$(DATEXT)
+
 dat64bit:
 	$(EXECUTABLE) --app $(64BITBIN)/cTest.gnu             --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
 	$(64BITBIN)/cTest.gnu.$(DATEXT) | egrep $(TESTAPPREGEXP)

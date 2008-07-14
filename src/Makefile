@@ -1,5 +1,5 @@
 DBG         = -g
-OPT         = -O0
+OPT         = -O3
 #CFLAGS      = -bmaxdata:0x80000000 $(DBG) $(OPT)
 NATIVE_CPP  = CC
 GNU_CPP     = g++
