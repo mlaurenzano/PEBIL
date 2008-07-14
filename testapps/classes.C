@@ -80,6 +80,8 @@ int main(){
     cpp_global = *foo;
     cpp_global.print();
 
+    printf("(Test Application Successfull)\n");
+
     return 0;
 }
 

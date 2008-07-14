@@ -18,9 +18,9 @@ SUN_CC      = suncc
 SUN_CPP     = sunCC
 SUN_F77     = sunf77
 
-CC          = $(GNU_CC)  $(OPT)
-CPP         = $(GNU_CPP) $(OPT)
-F77         = $(GNU_F77) $(OPT)
+CC          = $(INTEL_CC)  $(OPT)
+CPP         = $(INTEL_CPP) $(OPT)
+F77         = $(INTEL_F77) $(OPT)
 
 SRCDIR      = ../test
 BINDIR      = ../src
