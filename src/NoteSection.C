@@ -54,6 +54,7 @@ bool Note::verify(){
 }
 
 void Note::print(){
+
     PRINT_INFOR("\tnot%5d -- typ:%5d nsz:%5d dsz:%5dB name:%10s",
         index,type,namesz,descsz,name);
     // print the list of descriptors
@@ -64,6 +65,7 @@ void Note::print(){
 
 void NoteSection::print(){
     PRINT_INFOR("NoteSection : %d with %d notes",index,numberOfNotes);
+    printBytes(0,0);
     PRINT_INFOR("\tsect : %d",sectionIndex);
     for (uint32_t i = 0; i < numberOfNotes; i++){
         ASSERT(notes[i] && "numberOfNotes should indicate the number of elements in the notes array");
@@ -178,6 +180,7 @@ void NoteSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
     Note* currNote;
     uint32_t tmpEntry;
+    uint32_t paddingSize;
     char* tmpName;
 
     for (uint32_t i = 0; i < numberOfNotes; i++){
@@ -196,9 +199,19 @@ void NoteSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
         binaryOutputFile->copyBytes((char*)&tmpEntry,Size__32_bit_Note_Section_Entry,offset+currByte);
         currByte += Size__32_bit_Note_Section_Entry;
 
+
+        // print the name
         tmpName = currNote->getName();
-        binaryOutputFile->copyBytes(tmpName,nextAlignAddress(currNote->getNameSize(),Size__32_bit_Note_Section_Entry),offset+currByte);
-        currByte += nextAlignAddress(currNote->getNameSize(),Size__32_bit_Note_Section_Entry);
+        binaryOutputFile->copyBytes(tmpName,currNote->getNameSize(),offset+currByte);
+        currByte += currNote->getNameSize();
+
+        // fill the "padding" after the name with zeroes
+        paddingSize = nextAlignAddress(currNote->getNameSize(),Size__32_bit_Note_Section_Entry)-currNote->getNameSize();
+        tmpName = new char[paddingSize];
+        bzero(tmpName,paddingSize);
+        binaryOutputFile->copyBytes(tmpName,paddingSize,offset+currByte);
+        currByte += paddingSize;
+        delete[] tmpName;        
 
         for (uint32_t j = 0; j < currNote->getNumberOfDescriptors(); j++){
             tmpEntry = currNote->getDescriptor(j);
