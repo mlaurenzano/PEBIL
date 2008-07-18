@@ -1,5 +1,5 @@
 DBG         = -g
-OPT         = -O3
+OPT         = -O3 -fPIC
 NATIVE_C    = cc
 GNU_C       = gcc
 CC          = $(GNU_C) $(OPT)

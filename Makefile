@@ -11,6 +11,9 @@ subdirs: $(SUBDIRS)
 $(SUBDIRS): 
 	$(MAKE) -C $@ 
 
+verify:
+	$(MAKE) -C testapps/compiled/
+
 tools: src
 
 doxygen:
