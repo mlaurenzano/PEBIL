@@ -236,9 +236,9 @@ bool DynamicTable::verify(){
     uint64_t versymAddress = 0;
 
 
-    uint32_t entryCounts[DT_JMPREL];
+    uint32_t entryCounts[DT_JMPREL+1];
     
-    for (uint32_t i = 0; i < DT_JMPREL; i++){
+    for (uint32_t i = 0; i < DT_JMPREL+1; i++){
         entryCounts[i] = 0;
     }
 
@@ -254,7 +254,7 @@ bool DynamicTable::verify(){
             i = numberOfDynamics;    
         }
 
-        if (dyn->GET(d_tag) < DT_JMPREL){
+        if (dyn->GET(d_tag) <= DT_JMPREL){
             entryCounts[dyn->GET(d_tag)]++;
         } 
         // special case: we will count DT_GNU_HASH as DT_HASH
