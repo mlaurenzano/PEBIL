@@ -12,35 +12,38 @@ extern bool isPowerOfTwo(uint32_t n){
 
 
 extern uint64_t nextAlignAddress(uint64_t addr, uint32_t align){
-    if (align == 0 || align == 1){
+    if (align == 0 || align == 1 || addr == 0){
         return addr;
     }
-    ASSERT(isPowerOfTwo(align) && "alignment must be a power of 2 to call this function");
-    if (align == 8){
-        return nextAlignAddressDouble(addr);
-    } else if (align == 4) {
-        return nextAlignAddressWord(addr);
-    } else if (align == 2) {
-        return nextAlignAddressHalfWord(addr);
-    } else {
-        return (addr + (addr % align));
+    if (align > addr){
+        return align;
     }
+    ASSERT(isPowerOfTwo(align) && "alignment must be a power of 2 to call this function");
+    if (align % addr){
+        PRINT_INFOR("Address %016llx aligned to %x is %016llx", addr, align, addr + (addr % align));
+        return addr + (addr % align);
+    }
+    PRINT_INFOR("Address %016llx aligned to %x is %016llx", addr, align, addr);
+    return addr;    
 }
 
 
 extern uint64_t nextAlignAddressHalfWord(uint64_t addr){
+    //    return nextAlignAddress(addr,sizeof(uint16_t));
     addr += (addr % 2 ? 2 : 0);
     addr >>= 1;
     addr <<= 1;
     return addr;
 }
 extern uint64_t nextAlignAddressWord(uint64_t addr){
+    //    return nextAlignAddress(addr,sizeof(uint32_t));
     addr += (addr % 4 ? 4 : 0);
     addr >>= 2;
     addr <<= 2;
     return addr;
 }
 extern uint64_t nextAlignAddressDouble(uint64_t addr){
+    //    return nextAlignAddress(addr,sizeof(uint64_t));
     addr += (addr % 8 ? 8 : 0);
     addr >>= 3;
     addr <<= 3;

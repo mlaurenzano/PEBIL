@@ -7,6 +7,9 @@
 int compareSymbolValue(const void* arg1,const void* arg2){
     Symbol* sym1 = *((Symbol**)arg1);
     Symbol* sym2 = *((Symbol**)arg2);
+
+    ASSERT(sym1 && sym2 && "Symbols should exist");
+
     uint64_t vl1 = sym1->GET(st_value);
     uint64_t vl2 = sym2->GET(st_value);
 
@@ -17,9 +20,13 @@ int compareSymbolValue(const void* arg1,const void* arg2){
 
     return 0;
 }
+
 int searchSymbolValue(const void* arg1,const void* arg2){
     uint64_t key = *((uint64_t*)arg1);
     Symbol* sym = *((Symbol**)arg2);
+
+    ASSERT(sym && "Symbol should exist");
+    
     uint64_t val = sym->GET(st_value);
 
     if(key < val)
@@ -29,33 +36,64 @@ int searchSymbolValue(const void* arg1,const void* arg2){
     return 0;
 }
 
+
+bool SymbolTable::symbolsAreSorted(){
+    if (!sortedSymbols){
+        return true;
+    }
+    for (uint32_t i = 0; i < numberOfSymbols-1; i++){
+        ASSERT(sortedSymbols[i] && sortedSymbols[i+1] && "Symbols should be initialized");
+        if (sortedSymbols[i]->GET(st_value) > sortedSymbols[i]->GET(st_value)){
+            return false;
+        }
+    }
+    return true;
+}
+
+void SymbolTable::sortSymbols(){
+    if (sortedSymbols){
+        delete[] sortedSymbols;
+    }
+    sortedSymbols  = new Symbol*[numberOfSymbols];
+    for (uint32_t i = 0; i < numberOfSymbols; i++){
+        sortedSymbols[i] = symbols[i];
+    }
+    qsort(sortedSymbols,numberOfSymbols,sizeof(Symbol*),compareSymbolValue);
+}
+
+
 uint32_t SymbolTable::findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t buffCnt,char** namestr){
     uint32_t retValue = 0;
-    if(!sortedSymbols){
-        sortedSymbols  = new Symbol*[numberOfSymbols];
-        for(uint32_t i=0;i<numberOfSymbols;i++){
-            sortedSymbols[i] = symbols[i];
+
+    sortSymbols();
+
+    if (!symbolsAreSorted()){
+        for (uint32_t i = 0; i < numberOfSymbols; i++){
+            sortedSymbols[i]->print(getSymbolName(sortedSymbols[i]->getIndex()));
         }
-        qsort(sortedSymbols,numberOfSymbols,sizeof(Symbol*),compareSymbolValue);
+
+        ASSERT(0 && "cannot find symbol if symbols are out of order");
     }
-    ASSERT(sortedSymbols);
+
+    ASSERT(sortedSymbols && "symbol should be sorted by now");
 
     void* checkRes = bsearch(&addr,sortedSymbols,numberOfSymbols,sizeof(Symbol*),searchSymbolValue);
-    if(checkRes){
+
+    if (checkRes){
 
         uint32_t sidx = (((char*)checkRes)-((char*)sortedSymbols))/sizeof(Symbol*);
         uint32_t eidx = sidx;
-        for(;eidx < numberOfSymbols;eidx++){
+        for (;eidx < numberOfSymbols;eidx++){
             Symbol* sym = sortedSymbols[eidx];
             if(sym->GET(st_value) != addr){
                 break;
             }
         }
         eidx--;
-        ASSERT(eidx < numberOfSymbols);
+        ASSERT(eidx < numberOfSymbols && "result of bsearch could not be verified");
 
         retValue = 0;
-        for(;sidx<=eidx;sidx++){
+        for (;sidx<=eidx;sidx++){
             if(retValue < buffCnt){
                 buffer[retValue++] = sortedSymbols[sidx];
             } else {
@@ -64,7 +102,7 @@ uint32_t SymbolTable::findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t buf
         }
     }
 
-    if(namestr){
+    if (namestr){
         if(!retValue){
             *namestr = new char[__MAX_STRING_SIZE];
             sprintf(*namestr,"<__no_symbol_found>");
@@ -128,6 +166,8 @@ uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, ui
     delete[] symbols;
     symbols = newsyms;
     numberOfSymbols++;
+
+    sortSymbols();
 
     return numberOfSymbols-1;
 

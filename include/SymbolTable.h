@@ -76,6 +76,9 @@ protected:
     bool dynamic;
 
     Symbol** sortedSymbols;
+
+    bool symbolsAreSorted();
+    void sortSymbols();
 public:
 
     SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf);

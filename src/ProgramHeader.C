@@ -88,7 +88,7 @@ bool ProgramHeader::verify(){
 
     if (GET(p_align) > 1){
         if (GET(p_vaddr) % GET(p_align) != GET(p_offset) % GET(p_align)){
-            PRINT_ERROR("Segment(%d) virtual address(%016llx)/offset(%08x) does not conform to alignment(%016llx)", index, GET(p_vaddr), GET(p_offset), GET(p_align));
+            PRINT_ERROR("Segment(%d) virtual address(%016llx) and offset(%016llx) do not conform to alignment(%016llx)", index, GET(p_vaddr), GET(p_offset), GET(p_align));
             return false;
         }
     }

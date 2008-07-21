@@ -755,7 +755,7 @@ uint64_t ElfFileInst::extendDataSection(uint32_t size){
 }
 
 uint64_t ElfFileInst::extendTextSection(uint32_t size){
-    size = nextAlignAddress(size,DEFAULT_PAGE_ALIGNMENT);
+    size = nextAlignAddress(size,elfFile->getProgramHeader(elfFile->getTextSegmentIdx())->GET(p_align));
     uint64_t lowestTextAddress = -1;
     uint16_t lowestTextSectionIdx = -1;
 
@@ -769,7 +769,7 @@ uint64_t ElfFileInst::extendTextSection(uint32_t size){
     // first we will find the address of the first text section. we will be moving all elf
     // control structures that occur prior to this address with the extension of the text
     // segment (the interp and note.ABI-tag sections must be in the first text page and it
-    // will make certain things easier for all control sections together)
+    // will make certain things easier for all control sections to be together)
     for (uint32_t i = 1; i < elfFile->getNumberOfSections(); i++){
         if (elfFile->getSectionHeader(i)->GET(sh_type) == SHT_PROGBITS &&
             elfFile->getSectionHeader(i)->hasAllocBit() && elfFile->getSectionHeader(i)->hasExecInstrBit()){
@@ -787,6 +787,8 @@ uint64_t ElfFileInst::extendTextSection(uint32_t size){
     for (uint32_t i = 0; i < elfFile->getNumberOfPrograms(); i++){
         ProgramHeader* subHeader = elfFile->getProgramHeader(i);
         if (textHeader->inRange(subHeader->GET(p_vaddr)) && i != elfFile->getTextSegmentIdx()){
+            PRINT_INFOR("Moving text sub-segment at idx %d by %d bytes", i, size);
+
             subHeader->SET(p_vaddr,subHeader->GET(p_vaddr)-size);
             subHeader->SET(p_paddr,subHeader->GET(p_paddr)-size);
         } 
@@ -817,11 +819,13 @@ uint64_t ElfFileInst::extendTextSection(uint32_t size){
     }
     
     // modify the base address of the text segment and increase its size so it ends at the same address
+    textHeader->print();
+    PRINT_INFOR("Extending this segment by %x bytes", size);
     textHeader->SET(p_vaddr,textHeader->GET(p_vaddr)-size);
     textHeader->SET(p_paddr,textHeader->GET(p_paddr)-size);
     textHeader->SET(p_memsz,textHeader->GET(p_memsz)+size);
     textHeader->SET(p_filesz,textHeader->GET(p_filesz)+size);
-
+    textHeader->print();
 
     // For any section that falls before the program's code, displace its address so that it is in the
     // same location relative to the base address.
