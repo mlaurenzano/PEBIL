@@ -1,3 +1,7 @@
+64BITPROGS_SER = cTest.gnu cppTest.gnu htcoef.gnu cTest.intel cppTest.intel htcoef.intel cTest.sun cppTest.sun htcoef.sun cTest.pgi cppTest.pgi htcoef.pgi
+64BITPROGS_PAR = xmesh_specfem3D.pgi s3d_f90.x.H2
+32BITPROGS_SER = cTest.gnu cppTest.gnu htcoef.gnu
+32BITPROGS_PAR =
 X86INSTREGEXP  = "(Instrumentation Successfull)"
 DIFFREGEXP     = "are identical"
 TESTAPPREGEXP  = "(Test Application Successfull)"
@@ -9,100 +13,65 @@ TESTBINS       = .
 INSTRUMENTOR   = $(LEAKCHECK) $(SRC)/x86inst
 IDEEXT         = ideinst
 DATEXT         = datinst
+64BITPROGS     = $(64BITPROGS_SER) $(64BITPROGS_PAR)
+32BITPROGS     = $(32BITPROGS_SER) $(32BITPROGS_PAR)
+
 
 all: ide dat
-ide: ide32bit ide64bit
-ide32bit:
-	$(INSTRUMENTOR) --app $(32BITBIN)/cTest.gnu             --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(32BITBIN)/cTest.gnu $(32BITBIN)/cTest.gnu.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(32BITBIN)/cppTest.gnu           --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(32BITBIN)/cppTest.gnu $(32BITBIN)/cppTest.gnu.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(32BITBIN)/htcoef.gnu            --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(32BITBIN)/htcoef.gnu $(32BITBIN)/htcoef.gnu.$(IDEEXT) | egrep $(DIFFREGEXP)
+ide: ide32 ide64
+dat: dat32 dat64
+include rules.$(BITS)
+
+
+ide32:
+	for i in ${32BITPROGS}; do \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+		diff -s $(32BITBIN)/"$$i" $(32BITBIN)/"$$i".$(IDEEXT) | egrep $(DIFFREGEXP); \
+	done
 	rm -f $(32BITBIN)/*.$(IDEEXT)
 
-ide64bit:
-	$(INSTRUMENTOR) --app $(64BITBIN)/cTest.gnu             --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/cTest.gnu $(64BITBIN)/cTest.gnu.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cTest.sun             --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/cTest.sun $(64BITBIN)/cTest.sun.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cTest.intel           --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/cTest.intel $(64BITBIN)/cTest.intel.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cTest.pgi             --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/cTest.pgi $(64BITBIN)/cTest.pgi.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cppTest.gnu           --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/cppTest.gnu $(64BITBIN)/cppTest.gnu.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cppTest.sun           --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/cppTest.sun $(64BITBIN)/cppTest.sun.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cppTest.intel         --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/cppTest.intel $(64BITBIN)/cppTest.intel.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cppTest.pgi           --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/cppTest.pgi $(64BITBIN)/cppTest.pgi.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/htcoef.gnu            --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/htcoef.gnu $(64BITBIN)/htcoef.gnu.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/htcoef.sun            --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/htcoef.sun $(64BITBIN)/htcoef.sun.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/htcoef.intel          --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/htcoef.intel $(64BITBIN)/htcoef.intel.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/htcoef.pgi            --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/htcoef.pgi $(64BITBIN)/htcoef.pgi.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/xmesh_specfem3D.pgi   --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/xmesh_specfem3D.pgi $(64BITBIN)/xmesh_specfem3D.pgi.$(IDEEXT) | egrep $(DIFFREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/s3d_f90.x.H2          --typ ide --lib ../.. | egrep $(X86INSTREGEXP)
-	diff -s $(64BITBIN)/s3d_f90.x.H2 $(64BITBIN)/s3d_f90.x.H2.$(IDEEXT) | egrep $(DIFFREGEXP)
+ide64:
+	for i in ${64BITPROGS}; do \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+		diff -s $(64BITBIN)/"$$i" $(64BITBIN)/"$$i".$(IDEEXT) | egrep $(DIFFREGEXP); \
+	done
 	rm -f $(64BITBIN)/*.$(IDEEXT)
 
-dat: dat32bit dat64bit
-dat32bit:
-	$(INSTRUMENTOR) --app $(32BITBIN)/cTest.gnu             --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(32BITBIN)/cTest.gnu.$(DATEXT)
-	$(32BITBIN)/cTest.gnu.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(32BITBIN)/cppTest.gnu             --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(32BITBIN)/cppTest.gnu.$(DATEXT)
-	$(32BITBIN)/cppTest.gnu.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(32BITBIN)/htcoef.gnu             --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(32BITBIN)/htcoef.gnu.$(DATEXT)
-	$(32BITBIN)/htcoef.gnu.$(DATEXT) | egrep $(TESTAPPREGEXP)
+dat32inst:
+	for i in ${32BITPROGS}; do \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ dat --lib ../.. | egrep $(X86INSTREGEXP); \
+	done
+
+dat32run:
+	for i in ${32BITPROGS_SER}; do \
+		chmod a+x $(32BITBIN)/"$$i".$(DATEXT); \
+		$(32BITBIN)/"$$i".$(DATEXT) | egrep $(TESTAPPREGEXP); \
+	done	
+
+dat32rm:
 	rm -f $(32BITBIN)/*.$(DATEXT)
 
-dat64bit:
-	$(INSTRUMENTOR) --app $(64BITBIN)/cTest.gnu             --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(64BITBIN)/cTest.gnu.$(DATEXT)
-	$(64BITBIN)/cTest.gnu.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cTest.sun             --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(64BITBIN)/cTest.sun.$(DATEXT)
-	$(64BITBIN)/cTest.sun.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cTest.intel           --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(64BITBIN)/cTest.intel.$(DATEXT)
-	$(64BITBIN)/cTest.intel.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cTest.pgi             --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(64BITBIN)/cTest.pgi.$(DATEXT)
-	$(64BITBIN)/cTest.pgi.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cppTest.gnu           --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(64BITBIN)/cppTest.gnu.$(DATEXT)
-	$(64BITBIN)/cppTest.gnu.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cppTest.sun           --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(64BITBIN)/cppTest.sun.$(DATEXT)
-	$(64BITBIN)/cppTest.sun.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cppTest.intel         --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(64BITBIN)/cppTest.intel.$(DATEXT)
-	$(64BITBIN)/cppTest.intel.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/cppTest.pgi           --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(64BITBIN)/cppTest.pgi.$(DATEXT)
-	$(64BITBIN)/cppTest.pgi.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/htcoef.gnu            --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(64BITBIN)/htcoef.gnu.$(DATEXT)
-	$(64BITBIN)/htcoef.gnu.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/htcoef.sun            --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(64BITBIN)/htcoef.sun.$(DATEXT)
-	$(64BITBIN)/htcoef.sun.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/htcoef.intel          --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(64BITBIN)/htcoef.intel.$(DATEXT)
-	$(64BITBIN)/htcoef.intel.$(DATEXT) | egrep $(TESTAPPREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/htcoef.pgi            --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	chmod a+x $(64BITBIN)/htcoef.pgi.$(DATEXT)
-	$(64BITBIN)/htcoef.pgi.$(DATEXT) | egrep $(TESTAPPREGEXP)
+dat64inst:
+	for i in ${64BITPROGS}; do \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ dat --lib ../.. | egrep $(X86INSTREGEXP); \
+	done
 
-	$(INSTRUMENTOR) --app $(64BITBIN)/xmesh_specfem3D.pgi   --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
-	$(INSTRUMENTOR) --app $(64BITBIN)/s3d_f90.x.H2   --typ dat --lib ../.. | egrep $(X86INSTREGEXP)
+dat64run:
+	for i in ${64BITPROGS}; do \
+		chmod a+x $(64BITBIN)/"$$i".$(DATEXT); \
+		$(64BITBIN)/"$$i".$(DATEXT) | egrep $(TESTAPPREGEXP); \
+	done
+
+dat64rm:
 	rm -f $(64BITBIN)/*.$(DATEXT)
+
+nobitswarn:
+	echo ""
+	echo ""
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+	echo "---------------------------------------------------------------------------------------"
+	echo "    WARNING: argument 'BITS=[32|64]' not given to makefile, not running any tests      "
+	echo "---------------------------------------------------------------------------------------"
+	echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+	echo ""
+	echo ""
