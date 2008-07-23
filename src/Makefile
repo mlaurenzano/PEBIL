@@ -26,12 +26,14 @@ SRCDIR      = ../src
 BINDIR      = ../bin
 LIBDIR      = ../lib
 
-SRCS        = Base.C ElfFile.C BinaryFile.C FileHeader.C ProgramHeader.C SectionHeader.C \
-              StringTable.C SymbolTable.C RelocationTable.C RawSection.C TextSection.C Disassembler.C \
-              Instruction.C GlobalOffsetTable.C DynamicTable.C HashTable.C NoteSection.C main.C
-OBJS        = Base.o ElfFile.o BinaryFile.o FileHeader.o ProgramHeader.o SectionHeader.o \
-              StringTable.o SymbolTable.o RelocationTable.o RawSection.o TextSection.o Disassembler.o \
-              Instruction.o GlobalOffsetTable.o DynamicTable.o HashTable.o NoteSection.o main.o
+SRCS        = Base.C BinaryFile.C Disassembler.C DynamicTable.C ElfFile.C FileHeader.C \
+              Function.C GlobalOffsetTable.C HashTable.C Instruction.C NoteSection.C \
+              ProgramHeader.C RawSection.C RelocationTable.C SectionHeader.C StringTable.C \
+              SymbolTable.C TextSection.C main.C
+OBJS        = Base.o BinaryFile.o Disassembler.o DynamicTable.o ElfFile.o FileHeader.o \
+              Function.o GlobalOffsetTable.o HashTable.o Instruction.o NoteSection.o \
+              ProgramHeader.o RawSection.o RelocationTable.o SectionHeader.o StringTable.o \
+              SymbolTable.o TextSection.o main.o
 
 TARGET_BIN  = x86inst
 

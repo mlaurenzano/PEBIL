@@ -164,23 +164,24 @@ typedef enum {
 
 typedef enum {
     ElfClassTypes_no_type = 0,
+    ElfClassTypes_DwarfSection,
+    ElfClassTypes_Dynamic,
+    ElfClassTypes_DynamicTable,
     ElfClassTypes_FileHeader,
+    ElfClassTypes_Function,
+    ElfClassTypes_GlobalOffsetTable,
+    ElfClassTypes_HashTable,
+    ElfClassTypes_Note,
+    ElfClassTypes_NoteSection,
     ElfClassTypes_ProgramHeader,
-    ElfClassTypes_SectionHeader,
     ElfClassTypes_RawSection,
     ElfClassTypes_RelocationTable,
     ElfClassTypes_Relocation,
-    ElfClassTypes_SymbolTable,
-    ElfClassTypes_Symbol,
+    ElfClassTypes_SectionHeader,
     ElfClassTypes_StringTable,
-    ElfClassTypes_DwarfSection,
+    ElfClassTypes_Symbol,
+    ElfClassTypes_SymbolTable,
     ElfClassTypes_TextSection,
-    ElfClassTypes_GlobalOffsetTable,
-    ElfClassTypes_DynamicTable,
-    ElfClassTypes_Dynamic,
-    ElfClassTypes_HashTable,
-    ElfClassTypes_NoteSection,
-    ElfClassTypes_Note,
     ElfClassTypes_Total_Types
 } ElfClassTypes;
 
@@ -274,6 +275,10 @@ extern uint64_t nextAlignAddress(uint64_t addr, uint32_t align);
 extern uint64_t nextAlignAddressHalfWord(uint64_t addr);
 extern uint64_t nextAlignAddressWord(uint64_t addr);
 extern uint64_t nextAlignAddressDouble(uint64_t addr);
+
+extern uint16_t switchEndian(uint16_t hword);
+extern uint32_t switchEndian(uint32_t  word);
+extern uint64_t switchEndian(uint64_t lword);
 
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)

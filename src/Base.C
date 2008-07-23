@@ -1,5 +1,38 @@
 #include <Base.h>
 
+extern uint16_t switchEndian(uint16_t hword){
+    uint16_t b1 = (hword >> 8) & 0x00ff;
+    uint16_t b2 = (hword << 8) & 0xff00;
+    return (b1 | b2);
+}
+
+extern uint32_t switchEndian(uint32_t word){
+    uint32_t b1 = (word >> 24) & 0x000000ff;
+    uint32_t b2 = (word >>  8) & 0x0000ff00;
+    uint32_t b3 = (word <<  8) & 0x00ff0000;
+    uint32_t b4 = (word << 24) & 0xff000000;
+    return (b1 | b2 | b3 | b4);
+}
+
+extern uint64_t switchEndian(uint64_t lword){
+    int64_t mask = 0xff;
+    uint64_t b1 = (lword >> 56) & mask;
+    mask = mask << 8;
+    uint64_t b2 = (lword >> 40) & mask;
+    mask = mask << 8;
+    uint64_t b3 = (lword >> 24) & mask;
+    mask = mask << 8;
+    uint64_t b4 = (lword >>  8) & mask;
+    mask = mask << 8;
+    uint64_t b5 = (lword <<  8) & mask;
+    mask = mask << 8;
+    uint64_t b6 = (lword << 24) & mask;
+    mask = mask << 8;
+    uint64_t b7 = (lword << 40) & mask;
+    mask = mask << 8;
+    uint64_t b8 = (lword << 56) & mask;
+    return (b1 | b2 | b3 | b4 | b5 | b6 | b7 | b8);
+}
 
 extern bool isPowerOfTwo(uint32_t n){
     uint32_t currVal = 1;

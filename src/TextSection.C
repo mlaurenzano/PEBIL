@@ -3,6 +3,84 @@
 #include <Disassembler.h>
 #include <SectionHeader.h>
 #include <Instruction.h>
+#include <SymbolTable.h>
+#include <PriorityQueue.h>
+
+
+uint32_t TextSection::findFunctions(){
+    PriorityQueue<Symbol*,uint64_t>* functions = new PriorityQueue<Symbol*,uint64_t>();
+    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+        SymbolTable* symbolTable = elfFile->getSymbolTable(i);
+        if (!symbolTable->isDynamic()){
+            for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
+                Symbol* symbol = symbolTable->getSymbol(j);
+                if (symbol->getSymbolType() == STT_FUNC && symbol->GET(st_shndx) == getSectionIndex()){
+                    functions->insert(symbol,symbol->GET(st_value));
+                }
+            }
+        }
+    }
+
+    numberOfFunctions = functions->size();
+    sortedFunctions = new Function*[numberOfFunctions];
+    uint32_t idx = 0;
+    uint64_t dummy;
+    while (!functions->isEmpty()){
+        sortedFunctions[idx++] = new Function(functions->deleteMin(&dummy));
+    }
+
+    elfFile->getSectionHeader(getSectionIndex())->print();
+    PRINT_INFOR("Found %d functions for section %d", numberOfFunctions, getSectionIndex());
+
+    verify();
+
+    return numberOfFunctions;
+}
+
+bool TextSection::verify(){
+    SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
+
+    if (!numberOfFunctions){
+        return true;
+    }
+
+    for (uint32_t i = 0; i < numberOfFunctions; i++){
+
+        uint64_t entrAddr = sortedFunctions[i]->getFunctionAddress();
+        uint64_t exitAddr = entrAddr + sortedFunctions[i]->getFunctionSize();
+
+        // make sure each function entry resides within the bounds of this section
+        if (!sectionHeader->inRange(entrAddr)){
+            sectionHeader->print();
+            PRINT_ERROR("The function entry address 0x%016llx is not in the range of section %d", entrAddr, sectionHeader->getIndex());
+            return false;
+        }
+
+        /*
+        // make sure each function exit resides within the bounds of this section
+        if (!sectionHeader->inRange(exitAddr)){
+            sortedFunctions[i]->print();
+            sectionHeader->print();
+            PRINT_INFOR("Section range [0x%016llx,0x%016llx]", sectionHeader->GET(sh_addr), sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size));
+            PRINT_ERROR("The function exit address 0x%016llx is not in the range of section %d", exitAddr, sectionHeader->getIndex());
+            return false;
+        }
+        */
+    }
+
+    for (uint32_t i = 0; i < numberOfFunctions-1; i++){
+
+        // make sure sortedFunctions is actually sorted
+        if (sortedFunctions[i]->getFunctionAddress() > sortedFunctions[i+1]->getFunctionAddress()){
+            sortedFunctions[i]->print();
+            sortedFunctions[i+1]->print();
+            PRINT_ERROR("Function addresses 0x%016llx 0x%016llx are not sorted", sortedFunctions[i]->getFunctionAddress(), sortedFunctions[i+1]->getFunctionAddress());
+            return false;
+        }
+    }
+
+    return true;
+}
 
 
 void TextSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
@@ -45,7 +123,6 @@ uint32_t TextSection::addInstruction(char* bytes, uint32_t length, uint64_t addr
 
 Instruction* TextSection::getInstruction(uint32_t idx){
     ASSERT(idx <= 0 && idx < numberOfInstructions && "Array index out of bounds");
-
     return instructions[idx];
 }
 
@@ -57,6 +134,10 @@ TextSection::~TextSection(){
             }
         }
         delete[] instructions;
+    }
+
+    if (sortedFunctions){
+        delete[] sortedFunctions;
     }
 }
 

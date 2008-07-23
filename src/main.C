@@ -1,6 +1,17 @@
 #include <Base.h>
 #include <ElfFile.h>
 
+void testEndian(){
+    uint16_t htest = 12345;
+    uint32_t test = 123456789;
+    uint64_t ltest = 0x12345678;
+    ltest = ltest << 32;
+    ltest |= 0xabcdef;
+    PRINT_INFOR("%04hx <--> %04hx", htest, switchEndian(htest));
+    PRINT_INFOR("%08x <--> %08x", test, switchEndian(test));
+    PRINT_INFOR("%016llx <--> %016llx", ltest, switchEndian(ltest));
+}
+
 void printBriefOptions(){
     fprintf(stderr,"\n");
     fprintf(stderr,"Brief Descriptions for Options:\n");

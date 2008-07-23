@@ -2,6 +2,12 @@
 #include <Instruction.h>
 #include <CStructuresX86.h>
 
+Instruction Instruction::generateJumpIndirect(uint64_t tgt){
+    Instruction ret;
+    return ret;
+}
+
+
 Operand::Operand(uint32_t typ, uint64_t val){
     type = typ;
     value = val;

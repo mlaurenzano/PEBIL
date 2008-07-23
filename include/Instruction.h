@@ -100,12 +100,14 @@ public:
 
     uint32_t setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2);
 
+    static Instruction generateJumpIndirect(uint64_t tgt);
+
+    static uint32_t computeOpcodeTypeOneByte(uint32_t idx);
+    static uint32_t computeOpcodeTypeTwoByte(uint32_t idx);
+    static uint32_t computeOpcodeTypeGroups(uint32_t idx1, uint32_t idx2);
+    static uint32_t computeOpcodeTypePrefixUser(uint32_t idx1, uint32_t idx2);
+    static uint32_t computeOpcodeTypeX8664(uint32_t idx1, uint32_t idx2);
 private:
-    uint32_t computeOpcodeTypeOneByte(uint32_t idx);
-    uint32_t computeOpcodeTypeTwoByte(uint32_t idx);
-    uint32_t computeOpcodeTypeGroups(uint32_t idx1, uint32_t idx2);
-    uint32_t computeOpcodeTypePrefixUser(uint32_t idx1, uint32_t idx2);
-    uint32_t computeOpcodeTypeX8664(uint32_t idx1, uint32_t idx2);
 
 };
 #endif /* _Instruction_h_ */

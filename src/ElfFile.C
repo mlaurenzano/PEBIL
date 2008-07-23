@@ -15,6 +15,7 @@
 #include <HashTable.h>
 #include <NoteSection.h>
 
+
 TIMER(
 	extern double cfg_s1;
 	extern double cfg_s2;
@@ -26,6 +27,17 @@ TIMER(
 DEBUG(
 uint32_t readBytes = 0;
 );
+
+void ElfFile::initTextSections(){
+    uint32_t numberOfFunctions = 0;
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        if (sectionHeaders[i]->getSectionType() == ElfClassTypes_TextSection){
+            TextSection* textSection = (TextSection*)rawSections[i];
+            numberOfFunctions += textSection->findFunctions();
+        }
+    }
+    PRINT_INFOR("Found %d functions in all sections", numberOfFunctions);
+}
 
 bool ElfFile::verify(){
 
@@ -180,8 +192,6 @@ bool ElfFile::verify(){
     }
 
 }
-
-
 
 
 uint32_t ElfFileInst::fillPLTBytes(char* bytes, uint64_t gotAddress, uint64_t pltBase){
@@ -1374,6 +1384,7 @@ void ElfFile::parse(){
     disassembler = new Disassembler(is64Bit());
     readRawSections();
     initSectionFilePointers();
+    initTextSections();
 
     verify();
 
@@ -1518,7 +1529,6 @@ void ElfFile::readRawSections(){
             rawSections[i] = new RawSection(ElfClassTypes_no_type, sectionFilePtr, sectionSize, i, this);
         }
         rawSections[i]->read(&binaryInputFile);
-        PRINT_INFOR("Finished reading section %d", i);
     }
 }
 
