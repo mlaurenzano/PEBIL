@@ -57,7 +57,7 @@ dat64inst:
 	done
 
 dat64run:
-	for i in ${64BITPROGS}; do \
+	for i in ${64BITPROGS_SER}; do \
 		chmod a+x $(64BITBIN)/"$$i".$(DATEXT); \
 		$(64BITBIN)/"$$i".$(DATEXT) | egrep $(TESTAPPREGEXP); \
 	done
