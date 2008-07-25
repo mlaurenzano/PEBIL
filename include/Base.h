@@ -51,7 +51,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     fprintf(stderr,"\n");                                \
     exit(-1);
 
-#define PRINT_WARN(...)  fprintf(stderr,"*** WARNING : "); \
+#define PRINT_WARN(...)  fprintf(stdout,"*** WARNING : "); \
     fprintf(stdout,## __VA_ARGS__);                              \
     fprintf(stdout,"\n");                                        \
     fflush(stdout);

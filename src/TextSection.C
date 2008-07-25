@@ -4,32 +4,77 @@
 #include <SectionHeader.h>
 #include <Instruction.h>
 #include <SymbolTable.h>
-#include <PriorityQueue.h>
 
+
+Instruction* TextSection::getInstructionAtAddress(uint64_t addr){
+    SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
+    if (!sectionHeader->inRange(addr)){
+        PRINT_WARN("Instruction lookup failing because section %d does not contain address %llx", getSectionIndex(), addr);
+        return NULL;
+    }
+
+    // linear search is bad -- too slow
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (addr == instructions[i]->getAddress()){
+            return instructions[i];
+        }
+    }
+
+    return NULL;
+
+}
 
 uint32_t TextSection::findFunctions(){
-    PriorityQueue<Symbol*,uint64_t>* functions = new PriorityQueue<Symbol*,uint64_t>();
+
+    SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
+
+    numberOfFunctions = 0;
     for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
         SymbolTable* symbolTable = elfFile->getSymbolTable(i);
         if (!symbolTable->isDynamic()){
             for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
                 Symbol* symbol = symbolTable->getSymbol(j);
                 if (symbol->getSymbolType() == STT_FUNC && symbol->GET(st_shndx) == getSectionIndex()){
-                    functions->insert(symbol,symbol->GET(st_value));
+                    numberOfFunctions++;
                 }
             }
         }
     }
 
-    numberOfFunctions = functions->size();
     sortedFunctions = new Function*[numberOfFunctions];
-    uint32_t idx = 0;
-    uint64_t dummy;
-    while (!functions->isEmpty()){
-        sortedFunctions[idx++] = new Function(functions->deleteMin(&dummy));
+    Symbol** functionSymbols = new Symbol*[numberOfFunctions];
+
+    PRINT_INFOR("Found %d functions in section %d", numberOfFunctions, getSectionIndex());
+
+    numberOfFunctions = 0;
+    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+        SymbolTable* symbolTable = elfFile->getSymbolTable(i);
+        if (!symbolTable->isDynamic()){
+            for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
+                Symbol* symbol = symbolTable->getSymbol(j);
+                if (symbol->getSymbolType() == STT_FUNC && symbol->GET(st_shndx) == getSectionIndex()){
+                    PRINT_INFOR("Assigning function %d", numberOfFunctions);
+                    functionSymbols[numberOfFunctions++] = symbol;
+                }
+            }
+        }
     }
 
-    elfFile->getSectionHeader(getSectionIndex())->print();
+    qsort(functionSymbols,numberOfFunctions,sizeof(Symbol*),compareSymbolValue);
+
+    if (numberOfFunctions){
+        for (uint32_t i = 0; i < numberOfFunctions-1; i++){
+            sortedFunctions[i] = new Function(this, functionSymbols[i], functionSymbols[i+1]->GET(st_value), i);
+            functionSymbols[i]->print(NULL);
+        }
+        // the last function does till the end of the section
+        sortedFunctions[numberOfFunctions-1] = new Function(this, functionSymbols[numberOfFunctions-1], 
+                                                            sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size), numberOfFunctions-1);
+    }
+    delete[] functionSymbols;
+
+
+    sectionHeader->print();
     PRINT_INFOR("Found %d functions for section %d", numberOfFunctions, getSectionIndex());
 
     verify();
@@ -56,19 +101,17 @@ bool TextSection::verify(){
             return false;
         }
 
-        /*
         // make sure each function exit resides within the bounds of this section
-        if (!sectionHeader->inRange(exitAddr)){
+        if (!sectionHeader->inRange(exitAddr) && exitAddr != sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size)){
             sortedFunctions[i]->print();
             sectionHeader->print();
             PRINT_INFOR("Section range [0x%016llx,0x%016llx]", sectionHeader->GET(sh_addr), sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size));
             PRINT_ERROR("The function exit address 0x%016llx is not in the range of section %d", exitAddr, sectionHeader->getIndex());
             return false;
         }
-        */
     }
 
-    for (uint32_t i = 0; i < numberOfFunctions-1; i++){
+    for (uint32_t i = 0; i < numberOfFunctions - 1; i++){
 
         // make sure sortedFunctions is actually sorted
         if (sortedFunctions[i]->getFunctionAddress() > sortedFunctions[i+1]->getFunctionAddress()){
@@ -92,34 +135,6 @@ void TextSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     }
 }
 
-uint32_t TextSection::addInstruction(char* bytes, uint32_t length, uint64_t addr){
-    uint32_t totalSize = 0;
-
-    //    printBytes(0,0);
-
-    Instruction** newInstructions = new Instruction*[numberOfInstructions+1];
-
-    for (uint32_t i = 0; i < numberOfInstructions; i++){
-        totalSize += instructions[i]->getLength();
-        newInstructions[i] = instructions[i];
-    }
-
-    //    PRINT_INFOR("This section has %d instructions already", numberOfInstructions);
-    //PRINT_INFOR("Trying to use %d bytes (%d new) of %d", totalSize + length, length, sizeInBytes);
-    ASSERT(totalSize + length <= sizeInBytes && "Cannot add an instruction without extending the size of this text section");
- 
-    newInstructions[numberOfInstructions] = new Instruction();
-    newInstructions[numberOfInstructions]->setLength(length);
-    newInstructions[numberOfInstructions]->setAddress(addr);
-    newInstructions[numberOfInstructions]->setBytes(bytes);
-    elfFile->getDisassembler()->print_insn((uint64_t)(newInstructions[numberOfInstructions]->charStream()), newInstructions[numberOfInstructions]);
-
-    delete[] instructions;
-    instructions = newInstructions;
-
-    numberOfInstructions++;
-}
-
 
 Instruction* TextSection::getInstruction(uint32_t idx){
     ASSERT(idx <= 0 && idx < numberOfInstructions && "Array index out of bounds");
@@ -137,13 +152,15 @@ TextSection::~TextSection(){
     }
 
     if (sortedFunctions){
+        for (uint32_t i = 0; i < numberOfFunctions; i++){
+            delete sortedFunctions[i];
+        }
         delete[] sortedFunctions;
     }
 }
 
 uint32_t TextSection::read(BinaryInputFile* binaryInputFile){
     PRINT_INFOR("GARBLE reading text section");
-
 
     char disasmBuffer[MAX_DISASM_STR_LENGTH];
 

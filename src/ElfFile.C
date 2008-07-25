@@ -194,40 +194,6 @@ bool ElfFile::verify(){
 }
 
 
-uint32_t ElfFileInst::fillPLTBytes(char* bytes, uint64_t gotAddress, uint64_t pltBase){
-    uint32_t size = 0;
-    if (elfFile->is64Bit()){
-        PRINT_ERROR("Must implement plt entry for 64 bit");
-        size = 16;
-    } else {
-        PRINT_INFOR("Filling plt bytes for 32-bit");
-
-        /* 32-bit example
-           0x8048590:     jmp    *0x8049eb4       (bytes -- ff 25 b4 9e 04 08 
-           0x8048596:     push   $0x28    (bytes -- 68 28 00 00 00 
-           0x804859b:     jmp    0xffffff95       (bytes -- e9 90 ff ff ff 
-        */
-
-
-        uint8_t filler8 = 0x68;
-        uint16_t filler16 = 0xff25;
-        uint32_t filler32 = 0xb49e0408;
-        memcpy(bytes,&filler16,2);
-        filler32 = 0xb49e0408;
-        memcpy(bytes+2,&filler32,4);
-        memcpy(bytes+6,&filler8,1);
-        filler32 = 28;
-        memcpy(bytes+7,&filler32,4);
-        filler8 = 0xe9;
-        memcpy(bytes+11,&filler8,1);
-        filler32 = 0x90ffffff;
-        memcpy(bytes+12,&filler32,4);
-
-        size = 16;
-    }
-
-    return size;
-}
 
 void ElfFileInst::addInstrumentationFunction(const char* funcname){
     PRINT_INFOR("Adding instrumentation function -- %s", funcname);
@@ -256,24 +222,6 @@ void ElfFileInst::addInstrumentationFunction(const char* funcname){
     //    PRINT_INFOR("Found text section at index %hd, size=%d", pltHeader->getIndex(), pltTextSection->getSizeInBytes());
     //pltHeader->print();
 
-    // put a plt entry into our plt section
-    char* pltBytes = new char[32];
-    uint32_t pltEntrySize = fillPLTBytes(pltBytes, 0, 0);
-    uint32_t currByte = 0;
-    uint32_t instrSize = 6;
-    PRINT_INFOR("Inserting an instruction at address %016llx", pltAddress + currByte);
-    pltTextSection->addInstruction(pltBytes + currByte, instrSize, pltAddress + currByte);
-    currByte += instrSize;
-    instrSize = 5;
-    PRINT_INFOR("Inserting an instruction at address %016llx", pltAddress + currByte);
-    pltTextSection->addInstruction(pltBytes + currByte, instrSize, pltAddress + currByte);
-    currByte += instrSize;
-    instrSize = 5;
-    PRINT_INFOR("Inserting an instruction at address %016llx", pltAddress + currByte);
-    pltTextSection->addInstruction(pltBytes + currByte, instrSize, pltAddress + currByte);
-    currByte += instrSize;
-
-    delete[] pltBytes;
 
     /*
     DynamicTable* dynamicTable = elfFile->getDynamicTable();

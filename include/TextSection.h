@@ -27,7 +27,6 @@ public:
     uint32_t getIndex() { return index; }
     uint32_t disassemble();
     uint32_t printDisassembledCode();
-    uint32_t addInstruction(char* bytes, uint32_t length, uint64_t addr);
     uint32_t read(BinaryInputFile* b);
 
     bool verify();
@@ -36,6 +35,7 @@ public:
 
     uint32_t getNumberOfInstruction() { return numberOfInstructions; }
     Instruction* getInstruction(uint32_t idx);
+    Instruction* getInstructionAtAddress(uint64_t addr);
 
     uint32_t findFunctions();
     uint32_t getNumberOfFunctions() { return numberOfFunctions; }

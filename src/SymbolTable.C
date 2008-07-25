@@ -26,7 +26,7 @@ int searchSymbolValue(const void* arg1,const void* arg2){
     Symbol* sym = *((Symbol**)arg2);
 
     ASSERT(sym && "Symbol should exist");
-    
+
     uint64_t val = sym->GET(st_value);
 
     if(key < val)
@@ -35,7 +35,6 @@ int searchSymbolValue(const void* arg1,const void* arg2){
         return 1;
     return 0;
 }
-
 
 bool SymbolTable::symbolsAreSorted(){
     if (!sortedSymbols){

@@ -6,15 +6,29 @@
 
 class Function : public Base {
 protected:
+    TextSection* rawSection;
+
     Symbol* functionSymbol;
     uint64_t functionSize;
+    Instruction** instructions;
+    uint32_t numberOfInstructions;
+
+    uint32_t index;
 
 public:
     Symbol* getFunctionSymbol() { return functionSymbol; }
     uint64_t getFunctionAddress() { ASSERT(functionSymbol && "symbol should exist"); return functionSymbol->GET(st_value); }
     uint64_t getFunctionSize() { return functionSize; }
+    void setFunctionSize(uint64_t size);
 
-    Function(Symbol* sym);
+    Instruction* getInstruction(uint32_t idx);
+    uint32_t getNumberOfInstructions() { return numberOfInstructions; }
+    Instruction* getInstructionAtAddress(uint64_t addr);
+
+    uint32_t getIndex() { return index; }
+
+
+    Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_t idx);
     ~Function() {}
 
     bool verify();
