@@ -2,6 +2,13 @@
 #include <TextSection.h>
 #include <Instruction.h>
 
+Function::~Function(){
+    if (instructions){
+        delete[] instructions;
+    }
+}
+
+
 Function::Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_t idx) :
     Base(ElfClassTypes_Function)
 {
@@ -14,22 +21,29 @@ Function::Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_
 
     numberOfInstructions = 0;
     instructions = NULL;
-    // get the list of instructions in this function
 
+    PRINT_INFOR("Initializing functions for section %d", sym->GET(st_shndx));
+    PRINT_INFOR("function %d [%llx,%llx] = %d bytes", index, getFunctionAddress(), exitAddr, functionSize);
+
+    // get the list of instructions in this function
     Instruction* inst = rawSection->getInstructionAtAddress(getFunctionAddress());
-    PRINT_INFOR("function %d ends at %llx", index, exitAddr);
-    PRINT_INFOR("function starts at %llx", getFunctionAddress());
-    functionSymbol->print(NULL);
 
     while (inst && inst->getAddress() < exitAddr){
         ASSERT(inst && "instruction should exist");
-        //        inst->print();
         inst = rawSection->getInstructionAtAddress(inst->getAddress() + inst->getLength());
         numberOfInstructions++;
     }
 
     PRINT_INFOR("Found %d instructions in function %d", numberOfInstructions, index);
 
+    instructions = new Instruction*[numberOfInstructions];
+    numberOfInstructions = 0;
+    inst = rawSection->getInstructionAtAddress(getFunctionAddress());
+    while (inst && inst->getAddress() < exitAddr){
+        ASSERT(inst && "instruction should exist");
+        inst = rawSection->getInstructionAtAddress(inst->getAddress() + inst->getLength());
+        instructions[numberOfInstructions++] = inst;
+    }
 
     verify();
 }
@@ -42,6 +56,34 @@ bool Function::verify(){
     if (functionSymbol->getSymbolType() != STT_FUNC){
         PRINT_ERROR("Function symbol should have type STT_FUNC");
     }
+
+    // make sure the instruction addresses span the function
+    if (numberOfInstructions){
+        if (instructions[0]->getAddress() != getFunctionAddress()){
+            instructions[0]->print();
+            PRINT_ERROR("First instruction in function %d should be at the beginning of the function", index);
+            return false;
+        }
+        for (uint32_t i = 0; i < numberOfInstructions-1; i++){
+            if (instructions[i]->getAddress() + instructions[i]->getLength() != instructions[i+1]->getAddress()){
+                instructions[i]->print();
+                instructions[i+1]->print();
+                PRINT_ERROR("In function %d instructions %d and %d boundaries should touch", index, i, i+1);
+                return false;
+            }
+        }   
+
+        if (instructions[numberOfInstructions-1]->getAddress() + instructions[numberOfInstructions-1]->getLength() !=
+            getFunctionAddress() + getFunctionSize()){
+            instructions[numberOfInstructions-1]->print();
+            PRINT_ERROR("Last instruction in function %d should be at the end of the function", index);
+            return false;
+        }
+        
+    }
+
+    return true;
+
 }
 
 void Function::print(){

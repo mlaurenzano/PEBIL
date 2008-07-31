@@ -53,10 +53,8 @@ extern uint64_t nextAlignAddress(uint64_t addr, uint32_t align){
     }
     ASSERT(isPowerOfTwo(align) && "alignment must be a power of 2 to call this function");
     if (align % addr){
-        PRINT_INFOR("Address %016llx aligned to %x is %016llx", addr, align, addr + (addr % align));
         return addr + (addr % align);
     }
-    PRINT_INFOR("Address %016llx aligned to %x is %016llx", addr, align, addr);
     return addr;    
 }
 

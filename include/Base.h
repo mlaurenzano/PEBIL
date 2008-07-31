@@ -51,10 +51,10 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     fprintf(stderr,"\n");                                \
     exit(-1);
 
-#define PRINT_WARN(...)  fprintf(stdout,"*** WARNING : "); \
-    fprintf(stdout,## __VA_ARGS__);                              \
-    fprintf(stdout,"\n");                                        \
-    fflush(stdout);
+#define PRINT_WARN(...)  fprintf(stderr,"*** WARNING : "); \
+    fprintf(stderr,## __VA_ARGS__);                              \
+    fprintf(stderr,"\n");                                        \
+    fflush(stderr);
 
 #define PRINT_INFOR(...) fprintf(stdout,"Information : "); \
     fprintf(stdout,## __VA_ARGS__);                        \

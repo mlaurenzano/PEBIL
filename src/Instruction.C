@@ -2,9 +2,78 @@
 #include <Instruction.h>
 #include <CStructuresX86.h>
 
-Instruction Instruction::generateJumpIndirect(uint64_t tgt){
-    Instruction ret;
+void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    ASSERT(rawBytes && instructionLength && "This instruction has no raw bytes thus it cannot be dumped");
+    binaryOutputFile->copyBytes(rawBytes,instructionLength,offset);
+}
+
+Instruction* Instruction::generateJumpDirect(uint64_t tgt){
+    Instruction* ret = new Instruction();
+    uint32_t len = 6;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0xff;
+    buff[1] = 0x25;
+
+    // set target address
+    uint32_t tgt32 = (uint32_t)tgt;
+    ASSERT(tgt32 == tgt && "Cannot use more than 32 bits for jump target");
+    memcpy(buff+2,&tgt32,len-2);
+
+    ret->setBytes(buff);
+    delete[] buff;
+
     return ret;
+}
+
+Instruction* Instruction::generateJumpRelative(uint64_t addr, uint64_t tgt){
+    Instruction* ret = new Instruction();
+    uint32_t len = 5;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0xe9;
+
+    uint64_t imm = tgt - addr - len;
+
+    uint32_t imm32 = (uint32_t)imm;
+
+    PRINT_INFOR("Using 0x%08x as jump immediate", imm32);
+    memcpy(buff+1,&imm32,len-1);
+
+    ret->setBytes(buff);
+    delete[] buff;
+
+    return ret;
+}
+
+Instruction* Instruction::generateStackPushImmediate(uint64_t imm){
+    Instruction* ret = new Instruction();
+    uint32_t len = 5;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0x68;
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == imm && "Cannot use more than 32 bits for immediate value");
+    memcpy(buff+1,&imm32,len-1);
+
+    ret->setBytes(buff);
+    delete[] buff;
+
+    return ret;
+}
+
+Operand::Operand(){
+    type = x86_operand_type_unused;
+    value = 0;
 }
 
 
@@ -25,14 +94,14 @@ uint32_t Operand::setType(uint32_t typ){
 
 uint64_t Instruction::setOperandValue(uint32_t idx, uint64_t value){
     ASSERT(idx >= 0 && idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    operands[idx]->setValue(value);
-    return operands[idx]->getValue();
+    operands[idx].setValue(value);
+    return operands[idx].getValue();
 }
 
 uint32_t Instruction::setOperandType(uint32_t idx, uint32_t type){
     ASSERT(idx >= 0 && idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    operands[idx]->setType(type);
-    return operands[idx]->getType();
+    operands[idx].setType(type);
+    return operands[idx].getType();
 }
 
 
@@ -40,11 +109,11 @@ uint64_t Instruction::setNextAddress(){
     switch(type){
     case x86_insn_type_cond_branch:
     case x86_insn_type_branch:
-        if (operands[JUMP_TARGET_OPERAND]->getType() == x86_operand_type_immrel){
-            nextAddress = getAddress() + operands[JUMP_TARGET_OPERAND]->getValue();
+        if (operands[JUMP_TARGET_OPERAND].getType() == x86_operand_type_immrel){
+            nextAddress = getAddress() + operands[JUMP_TARGET_OPERAND].getValue();
             PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx", nextAddress,  getAddress(), operands[JUMP_TARGET_OPERAND]->getValue());
         } else {
-            nextAddress = operands[JUMP_TARGET_OPERAND]->getValue();
+            nextAddress = operands[JUMP_TARGET_OPERAND].getValue();
         }
         break;
     default:
@@ -97,16 +166,14 @@ Instruction::Instruction(){
     instructionLength = 0;
     rawBytes = NULL;
     virtualAddress = 0;
+    nextAddress = 0;
     type = x86_insn_type_unknown;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        operands[i] = new Operand(x86_operand_type_unused,0);
+        operands[i] = Operand();
     }
 }
 
 Instruction::~Instruction(){
-    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        delete operands[i];
-    }
     if (rawBytes){
         delete[] rawBytes;
     }
@@ -122,6 +189,7 @@ char* Instruction::getBytes(){
 
 char* Instruction::setBytes(char* bytes){
     if (rawBytes){
+        PRINT_WARN("Deleting rawBytes");
         delete[] rawBytes;
     }
     rawBytes = new char[instructionLength];
@@ -138,6 +206,7 @@ uint32_t Instruction::setLength(uint32_t len){
     ASSERT(len <= MAX_X86_INSTRUCTION_LENGTH && "X86 instructions are limited in size");
     if (rawBytes){
         char* newBytes = new char[len];
+        // this could seg fault if len > instructionLength
         memcpy(newBytes,rawBytes,len);
         delete[] rawBytes;
         rawBytes = newBytes;
@@ -160,17 +229,27 @@ uint64_t Instruction::getNextAddress(){
     return nextAddress;
 }
 
-Operand* Instruction::getOperand(uint32_t idx){
+Operand Instruction::getOperand(uint32_t idx){
     ASSERT(idx >= 0 && idx < MAX_OPERANDS && "Index into operand table has a limited range");
     return operands[idx];
 }
 
 void Instruction::print(){
-    PRINT_INFOR("Instruction (type %d) at address 0x%016llx has %d bytes -> 0x%016llx", type, virtualAddress, instructionLength, nextAddress);
+    PRINT_INFO();
+    PRINT_OUT("Instruction -- (");
 
+    if (rawBytes){
+        for (uint32_t i = 0; i < instructionLength; i++){
+            PRINT_OUT("%02hhx", rawBytes[i]);
+        }
+    } else {
+        PRINT_OUT("NOBYTES");
+    }
+
+    PRINT_OUT(") -- (type %d) at address 0x%016llx has %d bytes -> 0x%016llx\n", type, virtualAddress, instructionLength, nextAddress);
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i]->getType()){
-            PRINT_INFOR("\tOperand %d: %d 0x%016llx", i, operands[i]->getType(), operands[i]->getValue());
+        if (operands[i].getType()){
+            PRINT_INFOR("\tOperand %d: %d 0x%016llx", i, operands[i].getType(), operands[i].getValue());
         }
     }
 }

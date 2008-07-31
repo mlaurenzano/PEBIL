@@ -1,2 +1,2 @@
-dat32: dat32inst nobitswarn dat32rm
-dat64: dat64inst nobitswarn dat64rm
+dat32: dat32inst nobitswarn dat32ide dat32rm
+dat64: dat64inst nobitswarn dat64ide dat64rm

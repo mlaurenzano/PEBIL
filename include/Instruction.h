@@ -55,6 +55,7 @@ protected:
     uint64_t value;
 public:
     Operand(uint32_t type, uint64_t value);
+    Operand();
     ~Operand(){}
 
     uint32_t getType() { return type; }
@@ -72,7 +73,7 @@ protected:
     uint64_t nextAddress;
     uint32_t type;
     char disassembledString[MAX_DISASM_STR_LENGTH];
-    Operand* operands[MAX_OPERANDS];    
+    Operand operands[MAX_OPERANDS];    
 
 public:
     Instruction();
@@ -82,12 +83,13 @@ public:
     void print();
 
     char* charStream() { return rawBytes; }
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     uint64_t getNextAddress();
     uint64_t getAddress();
     uint32_t getLength();
     char* getBytes();
-    Operand* getOperand(uint32_t idx);
+    Operand getOperand(uint32_t idx);
 
     uint64_t setNextAddress();
     uint64_t setAddress(uint64_t addr);
@@ -100,7 +102,9 @@ public:
 
     uint32_t setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2);
 
-    static Instruction generateJumpIndirect(uint64_t tgt);
+    static Instruction* generateJumpDirect(uint64_t tgt);
+    static Instruction* generateJumpRelative(uint64_t addr, uint64_t tgt);
+    static Instruction* generateStackPushImmediate(uint64_t imm);
 
     static uint32_t computeOpcodeTypeOneByte(uint32_t idx);
     static uint32_t computeOpcodeTypeTwoByte(uint32_t idx);

@@ -1,5 +1,5 @@
 DBG         = -g
-OPT         = -O3
+OPT         = -O0
 #CFLAGS      = -bmaxdata:0x80000000 $(DBG) $(OPT)
 NATIVE_CPP  = CC
 GNU_CPP     = g++
@@ -40,7 +40,7 @@ TARGET_BIN  = x86inst
 all: $(TARGET_BIN)
 
 $(TARGET_BIN) : $(OBJS)
-	$(CPP) -o $@ $(OBJS) -I$(INCLUDE) $(EXTRA_LIBS) $(LINKER_FLGS)
+	$(CPP) -o $@ $(OBJS) $(CFLAGS) -I$(INCLUDE) $(EXTRA_LIBS) $(LINKER_FLGS)
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< -I$(INCLUDE) $(EXTRA_INC)

@@ -93,7 +93,6 @@ bool SectionHeader::inRange(uint64_t address){
 
 bool SectionHeader::verify() {
     if (index == 0){
-        PRINT_INFOR("Verifying section 0");
         if (GET(sh_link) != SHN_UNDEF ||
             GET(sh_info) != 0         ||
             GET(sh_addralign) != 0    ||
@@ -102,6 +101,34 @@ bool SectionHeader::verify() {
             PRINT_ERROR("First section header must be unused");
             return false;
         }
+    }
+
+    if (
+        GET(sh_type) != SHT_NULL &&
+        GET(sh_type) != SHT_PROGBITS &&
+        GET(sh_type) != SHT_SYMTAB &&
+        GET(sh_type) != SHT_STRTAB &&
+        GET(sh_type) != SHT_RELA &&
+        GET(sh_type) != SHT_HASH &&
+        GET(sh_type) != SHT_DYNAMIC &&
+        GET(sh_type) != SHT_NOTE &&
+        GET(sh_type) != SHT_NOBITS &&
+        GET(sh_type) != SHT_REL &&
+        GET(sh_type) != SHT_SHLIB &&
+        GET(sh_type) != SHT_DYNSYM &&
+        GET(sh_type) != SHT_INIT_ARRAY &&
+        GET(sh_type) != SHT_FINI_ARRAY &&
+        GET(sh_type) != SHT_PREINIT_ARRAY &&
+        GET(sh_type) != SHT_GROUP &&
+        GET(sh_type) != SHT_SYMTAB_SHNDX &&
+        GET(sh_type) != SHT_NUM &&
+        GET(sh_type) != SHT_LOOS &&
+        GET(sh_type) != SHT_GNU_HASH &&
+        GET(sh_type) != SHT_GNU_verdef &&
+        GET(sh_type) != SHT_GNU_verneed &&
+        GET(sh_type) != SHT_GNU_versym
+        ){
+        PRINT_ERROR("Section type %d is not recognized", GET(sh_type));
     }
 
     if (index >= SHN_LORESERVE){

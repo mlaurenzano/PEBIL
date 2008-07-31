@@ -228,15 +228,10 @@ int main(int argc,char* argv[]){
         elfInst->extendTextSection(0x1000);
         elfInst->extendDataSection(0x4000);
 
-        /*
         elfInst->addSharedLibrary("libtest.so");
         elfInst->reserveProcedureLinkageTable(0x100);
         elfInst->reserveGlobalOffsetTable(0x40);
 
-        elfInst->addInstrumentationFunction("smalltest");
-        elfInst->addInstrumentationFunction("foo");
-        */
-        
         elfInst->print();
         elfInst->getElfFile()->dump(extension);
 

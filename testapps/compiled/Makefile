@@ -48,6 +48,11 @@ dat32run:
 		$(32BITBIN)/"$$i".$(DATEXT) | egrep $(TESTAPPREGEXP); \
 	done	
 
+dat32ide:
+	for i in ${32BITPROGS}; do \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(DATEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+	done
+
 dat32rm:
 	rm -f $(32BITBIN)/*.$(DATEXT)
 
@@ -60,6 +65,11 @@ dat64run:
 	for i in ${64BITPROGS_SER}; do \
 		chmod a+x $(64BITBIN)/"$$i".$(DATEXT); \
 		$(64BITBIN)/"$$i".$(DATEXT) | egrep $(TESTAPPREGEXP); \
+	done
+
+dat64ide:
+	for i in ${64BITPROGS}; do \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(DATEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
 	done
 
 dat64rm:

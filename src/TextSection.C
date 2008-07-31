@@ -6,18 +6,31 @@
 #include <SymbolTable.h>
 
 
+int searchInstructionAddress(const void* arg1, const void* arg2){
+    uint64_t key = *((uint64_t*)arg1);
+    Instruction* inst = *((Instruction**)arg2);
+
+    ASSERT(inst && "Instruction should exist");
+
+    uint64_t val = inst->getAddress();
+
+    if (key < val)
+        return -1;
+    if (key > val)
+        return 1;
+    return 0;
+}
+
+
 Instruction* TextSection::getInstructionAtAddress(uint64_t addr){
     SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
     if (!sectionHeader->inRange(addr)){
-        PRINT_WARN("Instruction lookup failing because section %d does not contain address %llx", getSectionIndex(), addr);
         return NULL;
     }
 
-    // linear search is bad -- too slow
-    for (uint32_t i = 0; i < numberOfInstructions; i++){
-        if (addr == instructions[i]->getAddress()){
-            return instructions[i];
-        }
+    void* result = bsearch(&addr,instructions,numberOfInstructions,sizeof(Instruction*),searchInstructionAddress);
+    if (result){
+        return (Instruction*)result;
     }
 
     return NULL;
@@ -53,7 +66,6 @@ uint32_t TextSection::findFunctions(){
             for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
                 Symbol* symbol = symbolTable->getSymbol(j);
                 if (symbol->getSymbolType() == STT_FUNC && symbol->GET(st_shndx) == getSectionIndex()){
-                    PRINT_INFOR("Assigning function %d", numberOfFunctions);
                     functionSymbols[numberOfFunctions++] = symbol;
                 }
             }
@@ -70,6 +82,7 @@ uint32_t TextSection::findFunctions(){
         // the last function does till the end of the section
         sortedFunctions[numberOfFunctions-1] = new Function(this, functionSymbols[numberOfFunctions-1], 
                                                             sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size), numberOfFunctions-1);
+        functionSymbols[numberOfFunctions-1]->print(NULL);
     }
     delete[] functionSymbols;
 
@@ -122,6 +135,32 @@ bool TextSection::verify(){
         }
     }
 
+    // make sure functions span the entire section unless it is a plt section
+    if (numberOfFunctions){
+
+        // check that the first function is at the section beginning
+        if (sortedFunctions[0]->getFunctionAddress() != sectionHeader->GET(sh_addr)){
+            PRINT_ERROR("First function in section %d should be at the beginning of the section", getSectionIndex());
+            return false;
+        }
+
+        // check that function boundaries are contiguous
+        for (uint32_t i = 0; i < numberOfFunctions-1; i++){
+            if (sortedFunctions[i]->getFunctionAddress() + sortedFunctions[i]->getFunctionSize() !=
+                sortedFunctions[i+1]->getFunctionAddress()){
+                PRINT_ERROR("In section %d, boundaries on function %d and %d do not align", getSectionIndex(), i, i+1);
+                return false;
+            }
+        }
+
+        // check the the last function ends at the section end
+        if (sortedFunctions[numberOfFunctions-1]->getFunctionAddress() + sortedFunctions[numberOfFunctions-1]->getFunctionSize() !=
+            sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size)){
+            PRINT_ERROR("Last function in section %d should be at the end of the section", getSectionIndex());
+        }
+
+    }
+
     return true;
 }
 
@@ -129,8 +168,8 @@ bool TextSection::verify(){
 void TextSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
     for (uint32_t i = 0; i < numberOfInstructions; i++){
-        ASSERT(instructions[i]->charStream() && "The instructions in this text section should be initialized");
-        binaryOutputFile->copyBytes(instructions[i]->charStream(),instructions[i]->getLength(),offset+currByte);
+        ASSERT(instructions[i] && "The instructions in this text section should be initialized");
+        instructions[i]->dump(binaryOutputFile, offset + currByte);
         currByte += instructions[i]->getLength();
     }
 }

@@ -29,7 +29,7 @@ public:
 
 
     Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_t idx);
-    ~Function() {}
+    ~Function();
 
     bool verify();
     void print();
