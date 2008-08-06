@@ -23,6 +23,8 @@ public:
 
     ~TextSection();
 
+    void printInstructions();
+
     uint32_t readNoFile();
     uint32_t getIndex() { return index; }
     uint32_t disassemble();

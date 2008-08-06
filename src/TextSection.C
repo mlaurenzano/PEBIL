@@ -5,6 +5,12 @@
 #include <Instruction.h>
 #include <SymbolTable.h>
 
+void TextSection::printInstructions(){
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        instructions[i]->print();
+    }
+}
+
 
 int searchInstructionAddress(const void* arg1, const void* arg2){
     uint64_t key = *((uint64_t*)arg1);
@@ -30,9 +36,10 @@ Instruction* TextSection::getInstructionAtAddress(uint64_t addr){
 
     void* result = bsearch(&addr,instructions,numberOfInstructions,sizeof(Instruction*),searchInstructionAddress);
     if (result){
-        return (Instruction*)result;
+        uint32_t instidx = (((char*)result)-((char*)instructions))/sizeof(Instruction*);
+        Instruction* iresult = instructions[instidx];
+        return iresult;
     }
-
     return NULL;
 
 }

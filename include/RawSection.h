@@ -28,7 +28,7 @@ public:
 
     char* getFilePointer() { return rawDataPtr; }
     uint16_t getSectionIndex() { return sectionIndex; }
-    void setSectionIndex(uint16_t newidx){ sectionIndex = newidx; }
+    void setSectionIndex(uint16_t newidx) { sectionIndex = newidx; }
     ElfFile* getElfFile() { return elfFile; }
 };
 

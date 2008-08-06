@@ -65,13 +65,13 @@ public:
     uint32_t setType(uint32_t typ);
 };
 
-class Instruction {
+class Instruction : public Base {
 protected:
     uint32_t instructionLength;
     char* rawBytes;
     uint64_t virtualAddress;
     uint64_t nextAddress;
-    uint32_t type;
+    uint32_t instructionType;
     char disassembledString[MAX_DISASM_STR_LENGTH];
     Operand operands[MAX_OPERANDS];    
 
@@ -79,7 +79,6 @@ public:
     Instruction();
     ~Instruction();
 
-    uint32_t read(BinaryInputFile* b);
     void print();
 
     char* charStream() { return rawBytes; }

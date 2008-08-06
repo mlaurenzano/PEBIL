@@ -342,7 +342,7 @@ bool DynamicTable::verify(){
     uint64_t textAddress = 0;
     if (initFunctionAddress){
         if (verneedAddress >= initFunctionAddress){
-            PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+            PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect: %llx < %llx", initFunctionAddress, verneedAddress);
         }
         if (initFunctionAddress > textAddress){
             textAddress = initFunctionAddress;

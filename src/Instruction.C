@@ -98,15 +98,15 @@ uint64_t Instruction::setOperandValue(uint32_t idx, uint64_t value){
     return operands[idx].getValue();
 }
 
-uint32_t Instruction::setOperandType(uint32_t idx, uint32_t type){
+uint32_t Instruction::setOperandType(uint32_t idx, uint32_t typ){
     ASSERT(idx >= 0 && idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    operands[idx].setType(type);
+    operands[idx].setType(typ);
     return operands[idx].getType();
 }
 
 
 uint64_t Instruction::setNextAddress(){
-    switch(type){
+    switch(instructionType){
     case x86_insn_type_cond_branch:
     case x86_insn_type_branch:
         if (operands[JUMP_TARGET_OPERAND].getType() == x86_operand_type_immrel){
@@ -130,44 +130,46 @@ uint32_t Instruction::setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t
 
     switch(formatType){
     case x86_insn_format_onebyte:
-        type = computeOpcodeTypeOneByte(idx1);
+        instructionType = computeOpcodeTypeOneByte(idx1);
         break;
     case x86_insn_format_twobyte:
-        type = computeOpcodeTypeTwoByte(idx1);
+        instructionType = computeOpcodeTypeTwoByte(idx1);
         break;
     case x86_insn_format_groups:
-        type = computeOpcodeTypeGroups(idx1,idx2);
+        instructionType = computeOpcodeTypeGroups(idx1,idx2);
         break;
     case x86_insn_format_prefix_user_table:
-        type = computeOpcodeTypePrefixUser(idx1,idx2);
+        instructionType = computeOpcodeTypePrefixUser(idx1,idx2);
         break;
     case x86_insn_format_x86_64:
-        type = computeOpcodeTypeX8664(idx1,idx2);
+        instructionType = computeOpcodeTypeX8664(idx1,idx2);
         break;
     case x86_insn_format_float_mem:
-        type = x86_insn_type_float;
+        instructionType = x86_insn_type_float;
         break;
     case x86_insn_format_float_reg:
-        type = x86_insn_type_float;
+        instructionType = x86_insn_type_float;
         break;
     case x86_insn_format_float_groups:
-        type = x86_insn_type_float;
+        instructionType = x86_insn_type_float;
         break;
     default:
-        type = x86_insn_type_unknown;
+        instructionType = x86_insn_type_unknown;
         break;
     }
 
-    ASSERT(type && "Instruction type should be known");
+    ASSERT(instructionType && "Instruction type should be known");
 
 }
 
-Instruction::Instruction(){
+Instruction::Instruction() : 
+    Base(ElfClassTypes_Instruction)
+{
     instructionLength = 0;
     rawBytes = NULL;
     virtualAddress = 0;
     nextAddress = 0;
-    type = x86_insn_type_unknown;
+    instructionType = x86_insn_type_unknown;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         operands[i] = Operand();
     }
@@ -236,7 +238,7 @@ Operand Instruction::getOperand(uint32_t idx){
 
 void Instruction::print(){
     PRINT_INFO();
-    PRINT_OUT("Instruction -- (");
+    PRINT_OUT("Instruction -- [%d](", instructionLength);
 
     if (rawBytes){
         for (uint32_t i = 0; i < instructionLength; i++){
@@ -246,7 +248,7 @@ void Instruction::print(){
         PRINT_OUT("NOBYTES");
     }
 
-    PRINT_OUT(") -- (type %d) at address 0x%016llx has %d bytes -> 0x%016llx\n", type, virtualAddress, instructionLength, nextAddress);
+    PRINT_OUT(") -- (type %d) at address 0x%016llx has %d bytes -> 0x%016llx\n", instructionType, virtualAddress, instructionLength, nextAddress);
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i].getType()){
             PRINT_INFOR("\tOperand %d: %d 0x%016llx", i, operands[i].getType(), operands[i].getValue());

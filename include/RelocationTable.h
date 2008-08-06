@@ -26,7 +26,7 @@ public:
     virtual uint64_t getType() { __SHOULD_NOT_ARRIVE; }
     virtual bool verify() { return true; }
 
-    RELOCATION_MACROS_BASIS("For the get_X field macros check the defines directory");
+    RELOCATION_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 };
 
 class Relocation32 : public Relocation {
@@ -41,7 +41,7 @@ public:
     uint64_t getSymbol() { return (uint64_t)ELF32_R_SYM (GET(r_info)); }
     uint64_t getType()   { return (uint64_t)ELF32_R_TYPE(GET(r_info)); }
 
-    RELOCATION_MACROS_CLASS("For the get_X field macros check the defines directory");
+    RELOCATION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 };
 
 class Relocation64 : public Relocation {
@@ -54,7 +54,7 @@ public:
     uint32_t read(BinaryInputFile* binaryInputFile);
     void print(char*);
 
-    RELOCATION_MACROS_CLASS("For the get_X field macros check the defines directory");
+    RELOCATION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 };
 
 class RelocationAddend32 : public Relocation {
@@ -70,9 +70,9 @@ public:
     uint64_t getType()   { return (uint64_t)ELF32_R_TYPE(GET(r_info)); }
 
 
-    RELOCATION_MACROS_CLASS("For the get_X field macros check the defines directory");
+    RELOCATION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
     // need a seperate macro set (actually just 1) for the relocation addend structure
-    RELOCATIONADDEND_MACROS_CLASS("For the get_X field macros check the defines directory");
+    RELOCATIONADDEND_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 };
 
 class RelocationAddend64 : public Relocation {
@@ -87,9 +87,9 @@ public:
     uint64_t getSymbol() { return (uint64_t)ELF64_R_SYM (GET(r_info)); }
     uint64_t getType()   { return (uint64_t)ELF64_R_TYPE(GET(r_info)); }
 
-    RELOCATION_MACROS_CLASS("For the get_X field macros check the defines directory");
+    RELOCATION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
     // need a seperate macro set (actually just 1) for the relocation addend structure
-    RELOCATIONADDEND_MACROS_CLASS("For the get_X field macros check the defines directory");
+    RELOCATIONADDEND_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 };
 
 class RelocationTable : public RawSection {

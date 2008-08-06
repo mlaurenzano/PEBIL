@@ -27,6 +27,7 @@ Function::Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_
 
     // get the list of instructions in this function
     Instruction* inst = rawSection->getInstructionAtAddress(getFunctionAddress());
+    //    rawSection->printInstructions();
 
     while (inst && inst->getAddress() < exitAddr){
         ASSERT(inst && "instruction should exist");
@@ -41,8 +42,10 @@ Function::Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_
     inst = rawSection->getInstructionAtAddress(getFunctionAddress());
     while (inst && inst->getAddress() < exitAddr){
         ASSERT(inst && "instruction should exist");
-        inst = rawSection->getInstructionAtAddress(inst->getAddress() + inst->getLength());
+        //        PRINT_INFOR("Instruction ptr at address %x", inst);
+        //PRINT_INFOR("Getting instruction %d at address %llx for this function", numberOfInstructions, inst->getAddress());
         instructions[numberOfInstructions++] = inst;
+        inst = rawSection->getInstructionAtAddress(inst->getAddress() + inst->getLength());
     }
 
     verify();
@@ -61,7 +64,7 @@ bool Function::verify(){
     if (numberOfInstructions){
         if (instructions[0]->getAddress() != getFunctionAddress()){
             instructions[0]->print();
-            PRINT_ERROR("First instruction in function %d should be at the beginning of the function", index);
+            PRINT_ERROR("First instruction in function %d should be at the beginning of the function(%llx)", index, getFunctionAddress());
             return false;
         }
         for (uint32_t i = 0; i < numberOfInstructions-1; i++){
@@ -73,10 +76,12 @@ bool Function::verify(){
             }
         }   
 
-        if (instructions[numberOfInstructions-1]->getAddress() + instructions[numberOfInstructions-1]->getLength() !=
+        // ideally these would align exactly, but the GNU disassembler is flawed and sometimes does detect the ends correctly
+        if (instructions[numberOfInstructions-1]->getAddress() + instructions[numberOfInstructions-1]->getLength() <
             getFunctionAddress() + getFunctionSize()){
             instructions[numberOfInstructions-1]->print();
-            PRINT_ERROR("Last instruction in function %d should be at the end of the function", index);
+            functionSymbol->print(NULL);
+            PRINT_ERROR("Last instruction in function %d should be at the end of the function (%llx)", index, getFunctionAddress() + getFunctionSize());
             return false;
         }
         

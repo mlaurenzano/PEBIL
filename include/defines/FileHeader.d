@@ -47,7 +47,21 @@ Offset	Length	Offset	Length	Name		Description
     SET_FIELD_BASIS(uint16_t,e_phnum); \
     SET_FIELD_BASIS(uint16_t,e_shentsize); \
     SET_FIELD_BASIS(uint16_t,e_shnum); \
-    SET_FIELD_BASIS(uint16_t,e_shstrndx);
+    SET_FIELD_BASIS(uint16_t,e_shstrndx); \
+        \
+    INCREMENT_FIELD_BASIS(uint16_t,e_type); \
+    INCREMENT_FIELD_BASIS(uint16_t,e_machine); \
+    INCREMENT_FIELD_BASIS(uint32_t,e_version); \
+    INCREMENT_FIELD_BASIS(uint64_t,e_entry); \
+    INCREMENT_FIELD_BASIS(uint64_t,e_phoff); \
+    INCREMENT_FIELD_BASIS(uint64_t,e_shoff); \
+    INCREMENT_FIELD_BASIS(uint32_t,e_flags); \
+    INCREMENT_FIELD_BASIS(uint16_t,e_ehsize); \
+    INCREMENT_FIELD_BASIS(uint16_t,e_phentsize); \
+    INCREMENT_FIELD_BASIS(uint16_t,e_phnum); \
+    INCREMENT_FIELD_BASIS(uint16_t,e_shentsize); \
+    INCREMENT_FIELD_BASIS(uint16_t,e_shnum); \
+    INCREMENT_FIELD_BASIS(uint16_t,e_shstrndx);
 
 #define FILEHEADER_MACROS_CLASS(__str) /** __str **/ \
     GET_FIELD_CLASS(unsigned char*,e_ident); \
@@ -77,4 +91,18 @@ Offset	Length	Offset	Length	Name		Description
     SET_FIELD_CLASS(uint16_t,e_phnum); \
     SET_FIELD_CLASS(uint16_t,e_shentsize); \
     SET_FIELD_CLASS(uint16_t,e_shnum); \
-    SET_FIELD_CLASS(uint16_t,e_shstrndx);
+    SET_FIELD_CLASS(uint16_t,e_shstrndx); \
+        \
+    INCREMENT_FIELD_CLASS(uint16_t,e_type); \
+    INCREMENT_FIELD_CLASS(uint16_t,e_machine); \
+    INCREMENT_FIELD_CLASS(uint32_t,e_version); \
+    INCREMENT_FIELD_CLASS(uint64_t,e_entry); \
+    INCREMENT_FIELD_CLASS(uint64_t,e_phoff); \
+    INCREMENT_FIELD_CLASS(uint64_t,e_shoff); \
+    INCREMENT_FIELD_CLASS(uint32_t,e_flags); \
+    INCREMENT_FIELD_CLASS(uint16_t,e_ehsize); \
+    INCREMENT_FIELD_CLASS(uint16_t,e_phentsize); \
+    INCREMENT_FIELD_CLASS(uint16_t,e_phnum); \
+    INCREMENT_FIELD_CLASS(uint16_t,e_shentsize); \
+    INCREMENT_FIELD_CLASS(uint16_t,e_shnum); \
+    INCREMENT_FIELD_CLASS(uint16_t,e_shstrndx);

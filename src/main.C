@@ -225,15 +225,10 @@ int main(int argc,char* argv[]){
     } else if (instType == data_extender_type){
         ElfFileInst* elfInst = new ElfFileInst(&elfFile);
 
-        elfInst->extendTextSection(0x1000);
-        elfInst->extendDataSection(0x4000);
-
-        elfInst->addSharedLibrary("libtest.so");
-        elfInst->reserveProcedureLinkageTable(0x100);
-        elfInst->reserveGlobalOffsetTable(0x40);
+        elfInst->instrument();
 
         elfInst->print();
-        elfInst->getElfFile()->dump(extension);
+        elfInst->dump(extension);
 
         delete elfInst;
 

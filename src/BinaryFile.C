@@ -141,6 +141,7 @@ uint32_t BinaryInputFile::bytesLeftInBuffer(){
 }
 
 void BinaryOutputFile::copyBytes(char* buffer,uint32_t size,uint32_t offset) {
+    //    PRINT_INFOR("Writing %d bytes to offset %x in file", size, offset);
     int32_t error_code = fseek(outFile,offset,SEEK_SET);
     if(error_code){
         PRINT_ERROR("Error seeking to the output file");

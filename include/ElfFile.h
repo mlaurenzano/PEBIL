@@ -19,6 +19,7 @@ class DynamicTable;
 class HashTable;
 class NoteSection;
 class Symbol;
+class Instruction;
 
 class ElfFile {
 private:
@@ -62,7 +63,6 @@ private:
     uint32_t numberOfFloatPOps;
 
     BinaryInputFile   binaryInputFile;
-    BinaryOutputFile  binaryOutputFile;
 
     void readFileHeader();
 
@@ -100,6 +100,7 @@ public:
 
     void parse();
     void dump(char* extension);
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     void briefPrint();
     void print();
@@ -165,43 +166,46 @@ class ElfFileInst {
 private:
     ElfFile* elfFile;
 
-    // for the text sections/segment we just keep the offset since we can compute
-    // the address from the base address of the program
+    uint16_t extraTextIdx;
     uint64_t extraTextOffset;
-    uint32_t extraTextSize;
 
-    uint64_t pltAddress;
-    uint32_t pltSize;
+    uint64_t pltOffset;
 
-    // for data sections/segment we keep (file) offset and (memory) address
+    uint16_t extraDataIdx;
     uint64_t extraDataOffset;
-    uint64_t extraDataAddress;
-    uint32_t extraDataSize;
 
     uint64_t gotOffset;
-    uint64_t gotAddress;
-    uint32_t gotSize;
 
     uint32_t addStringToDynamicStringTable(const char* str);
     uint32_t addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx);
     uint32_t expandHashTable();
 
+    Instruction** pltInstructions;
+    uint32_t numberOfPLTInstructions;
+
+    uint32_t* gotEntries;
+    uint32_t numberOfGOTEntries;
+
 public:
     ElfFileInst(ElfFile* elf);
-    ~ElfFileInst() {}
+    ~ElfFileInst();
     ElfFile* getElfFile() { return elfFile; }
 
     void print();
+    void dump(char* extension);
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+
+    void instrument();
 
     // instrumentation functions
     void addSharedLibrary(const char* libname);
     void addInstrumentationFunction(const char* funcname);
     uint64_t relocateDynamicSection();
     uint64_t getProgramBaseAddress();
-    uint64_t extendTextSection(uint32_t size);
-    uint64_t extendDataSection(uint32_t size);
-    uint64_t reserveProcedureLinkageTable(uint32_t size);
-    uint64_t reserveGlobalOffsetTable(uint32_t size);
+    void extendTextSection(uint64_t size);
+    void extendDataSection(uint64_t size);
+    uint32_t generateProcedureLinkageTable();
+    void generateGlobalOffsetTable(uint32_t pltReturnOffset);
 };
 
 

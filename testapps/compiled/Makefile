@@ -22,6 +22,12 @@ ide: ide32 ide64
 dat: dat32 dat64
 include rules.$(BITS)
 
+clean:
+	rm -f $(32BITBIN)/*.$(IDEEXT)
+	rm -f $(32BITBIN)/*.$(DATEXT)
+	rm -f $(64BITBIN)/*.$(IDEEXT)
+	rm -f $(64BITBIN)/*.$(DATEXT)
+
 
 ide32:
 	for i in ${32BITPROGS}; do \
@@ -52,6 +58,7 @@ dat32ide:
 	for i in ${32BITPROGS}; do \
 		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(DATEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
 	done
+	rm -f $(32BITBIN)/*.$(IDEEXT)
 
 dat32rm:
 	rm -f $(32BITBIN)/*.$(DATEXT)
@@ -71,6 +78,7 @@ dat64ide:
 	for i in ${64BITPROGS}; do \
 		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(DATEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
 	done
+	rm -f $(64BITBIN)/*.$(IDEEXT)
 
 dat64rm:
 	rm -f $(64BITBIN)/*.$(DATEXT)
