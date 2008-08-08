@@ -4,6 +4,15 @@
 #include <SectionHeader.h>
 #include <Instruction.h>
 
+void RawSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset)
+{ 
+    if (getType() != ElfClassTypes_RawSection && getType() != ElfClassTypes_no_type &&
+        getType() != ElfClassTypes_DwarfSection){
+        PRINT_ERROR("You should implement the dump function for class type %d", getType());
+    }
+    binaryOutputFile->copyBytes(charStream(),getSizeInBytes(),offset); 
+}
+
 void RawSection::printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine){
     if (bytesPerWord <= 0){
         bytesPerWord = 8;

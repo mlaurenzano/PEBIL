@@ -7,6 +7,112 @@ void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     binaryOutputFile->copyBytes(rawBytes,instructionLength,offset);
 }
 
+Instruction* Instruction::generateMoveImmToReg(uint64_t imm, uint32_t idx){
+    ASSERT(idx < 9 && "Illegal register index given");
+    
+    Instruction* ret = new Instruction();
+    uint32_t len = 5;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0xb8 + (char)idx;
+
+    // set target address
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == imm && "Cannot use more than 32 bits for immediate value");
+    memcpy(buff+1,&imm32,len-1);
+
+    ret->setBytes(buff);
+    delete[] buff;
+
+    return ret;    
+}
+
+Instruction* Instruction::generateMoveRegToMem(uint32_t idx, uint64_t addr){
+    ASSERT(idx > 0 && idx < 9 && "Illegal register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 6;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0x89;
+    buff[1] = 0x05 + 0x8*(char)idx;
+
+    // set target address
+    uint32_t addr32 = (uint32_t)addr;
+    ASSERT(addr32 == addr && "Cannot use more than 32 bits for address");
+    memcpy(buff+2,&addr32,len-2);
+
+    ret->setBytes(buff);
+    delete[] buff;
+
+    return ret;    
+}
+
+Instruction* Instruction::generateStackPush(uint32_t idx){
+    ASSERT(idx < 9 && "Illegal register index given");
+    Instruction* ret = new Instruction();
+    uint32_t len = 1;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0x50 + (char)idx;
+    ret->setBytes(buff);
+
+    delete[] buff;
+
+    return ret;
+}
+
+Instruction* Instruction::generateStackPop(uint32_t idx){
+    ASSERT(idx < 9 && "Illegal register index given");
+    Instruction* ret = new Instruction();
+    uint32_t len = 1;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0x58 + (char)idx;
+    ret->setBytes(buff);
+
+    delete[] buff;
+
+    return ret;
+}
+
+
+Instruction* Instruction::generateCallPLT(uint64_t addr, uint64_t tgt){
+    Instruction* ret = new Instruction();
+    uint32_t len = 5;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0xe8;
+
+    uint64_t imm = tgt - addr - len;
+
+    uint32_t imm32 = (uint32_t)imm;
+
+    PRINT_INFOR("Using 0x%08x as jump immediate", imm32);
+    memcpy(buff+1,&imm32,len-1);
+
+    ret->setBytes(buff);
+    delete[] buff;
+
+    return ret;
+    
+}
+
 Instruction* Instruction::generateJumpDirect(uint64_t tgt){
     Instruction* ret = new Instruction();
     uint32_t len = 6;
@@ -165,6 +271,7 @@ uint32_t Instruction::setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t
 Instruction::Instruction() : 
     Base(ElfClassTypes_Instruction)
 {
+    index = 0;
     instructionLength = 0;
     rawBytes = NULL;
     virtualAddress = 0;
@@ -173,6 +280,11 @@ Instruction::Instruction() :
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         operands[i] = Operand();
     }
+}
+
+uint32_t Instruction::setIndex(uint32_t newidx){
+    index = newidx;
+    return index;
 }
 
 Instruction::~Instruction(){

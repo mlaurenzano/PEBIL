@@ -5,6 +5,30 @@
 #include <RelocationTable.h>
 #include <HashTable.h>
 
+uint32_t DynamicTable::countDynamics(uint32_t type){
+    uint32_t dynCount = 0;
+    for (uint32_t i = 0; i < numberOfDynamics; i++){
+        if (dynamics[i]->GET(d_tag) == type){
+            dynCount++;
+        }
+    }
+    return dynCount;
+}
+
+uint64_t DynamicTable::getDynamicValue(uint32_t type, uint32_t idx){
+    uint32_t dynCount = 0;
+    for (uint32_t i = 0; i < numberOfDynamics; i++){
+        if (dynamics[i]->GET(d_tag) == type){
+            if (dynCount == idx){
+                return dynamics[i]->GET_A(d_val,d_un);
+            } else {
+                dynCount++;
+            }
+        }
+    }
+    return 0;
+}
+
 
 uint32_t DynamicTable::findEmptyDynamic(){
     for (uint32_t i = 0; i < numberOfDynamics; i++){
@@ -45,32 +69,6 @@ DynamicTable::DynamicTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint16_
     
 }
 
-uint64_t DynamicTable::getStringTableAddress(){
-    uint64_t strTabAddr = 0;
-    Dynamic* dyn;
-
-    // find the string table that contains the shared library names
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
-        if (elfFile->is64Bit()){
-            dyn = (Dynamic64*)dynamics[i];
-        } else {
-            dyn = (Dynamic32*)dynamics[i];
-        }
-
-        if (dyn->GET(d_tag) == DT_STRTAB){
-            if (strTabAddr){
-                PRINT_ERROR("Cannot have multiple entries in the Dynamic Table with type DT_STRTAB");
-            }
-            strTabAddr = dyn->GET_A(d_ptr,d_un);
-        }
-    }
-
-    ASSERT(strTabAddr && "There should be an entry in the dynamic table with type DT_STRTAB");
-
-    return strTabAddr;
-
-}
-
 
 void DynamicTable::relocateStringTable(uint64_t newAddr){
     for (uint32_t i = 0; i < numberOfDynamics; i++){
@@ -88,62 +86,13 @@ void DynamicTable::relocateStringTable(uint64_t newAddr){
     }
 }
 
-uint64_t DynamicTable::getHashTableAddress(){
-    uint64_t hashTabAddr = 0;
-    Dynamic* dyn;
-
-    // find the string table that contains the shared library names
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
-        if (elfFile->is64Bit()){
-            dyn = (Dynamic64*)dynamics[i];
-        } else {
-            dyn = (Dynamic32*)dynamics[i];
-        }
-
-        if (dyn->GET(d_tag) == DT_HASH || dyn->GET(d_tag) == DT_GNU_HASH){
-            if (hashTabAddr){
-                PRINT_ERROR("Cannot have multiple entries in the Dynamic Table with type DT_HASH");
-            }
-            hashTabAddr = dyn->GET_A(d_ptr,d_un);
-        }
-    }
-
-    ASSERT(hashTabAddr && "There should be an entry in the dynamic table with type DT_HASH");
-
-    return hashTabAddr;
-}
-
-
-uint64_t DynamicTable::getSymbolTableAddress(){
-    uint64_t symTabAddr = 0;
-    Dynamic* dyn;
-
-    // find the string table that contains the shared library names
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
-        if (elfFile->is64Bit()){
-            dyn = (Dynamic64*)dynamics[i];
-        } else {
-            dyn = (Dynamic32*)dynamics[i];
-        }
-        if (dyn->GET(d_tag) == DT_SYMTAB){
-            if (symTabAddr){
-                PRINT_ERROR("Cannot have multiple entries in the Dynamic Table with type DT_SYMTAB");
-            }
-            symTabAddr = dyn->GET_A(d_ptr,d_un);
-        }
-    }
-
-    ASSERT(symTabAddr && "There should be an entry in the dynamic table with type DT_SYMTAB");
-
-    return symTabAddr;
-}
 
 void DynamicTable::printSharedLibraries(BinaryInputFile* b){
     Dynamic* dyn;
-    uint64_t strTabAddr = getStringTableAddress();
+    uint64_t strTabAddr = getDynamicValue(DT_STRTAB,0);
     StringTable* strTab = NULL;
 
-    PRINT_INFOR("SharedLibDeps : %d",getNumberOfSharedLibraries());
+    PRINT_INFOR("SharedLibDeps : %d",countDynamics(DT_NEEDED));
 
     // locate the stringTable being referred to by strTabAddr
     for (uint32_t i = 0; i < elfFile->getNumberOfStringTables(); i++){
@@ -169,54 +118,6 @@ void DynamicTable::printSharedLibraries(BinaryInputFile* b){
 
 }
 
-uint32_t DynamicTable::getNumberOfRelocationTables(){
-    uint32_t numberOfRelocationTables = 0;
-    Dynamic* dyn;
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
-        if (elfFile->is64Bit()){
-            dyn = (Dynamic64*)dynamics[i];
-        } else {
-            dyn = (Dynamic32*)dynamics[i];
-        }
-        if (dyn->GET(d_tag) == DT_REL || dyn->GET(d_tag) == DT_RELA){
-            numberOfRelocationTables++;
-        }
-    }
-    return numberOfRelocationTables;
-}
-
-uint32_t DynamicTable::getRelocationTableAddresses(uint64_t* relocAddresses){
-    uint32_t numberOfRelocationTables = 0;
-    Dynamic* dyn;
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
-        if (elfFile->is64Bit()){
-            dyn = (Dynamic64*)dynamics[i];
-        } else {
-            dyn = (Dynamic32*)dynamics[i];
-        }
-        if (dyn->GET(d_tag) == DT_REL || dyn->GET(d_tag) == DT_RELA){
-            relocAddresses[numberOfRelocationTables] = dyn->GET_A(d_ptr,d_un);
-            numberOfRelocationTables++;
-        }
-    }
-    return numberOfRelocationTables;
-}
-
-uint32_t DynamicTable::getNumberOfSharedLibraries(){
-    uint32_t numberOfSharedLibs = 0;
-    Dynamic* dyn;
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
-        if (elfFile->is64Bit()){
-            dyn = (Dynamic64*)dynamics[i];
-        } else {
-            dyn = (Dynamic32*)dynamics[i];
-        }
-        if (dyn->GET(d_tag) == DT_NEEDED){
-            numberOfSharedLibs++;
-        }
-    }
-    return numberOfSharedLibs;
-}
 
 bool DynamicTable::verify(){
     Dynamic* dyn;

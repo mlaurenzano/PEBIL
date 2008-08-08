@@ -227,6 +227,8 @@ void SectionHeader::print() {
 
     uint32_t linkValue = GET(sh_link);
     uint32_t infoValue = GET(sh_info);
+    PRINT_INFOR("\tlink: %d", linkValue);
+    PRINT_INFOR("\tinfo: %d", infoValue);
     switch(GET(sh_type)){
         case SHT_DYNAMIC:
         {

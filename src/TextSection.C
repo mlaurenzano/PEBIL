@@ -4,6 +4,28 @@
 #include <SectionHeader.h>
 #include <Instruction.h>
 #include <SymbolTable.h>
+#include <CStructuresX86.h>
+
+Instruction** TextSection::replaceInstructions(uint64_t addr, Instruction* replacement){
+    /*
+    Instruction** replacedInstructions;
+
+    uint32_t len = 0;
+    Instruction* inst = getInstructionAtAddress(addr);
+    while (inst && len < replacement->getLength()){
+        len += inst->getLength();
+        inst = getInstructionAtAddress(addr+len);
+    }
+*/
+    
+    Instruction* toReplace = getInstructionAtAddress(addr);
+    ASSERT(toReplace && "No instruction exists at the specified address");
+    uint32_t replaceIdx = toReplace->getIndex();
+    delete toReplace;
+    instructions[replaceIdx] = replacement;
+
+    return NULL;
+}
 
 void TextSection::printInstructions(){
     for (uint32_t i = 0; i < numberOfInstructions; i++){
@@ -244,6 +266,7 @@ uint32_t TextSection::read(BinaryInputFile* binaryInputFile){
         instructions[numberOfInstructions]->setLength(MAX_X86_INSTRUCTION_LENGTH);
         instructions[numberOfInstructions]->setAddress(sHdr->GET(sh_addr) + currByte);
         instructions[numberOfInstructions]->setBytes(charStream() + currByte);
+        instructions[numberOfInstructions]->setIndex(numberOfInstructions);
 
         instructionLength = disassembler->print_insn(instructionAddress, instructions[numberOfInstructions]);        
         if (!instructionLength){

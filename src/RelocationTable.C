@@ -5,6 +5,55 @@
 #include <SectionHeader.h>
 #include <RawSection.h>
 
+void RelocationTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    uint32_t currentByte = 0;
+    for (uint32_t i = 0; i < numberOfRelocations; i++){
+        binaryOutputFile->copyBytes(relocations[i]->charStream(),relocationSize,offset+currentByte);
+        currentByte += relocationSize;
+    }
+}
+
+
+uint32_t RelocationTable::addRelocation(uint32_t offset, uint32_t info){
+
+    Relocation** newRelocations = new Relocation*[numberOfRelocations+1];
+
+    for (uint32_t i = 0; i < numberOfRelocations; i++){
+        newRelocations[i] = relocations[i];
+    }
+
+    if (elfFile->is64Bit()){
+        if (type == ElfRelType_rela){
+            RelocationAddend64* rel = new RelocationAddend64(NULL,numberOfRelocations);
+            rel->SET(r_addend,0);
+            newRelocations[numberOfRelocations] = rel;
+        } else {
+            newRelocations[numberOfRelocations] = new Relocation64(NULL,numberOfRelocations);
+        }
+    } else {
+        if (type == ElfRelType_rela){
+            RelocationAddend32* rel = new RelocationAddend32(NULL,numberOfRelocations);
+            rel->SET(r_addend,0);
+            newRelocations[numberOfRelocations] = rel;
+        } else {
+            newRelocations[numberOfRelocations] = new Relocation32(NULL,numberOfRelocations);
+        }
+    }
+
+    newRelocations[numberOfRelocations]->SET(r_offset,offset);
+    newRelocations[numberOfRelocations]->SET(r_info,info);
+
+    delete[] relocations;
+
+    relocations = newRelocations;
+    numberOfRelocations++;
+    sizeInBytes += relocationSize;
+
+    // returns the offset of the new entry
+    return sizeInBytes - relocationSize;
+}
+
+
 RelocationTable::RelocationTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
     : RawSection(ElfClassTypes_RelocationTable,rawPtr,size,scnIdx,elf),index(idx),symbolTable(NULL),relocationSection(NULL)
 {
@@ -12,7 +61,6 @@ RelocationTable::RelocationTable(char* rawPtr, uint64_t size, uint16_t scnIdx, u
     ASSERT(elfFile->getSectionHeader(sectionIndex));
 
     sizeInBytes = size;
-    uint32_t relocationSize;
     uint32_t typ = elfFile->getSectionHeader(sectionIndex)->GET(sh_type);
 
     ASSERT((typ == SHT_REL || typ == SHT_RELA) && "Section header type field must be relocation");
@@ -35,6 +83,7 @@ RelocationTable::RelocationTable(char* rawPtr, uint64_t size, uint16_t scnIdx, u
             type = ElfRelType_rel;
         }
     }
+    ASSERT(relocationSize && "Size of a relocation entry must be > 0");
     ASSERT(sizeInBytes % relocationSize == 0 && "Section size is bad");
     numberOfRelocations = sizeInBytes / relocationSize;
 
