@@ -23,7 +23,7 @@ public:
     virtual bool verify() { return true; }
 
     char* charStream() { return rawDataPtr; }
-    virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { binaryOutputFile->copyBytes(charStream(),getSizeInBytes(),offset); }
+    virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     void printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine);
 
     char* getFilePointer() { return rawDataPtr; }

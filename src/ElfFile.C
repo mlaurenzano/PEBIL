@@ -16,7 +16,8 @@
 #include <NoteSection.h>
 #include <Instruction.h>
 #include <PriorityQueue.h>
-
+#include <GnuVerneedTable.h>
+#include <GnuVersymTable.h>
 
 TIMER(
 	extern double cfg_s1;
@@ -50,7 +51,7 @@ uint16_t ElfFile::findSectionIdx(uint64_t addr){
     return 0;
 }
 
-void ElfFileInst::addPLTRelocationEntry(){
+void ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex){
     ASSERT(extraDataIdx && "Must reserve space for extra data prior to calling this function");
     ASSERT(extraTextIdx && "Must reserve space for extra text prior to calling this function");
     ASSERT(!pltInstructions && !numberOfPLTInstructions && "We should not have already created a PLT");
@@ -60,7 +61,7 @@ void ElfFileInst::addPLTRelocationEntry(){
 
     ASSERT(dynTable->countDynamics(DT_JMPREL) == 1 && "Cannot find a unique Relocation table for this file");
     
-    uint64_t relocTableAddr = dynTable->getDynamicValue(DT_JMPREL,0);
+    uint64_t relocTableAddr = dynTable->getDynamicByType(DT_JMPREL,0)->GET_A(d_val,d_un);
     ASSERT(relocTableAddr && "Count not find a relocation table address in the dynamic table");
 
     RelocationTable* relocTable = (RelocationTable*)elfFile->getRawSection(elfFile->findSectionIdx(relocTableAddr));
@@ -70,10 +71,10 @@ void ElfFileInst::addPLTRelocationEntry(){
 
     if (elfFile->is64Bit()){
         uint64_t gotAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset;    
-        relocOffset = relocTable->addRelocation((uint32_t)gotAddress,ELF32_R_INFO(0,R_X86_64_JUMP_SLOT));
+        relocOffset = relocTable->addRelocation((uint32_t)gotAddress,ELF32_R_INFO(symbolIndex,R_X86_64_JUMP_SLOT));
     } else {
         uint32_t gotAddress = (uint32_t)(elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset);    
-        relocOffset = relocTable->addRelocation(gotAddress,ELF32_R_INFO(0,R_386_JMP_SLOT));
+        relocOffset = relocTable->addRelocation(gotAddress,ELF32_R_INFO(symbolIndex,R_386_JMP_SLOT));
     }
     ASSERT(relocOffset && "Should set the relocation offset to a non-trival value");
 
@@ -86,6 +87,7 @@ void ElfFileInst::addPLTRelocationEntry(){
     for (uint32_t i = relocationSection->getIndex()+1; i <= extraTextIdx; i++){
         SectionHeader* sHdr = elfFile->getSectionHeader(i);
         PRINT_INFOR("Adding relocation table: modifying section offset from %lld to %lld", sHdr->GET(sh_offset), sHdr->GET(sh_offset) + extraSize);
+        extraSize = nextAlignAddress(sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign)) - sHdr->GET(sh_addr);
         sHdr->INCREMENT(sh_offset,extraSize);
         sHdr->INCREMENT(sh_addr,extraSize);
     }
@@ -121,10 +123,10 @@ void ElfFileInst::instrument(){
     extendDataSection(0x100);
     PRINT_INFOR("Successfully extended data section/segment");
 
-    addSharedLibrary("libtest.so", "smalltest");
+    uint32_t symbolIndex = addSharedLibrary("libtest.so", "smalltest");
     PRINT_INFOR("Successfully added shared library");
     
-    addPLTRelocationEntry();
+    addPLTRelocationEntry(symbolIndex);
     PRINT_INFOR("Successfully added PLT relocation entries");
 
     uint32_t pltReturnOffset = generateProcedureLinkageTable();
@@ -599,18 +601,18 @@ bool ElfFile::verify(){
     }
 
 
-    uint64_t hashSectionAddress_DT = dynamicTable->getDynamicValue(DT_HASH,0);
-    uint64_t dynstrSectionAddress_DT = dynamicTable->getDynamicValue(DT_STRTAB,0);
-    uint64_t dynsymSectionAddress_DT = dynamicTable->getDynamicValue(DT_SYMTAB,0);
+    uint64_t hashSectionAddress_DT = dynamicTable->getDynamicByType(DT_HASH,0)->GET_A(d_val,d_un);
+    uint64_t dynstrSectionAddress_DT = dynamicTable->getDynamicByType(DT_STRTAB,0)->GET_A(d_val,d_un);
+    uint64_t dynsymSectionAddress_DT = dynamicTable->getDynamicByType(DT_SYMTAB,0)->GET_A(d_val,d_un);
     if (dynamicTable->countDynamics(DT_REL) + dynamicTable->countDynamics(DT_RELA) != 1){
         PRINT_ERROR("Can only have one relocation table referenced by the dynamic table");
         return false;
     }
     uint64_t relocationSectionAddress_DT;
     if (dynamicTable->countDynamics(DT_REL)){
-        relocationSectionAddress_DT = dynamicTable->getDynamicValue(DT_REL,0);
+        relocationSectionAddress_DT = dynamicTable->getDynamicByType(DT_REL,0)->GET_A(d_val,d_un);
     } else {
-        relocationSectionAddress_DT = dynamicTable->getDynamicValue(DT_RELA,0);
+        relocationSectionAddress_DT = dynamicTable->getDynamicByType(DT_RELA,0)->GET_A(d_val,d_un);
     }
 
 
@@ -911,7 +913,7 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
 
     PRINT_INFOR("Adding symbol with size %d", entrySize);
 
-    uint64_t symtabAddr = dynamicTable->getDynamicValue(DT_SYMTAB,0);
+    uint64_t symtabAddr = dynamicTable->getDynamicByType(DT_SYMTAB,0)->GET_A(d_val,d_un);
     uint16_t symtabIdx = elfFile->getNumberOfSymbolTables();
     for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
         SymbolTable* symTab = elfFile->getSymbolTable(i);
@@ -930,14 +932,16 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
     SectionHeader* dynamicSymbolSection = elfFile->getSectionHeader(dynamicSymbolTable->getSectionIndex());
     dynamicSymbolSection->INCREMENT(sh_size,entrySize);
 
-
-    // displace every section in the text segment that comes after the dynamic symbol section and before the code
+    uint32_t extraSize = entrySize;
+    // displace every section that comes after the dynamic symbol section and before the code
     for (uint32_t i = dynamicSymbolSection->getIndex()+1; i <= extraTextIdx; i++){
         SectionHeader* sHdr = elfFile->getSectionHeader(i);
+        extraSize = nextAlignAddress(sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign)) - sHdr->GET(sh_addr);
         sHdr->INCREMENT(sh_offset,entrySize);
         sHdr->INCREMENT(sh_addr,entrySize);
     }
-    elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-entrySize);
+    elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
+
 
     // adjust the dynamic table entries for the section shifts
     for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
@@ -958,6 +962,37 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
         expandHashTable();
     }    
 
+    GnuVersymTable* versymTable = elfFile->getGnuVersymTable();
+    SectionHeader* versymHeader = elfFile->getSectionHeader(versymTable->getSectionIndex());
+    versymTable->addSymbol(VER_NDX_GLOBAL);
+    if (elfFile->is64Bit()){
+        entrySize = Size__64_bit_Gnu_Versym;
+    } else {
+        entrySize = Size__32_bit_Gnu_Versym;
+    }
+    extraSize = entrySize;
+    versymHeader->INCREMENT(sh_size,entrySize);
+
+    // displace every section that comes after the gnu versym section and before the code
+    for (uint32_t i = versymHeader->getIndex()+1; i <= extraTextIdx; i++){
+        SectionHeader* sHdr = elfFile->getSectionHeader(i);
+        PRINT_INFOR("Adding %d bytes to offset of section %d to align %llx/%lld", extraSize, i, sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign));
+        extraSize = nextAlignAddress(sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign)) - sHdr->GET(sh_addr);
+        sHdr->INCREMENT(sh_offset,extraSize);
+        sHdr->INCREMENT(sh_addr,extraSize);
+    } 
+    elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
+
+    dynamicTable->getDynamicByType(DT_VERSYM,0)->SET_A(d_ptr,d_un,elfFile->getSectionHeader(elfFile->getGnuVersymTable()->getSectionIndex())->GET(sh_addr));
+    dynamicTable->getDynamicByType(DT_VERNEED,0)->SET_A(d_ptr,d_un,elfFile->getSectionHeader(elfFile->getGnuVerneedTable()->getSectionIndex())->GET(sh_addr));
+    dynamicTable->getDynamicByType(DT_STRTAB,0)->SET_A(d_ptr,d_un,elfFile->getSectionHeader(elfFile->getDynamicStringTable()->getSectionIndex())->GET(sh_addr));
+    if (dynamicTable->getDynamicByType(DT_REL,0)){
+        dynamicTable->getDynamicByType(DT_REL,0)->SET_A(d_ptr,d_un,elfFile->getSectionHeader(elfFile->getDynamicRelocationTable()->getSectionIndex())->GET(sh_addr));
+    } else {
+        dynamicTable->getDynamicByType(DT_RELA,0)->SET_A(d_ptr,d_un,elfFile->getSectionHeader(elfFile->getDynamicRelocationTable()->getSectionIndex())->GET(sh_addr));
+    }
+    dynamicTable->getDynamicByType(DT_JMPREL,0)->SET_A(d_ptr,d_un,elfFile->getSectionHeader(elfFile->getPLTRelocationTable()->getSectionIndex())->GET(sh_addr));
+   
     return symbolIndex;
 }
 
@@ -979,10 +1014,12 @@ uint32_t ElfFileInst::expandHashTable(){
 
     for (uint32_t i = hashTable->getSectionIndex() + 1; i <= extraTextIdx; i++){
         SectionHeader* sHdr = elfFile->getSectionHeader(i);
+        extraSize = nextAlignAddress(sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign)) - sHdr->GET(sh_addr);
         sHdr->INCREMENT(sh_offset,extraSize);
         sHdr->INCREMENT(sh_addr,extraSize);
     }
     elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
+    PRINT_INFOR("Expanding the hash table by %d bytes", extraSize);
 
     DynamicTable* dynamicTable = elfFile->getDynamicTable();
     for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
@@ -1010,7 +1047,7 @@ uint32_t ElfFileInst::addStringToDynamicStringTable(const char* str){
     ASSERT(strSize < elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) - extraTextOffset && "There is not enough extra space in the text section to extend the string table");
 
     // find the string table we will be adding to
-    uint64_t stringTableAddr = dynamicTable->getDynamicValue(DT_STRTAB,0);
+    uint64_t stringTableAddr = dynamicTable->getDynamicByType(DT_STRTAB,0)->GET_A(d_val,d_un);
     uint16_t stringTableIdx = elfFile->getNumberOfStringTables();
     PRINT_INFOR("Looking for string table at %016llx", stringTableAddr);
     for (uint32_t i = 0; i < elfFile->getNumberOfStringTables(); i++){
@@ -1039,9 +1076,9 @@ uint32_t ElfFileInst::addStringToDynamicStringTable(const char* str){
     for (uint32_t i = dynamicStringSection->getIndex()+1; i <= extraTextIdx; i++){
         SectionHeader* sHdr = elfFile->getSectionHeader(i);
         PRINT_INFOR("Adding string table: modifying section offset from %lld to %lld", sHdr->GET(sh_offset), sHdr->GET(sh_offset) + extraSize);
+        extraSize = nextAlignAddress(sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign)) - sHdr->GET(sh_addr);
         sHdr->INCREMENT(sh_offset,extraSize);
         sHdr->INCREMENT(sh_addr,extraSize);
-        sHdr->print();
     }
 
     // shrink the size of the extra text section to accomodate the increase of the control sections
@@ -1064,7 +1101,7 @@ uint32_t ElfFileInst::addStringToDynamicStringTable(const char* str){
 }
 
 
-void ElfFileInst::addSharedLibrary(const char* libname, const char* funcname){
+uint32_t ElfFileInst::addSharedLibrary(const char* libname, const char* funcname){
 
     ASSERT(!numberOfGOTEntries && !gotEntries && "Cannot add to sections after generating GOT");
     ASSERT(!numberOfPLTInstructions && !pltInstructions && "Cannot add to sections after generating PLT");
@@ -1081,12 +1118,13 @@ void ElfFileInst::addSharedLibrary(const char* libname, const char* funcname){
     dynamicTable->getDynamic(emptyDynamicIdx)->SET_A(d_ptr,d_un,strOffset);
 
     uint32_t funcNameOffset = addStringToDynamicStringTable(funcname);
-    addSymbolToDynamicSymbolTable(funcNameOffset, 0, 0, STB_GLOBAL, STT_FUNC, 0, 0);
+    uint32_t symbolIndex = addSymbolToDynamicSymbolTable(funcNameOffset, 0, 0, STB_GLOBAL, STT_FUNC, 0, 0);
 
     PRINT_INFOR("Verifying elf file after adding shared library");
 
     elfFile->verify();
 
+    return symbolIndex;
 }
 
 
@@ -1300,6 +1338,42 @@ void ElfFile::initSectionFilePointers(){
     dynamicTable->read(&binaryInputFile);
     dynamicTable->verify();
 
+    // find certain sections whose addresses are in the dynamic table
+    uint64_t strtabAddr = dynamicTable->getDynamicByType(DT_STRTAB,0)->GET_A(d_ptr,d_un);
+    uint64_t symtabAddr = dynamicTable->getDynamicByType(DT_SYMTAB,0)->GET_A(d_ptr,d_un);
+    uint64_t pltreltabAddr = dynamicTable->getDynamicByType(DT_JMPREL,0)->GET_A(d_ptr,d_un);
+    uint32_t reltype;
+    if (dynamicTable->countDynamics(DT_REL) > 0){
+        reltype = DT_REL;
+    } else {
+        reltype = DT_RELA;
+    }
+    uint64_t reltabAddr = dynamicTable->getDynamicByType(reltype,0)->GET_A(d_ptr,d_un);
+
+    for (uint32_t i = 0; i < numberOfSections; i++){
+        if (rawSections[i]->getType() == ElfClassTypes_StringTable &&
+            sectionHeaders[i]->GET(sh_addr) == strtabAddr){
+            dynamicStringTable = (StringTable*)rawSections[i];
+        }
+        else if (rawSections[i]->getType() == ElfClassTypes_SymbolTable &&
+            sectionHeaders[i]->GET(sh_addr) == symtabAddr){
+            dynamicSymbolTable = (SymbolTable*)rawSections[i];
+        }
+        else if (rawSections[i]->getType() == ElfClassTypes_RelocationTable &&
+            sectionHeaders[i]->GET(sh_addr) == pltreltabAddr){
+            pltRelocationTable = (RelocationTable*)rawSections[i];
+        }
+        else if (rawSections[i]->getType() == ElfClassTypes_RelocationTable &&
+            sectionHeaders[i]->GET(sh_addr) == reltabAddr){
+            dynamicRelocationTable = (RelocationTable*)rawSections[i];
+        }
+    }
+    ASSERT(dynamicStringTable && "Should be able to find the dynamic string table");
+    ASSERT(dynamicSymbolTable && "Should be able to find the dynamic symbol table");
+    ASSERT(pltRelocationTable && "Should be able to find the plt relocation table");
+    ASSERT(dynamicRelocationTable && "Should be able to find the dynamic relocation table");
+
+
 }
 
 
@@ -1414,6 +1488,19 @@ void ElfFile::print()
         dynamicTable->print();
         dynamicTable->printSharedLibraries(&binaryInputFile);
     }
+
+    PRINT_INFOR("Gnu Verneed Table");
+    PRINT_INFOR("=============");
+    if (gnuVerneedTable){
+        gnuVerneedTable->print();
+    }
+
+    PRINT_INFOR("Gnu Versym Table");
+    PRINT_INFOR("=============");
+    if (gnuVersymTable){
+        gnuVersymTable->print();
+    }
+
 }
 
 
@@ -1494,8 +1581,6 @@ void ElfFile::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 
     currentOffset = fileHeader->GET(e_shoff);
     for (uint32_t i = 0; i < numberOfSections; i++){
-	PRINT_INFOR("dumping section header[%d] at offset %x", i, currentOffset);
-        sectionHeaders[i]->print();
         sectionHeaders[i]->dump(binaryOutputFile,currentOffset);
         currentOffset += sectionHeaders[i]->getSizeInBytes();
     }
@@ -1503,7 +1588,6 @@ void ElfFile::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 
     for (uint32_t i = 0; i < numberOfSections; i++){
         currentOffset = sectionHeaders[i]->GET(sh_offset);
-        PRINT_INFOR("dumping raw section[%d] at offset %x", i, currentOffset);
         if (sectionHeaders[i]->hasBitsInFile()){
             rawSections[i]->dump(binaryOutputFile,currentOffset);
         }
@@ -1714,6 +1798,15 @@ void ElfFile::readRawSections(){
             rawSections[i] = new NoteSection(sectionFilePtr, sectionSize, i, numberOfNoteSections, this);
             noteSections[numberOfNoteSections] = (NoteSection*)rawSections[i];
             numberOfNoteSections++;
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_GnuVerneedTable){
+            ASSERT(!gnuVerneedTable && "Cannot have more than one GNU_verneed section");
+            rawSections[i] = new GnuVerneedTable(sectionFilePtr, sectionSize, i, this);
+            gnuVerneedTable = (GnuVerneedTable*)rawSections[i];
+        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_GnuVersymTable){
+            PRINT_INFOR("Section %d is gnu version symbol", i);
+            ASSERT(!gnuVersymTable && "Cannot have more than one GNU_versym section");
+            rawSections[i] = new GnuVersymTable(sectionFilePtr, sectionSize, i, this);
+            gnuVersymTable = (GnuVersymTable*)rawSections[i];
         } else {
             rawSections[i] = new RawSection(ElfClassTypes_no_type, sectionFilePtr, sectionSize, i, this);
         }

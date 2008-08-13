@@ -42,6 +42,8 @@ public:
     uint32_t findFunctions();
     uint32_t getNumberOfFunctions() { return numberOfFunctions; }
     Function* getFunction(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfFunctions && "function index is out of bounds"); return sortedFunctions[idx]; }
+
+    Instruction** replaceInstructions(uint64_t addr, Instruction* replacement);
 };
 
 

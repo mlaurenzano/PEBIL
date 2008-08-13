@@ -1,6 +1,6 @@
 DBG         = -save-temps -g #-Wall
 OPT         = -O3
-#LINK_FLAGS  = -Wl,--hash-style=sysv
+LINK_FLAGS  = -Wl,--hash-style=sysv
 
 GNU_CC      = gcc
 GNU_CPP     = g++ -DCPP

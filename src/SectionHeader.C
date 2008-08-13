@@ -64,6 +64,14 @@ ElfClassTypes SectionHeader::setSectionType(){
     case SHT_GNU_HASH:
         sectionType = ElfClassTypes_HashTable;
         break;
+    case SHT_GNU_verneed:
+        sectionType = ElfClassTypes_GnuVerneedTable;
+        break;
+    case SHT_GNU_versym:
+        sectionType = ElfClassTypes_GnuVersymTable;
+        break;
+    default:
+        PRINT_ERROR("Unknown section type %d", GET(sh_type));
     }
 
     return sectionType;

@@ -20,6 +20,8 @@ class HashTable;
 class NoteSection;
 class Symbol;
 class Instruction;
+class GnuVerneedTable;
+class GnuVersymTable;
 
 class ElfFile {
 private:
@@ -41,6 +43,12 @@ private:
     DynamicTable* dynamicTable;
     HashTable* hashTable;
     NoteSection** noteSections;
+    GnuVerneedTable* gnuVerneedTable;
+    GnuVersymTable* gnuVersymTable;
+    StringTable* dynamicStringTable;
+    SymbolTable* dynamicSymbolTable;
+    RelocationTable* pltRelocationTable;
+    RelocationTable* dynamicRelocationTable;
 
     uint32_t numberOfPrograms;
     uint32_t numberOfSections;
@@ -85,7 +93,8 @@ public:
         disassembler(NULL),fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
         rawSections(NULL),stringTables(NULL),symbolTables(NULL),relocationTables(NULL),
         dwarfSections(NULL),textSections(NULL),globalOffsetTable(NULL),dynamicTable(NULL),
-        hashTable(NULL),noteSections(NULL),
+        hashTable(NULL),noteSections(NULL),gnuVerneedTable(NULL),gnuVersymTable(NULL),
+        dynamicStringTable(NULL),dynamicSymbolTable(NULL),pltRelocationTable(NULL),dynamicRelocationTable(NULL),
         numberOfPrograms(0),numberOfSections(0),
         numberOfStringTables(0),sectionNameStrTabIdx(0),numberOfSymbolTables(0),dynamicSymtabIdx(0),
         numberOfRelocationTables(0),numberOfDwarfSections(0),numberOfTextSections(0),numberOfNoteSections(0),
@@ -125,6 +134,13 @@ public:
     DynamicTable* getDynamicTable() { return dynamicTable; }
     HashTable* getHashTable() { return hashTable; }
     NoteSection* getNoteSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfNoteSections); return noteSections[idx]; }
+    GnuVerneedTable* getGnuVerneedTable() { return gnuVerneedTable; }
+    GnuVersymTable* getGnuVersymTable() { return gnuVersymTable; }
+    StringTable* getDynamicStringTable() { return dynamicStringTable; }
+    SymbolTable* getDynamicSymbolTable() { return dynamicSymbolTable; }
+    RelocationTable* getPLTRelocationTable() { return pltRelocationTable; }
+    RelocationTable* getDynamicRelocationTable() { return dynamicRelocationTable; }
+
 
     uint16_t getSectionNameStrTabIdx() { return sectionNameStrTabIdx; }
 
@@ -157,6 +173,9 @@ public:
     uint64_t addSection(uint16_t idx, ElfClassTypes classtype, char* bytes, uint32_t name, uint32_t type, uint64_t flags, uint64_t addr, uint64_t offset, 
                         uint64_t size, uint32_t link, uint32_t info, uint64_t addralign, uint64_t entsize);
 
+    uint16_t findSectionIdx(uint64_t addr);
+    uint16_t findSectionIdx(char* name);
+
     void testBitSet();
 
     uint32_t findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t bufCnt,char** namestr=NULL);
@@ -169,7 +188,10 @@ private:
     uint16_t extraTextIdx;
     uint64_t extraTextOffset;
 
+    uint32_t relocOffset;
+
     uint64_t pltOffset;
+    uint64_t bootstrapOffset;
 
     uint16_t extraDataIdx;
     uint64_t extraDataOffset;
@@ -182,6 +204,9 @@ private:
 
     Instruction** pltInstructions;
     uint32_t numberOfPLTInstructions;
+
+    Instruction** bootstrapInstructions;
+    uint32_t numberOfBootstrapInstructions;
 
     uint32_t* gotEntries;
     uint32_t numberOfGOTEntries;
@@ -198,7 +223,8 @@ public:
     void instrument();
 
     // instrumentation functions
-    void addSharedLibrary(const char* libname);
+    uint32_t addSharedLibrary(const char* libname, const char* funcname);
+    void addPLTRelocationEntry(uint32_t symbolIndex);
     void addInstrumentationFunction(const char* funcname);
     uint64_t relocateDynamicSection();
     uint64_t getProgramBaseAddress();
@@ -206,6 +232,7 @@ public:
     void extendDataSection(uint64_t size);
     uint32_t generateProcedureLinkageTable();
     void generateGlobalOffsetTable(uint32_t pltReturnOffset);
+    void generateFunctionCall();
 };
 
 

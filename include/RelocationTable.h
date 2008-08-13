@@ -99,6 +99,7 @@ protected:
     SymbolTable* symbolTable;
     RawSection* relocationSection;
     uint32_t index;
+    uint32_t relocationSize;
 
     uint32_t numberOfRelocations;
     Relocation** relocations;
@@ -110,6 +111,7 @@ public:
 
     void print();
     uint32_t read(BinaryInputFile* b);
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     bool verify() { return true; }
 
@@ -117,9 +119,12 @@ public:
 
     ElfFile* getElfFile() { return elfFile; }
     uint32_t getIndex() { return index; }
+    uint32_t getRelocationSize() { return relocationSize; }
 
     uint16_t setSymbolTable();
     uint16_t setRelocationSection();
+
+    uint32_t addRelocation(uint32_t offset, uint32_t info);
 
     const char* briefName() { return "RelocationTable"; }
 };

@@ -67,6 +67,7 @@ public:
 
 class Instruction : public Base {
 protected:
+    uint32_t index;
     uint32_t instructionLength;
     char* rawBytes;
     uint64_t virtualAddress;
@@ -84,12 +85,14 @@ public:
     char* charStream() { return rawBytes; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
+    uint32_t getIndex() { return index; }
     uint64_t getNextAddress();
     uint64_t getAddress();
     uint32_t getLength();
     char* getBytes();
     Operand getOperand(uint32_t idx);
 
+    uint32_t setIndex(uint32_t newidx);
     uint64_t setNextAddress();
     uint64_t setAddress(uint64_t addr);
     uint32_t setLength(uint32_t len);
@@ -101,9 +104,14 @@ public:
 
     uint32_t setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2);
 
+    static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
+    static Instruction* generateMoveRegToMem(uint32_t idx, uint64_t addr);
+    static Instruction* generateStackPush(uint32_t idx);
+    static Instruction* generateStackPop(uint32_t idx);
     static Instruction* generateJumpDirect(uint64_t tgt);
     static Instruction* generateJumpRelative(uint64_t addr, uint64_t tgt);
     static Instruction* generateStackPushImmediate(uint64_t imm);
+    static Instruction* generateCallPLT(uint64_t addr, uint64_t tgt);
 
     static uint32_t computeOpcodeTypeOneByte(uint32_t idx);
     static uint32_t computeOpcodeTypeTwoByte(uint32_t idx);

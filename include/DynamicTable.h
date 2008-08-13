@@ -35,13 +35,8 @@ public:
     Dynamic* getDynamic(uint32_t index);
     uint32_t getNumberOfDynamics() { return numberOfDynamics; }
     uint16_t getSegmentIndex() { return segmentIndex; }
-    uint32_t getNumberOfSharedLibraries();
-    uint64_t getStringTableAddress();
-    uint64_t getHashTableAddress();
-    uint64_t getSymbolTableAddress();
-    uint64_t getDynamicTableAddress();
-    uint32_t getNumberOfRelocationTables();
-    uint32_t getRelocationTableAddresses(uint64_t* relocAddresses);
+    uint32_t countDynamics(uint32_t type);
+    Dynamic* getDynamicByType(uint32_t type, uint32_t idx);
 
     void relocateStringTable(uint64_t newAddr);
 

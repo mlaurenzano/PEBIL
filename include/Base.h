@@ -165,8 +165,12 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Size__64_bit_GNU_Hash_Bloom_Entry   sizeof(uint64_t)
 #define Size__32_bit_Note_Section_Entry     sizeof(uint32_t)
 #define Size__64_bit_Note_Section_Entry     sizeof(uint32_t)
-
-
+#define Size__32_bit_Gnu_Verneed            sizeof(Elf32_Verneed)
+#define Size__64_bit_Gnu_Verneed            sizeof(Elf64_Verneed)
+#define Size__32_bit_Gnu_Vernaux            sizeof(Elf32_Vernaux)
+#define Size__64_bit_Gnu_Vernaux            sizeof(Elf64_Vernaux)
+#define Size__32_bit_Gnu_Versym             sizeof(uint16_t)
+#define Size__64_bit_Gnu_Versym             sizeof(uint16_t)
 
 typedef enum {
     ElfRelType_undefined = 0,
@@ -183,6 +187,10 @@ typedef enum {
     ElfClassTypes_FileHeader,
     ElfClassTypes_Function,
     ElfClassTypes_GlobalOffsetTable,
+    ElfClassTypes_GnuVerneed,
+    ElfClassTypes_GnuVerneedTable,
+    ElfClassTypes_GnuVersym,
+    ElfClassTypes_GnuVersymTable,
     ElfClassTypes_HashTable,
     ElfClassTypes_Instruction,
     ElfClassTypes_Note,
@@ -289,10 +297,6 @@ extern uint64_t nextAlignAddress(uint64_t addr, uint32_t align);
 extern uint64_t nextAlignAddressHalfWord(uint64_t addr);
 extern uint64_t nextAlignAddressWord(uint64_t addr);
 extern uint64_t nextAlignAddressDouble(uint64_t addr);
-
-extern uint16_t switchEndian(uint16_t hword);
-extern uint32_t switchEndian(uint32_t  word);
-extern uint64_t switchEndian(uint64_t lword);
 
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)

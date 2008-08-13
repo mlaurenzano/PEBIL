@@ -15,20 +15,19 @@ uint32_t DynamicTable::countDynamics(uint32_t type){
     return dynCount;
 }
 
-uint64_t DynamicTable::getDynamicValue(uint32_t type, uint32_t idx){
+Dynamic* DynamicTable::getDynamicByType(uint32_t type, uint32_t idx){
     uint32_t dynCount = 0;
     for (uint32_t i = 0; i < numberOfDynamics; i++){
         if (dynamics[i]->GET(d_tag) == type){
             if (dynCount == idx){
-                return dynamics[i]->GET_A(d_val,d_un);
+                return dynamics[i];
             } else {
                 dynCount++;
             }
         }
     }
-    return 0;
+    return NULL;
 }
-
 
 uint32_t DynamicTable::findEmptyDynamic(){
     for (uint32_t i = 0; i < numberOfDynamics; i++){
@@ -89,7 +88,7 @@ void DynamicTable::relocateStringTable(uint64_t newAddr){
 
 void DynamicTable::printSharedLibraries(BinaryInputFile* b){
     Dynamic* dyn;
-    uint64_t strTabAddr = getDynamicValue(DT_STRTAB,0);
+    uint64_t strTabAddr = getDynamicByType(DT_STRTAB,0)->GET_A(d_ptr,d_un);
     StringTable* strTab = NULL;
 
     PRINT_INFOR("SharedLibDeps : %d",countDynamics(DT_NEEDED));

@@ -34,6 +34,9 @@ extern "C" {
 #include <stdint.h>
 #include <stdio.h>
 
+#define X86_GPRS 16
+
+
     /* This struct is passed into the instruction decoding routine, 
        and is passed back out into each callback.  The various fields are used
        for conveying information from your main routine into your callbacks,

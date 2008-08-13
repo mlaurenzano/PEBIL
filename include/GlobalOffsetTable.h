@@ -27,7 +27,7 @@ public:
     uint32_t getNumberOfEntries() { return numberOfEntries; }
     uint32_t minIndex() { return -1*tableBaseIdx; }
     uint32_t maxIndex() { return numberOfEntries-tableBaseIdx; }
-    virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     const char* briefName() { return "GlobalOffsetTable"; }
 };
