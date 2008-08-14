@@ -104,14 +104,15 @@ public:
 
     uint32_t setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2);
 
-    static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
-    static Instruction* generateMoveRegToMem(uint32_t idx, uint64_t addr);
-    static Instruction* generateStackPush(uint32_t idx);
-    static Instruction* generateStackPop(uint32_t idx);
-    static Instruction* generateJumpDirect(uint64_t tgt);
-    static Instruction* generateJumpRelative(uint64_t addr, uint64_t tgt);
-    static Instruction* generateStackPushImmediate(uint64_t imm);
-    static Instruction* generateCallPLT(uint64_t addr, uint64_t tgt);
+    static Instruction* generateMoveImmToReg64(uint64_t imm, uint32_t idx);
+    static Instruction* generateMoveImmToReg32(uint64_t imm, uint32_t idx);
+    static Instruction* generateMoveRegToMem32(uint32_t idx, uint64_t addr);
+    static Instruction* generateStackPush32(uint32_t idx);
+    static Instruction* generateStackPop32(uint32_t idx);
+    static Instruction* generateJumpDirect32(uint64_t tgt);
+    static Instruction* generateJumpRelative32(uint64_t addr, uint64_t tgt);
+    static Instruction* generateStackPushImmediate32(uint64_t imm);
+    static Instruction* generateCallPLT32(uint64_t addr, uint64_t tgt);
 
     static uint32_t computeOpcodeTypeOneByte(uint32_t idx);
     static uint32_t computeOpcodeTypeTwoByte(uint32_t idx);

@@ -3,11 +3,35 @@
 #include <CStructuresX86.h>
 
 void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    ASSERT(rawBytes && instructionLength && "This instruction has no raw bytes thus it cannot be dumped");
+    ASSERT(rawBytes && instructionLength && "This instruction has no bytes thus it cannot be dumped");
     binaryOutputFile->copyBytes(rawBytes,instructionLength,offset);
 }
 
-Instruction* Instruction::generateMoveImmToReg(uint64_t imm, uint32_t idx){
+Instruction* Instruction::generateMoveImmToReg64(uint64_t imm, uint32_t idx){
+    ASSERT(idx < 9 && "Illegal register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 5;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0xb8 + (char)idx;
+
+    // set target address
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == imm && "Cannot use more than 32 bits for immediate value");
+    memcpy(buff+1,&imm32,len-1);
+
+    ret->setBytes(buff);
+    delete[] buff;
+
+    return ret;    
+}
+
+
+Instruction* Instruction::generateMoveImmToReg32(uint64_t imm, uint32_t idx){
     ASSERT(idx < 9 && "Illegal register index given");
     
     Instruction* ret = new Instruction();
@@ -30,7 +54,7 @@ Instruction* Instruction::generateMoveImmToReg(uint64_t imm, uint32_t idx){
     return ret;    
 }
 
-Instruction* Instruction::generateMoveRegToMem(uint32_t idx, uint64_t addr){
+Instruction* Instruction::generateMoveRegToMem32(uint32_t idx, uint64_t addr){
     ASSERT(idx > 0 && idx < 9 && "Illegal register index given");
 
     Instruction* ret = new Instruction();
@@ -54,7 +78,7 @@ Instruction* Instruction::generateMoveRegToMem(uint32_t idx, uint64_t addr){
     return ret;    
 }
 
-Instruction* Instruction::generateStackPush(uint32_t idx){
+Instruction* Instruction::generateStackPush32(uint32_t idx){
     ASSERT(idx < 9 && "Illegal register index given");
     Instruction* ret = new Instruction();
     uint32_t len = 1;
@@ -71,7 +95,7 @@ Instruction* Instruction::generateStackPush(uint32_t idx){
     return ret;
 }
 
-Instruction* Instruction::generateStackPop(uint32_t idx){
+Instruction* Instruction::generateStackPop32(uint32_t idx){
     ASSERT(idx < 9 && "Illegal register index given");
     Instruction* ret = new Instruction();
     uint32_t len = 1;
@@ -89,7 +113,7 @@ Instruction* Instruction::generateStackPop(uint32_t idx){
 }
 
 
-Instruction* Instruction::generateCallPLT(uint64_t addr, uint64_t tgt){
+Instruction* Instruction::generateCallPLT32(uint64_t addr, uint64_t tgt){
     Instruction* ret = new Instruction();
     uint32_t len = 5;
 
@@ -103,7 +127,6 @@ Instruction* Instruction::generateCallPLT(uint64_t addr, uint64_t tgt){
 
     uint32_t imm32 = (uint32_t)imm;
 
-    PRINT_INFOR("Using 0x%08x as jump immediate", imm32);
     memcpy(buff+1,&imm32,len-1);
 
     ret->setBytes(buff);
@@ -113,7 +136,7 @@ Instruction* Instruction::generateCallPLT(uint64_t addr, uint64_t tgt){
     
 }
 
-Instruction* Instruction::generateJumpDirect(uint64_t tgt){
+Instruction* Instruction::generateJumpDirect32(uint64_t tgt){
     Instruction* ret = new Instruction();
     uint32_t len = 6;
 
@@ -135,7 +158,7 @@ Instruction* Instruction::generateJumpDirect(uint64_t tgt){
     return ret;
 }
 
-Instruction* Instruction::generateJumpRelative(uint64_t addr, uint64_t tgt){
+Instruction* Instruction::generateJumpRelative32(uint64_t addr, uint64_t tgt){
     Instruction* ret = new Instruction();
     uint32_t len = 5;
 
@@ -149,7 +172,6 @@ Instruction* Instruction::generateJumpRelative(uint64_t addr, uint64_t tgt){
 
     uint32_t imm32 = (uint32_t)imm;
 
-    PRINT_INFOR("Using 0x%08x as jump immediate", imm32);
     memcpy(buff+1,&imm32,len-1);
 
     ret->setBytes(buff);
@@ -158,7 +180,7 @@ Instruction* Instruction::generateJumpRelative(uint64_t addr, uint64_t tgt){
     return ret;
 }
 
-Instruction* Instruction::generateStackPushImmediate(uint64_t imm){
+Instruction* Instruction::generateStackPushImmediate32(uint64_t imm){
     Instruction* ret = new Instruction();
     uint32_t len = 5;
 
