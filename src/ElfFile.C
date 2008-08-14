@@ -75,7 +75,7 @@ void ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex){
         relocOffset = relocTable->addRelocation((uint32_t)gotAddress,ELF64_R_INFO(symbolIndex,R_X86_64_JUMP_SLOT));
     } else {
         uint32_t gotAddress = (uint32_t)(elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset);    
-        PRINT_INFOR("32 Relocation info %08x %08x ==> %016llx", symbolIndex, R_386_JMP_SLOT, ELF32_R_INFO(symbolIndex,R_386_JMP_SLOT));
+        PRINT_INFOR("32 Relocation info %08x %08x ==> %08x", symbolIndex, R_386_JMP_SLOT, ELF32_R_INFO(symbolIndex,R_386_JMP_SLOT));
         relocOffset = relocTable->addRelocation(gotAddress,ELF32_R_INFO(symbolIndex,R_386_JMP_SLOT));
     }
     ASSERT(relocOffset && "Should set the relocation offset to a non-trival value");
@@ -148,8 +148,40 @@ void ElfFileInst::generateFunctionCall(){
     uint64_t replaceAddr = textHeader->GET(sh_addr);
     uint64_t bootstrapAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + bootstrapOffset;
 
-    Instruction* replacementCall = Instruction::generateCallPLT32(replaceAddr,bootstrapAddress);
-    textSection->replaceInstructions(textHeader->GET(sh_addr),replacementCall);
+    Instruction** replacementCalls = new Instruction*[1];
+    replacementCalls[0] = Instruction::generateCallPLT32(replaceAddr,bootstrapAddress);
+    uint32_t replacementLength = 0;
+    for (uint32_t i = 0; i < 1; i++){
+        replacementLength += replacementCalls[i]->getLength();
+    }
+
+    Instruction** replacedInstructions = NULL;
+    uint32_t numberOfReplacedInstructions = textSection->replaceInstructions(textHeader->GET(sh_addr),replacementCalls,1,&replacedInstructions);
+    delete[] replacementCalls;
+
+    uint32_t trampSize = 0;
+    numberOfTrampInstructions = numberOfReplacedInstructions + 1 + 8;
+    trampInstructions = new Instruction*[numberOfTrampInstructions];
+    for (uint32_t i = 0; i < 8; i++){
+        trampInstructions[i] = Instruction::generateStackPop32(8-1-i);
+        trampSize += trampInstructions[i]->getLength();
+    }
+
+    for (uint32_t i = 0; i < numberOfReplacedInstructions; i++){
+        trampInstructions[i+8] = replacedInstructions[i];
+        trampSize += trampInstructions[i+8]->getLength();
+    }
+
+    trampInstructions[numberOfTrampInstructions-1] = Instruction::generateJumpRelative32(elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + extraTextOffset + trampSize,
+                                                                                         textHeader->GET(sh_addr) + replacementLength);
+    trampSize += trampInstructions[numberOfTrampInstructions-1]->getLength();
+
+    ASSERT(trampSize < elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) - extraTextOffset);
+
+    trampOffset = extraTextOffset;
+    extraTextOffset += trampSize;
+
+    delete[] replacedInstructions;
 }
 
 
@@ -404,7 +436,7 @@ uint32_t ElfFileInst::generateProcedureLinkageTable32(){
     pltInstructions = new Instruction*[numberOfPLTInstructions];
     numberOfPLTInstructions = 0;
 
-    pltInstructions[numberOfPLTInstructions] = Instruction::generateJumpDirect32(gotAddress);
+    pltInstructions[numberOfPLTInstructions] = Instruction::generateJumpIndirect32(gotAddress);
     uint32_t pltReturnOffset = pltInstructions[numberOfPLTInstructions]->getLength();
     pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
     uint32_t gotInfo = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
@@ -432,9 +464,10 @@ uint32_t ElfFileInst::generateProcedureLinkageTable32(){
 
     bootstrapOffset = extraTextOffset;
     uint32_t bootstrapSize = 0;
-    numberOfBootstrapInstructions = 5;
+    numberOfBootstrapInstructions = 5 + 8;
     bootstrapInstructions = new Instruction*[numberOfBootstrapInstructions];
     numberOfBootstrapInstructions = 0;
+
     bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush32(1);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
@@ -450,6 +483,12 @@ uint32_t ElfFileInst::generateProcedureLinkageTable32(){
     bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop32(1);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
+
+    for (uint32_t i = 0; i < 8; i++){
+        bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush32(i);
+        bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
+        numberOfBootstrapInstructions++;
+    }
 
 
     uint64_t pltAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset;
@@ -486,6 +525,13 @@ ElfFileInst::~ElfFileInst(){
         }
         delete[] bootstrapInstructions;
     }
+    if (trampInstructions){
+        for (uint32_t i = 0; i < numberOfTrampInstructions; i++){
+            delete trampInstructions[i];
+        }
+        delete[] trampInstructions;
+    }
+
     if (gotEntries){
         delete[] gotEntries;
     }
@@ -528,12 +574,21 @@ void ElfFileInst::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
         currentOffset += bootstrapInstructions[i]->getLength();
     }
 
+    currentOffset = elfFile->getSectionHeader(extraTextIdx)->GET(sh_offset) + trampOffset;
+    for (uint32_t i = 0; i < numberOfTrampInstructions; i++){
+        trampInstructions[i]->dump(binaryOutputFile,currentOffset);
+        trampInstructions[i]->print();
+        currentOffset += trampInstructions[i]->getLength();
+    }
+
     currentOffset = elfFile->getSectionHeader(extraDataIdx)->GET(sh_offset) + gotOffset;
     for (uint32_t i = 0; i < numberOfGOTEntries; i++){
         binaryOutputFile->copyBytes((char*)&gotEntries[i],sizeof(gotEntries[i]),currentOffset);
         PRINT_INFOR("Dumped our personal GOT entry[%d]=%x at address %x", i, gotEntries[i], currentOffset); 
         currentOffset += sizeof(gotEntries[i]);
     }
+
+    
 
 }
 
@@ -908,6 +963,10 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     bootstrapOffset = 0;
     bootstrapInstructions = NULL;
     numberOfBootstrapInstructions = 0;
+
+    trampOffset = 0;
+    trampInstructions = NULL;
+    numberOfTrampInstructions = 0;
 
     gotOffset = 0;
     gotEntries = NULL;

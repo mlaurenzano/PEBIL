@@ -7,6 +7,19 @@ void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     binaryOutputFile->copyBytes(rawBytes,instructionLength,offset);
 }
 
+Instruction* Instruction::generateNoop(){
+    Instruction* ret = new Instruction();
+    uint32_t len = 1;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+    buff[0] = 0x90;
+    ret->setBytes(buff);
+    delete[] buff;
+
+    return ret;
+}
+
 Instruction* Instruction::generateMoveImmToReg64(uint64_t imm, uint32_t idx){
     ASSERT(idx < 9 && "Illegal register index given");
 
@@ -136,7 +149,7 @@ Instruction* Instruction::generateCallPLT32(uint64_t addr, uint64_t tgt){
     
 }
 
-Instruction* Instruction::generateJumpDirect32(uint64_t tgt){
+Instruction* Instruction::generateJumpIndirect32(uint64_t tgt){
     Instruction* ret = new Instruction();
     uint32_t len = 6;
 

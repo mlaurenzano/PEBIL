@@ -192,6 +192,7 @@ private:
 
     uint64_t pltOffset;
     uint64_t bootstrapOffset;
+    uint64_t trampOffset;
 
     uint16_t extraDataIdx;
     uint64_t extraDataOffset;
@@ -210,6 +211,9 @@ private:
 
     Instruction** bootstrapInstructions;
     uint32_t numberOfBootstrapInstructions;
+
+    Instruction** trampInstructions;
+    uint32_t numberOfTrampInstructions;
 
     uint32_t* gotEntries;
     uint32_t numberOfGOTEntries;

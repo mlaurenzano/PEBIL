@@ -104,12 +104,14 @@ public:
 
     uint32_t setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2);
 
+    static Instruction* generateNoop();
+
     static Instruction* generateMoveImmToReg64(uint64_t imm, uint32_t idx);
     static Instruction* generateMoveImmToReg32(uint64_t imm, uint32_t idx);
     static Instruction* generateMoveRegToMem32(uint32_t idx, uint64_t addr);
     static Instruction* generateStackPush32(uint32_t idx);
     static Instruction* generateStackPop32(uint32_t idx);
-    static Instruction* generateJumpDirect32(uint64_t tgt);
+    static Instruction* generateJumpIndirect32(uint64_t tgt);
     static Instruction* generateJumpRelative32(uint64_t addr, uint64_t tgt);
     static Instruction* generateStackPushImmediate32(uint64_t imm);
     static Instruction* generateCallPLT32(uint64_t addr, uint64_t tgt);

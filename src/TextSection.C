@@ -6,25 +6,87 @@
 #include <SymbolTable.h>
 #include <CStructuresX86.h>
 
-Instruction** TextSection::replaceInstructions(uint64_t addr, Instruction* replacement){
-    /*
-    Instruction** replacedInstructions;
+uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replacements, uint32_t numberOfReplacements, Instruction*** replacedInstructions){
 
-    uint32_t len = 0;
-    Instruction* inst = getInstructionAtAddress(addr);
-    while (inst && len < replacement->getLength()){
-        len += inst->getLength();
-        inst = getInstructionAtAddress(addr+len);
+    ASSERT(!*(replacedInstructions) && "This array should be empty since it will be filled by this function");
+
+    uint32_t replacementBytes = 0;
+    uint32_t bytesToReplace = 0;
+
+    for (uint32_t i = 0; i < numberOfReplacements; i++){
+        replacementBytes += replacements[i]->getLength();
     }
-*/
-    
-    Instruction* toReplace = getInstructionAtAddress(addr);
-    ASSERT(toReplace && "No instruction exists at the specified address");
-    uint32_t replaceIdx = toReplace->getIndex();
-    delete toReplace;
-    instructions[replaceIdx] = replacement;
+    PRINT_INFOR("Need to find room for %d bytes", replacementBytes);
 
-    return NULL;
+    uint32_t instructionsToReplace = 0;
+    Instruction* inst = getInstructionAtAddress(addr);
+    ASSERT(inst && "Instruction should exist at the requested address");
+    for (uint64_t a = addr; a < addr+replacementBytes && inst; ){
+        a += inst->getLength();
+        bytesToReplace += inst->getLength();
+        inst = getInstructionAtAddress(a);
+        instructionsToReplace++;
+    }
+    ASSERT(inst && "Should be enough space to insert the requested instructions");
+    ASSERT(instructionsToReplace && "At least one instruction must be replaced");
+
+    PRINT_INFOR("Going to replace %d bytes/%d instructions", bytesToReplace, instructionsToReplace);
+
+    Instruction** toReplace = new Instruction*[instructionsToReplace];
+    instructionsToReplace = 0;
+    inst = getInstructionAtAddress(addr);
+    ASSERT(inst && "Instruction should exist at the requested address");
+    for (uint64_t a = addr; a < addr+replacementBytes && inst; ){
+        a += inst->getLength();
+        toReplace[instructionsToReplace] = inst;
+        toReplace[instructionsToReplace]->print();
+        inst = getInstructionAtAddress(a);
+        instructionsToReplace++;
+    }
+    ASSERT(inst && "There should be instructions in the range requested by the insert");
+
+    ASSERT(replacementBytes <= bytesToReplace && "Should be enough room to insert the instructions");
+    uint32_t extraNoops = bytesToReplace - replacementBytes;
+
+    PRINT_INFOR("Need to use %d noop instructions", extraNoops);
+    
+    uint32_t newNumberOfInstructions = numberOfInstructions - instructionsToReplace + numberOfReplacements + extraNoops;
+    Instruction** newinstructions = new Instruction*[newNumberOfInstructions];
+    uint32_t currInstruction = 0;
+
+    // copy instructions that occur before this replacement
+    while (currInstruction < toReplace[0]->getIndex()){
+        newinstructions[currInstruction] = instructions[currInstruction];
+        ASSERT(newinstructions[currInstruction]->getIndex() == currInstruction);
+        currInstruction++;
+    }
+
+    // copy the replacement instructions
+    while (currInstruction < toReplace[0]->getIndex() + numberOfReplacements){
+        newinstructions[currInstruction] = replacements[currInstruction-toReplace[0]->getIndex()];
+        newinstructions[currInstruction]->setIndex(currInstruction);
+        currInstruction++;
+    }
+
+    // copy noops that have to be used as padding
+    while (currInstruction < toReplace[0]->getIndex() + numberOfReplacements + extraNoops){
+        newinstructions[currInstruction] = Instruction::generateNoop();
+        newinstructions[currInstruction]->setIndex(currInstruction);
+        currInstruction++;
+    }
+
+    // copy instructions that occur after the replacement
+    while (currInstruction < newNumberOfInstructions){
+        newinstructions[currInstruction] = instructions[currInstruction - newNumberOfInstructions + numberOfInstructions];
+        currInstruction++;
+    }
+
+    delete[] instructions;
+    instructions = newinstructions;
+    numberOfInstructions = newNumberOfInstructions;
+
+    *(replacedInstructions) = toReplace;
+    return instructionsToReplace;
 }
 
 void TextSection::printInstructions(){

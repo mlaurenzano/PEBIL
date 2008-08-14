@@ -43,7 +43,7 @@ public:
     uint32_t getNumberOfFunctions() { return numberOfFunctions; }
     Function* getFunction(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfFunctions && "function index is out of bounds"); return sortedFunctions[idx]; }
 
-    Instruction** replaceInstructions(uint64_t addr, Instruction* replacement);
+    uint32_t replaceInstructions(uint64_t addr, Instruction** replacements, uint32_t numberOfReplacements, Instruction*** replacedInstructions);
 };
 
 
