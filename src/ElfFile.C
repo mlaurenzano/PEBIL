@@ -69,14 +69,16 @@ void ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex){
 
     PRINT_INFOR("Adding PLT entry to relocation table at section %hd", relocTable->getSectionIndex());
 
+    uint64_t gotAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset;    
     if (elfFile->is64Bit()){
-        uint64_t gotAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset;    
         PRINT_INFOR("64 Relocation info %08x %08x ==> %016llx", symbolIndex, R_X86_64_JUMP_SLOT, ELF64_R_INFO(symbolIndex,R_X86_64_JUMP_SLOT));
-        relocOffset = relocTable->addRelocation((uint32_t)gotAddress,ELF64_R_INFO(symbolIndex,R_X86_64_JUMP_SLOT));
+        relocOffset = relocTable->addRelocation(gotAddress,ELF64_R_INFO(symbolIndex,R_X86_64_JUMP_SLOT));
     } else {
-        uint32_t gotAddress = (uint32_t)(elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset);    
         PRINT_INFOR("32 Relocation info %08x %08x ==> %08x", symbolIndex, R_386_JMP_SLOT, ELF32_R_INFO(symbolIndex,R_386_JMP_SLOT));
         relocOffset = relocTable->addRelocation(gotAddress,ELF32_R_INFO(symbolIndex,R_386_JMP_SLOT));
+
+        // in 32bit the linker uses an offset into the table instead of its index
+        relocOffset *= relocTable->getRelocationSize();
     }
     ASSERT(relocOffset && "Should set the relocation offset to a non-trival value");
 
@@ -149,7 +151,7 @@ void ElfFileInst::generateFunctionCall(){
     uint64_t bootstrapAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + bootstrapOffset;
 
     Instruction** replacementCalls = new Instruction*[1];
-    replacementCalls[0] = Instruction::generateCallPLT32(replaceAddr,bootstrapAddress);
+    replacementCalls[0] = Instruction::generateJumpRelative(replaceAddr,bootstrapAddress);
     uint32_t replacementLength = 0;
     for (uint32_t i = 0; i < 1; i++){
         replacementLength += replacementCalls[i]->getLength();
@@ -160,19 +162,22 @@ void ElfFileInst::generateFunctionCall(){
     delete[] replacementCalls;
 
     uint32_t trampSize = 0;
-    numberOfTrampInstructions = numberOfReplacedInstructions + 1 + 8;
+    numberOfTrampInstructions = numberOfReplacedInstructions + 1 + 17;
     trampInstructions = new Instruction*[numberOfTrampInstructions];
-    for (uint32_t i = 0; i < 8; i++){
-        trampInstructions[i] = Instruction::generateStackPop32(8-1-i);
+    for (uint32_t i = 0; i < 16; i++){
+        trampInstructions[i] = Instruction::generateStackPop64(16-1-i);
         trampSize += trampInstructions[i]->getLength();
     }
 
+    trampInstructions[16] = Instruction::generatePopEflags();
+    trampSize += trampInstructions[16]->getLength();
+
     for (uint32_t i = 0; i < numberOfReplacedInstructions; i++){
-        trampInstructions[i+8] = replacedInstructions[i];
-        trampSize += trampInstructions[i+8]->getLength();
+        trampInstructions[i+17] = replacedInstructions[i];
+        trampSize += trampInstructions[i+17]->getLength();
     }
 
-    trampInstructions[numberOfTrampInstructions-1] = Instruction::generateJumpRelative32(elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + extraTextOffset + trampSize,
+    trampInstructions[numberOfTrampInstructions-1] = Instruction::generateJumpRelative(elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + extraTextOffset + trampSize,
                                                                                          textHeader->GET(sh_addr) + replacementLength);
     trampSize += trampInstructions[numberOfTrampInstructions-1]->getLength();
 
@@ -423,9 +428,102 @@ uint32_t ElfFileInst::generateProcedureLinkageTable(){
 }
 
 uint32_t ElfFileInst::generateProcedureLinkageTable64(){
+    uint32_t pltSize = 0;
+    uint32_t gotAddress = (uint32_t)(elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset);
+
+    numberOfPLTInstructions = 3;
+    pltInstructions = new Instruction*[numberOfPLTInstructions];
+    numberOfPLTInstructions = 0;
+
+    uint32_t returnAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
+    pltInstructions[numberOfPLTInstructions] = Instruction::generateIndirectRelativeJump64(returnAddress,gotAddress);
+    uint32_t pltReturnOffset = pltInstructions[numberOfPLTInstructions]->getLength();
+    pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
+    uint32_t gotInfo = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
+    numberOfPLTInstructions++;
+
+    pltInstructions[numberOfPLTInstructions] = Instruction::generateStackPushImmediate(relocOffset);
+    pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
+    numberOfPLTInstructions++;
+
+    // find the plt section
+    DynamicTable* dynamicTable = elfFile->getDynamicTable();
+    
+    uint16_t realPLTSectionIdx = elfFile->findSectionIdx(".plt");
+    ASSERT(realPLTSectionIdx && "Cannot find a section named `.plt`");
+    uint32_t realPLTAddress = elfFile->getSectionHeader(realPLTSectionIdx)->GET(sh_addr);
+    returnAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
+
+    pltInstructions[numberOfPLTInstructions] = Instruction::generateJumpRelative(returnAddress,realPLTAddress);
+    pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
+    numberOfPLTInstructions++;
+
+    ASSERT(pltSize < elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) - extraTextOffset);
+    extraTextOffset += pltSize;
+
+    bootstrapOffset = extraTextOffset;
+    uint32_t bootstrapSize = 0;
+    numberOfBootstrapInstructions = 8 + 17;
+    bootstrapInstructions = new Instruction*[numberOfBootstrapInstructions];
+    numberOfBootstrapInstructions = 0;
+
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(1);
+    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
+    numberOfBootstrapInstructions++;
+
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(2);
+    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
+    numberOfBootstrapInstructions++;
+
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotInfo,1);
+    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
+    numberOfBootstrapInstructions++;
+
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotAddress,2);
+    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
+    numberOfBootstrapInstructions++;
+
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveRegToRegaddr(1,2);
+    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
+    numberOfBootstrapInstructions++;    
+
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop64(2);
+    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
+    numberOfBootstrapInstructions++;
+
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop64(1);
+    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
+    numberOfBootstrapInstructions++;
+
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generatePushEflags();
+    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
+    numberOfBootstrapInstructions++;
+
+    for (uint32_t i = 0; i < 16; i++){
+        bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(i);
+        bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
+        numberOfBootstrapInstructions++;
+    }
+
+
+    uint64_t pltAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset;
+    uint64_t currAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + bootstrapOffset + bootstrapSize;
+
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateCallRelative(currAddress,pltAddress);
+    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
+    numberOfBootstrapInstructions++;
+
+    ASSERT(bootstrapSize < elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) - extraTextOffset);
+    extraTextOffset += bootstrapSize;
+
+
+    PRINT_INFOR("Verifying elf structures after adding our PLT");
+
+    elfFile->verify();
+
+    return pltReturnOffset;
     PRINT_ERROR("ElfFileInst::generateProcedureLinkageTable has not been written for 64bit yet");
     ASSERT(0 && "Cannot continue");
-    return 0;
 }
 
 uint32_t ElfFileInst::generateProcedureLinkageTable32(){
@@ -442,7 +540,7 @@ uint32_t ElfFileInst::generateProcedureLinkageTable32(){
     uint32_t gotInfo = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
     numberOfPLTInstructions++;
 
-    pltInstructions[numberOfPLTInstructions] = Instruction::generateStackPushImmediate32(relocOffset);
+    pltInstructions[numberOfPLTInstructions] = Instruction::generateStackPushImmediate(relocOffset);
     pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
     numberOfPLTInstructions++;
 
@@ -455,7 +553,7 @@ uint32_t ElfFileInst::generateProcedureLinkageTable32(){
     uint32_t realPLTAddress = elfFile->getSectionHeader(realPLTSectionIdx)->GET(sh_addr);
     uint32_t returnAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
 
-    pltInstructions[numberOfPLTInstructions] = Instruction::generateJumpRelative32(returnAddress,realPLTAddress);
+    pltInstructions[numberOfPLTInstructions] = Instruction::generateJumpRelative(returnAddress,realPLTAddress);
     pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
     numberOfPLTInstructions++;
 
@@ -472,11 +570,11 @@ uint32_t ElfFileInst::generateProcedureLinkageTable32(){
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg32(gotInfo,1);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotInfo,1);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveRegToMem32(1,gotAddress);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveRegToMem(1,gotAddress);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
@@ -494,7 +592,7 @@ uint32_t ElfFileInst::generateProcedureLinkageTable32(){
     uint64_t pltAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset;
     uint64_t currAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + bootstrapOffset + bootstrapSize;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateCallPLT32(currAddress,pltAddress);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateCallRelative(currAddress,pltAddress);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 

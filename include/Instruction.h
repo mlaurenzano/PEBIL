@@ -106,15 +106,22 @@ public:
 
     static Instruction* generateNoop();
 
-    static Instruction* generateMoveImmToReg64(uint64_t imm, uint32_t idx);
-    static Instruction* generateMoveImmToReg32(uint64_t imm, uint32_t idx);
-    static Instruction* generateMoveRegToMem32(uint32_t idx, uint64_t addr);
+    static Instruction* generateStackPush64(uint32_t idx);
+    static Instruction* generateStackPop64(uint32_t idx);
+    static Instruction* generateIndirectRelativeJump64(uint64_t addr, uint64_t tgt);
+
+    static Instruction* generatePushEflags();
+    static Instruction* generatePopEflags();
+    static Instruction* generateMoveRegToRegaddr(uint32_t srcidx, uint32_t destidx);
+    static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
+    static Instruction* generateMoveRegToMem(uint32_t idx, uint64_t addr);
+    static Instruction* generateJumpRelative(uint64_t addr, uint64_t tgt);
+    static Instruction* generateStackPushImmediate(uint64_t imm);
+    static Instruction* generateCallRelative(uint64_t addr, uint64_t tgt);
+
     static Instruction* generateStackPush32(uint32_t idx);
     static Instruction* generateStackPop32(uint32_t idx);
     static Instruction* generateJumpIndirect32(uint64_t tgt);
-    static Instruction* generateJumpRelative32(uint64_t addr, uint64_t tgt);
-    static Instruction* generateStackPushImmediate32(uint64_t imm);
-    static Instruction* generateCallPLT32(uint64_t addr, uint64_t tgt);
 
     static uint32_t computeOpcodeTypeOneByte(uint32_t idx);
     static uint32_t computeOpcodeTypeTwoByte(uint32_t idx);

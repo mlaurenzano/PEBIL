@@ -14,7 +14,7 @@ void RelocationTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 
-uint32_t RelocationTable::addRelocation(uint32_t offset, uint32_t info){
+uint32_t RelocationTable::addRelocation(uint64_t offset, uint64_t info){
 
     Relocation** newRelocations = new Relocation*[numberOfRelocations+1];
 
@@ -50,7 +50,7 @@ uint32_t RelocationTable::addRelocation(uint32_t offset, uint32_t info){
     sizeInBytes += relocationSize;
 
     // returns the offset of the new entry
-    return sizeInBytes - relocationSize;
+    return numberOfRelocations-1;
 }
 
 

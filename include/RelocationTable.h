@@ -124,7 +124,7 @@ public:
     uint16_t setSymbolTable();
     uint16_t setRelocationSection();
 
-    uint32_t addRelocation(uint32_t offset, uint32_t info);
+    uint32_t addRelocation(uint64_t offset, uint64_t info);
 
     const char* briefName() { return "RelocationTable"; }
 };
