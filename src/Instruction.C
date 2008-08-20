@@ -8,8 +8,8 @@ void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 Instruction* Instruction::generateStackPush64(uint32_t idx){
-    ASSERT(idx < 16 && "Illegal register index given");
-    if (idx < 8){
+    ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
+    if (idx < X86_32BIT_GPRS){
         return Instruction::generateStackPush32(idx);
     }
 
@@ -27,8 +27,8 @@ Instruction* Instruction::generateStackPush64(uint32_t idx){
 }
 
 Instruction* Instruction::generateStackPop64(uint32_t idx){
-    ASSERT(idx < 16 && "Illegal register index given");
-    if (idx < 8){
+    ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
+    if (idx < X86_32BIT_GPRS){
         return Instruction::generateStackPop32(idx);
     }
 
@@ -133,7 +133,7 @@ Instruction* Instruction::generateIndirectRelativeJump64(uint64_t addr, uint64_t
 }
 
 Instruction* Instruction::generateMoveImmToReg(uint64_t imm, uint32_t idx){
-    ASSERT(idx < 8 && "Illegal register index given");
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     
     Instruction* ret = new Instruction();
     uint32_t len = 5;
@@ -155,7 +155,7 @@ Instruction* Instruction::generateMoveImmToReg(uint64_t imm, uint32_t idx){
 }
 
 Instruction* Instruction::generateMoveRegToMem(uint32_t idx, uint64_t addr){
-    ASSERT(idx > 0 && idx < 8 && "Illegal register index given");
+    ASSERT(idx > 0 && idx < X86_32BIT_GPRS && "Illegal register index given");
 
     Instruction* ret = new Instruction();
     uint32_t len = 6;
@@ -179,7 +179,7 @@ Instruction* Instruction::generateMoveRegToMem(uint32_t idx, uint64_t addr){
 }
 
 Instruction* Instruction::generateStackPush32(uint32_t idx){
-    ASSERT(idx < 8 && "Illegal register index given");
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     Instruction* ret = new Instruction();
     uint32_t len = 1;
 
@@ -196,7 +196,7 @@ Instruction* Instruction::generateStackPush32(uint32_t idx){
 }
 
 Instruction* Instruction::generateStackPop32(uint32_t idx){
-    ASSERT(idx < 8 && "Illegal register index given");
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     Instruction* ret = new Instruction();
     uint32_t len = 1;
 

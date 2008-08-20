@@ -162,19 +162,19 @@ void ElfFileInst::generateFunctionCall(){
     delete[] replacementCalls;
 
     uint32_t trampSize = 0;
-    numberOfTrampInstructions = numberOfReplacedInstructions + 1 + 17;
+    numberOfTrampInstructions = numberOfReplacedInstructions + 1 + X86_64BIT_GPRS + 1;
     trampInstructions = new Instruction*[numberOfTrampInstructions];
-    for (uint32_t i = 0; i < 16; i++){
-        trampInstructions[i] = Instruction::generateStackPop64(16-1-i);
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+        trampInstructions[i] = Instruction::generateStackPop64(X86_64BIT_GPRS-1-i);
         trampSize += trampInstructions[i]->getLength();
     }
 
-    trampInstructions[16] = Instruction::generatePopEflags();
-    trampSize += trampInstructions[16]->getLength();
+    trampInstructions[X86_64BIT_GPRS] = Instruction::generatePopEflags();
+    trampSize += trampInstructions[X86_64BIT_GPRS]->getLength();
 
     for (uint32_t i = 0; i < numberOfReplacedInstructions; i++){
-        trampInstructions[i+17] = replacedInstructions[i];
-        trampSize += trampInstructions[i+17]->getLength();
+        trampInstructions[i+X86_64BIT_GPRS+1] = replacedInstructions[i];
+        trampSize += trampInstructions[i+X86_64BIT_GPRS+1]->getLength();
     }
 
     trampInstructions[numberOfTrampInstructions-1] = Instruction::generateJumpRelative(elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + extraTextOffset + trampSize,
@@ -463,35 +463,35 @@ uint32_t ElfFileInst::generateProcedureLinkageTable64(){
 
     bootstrapOffset = extraTextOffset;
     uint32_t bootstrapSize = 0;
-    numberOfBootstrapInstructions = 8 + 17;
+    numberOfBootstrapInstructions = 8 + X86_64BIT_GPRS + 1;
     bootstrapInstructions = new Instruction*[numberOfBootstrapInstructions];
     numberOfBootstrapInstructions = 0;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(1);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(X86_REG_CX);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(2);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(X86_REG_DX);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotInfo,1);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotInfo,X86_REG_CX);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotAddress,2);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotAddress,X86_REG_DX);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveRegToRegaddr(1,2);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;    
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop64(2);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop64(X86_REG_DX);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop64(1);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop64(X86_REG_CX);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
@@ -499,7 +499,7 @@ uint32_t ElfFileInst::generateProcedureLinkageTable64(){
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
-    for (uint32_t i = 0; i < 16; i++){
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
         bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(i);
         bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
         numberOfBootstrapInstructions++;
@@ -562,27 +562,31 @@ uint32_t ElfFileInst::generateProcedureLinkageTable32(){
 
     bootstrapOffset = extraTextOffset;
     uint32_t bootstrapSize = 0;
-    numberOfBootstrapInstructions = 5 + 8;
+    numberOfBootstrapInstructions = 5 + X86_32BIT_GPRS + 1;
     bootstrapInstructions = new Instruction*[numberOfBootstrapInstructions];
     numberOfBootstrapInstructions = 0;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush32(1);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush32(X86_REG_CX);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotInfo,1);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotInfo,X86_REG_CX);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveRegToMem(1,gotAddress);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveRegToMem(X86_REG_CX,gotAddress);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop32(1);
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop32(X86_REG_CX);
     bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
     numberOfBootstrapInstructions++;
 
-    for (uint32_t i = 0; i < 8; i++){
+    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generatePushEflags();
+    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
+    numberOfBootstrapInstructions++;
+
+    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
         bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush32(i);
         bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
         numberOfBootstrapInstructions++;

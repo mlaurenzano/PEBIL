@@ -34,7 +34,27 @@ extern "C" {
 #include <stdint.h>
 #include <stdio.h>
 
-#define X86_GPRS 16
+
+    // my non-gnu definitions for X86
+#define X86_32BIT_GPRS 8
+#define X86_64BIT_GPRS 16
+#define X86_REG_AX 0
+#define X86_REG_CX 1
+#define X86_REG_DX 2
+#define X86_REG_BX 3
+#define X86_REG_SP 4
+#define X86_REG_BP 5
+#define X86_REG_SI 6
+#define X86_REG_DI 7
+#define X86_REG_R8 8
+#define X86_REG_R9 9
+#define X86_REG_R10 10
+#define X86_REG_R11 11
+#define X86_REG_R12 12
+#define X86_REG_R13 13
+#define X86_REG_R14 14
+#define X86_REG_R15 15
+
 
 
     /* This struct is passed into the instruction decoding routine, 
