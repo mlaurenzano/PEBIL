@@ -27,11 +27,11 @@ SRCDIR      = ../src
 BINDIR      = ../bin
 LIBDIR      = ../lib
 
-SRCS        = Base.C BinaryFile.C Disassembler.C DynamicTable.C ElfFile.C FileHeader.C \
+SRCS        = Base.C BinaryFile.C Disassembler.C DynamicTable.C ElfFile.C ElfFileInst.C FileHeader.C \
               Function.C GlobalOffsetTable.C GnuVerneedTable.C GnuVersymTable.C HashTable.C Instruction.C NoteSection.C \
               ProgramHeader.C RawSection.C RelocationTable.C SectionHeader.C StringTable.C \
               SymbolTable.C TextSection.C main.C
-OBJS        = Base.o BinaryFile.o Disassembler.o DynamicTable.o ElfFile.o FileHeader.o \
+OBJS        = Base.o BinaryFile.o Disassembler.o DynamicTable.o ElfFile.o ElfFileInst.o FileHeader.o \
               Function.o GlobalOffsetTable.o GnuVerneedTable.o GnuVersymTable.o HashTable.o Instruction.o NoteSection.o \
               ProgramHeader.o RawSection.o RelocationTable.o SectionHeader.o StringTable.o \
               SymbolTable.o TextSection.o main.o

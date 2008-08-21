@@ -89,7 +89,6 @@ Instruction* Instruction::generateNoop(){
 Instruction* Instruction::generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest){
     ASSERT(idxsrc < 8 && "Illegal register index given");
     ASSERT(idxdest < 8 && "Illegal register index given");    
-
     Instruction* ret = new Instruction();
     uint32_t len = 3;
 

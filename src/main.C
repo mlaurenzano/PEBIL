@@ -1,5 +1,6 @@
 #include <Base.h>
 #include <ElfFile.h>
+#include <ElfFileInst.h>
 
 void printBriefOptions(){
     fprintf(stderr,"\n");

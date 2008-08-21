@@ -57,6 +57,7 @@ dat32run:
 dat32ide:
 	for i in ${32BITPROGS}; do \
 		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(DATEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+		diff -s $(32BITBIN)/"$$i".$(DATEXT) $(32BITBIN)/"$$i".$(DATEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(32BITBIN)/*.$(IDEEXT)
 
@@ -77,6 +78,7 @@ dat64run:
 dat64ide:
 	for i in ${64BITPROGS}; do \
 		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(DATEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+		diff -s $(64BITBIN)/"$$i".$(DATEXT) $(64BITBIN)/"$$i".$(DATEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(64BITBIN)/*.$(IDEEXT)
 
