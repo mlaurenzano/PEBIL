@@ -20,7 +20,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_NOTE
 
 #define __MAX_STRING_SIZE 1024
-#define __SHOULD_NOT_ARRIVE ASSERT(0 && "Should not be called")
+#define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
 
 #define GET_FIELD_BASIS(__type,__field) virtual __type get_ ## __field() \
     { __SHOULD_NOT_ARRIVE; return ( __type )0; }
@@ -172,6 +172,13 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Size__32_bit_Gnu_Versym             sizeof(uint16_t)
 #define Size__64_bit_Gnu_Versym             sizeof(uint16_t)
 
+#define Size__32_bit_Function_Wrapper       24
+#define Size__64_bit_Function_Wrapper       56
+#define Size__32_bit_Procedure_Link         16
+#define Size__64_bit_Procedure_Link         16
+#define Size__32_bit_Bootstrap              11
+#define Size__64_bit_Bootstrap              13
+
 typedef enum {
     ElfRelType_undefined = 0,
     ElfRelType_rel,
@@ -193,6 +200,9 @@ typedef enum {
     ElfClassTypes_GnuVersymTable,
     ElfClassTypes_HashTable,
     ElfClassTypes_Instruction,
+    ElfClassTypes_InstrumentationFunction,
+    ElfClassTypes_InstrumentationPoint,
+    ElfClassTypes_InstrumentationSnippet,
     ElfClassTypes_Note,
     ElfClassTypes_NoteSection,
     ElfClassTypes_ProgramHeader,

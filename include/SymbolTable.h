@@ -9,6 +9,7 @@
 
 class StringTable;
 class ElfFile;
+class SymbolTable;
 
 static char* symbol_without_name = "<__no_name__x86_instrumentor>";
 
@@ -21,17 +22,19 @@ public:
 
     uint32_t index;
     char* symbolPtr;
+    SymbolTable* table;
 
-    Symbol(char* symPtr, uint32_t idx) : Base(ElfClassTypes_Symbol),symbolPtr(symPtr),index(idx) {}
+    Symbol(SymbolTable* tbl, char* symPtr, uint32_t idx) : Base(ElfClassTypes_Symbol),table(tbl),symbolPtr(symPtr),index(idx) {}
         ~Symbol(){};
 
     SYMBOL_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 
-    void print(char* symbolName);
+    void print();
     uint32_t getIndex() { return index; }
     char* getSymbolPtr() { return symbolPtr; }
     bool verify(uint16_t targetSize);
     virtual char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
+    char* getSymbolName();
 
     virtual unsigned char getSymbolBinding() { __SHOULD_NOT_ARRIVE; }
     virtual unsigned char getSymbolType() { __SHOULD_NOT_ARRIVE; }
@@ -44,7 +47,7 @@ private:
     Elf32_Sym entry;
 protected:
 public:
-    Symbol32(char* symPtr, uint32_t idx) : Symbol(symPtr,idx){ sizeInBytes = Size__32_bit_Symbol; }
+    Symbol32(SymbolTable* tbl, char* symPtr, uint32_t idx) : Symbol(tbl, symPtr,idx){ sizeInBytes = Size__32_bit_Symbol; }
     ~Symbol32() {}
     char* charStream() { return (char*)&entry; }
 
@@ -60,7 +63,7 @@ private:
     Elf64_Sym entry;
 protected:
 public:
-    Symbol64(char* symPtr, uint32_t idx) : Symbol(symPtr, idx) { sizeInBytes = Size__64_bit_Symbol; }
+    Symbol64(SymbolTable* tbl, char* symPtr, uint32_t idx) : Symbol(tbl, symPtr, idx) { sizeInBytes = Size__64_bit_Symbol; }
     ~Symbol64() {}
     char* charStream() { return (char*)&entry; }
 

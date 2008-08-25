@@ -57,21 +57,18 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
     // copy instructions that occur before this replacement
     while (currInstruction < toReplace[0]->getIndex()){
         newinstructions[currInstruction] = instructions[currInstruction];
-        ASSERT(newinstructions[currInstruction]->getIndex() == currInstruction);
         currInstruction++;
     }
 
     // copy the replacement instructions
     while (currInstruction < toReplace[0]->getIndex() + numberOfReplacements){
         newinstructions[currInstruction] = replacements[currInstruction-toReplace[0]->getIndex()];
-        newinstructions[currInstruction]->setIndex(currInstruction);
         currInstruction++;
     }
 
     // copy noops that have to be used as padding
     while (currInstruction < toReplace[0]->getIndex() + numberOfReplacements + extraNoops){
         newinstructions[currInstruction] = Instruction::generateNoop();
-        newinstructions[currInstruction]->setIndex(currInstruction);
         currInstruction++;
     }
 
@@ -85,9 +82,17 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
     instructions = newinstructions;
     numberOfInstructions = newNumberOfInstructions;
 
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        instructions[i]->setIndex(i);
+    }
+
     *(replacedInstructions) = toReplace;
+
+    verify();
+
     return instructionsToReplace;
 }
+
 
 void TextSection::printInstructions(){
     for (uint32_t i = 0; i < numberOfInstructions; i++){
@@ -168,12 +173,12 @@ uint32_t TextSection::findFunctions(){
     if (numberOfFunctions){
         for (uint32_t i = 0; i < numberOfFunctions-1; i++){
             sortedFunctions[i] = new Function(this, functionSymbols[i], functionSymbols[i+1]->GET(st_value), i);
-            functionSymbols[i]->print(NULL);
+            functionSymbols[i]->print();
         }
         // the last function does till the end of the section
         sortedFunctions[numberOfFunctions-1] = new Function(this, functionSymbols[numberOfFunctions-1], 
                                                             sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size), numberOfFunctions-1);
-        functionSymbols[numberOfFunctions-1]->print(NULL);
+        functionSymbols[numberOfFunctions-1]->print();
     }
     delete[] functionSymbols;
 
@@ -188,6 +193,15 @@ uint32_t TextSection::findFunctions(){
 
 bool TextSection::verify(){
     SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
+
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (!instructions[i]){
+            PRINT_ERROR("Instruction at index %d should exist", i);
+        }
+        if (i != instructions[i]->getIndex()){
+            PRINT_ERROR("Instruction at index %d has index %d", i, instructions[i]->getIndex());
+        }
+    }
 
     if (!numberOfFunctions){
         return true;

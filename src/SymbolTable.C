@@ -4,6 +4,13 @@
 #include <ElfFile.h>
 #include <BinaryFile.h>
 
+char* Symbol::getSymbolName(){
+    if (table){
+        return table->getSymbolName(index);
+    }
+    return NULL;
+}
+
 int compareSymbolValue(const void* arg1,const void* arg2){
     Symbol* sym1 = *((Symbol**)arg1);
     Symbol* sym2 = *((Symbol**)arg2);
@@ -68,10 +75,9 @@ uint32_t SymbolTable::findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t buf
 
     if (!symbolsAreSorted()){
         for (uint32_t i = 0; i < numberOfSymbols; i++){
-            sortedSymbols[i]->print(getSymbolName(sortedSymbols[i]->getIndex()));
+            sortedSymbols[i]->print();
         }
-
-        ASSERT(0 && "cannot find symbol if symbols are out of order");
+        __SHOULD_NOT_ARRIVE;
     }
 
     ASSERT(sortedSymbols && "symbol should be sorted by now");
@@ -133,7 +139,7 @@ uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, ui
     }
 
     if (elfFile->is64Bit()){
-        Symbol64* sym = new Symbol64(NULL, numberOfSymbols);
+        Symbol64* sym = new Symbol64(this, NULL, numberOfSymbols);
         Elf64_Sym symEntry;
         symEntry.st_name = name;
         symEntry.st_value = value;
@@ -147,7 +153,7 @@ uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, ui
 
         sizeInBytes += Size__64_bit_Symbol;
     } else {
-        Symbol32* sym = new Symbol32(NULL, numberOfSymbols);
+        Symbol32* sym = new Symbol32(this, NULL, numberOfSymbols);
         Elf32_Sym symEntry;
         symEntry.st_name = name;
         symEntry.st_value = (uint32_t)value;
@@ -324,9 +330,9 @@ uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
 
     for (uint32_t i = 0; i < numberOfSymbols; i++){
         if (elfFile->is64Bit()){
-            symbols[i] = new Symbol64(getFilePointer() + (i * Size__64_bit_Symbol), i);
+            symbols[i] = new Symbol64(this, getFilePointer() + (i * Size__64_bit_Symbol), i);
         } else {
-            symbols[i] = new Symbol32(getFilePointer() + (i * Size__32_bit_Symbol), i);
+            symbols[i] = new Symbol32(this, getFilePointer() + (i * Size__32_bit_Symbol), i);
         }
         totalBytesRead += symbols[i]->read(binaryInputFile);
     }
@@ -354,7 +360,7 @@ void SymbolTable::print(){
     PRINT_INFOR("SymbolTable : %d aka sect %d with %d symbols",index,getSectionIndex(),numberOfSymbols);
     PRINT_INFOR("\tdyn? : %s", isDynamic() ? "yes" : "no");
     for (uint32_t i = 0; i < numberOfSymbols; i++){
-        symbols[i]->print(getSymbolName(i));
+        symbols[i]->print();
     }
 }
 
@@ -376,7 +382,7 @@ void SymbolTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 
 
 
-void Symbol::print(char* symbolName){
+void Symbol::print(){
 
     char* bindstr = "UNK";
     switch(ELF32_ST_BIND(GET(st_info))){
@@ -407,6 +413,8 @@ void Symbol::print(char* symbolName){
         case STT_HIPROC: typestr="HIPR";break;
         default:break;
     }
+
+    char* symbolName = table->getSymbolName(index);
 
     PRINT_INFOR("\tsym%5d -- sx:%5d sz:%8lld bxt: %3s.%4s vl:%#12llx ot:%3d nx:%8u\t%s",index,
             GET(st_shndx),GET(st_size),bindstr,typestr,GET(st_value),GET(st_other),

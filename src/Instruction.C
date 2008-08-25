@@ -7,6 +7,21 @@ void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     binaryOutputFile->copyBytes(rawBytes,instructionLength,offset);
 }
 
+Instruction* Instruction::generateReturn(){
+    Instruction* ret = new Instruction();
+    uint32_t len = 1;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    buff[0] = 0xc3;
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+
 Instruction* Instruction::generateStackPush64(uint32_t idx){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
     if (idx < X86_32BIT_GPRS){

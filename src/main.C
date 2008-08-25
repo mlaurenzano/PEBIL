@@ -215,6 +215,9 @@ int main(int argc,char* argv[]){
     } else if (instType == data_extender_type){
         ElfFileInst* elfInst = new ElfFileInst(&elfFile);
 
+        elfInst->declareLibrary("libtest.so");
+        elfInst->declareFunction("smalltest");
+        elfInst->declareFunction("secondtest");
         elfInst->instrument();
 
         elfInst->print();

@@ -110,6 +110,7 @@ public:
     static Instruction* generateStackPop64(uint32_t idx);
     static Instruction* generateIndirectRelativeJump64(uint64_t addr, uint64_t tgt);
 
+    static Instruction* generateReturn();
     static Instruction* generatePushEflags();
     static Instruction* generatePopEflags();
     static Instruction* generateMoveRegToRegaddr(uint32_t srcidx, uint32_t destidx);

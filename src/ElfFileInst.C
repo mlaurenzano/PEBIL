@@ -1,23 +1,19 @@
+#include <Base.h>
+#include <ElfFileInst.h>
 #include <ElfFile.h>
-#include <FileHeader.h>
-#include <ProgramHeader.h>
-#include <SectionHeader.h>
-#include <BinaryFile.h>
-#include <RawSection.h>
-#include <TextSection.h>
-#include <StringTable.h>
-#include <SymbolTable.h>
-#include <RelocationTable.h>
-#include <Disassembler.h>
-#include <CStructuresX86.h>
-#include <GlobalOffsetTable.h>
 #include <DynamicTable.h>
+#include <StringTable.h>
+#include <SectionHeader.h>
+#include <ProgramHeader.h>
 #include <HashTable.h>
-#include <NoteSection.h>
-#include <Instruction.h>
-#include <PriorityQueue.h>
-#include <GnuVerneedTable.h>
+#include <RelocationTable.h>
 #include <GnuVersymTable.h>
+#include <GnuVerneedTable.h>
+#include <Instruction.h>
+#include <CStructuresX86.h>
+#include <TextSection.h>
+#include <FileHeader.h>
+#include <Instrumentation.h>
 
 TIMER(
 	extern double cfg_s1;
@@ -31,102 +27,129 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
-void ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex){
-    ASSERT(extraDataIdx && "Must reserve space for extra data prior to calling this function");
-    ASSERT(extraTextIdx && "Must reserve space for extra text prior to calling this function");
-    ASSERT(!pltInstructions && !numberOfPLTInstructions && "We should not have already created a PLT");
-    ASSERT(!gotEntries && !numberOfGOTEntries && "We should not have already created a GOT");
+void ElfFileInst::generateInstrumentation(){
+    ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
-    DynamicTable* dynTable = elfFile->getDynamicTable();
-
-    ASSERT(dynTable->countDynamics(DT_JMPREL) == 1 && "Cannot find a unique Relocation table for this file");
-    
-    uint64_t relocTableAddr = dynTable->getDynamicByType(DT_JMPREL,0)->GET_A(d_val,d_un);
-    ASSERT(relocTableAddr && "Count not find a relocation table address in the dynamic table");
-
-    RelocationTable* relocTable = (RelocationTable*)elfFile->getRawSection(elfFile->findSectionIdx(relocTableAddr));
-    ASSERT(relocTable->getType() == ElfClassTypes_RelocationTable && "Found wrong section type when searching for relocation table");
-
-    PRINT_INFOR("Adding PLT entry to relocation table at section %hd", relocTable->getSectionIndex());
-
-    uint64_t gotAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset;    
-    if (elfFile->is64Bit()){
-        PRINT_INFOR("64 Relocation info %08x %08x ==> %016llx", symbolIndex, R_X86_64_JUMP_SLOT, ELF64_R_INFO(symbolIndex,R_X86_64_JUMP_SLOT));
-        relocOffset = relocTable->addRelocation(gotAddress,ELF64_R_INFO(symbolIndex,R_X86_64_JUMP_SLOT));
-    } else {
-        PRINT_INFOR("32 Relocation info %08x %08x ==> %08x", symbolIndex, R_386_JMP_SLOT, ELF32_R_INFO(symbolIndex,R_386_JMP_SLOT));
-        relocOffset = relocTable->addRelocation(gotAddress,ELF32_R_INFO(symbolIndex,R_386_JMP_SLOT));
-
-        // in 32bit the linker uses an offset into the table instead of its index
-        relocOffset *= relocTable->getRelocationSize();
-    }
-    ASSERT(relocOffset && "Should set the relocation offset to a non-trival value");
-
-
-    SectionHeader* relocationSection = elfFile->getSectionHeader(relocTable->getSectionIndex());
-    uint32_t extraSize = relocTable->getRelocationSize();
-    relocationSection->INCREMENT(sh_size,extraSize);
-
-    // displace every section in the text segment that comes after the dynamic string section and before the initial text section
-    for (uint32_t i = relocationSection->getIndex()+1; i <= extraTextIdx; i++){
-        SectionHeader* sHdr = elfFile->getSectionHeader(i);
-        PRINT_INFOR("Adding relocation table: modifying section offset from %lld to %lld", sHdr->GET(sh_offset), sHdr->GET(sh_offset) + extraSize);
-        extraSize = nextAlignAddress(sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign)) - sHdr->GET(sh_addr);
-        sHdr->INCREMENT(sh_offset,extraSize);
-        sHdr->INCREMENT(sh_addr,extraSize);
-    }
-
-    // shrink the size of the extra text section to accomodate the increase of the control sections
-    elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
-
-    for (uint32_t i = 0; i < dynTable->getNumberOfDynamics(); i++){
-        Dynamic* dyn = dynTable->getDynamic(i);
-        uint64_t tag = dyn->GET(d_tag);
-        if (tag == DT_PLTRELSZ){
-            dyn->INCREMENT_A(d_val,d_un,relocTable->getRelocationSize());
-            ASSERT(dyn->GET_A(d_val,d_un) == relocTable->getNumberOfRelocations()*relocTable->getRelocationSize() && 
-                   "The number of entries in the relocation table does not match the amount given in the dynamic table");
-        }
-
-        if (tag == DT_REL || tag == DT_RELA){
-            if (dyn->GET_A(d_ptr,d_un) > relocationSection->GET(sh_addr)){
-                dyn->INCREMENT_A(d_ptr,d_un,extraSize);
-            }
-        }
-    }
-    
-    elfFile->verify();
-}
-
-// the order of the functions called here matters
-void ElfFileInst::instrument(){
-    PRINT_INFOR("Beginning Instrumentation Of elf file");
-
-    extendTextSection(0x1000);
-    PRINT_INFOR("Successfully extended text section/segment");
-    extendDataSection(0x100);
-    PRINT_INFOR("Successfully extended data section/segment");
-
-    uint32_t symbolIndex = addSharedLibrary("libtest.so", "smalltest");
-    PRINT_INFOR("Successfully added shared library");
-    
-    addPLTRelocationEntry(symbolIndex);
-    PRINT_INFOR("Successfully added PLT relocation entries");
-
-    uint32_t pltReturnOffset = generateProcedureLinkageTable();
-    PRINT_INFOR("Successfully generated PLT");
-    generateGlobalOffsetTable(pltReturnOffset);
-    PRINT_INFOR("Successfully generated GOT");
-
-    generateFunctionCall();
-}
-
-void ElfFileInst::generateFunctionCall(){
     uint16_t textIdx = elfFile->findSectionIdx(".text");
     TextSection* textSection = (TextSection*)elfFile->getRawSection(textIdx);
     SectionHeader* textHeader = elfFile->getSectionHeader(textIdx);
     ASSERT(textSection->getType() == ElfClassTypes_TextSection && ".text section has the wrong type");
 
+    uint16_t pltIdx = elfFile->findSectionIdx(".plt");
+    TextSection* pltSection = (TextSection*)elfFile->getRawSection(pltIdx);
+    ASSERT(pltSection->getType() == ElfClassTypes_TextSection && ".plt section has the wrong type");
+
+    InstrumentationSnippet* snip = new InstrumentationSnippet(IDX_INST_BOOTSTRAP_BEGIN);
+    snip->addInstruction(Instruction::generateStackPush32(X86_REG_CX));
+    snip->addInstruction(Instruction::generateStackPush32(X86_REG_DX));
+    instrumentations[IDX_INST_BOOTSTRAP_BEGIN] = snip;
+
+    snip = new InstrumentationSnippet(IDX_INST_BOOTSTRAP_END);
+    snip->addInstruction(Instruction::generateStackPop32(X86_REG_DX));
+    snip->addInstruction(Instruction::generateStackPop32(X86_REG_CX));
+    snip->addInstruction(Instruction::generateReturn());
+    instrumentations[IDX_INST_BOOTSTRAP_END] = snip;
+
+    ASSERT(!instrumentationPoints[IDX_POINT_BOOTSTRAP] && "instrumentationPoint[IDX_POINT_BOOTSTRAP] is reserved");
+    for (uint32_t i = 0; i < textSection->getNumberOfFunctions(); i++){
+        if (!strcmp(textSection->getFunction(i)->getFunctionName(),"_start")){
+            ASSERT(!instrumentationPoints[IDX_POINT_BOOTSTRAP] && "Found more than one start function");
+            instrumentationPoints[IDX_POINT_BOOTSTRAP] = new InstrumentationPoint(IDX_POINT_BOOTSTRAP, (Base*)textSection->getFunction(i), instrumentations[IDX_INST_BOOTSTRAP_BEGIN]);
+        }
+    }
+
+    // compute the size of the bootstrap code
+    uint32_t bootstrapSize = 0;
+    bootstrapSize += instrumentations[IDX_INST_BOOTSTRAP_BEGIN]->sizeNeeded();
+    for (uint32_t i = 0; i < numberOfInstrumentations; i++){
+        if(instrumentations[i]->getType() == ElfClassTypes_InstrumentationFunction){
+            InstrumentationFunction* func = (InstrumentationFunction*)instrumentations[i];
+            bootstrapSize += func->bootstrapSize();
+        }
+    }
+    bootstrapSize += instrumentations[IDX_INST_BOOTSTRAP_END]->sizeNeeded();
+    PRINT_INFOR("Saving %d bytes for bootstrap code", bootstrapSize);
+
+    uint32_t precodeOffset = 0;
+    uint32_t codeOffset = bootstrapSize;
+    uint32_t dataOffset = 0;
+
+    ASSERT(instrumentations[IDX_INST_BOOTSTRAP_BEGIN]->getType() == ElfClassTypes_InstrumentationSnippet);
+    snip = ((InstrumentationSnippet*)instrumentations[IDX_INST_BOOTSTRAP_BEGIN]);
+    snip->setCodeOffsets(precodeOffset);
+    precodeOffset += snip->sizeNeeded();
+
+    for (uint32_t i = 0; i < numberOfInstrumentations; i++){
+        ASSERT(instrumentations[i] && "Instrumentations should be initialized by now");
+        if (instrumentations[i]->getType() == ElfClassTypes_InstrumentationFunction){
+            InstrumentationFunction* func = (InstrumentationFunction*)instrumentations[i];
+            
+            uint64_t bootstrapOffset = precodeOffset;
+            precodeOffset += func->bootstrapSize();
+            
+            uint64_t procedureLinkOffset = codeOffset;
+            codeOffset += func->procedureLinkSize();
+            uint64_t wrapperOffset = codeOffset;
+            codeOffset += func->wrapperSize();
+            
+            uint64_t globalDataOffset = dataOffset;
+            PRINT_INFOR("Global data offset = %lld %lld", globalDataOffset, func->getGlobalDataOffset());
+            ASSERT(globalDataOffset == func->getGlobalDataOffset());
+            dataOffset += func->globalDataSize();
+            
+            func->setCodeOffsets(procedureLinkOffset, bootstrapOffset, wrapperOffset);
+            func->print();
+        } else {
+            dataOffset += Size__32_bit_Global_Offset_Table_Entry;
+        }
+    }
+
+    ASSERT(instrumentations[IDX_INST_BOOTSTRAP_END]->getType() == ElfClassTypes_InstrumentationSnippet);
+    snip = ((InstrumentationSnippet*)instrumentations[IDX_INST_BOOTSTRAP_END]);
+    snip->setCodeOffsets(precodeOffset);
+    precodeOffset += snip->sizeNeeded();
+
+    for (uint32_t i = 0; i < numberOfInstrumentationPoints; i++){
+        InstrumentationPoint* pt = instrumentationPoints[i];
+        if (!pt){
+            PRINT_ERROR("Instrumentation point %d should exist", i);
+        }
+        PRINT_INFOR("Looking at point %d", i);
+        Instruction** repl = new Instruction*[1];
+        repl[0] = Instruction::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + codeOffset);
+        Instruction** displaced = NULL;
+        uint32_t numberOfDisplacedInstructions = textSection->replaceInstructions(pt->getSourceAddress(), repl, 1, &displaced);
+        uint64_t returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + repl[0]->getLength();
+        PRINT_INFOR("Computing return address %llx - %llx + %d = %llx", pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr), repl[0]->getLength(), returnOffset);
+        pt->generateTrampoline(numberOfDisplacedInstructions,displaced,codeOffset,returnOffset);
+        codeOffset += pt->sizeNeeded();
+
+        delete[] repl;
+    }
+    
+
+
+    ASSERT(precodeOffset == bootstrapSize && "Bootstrap code size does not match what we just calculated");
+    ASSERT(codeOffset <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough space in the text section to accomodate the extra code");
+    ASSERT(dataOffset <= elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) && "Not enough space in the data section to accomodate the extra data");    
+
+    uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
+    uint64_t dataBaseAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr);
+
+    for (uint32_t i = 0; i < numberOfInstrumentations; i++){
+        ASSERT(instrumentations[i] && "Instrumentations should be initialized by now");
+        if (instrumentations[i]->getType() == ElfClassTypes_InstrumentationFunction){
+            InstrumentationFunction* func = (InstrumentationFunction*)instrumentations[i];
+
+            func->generateGlobalData(textBaseAddress);
+            func->generateWrapperInstructions(textBaseAddress);
+            func->generateBootstrapInstructions(textBaseAddress,dataBaseAddress);
+            func->generateProcedureLinkInstructions(textBaseAddress,dataBaseAddress,pltSection->getAddress());
+            func->print();
+        }
+    }
+
+    /*
     uint64_t replaceAddr = textHeader->GET(sh_addr);
     uint64_t bootstrapAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + bootstrapOffset;
 
@@ -174,12 +197,266 @@ void ElfFileInst::generateFunctionCall(){
     extraTextOffset += trampSize;
 
     delete[] replacedInstructions;
+    */
+
+}
+
+InstrumentationFunction* ElfFileInst::getInstrumentationFunction(const char* funcName){
+    for (uint32_t i = 0; i < numberOfInstrumentations; i++){
+        if (instrumentations[i] && instrumentations[i]->getType() == ElfClassTypes_InstrumentationFunction){
+            InstrumentationFunction* func = (InstrumentationFunction*)instrumentations[i];
+            if (!strcmp(func->getFunctionName(),funcName)){
+                return func;
+            }
+        }
+    }
+    return NULL;
+}
+
+
+// the order of the operations in this function matters
+void ElfFileInst::instrument(){
+    ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
+
+    ASSERT(numberOfInstrumentations > 1);
+
+    uint16_t textIdx = elfFile->findSectionIdx(".text");
+    ASSERT(textIdx && "Cannot find the text section");
+    TextSection* text = (TextSection*)elfFile->getRawSection(textIdx);
+    ASSERT(text && text->getType() == ElfClassTypes_TextSection && "Cannot find the text section");
+    
+    for (uint32_t i = 0; i < text->getNumberOfFunctions(); i++){
+        if (strcmp(text->getFunction(i)->getFunctionName(),"_start")){
+            PRINT_INFOR("Found non-start function: %s", text->getFunction(i)->getFunctionName());
+            addInstrumentationPoint(text->getFunction(i),getInstrumentationFunction("smalltest"));
+        } 
+    }
+
+    ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
+    currentPhase++;
+    ASSERT(currentPhase == ElfInstPhase_reserve_space && "Instrumentation phase order must be observed");
+
+    PRINT_INFOR("Beginning Instrumentation of ELF file");
+
+    uint32_t totalText = 0;
+    uint32_t totalData = 0;
+    for (uint32_t i = 0; i < numberOfInstrumentations; i++){
+        if (instrumentations[i]){ 
+            if (instrumentations[i]->getType() == ElfClassTypes_InstrumentationFunction){
+                InstrumentationFunction* func = (InstrumentationFunction*)instrumentations[i];
+                totalText += func->procedureLinkSize() + func->bootstrapSize() + func->wrapperSize();
+                totalData += func->globalDataSize();
+            } else if (instrumentations[i]->getType() == ElfClassTypes_InstrumentationSnippet){
+                InstrumentationSnippet* snip = (InstrumentationSnippet*)instrumentations[i];
+                totalText += snip->sizeNeeded();
+            }
+        }
+    }
+
+    extendTextSection(0x1000);
+    PRINT_INFOR("Successfully extended text section/segment");
+    extendDataSection(0x100);
+    PRINT_INFOR("Successfully extended data section/segment");
+
+    ASSERT(currentPhase == ElfInstPhase_reserve_space && "Instrumentation phase order must be observed");
+    currentPhase++;
+    ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
+
+    for (uint32_t i = 0; i < numberOfInstrumentationLibraries; i++){
+        addSharedLibrary(instrumentationLibraries[i]);
+    }
+
+    for (uint32_t i = 0; i < numberOfInstrumentations; i++){
+        if (instrumentations[i]){ 
+            if (instrumentations[i]->getType() == ElfClassTypes_InstrumentationFunction){
+                addFunction((InstrumentationFunction*)instrumentations[i]);
+            }
+        }
+    }
+
+    ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
+    currentPhase++;
+    ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
+
+    generateInstrumentation();
+
+    ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
+    currentPhase++;
+    ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
+}
+
+
+
+
+void ElfFileInst::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
+    ASSERT(offset == ELF_FILE_HEADER_OFFSET && "Instrumentation must be dumped at the begining of the output file");
+
+    uint32_t extraTextOffset = elfFile->getSectionHeader(extraTextIdx)->GET(sh_offset);
+    for (uint32_t i = 0; i < numberOfInstrumentations; i++){
+        instrumentations[i]->dump(binaryOutputFile,extraTextOffset);
+    }
+    for (uint32_t i = 0; i < numberOfInstrumentationPoints; i++){
+        instrumentationPoints[i]->dump(binaryOutputFile,extraTextOffset);
+    }
+
+}
+
+void ElfFileInst::verify(){
+    elfFile->verify();
+}
+
+uint64_t ElfFileInst::addInstrumentationPoint(Instruction* instpoint, Instrumentation* inst){
+    return addInstrumentationPoint((Base*)instpoint, inst);
+}
+uint64_t ElfFileInst::addInstrumentationPoint(TextSection* instpoint, Instrumentation* inst){
+    return addInstrumentationPoint((Base*)instpoint, inst);
+}
+uint64_t ElfFileInst::addInstrumentationPoint(Function* instpoint, Instrumentation* inst){
+    return addInstrumentationPoint((Base*)instpoint, inst);
+}
+
+uint64_t ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* inst){
+    ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");    
+
+    if (instpoint->getType() != ElfClassTypes_Instruction &&
+        instpoint->getType() != ElfClassTypes_TextSection &&
+        instpoint->getType() != ElfClassTypes_Function){
+        PRINT_ERROR("Cannot use an object of type %d as an instrumentation point", instpoint->getType());
+    }
+
+    InstrumentationPoint** newPoints = new InstrumentationPoint*[numberOfInstrumentationPoints+1];
+    for (uint32_t i = 0; i < numberOfInstrumentationPoints; i++){
+        newPoints[i] = instrumentationPoints[i];
+    }
+    newPoints[numberOfInstrumentationPoints] = new InstrumentationPoint(numberOfInstrumentationPoints, instpoint, inst);
+    newPoints[numberOfInstrumentationPoints]->print();
+
+    delete[] instrumentationPoints;
+    instrumentationPoints = newPoints;
+    numberOfInstrumentationPoints++;
+
+    return numberOfInstrumentationPoints;
+}
+
+uint32_t ElfFileInst::declareFunction(char* funcName){
+    ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
+
+    for (uint32_t i = 0; i < numberOfInstrumentations; i++){
+        if (instrumentations[i] && instrumentations[i]->getType() == ElfClassTypes_InstrumentationFunction){
+            InstrumentationFunction* func = (InstrumentationFunction*)instrumentations[i];
+            if (!strcmp(funcName,func->getFunctionName())){
+                PRINT_ERROR("Trying to add a function that was already added -- %s", funcName);
+                return numberOfInstrumentations;
+            }
+        }
+    }
+
+    Instrumentation** newFunctions = new Instrumentation*[numberOfInstrumentations+1];
+    for (uint32_t i = 0; i < numberOfInstrumentations; i++){
+        newFunctions[i] = instrumentations[i];
+    }
+    newFunctions[numberOfInstrumentations] = new InstrumentationFunction32(numberOfInstrumentations, funcName);
+
+    delete[] instrumentations;
+    instrumentations = newFunctions;
+    numberOfInstrumentations++;
+
+    return numberOfInstrumentations;
+}
+
+uint32_t ElfFileInst::declareLibrary(char* libName){
+    ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
+
+    for (uint32_t i = 0; i < numberOfInstrumentationLibraries; i++){
+        if (!strcmp(libName,instrumentationLibraries[i])){
+            PRINT_ERROR("Trying to add a library that was already added -- %s", libName);
+            return numberOfInstrumentationLibraries;
+        }
+    }
+
+    char** newLibraries = new char*[numberOfInstrumentationLibraries+1];
+    for (uint32_t i = 0; i < numberOfInstrumentationLibraries; i++){
+        newLibraries[i] = instrumentationLibraries[i];
+    }
+    newLibraries[numberOfInstrumentationLibraries] = new char[strlen(libName)+1];
+    strcpy(newLibraries[numberOfInstrumentationLibraries],libName);
+
+    delete[] instrumentationLibraries;
+    instrumentationLibraries = newLibraries;
+    numberOfInstrumentationLibraries++;
+
+    return numberOfInstrumentationLibraries;
+}
+
+
+uint64_t ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOffset){
+    ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
+    DynamicTable* dynTable = elfFile->getDynamicTable();
+
+    ASSERT(dynTable->countDynamics(DT_JMPREL) == 1 && "Cannot find a unique Relocation table for this file");
+    
+    uint64_t relocTableAddr = dynTable->getDynamicByType(DT_JMPREL,0)->GET_A(d_val,d_un);
+    ASSERT(relocTableAddr && "Count not find a relocation table address in the dynamic table");
+
+    RelocationTable* relocTable = (RelocationTable*)elfFile->getRawSection(elfFile->findSectionIdx(relocTableAddr));
+    ASSERT(relocTable->getType() == ElfClassTypes_RelocationTable && "Found wrong section type when searching for relocation table");
+
+    PRINT_INFOR("Adding PLT entry to relocation table at section %hd", relocTable->getSectionIndex());
+
+    uint64_t gotAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset;    
+    uint64_t relocOffset;
+    if (elfFile->is64Bit()){
+        relocOffset = relocTable->addRelocation(gotAddress,ELF64_R_INFO(symbolIndex,R_X86_64_JUMP_SLOT));
+    } else {
+        relocOffset = relocTable->addRelocation(gotAddress,ELF32_R_INFO(symbolIndex,R_386_JMP_SLOT));
+
+        // in 32bit the linker uses an offset into the table instead of its index
+        relocOffset *= relocTable->getRelocationSize();
+    }
+    ASSERT(relocOffset && "Should set the relocation offset to a non-trival value");
+
+
+    SectionHeader* relocationSection = elfFile->getSectionHeader(relocTable->getSectionIndex());
+    uint32_t extraSize = relocTable->getRelocationSize();
+    relocationSection->INCREMENT(sh_size,extraSize);
+
+    // displace every section in the text segment that comes after the dynamic string section and before the initial text section
+    for (uint32_t i = relocationSection->getIndex()+1; i <= extraTextIdx; i++){
+        SectionHeader* sHdr = elfFile->getSectionHeader(i);
+        PRINT_INFOR("Adding relocation table: modifying section offset from %lld to %lld", sHdr->GET(sh_offset), sHdr->GET(sh_offset) + extraSize);
+        extraSize = nextAlignAddress(sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign)) - sHdr->GET(sh_addr);
+        sHdr->INCREMENT(sh_offset,extraSize);
+        sHdr->INCREMENT(sh_addr,extraSize);
+    }
+
+    // shrink the size of the extra text section to accomodate the increase of the control sections
+    elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
+
+    for (uint32_t i = 0; i < dynTable->getNumberOfDynamics(); i++){
+        Dynamic* dyn = dynTable->getDynamic(i);
+        uint64_t tag = dyn->GET(d_tag);
+        if (tag == DT_PLTRELSZ){
+            dyn->INCREMENT_A(d_val,d_un,relocTable->getRelocationSize());
+            ASSERT(dyn->GET_A(d_val,d_un) == relocTable->getNumberOfRelocations()*relocTable->getRelocationSize() && 
+                   "The number of entries in the relocation table does not match the amount given in the dynamic table");
+        }
+
+        if (tag == DT_REL || tag == DT_RELA){
+            if (dyn->GET_A(d_ptr,d_un) > relocationSection->GET(sh_addr)){
+                dyn->INCREMENT_A(d_ptr,d_un,extraSize);
+            }
+        }
+    }
+    
+    verify();
+
+    return relocOffset;
 }
 
 
 void ElfFileInst::extendDataSection(uint64_t size){
-
-    ASSERT(!extraDataIdx && !extraDataOffset && "Cannot extend the data segment more than once");
+    ASSERT(currentPhase == ElfInstPhase_reserve_space && "Instrumentation phase order must be observed");
 
     ProgramHeader* dataHeader = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
 
@@ -200,7 +477,6 @@ void ElfFileInst::extendDataSection(uint64_t size){
     SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
 
     // increase the memory size of the bss section (note: this section has no size in the file)
-    extraDataOffset = 0;
     bssSection->INCREMENT(sh_size,size);
 
     // increase the memory size of the data segment
@@ -210,8 +486,6 @@ void ElfFileInst::extendDataSection(uint64_t size){
                         bssSection->GET(sh_flags), bssSection->GET(sh_addr) + bssSection->GET(sh_size), 
                         bssSection->GET(sh_offset), size, bssSection->GET(sh_link), 
                         bssSection->GET(sh_info), 0, bssSection->GET(sh_entsize));
-    gotOffset = extraTextOffset;
-
 
     // move all later sections' offsets so that they don't conflict with this one
     for (uint32_t i = bssSectionIdx+2; i < elfFile->getNumberOfSections(); i++){
@@ -224,44 +498,22 @@ void ElfFileInst::extendDataSection(uint64_t size){
         elfFile->getFileHeader()->INCREMENT(e_shoff,size);
     }
 
-    PRINT_INFOR("Extra data space available: address [0x%016llx,0x%016llx] -- %d bytes", extendedData->GET(sh_addr), 
-                extendedData->GET(sh_addr) + extendedData->GET(sh_size), extendedData->GET(sh_size));
-    PRINT_INFOR("Extra data space available: offset   0x%016llx + %lld", extendedData->GET(sh_offset), extraDataOffset);
+    PRINT_INFOR("Extra data space available @address 0x%016llx + %d bytes", extendedData->GET(sh_addr), extendedData->GET(sh_size));
+    PRINT_INFOR("Extra data space available @offset  0x%016llx + %d bytes", extendedData->GET(sh_offset), extendedData->GET(sh_size));
 
-    elfFile->verify();
-}
-
-// reserve space just after the bss section for our GOT
-void ElfFileInst::generateGlobalOffsetTable(uint32_t pltReturnOffset){
-
-    ASSERT(extraDataIdx && "Must reserve space for extra data prior to calling this function");
-    ASSERT(extraTextIdx && "Must reserve space for extra text prior to calling this function");
-    ASSERT(!gotEntries && !numberOfGOTEntries && "Should not have already created a GOT");
-
-    uint32_t pltReturnAddress = (uint32_t)(elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltReturnOffset);
-
-    numberOfGOTEntries = 1;
-    ASSERT(numberOfGOTEntries * sizeof(uint32_t) < elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) - extraDataOffset &&
-           "Not enough space available for extra GOT entries");
-
-    gotEntries = new uint32_t[numberOfGOTEntries];
-    numberOfGOTEntries = 0;
-    gotEntries[numberOfGOTEntries] = pltReturnAddress;
-    numberOfGOTEntries++;
-
-    PRINT_INFOR("Verifying elf structures after generating GOT");
-
-    elfFile->verify();
+    verify();
 }
 
 
 void ElfFileInst::extendTextSection(uint64_t size){
+    ASSERT(currentPhase == ElfInstPhase_reserve_space && "Instrumentation phase order must be observed");
+
     PRINT_INFOR("Attempting to extend text segment by %llx ALIGN %llx = %llx", size, elfFile->getProgramHeader(elfFile->getTextSegmentIdx())->GET(p_align), nextAlignAddress(size,elfFile->getProgramHeader(elfFile->getTextSegmentIdx())->GET(p_align)));
     size = nextAlignAddress(size,elfFile->getProgramHeader(elfFile->getTextSegmentIdx())->GET(p_align));
     uint64_t lowestTextAddress = -1;
     uint16_t lowestTextSectionIdx = -1;
 
-    ASSERT(!extraTextOffset && !extraTextIdx && "Cannot extend the text segment more than once");
+    ASSERT(!extraTextIdx && "Cannot extend the text segment more than once");
 
     PRINT_INFOR("Trying to get segments %hd %hd", elfFile->getTextSegmentIdx(), elfFile->getDataSegmentIdx());
     ProgramHeader* textHeader = elfFile->getProgramHeader(elfFile->getTextSegmentIdx());
@@ -364,7 +616,6 @@ void ElfFileInst::extendTextSection(uint64_t size){
     elfFile->addSection(lowestTextSectionIdx, ElfClassTypes_TextSection, elfFile->getElfFileName(), textHdr->GET(sh_name), textHdr->GET(sh_type),
                         textHdr->GET(sh_flags), textHdr->GET(sh_addr)-size, textHdr->GET(sh_offset)-size, size, textHdr->GET(sh_link), 
                         textHdr->GET(sh_info), textHdr->GET(sh_addralign), textHdr->GET(sh_entsize));
-    pltOffset = extraTextOffset;
 
 
     extraTextIdx = lowestTextSectionIdx;
@@ -392,242 +643,39 @@ void ElfFileInst::extendTextSection(uint64_t size){
     }
 
 
-    elfFile->verify();
+    verify();
 
-    PRINT_INFOR("Extra text space available: address [0x%016llx,0x%016llx] -- %d bytes", extendedText->GET(sh_addr), extendedText->GET(sh_addr) + extendedText->GET(sh_size), extendedText->GET(sh_size));
-    PRINT_INFOR("Extra text space available: offset   0x%016llx + %lld", extendedText->GET(sh_offset), extraTextOffset);
+    PRINT_INFOR("Extra text space available @address 0x%016llx + %d bytes", extendedText->GET(sh_addr), extendedText->GET(sh_size));
+    PRINT_INFOR("Extra text space available @offset  0x%016llx + %d bytes", extendedText->GET(sh_offset), extendedText->GET(sh_size));
 }
-
-
-// reserve space immediately preceeding the rest of the code for our PLT
-uint32_t ElfFileInst::generateProcedureLinkageTable(){
-
-    ASSERT(extraDataIdx && "Must reserve space for extra data prior to calling this function");
-    ASSERT(extraTextIdx && "Must reserve space for extra text prior to calling this function");
-    ASSERT(!pltInstructions && !numberOfPLTInstructions && "We should not have already created a PLT");
-    ASSERT(!gotEntries && !numberOfGOTEntries && "We should not have already created a GOT");
-
-    if (elfFile->is64Bit()){
-        return generateProcedureLinkageTable64();
-    } else {
-        return generateProcedureLinkageTable32();
-    }
-}
-
-uint32_t ElfFileInst::generateProcedureLinkageTable64(){
-    uint32_t pltSize = 0;
-    uint32_t gotAddress = (uint32_t)(elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset);
-
-    numberOfPLTInstructions = 3;
-    pltInstructions = new Instruction*[numberOfPLTInstructions];
-    numberOfPLTInstructions = 0;
-
-    uint32_t returnAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
-    pltInstructions[numberOfPLTInstructions] = Instruction::generateIndirectRelativeJump64(returnAddress,gotAddress);
-    uint32_t pltReturnOffset = pltInstructions[numberOfPLTInstructions]->getLength();
-    pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
-    uint32_t gotInfo = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
-    numberOfPLTInstructions++;
-
-    pltInstructions[numberOfPLTInstructions] = Instruction::generateStackPushImmediate(relocOffset);
-    pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
-    numberOfPLTInstructions++;
-
-    // find the plt section
-    DynamicTable* dynamicTable = elfFile->getDynamicTable();
-    
-    uint16_t realPLTSectionIdx = elfFile->findSectionIdx(".plt");
-    ASSERT(realPLTSectionIdx && "Cannot find a section named `.plt`");
-    uint32_t realPLTAddress = elfFile->getSectionHeader(realPLTSectionIdx)->GET(sh_addr);
-    returnAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
-
-    pltInstructions[numberOfPLTInstructions] = Instruction::generateJumpRelative(returnAddress,realPLTAddress);
-    pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
-    numberOfPLTInstructions++;
-
-    ASSERT(pltSize < elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) - extraTextOffset);
-    extraTextOffset += pltSize;
-
-    bootstrapOffset = extraTextOffset;
-    uint32_t bootstrapSize = 0;
-    numberOfBootstrapInstructions = 8 + X86_64BIT_GPRS + 1;
-    bootstrapInstructions = new Instruction*[numberOfBootstrapInstructions];
-    numberOfBootstrapInstructions = 0;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(X86_REG_CX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(X86_REG_DX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotInfo,X86_REG_CX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotAddress,X86_REG_DX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;    
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop64(X86_REG_DX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop64(X86_REG_CX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generatePushEflags();
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(i);
-        bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-        numberOfBootstrapInstructions++;
-    }
-
-
-    uint64_t pltAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset;
-    uint64_t currAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + bootstrapOffset + bootstrapSize;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateCallRelative(currAddress,pltAddress);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    ASSERT(bootstrapSize < elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) - extraTextOffset);
-    extraTextOffset += bootstrapSize;
-
-
-    PRINT_INFOR("Verifying elf structures after adding our PLT");
-
-    elfFile->verify();
-
-    return pltReturnOffset;
-    PRINT_ERROR("ElfFileInst::generateProcedureLinkageTable has not been written for 64bit yet");
-    ASSERT(0 && "Cannot continue");
-}
-
-uint32_t ElfFileInst::generateProcedureLinkageTable32(){
-    uint32_t pltSize = 0;
-    uint32_t gotAddress = (uint32_t)(elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset);
-
-    numberOfPLTInstructions = 3;
-    pltInstructions = new Instruction*[numberOfPLTInstructions];
-    numberOfPLTInstructions = 0;
-
-    pltInstructions[numberOfPLTInstructions] = Instruction::generateJumpIndirect32(gotAddress);
-    uint32_t pltReturnOffset = pltInstructions[numberOfPLTInstructions]->getLength();
-    pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
-    uint32_t gotInfo = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
-    numberOfPLTInstructions++;
-
-    pltInstructions[numberOfPLTInstructions] = Instruction::generateStackPushImmediate(relocOffset);
-    pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
-    numberOfPLTInstructions++;
-
-
-    // find the plt section
-    DynamicTable* dynamicTable = elfFile->getDynamicTable();
-    
-    uint16_t realPLTSectionIdx = elfFile->findSectionIdx(".plt");
-    ASSERT(realPLTSectionIdx && "Cannot find a section named `.plt`");
-    uint32_t realPLTAddress = elfFile->getSectionHeader(realPLTSectionIdx)->GET(sh_addr);
-    uint32_t returnAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
-
-    pltInstructions[numberOfPLTInstructions] = Instruction::generateJumpRelative(returnAddress,realPLTAddress);
-    pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
-    numberOfPLTInstructions++;
-
-    ASSERT(pltSize < elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) - extraTextOffset);
-    extraTextOffset += pltSize;
-
-    bootstrapOffset = extraTextOffset;
-    uint32_t bootstrapSize = 0;
-    numberOfBootstrapInstructions = 5 + X86_32BIT_GPRS + 1;
-    bootstrapInstructions = new Instruction*[numberOfBootstrapInstructions];
-    numberOfBootstrapInstructions = 0;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush32(X86_REG_CX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotInfo,X86_REG_CX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveRegToMem(X86_REG_CX,gotAddress);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop32(X86_REG_CX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generatePushEflags();
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush32(i);
-        bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-        numberOfBootstrapInstructions++;
-    }
-
-
-    uint64_t pltAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset;
-    uint64_t currAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + bootstrapOffset + bootstrapSize;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateCallRelative(currAddress,pltAddress);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    ASSERT(bootstrapSize < elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) - extraTextOffset);
-    extraTextOffset += bootstrapSize;
-
-
-    PRINT_INFOR("Verifying elf structures after adding our PLT");
-
-    elfFile->verify();
-
-    return pltReturnOffset;
-}
-
-
 
 
 ElfFileInst::~ElfFileInst(){
-    if (pltInstructions){
-        for (uint32_t i = 0; i < numberOfPLTInstructions; i++){
-            delete pltInstructions[i];
+    if (instrumentations){
+        for (uint32_t i = 0; i < numberOfInstrumentations; i++){
+            delete instrumentations[i];
         }
-        delete[] pltInstructions;
-    }
-    if (bootstrapInstructions){
-        for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
-            delete bootstrapInstructions[i];
-        }
-        delete[] bootstrapInstructions;
-    }
-    if (trampInstructions){
-        for (uint32_t i = 0; i < numberOfTrampInstructions; i++){
-            delete trampInstructions[i];
-        }
-        delete[] trampInstructions;
+        delete[] instrumentations;
     }
 
-    if (gotEntries){
-        delete[] gotEntries;
+    if (instrumentationPoints){
+        for (uint32_t i = 0; i < numberOfInstrumentationPoints; i++){
+            delete instrumentationPoints[i];
+        }
+        delete[] instrumentationPoints;
     }
 
+    if (instrumentationLibraries){
+        for (uint32_t i = 0; i < numberOfInstrumentationLibraries; i++){
+            delete[] instrumentationLibraries[i];
+        }
+        delete[] instrumentationLibraries;
+    }
 }
 
 void ElfFileInst::dump(char* extension){
+    ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
+
     char fileName[80] = "";
     sprintf(fileName,"%s.%s", elfFile->getElfFileName(), extension);
 
@@ -645,43 +693,6 @@ void ElfFileInst::dump(char* extension){
     binaryOutputFile.close();
 }
 
-void ElfFileInst::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    ASSERT(offset == ELF_FILE_HEADER_OFFSET && "Instrumentation must be dumped at the begining of the output file");
-
-    uint32_t currentOffset = (uint32_t)elfFile->getSectionHeader(extraTextIdx)->GET(sh_offset) + pltOffset;
-    for (uint32_t i = 0; i < numberOfPLTInstructions; i++){
-        pltInstructions[i]->dump(binaryOutputFile,currentOffset);
-        PRINT_INFOR("Dumped our personal PLT instruction at address %x", currentOffset);
-        pltInstructions[i]->print();
-        currentOffset += pltInstructions[i]->getLength();
-    }
-
-    currentOffset = elfFile->getSectionHeader(extraTextIdx)->GET(sh_offset) + bootstrapOffset;
-    for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
-        bootstrapInstructions[i]->dump(binaryOutputFile,currentOffset);
-        bootstrapInstructions[i]->print();
-        currentOffset += bootstrapInstructions[i]->getLength();
-    }
-
-    currentOffset = elfFile->getSectionHeader(extraTextIdx)->GET(sh_offset) + trampOffset;
-    for (uint32_t i = 0; i < numberOfTrampInstructions; i++){
-        trampInstructions[i]->dump(binaryOutputFile,currentOffset);
-        trampInstructions[i]->print();
-        currentOffset += trampInstructions[i]->getLength();
-    }
-
-    currentOffset = elfFile->getSectionHeader(extraDataIdx)->GET(sh_offset) + gotOffset;
-    for (uint32_t i = 0; i < numberOfGOTEntries; i++){
-        binaryOutputFile->copyBytes((char*)&gotEntries[i],sizeof(gotEntries[i]),currentOffset);
-        PRINT_INFOR("Dumped our personal GOT entry[%d]=%x at address %x", i, gotEntries[i], currentOffset); 
-        currentOffset += sizeof(gotEntries[i]);
-    }
-
-    
-
-}
-
-
 void ElfFileInst::print(){
     elfFile->print();
     PRINT_INFOR("");
@@ -689,50 +700,41 @@ void ElfFileInst::print(){
     if (extraTextIdx){
         SectionHeader* extendedText = elfFile->getSectionHeader(extraTextIdx);
         PRINT_INFOR("Extended TEXT section is section %hd", extraTextIdx);
-        PRINT_INFOR("\tTEXT addresses reserved -- \t[0x%016llx,0x%016llx] (%lld bytes)", extendedText->GET(sh_addr), 
-                    extendedText->GET(sh_addr) + extendedText->GET(sh_size), extendedText->GET(sh_size));
-        PRINT_INFOR("\tTEXT offsets   reserved -- \t0x%016llx (%lld of %lld bytes used)", extendedText->GET(sh_offset), extraTextOffset, extendedText->GET(sh_size));
+        PRINT_INFOR("\tExtra text space available @address 0x%016llx + %d bytes", extendedText->GET(sh_addr), extendedText->GET(sh_size));
+        PRINT_INFOR("\tExtra text space available @offset  0x%016llx + %d bytes", extendedText->GET(sh_offset), extendedText->GET(sh_size));
     }
     if (extraDataIdx){
         SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
         PRINT_INFOR("Extended DATA section is section %hd", extraDataIdx);
-        PRINT_INFOR("\tDATA addresses reserved -- \t[0x%016llx,0x%016llx] (%lld bytes)", extendedData->GET(sh_addr), 
-                    extendedData->GET(sh_addr) + extendedData->GET(sh_size), extendedData->GET(sh_size));
-        PRINT_INFOR("\tDATA offsets   reserved -- \t0x%016llx (%lld of %lld bytes used)", extendedData->GET(sh_offset), extraDataOffset, extendedData->GET(sh_size));
+        PRINT_INFOR("Extra data space available @address 0x%016llx + %d bytes", extendedData->GET(sh_addr), extendedData->GET(sh_size));
+        PRINT_INFOR("Extra data space available @offset  0x%016llx + %d bytes", extendedData->GET(sh_offset), extendedData->GET(sh_size));
     }
 }
 
 
 ElfFileInst::ElfFileInst(ElfFile* elf){
+    currentPhase = ElfInstPhase_no_phase;
     elfFile = elf;
 
+    numberOfInstrumentations = INST_CODES_RESERVED;
+    instrumentations = new Instrumentation*[INST_CODES_RESERVED];
+    instrumentations[IDX_INST_BOOTSTRAP_BEGIN] = NULL;
+    instrumentations[IDX_INST_BOOTSTRAP_END] = NULL;
+
+    // automatically set the 1st instrumentation point to go to the bootstrap code
+    numberOfInstrumentationPoints = INST_POINTS_RESERVED;
+    instrumentationPoints = new InstrumentationPoint*[INST_POINTS_RESERVED];
+    instrumentationPoints[IDX_POINT_BOOTSTRAP] = NULL;
+
+    numberOfInstrumentationLibraries = 0;
+    instrumentationLibraries = NULL;
+
     extraTextIdx = 0;
-    extraTextOffset = 0;
     extraDataIdx = 0;
-    extraDataOffset = 0;
-
-    relocOffset = 0;
-
-    pltOffset = 0;
-    pltInstructions = NULL;
-    numberOfPLTInstructions = 0;
-
-    bootstrapOffset = 0;
-    bootstrapInstructions = NULL;
-    numberOfBootstrapInstructions = 0;
-
-    trampOffset = 0;
-    trampInstructions = NULL;
-    numberOfTrampInstructions = 0;
-
-    gotOffset = 0;
-    gotEntries = NULL;
-    numberOfGOTEntries = 0;
 }
 
 uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx){
-    ASSERT(!numberOfGOTEntries && !gotEntries && "Cannot add to sections after generating GOT");
-    ASSERT(!numberOfPLTInstructions && !pltInstructions && "Cannot add to sections after generating PLT");
+    ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 
     DynamicTable* dynamicTable = elfFile->getDynamicTable();
     uint32_t entrySize;
@@ -741,7 +743,6 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
     } else {
         entrySize = Size__32_bit_Symbol;
     }
-    ASSERT(entrySize < elfFile->getSectionHeader(extraTextIdx)->GET(sh_offset) - extraTextOffset && "There is not enough extra space in the text section to extend the symbol table");
 
     PRINT_INFOR("Adding symbol with size %d", entrySize);
 
@@ -772,8 +773,8 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
         sHdr->INCREMENT(sh_offset,entrySize);
         sHdr->INCREMENT(sh_addr,entrySize);
     }
+    ASSERT(extraSize <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough room to insert extra ELF control");
     elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
-
 
     // adjust the dynamic table entries for the section shifts
     for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
@@ -813,6 +814,7 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
         sHdr->INCREMENT(sh_offset,extraSize);
         sHdr->INCREMENT(sh_addr,extraSize);
     } 
+    ASSERT(extraSize <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough room to insert extra ELF control");
     elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
 
     dynamicTable->getDynamicByType(DT_VERSYM,0)->SET_A(d_ptr,d_un,elfFile->getSectionHeader(elfFile->getGnuVersymTable()->getSectionIndex())->GET(sh_addr));
@@ -829,9 +831,7 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
 }
 
 uint32_t ElfFileInst::expandHashTable(){
-
-    ASSERT(!numberOfGOTEntries && !gotEntries && "Cannot add to sections after generating GOT");
-    ASSERT(!numberOfPLTInstructions && !pltInstructions && "Cannot add to sections after generating PLT");
+    ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 
     HashTable* hashTable = elfFile->getHashTable();
     uint32_t extraHashEntries = hashTable->expandSize(hashTable->getNumberOfChains()/2);
@@ -850,6 +850,7 @@ uint32_t ElfFileInst::expandHashTable(){
         sHdr->INCREMENT(sh_offset,extraSize);
         sHdr->INCREMENT(sh_addr,extraSize);
     }
+    ASSERT(extraSize <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough room to insert extra ELF control");
     elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
     PRINT_INFOR("Expanding the hash table by %d bytes", extraSize);
 
@@ -868,15 +869,10 @@ uint32_t ElfFileInst::expandHashTable(){
 }
 
 uint32_t ElfFileInst::addStringToDynamicStringTable(const char* str){
-
-    ASSERT(!numberOfGOTEntries && !gotEntries && "Cannot add to sections after generating GOT");
-    ASSERT(!numberOfPLTInstructions && !pltInstructions && "Cannot add to sections after generating PLT");
-
-    ASSERT(extraTextIdx && "Should extend the text section before calling this function");
+    ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 
     DynamicTable* dynamicTable = elfFile->getDynamicTable();
     uint32_t strSize = strlen(str) + 1;
-    ASSERT(strSize < elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) - extraTextOffset && "There is not enough extra space in the text section to extend the string table");
 
     // find the string table we will be adding to
     uint64_t stringTableAddr = dynamicTable->getDynamicByType(DT_STRTAB,0)->GET_A(d_val,d_un);
@@ -914,8 +910,8 @@ uint32_t ElfFileInst::addStringToDynamicStringTable(const char* str){
     }
 
     // shrink the size of the extra text section to accomodate the increase of the control sections
+    ASSERT(extraSize <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough room to insert extra ELF control");
     elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
-    elfFile->getSectionHeader(extraTextIdx)->print();
 
     for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
         Dynamic* dyn = dynamicTable->getDynamic(i);
@@ -932,11 +928,24 @@ uint32_t ElfFileInst::addStringToDynamicStringTable(const char* str){
 
 }
 
+uint64_t ElfFileInst::addFunction(InstrumentationFunction* func){
+    ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 
-uint32_t ElfFileInst::addSharedLibrary(const char* libname, const char* funcname){
+    uint32_t funcNameOffset = addStringToDynamicStringTable(func->getFunctionName());
+    uint32_t symbolIndex = addSymbolToDynamicSymbolTable(funcNameOffset, 0, 0, STB_GLOBAL, STT_FUNC, 0, 0);
 
-    ASSERT(!numberOfGOTEntries && !gotEntries && "Cannot add to sections after generating GOT");
-    ASSERT(!numberOfPLTInstructions && !pltInstructions && "Cannot add to sections after generating PLT");
+    uint64_t relocationOffset = addPLTRelocationEntry(symbolIndex,func->getGlobalDataOffset());
+    func->setRelocationOffset(relocationOffset);
+    PRINT_INFOR("Successfully added PLT relocation entries");
+
+    verify();
+
+    return relocationOffset;
+}
+
+
+uint32_t ElfFileInst::addSharedLibrary(const char* libname){
+    ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 
     DynamicTable* dynamicTable = elfFile->getDynamicTable();
     uint32_t strOffset = addStringToDynamicStringTable(libname);
@@ -949,24 +958,20 @@ uint32_t ElfFileInst::addSharedLibrary(const char* libname, const char* funcname
     dynamicTable->getDynamic(emptyDynamicIdx)->SET(d_tag,DT_NEEDED);
     dynamicTable->getDynamic(emptyDynamicIdx)->SET_A(d_ptr,d_un,strOffset);
 
-    uint32_t funcNameOffset = addStringToDynamicStringTable(funcname);
-    uint32_t symbolIndex = addSymbolToDynamicSymbolTable(funcNameOffset, 0, 0, STB_GLOBAL, STT_FUNC, 0, 0);
-
     PRINT_INFOR("Verifying elf file after adding shared library");
 
-    elfFile->verify();
+    verify();
 
-    return symbolIndex;
+    return strOffset;
 }
 
 
 uint64_t ElfFileInst::relocateDynamicSection(){
+    ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
     
-    ASSERT(0 && "This function should not be used, relocating the dynamic table is not easy and we won't do unless absolutely necessary");
-    ASSERT(!numberOfGOTEntries && !gotEntries && "Cannot add to sections after generating GOT");
-    ASSERT(!numberOfPLTInstructions && !pltInstructions && "Cannot add to sections after generating PLT");
+    __SHOULD_NOT_ARRIVE;
 
-    elfFile->verify();
+    verify();
     return 0;
 }
 

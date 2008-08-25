@@ -80,7 +80,7 @@ bool Function::verify(){
         if (instructions[numberOfInstructions-1]->getAddress() + instructions[numberOfInstructions-1]->getLength() <
             getFunctionAddress() + getFunctionSize()){
             instructions[numberOfInstructions-1]->print();
-            functionSymbol->print(NULL);
+            functionSymbol->print();
             PRINT_ERROR("Last instruction in function %d should be at the end of the function (%llx)", index, getFunctionAddress() + getFunctionSize());
             return false;
         }
@@ -93,5 +93,5 @@ bool Function::verify(){
 
 void Function::print(){
     PRINT_INFOR("Function size is %lld bytes", functionSize);
-    functionSymbol->print(NULL);
+    functionSymbol->print();
 }

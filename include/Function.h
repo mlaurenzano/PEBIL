@@ -18,6 +18,7 @@ protected:
 public:
     Symbol* getFunctionSymbol() { return functionSymbol; }
     uint64_t getFunctionAddress() { ASSERT(functionSymbol && "symbol should exist"); return functionSymbol->GET(st_value); }
+    uint64_t getAddress() { return getFunctionAddress(); }
     uint64_t getFunctionSize() { return functionSize; }
     void setFunctionSize(uint64_t size);
 
@@ -26,7 +27,7 @@ public:
     Instruction* getInstructionAtAddress(uint64_t addr);
 
     uint32_t getIndex() { return index; }
-
+    char* getFunctionName() { ASSERT(functionSymbol && "symbol should exist"); return functionSymbol->getSymbolName(); }
 
     Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_t idx);
     ~Function();

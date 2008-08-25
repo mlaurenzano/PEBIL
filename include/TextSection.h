@@ -39,6 +39,8 @@ public:
     Instruction* getInstruction(uint32_t idx);
     Instruction* getInstructionAtAddress(uint64_t addr);
 
+    uint64_t getAddress() { return elfFile->getSectionHeader(sectionIndex)->GET(sh_addr); }
+
     uint32_t findFunctions();
     uint32_t getNumberOfFunctions() { return numberOfFunctions; }
     Function* getFunction(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfFunctions && "function index is out of bounds"); return sortedFunctions[idx]; }

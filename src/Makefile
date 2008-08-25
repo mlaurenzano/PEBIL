@@ -14,13 +14,13 @@ RANLIB      = ranlib
 LINKER_FLGS = -Wl,--hash-style=sysv
 
 ## batman
-#EXTRA_LIBS  = -L/scratch/slocal/michaell/downloads/binutils-2.12.90/opcodes/
-#EXTRA_INC   = -I/scratch/slocal/michaell/downloads/binutils-2.12.90/opcodes
-#EXTRA_LIBS   = -lopcodes -lbfd -liberty
+#EXTRA_LIBS = -L/scratch/slocal/michaell/downloads/binutils-2.12.90/opcodes/
+#EXTRA_INC  = -I/scratch/slocal/michaell/downloads/binutils-2.12.90/opcodes
+#EXTRA_LIBS = -lopcodes -lbfd -liberty
 
 ## ranger
-#EXTRA_LIBS  = /share/apps/binutils-amd/070220/lib64/libopcodes.a
-#EXTRA_INC   = -I/share/apps/binutils-amd/070220/include/
+#EXTRA_LIBS = /share/apps/binutils-amd/070220/lib64/libopcodes.a
+#EXTRA_INC  = -I/share/apps/binutils-amd/070220/include/
 
 INCLUDE     = ../include
 SRCDIR      = ../src
@@ -28,13 +28,13 @@ BINDIR      = ../bin
 LIBDIR      = ../lib
 
 SRCS        = Base.C BinaryFile.C Disassembler.C DynamicTable.C ElfFile.C ElfFileInst.C FileHeader.C \
-              Function.C GlobalOffsetTable.C GnuVerneedTable.C GnuVersymTable.C HashTable.C Instruction.C NoteSection.C \
-              ProgramHeader.C RawSection.C RelocationTable.C SectionHeader.C StringTable.C \
-              SymbolTable.C TextSection.C main.C
+	Function.C GlobalOffsetTable.C GnuVerneedTable.C GnuVersymTable.C HashTable.C Instruction.C Instrumentation.C \
+	NoteSection.C ProgramHeader.C RawSection.C RelocationTable.C SectionHeader.C StringTable.C \
+	SymbolTable.C TextSection.C main.C
 OBJS        = Base.o BinaryFile.o Disassembler.o DynamicTable.o ElfFile.o ElfFileInst.o FileHeader.o \
-              Function.o GlobalOffsetTable.o GnuVerneedTable.o GnuVersymTable.o HashTable.o Instruction.o NoteSection.o \
-              ProgramHeader.o RawSection.o RelocationTable.o SectionHeader.o StringTable.o \
-              SymbolTable.o TextSection.o main.o
+	Function.o GlobalOffsetTable.o GnuVerneedTable.o GnuVersymTable.o HashTable.o Instruction.o Instrumentation.o \
+	NoteSection.o ProgramHeader.o RawSection.o RelocationTable.o SectionHeader.o StringTable.o \
+	SymbolTable.o TextSection.o main.o
 
 TARGET_BIN  = x86inst
 

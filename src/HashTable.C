@@ -88,7 +88,7 @@ bool HashTable::isGnuStyleHash(){
     } else if (mySection->GET(sh_type) == SHT_GNU_HASH){
         return true;
     } else {
-        ASSERT(0 && "Hash table type should be either SHT_HASH or SHT_GNU_HASH");
+        __SHOULD_NOT_ARRIVE;
     }
 
     return false;
