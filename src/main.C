@@ -1,6 +1,6 @@
 #include <Base.h>
 #include <ElfFile.h>
-#include <ElfFileInst.h>
+#include <FunctionCounter.h>
 
 void printBriefOptions(){
     fprintf(stderr,"\n");
@@ -213,17 +213,14 @@ int main(int argc,char* argv[]){
     if (instType == identical_inst_type){
         elfFile.dump(extension);
     } else if (instType == data_extender_type){
-        ElfFileInst* elfInst = new ElfFileInst(&elfFile);
+        FunctionCounter* functionCounter = new FunctionCounter(&elfFile);
 
-        elfInst->declareLibrary("libtest.so");
-        elfInst->declareFunction("smalltest");
-        elfInst->declareFunction("secondtest");
-        elfInst->instrument();
+        functionCounter->instrument();
 
-        elfInst->print();
-        elfInst->dump(extension);
+        functionCounter->print();
+        functionCounter->dump(extension);
 
-        delete elfInst;
+        delete functionCounter;
 
     } else if (instType == disassembler_type){
         elfFile.printDisassembledCode();

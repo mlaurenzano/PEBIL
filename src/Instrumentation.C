@@ -1,5 +1,77 @@
 #include <Instrumentation.h>
 
+uint32_t InstrumentationFunction::wrapperSize(){
+    uint32_t totalSize = 0;
+    for (uint32_t i = 0; i < numberOfWrapperInstructions; i++){
+        totalSize += wrapperInstructions[i]->getLength();
+    }
+    return totalSize;
+}
+uint32_t InstrumentationFunction::procedureLinkSize(){
+    uint32_t totalSize = 0;
+    for (uint32_t i = 0; i < numberOfProcedureLinkInstructions; i++){
+        totalSize += procedureLinkInstructions[i]->getLength();
+    }
+    return totalSize;
+}
+uint32_t Instrumentation::bootstrapSize(){
+    uint32_t totalSize = 0;
+    for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
+        totalSize += bootstrapInstructions[i]->getLength();
+    }
+    return totalSize;
+}
+uint32_t InstrumentationFunction::globalDataSize(){
+    return Size__32_bit_Global_Offset_Table_Entry;
+}
+
+Instrumentation::Instrumentation(ElfClassTypes typ)
+    : Base(typ)
+{
+    numberOfBootstrapInstructions = 0;
+    bootstrapInstructions = NULL;
+    bootstrapOffset = 0;
+}
+
+Instrumentation::~Instrumentation(){
+    if (bootstrapInstructions){
+        for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
+            delete bootstrapInstructions[i];
+        }
+        delete[] bootstrapInstructions;
+    }
+}
+
+uint32_t InstrumentationFunction::addArgument(ElfArgumentTypes typ, uint64_t offset){
+    return addArgument(typ, offset, 0);
+}
+
+uint32_t InstrumentationFunction::addArgument(ElfArgumentTypes typ, uint64_t offset, uint32_t value){
+    ElfArgumentTypes* newargs = new ElfArgumentTypes[numberOfArguments+1];
+    uint64_t* newoffsets = new uint64_t[numberOfArguments+1];
+    uint32_t* newvalues = new uint32_t[numberOfArguments+1];
+
+    for (uint32_t i = 0; i < numberOfArguments; i++){
+        newargs[i] = arguments[i];
+        newoffsets[i] = argumentOffsets[i];
+        newvalues[i] = argumentValues[i];
+    }
+    newargs[numberOfArguments] = typ;
+    newoffsets[numberOfArguments] = offset;
+    newvalues[numberOfArguments] = value;
+
+    delete[] arguments;
+    delete[] argumentOffsets;
+    delete[] argumentValues;
+
+    arguments = newargs;
+    argumentOffsets = newoffsets;
+    argumentValues = newvalues;
+
+    numberOfArguments++;
+    return numberOfArguments;
+}
+
 void InstrumentationFunction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     if (procedureLinkInstructions){
         uint32_t currentOffset = procedureLinkOffset;
@@ -29,45 +101,11 @@ uint64_t InstrumentationFunction::getEntryPoint(){
 }
 
 uint64_t InstrumentationSnippet::getEntryPoint(){
-    return codeOffset;
+    return snippetOffset;
 }
 
 
 uint32_t InstrumentationFunction64::generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress){
-    /*
-    ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
-
-    uint32_t pltSize = 0;
-    uint32_t gotAddress = (uint32_t)(elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset);
-
-    numberOfPLTInstructions = 3;
-    pltInstructions = new Instruction*[numberOfPLTInstructions];
-    numberOfPLTInstructions = 0;
-
-    uint32_t returnAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
-    pltInstructions[numberOfPLTInstructions] = Instruction::generateIndirectRelativeJump64(returnAddress,gotAddress);
-    uint32_t pltReturnOffset = pltInstructions[numberOfPLTInstructions]->getLength();
-    pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
-    uint32_t gotInfo = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
-    numberOfPLTInstructions++;
-
-    pltInstructions[numberOfPLTInstructions] = Instruction::generateStackPushImmediate(relocOffset);
-    pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
-    numberOfPLTInstructions++;
-
-    // find the plt section
-    DynamicTable* dynamicTable = elfFile->getDynamicTable();
-
-    uint16_t realPLTSectionIdx = elfFile->findSectionIdx(".plt");
-    ASSERT(realPLTSectionIdx && "Cannot find a section named `.plt`");
-    uint32_t realPLTAddress = elfFile->getSectionHeader(realPLTSectionIdx)->GET(sh_addr);
-    returnAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset + pltSize;
-
-    pltInstructions[numberOfPLTInstructions] = Instruction::generateJumpRelative(returnAddress,realPLTAddress);
-    pltSize += pltInstructions[numberOfPLTInstructions]->getLength();
-    numberOfPLTInstructions++;
-
-    */
     __SHOULD_NOT_ARRIVE;
     return 0;
 }
@@ -75,161 +113,76 @@ uint32_t InstrumentationFunction64::generateProcedureLinkInstructions(uint64_t t
 uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress){
     ASSERT(!procedureLinkInstructions && "This array should not be initialized");
 
-    uint32_t pltSize = 0;
+    addProcedureLinkInstruction(Instruction::generateJumpIndirect32(dataBaseAddress + globalDataOffset));
+    addProcedureLinkInstruction(Instruction::generateStackPushImmediate(relocationOffset));
+    uint32_t returnAddress = textBaseAddress + procedureLinkOffset + procedureLinkSize();
+    addProcedureLinkInstruction(Instruction::generateJumpRelative(returnAddress,realPLTAddress));
 
-    numberOfProcedureLinkInstructions = PLT_INSTRUCTION_COUNT_32BIT;
-    procedureLinkInstructions = new Instruction*[numberOfProcedureLinkInstructions];
-    numberOfProcedureLinkInstructions = 0;
+    ASSERT(procedureLinkSize() == procedureLinkReservedSize());
 
-    procedureLinkInstructions[numberOfProcedureLinkInstructions] = Instruction::generateJumpIndirect32(dataBaseAddress + globalDataOffset);
-    pltSize += procedureLinkInstructions[numberOfProcedureLinkInstructions]->getLength();
-    numberOfProcedureLinkInstructions++;
-
-    procedureLinkInstructions[numberOfProcedureLinkInstructions] = Instruction::generateStackPushImmediate(relocationOffset);
-    pltSize += procedureLinkInstructions[numberOfProcedureLinkInstructions]->getLength();
-    numberOfProcedureLinkInstructions++;
-
-    uint32_t returnAddress = textBaseAddress + procedureLinkOffset + pltSize;
-    procedureLinkInstructions[numberOfProcedureLinkInstructions] = Instruction::generateJumpRelative(returnAddress,realPLTAddress);
-    pltSize += procedureLinkInstructions[numberOfProcedureLinkInstructions]->getLength();
-    numberOfProcedureLinkInstructions++;
-
-    ASSERT(numberOfProcedureLinkInstructions == PLT_INSTRUCTION_COUNT_32BIT);
-    ASSERT(pltSize == Size__32_bit_Procedure_Link);
     return numberOfProcedureLinkInstructions;
 }
 
 uint32_t InstrumentationFunction64::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    /*
-    ASSERT(pltSize < elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) - extraTextOffset);
-    extraTextOffset += pltSize;
-
-    bootstrapOffset = extraTextOffset;
-    uint32_t bootstrapSize = 0;
-    numberOfBootstrapInstructions = 8 + X86_64BIT_GPRS + 1;
-    bootstrapInstructions = new Instruction*[numberOfBootstrapInstructions];
-    numberOfBootstrapInstructions = 0;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(X86_REG_CX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPush64(X86_REG_DX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotInfo,X86_REG_CX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(gotAddress,X86_REG_DX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop64(X86_REG_DX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateStackPop64(X86_REG_CX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    */
     __SHOULD_NOT_ARRIVE;
     return 0;
 }
 
 uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    ASSERT(!bootstrapInstructions && "This array should not be initialized");
 
-    uint32_t bootstrapSize = 0;
+    addBootstrapInstruction(Instruction::generateMoveImmToReg(globalData,X86_REG_CX));
+    addBootstrapInstruction(Instruction::generateMoveRegToMem(X86_REG_CX,dataBaseAddress + globalDataOffset));
 
-    numberOfBootstrapInstructions = BOOTSTRAP_INSTRUCTION_COUNT_32BIT;
-    bootstrapInstructions = new Instruction*[numberOfBootstrapInstructions];
-    numberOfBootstrapInstructions = 0;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveImmToReg(globalData,X86_REG_CX);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateMoveRegToMem(X86_REG_CX,dataBaseAddress + globalDataOffset);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    PRINT_INFOR("bootstrap size %d, expected %d", bootstrapSize, Size__32_bit_Bootstrap);
-    ASSERT(numberOfBootstrapInstructions == BOOTSTRAP_INSTRUCTION_COUNT_32BIT);
-    ASSERT(bootstrapSize == Size__32_bit_Bootstrap);
+    while (bootstrapSize() < bootstrapReservedSize()){
+        addBootstrapInstruction(Instruction::generateNoop());
+    }
+    ASSERT(bootstrapSize() == bootstrapReservedSize());
     return numberOfBootstrapInstructions;
 }
 
-uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBaseAddress){
-    /*
-
-    uint64_t pltAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + pltOffset;
-    uint64_t currAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + bootstrapOffset + bootstrapSize;
-
-    bootstrapInstructions[numberOfBootstrapInstructions] = Instruction::generateCallRelative(currAddress,pltAddress);
-    bootstrapSize += bootstrapInstructions[numberOfBootstrapInstructions]->getLength();
-    numberOfBootstrapInstructions++;
-
-    ASSERT(bootstrapSize < elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) - extraTextOffset);
-    extraTextOffset += bootstrapSize;
-
-
-    PRINT_INFOR("Verifying elf structures after adding our PLT");
-
-    verify();
-
-    return pltReturnOffset;
-
-    */
-
+uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
     __SHOULD_NOT_ARRIVE;
     return 0;
 }
 
-uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBaseAddress){
+uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
     ASSERT(!wrapperInstructions && "This array should not be initialized");
-    uint32_t wrapperSize = 0;
 
-    numberOfWrapperInstructions = WRAPPER_INSTRUCTION_COUNT_32BIT;
-    wrapperInstructions = new Instruction*[numberOfWrapperInstructions];
-    numberOfWrapperInstructions = 0;
-
-    wrapperInstructions[numberOfWrapperInstructions] = Instruction::generatePushEflags();
-    wrapperSize += wrapperInstructions[numberOfWrapperInstructions]->getLength();
-    numberOfWrapperInstructions++;
-
+    addWrapperInstruction(Instruction::generatePushEflags());
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        wrapperInstructions[numberOfWrapperInstructions] = Instruction::generateStackPush32(i);
-        wrapperSize += wrapperInstructions[numberOfWrapperInstructions]->getLength();
-        numberOfWrapperInstructions++;
+        addWrapperInstruction(Instruction::generateStackPush32(i));
     }
 
-    wrapperInstructions[numberOfWrapperInstructions] = Instruction::generateCallRelative(wrapperOffset + wrapperSize, procedureLinkOffset);
-    wrapperSize += wrapperInstructions[numberOfWrapperInstructions]->getLength();
-    numberOfWrapperInstructions++;
+    for (uint32_t i = 0; i < numberOfArguments; i++){
+        uint32_t idx = numberOfArguments - i - 1;
+        uint32_t value = argumentValues[idx];
 
-    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        wrapperInstructions[numberOfWrapperInstructions] = Instruction::generateStackPop32(X86_32BIT_GPRS-1-i);
-        wrapperSize += wrapperInstructions[numberOfWrapperInstructions]->getLength();
-        numberOfWrapperInstructions++;
+        addWrapperInstruction(Instruction::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
+        addWrapperInstruction(Instruction::generateMoveRegaddrToReg32(X86_REG_DX,X86_REG_CX));
+        addWrapperInstruction(Instruction::generateStackPush32(X86_REG_CX));
+
+        addBootstrapInstruction(Instruction::generateMoveImmToReg(value,X86_REG_CX));
+        addBootstrapInstruction(Instruction::generateMoveRegToMem(X86_REG_CX,dataBaseAddress+argumentOffsets[idx]));
+    }
+    addWrapperInstruction(Instruction::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
+
+    for (uint32_t i = 0; i < numberOfArguments; i++){
+        addWrapperInstruction(Instruction::generateStackPop32(X86_REG_CX));
     }
 
-    wrapperInstructions[numberOfWrapperInstructions] = Instruction::generatePopEflags();
-    wrapperSize += wrapperInstructions[numberOfWrapperInstructions]->getLength();
-    numberOfWrapperInstructions++;
+    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
+        addWrapperInstruction(Instruction::generateStackPop32(X86_32BIT_GPRS-1-i));
+    }
+    addWrapperInstruction(Instruction::generatePopEflags());
 
-    wrapperInstructions[numberOfWrapperInstructions] = Instruction::generateReturn();
-    wrapperSize += wrapperInstructions[numberOfWrapperInstructions]->getLength();
-    numberOfWrapperInstructions++;
+    addWrapperInstruction(Instruction::generateReturn());
 
-    ASSERT(numberOfWrapperInstructions == WRAPPER_INSTRUCTION_COUNT_32BIT);
-    ASSERT(wrapperSize == Size__32_bit_Function_Wrapper);
+    while (wrapperSize() < wrapperReservedSize()){
+        addWrapperInstruction(Instruction::generateNoop());
+    }
+    ASSERT(wrapperSize() == wrapperReservedSize());
+
+
     return numberOfWrapperInstructions;
 }
 
@@ -256,8 +209,10 @@ uint32_t InstrumentationFunction::sizeNeeded(){
 }
 
 InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName)
-    : Instrumentation(ElfClassTypes_InstrumentationFunction, idx)
+    : Instrumentation(ElfClassTypes_InstrumentationFunction)
 {
+    index = idx;
+
     functionName = new char[strlen(funcName)+1];
     strcpy(functionName,funcName);
 
@@ -275,6 +230,11 @@ InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName)
 
     globalData = 0;
     globalDataOffset = index * Size__32_bit_Global_Offset_Table_Entry;
+
+    numberOfArguments = 0;
+    arguments = NULL;
+    argumentOffsets = NULL;
+    argumentValues = NULL;
 }
 
 InstrumentationFunction::~InstrumentationFunction(){
@@ -287,17 +247,20 @@ InstrumentationFunction::~InstrumentationFunction(){
         }
         delete[] procedureLinkInstructions;
     }
-    if (bootstrapInstructions){
-        for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
-            delete bootstrapInstructions[i];
-        }
-        delete[] bootstrapInstructions;
-    }
     if (wrapperInstructions){
         for (uint32_t i = 0; i < numberOfWrapperInstructions; i++){
             delete wrapperInstructions[i];
         }
         delete[] wrapperInstructions;
+    }
+    if (arguments){
+        delete[] arguments;
+    }
+    if (argumentOffsets){
+        delete[] argumentOffsets;
+    }
+    if (argumentValues){
+        delete[] argumentValues;
     }
 }
 
@@ -323,53 +286,114 @@ void InstrumentationFunction::print(){
 
 }
 
+uint32_t InstrumentationSnippet::generateSnippetControl(){
+    addSnippetInstruction(Instruction::generateReturn());
+    return numberOfSnippetInstructions;
+}
+
 void InstrumentationSnippet::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    if (instructions){
-        uint32_t currentOffset = codeOffset;
-        for (uint32_t i = 0; i < numberOfInstructions; i++){
-            instructions[i]->dump(binaryOutputFile,offset+currentOffset);
-            currentOffset += instructions[i]->getLength();
+    if (bootstrapInstructions){
+        uint32_t currentOffset = bootstrapOffset;
+        for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
+            bootstrapInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
+            currentOffset += bootstrapInstructions[i]->getLength();
+        }
+    }
+    if (snippetInstructions){
+        uint32_t currentOffset = snippetOffset;
+        for (uint32_t i = 0; i < numberOfSnippetInstructions; i++){
+            snippetInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
+            currentOffset += snippetInstructions[i]->getLength();
         }
     }
 }
 
-uint32_t InstrumentationSnippet::addInstruction(Instruction* inst){
-    Instruction** newInstructions = new Instruction*[numberOfInstructions+1];
-    for (uint32_t i = 0; i < numberOfInstructions; i++){
-        newInstructions[i] = instructions[i];
-    }
-    newInstructions[numberOfInstructions] = inst;
-    delete[] instructions;
-    instructions = newInstructions;
-    numberOfInstructions++;
+void InstrumentationSnippet::setCodeOffsets(uint64_t btOffset, uint64_t spOffset){ 
+    bootstrapOffset = btOffset; 
+    snippetOffset = spOffset; 
 }
 
 void InstrumentationSnippet::print(){
 }
 
-uint32_t InstrumentationSnippet::sizeNeeded(){
+uint32_t InstrumentationSnippet::dataSize(){
     uint32_t totalSize = 0;
-    for (uint32_t i = 0; i < numberOfInstructions; i++){
-        totalSize += instructions[i]->getLength();
+    for (uint32_t i = 0; i < numberOfDataEntries; i++){
+        totalSize += dataEntrySizes[i];
     }
     return totalSize;
 }
 
-InstrumentationSnippet::InstrumentationSnippet(uint32_t idx)
-    : Instrumentation(ElfClassTypes_InstrumentationSnippet, idx)
-{
-    numberOfInstructions = 0;
-    instructions = NULL;
+uint32_t InstrumentationSnippet::bootstrapSize(){
+    uint32_t totalSize = 0;
+    for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
+        totalSize += bootstrapInstructions[i]->getLength();
+    }
+    return totalSize;    
+}
 
-    codeOffset = 0;
+uint32_t InstrumentationSnippet::snippetSize(){
+    uint32_t totalSize = 0;
+    for (uint32_t i = 0; i < numberOfSnippetInstructions; i++){
+        totalSize += snippetInstructions[i]->getLength();
+    }
+    return totalSize;
+}
+
+uint32_t InstrumentationSnippet::reserveData(uint64_t offset, uint32_t size){
+    uint32_t* newSizes = new uint32_t[numberOfDataEntries+1];
+    uint64_t* newOffsets = new uint64_t[numberOfDataEntries+1];
+
+    memcpy(newSizes,dataEntrySizes,sizeof(uint32_t)*numberOfDataEntries);
+    memcpy(newOffsets,dataEntryOffsets,sizeof(uint64_t)*numberOfDataEntries);
+
+    newSizes[numberOfDataEntries] = size;
+    newOffsets[numberOfDataEntries] = offset;
+
+    if (dataEntrySizes){
+        delete[] dataEntrySizes;
+    }
+    if (dataEntryOffsets){
+        delete[] dataEntryOffsets;
+    }
+
+    dataEntrySizes = newSizes;
+    dataEntryOffsets = newOffsets;
+
+    numberOfDataEntries++;
+    return numberOfDataEntries-1;
+}
+
+void InstrumentationSnippet::initializeReservedData(uint32_t idx, uint32_t size, char* buff, uint64_t dataBaseAddress){
+    ASSERT(idx < numberOfDataEntries && size == dataEntrySizes[idx]);
+
+    // set CX to the base address of this data entry
+    addBootstrapInstruction(Instruction::generateMoveImmToReg(dataBaseAddress + dataEntryOffsets[idx], X86_REG_CX));
+
+    // copy each byte to memory
+    for(uint32_t i = 0; i < size; i++){
+        addBootstrapInstruction(Instruction::generateMoveImmByteToMemIndirect(buff[size],i,X86_REG_CX));
+    }
+}
+
+InstrumentationSnippet::InstrumentationSnippet()
+    : Instrumentation(ElfClassTypes_InstrumentationSnippet)
+{
+    numberOfSnippetInstructions = 0;
+    snippetInstructions = NULL;
+    snippetOffset = 0;    
+
+    numberOfDataEntries = 0;
+    dataEntrySizes = NULL;
+    dataEntryOffsets = NULL;
 }
 
 InstrumentationSnippet::~InstrumentationSnippet(){
-    if (instructions){
-        for (uint32_t i = 0; i < numberOfInstructions; i++){
-            delete instructions[i];
+    if (snippetInstructions){
+        for (uint32_t i = 0; i < numberOfSnippetInstructions; i++){
+            delete snippetInstructions[i];
         }
-        delete[] instructions;
+        delete[] snippetInstructions;
     }
 }
 
@@ -394,14 +418,19 @@ uint32_t InstrumentationPoint::sizeNeeded(){
 }
 
 uint32_t InstrumentationPoint::generateTrampoline(uint32_t count, Instruction** insts, uint64_t offset, uint64_t returnOffset){
+
     ASSERT(!trampolineInstructions && "Cannot generate trampoline instructions more than once");
 
     trampolineOffset = offset;
     numberOfTrampolineInstructions = count+2;
     uint32_t trampolineSize = 0;
+
+    PRINT_INFOR("Generating trampoline with %d instructions", numberOfTrampolineInstructions);
+
     trampolineInstructions = new Instruction*[numberOfTrampolineInstructions];
     trampolineInstructions[0] = Instruction::generateCallRelative(offset,getTargetOffset());
     trampolineSize += trampolineInstructions[0]->getLength();
+
     for (uint32_t i = 0; i < count; i++){
         trampolineInstructions[i+1] = insts[i];
         trampolineSize += trampolineInstructions[i+1]->getLength();
@@ -409,14 +438,14 @@ uint32_t InstrumentationPoint::generateTrampoline(uint32_t count, Instruction** 
     trampolineInstructions[numberOfTrampolineInstructions-1] = Instruction::generateJumpRelative(offset+trampolineSize,returnOffset);
     trampolineSize += trampolineInstructions[numberOfTrampolineInstructions-1]->getLength();
 
+    delete[] insts;
+
     return trampolineSize;
 }
 
-InstrumentationPoint::InstrumentationPoint(uint32_t idx, Base* pt, Instrumentation* inst)
+InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst)
     : Base(ElfClassTypes_InstrumentationPoint)
 {
-    index = idx;
-    PRINT_INFOR("Initializing instrumentation point %d", index);
     point = pt;
     if (point->getType() != ElfClassTypes_TextSection &&
         point->getType() != ElfClassTypes_Instruction &&
@@ -429,6 +458,15 @@ InstrumentationPoint::InstrumentationPoint(uint32_t idx, Base* pt, Instrumentati
     trampolineInstructions = NULL;
     numberOfTrampolineInstructions = 0;
     trampolineOffset = 0;
+}
+
+InstrumentationPoint::~InstrumentationPoint(){
+    if (trampolineInstructions){
+        for (uint32_t i = 0; i < numberOfTrampolineInstructions; i++){
+            delete trampolineInstructions[i];
+        }
+        delete[] trampolineInstructions;
+    }
 }
 
 uint64_t InstrumentationPoint::getSourceAddress(){
@@ -448,3 +486,52 @@ uint64_t InstrumentationPoint::getSourceAddress(){
 
 void InstrumentationPoint::print(){
 }
+
+uint32_t InstrumentationFunction::addProcedureLinkInstruction(Instruction* inst){
+    Instruction** newinsts = new Instruction*[numberOfProcedureLinkInstructions+1];
+    for (uint32_t i = 0; i < numberOfProcedureLinkInstructions; i++){
+        newinsts[i] = procedureLinkInstructions[i];
+    }
+    newinsts[numberOfProcedureLinkInstructions] = inst;
+    delete[] procedureLinkInstructions;
+    procedureLinkInstructions = newinsts;
+    numberOfProcedureLinkInstructions++;
+    return numberOfProcedureLinkInstructions;
+}
+
+uint32_t Instrumentation::addBootstrapInstruction(Instruction* inst){
+    Instruction** newinsts = new Instruction*[numberOfBootstrapInstructions+1];
+    for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
+        newinsts[i] = bootstrapInstructions[i];
+    }
+    newinsts[numberOfBootstrapInstructions] = inst;
+    delete[] bootstrapInstructions;
+    bootstrapInstructions = newinsts;
+    numberOfBootstrapInstructions++;
+    return numberOfBootstrapInstructions;
+}
+
+uint32_t InstrumentationFunction::addWrapperInstruction(Instruction* inst){
+    Instruction** newinsts = new Instruction*[numberOfWrapperInstructions+1];
+    for (uint32_t i = 0; i < numberOfWrapperInstructions; i++){
+        newinsts[i] = wrapperInstructions[i];
+    }
+    newinsts[numberOfWrapperInstructions] = inst;
+    delete[] wrapperInstructions;
+    wrapperInstructions = newinsts;
+    numberOfWrapperInstructions++;
+    return numberOfWrapperInstructions;
+}
+
+uint32_t InstrumentationSnippet::addSnippetInstruction(Instruction* inst){
+    Instruction** newinsts = new Instruction*[numberOfSnippetInstructions+1];
+    for (uint32_t i = 0; i < numberOfSnippetInstructions; i++){
+        newinsts[i] = snippetInstructions[i];
+    }
+    newinsts[numberOfSnippetInstructions] = inst;
+    delete[] snippetInstructions;
+    snippetInstructions = newinsts;
+    numberOfSnippetInstructions++;
+    return numberOfSnippetInstructions;
+}
+

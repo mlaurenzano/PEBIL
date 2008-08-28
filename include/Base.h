@@ -172,13 +172,6 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Size__32_bit_Gnu_Versym             sizeof(uint16_t)
 #define Size__64_bit_Gnu_Versym             sizeof(uint16_t)
 
-#define Size__32_bit_Function_Wrapper       24
-#define Size__64_bit_Function_Wrapper       56
-#define Size__32_bit_Procedure_Link         16
-#define Size__64_bit_Procedure_Link         16
-#define Size__32_bit_Bootstrap              11
-#define Size__64_bit_Bootstrap              13
-
 typedef enum {
     ElfRelType_undefined = 0,
     ElfRelType_rel,
@@ -216,6 +209,14 @@ typedef enum {
     ElfClassTypes_TextSection,
     ElfClassTypes_Total_Types
 } ElfClassTypes;
+
+typedef enum {
+    ElfArgumentTypes_no_type = 0,
+    ElfArgumentTypes_uint32_t,
+    ElfArgumentTypes_uint32_t_pointer,
+    ElfArgumentTypes_uint64_t,
+    ElfArgumentTypes_uint64_t_pointer
+} ElfArgumentTypes;
 
 
 class BinaryInputFile;

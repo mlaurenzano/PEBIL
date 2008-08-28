@@ -82,8 +82,11 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
     instructions = newinstructions;
     numberOfInstructions = newNumberOfInstructions;
 
+    addr = getAddress();
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         instructions[i]->setIndex(i);
+        instructions[i]->setAddress(addr);
+        addr += instructions[i]->getLength();
     }
 
     *(replacedInstructions) = toReplace;

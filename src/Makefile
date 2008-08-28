@@ -1,6 +1,6 @@
 DBG         = -g
 PROFILE     = -pg
-OPT         = -O0
+OPT         = -O3
 #CFLAGS      = -bmaxdata:0x80000000 $(DBG) $(OPT)
 NATIVE_CPP  = CC
 GNU_CPP     = g++
@@ -27,12 +27,12 @@ SRCDIR      = ../src
 BINDIR      = ../bin
 LIBDIR      = ../lib
 
-SRCS        = Base.C BinaryFile.C Disassembler.C DynamicTable.C ElfFile.C ElfFileInst.C FileHeader.C \
-	Function.C GlobalOffsetTable.C GnuVerneedTable.C GnuVersymTable.C HashTable.C Instruction.C Instrumentation.C \
+SRCS        = Base.C BinaryFile.C Disassembler.C DynamicTable.C ElfFile.C ElfFileInst.C FileHeader.C Function.C \
+	FunctionCounter.C GlobalOffsetTable.C GnuVerneedTable.C GnuVersymTable.C HashTable.C Instruction.C Instrumentation.C \
 	NoteSection.C ProgramHeader.C RawSection.C RelocationTable.C SectionHeader.C StringTable.C \
 	SymbolTable.C TextSection.C main.C
-OBJS        = Base.o BinaryFile.o Disassembler.o DynamicTable.o ElfFile.o ElfFileInst.o FileHeader.o \
-	Function.o GlobalOffsetTable.o GnuVerneedTable.o GnuVersymTable.o HashTable.o Instruction.o Instrumentation.o \
+OBJS        = Base.o BinaryFile.o Disassembler.o DynamicTable.o ElfFile.o ElfFileInst.o FileHeader.o Function.o \
+	FunctionCounter.o GlobalOffsetTable.o GnuVerneedTable.o GnuVersymTable.o HashTable.o Instruction.o Instrumentation.o \
 	NoteSection.o ProgramHeader.o RawSection.o RelocationTable.o SectionHeader.o StringTable.o \
 	SymbolTable.o TextSection.o main.o
 

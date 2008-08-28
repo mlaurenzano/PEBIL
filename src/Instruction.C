@@ -7,6 +7,98 @@ void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     binaryOutputFile->copyBytes(rawBytes,instructionLength,offset);
 }
 
+Instruction* Instruction::generateAddByteToRegaddr(uint8_t byt, uint32_t idx){
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 3;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+    buff[0] = 0x83; 
+    buff[1] = 0x00 + idx;
+    buff[2] = byt;
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+Instruction* Instruction::generateMoveRegaddrToReg32(uint32_t srcidx, uint32_t destidx){
+    ASSERT(srcidx < X86_32BIT_GPRS && "Illegal register index given");
+    ASSERT(destidx < X86_32BIT_GPRS && "Illegal register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 2;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+    buff[0] = 0x8b; 
+    buff[1] = 0x00 + (char)(srcidx) + (char)(8*destidx);
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+Instruction* Instruction::generateMoveRegaddrToReg64(uint32_t srcidx, uint32_t destidx){
+    ASSERT(srcidx < X86_32BIT_GPRS && "Illegal register index given");
+    ASSERT(destidx < X86_32BIT_GPRS && "Illegal register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 3;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+    buff[0] = 0x67;
+    buff[1] = 0x8b; 
+    buff[2] = 0x00 + (char)(srcidx) + (char)(8*destidx);
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+
+Instruction* Instruction::generateRegAddImmediate(uint32_t idx, uint64_t imm){
+    ASSERT(idx > 0 && idx < X86_32BIT_GPRS && "Illegal register index given");
+    Instruction* ret = new Instruction();
+    uint32_t len = 6;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+    buff[0] = 0x81;
+    buff[1] = 0xc0 + (char)idx;
+
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == imm && "Cannot use more than 32 bits for immset");
+    memcpy(buff+2,&imm32,sizeof(uint32_t));
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+Instruction* Instruction::generateMoveImmByteToMemIndirect(uint8_t byt, uint64_t off, uint32_t idx){
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
+    Instruction* ret = new Instruction();
+    uint32_t len = 7;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+    buff[0] = 0xc6;
+    buff[1] = 0x80 + (char)idx;
+    buff[6] = byt;
+
+    uint32_t off32 = (uint32_t)off;
+    ASSERT(off32 == off && "Cannot use more than 32 bits for offset");
+    memcpy(buff+2,&off32,sizeof(uint32_t));
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
 Instruction* Instruction::generateReturn(){
     Instruction* ret = new Instruction();
     uint32_t len = 1;
@@ -101,7 +193,7 @@ Instruction* Instruction::generateNoop(){
     return ret;
 }
 
-Instruction* Instruction::generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest){
+Instruction* Instruction::generateMoveRegToRegaddr64(uint32_t idxsrc, uint32_t idxdest){
     ASSERT(idxsrc < 8 && "Illegal register index given");
     ASSERT(idxdest < 8 && "Illegal register index given");    
     Instruction* ret = new Instruction();
@@ -114,6 +206,24 @@ Instruction* Instruction::generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idx
     buff[0] = 0x67;
     buff[1] = 0x89;
     buff[2] = 0x00 + (char)(idxsrc*8) + (char)(idxdest);
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+Instruction* Instruction::generateMoveRegToRegaddr32(uint32_t idxsrc, uint32_t idxdest){
+    ASSERT(idxsrc < 8 && "Illegal register index given");
+    ASSERT(idxdest < 8 && "Illegal register index given");    
+    Instruction* ret = new Instruction();
+    uint32_t len = 2;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0x89;
+    buff[1] = 0x00 + (char)(idxsrc*8) + (char)(idxdest);
 
     ret->setBytes(buff);
     delete[] buff;
@@ -139,7 +249,7 @@ Instruction* Instruction::generateIndirectRelativeJump64(uint64_t addr, uint64_t
     ASSERT(addr == (uint32_t)addr && "Cannot use more than 32 bits for the address");
     ASSERT(tgt == (uint32_t)tgt && "Cannot use more than 32 bits for the address");
 
-    memcpy(buff+2,&imm32,len-2);
+    memcpy(buff+2,&imm32,sizeof(uint32_t));
 
     ret->setBytes(buff);
     delete[] buff;
@@ -161,7 +271,7 @@ Instruction* Instruction::generateMoveImmToReg(uint64_t imm, uint32_t idx){
     // set target address
     uint32_t imm32 = (uint32_t)imm;
     ASSERT(imm32 == imm && "Cannot use more than 32 bits for immediate value");
-    memcpy(buff+1,&imm32,len-1);
+    memcpy(buff+1,&imm32,sizeof(uint32_t));
 
     ret->setBytes(buff);
     delete[] buff;
@@ -184,7 +294,7 @@ Instruction* Instruction::generateMoveRegToMem(uint32_t idx, uint64_t addr){
     // set target address
     uint32_t addr32 = (uint32_t)addr;
     ASSERT(addr32 == addr && "Cannot use more than 32 bits for address");
-    memcpy(buff+2,&addr32,len-2);
+    memcpy(buff+2,&addr32,sizeof(uint32_t));
 
     ret->setBytes(buff);
     delete[] buff;
@@ -244,7 +354,7 @@ Instruction* Instruction::generateCallRelative(uint64_t addr, uint64_t tgt){
     ASSERT(addr == (uint32_t)addr && "Cannot use more than 32 bits for address");
     ASSERT(tgt == (uint32_t)tgt && "Cannot use more than 32 bits for target");
 
-    memcpy(buff+1,&imm32,len-1);
+    memcpy(buff+1,&imm32,sizeof(uint32_t));
 
     ret->setBytes(buff);
     delete[] buff;
@@ -267,7 +377,7 @@ Instruction* Instruction::generateJumpIndirect32(uint64_t tgt){
     // set target address
     uint32_t tgt32 = (uint32_t)tgt;
     ASSERT(tgt32 == tgt && "Cannot use more than 32 bits for jump target");
-    memcpy(buff+2,&tgt32,len-2);
+    memcpy(buff+2,&tgt32,sizeof(uint32_t));
 
     ret->setBytes(buff);
     delete[] buff;
@@ -292,7 +402,7 @@ Instruction* Instruction::generateJumpRelative(uint64_t addr, uint64_t tgt){
     ASSERT(addr == (uint32_t)addr && "Cannot use more than 32 bits for address");
     ASSERT(tgt == (uint32_t)tgt && "Cannot use more than 32 bits for target");
 
-    memcpy(buff+1,&imm32,len-1);
+    memcpy(buff+1,&imm32,sizeof(uint32_t));
 
     ret->setBytes(buff);
     delete[] buff;
@@ -311,7 +421,7 @@ Instruction* Instruction::generateStackPushImmediate(uint64_t imm){
     buff[0] = 0x68;
     uint32_t imm32 = (uint32_t)imm;
     ASSERT(imm32 == imm && "Cannot use more than 32 bits for immediate value");
-    memcpy(buff+1,&imm32,len-1);
+    memcpy(buff+1,&imm32,sizeof(uint32_t));
 
     ret->setBytes(buff);
     delete[] buff;

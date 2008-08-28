@@ -282,8 +282,9 @@ bool ElfFile::verify(){
 }
 
 
-uint64_t ElfFile::addSection(uint16_t idx, ElfClassTypes classtype, char* bytes, uint32_t name, uint32_t type, uint64_t flags, uint64_t addr, uint64_t offset, 
-                             uint64_t size, uint32_t link, uint32_t info, uint64_t addralign, uint64_t entsize){
+uint64_t ElfFile::addSection(uint16_t idx, ElfClassTypes classtype, char* bytes, uint32_t name, uint32_t type, 
+                             uint64_t flags, uint64_t addr, uint64_t offset, uint64_t size, uint32_t link, 
+                             uint32_t info, uint64_t addralign, uint64_t entsize){
 
     ASSERT(sectionHeaders && "sectionHeaders should be initialized");
     ASSERT(rawSections && "rawSections should be initialized");

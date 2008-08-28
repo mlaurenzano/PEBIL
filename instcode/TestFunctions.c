@@ -1,10 +1,18 @@
 #include <stdio.h>
 
-int smalltest(){
-    fprintf(stdout, "You are calling a test function in a shared library. wow.\n");
-    fprintf(stdout, "Hello tikir\n");
-    fprintf(stdout, "Mikey rules\n");
+int functioncounter(int numFunctions, int* functionCounts){
+    int i;
+
+    fprintf(stdout, "\n*** Instrumentation Summary ****\n");
+    fprintf(stdout, "There are %d functions in the code:\n", numFunctions);
     fflush(stdout);
+
+    for (i = 0; i < numFunctions; i++){
+        fprintf(stdout, "\tFunction %d  executed %d times\n", i, functionCounts[i]);
+        fflush(stdout);
+    }
+    fflush(stdout);
+
     return 3;
 }
 
