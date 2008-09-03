@@ -259,9 +259,9 @@ bool ElfFile::verify(){
     prevSize = addrs.deleteMin(&prevBegin);
     while (addrs.size()){
         currSize = addrs.deleteMin(&currBegin);
-        //        PRINT_INFOR("Verifying address ranges [%lld,%lld],[%lld,%lld]", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
+        PRINT_INFOR("Verifying address ranges [%llx,%llx],[%llx,%llx]", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
         if (prevBegin+prevSize > currBegin && currSize != 0){
-            PRINT_ERROR("Address ranges [%lld,%lld],[%lld,%lld] should not intersect", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
+            PRINT_ERROR("Address ranges [%llx,%llx],[%llx,%llx] should not intersect", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
             return false;
         }
         prevBegin = currBegin;

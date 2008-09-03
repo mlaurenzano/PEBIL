@@ -76,10 +76,12 @@ void ElfFileInst::extendDataSection(uint64_t size){
         ASSERT(!scn->GET(sh_addr) && "The bss section should be the final section the programs address space");
     }
 
-    // move the section header table offset if it is after the data section
+    /*
+    // move the section header table offset if it is after the bss section
     if (extendedData->GET(sh_offset) < elfFile->getFileHeader()->GET(e_shoff)){
         elfFile->getFileHeader()->INCREMENT(e_shoff,size);
     }
+    */
 
     PRINT_INFOR("Extra data space available @address 0x%016llx + %d bytes", extendedData->GET(sh_addr), extendedData->GET(sh_size));
     PRINT_INFOR("Extra data space available @offset  0x%016llx + %d bytes", extendedData->GET(sh_offset), extendedData->GET(sh_size));
@@ -287,9 +289,9 @@ void ElfFileInst::instrument(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
-    extendTextSection(0x20000);
+    extendTextSection(0x10000);
     PRINT_INFOR("Successfully extended text section/segment");
-    extendDataSection(0x20000);
+    extendDataSection(0x10000);
     PRINT_INFOR("Successfully extended data section/segment");
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");

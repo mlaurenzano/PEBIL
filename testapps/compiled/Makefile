@@ -5,6 +5,7 @@
 X86INSTREGEXP  = "(Instrumentation Successfull)"
 DIFFREGEXP     = "are identical"
 TESTAPPREGEXP  = "(Test Application Successfull)"
+INSTCODEREGEXP = "(Instrumentation Code Successfull)"
 SRC            = ../../src
 TESTBINS       = .
 32BITBIN       = $(TESTBINS)/32bit/

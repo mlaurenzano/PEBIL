@@ -60,7 +60,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 
 #define PRINT_ERROR(...) fprintf(stderr,"*********** ERROR : "); \
-    fprintf(stderr, "At line %d in file %s\n", __LINE__, __FILE__);     \
+    fprintf(stderr, "At line %d in file %s, function %s\n", __LINE__, __FILE__,__FUNCTION__);    \
     fprintf(stderr,## __VA_ARGS__);                              \
     fprintf(stderr,"\n");                                \
     exit(-1);
