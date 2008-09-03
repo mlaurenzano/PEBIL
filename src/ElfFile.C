@@ -943,6 +943,9 @@ void ElfFile::readProgramHeaders(){
             }
         }
     }
+
+    ASSERT(textSegmentIdx && "This file must contain a text segment");
+    ASSERT(dataSegmentIdx && "This file must contain a data segment");
 }
 
 void ElfFile::readSectionHeaders(){

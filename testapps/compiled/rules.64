@@ -1,2 +1,2 @@
-dat32: dat32inst dat32ide dat32rm
-dat64: dat64inst dat64run dat64ide dat64rm
+fnc32: fnc32inst fnc32ide fnc32rm
+fnc64: fnc64inst fnc64run fnc64ide fnc64rm

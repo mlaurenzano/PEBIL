@@ -39,12 +39,13 @@ public:
 class BinaryOutputFile {
 private:
     FILE* outFile;
+    char* fileName;
 public:
 
-    BinaryOutputFile() : outFile(NULL) {}
-    ~BinaryOutputFile() {}
+    BinaryOutputFile() : outFile(NULL),fileName(NULL) {}
+    ~BinaryOutputFile();
 
-    void open(char* fileName);
+    void open(char* flnm);
     bool operator!();
     void copyBytes(char* buffer,uint32_t size,uint32_t offset);
     uint32_t alreadyWritten();

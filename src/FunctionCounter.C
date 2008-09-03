@@ -4,6 +4,7 @@
 
 #define EXIT_FUNCTION "functioncounter"
 #define LIB_NAME "libtest.so"
+#define OTHER_FUNCTION "secondtest"
 
 FunctionCounter::FunctionCounter(ElfFile* elf)
     : ElfFileInst(elf)
@@ -21,6 +22,7 @@ void FunctionCounter::declareInstrumentation(){
 
     // declare any instrumentation functions that will be used
     declareFunction(EXIT_FUNCTION);
+    declareFunction(OTHER_FUNCTION);
 
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 }
@@ -28,8 +30,9 @@ void FunctionCounter::declareInstrumentation(){
 void FunctionCounter::reserveInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
     
-    TextSection* text = getCodeSection();
+    TextSection* text = getTextSection();
     TextSection* fini = getFiniSection();
+    TextSection* init = getInitSection();
 
     ASSERT(text && "Cannot find text section");
 

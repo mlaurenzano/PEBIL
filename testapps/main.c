@@ -55,6 +55,7 @@ int main(int argc,char* argv[]){
         retb = C_PREFIX(bar)(i);
         retd = C_PREFIX(dum)(i);
         printf("%#x %d %d %d\n",i,retf,retb,retd);
+        fflush(stdout);
     }
 #ifdef MIKEY_LOOP
     call_mikey_func();
@@ -63,6 +64,7 @@ int main(int argc,char* argv[]){
     no_argument();
     printf("more arguments is %d\n",C_PREFIX(more_arguments)(1,2,3,4,5,6,7,8,9,10));
     printf("(Test Application Successfull)\n");
+    fflush(stdout);
     return 0;
 }
 

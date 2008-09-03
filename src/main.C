@@ -26,7 +26,7 @@ void printUsage(char* argv[],bool shouldExt=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : %s\n",argv[0]);
         //fprintf(stderr,"\t--typ (ide|dat|bbt|cnt|jbb|sim|csc)\n");
-        fprintf(stderr,"\t--typ (ide|dat|dis)\n");
+        fprintf(stderr,"\t--typ (ide|fnc|dis)\n");
 	fprintf(stderr,"\t--app <executable_path>\n");
 	fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
 	fprintf(stderr,"\t[--lib <shared_lib_topdir>]\n");
@@ -50,6 +50,7 @@ typedef enum {
     simucntr_inst_type,
     bbtrace_inst_type,
     countblocks_inst_type,
+    function_counter_type,
     data_extender_type,
     disassembler_type,
     Total_InstrumentationType
@@ -92,6 +93,9 @@ int main(int argc,char* argv[]){
             } else if (!strcmp(argv[i],"dat")){
                 instType = data_extender_type;
                 extension = "datinst";
+            } else if (!strcmp(argv[i],"fnc")){
+                instType = function_counter_type;
+                extension = "fncinst";                
             } else if (!strcmp(argv[i],"dis")){
                 instType = disassembler_type;
                 extension = "datinst";
@@ -212,7 +216,7 @@ int main(int argc,char* argv[]){
 
     if (instType == identical_inst_type){
         elfFile.dump(extension);
-    } else if (instType == data_extender_type){
+    } else if (instType == function_counter_type){
         FunctionCounter* functionCounter = new FunctionCounter(&elfFile);
 
         functionCounter->instrument();

@@ -156,12 +156,27 @@ uint32_t BinaryOutputFile::alreadyWritten(){
     return (uint32_t)ftell(outFile);
 }
 
-void BinaryOutputFile::open(char* fileName) { 
+void BinaryOutputFile::open(char* filenm) { 
+    uint32_t namelen = strlen(filenm);
+    PRINT_INFOR("Opening output file %s with len %d", filenm, namelen);
+    fileName = new char[namelen+1];
+    strncpy(fileName, filenm, namelen);
+    fileName[namelen] = '\0';
     PRINT_INFOR("Opening output file %s", fileName);
     outFile = fopen(fileName,"w");
 }
 
 bool BinaryOutputFile::operator!() { return !outFile; }
 
-void BinaryOutputFile::close() { fclose(outFile); }
+void BinaryOutputFile::close() { 
+    fclose(outFile);     
+    if (fileName){
+        chmod(fileName,0750);
+    }
+}
 
+BinaryOutputFile::~BinaryOutputFile(){
+    if (fileName){
+        delete[] fileName;
+    }
+}

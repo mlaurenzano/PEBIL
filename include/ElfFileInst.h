@@ -24,7 +24,7 @@ class RawSection;
 
 typedef enum {
     ElfInstPhase_no_phase = 0,
-    ElfInstPhase_reserve_space,
+    ElfInstPhase_extend_space,
     ElfInstPhase_user_declare,
     ElfInstPhase_user_reserve,
     ElfInstPhase_modify_control,
@@ -54,6 +54,7 @@ protected:
     uint16_t extraDataIdx;
 
     uint64_t usableDataOffset;
+    uint64_t bssReserved;
 
     uint32_t addStringToDynamicStringTable(const char* str);
     uint32_t addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx);
@@ -85,8 +86,9 @@ public:
 
     void instrument();
 
-    TextSection* getCodeSection();
+    TextSection* getTextSection();
     TextSection* getFiniSection();
+    TextSection* getInitSection();
 
     TextSection* getExtraTextSection() { return (TextSection*)(elfFile->getRawSection(extraTextIdx)); }
     RawSection* getExtraDataSection() { return elfFile->getRawSection(extraDataIdx); }

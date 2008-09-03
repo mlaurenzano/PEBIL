@@ -27,6 +27,66 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
+void ElfFileInst::extendDataSection(uint64_t size){
+    ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
+
+    ProgramHeader* dataHeader = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
+
+    // we first find the bss section. Since the bss has to be the last section in the data
+    // segment, we will extend the size of the bss segment then place any extra data in this
+    // extra space in the bss section.
+    uint16_t bssSectionIdx = 0;
+    for (uint32_t i = 1; i < elfFile->getNumberOfSections(); i++){
+        if (elfFile->getSectionHeader(i)->GET(sh_type) == SHT_NOBITS){
+            // for now we assume that any section of type NOBITS is a bss section
+            ASSERT(!bssSectionIdx && "Cannot have more than 1 bss section (defined by having type SHT_NOBITS)");
+            bssSectionIdx = i;
+        }
+    }
+    ASSERT(bssSectionIdx != elfFile->getNumberOfSections() && "Could not find the BSS section in the file");
+    SectionHeader* bssSection = elfFile->getSectionHeader(bssSectionIdx);
+
+    extraDataIdx = bssSectionIdx;
+    bssReserved = bssSection->GET(sh_size);
+
+    // increase the memory size of the bss section (note: this section has no size in the file)
+    bssSection->INCREMENT(sh_size,size);
+
+    // increase the memory size of the data segment
+    dataHeader->INCREMENT(p_memsz,size);
+
+    /*
+    extraDataIdx = bssSectionIdx+1;
+    elfFile->addSection(extraDataIdx, ElfClassTypes_no_type, NULL, bssSection->GET(sh_name), bssSection->GET(sh_type),
+                        bssSection->GET(sh_flags), bssSection->GET(sh_addr) + bssSection->GET(sh_size), 
+                        bssSection->GET(sh_offset), size, bssSection->GET(sh_link), 
+                        bssSection->GET(sh_info), 0, bssSection->GET(sh_entsize));
+    // move all later sections' offsets so that they don't conflict with this one
+    for (uint32_t i = extraDataIdx+1; i < elfFile->getNumberOfSections(); i++){
+        SectionHeader* scn = elfFile->getSectionHeader(i);
+        scn->SET(sh_offset,nextAlignAddress(scn->GET(sh_offset) + size, scn->GET(sh_addralign)));        
+    }
+
+    */
+
+    SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
+
+    for (uint32_t i = extraDataIdx+1; i < elfFile->getNumberOfSections(); i++){
+        SectionHeader* scn = elfFile->getSectionHeader(i);
+        ASSERT(!scn->GET(sh_addr) && "The bss section should be the final section the programs address space");
+    }
+
+    // move the section header table offset if it is after the data section
+    if (extendedData->GET(sh_offset) < elfFile->getFileHeader()->GET(e_shoff)){
+        elfFile->getFileHeader()->INCREMENT(e_shoff,size);
+    }
+
+    PRINT_INFOR("Extra data space available @address 0x%016llx + %d bytes", extendedData->GET(sh_addr), extendedData->GET(sh_size));
+    PRINT_INFOR("Extra data space available @offset  0x%016llx + %d bytes", extendedData->GET(sh_offset), extendedData->GET(sh_size));
+
+    verify();
+}
+
 
 uint32_t ElfFileInst::addInstrumentationSnippet(InstrumentationSnippet* snip){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
@@ -45,20 +105,26 @@ uint32_t ElfFileInst::addInstrumentationSnippet(InstrumentationSnippet* snip){
 }
 
 uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
-    uint64_t avail = usableDataOffset;
+    ASSERT(currentPhase > ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
+    uint64_t avail = usableDataOffset + bssReserved;
     usableDataOffset += size;
-    PRINT_INFOR("Using %llx bytes of the data section", usableDataOffset);
-    ASSERT(usableDataOffset <= elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) && "Not enough space for the requested data");
+    PRINT_INFOR("Using bytes [%llx,%llx] of the data section", avail, avail+size);
+    ASSERT(avail <= elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) && "Not enough space for the requested data");
     return avail;
 }
 
-TextSection* ElfFileInst::getCodeSection(){
+TextSection* ElfFileInst::getTextSection(){
     uint16_t textIdx = elfFile->findSectionIdx(".text");
     TextSection* textSection = (TextSection*)elfFile->getRawSection(textIdx);
     return textSection;
 }
 TextSection* ElfFileInst::getFiniSection(){
     uint16_t textIdx = elfFile->findSectionIdx(".fini");
+    TextSection* textSection = (TextSection*)elfFile->getRawSection(textIdx);
+    return textSection;
+}
+TextSection* ElfFileInst::getInitSection(){
+    uint16_t textIdx = elfFile->findSectionIdx(".init");
     TextSection* textSection = (TextSection*)elfFile->getRawSection(textIdx);
     return textSection;
 }
@@ -113,7 +179,6 @@ void ElfFileInst::generateInstrumentation(){
 
     uint32_t precodeOffset = 0;
     uint32_t codeOffset = bootstrapSize;
-    uint32_t dataOffset = 0;
 
     snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN];
     snip->setCodeOffsets(0,precodeOffset);
@@ -128,13 +193,6 @@ void ElfFileInst::generateInstrumentation(){
         codeOffset += func->procedureLinkReservedSize();
         uint64_t wrapperOffset = codeOffset;
         codeOffset += func->wrapperReservedSize();
-        
-        PRINT_INFOR("Printing function %d", i);
-        uint64_t globalDataOffset = dataOffset;
-        PRINT_INFOR("Global data offset = %lld %lld", globalDataOffset, func->getGlobalDataOffset());
-        ASSERT(globalDataOffset == func->getGlobalDataOffset());
-        ASSERT(func->globalDataSize() == Size__32_bit_Global_Offset_Table_Entry);
-        dataOffset += func->globalDataSize();
         
         func->setCodeOffsets(procedureLinkOffset, bootstrapOffset, wrapperOffset);
     }
@@ -194,7 +252,6 @@ void ElfFileInst::generateInstrumentation(){
     
     ASSERT(precodeOffset == bootstrapSize && "Bootstrap code size does not match what we just calculated");
     ASSERT(codeOffset <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough space in the text section to accomodate the extra code");
-    ASSERT(dataOffset <= elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) && "Not enough space in the data section to accomodate the extra data");    
 
     for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
@@ -228,14 +285,14 @@ void ElfFileInst::instrument(){
     
     ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
     currentPhase++;
-    ASSERT(currentPhase == ElfInstPhase_reserve_space && "Instrumentation phase order must be observed");
+    ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
     extendTextSection(0x20000);
     PRINT_INFOR("Successfully extended text section/segment");
     extendDataSection(0x20000);
     PRINT_INFOR("Successfully extended data section/segment");
 
-    ASSERT(currentPhase == ElfInstPhase_reserve_space && "Instrumentation phase order must be observed");
+    ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
@@ -356,7 +413,8 @@ uint32_t ElfFileInst::declareFunction(char* funcName){
     for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){
         newFunctions[i] = instrumentationFunctions[i];
     }
-    newFunctions[numberOfInstrumentationFunctions] = new InstrumentationFunction32(numberOfInstrumentationFunctions, funcName);
+    newFunctions[numberOfInstrumentationFunctions] = 
+        new InstrumentationFunction32(numberOfInstrumentationFunctions, funcName, reserveDataOffset(Size__32_bit_Global_Offset_Table_Entry));
 
     delete[] instrumentationFunctions;
     instrumentationFunctions = newFunctions;
@@ -455,58 +513,8 @@ uint64_t ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOf
 }
 
 
-void ElfFileInst::extendDataSection(uint64_t size){
-    ASSERT(currentPhase == ElfInstPhase_reserve_space && "Instrumentation phase order must be observed");
-
-    ProgramHeader* dataHeader = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
-
-    // we first find the bss section. Since the bss has to be the last section in the data
-    // segment, we will extend the size of the bss segment then place any extra data in this
-    // extra space in the bss section.
-    uint16_t bssSectionIdx = 0;
-    for (uint32_t i = 1; i < elfFile->getNumberOfSections(); i++){
-        if (elfFile->getSectionHeader(i)->GET(sh_type) == SHT_NOBITS){
-            // for now we assume that any section of type NOBITS is a bss section
-            ASSERT(!bssSectionIdx && "Cannot have more than 1 bss section (defined by having type SHT_NOBITS)");
-            bssSectionIdx = i;
-        }
-    }
-    ASSERT(bssSectionIdx != elfFile->getNumberOfSections() && "Could not find the BSS section in the file");
-    SectionHeader* bssSection = elfFile->getSectionHeader(bssSectionIdx);
-    extraDataIdx = bssSectionIdx + 1;
-
-    // increase the memory size of the bss section (note: this section has no size in the file)
-    bssSection->INCREMENT(sh_size,size);
-
-    // increase the memory size of the data segment
-    dataHeader->INCREMENT(p_memsz,size);
-
-    elfFile->addSection(extraDataIdx, ElfClassTypes_no_type, NULL, bssSection->GET(sh_name), bssSection->GET(sh_type),
-                        bssSection->GET(sh_flags), bssSection->GET(sh_addr) + bssSection->GET(sh_size), 
-                        bssSection->GET(sh_offset), size, bssSection->GET(sh_link), 
-                        bssSection->GET(sh_info), 0, bssSection->GET(sh_entsize));
-    SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
-
-    // move all later sections' offsets so that they don't conflict with this one
-    for (uint32_t i = bssSectionIdx+2; i < elfFile->getNumberOfSections(); i++){
-        SectionHeader* scn = elfFile->getSectionHeader(i);
-        scn->SET(sh_offset,nextAlignAddress(scn->GET(sh_offset) + size, scn->GET(sh_addralign)));        
-    }
-
-    // move the section header table offset if it is after the data section
-    if (extendedData->GET(sh_offset) < elfFile->getFileHeader()->GET(e_shoff)){
-        elfFile->getFileHeader()->INCREMENT(e_shoff,size);
-    }
-
-    PRINT_INFOR("Extra data space available @address 0x%016llx + %d bytes", extendedData->GET(sh_addr), extendedData->GET(sh_size));
-    PRINT_INFOR("Extra data space available @offset  0x%016llx + %d bytes", extendedData->GET(sh_offset), extendedData->GET(sh_size));
-
-    verify();
-}
-
-
 void ElfFileInst::extendTextSection(uint64_t size){
-    ASSERT(currentPhase == ElfInstPhase_reserve_space && "Instrumentation phase order must be observed");
+    ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
     PRINT_INFOR("Attempting to extend text segment by %llx ALIGN %llx = %llx", size, elfFile->getProgramHeader(elfFile->getTextSegmentIdx())->GET(p_align), nextAlignAddress(size,elfFile->getProgramHeader(elfFile->getTextSegmentIdx())->GET(p_align)));
     size = nextAlignAddress(size,elfFile->getProgramHeader(elfFile->getTextSegmentIdx())->GET(p_align));
@@ -743,6 +751,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     extraDataIdx = 0;
 
     usableDataOffset = MAX_INST_FUNCTIONS * Size__32_bit_Global_Offset_Table_Entry;
+    bssReserved = 0;
 }
 
 uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx){

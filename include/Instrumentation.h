@@ -96,7 +96,7 @@ protected:
     uint32_t addProcedureLinkInstruction(Instruction* inst);
 
 public:
-    InstrumentationFunction(uint32_t idx, char* funcName);
+    InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset);
     ~InstrumentationFunction();
 
     void print();
@@ -136,7 +136,7 @@ public:
 
 class InstrumentationFunction32 : public InstrumentationFunction {
 public:
-    InstrumentationFunction32(uint32_t idx, char* funcName) : InstrumentationFunction(idx,funcName) {}
+    InstrumentationFunction32(uint32_t idx, char* funcName, uint64_t dataoffset) : InstrumentationFunction(idx,funcName,dataoffset) {}
     ~InstrumentationFunction32() {}
 
     uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress);
@@ -151,7 +151,7 @@ public:
 
 class InstrumentationFunction64 : public InstrumentationFunction {
 public:
-    InstrumentationFunction64(uint32_t idx, char* funcName) : InstrumentationFunction(idx,funcName) {}
+    InstrumentationFunction64(uint32_t idx, char* funcName,uint64_t dataoffset) : InstrumentationFunction(idx,funcName,dataoffset) {}
     ~InstrumentationFunction64() {}
 
     uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress);

@@ -66,10 +66,12 @@ Foo cpp_global(25);
 int main(){
     Foo* foo = new Foo(5);
     foo->print();
+    delete foo;
     foo = new Bar(9.734);
     foo->print();
     printf("%d ",((Bar*)foo)->getInt());
     printf("%f ",((Bar*)foo)->getFloat());
+    delete foo;
     foo = new Dum(strdup("What is going on here"));
     printf("%s\n",((Dum*)foo)->getString());
     foo->print();
@@ -80,6 +82,7 @@ int main(){
     cpp_global = *foo;
     cpp_global.print();
 
+    delete foo;
     printf("(Test Application Successfull)\n");
 
     return 0;

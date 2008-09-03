@@ -8,6 +8,7 @@
 #include <strings.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <CStructuresElf.h>
 
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);

@@ -12,21 +12,21 @@ TESTBINS       = .
 #LEAKCHECK      = valgrind --leak-check=yes
 INSTRUMENTOR   = $(LEAKCHECK) $(SRC)/x86inst
 IDEEXT         = ideinst
-DATEXT         = datinst
+FNCEXT         = fncinst
 64BITPROGS     = $(64BITPROGS_SER) $(64BITPROGS_PAR)
 32BITPROGS     = $(32BITPROGS_SER) $(32BITPROGS_PAR)
 
 
-all: ide dat
+all: ide fnc
 ide: ide32 ide64
-dat: dat32 dat64
+fnc: fnc32 fnc64
 include rules.$(BITS)
 
 clean:
 	rm -f $(32BITBIN)/*.$(IDEEXT)
-	rm -f $(32BITBIN)/*.$(DATEXT)
+	rm -f $(32BITBIN)/*.$(FNCEXT)
 	rm -f $(64BITBIN)/*.$(IDEEXT)
-	rm -f $(64BITBIN)/*.$(DATEXT)
+	rm -f $(64BITBIN)/*.$(FNCEXT)
 
 
 ide32:
@@ -43,47 +43,45 @@ ide64:
 	done
 	rm -f $(64BITBIN)/*.$(IDEEXT)
 
-dat32inst:
+fnc32inst:
 	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ dat --lib ../.. | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ fnc --lib ../.. | egrep $(X86INSTREGEXP); \
 	done
 
-dat32run:
+fnc32run:
 	for i in ${32BITPROGS_SER}; do \
-		chmod a+x $(32BITBIN)/"$$i".$(DATEXT); \
-		$(32BITBIN)/"$$i".$(DATEXT) | egrep $(TESTAPPREGEXP); \
+		$(32BITBIN)/"$$i".$(FNCEXT) | egrep $(TESTAPPREGEXP); \
 	done	
 
-dat32ide:
+fnc32ide:
 	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(DATEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
-		diff -s $(32BITBIN)/"$$i".$(DATEXT) $(32BITBIN)/"$$i".$(DATEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(FNCEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+		diff -s $(32BITBIN)/"$$i".$(FNCEXT) $(32BITBIN)/"$$i".$(FNCEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(32BITBIN)/*.$(IDEEXT)
 
-dat32rm:
-	rm -f $(32BITBIN)/*.$(DATEXT)
+fnc32rm:
+	rm -f $(32BITBIN)/*.$(FNCEXT)
 
-dat64inst:
+fnc64inst:
 	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ dat --lib ../.. | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ fnc --lib ../.. | egrep $(X86INSTREGEXP); \
 	done
 
-dat64run:
+fnc64run:
 	for i in ${64BITPROGS_SER}; do \
-		chmod a+x $(64BITBIN)/"$$i".$(DATEXT); \
-		$(64BITBIN)/"$$i".$(DATEXT) | egrep $(TESTAPPREGEXP); \
+		$(64BITBIN)/"$$i".$(FNCEXT) | egrep $(TESTAPPREGEXP); \
 	done
 
-dat64ide:
+fnc64ide:
 	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(DATEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
-		diff -s $(64BITBIN)/"$$i".$(DATEXT) $(64BITBIN)/"$$i".$(DATEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(FNCEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+		diff -s $(64BITBIN)/"$$i".$(FNCEXT) $(64BITBIN)/"$$i".$(FNCEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(64BITBIN)/*.$(IDEEXT)
 
-dat64rm:
-	rm -f $(64BITBIN)/*.$(DATEXT)
+fnc64rm:
+	rm -f $(64BITBIN)/*.$(FNCEXT)
 
 nobitswarn:
 	echo ""

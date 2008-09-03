@@ -208,7 +208,7 @@ uint32_t InstrumentationFunction::sizeNeeded(){
     return totalSize;
 }
 
-InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName)
+InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset)
     : Instrumentation(ElfClassTypes_InstrumentationFunction)
 {
     index = idx;
@@ -229,7 +229,7 @@ InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName)
     wrapperOffset = 0;
 
     globalData = 0;
-    globalDataOffset = index * Size__32_bit_Global_Offset_Table_Entry;
+    globalDataOffset = dataoffset;
 
     numberOfArguments = 0;
     arguments = NULL;
