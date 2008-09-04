@@ -28,6 +28,7 @@ enum x86_insn_type {
     x86_insn_type_unknown = 0,
     x86_insn_type_cond_branch,
     x86_insn_type_branch,
+    x86_insn_type_return,
     x86_insn_type_int,
     x86_insn_type_float,
     x86_insn_type_simd,
@@ -45,6 +46,35 @@ enum x86_operand_type {
     x86_operand_type_imreg,
     x86_operand_type_imm,
     x86_operand_type_mem,
+    x86_operand_type_func_ST,
+    x86_operand_type_func_STi,
+    x86_operand_type_func_indirE,
+    x86_operand_type_func_E,
+    x86_operand_type_func_G,
+    x86_operand_type_func_IMREG,
+    x86_operand_type_func_I,
+    x86_operand_type_func_I64,
+    x86_operand_type_func_sI,
+    x86_operand_type_func_J,    
+    x86_operand_type_func_SEG,    
+    x86_operand_type_func_DIR,    
+    x86_operand_type_func_OFF,    
+    x86_operand_type_func_OFF64,    
+    x86_operand_type_func_ESreg,    
+    x86_operand_type_func_DSreg,    
+    x86_operand_type_func_C,    
+    x86_operand_type_func_D,    
+    x86_operand_type_func_T,    
+    x86_operand_type_func_Rd,
+    x86_operand_type_func_MMX,
+    x86_operand_type_func_XMM,
+    x86_operand_type_func_EM,
+    x86_operand_type_func_EX,
+    x86_operand_type_func_MS,
+    x86_operand_type_func_XS,
+    x86_operand_type_func_3DNowSuffix,
+    x86_operand_type_func_SIMD_Suffix,
+    x86_operand_type_func_SIMD_Fixup,
     x86_operand_type_Total
 };
 
@@ -91,6 +121,8 @@ public:
     uint32_t getLength();
     char* getBytes();
     Operand getOperand(uint32_t idx);
+    uint32_t getInstructionType() { return instructionType; }
+    bool isRelocatable();
 
     uint32_t setIndex(uint32_t newidx);
     uint64_t setNextAddress();

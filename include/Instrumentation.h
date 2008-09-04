@@ -9,8 +9,8 @@
 #define PLT_RETURN_OFFSET_32BIT 6
 #define PLT_RETURN_OFFSET_64BIT 6
 
-#define Size__32_bit_function_bootstrap 42
-#define Size__64_bit_function_bootstrap 32
+#define Size__32_bit_function_bootstrap 64
+#define Size__64_bit_function_bootstrap 64
 #define Size__32_bit_procedure_link 16
 #define Size__64_bit_procedure_link 16
 #define Size__32_bit_function_wrapper 64
@@ -169,6 +169,8 @@ private:
     Base* point;
     Instrumentation* instrumentation;
 
+    uint64_t sourceAddress;
+
     Instruction** trampolineInstructions;
     uint32_t numberOfTrampolineInstructions;
     uint64_t trampolineOffset;
@@ -180,7 +182,7 @@ public:
     void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
-    uint64_t getSourceAddress();
+    uint64_t getSourceAddress() { return sourceAddress; }
     uint64_t getTargetOffset() { ASSERT(instrumentation); return instrumentation->getEntryPoint(); }
 
     uint32_t sizeNeeded();

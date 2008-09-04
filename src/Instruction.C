@@ -2,6 +2,21 @@
 #include <Instruction.h>
 #include <CStructuresX86.h>
 
+bool Instruction::isRelocatable(){
+    if (instructionType == x86_insn_type_cond_branch ||
+        instructionType == x86_insn_type_branch){
+        return false;
+    }
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        // we assume an immediate value of this type that isn't a register is an address offset
+        if (operands[i].getType() == x86_operand_type_func_E &&
+            operands[i].getValue() > X86_64BIT_GPRS){
+            return false;
+        }
+    }
+    return true;
+}
+
 void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(rawBytes && instructionLength && "This instruction has no bytes thus it cannot be dumped");
     binaryOutputFile->copyBytes(rawBytes,instructionLength,offset);
@@ -602,7 +617,12 @@ Operand Instruction::getOperand(uint32_t idx){
 
 void Instruction::print(){
     PRINT_INFO();
-    PRINT_OUT("Instruction -- [%d](", instructionLength);
+    if (isRelocatable()){
+        PRINT_OUT("Instruction (YES RELOCATABLE) -- ");
+    } else {
+        PRINT_OUT("Instruction (NOT RELOCATABLE) -- ");
+    }
+    PRINT_OUT("[%d](", instructionLength);
 
     if (rawBytes){
         for (uint32_t i = 0; i < instructionLength; i++){
@@ -665,13 +685,19 @@ uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
     case 0xb8: case 0xb9: case 0xba: case 0xbb: case 0xbc: case 0xbd: case 0xbe: case 0xbf:
         typ = x86_insn_type_int;
         break;
-    case 0xc0: case 0xc1: case 0xc2: case 0xc3:
+    case 0xc0: case 0xc1: 
         typ = x86_insn_type_branch;
+        break;
+    case 0xc2: case 0xc3:
+        typ = x86_insn_type_branch; // return
         break;
     case 0xc4: case 0xc5: case 0xc6: case 0xc7: case 0xc8: case 0xc9:
         typ = x86_insn_type_int;
         break;
-    case 0xca: case 0xcb: case 0xcc: case 0xcd: case 0xce: case 0xcf:
+    case 0xca: case 0xcb: 
+        typ = x86_insn_type_branch; // return
+        break;
+    case 0xcc: case 0xcd: case 0xce: case 0xcf:
         typ = x86_insn_type_branch;
         break;
     case 0xd0: case 0xd1: case 0xd2: case 0xd3: case 0xd4: case 0xd5: case 0xd6: case 0xd7:
@@ -700,7 +726,6 @@ uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
         break;
     }
     return typ;
-
 }
 
 

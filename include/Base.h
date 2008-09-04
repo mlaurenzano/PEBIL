@@ -22,6 +22,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
+#define __FUNCTION_NOT_IMPLEMENTED PRINT_ERROR("Function %s in file %s not implemented", __FUNCTION__, __FILE__); __SHOULD_NOT_ARRIVE;
 
 #define GET_FIELD_BASIS(__type,__field) virtual __type get_ ## __field() \
     { __SHOULD_NOT_ARRIVE; return ( __type )0; }

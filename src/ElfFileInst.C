@@ -199,9 +199,6 @@ void ElfFileInst::generateInstrumentation(){
         func->setCodeOffsets(procedureLinkOffset, bootstrapOffset, wrapperOffset);
     }
 
-    // don't need to do anything for the data -- snippets reserve space for their data 
-    // starting at offset MAX_INST_FUNCTIONS*Size__32_bit_Global_Offset_Table_Entry 
-    // when they are initialized by the user
     for (uint32_t i = INST_SNIPPETS_RESERVED; i < numberOfInstrumentationSnippets; i++){        
         snip = instrumentationSnippets[i];
 
@@ -227,8 +224,14 @@ void ElfFileInst::generateInstrumentation(){
             PRINT_ERROR("Instrumentation point %d should exist", i);
         }
 
+        if (!pt->getSourceAddress()){
+            PRINT_WARN("Could not find an instrumentation point");
+            continue;
+        }
+
         Instruction** repl = new Instruction*[1];
         repl[0] = Instruction::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + codeOffset);
+        ASSERT(repl[0]->getLength() == SIZE_NEEDED_AT_INST_POINT && "Instruction at instrumentation point has a different size than expected");
 
         Instruction** displaced = NULL;
 
@@ -242,6 +245,11 @@ void ElfFileInst::generateInstrumentation(){
             PRINT_ERROR("Cannot find a text section for address %llx", pt->getSourceAddress());
         }
         ASSERT(targetSection && "Cannot find a text section the address for an instrumentation point");
+
+        if (!isValidInstrumentation(targetSection,repl[0],pt->getSourceAddress())){
+            PRINT_WARN("Cannot find instrumentation point at address %llx", pt->getSourceAddress());
+            continue;            
+        }
 
         uint32_t numberOfDisplacedInstructions = targetSection->replaceInstructions(pt->getSourceAddress(), repl, 1, &displaced);
         uint64_t returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + repl[0]->getLength();
@@ -262,6 +270,24 @@ void ElfFileInst::generateInstrumentation(){
         func->generateBootstrapInstructions(textBaseAddress,dataBaseAddress);
         func->generateProcedureLinkInstructions(textBaseAddress,dataBaseAddress,pltSection->getAddress());
     }
+}
+
+bool ElfFileInst::isValidInstrumentation(TextSection* targetSection, Instruction* repl, uint64_t addr){
+    Instruction* targetInstruction = targetSection->getInstructionAtAddress(addr);
+    while (targetInstruction && targetInstruction->getAddress() < addr + repl->getLength()){
+        if (!targetInstruction->isRelocatable()){
+            return false;
+        }
+        targetInstruction = targetSection->getInstructionAtAddress(targetInstruction->getAddress()+targetInstruction->getLength());
+    }
+    if (!targetInstruction){
+        return false;
+    }
+    if (targetInstruction->getAddress() < addr + repl->getLength()){
+        return false;
+    }
+    PRINT_WARN("good address found %llx", addr);
+    return true;
 }
 
 InstrumentationFunction* ElfFileInst::getInstrumentationFunction(const char* funcName){
@@ -386,7 +412,6 @@ uint64_t ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* 
     }
     if (canInstrument){
         newPoints[numberOfInstrumentationPoints] = newpoint;
-        newPoints[numberOfInstrumentationPoints]->print();
 
         delete[] instrumentationPoints;
         instrumentationPoints = newPoints;
@@ -415,8 +440,14 @@ uint32_t ElfFileInst::declareFunction(char* funcName){
     for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){
         newFunctions[i] = instrumentationFunctions[i];
     }
-    newFunctions[numberOfInstrumentationFunctions] = 
-        new InstrumentationFunction32(numberOfInstrumentationFunctions, funcName, reserveDataOffset(Size__32_bit_Global_Offset_Table_Entry));
+
+    if (elfFile->is64Bit()){
+        newFunctions[numberOfInstrumentationFunctions] = 
+            new InstrumentationFunction64(numberOfInstrumentationFunctions, funcName, reserveDataOffset(Size__64_bit_Global_Offset_Table_Entry));
+    } else {
+        newFunctions[numberOfInstrumentationFunctions] = 
+            new InstrumentationFunction32(numberOfInstrumentationFunctions, funcName, reserveDataOffset(Size__32_bit_Global_Offset_Table_Entry));
+    }
 
     delete[] instrumentationFunctions;
     instrumentationFunctions = newFunctions;
@@ -752,7 +783,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     extraTextIdx = 0;
     extraDataIdx = 0;
 
-    usableDataOffset = MAX_INST_FUNCTIONS * Size__32_bit_Global_Offset_Table_Entry;
+    usableDataOffset = 0;
     bssReserved = 0;
 }
 
@@ -991,9 +1022,7 @@ uint32_t ElfFileInst::addSharedLibrary(const char* libname){
 
 uint64_t ElfFileInst::relocateDynamicSection(){
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
-    
-    __SHOULD_NOT_ARRIVE;
-
+    __FUNCTION_NOT_IMPLEMENTED;
     verify();
     return 0;
 }

@@ -106,8 +106,16 @@ uint64_t InstrumentationSnippet::getEntryPoint(){
 
 
 uint32_t InstrumentationFunction64::generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress){
-    __SHOULD_NOT_ARRIVE;
-    return 0;
+    ASSERT(!procedureLinkInstructions && "This array should not be initialized");
+
+    addProcedureLinkInstruction(Instruction::generateJumpIndirect32(dataBaseAddress + globalDataOffset));
+    addProcedureLinkInstruction(Instruction::generateStackPushImmediate(relocationOffset));
+    uint32_t returnAddress = textBaseAddress + procedureLinkOffset + procedureLinkSize();
+    addProcedureLinkInstruction(Instruction::generateJumpRelative(returnAddress,realPLTAddress));
+
+    ASSERT(procedureLinkSize() == procedureLinkReservedSize());
+
+    return numberOfProcedureLinkInstructions;
 }
 
 uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress){
@@ -124,12 +132,18 @@ uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t t
 }
 
 uint32_t InstrumentationFunction64::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    __SHOULD_NOT_ARRIVE;
-    return 0;
+    addBootstrapInstruction(Instruction::generateMoveImmToReg(globalData,X86_REG_CX));
+    addBootstrapInstruction(Instruction::generateMoveImmToReg(dataBaseAddress + globalDataOffset,X86_REG_DX));
+    addBootstrapInstruction(Instruction::generateMoveRegToRegaddr32(X86_REG_CX,X86_REG_DX));
+
+    while (bootstrapSize() < bootstrapReservedSize()){
+        addBootstrapInstruction(Instruction::generateNoop());
+    }
+    ASSERT(bootstrapSize() == bootstrapReservedSize());
+    return numberOfBootstrapInstructions;
 }
 
 uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-
     addBootstrapInstruction(Instruction::generateMoveImmToReg(globalData,X86_REG_CX));
     addBootstrapInstruction(Instruction::generateMoveRegToMem(X86_REG_CX,dataBaseAddress + globalDataOffset));
 
@@ -141,8 +155,44 @@ uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textB
 }
 
 uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    __SHOULD_NOT_ARRIVE;
-    return 0;
+    ASSERT(!wrapperInstructions && "This array should not be initialized");
+
+    addWrapperInstruction(Instruction::generatePushEflags());
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+        addWrapperInstruction(Instruction::generateStackPush64(i));
+    }
+
+    for (uint32_t i = 0; i < numberOfArguments; i++){
+        uint32_t idx = numberOfArguments - i - 1;
+        uint32_t value = argumentValues[idx];
+
+        addWrapperInstruction(Instruction::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
+        addWrapperInstruction(Instruction::generateMoveRegaddrToReg32(X86_REG_DX,X86_REG_CX));
+        addWrapperInstruction(Instruction::generateStackPush32(X86_REG_CX));
+
+        addBootstrapInstruction(Instruction::generateMoveImmToReg(value,X86_REG_CX));
+        addBootstrapInstruction(Instruction::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
+        addBootstrapInstruction(Instruction::generateMoveRegToRegaddr32(X86_REG_CX,X86_REG_DX));
+    }
+    addWrapperInstruction(Instruction::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
+
+    for (uint32_t i = 0; i < numberOfArguments; i++){
+        addWrapperInstruction(Instruction::generateStackPop32(X86_REG_CX));
+    }
+
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+        addWrapperInstruction(Instruction::generateStackPop64(X86_64BIT_GPRS-1-i));
+    }
+    addWrapperInstruction(Instruction::generatePopEflags());
+
+    addWrapperInstruction(Instruction::generateReturn());
+
+    while (wrapperSize() < wrapperReservedSize()){
+        addWrapperInstruction(Instruction::generateNoop());
+    }
+    ASSERT(wrapperSize() == wrapperReservedSize());
+
+    return numberOfWrapperInstructions;
 }
 
 uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
@@ -182,12 +232,10 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
     }
     ASSERT(wrapperSize() == wrapperReservedSize());
 
-
     return numberOfWrapperInstructions;
 }
 
 uint32_t InstrumentationFunction64::generateGlobalData(uint64_t textBaseAddress){
-    __SHOULD_NOT_ARRIVE;
     globalData = textBaseAddress + procedureLinkOffset + PLT_RETURN_OFFSET_64BIT;
     return globalData;
 }
@@ -455,6 +503,19 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst)
     }
     instrumentation = inst;
 
+    if (point->getType() == ElfClassTypes_TextSection){
+        TextSection* ts = (TextSection*)point;
+        sourceAddress = ts->findInstrumentationPoint();
+    } else if (point->getType() == ElfClassTypes_Instruction){
+        Instruction* in = (Instruction*)point;
+        sourceAddress = in->getAddress();
+    } else if (point->getType() == ElfClassTypes_Function){
+        Function* fn = (Function*)point;
+        sourceAddress = fn->findInstrumentationPoint();
+    } else {
+        PRINT_ERROR("Cannot use an object of type %d as an instrumentation point", point->getType());
+    }
+
     trampolineInstructions = NULL;
     numberOfTrampolineInstructions = 0;
     trampolineOffset = 0;
@@ -469,22 +530,8 @@ InstrumentationPoint::~InstrumentationPoint(){
     }
 }
 
-uint64_t InstrumentationPoint::getSourceAddress(){
-    if (point->getType() == ElfClassTypes_TextSection){
-        TextSection* ts = (TextSection*)point;
-        return ts->getAddress();
-    } else if (point->getType() == ElfClassTypes_Instruction){
-        Instruction* in = (Instruction*)point;
-        return in->getAddress();
-    } else if (point->getType() == ElfClassTypes_Function){
-        Function* fn = (Function*)point;
-        return fn->getAddress();
-    } else {
-        PRINT_ERROR("Cannot use an object of type %d as an instrumentation point", point->getType());
-    }
-}
-
 void InstrumentationPoint::print(){
+    __FUNCTION_NOT_IMPLEMENTED;
 }
 
 uint32_t InstrumentationFunction::addProcedureLinkInstruction(Instruction* inst){

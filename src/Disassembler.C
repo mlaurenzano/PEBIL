@@ -323,93 +323,123 @@ void Disassembler::get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag){
 
     switch(op){
     case func_OP_ST:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_ST);
         OP_ST(bytemode, sizeflag);
         break;
     case func_OP_STi:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_STi);
         OP_STi(bytemode, sizeflag);
         break;
     case func_OP_indirE:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_indirE);
         OP_indirE(bytemode, sizeflag);
         break;
     case func_OP_E:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_E);
         OP_E(bytemode, sizeflag);
         break;
     case func_OP_G:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_G);
         OP_G(bytemode, sizeflag);
         break;
     case func_OP_REG:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_reg);
         OP_REG(bytemode, sizeflag);
         break;
     case func_OP_IMREG:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_IMREG);
         OP_IMREG(bytemode, sizeflag);
         break;
     case func_OP_I:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_I);
         OP_I(bytemode, sizeflag);
         break;
     case func_OP_I64:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_I64);
         OP_I64(bytemode, sizeflag);
         break;
     case func_OP_sI:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_sI);
         OP_sI(bytemode, sizeflag);
         break;
     case func_OP_J:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_J);
         OP_J(bytemode, sizeflag);
         break;
     case func_OP_SEG:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_SEG);
         OP_SEG(bytemode, sizeflag);
         break;
     case func_OP_DIR:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_DIR);
         OP_DIR(bytemode, sizeflag);
         break;
     case func_OP_OFF:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_OFF);
         OP_OFF(bytemode, sizeflag);
         break;
     case func_OP_OFF64:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_OFF64);
         OP_OFF64(bytemode, sizeflag);
         break;
     case func_OP_ESreg:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_ESreg);
         OP_ESreg(bytemode, sizeflag);
         break;
     case func_OP_DSreg:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_DSreg);
         OP_DSreg(bytemode, sizeflag);
         break;
     case func_OP_C:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_C);
         OP_C(bytemode, sizeflag);
         break;
     case func_OP_D:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_D);
         OP_D(bytemode, sizeflag);
         break;
     case func_OP_T:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_T);
         OP_T(bytemode, sizeflag);
         break;
     case func_OP_Rd:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_Rd);
         OP_Rd(bytemode, sizeflag);
         break;
     case func_OP_MMX:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_MMX);
         OP_MMX(bytemode, sizeflag);
         break;
     case func_OP_XMM:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_XMM);
         OP_XMM(bytemode, sizeflag);
         break;
     case func_OP_EM:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_EM);
         OP_EM(bytemode, sizeflag);
         break;
     case func_OP_EX:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_EX);
         OP_EX(bytemode, sizeflag);
         break;
     case func_OP_MS:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_MS);
         OP_MS(bytemode, sizeflag);
         break;
     case func_OP_XS:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_XS);
         OP_XS(bytemode, sizeflag);
         break;
     case func_OP_3DNowSuffix:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_3DNowSuffix);
         OP_3DNowSuffix(bytemode, sizeflag);
         break;
     case func_OP_SIMD_Suffix:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_SIMD_Suffix);
         OP_SIMD_Suffix(bytemode, sizeflag);
         break;
     case func_SIMD_Fixup:
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_SIMD_Fixup);
         SIMD_Fixup(bytemode, sizeflag);
         break;
     default:
@@ -1117,6 +1147,7 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
     codep++;
     
     PRINT_DEBUG_OPERAND(" called OP_E xxx %d\n", op_ad);
+    currentInstruction->setOperandValue(op_ad,rm+add);
 
     if (mod == 3){
         switch (bytemode){
@@ -1364,6 +1395,7 @@ void Disassembler::OP_G(uint32_t bytemode, uint32_t sizeflag){
         add += 8;
 
     PRINT_DEBUG_OPERAND(" found OP_G: %x %x, %d\n", reg, add, op_ad);
+    currentInstruction->setOperandValue(op_ad,reg+add);
 
     switch (bytemode){
     case b_mode:
@@ -1483,6 +1515,7 @@ void Disassembler::OP_REG(uint32_t code, uint32_t sizeflag){
         break;
     case ax_reg: case cx_reg: case dx_reg: case bx_reg:
     case sp_reg: case bp_reg: case si_reg: case di_reg:
+        currentInstruction->setOperandValue(op_ad,code-ax_reg);
         s = names16[code - ax_reg + add];
         break;
     case es_reg: case ss_reg: case cs_reg:
@@ -1499,6 +1532,7 @@ void Disassembler::OP_REG(uint32_t code, uint32_t sizeflag){
         break;
     case rAX_reg: case rCX_reg: case rDX_reg: case rBX_reg:
     case rSP_reg: case rBP_reg: case rSI_reg: case rDI_reg:
+        currentInstruction->setOperandValue(op_ad,code-rAX_reg);
         if (mode_64bit){
             s = names64[code - rAX_reg + add];
             break;
@@ -1507,6 +1541,7 @@ void Disassembler::OP_REG(uint32_t code, uint32_t sizeflag){
         /* Fall through.  */
     case eAX_reg: case eCX_reg: case eDX_reg: case eBX_reg:
     case eSP_reg: case eBP_reg: case eSI_reg: case eDI_reg:
+        currentInstruction->setOperandValue(op_ad,code-eAX_reg);
         USED_REX (REX_MODE64);
         if (rex & REX_MODE64)
             s = names64[code - eAX_reg + add];

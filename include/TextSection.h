@@ -31,6 +31,8 @@ public:
     uint32_t printDisassembledCode();
     uint32_t read(BinaryInputFile* b);
 
+    uint64_t findInstrumentationPoint();
+
     bool verify();
     const char* briefName() { return "TextSection"; }
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);

@@ -6,6 +6,18 @@
 #include <SymbolTable.h>
 #include <CStructuresX86.h>
 
+uint64_t TextSection::findInstrumentationPoint(){
+    for (uint32_t i = 0; i < numberOfFunctions; i++){
+        uint64_t instAddress = sortedFunctions[i]->findInstrumentationPoint();
+        if (instAddress){
+            return instAddress;
+        }
+    }
+    __SHOULD_NOT_ARRIVE;
+    return 0;
+}
+
+
 uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replacements, uint32_t numberOfReplacements, Instruction*** replacedInstructions){
 
     ASSERT(!*(replacedInstructions) && "This array should be empty since it will be filled by this function");
@@ -20,6 +32,7 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
 
     uint32_t instructionsToReplace = 0;
     Instruction* inst = getInstructionAtAddress(addr);
+    PRINT_INFOR("Finding instruction at address %llx in text section %d", addr, getSectionIndex());
     ASSERT(inst && "Instruction should exist at the requested address");
     for (uint64_t a = addr; a < addr+replacementBytes && inst; ){
         a += inst->getLength();
@@ -126,14 +139,21 @@ Instruction* TextSection::getInstructionAtAddress(uint64_t addr){
         return NULL;
     }
 
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (instructions[i]->getAddress() == addr){
+            return instructions[i];
+        }
+    }
+
+    /*
     void* result = bsearch(&addr,instructions,numberOfInstructions,sizeof(Instruction*),searchInstructionAddress);
     if (result){
         uint32_t instidx = (((char*)result)-((char*)instructions))/sizeof(Instruction*);
         Instruction* iresult = instructions[instidx];
         return iresult;
     }
+    */
     return NULL;
-
 }
 
 uint32_t TextSection::findFunctions(){

@@ -14,13 +14,13 @@ class Function;
 class TextSection;
 class RawSection;
 
+#define SIZE_NEEDED_AT_INST_POINT 5
+
 #define INST_SNIPPET_BOOTSTRAP_BEGIN 0
 #define INST_SNIPPET_BOOTSTRAP_END 1
 #define INST_SNIPPETS_RESERVED 2
 #define INST_POINT_BOOTSTRAP 0
 #define INST_POINTS_RESERVED 1
-
-#define MAX_INST_FUNCTIONS 4
 
 typedef enum {
     ElfInstPhase_no_phase = 0,
@@ -72,6 +72,8 @@ protected:
     void extendTextSection(uint64_t size);
     void extendDataSection(uint64_t size);
     void generateInstrumentation();
+
+    bool isValidInstrumentation(TextSection* targetSection, Instruction* repl, uint64_t addr);
 
 public:
     ElfFileInst(ElfFile* elf);

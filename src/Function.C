@@ -1,6 +1,23 @@
 #include <Function.h>
 #include <TextSection.h>
 #include <Instruction.h>
+#include <ElfFileInst.h>
+
+uint64_t Function::findInstrumentationPoint(){
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        instructions[i]->print();
+        uint32_t j = i;
+        uint32_t instBytes = 0;
+        while (instructions[j] && instructions[j]->isRelocatable()){
+            instBytes += instructions[j]->getLength();
+            j++;
+        }
+        if (instBytes >= SIZE_NEEDED_AT_INST_POINT){
+            return instructions[i]->getAddress();
+        }
+    }
+    return 0;
+}
 
 Function::~Function(){
     if (instructions){

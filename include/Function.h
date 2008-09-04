@@ -32,6 +32,8 @@ public:
     Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_t idx);
     ~Function();
 
+    uint64_t findInstrumentationPoint();
+
     bool verify();
     void print();
     char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
