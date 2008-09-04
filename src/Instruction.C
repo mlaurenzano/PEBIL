@@ -689,13 +689,13 @@ uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
         typ = x86_insn_type_branch;
         break;
     case 0xc2: case 0xc3:
-        typ = x86_insn_type_branch; // return
+        typ = x86_insn_type_return; // return
         break;
     case 0xc4: case 0xc5: case 0xc6: case 0xc7: case 0xc8: case 0xc9:
         typ = x86_insn_type_int;
         break;
     case 0xca: case 0xcb: 
-        typ = x86_insn_type_branch; // return
+        typ = x86_insn_type_return; // return
         break;
     case 0xcc: case 0xcd: case 0xce: case 0xcf:
         typ = x86_insn_type_branch;

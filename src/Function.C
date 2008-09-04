@@ -8,7 +8,9 @@ uint64_t Function::findInstrumentationPoint(){
         instructions[i]->print();
         uint32_t j = i;
         uint32_t instBytes = 0;
-        while (instructions[j] && instructions[j]->isRelocatable()){
+        PRINT_INFOR("Examining function %s", getFunctionName());
+        while (j < numberOfInstructions && instructions[j]->isRelocatable()){
+            PRINT_INFOR("Examining instruction %d", j);
             instBytes += instructions[j]->getLength();
             j++;
         }
