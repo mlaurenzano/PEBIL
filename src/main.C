@@ -2,6 +2,21 @@
 #include <ElfFile.h>
 #include <FunctionCounter.h>
 
+void alignTest(){
+    uint32_t align = 0x00000001;
+    while (align){
+        fprintf(stdout, "testing alignment for %x\n", align);
+        for (uint32_t i = 0; i < 2*align; i++){
+            if (i % 0x100000 == 0){
+                fprintf(stdout, "testing alignment for %d\n", i);                
+            }
+            nextAlignAddress(i,align);
+        }
+        align = align << 1;
+    }
+    exit(-1);
+}
+
 void printBriefOptions(){
     fprintf(stderr,"\n");
     fprintf(stderr,"Brief Descriptions for Options:\n");

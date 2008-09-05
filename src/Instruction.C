@@ -720,6 +720,9 @@ uint32_t Operand::setType(uint32_t typ){
 }
 
 uint64_t Instruction::setOperandValue(uint32_t idx, uint64_t value){
+    if (idx >= MAX_OPERANDS){
+        PRINT_ERROR("Index %d into operand table is bad", idx);
+    }
     ASSERT(idx >= 0 && idx < MAX_OPERANDS && "Index into operand table has a limited range");
     operands[idx].setValue(value);
     return operands[idx].getValue();

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-int32_t functioncounter(void* arg2, void* arg1){
+int32_t functioncounter(void* arg1, void* arg2){
     int32_t i;
     int32_t numFunctions = *(int32_t*)arg1;
     int32_t* functionCounts = (int32_t*)(arg2);

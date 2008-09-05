@@ -1147,7 +1147,9 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
     codep++;
     
     PRINT_DEBUG_OPERAND(" called OP_E xxx %d\n", op_ad);
-    currentInstruction->setOperandValue(op_ad,rm+add);
+    if (op_ad >= 0 && op_ad < MAX_OPERANDS){
+        currentInstruction->setOperandValue(op_ad,rm+add);
+    }
 
     if (mod == 3){
         switch (bytemode){

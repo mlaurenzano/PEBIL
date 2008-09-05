@@ -49,7 +49,7 @@ extern uint64_t nextAlignAddress(uint64_t addr, uint32_t align){
     }
     uint64_t aligned = addr & align_mask_and[pow];
     if (aligned < addr){
-        aligned = aligned | align_mask_or[pow];
+        aligned = aligned + align_mask_or[pow];
     }
 
     /*

@@ -173,7 +173,7 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         uint32_t argumentRegister;
 
         // rdi,rsi,rdx,rcx,r8,r9, then push onto stack
-        switch(i){
+        switch(idx){
         case 0:
             argumentRegister = X86_REG_DI;
             break;
@@ -219,9 +219,9 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
         uint32_t idx = numberOfArguments - i - 1;
         uint32_t value = argumentValues[idx];
 
+        // everything is passed on the stack
         addWrapperInstruction(Instruction32::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
-        addWrapperInstruction(Instruction32::generateMoveRegaddrToReg(X86_REG_DX,X86_REG_CX));
-        addWrapperInstruction(Instruction32::generateStackPush(X86_REG_CX));
+        addWrapperInstruction(Instruction32::generateStackPush(X86_REG_DX));
 
         addBootstrapInstruction(Instruction32::generateMoveImmToReg(value,X86_REG_CX));
         addBootstrapInstruction(Instruction32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress+argumentOffsets[idx]));

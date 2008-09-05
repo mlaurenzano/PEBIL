@@ -225,7 +225,7 @@ void ElfFileInst::generateInstrumentation(){
         }
 
         if (!pt->getSourceAddress()){
-            PRINT_WARN("Could not find an instrumentation point");
+            PRINT_WARN("Could not find a place to instrument for point %d", i);
             continue;
         }
 
@@ -395,7 +395,7 @@ uint64_t ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* 
         instrumentationPoints = newPoints;
         numberOfInstrumentationPoints++;
     } else {
-        PRINT_WARN("Cannot instrument location %llx twice", newpoint->getSourceAddress());
+        //        PRINT_WARN("Cannot instrument location %llx twice", newpoint->getSourceAddress());
         delete newpoint;
         delete[] newPoints;
     }
