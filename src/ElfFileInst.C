@@ -148,13 +148,13 @@ void ElfFileInst::generateInstrumentation(){
 
     InstrumentationSnippet* snip = new InstrumentationSnippet();
     snip->addSnippetInstruction(Instruction::generatePushEflags());
-    snip->addSnippetInstruction(Instruction::generateStackPush32(X86_REG_CX));
-    snip->addSnippetInstruction(Instruction::generateStackPush32(X86_REG_DX));
+    snip->addSnippetInstruction(Instruction32::generateStackPush(X86_REG_CX));
+    snip->addSnippetInstruction(Instruction32::generateStackPush(X86_REG_DX));
     instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN] = snip;
 
     snip = new InstrumentationSnippet();
-    snip->addSnippetInstruction(Instruction::generateStackPop32(X86_REG_DX));
-    snip->addSnippetInstruction(Instruction::generateStackPop32(X86_REG_CX));
+    snip->addSnippetInstruction(Instruction32::generateStackPop(X86_REG_DX));
+    snip->addSnippetInstruction(Instruction32::generateStackPop(X86_REG_CX));
     snip->addSnippetInstruction(Instruction::generatePopEflags());
     snip->addSnippetInstruction(Instruction::generateReturn());
     instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END] = snip;
@@ -246,11 +246,6 @@ void ElfFileInst::generateInstrumentation(){
         }
         ASSERT(targetSection && "Cannot find a text section the address for an instrumentation point");
 
-        if (!isValidInstrumentation(targetSection,repl[0],pt->getSourceAddress())){
-            PRINT_WARN("Cannot find instrumentation point at address %llx", pt->getSourceAddress());
-            continue;            
-        }
-
         uint32_t numberOfDisplacedInstructions = targetSection->replaceInstructions(pt->getSourceAddress(), repl, 1, &displaced);
         uint64_t returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + repl[0]->getLength();
         pt->generateTrampoline(numberOfDisplacedInstructions,displaced,codeOffset,returnOffset);
@@ -272,23 +267,6 @@ void ElfFileInst::generateInstrumentation(){
     }
 }
 
-bool ElfFileInst::isValidInstrumentation(TextSection* targetSection, Instruction* repl, uint64_t addr){
-    Instruction* targetInstruction = targetSection->getInstructionAtAddress(addr);
-    while (targetInstruction && targetInstruction->getAddress() < addr + repl->getLength()){
-        if (!targetInstruction->isRelocatable()){
-            return false;
-        }
-        targetInstruction = targetSection->getInstructionAtAddress(targetInstruction->getAddress()+targetInstruction->getLength());
-    }
-    if (!targetInstruction){
-        return false;
-    }
-    if (targetInstruction->getAddress() < addr + repl->getLength()){
-        return false;
-    }
-    PRINT_WARN("good address found %llx", addr);
-    return true;
-}
 
 InstrumentationFunction* ElfFileInst::getInstrumentationFunction(const char* funcName){
     for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){

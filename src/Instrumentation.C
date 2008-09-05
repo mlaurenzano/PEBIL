@@ -1,4 +1,5 @@
 #include <Instrumentation.h>
+#include <ElfFileInst.h>
 
 uint32_t InstrumentationFunction::wrapperSize(){
     uint32_t totalSize = 0;
@@ -108,23 +109,24 @@ uint64_t InstrumentationSnippet::getEntryPoint(){
 uint32_t InstrumentationFunction64::generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress){
     ASSERT(!procedureLinkInstructions && "This array should not be initialized");
 
-    addProcedureLinkInstruction(Instruction::generateJumpIndirect32(dataBaseAddress + globalDataOffset));
-    addProcedureLinkInstruction(Instruction::generateStackPushImmediate(relocationOffset));
-    uint32_t returnAddress = textBaseAddress + procedureLinkOffset + procedureLinkSize();
-    addProcedureLinkInstruction(Instruction::generateJumpRelative(returnAddress,realPLTAddress));
+    uint64_t procedureLinkAddress = textBaseAddress + procedureLinkOffset;
+    addProcedureLinkInstruction(Instruction64::generateIndirectRelativeJump(procedureLinkAddress,dataBaseAddress + globalDataOffset));
+    addProcedureLinkInstruction(Instruction64::generateStackPushImmediate(relocationOffset));
+
+    uint32_t returnAddress = procedureLinkAddress + procedureLinkSize();
+    addProcedureLinkInstruction(Instruction64::generateJumpRelative(returnAddress,realPLTAddress));
 
     ASSERT(procedureLinkSize() == procedureLinkReservedSize());
-
     return numberOfProcedureLinkInstructions;
 }
 
 uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress){
     ASSERT(!procedureLinkInstructions && "This array should not be initialized");
 
-    addProcedureLinkInstruction(Instruction::generateJumpIndirect32(dataBaseAddress + globalDataOffset));
-    addProcedureLinkInstruction(Instruction::generateStackPushImmediate(relocationOffset));
+    addProcedureLinkInstruction(Instruction32::generateJumpIndirect(dataBaseAddress + globalDataOffset));
+    addProcedureLinkInstruction(Instruction32::generateStackPushImmediate(relocationOffset));
     uint32_t returnAddress = textBaseAddress + procedureLinkOffset + procedureLinkSize();
-    addProcedureLinkInstruction(Instruction::generateJumpRelative(returnAddress,realPLTAddress));
+    addProcedureLinkInstruction(Instruction32::generateJumpRelative(returnAddress,realPLTAddress));
 
     ASSERT(procedureLinkSize() == procedureLinkReservedSize());
 
@@ -132,23 +134,23 @@ uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t t
 }
 
 uint32_t InstrumentationFunction64::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    addBootstrapInstruction(Instruction::generateMoveImmToReg(globalData,X86_REG_CX));
-    addBootstrapInstruction(Instruction::generateMoveImmToReg(dataBaseAddress + globalDataOffset,X86_REG_DX));
-    addBootstrapInstruction(Instruction::generateMoveRegToRegaddr32(X86_REG_CX,X86_REG_DX));
+    addBootstrapInstruction(Instruction64::generateMoveImmToReg(globalData,X86_REG_CX));
+    addBootstrapInstruction(Instruction64::generateMoveImmToReg(dataBaseAddress + globalDataOffset,X86_REG_DX));
+    addBootstrapInstruction(Instruction::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX));
 
     while (bootstrapSize() < bootstrapReservedSize()){
-        addBootstrapInstruction(Instruction::generateNoop());
+        addBootstrapInstruction(Instruction64::generateNoop());
     }
     ASSERT(bootstrapSize() == bootstrapReservedSize());
     return numberOfBootstrapInstructions;
 }
 
 uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    addBootstrapInstruction(Instruction::generateMoveImmToReg(globalData,X86_REG_CX));
-    addBootstrapInstruction(Instruction::generateMoveRegToMem(X86_REG_CX,dataBaseAddress + globalDataOffset));
+    addBootstrapInstruction(Instruction32::generateMoveImmToReg(globalData,X86_REG_CX));
+    addBootstrapInstruction(Instruction32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress + globalDataOffset));
 
     while (bootstrapSize() < bootstrapReservedSize()){
-        addBootstrapInstruction(Instruction::generateNoop());
+        addBootstrapInstruction(Instruction32::generateNoop());
     }
     ASSERT(bootstrapSize() == bootstrapReservedSize());
     return numberOfBootstrapInstructions;
@@ -157,38 +159,48 @@ uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textB
 uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
     ASSERT(!wrapperInstructions && "This array should not be initialized");
 
-    addWrapperInstruction(Instruction::generatePushEflags());
+    addWrapperInstruction(Instruction64::generatePushEflags());
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        addWrapperInstruction(Instruction::generateStackPush64(i));
+        addWrapperInstruction(Instruction64::generateStackPush(i));
     }
+
+    ASSERT(numberOfArguments < MAX_ARGUMENTS_64BIT && "More arguments must be pushed onto stack, which is not yet implemented"); 
 
     for (uint32_t i = 0; i < numberOfArguments; i++){
         uint32_t idx = numberOfArguments - i - 1;
         uint32_t value = argumentValues[idx];
 
-        addWrapperInstruction(Instruction::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
-        addWrapperInstruction(Instruction::generateMoveRegaddrToReg32(X86_REG_DX,X86_REG_CX));
-        addWrapperInstruction(Instruction::generateStackPush32(X86_REG_CX));
+        uint32_t argumentRegister;
 
-        addBootstrapInstruction(Instruction::generateMoveImmToReg(value,X86_REG_CX));
-        addBootstrapInstruction(Instruction::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
-        addBootstrapInstruction(Instruction::generateMoveRegToRegaddr32(X86_REG_CX,X86_REG_DX));
-    }
-    addWrapperInstruction(Instruction::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
+        // rdi,rsi,rdx,rcx,r8,r9, then push onto stack
+        switch(i){
+        case 0:
+            argumentRegister = X86_REG_DI;
+            break;
+        case 1:
+            argumentRegister = X86_REG_SI;
+            break;
+        default:
+            PRINT_ERROR("Cannot pass more than %d argument to an instrumentation function", MAX_ARGUMENTS_64BIT);
+            __SHOULD_NOT_ARRIVE;
+        }
+        addWrapperInstruction(Instruction64::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],argumentRegister));
 
-    for (uint32_t i = 0; i < numberOfArguments; i++){
-        addWrapperInstruction(Instruction::generateStackPop32(X86_REG_CX));
+        addBootstrapInstruction(Instruction64::generateMoveImmToReg(value,X86_REG_CX));
+        addBootstrapInstruction(Instruction64::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
+        addBootstrapInstruction(Instruction::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX));
     }
+    addWrapperInstruction(Instruction64::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
 
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        addWrapperInstruction(Instruction::generateStackPop64(X86_64BIT_GPRS-1-i));
+        addWrapperInstruction(Instruction64::generateStackPop(X86_64BIT_GPRS-1-i));
     }
-    addWrapperInstruction(Instruction::generatePopEflags());
+    addWrapperInstruction(Instruction64::generatePopEflags());
 
-    addWrapperInstruction(Instruction::generateReturn());
+    addWrapperInstruction(Instruction64::generateReturn());
 
     while (wrapperSize() < wrapperReservedSize()){
-        addWrapperInstruction(Instruction::generateNoop());
+        addWrapperInstruction(Instruction64::generateNoop());
     }
     ASSERT(wrapperSize() == wrapperReservedSize());
 
@@ -198,37 +210,37 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
 uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
     ASSERT(!wrapperInstructions && "This array should not be initialized");
 
-    addWrapperInstruction(Instruction::generatePushEflags());
+    addWrapperInstruction(Instruction32::generatePushEflags());
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        addWrapperInstruction(Instruction::generateStackPush32(i));
+        addWrapperInstruction(Instruction32::generateStackPush(i));
     }
 
     for (uint32_t i = 0; i < numberOfArguments; i++){
         uint32_t idx = numberOfArguments - i - 1;
         uint32_t value = argumentValues[idx];
 
-        addWrapperInstruction(Instruction::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
-        addWrapperInstruction(Instruction::generateMoveRegaddrToReg32(X86_REG_DX,X86_REG_CX));
-        addWrapperInstruction(Instruction::generateStackPush32(X86_REG_CX));
+        addWrapperInstruction(Instruction32::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
+        addWrapperInstruction(Instruction32::generateMoveRegaddrToReg(X86_REG_DX,X86_REG_CX));
+        addWrapperInstruction(Instruction32::generateStackPush(X86_REG_CX));
 
-        addBootstrapInstruction(Instruction::generateMoveImmToReg(value,X86_REG_CX));
-        addBootstrapInstruction(Instruction::generateMoveRegToMem(X86_REG_CX,dataBaseAddress+argumentOffsets[idx]));
+        addBootstrapInstruction(Instruction32::generateMoveImmToReg(value,X86_REG_CX));
+        addBootstrapInstruction(Instruction32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress+argumentOffsets[idx]));
     }
-    addWrapperInstruction(Instruction::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
+    addWrapperInstruction(Instruction32::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
 
     for (uint32_t i = 0; i < numberOfArguments; i++){
-        addWrapperInstruction(Instruction::generateStackPop32(X86_REG_CX));
+        addWrapperInstruction(Instruction32::generateStackPop(X86_REG_CX));
     }
 
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        addWrapperInstruction(Instruction::generateStackPop32(X86_32BIT_GPRS-1-i));
+        addWrapperInstruction(Instruction32::generateStackPop(X86_32BIT_GPRS-1-i));
     }
-    addWrapperInstruction(Instruction::generatePopEflags());
+    addWrapperInstruction(Instruction32::generatePopEflags());
 
-    addWrapperInstruction(Instruction::generateReturn());
+    addWrapperInstruction(Instruction32::generateReturn());
 
     while (wrapperSize() < wrapperReservedSize()){
-        addWrapperInstruction(Instruction::generateNoop());
+        addWrapperInstruction(Instruction32::generateNoop());
     }
     ASSERT(wrapperSize() == wrapperReservedSize());
 

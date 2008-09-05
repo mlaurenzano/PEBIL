@@ -22,6 +22,9 @@ class RawSection;
 #define INST_POINT_BOOTSTRAP 0
 #define INST_POINTS_RESERVED 1
 
+#define MAX_ARGUMENTS_32BIT 6
+#define MAX_ARGUMENTS_64BIT 6
+
 typedef enum {
     ElfInstPhase_no_phase = 0,
     ElfInstPhase_extend_space,
@@ -72,8 +75,6 @@ protected:
     void extendTextSection(uint64_t size);
     void extendDataSection(uint64_t size);
     void generateInstrumentation();
-
-    bool isValidInstrumentation(TextSection* targetSection, Instruction* repl, uint64_t addr);
 
 public:
     ElfFileInst(ElfFile* elf);

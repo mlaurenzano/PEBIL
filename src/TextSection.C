@@ -34,13 +34,14 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
     Instruction* inst = getInstructionAtAddress(addr);
     PRINT_INFOR("Finding instruction at address %llx in text section %d", addr, getSectionIndex());
     ASSERT(inst && "Instruction should exist at the requested address");
-    for (uint64_t a = addr; a < addr+replacementBytes && inst; ){
+    uint64_t a;
+    for (a = addr; a < addr+replacementBytes && inst; ){
         a += inst->getLength();
         bytesToReplace += inst->getLength();
         inst = getInstructionAtAddress(a);
         instructionsToReplace++;
     }
-    ASSERT(inst && "Should be enough space to insert the requested instructions");
+    ASSERT(a >= addr+replacementBytes && "Should be enough space to insert the requested instructions");
     ASSERT(instructionsToReplace && "At least one instruction must be replaced");
 
     PRINT_INFOR("Going to replace %d bytes/%d instructions", bytesToReplace, instructionsToReplace);
@@ -49,14 +50,14 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
     instructionsToReplace = 0;
     inst = getInstructionAtAddress(addr);
     ASSERT(inst && "Instruction should exist at the requested address");
-    for (uint64_t a = addr; a < addr+replacementBytes && inst; ){
+    for (a = addr; a < addr+replacementBytes && inst; ){
         a += inst->getLength();
         toReplace[instructionsToReplace] = inst;
         toReplace[instructionsToReplace]->print();
         inst = getInstructionAtAddress(a);
         instructionsToReplace++;
     }
-    ASSERT(inst && "There should be instructions in the range requested by the insert");
+    ASSERT(a >= addr+replacementBytes && "There should be instructions in the range requested by the insert");
 
     ASSERT(replacementBytes <= bytesToReplace && "Should be enough room to insert the instructions");
     uint32_t extraNoops = bytesToReplace - replacementBytes;
@@ -139,20 +140,20 @@ Instruction* TextSection::getInstructionAtAddress(uint64_t addr){
         return NULL;
     }
 
+    /*
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         if (instructions[i]->getAddress() == addr){
             return instructions[i];
         }
     }
+    */
 
-    /*
     void* result = bsearch(&addr,instructions,numberOfInstructions,sizeof(Instruction*),searchInstructionAddress);
     if (result){
         uint32_t instidx = (((char*)result)-((char*)instructions))/sizeof(Instruction*);
         Instruction* iresult = instructions[instidx];
         return iresult;
     }
-    */
     return NULL;
 }
 

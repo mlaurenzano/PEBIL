@@ -1,5 +1,5 @@
 DBG         = -save-temps -g #-Wall
-OPT         = -O3 -g
+OPT         = -O0 -g
 LINK_FLAGS  = -Wl,--hash-style=sysv
 
 GNU_CC      = gcc

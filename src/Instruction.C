@@ -22,6 +22,22 @@ void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     binaryOutputFile->copyBytes(rawBytes,instructionLength,offset);
 }
 
+Instruction* Instruction64::generateStackPush4Byte(uint32_t idx){
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 2;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+    buff[0] = 0x66; 
+    buff[1] = 0x50 + idx;
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
 Instruction* Instruction::generateAddByteToRegaddr(uint8_t byt, uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
 
@@ -39,7 +55,7 @@ Instruction* Instruction::generateAddByteToRegaddr(uint8_t byt, uint32_t idx){
     return ret;
 }
 
-Instruction* Instruction::generateMoveRegaddrToReg32(uint32_t srcidx, uint32_t destidx){
+Instruction* Instruction32::generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx){
     ASSERT(srcidx < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(destidx < X86_32BIT_GPRS && "Illegal register index given");
 
@@ -56,7 +72,7 @@ Instruction* Instruction::generateMoveRegaddrToReg32(uint32_t srcidx, uint32_t d
     return ret;
 }
 
-Instruction* Instruction::generateMoveRegaddrToReg64(uint32_t srcidx, uint32_t destidx){
+Instruction* Instruction64::generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx){
     ASSERT(srcidx < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(destidx < X86_32BIT_GPRS && "Illegal register index given");
 
@@ -68,6 +84,151 @@ Instruction* Instruction::generateMoveRegaddrToReg64(uint32_t srcidx, uint32_t d
     buff[0] = 0x67;
     buff[1] = 0x8b; 
     buff[2] = 0x00 + (char)(srcidx) + (char)(8*destidx);
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+Instruction* Instruction64::generateRegSubImmediate(uint32_t idx, uint64_t imm){
+    ASSERT(idx > 0 && idx < X86_64BIT_GPRS && "Illegal register index given");
+
+    if (!imm){
+        return Instruction64::generateNoop();
+    } else if (imm <= 0xff){
+        return Instruction64::generateRegSubImmediate1Byte(idx,imm);
+    } else if (imm <= 0xffffffff){
+        return Instruction64::generateRegSubImmediate4Byte(idx,imm);
+    } else {
+        PRINT_ERROR("Cannot use more than 32 bits for immediate");
+    }
+    __SHOULD_NOT_ARRIVE;
+    return NULL;
+}
+
+Instruction* Instruction64::generateRegSubImmediate1Byte(uint32_t idx, uint64_t imm){
+    ASSERT(idx > 0 && idx < X86_64BIT_GPRS && "Illegal register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 4;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+    if (idx < X86_32BIT_GPRS){        
+        buff[0] = 0x48;
+    } else {
+        buff[0] = 0x49;
+    }
+    buff[1] = 0x83;
+    buff[2] = 0xe8 + (char)(idx % X86_32BIT_GPRS);
+
+    uint32_t imm8 = (uint8_t)imm;
+    ASSERT(imm8 == imm && "Cannot use more than 8 bits for immediate");
+    memcpy(buff+3,&imm8,sizeof(uint8_t));
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+Instruction* Instruction64::generateRegSubImmediate4Byte(uint32_t idx, uint64_t imm){
+    ASSERT(idx > 0 && idx < X86_64BIT_GPRS && "Illegal register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 7;
+    uint32_t immoff = 3;
+
+    if (idx == X86_REG_AX){
+        len--;
+        immoff--;
+    }
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    buff[0] = 0x48;
+    buff[1] = 0x81;
+    buff[2] = 0xe8 + (char)(idx % X86_32BIT_GPRS);
+
+    if (idx == X86_REG_AX){
+        buff[1] = 0x2d;
+    }
+
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == imm && "Cannot use more than 32 bits for immediate");
+    memcpy(buff+immoff,&imm32,sizeof(uint32_t));
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+Instruction* Instruction64::generateRegAddImmediate(uint32_t idx, uint64_t imm){
+    ASSERT(idx > 0 && idx < X86_64BIT_GPRS && "Illegal register index given");
+
+    if (!imm){
+        return Instruction64::generateNoop();
+    } else if (imm <= 0xff){
+        return Instruction64::generateRegAddImmediate1Byte(idx,imm);
+    } else if (imm <= 0xffffffff){
+        return Instruction64::generateRegAddImmediate4Byte(idx,imm);
+    } else {
+        PRINT_ERROR("Cannot use more than 32 bits for immediate");
+    }
+    __SHOULD_NOT_ARRIVE;
+    return NULL;
+}
+
+Instruction* Instruction64::generateRegAddImmediate1Byte(uint32_t idx, uint64_t imm){
+    ASSERT(idx > 0 && idx < X86_64BIT_GPRS && "Illegal register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 4;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+    if (idx < X86_32BIT_GPRS){        
+        buff[0] = 0x48;
+    } else {
+        buff[0] = 0x49;
+    }
+    buff[1] = 0x83;
+    buff[2] = 0xc0 + (char)(idx % X86_32BIT_GPRS);
+
+    uint32_t imm8 = (uint8_t)imm;
+    ASSERT(imm8 == imm && "Cannot use more than 8 bits for immediate");
+    memcpy(buff+3,&imm8,sizeof(uint8_t));
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+Instruction* Instruction64::generateRegAddImmediate4Byte(uint32_t idx, uint64_t imm){
+    ASSERT(idx > 0 && idx < X86_64BIT_GPRS && "Illegal register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 7;
+    uint32_t immoff = 3;
+
+    if (idx == X86_REG_AX){
+        len--;
+        immoff--;
+    }
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    buff[0] = 0x48;
+    buff[1] = 0x81;
+    buff[2] = 0xc0 + (char)(idx % X86_32BIT_GPRS);
+
+    if (idx == X86_REG_AX){
+        buff[1] = 0x05;
+    }
+
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == imm && "Cannot use more than 32 bits for immediate");
+    memcpy(buff+immoff,&imm32,sizeof(uint32_t));
 
     ret->setBytes(buff);
     delete[] buff;
@@ -129,10 +290,10 @@ Instruction* Instruction::generateReturn(){
 }
 
 
-Instruction* Instruction::generateStackPush64(uint32_t idx){
+Instruction* Instruction64::generateStackPush(uint32_t idx){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
     if (idx < X86_32BIT_GPRS){
-        return Instruction::generateStackPush32(idx);
+        return Instruction32::generateStackPush(idx);
     }
 
     Instruction* ret = new Instruction();
@@ -148,10 +309,10 @@ Instruction* Instruction::generateStackPush64(uint32_t idx){
     return ret;
 }
 
-Instruction* Instruction::generateStackPop64(uint32_t idx){
+Instruction* Instruction64::generateStackPop(uint32_t idx){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
     if (idx < X86_32BIT_GPRS){
-        return Instruction::generateStackPop32(idx);
+        return Instruction32::generateStackPop(idx);
     }
 
     Instruction* ret = new Instruction();
@@ -208,26 +369,119 @@ Instruction* Instruction::generateNoop(){
     return ret;
 }
 
-Instruction* Instruction::generateMoveRegToRegaddr64(uint32_t idxsrc, uint32_t idxdest){
-    ASSERT(idxsrc < 8 && "Illegal register index given");
-    ASSERT(idxdest < 8 && "Illegal register index given");    
+Instruction* Instruction64::generateMoveRegToRegaddrImm(uint32_t idxsrc, uint32_t idxdest, uint64_t imm){
+    ASSERT(idxsrc < X86_32BIT_GPRS && "Illegal register index given");
+    ASSERT(idxdest < X86_32BIT_GPRS && "Illegal register index given");    
+
+    if (!imm){
+        return Instruction64::generateMoveRegToRegaddr(idxsrc,idxdest);
+    } else if (imm <= 0xff){
+        return Instruction64::generateMoveRegToRegaddrImm1Byte(idxsrc,idxdest,imm);
+    } else if (imm <= 0xffffffff){
+        return Instruction64::generateMoveRegToRegaddrImm4Byte(idxsrc,idxdest,imm);
+    } else {
+        PRINT_ERROR("Cannot use more than 32 bits for the immediate");
+    }
+    __SHOULD_NOT_ARRIVE;
+    return NULL;
+}
+
+
+Instruction* Instruction64::generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest){
+    ASSERT(idxsrc < X86_32BIT_GPRS && "Illegal register index given");
+    ASSERT(idxdest < X86_32BIT_GPRS && "Illegal register index given");    
+    if (idxdest == X86_REG_BP){
+        return Instruction64::generateMoveRegToRegaddrImm1Byte(idxsrc,idxdest,0);
+    }
+
     Instruction* ret = new Instruction();
     uint32_t len = 3;
+    if (idxdest == X86_REG_SP){
+        len++;
+    }
 
     ret->setLength(len);
     char* buff = new char[len];
 
     // set opcode
-    buff[0] = 0x67;
+    buff[0] = 0x48;
     buff[1] = 0x89;
     buff[2] = 0x00 + (char)(idxsrc*8) + (char)(idxdest);
+
+    if (idxdest == X86_REG_SP){
+        buff[3] = 0x24;
+    }
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+Instruction* Instruction64::generateMoveRegToRegaddrImm1Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm){
+    ASSERT(idxsrc < X86_32BIT_GPRS && "Illegal register index given");
+    ASSERT(idxdest < X86_32BIT_GPRS && "Illegal register index given");    
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 4;
+    if (idxdest == X86_REG_SP){
+        len++;
+    }    
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0x48;
+    buff[1] = 0x89;
+    buff[2] = 0x40 + (char)(idxsrc*8) + (char)(idxdest);
+    uint8_t imm8 = (uint8_t)imm;
+
+    uint32_t immoff = 3;
+    if (idxdest == X86_REG_SP){
+        buff[3] = 0x24;
+        immoff++;
+    }
+
+    ASSERT(imm8 == (uint8_t)imm && "Cannot use more than 8 bits for the immediate");
+    memcpy(buff+immoff,&imm8,sizeof(uint8_t));
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+Instruction* Instruction64::generateMoveRegToRegaddrImm4Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm){
+    ASSERT(idxsrc < X86_32BIT_GPRS && "Illegal register index given");
+    ASSERT(idxdest < X86_32BIT_GPRS && "Illegal register index given");    
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 7;
+    if (idxdest == X86_REG_SP){
+        len++;
+    }    
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0x48;
+    buff[1] = 0x89;
+    buff[2] = 0x80 + (char)(idxsrc*8) + (char)(idxdest);
+    uint32_t imm32 = (uint32_t)imm;
+
+    uint32_t immoff = 3;
+    if (idxdest == X86_REG_SP){
+        buff[3] = 0x24;
+        immoff++;
+    }
+
+    ASSERT(imm32 == (uint32_t)imm && "Cannot use more than 32 bits for the immediate");
+    memcpy(buff+immoff,&imm32,sizeof(uint32_t));
 
     ret->setBytes(buff);
     delete[] buff;
     return ret;
 }
 
-Instruction* Instruction::generateMoveRegToRegaddr32(uint32_t idxsrc, uint32_t idxdest){
+Instruction* Instruction::generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest){
     ASSERT(idxsrc < 8 && "Illegal register index given");
     ASSERT(idxdest < 8 && "Illegal register index given");    
     Instruction* ret = new Instruction();
@@ -245,7 +499,7 @@ Instruction* Instruction::generateMoveRegToRegaddr32(uint32_t idxsrc, uint32_t i
     return ret;
 }
 
-Instruction* Instruction::generateIndirectRelativeJump64(uint64_t addr, uint64_t tgt){
+Instruction* Instruction64::generateIndirectRelativeJump(uint64_t addr, uint64_t tgt){
     Instruction* ret = new Instruction();
     uint32_t len = 6;
 
@@ -317,7 +571,7 @@ Instruction* Instruction::generateMoveRegToMem(uint32_t idx, uint64_t addr){
     return ret;    
 }
 
-Instruction* Instruction::generateStackPush32(uint32_t idx){
+Instruction* Instruction32::generateStackPush(uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     Instruction* ret = new Instruction();
     uint32_t len = 1;
@@ -334,7 +588,7 @@ Instruction* Instruction::generateStackPush32(uint32_t idx){
     return ret;
 }
 
-Instruction* Instruction::generateStackPop32(uint32_t idx){
+Instruction* Instruction32::generateStackPop(uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     Instruction* ret = new Instruction();
     uint32_t len = 1;
@@ -378,7 +632,7 @@ Instruction* Instruction::generateCallRelative(uint64_t addr, uint64_t tgt){
     
 }
 
-Instruction* Instruction::generateJumpIndirect32(uint64_t tgt){
+Instruction* Instruction32::generateJumpIndirect(uint64_t tgt){
     Instruction* ret = new Instruction();
     uint32_t len = 6;
 

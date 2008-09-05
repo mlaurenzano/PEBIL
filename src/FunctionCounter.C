@@ -48,7 +48,7 @@ void FunctionCounter::reserveInstrumentation(){
     // in order to get a pointer we first reserve the array then a pointer to it
     uint64_t counterArray = reserveDataOffset(instPoints*sizeof(uint32_t));
     uint64_t counterArrayPtr = reserveDataOffset(sizeof(uint32_t));
-    exitFunc->addArgument(ElfArgumentTypes_uint32_t_pointer,counterArrayPtr,dataBaseAddress+counterArray);
+    exitFunc->addArgument(ElfArgumentTypes_uint32_t_pointer,counterArray);
 
     addInstrumentationPoint(fini,exitFunc);
 
@@ -56,12 +56,12 @@ void FunctionCounter::reserveInstrumentation(){
         InstrumentationSnippet* snip = new InstrumentationSnippet();
         uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
 
-        snip->addSnippetInstruction(Instruction::generatePushEflags());
-        snip->addSnippetInstruction(Instruction::generateStackPush32(X86_REG_CX));
-        snip->addSnippetInstruction(Instruction::generateMoveImmToReg(dataBaseAddress+counterOffset,X86_REG_CX));
-        snip->addSnippetInstruction(Instruction::generateAddByteToRegaddr(1,X86_REG_CX));
-        snip->addSnippetInstruction(Instruction::generateStackPop32(X86_REG_CX));
-        snip->addSnippetInstruction(Instruction::generatePopEflags());
+        snip->addSnippetInstruction(Instruction32::generatePushEflags());
+        snip->addSnippetInstruction(Instruction32::generateStackPush(X86_REG_CX));
+        snip->addSnippetInstruction(Instruction32::generateMoveImmToReg(dataBaseAddress+counterOffset,X86_REG_CX));
+        snip->addSnippetInstruction(Instruction32::generateAddByteToRegaddr(1,X86_REG_CX));
+        snip->addSnippetInstruction(Instruction32::generateStackPop(X86_REG_CX));
+        snip->addSnippetInstruction(Instruction32::generatePopEflags());
         // do not generate control instructions to get back to the code, this is done for
         // the snippet automatically during code generation
 

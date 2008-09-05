@@ -138,12 +138,6 @@ public:
 
     static Instruction* generateNoop();
 
-    static Instruction* generateMoveRegToRegaddr64(uint32_t srcidx, uint32_t destidx);
-    static Instruction* generateMoveRegaddrToReg64(uint32_t srcidx, uint32_t destidx);
-    static Instruction* generateStackPush64(uint32_t idx);
-    static Instruction* generateStackPop64(uint32_t idx);
-    static Instruction* generateIndirectRelativeJump64(uint64_t addr, uint64_t tgt);
-
     static Instruction* generateReturn();
     static Instruction* generatePushEflags();
     static Instruction* generatePopEflags();
@@ -156,18 +150,45 @@ public:
     static Instruction* generateRegAddImmediate(uint32_t idx, uint64_t imm);
     static Instruction* generateAddByteToRegaddr(uint8_t byt, uint32_t idx);
 
-    static Instruction* generateMoveRegToRegaddr32(uint32_t srcidx, uint32_t destidx);
-    static Instruction* generateMoveRegaddrToReg32(uint32_t srcidx, uint32_t destidx);
-    static Instruction* generateStackPush32(uint32_t idx);
-    static Instruction* generateStackPop32(uint32_t idx);
-    static Instruction* generateJumpIndirect32(uint64_t tgt);
-
     static uint32_t computeOpcodeTypeOneByte(uint32_t idx);
     static uint32_t computeOpcodeTypeTwoByte(uint32_t idx);
     static uint32_t computeOpcodeTypeGroups(uint32_t idx1, uint32_t idx2);
     static uint32_t computeOpcodeTypePrefixUser(uint32_t idx1, uint32_t idx2);
     static uint32_t computeOpcodeTypeX8664(uint32_t idx1, uint32_t idx2);
+
+    static Instruction* generateMoveRegToRegaddr(uint32_t srcidx, uint32_t destidx);
+};
+
+class Instruction64 : public Instruction {
 private:
+    static Instruction* generateMoveRegToRegaddrImm4Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm);
+    static Instruction* generateMoveRegToRegaddrImm1Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm);
+    static Instruction* generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest);
+
+    static Instruction* generateRegSubImmediate4Byte(uint32_t idx, uint64_t imm);
+    static Instruction* generateRegSubImmediate1Byte(uint32_t idx, uint64_t imm);
+
+    static Instruction* generateRegAddImmediate4Byte(uint32_t idx, uint64_t imm);
+    static Instruction* generateRegAddImmediate1Byte(uint32_t idx, uint64_t imm);
+
+public:
+    static Instruction* generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx);
+    static Instruction* generateStackPush(uint32_t idx);
+    static Instruction* generateStackPop(uint32_t idx);
+    static Instruction* generateIndirectRelativeJump(uint64_t addr, uint64_t tgt);
+    static Instruction* generateStackPush4Byte(uint32_t idx);
+    static Instruction* generateRegAddImmediate(uint32_t, uint64_t);
+    static Instruction* generateRegSubImmediate(uint32_t, uint64_t);
+    static Instruction* generateMoveRegToRegaddrImm(uint32_t, uint32_t, uint64_t);
 
 };
+
+class Instruction32 : public Instruction {
+public:
+    static Instruction* generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx);
+    static Instruction* generateJumpIndirect(uint64_t tgt);
+    static Instruction* generateStackPush(uint32_t idx);
+    static Instruction* generateStackPop(uint32_t idx);
+};
+
 #endif /* _Instruction_h_ */
