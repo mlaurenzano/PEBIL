@@ -5,12 +5,9 @@
 
 uint64_t Function::findInstrumentationPoint(){
     for (uint32_t i = 0; i < numberOfInstructions; i++){
-        instructions[i]->print();
         uint32_t j = i;
         uint32_t instBytes = 0;
-        PRINT_INFOR("Examining function %s", getFunctionName());
         while (j < numberOfInstructions && instructions[j]->isRelocatable()){
-            PRINT_INFOR("Examining instruction %d", j);
             instBytes += instructions[j]->getLength();
             j++;
         }
@@ -41,8 +38,9 @@ Function::Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_
     numberOfInstructions = 0;
     instructions = NULL;
 
-    PRINT_INFOR("Initializing functions for section %d", sym->GET(st_shndx));
+    PRINT_INFOR("Initializing function %d for section %d", index, sym->GET(st_shndx));
     PRINT_INFOR("function %d [%llx,%llx] = %d bytes", index, getFunctionAddress(), exitAddr, functionSize);
+    functionSymbol->print();
 
     // get the list of instructions in this function
     Instruction* inst = rawSection->getInstructionAtAddress(getFunctionAddress());
@@ -99,7 +97,6 @@ bool Function::verify(){
         if (instructions[numberOfInstructions-1]->getAddress() + instructions[numberOfInstructions-1]->getLength() <
             getFunctionAddress() + getFunctionSize()){
             instructions[numberOfInstructions-1]->print();
-            functionSymbol->print();
             PRINT_ERROR("Last instruction in function %d should be at the end of the function (%llx)", index, getFunctionAddress() + getFunctionSize());
             return false;
         }
