@@ -217,7 +217,11 @@ typedef enum {
     ElfArgumentTypes_uint32_t,
     ElfArgumentTypes_uint32_t_pointer,
     ElfArgumentTypes_uint64_t,
-    ElfArgumentTypes_uint64_t_pointer
+    ElfArgumentTypes_uint64_t_pointer,
+    ElfArgumentTypes_char,
+    ElfArgumentTypes_char_pointer,
+    ElfArgumentTypes_char_pointer_pointer,
+    ElfArgumentTypes_Total
 } ElfArgumentTypes;
 
 

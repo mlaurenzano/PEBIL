@@ -57,6 +57,7 @@ uint32_t InstrumentationFunction::addArgument(ElfArgumentTypes typ, uint64_t off
         newoffsets[i] = argumentOffsets[i];
         newvalues[i] = argumentValues[i];
     }
+
     newargs[numberOfArguments] = typ;
     newoffsets[numberOfArguments] = offset;
     newvalues[numberOfArguments] = value;

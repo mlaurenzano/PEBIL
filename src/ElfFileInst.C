@@ -27,6 +27,33 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
+uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
+    ASSERT(currentPhase > ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
+    uint64_t avail = usableDataOffset + bssReserved;
+    usableDataOffset += size;
+    PRINT_INFOR("Using bytes [%llx,%llx] of the data section", avail, avail+size);
+    ASSERT(avail <= elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) && "Not enough space for the requested data");
+    return avail;
+}
+
+uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, void* data){
+    InstrumentationSnippet* snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END];
+
+
+    //    snip->addSnippetInstruction(Instruction::generateMoveImmToSegmentReg(1,X86_SEGREG_ES));
+
+    uint8_t* bytes = (uint8_t*)data;
+    for (uint32_t  i = 0; i < size; i++){
+        uint8_t d = bytes[i];
+        
+        snip->addSnippetInstruction(Instruction::generateMoveImmToReg((uint32_t)d,X86_REG_AX));
+        snip->addSnippetInstruction(Instruction::generateMoveImmToReg(address+i,X86_REG_DI));
+        snip->addSnippetInstruction(Instruction::generateSTOSByte(false));
+    }
+
+    return 0;
+}
+
 void ElfFileInst::extendDataSection(uint64_t size){
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
@@ -55,33 +82,12 @@ void ElfFileInst::extendDataSection(uint64_t size){
     // increase the memory size of the data segment
     dataHeader->INCREMENT(p_memsz,size);
 
-    /*
-    extraDataIdx = bssSectionIdx+1;
-    elfFile->addSection(extraDataIdx, ElfClassTypes_no_type, NULL, bssSection->GET(sh_name), bssSection->GET(sh_type),
-                        bssSection->GET(sh_flags), bssSection->GET(sh_addr) + bssSection->GET(sh_size), 
-                        bssSection->GET(sh_offset), size, bssSection->GET(sh_link), 
-                        bssSection->GET(sh_info), 0, bssSection->GET(sh_entsize));
-    // move all later sections' offsets so that they don't conflict with this one
-    for (uint32_t i = extraDataIdx+1; i < elfFile->getNumberOfSections(); i++){
-        SectionHeader* scn = elfFile->getSectionHeader(i);
-        scn->SET(sh_offset,nextAlignAddress(scn->GET(sh_offset) + size, scn->GET(sh_addralign)));        
-    }
-
-    */
-
     SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
 
     for (uint32_t i = extraDataIdx+1; i < elfFile->getNumberOfSections(); i++){
         SectionHeader* scn = elfFile->getSectionHeader(i);
         ASSERT(!scn->GET(sh_addr) && "The bss section should be the final section the programs address space");
     }
-
-    /*
-    // move the section header table offset if it is after the bss section
-    if (extendedData->GET(sh_offset) < elfFile->getFileHeader()->GET(e_shoff)){
-        elfFile->getFileHeader()->INCREMENT(e_shoff,size);
-    }
-    */
 
     PRINT_INFOR("Extra data space available @address 0x%016llx + %d bytes", extendedData->GET(sh_addr), extendedData->GET(sh_size));
     PRINT_INFOR("Extra data space available @offset  0x%016llx + %d bytes", extendedData->GET(sh_offset), extendedData->GET(sh_size));
@@ -106,14 +112,6 @@ uint32_t ElfFileInst::addInstrumentationSnippet(InstrumentationSnippet* snip){
     return numberOfInstrumentationSnippets;
 }
 
-uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
-    ASSERT(currentPhase > ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
-    uint64_t avail = usableDataOffset + bssReserved;
-    usableDataOffset += size;
-    PRINT_INFOR("Using bytes [%llx,%llx] of the data section", avail, avail+size);
-    ASSERT(avail <= elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) && "Not enough space for the requested data");
-    return avail;
-}
 
 TextSection* ElfFileInst::getTextSection(){
     uint16_t textIdx = elfFile->findSectionIdx(".text");
@@ -146,18 +144,24 @@ void ElfFileInst::generateInstrumentation(){
     uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
     uint64_t dataBaseAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr);
 
-    InstrumentationSnippet* snip = new InstrumentationSnippet();
+    InstrumentationSnippet* snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN];
     snip->addSnippetInstruction(Instruction::generatePushEflags());
-    snip->addSnippetInstruction(Instruction32::generateStackPush(X86_REG_CX));
-    snip->addSnippetInstruction(Instruction32::generateStackPush(X86_REG_DX));
-    instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN] = snip;
+    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
+        snip->addSnippetInstruction(Instruction32::generateStackPush(i));
+    }
+    snip->addSnippetInstruction(Instruction32::generatePushSegmentReg(X86_SEGREG_DS));
+    snip->addSnippetInstruction(Instruction32::generatePushSegmentReg(X86_SEGREG_ES));
+    
 
-    snip = new InstrumentationSnippet();
-    snip->addSnippetInstruction(Instruction32::generateStackPop(X86_REG_DX));
-    snip->addSnippetInstruction(Instruction32::generateStackPop(X86_REG_CX));
+    snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END];
+    snip->addSnippetInstruction(Instruction32::generatePopSegmentReg(X86_SEGREG_ES));
+    snip->addSnippetInstruction(Instruction32::generatePopSegmentReg(X86_SEGREG_DS));
+    
+    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
+        snip->addSnippetInstruction(Instruction32::generateStackPop(X86_32BIT_GPRS-i-1));
+    }
     snip->addSnippetInstruction(Instruction::generatePopEflags());
     snip->addSnippetInstruction(Instruction::generateReturn());
-    instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END] = snip;
 
     ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP] && "instrumentationPoint[INST_POINT_BOOTSTRAP] is reserved");
     for (uint32_t i = 0; i < textSection->getNumberOfFunctions(); i++){
@@ -744,8 +748,8 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
 
     numberOfInstrumentationSnippets = INST_SNIPPETS_RESERVED;
     instrumentationSnippets = new InstrumentationSnippet*[INST_SNIPPETS_RESERVED];
-    instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN] = NULL;
-    instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END] = NULL;
+    instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN] = new InstrumentationSnippet();
+    instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END] = new InstrumentationSnippet();
 
     numberOfInstrumentationFunctions = 0;
     instrumentationFunctions = NULL;

@@ -22,6 +22,128 @@ void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     binaryOutputFile->copyBytes(rawBytes,instructionLength,offset);
 }
 
+Instruction* Instruction::generateSetDirectionFlag(bool backward){
+    Instruction* ret = new Instruction();
+    uint32_t len = 1;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    buff[0] = 0xfc;
+    if (backward){
+        buff[0]++;
+    }    
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;    
+}
+
+Instruction* Instruction::generateSTOSByte(bool repeat){
+    ASSERT(!repeat && "Repeat prefix not implemented yet for this instruction");
+    Instruction* ret = new Instruction();
+    uint32_t len = 1;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    buff[0] = 0xaa;
+    ret->setBytes(buff);
+
+    delete[] buff;
+    return ret;
+}
+
+Instruction* Instruction::generateStringMove(bool repeat){
+    Instruction* ret = new Instruction();
+    uint32_t len = 1;
+
+    if (repeat){
+        len++;
+    }
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    buff[len-1] = 0xa4;
+
+    if (repeat){
+        buff[0] = 0xf3;
+    }
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+Instruction* Instruction::generateMoveImmToSegmentReg(uint64_t imm, uint32_t idx){
+    ASSERT(idx < X86_SEGMENT_REGS && "Illegal segment register index given");
+    ASSERT(idx != X86_SEGREG_CS && "Illegal segment register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 6;
+
+    ret->setLength(len);
+    char* buff = new char[len];
+
+    buff[0] = 0x8e;
+    buff[1] = 0x05 + (char)(8*idx);
+
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == imm && "Cannot use more than 32 bits for immediate");
+    memcpy(buff+2,&imm32,sizeof(uint32_t));
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+
+Instruction* Instruction::generatePushSegmentReg(uint32_t idx){
+    ASSERT(idx < X86_SEGMENT_REGS && "Illegal segment register index given");
+    ASSERT(idx != X86_SEGREG_CS && "Illegal segment register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 1;
+    if (idx == X86_SEGREG_FS || idx == X86_SEGREG_GS){
+        len++;
+    }
+    ret->setLength(len);
+    char* buff = new char[len];
+    buff[0] = 0x06 + (char)(8*idx);
+    if (idx == X86_SEGREG_FS || idx == X86_SEGREG_GS){
+        buff[0] = 0x0f;
+        buff[1] = 0x80 + (char)idx;
+    }    
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+Instruction* Instruction::generatePopSegmentReg(uint32_t idx){
+    ASSERT(idx < X86_SEGMENT_REGS && "Illegal segment register index given");
+    ASSERT(idx != X86_SEGREG_CS && "Illegal segment register index given");
+
+    Instruction* ret = new Instruction();
+    uint32_t len = 1;
+    if (idx == X86_SEGREG_FS || idx == X86_SEGREG_GS){
+        len++;
+    }
+    ret->setLength(len);
+    char* buff = new char[len];
+    buff[0] = 0x07 + (char)(8*idx);
+    if (idx == X86_SEGREG_FS || idx == X86_SEGREG_GS){
+        buff[0] = 0x0f;
+        buff[1] = 0x81 + (char)idx;
+    }    
+
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+
 Instruction* Instruction64::generateStackPush4Byte(uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
 

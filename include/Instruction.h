@@ -138,9 +138,16 @@ public:
 
     static Instruction* generateNoop();
 
+    static Instruction* generateStringMove(bool repeat);
+    static Instruction* generateSetDirectionFlag(bool backward);
+    static Instruction* generateMoveImmToSegmentReg(uint64_t imm, uint32_t idx);
+    static Instruction* generateSTOSByte(bool repeat);
+
     static Instruction* generateReturn();
     static Instruction* generatePushEflags();
     static Instruction* generatePopEflags();
+    static Instruction* generatePushSegmentReg(uint32_t idx);
+    static Instruction* generatePopSegmentReg(uint32_t idx);
     static Instruction* generateMoveImmByteToMemIndirect(uint8_t byt, uint64_t off, uint32_t idx);
     static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
     static Instruction* generateMoveRegToMem(uint32_t idx, uint64_t addr);

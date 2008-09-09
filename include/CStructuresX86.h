@@ -55,6 +55,14 @@ extern "C" {
 #define X86_REG_R14 14
 #define X86_REG_R15 15
 
+#define X86_SEGMENT_REGS 6
+#define X86_SEGREG_ES 0
+#define X86_SEGREG_CS 1
+#define X86_SEGREG_SS 2
+#define X86_SEGREG_DS 3
+#define X86_SEGREG_FS 4
+#define X86_SEGREG_GS 5
+
 
 
     /* This struct is passed into the instruction decoding routine, 
