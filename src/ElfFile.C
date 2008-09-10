@@ -60,7 +60,6 @@ void ElfFile::initTextSections(){
             numberOfFunctions += textSection->findFunctions();
         }
     }
-    PRINT_INFOR("Found %d functions in all sections", numberOfFunctions);
 }
 
 bool ElfFile::verify(){
@@ -289,9 +288,6 @@ uint64_t ElfFile::addSection(uint16_t idx, ElfClassTypes classtype, char* bytes,
     ASSERT(sectionHeaders && "sectionHeaders should be initialized");
     ASSERT(rawSections && "rawSections should be initialized");
 
-    PRINT_INFOR("Adding section at address %llx(offset %llx) with size %lld bytes", addr, offset, size);
-
-
     SectionHeader** newSectionHeaders = new SectionHeader*[numberOfSections+1];
     RawSection** newRawSections = new RawSection*[numberOfSections+1];
     for (uint32_t i = 0; i < numberOfSections; i++){
@@ -377,7 +373,6 @@ uint64_t ElfFile::addSection(uint16_t idx, ElfClassTypes classtype, char* bytes,
         uint64_t currentOffset = sectionHeaders[i]->GET(sh_offset);
         if (currentOffset > fileHeader->GET(e_shoff)){
             uint64_t newOffset = nextAlignAddress(currentOffset+fileHeader->GET(e_shentsize),sectionHeaders[i]->GET(sh_addralign));
-            PRINT_INFOR("Changing offset of section %d from %llx to %llx", i, currentOffset, newOffset);
             sectionHeaders[i]->SET(sh_offset,newOffset);
         }
     }
@@ -411,22 +406,16 @@ void ElfFile::initSectionFilePointers(){
     // find the string table for section names
     ASSERT(fileHeader->GET(e_shstrndx) && "No section name string table");
     for (uint32_t i = 0; i < numberOfStringTables; i++){
-
-        PRINT_INFOR("shstrndx is %d, found %d", fileHeader->GET(e_shstrndx), stringTables[i]->getSectionIndex());
-
         if (stringTables[i]->getSectionIndex() == fileHeader->GET(e_shstrndx)){
             sectionNameStrTabIdx = i;
         }
     }
 
     // set section names
-    PRINT_INFOR("Reading the scnhdr string table");
     ASSERT(sectionHeaders && "Section headers not present");
     ASSERT(sectionNameStrTabIdx && "Section header string table index must be defined");
 
     char* stringTablePtr = getStringTable(sectionNameStrTabIdx)->getFilePointer();
-    PRINT_INFOR("String table is located at %#x", stringTablePtr);
-    PRINT_INFOR("Setting section header names from string table");
 
     // skip first section header since it is reserved and its values are null
     for (uint32_t i = 1; i < numberOfSections; i++){
@@ -457,8 +446,6 @@ void ElfFile::initSectionFilePointers(){
 
     }
     ASSERT(dynamicSymtabIdx != numberOfSymbolTables && "Cannot analyze a file if it doesn't have a dynamic symbol table");
-    PRINT_INFOR("Dynamic symbol table is symbol table %d (actual section is %d)", dynamicSymtabIdx, getSymbolTable(dynamicSymtabIdx)->getSectionIndex());
-
 
     // find the global offset table's address
     uint64_t gotBaseAddress = 0;
@@ -469,7 +456,6 @@ void ElfFile::initSectionFilePointers(){
             // yes, we actually have to look for this symbol's name to find it!
             char* symName = currentSymtab->getSymbolName(j);
             if (!strcmp(symName,GOT_SYM_NAME)){
-                PRINT_INFOR("Found a GOT symbol at %d,%d", i, j);
                 if (gotBaseAddress){
                     PRINT_WARN("Found mutiple symbols for Global Offset Table (symbols named %s), addresses are 0x%016llx, 0x%016llx",
                                GOT_SYM_NAME, gotBaseAddress, currentSymtab->getSymbol(j)->GET(st_value));
@@ -480,7 +466,6 @@ void ElfFile::initSectionFilePointers(){
         }
     }
     ASSERT(gotBaseAddress && "Cannot find a symbol for the global offset table");
-    PRINT_INFOR("Global Offset Table found at address 0x%016llx", gotBaseAddress);
 
     // find the global offset table
     uint16_t gotSectionIdx = 0;
@@ -526,7 +511,6 @@ void ElfFile::initSectionFilePointers(){
         }
     }
     ASSERT(dynamicSectionAddress && "Cannot find a symbol for the dynamic section");
-    PRINT_INFOR("Dynamic section found at address 0x%016llx", dynamicSectionAddress);
 
     // find the dynamic table
     dynamicTableSectionIdx = 0;
@@ -540,8 +524,6 @@ void ElfFile::initSectionFilePointers(){
     ASSERT(getSectionHeader(dynamicTableSectionIdx)->GET(sh_type) == SHT_DYNAMIC && "Dynamic Section section header is wrong type");
     ASSERT(getSectionHeader(dynamicTableSectionIdx)->hasAllocBit() && "Dynamic Section section header missing an attribute");
 
-    PRINT_INFOR("Dynamic Section is in section %d", dynamicTableSectionIdx);
-
 
     uint16_t dynamicSegmentIdx = 0;
     for (uint32_t i = 0; i < numberOfPrograms; i++){
@@ -550,7 +532,6 @@ void ElfFile::initSectionFilePointers(){
             dynamicSegmentIdx = i;
         }
     }
-    PRINT_INFOR("Dynamic segment is %d", dynamicSegmentIdx);
     ASSERT(dynamicSegmentIdx && "Cannot find a segment for the dynamic table");
     ASSERT(getProgramHeader(dynamicSegmentIdx)->GET(p_vaddr) == dynamicSectionAddress && "Dynamic segment address from symbol and programHeader don't match");
 
@@ -769,7 +750,6 @@ uint32_t ElfFile::findSectionNameInStrTab(char* name){
     for (uint32_t currByte = 0; currByte < st->getSizeInBytes(); currByte++){
         char* ptr = (char*)(st->getFilePointer() + currByte);
         if (strcmp(name,ptr) == 0){
-            PRINT_INFOR("Found section name `%s` at offset %d in string table %d", name, currByte, sectionNameStrTabIdx);
             return currByte;
         }
     }
@@ -800,21 +780,18 @@ void ElfFile::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currentOffset = offset;
 
     fileHeader->dump(binaryOutputFile,currentOffset);
-    PRINT_INFOR("dumped file header");
 
     currentOffset = fileHeader->GET(e_phoff);
     for (uint32_t i = 0; i < numberOfPrograms; i++){
         programHeaders[i]->dump(binaryOutputFile,currentOffset);
         currentOffset += programHeaders[i]->getSizeInBytes();
     }
-    PRINT_INFOR("dumped %d program headers", numberOfPrograms);
 
     currentOffset = fileHeader->GET(e_shoff);
     for (uint32_t i = 0; i < numberOfSections; i++){
         sectionHeaders[i]->dump(binaryOutputFile,currentOffset);
         currentOffset += sectionHeaders[i]->getSizeInBytes();
     }
-    PRINT_INFOR("dumped %d section headers", numberOfSections);
 
     for (uint32_t i = 0; i < numberOfSections; i++){
         currentOffset = sectionHeaders[i]->GET(sh_offset);
@@ -822,35 +799,8 @@ void ElfFile::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
             rawSections[i]->dump(binaryOutputFile,currentOffset);
         }
     }
-    PRINT_INFOR("dumped %d raw sections", numberOfSections);
 }
 
-
-/*
-void ElfFile::testBitSet(){
-    PRINT_INFOR("Testing BitSet functionality");
-    BitSet<BasicBlock*>** foo = new BitSet<BasicBlock*>*[3];
-
-    foo[0] = new BitSet<BasicBlock*>(23);
-    foo[1] = new BitSet<BasicBlock*>(23);
-    foo[0]->print();
-    foo[0]->setall();
-    foo[0]->print();
-
-    foo[0]->remove(0);
-    foo[0]->remove(1);
-    foo[1]->insert(1);
-    foo[1]->insert(3);
-
-    foo[0]->print();
-    foo[1]->print();
-
-    *foo[0] |= *foo[1];
-    
-    foo[0]->print();
-    foo[1]->print();
-}
-*/
 
 void ElfFile::parse(){
 
@@ -892,8 +842,6 @@ void ElfFile::parse(){
 }
 
 void ElfFile::readFileHeader() {
-
-    PRINT_INFOR("Parsing the header");
     if(is64Bit()){
         fileHeader = new FileHeader64();
     } else {
@@ -911,19 +859,14 @@ void ElfFile::readFileHeader() {
 
     numberOfPrograms = fileHeader->GET(e_phnum);
     ASSERT(numberOfSections && "FATAL : This file has no segments!!!!!");
-
-    fileHeader->print();
-
 }
 
 void ElfFile::readProgramHeaders(){
 
-    PRINT_INFOR("Parsing the program header table");
     programHeaders = new ProgramHeader*[numberOfPrograms];
     ASSERT(programHeaders);
 
     binaryInputFile.setInPointer(binaryInputFile.fileOffsetToPointer(fileHeader->GET(e_phoff)));
-    PRINT_INFOR("Found %d program header entries, reading at location %#x\n", numberOfPrograms, binaryInputFile.currentOffset());
 
     for (uint32_t i = 0; i < numberOfPrograms; i++){
         if(is64Bit()){
@@ -949,14 +892,13 @@ void ElfFile::readProgramHeaders(){
 }
 
 void ElfFile::readSectionHeaders(){
-    PRINT_INFOR("Parsing the section header table");
+
     sectionHeaders = new SectionHeader*[numberOfSections];
     ASSERT(sectionHeaders);
 
     binaryInputFile.setInPointer(binaryInputFile.fileOffsetToPointer(fileHeader->GET(e_shoff)));
-    PRINT_INFOR("Found %d section header entries, reading at location %#x\n", numberOfSections, binaryInputFile.currentOffset());
 
-        // first read each section header
+    // first read each section header
     for (uint32_t i = 0; i < numberOfSections; i++){
         if(is64Bit()){
             sectionHeaders[i] = new SectionHeader64(i);
@@ -967,8 +909,7 @@ void ElfFile::readSectionHeaders(){
         sectionHeaders[i]->read(&binaryInputFile);
     }
 
-        // determine and set section type for each section header
-    PRINT_INFOR("Setting section types");
+    // determine and set section type for each section header
     for (uint32_t i = 0; i < numberOfSections; i++){
         uint32_t typ = sectionHeaders[i]->getSectionType();
         switch(typ){
@@ -1036,7 +977,6 @@ void ElfFile::readRawSections(){
             rawSections[i] = new GnuVerneedTable(sectionFilePtr, sectionSize, i, this);
             gnuVerneedTable = (GnuVerneedTable*)rawSections[i];
         } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_GnuVersymTable){
-            PRINT_INFOR("Section %d is gnu version symbol", i);
             ASSERT(!gnuVersymTable && "Cannot have more than one GNU_versym section");
             rawSections[i] = new GnuVersymTable(sectionFilePtr, sectionSize, i, this);
             gnuVersymTable = (GnuVersymTable*)rawSections[i];

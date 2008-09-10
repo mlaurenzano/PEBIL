@@ -28,11 +28,10 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
     for (uint32_t i = 0; i < numberOfReplacements; i++){
         replacementBytes += replacements[i]->getLength();
     }
-    PRINT_INFOR("Need to find room for %d bytes", replacementBytes);
 
     uint32_t instructionsToReplace = 0;
     Instruction* inst = getInstructionAtAddress(addr);
-    PRINT_INFOR("Finding instruction at address %llx in text section %d", addr, getSectionIndex());
+
     ASSERT(inst && "Instruction should exist at the requested address");
     uint64_t a;
     for (a = addr; a < addr+replacementBytes && inst; ){
@@ -44,8 +43,6 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
     ASSERT(a >= addr+replacementBytes && "Should be enough space to insert the requested instructions");
     ASSERT(instructionsToReplace && "At least one instruction must be replaced");
 
-    PRINT_INFOR("Going to replace %d bytes/%d instructions", bytesToReplace, instructionsToReplace);
-
     Instruction** toReplace = new Instruction*[instructionsToReplace];
     instructionsToReplace = 0;
     inst = getInstructionAtAddress(addr);
@@ -53,7 +50,6 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
     for (a = addr; a < addr+replacementBytes && inst; ){
         a += inst->getLength();
         toReplace[instructionsToReplace] = inst;
-        toReplace[instructionsToReplace]->print();
         inst = getInstructionAtAddress(a);
         instructionsToReplace++;
     }
@@ -62,8 +58,6 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
     ASSERT(replacementBytes <= bytesToReplace && "Should be enough room to insert the instructions");
     uint32_t extraNoops = bytesToReplace - replacementBytes;
 
-    PRINT_INFOR("Need to use %d noop instructions", extraNoops);
-    
     uint32_t newNumberOfInstructions = numberOfInstructions - instructionsToReplace + numberOfReplacements + extraNoops;
     Instruction** newinstructions = new Instruction*[newNumberOfInstructions];
     uint32_t currInstruction = 0;
@@ -177,8 +171,6 @@ uint32_t TextSection::findFunctions(){
     sortedFunctions = new Function*[numberOfFunctions];
     Symbol** functionSymbols = new Symbol*[numberOfFunctions];
 
-    PRINT_INFOR("Found %d functions in section %d", numberOfFunctions, getSectionIndex());
-
     numberOfFunctions = 0;
     for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
         SymbolTable* symbolTable = elfFile->getSymbolTable(i);
@@ -197,21 +189,14 @@ uint32_t TextSection::findFunctions(){
     if (numberOfFunctions){
         for (uint32_t i = 0; i < numberOfFunctions-1; i++){
             sortedFunctions[i] = new Function(this, functionSymbols[i], functionSymbols[i+1]->GET(st_value), i);
-            functionSymbols[i]->print();
         }
         // the last function does till the end of the section
         sortedFunctions[numberOfFunctions-1] = new Function(this, functionSymbols[numberOfFunctions-1], 
                                                             sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size), numberOfFunctions-1);
-        functionSymbols[numberOfFunctions-1]->print();
     }
     delete[] functionSymbols;
 
-
-    sectionHeader->print();
-    PRINT_INFOR("Found %d functions for section %d", numberOfFunctions, getSectionIndex());
-
     verify();
-
     return numberOfFunctions;
 }
 
@@ -328,8 +313,6 @@ TextSection::~TextSection(){
 }
 
 uint32_t TextSection::read(BinaryInputFile* binaryInputFile){
-    PRINT_INFOR("GARBLE reading text section");
-
     char disasmBuffer[MAX_DISASM_STR_LENGTH];
 
     ASSERT(elfFile && "Text section should be linked to its corresponding ElfFile object");
@@ -345,8 +328,6 @@ uint32_t TextSection::read(BinaryInputFile* binaryInputFile){
     uint32_t instructionLength = 0;
     uint64_t instructionAddress;
     Instruction* dummyInstruction = new Instruction();
-
-    PRINT_INFOR("Disassembling Section %s(%d)", sHdr->getSectionNamePtr(), sectionIndex);
 
     for (currByte = 0; currByte < sHdr->GET(sh_size); currByte += instructionLength, numberOfInstructions++){
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
@@ -376,10 +357,7 @@ uint32_t TextSection::read(BinaryInputFile* binaryInputFile){
 
         instructions[numberOfInstructions]->setNextAddress();
     }
-    PRINT_INFOR("Found %d instructions (%d bytes) in section %d", numberOfInstructions, currByte, sectionIndex);
-
     delete dummyInstruction;
-
 }
 
 uint32_t TextSection::printDisassembledCode(){

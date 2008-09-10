@@ -21,39 +21,39 @@ void printBriefOptions(){
     fprintf(stderr,"\n");
     fprintf(stderr,"Brief Descriptions for Options:\n");
     fprintf(stderr,"===============================\n");
-	fprintf(stderr,"\t--typ : required for all.\n");
-	fprintf(stderr,"\t--app : required for all.\n");
-	fprintf(stderr,"\t--lib : optional for all. shared library top directory.\n");
-	fprintf(stderr,"\t        default is $X86INST_LIB_HOME\n");
-	fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
-	fprintf(stderr,"\t        jbbinst for type jbb.\n");
+    fprintf(stderr,"\t--typ : required for all.\n");
+    fprintf(stderr,"\t--app : required for all.\n");
+    fprintf(stderr,"\t--ver : optional for all. prints informative messages.\n");
+    fprintf(stderr,"\t--lib : optional for all. shared library top directory.\n");
+    fprintf(stderr,"\t        default is $X86INST_LIB_HOME\n");
+    fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
+    fprintf(stderr,"\t        jbbinst for type jbb.\n");
     fprintf(stderr,"\t--dtl : optional for all. detailed .static file with lineno\n");
-	fprintf(stderr,"\t        and filenames. default is no details.\n");
-	fprintf(stderr,"\t--inp : required for sim/csc.\n");
-	fprintf(stderr,"\t--lpi : optional for sim/csc. loop level block inclusion for\n");
-	fprintf(stderr,"\t        cache simulation. default is no.\n");
-	fprintf(stderr,"\t--phs : optional for sim/csc. phase number. defaults to no phase,\n"); 
-	fprintf(stderr,"\t        otherwise, .phase.N. is included in output file names\n");
+    fprintf(stderr,"\t        and filenames. default is no details.\n");
+    fprintf(stderr,"\t--inp : required for sim/csc.\n");
+    fprintf(stderr,"\t--lpi : optional for sim/csc. loop level block inclusion for\n");
+    fprintf(stderr,"\t        cache simulation. default is no.\n");
+    fprintf(stderr,"\t--phs : optional for sim/csc. phase number. defaults to no phase,\n"); 
+    fprintf(stderr,"\t        otherwise, .phase.N. is included in output file names\n");
     fprintf(stderr,"\n");
 }
 
 void printUsage(char* argv[],bool shouldExt=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : %s\n",argv[0]);
-        //fprintf(stderr,"\t--typ (ide|dat|bbt|cnt|jbb|sim|csc)\n");
-        fprintf(stderr,"\t--typ (ide|fnc|dis)\n");
-	fprintf(stderr,"\t--app <executable_path>\n");
-	fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
-	fprintf(stderr,"\t[--lib <shared_lib_topdir>]\n");
-	fprintf(stderr,"\t[--ext <output_suffix>]\n");
+    fprintf(stderr,"\t--typ (ide|fnc|dis)\n");
+    fprintf(stderr,"\t--app <executable_path>\n");
+    fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
+    fprintf(stderr,"\t[--lib <shared_lib_topdir>]\n");
+    fprintf(stderr,"\t[--ext <output_suffix>]\n");
     fprintf(stderr,"\t[--dtl]\n");
-	fprintf(stderr,"\t[--lpi]                     <-- valid for sim/csc\n");
-	fprintf(stderr,"\t[--phs <phase_no>]          <-- valid for sim/csc\n");
-	fprintf(stderr,"\t[--help]\n");
+    fprintf(stderr,"\t[--lpi]                     <-- valid for sim/csc\n");
+    fprintf(stderr,"\t[--phs <phase_no>]          <-- valid for sim/csc\n");
+    fprintf(stderr,"\t[--help]\n");
     fprintf(stderr,"\n");
-	if(shouldExt){
-		printBriefOptions();
-	}
+    if(shouldExt){
+        printBriefOptions();
+    }
     exit(-1);
 }
 
@@ -87,16 +87,17 @@ int main(int argc,char* argv[]){
     uint32_t argInp    = 0;
     bool     loopIncl  = false;
     bool     extdPrnt  = false;
+    bool     verbose   = false;
 
     TIMER(double t = timer());
     for (int32_t i = 1; i < argc; i++){
         if (!strcmp(argv[i],"--app")){
-            if(argApp++){
+            if (argApp++){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
                 printUsage(argv);
             }
             execName = argv[++i];
-        } else if(!strcmp(argv[i],"--typ")){
+        } else if (!strcmp(argv[i],"--typ")){
             if (argTyp++){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
                 printUsage(argv);
@@ -130,9 +131,9 @@ int main(int argc,char* argv[]){
                 instType = countblocks_inst_type;
                 extension = "cntinst";
             }
-        } else if(!strcmp(argv[i],"--help")){
-			printUsage(argv,true);
-		}
+        } else if (!strcmp(argv[i],"--help")){
+            printUsage(argv,true);
+        }
     }
 
     if (!execName){
@@ -190,6 +191,8 @@ int main(int argc,char* argv[]){
                 fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i++]);
                 printUsage(argv);
             }
+        } else if (!strcmp(argv[i],"--ver")){
+            verbose = true;
         } else if (!strcmp(argv[i],"--dtl")){
             extdPrnt = true;
         } else if (!strcmp(argv[i],"--lib")){
@@ -222,34 +225,39 @@ int main(int argc,char* argv[]){
     ElfFile elfFile(execName);
 
     elfFile.parse();
-    elfFile.print();
+    TIMER(double t2 = timer();PRINT_INFOR("___timer: Instrumentation Step I parse  : %.2f",t2-t1);t1=t2);
+
+    if (verbose){
+        elfFile.print();
+    }
+
     elfFile.verify();
 
-    TIMER(double t2 = timer();PRINT_INFOR("___timer: Instrumentation Step I parse  : %.2f",t2-t1);t1=t2);
     TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step II Line  : %.2f",t2-t1);t1=t2);
     TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step III Loop : %.2f",t2-t1);t1=t2);
+
+    ElfFileInst* elfInst = NULL;
 
     if (instType == identical_inst_type){
         elfFile.dump(extension);
     } else if (instType == function_counter_type){
-        FunctionCounter* functionCounter = new FunctionCounter(&elfFile);
-
-        functionCounter->instrument();
-
-        functionCounter->print();
-        functionCounter->dump(extension);
-
-        delete functionCounter;
-
+        elfInst = new FunctionCounter(&elfFile);
     } else if (instType == disassembler_type){
         elfFile.printDisassembledCode();
     } else {
         PRINT_ERROR("Error : invalid instrumentation type");
     }
 
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step IV Instr : %.2f",t2-t1);t1=t2);
-
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step V Dump   : %.2f",t2-t1);t1=t2);
+    if (elfInst){
+        elfInst->instrument();
+        TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step IV Instr : %.2f",t2-t1);t1=t2);
+        elfInst->dump(extension);
+        TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step V Dump   : %.2f",t2-t1);t1=t2);
+        if (verbose){
+            elfInst->print();
+        }
+        delete elfInst;
+    }
 
     PRINT_INFOR("******** Instrumentation Successfull ********");
 

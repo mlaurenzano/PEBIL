@@ -111,9 +111,7 @@ uint16_t RelocationTable::setSymbolTable(){
     ASSERT(elfFile->getRawSection(sh->GET(sh_link)));
     
     RawSection* sy = elfFile->getRawSection(sh->GET(sh_link));
-    //    sh->print();
-    //print();
-    //sy->print();
+
     ASSERT(sy->getType() == ElfClassTypes_SymbolTable);
     symbolTable = (SymbolTable*)sy;
     return symbolTable->getSectionIndex();

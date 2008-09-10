@@ -67,10 +67,6 @@ void HashTable::buildTable(uint32_t numChains, uint32_t numBuckets){
         PRINT_DEBUG_HASH("real Chain[%d] = %d", i, chains[i]);
     }
     sizeInBytes = hashEntrySize * (2 + numberOfBuckets + numberOfChains);
-
-
-    print();
-
 }
 
 

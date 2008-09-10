@@ -181,6 +181,18 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         case 1:
             argumentRegister = X86_REG_SI;
             break;
+        case 2:
+            argumentRegister = X86_REG_DX;
+            break;
+        case 3:
+            argumentRegister = X86_REG_CX;
+            break;
+        case 4:
+            argumentRegister = X86_REG_R8;
+            break;
+        case 5:
+            argumentRegister = X86_REG_R9;
+            break;
         default:
             PRINT_ERROR("Cannot pass more than %d argument to an instrumentation function", MAX_ARGUMENTS_64BIT);
             __SHOULD_NOT_ARRIVE;
@@ -485,8 +497,6 @@ uint32_t InstrumentationPoint::generateTrampoline(uint32_t count, Instruction** 
     trampolineOffset = offset;
     numberOfTrampolineInstructions = count+2;
     uint32_t trampolineSize = 0;
-
-    PRINT_INFOR("Generating trampoline with %d instructions", numberOfTrampolineInstructions);
 
     trampolineInstructions = new Instruction*[numberOfTrampolineInstructions];
     trampolineInstructions[0] = Instruction::generateCallRelative(offset,getTargetOffset());

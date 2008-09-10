@@ -38,10 +38,6 @@ Function::Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_
     numberOfInstructions = 0;
     instructions = NULL;
 
-    PRINT_INFOR("Initializing function %d for section %d", index, sym->GET(st_shndx));
-    PRINT_INFOR("function %d [%llx,%llx] = %d bytes", index, getFunctionAddress(), exitAddr, functionSize);
-    functionSymbol->print();
-
     // get the list of instructions in this function
     Instruction* inst = rawSection->getInstructionAtAddress(getFunctionAddress());
     //    rawSection->printInstructions();
@@ -52,15 +48,11 @@ Function::Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_
         numberOfInstructions++;
     }
 
-    PRINT_INFOR("Found %d instructions in function %d", numberOfInstructions, index);
-
     instructions = new Instruction*[numberOfInstructions];
     numberOfInstructions = 0;
     inst = rawSection->getInstructionAtAddress(getFunctionAddress());
     while (inst && inst->getAddress() < exitAddr){
         ASSERT(inst && "instruction should exist");
-        //        PRINT_INFOR("Instruction ptr at address %x", inst);
-        //PRINT_INFOR("Getting instruction %d at address %llx for this function", numberOfInstructions, inst->getAddress());
         instructions[numberOfInstructions++] = inst;
         inst = rawSection->getInstructionAtAddress(inst->getAddress() + inst->getLength());
     }

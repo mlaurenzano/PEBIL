@@ -11,21 +11,16 @@ uint32_t StringTable::addString(const char* name){
     uint32_t stringSize = strlen(name);
     uint32_t currentSize = sizeInBytes;
 
-    PRINT_INFOR("Stringtable::addstring -- adding string %s with length %d", name, strlen(name));
-
     ASSERT(strings && "strings array should be initialized");
 
     char* newstrings = new char[sizeInBytes + strlen(name) + 1];
     memcpy(newstrings, strings, sizeInBytes);
     memcpy(newstrings + sizeInBytes, name, strlen(name));
     newstrings[sizeInBytes + strlen(name)] = '\0';
-    PRINT_INFOR("new string: %s", newstrings + sizeInBytes);
 
     delete[] strings;
     strings = newstrings;
-    PRINT_INFOR("size=%d", sizeInBytes);
     sizeInBytes += strlen(name) + 1;
-    PRINT_INFOR("size=%d", sizeInBytes);
 
     return currentSize;
 }

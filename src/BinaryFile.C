@@ -158,11 +158,9 @@ uint32_t BinaryOutputFile::alreadyWritten(){
 
 void BinaryOutputFile::open(char* filenm) { 
     uint32_t namelen = strlen(filenm);
-    PRINT_INFOR("Opening output file %s with len %d", filenm, namelen);
     fileName = new char[namelen+1];
     strncpy(fileName, filenm, namelen);
     fileName[namelen] = '\0';
-    PRINT_INFOR("Opening output file %s", fileName);
     outFile = fopen(fileName,"w");
 }
 

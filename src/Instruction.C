@@ -634,7 +634,6 @@ Instruction* Instruction64::generateIndirectRelativeJump(uint64_t addr, uint64_t
 
 
     uint64_t imm = tgt - addr - len;
-    PRINT_INFOR("Imm jump calculation: %llx - %llx - %llx = %llx", tgt, addr, len, imm);
     uint32_t imm32 = (uint32_t)imm;
 
     ASSERT(addr == (uint32_t)addr && "Cannot use more than 32 bits for the address");

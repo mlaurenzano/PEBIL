@@ -138,12 +138,8 @@ uint32_t NoteSection::read(BinaryInputFile* binaryInputFile){
         currWord += nextAlignAddress(tmpNameSize,Size__32_bit_Note_Section_Entry)/Size__32_bit_Note_Section_Entry;
         currWord += nextAlignAddress(tmpDescSize,Size__32_bit_Note_Section_Entry)/Size__32_bit_Note_Section_Entry;
         numberOfNotes++;
-
-        PRINT_INFOR("Found a note with %d %d %d", tmpNameSize, tmpDescSize, tmpType);
     }
 
-    PRINT_INFOR("Found %d notes", numberOfNotes);
-    PRINT_INFOR("%d %d", currWord*Size__32_bit_Note_Section_Entry, sizeInBytes);
     ASSERT(currWord*Size__32_bit_Note_Section_Entry == sizeInBytes && "Number of bytes read from note section is not the same as section size");
 
     notes = new Note*[numberOfNotes];
@@ -165,7 +161,6 @@ uint32_t NoteSection::read(BinaryInputFile* binaryInputFile){
     }
 
     delete[] rawData;
-    PRINT_INFOR("Finished reading notes section");
     return sizeInBytes;
 }
 

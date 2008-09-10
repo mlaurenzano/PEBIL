@@ -32,11 +32,9 @@ GnuVersymTable::GnuVersymTable(char* rawPtr, uint32_t size, uint16_t scnIdx, Elf
     ASSERT(entrySize == sizeof(uint16_t) && "The size of the entries is different than expected");
     ASSERT(size % entrySize == 0 && "This size of the section should be divisible by entry size");
     numberOfVersyms = size / entrySize;
-    PRINT_INFOR("Found %d version symbols with size %d bytes", numberOfVersyms, entrySize);
     ASSERT(size == numberOfVersyms*entrySize && "Section size does not match data size");
 
     versyms = new uint16_t[numberOfVersyms];
-
 }
 
 GnuVersymTable::~GnuVersymTable(){
@@ -59,7 +57,6 @@ void GnuVersymTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
         binaryOutputFile->copyBytes(charStream()+entrySize*i,entrySize,offset+currByte);
         currByte += entrySize;
     }
-
     ASSERT(currByte == sizeInBytes && "Size written to file does not match theoretical size");
 }
 
@@ -68,12 +65,9 @@ uint32_t GnuVersymTable::read(BinaryInputFile* binaryInputFile){
     uint32_t totalBytesRead = 0;
 
     for (uint32_t i = 0; i < numberOfVersyms; i++){
-        PRINT_INFOR("Reading %d bytes at address %x", entrySize, charStream()+entrySize*i);
         binaryInputFile->copyBytesIterate(charStream()+entrySize*i,entrySize);
         totalBytesRead += entrySize;
     }
-
     ASSERT(totalBytesRead == sizeInBytes && "Size read from file does not match theoretical size");
-
     return totalBytesRead;
 }
