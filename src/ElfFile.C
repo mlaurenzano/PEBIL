@@ -615,101 +615,164 @@ uint32_t ElfFile::findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t bufCnt,
     return retValue;
 }
 
-void ElfFile::print() 
+void ElfFile::print(){
+    print(Print_Code_All);
+}
+
+void ElfFile::print(uint32_t printCodes) 
 { 
 
-    PRINT_INFOR("File Header");
-    PRINT_INFOR("===========");
-    if(fileHeader){
-        fileHeader->print(); 
+    if (HAS_PRINT_CODE(printCodes,Print_Code_FileHeader)){
+        PRINT_INFOR("File Header");
+        PRINT_INFOR("===========");
+        if(fileHeader){
+            fileHeader->print(); 
+        } else {
+            PRINT_WARN("\tNo File Header Found");
+        }
     }
     
-    PRINT_INFOR("Section Headers: %d",numberOfSections);
-    PRINT_INFOR("=================");
-    if (sectionHeaders){
-        for (uint32_t i = 0; i < numberOfSections; i++){
-            if (sectionHeaders[i]){
-                sectionHeaders[i]->print();
+    
+    if (HAS_PRINT_CODE(printCodes,Print_Code_SectionHeader)){
+        PRINT_INFOR("Section Headers: %d",numberOfSections);
+        PRINT_INFOR("=================");
+        if (sectionHeaders){
+            for (uint32_t i = 0; i < numberOfSections; i++){
+                if (sectionHeaders[i]){
+                    sectionHeaders[i]->print();
+                }
             }
+        } else {
+            PRINT_WARN("\tNo Section Headers Found");
         }
     }
 
-    PRINT_INFOR("Program Headers: %d",numberOfPrograms);
-    PRINT_INFOR("================");
-    if (programHeaders){
-        for (uint32_t i = 0; i < numberOfPrograms; i++){
-            if (programHeaders[i]){
-                programHeaders[i]->print();
+    if (HAS_PRINT_CODE(printCodes,Print_Code_ProgramHeader)){
+        PRINT_INFOR("Program Headers: %d",numberOfPrograms);
+        PRINT_INFOR("================");
+        if (programHeaders){
+            for (uint32_t i = 0; i < numberOfPrograms; i++){
+                if (programHeaders[i]){
+                    programHeaders[i]->print();
+                }
             }
+        } else {
+            PRINT_WARN("\tNo Program Headers Found");
         }
     }
 
-    PRINT_INFOR("Note Sections: %d",numberOfNoteSections);
-    PRINT_INFOR("=================");
-    if (noteSections){
-        for (uint32_t i = 0; i < numberOfNoteSections; i++){
-            noteSections[i]->print();
-        }
-    }
-
-    PRINT_INFOR("Symbol Tables: %d",numberOfSymbolTables);
-    PRINT_INFOR("==============");
-    if (symbolTables){
-        for (uint32_t i = 0; i < numberOfSymbolTables; i++){
-            if (symbolTables[i])
-                symbolTables[i]->print();
-        }
-    }
-
-    PRINT_INFOR("Relocation Tables: %d",numberOfRelocationTables);
-    PRINT_INFOR("==================");
-    if (relocationTables){
-        for (uint32_t i = 0; i < numberOfRelocationTables; i++){
-            if (relocationTables[i]){
-                relocationTables[i]->print();
+    if (HAS_PRINT_CODE(printCodes,Print_Code_NoteSection)){
+        PRINT_INFOR("Note Sections: %d",numberOfNoteSections);
+        PRINT_INFOR("=================");
+        if (noteSections){
+            for (uint32_t i = 0; i < numberOfNoteSections; i++){
+                noteSections[i]->print();
             }
+        } else {
+            PRINT_WARN("\tNo Note Sections Found");
         }
     }
 
-    PRINT_INFOR("String Tables: %d",numberOfStringTables);
-    PRINT_INFOR("==============");
-    if (stringTables){
-        for (uint32_t i = 0; i < numberOfStringTables; i++){       
-            if (stringTables[i]){
-                stringTables[i]->print();
+    if (HAS_PRINT_CODE(printCodes,Print_Code_SymbolTable)){
+        PRINT_INFOR("Symbol Tables: %d",numberOfSymbolTables);
+        PRINT_INFOR("==============");
+        if (symbolTables){
+            for (uint32_t i = 0; i < numberOfSymbolTables; i++){
+                if (symbolTables[i])
+                    symbolTables[i]->print();
             }
+        } else {
+            PRINT_WARN("\tNo Symbol Tables Found");
         }
     }
 
-    PRINT_INFOR("Global Offset Table");
-    PRINT_INFOR("===================");
-    if (globalOffsetTable){
-        globalOffsetTable->print();
+    if (HAS_PRINT_CODE(printCodes,Print_Code_RelocationTable)){
+        PRINT_INFOR("Relocation Tables: %d",numberOfRelocationTables);
+        PRINT_INFOR("==================");
+        if (relocationTables){
+            for (uint32_t i = 0; i < numberOfRelocationTables; i++){
+                if (relocationTables[i]){
+                    relocationTables[i]->print();
+                }
+            }
+        } else {
+            PRINT_WARN("\tNo Relocation Tables Found");
+        }
     }
 
-    PRINT_INFOR("Hash Table");
-    PRINT_INFOR("=============");
-    if (hashTable){
-        hashTable->print();
+    if (HAS_PRINT_CODE(printCodes,Print_Code_StringTable)){
+        PRINT_INFOR("String Tables: %d",numberOfStringTables);
+        PRINT_INFOR("==============");
+        if (stringTables){
+            for (uint32_t i = 0; i < numberOfStringTables; i++){       
+                if (stringTables[i]){
+                    stringTables[i]->print();
+                }
+            }
+        } else {
+            PRINT_WARN("\tNo String Tables Found");
+        }
     }
 
-    PRINT_INFOR("Dynamic Table");
-    PRINT_INFOR("=============");
-    if (dynamicTable){
-        dynamicTable->print();
-        dynamicTable->printSharedLibraries(&binaryInputFile);
+    if (HAS_PRINT_CODE(printCodes,Print_Code_GlobalOffsetTable)){
+        PRINT_INFOR("Global Offset Table");
+        PRINT_INFOR("===================");
+        if (globalOffsetTable){
+            globalOffsetTable->print();
+        } else {
+            PRINT_WARN("\tNo Global Offset Table Found");
+        }
     }
 
-    PRINT_INFOR("Gnu Verneed Table");
-    PRINT_INFOR("=============");
-    if (gnuVerneedTable){
-        gnuVerneedTable->print();
+    if (HAS_PRINT_CODE(printCodes,Print_Code_HashTable)){
+        PRINT_INFOR("Hash Table");
+        PRINT_INFOR("=============");
+        if (hashTable){
+            hashTable->print();
+        } else {
+            PRINT_WARN("\tNo Hash Table Found");
+        }
     }
 
-    PRINT_INFOR("Gnu Versym Table");
-    PRINT_INFOR("=============");
-    if (gnuVersymTable){
-        gnuVersymTable->print();
+    if (HAS_PRINT_CODE(printCodes,Print_Code_DynamicTable)){
+        PRINT_INFOR("Dynamic Table");
+        PRINT_INFOR("=============");
+        if (dynamicTable){
+            dynamicTable->print();
+            dynamicTable->printSharedLibraries(&binaryInputFile);
+        } else {
+            PRINT_WARN("\tNo Dynamic Table Found");
+        }
+    }
+
+    if (HAS_PRINT_CODE(printCodes,Print_Code_GnuVerneedTable)){
+        PRINT_INFOR("Gnu Verneed Table");
+        PRINT_INFOR("=============");
+        if (gnuVerneedTable){
+            gnuVerneedTable->print();
+        } else {
+            PRINT_WARN("\tNo GNU Version Needs Table  Found");
+        }
+    }
+
+    if (HAS_PRINT_CODE(printCodes,Print_Code_GnuVersymTable)){
+        PRINT_INFOR("Gnu Versym Table");
+        PRINT_INFOR("=============");
+        if (gnuVersymTable){
+            gnuVersymTable->print();
+        } else {
+            PRINT_WARN("\tNo GNU Version Symbol Table Found");
+        }
+    }
+
+    if (HAS_PRINT_CODE(printCodes,Print_Code_Disassemble)){
+        PRINT_INFOR("Text Disassembly");
+        PRINT_INFOR("=============");
+        if (HAS_PRINT_CODE(printCodes,Print_Code_Instruction)){
+            printDisassembledCode(true);
+        } else {
+            printDisassembledCode(false);
+        }
     }
 
 }
@@ -727,13 +790,13 @@ void ElfFile::findFunctions(){
 
 
 
-uint32_t ElfFile::printDisassembledCode(){
+uint32_t ElfFile::printDisassembledCode(bool instructionDetail){
     uint32_t numInstrs = 0;
 
     ASSERT(disassembler && "disassembler should be initialized");
 
     for (uint32_t i = 0; i < numberOfTextSections; i++){
-        numInstrs += textSections[i]->printDisassembledCode();
+        numInstrs += textSections[i]->printDisassembledCode(instructionDetail);
     }
     return numInstrs;
 }

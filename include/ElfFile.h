@@ -113,6 +113,7 @@ public:
 
     void briefPrint();
     void print();
+    void print(uint32_t printCodes);
     void displaySymbols();
 
     RawSection* findRawSection(uint64_t addr);
@@ -169,7 +170,7 @@ public:
     void setLineInfoFinder();
     void findLoops();
     void initTextSections();
-    uint32_t printDisassembledCode();
+    uint32_t printDisassembledCode(bool instructionDetail);
     uint64_t addSection(uint16_t idx, ElfClassTypes classtype, char* bytes, uint32_t name, uint32_t type, uint64_t flags, uint64_t addr, uint64_t offset, 
                         uint64_t size, uint32_t link, uint32_t info, uint64_t addralign, uint64_t entsize);
 

@@ -174,6 +174,27 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Size__32_bit_Gnu_Versym             sizeof(uint16_t)
 #define Size__64_bit_Gnu_Versym             sizeof(uint16_t)
 
+
+#define Print_Code_All                      0x00000001
+#define Print_Code_FileHeader               0x00000002
+#define Print_Code_SectionHeader            0x00000004
+#define Print_Code_ProgramHeader            0x00000008
+#define Print_Code_StringTable              0x00000010
+#define Print_Code_SymbolTable              0x00000020
+#define Print_Code_NoteSection              0x00000040
+#define Print_Code_RelocationTable          0x00000080
+#define Print_Code_GlobalOffsetTable        0x00000100
+#define Print_Code_HashTable                0x00000200
+#define Print_Code_DynamicTable             0x00000400
+#define Print_Code_GnuVersymTable           0x00000800
+#define Print_Code_GnuVerneedTable          0x00001000
+#define Print_Code_Disassemble              0x00002000
+#define Print_Code_Instruction              0x00004000
+#define Print_Code_Instrumentation          0x00008000
+
+#define HAS_PRINT_CODE(__value,__Print_Code) ((__value & __Print_Code) || (__value & Print_Code_All))
+#define SET_PRINT_CODE(__value,__Print_Code) (__value |= __Print_Code)
+
 typedef enum {
     ElfRelType_undefined = 0,
     ElfRelType_rel,

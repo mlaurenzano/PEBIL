@@ -82,6 +82,7 @@ public:
     ElfFile* getElfFile() { return elfFile; }
 
     void print();
+    void print(uint32_t printCodes);
     void dump(char* extension);
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 

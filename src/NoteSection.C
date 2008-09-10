@@ -65,7 +65,7 @@ void Note::print(){
 
 void NoteSection::print(){
     PRINT_INFOR("NoteSection : %d with %d notes",index,numberOfNotes);
-    printBytes(0,0);
+    //    printBytes(0,0);
     PRINT_INFOR("\tsect : %d",sectionIndex);
     for (uint32_t i = 0; i < numberOfNotes; i++){
         ASSERT(notes[i] && "numberOfNotes should indicate the number of elements in the notes array");

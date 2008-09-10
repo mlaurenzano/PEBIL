@@ -10,7 +10,7 @@ int32_t functioncounter(void* arg1, void* arg2, void* arg3){
     char** functionNames = *(char**)arg3;
 
     fprintf(stdout, "\n*** Instrumentation Summary ****\n");
-    fprintf(stdout, "Function arguments: %x %x %x\n", arg1, arg2, arg3);
+    fprintf(stdout, "Raw instrumentation function arguments: %x %x %x\n", arg1, arg2, arg3);
     fprintf(stdout, "There are %d functions in the code:\n", numFunctions);
 
     for (i = 0; i < numFunctions; i++){

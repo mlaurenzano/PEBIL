@@ -690,20 +690,27 @@ void ElfFileInst::dump(char* extension){
 }
 
 void ElfFileInst::print(){
-    elfFile->print();
-    PRINT_INFOR("");
-    PRINT_INFOR("Instrumentation Reservations:");
-    if (extraTextIdx){
-        SectionHeader* extendedText = elfFile->getSectionHeader(extraTextIdx);
-        PRINT_INFOR("Extended TEXT section is section %hd", extraTextIdx);
-        PRINT_INFOR("\tExtra text space available @address 0x%016llx + %d bytes", extendedText->GET(sh_addr), extendedText->GET(sh_size));
-        PRINT_INFOR("\tExtra text space available @offset  0x%016llx + %d bytes", extendedText->GET(sh_offset), extendedText->GET(sh_size));
-    }
-    if (extraDataIdx){
-        SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
-        PRINT_INFOR("Extended DATA section is section %hd", extraDataIdx);
-        PRINT_INFOR("Extra data space available @address 0x%016llx + %d bytes", extendedData->GET(sh_addr), extendedData->GET(sh_size));
-        PRINT_INFOR("Extra data space available @offset  0x%016llx + %d bytes", extendedData->GET(sh_offset), extendedData->GET(sh_size));
+    print(Print_Code_All);
+}
+
+void ElfFileInst::print(uint32_t printCodes){
+    elfFile->print(printCodes);
+
+    if (HAS_PRINT_CODE(printCodes,Print_Code_Instrumentation)){
+        PRINT_INFOR("Instrumentation Reservations:");
+        PRINT_INFOR("================");
+        if (extraTextIdx){
+            SectionHeader* extendedText = elfFile->getSectionHeader(extraTextIdx);
+            PRINT_INFOR("Extended TEXT section is section %hd", extraTextIdx);
+            PRINT_INFOR("\tExtra text space available @address 0x%016llx + %d bytes", extendedText->GET(sh_addr), extendedText->GET(sh_size));
+            PRINT_INFOR("\tExtra text space available @offset  0x%016llx + %d bytes", extendedText->GET(sh_offset), extendedText->GET(sh_size));
+        }
+        if (extraDataIdx){
+            SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
+            PRINT_INFOR("Extended DATA section is section %hd", extraDataIdx);
+            PRINT_INFOR("\tExtra data space available @address 0x%016llx + %d bytes", extendedData->GET(sh_addr), extendedData->GET(sh_size));
+            PRINT_INFOR("\tExtra data space available @offset  0x%016llx + %d bytes", extendedData->GET(sh_offset), extendedData->GET(sh_size));
+        }
     }
 }
 

@@ -360,7 +360,7 @@ uint32_t TextSection::read(BinaryInputFile* binaryInputFile){
     delete dummyInstruction;
 }
 
-uint32_t TextSection::printDisassembledCode(){
+uint32_t TextSection::printDisassembledCode(bool instructionDetail){
     ASSERT(elfFile && "Text section should be linked to its corresponding ElfFile object");
 
     Disassembler* disassembler = elfFile->getDisassembler();
@@ -381,18 +381,22 @@ uint32_t TextSection::printDisassembledCode(){
 
     for (currByte = 0; currByte < sHdr->GET(sh_size); currByte += instructionLength, instructionCount++){
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
-        fprintf(stdout, "(0x%lx) 0x%lx:\t", (uint64_t)(charStream() + currByte), sHdr->GET(sh_addr) + currByte);
+        //fprintf(stdout, "(0x%llx) 0x%llx:\t", (uint64_t)(charStream() + currByte), (uint64_t)(sHdr->GET(sh_addr) + currByte));
+        fprintf(stdout, "0x%llx:\t", (uint64_t)(sHdr->GET(sh_addr) + currByte));
 
         instructionLength = disassembler->print_insn(instructionAddress, dummyInstruction);
-
+        
         fprintf(stdout, "\t(bytes -- ");
         uint8_t* bytePtr;
         for (uint32_t j = 0; j < instructionLength; j++){
             bytePtr = (uint8_t*)charStream() + currByte + j;
             fprintf(stdout, "%2.2lx ", *bytePtr);
         }
-
         fprintf(stdout, ")\n");
+        
+        if (instructionDetail){
+            dummyInstruction->print();
+        }
     }
     PRINT_INFOR("Found %d instructions (%d bytes) in section %d", instructionCount, currByte, sectionIndex);
 }

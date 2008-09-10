@@ -17,6 +17,7 @@ void alignTest(){
     exit(-1);
 }
 
+
 void printBriefOptions(){
     fprintf(stderr,"\n");
     fprintf(stderr,"Brief Descriptions for Options:\n");
@@ -24,6 +25,23 @@ void printBriefOptions(){
     fprintf(stderr,"\t--typ : required for all.\n");
     fprintf(stderr,"\t--app : required for all.\n");
     fprintf(stderr,"\t--ver : optional for all. prints informative messages.\n");
+    fprintf(stderr,"\t      : a : all parts of the application\n");
+    fprintf(stderr,"\t      : e : all elf parts (everything but instructions)\n");
+    fprintf(stderr,"\t      : p : program headers\n");
+    fprintf(stderr,"\t      : h : section headers\n");
+    fprintf(stderr,"\t      : x : all headers\n");
+    fprintf(stderr,"\t      : d : disassembly\n");
+    fprintf(stderr,"\t      : c : full instruction printing (implies disassembly)\n");
+    fprintf(stderr,"\t      : s : string tables\n");
+    fprintf(stderr,"\t      : t : symbol tables\n");
+    fprintf(stderr,"\t      : r : relocation tables\n");
+    fprintf(stderr,"\t      : n : note sections\n");
+    fprintf(stderr,"\t      : g : global offset table\n");
+    fprintf(stderr,"\t      : h : hash table\n");
+    fprintf(stderr,"\t      : v : gnu version needs table\n");
+    fprintf(stderr,"\t      : m : gnu version symbol table\n");
+    fprintf(stderr,"\t      : y : dynamic table\n");
+    fprintf(stderr,"\t      : i : instrumentation reservations\n");
     fprintf(stderr,"\t--lib : optional for all. shared library top directory.\n");
     fprintf(stderr,"\t        default is $X86INST_LIB_HOME\n");
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
@@ -38,12 +56,13 @@ void printBriefOptions(){
     fprintf(stderr,"\n");
 }
 
-void printUsage(char* argv[],bool shouldExt=false) {
+void printUsage(bool shouldExt=true) {
     fprintf(stderr,"\n");
-    fprintf(stderr,"usage : %s\n",argv[0]);
-    fprintf(stderr,"\t--typ (ide|fnc|dis)\n");
+    fprintf(stderr,"usage : x86inst\n");
+    fprintf(stderr,"\t--typ (ide|fnc)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
     fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
+    fprintf(stderr,"\t[--ver [afhpxdtrnghvmy]]");
     fprintf(stderr,"\t[--lib <shared_lib_topdir>]\n");
     fprintf(stderr,"\t[--ext <output_suffix>]\n");
     fprintf(stderr,"\t[--dtl]\n");
@@ -53,9 +72,61 @@ void printUsage(char* argv[],bool shouldExt=false) {
     fprintf(stderr,"\n");
     if(shouldExt){
         printBriefOptions();
+        exit(-1);
     }
-    exit(-1);
 }
+
+uint32_t processPrintCodes(char* rawPrintCodes){
+    uint32_t printCodes = 0;
+    for (uint32_t i = 0; i < strlen(rawPrintCodes); i++){
+        char pc = rawPrintCodes[i];
+        if (pc == 'a'){
+            SET_PRINT_CODE(printCodes,Print_Code_All);
+        } else if (pc == 'e'){
+            PRINT_ERROR("The flag `%c' not yet implemented", pc);
+        } else if (pc == 'f'){
+            SET_PRINT_CODE(printCodes,Print_Code_FileHeader);
+        } else if (pc == 'p'){
+            SET_PRINT_CODE(printCodes,Print_Code_ProgramHeader);
+        } else if (pc == 'h'){
+            SET_PRINT_CODE(printCodes,Print_Code_SectionHeader);
+        } else if (pc == 'x'){
+            SET_PRINT_CODE(printCodes,Print_Code_FileHeader);
+            SET_PRINT_CODE(printCodes,Print_Code_ProgramHeader);
+            SET_PRINT_CODE(printCodes,Print_Code_SectionHeader);
+        } else if (pc == 'd'){
+            SET_PRINT_CODE(printCodes,Print_Code_Disassemble);
+        } else if (pc == 's'){
+            SET_PRINT_CODE(printCodes,Print_Code_StringTable);
+        } else if (pc == 't'){
+            SET_PRINT_CODE(printCodes,Print_Code_SymbolTable);
+        } else if (pc == 'r'){
+            SET_PRINT_CODE(printCodes,Print_Code_RelocationTable);
+        } else if (pc == 'n'){
+            SET_PRINT_CODE(printCodes,Print_Code_NoteSection);
+        } else if (pc == 'g'){
+            SET_PRINT_CODE(printCodes,Print_Code_GlobalOffsetTable);
+        } else if (pc == 'h'){
+            SET_PRINT_CODE(printCodes,Print_Code_HashTable);
+        } else if (pc == 'v'){
+            SET_PRINT_CODE(printCodes,Print_Code_GnuVerneedTable);
+        } else if (pc == 'm'){
+            SET_PRINT_CODE(printCodes,Print_Code_GnuVersymTable);
+        } else if (pc == 'y'){
+            SET_PRINT_CODE(printCodes,Print_Code_DynamicTable);
+        } else if (pc == 'i'){
+            SET_PRINT_CODE(printCodes,Print_Code_Instrumentation);
+        } else if (pc == 'c'){
+            SET_PRINT_CODE(printCodes,Print_Code_Instruction);
+            SET_PRINT_CODE(printCodes,Print_Code_Disassemble);
+        } else {
+            printUsage(true);
+        }
+    }
+    PRINT_INFOR("Found print code 0x%08x", printCodes);
+    return printCodes;
+}
+
 
 typedef enum {
     unknown_inst_type = 0,
@@ -67,40 +138,41 @@ typedef enum {
     countblocks_inst_type,
     function_counter_type,
     data_extender_type,
-    disassembler_type,
     Total_InstrumentationType
 } InstrumentationType;
 
 
 int main(int argc,char* argv[]){
 
-    char*    execName  = NULL;
-    char*    inptName  = NULL;
-    char*    extension = "";
-    char*    libPath   = NULL;
-    int32_t  phaseNo   = 0;
-    uint32_t instType  = unknown_inst_type;
-    uint32_t argApp    = 0;
-    uint32_t argTyp    = 0;
-    uint32_t argExt    = 0;
-    uint32_t argPhs    = 0;
-    uint32_t argInp    = 0;
-    bool     loopIncl  = false;
-    bool     extdPrnt  = false;
-    bool     verbose   = false;
+    char*    execName   = NULL;
+    char*    inptName   = NULL;
+    char*    extension  = "";
+    char*    libPath    = NULL;
+    int32_t  phaseNo    = 0;
+    uint32_t instType   = unknown_inst_type;
+    uint32_t argApp     = 0;
+    uint32_t argTyp     = 0;
+    uint32_t argExt     = 0;
+    uint32_t argPhs     = 0;
+    uint32_t argInp     = 0;
+    bool     loopIncl   = false;
+    bool     extdPrnt   = false;
+    bool     verbose    = false;
+    uint32_t printCodes = 0x00000000;
+    char* rawPrintCodes = NULL;
 
     TIMER(double t = timer());
     for (int32_t i = 1; i < argc; i++){
         if (!strcmp(argv[i],"--app")){
             if (argApp++){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
-                printUsage(argv);
+                printUsage();
             }
             execName = argv[++i];
         } else if (!strcmp(argv[i],"--typ")){
             if (argTyp++){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
-                printUsage(argv);
+                printUsage();
             }
             ++i;
             if (!strcmp(argv[i],"ide")){
@@ -111,10 +183,7 @@ int main(int argc,char* argv[]){
                 extension = "datinst";
             } else if (!strcmp(argv[i],"fnc")){
                 instType = function_counter_type;
-                extension = "fncinst";                
-            } else if (!strcmp(argv[i],"dis")){
-                instType = disassembler_type;
-                extension = "datinst";
+                extension = "fncinst";
             } else if (!strcmp(argv[i],"jbb")){
                 instType = frequency_inst_type;
                 extension = "jbbinst";
@@ -132,19 +201,19 @@ int main(int argc,char* argv[]){
                 extension = "cntinst";
             }
         } else if (!strcmp(argv[i],"--help")){
-            printUsage(argv,true);
+            printUsage(true);
         }
     }
 
     if (!execName){
         fprintf(stderr,"\nError : No executable is specified\n\n");
-        printUsage(argv);
+        printUsage();
     }
 
     if ((instType <= unknown_inst_type) || 
        (instType >= Total_InstrumentationType)){
         fprintf(stderr,"\nError : Unknown instrumentation type\n");
-        printUsage(argv);
+        printUsage();
     }
 
     for (int32_t i = 1; i < argc; i++){
@@ -153,17 +222,17 @@ int main(int argc,char* argv[]){
         } else if (!strcmp(argv[i],"--ext")){
             if (argExt++){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
-                printUsage(argv);
+                printUsage();
             }
             extension = argv[++i];
         } else if(!strcmp(argv[i],"--phs")){
             if (argPhs++){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
-                printUsage(argv);
+                printUsage();
             }
             if ((instType != simulation_inst_type) && (instType != simucntr_inst_type)){
                 fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i]);
-                printUsage(argv);
+                printUsage();
             }
 
             ++i;
@@ -171,17 +240,17 @@ int main(int argc,char* argv[]){
             phaseNo = strtol(argv[i],&endptr,10);
             if ((endptr == argv[i]) || !phaseNo){
                 fprintf(stderr,"\nError : Given phase number is not correct, requires > 0\n\n");
-                printUsage(argv);
+                printUsage();
             }
 
         } else if (!strcmp(argv[i],"--inp")){
             if (argInp++){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
-                printUsage(argv);
+                printUsage();
             }
             if ((instType != simulation_inst_type) && (instType != simucntr_inst_type)){
                 fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i]);
-                printUsage(argv);
+                printUsage();
             }
 
             inptName = argv[++i];
@@ -189,27 +258,37 @@ int main(int argc,char* argv[]){
             loopIncl = true;
             if ((instType != simulation_inst_type) && (instType != simucntr_inst_type)){
                 fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i++]);
-                printUsage(argv);
+                printUsage();
             }
         } else if (!strcmp(argv[i],"--ver")){
             verbose = true;
+            rawPrintCodes = argv[++i];
         } else if (!strcmp(argv[i],"--dtl")){
             extdPrnt = true;
         } else if (!strcmp(argv[i],"--lib")){
             libPath = argv[++i];
         } else {
             fprintf(stderr,"\nError : Unknown switch at %s\n\n",argv[i]);
-            printUsage(argv);
+            printUsage();
         }
     }
 
     if (((instType == simulation_inst_type) || 
          (instType == simucntr_inst_type)) && !inptName){
         fprintf(stderr,"\nError : Input is required for cache simulation instrumentation\n\n");
-        printUsage(argv);
+        printUsage();
     }
 
     ASSERT((instType == simulation_inst_type) || (instType == simucntr_inst_type) || (phaseNo == 0));
+
+
+    if (verbose){
+        if (!rawPrintCodes){
+            fprintf(stderr,"\tError: verbose option used without argument");
+            printUsage(true);
+        }
+        printCodes = processPrintCodes(rawPrintCodes);
+    }
 
     if(!libPath){
         libPath = getenv("X86INST_LIB_HOME");
@@ -228,7 +307,7 @@ int main(int argc,char* argv[]){
     TIMER(double t2 = timer();PRINT_INFOR("___timer: Instrumentation Step I parse  : %.2f",t2-t1);t1=t2);
 
     if (verbose){
-        elfFile.print();
+        elfFile.print(printCodes);
     }
 
     elfFile.verify();
@@ -242,8 +321,6 @@ int main(int argc,char* argv[]){
         elfFile.dump(extension);
     } else if (instType == function_counter_type){
         elfInst = new FunctionCounter(&elfFile);
-    } else if (instType == disassembler_type){
-        elfFile.printDisassembledCode();
     } else {
         PRINT_ERROR("Error : invalid instrumentation type");
     }
@@ -254,7 +331,7 @@ int main(int argc,char* argv[]){
         elfInst->dump(extension);
         TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step V Dump   : %.2f",t2-t1);t1=t2);
         if (verbose){
-            elfInst->print();
+            elfInst->print(printCodes);
         }
         delete elfInst;
     }
