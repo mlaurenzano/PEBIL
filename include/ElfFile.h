@@ -13,7 +13,6 @@ class SymbolTable;
 class RelocationTable;
 class DwarfSection;
 class TextSection;
-class Disassembler;
 class GlobalOffsetTable;
 class DynamicTable;
 class HashTable;
@@ -29,7 +28,6 @@ private:
 
     char*        elfFileName;
 
-    Disassembler* disassembler;
     FileHeader*  fileHeader;
     ProgramHeader**  programHeaders;
     SectionHeader** sectionHeaders;
@@ -90,7 +88,7 @@ public:
     bool verify();
 
     ElfFile(char* f): is64BitFlag(false),elfFileName(f),
-        disassembler(NULL),fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
+        fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
         rawSections(NULL),stringTables(NULL),symbolTables(NULL),relocationTables(NULL),
         dwarfSections(NULL),textSections(NULL),globalOffsetTable(NULL),dynamicTable(NULL),
         hashTable(NULL),noteSections(NULL),gnuVerneedTable(NULL),gnuVersymTable(NULL),
@@ -119,7 +117,6 @@ public:
     RawSection* findRawSection(uint64_t addr);
 
     char* getElfFileName() { return elfFileName; }
-    Disassembler* getDisassembler() { return disassembler; }
     void sortSectionHeaders();
 
     FileHeader*  getFileHeader() { return fileHeader; }
@@ -169,7 +166,6 @@ public:
 
     void setLineInfoFinder();
     void findLoops();
-    void initTextSections();
     uint32_t printDisassembledCode(bool instructionDetail);
     uint64_t addSection(uint16_t idx, ElfClassTypes classtype, char* bytes, uint32_t name, uint32_t type, uint64_t flags, uint64_t addr, uint64_t offset, 
                         uint64_t size, uint32_t link, uint32_t info, uint64_t addralign, uint64_t entsize);

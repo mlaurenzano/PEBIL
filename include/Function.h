@@ -3,40 +3,53 @@
 
 #include <Base.h>
 #include <SymbolTable.h>
+#include <BasicBlock.h>
+#include <BinaryFile.h>
+#include <TextSection.h>
+
+class BasicBlock;
 
 class Function : public Base {
 protected:
     TextSection* rawSection;
 
     Symbol* functionSymbol;
+    uint64_t functionAddress;
     uint64_t functionSize;
-    Instruction** instructions;
-    uint32_t numberOfInstructions;
+    BasicBlock** basicBlocks;
+    uint32_t numberOfBasicBlocks;
 
     uint32_t index;
 
+    uint32_t findBasicBlocks(uint32_t numberOfInstructions, Instruction** instructions);
+
 public:
+    Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_t idx);
+    Function(TextSection* rawsect, uint64_t addr, uint64_t exitAddr, uint32_t idx);
+    ~Function();
+
     Symbol* getFunctionSymbol() { return functionSymbol; }
-    uint64_t getFunctionAddress() { ASSERT(functionSymbol && "symbol should exist"); return functionSymbol->GET(st_value); }
+    uint64_t getFunctionAddress() { return functionAddress; }
     uint64_t getAddress() { return getFunctionAddress(); }
     uint64_t getFunctionSize() { return functionSize; }
     void setFunctionSize(uint64_t size);
 
-    Instruction* getInstruction(uint32_t idx);
-    uint32_t getNumberOfInstructions() { return numberOfInstructions; }
+    BasicBlock* getBasicBlock(uint32_t idx) { ASSERT(basicBlocks && idx < numberOfBasicBlocks); return basicBlocks[idx]; }
+    uint32_t getNumberOfBasicBlocks() { return numberOfBasicBlocks; }
     Instruction* getInstructionAtAddress(uint64_t addr);
 
+    bool inRange(uint64_t addr);
     uint32_t getIndex() { return index; }
-    char* getFunctionName() { ASSERT(functionSymbol && "symbol should exist"); return functionSymbol->getSymbolName(); }
-
-    Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_t idx);
-    ~Function();
+    char* getFunctionName();
 
     uint64_t findInstrumentationPoint();
+    void printInstructions();
 
+    uint32_t read(BinaryInputFile* binaryInputFile);
+    void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
     bool verify();
     void print();
-    char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
+    char* charStream();
 
     const char* briefName() { return "Function"; }
 };

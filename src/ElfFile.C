@@ -8,7 +8,6 @@
 #include <StringTable.h>
 #include <SymbolTable.h>
 #include <RelocationTable.h>
-#include <Disassembler.h>
 #include <CStructuresX86.h>
 #include <GlobalOffsetTable.h>
 #include <DynamicTable.h>
@@ -51,16 +50,6 @@ uint16_t ElfFile::findSectionIdx(uint64_t addr){
     return 0;
 }
 
-
-void ElfFile::initTextSections(){
-    uint32_t numberOfFunctions = 0;
-    for (uint32_t i = 0; i < numberOfSections; i++){
-        if (sectionHeaders[i]->getSectionType() == ElfClassTypes_TextSection){
-            TextSection* textSection = (TextSection*)rawSections[i];
-            numberOfFunctions += textSection->findFunctions();
-        }
-    }
-}
 
 bool ElfFile::verify(){
 
@@ -584,7 +573,9 @@ void ElfFile::initSectionFilePointers(){
     ASSERT(pltRelocationTable && "Should be able to find the plt relocation table");
     ASSERT(dynamicRelocationTable && "Should be able to find the dynamic relocation table");
 
-
+    for (uint32_t i = 0; i < numberOfTextSections; i++){
+        textSections[i]->disassemble(&binaryInputFile);
+    }
 }
 
 
@@ -793,8 +784,6 @@ void ElfFile::findFunctions(){
 uint32_t ElfFile::printDisassembledCode(bool instructionDetail){
     uint32_t numInstrs = 0;
 
-    ASSERT(disassembler && "disassembler should be initialized");
-
     for (uint32_t i = 0; i < numberOfTextSections; i++){
         numInstrs += textSections[i]->printDisassembledCode(instructionDetail);
     }
@@ -895,10 +884,8 @@ void ElfFile::parse(){
     readFileHeader();
     readProgramHeaders();
     readSectionHeaders();
-    disassembler = new Disassembler(is64Bit());
     readRawSections();
     initSectionFilePointers();
-    initTextSections();
 
     verify();
 
@@ -1046,14 +1033,14 @@ void ElfFile::readRawSections(){
         } else {
             rawSections[i] = new RawSection(ElfClassTypes_no_type, sectionFilePtr, sectionSize, i, this);
         }
+    }
+
+    for (uint32_t i = 0; i < numberOfSections; i++){
         rawSections[i]->read(&binaryInputFile);
     }
 }
 
 ElfFile::~ElfFile(){
-    if (disassembler){
-        delete disassembler;
-    }
     if (fileHeader){
         delete fileHeader;
     }
