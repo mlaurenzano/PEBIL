@@ -7,6 +7,7 @@
 #include <Function.h>
 #include <BasicBlock.h>
 #include <Disassembler.h>
+#include <SymbolTable.h>
 
 class ElfFile;
 class Instruction;
@@ -24,6 +25,7 @@ public:
     ~TextSection();
 
     void printInstructions();
+    uint32_t discoverFunctionSymbols(Symbol*** functionSymbols);
 
     uint32_t readNoFile();
     uint32_t getIndex() { return index; }
@@ -42,6 +44,7 @@ public:
     Instruction* getInstructionAtAddress(uint64_t addr);
 
     uint64_t getAddress() { return elfFile->getSectionHeader(sectionIndex)->GET(sh_addr); }
+    bool inRange(uint64_t addr) { return elfFile->getSectionHeader(sectionIndex)->inRange(addr); }
 
     uint32_t getNumberOfFunctions() { return numberOfFunctions; }
     Function* getFunction(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfFunctions && "function index is out of bounds"); return sortedFunctions[idx]; }

@@ -79,6 +79,7 @@ uint32_t Function::read(BinaryInputFile* binaryInputFile){
 
     delete dummyInstruction;
 
+    PRINT_INFOR("Function %s: read %d bytes from function, %d bytes in functions", getFunctionName(), currByte, functionSize);
     ASSERT(currByte == functionSize && "Number of bytes read for function does not match function size");
 
     Instruction** instructions = new Instruction*[numberOfInstructions];

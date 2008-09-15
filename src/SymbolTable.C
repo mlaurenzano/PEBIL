@@ -4,6 +4,17 @@
 #include <ElfFile.h>
 #include <BinaryFile.h>
 
+bool Symbol::isFunctionSymbol(TextSection* text){
+    if (getSymbolType() == STT_FUNC && GET(st_shndx) == text->getSectionIndex()){
+        return true;
+    }
+    if (getSymbolType() == STT_NOTYPE && GET(st_shndx) == text->getSectionIndex() && 
+        text->inRange(GET(st_value))){
+        return true;
+    }
+    return false;
+}
+
 char* Symbol::getSymbolName(){
     if (table){
         return table->getSymbolName(index);

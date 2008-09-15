@@ -6,6 +6,7 @@
 #include <ElfFile.h>
 #include <SectionHeader.h>
 #include <defines/SymbolTable.d>
+#include <TextSection.h>
 
 class StringTable;
 class ElfFile;
@@ -28,6 +29,8 @@ public:
         ~Symbol(){};
 
     SYMBOL_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
+
+    bool isFunctionSymbol(TextSection* text);
 
     void print();
     uint32_t getIndex() { return index; }

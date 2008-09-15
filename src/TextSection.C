@@ -18,41 +18,57 @@ TextSection::TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t
     disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
 }
 
+uint32_t TextSection::discoverFunctionSymbols(Symbol*** functionSymbols){
+    ASSERT(!*functionSymbols && "This array should be empty since it is loaded by this function");
+
+    uint32_t numberOfFunctionSymbols = 0;
+
+    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+        SymbolTable* symbolTable = elfFile->getSymbolTable(i);
+        if (!symbolTable->isDynamic()){
+            for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
+                Symbol* symbol = symbolTable->getSymbol(j);
+                if (symbol->isFunctionSymbol(this)){
+                    numberOfFunctionSymbols++;
+                }
+            }
+        }
+    }
+
+    PRINT_INFOR("Found %d function symbols",numberOfFunctionSymbols);
+    Symbol** syms = new Symbol*[numberOfFunctionSymbols];
+
+    numberOfFunctionSymbols = 0;
+    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+        SymbolTable* symbolTable = elfFile->getSymbolTable(i);
+        if (!symbolTable->isDynamic()){
+            for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
+                Symbol* symbol = symbolTable->getSymbol(j);
+                if (symbol->isFunctionSymbol(this)){
+                    syms[numberOfFunctionSymbols++] = symbol;
+                }
+            }
+        }
+    }
+
+    qsort(syms,numberOfFunctionSymbols,sizeof(Symbol*),compareSymbolValue);
+
+    for (uint32_t i = 0; i < numberOfFunctionSymbols; i++){
+        syms[i]->print();
+    }
+
+    *(functionSymbols) = syms;
+    return numberOfFunctionSymbols;
+}
+
 uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
     PRINT_INFOR("Reading (text) section %d", getSectionIndex());
 
     SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
 
-    numberOfFunctions = 0;
-    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
-        SymbolTable* symbolTable = elfFile->getSymbolTable(i);
-        if (!symbolTable->isDynamic()){
-            for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
-                Symbol* symbol = symbolTable->getSymbol(j);
-                if (symbol->getSymbolType() == STT_FUNC && symbol->GET(st_shndx) == getSectionIndex()){
-                    numberOfFunctions++;
-                }
-            }
-        }
-    }
-
+    Symbol** functionSymbols = NULL;
+    numberOfFunctions = discoverFunctionSymbols(&functionSymbols);
     sortedFunctions = new Function*[numberOfFunctions];
-    Symbol** functionSymbols = new Symbol*[numberOfFunctions];
-
-    numberOfFunctions = 0;
-    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
-        SymbolTable* symbolTable = elfFile->getSymbolTable(i);
-        if (!symbolTable->isDynamic()){
-            for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
-                Symbol* symbol = symbolTable->getSymbol(j);
-                if (symbol->getSymbolType() == STT_FUNC && symbol->GET(st_shndx) == getSectionIndex()){
-                    functionSymbols[numberOfFunctions++] = symbol;
-                }
-            }
-        }
-    }
-
-    qsort(functionSymbols,numberOfFunctions,sizeof(Symbol*),compareSymbolValue);
 
     if (numberOfFunctions){
         for (uint32_t i = 0; i < numberOfFunctions-1; i++){
