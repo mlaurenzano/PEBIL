@@ -1,6 +1,8 @@
 #include <FunctionCounter.h>
 #include <TextSection.h>
 #include <Instrumentation.h>
+#include <Instruction.h>
+#include <Function.h>
 
 #define EXIT_FUNCTION "functioncounter"
 #define LIB_NAME "libtest.so"
@@ -37,7 +39,7 @@ void FunctionCounter::reserveInstrumentation(){
     ASSERT(text && "Cannot find text section");
 
     uint64_t dataBaseAddress = getExtraDataAddress();
-    uint32_t instPoints = text->getNumberOfFunctions();
+    uint32_t instPoints = text->getNumberOfTextObjects();
 
     InstrumentationFunction* exitFunc = getInstrumentationFunction(EXIT_FUNCTION);
     ASSERT(exitFunc && "Cannot find exit function, are you sure it was declared?");
@@ -63,12 +65,12 @@ void FunctionCounter::reserveInstrumentation(){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
     for (uint32_t i = 0; i < instPoints; i++){
-        uint32_t nameLength = strlen(text->getFunction(i)->getFunctionName())+1;
+        uint32_t nameLength = strlen(text->getTextObject(i)->getName())+1;
 
         names[i] = reserveDataOffset(nameLength);
         tmpAddr = dataBaseAddress + names[i];
         initializeReservedData(dataBaseAddress+namePtrs+i*sizeof(char*),sizeof(char*),(void*)&tmpAddr);
-        initializeReservedData(dataBaseAddress+names[i],nameLength,(void*)(text->getFunction(i)->getFunctionName()));
+        initializeReservedData(dataBaseAddress+names[i],nameLength,(void*)(text->getTextObject(i)->getName()));
 
         InstrumentationSnippet* snip = new InstrumentationSnippet();
         uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
@@ -92,11 +94,14 @@ void FunctionCounter::reserveInstrumentation(){
         addInstrumentationSnippet(snip);
 
         // register an instrumentation point at the function that uses this snippet
-        if (strcmp(text->getFunction(i)->getFunctionName(),"_start")){
-            if (text->getFunction(i)->findInstrumentationPoint()){
-                addInstrumentationPoint(text->getFunction(i),snip);
-            } else {
-                PRINT_WARN("Cannot find instrumentation point at function %s", text->getFunction(i)->getFunctionName());
+        if (strcmp(text->getTextObject(i)->getName(),"_start")){
+            if (text->getTextObject(i)->getType() == ElfClassTypes_Function){
+                Function* f = (Function*)text->getTextObject(i);
+                if (f->findInstrumentationPoint()){
+                    addInstrumentationPoint(f,snip);
+                } else {
+                    PRINT_WARN("Cannot find instrumentation point at function %s", f->getName());
+                }
             }
         }
     }

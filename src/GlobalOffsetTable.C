@@ -1,4 +1,6 @@
 #include <GlobalOffsetTable.h>
+#include <ElfFile.h>
+#include <SectionHeader.h>
 
 void GlobalOffsetTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;

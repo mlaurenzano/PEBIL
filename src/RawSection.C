@@ -3,6 +3,7 @@
 #include <Disassembler.h>
 #include <SectionHeader.h>
 #include <Instruction.h>
+#include <BinaryFile.h>
 
 void RawSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset)
 { 

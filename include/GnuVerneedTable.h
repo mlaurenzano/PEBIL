@@ -1,9 +1,9 @@
 #ifndef _GnuVerneedTable_h_
 #define _GnuVerneedTable_h_
 
-#include <defines/GnuVerneed.d>
 #include <Base.h>
 #include <RawSection.h>
+#include <defines/GnuVerneed.d>
 
 class GnuVerneed : public Base {
 private:

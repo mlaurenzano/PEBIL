@@ -1,7 +1,6 @@
 #ifndef _GnuVersymTable_h_
 #define _GnuVersymTable_h_
 
-#include <Base.h>
 #include <RawSection.h>
 
 class GnuVersymTable : public RawSection {

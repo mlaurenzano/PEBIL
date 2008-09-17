@@ -3,14 +3,12 @@
 
 #include <Base.h>
 #include <RawSection.h>
-#include <ElfFile.h>
-#include <SectionHeader.h>
 #include <defines/SymbolTable.d>
-#include <TextSection.h>
 
 class StringTable;
 class ElfFile;
 class SymbolTable;
+class TextSection;
 
 static char* symbol_without_name = "<__no_name__x86_instrumentor>";
 
@@ -31,6 +29,7 @@ public:
     SYMBOL_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 
     bool isFunctionSymbol(TextSection* text);
+    bool isTextObjectSymbol(TextSection* text);
 
     void print();
     uint32_t getIndex() { return index; }

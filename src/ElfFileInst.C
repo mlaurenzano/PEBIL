@@ -3,6 +3,7 @@
 #include <ElfFile.h>
 #include <DynamicTable.h>
 #include <StringTable.h>
+#include <SymbolTable.h>
 #include <SectionHeader.h>
 #include <ProgramHeader.h>
 #include <HashTable.h>
@@ -26,6 +27,10 @@ TIMER(
 DEBUG(
 uint32_t readBytes = 0;
 );
+
+TextSection* ElfFileInst::getExtraTextSection() { return (TextSection*)(elfFile->getRawSection(extraTextIdx)); }
+RawSection* ElfFileInst::getExtraDataSection() { return elfFile->getRawSection(extraDataIdx); }
+uint64_t ElfFileInst::getExtraDataAddress() { return elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr); }
 
 uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
     ASSERT(currentPhase > ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
@@ -149,10 +154,10 @@ void ElfFileInst::generateInstrumentation(){
     snip->addSnippetInstruction(Instruction::generateReturn());
 
     ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP] && "instrumentationPoint[INST_POINT_BOOTSTRAP] is reserved");
-    for (uint32_t i = 0; i < textSection->getNumberOfFunctions(); i++){
-        if (!strcmp(textSection->getFunction(i)->getFunctionName(),"_start")){
+    for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
+        if (!strcmp(textSection->getTextObject(i)->getName(),"_start")){
             ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP] && "Found more than one start function");
-            instrumentationPoints[INST_POINT_BOOTSTRAP] = new InstrumentationPoint((Base*)textSection->getFunction(i), instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN]);
+            instrumentationPoints[INST_POINT_BOOTSTRAP] = new InstrumentationPoint((Base*)textSection->getTextObject(i), instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN]);
         }
     }
 

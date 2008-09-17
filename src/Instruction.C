@@ -1,6 +1,7 @@
 #include <Base.h>
 #include <Instruction.h>
 #include <CStructuresX86.h>
+#include <BinaryFile.h>
 
 bool Instruction::isRelocatable(){
     if (instructionType == x86_insn_type_cond_branch ||
@@ -844,13 +845,13 @@ uint64_t Instruction::setOperandValue(uint32_t idx, uint64_t value){
     if (idx >= MAX_OPERANDS){
         PRINT_ERROR("Index %d into operand table is bad", idx);
     }
-    ASSERT(idx >= 0 && idx < MAX_OPERANDS && "Index into operand table has a limited range");
+    ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
     operands[idx].setValue(value);
     return operands[idx].getValue();
 }
 
 uint32_t Instruction::setOperandType(uint32_t idx, uint32_t typ){
-    ASSERT(idx >= 0 && idx < MAX_OPERANDS && "Index into operand table has a limited range");
+    ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
     operands[idx].setType(typ);
     return operands[idx].getType();
 }
@@ -989,7 +990,7 @@ uint64_t Instruction::getNextAddress(){
 }
 
 Operand Instruction::getOperand(uint32_t idx){
-    ASSERT(idx >= 0 && idx < MAX_OPERANDS && "Index into operand table has a limited range");
+    ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
     return operands[idx];
 }
 
@@ -1020,7 +1021,7 @@ void Instruction::print(){
 
 
 uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
-    ASSERT(idx >= 0x00 && idx < 0x100 && "Opcode identifier should be limited in range");
+    ASSERT(idx < 0x100 && "Opcode identifier should be limited in range");
 
     uint32_t typ;
 
@@ -1108,7 +1109,7 @@ uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
 
 
 uint32_t Instruction::computeOpcodeTypeTwoByte(uint32_t idx){
-    ASSERT(idx >= 0x00 && idx < 0x100 && "Opcode identifier should be limited in range");
+    ASSERT(idx < 0x100 && "Opcode identifier should be limited in range");
 
     uint32_t typ;
 

@@ -4,7 +4,6 @@
 #include <Base.h>
 #include <defines/FileHeader.d>
 
-
 class FileHeader : public Base {
 protected:
 

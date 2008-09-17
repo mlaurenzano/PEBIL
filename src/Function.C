@@ -1,10 +1,15 @@
 #include <Function.h>
+#include <ElfFile.h>
+#include <SectionHeader.h>
+#include <Disassembler.h>
 #include <TextSection.h>
 #include <Instruction.h>
 #include <ElfFileInst.h>
 #include <SymbolTable.h>
+#include <BasicBlock.h>
+#include <BinaryFile.h>
 
-char* Function::getFunctionName(){
+char* Function::getName(){
     if (functionSymbol){
         return functionSymbol->getSymbolName();
     }
@@ -21,15 +26,7 @@ void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
         basicBlocks[i]->dump(binaryOutputFile,offset+currByte);
         currByte += basicBlocks[i]->getBlockSize();
     }
-    ASSERT(currByte == functionSize);
-}
-
-bool Function::inRange(uint64_t addr){
-    if (addr >= getFunctionAddress() &&
-        addr < getFunctionAddress() + functionSize){
-        return true;
-    }
-    return false;
+    ASSERT(currByte == sizeInBytes);
 }
 
 uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** instructions){
@@ -48,14 +45,6 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
     return numberOfBasicBlocks;
 }
 
-
-char* Function::charStream(){
-    ASSERT(rawSection);
-    uint64_t functionOffset = getFunctionAddress() -
-        rawSection->getElfFile()->getSectionHeader(rawSection->getSectionIndex())->GET(sh_addr);
-    return (char*)(rawSection->charStream() + functionOffset);
-}
-
 Instruction* Function::getInstructionAtAddress(uint64_t addr){
     for (uint32_t i = 0; i < numberOfBasicBlocks; i++){
         if (basicBlocks[i]->inRange(addr)){
@@ -65,37 +54,39 @@ Instruction* Function::getInstructionAtAddress(uint64_t addr){
     return NULL;
 }
 
-uint32_t Function::read(BinaryInputFile* binaryInputFile){
+uint32_t Function::digest(){
     uint32_t currByte = 0;
     uint32_t instructionLength = 0;
     uint64_t instructionAddress;
     uint32_t numberOfInstructions = 0;
 
     Instruction* dummyInstruction = new Instruction();
-    for (currByte = 0; currByte < functionSize; currByte += instructionLength, numberOfInstructions++){
+    for (currByte = 0; currByte < sizeInBytes; currByte += instructionLength, numberOfInstructions++){
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
-        instructionLength = rawSection->getDisassembler()->print_insn(instructionAddress, dummyInstruction);
+        instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, dummyInstruction);
     }
 
     delete dummyInstruction;
 
-    PRINT_INFOR("Function %s: read %d bytes from function, %d bytes in functions", getFunctionName(), currByte, functionSize);
-    ASSERT(currByte == functionSize && "Number of bytes read for function does not match function size");
+    PRINT_INFOR("Function %s: read %d bytes from function, %d bytes in functions", getName(), currByte, sizeInBytes);
+    if (functionSymbol)
+        functionSymbol->print();
+    ASSERT(currByte == sizeInBytes && "Number of bytes read for function does not match function size");
 
     Instruction** instructions = new Instruction*[numberOfInstructions];
     numberOfInstructions = 0;
 
     
-    for (currByte = 0; currByte < functionSize; currByte += instructionLength, numberOfInstructions++){
+    for (currByte = 0; currByte < sizeInBytes; currByte += instructionLength, numberOfInstructions++){
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
 
         instructions[numberOfInstructions] = new Instruction();
         instructions[numberOfInstructions]->setLength(MAX_X86_INSTRUCTION_LENGTH);
-        instructions[numberOfInstructions]->setAddress(getFunctionAddress() + currByte);
+        instructions[numberOfInstructions]->setAddress(getAddress() + currByte);
         instructions[numberOfInstructions]->setBytes(charStream() + currByte);
         instructions[numberOfInstructions]->setIndex(numberOfInstructions);
         
-        instructionLength = rawSection->getDisassembler()->print_insn(instructionAddress, instructions[numberOfInstructions]);
+        instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, instructions[numberOfInstructions]);
         if (!instructionLength){
             instructionLength = 1;
         }
@@ -130,33 +121,11 @@ Function::~Function(){
 }
 
 
-Function::Function(TextSection* rawsect, uint64_t addr, uint64_t exitAddr, uint32_t idx) :
-    Base(ElfClassTypes_Function)
+Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz) :
+    TextObject(ElfClassTypes_Function,text,idx,sym->GET(st_value),sz)
 {
-    rawSection = rawsect;
-    functionSymbol = NULL;
-    functionAddress = addr;
-    index = idx;
-
-    //    functionSize = functionSymbol->GET(st_size);
-    functionSize = exitAddr - getFunctionAddress();
-
-    numberOfBasicBlocks = 0;
-    basicBlocks = NULL;
-
-    verify();
-}
-
-Function::Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_t idx) :
-    Base(ElfClassTypes_Function)
-{
-    rawSection = rawsect;
+    textSection = text;
     functionSymbol = sym;
-    functionAddress = functionSymbol->GET(st_value);
-    index = idx;
-
-    //    functionSize = functionSymbol->GET(st_size);
-    functionSize = exitAddr - getFunctionAddress();
 
     numberOfBasicBlocks = 0;
     basicBlocks = NULL;
@@ -164,14 +133,11 @@ Function::Function(TextSection* rawsect, Symbol* sym, uint64_t exitAddr, uint32_
     verify();
 }
 
-void Function::setFunctionSize(uint64_t size){
-    functionSize = size;
-}
 
 bool Function::verify(){
     if (functionSymbol){
-        if (functionSymbol->getSymbolType() != STT_FUNC){
-            PRINT_ERROR("Function symbol should have type STT_FUNC");
+        if (!functionSymbol->isFunctionSymbol(textSection)){
+            PRINT_ERROR("The symbol given for this function does not appear to be a function symbol");
             return false;
         }
     }
@@ -184,6 +150,6 @@ bool Function::verify(){
 }
 
 void Function::print(){
-    PRINT_INFOR("Function size is %lld bytes", functionSize);
+    PRINT_INFOR("Function size is %lld bytes", sizeInBytes);
     functionSymbol->print();
 }

@@ -1,5 +1,6 @@
 #include <NoteSection.h>
-
+#include <ElfFile.h>
+#include <BinaryFile.h>
 
 Note::Note(uint32_t idx, uint32_t namsz, uint32_t dessz, uint32_t typ, char* nam, char* des)
     : Base(ElfClassTypes_Note)

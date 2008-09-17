@@ -2,9 +2,6 @@
 #define _RelocationTable_h_
 
 #include <Base.h>
-#include <SectionHeader.h>
-#include <ElfFile.h>
-#include <RawSection.h>
 #include <defines/RelocationTable.d>
 
 class SymbolTable;

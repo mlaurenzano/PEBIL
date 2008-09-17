@@ -3,48 +3,13 @@
 
 #include <Base.h>
 #include <RawSection.h>
-#include <BinaryFile.h>
 #include <defines/DynamicTable.d>
 
-class Dynamic;
+class BinaryInputFile;
 
 #define DYNAMIC_ENT_D_UN_IGNORED  0
 #define DYNAMIC_ENT_D_UN_IS_D_VAL 1
 #define DYNAMIC_ENT_D_UN_IS_D_PTR 2
-
-
-class DynamicTable : public RawSection {
-protected:
-    uint32_t numberOfDynamics;
-    uint32_t dynamicSize;
-    uint16_t segmentIndex;
-
-    Dynamic** dynamics;
-
-public:
-    DynamicTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint16_t segmentIdx, ElfFile* elf);
-    ~DynamicTable();
-
-    void print();
-    void printSharedLibraries(BinaryInputFile* b);
-    uint32_t read(BinaryInputFile* b);
-    virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-
-    uint32_t findEmptyDynamic();
-
-    Dynamic* getDynamic(uint32_t index);
-    uint32_t getNumberOfDynamics() { return numberOfDynamics; }
-    uint16_t getSegmentIndex() { return segmentIndex; }
-    uint32_t countDynamics(uint32_t type);
-    Dynamic* getDynamicByType(uint32_t type, uint32_t idx);
-
-    void relocateStringTable(uint64_t newAddr);
-
-    virtual bool verify();
-
-    const char* briefName() { return "DynamicTable"; }
-};
-
 
 class Dynamic : public Base {
 public:
@@ -90,5 +55,38 @@ public:
 
     uint32_t read(BinaryInputFile* binaryInputFile);
 };
+
+class DynamicTable : public RawSection {
+protected:
+    uint32_t numberOfDynamics;
+    uint32_t dynamicSize;
+    uint16_t segmentIndex;
+
+    Dynamic** dynamics;
+
+public:
+    DynamicTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint16_t segmentIdx, ElfFile* elf);
+    ~DynamicTable();
+
+    void print();
+    void printSharedLibraries(BinaryInputFile* b);
+    uint32_t read(BinaryInputFile* b);
+    virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+
+    uint32_t findEmptyDynamic();
+
+    Dynamic* getDynamic(uint32_t index);
+    uint32_t getNumberOfDynamics() { return numberOfDynamics; }
+    uint16_t getSegmentIndex() { return segmentIndex; }
+    uint32_t countDynamics(uint32_t type);
+    Dynamic* getDynamicByType(uint32_t type, uint32_t idx);
+
+    void relocateStringTable(uint64_t newAddr);
+
+    virtual bool verify();
+
+    const char* briefName() { return "DynamicTable"; }
+};
+
 
 #endif /* _DynamicTable_h_ */

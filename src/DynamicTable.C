@@ -1,4 +1,5 @@
 #include <DynamicTable.h>
+#include <BinaryFile.h>
 #include <ElfFile.h>
 #include <StringTable.h>
 #include <SectionHeader.h>
@@ -428,7 +429,7 @@ uint32_t DynamicTable::read(BinaryInputFile* binaryInputFile){
 
 Dynamic* DynamicTable::getDynamic(uint32_t idx){
     ASSERT(dynamics && "Dynamic table should be initialized");
-    ASSERT(idx >= 0 && idx < numberOfDynamics && "Dynamic Table index out of bounds");
+    ASSERT(idx < numberOfDynamics && "Dynamic Table index out of bounds");
     return dynamics[idx];
 }
 

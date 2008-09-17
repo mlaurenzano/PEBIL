@@ -1,11 +1,7 @@
 #ifndef _HashTable_h_
 #define _HashTable_h_
 
-#include <Base.h>
 #include <RawSection.h>
-#include <ElfFile.h>
-#include <SectionHeader.h>
-#include <SymbolTable.h>
 
 class ElfFile;
 

@@ -2,9 +2,9 @@
 #define _Instrumentation_h_
 
 #include <Base.h>
-#include <Instruction.h>
 #include <CStructuresX86.h>
-#include <TextSection.h>
+
+class Instruction;
 
 #define PLT_RETURN_OFFSET_32BIT 6
 #define PLT_RETURN_OFFSET_64BIT 6

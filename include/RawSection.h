@@ -2,10 +2,11 @@
 #define _RawSection_h_
 
 #include <Base.h>
-#include <BinaryFile.h>
 
 class ElfFile;
 class Instruction;
+class BinaryInputFile;
+class BinaryOutputFile;
 
 class RawSection : public Base {
 protected:

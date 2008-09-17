@@ -1,15 +1,20 @@
-#include <SectionHeader.h>
 #include <SymbolTable.h>
+#include <SectionHeader.h>
 #include <StringTable.h>
 #include <ElfFile.h>
 #include <BinaryFile.h>
+#include <TextSection.h>
+
+bool Symbol::isTextObjectSymbol(TextSection* text){
+    if (getSymbolType() == STT_NOTYPE && GET(st_shndx) == text->getSectionIndex() && 
+        text->inRange(GET(st_value))){
+        return true;
+    }
+    return false;
+}
 
 bool Symbol::isFunctionSymbol(TextSection* text){
     if (getSymbolType() == STT_FUNC && GET(st_shndx) == text->getSectionIndex()){
-        return true;
-    }
-    if (getSymbolType() == STT_NOTYPE && GET(st_shndx) == text->getSectionIndex() && 
-        text->inRange(GET(st_value))){
         return true;
     }
     return false;
@@ -35,6 +40,14 @@ int compareSymbolValue(const void* arg1,const void* arg2){
         return -1;
     if(vl1 > vl2)
         return 1;
+    if(vl1 == vl2){
+        if (sym1->getSymbolType() < sym2->getSymbolType()){
+            return -1;
+        }
+        if (sym1->getSymbolType() > sym2->getSymbolType()){
+            return 1;
+        }
+    }
 
     return 0;
 }

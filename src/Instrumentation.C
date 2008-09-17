@@ -1,5 +1,8 @@
 #include <Instrumentation.h>
 #include <ElfFileInst.h>
+#include <Instruction.h>
+#include <TextSection.h>
+#include <Function.h>
 
 uint32_t InstrumentationFunction::wrapperSize(){
     uint32_t totalSize = 0;

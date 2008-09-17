@@ -1,10 +1,7 @@
 #ifndef _GlobalOffsetTable_h_
 #define _GlobalOffsetTable_h_
 
-#include <Base.h>
 #include <RawSection.h>
-#include <ElfFile.h>
-#include <SectionHeader.h>
 
 class ElfFile;
 

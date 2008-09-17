@@ -2,9 +2,8 @@
 #define _BasicBlock_h_
 
 #include <Base.h>
-#include <Instruction.h>
-#include <Function.h>
 
+class Instruction;
 class Function;
 
 class BasicBlock : public Base {
@@ -39,7 +38,7 @@ public:
 
     uint32_t getBlockSize();
     uint32_t getIndex() { return index; }
-    uint64_t getAddress() { ASSERT(instructions && instructions[0]); return instructions[0]->getAddress(); }
+    uint64_t getAddress();
 
     uint32_t getNumberOfInstructions() { return numberOfInstructions; }
     Instruction* getInstruction(uint32_t idx) { ASSERT(idx < numberOfInstructions); return instructions[idx]; }

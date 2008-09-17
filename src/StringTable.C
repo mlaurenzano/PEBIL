@@ -1,5 +1,7 @@
 #include <StringTable.h>
 #include <BinaryFile.h>
+#include <ElfFile.h>
+#include <SectionHeader.h>
 
 char* StringTable::getString(uint32_t offset){
     ASSERT(offset >= 0 && offset < sizeInBytes && "Cannot look up a string outside the string table"); 

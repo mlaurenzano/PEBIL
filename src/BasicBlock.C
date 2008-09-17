@@ -1,7 +1,14 @@
 #include <BasicBlock.h>
 #include <ElfFileInst.h>
+#include <Instruction.h>
+#include <Function.h>
 
 #define MAX_SIZE_LINEAR_SEARCH 4096
+
+uint64_t BasicBlock::getAddress() { 
+    ASSERT(instructions && instructions[0]); 
+    return instructions[0]->getAddress(); 
+}
 
 void BasicBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
@@ -29,6 +36,12 @@ uint32_t BasicBlock::setInstructions(uint32_t num, Instruction** insts){
 
 
 Instruction* BasicBlock::getInstructionAtAddress(uint64_t addr){
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (instructions[i]->getAddress() == addr){
+            return instructions[i];
+        }
+    }
+
     if (numberOfInstructions < MAX_SIZE_LINEAR_SEARCH){
         for (uint32_t i = 0; i < numberOfInstructions; i++){
             if (instructions[i]->getAddress() == addr){

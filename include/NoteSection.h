@@ -3,9 +3,9 @@
 
 #include <Base.h>
 #include <RawSection.h>
-#include <ElfFile.h>
-#include <BinaryFile.h>
 
+class BinaryInputFile;
+class BinaryOutputFile;
 
 class Note : public Base {
 private: 

@@ -120,18 +120,18 @@ public:
     void sortSectionHeaders();
 
     FileHeader*  getFileHeader() { return fileHeader; }
-    ProgramHeader* getProgramHeader(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfPrograms); ASSERT(programHeaders); ASSERT(programHeaders[idx]); return programHeaders[idx]; }
-    SectionHeader* getSectionHeader(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfSections); return sectionHeaders[idx]; }
-    RawSection* getRawSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfSections); return rawSections[idx]; }
-    StringTable* getStringTable(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfStringTables); return stringTables[idx]; }
-    SymbolTable* getSymbolTable(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfSymbolTables); return symbolTables[idx]; }
-    RelocationTable* getRelocationTable(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfRelocationTables); return relocationTables[idx]; }
-    DwarfSection* getDwarfSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfDwarfSections); return dwarfSections[idx]; }
-    TextSection* getTextSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfTextSections); return textSections[idx]; }
+    ProgramHeader* getProgramHeader(uint32_t idx) { ASSERT( idx < numberOfPrograms); ASSERT(programHeaders); ASSERT(programHeaders[idx]); return programHeaders[idx]; }
+    SectionHeader* getSectionHeader(uint32_t idx) { ASSERT(idx < numberOfSections); return sectionHeaders[idx]; }
+    RawSection* getRawSection(uint32_t idx) { ASSERT(idx < numberOfSections); return rawSections[idx]; }
+    StringTable* getStringTable(uint32_t idx) { ASSERT(idx < numberOfStringTables); return stringTables[idx]; }
+    SymbolTable* getSymbolTable(uint32_t idx) { ASSERT(idx < numberOfSymbolTables); return symbolTables[idx]; }
+    RelocationTable* getRelocationTable(uint32_t idx) { ASSERT(idx < numberOfRelocationTables); return relocationTables[idx]; }
+    DwarfSection* getDwarfSection(uint32_t idx) { ASSERT(idx < numberOfDwarfSections); return dwarfSections[idx]; }
+    TextSection* getTextSection(uint32_t idx) { ASSERT(idx < numberOfTextSections); return textSections[idx]; }
     GlobalOffsetTable* getGlobalOffsetTable() { return globalOffsetTable; }
     DynamicTable* getDynamicTable() { return dynamicTable; }
     HashTable* getHashTable() { return hashTable; }
-    NoteSection* getNoteSection(uint32_t idx) { ASSERT(idx >= 0 && idx < numberOfNoteSections); return noteSections[idx]; }
+    NoteSection* getNoteSection(uint32_t idx) { ASSERT(idx < numberOfNoteSections); return noteSections[idx]; }
     GnuVerneedTable* getGnuVerneedTable() { return gnuVerneedTable; }
     GnuVersymTable* getGnuVersymTable() { return gnuVersymTable; }
     StringTable* getDynamicStringTable() { return dynamicStringTable; }

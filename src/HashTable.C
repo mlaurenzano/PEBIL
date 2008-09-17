@@ -1,4 +1,7 @@
 #include <HashTable.h>
+#include <ElfFile.h>
+#include <SectionHeader.h>
+#include <SymbolTable.h>
 
 
 // while maintaining a fixed-size table, we will increment the number of chains,
@@ -228,14 +231,14 @@ void HashTable::print(){
 
 
 uint32_t HashTable::getBucket(uint32_t idx){
-    ASSERT(idx >= 0 && idx < numberOfBuckets && "index into Hash Table bucket array is out of bounds");
+    ASSERT(idx < numberOfBuckets && "index into Hash Table bucket array is out of bounds");
     ASSERT(buckets && "bucket array should be initialized");
 
     return buckets[idx];
 }
 
 uint32_t HashTable::getChain(uint32_t idx){
-    ASSERT(idx >= 0 && idx < numberOfChains && "index into Hash Table chain array is out of bounds");
+    ASSERT(idx < numberOfChains && "index into Hash Table chain array is out of bounds");
     ASSERT(chains && "chain array should be initialized");
 
     return chains[idx];

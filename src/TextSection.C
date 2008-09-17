@@ -5,60 +5,215 @@
 #include <Instruction.h>
 #include <SymbolTable.h>
 #include <CStructuresX86.h>
+#include <Function.h>
+#include <BasicBlock.h>
+
+
+uint32_t TextSection::discoverTextObjects(Symbol*** functionSymbols){
+    ASSERT(!*functionSymbols && "This array should be empty since it is loaded by this function");
+
+    // count the number of symbols for this text section
+    uint32_t numberOfSymbols = 0;
+    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+        SymbolTable* symbolTable = elfFile->getSymbolTable(i);
+        if (!symbolTable->isDynamic()){
+            for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
+                Symbol* symbol = symbolTable->getSymbol(j);
+                if (symbol->isFunctionSymbol(this)){
+                    numberOfSymbols++;
+                } else if (symbol->isTextObjectSymbol(this)){
+                    numberOfSymbols++;
+                }
+            }
+        }
+    }
+
+    PRINT_INFOR("Found %d text object symbols",numberOfSymbols);
+    Symbol** syms = new Symbol*[numberOfSymbols];
+
+    // copy text symbols to local array
+    numberOfSymbols = 0;
+    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+        SymbolTable* symbolTable = elfFile->getSymbolTable(i);
+        if (!symbolTable->isDynamic()){
+            for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
+                Symbol* symbol = symbolTable->getSymbol(j);
+                if (symbol->isFunctionSymbol(this)){
+                    syms[numberOfSymbols++] = symbol;
+                } else if (symbol->isTextObjectSymbol(this)){
+                    syms[numberOfSymbols++] = symbol;
+                }
+            }
+        }
+    }
+
+    // sort text symbols
+    qsort(syms,numberOfSymbols,sizeof(Symbol*),compareSymbolValue);
+
+    // mark symbol values that are duplicate, giving preference to function symbols
+    uint32_t duplicates = 0;
+    bool* isDuplicate = new bool[numberOfSymbols];
+    bzero(isDuplicate,sizeof(bool)*numberOfSymbols);
+
+    for (int32_t i = numberOfSymbols-1; i >= 0; i--){
+        int32_t j = i-1;
+        while (j >= 0 && syms[i]->GET(st_value) == syms[j]->GET(st_value)){
+            isDuplicate[j] = true;
+            duplicates++;
+            j--;
+        }
+    }    
+
+    for (uint32_t i = 0; i < numberOfSymbols; i++){
+        PRINT_INFOR("Text symbol %d is duplicate? %d", i, isDuplicate[i]);
+        syms[i]->print();
+    }
+
+    Symbol** uniqueSyms = new Symbol*[numberOfSymbols-duplicates];
+    duplicates = 0;
+    for (uint32_t i = 0; i < numberOfSymbols; i++){
+        if (!isDuplicate[i]){
+            uniqueSyms[duplicates++] = syms[i];
+        }
+    }
+    numberOfSymbols = duplicates;
+    delete[] syms;
+    delete[] isDuplicate;
+    *(functionSymbols) = uniqueSyms;
+    return numberOfSymbols;
+}
+
+char* TextObject::charStream(){
+    ASSERT(textSection);
+    uint64_t functionOffset = getAddress() -
+        textSection->getElfFile()->getSectionHeader(textSection->getSectionIndex())->GET(sh_addr);
+    return (char*)(textSection->charStream() + functionOffset);
+}
+
+uint32_t FreeText::digest(){
+    ASSERT(!instructions && !numberOfInstructions);
+    uint32_t currByte = 0;
+    uint32_t instructionLength = 0;
+    uint64_t instructionAddress;
+
+    numberOfInstructions = 0;
+    Instruction* dummyInstruction = new Instruction();
+    for (currByte = 0; currByte < sizeInBytes; currByte += instructionLength, numberOfInstructions++){
+        instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
+        instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, dummyInstruction);
+    }
+
+    delete dummyInstruction;
+
+    ASSERT(currByte == sizeInBytes && "Number of bytes read for free text does not match free text size");
+
+    instructions = new Instruction*[numberOfInstructions];
+    numberOfInstructions = 0;
+
+    for (currByte = 0; currByte < sizeInBytes; currByte += instructionLength, numberOfInstructions++){
+        instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
+
+        instructions[numberOfInstructions] = new Instruction();
+        instructions[numberOfInstructions]->setLength(MAX_X86_INSTRUCTION_LENGTH);
+        instructions[numberOfInstructions]->setAddress(getAddress() + currByte);
+        instructions[numberOfInstructions]->setBytes(charStream() + currByte);
+        instructions[numberOfInstructions]->setIndex(numberOfInstructions);
+
+        instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, instructions[numberOfInstructions]);
+        if (!instructionLength){
+            instructionLength = 1;
+        }
+        instructions[numberOfInstructions]->setLength(instructionLength);
+        instructions[numberOfInstructions]->setNextAddress();
+    }
+
+    PRINT_INFOR("Free Text Object with %d instructions found", numberOfInstructions);
+    ASSERT(currByte == sizeInBytes && "Number of bytes read does not match object size");
+
+    return currByte;
+}
+
+void FreeText::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    uint32_t currByte = 0;
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        instructions[i]->dump(binaryOutputFile,offset+currByte);
+        currByte += instructions[i]->getLength();
+    }
+    ASSERT(currByte == sizeInBytes && "Size dumped does not match object size");
+}
+
+FreeText::FreeText(TextSection* text, uint32_t idx, uint64_t addr, uint32_t sz):
+    TextObject(ElfClassTypes_FreeText, text, idx, addr, sz)
+{
+    instructions = NULL;
+    numberOfInstructions = 0;
+}
+
+FreeText::~FreeText(){
+    if (instructions){
+        for (uint32_t i = 0; i < numberOfInstructions; i++){
+            delete instructions[i];
+        }
+        delete[] instructions;
+    }
+}
+
+void TextUnknown::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    ASSERT(sizeInBytes && "This object has no bytes thus it cannot be dumped");
+    binaryOutputFile->copyBytes(charStream(),sizeInBytes,offset);
+}
+
+uint32_t TextUnknown::digest(){
+    return sizeInBytes;
+}
+
+TextUnknown::TextUnknown(TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz)
+    : TextObject(ElfClassTypes_TextUnknown,text,idx,addr,sz)
+{
+    symbol = sym;
+}
+
+bool TextObject::inRange(uint64_t addr){
+    if (addr >= address && addr < address + sizeInBytes){
+        return true;
+    }
+    return false;
+}
+
+TextObject::TextObject(ElfClassTypes typ, TextSection* text, uint32_t idx, uint64_t addr, uint32_t sz) :
+    Base(typ)
+{
+    textSection = text;
+    index = idx;
+    address = addr;
+    sizeInBytes = sz;
+}
+
+char* TextUnknown::getName(){
+    if (symbol){
+        return symbol->getSymbolName();
+    }
+    return symbol_without_name;
+}
+
+uint64_t TextSection::getAddress() { 
+    return elfFile->getSectionHeader(sectionIndex)->GET(sh_addr); 
+}
+
+bool TextSection::inRange(uint64_t addr) { 
+    return elfFile->getSectionHeader(sectionIndex)->inRange(addr); 
+}
 
 TextSection::TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
     : RawSection(ElfClassTypes_TextSection,filePtr,size,scnIdx,elf)
 {
     index = idx;
 
-    sortedFunctions = NULL;
-    numberOfFunctions = 0;
+    sortedTextObjects = NULL;
+    numberOfTextObjects = 0;
 
     disassembler = new Disassembler(elfFile->is64Bit());
     disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
-}
-
-uint32_t TextSection::discoverFunctionSymbols(Symbol*** functionSymbols){
-    ASSERT(!*functionSymbols && "This array should be empty since it is loaded by this function");
-
-    uint32_t numberOfFunctionSymbols = 0;
-
-    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
-        SymbolTable* symbolTable = elfFile->getSymbolTable(i);
-        if (!symbolTable->isDynamic()){
-            for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
-                Symbol* symbol = symbolTable->getSymbol(j);
-                if (symbol->isFunctionSymbol(this)){
-                    numberOfFunctionSymbols++;
-                }
-            }
-        }
-    }
-
-    PRINT_INFOR("Found %d function symbols",numberOfFunctionSymbols);
-    Symbol** syms = new Symbol*[numberOfFunctionSymbols];
-
-    numberOfFunctionSymbols = 0;
-    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
-        SymbolTable* symbolTable = elfFile->getSymbolTable(i);
-        if (!symbolTable->isDynamic()){
-            for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
-                Symbol* symbol = symbolTable->getSymbol(j);
-                if (symbol->isFunctionSymbol(this)){
-                    syms[numberOfFunctionSymbols++] = symbol;
-                }
-            }
-        }
-    }
-
-    qsort(syms,numberOfFunctionSymbols,sizeof(Symbol*),compareSymbolValue);
-
-    for (uint32_t i = 0; i < numberOfFunctionSymbols; i++){
-        syms[i]->print();
-    }
-
-    *(functionSymbols) = syms;
-    return numberOfFunctionSymbols;
 }
 
 uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
@@ -66,36 +221,47 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
 
     SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
 
-    Symbol** functionSymbols = NULL;
-    numberOfFunctions = discoverFunctionSymbols(&functionSymbols);
-    sortedFunctions = new Function*[numberOfFunctions];
+    Symbol** textSymbols = NULL;
+    numberOfTextObjects = discoverTextObjects(&textSymbols);
+    sortedTextObjects = new TextObject*[numberOfTextObjects];
 
-    if (numberOfFunctions){
-        for (uint32_t i = 0; i < numberOfFunctions-1; i++){
-            sortedFunctions[i] = new Function(this, functionSymbols[i], functionSymbols[i+1]->GET(st_value), i);
+    if (numberOfTextObjects){
+        for (uint32_t i = 0; i < numberOfTextObjects-1; i++){
+            PRINT_INFOR("Creating text object %d", i);
+            uint32_t size = textSymbols[i+1]->GET(st_value) - textSymbols[i]->GET(st_value);
+            if (textSymbols[i]->isFunctionSymbol(this)){
+                sortedTextObjects[i] = new Function(this, i, textSymbols[i], size);
+                ASSERT(sortedTextObjects[i]->getType() == ElfClassTypes_Function);
+            } else if (textSymbols[i]->isTextObjectSymbol(this)){
+                sortedTextObjects[i] = new TextUnknown(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size);
+                ASSERT(sortedTextObjects[i]->getType() == ElfClassTypes_TextUnknown);
+            } else {
+                PRINT_ERROR("Unknown symbol type found to be associated with text section");
+            }
         }
         // the last function ends at the end of the section
-        sortedFunctions[numberOfFunctions-1] = new Function(this, functionSymbols[numberOfFunctions-1], 
-                                                            sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size), numberOfFunctions-1);
+        uint32_t size = sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size) - textSymbols[numberOfTextObjects-1]->GET(st_value);
+        sortedTextObjects[numberOfTextObjects-1] = 
+            new Function(this, numberOfTextObjects-1, textSymbols[numberOfTextObjects-1], size);
     }
 
-    // this is a text section with no functions (probably the .plt section), we wil put everything in a function
+    // this is a text section with no functions (probably the .plt section), we will put everything into a textobject
     else{
-        numberOfFunctions = 1;
-        if (sortedFunctions){
-            delete[] sortedFunctions;
+        numberOfTextObjects = 1;
+        if (sortedTextObjects){
+            delete[] sortedTextObjects;
         }
-        sortedFunctions = new Function*[numberOfFunctions];
-        sortedFunctions[0] = new Function(this, sectionHeader->GET(sh_addr), sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size), 0);
+        sortedTextObjects = new TextObject*[numberOfTextObjects];
+        sortedTextObjects[0] = new FreeText(this, 0, sectionHeader->GET(sh_addr), sectionHeader->GET(sh_size));
     }
 
-    delete[] functionSymbols;
+    delete[] textSymbols;
 
     verify();
 
-    PRINT_INFOR("Found %d functions in secton %d", numberOfFunctions, getSectionIndex());
-    for (uint32_t i = 0; i < numberOfFunctions; i++){
-        sortedFunctions[i]->read(binaryInputFile);
+    PRINT_INFOR("Found %d text objects in secton %d", numberOfTextObjects, getSectionIndex());
+    for (uint32_t i = 0; i < numberOfTextObjects; i++){
+        sortedTextObjects[i]->digest();
     }
 }
 
@@ -106,10 +272,17 @@ uint32_t TextSection::read(BinaryInputFile* binaryInputFile){
 
 
 uint64_t TextSection::findInstrumentationPoint(){
-    for (uint32_t i = 0; i < numberOfFunctions; i++){
-        uint64_t instAddress = sortedFunctions[i]->findInstrumentationPoint();
-        if (instAddress){
-            return instAddress;
+    for (uint32_t i = 0; i < numberOfTextObjects; i++){
+        PRINT_INFOR("Looking for instrumentation point in section %d in function %d", getSectionIndex(), i);
+        if (sortedTextObjects[i]->getType() == ElfClassTypes_Function){
+            PRINT_INFOR("\tLooking in a function");
+            Function* f = (Function*)sortedTextObjects[i];
+            uint64_t instAddress = f->findInstrumentationPoint();
+            if (instAddress){
+                return instAddress;
+            }
+        } else {
+            PRINT_INFOR("Looking in a non-function with type %d", sortedTextObjects[i]->getType());
         }
     }
     __SHOULD_NOT_ARRIVE;
@@ -121,12 +294,14 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
 
     ASSERT(!*(replacedInstructions) && "This array should be empty since it will be filled by this function");
 
-    for (uint32_t i = 0; i < numberOfFunctions; i++){
-        Function* f = sortedFunctions[i];
-        if (f->inRange(addr)){
-            for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
-                if (f->getBasicBlock(j)->inRange(addr)){
-                    return f->getBasicBlock(j)->replaceInstructions(addr,replacements,numberOfReplacements,replacedInstructions);
+    for (uint32_t i = 0; i < numberOfTextObjects; i++){
+        if (sortedTextObjects[i]->getType() == ElfClassTypes_Function){
+            Function* f = (Function*)sortedTextObjects[i];
+            if (f->inRange(addr)){
+                for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
+                    if (f->getBasicBlock(j)->inRange(addr)){
+                        return f->getBasicBlock(j)->replaceInstructions(addr,replacements,numberOfReplacements,replacedInstructions);
+                    }
                 }
             }
         }
@@ -138,8 +313,10 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
 
 void TextSection::printInstructions(){
     PRINT_INFOR("Printing Instructions for (text) section %d", getSectionIndex());
-    for (uint32_t i = 0; i < numberOfFunctions; i++){
-        sortedFunctions[i]->printInstructions();
+    for (uint32_t i = 0; i < numberOfTextObjects; i++){
+        if (sortedTextObjects[i]->getType() == ElfClassTypes_Function){
+            ((Function*)sortedTextObjects[i])->printInstructions();
+        }
     }
 }
 
@@ -166,9 +343,12 @@ Instruction* TextSection::getInstructionAtAddress(uint64_t addr){
         return NULL;
     }
 
-    for (uint32_t i = 0; i < numberOfFunctions; i++){
-        if (sortedFunctions[i]->inRange(addr)){
-            return sortedFunctions[i]->getInstructionAtAddress(addr);
+    for (uint32_t i = 0; i < numberOfTextObjects; i++){
+        if (sortedTextObjects[i]->getType() == ElfClassTypes_Function){
+            Function* f = (Function*)sortedTextObjects[i];
+            if (f->inRange(addr)){
+                return f->getInstructionAtAddress(addr);
+            }
         }
     }
     return NULL;
@@ -177,25 +357,25 @@ Instruction* TextSection::getInstructionAtAddress(uint64_t addr){
 bool TextSection::verify(){
     SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
 
-    if (!numberOfFunctions){
+    if (!numberOfTextObjects){
         return true;
     }
 
-    for (uint32_t i = 0; i < numberOfFunctions; i++){
+    for (uint32_t i = 0; i < numberOfTextObjects; i++){
 
-        uint64_t entrAddr = sortedFunctions[i]->getFunctionAddress();
-        uint64_t exitAddr = entrAddr + sortedFunctions[i]->getFunctionSize();
-
+        uint64_t entrAddr = sortedTextObjects[i]->getAddress();
+        uint64_t exitAddr = entrAddr + sortedTextObjects[i]->getSizeInBytes();
+        
         // make sure each function entry resides within the bounds of this section
         if (!sectionHeader->inRange(entrAddr)){
             sectionHeader->print();
             PRINT_ERROR("The function entry address 0x%016llx is not in the range of section %d", entrAddr, sectionHeader->getIndex());
             return false;
         }
-
+            
         // make sure each function exit resides within the bounds of this section
         if (!sectionHeader->inRange(exitAddr) && exitAddr != sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size)){
-            sortedFunctions[i]->print();
+            sortedTextObjects[i]->print();
             sectionHeader->print();
             PRINT_INFOR("Section range [0x%016llx,0x%016llx]", sectionHeader->GET(sh_addr), sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size));
             PRINT_ERROR("The function exit address 0x%016llx is not in the range of section %d", exitAddr, sectionHeader->getIndex());
@@ -203,41 +383,40 @@ bool TextSection::verify(){
         }
     }
 
-    for (uint32_t i = 0; i < numberOfFunctions - 1; i++){
+    for (uint32_t i = 0; i < numberOfTextObjects - 1; i++){
 
-        // make sure sortedFunctions is actually sorted
-        if (sortedFunctions[i]->getFunctionAddress() > sortedFunctions[i+1]->getFunctionAddress()){
-            sortedFunctions[i]->print();
-            sortedFunctions[i+1]->print();
-            PRINT_ERROR("Function addresses 0x%016llx 0x%016llx are not sorted", sortedFunctions[i]->getFunctionAddress(), sortedFunctions[i+1]->getFunctionAddress());
+        // make sure sortedTextObjects is actually sorted
+        if (sortedTextObjects[i]->getAddress() > sortedTextObjects[i+1]->getAddress()){
+            sortedTextObjects[i]->print();
+            sortedTextObjects[i+1]->print();
+            PRINT_ERROR("Function addresses 0x%016llx 0x%016llx are not sorted", sortedTextObjects[i]->getAddress(), sortedTextObjects[i+1]->getAddress());
             return false;
         }
     }
-
+        
     // make sure functions span the entire section unless it is a plt section
-    if (numberOfFunctions){
-
+    if (numberOfTextObjects){
+        
         // check that the first function is at the section beginning
-        if (sortedFunctions[0]->getFunctionAddress() != sectionHeader->GET(sh_addr)){
+        if (sortedTextObjects[0]->getAddress() != sectionHeader->GET(sh_addr)){
             PRINT_ERROR("First function in section %d should be at the beginning of the section", getSectionIndex());
             return false;
         }
-
+        
         // check that function boundaries are contiguous
-        for (uint32_t i = 0; i < numberOfFunctions-1; i++){
-            if (sortedFunctions[i]->getFunctionAddress() + sortedFunctions[i]->getFunctionSize() !=
-                sortedFunctions[i+1]->getFunctionAddress()){
+        for (uint32_t i = 0; i < numberOfTextObjects-1; i++){
+            if (sortedTextObjects[i]->getAddress() + sortedTextObjects[i]->getSizeInBytes() !=
+                sortedTextObjects[i+1]->getAddress()){
                 PRINT_ERROR("In section %d, boundaries on function %d and %d do not align", getSectionIndex(), i, i+1);
                 return false;
             }
         }
-
+        
         // check the the last function ends at the section end
-        if (sortedFunctions[numberOfFunctions-1]->getFunctionAddress() + sortedFunctions[numberOfFunctions-1]->getFunctionSize() !=
+        if (sortedTextObjects[numberOfTextObjects-1]->getAddress() + sortedTextObjects[numberOfTextObjects-1]->getSizeInBytes() !=
             sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size)){
             PRINT_ERROR("Last function in section %d should be at the end of the section", getSectionIndex());
         }
-
     }
 
     return true;
@@ -246,20 +425,20 @@ bool TextSection::verify(){
 
 void TextSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
-    for (uint32_t i = 0; i < numberOfFunctions; i++){
-        ASSERT(sortedFunctions[i] && "The functions in this text section should be initialized");
-        sortedFunctions[i]->dump(binaryOutputFile, offset + currByte);
-        currByte += sortedFunctions[i]->getFunctionSize();
+    for (uint32_t i = 0; i < numberOfTextObjects; i++){
+        ASSERT(sortedTextObjects[i] && "The functions in this text section should be initialized");
+        sortedTextObjects[i]->dump(binaryOutputFile, offset + currByte);
+        currByte += sortedTextObjects[i]->getSizeInBytes();
     }
 }
 
 
 TextSection::~TextSection(){
-    if (sortedFunctions){
-        for (uint32_t i = 0; i < numberOfFunctions; i++){
-            delete sortedFunctions[i];
+    if (sortedTextObjects){
+        for (uint32_t i = 0; i < numberOfTextObjects; i++){
+            delete sortedTextObjects[i];
         }
-        delete[] sortedFunctions;
+        delete[] sortedTextObjects;
     }
     if (disassembler){
         delete disassembler;

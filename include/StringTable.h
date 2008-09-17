@@ -1,12 +1,10 @@
 #ifndef _StringTable_h_
 #define _StringTable_h_
 
-#include <Base.h>
-#include <ElfFile.h>
-#include <SectionHeader.h>
 #include <RawSection.h>
 
 class ElfFile;
+class BinaryOutputFile;
 
 class StringTable : public RawSection {
 protected:

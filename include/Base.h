@@ -208,6 +208,7 @@ typedef enum {
     ElfClassTypes_Dynamic,
     ElfClassTypes_DynamicTable,
     ElfClassTypes_FileHeader,
+    ElfClassTypes_FreeText,
     ElfClassTypes_Function,
     ElfClassTypes_GlobalOffsetTable,
     ElfClassTypes_GnuVerneed,
@@ -230,6 +231,7 @@ typedef enum {
     ElfClassTypes_Symbol,
     ElfClassTypes_SymbolTable,
     ElfClassTypes_TextSection,
+    ElfClassTypes_TextUnknown,
     ElfClassTypes_Total_Types
 } ElfClassTypes;
 

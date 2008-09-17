@@ -1,8 +1,10 @@
 #ifndef _ElfFileInst_h_
 #define _ElfFileInst_h_
 
-#include <ElfFile.h>
-#include <SectionHeader.h>
+#include <Base.h>
+
+class ElfFile;
+class SectionHeader;
 class Instruction;
 class BinaryOutputFile;
 class InstrumentationPoint;
@@ -94,9 +96,9 @@ public:
     TextSection* getFiniSection();
     TextSection* getInitSection();
 
-    TextSection* getExtraTextSection() { return (TextSection*)(elfFile->getRawSection(extraTextIdx)); }
-    RawSection* getExtraDataSection() { return elfFile->getRawSection(extraDataIdx); }
-    uint64_t getExtraDataAddress() { return elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr); }
+    TextSection* getExtraTextSection();
+    RawSection* getExtraDataSection();
+    uint64_t getExtraDataAddress();
 
     uint64_t reserveDataOffset(uint64_t size);
     uint32_t initializeReservedData(uint64_t address, uint32_t size, void* data);

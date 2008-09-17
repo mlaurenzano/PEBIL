@@ -2,9 +2,9 @@
 #define _Instruction_h_
 
 #include <Base.h>
-#include <BinaryFile.h>
 
 class ElfFile;
+class BinaryOutputFile;
 
 #define MAX_DISASM_STR_LENGTH 80
 #define INVALID_OPCODE_INDEX 0xffffffff
