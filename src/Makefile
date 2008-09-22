@@ -5,7 +5,7 @@ OPT         = -O1
 NATIVE_CPP  = CC
 GNU_CPP     = g++
 GNU_CC      = gcc
-CFLAGS      = $(DBG) $(OPT) ##--save-temps
+CFLAGS      = $(DBG) $(OPT) $(PROFILE)##--save-temps
 CPP         = $(GNU_CPP)
 CC          = $(GNU_CC)
 EXTRA_CFLGS =
@@ -27,11 +27,11 @@ SRCDIR      = ../src
 BINDIR      = ../bin
 LIBDIR      = ../lib
 
-SRCS        = Base.C BasicBlock.C BinaryFile.C Disassembler.C DynamicTable.C ElfFile.C ElfFileInst.C FileHeader.C Function.C \
+SRCS        = Base.C BasicBlock.C BasicBlockCounter.C BinaryFile.C Disassembler.C DynamicTable.C ElfFile.C ElfFileInst.C FileHeader.C Function.C \
 	FunctionCounter.C GlobalOffsetTable.C GnuVerneedTable.C GnuVersymTable.C HashTable.C Instruction.C Instrumentation.C \
 	NoteSection.C ProgramHeader.C RawSection.C RelocationTable.C SectionHeader.C StringTable.C \
 	SymbolTable.C TextSection.C main.C
-OBJS        = Base.o BasicBlock.o BinaryFile.o Disassembler.o DynamicTable.o ElfFile.o ElfFileInst.o FileHeader.o Function.o \
+OBJS        = Base.o BasicBlock.o BasicBlockCounter.o BinaryFile.o Disassembler.o DynamicTable.o ElfFile.o ElfFileInst.o FileHeader.o Function.o \
 	FunctionCounter.o GlobalOffsetTable.o GnuVerneedTable.o GnuVersymTable.o HashTable.o Instruction.o Instrumentation.o \
 	NoteSection.o ProgramHeader.o RawSection.o RelocationTable.o SectionHeader.o StringTable.o \
 	SymbolTable.o TextSection.o main.o

@@ -8,6 +8,10 @@
 #include <Function.h>
 #include <BasicBlock.h>
 
+bool TextObject::isFunction(){
+    return (getType() == ElfClassTypes_Function);
+}
+
 
 uint32_t TextSection::discoverTextObjects(Symbol*** functionSymbols){
     ASSERT(!*functionSymbols && "This array should be empty since it is loaded by this function");
@@ -28,7 +32,6 @@ uint32_t TextSection::discoverTextObjects(Symbol*** functionSymbols){
         }
     }
 
-    PRINT_INFOR("Found %d text object symbols",numberOfSymbols);
     Symbol** syms = new Symbol*[numberOfSymbols];
 
     // copy text symbols to local array
@@ -53,7 +56,9 @@ uint32_t TextSection::discoverTextObjects(Symbol*** functionSymbols){
     // mark symbol values that are duplicate, giving preference to function symbols
     uint32_t duplicates = 0;
     bool* isDuplicate = new bool[numberOfSymbols];
-    bzero(isDuplicate,sizeof(bool)*numberOfSymbols);
+    for (uint32_t i = 0; i < numberOfSymbols; i++){
+        isDuplicate[i] = false;
+    }
 
     for (int32_t i = numberOfSymbols-1; i >= 0; i--){
         int32_t j = i-1;
@@ -61,13 +66,9 @@ uint32_t TextSection::discoverTextObjects(Symbol*** functionSymbols){
             isDuplicate[j] = true;
             duplicates++;
             j--;
+            i--;
         }
     }    
-
-    for (uint32_t i = 0; i < numberOfSymbols; i++){
-        PRINT_INFOR("Text symbol %d is duplicate? %d", i, isDuplicate[i]);
-        syms[i]->print();
-    }
 
     Symbol** uniqueSyms = new Symbol*[numberOfSymbols-duplicates];
     duplicates = 0;
@@ -105,8 +106,6 @@ uint32_t FreeText::digest(){
 
     delete dummyInstruction;
 
-    ASSERT(currByte == sizeInBytes && "Number of bytes read for free text does not match free text size");
-
     instructions = new Instruction*[numberOfInstructions];
     numberOfInstructions = 0;
 
@@ -127,7 +126,16 @@ uint32_t FreeText::digest(){
         instructions[numberOfInstructions]->setNextAddress();
     }
 
-    PRINT_INFOR("Free Text Object with %d instructions found", numberOfInstructions);
+    // in case the disassembler found an instruction that exceeds the function boundary, we will
+    // reduce the size of the last instruction accordingly so that the extra bytes will not be
+    // used
+    if (currByte > sizeInBytes){
+        uint32_t extraBytes = currByte-sizeInBytes;
+        instructions[numberOfInstructions-1]->setLength(instructions[numberOfInstructions-1]->getLength()-extraBytes);
+        currByte -= extraBytes;
+        PRINT_WARN("Disassembler found instructions that exceed the function boundary in %s by %d bytes", getName(), extraBytes);
+    }
+
     ASSERT(currByte == sizeInBytes && "Number of bytes read does not match object size");
 
     return currByte;
@@ -217,36 +225,45 @@ TextSection::TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t
 }
 
 uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
-    PRINT_INFOR("Reading (text) section %d", getSectionIndex());
-
     SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
 
     Symbol** textSymbols = NULL;
     numberOfTextObjects = discoverTextObjects(&textSymbols);
     sortedTextObjects = new TextObject*[numberOfTextObjects];
 
+    uint32_t fCount = 0;
+    uint32_t oCount = 0;
+
     if (numberOfTextObjects){
         for (uint32_t i = 0; i < numberOfTextObjects-1; i++){
-            PRINT_INFOR("Creating text object %d", i);
             uint32_t size = textSymbols[i+1]->GET(st_value) - textSymbols[i]->GET(st_value);
             if (textSymbols[i]->isFunctionSymbol(this)){
+                fCount++;
                 sortedTextObjects[i] = new Function(this, i, textSymbols[i], size);
-                ASSERT(sortedTextObjects[i]->getType() == ElfClassTypes_Function);
+                ASSERT(sortedTextObjects[i]->isFunction());
             } else if (textSymbols[i]->isTextObjectSymbol(this)){
+                oCount++;
                 sortedTextObjects[i] = new TextUnknown(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size);
-                ASSERT(sortedTextObjects[i]->getType() == ElfClassTypes_TextUnknown);
+                ASSERT(!sortedTextObjects[i]->isFunction());
             } else {
                 PRINT_ERROR("Unknown symbol type found to be associated with text section");
             }
         }
         // the last function ends at the end of the section
+
         uint32_t size = sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size) - textSymbols[numberOfTextObjects-1]->GET(st_value);
-        sortedTextObjects[numberOfTextObjects-1] = 
-            new Function(this, numberOfTextObjects-1, textSymbols[numberOfTextObjects-1], size);
+        if (textSymbols[numberOfTextObjects-1]->isFunctionSymbol(this)){
+            sortedTextObjects[numberOfTextObjects-1] = 
+                new Function(this, numberOfTextObjects-1, textSymbols[numberOfTextObjects-1], size);
+        } else {
+            sortedTextObjects[numberOfTextObjects-1] =
+                new TextUnknown(this, numberOfTextObjects-1, textSymbols[numberOfTextObjects-1], textSymbols[numberOfTextObjects-1]->GET(st_value), size);
+        }
     }
 
     // this is a text section with no functions (probably the .plt section), we will put everything into a textobject
     else{
+        fCount++;
         numberOfTextObjects = 1;
         if (sortedTextObjects){
             delete[] sortedTextObjects;
@@ -259,7 +276,6 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
 
     verify();
 
-    PRINT_INFOR("Found %d text objects in secton %d", numberOfTextObjects, getSectionIndex());
     for (uint32_t i = 0; i < numberOfTextObjects; i++){
         sortedTextObjects[i]->digest();
     }
@@ -273,16 +289,12 @@ uint32_t TextSection::read(BinaryInputFile* binaryInputFile){
 
 uint64_t TextSection::findInstrumentationPoint(){
     for (uint32_t i = 0; i < numberOfTextObjects; i++){
-        PRINT_INFOR("Looking for instrumentation point in section %d in function %d", getSectionIndex(), i);
         if (sortedTextObjects[i]->getType() == ElfClassTypes_Function){
-            PRINT_INFOR("\tLooking in a function");
             Function* f = (Function*)sortedTextObjects[i];
             uint64_t instAddress = f->findInstrumentationPoint();
             if (instAddress){
                 return instAddress;
             }
-        } else {
-            PRINT_INFOR("Looking in a non-function with type %d", sortedTextObjects[i]->getType());
         }
     }
     __SHOULD_NOT_ARRIVE;

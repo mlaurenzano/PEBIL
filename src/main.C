@@ -1,6 +1,7 @@
 #include <Base.h>
 #include <ElfFile.h>
 #include <FunctionCounter.h>
+#include <BasicBlockCounter.h>
 
 void alignTest(){
     uint32_t align = 0x00000001;
@@ -59,7 +60,7 @@ void printBriefOptions(){
 void printUsage(bool shouldExt=true) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : x86inst\n");
-    fprintf(stderr,"\t--typ (ide|fnc)\n");
+    fprintf(stderr,"\t--typ (ide|fnc|jbb)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
     fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--ver [afhpxdtrnghvmy]]");
@@ -321,6 +322,8 @@ int main(int argc,char* argv[]){
         elfFile.dump(extension);
     } else if (instType == function_counter_type){
         elfInst = new FunctionCounter(&elfFile);
+    } else if (instType == frequency_inst_type){
+        elfInst = new BasicBlockCounter(&elfFile);
     } else {
         PRINT_ERROR("Error : invalid instrumentation type");
     }

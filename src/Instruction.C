@@ -14,6 +14,10 @@ bool Instruction::isRelocatable(){
             operands[i].getValue() > X86_64BIT_GPRS){
             return false;
         }
+        if (operands[i].getType() == x86_operand_type_func_EX &&
+            operands[i].getValue() > X86_64BIT_GPRS){
+            return false;
+        }
     }
     return true;
 }

@@ -27,6 +27,7 @@ public:
     uint64_t getAddress() { return address; }
     bool inRange(uint64_t addr);
     char* charStream();
+    bool isFunction();
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
     virtual char* getName() { __SHOULD_NOT_ARRIVE; }

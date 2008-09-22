@@ -1,4 +1,4 @@
-#include <FunctionCounter.h>
+#include <BasicBlockCounter.h>
 #include <TextSection.h>
 #include <Instrumentation.h>
 #include <Instruction.h>
@@ -8,15 +8,15 @@
 #define LIB_NAME "libtest.so"
 #define OTHER_FUNCTION "secondtest"
 
-FunctionCounter::FunctionCounter(ElfFile* elf)
+BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     : ElfFileInst(elf)
 {
 }
 
-FunctionCounter::~FunctionCounter(){
+BasicBlockCounter::~BasicBlockCounter(){
 }
 
-void FunctionCounter::declareInstrumentation(){
+void BasicBlockCounter::declareInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 
     // declare any shared library that will contain instrumentation functions
@@ -29,7 +29,7 @@ void FunctionCounter::declareInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 }
 
-void FunctionCounter::reserveInstrumentation(){
+void BasicBlockCounter::reserveInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
     
     TextSection* text = getTextSection();

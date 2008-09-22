@@ -29,16 +29,64 @@ void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(currByte == sizeInBytes);
 }
 
+// we will assume that functions can only be entered at the beginning
 uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** instructions){
     ASSERT(!numberOfBasicBlocks && !basicBlocks && "Should not try to find the basic blocks in a function more than once");
 
-    numberOfBasicBlocks = 1;
-    basicBlocks = new BasicBlock*[numberOfBasicBlocks];
+    bool* isLeader = new bool[numberOfInstructions];
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        isLeader[i] = false;
+    }
 
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (i == 0){
+            isLeader[i] = true;
+            numberOfBasicBlocks++;
+        }
+        if (instructions[i]->getAddress() + instructions[i]->getLength() != instructions[i]->getNextAddress()){
+            if (inRange(instructions[i]->getNextAddress())){
+                for (uint32_t j = 0; j < numberOfInstructions; j++){
+                    if (instructions[j]->getAddress() == instructions[i]->getNextAddress()){
+                        isLeader[j] = true;
+                        numberOfBasicBlocks++;
+                        if (i+1 < numberOfInstructions){
+                            isLeader[i+1] = true;
+                            numberOfBasicBlocks++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    PRINT_INFOR("Found %d instructions in %d basic blocks in function %s", numberOfInstructions, numberOfBasicBlocks, getName());
+
+    basicBlocks = new BasicBlock*[numberOfBasicBlocks];
+    uint32_t* instructionCounts = new uint32_t[numberOfBasicBlocks];
+    bzero(instructionCounts,sizeof(uint32_t)*numberOfBasicBlocks);
+    uint32_t which = -1;
+    uint32_t ic = 0;
+
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (isLeader[i]){
+            which++;
+        }
+        ic++;
+        instructionCounts[which]++;
+    }
+
+    ASSERT(numberOfInstructions == ic);
+
+    which = 0;
     for (uint32_t i = 0; i < numberOfBasicBlocks; i++){
         basicBlocks[i] = new BasicBlock(i,this);
-        basicBlocks[i]->setInstructions(numberOfInstructions,instructions);
+        PRINT_INFOR("\tInitializing basic block %d with %d instructions", i, instructionCounts[i]);
+        basicBlocks[i]->setInstructions(instructionCounts[i],&instructions[which]);
+        which += instructionCounts[i];
     }
+
+    delete[] isLeader;
+    delete[] instructionCounts;
 
     verify();
 
@@ -68,10 +116,11 @@ uint32_t Function::digest(){
 
     delete dummyInstruction;
 
+    /*
     PRINT_INFOR("Function %s: read %d bytes from function, %d bytes in functions", getName(), currByte, sizeInBytes);
     if (functionSymbol)
         functionSymbol->print();
-    ASSERT(currByte == sizeInBytes && "Number of bytes read for function does not match function size");
+    */
 
     Instruction** instructions = new Instruction*[numberOfInstructions];
     numberOfInstructions = 0;
@@ -91,10 +140,20 @@ uint32_t Function::digest(){
             instructionLength = 1;
         }
         instructions[numberOfInstructions]->setLength(instructionLength);
-        
         instructions[numberOfInstructions]->setNextAddress();
     }
+    
+    // in case the disassembler found an instruction that exceeds the function boundary, we will
+    // reduce the size of the last instruction accordingly so that the extra bytes will not be
+    // used
+    if (currByte > sizeInBytes){
+        uint32_t extraBytes = currByte-sizeInBytes;
+        instructions[numberOfInstructions-1]->setLength(instructions[numberOfInstructions-1]->getLength()-extraBytes);
+        currByte -= extraBytes;
+        PRINT_WARN("Disassembler found instructions that exceed the function boundary in %s by %d bytes", getName(), extraBytes);
+    }
 
+    ASSERT(currByte == sizeInBytes && "Number of bytes read for function does not match function size");
     findBasicBlocks(numberOfInstructions, instructions);
 
     delete[] instructions;

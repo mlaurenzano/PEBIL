@@ -285,8 +285,8 @@ void ElfFileInst::instrument(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
-    extendTextSection(0x10000);
-    extendDataSection(0x10000);
+    extendTextSection(0x80000);
+    extendDataSection(0x80000);
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     currentPhase++;

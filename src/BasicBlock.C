@@ -26,6 +26,7 @@ uint32_t BasicBlock::setInstructions(uint32_t num, Instruction** insts){
     instructions = new Instruction*[numberOfInstructions];
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         instructions[i] = insts[i];
+        instructions[i]->setIndex(i);
     }
 
     verify();
@@ -123,6 +124,13 @@ void BasicBlock::print(){
 }
 
 bool BasicBlock::verify(){
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (instructions[i]->getIndex() != i){
+            PRINT_ERROR("Instruction index does not match expected index");
+            return false;
+        }
+    }
+
     for (uint32_t i = 0; i < numberOfSourceBlocks; i++){
         if (sourceBlocks[i]->isFunctionPadding()){
             PRINT_ERROR("Function padding blocks should not connect to other blocks");
