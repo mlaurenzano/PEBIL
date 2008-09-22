@@ -18,8 +18,29 @@ int32_t functioncounter(void* arg1, void* arg2, void* arg3){
     }
 
     fflush(stdout);
-    return 3;
+    return 0;
 }
+
+int32_t blockcounter(void* arg1, void* arg2){
+    int32_t i;
+    int32_t numFunctions = *(int32_t*)arg1;
+    int32_t* functionCounts = (int32_t*)(arg2);
+    
+    fprintf(stdout, "\n*** Instrumentation Summary ****\n");
+    fprintf(stdout, "Raw instrumentation function arguments: %x %x\n", arg1, arg2);
+    fprintf(stdout, "There are %d basic blocks in the code:\n", numFunctions);
+
+    for (i = 0; i < numFunctions; i++){
+        if (functionCounts[i]){
+            fprintf(stdout, "\tBlock(%d) -- executed %d times\n", i, functionCounts[i]);
+        }
+    }
+
+    fflush(stdout);
+    return 0;
+}
+
+
 
 void secondtest(){
     int32_t i;
