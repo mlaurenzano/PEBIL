@@ -3,6 +3,15 @@
 #include <CStructuresX86.h>
 #include <BinaryFile.h>
 
+bool Instruction::isBranchInstruction(){
+    if (instructionType == x86_insn_type_cond_branch ||
+        instructionType == x86_insn_type_branch ||
+        instructionType == x86_insn_type_syscall){
+        return true;
+    }
+    return false;
+}
+
 bool Instruction::isRelocatable(){
     if (instructionType == x86_insn_type_cond_branch ||
         instructionType == x86_insn_type_branch){

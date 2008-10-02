@@ -45,13 +45,25 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
         }
         if (instructions[i]->getAddress() + instructions[i]->getLength() != instructions[i]->getNextAddress()){
             if (inRange(instructions[i]->getNextAddress())){
-                for (uint32_t j = 0; j < numberOfInstructions; j++){
-                    if (instructions[j]->getAddress() == instructions[i]->getNextAddress()){
-                        isLeader[j] = true;
-                        numberOfBasicBlocks++;
-                        if (i+1 < numberOfInstructions){
+                if (instructions[i]->isBranchInstruction()){
+                    if (i+1 < numberOfInstructions){
+                        if (!isLeader[i+1]){
                             isLeader[i+1] = true;
                             numberOfBasicBlocks++;
+                        }
+                    }
+                }
+                for (uint32_t j = 0; j < numberOfInstructions; j++){
+                    if (instructions[j]->getAddress() == instructions[i]->getNextAddress()){
+                        if (!isLeader[j]){
+                            isLeader[j] = true;
+                            numberOfBasicBlocks++;
+                        }
+                        if (i+1 < numberOfInstructions){
+                            if (!isLeader[i+1]){
+                                isLeader[i+1] = true;
+                                numberOfBasicBlocks++;
+                            }
                         }
                     }
                 }
@@ -59,7 +71,13 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
         }
     }
 
+    /*
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        instructions[i]->print();
+        PRINT_INFOR("Is leader? %d", isLeader[i]);
+    }
     PRINT_INFOR("Found %d instructions in %d basic blocks in function %s", numberOfInstructions, numberOfBasicBlocks, getName());
+    */
 
     basicBlocks = new BasicBlock*[numberOfBasicBlocks];
     uint32_t* instructionCounts = new uint32_t[numberOfBasicBlocks];
@@ -80,7 +98,7 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
     which = 0;
     for (uint32_t i = 0; i < numberOfBasicBlocks; i++){
         basicBlocks[i] = new BasicBlock(i,this);
-        PRINT_INFOR("\tInitializing basic block %d with %d instructions", i, instructionCounts[i]);
+        //        PRINT_INFOR("\tFunction %s: Initializing basic block %d with %d instructions", getName(), i, instructionCounts[i]);
         basicBlocks[i]->setInstructions(instructionCounts[i],&instructions[which]);
         which += instructionCounts[i];
     }

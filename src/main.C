@@ -43,6 +43,7 @@ void printBriefOptions(){
     fprintf(stderr,"\t      : m : gnu version symbol table\n");
     fprintf(stderr,"\t      : y : dynamic table\n");
     fprintf(stderr,"\t      : i : instrumentation reservations\n");
+    fprintf(stderr,"\t      : w : dwarf debug sections\n");
     fprintf(stderr,"\t--lib : optional for all. shared library top directory.\n");
     fprintf(stderr,"\t        default is $X86INST_LIB_HOME\n");
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
@@ -120,6 +121,8 @@ uint32_t processPrintCodes(char* rawPrintCodes){
         } else if (pc == 'c'){
             SET_PRINT_CODE(printCodes,Print_Code_Instruction);
             SET_PRINT_CODE(printCodes,Print_Code_Disassemble);
+        } else if (pc == 'w'){
+            SET_PRINT_CODE(printCodes,Print_Code_DwarfSection);
         } else {
             printUsage(true);
         }

@@ -15,6 +15,7 @@ class Instruction;
 class Function;
 class TextSection;
 class RawSection;
+class LineInfoFinder;
 
 #define SIZE_NEEDED_AT_INST_POINT 5
 
@@ -61,6 +62,8 @@ protected:
     uint64_t usableDataOffset;
     uint64_t bssReserved;
 
+    LineInfoFinder* lineInfoFinder;
+
     uint32_t addStringToDynamicStringTable(const char* str);
     uint32_t addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx);
     uint32_t expandHashTable();
@@ -95,6 +98,9 @@ public:
     TextSection* getTextSection();
     TextSection* getFiniSection();
     TextSection* getInitSection();
+
+    LineInfoFinder* getLineInfoFinder() { return lineInfoFinder; }
+    bool hasLineInformation() { return (lineInfoFinder != NULL); }
 
     TextSection* getExtraTextSection();
     RawSection* getExtraDataSection();

@@ -12,6 +12,7 @@ class StringTable;
 class SymbolTable;
 class RelocationTable;
 class DwarfSection;
+class DwarfLineInfoSection;
 class TextSection;
 class GlobalOffsetTable;
 class DynamicTable;
@@ -47,6 +48,7 @@ private:
     SymbolTable* dynamicSymbolTable;
     RelocationTable* pltRelocationTable;
     RelocationTable* dynamicRelocationTable;
+    DwarfLineInfoSection* lineInfoSection;
 
     uint32_t numberOfPrograms;
     uint32_t numberOfSections;
@@ -93,6 +95,7 @@ public:
         dwarfSections(NULL),textSections(NULL),globalOffsetTable(NULL),dynamicTable(NULL),
         hashTable(NULL),noteSections(NULL),gnuVerneedTable(NULL),gnuVersymTable(NULL),
         dynamicStringTable(NULL),dynamicSymbolTable(NULL),pltRelocationTable(NULL),dynamicRelocationTable(NULL),
+        lineInfoSection(NULL),
         numberOfPrograms(0),numberOfSections(0),
         numberOfStringTables(0),sectionNameStrTabIdx(0),numberOfSymbolTables(0),dynamicSymtabIdx(0),
         numberOfRelocationTables(0),numberOfDwarfSections(0),numberOfTextSections(0),numberOfNoteSections(0),
@@ -138,7 +141,7 @@ public:
     SymbolTable* getDynamicSymbolTable() { return dynamicSymbolTable; }
     RelocationTable* getPLTRelocationTable() { return pltRelocationTable; }
     RelocationTable* getDynamicRelocationTable() { return dynamicRelocationTable; }
-
+    DwarfLineInfoSection* getLineInfoSection() { return lineInfoSection; }
 
     uint16_t getSectionNameStrTabIdx() { return sectionNameStrTabIdx; }
 

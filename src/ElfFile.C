@@ -17,6 +17,8 @@
 #include <PriorityQueue.h>
 #include <GnuVerneedTable.h>
 #include <GnuVersymTable.h>
+#include <DwarfSection.h>
+#include <LineInformation.h>
 
 TIMER(
 	extern double cfg_s1;
@@ -374,7 +376,7 @@ uint64_t ElfFile::addSection(uint16_t idx, ElfClassTypes classtype, char* bytes,
 void ElfFile::sortSectionHeaders(){
     SectionHeader* tmp;
 
-    // we will just use a bubble sort since there shouldn't be very many sections
+    // we will just use a bubble sort (for now) since there shouldn't be very many sections
     for (uint32_t i = 0; i < numberOfSections; i++){
         for (uint32_t j = 0; j < i; j++){
             if (sectionHeaders[i]->GET(sh_offset) < sectionHeaders[j]->GET(sh_offset)){
@@ -412,6 +414,29 @@ void ElfFile::initSectionFilePointers(){
         uint32_t sectionNameOffset = sectionHeaders[i]->GET(sh_name);
         sectionHeaders[i]->setSectionNamePtr(stringTablePtr + sectionNameOffset);
     }
+
+    // delineate the various dwarf sections
+    uint32_t lineInfoIdx = 0;
+    for (uint32_t i = 1; i < numberOfSections; i++){
+        ASSERT(sectionHeaders[i]->getSectionNamePtr() && "Section header name should be set");
+        if (!strcmp(sectionHeaders[i]->getSectionNamePtr(),DWARF_LINE_INFO_SCN_NAME)){
+            ASSERT(!lineInfoIdx && "Cannot have multiple line information sections");
+            lineInfoIdx = i;
+        }
+    }
+    if (lineInfoIdx){
+        char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[lineInfoIdx]->GET(sh_offset));
+        uint64_t sectionSize = (uint64_t)sectionHeaders[lineInfoIdx]->GET(sh_size);
+
+        ASSERT(sectionHeaders[lineInfoIdx]->getSectionType() == ElfClassTypes_DwarfSection);
+        uint32_t dwarfIdx = ((DwarfSection*)rawSections[lineInfoIdx])->getIndex();
+        delete rawSections[lineInfoIdx];
+
+        lineInfoSection = new DwarfLineInfoSection(sectionFilePtr,sectionSize,lineInfoIdx,dwarfIdx,this);
+        lineInfoSection->read(&binaryInputFile);
+        rawSections[lineInfoIdx] = lineInfoSection;
+    }
+
 
     // find the string table for each symbol table
     for (uint32_t i = 0; i < numberOfSymbolTables; i++){
@@ -471,6 +496,7 @@ void ElfFile::initSectionFilePointers(){
     // The raw section for the global offset table should already have been initialized as a generic RawSection
     // we will destroy it and create it as a GlobalOffsetTable
     ASSERT(rawSections[gotSectionIdx] && "Global Offset Table not yet created");
+    ASSERT(sectionHeaders[gotSectionIdx]->getSectionType() == ElfClassTypes_RawSection);
     delete rawSections[gotSectionIdx];
     
     char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[gotSectionIdx]->GET(sh_offset));
@@ -527,6 +553,7 @@ void ElfFile::initSectionFilePointers(){
     // The raw section for the dynamic table should already have been initialized as a generic RawSection
     // we will destroy it and create it as a DynamicTable
     ASSERT(rawSections[dynamicTableSectionIdx] && "Dynamic Table raw section not yet created");
+    ASSERT(sectionHeaders[dynamicTableSectionIdx]->getSectionType() == ElfClassTypes_DynamicTable);
     delete rawSections[dynamicTableSectionIdx];
 
     sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[dynamicTableSectionIdx]->GET(sh_offset));
@@ -753,6 +780,16 @@ void ElfFile::print(uint32_t printCodes)
             gnuVersymTable->print();
         } else {
             PRINT_WARN("\tNo GNU Version Symbol Table Found");
+        }
+    }
+
+    if (HAS_PRINT_CODE(printCodes,Print_Code_DwarfSection)){
+        PRINT_INFOR("DWARF Debug Sections");
+        PRINT_INFOR("=============");
+        if (lineInfoSection){
+            lineInfoSection->print();
+        } else {
+            PRINT_INFOR("No LineInfo Section found");
         }
     }
 

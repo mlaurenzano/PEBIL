@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <CStructuresElf.h>
+#include <CStructuresDwarf.h>
 
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
@@ -19,6 +20,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_OPCODE
 //#define DEBUG_HASH
 //#define DEBUG_NOTE
+//#define DEBUG_LINEINFO
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -118,6 +120,16 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define PRINT_DEBUG_HASH(...)
 #endif
 
+#ifdef DEBUG_LINEINFO
+#define PRINT_DEBUG_LINEINFO(...) fprintf(stdout,"LINEINFO : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_LINEINFO(...)
+#endif
+
+
 
 #ifdef  DEVELOPMENT
 
@@ -173,6 +185,8 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Size__64_bit_Gnu_Vernaux            sizeof(Elf64_Vernaux)
 #define Size__32_bit_Gnu_Versym             sizeof(uint16_t)
 #define Size__64_bit_Gnu_Versym             sizeof(uint16_t)
+#define Size__Dwarf_LineInfo_Header         sizeof(DWARF2_Internal_LineInfo)
+#define Size__Dwarf_LineInfo                sizeof(DWARF2_LineInfo_Registers)
 
 
 #define Print_Code_All                      0x00000001
@@ -191,6 +205,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Print_Code_Disassemble              0x00002000
 #define Print_Code_Instruction              0x00004000
 #define Print_Code_Instrumentation          0x00008000
+#define Print_Code_DwarfSection             0x00010000
 
 #define HAS_PRINT_CODE(__value,__Print_Code) ((__value & __Print_Code) || (__value & Print_Code_All))
 #define SET_PRINT_CODE(__value,__Print_Code) (__value |= __Print_Code)
@@ -204,7 +219,9 @@ typedef enum {
 
 typedef enum {
     ElfClassTypes_no_type = 0,
+    ElfClassTypes_BasicBlock,
     ElfClassTypes_DwarfSection,
+    ElfClassTypes_DwarfLineInfoSection,
     ElfClassTypes_Dynamic,
     ElfClassTypes_DynamicTable,
     ElfClassTypes_FileHeader,
@@ -235,19 +252,6 @@ typedef enum {
     ElfClassTypes_Total_Types
 } ElfClassTypes;
 
-typedef enum {
-    ElfArgumentTypes_no_type = 0,
-    ElfArgumentTypes_uint32_t,
-    ElfArgumentTypes_uint32_t_pointer,
-    ElfArgumentTypes_uint64_t,
-    ElfArgumentTypes_uint64_t_pointer,
-    ElfArgumentTypes_char,
-    ElfArgumentTypes_char_pointer,
-    ElfArgumentTypes_char_pointer_pointer,
-    ElfArgumentTypes_Total
-} ElfArgumentTypes;
-
-
 class BinaryInputFile;
 class BinaryOutputFile;
 
@@ -255,16 +259,16 @@ class Base {
 protected:
     const static uint32_t invalidOffset = 0xffffffff;
 
-    uint8_t type;
+    ElfClassTypes type;
     uint32_t sizeInBytes;
     uint32_t fileOffset;
 
     Base() : type(ElfClassTypes_no_type),sizeInBytes(0),fileOffset(invalidOffset) {}
-    Base(uint8_t t) : type(t),sizeInBytes(0),fileOffset(invalidOffset) {}
+    Base(ElfClassTypes t) : type(t),sizeInBytes(0),fileOffset(invalidOffset) {}
     virtual ~Base() {}
 
 public:
-    uint8_t getType() { return type; }
+    ElfClassTypes getType() { return type; }
     uint32_t getSizeInBytes() { return sizeInBytes; }
 
     virtual void print() { __SHOULD_NOT_ARRIVE; }

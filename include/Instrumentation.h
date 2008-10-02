@@ -9,8 +9,8 @@ class Instruction;
 #define PLT_RETURN_OFFSET_32BIT 6
 #define PLT_RETURN_OFFSET_64BIT 6
 
-#define Size__32_bit_function_bootstrap 64
-#define Size__64_bit_function_bootstrap 64
+#define Size__32_bit_function_bootstrap 128
+#define Size__64_bit_function_bootstrap 128
 #define Size__32_bit_procedure_link 16
 #define Size__64_bit_procedure_link 16
 #define Size__32_bit_function_wrapper 64
@@ -88,7 +88,6 @@ protected:
     uint64_t relocationOffset;
 
     uint32_t numberOfArguments;
-    ElfArgumentTypes* arguments;
     uint64_t* argumentOffsets;
     uint32_t* argumentValues;
 
@@ -128,8 +127,8 @@ public:
     virtual uint32_t generateGlobalData(uint64_t textBaseAddress) { __SHOULD_NOT_ARRIVE; }
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-    uint32_t addArgument(ElfArgumentTypes typ, uint64_t offset);
-    uint32_t addArgument(ElfArgumentTypes typ, uint64_t offset, uint32_t value);
+    uint32_t addArgument(uint64_t offset);
+    uint32_t addArgument(uint64_t offset, uint32_t value);
 
     uint64_t getEntryPoint();
 };

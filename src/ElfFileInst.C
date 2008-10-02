@@ -15,6 +15,7 @@
 #include <TextSection.h>
 #include <FileHeader.h>
 #include <Instrumentation.h>
+#include <LineInformation.h>
 
 TIMER(
 	extern double cfg_s1;
@@ -285,7 +286,7 @@ void ElfFileInst::instrument(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
-    extendTextSection(0x80000);
+    extendTextSection(0x800000);
     extendDataSection(0x80000);
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
@@ -362,6 +363,7 @@ uint64_t ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");    
 
     if (instpoint->getType() != ElfClassTypes_Instruction &&
+        instpoint->getType() != ElfClassTypes_BasicBlock &&
         instpoint->getType() != ElfClassTypes_TextSection &&
         instpoint->getType() != ElfClassTypes_Function){
         PRINT_ERROR("Cannot use an object of type %d as an instrumentation point", instpoint->getType());
@@ -674,6 +676,9 @@ ElfFileInst::~ElfFileInst(){
         }
         delete[] instrumentationLibraries;
     }
+    if (lineInfoFinder){
+        delete lineInfoFinder;
+    }
 }
 
 void ElfFileInst::dump(char* extension){
@@ -745,6 +750,11 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
 
     usableDataOffset = 0;
     bssReserved = 0;
+
+    lineInfoFinder = NULL;
+    if (elfFile->getLineInfoSection()){
+        lineInfoFinder = new LineInfoFinder(elfFile->getLineInfoSection());
+    }
 }
 
 uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx){

@@ -6,7 +6,9 @@
 #define MAX_SIZE_LINEAR_SEARCH 4096
 
 uint64_t BasicBlock::getAddress() { 
-    ASSERT(instructions && instructions[0]); 
+    ASSERT(instructions);
+    ASSERT(numberOfInstructions);
+    ASSERT(instructions[0]); 
     return instructions[0]->getAddress(); 
 }
 
@@ -22,7 +24,8 @@ void BasicBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 uint32_t BasicBlock::setInstructions(uint32_t num, Instruction** insts){
     ASSERT(!numberOfInstructions && !instructions);
     numberOfInstructions = num;
-    
+
+    ASSERT(numberOfInstructions);
     instructions = new Instruction*[numberOfInstructions];
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         instructions[i] = insts[i];
@@ -74,6 +77,7 @@ bool BasicBlock::inRange(uint64_t addr){
 }
 
 BasicBlock::BasicBlock(uint32_t idx, Function* func){
+    type = ElfClassTypes_BasicBlock;
     index = idx;
     function = func;
 

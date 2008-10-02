@@ -5,8 +5,7 @@
 #include <Function.h>
 
 #define EXIT_FUNCTION "functioncounter"
-#define LIB_NAME "libtest.so"
-#define OTHER_FUNCTION "secondtest"
+#define LIB_NAME "libcounter.so"
 
 FunctionCounter::FunctionCounter(ElfFile* elf)
     : ElfFileInst(elf)
@@ -24,7 +23,6 @@ void FunctionCounter::declareInstrumentation(){
 
     // declare any instrumentation functions that will be used
     declareFunction(EXIT_FUNCTION);
-    declareFunction(OTHER_FUNCTION);
 
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 }
@@ -50,17 +48,17 @@ void FunctionCounter::reserveInstrumentation(){
     ASSERT(exitFunc && "Cannot find exit function, are you sure it was declared?");
 
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
-    exitFunc->addArgument(ElfArgumentTypes_uint32_t,counterArrayEntries,instPoints);
+    exitFunc->addArgument(counterArrayEntries,instPoints);
 
     // in order to get a pointer we first reserve the array then a pointer to it
     uint64_t counterArray = reserveDataOffset(instPoints*sizeof(uint32_t));
     uint64_t counterArrayPtr = reserveDataOffset(sizeof(uint32_t));
-    exitFunc->addArgument(ElfArgumentTypes_uint32_t_pointer,counterArray);
+    exitFunc->addArgument(counterArray);
 
     uint64_t nameArray = reserveDataOffset(sizeof(char**));
     uint64_t namePtrs = reserveDataOffset(sizeof(char*)*instPoints);
     uint64_t* names = new uint64_t[instPoints];
-    exitFunc->addArgument(ElfArgumentTypes_char_pointer_pointer,nameArray);
+    exitFunc->addArgument(nameArray);
     uint64_t tmpAddr = dataBaseAddress + namePtrs;
     initializeReservedData(dataBaseAddress+nameArray,sizeof(char**),(void*)&tmpAddr);
 

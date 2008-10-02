@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <assert.h>
 
+#define NOINST_VALUE 0xffffffff
+
 int32_t functioncounter(void* arg1, void* arg2, void* arg3){
     int32_t i;
     int32_t numFunctions = *(int32_t*)arg1;
@@ -21,31 +23,32 @@ int32_t functioncounter(void* arg1, void* arg2, void* arg3){
     return 0;
 }
 
-int32_t blockcounter(void* arg1, void* arg2){
+int32_t blockcounter(void* arg1, void* arg2, void* arg3, void* arg4, void* arg5){
     int32_t i;
+    int32_t excluded = 0;
+
+    // interpret the arguments
     int32_t numFunctions = *(int32_t*)arg1;
     int32_t* functionCounts = (int32_t*)(arg2);
+    int64_t* blockAddrs = (int64_t*)(arg3);
+    int32_t* lineNumbers = (int32_t*)(arg4);
+    char** fileNames = (char**)arg5;
     
     fprintf(stdout, "\n*** Instrumentation Summary ****\n");
-    fprintf(stdout, "Raw instrumentation function arguments: %x %x\n", arg1, arg2);
+    fprintf(stdout, "Raw instrumentation function arguments: %x %x %x %x %x\n", arg1, arg2, arg3, arg4, arg5);
     fprintf(stdout, "There are %d basic blocks in the code:\n", numFunctions);
 
+    fprintf(stdout, "Index\t\tAddress\t\tLine#\tCounter\tFileName\n");
     for (i = 0; i < numFunctions; i++){
-        if (functionCounts[i]){
-            fprintf(stdout, "\tBlock(%d) -- executed %d times\n", i, functionCounts[i]);
+        fprintf(stdout, "%d\t0x%016llx\t%d\t%d\t%s\n", i, blockAddrs[i], lineNumbers[i], functionCounts[i], fileNames[i]);
+        if (functionCounts[i] == NOINST_VALUE){
+            excluded++;
         }
     }
+    fprintf(stdout, "NOTE -- %d blocks weren't instrumented, these are denoted by a counter value of %d (0x%x)\n\n", excluded, NOINST_VALUE, NOINST_VALUE);
 
     fflush(stdout);
     return 0;
 }
 
 
-
-void secondtest(){
-    int32_t i;
-    for (i = 0; i < 3; i++){
-        fprintf(stdout, "shipping loop index %d\n", i);
-    }
-    fflush(stdout);
-}

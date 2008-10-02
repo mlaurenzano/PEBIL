@@ -4,11 +4,17 @@
 #include <SectionHeader.h>
 #include <Instruction.h>
 #include <BinaryFile.h>
+#include <SectionHeader.h>
+
+SectionHeader* RawSection::getSectionHeader(){
+    return elfFile->getSectionHeader(getSectionIndex());
+}
+
 
 void RawSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset)
 { 
     if (getType() != ElfClassTypes_RawSection && getType() != ElfClassTypes_no_type &&
-        getType() != ElfClassTypes_DwarfSection){
+        getType() != ElfClassTypes_DwarfSection && getType() != ElfClassTypes_DwarfLineInfoSection){
         PRINT_ERROR("You should implement the dump function for class type %d", getType());
     }
     binaryOutputFile->copyBytes(charStream(),getSizeInBytes(),offset); 

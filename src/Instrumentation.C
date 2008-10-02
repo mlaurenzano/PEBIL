@@ -3,6 +3,7 @@
 #include <Instruction.h>
 #include <TextSection.h>
 #include <Function.h>
+#include <BasicBlock.h>
 
 uint32_t InstrumentationFunction::wrapperSize(){
     uint32_t totalSize = 0;
@@ -46,30 +47,25 @@ Instrumentation::~Instrumentation(){
     }
 }
 
-uint32_t InstrumentationFunction::addArgument(ElfArgumentTypes typ, uint64_t offset){
-    return addArgument(typ, offset, 0);
+uint32_t InstrumentationFunction::addArgument(uint64_t offset){
+    return addArgument(offset, 0);
 }
 
-uint32_t InstrumentationFunction::addArgument(ElfArgumentTypes typ, uint64_t offset, uint32_t value){
-    ElfArgumentTypes* newargs = new ElfArgumentTypes[numberOfArguments+1];
+uint32_t InstrumentationFunction::addArgument(uint64_t offset, uint32_t value){
     uint64_t* newoffsets = new uint64_t[numberOfArguments+1];
     uint32_t* newvalues = new uint32_t[numberOfArguments+1];
 
     for (uint32_t i = 0; i < numberOfArguments; i++){
-        newargs[i] = arguments[i];
         newoffsets[i] = argumentOffsets[i];
         newvalues[i] = argumentValues[i];
     }
 
-    newargs[numberOfArguments] = typ;
     newoffsets[numberOfArguments] = offset;
     newvalues[numberOfArguments] = value;
 
-    delete[] arguments;
     delete[] argumentOffsets;
     delete[] argumentValues;
 
-    arguments = newargs;
     argumentOffsets = newoffsets;
     argumentValues = newvalues;
 
@@ -308,7 +304,6 @@ InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, u
     globalDataOffset = dataoffset;
 
     numberOfArguments = 0;
-    arguments = NULL;
     argumentOffsets = NULL;
     argumentValues = NULL;
 }
@@ -328,9 +323,6 @@ InstrumentationFunction::~InstrumentationFunction(){
             delete wrapperInstructions[i];
         }
         delete[] wrapperInstructions;
-    }
-    if (arguments){
-        delete[] arguments;
     }
     if (argumentOffsets){
         delete[] argumentOffsets;
@@ -522,6 +514,7 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst)
 {
     point = pt;
     if (point->getType() != ElfClassTypes_TextSection &&
+        point->getType() != ElfClassTypes_BasicBlock &&
         point->getType() != ElfClassTypes_Instruction &&
         point->getType() != ElfClassTypes_Function){
         PRINT_ERROR("Cannot use an object of type %d as an instrumentation point", point->getType());
@@ -538,6 +531,9 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst)
     } else if (point->getType() == ElfClassTypes_Function){
         Function* fn = (Function*)point;
         sourceAddress = fn->findInstrumentationPoint();
+    } else if (point->getType() == ElfClassTypes_BasicBlock){
+        BasicBlock* bb = (BasicBlock*)point;
+        sourceAddress = bb->findInstrumentationPoint();
     } else {
         PRINT_ERROR("Cannot use an object of type %d as an instrumentation point", point->getType());
     }

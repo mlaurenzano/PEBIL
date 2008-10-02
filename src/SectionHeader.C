@@ -1,5 +1,6 @@
 #include <SectionHeader.h>
 #include <BinaryFile.h>
+#include <DwarfSection.h>
 
 SectionHeader32::SectionHeader32(uint16_t idx)
     : SectionHeader()
@@ -17,6 +18,8 @@ SectionHeader64::SectionHeader64(uint16_t idx)
     bzero(&entry,sizeof(Elf64_Shdr));
 }
 
+// in general we cannot use section names in this function because they will
+// not be set yet
 ElfClassTypes SectionHeader::setSectionType(){
     uint32_t type = GET(sh_type);
 
@@ -25,6 +28,7 @@ ElfClassTypes SectionHeader::setSectionType(){
         sectionType = ElfClassTypes_no_type;
         break;
     case SHT_PROGBITS:
+        sectionType = ElfClassTypes_RawSection;
         if (!hasWriteBit() && !hasAllocBit() && !hasExecInstrBit()){
             sectionType = ElfClassTypes_DwarfSection;
         } else if (hasExecInstrBit()){
@@ -61,6 +65,9 @@ ElfClassTypes SectionHeader::setSectionType(){
     case SHT_DYNSYM:
         sectionType = ElfClassTypes_SymbolTable;
         break;
+    case SHT_GNU_LIBLIST:
+        sectionType = ElfClassTypes_no_type;
+        break;
     case SHT_GNU_HASH:
         sectionType = ElfClassTypes_HashTable;
         break;
@@ -71,7 +78,8 @@ ElfClassTypes SectionHeader::setSectionType(){
         sectionType = ElfClassTypes_GnuVersymTable;
         break;
     default:
-        PRINT_ERROR("Unknown section type %d", GET(sh_type));
+        sectionType = ElfClassTypes_RawSection;
+        PRINT_ERROR("Unknown section type %d (%x)", GET(sh_type), GET(sh_type));
     }
 
     return sectionType;
@@ -132,6 +140,7 @@ bool SectionHeader::verify() {
         GET(sh_type) != SHT_NUM &&
         GET(sh_type) != SHT_LOOS &&
         GET(sh_type) != SHT_GNU_HASH &&
+        GET(sh_type) != SHT_GNU_LIBLIST &&
         GET(sh_type) != SHT_GNU_verdef &&
         GET(sh_type) != SHT_GNU_verneed &&
         GET(sh_type) != SHT_GNU_versym

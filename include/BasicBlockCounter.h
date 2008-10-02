@@ -5,7 +5,7 @@
 
 class BasicBlockCounter : public ElfFileInst {
 private:
-
+    char* fileSeperator;
 public:
     BasicBlockCounter(ElfFile* elf);
     ~BasicBlockCounter();

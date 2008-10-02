@@ -124,6 +124,8 @@ public:
     uint32_t getInstructionType() { return instructionType; }
     bool isRelocatable();
 
+    bool isBranchInstruction();
+
     uint32_t setIndex(uint32_t newidx);
     uint64_t setNextAddress();
     uint64_t setAddress(uint64_t addr);
