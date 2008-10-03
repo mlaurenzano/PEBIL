@@ -2,6 +2,7 @@
 #define _ElfFileInst_h_
 
 #include <Base.h>
+#include <Vector.h>
 
 class ElfFile;
 class SectionHeader;
@@ -21,9 +22,7 @@ class LineInfoFinder;
 
 #define INST_SNIPPET_BOOTSTRAP_BEGIN 0
 #define INST_SNIPPET_BOOTSTRAP_END 1
-#define INST_SNIPPETS_RESERVED 2
 #define INST_POINT_BOOTSTRAP 0
-#define INST_POINTS_RESERVED 1
 
 #define MAX_ARGUMENTS_32BIT 6
 #define MAX_ARGUMENTS_64BIT 6
@@ -44,17 +43,10 @@ protected:
     uint32_t currentPhase;
     ElfFile* elfFile;
 
-    uint32_t numberOfInstrumentationSnippets;
-    InstrumentationSnippet** instrumentationSnippets;
-
-    uint32_t numberOfInstrumentationFunctions;
-    InstrumentationFunction** instrumentationFunctions;
-
-    uint32_t numberOfInstrumentationLibraries;
-    char** instrumentationLibraries;
-
-    uint32_t numberOfInstrumentationPoints;
-    InstrumentationPoint** instrumentationPoints;
+    Vector<InstrumentationSnippet*> instrumentationSnippets;
+    Vector<InstrumentationFunction*> instrumentationFunctions;
+    Vector<InstrumentationPoint*> instrumentationPoints;
+    Vector<char*> instrumentationLibraries;
 
     uint16_t extraTextIdx;
     uint16_t extraDataIdx;

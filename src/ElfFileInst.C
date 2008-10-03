@@ -95,17 +95,8 @@ void ElfFileInst::extendDataSection(uint64_t size){
 
 uint32_t ElfFileInst::addInstrumentationSnippet(InstrumentationSnippet* snip){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
-    InstrumentationSnippet** newSnippets = new InstrumentationSnippet*[numberOfInstrumentationSnippets+1];
-    for (uint32_t i = 0; i < numberOfInstrumentationSnippets; i++){
-        newSnippets[i] = instrumentationSnippets[i];
-    }
-    newSnippets[numberOfInstrumentationSnippets] = snip;
-
-    delete[] instrumentationSnippets;
-    instrumentationSnippets = newSnippets;
-    numberOfInstrumentationSnippets++;
-
-    return numberOfInstrumentationSnippets;
+    instrumentationSnippets.append(snip);
+    return instrumentationSnippets.size();
 }
 
 
@@ -165,10 +156,10 @@ void ElfFileInst::generateInstrumentation(){
     // compute the size of the bootstrap code
     uint32_t bootstrapSize = 0;
     bootstrapSize += instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN]->snippetSize();
-    for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){
+    for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         bootstrapSize += instrumentationFunctions[i]->bootstrapReservedSize();
     }
-    for (uint32_t i = 0; i < numberOfInstrumentationSnippets; i++){
+    for (uint32_t i = 0; i < instrumentationSnippets.size(); i++){
         bootstrapSize += instrumentationSnippets[i]->bootstrapSize();
     }
     bootstrapSize += instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]->snippetSize();
@@ -180,7 +171,7 @@ void ElfFileInst::generateInstrumentation(){
     snip->setCodeOffsets(0,precodeOffset);
     precodeOffset += snip->snippetSize();
 
-    for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){
+    for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
         uint64_t bootstrapOffset = precodeOffset;
         precodeOffset += func->bootstrapReservedSize();
@@ -193,7 +184,7 @@ void ElfFileInst::generateInstrumentation(){
         func->setCodeOffsets(procedureLinkOffset, bootstrapOffset, wrapperOffset);
     }
 
-    for (uint32_t i = INST_SNIPPETS_RESERVED; i < numberOfInstrumentationSnippets; i++){        
+    for (uint32_t i = INST_SNIPPET_BOOTSTRAP_END+1; i < instrumentationSnippets.size(); i++){        
         snip = instrumentationSnippets[i];
 
         snip->generateSnippetControl();
@@ -212,7 +203,7 @@ void ElfFileInst::generateInstrumentation(){
     snip->setCodeOffsets(0,precodeOffset);
     precodeOffset += snip->snippetSize();
 
-    for (uint32_t i = 0; i < numberOfInstrumentationPoints; i++){
+    for (uint32_t i = 0; i < instrumentationPoints.size(); i++){
         InstrumentationPoint* pt = instrumentationPoints[i];
         if (!pt){
             PRINT_ERROR("Instrumentation point %d should exist", i);
@@ -251,7 +242,7 @@ void ElfFileInst::generateInstrumentation(){
     ASSERT(precodeOffset == bootstrapSize && "Bootstrap code size does not match what we just calculated");
     ASSERT(codeOffset <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough space in the text section to accomodate the extra code");
 
-    for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){
+    for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
         func->generateGlobalData(textBaseAddress);
         func->generateWrapperInstructions(textBaseAddress,dataBaseAddress);
@@ -262,7 +253,7 @@ void ElfFileInst::generateInstrumentation(){
 
 
 InstrumentationFunction* ElfFileInst::getInstrumentationFunction(const char* funcName){
-    for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){
+    for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         if (instrumentationFunctions[i]){
             if (!strcmp(instrumentationFunctions[i]->getFunctionName(),funcName)){
                 return instrumentationFunctions[i];
@@ -305,11 +296,11 @@ void ElfFileInst::instrument(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 
-    for (uint32_t i = 0; i < numberOfInstrumentationLibraries; i++){
+    for (uint32_t i = 0; i < instrumentationLibraries.size(); i++){
         addSharedLibrary(instrumentationLibraries[i]);
     }
 
-    for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){
+    for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         ASSERT(instrumentationFunctions[i] && "Instrumentation functions should be initialized");
         addFunction(instrumentationFunctions[i]);
     }
@@ -333,13 +324,13 @@ void ElfFileInst::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(offset == ELF_FILE_HEADER_OFFSET && "Instrumentation must be dumped at the begining of the output file");
 
     uint32_t extraTextOffset = elfFile->getSectionHeader(extraTextIdx)->GET(sh_offset);
-    for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){
+    for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         instrumentationFunctions[i]->dump(binaryOutputFile,extraTextOffset);
     }
-    for (uint32_t i = 0; i < numberOfInstrumentationSnippets; i++){
+    for (uint32_t i = 0; i < instrumentationSnippets.size(); i++){
         instrumentationSnippets[i]->dump(binaryOutputFile,extraTextOffset);
     }
-    for (uint32_t i = 0; i < numberOfInstrumentationPoints; i++){
+    for (uint32_t i = 0; i < instrumentationPoints.size(); i++){
         instrumentationPoints[i]->dump(binaryOutputFile,extraTextOffset);
     }
 
@@ -369,85 +360,65 @@ uint64_t ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* 
         PRINT_ERROR("Cannot use an object of type %d as an instrumentation point", instpoint->getType());
     }
 
-    InstrumentationPoint** newPoints = new InstrumentationPoint*[numberOfInstrumentationPoints+1];
     InstrumentationPoint* newpoint = new InstrumentationPoint(instpoint,inst);
     bool canInstrument = true;
-    for (uint32_t i = 0; i < numberOfInstrumentationPoints; i++){
+
+    // we do this for now, it prevents us from trying to instrument at the same address twice
+    for (uint32_t i = 0; i < instrumentationPoints.size(); i++){
         if (instrumentationPoints[i]){
             if (newpoint->getSourceAddress() == instrumentationPoints[i]->getSourceAddress()){
                 canInstrument = false;
             }
         }
-        newPoints[i] = instrumentationPoints[i];
     }
+
     if (canInstrument){
-        newPoints[numberOfInstrumentationPoints] = newpoint;
-
-        delete[] instrumentationPoints;
-        instrumentationPoints = newPoints;
-        numberOfInstrumentationPoints++;
+        instrumentationPoints.append(newpoint);
     } else {
-        //        PRINT_WARN("Cannot instrument location %llx twice", newpoint->getSourceAddress());
         delete newpoint;
-        delete[] newPoints;
     }
 
-    return numberOfInstrumentationPoints;
+    return instrumentationPoints.size();
 }
 
 uint32_t ElfFileInst::declareFunction(char* funcName){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
-    for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){
+    for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
         if (!strcmp(funcName,func->getFunctionName())){
             PRINT_ERROR("Trying to add a function that was already added -- %s", funcName);
-            return numberOfInstrumentationFunctions;
+            return instrumentationFunctions.size();
         }
     }
 
-    InstrumentationFunction** newFunctions = new InstrumentationFunction*[numberOfInstrumentationFunctions+1];
-    for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){
-        newFunctions[i] = instrumentationFunctions[i];
-    }
-
+    InstrumentationFunction* newFunction;
     if (elfFile->is64Bit()){
-        newFunctions[numberOfInstrumentationFunctions] = 
-            new InstrumentationFunction64(numberOfInstrumentationFunctions, funcName, reserveDataOffset(Size__64_bit_Global_Offset_Table_Entry));
+        newFunction = new InstrumentationFunction64(instrumentationFunctions.size(), funcName, reserveDataOffset(Size__64_bit_Global_Offset_Table_Entry));
     } else {
-        newFunctions[numberOfInstrumentationFunctions] = 
-            new InstrumentationFunction32(numberOfInstrumentationFunctions, funcName, reserveDataOffset(Size__32_bit_Global_Offset_Table_Entry));
+        newFunction = new InstrumentationFunction32(instrumentationFunctions.size(), funcName, reserveDataOffset(Size__32_bit_Global_Offset_Table_Entry));
     }
+    instrumentationFunctions.append(newFunction);
 
-    delete[] instrumentationFunctions;
-    instrumentationFunctions = newFunctions;
-    numberOfInstrumentationFunctions++;
-
-    return numberOfInstrumentationFunctions;
+    return instrumentationFunctions.size();
 }
 
 uint32_t ElfFileInst::declareLibrary(char* libName){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
-    for (uint32_t i = 0; i < numberOfInstrumentationLibraries; i++){
+    for (uint32_t i = 0; i < instrumentationLibraries.size(); i++){
         if (!strcmp(libName,instrumentationLibraries[i])){
             PRINT_ERROR("Trying to add a library that was already added -- %s", libName);
-            return numberOfInstrumentationLibraries;
+            return instrumentationLibraries.size();
         }
     }
 
-    char** newLibraries = new char*[numberOfInstrumentationLibraries+1];
-    for (uint32_t i = 0; i < numberOfInstrumentationLibraries; i++){
-        newLibraries[i] = instrumentationLibraries[i];
-    }
-    newLibraries[numberOfInstrumentationLibraries] = new char[strlen(libName)+1];
-    strcpy(newLibraries[numberOfInstrumentationLibraries],libName);
+    char* newLib = new char[strlen(libName)+1];
+    strcpy(newLib,libName);
+    newLib[strlen(libName)] = '\0';
 
-    delete[] instrumentationLibraries;
-    instrumentationLibraries = newLibraries;
-    numberOfInstrumentationLibraries++;
-
-    return numberOfInstrumentationLibraries;
+    instrumentationLibraries.append(newLib);
+    return instrumentationLibraries.size();
 }
 
 
@@ -649,33 +620,22 @@ void ElfFileInst::extendTextSection(uint64_t size){
 
 
 ElfFileInst::~ElfFileInst(){
-    if (instrumentationFunctions){
-        for (uint32_t i = 0; i < numberOfInstrumentationFunctions; i++){
-            delete instrumentationFunctions[i];
-        }
-        delete[] instrumentationFunctions;
+    for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
+        delete instrumentationFunctions[i];
     }
 
-    if (instrumentationSnippets){
-        for (uint32_t i = 0; i < numberOfInstrumentationSnippets; i++){
-            delete instrumentationSnippets[i];
-        }
-        delete[] instrumentationSnippets;
+    for (uint32_t i = 0; i < instrumentationSnippets.size(); i++){
+        delete instrumentationSnippets[i];
     }
 
-    if (instrumentationPoints){
-        for (uint32_t i = 0; i < numberOfInstrumentationPoints; i++){
-            delete instrumentationPoints[i];
-        }
-        delete[] instrumentationPoints;
+    for (uint32_t i = 0; i < instrumentationPoints.size(); i++){
+        delete instrumentationPoints[i];
     }
 
-    if (instrumentationLibraries){
-        for (uint32_t i = 0; i < numberOfInstrumentationLibraries; i++){
-            delete[] instrumentationLibraries[i];
-        }
-        delete[] instrumentationLibraries;
+    for (uint32_t i = 0; i < instrumentationLibraries.size(); i++){
+        delete[] instrumentationLibraries[i];
     }
+
     if (lineInfoFinder){
         delete lineInfoFinder;
     }
@@ -729,21 +689,12 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     currentPhase = ElfInstPhase_no_phase;
     elfFile = elf;
 
-    numberOfInstrumentationSnippets = INST_SNIPPETS_RESERVED;
-    instrumentationSnippets = new InstrumentationSnippet*[INST_SNIPPETS_RESERVED];
-    instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN] = new InstrumentationSnippet();
-    instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END] = new InstrumentationSnippet();
-
-    numberOfInstrumentationFunctions = 0;
-    instrumentationFunctions = NULL;
+    // automatically set 2 snippet for the beginning and end of bootstrap code
+    instrumentationSnippets.append(new InstrumentationSnippet());
+    instrumentationSnippets.append(new InstrumentationSnippet());
 
     // automatically set the 1st instrumentation point to go to the bootstrap code
-    numberOfInstrumentationPoints = INST_POINTS_RESERVED;
-    instrumentationPoints = new InstrumentationPoint*[INST_POINTS_RESERVED];
-    instrumentationPoints[INST_POINT_BOOTSTRAP] = NULL;
-
-    numberOfInstrumentationLibraries = 0;
-    instrumentationLibraries = NULL;
+    instrumentationPoints.append(NULL);
 
     extraTextIdx = 0;
     extraDataIdx = 0;

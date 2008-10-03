@@ -2,6 +2,7 @@
 #include <ElfFile.h>
 #include <FunctionCounter.h>
 #include <BasicBlockCounter.h>
+#include <Vector.h>
 
 void alignTest(){
     uint32_t align = 0x00000001;
@@ -147,6 +148,8 @@ typedef enum {
 
 
 int main(int argc,char* argv[]){
+
+    testVector();
 
     char*    execName   = NULL;
     char*    inptName   = NULL;

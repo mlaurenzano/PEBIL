@@ -3,6 +3,7 @@
 
 #include <Base.h>
 #include <RawSection.h>
+#include <Vector.h>
 
 class ElfFile;
 class Instruction;
@@ -49,8 +50,7 @@ public:
 
 class FreeText : public TextObject {
 protected:
-    Instruction** instructions;
-    uint32_t numberOfInstructions;
+    Vector<Instruction*> instructions;
 public:
     FreeText(TextSection* text, uint32_t idx, uint64_t addr, uint32_t sz);
     ~FreeText();
@@ -59,15 +59,14 @@ public:
     char* getName() { return NULL; }
     uint32_t digest();
 
-    Instruction* getInstruction(uint32_t idx) { ASSERT(idx < numberOfInstructions); return instructions[idx]; }
-    uint32_t getNumberOfInstructions() { return numberOfInstructions; }
+    Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }
+    uint32_t getNumberOfInstructions() { return instructions.size(); }
 };
 
 class TextSection : public RawSection {
 protected:
     uint32_t index;
-    TextObject** sortedTextObjects;
-    uint32_t numberOfTextObjects;
+    Vector<TextObject*> sortedTextObjects;
 
     Disassembler* disassembler;
 public:
@@ -75,7 +74,7 @@ public:
     ~TextSection();
 
     void printInstructions();
-    uint32_t discoverTextObjects(Symbol*** functionSymbols);
+    Vector<Symbol*> discoverTextObjects();
 
     uint32_t readNoFile();
     uint32_t getIndex() { return index; }
@@ -96,8 +95,8 @@ public:
     uint64_t getAddress();
     bool inRange(uint64_t addr);
 
-    uint32_t getNumberOfTextObjects() { return numberOfTextObjects; }
-    TextObject* getTextObject(uint32_t idx) { ASSERT(idx < numberOfTextObjects && "function index is out of bounds"); return sortedTextObjects[idx]; }
+    uint32_t getNumberOfTextObjects() { return sortedTextObjects.size(); }
+    TextObject* getTextObject(uint32_t idx) { return sortedTextObjects[idx]; }
 
     uint32_t replaceInstructions(uint64_t addr, Instruction** replacements, uint32_t numberOfReplacements, Instruction*** replacedInstructions);
 };

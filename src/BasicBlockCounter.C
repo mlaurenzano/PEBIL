@@ -9,19 +9,11 @@
 #define EXIT_FUNCTION "blockcounter"
 #define LIB_NAME "libcounter.so"
 #define NOINST_VALUE 0xffffffff
+#define PATH_SEPERATOR "/\0"
 
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     : ElfFileInst(elf)
 {
-    fileSeperator = new char[2];
-    strncpy(fileSeperator,"/",1);
-    fileSeperator[1] = '\0';
-}
-
-BasicBlockCounter::~BasicBlockCounter(){
-    if (fileSeperator){
-        delete[] fileSeperator;
-    }
 }
 
 void BasicBlockCounter::declareInstrumentation(){
@@ -109,31 +101,24 @@ void BasicBlockCounter::reserveInstrumentation(){
     uint32_t noInst = 0;
     uint32_t fileNameSize = 1;
     for (uint32_t i = 0; i < instPoints; i++){
-        PRINT_INFOR("Instrumenting block %d/%d", i, instPoints);
-        if (i == 1000){
-            return;
-        }
-
         BasicBlock* b = allBlocks[i];
         LineInfo* li = allLineInfos[i];
         Function* f = b->getFunction();
 
         uint64_t addr = b->getAddress();
         initializeReservedData(dataBaseAddress+addrArray+sizeof(uint64_t)*i,sizeof(uint64_t),(void*)&addr);
-
-        
         
         if (li){
             uint32_t line = li->GET(lr_line);
             initializeReservedData(dataBaseAddress+lineArray+sizeof(uint32_t)*i,sizeof(uint32_t),&line);
 
-            uint64_t filename = reserveDataOffset(strlen(li->getFilePath())+strlen(fileSeperator)+strlen(li->getFileName())+1);
+            uint64_t filename = reserveDataOffset(strlen(li->getFilePath())+strlen(PATH_SEPERATOR)+strlen(li->getFileName())+1);
             uint64_t filenameAddr = dataBaseAddress + filename;
             initializeReservedData(dataBaseAddress+fileNameArray+i*sizeof(char*),sizeof(char*),&filenameAddr);
 
             initializeReservedData(dataBaseAddress+filename,strlen(li->getFilePath()),(void*)li->getFilePath());
-            initializeReservedData(dataBaseAddress+filename+strlen(li->getFilePath()),strlen(fileSeperator),(void*)fileSeperator);
-            initializeReservedData(dataBaseAddress+filename+strlen(li->getFilePath())+strlen(fileSeperator),strlen(li->getFileName()),(void*)li->getFileName());
+            initializeReservedData(dataBaseAddress+filename+strlen(li->getFilePath()),strlen(PATH_SEPERATOR),(void*)PATH_SEPERATOR);
+            initializeReservedData(dataBaseAddress+filename+strlen(li->getFilePath())+strlen(PATH_SEPERATOR),strlen(li->getFileName()),(void*)li->getFileName());
         }
         
         InstrumentationSnippet* snip = new InstrumentationSnippet();

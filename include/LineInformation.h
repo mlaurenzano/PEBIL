@@ -4,6 +4,7 @@
 #include <Base.h>
 #include <CStructuresDwarf.h>
 #include <defines/LineInformation.d>
+#include <Vector.h>
 
 class LineInfoTable;
 class BasicBlock;
@@ -23,10 +24,9 @@ private:
 
 protected:
     uint32_t index;
-    uint32_t instructionSize;
     DWARF2_LineInfo_Registers entry;
 
-    uint8_t* instructionBytes;
+    Vector<uint8_t> instructionBytes;
 
     LineInfoTable* header;
 public:
@@ -37,7 +37,7 @@ public:
 
     void print();
     char* charStream() { return (char*)&entry; }
-    uint32_t getInstructionSize() { return instructionSize; }
+    uint32_t getInstructionSize() { return instructionBytes.size(); }
 
     char* getFileName();
     char* getFilePath();
@@ -56,25 +56,16 @@ protected:
 
     DWARF2_Internal_LineInfo entry;
 
-    LineInfo** lineInformations;
-    uint32_t numberOfLineInformations;
-
-    uint8_t* opcodes;
-    uint32_t numberOfOpcodes;
-
-    char** includePaths;
-    uint32_t numberOfIncludePaths;
-
-    char** fileNames;
-    uint32_t numberOfFileNames;
-    uint8_t* fileDirIndices;
-    uint8_t* fileModTimes;
-    uint8_t* fileSizes;
-
+    Vector<LineInfo*> lineInformations;
+    Vector<uint8_t> opcodes;
+    Vector<char*> includePaths;
+    Vector<DWARF2_FileName> fileNames;
+    
     LineInfo* registers;
+    DwarfLineInfoSection* dwarfLineInfoSection;
 
 public: 
-    LineInfoTable(uint32_t idx, char* raw);
+    LineInfoTable(uint32_t idx, char* raw, DwarfLineInfoSection* dwarf);
     ~LineInfoTable();
 
     void print();
@@ -89,8 +80,8 @@ public:
     LineInfo* getRegisters() { return registers; }
     uint32_t getOpcodeLength(uint32_t idx);
 
-    uint32_t getNumberOfLineInfos() { return numberOfLineInformations; }
-    LineInfo* getLineInfo(uint32_t idx) { ASSERT(idx < numberOfLineInformations); return lineInformations[idx]; }
+    uint32_t getNumberOfLineInfos() { return lineInformations.size(); }
+    LineInfo* getLineInfo(uint32_t idx) { return lineInformations[idx]; }
 
     char* getFileName(uint32_t idx);
     char* getIncludePath(uint32_t idx);
@@ -98,9 +89,7 @@ public:
 
 class LineInfoFinder {
 protected:
-    LineInfo** sortedLineInfos;
-    uint32_t numberOfLineInfos;
-
+    Vector<LineInfo*> sortedLineInfos;
     DwarfLineInfoSection* dwarfLineInfoSection;
 public:
     LineInfoFinder(DwarfLineInfoSection* dwarfLineSection);

@@ -84,6 +84,15 @@ static int64_t dwarf2_get_leb128_signed(char* ptr, uint32_t* len){
 
 typedef struct
 {
+    char* fn_name;
+    uint64_t fn_dir_index;
+    uint64_t fn_mod_time;
+    uint64_t fn_size;
+} 
+DWARF2_FileName;
+
+typedef struct
+{
     uint64_t lr_address;
     uint32_t lr_file;
     uint32_t lr_line;

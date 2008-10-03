@@ -5,23 +5,28 @@
 #include <Function.h>
 #include <BasicBlock.h>
 
+uint32_t InstrumentationSnippet::addSnippetInstruction(Instruction* inst){
+    snippetInstructions.append(inst);
+    return snippetInstructions.size();
+}
+
 uint32_t InstrumentationFunction::wrapperSize(){
     uint32_t totalSize = 0;
-    for (uint32_t i = 0; i < numberOfWrapperInstructions; i++){
+    for (uint32_t i = 0; i < wrapperInstructions.size(); i++){
         totalSize += wrapperInstructions[i]->getLength();
     }
     return totalSize;
 }
 uint32_t InstrumentationFunction::procedureLinkSize(){
     uint32_t totalSize = 0;
-    for (uint32_t i = 0; i < numberOfProcedureLinkInstructions; i++){
+    for (uint32_t i = 0; i < procedureLinkInstructions.size(); i++){
         totalSize += procedureLinkInstructions[i]->getLength();
     }
     return totalSize;
 }
 uint32_t Instrumentation::bootstrapSize(){
     uint32_t totalSize = 0;
-    for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
+    for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
         totalSize += bootstrapInstructions[i]->getLength();
     }
     return totalSize;
@@ -33,17 +38,12 @@ uint32_t InstrumentationFunction::globalDataSize(){
 Instrumentation::Instrumentation(ElfClassTypes typ)
     : Base(typ)
 {
-    numberOfBootstrapInstructions = 0;
-    bootstrapInstructions = NULL;
     bootstrapOffset = 0;
 }
 
 Instrumentation::~Instrumentation(){
-    if (bootstrapInstructions){
-        for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
-            delete bootstrapInstructions[i];
-        }
-        delete[] bootstrapInstructions;
+    for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
+        delete bootstrapInstructions[i];
     }
 }
 
@@ -74,26 +74,20 @@ uint32_t InstrumentationFunction::addArgument(uint64_t offset, uint32_t value){
 }
 
 void InstrumentationFunction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    if (procedureLinkInstructions){
-        uint32_t currentOffset = procedureLinkOffset;
-        for (uint32_t i = 0; i < numberOfProcedureLinkInstructions; i++){
-            procedureLinkInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-            currentOffset += procedureLinkInstructions[i]->getLength();
-        }
+    uint32_t currentOffset = procedureLinkOffset;
+    for (uint32_t i = 0; i < procedureLinkInstructions.size(); i++){
+        procedureLinkInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
+        currentOffset += procedureLinkInstructions[i]->getLength();
     }
-    if (bootstrapInstructions){
-        uint32_t currentOffset = bootstrapOffset;
-        for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
-            bootstrapInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-            currentOffset += bootstrapInstructions[i]->getLength();
-        }
+    currentOffset = bootstrapOffset;
+    for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
+        bootstrapInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
+        currentOffset += bootstrapInstructions[i]->getLength();
     }
-    if (wrapperInstructions){
-        uint32_t currentOffset = wrapperOffset;
-        for (uint32_t i = 0; i < numberOfWrapperInstructions; i++){
-            wrapperInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-            currentOffset += wrapperInstructions[i]->getLength();
-        }
+    currentOffset = wrapperOffset;
+    for (uint32_t i = 0; i < wrapperInstructions.size(); i++){
+        wrapperInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
+        currentOffset += wrapperInstructions[i]->getLength();
     }
 }
 
@@ -107,61 +101,61 @@ uint64_t InstrumentationSnippet::getEntryPoint(){
 
 
 uint32_t InstrumentationFunction64::generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress){
-    ASSERT(!procedureLinkInstructions && "This array should not be initialized");
+    ASSERT(!procedureLinkInstructions.size() && "This array should not be initialized");
 
     uint64_t procedureLinkAddress = textBaseAddress + procedureLinkOffset;
-    addProcedureLinkInstruction(Instruction64::generateIndirectRelativeJump(procedureLinkAddress,dataBaseAddress + globalDataOffset));
-    addProcedureLinkInstruction(Instruction64::generateStackPushImmediate(relocationOffset));
+    procedureLinkInstructions.append(Instruction64::generateIndirectRelativeJump(procedureLinkAddress,dataBaseAddress + globalDataOffset));
+    procedureLinkInstructions.append(Instruction64::generateStackPushImmediate(relocationOffset));
 
     uint32_t returnAddress = procedureLinkAddress + procedureLinkSize();
-    addProcedureLinkInstruction(Instruction64::generateJumpRelative(returnAddress,realPLTAddress));
+    procedureLinkInstructions.append(Instruction64::generateJumpRelative(returnAddress,realPLTAddress));
 
     ASSERT(procedureLinkSize() == procedureLinkReservedSize());
-    return numberOfProcedureLinkInstructions;
+    return procedureLinkInstructions.size();
 }
 
 uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress){
-    ASSERT(!procedureLinkInstructions && "This array should not be initialized");
+    ASSERT(!procedureLinkInstructions.size() && "This array should not be initialized");
 
-    addProcedureLinkInstruction(Instruction32::generateJumpIndirect(dataBaseAddress + globalDataOffset));
-    addProcedureLinkInstruction(Instruction32::generateStackPushImmediate(relocationOffset));
+    procedureLinkInstructions.append(Instruction32::generateJumpIndirect(dataBaseAddress + globalDataOffset));
+    procedureLinkInstructions.append(Instruction32::generateStackPushImmediate(relocationOffset));
     uint32_t returnAddress = textBaseAddress + procedureLinkOffset + procedureLinkSize();
-    addProcedureLinkInstruction(Instruction32::generateJumpRelative(returnAddress,realPLTAddress));
+    procedureLinkInstructions.append(Instruction32::generateJumpRelative(returnAddress,realPLTAddress));
 
     ASSERT(procedureLinkSize() == procedureLinkReservedSize());
 
-    return numberOfProcedureLinkInstructions;
+    return procedureLinkInstructions.size();
 }
 
 uint32_t InstrumentationFunction64::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    addBootstrapInstruction(Instruction64::generateMoveImmToReg(globalData,X86_REG_CX));
-    addBootstrapInstruction(Instruction64::generateMoveImmToReg(dataBaseAddress + globalDataOffset,X86_REG_DX));
-    addBootstrapInstruction(Instruction::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX));
+    bootstrapInstructions.append(Instruction64::generateMoveImmToReg(globalData,X86_REG_CX));
+    bootstrapInstructions.append(Instruction64::generateMoveImmToReg(dataBaseAddress + globalDataOffset,X86_REG_DX));
+    bootstrapInstructions.append(Instruction::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX));
 
     while (bootstrapSize() < bootstrapReservedSize()){
-        addBootstrapInstruction(Instruction64::generateNoop());
+        bootstrapInstructions.append(Instruction64::generateNoop());
     }
     ASSERT(bootstrapSize() == bootstrapReservedSize());
-    return numberOfBootstrapInstructions;
+    return bootstrapInstructions.size();
 }
 
 uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    addBootstrapInstruction(Instruction32::generateMoveImmToReg(globalData,X86_REG_CX));
-    addBootstrapInstruction(Instruction32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress + globalDataOffset));
+    bootstrapInstructions.append(Instruction32::generateMoveImmToReg(globalData,X86_REG_CX));
+    bootstrapInstructions.append(Instruction32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress + globalDataOffset));
 
     while (bootstrapSize() < bootstrapReservedSize()){
-        addBootstrapInstruction(Instruction32::generateNoop());
+        bootstrapInstructions.append(Instruction32::generateNoop());
     }
     ASSERT(bootstrapSize() == bootstrapReservedSize());
-    return numberOfBootstrapInstructions;
+    return bootstrapInstructions.size();
 }
 
 uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    ASSERT(!wrapperInstructions && "This array should not be initialized");
+    ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
-    addWrapperInstruction(Instruction64::generatePushEflags());
+    wrapperInstructions.append(Instruction64::generatePushEflags());
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        addWrapperInstruction(Instruction64::generateStackPush(i));
+        wrapperInstructions.append(Instruction64::generateStackPush(i));
     }
 
     ASSERT(numberOfArguments < MAX_ARGUMENTS_64BIT && "More arguments must be pushed onto stack, which is not yet implemented"); 
@@ -196,35 +190,35 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
             PRINT_ERROR("Cannot pass more than %d argument to an instrumentation function", MAX_ARGUMENTS_64BIT);
             __SHOULD_NOT_ARRIVE;
         }
-        addWrapperInstruction(Instruction64::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],argumentRegister));
+        wrapperInstructions.append(Instruction64::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],argumentRegister));
 
-        addBootstrapInstruction(Instruction64::generateMoveImmToReg(value,X86_REG_CX));
-        addBootstrapInstruction(Instruction64::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
-        addBootstrapInstruction(Instruction::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX));
+        bootstrapInstructions.append(Instruction64::generateMoveImmToReg(value,X86_REG_CX));
+        bootstrapInstructions.append(Instruction64::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
+        bootstrapInstructions.append(Instruction::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX));
     }
-    addWrapperInstruction(Instruction64::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
+    wrapperInstructions.append(Instruction64::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
 
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        addWrapperInstruction(Instruction64::generateStackPop(X86_64BIT_GPRS-1-i));
+        wrapperInstructions.append(Instruction64::generateStackPop(X86_64BIT_GPRS-1-i));
     }
-    addWrapperInstruction(Instruction64::generatePopEflags());
+    wrapperInstructions.append(Instruction64::generatePopEflags());
 
-    addWrapperInstruction(Instruction64::generateReturn());
+    wrapperInstructions.append(Instruction64::generateReturn());
 
     while (wrapperSize() < wrapperReservedSize()){
-        addWrapperInstruction(Instruction64::generateNoop());
+        wrapperInstructions.append(Instruction64::generateNoop());
     }
     ASSERT(wrapperSize() == wrapperReservedSize());
 
-    return numberOfWrapperInstructions;
+    return wrapperInstructions.size();
 }
 
 uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    ASSERT(!wrapperInstructions && "This array should not be initialized");
+    ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
-    addWrapperInstruction(Instruction32::generatePushEflags());
+    wrapperInstructions.append(Instruction32::generatePushEflags());
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        addWrapperInstruction(Instruction32::generateStackPush(i));
+        wrapperInstructions.append(Instruction32::generateStackPush(i));
     }
 
     for (uint32_t i = 0; i < numberOfArguments; i++){
@@ -232,31 +226,31 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
         uint32_t value = argumentValues[idx];
 
         // everything is passed on the stack
-        addWrapperInstruction(Instruction32::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
-        addWrapperInstruction(Instruction32::generateStackPush(X86_REG_DX));
+        wrapperInstructions.append(Instruction32::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
+        wrapperInstructions.append(Instruction32::generateStackPush(X86_REG_DX));
 
-        addBootstrapInstruction(Instruction32::generateMoveImmToReg(value,X86_REG_CX));
-        addBootstrapInstruction(Instruction32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress+argumentOffsets[idx]));
+        bootstrapInstructions.append(Instruction32::generateMoveImmToReg(value,X86_REG_CX));
+        bootstrapInstructions.append(Instruction32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress+argumentOffsets[idx]));
     }
-    addWrapperInstruction(Instruction32::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
+    wrapperInstructions.append(Instruction32::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
 
     for (uint32_t i = 0; i < numberOfArguments; i++){
-        addWrapperInstruction(Instruction32::generateStackPop(X86_REG_CX));
+        wrapperInstructions.append(Instruction32::generateStackPop(X86_REG_CX));
     }
 
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        addWrapperInstruction(Instruction32::generateStackPop(X86_32BIT_GPRS-1-i));
+        wrapperInstructions.append(Instruction32::generateStackPop(X86_32BIT_GPRS-1-i));
     }
-    addWrapperInstruction(Instruction32::generatePopEflags());
+    wrapperInstructions.append(Instruction32::generatePopEflags());
 
-    addWrapperInstruction(Instruction32::generateReturn());
+    wrapperInstructions.append(Instruction32::generateReturn());
 
     while (wrapperSize() < wrapperReservedSize()){
-        addWrapperInstruction(Instruction32::generateNoop());
+        wrapperInstructions.append(Instruction32::generateNoop());
     }
     ASSERT(wrapperSize() == wrapperReservedSize());
 
-    return numberOfWrapperInstructions;
+    return wrapperInstructions.size();
 }
 
 uint32_t InstrumentationFunction64::generateGlobalData(uint64_t textBaseAddress){
@@ -288,16 +282,8 @@ InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, u
     functionName = new char[strlen(funcName)+1];
     strcpy(functionName,funcName);
 
-    numberOfProcedureLinkInstructions = 0;
-    procedureLinkInstructions = NULL;
     procedureLinkOffset = 0;
-
-    numberOfBootstrapInstructions = 0;
-    bootstrapInstructions = NULL;
     bootstrapOffset = 0;
-
-    numberOfWrapperInstructions = 0;
-    wrapperInstructions = NULL;
     wrapperOffset = 0;
 
     globalData = 0;
@@ -312,17 +298,11 @@ InstrumentationFunction::~InstrumentationFunction(){
     if (functionName){
         delete[] functionName;
     }
-    if (procedureLinkInstructions){
-        for (uint32_t i = 0; i < numberOfProcedureLinkInstructions; i++){
-            delete procedureLinkInstructions[i];
-        }
-        delete[] procedureLinkInstructions;
+    for (uint32_t i = 0; i < procedureLinkInstructions.size(); i++){
+        delete procedureLinkInstructions[i];
     }
-    if (wrapperInstructions){
-        for (uint32_t i = 0; i < numberOfWrapperInstructions; i++){
-            delete wrapperInstructions[i];
-        }
-        delete[] wrapperInstructions;
+    for (uint32_t i = 0; i < wrapperInstructions.size(); i++){
+        delete wrapperInstructions[i];
     }
     if (argumentOffsets){
         delete[] argumentOffsets;
@@ -334,19 +314,19 @@ InstrumentationFunction::~InstrumentationFunction(){
 
 void InstrumentationFunction::print(){
     PRINT_INFOR("Instrumentation Function (%d) %s", index, functionName);
-    PRINT_INFOR("\t\tProcedure Link Instructions: %d", numberOfProcedureLinkInstructions);
+    PRINT_INFOR("\t\tProcedure Link Instructions: %d", procedureLinkInstructions.size());
     PRINT_INFOR("\t\tProcedure Link Offset      : %lld", procedureLinkOffset);
-    for (uint32_t i = 0; i < numberOfProcedureLinkInstructions; i++){
+    for (uint32_t i = 0; i < procedureLinkInstructions.size(); i++){
         procedureLinkInstructions[i]->print();
     }
-    PRINT_INFOR("\t\tBootstrap Instructions     : %d", numberOfBootstrapInstructions);
+    PRINT_INFOR("\t\tBootstrap Instructions     : %d", bootstrapInstructions.size());
     PRINT_INFOR("\t\tBootstrap Offset           : %lld", bootstrapOffset);
-    for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
+    for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
         bootstrapInstructions[i]->print();
     }
-    PRINT_INFOR("\t\tWrapper Instructions       : %d", numberOfWrapperInstructions);
+    PRINT_INFOR("\t\tWrapper Instructions       : %d", wrapperInstructions.size());
     PRINT_INFOR("\t\tWrapper Offset             : %lld", wrapperOffset);
-    for (uint32_t i = 0; i < numberOfWrapperInstructions; i++){
+    for (uint32_t i = 0; i < wrapperInstructions.size(); i++){
         wrapperInstructions[i]->print();
     }
     PRINT_INFOR("\t\tGlobal Data                : %x", globalData);
@@ -355,24 +335,20 @@ void InstrumentationFunction::print(){
 }
 
 uint32_t InstrumentationSnippet::generateSnippetControl(){
-    addSnippetInstruction(Instruction::generateReturn());
-    return numberOfSnippetInstructions;
+    snippetInstructions.append(Instruction::generateReturn());
+    return snippetInstructions.size();
 }
 
 void InstrumentationSnippet::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    if (bootstrapInstructions){
-        uint32_t currentOffset = bootstrapOffset;
-        for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
-            bootstrapInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-            currentOffset += bootstrapInstructions[i]->getLength();
-        }
+    uint32_t currentOffset = bootstrapOffset;
+    for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
+        bootstrapInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
+        currentOffset += bootstrapInstructions[i]->getLength();
     }
-    if (snippetInstructions){
-        uint32_t currentOffset = snippetOffset;
-        for (uint32_t i = 0; i < numberOfSnippetInstructions; i++){
-            snippetInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-            currentOffset += snippetInstructions[i]->getLength();
-        }
+    currentOffset = snippetOffset;
+    for (uint32_t i = 0; i < snippetInstructions.size(); i++){
+        snippetInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
+        currentOffset += snippetInstructions[i]->getLength();
     }
 }
 
@@ -382,6 +358,7 @@ void InstrumentationSnippet::setCodeOffsets(uint64_t btOffset, uint64_t spOffset
 }
 
 void InstrumentationSnippet::print(){
+    __FUNCTION_NOT_IMPLEMENTED;
 }
 
 uint32_t InstrumentationSnippet::dataSize(){
@@ -394,7 +371,7 @@ uint32_t InstrumentationSnippet::dataSize(){
 
 uint32_t InstrumentationSnippet::bootstrapSize(){
     uint32_t totalSize = 0;
-    for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
+    for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
         totalSize += bootstrapInstructions[i]->getLength();
     }
     return totalSize;    
@@ -402,7 +379,7 @@ uint32_t InstrumentationSnippet::bootstrapSize(){
 
 uint32_t InstrumentationSnippet::snippetSize(){
     uint32_t totalSize = 0;
-    for (uint32_t i = 0; i < numberOfSnippetInstructions; i++){
+    for (uint32_t i = 0; i < snippetInstructions.size(); i++){
         totalSize += snippetInstructions[i]->getLength();
     }
     return totalSize;
@@ -436,19 +413,17 @@ void InstrumentationSnippet::initializeReservedData(uint32_t idx, uint32_t size,
     ASSERT(idx < numberOfDataEntries && size == dataEntrySizes[idx]);
 
     // set CX to the base address of this data entry
-    addBootstrapInstruction(Instruction::generateMoveImmToReg(dataBaseAddress + dataEntryOffsets[idx], X86_REG_CX));
+    bootstrapInstructions.append(Instruction::generateMoveImmToReg(dataBaseAddress + dataEntryOffsets[idx], X86_REG_CX));
 
     // copy each byte to memory
     for(uint32_t i = 0; i < size; i++){
-        addBootstrapInstruction(Instruction::generateMoveImmByteToMemIndirect(buff[size],i,X86_REG_CX));
+        bootstrapInstructions.append(Instruction::generateMoveImmByteToMemIndirect(buff[size],i,X86_REG_CX));
     }
 }
 
 InstrumentationSnippet::InstrumentationSnippet()
     : Instrumentation(ElfClassTypes_InstrumentationSnippet)
 {
-    numberOfSnippetInstructions = 0;
-    snippetInstructions = NULL;
     snippetOffset = 0;    
 
     numberOfDataEntries = 0;
@@ -457,53 +432,42 @@ InstrumentationSnippet::InstrumentationSnippet()
 }
 
 InstrumentationSnippet::~InstrumentationSnippet(){
-    if (snippetInstructions){
-        for (uint32_t i = 0; i < numberOfSnippetInstructions; i++){
-            delete snippetInstructions[i];
-        }
-        delete[] snippetInstructions;
+    for (uint32_t i = 0; i < snippetInstructions.size(); i++){
+        delete snippetInstructions[i];
     }
 }
 
 void InstrumentationPoint::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    if (trampolineInstructions){
-        uint32_t currentOffset = trampolineOffset;
-        for (uint32_t i = 0; i < numberOfTrampolineInstructions; i++){
-            trampolineInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-            currentOffset += trampolineInstructions[i]->getLength();
-        }
+    uint32_t currentOffset = trampolineOffset;
+    for (uint32_t i = 0; i < trampolineInstructions.size(); i++){
+        trampolineInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
+        currentOffset += trampolineInstructions[i]->getLength();
     }
 }
 
 uint32_t InstrumentationPoint::sizeNeeded(){
     uint32_t totalSize = 0;
-    if (trampolineInstructions){
-        for (uint32_t i = 0; i < numberOfTrampolineInstructions; i++){
-            totalSize += trampolineInstructions[i]->getLength();
-        }
+    for (uint32_t i = 0; i < trampolineInstructions.size(); i++){
+        totalSize += trampolineInstructions[i]->getLength();
     }
     return totalSize;
 }
 
 uint32_t InstrumentationPoint::generateTrampoline(uint32_t count, Instruction** insts, uint64_t offset, uint64_t returnOffset){
-
-    ASSERT(!trampolineInstructions && "Cannot generate trampoline instructions more than once");
+    ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
 
     trampolineOffset = offset;
-    numberOfTrampolineInstructions = count+2;
-    uint32_t trampolineSize = 0;
 
-    trampolineInstructions = new Instruction*[numberOfTrampolineInstructions];
-    trampolineInstructions[0] = Instruction::generateCallRelative(offset,getTargetOffset());
-    trampolineSize += trampolineInstructions[0]->getLength();
+    uint32_t trampolineSize = 0;
+    trampolineInstructions.append(Instruction::generateCallRelative(offset,getTargetOffset()));
+    trampolineSize += trampolineInstructions[trampolineInstructions.size()-1]->getLength();
 
     for (uint32_t i = 0; i < count; i++){
-        trampolineInstructions[i+1] = insts[i];
-        trampolineSize += trampolineInstructions[i+1]->getLength();
+        trampolineInstructions.append(insts[i]);
+        trampolineSize += trampolineInstructions[trampolineInstructions.size()-1]->getLength();
     }
-    trampolineInstructions[numberOfTrampolineInstructions-1] = Instruction::generateJumpRelative(offset+trampolineSize,returnOffset);
-    trampolineSize += trampolineInstructions[numberOfTrampolineInstructions-1]->getLength();
-
+    trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,returnOffset));
+    trampolineSize += trampolineInstructions[trampolineInstructions.size()-1]->getLength();
     delete[] insts;
 
     return trampolineSize;
@@ -538,69 +502,15 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst)
         PRINT_ERROR("Cannot use an object of type %d as an instrumentation point", point->getType());
     }
 
-    trampolineInstructions = NULL;
-    numberOfTrampolineInstructions = 0;
     trampolineOffset = 0;
 }
 
 InstrumentationPoint::~InstrumentationPoint(){
-    if (trampolineInstructions){
-        for (uint32_t i = 0; i < numberOfTrampolineInstructions; i++){
-            delete trampolineInstructions[i];
-        }
-        delete[] trampolineInstructions;
+    for (uint32_t i = 0; i < trampolineInstructions.size(); i++){
+        delete trampolineInstructions[i];
     }
 }
 
 void InstrumentationPoint::print(){
     __FUNCTION_NOT_IMPLEMENTED;
 }
-
-uint32_t InstrumentationFunction::addProcedureLinkInstruction(Instruction* inst){
-    Instruction** newinsts = new Instruction*[numberOfProcedureLinkInstructions+1];
-    for (uint32_t i = 0; i < numberOfProcedureLinkInstructions; i++){
-        newinsts[i] = procedureLinkInstructions[i];
-    }
-    newinsts[numberOfProcedureLinkInstructions] = inst;
-    delete[] procedureLinkInstructions;
-    procedureLinkInstructions = newinsts;
-    numberOfProcedureLinkInstructions++;
-    return numberOfProcedureLinkInstructions;
-}
-
-uint32_t Instrumentation::addBootstrapInstruction(Instruction* inst){
-    Instruction** newinsts = new Instruction*[numberOfBootstrapInstructions+1];
-    for (uint32_t i = 0; i < numberOfBootstrapInstructions; i++){
-        newinsts[i] = bootstrapInstructions[i];
-    }
-    newinsts[numberOfBootstrapInstructions] = inst;
-    delete[] bootstrapInstructions;
-    bootstrapInstructions = newinsts;
-    numberOfBootstrapInstructions++;
-    return numberOfBootstrapInstructions;
-}
-
-uint32_t InstrumentationFunction::addWrapperInstruction(Instruction* inst){
-    Instruction** newinsts = new Instruction*[numberOfWrapperInstructions+1];
-    for (uint32_t i = 0; i < numberOfWrapperInstructions; i++){
-        newinsts[i] = wrapperInstructions[i];
-    }
-    newinsts[numberOfWrapperInstructions] = inst;
-    delete[] wrapperInstructions;
-    wrapperInstructions = newinsts;
-    numberOfWrapperInstructions++;
-    return numberOfWrapperInstructions;
-}
-
-uint32_t InstrumentationSnippet::addSnippetInstruction(Instruction* inst){
-    Instruction** newinsts = new Instruction*[numberOfSnippetInstructions+1];
-    for (uint32_t i = 0; i < numberOfSnippetInstructions; i++){
-        newinsts[i] = snippetInstructions[i];
-    }
-    newinsts[numberOfSnippetInstructions] = inst;
-    delete[] snippetInstructions;
-    snippetInstructions = newinsts;
-    numberOfSnippetInstructions++;
-    return numberOfSnippetInstructions;
-}
-

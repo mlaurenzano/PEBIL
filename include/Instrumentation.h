@@ -3,6 +3,7 @@
 
 #include <Base.h>
 #include <CStructuresX86.h>
+#include <Vector.h>
 
 class Instruction;
 
@@ -19,11 +20,8 @@ class Instruction;
 
 class Instrumentation : public Base {
 protected:
-    Instruction** bootstrapInstructions;
-    uint32_t numberOfBootstrapInstructions;
+    Vector<Instruction*> bootstrapInstructions;
     uint64_t bootstrapOffset;
-
-    uint32_t addBootstrapInstruction(Instruction* inst);
 public:
     Instrumentation(ElfClassTypes typ);
     ~Instrumentation();
@@ -39,8 +37,7 @@ public:
 
 class InstrumentationSnippet : public Instrumentation {
 private:
-    uint32_t numberOfSnippetInstructions;
-    Instruction** snippetInstructions;
+    Vector<Instruction*> snippetInstructions;
     uint64_t snippetOffset;
 
     uint32_t numberOfDataEntries;
@@ -74,12 +71,10 @@ protected:
     char* functionName;
     uint32_t index;
 
-    Instruction** procedureLinkInstructions;
-    uint32_t numberOfProcedureLinkInstructions;
+    Vector<Instruction*> procedureLinkInstructions;
     uint64_t procedureLinkOffset;
 
-    Instruction** wrapperInstructions;
-    uint32_t numberOfWrapperInstructions;
+    Vector<Instruction*> wrapperInstructions;
     uint64_t wrapperOffset;
 
     uint32_t globalData;
@@ -90,10 +85,6 @@ protected:
     uint32_t numberOfArguments;
     uint64_t* argumentOffsets;
     uint32_t* argumentValues;
-
-    uint32_t addWrapperInstruction(Instruction* inst);
-    uint32_t addProcedureLinkInstruction(Instruction* inst);
-
 public:
     InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset);
     ~InstrumentationFunction();
@@ -112,9 +103,9 @@ public:
     char* getFunctionName() { return functionName; }
     const char* briefName() { return "InstrumentationFunction"; }
 
-    uint32_t getNumberOfProcedureLinkInstructions() { return numberOfProcedureLinkInstructions; }
-    uint32_t getNumberOfBootstrapInstructions() { return numberOfBootstrapInstructions; }
-    uint32_t getNumberOfWrapperInstructions() { return numberOfWrapperInstructions; }
+    uint32_t getNumberOfProcedureLinkInstructions() { return procedureLinkInstructions.size(); }
+    uint32_t getNumberOfBootstrapInstructions() { return bootstrapInstructions.size(); }
+    uint32_t getNumberOfWrapperInstructions() { return wrapperInstructions.size(); }
     uint32_t getGlobalData() { return globalData; }
     uint64_t getGlobalDataOffset() { return globalDataOffset; }
 
@@ -170,8 +161,7 @@ private:
 
     uint64_t sourceAddress;
 
-    Instruction** trampolineInstructions;
-    uint32_t numberOfTrampolineInstructions;
+    Vector<Instruction*> trampolineInstructions;
     uint64_t trampolineOffset;
 
 public:
