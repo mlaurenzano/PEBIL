@@ -64,19 +64,21 @@ public:
         ASSERT(idx < numberOfElements);
         T rem = elements[idx];
         for (uint32_t i = idx; i < numberOfElements-1; i++){
-            elements[idx] = elements[idx+1];
+            elements[i] = elements[i+1];
         }
         numberOfElements--;
         return rem;
     }
 
     void reverse(){
-        T* newElements = new T[capacity];
+        T* elementsCopy = new T[capacity];
         for (uint32_t i = 0; i < numberOfElements; i++){
-            newElements[numberOfElements-i-1] = elements[i];
+            elementsCopy[i] = elements[i];
         }
-        delete[] elements;
-        elements = newElements;
+        for (uint32_t i = 0; i < numberOfElements; i++){
+            elements[numberOfElements-i-1] = elementsCopy[i];
+        }
+        delete[] elementsCopy;
     }
 
     uint32_t append(T elt){
@@ -89,15 +91,21 @@ public:
     }
 
     uint32_t insert(T elt, uint32_t idx){
-        ASSERT(idx < numberOfElements);
+        ASSERT(idx <= numberOfElements); // we allow an insert after the last element
         if (numberOfElements == capacity){
             increaseCapacity();
         }
-        for (uint32_t i = numberOfElements-1; i >= idx; i--){
-            elements[i+1] = elements[i];
+        if (numberOfElements){
+            int32_t i = numberOfElements-1;
+            int32_t sidx = (int32_t)idx;
+            while (i >= sidx){
+                elements[i+1] = elements[i];
+                i--;
+            }
         }
         elements[idx] = elt;
         numberOfElements++;
+        return numberOfElements;
     }
 
     uint32_t assign(T elt, uint32_t idx){

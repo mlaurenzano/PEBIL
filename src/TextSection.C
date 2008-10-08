@@ -239,9 +239,7 @@ uint64_t TextSection::findInstrumentationPoint(){
 }
 
 
-uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replacements, uint32_t numberOfReplacements, Instruction*** replacedInstructions){
-
-    ASSERT(!*(replacedInstructions) && "This array should be empty since it will be filled by this function");
+Vector<Instruction*>* TextSection::swapInstructions(uint64_t addr, Vector<Instruction*>* replacements){
 
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         if (sortedTextObjects[i]->getType() == ElfClassTypes_Function){
@@ -249,7 +247,7 @@ uint32_t TextSection::replaceInstructions(uint64_t addr, Instruction** replaceme
             if (f->inRange(addr)){
                 for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
                     if (f->getBasicBlock(j)->inRange(addr)){
-                        return f->getBasicBlock(j)->replaceInstructions(addr,replacements,numberOfReplacements,replacedInstructions);
+                        return f->getBasicBlock(j)->swapInstructions(addr,replacements);
                     }
                 }
             }

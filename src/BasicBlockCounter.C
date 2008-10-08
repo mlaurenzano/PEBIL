@@ -92,6 +92,7 @@ void BasicBlockCounter::reserveInstrumentation(){
     uint64_t fileNameArray = reserveDataOffset(instPoints*sizeof(char*));
     exitFunc->addArgument(fileNameArray);
 
+
     if (fini->findInstrumentationPoint()){
         addInstrumentationPoint(fini,exitFunc);
     } else {
@@ -112,13 +113,10 @@ void BasicBlockCounter::reserveInstrumentation(){
             uint32_t line = li->GET(lr_line);
             initializeReservedData(dataBaseAddress+lineArray+sizeof(uint32_t)*i,sizeof(uint32_t),&line);
 
-            uint64_t filename = reserveDataOffset(strlen(li->getFilePath())+strlen(PATH_SEPERATOR)+strlen(li->getFileName())+1);
+            uint64_t filename = reserveDataOffset(strlen(li->getFileName())+1);
             uint64_t filenameAddr = dataBaseAddress + filename;
             initializeReservedData(dataBaseAddress+fileNameArray+i*sizeof(char*),sizeof(char*),&filenameAddr);
-
-            initializeReservedData(dataBaseAddress+filename,strlen(li->getFilePath()),(void*)li->getFilePath());
-            initializeReservedData(dataBaseAddress+filename+strlen(li->getFilePath()),strlen(PATH_SEPERATOR),(void*)PATH_SEPERATOR);
-            initializeReservedData(dataBaseAddress+filename+strlen(li->getFilePath())+strlen(PATH_SEPERATOR),strlen(li->getFileName()),(void*)li->getFileName());
+            initializeReservedData(dataBaseAddress+filename,strlen(li->getFileName())+1,(void*)li->getFileName());
         }
         
         InstrumentationSnippet* snip = new InstrumentationSnippet();

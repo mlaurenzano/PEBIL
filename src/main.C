@@ -149,8 +149,6 @@ typedef enum {
 
 int main(int argc,char* argv[]){
 
-    testVector();
-
     char*    execName   = NULL;
     char*    inptName   = NULL;
     char*    extension  = "";

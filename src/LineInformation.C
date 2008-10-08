@@ -303,7 +303,7 @@ void LineInfoTable::print(){
     PRINT_INFOR("File Name Table:");
     PRINT_INFOR("Idx\tDir\tTime\tSize\tName");
     for (uint32_t i = 0; i < fileNames.size(); i++){
-        PRINT_INFOR("\t%d\t%2hhd\t%2hhd\t%2hhd\t%s/%s", i+1, fileNames[i].fn_dir_index, fileNames[i].fn_mod_time, fileNames[i].fn_size, getIncludePath(i), getFileName(i));
+        PRINT_INFOR("\t%d\t%2lld\t%2lld\t%2lld\t%s/%s", i+1, fileNames[i].fn_dir_index, fileNames[i].fn_mod_time, fileNames[i].fn_size, getIncludePath(fileNames[i].fn_dir_index), fileNames[i].fn_name);
     }
 
     PRINT_INFOR("Line Information Table: %d entries", lineInformations.size());

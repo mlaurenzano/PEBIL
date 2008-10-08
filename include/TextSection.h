@@ -98,7 +98,7 @@ public:
     uint32_t getNumberOfTextObjects() { return sortedTextObjects.size(); }
     TextObject* getTextObject(uint32_t idx) { return sortedTextObjects[idx]; }
 
-    uint32_t replaceInstructions(uint64_t addr, Instruction** replacements, uint32_t numberOfReplacements, Instruction*** replacedInstructions);
+    Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
 };
 
 

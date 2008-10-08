@@ -1010,9 +1010,9 @@ Operand Instruction::getOperand(uint32_t idx){
 void Instruction::print(){
     PRINT_INFO();
     if (isRelocatable()){
-        PRINT_OUT("Instruction (YES RELOCATABLE) -- ");
+        PRINT_OUT("Instruction(%d) (YES RELOCATABLE) -- ", index);
     } else {
-        PRINT_OUT("Instruction (NOT RELOCATABLE) -- ");
+        PRINT_OUT("Instruction(%d) (NOT RELOCATABLE) -- ", index);
     }
     PRINT_OUT("[%d](", instructionLength);
 

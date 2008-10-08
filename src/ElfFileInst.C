@@ -214,11 +214,9 @@ void ElfFileInst::generateInstrumentation(){
             continue;
         }
 
-        Instruction** repl = new Instruction*[1];
-        repl[0] = Instruction::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + codeOffset);
-        ASSERT(repl[0]->getLength() == SIZE_NEEDED_AT_INST_POINT && "Instruction at instrumentation point has a different size than expected");
-
-        Instruction** displaced = NULL;
+        Vector<Instruction*>* repl = new Vector<Instruction*>();
+        (*repl).append(Instruction::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + codeOffset));
+        ASSERT((*repl).back()->getLength() == SIZE_NEEDED_AT_INST_POINT && "Instruction at instrumentation point has a different size than expected");
 
         TextSection* targetSection = NULL;
         for (uint32_t j = 0; j < elfFile->getNumberOfTextSections(); j++){
@@ -231,12 +229,14 @@ void ElfFileInst::generateInstrumentation(){
         }
         ASSERT(targetSection && "Cannot find a text section the address for an instrumentation point");
 
-        uint32_t numberOfDisplacedInstructions = targetSection->replaceInstructions(pt->getSourceAddress(), repl, 1, &displaced);
-        uint64_t returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + repl[0]->getLength();
-        pt->generateTrampoline(numberOfDisplacedInstructions,displaced,codeOffset,returnOffset);
+        Vector<Instruction*>* displaced = targetSection->swapInstructions(pt->getSourceAddress(), repl);
+        ASSERT((*repl).size());
+        uint64_t returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getLength();
+        pt->generateTrampoline(displaced,codeOffset,returnOffset);
 
         codeOffset += pt->sizeNeeded();
-        delete[] repl;
+        delete repl;
+        delete displaced;
     }
     
     ASSERT(precodeOffset == bootstrapSize && "Bootstrap code size does not match what we just calculated");
