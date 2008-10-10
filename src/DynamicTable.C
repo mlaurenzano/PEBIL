@@ -217,13 +217,13 @@ bool DynamicTable::verify(){
         } else if (dyn->GET(d_tag) == DT_FINI){
             finiFunctionAddress = dyn->GET_A(d_ptr,d_un);
         } else if (dyn->GET(d_tag) == DT_STRTAB){
-            stringTableAddress= dyn->GET_A(d_ptr,d_un);
+            stringTableAddress = dyn->GET_A(d_ptr,d_un);
         } else if (dyn->GET(d_tag) == DT_SYMTAB){
-            symbolTableAddress= dyn->GET_A(d_ptr,d_un);
+            symbolTableAddress = dyn->GET_A(d_ptr,d_un);
         } else if (dyn->GET(d_tag) == DT_VERNEED){
-            verneedAddress= dyn->GET_A(d_ptr,d_un);
+            verneedAddress = dyn->GET_A(d_ptr,d_un);
         } else if (dyn->GET(d_tag) == DT_VERSYM){
-            versymAddress= dyn->GET_A(d_ptr,d_un);
+            versymAddress = dyn->GET_A(d_ptr,d_un);
         }
     }
 
@@ -243,7 +243,7 @@ bool DynamicTable::verify(){
     uint64_t textAddress = 0;
     if (initFunctionAddress){
         if (verneedAddress >= initFunctionAddress){
-            PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect: %llx < %llx", initFunctionAddress, verneedAddress);
+            PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect: %llx <= %llx", initFunctionAddress, verneedAddress);
         }
         if (initFunctionAddress > textAddress){
             textAddress = initFunctionAddress;

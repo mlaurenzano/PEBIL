@@ -17,6 +17,8 @@ class Instruction;
 #define Size__32_bit_function_wrapper 64
 #define Size__64_bit_function_wrapper 128
 
+#define TRAMPOLINE_FRAME_AUTOINC_SIZE 0x1000
+
 
 class Instrumentation : public Base {
 protected:

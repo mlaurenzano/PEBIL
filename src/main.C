@@ -26,7 +26,7 @@ void printBriefOptions(){
     fprintf(stderr,"===============================\n");
     fprintf(stderr,"\t--typ : required for all.\n");
     fprintf(stderr,"\t--app : required for all.\n");
-    fprintf(stderr,"\t--ver : optional for all. prints informative messages.\n");
+    fprintf(stderr,"\t--ver : optional for all. prints informative details about parts of the application binary.\n");
     fprintf(stderr,"\t      : a : all parts of the application\n");
     fprintf(stderr,"\t      : e : all elf parts (everything but instructions)\n");
     fprintf(stderr,"\t      : p : program headers\n");

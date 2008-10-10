@@ -19,17 +19,29 @@ void BasicBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(currByte == getBlockSize());
 }
 
-uint32_t BasicBlock::setInstructions(uint32_t num, Instruction** insts){
-    for (uint32_t i = 0; i < num; i++){
-        instructions.append(insts[i]);
-        instructions[i]->setIndex(i);
-    }
-
-    verify();
-
+uint32_t BasicBlock::addInstruction(Instruction* inst){
+    inst->setIndex(instructions.size());
+    instructions.append(inst);
     return instructions.size();
 }
 
+uint32_t BasicBlock::setTargetBlocks(Vector<BasicBlock*>* tgts){
+    ASSERT(!targetBlocks.size() && "Target blocks vector should be empty");
+    for (uint32_t i = 0; i < (*tgts).size(); i++){
+        targetBlocks.append((*tgts)[i]);
+    }
+    ASSERT(targetBlocks.size() == (*tgts).size());
+    return targetBlocks.size();
+}
+
+uint32_t BasicBlock::setSourceBlocks(Vector<BasicBlock*>* srcs){
+    ASSERT(!sourceBlocks.size() && "Source blocks vector should be empty");
+    for (uint32_t i = 0; i < (*srcs).size(); i++){
+        sourceBlocks.append((*srcs)[i]);
+    }
+    ASSERT(sourceBlocks.size() == (*srcs).size());
+    return sourceBlocks.size();
+}
 
 Instruction* BasicBlock::getInstructionAtAddress(uint64_t addr){
     for (uint32_t i = 0; i < instructions.size(); i++){
@@ -91,7 +103,7 @@ void BasicBlock::printInstructions(){
 }
 
 void BasicBlock::print(){
-    PRINT_INFOR("Basic Block %d at address 0x%llx", index, getAddress());
+    PRINT_INFOR("Basic Block %d at address range [0x%llx,0x%llx)", index, getAddress(), getAddress()+getBlockSize());
     PRINT_INFOR("\tSource Blocks:");
     for (uint32_t i = 0; i < sourceBlocks.size(); i++){
         PRINT_INFOR("\t\tsource block(%d) with index %d at address %llx", i, sourceBlocks[i]->getIndex(), sourceBlocks[i]->getAddress());
@@ -109,7 +121,6 @@ bool BasicBlock::verify(){
             return false;
         }
     }
-
     for (uint32_t i = 0; i < sourceBlocks.size(); i++){
         if (sourceBlocks[i]->isFunctionPadding()){
             PRINT_ERROR("Function padding blocks should not connect to other blocks");

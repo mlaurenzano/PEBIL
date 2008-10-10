@@ -85,6 +85,8 @@ public:
 
     char* getFileName(uint32_t idx);
     char* getIncludePath(uint32_t idx);
+
+    uint32_t getAddressSize();
 };
 
 class LineInfoFinder {

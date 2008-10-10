@@ -26,7 +26,9 @@ public:
     void printInstructions();
     void print();
 
-    uint32_t setInstructions(uint32_t num, Instruction** insts);
+    uint32_t addInstruction(Instruction* inst);
+    uint32_t setSourceBlocks(Vector<BasicBlock*>* srcs);
+    uint32_t setTargetBlocks(Vector<BasicBlock*>* tgts);
 
     uint64_t findInstrumentationPoint();
 

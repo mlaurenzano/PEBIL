@@ -22,7 +22,7 @@ void Function::printInstructions(){
 
 void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
-    for (uint32_t i = 0; i < numberOfBasicBlocks; i++){
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
         basicBlocks[i]->dump(binaryOutputFile,offset+currByte);
         currByte += basicBlocks[i]->getBlockSize();
     }
@@ -31,13 +31,14 @@ void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 
 // we will assume that functions can only be entered at the beginning
 uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** instructions){
-    ASSERT(!numberOfBasicBlocks && !basicBlocks && "Should not try to find the basic blocks in a function more than once");
+    ASSERT(!basicBlocks.size() && "Basic blocks vector should be empty");
 
     bool* isLeader = new bool[numberOfInstructions];
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         isLeader[i] = false;
     }
 
+    uint32_t numberOfBasicBlocks = 0;
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         if (i == 0){
             isLeader[i] = true;
@@ -71,48 +72,48 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
         }
     }
 
-    /*
+#ifdef DEBUG_BASICBLOCK
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         instructions[i]->print();
-        PRINT_INFOR("Is leader? %d", isLeader[i]);
+        PRINT_DEBUG_BASICBLOCK("Is leader? %d", isLeader[i]);
     }
-    PRINT_INFOR("Found %d instructions in %d basic blocks in function %s", numberOfInstructions, numberOfBasicBlocks, getName());
-    */
+    PRINT_DEBUG_BASICBLOCK("Found %d instructions in %d basic blocks in function %s", numberOfInstructions, numberOfBasicBlocks, getName());
+#endif
 
-    basicBlocks = new BasicBlock*[numberOfBasicBlocks];
-    uint32_t* instructionCounts = new uint32_t[numberOfBasicBlocks];
-    bzero(instructionCounts,sizeof(uint32_t)*numberOfBasicBlocks);
-    uint32_t which = -1;
-    uint32_t ic = 0;
-
+    BasicBlock* currentBlock = NULL;
+    numberOfBasicBlocks = 0;
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         if (isLeader[i]){
-            which++;
+            if (currentBlock){
+                basicBlocks.append(currentBlock);
+                numberOfBasicBlocks++;
+            }
+            currentBlock = new BasicBlock(numberOfBasicBlocks,this);
         }
-        ic++;
-        instructionCounts[which]++;
+        currentBlock->addInstruction(instructions[i]);
     }
+    basicBlocks.append(currentBlock);
+    numberOfBasicBlocks++;
 
-    ASSERT(numberOfInstructions == ic);
+#ifdef DEBUG_BASICBLOCK
+    PRINT_DEBUG_BASICBLOCK("****** Printing Blocks for function %s", getName());
 
-    which = 0;
-    for (uint32_t i = 0; i < numberOfBasicBlocks; i++){
-        basicBlocks[i] = new BasicBlock(i,this);
-        //        PRINT_INFOR("\tFunction %s: Initializing basic block %d with %d instructions", getName(), i, instructionCounts[i]);
-        basicBlocks[i]->setInstructions(instructionCounts[i],&instructions[which]);
-        which += instructionCounts[i];
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        basicBlocks[i]->print();
+        basicBlocks[i]->printInstructions();
     }
+#endif
 
     delete[] isLeader;
-    delete[] instructionCounts;
+    ASSERT(numberOfBasicBlocks == basicBlocks.size());
 
     verify();
 
-    return numberOfBasicBlocks;
+    return basicBlocks.size();
 }
 
 Instruction* Function::getInstructionAtAddress(uint64_t addr){
-    for (uint32_t i = 0; i < numberOfBasicBlocks; i++){
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
         if (basicBlocks[i]->inRange(addr)){
             return basicBlocks[i]->getInstructionAtAddress(addr); 
         }
@@ -142,7 +143,6 @@ uint32_t Function::digest(){
 
     Instruction** instructions = new Instruction*[numberOfInstructions];
     numberOfInstructions = 0;
-
     
     for (currByte = 0; currByte < sizeInBytes; currByte += instructionLength, numberOfInstructions++){
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
@@ -151,7 +151,7 @@ uint32_t Function::digest(){
         instructions[numberOfInstructions]->setLength(MAX_X86_INSTRUCTION_LENGTH);
         instructions[numberOfInstructions]->setAddress(getAddress() + currByte);
         instructions[numberOfInstructions]->setBytes(charStream() + currByte);
-        instructions[numberOfInstructions]->setIndex(numberOfInstructions);
+        //        instructions[numberOfInstructions]->setIndex(numberOfInstructions);
         
         instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, instructions[numberOfInstructions]);
         if (!instructionLength){
@@ -179,7 +179,7 @@ uint32_t Function::digest(){
 }
 
 uint64_t Function::findInstrumentationPoint(){
-    for (uint32_t i = 0; i < numberOfBasicBlocks; i++){
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
         uint64_t p = basicBlocks[i]->findInstrumentationPoint();
         if (p){
             return p;
@@ -189,11 +189,8 @@ uint64_t Function::findInstrumentationPoint(){
 }
 
 Function::~Function(){
-    if (basicBlocks){
-        for (uint32_t i = 0; i < numberOfBasicBlocks; i++){
-            delete basicBlocks[i];
-        }
-        delete[] basicBlocks;
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        delete basicBlocks[i];
     }
 }
 
@@ -203,9 +200,6 @@ Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz) :
 {
     textSection = text;
     functionSymbol = sym;
-
-    numberOfBasicBlocks = 0;
-    basicBlocks = NULL;
 
     verify();
 }
@@ -218,7 +212,7 @@ bool Function::verify(){
             return false;
         }
     }
-    for (uint32_t i = 0; i < numberOfBasicBlocks; i++){
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
         if (!basicBlocks[i]->verify()){
             return false;
         }

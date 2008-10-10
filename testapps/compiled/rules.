@@ -1,2 +1,4 @@
 fnc32: fnc32inst nobitswarn fnc32ide fnc32rm
 fnc64: fnc64inst nobitswarn fnc64ide fnc64rm
+jbb32: jbb32inst nobitswarn jbb32ide jbb32rm
+jbb64: jbb64inst nobitswarn jbb64ide jbb64rm

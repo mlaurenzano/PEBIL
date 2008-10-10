@@ -20,7 +20,8 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_OPCODE
 //#define DEBUG_HASH
 //#define DEBUG_NOTE
-//#define DEBUG_LINEINFO
+#define DEBUG_LINEINFO
+//#define DEBUG_BASICBLOCK
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -66,6 +67,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     fprintf(stderr, "At line %d in file %s, function %s\n", __LINE__, __FILE__,__FUNCTION__);    \
     fprintf(stderr,## __VA_ARGS__);                              \
     fprintf(stderr,"\n");                                \
+    ASSERT(0); \
     exit(-1);
 
 #define PRINT_WARN(...)  fprintf(stderr,"*** WARNING : "); \
@@ -127,6 +129,15 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     fflush(stdout);
 #else
 #define PRINT_DEBUG_LINEINFO(...)
+#endif
+
+#ifdef DEBUG_BASICBLOCK
+#define PRINT_DEBUG_BASICBLOCK(...) fprintf(stdout,"BASICBLOCK : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_BASICBLOCK(...)
 #endif
 
 

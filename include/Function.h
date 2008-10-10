@@ -2,6 +2,7 @@
 #define _Function_h_
 
 #include <TextSection.h>
+#include <Vector.h>
 
 class Symbol;
 class BasicBlock;
@@ -12,8 +13,7 @@ class TextObject;
 class Function : public TextObject {
 protected:
     Symbol* functionSymbol;
-    BasicBlock** basicBlocks;
-    uint32_t numberOfBasicBlocks;
+    Vector<BasicBlock*> basicBlocks;
 
     uint32_t findBasicBlocks(uint32_t numberOfInstructions, Instruction** instructions);
 
@@ -23,8 +23,8 @@ public:
 
     Symbol* getFunctionSymbol() { return functionSymbol; }
 
-    BasicBlock* getBasicBlock(uint32_t idx) { ASSERT(basicBlocks && idx < numberOfBasicBlocks); return basicBlocks[idx]; }
-    uint32_t getNumberOfBasicBlocks() { return numberOfBasicBlocks; }
+    BasicBlock* getBasicBlock(uint32_t idx) { return basicBlocks[idx]; }
+    uint32_t getNumberOfBasicBlocks() { return basicBlocks.size(); }
     Instruction* getInstructionAtAddress(uint64_t addr);
 
     char* getName();

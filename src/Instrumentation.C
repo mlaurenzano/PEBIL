@@ -459,15 +459,19 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
     trampolineOffset = offset;
 
     uint32_t trampolineSize = 0;
-    trampolineInstructions.append(Instruction::generateCallRelative(offset,getTargetOffset()));
-    trampolineSize += trampolineInstructions[trampolineInstructions.size()-1]->getLength();
+    trampolineInstructions.append(Instruction64::generateRegSubImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+    trampolineSize += trampolineInstructions.back()->getLength();
+    trampolineInstructions.append(Instruction::generateCallRelative(offset+trampolineSize,getTargetOffset()));
+    trampolineSize += trampolineInstructions.back()->getLength();
+    trampolineInstructions.append(Instruction64::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+    trampolineSize += trampolineInstructions.back()->getLength();
 
     for (uint32_t i = 0; i < (*insts).size(); i++){
         trampolineInstructions.append((*insts)[i]);
-        trampolineSize += trampolineInstructions[trampolineInstructions.size()-1]->getLength();
+        trampolineSize += trampolineInstructions.back()->getLength();
     }
     trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,returnOffset));
-    trampolineSize += trampolineInstructions[trampolineInstructions.size()-1]->getLength();
+    trampolineSize += trampolineInstructions.back()->getLength();
 
     return trampolineSize;
 }

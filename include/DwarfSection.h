@@ -4,6 +4,7 @@
 #include <Base.h>
 #include <RawSection.h>
 #include <CStructuresDwarf.h>
+#include <Vector.h>
 #include <defines/LineInformation.d>
 
 class LineInfoTable;
@@ -28,8 +29,7 @@ public:
 
 class DwarfLineInfoSection : public DwarfSection {
 protected:
-    LineInfoTable** lineInfoTables;
-    uint32_t numberOfLineInfoTables;
+    Vector<LineInfoTable*> lineInfoTables; 
 
 public:
     DwarfLineInfoSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf);
@@ -42,8 +42,8 @@ public:
     uint32_t read(BinaryInputFile* b);
     void dump(BinaryOutputFile* b, uint32_t offset);
 
-    uint32_t getNumberOfLineInfoTables() { return numberOfLineInfoTables; }
-    LineInfoTable* getLineInfoTable(uint32_t idx) { ASSERT(idx < numberOfLineInfoTables); return lineInfoTables[idx]; }
+    uint32_t getNumberOfLineInfoTables() { return lineInfoTables.size(); }
+    LineInfoTable* getLineInfoTable(uint32_t idx) { return lineInfoTables[idx]; }
 };
 
 #endif /* _DwarfSection_h_ */

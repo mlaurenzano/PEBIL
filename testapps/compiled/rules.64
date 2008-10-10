@@ -1,2 +1,4 @@
 fnc32: fnc32inst fnc32ide fnc32rm
 fnc64: fnc64inst fnc64run fnc64ide fnc64rm
+jbb32: jbb32inst jbb32ide jbb32rm
+jbb64: jbb64inst jbb64run jbb64ide jbb64rm

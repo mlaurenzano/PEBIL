@@ -277,8 +277,8 @@ void ElfFileInst::instrument(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
-    extendTextSection(0x800000);
-    extendDataSection(0x80000);
+    extendTextSection(0x20000);
+    extendDataSection(0x20000);
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     currentPhase++;
@@ -517,6 +517,7 @@ void ElfFileInst::extendTextSection(uint64_t size){
     for (uint32_t i = 0; i < elfFile->getNumberOfPrograms(); i++){
         ProgramHeader* subHeader = elfFile->getProgramHeader(i);
         if (textHeader->inRange(subHeader->GET(p_vaddr)) && i != elfFile->getTextSegmentIdx()){
+            ASSERT(subHeader->GET(p_vaddr) >= size && "The text extension size is too large");
             subHeader->SET(p_vaddr,subHeader->GET(p_vaddr)-size);
             subHeader->SET(p_paddr,subHeader->GET(p_paddr)-size);
         } 
@@ -532,7 +533,6 @@ void ElfFileInst::extendTextSection(uint64_t size){
             subHeader->INCREMENT(p_offset,size);
         }
     }
-
 
     // update section symbols for the sections that were moved. technically the loader won't use them 
     // but we will try to keep the binary as consistent as possible
@@ -561,6 +561,7 @@ void ElfFileInst::extendTextSection(uint64_t size){
         if (i < lowestTextSectionIdx){
             ASSERT(elfFile->getSectionHeader(i)->GET(sh_addr) < lowestTextAddress && "No section that occurs before the first text section should have a larger address");
             // strictly speaking the loader doesn't use these, but for consistency we change them anyway
+            ASSERT(elfFile->getSectionHeader(i)->GET(sh_addr) > size && "The text extension size is too large");
             sHdr->SET(sh_addr,sHdr->GET(sh_addr)-size);
         } else {
             sHdr->INCREMENT(sh_offset,size);            
@@ -570,7 +571,6 @@ void ElfFileInst::extendTextSection(uint64_t size){
     // since some sections were displaced in the file, displace the section header table also so
     // that it occurs after all of the sections in the file
     elfFile->getFileHeader()->INCREMENT(e_shoff,size);
-
 
     // update the dynamic table to correctly point to the displaced elf control sections
     for (uint32_t i = 0; i < elfFile->getDynamicTable()->getNumberOfDynamics(); i++){
@@ -582,7 +582,6 @@ void ElfFileInst::extendTextSection(uint64_t size){
             dyn->SET_A(d_ptr,d_un,dyn->GET_A(d_ptr,d_un)-size);
         }
     }
-
 
     SectionHeader* textHdr = elfFile->getSectionHeader(lowestTextSectionIdx);
     elfFile->addSection(lowestTextSectionIdx, ElfClassTypes_TextSection, elfFile->getElfFileName(), textHdr->GET(sh_name), textHdr->GET(sh_type),

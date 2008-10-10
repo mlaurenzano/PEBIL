@@ -157,6 +157,7 @@ public:
     static Instruction* generateStackPushImmediate(uint64_t imm);
     static Instruction* generateCallRelative(uint64_t addr, uint64_t tgt);
     static Instruction* generateRegAddImmediate(uint32_t idx, uint64_t imm);
+    static Instruction* generateRegSubImmediate(uint32_t idx, uint64_t imm);
     static Instruction* generateAddByteToRegaddr(uint8_t byt, uint32_t idx);
 
     static uint32_t computeOpcodeTypeOneByte(uint32_t idx);
@@ -189,6 +190,7 @@ public:
     static Instruction* generateRegAddImmediate(uint32_t, uint64_t);
     static Instruction* generateRegSubImmediate(uint32_t, uint64_t);
     static Instruction* generateMoveRegToRegaddrImm(uint32_t, uint32_t, uint64_t);
+    static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
 
 };
 
@@ -198,6 +200,9 @@ public:
     static Instruction* generateJumpIndirect(uint64_t tgt);
     static Instruction* generateStackPush(uint32_t idx);
     static Instruction* generateStackPop(uint32_t idx);
+
+    static Instruction* generateRegAddImmediate(uint32_t idx, uint64_t imm);
+    static Instruction* generateRegSubImmediate(uint32_t idx, uint64_t imm);
 };
 
 #endif /* _Instruction_h_ */

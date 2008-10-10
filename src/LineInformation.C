@@ -2,6 +2,7 @@
 #include <DwarfSection.h>
 #include <BinaryFile.h>
 #include <BasicBlock.h>
+#include <ElfFile.h>
 
 char* LineInfoTable::getFileName(uint32_t idx){
     return fileNames[idx].fn_name;
@@ -244,7 +245,7 @@ uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
     while (currByte < sizeInBytes){
         lineInformations.append(new LineInfo(liIndex++,rawDataPtr+currByte,this));
 #ifdef DEBUG_LINEINFO    
-        lineInformations.back()->print();
+        //        lineInformations.back()->print();
 #endif
         currByte += lineInformations.back()->getInstructionSize();
     }
@@ -276,6 +277,7 @@ bool LineInfoTable::verify(){
             return false;
         }
     }
+    return true;
 }
 
 
@@ -348,6 +350,13 @@ void LineInfo::initializeWithDefaults(){
     SET(lr_epilogue_begin,0);
 }
 
+uint32_t LineInfoTable::getAddressSize(){
+    if (dwarfLineInfoSection->getElfFile()->is64Bit()){
+        return sizeof(uint64_t);
+    }
+    return sizeof(uint32_t);
+}
+
 void LineInfo::updateRegsExtendedOpcode(char* instruction){
     ASSERT(instruction[0] == DW_LNS_extended_op && "This function should only be called on instructions with extended opcodes");
 
@@ -368,13 +377,22 @@ void LineInfo::updateRegsExtendedOpcode(char* instruction){
         regs->initializeWithDefaults();
         break;
     case DW_LNE_set_address:
-        uint32_t addr;
-        memcpy((void*)&addr,(void*)(instruction+3),sizeof(uint32_t));
-        for (uint32_t i = 0; i < sizeof(uint32_t); i++){
+        uint32_t addressSize = header->getAddressSize();
+        for (uint32_t i = 0; i < addressSize; i++){
             instructionBytes.append(instruction[3+i]);
         }
-        ASSERT(instructionBytes.size() == 3+sizeof(uint32_t) && "This instruction has an unexpected size");
-        regs->SET(lr_address,addr);
+        ASSERT(instructionBytes.size() == 3+addressSize && "This instruction has an unexpected size");
+
+        if (addressSize == sizeof(uint32_t)){
+            uint32_t addr;
+            memcpy((void*)&addr,(void*)(instruction+3),addressSize);
+            regs->SET(lr_address,addr);
+        } else {
+            ASSERT(addressSize == sizeof(uint64_t) && "addressSize has an unexpected value");   
+            uint64_t addr;
+            memcpy((void*)&addr,(void*)(instruction+3),addressSize);
+            regs->SET(lr_address,addr);
+        }
         break;
     case DW_LNE_define_file:
         __FUNCTION_NOT_IMPLEMENTED;
