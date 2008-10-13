@@ -60,6 +60,8 @@ protected:
     Vector<uint8_t> opcodes;
     Vector<char*> includePaths;
     Vector<DWARF2_FileName> fileNames;
+
+    DebugFormat format;
     
     LineInfo* registers;
     DwarfLineInfoSection* dwarfLineInfoSection;

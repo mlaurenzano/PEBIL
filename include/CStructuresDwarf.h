@@ -43,6 +43,10 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 /* not part of the original gnu header file, created by MAL */
 /************************************************************/
+
+#define DWARF2_FIRSTBYTE_LO             0xfffffff0
+#define DWARF2_FIRSTBYTE_64BIT_FORMAT   0xffffffff
+
 static uint64_t dwarf2_get_leb128_unsigned(char* ptr, uint32_t* len){
     uint64_t ret = 0;
     uint8_t byte;

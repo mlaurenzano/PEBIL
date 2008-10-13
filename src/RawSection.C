@@ -37,7 +37,7 @@ void RawSection::printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine){
             if (currByte){
                 fprintf(stdout, "\n");
             }
-            fprintf(stdout, "%8x: ", currByte);
+            fprintf(stdout, "(%8x) %8x: ", getSectionHeader()->GET(sh_offset)+currByte, currByte);
         } else if (currByte && currByte % bytesPerWord == 0){
             fprintf(stdout, " ");
         }

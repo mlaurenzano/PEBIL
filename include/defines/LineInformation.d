@@ -62,27 +62,27 @@ Offset	Length  Name
 
 
 #define LINEINFOTABLE_MACROS_CLASS(__str) /** __str **/ \
-    GET_FIELD_CLASS(uint32_t,li_length); \
+    GET_FIELD_CLASS(uint64_t,li_length); \
     GET_FIELD_CLASS(uint16_t,li_version); \
-    GET_FIELD_CLASS(uint32_t,li_prologue_length); \
+    GET_FIELD_CLASS(uint64_t,li_prologue_length); \
     GET_FIELD_CLASS(uint8_t,li_min_insn_length); \
     GET_FIELD_CLASS(uint8_t,li_default_is_stmt); \
     GET_FIELD_CLASS(uint8_t,li_line_base); \
     GET_FIELD_CLASS(uint8_t,li_line_range); \
     GET_FIELD_CLASS(uint8_t,li_opcode_base); \
         \
-    SET_FIELD_CLASS(uint32_t,li_length); \
+    SET_FIELD_CLASS(uint64_t,li_length); \
     SET_FIELD_CLASS(uint16_t,li_version); \
-    SET_FIELD_CLASS(uint32_t,li_prologue_length); \
+    SET_FIELD_CLASS(uint64_t,li_prologue_length); \
     SET_FIELD_CLASS(uint8_t,li_min_insn_length); \
     SET_FIELD_CLASS(uint8_t,li_default_is_stmt); \
     SET_FIELD_CLASS(uint8_t,li_line_base); \
     SET_FIELD_CLASS(uint8_t,li_line_range); \
     SET_FIELD_CLASS(uint8_t,li_opcode_base); \
         \
-    INCREMENT_FIELD_CLASS(uint32_t,li_length); \
+    INCREMENT_FIELD_CLASS(uint64_t,li_length); \
     INCREMENT_FIELD_CLASS(uint16_t,li_version); \
-    INCREMENT_FIELD_CLASS(uint32_t,li_prologue_length); \
+    INCREMENT_FIELD_CLASS(uint64_t,li_prologue_length); \
     INCREMENT_FIELD_CLASS(uint8_t,li_min_insn_length); \
     INCREMENT_FIELD_CLASS(uint8_t,li_default_is_stmt); \
     INCREMENT_FIELD_CLASS(uint8_t,li_line_base); \

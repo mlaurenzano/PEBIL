@@ -41,7 +41,7 @@ Vector<Symbol*> TextSection::discoverTextObjects(){
     // delete symbol values that are duplicate
     if (functionSymbols.size()){
         for (uint32_t i = 0; i < functionSymbols.size()-1; i++){
-            while (functionSymbols[i+1]->GET(st_value) == functionSymbols[i]->GET(st_value)){
+            while (functionSymbols.size() > i+1 && functionSymbols[i+1]->GET(st_value) == functionSymbols[i]->GET(st_value)){
                 functionSymbols.remove(i+1);
             }
         }

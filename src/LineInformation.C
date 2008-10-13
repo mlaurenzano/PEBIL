@@ -158,33 +158,74 @@ uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
 
     uint32_t currByte = 0;
 
-    // get the line info header
-    if(!binaryInputFile->copyBytesIterate(&entry.li_length,sizeof(uint32_t))){
+    uint32_t firstWord = 0;
+    if (!binaryInputFile->copyBytesIterate(&firstWord,sizeof(uint32_t))){
         PRINT_ERROR("Line info section header cannot be read");
+    }
+    currByte += sizeof(uint32_t);
+    if (firstWord >= DWARF2_FIRSTBYTE_LO){
+        if (firstWord == DWARF2_FIRSTBYTE_64BIT_FORMAT){
+            format = DebugFormat_DWARF2_64bit;
+        } else {
+            PRINT_ERROR("The first word %d of this debug section is not an understood DWARF2 format", firstWord);
+        }
+    } else {
+        format = DebugFormat_DWARF2_32bit;
+    }
+
+    ASSERT(format && "The format of this debug section is unknown");
+    PRINT_DEBUG_LINEINFO("The format of the debug section is %d", format);
+
+    // get the line info header
+    if (format == DebugFormat_DWARF2_64bit){
+        if(!binaryInputFile->copyBytesIterate(&entry.li_length,sizeof(uint64_t))){
+            PRINT_ERROR("Line info section header cannot be read");
+        }
+        currByte += sizeof(uint64_t);
+    } else {
+        entry.li_length = firstWord;
     }
     if(!binaryInputFile->copyBytesIterate(&entry.li_version,sizeof(uint16_t))){
         PRINT_ERROR("Line info section header cannot be read");
     }
-    if(!binaryInputFile->copyBytesIterate(&entry.li_prologue_length,sizeof(uint32_t))){
-        PRINT_ERROR("Line info section header cannot be read");
+    currByte += sizeof(uint16_t);
+    if (format == DebugFormat_DWARF2_64bit){
+        if(!binaryInputFile->copyBytesIterate(&entry.li_prologue_length,sizeof(uint64_t))){
+            PRINT_ERROR("Line info section header cannot be read");
+        }
+        currByte += sizeof(uint64_t);
+    } else {
+        if(!binaryInputFile->copyBytesIterate(&firstWord,sizeof(uint32_t))){
+            PRINT_ERROR("Line info section header cannot be read");
+        }
+        currByte += sizeof(uint32_t);
+        entry.li_prologue_length = firstWord;
     }
     if(!binaryInputFile->copyBytesIterate(&entry.li_min_insn_length,sizeof(uint8_t))){
         PRINT_ERROR("Line info section header cannot be read");
     }
+    currByte += sizeof(uint8_t);
     if(!binaryInputFile->copyBytesIterate(&entry.li_default_is_stmt,sizeof(uint8_t))){
         PRINT_ERROR("Line info section header cannot be read");
     }
+    currByte += sizeof(uint8_t);
     if(!binaryInputFile->copyBytesIterate(&entry.li_line_base,sizeof(uint8_t))){
         PRINT_ERROR("Line info section header cannot be read");
     }
+    currByte += sizeof(uint8_t);
     if(!binaryInputFile->copyBytesIterate(&entry.li_line_range,sizeof(uint8_t))){
         PRINT_ERROR("Line info section header cannot be read");
     }
+    currByte += sizeof(uint8_t);
     if(!binaryInputFile->copyBytesIterate(&entry.li_opcode_base,sizeof(uint8_t))){
         PRINT_ERROR("Line info section header cannot be read");
     }
+    currByte += sizeof(uint8_t);
 
     sizeInBytes = GET(li_length) + sizeof(uint32_t);
+    if (format == DebugFormat_DWARF2_64bit){
+        sizeInBytes += 8;
+    }
 
 #ifdef DEBUG_LINEINFO
     dwarfLineInfoSection->printBytes(0,0);
@@ -192,8 +233,6 @@ uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
 
     registers = new LineInfo(0,NULL,this);
     registers->SET(lr_is_stmt,GET(li_default_is_stmt));
-
-    currByte += sizeof(uint32_t) * 2 + sizeof(uint16_t) + sizeof(uint8_t) * 5;
 
     // get the opcode table
     uint8_t tmp;
@@ -249,6 +288,9 @@ uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
 #endif
         currByte += lineInformations.back()->getInstructionSize();
     }
+
+    PRINT_DEBUG_LINEINFO("Found %d lineinfo program instructions", lineInformations.size());
+
     ASSERT(currByte == sizeInBytes);
 
     verify();
@@ -257,7 +299,7 @@ uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
 
 bool LineInfoTable::verify(){
     for (uint32_t i = 0; i < fileNames.size(); i++){
-        if (fileNames[i].fn_dir_index >= fileNames.size()){
+        if (fileNames[i].fn_dir_index > fileNames.size()){
             PRINT_ERROR("Illegal directory index %d found for file %s (idx %d)", fileNames[i].fn_dir_index, fileNames[i].fn_name, i);
             return false;
         }
@@ -285,9 +327,9 @@ void LineInfoTable::print(){
     PRINT_INFOR("Line Info Table (%d):", index);
 
     PRINT_INFOR("Header:");
-    PRINT_INFOR("\tLength                 : %d",   GET(li_length));
+    PRINT_INFOR("\tLength                 : %lld",   GET(li_length));
     PRINT_INFOR("\tVersion                : %d",  GET(li_version));
-    PRINT_INFOR("\tPrologue Length        : %d",   GET(li_prologue_length));
+    PRINT_INFOR("\tPrologue Length        : %lld",   GET(li_prologue_length));
     PRINT_INFOR("\tMin Instruction Length : %hhd", GET(li_min_insn_length));
     PRINT_INFOR("\tDefault is_stmt        : %hhd", GET(li_default_is_stmt));
     PRINT_INFOR("\tLine Base              : %hhd", GET(li_line_base));
@@ -320,7 +362,8 @@ LineInfoTable::LineInfoTable(uint32_t idx, char* raw, DwarfLineInfoSection* dwar
     index = idx;
     rawDataPtr = raw;
     dwarfLineInfoSection = dwarf;
-    
+    format = DebugFormat_undefined;
+
     registers = NULL;
 }
 
@@ -513,6 +556,7 @@ void LineInfo::updateRegsSpecialOpcode(char* instruction){
 
     uint8_t adjusted_opcode = instruction[0] - header->GET(li_opcode_base);
 
+    ASSERT(header->GET(li_line_range) && "A divide by zero error is about to occur");
     int8_t addr_inc = (adjusted_opcode /  header->GET(li_line_range)) *  header->GET(li_min_insn_length);
     int8_t line_inc = header->GET(li_line_base) + (adjusted_opcode % header->GET(li_line_range));
 

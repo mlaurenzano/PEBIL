@@ -20,7 +20,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_OPCODE
 //#define DEBUG_HASH
 //#define DEBUG_NOTE
-#define DEBUG_LINEINFO
+//#define DEBUG_LINEINFO
 //#define DEBUG_BASICBLOCK
 
 #define __MAX_STRING_SIZE 1024
@@ -220,6 +220,14 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 #define HAS_PRINT_CODE(__value,__Print_Code) ((__value & __Print_Code) || (__value & Print_Code_All))
 #define SET_PRINT_CODE(__value,__Print_Code) (__value |= __Print_Code)
+
+
+typedef enum {
+    DebugFormat_undefined = 0,
+    DebugFormat_DWARF2_32bit,
+    DebugFormat_DWARF2_64bit,
+    DebugFormat_Total_Types
+} DebugFormat;
 
 typedef enum {
     ElfRelType_undefined = 0,
