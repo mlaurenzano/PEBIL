@@ -1,26 +1,11 @@
 DBG         = -save-temps -g #-Wall
 OPT         = -O0 -g
-LINK_FLAGS  = -Wl,--hash-style=sysv
 
-GNU_CC      = gcc
-GNU_CPP     = g++ -DCPP
-GNU_F77     = g77
+include rules.$(COMP)
 
-INTEL_CC    = icc
-INTEL_CPP   = icc -lstdc++
-INTEL_F77   = ifort
-
-PGI_CC      = pgcc
-PGI_CPP     = pgCC
-PGI_F77     = pgf95
-
-SUN_CC      = suncc
-SUN_CPP     = sunCC
-SUN_F77     = sunf77
-
-CC          = $(GNU_CC)  $(OPT)
-CPP         = $(GNU_CPP) $(OPT)
-F77         = $(GNU_F77) $(OPT)
+CC          = $(X86INST_CC)  $(OPT)
+CPP         = $(X86INST_CPP) $(OPT)
+F77         = $(X86INST_F77) $(OPT)
 
 SRCDIR      = ../test
 BINDIR      = ../src
@@ -30,7 +15,7 @@ OBJS        = foo.o bar.o dum.o main.o
 SRCSCPP		= classes.C
 OBJSCPP		= classes.o
 
-EXECUTABLE  = cTest cppTest htcoef
+EXECUTABLE  = cTest.$(COMP) cppTest.$(COMP) htcoef.$(COMP)
 
 build : all install
 
@@ -42,17 +27,18 @@ all: $(EXECUTABLE)
 %.o: %.C
 	$(CPP) -c -o $@ $< 
 
-cTest: $(OBJS)
+cTest.$(COMP): $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LINK_FLAGS)
 
-cppTest: $(OBJSCPP)
+cppTest.$(COMP): $(OBJSCPP)
 	$(CPP) -o $@ $(OBJSCPP) $(LINK_FLAGS)
 
-htcoef:
-	$(F77) -o $@ $@.f $(LINK_FLAGS)
+htcoef.$(COMP):
+	$(F77) -o $@ htcoef.f $(LINK_FLAGS)
 
 install: $(EXECUTABLE)
 	cp $(EXECUTABLE) $(BINDIR)
+	cp $(EXECUTABLE) ./compiled/$(BITS)bit/
 
 clean: 
 	rm -f core *.new *.o *.i *.ii *.s *.class $(EXECUTABLE) 

@@ -1,0 +1,5 @@
+X86INST_CC      = pgcc
+X86INST_CPP     = pgCC
+X86INST_F77     = pgf95
+LINK_FLAGS      = -Wl,--hash-style=sysv
+
