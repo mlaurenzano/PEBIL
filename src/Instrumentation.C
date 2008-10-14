@@ -453,17 +453,25 @@ uint32_t InstrumentationPoint::sizeNeeded(){
     return totalSize;
 }
 
-uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, uint64_t offset, uint64_t returnOffset){
+uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, uint64_t offset, uint64_t returnOffset, bool is64bit){
     ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
 
     trampolineOffset = offset;
 
     uint32_t trampolineSize = 0;
-    trampolineInstructions.append(Instruction64::generateRegSubImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+    if (is64bit){
+        trampolineInstructions.append(Instruction64::generateRegSubImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+    } else {
+        trampolineInstructions.append(Instruction32::generateRegSubImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+    }
     trampolineSize += trampolineInstructions.back()->getLength();
     trampolineInstructions.append(Instruction::generateCallRelative(offset+trampolineSize,getTargetOffset()));
     trampolineSize += trampolineInstructions.back()->getLength();
-    trampolineInstructions.append(Instruction64::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+    if (is64bit){
+        trampolineInstructions.append(Instruction64::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+    } else {
+        trampolineInstructions.append(Instruction32::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+    }
     trampolineSize += trampolineInstructions.back()->getLength();
 
     for (uint32_t i = 0; i < (*insts).size(); i++){

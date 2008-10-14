@@ -23,6 +23,9 @@ all: ide fnc
 ide: ide32 ide64
 fnc: fnc32 fnc64
 jbb: jbb32 jbb64
+32:  ide32 fnc32 jbb32
+64:  ide64 fnc64 jbb64
+
 include rules.$(BITS)
 
 clean:

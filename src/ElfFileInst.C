@@ -232,7 +232,7 @@ void ElfFileInst::generateInstrumentation(){
         Vector<Instruction*>* displaced = targetSection->swapInstructions(pt->getSourceAddress(), repl);
         ASSERT((*repl).size());
         uint64_t returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getLength();
-        pt->generateTrampoline(displaced,codeOffset,returnOffset);
+        pt->generateTrampoline(displaced,codeOffset,returnOffset,elfFile->is64Bit());
 
         codeOffset += pt->sizeNeeded();
         delete repl;

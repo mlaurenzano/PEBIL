@@ -403,6 +403,8 @@ uint32_t LineInfoTable::getAddressSize(){
 void LineInfo::updateRegsExtendedOpcode(char* instruction){
     ASSERT(instruction[0] == DW_LNS_extended_op && "This function should only be called on instructions with extended opcodes");
 
+    uint32_t addressSize;
+
     uint8_t size = instruction[1];
     uint8_t opcode = instruction[2];
 
@@ -420,7 +422,7 @@ void LineInfo::updateRegsExtendedOpcode(char* instruction){
         regs->initializeWithDefaults();
         break;
     case DW_LNE_set_address:
-        uint32_t addressSize = header->getAddressSize();
+        addressSize = header->getAddressSize();
         for (uint32_t i = 0; i < addressSize; i++){
             instructionBytes.append(instruction[3+i]);
         }
