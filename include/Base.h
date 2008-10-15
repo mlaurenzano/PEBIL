@@ -21,7 +21,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_HASH
 //#define DEBUG_NOTE
 //#define DEBUG_LINEINFO
-//#define DEBUG_BASICBLOCK
+#define DEBUG_BASICBLOCK
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")

@@ -96,12 +96,32 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
     numberOfBasicBlocks++;
 
 #ifdef DEBUG_BASICBLOCK
+    /*
     PRINT_DEBUG_BASICBLOCK("****** Printing Blocks for function %s", getName());
-
     for (uint32_t i = 0; i < basicBlocks.size(); i++){
         basicBlocks[i]->print();
         basicBlocks[i]->printInstructions();
     }
+    */
+    uint32_t sizes[6];
+    for (uint32_t i = 0; i < 6; i++){
+        sizes[i] = 0;
+    }
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        ASSERT(basicBlocks[i]->getBlockSize());
+        if (basicBlocks[i]->getBlockSize() <= 5){
+            sizes[basicBlocks[i]->getBlockSize()]++;
+        } else {
+            sizes[0]++;
+        }
+    }
+
+    PRINT_INFO();
+    PRINT_OUT("BBSize\t%s\t", getName());
+    for (uint32_t i = 0; i < 6; i++){
+        PRINT_OUT("%d\t", sizes[i]);
+    }
+    PRINT_OUT("\n");
 #endif
 
     delete[] isLeader;
