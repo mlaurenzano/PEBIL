@@ -351,8 +351,8 @@ void LineInfoTable::print(){
     }
 
     PRINT_INFOR("Line Information Table: %d entries", lineInformations.size());
-    PRINT_INFOR("\t\t\t(Size)RawBytes\t\tAddress\t\tLine\t(Ptr)File")
-        for (uint32_t i = 0; i < lineInformations.size(); i++){
+    PRINT_INFOR("%6s\t%6s\t%16s%8s\t%10s%16s\t%4s\t%s", "Index", "Size", "Raw Bytes       ", "Type", "Opcode", "Address", "Line", "File");
+    for (uint32_t i = 0; i < lineInformations.size(); i++){
         lineInformations[i]->print();
     }
 }
@@ -607,7 +607,7 @@ LineInfo::~LineInfo(){
 void LineInfo::print(){
 
     PRINT_INFO();
-    PRINT_OUT("LineInfo(%d)\t(%d)", index, instructionBytes.size());
+    PRINT_OUT("%6d\t%6d\t", index, instructionBytes.size());
     for (uint32_t i = 0; i < instructionBytes.size(); i++){
         PRINT_OUT("%02hhx", instructionBytes[i]);
     }
@@ -615,7 +615,32 @@ void LineInfo::print(){
         PRINT_OUT("  ");
     }
 
-    PRINT_OUT("%16llx\t%4d\t(%d)%s/%s", GET(lr_address), GET(lr_line), GET(lr_file), getFilePath(), getFileName());
+    char* typestr = "UNKNOWN";
+    char* opstr = "UNKNOWN";
+    switch(instructionBytes[0]){
+    case DW_LNS_extended_op: typestr = "EXTENDED"; 
+        switch (instructionBytes[2]){
+        case DW_LNE_end_sequence: opstr = "ENDSEQNCE" ; break;
+        case DW_LNE_set_address:  opstr = "SETADDRESS"; break;
+        case DW_LNE_define_file:  opstr = "DEFINEFILE"; break;
+        }
+        break;
+    case DW_LNS_copy:                 typestr = "STANDARD"; opstr = "COPY"      ; break;
+    case DW_LNS_advance_pc:           typestr = "STANDARD"; opstr = "ADVANCEPC" ; break;
+    case DW_LNS_advance_line:         typestr = "STANDARD"; opstr = "ADVNCELINE"; break;
+    case DW_LNS_set_file:             typestr = "STANDARD"; opstr = "SETFILE"   ; break;
+    case DW_LNS_set_column:           typestr = "STANDARD"; opstr = "SETCOLUMN" ; break;
+    case DW_LNS_negate_stmt:          typestr = "STANDARD"; opstr = "NEGATESTMT"; break;
+    case DW_LNS_set_basic_block:      typestr = "STANDARD"; opstr = "SETBSCBLCK"; break;
+    case DW_LNS_const_add_pc:         typestr = "STANDARD"; opstr = "CONSTADDPC"; break;
+    case DW_LNS_fixed_advance_pc:     typestr = "STANDARD"; opstr = "FXDADVNCPC"; break;
+    case DW_LNS_set_prologue_end:     typestr = "STANDARD"; opstr = "SETPRLGEND"; break;
+    case DW_LNS_set_epilogue_begin:   typestr = "STANDARD"; opstr = "SETEPLGBEG"; break;
+    case DW_LNS_set_isa:              typestr = "STANDARD"; opstr = "SETISA"    ; break;
+    default:                          typestr = "SPECIAL" ; break;
+    }
+
+    PRINT_OUT("%8s\t%10s%16llx\t%4d\t%s/%s", typestr, opstr, GET(lr_address), GET(lr_line), getFilePath(), getFileName());
     PRINT_OUT("\n");
     /*
     PRINT_INFOR("LineInfo(%d): instruction size %d", index, instructionBytes.size());
