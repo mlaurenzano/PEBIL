@@ -5,6 +5,11 @@
 
 #define MAX_SIZE_LINEAR_SEARCH 4096
 
+uint64_t BasicBlock::getTargetAddress() {
+    ASSERT(instructions.back());
+    return instructions.back()->getNextAddress();
+}
+
 uint64_t BasicBlock::getAddress() { 
     ASSERT(instructions[0]); 
     return instructions[0]->getAddress(); 
@@ -25,24 +30,6 @@ uint32_t BasicBlock::addInstruction(Instruction* inst){
     return instructions.size();
 }
 
-uint32_t BasicBlock::setTargetBlocks(Vector<BasicBlock*>* tgts){
-    ASSERT(!targetBlocks.size() && "Target blocks vector should be empty");
-    for (uint32_t i = 0; i < (*tgts).size(); i++){
-        targetBlocks.append((*tgts)[i]);
-    }
-    ASSERT(targetBlocks.size() == (*tgts).size());
-    return targetBlocks.size();
-}
-
-uint32_t BasicBlock::setSourceBlocks(Vector<BasicBlock*>* srcs){
-    ASSERT(!sourceBlocks.size() && "Source blocks vector should be empty");
-    for (uint32_t i = 0; i < (*srcs).size(); i++){
-        sourceBlocks.append((*srcs)[i]);
-    }
-    ASSERT(sourceBlocks.size() == (*srcs).size());
-    return sourceBlocks.size();
-}
-
 Instruction* BasicBlock::getInstructionAtAddress(uint64_t addr){
     for (uint32_t i = 0; i < instructions.size(); i++){
         if (instructions[i]->getAddress() == addr){
@@ -57,7 +44,7 @@ Instruction* BasicBlock::getInstructionAtAddress(uint64_t addr){
             }
         }
     } else {
-        PRINT_ERROR("You should implement a non-linear instruction search");
+        PRINT_ERROR("The author should implement a non-linear instruction search");
         __SHOULD_NOT_ARRIVE;
         return NULL;
     }
@@ -80,10 +67,41 @@ bool BasicBlock::inRange(uint64_t addr){
     return false;
 }
 
+void BasicBlock::giveSourceBlocks(BitSet<BasicBlock*>* srcBlocks){
+    ASSERT(!sourceBlocks && "sourceBlocks should not be initialized");
+    sourceBlocks = new BitSet<BasicBlock*>(*srcBlocks);
+}
+
+BitSet<BasicBlock*>* BasicBlock::getTargetBlocks(){
+    return targetBlocks;
+}
+
+void BasicBlock::giveTargetBlocks(BitSet<BasicBlock*>* tgtBlocks){
+    ASSERT(!targetBlocks && "targetBlocks should not be initialized");
+    targetBlocks = new BitSet<BasicBlock*>(*tgtBlocks);
+}
+
+BitSet<BasicBlock*>* BasicBlock::getDominatorBlocks(){
+    return dominatorBlocks;
+}
+
+void BasicBlock::giveDominatorBlocks(BitSet<BasicBlock*>* domBlocks){
+    ASSERT(!dominatorBlocks && "dominatorBlocks should not be initialized");
+    dominatorBlocks = new BitSet<BasicBlock*>(*domBlocks);
+}
+
+BitSet<BasicBlock*>* BasicBlock::getSourceBlocks(){
+    return sourceBlocks;
+}
+
 BasicBlock::BasicBlock(uint32_t idx, Function* func){
     type = ElfClassTypes_BasicBlock;
     index = idx;
     function = func;
+
+    sourceBlocks = NULL;
+    targetBlocks = NULL;
+    dominatorBlocks = NULL;
 
     flags = 0;
 }
@@ -91,6 +109,15 @@ BasicBlock::BasicBlock(uint32_t idx, Function* func){
 BasicBlock::~BasicBlock(){
     for (uint32_t i = 0; i < instructions.size(); i++){
         delete instructions[i];
+    }
+    if (sourceBlocks){
+        delete sourceBlocks;
+    }
+    if (targetBlocks){
+        delete targetBlocks;
+    }
+    if (dominatorBlocks){
+        delete dominatorBlocks;
     }
 }
 
@@ -104,13 +131,21 @@ void BasicBlock::printInstructions(){
 
 void BasicBlock::print(){
     PRINT_INFOR("Basic Block %d at address range [0x%llx,0x%llx)", index, getAddress(), getAddress()+getBlockSize());
+    if (sourceBlocks){
     PRINT_INFOR("\tSource Blocks:");
-    for (uint32_t i = 0; i < sourceBlocks.size(); i++){
-        PRINT_INFOR("\t\tsource block(%d) with index %d at address %llx", i, sourceBlocks[i]->getIndex(), sourceBlocks[i]->getAddress());
+        BasicBlock** srcs = (*sourceBlocks).duplicateMembers();
+        for (uint32_t i = 0; i < (*sourceBlocks).size(); i++){
+            PRINT_INFOR("\t\tsource block(%d) with index %d at address %llx", i, srcs[i]->getIndex(), srcs[i]->getAddress());
+        }
+        delete[] srcs;
     }
-    PRINT_INFOR("\tTarget Blocks:");
-    for (uint32_t i = 0; i < targetBlocks.size(); i++){
-        PRINT_INFOR("\t\ttarget block(%d) with index %d at address %llx", i, targetBlocks[i]->getIndex(), targetBlocks[i]->getAddress());
+    if (targetBlocks){
+        PRINT_INFOR("\tTarget Blocks:");
+        BasicBlock** tgts = (*targetBlocks).duplicateMembers();
+        for (uint32_t i = 0; i < (*targetBlocks).size(); i++){
+            PRINT_INFOR("\t\ttarget block(%d) with index %d at address %llx", i, tgts[i]->getIndex(), tgts[i]->getAddress());
+        }
+        delete[] tgts;
     }
 }
 
@@ -121,25 +156,35 @@ bool BasicBlock::verify(){
             return false;
         }
     }
-    for (uint32_t i = 0; i < sourceBlocks.size(); i++){
-        if (sourceBlocks[i]->isFunctionPadding()){
-            PRINT_ERROR("Function padding blocks should not connect to other blocks");
-            return false;
+
+    if (sourceBlocks){
+        BasicBlock** srcs = (*sourceBlocks).duplicateMembers();
+        for (uint32_t i = 0; i < (*sourceBlocks).size(); i++){
+            if (srcs[i]->isFunctionPadding()){
+                PRINT_ERROR("Function padding blocks should not connect to other blocks");
+                return false;
+            }
+            if (srcs[i]->getFunction() != getFunction()){
+                PRINT_ERROR("Only blocks from the same function can connect to each other");
+                return false;
+            }
         }
-        if (sourceBlocks[i]->getFunction() != getFunction()){
-            PRINT_ERROR("Only blocks from the same function can connect to each other");
-            return false;
-        }
+        delete[] srcs;
     }
-    for (uint32_t i = 0; i < targetBlocks.size(); i++){
-        if (targetBlocks[i]->isFunctionPadding()){
-            PRINT_ERROR("Function padding blocks should not connect to other blocks");
-            return false;
+
+    if (targetBlocks){
+        BasicBlock** tgts = (*targetBlocks).duplicateMembers();
+        for (uint32_t i = 0; i < (*targetBlocks).size(); i++){
+            if (tgts[i]->isFunctionPadding()){
+                PRINT_ERROR("Function padding blocks should not connect to other blocks");
+                return false;
+            }
+            if (tgts[i]->getFunction() != getFunction()){
+                PRINT_ERROR("Only blocks from the same function can connect to each other");
+                return false;
+            }
         }
-        if (targetBlocks[i]->getFunction() != getFunction()){
-            PRINT_ERROR("Only blocks from the same function can connect to each other");
-            return false;
-        }
+        delete[] tgts;
     }
 }
 

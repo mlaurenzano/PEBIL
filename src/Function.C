@@ -29,6 +29,55 @@ void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(currByte == sizeInBytes);
 }
 
+uint32_t Function::findControlFlowGraph(){
+
+    BitSet<BasicBlock*>** sources = new BitSet<BasicBlock*>*[basicBlocks.size()];
+    BitSet<BasicBlock*>** targets = new BitSet<BasicBlock*>*[basicBlocks.size()];
+    BitSet<BasicBlock*>** dominators = new BitSet<BasicBlock*>*[basicBlocks.size()];
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        sources[i] = new BitSet<BasicBlock*>(basicBlocks.size(),&basicBlocks);
+        targets[i] = new BitSet<BasicBlock*>(basicBlocks.size(),&basicBlocks);
+        dominators[i] = new BitSet<BasicBlock*>(basicBlocks.size(),&basicBlocks);
+    }
+
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        if (basicBlocks[i]->getTargetAddress() != basicBlocks[i]->getAddress() + basicBlocks[i]->getBlockSize()){
+            if (inRange(basicBlocks[i]->getTargetAddress())){
+                for (uint32_t j = 0; j < basicBlocks.size(); j++){
+                    if (basicBlocks[i]->getTargetAddress() == basicBlocks[j]->getAddress()){
+                        sources[j]->insert(i);
+                        targets[i]->insert(j);
+                    }
+                }
+            }
+        }
+    }
+
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+    }
+    
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        basicBlocks[i]->giveSourceBlocks(sources[i]);
+        delete sources[i];
+        basicBlocks[i]->giveTargetBlocks(targets[i]);
+        delete targets[i];
+        basicBlocks[i]->giveDominatorBlocks(dominators[i]);
+        delete dominators[i];
+    }
+    delete[] sources;
+    delete[] targets;
+    delete[] dominators;
+
+    verify();
+
+    return 0;
+}
+
+uint32_t Function::findDominators(){
+    return 0;
+}
+
+
 // we will assume that functions can only be entered at the beginning
 uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** instructions){
     ASSERT(!basicBlocks.size() && "Basic blocks vector should be empty");
@@ -62,7 +111,7 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
                         }
                         if (i+1 < numberOfInstructions){
                             if (!isLeader[i+1]){
-                                isLeader[i+1] = true;
+                               isLeader[i+1] = true;
                                 numberOfBasicBlocks++;
                             }
                         }
@@ -96,13 +145,14 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
     numberOfBasicBlocks++;
 
 #ifdef DEBUG_BASICBLOCK
-    /*
+
     PRINT_DEBUG_BASICBLOCK("****** Printing Blocks for function %s", getName());
     for (uint32_t i = 0; i < basicBlocks.size(); i++){
         basicBlocks[i]->print();
         basicBlocks[i]->printInstructions();
     }
-    */
+
+    /** prints how many block of each size there are in the function
     uint32_t sizes[6];
     for (uint32_t i = 0; i < 6; i++){
         sizes[i] = 0;
@@ -122,6 +172,7 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
         PRINT_OUT("%d\t", sizes[i]);
     }
     PRINT_OUT("\n");
+    */
 #endif
 
     delete[] isLeader;
@@ -155,11 +206,9 @@ uint32_t Function::digest(){
 
     delete dummyInstruction;
 
-    /*
     PRINT_INFOR("Function %s: read %d bytes from function, %d bytes in functions", getName(), currByte, sizeInBytes);
     if (functionSymbol)
         functionSymbol->print();
-    */
 
     Instruction** instructions = new Instruction*[numberOfInstructions];
     numberOfInstructions = 0;
@@ -179,6 +228,7 @@ uint32_t Function::digest(){
         }
         instructions[numberOfInstructions]->setLength(instructionLength);
         instructions[numberOfInstructions]->setNextAddress();
+        //        instructions[numberOfInstructions]->print();
     }
     
     // in case the disassembler found an instruction that exceeds the function boundary, we will
@@ -193,8 +243,11 @@ uint32_t Function::digest(){
 
     ASSERT(currByte == sizeInBytes && "Number of bytes read for function does not match function size");
     findBasicBlocks(numberOfInstructions, instructions);
-
     delete[] instructions;
+
+    findControlFlowGraph();
+    findDominators();
+
     return currByte;
 }
 

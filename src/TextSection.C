@@ -203,7 +203,7 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
         }
     }
 
-    // this is a text section with no functions (probably the .plt section), we will put everything into a textobject
+    // this is a text section with no functions (probably the .plt section), so we will put everything into a single textobject
     else{
         sortedTextObjects.append(new FreeText(this, 0, sectionHeader->GET(sh_addr), sectionHeader->GET(sh_size)));
     }

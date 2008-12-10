@@ -13,6 +13,8 @@ bool Instruction::isBranchInstruction(){
 }
 
 bool Instruction::isRelocatable(){
+#define SAFE_INST
+#ifdef SAFE_INST
     if (instructionType == x86_insn_type_cond_branch ||
         instructionType == x86_insn_type_branch){
         return false;
@@ -29,6 +31,9 @@ bool Instruction::isRelocatable(){
         }
     }
     return true;
+#else
+    return !isBranchInstruction();
+#endif
 }
 
 void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
@@ -1059,7 +1064,9 @@ Operand Instruction::getOperand(uint32_t idx){
 
 void Instruction::print(){
     PRINT_INFO();
-    if (isRelocatable()){
+    if (isBranchInstruction()){
+        PRINT_OUT("Instruction(%d) (NOTRELOC BRANCH) -- ", index);
+    } else if (isRelocatable()){
         PRINT_OUT("Instruction(%d) (YES RELOCATABLE) -- ", index);
     } else {
         PRINT_OUT("Instruction(%d) (NOT RELOCATABLE) -- ", index);
