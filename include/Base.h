@@ -14,6 +14,7 @@
 
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
+//#define USE_WARNINGS
 //#define DEVELOPMENT
 //#define DEBUG_OPERAND
 //#define DEBUG_OPTARGET
@@ -21,7 +22,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_HASH
 //#define DEBUG_NOTE
 //#define DEBUG_LINEINFO
-#define DEBUG_BASICBLOCK
+//#define DEBUG_BASICBLOCK
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -70,10 +71,14 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     ASSERT(0); \
     exit(-1);
 
+#ifdef USE_WARNINGS
 #define PRINT_WARN(...)  fprintf(stderr,"*** WARNING : "); \
     fprintf(stderr,## __VA_ARGS__);                              \
     fprintf(stderr,"\n");                                        \
     fflush(stderr);
+#else
+#define PRINT_WARN(...)
+#endif
 
 #define PRINT_INFOR(...) fprintf(stdout,"Information : "); \
     fprintf(stdout,## __VA_ARGS__);                        \

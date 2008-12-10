@@ -16,6 +16,8 @@ protected:
     Vector<BasicBlock*> basicBlocks;
 
     uint32_t findBasicBlocks(uint32_t numberOfInstructions, Instruction** instructions);
+    uint32_t findControlFlowGraph();
+    uint32_t findDominators();
 
 public:
     Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz);

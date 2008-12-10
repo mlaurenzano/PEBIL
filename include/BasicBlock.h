@@ -3,6 +3,7 @@
 
 #include <Base.h>
 #include <Vector.h>
+#include <BitSet.h>
 
 class Instruction;
 class Function;
@@ -14,10 +15,12 @@ protected:
     Function* function;
     
     Vector<Instruction*> instructions;
-    Vector<BasicBlock*> sourceBlocks;
-    Vector<BasicBlock*> targetBlocks;
+    BitSet<BasicBlock*>* sourceBlocks;
+    BitSet<BasicBlock*>* targetBlocks;
+    BitSet<BasicBlock*>* dominatorBlocks;
 
-#define BB_FLAGS_PADDING 0x00000001
+#define BB_FLAGS_PADDING  0x00000001
+#define BB_FLAGS_FNENTRY  0x00000002
     uint32_t flags;
 public:
     BasicBlock(uint32_t idx, Function* func);
@@ -27,31 +30,35 @@ public:
     void print();
 
     uint32_t addInstruction(Instruction* inst);
-    uint32_t setSourceBlocks(Vector<BasicBlock*>* srcs);
-    uint32_t setTargetBlocks(Vector<BasicBlock*>* tgts);
 
     uint64_t findInstrumentationPoint();
+    bool inRange(uint64_t addr);
 
     bool verify();
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
     Function* getFunction() { return function; }
 
     uint32_t getBlockSize();
-    uint32_t getIndex() { return index; }
     uint64_t getAddress();
+    uint64_t getTargetAddress();
+    uint32_t getIndex() { return index; }
 
     uint32_t getNumberOfInstructions() { return instructions.size(); }
     Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }
     Instruction* getInstructionAtAddress(uint64_t addr);
 
-    uint32_t getNumberOfSourceBlocks() { return sourceBlocks.size(); }
-    BasicBlock* getSourceBlock(uint32_t idx) { return sourceBlocks[idx]; }
-    uint32_t getNumberOfTargetBlocks() { return targetBlocks.size(); }
-    BasicBlock* getTargetBlock(uint32_t idx) { return targetBlocks[idx]; }    
-    bool inRange(uint64_t addr);
+    void giveSourceBlocks(BitSet<BasicBlock*>*);
+    BitSet<BasicBlock*>* getSourceBlocks();
+    void giveTargetBlocks(BitSet<BasicBlock*>*);
+    BitSet<BasicBlock*>* getTargetBlocks();
+    void giveDominatorBlocks(BitSet<BasicBlock*>*);
+    BitSet<BasicBlock*>* getDominatorBlocks();
 
     bool isFunctionPadding() { if (flags & BB_FLAGS_PADDING) return true; return false; }
     uint32_t setFunctionPadding() { flags |= BB_FLAGS_PADDING; return flags; }
+
+    bool isFunctionEntry() { if (flags & BB_FLAGS_FNENTRY) return true; return false; }
+    uint32_t setFunctionEntry() { flags |= BB_FLAGS_FNENTRY; return flags; }
 
     Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
 };
