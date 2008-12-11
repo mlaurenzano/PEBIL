@@ -83,6 +83,9 @@ class Operand {
 protected:
     uint32_t type;
     uint64_t value;
+    uint32_t bytePosition;
+    uint32_t bytesUsed;
+    bool relative;
 public:
     Operand(uint32_t type, uint64_t value);
     Operand();
@@ -90,9 +93,17 @@ public:
 
     uint32_t getType() { return type; }
     uint64_t getValue() { return value; }
+    uint32_t getBytePosition() { return bytePosition; }
+    uint32_t getBytesUsed() { return bytesUsed; }
+    bool isRelative() { return relative; }
 
-    uint64_t setValue(uint64_t val);
     uint32_t setType(uint32_t typ);
+    uint64_t setValue(uint64_t val);
+    uint32_t setBytePosition(uint32_t pos);
+    uint32_t setBytesUsed(uint32_t usd);
+    bool setRelative(bool rel);
+
+    void print();
 };
 
 class Instruction : public Base {
@@ -133,6 +144,10 @@ public:
     char* setBytes(char* bytes);
     uint64_t setOperandValue(uint32_t idx, uint64_t val);
     uint32_t setOperandType(uint32_t idx, uint32_t typ);
+    uint32_t setOperandBytePosition(uint32_t idx, uint32_t pos);
+    uint32_t setOperandBytesUsed(uint32_t idx, uint32_t usd);
+    bool setOperandRelative(uint32_t idx, bool rel);
+    uint64_t setRelocationInfo(bool isRelative, uint64_t relocationDist);
 
     char* setDisassembledString(char* disStr);
 

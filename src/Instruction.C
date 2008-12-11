@@ -13,7 +13,7 @@ bool Instruction::isBranchInstruction(){
 }
 
 bool Instruction::isRelocatable(){
-#define SAFE_INST
+    //#define SAFE_INST
 #ifdef SAFE_INST
     if (instructionType == x86_insn_type_cond_branch ||
         instructionType == x86_insn_type_branch){
@@ -32,6 +32,7 @@ bool Instruction::isRelocatable(){
     }
     return true;
 #else
+    return true;
     return !isBranchInstruction();
 #endif
 }
@@ -891,12 +892,18 @@ Instruction* Instruction::generateStackPushImmediate(uint64_t imm){
 Operand::Operand(){
     type = x86_operand_type_unused;
     value = 0;
+    bytesUsed = 0;
+    relative = false;
+    bytePosition = 0;
 }
 
 
 Operand::Operand(uint32_t typ, uint64_t val){
     type = typ;
     value = val;
+    bytesUsed = 0;
+    relative = false;
+    bytePosition = 0;
 }
 
 uint64_t Operand::setValue(uint64_t val){
@@ -909,21 +916,46 @@ uint32_t Operand::setType(uint32_t typ){
     return type;
 }
 
+uint32_t Operand::setBytePosition(uint32_t pos){
+    bytePosition = pos;
+    return bytePosition;
+}
+
+uint32_t Operand::setBytesUsed(uint32_t usd){
+    ASSERT(usd == sizeof(uint32_t) || usd == sizeof(uint16_t) || usd == sizeof(uint8_t));
+    bytesUsed = usd;
+    return bytesUsed;
+}
+
+bool Operand::setRelative(bool rel){
+    relative = rel;
+    return relative;
+}
+
 uint64_t Instruction::setOperandValue(uint32_t idx, uint64_t value){
-    if (idx >= MAX_OPERANDS){
-        PRINT_ERROR("Index %d into operand table is bad", idx);
-    }
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    operands[idx].setValue(value);
-    return operands[idx].getValue();
+    return operands[idx].setValue(value);
 }
 
 uint32_t Instruction::setOperandType(uint32_t idx, uint32_t typ){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    operands[idx].setType(typ);
-    return operands[idx].getType();
+    return operands[idx].setType(typ);
 }
 
+uint32_t Instruction::setOperandBytePosition(uint32_t idx, uint32_t pos){
+    ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
+    return operands[idx].setBytePosition(pos);
+}
+
+uint32_t Instruction::setOperandBytesUsed(uint32_t idx, uint32_t usd){
+    ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
+    return operands[idx].setBytesUsed(usd);
+}
+
+bool Instruction::setOperandRelative(uint32_t idx, bool rel){
+    ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
+    return operands[idx].setRelative(rel);
+}
 
 uint64_t Instruction::setNextAddress(){
     switch(instructionType){
@@ -931,7 +963,7 @@ uint64_t Instruction::setNextAddress(){
     case x86_insn_type_branch:
         if (operands[JUMP_TARGET_OPERAND].getType() == x86_operand_type_immrel){
             nextAddress = getAddress() + operands[JUMP_TARGET_OPERAND].getValue();
-            PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx", nextAddress,  getAddress(), operands[JUMP_TARGET_OPERAND]->getValue());
+            PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx", nextAddress,  getAddress(), operands[JUMP_TARGET_OPERAND].getValue());
         } else {
             nextAddress = operands[JUMP_TARGET_OPERAND].getValue();
         }
@@ -1007,6 +1039,68 @@ Instruction::~Instruction(){
     }
 }
 
+uint64_t Instruction::setRelocationInfo(bool isRelative, uint64_t displacementDist){
+    int64_t oldValue_64 = 0;
+
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i].isRelative()){
+            uint64_t updatedOpValue;
+            if (isRelative){
+                updatedOpValue = operands[i].getValue() + displacementDist;
+            } else {
+                updatedOpValue = displacementDist;
+            }
+            int64_t oldBytes_64;
+            oldValue_64 = (int64_t)operands[i].getValue();
+
+            // check that this new operand value does not overrun bounds then update the value
+            if (operands[i].getBytesUsed() == sizeof(uint32_t)){
+                uint32_t updatedOpValue_32 = (uint32_t)updatedOpValue;
+                ASSERT(updatedOpValue_32 == updatedOpValue);
+                operands[i].setValue(updatedOpValue);
+ 
+                int32_t oldBytes;
+                memcpy(&oldBytes,rawBytes+operands[i].getBytePosition(),sizeof(uint32_t));
+                oldBytes_64 = (int64_t)oldBytes;
+                
+                memcpy(rawBytes+operands[i].getBytePosition(),&updatedOpValue_32,sizeof(uint32_t));
+            }
+
+            else if (operands[i].getBytesUsed() == sizeof(uint16_t)){
+                uint16_t updatedOpValue_16 = (uint16_t)updatedOpValue;
+                ASSERT(updatedOpValue_16 == updatedOpValue);
+                operands[i].setValue(updatedOpValue);
+
+                int16_t oldBytes;
+                memcpy(&oldBytes,rawBytes+operands[i].getBytePosition(),sizeof(uint16_t));
+                oldBytes_64 = (int64_t)oldBytes;
+
+                memcpy(rawBytes+operands[i].getBytePosition(),&updatedOpValue_16,sizeof(uint16_t));
+            }
+
+            else if (operands[i].getBytesUsed() == sizeof(uint8_t)){
+                uint8_t updatedOpValue_8 = (uint8_t)updatedOpValue;
+                ASSERT(updatedOpValue_8 == updatedOpValue);
+                operands[i].setValue(updatedOpValue);
+
+                int8_t oldBytes;
+                memcpy(&oldBytes,rawBytes+operands[i].getBytePosition(),sizeof(uint8_t));
+                oldBytes_64 = (int64_t)oldBytes;
+
+                memcpy(rawBytes+operands[i].getBytePosition(),&updatedOpValue_8,sizeof(uint8_t));
+            }
+
+            else {
+                __SHOULD_NOT_ARRIVE;
+            }
+
+            ASSERT((oldBytes_64 == oldValue_64 || oldBytes_64 + getLength() == oldValue_64)
+                   && "Unexpected discrepancy in operand value");
+        }
+    }
+    return oldValue_64;
+}
+
 uint32_t Instruction::getLength(){
     return instructionLength;
 }
@@ -1062,16 +1156,76 @@ Operand Instruction::getOperand(uint32_t idx){
     return operands[idx];
 }
 
-void Instruction::print(){
-    PRINT_INFO();
-    if (isBranchInstruction()){
-        PRINT_OUT("Instruction(%d) (NOTRELOC BRANCH) -- ", index);
-    } else if (isRelocatable()){
-        PRINT_OUT("Instruction(%d) (YES RELOCATABLE) -- ", index);
-    } else {
-        PRINT_OUT("Instruction(%d) (NOT RELOCATABLE) -- ", index);
+const char* OpTypeNames[] = {
+    "type_unused",        // 0
+    "type_immrel",
+    "type_reg",
+    "type_imreg",
+    "type_imm",
+    "type_mem",               // 5
+    "type_func_ST",
+    "type_func_STi",
+    "type_func_indirE",
+    "type_func_E",
+    "type_func_G",            // 10
+    "type_func_IMREG",
+    "type_func_I",
+    "type_func_I64",
+    "type_func_sI",
+    "type_func_J",            // 15
+    "type_func_SEG",
+    "type_func_DIR",
+    "type_func_OFF",
+    "type_func_OFF64",
+    "type_func_ESreg",        // 20
+    "type_func_DSreg",
+    "type_func_C",
+    "type_func_D",
+    "type_func_T",
+    "type_func_Rd",           // 25    
+    "type_func_MMX",
+    "type_func_XMM",
+    "type_func_EM",
+    "type_func_EX",
+    "type_func_MS",           // 30
+    "type_func_XS",
+    "type_func_3DNowSuffix",
+    "type_func_SIMD_Suffix",
+    "type_func_SIMD_Fixup"
+    };
+
+
+void Operand::print(){
+    char* relStr = "     ";
+    if (isRelative()){
+        relStr =   "IPREL";
     }
-    PRINT_OUT("[%d](", instructionLength);
+    PRINT_INFOR("\tOPERAND %16s %5s %1d+%1d 0x%08x", OpTypeNames[getType()], relStr, getBytePosition(), getBytesUsed(), getValue());
+}
+
+
+const char* InstTypeNames[] = {
+    "type_unknown",
+    "type_cond_branch",
+    "type_branch",
+    "type_return",
+    "type_int",
+    "type_float",
+    "type_simd",
+    "type_io",
+    "type_prefetch",
+    "type_syscall",
+    "type_hwcount"
+};
+
+void Instruction::print(){
+    char* relStr = "     ";
+    if (isRelocatable()){
+        relStr =   "RELOC";
+    }
+    PRINT_INFO();
+
+    PRINT_OUT("INSTRUCTION(%d) %15s %5s [%d bytes -- ", index, InstTypeNames[instructionType], relStr, instructionLength);
 
     if (rawBytes){
         for (uint32_t i = 0; i < instructionLength; i++){
@@ -1080,11 +1234,12 @@ void Instruction::print(){
     } else {
         PRINT_OUT("NOBYTES");
     }
+    PRINT_OUT("] 0x%llx -> 0x%llx", virtualAddress, nextAddress);
+    PRINT_OUT("\n");
 
-    PRINT_OUT(") -- (type %d) at address 0x%016llx has %d bytes -> 0x%016llx\n", instructionType, virtualAddress, instructionLength, nextAddress);
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i].getType()){
-            PRINT_INFOR("\tOperand %d: %d 0x%016llx", i, operands[i].getType(), operands[i].getValue());
+            operands[i].print();
         }
     }
 }

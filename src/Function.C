@@ -206,9 +206,11 @@ uint32_t Function::digest(){
 
     delete dummyInstruction;
 
+    /*
     PRINT_INFOR("Function %s: read %d bytes from function, %d bytes in functions", getName(), currByte, sizeInBytes);
     if (functionSymbol)
         functionSymbol->print();
+    */
 
     Instruction** instructions = new Instruction*[numberOfInstructions];
     numberOfInstructions = 0;

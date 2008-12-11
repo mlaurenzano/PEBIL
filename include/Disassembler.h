@@ -92,7 +92,7 @@ private:
     int64_t get32();
     int64_t get32s();
     int32_t get16();
-    void set_op(uint64_t op, int riprel);
+    void set_op(uint64_t op, int riprel, int bytesUsed, int firstByte);
     void ptr_reg(uint32_t code, uint32_t sizeflag);
     void generic_print_address(uint64_t addr, struct disassemble_info* info);
 

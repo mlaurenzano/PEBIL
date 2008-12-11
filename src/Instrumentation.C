@@ -474,12 +474,35 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
     }
     trampolineSize += trampolineInstructions.back()->getLength();
 
+    int32_t numberOfBranches = 0;
+    Instruction* relocatedBranch = NULL;
+    uint64_t relocatedBranchOffset = 0;
+    uint64_t displacementDist = returnOffset - (offset + trampolineSize + SIZE_NEEDED_AT_INST_POINT);
+    uint32_t displacedInstructionSize = 0;
     for (uint32_t i = 0; i < (*insts).size(); i++){
+        if ((*insts)[i]->isBranchInstruction()){
+            numberOfBranches++;
+            relocatedBranch = (*insts)[i];
+            relocatedBranchOffset = trampolineSize;
+        } else {
+            (*insts)[i]->setRelocationInfo(true,displacementDist);
+        }
         trampolineInstructions.append((*insts)[i]);
         trampolineSize += trampolineInstructions.back()->getLength();
+        displacedInstructionSize += trampolineInstructions.back()->getLength();
     }
+    ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
+
     trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,returnOffset));
     trampolineSize += trampolineInstructions.back()->getLength();
+
+    if (numberOfBranches){
+        ASSERT(relocatedBranch && relocatedBranchOffset);
+        uint64_t oldRelativeOffset = relocatedBranch->setRelocationInfo(false,trampolineSize-relocatedBranchOffset-relocatedBranch->getLength());
+        trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,
+                                                                        returnOffset+oldRelativeOffset-SIZE_NEEDED_AT_INST_POINT+displacedInstructionSize-relocatedBranch->getLength()));
+        trampolineSize += trampolineInstructions.back()->getLength();
+    }
 
     return trampolineSize;
 }

@@ -1136,6 +1136,8 @@ void Disassembler::print_operand_value(char* buf, uint32_t hex, uint64_t disp){
 
 void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
     uint64_t disp;
+    uint32_t firstByte = 0;
+    uint32_t bytesUsed = 0;
     int add = 0;
     int riprel = 0;
     USED_REX (REX_EXTZ);
@@ -1234,16 +1236,22 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
                 havebase = 0;
                 if (mode_64bit && !havesib && (sizeflag & AFLAG))
                     riprel = 1;
+                firstByte = codep - start_codep;
+                bytesUsed = 4;
                 disp = get32s();
 	    }
             break;
 	case 1:
             FETCH_DATA(the_info, codep + 1);
+            firstByte = codep - start_codep;
+            bytesUsed++;
             disp = *codep++;
             if ((disp & 0x80) != 0)
                 disp -= 0x100;
             break;
 	case 2:
+            firstByte = codep - start_codep;
+            bytesUsed = 4;
             disp = get32s();
             break;
 	}
@@ -1253,7 +1261,7 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
                 print_operand_value (scratchbuf, !riprel, disp);
                 oappend (scratchbuf);
                 if (riprel){
-                    set_op (disp, 1);
+                    set_op (disp, 1, bytesUsed, firstByte);
                     oappend ("(%rip)");
                 }
             }
@@ -1486,7 +1494,7 @@ int32_t Disassembler::get16(){
     return x;
 }
 
-void Disassembler::set_op(uint64_t op, int riprel){
+void Disassembler::set_op(uint64_t op, int riprel, int bytesUsed, int firstByte){
     op_index[op_ad] = op_ad;
     if (mode_64bit){
         op_address[op_ad] = op;
@@ -1497,8 +1505,11 @@ void Disassembler::set_op(uint64_t op, int riprel){
         op_address[op_ad] = op & 0xffffffff;
         op_riprel[op_ad] = riprel & 0xffffffff;
     }
-    PRINT_DEBUG_OPERAND(" called set_op %x %d\n", op_address[op_ad], op_ad);
+    PRINT_DEBUG_OPERAND(" called set_op %d 0x%x 0x%x+%d\n", op_ad, op_address[op_ad], firstByte, bytesUsed);
     currentInstruction->setOperandValue(op_ad,op_address[op_ad]);
+    currentInstruction->setOperandRelative(op_ad,true);
+    currentInstruction->setOperandBytePosition(op_ad,firstByte);
+    currentInstruction->setOperandBytesUsed(op_ad,bytesUsed);
 }
 
 void Disassembler::OP_REG(uint32_t code, uint32_t sizeflag){
@@ -1746,19 +1757,28 @@ void Disassembler::OP_sI(uint32_t bytemode, uint32_t sizeflag){
 
 void Disassembler::OP_J(uint32_t bytemode, uint32_t sizeflag){
     uint64_t disp;
+    uint32_t bytesUsed = 0;
+    uint32_t firstByte = 0;
     int64_t mask = -1;
 
     switch (bytemode){
     case b_mode:
         FETCH_DATA(the_info, codep + 1);
+        firstByte = codep - start_codep;
+        bytesUsed++;
         disp = *codep++;
         if ((disp & 0x80) != 0)
             disp -= 0x100;
         break;
     case v_mode:
-        if (sizeflag & DFLAG)
+        if (sizeflag & DFLAG){
+            firstByte = codep - start_codep;
+            bytesUsed = 4;
             disp = get32s();
+        }
         else {
+            firstByte = codep - start_codep;
+            bytesUsed = 2;
             disp = get16();
             /* For some reason, a data16 prefix on a jump instruction
                means that the pc is masked to 16 bits after the
@@ -1778,7 +1798,7 @@ void Disassembler::OP_J(uint32_t bytemode, uint32_t sizeflag){
     //PRINT_DEBUG_OPERAND(" found OP_J: %llx = (%llx + %x - %x + prev) & %llx\n", disp, start_pc, codep, start_codep, mask);
     currentInstruction->setOperandType(2,x86_operand_type_immrel);
     PRINT_DEBUG_OPTARGET("set operand type to immrel\n");
-    set_op(disp, 0);
+    set_op(disp, 0, bytesUsed, firstByte);
     print_operand_value(scratchbuf, 1, disp);
     oappend(scratchbuf);
 }
@@ -1980,6 +2000,7 @@ void Disassembler::OP_EM(uint32_t bytemode, uint32_t sizeflag){
 void Disassembler::OP_EX(uint32_t bytemode, uint32_t sizeflag){
     int add = 0;
     if (mod != 3){
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_E);
         OP_E(bytemode, sizeflag);
         return;
     }
