@@ -82,6 +82,14 @@ uint32_t Function::findDominators(){
 uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** instructions){
     ASSERT(!basicBlocks.size() && "Basic blocks vector should be empty");
 
+    // cache all addresses for this basic block
+    uint64_t* addressCache = new uint64_t[numberOfInstructions];
+    uint64_t* nextAddressCache = new uint64_t[numberOfInstructions];
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        addressCache[i] = instructions[i]->getAddress();
+        nextAddressCache[i] = instructions[i]->getNextAddress();
+    }
+
     bool* isLeader = new bool[numberOfInstructions];
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         isLeader[i] = false;
@@ -93,8 +101,8 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
             isLeader[i] = true;
             numberOfBasicBlocks++;
         }
-        if (instructions[i]->getAddress() + instructions[i]->getLength() != instructions[i]->getNextAddress()){
-            if (inRange(instructions[i]->getNextAddress())){
+        if (addressCache[i] + instructions[i]->getLength() != nextAddressCache[i]){
+            if (inRange(nextAddressCache[i])){
                 if (instructions[i]->isBranchInstruction()){
                     if (i+1 < numberOfInstructions){
                         if (!isLeader[i+1]){
@@ -104,7 +112,7 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
                     }
                 }
                 for (uint32_t j = 0; j < numberOfInstructions; j++){
-                    if (instructions[j]->getAddress() == instructions[i]->getNextAddress()){
+                    if (addressCache[i] == nextAddressCache[i]){
                         if (!isLeader[j]){
                             isLeader[j] = true;
                             numberOfBasicBlocks++;
@@ -240,7 +248,7 @@ uint32_t Function::digest(){
         uint32_t extraBytes = currByte-sizeInBytes;
         instructions[numberOfInstructions-1]->setLength(instructions[numberOfInstructions-1]->getLength()-extraBytes);
         currByte -= extraBytes;
-        PRINT_WARN("Disassembler found instructions that exceed the function boundary in %s by %d bytes", getName(), extraBytes);
+        PRINT_WARN(3,"Disassembler found instructions that exceed the function boundary in %s by %d bytes", getName(), extraBytes);
     }
 
     ASSERT(currByte == sizeInBytes && "Number of bytes read for function does not match function size");

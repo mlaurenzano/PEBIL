@@ -14,7 +14,7 @@
 
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
-//#define USE_WARNINGS
+#define WARNING_SEVERITY 5
 //#define DEVELOPMENT
 //#define DEBUG_OPERAND
 //#define DEBUG_OPTARGET
@@ -71,11 +71,12 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     ASSERT(0); \
     exit(-1);
 
-#ifdef USE_WARNINGS
-#define PRINT_WARN(...)  fprintf(stderr,"*** WARNING : "); \
+#ifdef WARNING_SEVERITY
+#define PRINT_WARN(__severity,...)  if (__severity >= WARNING_SEVERITY){ \
+    fprintf(stderr,"*** WARNING : ");                            \
     fprintf(stderr,## __VA_ARGS__);                              \
     fprintf(stderr,"\n");                                        \
-    fflush(stderr);
+    fflush(stderr); }
 #else
 #define PRINT_WARN(...)
 #endif

@@ -471,7 +471,7 @@ void ElfFile::initSectionFilePointers(){
             char* symName = currentSymtab->getSymbolName(j);
             if (!strcmp(symName,GOT_SYM_NAME)){
                 if (gotBaseAddress){
-                    PRINT_WARN("Found mutiple symbols for Global Offset Table (symbols named %s), addresses are 0x%016llx, 0x%016llx",
+                    PRINT_WARN(4,"Found mutiple symbols for Global Offset Table (symbols named %s), addresses are 0x%016llx, 0x%016llx",
                                GOT_SYM_NAME, gotBaseAddress, currentSymtab->getSymbol(j)->GET(st_value));
                     ASSERT(gotBaseAddress == currentSymtab->getSymbol(j)->GET(st_value) && "Conflicting addresses for Global Offset Table Found!");
                 }
@@ -517,7 +517,7 @@ void ElfFile::initSectionFilePointers(){
             char* symName = currentSymtab->getSymbolName(j);
             if (!strcmp(symName,DYN_SYM_NAME)){
                 if (dynamicSectionAddress){
-                    PRINT_WARN("Found mutiple symbols for Dynamic Section (symbols named %s), addresses are 0x%016llx, 0x%016llx",
+                    PRINT_WARN(4,"Found mutiple symbols for Dynamic Section (symbols named %s), addresses are 0x%016llx, 0x%016llx",
                                DYN_SYM_NAME, dynamicSectionAddress, currentSymtab->getSymbol(j)->GET(st_value));
                     ASSERT(dynamicSectionAddress == currentSymtab->getSymbol(j)->GET(st_value) && "Two different addresses for Dynamic Section Found!");
                 }
@@ -646,7 +646,7 @@ void ElfFile::print(uint32_t printCodes)
         if(fileHeader){
             fileHeader->print(); 
         } else {
-            PRINT_WARN("\tNo File Header Found");
+            PRINT_WARN(4,"\tNo File Header Found");
         }
     }
     
@@ -661,7 +661,7 @@ void ElfFile::print(uint32_t printCodes)
                 }
             }
         } else {
-            PRINT_WARN("\tNo Section Headers Found");
+            PRINT_WARN(4,"\tNo Section Headers Found");
         }
     }
 
@@ -675,7 +675,7 @@ void ElfFile::print(uint32_t printCodes)
                 }
             }
         } else {
-            PRINT_WARN("\tNo Program Headers Found");
+            PRINT_WARN(4,"\tNo Program Headers Found");
         }
     }
 
@@ -687,7 +687,7 @@ void ElfFile::print(uint32_t printCodes)
                 noteSections[i]->print();
             }
         } else {
-            PRINT_WARN("\tNo Note Sections Found");
+            PRINT_WARN(4,"\tNo Note Sections Found");
         }
     }
 
@@ -700,7 +700,7 @@ void ElfFile::print(uint32_t printCodes)
                     symbolTables[i]->print();
             }
         } else {
-            PRINT_WARN("\tNo Symbol Tables Found");
+            PRINT_WARN(4,"\tNo Symbol Tables Found");
         }
     }
 
@@ -714,7 +714,7 @@ void ElfFile::print(uint32_t printCodes)
                 }
             }
         } else {
-            PRINT_WARN("\tNo Relocation Tables Found");
+            PRINT_WARN(4,"\tNo Relocation Tables Found");
         }
     }
 
@@ -728,7 +728,7 @@ void ElfFile::print(uint32_t printCodes)
                 }
             }
         } else {
-            PRINT_WARN("\tNo String Tables Found");
+            PRINT_WARN(4,"\tNo String Tables Found");
         }
     }
 
@@ -738,7 +738,7 @@ void ElfFile::print(uint32_t printCodes)
         if (globalOffsetTable){
             globalOffsetTable->print();
         } else {
-            PRINT_WARN("\tNo Global Offset Table Found");
+            PRINT_WARN(4,"\tNo Global Offset Table Found");
         }
     }
 
@@ -748,7 +748,7 @@ void ElfFile::print(uint32_t printCodes)
         if (hashTable){
             hashTable->print();
         } else {
-            PRINT_WARN("\tNo Hash Table Found");
+            PRINT_WARN(4,"\tNo Hash Table Found");
         }
     }
 
@@ -759,7 +759,7 @@ void ElfFile::print(uint32_t printCodes)
             dynamicTable->print();
             dynamicTable->printSharedLibraries(&binaryInputFile);
         } else {
-            PRINT_WARN("\tNo Dynamic Table Found");
+            PRINT_WARN(4,"\tNo Dynamic Table Found");
         }
     }
 
@@ -769,7 +769,7 @@ void ElfFile::print(uint32_t printCodes)
         if (gnuVerneedTable){
             gnuVerneedTable->print();
         } else {
-            PRINT_WARN("\tNo GNU Version Needs Table  Found");
+            PRINT_WARN(4,"\tNo GNU Version Needs Table  Found");
         }
     }
 
@@ -779,7 +779,7 @@ void ElfFile::print(uint32_t printCodes)
         if (gnuVersymTable){
             gnuVersymTable->print();
         } else {
-            PRINT_WARN("\tNo GNU Version Symbol Table Found");
+            PRINT_WARN(4,"\tNo GNU Version Symbol Table Found");
         }
     }
 

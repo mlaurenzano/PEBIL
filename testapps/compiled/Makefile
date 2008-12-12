@@ -1,5 +1,5 @@
 64BITPROGS_SER = cTest.gnu cppTest.gnu htcoef.gnu cTest.intel cppTest.intel htcoef.intel cTest.sun cppTest.sun htcoef.sun cTest.pgi cppTest.pgi htcoef.pgi
-64BITPROGS_PAR = #xmesh_specfem3D.pgi hycom.standard wrf.standard
+64BITPROGS_PAR = xmesh_specfem3D.pgi hycom.standard wrf.standard
 32BITPROGS_SER = cTest.gnu cppTest.gnu htcoef.gnu
 32BITPROGS_PAR =
 X86INSTREGEXP  = "(Instrumentation Successfull)"

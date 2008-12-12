@@ -145,7 +145,7 @@ void BasicBlockCounter::reserveInstrumentation(){
             if (b->findInstrumentationPoint()){
                 addInstrumentationPoint(b,snip);
             } else {
-                PRINT_WARN("BLOCK_NOT_INSTRUMENTED: %llx [%d bytes]", b->getAddress(), b->getBlockSize());
+                PRINT_WARN(3,"BLOCK_NOT_INSTRUMENTED: %llx [%d bytes] %s", b->getAddress(), b->getBlockSize(), b->getFunction()->getName());
                 uint32_t noinst_value = NOINST_VALUE;
                 noInst++;
                 initializeReservedData(dataBaseAddress+counterArray+sizeof(uint32_t)*i,sizeof(uint32_t),&noinst_value);
@@ -153,7 +153,7 @@ void BasicBlockCounter::reserveInstrumentation(){
         }
     }
 
-    PRINT_WARN("Cannot find instrumentation points for %d/%d basic blocks in the code", noInst, instPoints);
+    PRINT_WARN(3,"Cannot find instrumentation points for %d/%d basic blocks in the code", noInst, instPoints);
 
     delete[] allBlocks;
     delete[] allLineInfos;

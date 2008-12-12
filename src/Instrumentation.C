@@ -493,7 +493,7 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
     }
 
     if (numberOfBranches >= 2){
-        PRINT_WARN("Shouldn't have more than 1 branch in a block, this one has %d");
+        PRINT_WARN(5,"Shouldn't have more than 1 branch in a block, this one has %d");
         for (uint32_t i = 0; i < (*insts).size(); i++){
             (*insts)[i]->print();
         }

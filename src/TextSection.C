@@ -92,7 +92,7 @@ uint32_t FreeText::digest(){
         uint32_t extraBytes = currByte-sizeInBytes;
         instructions.back()->setLength(instructions.back()->getLength()-extraBytes);
         currByte -= extraBytes;
-        PRINT_WARN("Disassembler found instructions that exceed the function boundary in %s by %d bytes", getName(), extraBytes);
+        PRINT_WARN(3,"Disassembler found instructions that exceed the function boundary in %s by %d bytes", getName(), extraBytes);
     }
 
     ASSERT(currByte == sizeInBytes && "Number of bytes read does not match object size");

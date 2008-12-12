@@ -1054,7 +1054,7 @@ uint64_t Instruction::setRelocationInfo(bool isRelative, uint64_t displacementDi
 
             // check that this new operand value does not overrun bounds then update the value
             if (operands[i].getBytesUsed() == sizeof(uint32_t)){
-                uint32_t updatedOpValue_32 = (uint32_t)updatedOpValue;
+                int32_t updatedOpValue_32 = (int32_t)updatedOpValue;
                 ASSERT(updatedOpValue_32 == updatedOpValue);
                 operands[i].setValue(updatedOpValue);
  
@@ -1066,7 +1066,7 @@ uint64_t Instruction::setRelocationInfo(bool isRelative, uint64_t displacementDi
             }
 
             else if (operands[i].getBytesUsed() == sizeof(uint16_t)){
-                uint16_t updatedOpValue_16 = (uint16_t)updatedOpValue;
+                int16_t updatedOpValue_16 = (int16_t)updatedOpValue;
                 ASSERT(updatedOpValue_16 == updatedOpValue);
                 operands[i].setValue(updatedOpValue);
 
@@ -1078,7 +1078,7 @@ uint64_t Instruction::setRelocationInfo(bool isRelative, uint64_t displacementDi
             }
 
             else if (operands[i].getBytesUsed() == sizeof(uint8_t)){
-                uint8_t updatedOpValue_8 = (uint8_t)updatedOpValue;
+                int8_t updatedOpValue_8 = (int8_t)updatedOpValue;
                 ASSERT(updatedOpValue_8 == updatedOpValue);
                 operands[i].setValue(updatedOpValue);
 
@@ -1110,7 +1110,7 @@ char* Instruction::getBytes(){
 
 char* Instruction::setBytes(char* bytes){
     if (rawBytes){
-        PRINT_WARN("Deleting rawBytes");
+        PRINT_WARN(2,"Deleting rawBytes");
         delete[] rawBytes;
     }
     rawBytes = new char[instructionLength];

@@ -37,6 +37,9 @@ uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
     ASSERT(currentPhase > ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     uint64_t avail = usableDataOffset + bssReserved;
     usableDataOffset += size;
+    if (avail > elfFile->getSectionHeader(extraDataIdx)->GET(sh_size)){
+        PRINT_WARN(5,"More than %llx bytes of data are needed for the extra data section", elfFile->getSectionHeader(extraDataIdx)->GET(sh_size));
+    }
     ASSERT(avail <= elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) && "Not enough space for the requested data");
     return avail;
 }
@@ -210,7 +213,7 @@ void ElfFileInst::generateInstrumentation(){
         }
 
         if (!pt->getSourceAddress()){
-            PRINT_WARN("Could not find a place to instrument for point %d", i);
+            PRINT_WARN(4,"Could not find a place to instrument for point %d", i);
             continue;
         }
 
@@ -242,6 +245,9 @@ void ElfFileInst::generateInstrumentation(){
     }
     
     ASSERT(precodeOffset == bootstrapSize && "Bootstrap code size does not match what we just calculated");
+
+    PRINT_INFOR("Space allocated for extra text: %llx, space needed: %llx", elfFile->getSectionHeader(extraTextIdx)->GET(sh_size), codeOffset);
+    PRINT_INFOR("Space allocated for extra data: %llx, space needed: %llx", elfFile->getSectionHeader(extraDataIdx)->GET(sh_size), usableDataOffset);
     ASSERT(codeOffset <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough space in the text section to accomodate the extra code");
 
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
@@ -279,8 +285,8 @@ void ElfFileInst::instrument(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
-    extendTextSection(0x20000);
-    extendDataSection(0x80000);
+    extendTextSection(0x400040);
+    extendDataSection(0x2000000);
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     currentPhase++;
@@ -519,6 +525,9 @@ void ElfFileInst::extendTextSection(uint64_t size){
     for (uint32_t i = 0; i < elfFile->getNumberOfPrograms(); i++){
         ProgramHeader* subHeader = elfFile->getProgramHeader(i);
         if (textHeader->inRange(subHeader->GET(p_vaddr)) && i != elfFile->getTextSegmentIdx()){
+            if (subHeader->GET(p_vaddr) < size){
+                PRINT_WARN(5,"Unable to extend text section by %llx bytes: the maximum size of a text extension for this binary is %llx bytes", size, subHeader->GET(p_vaddr));
+            }
             ASSERT(subHeader->GET(p_vaddr) >= size && "The text extension size is too large");
             subHeader->SET(p_vaddr,subHeader->GET(p_vaddr)-size);
             subHeader->SET(p_paddr,subHeader->GET(p_paddr)-size);
@@ -621,6 +630,7 @@ void ElfFileInst::extendTextSection(uint64_t size){
 
 
 ElfFileInst::~ElfFileInst(){
+    PRINT_INFOR("Space allocated for extra data: %llx, space needed: %llx", elfFile->getSectionHeader(extraDataIdx)->GET(sh_size), usableDataOffset);
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         delete instrumentationFunctions[i];
     }

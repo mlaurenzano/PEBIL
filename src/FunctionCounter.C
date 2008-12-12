@@ -104,7 +104,7 @@ void FunctionCounter::reserveInstrumentation(){
                 if (f->findInstrumentationPoint()){
                     addInstrumentationPoint(f,snip);
                 } else {
-                    PRINT_WARN("Cannot find instrumentation point at function %s", f->getName());
+                    PRINT_WARN(4,"Cannot find instrumentation point at function %s", f->getName());
                 }
             }
             instPoints++;
