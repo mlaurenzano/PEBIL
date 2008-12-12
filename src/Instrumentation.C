@@ -491,6 +491,13 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
         trampolineSize += trampolineInstructions.back()->getLength();
         displacedInstructionSize += trampolineInstructions.back()->getLength();
     }
+
+    if (numberOfBranches >= 2){
+        PRINT_WARN("Shouldn't have more than 1 branch in a block, this one has %d");
+        for (uint32_t i = 0; i < (*insts).size(); i++){
+            (*insts)[i]->print();
+        }
+    }
     ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
 
     trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,returnOffset));

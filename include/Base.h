@@ -14,7 +14,7 @@
 
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
-#define USE_WARNINGS
+//#define USE_WARNINGS
 //#define DEVELOPMENT
 //#define DEBUG_OPERAND
 //#define DEBUG_OPTARGET

@@ -856,11 +856,10 @@ Instruction* Instruction::generateJumpRelative(uint64_t addr, uint64_t tgt){
     buff[0] = 0xe9;
 
     uint64_t imm = tgt - addr - len;
-
     uint32_t imm32 = (uint32_t)imm;
 
-    ASSERT(addr == (uint32_t)addr && "Cannot use more than 32 bits for address");
-    ASSERT(tgt == (uint32_t)tgt && "Cannot use more than 32 bits for target");
+    ASSERT(addr == (int32_t)addr && "Cannot use more than 32 bits for address");
+    ASSERT(tgt == (int32_t)tgt && "Cannot use more than 32 bits for target");
 
     memcpy(buff+1,&imm32,sizeof(uint32_t));
 
