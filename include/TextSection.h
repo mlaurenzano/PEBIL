@@ -30,6 +30,8 @@ public:
     char* charStream();
     bool isFunction();
 
+    TextSection* getTextSection() { return textSection; }
+
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
     virtual char* getName() { __SHOULD_NOT_ARRIVE; }
     virtual uint32_t digest() { __SHOULD_NOT_ARRIVE; }

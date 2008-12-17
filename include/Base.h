@@ -23,6 +23,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_NOTE
 //#define DEBUG_LINEINFO
 //#define DEBUG_BASICBLOCK
+//#define DEBUG_HASHCODE
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -146,6 +147,15 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define PRINT_DEBUG_BASICBLOCK(...)
 #endif
 
+#ifdef DEBUG_HASHCODE
+#define PRINT_DEBUG_HASHCODE(...) fprintf(stdout,"HASHCODE : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_HASHCODE(...)
+#endif
+
 
 
 #ifdef  DEVELOPMENT
@@ -226,7 +236,6 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 #define HAS_PRINT_CODE(__value,__Print_Code) ((__value & __Print_Code) || (__value & Print_Code_All))
 #define SET_PRINT_CODE(__value,__Print_Code) (__value |= __Print_Code)
-
 
 typedef enum {
     DebugFormat_undefined = 0,

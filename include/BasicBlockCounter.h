@@ -9,8 +9,7 @@ public:
     BasicBlockCounter(ElfFile* elf);
     ~BasicBlockCounter() {}
 
-    void declareInstrumentation();
-    void reserveInstrumentation();
+    void instrument();
 };
 
 

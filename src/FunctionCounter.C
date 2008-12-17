@@ -15,21 +15,16 @@ FunctionCounter::FunctionCounter(ElfFile* elf)
 FunctionCounter::~FunctionCounter(){
 }
 
-void FunctionCounter::declareInstrumentation(){
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
-
+void FunctionCounter::instrument(){
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
+    
     // declare any shared library that will contain instrumentation functions
     declareLibrary(LIB_NAME);
 
     // declare any instrumentation functions that will be used
     declareFunction(EXIT_FUNCTION);
 
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
-}
 
-void FunctionCounter::reserveInstrumentation(){
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
-    
     TextSection* text = getTextSection();
     TextSection* fini = getFiniSection();
     TextSection* init = getInitSection();

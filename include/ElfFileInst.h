@@ -3,8 +3,8 @@
 
 #include <Base.h>
 #include <Vector.h>
+#include <ElfFile.h>
 
-class ElfFile;
 class SectionHeader;
 class Instruction;
 class BinaryOutputFile;
@@ -30,7 +30,6 @@ class LineInfoFinder;
 typedef enum {
     ElfInstPhase_no_phase = 0,
     ElfInstPhase_extend_space,
-    ElfInstPhase_user_declare,
     ElfInstPhase_user_reserve,
     ElfInstPhase_modify_control,
     ElfInstPhase_generate_instrumentation,
@@ -42,6 +41,8 @@ class ElfFileInst {
 protected:
     uint32_t currentPhase;
     ElfFile* elfFile;
+
+    char* instSuffix;
 
     Vector<InstrumentationSnippet*> instrumentationSnippets;
     Vector<InstrumentationFunction*> instrumentationFunctions;
@@ -85,7 +86,7 @@ public:
 
     void verify();
 
-    void instrument();
+    void phasedInstrumentation();
 
     TextSection* getTextSection();
     TextSection* getFiniSection();
@@ -93,6 +94,9 @@ public:
 
     LineInfoFinder* getLineInfoFinder() { return lineInfoFinder; }
     bool hasLineInformation() { return (lineInfoFinder != NULL); }
+
+    char* getApplicationName() { return elfFile->getElfFileName(); }
+    char* getInstSuffix() { return instSuffix; }
 
     TextSection* getExtraTextSection();
     RawSection* getExtraDataSection();
@@ -110,8 +114,8 @@ public:
     uint64_t addInstrumentationPoint(Function* instpoint, Instrumentation* inst);
     uint64_t addInstrumentationPoint(Instruction* instpoint, Instrumentation* inst);
 
-    virtual void declareInstrumentation() { __SHOULD_NOT_ARRIVE; }
-    virtual void reserveInstrumentation() { __SHOULD_NOT_ARRIVE; }
+    virtual void declare() { __SHOULD_NOT_ARRIVE; }
+    virtual void instrument() { __SHOULD_NOT_ARRIVE; }
 };
 
 

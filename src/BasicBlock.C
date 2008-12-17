@@ -2,8 +2,21 @@
 #include <ElfFileInst.h>
 #include <Instruction.h>
 #include <Function.h>
+#include <FlowGraph.h>
 
 #define MAX_SIZE_LINEAR_SEARCH 4096
+
+void BasicBlock::findMemoryFloatOps(){
+}
+
+void BasicBlock::setIndex(uint32_t idx){
+    index = idx;
+    hashCode = HashCode(flowGraph->getTextSection()->getSectionIndex(),
+                        flowGraph->getFunction()->getIndex(),
+                        index);
+
+    verify();
+}
 
 uint64_t BasicBlock::getTargetAddress() {
     ASSERT(instructions.back());
@@ -67,57 +80,22 @@ bool BasicBlock::inRange(uint64_t addr){
     return false;
 }
 
-void BasicBlock::giveSourceBlocks(BitSet<BasicBlock*>* srcBlocks){
-    ASSERT(!sourceBlocks && "sourceBlocks should not be initialized");
-    sourceBlocks = new BitSet<BasicBlock*>(*srcBlocks);
-}
-
-BitSet<BasicBlock*>* BasicBlock::getTargetBlocks(){
-    return targetBlocks;
-}
-
-void BasicBlock::giveTargetBlocks(BitSet<BasicBlock*>* tgtBlocks){
-    ASSERT(!targetBlocks && "targetBlocks should not be initialized");
-    targetBlocks = new BitSet<BasicBlock*>(*tgtBlocks);
-}
-
-BitSet<BasicBlock*>* BasicBlock::getDominatorBlocks(){
-    return dominatorBlocks;
-}
-
-void BasicBlock::giveDominatorBlocks(BitSet<BasicBlock*>* domBlocks){
-    ASSERT(!dominatorBlocks && "dominatorBlocks should not be initialized");
-    dominatorBlocks = new BitSet<BasicBlock*>(*domBlocks);
-}
-
-BitSet<BasicBlock*>* BasicBlock::getSourceBlocks(){
-    return sourceBlocks;
-}
-
 BasicBlock::BasicBlock(uint32_t idx, Function* func){
     type = ElfClassTypes_BasicBlock;
     index = idx;
     function = func;
 
-    sourceBlocks = NULL;
-    targetBlocks = NULL;
-    dominatorBlocks = NULL;
-
     flags = 0;
+
+    hashCode = HashCode(func->getTextSection()->getSectionIndex(),func->getIndex(),index);
+    PRINT_DEBUG_HASHCODE("Block %d in function %d in section %d has HashCode 0x%012llx", index, func->getIndex(), func->getTextSection()->getSectionIndex(), hashCode.getValue());
+
+    verify();
 }
 
 BasicBlock::~BasicBlock(){
     for (uint32_t i = 0; i < instructions.size(); i++){
         delete instructions[i];
-    }
-    if (sourceBlocks){
-        delete sourceBlocks;
-    }
-    if (targetBlocks){
-        delete targetBlocks;
-    }
-    if (dominatorBlocks){
-        delete dominatorBlocks;
     }
 }
 
@@ -131,22 +109,6 @@ void BasicBlock::printInstructions(){
 
 void BasicBlock::print(){
     PRINT_INFOR("Basic Block %d at address range [0x%llx,0x%llx)", index, getAddress(), getAddress()+getBlockSize());
-    if (sourceBlocks){
-    PRINT_INFOR("\tSource Blocks:");
-        BasicBlock** srcs = (*sourceBlocks).duplicateMembers();
-        for (uint32_t i = 0; i < (*sourceBlocks).size(); i++){
-            PRINT_INFOR("\t\tsource block(%d) with index %d at address %llx", i, srcs[i]->getIndex(), srcs[i]->getAddress());
-        }
-        delete[] srcs;
-    }
-    if (targetBlocks){
-        PRINT_INFOR("\tTarget Blocks:");
-        BasicBlock** tgts = (*targetBlocks).duplicateMembers();
-        for (uint32_t i = 0; i < (*targetBlocks).size(); i++){
-            PRINT_INFOR("\t\ttarget block(%d) with index %d at address %llx", i, tgts[i]->getIndex(), tgts[i]->getAddress());
-        }
-        delete[] tgts;
-    }
 }
 
 bool BasicBlock::verify(){
@@ -156,36 +118,11 @@ bool BasicBlock::verify(){
             return false;
         }
     }
-
-    if (sourceBlocks){
-        BasicBlock** srcs = (*sourceBlocks).duplicateMembers();
-        for (uint32_t i = 0; i < (*sourceBlocks).size(); i++){
-            if (srcs[i]->isFunctionPadding()){
-                PRINT_ERROR("Function padding blocks should not connect to other blocks");
-                return false;
-            }
-            if (srcs[i]->getFunction() != getFunction()){
-                PRINT_ERROR("Only blocks from the same function can connect to each other");
-                return false;
-            }
-        }
-        delete[] srcs;
+    if (!hashCode.isBlock()){
+        PRINT_ERROR("BasicBlock %d HashCode is malformed", index);
+        return false;
     }
-
-    if (targetBlocks){
-        BasicBlock** tgts = (*targetBlocks).duplicateMembers();
-        for (uint32_t i = 0; i < (*targetBlocks).size(); i++){
-            if (tgts[i]->isFunctionPadding()){
-                PRINT_ERROR("Function padding blocks should not connect to other blocks");
-                return false;
-            }
-            if (tgts[i]->getFunction() != getFunction()){
-                PRINT_ERROR("Only blocks from the same function can connect to each other");
-                return false;
-            }
-        }
-        delete[] tgts;
-    }
+    return true;
 }
 
 uint64_t BasicBlock::findInstrumentationPoint(){

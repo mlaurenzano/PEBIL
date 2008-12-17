@@ -181,7 +181,8 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
     Vector<Symbol*> textSymbols = discoverTextObjects();
 
     if (textSymbols.size()){
-        for (uint32_t i = 0; i < textSymbols.size()-1; i++){
+        uint32_t i;
+        for (i = 0; i < textSymbols.size()-1; i++){
             uint32_t size = textSymbols[i+1]->GET(st_value) - textSymbols[i]->GET(st_value);
             if (textSymbols[i]->isFunctionSymbol(this)){
                 sortedTextObjects.append(new Function(this, i, textSymbols[i], size));
@@ -197,9 +198,9 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
         // the last function ends at the end of the section
         uint32_t size = sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size) - textSymbols.back()->GET(st_value);
         if (textSymbols.back()->isFunctionSymbol(this)){
-            sortedTextObjects.append(new Function(this, sortedTextObjects.size()-1, textSymbols.back(), size));
+            sortedTextObjects.append(new Function(this, i, textSymbols.back(), size));
         } else {
-            sortedTextObjects.append(new TextUnknown(this, sortedTextObjects.size()-1, textSymbols.back(), textSymbols.back()->GET(st_value), size));
+            sortedTextObjects.append(new TextUnknown(this, i, textSymbols.back(), textSymbols.back()->GET(st_value), size));
         }
     }
 

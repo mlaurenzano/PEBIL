@@ -50,7 +50,7 @@ public:
     T back() { ASSERT(numberOfElements); return elements[numberOfElements-1]; }
     T front() { ASSERT(numberOfElements); return elements[0]; }
 
-    T& operator[] (uint32_t idx){
+    inline T& operator[] (uint32_t idx){
         ASSERT(idx < numberOfElements);
         return elements[idx];
     }

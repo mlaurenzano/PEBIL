@@ -14,15 +14,15 @@ protected:
     char* rawDataPtr;
     uint16_t sectionIndex;
     ElfFile* elfFile;
+    HashCode hashCode;
 
 public:
-    RawSection(ElfClassTypes classType, char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
-        : Base(classType),rawDataPtr(rawPtr),sectionIndex(scnIdx),elfFile(elf) { sizeInBytes = size; }
+    RawSection(ElfClassTypes classType, char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf);
     ~RawSection() {}
 
     virtual uint32_t read(BinaryInputFile* b) {}
     virtual void print() { __SHOULD_NOT_ARRIVE; }
-    virtual bool verify() { return true; }
+    virtual bool verify();
 
     char* charStream() { return rawDataPtr; }
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
@@ -33,6 +33,8 @@ public:
     uint16_t getSectionIndex() { return sectionIndex; }
     void setSectionIndex(uint16_t newidx) { sectionIndex = newidx; }
     ElfFile* getElfFile() { return elfFile; }
+
+    HashCode getHashCode() { return hashCode; }
 };
 
 #endif /* _RawSection_h_ */

@@ -92,7 +92,7 @@ extern uint64_t nextAlignAddressDouble(uint64_t addr){
 HashCode::HashCode(uint32_t s){
     entry.bits = INVALID_FIELD;
     if(validSection(s)){
-        entry.fields.section  = s;
+        entry.fields.section  = ++s;
         entry.fields.function = INVALID_FIELD;
         entry.fields.block    = INVALID_FIELD;
         entry.fields.memop    = INVALID_FIELD;
@@ -102,7 +102,7 @@ HashCode::HashCode(uint32_t s){
 HashCode::HashCode(uint32_t s,uint32_t f){
     entry.bits = INVALID_FIELD;
     if(validSection(s) && validFunction(f)){
-        entry.fields.section  = s;
+        entry.fields.section  = ++s;
         entry.fields.function = ++f;
         entry.fields.block    = INVALID_FIELD;
         entry.fields.memop    = INVALID_FIELD;
@@ -112,7 +112,7 @@ HashCode::HashCode(uint32_t s,uint32_t f){
 HashCode::HashCode(uint32_t s,uint32_t f,uint32_t b){
     entry.bits = INVALID_FIELD;
     if(validSection(s) && validFunction(f) && validBlock(b)){
-        entry.fields.section  = s;
+        entry.fields.section  = ++s;
         entry.fields.function = ++f;
         entry.fields.block    = ++b;
         entry.fields.memop    = INVALID_FIELD;
@@ -122,7 +122,7 @@ HashCode::HashCode(uint32_t s,uint32_t f,uint32_t b){
 HashCode::HashCode(uint32_t s,uint32_t f,uint32_t b,uint32_t m){
     entry.bits = INVALID_FIELD;
     if(validSection(s) && validFunction(f) && validBlock(b) && validMemop(m)){
-        entry.fields.section  = s;
+        entry.fields.section  = ++s;
         entry.fields.function = ++f;
         entry.fields.block    = ++b;
         entry.fields.memop    = ++m;

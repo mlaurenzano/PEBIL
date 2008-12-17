@@ -273,7 +273,7 @@ InstrumentationFunction* ElfFileInst::getInstrumentationFunction(const char* fun
 
 
 // the order of the operations in this function matters
-void ElfFileInst::instrument(){
+void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
 
     uint16_t textIdx = elfFile->findSectionIdx(".text");
@@ -285,20 +285,14 @@ void ElfFileInst::instrument(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
-    extendTextSection(0x400040);
+    extendTextSection(0x400000);
     extendDataSection(0x2000000);
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     currentPhase++;
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
-
-    declareInstrumentation();
-
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
-    currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
-    reserveInstrumentation();
+    instrument();
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     currentPhase++;
@@ -390,7 +384,7 @@ uint64_t ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* 
 }
 
 uint32_t ElfFileInst::declareFunction(char* funcName){
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
@@ -412,7 +406,7 @@ uint32_t ElfFileInst::declareFunction(char* funcName){
 }
 
 uint32_t ElfFileInst::declareLibrary(char* libName){
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
     for (uint32_t i = 0; i < instrumentationLibraries.size(); i++){
         if (!strcmp(libName,instrumentationLibraries[i])){
@@ -526,7 +520,7 @@ void ElfFileInst::extendTextSection(uint64_t size){
         ProgramHeader* subHeader = elfFile->getProgramHeader(i);
         if (textHeader->inRange(subHeader->GET(p_vaddr)) && i != elfFile->getTextSegmentIdx()){
             if (subHeader->GET(p_vaddr) < size){
-                PRINT_WARN(5,"Unable to extend text section by %llx bytes: the maximum size of a text extension for this binary is %llx bytes", size, subHeader->GET(p_vaddr));
+                PRINT_WARN(5,"Unable to extend text section by 0x%llx bytes: the maximum size of a text extension for this binary is 0x%llx bytes", size, subHeader->GET(p_vaddr));
             }
             ASSERT(subHeader->GET(p_vaddr) >= size && "The text extension size is too large");
             subHeader->SET(p_vaddr,subHeader->GET(p_vaddr)-size);
@@ -630,7 +624,6 @@ void ElfFileInst::extendTextSection(uint64_t size){
 
 
 ElfFileInst::~ElfFileInst(){
-    PRINT_INFOR("Space allocated for extra data: %llx, space needed: %llx", elfFile->getSectionHeader(extraDataIdx)->GET(sh_size), usableDataOffset);
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         delete instrumentationFunctions[i];
     }
@@ -649,6 +642,10 @@ ElfFileInst::~ElfFileInst(){
 
     if (lineInfoFinder){
         delete lineInfoFinder;
+    }
+
+    if (instSuffix){
+        delete[] instSuffix;
     }
 }
 
@@ -712,6 +709,8 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
 
     usableDataOffset = 0;
     bssReserved = 0;
+
+    instSuffix = NULL;
 
     lineInfoFinder = NULL;
     if (elfFile->getLineInfoSection()){

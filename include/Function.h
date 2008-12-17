@@ -3,20 +3,26 @@
 
 #include <TextSection.h>
 #include <Vector.h>
+#include <BitSet.h>
 
-class Symbol;
 class BasicBlock;
 class BinaryInputFile;
 class BinaryOutputFile;
+class FlowGraph;
+class Symbol;
 class TextObject;
 
 class Function : public TextObject {
 protected:
     Symbol* functionSymbol;
     Vector<BasicBlock*> basicBlocks;
+    FlowGraph* flowGraph;
+
+    HashCode hashCode;
+    uint64_t baseAddress;
 
     uint32_t findBasicBlocks(uint32_t numberOfInstructions, Instruction** instructions);
-    uint32_t findControlFlowGraph();
+    uint32_t generateCFG();
     uint32_t findDominators();
 
 public:
@@ -40,6 +46,7 @@ public:
     void print();
 
     const char* briefName() { return "Function"; }
+    HashCode getHashCode() { return hashCode; }
 };
 
 #endif /* _Function_h_ */

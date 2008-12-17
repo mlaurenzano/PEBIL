@@ -6,6 +6,25 @@
 #include <BinaryFile.h>
 #include <SectionHeader.h>
 
+RawSection::RawSection(ElfClassTypes classType, char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
+    : Base(classType),rawDataPtr(rawPtr),sectionIndex(scnIdx),elfFile(elf) 
+{ 
+    sizeInBytes = size; 
+
+    hashCode = HashCode((uint32_t)sectionIndex);
+    PRINT_DEBUG_HASHCODE("Section %d Hashcode: 0x%04llx", (uint32_t)sectionIndex, hashCode.getValue());
+
+    verify();
+}
+
+bool RawSection::verify(){
+    if (!hashCode.isSection()){
+        PRINT_ERROR("RawSection %d HashCode is malformed", (uint32_t)sectionIndex);
+        return false;
+    }
+    return true;
+}
+
 SectionHeader* RawSection::getSectionHeader(){
     return elfFile->getSectionHeader(getSectionIndex());
 }

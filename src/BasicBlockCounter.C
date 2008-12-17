@@ -9,28 +9,42 @@
 #define EXIT_FUNCTION "blockcounter"
 #define LIB_NAME "libcounter.so"
 #define NOINST_VALUE 0xffffffff
-#define PATH_SEPERATOR "/\0"
 
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     : ElfFileInst(elf)
 {
+    instSuffix = new char[__MAX_STRING_SIZE];
+    sprintf(instSuffix,"%s\0", "jbbinst");
 }
 
-void BasicBlockCounter::declareInstrumentation(){
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
+   /*
+# appname   = a.out
+# appsize   = 10370
+# extension = jbbinst
+# phase     = 0
+# type      = BasicBlockCounter
+# candidate = 91
+# blocks    = 61
+# memops    = 164
+# fpops     = 0
+# insns     = 298
+# buffer    = 61
+# library   = /users/sdsc/michaell/PMaCInstrumentor//lib
+# libTag    = revision REVISION
+# <no additional info>
+# <sequence> <block_uid> <memop> <fpop> <insn> <line> <fname> <loopcnt> <loopid> <ldepth> <hex_uid> <vaddr> <loads> <stores>
+   */
 
+void BasicBlockCounter::instrument(){
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
+    
     // declare any shared library that will contain instrumentation functions
     declareLibrary(LIB_NAME);
 
     // declare any instrumentation functions that will be used
     declareFunction(EXIT_FUNCTION);
 
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
-}
 
-void BasicBlockCounter::reserveInstrumentation(){
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
-    
     TextSection* text = getTextSection();
     TextSection* fini = getFiniSection();
     TextSection* init = getInitSection();
@@ -45,51 +59,43 @@ void BasicBlockCounter::reserveInstrumentation(){
     ASSERT(text && "Cannot find text section");
 
     uint64_t dataBaseAddress = getExtraDataAddress();
-    uint32_t instPoints = 0;
-    for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
-        if (text->getTextObject(i)->isFunction()){
-            Function* f = (Function*)text->getTextObject(i);
-            for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
-                instPoints++;
-            }
-        }
-    }
-    BasicBlock** allBlocks = new BasicBlock*[instPoints];
-    LineInfo** allLineInfos = new LineInfo*[instPoints];
-    instPoints = 0;
-    for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
-        if (text->getTextObject(i)->isFunction()){
-            Function* f = (Function*)text->getTextObject(i);
-            for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
-                allBlocks[instPoints] = f->getBasicBlock(j);
-                allLineInfos[instPoints++] = lineInfoFinder->lookupLineInfo(f->getBasicBlock(j));
-            }
-        }
-    }
 
+    Vector<BasicBlock*> allBlocks;
+    Vector<LineInfo*> allLineInfos;
+    for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
+        if (text->getTextObject(i)->isFunction()){
+            Function* f = (Function*)text->getTextObject(i);
+            for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
+                allBlocks.append(f->getBasicBlock(j));
+                allLineInfos.append(lineInfoFinder->lookupLineInfo(f->getBasicBlock(j)));
+            }
+        }
+    }
+    ASSERT(allBlocks.size() == allLineInfos.size());
+    uint32_t numberOfInstPoints = allBlocks.size();
 
     InstrumentationFunction* exitFunc = getInstrumentationFunction(EXIT_FUNCTION);
     ASSERT(exitFunc && "Cannot find exit function, are you sure it was declared?");
 
     // the number blocks in the code
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
-    // we have the option of giving an initialization value (instPoints in this case) to addArgument
-    exitFunc->addArgument(counterArrayEntries,instPoints);
+    // we have the option of giving an initialization value to addArgument
+    exitFunc->addArgument(counterArrayEntries,numberOfInstPoints);
 
     // an array of counters. note that everything is passed by reference
-    uint64_t counterArray = reserveDataOffset(instPoints*sizeof(uint32_t));
+    uint64_t counterArray = reserveDataOffset(numberOfInstPoints*sizeof(uint32_t));
     exitFunc->addArgument(counterArray);
 
     // an array for basic block addresses
-    uint64_t addrArray = reserveDataOffset(instPoints*sizeof(uint64_t));
+    uint64_t addrArray = reserveDataOffset(numberOfInstPoints*sizeof(uint64_t));
     exitFunc->addArgument(addrArray);
 
     // an array for line numbers
-    uint64_t lineArray = reserveDataOffset(instPoints*sizeof(uint32_t));
+    uint64_t lineArray = reserveDataOffset(numberOfInstPoints*sizeof(uint32_t));
     exitFunc->addArgument(lineArray);
 
     // an array for file name pointers
-    uint64_t fileNameArray = reserveDataOffset(instPoints*sizeof(char*));
+    uint64_t fileNameArray = reserveDataOffset(numberOfInstPoints*sizeof(char*));
     exitFunc->addArgument(fileNameArray);
 
 
@@ -99,9 +105,14 @@ void BasicBlockCounter::reserveInstrumentation(){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
 
+    char* staticFile = new char[__MAX_STRING_SIZE];
+    sprintf(staticFile,"%s.%s.%s", getApplicationName(), getInstSuffix(), "static");
+    FILE* staticFD = fopen(staticFile, "w");
+    delete[] staticFile;
+
     uint32_t noInst = 0;
     uint32_t fileNameSize = 1;
-    for (uint32_t i = 0; i < instPoints; i++){
+    for (uint32_t i = 0; i < numberOfInstPoints; i++){
         BasicBlock* b = allBlocks[i];
         LineInfo* li = allLineInfos[i];
         Function* f = b->getFunction();
@@ -153,9 +164,9 @@ void BasicBlockCounter::reserveInstrumentation(){
         }
     }
 
-    PRINT_WARN(3,"Cannot find instrumentation points for %d/%d basic blocks in the code", noInst, instPoints);
+    fclose(staticFD);
 
-    delete[] allBlocks;
-    delete[] allLineInfos;
+    PRINT_WARN(3,"Cannot find instrumentation points for %d/%d basic blocks in the code", noInst, numberOfInstPoints);
+
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }

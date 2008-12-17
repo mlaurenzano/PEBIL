@@ -29,44 +29,7 @@ void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(currByte == sizeInBytes);
 }
 
-uint32_t Function::findControlFlowGraph(){
-
-    BitSet<BasicBlock*>** sources = new BitSet<BasicBlock*>*[basicBlocks.size()];
-    BitSet<BasicBlock*>** targets = new BitSet<BasicBlock*>*[basicBlocks.size()];
-    BitSet<BasicBlock*>** dominators = new BitSet<BasicBlock*>*[basicBlocks.size()];
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        sources[i] = new BitSet<BasicBlock*>(basicBlocks.size(),&basicBlocks);
-        targets[i] = new BitSet<BasicBlock*>(basicBlocks.size(),&basicBlocks);
-        dominators[i] = new BitSet<BasicBlock*>(basicBlocks.size(),&basicBlocks);
-    }
-
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        if (basicBlocks[i]->getTargetAddress() != basicBlocks[i]->getAddress() + basicBlocks[i]->getBlockSize()){
-            if (inRange(basicBlocks[i]->getTargetAddress())){
-                for (uint32_t j = 0; j < basicBlocks.size(); j++){
-                    if (basicBlocks[i]->getTargetAddress() == basicBlocks[j]->getAddress()){
-                        sources[j]->insert(i);
-                        targets[i]->insert(j);
-                    }
-                }
-            }
-        }
-    }
-
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-    }
-    
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        basicBlocks[i]->giveSourceBlocks(sources[i]);
-        delete sources[i];
-        basicBlocks[i]->giveTargetBlocks(targets[i]);
-        delete targets[i];
-        basicBlocks[i]->giveDominatorBlocks(dominators[i]);
-        delete dominators[i];
-    }
-    delete[] sources;
-    delete[] targets;
-    delete[] dominators;
+uint32_t Function::generateCFG(){
 
     verify();
 
@@ -112,14 +75,14 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
                     }
                 }
                 for (uint32_t j = 0; j < numberOfInstructions; j++){
-                    if (addressCache[i] == nextAddressCache[i]){
+                    if (addressCache[j] == nextAddressCache[i]){
                         if (!isLeader[j]){
                             isLeader[j] = true;
                             numberOfBasicBlocks++;
                         }
                         if (i+1 < numberOfInstructions){
                             if (!isLeader[i+1]){
-                               isLeader[i+1] = true;
+                                isLeader[i+1] = true;
                                 numberOfBasicBlocks++;
                             }
                         }
@@ -128,6 +91,9 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
             }
         }
     }
+
+    delete[] addressCache;
+    delete[] nextAddressCache;
 
 #ifdef DEBUG_BASICBLOCK
     for (uint32_t i = 0; i < numberOfInstructions; i++){
@@ -255,7 +221,7 @@ uint32_t Function::digest(){
     findBasicBlocks(numberOfInstructions, instructions);
     delete[] instructions;
 
-    findControlFlowGraph();
+    generateCFG();
     findDominators();
 
     return currByte;
@@ -284,6 +250,9 @@ Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz) :
     textSection = text;
     functionSymbol = sym;
 
+    hashCode = HashCode(text->getSectionIndex(),index);
+    PRINT_DEBUG_HASHCODE("Function %d, section %d  Hashcode: 0x%08llx", index, text->getSectionIndex(), hashCode.getValue());
+
     verify();
 }
 
@@ -299,6 +268,10 @@ bool Function::verify(){
         if (!basicBlocks[i]->verify()){
             return false;
         }
+    }
+    if (!hashCode.isFunction()){
+        PRINT_ERROR("Function %d HashCode is malformed", index);
+        return false;
     }
     return true;
 }

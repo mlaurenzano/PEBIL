@@ -32,10 +32,10 @@ void no_argument(){
 #ifdef MIKEY_LOOP
 void call_mikey_func(){
     int i, j, k;
-    for (i = 0; i < 2000; i++){
+    for (i = 0; i < 2; i++){
         if (i % 2 == 0){
             j--;
-            for (k = 0; k < 1000; k++){
+            for (k = 0; k < 1; k++){
                 if (k % 2 == 0){
                     j++;
                 }
