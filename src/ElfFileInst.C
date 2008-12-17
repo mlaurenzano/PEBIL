@@ -29,6 +29,15 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
+void ElfFileInst::setPathToInstLib(char* libPath){
+    if (sharedLibraryPath){
+        PRINT_WARN(4,"Overwriting shared library path");
+        delete[] sharedLibraryPath;
+    }
+    sharedLibraryPath = new char[__MAX_STRING_SIZE];
+    sprintf(sharedLibraryPath, "%s\0", libPath);
+}
+
 TextSection* ElfFileInst::getExtraTextSection() { return (TextSection*)(elfFile->getRawSection(extraTextIdx)); }
 RawSection* ElfFileInst::getExtraDataSection() { return elfFile->getRawSection(extraDataIdx); }
 uint64_t ElfFileInst::getExtraDataAddress() { return elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr); }
@@ -297,6 +306,8 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
+
+    addSharedLibraryPath();
 
     for (uint32_t i = 0; i < instrumentationLibraries.size(); i++){
         addSharedLibrary(instrumentationLibraries[i]);
@@ -589,7 +600,7 @@ void ElfFileInst::extendTextSection(uint64_t size){
     }
 
     SectionHeader* textHdr = elfFile->getSectionHeader(lowestTextSectionIdx);
-    elfFile->addSection(lowestTextSectionIdx, ElfClassTypes_TextSection, elfFile->getElfFileName(), textHdr->GET(sh_name), textHdr->GET(sh_type),
+    elfFile->addSection(lowestTextSectionIdx, ElfClassTypes_TextSection, elfFile->getFileName(), textHdr->GET(sh_name), textHdr->GET(sh_type),
                         textHdr->GET(sh_flags), textHdr->GET(sh_addr)-size, textHdr->GET(sh_offset)-size, size, textHdr->GET(sh_link), 
                         textHdr->GET(sh_info), textHdr->GET(sh_addralign), textHdr->GET(sh_entsize));
 
@@ -647,13 +658,17 @@ ElfFileInst::~ElfFileInst(){
     if (instSuffix){
         delete[] instSuffix;
     }
+
+    if (sharedLibraryPath){
+        delete[] sharedLibraryPath;
+    }
 }
 
 void ElfFileInst::dump(char* extension){
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
 
     char fileName[80] = "";
-    sprintf(fileName,"%s.%s", elfFile->getElfFileName(), extension);
+    sprintf(fileName,"%s.%s", elfFile->getFileName(), extension);
 
     BinaryOutputFile binaryOutputFile;
     binaryOutputFile.open(fileName);
@@ -711,6 +726,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     bssReserved = 0;
 
     instSuffix = NULL;
+    sharedLibraryPath = NULL;
 
     lineInfoFinder = NULL;
     if (elfFile->getLineInfoSection()){
@@ -918,6 +934,29 @@ uint64_t ElfFileInst::addFunction(InstrumentationFunction* func){
 }
 
 
+uint32_t ElfFileInst::addSharedLibraryPath(){
+    ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
+
+    if (!sharedLibraryPath){
+        return 0;
+    }
+
+    DynamicTable* dynamicTable = elfFile->getDynamicTable();
+    uint32_t strOffset = addStringToDynamicStringTable(sharedLibraryPath);
+
+    // add a DT_NEEDED entry to the dynamic table
+    uint32_t emptyDynamicIdx = dynamicTable->findEmptyDynamic();
+
+    ASSERT(emptyDynamicIdx < dynamicTable->getNumberOfDynamics() && "No free entries found in the dynamic table");
+
+    dynamicTable->getDynamic(emptyDynamicIdx)->SET(d_tag,DT_RPATH);
+    dynamicTable->getDynamic(emptyDynamicIdx)->SET_A(d_ptr,d_un,strOffset);
+
+    verify();
+
+    return strOffset;
+}
+
 uint32_t ElfFileInst::addSharedLibrary(const char* libname){
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 
@@ -936,7 +975,6 @@ uint32_t ElfFileInst::addSharedLibrary(const char* libname){
 
     return strOffset;
 }
-
 
 uint64_t ElfFileInst::relocateDynamicSection(){
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");

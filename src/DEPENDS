@@ -142,7 +142,8 @@ LineInformation.o: LineInformation.C ../include/LineInformation.h \
 Loop.o: Loop.C ../include/Loop.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/BitSet.h ../include/Function.h ../include/TextSection.h \
-  ../include/RawSection.h ../include/Vector.h ../include/Instruction.h
+  ../include/RawSection.h ../include/Vector.h ../include/Instruction.h \
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/LinkedList.h
 NoteSection.o: NoteSection.C ../include/NoteSection.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/RawSection.h ../include/ElfFile.h ../include/BinaryFile.h

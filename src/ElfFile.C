@@ -1234,6 +1234,9 @@ uint32_t ElfFile::getAllBlocks(BasicBlock** arr){
     return ret;
 }
 */
+uint32_t ElfFile::getFileSize() { 
+    return binaryInputFile.getSize(); 
+}
 
 /*
 RelocationTable* ElfFile::getRelocationTable(uint32_t idx){ 
@@ -1241,9 +1244,6 @@ RelocationTable* ElfFile::getRelocationTable(uint32_t idx){
 }
 LineInfoTable* ElfFile::getLineInfoTable(uint32_t idx){ 
     return sectionHeaders[idx]->getLineInfoTable(); 
-}
-uint32_t ElfFile::getFileSize() { 
-    return binaryInputFile.getSize(); 
 }
 uint64_t ElfFile::getDataSectionVAddr(){
     return sectionHeaders[dataSectionIndex]->GET(s_vaddr);

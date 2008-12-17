@@ -10,6 +10,8 @@ public:
     ~BasicBlockCounter() {}
 
     void instrument();
+
+    const char* briefName() { return "BasicBlockCounter"; }
 };
 
 

@@ -333,6 +333,7 @@ int main(int argc,char* argv[]){
     }
 
     if (elfInst){
+        elfInst->setPathToInstLib(libPath);
         elfInst->phasedInstrumentation();
         TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step IV Instr : %.2f",t2-t1);t1=t2);
         elfInst->dump(extension);

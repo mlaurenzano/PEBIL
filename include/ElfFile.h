@@ -119,7 +119,6 @@ public:
 
     RawSection* findRawSection(uint64_t addr);
 
-    char* getElfFileName() { return elfFileName; }
     void sortSectionHeaders();
 
     FileHeader*  getFileHeader() { return fileHeader; }
@@ -161,6 +160,7 @@ public:
     uint32_t getDynamicSymtabIdx() { return dynamicSymtabIdx; }
 
     uint32_t getFileSize();
+    char* getFileName() { return elfFileName; }
 
     uint64_t getDataSectionVAddr();
     uint32_t getDataSectionSize();

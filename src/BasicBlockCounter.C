@@ -9,6 +9,7 @@
 #define EXIT_FUNCTION "blockcounter"
 #define LIB_NAME "libcounter.so"
 #define NOINST_VALUE 0xffffffff
+#define FILE_UNK "__FILE_UNK__"
 
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     : ElfFileInst(elf)
@@ -16,24 +17,6 @@ BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     instSuffix = new char[__MAX_STRING_SIZE];
     sprintf(instSuffix,"%s\0", "jbbinst");
 }
-
-   /*
-# appname   = a.out
-# appsize   = 10370
-# extension = jbbinst
-# phase     = 0
-# type      = BasicBlockCounter
-# candidate = 91
-# blocks    = 61
-# memops    = 164
-# fpops     = 0
-# insns     = 298
-# buffer    = 61
-# library   = /users/sdsc/michaell/PMaCInstrumentor//lib
-# libTag    = revision REVISION
-# <no additional info>
-# <sequence> <block_uid> <memop> <fpop> <insn> <line> <fname> <loopcnt> <loopid> <ldepth> <hex_uid> <vaddr> <loads> <stores>
-   */
 
 void BasicBlockCounter::instrument(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
@@ -110,6 +93,38 @@ void BasicBlockCounter::instrument(){
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 
+   /*
+# appname   = a.out
+# appsize   = 10370
+# extension = jbbinst
+# phase     = 0
+# type      = BasicBlockCounter
+# candidate = 91
+# blocks    = 61
+# memops    = 164
+# fpops     = 0
+# insns     = 298
+# buffer    = 61
+# library   = /users/sdsc/michaell/PMaCInstrumentor//lib
+# libTag    = revision REVISION
+# <no additional info>
+   */
+    fprintf(staticFD, "# appname   = %s\n", getApplicationName());
+    fprintf(staticFD, "# appsize   = %d\n", getApplicationSize());
+    fprintf(staticFD, "# extension = %s\n", getInstSuffix());
+    fprintf(staticFD, "# phase     = %d\n", 0);
+    fprintf(staticFD, "# type      = %s\n", briefName());
+    fprintf(staticFD, "# cantidate = %d\n", 0);
+    fprintf(staticFD, "# blocks    = %d\n", 0);
+    fprintf(staticFD, "# memops    = %d\n", 0);
+    fprintf(staticFD, "# fpops     = %d\n", 0);
+    fprintf(staticFD, "# insns     = %d\n", 0);
+    fprintf(staticFD, "# buffer    = %d\n", 0);
+    fprintf(staticFD, "# library   = %s\n", "");
+    fprintf(staticFD, "# libTag    = %s\n", "");
+    fprintf(staticFD, "# %s\n", "");
+    fprintf(staticFD, "# <sequence> <block_uid> <memop> <fpop> <insn> <line> <fname> <loopcnt> <loopid> <ldepth> <hex_uid> <vaddr> <loads> <stores> <isinst?>\n");
+
     uint32_t noInst = 0;
     uint32_t fileNameSize = 1;
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
@@ -161,6 +176,14 @@ void BasicBlockCounter::instrument(){
                 noInst++;
                 initializeReservedData(dataBaseAddress+counterArray+sizeof(uint32_t)*i,sizeof(uint32_t),&noinst_value);
             }
+        }
+
+        if (li){
+            fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\t%d\n", i, b->getHashCode().getValue(), -1, -1, b->getNumberOfInstructions(),
+                    li->getFileName(), li->GET(lr_line), b->getFunction()->getName(), -1, -1, -1, b->getHashCode().getValue(), b->getAddress(), -1, -1, 1);
+        } else {
+            fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\t%d\n", i, b->getHashCode().getValue(), -1, -1, b->getNumberOfInstructions(),
+                    FILE_UNK, 0, b->getFunction()->getName(), -1, -1, -1, b->getHashCode().getValue(), b->getAddress(), -1, -1, 1);
         }
     }
 

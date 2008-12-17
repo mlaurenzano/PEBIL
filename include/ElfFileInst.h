@@ -43,6 +43,7 @@ protected:
     ElfFile* elfFile;
 
     char* instSuffix;
+    char* sharedLibraryPath;
 
     Vector<InstrumentationSnippet*> instrumentationSnippets;
     Vector<InstrumentationFunction*> instrumentationFunctions;
@@ -65,6 +66,7 @@ protected:
 
     // instrumentation functions
     uint32_t addSharedLibrary(const char* libname);
+    uint32_t addSharedLibraryPath();
     uint64_t addFunction(InstrumentationFunction* func);
     uint64_t addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOffset);
     void addInstrumentationFunction(const char* funcname);
@@ -94,8 +96,10 @@ public:
 
     LineInfoFinder* getLineInfoFinder() { return lineInfoFinder; }
     bool hasLineInformation() { return (lineInfoFinder != NULL); }
+    void setPathToInstLib(char* libPath);
 
-    char* getApplicationName() { return elfFile->getElfFileName(); }
+    char* getApplicationName() { return elfFile->getFileName(); }
+    uint32_t getApplicationSize() { return elfFile->getFileSize(); }
     char* getInstSuffix() { return instSuffix; }
 
     TextSection* getExtraTextSection();
