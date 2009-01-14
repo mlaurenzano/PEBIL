@@ -803,6 +803,14 @@ void ElfFile::print(uint32_t printCodes)
         }
     }
 
+    if (HAS_PRINT_CODE(printCodes,Print_Code_Loops)){
+        PRINT_INFOR("Loop Summary");
+        PRINT_INFOR("=============");
+        for (uint32_t i = 0; i < numberOfTextSections; i++){
+            textSections[i]->printLoops();
+        }
+    }
+
 }
 
 
@@ -822,7 +830,9 @@ uint32_t ElfFile::printDisassembledCode(bool instructionDetail){
     uint32_t numInstrs = 0;
 
     for (uint32_t i = 0; i < numberOfTextSections; i++){
-        numInstrs += textSections[i]->printDisassembledCode(instructionDetail);
+        if (textSections[i]){
+            numInstrs += textSections[i]->printDisassembledCode(instructionDetail);
+        }
     }
     return numInstrs;
 }
@@ -1272,12 +1282,10 @@ void ElfFile::setLineInfoFinder(){
 }
 
 void ElfFile::findLoops(){
-/*
-    PRINT_INFOR("Finding Loops");
-    for (uint32_t i = 1; i <= numberOfSections; i++){
-        rawSections[i]->buildLoops();
+    PRINT_INFOR("Finding Loops...");
+    for (uint32_t i = 0; i < numberOfTextSections; i++){
+        textSections[i]->buildLoops();
     }
-*/
 }
 
 

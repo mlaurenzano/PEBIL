@@ -6,9 +6,106 @@
 #include <LengauerTarjan.h>
 #include <Stack.h>
 
+void FlowGraph::testGraphAvailability(){
+
+    BitSet<BasicBlock*>* badBlocks = newBitSet();
+
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        if (!basicBlocks[i]->findInstrumentationPoint() && !basicBlocks[i]->containsOnlyControl()){
+            for (uint32_t j = 0; j < basicBlocks[i]->getNumberOfSources(); j++){
+                if (!basicBlocks[i]->getSourceBlock(j)->findInstrumentationPoint()){
+                    badBlocks->insert(i);
+                }
+            }
+        }
+    }
+
+    PRINT_INFOR("Graph for function %s has %d/%d bad blocks", function->getName(), badBlocks->size(), basicBlocks.size());
+    BasicBlock** allBadBlocks = badBlocks->duplicateMembers();
+    for (uint32_t i = 0; i < badBlocks->size(); i++){
+        PRINT_INFOR("block %d @ %llx", allBadBlocks[i]->getIndex(), allBadBlocks[i]->getAddress());
+        allBadBlocks[i]->print();
+        allBadBlocks[i]->printSourceBlocks();
+    }
+
+    delete badBlocks;
+}
+
+void FlowGraph::connectGraph(BasicBlock* entry){
+    ASSERT(entry);
+    entry->setEntry();
+
+    uint64_t* addressCache = new uint64_t[basicBlocks.size()];
+    uint64_t* targetAddressCache = new uint64_t[basicBlocks.size()];
+
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        addressCache[i] = basicBlocks[i]->getAddress();
+        targetAddressCache[i] = basicBlocks[i]->getTargetAddress();
+    }
+
+
+    // detect incoming and outgoing edges
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        if (basicBlocks[i]->findExitInstruction()){
+            PRINT_DEBUG_CFG("Setting block %d as exit block", i);
+            basicBlocks[i]->setExit();
+        }
+        if (basicBlocks[i]->passesControlToNext() && i+1 < basicBlocks.size()){
+            if (targetAddressCache[i] != addressCache[i+1]){
+                PRINT_DEBUG_CFG("Adding adjacent blocks to list %d -> %d", i, i+1);
+                basicBlocks[i]->addTargetBlock(basicBlocks[i+1]);
+                basicBlocks[i+1]->addSourceBlock(basicBlocks[i]);
+            }
+        }
+        if (function->inRange(targetAddressCache[i])){
+            for (uint32_t j = 0; j < basicBlocks.size(); j++){
+                if (targetAddressCache[i] == addressCache[j]){
+                    PRINT_DEBUG_CFG("Adding jump target to list %d(%llx) -> %d(%llx)", i, addressCache[i], j, targetAddressCache[i]);
+                    basicBlocks[j]->addSourceBlock(basicBlocks[i]);
+                    basicBlocks[i]->addTargetBlock(basicBlocks[j]);
+                }
+            }
+        }
+    }
+
+    delete[] addressCache;
+    delete[] targetAddressCache;
+
+    
+    // determine which blocks are reachable
+    BitSet<BasicBlock*>* edgeSet = newBitSet();
+    edgeSet->setall();
+    depthFirstSearch(getEntryBlock(),edgeSet,false);
+
+    uint32_t unreachableCount = edgeSet->size(); /* all members with their bit set are unvisited ones **/
+    if(unreachableCount){
+        BasicBlock** unreachableBlocks = edgeSet->duplicateMembers();
+        for(uint32_t i = 0; i < unreachableCount; i++){
+            unreachableBlocks[i]->setNoPath();
+            PRINT_DEBUG_CFG("\tBlock %d is unreachable",unreachableBlocks[i]->getIndex());
+        }
+        delete[] unreachableBlocks;
+    }
+    PRINT_DEBUG_CFG("******** Found %d unreachable blocks for function %s",unreachableCount,getFunction()->getName());
+    delete edgeSet;
+
+#ifdef DEBUG_CFG
+    testGraphAvailability();
+#endif
+}
+
+void FlowGraph::printLoops(){
+    if (loops.size()){
+        print();
+    }
+    for (uint32_t i = 0; i < loops.size(); i++){
+        loops[i]->print();
+    }
+}
+
 void FlowGraph::printInnerLoops(){
-    for (uint32_t i = 0; i < numberOfLoops; i++){
-        for (uint32_t j = 0; j < numberOfLoops; j++){
+    for (uint32_t i = 0; i < loops.size(); i++){
+        for (uint32_t j = 0; j < loops.size(); j++){
             if (loops[i]->isInnerLoop(loops[j])){
                 PRINT_INFOR("Loop %d is inside loop %d", j, i);
             }
@@ -34,17 +131,21 @@ int compareLoopHeaderVaddr(const void* arg1,const void* arg2){
     return 0;
 }
 
-void FlowGraph::buildLoops(){
-    if(loops){
-        return;
+BasicBlock** FlowGraph::getAllBlocks(){
+    BasicBlock** allBlocks = new BasicBlock*[basicBlocks.size()];
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        allBlocks[i] = basicBlocks[i];
     }
+    return allBlocks;
+}
 
-    PRINT_DEBUG("Considering flowgraph for function %d -- has %d blocks", function->getIndex(),  numberOfBasicBlocks);
+uint32_t FlowGraph::buildLoops(){
 
-    numberOfLoops = 0;
-    loops = NULL;
+    ASSERT(!loops.size());
+    PRINT_DEBUG_LOOP("Considering flowgraph for function %d -- has %d blocks", function->getIndex(),  basicBlocks.size());
 
-    BasicBlock** allBlocks = getAllBlocks();
+    BasicBlock** allBlocks = new BasicBlock*[basicBlocks.size()]; 
+    getAllBlocks(basicBlocks.size(), allBlocks);
 
     LinkedList<BasicBlock*> backEdges;
     BitSet <BasicBlock*>* visitedBitSet = newBitSet();
@@ -52,19 +153,21 @@ void FlowGraph::buildLoops(){
 
     depthFirstSearch(allBlocks[0],visitedBitSet,true,completedBitSet,&backEdges);
 
+    delete[] allBlocks;
     delete visitedBitSet;
     delete completedBitSet;
 
     if(backEdges.empty()){
-        PRINT_DEBUG("\t%d Contains %d loops (back edges) from %d", getIndex(),numberOfLoops,numberOfBasicBlocks);
-        return;
+        PRINT_DEBUG("\t%d Contains %d loops (back edges) from %d", getIndex(),loops.size(),basicBlocks.size());
+        return 0;
     }
 
     ASSERT(!(backEdges.size() % 2) && "Fatal: Back edge list should be multiple of 2, (from->to)");
     BitSet<BasicBlock*>* inLoop = newBitSet();
-    Stack<BasicBlock*> loopStack(numberOfBasicBlocks);
+    Stack<BasicBlock*> loopStack(basicBlocks.size());
     LinkedList<Loop*> loopList;
 
+    uint32_t numberOfLoops = 0;
     while(!backEdges.empty()){
 
         BasicBlock* from = backEdges.shift();
@@ -100,9 +203,9 @@ void FlowGraph::buildLoops(){
             Loop* newLoop = new Loop(to, from, this, inLoop);
             loopList.insert(newLoop);
 
-            DEBUG_MORE(
-                newLoop->print()
-            );
+#ifdef DEBUG_LOOP
+            newLoop->print();
+#endif
         }
     }
 
@@ -111,34 +214,32 @@ void FlowGraph::buildLoops(){
 
     delete inLoop;
 
-    PRINT_DEBUG("\t%d Contains %d loops (back edges) from %d", getIndex(),numberOfLoops,numberOfBasicBlocks);
+    PRINT_DEBUG("\t%d Contains %d loops (back edges) from %d", getIndex(),numberOfLoops,basicBlocks.size());
 
-    if(numberOfLoops){
-        loops = new Loop*[numberOfLoops];
+    if (numberOfLoops){
         uint32_t i = 0;
-        while(!loopList.empty()){
-            loops[i++] = loopList.shift();
+        while (!loopList.empty()){
+            loops.append(loopList.shift());
         }
-        ASSERT(numberOfLoops == i);
-
-        qsort(loops,numberOfLoops,sizeof(Loop*),compareLoopHeaderVaddr);
-        for(i=0;i<numberOfLoops;i++){
+        for (i=0; i < loops.size(); i++){
             loops[i]->setIndex(i);
         }
-    } 
-    ASSERT(!loopList.size());
+    }
+    ASSERT(loops.size() == numberOfLoops);
 
     DEBUG_MORE(printInnerLoops());
 }
 
 BasicBlock* FlowGraph::getEntryBlock(){
-    for (uint32_t i = 0; i < numberOfBasicBlocks; i++){
+    BasicBlock* entryBlock = NULL;
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
         if (basicBlocks[i]->isEntry()){
-            return basicBlocks[i];
+            ASSERT(!entryBlock && "There should not be multiple entry blocks to the same graph");
+            entryBlock = basicBlocks[i];
         }
     }
-    ASSERT(0 && "No entry block found");
-    return NULL;
+    ASSERT(entryBlock && "No entry block found");
+    return entryBlock;
 }
 
 
@@ -150,53 +251,18 @@ uint32_t FlowGraph::getIndex() {
     return function->getIndex(); 
 }
 
-uint32_t FlowGraph::getAllBlocks(BasicBlock** arr){
-    for(uint32_t i=0;i<numberOfBasicBlocks;i++)
+uint32_t FlowGraph::getAllBlocks(uint32_t sz, BasicBlock** arr){
+    ASSERT(sz == basicBlocks.size());
+    for (uint32_t i = 0; i < basicBlocks.size(); i++)
         arr[i] = basicBlocks[i];
-    return numberOfBasicBlocks;
-}
-
-uint32_t FlowGraph::initializeAllBlocks(BasicBlock** blockArray,BasicBlock* traceBlock,uint32_t arrCount){
-
-    ASSERT("blockArray has to be sorted interms of block base addresses");
-
-    uint32_t totalCount = (traceBlock ? 1 : 0);
-
-    for(uint32_t i=0;i<arrCount;i++){
-        if(blockArray[i]){
-            totalCount++;
-        }
-    }
-
-    if(totalCount){
-
-        numberOfBasicBlocks = totalCount;
-        basicBlocks = new BasicBlock*[totalCount];
-
-        if(traceBlock){
-            totalCount--;
-            traceBlock->setIndex(totalCount);
-            basicBlocks[totalCount] = traceBlock;
-        }
-
-        uint32_t idx = 0;
-        for(uint32_t i = 0;idx<totalCount;i++){
-            BasicBlock* bb = blockArray[i];
-            if(!bb)
-                continue;
-            bb->setIndex(idx);
-            basicBlocks[idx++] = bb;
-        }
-    }
-
-    return numberOfBasicBlocks;
+    return basicBlocks.size();
 }
 
 void FlowGraph::findMemoryFloatOps(){
-    if(!numberOfBasicBlocks)
+    if(!basicBlocks.size())
         return;
 
-    for(uint32_t i=0;i<numberOfBasicBlocks;i++){
+    for(uint32_t i=0;i<basicBlocks.size();i++){
         basicBlocks[i]->findMemoryFloatOps();
     }
 }
@@ -204,43 +270,63 @@ void FlowGraph::findMemoryFloatOps(){
 
 void FlowGraph::print(){
     PRINT_INFOR("[G(idx %5d) (#bb %6d) (unq %#12llx)",
-            getIndex(),numberOfBasicBlocks,function->getHashCode().getValue());
+            getIndex(),basicBlocks.size(),function->getHashCode().getValue());
 
-    if(!numberOfBasicBlocks){
+    if(!basicBlocks.size()){
         PRINT_INFOR("]");
         return;
     }
 
-    for(uint32_t i=0;i<numberOfBasicBlocks;i++){
+    for(uint32_t i=0;i<basicBlocks.size();i++){
         basicBlocks[i]->print();
     }
 
     PRINT_INFOR("]");
 
-    for (uint32_t i = 0; i < numberOfLoops; i++){
-        loops[i]->print();
+    for (uint32_t i = 0; i < loops.size(); i++){
+        //        loops[i]->print();
     }
 }
 
 BitSet<BasicBlock*>* FlowGraph::newBitSet() { 
-    if(numberOfBasicBlocks)
-        return new BitSet<BasicBlock*>(numberOfBasicBlocks,basicBlocks); 
+
+    BasicBlock** blocks = getAllBlocks();
+    blockCopies.append(blocks);
+
+    if(basicBlocks.size())
+        return new BitSet<BasicBlock*>(basicBlocks.size(),blocks); 
     return NULL;
+}
+
+FlowGraph::~FlowGraph(){
+    for (uint32_t i = 0; i < blockCopies.size(); i++){
+        delete[] blockCopies[i];
+    }
+    for (uint32_t i = 0; i < loops.size(); i++){
+        delete loops[i];
+    }
 }
 
 void FlowGraph::setImmDominatorBlocks(BasicBlock* root){
 
     if(!root){
         /** Here find the entry node to the CFG **/
+        ASSERT(basicBlocks.size());
+        root = basicBlocks[0];
     }
     ASSERT(root && root->isEntry() && "Fatal: The root node should be valid and entry to cfg");
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        ASSERT(basicBlocks[i]);
+    }
 
-    LengauerTarjan dominatorAlg(getNumberOfBasicBlocks(),root,getAllBlocks());
+    BasicBlock** allBlocks = getAllBlocks();
+    LengauerTarjan dominatorAlg(getNumberOfBasicBlocks(),root,allBlocks);
     dominatorAlg.immediateDominators();
+    delete[] allBlocks;
 }
 
-void FlowGraph::depthFirstSearch(BasicBlock* root,BitSet<BasicBlock*>* visitedSet,bool visitedMarkOnSet,
-                                 BitSet<BasicBlock*>* completedSet,LinkedList<BasicBlock*>* backEdges)
+void FlowGraph::depthFirstSearch(BasicBlock* root, BitSet<BasicBlock*>* visitedSet, bool visitedMarkOnSet,
+                                 BitSet<BasicBlock*>* completedSet, LinkedList<BasicBlock*>* backEdges)
 {
 
     if(visitedMarkOnSet){
@@ -274,7 +360,7 @@ void FlowGraph::depthFirstSearch(BasicBlock* root,BitSet<BasicBlock*>* visitedSe
 
 uint32_t FlowGraph::getNumberOfMemoryOps() {
     uint32_t ret = 0;
-    for(uint32_t i=0;i<numberOfBasicBlocks;i++){
+    for(uint32_t i=0;i<basicBlocks.size();i++){
         BasicBlock* bb = basicBlocks[i];
         ret += bb->getNumberOfMemoryOps();
     }
@@ -283,7 +369,7 @@ uint32_t FlowGraph::getNumberOfMemoryOps() {
 
 uint32_t FlowGraph::getNumberOfFloatOps() {
     uint32_t ret = 0;
-    for(uint32_t i=0;i<numberOfBasicBlocks;i++){
+    for(uint32_t i=0;i<basicBlocks.size();i++){
         BasicBlock* bb = basicBlocks[i];
         ret += bb->getNumberOfFloatOps();
     }

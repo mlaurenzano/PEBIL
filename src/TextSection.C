@@ -8,6 +8,24 @@
 #include <Function.h>
 #include <BasicBlock.h>
 
+uint32_t TextSection::buildLoops(){
+    uint32_t numberOfLoops = 0;
+    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+        if (sortedTextObjects[i]->isFunction()){
+            numberOfLoops += ((Function*)sortedTextObjects[i])->getFlowGraph()->buildLoops();
+        }
+    }
+    return numberOfLoops;
+}
+
+void TextSection::printLoops(){
+    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+        if (sortedTextObjects[i]->isFunction()){
+            ((Function*)sortedTextObjects[i])->getFlowGraph()->printLoops();
+        }
+    }
+}
+
 bool TextObject::isFunction(){
     return (getType() == ElfClassTypes_Function);
 }
@@ -36,9 +54,9 @@ Vector<Symbol*> TextSection::discoverTextObjects(){
 
     // sort text symbols in into decreasing order
     qsort(&functionSymbols,functionSymbols.size(),sizeof(Symbol*),compareSymbolValue);
-    functionSymbols.reverse();
 
-    // delete symbol values that are duplicate
+    // delete symbol values that have duplicate values
+    functionSymbols.reverse();
     if (functionSymbols.size()){
         for (uint32_t i = 0; i < functionSymbols.size()-1; i++){
             while (functionSymbols.size() > i+1 && functionSymbols[i+1]->GET(st_value) == functionSymbols[i]->GET(st_value)){
@@ -46,8 +64,8 @@ Vector<Symbol*> TextSection::discoverTextObjects(){
             }
         }
     }
-
     functionSymbols.reverse();
+
     return functionSymbols;
 }
 
@@ -73,6 +91,7 @@ uint32_t FreeText::digest(){
         newInstruction->setAddress(getAddress() + currByte);
         newInstruction->setBytes(charStream() + currByte);
         newInstruction->setIndex(numberOfInstructions++);
+        newInstruction->setInstructionSource(InstructionSource_Application_FreeText);
 
         instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, newInstruction);
 
@@ -404,7 +423,7 @@ uint32_t TextSection::printDisassembledCode(bool instructionDetail){
     uint32_t instructionLength = 0;
     uint32_t instructionCount = 0;
     uint64_t instructionAddress;
-    Instruction* dummyInstruction = new Instruction();
+    Instruction* dummyInstruction;
 
     PRINT_INFOR("Disassembly output of Section %s(%d)", sHdr->getSectionNamePtr(), sectionIndex);
 
@@ -413,6 +432,10 @@ uint32_t TextSection::printDisassembledCode(bool instructionDetail){
         //fprintf(stdout, "(0x%llx) 0x%llx:\t", (uint64_t)(charStream() + currByte), (uint64_t)(sHdr->GET(sh_addr) + currByte));
         fprintf(stdout, "0x%llx:\t", (uint64_t)(sHdr->GET(sh_addr) + currByte));
 
+        dummyInstruction = new Instruction();
+        dummyInstruction->setLength(MAX_X86_INSTRUCTION_LENGTH);
+        dummyInstruction->setAddress(sHdr->GET(sh_addr) + currByte);
+        dummyInstruction->setBytes(charStream() + currByte);
         instructionLength = disassembler->print_insn(instructionAddress, dummyInstruction);
         
         fprintf(stdout, "\t(bytes -- ");
@@ -426,6 +449,7 @@ uint32_t TextSection::printDisassembledCode(bool instructionDetail){
         if (instructionDetail){
             dummyInstruction->print();
         }
+        delete dummyInstruction;
     }
     PRINT_INFOR("Found %d instructions (%d bytes) in section %d", instructionCount, currByte, sectionIndex);
     disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);

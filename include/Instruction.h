@@ -28,6 +28,7 @@ enum x86_insn_type {
     x86_insn_type_unknown = 0,
     x86_insn_type_cond_branch,
     x86_insn_type_branch,
+    x86_insn_type_call,
     x86_insn_type_return,
     x86_insn_type_int,
     x86_insn_type_float,
@@ -36,6 +37,7 @@ enum x86_insn_type {
     x86_insn_type_prefetch,
     x86_insn_type_syscall,
     x86_insn_type_hwcount,
+    x86_insn_type_noop,
     x86_insn_type_Total
 };
 
@@ -117,6 +119,9 @@ protected:
     char disassembledString[MAX_DISASM_STR_LENGTH];
     Operand operands[MAX_OPERANDS];    
 
+    uint64_t programAddress;
+    InstructionSources source;
+
 public:
     Instruction();
     ~Instruction();
@@ -134,8 +139,19 @@ public:
     Operand getOperand(uint32_t idx);
     uint32_t getInstructionType() { return instructionType; }
     bool isRelocatable();
+    InstructionSources getInstructionSource();
 
-    bool isBranchInstruction();
+    // control instruction id
+    bool isControl();
+    bool isBranch() { return (instructionType == x86_insn_type_branch); }
+    bool isConditionalBranch() { return (instructionType == x86_insn_type_cond_branch); }
+    bool isReturn() { return (instructionType == x86_insn_type_return); }
+    bool isFunctionCall() { return (instructionType == x86_insn_type_call); }
+    bool isSystemCall() { return (instructionType == x86_insn_type_syscall); }
+    bool isIndirectBranch();
+    uint32_t getIndirectBranchTarget();
+
+    bool isNoop();
 
     uint32_t setIndex(uint32_t newidx);
     uint64_t setNextAddress();
@@ -148,6 +164,7 @@ public:
     uint32_t setOperandBytesUsed(uint32_t idx, uint32_t usd);
     bool setOperandRelative(uint32_t idx, bool rel);
     uint64_t setRelocationInfo(bool isRelative, uint64_t relocationDist);
+    InstructionSources setInstructionSource(InstructionSources src);
 
     char* setDisassembledString(char* disStr);
 

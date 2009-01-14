@@ -15,6 +15,7 @@ INSTRUMENTOR   = $(LEAKCHECK) $(SRC)/x86inst
 IDEEXT         = ideinst
 FNCEXT         = fncinst
 JBBEXT         = jbbinst
+STATICEXT      = static
 64BITPROGS     = $(64BITPROGS_SER) $(64BITPROGS_PAR)
 32BITPROGS     = $(32BITPROGS_SER) $(32BITPROGS_PAR)
 
@@ -32,28 +33,30 @@ clean:
 	rm -f $(32BITBIN)/*.$(IDEEXT)
 	rm -f $(32BITBIN)/*.$(FNCEXT)
 	rm -f $(32BITBIN)/*.$(JBBEXT)
+	rm -f $(32BITBIN)/*.$(STATICEXT)
 	rm -f $(64BITBIN)/*.$(IDEEXT)
 	rm -f $(64BITBIN)/*.$(FNCEXT)
 	rm -f $(64BITBIN)/*.$(JBBEXT)
+	rm -f $(64BITBIN)/*.$(STATICEXT)
 
 
 ide32:
 	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ ide --lib ../../lib | egrep $(X86INSTREGEXP); \
 		diff -s $(32BITBIN)/"$$i" $(32BITBIN)/"$$i".$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(32BITBIN)/*.$(IDEEXT)
 
 ide64:
 	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ ide --lib ../../lib | egrep $(X86INSTREGEXP); \
 		diff -s $(64BITBIN)/"$$i" $(64BITBIN)/"$$i".$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(64BITBIN)/*.$(IDEEXT)
 
 fnc32inst:
 	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ fnc --lib ../.. | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ fnc --lib ../../lib | egrep $(X86INSTREGEXP); \
 	done
 
 fnc32run:
@@ -63,7 +66,7 @@ fnc32run:
 
 fnc32ide:
 	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(FNCEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(FNCEXT) --typ ide --lib ../../lib | egrep $(X86INSTREGEXP); \
 		diff -s $(32BITBIN)/"$$i".$(FNCEXT) $(32BITBIN)/"$$i".$(FNCEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(32BITBIN)/*.$(IDEEXT)
@@ -73,7 +76,7 @@ fnc32rm:
 
 fnc64inst:
 	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ fnc --lib ../.. | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ fnc --lib ../../lib | egrep $(X86INSTREGEXP); \
 	done
 
 fnc64run:
@@ -83,7 +86,7 @@ fnc64run:
 
 fnc64ide:
 	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(FNCEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(FNCEXT) --typ ide --lib ../../lib | egrep $(X86INSTREGEXP); \
 		diff -s $(64BITBIN)/"$$i".$(FNCEXT) $(64BITBIN)/"$$i".$(FNCEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(64BITBIN)/*.$(IDEEXT)
@@ -94,7 +97,7 @@ fnc64rm:
 
 jbb32inst:
 	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ jbb --lib ../.. | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ jbb --lib ../../lib | egrep $(X86INSTREGEXP); \
 	done
 
 jbb32run:
@@ -104,7 +107,7 @@ jbb32run:
 
 jbb32ide:
 	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(JBBEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(JBBEXT) --typ ide --lib ../../lib | egrep $(X86INSTREGEXP); \
 		diff -s $(32BITBIN)/"$$i".$(JBBEXT) $(32BITBIN)/"$$i".$(JBBEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(32BITBIN)/*.$(IDEEXT)
@@ -114,7 +117,7 @@ jbb32rm:
 
 jbb64inst:
 	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ jbb --lib ../.. | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ jbb --lib ../../lib | egrep $(X86INSTREGEXP); \
 	done
 
 jbb64run:
@@ -124,7 +127,7 @@ jbb64run:
 
 jbb64ide:
 	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(JBBEXT) --typ ide --lib ../.. | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(JBBEXT) --typ ide --lib ../../lib | egrep $(X86INSTREGEXP); \
 		diff -s $(64BITBIN)/"$$i".$(JBBEXT) $(64BITBIN)/"$$i".$(JBBEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(64BITBIN)/*.$(IDEEXT)

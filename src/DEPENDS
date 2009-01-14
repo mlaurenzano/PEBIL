@@ -3,9 +3,9 @@ Base.o: Base.C ../include/Base.h ../include/CStructuresElf.h \
 BasicBlock.o: BasicBlock.C ../include/BasicBlock.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/Vector.h ../include/Instruction.h ../include/BitSet.h \
-  ../include/ElfFileInst.h ../include/ElfFile.h ../include/BinaryFile.h \
-  ../include/Function.h ../include/TextSection.h ../include/RawSection.h \
-  ../include/FlowGraph.h ../include/LinkedList.h
+  ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
+  ../include/RawSection.h ../include/LinkedList.h \
+  ../include/ElfFileInst.h ../include/ElfFile.h ../include/BinaryFile.h
 BasicBlockCounter.o: BasicBlockCounter.C ../include/BasicBlockCounter.h \
   ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/Vector.h \
@@ -13,6 +13,7 @@ BasicBlockCounter.o: BasicBlockCounter.C ../include/BasicBlockCounter.h \
   ../include/TextSection.h ../include/RawSection.h \
   ../include/Instrumentation.h ../include/CStructuresX86.h \
   ../include/Function.h ../include/BitSet.h ../include/BasicBlock.h \
+  ../include/FlowGraph.h ../include/LinkedList.h \
   ../include/LineInformation.h ../include/defines/LineInformation.d
 BinaryFile.o: BinaryFile.C ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/ElfFile.h \
@@ -85,7 +86,8 @@ Function.o: Function.C ../include/Function.h ../include/TextSection.h \
   ../include/defines/SectionHeader.d ../include/Disassembler.h \
   ../include/CStructuresX86.h ../include/ElfFileInst.h \
   ../include/SymbolTable.h ../include/defines/SymbolTable.d \
-  ../include/BasicBlock.h
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/LinkedList.h \
+  ../include/LengauerTarjan.h
 FunctionCounter.o: FunctionCounter.C ../include/FunctionCounter.h \
   ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/Vector.h \
@@ -123,22 +125,23 @@ Instrumentation.o: Instrumentation.C ../include/Instrumentation.h \
   ../include/Vector.h ../include/Instruction.h ../include/ElfFileInst.h \
   ../include/ElfFile.h ../include/BinaryFile.h ../include/TextSection.h \
   ../include/RawSection.h ../include/Function.h ../include/BitSet.h \
-  ../include/BasicBlock.h
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/LinkedList.h
 LengauerTarjan.o: LengauerTarjan.C ../include/SectionHeader.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/defines/SectionHeader.d \
   ../include/Instruction.h ../include/RawSection.h \
   ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/Function.h ../include/TextSection.h ../include/Vector.h \
-  ../include/BitSet.h ../include/BasicBlock.h ../include/BinaryFile.h \
-  ../include/Loop.h ../include/Stack.h ../include/LinkedList.h \
-  ../include/LengauerTarjan.h
+  ../include/BitSet.h ../include/BasicBlock.h ../include/FlowGraph.h \
+  ../include/LinkedList.h ../include/BinaryFile.h ../include/Loop.h \
+  ../include/Stack.h ../include/LengauerTarjan.h
 LineInformation.o: LineInformation.C ../include/LineInformation.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/defines/LineInformation.d \
   ../include/Vector.h ../include/Instruction.h ../include/DwarfSection.h \
   ../include/RawSection.h ../include/BinaryFile.h ../include/BasicBlock.h \
-  ../include/BitSet.h ../include/ElfFile.h
+  ../include/BitSet.h ../include/FlowGraph.h ../include/Function.h \
+  ../include/TextSection.h ../include/LinkedList.h ../include/ElfFile.h
 Loop.o: Loop.C ../include/Loop.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/BitSet.h ../include/Function.h ../include/TextSection.h \
@@ -187,7 +190,8 @@ TextSection.o: TextSection.C ../include/TextSection.h ../include/Base.h \
   ../include/CStructuresX86.h ../include/SectionHeader.h \
   ../include/defines/SectionHeader.d ../include/SymbolTable.h \
   ../include/defines/SymbolTable.d ../include/Function.h \
-  ../include/BitSet.h ../include/BasicBlock.h
+  ../include/BitSet.h ../include/BasicBlock.h ../include/FlowGraph.h \
+  ../include/LinkedList.h
 main.o: main.C ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/ElfFile.h \
   ../include/BinaryFile.h ../include/FunctionCounter.h \

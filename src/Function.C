@@ -8,6 +8,17 @@
 #include <SymbolTable.h>
 #include <BasicBlock.h>
 #include <BinaryFile.h>
+#include <FlowGraph.h>
+#include <LengauerTarjan.h>
+
+uint32_t Function::getNumberOfBasicBlocks() { 
+    return flowGraph->getNumberOfBasicBlocks(); 
+}
+
+
+BasicBlock* Function::getBasicBlock(uint32_t idx){
+    return flowGraph->getBlock(idx);
+}
 
 char* Function::getName(){
     if (functionSymbol){
@@ -22,28 +33,20 @@ void Function::printInstructions(){
 
 void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        basicBlocks[i]->dump(binaryOutputFile,offset+currByte);
-        currByte += basicBlocks[i]->getBlockSize();
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+        flowGraph->getBlock(i)->dump(binaryOutputFile,offset+currByte);
+        currByte += flowGraph->getBlock(i)->getBlockSize();
     }
     ASSERT(currByte == sizeInBytes);
 }
 
-uint32_t Function::generateCFG(){
 
-    verify();
+// we assume that functions can only be entered at the beginning
+uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** instructions){
 
-    return 0;
-}
+    ASSERT(!flowGraph && "FlowGraph for this function has already been generated");
 
-uint32_t Function::findDominators(){
-    return 0;
-}
-
-
-// we will assume that functions can only be entered at the beginning
-uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** instructions){
-    ASSERT(!basicBlocks.size() && "Basic blocks vector should be empty");
+    flowGraph = new FlowGraph(this);
 
     // cache all addresses for this basic block
     uint64_t* addressCache = new uint64_t[numberOfInstructions];
@@ -58,22 +61,22 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
         isLeader[i] = false;
     }
 
+    // find leaders based on direct control flow and certain specific types
+    // of indirect flow
     uint32_t numberOfBasicBlocks = 0;
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         if (i == 0){
             isLeader[i] = true;
             numberOfBasicBlocks++;
         }
-        if (addressCache[i] + instructions[i]->getLength() != nextAddressCache[i]){
+        if (instructions[i]->isControl()){
+            if (i+1 < numberOfInstructions){
+                if (!isLeader[i+1]){
+                    isLeader[i+1] = true;
+                    numberOfBasicBlocks++;
+                } 
+            }
             if (inRange(nextAddressCache[i])){
-                if (instructions[i]->isBranchInstruction()){
-                    if (i+1 < numberOfInstructions){
-                        if (!isLeader[i+1]){
-                            isLeader[i+1] = true;
-                            numberOfBasicBlocks++;
-                        }
-                    }
-                }
                 for (uint32_t j = 0; j < numberOfInstructions; j++){
                     if (addressCache[j] == nextAddressCache[i]){
                         if (!isLeader[j]){
@@ -90,77 +93,62 @@ uint32_t Function::findBasicBlocks(uint32_t numberOfInstructions, Instruction** 
                 }
             }
         }
+
+        if (instructions[i]->isIndirectBranch()){
+            
+            PRINT_DEBUG_CFG("indirect branch found");
+#ifdef DEBUG_CFG
+                instructions[i]->print();
+#endif
+        }
     }
 
     delete[] addressCache;
     delete[] nextAddressCache;
 
-#ifdef DEBUG_BASICBLOCK
-    for (uint32_t i = 0; i < numberOfInstructions; i++){
-        instructions[i]->print();
-        PRINT_DEBUG_BASICBLOCK("Is leader? %d", isLeader[i]);
-    }
-    PRINT_DEBUG_BASICBLOCK("Found %d instructions in %d basic blocks in function %s", numberOfInstructions, numberOfBasicBlocks, getName());
-#endif
-
     BasicBlock* currentBlock = NULL;
+    BasicBlock* entry = NULL;
     numberOfBasicBlocks = 0;
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         if (isLeader[i]){
             if (currentBlock){
-                basicBlocks.append(currentBlock);
+                flowGraph->addBlock(currentBlock);
                 numberOfBasicBlocks++;
             }
-            currentBlock = new BasicBlock(numberOfBasicBlocks,this);
+            currentBlock = new BasicBlock(numberOfBasicBlocks,flowGraph);
+            if (!entry){
+                entry = currentBlock;
+            }
         }
         currentBlock->addInstruction(instructions[i]);
     }
-    basicBlocks.append(currentBlock);
+    flowGraph->addBlock(currentBlock);
     numberOfBasicBlocks++;
 
+    flowGraph->connectGraph(entry);
+    flowGraph->setImmDominatorBlocks();
+
 #ifdef DEBUG_BASICBLOCK
-
     PRINT_DEBUG_BASICBLOCK("****** Printing Blocks for function %s", getName());
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        basicBlocks[i]->print();
-        basicBlocks[i]->printInstructions();
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+        flowGraph->getBlock(i)->print();
+        flowGraph->getBlock(i)->printInstructions();
     }
-
-    /** prints how many block of each size there are in the function
-    uint32_t sizes[6];
-    for (uint32_t i = 0; i < 6; i++){
-        sizes[i] = 0;
-    }
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        ASSERT(basicBlocks[i]->getBlockSize());
-        if (basicBlocks[i]->getBlockSize() <= 5){
-            sizes[basicBlocks[i]->getBlockSize()]++;
-        } else {
-            sizes[0]++;
-        }
-    }
-
-    PRINT_INFO();
-    PRINT_OUT("BBSize\t%s\t", getName());
-    for (uint32_t i = 0; i < 6; i++){
-        PRINT_OUT("%d\t", sizes[i]);
-    }
-    PRINT_OUT("\n");
-    */
+    PRINT_DEBUG_BASICBLOCK("Found %d instructions in %d basic blocks in function %s", numberOfInstructions, numberOfBasicBlocks, getName());
 #endif
 
     delete[] isLeader;
-    ASSERT(numberOfBasicBlocks == basicBlocks.size());
+    ASSERT(numberOfBasicBlocks == flowGraph->getNumberOfBasicBlocks());
 
     verify();
 
-    return basicBlocks.size();
+    return flowGraph->getNumberOfBasicBlocks();
 }
 
 Instruction* Function::getInstructionAtAddress(uint64_t addr){
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        if (basicBlocks[i]->inRange(addr)){
-            return basicBlocks[i]->getInstructionAtAddress(addr); 
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+        if (flowGraph->getBlock(i)->inRange(addr)){
+            return flowGraph->getBlock(i)->getInstructionAtAddress(addr); 
         }
     }
     return NULL;
@@ -196,6 +184,7 @@ uint32_t Function::digest(){
         instructions[numberOfInstructions]->setLength(MAX_X86_INSTRUCTION_LENGTH);
         instructions[numberOfInstructions]->setAddress(getAddress() + currByte);
         instructions[numberOfInstructions]->setBytes(charStream() + currByte);
+        instructions[numberOfInstructions]->setInstructionSource(InstructionSource_Application_Function);
         //        instructions[numberOfInstructions]->setIndex(numberOfInstructions);
         
         instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, instructions[numberOfInstructions]);
@@ -218,18 +207,17 @@ uint32_t Function::digest(){
     }
 
     ASSERT(currByte == sizeInBytes && "Number of bytes read for function does not match function size");
-    findBasicBlocks(numberOfInstructions, instructions);
+    generateCFG(numberOfInstructions, instructions);
     delete[] instructions;
 
-    generateCFG();
-    findDominators();
+    ASSERT(flowGraph);
 
     return currByte;
 }
 
 uint64_t Function::findInstrumentationPoint(){
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        uint64_t p = basicBlocks[i]->findInstrumentationPoint();
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+        uint64_t p = flowGraph->getBlock(i)->findInstrumentationPoint();
         if (p){
             return p;
         }
@@ -238,8 +226,11 @@ uint64_t Function::findInstrumentationPoint(){
 }
 
 Function::~Function(){
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        delete basicBlocks[i];
+    if (flowGraph){
+        for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+            delete flowGraph->getBlock(i);
+        }
+        delete flowGraph;
     }
 }
 
@@ -247,8 +238,12 @@ Function::~Function(){
 Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz) :
     TextObject(ElfClassTypes_Function,text,idx,sym->GET(st_value),sz)
 {
+    baseAddress = 0;
+
     textSection = text;
     functionSymbol = sym;
+
+    flowGraph = NULL;
 
     hashCode = HashCode(text->getSectionIndex(),index);
     PRINT_DEBUG_HASHCODE("Function %d, section %d  Hashcode: 0x%08llx", index, text->getSectionIndex(), hashCode.getValue());
@@ -264,9 +259,11 @@ bool Function::verify(){
             return false;
         }
     }
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        if (!basicBlocks[i]->verify()){
-            return false;
+    if (flowGraph){
+        for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+            if (!flowGraph->getBlock(i)->verify()){
+                return false;
+            }
         }
     }
     if (!hashCode.isFunction()){

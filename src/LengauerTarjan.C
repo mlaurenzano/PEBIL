@@ -24,7 +24,7 @@ void LengauerTarjan::depthFirstSearch(uint32_t vertexV,uint32_t* dfsNo){
 
     BasicBlock* bb = locToBasicBlock[vertexV];
 
-    PRINT_DEBUG("Mark %d with %d\n",bb->getIndex(),*dfsNo);
+    PRINT_DEBUG_CFG("Mark %d with %d (vertex[%d] = %d)",bb->getIndex(),*dfsNo,*dfsNo,vertexV);
 
     uint32_t numberOfTargets = bb->getNumberOfTargets();
     for(uint32_t i=0;i<numberOfTargets;i++){
@@ -35,9 +35,9 @@ void LengauerTarjan::depthFirstSearch(uint32_t vertexV,uint32_t* dfsNo){
             depthFirstSearch(vertexW,dfsNo);
         }
     }
-    ASSERT(!bb->isNoPath());
+    ASSERT(!bb->isUnreachable());
 
-#if 0 
+#if 0
     LinkedList<uint32_t> searchStack; 
     searchStack.insert(vertexV);
 
@@ -58,7 +58,7 @@ void LengauerTarjan::depthFirstSearch(uint32_t vertexV,uint32_t* dfsNo){
         size[vertexV]     = 1;
 
         BasicBlock* bb = locToBasicBlock[vertexV];
-        ASSERT(!bb->isNoPath());
+        ASSERT(!bb->isUnreachable());
         uint32_t numberOfTargets = bb->getNumberOfTargets();
 //        for(int32_t i=numberOfTargets-1;i>=0;i--){
         for(uint32_t i=0;i<numberOfTargets;i++){
@@ -70,7 +70,7 @@ void LengauerTarjan::depthFirstSearch(uint32_t vertexV,uint32_t* dfsNo){
             }
         }
         PRINT_DEBUG("Mark %d with %d\n",bb->getIndex(),*dfsNo);
-        ASSERT(!bb->isNoPath());
+        ASSERT(!bb->isUnreachable());
     }
 #endif
 }
@@ -135,17 +135,22 @@ LengauerTarjan::LengauerTarjan(uint32_t blockCount, BasicBlock* root, BasicBlock
 
     uint32_t lastUnreachIdx = blockCount;
 
-    for(uint32_t i=0;i<blockCount;i++){
-        if(blocks[i]->isNoPath()){
+    for (uint32_t i = 0; i < blockCount; i++){
+        ASSERT(blocks[i]);
+        if (blocks[i]->isUnreachable()){
             locToBasicBlock[lastUnreachIdx] = blocks[i];
             basicBlockToLoc[blocks[i]->getIndex()] = lastUnreachIdx;
             lastUnreachIdx--;
+            PRINT_DEBUG_CFG("not reachable %d %d", i, blocks[i]->getIndex());
         } else {
             reachableCount++;
             locToBasicBlock[reachableCount] = blocks[i];
             basicBlockToLoc[blocks[i]->getIndex()] = reachableCount;
+            PRINT_DEBUG_CFG("reachable %d %d", i, blocks[i]->getIndex());
         }
     }
+
+    PRINT_DEBUG_CFG("There are %d reachable blocks here", reachableCount);
 
     ASSERT((lastUnreachIdx == reachableCount) && 
         "Fatal: when reachability is divided they should end up same index");
@@ -164,6 +169,7 @@ LengauerTarjan::LengauerTarjan(uint32_t blockCount, BasicBlock* root, BasicBlock
 
     for(uint32_t i=0;i<=reachableCount;i++){
         semi[i] = 0;    
+        vertex[i] = 0;
     }
     rootLoc = basicBlockToLoc[root->getIndex()];
 }
@@ -195,11 +201,12 @@ void LengauerTarjan::immediateDominators(){
         uint32_t vertexW =  vertex[i];
 
         BasicBlock* bb = locToBasicBlock[vertexW];
+        ASSERT(bb && "Basic Block should be initialized");
         uint32_t numberOfSources = bb->getNumberOfSources();
 
         for(uint32_t j=0;j<numberOfSources;j++){
             BasicBlock* source = bb->getSourceBlock(j);
-            if(!source->isNoPath()){
+            if(!source->isUnreachable()){
                 uint32_t vertexV = basicBlockToLoc[source->getIndex()];
                 uint32_t vertexU = EVAL(vertexV);
                 if(semi[vertexU] < semi[vertexW]){
@@ -232,7 +239,7 @@ void LengauerTarjan::immediateDominators(){
     for(uint32_t i=1;i<=reachableCount;i++){
         uint32_t vertexW = vertex[i];
         BasicBlock* bb = locToBasicBlock[vertexW];
-        ASSERT(!bb->isNoPath());
+        ASSERT(!bb->isUnreachable());
         BasicBlock* immDom = locToBasicBlock[dom[vertexW]];
         if(immDom){
             PRINT_DEBUG("Reachable : Immediate Dominator of %d is %d",bb->getIndex(),immDom->getIndex());
@@ -243,7 +250,7 @@ void LengauerTarjan::immediateDominators(){
     }
     for(int32_t i=nodeCount;i>reachableCount;i--){
         BasicBlock* bb = locToBasicBlock[i];
-        ASSERT(bb->isNoPath());
+        ASSERT(bb->isUnreachable());
         BasicBlock* immDom = locToBasicBlock[rootLoc];
         PRINT_DEBUG("Un-Reachable : Immediate Dominator of %d is %d",bb->getIndex(),immDom->getIndex());
         bb->setImmDominator(immDom);

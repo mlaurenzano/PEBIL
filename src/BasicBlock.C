@@ -6,7 +6,48 @@
 
 #define MAX_SIZE_LINEAR_SEARCH 4096
 
+uint32_t BasicBlock::addSourceBlock(BasicBlock* bb){
+    sourceBlocks.append(bb);
+    return sourceBlocks.size();
+}
+
+uint32_t BasicBlock::addTargetBlock(BasicBlock* bb){
+    targetBlocks.append(bb);
+    return targetBlocks.size();
+}
+
+bool BasicBlock::findExitInstruction(){
+    return instructions.back()->isReturn();
+}
+
+
+bool BasicBlock::passesControlToNext(){
+    Instruction* last = instructions.back();
+    return (!last->isReturn() && !last->isBranch());
+}
+
+bool BasicBlock::containsOnlyControl(){
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (!instructions[i]->isControl() && !instructions[i]->isNoop()){
+            return false;
+        }
+    }
+    return true;
+}
+
+bool BasicBlock::isDominatedBy(BasicBlock* bb){
+    BasicBlock* dom = immDominatedBy;
+    while (dom){
+        if (dom == bb){
+            return true;
+        }
+        dom = dom->getImmDominator();
+    }
+    return false;
+}
+
 void BasicBlock::findMemoryFloatOps(){
+    __FUNCTION_NOT_IMPLEMENTED;
 }
 
 void BasicBlock::setIndex(uint32_t idx){
@@ -24,8 +65,7 @@ uint64_t BasicBlock::getTargetAddress() {
 }
 
 uint64_t BasicBlock::getAddress() { 
-    ASSERT(instructions[0]); 
-    return instructions[0]->getAddress(); 
+    return baseAddress;
 }
 
 void BasicBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
@@ -38,6 +78,9 @@ void BasicBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 uint32_t BasicBlock::addInstruction(Instruction* inst){
+    if (!instructions.size()){
+        baseAddress = inst->getAddress();
+    }
     inst->setIndex(instructions.size());
     instructions.append(inst);
     return instructions.size();
@@ -80,13 +123,18 @@ bool BasicBlock::inRange(uint64_t addr){
     return false;
 }
 
-BasicBlock::BasicBlock(uint32_t idx, Function* func){
+BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg){
     type = ElfClassTypes_BasicBlock;
     index = idx;
-    function = func;
+    flowGraph = cfg;
 
     flags = 0;
+    immDominatedBy = NULL;
 
+    ASSERT(flowGraph);
+
+    Function* func = flowGraph->getFunction();
+    ASSERT(func);
     hashCode = HashCode(func->getTextSection()->getSectionIndex(),func->getIndex(),index);
     PRINT_DEBUG_HASHCODE("Block %d in function %d in section %d has HashCode 0x%012llx", index, func->getIndex(), func->getTextSection()->getSectionIndex(), hashCode.getValue());
 
@@ -107,8 +155,64 @@ void BasicBlock::printInstructions(){
     }
 }
 
+void BasicBlock::printSourceBlocks(){
+    PRINT_INFOR("SOURCE BLOCKS FOR BASICBLOCK(%d):", index);
+    PRINT_INFOR("===========================================");
+    for (uint32_t i = 0; i < sourceBlocks.size(); i++){
+        sourceBlocks[i]->print();
+    }
+    PRINT_INFOR("===========================================");
+}
+
 void BasicBlock::print(){
-    PRINT_INFOR("Basic Block %d at address range [0x%llx,0x%llx)", index, getAddress(), getAddress()+getBlockSize());
+
+    char pad = '-';
+    char ent = '-';
+    char ext = '-';
+    char ctr = '-';
+    char rch = '-';
+    char nti = '-';
+
+    if (isPadding()){
+        pad = 'P';
+    }
+    if (isEntry()){
+        ent = 'E';
+    }
+    if (isExit()){
+        ext = 'X';
+    }
+    if (isOnlyCtrl()){
+        ctr = 'C';
+    }
+    if (isReachable()){
+        rch = 'R';
+    }
+    if (!isNoInst()){
+        nti = 'I';
+    }
+
+    PRINT_INFOR("BASICBLOCK(%d) range=[0x%llx,0x%llx), %d instructions, flags %c%c%c%c%c%c", index, getAddress(), getAddress()+getBlockSize(), getNumberOfInstructions(), pad, ent, ext, ctr, rch, nti);
+    if (immDominatedBy){
+        PRINT_INFOR("\tdom: %d", immDominatedBy->getIndex());
+    }
+    if (sourceBlocks.size()){
+        PRINT_INFO();
+        PRINT_OUT("\tsources:");
+        for (uint32_t i = 0; i < sourceBlocks.size(); i++){
+            PRINT_OUT("%d ", sourceBlocks[i]->getIndex());
+        }
+        PRINT_OUT("\n");
+    }
+    if (targetBlocks.size()){
+        PRINT_INFO();
+        PRINT_OUT("\ttargets:");
+        for (uint32_t i = 0; i < targetBlocks.size(); i++){
+            PRINT_OUT("%d ", targetBlocks[i]->getIndex());
+        }
+        PRINT_OUT("\n");
+    }
+    //    printInstructions();
 }
 
 bool BasicBlock::verify(){
@@ -126,17 +230,21 @@ bool BasicBlock::verify(){
 }
 
 uint64_t BasicBlock::findInstrumentationPoint(){
-    for (uint32_t i = 0; i < instructions.size(); i++){
-        uint32_t j = i;
-        uint32_t instBytes = 0;
-        while (j < instructions.size() && instructions[j]->isRelocatable()){
-            instBytes += instructions[j]->getLength();
-            j++;
-        }
-        if (instBytes >= SIZE_NEEDED_AT_INST_POINT){
-            return instructions[i]->getAddress();
+
+    if (!isNoInst()){
+        for (uint32_t i = 0; i < instructions.size(); i++){
+            uint32_t j = i;
+            uint32_t instBytes = 0;
+            while (j < instructions.size() && instructions[j]->isRelocatable()){
+                instBytes += instructions[j]->getLength();
+                j++;
+            }
+            if (instBytes >= SIZE_NEEDED_AT_INST_POINT){
+                return instructions[i]->getAddress();
+            }
         }
     }
+    setNoInst();
     return 0;
 }
 

@@ -23,10 +23,9 @@ Loop::Loop(BasicBlock* h, BasicBlock* t, FlowGraph* cfg, BitSet<BasicBlock*>* ne
 }
 
 void Loop::print(){
-    PRINT_INFOR("Loop %u of cfg %u: Head %d (base %#llx), tail %d among %d blocks", 
-                 getIndex(),flowGraph->getIndex(),
-                 head->getIndex(), head->getAddress(),tail->getIndex(),
-                 flowGraph->getNumberOfBasicBlocks());
+    PRINT_INFOR("Loop %d of function %s: Head %d (base %#llx), tail %d among %d blocks", 
+                getIndex(), flowGraph->getFunction()->getName(), head->getIndex(),
+                head->getAddress(), tail->getIndex(), flowGraph->getNumberOfBasicBlocks());
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         if (blocks->contains(i)){
             PRINT_INFOR("\tMember Block %d", i);

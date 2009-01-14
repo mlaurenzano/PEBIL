@@ -93,22 +93,6 @@ void BasicBlockCounter::instrument(){
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 
-   /*
-# appname   = a.out
-# appsize   = 10370
-# extension = jbbinst
-# phase     = 0
-# type      = BasicBlockCounter
-# candidate = 91
-# blocks    = 61
-# memops    = 164
-# fpops     = 0
-# insns     = 298
-# buffer    = 61
-# library   = /users/sdsc/michaell/PMaCInstrumentor//lib
-# libTag    = revision REVISION
-# <no additional info>
-   */
     fprintf(staticFD, "# appname   = %s\n", getApplicationName());
     fprintf(staticFD, "# appsize   = %d\n", getApplicationSize());
     fprintf(staticFD, "# extension = %s\n", getInstSuffix());
@@ -173,7 +157,11 @@ void BasicBlockCounter::instrument(){
             } else {
                 PRINT_WARN(3,"BLOCK_NOT_INSTRUMENTED: %llx [%d bytes] %s", b->getAddress(), b->getBlockSize(), b->getFunction()->getName());
                 uint32_t noinst_value = NOINST_VALUE;
-                noInst++;
+                if (!b->containsOnlyControl()){
+                    noInst++;
+                } else {
+                    PRINT_WARN(3,"ONLY CONTROL BLOCK");
+                }
                 initializeReservedData(dataBaseAddress+counterArray+sizeof(uint32_t)*i,sizeof(uint32_t),&noinst_value);
             }
         }

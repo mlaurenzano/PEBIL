@@ -14,7 +14,7 @@
 
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
-#define WARNING_SEVERITY 5
+#define WARNING_SEVERITY 4
 //#define DEVELOPMENT
 //#define DEBUG_OPERAND
 //#define DEBUG_OPTARGET
@@ -24,6 +24,8 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_LINEINFO
 //#define DEBUG_BASICBLOCK
 //#define DEBUG_HASHCODE
+//#define DEBUG_CFG
+#define DEBUG_LOOP
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -156,6 +158,24 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define PRINT_DEBUG_HASHCODE(...)
 #endif
 
+#ifdef DEBUG_CFG
+#define PRINT_DEBUG_CFG(...) fprintf(stdout,"CFG : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_CFG(...)
+#endif
+
+#ifdef DEBUG_LOOP
+#define PRINT_DEBUG_LOOP(...) fprintf(stdout,"LOOP : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_LOOP(...)
+#endif
+
 
 
 #ifdef  DEVELOPMENT
@@ -233,6 +253,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Print_Code_Instruction              0x00004000
 #define Print_Code_Instrumentation          0x00008000
 #define Print_Code_DwarfSection             0x00010000
+#define Print_Code_Loops                    0x00020000
 
 #define HAS_PRINT_CODE(__value,__Print_Code) ((__value & __Print_Code) || (__value & Print_Code_All))
 #define SET_PRINT_CODE(__value,__Print_Code) (__value |= __Print_Code)
@@ -285,6 +306,14 @@ typedef enum {
     ElfClassTypes_TextUnknown,
     ElfClassTypes_Total_Types
 } ElfClassTypes;
+
+typedef enum {
+    InstructionSource_no_source = 0,
+    InstructionSource_Application_FreeText,
+    InstructionSource_Application_Function,
+    InstructionSource_Instrumentation,
+    InstructionSource_Total_Types
+} InstructionSources;
 
 class BinaryInputFile;
 class BinaryOutputFile;

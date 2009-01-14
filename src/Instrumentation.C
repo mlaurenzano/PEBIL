@@ -480,7 +480,7 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
     uint64_t displacementDist = returnOffset - (offset + trampolineSize + SIZE_NEEDED_AT_INST_POINT);
     uint32_t displacedInstructionSize = 0;
     for (uint32_t i = 0; i < (*insts).size(); i++){
-        if ((*insts)[i]->isBranchInstruction()){
+        if ((*insts)[i]->isControl()){
             numberOfBranches++;
             relocatedBranch = (*insts)[i];
             relocatedBranchOffset = trampolineSize;

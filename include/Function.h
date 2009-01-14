@@ -8,22 +8,19 @@
 class BasicBlock;
 class BinaryInputFile;
 class BinaryOutputFile;
-class FlowGraph;
 class Symbol;
 class TextObject;
+class FlowGraph;
 
 class Function : public TextObject {
 protected:
     Symbol* functionSymbol;
-    Vector<BasicBlock*> basicBlocks;
     FlowGraph* flowGraph;
 
     HashCode hashCode;
     uint64_t baseAddress;
 
-    uint32_t findBasicBlocks(uint32_t numberOfInstructions, Instruction** instructions);
-    uint32_t generateCFG();
-    uint32_t findDominators();
+    uint32_t generateCFG(uint32_t numberOfInstructions, Instruction** instructions);
 
 public:
     Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz);
@@ -31,8 +28,9 @@ public:
 
     Symbol* getFunctionSymbol() { return functionSymbol; }
 
-    BasicBlock* getBasicBlock(uint32_t idx) { return basicBlocks[idx]; }
-    uint32_t getNumberOfBasicBlocks() { return basicBlocks.size(); }
+    FlowGraph* getFlowGraph() { return flowGraph; }
+    uint32_t getNumberOfBasicBlocks();
+    BasicBlock* getBasicBlock(uint32_t idx);
     Instruction* getInstructionAtAddress(uint64_t addr);
 
     char* getName();

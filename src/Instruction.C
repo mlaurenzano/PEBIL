@@ -3,17 +3,44 @@
 #include <CStructuresX86.h>
 #include <BinaryFile.h>
 
-bool Instruction::isBranchInstruction(){
-    if (instructionType == x86_insn_type_cond_branch ||
-        instructionType == x86_insn_type_branch ||
-        instructionType == x86_insn_type_syscall){
-        return true;
+InstructionSources Instruction::setInstructionSource(InstructionSources src){
+    source = src;
+    return source;
+}
+
+InstructionSources Instruction::getInstructionSource(){
+    return source;
+}
+
+bool Instruction::isNoop(){
+    return (instructionType == x86_insn_type_noop);
+}
+
+bool Instruction::isIndirectBranch(){
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i].getType() == x86_operand_type_func_indirE){
+            return true;
+        }
     }
     return false;
 }
 
+uint32_t Instruction::getIndirectBranchTarget(){
+    ASSERT(isIndirectBranch());
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i].getType() == x86_operand_type_func_indirE){
+            return operands[i].getValue();
+        }
+    }
+    __SHOULD_NOT_ARRIVE;
+}
+
+bool Instruction::isControl(){
+    return  (isConditionalBranch() || isBranch() || isSystemCall() || isFunctionCall() || isReturn());
+}
+
 bool Instruction::isRelocatable(){
-    //#define SAFE_INST
+//#define SAFE_INST
 #ifdef SAFE_INST
     if (instructionType == x86_insn_type_cond_branch ||
         instructionType == x86_insn_type_branch){
@@ -33,7 +60,6 @@ bool Instruction::isRelocatable(){
     return true;
 #else
     return true;
-    return !isBranchInstruction();
 #endif
 }
 
@@ -967,6 +993,10 @@ uint64_t Instruction::setNextAddress(){
             nextAddress = operands[JUMP_TARGET_OPERAND].getValue();
         }
         break;
+    case x86_insn_type_return:
+    case x86_insn_type_syscall:
+        nextAddress = 0;
+        break;
     default:
         nextAddress = virtualAddress + instructionLength;
         break;
@@ -1022,6 +1052,7 @@ Instruction::Instruction() :
     virtualAddress = 0;
     nextAddress = 0;
     instructionType = x86_insn_type_unknown;
+    source = InstructionSource_Instrumentation;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         operands[i] = Operand();
     }
@@ -1207,6 +1238,7 @@ const char* InstTypeNames[] = {
     "type_unknown",
     "type_cond_branch",
     "type_branch",
+    "type_call",
     "type_return",
     "type_int",
     "type_float",
@@ -1214,7 +1246,8 @@ const char* InstTypeNames[] = {
     "type_io",
     "type_prefetch",
     "type_syscall",
-    "type_hwcount"
+    "type_hwcount",
+    "type_noop"
 };
 
 void Instruction::print(){
@@ -1222,9 +1255,18 @@ void Instruction::print(){
     if (isRelocatable()){
         relStr =   "RELOC";
     }
+    char* fromStr = "   ";
+    if (getInstructionSource() == InstructionSource_Application_FreeText){
+        fromStr = "AppFree";
+    } else if (getInstructionSource() == InstructionSource_Application_Function){
+        fromStr = "AppFunc";
+    } else if (getInstructionSource() == InstructionSource_Instrumentation){
+        fromStr = "InstGen";
+    }
+
     PRINT_INFO();
 
-    PRINT_OUT("INSTRUCTION(%d) %15s %5s [%d bytes -- ", index, InstTypeNames[instructionType], relStr, instructionLength);
+    PRINT_OUT("INSTRUCTION(%d) %15s %5s %7s [%d bytes -- ", index, InstTypeNames[instructionType], relStr, fromStr, instructionLength);
 
     if (rawBytes){
         for (uint32_t i = 0; i < instructionLength; i++){
@@ -1275,11 +1317,16 @@ uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
         break;
     case 0x80: case 0x81: case 0x82: case 0x83: case 0x84: case 0x85: case 0x86: case 0x87:
     case 0x88: case 0x89: case 0x8a: case 0x8b: case 0x8c: case 0x8d: case 0x8e: case 0x8f:
-    case 0x90: case 0x91: case 0x92: case 0x93: case 0x94: case 0x95: case 0x96: case 0x97:
+        typ = x86_insn_type_int;
+        break;
+    case 0x90: 
+        typ = x86_insn_type_noop;
+        break;
+    case 0x91: case 0x92: case 0x93: case 0x94: case 0x95: case 0x96: case 0x97:
         typ = x86_insn_type_int;
         break;
     case 0x98: case 0x99: case 0x9a: case 0x9b:
-        typ = x86_insn_type_branch;
+        typ = x86_insn_type_call;
         break;
     case 0x9c: case 0x9d: case 0x9e: case 0x9f:
     case 0xa0: case 0xa1: case 0xa2: case 0xa3: case 0xa4: case 0xa5: case 0xa6: case 0xa7:
@@ -1315,7 +1362,10 @@ uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
     case 0xe4: case 0xe5: case 0xe6: case 0xe7:
         typ = x86_insn_type_io;
         break;
-    case 0xe8: case 0xe9: case 0xea: case 0xeb:
+    case 0xe8: 
+        typ = x86_insn_type_call;
+        break;
+    case 0xe9: case 0xea: case 0xeb:
         typ = x86_insn_type_branch;
         break;
     case 0xec: case 0xed: case 0xee: case 0xef:
@@ -1427,7 +1477,10 @@ uint32_t Instruction::computeOpcodeTypeGroups(uint32_t idx1, uint32_t idx2){
         case 0x00: case 0x01:
             typ = x86_insn_type_int;
             break;
-        case 0x02: case 0x03: case 0x04: case 0x05:
+        case 0x02: case 0x03:
+            typ = x86_insn_type_call;
+            break;
+        case 0x04: case 0x05:
             typ = x86_insn_type_branch;
             break;
         case 0x06: case 0x07:

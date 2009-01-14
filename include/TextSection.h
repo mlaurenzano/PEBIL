@@ -101,6 +101,9 @@ public:
     TextObject* getTextObject(uint32_t idx) { return sortedTextObjects[idx]; }
 
     Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
+
+    void printLoops();
+    uint32_t buildLoops();
 };
 
 

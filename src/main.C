@@ -4,22 +4,6 @@
 #include <BasicBlockCounter.h>
 #include <Vector.h>
 
-void alignTest(){
-    uint32_t align = 0x00000001;
-    while (align){
-        fprintf(stdout, "testing alignment for %x\n", align);
-        for (uint32_t i = 0; i < 2*align; i++){
-            if (i % 0x100000 == 0){
-                fprintf(stdout, "testing alignment for %d\n", i);                
-            }
-            nextAlignAddress(i,align);
-        }
-        align = align << 1;
-    }
-    exit(-1);
-}
-
-
 void printBriefOptions(){
     fprintf(stderr,"\n");
     fprintf(stderr,"Brief Descriptions for Options:\n");
@@ -45,6 +29,7 @@ void printBriefOptions(){
     fprintf(stderr,"\t      : y : dynamic table\n");
     fprintf(stderr,"\t      : i : instrumentation reservations\n");
     fprintf(stderr,"\t      : w : dwarf debug sections\n");
+    fprintf(stderr,"\t      : o : loop info\n");
     fprintf(stderr,"\t--lib : optional for all. shared library top directory.\n");
     fprintf(stderr,"\t        default is $X86INST_LIB_HOME\n");
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
@@ -98,6 +83,7 @@ uint32_t processPrintCodes(char* rawPrintCodes){
             SET_PRINT_CODE(printCodes,Print_Code_ProgramHeader);
             SET_PRINT_CODE(printCodes,Print_Code_SectionHeader);
         } else if (pc == 'd'){
+            PRINT_WARN(5,"This option `--ver d` is unstable because we print the .text section after adding all of our code into it");
             SET_PRINT_CODE(printCodes,Print_Code_Disassemble);
         } else if (pc == 's'){
             SET_PRINT_CODE(printCodes,Print_Code_StringTable);
@@ -120,10 +106,13 @@ uint32_t processPrintCodes(char* rawPrintCodes){
         } else if (pc == 'i'){
             SET_PRINT_CODE(printCodes,Print_Code_Instrumentation);
         } else if (pc == 'c'){
+            PRINT_WARN(5,"This option `--ver c` is unstable because we print the .text section after adding all of our code into it");
             SET_PRINT_CODE(printCodes,Print_Code_Instruction);
             SET_PRINT_CODE(printCodes,Print_Code_Disassemble);
         } else if (pc == 'w'){
             SET_PRINT_CODE(printCodes,Print_Code_DwarfSection);
+        } else if (pc == 'o'){
+            SET_PRINT_CODE(printCodes,Print_Code_Loops);
         } else {
             printUsage(true);
         }
@@ -311,14 +300,19 @@ int main(int argc,char* argv[]){
     elfFile.parse();
     TIMER(double t2 = timer();PRINT_INFOR("___timer: Instrumentation Step I parse  : %.2f",t2-t1);t1=t2);
 
+    if (extdPrnt){
+        elfFile.findLoops();
+    }
+
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step II Loop : %.2f",t2-t1);t1=t2);
+
     if (verbose){
         elfFile.print(printCodes);
     }
 
     elfFile.verify();
 
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step II Line  : %.2f",t2-t1);t1=t2);
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step III Loop : %.2f",t2-t1);t1=t2);
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step III Verify  : %.2f",t2-t1);t1=t2);
 
     ElfFileInst* elfInst = NULL;
 
