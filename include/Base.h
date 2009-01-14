@@ -25,7 +25,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_BASICBLOCK
 //#define DEBUG_HASHCODE
 //#define DEBUG_CFG
-#define DEBUG_LOOP
+//#define DEBUG_LOOP
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -308,12 +308,13 @@ typedef enum {
 } ElfClassTypes;
 
 typedef enum {
-    InstructionSource_no_source = 0,
-    InstructionSource_Application_FreeText,
-    InstructionSource_Application_Function,
-    InstructionSource_Instrumentation,
-    InstructionSource_Total_Types
-} InstructionSources;
+    ByteSource_no_source = 0,
+    ByteSource_Application,
+    ByteSource_Application_FreeText,
+    ByteSource_Application_Function,
+    ByteSource_Instrumentation,
+    ByteSource_Total_Types
+} ByteSources;
 
 class BinaryInputFile;
 class BinaryOutputFile;

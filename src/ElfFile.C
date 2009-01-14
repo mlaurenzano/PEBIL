@@ -313,7 +313,7 @@ uint64_t ElfFile::addSection(uint16_t idx, ElfClassTypes classtype, char* bytes,
 
     if (classtype == ElfClassTypes_TextSection){
         TextSection** newTextSections = new TextSection*[numberOfTextSections+1];
-        newTextSections[numberOfTextSections] = new TextSection(bytes,size,idx,numberOfTextSections,this);
+        newTextSections[numberOfTextSections] = new TextSection(bytes,size,idx,numberOfTextSections,this,ByteSource_Instrumentation);
         newRawSections[idx] = (RawSection*)newTextSections[numberOfTextSections];
         for (uint32_t i = 0; i < numberOfTextSections; i++){
             newTextSections[i] = textSections[i];
@@ -831,7 +831,11 @@ uint32_t ElfFile::printDisassembledCode(bool instructionDetail){
 
     for (uint32_t i = 0; i < numberOfTextSections; i++){
         if (textSections[i]){
-            numInstrs += textSections[i]->printDisassembledCode(instructionDetail);
+            if (textSections[i]->getByteSource() != ByteSource_Instrumentation){
+                numInstrs += textSections[i]->printDisassembledCode(instructionDetail);
+            } else {
+                PRINT_INFOR("Skipping print of section %hd because it is instrumentation code", textSections[i]->getSectionIndex());
+            }
         }
     }
     return numInstrs;
@@ -1058,7 +1062,7 @@ void ElfFile::readRawSections(){
             dwarfSections[numberOfDwarfSections] = (DwarfSection*)rawSections[i];
             numberOfDwarfSections++;
         } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_TextSection){
-            rawSections[i] = new TextSection(sectionFilePtr, sectionSize, i, numberOfTextSections, this);
+            rawSections[i] = new TextSection(sectionFilePtr, sectionSize, i, numberOfTextSections, this, ByteSource_Application);
             textSections[numberOfTextSections] = (TextSection*)rawSections[i];
             numberOfTextSections++;
         } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_HashTable){

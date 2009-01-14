@@ -120,7 +120,7 @@ protected:
     Operand operands[MAX_OPERANDS];    
 
     uint64_t programAddress;
-    InstructionSources source;
+    ByteSources source;
 
 public:
     Instruction();
@@ -139,7 +139,7 @@ public:
     Operand getOperand(uint32_t idx);
     uint32_t getInstructionType() { return instructionType; }
     bool isRelocatable();
-    InstructionSources getInstructionSource();
+    ByteSources getByteSource();
 
     // control instruction id
     bool isControl();
@@ -164,7 +164,7 @@ public:
     uint32_t setOperandBytesUsed(uint32_t idx, uint32_t usd);
     bool setOperandRelative(uint32_t idx, bool rel);
     uint64_t setRelocationInfo(bool isRelative, uint64_t relocationDist);
-    InstructionSources setInstructionSource(InstructionSources src);
+    ByteSources setByteSource(ByteSources src);
 
     char* setDisassembledString(char* disStr);
 

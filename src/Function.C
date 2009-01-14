@@ -184,7 +184,7 @@ uint32_t Function::digest(){
         instructions[numberOfInstructions]->setLength(MAX_X86_INSTRUCTION_LENGTH);
         instructions[numberOfInstructions]->setAddress(getAddress() + currByte);
         instructions[numberOfInstructions]->setBytes(charStream() + currByte);
-        instructions[numberOfInstructions]->setInstructionSource(InstructionSource_Application_Function);
+        instructions[numberOfInstructions]->setByteSource(ByteSource_Application_Function);
         //        instructions[numberOfInstructions]->setIndex(numberOfInstructions);
         
         instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, instructions[numberOfInstructions]);

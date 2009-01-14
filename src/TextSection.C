@@ -8,6 +8,15 @@
 #include <Function.h>
 #include <BasicBlock.h>
 
+ByteSources TextSection::setByteSource(ByteSources src){
+    source = src;
+    return source;
+}
+
+ByteSources TextSection::getByteSource(){
+    return source;
+}
+
 uint32_t TextSection::buildLoops(){
     uint32_t numberOfLoops = 0;
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
@@ -91,7 +100,7 @@ uint32_t FreeText::digest(){
         newInstruction->setAddress(getAddress() + currByte);
         newInstruction->setBytes(charStream() + currByte);
         newInstruction->setIndex(numberOfInstructions++);
-        newInstruction->setInstructionSource(InstructionSource_Application_FreeText);
+        newInstruction->setByteSource(ByteSource_Application_FreeText);
 
         instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, newInstruction);
 
@@ -185,13 +194,15 @@ bool TextSection::inRange(uint64_t addr) {
     return elfFile->getSectionHeader(sectionIndex)->inRange(addr); 
 }
 
-TextSection::TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
+TextSection::TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf, ByteSources src)
     : RawSection(ElfClassTypes_TextSection,filePtr,size,scnIdx,elf)
 {
     index = idx;
 
     disassembler = new Disassembler(elfFile->is64Bit());
     disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
+
+    source = src;
 }
 
 uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
@@ -437,6 +448,8 @@ uint32_t TextSection::printDisassembledCode(bool instructionDetail){
         dummyInstruction->setAddress(sHdr->GET(sh_addr) + currByte);
         dummyInstruction->setBytes(charStream() + currByte);
         instructionLength = disassembler->print_insn(instructionAddress, dummyInstruction);
+        dummyInstruction->setLength(instructionLength);
+        dummyInstruction->setByteSource(ByteSource_Application);
         
         fprintf(stdout, "\t(bytes -- ");
         uint8_t* bytePtr;

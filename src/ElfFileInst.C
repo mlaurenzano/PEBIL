@@ -472,7 +472,7 @@ uint64_t ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOf
         sHdr->INCREMENT(sh_addr,extraSize);
     }
 
-    // shrink the size of the extra text section to accomodate the increase of the control sections
+    // shrink the size of the extra text section to accomodate the increase in size of the control sections
     elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
 
     for (uint32_t i = 0; i < dynTable->getNumberOfDynamics(); i++){

@@ -3,12 +3,12 @@
 #include <CStructuresX86.h>
 #include <BinaryFile.h>
 
-InstructionSources Instruction::setInstructionSource(InstructionSources src){
+ByteSources Instruction::setByteSource(ByteSources src){
     source = src;
     return source;
 }
 
-InstructionSources Instruction::getInstructionSource(){
+ByteSources Instruction::getByteSource(){
     return source;
 }
 
@@ -1052,7 +1052,7 @@ Instruction::Instruction() :
     virtualAddress = 0;
     nextAddress = 0;
     instructionType = x86_insn_type_unknown;
-    source = InstructionSource_Instrumentation;
+    source = ByteSource_Instrumentation;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         operands[i] = Operand();
     }
@@ -1256,12 +1256,16 @@ void Instruction::print(){
         relStr =   "RELOC";
     }
     char* fromStr = "   ";
-    if (getInstructionSource() == InstructionSource_Application_FreeText){
+    if (getByteSource() == ByteSource_Application){
+        fromStr = "AppGnrl";
+    } else if (getByteSource() == ByteSource_Application_FreeText){
         fromStr = "AppFree";
-    } else if (getInstructionSource() == InstructionSource_Application_Function){
+    } else if (getByteSource() == ByteSource_Application_Function){
         fromStr = "AppFunc";
-    } else if (getInstructionSource() == InstructionSource_Instrumentation){
+    } else if (getByteSource() == ByteSource_Instrumentation){
         fromStr = "InstGen";
+    } else {
+        __SHOULD_NOT_ARRIVE;
     }
 
     PRINT_INFO();

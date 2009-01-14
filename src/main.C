@@ -83,7 +83,6 @@ uint32_t processPrintCodes(char* rawPrintCodes){
             SET_PRINT_CODE(printCodes,Print_Code_ProgramHeader);
             SET_PRINT_CODE(printCodes,Print_Code_SectionHeader);
         } else if (pc == 'd'){
-            PRINT_WARN(5,"This option `--ver d` is unstable because we print the .text section after adding all of our code into it");
             SET_PRINT_CODE(printCodes,Print_Code_Disassemble);
         } else if (pc == 's'){
             SET_PRINT_CODE(printCodes,Print_Code_StringTable);
@@ -106,7 +105,6 @@ uint32_t processPrintCodes(char* rawPrintCodes){
         } else if (pc == 'i'){
             SET_PRINT_CODE(printCodes,Print_Code_Instrumentation);
         } else if (pc == 'c'){
-            PRINT_WARN(5,"This option `--ver c` is unstable because we print the .text section after adding all of our code into it");
             SET_PRINT_CODE(printCodes,Print_Code_Instruction);
             SET_PRINT_CODE(printCodes,Print_Code_Disassemble);
         } else if (pc == 'w'){
@@ -329,6 +327,7 @@ int main(int argc,char* argv[]){
     if (elfInst){
         elfInst->setPathToInstLib(libPath);
         elfInst->phasedInstrumentation();
+        elfInst->print(Print_Code_Instrumentation);
         TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step IV Instr : %.2f",t2-t1);t1=t2);
         elfInst->dump(extension);
         TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step V Dump   : %.2f",t2-t1);t1=t2);

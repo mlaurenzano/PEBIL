@@ -20,6 +20,7 @@ protected:
     TextSection* textSection;
     uint32_t index;
     uint64_t address;
+
 public:
     TextObject(ElfClassTypes typ, TextSection* text, uint32_t idx, uint64_t addr, uint32_t sz);
     ~TextObject() {}
@@ -71,12 +72,17 @@ protected:
     Vector<TextObject*> sortedTextObjects;
 
     Disassembler* disassembler;
+    ByteSources source;
+
 public:
-    TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf);
+    TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf, ByteSources src);
     ~TextSection();
 
     void printInstructions();
     Vector<Symbol*> discoverTextObjects();
+
+    ByteSources getByteSource();
+    ByteSources setByteSource(ByteSources src);
 
     uint32_t readNoFile();
     uint32_t getIndex() { return index; }
