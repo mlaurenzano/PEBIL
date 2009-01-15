@@ -10,6 +10,7 @@
 #define LIB_NAME "libcounter.so"
 #define NOINST_VALUE 0xffffffff
 #define FILE_UNK "__FILE_UNK__"
+#define INST_BUFFER_SIZE (65536*sizeof(uint32_t))
 
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     : ElfFileInst(elf)
@@ -99,12 +100,14 @@ void BasicBlockCounter::instrument(){
     fprintf(staticFD, "# phase     = %d\n", 0);
     fprintf(staticFD, "# type      = %s\n", briefName());
     fprintf(staticFD, "# cantidate = %d\n", 0);
-    fprintf(staticFD, "# blocks    = %d\n", 0);
-    fprintf(staticFD, "# memops    = %d\n", 0);
-    fprintf(staticFD, "# fpops     = %d\n", 0);
-    fprintf(staticFD, "# insns     = %d\n", 0);
-    fprintf(staticFD, "# buffer    = %d\n", 0);
-    fprintf(staticFD, "# library   = %s\n", "");
+    fprintf(staticFD, "# blocks    = %d\n", text->getNumberOfBasicBlocks());
+    fprintf(staticFD, "# memops    = %d\n", text->getNumberOfMemoryOps());
+    fprintf(staticFD, "# fpops     = %d\n", text->getNumberOfFloatOps());
+    fprintf(staticFD, "# insns     = %d\n", text->getNumberOfInstructions());
+    fprintf(staticFD, "# buffer    = %d\n", INST_BUFFER_SIZE);
+    for (uint32_t i = 0; i < getNumberOfInstrumentationLibraries(); i++){
+        fprintf(staticFD, "# library   = %s\n", getInstrumentationLibrary(i));
+    }
     fprintf(staticFD, "# libTag    = %s\n", "");
     fprintf(staticFD, "# %s\n", "");
     fprintf(staticFD, "# <sequence> <block_uid> <memop> <fpop> <insn> <line> <fname> <loopcnt> <loopid> <ldepth> <hex_uid> <vaddr> <loads> <stores> <isinst?>\n");
@@ -166,13 +169,19 @@ void BasicBlockCounter::instrument(){
             }
         }
 
+        char* fileName;
+        uint32_t lineNo;
         if (li){
-            fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\t%d\n", i, b->getHashCode().getValue(), -1, -1, b->getNumberOfInstructions(),
-                    li->getFileName(), li->GET(lr_line), b->getFunction()->getName(), -1, -1, -1, b->getHashCode().getValue(), b->getAddress(), -1, -1, 1);
+            fileName = li->getFileName();
+            lineNo = li->GET(lr_line);
         } else {
-            fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\t%d\n", i, b->getHashCode().getValue(), -1, -1, b->getNumberOfInstructions(),
-                    FILE_UNK, 0, b->getFunction()->getName(), -1, -1, -1, b->getHashCode().getValue(), b->getAddress(), -1, -1, 1);
+            fileName = FILE_UNK;
+            lineNo = 0;
         }
+        fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\t%d\n", 
+                i, b->getHashCode().getValue(), b->getNumberOfMemoryOps(), b->getNumberOfFloatOps(), 
+                b->getNumberOfInstructions(), fileName, lineNo, b->getFunction()->getName(), -1, -1, -1, 
+                b->getHashCode().getValue(), b->getAddress(), b->getNumberOfLoads(), b->getNumberOfStores(), !b->isNoInst());
     }
 
     fclose(staticFD);

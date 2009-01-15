@@ -22,7 +22,8 @@ protected:
 public:
     FlowGraph(Function* f) : function(f) {}
     ~FlowGraph();
-        
+
+    uint32_t getNumberOfInstructions();
     TextSection* getTextSection();
     void print();
     uint32_t getIndex();

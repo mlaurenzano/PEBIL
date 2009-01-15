@@ -6,6 +6,15 @@
 #include <LengauerTarjan.h>
 #include <Stack.h>
 
+
+uint32_t FlowGraph::getNumberOfInstructions(){
+    uint32_t numberOfInstructions = 0;
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        numberOfInstructions += basicBlocks[i]->getNumberOfInstructions();
+    }
+    return numberOfInstructions;
+}
+
 void FlowGraph::testGraphAvailability(){
 
     BitSet<BasicBlock*>* badBlocks = newBitSet();

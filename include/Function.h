@@ -8,9 +8,9 @@
 class BasicBlock;
 class BinaryInputFile;
 class BinaryOutputFile;
+class FlowGraph;
 class Symbol;
 class TextObject;
-class FlowGraph;
 
 class Function : public TextObject {
 protected:
@@ -32,6 +32,8 @@ public:
     uint32_t getNumberOfBasicBlocks();
     BasicBlock* getBasicBlock(uint32_t idx);
     Instruction* getInstructionAtAddress(uint64_t addr);
+
+    uint32_t getNumberOfInstructions();
 
     char* getName();
 

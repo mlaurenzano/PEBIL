@@ -8,6 +8,44 @@
 #include <Function.h>
 #include <BasicBlock.h>
 
+uint32_t TextSection::getNumberOfBasicBlocks(){
+    uint32_t numberOfBasicBlocks = 0;
+    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+        if (sortedTextObjects[i]->isFunction()){
+            numberOfBasicBlocks += ((Function*)sortedTextObjects[i])->getFlowGraph()->getNumberOfBasicBlocks();
+        }
+    }
+    return numberOfBasicBlocks;
+}
+
+uint32_t TextSection::getNumberOfInstructions(){
+    uint32_t numberOfInstructions = 0;
+    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+        numberOfInstructions += ((Function*)sortedTextObjects[i])->getNumberOfInstructions();
+    }
+    return numberOfInstructions;
+}
+
+uint32_t TextSection::getNumberOfMemoryOps(){
+    uint32_t numberOfMemoryOps = 0;
+    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+        if (sortedTextObjects[i]->isFunction()){
+            numberOfMemoryOps += ((Function*)sortedTextObjects[i])->getFlowGraph()->getNumberOfMemoryOps();
+        }
+    }
+    return numberOfMemoryOps;
+}
+
+uint32_t TextSection::getNumberOfFloatOps(){
+    uint32_t numberOfFloatOps = 0;
+    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+        if (sortedTextObjects[i]->isFunction()){
+            numberOfFloatOps += ((Function*)sortedTextObjects[i])->getFlowGraph()->getNumberOfFloatOps();
+        }
+    }
+    return numberOfFloatOps;
+}
+
 ByteSources TextSection::setByteSource(ByteSources src){
     source = src;
     return source;
@@ -25,6 +63,10 @@ uint32_t TextSection::buildLoops(){
         }
     }
     return numberOfLoops;
+}
+
+void FreeText::print(){
+    PRINT_INFOR("Free Text area at address %#llx", address);
 }
 
 void TextSection::printLoops(){
@@ -101,14 +143,13 @@ uint32_t FreeText::digest(){
         newInstruction->setBytes(charStream() + currByte);
         newInstruction->setIndex(numberOfInstructions++);
         newInstruction->setByteSource(ByteSource_Application_FreeText);
-
+        newInstruction->setProgramAddress(instructionAddress);
         instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, newInstruction);
 
         if (!instructionLength){
             instructionLength = 1;
         }
         newInstruction->setLength(instructionLength);
-        newInstruction->setNextAddress();
 
         instructions.append(newInstruction);
     }
@@ -437,8 +478,16 @@ uint32_t TextSection::printDisassembledCode(bool instructionDetail){
     Instruction* dummyInstruction;
 
     PRINT_INFOR("Disassembly output of Section %s(%d)", sHdr->getSectionNamePtr(), sectionIndex);
+    uint32_t currentFunction = 0;
 
     for (currByte = 0; currByte < sHdr->GET(sh_size); currByte += instructionLength, instructionCount++){
+        if (currentFunction < sortedTextObjects.size()){
+            if (sortedTextObjects[currentFunction]->getAddress() <= sHdr->GET(sh_addr) + currByte){
+                sortedTextObjects[currentFunction]->print();
+                currentFunction++;
+            }
+        }
+
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
         //fprintf(stdout, "(0x%llx) 0x%llx:\t", (uint64_t)(charStream() + currByte), (uint64_t)(sHdr->GET(sh_addr) + currByte));
         fprintf(stdout, "0x%llx:\t", (uint64_t)(sHdr->GET(sh_addr) + currByte));

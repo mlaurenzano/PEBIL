@@ -133,6 +133,9 @@ typedef struct
 
 #define EI_PAD		9		/* Byte index of padding bytes */
 
+#define EFINSTSTATUS_NON 0              /* flag bit will be set if instrumentation has occurred on this binary */
+#define EFINSTSTATUS_MOD 1
+
 /* Legal values for e_type (object file type).  */
 
 #define ET_NONE		0		/* No file type */

@@ -114,7 +114,6 @@ protected:
     uint32_t instructionLength;
     char* rawBytes;
     uint64_t virtualAddress;
-    uint64_t nextAddress;
     uint32_t instructionType;
     char disassembledString[MAX_DISASM_STR_LENGTH];
     Operand operands[MAX_OPERANDS];    
@@ -140,6 +139,7 @@ public:
     uint32_t getInstructionType() { return instructionType; }
     bool isRelocatable();
     ByteSources getByteSource();
+    uint64_t getProgramAddress();
 
     // control instruction id
     bool isControl();
@@ -154,7 +154,6 @@ public:
     bool isNoop();
 
     uint32_t setIndex(uint32_t newidx);
-    uint64_t setNextAddress();
     uint64_t setAddress(uint64_t addr);
     uint32_t setLength(uint32_t len);
     char* setBytes(char* bytes);
@@ -165,6 +164,7 @@ public:
     bool setOperandRelative(uint32_t idx, bool rel);
     uint64_t setRelocationInfo(bool isRelative, uint64_t relocationDist);
     ByteSources setByteSource(ByteSources src);
+    uint64_t setProgramAddress(uint64_t addr);
 
     char* setDisassembledString(char* disStr);
 

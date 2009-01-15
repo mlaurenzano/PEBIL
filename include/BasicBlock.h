@@ -55,7 +55,9 @@ public:
     uint32_t getNumberOfTargets() { return targetBlocks.size(); }
     uint32_t getNumberOfMemoryOps() { return numberOfMemoryOps; }
     uint32_t getNumberOfFloatOps() { return numberOfFloatOps; }
-    
+    uint32_t getNumberOfLoads() { return 0; }
+    uint32_t getNumberOfStores() { return 0; }
+
     uint32_t addInstruction(Instruction* inst);
 
     bool passesControlToNext();

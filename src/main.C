@@ -27,7 +27,7 @@ void printBriefOptions(){
     fprintf(stderr,"\t      : v : gnu version needs table\n");
     fprintf(stderr,"\t      : m : gnu version symbol table\n");
     fprintf(stderr,"\t      : y : dynamic table\n");
-    fprintf(stderr,"\t      : i : instrumentation reservations\n");
+    fprintf(stderr,"\t      : i : instrumentation reservations (on by default)\n");
     fprintf(stderr,"\t      : w : dwarf debug sections\n");
     fprintf(stderr,"\t      : o : loop info\n");
     fprintf(stderr,"\t--lib : optional for all. shared library top directory.\n");
@@ -115,7 +115,6 @@ uint32_t processPrintCodes(char* rawPrintCodes){
             printUsage(true);
         }
     }
-    PRINT_INFOR("Found print code 0x%08x", printCodes);
     return printCodes;
 }
 

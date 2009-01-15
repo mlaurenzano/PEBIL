@@ -11,6 +11,11 @@
 #include <FlowGraph.h>
 #include <LengauerTarjan.h>
 
+uint32_t Function::getNumberOfInstructions() { 
+    return flowGraph->getNumberOfInstructions(); 
+}
+
+
 uint32_t Function::getNumberOfBasicBlocks() { 
     return flowGraph->getNumberOfBasicBlocks(); 
 }
@@ -103,6 +108,7 @@ uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** inst
         }
     }
 
+
     delete[] addressCache;
     delete[] nextAddressCache;
 
@@ -151,6 +157,7 @@ Instruction* Function::getInstructionAtAddress(uint64_t addr){
             return flowGraph->getBlock(i)->getInstructionAtAddress(addr); 
         }
     }
+
     return NULL;
 }
 
@@ -185,6 +192,7 @@ uint32_t Function::digest(){
         instructions[numberOfInstructions]->setAddress(getAddress() + currByte);
         instructions[numberOfInstructions]->setBytes(charStream() + currByte);
         instructions[numberOfInstructions]->setByteSource(ByteSource_Application_Function);
+        instructions[numberOfInstructions]->setProgramAddress(instructionAddress);
         //        instructions[numberOfInstructions]->setIndex(numberOfInstructions);
         
         instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, instructions[numberOfInstructions]);
@@ -192,7 +200,6 @@ uint32_t Function::digest(){
             instructionLength = 1;
         }
         instructions[numberOfInstructions]->setLength(instructionLength);
-        instructions[numberOfInstructions]->setNextAddress();
         //        instructions[numberOfInstructions]->print();
     }
     
@@ -274,6 +281,5 @@ bool Function::verify(){
 }
 
 void Function::print(){
-    PRINT_INFOR("Function size is %lld bytes", sizeInBytes);
     functionSymbol->print();
 }

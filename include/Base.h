@@ -352,11 +352,11 @@ class HashCode {
 private:
     typedef union {
         struct {
-            uint32_t res     : 8;
-            uint32_t section : 8;
-            uint32_t function: 16;
-            uint32_t block   : 16;
             uint32_t memop   : 16;
+            uint32_t block   : 16;
+            uint32_t function: 16;
+            uint32_t section : 8;
+            uint32_t res     : 8;
         } fields;
         uint64_t bits;
     } HashCodeEntry;

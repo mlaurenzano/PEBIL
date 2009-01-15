@@ -289,6 +289,9 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(textIdx && "Cannot find the text section");
     TextSection* text = (TextSection*)elfFile->getRawSection(textIdx);
     ASSERT(text && text->getType() == ElfClassTypes_TextSection && "Cannot find the text section");
+
+    ASSERT(elfFile->getFileHeader()->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
+    elfFile->getFileHeader()->SET(e_flags,EFINSTSTATUS_MOD);
     
     ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
     currentPhase++;

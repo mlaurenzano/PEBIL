@@ -131,6 +131,9 @@ BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg){
     flags = 0;
     immDominatedBy = NULL;
 
+    numberOfMemoryOps = 0;
+    numberOfFloatOps = 0;
+
     ASSERT(flowGraph);
 
     Function* func = flowGraph->getFunction();

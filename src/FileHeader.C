@@ -132,7 +132,6 @@ void FileHeader::print() {
     } else {
         PRINT_INFOR("\tSnam : no string table for section names");
     }
-    ASSERT(!GET(e_flags));
 
 }
 

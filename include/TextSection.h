@@ -31,11 +31,14 @@ public:
     char* charStream();
     bool isFunction();
 
+    virtual uint32_t getNumberOfInstructions() { __SHOULD_NOT_ARRIVE; }
     TextSection* getTextSection() { return textSection; }
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
     virtual char* getName() { __SHOULD_NOT_ARRIVE; }
     virtual uint32_t digest() { __SHOULD_NOT_ARRIVE; }
+
+    virtual void print() { __SHOULD_NOT_ARRIVE; }
 };
 
 class TextUnknown : public TextObject {
@@ -45,15 +48,17 @@ public:
     TextUnknown(TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz);
     ~TextUnknown() {}
 
+    uint32_t getNumberOfInstructions() { __SHOULD_NOT_ARRIVE; }
+
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     char* getName();
     uint32_t digest();
 };
 
-
 class FreeText : public TextObject {
 protected:
     Vector<Instruction*> instructions;
+
 public:
     FreeText(TextSection* text, uint32_t idx, uint64_t addr, uint32_t sz);
     ~FreeText();
@@ -64,6 +69,8 @@ public:
 
     Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }
     uint32_t getNumberOfInstructions() { return instructions.size(); }
+
+    void print();
 };
 
 class TextSection : public RawSection {
@@ -105,6 +112,11 @@ public:
 
     uint32_t getNumberOfTextObjects() { return sortedTextObjects.size(); }
     TextObject* getTextObject(uint32_t idx) { return sortedTextObjects[idx]; }
+
+    uint32_t getNumberOfBasicBlocks();
+    uint32_t getNumberOfMemoryOps();
+    uint32_t getNumberOfFloatOps();
+    uint32_t getNumberOfInstructions();
 
     Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
 

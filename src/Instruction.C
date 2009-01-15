@@ -3,6 +3,15 @@
 #include <CStructuresX86.h>
 #include <BinaryFile.h>
 
+uint64_t Instruction::setProgramAddress(uint64_t addr){
+    programAddress = addr;
+    return programAddress;
+}
+
+uint64_t Instruction::getProgramAddress(){
+    return programAddress;
+}
+
 ByteSources Instruction::setByteSource(ByteSources src){
     source = src;
     return source;
@@ -982,7 +991,8 @@ bool Instruction::setOperandRelative(uint32_t idx, bool rel){
     return operands[idx].setRelative(rel);
 }
 
-uint64_t Instruction::setNextAddress(){
+uint64_t Instruction::getNextAddress(){
+    uint64_t nextAddress;
     switch(instructionType){
     case x86_insn_type_cond_branch:
     case x86_insn_type_branch:
@@ -1050,9 +1060,9 @@ Instruction::Instruction() :
     instructionLength = 0;
     rawBytes = NULL;
     virtualAddress = 0;
-    nextAddress = 0;
     instructionType = x86_insn_type_unknown;
     source = ByteSource_Instrumentation;
+    programAddress = 0;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         operands[i] = Operand();
     }
@@ -1177,10 +1187,6 @@ uint64_t Instruction::getAddress(){
     return virtualAddress;
 }
 
-uint64_t Instruction::getNextAddress(){
-    return nextAddress;
-}
-
 Operand Instruction::getOperand(uint32_t idx){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
     return operands[idx];
@@ -1279,7 +1285,7 @@ void Instruction::print(){
     } else {
         PRINT_OUT("NOBYTES");
     }
-    PRINT_OUT("] 0x%llx -> 0x%llx", virtualAddress, nextAddress);
+    PRINT_OUT("] 0x%llx -> 0x%llx", virtualAddress, getNextAddress());
     PRINT_OUT("\n");
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
