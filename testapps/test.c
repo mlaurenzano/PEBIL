@@ -1,6 +1,8 @@
 #include <stdio.h>
 
 int main(int argc){
+
+    __asm("call *%eax");
     
     int i = 0;
     while (i < 1000000000){

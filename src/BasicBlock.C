@@ -174,7 +174,6 @@ void BasicBlock::print(){
     char ext = '-';
     char ctr = '-';
     char rch = '-';
-    char nti = '-';
 
     if (isPadding()){
         pad = 'P';
@@ -191,11 +190,8 @@ void BasicBlock::print(){
     if (isReachable()){
         rch = 'R';
     }
-    if (!isNoInst()){
-        nti = 'I';
-    }
 
-    PRINT_INFOR("BASICBLOCK(%d) range=[0x%llx,0x%llx), %d instructions, flags %c%c%c%c%c%c", index, getAddress(), getAddress()+getBlockSize(), getNumberOfInstructions(), pad, ent, ext, ctr, rch, nti);
+    PRINT_INFOR("BASICBLOCK(%d) range=[0x%llx,0x%llx), %d instructions, flags %c%c%c%c%c%c", index, getAddress(), getAddress()+getBlockSize(), getNumberOfInstructions(), pad, ent, ext, ctr, rch);
     if (immDominatedBy){
         PRINT_INFOR("\tdom: %d", immDominatedBy->getIndex());
     }
@@ -232,22 +228,19 @@ bool BasicBlock::verify(){
     return true;
 }
 
-uint64_t BasicBlock::findInstrumentationPoint(){
+uint64_t BasicBlock::findInstrumentationPoint(uint32_t size, InstLocations loc){
 
-    if (!isNoInst()){
-        for (uint32_t i = 0; i < instructions.size(); i++){
-            uint32_t j = i;
-            uint32_t instBytes = 0;
-            while (j < instructions.size() && instructions[j]->isRelocatable()){
-                instBytes += instructions[j]->getLength();
-                j++;
-            }
-            if (instBytes >= SIZE_NEEDED_AT_INST_POINT){
-                return instructions[i]->getAddress();
-            }
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        uint32_t j = i;
+        uint32_t instBytes = 0;
+        while (j < instructions.size() && instructions[j]->isRelocatable()){
+            instBytes += instructions[j]->getLength();
+            j++;
+        }
+        if (instBytes >= size){
+            return instructions[i]->getAddress();
         }
     }
-    setNoInst();
     return 0;
 }
 
@@ -287,8 +280,11 @@ Vector<Instruction*>* BasicBlock::swapInstructions(uint64_t addr, Vector<Instruc
     }
     (*replacements).reverse();
 
+    replacedBytes = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
         instructions[i]->setIndex(i);
+        instructions[i]->setAddress(replacedBytes+baseAddress);
+        replacedBytes += instructions[i]->getLength();
     }
 
     verify();

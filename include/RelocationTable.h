@@ -92,7 +92,7 @@ public:
 class RelocationTable : public RawSection {
 protected:
     
-    ElfRelType type;
+    ElfRelTypes type;
     SymbolTable* symbolTable;
     RawSection* relocationSection;
     uint32_t index;

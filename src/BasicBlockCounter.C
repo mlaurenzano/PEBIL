@@ -7,10 +7,19 @@
 #include <LineInformation.h>
 
 #define EXIT_FUNCTION "blockcounter"
+#define START_FUNCTION "register_trap_handler"
 #define LIB_NAME "libcounter.so"
 #define NOINST_VALUE 0xffffffff
 #define FILE_UNK "__FILE_UNK__"
 #define INST_BUFFER_SIZE (65536*sizeof(uint32_t))
+#define INSTBP_HASH_TABLE_SIZE 4
+
+#define USE_PARTIAL_TRAP
+//#define USE_FULL_TRAP
+
+int32_t instbp_hash(int64_t key){
+    return (int32_t)key;
+}
 
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     : ElfFileInst(elf)
@@ -26,8 +35,8 @@ void BasicBlockCounter::instrument(){
     declareLibrary(LIB_NAME);
 
     // declare any instrumentation functions that will be used
-    declareFunction(EXIT_FUNCTION);
-
+    InstrumentationFunction* exitFunc = declareFunction(EXIT_FUNCTION);
+    InstrumentationFunction* startFunc = declareFunction(START_FUNCTION);
 
     TextSection* text = getTextSection();
     TextSection* fini = getFiniSection();
@@ -58,8 +67,8 @@ void BasicBlockCounter::instrument(){
     ASSERT(allBlocks.size() == allLineInfos.size());
     uint32_t numberOfInstPoints = allBlocks.size();
 
-    InstrumentationFunction* exitFunc = getInstrumentationFunction(EXIT_FUNCTION);
     ASSERT(exitFunc && "Cannot find exit function, are you sure it was declared?");
+    ASSERT(startFunc && "Cannot find start function, are you sure it was declared?");
 
     // the number blocks in the code
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
@@ -82,9 +91,10 @@ void BasicBlockCounter::instrument(){
     uint64_t fileNameArray = reserveDataOffset(numberOfInstPoints*sizeof(char*));
     exitFunc->addArgument(fileNameArray);
 
-
-    if (fini->findInstrumentationPoint()){
-        addInstrumentationPoint(fini,exitFunc);
+    Vector<InstrumentationPoint*>* allPoints = new Vector<InstrumentationPoint*>();
+    if (fini->findInstrumentationPoint(SIZE_NEEDED_AT_INST_POINT, InstLocation_dont_care)){
+        InstrumentationPoint* p = addInstrumentationPoint(fini,exitFunc,SIZE_NEEDED_AT_INST_POINT);
+        (*allPoints).append(p);
     } else {
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
@@ -114,6 +124,9 @@ void BasicBlockCounter::instrument(){
 
     uint32_t noInst = 0;
     uint32_t fileNameSize = 1;
+    uint32_t trapCount = 0;
+    uint32_t jumpCount = 0;
+
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
         BasicBlock* b = allBlocks[i];
         LineInfo* li = allLineInfos[i];
@@ -131,7 +144,7 @@ void BasicBlockCounter::instrument(){
             initializeReservedData(dataBaseAddress+fileNameArray+i*sizeof(char*),sizeof(char*),&filenameAddr);
             initializeReservedData(dataBaseAddress+filename,strlen(li->getFileName())+1,(void*)li->getFileName());
         }
-        
+
         InstrumentationSnippet* snip = new InstrumentationSnippet();
         uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
         
@@ -155,9 +168,33 @@ void BasicBlockCounter::instrument(){
             
         // register an instrumentation point at the function that uses this snippet
         if (strcmp(f->getName(),"_start")){
-            if (b->findInstrumentationPoint()){
-                addInstrumentationPoint(b,snip);
-            } else {
+#ifdef USE_FULL_TRAP
+            if (b->findInstrumentationPoint(SIZE_TRAP_INSTRUCTION, InstLocation_dont_care)){
+                InstrumentationPoint* p = addInstrumentationPoint(b,snip,SIZE_TRAP_INSTRUCTION);
+                (*allPoints).append(p);
+                trapCount++;
+            }            
+#else
+            if (b->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
+                InstrumentationPoint* p = addInstrumentationPoint(b,snip,SIZE_CONTROL_TRANSFER);
+                jumpCount++;
+            }
+#endif
+#ifdef USE_PARTIAL_TRAP              
+            else if (b->findInstrumentationPoint(SIZE_TRAP_INSTRUCTION, InstLocation_dont_care)){
+                InstrumentationPoint* p = addInstrumentationPoint(b,snip,SIZE_TRAP_INSTRUCTION);
+                (*allPoints).append(p);
+                trapCount++;
+            }
+#endif
+            else {
+#ifdef USE_PARTIAL_TRAP
+                __SHOULD_NOT_ARRIVE;
+#endif
+#ifdef USE_FULL_TRAP
+                __SHOULD_NOT_ARRIVE;
+#endif
+
                 PRINT_WARN(3,"BLOCK_NOT_INSTRUMENTED: %llx [%d bytes] %s", b->getAddress(), b->getBlockSize(), b->getFunction()->getName());
                 uint32_t noinst_value = NOINST_VALUE;
                 if (!b->containsOnlyControl()){
@@ -178,15 +215,28 @@ void BasicBlockCounter::instrument(){
             fileName = FILE_UNK;
             lineNo = 0;
         }
-        fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\t%d\n", 
+        fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\n", 
                 i, b->getHashCode().getValue(), b->getNumberOfMemoryOps(), b->getNumberOfFloatOps(), 
                 b->getNumberOfInstructions(), fileName, lineNo, b->getFunction()->getName(), -1, -1, -1, 
-                b->getHashCode().getValue(), b->getAddress(), b->getNumberOfLoads(), b->getNumberOfStores(), !b->isNoInst());
+                b->getHashCode().getValue(), b->getAddress(), b->getNumberOfLoads(), b->getNumberOfStores());
     }
 
     fclose(staticFD);
 
+    // add arguments to start function
+    startFunc->addArgument(counterArrayEntries,numberOfInstPoints);
+    startFunc->addArgument(addrArray);
+    uint64_t mapArrayEntries = reserveDataOffset(sizeof(uint32_t));
+    uint32_t numMaps = (*allPoints).size();
+    PRINT_DEBUG_INST("Passing map entries: %d entries at address %llx", numMaps, mapArrayEntries);
+    startFunc->addArgument(mapArrayEntries,numMaps);
+    uint64_t trampAddressArray = initAddressMapping(allPoints);
+    startFunc->addArgument(trampAddressArray);
+
+    delete allPoints;
     PRINT_WARN(3,"Cannot find instrumentation points for %d/%d basic blocks in the code", noInst, numberOfInstPoints);
+
+    PRINT_INFOR("Instrumentation used %d traps and %d jumps", trapCount, jumpCount);
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }

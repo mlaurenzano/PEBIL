@@ -2,7 +2,7 @@ DBG         = -g
 OPT         = -O3 -fPIC
 NATIVE_C    = cc
 GNU_C       = gcc
-CC          = $(GNU_C) $(OPT)
+CC          = $(GNU_C) $(OPT) $(DBG)
 SHARED_LIB  = -shared
 
 #### -DNO_SAMPLING_MODE    : Add to disable sampling (note that MAX visit count is still on).
@@ -30,11 +30,11 @@ all: $(TARGET_BINS) install
 %.o: %.c 
 	$(CC) $(EXTRA_CFLGS) -I$(INCDIR) -c -o $@ $< 
 
-libcounter.so : CounterFunctions.o
+libcounter.so : $(OBJS)
 	$(CC) $(SHARED_LIB) -o $@ CounterFunctions.o -L$(LIBDIR) $(EXTRA_LIBS)
 
 clean: 
-	rm -f core *.o *.O *.i *.ii *.s *.class $(TARGET_BINS)
+	rm -f core *.o *.O *.i *.s *.ii *.class $(TARGET_BINS)
 	(cd $(LIBDIR); rm -f $(TARGET_BINS))
 
 install: $(TARGET_BINS)

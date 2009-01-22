@@ -12,25 +12,32 @@ void printBriefOptions(){
     fprintf(stderr,"\t--app : required for all.\n");
     fprintf(stderr,"\t--ver : optional for all. prints informative details about parts of the application binary.\n");
     fprintf(stderr,"\t      : a : all parts of the application\n");
-    fprintf(stderr,"\t      : e : all elf parts (everything but instructions)\n");
-    fprintf(stderr,"\t      : p : program headers\n");
-    fprintf(stderr,"\t      : h : section headers\n");
-    fprintf(stderr,"\t      : x : all headers\n");
-    fprintf(stderr,"\t      : d : disassembly\n");
+    fprintf(stderr,"\t      : b : <none>\n");
     fprintf(stderr,"\t      : c : full instruction printing (implies disassembly)\n");
+    fprintf(stderr,"\t      : d : disassembly\n");
+    fprintf(stderr,"\t      : e : all elf parts (everything but instructions)\n");
+    fprintf(stderr,"\t      : f : <none>\n");
+    fprintf(stderr,"\t      : g : global offset table\n");
+    fprintf(stderr,"\t      : h : section headers\n");
+    fprintf(stderr,"\t      : i : instrumentation reservations (on by default)\n");
+    fprintf(stderr,"\t      : j : hash table\n");
+    fprintf(stderr,"\t      : k : <none>\n");
+    fprintf(stderr,"\t      : l : <none>\n");
+    fprintf(stderr,"\t      : m : gnu version symbol table\n");
+    fprintf(stderr,"\t      : n : note sections\n");
+    fprintf(stderr,"\t      : o : loop info\n");
+    fprintf(stderr,"\t      : p : program headers\n");
+    fprintf(stderr,"\t      : q : <none>\n");
+    fprintf(stderr,"\t      : r : relocation tables\n");
     fprintf(stderr,"\t      : s : string tables\n");
     fprintf(stderr,"\t      : t : symbol tables\n");
-    fprintf(stderr,"\t      : r : relocation tables\n");
-    fprintf(stderr,"\t      : n : note sections\n");
-    fprintf(stderr,"\t      : g : global offset table\n");
-    fprintf(stderr,"\t      : h : hash table\n");
+    fprintf(stderr,"\t      : u : <none>\n");
     fprintf(stderr,"\t      : v : gnu version needs table\n");
-    fprintf(stderr,"\t      : m : gnu version symbol table\n");
-    fprintf(stderr,"\t      : y : dynamic table\n");
-    fprintf(stderr,"\t      : i : instrumentation reservations (on by default)\n");
     fprintf(stderr,"\t      : w : dwarf debug sections\n");
-    fprintf(stderr,"\t      : o : loop info\n");
-    fprintf(stderr,"\t--lib : optional for all. shared library top directory.\n");
+    fprintf(stderr,"\t      : x : all headers\n");
+    fprintf(stderr,"\t      : y : dynamic table\n");
+    fprintf(stderr,"\t      : z : <none>\n");
+    fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
     fprintf(stderr,"\t        default is $X86INST_LIB_HOME\n");
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
@@ -50,8 +57,8 @@ void printUsage(bool shouldExt=true) {
     fprintf(stderr,"\t--typ (ide|fnc|jbb)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
     fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
-    fprintf(stderr,"\t[--ver [afhpxdtrnghvmy]]");
-    fprintf(stderr,"\t[--lib <shared_lib_topdir>]\n");
+    fprintf(stderr,"\t[--ver [a-z]*]\n");
+    fprintf(stderr,"\t[--lib <shared_lib_dir>]\n");
     fprintf(stderr,"\t[--ext <output_suffix>]\n");
     fprintf(stderr,"\t[--dtl]\n");
     fprintf(stderr,"\t[--lpi]                     <-- valid for sim/csc\n");
@@ -94,7 +101,7 @@ uint32_t processPrintCodes(char* rawPrintCodes){
             SET_PRINT_CODE(printCodes,Print_Code_NoteSection);
         } else if (pc == 'g'){
             SET_PRINT_CODE(printCodes,Print_Code_GlobalOffsetTable);
-        } else if (pc == 'h'){
+        } else if (pc == 'j'){
             SET_PRINT_CODE(printCodes,Print_Code_HashTable);
         } else if (pc == 'v'){
             SET_PRINT_CODE(printCodes,Print_Code_GnuVerneedTable);

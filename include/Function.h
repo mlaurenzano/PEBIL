@@ -37,7 +37,7 @@ public:
 
     char* getName();
 
-    uint64_t findInstrumentationPoint();
+    uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
     void printInstructions();
 
     uint32_t digest();

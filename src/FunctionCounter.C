@@ -57,8 +57,8 @@ void FunctionCounter::instrument(){
     uint64_t tmpAddr = dataBaseAddress + namePtrs;
     initializeReservedData(dataBaseAddress+nameArray,sizeof(char**),(void*)&tmpAddr);
 
-    if (fini->findInstrumentationPoint()){
-        addInstrumentationPoint(fini,exitFunc);
+    if (fini->findInstrumentationPoint(SIZE_NEEDED_AT_INST_POINT, InstLocation_dont_care)){
+        addInstrumentationPoint(fini,exitFunc,SIZE_NEEDED_AT_INST_POINT);
     } else {
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
@@ -96,8 +96,8 @@ void FunctionCounter::instrument(){
             
             // register an instrumentation point at the function that uses this snippet
             if (strcmp(f->getName(),"_start")){
-                if (f->findInstrumentationPoint()){
-                    addInstrumentationPoint(f,snip);
+                if (f->findInstrumentationPoint(SIZE_NEEDED_AT_INST_POINT, InstLocation_dont_care)){
+                    addInstrumentationPoint(f,snip,SIZE_NEEDED_AT_INST_POINT);
                 } else {
                     PRINT_WARN(4,"Cannot find instrumentation point at function %s", f->getName());
                 }

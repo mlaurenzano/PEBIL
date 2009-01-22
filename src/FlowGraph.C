@@ -5,7 +5,7 @@
 #include <LinkedList.h>
 #include <LengauerTarjan.h>
 #include <Stack.h>
-
+#include <ElfFileInst.h>
 
 uint32_t FlowGraph::getNumberOfInstructions(){
     uint32_t numberOfInstructions = 0;
@@ -20,9 +20,9 @@ void FlowGraph::testGraphAvailability(){
     BitSet<BasicBlock*>* badBlocks = newBitSet();
 
     for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        if (!basicBlocks[i]->findInstrumentationPoint() && !basicBlocks[i]->containsOnlyControl()){
+        if (!basicBlocks[i]->findInstrumentationPoint(SIZE_NEEDED_AT_INST_POINT, InstLocation_dont_care) && !basicBlocks[i]->containsOnlyControl()){
             for (uint32_t j = 0; j < basicBlocks[i]->getNumberOfSources(); j++){
-                if (!basicBlocks[i]->getSourceBlock(j)->findInstrumentationPoint()){
+                if (!basicBlocks[i]->getSourceBlock(j)->findInstrumentationPoint(SIZE_NEEDED_AT_INST_POINT, InstLocation_dont_care)){
                     badBlocks->insert(i);
                 }
             }

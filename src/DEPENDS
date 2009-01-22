@@ -12,8 +12,8 @@ BasicBlockCounter.o: BasicBlockCounter.C ../include/BasicBlockCounter.h \
   ../include/Instruction.h ../include/ElfFile.h ../include/BinaryFile.h \
   ../include/TextSection.h ../include/RawSection.h \
   ../include/Instrumentation.h ../include/CStructuresX86.h \
-  ../include/Function.h ../include/BitSet.h ../include/FlowGraph.h \
-  ../include/LinkedList.h ../include/BasicBlock.h \
+  ../include/Function.h ../include/BitSet.h ../include/BasicBlock.h \
+  ../include/FlowGraph.h ../include/LinkedList.h \
   ../include/LineInformation.h ../include/defines/LineInformation.d
 BinaryFile.o: BinaryFile.C ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/ElfFile.h \
@@ -56,7 +56,8 @@ ElfFile.o: ElfFile.C ../include/ElfFile.h ../include/Base.h \
 ElfFileInst.o: ElfFileInst.C ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/ElfFileInst.h ../include/Vector.h ../include/Instruction.h \
-  ../include/ElfFile.h ../include/BinaryFile.h ../include/DynamicTable.h \
+  ../include/ElfFile.h ../include/BinaryFile.h ../include/Disassembler.h \
+  ../include/CStructuresX86.h ../include/DynamicTable.h \
   ../include/RawSection.h ../include/defines/DynamicTable.d \
   ../include/StringTable.h ../include/SymbolTable.h \
   ../include/defines/SymbolTable.d ../include/SectionHeader.h \
@@ -64,10 +65,10 @@ ElfFileInst.o: ElfFileInst.C ../include/Base.h \
   ../include/defines/ProgramHeader.d ../include/HashTable.h \
   ../include/RelocationTable.h ../include/defines/RelocationTable.d \
   ../include/GnuVersymTable.h ../include/GnuVerneedTable.h \
-  ../include/defines/GnuVerneed.d ../include/CStructuresX86.h \
-  ../include/TextSection.h ../include/FileHeader.h \
-  ../include/defines/FileHeader.d ../include/Instrumentation.h \
-  ../include/LineInformation.h ../include/defines/LineInformation.d
+  ../include/defines/GnuVerneed.d ../include/TextSection.h \
+  ../include/FileHeader.h ../include/defines/FileHeader.d \
+  ../include/Instrumentation.h ../include/LineInformation.h \
+  ../include/defines/LineInformation.d
 FileHeader.o: FileHeader.C ../include/BinaryFile.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/FileHeader.h ../include/defines/FileHeader.d
@@ -77,25 +78,25 @@ FlowGraph.o: FlowGraph.C ../include/FlowGraph.h ../include/BitSet.h \
   ../include/TextSection.h ../include/RawSection.h ../include/Vector.h \
   ../include/Instruction.h ../include/LinkedList.h \
   ../include/BasicBlock.h ../include/Loop.h ../include/LengauerTarjan.h \
-  ../include/Stack.h
+  ../include/Stack.h ../include/ElfFileInst.h ../include/ElfFile.h \
+  ../include/BinaryFile.h
 Function.o: Function.C ../include/Function.h ../include/TextSection.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/RawSection.h \
   ../include/Vector.h ../include/Instruction.h ../include/BitSet.h \
-  ../include/FlowGraph.h ../include/LinkedList.h ../include/ElfFile.h \
-  ../include/BinaryFile.h ../include/SectionHeader.h \
+  ../include/ElfFile.h ../include/BinaryFile.h ../include/SectionHeader.h \
   ../include/defines/SectionHeader.d ../include/Disassembler.h \
   ../include/CStructuresX86.h ../include/ElfFileInst.h \
   ../include/SymbolTable.h ../include/defines/SymbolTable.d \
-  ../include/BasicBlock.h ../include/LengauerTarjan.h
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/LinkedList.h \
+  ../include/LengauerTarjan.h
 FunctionCounter.o: FunctionCounter.C ../include/FunctionCounter.h \
   ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/Vector.h \
   ../include/Instruction.h ../include/ElfFile.h ../include/BinaryFile.h \
   ../include/TextSection.h ../include/RawSection.h \
   ../include/Instrumentation.h ../include/CStructuresX86.h \
-  ../include/Function.h ../include/BitSet.h ../include/FlowGraph.h \
-  ../include/LinkedList.h
+  ../include/Function.h ../include/BitSet.h
 GlobalOffsetTable.o: GlobalOffsetTable.C ../include/GlobalOffsetTable.h \
   ../include/RawSection.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/ElfFile.h \
@@ -126,15 +127,15 @@ Instrumentation.o: Instrumentation.C ../include/Instrumentation.h \
   ../include/Vector.h ../include/Instruction.h ../include/ElfFileInst.h \
   ../include/ElfFile.h ../include/BinaryFile.h ../include/TextSection.h \
   ../include/RawSection.h ../include/Function.h ../include/BitSet.h \
-  ../include/FlowGraph.h ../include/LinkedList.h ../include/BasicBlock.h
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/LinkedList.h
 LengauerTarjan.o: LengauerTarjan.C ../include/SectionHeader.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/defines/SectionHeader.d \
   ../include/Instruction.h ../include/RawSection.h \
   ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/Function.h ../include/TextSection.h ../include/Vector.h \
-  ../include/BitSet.h ../include/FlowGraph.h ../include/LinkedList.h \
-  ../include/BasicBlock.h ../include/BinaryFile.h ../include/Loop.h \
+  ../include/BitSet.h ../include/BasicBlock.h ../include/FlowGraph.h \
+  ../include/LinkedList.h ../include/BinaryFile.h ../include/Loop.h \
   ../include/Stack.h ../include/LengauerTarjan.h
 LineInformation.o: LineInformation.C ../include/LineInformation.h \
   ../include/Base.h ../include/CStructuresElf.h \
@@ -147,7 +148,7 @@ Loop.o: Loop.C ../include/Loop.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/BitSet.h ../include/Function.h ../include/TextSection.h \
   ../include/RawSection.h ../include/Vector.h ../include/Instruction.h \
-  ../include/FlowGraph.h ../include/LinkedList.h ../include/BasicBlock.h
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/LinkedList.h
 NoteSection.o: NoteSection.C ../include/NoteSection.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/RawSection.h ../include/ElfFile.h ../include/BinaryFile.h
@@ -191,8 +192,8 @@ TextSection.o: TextSection.C ../include/TextSection.h ../include/Base.h \
   ../include/CStructuresX86.h ../include/SectionHeader.h \
   ../include/defines/SectionHeader.d ../include/SymbolTable.h \
   ../include/defines/SymbolTable.d ../include/Function.h \
-  ../include/BitSet.h ../include/FlowGraph.h ../include/LinkedList.h \
-  ../include/BasicBlock.h
+  ../include/BitSet.h ../include/BasicBlock.h ../include/FlowGraph.h \
+  ../include/LinkedList.h
 main.o: main.C ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/ElfFile.h \
   ../include/BinaryFile.h ../include/FunctionCounter.h \

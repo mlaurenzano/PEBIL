@@ -192,7 +192,7 @@ uint32_t Function::digest(){
         instructions[numberOfInstructions]->setAddress(getAddress() + currByte);
         instructions[numberOfInstructions]->setBytes(charStream() + currByte);
         instructions[numberOfInstructions]->setByteSource(ByteSource_Application_Function);
-        instructions[numberOfInstructions]->setProgramAddress(instructionAddress);
+        instructions[numberOfInstructions]->setProgramAddress(address + currByte);
         //        instructions[numberOfInstructions]->setIndex(numberOfInstructions);
         
         instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, instructions[numberOfInstructions]);
@@ -222,9 +222,9 @@ uint32_t Function::digest(){
     return currByte;
 }
 
-uint64_t Function::findInstrumentationPoint(){
+uint64_t Function::findInstrumentationPoint(uint32_t size, InstLocations loc){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        uint64_t p = flowGraph->getBlock(i)->findInstrumentationPoint();
+        uint64_t p = flowGraph->getBlock(i)->findInstrumentationPoint(size,loc);
         if (p){
             return p;
         }

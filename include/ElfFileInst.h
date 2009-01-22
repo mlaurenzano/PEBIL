@@ -7,6 +7,7 @@
 
 class SectionHeader;
 class Instruction;
+class BasicBlock;
 class BinaryOutputFile;
 class InstrumentationPoint;
 class Instrumentation;
@@ -18,11 +19,15 @@ class TextSection;
 class RawSection;
 class LineInfoFinder;
 
-#define SIZE_NEEDED_AT_INST_POINT 5
+#define SIZE_CONTROL_TRANSFER 5
+#define SIZE_TRAP_INSTRUCTION 1
+#define SIZE_NEEDED_AT_INST_POINT SIZE_TRAP_INSTRUCTION
+#define SIZE_FIRST_INST_POINT SIZE_CONTROL_TRANSFER
 
 #define INST_SNIPPET_BOOTSTRAP_BEGIN 0
 #define INST_SNIPPET_BOOTSTRAP_END 1
-#define INST_POINT_BOOTSTRAP 0
+#define INST_POINT_BOOTSTRAP1 0
+#define INST_POINT_BOOTSTRAP2 1
 
 #define MAX_ARGUMENTS_32BIT 6
 #define MAX_ARGUMENTS_64BIT 6
@@ -56,13 +61,16 @@ protected:
     uint64_t usableDataOffset;
     uint64_t bssReserved;
 
+    uint64_t addressMapping;
+    Vector<InstrumentationPoint*> mappingsNeeded;
+
     LineInfoFinder* lineInfoFinder;
 
     uint32_t addStringToDynamicStringTable(const char* str);
     uint32_t addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx);
     uint32_t expandHashTable();
 
-    uint64_t addInstrumentationPoint(Base* instpoint, Instrumentation* inst);
+    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, uint32_t sz);
 
     // instrumentation functions
     uint32_t addSharedLibrary(const char* libname);
@@ -109,17 +117,20 @@ public:
     RawSection* getExtraDataSection();
     uint64_t getExtraDataAddress();
 
+    uint64_t initAddressMapping(Vector<InstrumentationPoint*>* points);
+
     uint64_t reserveDataOffset(uint64_t size);
     uint32_t initializeReservedData(uint64_t address, uint32_t size, void* data);
 
-    uint32_t declareFunction(char* funcName);
+    InstrumentationFunction* declareFunction(char* funcName);
     uint32_t declareLibrary(char* libName);
 
     InstrumentationFunction* getInstrumentationFunction(const char* funcName);
     uint32_t addInstrumentationSnippet(InstrumentationSnippet* snip);
-    uint64_t addInstrumentationPoint(TextSection* instpoint, Instrumentation* inst);
-    uint64_t addInstrumentationPoint(Function* instpoint, Instrumentation* inst);
-    uint64_t addInstrumentationPoint(Instruction* instpoint, Instrumentation* inst);
+
+    InstrumentationPoint* addInstrumentationPoint(TextSection* instpoint, Instrumentation* inst, uint32_t sz);
+    InstrumentationPoint* addInstrumentationPoint(Function* instpoint, Instrumentation* inst, uint32_t sz);
+    InstrumentationPoint* addInstrumentationPoint(Instruction* instpoint, Instrumentation* inst, uint32_t sz);
 
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }

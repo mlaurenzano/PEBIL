@@ -448,6 +448,12 @@ void Disassembler::get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag){
     }
 }
 
+uint32_t Disassembler::disassembleInstructionInPlace(Instruction* instruction){
+    uint64_t pc = (uint64_t)instruction->getBytes();
+    print_insn(pc, instruction);
+    return instruction->getLength();
+}
+
 uint32_t Disassembler::print_insn(uint64_t pc, Instruction* targetInstruction){
     const struct dis386 *dp;
     int i;

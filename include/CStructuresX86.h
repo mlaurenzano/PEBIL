@@ -63,6 +63,8 @@ extern "C" {
 #define X86_SEGREG_FS 4
 #define X86_SEGREG_GS 5
 
+#define X86TRAPCODE_BREAKPOINT   3
+#define X86TRAPCODE_OVERFLOW     4
 
 
     /* This struct is passed into the instruction decoding routine, 

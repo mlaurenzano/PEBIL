@@ -143,7 +143,7 @@ uint32_t FreeText::digest(){
         newInstruction->setBytes(charStream() + currByte);
         newInstruction->setIndex(numberOfInstructions++);
         newInstruction->setByteSource(ByteSource_Application_FreeText);
-        newInstruction->setProgramAddress(instructionAddress);
+        newInstruction->setProgramAddress(address + currByte);
         instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, newInstruction);
 
         if (!instructionLength){
@@ -295,17 +295,17 @@ uint32_t TextSection::read(BinaryInputFile* binaryInputFile){
 }
 
 
-uint64_t TextSection::findInstrumentationPoint(){
+uint64_t TextSection::findInstrumentationPoint(uint32_t size, InstLocations loc){
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         if (sortedTextObjects[i]->getType() == ElfClassTypes_Function){
             Function* f = (Function*)sortedTextObjects[i];
-            uint64_t instAddress = f->findInstrumentationPoint();
+            uint64_t instAddress = f->findInstrumentationPoint(size,loc);
             if (instAddress){
                 return instAddress;
             }
         }
     }
-    PRINT_ERROR("There should be an instrumentation point in this text section");
+    PRINT_ERROR("There should be an instrumentation point in text section %d", getSectionIndex());
     __SHOULD_NOT_ARRIVE;
     return 0;
 }

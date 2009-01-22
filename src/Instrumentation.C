@@ -116,6 +116,7 @@ uint32_t InstrumentationFunction64::generateProcedureLinkInstructions(uint64_t t
 
 uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress){
     ASSERT(!procedureLinkInstructions.size() && "This array should not be initialized");
+    PRINT_DEBUG_INST("Generating PLT instructions at offset %llx", procedureLinkOffset);
 
     procedureLinkInstructions.append(Instruction32::generateJumpIndirect(dataBaseAddress + globalDataOffset));
     procedureLinkInstructions.append(Instruction32::generateStackPushImmediate(relocationOffset));
@@ -263,12 +264,6 @@ uint32_t InstrumentationFunction32::generateGlobalData(uint64_t textBaseAddress)
     return globalData;
 }
 
-void InstrumentationFunction::setCodeOffsets(uint64_t plOffset, uint64_t bsOffset, uint64_t fwOffset){
-    procedureLinkOffset = plOffset;
-    bootstrapOffset = bsOffset;
-    wrapperOffset = fwOffset;
-}
-
 uint32_t InstrumentationFunction::sizeNeeded(){
     uint32_t totalSize = wrapperSize() + procedureLinkSize() + bootstrapSize();
     return totalSize;
@@ -352,10 +347,6 @@ void InstrumentationSnippet::dump(BinaryOutputFile* binaryOutputFile, uint32_t o
     }
 }
 
-void InstrumentationSnippet::setCodeOffsets(uint64_t btOffset, uint64_t spOffset){ 
-    bootstrapOffset = btOffset; 
-    snippetOffset = spOffset; 
-}
 
 void InstrumentationSnippet::print(){
     __FUNCTION_NOT_IMPLEMENTED;
@@ -465,6 +456,7 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
         trampolineInstructions.append(Instruction32::generateRegSubImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
     }
     trampolineSize += trampolineInstructions.back()->getLength();
+    PRINT_DEBUG_INST("Generating relative call for trampoline %#llx + %d, %#llx", offset, trampolineSize, getTargetOffset());
     trampolineInstructions.append(Instruction::generateCallRelative(offset+trampolineSize,getTargetOffset()));
     trampolineSize += trampolineInstructions.back()->getLength();
     if (is64bit){
@@ -477,7 +469,7 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
     int32_t numberOfBranches = 0;
     Instruction* relocatedBranch = NULL;
     uint64_t relocatedBranchOffset = 0;
-    uint64_t displacementDist = returnOffset - (offset + trampolineSize + SIZE_NEEDED_AT_INST_POINT);
+    uint64_t displacementDist = returnOffset - (offset + trampolineSize + numberOfBytes);
     uint32_t displacedInstructionSize = 0;
     for (uint32_t i = 0; i < (*insts).size(); i++){
         if ((*insts)[i]->isControl()){
@@ -507,14 +499,14 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
         ASSERT(relocatedBranch && relocatedBranchOffset);
         uint64_t oldRelativeOffset = relocatedBranch->setRelocationInfo(false,trampolineSize-relocatedBranchOffset-relocatedBranch->getLength());
         trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,
-                                                                        returnOffset+oldRelativeOffset-SIZE_NEEDED_AT_INST_POINT+displacedInstructionSize-relocatedBranch->getLength()));
+                                                                        returnOffset+oldRelativeOffset-numberOfBytes+displacedInstructionSize-relocatedBranch->getLength()));
         trampolineSize += trampolineInstructions.back()->getLength();
     }
 
     return trampolineSize;
 }
 
-InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst)
+InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc)
     : Base(ElfClassTypes_InstrumentationPoint)
 {
     point = pt;
@@ -527,18 +519,21 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst)
     }
     instrumentation = inst;
 
+    numberOfBytes = size;
+    instLocation = loc;
+
     if (point->getType() == ElfClassTypes_TextSection){
         TextSection* ts = (TextSection*)point;
-        sourceAddress = ts->findInstrumentationPoint();
+        sourceAddress = ts->findInstrumentationPoint(numberOfBytes,instLocation);
     } else if (point->getType() == ElfClassTypes_Instruction){
         Instruction* in = (Instruction*)point;
         sourceAddress = in->getAddress();
     } else if (point->getType() == ElfClassTypes_Function){
         Function* fn = (Function*)point;
-        sourceAddress = fn->findInstrumentationPoint();
+        sourceAddress = fn->findInstrumentationPoint(numberOfBytes,instLocation);
     } else if (point->getType() == ElfClassTypes_BasicBlock){
         BasicBlock* bb = (BasicBlock*)point;
-        sourceAddress = bb->findInstrumentationPoint();
+        sourceAddress = bb->findInstrumentationPoint(numberOfBytes,instLocation);
     } else {
         PRINT_ERROR("Cannot use an object of type %d as an instrumentation point", point->getType());
     }

@@ -61,7 +61,7 @@ protected:
     Vector<char*> includePaths;
     Vector<DWARF2_FileName> fileNames;
 
-    DebugFormat format;
+    DebugFormats format;
     
     LineInfo* registers;
     DwarfLineInfoSection* dwarfLineInfoSection;

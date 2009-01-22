@@ -26,6 +26,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_HASHCODE
 //#define DEBUG_CFG
 //#define DEBUG_LOOP
+//#define DEBUG_INST
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -176,6 +177,15 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define PRINT_DEBUG_LOOP(...)
 #endif
 
+#ifdef DEBUG_INST
+#define PRINT_DEBUG_INST(...) fprintf(stdout,"INST : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_INST(...)
+#endif
+
 
 
 #ifdef  DEVELOPMENT
@@ -259,18 +269,25 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define SET_PRINT_CODE(__value,__Print_Code) (__value |= __Print_Code)
 
 typedef enum {
+    InstLocation_dont_care = 0,
+    InstLocation_start,
+    InstLocation_end,
+    InstLocation_Total_Types
+} InstLocations;
+
+typedef enum {
     DebugFormat_undefined = 0,
     DebugFormat_DWARF2_32bit,
     DebugFormat_DWARF2_64bit,
     DebugFormat_Total_Types
-} DebugFormat;
+} DebugFormats;
 
 typedef enum {
     ElfRelType_undefined = 0,
     ElfRelType_rel,
     ElfRelType_rela,
     ElfRelType_Total_Types
-} ElfRelType;
+} ElfRelTypes;
 
 typedef enum {
     ElfClassTypes_no_type = 0,

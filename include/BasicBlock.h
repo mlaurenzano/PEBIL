@@ -16,7 +16,6 @@ private:
     const static uint32_t ExitMask         = 0x4;
     const static uint32_t OnlyCtrlMask     = 0x8;
     const static uint32_t NoPathMask       = 0x10;
-    const static uint32_t NoInstMask       = 0x20;
 
 protected:
     uint32_t index;
@@ -63,7 +62,7 @@ public:
     bool passesControlToNext();
     bool findExitInstruction();
 
-    uint64_t findInstrumentationPoint();
+    uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
     bool inRange(uint64_t addr);
 
     bool verify();
@@ -85,14 +84,12 @@ public:
     bool isExit()     { return (flags & ExitMask); }
     bool isOnlyCtrl() { return (flags & OnlyCtrlMask); }
     bool isNoPath()   { return (flags & NoPathMask); }
-    bool isNoInst()   { return (flags & NoInstMask); }
 
     uint32_t setPadding()  { flags |= PaddingMask; return flags; }
     uint32_t setEntry()    { flags |= EntryMask; return flags; }
     uint32_t setExit()     { flags |= ExitMask; return flags; }
     uint32_t setOnlyCtrl() { flags |= OnlyCtrlMask; return flags; }
     uint32_t setNoPath()   { flags |= NoPathMask; return flags; }
-    uint32_t setNoInst()   { flags |= NoInstMask; return flags; }
 
     bool isUnreachable() { return isNoPath(); }
     bool isReachable() { return !isNoPath(); }

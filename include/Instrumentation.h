@@ -17,6 +17,8 @@ class Instruction;
 #define Size__32_bit_function_wrapper 64
 #define Size__64_bit_function_wrapper 128
 
+#define BOOTSTRAP_BYTE_RATIO 11
+
 #define TRAMPOLINE_FRAME_AUTOINC_SIZE 0x1000
 
 
@@ -35,6 +37,7 @@ public:
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; } 
 
     uint32_t bootstrapSize();
+    uint64_t setBootstrapOffset(uint64_t off) { bootstrapOffset = off; return bootstrapOffset; }
 };
 
 class InstrumentationSnippet : public Instrumentation {
@@ -66,6 +69,8 @@ public:
     uint64_t getEntryPoint();
 
     uint32_t addSnippetInstruction(Instruction* inst);
+    uint64_t setCodeOffset(uint64_t off) { snippetOffset = off; return snippetOffset; }
+    uint64_t getCodeOffset() { return snippetOffset; }
 };
 
 class InstrumentationFunction : public Instrumentation {
@@ -111,7 +116,6 @@ public:
     uint32_t getGlobalData() { return globalData; }
     uint64_t getGlobalDataOffset() { return globalDataOffset; }
 
-    void setCodeOffsets(uint64_t plOffset, uint64_t bsOffset, uint64_t fwOffset);
     void setRelocationOffset(uint64_t relocOffset) { relocationOffset = relocOffset; }
 
     virtual uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress) { __SHOULD_NOT_ARRIVE; }
@@ -124,6 +128,9 @@ public:
     uint32_t addArgument(uint64_t offset, uint32_t value);
 
     uint64_t getEntryPoint();
+
+    uint64_t setWrapperOffset(uint64_t off) { wrapperOffset = off; return wrapperOffset; }
+    uint64_t setProcedureLinkOffset(uint64_t off) { procedureLinkOffset = off; return wrapperOffset; }
 };
 
 class InstrumentationFunction32 : public InstrumentationFunction {
@@ -162,12 +169,14 @@ private:
     Instrumentation* instrumentation;
 
     uint64_t sourceAddress;
+    uint32_t numberOfBytes;
+    InstLocations instLocation;
 
     Vector<Instruction*> trampolineInstructions;
     uint64_t trampolineOffset;
 
 public:
-    InstrumentationPoint(Base* pt, Instrumentation* inst);
+    InstrumentationPoint(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc);
     ~InstrumentationPoint();
 
     void print();
@@ -175,9 +184,12 @@ public:
 
     uint64_t getSourceAddress() { return sourceAddress; }
     uint64_t getTargetOffset() { ASSERT(instrumentation); return instrumentation->getEntryPoint(); }
+    Instrumentation* getInstrumentation() { return instrumentation; }
 
+    uint32_t getNumberOfBytes() { return numberOfBytes; }
     uint32_t sizeNeeded();
     uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t offset, uint64_t returnOffset, bool is64bit);
+    uint64_t getTrampolineOffset() { return trampolineOffset; }
 };
 
 

@@ -3,8 +3,9 @@
 
 #include <Base.h>
 
-class ElfFile;
 class BinaryOutputFile;
+class ElfFile;
+class TextSection;
 
 #define MAX_DISASM_STR_LENGTH 80
 #define INVALID_OPCODE_INDEX 0xffffffff
@@ -38,6 +39,7 @@ enum x86_insn_type {
     x86_insn_type_syscall,
     x86_insn_type_hwcount,
     x86_insn_type_noop,
+    x86_insn_type_trap,
     x86_insn_type_Total
 };
 
@@ -120,6 +122,10 @@ protected:
 
     uint64_t programAddress;
     ByteSources source;
+    TextSection* textSection;
+
+
+    static Instruction* generateInstructionBase(uint32_t sz, char* buf);
 
 public:
     Instruction();
@@ -192,13 +198,15 @@ public:
     static Instruction* generateRegSubImmediate(uint32_t idx, uint64_t imm);
     static Instruction* generateAddByteToRegaddr(uint8_t byt, uint32_t idx);
 
+    static Instruction* generateMoveRegToRegaddr(uint32_t srcidx, uint32_t destidx);
+    static Instruction* generateInterrupt(uint8_t idx);
+
     static uint32_t computeOpcodeTypeOneByte(uint32_t idx);
     static uint32_t computeOpcodeTypeTwoByte(uint32_t idx);
     static uint32_t computeOpcodeTypeGroups(uint32_t idx1, uint32_t idx2);
     static uint32_t computeOpcodeTypePrefixUser(uint32_t idx1, uint32_t idx2);
     static uint32_t computeOpcodeTypeX8664(uint32_t idx1, uint32_t idx2);
 
-    static Instruction* generateMoveRegToRegaddr(uint32_t srcidx, uint32_t destidx);
 };
 
 class Instruction64 : public Instruction {

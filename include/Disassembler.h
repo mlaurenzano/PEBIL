@@ -10,6 +10,59 @@ static void noprint_fprintf(FILE* stream, const char* format, ...){
 }
 
 class Disassembler {
+private:
+    void get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag);
+
+    /* legacy functions from GNU libopcodes. at least some of these should eventually be gone */
+    uint32_t readMemory(uint64_t, uint8_t*, unsigned int, disassemble_info*);
+    void ckprefix();
+    const char* prefix_name(int pref, int sizeflag);
+    void dofloat(uint32_t sizeflag);
+    uint32_t putop(const char* templatevar, int32_t sizeflag);
+    void oappend(const char* s);
+    void append_seg();
+    void print_operand_value(char* buf, uint32_t hex, uint64_t disp);
+    uint64_t get64();
+    int64_t get32();
+    int64_t get32s();
+    int32_t get16();
+    void set_op(uint64_t op, int riprel, int bytesUsed, int firstByte);
+    void ptr_reg(uint32_t code, uint32_t sizeflag);
+    void generic_print_address(uint64_t addr, struct disassemble_info* info);
+
+    /* functions to deal with different op types */
+    void OP_ST(uint32_t bytemode, uint32_t sizeflag);
+    void OP_STi(uint32_t bytemode, uint32_t sizeflag);
+    void OP_indirE(uint32_t bytemode, uint32_t sizeflag);
+    void OP_E(uint32_t bytemode, uint32_t sizeflag);
+    void OP_G(uint32_t bytemode, uint32_t sizeflag);
+    void OP_REG(uint32_t code, uint32_t sizeflag);
+    void OP_IMREG(uint32_t code, uint32_t sizeflag);
+    void OP_I(uint32_t bytemode, uint32_t sizeflag);
+    void OP_I64(uint32_t bytemode, uint32_t sizeflag);
+    void OP_sI(uint32_t bytemode, uint32_t sizeflag);
+    void OP_J(uint32_t bytemode, uint32_t sizeflag);
+    void OP_SEG(uint32_t dummy, uint32_t sizeflag);
+    void OP_DIR(uint32_t dummy, uint32_t sizeflag);
+    void OP_OFF(uint32_t bytemode, uint32_t sizeflag);
+    void OP_OFF64(uint32_t bytemode, uint32_t sizeflag);
+    void OP_ESreg(uint32_t code, uint32_t sizeflag);
+    void OP_DSreg(uint32_t code, uint32_t sizeflag);
+    void OP_C(uint32_t dummy, uint32_t sizeflag);
+    void OP_D(uint32_t dummy, uint32_t sizeflag);
+    void OP_T(uint32_t dummy, uint32_t sizeflag);
+    void OP_Rd(uint32_t bytemode, uint32_t sizeflag);
+    void OP_MMX(uint32_t bytemode, uint32_t sizeflag);
+    void OP_XMM(uint32_t bytemode, uint32_t sizeflag);
+    void OP_EM(uint32_t bytemode, uint32_t sizeflag);
+    void OP_EX(uint32_t bytemode, uint32_t sizeflag);
+    void OP_MS(uint32_t bytemode, uint32_t sizeflag);
+    void OP_XS(uint32_t bytemode, uint32_t sizeflag);
+    void OP_3DNowSuffix(uint32_t bytemode, uint32_t sizeflag);
+    void OP_SIMD_Suffix(uint32_t bytemode, uint32_t sizeflag);
+    void SIMD_Fixup(int32_t extrachar, uint32_t sizeflag);
+    void BadOp(void);
+
 protected:
     uint32_t is64Bit;
     uint64_t machineType;
@@ -68,6 +121,7 @@ protected:
 
 
 public:
+
     Disassembler(uint32_t is64bit);
     ~Disassembler();
     void print();
@@ -75,61 +129,7 @@ public:
     void setPrintFunction(fprintf_ftype pf_func, void* pf_stream);
     uint32_t print_insn(uint64_t addr, Instruction* targetInstruction);
 
-
-private:
-    void get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag);
-
-    /* legacy functions from GNU libopcodes. at least some of these should eventually be gone */
-    uint32_t readMemory(uint64_t, uint8_t*, unsigned int, disassemble_info*);
-    void ckprefix();
-    const char* prefix_name(int pref, int sizeflag);
-    void dofloat(uint32_t sizeflag);
-    uint32_t putop(const char* templatevar, int32_t sizeflag);
-    void oappend(const char* s);
-    void append_seg();
-    void print_operand_value(char* buf, uint32_t hex, uint64_t disp);
-    uint64_t get64();
-    int64_t get32();
-    int64_t get32s();
-    int32_t get16();
-    void set_op(uint64_t op, int riprel, int bytesUsed, int firstByte);
-    void ptr_reg(uint32_t code, uint32_t sizeflag);
-    void generic_print_address(uint64_t addr, struct disassemble_info* info);
-
-    /* functions to deal with different op types */
-    void OP_ST(uint32_t bytemode, uint32_t sizeflag);
-    void OP_STi(uint32_t bytemode, uint32_t sizeflag);
-    void OP_indirE(uint32_t bytemode, uint32_t sizeflag);
-    void OP_E(uint32_t bytemode, uint32_t sizeflag);
-    void OP_G(uint32_t bytemode, uint32_t sizeflag);
-    void OP_REG(uint32_t code, uint32_t sizeflag);
-    void OP_IMREG(uint32_t code, uint32_t sizeflag);
-    void OP_I(uint32_t bytemode, uint32_t sizeflag);
-    void OP_I64(uint32_t bytemode, uint32_t sizeflag);
-    void OP_sI(uint32_t bytemode, uint32_t sizeflag);
-    void OP_J(uint32_t bytemode, uint32_t sizeflag);
-    void OP_SEG(uint32_t dummy, uint32_t sizeflag);
-    void OP_DIR(uint32_t dummy, uint32_t sizeflag);
-    void OP_OFF(uint32_t bytemode, uint32_t sizeflag);
-    void OP_OFF64(uint32_t bytemode, uint32_t sizeflag);
-    void OP_ESreg(uint32_t code, uint32_t sizeflag);
-    void OP_DSreg(uint32_t code, uint32_t sizeflag);
-    void OP_C(uint32_t dummy, uint32_t sizeflag);
-    void OP_D(uint32_t dummy, uint32_t sizeflag);
-    void OP_T(uint32_t dummy, uint32_t sizeflag);
-    void OP_Rd(uint32_t bytemode, uint32_t sizeflag);
-    void OP_MMX(uint32_t bytemode, uint32_t sizeflag);
-    void OP_XMM(uint32_t bytemode, uint32_t sizeflag);
-    void OP_EM(uint32_t bytemode, uint32_t sizeflag);
-    void OP_EX(uint32_t bytemode, uint32_t sizeflag);
-    void OP_MS(uint32_t bytemode, uint32_t sizeflag);
-    void OP_XS(uint32_t bytemode, uint32_t sizeflag);
-    void OP_3DNowSuffix(uint32_t bytemode, uint32_t sizeflag);
-    void OP_SIMD_Suffix(uint32_t bytemode, uint32_t sizeflag);
-    void SIMD_Fixup(int32_t extrachar, uint32_t sizeflag);
-    void BadOp(void);
-
-
+    uint32_t disassembleInstructionInPlace(Instruction* instruction);
 };
 
 #endif /* _Disassembler_h_ */
