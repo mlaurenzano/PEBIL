@@ -1,8 +1,9 @@
 #include <SymbolTable.h>
+
+#include <BinaryFile.h>
+#include <ElfFile.h>
 #include <SectionHeader.h>
 #include <StringTable.h>
-#include <ElfFile.h>
-#include <BinaryFile.h>
 #include <TextSection.h>
 
 bool Symbol::isTextObjectSymbol(TextSection* text){

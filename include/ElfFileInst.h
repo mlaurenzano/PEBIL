@@ -2,22 +2,22 @@
 #define _ElfFileInst_h_
 
 #include <Base.h>
-#include <Vector.h>
 #include <ElfFile.h>
+#include <Vector.h>
 
-class SectionHeader;
-class Instruction;
 class BasicBlock;
 class BinaryOutputFile;
-class InstrumentationPoint;
+class Function;
+class Instruction;
 class Instrumentation;
 class InstrumentationFunction;
+class InstrumentationPoint;
 class InstrumentationSnippet;
 class Instruction;
-class Function;
-class TextSection;
-class RawSection;
 class LineInfoFinder;
+class RawSection;
+class SectionHeader;
+class TextSection;
 
 #define SIZE_CONTROL_TRANSFER 5
 #define SIZE_TRAP_INSTRUCTION 1

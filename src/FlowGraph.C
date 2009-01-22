@@ -1,11 +1,12 @@
 #include <FlowGraph.h>
+
 #include <BasicBlock.h>
-#include <Function.h>
-#include <Loop.h>
-#include <LinkedList.h>
-#include <LengauerTarjan.h>
-#include <Stack.h>
 #include <ElfFileInst.h>
+#include <Function.h>
+#include <LengauerTarjan.h>
+#include <LinkedList.h>
+#include <Loop.h>
+#include <Stack.h>
 
 uint32_t FlowGraph::getNumberOfInstructions(){
     uint32_t numberOfInstructions = 0;

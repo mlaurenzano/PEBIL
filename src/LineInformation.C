@@ -1,7 +1,8 @@
 #include <LineInformation.h>
-#include <DwarfSection.h>
-#include <BinaryFile.h>
+
 #include <BasicBlock.h>
+#include <BinaryFile.h>
+#include <DwarfSection.h>
 #include <ElfFile.h>
 
 char* LineInfoTable::getFileName(uint32_t idx){

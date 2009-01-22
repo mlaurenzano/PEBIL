@@ -1,9 +1,9 @@
 #include <RawSection.h>
-#include <ElfFile.h>
-#include <Disassembler.h>
-#include <SectionHeader.h>
-#include <Instruction.h>
+
 #include <BinaryFile.h>
+#include <Disassembler.h>
+#include <ElfFile.h>
+#include <Instruction.h>
 #include <SectionHeader.h>
 
 RawSection::RawSection(ElfClassTypes classType, char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)

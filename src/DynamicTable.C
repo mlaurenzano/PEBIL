@@ -1,10 +1,11 @@
 #include <DynamicTable.h>
+
 #include <BinaryFile.h>
 #include <ElfFile.h>
-#include <StringTable.h>
-#include <SectionHeader.h>
-#include <RelocationTable.h>
 #include <HashTable.h>
+#include <RelocationTable.h>
+#include <SectionHeader.h>
+#include <StringTable.h>
 
 uint32_t DynamicTable::countDynamics(uint32_t type){
     uint32_t dynCount = 0;

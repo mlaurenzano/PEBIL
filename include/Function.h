@@ -1,9 +1,9 @@
 #ifndef _Function_h_
 #define _Function_h_
 
+#include <BitSet.h>
 #include <TextSection.h>
 #include <Vector.h>
-#include <BitSet.h>
 
 class BasicBlock;
 class BinaryInputFile;

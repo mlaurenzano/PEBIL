@@ -1,16 +1,16 @@
-#include <SectionHeader.h>
-#include <Instruction.h>
-#include <RawSection.h>
-#include <SymbolTable.h>
-#include <Instruction.h>
-#include <Function.h>
-#include <BasicBlock.h>
-#include <BitSet.h>
-#include <BinaryFile.h>
-#include <Loop.h>
-#include <Stack.h>
-#include <LinkedList.h>
 #include <LengauerTarjan.h>
+
+#include <BasicBlock.h>
+#include <BinaryFile.h>
+#include <BitSet.h>
+#include <Function.h>
+#include <Instruction.h>
+#include <LinkedList.h>
+#include <Loop.h>
+#include <RawSection.h>
+#include <SectionHeader.h>
+#include <Stack.h>
+#include <SymbolTable.h>
 
 void LengauerTarjan::depthFirstSearch(uint32_t vertexV,uint32_t* dfsNo){
 

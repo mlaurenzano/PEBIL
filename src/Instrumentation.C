@@ -1,9 +1,10 @@
 #include <Instrumentation.h>
+
+#include <BasicBlock.h>
 #include <ElfFileInst.h>
+#include <Function.h>
 #include <Instruction.h>
 #include <TextSection.h>
-#include <Function.h>
-#include <BasicBlock.h>
 
 uint32_t InstrumentationSnippet::addSnippetInstruction(Instruction* inst){
     snippetInstructions.append(inst);

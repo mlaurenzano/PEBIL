@@ -3,8 +3,8 @@
 
 #include <RawSection.h>
 
-class ElfFile;
 class BinaryOutputFile;
+class ElfFile;
 
 class StringTable : public RawSection {
 protected:

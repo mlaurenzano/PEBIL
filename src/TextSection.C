@@ -1,12 +1,13 @@
 #include <TextSection.h>
-#include <ElfFile.h>
-#include <Disassembler.h>
-#include <SectionHeader.h>
-#include <Instruction.h>
-#include <SymbolTable.h>
-#include <CStructuresX86.h>
-#include <Function.h>
+
 #include <BasicBlock.h>
+#include <CStructuresX86.h>
+#include <Disassembler.h>
+#include <ElfFile.h>
+#include <Function.h>
+#include <Instruction.h>
+#include <SectionHeader.h>
+#include <SymbolTable.h>
 
 uint32_t TextSection::getNumberOfBasicBlocks(){
     uint32_t numberOfBasicBlocks = 0;

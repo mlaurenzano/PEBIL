@@ -2,7 +2,6 @@
 #define _Instrumentation_h_
 
 #include <Base.h>
-#include <CStructuresX86.h>
 #include <Vector.h>
 
 class Instruction;

@@ -1,24 +1,25 @@
 #include <ElfFile.h>
-#include <FileHeader.h>
-#include <ProgramHeader.h>
-#include <SectionHeader.h>
+
 #include <BinaryFile.h>
-#include <RawSection.h>
-#include <TextSection.h>
-#include <StringTable.h>
-#include <SymbolTable.h>
-#include <RelocationTable.h>
 #include <CStructuresX86.h>
-#include <GlobalOffsetTable.h>
+#include <DwarfSection.h>
 #include <DynamicTable.h>
-#include <HashTable.h>
-#include <NoteSection.h>
-#include <Instruction.h>
-#include <PriorityQueue.h>
+#include <FileHeader.h>
+#include <GlobalOffsetTable.h>
 #include <GnuVerneedTable.h>
 #include <GnuVersymTable.h>
-#include <DwarfSection.h>
+#include <HashTable.h>
+#include <Instruction.h>
 #include <LineInformation.h>
+#include <NoteSection.h>
+#include <PriorityQueue.h>
+#include <ProgramHeader.h>
+#include <RawSection.h>
+#include <RelocationTable.h>
+#include <SectionHeader.h>
+#include <StringTable.h>
+#include <SymbolTable.h>
+#include <TextSection.h>
 
 TIMER(
 	extern double cfg_s1;

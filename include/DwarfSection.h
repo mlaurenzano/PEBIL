@@ -2,8 +2,8 @@
 #define _DwarfSection_h_
 
 #include <Base.h>
-#include <RawSection.h>
 #include <CStructuresDwarf.h>
+#include <RawSection.h>
 #include <Vector.h>
 #include <defines/LineInformation.d>
 

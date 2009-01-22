@@ -2,12 +2,12 @@
 #define _BasicBlock_h_
 
 #include <Base.h>
-#include <Vector.h>
 #include <BitSet.h>
 #include <FlowGraph.h>
+#include <Vector.h>
 
-class Instruction;
 class Function;
+class Instruction;
 
 class BasicBlock : public Base {
 private:

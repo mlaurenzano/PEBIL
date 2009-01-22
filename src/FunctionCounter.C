@@ -1,8 +1,9 @@
 #include <FunctionCounter.h>
-#include <TextSection.h>
-#include <Instrumentation.h>
-#include <Instruction.h>
+
 #include <Function.h>
+#include <Instruction.h>
+#include <Instrumentation.h>
+#include <TextSection.h>
 
 #define EXIT_FUNCTION "functioncounter"
 #define LIB_NAME "libcounter.so"

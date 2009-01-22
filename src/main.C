@@ -1,7 +1,7 @@
 #include <Base.h>
+#include <BasicBlockCounter.h>
 #include <ElfFile.h>
 #include <FunctionCounter.h>
-#include <BasicBlockCounter.h>
 #include <Vector.h>
 
 void printBriefOptions(){

@@ -1,10 +1,10 @@
+#include <BasicBlock.h>
 #include <BasicBlockCounter.h>
-#include <TextSection.h>
+#include <Function.h>
 #include <Instrumentation.h>
 #include <Instruction.h>
-#include <Function.h>
-#include <BasicBlock.h>
 #include <LineInformation.h>
+#include <TextSection.h>
 
 #define EXIT_FUNCTION "blockcounter"
 #define START_FUNCTION "register_trap_handler"

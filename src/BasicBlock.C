@@ -1,8 +1,9 @@
 #include <BasicBlock.h>
+
 #include <ElfFileInst.h>
-#include <Instruction.h>
 #include <Function.h>
 #include <FlowGraph.h>
+#include <Instruction.h>
 
 #define MAX_SIZE_LINEAR_SEARCH 4096
 

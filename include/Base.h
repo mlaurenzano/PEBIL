@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <CStructuresElf.h>
 #include <CStructuresDwarf.h>
+#include <CStructuresX86.h>
 
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 

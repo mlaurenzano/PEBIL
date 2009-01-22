@@ -3,10 +3,10 @@
 
 #include <Base.h>
 
-class ElfFile;
-class Instruction;
 class BinaryInputFile;
 class BinaryOutputFile;
+class ElfFile;
+class Instruction;
 class SectionHeader;
 
 class RawSection : public Base {

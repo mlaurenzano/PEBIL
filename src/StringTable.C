@@ -1,4 +1,5 @@
 #include <StringTable.h>
+
 #include <BinaryFile.h>
 #include <ElfFile.h>
 #include <SectionHeader.h>

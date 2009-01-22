@@ -1,7 +1,8 @@
-#include <Base.h>
 #include <Instruction.h>
-#include <CStructuresX86.h>
+
+#include <Base.h>
 #include <BinaryFile.h>
+#include <CStructuresX86.h>
 
 uint64_t Instruction::setProgramAddress(uint64_t addr){
     programAddress = addr;

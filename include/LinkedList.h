@@ -1,6 +1,8 @@
 #ifndef _LinkedList_h_
 #define _LinkedList_h_
 
+#include <Base.h>
+
 template <class T=uint32_t>
 class LinkedList {
 private:

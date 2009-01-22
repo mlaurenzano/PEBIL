@@ -1,8 +1,9 @@
 #include <Loop.h>
-#include <Function.h>
-#include <BitSet.h>
+
 #include <BasicBlock.h>
+#include <BitSet.h>
 #include <FlowGraph.h>
+#include <Function.h>
 
 Loop::~Loop(){
     delete blocks;

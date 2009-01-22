@@ -1,7 +1,8 @@
 #include <DwarfSection.h>
+
 #include <BinaryFile.h>
-#include <SectionHeader.h>
 #include <LineInformation.h>
+#include <SectionHeader.h>
 
 
 uint32_t DwarfLineInfoSection::read(BinaryInputFile* binaryInputFile){

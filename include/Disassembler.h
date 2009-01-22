@@ -2,7 +2,6 @@
 #define _Disassembler_h_
 
 #include <Base.h>
-#include <CStructuresX86.h>
 
 class Instruction;
 

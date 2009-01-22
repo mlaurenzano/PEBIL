@@ -3,12 +3,12 @@
 
 #include <Base.h>
 #include <CStructuresDwarf.h>
-#include <defines/LineInformation.d>
 #include <Vector.h>
+#include <defines/LineInformation.d>
 
-class LineInfoTable;
 class BasicBlock;
 class DwarfLineInfoSection;
+class LineInfoTable;
 
 static char* currentDirectory = ".";
    

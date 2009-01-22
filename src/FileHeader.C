@@ -1,5 +1,6 @@
-#include <BinaryFile.h>
 #include <FileHeader.h>
+
+#include <BinaryFile.h>
 
 bool FileHeader::verify(){
     if (!ISELFMAGIC(GET(e_ident)[EI_MAG0],GET(e_ident)[EI_MAG1],GET(e_ident)[EI_MAG2],GET(e_ident)[EI_MAG3])){

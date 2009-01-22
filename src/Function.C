@@ -1,15 +1,16 @@
 #include <Function.h>
-#include <ElfFile.h>
-#include <SectionHeader.h>
-#include <Disassembler.h>
-#include <TextSection.h>
-#include <Instruction.h>
-#include <ElfFileInst.h>
-#include <SymbolTable.h>
+
 #include <BasicBlock.h>
 #include <BinaryFile.h>
+#include <Disassembler.h>
+#include <ElfFile.h>
+#include <ElfFileInst.h>
 #include <FlowGraph.h>
+#include <Instruction.h>
 #include <LengauerTarjan.h>
+#include <SectionHeader.h>
+#include <SymbolTable.h>
+#include <TextSection.h>
 
 uint32_t Function::getNumberOfInstructions() { 
     return flowGraph->getNumberOfInstructions(); 

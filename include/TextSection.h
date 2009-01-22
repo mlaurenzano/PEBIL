@@ -5,13 +5,13 @@
 #include <RawSection.h>
 #include <Vector.h>
 
-class ElfFile;
-class Instruction;
 class BasicBlock;
-class Function;
 class BinaryInputFile;
 class BinaryOutputFile;
 class Disassembler;
+class ElfFile;
+class Function;
+class Instruction;
 class Symbol;
 class TextSection;
 

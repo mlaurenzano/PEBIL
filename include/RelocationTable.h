@@ -2,12 +2,12 @@
 #define _RelocationTable_h_
 
 #include <Base.h>
+#include <RawSection.h>
 #include <defines/RelocationTable.d>
 
-class SymbolTable;
 class ElfFile;
 class SectionHeader;
-class RawSection;
+class SymbolTable;
 
 class Relocation : public Base {
 protected:

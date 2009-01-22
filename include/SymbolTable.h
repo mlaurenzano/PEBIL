@@ -5,8 +5,8 @@
 #include <RawSection.h>
 #include <defines/SymbolTable.d>
 
-class StringTable;
 class ElfFile;
+class StringTable;
 class SymbolTable;
 class TextSection;
 

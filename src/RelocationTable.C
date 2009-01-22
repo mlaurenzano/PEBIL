@@ -1,9 +1,10 @@
-#include <SymbolTable.h>
 #include <RelocationTable.h>
-#include <ElfFile.h>
+
 #include <BinaryFile.h>
-#include <SectionHeader.h>
+#include <ElfFile.h>
 #include <RawSection.h>
+#include <SectionHeader.h>
+#include <SymbolTable.h>
 
 void RelocationTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currentByte = 0;

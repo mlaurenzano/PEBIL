@@ -1,6 +1,7 @@
+#include <BinaryFile.h>
+
 #include <Base.h>
 #include <ElfFile.h>
-#include <BinaryFile.h>
 
 void BinaryInputFile::readFileInMemory(char* fileName) {
 

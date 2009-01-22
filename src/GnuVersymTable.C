@@ -1,5 +1,6 @@
-#include <ElfFile.h>
 #include <GnuVersymTable.h>
+
+#include <ElfFile.h>
 
 uint32_t GnuVersymTable::addSymbol(uint16_t val){
     ASSERT(versyms && "symbols array should be initialized");

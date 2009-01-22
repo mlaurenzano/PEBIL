@@ -4,24 +4,24 @@
 #include <Base.h>
 #include <BinaryFile.h>
 
-class FileHeader;
-class ProgramHeader;
-class SectionHeader;
-class RawSection;
-class StringTable;
-class SymbolTable;
-class RelocationTable;
-class DwarfSection;
 class DwarfLineInfoSection;
-class TextSection;
-class GlobalOffsetTable;
+class DwarfSection;
 class DynamicTable;
-class HashTable;
-class NoteSection;
-class Symbol;
-class Instruction;
+class FileHeader;
+class GlobalOffsetTable;
 class GnuVerneedTable;
 class GnuVersymTable;
+class HashTable;
+class Instruction;
+class NoteSection;
+class ProgramHeader;
+class RawSection;
+class RelocationTable;
+class SectionHeader;
+class StringTable;
+class Symbol;
+class SymbolTable;
+class TextSection;
 
 class ElfFile {
 private:
