@@ -7,19 +7,10 @@
 #include <TextSection.h>
 
 #define EXIT_FUNCTION "blockcounter"
-#define START_FUNCTION "register_trap_handler"
 #define LIB_NAME "libcounter.so"
 #define NOINST_VALUE 0xffffffff
 #define FILE_UNK "__FILE_UNK__"
 #define INST_BUFFER_SIZE (65536*sizeof(uint32_t))
-#define INSTBP_HASH_TABLE_SIZE 4
-
-#define USE_PARTIAL_TRAP
-//#define USE_FULL_TRAP
-
-int32_t instbp_hash(int64_t key){
-    return (int32_t)key;
-}
 
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     : ElfFileInst(elf)
@@ -36,7 +27,6 @@ void BasicBlockCounter::instrument(){
 
     // declare any instrumentation functions that will be used
     InstrumentationFunction* exitFunc = declareFunction(EXIT_FUNCTION);
-    InstrumentationFunction* startFunc = declareFunction(START_FUNCTION);
 
     TextSection* text = getTextSection();
     TextSection* fini = getFiniSection();
@@ -68,7 +58,6 @@ void BasicBlockCounter::instrument(){
     uint32_t numberOfInstPoints = allBlocks.size();
 
     ASSERT(exitFunc && "Cannot find exit function, are you sure it was declared?");
-    ASSERT(startFunc && "Cannot find start function, are you sure it was declared?");
 
     // the number blocks in the code
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
@@ -92,8 +81,8 @@ void BasicBlockCounter::instrument(){
     exitFunc->addArgument(fileNameArray);
 
     Vector<InstrumentationPoint*>* allPoints = new Vector<InstrumentationPoint*>();
-    if (fini->findInstrumentationPoint(SIZE_NEEDED_AT_INST_POINT, InstLocation_dont_care)){
-        InstrumentationPoint* p = addInstrumentationPoint(fini,exitFunc,SIZE_NEEDED_AT_INST_POINT);
+    if (fini->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
+        InstrumentationPoint* p = addInstrumentationPoint(fini,exitFunc,SIZE_CONTROL_TRANSFER);
         (*allPoints).append(p);
     } else {
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
@@ -132,7 +121,7 @@ void BasicBlockCounter::instrument(){
         LineInfo* li = allLineInfos[i];
         Function* f = b->getFunction();
 
-        uint64_t addr = b->getAddress();
+        uint64_t addr = b->getBaseAddress();
         initializeReservedData(dataBaseAddress+addrArray+sizeof(uint64_t)*i,sizeof(uint64_t),(void*)&addr);
         
         if (li){
@@ -168,34 +157,13 @@ void BasicBlockCounter::instrument(){
             
         // register an instrumentation point at the function that uses this snippet
         if (strcmp(f->getName(),"_start")){
-#ifdef USE_FULL_TRAP
-            if (b->findInstrumentationPoint(SIZE_TRAP_INSTRUCTION, InstLocation_dont_care)){
-                InstrumentationPoint* p = addInstrumentationPoint(b,snip,SIZE_TRAP_INSTRUCTION);
-                (*allPoints).append(p);
-                trapCount++;
-            }            
-#else
             if (b->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
                 InstrumentationPoint* p = addInstrumentationPoint(b,snip,SIZE_CONTROL_TRANSFER);
                 jumpCount++;
             }
-#endif
-#ifdef USE_PARTIAL_TRAP              
-            else if (b->findInstrumentationPoint(SIZE_TRAP_INSTRUCTION, InstLocation_dont_care)){
-                InstrumentationPoint* p = addInstrumentationPoint(b,snip,SIZE_TRAP_INSTRUCTION);
-                (*allPoints).append(p);
-                trapCount++;
-            }
-#endif
             else {
-#ifdef USE_PARTIAL_TRAP
-                __SHOULD_NOT_ARRIVE;
-#endif
-#ifdef USE_FULL_TRAP
-                __SHOULD_NOT_ARRIVE;
-#endif
 
-                PRINT_WARN(3,"BLOCK_NOT_INSTRUMENTED: %llx [%d bytes] %s", b->getAddress(), b->getBlockSize(), b->getFunction()->getName());
+                PRINT_WARN(3,"BLOCK_NOT_INSTRUMENTED: %llx [%d bytes] %s", b->getBaseAddress(), b->getBlockSize(), b->getFunction()->getName());
                 uint32_t noinst_value = NOINST_VALUE;
                 if (!b->containsOnlyControl()){
                     noInst++;
@@ -218,25 +186,13 @@ void BasicBlockCounter::instrument(){
         fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\n", 
                 i, b->getHashCode().getValue(), b->getNumberOfMemoryOps(), b->getNumberOfFloatOps(), 
                 b->getNumberOfInstructions(), fileName, lineNo, b->getFunction()->getName(), -1, -1, -1, 
-                b->getHashCode().getValue(), b->getAddress(), b->getNumberOfLoads(), b->getNumberOfStores());
+                b->getHashCode().getValue(), b->getBaseAddress(), b->getNumberOfLoads(), b->getNumberOfStores());
     }
 
     fclose(staticFD);
 
-    // add arguments to start function
-    startFunc->addArgument(counterArrayEntries,numberOfInstPoints);
-    startFunc->addArgument(addrArray);
-    uint64_t mapArrayEntries = reserveDataOffset(sizeof(uint32_t));
-    uint32_t numMaps = (*allPoints).size();
-    PRINT_DEBUG_INST("Passing map entries: %d entries at address %llx", numMaps, mapArrayEntries);
-    startFunc->addArgument(mapArrayEntries,numMaps);
-    uint64_t trampAddressArray = initAddressMapping(allPoints);
-    startFunc->addArgument(trampAddressArray);
-
     delete allPoints;
     PRINT_WARN(3,"Cannot find instrumentation points for %d/%d basic blocks in the code", noInst, numberOfInstPoints);
-
-    PRINT_INFOR("Instrumentation used %d traps and %d jumps", trapCount, jumpCount);
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }

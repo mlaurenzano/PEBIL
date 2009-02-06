@@ -12,17 +12,51 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+
+uint32_t Function::getAllInstructions(Instruction** allinsts, uint32_t nexti){
+    uint32_t instructionCount = 0;
+    PRINT_DEBUG_ANCHOR("\tFN allinst address %lx, nexti %d", allinsts, nexti);
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+        instructionCount += flowGraph->getBlock(i)->getAllInstructions(allinsts, instructionCount+nexti);
+    }
+    ASSERT(instructionCount == getNumberOfInstructions());
+    return instructionCount;
+}
+
+Vector<Instruction*>* Function::swapInstructions(uint64_t addr, Vector<Instruction*>* replacements){
+    for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
+        if (getBasicBlock(i)->inRange(addr)){
+            return getBasicBlock(i)->swapInstructions(addr,replacements);
+        }
+    }
+    PRINT_ERROR("Cannot find instructions at address 0x%llx to replace", addr);
+    return 0;
+}
+
+void Function::setBaseAddress(uint64_t newBaseAddr){
+    baseAddress = newBaseAddr;
+    flowGraph->setBaseAddress(newBaseAddr);
+}
+
+uint32_t Function::getNumberOfBytes(){
+    ASSERT(flowGraph);
+    return flowGraph->getNumberOfBytes();
+}
+
 uint32_t Function::getNumberOfInstructions() { 
+    ASSERT(flowGraph);
     return flowGraph->getNumberOfInstructions(); 
 }
 
 
 uint32_t Function::getNumberOfBasicBlocks() { 
+    ASSERT(flowGraph);
     return flowGraph->getNumberOfBasicBlocks(); 
 }
 
 
 BasicBlock* Function::getBasicBlock(uint32_t idx){
+    ASSERT(flowGraph);
     return flowGraph->getBlock(idx);
 }
 
@@ -58,7 +92,7 @@ uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** inst
     uint64_t* addressCache = new uint64_t[numberOfInstructions];
     uint64_t* nextAddressCache = new uint64_t[numberOfInstructions];
     for (uint32_t i = 0; i < numberOfInstructions; i++){
-        addressCache[i] = instructions[i]->getAddress();
+        addressCache[i] = instructions[i]->getBaseAddress();
         nextAddressCache[i] = instructions[i]->getNextAddress();
     }
 
@@ -190,10 +224,10 @@ uint32_t Function::digest(){
 
         instructions[numberOfInstructions] = new Instruction();
         instructions[numberOfInstructions]->setLength(MAX_X86_INSTRUCTION_LENGTH);
-        instructions[numberOfInstructions]->setAddress(getAddress() + currByte);
+        instructions[numberOfInstructions]->setBaseAddress(getBaseAddress() + currByte);
+        instructions[numberOfInstructions]->setProgramAddress(getBaseAddress() + currByte);
         instructions[numberOfInstructions]->setBytes(charStream() + currByte);
         instructions[numberOfInstructions]->setByteSource(ByteSource_Application_Function);
-        instructions[numberOfInstructions]->setProgramAddress(address + currByte);
         //        instructions[numberOfInstructions]->setIndex(numberOfInstructions);
         
         instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, instructions[numberOfInstructions]);
@@ -201,6 +235,7 @@ uint32_t Function::digest(){
             instructionLength = 1;
         }
         instructions[numberOfInstructions]->setLength(instructionLength);
+        instructions[numberOfInstructions]->verify();
         //        instructions[numberOfInstructions]->print();
     }
     
@@ -225,9 +260,9 @@ uint32_t Function::digest(){
 
 uint64_t Function::findInstrumentationPoint(uint32_t size, InstLocations loc){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        uint64_t p = flowGraph->getBlock(i)->findInstrumentationPoint(size,loc);
-        if (p){
-            return p;
+        uint64_t instAddress = flowGraph->getBlock(i)->findInstrumentationPoint(size,loc);
+        if (instAddress){
+            return instAddress;
         }
     }
     return 0;
@@ -263,6 +298,7 @@ Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz) :
 bool Function::verify(){
     if (functionSymbol){
         if (!functionSymbol->isFunctionSymbol(textSection)){
+            functionSymbol->print();
             PRINT_ERROR("The symbol given for this function does not appear to be a function symbol");
             return false;
         }
@@ -282,5 +318,6 @@ bool Function::verify(){
 }
 
 void Function::print(){
+    PRINT_INFOR("Function %s has base address %#llx", getName(), baseAddress);
     functionSymbol->print();
 }

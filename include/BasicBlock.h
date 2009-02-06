@@ -40,6 +40,9 @@ public:
     BasicBlock(uint32_t idx, FlowGraph* cfg);
     ~BasicBlock();
 
+    void setBaseAddress(uint64_t newBaseAddress);
+    uint64_t getBaseAddress() { return baseAddress; }
+
     bool containsOnlyControl();
 
     void printInstructions();
@@ -71,9 +74,9 @@ public:
     Function* getFunction() { return flowGraph->getFunction(); }
 
     uint32_t getBlockSize();
-    uint64_t getAddress();
     uint64_t getTargetAddress();
     uint32_t getIndex() { return index; }
+    uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
 
     uint32_t getNumberOfInstructions() { return instructions.size(); }
     Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }

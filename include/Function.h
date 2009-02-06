@@ -2,6 +2,7 @@
 #define _Function_h_
 
 #include <BitSet.h>
+#include <Instruction.h>
 #include <TextSection.h>
 #include <Vector.h>
 
@@ -20,13 +21,14 @@ protected:
     HashCode hashCode;
     uint64_t baseAddress;
 
-    uint32_t generateCFG(uint32_t numberOfInstructions, Instruction** instructions);
-
 public:
     Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz);
     ~Function();
 
+    void setBaseAddress(uint64_t newBaseAddress);
+
     Symbol* getFunctionSymbol() { return functionSymbol; }
+    uint32_t generateCFG(uint32_t numberOfInstructions, Instruction** instructions);
 
     FlowGraph* getFlowGraph() { return flowGraph; }
     uint32_t getNumberOfBasicBlocks();
@@ -34,10 +36,11 @@ public:
     Instruction* getInstructionAtAddress(uint64_t addr);
 
     uint32_t getNumberOfInstructions();
+    uint32_t getNumberOfBytes();
 
     char* getName();
+    uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
 
-    uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
     void printInstructions();
 
     uint32_t digest();
@@ -47,6 +50,9 @@ public:
 
     const char* briefName() { return "Function"; }
     HashCode getHashCode() { return hashCode; }
+
+    Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
+    uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
 };
 
 #endif /* _Function_h_ */

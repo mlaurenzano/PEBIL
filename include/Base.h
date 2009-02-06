@@ -28,6 +28,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_CFG
 //#define DEBUG_LOOP
 //#define DEBUG_INST
+#define DEBUG_ANCHOR
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -187,6 +188,14 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define PRINT_DEBUG_INST(...)
 #endif
 
+#ifdef DEBUG_ANCHOR
+#define PRINT_DEBUG_ANCHOR(...) fprintf(stdout,"ANCHOR : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_ANCHOR(...)
+#endif
 
 
 #ifdef  DEVELOPMENT
@@ -336,6 +345,8 @@ typedef enum {
 
 class BinaryInputFile;
 class BinaryOutputFile;
+class Instruction;
+template <class anonymous> class Vector;
 
 class Base {
 protected:
@@ -364,6 +375,13 @@ public:
     virtual const char* briefName() { __SHOULD_NOT_ARRIVE; return NULL; }
 
     bool includesFileOffset(uint32_t offset);
+
+
+
+    bool isCodeContainer() { return (type == ElfClassTypes_Instruction || type == ElfClassTypes_BasicBlock || type == ElfClassTypes_Function || type == ElfClassTypes_TextSection); }
+    virtual Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements) { __SHOULD_NOT_ARRIVE; return NULL; }
+    virtual uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc) { __SHOULD_NOT_ARRIVE; return 0; }
+    virtual uint64_t getBaseAddress() { __SHOULD_NOT_ARRIVE; }
 };
 
 class HashCode {

@@ -429,6 +429,11 @@ InstrumentationSnippet::~InstrumentationSnippet(){
     }
 }
 
+Vector<Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(Vector<Instruction*>* replacements){
+    return point->swapInstructions(getSourceAddress(),replacements);
+    return NULL;
+}
+
 void InstrumentationPoint::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currentOffset = trampolineOffset;
     for (uint32_t i = 0; i < trampolineInstructions.size(); i++){
@@ -507,39 +512,37 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
     return trampolineSize;
 }
 
+uint64_t InstrumentationPoint::getSourceAddress(){
+    //    PRINT_INFOR("Type is %d %d", point->getClassType(), ((Base*)point)->getType());
+    //    uint64_t sourceAddress = point->findInstrumentationPoint(numberOfBytes,instLocation);
+    uint64_t sourceAddress = 0;
+    //    if (point->getClassType() != ElfClassTypes_Function){
+    if (1){
+        sourceAddress = point->findInstrumentationPoint(numberOfBytes,instLocation);
+    }
+    return sourceAddress;
+}
+
 InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc)
     : Base(ElfClassTypes_InstrumentationPoint)
 {
     point = pt;
-    if (point->getType() != ElfClassTypes_TextSection &&
-        point->getType() != ElfClassTypes_BasicBlock &&
-        point->getType() != ElfClassTypes_Instruction &&
-        point->getType() != ElfClassTypes_Function){
-        PRINT_ERROR("Cannot use an object of type %d as an instrumentation point", point->getType());
-        __SHOULD_NOT_ARRIVE;
-    }
-    instrumentation = inst;
 
+    instrumentation = inst;
     numberOfBytes = size;
     instLocation = loc;
 
-    if (point->getType() == ElfClassTypes_TextSection){
-        TextSection* ts = (TextSection*)point;
-        sourceAddress = ts->findInstrumentationPoint(numberOfBytes,instLocation);
-    } else if (point->getType() == ElfClassTypes_Instruction){
-        Instruction* in = (Instruction*)point;
-        sourceAddress = in->getAddress();
-    } else if (point->getType() == ElfClassTypes_Function){
-        Function* fn = (Function*)point;
-        sourceAddress = fn->findInstrumentationPoint(numberOfBytes,instLocation);
-    } else if (point->getType() == ElfClassTypes_BasicBlock){
-        BasicBlock* bb = (BasicBlock*)point;
-        sourceAddress = bb->findInstrumentationPoint(numberOfBytes,instLocation);
-    } else {
-        PRINT_ERROR("Cannot use an object of type %d as an instrumentation point", point->getType());
-    }
-
     trampolineOffset = 0;
+
+    verify();
+}
+
+bool InstrumentationPoint::verify(){
+    if (point->isCodeContainer()){
+        return true;
+    }
+    PRINT_ERROR("Instrumentation point not allowed to be type %d", point->getType());
+    return false;
 }
 
 InstrumentationPoint::~InstrumentationPoint(){

@@ -1,11 +1,13 @@
 #include <ElfFileInst.h>
 
+#include <AddressAnchor.h>
 #include <Base.h>
 #include <CStructuresX86.h>
 #include <Disassembler.h>
 #include <DynamicTable.h>
 #include <ElfFile.h>
 #include <FileHeader.h>
+#include <Function.h>
 #include <GnuVerneedTable.h>
 #include <GnuVersymTable.h>
 #include <HashTable.h>
@@ -31,20 +33,117 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
-uint64_t ElfFileInst::initAddressMapping(Vector<InstrumentationPoint*>* points){
-    ASSERT(!addressMapping && "This should not be initialized already");
-    addressMapping = reserveDataOffset((*points).size()*sizeof(uint64_t));
-    for (uint32_t i = 0; i < (*points).size(); i++){
-        mappingsNeeded.append((*points)[i]);
+
+//#define RELOCATE_FUNCTIONS
+
+uint32_t ElfFileInst::anchorProgramInstructions(){
+    uint32_t anchorCount = 0;
+    uint32_t instructionCount = 0;
+    PRINT_DEBUG_ANCHOR("Found %d text sections", elfFile->getNumberOfTextSections());
+    for (uint32_t i = 0; i < elfFile->getNumberOfTextSections(); i++){
+        instructionCount += elfFile->getTextSection(i)->getNumberOfInstructions();
+        PRINT_DEBUG_ANCHOR("\tTextSection %d is section %d with %d instructions", i, elfFile->getTextSection(i)->getSectionIndex(), elfFile->getTextSection(i)->getNumberOfInstructions());
     }
-    return addressMapping;
+    PRINT_DEBUG_ANCHOR("Found %d instructions in all sections", instructionCount);
+
+    Instruction** allInstructions = new Instruction*[instructionCount];
+    instructionCount = 0;
+    PRINT_DEBUG_ANCHOR("allinst address %lx", allInstructions);
+    for (uint32_t i = 0; i < elfFile->getNumberOfTextSections(); i++){
+        instructionCount += elfFile->getTextSection(i)->getAllInstructions(allInstructions, instructionCount);
+    }
+
+    qsort(allInstructions,instructionCount,sizeof(Instruction*),compareInstructionAddress);
+
+#ifdef DEBUG_ANCHOR
+    for (uint32_t i = 0; i < instructionCount-1; i++){
+        if (allInstructions[i+1]->getBaseAddress() <= allInstructions[i]->getBaseAddress()){
+            allInstructions[i]->print();
+            allInstructions[i+1]->print();
+        }
+        ASSERT(allInstructions[i]->getBaseAddress() < allInstructions[i+1]->getBaseAddress() && "Problem with qsort");
+    }
+#endif
+
+    for (uint32_t i = 0; i < instructionCount; i++){
+        Instruction* currentInstruction = allInstructions[i];
+        uint64_t relativeAddress = currentInstruction->getRelativeValue();
+        if (relativeAddress){
+            relativeAddress += currentInstruction->getBaseAddress();
+            PRINT_DEBUG_ANCHOR("Searching for relative address %llx", relativeAddress);
+            void* link = bsearch(&relativeAddress,allInstructions,instructionCount,sizeof(Instruction*),searchInstructionAddress);
+            PRINT_DEBUG_ANCHOR("link addr %lx, array addr %lx", link, allInstructions);
+            if (link != NULL){
+                anchorCount++;
+                Instruction* linkedInstruction = *(Instruction**)link;
+                PRINT_DEBUG_ANCHOR("Found instruction link pair");
+
+                if (anchorCount < 20){
+                    currentInstruction->print();
+                    linkedInstruction->print();
+                }
+
+                currentInstruction->initializeAnchor(linkedInstruction);
+                addressAnchors.append(currentInstruction->getAddressAnchor());
+    
+            } else {
+                currentInstruction->print();
+                PRINT_ERROR("Relative instruction cannot be linked");
+            }
+        }
+    }
+
+    ASSERT(anchorCount == addressAnchors.size());
+
+    for (uint32_t i = 0; i < addressAnchors.size(); i++){
+        if (i < 20){
+            addressAnchors[i]->print();
+        }
+    }
+    
+    PRINT_DEBUG_ANCHOR("Found %d instructions that required anchoring", anchorCount);
+    delete[] allInstructions;
+    return anchorCount;
 }
 
+
+void ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation){
+    TextSection* extraText = (TextSection*)elfFile->getRawSection(extraTextIdx);
+    TextSection* text = functionToRelocate->getTextSection();
+    uint64_t relocationAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + offsetToRelocation;
+    uint32_t functionSize = functionToRelocate->getNumberOfBytes();
+    Function* placeHolder = new Function(text,functionToRelocate->getIndex(),functionToRelocate->getFunctionSymbol(),functionSize);
+    Vector<Instruction*> trampEmpty;
+    
+    uint32_t currentByte = 0;
+
+    trampEmpty.append(Instruction::generateJumpRelative(functionToRelocate->getBaseAddress(), relocationAddress));
+    currentByte += trampEmpty.back()->getLength();
+    ASSERT(currentByte <= functionToRelocate->getNumberOfBytes() && "Function is not big enough to relocate");
+
+    while (currentByte < functionSize){
+        trampEmpty.append(Instruction::generateNoop());
+        currentByte += trampEmpty.back()->getLength();
+    }
+
+    placeHolder->generateCFG(trampEmpty.size(),&trampEmpty);
+    placeHolder = text->replaceFunction(functionToRelocate->getIndex(),placeHolder);
+    relocatedFunctions.append(placeHolder);
+    relocatedFunctionOffsets.append(offsetToRelocation);
+    ASSERT(relocatedFunctions.size() == relocatedFunctionOffsets.size());
+
+    // adjust the base addresses of the relocated function
+    placeHolder->setBaseAddress(relocationAddress);
+}
 
 // the order of operations in this function in very important, things will break in
 // very insidious ways if the order is changed
 void ElfFileInst::generateInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
+
+#ifdef RELOCATE_FUNCTIONS
+    anchorProgramInstructions();
+#endif
 
     uint16_t textIdx = elfFile->findSectionIdx(".text");
     TextSection* textSection = (TextSection*)elfFile->getRawSection(textIdx);
@@ -65,22 +164,26 @@ void ElfFileInst::generateInstrumentation(){
     }
 
     ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP1] && "instrumentationPoint[INST_POINT_BOOTSTRAP1] is reserved");
-    ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP2] && "instrumentationPoint[INST_POINT_BOOTSTRAP2] is reserved");
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
         if (!strcmp(textSection->getTextObject(i)->getName(),"_start")){
             ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP1] && "Found more than one start function");
-            ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP2] && "Found more than one start function");
-            for (uint32_t j = 0; j < instrumentationFunctions.size(); j++){
-                PRINT_INFOR("Instrmentation Function %d is %s", j, instrumentationFunctions[j]->getFunctionName());
-            }
-            instrumentationPoints[INST_POINT_BOOTSTRAP1] = new InstrumentationPoint((Base*)textSection->getTextObject(i), instrumentationFunctions[1], SIZE_FIRST_INST_POINT, InstLocation_start);
-            // the bootstrap startup must be processed after the other one so that it is executed first
-            instrumentationPoints[INST_POINT_BOOTSTRAP2] = new InstrumentationPoint((Base*)textSection->getTextObject(i), instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], SIZE_FIRST_INST_POINT, InstLocation_dont_care);
-
+            instrumentationPoints[INST_POINT_BOOTSTRAP1] = 
+                new InstrumentationPoint((Base*)textSection->getTextObject(i), instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], SIZE_FIRST_INST_POINT, InstLocation_dont_care);
         }
     }
 
     uint64_t codeOffset = 0;
+
+#ifdef RELOCATE_FUNCTIONS
+    for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
+        if (textSection->getTextObject(i)->isFunction()){
+            Function* func = (Function*)textSection->getTextObject(i);
+           
+            relocateFunction(func,codeOffset);
+            codeOffset += func->getNumberOfBytes();
+        }
+    }
+#endif
 
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
@@ -129,16 +232,16 @@ void ElfFileInst::generateInstrumentation(){
 
         Vector<Instruction*>* repl = new Vector<Instruction*>();
         
-        if (instrumentationPoints[i]->getNumberOfBytes() == SIZE_TRAP_INSTRUCTION){
-            (*repl).append(Instruction::generateInterrupt(X86TRAPCODE_BREAKPOINT));
-        } else if (instrumentationPoints[i]->getNumberOfBytes() == SIZE_CONTROL_TRANSFER){
+        if (instrumentationPoints[i]->getNumberOfBytes() == SIZE_CONTROL_TRANSFER){
             (*repl).append(Instruction::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + codeOffset));
+        } else {
+            PRINT_ERROR("This size instrumentation point (%d) not supported", instrumentationPoints[i]->getNumberOfBytes());
         }
 
         // disassemble the newly minted instructions
         uint32_t bytesUsed = 0;
         for (uint32_t j = 0; j < (*repl).size(); j++){
-            (*repl)[j]->setAddress(pt->getSourceAddress()+bytesUsed);
+            (*repl)[j]->setBaseAddress(pt->getSourceAddress()+bytesUsed);
             bytesUsed += (*repl)[j]->getLength();
             textSection->getDisassembler()->disassembleInstructionInPlace((*repl)[j]);
 #ifdef DEBUG_INST
@@ -149,18 +252,7 @@ void ElfFileInst::generateInstrumentation(){
         ASSERT((*repl).back()->getLength() == SIZE_NEEDED_AT_INST_POINT ||
                (*repl).back()->getLength() == SIZE_FIRST_INST_POINT && "Instruction at instrumentation point has a different size than expected");
 
-        TextSection* targetSection = NULL;
-        for (uint32_t j = 0; j < elfFile->getNumberOfTextSections(); j++){
-            if (elfFile->getSectionHeader(elfFile->getTextSection(j)->getSectionIndex())->inRange(pt->getSourceAddress())){
-                targetSection = elfFile->getTextSection(j);
-            }
-        }
-        if (!targetSection){
-            PRINT_ERROR("Cannot find a text section for address %llx", pt->getSourceAddress());
-        }
-        ASSERT(targetSection && "Cannot find a text section the address for an instrumentation point");
-
-        Vector<Instruction*>* displaced = targetSection->swapInstructions(pt->getSourceAddress(), repl);
+        Vector<Instruction*>* displaced = pt->swapInstructionsAtPoint(repl);
         ASSERT((*repl).size());
         uint64_t displacmentDist = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
         uint64_t returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getLength();
@@ -200,22 +292,6 @@ void ElfFileInst::generateInstrumentation(){
     Instruction* jumpToFinalBootstrap = Instruction::generateJumpRelative(beginBootstrap->getCodeOffset()+beginBootstrap->snippetSize(),bootstrapJumpTarget);
     beginBootstrap->addSnippetInstruction(jumpToFinalBootstrap);
     
-
-    // set up the block-to-instrumentation address mapping if needed for breakpoint-style instrumentation
-    for (uint32_t i = 0; i < mappingsNeeded.size(); i++){
-        uint64_t thisMap = getExtraDataAddress() + addressMapping + (2 * i * sizeof(uint64_t));
-        uint64_t addr = mappingsNeeded[i]->getSourceAddress();
-        initializeReservedData(thisMap, sizeof(uint64_t), (void*)&addr);
-        PRINT_DEBUG_INST("Address mapping: %llx written at address %llx", addr, thisMap);
-
-        thisMap += sizeof(uint64_t);
-        addr = mappingsNeeded[i]->getTrampolineOffset() + elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
-        initializeReservedData(thisMap, sizeof(uint64_t), (void*)&addr);        
-        PRINT_DEBUG_INST("Address mapping: %llx written at address %llx", addr, thisMap);
-        
-    }
-
-
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
         snip->addSnippetInstruction(Instruction32::generateStackPop(X86_32BIT_GPRS-i-1));
     }
@@ -224,9 +300,8 @@ void ElfFileInst::generateInstrumentation(){
 
     codeOffset += snip->snippetSize();
 
-
-    PRINT_INFOR("Space allocated for extra text: %llx, space needed: %llx", elfFile->getSectionHeader(extraTextIdx)->GET(sh_size), codeOffset);
-    PRINT_INFOR("Space allocated for extra data: %llx, space needed: %llx", elfFile->getSectionHeader(extraDataIdx)->GET(sh_size), usableDataOffset);
+    PRINT_INFOR("Space allocated for extra text: %lld bytes, space needed: %lld bytes", elfFile->getSectionHeader(extraTextIdx)->GET(sh_size), codeOffset);
+    PRINT_INFOR("Space allocated for extra data: %lld bytes, space needed: %lld bytes", elfFile->getSectionHeader(extraDataIdx)->GET(sh_size), usableDataOffset);
     ASSERT(codeOffset <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough space in the text section to accomodate the extra code");
 
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
@@ -238,9 +313,16 @@ void ElfFileInst::generateInstrumentation(){
             func->generateGlobalData(textBaseAddress);
             func->generateWrapperInstructions(textBaseAddress,dataBaseAddress);
             func->generateBootstrapInstructions(textBaseAddress,dataBaseAddress);
-            func->generateProcedureLinkInstructions(textBaseAddress,dataBaseAddress,pltSection->getAddress());
+            func->generateProcedureLinkInstructions(textBaseAddress,dataBaseAddress,pltSection->getBaseAddress());
         }
     }
+
+    for (uint32_t i = 0; i < addressAnchors.size(); i++){
+        if (i < 20){
+            addressAnchors[i]->print();
+        }
+    }
+
 }
 
 
@@ -424,32 +506,17 @@ void ElfFileInst::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     for (uint32_t i = 0; i < instrumentationPoints.size(); i++){
         instrumentationPoints[i]->dump(binaryOutputFile,extraTextOffset);
     }
-
+    for (uint32_t i = 0; i < relocatedFunctions.size(); i++){
+        relocatedFunctions[i]->dump(binaryOutputFile,extraTextOffset+relocatedFunctionOffsets[i]);
+    }
 }
 
 void ElfFileInst::verify(){
     elfFile->verify();
 }
 
-InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Instruction* instpoint, Instrumentation* inst, uint32_t sz){
-    return addInstrumentationPoint((Base*)instpoint, inst, sz);
-}
-InstrumentationPoint* ElfFileInst::addInstrumentationPoint(TextSection* instpoint, Instrumentation* inst, uint32_t sz){
-    return addInstrumentationPoint((Base*)instpoint, inst, sz);
-}
-InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Function* instpoint, Instrumentation* inst, uint32_t sz){
-    return addInstrumentationPoint((Base*)instpoint, inst, sz);
-}
-
 InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* inst, uint32_t sz){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");    
-
-    if (instpoint->getType() != ElfClassTypes_Instruction &&
-        instpoint->getType() != ElfClassTypes_BasicBlock &&
-        instpoint->getType() != ElfClassTypes_TextSection &&
-        instpoint->getType() != ElfClassTypes_Function){
-        PRINT_ERROR("Cannot use an object of type %d as an instrumentation point", instpoint->getType());
-    }
 
     InstrumentationPoint* newpoint = new InstrumentationPoint(instpoint,inst,sz,InstLocation_dont_care);
     bool canInstrument = true;
@@ -743,6 +810,10 @@ ElfFileInst::~ElfFileInst(){
     if (sharedLibraryPath){
         delete[] sharedLibraryPath;
     }
+
+    for (uint32_t i = 0; i < relocatedFunctions.size(); i++){
+        delete relocatedFunctions[i];
+    }
 }
 
 void ElfFileInst::dump(char* extension){
@@ -797,8 +868,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     instrumentationSnippets.append(new InstrumentationSnippet());
     instrumentationSnippets.append(new InstrumentationSnippet());
 
-    // automatically set the 1st 2 instrumentation points to go to the bootstrap code
-    instrumentationPoints.append(NULL);
+    // automatically set the 1st instrumentation point to go to the bootstrap code
     instrumentationPoints.append(NULL);
 
     extraTextIdx = 0;
@@ -806,8 +876,6 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
 
     usableDataOffset = 0;
     bssReserved = 0;
-
-    addressMapping = 0;
 
     instSuffix = NULL;
     sharedLibraryPath = NULL;

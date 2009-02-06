@@ -2,6 +2,7 @@
 #define _TextSection_h_
 
 #include <Base.h>
+#include <Instruction.h>
 #include <RawSection.h>
 #include <Vector.h>
 
@@ -19,20 +20,22 @@ class TextObject : public Base {
 protected:
     TextSection* textSection;
     uint32_t index;
-    uint64_t address;
+    uint64_t baseAddress;
 
 public:
     TextObject(ElfClassTypes typ, TextSection* text, uint32_t idx, uint64_t addr, uint32_t sz);
     ~TextObject() {}
 
     uint32_t getIndex() { return index; }
-    uint64_t getAddress() { return address; }
+    uint64_t getBaseAddress() { return baseAddress; }
     bool inRange(uint64_t addr);
     char* charStream();
     bool isFunction();
 
     virtual uint32_t getNumberOfInstructions() { __SHOULD_NOT_ARRIVE; }
     TextSection* getTextSection() { return textSection; }
+
+    virtual uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti) { __SHOULD_NOT_ARRIVE; }
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
     virtual char* getName() { __SHOULD_NOT_ARRIVE; }
@@ -49,6 +52,7 @@ public:
     ~TextUnknown() {}
 
     uint32_t getNumberOfInstructions() { __SHOULD_NOT_ARRIVE; }
+    uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti) { __SHOULD_NOT_ARRIVE; }
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     char* getName();
@@ -66,6 +70,8 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     char* getName() { return NULL; }
     uint32_t digest();
+
+    uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
 
     Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }
     uint32_t getNumberOfInstructions() { return instructions.size(); }
@@ -88,6 +94,8 @@ public:
     void printInstructions();
     Vector<Symbol*> discoverTextObjects();
 
+    Function* replaceFunction(uint32_t idx, Function* replacementFunction);
+
     ByteSources getByteSource();
     ByteSources setByteSource(ByteSources src);
 
@@ -106,8 +114,9 @@ public:
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     Instruction* getInstructionAtAddress(uint64_t addr);
+    uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
 
-    uint64_t getAddress();
+    uint64_t getBaseAddress();
     bool inRange(uint64_t addr);
 
     uint32_t getNumberOfTextObjects() { return sortedTextObjects.size(); }

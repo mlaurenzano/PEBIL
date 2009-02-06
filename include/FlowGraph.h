@@ -23,6 +23,8 @@ public:
     FlowGraph(Function* f) : function(f) {}
     ~FlowGraph();
 
+    void setBaseAddress(uint64_t newBaseAddress);
+
     uint32_t getNumberOfInstructions();
     TextSection* getTextSection();
     void print();
@@ -38,6 +40,7 @@ public:
     
     BasicBlock* getBlock(uint32_t idx) { return basicBlocks[idx]; }
     uint32_t getNumberOfBasicBlocks() { return basicBlocks.size(); }
+    uint32_t getNumberOfBytes();
     
     uint32_t getNumberOfMemoryOps();
     uint32_t getNumberOfFloatOps();

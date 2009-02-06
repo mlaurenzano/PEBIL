@@ -1,8 +1,6 @@
 #ifndef _Vector_h_
 #define _Vector_h_
 
-#include <Instruction.h>
-
 #define DEFAULT_VECTOR_SIZE 16
 #define DEFAULT_INCREASE_FACTOR 2
 
@@ -127,39 +125,6 @@ public:
     }
 
 };
-
-static void testVector(){
-
-    Vector<Operand*> v;
-    Vector<Operand*>* p = new Vector<Operand*>();
-    Operand* s = new Operand();
-    s->setValue(3);
-    v.append(s);
-    p->append(s);
-    v[0] = s;
-    (*p)[0] = s;
-    v[0]->setValue(2);
-    p->at(0)->setValue(2);
-
-    v.print();
-    p->print();
-    PRINT_INFOR("%p %p", v[0], (*p)[0]);
-    PRINT_INFOR("%p", s);
-    //    v[0]->setValue(2);
-    delete v[0];
-
-    Vector<uint32_t> a;
-    a.append(3);
-    a.append(6);
-    a.append(9);
-    a.print();
-
-    a[1] = 5;
-    a.print();
-
-    delete p;
-}
-
 
 #endif /* _Vector_h_ */
 

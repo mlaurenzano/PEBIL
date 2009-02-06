@@ -3,12 +3,12 @@
 
 #include <Base.h>
 #include <ElfFile.h>
+#include <Instruction.h>
 #include <Vector.h>
 
 class BasicBlock;
 class BinaryOutputFile;
 class Function;
-class Instruction;
 class Instrumentation;
 class InstrumentationFunction;
 class InstrumentationPoint;
@@ -20,14 +20,12 @@ class SectionHeader;
 class TextSection;
 
 #define SIZE_CONTROL_TRANSFER 5
-#define SIZE_TRAP_INSTRUCTION 1
-#define SIZE_NEEDED_AT_INST_POINT SIZE_TRAP_INSTRUCTION
+#define SIZE_NEEDED_AT_INST_POINT SIZE_CONTROL_TRANSFER
 #define SIZE_FIRST_INST_POINT SIZE_CONTROL_TRANSFER
 
 #define INST_SNIPPET_BOOTSTRAP_BEGIN 0
 #define INST_SNIPPET_BOOTSTRAP_END 1
 #define INST_POINT_BOOTSTRAP1 0
-#define INST_POINT_BOOTSTRAP2 1
 
 #define MAX_ARGUMENTS_32BIT 6
 #define MAX_ARGUMENTS_64BIT 6
@@ -54,15 +52,15 @@ protected:
     Vector<InstrumentationFunction*> instrumentationFunctions;
     Vector<InstrumentationPoint*> instrumentationPoints;
     Vector<char*> instrumentationLibraries;
+    Vector<Function*> relocatedFunctions;
+    Vector<uint64_t> relocatedFunctionOffsets;
+    Vector<AddressAnchor*> addressAnchors;
 
     uint16_t extraTextIdx;
     uint16_t extraDataIdx;
 
     uint64_t usableDataOffset;
     uint64_t bssReserved;
-
-    uint64_t addressMapping;
-    Vector<InstrumentationPoint*> mappingsNeeded;
 
     LineInfoFinder* lineInfoFinder;
 
@@ -83,6 +81,7 @@ protected:
     void extendTextSection(uint64_t size);
     void extendDataSection(uint64_t size);
     void generateInstrumentation();
+    void relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation);
 
 public:
     ElfFileInst(ElfFile* elf);
@@ -97,6 +96,7 @@ public:
     void verify();
 
     void phasedInstrumentation();
+    uint32_t anchorProgramInstructions();
 
     TextSection* getTextSection();
     TextSection* getFiniSection();
@@ -117,8 +117,6 @@ public:
     RawSection* getExtraDataSection();
     uint64_t getExtraDataAddress();
 
-    uint64_t initAddressMapping(Vector<InstrumentationPoint*>* points);
-
     uint64_t reserveDataOffset(uint64_t size);
     uint32_t initializeReservedData(uint64_t address, uint32_t size, void* data);
 
@@ -127,10 +125,6 @@ public:
 
     InstrumentationFunction* getInstrumentationFunction(const char* funcName);
     uint32_t addInstrumentationSnippet(InstrumentationSnippet* snip);
-
-    InstrumentationPoint* addInstrumentationPoint(TextSection* instpoint, Instrumentation* inst, uint32_t sz);
-    InstrumentationPoint* addInstrumentationPoint(Function* instpoint, Instrumentation* inst, uint32_t sz);
-    InstrumentationPoint* addInstrumentationPoint(Instruction* instpoint, Instrumentation* inst, uint32_t sz);
 
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }

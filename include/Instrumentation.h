@@ -2,6 +2,7 @@
 #define _Instrumentation_h_
 
 #include <Base.h>
+#include <Instruction.h>
 #include <Vector.h>
 
 class Instruction;
@@ -167,7 +168,6 @@ private:
     Base* point;
     Instrumentation* instrumentation;
 
-    uint64_t sourceAddress;
     uint32_t numberOfBytes;
     InstLocations instLocation;
 
@@ -178,10 +178,12 @@ public:
     InstrumentationPoint(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc);
     ~InstrumentationPoint();
 
+    Vector<Instruction*>* swapInstructionsAtPoint(Vector<Instruction*>* replacements);
+
     void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
-    uint64_t getSourceAddress() { return sourceAddress; }
+    uint64_t getSourceAddress();
     uint64_t getTargetOffset() { ASSERT(instrumentation); return instrumentation->getEntryPoint(); }
     Instrumentation* getInstrumentation() { return instrumentation; }
 
@@ -189,6 +191,8 @@ public:
     uint32_t sizeNeeded();
     uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t offset, uint64_t returnOffset, bool is64bit);
     uint64_t getTrampolineOffset() { return trampolineOffset; }
+
+    bool verify();
 };
 
 

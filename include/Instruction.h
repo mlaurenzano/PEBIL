@@ -2,7 +2,9 @@
 #define _Instruction_h_
 
 #include <Base.h>
+#include <Vector.h>
 
+class AddressAnchor;
 class BinaryOutputFile;
 class ElfFile;
 class TextSection;
@@ -90,10 +92,11 @@ protected:
     uint32_t bytePosition;
     uint32_t bytesUsed;
     bool relative;
+
 public:
     Operand(uint32_t type, uint64_t value);
     Operand();
-    ~Operand(){}
+    ~Operand() {}
 
     uint32_t getType() { return type; }
     uint64_t getValue() { return value; }
@@ -115,7 +118,7 @@ protected:
     uint32_t index;
     uint32_t instructionLength;
     char* rawBytes;
-    uint64_t virtualAddress;
+    uint64_t baseAddress;
     uint32_t instructionType;
     char disassembledString[MAX_DISASM_STR_LENGTH];
     Operand operands[MAX_OPERANDS];    
@@ -123,22 +126,27 @@ protected:
     uint64_t programAddress;
     ByteSources source;
     TextSection* textSection;
-
+    AddressAnchor* addressAnchor;
 
     static Instruction* generateInstructionBase(uint32_t sz, char* buf);
-
 public:
     Instruction();
     ~Instruction();
 
+    uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
     void print();
+    bool verify();
 
+    void initializeAnchor(Base* link);
+    uint64_t getRelativeValue();
+    AddressAnchor* getAddressAnchor() { return addressAnchor; }
+    
     char* charStream() { return rawBytes; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     uint32_t getIndex() { return index; }
     uint64_t getNextAddress();
-    uint64_t getAddress();
+    uint64_t getBaseAddress();
     uint32_t getLength();
     char* getBytes();
     Operand getOperand(uint32_t idx);
@@ -160,7 +168,7 @@ public:
     bool isNoop();
 
     uint32_t setIndex(uint32_t newidx);
-    uint64_t setAddress(uint64_t addr);
+    uint64_t setBaseAddress(uint64_t addr);
     uint32_t setLength(uint32_t len);
     char* setBytes(char* bytes);
     uint64_t setOperandValue(uint32_t idx, uint64_t val);
@@ -244,5 +252,8 @@ public:
     static Instruction* generateRegAddImmediate(uint32_t idx, uint64_t imm);
     static Instruction* generateRegSubImmediate(uint32_t idx, uint64_t imm);
 };
+
+extern int searchInstructionAddress(const void* arg1,const void* arg2);
+extern int compareInstructionAddress(const void* arg1,const void* arg2);
 
 #endif /* _Instruction_h_ */

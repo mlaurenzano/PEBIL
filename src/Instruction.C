@@ -1,8 +1,68 @@
 #include <Instruction.h>
 
+#include <AddressAnchor.h>
 #include <Base.h>
 #include <BinaryFile.h>
 #include <CStructuresX86.h>
+
+int compareInstructionAddress(const void* arg1,const void* arg2){
+    Instruction* inst1 = *((Instruction**)arg1);
+    Instruction* inst2 = *((Instruction**)arg2);
+    uint64_t vl1 = inst1->getBaseAddress();
+    uint64_t vl2 = inst2->getBaseAddress();
+
+    if(vl1 < vl2)
+        return -1;
+    if(vl1 > vl2)
+        return 1;
+    return 0;
+}
+
+
+int searchInstructionAddress(const void* arg1, const void* arg2){
+    uint64_t key = *((uint64_t*)arg1);
+    Instruction* inst = *((Instruction**)arg2);
+
+    ASSERT(inst && "Instruction should exist");
+
+    uint64_t val = inst->getBaseAddress();
+
+    if (key < val)
+        return -1;
+    if (key > val)
+        return 1;
+    return 0;
+}
+
+bool Instruction::verify(){
+    uint32_t relCount = 0;
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i].isRelative()){
+            relCount++;
+        }
+    }
+    if (relCount > 1){
+        PRINT_ERROR("Cannot have more than one relative operand in an instruction");
+        return false;
+    }
+    return true;
+}
+
+uint64_t Instruction::getRelativeValue(){
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i].getType() && operands[i].isRelative()){
+            //            operands[i].print();
+            return operands[i].getValue();
+        }
+    }
+    return 0;
+}
+
+void Instruction::initializeAnchor(Base* link){
+    ASSERT(!addressAnchor);
+    ASSERT(link->isCodeContainer());
+    addressAnchor = new AddressAnchor(link,this);
+}
 
 uint64_t Instruction::setProgramAddress(uint64_t addr){
     programAddress = addr;
@@ -76,6 +136,11 @@ bool Instruction::isRelocatable(){
 void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(rawBytes && instructionLength && "This instruction has no bytes thus it cannot be dumped");
     binaryOutputFile->copyBytes(rawBytes,instructionLength,offset);
+
+    // the anchor will now overwrite any original instruction bytes that relate to relative addresses
+    if (addressAnchor){
+        addressAnchor->dump(binaryOutputFile,offset);
+    }
 }
 
 // this function deletes the incoming buffer aftetr copying it to the new instruction's local memory
@@ -788,8 +853,8 @@ uint64_t Instruction::getNextAddress(){
     case x86_insn_type_cond_branch:
     case x86_insn_type_branch:
         if (operands[JUMP_TARGET_OPERAND].getType() == x86_operand_type_immrel){
-            nextAddress = getAddress() + operands[JUMP_TARGET_OPERAND].getValue();
-            PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx", nextAddress,  getAddress(), operands[JUMP_TARGET_OPERAND].getValue());
+            nextAddress = getBaseAddress() + operands[JUMP_TARGET_OPERAND].getValue();
+            PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx", nextAddress,  getBaseAddress(), operands[JUMP_TARGET_OPERAND].getValue());
         } else {
             nextAddress = operands[JUMP_TARGET_OPERAND].getValue();
         }
@@ -799,7 +864,7 @@ uint64_t Instruction::getNextAddress(){
         nextAddress = 0;
         break;
     default:
-        nextAddress = virtualAddress + instructionLength;
+        nextAddress = baseAddress + instructionLength;
         break;
     }
     PRINT_DEBUG_OPTARGET("Set next address to 0x%llx", nextAddress);
@@ -844,19 +909,24 @@ uint32_t Instruction::setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t
 
 }
 
+uint64_t Instruction::findInstrumentationPoint(uint32_t size, InstLocations loc){
+    __SHOULD_NOT_ARRIVE;
+}
+
 Instruction::Instruction() : 
     Base(ElfClassTypes_Instruction)
 {
     index = 0;
     instructionLength = 0;
     rawBytes = NULL;
-    virtualAddress = 0;
+    baseAddress = 0;
     instructionType = x86_insn_type_unknown;
     source = ByteSource_Instrumentation;
     programAddress = 0;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         operands[i] = Operand();
     }
+    addressAnchor = NULL;
 }
 
 uint32_t Instruction::setIndex(uint32_t newidx){
@@ -868,12 +938,15 @@ Instruction::~Instruction(){
     if (rawBytes){
         delete[] rawBytes;
     }
+    if (addressAnchor){
+        delete addressAnchor;
+    }
 }
 
 uint64_t Instruction::setRelocationInfo(bool isRelative, uint64_t displacementDist){
     int64_t oldValue_64 = 0;
 
-    PRINT_DEBUG_INST("Displacing instruction at %#llx (%#llx in prog) by %lld bytes", virtualAddress, programAddress, displacementDist);
+    PRINT_DEBUG_INST("Displacing instruction at %#llx (%#llx in prog) by %lld bytes", baseAddress, programAddress, displacementDist);
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i].isRelative()){
@@ -952,9 +1025,9 @@ char* Instruction::setBytes(char* bytes){
     return rawBytes;
 }
 
-uint64_t Instruction::setAddress(uint64_t addr){
-    virtualAddress = addr;
-    return virtualAddress;
+uint64_t Instruction::setBaseAddress(uint64_t addr){
+    baseAddress = addr;
+    return baseAddress;
 }
 
 uint32_t Instruction::setLength(uint32_t len){
@@ -976,8 +1049,8 @@ char* Instruction::setDisassembledString(char* disStr){
     return disassembledString;
 }
 
-uint64_t Instruction::getAddress(){
-    return virtualAddress;
+uint64_t Instruction::getBaseAddress(){
+    return baseAddress;
 }
 
 Operand Instruction::getOperand(uint32_t idx){
@@ -1023,9 +1096,8 @@ const char* OpTypeNames[] = {
     "type_func_SIMD_Fixup"
     };
 
-
 void Operand::print(){
-    char* relStr = "     ";
+    char* relStr = "NOREL";
     if (isRelative()){
         relStr =   "IPREL";
     }
@@ -1079,7 +1151,7 @@ void Instruction::print(){
     } else {
         PRINT_OUT("NOBYTES");
     }
-    PRINT_OUT("] 0x%llx -> 0x%llx", virtualAddress, getNextAddress());
+    PRINT_OUT("] 0x%llx -> 0x%llx", baseAddress, getNextAddress());
     PRINT_OUT("\n");
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){

@@ -8,6 +8,22 @@
 #include <Loop.h>
 #include <Stack.h>
 
+void FlowGraph::setBaseAddress(uint64_t newBaseAddr){
+    uint64_t currentOffset = 0;
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        basicBlocks[i]->setBaseAddress(newBaseAddr+currentOffset);
+        currentOffset += basicBlocks[i]->getBlockSize();
+    }
+}
+
+uint32_t FlowGraph::getNumberOfBytes(){
+    uint32_t numberOfBytes = 0;
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        numberOfBytes += basicBlocks[i]->getBlockSize();
+    }
+    return numberOfBytes;
+}
+
 uint32_t FlowGraph::getNumberOfInstructions(){
     uint32_t numberOfInstructions = 0;
     for (uint32_t i = 0; i < basicBlocks.size(); i++){
@@ -33,7 +49,7 @@ void FlowGraph::testGraphAvailability(){
     PRINT_INFOR("Graph for function %s has %d/%d bad blocks", function->getName(), badBlocks->size(), basicBlocks.size());
     BasicBlock** allBadBlocks = badBlocks->duplicateMembers();
     for (uint32_t i = 0; i < badBlocks->size(); i++){
-        PRINT_INFOR("block %d @ %llx", allBadBlocks[i]->getIndex(), allBadBlocks[i]->getAddress());
+        PRINT_INFOR("block %d @ %llx", allBadBlocks[i]->getIndex(), allBadBlocks[i]->getBaseAddress());
         allBadBlocks[i]->print();
         allBadBlocks[i]->printSourceBlocks();
     }
@@ -49,7 +65,7 @@ void FlowGraph::connectGraph(BasicBlock* entry){
     uint64_t* targetAddressCache = new uint64_t[basicBlocks.size()];
 
     for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        addressCache[i] = basicBlocks[i]->getAddress();
+        addressCache[i] = basicBlocks[i]->getBaseAddress();
         targetAddressCache[i] = basicBlocks[i]->getTargetAddress();
     }
 
@@ -105,6 +121,9 @@ void FlowGraph::connectGraph(BasicBlock* entry){
 }
 
 void FlowGraph::printLoops(){
+    if (basicBlocks.size()){
+        PRINT_INFOR("Flowgraph has base address %#llx", basicBlocks[0]->getBaseAddress());
+    }
     if (loops.size()){
         print();
     }
@@ -131,8 +150,8 @@ void FlowGraph::printInnerLoops(){
 int compareLoopHeaderVaddr(const void* arg1,const void* arg2){
     Loop* lp1 = *((Loop**)arg1);
     Loop* lp2 = *((Loop**)arg2);
-    uint64_t vl1 = lp1->getHead()->getAddress();
-    uint64_t vl2 = lp2->getHead()->getAddress();
+    uint64_t vl1 = lp1->getHead()->getBaseAddress();
+    uint64_t vl2 = lp2->getHead()->getBaseAddress();
 
     if(vl1 < vl2)
         return -1;

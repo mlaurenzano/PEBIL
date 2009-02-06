@@ -7,6 +7,26 @@
 
 #define MAX_SIZE_LINEAR_SEARCH 4096
 
+uint32_t BasicBlock::getAllInstructions(Instruction** allinsts, uint32_t nexti){
+    uint32_t instructionCount = 0;
+    PRINT_DEBUG_ANCHOR("\t\tBB allinst address %lx, nexti %d", allinsts, nexti);
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        allinsts[i+nexti] = instructions[i];
+        instructionCount++;
+    }
+    return instructionCount;
+}
+
+
+void BasicBlock::setBaseAddress(uint64_t newBaseAddr){
+    baseAddress = newBaseAddr;
+    uint32_t currentOffset = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        instructions[i]->setBaseAddress(baseAddress + currentOffset);
+        currentOffset += instructions[i]->getLength();
+    }
+}
+
 uint32_t BasicBlock::addSourceBlock(BasicBlock* bb){
     sourceBlocks.append(bb);
     return sourceBlocks.size();
@@ -65,10 +85,6 @@ uint64_t BasicBlock::getTargetAddress() {
     return instructions.back()->getNextAddress();
 }
 
-uint64_t BasicBlock::getAddress() { 
-    return baseAddress;
-}
-
 void BasicBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
@@ -80,7 +96,7 @@ void BasicBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 
 uint32_t BasicBlock::addInstruction(Instruction* inst){
     if (!instructions.size()){
-        baseAddress = inst->getAddress();
+        baseAddress = inst->getBaseAddress();
     }
     inst->setIndex(instructions.size());
     instructions.append(inst);
@@ -89,14 +105,14 @@ uint32_t BasicBlock::addInstruction(Instruction* inst){
 
 Instruction* BasicBlock::getInstructionAtAddress(uint64_t addr){
     for (uint32_t i = 0; i < instructions.size(); i++){
-        if (instructions[i]->getAddress() == addr){
+        if (instructions[i]->getBaseAddress() == addr){
             return instructions[i];
         }
     }
 
     if (instructions.size() < MAX_SIZE_LINEAR_SEARCH){
         for (uint32_t i = 0; i < instructions.size(); i++){
-            if (instructions[i]->getAddress() == addr){
+            if (instructions[i]->getBaseAddress() == addr){
                 return instructions[i];
             }
         }
@@ -117,14 +133,15 @@ uint32_t BasicBlock::getBlockSize(){
 }
 
 bool BasicBlock::inRange(uint64_t addr){
-    if (addr >= getAddress() &&
-        addr < getAddress() + getBlockSize()){
+    if (addr >= getBaseAddress() &&
+        addr < getBaseAddress() + getBlockSize()){
         return true;
     }
     return false;
 }
 
-BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg){
+BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg)
+{
     type = ElfClassTypes_BasicBlock;
     index = idx;
     flowGraph = cfg;
@@ -192,7 +209,7 @@ void BasicBlock::print(){
         rch = 'R';
     }
 
-    PRINT_INFOR("BASICBLOCK(%d) range=[0x%llx,0x%llx), %d instructions, flags %c%c%c%c%c%c", index, getAddress(), getAddress()+getBlockSize(), getNumberOfInstructions(), pad, ent, ext, ctr, rch);
+    PRINT_INFOR("BASICBLOCK(%d) range=[0x%llx,0x%llx), %d instructions, flags %c%c%c%c%c%c", index, getBaseAddress(), getBaseAddress()+getBlockSize(), getNumberOfInstructions(), pad, ent, ext, ctr, rch);
     if (immDominatedBy){
         PRINT_INFOR("\tdom: %d", immDominatedBy->getIndex());
     }
@@ -239,7 +256,7 @@ uint64_t BasicBlock::findInstrumentationPoint(uint32_t size, InstLocations loc){
             j++;
         }
         if (instBytes >= size){
-            return instructions[i]->getAddress();
+            return instructions[i]->getBaseAddress();
         }
     }
     return 0;
@@ -284,7 +301,7 @@ Vector<Instruction*>* BasicBlock::swapInstructions(uint64_t addr, Vector<Instruc
     replacedBytes = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
         instructions[i]->setIndex(i);
-        instructions[i]->setAddress(replacedBytes+baseAddress);
+        instructions[i]->setBaseAddress(replacedBytes+baseAddress);
         replacedBytes += instructions[i]->getLength();
     }
 
