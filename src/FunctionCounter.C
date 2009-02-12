@@ -97,11 +97,7 @@ void FunctionCounter::instrument(){
             
             // register an instrumentation point at the function that uses this snippet
             if (strcmp(f->getName(),"_start")){
-                if (f->findInstrumentationPoint(SIZE_NEEDED_AT_INST_POINT, InstLocation_dont_care)){
-                    addInstrumentationPoint(f,snip,SIZE_NEEDED_AT_INST_POINT);
-                } else {
-                    PRINT_WARN(4,"Cannot find instrumentation point at function %s", f->getName());
-                }
+                addInstrumentationPoint(f,snip,SIZE_NEEDED_AT_INST_POINT);
             }
             instPoints++;
         }

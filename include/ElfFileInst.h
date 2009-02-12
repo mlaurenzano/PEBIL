@@ -58,6 +58,7 @@ protected:
 
     uint16_t extraTextIdx;
     uint16_t extraDataIdx;
+    uint16_t dataIdx;
 
     uint64_t usableDataOffset;
     uint64_t bssReserved;
@@ -81,7 +82,7 @@ protected:
     void extendTextSection(uint64_t size);
     void extendDataSection(uint64_t size);
     void generateInstrumentation();
-    void relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation);
+    uint32_t relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation);
 
 public:
     ElfFileInst(ElfFile* elf);
@@ -97,6 +98,7 @@ public:
 
     void phasedInstrumentation();
     uint32_t anchorProgramInstructions();
+    Vector<AddressAnchor*>* searchAddressAnchors(uint64_t addr);
 
     TextSection* getTextSection();
     TextSection* getFiniSection();

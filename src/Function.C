@@ -12,6 +12,29 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+uint32_t Function::bloatBasicBlocks(uint32_t minBlockSize){
+    uint32_t currByte = 0;
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+        BasicBlock* bb = flowGraph->getBlock(i);
+        bb->setBaseAddress(baseAddress+currByte);
+        currByte += bb->bloat(minBlockSize);
+    }
+    sizeInBytes = currByte;
+    return sizeInBytes;
+}
+
+bool Function::containsCallToSelf(){
+    return containsCallToRange(baseAddress,baseAddress+getNumberOfBytes());
+}
+
+bool Function::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+        if (flowGraph->getBlock(i)->containsCallToRange(lowAddr,highAddr)){
+            return true;
+        }
+    }
+    return false;
+}
 
 uint32_t Function::getAllInstructions(Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
@@ -223,7 +246,7 @@ uint32_t Function::digest(){
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
 
         instructions[numberOfInstructions] = new Instruction();
-        instructions[numberOfInstructions]->setLength(MAX_X86_INSTRUCTION_LENGTH);
+        instructions[numberOfInstructions]->setSizeInBytes(MAX_X86_INSTRUCTION_LENGTH);
         instructions[numberOfInstructions]->setBaseAddress(getBaseAddress() + currByte);
         instructions[numberOfInstructions]->setProgramAddress(getBaseAddress() + currByte);
         instructions[numberOfInstructions]->setBytes(charStream() + currByte);
@@ -234,7 +257,7 @@ uint32_t Function::digest(){
         if (!instructionLength){
             instructionLength = 1;
         }
-        instructions[numberOfInstructions]->setLength(instructionLength);
+        instructions[numberOfInstructions]->setSizeInBytes(instructionLength);
         instructions[numberOfInstructions]->verify();
         //        instructions[numberOfInstructions]->print();
     }
@@ -244,7 +267,7 @@ uint32_t Function::digest(){
     // used
     if (currByte > sizeInBytes){
         uint32_t extraBytes = currByte-sizeInBytes;
-        instructions[numberOfInstructions-1]->setLength(instructions[numberOfInstructions-1]->getLength()-extraBytes);
+        instructions[numberOfInstructions-1]->setSizeInBytes(instructions[numberOfInstructions-1]->getSizeInBytes()-extraBytes);
         currByte -= extraBytes;
         PRINT_WARN(3,"Disassembler found instructions that exceed the function boundary in %s by %d bytes", getName(), extraBytes);
     }
@@ -278,11 +301,9 @@ Function::~Function(){
 }
 
 
-Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz) :
-    TextObject(ElfClassTypes_Function,text,idx,sym->GET(st_value),sz)
+Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz)
+    : TextObject(ElfClassTypes_Function,text,idx,sym->GET(st_value),sz)
 {
-    baseAddress = 0;
-
     textSection = text;
     functionSymbol = sym;
 

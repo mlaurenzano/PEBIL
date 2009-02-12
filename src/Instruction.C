@@ -58,9 +58,16 @@ uint64_t Instruction::getRelativeValue(){
     return 0;
 }
 
+void Instruction::deleteAnchor(){
+    if (addressAnchor){
+        delete addressAnchor;
+    }
+    addressAnchor = NULL;
+}
+
 void Instruction::initializeAnchor(Base* link){
     ASSERT(!addressAnchor);
-    ASSERT(link->isCodeContainer());
+    ASSERT(link->containsProgramBits());
     addressAnchor = new AddressAnchor(link,this);
 }
 
@@ -134,8 +141,8 @@ bool Instruction::isRelocatable(){
 }
 
 void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    ASSERT(rawBytes && instructionLength && "This instruction has no bytes thus it cannot be dumped");
-    binaryOutputFile->copyBytes(rawBytes,instructionLength,offset);
+    ASSERT(rawBytes && sizeInBytes && "This instruction has no bytes thus it cannot be dumped");
+    binaryOutputFile->copyBytes(rawBytes,sizeInBytes,offset);
 
     // the anchor will now overwrite any original instruction bytes that relate to relative addresses
     if (addressAnchor){
@@ -146,7 +153,7 @@ void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 // this function deletes the incoming buffer aftetr copying it to the new instruction's local memory
 Instruction* Instruction::generateInstructionBase(uint32_t sz, char* buff){
     Instruction* ret = new Instruction();
-    ret->setLength(sz);
+    ret->setSizeInBytes(sz);
     ret->setBytes(buff);
     delete[] buff;
     return ret;
@@ -849,24 +856,21 @@ bool Instruction::setOperandRelative(uint32_t idx, bool rel){
 
 uint64_t Instruction::getNextAddress(){
     uint64_t nextAddress;
-    switch(instructionType){
-    case x86_insn_type_cond_branch:
-    case x86_insn_type_branch:
+    if (instructionType == x86_insn_type_branch ||
+        instructionType == x86_insn_type_cond_branch ||
+        instructionType == x86_insn_type_call){
         if (operands[JUMP_TARGET_OPERAND].getType() == x86_operand_type_immrel){
             nextAddress = getBaseAddress() + operands[JUMP_TARGET_OPERAND].getValue();
             PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx", nextAddress,  getBaseAddress(), operands[JUMP_TARGET_OPERAND].getValue());
         } else {
             nextAddress = operands[JUMP_TARGET_OPERAND].getValue();
         }
-        break;
-    case x86_insn_type_return:
-    case x86_insn_type_syscall:
+    } else if (instructionType == x86_insn_type_syscall){
         nextAddress = 0;
-        break;
-    default:
-        nextAddress = baseAddress + instructionLength;
-        break;
+    } else {
+        nextAddress = baseAddress + sizeInBytes;
     }
+
     PRINT_DEBUG_OPTARGET("Set next address to 0x%llx", nextAddress);
     return nextAddress;
 }
@@ -917,7 +921,7 @@ Instruction::Instruction() :
     Base(ElfClassTypes_Instruction)
 {
     index = 0;
-    instructionLength = 0;
+    sizeInBytes = 0;
     rawBytes = NULL;
     baseAddress = 0;
     instructionType = x86_insn_type_unknown;
@@ -1000,16 +1004,13 @@ uint64_t Instruction::setRelocationInfo(bool isRelative, uint64_t displacementDi
                 __SHOULD_NOT_ARRIVE;
             }
 
-            ASSERT((oldBytes_64 == oldValue_64 || oldBytes_64 + getLength() == oldValue_64)
+            ASSERT((oldBytes_64 == oldValue_64 || oldBytes_64 + getSizeInBytes() == oldValue_64)
                    && "Unexpected discrepancy in operand value");
         }
     }
     return oldValue_64;
 }
 
-uint32_t Instruction::getLength(){
-    return instructionLength;
-}
 
 char* Instruction::getBytes(){
     return rawBytes;
@@ -1020,8 +1021,8 @@ char* Instruction::setBytes(char* bytes){
         PRINT_WARN(2,"Deleting rawBytes");
         delete[] rawBytes;
     }
-    rawBytes = new char[instructionLength];
-    memcpy(rawBytes,bytes,instructionLength);
+    rawBytes = new char[sizeInBytes];
+    memcpy(rawBytes,bytes,sizeInBytes);
     return rawBytes;
 }
 
@@ -1030,18 +1031,18 @@ uint64_t Instruction::setBaseAddress(uint64_t addr){
     return baseAddress;
 }
 
-uint32_t Instruction::setLength(uint32_t len){
+uint32_t Instruction::setSizeInBytes(uint32_t len){
     ASSERT(len <= MAX_X86_INSTRUCTION_LENGTH && "X86 instructions are limited in size");
     if (rawBytes){
         char* newBytes = new char[len];
-        // this could seg fault if len > instructionLength
+        // this could seg fault if len > sizeInBytes
         memcpy(newBytes,rawBytes,len);
         delete[] rawBytes;
         rawBytes = newBytes;
     }
-    instructionLength = len;
+    sizeInBytes = len;
 
-    return instructionLength;
+    return sizeInBytes;
 }
 
 char* Instruction::setDisassembledString(char* disStr){
@@ -1142,10 +1143,10 @@ void Instruction::print(){
 
     PRINT_INFO();
 
-    PRINT_OUT("INSTRUCTION(%d) %15s %5s %7s [%d bytes -- ", index, InstTypeNames[instructionType], relStr, fromStr, instructionLength);
+    PRINT_OUT("INSTRUCTION(%d) %15s %5s %7s [%d bytes -- ", index, InstTypeNames[instructionType], relStr, fromStr, sizeInBytes);
 
     if (rawBytes){
-        for (uint32_t i = 0; i < instructionLength; i++){
+        for (uint32_t i = 0; i < sizeInBytes; i++){
             PRINT_OUT("%02hhx", rawBytes[i]);
         }
     } else {

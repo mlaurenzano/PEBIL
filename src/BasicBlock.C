@@ -7,6 +7,45 @@
 
 #define MAX_SIZE_LINEAR_SEARCH 4096
 
+uint32_t BasicBlock::bloat(uint32_t minBlockSize){
+    int32_t extraBytesNeeded = minBlockSize - getNumberOfBytes();
+    uint32_t currByte = getNumberOfBytes();
+
+    while (extraBytesNeeded > 0){
+        Instruction* extraNoop = Instruction::generateNoop();
+        extraNoop->setBaseAddress(baseAddress+currByte);
+
+        currByte += extraNoop->getSizeInBytes();
+        extraBytesNeeded -= extraNoop->getSizeInBytes();
+        extraNoop->setIndex(instructions.size());
+#ifdef DEBUG_FUNC_RELOC
+        //extraNoop->print();
+#endif
+        instructions.append(extraNoop);
+    }
+    return getNumberOfBytes();
+}
+
+uint32_t BasicBlock::getNumberOfBytes(){
+    uint32_t numberOfBytes = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        numberOfBytes += instructions[i]->getSizeInBytes();
+    }
+    return numberOfBytes;
+}
+
+bool BasicBlock::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isFunctionCall()){
+            uint64_t targetAddr = instructions[i]->getNextAddress();
+            if (targetAddr >= lowAddr && targetAddr < highAddr){
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 uint32_t BasicBlock::getAllInstructions(Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
     PRINT_DEBUG_ANCHOR("\t\tBB allinst address %lx, nexti %d", allinsts, nexti);
@@ -23,7 +62,7 @@ void BasicBlock::setBaseAddress(uint64_t newBaseAddr){
     uint32_t currentOffset = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
         instructions[i]->setBaseAddress(baseAddress + currentOffset);
-        currentOffset += instructions[i]->getLength();
+        currentOffset += instructions[i]->getSizeInBytes();
     }
 }
 
@@ -89,7 +128,7 @@ void BasicBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
         instructions[i]->dump(binaryOutputFile,offset+currByte);
-        currByte += instructions[i]->getLength();
+        currByte += instructions[i]->getSizeInBytes();
     }
     ASSERT(currByte == getBlockSize());
 }
@@ -127,7 +166,7 @@ Instruction* BasicBlock::getInstructionAtAddress(uint64_t addr){
 uint32_t BasicBlock::getBlockSize(){
     uint32_t size = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
-        size += instructions[i]->getLength();
+        size += instructions[i]->getSizeInBytes();
     }
     return size;
 }
@@ -252,7 +291,7 @@ uint64_t BasicBlock::findInstrumentationPoint(uint32_t size, InstLocations loc){
         uint32_t j = i;
         uint32_t instBytes = 0;
         while (j < instructions.size() && instructions[j]->isRelocatable()){
-            instBytes += instructions[j]->getLength();
+            instBytes += instructions[j]->getSizeInBytes();
             j++;
         }
         if (instBytes >= size){
@@ -274,7 +313,7 @@ Vector<Instruction*>* BasicBlock::swapInstructions(uint64_t addr, Vector<Instruc
     // find out how many bytes we need to replace
     uint32_t bytesToReplace = 0;
     for (uint32_t i = 0; i < (*replacements).size(); i++){
-        bytesToReplace += (*replacements)[i]->getLength();
+        bytesToReplace += (*replacements)[i]->getSizeInBytes();
     }
 
     // remove the instructions from the basic block and add them to the return array
@@ -284,7 +323,7 @@ Vector<Instruction*>* BasicBlock::swapInstructions(uint64_t addr, Vector<Instruc
     while (replacedBytes < bytesToReplace){
         (*replaced).append(instructions.remove(idx));
         ASSERT(instructions.size() >= idx && "You ran out of instructions in this block");
-        replacedBytes += (*replaced).back()->getLength();
+        replacedBytes += (*replaced).back()->getSizeInBytes();
     }
 
     while (bytesToReplace < replacedBytes){
@@ -302,7 +341,7 @@ Vector<Instruction*>* BasicBlock::swapInstructions(uint64_t addr, Vector<Instruc
     for (uint32_t i = 0; i < instructions.size(); i++){
         instructions[i]->setIndex(i);
         instructions[i]->setBaseAddress(replacedBytes+baseAddress);
-        replacedBytes += instructions[i]->getLength();
+        replacedBytes += instructions[i]->getSizeInBytes();
     }
 
     verify();

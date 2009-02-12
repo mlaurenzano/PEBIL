@@ -33,8 +33,18 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
+#define RELOCATE_FUNCTIONS
 
-//#define RELOCATE_FUNCTIONS
+Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
+    Vector<AddressAnchor*>* needToUpdate = new Vector<AddressAnchor*>();
+    for (uint32_t i = 0; i < addressAnchors.size(); i++){
+        if (addressAnchors[i]->getLink()->getBaseAddress() == addr){
+            needToUpdate->append(addressAnchors[i]);
+        }
+    }
+    return needToUpdate;
+}
+
 
 uint32_t ElfFileInst::anchorProgramInstructions(){
     uint32_t anchorCount = 0;
@@ -72,42 +82,100 @@ uint32_t ElfFileInst::anchorProgramInstructions(){
             relativeAddress += currentInstruction->getBaseAddress();
             PRINT_DEBUG_ANCHOR("Searching for relative address %llx", relativeAddress);
             void* link = bsearch(&relativeAddress,allInstructions,instructionCount,sizeof(Instruction*),searchInstructionAddress);
-            PRINT_DEBUG_ANCHOR("link addr %lx, array addr %lx", link, allInstructions);
             if (link != NULL){
-                anchorCount++;
                 Instruction* linkedInstruction = *(Instruction**)link;
                 PRINT_DEBUG_ANCHOR("Found instruction link pair");
 
-                if (anchorCount < 20){
-                    currentInstruction->print();
-                    linkedInstruction->print();
-                }
-
                 currentInstruction->initializeAnchor(linkedInstruction);
                 addressAnchors.append(currentInstruction->getAddressAnchor());
-    
+                currentInstruction->getAddressAnchor()->setIndex(anchorCount);
+                anchorCount++;    
             } else {
                 currentInstruction->print();
-                PRINT_ERROR("Relative instruction cannot be linked");
+                PRINT_ERROR("We were unable to link an instruction");
             }
         }
     }
 
     ASSERT(anchorCount == addressAnchors.size());
 
+#ifdef DEBUG_ANCHOR
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        if (i < 20){
-            addressAnchors[i]->print();
+        addressAnchors[i]->print();
+    }
+#endif
+    
+    PRINT_DEBUG_ANCHOR("Found %d instructions that required anchoring", anchorCount);
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+
+    // find the data sections
+    Vector<uint16_t> dataSections;
+    for (uint32_t i = 1; i < elfFile->getNumberOfSections(); i++){
+        if (elfFile->getSectionHeader(i)->getSectionNamePtr()){
+            if (strstr(elfFile->getSectionHeader(i)->getSectionNamePtr(),"data")){
+                PRINT_DEBUG_ANCHOR("Found data section at %d", i);
+                dataSections.append((uint16_t)i);
+            }
+        }
+    }
+
+    uint32_t addrAlign;
+    if (elfFile->is64Bit()){
+        addrAlign = sizeof(uint64_t);
+    } else {
+        addrAlign = sizeof(uint32_t);
+    }
+
+    for (uint32_t i = 0; i < dataSections.size(); i++){
+        RawSection* dataRawSection = elfFile->getRawSection(dataSections[i]);
+        SectionHeader* dataSectionHeader = elfFile->getSectionHeader(dataSections[i]);
+
+        // since there are no constraints on the alignment of stuff in the data sections we must check starting at EVERY byte
+        for (uint32_t currByte = 0; currByte < dataRawSection->getSizeInBytes() - addrAlign; currByte++){
+            char* dataPtr = (char*)(dataRawSection->charStream()+currByte);
+            uint64_t extendedData;
+            if (addrAlign == sizeof(uint64_t)){
+                uint64_t currentData;
+                memcpy(&currentData,dataPtr,addrAlign);
+                extendedData = currentData;
+            } else if (addrAlign == sizeof(uint32_t)){
+                uint32_t currentData;
+                memcpy(&currentData,dataPtr,addrAlign);
+                extendedData = (uint64_t)currentData;
+            } else {
+                __SHOULD_NOT_ARRIVE;
+            }
+            PRINT_DEBUG_ANCHOR("data section %d(%x): extendedData is %#llx", i, dataPtr, extendedData);
+
+            void* link = bsearch(&extendedData,allInstructions,instructionCount,sizeof(Instruction*),searchInstructionAddress);
+            if (link != NULL){
+                Instruction* linkedInstruction = *(Instruction**)link;
+                PRINT_DEBUG_ANCHOR("\t\tFound data to instruction link");
+
+                DataReference* dataRef = new DataReference(extendedData,dataRawSection,elfFile->is64Bit(),currByte);
+                dataRef->initializeAnchor(linkedInstruction);
+                dataRawSection->addDataReference(dataRef);
+
+                anchorCount++;    
+            } else {
+                //PRINT_DEBUG_ANCHOR("found data %#llx not linked to an instruction", extendedData);
+            }
         }
     }
     
-    PRINT_DEBUG_ANCHOR("Found %d instructions that required anchoring", anchorCount);
+    PRINT_DEBUG_ANCHOR("Found %d anchors total", anchorCount);
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+
     delete[] allInstructions;
     return anchorCount;
 }
 
 
-void ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation){
+uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation){
     TextSection* extraText = (TextSection*)elfFile->getRawSection(extraTextIdx);
     TextSection* text = functionToRelocate->getTextSection();
     uint64_t relocationAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + offsetToRelocation;
@@ -118,12 +186,19 @@ void ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t offset
     uint32_t currentByte = 0;
 
     trampEmpty.append(Instruction::generateJumpRelative(functionToRelocate->getBaseAddress(), relocationAddress));
-    currentByte += trampEmpty.back()->getLength();
-    ASSERT(currentByte <= functionToRelocate->getNumberOfBytes() && "Function is not big enough to relocate");
+    currentByte += trampEmpty.back()->getSizeInBytes();
+    trampEmpty.back()->setBaseAddress(functionToRelocate->getBaseAddress());
+    
+    Vector<AddressAnchor*>* modAnchors = searchAddressAnchors(functionToRelocate->getBaseAddress());
+    for (uint32_t j = 0; j < modAnchors->size(); j++){
+        (*modAnchors)[j]->updateLink(trampEmpty.back());
+    }
+    delete modAnchors;
 
+    ASSERT(currentByte <= functionToRelocate->getNumberOfBytes() && "Function is not big enough to relocate");
     while (currentByte < functionSize){
         trampEmpty.append(Instruction::generateNoop());
-        currentByte += trampEmpty.back()->getLength();
+        currentByte += trampEmpty.back()->getSizeInBytes();
     }
 
     placeHolder->generateCFG(trampEmpty.size(),&trampEmpty);
@@ -132,8 +207,17 @@ void ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t offset
     relocatedFunctionOffsets.append(offsetToRelocation);
     ASSERT(relocatedFunctions.size() == relocatedFunctionOffsets.size());
 
+    uint64_t oldBase = placeHolder->getBaseAddress();
+    uint64_t oldSize = placeHolder->getSizeInBytes();
+
     // adjust the base addresses of the relocated function
     placeHolder->setBaseAddress(relocationAddress);
+
+    // bloat the blocks in the function
+    placeHolder->bloatBasicBlocks(SIZE_CONTROL_TRANSFER);
+    PRINT_DEBUG_FUNC_RELOC("Function %s relocation map [%#llx,%#llx) --> [%#llx,%#llx)", placeHolder->getName(), oldBase, oldBase+oldSize, placeHolder->getBaseAddress(), placeHolder->getBaseAddress() + placeHolder->getSizeInBytes());
+
+    return placeHolder->getNumberOfBytes();
 }
 
 // the order of operations in this function in very important, things will break in
@@ -178,9 +262,11 @@ void ElfFileInst::generateInstrumentation(){
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
         if (textSection->getTextObject(i)->isFunction()){
             Function* func = (Function*)textSection->getTextObject(i);
-           
-            relocateFunction(func,codeOffset);
-            codeOffset += func->getNumberOfBytes();
+            if (!func->containsCallToSelf()){
+                codeOffset += relocateFunction(func,codeOffset);
+            } else {
+                PRINT_WARN(6, "Function %s contains a call to itsself, unable to relocate/instrument", func->getName());
+            }
         }
     }
 #endif
@@ -223,6 +309,8 @@ void ElfFileInst::generateInstrumentation(){
         if (!pt){
             PRINT_ERROR("Instrumentation point %d should exist", i);
         }
+        // to disable instruction switching uncomment this
+        //break;
 
         if (!pt->getSourceAddress()){
             PRINT_WARN(4,"Could not find a place to instrument for point %d", i);
@@ -242,22 +330,48 @@ void ElfFileInst::generateInstrumentation(){
         uint32_t bytesUsed = 0;
         for (uint32_t j = 0; j < (*repl).size(); j++){
             (*repl)[j]->setBaseAddress(pt->getSourceAddress()+bytesUsed);
-            bytesUsed += (*repl)[j]->getLength();
+            bytesUsed += (*repl)[j]->getSizeInBytes();
             textSection->getDisassembler()->disassembleInstructionInPlace((*repl)[j]);
 #ifdef DEBUG_INST
             (*repl)[j]->print();
 #endif
         }
 
-        ASSERT((*repl).back()->getLength() == SIZE_NEEDED_AT_INST_POINT ||
-               (*repl).back()->getLength() == SIZE_FIRST_INST_POINT && "Instruction at instrumentation point has a different size than expected");
+        ASSERT((*repl).back()->getSizeInBytes() == SIZE_NEEDED_AT_INST_POINT ||
+               (*repl).back()->getSizeInBytes() == SIZE_FIRST_INST_POINT && "Instruction at instrumentation point has a different size than expected");
 
         Vector<Instruction*>* displaced = pt->swapInstructionsAtPoint(repl);
-        ASSERT((*repl).size());
-        uint64_t displacmentDist = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
-        uint64_t returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getLength();
+
+
+        // for now we recall the anchor for any instruction that got moved, except for call instructions.
+        // calls should still point to their original location because we assume that calls are made only to function
+        // entries and function entry points are left in tact
+        for (uint32_t j = 0; j < (*displaced).size(); j++){
+            if (!(*displaced)[j]->isFunctionCall()){
+                AddressAnchor* recalledAnchor = (*displaced)[j]->getAddressAnchor();
+                if (recalledAnchor){
+                    addressAnchors.remove(recalledAnchor->getIndex());
+                    for (uint32_t k = recalledAnchor->getIndex(); k < addressAnchors.size(); k++){
+                        addressAnchors[k]->setIndex(k);
+                    }
+                    (*displaced)[j]->deleteAnchor();
+                }
+            }
+        }
+
+        // update any address anchor that pointed to the old instruction to point to the new
+        ASSERT((*repl).size() == 1 && "only 1 instruction needed per inst point currently");
+        ASSERT((*displaced).size());
+        Vector<AddressAnchor*>* modAnchors = searchAddressAnchors((*displaced)[0]->getBaseAddress());
+        for (uint32_t j = 0; j < modAnchors->size(); j++){
+            (*modAnchors)[j]->updateLink((*repl)[0]);
+        }
+        delete modAnchors;
+
+        uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
+        uint64_t returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
         
-        pt->generateTrampoline(displaced,codeOffset,returnOffset,elfFile->is64Bit());
+        pt->generateTrampoline(displaced,textBaseAddress,codeOffset,returnOffset,elfFile->is64Bit());
 
         codeOffset += pt->sizeNeeded();
         delete repl;
@@ -317,11 +431,12 @@ void ElfFileInst::generateInstrumentation(){
         }
     }
 
+#ifdef DEBUG_ANCHOR
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        if (i < 20){
             addressAnchors[i]->print();
-        }
     }
+    PRINT_DEBUG_ANCHOR("Still have %d anchors", addressAnchors.size());
+#endif
 
 }
 
@@ -380,11 +495,13 @@ void ElfFileInst::extendDataSection(uint64_t size){
             bssSectionIdx = i;
         }
     }
-    ASSERT(bssSectionIdx != elfFile->getNumberOfSections() && "Could not find the BSS section in the file");
+    ASSERT(bssSectionIdx && "Could not find the BSS section in the file");
     SectionHeader* bssSection = elfFile->getSectionHeader(bssSectionIdx);
+    ASSERT(!strcmp(bssSection->getSectionNamePtr(),".bss") && "BSS section named something other than `.bss'");
 
     extraDataIdx = bssSectionIdx;
     bssReserved = bssSection->GET(sh_size);
+
 
     // increase the memory size of the bss section (note: this section has no size in the file)
     bssSection->INCREMENT(sh_size,size);
@@ -873,6 +990,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
 
     extraTextIdx = 0;
     extraDataIdx = 0;
+    dataIdx = 0;
 
     usableDataOffset = 0;
     bssReserved = 0;

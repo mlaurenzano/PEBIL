@@ -28,27 +28,31 @@ protected:
     BasicBlock* immDominatedBy;
 
     HashCode hashCode;
+    uint64_t baseAddress;
 
     //    MemoryOperation** memoryOps;
     uint32_t numberOfMemoryOps;
     uint32_t numberOfFloatOps;
 
     uint32_t flags;
-    uint64_t baseAddress;
-
 public:
     BasicBlock(uint32_t idx, FlowGraph* cfg);
     ~BasicBlock();
+
+    uint32_t bloat(uint32_t minBlockSize);
 
     void setBaseAddress(uint64_t newBaseAddress);
     uint64_t getBaseAddress() { return baseAddress; }
 
     bool containsOnlyControl();
+    bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);
 
     void printInstructions();
     void print();
     void printSourceBlocks();
     void printTargetBlocks();
+
+    uint32_t getNumberOfBytes();
 
     uint32_t addSourceBlock(BasicBlock* srcBlock);
     uint32_t addTargetBlock(BasicBlock* tgtBlock);

@@ -27,6 +27,7 @@ void BasicBlockCounter::instrument(){
 
     // declare any instrumentation functions that will be used
     InstrumentationFunction* exitFunc = declareFunction(EXIT_FUNCTION);
+    ASSERT(exitFunc && "Cannot find exit function, are you sure it was declared?");
 
     TextSection* text = getTextSection();
     TextSection* fini = getFiniSection();
@@ -48,16 +49,16 @@ void BasicBlockCounter::instrument(){
     for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
         if (text->getTextObject(i)->isFunction()){
             Function* f = (Function*)text->getTextObject(i);
-            for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
-                allBlocks.append(f->getBasicBlock(j));
-                allLineInfos.append(lineInfoFinder->lookupLineInfo(f->getBasicBlock(j)));
+            if (!f->containsCallToSelf()){
+                for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
+                    allBlocks.append(f->getBasicBlock(j));
+                    allLineInfos.append(lineInfoFinder->lookupLineInfo(f->getBasicBlock(j)));
+                }
             }
         }
     }
     ASSERT(allBlocks.size() == allLineInfos.size());
     uint32_t numberOfInstPoints = allBlocks.size();
-
-    ASSERT(exitFunc && "Cannot find exit function, are you sure it was declared?");
 
     // the number blocks in the code
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
@@ -157,7 +158,8 @@ void BasicBlockCounter::instrument(){
             
         // register an instrumentation point at the function that uses this snippet
         if (strcmp(f->getName(),"_start")){
-            if (b->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
+            //if (b->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
+            if (1){
                 InstrumentationPoint* p = addInstrumentationPoint(b,snip,SIZE_CONTROL_TRANSFER);
                 jumpCount++;
             }
@@ -192,7 +194,6 @@ void BasicBlockCounter::instrument(){
     fclose(staticFD);
 
     delete allPoints;
-    PRINT_WARN(3,"Cannot find instrumentation points for %d/%d basic blocks in the code", noInst, numberOfInstPoints);
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }

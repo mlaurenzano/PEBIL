@@ -14,21 +14,21 @@ uint32_t InstrumentationSnippet::addSnippetInstruction(Instruction* inst){
 uint32_t InstrumentationFunction::wrapperSize(){
     uint32_t totalSize = 0;
     for (uint32_t i = 0; i < wrapperInstructions.size(); i++){
-        totalSize += wrapperInstructions[i]->getLength();
+        totalSize += wrapperInstructions[i]->getSizeInBytes();
     }
     return totalSize;
 }
 uint32_t InstrumentationFunction::procedureLinkSize(){
     uint32_t totalSize = 0;
     for (uint32_t i = 0; i < procedureLinkInstructions.size(); i++){
-        totalSize += procedureLinkInstructions[i]->getLength();
+        totalSize += procedureLinkInstructions[i]->getSizeInBytes();
     }
     return totalSize;
 }
 uint32_t Instrumentation::bootstrapSize(){
     uint32_t totalSize = 0;
     for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
-        totalSize += bootstrapInstructions[i]->getLength();
+        totalSize += bootstrapInstructions[i]->getSizeInBytes();
     }
     return totalSize;
 }
@@ -78,17 +78,17 @@ void InstrumentationFunction::dump(BinaryOutputFile* binaryOutputFile, uint32_t 
     uint32_t currentOffset = procedureLinkOffset;
     for (uint32_t i = 0; i < procedureLinkInstructions.size(); i++){
         procedureLinkInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-        currentOffset += procedureLinkInstructions[i]->getLength();
+        currentOffset += procedureLinkInstructions[i]->getSizeInBytes();
     }
     currentOffset = bootstrapOffset;
     for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
         bootstrapInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-        currentOffset += bootstrapInstructions[i]->getLength();
+        currentOffset += bootstrapInstructions[i]->getSizeInBytes();
     }
     currentOffset = wrapperOffset;
     for (uint32_t i = 0; i < wrapperInstructions.size(); i++){
         wrapperInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-        currentOffset += wrapperInstructions[i]->getLength();
+        currentOffset += wrapperInstructions[i]->getSizeInBytes();
     }
 }
 
@@ -168,7 +168,7 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
 
         uint32_t argumentRegister;
 
-        // rdi,rsi,rdx,rcx,r8,r9, then push onto stack
+        // use GPRs rdi,rsi,rdx,rcx,r8,r9, then push onto stack
         switch(idx){
         case 0:
             argumentRegister = X86_REG_DI;
@@ -339,12 +339,12 @@ void InstrumentationSnippet::dump(BinaryOutputFile* binaryOutputFile, uint32_t o
     uint32_t currentOffset = bootstrapOffset;
     for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
         bootstrapInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-        currentOffset += bootstrapInstructions[i]->getLength();
+        currentOffset += bootstrapInstructions[i]->getSizeInBytes();
     }
     currentOffset = snippetOffset;
     for (uint32_t i = 0; i < snippetInstructions.size(); i++){
         snippetInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-        currentOffset += snippetInstructions[i]->getLength();
+        currentOffset += snippetInstructions[i]->getSizeInBytes();
     }
 }
 
@@ -364,7 +364,7 @@ uint32_t InstrumentationSnippet::dataSize(){
 uint32_t InstrumentationSnippet::bootstrapSize(){
     uint32_t totalSize = 0;
     for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
-        totalSize += bootstrapInstructions[i]->getLength();
+        totalSize += bootstrapInstructions[i]->getSizeInBytes();
     }
     return totalSize;    
 }
@@ -372,7 +372,7 @@ uint32_t InstrumentationSnippet::bootstrapSize(){
 uint32_t InstrumentationSnippet::snippetSize(){
     uint32_t totalSize = 0;
     for (uint32_t i = 0; i < snippetInstructions.size(); i++){
-        totalSize += snippetInstructions[i]->getLength();
+        totalSize += snippetInstructions[i]->getSizeInBytes();
     }
     return totalSize;
 }
@@ -438,19 +438,19 @@ void InstrumentationPoint::dump(BinaryOutputFile* binaryOutputFile, uint32_t off
     uint32_t currentOffset = trampolineOffset;
     for (uint32_t i = 0; i < trampolineInstructions.size(); i++){
         trampolineInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-        currentOffset += trampolineInstructions[i]->getLength();
+        currentOffset += trampolineInstructions[i]->getSizeInBytes();
     }
 }
 
 uint32_t InstrumentationPoint::sizeNeeded(){
     uint32_t totalSize = 0;
     for (uint32_t i = 0; i < trampolineInstructions.size(); i++){
-        totalSize += trampolineInstructions[i]->getLength();
+        totalSize += trampolineInstructions[i]->getSizeInBytes();
     }
     return totalSize;
 }
 
-uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, uint64_t offset, uint64_t returnOffset, bool is64bit){
+uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool is64bit){
     ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
 
     trampolineOffset = offset;
@@ -461,16 +461,16 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
     } else {
         trampolineInstructions.append(Instruction32::generateRegSubImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
     }
-    trampolineSize += trampolineInstructions.back()->getLength();
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     PRINT_DEBUG_INST("Generating relative call for trampoline %#llx + %d, %#llx", offset, trampolineSize, getTargetOffset());
     trampolineInstructions.append(Instruction::generateCallRelative(offset+trampolineSize,getTargetOffset()));
-    trampolineSize += trampolineInstructions.back()->getLength();
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     if (is64bit){
         trampolineInstructions.append(Instruction64::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
     } else {
         trampolineInstructions.append(Instruction32::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
     }
-    trampolineSize += trampolineInstructions.back()->getLength();
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
     int32_t numberOfBranches = 0;
     Instruction* relocatedBranch = NULL;
@@ -485,9 +485,10 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
         } else {
             (*insts)[i]->setRelocationInfo(true,displacementDist);
         }
+        (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
         trampolineInstructions.append((*insts)[i]);
-        trampolineSize += trampolineInstructions.back()->getLength();
-        displacedInstructionSize += trampolineInstructions.back()->getLength();
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        displacedInstructionSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
     if (numberOfBranches >= 2){
@@ -499,14 +500,17 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
     ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
 
     trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,returnOffset));
-    trampolineSize += trampolineInstructions.back()->getLength();
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
     if (numberOfBranches){
         ASSERT(relocatedBranch && relocatedBranchOffset);
-        uint64_t oldRelativeOffset = relocatedBranch->setRelocationInfo(false,trampolineSize-relocatedBranchOffset-relocatedBranch->getLength());
+        uint64_t oldRelativeOffset = relocatedBranch->setRelocationInfo(false,trampolineSize-relocatedBranchOffset-relocatedBranch->getSizeInBytes());
+        /*
         trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,
-                                                                        returnOffset+oldRelativeOffset-numberOfBytes+displacedInstructionSize-relocatedBranch->getLength()));
-        trampolineSize += trampolineInstructions.back()->getLength();
+                                                                        returnOffset+oldRelativeOffset-numberOfBytes+displacedInstructionSize-relocatedBranch->getSizeInBytes()));
+        */
+        trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,returnOffset));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
     return trampolineSize;
@@ -538,7 +542,7 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, uint
 }
 
 bool InstrumentationPoint::verify(){
-    if (point->isCodeContainer()){
+    if (point->containsProgramBits()){
         return true;
     }
     PRINT_ERROR("Instrumentation point not allowed to be type %d", point->getType());

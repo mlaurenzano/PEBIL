@@ -171,7 +171,7 @@ uint32_t FreeText::digest(){
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
 
         Instruction* newInstruction = new Instruction();
-        newInstruction->setLength(MAX_X86_INSTRUCTION_LENGTH);
+        newInstruction->setSizeInBytes(MAX_X86_INSTRUCTION_LENGTH);
         newInstruction->setBaseAddress(getBaseAddress() + currByte);
         newInstruction->setBytes(charStream() + currByte);
         newInstruction->setIndex(numberOfInstructions++);
@@ -182,7 +182,7 @@ uint32_t FreeText::digest(){
         if (!instructionLength){
             instructionLength = 1;
         }
-        newInstruction->setLength(instructionLength);
+        newInstruction->setSizeInBytes(instructionLength);
         newInstruction->verify();
 
         instructions.append(newInstruction);
@@ -193,7 +193,7 @@ uint32_t FreeText::digest(){
     // used
     if (currByte > sizeInBytes){
         uint32_t extraBytes = currByte-sizeInBytes;
-        instructions.back()->setLength(instructions.back()->getLength()-extraBytes);
+        instructions.back()->setSizeInBytes(instructions.back()->getSizeInBytes()-extraBytes);
         currByte -= extraBytes;
         PRINT_WARN(3,"Disassembler found instructions that exceed the function boundary in %s by %d bytes", getName(), extraBytes);
     }
@@ -207,7 +207,7 @@ void FreeText::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
         instructions[i]->dump(binaryOutputFile,offset+currByte);
-        currByte += instructions[i]->getLength();
+        currByte += instructions[i]->getSizeInBytes();
     }
     ASSERT(currByte == sizeInBytes && "Size dumped does not match object size");
 }
@@ -511,11 +511,11 @@ uint32_t TextSection::printDisassembledCode(bool instructionDetail){
         fprintf(stdout, "0x%llx:\t", (uint64_t)(sHdr->GET(sh_addr) + currByte));
 
         dummyInstruction = new Instruction();
-        dummyInstruction->setLength(MAX_X86_INSTRUCTION_LENGTH);
+        dummyInstruction->setSizeInBytes(MAX_X86_INSTRUCTION_LENGTH);
         dummyInstruction->setBaseAddress(sHdr->GET(sh_addr) + currByte);
         dummyInstruction->setBytes(charStream() + currByte);
         instructionLength = disassembler->print_insn(instructionAddress, dummyInstruction);
-        dummyInstruction->setLength(instructionLength);
+        dummyInstruction->setSizeInBytes(instructionLength);
         dummyInstruction->setByteSource(ByteSource_Application);
         
         fprintf(stdout, "\t(bytes -- ");

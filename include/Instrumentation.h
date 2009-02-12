@@ -92,6 +92,7 @@ protected:
     uint32_t numberOfArguments;
     uint64_t* argumentOffsets;
     uint32_t* argumentValues;
+
 public:
     InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset);
     ~InstrumentationFunction();
@@ -189,7 +190,7 @@ public:
 
     uint32_t getNumberOfBytes() { return numberOfBytes; }
     uint32_t sizeNeeded();
-    uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t offset, uint64_t returnOffset, bool is64bit);
+    uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool is64bit);
     uint64_t getTrampolineOffset() { return trampolineOffset; }
 
     bool verify();

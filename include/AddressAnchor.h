@@ -2,20 +2,32 @@
 #define _AddressAnchor_h_
 
 #include <Base.h>
-#include <Instruction.h>
 
 class AddressAnchor {
 private:
     Base* link;
-    Instruction* linkedInstruction;
+    Base* linkedParent;
 
     uint64_t getLinkOffset();
+    uint32_t index;
+
+    void dump8(BinaryOutputFile* b, uint32_t offset);
+    void dump16(BinaryOutputFile* b, uint32_t offset);
+    void dump32(BinaryOutputFile* b, uint32_t offset);
+    void dump64(BinaryOutputFile* b, uint32_t offset);
+
+    void dumpInstruction(BinaryOutputFile* b, uint32_t offset);
+    void dumpDataReference(BinaryOutputFile* b, uint32_t offset);
 public:
-    AddressAnchor(Base* lnk, Instruction* par);
+    AddressAnchor(Base* lnk, Base* par);
     ~AddressAnchor();
 
     Base* getLink() { return link; }
-    Instruction* getLinkedInstruction() { return linkedInstruction; }
+    Base* updateLink(Base* newLink);
+    Base* getLinkedParent() { return linkedParent; }
+    uint32_t getIndex() { return index; }
+
+    uint32_t setIndex(uint32_t idx) { index = idx; return index; }
 
     bool verify();
     void print();

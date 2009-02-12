@@ -19,11 +19,14 @@ protected:
     FlowGraph* flowGraph;
 
     HashCode hashCode;
-    uint64_t baseAddress;
-
 public:
     Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz);
     ~Function();
+
+    bool containsCallToSelf();
+    bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);
+
+    uint32_t bloatBasicBlocks(uint32_t minBlockSize);
 
     void setBaseAddress(uint64_t newBaseAddress);
 

@@ -1,10 +1,55 @@
 #include <RawSection.h>
 
+#include <AddressAnchor.h>
 #include <BinaryFile.h>
 #include <Disassembler.h>
 #include <ElfFile.h>
 #include <Instruction.h>
 #include <SectionHeader.h>
+
+RawSection::~RawSection(){
+    for (uint32_t i = 0; i < dataReferences.size(); i++){
+        delete dataReferences[i];
+    }
+}
+
+
+DataReference::DataReference(uint64_t dat, RawSection* rawsect, bool is64, uint32_t off)
+    : Base(ElfClassTypes_DataReference)
+{
+    data = dat;
+    rawSection = rawsect;
+    sectionOffset = off;
+    is64bit = is64;
+    if (is64bit){
+        sizeInBytes = sizeof(uint64_t);
+    } else {
+        sizeInBytes = sizeof(uint32_t);
+    }
+    addressAnchor = NULL;
+}
+
+void DataReference::initializeAnchor(Base* link){
+    ASSERT(!addressAnchor);
+    addressAnchor = new AddressAnchor(link, this);
+}
+
+DataReference::~DataReference(){
+    if (addressAnchor){
+        delete addressAnchor;
+    }
+}
+
+uint64_t DataReference::getBaseAddress(){
+    return rawSection->getSectionHeader()->GET(sh_addr) + sectionOffset;
+}
+
+void DataReference::dump(BinaryOutputFile* b, uint32_t offset){
+    if (addressAnchor){
+        addressAnchor->dump(b,offset);
+    }
+}
+
 
 RawSection::RawSection(ElfClassTypes classType, char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
     : Base(classType),rawDataPtr(rawPtr),sectionIndex(scnIdx),elfFile(elf) 
@@ -37,6 +82,10 @@ void RawSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset)
         PRINT_ERROR("You should implement the dump function for class type %d", getType());
     }
     binaryOutputFile->copyBytes(charStream(),getSizeInBytes(),offset); 
+
+    for (uint32_t i = 0; i < dataReferences.size(); i++){
+        dataReferences[i]->dump(binaryOutputFile,offset);
+    }
 }
 
 void RawSection::printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine){

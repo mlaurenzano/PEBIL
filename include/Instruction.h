@@ -116,7 +116,6 @@ public:
 class Instruction : public Base {
 protected:
     uint32_t index;
-    uint32_t instructionLength;
     char* rawBytes;
     uint64_t baseAddress;
     uint32_t instructionType;
@@ -138,6 +137,7 @@ public:
     bool verify();
 
     void initializeAnchor(Base* link);
+    void deleteAnchor();
     uint64_t getRelativeValue();
     AddressAnchor* getAddressAnchor() { return addressAnchor; }
     
@@ -147,7 +147,6 @@ public:
     uint32_t getIndex() { return index; }
     uint64_t getNextAddress();
     uint64_t getBaseAddress();
-    uint32_t getLength();
     char* getBytes();
     Operand getOperand(uint32_t idx);
     uint32_t getInstructionType() { return instructionType; }
@@ -169,7 +168,7 @@ public:
 
     uint32_t setIndex(uint32_t newidx);
     uint64_t setBaseAddress(uint64_t addr);
-    uint32_t setLength(uint32_t len);
+    uint32_t setSizeInBytes(uint32_t len);
     char* setBytes(char* bytes);
     uint64_t setOperandValue(uint32_t idx, uint64_t val);
     uint32_t setOperandType(uint32_t idx, uint32_t typ);
