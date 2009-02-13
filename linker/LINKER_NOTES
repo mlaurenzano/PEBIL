@@ -13,7 +13,7 @@ should not be noticeable.
 If there isn't enough space prior to the beginning of the text
 section to hold the extra text for instrumentation, it is possible to 
 increase the space prior to the text segment by modifying the line
-that looks similar to these in the linker script
+that looks similar to one of these in the linker script
 PROVIDE (__executable_start = 0x08048000); . = 0x08048000 + SIZEOF_HEADERS;
 PROVIDE (__executable_start = 0x400000); . = 0x400000 + SIZEOF_HEADERS;
 

@@ -132,7 +132,8 @@ HashTable.o: HashTable.C ../include/HashTable.h ../include/RawSection.h \
 Instruction.o: Instruction.C ../include/Instruction.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/CStructuresX86.h ../include/Vector.h \
-  ../include/AddressAnchor.h ../include/BinaryFile.h
+  ../include/AddressAnchor.h ../include/BinaryFile.h \
+  ../include/Disassembler.h
 Instrumentation.o: Instrumentation.C ../include/Instrumentation.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \

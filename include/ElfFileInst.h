@@ -54,6 +54,7 @@ protected:
     Vector<char*> instrumentationLibraries;
     Vector<Function*> relocatedFunctions;
     Vector<uint64_t> relocatedFunctionOffsets;
+
     Vector<AddressAnchor*> addressAnchors;
 
     uint16_t extraTextIdx;

@@ -11,7 +11,7 @@ CC          = $(GNU_CC)
 EXTRA_CFLGS =
 AR          = ar ruv
 RANLIB      = ranlib
-LINKER_FLGS = -Wl,--hash-style=sysv
+#LINKER_FLGS = -Wl,--hash-style=sysv
 
 INCLUDE     = ../include
 SRCDIR      = ../src

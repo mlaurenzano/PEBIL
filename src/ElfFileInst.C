@@ -33,6 +33,8 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
+#define RELOCATE_FUNCTIONS
+
 Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
     Vector<AddressAnchor*>* needToUpdate = new Vector<AddressAnchor*>();
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
@@ -73,41 +75,6 @@ uint32_t ElfFileInst::anchorProgramInstructions(){
     }
 #endif
 
-    for (uint32_t i = 0; i < instructionCount; i++){
-        Instruction* currentInstruction = allInstructions[i];
-        uint64_t relativeAddress = currentInstruction->getRelativeValue();
-        if (relativeAddress){
-            relativeAddress += currentInstruction->getBaseAddress();
-            PRINT_DEBUG_ANCHOR("Searching for relative address %llx", relativeAddress);
-            void* link = bsearch(&relativeAddress,allInstructions,instructionCount,sizeof(Instruction*),searchInstructionAddress);
-            if (link != NULL){
-                Instruction* linkedInstruction = *(Instruction**)link;
-                PRINT_DEBUG_ANCHOR("Found instruction link pair");
-
-                currentInstruction->initializeAnchor(linkedInstruction);
-                addressAnchors.append(currentInstruction->getAddressAnchor());
-                currentInstruction->getAddressAnchor()->setIndex(anchorCount);
-                anchorCount++;    
-            } else {
-                currentInstruction->print();
-                PRINT_ERROR("We were unable to link an instruction");
-            }
-        }
-    }
-
-    ASSERT(anchorCount == addressAnchors.size());
-
-#ifdef DEBUG_ANCHOR
-    for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        addressAnchors[i]->print();
-    }
-#endif
-    
-    PRINT_DEBUG_ANCHOR("Found %d instructions that required anchoring", anchorCount);
-    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
-    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
-    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
-
     // find the data sections
     Vector<uint16_t> dataSections;
     for (uint32_t i = 1; i < elfFile->getNumberOfSections(); i++){
@@ -125,6 +92,76 @@ uint32_t ElfFileInst::anchorProgramInstructions(){
     } else {
         addrAlign = sizeof(uint32_t);
     }
+
+    for (uint32_t i = 0; i < instructionCount; i++){
+        Instruction* currentInstruction = allInstructions[i];
+        uint64_t relativeAddress = currentInstruction->getRelativeValue();
+        if (relativeAddress){
+            relativeAddress += currentInstruction->getBaseAddress();
+            PRINT_DEBUG_ANCHOR("Searching for relative address %llx", relativeAddress);
+            void* link = bsearch(&relativeAddress,allInstructions,instructionCount,sizeof(Instruction*),searchInstructionAddress);
+            if (link != NULL){
+                Instruction* linkedInstruction = *(Instruction**)link;
+                PRINT_DEBUG_ANCHOR("Found inst -> inst link");
+
+                currentInstruction->initializeAnchor(linkedInstruction);
+                addressAnchors.append(currentInstruction->getAddressAnchor());
+                currentInstruction->getAddressAnchor()->setIndex(anchorCount);
+                anchorCount++;    
+            }
+            relativeAddress += currentInstruction->getSizeInBytes();
+	    for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
+
+                RawSection* dataRawSection = elfFile->getRawSection(i);
+                SectionHeader* dataSectionHeader = elfFile->getSectionHeader(i);
+
+                PRINT_DEBUG_ANCHOR("Checking section %d for inst->data link: [%#llx,%#llx)", i, dataSectionHeader->GET(sh_addr), dataSectionHeader->GET(sh_addr) + dataRawSection->getSizeInBytes());
+
+                if (dataRawSection->getType() != ElfClassTypes_TextSection){
+                    PRINT_DEBUG_ANCHOR("\tFound nontext");
+                    if (dataSectionHeader->inRange(relativeAddress)){
+                        PRINT_DEBUG_ANCHOR("Found inst -> data link");
+                        uint64_t sectionOffset = relativeAddress - dataSectionHeader->GET(sh_addr);
+                        uint64_t extendedData;
+                        if (addrAlign == sizeof(uint64_t)){
+                            uint64_t currentData;
+                            memcpy(&currentData,dataRawSection->charStream()+sectionOffset,addrAlign);
+                            extendedData = currentData;
+                        } else if (addrAlign == sizeof(uint32_t)){
+                            uint32_t currentData;
+                            memcpy(&currentData,dataRawSection->charStream()+sectionOffset,addrAlign);
+                            extendedData = (uint64_t)currentData;
+                        } else {
+                            __SHOULD_NOT_ARRIVE;
+                        }
+                        DataReference* dataRef = new DataReference(extendedData,dataRawSection,elfFile->is64Bit(),sectionOffset);
+                        currentInstruction->initializeAnchor(dataRef);
+                        addressAnchors.append(currentInstruction->getAddressAnchor());
+                        currentInstruction->getAddressAnchor()->setIndex(anchorCount);
+                        dataRawSection->addDataReference(dataRef);
+                        anchorCount++;
+                    }
+                }
+	    }
+            if (!currentInstruction->getAddressAnchor()){
+                PRINT_WARN(4,"Unable to link the instruction at %#llx to another object", currentInstruction->getBaseAddress());
+                //currentInstruction->print();
+            }
+        }
+    }
+
+    ASSERT(anchorCount == addressAnchors.size());
+
+#ifdef DEBUG_ANCHOR
+    for (uint32_t i = 0; i < addressAnchors.size(); i++){
+        addressAnchors[i]->print();
+    }
+#endif
+    
+    PRINT_DEBUG_ANCHOR("Found %d instructions that required anchoring", anchorCount);
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
 
     for (uint32_t i = 0; i < dataSections.size(); i++){
         RawSection* dataRawSection = elfFile->getRawSection(dataSections[i]);
@@ -150,7 +187,7 @@ uint32_t ElfFileInst::anchorProgramInstructions(){
             void* link = bsearch(&extendedData,allInstructions,instructionCount,sizeof(Instruction*),searchInstructionAddress);
             if (link != NULL){
                 Instruction* linkedInstruction = *(Instruction**)link;
-                PRINT_DEBUG_ANCHOR("\t\tFound data to instruction link");
+                PRINT_DEBUG_ANCHOR("Found data -> inst link");
 
                 DataReference* dataRef = new DataReference(extendedData,dataRawSection,elfFile->is64Bit(),currByte);
                 dataRef->initializeAnchor(linkedInstruction);
@@ -254,6 +291,7 @@ void ElfFileInst::generateInstrumentation(){
 
     uint64_t codeOffset = 0;
 
+#ifdef RELOCATE_FUNCTIONS
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
         if (textSection->getTextObject(i)->isFunction()){
             Function* func = (Function*)textSection->getTextObject(i);
@@ -264,6 +302,7 @@ void ElfFileInst::generateInstrumentation(){
             }
         }
     }
+#endif
 
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];

@@ -7,6 +7,10 @@
 #include <Instruction.h>
 #include <SectionHeader.h>
 
+void DataReference::print(){
+    PRINT_INFOR("DATAREF: Offset %#x in section %d -- %#llx", sectionOffset, rawSection->getSectionIndex(), data);
+}
+
 RawSection::~RawSection(){
     for (uint32_t i = 0; i < dataReferences.size(); i++){
         delete dataReferences[i];

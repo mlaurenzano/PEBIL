@@ -12,7 +12,7 @@ class Instruction;
 class RawSection;
 class SectionHeader;
 
-class DataReference : Base {
+class DataReference : public Base {
 private:
     uint64_t data;
     uint32_t sectionOffset;
@@ -33,6 +33,7 @@ public:
     bool is64Bit() { return is64bit; }
 
     void dump(BinaryOutputFile* b, uint32_t offset);
+    void print();
 };
 
 
