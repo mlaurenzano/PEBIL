@@ -6,6 +6,7 @@
 
 class AddressAnchor;
 class BinaryOutputFile;
+class Disassembler;
 class ElfFile;
 class TextSection;
 
@@ -115,6 +116,8 @@ public:
 
 class Instruction : public Base {
 protected:
+    Disassembler* disassembler;
+
     uint32_t index;
     char* rawBytes;
     uint64_t baseAddress;
@@ -130,6 +133,7 @@ protected:
     static Instruction* generateInstructionBase(uint32_t sz, char* buf);
 public:
     Instruction();
+    Instruction(Disassembler* disasm, uint64_t baseAddr, char* buff, ByteSources src, uint32_t idx);
     ~Instruction();
 
     uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
@@ -144,7 +148,10 @@ public:
     char* charStream() { return rawBytes; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
+    uint32_t convertTo4ByteOperand();
+
     uint32_t getIndex() { return index; }
+    uint32_t bytesUsedForTarget();
     uint64_t getNextAddress();
     uint64_t getBaseAddress();
     char* getBytes();

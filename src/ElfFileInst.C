@@ -33,8 +33,6 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
-#define RELOCATE_FUNCTIONS
-
 Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
     Vector<AddressAnchor*>* needToUpdate = new Vector<AddressAnchor*>();
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
@@ -225,9 +223,7 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
 void ElfFileInst::generateInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
-#ifdef RELOCATE_FUNCTIONS
     anchorProgramInstructions();
-#endif
 
     uint16_t textIdx = elfFile->findSectionIdx(".text");
     TextSection* textSection = (TextSection*)elfFile->getRawSection(textIdx);
@@ -258,18 +254,16 @@ void ElfFileInst::generateInstrumentation(){
 
     uint64_t codeOffset = 0;
 
-#ifdef RELOCATE_FUNCTIONS
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
         if (textSection->getTextObject(i)->isFunction()){
             Function* func = (Function*)textSection->getTextObject(i);
             if (!func->containsCallToSelf()){
                 codeOffset += relocateFunction(func,codeOffset);
             } else {
-                PRINT_WARN(6, "Function %s contains a call to itsself, unable to relocate/instrument", func->getName());
+                PRINT_WARN(6, "Function %s contains a call to itsself, unable to relocate (meaning full instrumentation may not be possible)", func->getName());
             }
         }
     }
-#endif
 
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
@@ -346,6 +340,7 @@ void ElfFileInst::generateInstrumentation(){
         // for now we recall the anchor for any instruction that got moved, except for call instructions.
         // calls should still point to their original location because we assume that calls are made only to function
         // entries and function entry points are left in tact
+        /*
         for (uint32_t j = 0; j < (*displaced).size(); j++){
             if (!(*displaced)[j]->isFunctionCall()){
                 AddressAnchor* recalledAnchor = (*displaced)[j]->getAddressAnchor();
@@ -358,6 +353,7 @@ void ElfFileInst::generateInstrumentation(){
                 }
             }
         }
+        */
 
         // update any address anchor that pointed to the old instruction to point to the new
         ASSERT((*repl).size() == 1 && "only 1 instruction needed per inst point currently");

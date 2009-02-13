@@ -233,33 +233,15 @@ uint32_t Function::digest(){
 
     delete dummyInstruction;
 
-    /*
-    PRINT_INFOR("Function %s: read %d bytes from function, %d bytes in functions", getName(), currByte, sizeInBytes);
-    if (functionSymbol)
-        functionSymbol->print();
-    */
-
     Instruction** instructions = new Instruction*[numberOfInstructions];
     numberOfInstructions = 0;
+    currByte = 0;
     
-    for (currByte = 0; currByte < sizeInBytes; currByte += instructionLength, numberOfInstructions++){
-        instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
-
-        instructions[numberOfInstructions] = new Instruction();
-        instructions[numberOfInstructions]->setSizeInBytes(MAX_X86_INSTRUCTION_LENGTH);
-        instructions[numberOfInstructions]->setBaseAddress(getBaseAddress() + currByte);
-        instructions[numberOfInstructions]->setProgramAddress(getBaseAddress() + currByte);
-        instructions[numberOfInstructions]->setBytes(charStream() + currByte);
-        instructions[numberOfInstructions]->setByteSource(ByteSource_Application_Function);
-        //        instructions[numberOfInstructions]->setIndex(numberOfInstructions);
-        
-        instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, instructions[numberOfInstructions]);
-        if (!instructionLength){
-            instructionLength = 1;
-        }
-        instructions[numberOfInstructions]->setSizeInBytes(instructionLength);
-        instructions[numberOfInstructions]->verify();
-        //        instructions[numberOfInstructions]->print();
+    while (currByte < sizeInBytes){
+        instructions[numberOfInstructions] = new Instruction(textSection->getDisassembler(), getBaseAddress() + currByte,
+                                                             charStream() + currByte, ByteSource_Application_Function, numberOfInstructions);
+        currByte += instructions[numberOfInstructions++]->getSizeInBytes();
+            
     }
     
     // in case the disassembler found an instruction that exceeds the function boundary, we will

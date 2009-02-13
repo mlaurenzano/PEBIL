@@ -473,45 +473,52 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
     int32_t numberOfBranches = 0;
-    Instruction* relocatedBranch = NULL;
-    uint64_t relocatedBranchOffset = 0;
     uint64_t displacementDist = returnOffset - (offset + trampolineSize + numberOfBytes);
-    uint32_t displacedInstructionSize = 0;
+
+#ifdef DEBUG_FUNC_RELOC
+    if ((*insts).size()){
+        PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for relocation", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
+    }
+#endif
     for (uint32_t i = 0; i < (*insts).size(); i++){
         if ((*insts)[i]->isControl()){
             numberOfBranches++;
-            relocatedBranch = (*insts)[i];
-            relocatedBranchOffset = trampolineSize;
-        } else {
+            if ((*insts)[i]->bytesUsedForTarget() < sizeof(uint32_t)){
+                PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", (*insts)[i]->bytesUsedForTarget());
+                (*insts)[i]->convertTo4ByteOperand();
+            }
+        }
+        /*
+        else {
             (*insts)[i]->setRelocationInfo(true,displacementDist);
         }
+        */
         (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
         trampolineInstructions.append((*insts)[i]);
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-        displacedInstructionSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
-    if (numberOfBranches >= 2){
-        PRINT_WARN(5,"Shouldn't have more than 1 branch in a block, this one has %d");
-        for (uint32_t i = 0; i < (*insts).size(); i++){
-            (*insts)[i]->print();
-        }
-    }
     ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
+
+#ifdef DEBUG_FUNC_RELOC
+    if ((*insts).size()){
+        PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for trampoline", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
+    }
+#endif
 
     trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,returnOffset));
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
+    /*
     if (numberOfBranches){
         ASSERT(relocatedBranch && relocatedBranchOffset);
         uint64_t oldRelativeOffset = relocatedBranch->setRelocationInfo(false,trampolineSize-relocatedBranchOffset-relocatedBranch->getSizeInBytes());
-        /*
         trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,
                                                                         returnOffset+oldRelativeOffset-numberOfBytes+displacedInstructionSize-relocatedBranch->getSizeInBytes()));
-        */
-        trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,returnOffset));
+        trampolineInstructions.append(Instruction::generateJumpRelative(textBaseAddress+offset+trampolineSize,0));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
+    */
 
     return trampolineSize;
 }

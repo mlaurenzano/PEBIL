@@ -354,6 +354,11 @@ typedef enum {
     ByteSource_Total_Types
 } ByteSources;
 
+#define IS_BYTE_SOURCE_APPLICATION(__src) \
+    ((__src == ByteSource_Application) || \
+     (__src == ByteSource_Application_FreeText) || \
+     (__src == ByteSource_Application_Function))
+
 class BinaryInputFile;
 class BinaryOutputFile;
 class Instruction;

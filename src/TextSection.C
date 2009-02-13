@@ -167,25 +167,12 @@ uint32_t FreeText::digest(){
     uint64_t instructionAddress;
 
     uint32_t numberOfInstructions = 0;
-    for (currByte = 0; currByte < sizeInBytes; currByte += instructionLength){
+    while (currByte < sizeInBytes){
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
-
-        Instruction* newInstruction = new Instruction();
-        newInstruction->setSizeInBytes(MAX_X86_INSTRUCTION_LENGTH);
-        newInstruction->setBaseAddress(getBaseAddress() + currByte);
-        newInstruction->setBytes(charStream() + currByte);
-        newInstruction->setIndex(numberOfInstructions++);
-        newInstruction->setByteSource(ByteSource_Application_FreeText);
-        newInstruction->setProgramAddress(baseAddress + currByte);
-        instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, newInstruction);
-
-        if (!instructionLength){
-            instructionLength = 1;
-        }
-        newInstruction->setSizeInBytes(instructionLength);
-        newInstruction->verify();
-
+        Instruction* newInstruction = new Instruction(textSection->getDisassembler(), getBaseAddress() + currByte, 
+                                                      charStream() + currByte, ByteSource_Application_FreeText, numberOfInstructions++);
         instructions.append(newInstruction);
+        currByte += newInstruction->getSizeInBytes();
     }
 
     // in case the disassembler found an instruction that exceeds the function boundary, we will
@@ -498,7 +485,7 @@ uint32_t TextSection::printDisassembledCode(bool instructionDetail){
     PRINT_INFOR("Disassembly output of Section %s(%d)", sHdr->getSectionNamePtr(), sectionIndex);
     uint32_t currentFunction = 0;
 
-    for (currByte = 0; currByte < sHdr->GET(sh_size); currByte += instructionLength, instructionCount++){
+    while (currByte < sHdr->GET(sh_size)){
         if (currentFunction < sortedTextObjects.size()){
             if (sortedTextObjects[currentFunction]->getBaseAddress() <= sHdr->GET(sh_addr) + currByte){
                 sortedTextObjects[currentFunction]->print();
@@ -510,25 +497,22 @@ uint32_t TextSection::printDisassembledCode(bool instructionDetail){
         //fprintf(stdout, "(0x%llx) 0x%llx:\t", (uint64_t)(charStream() + currByte), (uint64_t)(sHdr->GET(sh_addr) + currByte));
         fprintf(stdout, "0x%llx:\t", (uint64_t)(sHdr->GET(sh_addr) + currByte));
 
-        dummyInstruction = new Instruction();
-        dummyInstruction->setSizeInBytes(MAX_X86_INSTRUCTION_LENGTH);
-        dummyInstruction->setBaseAddress(sHdr->GET(sh_addr) + currByte);
-        dummyInstruction->setBytes(charStream() + currByte);
-        instructionLength = disassembler->print_insn(instructionAddress, dummyInstruction);
-        dummyInstruction->setSizeInBytes(instructionLength);
-        dummyInstruction->setByteSource(ByteSource_Application);
+        dummyInstruction = new Instruction(disassembler, sHdr->GET(sh_addr) + currByte, charStream() + currByte, ByteSource_Application, instructionCount);
         
         fprintf(stdout, "\t(bytes -- ");
         uint8_t* bytePtr;
-        for (uint32_t j = 0; j < instructionLength; j++){
+        for (uint32_t j = 0; j < dummyInstruction->getSizeInBytes(); j++){
             bytePtr = (uint8_t*)charStream() + currByte + j;
             fprintf(stdout, "%2.2lx ", *bytePtr);
         }
         fprintf(stdout, ")\n");
-        dummyInstruction->verify();
         if (instructionDetail){
             dummyInstruction->print();
         }
+
+        currByte += dummyInstruction->getSizeInBytes();
+        instructionCount++;
+
         delete dummyInstruction;
     }
     PRINT_INFOR("Found %d instructions (%d bytes) in section %d", instructionCount, currByte, sectionIndex);

@@ -158,22 +158,7 @@ void BasicBlockCounter::instrument(){
             
         // register an instrumentation point at the function that uses this snippet
         if (strcmp(f->getName(),"_start")){
-            //if (b->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
-            if (1){
-                InstrumentationPoint* p = addInstrumentationPoint(b,snip,SIZE_CONTROL_TRANSFER);
-                jumpCount++;
-            }
-            else {
-
-                PRINT_WARN(3,"BLOCK_NOT_INSTRUMENTED: %llx [%d bytes] %s", b->getBaseAddress(), b->getBlockSize(), b->getFunction()->getName());
-                uint32_t noinst_value = NOINST_VALUE;
-                if (!b->containsOnlyControl()){
-                    noInst++;
-                } else {
-                    PRINT_WARN(3,"ONLY CONTROL BLOCK");
-                }
-                initializeReservedData(dataBaseAddress+counterArray+sizeof(uint32_t)*i,sizeof(uint32_t),&noinst_value);
-            }
+            InstrumentationPoint* p = addInstrumentationPoint(b,snip,SIZE_CONTROL_TRANSFER);
         }
 
         char* fileName;

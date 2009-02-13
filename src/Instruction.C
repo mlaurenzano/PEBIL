@@ -4,6 +4,70 @@
 #include <Base.h>
 #include <BinaryFile.h>
 #include <CStructuresX86.h>
+#include <Disassembler.h>
+
+uint32_t Instruction::bytesUsedForTarget(){
+    if (isControl()){
+        if (isBranch() || isConditionalBranch() || isFunctionCall()){
+            return operands[JUMP_TARGET_OPERAND].getBytesUsed();
+        } else {
+            return 0;
+        }
+    }
+    return 0;
+}
+
+uint32_t Instruction::convertTo4ByteOperand(){
+    ASSERT(isControl());
+    ASSERT(rawBytes);
+
+#ifdef DEBUG_INST
+    PRINT_INFOR("Before mod");
+    print();
+#endif
+    if (bytesUsedForTarget() && bytesUsedForTarget() < sizeof(uint32_t)){
+        if (isBranch()){
+            ASSERT(sizeInBytes == 2);
+            ASSERT(addressAnchor);
+            //ASSERT(rawBytes[0] == 0xeb && "Expected a 2-byte jmp opcode here");
+            sizeInBytes += 3;
+            char* newBytes = new char[sizeInBytes];
+            newBytes[0] = rawBytes[0] - 0x02;
+            uint32_t addr = baseAddress - getNextAddress();
+            memcpy(newBytes+1,&addr,sizeof(uint32_t));
+            setBytes(newBytes);
+            operands[JUMP_TARGET_OPERAND].setBytesUsed(sizeof(uint32_t));
+            delete[] newBytes;
+        } else if (isConditionalBranch()){
+            ASSERT(sizeInBytes == 2);
+            ASSERT(addressAnchor);
+            //ASSERT(rawBytes[0] != 0xe3 && "We don't handle jcxz instruction currently");
+            sizeInBytes += 4;
+            char* newBytes = new char[sizeInBytes];
+            newBytes[0] = 0x0f;
+            newBytes[1] = rawBytes[0] + 0x10;
+            uint32_t addr = baseAddress - getNextAddress();
+            memcpy(newBytes+2,&addr,sizeof(uint32_t));
+            setBytes(newBytes);
+            operands[JUMP_TARGET_OPERAND].setBytesUsed(sizeof(uint32_t));
+            operands[JUMP_TARGET_OPERAND].setBytePosition(operands[JUMP_TARGET_OPERAND].getBytePosition()+1);
+            delete[] newBytes;
+        } else if (isFunctionCall()){
+            __FUNCTION_NOT_IMPLEMENTED;
+        } else if (isReturn()){
+            ASSERT(sizeInBytes == 1);
+            // nothing to do since returns dont have target ops
+        } else {
+            PRINT_ERROR("Unknown branch type %d not handled currently", instructionType);
+            __SHOULD_NOT_ARRIVE;
+        }
+    }
+#ifdef DEBUG_INST
+    PRINT_INFOR("After mod");
+    print();
+#endif
+    return sizeInBytes;
+}
 
 int compareInstructionAddress(const void* arg1,const void* arg2){
     Instruction* inst1 = *((Instruction**)arg1);
@@ -117,27 +181,7 @@ bool Instruction::isControl(){
 }
 
 bool Instruction::isRelocatable(){
-//#define SAFE_INST
-#ifdef SAFE_INST
-    if (instructionType == x86_insn_type_cond_branch ||
-        instructionType == x86_insn_type_branch){
-        return false;
-    }
-    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        // we assume an immediate value of this type that isn't a register is an address offset
-        if (operands[i].getType() == x86_operand_type_func_E &&
-            operands[i].getValue() > X86_64BIT_GPRS){
-            return false;
-        }
-        if (operands[i].getType() == x86_operand_type_func_EX &&
-            operands[i].getValue() > X86_64BIT_GPRS){
-            return false;
-        }
-    }
     return true;
-#else
-    return true;
-#endif
 }
 
 void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
@@ -917,11 +961,36 @@ uint64_t Instruction::findInstrumentationPoint(uint32_t size, InstLocations loc)
     __SHOULD_NOT_ARRIVE;
 }
 
-Instruction::Instruction() : 
-    Base(ElfClassTypes_Instruction)
+Instruction::Instruction(Disassembler* disasm, uint64_t baseAddr, char* buff, ByteSources src, uint32_t idx)
+    : Base(ElfClassTypes_Instruction)
 {
+    disassembler = disasm;
+    baseAddress = baseAddr;
+    sizeInBytes = MAX_X86_INSTRUCTION_LENGTH;
+    rawBytes = NULL;
+    setBytes(buff);
+    index = idx;
+    source = src;
+
+    programAddress = 0;
+    if (IS_BYTE_SOURCE_APPLICATION(source)){
+        programAddress = baseAddress;
+    }
+
+    sizeInBytes = disassembler->print_insn((uint64_t)buff, this);
+    if (!sizeInBytes){
+        sizeInBytes = 1;
+    }
+    addressAnchor = NULL;
+    verify();
+}
+
+Instruction::Instruction()
+    : Base(ElfClassTypes_Instruction)
+{
+    disassembler = NULL;
     index = 0;
-    sizeInBytes = 0;
+    sizeInBytes = MAX_X86_INSTRUCTION_LENGTH;
     rawBytes = NULL;
     baseAddress = 0;
     instructionType = x86_insn_type_unknown;
