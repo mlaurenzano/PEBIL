@@ -10,7 +10,7 @@ SRC            = ../../src
 TESTBINS       = .
 32BITBIN       = $(TESTBINS)/32bit/
 64BITBIN       = $(TESTBINS)/64bit/
-LEAKCHECK      = valgrind --leak-check=yes
+#LEAKCHECK      = valgrind --leak-check=yes
 INSTRUMENTOR   = $(LEAKCHECK) $(SRC)/x86inst
 INSTFLAGS      = --lib ../../lib --dtl
 IDEEXT         = ideinst
