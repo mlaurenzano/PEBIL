@@ -6,6 +6,14 @@
 #include <CStructuresX86.h>
 #include <Disassembler.h>
 
+bool Operand::isIndirect(){
+    if (type == x86_operand_type_func_indirE){
+        return true;
+    }
+    return false;
+}
+
+
 uint32_t Instruction::bytesUsedForTarget(){
     if (isControl()){
         if (isBranch() || isConditionalBranch() || isFunctionCall()){
@@ -39,7 +47,11 @@ uint32_t Instruction::convertTo4ByteOperand(){
             operands[JUMP_TARGET_OPERAND].setBytesUsed(sizeof(uint32_t));
             delete[] newBytes;
         } else if (isConditionalBranch()){
-            ASSERT(sizeInBytes == 2);
+            if (sizeInBytes != 2){
+                PRINT_WARN(4,"Conditional Branch with 3 bytes encountered");
+                print();
+            }
+            //            ASSERT(sizeInBytes == 2 || sizeInBytes == 3);
             ASSERT(addressAnchor);
             //ASSERT(rawBytes[0] != 0xe3 && "We don't handle jcxz instruction currently");
             sizeInBytes += 4;
@@ -89,11 +101,12 @@ int searchInstructionAddress(const void* arg1, const void* arg2){
 
     ASSERT(inst && "Instruction should exist");
 
-    uint64_t val = inst->getBaseAddress();
+    uint64_t val_low = inst->getBaseAddress();
+    uint64_t val_high = val_low + inst->getSizeInBytes();
 
-    if (key < val)
+    if (key < val_low)
         return -1;
-    if (key > val)
+    if (key >= val_high)
         return 1;
     return 0;
 }
@@ -109,13 +122,40 @@ bool Instruction::verify(){
         PRINT_ERROR("Cannot have more than one relative operand in an instruction");
         return false;
     }
+    if (instructionType > x86_insn_type_Total){
+        PRINT_ERROR("Instruction type malformed");
+        return false;
+    }
+    /*
+    if (instructionType == x86_insn_type_unknown){
+        PRINT_ERROR("Instruction type unknown");
+        return false;
+    }
+    */
     return true;
+}
+
+bool Instruction::usesIndirectAddress(){
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i].getType() && operands[i].isIndirect()){
+            return true;
+        }
+    }
+    return false;        
+}
+
+bool Instruction::usesRelativeAddress(){
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i].getType() && operands[i].isRelative()){
+            return true;
+        }
+    }
+    return false;    
 }
 
 uint64_t Instruction::getRelativeValue(){
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i].getType() && operands[i].isRelative()){
-            //            operands[i].print();
             return operands[i].getValue();
         }
     }
@@ -129,10 +169,10 @@ void Instruction::deleteAnchor(){
     addressAnchor = NULL;
 }
 
-void Instruction::initializeAnchor(Base* link){
+void Instruction::initializeAnchor(Base* link, uint32_t off){
     ASSERT(!addressAnchor);
     ASSERT(link->containsProgramBits());
-    addressAnchor = new AddressAnchor(link,this);
+    addressAnchor = new AddressAnchor(link,off,this);
 }
 
 uint64_t Instruction::setProgramAddress(uint64_t addr){
@@ -972,6 +1012,8 @@ Instruction::Instruction(Disassembler* disasm, uint64_t baseAddr, char* buff, By
     index = idx;
     source = src;
 
+    instructionType = x86_insn_type_unknown;
+
     programAddress = 0;
     if (IS_BYTE_SOURCE_APPLICATION(source)){
         programAddress = baseAddress;
@@ -1221,7 +1263,7 @@ void Instruction::print(){
     } else {
         PRINT_OUT("NOBYTES");
     }
-    PRINT_OUT("] 0x%llx -> 0x%llx", baseAddress, getNextAddress());
+    PRINT_OUT("] 0x%llx -> 0x%llx (paddr %#llx)", baseAddress, getNextAddress(), getProgramAddress());
     PRINT_OUT("\n");
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){

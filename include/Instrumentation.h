@@ -188,6 +188,8 @@ public:
     uint64_t getTargetOffset() { ASSERT(instrumentation); return instrumentation->getEntryPoint(); }
     Instrumentation* getInstrumentation() { return instrumentation; }
 
+    Base* getSourceObject() { return point; }
+
     uint32_t getNumberOfBytes() { return numberOfBytes; }
     uint32_t sizeNeeded();
     uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool is64bit);

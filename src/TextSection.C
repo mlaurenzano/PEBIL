@@ -9,9 +9,16 @@
 #include <SectionHeader.h>
 #include <SymbolTable.h>
 
+char* TextObject::getName(){
+    if (symbol){
+        return symbol->getSymbolName();
+    }
+    return symbol_without_name;
+}
+
+
 uint32_t FreeText::getAllInstructions(Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
-    PRINT_DEBUG_ANCHOR("\tFT allinst address %lx, nexti %d", allinsts, nexti);
     for (uint32_t i = 0; i < instructions.size(); i++){
         allinsts[i+nexti] = instructions[i];
         instructionCount++;
@@ -21,8 +28,6 @@ uint32_t FreeText::getAllInstructions(Instruction** allinsts, uint32_t nexti){
 
 uint32_t TextSection::getAllInstructions(Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
-    PRINT_DEBUG_ANCHOR("TS allinst address %lx, nexti %d", allinsts, nexti);
-    PRINT_DEBUG_ANCHOR(" text section has %d objects", sortedTextObjects.size());
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         instructionCount += sortedTextObjects[i]->getAllInstructions(allinsts, instructionCount+nexti);
     }
@@ -54,7 +59,7 @@ uint32_t TextSection::getNumberOfBasicBlocks(){
 uint32_t TextSection::getNumberOfInstructions(){
     uint32_t numberOfInstructions = 0;
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
-        numberOfInstructions += ((Function*)sortedTextObjects[i])->getNumberOfInstructions();
+        numberOfInstructions += sortedTextObjects[i]->getNumberOfInstructions();
     }
     return numberOfInstructions;
 }
@@ -199,8 +204,8 @@ void FreeText::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(currByte == sizeInBytes && "Size dumped does not match object size");
 }
 
-FreeText::FreeText(TextSection* text, uint32_t idx, uint64_t addr, uint32_t sz):
-    TextObject(ElfClassTypes_FreeText, text, idx, addr, sz)
+FreeText::FreeText(TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz)
+    : TextObject(ElfClassTypes_FreeText, text, idx, sym, addr, sz)
 {
 }
 
@@ -210,21 +215,6 @@ FreeText::~FreeText(){
     }
 }
 
-void TextUnknown::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    ASSERT(sizeInBytes && "This object has no bytes thus it cannot be dumped");
-    binaryOutputFile->copyBytes(charStream(),sizeInBytes,offset);
-}
-
-uint32_t TextUnknown::digest(){
-    return sizeInBytes;
-}
-
-TextUnknown::TextUnknown(TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz)
-    : TextObject(ElfClassTypes_TextUnknown,text,idx,addr,sz)
-{
-    symbol = sym;
-}
-
 bool TextObject::inRange(uint64_t addr){
     if (addr >= baseAddress && addr < baseAddress + sizeInBytes){
         return true;
@@ -232,21 +222,16 @@ bool TextObject::inRange(uint64_t addr){
     return false;
 }
 
-TextObject::TextObject(ElfClassTypes typ, TextSection* text, uint32_t idx, uint64_t addr, uint32_t sz) :
+TextObject::TextObject(ElfClassTypes typ, TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz) :
     Base(typ)
 {
+    symbol = sym;
     textSection = text;
     index = idx;
     baseAddress = addr;
     sizeInBytes = sz;
 }
 
-char* TextUnknown::getName(){
-    if (symbol){
-        return symbol->getSymbolName();
-    }
-    return symbol_without_name;
-}
 
 uint64_t TextSection::getBaseAddress() { 
     return elfFile->getSectionHeader(sectionIndex)->GET(sh_addr); 
@@ -280,7 +265,7 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
                 sortedTextObjects.append(new Function(this, i, textSymbols[i], size));
                 ASSERT(sortedTextObjects.back()->isFunction());
             } else if (textSymbols[i]->isTextObjectSymbol(this)){
-                sortedTextObjects.append(new TextUnknown(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size));
+                sortedTextObjects.append(new FreeText(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size));
                 ASSERT(!sortedTextObjects.back()->isFunction());
             } else {
                 PRINT_ERROR("Unknown symbol type found to be associated with text section");
@@ -292,20 +277,20 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
         if (textSymbols.back()->isFunctionSymbol(this)){
             sortedTextObjects.append(new Function(this, i, textSymbols.back(), size));
         } else {
-            sortedTextObjects.append(new TextUnknown(this, i, textSymbols.back(), textSymbols.back()->GET(st_value), size));
+            sortedTextObjects.append(new FreeText(this, i, textSymbols.back(), textSymbols.back()->GET(st_value), size));
         }
     }
 
     // this is a text section with no functions (probably the .plt section), so we will put everything into a single textobject
     else{
-        sortedTextObjects.append(new FreeText(this, 0, sectionHeader->GET(sh_addr), sectionHeader->GET(sh_size)));
+        sortedTextObjects.append(new FreeText(this, 0, NULL, sectionHeader->GET(sh_addr), sectionHeader->GET(sh_size)));
     }
-
-    verify();
 
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         sortedTextObjects[i]->digest();
     }
+
+    verify();
 
     return sortedTextObjects.size();
 }

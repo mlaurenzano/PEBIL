@@ -21,9 +21,10 @@ protected:
     TextSection* textSection;
     uint32_t index;
     uint64_t baseAddress;
+    Symbol* symbol;
 
 public:
-    TextObject(ElfClassTypes typ, TextSection* text, uint32_t idx, uint64_t addr, uint32_t sz);
+    TextObject(ElfClassTypes typ, TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz);
     ~TextObject() {}
 
     uint32_t getIndex() { return index; }
@@ -38,25 +39,10 @@ public:
     virtual uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti) { __SHOULD_NOT_ARRIVE; }
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
-    virtual char* getName() { __SHOULD_NOT_ARRIVE; }
+    virtual char* getName();
     virtual uint32_t digest() { __SHOULD_NOT_ARRIVE; }
 
     virtual void print() { __SHOULD_NOT_ARRIVE; }
-};
-
-class TextUnknown : public TextObject {
-protected:
-    Symbol* symbol;
-public:
-    TextUnknown(TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz);
-    ~TextUnknown() {}
-
-    uint32_t getNumberOfInstructions() { __SHOULD_NOT_ARRIVE; }
-    uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti) { __SHOULD_NOT_ARRIVE; }
-
-    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-    char* getName();
-    uint32_t digest();
 };
 
 class FreeText : public TextObject {
@@ -64,11 +50,10 @@ protected:
     Vector<Instruction*> instructions;
 
 public:
-    FreeText(TextSection* text, uint32_t idx, uint64_t addr, uint32_t sz);
+    FreeText(TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz);
     ~FreeText();
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-    char* getName() { return NULL; }
     uint32_t digest();
 
     uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);

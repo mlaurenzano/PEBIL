@@ -6,6 +6,7 @@
 
 #define NOINST_VALUE 0xffffffff
 
+#define PRINT_MINIMUM 1
 
 int32_t functioncounter(void* arg1, void* arg2, void* arg3){
     int32_t i;
@@ -16,9 +17,12 @@ int32_t functioncounter(void* arg1, void* arg2, void* arg3){
     fprintf(stdout, "\n*** Instrumentation Summary ****\n");
     fprintf(stdout, "Raw instrumentation function arguments: %x %x %x\n", arg1, arg2, arg3);
     fprintf(stdout, "There are %d functions in the code:\n", numFunctions);
+    fprintf(stdout, "Printing functions with at least %d executions\n", PRINT_MINIMUM);
 
     for (i = 0; i < numFunctions; i++){
-        fprintf(stdout, "\tFunction(%d) -- %x -- %s -- executed %d times\n", i, functionNames[i], functionNames[i], functionCounts[i]);
+        if (functionCounts[i] >= PRINT_MINIMUM){
+            fprintf(stdout, "\tFunction(%d) -- %x -- %32.32s -- executed %d times\n", i, functionNames[i], functionNames[i], functionCounts[i]);
+        }
     }
 
     fflush(stdout);
@@ -39,10 +43,13 @@ int32_t blockcounter(void* arg1, void* arg2, void* arg3, void* arg4, void* arg5)
     fprintf(stdout, "\n*** Instrumentation Summary ****\n");
     fprintf(stdout, "Raw instrumentation function arguments: %x %x %x %x %x\n", arg1, arg2, arg3, arg4, arg5);
     fprintf(stdout, "There are %d basic blocks in the code:\n", numBlocks);
+    fprintf(stdout, "Printing blocks with at least %d executions\n", PRINT_MINIMUM);
 
     fprintf(stdout, "Index\t\tAddress\t\tLine\t\tCounter\n");
     for (i = 0; i < numBlocks; i++){
-        fprintf(stdout, "%d\t0x%016llx\t%s:%d\t%d\n", i, blockAddrs[i], fileNames[i], lineNumbers[i], functionCounts[i]);
+        if (functionCounts[i] >= PRINT_MINIMUM){
+            fprintf(stdout, "%d\t0x%016llx\t%s:%d\t%d\n", i, blockAddrs[i], fileNames[i], lineNumbers[i], functionCounts[i]);
+        }
         if (functionCounts[i] == NOINST_VALUE){
             excluded++;
         }

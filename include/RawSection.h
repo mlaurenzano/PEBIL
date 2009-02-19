@@ -27,7 +27,7 @@ public:
 
     uint64_t getBaseAddress(); 
     uint32_t getSectionOffset() { return sectionOffset; }
-    void initializeAnchor(Base* link);
+    void initializeAnchor(Base* link, uint32_t off);
     AddressAnchor* getAddressAnchor() { return addressAnchor; }
 
     bool is64Bit() { return is64bit; }

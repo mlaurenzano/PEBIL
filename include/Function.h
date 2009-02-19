@@ -15,7 +15,6 @@ class TextObject;
 
 class Function : public TextObject {
 protected:
-    Symbol* functionSymbol;
     FlowGraph* flowGraph;
 
     HashCode hashCode;
@@ -30,7 +29,7 @@ public:
 
     void setBaseAddress(uint64_t newBaseAddress);
 
-    Symbol* getFunctionSymbol() { return functionSymbol; }
+    Symbol* getFunctionSymbol() { return symbol; }
     uint32_t generateCFG(uint32_t numberOfInstructions, Instruction** instructions);
 
     FlowGraph* getFlowGraph() { return flowGraph; }
@@ -41,7 +40,6 @@ public:
     uint32_t getNumberOfInstructions();
     uint32_t getNumberOfBytes();
 
-    char* getName();
     uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
 
     void printInstructions();

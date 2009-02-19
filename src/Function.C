@@ -38,7 +38,6 @@ bool Function::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
 
 uint32_t Function::getAllInstructions(Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
-    PRINT_DEBUG_ANCHOR("\tFN allinst address %lx, nexti %d", allinsts, nexti);
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         instructionCount += flowGraph->getBlock(i)->getAllInstructions(allinsts, instructionCount+nexti);
     }
@@ -81,13 +80,6 @@ uint32_t Function::getNumberOfBasicBlocks() {
 BasicBlock* Function::getBasicBlock(uint32_t idx){
     ASSERT(flowGraph);
     return flowGraph->getBlock(idx);
-}
-
-char* Function::getName(){
-    if (functionSymbol){
-        return functionSymbol->getSymbolName();
-    }
-    return symbol_without_name;
 }
 
 void Function::printInstructions(){
@@ -241,7 +233,6 @@ uint32_t Function::digest(){
         instructions[numberOfInstructions] = new Instruction(textSection->getDisassembler(), getBaseAddress() + currByte,
                                                              charStream() + currByte, ByteSource_Application_Function, numberOfInstructions);
         currByte += instructions[numberOfInstructions++]->getSizeInBytes();
-            
     }
     
     // in case the disassembler found an instruction that exceeds the function boundary, we will
@@ -252,14 +243,20 @@ uint32_t Function::digest(){
         instructions[numberOfInstructions-1]->setSizeInBytes(instructions[numberOfInstructions-1]->getSizeInBytes()-extraBytes);
         currByte -= extraBytes;
         PRINT_WARN(3,"Disassembler found instructions that exceed the function boundary in %s by %d bytes", getName(), extraBytes);
+        instructions[numberOfInstructions-1]->print();
     }
 
     ASSERT(currByte == sizeInBytes && "Number of bytes read for function does not match function size");
+
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        ASSERT(instructions[i]);
+        instructions[i]->verify();
+    }
+
     generateCFG(numberOfInstructions, instructions);
     delete[] instructions;
 
     ASSERT(flowGraph);
-
     return currByte;
 }
 
@@ -284,13 +281,11 @@ Function::~Function(){
 
 
 Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz)
-    : TextObject(ElfClassTypes_Function,text,idx,sym->GET(st_value),sz)
+    : TextObject(ElfClassTypes_Function,text,idx,sym,sym->GET(st_value),sz)
 {
-    textSection = text;
-    functionSymbol = sym;
+    ASSERT(sym);
 
     flowGraph = NULL;
-
     hashCode = HashCode(text->getSectionIndex(),index);
     PRINT_DEBUG_HASHCODE("Function %d, section %d  Hashcode: 0x%08llx", index, text->getSectionIndex(), hashCode.getValue());
 
@@ -299,9 +294,9 @@ Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz)
 
 
 bool Function::verify(){
-    if (functionSymbol){
-        if (!functionSymbol->isFunctionSymbol(textSection)){
-            functionSymbol->print();
+    if (symbol){
+        if (!symbol->isFunctionSymbol(textSection)){
+            symbol->print();
             PRINT_ERROR("The symbol given for this function does not appear to be a function symbol");
             return false;
         }
@@ -322,5 +317,5 @@ bool Function::verify(){
 
 void Function::print(){
     PRINT_INFOR("Function %s has base address %#llx", getName(), baseAddress);
-    functionSymbol->print();
+    symbol->print();
 }

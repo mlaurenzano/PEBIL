@@ -33,9 +33,9 @@ DataReference::DataReference(uint64_t dat, RawSection* rawsect, bool is64, uint3
     addressAnchor = NULL;
 }
 
-void DataReference::initializeAnchor(Base* link){
+void DataReference::initializeAnchor(Base* link, uint32_t off){
     ASSERT(!addressAnchor);
-    addressAnchor = new AddressAnchor(link, this);
+    addressAnchor = new AddressAnchor(link,off,this);
 }
 
 DataReference::~DataReference(){
@@ -45,7 +45,10 @@ DataReference::~DataReference(){
 }
 
 uint64_t DataReference::getBaseAddress(){
-    return rawSection->getSectionHeader()->GET(sh_addr) + sectionOffset;
+    if (rawSection){
+        return rawSection->getSectionHeader()->GET(sh_addr) + sectionOffset;
+    }
+    return sectionOffset;
 }
 
 void DataReference::dump(BinaryOutputFile* b, uint32_t offset){
@@ -71,6 +74,12 @@ bool RawSection::verify(){
         PRINT_ERROR("RawSection %d HashCode is malformed", (uint32_t)sectionIndex);
         return false;
     }
+    /*
+    if (getSectionHeader()->GET(sh_size) != getSizeInBytes()){
+        PRINT_ERROR("RawSection %d: size of section (%d) does not match section header size (%d)", sectionIndex, getSizeInBytes(), getSectionHeader()->GET(sh_size));
+        return false;
+    }
+    */
     return true;
 }
 

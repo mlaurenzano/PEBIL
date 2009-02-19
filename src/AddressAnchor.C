@@ -8,6 +8,9 @@ Base* AddressAnchor::updateLink(Base* newLink){
     ASSERT(newLink->containsProgramBits());
     Base* oldLink = link;
     link = newLink;
+
+    verify();
+
     return oldLink;
 }
 
@@ -77,17 +80,19 @@ void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t
 
 uint64_t AddressAnchor::getLinkOffset(){
     if (linkedParent->getType() == ElfClassTypes_Instruction){
-        return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
+        return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes() + offsetInLink;
     } else if (linkedParent->getType() == ElfClassTypes_DataReference){
-        return link->getBaseAddress();
-    } else {
-        __FUNCTION_NOT_IMPLEMENTED;
+        return link->getBaseAddress() + offsetInLink;
     }
+    __SHOULD_NOT_ARRIVE;
+    return 0;
 }
 
-AddressAnchor::AddressAnchor(Base* lnk, Base* par){
+AddressAnchor::AddressAnchor(Base* lnk, uint32_t off, Base* par){
     link = lnk;
     linkedParent = par;
+
+    offsetInLink = off;
 
     verify();
 }
@@ -104,6 +109,23 @@ bool AddressAnchor::verify(){
         PRINT_ERROR("Address link base not allowed to be type %d", linkedParent->getType());
         return false;
     }
+
+    if (link->getType() == ElfClassTypes_Instruction){
+        if (offsetInLink >= link->getSizeInBytes()){
+            print();
+            PRINT_ERROR("Offset inside Instruction (%d) shouldn't be more than instruction size (%d)", offsetInLink, link->getSizeInBytes());
+            return false;
+        }
+    } else if (link->getType() == ElfClassTypes_DataReference){
+        if (offsetInLink){
+            PRINT_ERROR("Offset inside DataReference (%d) should be zero -- alignment is not constrained", offsetInLink, link->getSizeInBytes());
+            return false;
+        }
+    } else {
+        PRINT_ERROR("Address link cannot have type %d", link->getType());
+        return false;
+    }
+
     return true;
 }
 

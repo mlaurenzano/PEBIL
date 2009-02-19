@@ -8,6 +8,7 @@
 
 class BasicBlock;
 class BinaryOutputFile;
+class DataReference;
 class Function;
 class Instrumentation;
 class InstrumentationFunction;
@@ -56,6 +57,7 @@ protected:
     Vector<uint64_t> relocatedFunctionOffsets;
 
     Vector<AddressAnchor*> addressAnchors;
+    Vector<DataReference*> specialDataRefs;
 
     uint16_t extraTextIdx;
     uint16_t extraDataIdx;
@@ -84,6 +86,7 @@ protected:
     void extendDataSection(uint64_t size);
     void generateInstrumentation();
     uint32_t relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation);
+    bool isEligibleFunction(Function* func);
 
 public:
     ElfFileInst(ElfFile* elf);
@@ -98,7 +101,7 @@ public:
     void verify();
 
     void phasedInstrumentation();
-    uint32_t anchorProgramInstructions();
+    uint32_t anchorProgramElements();
     Vector<AddressAnchor*>* searchAddressAnchors(uint64_t addr);
 
     TextSection* getTextSection();
@@ -131,6 +134,7 @@ public:
 
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }
+    virtual bool canRelocateFunction() { return true; }
 };
 
 

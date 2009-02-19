@@ -104,6 +104,7 @@ public:
     uint32_t getBytePosition() { return bytePosition; }
     uint32_t getBytesUsed() { return bytesUsed; }
     bool isRelative() { return relative; }
+    bool isIndirect();
 
     uint32_t setType(uint32_t typ);
     uint64_t setValue(uint64_t val);
@@ -140,8 +141,10 @@ public:
     void print();
     bool verify();
 
-    void initializeAnchor(Base* link);
+    void initializeAnchor(Base* link, uint32_t off);
     void deleteAnchor();
+    bool usesRelativeAddress();
+    bool usesIndirectAddress();
     uint64_t getRelativeValue();
     AddressAnchor* getAddressAnchor() { return addressAnchor; }
     

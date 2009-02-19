@@ -8,9 +8,22 @@
 #define MAX_SIZE_LINEAR_SEARCH 4096
 
 uint32_t BasicBlock::bloat(uint32_t minBlockSize){
-    int32_t extraBytesNeeded = minBlockSize - getNumberOfBytes();
-    uint32_t currByte = getNumberOfBytes();
 
+    // convert all branches to use 4byte operands
+    uint32_t currByte = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isControl()){
+            if (instructions[i]->bytesUsedForTarget() < sizeof(uint32_t)){
+                PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", instructions[i]->bytesUsedForTarget());
+                instructions[i]->convertTo4ByteOperand();
+                instructions[i]->setBaseAddress(baseAddress+currByte);
+            }
+        }
+        currByte += instructions[i]->getSizeInBytes();
+    }
+
+    // pad with noops if necessary
+    int32_t extraBytesNeeded = minBlockSize - currByte;
     while (extraBytesNeeded > 0){
         Instruction* extraNoop = Instruction::generateNoop();
         extraNoop->setBaseAddress(baseAddress+currByte);
@@ -48,7 +61,6 @@ bool BasicBlock::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
 
 uint32_t BasicBlock::getAllInstructions(Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
-    PRINT_DEBUG_ANCHOR("\t\tBB allinst address %lx, nexti %d", allinsts, nexti);
     for (uint32_t i = 0; i < instructions.size(); i++){
         allinsts[i+nexti] = instructions[i];
         instructionCount++;
