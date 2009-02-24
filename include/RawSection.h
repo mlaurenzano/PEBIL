@@ -27,7 +27,7 @@ public:
 
     uint64_t getBaseAddress(); 
     uint32_t getSectionOffset() { return sectionOffset; }
-    void initializeAnchor(Base* link, uint32_t off);
+    void initializeAnchor(Base* link);
     AddressAnchor* getAddressAnchor() { return addressAnchor; }
 
     bool is64Bit() { return is64bit; }
@@ -53,7 +53,11 @@ public:
     virtual void print() { __SHOULD_NOT_ARRIVE; }
     virtual bool verify();
 
-    char* charStream() { return rawDataPtr; }
+    char* charStream(uint32_t offset) { ASSERT(offset < sizeInBytes); return (char*)(rawDataPtr+offset); }
+    char* charStream() { return charStream(0); }
+    char* getStreamAtAddress(uint64_t addr);
+    uint64_t getAddressFromOffset(uint32_t offset);
+
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     void printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine);
 

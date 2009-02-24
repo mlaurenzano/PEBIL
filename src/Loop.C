@@ -39,7 +39,7 @@ uint32_t Loop::getAllBlocks(BasicBlock** arr){
     uint32_t arrIdx = 0;
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
     if(blocks->contains(i)){
-        arr[arrIdx++] = flowGraph->getBlock(i);
+        arr[arrIdx++] = flowGraph->getBasicBlock(i);
     }
     }
     return blocks->size();

@@ -23,6 +23,7 @@ private:
     }
 
 public:
+
     Vector(uint32_t cap){
         capacity = cap;
         if (!capacity){
@@ -38,6 +39,16 @@ public:
         elements = new T[capacity];
         numberOfElements = 0;
         sizeIncreaseFactor = DEFAULT_INCREASE_FACTOR;
+    }
+
+    void sort(int (*comparator) (const void*, const void*)){
+        qsort(elements, numberOfElements, sizeof(T), comparator);
+    }
+
+    uint32_t insertSorted(T elt, int (*comparator) (const void*, const void*)){
+        append(elt);
+        qsort(elements, numberOfElements, sizeof(T), comparator);
+        return numberOfElements;
     }
 
     T* operator&(){ return elements; }

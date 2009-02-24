@@ -9,27 +9,46 @@
 #include <Instruction.h>
 #include <LengauerTarjan.h>
 #include <SectionHeader.h>
+#include <Stack.h>
 #include <SymbolTable.h>
 #include <TextSection.h>
 
 uint32_t Function::bloatBasicBlocks(uint32_t minBlockSize){
     uint32_t currByte = 0;
-    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        BasicBlock* bb = flowGraph->getBlock(i);
-        bb->setBaseAddress(baseAddress+currByte);
-        currByte += bb->bloat(minBlockSize);
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
+        CodeBlock* block = flowGraph->getBlock(i);
+        block->setBaseAddress(baseAddress+currByte);
+        if (block->getType() == ElfClassTypes_BasicBlock){
+            ((BasicBlock*)block)->bloat(minBlockSize);
+        } 
+        currByte += block->getBlockSize();
     }
     sizeInBytes = currByte;
     return sizeInBytes;
 }
 
-bool Function::containsCallToSelf(){
-    return containsCallToRange(baseAddress,baseAddress+getNumberOfBytes());
+bool Function::containsDifficultCall(){
+    if (containsCallToRange(baseAddress,baseAddress+getNumberOfBytes())){
+        return true;
+    }
+
+    for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
+        TextObject* tobj = textSection->getTextObject(i);
+        if (tobj->getType() == ElfClassTypes_Function){
+            Function* func = (Function*)tobj;
+            if (!strcmp(func->getName(),"__i686.get_pc_thunk.bx")){
+                if (containsCallToRange(func->getBaseAddress(),func->getBaseAddress()+func->getSizeInBytes())){
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
 
 bool Function::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        if (flowGraph->getBlock(i)->containsCallToRange(lowAddr,highAddr)){
+        if (flowGraph->getBasicBlock(i)->containsCallToRange(lowAddr,highAddr)){
             return true;
         }
     }
@@ -39,7 +58,7 @@ bool Function::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
 uint32_t Function::getAllInstructions(Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        instructionCount += flowGraph->getBlock(i)->getAllInstructions(allinsts, instructionCount+nexti);
+        instructionCount += flowGraph->getBasicBlock(i)->getAllInstructions(allinsts, instructionCount+nexti);
     }
     ASSERT(instructionCount == getNumberOfInstructions());
     return instructionCount;
@@ -79,7 +98,7 @@ uint32_t Function::getNumberOfBasicBlocks() {
 
 BasicBlock* Function::getBasicBlock(uint32_t idx){
     ASSERT(flowGraph);
-    return flowGraph->getBlock(idx);
+    return flowGraph->getBasicBlock(idx);
 }
 
 void Function::printInstructions(){
@@ -88,181 +107,204 @@ void Function::printInstructions(){
 
 void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
-    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
         flowGraph->getBlock(i)->dump(binaryOutputFile,offset+currByte);
+        PRINT_DEBUG_CFG("\tDumping block for function %s at %#llx for %d bytes", getName(), flowGraph->getBlock(i)->getBaseAddress(), flowGraph->getBlock(i)->getBlockSize());
         currByte += flowGraph->getBlock(i)->getBlockSize();
+    }
+    if (currByte != sizeInBytes){
+        PRINT_ERROR("Function %s dumped %d bytes and has %d bytes", getName(), currByte, sizeInBytes);
     }
     ASSERT(currByte == sizeInBytes);
 }
 
+uint32_t Function::digest(){
+    Vector<Instruction*> allInstructions;
+    Instruction* currentInstruction;
+    uint64_t currentAddress = 0;
 
-// we assume that functions can only be entered at the beginning
+    PRINT_DEBUG_CFG("Digesting function %s at [%#llx,%#llx)", getName(), getBaseAddress(), getBaseAddress()+getSizeInBytes());
+
+    Stack<uint64_t> unprocessed = Stack<uint64_t>(sizeInBytes);
+
+    // put the entry point onto stack
+    unprocessed.push(baseAddress);
+
+    // build an array of all reachable instructions
+    while (!unprocessed.empty()){
+        currentAddress = unprocessed.pop();
+
+        void* inst = bsearch(&currentAddress,&allInstructions,allInstructions.size(),sizeof(Instruction*),searchBaseAddress);
+        if (inst){
+            Instruction* tgtInstruction = *(Instruction**)inst;
+            ASSERT(tgtInstruction->getBaseAddress() == currentAddress && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+            continue;
+        }
+        if (!inRange(currentAddress)){
+            PRINT_WARN(6,"In function %s, instruction at address %#llx overruns function bound", getName(), currentAddress);
+            continue;
+        }
+
+        currentInstruction = new Instruction(textSection->getDisassembler(), currentAddress,
+                                             textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0);
+        PRINT_DEBUG_CFG("Finding instruction: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());
+        uint64_t checkAddr = currentInstruction->getBaseAddress();
+
+        allInstructions.insertSorted(currentInstruction,compareBaseAddress);
+
+        // make sure the targets of this branch have not been processed yet
+        uint64_t fallThroughAddr = currentInstruction->getBaseAddress()+currentInstruction->getSizeInBytes();
+        PRINT_DEBUG_CFG("\tChecking FTaddr %#llx", fallThroughAddr);
+        void* fallThrough = bsearch(&fallThroughAddr,&allInstructions,allInstructions.size(),sizeof(Instruction*),searchBaseAddress);
+        if (!fallThrough){
+            if (currentInstruction->controlFallsThrough()){
+                unprocessed.push(fallThroughAddr);
+            }
+        } else {
+            Instruction* tgtInstruction = *(Instruction**)fallThrough;
+            ASSERT(tgtInstruction->getBaseAddress() == fallThroughAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+        }
+        
+        uint64_t controlTargetAddr = currentInstruction->getTargetAddress();
+        PRINT_DEBUG_CFG("\tChecking CTaddr %#llx", fallThroughAddr);
+        void* controlTarget = bsearch(&controlTargetAddr,&allInstructions,allInstructions.size(),sizeof(Instruction*),searchBaseAddress);
+        if (!controlTarget){
+            if (inRange(controlTargetAddr)                 // target address is in this functions also
+                && controlTargetAddr != fallThroughAddr){  // target and fall through are the same, meaning the address is already pushed above
+                unprocessed.push(controlTargetAddr);
+            }
+        } else {
+            Instruction* tgtInstruction = *(Instruction**)controlTarget;
+            ASSERT(tgtInstruction->getBaseAddress() == controlTargetAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+        }
+    }
+
+    Instruction** instructions = new Instruction*[allInstructions.size()];
+    for (uint32_t i = 0; i < allInstructions.size(); i++){
+        instructions[i] = allInstructions[i];
+    }
+    generateCFG(allInstructions.size(),instructions);
+    delete[] instructions;
+}
+
 uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** instructions){
+    BasicBlock* currentBlock = NULL;
+    BasicBlock* entryBlock = NULL;
+    uint32_t numberOfBasicBlocks = 0;
 
-    ASSERT(!flowGraph && "FlowGraph for this function has already been generated");
+    ASSERT(numberOfInstructions);
 
     flowGraph = new FlowGraph(this);
 
-    // cache all addresses for this basic block
-    uint64_t* addressCache = new uint64_t[numberOfInstructions];
-    uint64_t* nextAddressCache = new uint64_t[numberOfInstructions];
-    for (uint32_t i = 0; i < numberOfInstructions; i++){
-        addressCache[i] = instructions[i]->getBaseAddress();
-        nextAddressCache[i] = instructions[i]->getNextAddress();
-    }
+    PRINT_DEBUG_CFG("Building CFG for function %s -- have %d instructions", getName(), numberOfInstructions);
 
-    bool* isLeader = new bool[numberOfInstructions];
+    // find the block leaders
+    instructions[0]->setLeader(true);
     for (uint32_t i = 0; i < numberOfInstructions; i++){
-        isLeader[i] = false;
-    }
-
-    // find leaders based on direct control flow and certain specific types
-    // of indirect flow
-    uint32_t numberOfBasicBlocks = 0;
-    for (uint32_t i = 0; i < numberOfInstructions; i++){
-        if (i == 0){
-            isLeader[i] = true;
-            numberOfBasicBlocks++;
-        }
         if (instructions[i]->isControl()){
-            if (i+1 < numberOfInstructions){
-                if (!isLeader[i+1]){
-                    isLeader[i+1] = true;
-                    numberOfBasicBlocks++;
-                } 
-            }
-            if (inRange(nextAddressCache[i])){
-                for (uint32_t j = 0; j < numberOfInstructions; j++){
-                    if (addressCache[j] == nextAddressCache[i]){
-                        if (!isLeader[j]){
-                            isLeader[j] = true;
-                            numberOfBasicBlocks++;
-                        }
-                        if (i+1 < numberOfInstructions){
-                            if (!isLeader[i+1]){
-                                isLeader[i+1] = true;
-                                numberOfBasicBlocks++;
-                            }
-                        }
-                    }
-                }
+            uint64_t tgtAddr = instructions[i]->getTargetAddress();
+            void* inst = bsearch(&tgtAddr,instructions,numberOfInstructions,sizeof(Instruction*),searchBaseAddress);
+            if (inst){
+                Instruction* tgtInstruction = *(Instruction**)inst;
+                ASSERT(tgtInstruction->getBaseAddress() == tgtAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+                tgtInstruction->setLeader(true);
             }
         }
-
-        if (instructions[i]->isIndirectBranch()){
-            
-            PRINT_DEBUG_CFG("indirect branch found");
-#ifdef DEBUG_CFG
-                instructions[i]->print();
-#endif
+        if (instructions[i]->isConditionalBranch() || 
+            instructions[i]->isSystemCall() ||
+            instructions[i]->isFunctionCall()){
+            uint64_t tgtAddr = instructions[i]->getBaseAddress() + instructions[i]->getSizeInBytes();
+            void* inst = bsearch(&tgtAddr,instructions,numberOfInstructions,sizeof(Instruction*),searchBaseAddress);
+            if (inst){
+                Instruction* tgtInstruction = *(Instruction**)inst;
+                ASSERT(tgtInstruction->getBaseAddress() == tgtAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+                tgtInstruction->setLeader(true);
+            }
         }
     }
 
 
-    delete[] addressCache;
-    delete[] nextAddressCache;
+    entryBlock = new BasicBlock(numberOfBasicBlocks++,flowGraph);
+    currentBlock = entryBlock;
 
-    BasicBlock* currentBlock = NULL;
-    BasicBlock* entry = NULL;
-    numberOfBasicBlocks = 0;
     for (uint32_t i = 0; i < numberOfInstructions; i++){
-        if (isLeader[i]){
-            if (currentBlock){
-                flowGraph->addBlock(currentBlock);
-                numberOfBasicBlocks++;
+        if (instructions[i]->isLeader()){
+            currentBlock = new BasicBlock(numberOfBasicBlocks++,flowGraph);
+            currentBlock->setBaseAddress(instructions[i]->getBaseAddress());
+            if (!flowGraph->getNumberOfBlocks()){
+                entryBlock = currentBlock;
             }
-            currentBlock = new BasicBlock(numberOfBasicBlocks,flowGraph);
-            if (!entry){
-                entry = currentBlock;
-            }
+            flowGraph->addBlock(currentBlock);
+            PRINT_DEBUG_CFG("Starting new Block");
         }
+        PRINT_DEBUG_CFG("\tAdding instruction %#llx with %d bytes", instructions[i]->getBaseAddress(), instructions[i]->getSizeInBytes());
         currentBlock->addInstruction(instructions[i]);
     }
-    flowGraph->addBlock(currentBlock);
-    numberOfBasicBlocks++;
 
-    flowGraph->connectGraph(entry);
-    flowGraph->setImmDominatorBlocks();
-
-#ifdef DEBUG_BASICBLOCK
-    PRINT_DEBUG_BASICBLOCK("****** Printing Blocks for function %s", getName());
-    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        flowGraph->getBlock(i)->print();
-        flowGraph->getBlock(i)->printInstructions();
+#ifdef DEBUG_CFG
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
+        PRINT_INFOR("Have a block at adr %#llx", flowGraph->getBlock(i)->getBaseAddress());
     }
-    PRINT_DEBUG_BASICBLOCK("Found %d instructions in %d basic blocks in function %s", numberOfInstructions, numberOfBasicBlocks, getName());
 #endif
 
-    delete[] isLeader;
-    ASSERT(numberOfBasicBlocks == flowGraph->getNumberOfBasicBlocks());
+    flowGraph->connectGraph(entryBlock);
+    flowGraph->setImmDominatorBlocks();
+
+#ifdef DEBUG_CFG
+    print();
+#endif
+
+    ASSERT(flowGraph->getNumberOfBlocks() == flowGraph->getNumberOfBasicBlocks());
+    ASSERT(flowGraph->getNumberOfBlocks());
+
+    // now find any areas not covered by basic blocks and put them into UnknownBlocks
+    Vector<UnknownBlock*> unknownBlocks;
+    if (flowGraph->getBlock(0)->getBaseAddress() > getBaseAddress()){
+        PRINT_DEBUG_CFG("\tFound UnknownBlock (s) at %#llx + %d bytes", getBaseAddress(), flowGraph->getBlock(0)->getBaseAddress()-getBaseAddress());
+        unknownBlocks.append(new UnknownBlock(unknownBlocks.size(), flowGraph, textSection->getStreamAtAddress(getBaseAddress()),
+                                              flowGraph->getBlock(0)->getBaseAddress()-getBaseAddress(), getBaseAddress()));
+    }
+    for (int32_t i = 0; i < flowGraph->getNumberOfBlocks()-1; i++){
+        uint64_t blockEnds = flowGraph->getBlock(i)->getBaseAddress() + flowGraph->getBlock(i)->getBlockSize();        
+        uint64_t blockBegins = flowGraph->getBlock(i+1)->getBaseAddress();        
+        if (blockEnds < blockBegins){
+            PRINT_DEBUG_CFG("\tFound UnknownBlock (m) at %#llx + %d bytes", blockEnds, blockBegins-blockEnds);
+            unknownBlocks.append(new UnknownBlock(unknownBlocks.size(), flowGraph, textSection->getStreamAtAddress(blockEnds),
+                                                  blockBegins-blockEnds, blockEnds));            
+        }
+    }
+    BasicBlock* lastBlock = (BasicBlock*)flowGraph->getBlock(flowGraph->getNumberOfBlocks()-1);
+    uint64_t blockEnds = lastBlock->getBaseAddress() + lastBlock->getNumberOfBytes();
+    uint64_t funcEnds = getBaseAddress() + getSizeInBytes();
+    if (blockEnds < funcEnds){
+        PRINT_DEBUG_CFG("\tFound UnknownBlock (e) at %#llx + %d bytes", blockEnds, funcEnds-blockEnds);
+        unknownBlocks.append(new UnknownBlock(unknownBlocks.size(), flowGraph, textSection->getStreamAtAddress(blockEnds),
+                                              funcEnds-blockEnds, blockEnds));
+    }
+    for (uint32_t i = 0; i < unknownBlocks.size(); i++){
+#ifdef DEBUG_CFG
+        unknownBlocks[i]->print();
+#endif
+        flowGraph->addBlock(unknownBlocks[i]);
+    }
 
     verify();
-
-    return flowGraph->getNumberOfBasicBlocks();
+    
 }
 
 Instruction* Function::getInstructionAtAddress(uint64_t addr){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        if (flowGraph->getBlock(i)->inRange(addr)){
-            return flowGraph->getBlock(i)->getInstructionAtAddress(addr); 
+        if (flowGraph->getBasicBlock(i)->inRange(addr)){
+            return flowGraph->getBasicBlock(i)->getInstructionAtAddress(addr); 
         }
     }
 
     return NULL;
 }
 
-uint32_t Function::digest(){
-    uint32_t currByte = 0;
-    uint32_t instructionLength = 0;
-    uint64_t instructionAddress;
-    uint32_t numberOfInstructions = 0;
-
-    Instruction* dummyInstruction = new Instruction();
-    for (currByte = 0; currByte < sizeInBytes; currByte += instructionLength, numberOfInstructions++){
-        instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
-        instructionLength = textSection->getDisassembler()->print_insn(instructionAddress, dummyInstruction);
-    }
-
-    delete dummyInstruction;
-
-    Instruction** instructions = new Instruction*[numberOfInstructions];
-    numberOfInstructions = 0;
-    currByte = 0;
-    
-    while (currByte < sizeInBytes){
-        instructions[numberOfInstructions] = new Instruction(textSection->getDisassembler(), getBaseAddress() + currByte,
-                                                             charStream() + currByte, ByteSource_Application_Function, numberOfInstructions);
-        currByte += instructions[numberOfInstructions++]->getSizeInBytes();
-    }
-    
-    // in case the disassembler found an instruction that exceeds the function boundary, we will
-    // reduce the size of the last instruction accordingly so that the extra bytes will not be
-    // used
-    if (currByte > sizeInBytes){
-        uint32_t extraBytes = currByte-sizeInBytes;
-        instructions[numberOfInstructions-1]->setSizeInBytes(instructions[numberOfInstructions-1]->getSizeInBytes()-extraBytes);
-        currByte -= extraBytes;
-        PRINT_WARN(3,"Disassembler found instructions that exceed the function boundary in %s by %d bytes", getName(), extraBytes);
-        instructions[numberOfInstructions-1]->print();
-    }
-
-    ASSERT(currByte == sizeInBytes && "Number of bytes read for function does not match function size");
-
-    for (uint32_t i = 0; i < numberOfInstructions; i++){
-        ASSERT(instructions[i]);
-        instructions[i]->verify();
-    }
-
-    generateCFG(numberOfInstructions, instructions);
-    delete[] instructions;
-
-    ASSERT(flowGraph);
-    return currByte;
-}
-
 uint64_t Function::findInstrumentationPoint(uint32_t size, InstLocations loc){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        uint64_t instAddress = flowGraph->getBlock(i)->findInstrumentationPoint(size,loc);
+        uint64_t instAddress = flowGraph->getBasicBlock(i)->findInstrumentationPoint(size,loc);
         if (instAddress){
             return instAddress;
         }
@@ -273,7 +315,7 @@ uint64_t Function::findInstrumentationPoint(uint32_t size, InstLocations loc){
 Function::~Function(){
     if (flowGraph){
         for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-            delete flowGraph->getBlock(i);
+            delete flowGraph->getBasicBlock(i);
         }
         delete flowGraph;
     }
@@ -301,17 +343,42 @@ bool Function::verify(){
             return false;
         }
     }
-    if (flowGraph){
-        for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-            if (!flowGraph->getBlock(i)->verify()){
-                return false;
-            }
-        }
-    }
     if (!hashCode.isFunction()){
         PRINT_ERROR("Function %d HashCode is malformed", index);
         return false;
     }
+    if (flowGraph){
+        flowGraph->verify();
+        for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+            if (!flowGraph->getBasicBlock(i)->verify()){
+                return false;
+            }
+        }
+        if (getNumberOfBytes() > sizeInBytes){
+            PRINT_ERROR("Function %s has more bytes in BBs (%d) than in its size (%d)", getName(), getNumberOfBytes(), sizeInBytes);
+        }
+        Instruction** allInstructions = new Instruction*[getNumberOfInstructions()];
+        getAllInstructions(allInstructions,0);
+        qsort(allInstructions,getNumberOfInstructions(),sizeof(Instruction*),compareBaseAddress);
+        for (uint32_t i = 0; i < getNumberOfInstructions()-1; i++){
+            if (allInstructions[i+1]->getBaseAddress() && allInstructions[i]->getBaseAddress() == allInstructions[i+1]->getBaseAddress()){
+                allInstructions[i]->print();
+                allInstructions[i+1]->print();
+                PRINT_ERROR("In function %s found the same instruction twice at base address %#llx", getName(), allInstructions[i]->getBaseAddress());
+                return false;
+            }
+        }
+
+        uint32_t numberOfBytes = 0;
+        for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
+            numberOfBytes += flowGraph->getBlock(i)->getBlockSize();
+        }
+        if (numberOfBytes != sizeInBytes){
+            PRINT_ERROR("Bytes in FlowGraph doesn't match function size");
+            return false;
+        }
+    }
+
     return true;
 }
 

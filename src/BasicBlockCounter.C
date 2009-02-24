@@ -49,7 +49,7 @@ void BasicBlockCounter::instrument(){
     for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
         if (text->getTextObject(i)->isFunction()){
             Function* f = (Function*)text->getTextObject(i);
-            if (!f->containsCallToSelf()){
+            if (!f->containsDifficultCall()){
                 for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
                     allBlocks.append(f->getBasicBlock(j));
                     allLineInfos.append(lineInfoFinder->lookupLineInfo(f->getBasicBlock(j)));

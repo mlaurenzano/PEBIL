@@ -99,8 +99,8 @@ Function.o: Function.C ../include/Function.h ../include/BitSet.h \
   ../include/LinkedList.h ../include/BinaryFile.h \
   ../include/Disassembler.h ../include/ElfFile.h ../include/ElfFileInst.h \
   ../include/LengauerTarjan.h ../include/SectionHeader.h \
-  ../include/defines/SectionHeader.d ../include/SymbolTable.h \
-  ../include/defines/SymbolTable.d
+  ../include/defines/SectionHeader.d ../include/Stack.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d
 FunctionCounter.o: FunctionCounter.C ../include/FunctionCounter.h \
   ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \

@@ -8,18 +8,47 @@
 #include <Loop.h>
 #include <Stack.h>
 
+bool FlowGraph::verify(){
+    if (blocks.size()){
+        if (blocks[0]->getBaseAddress() != function->getBaseAddress()){
+            PRINT_ERROR("First block of flowGraph should begin at function start");
+            return false;
+        }
+        if (blocks.back()->getBaseAddress()+blocks.back()->getBlockSize() != function->getBaseAddress()+function->getSizeInBytes()){
+            PRINT_ERROR("Flowgraph of function %s: last block of flowGraph should end (%#llx) at function end (%#llx)", 
+                        function->getName(), blocks.back()->getBaseAddress()+blocks.back()->getBlockSize(),
+                        function->getBaseAddress()+function->getSizeInBytes());
+            return false;
+        }
+    }
+    for (int32_t i = 0; i < blocks.size()-1; i++){
+        if (blocks[i]->getBaseAddress()+blocks[i]->getBlockSize() != blocks[i+1]->getBaseAddress()){
+            PRINT_ERROR("Blocks %d and %d in FlowGraph should be adjacent -- %#llx != %#llx", i, i+1, blocks[i]->getBaseAddress()+blocks[i]->getBlockSize(), blocks[i+1]->getBaseAddress());
+            return false;
+        }
+    }
+    return true;
+}
+
+void FlowGraph::addBlock(CodeBlock* block){
+    if (block->getType() == ElfClassTypes_BasicBlock){
+        basicBlocks.append((BasicBlock*)block);
+    }
+    blocks.insertSorted(block,compareBaseAddress);
+}
+
 void FlowGraph::setBaseAddress(uint64_t newBaseAddr){
     uint64_t currentOffset = 0;
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        basicBlocks[i]->setBaseAddress(newBaseAddr+currentOffset);
-        currentOffset += basicBlocks[i]->getBlockSize();
+    for (uint32_t i = 0; i < blocks.size(); i++){
+        blocks[i]->setBaseAddress(newBaseAddr+currentOffset);
+        currentOffset += blocks[i]->getBlockSize();
     }
 }
 
 uint32_t FlowGraph::getNumberOfBytes(){
     uint32_t numberOfBytes = 0;
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        numberOfBytes += basicBlocks[i]->getBlockSize();
+    for (uint32_t i = 0; i < blocks.size(); i++){
+        numberOfBytes += blocks[i]->getBlockSize();
     }
     return numberOfBytes;
 }
@@ -46,7 +75,7 @@ void FlowGraph::testGraphAvailability(){
         }
     }
 
-    PRINT_INFOR("Graph for function %s has %d/%d bad blocks", function->getName(), badBlocks->size(), basicBlocks.size());
+    PRINT_DEBUG_CFG("Graph for function %s has %d/%d bad blocks", function->getName(), badBlocks->size(), basicBlocks.size());
     BasicBlock** allBadBlocks = badBlocks->duplicateMembers();
     for (uint32_t i = 0; i < badBlocks->size(); i++){
         PRINT_INFOR("block %d @ %llx", allBadBlocks[i]->getIndex(), allBadBlocks[i]->getBaseAddress());
@@ -61,12 +90,22 @@ void FlowGraph::connectGraph(BasicBlock* entry){
     ASSERT(entry);
     entry->setEntry();
 
+    basicBlocks.sort(compareBaseAddress);
+
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        basicBlocks[i]->setIndex(i);
+        for (uint32_t j = 0; j < basicBlocks[i]->getNumberOfInstructions(); j++){
+            basicBlocks[i]->getInstruction(j)->setIndex(j);
+        }
+    }
+
     uint64_t* addressCache = new uint64_t[basicBlocks.size()];
     uint64_t* targetAddressCache = new uint64_t[basicBlocks.size()];
 
     for (uint32_t i = 0; i < basicBlocks.size(); i++){
         addressCache[i] = basicBlocks[i]->getBaseAddress();
         targetAddressCache[i] = basicBlocks[i]->getTargetAddress();
+        PRINT_DEBUG_CFG("caching block addresses %#llx -> %#llx", addressCache[i], targetAddressCache[i]);
     }
 
 
@@ -76,7 +115,7 @@ void FlowGraph::connectGraph(BasicBlock* entry){
             PRINT_DEBUG_CFG("Setting block %d as exit block", i);
             basicBlocks[i]->setExit();
         }
-        if (basicBlocks[i]->passesControlToNext() && i+1 < basicBlocks.size()){
+        if (basicBlocks[i]->controlFallsThrough() && i+1 < basicBlocks.size()){
             if (targetAddressCache[i] != addressCache[i+1]){
                 PRINT_DEBUG_CFG("Adding adjacent blocks to list %d -> %d", i, i+1);
                 basicBlocks[i]->addTargetBlock(basicBlocks[i+1]);
@@ -108,7 +147,7 @@ void FlowGraph::connectGraph(BasicBlock* entry){
         BasicBlock** unreachableBlocks = edgeSet->duplicateMembers();
         for(uint32_t i = 0; i < unreachableCount; i++){
             unreachableBlocks[i]->setNoPath();
-            PRINT_DEBUG_CFG("\tBlock %d is unreachable",unreachableBlocks[i]->getIndex());
+            PRINT_DEBUG_CFG("\tBlock %d at %#llx is unreachable",unreachableBlocks[i]->getIndex(), unreachableBlocks[i]->getBaseAddress());
         }
         delete[] unreachableBlocks;
     }
@@ -343,7 +382,8 @@ void FlowGraph::setImmDominatorBlocks(BasicBlock* root){
         ASSERT(basicBlocks.size());
         root = basicBlocks[0];
     }
-    ASSERT(root && root->isEntry() && "Fatal: The root node should be valid and entry to cfg");
+    ASSERT(root);
+    ASSERT(root->isEntry() && "Fatal: The root node should be valid and entry to cfg");
     for (uint32_t i = 0; i < basicBlocks.size(); i++){
         ASSERT(basicBlocks[i]);
     }

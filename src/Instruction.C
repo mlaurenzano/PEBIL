@@ -6,6 +6,16 @@
 #include <CStructuresX86.h>
 #include <Disassembler.h>
 
+bool Instruction::controlFallsThrough(){
+    if (isHalt()
+        || isReturn()
+        || isUnconditionalBranch()){
+        return false;
+    }
+
+    return true;
+}
+
 bool Operand::isIndirect(){
     if (type == x86_operand_type_func_indirE){
         return true;
@@ -16,7 +26,7 @@ bool Operand::isIndirect(){
 
 uint32_t Instruction::bytesUsedForTarget(){
     if (isControl()){
-        if (isBranch() || isConditionalBranch() || isFunctionCall()){
+        if (isUnconditionalBranch() || isConditionalBranch() || isFunctionCall()){
             return operands[JUMP_TARGET_OPERAND].getBytesUsed();
         } else {
             return 0;
@@ -34,14 +44,17 @@ uint32_t Instruction::convertTo4ByteOperand(){
     print();
 #endif
     if (bytesUsedForTarget() && bytesUsedForTarget() < sizeof(uint32_t)){
-        if (isBranch()){
+        if (isUnconditionalBranch()){
             ASSERT(sizeInBytes == 2);
+            if (!addressAnchor){
+                print();
+            }
             ASSERT(addressAnchor);
             //ASSERT(rawBytes[0] == 0xeb && "Expected a 2-byte jmp opcode here");
             sizeInBytes += 3;
             char* newBytes = new char[sizeInBytes];
             newBytes[0] = rawBytes[0] - 0x02;
-            uint32_t addr = baseAddress - getNextAddress();
+            uint32_t addr = baseAddress - getTargetAddress();
             memcpy(newBytes+1,&addr,sizeof(uint32_t));
             setBytes(newBytes);
             operands[JUMP_TARGET_OPERAND].setBytesUsed(sizeof(uint32_t));
@@ -52,13 +65,16 @@ uint32_t Instruction::convertTo4ByteOperand(){
                 print();
             }
             //            ASSERT(sizeInBytes == 2 || sizeInBytes == 3);
+            if (!addressAnchor){
+                PRINT_ERROR("Instruction at address %#llx (%#llx) should have an address anchor", getBaseAddress(), getProgramAddress());
+            }
             ASSERT(addressAnchor);
             //ASSERT(rawBytes[0] != 0xe3 && "We don't handle jcxz instruction currently");
             sizeInBytes += 4;
             char* newBytes = new char[sizeInBytes];
             newBytes[0] = 0x0f;
             newBytes[1] = rawBytes[0] + 0x10;
-            uint32_t addr = baseAddress - getNextAddress();
+            uint32_t addr = baseAddress - getTargetAddress();
             memcpy(newBytes+2,&addr,sizeof(uint32_t));
             setBytes(newBytes);
             operands[JUMP_TARGET_OPERAND].setBytesUsed(sizeof(uint32_t));
@@ -81,36 +97,6 @@ uint32_t Instruction::convertTo4ByteOperand(){
     return sizeInBytes;
 }
 
-int compareInstructionAddress(const void* arg1,const void* arg2){
-    Instruction* inst1 = *((Instruction**)arg1);
-    Instruction* inst2 = *((Instruction**)arg2);
-    uint64_t vl1 = inst1->getBaseAddress();
-    uint64_t vl2 = inst2->getBaseAddress();
-
-    if(vl1 < vl2)
-        return -1;
-    if(vl1 > vl2)
-        return 1;
-    return 0;
-}
-
-
-int searchInstructionAddress(const void* arg1, const void* arg2){
-    uint64_t key = *((uint64_t*)arg1);
-    Instruction* inst = *((Instruction**)arg2);
-
-    ASSERT(inst && "Instruction should exist");
-
-    uint64_t val_low = inst->getBaseAddress();
-    uint64_t val_high = val_low + inst->getSizeInBytes();
-
-    if (key < val_low)
-        return -1;
-    if (key >= val_high)
-        return 1;
-    return 0;
-}
-
 bool Instruction::verify(){
     uint32_t relCount = 0;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
@@ -126,6 +112,11 @@ bool Instruction::verify(){
         PRINT_ERROR("Instruction type malformed");
         return false;
     }
+    if (instructionType == x86_insn_type_bad){
+        PRINT_ERROR("Instruction type bad -- likely a misinterpretation of data as instructions or an error in control flow");
+        return false;
+    }
+
     /*
     if (instructionType == x86_insn_type_unknown){
         PRINT_ERROR("Instruction type unknown");
@@ -169,10 +160,10 @@ void Instruction::deleteAnchor(){
     addressAnchor = NULL;
 }
 
-void Instruction::initializeAnchor(Base* link, uint32_t off){
+void Instruction::initializeAnchor(Base* link){
     ASSERT(!addressAnchor);
     ASSERT(link->containsProgramBits());
-    addressAnchor = new AddressAnchor(link,off,this);
+    addressAnchor = new AddressAnchor(link,this);
 }
 
 uint64_t Instruction::setProgramAddress(uint64_t addr){
@@ -217,7 +208,7 @@ uint32_t Instruction::getIndirectBranchTarget(){
 }
 
 bool Instruction::isControl(){
-    return  (isConditionalBranch() || isBranch() || isSystemCall() || isFunctionCall() || isReturn());
+    return  (isConditionalBranch() || isUnconditionalBranch() || isSystemCall() || isFunctionCall() || isReturn());
 }
 
 bool Instruction::isRelocatable(){
@@ -938,7 +929,7 @@ bool Instruction::setOperandRelative(uint32_t idx, bool rel){
     return operands[idx].setRelative(rel);
 }
 
-uint64_t Instruction::getNextAddress(){
+uint64_t Instruction::getTargetAddress(){
     uint64_t nextAddress;
     if (instructionType == x86_insn_type_branch ||
         instructionType == x86_insn_type_cond_branch ||
@@ -1011,6 +1002,7 @@ Instruction::Instruction(Disassembler* disasm, uint64_t baseAddr, char* buff, By
     setBytes(buff);
     index = idx;
     source = src;
+    leader = false;
 
     instructionType = x86_insn_type_unknown;
 
@@ -1219,6 +1211,7 @@ void Operand::print(){
 
 const char* InstTypeNames[] = {
     "type_unknown",
+    "type_bad",
     "type_cond_branch",
     "type_branch",
     "type_call",
@@ -1229,6 +1222,7 @@ const char* InstTypeNames[] = {
     "type_io",
     "type_prefetch",
     "type_syscall",
+    "type_halt",
     "type_hwcount",
     "type_noop",
     "type_trap"
@@ -1263,7 +1257,7 @@ void Instruction::print(){
     } else {
         PRINT_OUT("NOBYTES");
     }
-    PRINT_OUT("] 0x%llx -> 0x%llx (paddr %#llx)", baseAddress, getNextAddress(), getProgramAddress());
+    PRINT_OUT("] 0x%llx -> 0x%llx (paddr %#llx)", baseAddress, getTargetAddress(), getProgramAddress());
     PRINT_OUT("\n");
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
@@ -1285,14 +1279,37 @@ uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
     case 0x10: case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
     case 0x18: case 0x19: case 0x1a: case 0x1b: case 0x1c: case 0x1d: case 0x1e: case 0x1f:
     case 0x20: case 0x21: case 0x22: case 0x23: case 0x24: case 0x25: case 0x26: case 0x27:
-    case 0x28: case 0x29: case 0x2a: case 0x2b: case 0x2c: case 0x2d: case 0x2e: case 0x2f:
-    case 0x30: case 0x31: case 0x32: case 0x33: case 0x34: case 0x35: case 0x36: case 0x37:
-    case 0x38: case 0x39: case 0x3a: case 0x3b: case 0x3c: case 0x3d: case 0x3e: case 0x3f:
+    case 0x28: case 0x29: case 0x2a: case 0x2b: case 0x2c: case 0x2d: 
+        typ = x86_insn_type_int;
+        break;
+    case 0x2e: 
+        typ = x86_insn_type_bad;
+        break;
+    case 0x2f:
+    case 0x30: case 0x31: case 0x32: case 0x33: case 0x34: case 0x35: 
+        typ = x86_insn_type_int;
+        break;
+    case 0x36: 
+        typ = x86_insn_type_bad;
+        break;
+    case 0x37:
+    case 0x38: case 0x39: case 0x3a: case 0x3b: case 0x3c: case 0x3d: 
+        typ = x86_insn_type_int;
+        break;
+    case 0x3e: 
+        typ = x86_insn_type_bad;
+        break;
+    case 0x3f:
     case 0x40: case 0x41: case 0x42: case 0x43: case 0x44: case 0x45: case 0x46: case 0x47:
     case 0x48: case 0x49: case 0x4a: case 0x4b: case 0x4c: case 0x4d: case 0x4e: case 0x4f:
     case 0x50: case 0x51: case 0x52: case 0x53: case 0x54: case 0x55: case 0x56: case 0x57:
     case 0x58: case 0x59: case 0x5a: case 0x5b: case 0x5c: case 0x5d: case 0x5e: case 0x5f:
-    case 0x60: case 0x61: case 0x62: case 0x63: case 0x64: case 0x65: case 0x66: case 0x67:
+    case 0x60: case 0x61: case 0x62: case 0x63: 
+        typ = x86_insn_type_int;
+        break;
+    case 0x64: case 0x65: case 0x66: case 0x67:
+        typ = x86_insn_type_bad;
+        break;
     case 0x68: case 0x69: case 0x6a: case 0x6b:
         typ = x86_insn_type_int;
         break;
@@ -1303,7 +1320,13 @@ uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
     case 0x78: case 0x79: case 0x7a: case 0x7b: case 0x7c: case 0x7d: case 0x7e: case 0x7f:
         typ = x86_insn_type_cond_branch;
         break;
-    case 0x80: case 0x81: case 0x82: case 0x83: case 0x84: case 0x85: case 0x86: case 0x87:
+    case 0x80: case 0x81: 
+        typ = x86_insn_type_int;
+        break;
+    case 0x82: 
+        typ = x86_insn_type_bad;
+        break;
+    case 0x83: case 0x84: case 0x85: case 0x86: case 0x87:
     case 0x88: case 0x89: case 0x8a: case 0x8b: case 0x8c: case 0x8d: case 0x8e: case 0x8f:
         typ = x86_insn_type_int;
         break;
@@ -1313,8 +1336,11 @@ uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
     case 0x91: case 0x92: case 0x93: case 0x94: case 0x95: case 0x96: case 0x97:
         typ = x86_insn_type_int;
         break;
-    case 0x98: case 0x99: case 0x9a: case 0x9b:
+    case 0x98: case 0x99: case 0x9a: 
         typ = x86_insn_type_call;
+        break;
+    case 0x9b:
+        typ = x86_insn_type_bad;
         break;
     case 0x9c: case 0x9d: case 0x9e: case 0x9f:
     case 0xa0: case 0xa1: case 0xa2: case 0xa3: case 0xa4: case 0xa5: case 0xa6: case 0xa7:
@@ -1341,7 +1367,13 @@ uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
     case 0xcf:
         typ = x86_insn_type_return; // return
         break;
-    case 0xd0: case 0xd1: case 0xd2: case 0xd3: case 0xd4: case 0xd5: case 0xd6: case 0xd7:
+    case 0xd0: case 0xd1: case 0xd2: case 0xd3: case 0xd4: case 0xd5: 
+        typ = x86_insn_type_int;
+        break;
+    case 0xd6: 
+        typ = x86_insn_type_bad;
+        break;
+    case 0xd7:
         typ = x86_insn_type_int;
         break;
     case 0xd8: case 0xd9: case 0xda: case 0xdb: case 0xdc: case 0xdd: case 0xde: case 0xdf:
@@ -1362,7 +1394,13 @@ uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
     case 0xec: case 0xed: case 0xee: case 0xef:
         typ = x86_insn_type_io;
         break;
-    case 0xf0: case 0xf1: case 0xf2: case 0xf3: case 0xf4: case 0xf5: case 0xf6: case 0xf7:
+    case 0xf0: case 0xf1: case 0xf2: case 0xf3: 
+        typ = x86_insn_type_bad;
+        break;
+    case 0xf4: 
+        typ = x86_insn_type_halt;
+        break;
+    case 0xf5: case 0xf6: case 0xf7:
         typ = x86_insn_type_syscall;
         break;
     case 0xf8: case 0xf9: case 0xfa: case 0xfb: case 0xfc: case 0xfd: case 0xfe: case 0xff:

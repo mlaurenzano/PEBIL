@@ -1,5 +1,50 @@
 #include <Base.h>
 
+int compareBaseAddress(const void* arg1,const void* arg2){
+    Base* inst1 = *((Base**)arg1);
+    Base* inst2 = *((Base**)arg2);
+    uint64_t vl1 = inst1->getBaseAddress();
+    uint64_t vl2 = inst2->getBaseAddress();
+
+    if(vl1 < vl2)
+        return -1;
+    if(vl1 > vl2)
+        return 1;
+    return 0;
+}
+
+int searchBaseAddressExact(const void* arg1, const void* arg2){
+    uint64_t key = *((uint64_t*)arg1);
+    Base* inst = *((Base**)arg2);
+
+    ASSERT(inst && "Base should exist");
+
+    uint64_t val = inst->getBaseAddress();
+
+    if (key < val)
+        return -1;
+    if (key > val)
+        return 1;
+    return 0;
+}
+
+int searchBaseAddress(const void* arg1, const void* arg2){
+    uint64_t key = *((uint64_t*)arg1);
+    Base* inst = *((Base**)arg2);
+
+    ASSERT(inst && "Base should exist");
+
+    uint64_t val_low = inst->getBaseAddress();
+    uint64_t val_high = val_low + inst->getSizeInBytes();
+
+    if (key < val_low)
+        return -1;
+    if (key >= val_high)
+        return 1;
+    return 0;
+}
+
+
 extern bool isPowerOfTwo(uint32_t n){
     uint32_t currVal = 1;
     for (uint32_t i = 0; i < sizeof(uint32_t) * 8; i++){

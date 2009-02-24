@@ -7,6 +7,11 @@
 #include <Instruction.h>
 #include <SectionHeader.h>
 
+char* RawSection::getStreamAtAddress(uint64_t addr){
+    uint32_t offset = addr - getSectionHeader()->GET(sh_addr);
+    return charStream(offset);
+}
+
 void DataReference::print(){
     PRINT_INFOR("DATAREF: Offset %#x in section %d -- %#llx", sectionOffset, rawSection->getSectionIndex(), data);
 }
@@ -33,9 +38,9 @@ DataReference::DataReference(uint64_t dat, RawSection* rawsect, bool is64, uint3
     addressAnchor = NULL;
 }
 
-void DataReference::initializeAnchor(Base* link, uint32_t off){
+void DataReference::initializeAnchor(Base* link){
     ASSERT(!addressAnchor);
-    addressAnchor = new AddressAnchor(link,off,this);
+    addressAnchor = new AddressAnchor(link,this);
 }
 
 DataReference::~DataReference(){
@@ -94,10 +99,12 @@ void RawSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset)
         getType() != ElfClassTypes_DwarfSection && getType() != ElfClassTypes_DwarfLineInfoSection){
         PRINT_ERROR("You should implement the dump function for class type %d", getType());
     }
-    binaryOutputFile->copyBytes(charStream(),getSizeInBytes(),offset); 
 
-    for (uint32_t i = 0; i < dataReferences.size(); i++){
-        dataReferences[i]->dump(binaryOutputFile,offset);
+    if (getSectionHeader()->hasBitsInFile() && getSizeInBytes()){
+        binaryOutputFile->copyBytes(charStream(),getSizeInBytes(),offset); 
+        for (uint32_t i = 0; i < dataReferences.size(); i++){
+            dataReferences[i]->dump(binaryOutputFile,offset);
+        }
     }
 }
 

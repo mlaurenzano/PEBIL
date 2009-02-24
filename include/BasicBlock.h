@@ -9,7 +9,47 @@
 class Function;
 class Instruction;
 
-class BasicBlock : public Base {
+class CodeBlock : public Base {
+protected:
+    uint32_t index;
+    FlowGraph* flowGraph;
+    uint64_t baseAddress;
+
+public:
+    CodeBlock(ElfClassTypes typ, uint32_t idx, FlowGraph* cfg);
+    ~CodeBlock() {}
+
+    virtual uint32_t getBlockSize() { __SHOULD_NOT_ARRIVE; return 0; }
+    virtual void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
+    virtual bool verify() { __SHOULD_NOT_ARRIVE; }
+    virtual void setBaseAddress(uint64_t addr) { __SHOULD_NOT_ARRIVE; }
+    virtual void print() { __SHOULD_NOT_ARRIVE; }
+
+    uint64_t getBaseAddress() { return baseAddress; }
+    uint32_t getIndex() { return index; }
+    virtual void setIndex(uint32_t idx) { index = idx; }
+};
+
+class UnknownBlock : public CodeBlock {
+private:
+    char* rawBytes;
+public:
+    UnknownBlock(uint32_t idx, FlowGraph* cfg, char* byt, uint32_t sz, uint64_t addr);
+    ~UnknownBlock();
+
+    char* charStream() { return rawBytes; }
+    uint64_t getBaseAddress() { return baseAddress; }
+    uint32_t getBlockSize() { return getSizeInBytes(); }
+
+    void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    bool verify() { return true; }
+
+    void setBaseAddress(uint64_t addr) { baseAddress = addr; }
+    void print();
+};
+
+
+class BasicBlock : public CodeBlock {
 private:
     const static uint32_t PaddingMask      = 0x1;
     const static uint32_t EntryMask        = 0x2;
@@ -18,17 +58,12 @@ private:
     const static uint32_t NoPathMask       = 0x10;
 
 protected:
-    uint32_t index;
-
-    FlowGraph* flowGraph;
-    
     Vector<Instruction*> instructions;
     Vector<BasicBlock*> sourceBlocks;
     Vector<BasicBlock*> targetBlocks;
     BasicBlock* immDominatedBy;
 
     HashCode hashCode;
-    uint64_t baseAddress;
 
     //    MemoryOperation** memoryOps;
     uint32_t numberOfMemoryOps;
@@ -42,7 +77,6 @@ public:
     uint32_t bloat(uint32_t minBlockSize);
 
     void setBaseAddress(uint64_t newBaseAddress);
-    uint64_t getBaseAddress() { return baseAddress; }
 
     bool containsOnlyControl();
     bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);
@@ -66,7 +100,7 @@ public:
 
     uint32_t addInstruction(Instruction* inst);
 
-    bool passesControlToNext();
+    bool controlFallsThrough();
     bool findExitInstruction();
 
     uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
@@ -79,7 +113,6 @@ public:
 
     uint32_t getBlockSize();
     uint64_t getTargetAddress();
-    uint32_t getIndex() { return index; }
     uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
 
     uint32_t getNumberOfInstructions() { return instructions.size(); }
@@ -98,6 +131,8 @@ public:
     uint32_t setOnlyCtrl() { flags |= OnlyCtrlMask; return flags; }
     uint32_t setNoPath()   { flags |= NoPathMask; return flags; }
 
+    void setIndex(uint32_t idx);
+
     bool isUnreachable() { return isNoPath(); }
     bool isReachable() { return !isNoPath(); }
 
@@ -108,7 +143,6 @@ public:
     bool isDominatedBy(BasicBlock* bb);
     BasicBlock* getSourceBlock(uint32_t idx) { return sourceBlocks[idx]; }
     BasicBlock* getTargetBlock(uint32_t idx) { return targetBlocks[idx]; }
-    void setIndex(uint32_t idx);
 
     void findMemoryFloatOps();
     void setImmDominator(BasicBlock* bb) { immDominatedBy = bb; }

@@ -30,6 +30,7 @@ enum x86_insn_format {
 
 enum x86_insn_type {
     x86_insn_type_unknown = 0,
+    x86_insn_type_bad,
     x86_insn_type_cond_branch,
     x86_insn_type_branch,
     x86_insn_type_call,
@@ -40,6 +41,7 @@ enum x86_insn_type {
     x86_insn_type_io,
     x86_insn_type_prefetch,
     x86_insn_type_syscall,
+    x86_insn_type_halt,
     x86_insn_type_hwcount,
     x86_insn_type_noop,
     x86_insn_type_trap,
@@ -125,6 +127,7 @@ protected:
     uint32_t instructionType;
     char disassembledString[MAX_DISASM_STR_LENGTH];
     Operand operands[MAX_OPERANDS];    
+    bool leader;
 
     uint64_t programAddress;
     ByteSources source;
@@ -141,7 +144,10 @@ public:
     void print();
     bool verify();
 
-    void initializeAnchor(Base* link, uint32_t off);
+    void setLeader(bool lead) { leader = lead; }
+    bool isLeader() { return leader; }
+
+    void initializeAnchor(Base* link);
     void deleteAnchor();
     bool usesRelativeAddress();
     bool usesIndirectAddress();
@@ -155,22 +161,24 @@ public:
 
     uint32_t getIndex() { return index; }
     uint32_t bytesUsedForTarget();
-    uint64_t getNextAddress();
+    uint64_t getTargetAddress();
     uint64_t getBaseAddress();
     char* getBytes();
     Operand getOperand(uint32_t idx);
     uint32_t getInstructionType() { return instructionType; }
     bool isRelocatable();
+    bool controlFallsThrough();
     ByteSources getByteSource();
     uint64_t getProgramAddress();
 
     // control instruction id
     bool isControl();
-    bool isBranch() { return (instructionType == x86_insn_type_branch); }
+    bool isUnconditionalBranch() { return (instructionType == x86_insn_type_branch); }
     bool isConditionalBranch() { return (instructionType == x86_insn_type_cond_branch); }
     bool isReturn() { return (instructionType == x86_insn_type_return); }
     bool isFunctionCall() { return (instructionType == x86_insn_type_call); }
     bool isSystemCall() { return (instructionType == x86_insn_type_syscall); }
+    bool isHalt() { return (instructionType == x86_insn_type_halt); }
     bool isIndirectBranch();
     uint32_t getIndirectBranchTarget();
 

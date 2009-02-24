@@ -7,6 +7,45 @@
 
 #define MAX_SIZE_LINEAR_SEARCH 4096
 
+CodeBlock::CodeBlock(ElfClassTypes typ, uint32_t idx, FlowGraph* cfg)
+    : Base(typ)
+{
+    index = idx;
+    flowGraph = cfg;
+}
+
+UnknownBlock::UnknownBlock(uint32_t idx, FlowGraph* cfg, char* byt, uint32_t sz, uint64_t addr)
+    : CodeBlock(ElfClassTypes_UnknownBlock,idx,cfg)
+{
+    sizeInBytes = sz;
+     
+    rawBytes = NULL;
+    rawBytes = new char[sizeInBytes];
+    memcpy(rawBytes,byt,sizeInBytes);
+    ASSERT(rawBytes);
+
+    baseAddress = addr;
+}
+
+UnknownBlock::~UnknownBlock(){
+    if (rawBytes){
+        delete[] rawBytes;
+    }
+}
+
+void UnknownBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    binaryOutputFile->copyBytes(rawBytes,sizeInBytes,offset);
+}
+
+void UnknownBlock::print(){
+    PRINT_INFO();
+    PRINT_OUT("UnknownBlock: %#llx -- ", baseAddress);
+    for (uint32_t i = 0; i < sizeInBytes; i++){
+        PRINT_OUT("%hhx ", rawBytes[i]);
+    }
+    PRINT_OUT("\n");
+}
+
 uint32_t BasicBlock::bloat(uint32_t minBlockSize){
 
     // convert all branches to use 4byte operands
@@ -50,7 +89,7 @@ uint32_t BasicBlock::getNumberOfBytes(){
 bool BasicBlock::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
     for (uint32_t i = 0; i < instructions.size(); i++){
         if (instructions[i]->isFunctionCall()){
-            uint64_t targetAddr = instructions[i]->getNextAddress();
+            uint64_t targetAddr = instructions[i]->getTargetAddress();
             if (targetAddr >= lowAddr && targetAddr < highAddr){
                 return true;
             }
@@ -93,9 +132,9 @@ bool BasicBlock::findExitInstruction(){
 }
 
 
-bool BasicBlock::passesControlToNext(){
+bool BasicBlock::controlFallsThrough(){
     Instruction* last = instructions.back();
-    return (!last->isReturn() && !last->isBranch());
+    return last->controlFallsThrough();
 }
 
 bool BasicBlock::containsOnlyControl(){
@@ -133,7 +172,7 @@ void BasicBlock::setIndex(uint32_t idx){
 
 uint64_t BasicBlock::getTargetAddress() {
     ASSERT(instructions.back());
-    return instructions.back()->getNextAddress();
+    return instructions.back()->getTargetAddress();
 }
 
 void BasicBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
@@ -192,11 +231,8 @@ bool BasicBlock::inRange(uint64_t addr){
 }
 
 BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg)
+    : CodeBlock(ElfClassTypes_BasicBlock,idx,cfg)
 {
-    type = ElfClassTypes_BasicBlock;
-    index = idx;
-    flowGraph = cfg;
-
     flags = 0;
     immDominatedBy = NULL;
 
@@ -339,7 +375,7 @@ Vector<Instruction*>* BasicBlock::swapInstructions(uint64_t addr, Vector<Instruc
     }
 
     while (bytesToReplace < replacedBytes){
-        instructions.insert(Instruction::generateNoop(),idx);
+        (*replacements).append(Instruction::generateNoop());
         bytesToReplace++;
     }
 

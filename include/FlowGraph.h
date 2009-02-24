@@ -7,6 +7,7 @@
 #include <Vector.h>
 
 class BasicBlock;
+class CodeBlock;
 class Loop;
 class TextSection;
 
@@ -15,7 +16,8 @@ protected:
 
     Function* function;
 
-    Vector<BasicBlock*> basicBlocks;
+    Vector<CodeBlock*> blocks; // contains both BasicBlocks and UnknownBlocks
+    Vector<BasicBlock*> basicBlocks; // only BasicBlocks
     Vector<Loop*> loops;
 
     Vector<BasicBlock**> blockCopies;
@@ -38,8 +40,10 @@ public:
     
     BitSet<BasicBlock*>* newBitSet();
     
-    BasicBlock* getBlock(uint32_t idx) { return basicBlocks[idx]; }
+    BasicBlock* getBasicBlock(uint32_t idx) { return basicBlocks[idx]; }
+    CodeBlock* getBlock(uint32_t idx) { return blocks[idx]; }
     uint32_t getNumberOfBasicBlocks() { return basicBlocks.size(); }
+    uint32_t getNumberOfBlocks() { return blocks.size(); }
     uint32_t getNumberOfBytes();
     
     uint32_t getNumberOfMemoryOps();
@@ -52,7 +56,7 @@ public:
     void printInnerLoops();
     void printLoops();
 
-    uint32_t addBlock(BasicBlock* bb) { basicBlocks.append(bb); }
+    void addBlock(CodeBlock* block);    
     
     BasicBlock** getAllBlocks();
     uint32_t getAllBlocks(uint32_t sz, BasicBlock** arr);
@@ -62,6 +66,8 @@ public:
     
     void setImmDominatorBlocks(BasicBlock* root=NULL);
     void testGraphAvailability();
+
+    bool verify();
 };
 
 #endif /* _FlowGraph_h_ */

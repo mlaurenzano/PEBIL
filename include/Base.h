@@ -15,7 +15,7 @@
 
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
-#define WARNING_SEVERITY 6
+#define WARNING_SEVERITY 3
 //#define DEVELOPMENT
 //#define DEBUG_OPERAND
 //#define DEBUG_OPTARGET
@@ -341,7 +341,7 @@ typedef enum {
     ElfClassTypes_Symbol,
     ElfClassTypes_SymbolTable,
     ElfClassTypes_TextSection,
-    ElfClassTypes_TextUnknown,
+    ElfClassTypes_UnknownBlock,
     ElfClassTypes_Total_Types
 } ElfClassTypes;
 
@@ -464,6 +464,10 @@ extern uint64_t nextAlignAddress(uint64_t addr, uint32_t align);
 extern uint64_t nextAlignAddressHalfWord(uint64_t addr);
 extern uint64_t nextAlignAddressWord(uint64_t addr);
 extern uint64_t nextAlignAddressDouble(uint64_t addr);
+
+extern int compareBaseAddress(const void* arg1,const void* arg2);
+extern int searchBaseAddressExact(const void* arg1, const void* arg2);
+extern int searchBaseAddress(const void* arg1, const void* arg2);
 
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)
