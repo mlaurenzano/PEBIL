@@ -31,7 +31,6 @@ bool Function::containsDifficultCall(){
     if (containsCallToRange(baseAddress,baseAddress+getNumberOfBytes())){
         return true;
     }
-
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
         TextObject* tobj = textSection->getTextObject(i);
         if (tobj->getType() == ElfClassTypes_Function){
@@ -119,7 +118,7 @@ void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 uint32_t Function::digest(){
-    Vector<Instruction*> allInstructions;
+    Vector<Instruction*>* allInstructions = new Vector<Instruction*>();
     Instruction* currentInstruction;
     uint64_t currentAddress = 0;
 
@@ -134,7 +133,7 @@ uint32_t Function::digest(){
     while (!unprocessed.empty()){
         currentAddress = unprocessed.pop();
 
-        void* inst = bsearch(&currentAddress,&allInstructions,allInstructions.size(),sizeof(Instruction*),searchBaseAddress);
+        void* inst = bsearch(&currentAddress,&(*allInstructions),(*allInstructions).size(),sizeof(Instruction*),searchBaseAddress);
         if (inst){
             Instruction* tgtInstruction = *(Instruction**)inst;
             ASSERT(tgtInstruction->getBaseAddress() == currentAddress && "Problem in disassembly -- found instruction that enters the middle of another instruction");
@@ -145,46 +144,64 @@ uint32_t Function::digest(){
             continue;
         }
 
-        currentInstruction = new Instruction(textSection->getDisassembler(), currentAddress,
+        currentInstruction = new Instruction(textSection, currentAddress,
                                              textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0);
         PRINT_DEBUG_CFG("Finding instruction: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());
         uint64_t checkAddr = currentInstruction->getBaseAddress();
 
-        allInstructions.insertSorted(currentInstruction,compareBaseAddress);
+        (*allInstructions).insertSorted(currentInstruction,compareBaseAddress);
 
         // make sure the targets of this branch have not been processed yet
         uint64_t fallThroughAddr = currentInstruction->getBaseAddress()+currentInstruction->getSizeInBytes();
         PRINT_DEBUG_CFG("\tChecking FTaddr %#llx", fallThroughAddr);
-        void* fallThrough = bsearch(&fallThroughAddr,&allInstructions,allInstructions.size(),sizeof(Instruction*),searchBaseAddress);
+        void* fallThrough = bsearch(&fallThroughAddr,&(*allInstructions),(*allInstructions).size(),sizeof(Instruction*),searchBaseAddress);
         if (!fallThrough){
             if (currentInstruction->controlFallsThrough()){
+                PRINT_DEBUG_CFG("\t\tpushing %#llx", fallThroughAddr);
                 unprocessed.push(fallThroughAddr);
+            } else {
+                fallThroughAddr = 0;
             }
         } else {
             Instruction* tgtInstruction = *(Instruction**)fallThrough;
             ASSERT(tgtInstruction->getBaseAddress() == fallThroughAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
         }
         
-        uint64_t controlTargetAddr = currentInstruction->getTargetAddress();
-        PRINT_DEBUG_CFG("\tChecking CTaddr %#llx", fallThroughAddr);
-        void* controlTarget = bsearch(&controlTargetAddr,&allInstructions,allInstructions.size(),sizeof(Instruction*),searchBaseAddress);
-        if (!controlTarget){
-            if (inRange(controlTargetAddr)                 // target address is in this functions also
-                && controlTargetAddr != fallThroughAddr){  // target and fall through are the same, meaning the address is already pushed above
-                unprocessed.push(controlTargetAddr);
-            }
-        } else {
-            Instruction* tgtInstruction = *(Instruction**)controlTarget;
-            ASSERT(tgtInstruction->getBaseAddress() == controlTargetAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+        Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
+        if (currentInstruction->isJumpTableBase()){
+            uint64_t jumpTableBase = currentInstruction->findJumpTableBaseAddress(allInstructions);
+            ASSERT(!(*controlTargetAddrs).size());
+            currentInstruction->computeJumpTableTargets(jumpTableBase, this, controlTargetAddrs);
+            PRINT_DEBUG_CFG("Jump table targets (%d):", (*controlTargetAddrs).size());
+        } else if (currentInstruction->usesControlTarget()){
+            (*controlTargetAddrs).append(currentInstruction->getTargetAddress());
         }
+
+        for (uint32_t i = 0; i < (*controlTargetAddrs).size(); i++){
+            uint64_t controlTargetAddr = (*controlTargetAddrs)[i];
+            PRINT_DEBUG_CFG("\tChecking CTaddr %#llx", controlTargetAddr);
+            void* controlTarget = bsearch(&controlTargetAddr,&(*allInstructions),(*allInstructions).size(),sizeof(Instruction*),searchBaseAddress);
+            if (!controlTarget){
+                if (inRange(controlTargetAddr)                 // target address is in this functions also
+                    && controlTargetAddr != fallThroughAddr){  // target and fall through are the same, meaning the address is already pushed above
+                    PRINT_DEBUG_CFG("\t\tpushing %#llx", controlTargetAddr);
+                    unprocessed.push(controlTargetAddr);
+                }
+            } else {
+                Instruction* tgtInstruction = *(Instruction**)controlTarget;
+                ASSERT(tgtInstruction->getBaseAddress() == controlTargetAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+            }
+        }
+        delete controlTargetAddrs;
     }
 
-    Instruction** instructions = new Instruction*[allInstructions.size()];
-    for (uint32_t i = 0; i < allInstructions.size(); i++){
-        instructions[i] = allInstructions[i];
+    Instruction** instructions = new Instruction*[(*allInstructions).size()];
+    for (uint32_t i = 0; i < (*allInstructions).size(); i++){
+        instructions[i] = (*allInstructions)[i];
     }
-    generateCFG(allInstructions.size(),instructions);
+    generateCFG((*allInstructions).size(),instructions);
     delete[] instructions;
+    delete allInstructions;
 }
 
 uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** instructions){
@@ -222,10 +239,6 @@ uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** inst
             }
         }
     }
-
-
-    entryBlock = new BasicBlock(numberOfBasicBlocks++,flowGraph);
-    currentBlock = entryBlock;
 
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         if (instructions[i]->isLeader()){
@@ -368,6 +381,7 @@ bool Function::verify(){
                 return false;
             }
         }
+        delete[] allInstructions;
 
         uint32_t numberOfBytes = 0;
         for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){

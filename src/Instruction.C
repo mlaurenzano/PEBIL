@@ -5,6 +5,96 @@
 #include <BinaryFile.h>
 #include <CStructuresX86.h>
 #include <Disassembler.h>
+#include <ElfFile.h>
+#include <Function.h>
+#include <RawSection.h>
+#include <SectionHeader.h>
+
+#define JUMP_TGT_NOT_FOUND "<jump_tgt_not_found>"
+
+
+bool Instruction::usesControlTarget(){
+    if (isConditionalBranch() ||
+        isUnconditionalBranch() ||
+        isFunctionCall() ||
+        isSystemCall()){
+        return true;
+    }
+    return false;
+}
+
+uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions){
+    ASSERT(isJumpTableBase() && "Cannot compute jump table base for this instruction");
+
+    uint64_t jumpOperand = operands[JUMP_TARGET_OPERAND].getValue();
+
+    // jump target is a register
+    if (jumpOperand < X86_64BIT_GPRS){
+        if ((*functionInstructions).size()){
+            Instruction** allInstructions = new Instruction*[(*functionInstructions).size()];
+            for (uint32_t i = 0; i < (*functionInstructions).size(); i++){
+                allInstructions[i] = (*functionInstructions)[i];
+            }
+            qsort(allInstructions,(*functionInstructions).size(),sizeof(Instruction*),compareBaseAddress);
+            uint64_t prevAddr = baseAddress-1;
+            void* prev = bsearch(&prevAddr,allInstructions,(*functionInstructions).size(),sizeof(Instruction*),searchBaseAddress);
+            PRINT_DEBUG_CFG("Jump base address %#llx", prevAddr);
+            if (prev){
+                Instruction* previousInstruction = *(Instruction**)prev;
+                bool opFound = false;
+                for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+                    Operand op = previousInstruction->getOperand(i);
+                    if (op.getType() && op.getValue() == jumpOperand){
+                        opFound = true;
+                    }
+                }
+                ASSERT(opFound && "Cannot find the jump table operand in the previous instruction");                
+                for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+                    Operand op = previousInstruction->getOperand(i);
+                    if (op.getType() && op.getValue() > X86_64BIT_GPRS){
+                        PRINT_DEBUG_CFG("Jump Table Base Found: %#llx", op.getValue());
+                        return op.getValue();
+                    }
+                }
+            }
+            delete[] allInstructions;
+        }
+    } else {
+        return operands[JUMP_TARGET_OPERAND].getValue();
+    }
+    PRINT_ERROR("Cannot find jump table base address");
+    __SHOULD_NOT_ARRIVE;
+    return 0;
+}
+
+bool Instruction::isJumpTableBase(){
+    return (isUnconditionalBranch() && usesIndirectAddress());
+}
+
+void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList){
+    ASSERT(isJumpTableBase() && "Cannot compute jump table targets for this instruction");
+    ASSERT(func);
+    ASSERT(addressList);
+    
+    RawSection* dataSection = NULL;
+    ElfFile* elf = func->getTextSection()->getElfFile();
+    for (uint32_t i = 1; i < elf->getNumberOfSections(); i++){
+        if (elf->getSectionHeader(i)->inRange(tableBase)){
+            dataSection = elf->getRawSection(i);
+        }
+    }
+    ASSERT(dataSection);
+    ASSERT(dataSection->getSectionHeader()->hasBitsInFile());
+
+    do {
+        if (textSection->getElfFile()->is64Bit()){
+            (*addressList).append(getUInt64(dataSection->getStreamAtAddress(tableBase+(*addressList).size()*sizeof(uint64_t))));
+        } else {
+            (*addressList).append((uint64_t)getUInt32(dataSection->getStreamAtAddress(tableBase+(*addressList).size()*sizeof(uint32_t))));
+        }
+    } while (func->inRange((*addressList).back()));
+    (*addressList).remove((*addressList).size()-1);
+}
 
 bool Instruction::controlFallsThrough(){
     if (isHalt()
@@ -867,15 +957,28 @@ Operand::Operand(){
     bytesUsed = 0;
     relative = false;
     bytePosition = 0;
+
+    index = 0;
 }
 
+Operand::Operand(uint32_t idx){
+    type = x86_operand_type_unused;
+    value = 0;
+    bytesUsed = 0;
+    relative = false;
+    bytePosition = 0;
 
-Operand::Operand(uint32_t typ, uint64_t val){
+    index = idx;
+}
+
+Operand::Operand(uint32_t typ, uint64_t val, uint32_t idx){
     type = typ;
     value = val;
     bytesUsed = 0;
     relative = false;
     bytePosition = 0;
+
+    index = idx;
 }
 
 uint64_t Operand::setValue(uint64_t val){
@@ -992,29 +1095,34 @@ uint64_t Instruction::findInstrumentationPoint(uint32_t size, InstLocations loc)
     __SHOULD_NOT_ARRIVE;
 }
 
-Instruction::Instruction(Disassembler* disasm, uint64_t baseAddr, char* buff, ByteSources src, uint32_t idx)
+Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, ByteSources src, uint32_t idx)
     : Base(ElfClassTypes_Instruction)
 {
-    disassembler = disasm;
+    textSection = text;
+    disassembler = textSection->getDisassembler();
     baseAddress = baseAddr;
     sizeInBytes = MAX_X86_INSTRUCTION_LENGTH;
+    index = idx;
     rawBytes = NULL;
     setBytes(buff);
-    index = idx;
     source = src;
-    leader = false;
-
     instructionType = x86_insn_type_unknown;
+    leader = false;
 
     programAddress = 0;
     if (IS_BYTE_SOURCE_APPLICATION(source)){
         programAddress = baseAddress;
     }
 
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        operands[i] = Operand(i);
+    }
+
     sizeInBytes = disassembler->print_insn((uint64_t)buff, this);
     if (!sizeInBytes){
         sizeInBytes = 1;
     }
+
     addressAnchor = NULL;
     verify();
 }
@@ -1022,18 +1130,24 @@ Instruction::Instruction(Disassembler* disasm, uint64_t baseAddr, char* buff, By
 Instruction::Instruction()
     : Base(ElfClassTypes_Instruction)
 {
+    textSection = NULL;
     disassembler = NULL;
-    index = 0;
-    sizeInBytes = MAX_X86_INSTRUCTION_LENGTH;
-    rawBytes = NULL;
     baseAddress = 0;
-    instructionType = x86_insn_type_unknown;
+    sizeInBytes = MAX_X86_INSTRUCTION_LENGTH;
+    index = 0;
+    rawBytes = NULL;
     source = ByteSource_Instrumentation;
+    instructionType = x86_insn_type_unknown;
+    leader = false;
+
     programAddress = 0;
+
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        operands[i] = Operand();
+        operands[i] = Operand(i);
     }
+
     addressAnchor = NULL;
+    verify();
 }
 
 uint32_t Instruction::setIndex(uint32_t newidx){
@@ -1205,7 +1319,7 @@ void Operand::print(){
     if (isRelative()){
         relStr =   "IPREL";
     }
-    PRINT_INFOR("\tOPERAND %16s %5s %1d+%1d 0x%08x", OpTypeNames[getType()], relStr, getBytePosition(), getBytesUsed(), getValue());
+    PRINT_INFOR("\tOPERAND(%d) %16s %5s %1d+%1d 0x%08x", index, OpTypeNames[getType()], relStr, getBytePosition(), getBytesUsed(), getValue());
 }
 
 
@@ -1259,6 +1373,10 @@ void Instruction::print(){
     }
     PRINT_OUT("] 0x%llx -> 0x%llx (paddr %#llx)", baseAddress, getTargetAddress(), getProgramAddress());
     PRINT_OUT("\n");
+
+    if (isJumpTableBase()){
+        PRINT_INFOR("\tis jump table");
+    }
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i].getType()){

@@ -2,7 +2,7 @@ include rules.$(COMP)
 include rules.$(COMP)
 
 DBG         = -save-temps -g #-Wall
-OPT         = -O3 -g
+OPT         = -O0 -g
 CC          = $(X86INST_CC)  $(OPT)
 CPP         = $(X86INST_CPP) $(OPT)
 F77         = $(X86INST_F77) $(OPT)

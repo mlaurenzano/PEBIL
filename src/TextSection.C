@@ -174,7 +174,7 @@ uint32_t FreeText::digest(){
     uint32_t numberOfInstructions = 0;
     while (currByte < sizeInBytes){
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
-        Instruction* newInstruction = new Instruction(textSection->getDisassembler(), getBaseAddress() + currByte, 
+        Instruction* newInstruction = new Instruction(textSection, getBaseAddress() + currByte, 
                                                       charStream() + currByte, ByteSource_Application_FreeText, numberOfInstructions++);
         instructions.append(newInstruction);
         currByte += newInstruction->getSizeInBytes();
@@ -482,7 +482,7 @@ uint32_t TextSection::printDisassembledCode(bool instructionDetail){
         //fprintf(stdout, "(0x%llx) 0x%llx:\t", (uint64_t)(charStream() + currByte), (uint64_t)(sHdr->GET(sh_addr) + currByte));
         fprintf(stdout, "0x%llx:\t", (uint64_t)(sHdr->GET(sh_addr) + currByte));
 
-        dummyInstruction = new Instruction(disassembler, sHdr->GET(sh_addr) + currByte, charStream() + currByte, ByteSource_Application, instructionCount);
+        dummyInstruction = new Instruction(this, sHdr->GET(sh_addr) + currByte, charStream() + currByte, ByteSource_Application, instructionCount);
         
         fprintf(stdout, "\t(bytes -- ");
         uint8_t* bytePtr;

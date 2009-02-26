@@ -133,7 +133,9 @@ Instruction.o: Instruction.C ../include/Instruction.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/CStructuresX86.h ../include/Vector.h \
   ../include/AddressAnchor.h ../include/BinaryFile.h \
-  ../include/Disassembler.h
+  ../include/Disassembler.h ../include/ElfFile.h ../include/Function.h \
+  ../include/BitSet.h ../include/TextSection.h ../include/RawSection.h \
+  ../include/SectionHeader.h ../include/defines/SectionHeader.d
 Instrumentation.o: Instrumentation.C ../include/Instrumentation.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \

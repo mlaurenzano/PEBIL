@@ -469,6 +469,9 @@ extern int compareBaseAddress(const void* arg1,const void* arg2);
 extern int searchBaseAddressExact(const void* arg1, const void* arg2);
 extern int searchBaseAddress(const void* arg1, const void* arg2);
 
+extern uint64_t getUInt64(char* buf);
+extern uint32_t getUInt32(char* buf);
+
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)
 

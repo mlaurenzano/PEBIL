@@ -1,5 +1,17 @@
 #include <Base.h>
 
+uint64_t getUInt64(char* buf){
+    uint64_t data;
+    memcpy(&data,buf,sizeof(uint64_t));
+    return data;
+}
+
+uint32_t getUInt32(char* buf){
+    uint32_t data;
+    memcpy(&data,buf,sizeof(uint32_t));
+    return data;
+}
+
 int compareBaseAddress(const void* arg1,const void* arg2){
     Base* inst1 = *((Base**)arg1);
     Base* inst2 = *((Base**)arg2);

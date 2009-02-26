@@ -8,6 +8,8 @@ class AddressAnchor;
 class BinaryOutputFile;
 class Disassembler;
 class ElfFile;
+class Function;
+class RawSection;
 class TextSection;
 
 #define MAX_DISASM_STR_LENGTH 80
@@ -96,8 +98,10 @@ protected:
     uint32_t bytesUsed;
     bool relative;
 
+    uint32_t index;
 public:
-    Operand(uint32_t type, uint64_t value);
+    Operand(uint32_t type, uint64_t value, uint32_t idx);
+    Operand(uint32_t idx);
     Operand();
     ~Operand() {}
 
@@ -135,10 +139,15 @@ protected:
     AddressAnchor* addressAnchor;
 
     static Instruction* generateInstructionBase(uint32_t sz, char* buf);
+
 public:
     Instruction();
-    Instruction(Disassembler* disasm, uint64_t baseAddr, char* buff, ByteSources src, uint32_t idx);
+    Instruction(TextSection* text, uint64_t baseAddr, char* buff, ByteSources src, uint32_t idx);
     ~Instruction();
+
+    bool isJumpTableBase();
+    void computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList);
+    uint64_t findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions);
 
     uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
     void print();
@@ -173,6 +182,7 @@ public:
 
     // control instruction id
     bool isControl();
+    bool usesControlTarget();
     bool isUnconditionalBranch() { return (instructionType == x86_insn_type_branch); }
     bool isConditionalBranch() { return (instructionType == x86_insn_type_cond_branch); }
     bool isReturn() { return (instructionType == x86_insn_type_return); }
