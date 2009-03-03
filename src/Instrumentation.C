@@ -549,11 +549,11 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, uint
 }
 
 bool InstrumentationPoint::verify(){
-    if (point->containsProgramBits()){
-        return true;
+    if (!point->containsProgramBits()){
+        PRINT_ERROR("Instrumentation point not allowed to be type %d", point->getType());
+        return false;
     }
-    PRINT_ERROR("Instrumentation point not allowed to be type %d", point->getType());
-    return false;
+    return true;
 }
 
 InstrumentationPoint::~InstrumentationPoint(){

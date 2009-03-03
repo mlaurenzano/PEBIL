@@ -392,65 +392,65 @@ Instruction* TextSection::getInstructionAtAddress(uint64_t addr){
 bool TextSection::verify(){
     SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
 
-    if (!sortedTextObjects.size()){
-        return true;
-    }
-
-    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
-
-        uint64_t entrAddr = sortedTextObjects[i]->getBaseAddress();
-        uint64_t exitAddr = entrAddr + sortedTextObjects[i]->getSizeInBytes();
-        
-        // make sure each function entry resides within the bounds of this section
-        if (!sectionHeader->inRange(entrAddr)){
-            sectionHeader->print();
-            PRINT_ERROR("The function entry address 0x%016llx is not in the range of section %d", entrAddr, sectionHeader->getIndex());
-            return false;
-        }
-            
-        // make sure each function exit resides within the bounds of this section
-        if (!sectionHeader->inRange(exitAddr) && exitAddr != sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size)){
-            sortedTextObjects[i]->print();
-            sectionHeader->print();
-            PRINT_INFOR("Section range [0x%016llx,0x%016llx]", sectionHeader->GET(sh_addr), sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size));
-            PRINT_ERROR("The function exit address 0x%016llx is not in the range of section %d", exitAddr, sectionHeader->getIndex());
-            return false;
-        }
-    }
-
-    for (uint32_t i = 0; i < sortedTextObjects.size() - 1; i++){
-
-        // make sure sortedTextObjects is actually sorted
-        if (sortedTextObjects[i]->getBaseAddress() > sortedTextObjects[i+1]->getBaseAddress()){
-            sortedTextObjects[i]->print();
-            sortedTextObjects[i+1]->print();
-            PRINT_ERROR("Function addresses 0x%016llx 0x%016llx are not sorted", sortedTextObjects[i]->getBaseAddress(), sortedTextObjects[i+1]->getBaseAddress());
-            return false;
-        }
-    }
-        
-    // make sure functions span the entire section unless it is a plt section
     if (sortedTextObjects.size()){
-        
-        // check that the first function is at the section beginning
-        if (sortedTextObjects[0]->getBaseAddress() != sectionHeader->GET(sh_addr)){
-            PRINT_ERROR("First function in section %d should be at the beginning of the section", getSectionIndex());
-            return false;
+
+        for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+            
+            uint64_t entrAddr = sortedTextObjects[i]->getBaseAddress();
+            uint64_t exitAddr = entrAddr + sortedTextObjects[i]->getSizeInBytes();
+            
+            // make sure each function entry resides within the bounds of this section
+            if (!sectionHeader->inRange(entrAddr)){
+                sectionHeader->print();
+                PRINT_ERROR("The function entry address 0x%016llx is not in the range of section %d", entrAddr, sectionHeader->getIndex());
+                return false;
+            }
+            
+            // make sure each function exit resides within the bounds of this section
+            if (!sectionHeader->inRange(exitAddr) && exitAddr != sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size)){
+                sortedTextObjects[i]->print();
+                sectionHeader->print();
+                PRINT_INFOR("Section range [0x%016llx,0x%016llx]", sectionHeader->GET(sh_addr), sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size));
+                PRINT_ERROR("The function exit address 0x%016llx is not in the range of section %d", exitAddr, sectionHeader->getIndex());
+                return false;
+            }
         }
-        
-        // check that function boundaries are contiguous
-        for (uint32_t i = 0; i < sortedTextObjects.size()-1; i++){
-            if (sortedTextObjects[i]->getBaseAddress() + sortedTextObjects[i]->getSizeInBytes() !=
-                sortedTextObjects[i+1]->getBaseAddress()){
-                PRINT_ERROR("In section %d, boundaries on function %d and %d do not align", getSectionIndex(), i, i+1);
+
+        for (uint32_t i = 0; i < sortedTextObjects.size() - 1; i++){
+            
+            // make sure sortedTextObjects is actually sorted
+            if (sortedTextObjects[i]->getBaseAddress() > sortedTextObjects[i+1]->getBaseAddress()){
+                sortedTextObjects[i]->print();
+                sortedTextObjects[i+1]->print();
+                PRINT_ERROR("Function addresses 0x%016llx 0x%016llx are not sorted", sortedTextObjects[i]->getBaseAddress(), sortedTextObjects[i+1]->getBaseAddress());
                 return false;
             }
         }
         
-        // check the the last function ends at the section end
-        if (sortedTextObjects[sortedTextObjects.size()-1]->getBaseAddress() + sortedTextObjects[sortedTextObjects.size()-1]->getSizeInBytes() !=
-            sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size)){
-            PRINT_ERROR("Last function in section %d should be at the end of the section", getSectionIndex());
+        // make sure functions span the entire section unless it is a plt section
+        if (sortedTextObjects.size()){
+            
+            // check that the first function is at the section beginning
+            if (sortedTextObjects[0]->getBaseAddress() != sectionHeader->GET(sh_addr)){
+                PRINT_ERROR("First function in section %d should be at the beginning of the section", getSectionIndex());
+                return false;
+            }
+            
+            // check that function boundaries are contiguous
+            for (uint32_t i = 0; i < sortedTextObjects.size()-1; i++){
+                if (sortedTextObjects[i]->getBaseAddress() + sortedTextObjects[i]->getSizeInBytes() !=
+                    sortedTextObjects[i+1]->getBaseAddress()){
+                    PRINT_ERROR("In section %d, boundaries on function %d and %d do not align", getSectionIndex(), i, i+1);
+                    return false;
+                }
+            }
+            
+            // check the the last function ends at the section end
+            if (sortedTextObjects[sortedTextObjects.size()-1]->getBaseAddress() + sortedTextObjects[sortedTextObjects.size()-1]->getSizeInBytes() !=
+                sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size)){
+                PRINT_ERROR("Last function in section %d should be at the end of the section", getSectionIndex());
+                return false;
+            }
         }
     }
 

@@ -82,6 +82,7 @@ bool NoteSection::verify(){
     for (uint32_t i = 0; i < numberOfNotes; i++){
         if (!notes[i]){
             PRINT_ERROR("Notes[%d] should exist in the Note Table", i);
+            return false;
         }
         if (!notes[i]->verify()){
             return false;

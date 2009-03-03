@@ -79,6 +79,7 @@ bool ProgramHeader::verify(){
     if (GET(p_type) == PT_LOAD){
         if (GET(p_filesz) > GET(p_memsz)){
             PRINT_ERROR("File size may not be greater than memory size for a loadable segment");
+            return false;
         }
     }
 
@@ -96,8 +97,10 @@ bool ProgramHeader::verify(){
 
     if (GET(p_vaddr) % DEFAULT_PAGE_ALIGNMENT != GET(p_paddr) % DEFAULT_PAGE_ALIGNMENT){
         PRINT_ERROR("Physical and virtual address must be congruent mod pagesize");
+        return false;
     }
 
+    return true;
 }
 
 void ProgramHeader32::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){

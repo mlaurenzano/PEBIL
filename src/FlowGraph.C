@@ -27,6 +27,11 @@ bool FlowGraph::verify(){
             return false;
         }
     }
+    for (uint32_t i = 0; i < blocks.size(); i++){
+        if (!blocks[i]->verify()){
+            return false;
+        }
+    }
     return true;
 }
 

@@ -98,7 +98,7 @@ public:
     void dump(char* extension);
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
-    void verify();
+    bool verify();
 
     void phasedInstrumentation();
     uint32_t anchorProgramElements();

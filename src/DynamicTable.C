@@ -167,6 +167,7 @@ bool DynamicTable::verify(){
         if (dyn->GET(d_tag) == DT_PLTREL){
             if (dyn->GET_A(d_val,d_un) != DT_REL && dyn->GET_A(d_val,d_un) != DT_RELA){
                 PRINT_ERROR("Dynamic Table entry with type DT_PLTREL contains an illegal value");
+                return false;
             }
         }
 
@@ -179,6 +180,7 @@ bool DynamicTable::verify(){
             }
             if (dyn->GET_A(d_val,d_un) != correctRelSize){
                 PRINT_ERROR("Relocation addend size found in dynamic table is not correct");
+                return false;
             }
             relocAddendDynamicEnt = dyn->GET_A(d_val,d_un);
         }
@@ -191,6 +193,7 @@ bool DynamicTable::verify(){
             }
             if (dyn->GET_A(d_val,d_un) != correctRelSize){
                 PRINT_ERROR("Relocation size found in dynamic table is not correct");
+                return false;
             }
             relocDynamicEnt = dyn->GET_A(d_val,d_un);
         }
@@ -231,20 +234,25 @@ bool DynamicTable::verify(){
     // enforce an order on the addresses of certain sections
     if (hashTableAddress >= symbolTableAddress){
         PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+        return false;
     }
     if (symbolTableAddress >= stringTableAddress){
         PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+        return false;
     }
     if (stringTableAddress >= versymAddress){
         PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+        return false;
     }
     if (versymAddress >= verneedAddress){
         PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+        return false;
     }
     uint64_t textAddress = 0;
     if (initFunctionAddress){
         if (verneedAddress >= initFunctionAddress){
             PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect: %llx <= %llx", initFunctionAddress, verneedAddress);
+            return false;
         }
         if (initFunctionAddress > textAddress){
             textAddress = initFunctionAddress;
@@ -253,6 +261,7 @@ bool DynamicTable::verify(){
     if (finiFunctionAddress){
         if (verneedAddress >= finiFunctionAddress){
             PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+            return false;
         }
         if (finiFunctionAddress > textAddress){
             textAddress = finiFunctionAddress;
@@ -260,47 +269,57 @@ bool DynamicTable::verify(){
     }
     if (textAddress >= pltgotAddress){
         PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+        return false;
     }
 
     if (entryCounts[DT_HASH] == 1){
         uint16_t scnIdx = elfFile->getHashTable()->getSectionIndex();
         if (hashTableAddress != elfFile->getSectionHeader(scnIdx)->GET(sh_addr)){
             PRINT_ERROR("Hash table address in the dynamic table is inconsistent with the hash table address found in the section header");
+            return false;
         }
     } 
     // must have a DT_HASH entry only if the executable participates in dynamic linking
     /*
     else {
         PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_HASH, %d found", entryCounts[DT_HASH]);
+        return false;
     }
     */
     if (entryCounts[DT_STRTAB] != 1){
         PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_STRTAB, %d found", entryCounts[DT_STRTAB]);
+        return false;
     }
     if (entryCounts[DT_SYMTAB] != 1){
         PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_SYMTAB, %d found", entryCounts[DT_SYMTAB]);
+        return false;
     }
 
 
     // some type of relocation table must be present (and it's entries will have either implicit or explicit addends)
     if (entryCounts[DT_RELA] + entryCounts[DT_REL] < 1){
         PRINT_ERROR("There must be at least one Dynamic Table entry of type DT_RELA/DT_REL, %d found", entryCounts[DT_RELA] + entryCounts[DT_REL]);
+        return false;
     }
 
     if (entryCounts[DT_RELA] > 1){
         PRINT_ERROR("There must be no more than one entry of type DT_RELA");
+        return false;
     }
     if (entryCounts[DT_REL] > 1){
         PRINT_ERROR("There must be no more than one entry of type DT_REL");
+        return false;
     }
 
     // if relocations with explicit addends are present
     if (entryCounts[DT_RELA]){
         if (entryCounts[DT_RELASZ] != 1){
             PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_RELASZ, %d found", entryCounts[DT_RELASZ]);
+            return false;
         }
         if (entryCounts[DT_RELAENT] != 1){
             PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_RELAENT, %d found", entryCounts[DT_RELAENT]);
+            return false;
         }
     }
 
@@ -308,9 +327,11 @@ bool DynamicTable::verify(){
     if (entryCounts[DT_REL]){
         if (entryCounts[DT_RELSZ] != 1){
             PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_RELSZ, %d found", entryCounts[DT_RELSZ]);
+            return false;
         }
         if (entryCounts[DT_RELENT] != 1){
             PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_RELENT, %d found", entryCounts[DT_RELENT]);
+            return false;
         }
     }
 
@@ -319,10 +340,12 @@ bool DynamicTable::verify(){
         if (elfFile->is64Bit()){
             if (relocAddendDynamicEnt != Size__64_bit_Relocation_Addend){
                 PRINT_ERROR("Relocation addend 64 entry size found in dynamic table is not correct");
+                return false;
             }
         } else {
             if (relocAddendDynamicEnt != Size__32_bit_Relocation_Addend){
                 PRINT_ERROR("Relocation addend 32 entry size found in dynamic table is not correct");
+                return false;
             }
         }
         for (uint32_t i = 0; i < elfFile->getNumberOfRelocationTables(); i++){
@@ -330,13 +353,15 @@ bool DynamicTable::verify(){
             if (elfFile->getSectionHeader(scnIdx)->GET(sh_addr) == relocAddendDynamicAddr){
                 relocAddendDynamicAddr = 0;
                 if (elfFile->getSectionHeader(scnIdx)->GET(sh_size) != relocAddendDynamicSize){
-                    //  PRINT_ERROR("Size of section containing the relocation addend table does not match the size given in the dynamic table");
+                    PRINT_ERROR("Size of section containing the relocation addend table does not match the size given in the dynamic table");
+                    return false;
                 }
             }
         }
     }
     if (relocAddendDynamicAddr){
         PRINT_ERROR("Did not find a relocation table matching the address indicated by a DT_RELA entry in the dynamic table");
+        return false;
     }
 
     // make sure the relocation entries found in the dynamic table match up to some relocation table in the executable
@@ -344,10 +369,12 @@ bool DynamicTable::verify(){
         if (elfFile->is64Bit()){
             if (relocDynamicEnt != Size__64_bit_Relocation){
                 PRINT_ERROR("Relocation 64 entry size found in dynamic table is not correct");
+                return false;
             }
         } else {
             if (relocDynamicEnt != Size__32_bit_Relocation){
                 PRINT_ERROR("Relocation 32 entry size found in dynamic table is not correct");
+                return false;
             }
         }
         for (uint32_t i = 0; i < elfFile->getNumberOfRelocationTables(); i++){
@@ -356,29 +383,36 @@ bool DynamicTable::verify(){
                 relocDynamicAddr = 0;
                 if (elfFile->getSectionHeader(scnIdx)->GET(sh_size) != relocDynamicSize){
                     PRINT_ERROR("Size of section containing the relocation addend table does not match the size given in the dynamic table");
+                    return false;
                 }
             }
         }
     }
     if (relocDynamicAddr){
         PRINT_ERROR("Did not find a relocation table matching the address indicated by a DT_REL entry in the dynamic table");
+        return false;
     }
 
     if (entryCounts[DT_STRSZ] != 1){
         PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_STRSZ, %d found", entryCounts[DT_STRSZ]);
+        return false;
     }
     if (entryCounts[DT_SYMENT] != 1){
         PRINT_ERROR("There must be exactly one Dynamic Table entry of type DT_SYMENT, %d found", entryCounts[DT_SYMENT]);
+        return false;
     }
 
     if (entryCounts[DT_JMPREL]){
         if (!entryCounts[DT_PLTRELSZ]){
             PRINT_ERROR("If a DT_JMPREL entry is present in the Dynamic Table, a DT_PLTRELSZ entry must also be present");
+            return false;
         } 
         if (!entryCounts[DT_PLTREL]){
             PRINT_ERROR("If a DT_JMPREL entry is present in the Dynamic Table, a DT_PLTREL entry must also be present");
+            return false;
         } 
     }
+    return true;
 }
 
 DynamicTable::~DynamicTable(){

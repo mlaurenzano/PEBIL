@@ -57,6 +57,7 @@ bool DwarfLineInfoSection::verify(){
     for (uint32_t i = 0; i < lineInfoTables.size(); i++){
         if (!lineInfoTables[i]){
             PRINT_ERROR("Line info table %d should be initialized", i);
+            return false;
         }
         if (!lineInfoTables[i]->verify()){
             return false;

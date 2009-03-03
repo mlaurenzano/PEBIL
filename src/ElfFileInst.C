@@ -775,8 +775,11 @@ void ElfFileInst::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     }
 }
 
-void ElfFileInst::verify(){
-    elfFile->verify();
+bool ElfFileInst::verify(){
+    if (!elfFile->verify()){
+        return false;
+    }
+    return true;
 }
 
 InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* inst, uint32_t sz){

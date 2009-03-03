@@ -53,6 +53,7 @@ bool FileHeader::verify(){
     if (GET(e_ident)[EI_CLASS] == ELFCLASS64){
         if (sizeInBytes != Size__64_bit_File_Header){
             PRINT_ERROR("Program Header size is incorrect");
+            return false;
         }
         if (GET(e_ehsize) != Size__64_bit_File_Header){
             PRINT_ERROR("File header size is wrong: %d != %d", GET(e_ehsize), Size__64_bit_File_Header);
@@ -70,6 +71,7 @@ bool FileHeader::verify(){
     } else if (GET(e_ident)[EI_CLASS] == ELFCLASS32){
         if (sizeInBytes != Size__32_bit_File_Header){
             PRINT_ERROR("Program Header size is incorrect");
+            return false;
         }
         if (GET(e_ehsize) != Size__32_bit_File_Header){
             PRINT_ERROR("File header size is wrong");

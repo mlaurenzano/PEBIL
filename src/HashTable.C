@@ -119,40 +119,50 @@ bool HashTable::verify(){
 
     if (!symTab){
         PRINT_ERROR("Couldn't get symbol table %d from elfFile", symTabIdx);
+        return false;
     }
 
     if (isGnuStyleHash()){
         PRINT_ERROR("This hash table should use sysv-style hashing");
+        return false;
     }
 
     if (numberOfChains != symTab->getNumberOfSymbols()){
         PRINT_ERROR("In the hash table, the number of chains should be equal to the number of symbols in the corresponding symbol table");
+        return false;
     }
     
     for (uint32_t i = 1; i < numberOfChains; i++){
         if (findSymbol(symTab->getSymbolName(i)) != i){
             PRINT_ERROR("Hash Table search function is erroneous");
+        return false;
         }
     }
     
     if (elfFile->getSectionHeader(sectionIndex)->GET(sh_entsize) != hashEntrySize){
         PRINT_ERROR("Hash table entry size must be %d bytes", hashEntrySize);
+        return false;
     }
     
     if (elfFile->getSectionHeader(sectionIndex)->GET(sh_type) != SHT_HASH &&
         elfFile->getSectionHeader(sectionIndex)->GET(sh_type) != SHT_GNU_HASH){
         PRINT_ERROR("Section type for hash table must be SHT_HASH or SHT_GNU_HASH");
+        return false;
     }
     
     for (uint32_t i = 0; i < symTab->getNumberOfSymbols(); i++){
         if (findSymbol(symTab->getSymbolName(i)) != i){
             PRINT_ERROR("Hash Table search failed for symbol %s", symTab->getSymbolName(i));
+            return false;
         }
     }
 
     if (sizeInBytes != hashEntrySize * (2 + numberOfChains + numberOfBuckets)){
         PRINT_ERROR("Hash Table size is incorrect");
+        return false;
     }
+
+    return true;
 }
 
 

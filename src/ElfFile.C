@@ -77,6 +77,7 @@ bool ElfFile::verify(){
         ProgramHeader* phdr = getProgramHeader(i);
         if (!phdr){
             PRINT_ERROR("Program header %d should exist", i)
+                return false;
         }
         if (phdr->GET(p_type) == PT_LOAD){
             if (phdr->isReadable() && phdr->isExecutable()){
@@ -261,11 +262,17 @@ bool ElfFile::verify(){
 
 
     for (uint32_t i = 0; i < numberOfPrograms; i++){
-        getProgramHeader(i)->verify();
+        if (!getProgramHeader(i)->verify()){
+            return false;
+        }
     }
     for (uint32_t i = 0; i < numberOfSections; i++){
-        getSectionHeader(i)->verify();
-        getRawSection(i)->verify();
+        if (!getSectionHeader(i)->verify()){
+            return false;
+        }
+        if (!getRawSection(i)->verify()){
+            return false;
+        }
     }
 
     return true;

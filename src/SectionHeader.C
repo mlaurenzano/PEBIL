@@ -147,6 +147,7 @@ bool SectionHeader::verify() {
         GET(sh_type) != SHT_GNU_versym
         ){
         PRINT_ERROR("Section type %d is not recognized", GET(sh_type));
+        return false;
     }
 
     if (index >= SHN_LORESERVE){
@@ -175,6 +176,7 @@ bool SectionHeader::verify() {
             return false;
         }
     }
+
     return true;
 }
 
