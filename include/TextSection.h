@@ -23,6 +23,7 @@ protected:
     uint64_t baseAddress;
     Symbol* symbol;
 
+    Vector<Instruction*>* digestLinear();
 public:
     TextObject(ElfClassTypes typ, TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz);
     ~TextObject() {}

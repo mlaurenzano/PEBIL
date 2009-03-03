@@ -16,6 +16,7 @@ class TextSection;
 #define INVALID_OPCODE_INDEX 0xffffffff
 #define MAX_OPERANDS 3
 #define JUMP_TARGET_OPERAND 2
+#define JUMP_TABLE_REACHES 0x1000
 
 enum x86_insn_format {
     x86_insn_format_unknown = 0,

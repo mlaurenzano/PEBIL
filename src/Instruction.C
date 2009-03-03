@@ -23,54 +23,6 @@ bool Instruction::usesControlTarget(){
     return false;
 }
 
-uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions){
-    ASSERT(isJumpTableBase() && "Cannot compute jump table base for this instruction");
-
-    uint64_t jumpOperand = operands[JUMP_TARGET_OPERAND].getValue();
-
-    // jump target is a register
-    if (jumpOperand < X86_64BIT_GPRS){
-        if ((*functionInstructions).size()){
-            Instruction** allInstructions = new Instruction*[(*functionInstructions).size()];
-            for (uint32_t i = 0; i < (*functionInstructions).size(); i++){
-                allInstructions[i] = (*functionInstructions)[i];
-            }
-            qsort(allInstructions,(*functionInstructions).size(),sizeof(Instruction*),compareBaseAddress);
-            uint64_t prevAddr = baseAddress-1;
-            void* prev = bsearch(&prevAddr,allInstructions,(*functionInstructions).size(),sizeof(Instruction*),searchBaseAddress);
-            PRINT_DEBUG_CFG("Jump base address %#llx", prevAddr);
-            if (prev){
-                Instruction* previousInstruction = *(Instruction**)prev;
-                bool opFound = false;
-                for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-                    Operand op = previousInstruction->getOperand(i);
-                    if (op.getType() && op.getValue() == jumpOperand){
-                        opFound = true;
-                    }
-                }
-                ASSERT(opFound && "Cannot find the jump table operand in the previous instruction");                
-                for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-                    Operand op = previousInstruction->getOperand(i);
-                    if (op.getType() && op.getValue() > X86_64BIT_GPRS){
-                        PRINT_DEBUG_CFG("Jump Table Base Found: %#llx", op.getValue());
-                        return op.getValue();
-                    }
-                }
-            }
-            delete[] allInstructions;
-        }
-    } else {
-        return operands[JUMP_TARGET_OPERAND].getValue();
-    }
-    PRINT_ERROR("Cannot find jump table base address");
-    __SHOULD_NOT_ARRIVE;
-    return 0;
-}
-
-bool Instruction::isJumpTableBase(){
-    return (isUnconditionalBranch() && usesIndirectAddress());
-}
-
 void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList){
     ASSERT(isJumpTableBase() && "Cannot compute jump table targets for this instruction");
     ASSERT(func);
@@ -83,23 +35,131 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
             dataSection = elf->getRawSection(i);
         }
     }
+    if (!dataSection){
+        print();
+        PRINT_ERROR("Cannot find table base %#llx for this instruction", tableBase);
+    }
     ASSERT(dataSection);
     ASSERT(dataSection->getSectionHeader()->hasBitsInFile());
 
+    // read the first location to decide what type of info is stored in the jump table
+    uint64_t rawData;
+    if (textSection->getElfFile()->is64Bit()){
+        rawData = getUInt64(dataSection->getStreamAtAddress(tableBase));
+    } else {
+        rawData = (uint64_t)getUInt32(dataSection->getStreamAtAddress(tableBase));
+    }
+
+    bool directMode;
+    // the data found is an address
+    if (func->inRange(rawData)){
+        directMode = true;
+        PRINT_DEBUG_JUMP_TABLE("\tJumpMode for table base %#llx -- Direct", tableBase);
+    } 
+    // the data found is an address offset
+    else if (func->inRange(rawData+baseAddress) || absoluteValue(rawData) < JUMP_TABLE_REACHES){
+        directMode = false;
+        PRINT_DEBUG_JUMP_TABLE("\tJumpMode for table base %#llx -- Indirect", tableBase);
+    }
+    // the data found is neither of the above -- we interpret this to mean that it is instructions
+    else {
+        (*addressList).append(tableBase);
+        PRINT_DEBUG_JUMP_TABLE("\tJumpMode for table base %#llx -- Instructions", tableBase);
+        return;
+    }
+
+
+    uint32_t currByte = 0;
+    uint32_t dataLen;
+    if (textSection->getElfFile()->is64Bit()){
+        dataLen = sizeof(uint64_t);
+    } else {
+        dataLen = sizeof(uint32_t);
+    }
+
     do {
         if (textSection->getElfFile()->is64Bit()){
-            (*addressList).append(getUInt64(dataSection->getStreamAtAddress(tableBase+(*addressList).size()*sizeof(uint64_t))));
+            rawData = getUInt64(dataSection->getStreamAtAddress(tableBase+currByte));
         } else {
-            (*addressList).append((uint64_t)getUInt32(dataSection->getStreamAtAddress(tableBase+(*addressList).size()*sizeof(uint32_t))));
+            rawData = (uint64_t)getUInt32(dataSection->getStreamAtAddress(tableBase+currByte));
         }
-    } while (func->inRange((*addressList).back()));
+        currByte += dataLen;
+
+        if (!directMode){
+            rawData += baseAddress;
+        }
+        PRINT_DEBUG_JUMP_TABLE("Jump Table target %#llx", rawData);
+        (*addressList).append(rawData);
+    } while (func->inRange((*addressList).back()) &&
+             (tableBase+currByte)-dataSection->getSectionHeader()->GET(sh_addr) < dataSection->getSizeInBytes());
     (*addressList).remove((*addressList).size()-1);
+}
+
+uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions){
+    ASSERT(isJumpTableBase() && "Cannot compute jump table base for this instruction");
+
+    uint64_t jumpOperand = operands[JUMP_TARGET_OPERAND].getValue();
+    PRINT_DEBUG_JUMP_TABLE("Finding jump table base address for instruction at %#llx", baseAddress);
+
+    // jump target is a register
+    if (jumpOperand < X86_64BIT_GPRS){
+        if ((*functionInstructions).size()){
+            Instruction** allInstructions = new Instruction*[(*functionInstructions).size()];
+            for (uint32_t i = 0; i < (*functionInstructions).size(); i++){
+                allInstructions[i] = (*functionInstructions)[i];
+            }
+            qsort(allInstructions,(*functionInstructions).size(),sizeof(Instruction*),compareBaseAddress);
+
+            // search backwards through instructions to find jump table base
+            uint64_t prevAddr = baseAddress-1;
+            void* prev = NULL;
+            do {
+                PRINT_DEBUG_JUMP_TABLE("\tTrying Jump base address %#llx", prevAddr);
+                prev = bsearch(&prevAddr,allInstructions,(*functionInstructions).size(),sizeof(Instruction*),searchBaseAddress);
+                if (prev){
+                    Instruction* previousInstruction = *(Instruction**)prev;
+                    bool jumpOpFound = false;
+                    uint64_t immediate = 0;
+                    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+                        Operand op = previousInstruction->getOperand(i);
+                        if (op.getType() && op.getValue() == jumpOperand){
+                            jumpOpFound = true;
+                        }
+                        if (op.getType() && op.getValue() >= X86_64BIT_GPRS){
+                            immediate = op.getValue();
+                        }
+                        if (previousInstruction->usesRelativeAddress()){
+                            immediate = previousInstruction->getRelativeValue() + previousInstruction->getBaseAddress() + previousInstruction->getSizeInBytes();
+                        }
+                    }
+                    if (jumpOpFound && immediate){
+                        delete[] allInstructions;
+                        PRINT_DEBUG_JUMP_TABLE("\t\tFound jump table base at %#llx", immediate);
+                        return immediate;
+                    }
+                    prevAddr = previousInstruction->getBaseAddress()-1;
+                }
+            } while (prev);
+            delete[] allInstructions;
+        }
+    } 
+    // jump target is a memory location
+    else {
+        return operands[JUMP_TARGET_OPERAND].getValue();
+    }
+    PRINT_WARN(6,"Cannot determine indirect jump target for instruction at %#llx", baseAddress);
+    return 0;
+}
+
+bool Instruction::isJumpTableBase(){
+    return (isUnconditionalBranch() && usesIndirectAddress());
 }
 
 bool Instruction::controlFallsThrough(){
     if (isHalt()
         || isReturn()
-        || isUnconditionalBranch()){
+        || isUnconditionalBranch()
+        || isJumpTableBase()){
         return false;
     }
 
@@ -202,11 +262,12 @@ bool Instruction::verify(){
         PRINT_ERROR("Instruction type malformed");
         return false;
     }
+    /*
     if (instructionType == x86_insn_type_bad){
         PRINT_ERROR("Instruction type bad -- likely a misinterpretation of data as instructions or an error in control flow");
         return false;
     }
-
+    */
     /*
     if (instructionType == x86_insn_type_unknown){
         PRINT_ERROR("Instruction type unknown");

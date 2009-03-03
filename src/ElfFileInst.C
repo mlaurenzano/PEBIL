@@ -187,6 +187,14 @@ uint32_t ElfFileInst::anchorProgramElements(){
                     }
                 }
             }
+            if (!currentInstruction->getAddressAnchor()){
+                PRINT_WARN(4, "Creating special AddressRelocation for %#llx at the behast of the instruction at %#llx since it wasn't an instruction or part of a data section", 
+                           relativeAddress, currentInstruction->getBaseAddress()); 
+                DataReference* dataRef = new DataReference(0,NULL,elfFile->is64Bit(),relativeAddress);
+                currentInstruction->initializeAnchor(dataRef);
+                specialDataRefs.append(dataRef);
+            }
+
 #if WARNING_SEVERITY <= 4
             if (!currentInstruction->getAddressAnchor()){
                 PRINT_WARN(4,"Unable to link the instruction at %#llx (-> %#llx) to another object", currentInstruction->getBaseAddress(), relativeAddress);
@@ -198,12 +206,6 @@ uint32_t ElfFileInst::anchorProgramElements(){
 
     ASSERT(anchorCount == addressAnchors.size());
 
-#ifdef DEBUG_ANCHOR
-    for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        addressAnchors[i]->print();
-    }
-#endif
-    
     PRINT_DEBUG_ANCHOR("Found %d instructions that required anchoring", anchorCount);
     PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
     PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
@@ -261,6 +263,12 @@ uint32_t ElfFileInst::anchorProgramElements(){
     PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
     PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
 
+#ifdef DEBUG_ANCHOR
+    for (uint32_t i = 0; i < addressAnchors.size(); i++){
+        addressAnchors[i]->print();
+    }
+#endif
+    
     delete[] allInstructions;
     return anchorCount;
 }
@@ -366,10 +374,10 @@ void ElfFileInst::generateInstrumentation(){
         if (textSection->getTextObject(i)->isFunction()){
             Function* func = (Function*)textSection->getTextObject(i);
             if (isEligibleFunction(func)){
-                if (!func->containsDifficultCall()){
+                if (func->hasCompleteDisassembly()){
                     codeOffset += relocateFunction(func,codeOffset);
                 } else {
-                    PRINT_WARN(6, "Function %s contains a call that makes relocation difficult unable to relocate (meaning full instrumentation may not be possible)", func->getName());
+                    PRINT_WARN(6, "Function %s is not eligible for relocation", func->getName());
                 }
             } else {
                 PRINT_WARN(5, "Function %s is not eligible for relocation (see ElfFileInst::isEligibleFunction)", func->getName());

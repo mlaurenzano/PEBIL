@@ -1,5 +1,14 @@
 #include <Base.h>
 
+
+int64_t absoluteValue(uint64_t d){
+    int64_t a = (int64_t)d;
+    if (a < 0){
+        a = a * -1;
+    }
+    return a;
+}
+
 uint64_t getUInt64(char* buf){
     uint64_t data;
     memcpy(&data,buf,sizeof(uint64_t));

@@ -27,9 +27,12 @@ uint32_t Function::bloatBasicBlocks(uint32_t minBlockSize){
     return sizeInBytes;
 }
 
-bool Function::containsDifficultCall(){
+bool Function::hasCompleteDisassembly(){
     if (containsCallToRange(baseAddress,baseAddress+getNumberOfBytes())){
-        return true;
+        return false;
+    }
+    if (getBadInstruction()){
+        return false;
     }
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
         TextObject* tobj = textSection->getTextObject(i);
@@ -37,12 +40,12 @@ bool Function::containsDifficultCall(){
             Function* func = (Function*)tobj;
             if (!strcmp(func->getName(),"__i686.get_pc_thunk.bx")){
                 if (containsCallToRange(func->getBaseAddress(),func->getBaseAddress()+func->getSizeInBytes())){
-                    return true;
+                    return false;
                 }
             }
         }
     }
-    return false;
+    return true;
 }
 
 bool Function::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
@@ -118,11 +121,38 @@ void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 uint32_t Function::digest(){
+    Vector<Instruction*>* allInstructions;
+
+    // try to use a recursive algorithm
+    allInstructions = digestRecursive();
+
+    // use a linear algorithm if recursive failed
+    if (!allInstructions){
+        ASSERT(getBadInstruction());
+        allInstructions = digestLinear();
+    }
+
+    ASSERT(allInstructions);
+
+    // copy instructions to an array so we can keep the same interface to generateCFG as pmacinst
+    Instruction** instructions = new Instruction*[(*allInstructions).size()];
+    for (uint32_t i = 0; i < (*allInstructions).size(); i++){
+        instructions[i] = (*allInstructions)[i];
+    }
+    generateCFG((*allInstructions).size(),instructions);
+
+    delete[] instructions;
+    delete allInstructions;
+
+    return sizeInBytes;
+}
+
+Vector<Instruction*>* Function::digestRecursive(){
     Vector<Instruction*>* allInstructions = new Vector<Instruction*>();
     Instruction* currentInstruction;
     uint64_t currentAddress = 0;
 
-    PRINT_DEBUG_CFG("Digesting function %s at [%#llx,%#llx)", getName(), getBaseAddress(), getBaseAddress()+getSizeInBytes());
+    PRINT_DEBUG_CFG("Recursively digesting function %s at [%#llx,%#llx)", getName(), getBaseAddress(), getBaseAddress()+getSizeInBytes());
 
     Stack<uint64_t> unprocessed = Stack<uint64_t>(sizeInBytes);
 
@@ -130,7 +160,7 @@ uint32_t Function::digest(){
     unprocessed.push(baseAddress);
 
     // build an array of all reachable instructions
-    while (!unprocessed.empty()){
+    while (!unprocessed.empty() && !getBadInstruction()){
         currentAddress = unprocessed.pop();
 
         void* inst = bsearch(&currentAddress,&(*allInstructions),(*allInstructions).size(),sizeof(Instruction*),searchBaseAddress);
@@ -140,14 +170,18 @@ uint32_t Function::digest(){
             continue;
         }
         if (!inRange(currentAddress)){
-            PRINT_WARN(6,"In function %s, instruction at address %#llx overruns function bound", getName(), currentAddress);
+            PRINT_WARN(6,"In function %s, control flows out of function bound (%#llx)", getName(), currentAddress);
             continue;
         }
 
         currentInstruction = new Instruction(textSection, currentAddress,
                                              textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0);
-        PRINT_DEBUG_CFG("Finding instruction: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());
+        PRINT_DEBUG_CFG("recursive cfg: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());
         uint64_t checkAddr = currentInstruction->getBaseAddress();
+
+        if (currentInstruction->getInstructionType() == x86_insn_type_bad){
+            setBadInstruction(currentInstruction->getBaseAddress());
+        }
 
         (*allInstructions).insertSorted(currentInstruction,compareBaseAddress);
 
@@ -170,9 +204,13 @@ uint32_t Function::digest(){
         Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
         if (currentInstruction->isJumpTableBase()){
             uint64_t jumpTableBase = currentInstruction->findJumpTableBaseAddress(allInstructions);
-            ASSERT(!(*controlTargetAddrs).size());
-            currentInstruction->computeJumpTableTargets(jumpTableBase, this, controlTargetAddrs);
-            PRINT_DEBUG_CFG("Jump table targets (%d):", (*controlTargetAddrs).size());
+            if (inRange(jumpTableBase) || !jumpTableBase){
+                setBadInstruction(currentInstruction->getBaseAddress());
+            } else {
+                ASSERT(!(*controlTargetAddrs).size());
+                currentInstruction->computeJumpTableTargets(jumpTableBase, this, controlTargetAddrs);
+                PRINT_DEBUG_CFG("Jump table targets (%d):", (*controlTargetAddrs).size());
+            }
         } else if (currentInstruction->usesControlTarget()){
             (*controlTargetAddrs).append(currentInstruction->getTargetAddress());
         }
@@ -189,19 +227,24 @@ uint32_t Function::digest(){
                 }
             } else {
                 Instruction* tgtInstruction = *(Instruction**)controlTarget;
+                if (tgtInstruction->getBaseAddress() != controlTargetAddr){
+                    PRINT_ERROR("Instruction at %#llx is entered in the middle by another instruction", tgtInstruction->getBaseAddress());
+                }
                 ASSERT(tgtInstruction->getBaseAddress() == controlTargetAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
             }
         }
         delete controlTargetAddrs;
     }
 
-    Instruction** instructions = new Instruction*[(*allInstructions).size()];
-    for (uint32_t i = 0; i < (*allInstructions).size(); i++){
-        instructions[i] = (*allInstructions)[i];
+    if (getBadInstruction()){
+        for (uint32_t i = 0; i < (*allInstructions).size(); i++){
+            delete (*allInstructions)[i];
+        }
+        delete allInstructions;
+        return NULL;
     }
-    generateCFG((*allInstructions).size(),instructions);
-    delete[] instructions;
-    delete allInstructions;
+
+    return allInstructions;
 }
 
 uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** instructions){
@@ -223,7 +266,9 @@ uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** inst
             void* inst = bsearch(&tgtAddr,instructions,numberOfInstructions,sizeof(Instruction*),searchBaseAddress);
             if (inst){
                 Instruction* tgtInstruction = *(Instruction**)inst;
-                ASSERT(tgtInstruction->getBaseAddress() == tgtAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+                if (!getBadInstruction()){
+                    ASSERT(tgtInstruction->getBaseAddress() == tgtAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+                }
                 tgtInstruction->setLeader(true);
             }
         }
@@ -234,7 +279,9 @@ uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** inst
             void* inst = bsearch(&tgtAddr,instructions,numberOfInstructions,sizeof(Instruction*),searchBaseAddress);
             if (inst){
                 Instruction* tgtInstruction = *(Instruction**)inst;
-                ASSERT(tgtInstruction->getBaseAddress() == tgtAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+                if (!getBadInstruction()){
+                    ASSERT(tgtInstruction->getBaseAddress() == tgtAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+                }
                 tgtInstruction->setLeader(true);
             }
         }
@@ -343,6 +390,8 @@ Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz)
     flowGraph = NULL;
     hashCode = HashCode(text->getSectionIndex(),index);
     PRINT_DEBUG_HASHCODE("Function %d, section %d  Hashcode: 0x%08llx", index, text->getSectionIndex(), hashCode.getValue());
+
+    badInstruction = 0;
 
     verify();
 }

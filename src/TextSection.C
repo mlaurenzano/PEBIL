@@ -165,18 +165,24 @@ char* TextObject::charStream(){
     return (char*)(textSection->charStream() + functionOffset);
 }
 
-uint32_t FreeText::digest(){
-    ASSERT(!instructions.size());
+Vector<Instruction*>* TextObject::digestLinear(){
+    Vector<Instruction*>* allInstructions = new Vector<Instruction*>();
+
     uint32_t currByte = 0;
     uint32_t instructionLength = 0;
     uint64_t instructionAddress;
 
+    PRINT_DEBUG_CFG("Digesting textobject linearly");
+
     uint32_t numberOfInstructions = 0;
     while (currByte < sizeInBytes){
+
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
         Instruction* newInstruction = new Instruction(textSection, getBaseAddress() + currByte, 
                                                       charStream() + currByte, ByteSource_Application_FreeText, numberOfInstructions++);
-        instructions.append(newInstruction);
+        PRINT_DEBUG_CFG("linear cfg: instruction at %#llx with %d bytes", newInstruction->getBaseAddress(), newInstruction->getSizeInBytes());
+
+        (*allInstructions).append(newInstruction);
         currByte += newInstruction->getSizeInBytes();
     }
 
@@ -185,14 +191,34 @@ uint32_t FreeText::digest(){
     // used
     if (currByte > sizeInBytes){
         uint32_t extraBytes = currByte-sizeInBytes;
-        instructions.back()->setSizeInBytes(instructions.back()->getSizeInBytes()-extraBytes);
+        (*allInstructions).back()->setSizeInBytes((*allInstructions).back()->getSizeInBytes()-extraBytes);
         currByte -= extraBytes;
-        PRINT_WARN(3,"Disassembler found instructions that exceed the function boundary in %s by %d bytes", getName(), extraBytes);
+
+        char oType[9];
+        if (getType() == ElfClassTypes_FreeText){
+            sprintf(oType, "%s", "FreeText\0");
+        } else if (getType() == ElfClassTypes_Function){
+            sprintf(oType, "%s", "Function\0");
+        }
+
+        PRINT_WARN(3,"Found instructions that exceed the %s boundary in %.24s by %d bytes", oType, getName(), extraBytes);
     }
 
     ASSERT(currByte == sizeInBytes && "Number of bytes read does not match object size");
 
-    return currByte;
+    return allInstructions;   
+}
+
+uint32_t FreeText::digest(){
+    ASSERT(!instructions.size());
+    Vector<Instruction*>* allInstructions = digestLinear();
+    ASSERT(allInstructions);
+    for (uint32_t i = 0; i < (*allInstructions).size(); i++){
+        instructions.append((*allInstructions)[i]);
+    }
+    instructions.sort(compareBaseAddress);
+    delete allInstructions;
+    return sizeInBytes;
 }
 
 void FreeText::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){

@@ -16,13 +16,19 @@ class TextObject;
 class Function : public TextObject {
 protected:
     FlowGraph* flowGraph;
-
     HashCode hashCode;
+
+    uint64_t badInstruction;
+
+    Vector<Instruction*>* digestRecursive();
 public:
     Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz);
     ~Function();
 
-    bool containsDifficultCall();
+    uint64_t getBadInstruction() { return badInstruction; }
+    void setBadInstruction(uint64_t addr) { badInstruction = addr; }
+
+    bool hasCompleteDisassembly();
     bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);
 
     uint32_t bloatBasicBlocks(uint32_t minBlockSize);

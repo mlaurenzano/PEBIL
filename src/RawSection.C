@@ -23,7 +23,7 @@ RawSection::~RawSection(){
 }
 
 
-DataReference::DataReference(uint64_t dat, RawSection* rawsect, bool is64, uint32_t off)
+DataReference::DataReference(uint64_t dat, RawSection* rawsect, bool is64, uint64_t off)
     : Base(ElfClassTypes_DataReference)
 {
     data = dat;

@@ -120,6 +120,10 @@ bool AddressAnchor::verify(){
 
 void AddressAnchor::print(){
     PRINT_INFOR("Address Anchor %#llx", getLinkOffset());
-    linkedParent->print();
-    link->print();
+    if (linkedParent){
+        linkedParent->print();
+    }
+    if (link){
+        link->print();
+    }
 }

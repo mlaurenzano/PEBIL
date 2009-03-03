@@ -1,5 +1,5 @@
 X86INST_CC    = icc
 X86INST_CPP   = icc -lstdc++
 X86INST_F77   = ifort
-LINK_FLAGS    = -Wl,-T,../linker/x86inst_ld_script__jaws
+LINK_FLAGS    = -Wl,-T,../linker/x86inst_ld_script__jaws -Wl,--emit-relocs
 #LINK_FLAGS    = -Wl,--hash-style=sysv -Wl,-T,../linker/x86inst_ld_script__ranger

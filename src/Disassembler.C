@@ -652,16 +652,22 @@ uint32_t Disassembler::print_insn(uint64_t pc, Instruction* targetInstruction){
             op_ad = 2;
             if (dp->op1)
                 get_ops(dp->op1,dp->bytemode1,sizeflag);
+
+            PRINT_DEBUG_OPERAND("mikey: op1: %s", obufp);
             
             obufp = op2out;
             op_ad = 1;
             if (dp->op2)
                 get_ops(dp->op2,dp->bytemode2,sizeflag);
+
+            PRINT_DEBUG_OPERAND("mikey: op2: %s", obufp);
             
             obufp = op3out;
             op_ad = 0;
             if (dp->op3)
                 get_ops(dp->op3,dp->bytemode3,sizeflag);
+
+            PRINT_DEBUG_OPERAND("mikey: op3: %s", obufp);
 	}
     }
 
@@ -1147,6 +1153,8 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
     uint32_t bytesUsed = 0;
     int add = 0;
     int riprel = 0;
+    char* save_obufp = obufp;
+
     USED_REX (REX_EXTZ);
     if (rex & REX_EXTZ)
         add += 8;
@@ -1246,6 +1254,7 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
                 firstByte = codep - start_codep;
                 bytesUsed = 4;
                 disp = get32s();
+                PRINT_DEBUG_OPERAND("Finding base 0: %d %#x", op_ad, disp);
 	    }
             break;
 	case 1:
@@ -1260,6 +1269,7 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
             firstByte = codep - start_codep;
             bytesUsed = 4;
             disp = get32s();
+            PRINT_DEBUG_OPERAND("Finding base 1: %d %#x", op_ad, disp);
             break;
 	}
 
@@ -1331,7 +1341,7 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
                 if (!intel_syntax || (intel_syntax && bytemode != b_mode && bytemode != w_mode && bytemode != v_mode)){
                     *obufp++ = scale_char;
                     *obufp = '\0';
-                    PRINT_DEBUG_OPERAND(" in OP_E scale: %d %d\n", 1 << scale, scale);
+                    PRINT_DEBUG_OPERAND(" in OP_E scale: %d %d %s\n", 1 << scale, scale, save_obufp);
                     sprintf (scratchbuf, "%d", 1 << scale);
                     oappend (scratchbuf);
                 }
@@ -1344,7 +1354,6 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
                             *obufp++ = '+';
                             *obufp = '\0';
                         }
-                        
                         print_operand_value (scratchbuf, 0, disp);
                         oappend (scratchbuf);
                     }
@@ -1402,6 +1411,10 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
             *obufp++ = close_char;
             *obufp = '\0';
 	}
+    }
+
+    if (disp != 0){
+        currentInstruction->setOperandValue(op_ad,disp);
     }
 }
 

@@ -15,6 +15,7 @@
 
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
+// debugging macros -- these can produce copious amounts of output
 #define WARNING_SEVERITY 3
 //#define DEVELOPMENT
 //#define DEBUG_OPERAND
@@ -30,6 +31,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_INST
 //#define DEBUG_ANCHOR
 //#define DEBUG_FUNC_RELOC
+//#define DEBUG_JUMP_TABLE
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -79,11 +81,12 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     exit(-1);
 
 #ifdef WARNING_SEVERITY
+#define WARN_FILE stdout
 #define PRINT_WARN(__severity,...)  if (__severity >= WARNING_SEVERITY){ \
-    fprintf(stderr,"*** WARNING : ");                            \
-    fprintf(stderr,## __VA_ARGS__);                              \
-    fprintf(stderr,"\n");                                        \
-    fflush(stderr); }
+    fprintf(WARN_FILE,"*** WARNING : ");                            \
+    fprintf(WARN_FILE,## __VA_ARGS__);                              \
+    fprintf(WARN_FILE,"\n");                                        \
+    fflush(WARN_FILE); }
 #else
 #define PRINT_WARN(...)
 #endif
@@ -206,6 +209,17 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #else
 #define PRINT_DEBUG_FUNC_RELOC(...)
 #endif
+
+
+#ifdef DEBUG_JUMP_TABLE
+#define PRINT_DEBUG_JUMP_TABLE(...) fprintf(stdout,"JUMP_TABLE : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_JUMP_TABLE(...)
+#endif
+
 
 
 #ifdef  DEVELOPMENT
@@ -471,6 +485,7 @@ extern int searchBaseAddress(const void* arg1, const void* arg2);
 
 extern uint64_t getUInt64(char* buf);
 extern uint32_t getUInt32(char* buf);
+extern int64_t absoluteValue(uint64_t d);
 
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)

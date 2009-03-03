@@ -6,6 +6,7 @@ OPT         = -O0 -g
 CC          = $(X86INST_CC)  $(OPT)
 CPP         = $(X86INST_CPP) $(OPT)
 F77         = $(X86INST_F77) $(OPT)
+LNK         = ld
 
 SRCDIR      = ../test
 BINDIR      = ../src

@@ -330,7 +330,7 @@ bool DynamicTable::verify(){
             if (elfFile->getSectionHeader(scnIdx)->GET(sh_addr) == relocAddendDynamicAddr){
                 relocAddendDynamicAddr = 0;
                 if (elfFile->getSectionHeader(scnIdx)->GET(sh_size) != relocAddendDynamicSize){
-                    PRINT_ERROR("Size of section containing the relocation addend table does not match the size given in the dynamic table");
+                    //  PRINT_ERROR("Size of section containing the relocation addend table does not match the size given in the dynamic table");
                 }
             }
         }

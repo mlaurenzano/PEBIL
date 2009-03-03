@@ -15,18 +15,18 @@ class SectionHeader;
 class DataReference : public Base {
 private:
     uint64_t data;
-    uint32_t sectionOffset;
+    uint64_t sectionOffset;
     bool is64bit;
 
     RawSection* rawSection;
     AddressAnchor* addressAnchor;
 
 public:
-    DataReference(uint64_t dat, RawSection* rawsect, bool is64, uint32_t off);
+    DataReference(uint64_t dat, RawSection* rawsect, bool is64, uint64_t off);
     ~DataReference();
 
     uint64_t getBaseAddress(); 
-    uint32_t getSectionOffset() { return sectionOffset; }
+    uint64_t getSectionOffset() { return sectionOffset; }
     void initializeAnchor(Base* link);
     AddressAnchor* getAddressAnchor() { return addressAnchor; }
 
