@@ -134,7 +134,7 @@ public:
 
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }
-    virtual bool canRelocateFunction() { return true; }
+    virtual bool canRelocateFunction(Function* func) { return true; }
 };
 
 

@@ -6,8 +6,6 @@
 
 
 uint32_t DwarfLineInfoSection::read(BinaryInputFile* binaryInputFile){
-    PRINT_INFOR("Reading DWARF line information at section %d", getSectionIndex());
-
     binaryInputFile->setInPointer(rawDataPtr);
     setFileOffset(binaryInputFile->currentOffset());
 

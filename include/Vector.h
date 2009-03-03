@@ -12,6 +12,8 @@ private:
     uint32_t numberOfElements;
     uint32_t sizeIncreaseFactor;
 
+    bool isSorted;
+
     void increaseCapacity(){
         capacity = capacity * sizeIncreaseFactor;
         T* dummy = new T[capacity];
@@ -32,6 +34,7 @@ public:
         elements = new T[capacity];
         numberOfElements = 0;
         sizeIncreaseFactor = DEFAULT_INCREASE_FACTOR;
+        isSorted = true;
     }
 
     Vector(){
@@ -39,6 +42,7 @@ public:
         elements = new T[capacity];
         numberOfElements = 0;
         sizeIncreaseFactor = DEFAULT_INCREASE_FACTOR;
+        isSorted = true;
     }
 
     void sort(int (*comparator) (const void*, const void*)){
@@ -46,8 +50,21 @@ public:
     }
 
     uint32_t insertSorted(T elt, int (*comparator) (const void*, const void*)){
-        append(elt);
-        qsort(elements, numberOfElements, sizeof(T), comparator);
+        if (isSorted){
+            uint32_t idx = numberOfElements;
+            for (uint32_t i = 0; i < numberOfElements; i++){
+                int res = comparator(&elt,&elements[i]);
+                if (res < 0){
+                    idx = i;
+                    break;
+                }
+            }
+            insert(elt,idx);
+        } else {
+            append(elt);
+            qsort(elements, numberOfElements, sizeof(T), comparator);
+        }
+        isSorted = true;
         return numberOfElements;
     }
 
@@ -87,6 +104,7 @@ public:
         for (uint32_t i = 0; i < numberOfElements; i++){
             elements[numberOfElements-i-1] = elementsCopy[i];
         }
+        isSorted = false;
         delete[] elementsCopy;
     }
 
@@ -96,6 +114,7 @@ public:
         }
         numberOfElements++;
         assign(elt,numberOfElements-1);
+        isSorted = false;
         return numberOfElements;
     }
 
@@ -114,12 +133,14 @@ public:
         }
         elements[idx] = elt;
         numberOfElements++;
+        isSorted = false;
         return numberOfElements;
     }
 
     uint32_t assign(T elt, uint32_t idx){
         ASSERT(idx < numberOfElements);
         elements[idx] = elt;
+        isSorted = false;
     }
 
     void print(){

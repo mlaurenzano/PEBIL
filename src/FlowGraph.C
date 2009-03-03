@@ -373,6 +373,9 @@ FlowGraph::~FlowGraph(){
     for (uint32_t i = 0; i < loops.size(); i++){
         delete loops[i];
     }
+    for (uint32_t i = 0; i < blocks.size(); i++){
+        delete blocks[i];
+    }
 }
 
 void FlowGraph::setImmDominatorBlocks(BasicBlock* root){

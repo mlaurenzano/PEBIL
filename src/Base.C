@@ -1,6 +1,5 @@
 #include <Base.h>
 
-
 int64_t absoluteValue(uint64_t d){
     int64_t a = (int64_t)d;
     if (a < 0){
@@ -22,10 +21,11 @@ uint32_t getUInt32(char* buf){
 }
 
 int compareBaseAddress(const void* arg1,const void* arg2){
-    Base* inst1 = *((Base**)arg1);
-    Base* inst2 = *((Base**)arg2);
-    uint64_t vl1 = inst1->getBaseAddress();
-    uint64_t vl2 = inst2->getBaseAddress();
+    Base* base1 = *((Base**)arg1);
+    Base* base2 = *((Base**)arg2);
+
+    uint64_t vl1 = base1->getBaseAddress();
+    uint64_t vl2 = base2->getBaseAddress();
 
     if(vl1 < vl2)
         return -1;
@@ -36,11 +36,11 @@ int compareBaseAddress(const void* arg1,const void* arg2){
 
 int searchBaseAddressExact(const void* arg1, const void* arg2){
     uint64_t key = *((uint64_t*)arg1);
-    Base* inst = *((Base**)arg2);
+    Base* b = *((Base**)arg2);
 
-    ASSERT(inst && "Base should exist");
+    ASSERT(b && "Base should exist");
 
-    uint64_t val = inst->getBaseAddress();
+    uint64_t val = b->getBaseAddress();
 
     if (key < val)
         return -1;
@@ -51,12 +51,12 @@ int searchBaseAddressExact(const void* arg1, const void* arg2){
 
 int searchBaseAddress(const void* arg1, const void* arg2){
     uint64_t key = *((uint64_t*)arg1);
-    Base* inst = *((Base**)arg2);
+    Base* b = *((Base**)arg2);
 
-    ASSERT(inst && "Base should exist");
+    ASSERT(b && "Base should exist");
 
-    uint64_t val_low = inst->getBaseAddress();
-    uint64_t val_high = val_low + inst->getSizeInBytes();
+    uint64_t val_low = b->getBaseAddress();
+    uint64_t val_high = val_low + b->getSizeInBytes();
 
     if (key < val_low)
         return -1;

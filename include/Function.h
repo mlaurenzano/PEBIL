@@ -17,7 +17,6 @@ class Function : public TextObject {
 protected:
     FlowGraph* flowGraph;
     HashCode hashCode;
-
     uint64_t badInstruction;
 
     Vector<Instruction*>* digestRecursive();

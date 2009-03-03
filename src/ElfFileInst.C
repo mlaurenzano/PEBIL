@@ -36,11 +36,13 @@ uint32_t readBytes = 0;
 // some common macros you can use to help debug
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define TURNOFF_INSTRUCTION_SWAP
+#define ANCHOR_SEARCH_BINARY
 
 bool ElfFileInst::isEligibleFunction(Function* func){
-    if (!canRelocateFunction()){
+    if (!canRelocateFunction(func)){
         return false;
     }
+    return true;
 
     char* name = func->getName();
     if (strstr(name,"intel")
@@ -57,12 +59,32 @@ bool ElfFileInst::isEligibleFunction(Function* func){
 
 Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
     Vector<AddressAnchor*>* needToUpdate = new Vector<AddressAnchor*>();
+
+#ifdef ANCHOR_SEARCH_BINARY
+    AddressAnchor** allAnchors = &addressAnchors;
+    void* anchor = bsearch(&addr, allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), searchLinkBaseAddressExact);
+    if (anchor != NULL){
+        AddressAnchor* foundAnchor = *(AddressAnchor**)anchor;
+        uint32_t idx = ((uint32_t)anchor-(uint32_t)allAnchors)/sizeof(AddressAnchor*);
+        while (foundAnchor){
+            needToUpdate->append(foundAnchor);
+            if (idx < addressAnchors.size() &&
+                addressAnchors[idx]->getLinkBaseAddress() == addr){
+                foundAnchor = allAnchors[idx];
+                idx++;
+            } else {
+                foundAnchor = NULL;
+            }
+        }
+    }
+#else
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        if (addressAnchors[i]->getLink()->getBaseAddress() <= addr &&
-            addr < addressAnchors[i]->getLink()->getBaseAddress() + addressAnchors[i]->getLink()->getSizeInBytes()){
+        if (addressAnchors[i]->getLinkBaseAddress() <= addr &&
+            addr < addressAnchors[i]->getLinkBaseAddress() + addressAnchors[i]->getLink()->getSizeInBytes()){
             needToUpdate->append(addressAnchors[i]);
         }
     }
+#endif
     return needToUpdate;
 }
 
@@ -84,7 +106,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
         instructionCount += elfFile->getTextSection(i)->getAllInstructions(allInstructions, instructionCount);
     }
 
-    qsort(allInstructions,instructionCount,sizeof(Instruction*),compareBaseAddress);
+    qsort(allInstructions, instructionCount, sizeof(Instruction*), compareBaseAddress);
 
     for (uint32_t i = 0; i < instructionCount; i++){
         if (!allInstructions[i]->getBaseAddress()){
@@ -129,9 +151,13 @@ uint32_t ElfFileInst::anchorProgramElements(){
                 Instruction* linkedInstruction = *(Instruction**)link;
                 PRINT_DEBUG_ANCHOR("Found inst -> inst link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
                 currentInstruction->initializeAnchor(linkedInstruction);
+#ifdef ANCHOR_SEARCH_BINARY
+                addressAnchors.insertSorted(currentInstruction->getAddressAnchor(), compareLinkBaseAddress);
+#else
                 addressAnchors.append(currentInstruction->getAddressAnchor());
+#endif
                 currentInstruction->getAddressAnchor()->setIndex(anchorCount);
-                anchorCount++;    
+                anchorCount++;
             }
 
             // search special data references
@@ -140,7 +166,11 @@ uint32_t ElfFileInst::anchorProgramElements(){
                     if (specialDataRefs[i]->getBaseAddress() == relativeAddress){                        
                         PRINT_DEBUG_ANCHOR("Found inst -> sdata link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
                         currentInstruction->initializeAnchor(specialDataRefs[i]);
+#ifdef ANCHOR_SEARCH_BINARY
+                        addressAnchors.insertSorted(currentInstruction->getAddressAnchor(), compareLinkBaseAddress);
+#else
                         addressAnchors.append(currentInstruction->getAddressAnchor());
+#endif
                         currentInstruction->getAddressAnchor()->setIndex(anchorCount);
                         anchorCount++;
                     }
@@ -179,7 +209,11 @@ uint32_t ElfFileInst::anchorProgramElements(){
                             }
                             DataReference* dataRef = new DataReference(extendedData,dataRawSection,elfFile->is64Bit(),sectionOffset);
                             currentInstruction->initializeAnchor(dataRef);
+#ifdef ANCHOR_SEARCH_BINARY
+                            addressAnchors.insertSorted(currentInstruction->getAddressAnchor(), compareLinkBaseAddress);
+#else
                             addressAnchors.append(currentInstruction->getAddressAnchor());
+#endif
                             currentInstruction->getAddressAnchor()->setIndex(anchorCount);
                             dataRawSection->addDataReference(dataRef);
                             anchorCount++;

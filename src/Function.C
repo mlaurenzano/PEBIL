@@ -198,7 +198,9 @@ Vector<Instruction*>* Function::digestRecursive(){
             }
         } else {
             Instruction* tgtInstruction = *(Instruction**)fallThrough;
-            ASSERT(tgtInstruction->getBaseAddress() == fallThroughAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+            if (tgtInstruction->getBaseAddress() != fallThroughAddr){
+                setBadInstruction(fallThroughAddr);
+            }
         }
         
         Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
@@ -228,9 +230,8 @@ Vector<Instruction*>* Function::digestRecursive(){
             } else {
                 Instruction* tgtInstruction = *(Instruction**)controlTarget;
                 if (tgtInstruction->getBaseAddress() != controlTargetAddr){
-                    PRINT_ERROR("Instruction at %#llx is entered in the middle by another instruction", tgtInstruction->getBaseAddress());
-                }
-                ASSERT(tgtInstruction->getBaseAddress() == controlTargetAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+                    setBadInstruction(controlTargetAddr);
+                }              
             }
         }
         delete controlTargetAddrs;
@@ -267,7 +268,9 @@ uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** inst
             if (inst){
                 Instruction* tgtInstruction = *(Instruction**)inst;
                 if (!getBadInstruction()){
-                    ASSERT(tgtInstruction->getBaseAddress() == tgtAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+                    if (tgtInstruction->getBaseAddress() != tgtAddr){
+                        PRINT_ERROR("found instruction that enters the middle of another instruction -- function %s instruction %#llx", getName(), tgtAddr);
+                    }
                 }
                 tgtInstruction->setLeader(true);
             }
@@ -374,9 +377,6 @@ uint64_t Function::findInstrumentationPoint(uint32_t size, InstLocations loc){
 
 Function::~Function(){
     if (flowGraph){
-        for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-            delete flowGraph->getBasicBlock(i);
-        }
         delete flowGraph;
     }
 }

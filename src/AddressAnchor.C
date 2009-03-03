@@ -4,6 +4,36 @@
 #include <Instruction.h>
 #include <RawSection.h>
 
+int searchLinkBaseAddressExact(const void* arg1, const void* arg2){
+    uint64_t key = *((uint64_t*)arg1);
+    AddressAnchor* a = *((AddressAnchor**)arg2);
+
+    ASSERT(a && "AddressAnchor should exist");
+
+    uint64_t val = a->getLinkBaseAddress();
+
+    if (key < val)
+        return -1;
+    if (key > val)
+        return 1;
+    return 0;
+}
+
+
+int compareLinkBaseAddress(const void* arg1,const void* arg2){
+    AddressAnchor* a1 = *((AddressAnchor**)arg1);
+    AddressAnchor* a2 = *((AddressAnchor**)arg2);
+    uint64_t vl1 = a1->getLink()->getBaseAddress();
+    uint64_t vl2 = a2->getLink()->getBaseAddress();
+
+    if(vl1 < vl2)
+        return -1;
+    if(vl1 > vl2)
+        return 1;
+    return 0;
+}
+
+
 Base* AddressAnchor::updateLink(Base* newLink){
     ASSERT(newLink->containsProgramBits());
     Base* oldLink = link;

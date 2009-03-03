@@ -3,6 +3,9 @@
 
 #include <Base.h>
 
+extern int searchLinkBaseAddressExact(const void* arg1, const void* arg2);
+extern int compareLinkBaseAddress(const void* arg1,const void* arg2);
+
 class AddressAnchor {
 private:
     Base* link;
@@ -28,6 +31,7 @@ public:
     uint32_t getIndex() { return index; }
 
     uint32_t setIndex(uint32_t idx) { index = idx; return index; }
+    uint64_t getLinkBaseAddress() { ASSERT(link); return link->getBaseAddress(); }
 
     bool verify();
     void print();

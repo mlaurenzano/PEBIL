@@ -12,7 +12,7 @@ int32_t functioncounter(void* arg1, void* arg2, void* arg3){
     int32_t i;
     int32_t numFunctions = *(int32_t*)arg1;
     int32_t* functionCounts = (int32_t*)(arg2);
-    char** functionNames = *(char**)arg3;
+    char** functionNames = (char**)arg3;
 
     fprintf(stdout, "\n*** Instrumentation Summary ****\n");
     fprintf(stdout, "Raw instrumentation function arguments: %x %x %x\n", arg1, arg2, arg3);
@@ -21,7 +21,7 @@ int32_t functioncounter(void* arg1, void* arg2, void* arg3){
 
     for (i = 0; i < numFunctions; i++){
         if (functionCounts[i] >= PRINT_MINIMUM){
-            fprintf(stdout, "\tFunction(%d) -- %x -- %32.32s -- executed %d times\n", i, functionNames[i], functionNames[i], functionCounts[i]);
+            fprintf(stdout, "\tFunction(%d) %.24s executed %d times\n", i, functionNames[i], functionCounts[i]);
         }
     }
 
