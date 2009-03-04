@@ -59,6 +59,8 @@ public:
 
     Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
     uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
+
+    void printDisassembly(bool instructionDetail);
 };
 
 #endif /* _Function_h_ */

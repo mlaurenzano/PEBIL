@@ -49,7 +49,8 @@ DwarfSection.o: DwarfSection.C ../include/DwarfSection.h \
 ElfFile.o: ElfFile.C ../include/ElfFile.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/CStructuresX86.h ../include/BinaryFile.h \
-  ../include/DwarfSection.h ../include/RawSection.h ../include/Vector.h \
+  ../include/Disassembler.h ../include/DwarfSection.h \
+  ../include/RawSection.h ../include/Vector.h \
   ../include/defines/LineInformation.d ../include/DynamicTable.h \
   ../include/defines/DynamicTable.d ../include/FileHeader.h \
   ../include/defines/FileHeader.d ../include/GlobalOffsetTable.h \
@@ -101,13 +102,16 @@ Function.o: Function.C ../include/Function.h ../include/BitSet.h \
   ../include/LengauerTarjan.h ../include/SectionHeader.h \
   ../include/defines/SectionHeader.d ../include/Stack.h \
   ../include/SymbolTable.h ../include/defines/SymbolTable.d
-FunctionCounter.o: FunctionCounter.C ../include/FunctionCounter.h \
-  ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
+FunctionCounter.o: FunctionCounter.C ../include/BasicBlock.h \
+  ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/ElfFile.h ../include/BinaryFile.h ../include/Instruction.h \
-  ../include/Vector.h ../include/Function.h ../include/BitSet.h \
-  ../include/TextSection.h ../include/RawSection.h \
-  ../include/Instrumentation.h
+  ../include/BitSet.h ../include/FlowGraph.h ../include/Function.h \
+  ../include/Instruction.h ../include/Vector.h ../include/TextSection.h \
+  ../include/RawSection.h ../include/LinkedList.h \
+  ../include/FunctionCounter.h ../include/ElfFileInst.h \
+  ../include/ElfFile.h ../include/BinaryFile.h \
+  ../include/Instrumentation.h ../include/LineInformation.h \
+  ../include/defines/LineInformation.d
 GlobalOffsetTable.o: GlobalOffsetTable.C ../include/GlobalOffsetTable.h \
   ../include/RawSection.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \

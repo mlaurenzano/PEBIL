@@ -11,7 +11,6 @@ private:
     Base* link;
     Base* linkedParent;
 
-    uint64_t getLinkOffset();
     uint32_t index;
 
     void dump8(BinaryOutputFile* b, uint32_t offset);
@@ -24,6 +23,8 @@ private:
 public:
     AddressAnchor(Base* lnk, Base* par);
     ~AddressAnchor();
+
+    uint64_t getLinkOffset();
 
     Base* getLink() { return link; }
     Base* updateLink(Base* newLink);

@@ -18,6 +18,8 @@ class TextSection;
 #define JUMP_TARGET_OPERAND 2
 #define JUMP_TABLE_REACHES 0x1000
 
+static char* instruction_without_dis = "<__no_info__x86_instrumentor>";
+
 enum x86_insn_format {
     x86_insn_format_unknown = 0,
     x86_insn_format_onebyte,
@@ -124,8 +126,6 @@ public:
 
 class Instruction : public Base {
 protected:
-    Disassembler* disassembler;
-
     uint32_t index;
     char* rawBytes;
     uint64_t baseAddress;
@@ -149,6 +149,7 @@ public:
     bool isJumpTableBase();
     void computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList);
     uint64_t findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions);
+    void binutilsPrint(FILE* stream);
 
     uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
     void print();

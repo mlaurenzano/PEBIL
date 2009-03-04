@@ -71,6 +71,7 @@ public:
     uint32_t addSnippetInstruction(Instruction* inst);
     uint64_t setCodeOffset(uint64_t off) { snippetOffset = off; return snippetOffset; }
     uint64_t getCodeOffset() { return snippetOffset; }
+
 };
 
 class InstrumentationFunction : public Instrumentation {

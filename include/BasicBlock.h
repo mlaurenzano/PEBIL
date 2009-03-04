@@ -24,6 +24,7 @@ public:
     virtual bool verify() { __SHOULD_NOT_ARRIVE; }
     virtual void setBaseAddress(uint64_t addr) { __SHOULD_NOT_ARRIVE; }
     virtual void print() { __SHOULD_NOT_ARRIVE; }
+    virtual void printDisassembly(bool instructionDetail) { __SHOULD_NOT_ARRIVE; }
 
     uint64_t getBaseAddress() { return baseAddress; }
     uint32_t getIndex() { return index; }
@@ -43,6 +44,7 @@ public:
 
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
     bool verify() { return true; }
+    void printDisassembly(bool instructionDetail);
 
     void setBaseAddress(uint64_t addr) { baseAddress = addr; }
     void print();
@@ -85,6 +87,7 @@ public:
     void print();
     void printSourceBlocks();
     void printTargetBlocks();
+    void printDisassembly(bool instructionDetail);
 
     uint32_t getNumberOfBytes();
 

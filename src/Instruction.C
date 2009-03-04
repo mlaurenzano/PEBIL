@@ -12,6 +12,31 @@
 
 #define JUMP_TGT_NOT_FOUND "<jump_tgt_not_found>"
 
+void Instruction::binutilsPrint(FILE* stream){
+    fprintf(stream, "%llx: ", getBaseAddress());
+
+    int extraSpaces = 8;
+    for (uint32_t j = 0; j < getSizeInBytes(); j++){
+        fprintf(stream, "%02hhx ", rawBytes[j]);
+        extraSpaces--;
+    }
+    while (extraSpaces > 0){
+        fprintf(stream, "   ");
+        extraSpaces--;
+    }
+
+    Base::disassembler->disassembleInstructionInPlace(this);
+
+    if (usesRelativeAddress()){
+        if (addressAnchor){
+            fprintf(stream, "\t#@ %llx", addressAnchor->getLinkBaseAddress());
+        } else {
+            fprintf(stream, "\t#  %llx", getRelativeValue()+getBaseAddress());
+        }
+    }
+
+    fprintf(stream, "\n");
+}
 
 bool Instruction::usesControlTarget(){
     if (isConditionalBranch() ||
@@ -1160,7 +1185,6 @@ Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, ByteS
     : Base(ElfClassTypes_Instruction)
 {
     textSection = text;
-    disassembler = textSection->getDisassembler();
     baseAddress = baseAddr;
     sizeInBytes = MAX_X86_INSTRUCTION_LENGTH;
     index = idx;
@@ -1179,7 +1203,7 @@ Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, ByteS
         operands[i] = Operand(i);
     }
 
-    sizeInBytes = disassembler->print_insn((uint64_t)buff, this);
+    sizeInBytes = Base::disassembler->print_insn((uint64_t)buff, this);
     if (!sizeInBytes){
         sizeInBytes = 1;
     }
@@ -1192,7 +1216,6 @@ Instruction::Instruction()
     : Base(ElfClassTypes_Instruction)
 {
     textSection = NULL;
-    disassembler = NULL;
     baseAddress = 0;
     sizeInBytes = MAX_X86_INSTRUCTION_LENGTH;
     index = 0;

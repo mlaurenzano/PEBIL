@@ -121,7 +121,7 @@ protected:
 
 public:
 
-    Disassembler(uint32_t is64bit);
+    Disassembler(bool is64);
     ~Disassembler();
     void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) {}

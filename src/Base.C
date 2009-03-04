@@ -1,5 +1,7 @@
 #include <Base.h>
 
+Disassembler* Base::disassembler;
+
 int64_t absoluteValue(uint64_t d){
     int64_t a = (int64_t)d;
     if (a < 0){

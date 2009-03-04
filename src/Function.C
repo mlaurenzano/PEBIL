@@ -13,6 +13,19 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+void Function::printDisassembly(bool instructionDetail){
+    fprintf(stdout, "%llx <%s>: ", getBaseAddress(), getName());
+    if (getBadInstruction()){
+        fprintf(stdout, "fault@ %llx", getBadInstruction());
+    }
+    fprintf(stdout, "\n");
+    if (flowGraph){
+        for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
+            flowGraph->getBlock(i)->printDisassembly(instructionDetail);
+        }
+    }
+}
+
 uint32_t Function::bloatBasicBlocks(uint32_t minBlockSize){
     uint32_t currByte = 0;
     for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){

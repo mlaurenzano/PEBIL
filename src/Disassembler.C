@@ -41,8 +41,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <ElfFile.h>
 #include <Instruction.h>
 
-Disassembler::Disassembler(uint32_t is64bit){
-    is64Bit = is64bit;
+Disassembler::Disassembler(bool is64){
+    PRINT_INFOR("Initting disasm");
+    is64Bit = is64;
     if (is64Bit){
         machineType = mach_x86_64;
     } else {

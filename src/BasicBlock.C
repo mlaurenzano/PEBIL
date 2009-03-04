@@ -7,6 +7,41 @@
 
 #define MAX_SIZE_LINEAR_SEARCH 4096
 
+static const char* bytes_not_instructions = "<x86_inst_unreachable_text>";
+
+void UnknownBlock::printDisassembly(bool instructionDetail){
+    uint32_t bytesPerWord = 1;
+    uint32_t bytesPerLine = 8;
+    
+    uint32_t currByte = 0;
+    
+    for (currByte = 0; currByte < sizeInBytes; currByte++){
+        if (currByte % bytesPerLine == 0){
+            if (currByte){
+                fprintf(stdout, "%s\n", bytes_not_instructions);
+            }
+            fprintf(stdout, "%llx: ", getBaseAddress()+currByte);
+        }
+        fprintf(stdout, "%02hhx ", rawBytes[currByte]);
+    }
+    for (uint32_t i = 0; i < 8-(sizeInBytes%8); i++){
+        fprintf(stdout, "   ");        
+    }
+
+    fprintf(stdout, "%s\n", bytes_not_instructions);
+}
+
+void BasicBlock::printDisassembly(bool instructionDetail){
+
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        instructions[i]->binutilsPrint(stdout);
+
+        if (instructionDetail){
+            instructions[i]->print();
+        }
+    }
+}
+
 CodeBlock::CodeBlock(ElfClassTypes typ, uint32_t idx, FlowGraph* cfg)
     : Base(typ)
 {

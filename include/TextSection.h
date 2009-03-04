@@ -42,6 +42,7 @@ public:
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
     virtual char* getName();
     virtual uint32_t digest() { __SHOULD_NOT_ARRIVE; }
+    virtual void printDisassembly(bool instructionDetail) { __SHOULD_NOT_ARRIVE; }
 
     virtual void print() { __SHOULD_NOT_ARRIVE; }
 };
@@ -61,6 +62,7 @@ public:
 
     Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }
     uint32_t getNumberOfInstructions() { return instructions.size(); }
+    void printDisassembly(bool instructionDetail);
 
     void print();
 };
@@ -70,9 +72,7 @@ protected:
     uint32_t index;
     Vector<TextObject*> sortedTextObjects;
 
-    Disassembler* disassembler;
     ByteSources source;
-
 public:
     TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf, ByteSources src);
     ~TextSection();
@@ -88,12 +88,11 @@ public:
     uint32_t readNoFile();
     uint32_t getIndex() { return index; }
     uint32_t disassemble();
-    uint32_t printDisassembledCode(bool instructionDetail);
+    uint32_t printDisassembly(bool instructionDetail);
     uint32_t read(BinaryInputFile* b);
     uint32_t disassemble(BinaryInputFile* b);
 
     uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
-    Disassembler* getDisassembler() { return disassembler; }
 
     bool verify();
     const char* briefName() { return "TextSection"; }

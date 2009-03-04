@@ -1,7 +1,9 @@
 #include <ElfFile.h>
 
+#include <Base.h>
 #include <BinaryFile.h>
 #include <CStructuresX86.h>
+#include <Disassembler.h>
 #include <DwarfSection.h>
 #include <DynamicTable.h>
 #include <FileHeader.h>
@@ -805,9 +807,9 @@ void ElfFile::print(uint32_t printCodes)
         PRINT_INFOR("Text Disassembly");
         PRINT_INFOR("=============");
         if (HAS_PRINT_CODE(printCodes,Print_Code_Instruction)){
-            printDisassembledCode(true);
+            printDisassembly(true);
         } else {
-            printDisassembledCode(false);
+            printDisassembly(false);
         }
     }
 
@@ -834,13 +836,13 @@ void ElfFile::findFunctions(){
 
 
 
-uint32_t ElfFile::printDisassembledCode(bool instructionDetail){
+uint32_t ElfFile::printDisassembly(bool instructionDetail){
     uint32_t numInstrs = 0;
 
     for (uint32_t i = 0; i < numberOfTextSections; i++){
         if (textSections[i]){
             if (textSections[i]->getByteSource() != ByteSource_Instrumentation){
-                numInstrs += textSections[i]->printDisassembledCode(instructionDetail);
+                numInstrs += textSections[i]->printDisassembly(instructionDetail);
             } else {
                 PRINT_INFOR("Skipping print of section %hd because it is instrumentation code", textSections[i]->getSectionIndex());
             }
@@ -939,6 +941,8 @@ void ElfFile::parse(){
     } else {
         PRINT_ERROR("The class identifier is not a valid one [%#x]",e_ident[EI_CLASS]);
     }
+
+    Base::disassembler = new Disassembler(is64BitFlag);
 
     readFileHeader();
     readProgramHeaders();
@@ -1146,6 +1150,9 @@ ElfFile::~ElfFile(){
     }
     if (noteSections){
         delete[] noteSections;
+    }
+    if (Base::disassembler){
+        delete Base::disassembler;
     }
 }
 

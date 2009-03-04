@@ -62,6 +62,7 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
 
 #ifdef ANCHOR_SEARCH_BINARY
     AddressAnchor** allAnchors = &addressAnchors;
+    qsort(allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), compareLinkBaseAddress);
     void* anchor = bsearch(&addr, allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), searchLinkBaseAddressExact);
     if (anchor != NULL){
         AddressAnchor* foundAnchor = *(AddressAnchor**)anchor;
@@ -151,11 +152,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
                 Instruction* linkedInstruction = *(Instruction**)link;
                 PRINT_DEBUG_ANCHOR("Found inst -> inst link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
                 currentInstruction->initializeAnchor(linkedInstruction);
-#ifdef ANCHOR_SEARCH_BINARY
-                addressAnchors.insertSorted(currentInstruction->getAddressAnchor(), compareLinkBaseAddress);
-#else
                 addressAnchors.append(currentInstruction->getAddressAnchor());
-#endif
                 currentInstruction->getAddressAnchor()->setIndex(anchorCount);
                 anchorCount++;
             }
@@ -166,11 +163,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
                     if (specialDataRefs[i]->getBaseAddress() == relativeAddress){                        
                         PRINT_DEBUG_ANCHOR("Found inst -> sdata link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
                         currentInstruction->initializeAnchor(specialDataRefs[i]);
-#ifdef ANCHOR_SEARCH_BINARY
-                        addressAnchors.insertSorted(currentInstruction->getAddressAnchor(), compareLinkBaseAddress);
-#else
                         addressAnchors.append(currentInstruction->getAddressAnchor());
-#endif
                         currentInstruction->getAddressAnchor()->setIndex(anchorCount);
                         anchorCount++;
                     }
@@ -209,11 +202,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
                             }
                             DataReference* dataRef = new DataReference(extendedData,dataRawSection,elfFile->is64Bit(),sectionOffset);
                             currentInstruction->initializeAnchor(dataRef);
-#ifdef ANCHOR_SEARCH_BINARY
-                            addressAnchors.insertSorted(currentInstruction->getAddressAnchor(), compareLinkBaseAddress);
-#else
                             addressAnchors.append(currentInstruction->getAddressAnchor());
-#endif
                             currentInstruction->getAddressAnchor()->setIndex(anchorCount);
                             dataRawSection->addDataReference(dataRef);
                             anchorCount++;
@@ -484,7 +473,7 @@ void ElfFileInst::generateInstrumentation(){
         for (uint32_t j = 0; j < (*repl).size(); j++){
             (*repl)[j]->setBaseAddress(pt->getSourceAddress()+bytesUsed);
             bytesUsed += (*repl)[j]->getSizeInBytes();
-            textSection->getDisassembler()->disassembleInstructionInPlace((*repl)[j]);
+            Base::disassembler->disassembleInstructionInPlace((*repl)[j]);
 #ifdef DEBUG_INST
             (*repl)[j]->print();
 #endif
@@ -1127,6 +1116,23 @@ void ElfFileInst::print(uint32_t printCodes){
             PRINT_INFOR("\tExtra data space available @address 0x%016llx + %d bytes", extendedData->GET(sh_addr), extendedData->GET(sh_size));
             PRINT_INFOR("\tExtra data space available @offset  0x%016llx + %d bytes", extendedData->GET(sh_offset), extendedData->GET(sh_size));
         }
+    }
+
+    if (HAS_PRINT_CODE(printCodes,Print_Code_Disassemble)){
+        Base::disassembler->setPrintFunction((fprintf_ftype)fprintf,stdout);
+
+        PRINT_INFOR("Relocated Text Disassembly");
+        PRINT_INFOR("=============");
+        for (uint32_t i = 0; i < relocatedFunctions.size(); i++){
+            fprintf(stdout, "\n");
+            if (HAS_PRINT_CODE(printCodes,Print_Code_Instruction)){
+                relocatedFunctions[i]->printDisassembly(true);
+            } else {
+                relocatedFunctions[i]->printDisassembly(false);
+            }
+        }
+
+        Base::disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
     }
 }
 

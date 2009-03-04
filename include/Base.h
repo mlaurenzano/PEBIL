@@ -375,6 +375,7 @@ typedef enum {
 
 class BinaryInputFile;
 class BinaryOutputFile;
+class Disassembler;
 class Instruction;
 template <class anonymous> class Vector;
 
@@ -391,6 +392,8 @@ protected:
     virtual ~Base() {}
 
 public:
+    static Disassembler* disassembler;
+
     ElfClassTypes getType() { return type; }
     uint32_t getSizeInBytes() { return sizeInBytes; }
 
@@ -419,7 +422,6 @@ public:
     virtual uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc) { __SHOULD_NOT_ARRIVE; return 0; }
     virtual uint64_t getBaseAddress() { __SHOULD_NOT_ARRIVE; }
 };
-
 
 class HashCode {
 private:

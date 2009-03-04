@@ -16,6 +16,30 @@ char* TextObject::getName(){
     return symbol_without_name;
 }
 
+uint32_t TextSection::printDisassembly(bool instructionDetail){
+    ASSERT(elfFile && "Text section should be linked to its corresponding ElfFile object");
+
+    Base::disassembler->setPrintFunction((fprintf_ftype)fprintf,stdout);
+
+    fprintf(stdout, "Disassembly of section %s\n\n", getSectionHeader()->getSectionNamePtr());
+
+    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+        sortedTextObjects[i]->printDisassembly(instructionDetail);
+        fprintf(stdout, "\n");
+    }
+
+    Base::disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
+}
+
+void FreeText::printDisassembly(bool instructionDetail){
+    fprintf(stdout, "%#llx <%s>:\n", getBaseAddress(), getName());
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        instructions[i]->binutilsPrint(stdout);
+        if (instructionDetail){
+            instructions[i]->print();
+        }
+    }
+}
 
 uint32_t FreeText::getAllInstructions(Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
@@ -272,8 +296,7 @@ TextSection::TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t
 {
     index = idx;
 
-    disassembler = new Disassembler(elfFile->is64Bit());
-    disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
+    Base::disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
 
     source = src;
 }
@@ -472,60 +495,5 @@ TextSection::~TextSection(){
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         delete sortedTextObjects[i];
     }
-
-    if (disassembler){
-        delete disassembler;
-    }
 }
 
-uint32_t TextSection::printDisassembledCode(bool instructionDetail){
-    ASSERT(elfFile && "Text section should be linked to its corresponding ElfFile object");
-
-    ASSERT(disassembler && "Disassembler should be initialized before calling disassemble");
-    disassembler->setPrintFunction((fprintf_ftype)fprintf,stdout);
-
-    SectionHeader* sHdr = elfFile->getSectionHeader(sectionIndex);
-    ASSERT(sHdr && "Invalid sectionIndex set on text section");
-
-    uint32_t currByte = 0;
-    uint32_t instructionLength = 0;
-    uint32_t instructionCount = 0;
-    uint64_t instructionAddress;
-    Instruction* dummyInstruction;
-
-    PRINT_INFOR("Disassembly output of Section %s(%d)", sHdr->getSectionNamePtr(), sectionIndex);
-    uint32_t currentFunction = 0;
-
-    while (currByte < sHdr->GET(sh_size)){
-        if (currentFunction < sortedTextObjects.size()){
-            if (sortedTextObjects[currentFunction]->getBaseAddress() <= sHdr->GET(sh_addr) + currByte){
-                sortedTextObjects[currentFunction]->print();
-                currentFunction++;
-            }
-        }
-
-        instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
-        //fprintf(stdout, "(0x%llx) 0x%llx:\t", (uint64_t)(charStream() + currByte), (uint64_t)(sHdr->GET(sh_addr) + currByte));
-        fprintf(stdout, "0x%llx:\t", (uint64_t)(sHdr->GET(sh_addr) + currByte));
-
-        dummyInstruction = new Instruction(this, sHdr->GET(sh_addr) + currByte, charStream() + currByte, ByteSource_Application, instructionCount);
-        
-        fprintf(stdout, "\t(bytes -- ");
-        uint8_t* bytePtr;
-        for (uint32_t j = 0; j < dummyInstruction->getSizeInBytes(); j++){
-            bytePtr = (uint8_t*)charStream() + currByte + j;
-            fprintf(stdout, "%2.2lx ", *bytePtr);
-        }
-        fprintf(stdout, ")\n");
-        if (instructionDetail){
-            dummyInstruction->print();
-        }
-
-        currByte += dummyInstruction->getSizeInBytes();
-        instructionCount++;
-
-        delete dummyInstruction;
-    }
-    PRINT_INFOR("Found %d instructions (%d bytes) in section %d", instructionCount, currByte, sectionIndex);
-    disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
-}

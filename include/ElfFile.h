@@ -101,7 +101,6 @@ public:
         numberOfRelocationTables(0),numberOfDwarfSections(0),numberOfTextSections(0),numberOfNoteSections(0),
         dynamicSectionAddress(0),dynamicTableSectionIdx(0),textSegmentIdx(0),dataSegmentIdx(0),
         numberOfFunctions(0),numberOfBlocks(0),numberOfMemoryOps(0),numberOfFloatPOps(0) {}
-
     ~ElfFile();
 
     bool is64Bit() { return is64BitFlag; }
@@ -169,7 +168,7 @@ public:
 
     void setLineInfoFinder();
     void findLoops();
-    uint32_t printDisassembledCode(bool instructionDetail);
+    uint32_t printDisassembly(bool instructionDetail);
     uint64_t addSection(uint16_t idx, ElfClassTypes classtype, char* bytes, uint32_t name, uint32_t type, uint64_t flags, uint64_t addr, uint64_t offset, 
                         uint64_t size, uint32_t link, uint32_t info, uint64_t addralign, uint64_t entsize);
 

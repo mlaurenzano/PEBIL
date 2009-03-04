@@ -51,15 +51,8 @@ public:
 
     uint32_t insertSorted(T elt, int (*comparator) (const void*, const void*)){
         if (isSorted){
-            uint32_t idx = numberOfElements;
-            for (uint32_t i = 0; i < numberOfElements; i++){
-                int res = comparator(&elt,&elements[i]);
-                if (res < 0){
-                    idx = i;
-                    break;
-                }
-            }
-            insert(elt,idx);
+            append(elt);
+            qsort(elements, numberOfElements, sizeof(T), comparator);
         } else {
             append(elt);
             qsort(elements, numberOfElements, sizeof(T), comparator);
