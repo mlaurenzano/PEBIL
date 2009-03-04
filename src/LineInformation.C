@@ -609,11 +609,18 @@ void LineInfo::print(){
 
     PRINT_INFO();
     PRINT_OUT("%6d\t%6d\t", index, instructionBytes.size());
-    for (uint32_t i = 0; i < instructionBytes.size(); i++){
-        PRINT_OUT("%02hhx", instructionBytes[i]);
-    }
-    for (uint32_t i = 0; i < 8-instructionBytes.size(); i++){
-        PRINT_OUT("  ");
+    if (instructionBytes.size() <= 8){
+        for (uint32_t i = 0; i < instructionBytes.size(); i++){
+            PRINT_OUT("%02hhx", instructionBytes[i]);
+        }
+        for (uint32_t i = 0; i < 8-instructionBytes.size(); i++){
+            PRINT_OUT("  ");
+        }
+    } else {
+        for (uint32_t i = 0; i < 8-2; i++){
+            PRINT_OUT("%02hhx", instructionBytes[i]);
+        }
+        PRINT_OUT("... ");
     }
 
     char* typestr = "UNKNOWN";
