@@ -16,7 +16,7 @@ OBJS        = foo.o bar.o dum.o main.o
 SRCSCPP		= classes.C
 OBJSCPP		= classes.o
 
-EXECUTABLE  = cTest.$(COMP) cppTest.$(COMP) htcoef.$(COMP)
+EXECUTABLE  = cTest.$(COMP) cppTest.$(COMP) htcoef.$(COMP) dynTest.$(COMP)
 
 build : all install
 
@@ -36,6 +36,9 @@ cppTest.$(COMP): $(OBJSCPP)
 
 htcoef.$(COMP):
 	$(F77) -o $@ htcoef.f $(LINK_FLAGS)
+
+dynTest.$(COMP):
+	$(CC) -o $@ dynTest.c $(LINK_FLAGS)
 
 install: $(EXECUTABLE)
 	cp $(EXECUTABLE) $(BINDIR)

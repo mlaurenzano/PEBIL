@@ -204,7 +204,6 @@ public:
     uint32_t setOperandBytePosition(uint32_t idx, uint32_t pos);
     uint32_t setOperandBytesUsed(uint32_t idx, uint32_t usd);
     bool setOperandRelative(uint32_t idx, bool rel);
-    uint64_t setRelocationInfo(bool isRelative, uint64_t relocationDist);
     ByteSources setByteSource(ByteSources src);
     uint64_t setProgramAddress(uint64_t addr);
 

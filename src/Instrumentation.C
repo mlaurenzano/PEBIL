@@ -488,11 +488,6 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
                 (*insts)[i]->convertTo4ByteOperand();
             }
         }
-        /*
-        else {
-            (*insts)[i]->setRelocationInfo(true,displacementDist);
-        }
-        */
         (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
         trampolineInstructions.append((*insts)[i]);
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();

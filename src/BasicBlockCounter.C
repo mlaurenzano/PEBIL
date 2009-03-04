@@ -57,7 +57,7 @@ void BasicBlockCounter::instrument(){
             }
         }
     }
-    ASSERT(allBlocks.size() == allLineInfos.size());
+    ASSERT(!allLineInfos.size() || allBlocks.size() == allLineInfos.size());
     uint32_t numberOfInstPoints = allBlocks.size();
 
     // the number blocks in the code
