@@ -12,6 +12,36 @@
 
 #define JUMP_TGT_NOT_FOUND "<jump_tgt_not_found>"
 
+
+Instruction* Instruction::generateMoveImmByteToReg(uint8_t imm, uint32_t idx){
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
+    uint32_t len = 2;
+    uint32_t reg = 0;
+    uint8_t opc = 0xb0;
+
+    if (idx > 3){
+        len += 2;
+        reg++;
+        opc += 0x08;
+    } 
+    char* buff = new char[len];
+    buff[0] = 0x66;
+    buff[reg] = opc + idx;
+    buff[reg+1] = imm;
+    if (idx > 3){
+        buff[3] = 0x00;
+    }
+    return generateInstructionBase(len,buff);
+}
+
+Instruction* Instruction::generateRegIncrement(uint32_t idx){
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
+    uint32_t len = 1;
+    char* buff = new char[len];
+    buff[0] = 0x40 + idx;
+    return generateInstructionBase(len,buff);
+}
+
 void Instruction::binutilsPrint(FILE* stream){
     fprintf(stream, "%llx: ", getBaseAddress());
 

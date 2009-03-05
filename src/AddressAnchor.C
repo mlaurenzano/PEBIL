@@ -23,8 +23,8 @@ int searchLinkBaseAddressExact(const void* arg1, const void* arg2){
 int compareLinkBaseAddress(const void* arg1,const void* arg2){
     AddressAnchor* a1 = *((AddressAnchor**)arg1);
     AddressAnchor* a2 = *((AddressAnchor**)arg2);
-    uint64_t vl1 = a1->getLink()->getBaseAddress();
-    uint64_t vl2 = a2->getLink()->getBaseAddress();
+    uint64_t vl1 = a1->getLinkBaseAddress();
+    uint64_t vl2 = a2->getLinkBaseAddress();
 
     if(vl1 < vl2)
         return -1;

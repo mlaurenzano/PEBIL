@@ -38,6 +38,30 @@ uint32_t readBytes = 0;
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
 
+uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, void* data){
+    InstrumentationSnippet* snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END];
+    uint8_t* bytes = (uint8_t*)data;
+
+    bool setLoc = false;
+    for (uint32_t i = 0; i < size; i++){
+        uint8_t d = bytes[i];
+        if (d){
+            snip->addSnippetInstruction(Instruction::generateMoveImmByteToReg(d,X86_REG_AX));
+            /*
+            if (i == 0){
+                snip->addSnippetInstruction(Instruction::generateMoveImmToReg(address+i,X86_REG_DI));
+            } else {
+                snip->addSnippetInstruction(Instruction::generateRegIncrement(X86_REG_DI));
+            }
+            */
+            snip->addSnippetInstruction(Instruction::generateMoveImmToReg(address+i,X86_REG_DI));
+            snip->addSnippetInstruction(Instruction::generateSTOSByte(false));
+        }
+    }
+
+    return size;
+}
+
 bool ElfFileInst::isEligibleFunction(Function* func){
     if (!canRelocateFunction(func)){
         return false;
@@ -298,7 +322,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
 
 
 uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation){
-    ASSERT(isEligibleFunction(functionToRelocate));
+    ASSERT(isEligibleFunction(functionToRelocate) && functionToRelocate->hasCompleteDisassembly());
 
     TextSection* extraText = (TextSection*)elfFile->getRawSection(extraTextIdx);
     TextSection* text = functionToRelocate->getTextSection();
@@ -600,20 +624,6 @@ uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
     ASSERT(avail <= elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) && "Not enough space for the requested data");
     return avail;
 }
-
-uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, void* data){
-    InstrumentationSnippet* snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END];
-    uint8_t* bytes = (uint8_t*)data;
-
-    for (uint32_t  i = 0; i < size; i++){
-        uint8_t d = bytes[i];
-        snip->addSnippetInstruction(Instruction::generateMoveImmToReg((uint32_t)d,X86_REG_AX));
-        snip->addSnippetInstruction(Instruction::generateMoveImmToReg(address+i,X86_REG_DI));
-        snip->addSnippetInstruction(Instruction::generateSTOSByte(false));
-    }
-    return size;
-}
-
 
 void ElfFileInst::extendDataSection(uint64_t size){
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
@@ -1115,6 +1125,9 @@ void ElfFileInst::print(uint32_t printCodes){
             PRINT_INFOR("Extended DATA section is section %hd", extraDataIdx);
             PRINT_INFOR("\tExtra data space available @address 0x%016llx + %d bytes", extendedData->GET(sh_addr), extendedData->GET(sh_size));
             PRINT_INFOR("\tExtra data space available @offset  0x%016llx + %d bytes", extendedData->GET(sh_offset), extendedData->GET(sh_size));
+        }
+        if (instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]){
+            PRINT_INFOR("Bytes for data initialization: %d", instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]->snippetSize());
         }
     }
 

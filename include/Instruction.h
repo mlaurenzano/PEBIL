@@ -226,11 +226,13 @@ public:
     static Instruction* generatePopSegmentReg(uint32_t idx);
     static Instruction* generateMoveImmByteToMemIndirect(uint8_t byt, uint64_t off, uint32_t idx);
     static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
+    static Instruction* generateMoveImmByteToReg(uint8_t imm, uint32_t idx);
     static Instruction* generateMoveRegToMem(uint32_t idx, uint64_t addr);
     static Instruction* generateJumpRelative(uint64_t addr, uint64_t tgt);
     static Instruction* generateStackPushImmediate(uint64_t imm);
     static Instruction* generateCallRelative(uint64_t addr, uint64_t tgt);
     static Instruction* generateRegAddImmediate(uint32_t idx, uint64_t imm);
+    static Instruction* generateRegIncrement(uint32_t idx);
     static Instruction* generateRegSubImmediate(uint32_t idx, uint64_t imm);
     static Instruction* generateAddByteToRegaddr(uint8_t byt, uint32_t idx);
 
