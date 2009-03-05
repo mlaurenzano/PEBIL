@@ -85,23 +85,54 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
     Vector<AddressAnchor*>* needToUpdate = new Vector<AddressAnchor*>();
 
 #ifdef ANCHOR_SEARCH_BINARY
+    if (!addressAnchors.isSorted(compareLinkBaseAddress)){
+        addressAnchors.sort(compareLinkBaseAddress);
+    }
+    //    qsort(allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), compareLinkBaseAddress);
     AddressAnchor** allAnchors = &addressAnchors;
-    qsort(allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), compareLinkBaseAddress);
-    void* anchor = bsearch(&addr, allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), searchLinkBaseAddressExact);
-    if (anchor != NULL){
-        AddressAnchor* foundAnchor = *(AddressAnchor**)anchor;
+#ifdef DEBUG_ANCHOR
+    PRINT_INFOR("Array is:");
+    for (uint32_t i = 0; i < addressAnchors.size(); i++){
+        PRINT_INFOR("%#llx", allAnchors[i]->getLinkBaseAddress());
+    }
+#endif
+    void* anchor = bsearch(&addr, allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), searchLinkBaseAddress);
+    if (anchor){
         uint32_t idx = ((uint32_t)anchor-(uint32_t)allAnchors)/sizeof(AddressAnchor*);
-        while (foundAnchor){
-            needToUpdate->append(foundAnchor);
-            if (idx < addressAnchors.size() &&
-                addressAnchors[idx]->getLinkBaseAddress() == addr){
-                foundAnchor = allAnchors[idx];
-                idx++;
-            } else {
-                foundAnchor = NULL;
-            }
+        while (idx < addressAnchors.size() &&
+                addressAnchors[idx]->getLinkBaseAddress() <= addr &&
+                addr < addressAnchors[idx]->getLinkBaseAddress() + addressAnchors[idx]->getLink()->getSizeInBytes()){
+            (*needToUpdate).append(allAnchors[idx++]);
         }
     }
+
+#ifdef DEBUG_ANCHOR
+    PRINT_INFOR("found %#llx %d %d", addr, needToUpdate->size(), (*needToUpdate).size());
+    Vector<AddressAnchor*>* needToUpdate2 = new Vector<AddressAnchor*>();
+    for (uint32_t i = 0; i < addressAnchors.size(); i++){
+        if (addressAnchors[i]->getLinkBaseAddress() <= addr &&
+            addr < addressAnchors[i]->getLinkBaseAddress() + addressAnchors[i]->getLink()->getSizeInBytes()){
+            needToUpdate2->append(addressAnchors[i]);
+        }
+    }
+    if ((*needToUpdate).size() != (*needToUpdate2).size()){
+        PRINT_INFOR("Binary search yields:");
+        for (uint32_t i = 0; i < (*needToUpdate).size(); i++){
+            PRINT_INFOR("%#llx", (*needToUpdate)[i]->getLinkBaseAddress());
+        }
+        PRINT_INFOR("Linear search yields:");
+        for (uint32_t i = 0; i < (*needToUpdate2).size(); i++){
+            PRINT_INFOR("%#llx", (*needToUpdate2)[i]->getLinkBaseAddress());
+        }
+        PRINT_INFOR("Array is:");
+        for (uint32_t i = 0; i < addressAnchors.size(); i++){
+            PRINT_INFOR("%#llx", allAnchors[i]->getLinkBaseAddress());
+        }
+        
+    }
+    ASSERT((*needToUpdate).size() == (*needToUpdate2).size());
+    delete needToUpdate2;
+#endif
 #else
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
         if (addressAnchors[i]->getLinkBaseAddress() <= addr &&
@@ -717,7 +748,7 @@ void ElfFileInst::phasedInstrumentation(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
-    extendTextSection(0x400000);
+    extendTextSection(0x4000000);
     extendDataSection(0x2000000);
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");

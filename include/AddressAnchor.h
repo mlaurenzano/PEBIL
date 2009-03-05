@@ -4,6 +4,7 @@
 #include <Base.h>
 
 extern int searchLinkBaseAddressExact(const void* arg1, const void* arg2);
+extern int searchLinkBaseAddress(const void* arg1, const void* arg2);
 extern int compareLinkBaseAddress(const void* arg1,const void* arg2);
 
 class AddressAnchor {

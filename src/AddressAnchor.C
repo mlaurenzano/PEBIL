@@ -19,6 +19,21 @@ int searchLinkBaseAddressExact(const void* arg1, const void* arg2){
     return 0;
 }
 
+int searchLinkBaseAddress(const void* arg1, const void* arg2){
+    uint64_t key = *((uint64_t*)arg1);
+    AddressAnchor* a = *((AddressAnchor**)arg2);
+
+    ASSERT(a && "AddressAnchor should exist");
+
+    uint64_t val = a->getLinkBaseAddress();
+
+    if (key < val)
+        return -1;
+    if (key >= val + a->getLink()->getSizeInBytes())
+        return 1;
+    return 0;
+}
+
 
 int compareLinkBaseAddress(const void* arg1,const void* arg2){
     AddressAnchor* a1 = *((AddressAnchor**)arg1);
