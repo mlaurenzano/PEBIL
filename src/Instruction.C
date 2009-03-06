@@ -1233,7 +1233,7 @@ Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, ByteS
         operands[i] = Operand(i);
     }
 
-    sizeInBytes = Base::disassembler->print_insn((uint64_t)buff, this);
+    sizeInBytes = Base::disassembler->disassemble((uint64_t)buff, this);
     if (!sizeInBytes){
         sizeInBytes = 1;
     }

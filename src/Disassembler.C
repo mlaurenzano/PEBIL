@@ -41,6 +41,27 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <ElfFile.h>
 #include <Instruction.h>
 
+
+uint32_t Disassembler::disassemble(uint64_t pc, Instruction* targetInstruction){
+    uint32_t instructionSize = print_insn(pc, targetInstruction);
+
+    if (targetInstruction->getInstructionType() == x86_insn_type_noop){
+        if (instructionSize != 1){
+            targetInstruction->print();
+        }
+        ASSERT(instructionSize == 1);
+        targetInstruction->setSizeInBytes(1);
+
+        char* noopbyte = new char[1];
+        noopbyte[0] = 0x90;
+        targetInstruction->setBytes(noopbyte);
+        disassembleInstructionInPlace(targetInstruction);
+        delete[] noopbyte;
+    }
+    return instructionSize;
+}
+
+
 Disassembler::Disassembler(bool is64){
     is64Bit = is64;
     if (is64Bit){

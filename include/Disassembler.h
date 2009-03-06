@@ -10,9 +10,11 @@ static void noprint_fprintf(FILE* stream, const char* format, ...){
 
 class Disassembler {
 private:
+    /* major functions used for disassembly */
     void get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag);
+    uint32_t print_insn(uint64_t addr, Instruction* targetInstruction);
 
-    /* legacy functions from GNU libopcodes. at least some of these should eventually be gone */
+    /* legacy functions from GNU libopcodes */
     uint32_t readMemory(uint64_t, uint8_t*, unsigned int, disassemble_info*);
     void ckprefix();
     const char* prefix_name(int pref, int sizeflag);
@@ -126,8 +128,8 @@ public:
     void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) {}
     void setPrintFunction(fprintf_ftype pf_func, void* pf_stream);
-    uint32_t print_insn(uint64_t addr, Instruction* targetInstruction);
 
+    uint32_t disassemble(uint64_t addr, Instruction* targetInstruction);
     uint32_t disassembleInstructionInPlace(Instruction* instruction);
 };
 
