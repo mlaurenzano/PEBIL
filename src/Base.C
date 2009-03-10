@@ -22,12 +22,10 @@ uint32_t getUInt32(char* buf){
     return data;
 }
 
+// this function needs to be as fast as possible
 int compareBaseAddress(const void* arg1,const void* arg2){
-    Base* base1 = *((Base**)arg1);
-    Base* base2 = *((Base**)arg2);
-
-    uint64_t vl1 = base1->getBaseAddress();
-    uint64_t vl2 = base2->getBaseAddress();
+    uint64_t vl1 = (*((Base**)arg1))->baseAddress;
+    uint64_t vl2 = (*((Base**)arg2))->baseAddress;
 
     if(vl1 < vl2)
         return -1;
@@ -42,7 +40,7 @@ int searchBaseAddressExact(const void* arg1, const void* arg2){
 
     ASSERT(b && "Base should exist");
 
-    uint64_t val = b->getBaseAddress();
+    uint64_t val = b->baseAddress;
 
     if (key < val)
         return -1;
@@ -57,7 +55,7 @@ int searchBaseAddress(const void* arg1, const void* arg2){
 
     ASSERT(b && "Base should exist");
 
-    uint64_t val_low = b->getBaseAddress();
+    uint64_t val_low = b->baseAddress;
     uint64_t val_high = val_low + b->getSizeInBytes();
 
     if (key < val_low)

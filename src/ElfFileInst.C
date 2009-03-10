@@ -85,23 +85,24 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
     Vector<AddressAnchor*>* needToUpdate = new Vector<AddressAnchor*>();
 
 #ifdef ANCHOR_SEARCH_BINARY
-    if (!addressAnchors.isSorted(compareLinkBaseAddress)){
+    if (!anchorsAreSorted){
         addressAnchors.sort(compareLinkBaseAddress);
+        anchorsAreSorted = true;
     }
     //    qsort(allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), compareLinkBaseAddress);
     AddressAnchor** allAnchors = &addressAnchors;
 #ifdef DEBUG_ANCHOR
     PRINT_INFOR("Array is:");
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        PRINT_INFOR("%#llx", allAnchors[i]->getLinkBaseAddress());
+        PRINT_INFOR("%#llx", allAnchors[i]->linkBaseAddress);
     }
 #endif
     void* anchor = bsearch(&addr, allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), searchLinkBaseAddress);
     if (anchor){
         uint32_t idx = ((uint32_t)anchor-(uint32_t)allAnchors)/sizeof(AddressAnchor*);
         while (idx < addressAnchors.size() &&
-                addressAnchors[idx]->getLinkBaseAddress() <= addr &&
-                addr < addressAnchors[idx]->getLinkBaseAddress() + addressAnchors[idx]->getLink()->getSizeInBytes()){
+                addressAnchors[idx]->linkBaseAddress <= addr &&
+                addr < addressAnchors[idx]->linkBaseAddress + addressAnchors[idx]->getLink()->getSizeInBytes()){
             (*needToUpdate).append(allAnchors[idx++]);
         }
     }
@@ -110,23 +111,23 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
     PRINT_INFOR("found %#llx %d %d", addr, needToUpdate->size(), (*needToUpdate).size());
     Vector<AddressAnchor*>* needToUpdate2 = new Vector<AddressAnchor*>();
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        if (addressAnchors[i]->getLinkBaseAddress() <= addr &&
-            addr < addressAnchors[i]->getLinkBaseAddress() + addressAnchors[i]->getLink()->getSizeInBytes()){
+        if (addressAnchors[i]->linkBaseAddress <= addr &&
+            addr < addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes()){
             needToUpdate2->append(addressAnchors[i]);
         }
     }
     if ((*needToUpdate).size() != (*needToUpdate2).size()){
         PRINT_INFOR("Binary search yields:");
         for (uint32_t i = 0; i < (*needToUpdate).size(); i++){
-            PRINT_INFOR("%#llx", (*needToUpdate)[i]->getLinkBaseAddress());
+            PRINT_INFOR("%#llx", (*needToUpdate)[i]->linkBaseAddress);
         }
         PRINT_INFOR("Linear search yields:");
         for (uint32_t i = 0; i < (*needToUpdate2).size(); i++){
-            PRINT_INFOR("%#llx", (*needToUpdate2)[i]->getLinkBaseAddress());
+            PRINT_INFOR("%#llx", (*needToUpdate2)[i]->linkBaseAddress);
         }
         PRINT_INFOR("Array is:");
         for (uint32_t i = 0; i < addressAnchors.size(); i++){
-            PRINT_INFOR("%#llx", allAnchors[i]->getLinkBaseAddress());
+            PRINT_INFOR("%#llx", allAnchors[i]->linkBaseAddress);
         }
         
     }
@@ -135,8 +136,8 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
 #endif
 #else
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        if (addressAnchors[i]->getLinkBaseAddress() <= addr &&
-            addr < addressAnchors[i]->getLinkBaseAddress() + addressAnchors[i]->getLink()->getSizeInBytes()){
+        if (addressAnchors[i]->linkBaseAddress <= addr &&
+            addr < addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes()){
             needToUpdate->append(addressAnchors[i]);
         }
     }
@@ -380,6 +381,7 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
     Vector<AddressAnchor*>* modAnchors = searchAddressAnchors(functionToRelocate->getBaseAddress());
     for (uint32_t i = 0; i < modAnchors->size(); i++){
         (*modAnchors)[i]->updateLink(trampEmpty.back());
+        anchorsAreSorted = false;
     }
     delete modAnchors;
 
@@ -553,6 +555,7 @@ void ElfFileInst::generateInstrumentation(){
                     PRINT_DEBUG_ANCHOR("\t\t********Comparing addresses %#llx and %#llx", (*displaced)[j]->getBaseAddress(), (*repl)[l]->getBaseAddress());
                     if ((*displaced)[j]->getBaseAddress() == (*repl)[l]->getBaseAddress()){
                         (*modAnchors)[k]->updateLink((*repl)[l]);
+                        anchorsAreSorted = false;
                     }
                 }
             }
@@ -1209,6 +1212,8 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
 
     DataReference* zeroAddrRef = new DataReference(0,NULL,elfFile->is64Bit(),0);
     specialDataRefs.append(zeroAddrRef);
+
+    anchorsAreSorted = false;
 }
 
 uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx){

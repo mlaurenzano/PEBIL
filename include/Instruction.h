@@ -128,7 +128,6 @@ class Instruction : public Base {
 protected:
     uint32_t index;
     char* rawBytes;
-    uint64_t baseAddress;
     uint32_t instructionType;
     char disassembledString[MAX_DISASM_STR_LENGTH];
     Operand operands[MAX_OPERANDS];    
@@ -142,6 +141,7 @@ protected:
     static Instruction* generateInstructionBase(uint32_t sz, char* buf);
 
 public:
+
     Instruction();
     Instruction(TextSection* text, uint64_t baseAddr, char* buff, ByteSources src, uint32_t idx);
     ~Instruction();
@@ -197,7 +197,7 @@ public:
     bool isNoop();
 
     uint32_t setIndex(uint32_t newidx);
-    uint64_t setBaseAddress(uint64_t addr);
+    void setBaseAddress(uint64_t addr);
     uint32_t setSizeInBytes(uint32_t len);
     char* setBytes(char* bytes);
     uint64_t setOperandValue(uint32_t idx, uint64_t val);
@@ -207,6 +207,7 @@ public:
     bool setOperandRelative(uint32_t idx, bool rel);
     ByteSources setByteSource(ByteSources src);
     uint64_t setProgramAddress(uint64_t addr);
+    void setInstructionType(uint32_t typ) { instructionType = typ; }
 
     char* setDisassembledString(char* disStr);
 

@@ -1,0 +1,2 @@
+HASH_STYLE      = -Wl,--hash-style=sysv
+

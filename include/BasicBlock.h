@@ -13,7 +13,6 @@ class CodeBlock : public Base {
 protected:
     uint32_t index;
     FlowGraph* flowGraph;
-    uint64_t baseAddress;
 
 public:
     CodeBlock(ElfClassTypes typ, uint32_t idx, FlowGraph* cfg);

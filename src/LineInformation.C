@@ -66,6 +66,7 @@ LineInfo* LineInfoFinder::lookupLineInfo(BasicBlock* bb){
     if (!sortedLineInfos.size()){
         return NULL;
     }
+    return lookupLineInfo(bb->getBaseAddress());
     uint64_t targetAddr = bb->getBaseAddress();
 
     //    PRINT_DEBUG_LINEINFO("Need to search %d lineinfos", sortedLineInfos.size());

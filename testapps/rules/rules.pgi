@@ -1,0 +1,5 @@
+include rules/rules.common
+X86INST_CC      = pgcc
+X86INST_CPP     = pgCC
+X86INST_F77     = pgf95
+LINK_FLAGS      = -Wl,-T,../linker/x86inst_ld_script__`hostname`

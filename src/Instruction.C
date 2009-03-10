@@ -59,10 +59,14 @@ void Instruction::binutilsPrint(FILE* stream){
 
     if (usesRelativeAddress()){
         if (addressAnchor){
-            fprintf(stream, "\t#@ %llx", addressAnchor->getLinkBaseAddress());
+            fprintf(stream, "\t#@ %llx", addressAnchor->linkBaseAddress);
         } else {
             fprintf(stream, "\t#  %llx", getRelativeValue()+getBaseAddress());
         }
+    }
+
+    if (isNoop()){
+        fprintf(stream, "\t# nop");
     }
 
     fprintf(stream, "\n");
@@ -1292,13 +1296,14 @@ char* Instruction::setBytes(char* bytes){
     return rawBytes;
 }
 
-uint64_t Instruction::setBaseAddress(uint64_t addr){
+void Instruction::setBaseAddress(uint64_t addr){
     baseAddress = addr;
-    return baseAddress;
 }
 
 uint32_t Instruction::setSizeInBytes(uint32_t len){
     ASSERT(len <= MAX_X86_INSTRUCTION_LENGTH && "X86 instructions are limited in size");
+    ASSERT(len <= sizeInBytes);
+    /*
     if (rawBytes){
         char* newBytes = new char[len];
         // this could seg fault if len > sizeInBytes
@@ -1306,6 +1311,7 @@ uint32_t Instruction::setSizeInBytes(uint32_t len){
         delete[] rawBytes;
         rawBytes = newBytes;
     }
+    */
     sizeInBytes = len;
 
     return sizeInBytes;

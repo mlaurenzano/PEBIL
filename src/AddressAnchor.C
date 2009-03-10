@@ -10,7 +10,7 @@ int searchLinkBaseAddressExact(const void* arg1, const void* arg2){
 
     ASSERT(a && "AddressAnchor should exist");
 
-    uint64_t val = a->getLinkBaseAddress();
+    uint64_t val = a->linkBaseAddress;
 
     if (key < val)
         return -1;
@@ -25,7 +25,7 @@ int searchLinkBaseAddress(const void* arg1, const void* arg2){
 
     ASSERT(a && "AddressAnchor should exist");
 
-    uint64_t val = a->getLinkBaseAddress();
+    uint64_t val = a->linkBaseAddress;
 
     if (key < val)
         return -1;
@@ -35,15 +35,15 @@ int searchLinkBaseAddress(const void* arg1, const void* arg2){
 }
 
 
-int compareLinkBaseAddress(const void* arg1,const void* arg2){
+int compareLinkBaseAddress(const void* arg1, const void* arg2){
     AddressAnchor* a1 = *((AddressAnchor**)arg1);
     AddressAnchor* a2 = *((AddressAnchor**)arg2);
-    uint64_t vl1 = a1->getLinkBaseAddress();
-    uint64_t vl2 = a2->getLinkBaseAddress();
+    //    uint64_t vl1 = a1->linkBaseAddress;
+    //uint64_t vl2 = a2->linkBaseAddress;
 
-    if(vl1 < vl2)
+    if(a1->linkBaseAddress < a2->linkBaseAddress)
         return -1;
-    if(vl1 > vl2)
+    if(a1->linkBaseAddress > a2->linkBaseAddress)
         return 1;
     return 0;
 }
@@ -54,6 +54,7 @@ Base* AddressAnchor::updateLink(Base* newLink){
     Base* oldLink = link;
     link = newLink;
 
+    linkBaseAddress = link->getBaseAddress();
     verify();
 
     return oldLink;
@@ -136,6 +137,8 @@ uint64_t AddressAnchor::getLinkOffset(){
 AddressAnchor::AddressAnchor(Base* lnk, Base* par){
     link = lnk;
     linkedParent = par;
+    
+    linkBaseAddress = link->getBaseAddress();
 
     verify();
 }
@@ -157,6 +160,11 @@ bool AddressAnchor::verify(){
     } else if (link->getType() == ElfClassTypes_DataReference){
     } else {
         PRINT_ERROR("Address link cannot have type %d", link->getType());
+        return false;
+    }
+
+    if (linkBaseAddress != link->getBaseAddress()){
+        PRINT_ERROR("Link base address %#llx cached does not match actual value %#llx", linkBaseAddress, link->getBaseAddress());
         return false;
     }
 

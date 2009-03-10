@@ -231,6 +231,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 
 #define ASSERT(__str) assert(__str);
+//#define ASSERT(__str) 
 #define DEBUG(...) __VA_ARGS__
 #define DEBUG_MORE(...)
 #define TIMER(...) __VA_ARGS__
@@ -387,11 +388,13 @@ protected:
     uint32_t sizeInBytes;
     uint32_t fileOffset;
 
-    Base() : type(ElfClassTypes_no_type),sizeInBytes(0),fileOffset(invalidOffset) {}
-    Base(ElfClassTypes t) : type(t),sizeInBytes(0),fileOffset(invalidOffset) {}
+    Base() : type(ElfClassTypes_no_type),sizeInBytes(0),fileOffset(invalidOffset),baseAddress(0) {}
+    Base(ElfClassTypes t) : type(t),sizeInBytes(0),fileOffset(invalidOffset),baseAddress(0) {}
     virtual ~Base() {}
 
 public:
+    uint64_t baseAddress;
+
     static Disassembler* disassembler;
 
     ElfClassTypes getType() { return type; }

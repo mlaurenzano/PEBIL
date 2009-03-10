@@ -20,7 +20,6 @@ class TextObject : public Base {
 protected:
     TextSection* textSection;
     uint32_t index;
-    uint64_t baseAddress;
     Symbol* symbol;
 
     Vector<Instruction*>* digestLinear();

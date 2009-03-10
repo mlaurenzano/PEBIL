@@ -1,4 +1,0 @@
-X86INST_CC      = suncc
-X86INST_CPP     = sunCC
-X86INST_F77     = sunf77
-LINK_FLAGS      =

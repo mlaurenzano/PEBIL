@@ -41,23 +41,57 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <ElfFile.h>
 #include <Instruction.h>
 
+uint32_t Disassembler::disassembleInstructionInPlace(Instruction* instruction){
+    uint64_t pc = (uint64_t)instruction->getBytes();
+    return disassemble(pc, instruction);
+}
+
+uint32_t Disassembler::reformatNoop(uint32_t instructionSize, uint64_t pc, Instruction* targetInstruction){
+    uint32_t noopSize = 0;
+    if (targetInstruction->getInstructionType() == x86_insn_type_noop){
+        noopSize = 1;
+        ASSERT(instructionSize == noopSize);
+
+        char* noopbyte = new char[noopSize];
+        noopbyte[0] = 0x90;
+        targetInstruction->setSizeInBytes(noopSize);
+        targetInstruction->setBytes(noopbyte);
+        delete[] noopbyte;
+    } else {
+        uint8_t* rbyt = (uint8_t*)targetInstruction->charStream();
+        if (rbyt[0] == 0x0f || rbyt[0] == 0x66){
+            if (rbyt[0] == 0x0f && rbyt[1] == 0x1f && rbyt[2] == 0x00){
+                noopSize = 3;
+            } else if (rbyt[0] == 0x0f && rbyt[1] == 0x1f && rbyt[2] == 0x40 && rbyt[3] == 0x00){
+                noopSize = 4;
+            } else if (rbyt[0] == 0x0f && rbyt[1] == 0x1f && rbyt[2] == 0x44 && rbyt[3] == 0x00 && rbyt[4] == 0x00){
+                noopSize = 5;
+            } else if (rbyt[0] == 0x66 && rbyt[1] == 0x0f && rbyt[2] == 0x1f && rbyt[3] == 0x44 && rbyt[4] == 0x00 && rbyt[5] == 0x00){
+                noopSize = 6;
+            } else if (rbyt[0] == 0x0f && rbyt[1] == 0x1f && rbyt[2] == 0x80 && rbyt[3] == 0x00 && rbyt[4] == 0x00 && rbyt[5] == 0x00 && rbyt[6] == 0x00){
+                noopSize = 7;
+            } else if (rbyt[0] == 0x0f && rbyt[1] == 0x1f && rbyt[2] == 0x84 && rbyt[3] == 0x00 && rbyt[4] == 0x00 && rbyt[5] == 0x00 && rbyt[6] == 0x00 && rbyt[7] == 0x00){
+                noopSize = 8;
+            } else if (rbyt[0] == 0x66 && rbyt[1] == 0x0f && rbyt[2] == 0x1f && rbyt[3] == 0x84 && rbyt[4] == 0x00 && rbyt[5] == 0x00 && rbyt[6] == 0x00 && rbyt[7] == 0x00 && rbyt[8] == 0x00){
+                noopSize = 9;
+            }
+        }
+    }
+    if (noopSize){
+        targetInstruction->setInstructionType(x86_insn_type_noop);
+        instructionSize = noopSize;
+    }
+    return instructionSize;
+}
 
 uint32_t Disassembler::disassemble(uint64_t pc, Instruction* targetInstruction){
     uint32_t instructionSize = print_insn(pc, targetInstruction);
+    uint32_t noopSize = reformatNoop(instructionSize, pc, targetInstruction);
 
-    if (targetInstruction->getInstructionType() == x86_insn_type_noop){
-        if (instructionSize != 1){
-            targetInstruction->print();
-        }
-        ASSERT(instructionSize == 1);
-        targetInstruction->setSizeInBytes(1);
-
-        char* noopbyte = new char[1];
-        noopbyte[0] = 0x90;
-        targetInstruction->setBytes(noopbyte);
-        disassembleInstructionInPlace(targetInstruction);
-        delete[] noopbyte;
+    if (instructionSize != noopSize){
+        PRINT_WARN(2, "Original (GNU) disassembly incorrectly broke a noop at %#llx", pc);
     }
+    instructionSize = noopSize;
     return instructionSize;
 }
 
@@ -468,12 +502,6 @@ void Disassembler::get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag){
         PRINT_ERROR("Op handling function not known");
         break;
     }
-}
-
-uint32_t Disassembler::disassembleInstructionInPlace(Instruction* instruction){
-    uint64_t pc = (uint64_t)instruction->getBytes();
-    print_insn(pc, instruction);
-    return instruction->getSizeInBytes();
 }
 
 uint32_t Disassembler::print_insn(uint64_t pc, Instruction* targetInstruction){

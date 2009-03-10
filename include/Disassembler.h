@@ -13,6 +13,7 @@ private:
     /* major functions used for disassembly */
     void get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag);
     uint32_t print_insn(uint64_t addr, Instruction* targetInstruction);
+    uint32_t reformatNoop(uint32_t instructionSize, uint64_t pc, Instruction* targetInstruction);
 
     /* legacy functions from GNU libopcodes */
     uint32_t readMemory(uint64_t, uint8_t*, unsigned int, disassemble_info*);

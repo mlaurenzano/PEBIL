@@ -22,6 +22,11 @@ private:
     void dumpInstruction(BinaryOutputFile* b, uint32_t offset);
     void dumpDataReference(BinaryOutputFile* b, uint32_t offset);
 public:
+    // this gets accessed a lot and is a performance bottleneck for instrumentation, so
+    // we are basically caching link->getBaseAddress() and making it public so it doesn't
+    // require a function access to get to it.
+    uint64_t linkBaseAddress;
+
     AddressAnchor(Base* lnk, Base* par);
     ~AddressAnchor();
 
@@ -33,7 +38,6 @@ public:
     uint32_t getIndex() { return index; }
 
     uint32_t setIndex(uint32_t idx) { index = idx; return index; }
-    uint64_t getLinkBaseAddress() { ASSERT(link); return link->getBaseAddress(); }
 
     bool verify();
     void print();

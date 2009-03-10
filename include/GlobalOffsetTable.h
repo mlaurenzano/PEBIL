@@ -10,7 +10,6 @@ protected:
     uint32_t numberOfEntries;
     uint32_t entrySize;
     uint32_t tableBaseIdx;
-    uint64_t baseAddress;
 
     uint64_t* entries;
 public:
