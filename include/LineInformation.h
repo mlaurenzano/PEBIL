@@ -27,8 +27,9 @@ protected:
     DWARF2_LineInfo_Registers entry;
 
     Vector<uint8_t> instructionBytes;
-
     LineInfoTable* header;
+
+    uint64_t addressSpan;
 public:
     LineInfo(uint32_t idx, char* instruction, LineInfoTable* hdr);
     ~LineInfo();
@@ -44,6 +45,8 @@ public:
 
     bool verify();
     LineInfoTable* getHeader() { return header; }
+    uint64_t getAddressSpan() { return addressSpan; }
+    void setAddressSpan(uint64_t spn) { addressSpan = spn; }
 
     uint32_t getIndex() { return index; }
     const char* breifName() { return "LineInfo"; }

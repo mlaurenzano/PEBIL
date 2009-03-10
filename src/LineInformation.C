@@ -20,7 +20,7 @@ char* LineInfoTable::getIncludePath(uint32_t idx){
     return includePaths[dirIndex];
 }
 
-int searchLineInfoAddress(const void* arg1,const void* arg2){
+int searchLineInfoAddressExact(const void* arg1,const void* arg2){
     uint64_t key = *((uint64_t*)arg1);
     LineInfo* li = *((LineInfo**)arg2);
 
@@ -31,6 +31,21 @@ int searchLineInfoAddress(const void* arg1,const void* arg2){
     if(key < val)
         return -1;
     if(key > val)
+        return 1;
+    return 0;
+}
+
+int searchLineInfoAddress(const void* arg1,const void* arg2){
+    uint64_t key = *((uint64_t*)arg1);
+    LineInfo* li = *((LineInfo**)arg2);
+
+    ASSERT(li && "LineInfo should exist");
+
+    uint64_t val = li->GET(lr_address);
+
+    if(key < val)
+        return -1;
+    if(key >= val + li->getAddressSpan())
         return 1;
     return 0;
 }
@@ -79,25 +94,6 @@ LineInfo* LineInfoFinder::lookupLineInfo(BasicBlock* bb){
         }
     }
     return NULL;
-    
-    uint32_t smin = 0;
-    uint32_t smax = sortedLineInfos.size()-2;
-
-    while (smin < smax){
-        uint32_t sidx = (smin+smax)/2;
-        if (sidx == smin || sidx == smax){
-            break;
-        }
-        if (targetAddr < sortedLineInfos[sidx]->GET(lr_address)){
-            smax = sidx;
-        } else if (targetAddr > sortedLineInfos[sidx]->GET(lr_address)){
-            smin = sidx;
-        } else {
-            return sortedLineInfos[sidx];            
-        }
-    }
-    ASSERT(smin + 1 == smax && "Either the array is not sorted or I don't understand binary search");
-    return sortedLineInfos[smin];
 }
 
 bool LineInfoFinder::verify(){
@@ -138,6 +134,10 @@ LineInfoFinder::LineInfoFinder(DwarfLineInfoSection* dwarf){
 
     PRINT_DEBUG_LINEINFO("Using %d lineinfos", sortedLineInfos.size());
     qsort(&sortedLineInfos,sortedLineInfos.size(),sizeof(LineInfo*),compareLineInfoAddress);    
+
+    for (uint32_t i = 0; i < sortedLineInfos.size()-1; i++){
+        sortedLineInfos[i]->setAddressSpan(sortedLineInfos[i+1]->GET(lr_address)-sortedLineInfos[i]->GET(lr_address));
+    }
 
     verify();
 }
@@ -601,6 +601,8 @@ LineInfo::LineInfo(uint32_t idx, char* instruction, LineInfoTable* hdr){
     } else {
         initializeWithInstruction(instruction);
     }
+
+    addressSpan = 0;
 }
 
 LineInfo::~LineInfo(){
