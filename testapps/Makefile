@@ -1,5 +1,4 @@
 include rules/rules.$(COMP)
-include rules/rules.$(COMP)
 
 DBG         = -save-temps -g #-Wall
 OPT         = -O0 -g
