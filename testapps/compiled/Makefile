@@ -1,4 +1,4 @@
-64BITPROGS_SER = cTest.gnu cppTest.gnu htcoef.gnu dynTest.gnu cTest.intel cppTest.intel htcoef.intel dynTest.intel cTest.sun cppTest.sun htcoef.sun dynTest.sun cTest.pgi cppTest.pgi htcoef.pgi dynTest.pgi
+64BITPROGS_SER = cTest.gnu cppTest.gnu htcoef.gnu dynTest.gnu cTest.intel cppTest.intel htcoef.intel dynTest.intel cTest.pgi cppTest.pgi htcoef.pgi dynTest.pgi
 64BITPROGS_PAR = xmesh_specfem3D.pgi hycom.standard wrf.standard
 32BITPROGS_SER = cTest.gnu cppTest.gnu htcoef.gnu dynTest.gnu
 32BITPROGS_PAR =
