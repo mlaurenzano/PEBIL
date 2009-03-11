@@ -449,9 +449,9 @@ uint32_t DynamicTable::read(BinaryInputFile* binaryInputFile){
 
     for (uint32_t i = 0; i < numberOfDynamics; i++){
         if (elfFile->is64Bit()){
-            dynamics[i] = new Dynamic64(getFilePointer() + (i * Size__64_bit_Dynamic_Entry), i);
+            dynamics[i] = new Dynamic64(charStream() + (i * Size__64_bit_Dynamic_Entry), i);
         } else {
-            dynamics[i] = new Dynamic32(getFilePointer() + (i * Size__32_bit_Dynamic_Entry), i);
+            dynamics[i] = new Dynamic32(charStream() + (i * Size__32_bit_Dynamic_Entry), i);
         }
         totalBytesRead += dynamics[i]->read(binaryInputFile);
     }

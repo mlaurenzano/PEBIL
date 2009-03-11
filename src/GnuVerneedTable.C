@@ -85,7 +85,7 @@ void GnuVerneedTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 uint32_t GnuVerneedTable::read(BinaryInputFile* binaryInputFile){
-    binaryInputFile->setInPointer(getFilePointer());
+    binaryInputFile->setInPointer(charStream());
     uint32_t totalBytesRead = 0;
     uint32_t remainingAux = 0;
 

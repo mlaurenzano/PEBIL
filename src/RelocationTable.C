@@ -229,19 +229,19 @@ uint32_t RelocationAddend64::read(BinaryInputFile* binaryInputFile){
 }
 
 uint32_t RelocationTable::read(BinaryInputFile* binaryInputFile){
-    binaryInputFile->setInPointer(getFilePointer());
+    binaryInputFile->setInPointer(charStream());
 
     //    PRINT_INFOR("Reading %d relocations for reltable %d", numberOfRelocations, index);
 
     for (uint32_t i = 0; i < numberOfRelocations; i++){
         if (elfFile->is64Bit() && type == ElfRelType_rel){
-            relocations[i] = new Relocation64(getFilePointer() + (i * Size__64_bit_Relocation), i);
+            relocations[i] = new Relocation64(charStream() + (i * Size__64_bit_Relocation), i);
         } else if (elfFile->is64Bit() && type == ElfRelType_rela){
-            relocations[i] = new RelocationAddend64(getFilePointer() + (i * Size__64_bit_Relocation_Addend), i);
+            relocations[i] = new RelocationAddend64(charStream() + (i * Size__64_bit_Relocation_Addend), i);
         } else if (!elfFile->is64Bit() && type == ElfRelType_rel){
-            relocations[i] = new Relocation32(getFilePointer() + (i * Size__32_bit_Relocation), i);
+            relocations[i] = new Relocation32(charStream() + (i * Size__32_bit_Relocation), i);
         } else if (!elfFile->is64Bit() && type == ElfRelType_rela){
-            relocations[i] = new RelocationAddend32(getFilePointer() + (i * Size__32_bit_Relocation_Addend), i);
+            relocations[i] = new RelocationAddend32(charStream() + (i * Size__32_bit_Relocation_Addend), i);
         } else {
             PRINT_ERROR("Relocation type %d is invalid", type);
         }

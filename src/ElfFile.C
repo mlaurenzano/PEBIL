@@ -416,7 +416,7 @@ void ElfFile::initSectionFilePointers(){
     ASSERT(sectionHeaders && "Section headers not present");
     ASSERT(sectionNameStrTabIdx && "Section header string table index must be defined");
 
-    char* stringTablePtr = getStringTable(sectionNameStrTabIdx)->getFilePointer();
+    char* stringTablePtr = getStringTable(sectionNameStrTabIdx)->charStream();
 
     // skip first section header since it is reserved and its values are null
     for (uint32_t i = 1; i < numberOfSections; i++){
@@ -861,7 +861,7 @@ uint32_t ElfFile::findSectionNameInStrTab(char* name){
     StringTable* st = stringTables[sectionNameStrTabIdx];
 
     for (uint32_t currByte = 0; currByte < st->getSizeInBytes(); currByte++){
-        char* ptr = (char*)(st->getFilePointer() + currByte);
+        char* ptr = (char*)(st->charStream() + currByte);
         if (strcmp(name,ptr) == 0){
             return currByte;
         }

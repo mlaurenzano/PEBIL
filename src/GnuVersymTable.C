@@ -62,7 +62,7 @@ void GnuVersymTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 uint32_t GnuVersymTable::read(BinaryInputFile* binaryInputFile){
-    binaryInputFile->setInPointer(getFilePointer());
+    binaryInputFile->setInPointer(charStream());
     uint32_t totalBytesRead = 0;
 
     for (uint32_t i = 0; i < numberOfVersyms; i++){

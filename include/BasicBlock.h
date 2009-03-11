@@ -122,7 +122,6 @@ public:
     bool verify();
     Function* getFunction() { ASSERT(flowGraph); return flowGraph->getFunction(); }
 
-    uint32_t getBlockSize();
     uint64_t getTargetAddress();
     uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
 

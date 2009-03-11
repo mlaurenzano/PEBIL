@@ -44,7 +44,7 @@ void StringTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 uint32_t StringTable::read(BinaryInputFile* binaryInputFile){
-    binaryInputFile->setInPointer(getFilePointer());
+    binaryInputFile->setInPointer(charStream());
     setFileOffset(binaryInputFile->currentOffset());
 
     strings = new char[sizeInBytes];

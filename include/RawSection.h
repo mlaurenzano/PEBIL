@@ -64,7 +64,6 @@ public:
     uint32_t addDataReference(DataReference* dr) { dataReferences.append(dr); return dataReferences.size(); }
 
     SectionHeader* getSectionHeader();
-    char* getFilePointer() { return rawDataPtr; }
     uint16_t getSectionIndex() { return sectionIndex; }
     void setSectionIndex(uint16_t newidx) { sectionIndex = newidx; }
     ElfFile* getElfFile() { return elfFile; }

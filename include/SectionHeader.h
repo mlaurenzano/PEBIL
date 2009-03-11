@@ -8,7 +8,6 @@ class ElfFile;
 
 class SectionHeader : public Base {
 protected:
-    char* rawDataPtr;
     char* relocationPtr;
     char* lineInfoPointer;
     uint32_t numOfRelocations;
@@ -20,7 +19,7 @@ protected:
     uint16_t index;
 protected:
     SectionHeader() : Base(ElfClassTypes_SectionHeader),
-        rawDataPtr(NULL), relocationPtr(NULL), lineInfoPointer(NULL),
+        relocationPtr(NULL), lineInfoPointer(NULL),
         numOfRelocations(0),numOfLineInfo(0),
         index(0),sectionNamePtr(NULL),sectionType(ElfClassTypes_no_type) {}
 
@@ -50,7 +49,6 @@ public:
     const char* getTypeName();
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
 
-    char* getRawDataPtr() { return rawDataPtr; }
     uint64_t getRawDataSize() { return GET(sh_size); }
 
     uint16_t getIndex() { return index; }
