@@ -267,7 +267,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
                 }
             }
             if (!currentInstruction->getAddressAnchor()){
-                PRINT_WARN(4, "Creating special AddressRelocation for %#llx at the behast of the instruction at %#llx since it wasn't an instruction or part of a data section", 
+                PRINT_WARN(4, "Creating special AddressRelocation for %#llx at the behest of the instruction at %#llx since it wasn't an instruction or part of a data section", 
                            relativeAddress, currentInstruction->getBaseAddress()); 
                 DataReference* dataRef = new DataReference(0,NULL,elfFile->is64Bit(),relativeAddress);
                 currentInstruction->initializeAnchor(dataRef);

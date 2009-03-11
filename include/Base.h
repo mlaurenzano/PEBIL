@@ -327,6 +327,7 @@ typedef enum {
 typedef enum {
     ElfClassTypes_no_type = 0,
     ElfClassTypes_BasicBlock,
+    ElfClassTypes_CodeBlock,
     ElfClassTypes_DataReference,
     ElfClassTypes_DwarfSection,
     ElfClassTypes_DwarfLineInfoSection,
@@ -348,6 +349,7 @@ typedef enum {
     ElfClassTypes_Note,
     ElfClassTypes_NoteSection,
     ElfClassTypes_ProgramHeader,
+    ElfClassTypes_RawBlock,
     ElfClassTypes_RawSection,
     ElfClassTypes_RelocationTable,
     ElfClassTypes_Relocation,
@@ -356,7 +358,6 @@ typedef enum {
     ElfClassTypes_Symbol,
     ElfClassTypes_SymbolTable,
     ElfClassTypes_TextSection,
-    ElfClassTypes_UnknownBlock,
     ElfClassTypes_Total_Types
 } ElfClassTypes;
 

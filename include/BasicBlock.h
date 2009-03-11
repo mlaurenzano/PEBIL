@@ -9,37 +9,58 @@
 class Function;
 class Instruction;
 
-class CodeBlock : public Base {
+class Block : public Base {
 protected:
     uint32_t index;
     FlowGraph* flowGraph;
 
 public:
-    CodeBlock(ElfClassTypes typ, uint32_t idx, FlowGraph* cfg);
-    ~CodeBlock() {}
+    Block(ElfClassTypes typ, uint32_t idx, FlowGraph* cfg);
+    ~Block() {}
 
-    virtual uint32_t getBlockSize() { __SHOULD_NOT_ARRIVE; return 0; }
+    virtual uint32_t getNumberOfBytes() { __SHOULD_NOT_ARRIVE; return 0; }
     virtual void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
     virtual bool verify() { __SHOULD_NOT_ARRIVE; }
     virtual void setBaseAddress(uint64_t addr) { __SHOULD_NOT_ARRIVE; }
     virtual void print() { __SHOULD_NOT_ARRIVE; }
     virtual void printDisassembly(bool instructionDetail) { __SHOULD_NOT_ARRIVE; }
 
+    FlowGraph* getFlowGraph() { return flowGraph; }
     uint64_t getBaseAddress() { return baseAddress; }
     uint32_t getIndex() { return index; }
     virtual void setIndex(uint32_t idx) { index = idx; }
 };
 
-class UnknownBlock : public CodeBlock {
+class CodeBlock : public Block {
+protected:
+    Vector<Instruction*> instructions;
+public:
+    CodeBlock(uint32_t idx, FlowGraph* cfg);
+    ~CodeBlock() {}
+
+    Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
+    void printInstructions();
+    void setBaseAddress(uint64_t newBaseAddress);
+    uint32_t addInstruction(Instruction* inst);
+    void printDisassembly(bool instructionDetail);
+    uint32_t getNumberOfBytes();
+    Instruction* getInstructionAtAddress(uint64_t addr);
+
+    void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
+
+    virtual bool verify() { return true; }
+};
+
+class RawBlock : public Block {
 private:
     char* rawBytes;
 public:
-    UnknownBlock(uint32_t idx, FlowGraph* cfg, char* byt, uint32_t sz, uint64_t addr);
-    ~UnknownBlock();
+    RawBlock(uint32_t idx, FlowGraph* cfg, char* byt, uint32_t sz, uint64_t addr);
+    ~RawBlock();
 
     char* charStream() { return rawBytes; }
     uint64_t getBaseAddress() { return baseAddress; }
-    uint32_t getBlockSize() { return getSizeInBytes(); }
+    uint32_t getNumberOfBytes() { return getSizeInBytes(); }
 
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
     bool verify() { return true; }
@@ -48,7 +69,6 @@ public:
     void setBaseAddress(uint64_t addr) { baseAddress = addr; }
     void print();
 };
-
 
 class BasicBlock : public CodeBlock {
 private:
@@ -59,7 +79,6 @@ private:
     const static uint32_t NoPathMask       = 0x10;
 
 protected:
-    Vector<Instruction*> instructions;
     Vector<BasicBlock*> sourceBlocks;
     Vector<BasicBlock*> targetBlocks;
     BasicBlock* immDominatedBy;
@@ -77,18 +96,12 @@ public:
 
     uint32_t bloat(uint32_t minBlockSize);
 
-    void setBaseAddress(uint64_t newBaseAddress);
-
     bool containsOnlyControl();
     bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);
 
-    void printInstructions();
     void print();
     void printSourceBlocks();
     void printTargetBlocks();
-    void printDisassembly(bool instructionDetail);
-
-    uint32_t getNumberOfBytes();
 
     uint32_t addSourceBlock(BasicBlock* srcBlock);
     uint32_t addTargetBlock(BasicBlock* tgtBlock);
@@ -100,8 +113,6 @@ public:
     uint32_t getNumberOfLoads() { return 0; }
     uint32_t getNumberOfStores() { return 0; }
 
-    uint32_t addInstruction(Instruction* inst);
-
     bool controlFallsThrough();
     bool findExitInstruction();
 
@@ -109,9 +120,7 @@ public:
     bool inRange(uint64_t addr);
 
     bool verify();
-    void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
-    FlowGraph* getFlowGraph() { return flowGraph; }
-    Function* getFunction() { return flowGraph->getFunction(); }
+    Function* getFunction() { ASSERT(flowGraph); return flowGraph->getFunction(); }
 
     uint32_t getBlockSize();
     uint64_t getTargetAddress();
@@ -119,7 +128,6 @@ public:
 
     uint32_t getNumberOfInstructions() { return instructions.size(); }
     Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }
-    Instruction* getInstructionAtAddress(uint64_t addr);
 
     bool isPadding()  { return (flags & PaddingMask); }
     bool isEntry()    { return (flags & EntryMask); }
@@ -137,8 +145,6 @@ public:
 
     bool isUnreachable() { return isNoPath(); }
     bool isReachable() { return !isNoPath(); }
-
-    Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
 
     HashCode getHashCode() { return hashCode; }
 

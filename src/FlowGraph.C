@@ -14,16 +14,16 @@ bool FlowGraph::verify(){
             PRINT_ERROR("First block of flowGraph should begin at function start");
             return false;
         }
-        if (blocks.back()->getBaseAddress()+blocks.back()->getBlockSize() != function->getBaseAddress()+function->getSizeInBytes()){
+        if (blocks.back()->getBaseAddress()+blocks.back()->getNumberOfBytes() != function->getBaseAddress()+function->getSizeInBytes()){
             PRINT_ERROR("Flowgraph of function %s: last block of flowGraph should end (%#llx) at function end (%#llx)", 
-                        function->getName(), blocks.back()->getBaseAddress()+blocks.back()->getBlockSize(),
+                        function->getName(), blocks.back()->getBaseAddress()+blocks.back()->getNumberOfBytes(),
                         function->getBaseAddress()+function->getSizeInBytes());
             return false;
         }
     }
     for (int32_t i = 0; i < blocks.size()-1; i++){
-        if (blocks[i]->getBaseAddress()+blocks[i]->getBlockSize() != blocks[i+1]->getBaseAddress()){
-            PRINT_ERROR("Blocks %d and %d in FlowGraph should be adjacent -- %#llx != %#llx", i, i+1, blocks[i]->getBaseAddress()+blocks[i]->getBlockSize(), blocks[i+1]->getBaseAddress());
+        if (blocks[i]->getBaseAddress()+blocks[i]->getNumberOfBytes() != blocks[i+1]->getBaseAddress()){
+            PRINT_ERROR("Blocks %d and %d in FlowGraph should be adjacent -- %#llx != %#llx", i, i+1, blocks[i]->getBaseAddress()+blocks[i]->getNumberOfBytes(), blocks[i+1]->getBaseAddress());
             return false;
         }
     }
@@ -35,7 +35,7 @@ bool FlowGraph::verify(){
     return true;
 }
 
-void FlowGraph::addBlock(CodeBlock* block){
+void FlowGraph::addBlock(Block* block){
     if (block->getType() == ElfClassTypes_BasicBlock){
         basicBlocks.append((BasicBlock*)block);
     }
@@ -46,14 +46,14 @@ void FlowGraph::setBaseAddress(uint64_t newBaseAddr){
     uint64_t currentOffset = 0;
     for (uint32_t i = 0; i < blocks.size(); i++){
         blocks[i]->setBaseAddress(newBaseAddr+currentOffset);
-        currentOffset += blocks[i]->getBlockSize();
+        currentOffset += blocks[i]->getNumberOfBytes();
     }
 }
 
 uint32_t FlowGraph::getNumberOfBytes(){
     uint32_t numberOfBytes = 0;
     for (uint32_t i = 0; i < blocks.size(); i++){
-        numberOfBytes += blocks[i]->getBlockSize();
+        numberOfBytes += blocks[i]->getNumberOfBytes();
     }
     return numberOfBytes;
 }

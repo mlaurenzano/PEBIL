@@ -7,7 +7,7 @@
 #include <Vector.h>
 
 class BasicBlock;
-class CodeBlock;
+class Block;
 class Loop;
 class TextSection;
 
@@ -16,7 +16,7 @@ protected:
 
     Function* function;
 
-    Vector<CodeBlock*> blocks; // contains both BasicBlocks and UnknownBlocks
+    Vector<Block*> blocks; // contains both BasicBlocks and RawBlocks
     Vector<BasicBlock*> basicBlocks; // only BasicBlocks
     Vector<Loop*> loops;
 
@@ -41,7 +41,7 @@ public:
     BitSet<BasicBlock*>* newBitSet();
     
     BasicBlock* getBasicBlock(uint32_t idx) { return basicBlocks[idx]; }
-    CodeBlock* getBlock(uint32_t idx) { return blocks[idx]; }
+    Block* getBlock(uint32_t idx) { return blocks[idx]; }
     uint32_t getNumberOfBasicBlocks() { return basicBlocks.size(); }
     uint32_t getNumberOfBlocks() { return blocks.size(); }
     uint32_t getNumberOfBytes();
@@ -56,7 +56,7 @@ public:
     void printInnerLoops();
     void printLoops();
 
-    void addBlock(CodeBlock* block);    
+    void addBlock(Block* block);    
     
     BasicBlock** getAllBlocks();
     uint32_t getAllBlocks(uint32_t sz, BasicBlock** arr);

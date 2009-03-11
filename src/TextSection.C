@@ -9,6 +9,16 @@
 #include <SectionHeader.h>
 #include <SymbolTable.h>
 
+uint32_t FreeText::getNumberOfInstructions(){
+    uint32_t numberOfInstructions = 0;
+    for (uint32_t i = 0; i < blocks.size(); i++){
+        if (blocks[i]->getType() == ElfClassTypes_BasicBlock){
+            numberOfInstructions += ((BasicBlock*)blocks[i])->getNumberOfInstructions();
+        }
+    }
+    return numberOfInstructions;
+}
+
 char* TextObject::getName(){
     if (symbol){
         return symbol->getSymbolName();
@@ -32,20 +42,22 @@ uint32_t TextSection::printDisassembly(bool instructionDetail){
 }
 
 void FreeText::printDisassembly(bool instructionDetail){
-    fprintf(stdout, "%#llx <%s>:\n", getBaseAddress(), getName());
-    for (uint32_t i = 0; i < instructions.size(); i++){
-        instructions[i]->binutilsPrint(stdout);
-        if (instructionDetail){
-            instructions[i]->print();
-        }
+    fprintf(stdout, "%llx <free -- %s>:\n", getBaseAddress(), getName());
+
+    for (uint32_t i = 0; i < blocks.size(); i++){
+        blocks[i]->printDisassembly(instructionDetail);
     }
 }
 
 uint32_t FreeText::getAllInstructions(Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
-    for (uint32_t i = 0; i < instructions.size(); i++){
-        allinsts[i+nexti] = instructions[i];
-        instructionCount++;
+
+    for (uint32_t i = 0; i < blocks.size(); i++){
+        if (blocks[i]->getType() == ElfClassTypes_BasicBlock){
+            BasicBlock* bb = (BasicBlock*)blocks[i];
+            bb->getAllInstructions(allinsts,nexti+instructionCount);
+            instructionCount += bb->getNumberOfInstructions();
+        }
     }
     return instructionCount;
 }
@@ -234,34 +246,47 @@ Vector<Instruction*>* TextObject::digestLinear(){
 }
 
 uint32_t FreeText::digest(){
-    ASSERT(!instructions.size());
-    Vector<Instruction*>* allInstructions = digestLinear();
-    ASSERT(allInstructions);
-    for (uint32_t i = 0; i < (*allInstructions).size(); i++){
-        instructions.append((*allInstructions)[i]);
+    ASSERT(!blocks.size());
+    if (usesInstructions){
+        PRINT_DEBUG_CFG("\tdigesting freetext instructions at %#llx", getBaseAddress());
+        Vector<Instruction*>* allInstructions = digestLinear();
+        ASSERT(allInstructions);
+        (*allInstructions).sort(compareBaseAddress);
+
+        CodeBlock* cb = new CodeBlock(0, NULL);
+        cb->setBaseAddress(getBaseAddress());
+        for (uint32_t i = 0; i < (*allInstructions).size(); i++){
+            cb->addInstruction((*allInstructions)[i]);
+        }
+        blocks.append(cb);
+        delete allInstructions;
+    } else {
+        PRINT_DEBUG_CFG("\tdigesting freetext unknown area at %#llx", getBaseAddress());
+        RawBlock* ub = new RawBlock(0, NULL, textSection->getStreamAtAddress(getBaseAddress()),
+                                            sizeInBytes, getBaseAddress());
+        blocks.append(ub);
     }
-    instructions.sort(compareBaseAddress);
-    delete allInstructions;
     return sizeInBytes;
 }
 
 void FreeText::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
-    for (uint32_t i = 0; i < instructions.size(); i++){
-        instructions[i]->dump(binaryOutputFile,offset+currByte);
-        currByte += instructions[i]->getSizeInBytes();
+    for (uint32_t i = 0; i < blocks.size(); i++){
+        blocks[i]->dump(binaryOutputFile,offset+currByte);
+        currByte += blocks[i]->getNumberOfBytes();
     }
     ASSERT(currByte == sizeInBytes && "Size dumped does not match object size");
 }
 
-FreeText::FreeText(TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz)
+FreeText::FreeText(TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz, bool usesI)
     : TextObject(ElfClassTypes_FreeText, text, idx, sym, addr, sz)
 {
+    usesInstructions = usesI;
 }
 
 FreeText::~FreeText(){
-    for (uint32_t i = 0; i < instructions.size(); i++){
-        delete instructions[i];
+    for (uint32_t i = 0; i < blocks.size(); i++){
+        delete blocks[i];
     }
 }
 
@@ -314,7 +339,7 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
                 sortedTextObjects.append(new Function(this, i, textSymbols[i], size));
                 ASSERT(sortedTextObjects.back()->isFunction());
             } else if (textSymbols[i]->isTextObjectSymbol(this)){
-                sortedTextObjects.append(new FreeText(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size));
+                sortedTextObjects.append(new FreeText(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size, false));
                 ASSERT(!sortedTextObjects.back()->isFunction());
             } else {
                 PRINT_ERROR("Unknown symbol type found to be associated with text section");
@@ -326,16 +351,23 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
         if (textSymbols.back()->isFunctionSymbol(this)){
             sortedTextObjects.append(new Function(this, i, textSymbols.back(), size));
         } else {
-            sortedTextObjects.append(new FreeText(this, i, textSymbols.back(), textSymbols.back()->GET(st_value), size));
+            sortedTextObjects.append(new FreeText(this, i, textSymbols.back(), textSymbols.back()->GET(st_value), size, false));
         }
     }
 
     // this is a text section with no functions (probably the .plt section), so we will put everything into a single textobject
     else{
-        sortedTextObjects.append(new FreeText(this, 0, NULL, sectionHeader->GET(sh_addr), sectionHeader->GET(sh_size)));
+        sortedTextObjects.append(new FreeText(this, 0, NULL, sectionHeader->GET(sh_addr), sectionHeader->GET(sh_size), true));
     }
 
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+#ifdef DEBUG_CFG
+        if (sortedTextObjects[i]->isFunction()){
+            PRINT_DEBUG_CFG("Digesting function object at %#llx", sortedTextObjects[i]->getBaseAddress());
+        } else {
+            PRINT_DEBUG_CFG("Digesting gentext object at %#llx", sortedTextObjects[i]->getBaseAddress());
+        }
+#endif
         sortedTextObjects[i]->digest();
     }
 

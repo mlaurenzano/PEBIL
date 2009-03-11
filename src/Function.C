@@ -14,9 +14,9 @@
 #include <TextSection.h>
 
 void Function::printDisassembly(bool instructionDetail){
-    fprintf(stdout, "%llx <%s>: ", getBaseAddress(), getName());
+    fprintf(stdout, "%llx <func -- %s>:", getBaseAddress(), getName());
     if (getBadInstruction()){
-        fprintf(stdout, "fault@ %llx", getBadInstruction());
+        fprintf(stdout, "badi@ %llx", getBadInstruction());
     }
     fprintf(stdout, "\n");
     if (flowGraph){
@@ -29,12 +29,12 @@ void Function::printDisassembly(bool instructionDetail){
 uint32_t Function::bloatBasicBlocks(uint32_t minBlockSize){
     uint32_t currByte = 0;
     for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
-        CodeBlock* block = flowGraph->getBlock(i);
+        Block* block = flowGraph->getBlock(i);
         block->setBaseAddress(baseAddress+currByte);
         if (block->getType() == ElfClassTypes_BasicBlock){
             ((BasicBlock*)block)->bloat(minBlockSize);
         } 
-        currByte += block->getBlockSize();
+        currByte += block->getNumberOfBytes();
     }
     sizeInBytes = currByte;
     return sizeInBytes;
@@ -129,8 +129,8 @@ void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
     for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
         flowGraph->getBlock(i)->dump(binaryOutputFile,offset+currByte);
-        PRINT_DEBUG_CFG("\tDumping block for function %s at %#llx for %d bytes", getName(), flowGraph->getBlock(i)->getBaseAddress(), flowGraph->getBlock(i)->getBlockSize());
-        currByte += flowGraph->getBlock(i)->getBlockSize();
+        PRINT_DEBUG_CFG("\tDumping block for function %s at %#llx for %d bytes", getName(), flowGraph->getBlock(i)->getBaseAddress(), flowGraph->getBlock(i)->getNumberOfBytes());
+        currByte += flowGraph->getBlock(i)->getNumberOfBytes();
     }
     if (currByte != sizeInBytes){
         PRINT_ERROR("Function %s dumped %d bytes and has %d bytes", getName(), currByte, sizeInBytes);
@@ -338,19 +338,19 @@ uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** inst
     ASSERT(flowGraph->getNumberOfBlocks() == flowGraph->getNumberOfBasicBlocks());
     ASSERT(flowGraph->getNumberOfBlocks());
 
-    // now find any areas not covered by basic blocks and put them into UnknownBlocks
-    Vector<UnknownBlock*> unknownBlocks;
+    // now find any areas not covered by basic blocks and put them into RawBlocks
+    Vector<RawBlock*> unknownBlocks;
     if (flowGraph->getBlock(0)->getBaseAddress() > getBaseAddress()){
-        PRINT_DEBUG_CFG("\tFound UnknownBlock (s) at %#llx + %d bytes", getBaseAddress(), flowGraph->getBlock(0)->getBaseAddress()-getBaseAddress());
-        unknownBlocks.append(new UnknownBlock(unknownBlocks.size(), flowGraph, textSection->getStreamAtAddress(getBaseAddress()),
+        PRINT_DEBUG_CFG("\tFound RawBlock (s) at %#llx + %d bytes", getBaseAddress(), flowGraph->getBlock(0)->getBaseAddress()-getBaseAddress());
+        unknownBlocks.append(new RawBlock(unknownBlocks.size(), flowGraph, textSection->getStreamAtAddress(getBaseAddress()),
                                               flowGraph->getBlock(0)->getBaseAddress()-getBaseAddress(), getBaseAddress()));
     }
     for (int32_t i = 0; i < flowGraph->getNumberOfBlocks()-1; i++){
-        uint64_t blockEnds = flowGraph->getBlock(i)->getBaseAddress() + flowGraph->getBlock(i)->getBlockSize();        
+        uint64_t blockEnds = flowGraph->getBlock(i)->getBaseAddress() + flowGraph->getBlock(i)->getNumberOfBytes();        
         uint64_t blockBegins = flowGraph->getBlock(i+1)->getBaseAddress();        
         if (blockEnds < blockBegins){
-            PRINT_DEBUG_CFG("\tFound UnknownBlock (m) at %#llx + %d bytes", blockEnds, blockBegins-blockEnds);
-            unknownBlocks.append(new UnknownBlock(unknownBlocks.size(), flowGraph, textSection->getStreamAtAddress(blockEnds),
+            PRINT_DEBUG_CFG("\tFound RawBlock (m) at %#llx + %d bytes", blockEnds, blockBegins-blockEnds);
+            unknownBlocks.append(new RawBlock(unknownBlocks.size(), flowGraph, textSection->getStreamAtAddress(blockEnds),
                                                   blockBegins-blockEnds, blockEnds));            
         }
     }
@@ -358,8 +358,8 @@ uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** inst
     uint64_t blockEnds = lastBlock->getBaseAddress() + lastBlock->getNumberOfBytes();
     uint64_t funcEnds = getBaseAddress() + getSizeInBytes();
     if (blockEnds < funcEnds){
-        PRINT_DEBUG_CFG("\tFound UnknownBlock (e) at %#llx + %d bytes", blockEnds, funcEnds-blockEnds);
-        unknownBlocks.append(new UnknownBlock(unknownBlocks.size(), flowGraph, textSection->getStreamAtAddress(blockEnds),
+        PRINT_DEBUG_CFG("\tFound RawBlock (e) at %#llx + %d bytes", blockEnds, funcEnds-blockEnds);
+        unknownBlocks.append(new RawBlock(unknownBlocks.size(), flowGraph, textSection->getStreamAtAddress(blockEnds),
                                               funcEnds-blockEnds, blockEnds));
     }
     for (uint32_t i = 0; i < unknownBlocks.size(); i++){
@@ -452,7 +452,7 @@ bool Function::verify(){
 
         uint32_t numberOfBytes = 0;
         for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
-            numberOfBytes += flowGraph->getBlock(i)->getBlockSize();
+            numberOfBytes += flowGraph->getBlock(i)->getNumberOfBytes();
         }
         if (numberOfBytes != sizeInBytes){
             PRINT_ERROR("Bytes in FlowGraph doesn't match function size");

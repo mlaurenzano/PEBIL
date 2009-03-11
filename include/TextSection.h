@@ -9,6 +9,7 @@
 class BasicBlock;
 class BinaryInputFile;
 class BinaryOutputFile;
+class Block;
 class Disassembler;
 class ElfFile;
 class Function;
@@ -48,10 +49,11 @@ public:
 
 class FreeText : public TextObject {
 protected:
-    Vector<Instruction*> instructions;
+    Vector<Block*> blocks;
+    bool usesInstructions;
 
 public:
-    FreeText(TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz);
+    FreeText(TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz, bool usesI);
     ~FreeText();
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
@@ -59,8 +61,8 @@ public:
 
     uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
 
-    Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }
-    uint32_t getNumberOfInstructions() { return instructions.size(); }
+    Block* getBlock(uint32_t idx) { return blocks[idx]; }
+    uint32_t getNumberOfInstructions();
     void printDisassembly(bool instructionDetail);
 
     void print();

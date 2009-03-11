@@ -9,7 +9,7 @@
 
 static const char* bytes_not_instructions = "<x86_inst_unreachable_text>";
 
-void UnknownBlock::printDisassembly(bool instructionDetail){
+void RawBlock::printDisassembly(bool instructionDetail){
     uint32_t bytesPerWord = 1;
     uint32_t bytesPerLine = 8;
     
@@ -31,7 +31,7 @@ void UnknownBlock::printDisassembly(bool instructionDetail){
     fprintf(stdout, "%s\n", bytes_not_instructions);
 }
 
-void BasicBlock::printDisassembly(bool instructionDetail){
+void CodeBlock::printDisassembly(bool instructionDetail){
 
     for (uint32_t i = 0; i < instructions.size(); i++){
         instructions[i]->binutilsPrint(stdout);
@@ -42,15 +42,15 @@ void BasicBlock::printDisassembly(bool instructionDetail){
     }
 }
 
-CodeBlock::CodeBlock(ElfClassTypes typ, uint32_t idx, FlowGraph* cfg)
+Block::Block(ElfClassTypes typ, uint32_t idx, FlowGraph* cfg)
     : Base(typ)
 {
     index = idx;
     flowGraph = cfg;
 }
 
-UnknownBlock::UnknownBlock(uint32_t idx, FlowGraph* cfg, char* byt, uint32_t sz, uint64_t addr)
-    : CodeBlock(ElfClassTypes_UnknownBlock,idx,cfg)
+RawBlock::RawBlock(uint32_t idx, FlowGraph* cfg, char* byt, uint32_t sz, uint64_t addr)
+    : Block(ElfClassTypes_RawBlock,idx,cfg)
 {
     sizeInBytes = sz;
      
@@ -62,19 +62,19 @@ UnknownBlock::UnknownBlock(uint32_t idx, FlowGraph* cfg, char* byt, uint32_t sz,
     baseAddress = addr;
 }
 
-UnknownBlock::~UnknownBlock(){
+RawBlock::~RawBlock(){
     if (rawBytes){
         delete[] rawBytes;
     }
 }
 
-void UnknownBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+void RawBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     binaryOutputFile->copyBytes(rawBytes,sizeInBytes,offset);
 }
 
-void UnknownBlock::print(){
+void RawBlock::print(){
     PRINT_INFO();
-    PRINT_OUT("UnknownBlock: %#llx -- ", baseAddress);
+    PRINT_OUT("RawBlock: %#llx -- ", baseAddress);
     for (uint32_t i = 0; i < sizeInBytes; i++){
         PRINT_OUT("%hhx ", rawBytes[i]);
     }
@@ -113,13 +113,6 @@ uint32_t BasicBlock::bloat(uint32_t minBlockSize){
     return getNumberOfBytes();
 }
 
-uint32_t BasicBlock::getNumberOfBytes(){
-    uint32_t numberOfBytes = 0;
-    for (uint32_t i = 0; i < instructions.size(); i++){
-        numberOfBytes += instructions[i]->getSizeInBytes();
-    }
-    return numberOfBytes;
-}
 
 bool BasicBlock::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
     for (uint32_t i = 0; i < instructions.size(); i++){
@@ -143,7 +136,7 @@ uint32_t BasicBlock::getAllInstructions(Instruction** allinsts, uint32_t nexti){
 }
 
 
-void BasicBlock::setBaseAddress(uint64_t newBaseAddr){
+void CodeBlock::setBaseAddress(uint64_t newBaseAddr){
     baseAddress = newBaseAddr;
     uint32_t currentOffset = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
@@ -210,16 +203,16 @@ uint64_t BasicBlock::getTargetAddress() {
     return instructions.back()->getTargetAddress();
 }
 
-void BasicBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+void CodeBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
         instructions[i]->dump(binaryOutputFile,offset+currByte);
         currByte += instructions[i]->getSizeInBytes();
     }
-    ASSERT(currByte == getBlockSize());
+    ASSERT(currByte == getNumberOfBytes());
 }
 
-uint32_t BasicBlock::addInstruction(Instruction* inst){
+uint32_t CodeBlock::addInstruction(Instruction* inst){
     if (!instructions.size()){
         baseAddress = inst->getBaseAddress();
     }
@@ -228,7 +221,7 @@ uint32_t BasicBlock::addInstruction(Instruction* inst){
     return instructions.size();
 }
 
-Instruction* BasicBlock::getInstructionAtAddress(uint64_t addr){
+Instruction* CodeBlock::getInstructionAtAddress(uint64_t addr){
     for (uint32_t i = 0; i < instructions.size(); i++){
         if (instructions[i]->getBaseAddress() == addr){
             return instructions[i];
@@ -249,25 +242,33 @@ Instruction* BasicBlock::getInstructionAtAddress(uint64_t addr){
     return NULL;
 }
 
-uint32_t BasicBlock::getBlockSize(){
-    uint32_t size = 0;
+uint32_t CodeBlock::getNumberOfBytes(){
+    uint32_t numberOfBytes = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
-        size += instructions[i]->getSizeInBytes();
+        numberOfBytes += instructions[i]->getSizeInBytes();
     }
-    return size;
+    return numberOfBytes;
 }
 
 bool BasicBlock::inRange(uint64_t addr){
     if (addr >= getBaseAddress() &&
-        addr < getBaseAddress() + getBlockSize()){
+        addr < getBaseAddress() + getNumberOfBytes()){
         return true;
     }
     return false;
 }
 
-BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg)
-    : CodeBlock(ElfClassTypes_BasicBlock,idx,cfg)
+CodeBlock::CodeBlock(uint32_t idx, FlowGraph* cfg)
+    : Block(ElfClassTypes_CodeBlock,idx,cfg)
 {
+}
+
+
+BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg)
+    : CodeBlock(idx,cfg)
+{
+    type = ElfClassTypes_BasicBlock;
+
     flags = 0;
     immDominatedBy = NULL;
 
@@ -275,9 +276,9 @@ BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg)
     numberOfFloatOps = 0;
 
     ASSERT(flowGraph);
-
     Function* func = flowGraph->getFunction();
     ASSERT(func);
+
     hashCode = HashCode(func->getTextSection()->getSectionIndex(),func->getIndex(),index);
     PRINT_DEBUG_HASHCODE("Block %d in function %d in section %d has HashCode 0x%012llx", index, func->getIndex(), func->getTextSection()->getSectionIndex(), hashCode.getValue());
 
@@ -290,8 +291,8 @@ BasicBlock::~BasicBlock(){
     }
 }
 
-void BasicBlock::printInstructions(){
-    PRINT_INFOR("Instructions for Basic Block %d", index);
+void CodeBlock::printInstructions(){
+    PRINT_INFOR("Instructions for Code Block %d", index);
     PRINT_INFOR("================");
     for (uint32_t i = 0; i < instructions.size(); i++){
         instructions[i]->print();
@@ -331,7 +332,7 @@ void BasicBlock::print(){
         rch = 'R';
     }
 
-    PRINT_INFOR("BASICBLOCK(%d) range=[0x%llx,0x%llx), %d instructions, flags %c%c%c%c%c%c", index, getBaseAddress(), getBaseAddress()+getBlockSize(), getNumberOfInstructions(), pad, ent, ext, ctr, rch);
+    PRINT_INFOR("BASICBLOCK(%d) range=[0x%llx,0x%llx), %d instructions, flags %c%c%c%c%c%c", index, getBaseAddress(), getBaseAddress()+getNumberOfBytes(), getNumberOfInstructions(), pad, ent, ext, ctr, rch);
     if (immDominatedBy){
         PRINT_INFOR("\tdom: %d", immDominatedBy->getIndex());
     }
@@ -384,7 +385,7 @@ uint64_t BasicBlock::findInstrumentationPoint(uint32_t size, InstLocations loc){
     return 0;
 }
 
-Vector<Instruction*>* BasicBlock::swapInstructions(uint64_t addr, Vector<Instruction*>* replacements){
+Vector<Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<Instruction*>* replacements){
     Instruction* tgtInstruction = getInstructionAtAddress(addr);
     ASSERT(tgtInstruction && "This basic block should have an instruction at the given address");
 

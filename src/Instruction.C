@@ -59,14 +59,14 @@ void Instruction::binutilsPrint(FILE* stream){
 
     if (usesRelativeAddress()){
         if (addressAnchor){
-            fprintf(stream, "\t#@ %llx", addressAnchor->linkBaseAddress);
+            fprintf(stream, "\t#x@ %llx", addressAnchor->linkBaseAddress);
         } else {
-            fprintf(stream, "\t#  %llx", getRelativeValue()+getBaseAddress());
+            fprintf(stream, "\t#x  %llx", getRelativeValue()+getBaseAddress());
         }
     }
 
     if (isNoop()){
-        fprintf(stream, "\t# nop");
+        fprintf(stream, "\t#x nop");
     }
 
     fprintf(stream, "\n");
