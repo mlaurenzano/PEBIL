@@ -301,7 +301,7 @@ bool SymbolTable::verify(){
 }
 
 
-uint16_t SymbolTable::setStringTable(){
+void SymbolTable::setStringTable(){
     ASSERT(elfFile);
     ASSERT(elfFile->getSectionHeader(getSectionIndex()));
     SectionHeader* sh = elfFile->getSectionHeader(getSectionIndex());
@@ -310,7 +310,6 @@ uint16_t SymbolTable::setStringTable(){
     RawSection* st = elfFile->getRawSection(sh->GET(sh_link));
     ASSERT(st->getType() == ElfClassTypes_StringTable);
     stringTable = (StringTable*)st;
-    return stringTable->getSectionIndex();
 }
 
 

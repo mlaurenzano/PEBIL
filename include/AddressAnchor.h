@@ -37,7 +37,7 @@ public:
     Base* getLinkedParent() { return linkedParent; }
     uint32_t getIndex() { return index; }
 
-    uint32_t setIndex(uint32_t idx) { index = idx; return index; }
+    void setIndex(uint32_t idx) { index = idx; }
 
     bool verify();
     void print();

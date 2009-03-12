@@ -406,7 +406,7 @@ public:
 
 
     uint32_t getFileOffset() { return fileOffset; }
-    uint32_t setFileOffset(uint32_t offset) { fileOffset = offset; return (fileOffset+sizeInBytes);}
+    void setFileOffset(uint32_t offset) { fileOffset = offset; }
     bool hasInvalidFileOffset() { return (invalidOffset == fileOffset); }
 
     virtual const char* briefName() { __SHOULD_NOT_ARRIVE; return NULL; }

@@ -21,7 +21,7 @@ SectionHeader64::SectionHeader64(uint16_t idx)
 
 // in general we cannot use section names in this function because they will
 // not be set yet
-ElfClassTypes SectionHeader::setSectionType(){
+void SectionHeader::setSectionType(){
     uint32_t type = GET(sh_type);
 
     switch (GET(sh_type)){
@@ -82,8 +82,6 @@ ElfClassTypes SectionHeader::setSectionType(){
         sectionType = ElfClassTypes_RawSection;
         PRINT_ERROR("Unknown section type %d (%x)", GET(sh_type), GET(sh_type));
     }
-
-    return sectionType;
 }
 
 bool SectionHeader::hasWriteBit(){

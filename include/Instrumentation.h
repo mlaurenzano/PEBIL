@@ -37,7 +37,7 @@ public:
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; } 
 
     uint32_t bootstrapSize();
-    uint64_t setBootstrapOffset(uint64_t off) { bootstrapOffset = off; return bootstrapOffset; }
+    void setBootstrapOffset(uint64_t off) { bootstrapOffset = off; }
 };
 
 class InstrumentationSnippet : public Instrumentation {
@@ -69,7 +69,7 @@ public:
     uint64_t getEntryPoint();
 
     uint32_t addSnippetInstruction(Instruction* inst);
-    uint64_t setCodeOffset(uint64_t off) { snippetOffset = off; return snippetOffset; }
+    void setCodeOffset(uint64_t off) { snippetOffset = off; }
     uint64_t getCodeOffset() { return snippetOffset; }
 
 };
@@ -131,8 +131,8 @@ public:
 
     uint64_t getEntryPoint();
 
-    uint64_t setWrapperOffset(uint64_t off) { wrapperOffset = off; return wrapperOffset; }
-    uint64_t setProcedureLinkOffset(uint64_t off) { procedureLinkOffset = off; return wrapperOffset; }
+    void setWrapperOffset(uint64_t off) { wrapperOffset = off; }
+    void setProcedureLinkOffset(uint64_t off) { procedureLinkOffset = off; }
 };
 
 class InstrumentationFunction32 : public InstrumentationFunction {

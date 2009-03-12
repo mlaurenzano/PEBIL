@@ -376,18 +376,8 @@ void Instruction::initializeAnchor(Base* link){
     addressAnchor = new AddressAnchor(link,this);
 }
 
-uint64_t Instruction::setProgramAddress(uint64_t addr){
-    programAddress = addr;
-    return programAddress;
-}
-
 uint64_t Instruction::getProgramAddress(){
     return programAddress;
-}
-
-ByteSources Instruction::setByteSource(ByteSources src){
-    source = src;
-    return source;
 }
 
 ByteSources Instruction::getByteSource(){
@@ -1101,55 +1091,34 @@ Operand::Operand(uint32_t typ, uint64_t val, uint32_t idx){
     index = idx;
 }
 
-uint64_t Operand::setValue(uint64_t val){
-    value = val;
-    return value;
-}
-
-uint32_t Operand::setType(uint32_t typ){
-    type = typ;
-    return type;
-}
-
-uint32_t Operand::setBytePosition(uint32_t pos){
-    bytePosition = pos;
-    return bytePosition;
-}
-
-uint32_t Operand::setBytesUsed(uint32_t usd){
+void Operand::setBytesUsed(uint32_t usd){
     ASSERT(usd == sizeof(uint32_t) || usd == sizeof(uint16_t) || usd == sizeof(uint8_t));
     bytesUsed = usd;
-    return bytesUsed;
 }
 
-bool Operand::setRelative(bool rel){
-    relative = rel;
-    return relative;
-}
-
-uint64_t Instruction::setOperandValue(uint32_t idx, uint64_t value){
+void Instruction::setOperandValue(uint32_t idx, uint64_t value){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    return operands[idx].setValue(value);
+    operands[idx].setValue(value);
 }
 
-uint32_t Instruction::setOperandType(uint32_t idx, uint32_t typ){
+void Instruction::setOperandType(uint32_t idx, uint32_t typ){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    return operands[idx].setType(typ);
+    operands[idx].setType(typ);
 }
 
-uint32_t Instruction::setOperandBytePosition(uint32_t idx, uint32_t pos){
+void Instruction::setOperandBytePosition(uint32_t idx, uint32_t pos){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    return operands[idx].setBytePosition(pos);
+    operands[idx].setBytePosition(pos);
 }
 
-uint32_t Instruction::setOperandBytesUsed(uint32_t idx, uint32_t usd){
+void Instruction::setOperandBytesUsed(uint32_t idx, uint32_t usd){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    return operands[idx].setBytesUsed(usd);
+    operands[idx].setBytesUsed(usd);
 }
 
-bool Instruction::setOperandRelative(uint32_t idx, bool rel){
+void Instruction::setOperandRelative(uint32_t idx, bool rel){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    return operands[idx].setRelative(rel);
+    operands[idx].setRelative(rel);
 }
 
 uint64_t Instruction::getTargetAddress(){
@@ -1174,7 +1143,7 @@ uint64_t Instruction::getTargetAddress(){
 }
 
 
-uint32_t Instruction::setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2){
+void Instruction::setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2){
     PRINT_DEBUG_OPCODE("Setting instruction type %d 0x%08x 0x%08x", formatType, idx1, idx2);
 
     switch(formatType){
@@ -1268,11 +1237,6 @@ Instruction::Instruction()
     verify();
 }
 
-uint32_t Instruction::setIndex(uint32_t newidx){
-    index = newidx;
-    return index;
-}
-
 Instruction::~Instruction(){
     if (rawBytes){
         delete[] rawBytes;
@@ -1286,40 +1250,23 @@ char* Instruction::getBytes(){
     return rawBytes;
 }
 
-char* Instruction::setBytes(char* bytes){
+void Instruction::setBytes(char* bytes){
     if (rawBytes){
         PRINT_WARN(2,"Deleting rawBytes");
         delete[] rawBytes;
     }
     rawBytes = new char[sizeInBytes];
     memcpy(rawBytes,bytes,sizeInBytes);
-    return rawBytes;
 }
 
-void Instruction::setBaseAddress(uint64_t addr){
-    baseAddress = addr;
-}
-
-uint32_t Instruction::setSizeInBytes(uint32_t len){
+void Instruction::setSizeInBytes(uint32_t len){
     ASSERT(len <= MAX_X86_INSTRUCTION_LENGTH && "X86 instructions are limited in size");
     ASSERT(len <= sizeInBytes);
-    /*
-    if (rawBytes){
-        char* newBytes = new char[len];
-        // this could seg fault if len > sizeInBytes
-        memcpy(newBytes,rawBytes,len);
-        delete[] rawBytes;
-        rawBytes = newBytes;
-    }
-    */
     sizeInBytes = len;
-
-    return sizeInBytes;
 }
 
-char* Instruction::setDisassembledString(char* disStr){
+void Instruction::setDisassembledString(char* disStr){
     strncpy(disassembledString, disStr, strlen(disStr));
-    return disassembledString;
 }
 
 uint64_t Instruction::getBaseAddress(){

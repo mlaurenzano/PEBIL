@@ -101,7 +101,7 @@ public:
     bool verify();
     bool isDynamic() { return dynamic; }
 
-    uint16_t setStringTable();
+    void setStringTable();
 
     Symbol* getSymbol(uint32_t index) { ASSERT(index < numberOfSymbols); return symbols[index]; }
     char* getSymbolName(uint32_t index);

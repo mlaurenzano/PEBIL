@@ -110,12 +110,11 @@ char* BinaryInputFile::fileOffsetToPointer(uint64_t fileOffset){
     return next;
 }
 
-char* BinaryInputFile::setInBufferPointer(uint64_t fileOffset){
+void BinaryInputFile::setInBufferPointer(uint64_t fileOffset){
     char* next = fileOffsetToPointer(fileOffset);
     if(next){
         inBufferPointer = next;
     }
-    return next;
 }
 
 char* BinaryInputFile::isInBuffer(char* ptr){
@@ -127,13 +126,12 @@ char* BinaryInputFile::isInBuffer(char* ptr){
     return ptr;
 }
 
-char* BinaryInputFile::setInPointer(char* ptr){
+void BinaryInputFile::setInPointer(char* ptr){
     if(isInBuffer(ptr)){
         inBufferPointer = ptr;
     } else {
         ptr = NULL;
     }
-    return ptr;
 }
 
 uint32_t BinaryInputFile::bytesLeftInBuffer(){

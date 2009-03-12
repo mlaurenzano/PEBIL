@@ -134,11 +134,11 @@ public:
     bool isOnlyCtrl() { return (flags & OnlyCtrlMask); }
     bool isNoPath()   { return (flags & NoPathMask); }
 
-    uint32_t setPadding()  { flags |= PaddingMask; return flags; }
-    uint32_t setEntry()    { flags |= EntryMask; return flags; }
-    uint32_t setExit()     { flags |= ExitMask; return flags; }
-    uint32_t setOnlyCtrl() { flags |= OnlyCtrlMask; return flags; }
-    uint32_t setNoPath()   { flags |= NoPathMask; return flags; }
+    void setPadding()  { flags |= PaddingMask; }
+    void setEntry()    { flags |= EntryMask; }
+    void setExit()     { flags |= ExitMask; }
+    void setOnlyCtrl() { flags |= OnlyCtrlMask; }
+    void setNoPath()   { flags |= NoPathMask; }
 
     void setIndex(uint32_t idx);
 

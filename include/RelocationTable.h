@@ -118,8 +118,8 @@ public:
     uint32_t getIndex() { return index; }
     uint32_t getRelocationSize() { return relocationSize; }
 
-    uint16_t setSymbolTable();
-    uint16_t setRelocationSection();
+    void setSymbolTable();
+    void setRelocationSection();
 
     uint32_t addRelocation(uint64_t offset, uint64_t info);
 

@@ -105,7 +105,7 @@ RelocationTable::~RelocationTable(){
 
 
 
-uint16_t RelocationTable::setSymbolTable(){
+void RelocationTable::setSymbolTable(){
     ASSERT(elfFile);
     ASSERT(elfFile->getSectionHeader(getSectionIndex()));
     SectionHeader* sh = elfFile->getSectionHeader(getSectionIndex());
@@ -115,10 +115,9 @@ uint16_t RelocationTable::setSymbolTable(){
 
     ASSERT(sy->getType() == ElfClassTypes_SymbolTable);
     symbolTable = (SymbolTable*)sy;
-    return symbolTable->getSectionIndex();
 }
 
-uint16_t RelocationTable::setRelocationSection(){
+void RelocationTable::setRelocationSection(){
     ASSERT(elfFile);
     ASSERT(elfFile->getSectionHeader(getSectionIndex()));
     SectionHeader* sh = elfFile->getSectionHeader(getSectionIndex());
@@ -126,7 +125,6 @@ uint16_t RelocationTable::setRelocationSection(){
     
     RawSection* rs = elfFile->getRawSection(sh->GET(sh_info));
     relocationSection = rs;
-    return relocationSection->getSectionIndex();
 }
 
 

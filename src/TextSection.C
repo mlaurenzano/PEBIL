@@ -120,11 +120,6 @@ uint32_t TextSection::getNumberOfFloatOps(){
     return numberOfFloatOps;
 }
 
-ByteSources TextSection::setByteSource(ByteSources src){
-    source = src;
-    return source;
-}
-
 ByteSources TextSection::getByteSource(){
     return source;
 }

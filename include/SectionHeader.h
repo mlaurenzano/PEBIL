@@ -41,7 +41,7 @@ public:
     virtual bool hasBitsInFile() { __SHOULD_NOT_ARRIVE; }
 
 
-    ElfClassTypes setSectionType();
+    void setSectionType();
     ElfClassTypes getSectionType() { return sectionType; }
 
     void setSectionNamePtr(char* namePtr) { sectionNamePtr = namePtr; }

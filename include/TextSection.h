@@ -84,7 +84,7 @@ public:
     Function* replaceFunction(uint32_t idx, Function* replacementFunction);
 
     ByteSources getByteSource();
-    ByteSources setByteSource(ByteSources src);
+    void setByteSource(ByteSources src) { source = src; }
 
     uint32_t readNoFile();
     uint32_t getIndex() { return index; }

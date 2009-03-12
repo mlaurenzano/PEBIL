@@ -20,10 +20,10 @@ public:
     char*    moreBytes();
 
     char*    fileOffsetToPointer(uint64_t fileOffset);
-    char*    setInBufferPointer(uint64_t fileOffset);
+    void     setInBufferPointer(uint64_t fileOffset);
 
     char*    isInBuffer(char* f);
-    char*    setInPointer(char* f);
+    void     setInPointer(char* f);
 
     char*    inPtrBase() { return inBuffer; }
 

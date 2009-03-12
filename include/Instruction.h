@@ -115,11 +115,11 @@ public:
     bool isRelative() { return relative; }
     bool isIndirect();
 
-    uint32_t setType(uint32_t typ);
-    uint64_t setValue(uint64_t val);
-    uint32_t setBytePosition(uint32_t pos);
-    uint32_t setBytesUsed(uint32_t usd);
-    bool setRelative(bool rel);
+    void setType(uint32_t typ) { type = typ; }
+    void setValue(uint64_t val) { value = val; }
+    void setBytePosition(uint32_t pos) { bytePosition = pos; }
+    void setBytesUsed(uint32_t usd);
+    void setRelative(bool rel) { relative = rel; }
 
     void print();
 };
@@ -196,22 +196,21 @@ public:
 
     bool isNoop();
 
-    uint32_t setIndex(uint32_t newidx);
-    void setBaseAddress(uint64_t addr);
-    uint32_t setSizeInBytes(uint32_t len);
-    char* setBytes(char* bytes);
-    uint64_t setOperandValue(uint32_t idx, uint64_t val);
-    uint32_t setOperandType(uint32_t idx, uint32_t typ);
-    uint32_t setOperandBytePosition(uint32_t idx, uint32_t pos);
-    uint32_t setOperandBytesUsed(uint32_t idx, uint32_t usd);
-    bool setOperandRelative(uint32_t idx, bool rel);
-    ByteSources setByteSource(ByteSources src);
-    uint64_t setProgramAddress(uint64_t addr);
+    void setIndex(uint32_t newidx) { index = newidx; }
+    void setBaseAddress(uint64_t addr) { baseAddress = addr; }
+    void setSizeInBytes(uint32_t len);
+    void setBytes(char* bytes);
+    void setOperandValue(uint32_t idx, uint64_t val);
+    void setOperandType(uint32_t idx, uint32_t typ);
+    void setOperandBytePosition(uint32_t idx, uint32_t pos);
+    void setOperandBytesUsed(uint32_t idx, uint32_t usd);
+    void setOperandRelative(uint32_t idx, bool rel);
+    void setByteSource(ByteSources src) { source = src; }
+    void setProgramAddress(uint64_t addr) { programAddress = addr; }
     void setInstructionType(uint32_t typ) { instructionType = typ; }
 
-    char* setDisassembledString(char* disStr);
-
-    uint32_t setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2);
+    void setDisassembledString(char* disStr);
+    void setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2);
 
     static Instruction* generateNoop();
 
