@@ -55,18 +55,18 @@ void GnuVersymTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
 
     for (uint32_t i = 0; i < numberOfVersyms; i++){
-        binaryOutputFile->copyBytes(charStream()+entrySize*i,entrySize,offset+currByte);
+        binaryOutputFile->copyBytes(getFilePointer()+entrySize*i,entrySize,offset+currByte);
         currByte += entrySize;
     }
     ASSERT(currByte == sizeInBytes && "Size written to file does not match theoretical size");
 }
 
 uint32_t GnuVersymTable::read(BinaryInputFile* binaryInputFile){
-    binaryInputFile->setInPointer(charStream());
+    binaryInputFile->setInPointer(getFilePointer());
     uint32_t totalBytesRead = 0;
 
     for (uint32_t i = 0; i < numberOfVersyms; i++){
-        binaryInputFile->copyBytesIterate(charStream()+entrySize*i,entrySize);
+        binaryInputFile->copyBytesIterate(getFilePointer()+entrySize*i,entrySize);
         totalBytesRead += entrySize;
     }
     ASSERT(totalBytesRead == sizeInBytes && "Size read from file does not match theoretical size");

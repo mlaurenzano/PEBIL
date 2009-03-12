@@ -347,7 +347,7 @@ uint32_t Symbol64::read(BinaryInputFile* binaryInputFile){
 
 uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
     
-    binaryInputFile->setInPointer(charStream());
+    binaryInputFile->setInPointer(getFilePointer());
     setFileOffset(binaryInputFile->currentOffset());
 
     //    PRINT_INFOR("Reading %d symbols for symtable %d", numberOfSymbols, index);
@@ -355,9 +355,9 @@ uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
 
     for (uint32_t i = 0; i < numberOfSymbols; i++){
         if (elfFile->is64Bit()){
-            symbols[i] = new Symbol64(this, charStream() + (i * Size__64_bit_Symbol), i);
+            symbols[i] = new Symbol64(this, getFilePointer() + (i * Size__64_bit_Symbol), i);
         } else {
-            symbols[i] = new Symbol32(this, charStream() + (i * Size__32_bit_Symbol), i);
+            symbols[i] = new Symbol32(this, getFilePointer() + (i * Size__32_bit_Symbol), i);
         }
         totalBytesRead += symbols[i]->read(binaryInputFile);
     }

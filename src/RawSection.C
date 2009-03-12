@@ -101,7 +101,7 @@ void RawSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset)
     }
 
     if (getSectionHeader()->hasBitsInFile() && getSizeInBytes()){
-        binaryOutputFile->copyBytes(charStream(),getSizeInBytes(),offset); 
+        binaryOutputFile->copyBytes(getFilePointer(),getSizeInBytes(),offset); 
         for (uint32_t i = 0; i < dataReferences.size(); i++){
             dataReferences[i]->dump(binaryOutputFile,offset);
         }

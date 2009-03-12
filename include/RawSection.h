@@ -54,7 +54,8 @@ public:
     virtual bool verify();
 
     char* charStream(uint32_t offset) { ASSERT(offset < sizeInBytes); return (char*)(rawDataPtr+offset); }
-    char* charStream() { return charStream(0); }
+    char* charStream() { return rawDataPtr; }
+    char* getFilePointer() { return rawDataPtr; }
     char* getStreamAtAddress(uint64_t addr);
     uint64_t getAddressFromOffset(uint32_t offset);
 

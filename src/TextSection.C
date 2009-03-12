@@ -198,7 +198,7 @@ char* TextObject::charStream(){
     ASSERT(textSection);
     uint64_t functionOffset = getBaseAddress() -
         textSection->getElfFile()->getSectionHeader(textSection->getSectionIndex())->GET(sh_addr);
-    return (char*)(textSection->charStream() + functionOffset);
+    return (char*)(textSection->getFilePointer() + functionOffset);
 }
 
 Vector<Instruction*>* TextObject::digestLinear(){

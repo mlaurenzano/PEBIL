@@ -246,11 +246,11 @@ uint32_t ElfFileInst::anchorProgramElements(){
                                         PRINT_ERROR("section %s: sectionOffset %d, sizeInBytes %d", dataSectionHeader->getSectionNamePtr(), sectionOffset, dataRawSection->getSizeInBytes());
                                     }
                                     ASSERT(sectionOffset < dataRawSection->getSizeInBytes());
-                                    memcpy(&currentData,dataRawSection->charStream()+sectionOffset,addrAlign);
+                                    memcpy(&currentData,dataRawSection->getFilePointer()+sectionOffset,addrAlign);
                                     extendedData = currentData;
                                 } else if (addrAlign == sizeof(uint32_t)){
                                     uint32_t currentData;
-                                    memcpy(&currentData,dataRawSection->charStream()+sectionOffset,addrAlign);
+                                    memcpy(&currentData,dataRawSection->getFilePointer()+sectionOffset,addrAlign);
                                     extendedData = (uint64_t)currentData;
                                 } else {
                                     __SHOULD_NOT_ARRIVE;
@@ -307,7 +307,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
 
         // since there are no constraints on the alignment of stuff in the data sections we must check starting at EVERY byte
         for (uint32_t currByte = 0; currByte < dataRawSection->getSizeInBytes() - addrAlign; currByte++){
-            char* dataPtr = (char*)(dataRawSection->charStream()+currByte);
+            char* dataPtr = (char*)(dataRawSection->getFilePointer()+currByte);
             uint64_t extendedData;
             if (addrAlign == sizeof(uint64_t)){
                 uint64_t currentData;
