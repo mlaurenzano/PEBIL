@@ -285,7 +285,7 @@ BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg)
     verify();
 }
 
-BasicBlock::~BasicBlock(){
+CodeBlock::~CodeBlock(){
     for (uint32_t i = 0; i < instructions.size(); i++){
         delete instructions[i];
     }

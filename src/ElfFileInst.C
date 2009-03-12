@@ -8,8 +8,7 @@
 #include <ElfFile.h>
 #include <FileHeader.h>
 #include <Function.h>
-#include <GnuVerneedTable.h>
-#include <GnuVersymTable.h>
+#include <GnuVersion.h>
 #include <HashTable.h>
 #include <Instruction.h>
 #include <Instrumentation.h>

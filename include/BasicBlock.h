@@ -36,7 +36,7 @@ protected:
     Vector<Instruction*> instructions;
 public:
     CodeBlock(uint32_t idx, FlowGraph* cfg);
-    ~CodeBlock() {}
+    ~CodeBlock();
 
     Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
     void printInstructions();
@@ -92,7 +92,7 @@ protected:
     uint32_t flags;
 public:
     BasicBlock(uint32_t idx, FlowGraph* cfg);
-    ~BasicBlock();
+    ~BasicBlock() {}
 
     uint32_t bloat(uint32_t minBlockSize);
 

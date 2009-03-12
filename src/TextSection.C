@@ -214,8 +214,7 @@ Vector<Instruction*>* TextObject::digestLinear(){
     while (currByte < sizeInBytes){
 
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
-        Instruction* newInstruction = new Instruction(textSection, getBaseAddress() + currByte, 
-                                                      charStream() + currByte, ByteSource_Application_FreeText, numberOfInstructions++);
+        Instruction* newInstruction = new Instruction(textSection, getBaseAddress() + currByte, charStream() + currByte, ByteSource_Application_FreeText, numberOfInstructions++);
         PRINT_DEBUG_CFG("linear cfg: instruction at %#llx with %d bytes", newInstruction->getBaseAddress(), newInstruction->getSizeInBytes());
 
         (*allInstructions).append(newInstruction);

@@ -1,9 +1,9 @@
-#ifndef _GnuVerneedTable_h_
-#define _GnuVerneedTable_h_
+#ifndef _GnuVersion_h_
+#define _GnuVersion_h_
 
 #include <Base.h>
 #include <RawSection.h>
-#include <defines/GnuVerneed.d>
+#include <defines/GnuVersion.d>
 
 class GnuVerneed : public Base {
 private:
@@ -100,4 +100,23 @@ public:
     const char* briefName() { return "GnuVerneedTable"; }
 };
 
-#endif /* _GnuVerneedTable_h_ */
+class GnuVersymTable : public RawSection {
+private:
+    uint32_t numberOfVersyms;
+    uint32_t entrySize;
+    uint16_t* versyms;
+public:
+    GnuVersymTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf);
+    ~GnuVersymTable();
+
+    void print();
+    uint32_t read(BinaryInputFile* b);
+
+    uint32_t addSymbol(uint16_t val);
+
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    char* charStream() { return (char*)versyms; }
+    const char* briefName() { return "GnuVersymTable"; }
+};
+
+#endif /* _GnuVersion_h_ */

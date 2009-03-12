@@ -8,8 +8,7 @@
 #include <DynamicTable.h>
 #include <FileHeader.h>
 #include <GlobalOffsetTable.h>
-#include <GnuVerneedTable.h>
-#include <GnuVersymTable.h>
+#include <GnuVersion.h>
 #include <HashTable.h>
 #include <Instruction.h>
 #include <LineInformation.h>
@@ -972,6 +971,8 @@ void ElfFile::readFileHeader() {
 
     numberOfPrograms = fileHeader->GET(e_phnum);
     ASSERT(numberOfSections && "FATAL : This file has no segments!!!!!");
+
+    ASSERT(fileHeader->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
 }
 
 void ElfFile::readProgramHeaders(){

@@ -54,15 +54,15 @@ ElfFile.o: ElfFile.C ../include/ElfFile.h ../include/Base.h \
   ../include/defines/LineInformation.d ../include/DynamicTable.h \
   ../include/defines/DynamicTable.d ../include/FileHeader.h \
   ../include/defines/FileHeader.d ../include/GlobalOffsetTable.h \
-  ../include/GnuVerneedTable.h ../include/defines/GnuVerneed.d \
-  ../include/GnuVersymTable.h ../include/HashTable.h \
-  ../include/Instruction.h ../include/LineInformation.h \
-  ../include/NoteSection.h ../include/PriorityQueue.h \
-  ../include/ProgramHeader.h ../include/defines/ProgramHeader.d \
-  ../include/RelocationTable.h ../include/defines/RelocationTable.d \
-  ../include/SectionHeader.h ../include/defines/SectionHeader.d \
-  ../include/StringTable.h ../include/SymbolTable.h \
-  ../include/defines/SymbolTable.d ../include/TextSection.h
+  ../include/GnuVersion.h ../include/defines/GnuVersion.d \
+  ../include/HashTable.h ../include/Instruction.h \
+  ../include/LineInformation.h ../include/NoteSection.h \
+  ../include/PriorityQueue.h ../include/ProgramHeader.h \
+  ../include/defines/ProgramHeader.d ../include/RelocationTable.h \
+  ../include/defines/RelocationTable.d ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d ../include/StringTable.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
+  ../include/TextSection.h
 ElfFileInst.o: ElfFileInst.C ../include/ElfFileInst.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/CStructuresX86.h ../include/ElfFile.h \
@@ -71,9 +71,8 @@ ElfFileInst.o: ElfFileInst.C ../include/ElfFileInst.h ../include/Base.h \
   ../include/DynamicTable.h ../include/RawSection.h \
   ../include/defines/DynamicTable.d ../include/FileHeader.h \
   ../include/defines/FileHeader.d ../include/Function.h \
-  ../include/BitSet.h ../include/TextSection.h \
-  ../include/GnuVerneedTable.h ../include/defines/GnuVerneed.d \
-  ../include/GnuVersymTable.h ../include/HashTable.h \
+  ../include/BitSet.h ../include/TextSection.h ../include/GnuVersion.h \
+  ../include/defines/GnuVersion.d ../include/HashTable.h \
   ../include/Instrumentation.h ../include/LineInformation.h \
   ../include/defines/LineInformation.d ../include/ProgramHeader.h \
   ../include/defines/ProgramHeader.d ../include/RelocationTable.h \
@@ -117,16 +116,11 @@ GlobalOffsetTable.o: GlobalOffsetTable.C ../include/GlobalOffsetTable.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
   ../include/Vector.h ../include/ElfFile.h ../include/BinaryFile.h \
   ../include/SectionHeader.h ../include/defines/SectionHeader.d
-GnuVerneedTable.o: GnuVerneedTable.C ../include/GnuVerneedTable.h \
-  ../include/Base.h ../include/CStructuresElf.h \
-  ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/RawSection.h ../include/Vector.h \
-  ../include/defines/GnuVerneed.d ../include/ElfFile.h \
+GnuVersion.o: GnuVersion.C ../include/GnuVersion.h ../include/Base.h \
+  ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
+  ../include/CStructuresX86.h ../include/RawSection.h ../include/Vector.h \
+  ../include/defines/GnuVersion.d ../include/ElfFile.h \
   ../include/BinaryFile.h
-GnuVersymTable.o: GnuVersymTable.C ../include/GnuVersymTable.h \
-  ../include/RawSection.h ../include/Base.h ../include/CStructuresElf.h \
-  ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/Vector.h ../include/ElfFile.h ../include/BinaryFile.h
 HashTable.o: HashTable.C ../include/HashTable.h ../include/RawSection.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
