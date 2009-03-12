@@ -22,6 +22,12 @@ uint32_t getUInt32(char* buf){
     return data;
 }
 
+uint16_t getUInt16(char* buf){
+    uint16_t data;
+    memcpy(&data,buf,sizeof(uint16_t));
+    return data;
+}
+
 // this function needs to be as fast as possible
 int compareBaseAddress(const void* arg1,const void* arg2){
     uint64_t vl1 = (*((Base**)arg1))->baseAddress;

@@ -491,6 +491,7 @@ extern int searchBaseAddress(const void* arg1, const void* arg2);
 
 extern uint64_t getUInt64(char* buf);
 extern uint32_t getUInt32(char* buf);
+extern uint16_t getUInt16(char* buf);
 extern int64_t absoluteValue(uint64_t d);
 
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)

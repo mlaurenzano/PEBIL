@@ -1,5 +1,6 @@
 #include <LineInformation.h>
 
+#include <Base.h>
 #include <BasicBlock.h>
 #include <BinaryFile.h>
 #include <DwarfSection.h>
@@ -431,13 +432,11 @@ void LineInfo::updateRegsExtendedOpcode(char* instruction){
         ASSERT(instructionBytes.size() == 3+addressSize && "This instruction has an unexpected size");
 
         if (addressSize == sizeof(uint32_t)){
-            uint32_t addr;
-            memcpy((void*)&addr,(void*)(instruction+3),addressSize);
+            uint32_t addr = getUInt32(instruction+3);
             regs->SET(lr_address,addr);
         } else {
             ASSERT(addressSize == sizeof(uint64_t) && "addressSize has an unexpected value");   
-            uint64_t addr;
-            memcpy((void*)&addr,(void*)(instruction+3),addressSize);
+            uint64_t addr = getUInt64(instruction+3);
             regs->SET(lr_address,addr);
         }
         break;
@@ -525,7 +524,7 @@ void LineInfo::updateRegsStandardOpcode(char* instruction){
         break;
     case DW_LNS_fixed_advance_pc:
         ASSERT(numberOfOperands == 1);
-        memcpy((void*)&addr16,(void*)(instruction+1),sizeof(uint16_t));
+        addr16 = getUInt16(instruction+1);
         for (uint32_t i = 0; i < 2; i++){
             instructionBytes.append(instruction[1+i]);
         }
