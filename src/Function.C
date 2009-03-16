@@ -34,6 +34,7 @@ uint32_t Function::bloatBasicBlocks(uint32_t minBlockSize){
         if (block->getType() == ElfClassTypes_BasicBlock){
             ((BasicBlock*)block)->bloat(minBlockSize);
         } 
+        block->setBaseAddress(baseAddress+currByte);
         currByte += block->getNumberOfBytes();
     }
     sizeInBytes = currByte;
@@ -151,15 +152,7 @@ uint32_t Function::digest(){
     }
 
     ASSERT(allInstructions);
-
-    // copy instructions to an array so we can keep the same interface to generateCFG as pmacinst
-    Instruction** instructions = new Instruction*[(*allInstructions).size()];
-    for (uint32_t i = 0; i < (*allInstructions).size(); i++){
-        instructions[i] = (*allInstructions)[i];
-    }
-    generateCFG((*allInstructions).size(),instructions);
-
-    delete[] instructions;
+    generateCFG(allInstructions);
     delete allInstructions;
 
     return sizeInBytes;
@@ -266,60 +259,68 @@ Vector<Instruction*>* Function::digestRecursive(){
     return allInstructions;
 }
 
-uint32_t Function::generateCFG(uint32_t numberOfInstructions, Instruction** instructions){
+uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
     BasicBlock* currentBlock = NULL;
     BasicBlock* entryBlock = NULL;
     uint32_t numberOfBasicBlocks = 0;
 
-    ASSERT(numberOfInstructions);
+    ASSERT((*instructions).size());
 
     flowGraph = new FlowGraph(this);
 
-    PRINT_DEBUG_CFG("Building CFG for function %s -- have %d instructions", getName(), numberOfInstructions);
+    PRINT_DEBUG_CFG("Building CFG for function %s -- have %d instructions", getName(), (*instructions).size());
 
     // find the block leaders
-    instructions[0]->setLeader(true);
-    for (uint32_t i = 0; i < numberOfInstructions; i++){
-        if (instructions[i]->isControl()){
-            uint64_t tgtAddr = instructions[i]->getTargetAddress();
-            void* inst = bsearch(&tgtAddr,instructions,numberOfInstructions,sizeof(Instruction*),searchBaseAddress);
-            if (inst){
-                Instruction* tgtInstruction = *(Instruction**)inst;
-                if (!getBadInstruction()){
-                    if (tgtInstruction->getBaseAddress() != tgtAddr){
-                        PRINT_ERROR("found instruction that enters the middle of another instruction -- function %s instruction %#llx", getName(), tgtAddr);
-                    }
-                }
-                tgtInstruction->setLeader(true);
+    (*instructions)[0]->setLeader(true);
+    Vector<uint64_t> leaderAddrs;
+
+    for (uint32_t i = 0; i < (*instructions).size(); i++){
+        Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
+        if ((*instructions)[i]->isJumpTableBase()){
+            uint64_t jumpTableBase = (*instructions)[i]->findJumpTableBaseAddress(instructions);
+            if (inRange(jumpTableBase) || !jumpTableBase){
+                ASSERT(getBadInstruction());
+            } else {
+                ASSERT(!(*controlTargetAddrs).size());
+                (*instructions)[i]->computeJumpTableTargets(jumpTableBase, this, controlTargetAddrs);
+                PRINT_DEBUG_CFG("Jump table targets (%d):", (*controlTargetAddrs).size());
             }
+        } else if ((*instructions)[i]->usesControlTarget()){
+            (*controlTargetAddrs).append((*instructions)[i]->getTargetAddress());
+            (*controlTargetAddrs).append((*instructions)[i]->getBaseAddress() + (*instructions)[i]->getSizeInBytes());
         }
-        if (instructions[i]->isConditionalBranch() || 
-            instructions[i]->isSystemCall() ||
-            instructions[i]->isFunctionCall()){
-            uint64_t tgtAddr = instructions[i]->getBaseAddress() + instructions[i]->getSizeInBytes();
-            void* inst = bsearch(&tgtAddr,instructions,numberOfInstructions,sizeof(Instruction*),searchBaseAddress);
-            if (inst){
-                Instruction* tgtInstruction = *(Instruction**)inst;
-                if (!getBadInstruction()){
-                    ASSERT(tgtInstruction->getBaseAddress() == tgtAddr && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+        for (uint32_t j = 0; j < (*controlTargetAddrs).size(); j++){
+            leaderAddrs.append((*controlTargetAddrs)[j]);
+        }
+        delete controlTargetAddrs;
+    }
+
+    for (uint32_t i = 0; i < leaderAddrs.size(); i++){
+        uint64_t tgtAddr = leaderAddrs[i];
+        void* inst = bsearch(&tgtAddr,&(*instructions),(*instructions).size(),sizeof(Instruction*),searchBaseAddress);
+        if (inst){
+            Instruction* tgtInstruction = *(Instruction**)inst;
+            if (!getBadInstruction()){
+                if (tgtInstruction->getBaseAddress() != tgtAddr){
+                    PRINT_ERROR("found instruction that enters the middle of another instruction -- function %s instruction %#llx", getName(), tgtAddr);
                 }
-                tgtInstruction->setLeader(true);
             }
+            tgtInstruction->setLeader(true);
         }
     }
 
-    for (uint32_t i = 0; i < numberOfInstructions; i++){
-        if (instructions[i]->isLeader()){
+    for (uint32_t i = 0; i < (*instructions).size(); i++){
+        if ((*instructions)[i]->isLeader()){
             currentBlock = new BasicBlock(numberOfBasicBlocks++,flowGraph);
-            currentBlock->setBaseAddress(instructions[i]->getBaseAddress());
+            currentBlock->setBaseAddress((*instructions)[i]->getBaseAddress());
             if (!flowGraph->getNumberOfBlocks()){
                 entryBlock = currentBlock;
             }
             flowGraph->addBlock(currentBlock);
             PRINT_DEBUG_CFG("Starting new Block");
         }
-        PRINT_DEBUG_CFG("\tAdding instruction %#llx with %d bytes", instructions[i]->getBaseAddress(), instructions[i]->getSizeInBytes());
-        currentBlock->addInstruction(instructions[i]);
+        PRINT_DEBUG_CFG("\tAdding instruction %#llx with %d bytes", (*instructions)[i]->getBaseAddress(), (*instructions)[i]->getSizeInBytes());
+        currentBlock->addInstruction((*instructions)[i]);
     }
 
 #ifdef DEBUG_CFG

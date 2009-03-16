@@ -19,7 +19,6 @@ public:
     void print();
     virtual char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
 
-    const char* briefName() { return "FileHeader"; }
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
 };
 

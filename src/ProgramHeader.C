@@ -78,7 +78,7 @@ uint32_t ProgramHeader64::read(BinaryInputFile* binaryInputFile){
 bool ProgramHeader::verify(){
     if (GET(p_type) == PT_LOAD){
         if (GET(p_filesz) > GET(p_memsz)){
-            PRINT_ERROR("File size may not be greater than memory size for a loadable segment");
+            PRINT_ERROR("File size (%d) may not be greater than memory size (%d) for a loadable segment", GET(p_filesz), GET(p_memsz));
             return false;
         }
     }

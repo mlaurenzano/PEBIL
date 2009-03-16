@@ -1,7 +1,7 @@
 ## change the following variables to fit your system:
 DOXYGEN = doxygen
 
-SUBDIRS = src linker testapps instcode
+SUBDIRS = linker testapps instcode src
 
 .PHONY: subdirs $(SUBDIRS)
 

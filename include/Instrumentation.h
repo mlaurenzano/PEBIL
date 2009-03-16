@@ -19,7 +19,7 @@ class Instruction;
 
 #define BOOTSTRAP_BYTE_RATIO 11
 
-#define TRAMPOLINE_FRAME_AUTOINC_SIZE 0x1000
+#define TRAMPOLINE_FRAME_AUTOINC_SIZE 0x4000
 
 
 class Instrumentation : public Base {
@@ -110,7 +110,6 @@ public:
     virtual uint32_t wrapperReservedSize() { __SHOULD_NOT_ARRIVE; }
 
     char* getFunctionName() { return functionName; }
-    const char* briefName() { return "InstrumentationFunction"; }
 
     uint32_t getNumberOfProcedureLinkInstructions() { return procedureLinkInstructions.size(); }
     uint32_t getNumberOfBootstrapInstructions() { return bootstrapInstructions.size(); }

@@ -96,7 +96,7 @@ public:
     uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
 
     bool verify();
-    const char* briefName() { return "TextSection"; }
+
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     Instruction* getInstructionAtAddress(uint64_t addr);

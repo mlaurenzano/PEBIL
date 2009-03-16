@@ -109,8 +109,6 @@ public:
     uint32_t getIndex() { return index; }
     StringTable* getStringTable(){ return stringTable; }
 
-    const char* briefName() { return "SymbolTable"; }
-
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     uint32_t findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t bufCnt,char** namestr=NULL);

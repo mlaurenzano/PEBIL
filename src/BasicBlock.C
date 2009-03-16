@@ -33,9 +33,10 @@ void RawBlock::printDisassembly(bool instructionDetail){
 
 void CodeBlock::printDisassembly(bool instructionDetail){
 
+    PRINT_DEBUG_ANCHOR("Block begins");
+
     for (uint32_t i = 0; i < instructions.size(); i++){
         instructions[i]->binutilsPrint(stdout);
-
         if (instructionDetail){
             instructions[i]->print();
         }
@@ -366,6 +367,18 @@ bool BasicBlock::verify(){
         PRINT_ERROR("BasicBlock %d HashCode is malformed", index);
         return false;
     }
+
+    uint32_t numberOfBranches = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isControl() && IS_BYTE_SOURCE_APPLICATION(instructions[i]->getByteSource())){
+            numberOfBranches++;
+        }
+    }
+    if (numberOfBranches > 1){
+        PRINT_ERROR("Block at %#llx should only have 1 branch (%d found)", baseAddress, numberOfBranches);
+        return false;
+    }
+
     return true;
 }
 

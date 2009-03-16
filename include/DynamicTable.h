@@ -84,8 +84,6 @@ public:
     void relocateStringTable(uint64_t newAddr);
 
     virtual bool verify();
-
-    const char* briefName() { return "DynamicTable"; }
 };
 
 

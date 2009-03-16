@@ -22,7 +22,6 @@ public:
 
     bool inRange(uint64_t addr);
 
-    const char* briefName() { return "ProgramHeader"; }
     bool verify();
 };
 

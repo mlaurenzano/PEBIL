@@ -52,6 +52,7 @@ int compareLinkBaseAddress(const void* arg1, const void* arg2){
 Base* AddressAnchor::updateLink(Base* newLink){
     ASSERT(newLink->containsProgramBits());
     Base* oldLink = link;
+    PRINT_DEBUG_ANCHOR("updating link: %#llx -> %#llx", linkBaseAddress, linkedParent->getBaseAddress());
     link = newLink;
 
     linkBaseAddress = link->getBaseAddress();
@@ -172,7 +173,7 @@ bool AddressAnchor::verify(){
 }
 
 void AddressAnchor::print(){
-    PRINT_INFOR("Address Anchor %#llx", getLinkOffset());
+    PRINT_INFOR("DataRef: addr %#llx, link offset %#llx", linkBaseAddress, getLinkOffset());
     if (linkedParent){
         linkedParent->print();
     }

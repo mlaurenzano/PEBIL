@@ -97,7 +97,6 @@ public:
     uint32_t read(BinaryInputFile* b);
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-    const char* briefName() { return "GnuVerneedTable"; }
 };
 
 class GnuVersymTable : public RawSection {
@@ -116,7 +115,6 @@ public:
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     char* charStream() { return (char*)versyms; }
-    const char* briefName() { return "GnuVersymTable"; }
 };
 
 #endif /* _GnuVersion_h_ */

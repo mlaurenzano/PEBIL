@@ -409,8 +409,6 @@ public:
     void setFileOffset(uint32_t offset) { fileOffset = offset; }
     bool hasInvalidFileOffset() { return (invalidOffset == fileOffset); }
 
-    virtual const char* briefName() { __SHOULD_NOT_ARRIVE; return NULL; }
-
     bool includesFileOffset(uint32_t offset);
 
 

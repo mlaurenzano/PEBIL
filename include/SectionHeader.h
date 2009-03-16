@@ -53,7 +53,6 @@ public:
 
     uint16_t getIndex() { return index; }
     bool inRange(uint64_t address);
-    const char* briefName() { return "SectionHeader"; }
 
     void setIndex(uint16_t newidx) { index = newidx; }
 };

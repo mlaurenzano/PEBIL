@@ -35,7 +35,7 @@ public:
     void setBaseAddress(uint64_t newBaseAddress);
 
     Symbol* getFunctionSymbol() { return symbol; }
-    uint32_t generateCFG(uint32_t numberOfInstructions, Instruction** instructions);
+    uint32_t generateCFG(Vector<Instruction*>* instructions);
 
     FlowGraph* getFlowGraph() { return flowGraph; }
     uint32_t getNumberOfBasicBlocks();

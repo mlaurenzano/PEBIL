@@ -38,8 +38,6 @@ public:
     uint32_t findSymbol(const char* symbolName);
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-
-    const char* briefName() { return "HashTable"; }
 };
 
 #endif /* _HashTable_h_ */

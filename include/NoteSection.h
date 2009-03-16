@@ -53,8 +53,6 @@ public:
     Note* getNote(uint32_t idx);
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-
-    const char* briefName() { return "NoteSection"; }
 };
 
 #endif /* _NoteSection_h_ */

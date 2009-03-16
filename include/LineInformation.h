@@ -105,8 +105,6 @@ public:
     LineInfo* lookupLineInfo(BasicBlock* bb);
     LineInfo* lookupLineInfo(uint64_t addr);
 
-    const char* briefName() { return "LineInfoFinder"; }
-
     bool verify();
 };
 

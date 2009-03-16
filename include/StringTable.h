@@ -24,8 +24,6 @@ public:
     char* getString(uint32_t offset);
     uint32_t addString(const char* name);
     uint32_t getIndex() { return index; }
-
-    const char* briefName() { return "StringTable"; }
 };
 
 #endif /* _StringTable_h_ */

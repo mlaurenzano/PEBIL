@@ -13,7 +13,11 @@ char* RawSection::getStreamAtAddress(uint64_t addr){
 }
 
 void DataReference::print(){
-    PRINT_INFOR("DATAREF: Offset %#x in section %d -- %#llx", sectionOffset, rawSection->getSectionIndex(), data);
+    uint16_t sidx = 0;
+    if (rawSection){
+        sidx = rawSection->getSectionIndex();
+    }
+    PRINT_INFOR("DATAREF: Offset %#llx in section %d -- %#llx", sectionOffset, sidx, data);
 }
 
 RawSection::~RawSection(){

@@ -24,7 +24,6 @@ public:
     ~DwarfSection() {}
 
     uint32_t getIndex() { return index; }
-    virtual const char* briefName() { return "DwarfSection"; }
 };
 
 class DwarfLineInfoSection : public DwarfSection {
@@ -34,8 +33,6 @@ protected:
 public:
     DwarfLineInfoSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf);
     ~DwarfLineInfoSection();
-
-    const char* briefName() { return "DwarfLineInfoSection"; }
 
     bool verify();
     void print();
