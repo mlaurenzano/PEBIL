@@ -86,14 +86,8 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
     ASSERT(isJumpTableBase() && "Cannot compute jump table targets for this instruction");
     ASSERT(func);
     ASSERT(addressList);
-    
-    RawSection* dataSection = NULL;
-    ElfFile* elf = func->getTextSection()->getElfFile();
-    for (uint32_t i = 1; i < elf->getNumberOfSections(); i++){
-        if (elf->getSectionHeader(i)->inRange(tableBase)){
-            dataSection = elf->getRawSection(i);
-        }
-    }
+
+    RawSection* dataSection = textSection->getElfFile()->findDataSectionAtAddr(tableBase);
     if (!dataSection){
         print();
         PRINT_ERROR("Cannot find table base %#llx for this instruction", tableBase);
@@ -194,6 +188,9 @@ uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionIns
                     if (jumpOpFound && immediate){
                         delete[] allInstructions;
                         PRINT_DEBUG_JUMP_TABLE("\t\tFound jump table base at %#llx", immediate);
+                        if (!textSection->getElfFile()->findDataSectionAtAddr(immediate)){
+                            return 0;
+                        }
                         return immediate;
                     }
                     prevAddr = previousInstruction->getBaseAddress()-1;
@@ -204,6 +201,9 @@ uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionIns
     } 
     // jump target is a memory location
     else {
+        if (!textSection->getElfFile()->findDataSectionAtAddr(operands[JUMP_TARGET_OPERAND].getValue())){
+            return 0;
+        }
         return operands[JUMP_TARGET_OPERAND].getValue();
     }
     PRINT_WARN(6,"Cannot determine indirect jump target for instruction at %#llx", baseAddress);

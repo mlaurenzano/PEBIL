@@ -285,6 +285,7 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
                 (*instructions)[i]->computeJumpTableTargets(jumpTableBase, this, controlTargetAddrs);
                 PRINT_DEBUG_CFG("Jump table targets (%d):", (*controlTargetAddrs).size());
             }
+            (*controlTargetAddrs).append((*instructions)[i]->getBaseAddress() + (*instructions)[i]->getSizeInBytes());
         } else if ((*instructions)[i]->usesControlTarget()){
             (*controlTargetAddrs).append((*instructions)[i]->getTargetAddress());
             (*controlTargetAddrs).append((*instructions)[i]->getBaseAddress() + (*instructions)[i]->getSizeInBytes());

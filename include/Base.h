@@ -81,7 +81,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     exit(-1);
 
 #ifdef WARNING_SEVERITY
-#define WARN_FILE stdout
+#define WARN_FILE stderr
 #define PRINT_WARN(__severity,...)  if (__severity >= WARNING_SEVERITY){ \
     fprintf(WARN_FILE,"*** WARNING : ");                            \
     fprintf(WARN_FILE,## __VA_ARGS__);                              \

@@ -24,18 +24,18 @@ int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** f
     return 0;
 }
 
-int32_t blockcounter(int32_t* numBlocks, int32_t* blockCounts, int64_t* blockAddrs, int32_t* lineNumbers, char** fileNames){
+int32_t blockcounter(int32_t* numBlocks, int32_t* blockCounts, int32_t* lineNumbers, char** fileNames, char** funcNames){
     int32_t i;
 
     fprintf(stdout, "\n*** Instrumentation Summary ****\n");
-    fprintf(stdout, "raw args: %x %x %x %x %x\n", numBlocks, blockCounts, blockAddrs, lineNumbers, fileNames);
+    fprintf(stdout, "raw args: %x %x %x %x %x\n", numBlocks, blockCounts, lineNumbers, fileNames, funcNames);
     fprintf(stdout, "There are %d basic blocks in the code:\n", *numBlocks);
     fprintf(stdout, "Printing blocks with at least %d executions\n", PRINT_MINIMUM);
 
-    fprintf(stdout, "Index\t\tAddress\t\tLine\t\tCounter\n");
+    fprintf(stdout, "Index\tFunction\tFile:Line\tCounter\n");
     for (i = 0; i < *numBlocks; i++){
         if (blockCounts[i] >= PRINT_MINIMUM){
-            fprintf(stdout, "%d\t0x%016llx\t%s:%d\t%d\n", i, blockAddrs[i], fileNames[i], lineNumbers[i], blockCounts[i]);
+            fprintf(stdout, "%d\t%s\t%s:%d\t%d\n", i, funcNames[i], fileNames[i], lineNumbers[i], blockCounts[i]);
         }
     }
     fflush(stdout);

@@ -69,10 +69,6 @@ void BasicBlockCounter::instrument(){
     uint64_t counterArray = reserveDataOffset(numberOfInstPoints*sizeof(uint32_t));
     exitFunc->addArgument(counterArray);
 
-    // an array for basic block addresses
-    uint64_t addrArray = reserveDataOffset(numberOfInstPoints*sizeof(uint64_t));
-    exitFunc->addArgument(addrArray);
-
     // an array for line numbers
     uint64_t lineArray = reserveDataOffset(numberOfInstPoints*sizeof(uint32_t));
     exitFunc->addArgument(lineArray);
@@ -80,6 +76,10 @@ void BasicBlockCounter::instrument(){
     // an array for file name pointers
     uint64_t fileNameArray = reserveDataOffset(numberOfInstPoints*sizeof(char*));
     exitFunc->addArgument(fileNameArray);
+
+    // an array for function name pointers
+    uint64_t funcNameArray = reserveDataOffset(numberOfInstPoints*sizeof(char*));
+    exitFunc->addArgument(funcNameArray);
 
     Vector<InstrumentationPoint*>* allPoints = new Vector<InstrumentationPoint*>();
     if (fini->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
@@ -110,7 +110,7 @@ void BasicBlockCounter::instrument(){
     }
     fprintf(staticFD, "# libTag    = %s\n", "");
     fprintf(staticFD, "# %s\n", "");
-    fprintf(staticFD, "# <sequence> <block_uid> <memop> <fpop> <insn> <line> <fname> <loopcnt> <loopid> <ldepth> <hex_uid> <vaddr> <loads> <stores> <isinst?>\n");
+    fprintf(staticFD, "# <sequence> <block_uid> <memop> <fpop> <insn> <line> <fname> <loopcnt> <loopid> <ldepth> <hex_uid> <vaddr> <loads> <stores>\n");
 
     uint32_t noInst = 0;
     uint32_t fileNameSize = 1;
@@ -122,9 +122,6 @@ void BasicBlockCounter::instrument(){
         LineInfo* li = allLineInfos[i];
         Function* f = b->getFunction();
 
-        uint64_t addr = b->getBaseAddress();
-        initializeReservedData(dataBaseAddress+addrArray+sizeof(uint64_t)*i,sizeof(uint64_t),(void*)&addr);
-        
         if (li){
             uint32_t line = li->GET(lr_line);
             initializeReservedData(dataBaseAddress+lineArray+sizeof(uint32_t)*i,sizeof(uint32_t),&line);
@@ -133,8 +130,13 @@ void BasicBlockCounter::instrument(){
             uint64_t filenameAddr = dataBaseAddress + filename;
             initializeReservedData(dataBaseAddress+fileNameArray+i*sizeof(char*),sizeof(char*),&filenameAddr);
             initializeReservedData(dataBaseAddress+filename,strlen(li->getFileName())+1,(void*)li->getFileName());
-        }
 
+        }
+        uint64_t funcname = reserveDataOffset(strlen(f->getName())+1);
+        uint64_t funcnameAddr = dataBaseAddress + funcname;
+        initializeReservedData(dataBaseAddress+funcNameArray+i*sizeof(char*),sizeof(char*),&funcnameAddr);
+        initializeReservedData(dataBaseAddress+funcname,strlen(f->getName())+1,(void*)f->getName());
+        
         InstrumentationSnippet* snip = new InstrumentationSnippet();
         uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
         

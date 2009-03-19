@@ -11,7 +11,8 @@ CC          = $(GNU_CC)
 EXTRA_CFLGS =
 AR          = ar ruv
 RANLIB      = ranlib
-LINKER_FLGS = -Wl,--hash-style=sysv
+#LINKER_FLGS = -Wl,--hash-style=sysv -Wl,-T,../linker/x86inst_ld_script__`hostname`
+LINKER_FLGS = -Wl,-T,../linker/x86inst_ld_script__`hostname`
 
 INCLUDE     = ../include
 SRCDIR      = ../src

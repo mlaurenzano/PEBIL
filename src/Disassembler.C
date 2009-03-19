@@ -49,14 +49,21 @@ uint32_t Disassembler::disassembleInstructionInPlace(Instruction* instruction){
 uint32_t Disassembler::reformatNoop(uint32_t instructionSize, uint64_t pc, Instruction* targetInstruction){
     uint32_t noopSize = 0;
     if (targetInstruction->getInstructionType() == x86_insn_type_noop){
-        noopSize = 1;
-        ASSERT(instructionSize == noopSize);
+        uint8_t* rbyt = (uint8_t*)targetInstruction->charStream();
+        if (rbyt[0] != 0x90){
+            noopSize = 1;
+            ASSERT(instructionSize == noopSize);
+            if (rbyt[0] != 0x66){
+                targetInstruction->print();
+            }
+            ASSERT(rbyt[0] == 0x66);
 
-        char* noopbyte = new char[noopSize];
-        noopbyte[0] = 0x90;
-        targetInstruction->setSizeInBytes(noopSize);
-        targetInstruction->setBytes(noopbyte);
-        delete[] noopbyte;
+            char* noopbyte = new char[noopSize];
+            noopbyte[0] = 0x90;
+            targetInstruction->setSizeInBytes(noopSize);
+            targetInstruction->setBytes(noopbyte);
+            delete[] noopbyte;
+        }
     } else {
         uint8_t* rbyt = (uint8_t*)targetInstruction->charStream();
         if (rbyt[0] == 0x0f || rbyt[0] == 0x66){
@@ -78,6 +85,7 @@ uint32_t Disassembler::reformatNoop(uint32_t instructionSize, uint64_t pc, Instr
         }
     }
     if (noopSize){
+        PRINT_WARN(3, "Changing instruction bytes at %#llx", targetInstruction->getBaseAddress());
         targetInstruction->setInstructionType(x86_insn_type_noop);
         instructionSize = noopSize;
     }

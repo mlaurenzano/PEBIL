@@ -34,6 +34,16 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
+RawSection* ElfFile::findDataSectionAtAddr(uint64_t addr){
+    RawSection* dataSection = NULL;
+    for (uint32_t i = 1; i < getNumberOfSections(); i++){
+        if (getSectionHeader(i)->inRange(addr)){
+            dataSection = getRawSection(i);
+        }
+    }
+    return dataSection;
+}
+
 uint16_t ElfFile::findSectionIdx(char* name){
     for (uint16_t i = 1; i < numberOfSections; i++){
         if (name && sectionHeaders[i]->getSectionNamePtr()){

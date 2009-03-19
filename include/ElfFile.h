@@ -174,7 +174,7 @@ public:
 
     uint16_t findSectionIdx(uint64_t addr);
     uint16_t findSectionIdx(char* name);
-
+    RawSection* findDataSectionAtAddr(uint64_t addr);
     void testBitSet();
 
     uint32_t findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t bufCnt,char** namestr=NULL);
