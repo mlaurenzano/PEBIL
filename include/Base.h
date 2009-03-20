@@ -32,6 +32,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_ANCHOR
 //#define DEBUG_FUNC_RELOC
 //#define DEBUG_JUMP_TABLE
+//#define DEBUG_POINT_CHAIN
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -210,7 +211,6 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define PRINT_DEBUG_FUNC_RELOC(...)
 #endif
 
-
 #ifdef DEBUG_JUMP_TABLE
 #define PRINT_DEBUG_JUMP_TABLE(...) fprintf(stdout,"JUMP_TABLE : "); \
     fprintf(stdout,## __VA_ARGS__); \
@@ -218,6 +218,15 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     fflush(stdout);
 #else
 #define PRINT_DEBUG_JUMP_TABLE(...)
+#endif
+
+#ifdef DEBUG_POINT_CHAIN
+#define PRINT_DEBUG_POINT_CHAIN(...) fprintf(stdout,"POINT_CHAIN : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_POINT_CHAIN(...)
 #endif
 
 

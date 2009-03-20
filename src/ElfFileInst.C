@@ -68,33 +68,6 @@ void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
             }
         }
 
-        /*
-        for (uint32_t i = 0; i < relocatedFunctions.size(); i++){
-            Function* func = relocatedFunctions[i];
-            for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
-                BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
-                STATS(totalBlocks++);
-                STATS(totalBlockBytes += bb->getNumberOfBytes());
-                STATS(blocksInstrumented++);
-                STATS(blockBytesInstrumented += bb->getNumberOfBytes());
-            }
-        }
-        uint32_t numFunctions = 0;
-        STATS(numFunctions = nonRelocatedFunctions.size());
-        for (uint32_t i = 0; i < numFunctions; i++){
-            Function* func = nonRelocatedFunctions[i];
-            for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
-                BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
-                STATS(totalBlocks++);
-                STATS(totalBlockBytes += bb->getNumberOfBytes());
-                if (bb->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
-                    STATS(blocksInstrumented++);
-                    STATS(blockBytesInstrumented += bb->getNumberOfBytes());
-                } else {
-                }
-            }
-        }
-        */
     } else {
         for (uint32_t i = 0; i < elfFile->getNumberOfTextSections(); i++){
             TextSection* ts = elfFile->getTextSection(i);
@@ -134,6 +107,8 @@ uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, vo
         STATS(dataBytesInit++);
         if (d){
             snip->addSnippetInstruction(Instruction::generateMoveImmByteToReg(d,X86_REG_AX));
+
+            // this looks like it pretty obviously should work but it doesn't -- need to investigate
             /*
             if (i == 0){
                 snip->addSnippetInstruction(Instruction::generateMoveImmToReg(address+i,X86_REG_DI));
@@ -154,6 +129,7 @@ bool ElfFileInst::isEligibleFunction(Function* func){
         return false;
     }
 
+    return true;
     char* name = func->getName();
     if (!strcmp(name,"_start")){
         return false;
@@ -570,23 +546,6 @@ void ElfFileInst::generateInstrumentation(){
         codeOffset += relocateFunction(func,codeOffset);
     }
 
-    /*
-    for (uint32_t i = 0; i < numberOfTextObjects; i++){
-        if (textSection->getTextObject(i)->isFunction()){
-            Function* func = (Function*)textSection->getTextObject(i);
-            if (isEligibleFunction(func)){
-                if (func->hasCompleteDisassembly()){
-                    codeOffset += relocateFunction(func,codeOffset);
-                } else {
-                    STATS(nonRelocatedFunctions.append(func));
-                    PRINT_WARN(6, "Function %s cannot be relocated: see address %#llx", func->getName(), func->getBadInstruction());
-                }
-            } else {
-                PRINT_WARN(5, "Function %s is not eligible for relocation (see ElfFileInst::isEligibleFunction)", func->getName());
-            }
-        }
-    }
-    */
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
 
@@ -620,6 +579,7 @@ void ElfFileInst::generateInstrumentation(){
     // leave room for a jump to be added on
     codeOffset += snip->snippetSize() + SIZE_CONTROL_TRANSFER;
 
+    instrumentationPoints.sort(compareSourceAddress);
     for (uint32_t i = 0; i < instrumentationPoints.size(); i++){
         InstrumentationPoint* pt = instrumentationPoints[i];
         if (!pt){
@@ -639,14 +599,17 @@ void ElfFileInst::generateInstrumentation(){
         }
         PRINT_DEBUG_INST("Generating code for InstrumentationPoint %d at address %llx", i, pt->getSourceAddress());
 
-        Vector<Instruction*>* repl = new Vector<Instruction*>();
-        
+        Vector<Instruction*>* repl = NULL;
+        Vector<Instruction*>* displaced = NULL;
+        uint64_t returnOffset = 0;
+
+        repl = new Vector<Instruction*>();
         if (instrumentationPoints[i]->getNumberOfBytes() == SIZE_CONTROL_TRANSFER){
             (*repl).append(Instruction::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + codeOffset));
         } else {
             PRINT_ERROR("This size instrumentation point (%d) not supported", instrumentationPoints[i]->getNumberOfBytes());
         }
-
+        
         // disassemble the newly minted instructions
         uint32_t bytesUsed = 0;
         for (uint32_t j = 0; j < (*repl).size(); j++){
@@ -657,48 +620,71 @@ void ElfFileInst::generateInstrumentation(){
             (*repl)[j]->print();
 #endif
         }
-
+        
         ASSERT((*repl).back()->getSizeInBytes() == SIZE_NEEDED_AT_INST_POINT ||
                (*repl).back()->getSizeInBytes() == SIZE_FIRST_INST_POINT && "Instruction at instrumentation point has a different size than expected");
 
-        Vector<Instruction*>* displaced = pt->swapInstructionsAtPoint(repl);
 
-        // update any address anchor that pointed to the old instruction to point to the new
-        ASSERT((*repl).size());
-        ASSERT((*displaced).size());
-        for (uint32_t j = 0; j < (*displaced).size(); j++){
-            Vector<AddressAnchor*>* modAnchors = searchAddressAnchors((*displaced)[j]->getBaseAddress());
-            for (uint32_t k = 0; k < modAnchors->size(); k++){
-                PRINT_DEBUG_ANCHOR("Instruction swapping at address %#llx because of anchor/swap", (*displaced)[j]->getBaseAddress());
+
+        bool isFirstInChain = false;
+        bool isLastInChain = false;
+        if (i == 0 || 
+            (i > 0 && instrumentationPoints[i-1]->getSourceAddress() != pt->getSourceAddress())){
+            PRINT_DEBUG_POINT_CHAIN("First in chain at %#llx (%d)", pt->getSourceAddress(), i);
+            isFirstInChain = true;
+
+            displaced = pt->swapInstructionsAtPoint(repl);
+            
+            // update any address anchor that pointed to the old instruction to point to the new
+            ASSERT((*repl).size());
+            ASSERT((*displaced).size());
+            for (uint32_t j = 0; j < (*displaced).size(); j++){
+                Vector<AddressAnchor*>* modAnchors = searchAddressAnchors((*displaced)[j]->getBaseAddress());
+                for (uint32_t k = 0; k < modAnchors->size(); k++){
+                    PRINT_DEBUG_ANCHOR("Instruction swapping at address %#llx because of anchor/swap", (*displaced)[j]->getBaseAddress());
 #ifdef DEBUG_ANCHOR
-                (*modAnchors)[k]->print();
+                    (*modAnchors)[k]->print();
 #endif
-                for (uint32_t l = 0; l < (*repl).size(); l++){
-                    PRINT_DEBUG_ANCHOR("\t\t********Comparing addresses %#llx and %#llx", (*displaced)[j]->getBaseAddress(), (*repl)[l]->getBaseAddress());
-                    if ((*displaced)[j]->getBaseAddress() == (*repl)[l]->getBaseAddress()){
-                        (*modAnchors)[k]->updateLink((*repl)[l]);
-                        anchorsAreSorted = false;
+                    for (uint32_t l = 0; l < (*repl).size(); l++){
+                        PRINT_DEBUG_ANCHOR("\t\t********Comparing addresses %#llx and %#llx", (*displaced)[j]->getBaseAddress(), (*repl)[l]->getBaseAddress());
+                        if ((*displaced)[j]->getBaseAddress() == (*repl)[l]->getBaseAddress()){
+                            (*modAnchors)[k]->updateLink((*repl)[l]);
+                            anchorsAreSorted = false;
+                        }
                     }
                 }
+                delete modAnchors;
             }
-            delete modAnchors;
         }
+        if (i == instrumentationPoints.size()-1 || 
+            (i < instrumentationPoints.size()-1 && instrumentationPoints[i+1]->getSourceAddress() != pt->getSourceAddress())){
+            PRINT_DEBUG_POINT_CHAIN("Last of chain at %#llx (%d)", pt->getSourceAddress(), i);
+            isLastInChain = true;
+        } 
 
         uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
-        uint64_t returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
-        
-        pt->generateTrampoline(displaced,textBaseAddress,codeOffset,returnOffset,elfFile->is64Bit());
+        returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
 
+        pt->generateTrampoline(displaced,textBaseAddress,codeOffset,returnOffset,elfFile->is64Bit(),isFirstInChain,isLastInChain);
+        
         codeOffset += pt->sizeNeeded();
-        delete repl;
-        delete displaced;
+        if (!isFirstInChain){
+            for (uint32_t j = 0; j < (*repl).size(); j++){
+                delete (*repl)[j];
+            }
+        }
+        if (repl){
+            delete repl;
+        }
+        if (displaced){
+            delete displaced;
+        }
     }
 
     // we can compute this snippet after instrumentation points because no instpoint will jump to it
     uint64_t bootstrapJumpTarget = codeOffset;
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
-        InstrumentationFunction* func = instrumentationFunctions[i];        
-        
+        InstrumentationFunction* func = instrumentationFunctions[i];
         if (func){
             func->setBootstrapOffset(codeOffset);
             codeOffset += func->bootstrapReservedSize();
@@ -707,7 +693,6 @@ void ElfFileInst::generateInstrumentation(){
 
     for (uint32_t i = INST_SNIPPET_BOOTSTRAP_END + 1; i < instrumentationSnippets.size(); i++){        
         snip = instrumentationSnippets[i];
-
         if (snip){
             snip->setBootstrapOffset(codeOffset);
             codeOffset += snip->bootstrapSize();

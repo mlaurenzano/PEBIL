@@ -6,6 +6,18 @@
 #include <Instruction.h>
 #include <TextSection.h>
 
+int compareSourceAddress(const void* arg1,const void* arg2){
+    uint64_t vl1 = (*((InstrumentationPoint**)arg1))->getSourceAddress();
+    uint64_t vl2 = (*((InstrumentationPoint**)arg2))->getSourceAddress();
+
+    if(vl1 < vl2)
+        return -1;
+    if(vl1 > vl2)
+        return 1;
+    return 0;
+}
+
+
 uint32_t InstrumentationSnippet::addSnippetInstruction(Instruction* inst){
     snippetInstructions.append(inst);
     return snippetInstructions.size();
@@ -450,7 +462,7 @@ uint32_t InstrumentationPoint::sizeNeeded(){
     return totalSize;
 }
 
-uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool is64bit){
+uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool is64bit, bool doReloc, bool jumpToSource){
     ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
 
     trampolineOffset = offset;
@@ -472,48 +484,40 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
     }
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    int32_t numberOfBranches = 0;
     uint64_t displacementDist = returnOffset - (offset + trampolineSize + numberOfBytes);
 
+    if (doReloc){
+        ASSERT(insts);
 #ifdef DEBUG_FUNC_RELOC
-    if ((*insts).size()){
-        PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for relocation", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
-    }
-#endif
-    for (uint32_t i = 0; i < (*insts).size(); i++){
-        if ((*insts)[i]->isControl()){
-            numberOfBranches++;
-            if ((*insts)[i]->bytesUsedForTarget() < sizeof(uint32_t)){
-                PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", (*insts)[i]->bytesUsedForTarget());
-                (*insts)[i]->convertTo4ByteOperand();
-            }
+        if ((*insts).size()){
+            PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for relocation", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
         }
-        (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
-        trampolineInstructions.append((*insts)[i]);
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    }
-
-    ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
-
-#ifdef DEBUG_FUNC_RELOC
-    if ((*insts).size()){
-        PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for trampoline", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
-    }
 #endif
-
-    trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,returnOffset));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-    /*
-    if (numberOfBranches){
-        ASSERT(relocatedBranch && relocatedBranchOffset);
-        uint64_t oldRelativeOffset = relocatedBranch->setRelocationInfo(false,trampolineSize-relocatedBranchOffset-relocatedBranch->getSizeInBytes());
-        trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,
-                                                                        returnOffset+oldRelativeOffset-numberOfBytes+displacedInstructionSize-relocatedBranch->getSizeInBytes()));
-        trampolineInstructions.append(Instruction::generateJumpRelative(textBaseAddress+offset+trampolineSize,0));
+        int32_t numberOfBranches = 0;
+        for (uint32_t i = 0; i < (*insts).size(); i++){
+            if ((*insts)[i]->isControl()){
+                numberOfBranches++;
+                if ((*insts)[i]->bytesUsedForTarget() < sizeof(uint32_t)){
+                    PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", (*insts)[i]->bytesUsedForTarget());
+                    (*insts)[i]->convertTo4ByteOperand();
+                }
+            }
+            (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
+            trampolineInstructions.append((*insts)[i]);
+            trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+#ifdef DEBUG_FUNC_RELOC
+            if ((*insts).size()){
+                PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for trampoline", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
+            }
+#endif
+        }
+        
+        ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
+    }
+    if (jumpToSource){
+        trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,returnOffset));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
-    */
 
     return trampolineSize;
 }
