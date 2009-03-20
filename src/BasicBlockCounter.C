@@ -47,15 +47,15 @@ void BasicBlockCounter::instrument(){
 
     Vector<BasicBlock*> allBlocks;
     Vector<LineInfo*> allLineInfos;
-    for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
-        if (text->getTextObject(i)->isFunction()){
-            Function* f = (Function*)text->getTextObject(i);
-            if (f->hasCompleteDisassembly() && isEligibleFunction(f)){
-                for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
-                    allBlocks.append(f->getBasicBlock(j));
-                    allLineInfos.append(lineInfoFinder->lookupLineInfo(f->getBasicBlock(j)));
-                }
-            }
+
+    PRINT_DEBUG_FUNC_RELOC("Instrumenting %d functions", exposedFunctions.size());
+    for (uint32_t i = 0; i < exposedFunctions.size(); i++){
+        Function* f = exposedFunctions[i];
+        PRINT_DEBUG_FUNC_RELOC("\t%s", f->getName());
+        ASSERT(f->hasCompleteDisassembly() && isEligibleFunction(f));
+        for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
+            allBlocks.append(f->getBasicBlock(j));
+            allLineInfos.append(lineInfoFinder->lookupLineInfo(f->getBasicBlock(j)));
         }
     }
     ASSERT(!allLineInfos.size() || allBlocks.size() == allLineInfos.size());
@@ -160,9 +160,7 @@ void BasicBlockCounter::instrument(){
         addInstrumentationSnippet(snip);
             
         // register an instrumentation point at the function that uses this snippet
-        if (strcmp(f->getName(),"_start")){
-            InstrumentationPoint* p = addInstrumentationPoint(bb,snip,SIZE_CONTROL_TRANSFER);
-        }
+        InstrumentationPoint* p = addInstrumentationPoint(bb,snip,SIZE_CONTROL_TRANSFER);
 
         uint32_t loopId = Invalid_UInteger_ID;
         uint32_t loopDepth = 0;

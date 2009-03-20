@@ -65,18 +65,14 @@ void ElfFile::gatherDisassemblyStats(){
         }
     }
 
-    STATS(PRINT_INFOR("Disassembly Statistics:"); PRINT_INFOR("================"));
-    
-    STATS(float ratio);
-    STATS(ratio = (float)functionsCovered / (float)totalFunctions * 100.0);
-    STATS(PRINT_INFOR("Functions Completely Understood: %d out of %d (%.2f\%)", functionsCovered, totalFunctions, ratio));
-    STATS(ratio = (float)functionBytesCovered / (float)totalFunctionBytes * 100.0);
-    STATS(PRINT_INFOR("                    (in bytes) : %d out of %d (%.2f\%)", functionBytesCovered, totalFunctionBytes, ratio));
-    
-    STATS(ratio = (float)blocksCovered / (float)totalBlocks * 100.0);
-    STATS(PRINT_INFOR("Blocks Completely Understood: %d out of %d (%.2f\%)", blocksCovered, totalBlocks, ratio));
-    STATS(ratio = (float)blockBytesCovered / (float)totalBlockBytes * 100.0);
-    STATS(PRINT_INFOR("                    (in bytes) : %d out of %d (%.2f\%)", blockBytesCovered, totalBlockBytes, ratio));
+    STATS(float ratio1, ratio2);
+    STATS(ratio1 = (float)functionsCovered / (float)totalFunctions * 100.0);
+    STATS(ratio2 = (float)functionBytesCovered / (float)totalFunctionBytes * 100.0);
+    STATS(PRINT_INFOR("___stats: Disasm comprehension: %d out of %d functions (%.2f\%); %d out of %d bytes (%.2f\%)", functionsCovered, totalFunctions, ratio1, functionBytesCovered, totalFunctionBytes, ratio2));
+
+    STATS(ratio1 = (float)blocksCovered / (float)totalBlocks * 100.0);
+    STATS(ratio2 = (float)blockBytesCovered / (float)totalBlockBytes * 100.0);
+    STATS(PRINT_INFOR("___stats: Disasm comprehension: %d out of %d blocks (%.2f\%); %d out of %d bytes (%.2f\%)", blocksCovered, totalBlocks, ratio1, blockBytesCovered, totalBlockBytes, ratio2));
 
 }
 

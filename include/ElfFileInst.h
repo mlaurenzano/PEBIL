@@ -42,9 +42,14 @@ typedef enum {
 } ElfInstPhases;
 
 class ElfFileInst {
-protected:
-    uint32_t currentPhase;
+private:
     ElfFile* elfFile;
+    Vector<Function*> hiddenFunctions;
+
+protected:
+    Vector<Function*> exposedFunctions;
+
+    uint32_t currentPhase;
 
     char* instSuffix;
     char* sharedLibraryPath;
@@ -55,6 +60,7 @@ protected:
     Vector<char*> instrumentationLibraries;
     Vector<Function*> relocatedFunctions;
     Vector<uint64_t> relocatedFunctionOffsets;
+    Vector<Function*> nonRelocatedFunctions;
 
     Vector<AddressAnchor*> addressAnchors;
     Vector<DataReference*> specialDataRefs;
@@ -73,7 +79,6 @@ protected:
     STATS(uint32_t totalBlockBytes);
     STATS(uint32_t blocksInstrumented);
     STATS(uint32_t blockBytesInstrumented);
-    STATS(Vector<Function*> nonRelocatedFunctions);
 
     LineInfoFinder* lineInfoFinder;
 

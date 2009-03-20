@@ -40,10 +40,35 @@ void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
     STATS(blocksInstrumented = 0);
     STATS(blockBytesInstrumented = 0);
 
-    STATS(PRINT_INFOR("%s", msg));
-    STATS(PRINT_INFOR("================"));
-    
     if (relocHasOccurred){
+        for (uint32_t i = 0; i < relocatedFunctions.size(); i++){
+            Function* func = relocatedFunctions[i];
+            for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
+                BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
+                STATS(totalBlocks++);
+                STATS(totalBlockBytes += bb->getNumberOfBytes());
+                STATS(blocksInstrumented++);
+                STATS(blockBytesInstrumented += bb->getNumberOfBytes());
+            }
+        }
+
+        for (uint32_t i = 0; i < hiddenFunctions.size(); i++){
+            Function* func = hiddenFunctions[i];
+            for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
+                BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
+                STATS(totalBlocks++);
+                STATS(totalBlockBytes += bb->getNumberOfBytes());
+                if (bb->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care) &&
+                    !func->getBadInstruction()){
+                    STATS(blocksInstrumented++);
+                    STATS(blockBytesInstrumented += bb->getNumberOfBytes());
+                } else {
+                    //                    PRINT_INFOR("uninstrumentable block at %#llx", bb->getBaseAddress());
+                }
+            }
+        }
+
+        /*
         for (uint32_t i = 0; i < relocatedFunctions.size(); i++){
             Function* func = relocatedFunctions[i];
             for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
@@ -66,10 +91,10 @@ void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
                     STATS(blocksInstrumented++);
                     STATS(blockBytesInstrumented += bb->getNumberOfBytes());
                 } else {
-                    PRINT_INFOR("Cant instrument block at %#llx + %d", bb->getBaseAddress(), bb->getNumberOfBytes());
                 }
             }
         }
+        */
     } else {
         for (uint32_t i = 0; i < elfFile->getNumberOfTextSections(); i++){
             TextSection* ts = elfFile->getTextSection(i);
@@ -80,7 +105,8 @@ void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
                         BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
                         STATS(totalBlocks++);
                         STATS(totalBlockBytes += bb->getNumberOfBytes());
-                        if (bb->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
+                        if (bb->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care) &&
+                            !func->getBadInstruction()){
                             STATS(blocksInstrumented++);
                             STATS(blockBytesInstrumented += bb->getNumberOfBytes());
                         }
@@ -90,11 +116,11 @@ void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
         }
     }
 
-    STATS(float ratio);
-    STATS(ratio = (float)blocksInstrumented / (float)totalBlocks * 100.0);
-    STATS(PRINT_INFOR("Blocks covered : %d out of %d (%.2f\%)", blocksInstrumented, totalBlocks, ratio));
-    STATS(ratio = (float)blockBytesInstrumented / (float)totalBlockBytes * 100.0);
-    STATS(PRINT_INFOR("Bytes covered  : %d out of %d (%.2f\%)", blockBytesInstrumented, totalBlockBytes, ratio));
+    STATS(float ratio1, ratio2);
+    STATS(ratio1 = (float)blocksInstrumented / (float)totalBlocks * 100.0);
+    STATS(ratio2 = (float)blockBytesInstrumented / (float)totalBlockBytes * 100.0);
+
+    STATS(PRINT_INFOR("___stats: %s: %d out of %d blocks (%.2f\%); %d out of %d bytes (%.2f\%)", msg, blocksInstrumented, totalBlocks, ratio1, blockBytesInstrumented, totalBlockBytes, ratio2));
 
 }
 
@@ -127,9 +153,13 @@ bool ElfFileInst::isEligibleFunction(Function* func){
     if (!canRelocateFunction(func)){
         return false;
     }
-    return true;
 
     char* name = func->getName();
+    if (!strcmp(name,"_start")){
+        return false;
+    }
+
+    return true;
     if (strstr(name,"intel")
         || strstr(name,"pgi")
         || strstr(name,"pgCC")
@@ -497,7 +527,7 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
 void ElfFileInst::generateInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
-    STATS(gatherCoverageStats(false, "Coverage statistics before relocation:"));
+    STATS(gatherCoverageStats(false, "Coverage before relocation"));
 
     anchorProgramElements();
 
@@ -530,10 +560,17 @@ void ElfFileInst::generateInstrumentation(){
 
     uint64_t codeOffset = 0;
 
-    uint32_t numberOfTextObjects = textSection->getNumberOfTextObjects();
+    uint32_t numberOfFunctions = exposedFunctions.size();
 #ifdef TURNOFF_FUNCTION_RELOCATION
-    numberOfTextObjects = 0;
+    numberOfFunctions = 0;
 #endif
+    for (uint32_t i = 0; i < numberOfFunctions; i++){
+        Function* func = exposedFunctions[i];
+        ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
+        codeOffset += relocateFunction(func,codeOffset);
+    }
+
+    /*
     for (uint32_t i = 0; i < numberOfTextObjects; i++){
         if (textSection->getTextObject(i)->isFunction()){
             Function* func = (Function*)textSection->getTextObject(i);
@@ -549,7 +586,7 @@ void ElfFileInst::generateInstrumentation(){
             }
         }
     }
-
+    */
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
 
@@ -716,7 +753,7 @@ void ElfFileInst::generateInstrumentation(){
     }
     PRINT_DEBUG_ANCHOR("Still have %d anchors", addressAnchors.size());
 #endif
-    STATS(gatherCoverageStats(true, "Coverage statistics after relocation:"));
+    STATS(gatherCoverageStats(true, "Coverage after relocation"));
 
 }
 
@@ -826,13 +863,45 @@ void ElfFileInst::phasedInstrumentation(){
     TIMER(double t1 = timer(), t2; char stepNumber = 'A');
     ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
 
-    uint16_t textIdx = elfFile->findSectionIdx(".text");
-    ASSERT(textIdx && "Cannot find the text section");
-    TextSection* text = (TextSection*)elfFile->getRawSection(textIdx);
+    TextSection* text = getTextSection();
+    TextSection* fini = getFiniSection();
+    TextSection* init = getInitSection();
     ASSERT(text && text->getType() == ElfClassTypes_TextSection && "Cannot find the text section");
+    ASSERT(fini && text->getType() == ElfClassTypes_TextSection && "Cannot find the fini section");
+    ASSERT(init && text->getType() == ElfClassTypes_TextSection && "Cannot find the init section");
+
     ASSERT(elfFile->getFileHeader()->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
     elfFile->getFileHeader()->SET(e_flags,EFINSTSTATUS_MOD);
-    
+
+    // choose the set of functions to expose to the instrumentation tool
+    PRINT_DEBUG_FUNC_RELOC("Choosing from %d functions", text->getNumberOfTextObjects()+fini->getNumberOfTextObjects()+init->getNumberOfTextObjects());
+    for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
+        if (text->getTextObject(i)->isFunction()){
+            Function* f = (Function*)text->getTextObject(i);
+            if (f->hasCompleteDisassembly() && isEligibleFunction(f)){
+                PRINT_DEBUG_FUNC_RELOC("\texposed: %s", f->getName());
+                exposedFunctions.append(f);
+            } else {
+                PRINT_DEBUG_FUNC_RELOC("\thidden: %s", f->getName());
+                hiddenFunctions.append(f);
+            }
+        }
+    }
+    for (uint32_t i = 0; i < fini->getNumberOfTextObjects(); i++){
+        if (fini->getTextObject(i)->isFunction()){
+            Function* f = (Function*)fini->getTextObject(i);
+            PRINT_DEBUG_FUNC_RELOC("\thidden: %s", f->getName());
+            hiddenFunctions.append(f);
+        }
+    }
+    for (uint32_t i = 0; i < init->getNumberOfTextObjects(); i++){
+        if (init->getTextObject(i)->isFunction()){
+            Function* f = (Function*)init->getTextObject(i);
+            PRINT_DEBUG_FUNC_RELOC("\thidden: %s", f->getName());
+            hiddenFunctions.append(f);
+        }
+    }
+
     ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
@@ -847,7 +916,7 @@ void ElfFileInst::phasedInstrumentation(){
     instrument();
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
-    TIMER(t2 = timer();PRINT_INFOR("\t___timer: Instr Step %c UsrResrv : %.2f seconds",stepNumber++,t2-t1);t1=t2);
+    TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c UsrResrv : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 
@@ -863,14 +932,14 @@ void ElfFileInst::phasedInstrumentation(){
     }
 
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
-    TIMER(t2 = timer();PRINT_INFOR("\t___timer: Instr Step %c Control  : %.2f seconds",stepNumber++,t2-t1);t1=t2);
+    TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c Control  : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
     generateInstrumentation();
 
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
-    TIMER(t2 = timer();PRINT_INFOR("\t___timer: Instr Step %c Generate : %.2f seconds",stepNumber++,t2-t1);t1=t2);
+    TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c Generate : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
 }
@@ -1235,24 +1304,23 @@ void ElfFileInst::print(uint32_t printCodes){
     elfFile->print(printCodes);
 
     if (HAS_PRINT_CODE(printCodes,Print_Code_Instrumentation)){
-        STATS(PRINT_INFOR("Instrumentation Statistics:"); PRINT_INFOR("================"));
         float ratio;
         if (extraTextIdx){
             SectionHeader* extendedText = elfFile->getSectionHeader(extraTextIdx);
             ratio = (float)textBytesUsed / (float)extendedText->GET(sh_size) * 100.0;
-            STATS(PRINT_INFOR("Extended TEXT section is section %hd @ addr %#llx + %d bytes, used %d bytes (%.2f\%)", 
+            STATS(PRINT_INFOR("___stats: Extended TEXT: section %hd @ addr %#llx + %d bytes, used %d bytes (%.2f\%)", 
                               extraTextIdx, extendedText->GET(sh_addr), extendedText->GET(sh_size), textBytesUsed, ratio));
         }
         if (extraDataIdx){
             SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
             ratio = (float)dataBytesUsed / (float)extendedData->GET(sh_size) * 100.0;
-            STATS(PRINT_INFOR("Extended DATA section is section %hd @ addr %#llx + %d bytes, used %d bytes (%.2f\%)", 
+            STATS(PRINT_INFOR("___stats: Extended DATA: section %hd @ addr %#llx + %d bytes, used %d bytes (%.2f\%)", 
                               extraDataIdx, extendedData->GET(sh_addr), extendedData->GET(sh_size), dataBytesUsed, ratio));
         }
         if (instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]){
             uint32_t bytesUsed = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]->snippetSize();
             ratio = (float)bytesUsed/(float)dataBytesInit;
-            STATS(PRINT_INFOR("Data Initialization: %d bytes to init, %d bytes to initialize for a ratio of 1:%.2f", dataBytesInit, bytesUsed, ratio));
+            STATS(PRINT_INFOR("___stats: Data Initialization: %d bytes to init, %d bytes to initialize for a ratio of 1:%.2f", dataBytesInit, bytesUsed, ratio));
         }
 
     }
