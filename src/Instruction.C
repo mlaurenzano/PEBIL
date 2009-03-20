@@ -206,7 +206,6 @@ uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionIns
         }
         return operands[JUMP_TARGET_OPERAND].getValue();
     }
-    PRINT_WARN(6,"Cannot determine indirect jump target for instruction at %#llx", baseAddress);
     return 0;
 }
 

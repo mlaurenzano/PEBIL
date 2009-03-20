@@ -127,7 +127,7 @@ bool BasicBlock::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
     return false;
 }
 
-uint32_t BasicBlock::getAllInstructions(Instruction** allinsts, uint32_t nexti){
+uint32_t CodeBlock::getAllInstructions(Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
         allinsts[i+nexti] = instructions[i];

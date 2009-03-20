@@ -66,6 +66,15 @@ protected:
     uint64_t usableDataOffset;
     uint64_t bssReserved;
 
+    STATS(uint64_t dataBytesInit);
+    STATS(uint64_t textBytesUsed);
+    STATS(uint64_t dataBytesUsed);
+    STATS(uint32_t totalBlocks);
+    STATS(uint32_t totalBlockBytes);
+    STATS(uint32_t blocksInstrumented);
+    STATS(uint32_t blockBytesInstrumented);
+    STATS(Vector<Function*> nonRelocatedFunctions);
+
     LineInfoFinder* lineInfoFinder;
 
     bool anchorsAreSorted;
@@ -94,6 +103,8 @@ public:
     ElfFileInst(ElfFile* elf);
     ~ElfFileInst();
     ElfFile* getElfFile() { return elfFile; }
+
+    void gatherCoverageStats(bool relocHasOccurred, const char* msg);
 
     void print();
     void print(uint32_t printCodes);

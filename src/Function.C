@@ -181,7 +181,7 @@ Vector<Instruction*>* Function::digestRecursive(){
             continue;
         }
         if (!inRange(currentAddress)){
-            PRINT_WARN(6,"In function %s, control flows out of function bound (%#llx)", getName(), currentAddress);
+            PRINT_WARN(4,"In function %s, control flows out of function bound (%#llx)", getName(), currentAddress);
             continue;
         }
 
@@ -278,7 +278,10 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
         Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
         if ((*instructions)[i]->isJumpTableBase()){
             uint64_t jumpTableBase = (*instructions)[i]->findJumpTableBaseAddress(instructions);
-            if (inRange(jumpTableBase) || !jumpTableBase){
+            if (!jumpTableBase){
+                PRINT_WARN(6,"Cannot determine indirect jump target for instruction at %#llx", (*instructions)[i]->getBaseAddress());
+                ASSERT(getBadInstruction());
+            } else if (inRange(jumpTableBase)){
                 ASSERT(getBadInstruction());
             } else {
                 ASSERT(!(*controlTargetAddrs).size());
@@ -288,6 +291,8 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
             (*controlTargetAddrs).append((*instructions)[i]->getBaseAddress() + (*instructions)[i]->getSizeInBytes());
         } else if ((*instructions)[i]->usesControlTarget()){
             (*controlTargetAddrs).append((*instructions)[i]->getTargetAddress());
+            (*controlTargetAddrs).append((*instructions)[i]->getBaseAddress() + (*instructions)[i]->getSizeInBytes());
+        } else if ((*instructions)[i]->isReturn()){
             (*controlTargetAddrs).append((*instructions)[i]->getBaseAddress() + (*instructions)[i]->getSizeInBytes());
         }
         for (uint32_t j = 0; j < (*controlTargetAddrs).size(); j++){

@@ -1,12 +1,15 @@
 #include <ElfFile.h>
 
 #include <Base.h>
+#include <BasicBlock.h>
 #include <BinaryFile.h>
 #include <CStructuresX86.h>
 #include <Disassembler.h>
 #include <DwarfSection.h>
 #include <DynamicTable.h>
 #include <FileHeader.h>
+#include <FlowGraph.h>
+#include <Function.h>
 #include <GlobalOffsetTable.h>
 #include <GnuVersion.h>
 #include <HashTable.h>
@@ -22,17 +25,61 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
-TIMER(
-	extern double cfg_s1;
-	extern double cfg_s2;
-	extern double cfg_s3;
-	extern double cfg_s4;
-	extern double cfg_s5;
-);
-
 DEBUG(
 uint32_t readBytes = 0;
 );
+
+void ElfFile::gatherDisassemblyStats(){
+    STATS(totalFunctions = 0);
+    STATS(totalBlocks = 0);
+    STATS(totalFunctionBytes = 0);
+    STATS(totalBlockBytes = 0);
+
+    STATS(functionsCovered = 0);
+    STATS(functionBytesCovered = 0);
+    STATS(blocksCovered = 0);
+    STATS(blockBytesCovered = 0);
+
+    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
+        TextSection* ts = getTextSection(i);
+        for (uint32_t j = 0; j < ts->getNumberOfTextObjects(); j++){
+            if (ts->getTextObject(j)->getType() == ElfClassTypes_Function){
+                Function* func = (Function*)ts->getTextObject(j);
+                STATS(totalFunctions++);
+                STATS(totalFunctionBytes += func->getSizeInBytes());
+                if (func->hasCompleteDisassembly()){
+                    STATS(functionsCovered++);
+                    STATS(functionBytesCovered += func->getSizeInBytes());
+                }
+                for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
+                    BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
+                    STATS(totalBlocks++);
+                    STATS(totalBlockBytes += bb->getNumberOfBytes());
+                    if (func->hasCompleteDisassembly()){
+                        STATS(blocksCovered++);
+                        STATS(blockBytesCovered += bb->getNumberOfBytes());
+                    }
+                }
+
+            }
+        }
+    }
+
+    STATS(PRINT_INFOR("Disassembly Statistics:"); PRINT_INFOR("================"));
+    
+    STATS(float ratio);
+    STATS(ratio = (float)functionsCovered / (float)totalFunctions * 100.0);
+    STATS(PRINT_INFOR("Functions Completely Understood: %d out of %d (%.2f\%)", functionsCovered, totalFunctions, ratio));
+    STATS(ratio = (float)functionBytesCovered / (float)totalFunctionBytes * 100.0);
+    STATS(PRINT_INFOR("                    (in bytes) : %d out of %d (%.2f\%)", functionBytesCovered, totalFunctionBytes, ratio));
+    
+    STATS(ratio = (float)blocksCovered / (float)totalBlocks * 100.0);
+    STATS(PRINT_INFOR("Blocks Completely Understood: %d out of %d (%.2f\%)", blocksCovered, totalBlocks, ratio));
+    STATS(ratio = (float)blockBytesCovered / (float)totalBlockBytes * 100.0);
+    STATS(PRINT_INFOR("                    (in bytes) : %d out of %d (%.2f\%)", blockBytesCovered, totalBlockBytes, ratio));
+
+}
+
 
 RawSection* ElfFile::findDataSectionAtAddr(uint64_t addr){
     RawSection* dataSection = NULL;
@@ -957,10 +1004,6 @@ void ElfFile::parse(){
     readProgramHeaders();
     readSectionHeaders();
     readRawSections();
-    initSectionFilePointers();
-
-    verify();
-
 }
 
 void ElfFile::readFileHeader() {
@@ -1312,7 +1355,6 @@ void ElfFile::setLineInfoFinder(){
 }
 
 void ElfFile::findLoops(){
-    PRINT_INFOR("Finding Loops...");
     for (uint32_t i = 0; i < numberOfTextSections; i++){
         textSections[i]->buildLoops();
     }

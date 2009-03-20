@@ -296,27 +296,33 @@ int main(int argc,char* argv[]){
     }
     PRINT_INFOR("The instrumentation libraries will be used from %s",libPath);
 
-    TIMER(double t1 = timer());
+    uint32_t stepNumber = 0;
+    TIMER(double t1 = timer(), t2);
 
     PRINT_INFOR("******** Instrumentation Beginning ********");
     ElfFile elfFile(execName);
 
     elfFile.parse();
-    TIMER(double t2 = timer();PRINT_INFOR("___timer: Instrumentation Step I parse  : %.2f",t2-t1);t1=t2);
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Parse   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+
+    elfFile.initSectionFilePointers();
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Disasm  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
     if (extdPrnt){
         elfFile.findLoops();
-    }
-
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step II Loop : %.2f",t2-t1);t1=t2);
-
-    if (verbose){
-        elfFile.print(printCodes);
+        TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Loop    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
     }
 
     elfFile.verify();
 
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step III Verify  : %.2f",t2-t1);t1=t2);
+    STATS(elfFile.gatherDisassemblyStats());
+
+    if (verbose){
+        elfFile.print(printCodes);
+        TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+    }
+
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Verify  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
     ElfFileInst* elfInst = NULL;
 
@@ -334,18 +340,19 @@ int main(int argc,char* argv[]){
         elfInst->setPathToInstLib(libPath);
         elfInst->phasedInstrumentation();
         elfInst->print(Print_Code_Instrumentation);
-        TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step IV Instr : %.2f",t2-t1);t1=t2);
+        TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Instr   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
         elfInst->dump(extension);
-        TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step V Dump   : %.2f",t2-t1);t1=t2);
+        TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Dump    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
         if (verbose){
             elfInst->print(printCodes);
+            TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
         }
         delete elfInst;
     }
 
     PRINT_INFOR("******** Instrumentation Successfull ********");
 
-    TIMER(t = timer()-t;PRINT_INFOR("___timer: Total Execution Time          : %.2f",t););
+    TIMER(t = timer()-t;PRINT_INFOR("___timer: Total Execution Time          : %.2f seconds",t););
 
     PRINT_INFOR("\n");
     PRINT_INFOR("******** DONE ******** SUCCESS ***** SUCCESS ***** SUCCESS ********\n");

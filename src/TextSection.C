@@ -12,8 +12,9 @@
 uint32_t FreeText::getNumberOfInstructions(){
     uint32_t numberOfInstructions = 0;
     for (uint32_t i = 0; i < blocks.size(); i++){
-        if (blocks[i]->getType() == ElfClassTypes_BasicBlock){
-            numberOfInstructions += ((BasicBlock*)blocks[i])->getNumberOfInstructions();
+        if (blocks[i]->getType() == ElfClassTypes_BasicBlock ||
+            blocks[i]->getType() == ElfClassTypes_CodeBlock){
+            numberOfInstructions += ((CodeBlock*)blocks[i])->getNumberOfInstructions();
         }
     }
     return numberOfInstructions;
@@ -57,6 +58,10 @@ uint32_t FreeText::getAllInstructions(Instruction** allinsts, uint32_t nexti){
             BasicBlock* bb = (BasicBlock*)blocks[i];
             bb->getAllInstructions(allinsts,nexti+instructionCount);
             instructionCount += bb->getNumberOfInstructions();
+        } else if (blocks[i]->getType() == ElfClassTypes_CodeBlock){
+            CodeBlock* cb = (CodeBlock*)blocks[i];
+            cb->getAllInstructions(allinsts,nexti+instructionCount);
+            instructionCount += cb->getNumberOfInstructions();
         }
     }
     return instructionCount;

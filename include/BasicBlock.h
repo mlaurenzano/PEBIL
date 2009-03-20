@@ -46,6 +46,10 @@ public:
     uint32_t getNumberOfBytes();
     Instruction* getInstructionAtAddress(uint64_t addr);
 
+    uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
+    uint32_t getNumberOfInstructions() { return instructions.size(); }
+    Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }
+
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     virtual bool verify() { return true; }
@@ -123,10 +127,6 @@ public:
     Function* getFunction() { ASSERT(flowGraph); return flowGraph->getFunction(); }
 
     uint64_t getTargetAddress();
-    uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
-
-    uint32_t getNumberOfInstructions() { return instructions.size(); }
-    Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }
 
     bool isPadding()  { return (flags & PaddingMask); }
     bool isEntry()    { return (flags & EntryMask); }

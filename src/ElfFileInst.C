@@ -2,12 +2,14 @@
 
 #include <AddressAnchor.h>
 #include <Base.h>
+#include <BasicBlock.h>
 #include <CStructuresX86.h>
 #include <Disassembler.h>
 #include <DynamicTable.h>
 #include <ElfFile.h>
 #include <FileHeader.h>
 #include <Function.h>
+#include <FlowGraph.h>
 #include <GnuVersion.h>
 #include <HashTable.h>
 #include <Instruction.h>
@@ -20,14 +22,6 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
-TIMER(
-	extern double cfg_s1;
-	extern double cfg_s2;
-	extern double cfg_s3;
-	extern double cfg_s4;
-	extern double cfg_s5;
-);
-
 DEBUG(
 uint32_t readBytes = 0;
 );
@@ -38,6 +32,72 @@ uint32_t readBytes = 0;
 //#define TURNOFF_INSTRUCTION_SWAP
 //#define ANCHOR_SEARCH_BINARY
 
+
+void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
+    STATS(totalBlocks = 0);
+    STATS(totalBlockBytes = 0);
+
+    STATS(blocksInstrumented = 0);
+    STATS(blockBytesInstrumented = 0);
+
+    STATS(PRINT_INFOR("%s", msg));
+    STATS(PRINT_INFOR("================"));
+    
+    if (relocHasOccurred){
+        for (uint32_t i = 0; i < relocatedFunctions.size(); i++){
+            Function* func = relocatedFunctions[i];
+            for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
+                BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
+                STATS(totalBlocks++);
+                STATS(totalBlockBytes += bb->getNumberOfBytes());
+                STATS(blocksInstrumented++);
+                STATS(blockBytesInstrumented += bb->getNumberOfBytes());
+            }
+        }
+        uint32_t numFunctions = 0;
+        STATS(numFunctions = nonRelocatedFunctions.size());
+        for (uint32_t i = 0; i < numFunctions; i++){
+            Function* func = nonRelocatedFunctions[i];
+            for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
+                BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
+                STATS(totalBlocks++);
+                STATS(totalBlockBytes += bb->getNumberOfBytes());
+                if (bb->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
+                    STATS(blocksInstrumented++);
+                    STATS(blockBytesInstrumented += bb->getNumberOfBytes());
+                } else {
+                    PRINT_INFOR("Cant instrument block at %#llx + %d", bb->getBaseAddress(), bb->getNumberOfBytes());
+                }
+            }
+        }
+    } else {
+        for (uint32_t i = 0; i < elfFile->getNumberOfTextSections(); i++){
+            TextSection* ts = elfFile->getTextSection(i);
+            for (uint32_t j = 0; j < ts->getNumberOfTextObjects(); j++){
+                if (ts->getTextObject(j)->getType() == ElfClassTypes_Function){
+                    Function* func = (Function*)ts->getTextObject(j);
+                    for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
+                        BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
+                        STATS(totalBlocks++);
+                        STATS(totalBlockBytes += bb->getNumberOfBytes());
+                        if (bb->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
+                            STATS(blocksInstrumented++);
+                            STATS(blockBytesInstrumented += bb->getNumberOfBytes());
+                        }
+                    }                    
+                }
+            }
+        }
+    }
+
+    STATS(float ratio);
+    STATS(ratio = (float)blocksInstrumented / (float)totalBlocks * 100.0);
+    STATS(PRINT_INFOR("Blocks covered : %d out of %d (%.2f\%)", blocksInstrumented, totalBlocks, ratio));
+    STATS(ratio = (float)blockBytesInstrumented / (float)totalBlockBytes * 100.0);
+    STATS(PRINT_INFOR("Bytes covered  : %d out of %d (%.2f\%)", blockBytesInstrumented, totalBlockBytes, ratio));
+
+}
+
 uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, void* data){
     InstrumentationSnippet* snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END];
     uint8_t* bytes = (uint8_t*)data;
@@ -45,6 +105,7 @@ uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, vo
     bool setLoc = false;
     for (uint32_t i = 0; i < size; i++){
         uint8_t d = bytes[i];
+        STATS(dataBytesInit++);
         if (d){
             snip->addSnippetInstruction(Instruction::generateMoveImmByteToReg(d,X86_REG_AX));
             /*
@@ -164,6 +225,12 @@ uint32_t ElfFileInst::anchorProgramElements(){
     }
 
     qsort(allInstructions, instructionCount, sizeof(Instruction*), compareBaseAddress);
+
+#ifdef DEBUG_ANCHOR
+    for (uint32_t i = 0; i < instructionCount; i++){
+        allInstructions[i]->print();
+    }
+#endif
 
     for (uint32_t i = 0; i < instructionCount; i++){
         if (!allInstructions[i]->getBaseAddress()){
@@ -430,6 +497,8 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
 void ElfFileInst::generateInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
+    STATS(gatherCoverageStats(false, "Coverage statistics before relocation:"));
+
     anchorProgramElements();
 
     uint16_t textIdx = elfFile->findSectionIdx(".text");
@@ -472,7 +541,8 @@ void ElfFileInst::generateInstrumentation(){
                 if (func->hasCompleteDisassembly()){
                     codeOffset += relocateFunction(func,codeOffset);
                 } else {
-                    PRINT_WARN(6, "Function %s is not eligible for relocation", func->getName());
+                    STATS(nonRelocatedFunctions.append(func));
+                    PRINT_WARN(6, "Function %s cannot be relocated: see address %#llx", func->getName(), func->getBadInstruction());
                 }
             } else {
                 PRINT_WARN(5, "Function %s is not eligible for relocation (see ElfFileInst::isEligibleFunction)", func->getName());
@@ -623,8 +693,8 @@ void ElfFileInst::generateInstrumentation(){
 
     codeOffset += snip->snippetSize();
 
-    PRINT_INFOR("Space allocated for extra text: %lld bytes, space needed: %lld bytes", elfFile->getSectionHeader(extraTextIdx)->GET(sh_size), codeOffset);
-    PRINT_INFOR("Space allocated for extra data: %lld bytes, space needed: %lld bytes", elfFile->getSectionHeader(extraDataIdx)->GET(sh_size), usableDataOffset);
+    STATS(textBytesUsed = codeOffset);
+    STATS(dataBytesUsed = usableDataOffset);
     ASSERT(codeOffset <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough space in the text section to accomodate the extra code");
 
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
@@ -646,6 +716,7 @@ void ElfFileInst::generateInstrumentation(){
     }
     PRINT_DEBUG_ANCHOR("Still have %d anchors", addressAnchors.size());
 #endif
+    STATS(gatherCoverageStats(true, "Coverage statistics after relocation:"));
 
 }
 
@@ -752,13 +823,13 @@ InstrumentationFunction* ElfFileInst::getInstrumentationFunction(const char* fun
 
 // the order of the operations in this function matters
 void ElfFileInst::phasedInstrumentation(){
+    TIMER(double t1 = timer(), t2; char stepNumber = 'A');
     ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
 
     uint16_t textIdx = elfFile->findSectionIdx(".text");
     ASSERT(textIdx && "Cannot find the text section");
     TextSection* text = (TextSection*)elfFile->getRawSection(textIdx);
     ASSERT(text && text->getType() == ElfClassTypes_TextSection && "Cannot find the text section");
-
     ASSERT(elfFile->getFileHeader()->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
     elfFile->getFileHeader()->SET(e_flags,EFINSTSTATUS_MOD);
     
@@ -776,6 +847,7 @@ void ElfFileInst::phasedInstrumentation(){
     instrument();
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
+    TIMER(t2 = timer();PRINT_INFOR("\t___timer: Instr Step %c UsrResrv : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 
@@ -791,12 +863,14 @@ void ElfFileInst::phasedInstrumentation(){
     }
 
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
+    TIMER(t2 = timer();PRINT_INFOR("\t___timer: Instr Step %c Control  : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
     generateInstrumentation();
 
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
+    TIMER(t2 = timer();PRINT_INFOR("\t___timer: Instr Step %c Generate : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
 }
@@ -1161,23 +1235,26 @@ void ElfFileInst::print(uint32_t printCodes){
     elfFile->print(printCodes);
 
     if (HAS_PRINT_CODE(printCodes,Print_Code_Instrumentation)){
-        PRINT_INFOR("Instrumentation Reservations:");
-        PRINT_INFOR("================");
+        STATS(PRINT_INFOR("Instrumentation Statistics:"); PRINT_INFOR("================"));
+        float ratio;
         if (extraTextIdx){
             SectionHeader* extendedText = elfFile->getSectionHeader(extraTextIdx);
-            PRINT_INFOR("Extended TEXT section is section %hd", extraTextIdx);
-            PRINT_INFOR("\tExtra text space available @address 0x%016llx + %d bytes", extendedText->GET(sh_addr), extendedText->GET(sh_size));
-            PRINT_INFOR("\tExtra text space available @offset  0x%016llx + %d bytes", extendedText->GET(sh_offset), extendedText->GET(sh_size));
+            ratio = (float)textBytesUsed / (float)extendedText->GET(sh_size) * 100.0;
+            STATS(PRINT_INFOR("Extended TEXT section is section %hd @ addr %#llx + %d bytes, used %d bytes (%.2f\%)", 
+                              extraTextIdx, extendedText->GET(sh_addr), extendedText->GET(sh_size), textBytesUsed, ratio));
         }
         if (extraDataIdx){
             SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
-            PRINT_INFOR("Extended DATA section is section %hd", extraDataIdx);
-            PRINT_INFOR("\tExtra data space available @address 0x%016llx + %d bytes", extendedData->GET(sh_addr), extendedData->GET(sh_size));
-            PRINT_INFOR("\tExtra data space available @offset  0x%016llx + %d bytes", extendedData->GET(sh_offset), extendedData->GET(sh_size));
+            ratio = (float)dataBytesUsed / (float)extendedData->GET(sh_size) * 100.0;
+            STATS(PRINT_INFOR("Extended DATA section is section %hd @ addr %#llx + %d bytes, used %d bytes (%.2f\%)", 
+                              extraDataIdx, extendedData->GET(sh_addr), extendedData->GET(sh_size), dataBytesUsed, ratio));
         }
         if (instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]){
-            PRINT_INFOR("Bytes for data initialization: %d", instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]->snippetSize());
+            uint32_t bytesUsed = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]->snippetSize();
+            ratio = (float)bytesUsed/(float)dataBytesInit;
+            STATS(PRINT_INFOR("Data Initialization: %d bytes to init, %d bytes to initialize for a ratio of 1:%.2f", dataBytesInit, bytesUsed, ratio));
         }
+
     }
 
     if (HAS_PRINT_CODE(printCodes,Print_Code_Disassemble)){
@@ -1229,6 +1306,8 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     specialDataRefs.append(zeroAddrRef);
 
     anchorsAreSorted = false;
+    STATS(dataBytesInit = 0);
+
 }
 
 uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx){

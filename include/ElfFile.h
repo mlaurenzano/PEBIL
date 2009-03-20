@@ -70,6 +70,15 @@ private:
     uint32_t numberOfMemoryOps;
     uint32_t numberOfFloatPOps;
 
+    STATS(uint32_t totalFunctions);
+    STATS(uint32_t totalBlocks);
+    STATS(uint32_t totalFunctionBytes);
+    STATS(uint32_t totalBlockBytes);
+    STATS(uint32_t functionsCovered);
+    STATS(uint32_t functionBytesCovered);
+    STATS(uint32_t blocksCovered);
+    STATS(uint32_t blockBytesCovered);
+
     BinaryInputFile   binaryInputFile;
 
     void readFileHeader();
@@ -78,7 +87,6 @@ private:
     void setSectionTypes();
     void readProgramHeaders();
     void readRawSections();
-    void initSectionFilePointers();
 
     uint32_t findSectionNameInStrTab(char* name);
     void findFunctions();
@@ -106,8 +114,10 @@ public:
     bool is64Bit() { return is64BitFlag; }
 
     uint32_t getAddressAlignment(){ if (is64Bit()) { return sizeof(uint64_t); } else { return sizeof(uint32_t); } }
+    void gatherDisassemblyStats();
 
     void parse();
+    void initSectionFilePointers();
     void dump(char* extension);
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 

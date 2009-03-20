@@ -21,7 +21,7 @@ BasicBlockCounter.o: BasicBlockCounter.C ../include/BasicBlock.h \
   ../include/BasicBlockCounter.h ../include/ElfFileInst.h \
   ../include/ElfFile.h ../include/BinaryFile.h \
   ../include/Instrumentation.h ../include/LineInformation.h \
-  ../include/defines/LineInformation.d
+  ../include/defines/LineInformation.d ../include/Loop.h
 BinaryFile.o: BinaryFile.C ../include/BinaryFile.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/CStructuresX86.h ../include/ElfFile.h

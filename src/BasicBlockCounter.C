@@ -4,6 +4,7 @@
 #include <Instrumentation.h>
 #include <Instruction.h>
 #include <LineInformation.h>
+#include <Loop.h>
 #include <TextSection.h>
 
 #define EXIT_FUNCTION "blockcounter"
@@ -118,9 +119,9 @@ void BasicBlockCounter::instrument(){
     uint32_t jumpCount = 0;
 
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
-        BasicBlock* b = allBlocks[i];
+        BasicBlock* bb = allBlocks[i];
         LineInfo* li = allLineInfos[i];
-        Function* f = b->getFunction();
+        Function* f = bb->getFunction();
 
         if (li){
             uint32_t line = li->GET(lr_line);
@@ -160,8 +161,21 @@ void BasicBlockCounter::instrument(){
             
         // register an instrumentation point at the function that uses this snippet
         if (strcmp(f->getName(),"_start")){
-            InstrumentationPoint* p = addInstrumentationPoint(b,snip,SIZE_CONTROL_TRANSFER);
+            InstrumentationPoint* p = addInstrumentationPoint(bb,snip,SIZE_CONTROL_TRANSFER);
         }
+
+        uint32_t loopId = Invalid_UInteger_ID;
+        uint32_t loopDepth = 0;
+        uint32_t loopCount = bb->getFlowGraph()->getNumberOfLoops();
+
+        for(uint32_t j = 0;j < loopCount; j++){
+            Loop* currLoop = bb->getFlowGraph()->getLoop(j);
+            if(currLoop->isBlockIn(bb->getIndex())){
+                loopDepth++;
+                loopId = currLoop->getIndex();
+            }
+        }
+
 
         char* fileName;
         uint32_t lineNo;
@@ -173,9 +187,9 @@ void BasicBlockCounter::instrument(){
             lineNo = 0;
         }
         fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\n", 
-                i, b->getHashCode().getValue(), b->getNumberOfMemoryOps(), b->getNumberOfFloatOps(), 
-                b->getNumberOfInstructions(), fileName, lineNo, b->getFunction()->getName(), -1, -1, -1, 
-                b->getHashCode().getValue(), b->getBaseAddress(), b->getNumberOfLoads(), b->getNumberOfStores());
+                i, bb->getHashCode().getValue(), bb->getNumberOfMemoryOps(), bb->getNumberOfFloatOps(), 
+                bb->getNumberOfInstructions(), fileName, lineNo, bb->getFunction()->getName(), loopCount, loopId, loopDepth, 
+                bb->getHashCode().getValue(), bb->getBaseAddress(), bb->getNumberOfLoads(), bb->getNumberOfStores());
     }
 
     fclose(staticFD);
