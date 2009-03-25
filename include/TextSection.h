@@ -99,6 +99,7 @@ public:
 
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
+    BasicBlock* getBasicBlockAtAddress(uint64_t addr);
     Instruction* getInstructionAtAddress(uint64_t addr);
     uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
 

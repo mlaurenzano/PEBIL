@@ -23,6 +23,10 @@ bool FileHeader::verify(){
         PRINT_ERROR("File type unknown");
         return false;
     }
+    if (GET(e_type) > ET_CORE){
+        PRINT_ERROR("File type processor-specific");
+        return false;
+    }
     uint32_t machine_typ = GET(e_machine);
     if (machine_typ != EM_386 && 
         machine_typ != EM_860 && 
@@ -98,12 +102,31 @@ bool FileHeader::verify(){
 
 
 const char* ETypeNames[] = { "NONE","REL","EXEC","DYN","CORE" };
-const char* EMachNames[] = { "NONE","M32","SPARC","386","68K","88K","860","MPIS" };
+
+#define Undef_Mach "UNDEF"
+const char* EMachNames[] = { "NONE", "M32", "SPARC", "386", "68K",                                // 0
+                             "88K", Undef_Mach, "860", "MIPS", "S370",                            // 5
+                             "MIPS_RS3_LE", Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach,       // 10
+                             "PARISC", Undef_Mach, "VPP500", "SPARC32PLUS", "960",                // 15
+                             "PPC", "PPC64", "S390", Undef_Mach, Undef_Mach,                      // 20
+                             Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach,          // 25
+                             Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach,          // 30
+                             Undef_Mach, "V800", "FR20", "RH32", "RCE",                           // 35
+                             "ARM", "FAKE_ALPHA", "SH", "SPARCV9", "TRICORE",                     // 40
+                             "ARC", "H8_300", "H8_300H", "H8S", "H8_500",                         // 45
+                             "IA_64", "MIPS_X", "COLDFIRE", "68HC12", "MMA",                      // 50
+                             "PCP", "NCPU", "NDR1", "STARCORE", "ME16",                           // 55
+                             "ST100", "TINYJ", "X86_64", "PDSP", Undef_Mach,                      // 60
+                             Undef_Mach, "FX66", "ST9PLUS", "ST7", "68HC16",                      // 65
+                             "68HC11", "68HC08", "68HC05", "SVX", "ST19",                         // 70
+                             "VAX", "CRIS", "JAVELIN", "FIREPATH", "ZSP",                         // 75
+                             "MMIX", "HUANY", "PRISM", "AVR", "FR30",                             // 80
+                             "D10V", "D30V", "V850", "M32R", "MN10300",                           // 85
+                             "MN10200", "PJ", "OPENRISC", "ARC_A5", "XTENSA"};                    // 90
 const char* EKlazNames[] = { "NONE","32-Bit","64-Bit" };
 const char* EDataNames[] = { "NONE","LeastSB","MostSB" };
 
 void FileHeader::print() { 
-
     PRINT_INFOR("FileHeader:");
     PRINT_INFOR("\tMagic\tClass\tData\tVersion\tPadding");
     unsigned char* ident = GET(e_ident);
@@ -116,7 +139,7 @@ void FileHeader::print() {
     ASSERT(GET(e_type) < ET_LOPROC);
     PRINT_INFOR("\tehsz : %dB",GET(e_ehsize));
     PRINT_INFOR("\ttype : %s",ETypeNames[GET(e_type)]);
-    PRINT_INFOR("\tmach : %s",EMachNames[GET(e_machine)]);
+    PRINT_INFOR("\tmach : %s", EMachNames[GET(e_machine)]);
     ASSERT(ident[EI_VERSION] == GET(e_version));
     PRINT_INFOR("\tvers : %d",GET(e_version));
     PRINT_INFOR("\tentr : %#llx",GET(e_entry));

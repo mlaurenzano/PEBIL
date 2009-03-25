@@ -27,8 +27,12 @@ uint32_t readBytes = 0;
 );
 
 // some common macros you can use to help debug
+//#define RELOC_MOD_OFF 1284
+//#define RELOC_MOD 2048
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define TURNOFF_CODE_BLOAT
+//#define SWAP_MOD_OFF 1103
+//#define SWAP_MOD 65536
 //#define TURNOFF_INSTRUCTION_SWAP
 //#define ANCHOR_SEARCH_BINARY
 
@@ -128,23 +132,6 @@ bool ElfFileInst::isEligibleFunction(Function* func){
     if (!canRelocateFunction(func)){
         return false;
     }
-
-    return true;
-    char* name = func->getName();
-    if (!strcmp(name,"_start")){
-        return false;
-    }
-
-    return true;
-    if (strstr(name,"intel")
-        || strstr(name,"pgi")
-        || strstr(name,"pgCC")
-        || strstr(name,"hpf")
-        || strstr(name,"fmth")
-        ){
-        return false;
-    }
-
     return true;
 }
 
@@ -383,7 +370,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
 
         // since there are no constraints on the alignment of stuff in the data sections we must check starting at EVERY byte
         // NO, we will check just 4-aligned words
-        for (uint32_t currByte = 0; currByte < dataRawSection->getSizeInBytes() - addrAlign; currByte+=4){
+        for (uint32_t currByte = 0; currByte < dataRawSection->getSizeInBytes() - addrAlign; currByte += sizeof(uint32_t)){
             char* dataPtr = (char*)(dataRawSection->getFilePointer()+currByte);
             uint64_t extendedData;
             if (addrAlign == sizeof(uint64_t)){
@@ -401,6 +388,10 @@ uint32_t ElfFileInst::anchorProgramElements(){
 
             void* link = bsearch(&extendedData,allInstructions,instructionCount,sizeof(Instruction*),searchBaseAddressExact);
             if (link != NULL){
+                if (!(dataSectionHeader->GET(sh_addr)+currByte % sizeof(uint64_t))){
+                    PRINT_WARN(10, "unaligned data %#llx at %llx", extendedData, dataSectionHeader->GET(sh_addr)+currByte);
+                }
+
                 Instruction* linkedInstruction = *(Instruction**)link;
                 PRINT_DEBUG_ANCHOR("Found data -> inst link: %#llx -> %#llx, offset %x", dataSectionHeader->GET(sh_addr)+currByte, extendedData, currByte);
                 DataReference* dataRef = new DataReference(extendedData,dataRawSection,elfFile->is64Bit(),currByte);
@@ -525,7 +516,15 @@ void ElfFileInst::generateInstrumentation(){
         snip->addSnippetInstruction(Instruction32::generateStackPush(i));
     }
 
+    // find the entry point of the program and put an instrumentation point for our initialization there
     ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP1] && "instrumentationPoint[INST_POINT_BOOTSTRAP1] is reserved");
+    BasicBlock* entryBlock = textSection->getBasicBlockAtAddress(elfFile->getFileHeader()->GET(e_entry));
+    ASSERT(entryBlock && "Cannot find instruction at the program's entry point");
+    
+    instrumentationPoints[INST_POINT_BOOTSTRAP1] = 
+        new InstrumentationPoint((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], SIZE_FIRST_INST_POINT, InstLocation_dont_care);    
+
+    /*
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
         if (!strcmp(textSection->getTextObject(i)->getName(),"_start")){
             ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP1] && "Found more than one start function");
@@ -533,17 +532,28 @@ void ElfFileInst::generateInstrumentation(){
                 new InstrumentationPoint((Base*)textSection->getTextObject(i), instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], SIZE_FIRST_INST_POINT, InstLocation_dont_care);
         }
     }
-
+    */
+    instrumentationPoints[INST_POINT_BOOTSTRAP1]->setPriority(InstPriority_datainit);
+            
     uint64_t codeOffset = 0;
 
     uint32_t numberOfFunctions = exposedFunctions.size();
 #ifdef TURNOFF_FUNCTION_RELOCATION
     numberOfFunctions = 0;
 #endif
+
     for (uint32_t i = 0; i < numberOfFunctions; i++){
         Function* func = exposedFunctions[i];
+
+#ifdef RELOC_MOD
+        if (i % RELOC_MOD == RELOC_MOD_OFF){
+            PRINT_INFOR("relocating function (%d) %s", i, func->getName());
+#endif
         ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
         codeOffset += relocateFunction(func,codeOffset);
+#ifdef RELOC_MOD
+        }
+#endif
     }
 
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
@@ -579,6 +589,9 @@ void ElfFileInst::generateInstrumentation(){
     // leave room for a jump to be added on
     codeOffset += snip->snippetSize() + SIZE_CONTROL_TRANSFER;
 
+    uint64_t returnOffset = 0;
+    uint64_t chainOffset = 0;
+
     instrumentationPoints.sort(compareSourceAddress);
     for (uint32_t i = 0; i < instrumentationPoints.size(); i++){
         InstrumentationPoint* pt = instrumentationPoints[i];
@@ -588,6 +601,12 @@ void ElfFileInst::generateInstrumentation(){
 #ifdef TURNOFF_INSTRUCTION_SWAP
         break;
 #endif
+
+#ifdef SWAP_MOD
+        if (i % SWAP_MOD == SWAP_MOD_OFF){
+            PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx", i, instrumentationPoints.size(), pt->getSourceObject()->getBaseAddress());
+#endif
+
 
         if (!pt->getSourceAddress()){
             PRINT_WARN(4,"Could not find a place to instrument for point at %#llx", pt->getSourceObject()->getBaseAddress());
@@ -599,13 +618,21 @@ void ElfFileInst::generateInstrumentation(){
         }
         PRINT_DEBUG_INST("Generating code for InstrumentationPoint %d at address %llx", i, pt->getSourceAddress());
 
+        bool isFirstInChain = false;
+        if (i == 0 || 
+            (i > 0 && instrumentationPoints[i-1]->getSourceAddress() != pt->getSourceAddress())){
+            PRINT_DEBUG_POINT_CHAIN("First in chain at %#llx (%d)", pt->getSourceAddress(), i);
+
+            isFirstInChain = true;
+            chainOffset = codeOffset;
+        }
+
         Vector<Instruction*>* repl = NULL;
         Vector<Instruction*>* displaced = NULL;
-        uint64_t returnOffset = 0;
 
         repl = new Vector<Instruction*>();
         if (instrumentationPoints[i]->getNumberOfBytes() == SIZE_CONTROL_TRANSFER){
-            (*repl).append(Instruction::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + codeOffset));
+            (*repl).append(Instruction::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
         } else {
             PRINT_ERROR("This size instrumentation point (%d) not supported", instrumentationPoints[i]->getNumberOfBytes());
         }
@@ -626,12 +653,11 @@ void ElfFileInst::generateInstrumentation(){
 
 
 
-        bool isFirstInChain = false;
         bool isLastInChain = false;
-        if (i == 0 || 
-            (i > 0 && instrumentationPoints[i-1]->getSourceAddress() != pt->getSourceAddress())){
-            PRINT_DEBUG_POINT_CHAIN("First in chain at %#llx (%d)", pt->getSourceAddress(), i);
-            isFirstInChain = true;
+        if (i == instrumentationPoints.size()-1 || 
+            (i < instrumentationPoints.size()-1 && instrumentationPoints[i+1]->getSourceAddress() != pt->getSourceAddress())){
+            PRINT_DEBUG_POINT_CHAIN("Last of chain at %#llx (%d)", pt->getSourceAddress(), i);
+            isLastInChain = true;
 
             displaced = pt->swapInstructionsAtPoint(repl);
             
@@ -656,19 +682,16 @@ void ElfFileInst::generateInstrumentation(){
                 delete modAnchors;
             }
         }
-        if (i == instrumentationPoints.size()-1 || 
-            (i < instrumentationPoints.size()-1 && instrumentationPoints[i+1]->getSourceAddress() != pt->getSourceAddress())){
-            PRINT_DEBUG_POINT_CHAIN("Last of chain at %#llx (%d)", pt->getSourceAddress(), i);
-            isLastInChain = true;
-        } 
+
+        if (isFirstInChain){
+            returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
+        }
 
         uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
-        returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
-
-        pt->generateTrampoline(displaced,textBaseAddress,codeOffset,returnOffset,elfFile->is64Bit(),isFirstInChain,isLastInChain);
+        pt->generateTrampoline(displaced,textBaseAddress,codeOffset,returnOffset,elfFile->is64Bit(),isLastInChain);
         
         codeOffset += pt->sizeNeeded();
-        if (!isFirstInChain){
+        if (!isLastInChain){
             for (uint32_t j = 0; j < (*repl).size(); j++){
                 delete (*repl)[j];
             }
@@ -679,6 +702,9 @@ void ElfFileInst::generateInstrumentation(){
         if (displaced){
             delete displaced;
         }
+#ifdef SWAP_MOD
+        }
+#endif
     }
 
     // we can compute this snippet after instrumentation points because no instpoint will jump to it

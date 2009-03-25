@@ -1251,7 +1251,6 @@ char* Instruction::getBytes(){
 
 void Instruction::setBytes(char* bytes){
     if (rawBytes){
-        PRINT_WARN(2,"Deleting rawBytes");
         delete[] rawBytes;
     }
     rawBytes = new char[sizeInBytes];

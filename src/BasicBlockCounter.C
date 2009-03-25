@@ -141,8 +141,7 @@ void BasicBlockCounter::instrument(){
         InstrumentationSnippet* snip = new InstrumentationSnippet();
         uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
         
-        // save any registers used, this should always include the flags register
-        snip->addSnippetInstruction(Instruction32::generatePushEflags());
+        // save any registers used
         snip->addSnippetInstruction(Instruction32::generateStackPush(X86_REG_CX));
                 
         // increment the counter for this function
@@ -151,7 +150,6 @@ void BasicBlockCounter::instrument(){
         
         // restore the registers that were saved
         snip->addSnippetInstruction(Instruction32::generateStackPop(X86_REG_CX));
-        snip->addSnippetInstruction(Instruction32::generatePopEflags());
             
         // do not generate control instructions to get back to the application, this is done for
         // the snippet automatically during code generation
@@ -160,7 +158,9 @@ void BasicBlockCounter::instrument(){
         addInstrumentationSnippet(snip);
             
         // register an instrumentation point at the function that uses this snippet
-        InstrumentationPoint* p = addInstrumentationPoint(bb,snip,SIZE_CONTROL_TRANSFER);
+        if (strcmp(f->getName(),"_start")){
+            InstrumentationPoint* p = addInstrumentationPoint(bb,snip,SIZE_CONTROL_TRANSFER);
+        }
 
         uint32_t loopId = Invalid_UInteger_ID;
         uint32_t loopDepth = 0;

@@ -41,6 +41,7 @@ public:
     uint32_t getNumberOfBasicBlocks();
     BasicBlock* getBasicBlock(uint32_t idx);
     Instruction* getInstructionAtAddress(uint64_t addr);
+    BasicBlock* getBasicBlockAtAddress(uint64_t addr);
 
     uint32_t getNumberOfInstructions();
     uint32_t getNumberOfBytes();

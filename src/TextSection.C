@@ -443,6 +443,23 @@ Instruction* TextSection::getInstructionAtAddress(uint64_t addr){
     return NULL;
 }
 
+BasicBlock* TextSection::getBasicBlockAtAddress(uint64_t addr){
+    SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
+    if (!sectionHeader->inRange(addr)){
+        return NULL;
+    }
+
+    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+        if (sortedTextObjects[i]->getType() == ElfClassTypes_Function){
+            Function* f = (Function*)sortedTextObjects[i];
+            if (f->inRange(addr)){
+                return f->getBasicBlockAtAddress(addr);
+            }
+        }
+    }
+    return NULL;
+}
+
 bool TextSection::verify(){
     SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
 

@@ -7,13 +7,21 @@
 #include <TextSection.h>
 
 int compareSourceAddress(const void* arg1,const void* arg2){
-    uint64_t vl1 = (*((InstrumentationPoint**)arg1))->getSourceAddress();
-    uint64_t vl2 = (*((InstrumentationPoint**)arg2))->getSourceAddress();
+    InstrumentationPoint* ip1 = *((InstrumentationPoint**)arg1);
+    InstrumentationPoint* ip2 = *((InstrumentationPoint**)arg2);
 
-    if(vl1 < vl2)
+    if(ip1->getSourceAddress() < ip2->getSourceAddress()){
         return -1;
-    if(vl1 > vl2)
+    } else if(ip1->getSourceAddress() > ip2->getSourceAddress()){
         return 1;
+    } else {
+        PRINT_DEBUG_POINT_CHAIN("Comparing priority of 2 points at %#llx: %d %d", ip1->getSourceAddress(), ip1->getPriority(), ip2->getPriority());
+        if (ip1->getPriority() < ip2->getPriority()){
+            return -1;
+        } else if (ip1->getPriority() > ip2->getPriority()){
+            return 1;
+        }
+    }
     return 0;
 }
 
@@ -462,12 +470,16 @@ uint32_t InstrumentationPoint::sizeNeeded(){
     return totalSize;
 }
 
-uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool is64bit, bool doReloc, bool jumpToSource){
+uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool is64bit, bool doReloc){
     ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
 
     trampolineOffset = offset;
 
     uint32_t trampolineSize = 0;
+
+    trampolineInstructions.append(Instruction32::generatePushEflags());
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+
     if (is64bit){
         trampolineInstructions.append(Instruction64::generateRegSubImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
     } else {
@@ -482,6 +494,9 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
     } else {
         trampolineInstructions.append(Instruction32::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
     }
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+
+    trampolineInstructions.append(Instruction32::generatePopEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
     uint64_t displacementDist = returnOffset - (offset + trampolineSize + numberOfBytes);
@@ -513,8 +528,7 @@ uint32_t InstrumentationPoint::generateTrampoline(Vector<Instruction*>* insts, u
         }
         
         ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
-    }
-    if (jumpToSource){
+
         trampolineInstructions.append(Instruction::generateJumpRelative(offset+trampolineSize,returnOffset));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
@@ -543,6 +557,7 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, uint
     instLocation = loc;
 
     trampolineOffset = 0;
+    priority = InstPriority_regular;
 
     verify();
 }
@@ -550,6 +565,10 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, uint
 bool InstrumentationPoint::verify(){
     if (!point->containsProgramBits()){
         PRINT_ERROR("Instrumentation point not allowed to be type %d", point->getType());
+        return false;
+    }
+    if (priority == InstPriority_undefined || priority >= InstPriority_Total_Types){
+        PRINT_ERROR("Instrumentation point not allowed to have priority %d", priority);
         return false;
     }
     return true;

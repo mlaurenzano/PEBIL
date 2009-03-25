@@ -390,6 +390,16 @@ Instruction* Function::getInstructionAtAddress(uint64_t addr){
     return NULL;
 }
 
+BasicBlock* Function::getBasicBlockAtAddress(uint64_t addr){
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+        if (flowGraph->getBasicBlock(i)->inRange(addr)){
+            return flowGraph->getBasicBlock(i); 
+        }
+    }
+
+    return NULL;
+}
+
 uint64_t Function::findInstrumentationPoint(uint32_t size, InstLocations loc){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         uint64_t instAddress = flowGraph->getBasicBlock(i)->findInstrumentationPoint(size,loc);
