@@ -70,7 +70,10 @@ protected:
     uint16_t dataIdx;
 
     uint64_t usableDataOffset;
+    uint64_t bssOffset;
     uint64_t bssReserved;
+    uint64_t regStorageOffset;
+    uint64_t regStorageReserved;
 
     STATS(uint64_t dataBytesInit);
     STATS(uint64_t textBytesUsed);

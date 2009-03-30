@@ -227,7 +227,6 @@ public:
     static Instruction* generateMoveImmByteToMemIndirect(uint8_t byt, uint64_t off, uint32_t idx);
     static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
     static Instruction* generateMoveImmByteToReg(uint8_t imm, uint32_t idx);
-    static Instruction* generateMoveRegToMem(uint32_t idx, uint64_t addr);
     static Instruction* generateJumpRelative(uint64_t addr, uint64_t tgt);
     static Instruction* generateStackPushImmediate(uint64_t imm);
     static Instruction* generateCallRelative(uint64_t addr, uint64_t tgt);
@@ -239,12 +238,13 @@ public:
     static Instruction* generateMoveRegToRegaddr(uint32_t srcidx, uint32_t destidx);
     static Instruction* generateInterrupt(uint8_t idx);
 
+    static Instruction* generateAndImmReg(uint64_t, uint32_t);
+
     static uint32_t computeOpcodeTypeOneByte(uint32_t idx);
     static uint32_t computeOpcodeTypeTwoByte(uint32_t idx);
     static uint32_t computeOpcodeTypeGroups(uint32_t idx1, uint32_t idx2);
     static uint32_t computeOpcodeTypePrefixUser(uint32_t idx1, uint32_t idx2);
     static uint32_t computeOpcodeTypeX8664(uint32_t idx1, uint32_t idx2);
-
 };
 
 class Instruction64 : public Instruction {
@@ -268,7 +268,12 @@ public:
     static Instruction* generateRegAddImmediate(uint32_t, uint64_t);
     static Instruction* generateRegSubImmediate(uint32_t, uint64_t);
     static Instruction* generateMoveRegToRegaddrImm(uint32_t, uint32_t, uint64_t);
+    static Instruction* generateMoveRegaddrImmToReg(uint32_t, uint64_t, uint32_t);
     static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
+    static Instruction* generateMoveImmToRegaddrImm(uint64_t immval, uint32_t idx, uint64_t immoff);
+
+    static Instruction* generateMoveRegToMem(uint32_t idx, uint64_t addr);
+    static Instruction* generateMoveMemToReg(uint64_t addr, uint32_t idx);
 
 };
 
@@ -281,6 +286,12 @@ public:
 
     static Instruction* generateRegAddImmediate(uint32_t idx, uint64_t imm);
     static Instruction* generateRegSubImmediate(uint32_t idx, uint64_t imm);
+
+    static Instruction* generateMoveRegToMem(uint32_t idx, uint64_t addr);
+    static Instruction* generateMoveMemToReg(uint64_t addr, uint32_t idx);
+
+    static Instruction* generateStoreEflagsToAH();
+    static Instruction* generateLoadEflagsFromAH();
 };
 
 extern int searchInstructionAddress(const void* arg1,const void* arg2);

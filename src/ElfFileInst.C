@@ -27,12 +27,14 @@ uint32_t readBytes = 0;
 );
 
 // some common macros you can use to help debug
-//#define RELOC_MOD_OFF 1284
-//#define RELOC_MOD 2048
+//#define RELOC_MOD_OFF 1
+//#define RELOC_MOD 2
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define TURNOFF_CODE_BLOAT
-//#define SWAP_MOD_OFF 1103
-//#define SWAP_MOD 65536
+//#define SWAP_MOD_OFF 3
+//#define SWAP_MOD 64
+#define SWAP_MOD_OFF 16
+#define SWAP_MOD 128
 //#define TURNOFF_INSTRUCTION_SWAP
 //#define ANCHOR_SEARCH_BINARY
 
@@ -604,7 +606,10 @@ void ElfFileInst::generateInstrumentation(){
 
 #ifdef SWAP_MOD
         if (i % SWAP_MOD == SWAP_MOD_OFF){
-            PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx", i, instrumentationPoints.size(), pt->getSourceObject()->getBaseAddress());
+            if (pt->getSourceObject()->getType() == ElfClassTypes_BasicBlock){
+                BasicBlock* bb = (BasicBlock*)pt->getSourceObject();
+                //                if (strstr(bb->getFunction()->getName(),"setSectionType")){
+            PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx in %s", i, instrumentationPoints.size(), pt->getSourceObject()->getBaseAddress(), bb->getFunction()->getName());
 #endif
 
 
@@ -688,7 +693,7 @@ void ElfFileInst::generateInstrumentation(){
         }
 
         uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
-        pt->generateTrampoline(displaced,textBaseAddress,codeOffset,returnOffset,elfFile->is64Bit(),isLastInChain);
+        pt->generateTrampoline(displaced,textBaseAddress,codeOffset,returnOffset,elfFile->is64Bit(),isLastInChain,dataBaseAddress+regStorageOffset);
         
         codeOffset += pt->sizeNeeded();
         if (!isLastInChain){
@@ -703,6 +708,8 @@ void ElfFileInst::generateInstrumentation(){
             delete displaced;
         }
 #ifdef SWAP_MOD
+        //                }
+            }
         }
 #endif
     }
@@ -784,7 +791,7 @@ uint64_t ElfFileInst::getExtraDataAddress() { return elfFile->getSectionHeader(e
 
 uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
     ASSERT(currentPhase > ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
-    uint64_t avail = usableDataOffset + bssReserved;
+    uint64_t avail = usableDataOffset + bssReserved + regStorageReserved;
     usableDataOffset += size;
     if (avail > elfFile->getSectionHeader(extraDataIdx)->GET(sh_size)){
         PRINT_WARN(5,"More than %llx bytes of data are needed for the extra data section", elfFile->getSectionHeader(extraDataIdx)->GET(sh_size));
@@ -814,8 +821,11 @@ void ElfFileInst::extendDataSection(uint64_t size){
     ASSERT(!strcmp(bssSection->getSectionNamePtr(),".bss") && "BSS section named something other than `.bss'");
 
     extraDataIdx = bssSectionIdx;
+    bssOffset = 0;
     bssReserved = bssSection->GET(sh_size);
 
+    regStorageOffset = bssReserved;
+    regStorageReserved = sizeof(uint64_t)*X86_64BIT_GPRS;
 
     // increase the memory size of the bss section (note: this section has no size in the file)
     bssSection->INCREMENT(sh_size,size);
@@ -1371,7 +1381,11 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     dataIdx = 0;
 
     usableDataOffset = 0;
+    bssOffset = 0;
     bssReserved = 0;
+
+    regStorageOffset = 0;
+    regStorageReserved = 0;
 
     instSuffix = NULL;
     sharedLibraryPath = NULL;

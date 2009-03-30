@@ -19,7 +19,7 @@ class Instruction;
 
 #define BOOTSTRAP_BYTE_RATIO 11
 
-#define TRAMPOLINE_FRAME_AUTOINC_SIZE 0x4000
+#define TRAMPOLINE_FRAME_AUTOINC_SIZE 0x1000
 
 extern int compareSourceAddress(const void* arg1,const void* arg2);
 
@@ -206,7 +206,7 @@ public:
 
     uint32_t getNumberOfBytes() { return numberOfBytes; }
     uint32_t sizeNeeded();
-    uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool is64bit, bool doReloc);
+    uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool is64bit, bool doReloc, uint64_t regStorageOffset);
     uint64_t getTrampolineOffset() { return trampolineOffset; }
 
     bool verify();
