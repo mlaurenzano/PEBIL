@@ -1,2 +1,2 @@
-#HASH_STYLE      = -Wl,--hash-style=sysv
+HASH_STYLE      = -Wl,--hash-style=sysv
 

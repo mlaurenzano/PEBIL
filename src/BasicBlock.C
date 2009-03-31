@@ -4,6 +4,7 @@
 #include <Function.h>
 #include <FlowGraph.h>
 #include <Instruction.h>
+#include <InstructionGenerator.h>
 
 #define MAX_SIZE_LINEAR_SEARCH 4096
 
@@ -100,7 +101,7 @@ uint32_t BasicBlock::bloat(uint32_t minBlockSize){
     // pad with noops if necessary
     int32_t extraBytesNeeded = minBlockSize - currByte;
     while (extraBytesNeeded > 0){
-        Instruction* extraNoop = Instruction::generateNoop();
+        Instruction* extraNoop = InstructionGenerator::generateNoop();
         extraNoop->setBaseAddress(baseAddress+currByte);
 
         currByte += extraNoop->getSizeInBytes();
@@ -424,7 +425,7 @@ Vector<Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<Instruct
     }
 
     while (bytesToReplace < replacedBytes){
-        (*replacements).append(Instruction::generateNoop());
+        (*replacements).append(InstructionGenerator::generateNoop());
         bytesToReplace++;
     }
 

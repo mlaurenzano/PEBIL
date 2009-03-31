@@ -68,7 +68,6 @@ fnc32run:
 fnc32ide:
 	for i in ${32BITPROGS}; do \
 		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(FNCEXT) --typ ide $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
-		diff -s $(32BITBIN)/"$$i".$(FNCEXT) $(32BITBIN)/"$$i".$(FNCEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(32BITBIN)/*.$(IDEEXT)
 
@@ -88,7 +87,6 @@ fnc64run:
 fnc64ide:
 	for i in ${64BITPROGS}; do \
 		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(FNCEXT) --typ ide $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
-		diff -s $(64BITBIN)/"$$i".$(FNCEXT) $(64BITBIN)/"$$i".$(FNCEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(64BITBIN)/*.$(IDEEXT)
 
@@ -109,7 +107,6 @@ jbb32run:
 jbb32ide:
 	for i in ${32BITPROGS}; do \
 		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(JBBEXT) --typ ide $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
-		diff -s $(32BITBIN)/"$$i".$(JBBEXT) $(32BITBIN)/"$$i".$(JBBEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(32BITBIN)/*.$(IDEEXT)
 
@@ -129,7 +126,6 @@ jbb64run:
 jbb64ide:
 	for i in ${64BITPROGS}; do \
 		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(JBBEXT) --typ ide $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
-		diff -s $(64BITBIN)/"$$i".$(JBBEXT) $(64BITBIN)/"$$i".$(JBBEXT).$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(64BITBIN)/*.$(IDEEXT)
 

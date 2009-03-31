@@ -2,7 +2,7 @@
 #include <BasicBlockCounter.h>
 #include <Function.h>
 #include <Instrumentation.h>
-#include <Instruction.h>
+#include <InstructionGenerator.h>
 #include <LineInformation.h>
 #include <Loop.h>
 #include <TextSection.h>
@@ -142,14 +142,14 @@ void BasicBlockCounter::instrument(){
         uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
         
         // save any registers used
-        snip->addSnippetInstruction(Instruction32::generateStackPush(X86_REG_CX));
+        snip->addSnippetInstruction(InstructionGenerator32::generateStackPush(X86_REG_CX));
                 
         // increment the counter for this function
-        snip->addSnippetInstruction(Instruction32::generateMoveImmToReg(dataBaseAddress+counterOffset,X86_REG_CX));
-        snip->addSnippetInstruction(Instruction32::generateAddByteToRegaddr(1,X86_REG_CX));
+        snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(dataBaseAddress+counterOffset,X86_REG_CX));
+        snip->addSnippetInstruction(InstructionGenerator32::generateAddByteToRegaddr(1,X86_REG_CX));
         
         // restore the registers that were saved
-        snip->addSnippetInstruction(Instruction32::generateStackPop(X86_REG_CX));
+        snip->addSnippetInstruction(InstructionGenerator32::generateStackPop(X86_REG_CX));
             
         // do not generate control instructions to get back to the application, this is done for
         // the snippet automatically during code generation

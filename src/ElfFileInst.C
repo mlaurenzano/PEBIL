@@ -13,6 +13,7 @@
 #include <GnuVersion.h>
 #include <HashTable.h>
 #include <Instruction.h>
+#include <InstructionGenerator.h>
 #include <Instrumentation.h>
 #include <LineInformation.h>
 #include <ProgramHeader.h>
@@ -31,8 +32,8 @@ uint32_t readBytes = 0;
 //#define RELOC_MOD 2
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define TURNOFF_CODE_BLOAT
-//#define SWAP_MOD_OFF 9104
-//#define SWAP_MOD 16384
+//#define SWAP_MOD_OFF 0
+//#define SWAP_MOD 128
 //#define TURNOFF_INSTRUCTION_SWAP
 //#define ANCHOR_SEARCH_BINARY
 
@@ -110,18 +111,18 @@ uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, vo
         uint8_t d = bytes[i];
         STATS(dataBytesInit++);
         if (d){
-            snip->addSnippetInstruction(Instruction::generateMoveImmByteToReg(d,X86_REG_AX));
+            snip->addSnippetInstruction(InstructionGenerator::generateMoveImmByteToReg(d,X86_REG_AX));
 
             // this looks like it pretty obviously should work but it doesn't -- need to investigate
             /*
             if (i == 0){
-                snip->addSnippetInstruction(Instruction::generateMoveImmToReg(address+i,X86_REG_DI));
+                snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(address+i,X86_REG_DI));
             } else {
-                snip->addSnippetInstruction(Instruction::generateRegIncrement(X86_REG_DI));
+                snip->addSnippetInstruction(InstructionGenerator::generateRegIncrement(X86_REG_DI));
             }
             */
-            snip->addSnippetInstruction(Instruction::generateMoveImmToReg(address+i,X86_REG_DI));
-            snip->addSnippetInstruction(Instruction::generateSTOSByte(false));
+            snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(address+i,X86_REG_DI));
+            snip->addSnippetInstruction(InstructionGenerator::generateSTOSByte(false));
         }
     }
 
@@ -439,7 +440,7 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
     
     uint32_t currentByte = 0;
 
-    (*trampEmpty).append(Instruction::generateJumpRelative(functionToRelocate->getBaseAddress(), relocationAddress));
+    (*trampEmpty).append(InstructionGenerator::generateJumpRelative(functionToRelocate->getBaseAddress(), relocationAddress));
     currentByte += (*trampEmpty).back()->getSizeInBytes();
     (*trampEmpty).back()->setBaseAddress(functionToRelocate->getBaseAddress());
     
@@ -461,7 +462,7 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
     delete modAnchors;
 
     while (currentByte < functionSize){
-        (*trampEmpty).append(Instruction::generateNoop());
+        (*trampEmpty).append(InstructionGenerator::generateNoop());
         (*trampEmpty).back()->setBaseAddress(functionToRelocate->getBaseAddress()+currentByte);
         currentByte += (*trampEmpty).back()->getSizeInBytes();
     }
@@ -511,9 +512,9 @@ void ElfFileInst::generateInstrumentation(){
     uint64_t dataBaseAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr);
 
     InstrumentationSnippet* snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN];
-    snip->addSnippetInstruction(Instruction::generatePushEflags());
+    snip->addSnippetInstruction(InstructionGenerator::generatePushEflags());
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        snip->addSnippetInstruction(Instruction32::generateStackPush(i));
+        snip->addSnippetInstruction(InstructionGenerator32::generateStackPush(i));
     }
 
     // find the entry point of the program and put an instrumentation point for our initialization there
@@ -521,18 +522,13 @@ void ElfFileInst::generateInstrumentation(){
     BasicBlock* entryBlock = textSection->getBasicBlockAtAddress(elfFile->getFileHeader()->GET(e_entry));
     ASSERT(entryBlock && "Cannot find instruction at the program's entry point");
     
-    instrumentationPoints[INST_POINT_BOOTSTRAP1] = 
-        new InstrumentationPoint((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], SIZE_FIRST_INST_POINT, InstLocation_dont_care);    
-
-    /*
-    for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
-        if (!strcmp(textSection->getTextObject(i)->getName(),"_start")){
-            ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP1] && "Found more than one start function");
-            instrumentationPoints[INST_POINT_BOOTSTRAP1] = 
-                new InstrumentationPoint((Base*)textSection->getTextObject(i), instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], SIZE_FIRST_INST_POINT, InstLocation_dont_care);
-        }
+    if (elfFile->is64Bit()){
+        instrumentationPoints[INST_POINT_BOOTSTRAP1] = 
+            new InstrumentationPoint64((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], SIZE_FIRST_INST_POINT, InstLocation_dont_care);    
+    } else {
+        instrumentationPoints[INST_POINT_BOOTSTRAP1] = 
+            new InstrumentationPoint32((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], SIZE_FIRST_INST_POINT, InstLocation_dont_care);    
     }
-    */
     instrumentationPoints[INST_POINT_BOOTSTRAP1]->setPriority(InstPriority_datainit);
             
     uint64_t codeOffset = 0;
@@ -635,7 +631,7 @@ void ElfFileInst::generateInstrumentation(){
 
         repl = new Vector<Instruction*>();
         if (instrumentationPoints[i]->getNumberOfBytes() == SIZE_CONTROL_TRANSFER){
-            (*repl).append(Instruction::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
+            (*repl).append(InstructionGenerator::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
         } else {
             PRINT_ERROR("This size instrumentation point (%d) not supported", instrumentationPoints[i]->getNumberOfBytes());
         }
@@ -691,7 +687,7 @@ void ElfFileInst::generateInstrumentation(){
         }
 
         uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
-        pt->generateTrampoline(displaced,textBaseAddress,codeOffset,returnOffset,elfFile->is64Bit(),isLastInChain,dataBaseAddress+regStorageOffset);
+        pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, isLastInChain, dataBaseAddress + regStorageOffset);
         
         codeOffset += pt->sizeNeeded();
         if (!isLastInChain){
@@ -735,14 +731,14 @@ void ElfFileInst::generateInstrumentation(){
     snip->setCodeOffset(codeOffset);
 
     InstrumentationSnippet* beginBootstrap = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN];
-    Instruction* jumpToFinalBootstrap = Instruction::generateJumpRelative(beginBootstrap->getCodeOffset()+beginBootstrap->snippetSize(),bootstrapJumpTarget);
+    Instruction* jumpToFinalBootstrap = InstructionGenerator::generateJumpRelative(beginBootstrap->getCodeOffset()+beginBootstrap->snippetSize(),bootstrapJumpTarget);
     beginBootstrap->addSnippetInstruction(jumpToFinalBootstrap);
     
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        snip->addSnippetInstruction(Instruction32::generateStackPop(X86_32BIT_GPRS-i-1));
+        snip->addSnippetInstruction(InstructionGenerator32::generateStackPop(X86_32BIT_GPRS-i-1));
     }
-    snip->addSnippetInstruction(Instruction::generatePopEflags());
-    snip->addSnippetInstruction(Instruction::generateReturn());
+    snip->addSnippetInstruction(InstructionGenerator::generatePopEflags());
+    snip->addSnippetInstruction(InstructionGenerator::generateReturn());
 
     codeOffset += snip->snippetSize();
 
@@ -995,7 +991,12 @@ bool ElfFileInst::verify(){
 InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* inst, uint32_t sz){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");    
 
-    InstrumentationPoint* newpoint = new InstrumentationPoint(instpoint,inst,sz,InstLocation_dont_care);
+    InstrumentationPoint* newpoint;
+    if (elfFile->is64Bit()){
+        newpoint = new InstrumentationPoint64(instpoint,inst,sz,InstLocation_dont_care);
+    } else {
+        newpoint = new InstrumentationPoint32(instpoint,inst,sz,InstLocation_dont_care);
+    }
     bool canInstrument = true;
 
     // we do this for now, it prevents us from trying to instrument at the same address twice

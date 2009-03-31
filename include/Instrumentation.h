@@ -174,7 +174,7 @@ typedef enum {
 } InstPriorities;
 
 class InstrumentationPoint : public Base {
-private:
+protected:
     Base* point;
     Instrumentation* instrumentation;
 
@@ -206,10 +206,24 @@ public:
 
     uint32_t getNumberOfBytes() { return numberOfBytes; }
     uint32_t sizeNeeded();
-    uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool is64bit, bool doReloc, uint64_t regStorageOffset);
+    virtual uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset)
+         { __SHOULD_NOT_ARRIVE; }
     uint64_t getTrampolineOffset() { return trampolineOffset; }
 
     bool verify();
+};
+
+class InstrumentationPoint32 : public InstrumentationPoint {
+public:
+    InstrumentationPoint32(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc) :
+        InstrumentationPoint(pt, inst, size, loc) {}
+    uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset);
+};
+class InstrumentationPoint64 : public InstrumentationPoint {
+public:
+    InstrumentationPoint64(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc) :
+        InstrumentationPoint(pt, inst, size, loc) {}
+    uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset);
 };
 
 
