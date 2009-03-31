@@ -33,6 +33,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_FUNC_RELOC
 //#define DEBUG_JUMP_TABLE
 //#define DEBUG_POINT_CHAIN
+//#define DEBUG_LEAF_OPT
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -227,6 +228,15 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     fflush(stdout);
 #else
 #define PRINT_DEBUG_POINT_CHAIN(...)
+#endif
+
+#ifdef DEBUG_LEAF_OPT
+#define PRINT_DEBUG_LEAF_OPT(...) fprintf(stdout,"LEAF_OPT : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_LEAF_OPT(...)
 #endif
 
 

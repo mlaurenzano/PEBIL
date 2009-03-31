@@ -6,6 +6,8 @@
 #include <InstructionGenerator.h>
 #include <TextSection.h>
 
+#define OPTIMIZE_NONLEAF
+
 int compareSourceAddress(const void* arg1,const void* arg2){
     InstrumentationPoint* ip1 = *((InstrumentationPoint**)arg1);
     InstrumentationPoint* ip2 = *((InstrumentationPoint**)arg2);
@@ -471,59 +473,70 @@ uint32_t InstrumentationPoint::sizeNeeded(){
 }
 
 uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset,
-                                                    uint64_t returnOffset, bool doReloc, uint64_t regStorageBase){
+                                                    uint64_t returnOffset, bool doReloc, uint64_t regStorageBase, bool stackIsSafe){
     ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
 
     trampolineOffset = offset;
 
     uint32_t trampolineSize = 0;
 
-    // save eflags in a way that doesn't touch the stack, since this could corrupt the stack in the case of a leaf-optimized function
-    trampolineInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_DX, regStorageBase));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+#ifndef OPTIMIZE_NONLEAF
+    stackIsSafe = false;
+#endif
 
-    trampolineInstructions.append(InstructionGenerator32::generateMoveRegaddrImmToReg(X86_REG_SP, 0 - sizeof(uint32_t), X86_REG_DX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    if (!stackIsSafe){
+        // save eflags in a way that doesn't touch the stack, since this could corrupt the stack in the case of a leaf-optimized function
+        trampolineInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_DX, regStorageBase));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        
+        trampolineInstructions.append(InstructionGenerator32::generateMoveRegaddrImmToReg(X86_REG_SP, 0 - sizeof(uint32_t), X86_REG_DX));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
 
     trampolineInstructions.append(InstructionGenerator::generatePushEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    // nullify the trap flag in value of the flag reg that was stored on the stack
-    trampolineInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX, regStorageBase + sizeof(uint32_t)));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    if (!stackIsSafe){
+        // nullify the trap flag in value of the flag reg that was stored on the stack
+        trampolineInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX, regStorageBase + sizeof(uint32_t)));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator32::generateMoveRegaddrImmToReg(X86_REG_SP, 0, X86_REG_CX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        trampolineInstructions.append(InstructionGenerator32::generateMoveRegaddrImmToReg(X86_REG_SP, 0, X86_REG_CX));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator::generateAndImmReg(0xfffffeff, X86_REG_CX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        trampolineInstructions.append(InstructionGenerator::generateAndImmReg(0xfffffeff, X86_REG_CX));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator32::generateMoveRegToRegaddrImm(X86_REG_CX, X86_REG_SP, 0));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        trampolineInstructions.append(InstructionGenerator32::generateMoveRegToRegaddrImm(X86_REG_CX, X86_REG_SP, 0));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator32::generateMoveMemToReg(regStorageBase + sizeof(uint32_t), X86_REG_CX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        trampolineInstructions.append(InstructionGenerator32::generateMoveMemToReg(regStorageBase + sizeof(uint32_t), X86_REG_CX));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator32::generateRegSubImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        trampolineInstructions.append(InstructionGenerator32::generateRegSubImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
 
     PRINT_DEBUG_INST("Generating relative call for trampoline %#llx + %d, %#llx", offset, trampolineSize, getTargetOffset());
     trampolineInstructions.append(InstructionGenerator::generateCallRelative(offset+trampolineSize,getTargetOffset()));
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator32::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    if (!stackIsSafe){
+        trampolineInstructions.append(InstructionGenerator32::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
 
     // restore eflags
     trampolineInstructions.append(InstructionGenerator::generatePopEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator32::generateMoveRegToRegaddrImm(X86_REG_DX, X86_REG_SP, 0 - sizeof(uint32_t)));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-    trampolineInstructions.append(InstructionGenerator32::generateMoveMemToReg(regStorageBase, X86_REG_DX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
+    if (!stackIsSafe){
+        trampolineInstructions.append(InstructionGenerator32::generateMoveRegToRegaddrImm(X86_REG_DX, X86_REG_SP, 0 - sizeof(uint32_t)));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        
+        trampolineInstructions.append(InstructionGenerator32::generateMoveMemToReg(regStorageBase, X86_REG_DX));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
 
     uint64_t displacementDist = returnOffset - (offset + trampolineSize + numberOfBytes);
 
@@ -563,60 +576,71 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
 }
 
 uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, 
-                                                  uint64_t returnOffset, bool doReloc, uint64_t regStorageBase){
+                                                    uint64_t returnOffset, bool doReloc, uint64_t regStorageBase, bool stackIsSafe){
     ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
 
     trampolineOffset = offset;
 
     uint32_t trampolineSize = 0;
 
-    // save eflags in a way that doesn't touch the stack, since this could corrupt the stack in the case of a leaf-optimized function
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_DX, regStorageBase));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+#ifndef OPTIMIZE_NONLEAF
+    stackIsSafe = false;
+#endif
 
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegaddrImmToReg(X86_REG_SP, 0 - sizeof(uint64_t), X86_REG_DX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    if (!stackIsSafe){
+        // save eflags in a way that doesn't touch the stack, since this could corrupt the stack in the case of a leaf-optimized function
+        trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_DX, regStorageBase));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+
+        trampolineInstructions.append(InstructionGenerator64::generateMoveRegaddrImmToReg(X86_REG_SP, 0 - sizeof(uint64_t), X86_REG_DX));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
 
     trampolineInstructions.append(InstructionGenerator::generatePushEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    // clear the trap flag bit in value of the flag reg that was stored on the stack
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, regStorageBase + sizeof(uint64_t)));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    if (!stackIsSafe){
+        // clear the trap flag bit in value of the flag reg that was stored on the stack
+        trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, regStorageBase + sizeof(uint64_t)));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegaddrImmToReg(X86_REG_SP, 0, X86_REG_CX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        trampolineInstructions.append(InstructionGenerator64::generateMoveRegaddrImmToReg(X86_REG_SP, 0, X86_REG_CX));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        
+        trampolineInstructions.append(InstructionGenerator::generateAndImmReg(0xfffffeff, X86_REG_CX));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        
+        trampolineInstructions.append(InstructionGenerator64::generateMoveRegToRegaddrImm(X86_REG_CX, X86_REG_SP, 0));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator::generateAndImmReg(0xfffffeff, X86_REG_CX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase + sizeof(uint64_t), X86_REG_CX));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToRegaddrImm(X86_REG_CX, X86_REG_SP, 0));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-    trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase + sizeof(uint64_t), X86_REG_CX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-    // call the instrumentation snippet/function
-    trampolineInstructions.append(InstructionGenerator64::generateRegSubImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        // call the instrumentation snippet/function
+        trampolineInstructions.append(InstructionGenerator64::generateRegSubImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
 
     PRINT_DEBUG_INST("Generating relative call for trampoline %#llx + %d, %#llx", offset, trampolineSize, getTargetOffset());
     trampolineInstructions.append(InstructionGenerator::generateCallRelative(offset+trampolineSize,getTargetOffset()));
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator64::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    if (!stackIsSafe){
+        trampolineInstructions.append(InstructionGenerator64::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
 
     // restore eflags
     trampolineInstructions.append(InstructionGenerator::generatePopEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToRegaddrImm(X86_REG_DX, X86_REG_SP, 0 - sizeof(uint64_t)));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    if (!stackIsSafe){
+        trampolineInstructions.append(InstructionGenerator64::generateMoveRegToRegaddrImm(X86_REG_DX, X86_REG_SP, 0 - sizeof(uint64_t)));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase, X86_REG_DX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
+        trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase, X86_REG_DX));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
 
     uint64_t displacementDist = returnOffset - (offset + trampolineSize + numberOfBytes);
 

@@ -24,6 +24,8 @@ public:
     Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz);
     ~Function();
 
+    bool hasLeafOptimization();
+
     uint64_t getBadInstruction() { return badInstruction; }
     void setBadInstruction(uint64_t addr) { badInstruction = addr; }
 

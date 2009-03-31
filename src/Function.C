@@ -13,6 +13,21 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+bool Function::hasLeafOptimization(){
+    uint32_t numberOfInstructions = getNumberOfInstructions();
+    Instruction** allInstructions = new Instruction*[numberOfInstructions];
+    getAllInstructions(allInstructions,0);
+
+    bool callFound = false;
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (allInstructions[i]->isFunctionCall()){
+            callFound = true;
+        }
+    }
+    delete[] allInstructions;
+    return !callFound;
+}
+
 void Function::printDisassembly(bool instructionDetail){
     fprintf(stdout, "%llx <func -- %s>:", getBaseAddress(), getName());
     if (getBadInstruction()){

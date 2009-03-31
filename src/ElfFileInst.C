@@ -687,7 +687,17 @@ void ElfFileInst::generateInstrumentation(){
         }
 
         uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
-        pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, isLastInChain, dataBaseAddress + regStorageOffset);
+
+        bool stackIsSafe = false;
+        if (pt->getSourceObject()->getType() == ElfClassTypes_BasicBlock){
+            BasicBlock* bb = (BasicBlock*)pt->getSourceObject();
+            if (!bb->getFlowGraph()->getFunction()->hasLeafOptimization()){
+                PRINT_DEBUG_LEAF_OPT("Basic block at %#llx in function %s is safe from leaf optimization", bb->getBaseAddress(), bb->getFlowGraph()->getFunction()->getName());
+                stackIsSafe = true;
+            }
+        }
+
+        pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, isLastInChain, dataBaseAddress + regStorageOffset, true);
         
         codeOffset += pt->sizeNeeded();
         if (!isLastInChain){
