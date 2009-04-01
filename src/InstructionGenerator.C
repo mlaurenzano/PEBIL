@@ -1,18 +1,42 @@
 #include <InstructionGenerator.h>
 
+Instruction* InstructionGenerator32::generateAddImmByteToMem(uint8_t imm, uint64_t addr){
+    uint32_t len = 7;
+    char* buff = new char[len];
+
+    buff[0] = 0x83;
+    buff[1] = 0x05;
+
+    uint32_t addr32 = (uint32_t)addr;
+    ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the immediate");
+    memcpy(buff+2,&addr32,sizeof(uint32_t));
+    memcpy(buff+6,&imm,sizeof(uint8_t));
+
+    return generateInstructionBase(len,buff);
+}
+
 Instruction* InstructionGenerator::generateAndImmReg(uint64_t imm, uint32_t idx){
-    ASSERT(idx && idx < X86_32BIT_GPRS && "Illegal register index given");
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 6;
+    uint32_t immoff = 2;
+    if (idx == X86_REG_AX){
+        len--;
+        immoff--;
+    }
+
     char* buff = new char[len];
 
     // set opcode
     buff[0] = 0x81;
     buff[1] = 0xe0 + (char)(idx);
+    if (idx == X86_REG_AX){
+        buff[0] = 0x25;
+    }
 
     uint32_t imm32 = (uint32_t)imm;
     ASSERT(imm32 == (uint32_t)imm && "Cannot use more than 32 bits for the immediate");
 
-    memcpy(buff+2,&imm32,sizeof(uint32_t));
+    memcpy(buff+immoff,&imm32,sizeof(uint32_t));
 
     return generateInstructionBase(len,buff);
 }
@@ -697,18 +721,27 @@ Instruction* InstructionGenerator::generateMoveImmToReg(uint64_t imm, uint32_t i
 }
 
 Instruction* InstructionGenerator32::generateMoveRegToMem(uint32_t idx, uint64_t addr){
-    ASSERT(idx > 0 && idx < X86_32BIT_GPRS && "Illegal register index given");
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 6;
+    uint32_t immoff = 2;
+    if (idx == X86_REG_AX){
+        len--;
+        immoff--;
+    }
+
     char* buff = new char[len];
 
     // set opcode
     buff[0] = 0x89;
     buff[1] = 0x05 + 0x8*(char)idx;
+    if (idx == X86_REG_AX){
+        buff[0] = 0xa3;
+    }
 
     // set target address
     uint32_t addr32 = (uint32_t)addr;
     ASSERT(addr32 == addr && "Cannot use more than 32 bits for address");
-    memcpy(buff+2,&addr32,sizeof(uint32_t));
+    memcpy(buff+immoff,&addr32,sizeof(uint32_t));
 
     return generateInstructionBase(len,buff);
 }
@@ -733,18 +766,27 @@ Instruction* InstructionGenerator64::generateMoveRegToMem(uint32_t idx, uint64_t
 }
 
 Instruction* InstructionGenerator32::generateMoveMemToReg(uint64_t addr, uint32_t idx){
-    ASSERT(idx > 0 && idx < X86_32BIT_GPRS && "Illegal register index given");
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 6;
+    uint32_t immoff = 2;
+    if (idx == X86_REG_AX){
+        len--;
+        immoff--;
+    }
+
     char* buff = new char[len];
 
     // set opcode
     buff[0] = 0x8b;
     buff[1] = 0x05 + 0x8*(char)idx;
+    if(idx == X86_REG_AX){
+        buff[0] = 0xa1;
+    }
 
     // set target address
     uint32_t addr32 = (uint32_t)addr;
     ASSERT(addr32 == addr && "Cannot use more than 32 bits for address");
-    memcpy(buff+2,&addr32,sizeof(uint32_t));
+    memcpy(buff+immoff,&addr32,sizeof(uint32_t));
 
     return generateInstructionBase(len,buff);
 }

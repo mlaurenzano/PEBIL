@@ -17,8 +17,6 @@ class Instruction;
 #define Size__32_bit_function_wrapper 64
 #define Size__64_bit_function_wrapper 128
 
-#define BOOTSTRAP_BYTE_RATIO 11
-
 #define TRAMPOLINE_FRAME_AUTOINC_SIZE 0x1000
 
 extern int compareSourceAddress(const void* arg1,const void* arg2);
@@ -27,6 +25,8 @@ class Instrumentation : public Base {
 protected:
     Vector<Instruction*> bootstrapInstructions;
     uint64_t bootstrapOffset;
+
+    bool distinctTrampoline;
 public:
     Instrumentation(ElfClassTypes typ);
     ~Instrumentation();
@@ -36,6 +36,12 @@ public:
     virtual uint64_t getEntryPoint() { __SHOULD_NOT_ARRIVE; }
     virtual bool verify() { return true; }
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; } 
+
+    virtual Instruction* removeNextCoreInstruction() { __SHOULD_NOT_ARRIVE; }
+    virtual bool hasMoreCoreInstructions() { __SHOULD_NOT_ARRIVE; }
+
+    void setRequiresDistinctTrampoline(bool rdt) { distinctTrampoline = rdt; }
+    bool requiresDistinctTrampoline() { return distinctTrampoline; }
 
     uint32_t bootstrapSize();
     void setBootstrapOffset(uint64_t off) { bootstrapOffset = off; }
@@ -68,6 +74,9 @@ public:
     uint32_t generateSnippetControl();
 
     uint64_t getEntryPoint();
+
+    Instruction* removeNextCoreInstruction() { ASSERT(hasMoreCoreInstructions()); return snippetInstructions.remove(0); }
+    bool hasMoreCoreInstructions() { return (snippetInstructions.size() != 0); }
 
     uint32_t addSnippetInstruction(Instruction* inst);
     void setCodeOffset(uint64_t off) { snippetOffset = off; }
@@ -119,6 +128,9 @@ public:
     uint64_t getGlobalDataOffset() { return globalDataOffset; }
 
     void setRelocationOffset(uint64_t relocOffset) { relocationOffset = relocOffset; }
+
+    Instruction* removeNextCoreInstruction() { ASSERT(hasMoreCoreInstructions()); return wrapperInstructions.remove(0); }
+    bool hasMoreCoreInstructions() { return (wrapperInstructions.size() != 0); }
 
     virtual uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress) { __SHOULD_NOT_ARRIVE; }
     virtual uint32_t generateBootstrapInstructions(uint64_t textbaseAddress, uint64_t dataBaseAddress) { __SHOULD_NOT_ARRIVE; }
@@ -187,6 +199,9 @@ protected:
     InstPriorities priority;
 
 public:
+    STATS(static uint32_t countStackSafe);
+    STATS(static uint32_t countStackUnsafe);
+
     InstrumentationPoint(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc);
     ~InstrumentationPoint();
 

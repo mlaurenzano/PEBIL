@@ -7,6 +7,8 @@
 #include <Loop.h>
 #include <TextSection.h>
 
+//#define EMPTY_SNIPPET
+
 #define EXIT_FUNCTION "blockcounter"
 #define LIB_NAME "libcounter.so"
 #define NOINST_VALUE 0xffffffff
@@ -67,19 +69,19 @@ void BasicBlockCounter::instrument(){
     exitFunc->addArgument(counterArrayEntries,numberOfInstPoints);
 
     // an array of counters. note that everything is passed by reference
-    uint64_t counterArray = reserveDataOffset(numberOfInstPoints*sizeof(uint32_t));
+    uint64_t counterArray = reserveDataOffset(numberOfInstPoints * sizeof(uint32_t));
     exitFunc->addArgument(counterArray);
 
     // an array for line numbers
-    uint64_t lineArray = reserveDataOffset(numberOfInstPoints*sizeof(uint32_t));
+    uint64_t lineArray = reserveDataOffset(numberOfInstPoints * sizeof(uint32_t));
     exitFunc->addArgument(lineArray);
 
     // an array for file name pointers
-    uint64_t fileNameArray = reserveDataOffset(numberOfInstPoints*sizeof(char*));
+    uint64_t fileNameArray = reserveDataOffset(numberOfInstPoints * sizeof(char*));
     exitFunc->addArgument(fileNameArray);
 
     // an array for function name pointers
-    uint64_t funcNameArray = reserveDataOffset(numberOfInstPoints*sizeof(char*));
+    uint64_t funcNameArray = reserveDataOffset(numberOfInstPoints * sizeof(char*));
     exitFunc->addArgument(funcNameArray);
 
     Vector<InstrumentationPoint*>* allPoints = new Vector<InstrumentationPoint*>();
@@ -140,16 +142,22 @@ void BasicBlockCounter::instrument(){
         
         InstrumentationSnippet* snip = new InstrumentationSnippet();
         uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
-        
+
+#ifndef EMPTY_SNIPPET
+        snip->addSnippetInstruction(InstructionGenerator32::generateAddImmByteToMem(1, dataBaseAddress + counterOffset));
+
+        /*
         // save any registers used
-        snip->addSnippetInstruction(InstructionGenerator32::generateStackPush(X86_REG_CX));
+        snip->addSnippetInstruction(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX, dataBaseAddress + regStorageOffset + sizeof(uint64_t)));
                 
         // increment the counter for this function
-        snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(dataBaseAddress+counterOffset,X86_REG_CX));
-        snip->addSnippetInstruction(InstructionGenerator32::generateAddByteToRegaddr(1,X86_REG_CX));
+        snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(dataBaseAddress + counterOffset, X86_REG_CX));
+        snip->addSnippetInstruction(InstructionGenerator32::generateAddByteToRegaddr(1, X86_REG_CX));
         
         // restore the registers that were saved
-        snip->addSnippetInstruction(InstructionGenerator32::generateStackPop(X86_REG_CX));
+        snip->addSnippetInstruction(InstructionGenerator32::generateMoveMemToReg(dataBaseAddress + regStorageOffset + sizeof(uint64_t), X86_REG_CX));
+        */
+#endif
             
         // do not generate control instructions to get back to the application, this is done for
         // the snippet automatically during code generation

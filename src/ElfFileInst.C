@@ -27,13 +27,14 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
-// some common macros you can use to help debug
+// some common macros to help debug the instrumentation process
 //#define RELOC_MOD_OFF 1
 //#define RELOC_MOD 2
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define TURNOFF_CODE_BLOAT
-//#define SWAP_MOD_OFF 0
-//#define SWAP_MOD 128
+//#define SWAP_MOD_OFF 40
+//#define SWAP_MOD 64
+//#define SWAP_FUNCTION_ONLY "setSectionType"
 //#define TURNOFF_INSTRUCTION_SWAP
 //#define ANCHOR_SEARCH_BINARY
 
@@ -512,7 +513,7 @@ void ElfFileInst::generateInstrumentation(){
     uint64_t dataBaseAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr);
 
     InstrumentationSnippet* snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN];
-    snip->addSnippetInstruction(InstructionGenerator::generatePushEflags());
+    snip->setRequiresDistinctTrampoline(true);
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
         snip->addSnippetInstruction(InstructionGenerator32::generateStackPush(i));
     }
@@ -581,9 +582,26 @@ void ElfFileInst::generateInstrumentation(){
 
     snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN];
     snip->setCodeOffset(codeOffset);
-    uint64_t beginBootstrapOffset = codeOffset;
-    // leave room for a jump to be added on
-    codeOffset += snip->snippetSize() + SIZE_CONTROL_TRANSFER;
+    codeOffset += snip->snippetSize();
+
+    for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
+        InstrumentationFunction* func = instrumentationFunctions[i];
+        if (func){
+            func->setBootstrapOffset(codeOffset);
+            codeOffset += func->bootstrapReservedSize();
+        }
+    }
+
+    snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END];
+    snip->setRequiresDistinctTrampoline(true);
+    snip->setCodeOffset(codeOffset);
+
+    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
+        snip->addSnippetInstruction(InstructionGenerator32::generateStackPop(X86_32BIT_GPRS-i-1));
+    }
+    snip->addSnippetInstruction(InstructionGenerator::generateReturn());
+
+    codeOffset += snip->snippetSize();
 
     uint64_t returnOffset = 0;
     uint64_t chainOffset = 0;
@@ -602,7 +620,9 @@ void ElfFileInst::generateInstrumentation(){
         if (i % SWAP_MOD == SWAP_MOD_OFF){
             if (pt->getSourceObject()->getType() == ElfClassTypes_BasicBlock){
                 BasicBlock* bb = (BasicBlock*)pt->getSourceObject();
-                //                if (strstr(bb->getFunction()->getName(),"setSectionType")){
+#ifdef SWAP_FUNCTION_ONLY
+                if (strstr(bb->getFunction()->getName(), SWAP_FUNCTION_ONLY)){
+#endif
             PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx in %s", i, instrumentationPoints.size(), pt->getSourceObject()->getBaseAddress(), bb->getFunction()->getName());
 #endif
 
@@ -695,9 +715,22 @@ void ElfFileInst::generateInstrumentation(){
                 PRINT_DEBUG_LEAF_OPT("Basic block at %#llx in function %s is safe from leaf optimization", bb->getBaseAddress(), bb->getFlowGraph()->getFunction()->getName());
                 stackIsSafe = true;
             }
+        } else if (pt->getSourceObject()->getType() == ElfClassTypes_Function){
+            Function* fn = (Function*)pt->getSourceObject();
+            if (!fn->hasLeafOptimization()){
+                PRINT_DEBUG_LEAF_OPT("Function at %#llx in function %s is safe from leaf optimization", fn->getBaseAddress(), fn->getName());
+                stackIsSafe = true;
+            }
+        } else if (pt->getSourceObject()->getType() == ElfClassTypes_TextSection){
+            TextSection* ts = (TextSection*)pt->getSourceObject();
+            BasicBlock* bb = ts->getBasicBlockAtAddress(pt->getSourceAddress());
+            if (!bb->getFlowGraph()->getFunction()->hasLeafOptimization()){
+                PRINT_DEBUG_LEAF_OPT("Basic block at %#llx in function %s is safe from leaf optimization", bb->getBaseAddress(), bb->getFlowGraph()->getFunction()->getName());
+                stackIsSafe = true;
+            }
         }
 
-        pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, isLastInChain, dataBaseAddress + regStorageOffset, true);
+        pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, isLastInChain, dataBaseAddress + regStorageOffset, stackIsSafe);
         
         codeOffset += pt->sizeNeeded();
         if (!isLastInChain){
@@ -712,20 +745,12 @@ void ElfFileInst::generateInstrumentation(){
             delete displaced;
         }
 #ifdef SWAP_MOD
-        //                }
+#ifdef SWAP_FUNCTION_ONLY
+                }
+#endif
             }
         }
 #endif
-    }
-
-    // we can compute this snippet after instrumentation points because no instpoint will jump to it
-    uint64_t bootstrapJumpTarget = codeOffset;
-    for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
-        InstrumentationFunction* func = instrumentationFunctions[i];
-        if (func){
-            func->setBootstrapOffset(codeOffset);
-            codeOffset += func->bootstrapReservedSize();
-        }
     }
 
     for (uint32_t i = INST_SNIPPET_BOOTSTRAP_END + 1; i < instrumentationSnippets.size(); i++){        
@@ -736,21 +761,6 @@ void ElfFileInst::generateInstrumentation(){
             ASSERT(snip->bootstrapSize() == 0 && "Snippets should not require bootstrap code (for now)");
         }
     }
-
-    snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END];
-    snip->setCodeOffset(codeOffset);
-
-    InstrumentationSnippet* beginBootstrap = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN];
-    Instruction* jumpToFinalBootstrap = InstructionGenerator::generateJumpRelative(beginBootstrap->getCodeOffset()+beginBootstrap->snippetSize(),bootstrapJumpTarget);
-    beginBootstrap->addSnippetInstruction(jumpToFinalBootstrap);
-    
-    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        snip->addSnippetInstruction(InstructionGenerator32::generateStackPop(X86_32BIT_GPRS-i-1));
-    }
-    snip->addSnippetInstruction(InstructionGenerator::generatePopEflags());
-    snip->addSnippetInstruction(InstructionGenerator::generateReturn());
-
-    codeOffset += snip->snippetSize();
 
     STATS(textBytesUsed = codeOffset);
     STATS(dataBytesUsed = usableDataOffset);
@@ -776,6 +786,7 @@ void ElfFileInst::generateInstrumentation(){
     PRINT_DEBUG_ANCHOR("Still have %d anchors", addressAnchors.size());
 #endif
     STATS(gatherCoverageStats(true, "Coverage after relocation"));
+    STATS(PRINT_INFOR("___stats: %d instrumentation points are free of stack optimizations, %d points are not", InstrumentationPoint::countStackSafe , InstrumentationPoint::countStackUnsafe));
 
 }
 
@@ -1350,7 +1361,7 @@ void ElfFileInst::print(uint32_t printCodes){
         if (instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]){
             uint32_t bytesUsed = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]->snippetSize();
             ratio = (float)bytesUsed/(float)dataBytesInit;
-            STATS(PRINT_INFOR("___stats: Data Initialization: %d bytes to init, %d bytes to initialize for a ratio of 1:%.2f", dataBytesInit, bytesUsed, ratio));
+            STATS(PRINT_INFOR("___stats: Data Initialization: %lld bytes to init, %d bytes to initialize for a ratio of 1:%.2f", dataBytesInit, bytesUsed, ratio));
         }
 
     }

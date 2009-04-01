@@ -64,7 +64,6 @@ public:
 
     static Instruction* generateMoveRegToMem(uint32_t idx, uint64_t addr);
     static Instruction* generateMoveMemToReg(uint64_t addr, uint32_t idx);
-
 };
 
 class InstructionGenerator32 : public InstructionGenerator {
@@ -85,6 +84,8 @@ public:
 
     static Instruction* generateStoreEflagsToAH();
     static Instruction* generateLoadEflagsFromAH();
+
+    static Instruction* generateAddImmByteToMem(uint8_t, uint64_t);
 };
 
 #endif /* _InstructionGenerator_h_ */
