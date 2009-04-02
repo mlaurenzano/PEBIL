@@ -144,7 +144,8 @@ void BasicBlockCounter::instrument(){
         uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
 
 #ifndef EMPTY_SNIPPET
-        snip->addSnippetInstruction(InstructionGenerator32::generateAddImmByteToMem(1, dataBaseAddress + counterOffset));
+        //        snip->addSnippetInstruction(InstructionGenerator32::generateAddImmByteToMem(1, dataBaseAddress + counterOffset));
+        snip->addSnippetInstruction(InstructionGenerator64::generateAddImmByteToMem(1, dataBaseAddress + counterOffset));
 
         /*
         // save any registers used

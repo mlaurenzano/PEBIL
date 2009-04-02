@@ -1,5 +1,33 @@
 #include <InstructionGenerator.h>
 
+Instruction* InstructionGenerator32::generateStoreEflagsToAH(){
+    uint32_t len = 1;
+    char* buff = new char[len];
+    buff[0] = 0x9f;
+    return generateInstructionBase(len,buff);
+}
+
+Instruction* InstructionGenerator32::generateLoadEflagsFromAH(){
+    uint32_t len = 1;
+    char* buff = new char[len];
+    buff[0] = 0x9e;
+    return generateInstructionBase(len,buff);
+}
+
+Instruction* InstructionGenerator64::generateStoreEflagsToAH(){
+    uint32_t len = 1;
+    char* buff = new char[len];
+    buff[0] = 0x9f;
+    return generateInstructionBase(len,buff);
+}
+
+Instruction* InstructionGenerator64::generateLoadEflagsFromAH(){
+    uint32_t len = 1;
+    char* buff = new char[len];
+    buff[0] = 0x9e;
+    return generateInstructionBase(len,buff);
+}
+
 Instruction* InstructionGenerator32::generateAddImmByteToMem(uint8_t imm, uint64_t addr){
     uint32_t len = 7;
     char* buff = new char[len];
@@ -11,6 +39,22 @@ Instruction* InstructionGenerator32::generateAddImmByteToMem(uint8_t imm, uint64
     ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the immediate");
     memcpy(buff+2,&addr32,sizeof(uint32_t));
     memcpy(buff+6,&imm,sizeof(uint8_t));
+
+    return generateInstructionBase(len,buff);
+}
+
+Instruction* InstructionGenerator64::generateAddImmByteToMem(uint8_t imm, uint64_t addr){
+    uint32_t len = 8;
+    char* buff = new char[len];
+
+    buff[0] = 0x83;
+    buff[1] = 0x04;
+    buff[2] = 0x25;
+
+    uint32_t addr32 = (uint32_t)addr;
+    ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the immediate");
+    memcpy(buff+3,&addr32,sizeof(uint32_t));
+    memcpy(buff+7,&imm,sizeof(uint8_t));
 
     return generateInstructionBase(len,buff);
 }
@@ -117,20 +161,6 @@ Instruction* InstructionGenerator32::generateMoveRegaddrImmToReg(uint32_t idxsrc
     ASSERT(imm32 == (uint32_t)imm && "Cannot use more than 32 bits for the immediate");
     memcpy(buff+immoff,&imm32,sizeof(uint32_t));
 
-    return generateInstructionBase(len,buff);
-}
-
-Instruction* InstructionGenerator32::generateStoreEflagsToAH(){
-    uint32_t len = 1;
-    char* buff = new char[len];
-    buff[0] = 0x9f;
-    return generateInstructionBase(len,buff);
-}
-
-Instruction* InstructionGenerator32::generateLoadEflagsFromAH(){
-    uint32_t len = 1;
-    char* buff = new char[len];
-    buff[0] = 0x9e;
     return generateInstructionBase(len,buff);
 }
 

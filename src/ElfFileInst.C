@@ -32,8 +32,8 @@ uint32_t readBytes = 0;
 //#define RELOC_MOD 2
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define TURNOFF_CODE_BLOAT
-//#define SWAP_MOD_OFF 40
-//#define SWAP_MOD 64
+//#define SWAP_MOD_OFF 7168
+//#define SWAP_MOD 16384
 //#define SWAP_FUNCTION_ONLY "setSectionType"
 //#define TURNOFF_INSTRUCTION_SWAP
 //#define ANCHOR_SEARCH_BINARY
@@ -537,6 +537,10 @@ void ElfFileInst::generateInstrumentation(){
     uint32_t numberOfFunctions = exposedFunctions.size();
 #ifdef TURNOFF_FUNCTION_RELOCATION
     numberOfFunctions = 0;
+    PRINT_WARN(10,"Function relocated has been disabled by the macro TURNOFF_FUNCTION_RELOCATION");
+#endif
+#ifdef TURNOFF_INSTRUCTION_SWAP
+    PRINT_WARN(10,"Instruction swapping has been disabled by the macro TURNOFF_INSTRUCTION_SWAP");
 #endif
 
     for (uint32_t i = 0; i < numberOfFunctions; i++){
