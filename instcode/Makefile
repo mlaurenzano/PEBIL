@@ -32,7 +32,7 @@ TARGET_LIBS = libcounter.so libcounter.a
 all: $(TARGET_LIBS) install
 
 %.o: %.c 
-	$(CC) $(EXTRA_CFLGS) -I$(INCDIR) -c -o $@ $< 
+	$(CC) $(EXTRA_CFLGS) -I$(INCDIR) -c -o $@ $< $(SHARED_OPT)
 
 libcounter.so : $(OBJS)
 	$(CC) $(SHARED_LIB) -o $@ CounterFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
