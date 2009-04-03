@@ -1031,6 +1031,7 @@ void ElfFile::readProgramHeaders(){
 
     binaryInputFile.setInPointer(binaryInputFile.fileOffsetToPointer(fileHeader->GET(e_phoff)));
 
+    bool foundText = false, foundData = false;
     for (uint32_t i = 0; i < numberOfPrograms; i++){
         if(is64Bit()){
             programHeaders[i] = new ProgramHeader64(i);
@@ -1043,15 +1044,17 @@ void ElfFile::readProgramHeaders(){
 
         if (programHeaders[i]->GET(p_type) == PT_LOAD){
             if (programHeaders[i]->isReadable() && programHeaders[i]->isExecutable()){
+                foundText = true;
                 textSegmentIdx = i;
             } else if (programHeaders[i]->isReadable() && programHeaders[i]->isWritable()){
+                foundData = true;
                 dataSegmentIdx = i;
             }
         }
     }
 
-    ASSERT(textSegmentIdx && "This file must contain a text segment");
-    ASSERT(dataSegmentIdx && "This file must contain a data segment");
+    ASSERT(foundText && "This file must contain a text segment");
+    ASSERT(foundData && "This file must contain a data segment");
 }
 
 void ElfFile::readSectionHeaders(){

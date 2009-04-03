@@ -66,6 +66,24 @@ void SectionHeader::setSectionType(){
     case SHT_DYNSYM:
         sectionType = ElfClassTypes_SymbolTable;
         break;
+    case SHT_INIT_ARRAY:
+        sectionType = ElfClassTypes_no_type;
+        break;
+    case SHT_FINI_ARRAY:
+        sectionType = ElfClassTypes_no_type;
+        break;
+    case SHT_PREINIT_ARRAY:
+        sectionType = ElfClassTypes_no_type;
+        break;
+    case SHT_GROUP:
+        sectionType = ElfClassTypes_no_type;
+        break;
+    case SHT_SYMTAB_SHNDX:
+        sectionType = ElfClassTypes_no_type;
+        break;
+    case SHT_NUM:
+        sectionType = ElfClassTypes_no_type;
+        break;
     case SHT_GNU_LIBLIST:
         sectionType = ElfClassTypes_no_type;
         break;
@@ -80,7 +98,7 @@ void SectionHeader::setSectionType(){
         break;
     default:
         sectionType = ElfClassTypes_RawSection;
-        PRINT_ERROR("Unknown section type %d (%x)", GET(sh_type), GET(sh_type));
+        PRINT_ERROR("Unknown section type %d (%#x)", GET(sh_type), GET(sh_type));
     }
 }
 
