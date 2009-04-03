@@ -11,8 +11,6 @@ CC          = $(GNU_CC)
 EXTRA_CFLGS =
 AR          = ar ruv
 RANLIB      = ranlib
-#LINKER_FLGS = -Wl,--hash-style=sysv -Wl,-T,../linker/x86inst_ld_script__`hostname`
-LINKER_FLGS = -Wl,-T,../linker/x86inst_ld_script__`hostname`
 
 INCLUDE     = ../include
 SRCDIR      = ../src
@@ -32,10 +30,10 @@ OBJS  = AddressAnchor.o Base.o BasicBlock.o BasicBlockCounter.o BinaryFile.o Dis
 
 TARGET_BIN  = x86inst
 
-all: $(TARGET_BIN)
+all: $(TARGET_BIN) install
 
 $(TARGET_BIN) : $(OBJS)
-	$(CPP) -o $@ $(OBJS) $(CFLAGS) -I$(INCLUDE) $(EXTRA_LIBS) $(LINKER_FLGS)
+	$(CPP) -o $@ $(OBJS) $(CFLAGS) -I$(INCLUDE) $(EXTRA_LIBS) $(X86INST_LD_FLAGS)
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< -I$(INCLUDE) $(EXTRA_INC)
@@ -51,5 +49,8 @@ clean:
 
 depend:
 	g++ -E -MM -I$(INCLUDE) $(SRCS) > DEPENDS
+
+install:
+	cp $(TARGET_BIN) ../bin
 
 include DEPENDS

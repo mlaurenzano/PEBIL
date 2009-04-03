@@ -16,7 +16,7 @@
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 // debugging macros -- these can produce copious amounts of output
-#define WARNING_SEVERITY 6
+#define WARNING_SEVERITY 0
 //#define DEVELOPMENT
 //#define DEBUG_OPERAND
 //#define DEBUG_OPTARGET

@@ -59,6 +59,7 @@ void printUsage(bool shouldExt=true) {
     fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--ver [a-z]*]\n");
     fprintf(stderr,"\t[--lib <shared_lib_dir>]\n");
+    fprintf(stderr,"\t\tdefault is $X86INST_LIB\n");
     fprintf(stderr,"\t[--ext <output_suffix>]\n");
     fprintf(stderr,"\t[--dtl]\n");
     fprintf(stderr,"\t[--lpi]                     <-- valid for sim/csc\n");
@@ -289,7 +290,7 @@ int main(int argc,char* argv[]){
     }
 
     if(!libPath){
-        libPath = getenv("X86INST_LIB_HOME");
+        libPath = getenv("X86INST_LIB");
         if (!libPath){
             PRINT_ERROR("Error : use --lib option or define set the X86INST_LIB_HOME variable"); 
         }

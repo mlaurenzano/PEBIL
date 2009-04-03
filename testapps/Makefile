@@ -6,6 +6,7 @@ CC          = $(X86INST_CC)  $(OPT)
 CPP         = $(X86INST_CPP) $(OPT)
 F77         = $(X86INST_F77) $(OPT)
 LNK         = ld
+LINK_FLAGS  = $(X86INST_LD_FLAGS)
 
 SRCDIR      = ../test
 BINDIR      = ../src

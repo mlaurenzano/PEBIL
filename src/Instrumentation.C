@@ -9,7 +9,7 @@
 #define OPTIMIZE_NONLEAF
 // this optimization will not be valid on some old intel-based x64 systems that don't support lahf/sahf
 #define TRAMPOLINE_AVOIDS_STACK
-#define TRAMPOLINE_WITHOUT_CONTENT
+//#define TRAMPOLINE_WITHOUT_CONTENT
 #define SNIPPET_TRAMPOLINE_DEFAULT false
 
 STATS(uint32_t InstrumentationPoint::countStackSafe);

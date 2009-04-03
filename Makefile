@@ -5,6 +5,8 @@ SUBDIRS = linker testapps instcode src
 
 .PHONY: subdirs $(SUBDIRS)
 
+all: subdirs
+
 subdirs: $(SUBDIRS)
 
 $(SUBDIRS): 
@@ -27,3 +29,7 @@ depend:
 	$(MAKE) -C src depend
 	$(MAKE) -C testapps depend
 	$(MAKE) -C instcode depend
+
+
+
+

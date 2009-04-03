@@ -1,0 +1,14 @@
+1. Add the following to your shell login script.
+bash:
+X86INST_ROOT=/home/michaell/X86ElfInstrumentor
+X86INST_LIB=$X86INST_ROOT/lib
+X86INST_BIN=$X86INST_ROOT/bin
+X86INST_LD_FLAGS="-Wl,--hash-style=sysv -Wl,-T,$X86INST_ROOT/linker/x86inst_ld_script__"
+PATH=$PATH:$X86INST_BIN
+export X86INST_ROOT
+export X86INST_LIB
+export X86INST_BIN
+export X86INST_LD_FLAGS
+export PATH
+
+csh:
