@@ -12,6 +12,7 @@ EXTRA_CFLGS =
 AR          = ar ruv
 RANLIB      = ranlib
 
+
 INCLUDE     = ../include
 SRCDIR      = ../src
 BINDIR      = ../bin

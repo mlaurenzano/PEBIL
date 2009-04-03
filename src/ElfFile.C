@@ -453,9 +453,14 @@ void ElfFile::sortSectionHeaders(){
 
 void ElfFile::initSectionFilePointers(){
 
+    if (hashTable){
+        hashTable->initFilePointers();
+    } else {
+        PRINT_ERROR("Hash table not found. Is this binary statically linked?");
+    }
+
     ASSERT(hashTable && "Hash Table should exist");
-    hashTable->initFilePointers();
-    
+
     // find the string table for section names
     ASSERT(fileHeader->GET(e_shstrndx) && "No section name string table");
     for (uint32_t i = 0; i < numberOfStringTables; i++){

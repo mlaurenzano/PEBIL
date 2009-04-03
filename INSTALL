@@ -1,0 +1,40 @@
+A basic outline for how to install X86ElfInstrumentor.
+
+1. System Requirements
+Operating System        Linux
+Binary Format           Elf
+Architecture            IA32 or X64
+Other                   To call instrumentation functions from a shared library
+                        the system must have dynamic linking enabled. Also requires
+                        the gnu linker to be used.
+
+
+2. Add the following to your shell login script (assuming the installation is
+at /path/to/x86inst/)
+
+bash:
+X86INST_ROOT=/path/to/x86inst/X86ElfInstrumentor
+X86INST_LIB=$X86INST_ROOT/lib
+X86INST_BIN=$X86INST_ROOT/bin
+X86INST_LD_FLAGS="-Wl,--hash-style=sysv -Wl,-T,$X86INST_ROOT/linker/x86inst_ld_script__"
+PATH=$PATH:$X86INST_BIN
+export X86INST_ROOT
+export X86INST_LIB
+export X86INST_BIN
+export X86INST_LD_FLAGS
+export PATH
+
+csh:
+setenv X86INST_ROOT /path/to/x86inst/X86ElfInstrumentor
+setenv X86INST_LIB ${X86INST_ROOT}/lib
+setenv X86INST_BIN ${X86INST_ROOT}/bin
+setenv X86INST_LD_FLAGS "-Wl,--hash-style=sysv -Wl,-T,${X86INST_ROOT}/linker/x86inst_ld_script"
+setenv PATH ${PATH}:${X86INST_BIN}
+
+3. build 
+`gmake` from the top-level directory
+
+4. run
+Examples:
+x86inst --typ jbb --app testapps/dynTest.gnu
+x86inst --lib lib --typ ide src/x86inst
