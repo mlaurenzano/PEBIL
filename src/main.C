@@ -38,7 +38,7 @@ void printBriefOptions(){
     fprintf(stderr,"\t      : y : dynamic table\n");
     fprintf(stderr,"\t      : z : <none>\n");
     fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
-    fprintf(stderr,"\t        default is $X86INST_LIB_HOME\n");
+    fprintf(stderr,"\t        default is $X86INST_LIB\n");
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
     fprintf(stderr,"\t--dtl : optional for all. detailed .static file with lineno\n");
