@@ -16,8 +16,9 @@
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 // debugging macros -- these can produce copious amounts of output
-#define WARNING_SEVERITY 0
+#define WARNING_SEVERITY 6
 //#define DEVELOPMENT
+#define DEBUG_MEMTRACK
 //#define DEBUG_OPERAND
 //#define DEBUG_OPTARGET
 //#define DEBUG_OPCODE
@@ -103,6 +104,23 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 #define PRINT_OUT(...) fprintf(stdout,## __VA_ARGS__); \
     fflush(stdout);
+
+#ifdef DEBUG_MEMTRACK
+#include <MemTrack.h>
+#define PRINT_DEBUG_MEMTRACK(...) fprintf(stdout,"MEMTRACK : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#define PRINT_MEMTRACK_STATS(...) \
+    PRINT_DEBUG_MEMTRACK("-----------------------------------------------------------"); \
+    PRINT_DEBUG_MEMTRACK("Memory Stats @ line %d in file %s in function %s", ## __VA_ARGS__); \
+    MemTrack::TrackListMemoryUsage((double)1.00); \
+    PRINT_DEBUG_MEMTRACK("-----------------------------------------------------------");
+
+#else
+#define PRINT_DEBUG_MEMTRACK(...)
+#define PRINT_MEMTRACK_STATS(...)
+#endif
 
 #ifdef DEBUG_OPCODE
 #define PRINT_DEBUG_OPCODE(...) fprintf(stdout,"OPCODE : "); \

@@ -314,9 +314,14 @@ int main(int argc,char* argv[]){
         TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Loop    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
     }
 
+
     elfFile.verify();
 
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+
     STATS(elfFile.gatherDisassemblyStats());
+
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     if (verbose){
         elfFile.print(printCodes);
@@ -337,12 +342,18 @@ int main(int argc,char* argv[]){
         PRINT_ERROR("Error : invalid instrumentation type");
     }
 
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+
     if (elfInst){
         elfInst->setPathToInstLib(libPath);
+        PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
         elfInst->phasedInstrumentation();
+        PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
         elfInst->print(Print_Code_Instrumentation);
+        PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
         TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Instr   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
         elfInst->dump(extension);
+        PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
         TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Dump    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
         if (verbose){
             elfInst->print(printCodes);

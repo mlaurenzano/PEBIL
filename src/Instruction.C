@@ -63,6 +63,10 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
         PRINT_ERROR("Cannot find table base %#llx for this instruction", tableBase);
     }
     ASSERT(dataSection);
+    if (!dataSection->getSectionHeader()->hasBitsInFile()){
+        dataSection->getSectionHeader()->print();
+        return;
+    }
     ASSERT(dataSection->getSectionHeader()->hasBitsInFile());
 
     // read the first location to decide what type of info is stored in the jump table
@@ -121,7 +125,7 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
 uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions){
     ASSERT(isJumpTableBase() && "Cannot compute jump table base for this instruction");
 
-    uint64_t jumpOperand = operands[JUMP_TARGET_OPERAND].getValue();
+    uint64_t jumpOperand = operands[JUMP_TARGET_OPERAND]->getValue();
     PRINT_DEBUG_JUMP_TABLE("Finding jump table base address for instruction at %#llx", baseAddress);
 
     // jump target is a register
@@ -144,15 +148,17 @@ uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionIns
                     bool jumpOpFound = false;
                     uint64_t immediate = 0;
                     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-                        Operand op = previousInstruction->getOperand(i);
-                        if (op.getType() && op.getValue() == jumpOperand){
-                            jumpOpFound = true;
-                        }
-                        if (op.getType() && op.getValue() >= X86_64BIT_GPRS){
-                            immediate = op.getValue();
-                        }
-                        if (previousInstruction->usesRelativeAddress()){
-                            immediate = previousInstruction->getRelativeValue() + previousInstruction->getBaseAddress() + previousInstruction->getSizeInBytes();
+                        Operand* op = previousInstruction->getOperand(i);
+                        if (op){
+                            if (op->getType() && op->getValue() == jumpOperand){
+                                jumpOpFound = true;
+                            }
+                            if (op->getType() && op->getValue() >= X86_64BIT_GPRS){
+                                immediate = op->getValue();
+                            }
+                            if (previousInstruction->usesRelativeAddress()){
+                                immediate = previousInstruction->getRelativeValue() + previousInstruction->getBaseAddress() + previousInstruction->getSizeInBytes();
+                            }
                         }
                     }
                     if (jumpOpFound && immediate){
@@ -171,10 +177,10 @@ uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionIns
     } 
     // jump target is a memory location
     else {
-        if (!textSection->getElfFile()->findDataSectionAtAddr(operands[JUMP_TARGET_OPERAND].getValue())){
+        if (!textSection->getElfFile()->findDataSectionAtAddr(operands[JUMP_TARGET_OPERAND]->getValue())){
             return 0;
         }
-        return operands[JUMP_TARGET_OPERAND].getValue();
+        return operands[JUMP_TARGET_OPERAND]->getValue();
     }
     return 0;
 }
@@ -205,7 +211,7 @@ bool Operand::isIndirect(){
 uint32_t Instruction::bytesUsedForTarget(){
     if (isControl()){
         if (isUnconditionalBranch() || isConditionalBranch() || isFunctionCall()){
-            return operands[JUMP_TARGET_OPERAND].getBytesUsed();
+            return operands[JUMP_TARGET_OPERAND]->getBytesUsed();
         } else {
             return 0;
         }
@@ -235,7 +241,7 @@ uint32_t Instruction::convertTo4ByteOperand(){
             uint32_t addr = baseAddress - getTargetAddress();
             memcpy(newBytes+1,&addr,sizeof(uint32_t));
             setBytes(newBytes);
-            operands[JUMP_TARGET_OPERAND].setBytesUsed(sizeof(uint32_t));
+            operands[JUMP_TARGET_OPERAND]->setBytesUsed(sizeof(uint32_t));
             delete[] newBytes;
         } else if (isConditionalBranch()){
             if (sizeInBytes != 2){
@@ -255,8 +261,8 @@ uint32_t Instruction::convertTo4ByteOperand(){
             uint32_t addr = baseAddress - getTargetAddress();
             memcpy(newBytes+2,&addr,sizeof(uint32_t));
             setBytes(newBytes);
-            operands[JUMP_TARGET_OPERAND].setBytesUsed(sizeof(uint32_t));
-            operands[JUMP_TARGET_OPERAND].setBytePosition(operands[JUMP_TARGET_OPERAND].getBytePosition()+1);
+            operands[JUMP_TARGET_OPERAND]->setBytesUsed(sizeof(uint32_t));
+            operands[JUMP_TARGET_OPERAND]->setBytePosition(operands[JUMP_TARGET_OPERAND]->getBytePosition()+1);
             delete[] newBytes;
         } else if (isFunctionCall()){
             __FUNCTION_NOT_IMPLEMENTED;
@@ -278,8 +284,10 @@ uint32_t Instruction::convertTo4ByteOperand(){
 bool Instruction::verify(){
     uint32_t relCount = 0;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i].isRelative()){
-            relCount++;
+        if (operands[i]){
+            if (operands[i]->isRelative()){
+                relCount++;
+            }
         }
     }
     if (relCount > 1){
@@ -307,8 +315,10 @@ bool Instruction::verify(){
 
 bool Instruction::usesIndirectAddress(){
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i].getType() && operands[i].isIndirect()){
-            return true;
+        if (operands[i]){
+            if (operands[i]->getType() && operands[i]->isIndirect()){
+                return true;
+            }
         }
     }
     return false;        
@@ -316,8 +326,10 @@ bool Instruction::usesIndirectAddress(){
 
 bool Instruction::usesRelativeAddress(){
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i].getType() && operands[i].isRelative()){
-            return true;
+        if (operands[i]){
+            if (operands[i]->getType() && operands[i]->isRelative()){
+                return true;
+            }
         }
     }
     return false;    
@@ -325,8 +337,10 @@ bool Instruction::usesRelativeAddress(){
 
 uint64_t Instruction::getRelativeValue(){
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i].getType() && operands[i].isRelative()){
-            return operands[i].getValue();
+        if (operands[i]){
+            if (operands[i]->getType() && operands[i]->isRelative()){
+                return operands[i]->getValue();
+            }
         }
     }
     return 0;
@@ -349,7 +363,7 @@ uint64_t Instruction::getProgramAddress(){
     return programAddress;
 }
 
-ByteSources Instruction::getByteSource(){
+uint8_t Instruction::getByteSource(){
     return source;
 }
 
@@ -359,7 +373,7 @@ bool Instruction::isNoop(){
 
 bool Instruction::isIndirectBranch(){
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i].getType() == x86_operand_type_func_indirE){
+        if (operands[i]->getType() == x86_operand_type_func_indirE){
             return true;
         }
     }
@@ -369,8 +383,8 @@ bool Instruction::isIndirectBranch(){
 uint32_t Instruction::getIndirectBranchTarget(){
     ASSERT(isIndirectBranch());
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i].getType() == x86_operand_type_func_indirE){
-            return operands[i].getValue();
+        if (operands[i]->getType() == x86_operand_type_func_indirE){
+            return operands[i]->getValue();
         }
     }
     __SHOULD_NOT_ARRIVE;
@@ -424,34 +438,43 @@ Operand::Operand(uint32_t typ, uint64_t val, uint32_t idx){
     index = idx;
 }
 
-void Operand::setBytesUsed(uint32_t usd){
+void Operand::setBytesUsed(uint8_t usd){
     ASSERT(usd == sizeof(uint32_t) || usd == sizeof(uint16_t) || usd == sizeof(uint8_t));
     bytesUsed = usd;
 }
 
 void Instruction::setOperandValue(uint32_t idx, uint64_t value){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    operands[idx].setValue(value);
+    if (!operands[idx]){
+        operands[idx] = new Operand(idx);
+    }
+    operands[idx]->setValue(value);
 }
 
-void Instruction::setOperandType(uint32_t idx, uint32_t typ){
+void Instruction::setOperandType(uint32_t idx, uint8_t typ){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    operands[idx].setType(typ);
+    if (!operands[idx]){
+        operands[idx] = new Operand(idx);
+    }
+    operands[idx]->setType(typ);
 }
 
-void Instruction::setOperandBytePosition(uint32_t idx, uint32_t pos){
+void Instruction::setOperandBytePosition(uint32_t idx, uint8_t pos){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    operands[idx].setBytePosition(pos);
+    ASSERT(operands[idx]);
+    operands[idx]->setBytePosition(pos);
 }
 
-void Instruction::setOperandBytesUsed(uint32_t idx, uint32_t usd){
+void Instruction::setOperandBytesUsed(uint32_t idx, uint8_t usd){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    operands[idx].setBytesUsed(usd);
+    ASSERT(operands[idx]);
+    operands[idx]->setBytesUsed(usd);
 }
 
 void Instruction::setOperandRelative(uint32_t idx, bool rel){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    operands[idx].setRelative(rel);
+    ASSERT(operands[idx]);
+    operands[idx]->setRelative(rel);
 }
 
 uint64_t Instruction::getTargetAddress(){
@@ -459,11 +482,15 @@ uint64_t Instruction::getTargetAddress(){
     if (instructionType == x86_insn_type_branch ||
         instructionType == x86_insn_type_cond_branch ||
         instructionType == x86_insn_type_call){
-        if (operands[JUMP_TARGET_OPERAND].getType() == x86_operand_type_immrel){
-            nextAddress = getBaseAddress() + operands[JUMP_TARGET_OPERAND].getValue();
-            PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx", nextAddress,  getBaseAddress(), operands[JUMP_TARGET_OPERAND].getValue());
+        if (operands[JUMP_TARGET_OPERAND]){
+            if (operands[JUMP_TARGET_OPERAND]->getType() == x86_operand_type_immrel){
+                nextAddress = getBaseAddress() + operands[JUMP_TARGET_OPERAND]->getValue();
+                PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx", nextAddress,  getBaseAddress(), operands[JUMP_TARGET_OPERAND]->getValue());
+            } else {
+                nextAddress = operands[JUMP_TARGET_OPERAND]->getValue();
+            }
         } else {
-            nextAddress = operands[JUMP_TARGET_OPERAND].getValue();
+            nextAddress = 0;
         }
     } else if (instructionType == x86_insn_type_syscall){
         nextAddress = 0;
@@ -517,7 +544,7 @@ uint64_t Instruction::findInstrumentationPoint(uint32_t size, InstLocations loc)
     __SHOULD_NOT_ARRIVE;
 }
 
-Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, ByteSources src, uint32_t idx)
+Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx)
     : Base(ElfClassTypes_Instruction)
 {
     textSection = text;
@@ -530,13 +557,15 @@ Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, ByteS
     instructionType = x86_insn_type_unknown;
     leader = false;
 
+    operands = new Operand*[MAX_OPERANDS];
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        operands[i] = NULL;
+        //        operands[i] = new Operand(i);
+    }
+
     programAddress = 0;
     if (IS_BYTE_SOURCE_APPLICATION(source)){
         programAddress = baseAddress;
-    }
-
-    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        operands[i] = Operand(i);
     }
 
     sizeInBytes = Base::disassembler->disassemble((uint64_t)buff, this);
@@ -562,8 +591,10 @@ Instruction::Instruction()
 
     programAddress = 0;
 
+    operands = new Operand*[MAX_OPERANDS];
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        operands[i] = Operand(i);
+        operands[i] = NULL;
+        //        operands[i] = new Operand(i);
     }
 
     addressAnchor = NULL;
@@ -597,15 +628,11 @@ void Instruction::setSizeInBytes(uint32_t len){
     sizeInBytes = len;
 }
 
-void Instruction::setDisassembledString(char* disStr){
-    strncpy(disassembledString, disStr, strlen(disStr));
-}
-
 uint64_t Instruction::getBaseAddress(){
     return baseAddress;
 }
 
-Operand Instruction::getOperand(uint32_t idx){
+Operand* Instruction::getOperand(uint32_t idx){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
     return operands[idx];
 }
@@ -713,8 +740,8 @@ void Instruction::print(){
     }
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i].getType()){
-            operands[i].print();
+        if (operands[i]->getType()){
+            operands[i]->print();
         }
     }
 }

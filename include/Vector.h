@@ -60,7 +60,7 @@ public:
         return numberOfElements;
     }
 
-    T* operator&(){ return elements; }
+    inline T* operator&(){ return elements; }
     uint32_t getCapacity() { return capacity; }
     uint32_t size() { return numberOfElements; }
     bool empty(){ return (numberOfElements == 0); }

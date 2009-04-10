@@ -107,19 +107,21 @@ void AddressAnchor::dumpDataReference(BinaryOutputFile* binaryOutputFile, uint32
 void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     Instruction* linkedInstruction = (Instruction*)linkedParent;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        Operand op = linkedInstruction->getOperand(i);
-        if (op.isRelative()){
-            if (op.getBytesUsed() == sizeof(uint8_t)){
-                dump8(binaryOutputFile, offset + op.getBytePosition());
-            } else if (op.getBytesUsed() == sizeof(uint16_t)){
-                dump16(binaryOutputFile, offset + op.getBytePosition());
-            } else if (op.getBytesUsed() == sizeof(uint32_t)){
-                dump32(binaryOutputFile, offset + op.getBytePosition());
-            } else if (op.getBytesUsed() == sizeof(uint64_t)){
-                dump64(binaryOutputFile, offset + op.getBytePosition());
-            } else {
-                PRINT_ERROR("an operand cannot use %d bytes", op.getBytesUsed());
-                __SHOULD_NOT_ARRIVE;
+        Operand* op = linkedInstruction->getOperand(i);
+        if (op){
+            if (op->isRelative()){
+                if (op->getBytesUsed() == sizeof(uint8_t)){
+                    dump8(binaryOutputFile, offset + op->getBytePosition());
+                } else if (op->getBytesUsed() == sizeof(uint16_t)){
+                    dump16(binaryOutputFile, offset + op->getBytePosition());
+                } else if (op->getBytesUsed() == sizeof(uint32_t)){
+                    dump32(binaryOutputFile, offset + op->getBytePosition());
+                } else if (op->getBytesUsed() == sizeof(uint64_t)){
+                    dump64(binaryOutputFile, offset + op->getBytePosition());
+                } else {
+                    PRINT_ERROR("an operand cannot use %d bytes", op->getBytesUsed());
+                    __SHOULD_NOT_ARRIVE;
+                }
             }
         }
     }

@@ -25,6 +25,8 @@ BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
 void BasicBlockCounter::instrument(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
     
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+
     // declare any shared library that will contain instrumentation functions
     declareLibrary(LIB_NAME);
 
@@ -60,6 +62,8 @@ void BasicBlockCounter::instrument(){
             allLineInfos.append(lineInfoFinder->lookupLineInfo(f->getBasicBlock(j)));
         }
     }
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+
     ASSERT(!allLineInfos.size() || allBlocks.size() == allLineInfos.size());
     uint32_t numberOfInstPoints = allBlocks.size();
 
@@ -84,6 +88,7 @@ void BasicBlockCounter::instrument(){
     uint64_t funcNameArray = reserveDataOffset(numberOfInstPoints * sizeof(char*));
     exitFunc->addArgument(funcNameArray);
 
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     Vector<InstrumentationPoint*>* allPoints = new Vector<InstrumentationPoint*>();
     if (fini->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
         InstrumentationPoint* p = addInstrumentationPoint(fini,exitFunc,SIZE_CONTROL_TRANSFER);
@@ -120,11 +125,22 @@ void BasicBlockCounter::instrument(){
     uint32_t trapCount = 0;
     uint32_t jumpCount = 0;
 
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+#ifdef DEBUG_MEMTRACK
+    PRINT_DEBUG_MEMTRACK("There are %d instrumentation points", numberOfInstPoints);
+#endif
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
+
         BasicBlock* bb = allBlocks[i];
         LineInfo* li = allLineInfos[i];
         Function* f = bb->getFunction();
 
+#ifdef DEBUG_MEMTRACK
+        if (i % 1000 == 0){
+            PRINT_DEBUG_MEMTRACK("inst point %d", i);
+            PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);            
+        }
+#endif
         if (li){
             uint32_t line = li->GET(lr_line);
             initializeReservedData(dataBaseAddress+lineArray+sizeof(uint32_t)*i,sizeof(uint32_t),&line);
@@ -198,6 +214,7 @@ void BasicBlockCounter::instrument(){
                 bb->getNumberOfInstructions(), fileName, lineNo, bb->getFunction()->getName(), loopCount, loopId, loopDepth, 
                 bb->getHashCode().getValue(), bb->getBaseAddress(), bb->getNumberOfLoads(), bb->getNumberOfStores());
     }
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     fclose(staticFD);
 

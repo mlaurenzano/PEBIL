@@ -28,15 +28,15 @@ uint32_t readBytes = 0;
 );
 
 // some common macros to help debug the instrumentation process
-//#define RELOC_MOD_OFF 1
-//#define RELOC_MOD 2
+//#define RELOC_MOD_OFF 111
+//#define RELOC_MOD 128
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define TURNOFF_CODE_BLOAT
 //#define SWAP_MOD_OFF 7168
 //#define SWAP_MOD 16384
 //#define SWAP_FUNCTION_ONLY "setSectionType"
 //#define TURNOFF_INSTRUCTION_SWAP
-//#define ANCHOR_SEARCH_BINARY
+#define ANCHOR_SEARCH_BINARY
 
 
 void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
@@ -218,7 +218,6 @@ uint32_t ElfFileInst::anchorProgramElements(){
     for (uint32_t i = 0; i < elfFile->getNumberOfTextSections(); i++){
         instructionCount += elfFile->getTextSection(i)->getAllInstructions(allInstructions, instructionCount);
     }
-
     qsort(allInstructions, instructionCount, sizeof(Instruction*), compareBaseAddress);
 
 #ifdef DEBUG_ANCHOR
@@ -424,7 +423,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
         addressAnchors[i]->print();
     }
 #endif
-    
+
     delete[] allInstructions;
     return anchorCount;
 }
@@ -910,8 +909,12 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(fini && text->getType() == ElfClassTypes_TextSection && "Cannot find the fini section");
     ASSERT(init && text->getType() == ElfClassTypes_TextSection && "Cannot find the init section");
 
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+
     ASSERT(elfFile->getFileHeader()->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
     elfFile->getFileHeader()->SET(e_flags,EFINSTSTATUS_MOD);
+
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     // choose the set of functions to expose to the instrumentation tool
     PRINT_DEBUG_FUNC_RELOC("Choosing from %d functions", text->getNumberOfTextObjects()+fini->getNumberOfTextObjects()+init->getNumberOfTextObjects());
@@ -942,6 +945,7 @@ void ElfFileInst::phasedInstrumentation(){
         }
     }
 
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
@@ -949,12 +953,14 @@ void ElfFileInst::phasedInstrumentation(){
     extendTextSection(0x4000000);
     extendDataSection(0x2000000);
 
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
     instrument();
 
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c UsrResrv : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;
@@ -971,6 +977,7 @@ void ElfFileInst::phasedInstrumentation(){
         addFunction(instrumentationFunctions[i]);
     }
 
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c Control  : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;
@@ -978,6 +985,7 @@ void ElfFileInst::phasedInstrumentation(){
 
     generateInstrumentation();
 
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c Generate : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;

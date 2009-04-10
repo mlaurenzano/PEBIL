@@ -1,40 +1,41 @@
 AddressAnchor.o: AddressAnchor.C ../include/AddressAnchor.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/BinaryFile.h ../include/Instruction.h ../include/Vector.h \
-  ../include/RawSection.h
+  ../include/MemTrack.h ../include/BinaryFile.h ../include/Instruction.h \
+  ../include/Vector.h ../include/RawSection.h
 Base.o: Base.C ../include/Base.h ../include/CStructuresElf.h \
-  ../include/CStructuresDwarf.h ../include/CStructuresX86.h
+  ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
+  ../include/MemTrack.h
 BasicBlock.o: BasicBlock.C ../include/BasicBlock.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/BitSet.h ../include/FlowGraph.h \
-  ../include/Function.h ../include/Instruction.h ../include/Vector.h \
-  ../include/TextSection.h ../include/RawSection.h \
+  ../include/CStructuresX86.h ../include/MemTrack.h ../include/BitSet.h \
+  ../include/FlowGraph.h ../include/Function.h ../include/Instruction.h \
+  ../include/Vector.h ../include/TextSection.h ../include/RawSection.h \
   ../include/LinkedList.h ../include/ElfFileInst.h ../include/ElfFile.h \
   ../include/BinaryFile.h ../include/InstructionGenerator.h
 BasicBlockCounter.o: BasicBlockCounter.C ../include/BasicBlock.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/BitSet.h ../include/FlowGraph.h ../include/Function.h \
-  ../include/Instruction.h ../include/Vector.h ../include/TextSection.h \
-  ../include/RawSection.h ../include/LinkedList.h \
-  ../include/BasicBlockCounter.h ../include/ElfFileInst.h \
-  ../include/ElfFile.h ../include/BinaryFile.h \
+  ../include/MemTrack.h ../include/BitSet.h ../include/FlowGraph.h \
+  ../include/Function.h ../include/Instruction.h ../include/Vector.h \
+  ../include/TextSection.h ../include/RawSection.h \
+  ../include/LinkedList.h ../include/BasicBlockCounter.h \
+  ../include/ElfFileInst.h ../include/ElfFile.h ../include/BinaryFile.h \
   ../include/Instrumentation.h ../include/InstructionGenerator.h \
   ../include/LineInformation.h ../include/defines/LineInformation.d \
   ../include/Loop.h
 BinaryFile.o: BinaryFile.C ../include/BinaryFile.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/ElfFile.h
+  ../include/CStructuresX86.h ../include/MemTrack.h ../include/ElfFile.h
 Disassembler.o: Disassembler.C ../include/Disassembler.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/ElfFile.h ../include/BinaryFile.h ../include/Instruction.h \
-  ../include/Vector.h
+  ../include/MemTrack.h ../include/ElfFile.h ../include/BinaryFile.h \
+  ../include/Instruction.h ../include/Vector.h
 DynamicTable.o: DynamicTable.C ../include/DynamicTable.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/RawSection.h ../include/Vector.h \
+  ../include/MemTrack.h ../include/RawSection.h ../include/Vector.h \
   ../include/defines/DynamicTable.d ../include/BinaryFile.h \
   ../include/ElfFile.h ../include/HashTable.h \
   ../include/RelocationTable.h ../include/defines/RelocationTable.d \
@@ -43,16 +44,16 @@ DynamicTable.o: DynamicTable.C ../include/DynamicTable.h \
 DwarfSection.o: DwarfSection.C ../include/DwarfSection.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/RawSection.h ../include/Vector.h \
+  ../include/MemTrack.h ../include/RawSection.h ../include/Vector.h \
   ../include/defines/LineInformation.d ../include/BinaryFile.h \
   ../include/LineInformation.h ../include/SectionHeader.h \
   ../include/defines/SectionHeader.d
 ElfFile.o: ElfFile.C ../include/ElfFile.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/BinaryFile.h \
-  ../include/BasicBlock.h ../include/BitSet.h ../include/FlowGraph.h \
-  ../include/Function.h ../include/Instruction.h ../include/Vector.h \
-  ../include/TextSection.h ../include/RawSection.h \
+  ../include/CStructuresX86.h ../include/MemTrack.h \
+  ../include/BinaryFile.h ../include/BasicBlock.h ../include/BitSet.h \
+  ../include/FlowGraph.h ../include/Function.h ../include/Instruction.h \
+  ../include/Vector.h ../include/TextSection.h ../include/RawSection.h \
   ../include/LinkedList.h ../include/Disassembler.h \
   ../include/DwarfSection.h ../include/defines/LineInformation.d \
   ../include/DynamicTable.h ../include/defines/DynamicTable.d \
@@ -67,7 +68,7 @@ ElfFile.o: ElfFile.C ../include/ElfFile.h ../include/Base.h \
   ../include/SymbolTable.h ../include/defines/SymbolTable.d
 ElfFileInst.o: ElfFileInst.C ../include/ElfFileInst.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/ElfFile.h \
+  ../include/CStructuresX86.h ../include/MemTrack.h ../include/ElfFile.h \
   ../include/BinaryFile.h ../include/Instruction.h ../include/Vector.h \
   ../include/AddressAnchor.h ../include/BasicBlock.h ../include/BitSet.h \
   ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
@@ -85,55 +86,59 @@ ElfFileInst.o: ElfFileInst.C ../include/ElfFileInst.h ../include/Base.h \
   ../include/defines/SymbolTable.d
 FileHeader.o: FileHeader.C ../include/FileHeader.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/defines/FileHeader.d \
-  ../include/BinaryFile.h
+  ../include/CStructuresX86.h ../include/MemTrack.h \
+  ../include/defines/FileHeader.d ../include/BinaryFile.h
 FlowGraph.o: FlowGraph.C ../include/FlowGraph.h ../include/BitSet.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/Function.h ../include/Instruction.h ../include/Vector.h \
-  ../include/TextSection.h ../include/RawSection.h \
+  ../include/MemTrack.h ../include/Function.h ../include/Instruction.h \
+  ../include/Vector.h ../include/TextSection.h ../include/RawSection.h \
   ../include/LinkedList.h ../include/BasicBlock.h \
   ../include/ElfFileInst.h ../include/ElfFile.h ../include/BinaryFile.h \
   ../include/LengauerTarjan.h ../include/Loop.h ../include/Stack.h
 Function.o: Function.C ../include/Function.h ../include/BitSet.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/Instruction.h ../include/Vector.h ../include/TextSection.h \
-  ../include/RawSection.h ../include/BasicBlock.h ../include/FlowGraph.h \
-  ../include/LinkedList.h ../include/BinaryFile.h \
-  ../include/Disassembler.h ../include/ElfFile.h ../include/ElfFileInst.h \
-  ../include/LengauerTarjan.h ../include/SectionHeader.h \
-  ../include/defines/SectionHeader.d ../include/Stack.h \
-  ../include/SymbolTable.h ../include/defines/SymbolTable.d
+  ../include/MemTrack.h ../include/Instruction.h ../include/Vector.h \
+  ../include/TextSection.h ../include/RawSection.h \
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/LinkedList.h \
+  ../include/BinaryFile.h ../include/Disassembler.h ../include/ElfFile.h \
+  ../include/ElfFileInst.h ../include/LengauerTarjan.h \
+  ../include/SectionHeader.h ../include/defines/SectionHeader.d \
+  ../include/Stack.h ../include/SymbolTable.h \
+  ../include/defines/SymbolTable.d
 FunctionCounter.o: FunctionCounter.C ../include/BasicBlock.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/BitSet.h ../include/FlowGraph.h ../include/Function.h \
-  ../include/Instruction.h ../include/Vector.h ../include/TextSection.h \
-  ../include/RawSection.h ../include/LinkedList.h \
-  ../include/FunctionCounter.h ../include/ElfFileInst.h \
-  ../include/ElfFile.h ../include/BinaryFile.h \
+  ../include/MemTrack.h ../include/BitSet.h ../include/FlowGraph.h \
+  ../include/Function.h ../include/Instruction.h ../include/Vector.h \
+  ../include/TextSection.h ../include/RawSection.h \
+  ../include/LinkedList.h ../include/FunctionCounter.h \
+  ../include/ElfFileInst.h ../include/ElfFile.h ../include/BinaryFile.h \
   ../include/Instrumentation.h ../include/InstructionGenerator.h \
   ../include/LineInformation.h ../include/defines/LineInformation.d
 GlobalOffsetTable.o: GlobalOffsetTable.C ../include/GlobalOffsetTable.h \
   ../include/RawSection.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/Vector.h ../include/ElfFile.h ../include/BinaryFile.h \
-  ../include/SectionHeader.h ../include/defines/SectionHeader.d
+  ../include/MemTrack.h ../include/Vector.h ../include/ElfFile.h \
+  ../include/BinaryFile.h ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d
 GnuVersion.o: GnuVersion.C ../include/GnuVersion.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/RawSection.h ../include/Vector.h \
+  ../include/CStructuresX86.h ../include/MemTrack.h \
+  ../include/RawSection.h ../include/Vector.h \
   ../include/defines/GnuVersion.d ../include/ElfFile.h \
   ../include/BinaryFile.h
 HashTable.o: HashTable.C ../include/HashTable.h ../include/RawSection.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/Vector.h ../include/ElfFile.h ../include/BinaryFile.h \
-  ../include/SectionHeader.h ../include/defines/SectionHeader.d \
-  ../include/SymbolTable.h ../include/defines/SymbolTable.d
+  ../include/MemTrack.h ../include/Vector.h ../include/ElfFile.h \
+  ../include/BinaryFile.h ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d ../include/SymbolTable.h \
+  ../include/defines/SymbolTable.d
 Instruction.o: Instruction.C ../include/Instruction.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/Vector.h \
+  ../include/CStructuresX86.h ../include/MemTrack.h ../include/Vector.h \
   ../include/AddressAnchor.h ../include/BinaryFile.h \
   ../include/Disassembler.h ../include/ElfFile.h ../include/Function.h \
   ../include/BitSet.h ../include/TextSection.h ../include/RawSection.h \
@@ -142,56 +147,62 @@ InstructionGenerator.o: InstructionGenerator.C \
   ../include/InstructionGenerator.h ../include/Instruction.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/Vector.h
+  ../include/MemTrack.h ../include/Vector.h
 Instrumentation.o: Instrumentation.C ../include/Instrumentation.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/Instruction.h ../include/Vector.h ../include/BasicBlock.h \
-  ../include/BitSet.h ../include/FlowGraph.h ../include/Function.h \
-  ../include/TextSection.h ../include/RawSection.h \
+  ../include/MemTrack.h ../include/Instruction.h ../include/Vector.h \
+  ../include/BasicBlock.h ../include/BitSet.h ../include/FlowGraph.h \
+  ../include/Function.h ../include/TextSection.h ../include/RawSection.h \
   ../include/LinkedList.h ../include/ElfFileInst.h ../include/ElfFile.h \
   ../include/BinaryFile.h ../include/InstructionGenerator.h
 LengauerTarjan.o: LengauerTarjan.C ../include/LengauerTarjan.h \
   ../include/LinkedList.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/BasicBlock.h ../include/BitSet.h ../include/FlowGraph.h \
-  ../include/Function.h ../include/Instruction.h ../include/Vector.h \
-  ../include/TextSection.h ../include/RawSection.h \
+  ../include/MemTrack.h ../include/BasicBlock.h ../include/BitSet.h \
+  ../include/FlowGraph.h ../include/Function.h ../include/Instruction.h \
+  ../include/Vector.h ../include/TextSection.h ../include/RawSection.h \
   ../include/BinaryFile.h ../include/Loop.h ../include/SectionHeader.h \
   ../include/defines/SectionHeader.d ../include/Stack.h \
   ../include/SymbolTable.h ../include/defines/SymbolTable.d
 LineInformation.o: LineInformation.C ../include/LineInformation.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/Vector.h ../include/defines/LineInformation.d \
-  ../include/BasicBlock.h ../include/BitSet.h ../include/FlowGraph.h \
-  ../include/Function.h ../include/Instruction.h ../include/TextSection.h \
+  ../include/MemTrack.h ../include/Vector.h \
+  ../include/defines/LineInformation.d ../include/BasicBlock.h \
+  ../include/BitSet.h ../include/FlowGraph.h ../include/Function.h \
+  ../include/Instruction.h ../include/TextSection.h \
   ../include/RawSection.h ../include/LinkedList.h ../include/BinaryFile.h \
   ../include/DwarfSection.h ../include/ElfFile.h
 Loop.o: Loop.C ../include/Loop.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/BitSet.h ../include/Function.h \
-  ../include/Instruction.h ../include/Vector.h ../include/TextSection.h \
-  ../include/RawSection.h ../include/BasicBlock.h ../include/FlowGraph.h \
-  ../include/LinkedList.h
+  ../include/CStructuresX86.h ../include/MemTrack.h ../include/BitSet.h \
+  ../include/Function.h ../include/Instruction.h ../include/Vector.h \
+  ../include/TextSection.h ../include/RawSection.h \
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/LinkedList.h
+MemTrack.o: MemTrack.C ../include/MemTrack.h ../include/Base.h \
+  ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
+  ../include/CStructuresX86.h
 NoteSection.o: NoteSection.C ../include/NoteSection.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/RawSection.h ../include/Vector.h \
-  ../include/BinaryFile.h ../include/ElfFile.h
+  ../include/CStructuresX86.h ../include/MemTrack.h \
+  ../include/RawSection.h ../include/Vector.h ../include/BinaryFile.h \
+  ../include/ElfFile.h
 ProgramHeader.o: ProgramHeader.C ../include/ProgramHeader.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/defines/ProgramHeader.d ../include/BinaryFile.h
+  ../include/MemTrack.h ../include/defines/ProgramHeader.d \
+  ../include/BinaryFile.h
 RawSection.o: RawSection.C ../include/RawSection.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/Vector.h \
+  ../include/CStructuresX86.h ../include/MemTrack.h ../include/Vector.h \
   ../include/AddressAnchor.h ../include/BinaryFile.h \
   ../include/Disassembler.h ../include/ElfFile.h ../include/Instruction.h \
   ../include/SectionHeader.h ../include/defines/SectionHeader.d
 RelocationTable.o: RelocationTable.C ../include/RelocationTable.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/RawSection.h ../include/Vector.h \
+  ../include/MemTrack.h ../include/RawSection.h ../include/Vector.h \
   ../include/defines/RelocationTable.d ../include/BinaryFile.h \
   ../include/ElfFile.h ../include/SectionHeader.h \
   ../include/defines/SectionHeader.d ../include/SymbolTable.h \
@@ -199,32 +210,36 @@ RelocationTable.o: RelocationTable.C ../include/RelocationTable.h \
 SectionHeader.o: SectionHeader.C ../include/SectionHeader.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/defines/SectionHeader.d ../include/BinaryFile.h \
-  ../include/DwarfSection.h ../include/RawSection.h ../include/Vector.h \
+  ../include/MemTrack.h ../include/defines/SectionHeader.d \
+  ../include/BinaryFile.h ../include/DwarfSection.h \
+  ../include/RawSection.h ../include/Vector.h \
   ../include/defines/LineInformation.d
 StringTable.o: StringTable.C ../include/StringTable.h \
   ../include/RawSection.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/Vector.h ../include/BinaryFile.h ../include/ElfFile.h \
-  ../include/SectionHeader.h ../include/defines/SectionHeader.d
+  ../include/MemTrack.h ../include/Vector.h ../include/BinaryFile.h \
+  ../include/ElfFile.h ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d
 SymbolTable.o: SymbolTable.C ../include/SymbolTable.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/RawSection.h ../include/Vector.h \
+  ../include/CStructuresX86.h ../include/MemTrack.h \
+  ../include/RawSection.h ../include/Vector.h \
   ../include/defines/SymbolTable.d ../include/BinaryFile.h \
   ../include/ElfFile.h ../include/SectionHeader.h \
   ../include/defines/SectionHeader.d ../include/StringTable.h \
   ../include/TextSection.h ../include/Instruction.h
 TextSection.o: TextSection.C ../include/TextSection.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/Instruction.h \
-  ../include/Vector.h ../include/RawSection.h ../include/BasicBlock.h \
-  ../include/BitSet.h ../include/FlowGraph.h ../include/Function.h \
-  ../include/LinkedList.h ../include/Disassembler.h ../include/ElfFile.h \
-  ../include/BinaryFile.h ../include/SectionHeader.h \
+  ../include/CStructuresX86.h ../include/MemTrack.h \
+  ../include/Instruction.h ../include/Vector.h ../include/RawSection.h \
+  ../include/BasicBlock.h ../include/BitSet.h ../include/FlowGraph.h \
+  ../include/Function.h ../include/LinkedList.h ../include/Disassembler.h \
+  ../include/ElfFile.h ../include/BinaryFile.h ../include/SectionHeader.h \
   ../include/defines/SectionHeader.d ../include/SymbolTable.h \
   ../include/defines/SymbolTable.d
 main.o: main.C ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/BasicBlockCounter.h ../include/ElfFileInst.h \
-  ../include/ElfFile.h ../include/BinaryFile.h ../include/Instruction.h \
-  ../include/Vector.h ../include/FunctionCounter.h
+  ../include/MemTrack.h ../include/BasicBlockCounter.h \
+  ../include/ElfFileInst.h ../include/ElfFile.h ../include/BinaryFile.h \
+  ../include/Instruction.h ../include/Vector.h \
+  ../include/FunctionCounter.h

@@ -40,7 +40,8 @@ void ElfFile::gatherDisassemblyStats(){
     STATS(blocksCovered = 0);
     STATS(blockBytesCovered = 0);
 
-    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
+    uint32_t numberOfTextSections = getNumberOfTextSections();
+    for (uint32_t i = 0; i < numberOfTextSections; i++){
         TextSection* ts = getTextSection(i);
         for (uint32_t j = 0; j < ts->getNumberOfTextObjects(); j++){
             if (ts->getTextObject(j)->getType() == ElfClassTypes_Function){
@@ -976,6 +977,12 @@ void ElfFile::parse(){
 
     TIMER(double t1 = timer());	
 
+    char* endianCheck = "elfs\0";
+    uint32_t endianValue = getUInt32(endianCheck);
+    if (endianValue != 0x73666c65){
+        PRINT_ERROR("Platform must be little endian");
+    }
+   
     binaryInputFile.readFileInMemory(elfFileName); 
 
     unsigned char e_ident[EI_NIDENT];

@@ -95,30 +95,31 @@ enum x86_operand_type {
 
 class Operand {
 protected:
-    uint32_t type;
+    uint8_t type;
+    uint8_t bytePosition;
+    uint8_t bytesUsed;
+    uint8_t index;
+
     uint64_t value;
-    uint32_t bytePosition;
-    uint32_t bytesUsed;
     bool relative;
 
-    uint32_t index;
 public:
     Operand(uint32_t type, uint64_t value, uint32_t idx);
     Operand(uint32_t idx);
     Operand();
     ~Operand() {}
 
-    uint32_t getType() { return type; }
+    uint8_t getType() { return type; }
     uint64_t getValue() { return value; }
-    uint32_t getBytePosition() { return bytePosition; }
-    uint32_t getBytesUsed() { return bytesUsed; }
+    uint8_t getBytePosition() { return bytePosition; }
+    uint8_t getBytesUsed() { return bytesUsed; }
     bool isRelative() { return relative; }
     bool isIndirect();
 
-    void setType(uint32_t typ) { type = typ; }
+    void setType(uint8_t typ) { type = typ; }
     void setValue(uint64_t val) { value = val; }
-    void setBytePosition(uint32_t pos) { bytePosition = pos; }
-    void setBytesUsed(uint32_t usd);
+    void setBytePosition(uint8_t pos) { bytePosition = pos; }
+    void setBytesUsed(uint8_t usd);
     void setRelative(bool rel) { relative = rel; }
 
     void print();
@@ -126,22 +127,21 @@ public:
 
 class Instruction : public Base {
 protected:
-    uint32_t index;
+    uint8_t instructionType;
+    uint8_t source;
+    uint16_t index;
     char* rawBytes;
-    uint32_t instructionType;
-    char disassembledString[MAX_DISASM_STR_LENGTH];
-    Operand operands[MAX_OPERANDS];    
+    Operand** operands;    
     bool leader;
 
     uint64_t programAddress;
-    ByteSources source;
     TextSection* textSection;
     AddressAnchor* addressAnchor;
 
 public:
 
     Instruction();
-    Instruction(TextSection* text, uint64_t baseAddr, char* buff, ByteSources src, uint32_t idx);
+    Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx);
     ~Instruction();
 
     bool isJumpTableBase();
@@ -168,16 +168,16 @@ public:
 
     uint32_t convertTo4ByteOperand();
 
-    uint32_t getIndex() { return index; }
+    uint16_t getIndex() { return index; }
     uint32_t bytesUsedForTarget();
     uint64_t getTargetAddress();
     uint64_t getBaseAddress();
     char* getBytes();
-    Operand getOperand(uint32_t idx);
+    Operand* getOperand(uint32_t idx);
     uint32_t getInstructionType() { return instructionType; }
     bool isRelocatable();
     bool controlFallsThrough();
-    ByteSources getByteSource();
+    uint8_t getByteSource();
     uint64_t getProgramAddress();
 
     // control instruction id
@@ -194,20 +194,19 @@ public:
 
     bool isNoop();
 
-    void setIndex(uint32_t newidx) { index = newidx; }
+    void setIndex(uint32_t newidx) { index = newidx; ASSERT(index == newidx); }
     void setBaseAddress(uint64_t addr) { baseAddress = addr; }
     void setSizeInBytes(uint32_t len);
     void setBytes(char* bytes);
     void setOperandValue(uint32_t idx, uint64_t val);
-    void setOperandType(uint32_t idx, uint32_t typ);
-    void setOperandBytePosition(uint32_t idx, uint32_t pos);
-    void setOperandBytesUsed(uint32_t idx, uint32_t usd);
+    void setOperandType(uint32_t idx, uint8_t typ);
+    void setOperandBytePosition(uint32_t idx, uint8_t pos);
+    void setOperandBytesUsed(uint32_t idx, uint8_t usd);
     void setOperandRelative(uint32_t idx, bool rel);
     void setByteSource(ByteSources src) { source = src; }
     void setProgramAddress(uint64_t addr) { programAddress = addr; }
     void setInstructionType(uint32_t typ) { instructionType = typ; }
 
-    void setDisassembledString(char* disStr);
     void setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2);
 
     static uint32_t computeOpcodeTypeOneByte(uint32_t idx);
