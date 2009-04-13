@@ -450,9 +450,9 @@ uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t t
 }
 
 uint32_t InstrumentationFunction64::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(globalData,X86_REG_CX));
-    bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + globalDataOffset,X86_REG_DX));
-    bootstrapInstructions.append(InstructionGenerator::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX));
+    bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(globalData, X86_REG_CX));
+    bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + globalDataOffset, X86_REG_DX));
+    bootstrapInstructions.append(InstructionGenerator::generateMoveRegToRegaddr(X86_REG_CX, X86_REG_DX));
 
     while (bootstrapSize() < bootstrapReservedSize()){
         bootstrapInstructions.append(InstructionGenerator64::generateNoop());
@@ -462,8 +462,8 @@ uint32_t InstrumentationFunction64::generateBootstrapInstructions(uint64_t textB
 }
 
 uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    bootstrapInstructions.append(InstructionGenerator32::generateMoveImmToReg(globalData,X86_REG_CX));
-    bootstrapInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress + globalDataOffset));
+    bootstrapInstructions.append(InstructionGenerator32::generateMoveImmToReg(globalData, X86_REG_CX));
+    bootstrapInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX, dataBaseAddress + globalDataOffset));
 
     while (bootstrapSize() < bootstrapReservedSize()){
         bootstrapInstructions.append(InstructionGenerator32::generateNoop());

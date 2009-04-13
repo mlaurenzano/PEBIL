@@ -45,6 +45,9 @@ class ElfFileInst {
 private:
     ElfFile* elfFile;
     Vector<Function*> hiddenFunctions;
+    char* initializedData;
+    uint32_t highestInitOffset;
+    uint64_t initBufferOffset;
 
 protected:
     Vector<Function*> exposedFunctions;

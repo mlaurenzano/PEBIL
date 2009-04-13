@@ -23,6 +23,7 @@ public:
     virtual uint64_t getType() { __SHOULD_NOT_ARRIVE; }
     virtual bool verify() { return true; }
 
+    uint32_t getIndex() { return index; }
     RELOCATION_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 };
 
@@ -117,6 +118,8 @@ public:
     ElfFile* getElfFile() { return elfFile; }
     uint32_t getIndex() { return index; }
     uint32_t getRelocationSize() { return relocationSize; }
+    Relocation* getRelocation(uint32_t idx) { ASSERT(idx < numberOfRelocations); return relocations[idx]; }
+    SymbolTable* getSymbolTable() { return symbolTable; }
 
     void setSymbolTable();
     void setRelocationSection();

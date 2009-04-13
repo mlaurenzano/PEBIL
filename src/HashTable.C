@@ -134,8 +134,9 @@ bool HashTable::verify(){
     
     for (uint32_t i = 1; i < numberOfChains; i++){
         if (findSymbol(symTab->getSymbolName(i)) != i){
+            PRINT_INFOR("bad symbol %s", symTab->getSymbolName(i));
             PRINT_ERROR("Hash Table search function is erroneous");
-        return false;
+            return false;
         }
     }
     

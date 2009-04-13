@@ -72,9 +72,11 @@ bool Function::hasCompleteDisassembly(){
         TextObject* tobj = textSection->getTextObject(i);
         if (tobj->getType() == ElfClassTypes_Function){
             Function* func = (Function*)tobj;
-            if (!strcmp(func->getName(),"__i686.get_pc_thunk.bx")){
-                if (containsCallToRange(func->getBaseAddress(),func->getBaseAddress()+func->getSizeInBytes())){
-                    return false;
+            if (func->getName()){
+                if (!strcmp(func->getName(),"__i686.get_pc_thunk.bx")){
+                    if (containsCallToRange(func->getBaseAddress(),func->getBaseAddress()+func->getSizeInBytes())){
+                        return false;
+                    }
                 }
             }
         }

@@ -211,9 +211,9 @@ bool Operand::isIndirect(){
 uint32_t Instruction::bytesUsedForTarget(){
     if (isControl()){
         if (isUnconditionalBranch() || isConditionalBranch() || isFunctionCall()){
-            return operands[JUMP_TARGET_OPERAND]->getBytesUsed();
-        } else {
-            return 0;
+            if (operands[JUMP_TARGET_OPERAND]){
+                return operands[JUMP_TARGET_OPERAND]->getBytesUsed();
+            } 
         }
     }
     return 0;
@@ -608,6 +608,12 @@ Instruction::~Instruction(){
     if (addressAnchor){
         delete addressAnchor;
     }
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i]){
+            delete operands[i];
+        }
+    }
+    delete[] operands;
 }
 
 char* Instruction::getBytes(){
@@ -740,8 +746,10 @@ void Instruction::print(){
     }
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i]->getType()){
-            operands[i]->print();
+        if (operands[i]){
+            if (operands[i]->getType()){
+                operands[i]->print();
+            }
         }
     }
 }

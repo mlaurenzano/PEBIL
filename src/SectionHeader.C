@@ -259,7 +259,7 @@ void SectionHeader::print() {
             alignment = i;
         }
     }
-    PRINT_INFOR("\talig : 2**%llu",alignment);
+    PRINT_INFOR("\talig : 2^%llu",alignment);
 
     uint32_t linkValue = GET(sh_link);
     uint32_t infoValue = GET(sh_info);

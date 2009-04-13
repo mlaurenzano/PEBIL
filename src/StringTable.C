@@ -4,6 +4,15 @@
 #include <ElfFile.h>
 #include <SectionHeader.h>
 
+uint32_t StringTable::searchForString(char* str){
+    for (uint32_t i = 0; i < sizeInBytes; i++){
+        if (!strcmp(strings+i,str)){
+            return i;
+        }
+    }
+    return 0;
+}
+
 char* StringTable::getString(uint32_t offset){
     ASSERT(offset >= 0 && offset < sizeInBytes && "Cannot look up a string outside the string table"); 
     return strings + offset; 

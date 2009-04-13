@@ -126,6 +126,7 @@ public:
     uint32_t getNumberOfWrapperInstructions() { return wrapperInstructions.size(); }
     uint32_t getGlobalData() { return globalData; }
     uint64_t getGlobalDataOffset() { return globalDataOffset; }
+    uint64_t getProcedureLinkOffset() { return procedureLinkOffset; }
 
     void setRelocationOffset(uint64_t relocOffset) { relocationOffset = relocOffset; }
 

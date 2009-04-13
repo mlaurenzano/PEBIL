@@ -135,26 +135,31 @@ void BasicBlockCounter::instrument(){
         LineInfo* li = allLineInfos[i];
         Function* f = bb->getFunction();
 
-#ifdef DEBUG_MEMTRACK
+
         if (i % 1000 == 0){
-            PRINT_DEBUG_MEMTRACK("inst point %d", i);
+            PRINT_INFOR("inst point %d", i);
+#ifdef DEBUG_MEMTRACK
             PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);            
-        }
+            if (i == 15000){
+                break;
+            }
 #endif
+        }
+
         if (li){
             uint32_t line = li->GET(lr_line);
-            initializeReservedData(dataBaseAddress+lineArray+sizeof(uint32_t)*i,sizeof(uint32_t),&line);
+            initializeReservedData(lineArray+sizeof(uint32_t)*i,sizeof(uint32_t),&line);
 
             uint64_t filename = reserveDataOffset(strlen(li->getFileName())+1);
             uint64_t filenameAddr = dataBaseAddress + filename;
-            initializeReservedData(dataBaseAddress+fileNameArray+i*sizeof(char*),sizeof(char*),&filenameAddr);
-            initializeReservedData(dataBaseAddress+filename,strlen(li->getFileName())+1,(void*)li->getFileName());
+            initializeReservedData(fileNameArray+i*sizeof(char*), sizeof(char*), &filenameAddr);
+            initializeReservedData(filename, strlen(li->getFileName())+1, (void*)li->getFileName());
 
         }
         uint64_t funcname = reserveDataOffset(strlen(f->getName())+1);
         uint64_t funcnameAddr = dataBaseAddress + funcname;
-        initializeReservedData(dataBaseAddress+funcNameArray+i*sizeof(char*),sizeof(char*),&funcnameAddr);
-        initializeReservedData(dataBaseAddress+funcname,strlen(f->getName())+1,(void*)f->getName());
+        initializeReservedData(funcNameArray+i*sizeof(char*), sizeof(char*), &funcnameAddr);
+        initializeReservedData(funcname, strlen(f->getName())+1, (void*)f->getName());
         
         InstrumentationSnippet* snip = new InstrumentationSnippet();
         uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
