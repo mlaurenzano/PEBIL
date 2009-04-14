@@ -509,7 +509,7 @@ void ElfFileInst::generateInstrumentation(){
 
     InstrumentationSnippet* snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN];
     snip->setRequiresDistinctTrampoline(true);
-    snip->addSnippetInstruction(InstructionGenerator32::generateRegSubImmediate(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE));
+    //    snip->addSnippetInstruction(InstructionGenerator32::generateRegSubImmediate(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE));
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
         snip->addSnippetInstruction(InstructionGenerator32::generateStackPush(i));
     }
@@ -607,7 +607,16 @@ void ElfFileInst::generateInstrumentation(){
     PRINT_INFOR("memcpy PLT address is %#llx", memcpyFunction->getProcedureLinkOffset() + textBaseAddress);
 
     if (elfFile->is64Bit()){
-        __FUNCTION_NOT_IMPLEMENTED;
+        // must initialize the memcpy GOT entry specially before we call memcpy since GOT entries are not initialized yet
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(textBaseAddress + memcpyFunction->getProcedureLinkOffset() + PLT_RETURN_OFFSET_32BIT, X86_REG_CX));
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, dataBaseAddress + memcpyFunction->getGlobalDataOffset()));
+        // set up args to memcpy
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(textBaseAddress + initBufferOffset, X86_REG_AX));
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(textBaseAddress + initBufferOffset, X86_REG_SI));
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress, X86_REG_DI));
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(highestInitOffset, X86_REG_DX));
+        // call memcpy
+        snip->addSnippetInstruction(InstructionGenerator64::generateCallRelative(codeOffset + snip->snippetSize(), memcpyFunction->getProcedureLinkOffset()));
     } else {
         // must initialize the memcpy GOT entry specially before we call memcpy since GOT entries are not initialized yet
         snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(textBaseAddress + memcpyFunction->getProcedureLinkOffset() + PLT_RETURN_OFFSET_32BIT, X86_REG_CX));
@@ -616,11 +625,6 @@ void ElfFileInst::generateInstrumentation(){
         snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(dataBaseAddress, X86_REG_CX));
         snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(textBaseAddress + initBufferOffset, X86_REG_DX));
         snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(highestInitOffset, X86_REG_AX));
-        /*
-        snip->addSnippetInstruction(InstructionGenerator32::generateMoveRegToRegaddrImm(X86_REG_AX, X86_REG_SP, 0x8));
-        snip->addSnippetInstruction(InstructionGenerator32::generateMoveRegToRegaddrImm(X86_REG_DX, X86_REG_SP, 0x4));
-        snip->addSnippetInstruction(InstructionGenerator32::generateMoveRegToRegaddrImm(X86_REG_CX, X86_REG_SP, 0x0));
-        */
         // call memcpy
         snip->addSnippetInstruction(InstructionGenerator32::generateCallRelative(codeOffset + snip->snippetSize(), memcpyFunction->getProcedureLinkOffset()));
     }
@@ -643,7 +647,7 @@ void ElfFileInst::generateInstrumentation(){
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
         snip->addSnippetInstruction(InstructionGenerator32::generateStackPop(X86_32BIT_GPRS-i-1));
     }
-    snip->addSnippetInstruction(InstructionGenerator32::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
+    //    snip->addSnippetInstruction(InstructionGenerator32::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
     snip->addSnippetInstruction(InstructionGenerator::generateReturn());
 
     codeOffset += snip->snippetSize();
