@@ -24,9 +24,9 @@ class TextSection;
 #define SIZE_NEEDED_AT_INST_POINT SIZE_CONTROL_TRANSFER
 #define SIZE_FIRST_INST_POINT SIZE_CONTROL_TRANSFER
 
-#define INST_SNIPPET_BOOTSTRAP_BEGIN 0
-#define INST_SNIPPET_BOOTSTRAP_END 1
-#define INST_POINT_BOOTSTRAP1 0
+#define INST_SNIPPET_BOOTSTRAP_BEGIN  0
+#define INST_SNIPPET_BOOTSTRAP_END    1
+#define INST_POINT_BOOTSTRAP 0
 
 #define MAX_ARGUMENTS_32BIT 6
 #define MAX_ARGUMENTS_64BIT 6
@@ -47,9 +47,10 @@ private:
     Vector<Function*> hiddenFunctions;
     char* initializedData;
     uint32_t highestInitOffset;
-    uint64_t initBufferOffset;
+    uint64_t initBufferTextOffset;
 
 protected:
+    uint64_t initBufferDataOffset;
     Vector<Function*> exposedFunctions;
 
     uint32_t currentPhase;

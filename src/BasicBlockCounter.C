@@ -69,8 +69,10 @@ void BasicBlockCounter::instrument(){
 
     // the number blocks in the code
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
+    PRINT_INFOR("# of inst points is at buffer offset %#llx with value %#x", counterArrayEntries, numberOfInstPoints);
     // we have the option of giving an initialization value to addArgument
     exitFunc->addArgument(counterArrayEntries,numberOfInstPoints);
+    initializeReservedData(counterArrayEntries, sizeof(uint32_t), &numberOfInstPoints);
 
     // an array of counters. note that everything is passed by reference
     uint64_t counterArray = reserveDataOffset(numberOfInstPoints * sizeof(uint32_t));
@@ -166,7 +168,7 @@ void BasicBlockCounter::instrument(){
 
 #ifndef EMPTY_SNIPPET
         //        snip->addSnippetInstruction(InstructionGenerator32::generateAddImmByteToMem(1, dataBaseAddress + counterOffset));
-        snip->addSnippetInstruction(InstructionGenerator64::generateAddImmByteToMem(1, dataBaseAddress + counterOffset));
+        snip->addSnippetInstruction(InstructionGenerator64::generateAddImmByteToMem(1, dataBaseAddress + initBufferDataOffset + counterOffset));
 
         /*
         // save any registers used

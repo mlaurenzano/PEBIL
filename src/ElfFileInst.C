@@ -104,7 +104,8 @@ void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
 }
 
 uint32_t ElfFileInst::initializeReservedData(uint64_t offset, uint32_t size, void* data){
-    memcpy((void*)(initializedData+offset), data, size);
+    memcpy((void*)(initializedData + offset), data, size);
+    PRINT_INFOR("Offset inside buffer is %#llx", offset);
     if (offset + size > highestInitOffset){
         highestInitOffset = offset + size;
     }
@@ -507,26 +508,21 @@ void ElfFileInst::generateInstrumentation(){
     uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
     uint64_t dataBaseAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr);
 
-    InstrumentationSnippet* snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN];
-    snip->setRequiresDistinctTrampoline(true);
-    //    snip->addSnippetInstruction(InstructionGenerator32::generateRegSubImmediate(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE));
-    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        snip->addSnippetInstruction(InstructionGenerator32::generateStackPush(i));
-    }
+    InstrumentationSnippet* snip = NULL;
 
     // find the entry point of the program and put an instrumentation point for our initialization there
-    ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP1] && "instrumentationPoint[INST_POINT_BOOTSTRAP1] is reserved");
+    ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP] && "instrumentationPoint[INST_POINT_BOOTSTRAP] is reserved");
     BasicBlock* entryBlock = textSection->getBasicBlockAtAddress(elfFile->getFileHeader()->GET(e_entry));
     ASSERT(entryBlock && "Cannot find instruction at the program's entry point");
     
     if (elfFile->is64Bit()){
-        instrumentationPoints[INST_POINT_BOOTSTRAP1] = 
+        instrumentationPoints[INST_POINT_BOOTSTRAP] = 
             new InstrumentationPoint64((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], SIZE_FIRST_INST_POINT, InstLocation_dont_care);    
     } else {
-        instrumentationPoints[INST_POINT_BOOTSTRAP1] = 
+        instrumentationPoints[INST_POINT_BOOTSTRAP] = 
             new InstrumentationPoint32((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], SIZE_FIRST_INST_POINT, InstLocation_dont_care);    
     }
-    instrumentationPoints[INST_POINT_BOOTSTRAP1]->setPriority(InstPriority_datainit);
+    instrumentationPoints[INST_POINT_BOOTSTRAP]->setPriority(InstPriority_datainit);
             
     uint64_t codeOffset = 0;
 
@@ -559,13 +555,26 @@ void ElfFileInst::generateInstrumentation(){
 
         if (func){
 
-            PRINT_DEBUG_INST("Setting InstrumentationFunction %d PLT offset to %#llx", i, codeOffset);
+            PRINT_DEBUG_INST("Setting InstrumentationFunction %s PLT offset to %#llx", func->getFunctionName(), textBaseAddress+codeOffset);
             func->setProcedureLinkOffset(codeOffset);
             codeOffset += func->procedureLinkReservedSize();
             
-            PRINT_DEBUG_INST("Setting InstrumentationFunction %d Wrapper offset to %#llx", i, codeOffset);
+            PRINT_DEBUG_INST("Setting InstrumentationFunction %s Wrapper offset to %#llx", func->getFunctionName(), textBaseAddress+codeOffset);
             func->setWrapperOffset(codeOffset);
             codeOffset += func->wrapperReservedSize();
+
+            if (elfFile->is64Bit()){
+                uint64_t gotDataOffset = reserveDataOffset(Size__64_bit_Global_Offset_Table_Entry);
+                PRINT_INFOR("Last data at offset %#llx (addr %#llx)", gotDataOffset, gotDataOffset+dataBaseAddress);
+                func->generateGlobalData(gotDataOffset, textBaseAddress);
+                uint64_t globalOffsetTableEntry = func->getGlobalData();
+                initializeReservedData(func->getGlobalDataOffset(), sizeof(uint64_t), &globalOffsetTableEntry);
+            } else {
+                uint64_t gotDataOffset = reserveDataOffset(Size__32_bit_Global_Offset_Table_Entry);
+                func->generateGlobalData(gotDataOffset, textBaseAddress);
+                uint32_t globalOffsetTableEntry = func->getGlobalData();
+                initializeReservedData(func->getGlobalDataOffset(), sizeof(uint32_t), &globalOffsetTableEntry);
+            }
 #ifdef DEBUG_INST
             func->print();
 #endif
@@ -576,19 +585,42 @@ void ElfFileInst::generateInstrumentation(){
         snip = instrumentationSnippets[i];
         if (snip){
             snip->generateSnippetControl();
-
             snip->setCodeOffset(codeOffset);
+
+            PRINT_INFOR("Snippet %d code going in at %#llx", i, codeOffset+textBaseAddress);
+    
             codeOffset += snip->snippetSize();
         }
     }
 
-    initBufferOffset = codeOffset;
-    PRINT_INFOR("Init buffer will occupy %#llx + %#x bytes", textBaseAddress + initBufferOffset, highestInitOffset);
-    codeOffset += highestInitOffset;
+    initBufferTextOffset = codeOffset;
+    PRINT_INFOR("Init buffer will occupy text section at %#llx + %#x bytes", textBaseAddress + initBufferTextOffset, highestInitOffset);
+    codeOffset += (highestInitOffset);
 
     snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN];
+    snip->setRequiresDistinctTrampoline(true);
+    //    snip->addSnippetInstruction(InstructionGenerator32::generateRegSubImmediate(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE));
+    if (elfFile->is64Bit()){
+        for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+            snip->addSnippetInstruction(InstructionGenerator64::generateStackPush(i));
+        }
+    } else {
+        for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
+            snip->addSnippetInstruction(InstructionGenerator32::generateStackPush(i));
+        }
+    }
     snip->setCodeOffset(codeOffset);
     PRINT_INFOR("INST_SNIPPET_BOOTSTRAP_BEGIN will occupy %#llx + %#x bytes", textBaseAddress + codeOffset, snip->snippetSize());
+    codeOffset += snip->snippetSize();
+
+    for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
+        InstrumentationFunction* func = instrumentationFunctions[i];
+        if (func){
+            func->setBootstrapOffset(codeOffset);
+            PRINT_INFOR("function %s bootstrap will occupy %#llx + %#x bytes", func->getFunctionName(), textBaseAddress + codeOffset, func->bootstrapReservedSize());
+            codeOffset += func->bootstrapReservedSize();
+        }
+    }
 
     // use a memcpy to copy the initialized data buffer into our bss section
     /*
@@ -601,51 +633,56 @@ void ElfFileInst::generateInstrumentation(){
         8048401:       e8 da fe ff ff          call   80482e0 <memcpy@plt>
     */
 
-    PRINT_INFOR("Code to initialize code is at %#llx", textBaseAddress + codeOffset);
-    InstrumentationFunction* memcpyFunction = getInstrumentationFunction("memcpy");
-    ASSERT(memcpyFunction);
-    PRINT_INFOR("memcpy PLT address is %#llx", memcpyFunction->getProcedureLinkOffset() + textBaseAddress);
-
-    if (elfFile->is64Bit()){
-        // must initialize the memcpy GOT entry specially before we call memcpy since GOT entries are not initialized yet
-        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(textBaseAddress + memcpyFunction->getProcedureLinkOffset() + PLT_RETURN_OFFSET_32BIT, X86_REG_CX));
-        snip->addSnippetInstruction(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, dataBaseAddress + memcpyFunction->getGlobalDataOffset()));
-        // set up args to memcpy
-        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(textBaseAddress + initBufferOffset, X86_REG_AX));
-        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(textBaseAddress + initBufferOffset, X86_REG_SI));
-        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress, X86_REG_DI));
-        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(highestInitOffset, X86_REG_DX));
-        // call memcpy
-        snip->addSnippetInstruction(InstructionGenerator64::generateCallRelative(codeOffset + snip->snippetSize(), memcpyFunction->getProcedureLinkOffset()));
-    } else {
-        // must initialize the memcpy GOT entry specially before we call memcpy since GOT entries are not initialized yet
-        snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(textBaseAddress + memcpyFunction->getProcedureLinkOffset() + PLT_RETURN_OFFSET_32BIT, X86_REG_CX));
-        snip->addSnippetInstruction(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX, dataBaseAddress + memcpyFunction->getGlobalDataOffset()));
-        // set up args to memcpy
-        snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(dataBaseAddress, X86_REG_CX));
-        snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(textBaseAddress + initBufferOffset, X86_REG_DX));
-        snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(highestInitOffset, X86_REG_AX));
-        // call memcpy
-        snip->addSnippetInstruction(InstructionGenerator32::generateCallRelative(codeOffset + snip->snippetSize(), memcpyFunction->getProcedureLinkOffset()));
-    }
-
-    codeOffset += snip->snippetSize();
-
-    for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
-        InstrumentationFunction* func = instrumentationFunctions[i];
-        if (func){
-            func->setBootstrapOffset(codeOffset);
-            PRINT_INFOR("function %s bootstrap will occupy %#llx + %#x bytes", func->getFunctionName(), textBaseAddress + codeOffset, func->bootstrapReservedSize());
-            codeOffset += func->bootstrapReservedSize();
-        }
-    }
-
     snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END];
     snip->setRequiresDistinctTrampoline(true);
     snip->setCodeOffset(codeOffset);
     
-    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        snip->addSnippetInstruction(InstructionGenerator32::generateStackPop(X86_32BIT_GPRS-i-1));
+    PRINT_INFOR("Init Buffer will be copied from %#llx to %#llx -- %#x bytes", textBaseAddress + initBufferTextOffset, dataBaseAddress + initBufferDataOffset, highestInitOffset);
+
+    if (elfFile->is64Bit()){
+        uint8_t* bytes = (uint8_t*)initializedData;
+        for (uint32_t i = 0; i < highestInitOffset; i++){
+            uint8_t d = bytes[i];
+            STATS(dataBytesInit++);
+            if (d){
+                snip->addSnippetInstruction(InstructionGenerator::generateMoveImmByteToReg(d,X86_REG_AX));
+                snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(dataBaseAddress+initBufferDataOffset+i,X86_REG_DI)); 
+                snip->addSnippetInstruction(InstructionGenerator::generateSTOSByte(false));
+            }
+        }
+
+        /*
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(textBaseAddress + initBufferTextOffset, X86_REG_SI));
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + initBufferDataOffset, X86_REG_DI));
+        snip->addSnippetInstruction(InstructionGenerator64::generateSetDirectionFlag(false));
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(highestInitOffset, X86_REG_CX));
+        snip->addSnippetInstruction(InstructionGenerator64::generateStringMove(true));
+        */
+
+        /*
+        // must initialize the memcpy GOT entry specially before we call memcpy since GOT entries are not initialized yet
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(memcpyFunction->getGlobalData(), X86_REG_CX));
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, dataBaseAddress + memcpyFunction->getGlobalDataOffset()));
+        // set up args to memcpy
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(textBaseAddress + initBufferTextOffset, X86_REG_AX));
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(textBaseAddress + initBufferTextOffset, X86_REG_SI));
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + initBufferDataOffset, X86_REG_DI));
+        snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(highestInitOffset, X86_REG_DX));
+        // call memcpy
+        snip->addSnippetInstruction(InstructionGenerator64::generateCallRelative(codeOffset + snip->snippetSize(), memcpyFunction->getProcedureLinkOffset()));
+        */
+    } else {
+        __FUNCTION_NOT_IMPLEMENTED;
+    }
+
+    if (elfFile->is64Bit()){
+        for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+            snip->addSnippetInstruction(InstructionGenerator64::generateStackPop(X86_64BIT_GPRS-i-1));
+        }
+    } else {
+        for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
+            snip->addSnippetInstruction(InstructionGenerator32::generateStackPop(X86_32BIT_GPRS-i-1));
+        }
     }
     //    snip->addSnippetInstruction(InstructionGenerator32::generateRegAddImmediate(X86_REG_SP,TRAMPOLINE_FRAME_AUTOINC_SIZE));
     snip->addSnippetInstruction(InstructionGenerator::generateReturn());
@@ -821,10 +858,9 @@ void ElfFileInst::generateInstrumentation(){
 #ifdef DEBUG_INST
             func->print();
 #endif
-            func->generateGlobalData(textBaseAddress);
-            func->generateWrapperInstructions(textBaseAddress,dataBaseAddress);
+            func->generateWrapperInstructions(textBaseAddress, dataBaseAddress + initBufferDataOffset);
             func->generateBootstrapInstructions(textBaseAddress,dataBaseAddress);
-            func->generateProcedureLinkInstructions(textBaseAddress,dataBaseAddress,pltSection->getBaseAddress());
+            func->generateProcedureLinkInstructions(textBaseAddress, dataBaseAddress + initBufferDataOffset, pltSection->getBaseAddress());
         }
     }
 
@@ -855,12 +891,13 @@ uint64_t ElfFileInst::getExtraDataAddress() { return elfFile->getSectionHeader(e
 
 uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
     ASSERT(currentPhase > ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
-    uint64_t avail = usableDataOffset + bssReserved + regStorageReserved;
+    size = nextAlignAddressDouble(size);
+    uint64_t avail = usableDataOffset - initBufferDataOffset;
     usableDataOffset += size;
-    if (avail > elfFile->getSectionHeader(extraDataIdx)->GET(sh_size)){
+    if (usableDataOffset > elfFile->getSectionHeader(extraDataIdx)->GET(sh_size)){
         PRINT_WARN(5,"More than %llx bytes of data are needed for the extra data section", elfFile->getSectionHeader(extraDataIdx)->GET(sh_size));
     }
-    ASSERT(avail <= elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) && "Not enough space for the requested data");
+    ASSERT(usableDataOffset <= elfFile->getSectionHeader(extraDataIdx)->GET(sh_size) && "Not enough space for the requested data");
     return avail;
 }
 
@@ -885,11 +922,14 @@ void ElfFileInst::extendDataSection(uint64_t size){
     ASSERT(!strcmp(bssSection->getSectionNamePtr(),".bss") && "BSS section named something other than `.bss'");
 
     extraDataIdx = bssSectionIdx;
-    bssOffset = 0;
-    bssReserved = bssSection->GET(sh_size);
 
-    regStorageOffset = bssReserved;
+    bssOffset = usableDataOffset;
+    bssReserved = bssSection->GET(sh_size);
+    usableDataOffset += bssReserved;
+
+    regStorageOffset = usableDataOffset;
     regStorageReserved = sizeof(uint64_t)*X86_64BIT_GPRS;
+    usableDataOffset += regStorageReserved;
 
     // increase the memory size of the bss section (note: this section has no size in the file)
     bssSection->INCREMENT(sh_size,size);
@@ -906,6 +946,7 @@ void ElfFileInst::extendDataSection(uint64_t size){
 
     ASSERT(!initializedData && "Data initialization buffer should not be initialized yet");
     initializedData = new char[size];
+    initBufferDataOffset = usableDataOffset;
     bzero(initializedData, size);
 
     verify();
@@ -1009,7 +1050,6 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
     instrument();
-    declareFunction("memcpy");
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
@@ -1052,19 +1092,19 @@ void ElfFileInst::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 
     uint32_t extraTextOffset = elfFile->getSectionHeader(extraTextIdx)->GET(sh_offset);
     if (initializedData){
-        binaryOutputFile->copyBytes(initializedData, highestInitOffset, extraTextOffset + initBufferOffset);
+        binaryOutputFile->copyBytes(initializedData, highestInitOffset, extraTextOffset + initBufferTextOffset);
     }
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
-        instrumentationFunctions[i]->dump(binaryOutputFile,extraTextOffset);
+        instrumentationFunctions[i]->dump(binaryOutputFile, extraTextOffset);
     }
     for (uint32_t i = 0; i < instrumentationSnippets.size(); i++){
-        instrumentationSnippets[i]->dump(binaryOutputFile,extraTextOffset);
+        instrumentationSnippets[i]->dump(binaryOutputFile, extraTextOffset);
     }
     for (uint32_t i = 0; i < instrumentationPoints.size(); i++){
-        instrumentationPoints[i]->dump(binaryOutputFile,extraTextOffset);
+        instrumentationPoints[i]->dump(binaryOutputFile, extraTextOffset);
     }
     for (uint32_t i = 0; i < relocatedFunctions.size(); i++){
-        relocatedFunctions[i]->dump(binaryOutputFile,extraTextOffset+relocatedFunctionOffsets[i]);
+        relocatedFunctions[i]->dump(binaryOutputFile, extraTextOffset + relocatedFunctionOffsets[i]);
     }
 }
 
@@ -1120,9 +1160,9 @@ InstrumentationFunction* ElfFileInst::declareFunction(char* funcName){
 
     InstrumentationFunction* newFunction;
     if (elfFile->is64Bit()){
-        newFunction = new InstrumentationFunction64(instrumentationFunctions.size(), funcName, reserveDataOffset(Size__64_bit_Global_Offset_Table_Entry));
+        newFunction = new InstrumentationFunction64(instrumentationFunctions.size(), funcName);
     } else {
-        newFunction = new InstrumentationFunction32(instrumentationFunctions.size(), funcName, reserveDataOffset(Size__32_bit_Global_Offset_Table_Entry));
+        newFunction = new InstrumentationFunction32(instrumentationFunctions.size(), funcName);
     }
     instrumentationFunctions.append(newFunction);
 
@@ -1427,6 +1467,9 @@ void ElfFileInst::print(uint32_t printCodes){
             STATS(ratio = (float)dataBytesUsed / (float)extendedData->GET(sh_size) * 100.0);
             STATS(PRINT_INFOR("___stats: Extended DATA: section %hd @ addr %#llx + %d bytes, used %d bytes (%.2f\%)", 
                               extraDataIdx, extendedData->GET(sh_addr), extendedData->GET(sh_size), dataBytesUsed, ratio));
+            STATS(PRINT_INFOR("___stats: Reserved bss section at %#llx for %d bytes", extendedData->GET(sh_addr)+bssOffset, bssReserved));
+            STATS(PRINT_INFOR("___stats: Reserved reg storage at %#llx for %d bytes", extendedData->GET(sh_addr)+regStorageOffset, regStorageReserved));
+            STATS(PRINT_INFOR("___stats: Reserved init buffer at %#llx for %d bytes", extendedData->GET(sh_addr)+initBufferDataOffset, highestInitOffset));
         }
         if (instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]){
             uint32_t bytesUsed = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]->snippetSize();
@@ -1662,48 +1705,7 @@ uint64_t ElfFileInst::addFunction(InstrumentationFunction* func){
     uint32_t stringOffset = dynamicStringTable->searchForString(func->getFunctionName());
     uint64_t relocationOffset;
     if (stringOffset){
-        SymbolTable* dynamicSymbolTable = elfFile->getDynamicSymbolTable();
-        Symbol* functionSym = NULL;
-        for (uint32_t i = 0; i < dynamicSymbolTable->getNumberOfSymbols(); i++){
-            Symbol* sym = dynamicSymbolTable->getSymbol(i);
-            if (sym->GET(st_name) == stringOffset){
-                ASSERT(!functionSym);
-                functionSym = sym;
-            }
-        }
-        ASSERT(functionSym);
-        functionSym->print();
-
-        DynamicTable* dynTable = elfFile->getDynamicTable();
-
-        ASSERT(dynTable->countDynamics(DT_JMPREL) == 1 && "Cannot find a unique Relocation table for this file");
-
-        uint64_t relocTableAddr = dynTable->getDynamicByType(DT_JMPREL,0)->GET_A(d_val,d_un);
-        ASSERT(relocTableAddr && "Count not find a relocation table address in the dynamic table");
-
-        RelocationTable* relocTable = (RelocationTable*)elfFile->getRawSection(elfFile->findSectionIdx(relocTableAddr));
-        ASSERT(relocTable->getType() == ElfClassTypes_RelocationTable && "Found wrong section type when searching for relocation table");
-
-        Relocation* reloc = NULL;
-        for (uint32_t i = 0; i < relocTable->getNumberOfRelocations(); i++){
-            uint32_t rsymidx;
-            if (elfFile->is64Bit()){
-                rsymidx = ELF64_R_SYM(relocTable->getRelocation(i)->GET(r_info));
-            } else {
-                rsymidx = ELF32_R_SYM(relocTable->getRelocation(i)->GET(r_info));
-            }
-            if (rsymidx == functionSym->getIndex()){
-                ASSERT(!reloc);
-                reloc = relocTable->getRelocation(i);
-            }
-        }
-        ASSERT(reloc);
-        if (elfFile->is64Bit()){
-            relocationOffset = reloc->getIndex();
-        } else {
-            relocationOffset = reloc->getIndex() * relocTable->getRelocationSize();
-        }
-        PRINT_INFOR("Relocation offset is %#llx", relocationOffset);
+        __FUNCTION_NOT_IMPLEMENTED;
     } else {
         PRINT_INFOR("Adding function %s to string/symbol/reloc tables", func->getFunctionName());
         uint32_t funcNameOffset = addStringToDynamicStringTable(func->getFunctionName());

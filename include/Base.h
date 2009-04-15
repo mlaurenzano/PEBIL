@@ -282,8 +282,8 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define ASSERT(__str) assert(__str);
 #define TIMER(...) __VA_ARGS__
 #define INNER_TIMER(...) 
-//#define STATS(...) __VA_ARGS__
-#define STATS(...)
+#define STATS(...) __VA_ARGS__
+//#define STATS(...)
 
 #endif
 
