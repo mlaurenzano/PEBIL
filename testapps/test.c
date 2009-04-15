@@ -2,7 +2,7 @@
 
 int main(int argc){
 
-    memcpy((void*)0x12345678,(void*)0xdeadbeef,0x9999);
+    __asm("call *%eax");
     
     int i = 0;
     while (i < 1000000000){

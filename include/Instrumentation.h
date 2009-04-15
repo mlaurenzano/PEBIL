@@ -100,11 +100,12 @@ protected:
 
     uint64_t relocationOffset;
 
-    Vector<uint64_t> argumentOffsets;
-    Vector<uint64_t> argumentValues;
+    uint32_t numberOfArguments;
+    uint64_t* argumentOffsets;
+    uint32_t* argumentValues;
 
 public:
-    InstrumentationFunction(uint32_t idx, char* funcName);
+    InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset);
     ~InstrumentationFunction();
 
     void print();
@@ -125,7 +126,6 @@ public:
     uint32_t getNumberOfWrapperInstructions() { return wrapperInstructions.size(); }
     uint32_t getGlobalData() { return globalData; }
     uint64_t getGlobalDataOffset() { return globalDataOffset; }
-    uint64_t getProcedureLinkOffset() { return procedureLinkOffset; }
 
     void setRelocationOffset(uint64_t relocOffset) { relocationOffset = relocOffset; }
 
@@ -135,7 +135,7 @@ public:
     virtual uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress) { __SHOULD_NOT_ARRIVE; }
     virtual uint32_t generateBootstrapInstructions(uint64_t textbaseAddress, uint64_t dataBaseAddress) { __SHOULD_NOT_ARRIVE; }
     virtual uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress) { __SHOULD_NOT_ARRIVE; }
-    virtual uint32_t generateGlobalData(uint64_t gotDataOffset, uint64_t textBaseAddress) { __SHOULD_NOT_ARRIVE; }
+    virtual uint32_t generateGlobalData(uint64_t textBaseAddress) { __SHOULD_NOT_ARRIVE; }
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     uint32_t addArgument(uint64_t offset);
@@ -149,13 +149,13 @@ public:
 
 class InstrumentationFunction32 : public InstrumentationFunction {
 public:
-    InstrumentationFunction32(uint32_t idx, char* funcName) : InstrumentationFunction(idx,funcName) {}
+    InstrumentationFunction32(uint32_t idx, char* funcName, uint64_t dataoffset) : InstrumentationFunction(idx,funcName,dataoffset) {}
     ~InstrumentationFunction32() {}
 
     uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress);
     uint32_t generateBootstrapInstructions(uint64_t textbaseAddress, uint64_t dataBaseAddress);
     uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress);
-    uint32_t generateGlobalData(uint64_t gotDataOffset, uint64_t textBaseAddress);
+    uint32_t generateGlobalData(uint64_t textBaseAddress);
 
     uint32_t bootstrapReservedSize() { return Size__32_bit_function_bootstrap; }
     uint32_t procedureLinkReservedSize() { return Size__32_bit_procedure_link; }
@@ -164,13 +164,13 @@ public:
 
 class InstrumentationFunction64 : public InstrumentationFunction {
 public:
-    InstrumentationFunction64(uint32_t idx, char* funcName) : InstrumentationFunction(idx,funcName) {}
+    InstrumentationFunction64(uint32_t idx, char* funcName,uint64_t dataoffset) : InstrumentationFunction(idx,funcName,dataoffset) {}
     ~InstrumentationFunction64() {}
 
     uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress);
     uint32_t generateBootstrapInstructions(uint64_t textbaseAddress, uint64_t dataBaseAddress);
     uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress);
-    uint32_t generateGlobalData(uint64_t gotDataOffset, uint64_t textBaseAddress);
+    uint32_t generateGlobalData(uint64_t textBaseAddress);
 
     uint32_t bootstrapReservedSize() { return Size__64_bit_function_bootstrap; }
     uint32_t procedureLinkReservedSize() { return Size__64_bit_procedure_link; }

@@ -24,8 +24,6 @@ public:
     char* getString(uint32_t offset);
     uint32_t addString(const char* name);
     uint32_t getIndex() { return index; }
-
-    uint32_t searchForString(char* str);
 };
 
 #endif /* _StringTable_h_ */

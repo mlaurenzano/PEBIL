@@ -6,7 +6,7 @@
 #include <InstructionGenerator.h>
 #include <TextSection.h>
 
-//#define OPTIMIZE_NONLEAF
+#define OPTIMIZE_NONLEAF
 // this optimization will not be valid on some old intel-based x64 systems that don't support lahf/sahf
 #define TRAMPOLINE_AVOIDS_STACK
 //#define TRAMPOLINE_WITHOUT_CONTENT
@@ -373,10 +373,25 @@ uint32_t InstrumentationFunction::addArgument(uint64_t offset){
 }
 
 uint32_t InstrumentationFunction::addArgument(uint64_t offset, uint32_t value){
-    argumentOffsets.append(offset);
-    argumentValues.append(value);
-    ASSERT(argumentOffsets.size() == argumentValues.size());
-    return argumentOffsets.size();
+    uint64_t* newoffsets = new uint64_t[numberOfArguments+1];
+    uint32_t* newvalues = new uint32_t[numberOfArguments+1];
+
+    for (uint32_t i = 0; i < numberOfArguments; i++){
+        newoffsets[i] = argumentOffsets[i];
+        newvalues[i] = argumentValues[i];
+    }
+
+    newoffsets[numberOfArguments] = offset;
+    newvalues[numberOfArguments] = value;
+
+    delete[] argumentOffsets;
+    delete[] argumentValues;
+
+    argumentOffsets = newoffsets;
+    argumentValues = newvalues;
+
+    numberOfArguments++;
+    return numberOfArguments;
 }
 
 void InstrumentationFunction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
@@ -435,9 +450,9 @@ uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t t
 }
 
 uint32_t InstrumentationFunction64::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(globalData, X86_REG_CX));
-    bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + globalDataOffset, X86_REG_DX));
-    bootstrapInstructions.append(InstructionGenerator::generateMoveRegToRegaddr(X86_REG_CX, X86_REG_DX));
+    bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(globalData,X86_REG_CX));
+    bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + globalDataOffset,X86_REG_DX));
+    bootstrapInstructions.append(InstructionGenerator::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX));
 
     while (bootstrapSize() < bootstrapReservedSize()){
         bootstrapInstructions.append(InstructionGenerator64::generateNoop());
@@ -447,8 +462,8 @@ uint32_t InstrumentationFunction64::generateBootstrapInstructions(uint64_t textB
 }
 
 uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    bootstrapInstructions.append(InstructionGenerator32::generateMoveImmToReg(globalData, X86_REG_CX));
-    bootstrapInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX, dataBaseAddress + globalDataOffset));
+    bootstrapInstructions.append(InstructionGenerator32::generateMoveImmToReg(globalData,X86_REG_CX));
+    bootstrapInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress + globalDataOffset));
 
     while (bootstrapSize() < bootstrapReservedSize()){
         bootstrapInstructions.append(InstructionGenerator32::generateNoop());
@@ -465,10 +480,10 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         wrapperInstructions.append(InstructionGenerator64::generateStackPush(i));
     }
 
-    ASSERT(argumentOffsets.size() < MAX_ARGUMENTS_64BIT && "More arguments must be pushed onto stack, which is not yet implemented"); 
+    ASSERT(numberOfArguments < MAX_ARGUMENTS_64BIT && "More arguments must be pushed onto stack, which is not yet implemented"); 
 
-    for (uint32_t i = 0; i < argumentOffsets.size(); i++){
-        uint32_t idx = argumentOffsets.size() - i - 1;
+    for (uint32_t i = 0; i < numberOfArguments; i++){
+        uint32_t idx = numberOfArguments - i - 1;
         uint32_t value = argumentValues[idx];
 
         uint32_t argumentRegister;
@@ -528,8 +543,8 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
         wrapperInstructions.append(InstructionGenerator32::generateStackPush(i));
     }
 
-    for (uint32_t i = 0; i < argumentOffsets.size(); i++){
-        uint32_t idx = argumentOffsets.size() - i - 1;
+    for (uint32_t i = 0; i < numberOfArguments; i++){
+        uint32_t idx = numberOfArguments - i - 1;
         uint32_t value = argumentValues[idx];
 
         // everything is passed on the stack
@@ -541,7 +556,7 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
     }
     wrapperInstructions.append(InstructionGenerator32::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
 
-    for (uint32_t i = 0; i < argumentOffsets.size(); i++){
+    for (uint32_t i = 0; i < numberOfArguments; i++){
         wrapperInstructions.append(InstructionGenerator32::generateStackPop(X86_REG_CX));
     }
 
@@ -560,17 +575,13 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
     return wrapperInstructions.size();
 }
 
-uint32_t InstrumentationFunction64::generateGlobalData(uint64_t gotDataOffset, uint64_t textBaseAddress){
+uint32_t InstrumentationFunction64::generateGlobalData(uint64_t textBaseAddress){
     globalData = textBaseAddress + procedureLinkOffset + PLT_RETURN_OFFSET_64BIT;
-    globalDataOffset = gotDataOffset;
-    PRINT_INFOR("Generating GOT entry for instrumentation function %#llx (offset %#llx)", globalData, globalDataOffset);
     return globalData;
 }
 
-uint32_t InstrumentationFunction32::generateGlobalData(uint64_t gotDataOffset, uint64_t textBaseAddress){
+uint32_t InstrumentationFunction32::generateGlobalData(uint64_t textBaseAddress){
     globalData = textBaseAddress + procedureLinkOffset + PLT_RETURN_OFFSET_32BIT;
-    globalDataOffset = gotDataOffset;
-    PRINT_INFOR("Generating GOT entry for instrumentation function %#llx (offset %#llx)", globalData, globalDataOffset);
     return globalData;
 }
 
@@ -579,7 +590,7 @@ uint32_t InstrumentationFunction::sizeNeeded(){
     return totalSize;
 }
 
-InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName)
+InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset)
     : Instrumentation(ElfClassTypes_InstrumentationFunction)
 {
     index = idx;
@@ -592,7 +603,11 @@ InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName)
     wrapperOffset = 0;
 
     globalData = 0;
-    globalDataOffset = 0;
+    globalDataOffset = dataoffset;
+
+    numberOfArguments = 0;
+    argumentOffsets = NULL;
+    argumentValues = NULL;
 
     distinctTrampoline = true;
 }
@@ -606,6 +621,12 @@ InstrumentationFunction::~InstrumentationFunction(){
     }
     for (uint32_t i = 0; i < wrapperInstructions.size(); i++){
         delete wrapperInstructions[i];
+    }
+    if (argumentOffsets){
+        delete[] argumentOffsets;
+    }
+    if (argumentValues){
+        delete[] argumentValues;
     }
 }
 
@@ -645,11 +666,9 @@ void InstrumentationSnippet::dump(BinaryOutputFile* binaryOutputFile, uint32_t o
         currentOffset += bootstrapInstructions[i]->getSizeInBytes();
     }
     currentOffset = snippetOffset;
-    if (requiresDistinctTrampoline()){
-        for (uint32_t i = 0; i < snippetInstructions.size(); i++){
-            snippetInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-            currentOffset += snippetInstructions[i]->getSizeInBytes();
-        }
+    for (uint32_t i = 0; i < snippetInstructions.size(); i++){
+        snippetInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
+        currentOffset += snippetInstructions[i]->getSizeInBytes();
     }
 }
 
@@ -676,10 +695,8 @@ uint32_t InstrumentationSnippet::bootstrapSize(){
 
 uint32_t InstrumentationSnippet::snippetSize(){
     uint32_t totalSize = 0;
-    if (requiresDistinctTrampoline()){
-        for (uint32_t i = 0; i < snippetInstructions.size(); i++){
-            totalSize += snippetInstructions[i]->getSizeInBytes();
-        }
+    for (uint32_t i = 0; i < snippetInstructions.size(); i++){
+        totalSize += snippetInstructions[i]->getSizeInBytes();
     }
     return totalSize;
 }

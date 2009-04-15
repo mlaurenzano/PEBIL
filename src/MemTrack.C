@@ -404,11 +404,11 @@ namespace MemTrack
         BlockHeader::GetBlocks(ppBlockHeader);
 
         // Dump information about the memory blocks.
-        PRINT_DEBUG_MEMTRACK("");
-        PRINT_DEBUG_MEMTRACK("=====================");
-        PRINT_DEBUG_MEMTRACK("Current Memory Blocks");
-        PRINT_DEBUG_MEMTRACK("=====================");
-        PRINT_DEBUG_MEMTRACK("");
+        printf("\n");
+        printf("=====================\n");
+        printf("Current Memory Blocks\n");
+        printf("=====================\n");
+        printf("\n");
         for (size_t i = 0; i < numBlocks; i++)
             {
                 BlockHeader *pBlockHeader = ppBlockHeader[i];
@@ -416,8 +416,8 @@ namespace MemTrack
                 size_t size = pBlockHeader->GetRequestedSize();
                 char const *fileName = pBlockHeader->GetFilename();
                 int lineNum = pBlockHeader->GetLineNum();
-                PRINT_DEBUG_MEMTRACK("*** #%-6d %5d bytes %-50s", i, size, typeName);
-                PRINT_DEBUG_MEMTRACK("... %s:%d", fileName, lineNum);
+                printf("*** #%-6d %5d bytes %-50s\n", i, size, typeName);
+                printf("... %s:%d\n", fileName, lineNum);
             }
 
         // Clean up.
@@ -527,8 +527,8 @@ namespace MemTrack
             }
 
         // Dump the memory usage statistics.
-        PRINT_DEBUG_MEMTRACK("%-50s%5s  %5s %7s %s ", "allocated type", "blocks", "", "bytes", "");
-        PRINT_DEBUG_MEMTRACK("%-50s%5s  %5s %7s %s ", "--------------", "------", "", "-----", "");
+        printf("%-50s%5s  %5s %7s %s \n", "allocated type", "blocks", "", "bytes", "");
+        printf("%-50s%5s  %5s %7s %s \n", "--------------", "------", "", "-----", "");
 
         for (size_t i = 0; i < numUniqueTypes; i++)
             {
@@ -539,8 +539,8 @@ namespace MemTrack
                 double totalSizePct = 100.0 * totalSize / grandTotalSize;
 
                 if (totalSizePct >= sigPrint){
-                    PRINT_DEBUG_MEMTRACK(
-                           "%-50s %5d %5.1f%% %7d %5.1f%%",
+                    printf(
+                           "%-50s %5d %5.1f%% %7d %5.1f%%\n",
                            pMD->typeName,
                            blockCount,
                            blockCountPct,
@@ -549,8 +549,8 @@ namespace MemTrack
                            );
                 }
             }
-        PRINT_DEBUG_MEMTRACK("%-50s %5s %5s  %7s %s ", "--------", "-----", "", "-------", "");
-        PRINT_DEBUG_MEMTRACK("%-50s %5d %5s  %7d %s ", "[totals]", grandTotalNumBlocks, "", grandTotalSize, "");
+        printf("%-50s %5s %5s  %7s %s \n", "--------", "-----", "", "-------", "");
+        printf("%-50s %5d %5s  %7d %s \n", "[totals]", grandTotalNumBlocks, "", grandTotalSize, "");
 
         // Clean up.
         free(ppBlockHeader);
