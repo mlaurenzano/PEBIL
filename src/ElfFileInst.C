@@ -155,7 +155,7 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
 #endif
     void* anchor = bsearch(&addr, allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), searchLinkBaseAddress);
     if (anchor){
-        uint32_t idx = ((uint32_t)anchor-(uint32_t)allAnchors)/sizeof(AddressAnchor*);
+        uint64_t idx = ((uint64_t)anchor-(uint64_t)allAnchors)/sizeof(AddressAnchor*);
         while (idx < addressAnchors.size() &&
                 addressAnchors[idx]->linkBaseAddress <= addr &&
                 addr < addressAnchors[idx]->linkBaseAddress + addressAnchors[idx]->getLink()->getSizeInBytes()){

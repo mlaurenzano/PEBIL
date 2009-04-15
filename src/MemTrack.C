@@ -331,7 +331,7 @@ namespace MemTrack
         
         // If the allocation failed, then return NULL.
         if (pProlog == NULL) return NULL;
-        
+                
         // Use placement new to construct the block header in place.
         BlockHeader *pBlockHeader = new (pProlog) BlockHeader(size);
         
