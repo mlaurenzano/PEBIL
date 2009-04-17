@@ -6,7 +6,7 @@
 #include <InstructionGenerator.h>
 #include <TextSection.h>
 
-#define OPTIMIZE_NONLEAF
+//#define OPTIMIZE_NONLEAF
 // this optimization will not be valid on some old intel-based x64 systems that don't support lahf/sahf
 #define TRAMPOLINE_AVOIDS_STACK
 //#define TRAMPOLINE_WITHOUT_CONTENT
@@ -51,14 +51,6 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
     } else {
         STATS(InstrumentationPoint::countStackSafe++);
     }
-
-    /*
-    trampolineInstructions.append(InstructionGenerator::generatePushEflags());
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-    trampolineInstructions.append(InstructionGenerator::generatePopEflags());
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    */
 
 #ifdef TRAMPOLINE_AVOIDS_STACK
     trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, regStorageBase + sizeof(uint64_t)));
@@ -210,10 +202,6 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
     trampolineInstructions.append(InstructionGenerator32::generateStoreEflagsToAH());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    /*
-    trampolineInstructions.append(InstructionGenerator32::generateAndImmReg(0xfffffeff, X86_REG_AX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    */
 #else
     if (!stackIsSafe){
         // save eflags in a way that doesn't touch the stack, since this could corrupt the stack in the case of a leaf-optimized function

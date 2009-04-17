@@ -46,6 +46,8 @@ install: $(EXECUTABLE)
 
 clean: 
 	rm -f core *.new *.o *.i *.ii *.s *.class $(EXECUTABLE) 
+
+fullclean: clean
 	( cd $(BINDIR); rm -f $(EXECUTABLE) )
 
 depend:

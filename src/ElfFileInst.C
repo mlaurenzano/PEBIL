@@ -134,6 +134,9 @@ bool ElfFileInst::isEligibleFunction(Function* func){
     if (!canRelocateFunction(func)){
         return false;
     }
+    if (strstr("pg", func->getName())){
+        return false;
+    }
     return true;
 }
 
@@ -491,6 +494,10 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
     return placeHolder->getNumberOfBytes();
 }
 
+BasicBlock* ElfFileInst::getProgramEntryBlock(){
+    return getTextSection()->getBasicBlockAtAddress(elfFile->getFileHeader()->GET(e_entry));
+}
+
 // the order of operations in this function in very important, things will break in
 // very insidious ways if the order is changed
 void ElfFileInst::generateInstrumentation(){
@@ -500,14 +507,8 @@ void ElfFileInst::generateInstrumentation(){
 
     anchorProgramElements();
 
-    uint16_t textIdx = elfFile->findSectionIdx(".text");
-    TextSection* textSection = (TextSection*)elfFile->getRawSection(textIdx);
-    SectionHeader* textHeader = elfFile->getSectionHeader(textIdx);
-    ASSERT(textSection->getType() == ElfClassTypes_TextSection && ".text section has the wrong type");
-
-    uint16_t pltIdx = elfFile->findSectionIdx(".plt");
-    TextSection* pltSection = (TextSection*)elfFile->getRawSection(pltIdx);
-    ASSERT(pltSection->getType() == ElfClassTypes_TextSection && ".plt section has the wrong type");
+    TextSection* textSection = getTextSection();
+    TextSection* pltSection = getPltSection();
 
     uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
     uint64_t dataBaseAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr);
@@ -520,7 +521,8 @@ void ElfFileInst::generateInstrumentation(){
 
     // find the entry point of the program and put an instrumentation point for our initialization there
     ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP1] && "instrumentationPoint[INST_POINT_BOOTSTRAP1] is reserved");
-    BasicBlock* entryBlock = textSection->getBasicBlockAtAddress(elfFile->getFileHeader()->GET(e_entry));
+    BasicBlock* entryBlock = getProgramEntryBlock();
+
     ASSERT(entryBlock && "Cannot find instruction at the program's entry point");
     
     if (elfFile->is64Bit()){
@@ -530,7 +532,7 @@ void ElfFileInst::generateInstrumentation(){
         instrumentationPoints[INST_POINT_BOOTSTRAP1] = 
             new InstrumentationPoint32((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], SIZE_FIRST_INST_POINT, InstLocation_dont_care);    
     }
-    instrumentationPoints[INST_POINT_BOOTSTRAP1]->setPriority(InstPriority_datainit);
+    instrumentationPoints[INST_POINT_BOOTSTRAP1]->setPriority(InstPriority_sysinit);
             
     uint64_t codeOffset = 0;
 
@@ -630,7 +632,6 @@ void ElfFileInst::generateInstrumentation(){
             PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx in %s", i, instrumentationPoints.size(), pt->getSourceObject()->getBaseAddress(), bb->getFunction()->getName());
 #endif
 
-
         if (!pt->getSourceAddress()){
             PRINT_WARN(4,"Could not find a place to instrument for point at %#llx", pt->getSourceObject()->getBaseAddress());
             continue;
@@ -641,10 +642,12 @@ void ElfFileInst::generateInstrumentation(){
         }
         PRINT_DEBUG_INST("Generating code for InstrumentationPoint %d at address %llx", i, pt->getSourceAddress());
 
+        PRINT_DEBUG_POINT_CHAIN("Examining instrumentation point %d at %#llx", i, pt->getSourceAddress());
+
         bool isFirstInChain = false;
         if (i == 0 || 
             (i > 0 && instrumentationPoints[i-1]->getSourceAddress() != pt->getSourceAddress())){
-            PRINT_DEBUG_POINT_CHAIN("First in chain at %#llx (%d)", pt->getSourceAddress(), i);
+            PRINT_DEBUG_POINT_CHAIN("\tFirst in chain at %#llx (%d)", pt->getSourceAddress(), i);
 
             isFirstInChain = true;
             chainOffset = codeOffset;
@@ -679,7 +682,7 @@ void ElfFileInst::generateInstrumentation(){
         bool isLastInChain = false;
         if (i == instrumentationPoints.size()-1 || 
             (i < instrumentationPoints.size()-1 && instrumentationPoints[i+1]->getSourceAddress() != pt->getSourceAddress())){
-            PRINT_DEBUG_POINT_CHAIN("Last of chain at %#llx (%d)", pt->getSourceAddress(), i);
+            PRINT_DEBUG_POINT_CHAIN("\tLast of chain at %#llx (%d)", pt->getSourceAddress(), i);
             isLastInChain = true;
 
             displaced = pt->swapInstructionsAtPoint(repl);
@@ -869,7 +872,6 @@ uint32_t ElfFileInst::addInstrumentationSnippet(InstrumentationSnippet* snip){
     return instrumentationSnippets.size();
 }
 
-
 TextSection* ElfFileInst::getTextSection(){
     uint16_t textIdx = elfFile->findSectionIdx(".text");
     TextSection* textSection = (TextSection*)elfFile->getRawSection(textIdx);
@@ -882,6 +884,11 @@ TextSection* ElfFileInst::getFiniSection(){
 }
 TextSection* ElfFileInst::getInitSection(){
     uint16_t textIdx = elfFile->findSectionIdx(".init");
+    TextSection* textSection = (TextSection*)elfFile->getRawSection(textIdx);
+    return textSection;
+}
+TextSection* ElfFileInst::getPltSection(){
+    uint16_t textIdx = elfFile->findSectionIdx(".plt");
     TextSection* textSection = (TextSection*)elfFile->getRawSection(textIdx);
     return textSection;
 }

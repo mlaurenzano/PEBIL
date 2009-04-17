@@ -15,6 +15,7 @@ class InstrumentationFunction;
 class InstrumentationPoint;
 class InstrumentationSnippet;
 class Instruction;
+class LineInfo;
 class LineInfoFinder;
 class RawSection;
 class SectionHeader;
@@ -45,14 +46,6 @@ class ElfFileInst {
 private:
     ElfFile* elfFile;
     Vector<Function*> hiddenFunctions;
-
-protected:
-    Vector<Function*> exposedFunctions;
-
-    uint32_t currentPhase;
-
-    char* instSuffix;
-    char* sharedLibraryPath;
 
     Vector<InstrumentationSnippet*> instrumentationSnippets;
     Vector<InstrumentationFunction*> instrumentationFunctions;
@@ -91,9 +84,16 @@ protected:
     uint32_t addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx);
     uint32_t expandHashTable();
 
-    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, uint32_t sz);
+protected:
+    Vector<Function*> exposedFunctions;
+
+    uint32_t currentPhase;
+
+    char* instSuffix;
+    char* sharedLibraryPath;
 
     // instrumentation functions
+    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, uint32_t sz);
     uint32_t addSharedLibrary(const char* libname);
     uint32_t addSharedLibraryPath();
     uint64_t addFunction(InstrumentationFunction* func);
@@ -106,6 +106,7 @@ protected:
     void generateInstrumentation();
     uint32_t relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation);
     bool isEligibleFunction(Function* func);
+    bool is64Bit() { return elfFile->is64Bit(); }
 
 public:
     ElfFileInst(ElfFile* elf);
@@ -128,6 +129,9 @@ public:
     TextSection* getTextSection();
     TextSection* getFiniSection();
     TextSection* getInitSection();
+    TextSection* getPltSection();
+
+    BasicBlock* getProgramEntryBlock();
 
     LineInfoFinder* getLineInfoFinder() { return lineInfoFinder; }
     bool hasLineInformation() { return (lineInfoFinder != NULL); }

@@ -7,26 +7,22 @@
 #include <Loop.h>
 #include <TextSection.h>
 
-//#define EMPTY_SNIPPET
-
+#define ENTRY_FUNCTION "initcounter"
 #define EXIT_FUNCTION "blockcounter"
 #define LIB_NAME "libcounter.so"
-#define NOINST_VALUE 0xffffffff
 #define FILE_UNK "__FILE_UNK__"
-#define INST_BUFFER_SIZE (65536*sizeof(uint32_t))
+#define INST_SUFFIX "jbbinst"
 
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     : ElfFileInst(elf)
 {
     instSuffix = new char[__MAX_STRING_SIZE];
-    sprintf(instSuffix,"%s\0", "jbbinst");
+    sprintf(instSuffix,"%s\0", INST_SUFFIX);
 }
 
 void BasicBlockCounter::instrument(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
     
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-
     // declare any shared library that will contain instrumentation functions
     declareLibrary(LIB_NAME);
 
@@ -34,9 +30,16 @@ void BasicBlockCounter::instrument(){
     InstrumentationFunction* exitFunc = declareFunction(EXIT_FUNCTION);
     ASSERT(exitFunc && "Cannot find exit function, are you sure it was declared?");
 
+    InstrumentationFunction* entryFunc = declareFunction(ENTRY_FUNCTION);
+    ASSERT(entryFunc && "Cannot find entry function, are you sure it was declared?");
+
+    InstrumentationFunction* fFunc = declareFunction("foo");
+    InstrumentationFunction* ffFunc = declareFunction("foofoo");
+
     TextSection* text = getTextSection();
     TextSection* fini = getFiniSection();
-    TextSection* init = getInitSection();
+    ASSERT(text && "Cannot find text section");
+    ASSERT(fini && "Cannot find fini section");
 
     LineInfoFinder* lineInfoFinder = NULL;
     if (hasLineInformation()){
@@ -45,12 +48,11 @@ void BasicBlockCounter::instrument(){
         PRINT_ERROR("This executable does not have any line information");
     }
 
-    ASSERT(text && "Cannot find text section");
 
     uint64_t dataBaseAddress = getExtraDataAddress();
 
-    Vector<BasicBlock*> allBlocks;
-    Vector<LineInfo*> allLineInfos;
+    Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
+    Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
 
     PRINT_DEBUG_FUNC_RELOC("Instrumenting %d functions", exposedFunctions.size());
     for (uint32_t i = 0; i < exposedFunctions.size(); i++){
@@ -58,49 +60,133 @@ void BasicBlockCounter::instrument(){
         PRINT_DEBUG_FUNC_RELOC("\t%s", f->getName());
         ASSERT(f->hasCompleteDisassembly() && isEligibleFunction(f));
         for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
-            allBlocks.append(f->getBasicBlock(j));
-            allLineInfos.append(lineInfoFinder->lookupLineInfo(f->getBasicBlock(j)));
+            (*allBlocks).append(f->getBasicBlock(j));
+            (*allLineInfos).append(lineInfoFinder->lookupLineInfo(f->getBasicBlock(j)));
         }
     }
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
-    ASSERT(!allLineInfos.size() || allBlocks.size() == allLineInfos.size());
-    uint32_t numberOfInstPoints = allBlocks.size();
+    ASSERT(!(*allLineInfos).size() || (*allBlocks).size() == (*allLineInfos).size());
+    uint32_t numberOfInstPoints = (*allBlocks).size();
 
     // the number blocks in the code
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
-    // we have the option of giving an initialization value to addArgument
-    exitFunc->addArgument(counterArrayEntries,numberOfInstPoints);
-
     // an array of counters. note that everything is passed by reference
     uint64_t counterArray = reserveDataOffset(numberOfInstPoints * sizeof(uint32_t));
-    exitFunc->addArgument(counterArray);
-
-    // an array for line numbers
     uint64_t lineArray = reserveDataOffset(numberOfInstPoints * sizeof(uint32_t));
-    exitFunc->addArgument(lineArray);
-
-    // an array for file name pointers
     uint64_t fileNameArray = reserveDataOffset(numberOfInstPoints * sizeof(char*));
-    exitFunc->addArgument(fileNameArray);
-
-    // an array for function name pointers
     uint64_t funcNameArray = reserveDataOffset(numberOfInstPoints * sizeof(char*));
-    exitFunc->addArgument(funcNameArray);
+    uint64_t hashCodeArray = reserveDataOffset(numberOfInstPoints * sizeof(uint64_t));
+    uint64_t appName = reserveDataOffset((strlen(getApplicationName()) + 1) * sizeof(char));
+    initializeReservedData(dataBaseAddress + appName, strlen(getApplicationName()), getApplicationName());
+    uint64_t instExt = reserveDataOffset((strlen(getInstSuffix()) + 1) * sizeof(char));
+    initializeReservedData(dataBaseAddress + instExt, strlen(getInstSuffix()), getInstSuffix());
 
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-    Vector<InstrumentationPoint*>* allPoints = new Vector<InstrumentationPoint*>();
+    exitFunc->addArgument(counterArray);
+    exitFunc->addArgument(appName);
+    exitFunc->addArgument(instExt);
+
     if (fini->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
-        InstrumentationPoint* p = addInstrumentationPoint(fini,exitFunc,SIZE_CONTROL_TRANSFER);
-        (*allPoints).append(p);
+        addInstrumentationPoint(fini, exitFunc, SIZE_CONTROL_TRANSFER);
     } else {
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
+
+    // we have the option of giving an initialization value to addArgument so it is initialized in the function wrapper
+    entryFunc->addArgument(counterArrayEntries,numberOfInstPoints);
+    // an array for line numbers
+    entryFunc->addArgument(lineArray);
+    // an array for file name pointers
+    entryFunc->addArgument(fileNameArray);
+    // an array for function name pointers
+    entryFunc->addArgument(funcNameArray);
+    // an array for hashcodes
+    entryFunc->addArgument(hashCodeArray);
+
+    BasicBlock* entryBlock = getProgramEntryBlock();
+    if (entryBlock->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
+        InstrumentationPoint* p = addInstrumentationPoint(entryBlock, entryFunc, SIZE_CONTROL_TRANSFER);
+        p->setPriority(InstPriority_userinit);
+    } else {
+        PRINT_ERROR("Cannot find an instrumentation point at the entry block");
+    }
+
+#ifdef DEBUG_MEMTRACK
+    PRINT_DEBUG_MEMTRACK("There are %d instrumentation points", numberOfInstPoints);
+#endif
+    for (uint32_t i = 0; i < numberOfInstPoints; i++){
+
+        BasicBlock* bb = (*allBlocks)[i];
+        LineInfo* li = (*allLineInfos)[i];
+        Function* f = bb->getFunction();
+
+#ifdef DEBUG_MEMTRACK
+        if (i % 1000 == 0){
+            PRINT_DEBUG_MEMTRACK("inst point %d", i);
+            PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);            
+        }
+#endif
+        if (li){
+            uint32_t line = li->GET(lr_line);
+            initializeReservedData(dataBaseAddress + lineArray + sizeof(uint32_t)*i, sizeof(uint32_t), &line);
+
+            uint64_t filename = reserveDataOffset(strlen(li->getFileName()) + 1);
+            uint64_t filenameAddr = dataBaseAddress + filename;
+            initializeReservedData(dataBaseAddress + fileNameArray + i*sizeof(char*), sizeof(char*), &filenameAddr);
+            initializeReservedData(dataBaseAddress + filename, strlen(li->getFileName()) + 1, (void*)li->getFileName());
+
+        }
+        uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
+        uint64_t funcnameAddr = dataBaseAddress + funcname;
+        initializeReservedData(dataBaseAddress + funcNameArray + i*sizeof(char*), sizeof(char*), &funcnameAddr);
+        initializeReservedData(dataBaseAddress + funcname, strlen(f->getName()) + 1, (void*)f->getName());
+
+        uint64_t hashValue = bb->getHashCode().getValue();
+        initializeReservedData(dataBaseAddress + hashCodeArray + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
+        
+        InstrumentationSnippet* snip = new InstrumentationSnippet();
+        uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
+
+        // snippet contents, in this case just increment a counter
+        if (is64Bit()){
+            snip->addSnippetInstruction(InstructionGenerator64::generateAddImmByteToMem(1, dataBaseAddress + counterOffset));
+        } else {
+            snip->addSnippetInstruction(InstructionGenerator32::generateAddImmByteToMem(1, dataBaseAddress + counterOffset));
+        }
+        // do not generate control instructions to get back to the application, this is done for
+        // the snippet automatically during code generation
+            
+        // register the snippet we just created
+        addInstrumentationSnippet(snip);
+            
+        // register an instrumentation point at the function that uses this snippet
+            InstrumentationPoint* p = addInstrumentationPoint(bb,snip,SIZE_CONTROL_TRANSFER);
+        if (strcmp(f->getName(),"_start")){
+        }
+    }
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+
+    printStaticFile(allBlocks, allLineInfos);
+
+    delete allBlocks;
+    delete allLineInfos;
+
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
+}
+
+
+void BasicBlockCounter::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos){
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
+
+    ASSERT(!(*allLineInfos).size() || (*allBlocks).size() == (*allLineInfos).size());
+    uint32_t numberOfInstPoints = (*allBlocks).size();
 
     char* staticFile = new char[__MAX_STRING_SIZE];
     sprintf(staticFile,"%s.%s.%s", getApplicationName(), getInstSuffix(), "static");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
+
+    TextSection* text = getTextSection();
 
     fprintf(staticFD, "# appname   = %s\n", getApplicationName());
     fprintf(staticFD, "# appsize   = %d\n", getApplicationSize());
@@ -112,7 +198,7 @@ void BasicBlockCounter::instrument(){
     fprintf(staticFD, "# memops    = %d\n", text->getNumberOfMemoryOps());
     fprintf(staticFD, "# fpops     = %d\n", text->getNumberOfFloatOps());
     fprintf(staticFD, "# insns     = %d\n", text->getNumberOfInstructions());
-    fprintf(staticFD, "# buffer    = %d\n", INST_BUFFER_SIZE);
+    fprintf(staticFD, "# buffer    = %d\n", 0);
     for (uint32_t i = 0; i < getNumberOfInstrumentationLibraries(); i++){
         fprintf(staticFD, "# library   = %s\n", getInstrumentationLibrary(i));
     }
@@ -125,67 +211,11 @@ void BasicBlockCounter::instrument(){
     uint32_t trapCount = 0;
     uint32_t jumpCount = 0;
 
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-#ifdef DEBUG_MEMTRACK
-    PRINT_DEBUG_MEMTRACK("There are %d instrumentation points", numberOfInstPoints);
-#endif
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
 
-        BasicBlock* bb = allBlocks[i];
-        LineInfo* li = allLineInfos[i];
+        BasicBlock* bb = (*allBlocks)[i];
+        LineInfo* li = (*allLineInfos)[i];
         Function* f = bb->getFunction();
-
-#ifdef DEBUG_MEMTRACK
-        if (i % 1000 == 0){
-            PRINT_DEBUG_MEMTRACK("inst point %d", i);
-            PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);            
-        }
-#endif
-        if (li){
-            uint32_t line = li->GET(lr_line);
-            initializeReservedData(dataBaseAddress+lineArray+sizeof(uint32_t)*i,sizeof(uint32_t),&line);
-
-            uint64_t filename = reserveDataOffset(strlen(li->getFileName())+1);
-            uint64_t filenameAddr = dataBaseAddress + filename;
-            initializeReservedData(dataBaseAddress+fileNameArray+i*sizeof(char*),sizeof(char*),&filenameAddr);
-            initializeReservedData(dataBaseAddress+filename,strlen(li->getFileName())+1,(void*)li->getFileName());
-
-        }
-        uint64_t funcname = reserveDataOffset(strlen(f->getName())+1);
-        uint64_t funcnameAddr = dataBaseAddress + funcname;
-        initializeReservedData(dataBaseAddress+funcNameArray+i*sizeof(char*),sizeof(char*),&funcnameAddr);
-        initializeReservedData(dataBaseAddress+funcname,strlen(f->getName())+1,(void*)f->getName());
-        
-        InstrumentationSnippet* snip = new InstrumentationSnippet();
-        uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
-
-#ifndef EMPTY_SNIPPET
-        //        snip->addSnippetInstruction(InstructionGenerator32::generateAddImmByteToMem(1, dataBaseAddress + counterOffset));
-        snip->addSnippetInstruction(InstructionGenerator64::generateAddImmByteToMem(1, dataBaseAddress + counterOffset));
-
-        /*
-        // save any registers used
-        snip->addSnippetInstruction(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX, dataBaseAddress + regStorageOffset + sizeof(uint64_t)));
-                
-        // increment the counter for this function
-        snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(dataBaseAddress + counterOffset, X86_REG_CX));
-        snip->addSnippetInstruction(InstructionGenerator32::generateAddByteToRegaddr(1, X86_REG_CX));
-        
-        // restore the registers that were saved
-        snip->addSnippetInstruction(InstructionGenerator32::generateMoveMemToReg(dataBaseAddress + regStorageOffset + sizeof(uint64_t), X86_REG_CX));
-        */
-#endif
-            
-        // do not generate control instructions to get back to the application, this is done for
-        // the snippet automatically during code generation
-            
-        // register the snippet we just created
-        addInstrumentationSnippet(snip);
-            
-        // register an instrumentation point at the function that uses this snippet
-        if (strcmp(f->getName(),"_start")){
-            InstrumentationPoint* p = addInstrumentationPoint(bb,snip,SIZE_CONTROL_TRANSFER);
-        }
 
         uint32_t loopId = Invalid_UInteger_ID;
         uint32_t loopDepth = 0;
@@ -198,7 +228,6 @@ void BasicBlockCounter::instrument(){
                 loopId = currLoop->getIndex();
             }
         }
-
 
         char* fileName;
         uint32_t lineNo;
@@ -214,11 +243,7 @@ void BasicBlockCounter::instrument(){
                 bb->getNumberOfInstructions(), fileName, lineNo, bb->getFunction()->getName(), loopCount, loopId, loopDepth, 
                 bb->getHashCode().getValue(), bb->getBaseAddress(), bb->getNumberOfLoads(), bb->getNumberOfStores());
     }
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-
     fclose(staticFD);
-
-    delete allPoints;
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }

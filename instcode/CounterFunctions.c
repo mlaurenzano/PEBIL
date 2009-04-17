@@ -6,39 +6,71 @@
 
 #define PRINT_MINIMUM 10000
 
+#define PRINT_INSTR(...) fprintf(stdout, "=%d= ", getpid()); \
+    fprintf(stdout, __VA_ARGS__); \
+    fprintf(stdout, "\n"); \
+    fflush(stdout);
+
+int32_t numberOfBasicBlocks;
+int32_t* lineNumbers;
+char** fileNames;
+char** functionNames;
+int64_t* hashValues;
+
 int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** functionNames){
     int32_t i;
 
-    fprintf(stdout, "\n*** Instrumentation Summary ****\n");
-    fprintf(stdout, "raw args: %x %x %x\n", numFunctions, functionCounts, functionNames);
-    fprintf(stdout, "There are %d functions in the code:\n", *numFunctions);
-    fprintf(stdout, "Printing functions with at least %d executions\n", PRINT_MINIMUM);
+    PRINT_INSTR("*** Instrumentation Summary ****");
+    PRINT_INSTR("raw args: %x %x %x", numFunctions, functionCounts, functionNames);
+    PRINT_INSTR("There are %d functions in the code:", *numFunctions);
+    PRINT_INSTR("Printing functions with at least %d executions", PRINT_MINIMUM);
 
     for (i = 0; i < *numFunctions; i++){
         if (functionCounts[i] >= PRINT_MINIMUM){
-            fprintf(stdout, "\tFunction(%d) %.24s executed %d times\n", i, functionNames[i], functionCounts[i]);
+            PRINT_INSTR("\tFunction(%d) %.24s executed %d times", i, functionNames[i], functionCounts[i]);
         }
     }
-
-    fflush(stdout);
     return 0;
 }
 
-int32_t blockcounter(int32_t* numBlocks, int32_t* blockCounts, int32_t* lineNumbers, char** fileNames, char** funcNames){
+int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char** functionNms, int64_t* hashVals){
+    PRINT_INSTR("raw init args: %x %x %x %x %llx", numBlocks, lineNums, fileNms, functionNms, hashVals);
+
+    numberOfBasicBlocks = *numBlocks;
+    lineNumbers = lineNums;
+    fileNames = fileNms;
+    functionNames = functionNms;
+    hashValues = hashVals;
+}
+
+int32_t blockcounter(int32_t* blockCounts, char* appName, char* instExt){
     int32_t i;
 
-    fprintf(stdout, "\n*** Instrumentation Summary ****\n");
-    fprintf(stdout, "raw args: %x %x %x %x %x\n", numBlocks, blockCounts, lineNumbers, fileNames, funcNames);
-    fprintf(stdout, "There are %d basic blocks in the code:\n", *numBlocks);
-    fprintf(stdout, "Printing blocks with at least %d executions\n", PRINT_MINIMUM);
+    PRINT_INSTR("raw fini args: %x %x %x", blockCounts, appName, instExt);
+    PRINT_INSTR("*** Instrumentation Summary ****");
+    PRINT_INSTR("There are %d basic blocks in the code:", numberOfBasicBlocks);
+    PRINT_INSTR("Printing blocks with at least %d executions", PRINT_MINIMUM);
 
-    fprintf(stdout, "Index\tFunction\tFile:Line\tCounter\n");
-    for (i = 0; i < *numBlocks; i++){
+    char* outFileName = malloc(sizeof(char)* 80);
+    sprintf(outFileName, "%s.%d.%s", appName, getpid(), instExt);
+    PRINT_INSTR("Writing output file %s", outFileName);
+    FILE* outFile = fopen(outFileName, "w");
+    free(outFileName);
+    if (!outFile){
+        fprintf(stderr, "Cannot open output file %s, exiting...\n", outFileName);
+        fflush(stderr);
+        exit(-1);
+    }
+
+    fprintf(outFile, "#hash\tcount\t#file:line\tfunc\n");
+    for (i = 0; i < numberOfBasicBlocks; i++){
         if (blockCounts[i] >= PRINT_MINIMUM){
-            fprintf(stdout, "%d\t%s\t%s:%d\t%d\n", i, funcNames[i], fileNames[i], lineNumbers[i], blockCounts[i]);
+            fprintf(outFile, "%#lld\t%d\t#%s:%d\t%s\n", hashValues[i], blockCounts[i], fileNames[i], lineNumbers[i], functionNames[i]);
         }
     }
-    fflush(stdout);
+    fflush(outFile);
+    fclose(outFile);
+
     return 0;
 }
 

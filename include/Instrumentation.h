@@ -179,7 +179,7 @@ public:
 
 typedef enum {
     InstPriority_undefined = 0,
-    InstPriority_datainit,
+    InstPriority_sysinit,
     InstPriority_userinit,
     InstPriority_regular,
     InstPriority_Total_Types

@@ -5,6 +5,7 @@
 
 class BasicBlockCounter : public ElfFileInst {
 private:
+    void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos);
 public:
     BasicBlockCounter(ElfFile* elf);
     ~BasicBlockCounter() {}
