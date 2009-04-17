@@ -57,15 +57,33 @@ uint32_t Function::bloatBasicBlocks(uint32_t minBlockSize){
 }
 
 bool Function::hasCompleteDisassembly(){
+    // if something happened during disassembly that we dont understand
+    if (getBadInstruction()){
+        return false;
+    }
+
     // if this function calls into the middle of itsself
     if (containsCallToRange(baseAddress+1,baseAddress+getNumberOfBytes())){
         return false;
     }
 
-    // if something happened during disassembly that we dont understand
-    if (getBadInstruction()){
-        return false;
+    // if this function references data that is inside the function body
+    uint32_t numberOfInstructions = getNumberOfInstructions();
+    Instruction** allInstructions = new Instruction*[numberOfInstructions];
+    getAllInstructions(allInstructions,0);
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (allInstructions[i]->usesRelativeAddress() &&
+            !allInstructions[i]->isControl() &&
+            inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getRelativeValue())){
+            PRINT_DEBUG_FUNC_RELOC("Instruction self-data-ref inside function %s", getName());
+#ifdef DEBUG_FUNC_RELOC
+            allInstructions[i]->print();
+#endif
+            delete[] allInstructions;
+            return false;
+        }
     }
+    delete[] allInstructions;
 
     // if this function calls __i686.get_pc_thunk.bx
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){

@@ -448,6 +448,7 @@ void Instruction::setOperandValue(uint32_t idx, uint64_t value){
     if (!operands[idx]){
         operands[idx] = new Operand(idx);
     }
+    PRINT_DEBUG_OPERAND("setting operand[%d].value = %llx", idx, value);
     operands[idx]->setValue(value);
 }
 
@@ -456,6 +457,7 @@ void Instruction::setOperandType(uint32_t idx, uint8_t typ){
     if (!operands[idx]){
         operands[idx] = new Operand(idx);
     }
+    PRINT_DEBUG_OPERAND("setting operand[%d].type = %hhd", idx, typ);
     operands[idx]->setType(typ);
 }
 
@@ -474,6 +476,7 @@ void Instruction::setOperandBytesUsed(uint32_t idx, uint8_t usd){
 void Instruction::setOperandRelative(uint32_t idx, bool rel){
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
     ASSERT(operands[idx]);
+    PRINT_DEBUG_OPERAND("setting operand[%d].rel = %d", idx, rel);
     operands[idx]->setRelative(rel);
 }
 
@@ -746,8 +749,10 @@ void Instruction::print(){
     }
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i]->getType()){
-            operands[i]->print();
+        if (operands[i]){
+            if (operands[i]->getType()){
+                operands[i]->print();
+            }
         }
     }
 }

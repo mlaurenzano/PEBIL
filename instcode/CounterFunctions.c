@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <string.h>
 
-#define PRINT_MINIMUM 1
+#define PRINT_MINIMUM 10000
 
 int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** functionNames){
     int32_t i;

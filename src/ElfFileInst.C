@@ -28,11 +28,11 @@ uint32_t readBytes = 0;
 );
 
 // some common macros to help debug the instrumentation process
-//#define RELOC_MOD_OFF 111
-//#define RELOC_MOD 128
+//#define RELOC_MOD_OFF 4
+//#define RELOC_MOD 512
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define TURNOFF_CODE_BLOAT
-//#define SWAP_MOD_OFF 7168
+//#define SWAP_MOD_OFF 1893
 //#define SWAP_MOD 16384
 //#define SWAP_FUNCTION_ONLY "setSectionType"
 //#define TURNOFF_INSTRUCTION_SWAP
@@ -449,6 +449,7 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
         for (uint32_t i = 0; i < (*trampEmpty).size(); i++){
             delete (*trampEmpty)[i];
         }
+        delete trampEmpty;
         return functionToRelocate->getNumberOfBytes();
     }
     ASSERT(currentByte <= functionToRelocate->getNumberOfBytes() && "Function is not big enough to relocate");

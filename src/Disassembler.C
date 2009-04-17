@@ -383,7 +383,7 @@ const char* Disassembler::prefix_name(int pref, int sizeflag){
 void Disassembler::get_ops(op_func op, uint32_t bytemode, uint32_t sizeflag){
 
     //    fprintf(stdout, "\n");
-    //PRINT_INFOR("Op function = %d", op);
+    PRINT_DEBUG_OPERAND("Op function = %d", op);
 
     switch(op){
     case func_OP_ST:
@@ -824,16 +824,24 @@ void Disassembler::dofloat(uint32_t sizeflag){
 
     floatop = codep[-1];
     
+    PRINT_DEBUG_OPERAND("calling dofloat sizeflag=%d", sizeflag);
+
     if (mod != 3){
+        PRINT_DEBUG_OPERAND("calling dofloat sizeflag=%d", sizeflag);
         currentInstruction->setOpcodeType(x86_insn_format_float_mem,(floatop - 0xd8)*8 + reg,INVALID_OPCODE_INDEX);
+        currentInstruction->setOperandType(op_ad,x86_operand_type_func_E);
         putop(float_mem[(floatop - 0xd8) * 8 + reg], sizeflag);
         obufp = op1out;
-        if (floatop == 0xdb)
+        if (floatop == 0xdb){
+            PRINT_DEBUG_OPERAND("calling float->OP_E mode=x", sizeflag);
             OP_E(x_mode, sizeflag);
-        else if(floatop == 0xdd)
+        } else if(floatop == 0xdd){
+            PRINT_DEBUG_OPERAND("calling float->OP_E mode=d", sizeflag);
             OP_E(d_mode, sizeflag);
-        else
+        } else{
+            PRINT_DEBUG_OPERAND("calling float->OP_E mode=v", sizeflag);
             OP_E(v_mode, sizeflag);
+        }
         return;
     }
     /* Skip mod/rm byte.  */
@@ -1306,8 +1314,10 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
 	case 0:
             if ((base & 7) == 5){
                 havebase = 0;
-                if (mode_64bit && !havesib && (sizeflag & AFLAG))
+                if (mode_64bit && !havesib && (sizeflag & AFLAG)){
+                    //                    currentInstruction->setOperandRelative(op_ad,true);
                     riprel = 1;
+                }
                 firstByte = codep - start_codep;
                 bytesUsed = 4;
                 disp = get32s();
