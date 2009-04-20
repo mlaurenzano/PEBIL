@@ -1658,7 +1658,14 @@ uint32_t ElfFileInst::addSharedLibraryPath(){
 
     ASSERT(emptyDynamicIdx < dynamicTable->getNumberOfDynamics() && "No free entries found in the dynamic table");
 
-    dynamicTable->getDynamic(emptyDynamicIdx)->SET(d_tag,DT_RPATH);
+    // if any DT_RUNPATH entries are present we must use DT_RUNPATH since DT_RPATH entries will be overrun by DT_RUNPATH entries
+    // if no DT_RUNPATH are present, we must not use DT_RPATH since using DT_RUNPATH would overrun the DT_RPATH entries
+    if (dynamicTable->countDynamics(DT_RUNPATH)){
+        dynamicTable->getDynamic(emptyDynamicIdx)->SET(d_tag, DT_RUNPATH);
+    } else {
+        dynamicTable->getDynamic(emptyDynamicIdx)->SET(d_tag, DT_RPATH);
+    }
+
     dynamicTable->getDynamic(emptyDynamicIdx)->SET_A(d_ptr,d_un,strOffset);
 
     verify();
