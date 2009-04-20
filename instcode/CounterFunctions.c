@@ -6,7 +6,7 @@
 
 #define PRINT_MINIMUM 10000
 
-#define PRINT_INSTR(...) fprintf(stdout, "=%d= ", getpid()); \
+#define PRINT_INSTR(...) fprintf(stdout, "-[p%d]- ", getpid()); \
     fprintf(stdout, __VA_ARGS__); \
     fprintf(stdout, "\n"); \
     fflush(stdout);

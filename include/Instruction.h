@@ -129,7 +129,7 @@ class Instruction : public Base {
 protected:
     uint8_t instructionType;
     uint8_t source;
-    uint16_t index;
+    uint32_t index;
     char* rawBytes;
     Operand** operands;    
     bool leader;
