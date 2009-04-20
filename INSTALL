@@ -13,7 +13,7 @@ Other                   To call instrumentation functions from a shared library
 at /path/to/x86inst/)
 
 bash:
-X86INST_ROOT=${HOME}/X86ElfInstrumentor
+X86INST_ROOT=/path/to/x86inst/X86ElfInstrumentor
 X86INST_LIB=${X86INST_ROOT}/lib
 X86INST_BIN=${X86INST_ROOT}/bin
 X86INST_LD_FLAGS="-Wl,--hash-style=sysv -Wl,-T,${X86INST_ROOT}/linker/x86inst_ld_script"
@@ -29,7 +29,7 @@ export X86INST_GFORT
 export PATH
 
 csh:
-setenv X86INST_ROOT ${HOME}/X86ElfInstrumentor
+setenv X86INST_ROOT /path/to/x86inst/X86ElfInstrumentor
 setenv X86INST_LIB ${X86INST_ROOT}/lib
 setenv X86INST_BIN ${X86INST_ROOT}/bin
 setenv X86INST_LD_FLAGS "-Wl,--hash-style=sysv -Wl,-T,${X86INST_ROOT}/linker/x86inst_ld_script"
@@ -41,6 +41,9 @@ setenv PATH ${PATH}:${X86INST_BIN}
 `gmake` from the top-level directory
 
 4. run
+Details on how to run:
+x86inst --help
+
 Examples:
 x86inst --typ jbb --app testapps/dynTest.gnu
 x86inst --lib lib --typ ide src/x86inst
