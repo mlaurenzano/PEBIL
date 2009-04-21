@@ -69,10 +69,7 @@ int searchSymbolValue(const void* arg1,const void* arg2){
 }
 
 bool SymbolTable::symbolsAreSorted(){
-    if (!sortedSymbols){
-        return true;
-    }
-    for (uint32_t i = 0; i < numberOfSymbols-1; i++){
+    for (uint32_t i = 0; i < sortedSymbols.size()-1; i++){
         ASSERT(sortedSymbols[i] && sortedSymbols[i+1] && "Symbols should be initialized");
         if (sortedSymbols[i]->GET(st_value) > sortedSymbols[i]->GET(st_value)){
             return false;
@@ -82,14 +79,18 @@ bool SymbolTable::symbolsAreSorted(){
 }
 
 void SymbolTable::sortSymbols(){
-    if (sortedSymbols){
-        delete[] sortedSymbols;
+    Symbol** symbolArray = new Symbol*[symbols.size()];
+    for (uint32_t i = 0; i < symbols.size(); i++){
+        symbolArray[i] = symbols[i];
     }
-    sortedSymbols  = new Symbol*[numberOfSymbols];
-    for (uint32_t i = 0; i < numberOfSymbols; i++){
-        sortedSymbols[i] = symbols[i];
+
+    qsort(symbolArray, symbols.size(), sizeof(Symbol*), compareSymbolValue);
+    sortedSymbols.clear();
+
+    for (uint32_t i = 0; i < symbols.size(); i++){
+        sortedSymbols.append(symbolArray[i]);
     }
-    qsort(sortedSymbols,numberOfSymbols,sizeof(Symbol*),compareSymbolValue);
+    delete[] symbolArray;
 }
 
 
@@ -99,28 +100,29 @@ uint32_t SymbolTable::findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t buf
     sortSymbols();
 
     if (!symbolsAreSorted()){
-        for (uint32_t i = 0; i < numberOfSymbols; i++){
+        for (uint32_t i = 0; i < symbols.size(); i++){
             sortedSymbols[i]->print();
         }
         __SHOULD_NOT_ARRIVE;
     }
 
-    ASSERT(sortedSymbols && "symbol should be sorted by now");
+    ASSERT(sortedSymbols.size() && "symbol should be sorted by now");
 
-    void* checkRes = bsearch(&addr,sortedSymbols,numberOfSymbols,sizeof(Symbol*),searchSymbolValue);
+    Symbol** sortedSymbolArray = &sortedSymbols;
+    void* checkRes = bsearch(&addr,sortedSymbolArray,symbols.size(),sizeof(Symbol*),searchSymbolValue);
 
     if (checkRes){
 
-        uint32_t sidx = (((char*)checkRes)-((char*)sortedSymbols))/sizeof(Symbol*);
+        uint32_t sidx = (((char*)checkRes)-((char*)sortedSymbolArray))/sizeof(Symbol*);
         uint32_t eidx = sidx;
-        for (;eidx < numberOfSymbols;eidx++){
+        for (;eidx < symbols.size();eidx++){
             Symbol* sym = sortedSymbols[eidx];
             if(sym->GET(st_value) != addr){
                 break;
             }
         }
         eidx--;
-        ASSERT(eidx < numberOfSymbols && "result of bsearch could not be verified");
+        ASSERT(eidx < symbols.size() && "result of bsearch could not be verified");
 
         retValue = 0;
         for (;sidx<=eidx;sidx++){
@@ -155,16 +157,9 @@ uint32_t SymbolTable::findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t buf
 }
 
 uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t shndx){
-    ASSERT(symbols && "symbols array should be initialized");
-
-    Symbol** newsyms = new Symbol*[numberOfSymbols+1];
-
-    for (uint32_t i = 0; i < numberOfSymbols; i++){
-        newsyms[i] = symbols[i];
-    }
 
     if (elfFile->is64Bit()){
-        Symbol64* sym = new Symbol64(this, NULL, numberOfSymbols);
+        Symbol64* sym = new Symbol64(this, NULL, symbols.size());
         Elf64_Sym symEntry;
         symEntry.st_name = name;
         symEntry.st_value = value;
@@ -174,11 +169,10 @@ uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, ui
         symEntry.st_shndx = shndx;
 
         memcpy(sym->charStream(), &symEntry, Size__64_bit_Symbol);
-        newsyms[numberOfSymbols] = sym;
-
+        symbols.append(sym);
         sizeInBytes += Size__64_bit_Symbol;
     } else {
-        Symbol32* sym = new Symbol32(this, NULL, numberOfSymbols);
+        Symbol32* sym = new Symbol32(this, NULL, symbols.size());
         Elf32_Sym symEntry;
         symEntry.st_name = name;
         symEntry.st_value = (uint32_t)value;
@@ -188,19 +182,13 @@ uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, ui
         symEntry.st_shndx = shndx;
 
         memcpy(sym->charStream(), &symEntry, Size__32_bit_Symbol);
-        newsyms[numberOfSymbols] = sym;
-        
+        symbols.append(sym);
         sizeInBytes += Size__32_bit_Symbol;
     }
 
-    delete[] symbols;
-    symbols = newsyms;
-    numberOfSymbols++;
-
     sortSymbols();
-
-    return numberOfSymbols-1;
-
+    verify();
+    return symbols.size()-1;
 }
 
 
@@ -209,8 +197,6 @@ SymbolTable::SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t 
 {
     index = idx;
     sizeInBytes = size;
-
-    uint32_t symbolSize;
 
     ASSERT(elfFile && "elfFile should be initialized");
     if (elf->is64Bit()){
@@ -227,24 +213,14 @@ SymbolTable::SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t 
         dynamic = 0;
     }
 
-    ASSERT(sizeInBytes % symbolSize == 0 && "Symbol table section must have size n*symbolSize");
-    numberOfSymbols = sizeInBytes / symbolSize;
-
-    symbols = new Symbol*[numberOfSymbols];
-    sortedSymbols = NULL;
+    verify();
 }
 
 SymbolTable::~SymbolTable(){
-    if (symbols){
-        for (uint32_t i = 0; i < numberOfSymbols; i++){
-            if (symbols[i]){
-                delete symbols[i];
-            }
+    for (uint32_t i = 0; i < symbols.size(); i++){
+        if (symbols[i]){
+            delete symbols[i];
         }
-        delete[] symbols;
-    }
-    if(sortedSymbols){
-        delete[] sortedSymbols;
     }
 }
 
@@ -264,7 +240,17 @@ unsigned char Symbol64::getSymbolType(){
 
 bool SymbolTable::verify(){
 
-    for (uint32_t i = 0; i < numberOfSymbols; i++){
+    if (sizeInBytes % symbolSize != 0){
+        PRINT_ERROR("Symbol table section must have size n * %d", symbolSize);
+        return false;
+    }
+
+    if (symbols.size() != sortedSymbols.size() && sortedSymbols.size()){
+        PRINT_ERROR("There are a different number of symbols and sortedSymbols");
+        return false;
+    }
+
+    for (uint32_t i = 0; i < symbols.size(); i++){
         if (!symbols[i]){
             PRINT_ERROR("Symbol not allocated");
             return false;
@@ -275,10 +261,10 @@ bool SymbolTable::verify(){
     // A file symbol has STB_LOCAL bindings, its section index is  SHN_ABS, and it precedes the other STB_LOCAL 
     // symbols of the file, if it is present.
 
-    uint32_t fileSymbolIdx = numberOfSymbols;
-    uint32_t firstLocalSym = numberOfSymbols;
-    for (uint32_t i = 1; i < numberOfSymbols; i++){
-        if (symbols[i]->getSymbolBinding() == STB_LOCAL && firstLocalSym == numberOfSymbols){
+    uint32_t fileSymbolIdx = symbols.size();
+    uint32_t firstLocalSym = symbols.size();
+    for (uint32_t i = 1; i < symbols.size(); i++){
+        if (symbols[i]->getSymbolBinding() == STB_LOCAL && firstLocalSym == symbols.size()){
             firstLocalSym = i;
         }
         if (symbols[i]->getSymbolType() == STT_FILE){
@@ -349,14 +335,15 @@ uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
     binaryInputFile->setInPointer(getFilePointer());
     setFileOffset(binaryInputFile->currentOffset());
 
-    //    PRINT_INFOR("Reading %d symbols for symtable %d", numberOfSymbols, index);
+    //    PRINT_INFOR("Reading %d symbols for symtable %d", symbols.size(), index);
     uint32_t totalBytesRead = 0;
 
+    uint32_t numberOfSymbols = sizeInBytes / symbolSize;
     for (uint32_t i = 0; i < numberOfSymbols; i++){
         if (elfFile->is64Bit()){
-            symbols[i] = new Symbol64(this, getFilePointer() + (i * Size__64_bit_Symbol), i);
+            symbols.append(new Symbol64(this, getFilePointer() + (i * Size__64_bit_Symbol), i));
         } else {
-            symbols[i] = new Symbol32(this, getFilePointer() + (i * Size__32_bit_Symbol), i);
+            symbols.append(new Symbol32(this, getFilePointer() + (i * Size__32_bit_Symbol), i));
         }
         totalBytesRead += symbols[i]->read(binaryInputFile);
     }
@@ -367,9 +354,6 @@ uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
 
 char* SymbolTable::getSymbolName(uint32_t idx){
     ASSERT(stringTable && "String Table should be initialized");
-    ASSERT(idx >= 0 && idx < numberOfSymbols && "Symbol Table index out of bounds");
-    ASSERT(symbols && "Symbols array should be initialized");
-    ASSERT(symbols[idx] && "Symbol should be initialized");
 
     // idx 0 in the string table is null
     if (!symbols[idx]->GET(st_name)){
@@ -381,9 +365,9 @@ char* SymbolTable::getSymbolName(uint32_t idx){
 
 void SymbolTable::print(){
     char tmpstr[__MAX_STRING_SIZE];
-    PRINT_INFOR("SymbolTable : %d aka sect %d with %d symbols",index,getSectionIndex(),numberOfSymbols);
+    PRINT_INFOR("SymbolTable : %d aka sect %d with %d symbols",index,getSectionIndex(),symbols.size());
     PRINT_INFOR("\tdyn? : %s", isDynamic() ? "yes" : "no");
-    for (uint32_t i = 0; i < numberOfSymbols; i++){
+    for (uint32_t i = 0; i < symbols.size(); i++){
         symbols[i]->print();
     }
 }
@@ -391,7 +375,7 @@ void SymbolTable::print(){
 void SymbolTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
 
-    for (uint32_t i = 0; i < numberOfSymbols; i++){
+    for (uint32_t i = 0; i < symbols.size(); i++){
         if (elfFile->is64Bit()){
             binaryOutputFile->copyBytes(getSymbol(i)->charStream(),Size__64_bit_Symbol,offset+currByte);
             currByte += Size__64_bit_Symbol;

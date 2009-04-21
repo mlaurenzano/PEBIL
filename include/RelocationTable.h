@@ -4,6 +4,7 @@
 #include <Base.h>
 #include <RawSection.h>
 #include <defines/RelocationTable.d>
+#include <Vector.h>
 
 class ElfFile;
 class SectionHeader;
@@ -91,16 +92,13 @@ public:
 
 class RelocationTable : public RawSection {
 protected:
-    
     ElfRelTypes type;
     SymbolTable* symbolTable;
     RawSection* relocationSection;
     uint32_t index;
     uint32_t relocationSize;
 
-    uint32_t numberOfRelocations;
-    Relocation** relocations;
-
+    Vector<Relocation*> relocations;
 public:
 
     RelocationTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf);
@@ -110,9 +108,9 @@ public:
     uint32_t read(BinaryInputFile* b);
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
-    bool verify() { return true; }
+    bool verify();
 
-    uint32_t getNumberOfRelocations() { return numberOfRelocations; }
+    uint32_t getNumberOfRelocations() { return relocations.size(); }
 
     ElfFile* getElfFile() { return elfFile; }
     uint32_t getIndex() { return index; }

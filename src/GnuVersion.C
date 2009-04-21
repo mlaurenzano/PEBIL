@@ -32,12 +32,12 @@ void GnuVerneed::printVerneed(){
 
 
 uint32_t GnuVerneedTable::findVersion(uint32_t ver){
-    for (uint32_t i = 0; i < numberOfVerneeds; i++){
+    for (uint32_t i = 0; i < verneeds.size(); i++){
         if (verneeds[i]->isAuxiliaryEntry() && verneeds[i]->GET(vna_other)){
             return i;
         }
     }
-    return numberOfVerneeds;
+    return verneeds.size();
 }
 
 GnuVerneedTable::GnuVerneedTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
@@ -52,31 +52,34 @@ GnuVerneedTable::GnuVerneedTable(char* rawPtr, uint32_t size, uint16_t scnIdx, E
     }
 
     ASSERT(size % entrySize == 0 && "This size of the section should be divisible by entry size");
-    numberOfVerneeds = size / entrySize;
-    verneeds = new GnuVerneed*[numberOfVerneeds];
 }
 
 GnuVerneedTable::~GnuVerneedTable(){
-    if (verneeds){
-        for (uint32_t i = 0; i < numberOfVerneeds; i++){
-            delete verneeds[i];
-        }
-        delete[] verneeds;
+    for (uint32_t i = 0; i < verneeds.size(); i++){
+        delete verneeds[i];
     }
+}
+
+bool GnuVerneedTable::verify(){
+    if (sizeInBytes % entrySize != 0){
+        PRINT_ERROR("This size of the section should be divisible by entry size");
+        return false;
+    }
+    return true;
 }
 
 void GnuVerneedTable::print(){
 
-    PRINT_INFOR("Gnu Version Need Table: section %d with %d entries", sectionIndex, numberOfVerneeds);
+    PRINT_INFOR("Gnu Version Need Table: section %d with %d entries", sectionIndex, verneeds.size());
 
-    for (uint32_t i = 0; i < numberOfVerneeds; i++){
+    for (uint32_t i = 0; i < verneeds.size(); i++){
         verneeds[i]->print();
     }
 }
 
 void GnuVerneedTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
-    for (uint32_t i = 0; i < numberOfVerneeds; i++){
+    for (uint32_t i = 0; i < verneeds.size(); i++){
         binaryOutputFile->copyBytes(verneeds[i]->charStream(),entrySize,offset+currByte);
         currByte += entrySize;
     }
@@ -89,20 +92,21 @@ uint32_t GnuVerneedTable::read(BinaryInputFile* binaryInputFile){
     uint32_t totalBytesRead = 0;
     uint32_t remainingAux = 0;
 
+    uint32_t numberOfVerneeds = sizeInBytes / entrySize;
     for (uint32_t i = 0; i < numberOfVerneeds; i++){
         if (remainingAux){
             if (elfFile->is64Bit()){
-                verneeds[i] = new GnuVernaux64(i);
+                verneeds.append(new GnuVernaux64(i));
             } else {
-                verneeds[i] = new GnuVernaux32(i);
+                verneeds.append(new GnuVernaux32(i));
             }
             binaryInputFile->copyBytesIterate(verneeds[i]->charStream(),entrySize);
             remainingAux--;
         } else {
             if (elfFile->is64Bit()){
-                verneeds[i] = new GnuVerneed64(i);
+                verneeds.append(new GnuVerneed64(i));
             } else {
-                verneeds[i] = new GnuVerneed32(i);
+                verneeds.append(new GnuVerneed32(i));
             }
             binaryInputFile->copyBytesIterate(verneeds[i]->charStream(),entrySize);
             remainingAux = verneeds[i]->GET(vn_cnt);
@@ -116,21 +120,10 @@ uint32_t GnuVerneedTable::read(BinaryInputFile* binaryInputFile){
 }
 
 uint32_t GnuVersymTable::addSymbol(uint16_t val){
-    ASSERT(versyms && "symbols array should be initialized");
-    uint16_t* newsyms = new uint16_t[numberOfVersyms+1];
-
-    for (uint32_t i = 0; i < numberOfVersyms; i++){
-        newsyms[i] = versyms[i];
-    }
-    newsyms[numberOfVersyms] = val;
-
-    delete[] versyms;
-    versyms = newsyms;
-    numberOfVersyms++;
-
+    versyms.append(val);
     sizeInBytes += entrySize;
 
-    ASSERT(sizeInBytes == entrySize*numberOfVersyms && "Section size does not match data size");
+    verify();
 }
 
 
@@ -143,23 +136,24 @@ GnuVersymTable::GnuVersymTable(char* rawPtr, uint32_t size, uint16_t scnIdx, Elf
         entrySize = Size__32_bit_Gnu_Versym;
     }
 
-    ASSERT(entrySize == sizeof(uint16_t) && "The size of the entries is different than expected");
-    ASSERT(size % entrySize == 0 && "This size of the section should be divisible by entry size");
-    numberOfVersyms = size / entrySize;
-    ASSERT(size == numberOfVersyms*entrySize && "Section size does not match data size");
-
-    versyms = new uint16_t[numberOfVersyms];
+    verify();
 }
 
-GnuVersymTable::~GnuVersymTable(){
-    if (versyms){
-        delete[] versyms;
+bool GnuVersymTable::verify(){
+    if (entrySize != sizeof(uint16_t)){
+        PRINT_ERROR("The size of the entries is different than expected");
+        return false;
     }
+    if (sizeInBytes % entrySize != 0){
+        PRINT_ERROR("This size of the section should be divisible by entry size");
+        return false;
+    }
+    return true;
 }
 
 void GnuVersymTable::print(){
-    PRINT_INFOR("Gnu Version Symbol Table: section %d with %d entries", sectionIndex, numberOfVersyms);
-    for (uint32_t i = 0; i < numberOfVersyms; i++){
+    PRINT_INFOR("Gnu Version Symbol Table: section %d with %d entries", sectionIndex, versyms.size());
+    for (uint32_t i = 0; i < versyms.size(); i++){
         PRINT_INFOR("\tVersym (%d)\t: %hd", i, versyms[i]);
     }
 }
@@ -167,7 +161,7 @@ void GnuVersymTable::print(){
 void GnuVersymTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
 
-    for (uint32_t i = 0; i < numberOfVersyms; i++){
+    for (uint32_t i = 0; i < versyms.size(); i++){
         binaryOutputFile->copyBytes(getFilePointer()+entrySize*i,entrySize,offset+currByte);
         currByte += entrySize;
     }
@@ -178,10 +172,15 @@ uint32_t GnuVersymTable::read(BinaryInputFile* binaryInputFile){
     binaryInputFile->setInPointer(getFilePointer());
     uint32_t totalBytesRead = 0;
 
+    uint32_t numberOfVersyms = sizeInBytes / entrySize;
+    uint16_t tmp;
     for (uint32_t i = 0; i < numberOfVersyms; i++){
-        binaryInputFile->copyBytesIterate(charStream()+entrySize*i,entrySize);
+        binaryInputFile->copyBytesIterate(&tmp,entrySize);
+        versyms.append(tmp);
         totalBytesRead += entrySize;
     }
     ASSERT(totalBytesRead == sizeInBytes && "Size read from file does not match theoretical size");
+    ASSERT(sizeInBytes == versyms.size() * entrySize && "Section size does not match data size");
+
     return totalBytesRead;
 }

@@ -2,8 +2,9 @@
 #define _DynamicTable_h_
 
 #include <Base.h>
-#include <RawSection.h>
 #include <defines/DynamicTable.d>
+#include <RawSection.h>
+#include <Vector.h>
 
 class BinaryInputFile;
 
@@ -58,11 +59,10 @@ public:
 
 class DynamicTable : public RawSection {
 protected:
-    uint32_t numberOfDynamics;
     uint32_t dynamicSize;
     uint16_t segmentIndex;
 
-    Dynamic** dynamics;
+    Vector<Dynamic*> dynamics;
 
 public:
     DynamicTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint16_t segmentIdx, ElfFile* elf);
@@ -75,8 +75,8 @@ public:
 
     uint32_t findEmptyDynamic();
 
-    Dynamic* getDynamic(uint32_t index);
-    uint32_t getNumberOfDynamics() { return numberOfDynamics; }
+    Dynamic* getDynamic(uint32_t idx) { return dynamics[idx]; }
+    uint32_t getNumberOfDynamics() { return dynamics.size(); }
     uint16_t getSegmentIndex() { return segmentIndex; }
     uint32_t countDynamics(uint32_t type);
     Dynamic* getDynamicByType(uint32_t type, uint32_t idx);

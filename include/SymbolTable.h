@@ -4,6 +4,7 @@
 #include <Base.h>
 #include <RawSection.h>
 #include <defines/SymbolTable.d>
+#include <Vector.h>
 
 class ElfFile;
 class StringTable;
@@ -78,13 +79,13 @@ public:
 
 class SymbolTable : public RawSection {
 protected:
-    uint32_t numberOfSymbols;
-    Symbol** symbols;
+    Vector<Symbol*> symbols;
+    Vector<Symbol*> sortedSymbols;
+
     StringTable* stringTable;
     uint32_t index;
     bool dynamic;
-
-    Symbol** sortedSymbols;
+    uint32_t symbolSize;
 
     bool symbolsAreSorted();
     void sortSymbols();
@@ -94,7 +95,7 @@ public:
     ~SymbolTable();
 
     uint32_t addSymbol(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t shndx);
-    uint32_t getNumberOfSymbols() { return numberOfSymbols; }
+    uint32_t getNumberOfSymbols() { return symbols.size(); }
 
     void print();
     uint32_t read(BinaryInputFile* b);
@@ -103,7 +104,7 @@ public:
 
     void setStringTable();
 
-    Symbol* getSymbol(uint32_t index) { ASSERT(index < numberOfSymbols); return symbols[index]; }
+    Symbol* getSymbol(uint32_t index) { return symbols[index]; }
     char* getSymbolName(uint32_t index);
 
     uint32_t getIndex() { return index; }

@@ -3,6 +3,7 @@
 
 #include <Base.h>
 #include <BinaryFile.h>
+#include <Vector.h>
 
 class DwarfLineInfoSection;
 class DwarfSection;
@@ -30,18 +31,18 @@ private:
     char*        elfFileName;
 
     FileHeader*  fileHeader;
-    ProgramHeader**  programHeaders;
-    SectionHeader** sectionHeaders;
-    RawSection** rawSections;
-    StringTable** stringTables;
-    SymbolTable** symbolTables;
-    RelocationTable** relocationTables;
-    DwarfSection** dwarfSections;
-    TextSection** textSections;
+    Vector<ProgramHeader*> programHeaders;
+    Vector<SectionHeader*> sectionHeaders;
+    Vector<RawSection*> rawSections;
+    Vector<StringTable*> stringTables;
+    Vector<SymbolTable*> symbolTables;
+    Vector<RelocationTable*> relocationTables;
+    Vector<DwarfSection*> dwarfSections;
+    Vector<TextSection*> textSections;
+    Vector<NoteSection*> noteSections;
     GlobalOffsetTable* globalOffsetTable;
     DynamicTable* dynamicTable;
     HashTable* hashTable;
-    NoteSection** noteSections;
     GnuVerneedTable* gnuVerneedTable;
     GnuVersymTable* gnuVersymTable;
     StringTable* dynamicStringTable;
@@ -50,16 +51,8 @@ private:
     RelocationTable* dynamicRelocationTable;
     DwarfLineInfoSection* lineInfoSection;
 
-    uint32_t numberOfPrograms;
-    uint32_t numberOfSections;
-    uint32_t numberOfStringTables;
     uint16_t sectionNameStrTabIdx;
-    uint32_t numberOfSymbolTables;
     uint16_t dynamicSymtabIdx;
-    uint32_t numberOfRelocationTables;
-    uint32_t numberOfDwarfSections;
-    uint32_t numberOfTextSections;
-    uint32_t numberOfNoteSections;
     uint64_t dynamicSectionAddress;
     uint16_t dynamicTableSectionIdx;
     uint16_t textSegmentIdx;
@@ -98,16 +91,11 @@ public:
     bool verify();
 
     ElfFile(char* f): is64BitFlag(false),elfFileName(f),
-        fileHeader(NULL),programHeaders(NULL),sectionHeaders(NULL),
-        rawSections(NULL),stringTables(NULL),symbolTables(NULL),relocationTables(NULL),
-        dwarfSections(NULL),textSections(NULL),globalOffsetTable(NULL),dynamicTable(NULL),
-        hashTable(NULL),noteSections(NULL),gnuVerneedTable(NULL),gnuVersymTable(NULL),
+        fileHeader(NULL),globalOffsetTable(NULL),dynamicTable(NULL),
+        hashTable(NULL),gnuVerneedTable(NULL),gnuVersymTable(NULL),
         dynamicStringTable(NULL),dynamicSymbolTable(NULL),pltRelocationTable(NULL),dynamicRelocationTable(NULL),
         lineInfoSection(NULL),
-        numberOfPrograms(0),numberOfSections(0),
-        numberOfStringTables(0),sectionNameStrTabIdx(0),numberOfSymbolTables(0),dynamicSymtabIdx(0),
-        numberOfRelocationTables(0),numberOfDwarfSections(0),numberOfTextSections(0),numberOfNoteSections(0),
-        dynamicSectionAddress(0),dynamicTableSectionIdx(0),textSegmentIdx(0),dataSegmentIdx(0),
+        dynamicSymtabIdx(0),dynamicSectionAddress(0),dynamicTableSectionIdx(0),textSegmentIdx(0),dataSegmentIdx(0),
         numberOfFunctions(0),numberOfBlocks(0),numberOfMemoryOps(0),numberOfFloatPOps(0) {}
     ~ElfFile();
 
@@ -131,18 +119,18 @@ public:
     void sortSectionHeaders();
 
     FileHeader*  getFileHeader() { return fileHeader; }
-    ProgramHeader* getProgramHeader(uint32_t idx) { ASSERT( idx < numberOfPrograms); ASSERT(programHeaders); ASSERT(programHeaders[idx]); return programHeaders[idx]; }
-    SectionHeader* getSectionHeader(uint32_t idx) { ASSERT(idx < numberOfSections); return sectionHeaders[idx]; }
-    RawSection* getRawSection(uint32_t idx) { ASSERT(idx < numberOfSections); return rawSections[idx]; }
-    StringTable* getStringTable(uint32_t idx) { ASSERT(idx < numberOfStringTables); return stringTables[idx]; }
-    SymbolTable* getSymbolTable(uint32_t idx) { ASSERT(idx < numberOfSymbolTables); return symbolTables[idx]; }
-    RelocationTable* getRelocationTable(uint32_t idx) { ASSERT(idx < numberOfRelocationTables); return relocationTables[idx]; }
-    DwarfSection* getDwarfSection(uint32_t idx) { ASSERT(idx < numberOfDwarfSections); return dwarfSections[idx]; }
-    TextSection* getTextSection(uint32_t idx) { ASSERT(idx < numberOfTextSections); return textSections[idx]; }
+    ProgramHeader* getProgramHeader(uint32_t idx) { return programHeaders[idx]; }
+    SectionHeader* getSectionHeader(uint32_t idx) { return sectionHeaders[idx]; }
+    RawSection* getRawSection(uint32_t idx) { return rawSections[idx]; }
+    StringTable* getStringTable(uint32_t idx) { return stringTables[idx]; }
+    SymbolTable* getSymbolTable(uint32_t idx) { return symbolTables[idx]; }
+    RelocationTable* getRelocationTable(uint32_t idx) { return relocationTables[idx]; }
+    DwarfSection* getDwarfSection(uint32_t idx) { return dwarfSections[idx]; }
+    TextSection* getTextSection(uint32_t idx) { return textSections[idx]; }
     GlobalOffsetTable* getGlobalOffsetTable() { return globalOffsetTable; }
     DynamicTable* getDynamicTable() { return dynamicTable; }
     HashTable* getHashTable() { return hashTable; }
-    NoteSection* getNoteSection(uint32_t idx) { ASSERT(idx < numberOfNoteSections); return noteSections[idx]; }
+    NoteSection* getNoteSection(uint32_t idx) { return noteSections[idx]; }
     GnuVerneedTable* getGnuVerneedTable() { return gnuVerneedTable; }
     GnuVersymTable* getGnuVersymTable() { return gnuVersymTable; }
     StringTable* getDynamicStringTable() { return dynamicStringTable; }
@@ -153,14 +141,14 @@ public:
 
     uint16_t getSectionNameStrTabIdx() { return sectionNameStrTabIdx; }
 
-    uint32_t getNumberOfPrograms() { return numberOfPrograms; }
-    uint32_t getNumberOfSections() { return numberOfSections; }
-    uint32_t getNumberOfStringTables() { return numberOfStringTables; }
-    uint32_t getNumberOfSymbolTables() { return numberOfSymbolTables; }
-    uint32_t getNumberOfRelocationTables() { return numberOfRelocationTables; }
-    uint32_t getNumberOfDwarfSections() { return numberOfDwarfSections; }
-    uint32_t getNumberOfTextSections() { return numberOfTextSections; }
-    uint32_t getNumberOfNoteSections() { return numberOfNoteSections; }
+    uint32_t getNumberOfPrograms() { return programHeaders.size(); }
+    uint32_t getNumberOfSections() { return sectionHeaders.size(); }
+    uint32_t getNumberOfStringTables() { return stringTables.size(); }
+    uint32_t getNumberOfSymbolTables() { return symbolTables.size(); }
+    uint32_t getNumberOfRelocationTables() { return relocationTables.size(); }
+    uint32_t getNumberOfDwarfSections() { return dwarfSections.size(); }
+    uint32_t getNumberOfTextSections() { return textSections.size(); }
+    uint32_t getNumberOfNoteSections() { return noteSections.size(); }
 
     uint64_t getDynamicSectionAddress() { return dynamicSectionAddress; }
     uint16_t getDynamicTableSectionIdx() { return dynamicTableSectionIdx; }

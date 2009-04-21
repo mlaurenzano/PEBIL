@@ -41,6 +41,10 @@ public:
         sizeIncreaseFactor = DEFAULT_INCREASE_FACTOR;
     }
 
+    void clear(){
+        numberOfElements = 0;
+    }
+
     void sort(int (*comparator) (const void*, const void*)){
         qsort(elements, numberOfElements, sizeof(T), comparator);
     }

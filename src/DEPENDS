@@ -25,21 +25,20 @@ BasicBlockCounter.o: BasicBlockCounter.C ../include/BasicBlock.h \
   ../include/Loop.h
 BinaryFile.o: BinaryFile.C ../include/BinaryFile.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/ElfFile.h
+  ../include/CStructuresX86.h ../include/ElfFile.h ../include/Vector.h
 Disassembler.o: Disassembler.C ../include/Disassembler.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/ElfFile.h ../include/BinaryFile.h ../include/Instruction.h \
-  ../include/Vector.h
+  ../include/ElfFile.h ../include/BinaryFile.h ../include/Vector.h \
+  ../include/Instruction.h
 DynamicTable.o: DynamicTable.C ../include/DynamicTable.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/RawSection.h ../include/Vector.h \
-  ../include/defines/DynamicTable.d ../include/BinaryFile.h \
-  ../include/ElfFile.h ../include/HashTable.h \
-  ../include/RelocationTable.h ../include/defines/RelocationTable.d \
-  ../include/SectionHeader.h ../include/defines/SectionHeader.d \
-  ../include/StringTable.h
+  ../include/defines/DynamicTable.d ../include/RawSection.h \
+  ../include/Vector.h ../include/BinaryFile.h ../include/ElfFile.h \
+  ../include/HashTable.h ../include/RelocationTable.h \
+  ../include/defines/RelocationTable.d ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d ../include/StringTable.h
 DwarfSection.o: DwarfSection.C ../include/DwarfSection.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
@@ -49,26 +48,26 @@ DwarfSection.o: DwarfSection.C ../include/DwarfSection.h \
   ../include/defines/SectionHeader.d
 ElfFile.o: ElfFile.C ../include/ElfFile.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/CStructuresX86.h ../include/BinaryFile.h \
+  ../include/CStructuresX86.h ../include/BinaryFile.h ../include/Vector.h \
   ../include/BasicBlock.h ../include/BitSet.h ../include/FlowGraph.h \
-  ../include/Function.h ../include/Instruction.h ../include/Vector.h \
-  ../include/TextSection.h ../include/RawSection.h \
-  ../include/LinkedList.h ../include/Disassembler.h \
-  ../include/DwarfSection.h ../include/defines/LineInformation.d \
-  ../include/DynamicTable.h ../include/defines/DynamicTable.d \
-  ../include/FileHeader.h ../include/defines/FileHeader.d \
-  ../include/GlobalOffsetTable.h ../include/GnuVersion.h \
-  ../include/defines/GnuVersion.d ../include/HashTable.h \
-  ../include/LineInformation.h ../include/NoteSection.h \
-  ../include/PriorityQueue.h ../include/ProgramHeader.h \
-  ../include/defines/ProgramHeader.d ../include/RelocationTable.h \
-  ../include/defines/RelocationTable.d ../include/SectionHeader.h \
-  ../include/defines/SectionHeader.d ../include/StringTable.h \
-  ../include/SymbolTable.h ../include/defines/SymbolTable.d
+  ../include/Function.h ../include/Instruction.h ../include/TextSection.h \
+  ../include/RawSection.h ../include/LinkedList.h \
+  ../include/Disassembler.h ../include/DwarfSection.h \
+  ../include/defines/LineInformation.d ../include/DynamicTable.h \
+  ../include/defines/DynamicTable.d ../include/FileHeader.h \
+  ../include/defines/FileHeader.d ../include/GlobalOffsetTable.h \
+  ../include/GnuVersion.h ../include/defines/GnuVersion.d \
+  ../include/HashTable.h ../include/LineInformation.h \
+  ../include/NoteSection.h ../include/PriorityQueue.h \
+  ../include/ProgramHeader.h ../include/defines/ProgramHeader.d \
+  ../include/RelocationTable.h ../include/defines/RelocationTable.d \
+  ../include/SectionHeader.h ../include/defines/SectionHeader.d \
+  ../include/StringTable.h ../include/SymbolTable.h \
+  ../include/defines/SymbolTable.d
 ElfFileInst.o: ElfFileInst.C ../include/ElfFileInst.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/CStructuresX86.h ../include/ElfFile.h \
-  ../include/BinaryFile.h ../include/Instruction.h ../include/Vector.h \
+  ../include/BinaryFile.h ../include/Vector.h ../include/Instruction.h \
   ../include/AddressAnchor.h ../include/BasicBlock.h ../include/BitSet.h \
   ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
   ../include/RawSection.h ../include/LinkedList.h \
@@ -229,5 +228,5 @@ TextSection.o: TextSection.C ../include/TextSection.h ../include/Base.h \
 main.o: main.C ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
   ../include/BasicBlockCounter.h ../include/ElfFileInst.h \
-  ../include/ElfFile.h ../include/BinaryFile.h ../include/Instruction.h \
-  ../include/Vector.h ../include/FunctionCounter.h
+  ../include/ElfFile.h ../include/BinaryFile.h ../include/Vector.h \
+  ../include/Instruction.h ../include/FunctionCounter.h

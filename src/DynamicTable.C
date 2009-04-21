@@ -9,7 +9,7 @@
 
 uint32_t DynamicTable::countDynamics(uint32_t type){
     uint32_t dynCount = 0;
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
+    for (uint32_t i = 0; i < dynamics.size(); i++){
         if (dynamics[i]->GET(d_tag) == type){
             dynCount++;
         }
@@ -19,7 +19,7 @@ uint32_t DynamicTable::countDynamics(uint32_t type){
 
 Dynamic* DynamicTable::getDynamicByType(uint32_t type, uint32_t idx){
     uint32_t dynCount = 0;
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
+    for (uint32_t i = 0; i < dynamics.size(); i++){
         if (dynamics[i]->GET(d_tag) == type){
             if (dynCount == idx){
                 return dynamics[i];
@@ -32,19 +32,19 @@ Dynamic* DynamicTable::getDynamicByType(uint32_t type, uint32_t idx){
 }
 
 uint32_t DynamicTable::findEmptyDynamic(){
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
+    for (uint32_t i = 0; i < dynamics.size(); i++){
         Dynamic* dyn = getDynamic(i);
         if (dyn->GET(d_tag) == DT_NULL || dyn->GET(d_tag) == DT_INIT){
             return i;
         }
     }
-    return numberOfDynamics;
+    return dynamics.size();
 }
 
 void DynamicTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
 
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
+    for (uint32_t i = 0; i < dynamics.size(); i++){
         binaryOutputFile->copyBytes(getDynamic(i)->charStream(),dynamicSize,offset+currByte);
         currByte += dynamicSize;
     }
@@ -64,15 +64,11 @@ DynamicTable::DynamicTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint16_
         dynamicSize = Size__32_bit_Dynamic_Entry; 
     }
 
-    ASSERT(sizeInBytes % dynamicSize == 0 && "Dynamic Table must have size n*dynEntrySize");
-    numberOfDynamics = sizeInBytes / dynamicSize;
-    dynamics = new Dynamic*[numberOfDynamics];
-    
 }
 
 
 void DynamicTable::relocateStringTable(uint64_t newAddr){
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
+    for (uint32_t i = 0; i < dynamics.size(); i++){
         if (elfFile->is64Bit()){
             Dynamic64* dyn = (Dynamic64*)dynamics[i];
         } else {
@@ -106,7 +102,7 @@ void DynamicTable::printSharedLibraries(BinaryInputFile* b){
     ASSERT(strTab && "Cannot find the string table indicated by the DT_STRTAB entry in the dynamic table");
 
     // look through the dynamic entries to find references to shared objects, print them using the string table we just found
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
+    for (uint32_t i = 0; i < dynamics.size(); i++){
         if (elfFile->is64Bit()){
             dyn = (Dynamic64*)dynamics[i];
         } else {
@@ -121,6 +117,15 @@ void DynamicTable::printSharedLibraries(BinaryInputFile* b){
 
 
 bool DynamicTable::verify(){
+
+    if (sizeInBytes % dynamicSize != 0){
+        PRINT_ERROR("Dynamic Table must have size n * %d", dynamicSize);
+    }
+    uint32_t numberOfDynamics = sizeInBytes / dynamicSize;
+    if (numberOfDynamics != dynamics.size()){
+        PRINT_ERROR("Size of dynamic table is off");
+    }
+
     Dynamic* dyn;
     uint64_t relocDynamicAddr = 0;
     uint64_t relocDynamicSize = 0;
@@ -137,14 +142,13 @@ bool DynamicTable::verify(){
     uint64_t verneedAddress = 0;
     uint64_t versymAddress = 0;
 
-
     uint32_t entryCounts[DT_JMPREL+1];
     
     for (uint32_t i = 0; i < DT_JMPREL+1; i++){
         entryCounts[i] = 0;
     }
 
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
+    for (uint32_t i = 0; i < dynamics.size(); i++){
         if (elfFile->is64Bit()){
             dyn = (Dynamic64*)dynamics[i];
         } else {
@@ -153,7 +157,7 @@ bool DynamicTable::verify(){
 
         // since DT_NULL marks the end of the table, we exit the loop so we don't look at anything after the DT_NULL entry
         if (dyn->GET(d_tag) == DT_NULL){
-            i = numberOfDynamics;    
+            i = dynamics.size();    
         }
 
         if (dyn->GET(d_tag) <= DT_JMPREL){
@@ -416,22 +420,19 @@ bool DynamicTable::verify(){
 }
 
 DynamicTable::~DynamicTable(){
-    if (dynamics){
-        for (uint32_t i = 0; i < numberOfDynamics; i++){
-            if (dynamics[i]){
-                delete dynamics[i];
-            }
+    for (uint32_t i = 0; i < dynamics.size(); i++){
+        if (dynamics[i]){
+            delete dynamics[i];
         }
-        delete[] dynamics;
     }
 }
 
 void DynamicTable::print(){
-    PRINT_INFOR("DynamicTable : with %d",numberOfDynamics);
+    PRINT_INFOR("DynamicTable : with %d",dynamics.size());
     PRINT_INFOR("\tsect : %d",sectionIndex);
     PRINT_INFOR("\tphdr : %d",segmentIndex);
 
-    for (uint32_t i = 0; i < numberOfDynamics; i++){
+    for (uint32_t i = 0; i < dynamics.size(); i++){
         char* namestr = NULL;
         Symbol* foundsymbols[3];
         getElfFile()->findSymbol4Addr(dynamics[i]->GET_A(d_ptr,d_un),foundsymbols,3,&namestr);
@@ -447,25 +448,19 @@ uint32_t DynamicTable::read(BinaryInputFile* binaryInputFile){
 
     uint32_t totalBytesRead = 0;
 
+    uint32_t numberOfDynamics = sizeInBytes / dynamicSize;
     for (uint32_t i = 0; i < numberOfDynamics; i++){
         if (elfFile->is64Bit()){
-            dynamics[i] = new Dynamic64(getFilePointer() + (i * Size__64_bit_Dynamic_Entry), i);
+            dynamics.append(new Dynamic64(getFilePointer() + (i * Size__64_bit_Dynamic_Entry), i));
         } else {
-            dynamics[i] = new Dynamic32(getFilePointer() + (i * Size__32_bit_Dynamic_Entry), i);
+            dynamics.append(new Dynamic32(getFilePointer() + (i * Size__32_bit_Dynamic_Entry), i));
         }
         totalBytesRead += dynamics[i]->read(binaryInputFile);
     }
-
     ASSERT(sizeInBytes == totalBytesRead && "size read from file does not match theorietical size of Dynamic Table");
 
     verify();
     return sizeInBytes;
-}
-
-Dynamic* DynamicTable::getDynamic(uint32_t idx){
-    ASSERT(dynamics && "Dynamic table should be initialized");
-    ASSERT(idx < numberOfDynamics && "Dynamic Table index out of bounds");
-    return dynamics[idx];
 }
 
 uint32_t Dynamic32::read(BinaryInputFile* binaryInputFile){

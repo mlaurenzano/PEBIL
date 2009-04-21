@@ -4,6 +4,7 @@
 #include <Base.h>
 #include <RawSection.h>
 #include <defines/GnuVersion.d>
+#include <Vector.h>
 
 class GnuVerneed : public Base {
 private:
@@ -81,40 +82,39 @@ public:
 
 class GnuVerneedTable : public RawSection {
 private:
-    uint32_t numberOfVerneeds;
-    GnuVerneed** verneeds;
+    Vector<GnuVerneed*> verneeds;
     uint32_t entrySize;
 
 public:
     GnuVerneedTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf);
     ~GnuVerneedTable();
 
-    uint32_t getNumberOfVerneeds() { return numberOfVerneeds; }
-    GnuVerneed* getVerneed(uint32_t idx) { ASSERT(idx < numberOfVerneeds); return verneeds[idx]; }
+    uint32_t getNumberOfVerneeds() { return verneeds.size(); }
+    GnuVerneed* getVerneed(uint32_t idx) { return verneeds[idx]; }
     uint32_t findVersion(uint32_t ver);
 
     void print();
     uint32_t read(BinaryInputFile* b);
+    bool verify();
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 };
 
 class GnuVersymTable : public RawSection {
 private:
-    uint32_t numberOfVersyms;
+    Vector<uint16_t> versyms;
     uint32_t entrySize;
-    uint16_t* versyms;
 public:
     GnuVersymTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf);
-    ~GnuVersymTable();
+    ~GnuVersymTable() {}
 
     void print();
     uint32_t read(BinaryInputFile* b);
+    bool verify();
 
     uint32_t addSymbol(uint16_t val);
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-    char* charStream() { return (char*)versyms; }
 };
 
 #endif /* _GnuVersion_h_ */

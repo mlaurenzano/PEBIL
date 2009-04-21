@@ -66,11 +66,11 @@ void Note::print(){
 }
 
 void NoteSection::print(){
-    PRINT_INFOR("NoteSection : %d with %d notes",index,numberOfNotes);
+    PRINT_INFOR("NoteSection : %d with %d notes",index,notes.size());
     //    printBytes(0,0);
     PRINT_INFOR("\tsect : %d",sectionIndex);
-    for (uint32_t i = 0; i < numberOfNotes; i++){
-        ASSERT(notes[i] && "numberOfNotes should indicate the number of elements in the notes array");
+    for (uint32_t i = 0; i < notes.size(); i++){
+        ASSERT(notes[i] && "notes.size() should indicate the number of elements in the notes array");
         notes[i]->print();
     }
 #ifdef DEBUG_NOTE
@@ -79,7 +79,7 @@ void NoteSection::print(){
 }
 
 bool NoteSection::verify(){
-    for (uint32_t i = 0; i < numberOfNotes; i++){
+    for (uint32_t i = 0; i < notes.size(); i++){
         if (!notes[i]){
             PRINT_ERROR("Notes[%d] should exist in the Note Table", i);
             return false;
@@ -96,30 +96,18 @@ NoteSection::NoteSection(char* rawPtr, uint32_t size, uint16_t scnIdx, uint32_t 
     : RawSection(ElfClassTypes_NoteSection,rawPtr,size,scnIdx,elf)
 {
     index = idx;
-
-    numberOfNotes = 0;
-    notes = NULL;
 }
 
 NoteSection::~NoteSection(){
-    if (notes){
-        for (uint32_t i = 0; i < numberOfNotes; i++){
-            if (notes[i]){
-                delete notes[i];
-            }
+    for (uint32_t i = 0; i < notes.size(); i++){
+        if (notes[i]){
+            delete notes[i];
         }
-        delete[] notes;
     }
 }
 
 
 uint32_t NoteSection::read(BinaryInputFile* binaryInputFile){
-
-    uint32_t currWord = 0;
-
-    uint32_t tmpNameSize;
-    uint32_t tmpDescSize;
-    uint32_t tmpType;
 
     binaryInputFile->setInPointer(rawDataPtr);
     setFileOffset(binaryInputFile->currentOffset());
@@ -131,47 +119,27 @@ uint32_t NoteSection::read(BinaryInputFile* binaryInputFile){
     }
 
 
-    // go over the section once to determine how many note structures are in it
-    numberOfNotes = 0;
-    while (currWord * Size__32_bit_Note_Section_Entry < sizeInBytes){
-        tmpNameSize = rawData[currWord++];
-        tmpDescSize = rawData[currWord++];
-        tmpType = rawData[currWord++];
-        
-        currWord += nextAlignAddress(tmpNameSize,Size__32_bit_Note_Section_Entry)/Size__32_bit_Note_Section_Entry;
-        currWord += nextAlignAddress(tmpDescSize,Size__32_bit_Note_Section_Entry)/Size__32_bit_Note_Section_Entry;
-        numberOfNotes++;
-    }
+    uint32_t currWord = 0;
+    uint32_t tmpNameSize;
+    uint32_t tmpDescSize;
+    uint32_t tmpType;
 
-    ASSERT(currWord*Size__32_bit_Note_Section_Entry == sizeInBytes && "Number of bytes read from note section is not the same as section size");
-
-    notes = new Note*[numberOfNotes];
-
-    currWord = 0;
-    numberOfNotes = 0;
     while (currWord * Size__32_bit_Note_Section_Entry < sizeInBytes){
         tmpNameSize = rawData[currWord++];
         tmpDescSize = rawData[currWord++];
         tmpType = rawData[currWord++];
 
         char* nameptr = (char*)(rawDataPtr + currWord * Size__32_bit_Note_Section_Entry);
-        currWord += nextAlignAddress(tmpNameSize,Size__32_bit_Note_Section_Entry)/Size__32_bit_Note_Section_Entry;
+        currWord += nextAlignAddress(tmpNameSize, Size__32_bit_Note_Section_Entry) / Size__32_bit_Note_Section_Entry;
         char* descptr = (char*)(rawDataPtr + currWord * Size__32_bit_Note_Section_Entry);
-        currWord += nextAlignAddress(tmpDescSize,Size__32_bit_Note_Section_Entry)/Size__32_bit_Note_Section_Entry;
+        currWord += nextAlignAddress(tmpDescSize, Size__32_bit_Note_Section_Entry) / Size__32_bit_Note_Section_Entry;
 
-        notes[numberOfNotes] = new Note(numberOfNotes, tmpNameSize, tmpDescSize, tmpType, nameptr, descptr);
-        numberOfNotes++;
+        notes.append(new Note(notes.size(), tmpNameSize, tmpDescSize, tmpType, nameptr, descptr));
     }
+    ASSERT(currWord * Size__32_bit_Note_Section_Entry == sizeInBytes && "Number of bytes read from note section is not the same as section size");
 
     delete[] rawData;
     return sizeInBytes;
-}
-
-Note* NoteSection::getNote(uint32_t idx){
-    ASSERT(idx >= 0 && idx < numberOfNotes && "Note table index out of bounds");
-    ASSERT(notes && "Note table should be initialized");
-
-    return notes[idx];
 }
 
 void NoteSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
@@ -181,7 +149,7 @@ void NoteSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t paddingSize;
     char* tmpName;
 
-    for (uint32_t i = 0; i < numberOfNotes; i++){
+    for (uint32_t i = 0; i < notes.size(); i++){
         currNote = getNote(i);
         ASSERT(currNote && "Note table should be initialized");
 

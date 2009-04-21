@@ -3,6 +3,7 @@
 
 #include <Base.h>
 #include <RawSection.h>
+#include <Vector.h>
 
 class BinaryInputFile;
 class BinaryOutputFile;
@@ -38,9 +39,7 @@ private:
     bool verify();
 
 protected:
-    uint32_t numberOfNotes;
-    Note** notes;
-
+    Vector<Note*> notes;
     uint32_t index;
 public:
     NoteSection(char* rawPtr, uint32_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf);
@@ -49,8 +48,8 @@ public:
     void print();
     uint32_t read(BinaryInputFile* b);
 
-    uint32_t getNumberOfNotes() { return numberOfNotes; }
-    Note* getNote(uint32_t idx);
+    uint32_t getNumberOfNotes() { return notes.size(); }
+    Note* getNote(uint32_t idx) { return notes[idx]; }
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 };

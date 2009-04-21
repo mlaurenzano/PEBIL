@@ -8,7 +8,7 @@
 
 void RelocationTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currentByte = 0;
-    for (uint32_t i = 0; i < numberOfRelocations; i++){
+    for (uint32_t i = 0; i < relocations.size(); i++){
         binaryOutputFile->copyBytes(relocations[i]->charStream(),relocationSize,offset+currentByte);
         currentByte += relocationSize;
     }
@@ -17,41 +17,34 @@ void RelocationTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 
 uint32_t RelocationTable::addRelocation(uint64_t offset, uint64_t info){
 
-    Relocation** newRelocations = new Relocation*[numberOfRelocations+1];
-
-    for (uint32_t i = 0; i < numberOfRelocations; i++){
-        newRelocations[i] = relocations[i];
-    }
-
+    Relocation* newreloc = NULL;
     if (elfFile->is64Bit()){
         if (type == ElfRelType_rela){
-            RelocationAddend64* rel = new RelocationAddend64(NULL,numberOfRelocations);
+            RelocationAddend64* rel = new RelocationAddend64(NULL,relocations.size());
             rel->SET(r_addend,0);
-            newRelocations[numberOfRelocations] = rel;
+            newreloc = rel;
         } else {
-            newRelocations[numberOfRelocations] = new Relocation64(NULL,numberOfRelocations);
+            newreloc = new Relocation64(NULL,relocations.size());
         }
     } else {
         if (type == ElfRelType_rela){
-            RelocationAddend32* rel = new RelocationAddend32(NULL,numberOfRelocations);
+            RelocationAddend32* rel = new RelocationAddend32(NULL,relocations.size());
             rel->SET(r_addend,0);
-            newRelocations[numberOfRelocations] = rel;
+            newreloc = rel;
         } else {
-            newRelocations[numberOfRelocations] = new Relocation32(NULL,numberOfRelocations);
+            newreloc = new Relocation32(NULL,relocations.size());
         }
     }
+    newreloc->SET(r_offset,offset);
+    newreloc->SET(r_info,info);
 
-    newRelocations[numberOfRelocations]->SET(r_offset,offset);
-    newRelocations[numberOfRelocations]->SET(r_info,info);
-
-    delete[] relocations;
-
-    relocations = newRelocations;
-    numberOfRelocations++;
+    relocations.append(newreloc);
     sizeInBytes += relocationSize;
 
     // returns the offset of the new entry
-    return numberOfRelocations-1;
+    return relocations.size()-1;
+
+    verify();
 }
 
 
@@ -84,22 +77,27 @@ RelocationTable::RelocationTable(char* rawPtr, uint64_t size, uint16_t scnIdx, u
             type = ElfRelType_rel;
         }
     }
-    ASSERT(relocationSize && "Size of a relocation entry must be > 0");
-    ASSERT(sizeInBytes % relocationSize == 0 && "Section size is bad");
-    numberOfRelocations = sizeInBytes / relocationSize;
 
-    relocations = new Relocation*[numberOfRelocations];
+    verify();
 }
 
+bool RelocationTable::verify(){
+    if (sizeInBytes % relocationSize != 0){
+        PRINT_ERROR("Section size is bad");
+        return false;
+    }
+    if (!relocationSize){
+        PRINT_ERROR("Size of a relocation entry must be > 0");
+        return false;
+    }
+    return true;
+}
 
 RelocationTable::~RelocationTable(){
-    if (relocations){
-        for (uint32_t i = 0; i < numberOfRelocations; i++){
-            if (relocations[i]){
-                delete relocations[i];
-            }
+    for (uint32_t i = 0; i < relocations.size(); i++){
+        if (relocations[i]){
+            delete relocations[i];
         }
-        delete[] relocations;
     }
 }
 
@@ -129,14 +127,14 @@ void RelocationTable::setRelocationSection(){
 
 
 void RelocationTable::print(){
-    PRINT_INFOR("RelocTable : %d aka sect %d with %d relocations",index,getSectionIndex(),numberOfRelocations);
+    PRINT_INFOR("RelocTable : %d aka sect %d with %d relocations",index,getSectionIndex(),relocations.size());
     PRINT_INFOR("\tadd? : %s", type == ElfRelType_rela ? "yes" : "no");
     PRINT_INFOR("\tsect : %d", elfFile->getSectionHeader(getSectionIndex())->GET(sh_info));
     PRINT_INFOR("\tstbs : %d", elfFile->getSectionHeader(getSectionIndex())->GET(sh_link));
 
     ASSERT(elfFile->getSectionHeader(getSectionIndex()) && "Section header doesn't exist");
 
-    for (uint32_t i = 0; i < numberOfRelocations; i++){
+    for (uint32_t i = 0; i < relocations.size(); i++){
         char* namestr = NULL;
         Symbol* foundsymbols[3];
         symbolTable->findSymbol4Addr(relocations[i]->GET(r_offset),foundsymbols,3,&namestr);
@@ -229,23 +227,24 @@ uint32_t RelocationAddend64::read(BinaryInputFile* binaryInputFile){
 uint32_t RelocationTable::read(BinaryInputFile* binaryInputFile){
     binaryInputFile->setInPointer(getFilePointer());
 
-    //    PRINT_INFOR("Reading %d relocations for reltable %d", numberOfRelocations, index);
-
+    uint32_t numberOfRelocations = sizeInBytes / relocationSize;
+    PRINT_INFOR("Reading %d relocations for reltable %d", numberOfRelocations, index);
     for (uint32_t i = 0; i < numberOfRelocations; i++){
         if (elfFile->is64Bit() && type == ElfRelType_rel){
-            relocations[i] = new Relocation64(getFilePointer() + (i * Size__64_bit_Relocation), i);
+            relocations.append(new Relocation64(getFilePointer() + (i * Size__64_bit_Relocation), i));
         } else if (elfFile->is64Bit() && type == ElfRelType_rela){
-            relocations[i] = new RelocationAddend64(getFilePointer() + (i * Size__64_bit_Relocation_Addend), i);
+            relocations.append(new RelocationAddend64(getFilePointer() + (i * Size__64_bit_Relocation_Addend), i));
         } else if (!elfFile->is64Bit() && type == ElfRelType_rel){
-            relocations[i] = new Relocation32(getFilePointer() + (i * Size__32_bit_Relocation), i);
+            relocations.append(new Relocation32(getFilePointer() + (i * Size__32_bit_Relocation), i));
         } else if (!elfFile->is64Bit() && type == ElfRelType_rela){
-            relocations[i] = new RelocationAddend32(getFilePointer() + (i * Size__32_bit_Relocation_Addend), i);
+            relocations.append(new RelocationAddend32(getFilePointer() + (i * Size__32_bit_Relocation_Addend), i));
         } else {
             PRINT_ERROR("Relocation type %d is invalid", type);
         }
 
         relocations[i]->read(binaryInputFile);
     }
+    ASSERT(relocations.size() == numberOfRelocations);
 
     verify();
 
