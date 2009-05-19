@@ -168,16 +168,74 @@ bool ElfFile::verify(){
             ptInterpIdx = i;
         }
     }
-    for (uint32_t i = 0; i < getNumberOfPrograms(); i++){    
-        if (programHeaders[i]->GET(p_type) == PT_LOAD){
-            if (i < ptInterpIdx){
-                PRINT_ERROR("PT_INTERP segment must preceed any loadable segment");
-                return false;
+
+    if (isStaticLinked()){
+        if (ptInterpIdx != getNumberOfPrograms()){
+            PRINT_ERROR("Static linked executables shouldn't have a PT_INTERP segment");
+            return false;
+        }
+    } else {
+        for (uint32_t i = 0; i < getNumberOfPrograms(); i++){    
+            if (programHeaders[i]->GET(p_type) == PT_LOAD){
+                if (i < ptInterpIdx){
+                    PRINT_ERROR("PT_INTERP segment must preceed any loadable segment");
+                    return false;
+                }
             }
         }
     }
 
+    PriorityQueue<uint64_t,uint64_t> addrs = PriorityQueue<uint64_t,uint64_t>(getNumberOfSections()+3);
+    addrs.insert(fileHeader->GET(e_ehsize),0);
+    addrs.insert(fileHeader->GET(e_phentsize)*fileHeader->GET(e_phnum),fileHeader->GET(e_phoff));
+    addrs.insert(fileHeader->GET(e_shentsize)*fileHeader->GET(e_shnum),fileHeader->GET(e_shoff));
+    for (uint32_t i = 1; i < getNumberOfSections(); i++){
+        if (sectionHeaders[i]->GET(sh_type) != SHT_NOBITS){
+            addrs.insert(sectionHeaders[i]->GET(sh_size),sectionHeaders[i]->GET(sh_offset));
+        }
+    }
+    ASSERT(addrs.size() && "This queue should not be empty");
 
+    uint64_t prevBegin, prevSize;
+    uint64_t currBegin, currSize;
+    prevSize = addrs.deleteMin(&prevBegin);
+    while (addrs.size()){
+        currSize = addrs.deleteMin(&currBegin);
+        //        PRINT_INFOR("Verifying address ranges [%llx,%llx],[%llx,%llx]", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
+        if (prevBegin+prevSize > currBegin && currSize != 0){
+            PRINT_ERROR("Address ranges [%llx,%llx],[%llx,%llx] should not intersect", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
+            return false;
+        }
+        prevBegin = currBegin;
+        prevSize = currSize;
+    }
+
+
+    for (uint32_t i = 0; i < getNumberOfPrograms(); i++){
+        if (!getProgramHeader(i)->verify()){
+            return false;
+        }
+    }
+    for (uint32_t i = 0; i < getNumberOfSections(); i++){
+        if (!getSectionHeader(i)->verify()){
+            return false;
+        }
+        if (!getRawSection(i)->verify()){
+            return false;
+        }
+    }
+
+    if (!isStaticLinked()){
+        if (!verifyDynamic()){
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool ElfFile::verifyDynamic(){
+    
     uint64_t hashSectionAddress_DT = dynamicTable->getDynamicByType(DT_HASH,0)->GET_A(d_val,d_un);
     uint64_t dynstrSectionAddress_DT = dynamicTable->getDynamicByType(DT_STRTAB,0)->GET_A(d_val,d_un);
     uint64_t dynsymSectionAddress_DT = dynamicTable->getDynamicByType(DT_SYMTAB,0)->GET_A(d_val,d_un);
@@ -290,46 +348,6 @@ bool ElfFile::verify(){
 
     }
 
-    PriorityQueue<uint64_t,uint64_t> addrs = PriorityQueue<uint64_t,uint64_t>(getNumberOfSections()+3);
-    addrs.insert(fileHeader->GET(e_ehsize),0);
-    addrs.insert(fileHeader->GET(e_phentsize)*fileHeader->GET(e_phnum),fileHeader->GET(e_phoff));
-    addrs.insert(fileHeader->GET(e_shentsize)*fileHeader->GET(e_shnum),fileHeader->GET(e_shoff));
-    for (uint32_t i = 1; i < getNumberOfSections(); i++){
-        if (sectionHeaders[i]->GET(sh_type) != SHT_NOBITS){
-            addrs.insert(sectionHeaders[i]->GET(sh_size),sectionHeaders[i]->GET(sh_offset));
-        }
-    }
-    ASSERT(addrs.size() && "This queue should not be empty");
-
-    uint64_t prevBegin, prevSize;
-    uint64_t currBegin, currSize;
-    prevSize = addrs.deleteMin(&prevBegin);
-    while (addrs.size()){
-        currSize = addrs.deleteMin(&currBegin);
-        //        PRINT_INFOR("Verifying address ranges [%llx,%llx],[%llx,%llx]", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
-        if (prevBegin+prevSize > currBegin && currSize != 0){
-            PRINT_ERROR("Address ranges [%llx,%llx],[%llx,%llx] should not intersect", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
-            return false;
-        }
-        prevBegin = currBegin;
-        prevSize = currSize;
-    }
-
-
-    for (uint32_t i = 0; i < getNumberOfPrograms(); i++){
-        if (!getProgramHeader(i)->verify()){
-            return false;
-        }
-    }
-    for (uint32_t i = 0; i < getNumberOfSections(); i++){
-        if (!getSectionHeader(i)->verify()){
-            return false;
-        }
-        if (!getRawSection(i)->verify()){
-            return false;
-        }
-    }
-
     return true;
 
 }
@@ -356,7 +374,6 @@ uint64_t ElfFile::addSection(uint16_t idx, ElfClassTypes classtype, char* bytes,
     sectionHeaders[idx]->SET(sh_addralign,addralign);
     sectionHeaders[idx]->SET(sh_entsize,entsize);
     sectionHeaders[idx]->setSectionType();
-
 
     if (classtype == ElfClassTypes_TextSection){
         textSections.append(new TextSection(bytes, size, idx, getNumberOfTextSections(), this, ByteSource_Instrumentation));
@@ -405,7 +422,6 @@ uint64_t ElfFile::addSection(uint16_t idx, ElfClassTypes classtype, char* bytes,
         }
     }
 
-
     return sectionHeaders[idx]->GET(sh_addr);
 }
 
@@ -429,26 +445,24 @@ void ElfFile::sortSectionHeaders(){
 
 void ElfFile::initSectionFilePointers(){
 
-    if (hashTable){
-        hashTable->initFilePointers();
-    } else {
-        PRINT_ERROR("Hash table not found. Is this binary statically linked?");
-    }
-
-    ASSERT(hashTable && "Hash Table should exist");
-
+    /*
     // find the string table for section names
     ASSERT(fileHeader->GET(e_shstrndx) && "No section name string table");
+    PRINT_INFOR("%d", fileHeader->GET(e_shstrndx));
     for (uint32_t i = 0; i < getNumberOfStringTables(); i++){
+        PRINT_INFOR("%d %d", fileHeader->GET(e_shstrndx), stringTables[i]->getSectionIndex());
         if (stringTables[i]->getSectionIndex() == fileHeader->GET(e_shstrndx)){
             sectionNameStrTabIdx = i;
+            PRINT_INFOR("yes");
         }
     }
 
     // set section names
     ASSERT(sectionNameStrTabIdx && "Section header string table index must be defined");
+    ASSERT(
+    */
 
-    char* stringTablePtr = getStringTable(sectionNameStrTabIdx)->getFilePointer();
+    char* stringTablePtr = ((StringTable*)rawSections[fileHeader->GET(e_shstrndx)])->getFilePointer();
 
     // skip first section header since it is reserved and its values are null
     for (uint32_t i = 1; i < getNumberOfSections(); i++){
@@ -491,6 +505,25 @@ void ElfFile::initSectionFilePointers(){
         getRelocationTable(i)->setRelocationSection();
     }
 
+
+    if (!isStaticLinked()){
+        initDynamicFilePointers();
+    }
+
+    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
+        textSections[i]->disassemble(&binaryInputFile);
+    }
+
+}
+
+
+void ElfFile::initDynamicFilePointers(){
+
+    if (hashTable){
+        hashTable->initFilePointers();
+    }
+
+    ASSERT(hashTable && "Hash Table should exist");
 
     // find the dynamic symbol table
     dynamicSymtabIdx = getNumberOfSymbolTables();
@@ -642,9 +675,6 @@ void ElfFile::initSectionFilePointers(){
     ASSERT(pltRelocationTable && "Should be able to find the plt relocation table");
     ASSERT(dynamicRelocationTable && "Should be able to find the dynamic relocation table");
 
-    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
-        textSections[i]->disassemble(&binaryInputFile);
-    }
 }
 
 
@@ -861,8 +891,7 @@ uint32_t ElfFile::printDisassembly(bool instructionDetail){
     return numInstrs;
 }
 
-
-
+/*
 uint32_t ElfFile::findSectionNameInStrTab(char* name){
     if (!stringTables.size()){
         return 0;
@@ -878,7 +907,7 @@ uint32_t ElfFile::findSectionNameInStrTab(char* name){
 
     return 0;
 }
-
+*/
 
 void ElfFile::dump(char* extension){
     char fileName[80] = "";
@@ -963,6 +992,12 @@ void ElfFile::parse(){
     readProgramHeaders();
     readSectionHeaders();
     readRawSections();
+
+    if (hashTable){
+        setStaticLinked(false);
+    } else {
+        setStaticLinked(true);
+    }
 }
 
 void ElfFile::readFileHeader() {

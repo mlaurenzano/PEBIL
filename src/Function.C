@@ -182,6 +182,8 @@ uint32_t Function::digest(){
     if (!allInstructions){
         ASSERT(getBadInstruction());
         allInstructions = digestLinear();
+    } else {
+        setRecursiveDisasm();
     }
 
     ASSERT(allInstructions);
@@ -460,6 +462,7 @@ Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz)
     PRINT_DEBUG_HASHCODE("Function %d, section %d  Hashcode: 0x%08llx", index, text->getSectionIndex(), hashCode.getValue());
 
     badInstruction = 0;
+    flags = 0;
 
     verify();
 }
@@ -514,6 +517,6 @@ bool Function::verify(){
 }
 
 void Function::print(){
-    PRINT_INFOR("Function %s has base address %#llx", getName(), baseAddress);
+    PRINT_INFOR("Function %s has base address %#llx -- flags %#llx", getName(), baseAddress, flags);
     symbol->print();
 }

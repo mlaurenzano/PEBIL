@@ -124,6 +124,7 @@ bool LineInfoFinder::verify(){
 
 LineInfoFinder::LineInfoFinder(DwarfLineInfoSection* dwarf){
     dwarfLineInfoSection = dwarf;
+    ASSERT(dwarfLineInfoSection);
 
     for (uint32_t i = 0; i < dwarfLineInfoSection->getNumberOfLineInfoTables(); i++){
         for (uint32_t j = 0; j < dwarfLineInfoSection->getLineInfoTable(i)->getNumberOfLineInfos(); j++){

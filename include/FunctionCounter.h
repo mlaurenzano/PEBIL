@@ -10,6 +10,7 @@ public:
     FunctionCounter(ElfFile* elf);
     ~FunctionCounter();
 
+    void declare();
     void instrument();
 };
 

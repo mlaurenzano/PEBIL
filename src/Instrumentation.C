@@ -384,10 +384,13 @@ uint32_t InstrumentationFunction::addArgument(uint64_t offset, uint32_t value){
 
 void InstrumentationFunction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currentOffset = procedureLinkOffset;
-    for (uint32_t i = 0; i < procedureLinkInstructions.size(); i++){
-        procedureLinkInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
-        currentOffset += procedureLinkInstructions[i]->getSizeInBytes();
+    if (!isStaticLinked()){
+        for (uint32_t i = 0; i < procedureLinkInstructions.size(); i++){
+            procedureLinkInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
+            currentOffset += procedureLinkInstructions[i]->getSizeInBytes();
+        }
     }
+
     currentOffset = bootstrapOffset;
     for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
         bootstrapInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
@@ -412,6 +415,11 @@ uint64_t InstrumentationSnippet::getEntryPoint(){
 uint32_t InstrumentationFunction64::generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress){
     ASSERT(!procedureLinkInstructions.size() && "This array should not be initialized");
 
+    if (isStaticLinked()){
+        ASSERT(!realPLTAddress);
+        return 0;
+    }
+
     uint64_t procedureLinkAddress = textBaseAddress + procedureLinkOffset;
     procedureLinkInstructions.append(InstructionGenerator64::generateIndirectRelativeJump(procedureLinkAddress,dataBaseAddress + globalDataOffset));
     procedureLinkInstructions.append(InstructionGenerator64::generateStackPushImmediate(relocationOffset));
@@ -425,6 +433,12 @@ uint32_t InstrumentationFunction64::generateProcedureLinkInstructions(uint64_t t
 
 uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress){
     ASSERT(!procedureLinkInstructions.size() && "This array should not be initialized");
+
+    if (isStaticLinked()){
+        ASSERT(!realPLTAddress);
+        return 0;
+    }
+
     PRINT_DEBUG_INST("Generating PLT instructions at offset %llx", procedureLinkOffset);
 
     procedureLinkInstructions.append(InstructionGenerator32::generateJumpIndirect(dataBaseAddress + globalDataOffset));
@@ -506,7 +520,14 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
         bootstrapInstructions.append(InstructionGenerator::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX));
     }
-    wrapperInstructions.append(InstructionGenerator64::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
+
+    uint64_t wrapperTargetOffset = 0;
+    if (isStaticLinked()){
+        wrapperTargetOffset = functionEntry - textBaseAddress;
+    } else {
+        wrapperTargetOffset = procedureLinkOffset;
+    }
+    wrapperInstructions.append(InstructionGenerator64::generateCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
 
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
         wrapperInstructions.append(InstructionGenerator64::generateStackPop(X86_64BIT_GPRS-1-i));
@@ -578,10 +599,12 @@ uint32_t InstrumentationFunction::sizeNeeded(){
     return totalSize;
 }
 
-InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset)
+InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset, uint64_t fEntry)
     : Instrumentation(ElfClassTypes_InstrumentationFunction)
 {
     index = idx;
+
+    functionEntry = fEntry;
 
     functionName = new char[strlen(funcName)+1];
     strcpy(functionName,funcName);
@@ -619,7 +642,7 @@ InstrumentationFunction::~InstrumentationFunction(){
 }
 
 void InstrumentationFunction::print(){
-    PRINT_INFOR("Instrumentation Function (%d) %s", index, functionName);
+    PRINT_INFOR("Instrumentation Function (%d) %s -- is static linked? %d", index, functionName, isStaticLinked());
     PRINT_INFOR("\t\tProcedure Link Instructions: %d", procedureLinkInstructions.size());
     PRINT_INFOR("\t\tProcedure Link Offset      : %lld", procedureLinkOffset);
     for (uint32_t i = 0; i < procedureLinkInstructions.size(); i++){

@@ -36,7 +36,7 @@ TARGET_BIN  = x86inst
 all: $(TARGET_BIN) install
 
 $(TARGET_BIN) : $(OBJS)
-	$(CPP) -o $@ $(OBJS) $(CFLAGS) -I$(INCLUDE) $(EXTRA_LIBS) $(X86INST_LD_FLAGS)
+	$(CPP) $(CFLAGS) -o $@ $(OBJS) $(CFLAGS) -I$(INCLUDE) $(EXTRA_LIBS) $(X86INST_LD_FLAGS)
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< -I$(INCLUDE) $(EXTRA_INC)

@@ -89,6 +89,9 @@ protected:
     char* functionName;
     uint32_t index;
 
+    bool staticLinked;
+    uint64_t functionEntry;
+
     Vector<Instruction*> procedureLinkInstructions;
     uint64_t procedureLinkOffset;
 
@@ -105,10 +108,13 @@ protected:
     uint32_t* argumentValues;
 
 public:
-    InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset);
+    InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset, uint64_t fEntry);
     ~InstrumentationFunction();
 
     void print();
+
+    bool isStaticLinked() { return (functionEntry != 0); }
+    uint64_t getFunctionEntry() { return functionEntry; }
 
     uint32_t sizeNeeded();
     uint32_t wrapperSize();
@@ -149,7 +155,7 @@ public:
 
 class InstrumentationFunction32 : public InstrumentationFunction {
 public:
-    InstrumentationFunction32(uint32_t idx, char* funcName, uint64_t dataoffset) : InstrumentationFunction(idx,funcName,dataoffset) {}
+    InstrumentationFunction32(uint32_t idx, char* funcName, uint64_t dataoffset, uint64_t fEntry) : InstrumentationFunction(idx,funcName,dataoffset,fEntry) {}
     ~InstrumentationFunction32() {}
 
     uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress);
@@ -164,7 +170,7 @@ public:
 
 class InstrumentationFunction64 : public InstrumentationFunction {
 public:
-    InstrumentationFunction64(uint32_t idx, char* funcName,uint64_t dataoffset) : InstrumentationFunction(idx,funcName,dataoffset) {}
+    InstrumentationFunction64(uint32_t idx, char* funcName,uint64_t dataoffset, uint64_t fEntry) : InstrumentationFunction(idx,funcName,dataoffset,fEntry) {}
     ~InstrumentationFunction64() {}
 
     uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress);

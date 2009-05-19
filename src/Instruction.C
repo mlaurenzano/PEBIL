@@ -354,6 +354,9 @@ void Instruction::deleteAnchor(){
 }
 
 void Instruction::initializeAnchor(Base* link){
+    if (addressAnchor){
+        print();
+    }
     ASSERT(!addressAnchor);
     ASSERT(link->containsProgramBits());
     addressAnchor = new AddressAnchor(link,this);

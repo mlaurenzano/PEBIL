@@ -314,11 +314,7 @@ int main(int argc,char* argv[]){
         TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Loop    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
     }
 
-
-    elfFile.verify();
-
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-
     STATS(elfFile.gatherDisassemblyStats());
 
     if (verbose){
@@ -326,6 +322,7 @@ int main(int argc,char* argv[]){
         TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
     }
 
+    elfFile.verify();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Verify  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
     ElfFileInst* elfInst = NULL;

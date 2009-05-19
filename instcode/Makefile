@@ -1,10 +1,11 @@
 DBG         = -g
 OPT         = -O3
 SHARED_OPT  = -fPIC
-NATIVE_C    = cc
 GNU_C       = gcc
 CC          = $(GNU_C) $(DBG) $(OPT)
 SHARED_LIB  = -shared
+AR          = ar
+AR_FLAGS    = rcs
 
 #### -DNO_SAMPLING_MODE    : Add to disable sampling (note that MAX visit count is still on).
 #### -DEXTENDED_SAMPLING   : Add to vary the ignore and sampling intervals during sampling
@@ -24,7 +25,7 @@ LIBDIR      = ../lib
 SRCS        = CounterFunctions.c
 OBJS        = CounterFunctions.o
 
-TARGET_LIBS = libcounter.so
+TARGET_LIBS = libcounter.so libcounter.a
 
 all: $(TARGET_LIBS) install
 
@@ -33,6 +34,9 @@ all: $(TARGET_LIBS) install
 
 libcounter.so : $(OBJS)
 	$(CC) $(SHARED_LIB) -o $@ CounterFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
+
+libcounter.a : $(OBJS)
+	$(AR) $(AR_FLAGS) $@ CounterFunctions.o
 
 clean: 
 	rm -f core *.o *.O *.i *.s *.ii *.class $(TARGET_LIBS)

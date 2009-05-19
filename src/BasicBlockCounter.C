@@ -9,7 +9,7 @@
 
 #define ENTRY_FUNCTION "initcounter"
 #define EXIT_FUNCTION "blockcounter"
-#define LIB_NAME "libcounter.so"
+#define INST_LIB_NAME "libcounter.so"
 #define FILE_UNK "__FILE_UNK__"
 #define INST_SUFFIX "jbbinst"
 
@@ -18,24 +18,30 @@ BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
 {
     instSuffix = new char[__MAX_STRING_SIZE];
     sprintf(instSuffix,"%s\0", INST_SUFFIX);
+
+    entryFunc = NULL;
+    exitFunc = NULL;
+}
+
+void BasicBlockCounter::declare(){
+    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
+    
+    // declare any shared library that will contain instrumentation functions
+    declareLibrary(INST_LIB_NAME);
+
+    // declare any instrumentation functions that will be used
+    exitFunc = declareFunction(EXIT_FUNCTION);
+    ASSERT(exitFunc && "Cannot find exit function, are you sure it was declared?");
+
+    entryFunc = declareFunction(ENTRY_FUNCTION);
+    ASSERT(entryFunc && "Cannot find entry function, are you sure it was declared?");
+
+    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 }
 
 void BasicBlockCounter::instrument(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
     
-    // declare any shared library that will contain instrumentation functions
-    declareLibrary(LIB_NAME);
-
-    // declare any instrumentation functions that will be used
-    InstrumentationFunction* exitFunc = declareFunction(EXIT_FUNCTION);
-    ASSERT(exitFunc && "Cannot find exit function, are you sure it was declared?");
-
-    InstrumentationFunction* entryFunc = declareFunction(ENTRY_FUNCTION);
-    ASSERT(entryFunc && "Cannot find entry function, are you sure it was declared?");
-
-    InstrumentationFunction* fFunc = declareFunction("foo");
-    InstrumentationFunction* ffFunc = declareFunction("foofoo");
-
     TextSection* text = getTextSection();
     TextSection* fini = getFiniSection();
     ASSERT(text && "Cannot find text section");
@@ -58,6 +64,12 @@ void BasicBlockCounter::instrument(){
     for (uint32_t i = 0; i < exposedFunctions.size(); i++){
         Function* f = exposedFunctions[i];
         PRINT_DEBUG_FUNC_RELOC("\t%s", f->getName());
+        if (!f->hasCompleteDisassembly()){
+            PRINT_ERROR("function %s should have complete disassembly", f->getName());
+        }
+        if (!isEligibleFunction(f)){
+            PRINT_ERROR("function %s should be eligible", f->getName());
+        }
         ASSERT(f->hasCompleteDisassembly() && isEligibleFunction(f));
         for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
             (*allBlocks).append(f->getBasicBlock(j));

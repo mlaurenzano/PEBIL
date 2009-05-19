@@ -19,6 +19,9 @@ FunctionCounter::FunctionCounter(ElfFile* elf)
     sprintf(instSuffix,"%s\0", "fncinst");
 }
 
+void FunctionCounter::declare(){
+}
+
 void FunctionCounter::instrument(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
     

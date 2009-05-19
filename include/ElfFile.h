@@ -27,6 +27,7 @@ class TextSection;
 class ElfFile {
 private:
     bool is64BitFlag;
+    bool staticLinked;
 
     char*        elfFileName;
 
@@ -86,11 +87,13 @@ private:
     void generateCFGs();
     void findMemoryFloatOps();
 
+    bool verifyDynamic();
+    void initDynamicFilePointers();
 
 public:
     bool verify();
 
-    ElfFile(char* f): is64BitFlag(false),elfFileName(f),
+    ElfFile(char* f): is64BitFlag(false),staticLinked(false),elfFileName(f),
         fileHeader(NULL),globalOffsetTable(NULL),dynamicTable(NULL),
         hashTable(NULL),gnuVerneedTable(NULL),gnuVersymTable(NULL),
         dynamicStringTable(NULL),dynamicSymbolTable(NULL),pltRelocationTable(NULL),dynamicRelocationTable(NULL),
@@ -100,6 +103,8 @@ public:
     ~ElfFile();
 
     bool is64Bit() { return is64BitFlag; }
+    bool isStaticLinked() { return staticLinked; }
+    void setStaticLinked(bool val) { staticLinked = val; }
 
     uint32_t getAddressAlignment(){ if (is64Bit()) { return sizeof(uint64_t); } else { return sizeof(uint32_t); } }
     void gatherDisassemblyStats();

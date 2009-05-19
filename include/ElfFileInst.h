@@ -35,6 +35,7 @@ class TextSection;
 typedef enum {
     ElfInstPhase_no_phase = 0,
     ElfInstPhase_extend_space,
+    ElfInstPhase_user_declare,
     ElfInstPhase_user_reserve,
     ElfInstPhase_modify_control,
     ElfInstPhase_generate_instrumentation,

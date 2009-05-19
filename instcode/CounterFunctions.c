@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
+#include <dlfcn.h>
 
 #define PRINT_MINIMUM 10000
 
@@ -17,6 +18,13 @@ char** fileNames;
 char** functionNames;
 int64_t* hashValues;
 
+int32_t dummywrap(){
+    int32_t x = initcounter(1,2,3,4,5) +
+        functioncounter(1,2,3) + 
+        blockcounter(1,2,3);
+    return x;
+}
+
 int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** functionNames){
     int32_t i;
 
@@ -30,7 +38,7 @@ int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** f
             PRINT_INSTR("\tFunction(%d) %.24s executed %d times", i, functionNames[i], functionCounts[i]);
         }
     }
-    return 0;
+    return i;
 }
 
 int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char** functionNms, int64_t* hashVals){
@@ -41,6 +49,8 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
     fileNames = fileNms;
     functionNames = functionNms;
     hashValues = hashVals;
+
+    return numberOfBasicBlocks;
 }
 
 int32_t blockcounter(int32_t* blockCounts, char* appName, char* instExt){
@@ -71,7 +81,6 @@ int32_t blockcounter(int32_t* blockCounts, char* appName, char* instExt){
     fflush(outFile);
     fclose(outFile);
 
-    return 0;
+    return i;
 }
-
 
