@@ -36,7 +36,7 @@ uint32_t readBytes = 0;
 //#define SWAP_MOD 16384
 //#define SWAP_FUNCTION_ONLY "setSectionType"
 //#define TURNOFF_INSTRUCTION_SWAP
-#define ANCHOR_SEARCH_BINARY
+//#define ANCHOR_SEARCH_BINARY
 
 
 void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
@@ -137,7 +137,13 @@ bool ElfFileInst::isEligibleFunction(Function* func){
     if (strstr("pg", func->getName())){
         return false;
     }
+    if (strstr("getpid", func->getName())){
+        return false;
+    }
     if (func->isInstrumentationFunction()){
+        return false;
+    }
+    if (func->isJumpTable()){
         return false;
     }
     return true;
@@ -159,12 +165,20 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
         PRINT_INFOR("%#llx", allAnchors[i]->linkBaseAddress);
     }
 #endif
+    bool printOn = false;
+    if (addr == 0x80d1000){
+        PRINT_INFOR("looking for 0x80d1000");
+        printOn = true;
+    }
     void* anchor = bsearch(&addr, allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), searchLinkBaseAddress);
     if (anchor){
         uint64_t idx = ((uint64_t)anchor-(uint64_t)allAnchors)/sizeof(AddressAnchor*);
         while (idx < addressAnchors.size() &&
                 addressAnchors[idx]->linkBaseAddress <= addr &&
                 addr < addressAnchors[idx]->linkBaseAddress + addressAnchors[idx]->getLink()->getSizeInBytes()){
+            if (printOn){
+                PRINT_INFOR("Found one");
+            }
             (*needToUpdate).append(allAnchors[idx++]);
         }
     }
@@ -197,9 +211,17 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
     delete needToUpdate2;
 #endif
 #else
+    bool printOn = false;
+    if (addr == 0x80d1000){
+        PRINT_INFOR("looking for 0x80d1000");
+        printOn = true;
+    }
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
         if (addressAnchors[i]->linkBaseAddress <= addr &&
             addr < addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes()){
+            if (printOn){
+                PRINT_INFOR("Found one");
+            }
             needToUpdate->append(addressAnchors[i]);
         }
     }
@@ -325,9 +347,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
                                 }
                             }
                             DataReference* dataRef = new DataReference(extendedData,dataRawSection,elfFile->is64Bit(),sectionOffset);
-                            if (currentInstruction->getProgramAddress() == 0x8105ab9){
-                                PRINT_INFOR("section %d, addr %#llx, offset %#llx", i, dataSectionHeader->GET(sh_addr), sectionOffset);
-                            }
+
                             currentInstruction->initializeAnchor(dataRef);
                             addressAnchors.append(currentInstruction->getAddressAnchor());
                             currentInstruction->getAddressAnchor()->setIndex(anchorCount);
@@ -468,6 +488,12 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
     Function* placeHolder = new Function(text,functionToRelocate->getIndex(),functionToRelocate->getFunctionSymbol(),functionSize);
     Vector<AddressAnchor*>* modAnchors = searchAddressAnchors(functionToRelocate->getBaseAddress());
     for (uint32_t i = 0; i < modAnchors->size(); i++){
+        if (functionToRelocate->getBaseAddress() == 0x80d1000){
+            ASSERT((*modAnchors)[i]->getLinkedParent()->getType() == ElfClassTypes_Instruction);
+            PRINT_INFOR("Updating %d anchors for getpid -- %#llx", modAnchors->size(), (*modAnchors)[i]->linkBaseAddress);
+            ((Instruction*)(*modAnchors)[i]->getLinkedParent())->print();
+            (*trampEmpty).back()->print();
+        }
         (*modAnchors)[i]->updateLink((*trampEmpty).back());
         anchorsAreSorted = false;
     }
@@ -482,24 +508,25 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
     placeHolder->generateCFG(trampEmpty);
     delete trampEmpty;
 
-    placeHolder = text->replaceFunction(functionToRelocate->getIndex(),placeHolder);
-    relocatedFunctions.append(placeHolder);
+    Function* displacedFunction = text->replaceFunction(functionToRelocate->getIndex(), placeHolder);
+    relocatedFunctions.append(displacedFunction);
     relocatedFunctionOffsets.append(offsetToRelocation);
     ASSERT(relocatedFunctions.size() == relocatedFunctionOffsets.size());
 
-    uint64_t oldBase = placeHolder->getBaseAddress();
-    uint64_t oldSize = placeHolder->getSizeInBytes();
+    uint64_t oldBase = displacedFunction->getBaseAddress();
+    uint64_t oldSize = displacedFunction->getSizeInBytes();
 
     // adjust the base addresses of the relocated function
-    placeHolder->setBaseAddress(relocationAddress);
+    displacedFunction->setBaseAddress(relocationAddress);
 
     // bloat the blocks in the function
 #ifndef TURNOFF_CODE_BLOAT
-    placeHolder->bloatBasicBlocks(SIZE_CONTROL_TRANSFER);
+    displacedFunction->bloatBasicBlocks(SIZE_CONTROL_TRANSFER);
 #endif
-    PRINT_DEBUG_FUNC_RELOC("Function %s relocation map [%#llx,%#llx) --> [%#llx,%#llx)", placeHolder->getName(), oldBase, oldBase+oldSize, placeHolder->getBaseAddress(), placeHolder->getBaseAddress() + placeHolder->getSizeInBytes());
+    PRINT_DEBUG_FUNC_RELOC("Function %s relocation map [%#llx,%#llx) --> [%#llx,%#llx)", displacedFunction->getName(), oldBase, oldBase+oldSize, displacedFunction->getBaseAddress(), displacedFunction->getBaseAddress() + displacedFunction->getSizeInBytes());
+    PRINT_DEBUG_FUNC_RELOC("Function %s placeholder [%#llx,%#llx)", placeHolder->getName(), placeHolder->getBaseAddress(), placeHolder->getBaseAddress() + placeHolder->getSizeInBytes());
 
-    return placeHolder->getNumberOfBytes();
+    return displacedFunction->getNumberOfBytes();
 }
 
 BasicBlock* ElfFileInst::getProgramEntryBlock(){
@@ -700,6 +727,7 @@ void ElfFileInst::generateInstrumentation(){
             // update any address anchor that pointed to the old instruction to point to the new
             for (uint32_t j = 0; j < (*displaced).size(); j++){
                 Vector<AddressAnchor*>* modAnchors = searchAddressAnchors((*displaced)[j]->getBaseAddress());
+                PRINT_DEBUG_ANCHOR("Looking for anchors for address %#llx", (*displaced)[j]->getBaseAddress());
                 for (uint32_t k = 0; k < modAnchors->size(); k++){
                     PRINT_DEBUG_ANCHOR("Instruction swapping at address %#llx because of anchor/swap", (*displaced)[j]->getBaseAddress());
 #ifdef DEBUG_ANCHOR
@@ -708,6 +736,10 @@ void ElfFileInst::generateInstrumentation(){
                     for (uint32_t l = 0; l < (*repl).size(); l++){
                         PRINT_DEBUG_ANCHOR("\t\t********Comparing addresses %#llx and %#llx", (*displaced)[j]->getBaseAddress(), (*repl)[l]->getBaseAddress());
                         if ((*displaced)[j]->getBaseAddress() == (*repl)[l]->getBaseAddress()){
+                            if ((*displaced)[j]->getBaseAddress() == 0x40d4e2a){
+                                PRINT_INFOR("Updating anchor for getpid from swap");
+                                (*repl)[l]->print();
+                            }
                             (*modAnchors)[k]->updateLink((*repl)[l]);
                             anchorsAreSorted = false;
                         }
@@ -1087,14 +1119,13 @@ InstrumentationFunction* ElfFileInst::declareFunction(char* funcName){
                     !strcmp(((Function*)tobj)->getName(), funcName)){
                     functionEntry = ((Function*)tobj)->getBaseAddress();
                     ((Function*)tobj)->setInstrumentationFunction();
-                    ((Function*)tobj)->print();
+                    PRINT_WARN(5, "Instrumentation function statically compiled into binary and found -- %s", ((Function*)tobj)->getName());
                 }
             }
         }
         if (!functionEntry){
             PRINT_ERROR("In static linked binary instrumentation function %s must be linked in", funcName);
         }
-        PRINT_INFOR("Found function %s in binary at %#llx", funcName, functionEntry);
     }
         
     if (elfFile->is64Bit()){
@@ -1269,7 +1300,6 @@ void ElfFileInst::extendTextSection(uint64_t size){
             ASSERT(elfFile->getSectionHeader(i)->GET(sh_addr) < lowestTextAddress && "No section that occurs before the first text section should have a larger address");
             // strictly speaking the loader doesn't use these, but for consistency we change them anyway
             ASSERT(elfFile->getSectionHeader(i)->GET(sh_addr) > size && "The text extension size is too large");
-            PRINT_INFOR("reducing section addr from %#llx to %#llx", sHdr->GET(sh_addr), sHdr->GET(sh_addr)-size);
             sHdr->SET(sh_addr,sHdr->GET(sh_addr)-size);
         } else {
             sHdr->INCREMENT(sh_offset,size);            

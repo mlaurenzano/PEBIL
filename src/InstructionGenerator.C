@@ -1,5 +1,17 @@
 #include <InstructionGenerator.h>
 
+Instruction* InstructionGenerator64::generateXorRegReg(uint8_t src, uint8_t tgt){
+    ASSERT(src < X86_32BIT_GPRS && "Illegal register index given");
+    ASSERT(tgt < X86_32BIT_GPRS && "Illegal register index given");
+    
+    uint32_t len = 3;
+    char* buff = new char[len];
+    buff[0] = 0x48;
+    buff[1] = 0x31;
+    buff[2] = 0xc0 + tgt + 8*src;
+    return generateInstructionBase(len,buff);
+}
+
 Instruction* InstructionGenerator32::generateStoreEflagsToAH(){
     uint32_t len = 1;
     char* buff = new char[len];

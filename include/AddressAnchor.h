@@ -22,7 +22,7 @@ private:
     void dumpInstruction(BinaryOutputFile* b, uint32_t offset);
     void dumpDataReference(BinaryOutputFile* b, uint32_t offset);
 public:
-    // this gets accessed a lot and is a performance bottleneck for instrumentation, so
+    // this gets accessed A LOT and is a performance bottleneck for instrumentation, so
     // we are basically caching link->getBaseAddress() and making it public so it doesn't
     // require a function access to get to it.
     uint64_t linkBaseAddress;

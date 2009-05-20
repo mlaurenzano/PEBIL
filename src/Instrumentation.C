@@ -8,7 +8,7 @@
 
 //#define OPTIMIZE_NONLEAF
 // this optimization will not be valid on some old intel-based x64 systems that don't support lahf/sahf
-#define TRAMPOLINE_AVOIDS_STACK
+//#define TRAMPOLINE_AVOIDS_STACK
 //#define TRAMPOLINE_WITHOUT_CONTENT
 #define SNIPPET_TRAMPOLINE_DEFAULT false
 
@@ -521,6 +521,12 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         bootstrapInstructions.append(InstructionGenerator::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX));
     }
 
+    /*
+    wrapperInstructions.append(InstructionGenerator64::generateStackPush(X86_REG_BX));
+    wrapperInstructions.append(InstructionGenerator64::generateXorRegReg(X86_REG_AX, X86_REG_AX));
+    wrapperInstructions.append(InstructionGenerator64::generateRegSubImmediate(X86_REG_SP,8));
+    */
+
     uint64_t wrapperTargetOffset = 0;
     if (isStaticLinked()){
         wrapperTargetOffset = functionEntry - textBaseAddress;
@@ -563,6 +569,7 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
         bootstrapInstructions.append(InstructionGenerator32::generateMoveImmToReg(value,X86_REG_CX));
         bootstrapInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress+argumentOffsets[idx]));
     }
+
     wrapperInstructions.append(InstructionGenerator32::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
 
     for (uint32_t i = 0; i < numberOfArguments; i++){

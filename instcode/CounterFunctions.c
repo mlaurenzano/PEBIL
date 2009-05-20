@@ -42,7 +42,7 @@ int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** f
 }
 
 int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char** functionNms, int64_t* hashVals){
-    PRINT_INSTR("raw init args: %x %x %x %x %llx", numBlocks, lineNums, fileNms, functionNms, hashVals);
+    //    PRINT_INSTR("raw init args: %x %x %x %x %llx", numBlocks, lineNums, fileNms, functionNms, hashVals);
 
     numberOfBasicBlocks = *numBlocks;
     lineNumbers = lineNums;

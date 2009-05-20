@@ -69,6 +69,7 @@ public:
     static Instruction* generateLoadEflagsFromAH();
 
     static Instruction* generateAddImmByteToMem(uint8_t, uint64_t);
+    static Instruction* generateXorRegReg(uint8_t, uint8_t);
 };
 
 class InstructionGenerator32 : public InstructionGenerator {

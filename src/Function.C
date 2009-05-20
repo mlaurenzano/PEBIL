@@ -312,6 +312,7 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
     for (uint32_t i = 0; i < (*instructions).size(); i++){
         Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
         if ((*instructions)[i]->isJumpTableBase()){
+            setJumpTable();
             uint64_t jumpTableBase = (*instructions)[i]->findJumpTableBaseAddress(instructions);
             if (!jumpTableBase){
                 PRINT_WARN(6,"Cannot determine indirect jump target for instruction at %#llx", (*instructions)[i]->getBaseAddress());
