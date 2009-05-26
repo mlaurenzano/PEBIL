@@ -22,7 +22,7 @@ private:
     AddressAnchor* addressAnchor;
 
 public:
-    DataReference(uint64_t dat, RawSection* rawsect, bool is64, uint64_t off);
+    DataReference(uint64_t dat, RawSection* rawsect, uint32_t addrAlign, uint64_t off);
     ~DataReference();
 
     uint64_t getBaseAddress(); 

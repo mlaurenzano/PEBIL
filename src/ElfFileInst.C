@@ -36,7 +36,8 @@ uint32_t readBytes = 0;
 //#define SWAP_MOD 16384
 //#define SWAP_FUNCTION_ONLY "setSectionType"
 //#define TURNOFF_INSTRUCTION_SWAP
-//#define ANCHOR_SEARCH_BINARY
+#define ANCHOR_SEARCH_BINARY
+#define VALIDATE_ANCHOR_SEARCH
 
 
 void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
@@ -150,83 +151,74 @@ bool ElfFileInst::isEligibleFunction(Function* func){
 }
 
 Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
-    Vector<AddressAnchor*>* needToUpdate = new Vector<AddressAnchor*>();
+    Vector<AddressAnchor*>* linearUpdate = new Vector<AddressAnchor*>();
+    Vector<AddressAnchor*>* binaryUpdate = new Vector<AddressAnchor*>();
+    uint64_t binIdx = 0, linIdx = 0;
 
-#ifdef ANCHOR_SEARCH_BINARY
+#if defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
     if (!anchorsAreSorted){
         addressAnchors.sort(compareLinkBaseAddress);
         anchorsAreSorted = true;
     }
-    //    qsort(allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), compareLinkBaseAddress);
     AddressAnchor** allAnchors = &addressAnchors;
 #ifdef DEBUG_ANCHOR
     PRINT_INFOR("Array is:");
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
         PRINT_INFOR("%#llx", allAnchors[i]->linkBaseAddress);
     }
-#endif
-    bool printOn = false;
-    if (addr == 0x80d1000){
-        PRINT_INFOR("looking for 0x80d1000");
-        printOn = true;
-    }
+#endif //DEBUG_ANCHOR
     void* anchor = bsearch(&addr, allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), searchLinkBaseAddress);
     if (anchor){
+        // get the FIRST occurrence of addr in the anchor array
         uint64_t idx = ((uint64_t)anchor-(uint64_t)allAnchors)/sizeof(AddressAnchor*);
+        while (idx > 0 && addressAnchors[idx-1]->linkBaseAddress == addressAnchors[idx]->linkBaseAddress){
+            idx--;
+        }
+        binIdx = idx;
         while (idx < addressAnchors.size() &&
                 addressAnchors[idx]->linkBaseAddress <= addr &&
                 addr < addressAnchors[idx]->linkBaseAddress + addressAnchors[idx]->getLink()->getSizeInBytes()){
-            if (printOn){
-                PRINT_INFOR("Found one");
-            }
-            (*needToUpdate).append(allAnchors[idx++]);
+            (*binaryUpdate).append(allAnchors[idx++]);
         }
     }
+#endif //defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
 
-#ifdef DEBUG_ANCHOR
-    PRINT_INFOR("found %#llx %d %d", addr, needToUpdate->size(), (*needToUpdate).size());
-    Vector<AddressAnchor*>* needToUpdate2 = new Vector<AddressAnchor*>();
+#if !defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        if (addressAnchors[i]->linkBaseAddress <= addr &&
-            addr < addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes()){
-            needToUpdate2->append(addressAnchors[i]);
+        if (addr >= addressAnchors[i]->linkBaseAddress &&
+            addr <  addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes()){
+            PRINT_DEBUG_ANCHOR("%#llx <= %#llx < %#llx", addressAnchors[i]->linkBaseAddress, addr, addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes());
+            if (!(*linearUpdate).size()){
+                linIdx = i;
+            }
+            linearUpdate->append(addressAnchors[i]);
         }
     }
-    if ((*needToUpdate).size() != (*needToUpdate2).size()){
-        PRINT_INFOR("Binary search yields:");
-        for (uint32_t i = 0; i < (*needToUpdate).size(); i++){
-            PRINT_INFOR("%#llx", (*needToUpdate)[i]->linkBaseAddress);
-        }
-        PRINT_INFOR("Linear search yields:");
-        for (uint32_t i = 0; i < (*needToUpdate2).size(); i++){
-            PRINT_INFOR("%#llx", (*needToUpdate2)[i]->linkBaseAddress);
-        }
+#endif //!defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
+
+#ifdef VALIDATE_ANCHOR_SEARCH
+    if ((*binaryUpdate).size() != (*linearUpdate).size()){
+        PRINT_INFOR("Mismatch in binary/linear anchor search results for %#llx...", addr);
+        PRINT_INFOR("Binary search yields %d hits -- see entry %d", (*binaryUpdate).size(), binIdx);
+        PRINT_INFOR("Linear search yields %d hits -- see entry %d", (*linearUpdate).size(), linIdx);
         PRINT_INFOR("Array is:");
         for (uint32_t i = 0; i < addressAnchors.size(); i++){
-            PRINT_INFOR("%#llx", allAnchors[i]->linkBaseAddress);
+            PRINT_INFOR("anchors[%d]: %#llx", i, allAnchors[i]->linkBaseAddress);
         }
         
     }
-    //    ASSERT((*needToUpdate).size() == (*needToUpdate2).size());
-    delete needToUpdate2;
-#endif
+    ASSERT(addressAnchors.isSorted(compareLinkBaseAddress));
+    ASSERT((*binaryUpdate).size() == (*linearUpdate).size());
+#endif //VALIDATE_ANCHOR_SEARCH
+
+#ifdef ANCHOR_SEARCH_BINARY
+    delete linearUpdate;
+    return binaryUpdate;
 #else
-    bool printOn = false;
-    if (addr == 0x80d1000){
-        PRINT_INFOR("looking for 0x80d1000");
-        printOn = true;
-    }
-    for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        if (addressAnchors[i]->linkBaseAddress <= addr &&
-            addr < addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes()){
-            if (printOn){
-                PRINT_INFOR("Found one");
-            }
-            needToUpdate->append(addressAnchors[i]);
-        }
-    }
-#endif
-    return needToUpdate;
+    delete binaryUpdate;
+    return linearUpdate;
+#endif //ANCHOR_SEARCH_BINARY
+    __SHOULD_NOT_ARRIVE;
 }
 
 
@@ -336,17 +328,17 @@ uint32_t ElfFileInst::anchorProgramElements(){
                                         PRINT_ERROR("section %s: sectionOffset %d, sizeInBytes %d", dataSectionHeader->getSectionNamePtr(), sectionOffset, dataRawSection->getSizeInBytes());
                                     }
                                     ASSERT(sectionOffset < dataRawSection->getSizeInBytes());
-                                    memcpy(&currentData,dataRawSection->getFilePointer()+sectionOffset,addrAlign);
+                                    memcpy(&currentData, dataRawSection->getFilePointer() + sectionOffset, addrAlign);
                                     extendedData = currentData;
                                 } else if (addrAlign == sizeof(uint32_t)){
                                     uint32_t currentData;
-                                    memcpy(&currentData,dataRawSection->getFilePointer()+sectionOffset,addrAlign);
+                                    memcpy(&currentData, dataRawSection->getFilePointer()+sectionOffset, addrAlign);
                                     extendedData = (uint64_t)currentData;
                                 } else {
                                     __SHOULD_NOT_ARRIVE;
                                 }
                             }
-                            DataReference* dataRef = new DataReference(extendedData,dataRawSection,elfFile->is64Bit(),sectionOffset);
+                            DataReference* dataRef = new DataReference(extendedData, dataRawSection, addrAlign, sectionOffset);
 
                             currentInstruction->initializeAnchor(dataRef);
                             addressAnchors.append(currentInstruction->getAddressAnchor());
@@ -361,7 +353,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
             if (!currentInstruction->getAddressAnchor()){
                 PRINT_WARN(4, "Creating special AddressRelocation for %#llx at the behest of the instruction at %#llx since it wasn't an instruction or part of a data section", 
                            relativeAddress, currentInstruction->getBaseAddress()); 
-                DataReference* dataRef = new DataReference(0,NULL,elfFile->is64Bit(),relativeAddress);
+                DataReference* dataRef = new DataReference(0, NULL, addrAlign, relativeAddress);
                 specialDataRefs.append(dataRef);
                 currentInstruction->initializeAnchor(dataRef);
                 addressAnchors.append(currentInstruction->getAddressAnchor());
@@ -401,7 +393,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
         SectionHeader* dataSectionHeader = elfFile->getSectionHeader(dataSections[i]);
 
         // since there are no constraints on the alignment of stuff in the data sections we must check starting at EVERY byte
-        // NO, we will check just 4-aligned words
+        // ^^^NO TO THIS^^^, we will check just word-aligned addresses since we were getting false positives
         for (uint32_t currByte = 0; currByte < dataRawSection->getSizeInBytes() - addrAlign; currByte += sizeof(uint32_t)){
             char* dataPtr = (char*)(dataRawSection->getFilePointer()+currByte);
             uint64_t extendedData;
@@ -426,7 +418,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
 
                 Instruction* linkedInstruction = *(Instruction**)link;
                 PRINT_DEBUG_ANCHOR("Found data -> inst link: %#llx -> %#llx, offset %x", dataSectionHeader->GET(sh_addr)+currByte, extendedData, currByte);
-                DataReference* dataRef = new DataReference(extendedData,dataRawSection,elfFile->is64Bit(),currByte);
+                DataReference* dataRef = new DataReference(extendedData, dataRawSection, addrAlign, currByte);
 #ifdef DEBUG_ANCHOR
                             dataRef->print();
 #endif
@@ -1493,7 +1485,13 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
         lineInfoFinder = new LineInfoFinder(elfFile->getLineInfoSection());
     }
 
-    DataReference* zeroAddrRef = new DataReference(0,NULL,elfFile->is64Bit(),0);
+    uint32_t addrAlign;
+    if (elfFile->is64Bit()){
+        addrAlign = sizeof(uint64_t);
+    } else {
+        addrAlign = sizeof(uint32_t);
+    }
+    DataReference* zeroAddrRef = new DataReference(0, NULL, addrAlign, 0);
     specialDataRefs.append(zeroAddrRef);
 
     anchorsAreSorted = false;

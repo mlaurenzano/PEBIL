@@ -228,7 +228,6 @@ uint32_t RelocationTable::read(BinaryInputFile* binaryInputFile){
     binaryInputFile->setInPointer(getFilePointer());
 
     uint32_t numberOfRelocations = sizeInBytes / relocationSize;
-    PRINT_INFOR("Reading %d relocations for reltable %d", numberOfRelocations, index);
     for (uint32_t i = 0; i < numberOfRelocations; i++){
         if (elfFile->is64Bit() && type == ElfRelType_rel){
             relocations.append(new Relocation64(getFilePointer() + (i * Size__64_bit_Relocation), i));

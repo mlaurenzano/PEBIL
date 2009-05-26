@@ -24,8 +24,9 @@ int searchLinkBaseAddress(const void* arg1, const void* arg2){
     AddressAnchor* a = *((AddressAnchor**)arg2);
 
     ASSERT(a && "AddressAnchor should exist");
-
     uint64_t val = a->linkBaseAddress;
+
+    //    PRINT_DEBUG_ANCHOR("searching for key %llx ~~ %#llx in anchors", key, val);
 
     if (key < val)
         return -1;
@@ -38,8 +39,6 @@ int searchLinkBaseAddress(const void* arg1, const void* arg2){
 int compareLinkBaseAddress(const void* arg1, const void* arg2){
     AddressAnchor* a1 = *((AddressAnchor**)arg1);
     AddressAnchor* a2 = *((AddressAnchor**)arg2);
-    //    uint64_t vl1 = a1->linkBaseAddress;
-    //uint64_t vl2 = a2->linkBaseAddress;
 
     if(a1->linkBaseAddress < a2->linkBaseAddress)
         return -1;

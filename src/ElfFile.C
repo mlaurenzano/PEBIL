@@ -995,8 +995,10 @@ void ElfFile::parse(){
 
     if (hashTable){
         setStaticLinked(false);
+        PRINT_INFOR("The executable is dynamically linked");
     } else {
         setStaticLinked(true);
+        PRINT_INFOR("The executable is statically linked");
     }
 }
 

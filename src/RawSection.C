@@ -27,17 +27,19 @@ RawSection::~RawSection(){
 }
 
 
-DataReference::DataReference(uint64_t dat, RawSection* rawsect, bool is64, uint64_t off)
+DataReference::DataReference(uint64_t dat, RawSection* rawsect, uint32_t addrAlign, uint64_t off)
     : Base(ElfClassTypes_DataReference)
 {
     data = dat;
     rawSection = rawsect;
     sectionOffset = off;
-    is64bit = is64;
-    if (is64bit){
-        sizeInBytes = sizeof(uint64_t);
+    sizeInBytes = addrAlign;
+
+    if (sizeInBytes == sizeof(uint32_t)){
+        is64bit = false;
     } else {
-        sizeInBytes = sizeof(uint32_t);
+        ASSERT(sizeInBytes == sizeof(uint64_t));
+        is64bit = true;
     }
     addressAnchor = NULL;
 }
