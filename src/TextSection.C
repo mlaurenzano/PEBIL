@@ -236,7 +236,7 @@ Vector<Instruction*>* TextObject::digestLinear(){
             sprintf(oType, "%s", "Function\0");
         }
 
-        PRINT_WARN(3,"Found instructions that exceed the %s boundary in %.24s by %d bytes", oType, getName(), extraBytes);
+        PRINT_WARN(3,"Found instructions that lexceed the %s boundary in %.24s by %d bytes", oType, getName(), extraBytes);
     }
 
     ASSERT(currByte == sizeInBytes && "Number of bytes read does not match object size");

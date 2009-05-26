@@ -222,6 +222,7 @@ Vector<Instruction*>* Function::digestRecursive(){
 
         currentInstruction = new Instruction(textSection, currentAddress,
                                              textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0);
+
         PRINT_DEBUG_CFG("recursive cfg: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());
         uint64_t checkAddr = currentInstruction->getBaseAddress();
 
@@ -289,6 +290,30 @@ Vector<Instruction*>* Function::digestRecursive(){
         }
         delete allInstructions;
         return NULL;
+    } else {
+
+        qsort(&(*allInstructions), (*allInstructions).size(), sizeof(Instruction*), compareBaseAddress);
+        ASSERT((*allInstructions).isSorted(compareBaseAddress));
+
+        // in case the disassembler found an instruction that exceeds the function boundary, we will
+        // reduce the size of the last instruction accordingly so that the extra bytes will not be
+        // used
+        Instruction* tail = (*allInstructions).back();
+        uint32_t currByte = tail->getBaseAddress() + tail->getSizeInBytes() - getBaseAddress();
+        if ( currByte > sizeInBytes){
+            uint32_t extraBytes = currByte - sizeInBytes;
+            tail->setSizeInBytes(tail->getSizeInBytes() - extraBytes);
+
+            char oType[9];
+            if (getType() == ElfClassTypes_FreeText){
+                sprintf(oType, "%s", "FreeText\0");
+            } else if (getType() == ElfClassTypes_Function){
+                sprintf(oType, "%s", "Function\0");
+            }
+
+            PRINT_WARN(3,"Found instructions that rexceed the %s boundary in %.24s by %d bytes", oType, getName(), extraBytes);
+        }
+
     }
 
     return allInstructions;

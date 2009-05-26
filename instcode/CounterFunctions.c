@@ -5,7 +5,7 @@
 #include <string.h>
 #include <dlfcn.h>
 
-#define PRINT_MINIMUM 10000
+#define PRINT_MINIMUM 1
 
 #define PRINT_INSTR(...) fprintf(stdout, "-[p%d]- ", getpid()); \
     fprintf(stdout, __VA_ARGS__); \

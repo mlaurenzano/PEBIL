@@ -16,7 +16,7 @@
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 // debugging macros -- these can produce copious amounts of output
-#define WARNING_SEVERITY 10
+#define WARNING_SEVERITY 5
 //#define DEVELOPMENT
 //#define DEBUG_MEMTRACK
 //#define DEBUG_OPERAND
@@ -282,7 +282,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define ASSERT(__str) assert(__str);
 #define TIMER(...) __VA_ARGS__
 #define INNER_TIMER(...) 
-#define STATS(...) __VA_ARGS__
+#define STATS(...)
 
 #endif
 

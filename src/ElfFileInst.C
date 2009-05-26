@@ -141,6 +141,9 @@ bool ElfFileInst::isEligibleFunction(Function* func){
     if (strstr("getpid", func->getName())){
         return false;
     }
+    if (strstr("MPI", func->getName())){
+        return false;
+    }
     if (func->isInstrumentationFunction()){
         return false;
     }
@@ -1418,19 +1421,19 @@ void ElfFileInst::print(uint32_t printCodes){
         float ratio;
         if (extraTextIdx){
             SectionHeader* extendedText = elfFile->getSectionHeader(extraTextIdx);
-            ratio = (float)textBytesUsed / (float)extendedText->GET(sh_size) * 100.0;
+            STATS(ratio = (float)textBytesUsed / (float)extendedText->GET(sh_size) * 100.0);
             STATS(PRINT_INFOR("___stats: Extended TEXT: section %hd @ addr %#llx + %d bytes, used %d bytes (%.2f\%)", 
                               extraTextIdx, extendedText->GET(sh_addr), extendedText->GET(sh_size), textBytesUsed, ratio));
         }
         if (extraDataIdx){
             SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
-            ratio = (float)dataBytesUsed / (float)extendedData->GET(sh_size) * 100.0;
+            STATS(ratio = (float)dataBytesUsed / (float)extendedData->GET(sh_size) * 100.0);
             STATS(PRINT_INFOR("___stats: Extended DATA: section %hd @ addr %#llx + %d bytes, used %d bytes (%.2f\%)", 
                               extraDataIdx, extendedData->GET(sh_addr), extendedData->GET(sh_size), dataBytesUsed, ratio));
         }
         if (instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]){
             uint32_t bytesUsed = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]->snippetSize();
-            ratio = (float)bytesUsed/(float)dataBytesInit;
+            STATS(ratio = (float)bytesUsed/(float)dataBytesInit);
             STATS(PRINT_INFOR("___stats: Data Initialization: %lld bytes to init, %d bytes to initialize for a ratio of 1:%.2f", dataBytesInit, bytesUsed, ratio));
         }
 

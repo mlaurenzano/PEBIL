@@ -50,12 +50,22 @@ uint32_t Disassembler::reformatNoop(uint32_t instructionSize, uint64_t pc, Instr
     uint32_t noopSize = 0;
     if (targetInstruction->getInstructionType() == x86_insn_type_noop){
         uint8_t* rbyt = (uint8_t*)targetInstruction->charStream();
-        if (rbyt[0] != 0x90){
-            noopSize = 1;
+
+        // pause prefix
+        if (rbyt[0] == 0xf3){
+            noopSize = 2;
             ASSERT(instructionSize == noopSize);
-            if (rbyt[0] != 0x66){
+            ASSERT(rbyt[1] == 0x90);
+        }
+
+        // extension prefix -- we change it to a regular noop
+        else if (rbyt[0] != 0x90){
+            noopSize = 1;
+            if (instructionSize != noopSize){
                 targetInstruction->print();
+                PRINT_ERROR("unexpected noop found");
             }
+            ASSERT(instructionSize == noopSize);
             ASSERT(rbyt[0] == 0x66);
 
             char* noopbyte = new char[noopSize];
