@@ -40,6 +40,35 @@ uint32_t readBytes = 0;
 #define VALIDATE_ANCHOR_SEARCH
 
 
+void ElfFileInst::initializeDisabledFunctions(char* inputFuncList){
+    ASSERT(!disabledFunctions.size());
+    
+    FILE* inFile = NULL;
+    inFile = fopen(inputFuncList, "r");
+    if(!inFile){
+        PRINT_ERROR("Input file can not be opened [%s]", inputFuncList);
+    }
+
+    char* inBuffer = new char[LINE_MAX];
+    while (fgets(inBuffer, LINE_MAX, inFile) != NULL) {
+        char* line = new char[strlen(inBuffer)+1];
+        sprintf(line, "%s", inBuffer);
+        line[strlen(inBuffer)-1] = '\0';
+        disabledFunctions.append(line);
+    }
+    delete[] inBuffer;
+    fclose(inFile);
+}
+
+bool ElfFileInst::isDisabledFunction(Function* func){
+    for (uint32_t i = 0; i < disabledFunctions.size(); i++){
+        if (!strcmp(func->getName(), disabledFunctions[i])){
+            return true;
+        }
+    }
+    return false;
+}
+
 void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
     STATS(totalBlocks = 0);
     STATS(totalBlockBytes = 0);
@@ -135,19 +164,13 @@ bool ElfFileInst::isEligibleFunction(Function* func){
     if (!canRelocateFunction(func)){
         return false;
     }
-    if (strstr("pg", func->getName())){
-        return false;
-    }
-    if (strstr("getpid", func->getName())){
-        return false;
-    }
-    if (strstr("MPI", func->getName())){
-        return false;
-    }
     if (func->isInstrumentationFunction()){
         return false;
     }
     if (func->isJumpTable()){
+        return false;
+    }
+    if (isDisabledFunction(func)){
         return false;
     }
     return true;
@@ -1390,6 +1413,10 @@ ElfFileInst::~ElfFileInst(){
     for (uint32_t i = 0; i < specialDataRefs.size(); i++){
         delete specialDataRefs[i];
     }
+
+    for (uint32_t i = 0; i < disabledFunctions.size(); i++){
+        delete[] disabledFunctions[i];
+    }
 }
 
 void ElfFileInst::dump(char* extension){
@@ -1458,7 +1485,7 @@ void ElfFileInst::print(uint32_t printCodes){
 }
 
 
-ElfFileInst::ElfFileInst(ElfFile* elf){
+ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
     currentPhase = ElfInstPhase_no_phase;
     elfFile = elf;
 
@@ -1500,6 +1527,9 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     anchorsAreSorted = false;
     STATS(dataBytesInit = 0);
 
+    if (inputFuncList){
+        initializeDisabledFunctions(inputFuncList);
+    }
 }
 
 uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx){

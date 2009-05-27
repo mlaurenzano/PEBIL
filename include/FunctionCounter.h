@@ -7,7 +7,7 @@ class FunctionCounter : public ElfFileInst {
 private:
 
 public:
-    FunctionCounter(ElfFile* elf);
+    FunctionCounter(ElfFile* elf, char* inputFuncList);
     ~FunctionCounter();
 
     void declare();

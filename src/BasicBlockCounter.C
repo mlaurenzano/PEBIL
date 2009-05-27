@@ -13,8 +13,8 @@
 #define FILE_UNK "__FILE_UNK__"
 #define INST_SUFFIX "jbbinst"
 
-BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
-    : ElfFileInst(elf)
+BasicBlockCounter::BasicBlockCounter(ElfFile* elf, char* inputFuncList)
+    : ElfFileInst(elf, inputFuncList)
 {
     instSuffix = new char[__MAX_STRING_SIZE];
     sprintf(instSuffix,"%s\0", INST_SUFFIX);

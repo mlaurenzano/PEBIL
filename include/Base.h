@@ -530,6 +530,9 @@ extern uint32_t getUInt32(char* buf);
 extern uint16_t getUInt16(char* buf);
 extern int64_t absoluteValue(uint64_t d);
 
+extern int32_t scmp(const void *a, const void *b);
+
+
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)
 

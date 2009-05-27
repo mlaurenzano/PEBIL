@@ -39,6 +39,8 @@ void printBriefOptions(){
     fprintf(stderr,"\t      : z : <none>\n");
     fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
     fprintf(stderr,"\t        default is $X86INST_LIB\n");
+    fprintf(stderr,"\t--dsf : optional for all. input file which lists disabled functions\n");
+    fprintf(stderr,"\t        by default this is off\n");
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
     fprintf(stderr,"\t--dtl : optional for all. detailed .static file with lineno\n");
@@ -62,6 +64,7 @@ void printUsage(bool shouldExt=true) {
     fprintf(stderr,"\t\tdefault is $X86INST_LIB\n");
     fprintf(stderr,"\t[--ext <output_suffix>]\n");
     fprintf(stderr,"\t[--dtl]\n");
+    fprintf(stderr,"\t[--dsf]\n");
     fprintf(stderr,"\t[--lpi]                     <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--phs <phase_no>]          <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--help]\n");
@@ -159,6 +162,7 @@ int main(int argc,char* argv[]){
     bool     verbose    = false;
     uint32_t printCodes = 0x00000000;
     char* rawPrintCodes = NULL;
+    char* inputFuncList = NULL;
 
     TIMER(double t = timer());
     for (int32_t i = 1; i < argc; i++){
@@ -266,6 +270,11 @@ int main(int argc,char* argv[]){
             extdPrnt = true;
         } else if (!strcmp(argv[i],"--lib")){
             libPath = argv[++i];
+        } else if (!strcmp(argv[i],"--dsf")){
+            if (inputFuncList){
+                printUsage(true);
+            }
+            inputFuncList = argv[++i];
         } else {
             fprintf(stderr,"\nError : Unknown switch at %s\n\n",argv[i]);
             printUsage();
@@ -330,9 +339,9 @@ int main(int argc,char* argv[]){
     if (instType == identical_inst_type){
         elfFile.dump(extension);
     } else if (instType == function_counter_type){
-        elfInst = new FunctionCounter(&elfFile);
+        elfInst = new FunctionCounter(&elfFile, inputFuncList);
     } else if (instType == frequency_inst_type){
-        elfInst = new BasicBlockCounter(&elfFile);
+        elfInst = new BasicBlockCounter(&elfFile, inputFuncList);
     } else {
         PRINT_ERROR("Error : invalid instrumentation type");
     }

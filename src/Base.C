@@ -2,6 +2,14 @@
 
 Disassembler* Base::disassembler;
 
+int32_t scmp(const void *a, const void *b)
+{
+    const char **ia = (const char **)a;
+    const char **ib = (const char **)b;
+    return strcmp(*ia, *ib);
+}
+
+
 int64_t absoluteValue(uint64_t d){
     int64_t a = (int64_t)d;
     if (a < 0){

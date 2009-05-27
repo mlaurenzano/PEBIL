@@ -12,8 +12,8 @@
 #define FILE_UNK "__FILE_UNK__"
 #define INST_BUFFER_SIZE (65536*sizeof(uint32_t))
 
-FunctionCounter::FunctionCounter(ElfFile* elf)
-    : ElfFileInst(elf)
+FunctionCounter::FunctionCounter(ElfFile* elf, char* inputFuncList)
+    : ElfFileInst(elf, inputFuncList)
 {
     instSuffix = new char[__MAX_STRING_SIZE];
     sprintf(instSuffix,"%s\0", "fncinst");
