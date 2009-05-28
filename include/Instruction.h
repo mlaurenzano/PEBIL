@@ -133,6 +133,7 @@ protected:
     char* rawBytes;
     Operand** operands;    
     bool leader;
+    bool reformat;
 
     uint64_t programAddress;
     TextSection* textSection;
@@ -141,7 +142,7 @@ protected:
 public:
 
     Instruction();
-    Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx);
+    Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx, bool doReformat);
     ~Instruction();
 
     bool isJumpTableBase();
@@ -155,6 +156,7 @@ public:
 
     void setLeader(bool lead) { leader = lead; }
     bool isLeader() { return leader; }
+    bool doReformat() { return reformat; }
 
     void initializeAnchor(Base* link);
     void deleteAnchor();

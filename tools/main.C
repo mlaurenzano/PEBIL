@@ -36,10 +36,11 @@ void printBriefOptions(){
     fprintf(stderr,"\t      : w : dwarf debug sections\n");
     fprintf(stderr,"\t      : x : all headers\n");
     fprintf(stderr,"\t      : y : dynamic table\n");
-    fprintf(stderr,"\t      : z : <none>\n");
+    fprintf(stderr,"\t      : z : <none>\n");   
+    fprintf(stderr,"\t--dry : optional for all. processes options only.\n");
     fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
     fprintf(stderr,"\t        default is $X86INST_LIB\n");
-    fprintf(stderr,"\t--dsf : optional for all. input file which lists disabled functions\n");
+    fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions\n");
     fprintf(stderr,"\t        by default this is off\n");
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
@@ -64,7 +65,7 @@ void printUsage(bool shouldExt=true) {
     fprintf(stderr,"\t\tdefault is $X86INST_LIB\n");
     fprintf(stderr,"\t[--ext <output_suffix>]\n");
     fprintf(stderr,"\t[--dtl]\n");
-    fprintf(stderr,"\t[--dsf]\n");
+    fprintf(stderr,"\t[--fbl]\n");
     fprintf(stderr,"\t[--lpi]                     <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--phs <phase_no>]          <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--help]\n");
@@ -160,6 +161,7 @@ int main(int argc,char* argv[]){
     bool     loopIncl   = false;
     bool     extdPrnt   = false;
     bool     verbose    = false;
+    bool     dryRun     = false;
     uint32_t printCodes = 0x00000000;
     char* rawPrintCodes = NULL;
     char* inputFuncList = NULL;
@@ -270,7 +272,9 @@ int main(int argc,char* argv[]){
             extdPrnt = true;
         } else if (!strcmp(argv[i],"--lib")){
             libPath = argv[++i];
-        } else if (!strcmp(argv[i],"--dsf")){
+        } else if (!strcmp(argv[i],"--dry")){
+            dryRun = true;
+        } else if (!strcmp(argv[i],"--fbl")){
             if (inputFuncList){
                 printUsage(true);
             }
@@ -305,6 +309,11 @@ int main(int argc,char* argv[]){
         }
     }
     PRINT_INFOR("The instrumentation libraries will be used from %s",libPath);
+
+    if (dryRun){
+        PRINT_INFOR("--dry option was used, exiting...");
+        exit(0);
+    }
 
     uint32_t stepNumber = 0;
     TIMER(double t1 = timer(), t2);

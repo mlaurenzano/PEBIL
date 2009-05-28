@@ -221,7 +221,7 @@ Vector<Instruction*>* Function::digestRecursive(){
         }
 
         currentInstruction = new Instruction(textSection, currentAddress,
-                                             textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0);
+                                             textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0, true);
 
         PRINT_DEBUG_CFG("recursive cfg: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());
         uint64_t checkAddr = currentInstruction->getBaseAddress();

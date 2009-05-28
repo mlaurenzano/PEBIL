@@ -550,7 +550,7 @@ uint64_t Instruction::findInstrumentationPoint(uint32_t size, InstLocations loc)
     __SHOULD_NOT_ARRIVE;
 }
 
-Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx)
+Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx, bool doReformat)
     : Base(ElfClassTypes_Instruction)
 {
     textSection = text;
@@ -562,6 +562,7 @@ Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8
     source = src;
     instructionType = x86_insn_type_unknown;
     leader = false;
+    reformat = doReformat;
 
     operands = new Operand*[MAX_OPERANDS];
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
@@ -631,7 +632,7 @@ void Instruction::setBytes(char* bytes){
         delete[] rawBytes;
     }
     rawBytes = new char[sizeInBytes];
-    memcpy(rawBytes,bytes,sizeInBytes);
+    memcpy(rawBytes, bytes, sizeInBytes);
 }
 
 void Instruction::setSizeInBytes(uint32_t len){

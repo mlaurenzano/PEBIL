@@ -40,7 +40,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <CStructuresX86.h>
 #include <ElfFile.h>
 #include <Instruction.h>
-
+                             
 uint32_t Disassembler::disassembleInstructionInPlace(Instruction* instruction){
     uint64_t pc = (uint64_t)instruction->getBytes();
     return disassemble(pc, instruction);
@@ -104,12 +104,15 @@ uint32_t Disassembler::reformatNoop(uint32_t instructionSize, uint64_t pc, Instr
 
 uint32_t Disassembler::disassemble(uint64_t pc, Instruction* targetInstruction){
     uint32_t instructionSize = print_insn(pc, targetInstruction);
-    uint32_t noopSize = reformatNoop(instructionSize, pc, targetInstruction);
 
-    if (instructionSize != noopSize){
-        PRINT_WARN(2, "Original (GNU) disassembly incorrectly broke a noop at %#llx", pc);
+    if (targetInstruction->doReformat()){
+        uint32_t noopSize = reformatNoop(instructionSize, pc, targetInstruction);
+        if (instructionSize != noopSize){
+            PRINT_WARN(2, "Original (GNU) disassembly incorrectly broke a noop at %#llx", pc);
+        }
+        instructionSize = noopSize;
     }
-    instructionSize = noopSize;
+
     return instructionSize;
 }
 
