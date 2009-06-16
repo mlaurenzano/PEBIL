@@ -343,7 +343,6 @@ const char * ud_mnemonics_str[] = {
   "packuswb",
   "paddb",
   "paddw",
-  "paddd",
   "paddq",
   "paddsb",
   "paddsw",
@@ -815,7 +814,7 @@ static struct ud_itab_entry itab__0f[256] = {
   /* FB */  { UD_Ipsubq,       O_P,     O_Q,     O_NONE,  P_aso|P_rexr|P_rexx|P_rexb },
   /* FC */  { UD_Ipaddb,       O_P,     O_Q,     O_NONE,  P_aso|P_rexr|P_rexx|P_rexb },
   /* FD */  { UD_Ipaddw,       O_P,     O_Q,     O_NONE,  P_aso|P_rexr|P_rexx|P_rexb },
-  /* FE */  { UD_Ipaddd,       O_P,     O_Q,     O_NONE,  P_aso|P_rexr|P_rexx|P_rexb },
+  /* FE */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
   /* FF */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
 };
 

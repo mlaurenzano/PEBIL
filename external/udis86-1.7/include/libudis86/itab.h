@@ -486,6 +486,7 @@ enum ud_mnemonic_code {
   UD_Ipackuswb,
   UD_Ipaddb,
   UD_Ipaddw,
+  UD_Ipaddd,
   UD_Ipaddq,
   UD_Ipaddsb,
   UD_Ipaddsw,
