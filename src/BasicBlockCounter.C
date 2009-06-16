@@ -2,6 +2,7 @@
 #include <BasicBlockCounter.h>
 #include <Function.h>
 #include <Instrumentation.h>
+#include <Instruction.h>
 #include <InstructionGenerator.h>
 #include <LineInformation.h>
 #include <Loop.h>

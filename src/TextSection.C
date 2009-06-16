@@ -30,7 +30,7 @@ char* TextObject::getName(){
 uint32_t TextSection::printDisassembly(bool instructionDetail){
     ASSERT(elfFile && "Text section should be linked to its corresponding ElfFile object");
 
-    Base::disassembler->setPrintFunction((fprintf_ftype)fprintf,stdout);
+    //    Base::disassembler->setPrintFunction((fprintf_ftype)fprintf,stdout);
 
     fprintf(stdout, "Disassembly of section %s\n\n", getSectionHeader()->getSectionNamePtr());
 
@@ -39,7 +39,7 @@ uint32_t TextSection::printDisassembly(bool instructionDetail){
         fprintf(stdout, "\n");
     }
 
-    Base::disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
+    //    Base::disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
 }
 
 void FreeText::printDisassembly(bool instructionDetail){
@@ -320,7 +320,7 @@ TextSection::TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t
 {
     index = idx;
 
-    Base::disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
+    //    Base::disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
 
     source = src;
 }

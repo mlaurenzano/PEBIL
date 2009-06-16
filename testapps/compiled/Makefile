@@ -7,11 +7,12 @@ DIFFREGEXP     = "are identical"
 TESTAPPREGEXP  = "(Test Application Successfull)"
 INSTCODEREGEXP = "(Instrumentation Code Successfull)"
 SRC            = ../../src
+BIN            = ../../bin
 TESTBINS       = .
 32BITBIN       = $(TESTBINS)/32bit/
 64BITBIN       = $(TESTBINS)/64bit/
 #LEAKCHECK      = valgrind --leak-check=yes
-INSTRUMENTOR   = $(LEAKCHECK) $(SRC)/x86inst
+INSTRUMENTOR   = $(LEAKCHECK) $(BIN)/x86inst
 INSTFLAGS      = --lib ../../lib --dtl
 IDEEXT         = ideinst
 FNCEXT         = fncinst

@@ -1,4 +1,36 @@
+#include <Base.h>
+
+#ifdef UD_DISASM
+#include <Udis.h>
+
+// this function deletes the incoming buffer aftetr copying it to the new instruction's local memory
+Instruction* InstructionGenerator::generateInstructionBase(uint32_t sz, char* buff){
+    ud_t ud_obj;
+    ud_init(&ud_obj);
+    ud_set_input_buffer(&ud_obj, (uint8_t*)buff, sz);
+    ud_set_mode(&ud_obj, 32);
+    ud_set_syntax(&ud_obj, UD_SYN_ATT);
+
+    ASSERT(ud_disassemble(&ud_obj) == sz);
+    Instruction* ret = new Instruction(&ud_obj);
+
+    delete[] buff;
+    return ret;
+}
+
+#else
 #include <InstructionGenerator.h>
+
+// this function deletes the incoming buffer aftetr copying it to the new instruction's local memory
+Instruction* InstructionGenerator::generateInstructionBase(uint32_t sz, char* buff){
+    Instruction* ret = new Instruction();
+    ret->setSizeInBytes(sz);
+    ret->setBytes(buff);
+    delete[] buff;
+    return ret;
+}
+
+#endif // UD_DISASM
 
 Instruction* InstructionGenerator64::generateXorRegReg(uint8_t src, uint8_t tgt){
     ASSERT(src < X86_32BIT_GPRS && "Illegal register index given");
@@ -205,15 +237,6 @@ Instruction* InstructionGenerator::generateRegIncrement(uint32_t idx){
     return generateInstructionBase(len,buff);
 }
 
-// this function deletes the incoming buffer aftetr copying it to the new instruction's local memory
-Instruction* InstructionGenerator::generateInstructionBase(uint32_t sz, char* buff){
-    Instruction* ret = new Instruction();
-    ret->setSizeInBytes(sz);
-    ret->setBytes(buff);
-    delete[] buff;
-    return ret;
-}
-
 Instruction* InstructionGenerator::generateInterrupt(uint8_t idx){
     uint32_t len = 1;
     if (idx != X86TRAPCODE_BREAKPOINT &&
@@ -254,7 +277,6 @@ Instruction* InstructionGenerator::generateSTOSByte(bool repeat){
 }
 
 Instruction* InstructionGenerator::generateStringMove(bool repeat){
-    Instruction* ret = new Instruction();
     uint32_t len = 1;
     if (repeat){
         len++;
@@ -935,3 +957,4 @@ Instruction* InstructionGenerator::generateStackPushImmediate(uint64_t imm){
 
     return generateInstructionBase(len,buff);
 }
+

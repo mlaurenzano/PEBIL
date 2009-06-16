@@ -6,6 +6,7 @@
 #include <Instruction.h>
 #include <Vector.h>
 
+class AddressAnchor;
 class BasicBlock;
 class BinaryOutputFile;
 class DataReference;

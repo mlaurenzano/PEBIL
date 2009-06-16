@@ -1,6 +1,10 @@
 #ifndef _Instruction_h_
 #define _Instruction_h_
 
+#ifdef UD_DISASM
+#include <Udis.h>
+#else
+
 #include <Base.h>
 #include <Vector.h>
 
@@ -220,5 +224,7 @@ public:
 
 extern int searchInstructionAddress(const void* arg1,const void* arg2);
 extern int compareInstructionAddress(const void* arg1,const void* arg2);
+
+#endif // UD_DISASM
 
 #endif /* _Instruction_h_ */

@@ -1,6 +1,8 @@
 #ifndef _InstructionGenerator_h_
 #define _InstructionGenerator_h_
 
+#ifndef UD_DISASM
+
 #include <Instruction.h>
 
 class InstructionGenerator : public Instruction {
@@ -93,5 +95,8 @@ public:
 
     static Instruction* generateAddImmByteToMem(uint8_t, uint64_t);
 };
+
+#endif // UD_DISASM
+
 
 #endif /* _InstructionGenerator_h_ */

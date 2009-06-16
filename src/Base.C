@@ -2,6 +2,52 @@
 
 Disassembler* Base::disassembler;
 
+bool isHexNumeral(char c1){
+    if (c1 >= '0' && c1 <= '9'){
+        return true;
+    }
+    return false;
+}
+
+bool isHexUpper(char c1){
+    if (c1 >= 'A' && c1 <= 'F'){
+        return true;
+    }
+    return false;
+}
+
+bool isHexLower(char c1){
+    if (c1 >= 'a' && c1 <= 'f'){
+        return true;
+    }
+    return false;
+}
+
+bool isHexDigit(char c1){
+    if (isHexNumeral(c1) || isHexUpper(c1) || isHexLower(c1)){
+        return true;
+    }
+    return false;
+}
+
+char getHexValue(char c1){
+    ASSERT(isHexDigit(c1));
+    if (isHexNumeral(c1)){
+        return c1-'0';
+    } else if (isHexUpper(c1)){
+        return c1-'A'+0xa;
+    } else if (isHexLower(c1)){
+        return c1-'a'+0xa;
+    }
+    __SHOULD_NOT_ARRIVE;
+}
+
+char mapCharsToByte(char c1, char c2){
+    ASSERT(isHexDigit(c1) && isHexDigit(c2));
+    return (getHexValue(c1) << 4) + getHexValue(c2);
+}
+
+
 int32_t scmp(const void *a, const void *b)
 {
     const char **ia = (const char **)a;

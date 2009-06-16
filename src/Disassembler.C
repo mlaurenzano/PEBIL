@@ -40,6 +40,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <CStructuresX86.h>
 #include <ElfFile.h>
 #include <Instruction.h>
+
+#ifndef UD_DISASM
                              
 uint32_t Disassembler::disassembleInstructionInPlace(Instruction* instruction){
     uint64_t pc = (uint64_t)instruction->getBytes();
@@ -2203,3 +2205,4 @@ void Disassembler::BadOp(void){
     codep = insn_codep + 1;
     oappend ("(bad)");
 }
+#endif // UD_DISASM

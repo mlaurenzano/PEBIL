@@ -986,7 +986,9 @@ void ElfFile::parse(){
         PRINT_ERROR("The class identifier is not a valid one [%#x]",e_ident[EI_CLASS]);
     }
 
+    /*
     Base::disassembler = new Disassembler(is64BitFlag);
+    */
 
     readFileHeader();
     readProgramHeaders();
@@ -1132,7 +1134,9 @@ ElfFile::~ElfFile(){
     }
 
     if (Base::disassembler){
+        /*
         delete Base::disassembler;
+        */
     }
 }
 

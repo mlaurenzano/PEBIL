@@ -16,6 +16,19 @@
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 // debugging macros -- these can produce copious amounts of output
+#define UD_DISASM
+#ifdef UD_DISASM
+#define UD_INSTRUCTION_CLASS Instruction
+#define UD_INSTRUCTIONGENERATOR_CLASS InstructionGenerator
+#define UD_OPERAND_CLASS Operand
+#else
+#define UD_INSTRUCTION_CLASS UdInstruction
+#define UD_INSTRUCTIONGENERATOR_CLASS UdInstructionGenerator
+#define UD_OPERAND_CLASS UdOperand
+#endif
+
+
+
 #define WARNING_SEVERITY 5
 //#define DEVELOPMENT
 //#define DEBUG_MEMTRACK
@@ -532,6 +545,7 @@ extern int64_t absoluteValue(uint64_t d);
 
 extern int32_t scmp(const void *a, const void *b);
 
+extern char mapCharsToByte(char c1, char c2);
 
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)

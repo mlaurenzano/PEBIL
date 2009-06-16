@@ -1,0 +1,5 @@
+to install:
+$ cd udis86-1.7
+$ ./configure --prefix=${PWD}
+$ make
+$ make install

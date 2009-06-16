@@ -173,7 +173,7 @@ void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 uint32_t Function::digest(){
-    Vector<Instruction*>* allInstructions;
+    Vector<Instruction*>* allInstructions = NULL;
 
     // try to use a recursive algorithm
     allInstructions = digestRecursive();
@@ -226,7 +226,7 @@ Vector<Instruction*>* Function::digestRecursive(){
         PRINT_DEBUG_CFG("recursive cfg: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());
         uint64_t checkAddr = currentInstruction->getBaseAddress();
 
-        if (currentInstruction->getInstructionType() == x86_insn_type_bad){
+        if (currentInstruction->getInstructionType() == UD_Iinvalid){
             setBadInstruction(currentInstruction->getBaseAddress());
         }
 
@@ -365,7 +365,9 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
     for (uint32_t i = 0; i < leaderAddrs.size(); i++){
         uint64_t tgtAddr = leaderAddrs[i];
         void* inst = bsearch(&tgtAddr,&(*instructions),(*instructions).size(),sizeof(Instruction*),searchBaseAddress);
+        PRINT_DEBUG_CFG("Looking for leader addr %#llx", tgtAddr);
         if (inst){
+            PRINT_DEBUG_CFG("\tFound it");
             Instruction* tgtInstruction = *(Instruction**)inst;
             if (!getBadInstruction()){
                 if (tgtInstruction->getBaseAddress() != tgtAddr){

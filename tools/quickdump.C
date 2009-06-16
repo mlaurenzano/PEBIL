@@ -1,11 +1,12 @@
 #include <Base.h>
 #include <Disassembler.h>
 #include <Instruction.h>
+#include <Udis.h>
 #include <Vector.h>
 
 #define INPUT_MAX_BYTES 0x40000
 
-Vector<Instruction*> instructions = Vector<Instruction*>();
+Vector<UD_INSTRUCTION_CLASS*> instructions = Vector<UD_INSTRUCTION_CLASS*>();
 
 void printBriefOptions(){
     fprintf(stderr,"\n");
@@ -36,51 +37,6 @@ void printUsage(bool shouldExt) {
     }
 }
 
-bool isHexNumeral(char c1){
-    if (c1 >= '0' && c1 <= '9'){
-        return true;
-    }
-    return false;
-}
-
-bool isHexUpper(char c1){
-    if (c1 >= 'A' && c1 <= 'F'){
-        return true;
-    } 
-    return false;
-}
-
-bool isHexLower(char c1){
-    if (c1 >= 'a' && c1 <= 'f'){
-        return true;
-    }
-    return false;
-}
-
-bool isHexDigit(char c1){
-    if (isHexNumeral(c1) || isHexUpper(c1) || isHexLower(c1)){
-        return true;
-    }
-    return false;
-}
-
-uint8_t getHexValue(char c1){
-    ASSERT(isHexDigit(c1));
-    if (isHexNumeral(c1)){
-        return c1-'0';
-    } else if (isHexUpper(c1)){
-        return c1-'A'+0xa;
-    } else if (isHexLower(c1)){
-        return c1-'a'+0xa;
-    }
-    __SHOULD_NOT_ARRIVE;
-}
-
-uint8_t mapCharsToByte(char c1, char c2){
-    ASSERT(isHexDigit(c1) && isHexDigit(c2));
-    return (getHexValue(c1) << 4) + getHexValue(c2);
-}
-
 char* padCharArray(uint32_t* numberOfBytes, char* buff, uint32_t len, char pad){
     char* paddedbuff = new char[*numberOfBytes + len];
     memcpy(paddedbuff, buff, *numberOfBytes);
@@ -93,6 +49,7 @@ char* padCharArray(uint32_t* numberOfBytes, char* buff, uint32_t len, char pad){
     return paddedbuff;
 }
 
+/*
 void printBuffer(uint32_t numberOfBytes, char* inputBytes, uint64_t addr, bool extdPrnt){
     uint32_t currByte = 0;
     Base::disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf, stdout);
@@ -115,29 +72,25 @@ void printBuffer(uint32_t numberOfBytes, char* inputBytes, uint64_t addr, bool e
     }
 
 }
-
-char* convertAscii(uint32_t* numberOfBytes, char* buff){
+*/
+uint8_t* convertAscii(uint32_t* numberOfBytes, uint8_t* buff){
 
     // remove any whitespace
-    Vector<char> justHex = Vector<char>();
+    Vector<uint8_t> justHex = Vector<uint8_t>();
     for (uint32_t i = 0; i < *numberOfBytes; i++){
-        if (!isHexDigit(buff[i]) && !isspace(buff[i])){
-            PRINT_ERROR("Input character %c at idx %d is not a hex digit!\n", buff[i], i);
-            printUsage(true);
-        }
         if (!isspace(buff[i])){
             justHex.append(buff[i]);
         }
     }
     *numberOfBytes = justHex.size();
     delete[] buff;
-    buff = new char[*numberOfBytes];
+    buff = new uint8_t[*numberOfBytes];
     memcpy(buff, &justHex, *numberOfBytes);
 
-    // perform conversion from ascii hex chars to raw bytes
+    // perform conversion from ascii hex uint8_ts to raw bytes
     ASSERT(*numberOfBytes % 2 == 0);
     *numberOfBytes = *numberOfBytes / 2;
-    char* hexbuff = new char[*numberOfBytes];
+    uint8_t* hexbuff = new uint8_t[*numberOfBytes];
     for (uint32_t i = 0; i < *numberOfBytes; i++){
         hexbuff[i] = mapCharsToByte(buff[2*i], buff[2*i+1]);
         PRINT_DEBUG("byte mapping %hhx = %c %c", inputBytes[i], buff[2*i], buff[2*i+1]);
@@ -150,7 +103,6 @@ int main(int argc,char* argv[]){
 
     bool  extdPrnt   = false;    
     int64_t mode     = -1;
-    bool is64Bit     = false;
     char* rawInput   = NULL;
     bool cmdlnInput  = false;
     uint64_t addr    = 0;
@@ -199,7 +151,6 @@ int main(int argc,char* argv[]){
         printUsage(true);        
     }
     if (mode == 64){
-        is64Bit = true;
     } else {
         ASSERT(mode == 32);
     }
@@ -211,7 +162,7 @@ int main(int argc,char* argv[]){
     }
 
     
-    char* bytes = new char[INPUT_MAX_BYTES];
+    uint8_t* bytes = new uint8_t[INPUT_MAX_BYTES];
     bzero(bytes, INPUT_MAX_BYTES);
 
     if (cmdlnInput){
@@ -227,24 +178,42 @@ int main(int argc,char* argv[]){
         printf("\n");
     }
 
-    Base::disassembler = new Disassembler(is64Bit);
-
-    uint32_t numberOfBytes;
-
-    numberOfBytes = strlen(bytes);
-    PRINT_DEBUG("Input length is %d", numberOfBytes);
+    uint32_t numberOfBytes = strlen((char*)bytes);
     if (hexInput){
         bytes = convertAscii(&numberOfBytes, bytes);
     }
+
+#ifdef UD_DISASM
+    ud_t ud_obj;
+    ud_init(&ud_obj);
+    ud_set_input_buffer(&ud_obj, bytes, strlen((char*)bytes));
+    ud_set_mode(&ud_obj, mode);
+    ud_set_syntax(&ud_obj, UD_SYN_ATT);
+    while (ud_disassemble(&ud_obj)) {
+        instructions.append(new UD_INSTRUCTION_CLASS(&ud_obj));
+        instructions.back()->print();
+    }
+
+    for (uint32_t i = 0; i < instructions.size(); i++){
+    }
+
+#endif
+    /*
+    Base::disassembler = new Disassembler(is64Bit);
+
+    PRINT_DEBUG("Input length is %d", numberOfBytes);
+
     bytes = padCharArray(&numberOfBytes, bytes, MAX_X86_INSTRUCTION_LENGTH, 0x00);
 
     printBuffer(numberOfBytes, bytes, addr, extdPrnt);
+
+    delete Base::disassembler;
+    */
 
     delete[] bytes;
     for (uint32_t i = 0; i < instructions.size(); i++){
         delete instructions[i];
     }
-    delete Base::disassembler;
 
     return 0;
 }

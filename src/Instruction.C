@@ -1,5 +1,7 @@
 #include <Instruction.h>
 
+#ifndef UD_DISASM
+
 #include <AddressAnchor.h>
 #include <Base.h>
 #include <BinaryFile.h>
@@ -1080,3 +1082,5 @@ uint32_t Instruction::computeOpcodeTypeX8664(uint32_t idx1, uint32_t idx2){
     return typ;
 
 }
+
+#endif // UD_DISASM

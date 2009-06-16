@@ -1,29 +1,29 @@
-DBG         = -g
-#PROFILE     = -pg
-OPT         = -O0
-NATIVE_CPP  = CC
-GNU_CPP     = g++
-CFLAGS      = $(DBG) $(OPT) $(PROFILE)##--save-temps
-CPP         = $(GNU_CPP)
+DBG           = -g
+#PROFILE       = -pg
+OPT           = -O0
+NATIVE_CPP    = CC
+GNU_CPP       = g++
+CFLAGS        = $(DBG) $(OPT) $(PROFILE)##--save-temps
+CPP           = $(GNU_CPP)
 
 
-INCLUDE     = ../include
-SRCDIR      = ../src
-BINDIR      = ../bin
-EXTRA_LIBS  = -lx86inst
+INCLUDE       = -I../include -I../external/udis86-1.7
+SRCDIR        = ../src
+BINDIR        = ../bin
+EXTRA_LIBS    = -lx86inst -L../external/udis86-1.7/lib -ludis86
 
 TARGET_BIN  = quickdump x86inst
 
 all: $(TARGET_BIN) install
 
 quickdump : quickdump.o
-	$(CPP) $(CFLAGS) -o $@ quickdump.o $(CFLAGS) -I$(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS)
+	$(CPP) $(CFLAGS) -o $@ quickdump.o $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS)
 
 x86inst : main.o
-	$(CPP) $(CFLAGS) -o $@ main.o $(CFLAGS) -I$(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS)
+	$(CPP) $(CFLAGS) -o $@ main.o $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS)
 
 %.o: %.C
-	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< -I$(INCLUDE) $(EXTRA_INC)
+	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< $(INCLUDE) $(EXTRA_INC)
 
 clean: 
 	rm -f *~ *.ideinst *.fncinst *.jbbinst *.static core *.o *.ii *.s *.class $(TARGET_BIN)
