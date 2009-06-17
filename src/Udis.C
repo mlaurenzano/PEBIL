@@ -677,6 +677,7 @@ uint32_t UD_INSTRUCTION_CLASS::getInstructionType(){
         case UD_Ipackuswb:
         case UD_Ipaddb:
         case UD_Ipaddw:
+        case UD_Ipaddd:
         case UD_Ipaddq:
         case UD_Ipaddsb:
         case UD_Ipaddsw:
@@ -991,7 +992,15 @@ uint32_t UD_INSTRUCTION_CLASS::getInstructionType(){
             break;
     };
 
+    /*
+    if (optype == X86InstructionType_unknown){
+        PRINT_ERROR("unknown type -- addr %llx, mne %s", baseAddress, ud_mnemonics_str[GET(mnemonic)]);
+    }
+    if (optype == X86InstructionType_invalid){
+        PRINT_ERROR("invalid type -- addr %llx, mne %s", baseAddress, ud_mnemonics_str[GET(mnemonic)]);
+    }
     ASSERT(optype != X86InstructionType_unknown && optype != X86InstructionType_invalid);
+    */
     return optype;
 }
 
@@ -1020,8 +1029,12 @@ bool UD_OPERAND_CLASS::verify(){
         return false;
     }
     if (GET(size) > 64){
-        PRINT_ERROR("Operand size too large %d", GET(size));
-        return false;
+        PRINT_WARN(6, "Operand size unexpectedly large %d", GET(size));
+        if (GET(size) > 80){
+            print();
+            PRINT_ERROR("Operand size too large %d", GET(size));
+            return false;
+        }
     }
     return true;
 }
@@ -1052,7 +1065,12 @@ UD_INSTRUCTION_CLASS::UD_INSTRUCTION_CLASS(TextSection* text, uint64_t baseAddr,
     ud_t ud_obj;
     ud_init(&ud_obj);
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
-    ud_set_mode(&ud_obj, 32);
+
+    if (text->getElfFile()->is64Bit()){
+        ud_set_mode(&ud_obj, 64);
+    } else {
+        ud_set_mode(&ud_obj, 32);
+    }
     ud_set_syntax(&ud_obj, NULL);
 
     sizeInBytes = ud_disassemble(&ud_obj);
@@ -1082,7 +1100,6 @@ UD_INSTRUCTION_CLASS::UD_INSTRUCTION_CLASS(TextSection* text, uint64_t baseAddr,
     
     verify();
 
-    //    print();
 }
 
 UD_INSTRUCTION_CLASS::UD_INSTRUCTION_CLASS(struct ud* init)

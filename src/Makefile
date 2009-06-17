@@ -47,7 +47,7 @@ $(TARGET_LIB) : $(OBJS)
 # but now it is static library that is included in executable 
 
 clean: 
-	rm -f *~ *.ideinst *.fncinst *.jbbinst *.static core *.o *.ii *.s *.class $(TARGET_LIB) $(BINDIR)/$(TARGET_LIB)
+	rm -f *~ *.ideinst *.fncinst *.jbbinst *.static core *.o *.ii *.s *.class $(TARGET_LIB) $(BINDIR)/$(TARGET_LIB) x86inst
 
 depend:
 	g++ -E -MM $(INCLUDE) $(SRCS) > DEPENDS

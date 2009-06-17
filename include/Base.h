@@ -27,8 +27,6 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define UD_OPERAND_CLASS UdOperand
 #endif
 
-
-
 #define WARNING_SEVERITY 5
 //#define DEVELOPMENT
 //#define DEBUG_MEMTRACK

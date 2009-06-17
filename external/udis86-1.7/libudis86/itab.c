@@ -1036,7 +1036,8 @@ static struct ud_itab_entry itab__0f__op_73__reg[8] = {
 };
 
 static struct ud_itab_entry itab__0f__op_ae__reg[8] = {
-  /* 00 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
+  /* 00 */ { UD_Ifxsave,       O_M,     O_NONE,  O_NONE,  P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
+    //  /* 00 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
   /* 01 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
   /* 02 */  { UD_Ildmxcsr,     O_Md,    O_NONE,  O_NONE,  P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
   /* 03 */  { UD_Istmxcsr,     O_Md,    O_NONE,  O_NONE,  P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
@@ -2958,7 +2959,7 @@ static struct ud_itab_entry itab__pfx_sse66__0f[256] = {
   /* FB */  { UD_Ipsubq,       O_V,     O_W,     O_NONE,  P_aso|P_rexr|P_rexx|P_rexb },
   /* FC */  { UD_Ipaddb,       O_V,     O_W,     O_NONE,  P_aso|P_rexr|P_rexx|P_rexb },
   /* FD */  { UD_Ipaddw,       O_V,     O_W,     O_NONE,  P_aso|P_rexr|P_rexx|P_rexb },
-  /* FE */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
+  /* FE */  { UD_Ipaddd,       O_V,     O_W,     O_NONE,  P_aso|P_rexr|P_rexx|P_rexb },
   /* FF */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
 };
 
