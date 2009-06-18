@@ -342,8 +342,8 @@ const char * ud_mnemonics_str[] = {
   "packssdw",
   "packuswb",
   "paddb",
-  "paddw",
   "paddd",
+  "paddw",
   "paddq",
   "paddsb",
   "paddsw",
@@ -1036,8 +1036,7 @@ static struct ud_itab_entry itab__0f__op_73__reg[8] = {
 };
 
 static struct ud_itab_entry itab__0f__op_ae__reg[8] = {
-  /* 00 */ { UD_Ifxsave,       O_M,     O_NONE,  O_NONE,  P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
-    //  /* 00 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
+  /* 00 */  { UD_Ifxsave,      O_M,     O_NONE,  O_NONE,  P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
   /* 01 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
   /* 02 */  { UD_Ildmxcsr,     O_Md,    O_NONE,  O_NONE,  P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
   /* 03 */  { UD_Istmxcsr,     O_Md,    O_NONE,  O_NONE,  P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
@@ -2901,8 +2900,8 @@ static struct ud_itab_entry itab__pfx_sse66__0f[256] = {
   /* C1 */  { UD_Ixadd,        O_Ev,    O_Gv,    O_NONE,  P_aso|P_oso|P_rexw|P_rexr|P_rexx|P_rexb },
   /* C2 */  { UD_Icmppd,       O_V,     O_W,     O_Ib,    P_aso|P_rexr|P_rexx|P_rexb },
   /* C3 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
-  /* C4 */  { UD_Ipinsrw,      O_V,     O_Ew,    O_Ib,    P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
-  /* C5 */  { UD_Ipextrw,      O_Gd,    O_VR,    O_Ib,    P_aso|P_rexr|P_rexb },
+  /* C4 */  { UD_Ipinsrw,      O_P,     O_Ew,    O_Ib,    P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
+  /* C5 */  { UD_Ipextrw,      O_Gd,    O_PR,    O_Ib,    P_aso|P_rexr|P_rexb },
   /* C6 */  { UD_Ishufpd,      O_V,     O_W,     O_Ib,    P_aso|P_rexr|P_rexx|P_rexb },
   /* C7 */  { UD_Igrp_reg,     O_NONE, O_NONE, O_NONE,    ITAB__PFX_SSE66__0F__OP_C7__REG },
   /* C8 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },

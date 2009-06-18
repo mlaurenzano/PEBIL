@@ -1332,7 +1332,6 @@
 
   <instruction mnemonic="fxsave">
     <opcode> aso rexw rexr rexx rexb ; AE /mod=!11 /0 ; M </opcode>
-    <opcode> aso rexw rexr rexx rexb ; 0F AE /0 ; M </opcode>
   </instruction>
 
   <instruction mnemonic="fpxtract">
@@ -2017,11 +2016,6 @@
     <opcode> aso rexr rexx rexb ; 0f fc ; P Q </opcode>
   </instruction>
 
-  <instruction mnemonic="paddd">
-    <opcode> aso rexr rexx rexb ; sse66 0f fe ; V W </opcode>
-    <opcode> aso rexr rexx rexb ; 0f fe ; P Q </opcode>
-  </instruction>
-
   <instruction mnemonic="paddw">
     <opcode> aso rexr rexx rexb ; 0f fd ; P Q </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f fd ; V W </opcode>
@@ -2105,13 +2099,13 @@
   </instruction>
 
   <instruction mnemonic="pextrw">
-    <opcode> aso rexr rexb ; sse66 0f c5 ; Gd PR Ib </opcode>
+    <opcode> aso rexr rexb ; sse66 0f c5 ; Gd VR Ib </opcode>
     <opcode> aso oso rexw rexr rexx rexb ; 0f c5 ; Gd PR Ib </opcode>
   </instruction>
 
   <instruction mnemonic="pinsrw">
     <opcode> aso oso rexw rexr rexx rexb ; 0f c4 ; P Ew Ib </opcode>
-    <opcode> aso rexw rexr rexx rexb ; sse66 0f c4 ; P Ew Ib </opcode>
+    <opcode> aso rexw rexr rexx rexb ; sse66 0f c4 ; V Ew Ib </opcode>
   </instruction>
 
   <instruction mnemonic="pmaddwd">
