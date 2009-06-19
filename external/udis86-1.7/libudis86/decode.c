@@ -200,7 +200,7 @@ static int search_itab( struct ud * u )
             if ( ud_itab_list[ ITAB__PFX_SSE66__0F ][ curr ].mnemonic != UD_Iinvalid ) {
                 table = ITAB__PFX_SSE66__0F;
                 u->pfx_opr = 0;
-            }
+            }            
         } else if ( 0xF2 == u->pfx_insn ) {
             if ( ud_itab_list[ ITAB__PFX_SSEF2__0F ][ curr ].mnemonic != UD_Iinvalid ) {
                 table = ITAB__PFX_SSEF2__0F; 
@@ -213,6 +213,34 @@ static int search_itab( struct ud * u )
                 u->pfx_rep  = 0;
             }
         }
+
+        /* 3byte opcodes */
+        if ( 0x38 == curr ) {
+            printf("3byte opcode %hhx\n", curr);
+            curr  = inp_next(u);
+            printf("\topcode %hhx\n", curr);
+            if ( ud_itab_list[ ITAB__0F__OP___3BYTE_38__REG ][ curr ].mnemonic != UD_Iinvalid ) {
+                table = ITAB__0F__OP___3BYTE_38__REG;
+            }
+            if ( 0x66 == u->pfx_insn ) {
+                if ( ud_itab_list[ ITAB__PFX_SSE66__0F__OP___3BYTE_38__REG ][ curr ].mnemonic != UD_Iinvalid ) {
+                    table = ITAB__PFX_SSE66__0F__OP___3BYTE_38__REG;
+                }
+            }
+        } else if ( 0x3A == curr ) {
+            printf("3byte opcode %hhx\n", curr);
+            curr  = inp_next(u);
+            printf("\topcode %hhx\n", curr);
+            if ( ud_itab_list[ ITAB__0F__OP___3BYTE_3A__REG ][ curr ].mnemonic != UD_Iinvalid ) {
+                table = ITAB__0F__OP___3BYTE_3A__REG;
+            }
+            if ( 0x66 == u->pfx_insn ) {
+                if ( ud_itab_list[ ITAB__PFX_SSE66__0F__OP___3BYTE_3A__REG ][ curr ].mnemonic != UD_Iinvalid ) {
+                    table = ITAB__PFX_SSE66__0F__OP___3BYTE_3A__REG;
+                }
+            }
+        }
+
     /* pick an instruction from the 1byte table */
     } else {
         table = ITAB__1BYTE; 
