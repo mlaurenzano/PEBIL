@@ -6,6 +6,257 @@
    UDIS86 X86/AMD64/IA32/IA32e OPCODE TABLE   
   -->
 
+  <instruction mnemonic="palignr">
+    <opcode> aso oso rexr rexx rexb ; 0f /3byte=3a 0f ; P Q Ib </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0f ; V W Ib </opcode>
+  </instruction>
+
+  <instruction mnemonic="pshufb">
+    <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 00 ; P Q </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 00 ; V W </opcode>
+  </instruction>
+
+  <instruction mnemonic="phaddd">
+    <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 02 ; P Q </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 02 ; V W </opcode>
+  </instruction>
+
+  <!-- 3byte-opcode sse/mmx instructions added by michael laurenzano: michaell at sdsc.edu
+       these will be implemented as needed since there are so many
+
+  <instruction mnemonic="phaddw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="phaddsw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmaddusbw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="phsubw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="phsubd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="phsubsw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pblendvb">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="blendvps">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="blendvpd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="ptest">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmovsxbw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmovsxbd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmovsxbq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmovsxwd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmovsxwq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmovsxdq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmovzxbw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmovzxbd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmovzxbq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmovzxwd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmovzxwq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmovzxbq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pcmpgtq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmulld">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="phminposuw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="invept">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="invvpid">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="movbe">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="crc32">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="psignb">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="psignw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="psignq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmulhrsw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pabsb">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pabsw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pabsd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmuldq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pcmpeqq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="movntdqa">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="packusdw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pminsb">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pminsd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pminuw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pminud">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmaxsb">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmaxsd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmaxuw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pmaxud">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="aesimc">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="aesenc">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="aesenclast">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="aesdec">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="aesdeclast">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pextrb">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pextrw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pextrd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="extractps">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pinsrb">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="insertps">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pinsrd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pinsrq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="dpps">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="dppd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="mpsadbw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pclmulqdq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pcmpestrm">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pcmpestri">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pcmpistrm">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="pcmpistri">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="roundps">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="roundpd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="roundss">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="roundsd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="blendps">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="blendpd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="blendw">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="aeskeygen-assist">
+    <opcode> ; ; </opcode>
+  </instruction>
+  -->
+
   <instruction mnemonic="3dnow">
     <opcode> ; 0f 0f ; P Q </opcode>
   </instruction>

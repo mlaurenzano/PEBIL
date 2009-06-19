@@ -182,7 +182,7 @@ bool UD_INSTRUCTION_CLASS::isControl(){
 
 
 bool UD_INSTRUCTION_CLASS::usesIndirectAddress(){
-    PRINT_WARN(10, "FUNCTION NOT COMPLETE");
+    //    PRINT_WARN(10, "FUNCTION NOT COMPLETE");
     return false;
     /*
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
@@ -202,6 +202,10 @@ bool UD_INSTRUCTION_CLASS::isJumpTableBase(){
 uint32_t UD_INSTRUCTION_CLASS::getInstructionType(){
     uint32_t optype = X86InstructionType_unknown;
     switch(GET(mnemonic)){
+        case UD_Ipalignr:
+        case UD_Ipshufb:
+        case UD_Iphaddd:
+            optype = X86InstructionType_int;
         case UD_I3dnow:
             optype = X86InstructionType_special;
             break;
@@ -992,7 +996,6 @@ uint32_t UD_INSTRUCTION_CLASS::getInstructionType(){
             break;
     };
 
-    /*
     if (optype == X86InstructionType_unknown){
         PRINT_ERROR("unknown type -- addr %llx, mne %s", baseAddress, ud_mnemonics_str[GET(mnemonic)]);
     }
@@ -1000,7 +1003,6 @@ uint32_t UD_INSTRUCTION_CLASS::getInstructionType(){
         PRINT_ERROR("invalid type -- addr %llx, mne %s", baseAddress, ud_mnemonics_str[GET(mnemonic)]);
     }
     ASSERT(optype != X86InstructionType_unknown && optype != X86InstructionType_invalid);
-    */
     return optype;
 }
 
@@ -1024,18 +1026,19 @@ UD_OPERAND_CLASS::UD_OPERAND_CLASS(struct ud_operand* init, uint32_t idx){
 }
 
 bool UD_OPERAND_CLASS::verify(){
-    if (GET(size) % 8 != 0){
-        PRINT_ERROR("Illegal operand size %d", GET(size));
-        return false;
-    }
-    if (GET(size) > 64){
-        PRINT_WARN(6, "Operand size unexpectedly large %d", GET(size));
-        if (GET(size) > 80){
+    if (GET(size)){
+        if (GET(size) != 8 &&
+            GET(size) != 16 &&
+            GET(size) != 32 &&
+            GET(size) != 48 &&
+            GET(size) != 64 &&
+            GET(size) != 80){
             print();
-            PRINT_ERROR("Operand size too large %d", GET(size));
+            PRINT_ERROR("Illegal operand size %d", GET(size));
             return false;
         }
     }
+
     return true;
 }
 

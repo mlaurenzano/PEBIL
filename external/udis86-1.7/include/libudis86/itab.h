@@ -70,6 +70,8 @@ enum ud_itab_index {
   ITAB__0F__OP_C7__REG__OP_07__VENDOR,
   ITAB__0F__OP_D9__MOD,
   ITAB__0F__OP_D9__MOD__OP_01__X87,
+  ITAB__0F__OP___3BYTE_38__REG,
+  ITAB__0F__OP___3BYTE_3A__REG,
   ITAB__1BYTE,
   ITAB__1BYTE__OP_60__OSIZE,
   ITAB__1BYTE__OP_61__OSIZE,
@@ -141,6 +143,8 @@ enum ud_itab_index {
   ITAB__PFX_SSE66__0F__OP_73__REG,
   ITAB__PFX_SSE66__0F__OP_C7__REG,
   ITAB__PFX_SSE66__0F__OP_C7__REG__OP_00__VENDOR,
+  ITAB__PFX_SSE66__0F__OP___3BYTE_38__REG,
+  ITAB__PFX_SSE66__0F__OP___3BYTE_3A__REG,
   ITAB__PFX_SSEF2__0F,
   ITAB__PFX_SSEF3__0F,
   ITAB__PFX_SSEF3__0F__OP_C7__REG,
@@ -149,6 +153,9 @@ enum ud_itab_index {
 
 
 enum ud_mnemonic_code {
+  UD_Ipalignr,
+  UD_Ipshufb,
+  UD_Iphaddd,
   UD_I3dnow,
   UD_Iaaa,
   UD_Iaad,

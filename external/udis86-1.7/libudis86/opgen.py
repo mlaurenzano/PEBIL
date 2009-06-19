@@ -371,21 +371,26 @@ for node in tlNode.childNodes:
             opr_c[i] = "O_" + opr[i]
         opr = "%-8s %-8s %s" % (opr_c[0] + ",", opr_c[1] + ",", opr_c[2])
 
-        table_sse   = ''
-        table_name  = 'itab__1byte'
-        table_size  = 256
-        table_index = ''
+        table_sse    = ''
+        table_0fdone = 0
+        table_name   = 'itab__1byte'
+        table_size   = 256
+        table_index  = ''
 
         for op in opc:
             if op[0:3] == 'SSE':
                 table_sse = op
-            elif op == '0F' and len(table_sse): 
+            elif op == '0F' and len(table_sse):
                 table_name = "itab__pfx_%s__0f" % table_sse
                 table_size = 256
                 table_sse  = ''
+                table_0fdone += 1
+            elif op == '0F' and table_0fdone:
+                table_index = op
             elif op == '0F':
                 table_name = "itab__0f"
                 table_size = 256
+                table_0fdone += 1
             elif op[0:5] == '/X87=':
                 tables[table_name][table_index] = { \
                     'type' : 'grp_x87',  \

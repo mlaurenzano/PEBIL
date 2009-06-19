@@ -14,7 +14,7 @@ EXTRA_LIBS    = -lx86inst -L../external/udis86-1.7/lib -ludis86
 
 TARGET_BIN  = quickdump x86inst
 
-all: $(TARGET_BIN) install
+all: clean $(TARGET_BIN) install
 
 quickdump : quickdump.o
 	$(CPP) $(CFLAGS) -o $@ quickdump.o $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS)

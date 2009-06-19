@@ -192,6 +192,7 @@ int main(int argc,char* argv[]){
     while (ud_disassemble(&ud_obj)) {
         instructions.append(new UD_INSTRUCTION_CLASS(&ud_obj));
         instructions.back()->print();
+        fprintf(stdout, "\n");
     }
 
     for (uint32_t i = 0; i < instructions.size(); i++){

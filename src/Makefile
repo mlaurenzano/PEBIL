@@ -13,7 +13,7 @@ AR          = ar rus
 RANLIB      = ranlib
 
 
-INCLUDE     = -I../include -I../external/udis86-1.7/
+INCLUDE     = -I../include -I../external/udis86-1.7/# -I../external/udis86-1.7/include/libudis86
 SRCDIR      = ../src
 BINDIR      = ../bin
 LIBDIR      = ../lib
