@@ -26,7 +26,7 @@ int searchLinkBaseAddress(const void* arg1, const void* arg2){
     ASSERT(a && "AddressAnchor should exist");
     uint64_t val = a->linkBaseAddress;
 
-    //    PRINT_DEBUG_ANCHOR("searching for key %llx ~~ %#llx in anchors", key, val);
+    PRINT_DEBUG_ANCHOR("searching for key %llx ~~ [%#llx,%#llx) in anchors", key, val, val + a->getLink()->getSizeInBytes());
 
     if (key < val)
         return -1;
@@ -70,27 +70,31 @@ void AddressAnchor::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     }
 }
 
+uint64_t AddressAnchor::getLinkValue(){
+    return getLinkOffset();// + getLinkedParent()->getSizeInBytes();
+}
+
 void AddressAnchor::dump8(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    uint8_t value = (uint8_t)getLinkOffset();
-    ASSERT((uint8_t)(getLinkOffset() - value) == 0 && "Need more than 8 bits for relative immediate");
+    uint8_t value = (uint8_t)getLinkValue();
+    ASSERT((uint8_t)(getLinkValue() - value) == 0 && "Need more than 8 bits for relative immediate");
     binaryOutputFile->copyBytes((char*)&value,sizeof(uint8_t),offset);
 }
 
 void AddressAnchor::dump16(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    uint16_t value = (uint16_t)getLinkOffset();
-    ASSERT((uint16_t)(getLinkOffset() - value) == 0 && "Need more than 16 bits for relative immediate");
+    uint16_t value = (uint16_t)getLinkValue();
+    ASSERT((uint16_t)(getLinkValue() - value) == 0 && "Need more than 16 bits for relative immediate");
     binaryOutputFile->copyBytes((char*)&value,sizeof(uint16_t),offset);
 }
 
 void AddressAnchor::dump32(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    uint32_t value = (uint32_t)getLinkOffset();
-    ASSERT((uint32_t)(getLinkOffset() - value) == 0 && "Need more than 32 bits for relative immediate");
+    uint32_t value = (uint32_t)getLinkValue();
+    ASSERT((uint32_t)(getLinkValue() - value) == 0 && "Need more than 32 bits for relative immediate");
     binaryOutputFile->copyBytes((char*)&value,sizeof(uint32_t),offset);
 }
 
 void AddressAnchor::dump64(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    uint64_t value = (uint64_t)getLinkOffset();
-    ASSERT((uint64_t)(getLinkOffset() - value) == 0 && "Need more than 64 bits for relative immediate");
+    uint64_t value = (uint64_t)getLinkValue();
+    ASSERT((uint64_t)(getLinkValue() - value) == 0 && "Need more than 64 bits for relative immediate");
     binaryOutputFile->copyBytes((char*)&value,sizeof(uint64_t),offset);
 }
 
@@ -118,6 +122,7 @@ void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t
                 } else if (op->getBytesUsed() == sizeof(uint64_t)){
                     dump64(binaryOutputFile, offset + op->getBytePosition());
                 } else {
+                    print();
                     PRINT_ERROR("an operand cannot use %d bytes", op->getBytesUsed());
                     __SHOULD_NOT_ARRIVE;
                 }
@@ -174,7 +179,7 @@ bool AddressAnchor::verify(){
 }
 
 void AddressAnchor::print(){
-    PRINT_INFOR("DataRef: addr %#llx, link offset %#llx", linkBaseAddress, getLinkOffset());
+    PRINT_INFOR("AnchorRef: addr %#llx, link offset %#llx, link value %#llx", linkBaseAddress, getLinkOffset(), getLinkValue());
     if (linkedParent){
         linkedParent->print();
     }

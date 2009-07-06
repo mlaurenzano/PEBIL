@@ -749,7 +749,7 @@ void Instruction::print(){
     }
     PRINT_OUT("] 0x%llx -> 0x%llx (paddr %#llx)", baseAddress, getTargetAddress(), getProgramAddress());
     if (addressAnchor){
-        PRINT_OUT(" (anchor -> %#llx)", addressAnchor->getLinkOffset() + getBaseAddress());
+        PRINT_OUT(" (anchor -> %#llx)", addressAnchor->getLinkValue());
     }
     PRINT_OUT("\n");
 

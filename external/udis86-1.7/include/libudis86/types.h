@@ -105,6 +105,7 @@ struct ud_operand
 {
   enum ud_type		type;
   uint8_t		size;
+  uint8_t               position; // X86INST
   union {
 	int8_t		sbyte;
 	uint8_t		ubyte;

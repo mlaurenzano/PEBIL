@@ -1330,7 +1330,7 @@ void Disassembler::OP_E(uint32_t bytemode, uint32_t sizeflag){
             if ((base & 7) == 5){
                 havebase = 0;
                 if (mode_64bit && !havesib && (sizeflag & AFLAG)){
-                    //                    currentInstruction->setOperandRelative(op_ad,true);
+                    //currentInstruction->setOperandRelative(op_ad,true);
                     riprel = 1;
                 }
                 firstByte = codep - start_codep;

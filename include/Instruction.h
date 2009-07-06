@@ -16,7 +16,6 @@ class Function;
 class RawSection;
 class TextSection;
 
-#define MAX_DISASM_STR_LENGTH 80
 #define INVALID_OPCODE_INDEX 0xffffffff
 #define MAX_OPERANDS 3
 #define JUMP_TARGET_OPERAND 2

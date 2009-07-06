@@ -739,6 +739,7 @@
   </instruction>
 
   <instruction mnemonic="fabs">
+    <opcode> D9 /mod=11 /x87=21 ; </opcode>
     <opcode> 0F D9 /mod=11 /x87=21 ; </opcode>
     <class> X87 </class>
   </instruction>

@@ -214,6 +214,7 @@ static int search_itab( struct ud * u )
             }
         }
 
+        /* X86INST */
         /* 3byte opcodes */
         if ( 0x38 == curr ) {
             printf("3byte opcode %hhx\n", curr);
@@ -240,6 +241,7 @@ static int search_itab( struct ud * u )
                 }
             }
         }
+        /* end X86INST */
 
     /* pick an instruction from the 1byte table */
     } else {
@@ -420,6 +422,7 @@ static int resolve_mnemonic( struct ud* u )
 static void 
 decode_a(struct ud* u, struct ud_operand *op)
 {
+  op->position = ud_insn_len(u); // X86INST
   if (u->opr_mode == 16) {  
     /* seg16:off16 */
     op->type = UD_OP_PTR;
@@ -525,6 +528,8 @@ resolve_reg(struct ud* u, unsigned int type, unsigned char i)
 static void 
 decode_imm(struct ud* u, unsigned int s, struct ud_operand *op)
 {
+  op->position = ud_insn_len(u); // X86INST
+
   op->size = resolve_operand_size(u, s);
   op->type = UD_OP_IMM;
 
@@ -546,6 +551,8 @@ decode_modrm(struct ud* u, struct ud_operand *op, unsigned int s,
          unsigned char rm_type, struct ud_operand *opreg, 
          unsigned char reg_size, unsigned char reg_type)
 {
+  op->position = ud_insn_len(u); // X86INST
+
   unsigned char mod, rm, reg;
 
   inp_next(u);
@@ -697,6 +704,8 @@ decode_modrm(struct ud* u, struct ud_operand *op, unsigned int s,
 static void 
 decode_o(struct ud* u, unsigned int s, struct ud_operand *op)
 {
+  op->position = ud_insn_len(u); // X86INST
+
   switch (u->adr_mode) {
     case 64:
         op->offset = 64; 
@@ -723,7 +732,6 @@ decode_o(struct ud* u, unsigned int s, struct ud_operand *op)
  */
 static int disasm_operands(register struct ud* u)
 {
-
 
   /* mopXt = map entry, operand X, type; */
   enum ud_operand_code mop1t = u->itab_entry->operand1.type;

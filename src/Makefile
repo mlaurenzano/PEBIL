@@ -29,9 +29,12 @@ OBJS  = AddressAnchor.o Base.o BasicBlock.o BasicBlockCounter.o BinaryFile.o Dis
 	MemTrack.o NoteSection.o ProgramHeader.o RawSection.o RelocationTable.o SectionHeader.o StringTable.o \
 	SymbolTable.o TextSection.o Udis.o
 
-TARGET_LIB  = libx86inst.a
+TARGET_LIB  = libx86inst.a 
 
-all: $(TARGET_LIB) install
+all: $(TARGET_LIB) install x86inst
+
+x86inst: $(TARGET_LIB)
+	$(MAKE) -C ../tools
 
 $(TARGET_LIB) : $(OBJS)
 	$(AR) $@ $(OBJS)

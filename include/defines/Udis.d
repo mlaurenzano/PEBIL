@@ -30,14 +30,20 @@ udis86 ud_operand
 #define OPERAND_MACROS_CLASS(__str) /** __str **/ \
     GET_FIELD_CLASS(ud_type,type); \
     GET_FIELD_CLASS(uint8_t,size); \
+    GET_FIELD_CLASS(uint8_t,position); \
+    GET_FIELD_CLASS_A(int8_t,sbyte,lval); \
+    GET_FIELD_CLASS_A(uint8_t,ubyte,lval); \
+    GET_FIELD_CLASS_A(int16_t,sword,lval); \
+    GET_FIELD_CLASS_A(uint16_t,uword,lval); \
+    GET_FIELD_CLASS_A(int32_t,sdword,lval); \
+    GET_FIELD_CLASS_A(uint32_t,udword,lval); \
+    GET_FIELD_CLASS_A(int64_t,sqword,lval); \
+    GET_FIELD_CLASS_A(uint64_t,uqword,lval); \
     GET_FIELD_CLASS(ud_type,base); \
     GET_FIELD_CLASS(ud_type,index); \
     GET_FIELD_CLASS(uint8_t,offset); \
     GET_FIELD_CLASS(uint8_t,scale);
 
-/*
-    GET_FIELD_CLASS(uint64_t,lval); \
-*/
 
 /* we don't give all fields macro access
 ##################################################################
@@ -116,6 +122,7 @@ udis86 ud
     GET_FIELD_CLASS(uint8_t,c1); \
     GET_FIELD_CLASS(uint8_t,c2); \
     GET_FIELD_CLASS(uint8_t,c3); \
+    GET_FIELD_CLASS(struct ud_itab_entry *,itab_entry); \
         \
     SET_FIELD_CLASS(uint64_t,insn_offset); 
 

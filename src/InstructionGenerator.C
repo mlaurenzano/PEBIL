@@ -3,15 +3,35 @@
 #ifdef UD_DISASM
 #include <Udis.h>
 
-// this function deletes the incoming buffer aftetr copying it to the new instruction's local memory
+// this function deletes the incoming buffer after copying it to the new instruction's local memory
+Instruction* InstructionGenerator32::generateInstructionBase(uint32_t sz, char* buff){
+    return InstructionGenerator::generateInstructionBase(sz, buff);
+}
+
+Instruction* InstructionGenerator64::generateInstructionBase(uint32_t sz, char* buff){
+    ud_t ud_obj;
+    ud_init(&ud_obj);
+    ud_set_input_buffer(&ud_obj, (uint8_t*)buff, sz);
+    ud_set_mode(&ud_obj, 64);
+    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
+
+    uint32_t size = ud_disassemble(&ud_obj);
+    ASSERT(size == sz);
+    Instruction* ret = new Instruction(&ud_obj);
+
+    delete[] buff;
+    return ret;
+}
+
 Instruction* InstructionGenerator::generateInstructionBase(uint32_t sz, char* buff){
     ud_t ud_obj;
     ud_init(&ud_obj);
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, sz);
     ud_set_mode(&ud_obj, 32);
-    ud_set_syntax(&ud_obj, UD_SYN_ATT);
+    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
 
-    ASSERT(ud_disassemble(&ud_obj) == sz);
+    uint32_t size = ud_disassemble(&ud_obj);
+    ASSERT(size == sz);
     Instruction* ret = new Instruction(&ud_obj);
 
     delete[] buff;

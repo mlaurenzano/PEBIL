@@ -2384,7 +2384,7 @@ static struct ud_itab_entry itab__1byte__op_d9__mod__op_01__x87[64] = {
   /* 1E */  { UD_Ifstp1,       O_ST6,   O_NONE,  O_NONE,  P_none },
   /* 1F */  { UD_Ifstp1,       O_ST7,   O_NONE,  O_NONE,  P_none },
   /* 20 */  { UD_Ifchs,        O_NONE,  O_NONE,  O_NONE,  P_none },
-  /* 21 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
+  /* 21 */  { UD_Ifabs,        O_NONE,  O_NONE,  O_NONE,  P_none },
   /* 22 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
   /* 23 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
   /* 24 */  { UD_Iftst,        O_NONE,  O_NONE,  O_NONE,  P_none },

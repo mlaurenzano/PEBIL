@@ -11,11 +11,10 @@
 class Function;
 class TextSection;
 
-#define MAX_DISASM_STR_LENGTH 80
-#define INVALID_OPCODE_INDEX 0xffffffff
 #define MAX_OPERANDS 3
-#define JUMP_TARGET_OPERAND 2
+#define JUMP_TARGET_OPERAND 0
 #define JUMP_TABLE_REACHES 0x1000
+#define DISASSEMBLY_MODE UD_SYN_ATT
 
 #define IS_8BIT_GPR(__val) ((__val >= UD_R_AL) && (__val <= UD_R_R15B))
 #define IS_16BIT_GPR(__val) ((__val >= UD_R_AX) && (__val <= UD_R_R15W))
@@ -33,6 +32,22 @@ class TextSection;
 #define IS_GPR(__val) (IS_8BIT_GPR(__val) || IS_16BIT_GPR(__val) || IS_32BIT_GPR(__val) || IS_64BIT_GPR(__val))
 #define IS_REG(__val) (IS_GPR(__val) || IS_SEGMENT_REG(__val) || IS_CONTROL_REG(__val) || IS_DEBUG_REG(__val) || \
                        IS_MMX_REG(__val) || IS_X87_REG(__val) || IS_XMM_REG(__val) || IS_PC_REG(__val))
+
+
+struct ud_itab_entry_operand
+{
+    uint32_t type;
+    uint32_t size;
+};
+struct ud_itab_entry
+{
+    enum ud_mnemonic_code         mnemonic;
+    struct ud_itab_entry_operand  operand1;
+    struct ud_itab_entry_operand  operand2;
+    struct ud_itab_entry_operand  operand3;
+    uint32_t                      prefix;
+};
+
 
 enum X86InstructionType {
     X86InstructionType_unknown = 0,
@@ -79,24 +94,24 @@ extern uint32_t regbase_to_type(uint32_t base);
 class UD_OPERAND_CLASS {
 private:
     struct ud_operand entry;
-    uint32_t registerType;
-    uint8_t operandIndex;
+    Instruction* instruction;
+    uint32_t operandIndex;
 
 public:
     OPERAND_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
-    UD_OPERAND_CLASS(struct ud_operand* init, uint32_t idx);
+    UD_OPERAND_CLASS(Instruction* inst, struct ud_operand* init, uint32_t idx);
     ~UD_OPERAND_CLASS() {}
 
     void print();
     char* charStream() { return (char*)&entry; }
     bool verify();
 
+    uint32_t getBytesUsed();
+    uint32_t getBytePosition();
     bool isRelative();
-    uint32_t getBytesUsed() { return (GET(size) >> 3); }
-    uint32_t getBytePosition() { return 0; }
-    uint32_t getType() { return 0; }
-    uint32_t getValue() { return 0; }
+    uint32_t getType() { return GET(type); }
+    int64_t getValue();
 
 };
 
@@ -105,7 +120,6 @@ private:
     struct ud entry;
     UD_OPERAND_CLASS** operands;
     uint32_t instructionIndex;
-    char* rawBytes;
 
     uint8_t byteSource;
     AddressAnchor* addressAnchor;
@@ -116,7 +130,7 @@ public:
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     UD_INSTRUCTION_CLASS(struct ud* init);
-    UD_INSTRUCTION_CLASS(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx, bool doReformat);
+    UD_INSTRUCTION_CLASS(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx);
     ~UD_INSTRUCTION_CLASS();
 
     UD_OPERAND_CLASS* getOperand(uint32_t idx);
@@ -140,8 +154,6 @@ public:
     bool isFunctionCall() { return (getInstructionType() == X86InstructionType_call); }
     bool isSystemCall() { return (getInstructionType() == X86InstructionType_system_call); }
     bool isHalt() { return (getInstructionType() == X86InstructionType_halt); }
-    bool isIndirectBranch();
-    uint32_t getIndirectBranchTarget();
 
     bool isNoop() { return (getInstructionType() == X86InstructionType_nop); }
 
@@ -150,7 +162,6 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     AddressAnchor* getAddressAnchor() { return addressAnchor; }
-    bool usesIndirectAddress(); 
 
     void initializeAnchor(Base*);
 
@@ -162,16 +173,20 @@ public:
     bool isLeader() { return leader; }
 
     uint64_t getBaseAddress() { return baseAddress; }
-
-
     bool usesControlTarget();
-    bool usesRelativeAddress() { return false; }
-    uint64_t getRelativeValue() { return 0; }
-    uint64_t getTargetAddress() { return getBaseAddress() + getSizeInBytes(); }
-    uint32_t bytesUsedForTarget() { return 0; }
-    void convertTo4ByteOperand() {}
-    void binutilsPrint(FILE* stream) {}
+
+
+    bool usesIndirectAddress(); 
+    bool usesRelativeAddress();
+    int64_t getRelativeValue();
+    uint64_t getTargetAddress();
+    uint32_t bytesUsedForTarget();
+    uint32_t convertTo4ByteTargetOperand();
+    void binutilsPrint(FILE* stream);
     void setBytes();
+    bool isIndirectBranch();
+    uint32_t getIndirectBranchTarget();
+
 
 };
 
@@ -211,6 +226,8 @@ public:
 
 class InstructionGenerator64 : public UD_INSTRUCTIONGENERATOR_CLASS {
 private:
+    static UD_INSTRUCTION_CLASS* generateInstructionBase(uint32_t sz, char* buf);
+
     static UD_INSTRUCTION_CLASS* generateMoveRegToRegaddrImm4Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm);
     static UD_INSTRUCTION_CLASS* generateMoveRegToRegaddrImm1Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm);
     static UD_INSTRUCTION_CLASS* generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest);
@@ -245,6 +262,9 @@ public:
 };
 
 class InstructionGenerator32 : public UD_INSTRUCTIONGENERATOR_CLASS {
+private:
+    static UD_INSTRUCTION_CLASS* generateInstructionBase(uint32_t sz, char* buf);
+
 public:
     static UD_INSTRUCTION_CLASS* generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx);
     static UD_INSTRUCTION_CLASS* generateJumpIndirect(uint64_t tgt);

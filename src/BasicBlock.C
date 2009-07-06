@@ -88,10 +88,10 @@ uint32_t BasicBlock::bloat(uint32_t minBlockSize){
     // convert all branches to use 4byte operands
     uint32_t currByte = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
-        if (instructions[i]->isControl()){
+        if (instructions[i]->isControl() && !instructions[i]->isReturn()){
             if (instructions[i]->bytesUsedForTarget() < sizeof(uint32_t)){
                 PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", instructions[i]->bytesUsedForTarget());
-                instructions[i]->convertTo4ByteOperand();
+                instructions[i]->convertTo4ByteTargetOperand();
                 instructions[i]->setBaseAddress(baseAddress+currByte);
             }
         }

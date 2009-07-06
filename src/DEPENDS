@@ -193,11 +193,16 @@ HashTable.o: HashTable.C ../include/HashTable.h ../include/RawSection.h \
 Instruction.o: Instruction.C ../include/Instruction.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/CStructuresX86.h ../include/Vector.h
-InstructionGenerator.o: InstructionGenerator.C \
-  ../include/InstructionGenerator.h ../include/Instruction.h \
-  ../include/Base.h ../include/CStructuresElf.h \
-  ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/Vector.h
+InstructionGenerator.o: InstructionGenerator.C ../include/Base.h \
+  ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
+  ../include/CStructuresX86.h ../include/Udis.h \
+  ../include/AddressAnchor.h ../include/RawSection.h ../include/Vector.h \
+  ../external/udis86-1.7/libudis86/syn.h \
+  ../external/udis86-1.7/libudis86/types.h \
+  ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
+  ../external/udis86-1.7/libudis86/types.h \
+  ../external/udis86-1.7/libudis86/extern.h \
+  ../external/udis86-1.7/libudis86/itab.h ../include/defines/Udis.d
 Instrumentation.o: Instrumentation.C ../include/Instrumentation.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
@@ -327,14 +332,16 @@ TextSection.o: TextSection.C ../include/TextSection.h ../include/Base.h \
   ../include/ElfFile.h ../include/BinaryFile.h ../include/SectionHeader.h \
   ../include/defines/SectionHeader.d ../include/SymbolTable.h \
   ../include/defines/SymbolTable.d
-Udis.o: Udis.C ../include/Udis.h ../include/AddressAnchor.h \
-  ../include/Base.h ../include/CStructuresElf.h \
+Udis.o: Udis.C ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/CStructuresX86.h \
-  ../include/RawSection.h ../include/Vector.h \
+  ../include/BinaryFile.h ../include/ElfFile.h ../include/Vector.h \
+  ../include/Function.h ../include/BitSet.h ../include/Instruction.h \
+  ../include/Udis.h ../include/AddressAnchor.h ../include/RawSection.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h ../include/defines/Udis.d \
-  ../include/Instruction.h ../include/TextSection.h
+  ../include/TextSection.h ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d

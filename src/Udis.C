@@ -7,6 +7,260 @@
 #include <TextSection.h>
 #include <Udis.h>
 
+uint32_t UD_OPERAND_CLASS::getBytesUsed(){
+    if (GET(type) == UD_OP_MEM){
+        return (GET(offset) >> 3);
+    }
+
+    /*        
+        ASSERT(1 - operandIndex == 0 || 1 - operandIndex == 1);
+        ASSERT(instruction->getOperand(1 - operandIndex));
+        Operand* accompRegister = instruction->getOperand(1 - operandIndex);
+        
+        if (!accompRegister->getBytesUsed()){
+            return GET(
+        }
+
+        return accompRegister->getBytesUsed();
+    }
+    */
+    return (GET(size) >> 3);
+}
+
+int64_t UD_OPERAND_CLASS::getValue(){
+    int64_t value;
+    if (getBytesUsed() == 0){
+        return 0;
+    } else if (getBytesUsed() == sizeof(uint8_t)){
+        value = (int64_t)GET_A(sbyte, lval);
+    } else if (getBytesUsed() == sizeof(uint16_t)){
+        value = (int64_t)GET_A(sword, lval);
+    } else if (getBytesUsed() == sizeof(uint32_t)){
+        value = (int64_t)GET_A(sdword, lval);
+    } else if (getBytesUsed() == sizeof(uint64_t)){
+        value = (int64_t)GET_A(sqword, lval);
+    } else { 
+        print();
+        PRINT_INFOR("size %d", getBytesUsed());
+        __SHOULD_NOT_ARRIVE;
+    }
+    return value;
+}
+
+uint32_t UD_OPERAND_CLASS::getBytePosition(){
+    return GET(position);
+}
+
+bool UD_OPERAND_CLASS::isRelative(){
+    if (GET(type) == UD_OP_JIMM){
+        return true;
+    }
+    if (GET(base) == UD_R_RIP){
+        return true;
+    }
+    return false;
+}
+
+bool UD_INSTRUCTION_CLASS::usesRelativeAddress(){
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i] && operands[i]->isRelative()){
+            return true;
+        }
+    }
+    return false;
+}
+
+int64_t UD_INSTRUCTION_CLASS::getRelativeValue(){
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i] && operands[i]->isRelative()){
+            return operands[i]->getValue();
+        }
+    }
+    __SHOULD_NOT_ARRIVE;
+    return 0;
+}
+
+uint64_t UD_INSTRUCTION_CLASS::getTargetAddress(){
+    uint64_t tgtAddress;
+    if (getInstructionType() == X86InstructionType_uncond_branch ||
+        getInstructionType() == X86InstructionType_cond_branch ||
+        getInstructionType() == X86InstructionType_call){
+        if (addressAnchor){
+            tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
+        } else if (operands && operands[JUMP_TARGET_OPERAND]){
+            if (operands[JUMP_TARGET_OPERAND]->getType() == UD_OP_JIMM){
+                tgtAddress = getBaseAddress();
+                tgtAddress += operands[JUMP_TARGET_OPERAND]->getValue();
+                tgtAddress += getSizeInBytes();
+                PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx + %d", tgtAddress, getBaseAddress(), operands[JUMP_TARGET_OPERAND]->getValue(), getSizeInBytes());
+            } else {
+                tgtAddress = getBaseAddress() + getSizeInBytes();
+            }
+        } else {
+            tgtAddress = 0;
+        }
+    } else if (getInstructionType() == X86InstructionType_system_call){
+        tgtAddress = 0;
+    } else {
+        tgtAddress = getBaseAddress() + getSizeInBytes();
+    }
+
+    return tgtAddress;
+}
+
+uint32_t UD_INSTRUCTION_CLASS::bytesUsedForTarget(){
+    if (isControl()){
+        if (isUnconditionalBranch() || isConditionalBranch() || isFunctionCall()){
+            if (operands && operands[JUMP_TARGET_OPERAND]){
+                return operands[JUMP_TARGET_OPERAND]->getBytesUsed();
+            }
+        }
+    }
+    return 0;
+}
+
+uint32_t UD_INSTRUCTION_CLASS::convertTo4ByteTargetOperand(){
+    ASSERT(isControl());
+
+#ifdef DEBUG_INST
+    PRINT_INFOR("Before mod");
+    print();
+#endif
+
+    // extract raw bytes from hex representation
+    char rawBytes[MAX_X86_INSTRUCTION_LENGTH];
+    uint32_t currByte = 0;
+    for (uint32_t i = 0; i < sizeInBytes; i++){
+        rawBytes[currByte++] = mapCharsToByte(GET(insn_hexcode)[2*i], GET(insn_hexcode)[2*i+1]);
+    }
+
+
+    uint32_t additionalBytes = 0;
+
+    if (bytesUsedForTarget() && bytesUsedForTarget() < sizeof(uint32_t)){
+        if (isUnconditionalBranch()){
+            ASSERT(sizeInBytes == 2); // we expect a single byte for the opcode and a single byte for the target offset
+            if (!addressAnchor){
+                print();
+                PRINT_ERROR("Instruction at address %#llx should have an address anchor", getBaseAddress());
+            }
+            ASSERT(addressAnchor);
+
+            rawBytes[0] -= 0x02;
+            additionalBytes = 3;
+            uint32_t operandValue = getOperand(JUMP_TARGET_OPERAND)->getValue();
+            memcpy(rawBytes + 1, &operandValue, sizeof(uint32_t));
+
+        } else if (isConditionalBranch()){
+            if (sizeInBytes != 2){
+                PRINT_WARN(4,"Conditional Branch with 3 bytes encountered");
+                print();
+            }
+
+            if (!addressAnchor){
+                print();
+                PRINT_ERROR("Instruction at address %#llx should have an address anchor", getBaseAddress());
+            }
+            ASSERT(addressAnchor);
+
+            additionalBytes = 4;
+            uint32_t operandValue = getOperand(JUMP_TARGET_OPERAND)->getValue();
+            memcpy(rawBytes + 2, &operandValue, sizeof(uint32_t));
+            rawBytes[1] = rawBytes[0] + 0x10;
+            rawBytes[0] = 0x0f;
+
+        } else if (isFunctionCall()){
+            __FUNCTION_NOT_IMPLEMENTED;
+        } else if (isReturn()){
+            // nothing to do since returns dont have target ops
+            ASSERT(sizeInBytes == 1);
+            for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+                ASSERT(!getOperand(i));
+            }
+        } else {
+            PRINT_ERROR("Unknown branch type %d not handled currently", getInstructionType());
+            __SHOULD_NOT_ARRIVE;
+        }
+    }
+
+    if (additionalBytes){
+
+        if (operands){
+            for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+                if (operands[i]){
+                    delete operands[i];
+                }
+            }
+            delete[] operands;
+        }
+
+        /*
+        UD_INSTRUCTION_CLASS(textSection, baseAddress, rawBytes, byteSource, instructionIndex);
+        */
+
+        ud_t ud_obj;
+        ud_init(&ud_obj);
+        ud_set_input_buffer(&ud_obj, (uint8_t*)rawBytes, MAX_X86_INSTRUCTION_LENGTH);
+
+        if (textSection->getElfFile()->is64Bit()){
+            ud_set_mode(&ud_obj, 64);
+        } else {
+            ud_set_mode(&ud_obj, 32);
+        }
+        ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
+
+        sizeInBytes = ud_disassemble(&ud_obj);
+        if (sizeInBytes) {
+            memcpy(&entry, &ud_obj, sizeof(struct ud));
+        } else {
+            PRINT_ERROR("Problem doing instruction disassembly");
+        }
+
+        operands = new UD_OPERAND_CLASS*[MAX_OPERANDS];
+        for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+            ud_operand op = GET(operand)[i];
+            operands[i] = NULL;
+            if (op.type){
+                operands[i] = new UD_OPERAND_CLASS(this, &GET(operand)[i], i);
+            }
+        }
+
+    }
+
+#ifdef DEBUG_INST
+    PRINT_INFOR("After mod");
+    print();
+#endif
+
+    return sizeInBytes;
+}
+
+void UD_INSTRUCTION_CLASS::binutilsPrint(FILE* stream){
+    fprintf(stream, "%llx: ", getBaseAddress());
+
+    ASSERT(strlen(GET(insn_hexcode)) % 2 == 0);
+
+    for (int32_t i = 0; i < strlen(GET(insn_hexcode)); i += 2){
+        fprintf(stream, "%c%c ", GET(insn_hexcode)[i], GET(insn_hexcode)[i+1]);
+    }
+
+    if (strlen(GET(insn_hexcode)) < 16){
+        for (int32_t i = 16 - strlen(GET(insn_hexcode)); i > 0; i -= 2){
+            fprintf(stream, "   ");
+        }
+    }
+    fprintf(stream, "\t%s", GET(insn_buffer));
+
+    if (usesRelativeAddress()){
+        if (addressAnchor){
+            fprintf(stream, "\t#x@ %llx", addressAnchor->getLink()->getBaseAddress());
+        } 
+    }
+
+    fprintf(stream, "\n");
+}
+
+
 bool UD_INSTRUCTION_CLASS::usesControlTarget(){
     if (isConditionalBranch() ||
         isUnconditionalBranch() ||
@@ -182,16 +436,14 @@ bool UD_INSTRUCTION_CLASS::isControl(){
 
 
 bool UD_INSTRUCTION_CLASS::usesIndirectAddress(){
-    //    PRINT_WARN(10, "FUNCTION NOT COMPLETE");
-    return false;
-    /*
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i]){
+            if (operands[i]->getType() == UD_OP_MEM){
                 return true;
+            }
         }
     }
     return false;
-    */
 }
 
 
@@ -997,10 +1249,10 @@ uint32_t UD_INSTRUCTION_CLASS::getInstructionType(){
     };
 
     if (optype == X86InstructionType_unknown){
-        PRINT_ERROR("unknown type -- addr %llx, mne %s", baseAddress, ud_mnemonics_str[GET(mnemonic)]);
+        PRINT_ERROR("unknown type -- addr %llx, mne %s", baseAddress, ud_lookup_mnemonic(GET(mnemonic)));
     }
     if (optype == X86InstructionType_invalid){
-        PRINT_ERROR("invalid type -- addr %llx, mne %s", baseAddress, ud_mnemonics_str[GET(mnemonic)]);
+        PRINT_ERROR("invalid type -- addr %llx, mne %s", baseAddress, ud_lookup_mnemonic(GET(mnemonic)));
     }
     ASSERT(optype != X86InstructionType_unknown && optype != X86InstructionType_invalid);
     return optype;
@@ -1018,9 +1270,10 @@ bool UD_INSTRUCTION_CLASS::controlFallsThrough(){
 }
 
 
-UD_OPERAND_CLASS::UD_OPERAND_CLASS(struct ud_operand* init, uint32_t idx){
-    operandIndex = idx;
+UD_OPERAND_CLASS::UD_OPERAND_CLASS(Instruction* inst, struct ud_operand* init, uint32_t idx){
+    instruction = inst;
     memcpy(&entry, init, sizeof(struct ud_operand));
+    operandIndex = idx;
 
     verify();
 }
@@ -1039,11 +1292,14 @@ bool UD_OPERAND_CLASS::verify(){
         }
     }
 
-    return true;
-}
+    /*
+    if (memcmp(&instruction->GET(operands[operandIndex]), &entry, sizeof(struct ud_operand))){
+        PRINT_ERROR("Operand contents should be the same as those in the instruction");
+        return false;
+    }
+    */
 
-bool UD_OPERAND_CLASS::isRelative(){
-    return (GET(offset) != 0);
+    return true;
 }
 
 UD_INSTRUCTION_CLASS::~UD_INSTRUCTION_CLASS(){
@@ -1053,6 +1309,10 @@ UD_INSTRUCTION_CLASS::~UD_INSTRUCTION_CLASS(){
         }
     }
     delete[] operands;
+
+    if (addressAnchor){
+        delete addressAnchor;
+    }
 }
 
 UD_OPERAND_CLASS* UD_INSTRUCTION_CLASS::getOperand(uint32_t idx){
@@ -1062,7 +1322,7 @@ UD_OPERAND_CLASS* UD_INSTRUCTION_CLASS::getOperand(uint32_t idx){
     return operands[idx];
 }
 
-UD_INSTRUCTION_CLASS::UD_INSTRUCTION_CLASS(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx, bool doReformat)
+UD_INSTRUCTION_CLASS::UD_INSTRUCTION_CLASS(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx)
     : Base(ElfClassTypes_Instruction)
 {
     ud_t ud_obj;
@@ -1074,7 +1334,7 @@ UD_INSTRUCTION_CLASS::UD_INSTRUCTION_CLASS(TextSection* text, uint64_t baseAddr,
     } else {
         ud_set_mode(&ud_obj, 32);
     }
-    ud_set_syntax(&ud_obj, NULL);
+    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
 
     sizeInBytes = ud_disassemble(&ud_obj);
     if (sizeInBytes) {
@@ -1095,13 +1355,14 @@ UD_INSTRUCTION_CLASS::UD_INSTRUCTION_CLASS(TextSection* text, uint64_t baseAddr,
         ud_operand op = GET(operand)[i];
         operands[i] = NULL;
         if (op.type){
-            operands[i] = new UD_OPERAND_CLASS(&GET(operand)[i], i);
+            operands[i] = new UD_OPERAND_CLASS(this, &GET(operand)[i], i);
         }
     }
 
     leader = false;
     
     verify();
+    //    print();
 
 }
 
@@ -1111,7 +1372,12 @@ UD_INSTRUCTION_CLASS::UD_INSTRUCTION_CLASS(struct ud* init)
     memcpy(&entry, init, sizeof(struct ud));
 
     sizeInBytes = ud_insn_len(&entry);
+
     baseAddress = 0;
+    instructionIndex = 0;
+    byteSource = ByteSource_Instrumentation;
+    textSection = NULL;
+    addressAnchor = NULL;
 
     operands = new UD_OPERAND_CLASS*[MAX_OPERANDS];
 
@@ -1119,16 +1385,42 @@ UD_INSTRUCTION_CLASS::UD_INSTRUCTION_CLASS(struct ud* init)
         ud_operand op = GET(operand)[i];
         operands[i] = NULL;
         if (op.type){
-            operands[i] = new UD_OPERAND_CLASS(&GET(operand)[i], i);
+            operands[i] = new UD_OPERAND_CLASS(this, &GET(operand)[i], i);
         }
     }
+
+    leader = false;
     
     verify();
 }
 
 void UD_INSTRUCTION_CLASS::print(){
-    PRINT_INFOR("%#llx:\t%16s\t%s\t%d %d %d %d", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), getInstructionType(), usesControlTarget(), isFunctionCall(), getSizeInBytes());
-    PRINT_INFOR("%d(%s)\t%hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd", GET(mnemonic), ud_mnemonics_str[GET(mnemonic)],
+
+    char flags[7];
+    if (usesRelativeAddress()){
+        flags[0] = 'R';
+    } else flags[0] = ' ';
+    if (isControl()){
+        flags[1] = 'C';
+    } else flags[1] = ' ';
+    if (usesControlTarget()){
+        flags[2] = 'T';
+    } else flags[2] = ' ';
+    if (isJumpTableBase()){
+        flags[3] = 'B';
+    } else flags[3] = ' ';
+    if (isLeader()){
+        flags[4] = 'L';
+    } else flags[4] = ' ';
+    if (usesIndirectAddress()){
+        flags[5] = 'I';
+    } else flags[5] = ' ';
+    flags[6] = '\0';
+
+    PRINT_INFOR("%#llx:\t%16s\t%s\t'%6s'\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
+    PRINT_INFOR("\t%s (%d,%d) (%d,%d) (%d,%d) %d", ud_lookup_mnemonic(GET(itab_entry)->mnemonic), GET(itab_entry)->operand1.type, GET(itab_entry)->operand1.size, GET(itab_entry)->operand2.type, GET(itab_entry)->operand2.size, GET(itab_entry)->operand3.type, GET(itab_entry)->operand3.size, GET(itab_entry)->prefix);
+
+    PRINT_INFOR("%d(%s)\t%hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd", GET(mnemonic), ud_lookup_mnemonic(GET(mnemonic)),
                 GET(error), GET(pfx_rex), GET(pfx_seg), GET(pfx_opr), GET(pfx_adr), GET(pfx_lock), GET(pfx_rep),
                 GET(pfx_repe), GET(pfx_repne), GET(pfx_insn), GET(default64), GET(opr_mode), GET(adr_mode),
                 GET(br_far), GET(br_near), GET(implicit_addr), GET(c1), GET(c2), GET(c3));
@@ -1167,37 +1459,37 @@ void UD_OPERAND_CLASS::print(){
 
     ASSERT(op.type);
 
-    PRINT_INFOR("\traw operand %d: type=%d(%d), base=%d, index=%d, lval=%#llx, size=%hhd, offset=%hhd, scale=%hhd", 
-                operandIndex, op.type, op.type - UD_OP_REG, op.base, op.index, op.lval, op.size, op.offset, op.scale);
+    PRINT_INFOR("\traw operand %d: type=%d(%d), size=%hhd, position=%hhd, base=%d, index=%d, lval=%#llx, offset=%hhd, scale=%hhd", 
+                operandIndex, GET(type), GET(type) - UD_OP_REG, GET(size), GET(position), GET(base), GET(index), op.lval, GET(offset), GET(scale));
     
     char typstr[32];
     char valstr[32];
     bzero(typstr, 32);
     bzero(valstr, 32);
 
-    if (op.type == UD_OP_REG){
-        sprintf(typstr, "%s\0", ud_regtype_str[regbase_to_type(op.base)]);
-        sprintf(valstr, "%s\0", ud_reg_tab[op.base-1]);
-    } else if (op.type == UD_OP_MEM){
-        sprintf(typstr, "%s%d\0", ud_optype_str[op.type - UD_OP_REG], op.size);
-        if (op.base){
-            sprintf(valstr, "%s + %llx\0", ud_reg_tab[op.base-1], op.lval);
+    if (GET(type) == UD_OP_REG){
+        sprintf(typstr, "%s\0", ud_regtype_str[regbase_to_type(GET(base))]);
+        sprintf(valstr, "%s\0", ud_reg_tab[GET(base)-1]);
+    } else if (GET(type) == UD_OP_MEM){
+        sprintf(typstr, "%s%d\0", ud_optype_str[GET(type) - UD_OP_REG], op.size);
+        if (GET(base)){
+            sprintf(valstr, "%s + %llx\0", ud_reg_tab[GET(base)-1], op.lval);
         } else {
             sprintf(valstr, "%llx\0", op.lval);
         }
-    } else if (op.type == UD_OP_PTR){
+    } else if (GET(type) == UD_OP_PTR){
         __FUNCTION_NOT_IMPLEMENTED;
-    } else if (op.type == UD_OP_IMM || op.type == UD_OP_JIMM){
-        sprintf(typstr, "%s%d\0", ud_optype_str[op.type - UD_OP_REG], op.size);
+    } else if (GET(type) == UD_OP_IMM || GET(type) == UD_OP_JIMM){
+        sprintf(typstr, "%s%d\0", ud_optype_str[GET(type) - UD_OP_REG], op.size);
         sprintf(valstr, "%#llx\0", op.lval);
-    } else if (op.type == UD_OP_CONST){
-        sprintf(typstr, "%s\0", ud_optype_str[op.type - UD_OP_REG]);
+    } else if (GET(type) == UD_OP_CONST){
+        sprintf(typstr, "%s\0", ud_optype_str[GET(type) - UD_OP_REG]);
         sprintf(valstr, "%d\0", op.lval);
     } else {
         __SHOULD_NOT_ARRIVE;
     }
     
-    PRINT_INFOR("\t[op%d] %s: %s", operandIndex, typstr, valstr, op.index);
+    PRINT_INFOR("\t[op%d] %s: %s", operandIndex, typstr, valstr, GET(index));
 }
 
 bool UD_INSTRUCTION_CLASS::verify(){

@@ -31,6 +31,7 @@ public:
     ~AddressAnchor();
 
     uint64_t getLinkOffset();
+    uint64_t getLinkValue();
 
     Base* getLink() { return link; }
     Base* updateLink(Base* newLink);

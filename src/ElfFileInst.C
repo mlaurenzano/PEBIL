@@ -28,8 +28,8 @@ uint32_t readBytes = 0;
 );
 
 // some common macros to help debug the instrumentation process
-//#define RELOC_MOD_OFF 4
-//#define RELOC_MOD 512
+//#define RELOC_MOD_OFF 1
+//#define RELOC_MOD 1024
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define TURNOFF_CODE_BLOAT
 //#define SWAP_MOD_OFF 1893
@@ -188,12 +188,12 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
     }
     AddressAnchor** allAnchors = &addressAnchors;
 #ifdef DEBUG_ANCHOR
-    PRINT_INFOR("Array is:");
+    PRINT_DEBUG_ANCHOR("Array is:");
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        PRINT_INFOR("%#llx", allAnchors[i]->linkBaseAddress);
+        PRINT_DEBUG_ANCHOR("%#llx", allAnchors[i]->linkBaseAddress);
     }
 #endif //DEBUG_ANCHOR
-    void* anchor = bsearch(&addr, allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), searchLinkBaseAddress);
+    void* anchor = bsearch(&addr, allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), searchLinkBaseAddressExact);
     if (anchor){
         // get the FIRST occurrence of addr in the anchor array
         uint64_t idx = ((uint64_t)anchor-(uint64_t)allAnchors)/sizeof(AddressAnchor*);
@@ -204,6 +204,7 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
         while (idx < addressAnchors.size() &&
                 addressAnchors[idx]->linkBaseAddress <= addr &&
                 addr < addressAnchors[idx]->linkBaseAddress + addressAnchors[idx]->getLink()->getSizeInBytes()){
+            PRINT_DEBUG_ANCHOR("found %#llx <= %#llx < %#llx + %d", addressAnchors[idx]->linkBaseAddress, addr, addressAnchors[idx]->linkBaseAddress, addressAnchors[idx]->getLink()->getSizeInBytes());
             (*binaryUpdate).append(allAnchors[idx++]);
         }
     }
@@ -211,8 +212,12 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
 
 #if !defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
+        /*
         if (addr >= addressAnchors[i]->linkBaseAddress &&
             addr <  addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes()){
+        */
+        if (addr == addressAnchors[i]->linkBaseAddress){
+            PRINT_DEBUG_ANCHOR("%#llx <= %#llx < %#llx", addressAnchors[i]->linkBaseAddress, addr, addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes());
             PRINT_DEBUG_ANCHOR("%#llx <= %#llx < %#llx", addressAnchors[i]->linkBaseAddress, addr, addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes());
             if (!(*linearUpdate).size()){
                 linIdx = i;
@@ -224,18 +229,26 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
 
 #ifdef VALIDATE_ANCHOR_SEARCH
     if ((*binaryUpdate).size() != (*linearUpdate).size()){
-        PRINT_INFOR("Mismatch in binary/linear anchor search results for %#llx...", addr);
-        PRINT_INFOR("Binary search yields %d hits -- see entry %d", (*binaryUpdate).size(), binIdx);
-        PRINT_INFOR("Linear search yields %d hits -- see entry %d", (*linearUpdate).size(), linIdx);
-        PRINT_INFOR("Array is:");
+        PRINT_DEBUG_ANCHOR("Mismatch in binary/linear anchor search results for %#llx...", addr);
+        PRINT_DEBUG_ANCHOR("Binary search yields %d hits -- see entry %d", (*binaryUpdate).size(), binIdx);
+        for (uint32_t i = 0; i < (*binaryUpdate).size(); i++){
+            PRINT_DEBUG_ANCHOR("\tbinary[%d] = %#llx", i, (*binaryUpdate)[i]->linkBaseAddress);
+        }
+        PRINT_DEBUG_ANCHOR("Linear search yields %d hits -- see entry %d", (*linearUpdate).size(), linIdx);
+        for (uint32_t i = 0; i < (*linearUpdate).size(); i++){
+            PRINT_DEBUG_ANCHOR("\tlinear[%d] = %#llx", i, (*linearUpdate)[i]->linkBaseAddress);
+        }
+        PRINT_DEBUG_ANCHOR("Array is:");
         for (uint32_t i = 0; i < addressAnchors.size(); i++){
-            PRINT_INFOR("anchors[%d]: %#llx", i, allAnchors[i]->linkBaseAddress);
+            PRINT_DEBUG_ANCHOR("anchors[%d]: %#llx", i, allAnchors[i]->linkBaseAddress);
         }
         
     }
     ASSERT(addressAnchors.isSorted(compareLinkBaseAddress));
     ASSERT((*binaryUpdate).size() == (*linearUpdate).size());
 #endif //VALIDATE_ANCHOR_SEARCH
+
+    PRINT_DEBUG_ANCHOR("search done... %#llx", addr);
 
 #ifdef ANCHOR_SEARCH_BINARY
     delete linearUpdate;
@@ -301,7 +314,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
         Instruction* currentInstruction = allInstructions[i];
         ASSERT(!currentInstruction->getAddressAnchor());
         if (currentInstruction->usesRelativeAddress()){
-            uint64_t relativeAddress = currentInstruction->getRelativeValue() + currentInstruction->getBaseAddress();
+            uint64_t relativeAddress = currentInstruction->getRelativeValue() + currentInstruction->getBaseAddress() + currentInstruction->getSizeInBytes();
             if (!currentInstruction->isControl() || currentInstruction->usesIndirectAddress()){
                 relativeAddress += currentInstruction->getSizeInBytes();
             }

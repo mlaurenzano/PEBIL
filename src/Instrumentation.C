@@ -148,11 +148,11 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
 #endif
         int32_t numberOfBranches = 0;
         for (uint32_t i = 0; i < (*insts).size(); i++){
-            if ((*insts)[i]->isControl()){
+            if ((*insts)[i]->isControl() && !(*insts)[i]->isReturn()){
                 numberOfBranches++;
                 if ((*insts)[i]->bytesUsedForTarget() < sizeof(uint32_t)){
                     PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", (*insts)[i]->bytesUsedForTarget());
-                    (*insts)[i]->convertTo4ByteOperand();
+                    (*insts)[i]->convertTo4ByteTargetOperand();
                 }
             }
             (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
@@ -288,11 +288,11 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
 #endif
         int32_t numberOfBranches = 0;
         for (uint32_t i = 0; i < (*insts).size(); i++){
-            if ((*insts)[i]->isControl()){
+            if ((*insts)[i]->isControl() && !(*insts)[i]->isReturn()){
                 numberOfBranches++;
                 if ((*insts)[i]->bytesUsedForTarget() < sizeof(uint32_t)){
                     PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", (*insts)[i]->bytesUsedForTarget());
-                    (*insts)[i]->convertTo4ByteOperand();
+                    (*insts)[i]->convertTo4ByteTargetOperand();
                 }
             }
             (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
