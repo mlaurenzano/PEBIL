@@ -2,7 +2,6 @@
 
 #include <BasicBlock.h>
 #include <BinaryFile.h>
-#include <Disassembler.h>
 #include <ElfFile.h>
 #include <ElfFileInst.h>
 #include <FlowGraph.h>

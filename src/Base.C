@@ -1,7 +1,5 @@
 #include <Base.h>
 
-Disassembler* Base::disassembler;
-
 bool isHexNumeral(char c1){
     if (c1 >= '0' && c1 <= '9'){
         return true;

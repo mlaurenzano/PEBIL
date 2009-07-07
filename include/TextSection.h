@@ -10,7 +10,6 @@ class BasicBlock;
 class BinaryInputFile;
 class BinaryOutputFile;
 class Block;
-class Disassembler;
 class ElfFile;
 class Function;
 class Instruction;

@@ -1,12 +1,10 @@
 #include <Base.h>
-#include <Disassembler.h>
 #include <Instruction.h>
-#include <Udis.h>
 #include <Vector.h>
 
 #define INPUT_MAX_BYTES 0x40000
 
-Vector<UD_INSTRUCTION_CLASS*> instructions = Vector<UD_INSTRUCTION_CLASS*>();
+Vector<Instruction*> instructions = Vector<Instruction*>();
 
 void printBriefOptions(){
     fprintf(stderr,"\n");
@@ -190,7 +188,7 @@ int main(int argc,char* argv[]){
     ud_set_mode(&ud_obj, mode);
     ud_set_syntax(&ud_obj, UD_SYN_ATT);
     while (ud_disassemble(&ud_obj)) {
-        instructions.append(new UD_INSTRUCTION_CLASS(&ud_obj));
+        instructions.append(new Instruction(&ud_obj));
         instructions.back()->print();
         fprintf(stdout, "\n");
     }
@@ -199,17 +197,6 @@ int main(int argc,char* argv[]){
     }
 
 #endif
-    /*
-    Base::disassembler = new Disassembler(is64Bit);
-
-    PRINT_DEBUG("Input length is %d", numberOfBytes);
-
-    bytes = padCharArray(&numberOfBytes, bytes, MAX_X86_INSTRUCTION_LENGTH, 0x00);
-
-    printBuffer(numberOfBytes, bytes, addr, extdPrnt);
-
-    delete Base::disassembler;
-    */
 
     delete[] bytes;
     for (uint32_t i = 0; i < instructions.size(); i++){

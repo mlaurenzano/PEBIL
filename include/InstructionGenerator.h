@@ -1,9 +1,8 @@
 #ifndef _InstructionGenerator_h_
 #define _InstructionGenerator_h_
 
-#ifndef UD_DISASM
-
 #include <Instruction.h>
+
 
 class InstructionGenerator : public Instruction {
 protected:
@@ -41,6 +40,8 @@ public:
 
 class InstructionGenerator64 : public InstructionGenerator {
 private:
+    static Instruction* generateInstructionBase(uint32_t sz, char* buf);
+
     static Instruction* generateMoveRegToRegaddrImm4Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm);
     static Instruction* generateMoveRegToRegaddrImm1Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm);
     static Instruction* generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest);
@@ -75,6 +76,9 @@ public:
 };
 
 class InstructionGenerator32 : public InstructionGenerator {
+private:
+    static Instruction* generateInstructionBase(uint32_t sz, char* buf);
+
 public:
     static Instruction* generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx);
     static Instruction* generateJumpIndirect(uint64_t tgt);
@@ -95,8 +99,5 @@ public:
 
     static Instruction* generateAddImmByteToMem(uint8_t, uint64_t);
 };
-
-#endif // UD_DISASM
-
 
 #endif /* _InstructionGenerator_h_ */

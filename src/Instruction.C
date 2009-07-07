@@ -1,48 +1,248 @@
-#include <Instruction.h>
-
-#ifndef UD_DISASM
-
-#include <AddressAnchor.h>
 #include <Base.h>
 #include <BinaryFile.h>
-#include <CStructuresX86.h>
-#include <Disassembler.h>
 #include <ElfFile.h>
 #include <Function.h>
-#include <RawSection.h>
+#include <Instruction.h>
 #include <SectionHeader.h>
+#include <TextSection.h>
+#include <Instruction.h>
 
-#define JUMP_TGT_NOT_FOUND "<jump_tgt_not_found>"
+uint32_t Operand::getBytesUsed(){
+    if (GET(type) == UD_OP_MEM){
+        return (GET(offset) >> 3);
+    }
+    return (GET(size) >> 3);
+}
+
+int64_t Operand::getValue(){
+    int64_t value;
+    if (getBytesUsed() == 0){
+        return 0;
+    } else if (getBytesUsed() == sizeof(uint8_t)){
+        value = (int64_t)GET_A(sbyte, lval);
+    } else if (getBytesUsed() == sizeof(uint16_t)){
+        value = (int64_t)GET_A(sword, lval);
+    } else if (getBytesUsed() == sizeof(uint32_t)){
+        value = (int64_t)GET_A(sdword, lval);
+    } else if (getBytesUsed() == sizeof(uint64_t)){
+        value = (int64_t)GET_A(sqword, lval);
+    } else { 
+        print();
+        PRINT_INFOR("size %d", getBytesUsed());
+        __SHOULD_NOT_ARRIVE;
+    }
+    return value;
+}
+
+uint32_t Operand::getBytePosition(){
+    return GET(position);
+}
+
+bool Operand::isRelative(){
+    if (GET(type) == UD_OP_JIMM){
+        return true;
+    }
+    if (GET(base) == UD_R_RIP){
+        return true;
+    }
+    return false;
+}
+
+bool Instruction::usesRelativeAddress(){
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i] && operands[i]->isRelative()){
+            return true;
+        }
+    }
+    return false;
+}
+
+int64_t Instruction::getRelativeValue(){
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i] && operands[i]->isRelative()){
+            return operands[i]->getValue();
+        }
+    }
+    __SHOULD_NOT_ARRIVE;
+    return 0;
+}
+
+uint64_t Instruction::getTargetAddress(){
+    uint64_t tgtAddress;
+    if (getInstructionType() == X86InstructionType_uncond_branch ||
+        getInstructionType() == X86InstructionType_cond_branch ||
+        getInstructionType() == X86InstructionType_call){
+        if (addressAnchor){
+            tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
+        } else if (operands && operands[JUMP_TARGET_OPERAND]){
+            if (operands[JUMP_TARGET_OPERAND]->getType() == UD_OP_JIMM){
+                tgtAddress = getBaseAddress();
+                tgtAddress += operands[JUMP_TARGET_OPERAND]->getValue();
+                tgtAddress += getSizeInBytes();
+                PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx + %d", tgtAddress, getBaseAddress(), operands[JUMP_TARGET_OPERAND]->getValue(), getSizeInBytes());
+            } else {
+                tgtAddress = getBaseAddress() + getSizeInBytes();
+            }
+        } else {
+            tgtAddress = 0;
+        }
+    } else if (getInstructionType() == X86InstructionType_system_call){
+        tgtAddress = 0;
+    } else {
+        tgtAddress = getBaseAddress() + getSizeInBytes();
+    }
+
+    return tgtAddress;
+}
+
+uint32_t Instruction::bytesUsedForTarget(){
+    if (isControl()){
+        if (isUnconditionalBranch() || isConditionalBranch() || isFunctionCall()){
+            if (operands && operands[JUMP_TARGET_OPERAND]){
+                return operands[JUMP_TARGET_OPERAND]->getBytesUsed();
+            }
+        }
+    }
+    return 0;
+}
+
+uint32_t Instruction::convertTo4ByteTargetOperand(){
+    ASSERT(isControl());
+
+#ifdef DEBUG_INST
+    PRINT_INFOR("Before mod");
+    print();
+#endif
+
+    // extract raw bytes from hex representation
+    char rawBytes[MAX_X86_INSTRUCTION_LENGTH];
+    uint32_t currByte = 0;
+    for (uint32_t i = 0; i < sizeInBytes; i++){
+        rawBytes[currByte++] = mapCharsToByte(GET(insn_hexcode)[2*i], GET(insn_hexcode)[2*i+1]);
+    }
+
+
+    uint32_t additionalBytes = 0;
+
+    if (bytesUsedForTarget() && bytesUsedForTarget() < sizeof(uint32_t)){
+        if (isUnconditionalBranch()){
+            ASSERT(sizeInBytes == 2); // we expect a single byte for the opcode and a single byte for the target offset
+            if (!addressAnchor){
+                print();
+                PRINT_ERROR("Instruction at address %#llx should have an address anchor", getBaseAddress());
+            }
+            ASSERT(addressAnchor);
+
+            rawBytes[0] -= 0x02;
+            additionalBytes = 3;
+            uint32_t operandValue = getOperand(JUMP_TARGET_OPERAND)->getValue();
+            memcpy(rawBytes + 1, &operandValue, sizeof(uint32_t));
+
+        } else if (isConditionalBranch()){
+            if (sizeInBytes != 2){
+                PRINT_WARN(4,"Conditional Branch with 3 bytes encountered");
+                print();
+            }
+
+            if (!addressAnchor){
+                print();
+                PRINT_ERROR("Instruction at address %#llx should have an address anchor", getBaseAddress());
+            }
+            ASSERT(addressAnchor);
+
+            additionalBytes = 4;
+            uint32_t operandValue = getOperand(JUMP_TARGET_OPERAND)->getValue();
+            memcpy(rawBytes + 2, &operandValue, sizeof(uint32_t));
+            rawBytes[1] = rawBytes[0] + 0x10;
+            rawBytes[0] = 0x0f;
+
+        } else if (isFunctionCall()){
+            __FUNCTION_NOT_IMPLEMENTED;
+        } else if (isReturn()){
+            // nothing to do since returns dont have target ops
+            ASSERT(sizeInBytes == 1);
+            for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+                ASSERT(!getOperand(i));
+            }
+        } else {
+            PRINT_ERROR("Unknown branch type %d not handled currently", getInstructionType());
+            __SHOULD_NOT_ARRIVE;
+        }
+    }
+
+    if (additionalBytes){
+
+        if (operands){
+            for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+                if (operands[i]){
+                    delete operands[i];
+                }
+            }
+            delete[] operands;
+        }
+
+        ud_t ud_obj;
+        ud_init(&ud_obj);
+        ud_set_input_buffer(&ud_obj, (uint8_t*)rawBytes, MAX_X86_INSTRUCTION_LENGTH);
+
+        if (textSection->getElfFile()->is64Bit()){
+            ud_set_mode(&ud_obj, 64);
+        } else {
+            ud_set_mode(&ud_obj, 32);
+        }
+        ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
+
+        sizeInBytes = ud_disassemble(&ud_obj);
+        if (sizeInBytes) {
+            memcpy(&entry, &ud_obj, sizeof(struct ud));
+        } else {
+            PRINT_ERROR("Problem doing instruction disassembly");
+        }
+
+        operands = new Operand*[MAX_OPERANDS];
+        for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+            ud_operand op = GET(operand)[i];
+            operands[i] = NULL;
+            if (op.type){
+                operands[i] = new Operand(this, &GET(operand)[i], i);
+            }
+        }
+
+    }
+
+#ifdef DEBUG_INST
+    PRINT_INFOR("After mod");
+    print();
+#endif
+
+    return sizeInBytes;
+}
 
 void Instruction::binutilsPrint(FILE* stream){
     fprintf(stream, "%llx: ", getBaseAddress());
 
-    int extraSpaces = 8;
-    for (uint32_t j = 0; j < getSizeInBytes(); j++){
-        fprintf(stream, "%02hhx ", rawBytes[j]);
-        extraSpaces--;
-    }
-    while (extraSpaces > 0){
-        fprintf(stream, "   ");
-        extraSpaces--;
+    ASSERT(strlen(GET(insn_hexcode)) % 2 == 0);
+
+    for (int32_t i = 0; i < strlen(GET(insn_hexcode)); i += 2){
+        fprintf(stream, "%c%c ", GET(insn_hexcode)[i], GET(insn_hexcode)[i+1]);
     }
 
-    Base::disassembler->disassembleInstructionInPlace(this);
+    if (strlen(GET(insn_hexcode)) < 16){
+        for (int32_t i = 16 - strlen(GET(insn_hexcode)); i > 0; i -= 2){
+            fprintf(stream, "   ");
+        }
+    }
+    fprintf(stream, "\t%s", GET(insn_buffer));
 
     if (usesRelativeAddress()){
         if (addressAnchor){
-            fprintf(stream, "\t#x@ %llx", addressAnchor->linkBaseAddress);
-        } else {
-            fprintf(stream, "\t#x  %llx", getRelativeValue()+getBaseAddress());
-        }
-    }
-
-    if (isNoop()){
-        fprintf(stream, "\t#x nop");
+            fprintf(stream, "\t#x@ %llx", addressAnchor->getLink()->getBaseAddress());
+        } 
     }
 
     fprintf(stream, "\n");
 }
+
 
 bool Instruction::usesControlTarget(){
     if (isConditionalBranch() ||
@@ -52,6 +252,30 @@ bool Instruction::usesControlTarget(){
         return true;
     }
     return false;
+}
+
+void Instruction::initializeAnchor(Base* link){
+    if (addressAnchor){
+        print();
+    }
+    ASSERT(!addressAnchor);
+    ASSERT(link->containsProgramBits());
+    addressAnchor = new AddressAnchor(link,this);
+}
+
+
+void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    ASSERT(sizeInBytes && "This instruction has no bytes thus it cannot be dumped");
+
+    for (uint32_t i = 0; i < sizeInBytes; i++){
+        char byt = mapCharsToByte(GET(insn_hexcode)[2*i], GET(insn_hexcode)[2*i+1]);
+        binaryOutputFile->copyBytes(&byt, 1, offset + i);
+    }
+
+    // the anchor will now overwrite any original instruction bytes that relate to relative addresses
+    if (addressAnchor){
+        addressAnchor->dump(binaryOutputFile,offset);
+    }
 }
 
 void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList){
@@ -83,8 +307,9 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
     // the data found is an address
     if (func->inRange(rawData)){
         directMode = true;
+
         PRINT_DEBUG_JUMP_TABLE("\tJumpMode for table base %#llx -- Direct", tableBase);
-    } 
+    }
     // the data found is an address offset
     else if (func->inRange(rawData+baseAddress) || absoluteValue(rawData) < JUMP_TABLE_REACHES){
         directMode = false;
@@ -105,7 +330,7 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
     } else {
         dataLen = sizeof(uint32_t);
     }
-
+    
     do {
         if (textSection->getElfFile()->is64Bit()){
             rawData = getUInt64(dataSection->getStreamAtAddress(tableBase+currByte));
@@ -113,7 +338,7 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
             rawData = (uint64_t)getUInt32(dataSection->getStreamAtAddress(tableBase+currByte));
         }
         currByte += dataLen;
-
+        
         if (!directMode){
             rawData += baseAddress;
         }
@@ -123,6 +348,7 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
              (tableBase+currByte)-dataSection->getSectionHeader()->GET(sh_addr) < dataSection->getSizeInBytes());
     (*addressList).remove((*addressList).size()-1);
 }
+
 
 uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions){
     ASSERT(isJumpTableBase() && "Cannot compute jump table base for this instruction");
@@ -176,7 +402,7 @@ uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionIns
             } while (prev);
             delete[] allInstructions;
         }
-    } 
+    }
     // jump target is a memory location
     else {
         if (!textSection->getElfFile()->findDataSectionAtAddr(operands[JUMP_TARGET_OPERAND]->getValue())){
@@ -187,8 +413,832 @@ uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionIns
     return 0;
 }
 
+bool Instruction::isControl(){
+    return  (isConditionalBranch() || isUnconditionalBranch() || isSystemCall() || isFunctionCall() || isReturn());
+}
+
+
+bool Instruction::usesIndirectAddress(){
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i]){
+            if (operands[i]->getType() == UD_OP_MEM){
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
 bool Instruction::isJumpTableBase(){
     return (isUnconditionalBranch() && usesIndirectAddress());
+}
+
+uint32_t Instruction::getInstructionType(){
+    uint32_t optype = X86InstructionType_unknown;
+    switch(GET(mnemonic)){
+        case UD_Ipalignr:
+        case UD_Ipshufb:
+        case UD_Iphaddd:
+            optype = X86InstructionType_int;
+        case UD_I3dnow:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Iaaa:
+        case UD_Iaad:
+        case UD_Iaam:
+        case UD_Iaas:
+        case UD_Iadc:
+        case UD_Iadd:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Iaddpd:
+        case UD_Iaddps:
+        case UD_Iaddsd:
+        case UD_Iaddss:
+        case UD_Iaddsubpd:
+        case UD_Iaddsubps:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Iand:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Iandpd:
+        case UD_Iandps:
+        case UD_Iandnpd:
+        case UD_Iandnps:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Iarpl:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Imovsxd:
+        case UD_Ibound:
+        case UD_Ibsf:
+        case UD_Ibsr:
+        case UD_Ibswap:
+        case UD_Ibt:
+        case UD_Ibtc:
+        case UD_Ibtr:
+        case UD_Ibts:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Icall:
+            optype = X86InstructionType_call;
+            break;
+        case UD_Icbw:
+        case UD_Icwde:
+        case UD_Icdqe:
+        case UD_Iclc:
+        case UD_Icld:
+        case UD_Iclflush:
+        case UD_Iclgi:
+        case UD_Icli:
+        case UD_Iclts:
+        case UD_Icmc:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Icmovo:
+        case UD_Icmovno:
+        case UD_Icmovb:
+        case UD_Icmovae:
+        case UD_Icmovz:
+        case UD_Icmovnz:
+        case UD_Icmovbe:
+        case UD_Icmova:
+        case UD_Icmovs:
+        case UD_Icmovns:
+        case UD_Icmovp:
+        case UD_Icmovnp:
+        case UD_Icmovl:
+        case UD_Icmovge:
+        case UD_Icmovle:
+        case UD_Icmovg:
+        case UD_Icmp:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Icmppd:
+        case UD_Icmpps:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Icmpsb:
+        case UD_Icmpsw:
+            optype = X86InstructionType_string;
+            break;
+        case UD_Icmpsd:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Icmpsq:
+            optype = X86InstructionType_string;
+            break;
+        case UD_Icmpss:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Icmpxchg:
+        case UD_Icmpxchg8b:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Icomisd:
+        case UD_Icomiss:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Icpuid:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Icvtdq2pd:
+        case UD_Icvtdq2ps:
+        case UD_Icvtpd2dq:
+        case UD_Icvtpd2pi:
+        case UD_Icvtpd2ps:
+        case UD_Icvtpi2ps:
+        case UD_Icvtpi2pd:
+        case UD_Icvtps2dq:
+        case UD_Icvtps2pi:
+        case UD_Icvtps2pd:
+        case UD_Icvtsd2si:
+        case UD_Icvtsd2ss:
+        case UD_Icvtsi2ss:
+        case UD_Icvtss2si:
+        case UD_Icvtss2sd:
+        case UD_Icvttpd2pi:
+        case UD_Icvttpd2dq:
+        case UD_Icvttps2dq:
+        case UD_Icvttps2pi:
+        case UD_Icvttsd2si:
+        case UD_Icvtsi2sd:
+        case UD_Icvttss2si:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Icwd:
+        case UD_Icdq:
+        case UD_Icqo:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Idaa:
+        case UD_Idas:
+        case UD_Idec:
+        case UD_Idiv:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Idivpd:
+        case UD_Idivps:
+        case UD_Idivsd:
+        case UD_Idivss:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Iemms:
+        case UD_Ienter:
+            optype = X86InstructionType_special;
+            break;
+        case UD_If2xm1:
+        case UD_Ifabs:
+        case UD_Ifadd:
+        case UD_Ifaddp:
+        case UD_Ifbld:
+        case UD_Ifbstp:
+        case UD_Ifchs:
+        case UD_Ifclex:
+        case UD_Ifcmovb:
+        case UD_Ifcmove:
+        case UD_Ifcmovbe:
+        case UD_Ifcmovu:
+        case UD_Ifcmovnb:
+        case UD_Ifcmovne:
+        case UD_Ifcmovnbe:
+        case UD_Ifcmovnu:
+        case UD_Ifucomi:
+        case UD_Ifcom:
+        case UD_Ifcom2:
+        case UD_Ifcomp3:
+        case UD_Ifcomi:
+        case UD_Ifucomip:
+        case UD_Ifcomip:
+        case UD_Ifcomp:
+        case UD_Ifcomp5:
+        case UD_Ifcompp:
+        case UD_Ifcos:
+        case UD_Ifdecstp:
+        case UD_Ifdiv:
+        case UD_Ifdivp:
+        case UD_Ifdivr:
+        case UD_Ifdivrp:
+        case UD_Ifemms:
+        case UD_Iffree:
+        case UD_Iffreep:
+        case UD_Ificom:
+        case UD_Ificomp:
+        case UD_Ifild:
+        case UD_Ifncstp:
+        case UD_Ifninit:
+        case UD_Ifiadd:
+        case UD_Ifidivr:
+        case UD_Ifidiv:
+        case UD_Ifisub:
+        case UD_Ifisubr:
+        case UD_Ifist:
+        case UD_Ifistp:
+        case UD_Ifisttp:
+        case UD_Ifld:
+        case UD_Ifld1:
+        case UD_Ifldl2t:
+        case UD_Ifldl2e:
+        case UD_Ifldlpi:
+        case UD_Ifldlg2:
+        case UD_Ifldln2:
+        case UD_Ifldz:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Ifldcw:
+        case UD_Ifldenv:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ifmul:
+        case UD_Ifmulp:
+        case UD_Ifimul:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Ifnop:
+            optype = X86InstructionType_nop;
+            break;
+        case UD_Ifpatan:
+        case UD_Ifprem:
+        case UD_Ifprem1:
+        case UD_Ifptan:
+        case UD_Ifrndint:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Ifrstor:
+        case UD_Ifnsave:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ifscale:
+        case UD_Ifsin:
+        case UD_Ifsincos:
+        case UD_Ifsqrt:
+        case UD_Ifstp:
+        case UD_Ifstp1:
+        case UD_Ifstp8:
+        case UD_Ifstp9:
+        case UD_Ifst:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Ifnstcw:
+        case UD_Ifnstenv:
+        case UD_Ifnstsw:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ifsub:
+        case UD_Ifsubp:
+        case UD_Ifsubr:
+        case UD_Ifsubrp:
+        case UD_Iftst:
+        case UD_Ifucom:
+        case UD_Ifucomp:
+        case UD_Ifucompp:
+        case UD_Ifxam:
+        case UD_Ifxch:
+        case UD_Ifxch4:
+        case UD_Ifxch7:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Ifxrstor:
+        case UD_Ifxsave:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ifpxtract:
+        case UD_Ifyl2x:
+        case UD_Ifyl2xp1:
+        case UD_Ihaddpd:
+        case UD_Ihaddps:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Ihlt:
+            optype = X86InstructionType_halt;
+            break;
+        case UD_Ihsubpd:
+        case UD_Ihsubps:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Iidiv:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Iin:
+            optype = X86InstructionType_io;
+            break;
+        case UD_Iimul:
+        case UD_Iinc:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Iinsb:
+        case UD_Iinsw:
+        case UD_Iinsd:
+            optype = X86InstructionType_io;
+            break;
+        case UD_Iint1:
+        case UD_Iint3:
+        case UD_Iint:
+        case UD_Iinto:
+            optype = X86InstructionType_trap;
+            break;
+        case UD_Iinvd:
+        case UD_Iinvlpg:
+        case UD_Iinvlpga:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Iiretw:
+        case UD_Iiretd:
+        case UD_Iiretq:
+            optype = X86InstructionType_return;
+            break;
+        case UD_Ijo:
+        case UD_Ijno:
+        case UD_Ijb:
+        case UD_Ijae:
+        case UD_Ijz:
+        case UD_Ijnz:
+        case UD_Ijbe:
+        case UD_Ija:
+        case UD_Ijs:
+        case UD_Ijns:
+        case UD_Ijp:
+        case UD_Ijnp:
+        case UD_Ijl:
+        case UD_Ijge:
+        case UD_Ijle:
+        case UD_Ijg:
+        case UD_Ijcxz:
+        case UD_Ijecxz:
+        case UD_Ijrcxz:
+            optype = X86InstructionType_cond_branch;
+            break;
+        case UD_Ijmp:
+            optype = X86InstructionType_uncond_branch;
+            break;
+        case UD_Ilahf:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ilar:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ilddqu:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ildmxcsr:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ilds:
+        case UD_Ilea:
+        case UD_Iles:
+        case UD_Ilfs:
+        case UD_Ilgs:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ilidt:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ilss:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ileave:
+        case UD_Ilfence:
+        case UD_Ilgdt:
+        case UD_Illdt:
+        case UD_Ilmsw:
+        case UD_Ilock:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ilodsb:
+        case UD_Ilodsw:
+        case UD_Ilodsd:
+        case UD_Ilodsq:
+            optype = X86InstructionType_string;
+            break;
+        case UD_Iloopnz:
+        case UD_Iloope:
+        case UD_Iloop:
+        case UD_Ilsl:
+        case UD_Iltr:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Imaskmovq:
+        case UD_Imaxpd:
+        case UD_Imaxps:
+        case UD_Imaxsd:
+        case UD_Imaxss:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Imfence:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Iminpd:
+        case UD_Iminps:
+        case UD_Iminsd:
+        case UD_Iminss:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Imonitor:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Imov:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Imovapd:
+        case UD_Imovaps:
+        case UD_Imovd:
+        case UD_Imovddup:
+        case UD_Imovdqa:
+        case UD_Imovdqu:
+        case UD_Imovdq2q:
+        case UD_Imovhpd:
+        case UD_Imovhps:
+        case UD_Imovlhps:
+        case UD_Imovlpd:
+        case UD_Imovlps:
+        case UD_Imovhlps:
+        case UD_Imovmskpd:
+        case UD_Imovmskps:
+        case UD_Imovntdq:
+        case UD_Imovnti:
+        case UD_Imovntpd:
+        case UD_Imovntps:
+        case UD_Imovntq:
+        case UD_Imovq:
+        case UD_Imovqa:
+        case UD_Imovq2dq:
+        case UD_Imovsb:
+        case UD_Imovsw:
+        case UD_Imovsd:
+        case UD_Imovsq:
+        case UD_Imovsldup:
+        case UD_Imovshdup:
+        case UD_Imovss:
+        case UD_Imovsx:
+        case UD_Imovupd:
+        case UD_Imovups:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Imovzx:
+        case UD_Imul:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Imulpd:
+        case UD_Imulps:
+        case UD_Imulsd:
+        case UD_Imulss:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Imwait:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ineg:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Inop:
+            optype = X86InstructionType_nop;
+            break;
+        case UD_Inot:
+        case UD_Ior:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Iorpd:
+        case UD_Iorps:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Iout:
+        case UD_Ioutsb:
+        case UD_Ioutsw:
+        case UD_Ioutsd:
+        case UD_Ioutsq:
+            optype = X86InstructionType_io;
+            break;
+        case UD_Ipacksswb:
+        case UD_Ipackssdw:
+        case UD_Ipackuswb:
+        case UD_Ipaddb:
+        case UD_Ipaddw:
+        case UD_Ipaddd:
+        case UD_Ipaddq:
+        case UD_Ipaddsb:
+        case UD_Ipaddsw:
+        case UD_Ipaddusb:
+        case UD_Ipaddusw:
+        case UD_Ipand:
+        case UD_Ipandn:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ipause:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ipavgb:
+        case UD_Ipavgw:
+        case UD_Ipcmpeqb:
+        case UD_Ipcmpeqw:
+        case UD_Ipcmpeqd:
+        case UD_Ipcmpgtb:
+        case UD_Ipcmpgtw:
+        case UD_Ipcmpgtd:
+        case UD_Ipextrw:
+        case UD_Ipinsrw:
+        case UD_Ipmaddwd:
+        case UD_Ipmaxsw:
+        case UD_Ipmaxub:
+        case UD_Ipminsw:
+        case UD_Ipminub:
+        case UD_Ipmovmskb:
+        case UD_Ipmulhuw:
+        case UD_Ipmulhw:
+        case UD_Ipmullw:
+        case UD_Ipmuludq:
+        case UD_Ipop:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ipopa:
+        case UD_Ipopad:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ipopfw:
+        case UD_Ipopfd:
+        case UD_Ipopfq:
+        case UD_Ipor:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Iprefetch:
+        case UD_Iprefetchnta:
+        case UD_Iprefetcht0:
+        case UD_Iprefetcht1:
+        case UD_Iprefetcht2:
+            optype = X86InstructionType_prefetch;
+            break;
+        case UD_Ipsadbw:
+        case UD_Ipshufd:
+        case UD_Ipshufhw:
+        case UD_Ipshuflw:
+        case UD_Ipshufw:
+        case UD_Ipslldq:
+        case UD_Ipsllw:
+        case UD_Ipslld:
+        case UD_Ipsllq:
+        case UD_Ipsraw:
+        case UD_Ipsrad:
+        case UD_Ipsrlw:
+        case UD_Ipsrld:
+        case UD_Ipsrlq:
+        case UD_Ipsrldq:
+        case UD_Ipsubb:
+        case UD_Ipsubw:
+        case UD_Ipsubd:
+        case UD_Ipsubq:
+        case UD_Ipsubsb:
+        case UD_Ipsubsw:
+        case UD_Ipsubusb:
+        case UD_Ipsubusw:
+        case UD_Ipunpckhbw:
+        case UD_Ipunpckhwd:
+        case UD_Ipunpckhdq:
+        case UD_Ipunpckhqdq:
+        case UD_Ipunpcklbw:
+        case UD_Ipunpcklwd:
+        case UD_Ipunpckldq:
+        case UD_Ipunpcklqdq:
+        case UD_Ipi2fw:
+        case UD_Ipi2fd:
+        case UD_Ipf2iw:
+        case UD_Ipf2id:
+        case UD_Ipfnacc:
+        case UD_Ipfpnacc:
+        case UD_Ipfcmpge:
+        case UD_Ipfmin:
+        case UD_Ipfrcp:
+        case UD_Ipfrsqrt:
+        case UD_Ipfsub:
+        case UD_Ipfadd:
+        case UD_Ipfcmpgt:
+        case UD_Ipfmax:
+        case UD_Ipfrcpit1:
+        case UD_Ipfrspit1:
+        case UD_Ipfsubr:
+        case UD_Ipfacc:
+        case UD_Ipfcmpeq:
+        case UD_Ipfmul:
+        case UD_Ipfrcpit2:
+        case UD_Ipmulhrw:
+        case UD_Ipswapd:
+        case UD_Ipavgusb:
+        case UD_Ipush:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ipusha:
+        case UD_Ipushad:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ipushfw:
+        case UD_Ipushfd:
+        case UD_Ipushfq:
+        case UD_Ipxor:
+        case UD_Ircl:
+        case UD_Ircr:
+        case UD_Irol:
+        case UD_Iror:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ircpps:
+        case UD_Ircpss:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Irdmsr:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Irdpmc:
+        case UD_Irdtsc:
+        case UD_Irdtscp:
+            optype = X86InstructionType_hwcount;
+            break;
+        case UD_Irepne:
+        case UD_Irep:
+            optype = X86InstructionType_string;
+            break;
+        case UD_Iret:
+        case UD_Iretf:
+            optype = X86InstructionType_return;
+            break;
+        case UD_Irsm:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Irsqrtps:
+        case UD_Irsqrtss:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Isahf:
+        case UD_Isal:
+        case UD_Isalc:
+        case UD_Isar:
+        case UD_Ishl:
+        case UD_Ishr:
+        case UD_Isbb:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Iscasb:
+        case UD_Iscasw:
+        case UD_Iscasd:
+        case UD_Iscasq:
+            optype = X86InstructionType_string;
+            break;
+        case UD_Iseto:
+        case UD_Isetno:
+        case UD_Isetb:
+        case UD_Isetnb:
+        case UD_Isetz:
+        case UD_Isetnz:
+        case UD_Isetbe:
+        case UD_Iseta:
+        case UD_Isets:
+        case UD_Isetns:
+        case UD_Isetp:
+        case UD_Isetnp:
+        case UD_Isetl:
+        case UD_Isetge:
+        case UD_Isetle:
+        case UD_Isetg:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Isfence:
+        case UD_Isgdt:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ishld:
+        case UD_Ishrd:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ishufpd:
+        case UD_Ishufps:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Isidt:
+        case UD_Isldt:
+        case UD_Ismsw:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Isqrtps:
+        case UD_Isqrtpd:
+        case UD_Isqrtsd:
+        case UD_Isqrtss:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Istc:
+        case UD_Istd:
+        case UD_Istgi:
+        case UD_Isti:
+        case UD_Iskinit:
+        case UD_Istmxcsr:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Istosb:
+        case UD_Istosw:
+        case UD_Istosd:
+        case UD_Istosq:
+            optype = X86InstructionType_string;
+            break;
+        case UD_Istr:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Isub:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Isubpd:
+        case UD_Isubps:
+        case UD_Isubsd:
+        case UD_Isubss:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Iswapgs:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Isyscall:
+        case UD_Isysenter:
+        case UD_Isysexit:
+        case UD_Isysret:
+            optype = X86InstructionType_system_call;
+            break;
+        case UD_Itest:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Iucomisd:
+        case UD_Iucomiss:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Iud2:
+            optype = X86InstructionType_invalid;
+            break;
+        case UD_Iunpckhpd:
+        case UD_Iunpckhps:
+        case UD_Iunpcklps:
+        case UD_Iunpcklpd:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Iverr:
+        case UD_Iverw:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ivmcall:
+        case UD_Ivmclear:
+        case UD_Ivmxon:
+        case UD_Ivmptrld:
+        case UD_Ivmptrst:
+        case UD_Ivmresume:
+        case UD_Ivmxoff:
+        case UD_Ivmrun:
+        case UD_Ivmmcall:
+        case UD_Ivmload:
+        case UD_Ivmsave:
+            optype = X86InstructionType_vmx;
+            break;
+        case UD_Iwait:
+        case UD_Iwbinvd:
+        case UD_Iwrmsr:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ixadd:
+        case UD_Ixchg:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ixlatb:
+            optype = X86InstructionType_special;
+            break;
+        case UD_Ixor:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ixorpd:
+        case UD_Ixorps:
+            optype = X86InstructionType_float;
+            break;
+        case UD_Idb:
+        case UD_Iinvalid:
+        case UD_Id3vil:
+        case UD_Ina:
+        case UD_Igrp_reg:
+        case UD_Igrp_rm:
+        case UD_Igrp_vendor:
+        case UD_Igrp_x87:
+        case UD_Igrp_mode:
+        case UD_Igrp_osize:
+        case UD_Igrp_asize:
+        case UD_Igrp_mod:
+        case UD_Inone:
+            optype = X86InstructionType_invalid;
+            break;
+        default:
+            optype = X86InstructionType_unknown;
+            break;
+    };
+
+    if (optype == X86InstructionType_unknown){
+        PRINT_ERROR("unknown type -- addr %llx, mne %s", baseAddress, ud_lookup_mnemonic(GET(mnemonic)));
+    }
+    if (optype == X86InstructionType_invalid){
+        PRINT_ERROR("invalid type -- addr %llx, mne %s", baseAddress, ud_lookup_mnemonic(GET(mnemonic)));
+    }
+    ASSERT(optype != X86InstructionType_unknown && optype != X86InstructionType_invalid);
+    return optype;
 }
 
 bool Instruction::controlFallsThrough(){
@@ -202,885 +1252,257 @@ bool Instruction::controlFallsThrough(){
     return true;
 }
 
-bool Operand::isIndirect(){
-    if (type == x86_operand_type_func_indirE){
-        return true;
-    }
-    return false;
-}
 
+Operand::Operand(Instruction* inst, struct ud_operand* init, uint32_t idx){
+    instruction = inst;
+    memcpy(&entry, init, sizeof(struct ud_operand));
+    operandIndex = idx;
 
-uint32_t Instruction::bytesUsedForTarget(){
-    if (isControl()){
-        if (isUnconditionalBranch() || isConditionalBranch() || isFunctionCall()){
-            if (operands[JUMP_TARGET_OPERAND]){
-                return operands[JUMP_TARGET_OPERAND]->getBytesUsed();
-            }
-        }
-    }
-    return 0;
-}
-
-uint32_t Instruction::convertTo4ByteOperand(){
-    ASSERT(isControl());
-    ASSERT(rawBytes);
-
-#ifdef DEBUG_INST
-    PRINT_INFOR("Before mod");
-    print();
-#endif
-    if (bytesUsedForTarget() && bytesUsedForTarget() < sizeof(uint32_t)){
-        if (isUnconditionalBranch()){
-            ASSERT(sizeInBytes == 2);
-            if (!addressAnchor){
-                print();
-            }
-            ASSERT(addressAnchor);
-            //ASSERT(rawBytes[0] == 0xeb && "Expected a 2-byte jmp opcode here");
-            sizeInBytes += 3;
-            char* newBytes = new char[sizeInBytes];
-            newBytes[0] = rawBytes[0] - 0x02;
-            uint32_t addr = baseAddress - getTargetAddress();
-            memcpy(newBytes+1,&addr,sizeof(uint32_t));
-            setBytes(newBytes);
-            operands[JUMP_TARGET_OPERAND]->setBytesUsed(sizeof(uint32_t));
-            delete[] newBytes;
-        } else if (isConditionalBranch()){
-            if (sizeInBytes != 2){
-                PRINT_WARN(4,"Conditional Branch with 3 bytes encountered");
-                print();
-            }
-            //            ASSERT(sizeInBytes == 2 || sizeInBytes == 3);
-            if (!addressAnchor){
-                PRINT_ERROR("Instruction at address %#llx (%#llx) should have an address anchor", getBaseAddress(), getProgramAddress());
-            }
-            ASSERT(addressAnchor);
-            //ASSERT(rawBytes[0] != 0xe3 && "We don't handle jcxz instruction currently");
-            sizeInBytes += 4;
-            char* newBytes = new char[sizeInBytes];
-            newBytes[0] = 0x0f;
-            newBytes[1] = rawBytes[0] + 0x10;
-            uint32_t addr = baseAddress - getTargetAddress();
-            memcpy(newBytes+2,&addr,sizeof(uint32_t));
-            setBytes(newBytes);
-            operands[JUMP_TARGET_OPERAND]->setBytesUsed(sizeof(uint32_t));
-            operands[JUMP_TARGET_OPERAND]->setBytePosition(operands[JUMP_TARGET_OPERAND]->getBytePosition()+1);
-            delete[] newBytes;
-        } else if (isFunctionCall()){
-            __FUNCTION_NOT_IMPLEMENTED;
-        } else if (isReturn()){
-            ASSERT(sizeInBytes == 1);
-            // nothing to do since returns dont have target ops
-        } else {
-            PRINT_ERROR("Unknown branch type %d not handled currently", instructionType);
-            __SHOULD_NOT_ARRIVE;
-        }
-    }
-#ifdef DEBUG_INST
-    PRINT_INFOR("After mod");
-    print();
-#endif
-    return sizeInBytes;
-}
-
-bool Instruction::verify(){
-    uint32_t relCount = 0;
-    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i]){
-            if (operands[i]->isRelative()){
-                relCount++;
-            }
-        }
-    }
-    if (relCount > 1){
-        PRINT_ERROR("Cannot have more than one relative operand in an instruction");
-        return false;
-    }
-    if (instructionType > x86_insn_type_Total){
-        PRINT_ERROR("Instruction type malformed");
-        return false;
-    }
-    /*
-    if (instructionType == x86_insn_type_bad){
-        PRINT_ERROR("Instruction type bad -- likely a misinterpretation of data as instructions or an error in control flow");
-        return false;
-    }
-    */
-    /*
-    if (instructionType == x86_insn_type_unknown){
-        PRINT_ERROR("Instruction type unknown");
-        return false;
-    }
-    */
-    return true;
-}
-
-bool Instruction::usesIndirectAddress(){
-    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i]){
-            if (operands[i]->getType() && operands[i]->isIndirect()){
-                return true;
-            }
-        }
-    }
-    return false;        
-}
-
-bool Instruction::usesRelativeAddress(){
-    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i]){
-            if (operands[i]->getType() && operands[i]->isRelative()){
-                return true;
-            }
-        }
-    }
-    return false;    
-}
-
-uint64_t Instruction::getRelativeValue(){
-    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i]){
-            if (operands[i]->getType() && operands[i]->isRelative()){
-                return operands[i]->getValue();
-            }
-        }
-    }
-    return 0;
-}
-
-void Instruction::deleteAnchor(){
-    if (addressAnchor){
-        delete addressAnchor;
-    }
-    addressAnchor = NULL;
-}
-
-void Instruction::initializeAnchor(Base* link){
-    if (addressAnchor){
-        print();
-    }
-    ASSERT(!addressAnchor);
-    ASSERT(link->containsProgramBits());
-    addressAnchor = new AddressAnchor(link,this);
-}
-
-uint64_t Instruction::getProgramAddress(){
-    return programAddress;
-}
-
-uint8_t Instruction::getByteSource(){
-    return source;
-}
-
-bool Instruction::isNoop(){
-    return (instructionType == x86_insn_type_noop);
-}
-
-bool Instruction::isIndirectBranch(){
-    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i]->getType() == x86_operand_type_func_indirE){
-            return true;
-        }
-    }
-    return false;
-}
-
-uint32_t Instruction::getIndirectBranchTarget(){
-    ASSERT(isIndirectBranch());
-    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i]->getType() == x86_operand_type_func_indirE){
-            return operands[i]->getValue();
-        }
-    }
-    __SHOULD_NOT_ARRIVE;
-}
-
-bool Instruction::isControl(){
-    return  (isConditionalBranch() || isUnconditionalBranch() || isSystemCall() || isFunctionCall() || isReturn());
-}
-
-bool Instruction::isRelocatable(){
-    return true;
-}
-
-void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    ASSERT(rawBytes && sizeInBytes && "This instruction has no bytes thus it cannot be dumped");
-    binaryOutputFile->copyBytes(rawBytes,sizeInBytes,offset);
-
-    // the anchor will now overwrite any original instruction bytes that relate to relative addresses
-    if (addressAnchor){
-        addressAnchor->dump(binaryOutputFile,offset);
-    }
-}
-
-Operand::Operand(){
-    type = x86_operand_type_unused;
-    value = 0;
-    bytesUsed = 0;
-    relative = false;
-    bytePosition = 0;
-
-    index = 0;
-}
-
-Operand::Operand(uint32_t idx){
-    type = x86_operand_type_unused;
-    value = 0;
-    bytesUsed = 0;
-    relative = false;
-    bytePosition = 0;
-
-    index = idx;
-}
-
-Operand::Operand(uint32_t typ, uint64_t val, uint32_t idx){
-    type = typ;
-    value = val;
-    bytesUsed = 0;
-    relative = false;
-    bytePosition = 0;
-
-    index = idx;
-}
-
-void Operand::setBytesUsed(uint8_t usd){
-    ASSERT(usd == sizeof(uint32_t) || usd == sizeof(uint16_t) || usd == sizeof(uint8_t));
-    bytesUsed = usd;
-}
-
-void Instruction::setOperandValue(uint32_t idx, uint64_t value){
-    ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    if (!operands[idx]){
-        operands[idx] = new Operand(idx);
-    }
-    PRINT_DEBUG_OPERAND("setting operand[%d].value = %llx", idx, value);
-    operands[idx]->setValue(value);
-}
-
-void Instruction::setOperandType(uint32_t idx, uint8_t typ){
-    ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    if (!operands[idx]){
-        operands[idx] = new Operand(idx);
-    }
-    PRINT_DEBUG_OPERAND("setting operand[%d].type = %hhd", idx, typ);
-    operands[idx]->setType(typ);
-}
-
-void Instruction::setOperandBytePosition(uint32_t idx, uint8_t pos){
-    ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    ASSERT(operands[idx]);
-    operands[idx]->setBytePosition(pos);
-}
-
-void Instruction::setOperandBytesUsed(uint32_t idx, uint8_t usd){
-    ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    ASSERT(operands[idx]);
-    operands[idx]->setBytesUsed(usd);
-}
-
-void Instruction::setOperandRelative(uint32_t idx, bool rel){
-    ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
-    ASSERT(operands[idx]);
-    PRINT_DEBUG_OPERAND("setting operand[%d].rel = %d", idx, rel);
-    operands[idx]->setRelative(rel);
-}
-
-uint64_t Instruction::getTargetAddress(){
-    uint64_t nextAddress;
-    if (instructionType == x86_insn_type_branch ||
-        instructionType == x86_insn_type_cond_branch ||
-        instructionType == x86_insn_type_call){
-        if (operands[JUMP_TARGET_OPERAND]){
-            if (operands[JUMP_TARGET_OPERAND]->getType() == x86_operand_type_immrel){
-                nextAddress = getBaseAddress() + operands[JUMP_TARGET_OPERAND]->getValue();
-                PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx", nextAddress,  getBaseAddress(), operands[JUMP_TARGET_OPERAND]->getValue());
-            } else {
-                nextAddress = operands[JUMP_TARGET_OPERAND]->getValue();
-            }
-        } else {
-            nextAddress = 0;
-        }
-    } else if (instructionType == x86_insn_type_syscall){
-        nextAddress = 0;
-    } else {
-        nextAddress = baseAddress + sizeInBytes;
-    }
-
-    PRINT_DEBUG_OPTARGET("Set next address to 0x%llx", nextAddress);
-    return nextAddress;
-}
-
-
-void Instruction::setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2){
-    PRINT_DEBUG_OPCODE("Setting instruction type %d 0x%08x 0x%08x", formatType, idx1, idx2);
-
-    switch(formatType){
-    case x86_insn_format_onebyte:
-        instructionType = computeOpcodeTypeOneByte(idx1);
-        break;
-    case x86_insn_format_twobyte:
-        instructionType = computeOpcodeTypeTwoByte(idx1);
-        break;
-    case x86_insn_format_groups:
-        instructionType = computeOpcodeTypeGroups(idx1,idx2);
-        break;
-    case x86_insn_format_prefix_user_table:
-        instructionType = computeOpcodeTypePrefixUser(idx1,idx2);
-        break;
-    case x86_insn_format_x86_64:
-        instructionType = computeOpcodeTypeX8664(idx1,idx2);
-        break;
-    case x86_insn_format_float_mem:
-        instructionType = x86_insn_type_float;
-        break;
-    case x86_insn_format_float_reg:
-        instructionType = x86_insn_type_float;
-        break;
-    case x86_insn_format_float_groups:
-        instructionType = x86_insn_type_float;
-        break;
-    default:
-        instructionType = x86_insn_type_unknown;
-        break;
-    }
-
-    ASSERT(instructionType && "Instruction type should be known");
-
-}
-
-uint64_t Instruction::findInstrumentationPoint(uint32_t size, InstLocations loc){
-    __SHOULD_NOT_ARRIVE;
-}
-
-Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx, bool doReformat)
-    : Base(ElfClassTypes_Instruction)
-{
-    textSection = text;
-    baseAddress = baseAddr;
-    sizeInBytes = MAX_X86_INSTRUCTION_LENGTH;
-    index = idx;
-    rawBytes = NULL;
-    setBytes(buff);
-    source = src;
-    instructionType = x86_insn_type_unknown;
-    leader = false;
-    reformat = doReformat;
-
-    operands = new Operand*[MAX_OPERANDS];
-    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        operands[i] = NULL;
-        //        operands[i] = new Operand(i);
-    }
-
-    programAddress = 0;
-    if (IS_BYTE_SOURCE_APPLICATION(source)){
-        programAddress = baseAddress;
-    }
-
-    sizeInBytes = Base::disassembler->disassemble((uint64_t)buff, this);
-    if (!sizeInBytes){
-        sizeInBytes = 1;
-    }
-
-    addressAnchor = NULL;
     verify();
 }
 
-Instruction::Instruction()
-    : Base(ElfClassTypes_Instruction)
-{
-    textSection = NULL;
-    baseAddress = 0;
-    sizeInBytes = MAX_X86_INSTRUCTION_LENGTH;
-    index = 0;
-    rawBytes = NULL;
-    source = ByteSource_Instrumentation;
-    instructionType = x86_insn_type_unknown;
-    leader = false;
-
-    programAddress = 0;
-
-    operands = new Operand*[MAX_OPERANDS];
-    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        operands[i] = NULL;
-        //        operands[i] = new Operand(i);
+bool Operand::verify(){
+    if (GET(size)){
+        if (GET(size) != 8 &&
+            GET(size) != 16 &&
+            GET(size) != 32 &&
+            GET(size) != 48 &&
+            GET(size) != 64 &&
+            GET(size) != 80){
+            print();
+            PRINT_ERROR("Illegal operand size %d", GET(size));
+            return false;
+        }
     }
 
-    addressAnchor = NULL;
-    verify();
+    /*
+    if (memcmp(&instruction->GET(operands[operandIndex]), &entry, sizeof(struct ud_operand))){
+        PRINT_ERROR("Operand contents should be the same as those in the instruction");
+        return false;
+    }
+    */
+
+    return true;
 }
 
 Instruction::~Instruction(){
-    if (rawBytes){
-        delete[] rawBytes;
-    }
-    if (addressAnchor){
-        delete addressAnchor;
-    }
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i]){
             delete operands[i];
         }
     }
     delete[] operands;
-}
 
-char* Instruction::getBytes(){
-    return rawBytes;
-}
-
-void Instruction::setBytes(char* bytes){
-    if (rawBytes){
-        delete[] rawBytes;
+    if (addressAnchor){
+        delete addressAnchor;
     }
-    rawBytes = new char[sizeInBytes];
-    memcpy(rawBytes, bytes, sizeInBytes);
-}
-
-void Instruction::setSizeInBytes(uint32_t len){
-    ASSERT(len <= MAX_X86_INSTRUCTION_LENGTH && "X86 instructions are limited in size");
-    ASSERT(len <= sizeInBytes);
-    sizeInBytes = len;
-}
-
-uint64_t Instruction::getBaseAddress(){
-    return baseAddress;
 }
 
 Operand* Instruction::getOperand(uint32_t idx){
+    ASSERT(operands);
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
+
     return operands[idx];
 }
 
-const char* OpTypeNames[] = {
-    "type_unused",        // 0
-    "type_immrel",
-    "type_reg",
-    "type_imreg",
-    "type_imm",
-    "type_mem",               // 5
-    "type_func_ST",
-    "type_func_STi",
-    "type_func_indirE",
-    "type_func_E",
-    "type_func_G",            // 10
-    "type_func_IMREG",
-    "type_func_I",
-    "type_func_I64",
-    "type_func_sI",
-    "type_func_J",            // 15
-    "type_func_SEG",
-    "type_func_DIR",
-    "type_func_OFF",
-    "type_func_OFF64",
-    "type_func_ESreg",        // 20
-    "type_func_DSreg",
-    "type_func_C",
-    "type_func_D",
-    "type_func_T",
-    "type_func_Rd",           // 25    
-    "type_func_MMX",
-    "type_func_XMM",
-    "type_func_EM",
-    "type_func_EX",
-    "type_func_MS",           // 30
-    "type_func_XS",
-    "type_func_3DNowSuffix",
-    "type_func_SIMD_Suffix",
-    "type_func_SIMD_Fixup"
-    };
+Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx)
+    : Base(ElfClassTypes_Instruction)
+{
+    ud_t ud_obj;
+    ud_init(&ud_obj);
+    ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
 
-void Operand::print(){
-    char* relStr = "NOREL";
-    if (isRelative()){
-        relStr =   "IPREL";
+    if (text->getElfFile()->is64Bit()){
+        ud_set_mode(&ud_obj, 64);
+    } else {
+        ud_set_mode(&ud_obj, 32);
     }
-    PRINT_INFOR("\tOPERAND(%d) %16s %5s %1d+%1d 0x%08x", index, OpTypeNames[getType()], relStr, getBytePosition(), getBytesUsed(), getValue());
+    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
+
+    sizeInBytes = ud_disassemble(&ud_obj);
+    if (sizeInBytes) {
+        memcpy(&entry, &ud_obj, sizeof(struct ud));
+    } else {
+        PRINT_ERROR("Problem doing instruction disassembly");
+    }
+
+    baseAddress = baseAddr;
+    instructionIndex = idx;
+    byteSource = src;
+    textSection = text;
+    addressAnchor = NULL;
+
+    operands = new Operand*[MAX_OPERANDS];
+
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        ud_operand op = GET(operand)[i];
+        operands[i] = NULL;
+        if (op.type){
+            operands[i] = new Operand(this, &GET(operand)[i], i);
+        }
+    }
+
+    leader = false;
+    
+    verify();
+    //    print();
+
+}
+
+Instruction::Instruction(struct ud* init)
+    : Base(ElfClassTypes_Instruction)
+{
+    memcpy(&entry, init, sizeof(struct ud));
+
+    sizeInBytes = ud_insn_len(&entry);
+
+    baseAddress = 0;
+    instructionIndex = 0;
+    byteSource = ByteSource_Instrumentation;
+    textSection = NULL;
+    addressAnchor = NULL;
+
+    operands = new Operand*[MAX_OPERANDS];
+
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        ud_operand op = GET(operand)[i];
+        operands[i] = NULL;
+        if (op.type){
+            operands[i] = new Operand(this, &GET(operand)[i], i);
+        }
+    }
+
+    leader = false;
+    
+    verify();
+}
+
+void Instruction::print(){
+
+    char flags[7];
+    if (usesRelativeAddress()){
+        flags[0] = 'R';
+    } else flags[0] = ' ';
+    if (isControl()){
+        flags[1] = 'C';
+    } else flags[1] = ' ';
+    if (usesControlTarget()){
+        flags[2] = 'T';
+    } else flags[2] = ' ';
+    if (isJumpTableBase()){
+        flags[3] = 'B';
+    } else flags[3] = ' ';
+    if (isLeader()){
+        flags[4] = 'L';
+    } else flags[4] = ' ';
+    if (usesIndirectAddress()){
+        flags[5] = 'I';
+    } else flags[5] = ' ';
+    flags[6] = '\0';
+
+    PRINT_INFOR("%#llx:\t%16s\t%s\t'%6s'\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
+    PRINT_INFOR("\t%s (%d,%d) (%d,%d) (%d,%d) %d", ud_lookup_mnemonic(GET(itab_entry)->mnemonic), GET(itab_entry)->operand1.type, GET(itab_entry)->operand1.size, GET(itab_entry)->operand2.type, GET(itab_entry)->operand2.size, GET(itab_entry)->operand3.type, GET(itab_entry)->operand3.size, GET(itab_entry)->prefix);
+
+    PRINT_INFOR("%d(%s)\t%hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd", GET(mnemonic), ud_lookup_mnemonic(GET(mnemonic)),
+                GET(error), GET(pfx_rex), GET(pfx_seg), GET(pfx_opr), GET(pfx_adr), GET(pfx_lock), GET(pfx_rep),
+                GET(pfx_repe), GET(pfx_repne), GET(pfx_insn), GET(default64), GET(opr_mode), GET(adr_mode),
+                GET(br_far), GET(br_near), GET(implicit_addr), GET(c1), GET(c2), GET(c3));
+
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        ud_operand op = GET(operand)[i];
+        if (op.type){
+            getOperand(i)->print();
+        }
+    }
+}
+
+const char* ud_optype_str[] = { "reg", "mem", "ptr", "imm", "jimm", "const" };
+const char* ud_regtype_str[] = { "undefined", "8bit gpr", "16bit gpr", "32bit gpr", "64bit gpr", "seg reg", 
+                                 "ctrl reg", "dbg reg", "mmx reg", "x87 reg", "xmm reg", "pc reg" };
+
+uint32_t regbase_to_type(uint32_t base){
+    if (IS_8BIT_GPR(base))         return RegType_8Bit;
+    else if (IS_16BIT_GPR(base))   return RegType_16Bit;
+    else if (IS_32BIT_GPR(base))   return RegType_32Bit;
+    else if (IS_64BIT_GPR(base))   return RegType_64Bit;
+    else if (IS_SEGMENT_REG(base)) return RegType_Segment;
+    else if (IS_CONTROL_REG(base)) return RegType_Control;
+    else if (IS_DEBUG_REG(base))   return RegType_Debug;
+    else if (IS_MMX_REG(base))     return RegType_MMX;
+    else if (IS_X87_REG(base))     return RegType_X87;
+    else if (IS_XMM_REG(base))     return RegType_XMM;
+    else if (IS_PC_REG(base))      return RegType_PC;
+    __SHOULD_NOT_ARRIVE;
+    return 0;
 }
 
 
-const char* InstTypeNames[] = {
-    "type_unknown",
-    "type_bad",
-    "type_cond_branch",
-    "type_branch",
-    "type_call",
-    "type_return",
-    "type_int",
-    "type_float",
-    "type_simd",
-    "type_io",
-    "type_prefetch",
-    "type_syscall",
-    "type_halt",
-    "type_hwcount",
-    "type_noop",
-    "type_trap"
-};
+void Operand::print(){
+    ud_operand op = entry;
 
-void Instruction::print(){
-    char* relStr = "     ";
-    if (isRelocatable()){
-        relStr =   "RELOC";
-    }
-    char* fromStr = "   ";
-    if (getByteSource() == ByteSource_Application){
-        fromStr = "AppGnrl";
-    } else if (getByteSource() == ByteSource_Application_FreeText){
-        fromStr = "AppFree";
-    } else if (getByteSource() == ByteSource_Application_Function){
-        fromStr = "AppFunc";
-    } else if (getByteSource() == ByteSource_Instrumentation){
-        fromStr = "InstGen";
+    ASSERT(op.type);
+
+    PRINT_INFOR("\traw operand %d: type=%d(%d), size=%hhd, position=%hhd, base=%d, index=%d, lval=%#llx, offset=%hhd, scale=%hhd", 
+                operandIndex, GET(type), GET(type) - UD_OP_REG, GET(size), GET(position), GET(base), GET(index), op.lval, GET(offset), GET(scale));
+    
+    char typstr[32];
+    char valstr[32];
+    bzero(typstr, 32);
+    bzero(valstr, 32);
+
+    if (GET(type) == UD_OP_REG){
+        sprintf(typstr, "%s\0", ud_regtype_str[regbase_to_type(GET(base))]);
+        sprintf(valstr, "%s\0", ud_reg_tab[GET(base)-1]);
+    } else if (GET(type) == UD_OP_MEM){
+        sprintf(typstr, "%s%d\0", ud_optype_str[GET(type) - UD_OP_REG], op.size);
+        if (GET(base)){
+            sprintf(valstr, "%s + %llx\0", ud_reg_tab[GET(base)-1], op.lval);
+        } else {
+            sprintf(valstr, "%llx\0", op.lval);
+        }
+    } else if (GET(type) == UD_OP_PTR){
+        __FUNCTION_NOT_IMPLEMENTED;
+    } else if (GET(type) == UD_OP_IMM || GET(type) == UD_OP_JIMM){
+        sprintf(typstr, "%s%d\0", ud_optype_str[GET(type) - UD_OP_REG], op.size);
+        sprintf(valstr, "%#llx\0", op.lval);
+    } else if (GET(type) == UD_OP_CONST){
+        sprintf(typstr, "%s\0", ud_optype_str[GET(type) - UD_OP_REG]);
+        sprintf(valstr, "%d\0", op.lval);
     } else {
         __SHOULD_NOT_ARRIVE;
     }
+    
+    PRINT_INFOR("\t[op%d] %s: %s", operandIndex, typstr, valstr, GET(index));
+}
 
-    PRINT_INFO();
-
-    PRINT_OUT("INSTRUCTION(%d) %15s %5s %7s [%d bytes -- ", index, InstTypeNames[instructionType], relStr, fromStr, sizeInBytes);
-
-    if (rawBytes){
-        for (uint32_t i = 0; i < sizeInBytes; i++){
-            PRINT_OUT("%02hhx", rawBytes[i]);
-        }
-    } else {
-        PRINT_OUT("NOBYTES");
-    }
-    PRINT_OUT("] 0x%llx -> 0x%llx (paddr %#llx)", baseAddress, getTargetAddress(), getProgramAddress());
-    if (addressAnchor){
-        PRINT_OUT(" (anchor -> %#llx)", addressAnchor->getLinkValue());
-    }
-    PRINT_OUT("\n");
-
-    if (isJumpTableBase()){
-        PRINT_INFOR("\tis jump table");
-    }
+bool Instruction::verify(){
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i]){
-            if (operands[i]->getType()){
-                operands[i]->print();
+        ud_operand op = GET(operand)[i];
+        if (op.type){
+            if (!IS_OPERAND_TYPE(op.type)){
+                PRINT_ERROR("Found operand with nonsensical type %d", op.type);
+                return false;
+            }
+            if (!operands[i]){
+                PRINT_ERROR("Found null operand where one should exist");
+                return false;
+            }
+        }
+        if (op.base){
+            if (!IS_REG(op.base)){
+                PRINT_ERROR("Found operand with nonsensical base %d", op.base);
+                return false;
+            }
+        }
+        if (op.index){
+            if (!IS_GPR(op.index)){
+                PRINT_ERROR("Found operand with nonsensical index %d", op.index);
+                return false;
             }
         }
     }
+
+    return true;
 }
 
-
-uint32_t Instruction::computeOpcodeTypeOneByte(uint32_t idx){
-    ASSERT(idx < 0x100 && "Opcode identifier should be limited in range");
-
-    uint32_t typ;
-
-    switch(idx){
-    case 0x00: case 0x01: case 0x02: case 0x03: case 0x04: case 0x05: case 0x06: case 0x07:
-    case 0x08: case 0x09: case 0x0a: case 0x0b: case 0x0c: case 0x0d: case 0x0e: case 0x0f:
-    case 0x10: case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
-    case 0x18: case 0x19: case 0x1a: case 0x1b: case 0x1c: case 0x1d: case 0x1e: case 0x1f:
-    case 0x20: case 0x21: case 0x22: case 0x23: case 0x24: case 0x25: case 0x26: case 0x27:
-    case 0x28: case 0x29: case 0x2a: case 0x2b: case 0x2c: case 0x2d: 
-        typ = x86_insn_type_int;
-        break;
-    case 0x2e: 
-        typ = x86_insn_type_bad;
-        break;
-    case 0x2f:
-    case 0x30: case 0x31: case 0x32: case 0x33: case 0x34: case 0x35: 
-        typ = x86_insn_type_int;
-        break;
-    case 0x36: 
-        typ = x86_insn_type_bad;
-        break;
-    case 0x37:
-    case 0x38: case 0x39: case 0x3a: case 0x3b: case 0x3c: case 0x3d: 
-        typ = x86_insn_type_int;
-        break;
-    case 0x3e: 
-        typ = x86_insn_type_bad;
-        break;
-    case 0x3f:
-    case 0x40: case 0x41: case 0x42: case 0x43: case 0x44: case 0x45: case 0x46: case 0x47:
-    case 0x48: case 0x49: case 0x4a: case 0x4b: case 0x4c: case 0x4d: case 0x4e: case 0x4f:
-    case 0x50: case 0x51: case 0x52: case 0x53: case 0x54: case 0x55: case 0x56: case 0x57:
-    case 0x58: case 0x59: case 0x5a: case 0x5b: case 0x5c: case 0x5d: case 0x5e: case 0x5f:
-    case 0x60: case 0x61: case 0x62: case 0x63: 
-        typ = x86_insn_type_int;
-        break;
-    case 0x64: case 0x65: case 0x66: case 0x67:
-        typ = x86_insn_type_bad;
-        break;
-    case 0x68: case 0x69: case 0x6a: case 0x6b:
-        typ = x86_insn_type_int;
-        break;
-    case 0x6c: case 0x6d: case 0x6e: case 0x6f:
-        typ = x86_insn_type_io;
-        break;
-    case 0x70: case 0x71: case 0x72: case 0x73: case 0x74: case 0x75: case 0x76: case 0x77:
-    case 0x78: case 0x79: case 0x7a: case 0x7b: case 0x7c: case 0x7d: case 0x7e: case 0x7f:
-        typ = x86_insn_type_cond_branch;
-        break;
-    case 0x80: case 0x81: 
-        typ = x86_insn_type_int;
-        break;
-    case 0x82: 
-        typ = x86_insn_type_bad;
-        break;
-    case 0x83: case 0x84: case 0x85: case 0x86: case 0x87:
-    case 0x88: case 0x89: case 0x8a: case 0x8b: case 0x8c: case 0x8d: case 0x8e: case 0x8f:
-        typ = x86_insn_type_int;
-        break;
-    case 0x90: 
-        typ = x86_insn_type_noop;
-        break;
-    case 0x91: case 0x92: case 0x93: case 0x94: case 0x95: case 0x96: case 0x97:
-        typ = x86_insn_type_int;
-        break;
-    case 0x98: case 0x99: case 0x9a: 
-        typ = x86_insn_type_call;
-        break;
-    case 0x9b:
-        typ = x86_insn_type_bad;
-        break;
-    case 0x9c: case 0x9d: case 0x9e: case 0x9f:
-    case 0xa0: case 0xa1: case 0xa2: case 0xa3: case 0xa4: case 0xa5: case 0xa6: case 0xa7:
-    case 0xa8: case 0xa9: case 0xaa: case 0xab: case 0xac: case 0xad: case 0xae: case 0xaf:
-    case 0xb0: case 0xb1: case 0xb2: case 0xb3: case 0xb4: case 0xb5: case 0xb6: case 0xb7:
-    case 0xb8: case 0xb9: case 0xba: case 0xbb: case 0xbc: case 0xbd: case 0xbe: case 0xbf:
-        typ = x86_insn_type_int;
-        break;
-    case 0xc0: case 0xc1: 
-        typ = x86_insn_type_branch;
-        break;
-    case 0xc2: case 0xc3:
-        typ = x86_insn_type_return; // return
-        break;
-    case 0xc4: case 0xc5: case 0xc6: case 0xc7: case 0xc8: case 0xc9:
-        typ = x86_insn_type_int;
-        break;
-    case 0xca: case 0xcb: 
-        typ = x86_insn_type_return; // return
-        break;
-    case 0xcc: case 0xcd: case 0xce: 
-        typ = x86_insn_type_trap;
-        break;
-    case 0xcf:
-        typ = x86_insn_type_return; // return
-        break;
-    case 0xd0: case 0xd1: case 0xd2: case 0xd3: case 0xd4: case 0xd5: 
-        typ = x86_insn_type_int;
-        break;
-    case 0xd6: 
-        typ = x86_insn_type_bad;
-        break;
-    case 0xd7:
-        typ = x86_insn_type_int;
-        break;
-    case 0xd8: case 0xd9: case 0xda: case 0xdb: case 0xdc: case 0xdd: case 0xde: case 0xdf:
-        typ = x86_insn_type_float;
-        break;
-    case 0xe0: case 0xe1: case 0xe2: case 0xe3:
-        typ = x86_insn_type_cond_branch;
-        break;
-    case 0xe4: case 0xe5: case 0xe6: case 0xe7:
-        typ = x86_insn_type_io;
-        break;
-    case 0xe8: 
-        typ = x86_insn_type_call;
-        break;
-    case 0xe9: case 0xea: case 0xeb:
-        typ = x86_insn_type_branch;
-        break;
-    case 0xec: case 0xed: case 0xee: case 0xef:
-        typ = x86_insn_type_io;
-        break;
-    case 0xf0: case 0xf1: case 0xf2: case 0xf3: 
-        typ = x86_insn_type_bad;
-        break;
-    case 0xf4: 
-        typ = x86_insn_type_halt;
-        break;
-    case 0xf5: case 0xf6: case 0xf7:
-        typ = x86_insn_type_syscall;
-        break;
-    case 0xf8: case 0xf9: case 0xfa: case 0xfb: case 0xfc: case 0xfd: case 0xfe: case 0xff:
-        typ = x86_insn_type_int;
-        break;
-    }
-    return typ;
-}
-
-
-uint32_t Instruction::computeOpcodeTypeTwoByte(uint32_t idx){
-    ASSERT(idx < 0x100 && "Opcode identifier should be limited in range");
-
-    uint32_t typ;
-
-    switch(idx){
-    case 0x00: case 0x01: case 0x02: case 0x03:
-        typ = x86_insn_type_int;
-        break;
-    case 0x04: case 0x05:
-        typ = x86_insn_type_syscall;
-        break;
-    case 0x06:
-        typ = x86_insn_type_int;
-        break;
-    case 0x07:
-        typ = x86_insn_type_syscall;
-        break;
-    case 0x08: case 0x09: case 0x0a: case 0x0b: case 0x0c: case 0x0d: case 0x0e: case 0x0f:
-        typ = x86_insn_type_int;
-        break;
-    case 0x10: case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
-        typ = x86_insn_type_simd;
-        break;
-    case 0x18: case 0x19: case 0x1a: case 0x1b: case 0x1c: case 0x1d: case 0x1e: case 0x1f:
-    case 0x20: case 0x21: case 0x22: case 0x23: case 0x24: case 0x25: case 0x26: case 0x27:
-        typ = x86_insn_type_int;
-        break;
-    case 0x28: case 0x29: case 0x2a: case 0x2b: case 0x2c: case 0x2d: case 0x2e: case 0x2f:
-        typ = x86_insn_type_float;
-        break;
-    case 0x30: case 0x31: case 0x32: case 0x33:
-        typ = x86_insn_type_hwcount;
-        break;
-    case 0x34: case 0x35: case 0x36: case 0x37:
-        typ = x86_insn_type_syscall;
-        break;
-    case 0x38: case 0x39: case 0x3a: case 0x3b: case 0x3c: case 0x3d: case 0x3e: case 0x3f:
-    case 0x40: case 0x41: case 0x42: case 0x43: case 0x44: case 0x45: case 0x46: case 0x47:
-    case 0x48: case 0x49: case 0x4a: case 0x4b: case 0x4c: case 0x4d: case 0x4e: case 0x4f:
-        typ = x86_insn_type_int;
-        break;
-    case 0x50: case 0x51: case 0x52: case 0x53: case 0x54: case 0x55: case 0x56: case 0x57:
-    case 0x58: case 0x59: case 0x5a: case 0x5b: case 0x5c: case 0x5d: case 0x5e: case 0x5f:
-    case 0x60: case 0x61: case 0x62: case 0x63: case 0x64: case 0x65: case 0x66: case 0x67:
-    case 0x68: case 0x69: case 0x6a: case 0x6b:
-        typ = x86_insn_type_float;
-        break;
-    case 0x6c: case 0x6d: case 0x6e: case 0x6f: 
-    case 0x70: case 0x71: case 0x72: case 0x73: case 0x74: case 0x75: case 0x76: case 0x77:
-    case 0x78: case 0x79: case 0x7a: case 0x7b: case 0x7c: case 0x7d: case 0x7e: case 0x7f:
-        typ = x86_insn_type_int;
-        break;
-    case 0x80: case 0x81: case 0x82: case 0x83: case 0x84: case 0x85: case 0x86: case 0x87:
-    case 0x88: case 0x89: case 0x8a: case 0x8b: case 0x8c: case 0x8d: case 0x8e: case 0x8f:
-        typ = x86_insn_type_cond_branch;
-        break;
-    case 0x90: case 0x91: case 0x92: case 0x93: case 0x94: case 0x95: case 0x96: case 0x97:
-    case 0x98: case 0x99: case 0x9a: case 0x9b: case 0x9c: case 0x9d: case 0x9e: case 0x9f:
-    case 0xa0: case 0xa1: case 0xa2: case 0xa3: case 0xa4: case 0xa5: case 0xa6: case 0xa7:
-    case 0xa8: case 0xa9: case 0xaa: case 0xab: case 0xac: case 0xad: case 0xae: case 0xaf:
-    case 0xb0: case 0xb1: case 0xb2: case 0xb3: case 0xb4: case 0xb5: case 0xb6: case 0xb7:
-    case 0xb8: case 0xb9: case 0xba: case 0xbb: case 0xbc: case 0xbd: case 0xbe: case 0xbf:
-    case 0xc0: case 0xc1: case 0xc2: case 0xc3: case 0xc4: case 0xc5: case 0xc6: case 0xc7:
-    case 0xc8: case 0xc9: case 0xca: case 0xcb: case 0xcc: case 0xcd: case 0xce: case 0xcf:
-    case 0xd0: case 0xd1: case 0xd2: case 0xd3: case 0xd4: case 0xd5: case 0xd6: case 0xd7:
-    case 0xd8: case 0xd9: case 0xda: case 0xdb: case 0xdc: case 0xdd: case 0xde: case 0xdf:
-    case 0xe0: case 0xe1: case 0xe2: case 0xe3: case 0xe4: case 0xe5: case 0xe6: case 0xe7:
-    case 0xe8: case 0xe9: case 0xea: case 0xeb: case 0xec: case 0xed: case 0xee: case 0xef:
-    case 0xf0: case 0xf1: case 0xf2: case 0xf3: case 0xf4: case 0xf5: case 0xf6: case 0xf7:
-    case 0xf8: case 0xf9: case 0xfa: case 0xfb: case 0xfc: case 0xfd: case 0xfe: case 0xff:
-        typ = x86_insn_type_int;
-        break;
-    }
-    return typ;
-
-}
-
-
-uint32_t Instruction::computeOpcodeTypeGroups(uint32_t idx1, uint32_t idx2){
-    ASSERT(idx1 >= 0x00 && idx1 < 0x17 && "Opcode identifier should be limited in range");
-    ASSERT(idx2 >= 0x0 && idx2 < 0x8 && "Opcode identifier should be limited in range");
-
-    uint32_t typ;
-    typ = x86_insn_type_unknown;
-    switch(idx1){
-    case 0x00: case 0x01: case 0x02: case 0x03: case 0x04: case 0x05: case 0x06: case 0x07:
-    case 0x08: case 0x09: case 0x0a: case 0x0b:
-        typ = x86_insn_type_int;
-        break;
-    case 0x0c:
-        switch(idx2){
-        case 0x00: case 0x01:
-            typ = x86_insn_type_int;
-            break;
-        case 0x02: case 0x03:
-            typ = x86_insn_type_call;
-            break;
-        case 0x04: case 0x05:
-            typ = x86_insn_type_branch;
-            break;
-        case 0x06: case 0x07:
-            typ = x86_insn_type_int;
-            break;
-        }
-        break;
-    case 0x0d: case 0x0e: case 0x0f: case 0x10: case 0x11: case 0x12: case 0x13:
-        typ = x86_insn_type_int;
-        break;
-    case 0x14:
-        switch(idx2){
-        case 0x00: case 0x01: case 0x02: case 0x03:
-            typ = x86_insn_type_float;
-            break;
-        case 0x04: case 0x05: case 0x06: case 0x07:
-            typ = x86_insn_type_int;
-            break;
-        }
-        break;
-    case 0x15: case 0x16:
-        typ = x86_insn_type_prefetch;
-        break;
-    }
-
-    return typ;
-
-}
-
-
-uint32_t Instruction::computeOpcodeTypePrefixUser(uint32_t idx1, uint32_t idx2){
-    ASSERT(idx1 >= 0x00 && idx1 < 0x1b && "Opcode identifier should be limited in range");
-    ASSERT(idx2 >= 0x0 && idx2 < 0x4 && "Opcode identifier should be limited in range");
-
-    uint32_t typ;
-
-    switch(idx1){
-    case 0x00:
-        typ = x86_insn_type_float;
-        break;
-    case 0x01:
-        typ = x86_insn_type_simd;
-        break;
-    case 0x02: case 0x03: case 0x04: case 0x05: case 0x06: case 0x07:
-    case 0x08: case 0x09: case 0x0a: case 0x0b: case 0x0c: case 0x0d: case 0x0e: case 0x0f:
-    case 0x10: case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
-    case 0x18: case 0x19: case 0x1a:
-        typ = x86_insn_type_float;
-        break;
-    }
-
-    return typ;
-
-}
-
-
-uint32_t Instruction::computeOpcodeTypeX8664(uint32_t idx1, uint32_t idx2){
-    ASSERT(idx1 >= 0x0 && idx1 < 0x1 && "Opcode identifier should be limited in range");
-    ASSERT(idx2 >= 0x0 && idx2 < 0x2 && "Opcode identifier should be limited in range");
-
-    uint32_t typ;
-
-    switch(idx2){
-    case 0x0:
-        typ = x86_insn_type_int;
-        break;
-    case 0x1:
-        typ = x86_insn_type_float;
-        break;
-    }
-    return typ;
-
-}
-
-#endif // UD_DISASM

@@ -4,7 +4,6 @@
 #include <BasicBlock.h>
 #include <BinaryFile.h>
 #include <CStructuresX86.h>
-#include <Disassembler.h>
 #include <DwarfSection.h>
 #include <DynamicTable.h>
 #include <FileHeader.h>
@@ -986,10 +985,6 @@ void ElfFile::parse(){
         PRINT_ERROR("The class identifier is not a valid one [%#x]",e_ident[EI_CLASS]);
     }
 
-    /*
-    Base::disassembler = new Disassembler(is64BitFlag);
-    */
-
     readFileHeader();
     readProgramHeaders();
     readSectionHeaders();
@@ -1133,11 +1128,6 @@ ElfFile::~ElfFile(){
         }
     }
 
-    if (Base::disassembler){
-        /*
-        delete Base::disassembler;
-        */
-    }
 }
 
 

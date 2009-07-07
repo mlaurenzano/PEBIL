@@ -16,16 +16,6 @@
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 // debugging macros -- these can produce copious amounts of output
-#define UD_DISASM
-#ifdef UD_DISASM
-#define UD_INSTRUCTION_CLASS Instruction
-#define UD_INSTRUCTIONGENERATOR_CLASS InstructionGenerator
-#define UD_OPERAND_CLASS Operand
-#else
-#define UD_INSTRUCTION_CLASS UdInstruction
-#define UD_INSTRUCTIONGENERATOR_CLASS UdInstructionGenerator
-#define UD_OPERAND_CLASS UdOperand
-#endif
 
 #define WARNING_SEVERITY 5
 //#define DEVELOPMENT
@@ -426,7 +416,6 @@ typedef enum {
 
 class BinaryInputFile;
 class BinaryOutputFile;
-class Disassembler;
 class Instruction;
 template <class anonymous> class Vector;
 
@@ -444,8 +433,6 @@ protected:
 
 public:
     uint64_t baseAddress;
-
-    static Disassembler* disassembler;
 
     ElfClassTypes getType() { return type; }
     uint32_t getSizeInBytes() { return sizeInBytes; }

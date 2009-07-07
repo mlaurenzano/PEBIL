@@ -1,229 +1,193 @@
 #ifndef _Instruction_h_
 #define _Instruction_h_
 
-#ifdef UD_DISASM
-#include <Udis.h>
-#else
-
+#include <AddressAnchor.h>
 #include <Base.h>
-#include <Vector.h>
+#include <RawSection.h>
+#include <libudis86/syn.h>
+#include <udis86.h>
+#include <defines/Instruction.d>
 
-class AddressAnchor;
-class BinaryOutputFile;
-class Disassembler;
-class ElfFile;
 class Function;
-class RawSection;
 class TextSection;
 
-#define INVALID_OPCODE_INDEX 0xffffffff
 #define MAX_OPERANDS 3
-#define JUMP_TARGET_OPERAND 2
+#define JUMP_TARGET_OPERAND 0
 #define JUMP_TABLE_REACHES 0x1000
+#define DISASSEMBLY_MODE UD_SYN_ATT
 
-static char* instruction_without_dis = "<__no_info__x86_instrumentor>";
+#define IS_8BIT_GPR(__val) ((__val >= UD_R_AL) && (__val <= UD_R_R15B))
+#define IS_16BIT_GPR(__val) ((__val >= UD_R_AX) && (__val <= UD_R_R15W))
+#define IS_32BIT_GPR(__val) ((__val >= UD_R_EAX) && (__val <= UD_R_R15D))
+#define IS_64BIT_GPR(__val) ((__val >= UD_R_RAX) && (__val <= UD_R_R15))
+#define IS_SEGMENT_REG(__val) ((__val >= UD_R_ES) && (__val <= UD_R_GS))
+#define IS_CONTROL_REG(__val) ((__val >= UD_R_CR0) && (__val <= UD_R_CR15))
+#define IS_DEBUG_REG(__val) ((__val >= UD_R_DR0) && (__val <= UD_R_DR15))
+#define IS_MMX_REG(__val) ((__val >= UD_R_MM0) && (__val <= UD_R_MM7))
+#define IS_X87_REG(__val) ((__val >= UD_R_ST0) && (__val <= UD_R_ST7))
+#define IS_XMM_REG(__val) ((__val >= UD_R_XMM0) && (__val <= UD_R_XMM15))
+#define IS_PC_REG(__val) (__val == UD_R_RIP)
+#define IS_OPERAND_TYPE(__val) ((__val >= UD_OP_REG) && (__val <= UD_OP_CONST))
 
-enum x86_insn_format {
-    x86_insn_format_unknown = 0,
-    x86_insn_format_onebyte,
-    x86_insn_format_twobyte,
-    x86_insn_format_groups,
-    x86_insn_format_prefix_user_table,
-    x86_insn_format_x86_64,
-    x86_insn_format_float_mem,
-    x86_insn_format_float_reg,
-    x86_insn_format_float_groups,
-    x86_insn_format_Total
+#define IS_GPR(__val) (IS_8BIT_GPR(__val) || IS_16BIT_GPR(__val) || IS_32BIT_GPR(__val) || IS_64BIT_GPR(__val))
+#define IS_REG(__val) (IS_GPR(__val) || IS_SEGMENT_REG(__val) || IS_CONTROL_REG(__val) || IS_DEBUG_REG(__val) || \
+                       IS_MMX_REG(__val) || IS_X87_REG(__val) || IS_XMM_REG(__val) || IS_PC_REG(__val))
+
+
+struct ud_itab_entry_operand
+{
+    uint32_t type;
+    uint32_t size;
+};
+struct ud_itab_entry
+{
+    enum ud_mnemonic_code         mnemonic;
+    struct ud_itab_entry_operand  operand1;
+    struct ud_itab_entry_operand  operand2;
+    struct ud_itab_entry_operand  operand3;
+    uint32_t                      prefix;
 };
 
-enum x86_insn_type {
-    x86_insn_type_unknown = 0,
-    x86_insn_type_bad,
-    x86_insn_type_cond_branch,
-    x86_insn_type_branch,
-    x86_insn_type_call,
-    x86_insn_type_return,
-    x86_insn_type_int,
-    x86_insn_type_float,
-    x86_insn_type_simd,
-    x86_insn_type_io,
-    x86_insn_type_prefetch,
-    x86_insn_type_syscall,
-    x86_insn_type_halt,
-    x86_insn_type_hwcount,
-    x86_insn_type_noop,
-    x86_insn_type_trap,
-    x86_insn_type_Total
+
+enum X86InstructionType {
+    X86InstructionType_unknown = 0,
+    X86InstructionType_invalid,
+    X86InstructionType_cond_branch,
+    X86InstructionType_uncond_branch,
+    X86InstructionType_call,
+    X86InstructionType_return,
+    X86InstructionType_int,
+    X86InstructionType_float,
+    X86InstructionType_string,
+    X86InstructionType_simd,
+    X86InstructionType_io,
+    X86InstructionType_prefetch,
+    X86InstructionType_system_call,
+    X86InstructionType_halt,
+    X86InstructionType_hwcount,
+    X86InstructionType_nop,
+    X86InstructionType_trap,
+    X86InstructionType_vmx,
+    X86InstructionType_special,
+    X86InstructionType_Total
 };
 
-enum x86_operand_type {
-    x86_operand_type_unused = 0,        // 0
-    x86_operand_type_immrel,
-    x86_operand_type_reg,
-    x86_operand_type_imreg,
-    x86_operand_type_imm,
-    x86_operand_type_mem,               // 5
-    x86_operand_type_func_ST,
-    x86_operand_type_func_STi,
-    x86_operand_type_func_indirE,
-    x86_operand_type_func_E,
-    x86_operand_type_func_G,            // 10
-    x86_operand_type_func_IMREG,
-    x86_operand_type_func_I,
-    x86_operand_type_func_I64,
-    x86_operand_type_func_sI,
-    x86_operand_type_func_J,            // 15
-    x86_operand_type_func_SEG,    
-    x86_operand_type_func_DIR,    
-    x86_operand_type_func_OFF,    
-    x86_operand_type_func_OFF64,    
-    x86_operand_type_func_ESreg,        // 20  
-    x86_operand_type_func_DSreg,    
-    x86_operand_type_func_C,    
-    x86_operand_type_func_D,    
-    x86_operand_type_func_T,    
-    x86_operand_type_func_Rd,           // 25
-    x86_operand_type_func_MMX,
-    x86_operand_type_func_XMM,
-    x86_operand_type_func_EM,
-    x86_operand_type_func_EX,
-    x86_operand_type_func_MS,           // 30
-    x86_operand_type_func_XS,
-    x86_operand_type_func_3DNowSuffix,
-    x86_operand_type_func_SIMD_Suffix,
-    x86_operand_type_func_SIMD_Fixup,
-    x86_operand_type_Total              // 35
-};
 
+typedef enum {
+    RegType_undefined = 0,
+    RegType_8Bit,
+    RegType_16Bit,
+    RegType_32Bit,
+    RegType_64Bit,
+    RegType_Segment,
+    RegType_Control,
+    RegType_Debug,
+    RegType_MMX,
+    RegType_X87,
+    RegType_XMM,
+    RegType_PC,
+    RegType_Total_Types
+} RegTypes;
+
+extern uint32_t regbase_to_type(uint32_t base);
 
 class Operand {
-protected:
-    uint8_t type;
-    uint8_t bytePosition;
-    uint8_t bytesUsed;
-    uint8_t index;
-
-    uint64_t value;
-    bool relative;
+private:
+    struct ud_operand entry;
+    Instruction* instruction;
+    uint32_t operandIndex;
 
 public:
-    Operand(uint32_t type, uint64_t value, uint32_t idx);
-    Operand(uint32_t idx);
-    Operand();
+    OPERAND_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
+
+    Operand(Instruction* inst, struct ud_operand* init, uint32_t idx);
     ~Operand() {}
 
-    uint8_t getType() { return type; }
-    uint64_t getValue() { return value; }
-    uint8_t getBytePosition() { return bytePosition; }
-    uint8_t getBytesUsed() { return bytesUsed; }
-    bool isRelative() { return relative; }
-    bool isIndirect();
-
-    void setType(uint8_t typ) { type = typ; }
-    void setValue(uint64_t val) { value = val; }
-    void setBytePosition(uint8_t pos) { bytePosition = pos; }
-    void setBytesUsed(uint8_t usd);
-    void setRelative(bool rel) { relative = rel; }
-
     void print();
+    char* charStream() { return (char*)&entry; }
+    bool verify();
+
+    uint32_t getBytesUsed();
+    uint32_t getBytePosition();
+    bool isRelative();
+    uint32_t getType() { return GET(type); }
+    int64_t getValue();
+
 };
 
 class Instruction : public Base {
-protected:
-    uint8_t instructionType;
-    uint8_t source;
-    uint32_t index;
-    char* rawBytes;
-    Operand** operands;    
-    bool leader;
-    bool reformat;
+private:
+    struct ud entry;
+    Operand** operands;
+    uint32_t instructionIndex;
 
-    uint64_t programAddress;
-    TextSection* textSection;
+    uint8_t byteSource;
     AddressAnchor* addressAnchor;
+    bool leader;
+    TextSection* textSection;
 
 public:
+    INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
-    Instruction();
-    Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx, bool doReformat);
+    Instruction(struct ud* init);
+    Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx);
     ~Instruction();
 
-    bool isJumpTableBase();
-    void computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList);
-    uint64_t findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions);
-    void binutilsPrint(FILE* stream);
+    Operand* getOperand(uint32_t idx);
 
-    uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
     void print();
     bool verify();
 
-    void setLeader(bool lead) { leader = lead; }
-    bool isLeader() { return leader; }
-    bool doReformat() { return reformat; }
+    void setBaseAddress(uint64_t addr) { baseAddress = addr; }
+    uint32_t getSizeInBytes() { return sizeInBytes; }
+    uint32_t getIndex() { return instructionIndex; }
+    void setIndex(uint32_t idx) { instructionIndex = idx; }
+    uint32_t getInstructionType();
 
-    void initializeAnchor(Base* link);
-    void deleteAnchor();
-    bool usesRelativeAddress();
-    bool usesIndirectAddress();
-    uint64_t getRelativeValue();
-    AddressAnchor* getAddressAnchor() { return addressAnchor; }
-    
-    char* charStream() { return rawBytes; }
-    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-
-    uint32_t convertTo4ByteOperand();
-
-    uint16_t getIndex() { return index; }
-    uint32_t bytesUsedForTarget();
-    uint64_t getTargetAddress();
-    uint64_t getBaseAddress();
-    char* getBytes();
-    Operand* getOperand(uint32_t idx);
-    uint32_t getInstructionType() { return instructionType; }
-    bool isRelocatable();
     bool controlFallsThrough();
-    uint8_t getByteSource();
-    uint64_t getProgramAddress();
 
     // control instruction id
     bool isControl();
+    bool isUnconditionalBranch() { return (getInstructionType() == X86InstructionType_uncond_branch); }
+    bool isConditionalBranch() { return (getInstructionType() == X86InstructionType_cond_branch); }
+    bool isReturn() { return (getInstructionType() == X86InstructionType_return); }
+    bool isFunctionCall() { return (getInstructionType() == X86InstructionType_call); }
+    bool isSystemCall() { return (getInstructionType() == X86InstructionType_system_call); }
+    bool isHalt() { return (getInstructionType() == X86InstructionType_halt); }
+
+    bool isNoop() { return (getInstructionType() == X86InstructionType_nop); }
+
+    uint8_t getByteSource() { return byteSource; }
+    bool isRelocatable() { return true; }
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+
+    AddressAnchor* getAddressAnchor() { return addressAnchor; }
+
+    void initializeAnchor(Base*);
+
+    bool isJumpTableBase();
+    uint64_t findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions);
+    void computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList);
+    void setSizeInBytes(uint32_t sz) { sizeInBytes = sz; }
+    void setLeader(bool ldr) { leader = ldr; }
+    bool isLeader() { return leader; }
+
+    uint64_t getBaseAddress() { return baseAddress; }
     bool usesControlTarget();
-    bool isUnconditionalBranch() { return (instructionType == x86_insn_type_branch); }
-    bool isConditionalBranch() { return (instructionType == x86_insn_type_cond_branch); }
-    bool isReturn() { return (instructionType == x86_insn_type_return); }
-    bool isFunctionCall() { return (instructionType == x86_insn_type_call); }
-    bool isSystemCall() { return (instructionType == x86_insn_type_syscall); }
-    bool isHalt() { return (instructionType == x86_insn_type_halt); }
+
+
+    bool usesIndirectAddress(); 
+    bool usesRelativeAddress();
+    int64_t getRelativeValue();
+    uint64_t getTargetAddress();
+    uint32_t bytesUsedForTarget();
+    uint32_t convertTo4ByteTargetOperand();
+    void binutilsPrint(FILE* stream);
+    void setBytes();
     bool isIndirectBranch();
     uint32_t getIndirectBranchTarget();
 
-    bool isNoop();
 
-    void setIndex(uint32_t newidx) { index = newidx; ASSERT(index == newidx); }
-    void setBaseAddress(uint64_t addr) { baseAddress = addr; }
-    void setSizeInBytes(uint32_t len);
-    void setBytes(char* bytes);
-    void setOperandValue(uint32_t idx, uint64_t val);
-    void setOperandType(uint32_t idx, uint8_t typ);
-    void setOperandBytePosition(uint32_t idx, uint8_t pos);
-    void setOperandBytesUsed(uint32_t idx, uint8_t usd);
-    void setOperandRelative(uint32_t idx, bool rel);
-    void setByteSource(ByteSources src) { source = src; }
-    void setProgramAddress(uint64_t addr) { programAddress = addr; }
-    void setInstructionType(uint32_t typ) { instructionType = typ; }
-
-    void setOpcodeType(uint32_t formatType, uint32_t idx1, uint32_t idx2);
-
-    static uint32_t computeOpcodeTypeOneByte(uint32_t idx);
-    static uint32_t computeOpcodeTypeTwoByte(uint32_t idx);
-    static uint32_t computeOpcodeTypeGroups(uint32_t idx1, uint32_t idx2);
-    static uint32_t computeOpcodeTypePrefixUser(uint32_t idx1, uint32_t idx2);
-    static uint32_t computeOpcodeTypeX8664(uint32_t idx1, uint32_t idx2);
 };
-
-extern int searchInstructionAddress(const void* arg1,const void* arg2);
-extern int compareInstructionAddress(const void* arg1,const void* arg2);
-
-#endif // UD_DISASM
 
 #endif /* _Instruction_h_ */

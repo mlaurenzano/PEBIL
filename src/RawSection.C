@@ -2,7 +2,6 @@
 
 #include <AddressAnchor.h>
 #include <BinaryFile.h>
-#include <Disassembler.h>
 #include <ElfFile.h>
 #include <Instruction.h>
 #include <SectionHeader.h>

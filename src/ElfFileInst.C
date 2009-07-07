@@ -4,7 +4,6 @@
 #include <Base.h>
 #include <BasicBlock.h>
 #include <CStructuresX86.h>
-#include <Disassembler.h>
 #include <DynamicTable.h>
 #include <ElfFile.h>
 #include <FileHeader.h>
@@ -734,7 +733,7 @@ void ElfFileInst::generateInstrumentation(){
         for (uint32_t j = 0; j < (*repl).size(); j++){
             (*repl)[j]->setBaseAddress(pt->getSourceAddress()+bytesUsed);
             bytesUsed += (*repl)[j]->getSizeInBytes();
-            //            Base::disassembler->disassembleInstructionInPlace((*repl)[j]);
+
 #ifdef DEBUG_INST
             (*repl)[j]->print();
 #endif
@@ -1480,7 +1479,6 @@ void ElfFileInst::print(uint32_t printCodes){
     }
 
     if (HAS_PRINT_CODE(printCodes,Print_Code_Disassemble)){
-        //        Base::disassembler->setPrintFunction((fprintf_ftype)fprintf,stdout);
 
         PRINT_INFOR("Relocated Text Disassembly");
         PRINT_INFOR("=============");
@@ -1492,8 +1490,6 @@ void ElfFileInst::print(uint32_t printCodes){
                 relocatedFunctions[i]->printDisassembly(false);
             }
         }
-
-        //        Base::disassembler->setPrintFunction((fprintf_ftype)noprint_fprintf,stdout);
     }
 }
 

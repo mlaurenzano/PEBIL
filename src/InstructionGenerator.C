@@ -1,7 +1,6 @@
 #include <Base.h>
 
-#ifdef UD_DISASM
-#include <Udis.h>
+#include <InstructionGenerator.h>
 
 // this function deletes the incoming buffer after copying it to the new instruction's local memory
 Instruction* InstructionGenerator32::generateInstructionBase(uint32_t sz, char* buff){
@@ -37,20 +36,6 @@ Instruction* InstructionGenerator::generateInstructionBase(uint32_t sz, char* bu
     delete[] buff;
     return ret;
 }
-
-#else
-#include <InstructionGenerator.h>
-
-// this function deletes the incoming buffer aftetr copying it to the new instruction's local memory
-Instruction* InstructionGenerator::generateInstructionBase(uint32_t sz, char* buff){
-    Instruction* ret = new Instruction();
-    ret->setSizeInBytes(sz);
-    ret->setBytes(buff);
-    delete[] buff;
-    return ret;
-}
-
-#endif // UD_DISASM
 
 Instruction* InstructionGenerator64::generateXorRegReg(uint8_t src, uint8_t tgt){
     ASSERT(src < X86_32BIT_GPRS && "Illegal register index given");
