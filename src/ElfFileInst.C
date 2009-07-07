@@ -3,7 +3,6 @@
 #include <AddressAnchor.h>
 #include <Base.h>
 #include <BasicBlock.h>
-#include <CStructuresX86.h>
 #include <DynamicTable.h>
 #include <ElfFile.h>
 #include <FileHeader.h>

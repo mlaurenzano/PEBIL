@@ -1,7 +1,6 @@
 #include <TextSection.h>
 
 #include <BasicBlock.h>
-#include <CStructuresX86.h>
 #include <ElfFile.h>
 #include <Function.h>
 #include <Instruction.h>

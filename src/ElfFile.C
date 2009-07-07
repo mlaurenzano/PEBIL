@@ -3,7 +3,6 @@
 #include <Base.h>
 #include <BasicBlock.h>
 #include <BinaryFile.h>
-#include <CStructuresX86.h>
 #include <DwarfSection.h>
 #include <DynamicTable.h>
 #include <FileHeader.h>

@@ -15,6 +15,7 @@ class TextSection;
 #define JUMP_TARGET_OPERAND 0
 #define JUMP_TABLE_REACHES 0x1000
 #define DISASSEMBLY_MODE UD_SYN_ATT
+#define MAX_X86_INSTRUCTION_LENGTH 20
 
 #define IS_8BIT_GPR(__val) ((__val >= UD_R_AL) && (__val <= UD_R_R15B))
 #define IS_16BIT_GPR(__val) ((__val >= UD_R_AX) && (__val <= UD_R_R15W))
@@ -32,6 +33,38 @@ class TextSection;
 #define IS_GPR(__val) (IS_8BIT_GPR(__val) || IS_16BIT_GPR(__val) || IS_32BIT_GPR(__val) || IS_64BIT_GPR(__val))
 #define IS_REG(__val) (IS_GPR(__val) || IS_SEGMENT_REG(__val) || IS_CONTROL_REG(__val) || IS_DEBUG_REG(__val) || \
                        IS_MMX_REG(__val) || IS_X87_REG(__val) || IS_XMM_REG(__val) || IS_PC_REG(__val))
+
+
+// my non-gnu definitions for X86
+#define X86_32BIT_GPRS 8
+#define X86_64BIT_GPRS 16
+#define X86_REG_AX 0
+#define X86_REG_CX 1
+#define X86_REG_DX 2
+#define X86_REG_BX 3
+#define X86_REG_SP 4
+#define X86_REG_BP 5
+#define X86_REG_SI 6
+#define X86_REG_DI 7
+#define X86_REG_R8 8
+#define X86_REG_R9 9
+#define X86_REG_R10 10
+#define X86_REG_R11 11
+#define X86_REG_R12 12
+#define X86_REG_R13 13
+#define X86_REG_R14 14
+#define X86_REG_R15 15
+
+#define X86_SEGMENT_REGS 6
+#define X86_SEGREG_ES 0
+#define X86_SEGREG_CS 1
+#define X86_SEGREG_SS 2
+#define X86_SEGREG_DS 3
+#define X86_SEGREG_FS 4
+#define X86_SEGREG_GS 5
+
+#define X86TRAPCODE_BREAKPOINT   3
+#define X86TRAPCODE_OVERFLOW     4
 
 
 struct ud_itab_entry_operand
