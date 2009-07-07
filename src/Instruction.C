@@ -7,6 +7,25 @@
 #include <TextSection.h>
 #include <Instruction.h>
 
+bool Instruction::isMemoryOperation(){
+    uint32_t memCount = 0;
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i] && operands[i]->GET(type) == UD_OP_MEM){
+            memCount++;
+        }
+    }
+    ASSERT(memCount < 2);
+    if (memCount){
+        return true;
+    }
+    return false;
+}
+
+bool Instruction::isFloatPOperation(){
+    return ((getInstructionType() == X86InstructionType_float) ||
+            (getInstructionType() == X86InstructionType_simd));
+}
+
 uint32_t Operand::getBytesUsed(){
     if (GET(type) == UD_OP_MEM){
         return (GET(offset) >> 3);
@@ -1379,7 +1398,7 @@ Instruction::Instruction(struct ud* init)
 
 void Instruction::print(){
 
-    char flags[7];
+    char flags[9];
     if (usesRelativeAddress()){
         flags[0] = 'R';
     } else flags[0] = ' ';
@@ -1398,7 +1417,14 @@ void Instruction::print(){
     if (usesIndirectAddress()){
         flags[5] = 'I';
     } else flags[5] = ' ';
-    flags[6] = '\0';
+    if (isMemoryOperation()){
+        flags[6] = 'M';
+    } else flags[6] = ' ';
+    if (isFloatPOperation()){
+        flags[7] = 'F';
+    } else flags[7] = ' ';
+
+    flags[8] = '\0';
 
     PRINT_INFOR("%#llx:\t%16s\t%s\t'%6s'\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
     PRINT_INFOR("\t%s (%d,%d) (%d,%d) (%d,%d) %d", ud_lookup_mnemonic(GET(itab_entry)->mnemonic), GET(itab_entry)->operand1.type, GET(itab_entry)->operand1.size, GET(itab_entry)->operand2.type, GET(itab_entry)->operand2.size, GET(itab_entry)->operand3.type, GET(itab_entry)->operand3.size, GET(itab_entry)->prefix);

@@ -3,7 +3,7 @@ A basic outline for how to install X86ElfInstrumentor.
 1. System Requirements
 Operating System        Linux
 Binary Format           Elf
-Architecture            IA32 or X64
+Architecture            X86 or X86_64
 Other                   To call instrumentation functions from a shared library
                         the system must have dynamic linking enabled. Also requires
                         the gnu linker to be used.

@@ -18,7 +18,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 #define WARNING_SEVERITY 5
 //#define DEVELOPMENT
-//#define DEBUG_MEMTRACK
+#define DEBUG_MEMTRACK
 //#define DEBUG_OPERAND
 //#define DEBUG_OPTARGET
 //#define DEBUG_OPCODE

@@ -90,8 +90,6 @@ protected:
     HashCode hashCode;
 
     //    MemoryOperation** memoryOps;
-    uint32_t numberOfMemoryOps;
-    uint32_t numberOfFloatOps;
 
     uint32_t flags;
 public:
@@ -112,10 +110,10 @@ public:
 
     uint32_t getNumberOfSources() { return sourceBlocks.size(); }
     uint32_t getNumberOfTargets() { return targetBlocks.size(); }
-    uint32_t getNumberOfMemoryOps() { return numberOfMemoryOps; }
-    uint32_t getNumberOfFloatOps() { return numberOfFloatOps; }
-    uint32_t getNumberOfLoads() { return 0; }
-    uint32_t getNumberOfStores() { return 0; }
+    uint32_t getNumberOfMemoryOps();
+    uint32_t getNumberOfFloatOps();
+    uint32_t getNumberOfLoads();
+    uint32_t getNumberOfStores();
 
     bool controlFallsThrough();
     bool findExitInstruction();

@@ -220,7 +220,10 @@ public:
     bool isIndirectBranch();
     uint32_t getIndirectBranchTarget();
 
+    bool isFloatPOperation();
+    bool isMemoryOperation();
 
+    
 };
 
 #endif /* _Instruction_h_ */

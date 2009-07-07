@@ -10,6 +10,35 @@
 
 static const char* bytes_not_instructions = "<x86_inst_unreachable_text>";
 
+
+uint32_t BasicBlock::getNumberOfMemoryOps(){
+    uint32_t memCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isMemoryOperation()){
+            memCount++;
+        }
+    }
+    return memCount;
+}
+
+uint32_t BasicBlock::getNumberOfFloatOps(){
+    uint32_t fpCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isFloatPOperation()){
+            fpCount++;
+        }
+    }
+    return fpCount;
+}
+
+// obviously these are not implemented correctly yet
+uint32_t BasicBlock::getNumberOfLoads(){
+    return getNumberOfFloatOps();
+}
+uint32_t BasicBlock::getNumberOfStores(){
+    return 0;
+}
+
 void RawBlock::printDisassembly(bool instructionDetail){
     uint32_t bytesPerWord = 1;
     uint32_t bytesPerLine = 8;
@@ -273,9 +302,6 @@ BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg)
 
     flags = 0;
     immDominatedBy = NULL;
-
-    numberOfMemoryOps = 0;
-    numberOfFloatOps = 0;
 
     ASSERT(flowGraph);
     Function* func = flowGraph->getFunction();
