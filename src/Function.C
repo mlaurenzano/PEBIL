@@ -219,7 +219,7 @@ Vector<Instruction*>* Function::digestRecursive(){
             continue;
         }
 
-        currentInstruction = new Instruction(textSection, currentAddress,
+        currentInstruction = new Instruction(this, currentAddress,
                                              textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0);
 
         PRINT_DEBUG_CFG("recursive cfg: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());

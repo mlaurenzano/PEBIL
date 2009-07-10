@@ -18,12 +18,18 @@ char** fileNames;
 char** functionNames;
 int64_t* hashValues;
 
-int32_t dummywrap(){
-    int32_t x = initcounter(1,2,3,4,5) +
-        functioncounter(1,2,3) + 
-        blockcounter(1,2,3);
-    return x;
+int32_t printmemory(int32_t* memory, int32_t* base, int32_t* offset, int32_t* index, int32_t* scale){
+    int32_t memloc = *memory;
+    int32_t memval;
+    if (memloc == 0){
+        PRINT_INSTR("raw args: m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%d", memory, memval, base, *base, offset, *offset, index, *index, scale, *scale);
+        memval = 0;
+    } else {
+        memval = *((int32_t*)memloc);
+    }
+    PRINT_INSTR("mem[%#lx]\t%#lx", memloc, memval);
 }
+
 
 int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** functionNames){
     int32_t i;

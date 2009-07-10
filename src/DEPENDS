@@ -260,6 +260,23 @@ NoteSection.o: NoteSection.C ../include/NoteSection.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/RawSection.h ../include/Vector.h ../include/BinaryFile.h \
   ../include/ElfFile.h
+PrintMemory.o: PrintMemory.C ../include/BasicBlock.h ../include/Base.h \
+  ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
+  ../include/BitSet.h ../include/FlowGraph.h ../include/Function.h \
+  ../include/Instruction.h ../include/AddressAnchor.h \
+  ../include/RawSection.h ../include/Vector.h \
+  ../external/udis86-1.7/libudis86/syn.h \
+  ../external/udis86-1.7/libudis86/types.h \
+  ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
+  ../external/udis86-1.7/libudis86/types.h \
+  ../external/udis86-1.7/libudis86/extern.h \
+  ../external/udis86-1.7/libudis86/itab.h \
+  ../include/defines/Instruction.d ../include/TextSection.h \
+  ../include/LinkedList.h ../include/PrintMemory.h \
+  ../include/ElfFileInst.h ../include/ElfFile.h ../include/BinaryFile.h \
+  ../include/Instrumentation.h ../include/InstructionGenerator.h \
+  ../include/LineInformation.h ../include/defines/LineInformation.d \
+  ../include/Loop.h
 ProgramHeader.o: ProgramHeader.C ../include/ProgramHeader.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/defines/ProgramHeader.d \

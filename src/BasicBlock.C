@@ -10,6 +10,72 @@
 
 static const char* bytes_not_instructions = "<x86_inst_unreachable_text>";
 
+uint32_t BasicBlock::bloat(uint32_t minBlockSize){
+
+    PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx", baseAddress);
+
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        int32_t memPad = 0;
+        // convert all branches to use 4byte operands (ensuring that they cover at least 5 bytes and giving them
+        // much larger immediate range)
+        if (instructions[i]->isControl() && !instructions[i]->isReturn()){
+            if (instructions[i]->bytesUsedForTarget() < sizeof(uint32_t)){
+                PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", instructions[i]->bytesUsedForTarget());
+                instructions[i]->convertTo4ByteTargetOperand();
+            }
+        }
+
+        // ensure that each memory operation is padded with nops so that they can be replaced by a jump
+        if (instructions[i]->isMemoryOperation()){
+            if (instructions[i]->getSizeInBytes() < SIZE_NEEDED_AT_INST_POINT){
+                memPad = SIZE_NEEDED_AT_INST_POINT - instructions[i]->getSizeInBytes();
+            }
+            if (memPad){
+                PRINT_DEBUG_FUNC_RELOC("\tmemop at %#llx is onyl %d bytes, adding %d noops", instructions[i]->getBaseAddress(), instructions[i]->getSizeInBytes(), memPad);
+            }
+        }
+        while (memPad > 0){
+            PRINT_DEBUG_FUNC_RELOC("\t\tadding nop at m%d", i+1);
+            instructions.insert(InstructionGenerator::generateNoop(),i+1);
+            memPad--;
+            i++;
+        }
+
+    }
+
+    // pad with noops if necessary
+    if (getNumberOfBytes() < minBlockSize){
+        PRINT_DEBUG_FUNC_RELOC("\tblock at %#llx is only %d bytes, adding %d noops", getBaseAddress(), getNumberOfBytes(), minBlockSize - getNumberOfBytes());
+    }
+    while (getNumberOfBytes() < minBlockSize){
+        PRINT_DEBUG_FUNC_RELOC("\t\tadding nop at p%d", instructions.size());
+        instructions.append(InstructionGenerator::generateNoop());
+    }
+
+    setBaseAddress(getBaseAddress());
+
+    return getNumberOfBytes();
+}
+
+uint32_t BasicBlock::getNumberOfIntegerOps(){
+    uint32_t intCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isIntegerOperation()){
+            intCount++;
+        }
+    }
+    return intCount;
+}
+
+uint32_t BasicBlock::getNumberOfStringOps(){
+    uint32_t strCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isStringOperation()){
+            strCount++;
+        }
+    }
+    return strCount;
+}
 
 uint32_t BasicBlock::getNumberOfMemoryOps(){
     uint32_t memCount = 0;
@@ -112,39 +178,6 @@ void RawBlock::print(){
     PRINT_OUT("\n");
 }
 
-uint32_t BasicBlock::bloat(uint32_t minBlockSize){
-
-    // convert all branches to use 4byte operands
-    uint32_t currByte = 0;
-    for (uint32_t i = 0; i < instructions.size(); i++){
-        if (instructions[i]->isControl() && !instructions[i]->isReturn()){
-            if (instructions[i]->bytesUsedForTarget() < sizeof(uint32_t)){
-                PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", instructions[i]->bytesUsedForTarget());
-                instructions[i]->convertTo4ByteTargetOperand();
-                instructions[i]->setBaseAddress(baseAddress+currByte);
-            }
-        }
-        currByte += instructions[i]->getSizeInBytes();
-    }
-
-    // pad with noops if necessary
-    int32_t extraBytesNeeded = minBlockSize - currByte;
-    while (extraBytesNeeded > 0){
-        Instruction* extraNoop = InstructionGenerator::generateNoop();
-        extraNoop->setBaseAddress(baseAddress+currByte);
-
-        currByte += extraNoop->getSizeInBytes();
-        extraBytesNeeded -= extraNoop->getSizeInBytes();
-        extraNoop->setIndex(instructions.size());
-#ifdef DEBUG_FUNC_RELOC
-        //extraNoop->print();
-#endif
-        instructions.append(extraNoop);
-    }
-    return getNumberOfBytes();
-}
-
-
 bool BasicBlock::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
     for (uint32_t i = 0; i < instructions.size(); i++){
         if (instructions[i]->isFunctionCall()){
@@ -171,6 +204,7 @@ void CodeBlock::setBaseAddress(uint64_t newBaseAddr){
     baseAddress = newBaseAddr;
     uint32_t currentOffset = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
+        instructions[i]->setIndex(i);
         instructions[i]->setBaseAddress(baseAddress + currentOffset);
         currentOffset += instructions[i]->getSizeInBytes();
     }

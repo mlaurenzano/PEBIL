@@ -95,9 +95,9 @@ void BasicBlockCounter::instrument(){
     uint64_t instExt = reserveDataOffset((strlen(getInstSuffix()) + 1) * sizeof(char));
     initializeReservedData(dataBaseAddress + instExt, strlen(getInstSuffix()), getInstSuffix());
 
-    exitFunc->addArgument(counterArray);
-    exitFunc->addArgument(appName);
-    exitFunc->addArgument(instExt);
+    exitFunc->addArgumentAddress(counterArray);
+    exitFunc->addArgumentAddress(appName);
+    exitFunc->addArgumentAddress(instExt);
 
     if (fini->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
         addInstrumentationPoint(fini, exitFunc, SIZE_CONTROL_TRANSFER);
@@ -106,15 +106,15 @@ void BasicBlockCounter::instrument(){
     }
 
     // we have the option of giving an initialization value to addArgument so it is initialized in the function wrapper
-    entryFunc->addArgument(counterArrayEntries,numberOfInstPoints);
+    entryFunc->addArgumentAddress(counterArrayEntries,numberOfInstPoints);
     // an array for line numbers
-    entryFunc->addArgument(lineArray);
+    entryFunc->addArgumentAddress(lineArray);
     // an array for file name pointers
-    entryFunc->addArgument(fileNameArray);
+    entryFunc->addArgumentAddress(fileNameArray);
     // an array for function name pointers
-    entryFunc->addArgument(funcNameArray);
+    entryFunc->addArgumentAddress(funcNameArray);
     // an array for hashcodes
-    entryFunc->addArgument(hashCodeArray);
+    entryFunc->addArgumentAddress(hashCodeArray);
 
     BasicBlock* entryBlock = getProgramEntryBlock();
     if (entryBlock->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
@@ -251,10 +251,11 @@ void BasicBlockCounter::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<L
             fileName = FILE_UNK;
             lineNo = 0;
         }
-        fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\n", 
+        fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\t%d\t%d\n", 
                 i, bb->getHashCode().getValue(), bb->getNumberOfMemoryOps(), bb->getNumberOfFloatOps(), 
                 bb->getNumberOfInstructions(), fileName, lineNo, bb->getFunction()->getName(), loopCount, loopId, loopDepth, 
-                bb->getHashCode().getValue(), bb->getBaseAddress(), bb->getNumberOfLoads(), bb->getNumberOfStores());
+                bb->getHashCode().getValue(), bb->getBaseAddress(), bb->getNumberOfLoads(), bb->getNumberOfStores(),
+                bb->getNumberOfIntegerOps(), bb->getNumberOfStringOps());
     }
     fclose(staticFD);
 

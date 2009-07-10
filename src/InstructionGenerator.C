@@ -37,6 +37,45 @@ Instruction* InstructionGenerator::generateInstructionBase(uint32_t sz, char* bu
     return ret;
 }
 
+
+Instruction* InstructionGenerator::generateRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg){
+    ASSERT(srcdestreg < X86_32BIT_GPRS && "Illegal register index given");    
+    ASSERT(srcreg < X86_32BIT_GPRS && "Illegal register index given");    
+
+    uint32_t len = 2;
+    char* buff = new char[len];
+    buff[0] = 0x01;
+    buff[1] = 0xc0 + 8*srcdestreg + srcreg;
+
+    return generateInstructionBase(len,buff);
+}
+
+Instruction* InstructionGenerator::generateRegImm1ByteMultReg(uint32_t src, uint8_t imm, uint32_t dest){
+    ASSERT(src < X86_32BIT_GPRS && "Illegal register index given");    
+    ASSERT(dest < X86_32BIT_GPRS && "Illegal register index given");    
+
+    uint32_t len = 3;
+    char* buff = new char[len];
+    buff[0] = 0x6b;
+    buff[1] = 0xc0 + 8*dest + src;
+    buff[2] = imm;
+
+    return generateInstructionBase(len,buff);
+}
+
+Instruction* InstructionGenerator32::generateRegAddImmediate(uint32_t idx, uint64_t imm){
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
+    uint32_t len = 6;
+    char* buff = new char[len];
+    buff[0] = 0x81;
+    buff[1] = 0xc0 + (char)idx;
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == imm && "Cannot use more than 32 bits for immset");
+    memcpy(buff+2, &imm32, sizeof(uint32_t));
+
+    return generateInstructionBase(len,buff);
+}
+
 Instruction* InstructionGenerator64::generateXorRegReg(uint8_t src, uint8_t tgt){
     ASSERT(src < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(tgt < X86_32BIT_GPRS && "Illegal register index given");
@@ -513,20 +552,6 @@ Instruction* InstructionGenerator32::generateRegSubImmediate(uint32_t idx, uint6
     char* buff = new char[len];
     buff[0] = 0x81;
     buff[1] = 0xe8 + (char)idx;
-    uint32_t imm32 = (uint32_t)imm;
-    ASSERT(imm32 == imm && "Cannot use more than 32 bits for immset");
-    memcpy(buff+2,&imm32,sizeof(uint32_t));
-
-    return generateInstructionBase(len,buff);
-}
-
-
-Instruction* InstructionGenerator32::generateRegAddImmediate(uint32_t idx, uint64_t imm){
-    ASSERT(idx > 0 && idx < X86_32BIT_GPRS && "Illegal register index given");
-    uint32_t len = 6;
-    char* buff = new char[len];
-    buff[0] = 0x81;
-    buff[1] = 0xc0 + (char)idx;
     uint32_t imm32 = (uint32_t)imm;
     ASSERT(imm32 == imm && "Cannot use more than 32 bits for immset");
     memcpy(buff+2,&imm32,sizeof(uint32_t));

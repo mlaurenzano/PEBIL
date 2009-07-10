@@ -1,11 +1,119 @@
 #include <Base.h>
 #include <BinaryFile.h>
 #include <ElfFile.h>
+#include <ElfFileInst.h>
 #include <Function.h>
 #include <Instruction.h>
+#include <InstructionGenerator.h>
 #include <SectionHeader.h>
 #include <TextSection.h>
 #include <Instruction.h>
+
+#define PRINT_INSTRUCTION_DETAIL
+
+MemoryOperand::MemoryOperand(Operand* op, ElfFileInst* elfInst){
+    operand = op;
+    elfFileInst = elfInst;
+}
+
+// base and index regs are saved and restored by the caller
+Vector<Instruction*>* MemoryOperand::generateAddressCalculation(uint64_t addressStore, uint64_t offsetStore, uint64_t regStore, uint64_t indexStore, uint64_t scaleStore){
+    if (elfFileInst->getElfFile()->is64Bit()){
+        return generateAddressCalculation64(addressStore, offsetStore, regStore, indexStore, scaleStore);
+    } else {
+        return generateAddressCalculation32(addressStore, offsetStore, regStore, indexStore, scaleStore);
+    }
+    __SHOULD_NOT_ARRIVE;
+    return NULL;
+}
+
+Vector<Instruction*>* MemoryOperand::generateAddressCalculation32(uint64_t addressStore, uint64_t offsetStore, uint64_t regStore, uint64_t indexStore, uint64_t scaleStore){
+    Vector<Instruction*>* addressCalc = new Vector<Instruction*>();
+
+    uint8_t baseReg = 0;
+    if (operand->GET(base)){
+        ASSERT(operand->GET(base) >= UD_R_EAX && operand->GET(base) <= UD_R_EDI);
+        baseReg = operand->GET(base) - UD_R_EAX;
+    } else {
+        ASSERT(operand->getValue());
+    }
+
+    uint8_t indexReg = 0;
+    if (operand->GET(index)){
+        ASSERT(operand->GET(index) >= UD_R_EAX && operand->GET(index) <= UD_R_EDI);
+        indexReg = operand->GET(index) - UD_R_EAX;
+    } else {
+        ASSERT(!operand->GET(scale));
+    }
+    if (indexReg == baseReg){
+        indexReg = (indexReg + 1) % X86_32BIT_GPRS;
+    }
+
+
+    //    PRINT_INFOR("Using base/index/value/scale %hhd/%hhd/%#llx/%d", baseReg, indexReg, operand->getValue(), operand->GET(scale));
+
+    (*addressCalc).append(InstructionGenerator::generateNoop());
+    (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(baseReg, elfFileInst->getExtraDataAddress() + elfFileInst->getRegStorageOffset() + 2*(sizeof(uint64_t))));
+    if (operand->GET(index)){
+        (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(indexReg, elfFileInst->getExtraDataAddress() + elfFileInst->getRegStorageOffset() + 3*(sizeof(uint64_t))));
+    }
+
+    if (operand->GET(base)){
+        (*addressCalc).append(InstructionGenerator32::generateRegAddImmediate(baseReg, (uint32_t)operand->getValue())); 
+    } else {
+        (*addressCalc).append(InstructionGenerator32::generateMoveImmToReg((uint32_t)operand->getValue(), baseReg));
+    }
+
+    if (operand->GET(index)){
+        //        operand->print();
+
+        uint8_t scale = operand->GET(scale);
+        if (!scale){
+            scale++;
+        }
+        (*addressCalc).append(InstructionGenerator32::generateRegImm1ByteMultReg(indexReg, scale, indexReg));
+        (*addressCalc).append(InstructionGenerator32::generateRegAddReg2OpForm(baseReg, indexReg));
+    }
+    
+    (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(baseReg, elfFileInst->getExtraDataAddress() + addressStore));
+    
+    (*addressCalc).append(InstructionGenerator32::generateMoveImmToReg((uint32_t)operand->getValue(), baseReg));
+    (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(baseReg, elfFileInst->getExtraDataAddress() + offsetStore));
+    
+    (*addressCalc).append(InstructionGenerator32::generateMoveImmToReg((uint32_t)operand->GET(index), baseReg));
+    (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(baseReg, elfFileInst->getExtraDataAddress() + indexStore));
+    
+    (*addressCalc).append(InstructionGenerator32::generateMoveImmToReg((uint32_t)operand->GET(scale), baseReg));
+    (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(baseReg, elfFileInst->getExtraDataAddress() + scaleStore));
+    
+    (*addressCalc).append(InstructionGenerator32::generateMoveImmToReg((uint32_t)operand->GET(base), baseReg));
+    (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(baseReg, elfFileInst->getExtraDataAddress() + regStore));
+
+    if (operand->GET(index)){
+        (*addressCalc).append(InstructionGenerator32::generateMoveMemToReg(elfFileInst->getExtraDataAddress() + elfFileInst->getRegStorageOffset() + 3*(sizeof(uint64_t)), indexReg));
+    }
+    (*addressCalc).append(InstructionGenerator32::generateMoveMemToReg(elfFileInst->getExtraDataAddress() + elfFileInst->getRegStorageOffset() + 2*(sizeof(uint64_t)), baseReg));
+    (*addressCalc).append(InstructionGenerator::generateNoop());
+
+    return addressCalc;
+}
+
+Vector<Instruction*>* MemoryOperand::generateAddressCalculation64(uint64_t addressStore, uint64_t offsetStore, uint64_t regStore, uint64_t indexStore, uint64_t scaleStore){
+    Vector<Instruction*>* addressCalc = new Vector<Instruction*>();
+    __FUNCTION_NOT_IMPLEMENTED;
+    return NULL;
+}
+
+Operand* Instruction::getMemoryOperand(){
+    ASSERT(isMemoryOperation());
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i] && operands[i]->GET(type) == UD_OP_MEM){
+            return operands[i];
+        }
+    }
+    __SHOULD_NOT_ARRIVE;
+    return NULL;
+}
 
 bool Instruction::isMemoryOperation(){
     uint32_t memCount = 0;
@@ -21,9 +129,28 @@ bool Instruction::isMemoryOperation(){
     return false;
 }
 
+bool Instruction::isStringOperation(){
+    if (getInstructionType() == X86InstructionType_string){
+        return true;
+    }
+    return false;
+}
+
+bool Instruction::isIntegerOperation(){
+    if (getInstructionType() == X86InstructionType_int){
+        return true;
+    }
+    return false;
+}
+
 bool Instruction::isFloatPOperation(){
-    return ((getInstructionType() == X86InstructionType_float) ||
-            (getInstructionType() == X86InstructionType_simd));
+    if (getInstructionType() == X86InstructionType_float){
+        return true;
+    }
+    if (getInstructionType() == X86InstructionType_simd){
+        return true;
+    }
+    return false;
 }
 
 uint32_t Operand::getBytesUsed(){
@@ -204,7 +331,7 @@ uint32_t Instruction::convertTo4ByteTargetOperand(){
         ud_init(&ud_obj);
         ud_set_input_buffer(&ud_obj, (uint8_t*)rawBytes, MAX_X86_INSTRUCTION_LENGTH);
 
-        if (textSection->getElfFile()->is64Bit()){
+        if (container->getTextSection()->getElfFile()->is64Bit()){
             ud_set_mode(&ud_obj, 64);
         } else {
             ud_set_mode(&ud_obj, 32);
@@ -302,7 +429,7 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
     ASSERT(func);
     ASSERT(addressList);
 
-    RawSection* dataSection = textSection->getElfFile()->findDataSectionAtAddr(tableBase);
+    RawSection* dataSection = container->getTextSection()->getElfFile()->findDataSectionAtAddr(tableBase);
     if (!dataSection){
         print();
         PRINT_ERROR("Cannot find table base %#llx for this instruction", tableBase);
@@ -316,7 +443,7 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
 
     // read the first location to decide what type of info is stored in the jump table
     uint64_t rawData;
-    if (textSection->getElfFile()->is64Bit()){
+    if (container->getTextSection()->getElfFile()->is64Bit()){
         rawData = getUInt64(dataSection->getStreamAtAddress(tableBase));
     } else {
         rawData = (uint64_t)getUInt32(dataSection->getStreamAtAddress(tableBase));
@@ -344,14 +471,14 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
 
     uint32_t currByte = 0;
     uint32_t dataLen;
-    if (textSection->getElfFile()->is64Bit()){
+    if (container->getTextSection()->getElfFile()->is64Bit()){
         dataLen = sizeof(uint64_t);
     } else {
         dataLen = sizeof(uint32_t);
     }
     
     do {
-        if (textSection->getElfFile()->is64Bit()){
+        if (container->getTextSection()->getElfFile()->is64Bit()){
             rawData = getUInt64(dataSection->getStreamAtAddress(tableBase+currByte));
         } else {
             rawData = (uint64_t)getUInt32(dataSection->getStreamAtAddress(tableBase+currByte));
@@ -411,7 +538,7 @@ uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionIns
                     if (jumpOpFound && immediate){
                         delete[] allInstructions;
                         PRINT_DEBUG_JUMP_TABLE("\t\tFound jump table base at %#llx", immediate);
-                        if (!textSection->getElfFile()->findDataSectionAtAddr(immediate)){
+                        if (!container->getTextSection()->getElfFile()->findDataSectionAtAddr(immediate)){
                             return 0;
                         }
                         return immediate;
@@ -424,7 +551,7 @@ uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionIns
     }
     // jump target is a memory location
     else {
-        if (!textSection->getElfFile()->findDataSectionAtAddr(operands[JUMP_TARGET_OPERAND]->getValue())){
+        if (!container->getTextSection()->getElfFile()->findDataSectionAtAddr(operands[JUMP_TARGET_OPERAND]->getValue())){
             return 0;
         }
         return operands[JUMP_TARGET_OPERAND]->getValue();
@@ -1324,14 +1451,14 @@ Operand* Instruction::getOperand(uint32_t idx){
     return operands[idx];
 }
 
-Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx)
+Instruction::Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx)
     : Base(ElfClassTypes_Instruction)
 {
     ud_t ud_obj;
     ud_init(&ud_obj);
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
 
-    if (text->getElfFile()->is64Bit()){
+    if (cont->getTextSection()->getElfFile()->is64Bit()){
         ud_set_mode(&ud_obj, 64);
     } else {
         ud_set_mode(&ud_obj, 32);
@@ -1346,9 +1473,10 @@ Instruction::Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8
     }
 
     baseAddress = baseAddr;
+    programAddress = baseAddr;
     instructionIndex = idx;
     byteSource = src;
-    textSection = text;
+    container = cont;
     addressAnchor = NULL;
 
     operands = new Operand*[MAX_OPERANDS];
@@ -1378,7 +1506,7 @@ Instruction::Instruction(struct ud* init)
     baseAddress = 0;
     instructionIndex = 0;
     byteSource = ByteSource_Instrumentation;
-    textSection = NULL;
+    container = NULL;
     addressAnchor = NULL;
 
     operands = new Operand*[MAX_OPERANDS];
@@ -1399,40 +1527,53 @@ Instruction::Instruction(struct ud* init)
 void Instruction::print(){
 
     char flags[9];
+    flags[0] = 'r';
     if (usesRelativeAddress()){
         flags[0] = 'R';
-    } else flags[0] = ' ';
+    }
+    flags[1] = 'c';
     if (isControl()){
         flags[1] = 'C';
-    } else flags[1] = ' ';
+    }
+    flags[2] = 't';
     if (usesControlTarget()){
         flags[2] = 'T';
-    } else flags[2] = ' ';
+    }
+    flags[3] = 'b';
     if (isJumpTableBase()){
         flags[3] = 'B';
-    } else flags[3] = ' ';
+    }
+    flags[4] = 'l';
     if (isLeader()){
         flags[4] = 'L';
-    } else flags[4] = ' ';
+    }
+    flags[5] = 'i';
     if (usesIndirectAddress()){
         flags[5] = 'I';
-    } else flags[5] = ' ';
+    }
+    flags[6] = 'm';
     if (isMemoryOperation()){
         flags[6] = 'M';
-    } else flags[6] = ' ';
+    }
+    flags[7] = 'f';
     if (isFloatPOperation()){
         flags[7] = 'F';
-    } else flags[7] = ' ';
+    }
 
     flags[8] = '\0';
 
-    PRINT_INFOR("%#llx:\t%16s\t%s\t'%6s'\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
+    PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%8s]\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
+
+
+#ifdef PRINT_INSTRUCTION_DETAIL
     PRINT_INFOR("\t%s (%d,%d) (%d,%d) (%d,%d) %d", ud_lookup_mnemonic(GET(itab_entry)->mnemonic), GET(itab_entry)->operand1.type, GET(itab_entry)->operand1.size, GET(itab_entry)->operand2.type, GET(itab_entry)->operand2.size, GET(itab_entry)->operand3.type, GET(itab_entry)->operand3.size, GET(itab_entry)->prefix);
 
     PRINT_INFOR("%d(%s)\t%hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd", GET(mnemonic), ud_lookup_mnemonic(GET(mnemonic)),
                 GET(error), GET(pfx_rex), GET(pfx_seg), GET(pfx_opr), GET(pfx_adr), GET(pfx_lock), GET(pfx_rep),
                 GET(pfx_repe), GET(pfx_repne), GET(pfx_insn), GET(default64), GET(opr_mode), GET(adr_mode),
                 GET(br_far), GET(br_near), GET(implicit_addr), GET(c1), GET(c2), GET(c3));
+
+#endif // PRINT_INSTRUCTION_DETAIL
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         ud_operand op = GET(operand)[i];
@@ -1468,8 +1609,10 @@ void Operand::print(){
 
     ASSERT(op.type);
 
+#ifdef PRINT_INSTRUCTION_DETAIL
     PRINT_INFOR("\traw operand %d: type=%d(%d), size=%hhd, position=%hhd, base=%d, index=%d, lval=%#llx, offset=%hhd, scale=%hhd", 
                 operandIndex, GET(type), GET(type) - UD_OP_REG, GET(size), GET(position), GET(base), GET(index), op.lval, GET(offset), GET(scale));
+#endif // PRINT_INSTRUCTION_DETAIL
     
     char typstr[32];
     char valstr[32];

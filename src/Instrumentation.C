@@ -15,6 +15,11 @@
 STATS(uint32_t InstrumentationPoint::countStackSafe);
 STATS(uint32_t InstrumentationPoint::countStackUnsafe);
 
+uint32_t InstrumentationPoint::addPrecursorInstruction(Instruction* inst){
+    precursorInstructions.append(inst);
+    return precursorInstructions.size();
+}
+
 int compareSourceAddress(const void* arg1,const void* arg2){
     InstrumentationPoint* ip1 = *((InstrumentationPoint**)arg1);
     InstrumentationPoint* ip2 = *((InstrumentationPoint**)arg2);
@@ -192,6 +197,11 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         STATS(InstrumentationPoint::countStackSafe++);
     }
 
+    while (hasMorePrecursorInstructions()){
+        trampolineInstructions.append(removeNextPrecursorInstruction());
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
+
 #ifdef TRAMPOLINE_AVOIDS_STACK
     trampolineInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, regStorageBase + sizeof(uint32_t)));
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
@@ -277,6 +287,14 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
     }
 #endif
 
+    // this should be unused for now
+    ASSERT(!hasMorePostcursorInstructions());
+    while (hasMorePostcursorInstructions()){
+        trampolineInstructions.append(removeNextPostcursorInstruction());
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
+
+
     uint64_t displacementDist = returnOffset - (offset + trampolineSize + numberOfBytes);
 
     if (doReloc){
@@ -356,30 +374,28 @@ Instrumentation::~Instrumentation(){
     }
 }
 
-uint32_t InstrumentationFunction::addArgument(uint64_t offset){
-    return addArgument(offset, 0);
+uint32_t InstrumentationFunction::addArgumentAddress(uint64_t offset){
+    return addArgumentAddress(offset, 0);
 }
 
-uint32_t InstrumentationFunction::addArgument(uint64_t offset, uint32_t value){
-    uint64_t* newoffsets = new uint64_t[numberOfArguments+1];
-    uint32_t* newvalues = new uint32_t[numberOfArguments+1];
+uint32_t InstrumentationFunction::addArgumentAddress(uint64_t offset, uint32_t value){
+    return addRawArgument(ArgumentType_Address, value, offset);
+}
 
-    for (uint32_t i = 0; i < numberOfArguments; i++){
-        newoffsets[i] = argumentOffsets[i];
-        newvalues[i] = argumentValues[i];
-    }
+uint32_t InstrumentationFunction::addArgumentRegCompute(uint64_t offset, uint32_t reg){
+    return addRawArgument(ArgumentType_RegCompute, reg, offset);
+}
 
-    newoffsets[numberOfArguments] = offset;
-    newvalues[numberOfArguments] = value;
+uint32_t InstrumentationFunction::addRawArgument(uint32_t type, uint32_t value, uint64_t offset){
+    Argument arg;
 
-    delete[] argumentOffsets;
-    delete[] argumentValues;
+    arg.type = type;
+    arg.value = value;
+    arg.offset = offset;
 
-    argumentOffsets = newoffsets;
-    argumentValues = newvalues;
+    arguments.append(arg);
 
-    numberOfArguments++;
-    return numberOfArguments;
+    return arguments.size();
 }
 
 void InstrumentationFunction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
@@ -482,12 +498,10 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         wrapperInstructions.append(InstructionGenerator64::generateStackPush(i));
     }
 
-    ASSERT(numberOfArguments < MAX_ARGUMENTS_64BIT && "More arguments must be pushed onto stack, which is not yet implemented"); 
+    ASSERT(arguments.size() < MAX_ARGUMENTS_64BIT && "More arguments must be pushed onto stack, which is not yet implemented"); 
 
-    for (uint32_t i = 0; i < numberOfArguments; i++){
-        uint32_t idx = numberOfArguments - i - 1;
-        uint32_t value = argumentValues[idx];
-
+    for (uint32_t i = 0; i < arguments.size(); i++){
+        uint32_t idx = arguments.size() - i - 1;
         uint32_t argumentRegister;
 
         // use GPRs rdi,rsi,rdx,rcx,r8,r9, then push onto stack
@@ -514,11 +528,12 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
             PRINT_ERROR("Cannot pass more than %d argument to an instrumentation function", MAX_ARGUMENTS_64BIT);
             __SHOULD_NOT_ARRIVE;
         }
-        wrapperInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],argumentRegister));
 
-        bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(value,X86_REG_CX));
-        bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
-        bootstrapInstructions.append(InstructionGenerator::generateMoveRegToRegaddr(X86_REG_CX,X86_REG_DX));
+        wrapperInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
+
+        bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(arguments[idx].value, X86_REG_CX));
+        bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, X86_REG_DX));
+        bootstrapInstructions.append(InstructionGenerator::generateMoveRegToRegaddr(X86_REG_CX, X86_REG_DX));
     }
 
     /*
@@ -558,21 +573,20 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
         wrapperInstructions.append(InstructionGenerator32::generateStackPush(i));
     }
 
-    for (uint32_t i = 0; i < numberOfArguments; i++){
-        uint32_t idx = numberOfArguments - i - 1;
-        uint32_t value = argumentValues[idx];
+    for (uint32_t i = 0; i < arguments.size(); i++){
+        uint32_t idx = arguments.size() - i - 1;
 
         // everything is passed on the stack
-        wrapperInstructions.append(InstructionGenerator32::generateMoveImmToReg(dataBaseAddress+argumentOffsets[idx],X86_REG_DX));
+        wrapperInstructions.append(InstructionGenerator32::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, X86_REG_DX));
         wrapperInstructions.append(InstructionGenerator32::generateStackPush(X86_REG_DX));
 
-        bootstrapInstructions.append(InstructionGenerator32::generateMoveImmToReg(value,X86_REG_CX));
-        bootstrapInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress+argumentOffsets[idx]));
+        bootstrapInstructions.append(InstructionGenerator32::generateMoveImmToReg(arguments[idx].value, X86_REG_CX));
+        bootstrapInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX, dataBaseAddress + arguments[idx].offset));
     }
 
     wrapperInstructions.append(InstructionGenerator32::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
 
-    for (uint32_t i = 0; i < numberOfArguments; i++){
+    for (uint32_t i = 0; i < arguments.size(); i++){
         wrapperInstructions.append(InstructionGenerator32::generateStackPop(X86_REG_CX));
     }
 
@@ -623,10 +637,6 @@ InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, u
     globalData = 0;
     globalDataOffset = dataoffset;
 
-    numberOfArguments = 0;
-    argumentOffsets = NULL;
-    argumentValues = NULL;
-
     distinctTrampoline = true;
 }
 
@@ -639,12 +649,6 @@ InstrumentationFunction::~InstrumentationFunction(){
     }
     for (uint32_t i = 0; i < wrapperInstructions.size(); i++){
         delete wrapperInstructions[i];
-    }
-    if (argumentOffsets){
-        delete[] argumentOffsets;
-    }
-    if (argumentValues){
-        delete[] argumentValues;
     }
 }
 
@@ -774,8 +778,14 @@ InstrumentationSnippet::~InstrumentationSnippet(){
 }
 
 Vector<Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(Vector<Instruction*>* replacements){
-    return point->swapInstructions(getSourceAddress(),replacements);
-    return NULL;
+    if (point->getType() == ElfClassTypes_Instruction){
+        Instruction* instruction = (Instruction*)point;
+        ASSERT(instruction->getContainer() && instruction->getContainer()->getType() == ElfClassTypes_Function);
+        Function* func = (Function*)instruction->getContainer();
+        return func->swapInstructions(getSourceAddress(), replacements);
+    } else {
+        return point->swapInstructions(getSourceAddress(),replacements);
+    }
 }
 
 void InstrumentationPoint::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
@@ -805,6 +815,8 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, uint
     point = pt;
 
     instrumentation = inst;
+    instrumentation->setInstrumentationPoint(this);
+
     numberOfBytes = size;
     instLocation = loc;
 

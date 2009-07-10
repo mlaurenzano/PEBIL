@@ -36,6 +36,9 @@ public:
     static Instruction* generateInterrupt(uint8_t idx);
 
     static Instruction* generateAndImmReg(uint64_t, uint32_t);
+    static Instruction* generateRegImm1ByteMultReg(uint32_t src, uint8_t imm, uint32_t dest);
+    static Instruction* generateRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg);
+
 };
 
 class InstructionGenerator64 : public InstructionGenerator {

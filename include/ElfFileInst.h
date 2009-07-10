@@ -119,6 +119,7 @@ public:
     ElfFileInst(ElfFile* elf, char* inputFileList);
     ~ElfFileInst();
     ElfFile* getElfFile() { return elfFile; }
+    uint64_t getRegStorageOffset() { return regStorageOffset; }
 
     void gatherCoverageStats(bool relocHasOccurred, const char* msg);
 

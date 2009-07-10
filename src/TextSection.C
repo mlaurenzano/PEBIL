@@ -208,7 +208,7 @@ Vector<Instruction*>* TextObject::digestLinear(){
     while (currByte < sizeInBytes){
 
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
-        Instruction* newInstruction = new Instruction(textSection, getBaseAddress() + currByte, charStream() + currByte, ByteSource_Application_FreeText, numberOfInstructions++);
+        Instruction* newInstruction = new Instruction(this, getBaseAddress() + currByte, charStream() + currByte, ByteSource_Application_FreeText, numberOfInstructions++);
         PRINT_DEBUG_CFG("linear cfg: instruction at %#llx with %d bytes", newInstruction->getBaseAddress(), newInstruction->getSizeInBytes());
 
         (*allInstructions).append(newInstruction);
@@ -392,6 +392,7 @@ Vector<Instruction*>* TextSection::swapInstructions(uint64_t addr, Vector<Instru
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         if (sortedTextObjects[i]->getType() == ElfClassTypes_Function){
             Function* f = (Function*)sortedTextObjects[i];
+            PRINT_INFOR("Searching function %s at range [%#llx,%#llx)", f->getName(), f->getBaseAddress(), f->getBaseAddress()+f->getSizeInBytes());
             if (f->inRange(addr)){
                 return f->swapInstructions(addr, replacements);
                 for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){

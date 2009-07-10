@@ -114,6 +114,9 @@ public:
     uint32_t getNumberOfFloatOps();
     uint32_t getNumberOfLoads();
     uint32_t getNumberOfStores();
+    uint32_t getNumberOfIntegerOps();
+    uint32_t getNumberOfStringOps();
+
 
     bool controlFallsThrough();
     bool findExitInstruction();

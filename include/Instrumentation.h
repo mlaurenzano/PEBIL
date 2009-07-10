@@ -6,6 +6,7 @@
 #include <Vector.h>
 
 class Instruction;
+class InstrumentationPoint;
 
 #define PLT_RETURN_OFFSET_32BIT 6
 #define PLT_RETURN_OFFSET_64BIT 6
@@ -27,6 +28,8 @@ protected:
     uint64_t bootstrapOffset;
 
     bool distinctTrampoline;
+    InstrumentationPoint* point;
+
 public:
     Instrumentation(ElfClassTypes typ);
     ~Instrumentation();
@@ -45,6 +48,10 @@ public:
 
     uint32_t bootstrapSize();
     void setBootstrapOffset(uint64_t off) { bootstrapOffset = off; }
+
+    InstrumentationPoint* getInstrumentationPoint() { return point; }
+    void setInstrumentationPoint(InstrumentationPoint* pt) { point = pt; }
+
 };
 
 class InstrumentationSnippet : public Instrumentation {
@@ -84,6 +91,20 @@ public:
 
 };
 
+typedef enum {
+    ArgumentType_undefined = 0,
+    ArgumentType_RegCompute,
+    ArgumentType_Address,
+    ArgumentType_Total_Types
+} ArgumentTypes;
+
+
+typedef struct {
+    uint32_t type;
+    uint32_t value;
+    uint64_t offset;
+} Argument;
+
 class InstrumentationFunction : public Instrumentation {
 protected:
     char* functionName;
@@ -103,9 +124,9 @@ protected:
 
     uint64_t relocationOffset;
 
-    uint32_t numberOfArguments;
-    uint64_t* argumentOffsets;
-    uint32_t* argumentValues;
+    Vector<Argument> arguments;
+
+    uint32_t addRawArgument(uint32_t type, uint32_t value, uint64_t offset);
 
 public:
     InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset, uint64_t fEntry);
@@ -144,8 +165,10 @@ public:
     virtual uint32_t generateGlobalData(uint64_t textBaseAddress) { __SHOULD_NOT_ARRIVE; }
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-    uint32_t addArgument(uint64_t offset);
-    uint32_t addArgument(uint64_t offset, uint32_t value);
+
+    uint32_t addArgumentAddress(uint64_t offset);
+    uint32_t addArgumentAddress(uint64_t offset, uint32_t value);
+    uint32_t addArgumentRegCompute(uint64_t offset, uint32_t reg);
 
     uint64_t getEntryPoint();
 
@@ -204,6 +227,9 @@ protected:
 
     InstPriorities priority;
 
+    Vector<Instruction*> precursorInstructions;
+    Vector<Instruction*> postcursorInstructions;
+
 public:
     STATS(static uint32_t countStackSafe);
     STATS(static uint32_t countStackUnsafe);
@@ -230,6 +256,12 @@ public:
     virtual uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe)
          { __SHOULD_NOT_ARRIVE; }
     uint64_t getTrampolineOffset() { return trampolineOffset; }
+
+    Instruction* removeNextPrecursorInstruction() { ASSERT(hasMorePrecursorInstructions()); return precursorInstructions.remove(0); }
+    bool hasMorePrecursorInstructions() { return (precursorInstructions.size() != 0); }
+    uint32_t addPrecursorInstruction(Instruction* inst);
+    Instruction* removeNextPostcursorInstruction() { ASSERT(hasMorePostcursorInstructions()); return postcursorInstructions.remove(0); }
+    bool hasMorePostcursorInstructions() { return (postcursorInstructions.size() != 0); }
 
     bool verify();
 };

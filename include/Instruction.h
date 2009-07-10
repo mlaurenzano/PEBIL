@@ -8,8 +8,9 @@
 #include <udis86.h>
 #include <defines/Instruction.d>
 
+class ElfFileInst;
 class Function;
-class TextSection;
+class TextObject;
 
 #define MAX_OPERANDS 3
 #define JUMP_TARGET_OPERAND 0
@@ -148,6 +149,21 @@ public:
 
 };
 
+class MemoryOperand {
+private:
+    Operand* operand;
+    ElfFileInst* elfFileInst;
+
+    Vector<Instruction*>* generateAddressCalculation32(uint64_t addressStore, uint64_t offsetStore, uint64_t regStore, uint64_t indexStore, uint64_t scaleStore);
+    Vector<Instruction*>* generateAddressCalculation64(uint64_t addressStore, uint64_t offsetStore, uint64_t regStore, uint64_t indexStore, uint64_t scaleStore);
+public:
+    MemoryOperand(Operand* op, ElfFileInst* elfInst);
+    ~MemoryOperand() {}
+
+    Operand* getOperand() { return operand; }
+    Vector<Instruction*>* generateAddressCalculation(uint64_t addressStore, uint64_t offsetStore, uint64_t regStore, uint64_t indexStore, uint64_t scaleStore);
+};
+
 class Instruction : public Base {
 private:
     struct ud entry;
@@ -155,18 +171,20 @@ private:
     uint32_t instructionIndex;
 
     uint8_t byteSource;
+    uint64_t programAddress;
     AddressAnchor* addressAnchor;
     bool leader;
-    TextSection* textSection;
+    TextObject* container;
 
 public:
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     Instruction(struct ud* init);
-    Instruction(TextSection* text, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx);
+    Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx);
     ~Instruction();
 
     Operand* getOperand(uint32_t idx);
+    TextObject* getContainer() { return container; }
 
     void print();
     bool verify();
@@ -176,6 +194,7 @@ public:
     uint32_t getIndex() { return instructionIndex; }
     void setIndex(uint32_t idx) { instructionIndex = idx; }
     uint32_t getInstructionType();
+    uint64_t getProgramAddress() { return programAddress; }
 
     bool controlFallsThrough();
 
@@ -195,8 +214,8 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     AddressAnchor* getAddressAnchor() { return addressAnchor; }
-
     void initializeAnchor(Base*);
+    uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc) { return getBaseAddress(); }
 
     bool isJumpTableBase();
     uint64_t findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions);
@@ -207,7 +226,6 @@ public:
 
     uint64_t getBaseAddress() { return baseAddress; }
     bool usesControlTarget();
-
 
     bool usesIndirectAddress(); 
     bool usesRelativeAddress();
@@ -221,9 +239,10 @@ public:
     uint32_t getIndirectBranchTarget();
 
     bool isFloatPOperation();
-    bool isMemoryOperation();
-
-    
+    bool isIntegerOperation();
+    bool isStringOperation();
+    bool isMemoryOperation();    
+    Operand* getMemoryOperand();
 };
 
 #endif /* _Instruction_h_ */

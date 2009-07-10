@@ -517,12 +517,6 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
     Function* placeHolder = new Function(text,functionToRelocate->getIndex(),functionToRelocate->getFunctionSymbol(),functionSize);
     Vector<AddressAnchor*>* modAnchors = searchAddressAnchors(functionToRelocate->getBaseAddress());
     for (uint32_t i = 0; i < modAnchors->size(); i++){
-        if (functionToRelocate->getBaseAddress() == 0x80d1000){
-            ASSERT((*modAnchors)[i]->getLinkedParent()->getType() == ElfClassTypes_Instruction);
-            PRINT_INFOR("Updating %d anchors for getpid -- %#llx", modAnchors->size(), (*modAnchors)[i]->linkBaseAddress);
-            ((Instruction*)(*modAnchors)[i]->getLinkedParent())->print();
-            (*trampEmpty).back()->print();
-        }
         (*modAnchors)[i]->updateLink((*trampEmpty).back());
         anchorsAreSorted = false;
     }
@@ -765,10 +759,6 @@ void ElfFileInst::generateInstrumentation(){
                     for (uint32_t l = 0; l < (*repl).size(); l++){
                         PRINT_DEBUG_ANCHOR("\t\t********Comparing addresses %#llx and %#llx", (*displaced)[j]->getBaseAddress(), (*repl)[l]->getBaseAddress());
                         if ((*displaced)[j]->getBaseAddress() == (*repl)[l]->getBaseAddress()){
-                            if ((*displaced)[j]->getBaseAddress() == 0x40d4e2a){
-                                PRINT_INFOR("Updating anchor for getpid from swap");
-                                (*repl)[l]->print();
-                            }
                             (*modAnchors)[k]->updateLink((*repl)[l]);
                             anchorsAreSorted = false;
                         }
