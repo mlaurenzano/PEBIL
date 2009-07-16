@@ -36,9 +36,6 @@ public:
     static Instruction* generateInterrupt(uint8_t idx);
 
     static Instruction* generateAndImmReg(uint64_t, uint32_t);
-    static Instruction* generateRegImm1ByteMultReg(uint32_t src, uint8_t imm, uint32_t dest);
-    static Instruction* generateRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg);
-
 };
 
 class InstructionGenerator64 : public InstructionGenerator {
@@ -76,6 +73,10 @@ public:
 
     static Instruction* generateAddImmByteToMem(uint8_t, uint64_t);
     static Instruction* generateXorRegReg(uint8_t, uint8_t);
+    static Instruction* generateRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg);
+    static Instruction* generateRegImmMultReg(uint32_t src, uint32_t imm, uint32_t dest);
+    static Instruction* generateLoadRipImmToReg(uint32_t imm, uint32_t destreg);
+    static Instruction* generateMoveRegToReg(uint32_t srcreg, uint32_t destreg);
 };
 
 class InstructionGenerator32 : public InstructionGenerator {
@@ -101,6 +102,8 @@ public:
     static Instruction* generateLoadEflagsFromAH();
 
     static Instruction* generateAddImmByteToMem(uint8_t, uint64_t);
+    static Instruction* generateRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg);
+    static Instruction* generateRegImm1ByteMultReg(uint32_t src, uint8_t imm, uint32_t dest);
 };
 
 #endif /* _InstructionGenerator_h_ */

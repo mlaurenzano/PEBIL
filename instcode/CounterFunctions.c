@@ -18,16 +18,17 @@ char** fileNames;
 char** functionNames;
 int64_t* hashValues;
 
-int32_t printmemory(int32_t* memory, int32_t* base, int32_t* offset, int32_t* index, int32_t* scale){
-    int32_t memloc = *memory;
-    int32_t memval;
+int32_t printmemory(int64_t* memory, int64_t* base, int64_t* offset, int64_t* index, int64_t* scale){
+    int64_t memloc = *memory;
+    int64_t memval;
+    PRINT_INSTR("raw args: m[%llx]=%#llx m[%llx]=%lld m[%llx]=%lld m[%llx]=%lld m[%llx]=%llx", memory, *memory, base, *base, offset, *offset, index, *index, scale, *scale);
     if (memloc == 0){
         PRINT_INSTR("raw args: m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%d", memory, memval, base, *base, offset, *offset, index, *index, scale, *scale);
         memval = 0;
     } else {
-        memval = *((int32_t*)memloc);
+        memval = *((int64_t*)memloc);
     }
-    PRINT_INSTR("mem[%#lx]\t%#lx", memloc, memval);
+    PRINT_INSTR("mem[%#llx]\t%#llx", memloc, memval);
 }
 
 

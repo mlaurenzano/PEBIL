@@ -151,8 +151,9 @@ public:
             uint8_t value = bits[i];
             for(uint32_t j=0;(j<(1 << DivideLog)) && (idx<maximum);j++,idx++){
                 uint8_t mask = 1 << j;
-                if(value & mask)
+                if(value & mask){
                     ret[arrIdx++] = elements[idx];
+                }
             }
         }
 

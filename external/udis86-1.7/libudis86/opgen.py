@@ -444,7 +444,6 @@ for node in tlNode.childNodes:
                 table_name  = tables[table_name][table_index]['name']    
                 table_index = "%02X" % int(op[7:9], 16)
                 table_size  = 256
-                print "found 3byte -- ", op[7:9]
             elif op[0:2] == '/M':
                 tables[table_name][table_index] = { \
                     'type' : 'grp_mode',  \

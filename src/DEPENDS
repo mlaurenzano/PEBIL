@@ -1,8 +1,8 @@
 AddressAnchor.o: AddressAnchor.C ../include/AddressAnchor.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/BinaryFile.h \
-  ../include/Instruction.h ../include/RawSection.h ../include/Vector.h \
-  ../external/udis86-1.7/libudis86/syn.h \
+  ../include/Instruction.h ../include/BitSet.h ../include/RawSection.h \
+  ../include/Vector.h ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
@@ -86,7 +86,7 @@ ElfFile.o: ElfFile.C ../include/ElfFile.h ../include/Base.h \
 ElfFileInst.o: ElfFileInst.C ../include/ElfFileInst.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/ElfFile.h ../include/BinaryFile.h ../include/Vector.h \
-  ../include/Instruction.h ../include/AddressAnchor.h \
+  ../include/Instruction.h ../include/AddressAnchor.h ../include/BitSet.h \
   ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
@@ -94,18 +94,18 @@ ElfFileInst.o: ElfFileInst.C ../include/ElfFileInst.h ../include/Base.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/Instruction.d ../include/BasicBlock.h \
-  ../include/BitSet.h ../include/FlowGraph.h ../include/Function.h \
-  ../include/TextSection.h ../include/LinkedList.h \
-  ../include/DynamicTable.h ../include/defines/DynamicTable.d \
-  ../include/FileHeader.h ../include/defines/FileHeader.d \
-  ../include/GnuVersion.h ../include/defines/GnuVersion.d \
-  ../include/HashTable.h ../include/InstructionGenerator.h \
-  ../include/Instrumentation.h ../include/LineInformation.h \
-  ../include/defines/LineInformation.d ../include/ProgramHeader.h \
-  ../include/defines/ProgramHeader.d ../include/RelocationTable.h \
-  ../include/defines/RelocationTable.d ../include/SectionHeader.h \
-  ../include/defines/SectionHeader.d ../include/StringTable.h \
-  ../include/SymbolTable.h ../include/defines/SymbolTable.d
+  ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
+  ../include/LinkedList.h ../include/DynamicTable.h \
+  ../include/defines/DynamicTable.d ../include/FileHeader.h \
+  ../include/defines/FileHeader.d ../include/GnuVersion.h \
+  ../include/defines/GnuVersion.d ../include/HashTable.h \
+  ../include/InstructionGenerator.h ../include/Instrumentation.h \
+  ../include/LineInformation.h ../include/defines/LineInformation.d \
+  ../include/ProgramHeader.h ../include/defines/ProgramHeader.d \
+  ../include/RelocationTable.h ../include/defines/RelocationTable.d \
+  ../include/SectionHeader.h ../include/defines/SectionHeader.d \
+  ../include/StringTable.h ../include/SymbolTable.h \
+  ../include/defines/SymbolTable.d
 FileHeader.o: FileHeader.C ../include/FileHeader.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/defines/FileHeader.d ../include/BinaryFile.h
@@ -175,21 +175,22 @@ HashTable.o: HashTable.C ../include/HashTable.h ../include/RawSection.h \
 Instruction.o: Instruction.C ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/BinaryFile.h ../include/ElfFile.h ../include/Vector.h \
-  ../include/Function.h ../include/BitSet.h ../include/Instruction.h \
-  ../include/AddressAnchor.h ../include/RawSection.h \
+  ../include/ElfFileInst.h ../include/Instruction.h \
+  ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h \
-  ../include/defines/Instruction.d ../include/TextSection.h \
+  ../include/defines/Instruction.d ../include/Function.h \
+  ../include/TextSection.h ../include/InstructionGenerator.h \
   ../include/SectionHeader.h ../include/defines/SectionHeader.d
 InstructionGenerator.o: InstructionGenerator.C ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/InstructionGenerator.h ../include/Instruction.h \
-  ../include/AddressAnchor.h ../include/RawSection.h ../include/Vector.h \
-  ../external/udis86-1.7/libudis86/syn.h \
+  ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
+  ../include/Vector.h ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
@@ -199,18 +200,17 @@ InstructionGenerator.o: InstructionGenerator.C ../include/Base.h \
 Instrumentation.o: Instrumentation.C ../include/Instrumentation.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/Instruction.h \
-  ../include/AddressAnchor.h ../include/RawSection.h ../include/Vector.h \
-  ../external/udis86-1.7/libudis86/syn.h \
+  ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
+  ../include/Vector.h ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/Instruction.d ../include/BasicBlock.h \
-  ../include/BitSet.h ../include/FlowGraph.h ../include/Function.h \
-  ../include/TextSection.h ../include/LinkedList.h \
-  ../include/ElfFileInst.h ../include/ElfFile.h ../include/BinaryFile.h \
-  ../include/InstructionGenerator.h
+  ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
+  ../include/LinkedList.h ../include/ElfFileInst.h ../include/ElfFile.h \
+  ../include/BinaryFile.h ../include/InstructionGenerator.h
 LengauerTarjan.o: LengauerTarjan.C ../include/LengauerTarjan.h \
   ../include/LinkedList.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/BasicBlock.h \
@@ -284,7 +284,7 @@ ProgramHeader.o: ProgramHeader.C ../include/ProgramHeader.h \
 RawSection.o: RawSection.C ../include/RawSection.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/Vector.h ../include/AddressAnchor.h ../include/BinaryFile.h \
-  ../include/ElfFile.h ../include/Instruction.h \
+  ../include/ElfFile.h ../include/Instruction.h ../include/BitSet.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
@@ -318,7 +318,8 @@ SymbolTable.o: SymbolTable.C ../include/SymbolTable.h ../include/Base.h \
   ../include/ElfFile.h ../include/SectionHeader.h \
   ../include/defines/SectionHeader.d ../include/StringTable.h \
   ../include/TextSection.h ../include/Instruction.h \
-  ../include/AddressAnchor.h ../external/udis86-1.7/libudis86/syn.h \
+  ../include/AddressAnchor.h ../include/BitSet.h \
+  ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
@@ -327,7 +328,7 @@ SymbolTable.o: SymbolTable.C ../include/SymbolTable.h ../include/Base.h \
   ../include/defines/Instruction.d
 TextSection.o: TextSection.C ../include/TextSection.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/Instruction.h ../include/AddressAnchor.h \
+  ../include/Instruction.h ../include/AddressAnchor.h ../include/BitSet.h \
   ../include/RawSection.h ../include/Vector.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
@@ -336,7 +337,7 @@ TextSection.o: TextSection.C ../include/TextSection.h ../include/Base.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/Instruction.d ../include/BasicBlock.h \
-  ../include/BitSet.h ../include/FlowGraph.h ../include/Function.h \
-  ../include/LinkedList.h ../include/ElfFile.h ../include/BinaryFile.h \
-  ../include/SectionHeader.h ../include/defines/SectionHeader.d \
-  ../include/SymbolTable.h ../include/defines/SymbolTable.d
+  ../include/FlowGraph.h ../include/Function.h ../include/LinkedList.h \
+  ../include/ElfFile.h ../include/BinaryFile.h ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d ../include/SymbolTable.h \
+  ../include/defines/SymbolTable.d

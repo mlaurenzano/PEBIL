@@ -3,6 +3,7 @@
 
 #include <AddressAnchor.h>
 #include <Base.h>
+#include <BitSet.h>
 #include <RawSection.h>
 #include <libudis86/syn.h>
 #include <udis86.h>
@@ -137,12 +138,18 @@ public:
     Operand(Instruction* inst, struct ud_operand* init, uint32_t idx);
     ~Operand() {}
 
+    Instruction* getInstruction() { return instruction; }
+
     void print();
     char* charStream() { return (char*)&entry; }
     bool verify();
 
     uint32_t getBytesUsed();
     uint32_t getBytePosition();
+    uint32_t getBaseRegister();
+    uint32_t getIndexRegister();
+
+    void touchedRegisters(BitSet<uint32_t>* regs);
     bool isRelative();
     uint32_t getType() { return GET(type); }
     int64_t getValue();
@@ -196,6 +203,7 @@ public:
     uint32_t getInstructionType();
     uint64_t getProgramAddress() { return programAddress; }
 
+    void touchedRegisters(BitSet<uint32_t>* regs);
     bool controlFallsThrough();
 
     // control instruction id

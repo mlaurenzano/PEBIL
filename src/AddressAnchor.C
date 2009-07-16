@@ -132,8 +132,13 @@ void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t
 }
 
 uint64_t AddressAnchor::getLinkOffset(){
-    if (linkedParent->getType() == ElfClassTypes_Instruction){
-        return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
+    if (linkedParent->getType() == ElfClassTypes_Instruction){ 
+        Instruction* instl = (Instruction*)linkedParent;
+        if (instl->isControl()){
+            return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
+        } else {
+            return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
+        }
     } else if (linkedParent->getType() == ElfClassTypes_DataReference){
         return link->getBaseAddress();
     }

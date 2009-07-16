@@ -313,8 +313,10 @@ uint32_t ElfFileInst::anchorProgramElements(){
         ASSERT(!currentInstruction->getAddressAnchor());
         if (currentInstruction->usesRelativeAddress()){
             uint64_t relativeAddress = currentInstruction->getRelativeValue() + currentInstruction->getBaseAddress() + currentInstruction->getSizeInBytes();
-            if (!currentInstruction->isControl() || currentInstruction->usesIndirectAddress()){
-                relativeAddress += currentInstruction->getSizeInBytes();
+            if (!elfFile->is64Bit()){
+                if (!currentInstruction->isControl() || currentInstruction->usesIndirectAddress()){
+                    relativeAddress += currentInstruction->getSizeInBytes();
+                }
             }
             if (!currentInstruction->getRelativeValue()){
                 PRINT_WARN(4,"An Instruction links to null address %#llx", currentInstruction->getRelativeValue());
@@ -322,7 +324,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
             PRINT_DEBUG_ANCHOR("Searching for relative address %llx", relativeAddress);
 
             // search other instructions
-            void* link = bsearch(&relativeAddress,allInstructions,instructionCount,sizeof(Instruction*),searchBaseAddressExact);
+            void* link = bsearch(&relativeAddress, allInstructions, instructionCount, sizeof(Instruction*), searchBaseAddressExact);
             if (link != NULL){
                 Instruction* linkedInstruction = *(Instruction**)link;
                 PRINT_DEBUG_ANCHOR("Found inst -> inst link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);

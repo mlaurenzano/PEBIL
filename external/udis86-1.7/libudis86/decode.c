@@ -551,11 +551,10 @@ decode_modrm(struct ud* u, struct ud_operand *op, unsigned int s,
          unsigned char rm_type, struct ud_operand *opreg, 
          unsigned char reg_size, unsigned char reg_type)
 {
-  op->position = ud_insn_len(u); // X86INST
-
   unsigned char mod, rm, reg;
 
   inp_next(u);
+  op->position = ud_insn_len(u); // X86INST
 
   /* get mod, r/m and reg fields */
   mod = MODRM_MOD(inp_curr(u));
