@@ -58,9 +58,13 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
     }
 
     BitSet<uint32_t>* usedRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
-    for (uint32_t i = 0; i < (*insts).size(); i++){
-        (*insts)[i]->touchedRegisters(usedRegs);
+    usedRegs->insert(X86_REG_SP);
+    if (insts){
+        for (uint32_t i = 0; i < (*insts).size(); i++){
+            (*insts)[i]->touchedRegisters(usedRegs);
+        }
     }
+
     //    PRINT_INFOR("reg allocation at %#llx", getSourceAddress());
     //    usedRegs->print();
     ~(*usedRegs);

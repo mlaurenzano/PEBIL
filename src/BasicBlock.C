@@ -478,11 +478,6 @@ Vector<Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<Instruct
     uint32_t replacedBytes = 0;
     uint32_t idx = tgtInstruction->getIndex();
 
-    for (uint32_t i = 0; i < instructions.size(); i++){
-        instructions[i]->print();
-    }
-
-
     while (replacedBytes < bytesToReplace){
         ASSERT(instructions.size() >= idx && "You ran out of instructions in this block");
         (*replaced).append(instructions.remove(idx));

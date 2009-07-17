@@ -47,8 +47,8 @@ void ElfFileInst::initializeDisabledFunctions(char* inputFuncList){
         PRINT_ERROR("Input file can not be opened [%s]", inputFuncList);
     }
 
-    char* inBuffer = new char[LINE_MAX];
-    while (fgets(inBuffer, LINE_MAX, inFile) != NULL) {
+    char* inBuffer = new char[__MAX_STRING_SIZE];
+    while (fgets(inBuffer, __MAX_STRING_SIZE, inFile) != NULL) {
         char* line = new char[strlen(inBuffer)+1];
         sprintf(line, "%s", inBuffer);
         line[strlen(inBuffer)-1] = '\0';
@@ -169,6 +169,9 @@ bool ElfFileInst::isEligibleFunction(Function* func){
         return false;
     }
     if (isDisabledFunction(func)){
+        return false;
+    }
+    if (func->getNumberOfBytes() < SIZE_NEEDED_AT_INST_POINT){
         return false;
     }
     return true;

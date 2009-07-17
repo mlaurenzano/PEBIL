@@ -19,6 +19,7 @@ char** functionNames;
 int64_t* hashValues;
 
 int32_t printmemory(int64_t* memory, int64_t* base, int64_t* offset, int64_t* index, int64_t* scale){
+    return 0;
     int64_t memloc = *memory;
     int64_t memval;
     PRINT_INSTR("raw args: m[%llx]=%#llx m[%llx]=%lld m[%llx]=%lld m[%llx]=%lld m[%llx]=%llx", memory, *memory, base, *base, offset, *offset, index, *index, scale, *scale);
@@ -29,6 +30,7 @@ int32_t printmemory(int64_t* memory, int64_t* base, int64_t* offset, int64_t* in
         memval = *((int64_t*)memloc);
     }
     PRINT_INSTR("mem[%#llx]\t%#llx", memloc, memval);
+    return 0;
 }
 
 
