@@ -64,6 +64,19 @@ Instruction* InstructionGenerator64::generateMoveRegToReg(uint32_t srcreg, uint3
     return generateInstructionBase(len,buff);
 }
 
+Instruction* InstructionGenerator32::generateMoveRegToReg(uint32_t srcreg, uint32_t destreg){
+    ASSERT(srcreg < X86_32BIT_GPRS && "Illegal register index given");    
+    ASSERT(destreg < X86_32BIT_GPRS && "Illegal register index given");    
+
+    uint32_t len = 2;
+    char* buff = new char[len];
+
+    buff[0] = 0x89;
+    buff[1] = 0xc0 + X86_32BIT_GPRS*srcreg + destreg;
+
+    return generateInstructionBase(len,buff);
+}
+
 Instruction* InstructionGenerator64::generateLoadRipImmToReg(uint32_t imm, uint32_t destreg){
     ASSERT(destreg < X86_64BIT_GPRS && "Illegal register index given");
 
