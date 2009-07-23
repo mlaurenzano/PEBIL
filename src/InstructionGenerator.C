@@ -49,17 +49,17 @@ Instruction* InstructionGenerator64::generateMoveRegToReg(uint32_t srcreg, uint3
 
     if (srcreg < X86_32BIT_GPRS){
         buff[0] = 0x48;
-        buff[2] = 0xc0 + 8*srcreg + destreg;
     } else {
         buff[0] = 0x4c;
-        buff[2] = 0xc0 + 8*(srcreg-X86_32BIT_GPRS) + destreg;
     }
+
     if (destreg < X86_32BIT_GPRS){
     } else {
         buff[0]++;
     }
 
     buff[1] = 0x89;
+    buff[2] = 0xc0 + 8*(srcreg % X86_32BIT_GPRS) + (destreg % X86_32BIT_GPRS);
 
     return generateInstructionBase(len,buff);
 }
@@ -87,7 +87,6 @@ Instruction* InstructionGenerator64::generateLoadRipImmToReg(uint32_t imm, uint3
 Instruction* InstructionGenerator32::generateRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg){
     ASSERT(srcdestreg < X86_32BIT_GPRS && "Illegal register index given");    
     ASSERT(srcreg < X86_32BIT_GPRS && "Illegal register index given");    
-
     uint32_t len = 2;
     char* buff = new char[len];
     buff[0] = 0x01;
@@ -105,10 +104,10 @@ Instruction* InstructionGenerator64::generateRegAddReg2OpForm(uint32_t srcdestre
 
     if (srcdestreg < X86_32BIT_GPRS){
         buff[0] = 0x48;
-        buff[2] = 0xc0 + 8*srcdestreg + srcreg;
+        buff[2] = 0xc0 + 8*srcdestreg + (srcreg % X86_32BIT_GPRS);
     } else {
         buff[0] = 0x4c;
-        buff[2] = 0xc0 + 8*(srcdestreg-X86_32BIT_GPRS) + srcreg;
+        buff[2] = 0xc0 + 8*(srcdestreg-X86_32BIT_GPRS) + (srcreg % X86_32BIT_GPRS);
     }
     if (srcreg < X86_32BIT_GPRS){
     } else {
@@ -137,14 +136,16 @@ Instruction* InstructionGenerator64::generateRegImmMultReg(uint32_t src, uint32_
     ASSERT(src < X86_64BIT_GPRS && "Illegal register index given");    
     ASSERT(dest < X86_64BIT_GPRS && "Illegal register index given");    
 
+    ASSERT(src == dest);
+
     uint32_t len = 7;
     char* buff = new char[len];
     if (dest < X86_32BIT_GPRS){
         buff[0] = 0x48;
-        buff[2] = 0xc0 + 8*dest + src;
+        buff[2] = 0xc0 + 8*dest + (src % X86_32BIT_GPRS);
     } else {
         buff[0] = 0x4c;
-        buff[2] = 0xc0 + 8*(dest-X86_32BIT_GPRS) + src;
+        buff[2] = 0xc0 + 8*(dest-X86_32BIT_GPRS) + (src % X86_32BIT_GPRS);
     }
 
     if (src < X86_32BIT_GPRS){
@@ -153,7 +154,6 @@ Instruction* InstructionGenerator64::generateRegImmMultReg(uint32_t src, uint32_
     }
 
     buff[1] = 0x69;
-
     memcpy(buff+3,&imm,sizeof(uint32_t));
 
     return generateInstructionBase(len,buff);
@@ -629,12 +629,15 @@ Instruction* InstructionGenerator64::generateRegAddImmediate4Byte(uint32_t idx, 
         immoff--;
     }
     char* buff = new char[len];
-    buff[0] = 0x48;
+    if (idx < X86_32BIT_GPRS){
+        buff[0] = 0x48;
+    } else {
+        buff[0] = 0x49;
+    }
+
     buff[1] = 0x81;
     buff[2] = 0xc0 + (char)(idx % X86_32BIT_GPRS);
-    if (idx == X86_REG_AX){
-        buff[1] = 0x05;
-    }
+
     uint32_t imm32 = (uint32_t)imm;
     ASSERT(imm32 == imm && "Cannot use more than 32 bits for immediate");
     memcpy(buff+immoff,&imm32,sizeof(uint32_t));
@@ -884,7 +887,7 @@ Instruction* InstructionGenerator64::generateMoveImmToReg(uint64_t imm, uint32_t
         buff[0] = 0x49;
     }
     buff[1] = 0xc7;
-    buff[2] = 0xc0 + (char)(idx % 8);    
+    buff[2] = 0xc0 + (char)(idx % X86_32BIT_GPRS);    
 
     // set target address
     uint32_t imm32 = (uint32_t)imm;

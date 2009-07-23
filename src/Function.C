@@ -400,6 +400,14 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
     flowGraph->connectGraph(entryBlock);
     flowGraph->setImmDominatorBlocks();
 
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
+        if (flowGraph->getBlock(i)->getType() == ElfClassTypes_BasicBlock){
+            BasicBlock* bb = (BasicBlock*)flowGraph->getBlock(i);
+            bb->findCompareAndCBranch();
+        }
+    }
+
+
 #ifdef DEBUG_CFG
     print();
 #endif

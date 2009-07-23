@@ -264,6 +264,7 @@ uint32_t FreeText::digest(){
 
 void FreeText::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
+
     for (uint32_t i = 0; i < blocks.size(); i++){
         blocks[i]->dump(binaryOutputFile,offset+currByte);
         currByte += blocks[i]->getNumberOfBytes();
@@ -523,6 +524,12 @@ bool TextSection::verify(){
 
 void TextSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
+
+    char* buff = new char[getSizeInBytes()];
+    memset(buff, 0x90, getSizeInBytes());
+    binaryOutputFile->copyBytes(buff, getSizeInBytes(), offset);
+    delete[] buff;
+
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         ASSERT(sortedTextObjects[i] && "The functions in this text section should be initialized");
         sortedTextObjects[i]->dump(binaryOutputFile, offset + currByte);

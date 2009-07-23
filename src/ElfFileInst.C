@@ -30,7 +30,7 @@ uint32_t readBytes = 0;
 //#define RELOC_MOD 1024
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define TURNOFF_CODE_BLOAT
-//#define SWAP_MOD_OFF 1893
+//#define SWAP_MOD_OFF 2436
 //#define SWAP_MOD 16384
 //#define SWAP_FUNCTION_ONLY "setSectionType"
 //#define TURNOFF_INSTRUCTION_SWAP
@@ -622,6 +622,10 @@ void ElfFileInst::generateInstrumentation(){
 #endif
     }
 
+    // some padding so that the instrumentation code is more readable
+    codeOffset += 32;
+
+
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
 
@@ -685,143 +689,159 @@ void ElfFileInst::generateInstrumentation(){
         break;
 #endif
 
+        bool performSwap = true;
+
 #ifdef SWAP_MOD
-        if (i % SWAP_MOD == SWAP_MOD_OFF){
+        performSwap = false;
+        if (i % SWAP_MOD == SWAP_MOD_OFF || pt->getPriority() < InstPriority_regular){
             if (pt->getSourceObject()->getType() == ElfClassTypes_BasicBlock){
                 BasicBlock* bb = (BasicBlock*)pt->getSourceObject();
 #ifdef SWAP_FUNCTION_ONLY
                 if (strstr(bb->getFunction()->getName(), SWAP_FUNCTION_ONLY)){
 #endif
-            PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx in %s", i, instrumentationPoints.size(), pt->getSourceObject()->getBaseAddress(), bb->getFunction()->getName());
-#endif
-
-        if (!pt->getSourceAddress()){
-            PRINT_WARN(4,"Could not find a place to instrument for point at %#llx", pt->getSourceObject()->getBaseAddress());
-            continue;
-        }
-        if (!pt->getSourceObject()->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
-            PRINT_WARN(4,"Could not find a place to instrument for point at %#llx", pt->getSourceObject()->getBaseAddress());
-            continue;
-        }
-        PRINT_DEBUG_INST("Generating code for InstrumentationPoint %d at address %llx", i, pt->getSourceAddress());
-
-        PRINT_DEBUG_POINT_CHAIN("Examining instrumentation point %d at %#llx", i, pt->getSourceAddress());
-
-        bool isFirstInChain = false;
-        if (i == 0 || 
-            (i > 0 && instrumentationPoints[i-1]->getSourceAddress() != pt->getSourceAddress())){
-            PRINT_DEBUG_POINT_CHAIN("\tFirst in chain at %#llx (%d)", pt->getSourceAddress(), i);
-
-            isFirstInChain = true;
-            chainOffset = codeOffset;
-        }
-
-        Vector<Instruction*>* repl = NULL;
-        Vector<Instruction*>* displaced = NULL;
-
-        repl = new Vector<Instruction*>();
-        if (instrumentationPoints[i]->getNumberOfBytes() == SIZE_CONTROL_TRANSFER){
-            (*repl).append(InstructionGenerator::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
-        } else {
-            PRINT_ERROR("This size instrumentation point (%d) not supported", instrumentationPoints[i]->getNumberOfBytes());
-        }
-        
-        // disassemble the newly minted instructions
-        uint32_t bytesUsed = 0;
-        for (uint32_t j = 0; j < (*repl).size(); j++){
-            (*repl)[j]->setBaseAddress(pt->getSourceAddress()+bytesUsed);
-            bytesUsed += (*repl)[j]->getSizeInBytes();
-
-#ifdef DEBUG_INST
-            (*repl)[j]->print();
-#endif
-        }
-        
-        ASSERT((*repl).back()->getSizeInBytes() == SIZE_NEEDED_AT_INST_POINT ||
-               (*repl).back()->getSizeInBytes() == SIZE_FIRST_INST_POINT && "Instruction at instrumentation point has a different size than expected");
-
-
-
-        bool isLastInChain = false;
-        if (i == instrumentationPoints.size()-1 || 
-            (i < instrumentationPoints.size()-1 && instrumentationPoints[i+1]->getSourceAddress() != pt->getSourceAddress())){
-            PRINT_DEBUG_POINT_CHAIN("\tLast of chain at %#llx (%d)", pt->getSourceAddress(), i);
-            isLastInChain = true;
-
-            displaced = pt->swapInstructionsAtPoint(repl);
-            ASSERT((*repl).size());
-            ASSERT((*displaced).size());
-            
-            // update any address anchor that pointed to the old instruction to point to the new
-            for (uint32_t j = 0; j < (*displaced).size(); j++){
-                Vector<AddressAnchor*>* modAnchors = searchAddressAnchors((*displaced)[j]->getBaseAddress());
-                PRINT_DEBUG_ANCHOR("Looking for anchors for address %#llx", (*displaced)[j]->getBaseAddress());
-                for (uint32_t k = 0; k < modAnchors->size(); k++){
-                    PRINT_DEBUG_ANCHOR("Instruction swapping at address %#llx because of anchor/swap", (*displaced)[j]->getBaseAddress());
-#ifdef DEBUG_ANCHOR
-                    (*modAnchors)[k]->print();
-#endif
-                    for (uint32_t l = 0; l < (*repl).size(); l++){
-                        PRINT_DEBUG_ANCHOR("\t\t********Comparing addresses %#llx and %#llx", (*displaced)[j]->getBaseAddress(), (*repl)[l]->getBaseAddress());
-                        if ((*displaced)[j]->getBaseAddress() == (*repl)[l]->getBaseAddress()){
-                            (*modAnchors)[k]->updateLink((*repl)[l]);
-                            anchorsAreSorted = false;
-                        }
-                    }
+                    PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx in %s", i, instrumentationPoints.size(), pt->getSourceObject()->getBaseAddress(), bb->getFunction()->getName());
+                    performSwap = true;
+#ifdef SWAP_FUNCTION_ONLY
                 }
-                delete modAnchors;
-            }
-        }
+#endif
 
-        if (isFirstInChain){
-            returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
-        }
-
-        uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
-
-        bool stackIsSafe = false;
-        if (pt->getSourceObject()->getType() == ElfClassTypes_BasicBlock){
-            BasicBlock* bb = (BasicBlock*)pt->getSourceObject();
-            if (!bb->getFlowGraph()->getFunction()->hasLeafOptimization()){
-                PRINT_DEBUG_LEAF_OPT("Basic block at %#llx in function %s is safe from leaf optimization", bb->getBaseAddress(), bb->getFlowGraph()->getFunction()->getName());
-                stackIsSafe = true;
-            }
-        } else if (pt->getSourceObject()->getType() == ElfClassTypes_Function){
-            Function* fn = (Function*)pt->getSourceObject();
-            if (!fn->hasLeafOptimization()){
-                PRINT_DEBUG_LEAF_OPT("Function at %#llx in function %s is safe from leaf optimization", fn->getBaseAddress(), fn->getName());
-                stackIsSafe = true;
-            }
-        } else if (pt->getSourceObject()->getType() == ElfClassTypes_TextSection){
-            TextSection* ts = (TextSection*)pt->getSourceObject();
-            BasicBlock* bb = ts->getBasicBlockAtAddress(pt->getSourceAddress());
-            if (!bb->getFlowGraph()->getFunction()->hasLeafOptimization()){
-                PRINT_DEBUG_LEAF_OPT("Basic block at %#llx in function %s is safe from leaf optimization", bb->getBaseAddress(), bb->getFlowGraph()->getFunction()->getName());
-                stackIsSafe = true;
-            }
-        }
-
-        pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, isLastInChain, dataBaseAddress + regStorageOffset, stackIsSafe);
-        
-        codeOffset += pt->sizeNeeded();
-        if (!isLastInChain){
-            for (uint32_t j = 0; j < (*repl).size(); j++){
-                delete (*repl)[j];
-            }
-        }
-        if (repl){
-            delete repl;
-        }
-        if (displaced){
-            delete displaced;
-        }
-#ifdef SWAP_MOD
+            } else if (pt->getSourceObject()->getType() == ElfClassTypes_Instruction){
+                Instruction* ins = (Instruction*)pt->getSourceObject();
+#ifdef SWAP_FUNCTION_ONLY
+                if (strstr(bb->getFunction()->getName(), SWAP_FUNCTION_ONLY)){
+#endif
+                    PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx in %s", i, instrumentationPoints.size(), pt->getSourceObject()->getBaseAddress(), ins->getContainer()->getName());
+                    performSwap = true;
 #ifdef SWAP_FUNCTION_ONLY
                 }
 #endif
             }
         }
 #endif
+
+        if (performSwap){
+
+            if (!pt->getSourceAddress()){
+                PRINT_WARN(4,"Could not find a place to instrument for point at %#llx", pt->getSourceObject()->getBaseAddress());
+                continue;
+            }
+            if (!pt->getSourceObject()->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
+                PRINT_WARN(4,"Could not find a place to instrument for point at %#llx", pt->getSourceObject()->getBaseAddress());
+                continue;
+            }
+            PRINT_DEBUG_INST("Generating code for InstrumentationPoint %d at address %llx", i, pt->getSourceAddress());
+            
+            PRINT_DEBUG_POINT_CHAIN("Examining instrumentation point %d at %#llx", i, pt->getSourceAddress());
+            
+            bool isFirstInChain = false;
+            if (i == 0 || 
+                (i > 0 && instrumentationPoints[i-1]->getSourceAddress() != pt->getSourceAddress())){
+                PRINT_DEBUG_POINT_CHAIN("\tFirst in chain at %#llx (%d)", pt->getSourceAddress(), i);
+                
+                isFirstInChain = true;
+                chainOffset = codeOffset;
+            }
+            
+            Vector<Instruction*>* repl = NULL;
+            Vector<Instruction*>* displaced = NULL;
+            
+            repl = new Vector<Instruction*>();
+            if (instrumentationPoints[i]->getNumberOfBytes() == SIZE_CONTROL_TRANSFER){
+                (*repl).append(InstructionGenerator::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
+            } else {
+                PRINT_ERROR("This size instrumentation point (%d) not supported", instrumentationPoints[i]->getNumberOfBytes());
+            }
+            
+            // disassemble the newly minted instructions
+            uint32_t bytesUsed = 0;
+            for (uint32_t j = 0; j < (*repl).size(); j++){
+                (*repl)[j]->setBaseAddress(pt->getSourceAddress()+bytesUsed);
+                bytesUsed += (*repl)[j]->getSizeInBytes();
+                
+#ifdef DEBUG_INST
+                (*repl)[j]->print();
+#endif
+            }
+            
+            ASSERT((*repl).back()->getSizeInBytes() == SIZE_NEEDED_AT_INST_POINT ||
+                   (*repl).back()->getSizeInBytes() == SIZE_FIRST_INST_POINT && "Instruction at instrumentation point has a different size than expected");
+            
+            
+            
+            bool isLastInChain = false;
+            if (i == instrumentationPoints.size()-1 || 
+                (i < instrumentationPoints.size()-1 && instrumentationPoints[i+1]->getSourceAddress() != pt->getSourceAddress())){
+                PRINT_DEBUG_POINT_CHAIN("\tLast of chain at %#llx (%d)", pt->getSourceAddress(), i);
+                isLastInChain = true;
+                
+                displaced = pt->swapInstructionsAtPoint(repl);
+                ASSERT((*repl).size());
+                ASSERT((*displaced).size());
+                
+                // update any address anchor that pointed to the old instruction to point to the new
+                for (uint32_t j = 0; j < (*displaced).size(); j++){
+                    Vector<AddressAnchor*>* modAnchors = searchAddressAnchors((*displaced)[j]->getBaseAddress());
+                    PRINT_DEBUG_ANCHOR("Looking for anchors for address %#llx", (*displaced)[j]->getBaseAddress());
+                    for (uint32_t k = 0; k < modAnchors->size(); k++){
+                        PRINT_DEBUG_ANCHOR("Instruction swapping at address %#llx because of anchor/swap", (*displaced)[j]->getBaseAddress());
+#ifdef DEBUG_ANCHOR
+                        (*modAnchors)[k]->print();
+#endif
+                        for (uint32_t l = 0; l < (*repl).size(); l++){
+                            PRINT_DEBUG_ANCHOR("\t\t********Comparing addresses %#llx and %#llx", (*displaced)[j]->getBaseAddress(), (*repl)[l]->getBaseAddress());
+                            if ((*displaced)[j]->getBaseAddress() == (*repl)[l]->getBaseAddress()){
+                                (*modAnchors)[k]->updateLink((*repl)[l]);
+                                anchorsAreSorted = false;
+                            }
+                        }
+                    }
+                    delete modAnchors;
+                }
+            }
+            
+            if (isFirstInChain){
+                returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
+            }
+            
+            uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
+            
+            bool stackIsSafe = false;
+            if (pt->getSourceObject()->getType() == ElfClassTypes_BasicBlock){
+                BasicBlock* bb = (BasicBlock*)pt->getSourceObject();
+                if (!bb->getFlowGraph()->getFunction()->hasLeafOptimization()){
+                    PRINT_DEBUG_LEAF_OPT("Basic block at %#llx in function %s is safe from leaf optimization", bb->getBaseAddress(), bb->getFlowGraph()->getFunction()->getName());
+                    stackIsSafe = true;
+                }
+            } else if (pt->getSourceObject()->getType() == ElfClassTypes_Function){
+                Function* fn = (Function*)pt->getSourceObject();
+                if (!fn->hasLeafOptimization()){
+                    PRINT_DEBUG_LEAF_OPT("Function at %#llx in function %s is safe from leaf optimization", fn->getBaseAddress(), fn->getName());
+                    stackIsSafe = true;
+                }
+            } else if (pt->getSourceObject()->getType() == ElfClassTypes_TextSection){
+                TextSection* ts = (TextSection*)pt->getSourceObject();
+                BasicBlock* bb = ts->getBasicBlockAtAddress(pt->getSourceAddress());
+                if (!bb->getFlowGraph()->getFunction()->hasLeafOptimization()){
+                    PRINT_DEBUG_LEAF_OPT("Basic block at %#llx in function %s is safe from leaf optimization", bb->getBaseAddress(), bb->getFlowGraph()->getFunction()->getName());
+                    stackIsSafe = true;
+                }
+            }
+            
+            pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, isLastInChain, dataBaseAddress + regStorageOffset, stackIsSafe);
+            
+            codeOffset += pt->sizeNeeded();
+            if (!isLastInChain){
+                for (uint32_t j = 0; j < (*repl).size(); j++){
+                    delete (*repl)[j];
+                }
+            }
+            if (repl){
+                delete repl;
+            }
+            if (displaced){
+                delete displaced;
+            }
+        }
     }
 
     for (uint32_t i = INST_SNIPPET_BOOTSTRAP_END + 1; i < instrumentationSnippets.size(); i++){        

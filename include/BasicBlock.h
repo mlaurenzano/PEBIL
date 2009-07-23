@@ -81,6 +81,7 @@ private:
     const static uint32_t ExitMask         = 0x4;
     const static uint32_t OnlyCtrlMask     = 0x8;
     const static uint32_t NoPathMask       = 0x10;
+    const static uint32_t CmpCtrlSplitMask = 0x20;
 
 protected:
     Vector<BasicBlock*> sourceBlocks;
@@ -129,17 +130,21 @@ public:
 
     uint64_t getTargetAddress();
 
+    void findCompareAndCBranch();
+
     bool isPadding()  { return (flags & PaddingMask); }
     bool isEntry()    { return (flags & EntryMask); }
     bool isExit()     { return (flags & ExitMask); }
     bool isOnlyCtrl() { return (flags & OnlyCtrlMask); }
     bool isNoPath()   { return (flags & NoPathMask); }
+    bool isCmpCtrlSplit()   { return (flags & CmpCtrlSplitMask); }
 
     void setPadding()  { flags |= PaddingMask; }
     void setEntry()    { flags |= EntryMask; }
     void setExit()     { flags |= ExitMask; }
     void setOnlyCtrl() { flags |= OnlyCtrlMask; }
     void setNoPath()   { flags |= NoPathMask; }
+    void setCmpCtrlSplit() { flags |= CmpCtrlSplitMask; }
 
     void setIndex(uint32_t idx);
 

@@ -11,6 +11,34 @@
 
 #define PRINT_INSTRUCTION_DETAIL
 
+bool Instruction::isConditionCompare(){
+    int32_t m = GET(mnemonic);
+
+    if ((m == UD_Icmp) ||
+        (m == UD_Itest) ||
+        (m == UD_Icmppd) ||
+        (m == UD_Icmpps) ||
+        (m == UD_Icmpsb) ||
+        (m == UD_Icmpsw) ||
+        (m == UD_Icmpsd) ||
+        (m == UD_Icmpsq) ||
+        (m == UD_Icmpss) ||
+        (m == UD_Icmpxchg) ||
+        (m == UD_Icmpxchg8b) ||
+        (m == UD_Ipcmpeqb) ||
+        (m == UD_Ipcmpeqw) ||
+        (m == UD_Ipcmpeqd) ||
+        (m == UD_Ipcmpgtb) ||
+        (m == UD_Ipcmpgtw) ||
+        (m == UD_Ipcmpgtd) ||
+        (m == UD_Ipfcmpge) ||
+        (m == UD_Ipfcmpgt) ||
+        (m == UD_Ipfcmpeq)){
+        return true;
+    }
+    return false;
+}
+
 uint32_t convertUdGPReg(uint32_t reg){
     ASSERT(reg && IS_GPR(reg));
     if (IS_8BIT_GPR(reg)){
@@ -71,6 +99,35 @@ Vector<Instruction*>* MemoryOperand::generateAddressCalculation(uint64_t address
 Vector<Instruction*>* MemoryOperand::generateAddressCalculation64(uint64_t addressStore, uint64_t offsetStore, uint64_t regStore, uint64_t indexStore, uint64_t scaleStore){
     Vector<Instruction*>* addressCalc = new Vector<Instruction*>();
 
+
+
+    // find 2 temp registers
+    BitSet<uint32_t>* availableRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
+    availableRegs->insert(X86_REG_SP);
+    getOperand()->getInstruction()->touchedRegisters(availableRegs);
+
+    //    PRINT_INFOR("reg allocation at %#llx", getSourceAddress());
+    //    availableRegs->print();
+    ~(*availableRegs);
+    //    availableRegs->print();
+
+    uint32_t tempReg1 = X86_64BIT_GPRS;
+    uint32_t tempReg2 = X86_64BIT_GPRS;
+
+    for (int32_t i = 0; i < availableRegs->size(); i++){
+        uint32_t idx = X86_64BIT_GPRS - i;
+        if (availableRegs->contains(idx)){
+            if (tempReg1 == X86_64BIT_GPRS){
+                tempReg1 = idx;
+            } else if (tempReg2 == X86_64BIT_GPRS){
+                tempReg2 = idx;
+            }
+        }
+    }
+    ASSERT(tempReg1 != X86_32BIT_GPRS && tempReg2 != X86_32BIT_GPRS);
+    delete availableRegs;
+
+
     //    getOperand()->getInstruction()->print();
     uint8_t baseReg = 0;
     uint32_t pathflag = 0;
@@ -103,28 +160,29 @@ Vector<Instruction*>* MemoryOperand::generateAddressCalculation64(uint64_t addre
         indexReg = (indexReg + 1) % X86_64BIT_GPRS;
     }
     */
-
-    //    PRINT_INFOR("Using base/index/value/scale %hhd/%hhd/%#llx/%d/%#llx", baseReg, indexReg, operand->getValue(), operand->GET(scale), operand->getInstruction()->getProgramAddress());
+    //    PRINT_INFOR("Using tmp1/tmp2/base/index/value/scale/baddr %hhd/%hhd/%hhd/%hhd/%#llx/%d/%#llx", tempReg1, tempReg2, baseReg, indexReg, operand->getValue(), operand->GET(scale), operand->getInstruction()->getProgramAddress());
 
     (*addressCalc).append(InstructionGenerator::generateNoop());
-
     
+    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg1, elfFileInst->getExtraDataAddress() + elfFileInst->getRegStorageOffset() + 2*(sizeof(uint64_t))));
+    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg2, elfFileInst->getExtraDataAddress() + elfFileInst->getRegStorageOffset() + 3*(sizeof(uint64_t))));
+ 
     if (operand->GET(base)){
-        (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(baseReg, elfFileInst->getExtraDataAddress() + elfFileInst->getRegStorageOffset() + 2*(sizeof(uint64_t))));
+        (*addressCalc).append(InstructionGenerator64::generateMoveRegToReg(baseReg, tempReg1));
     }
     if (operand->GET(index)){
-        (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(indexReg, elfFileInst->getExtraDataAddress() + elfFileInst->getRegStorageOffset() + 3*(sizeof(uint64_t))));
+        (*addressCalc).append(InstructionGenerator64::generateMoveRegToReg(indexReg, tempReg2));
     }
 
     if (IS_PC_REG(operand->GET(base))){
         pathflag = pathflag | 0x10;
-        (*addressCalc).append(InstructionGenerator64::generateLoadRipImmToReg(0, baseReg));
+        (*addressCalc).append(InstructionGenerator64::generateLoadRipImmToReg(0, tempReg1));
     }
 
     if (operand->GET(base)){
-        (*addressCalc).append(InstructionGenerator64::generateRegAddImmediate(baseReg, (uint32_t)operand->getValue())); 
+        (*addressCalc).append(InstructionGenerator64::generateRegAddImmediate(tempReg1, (uint32_t)operand->getValue())); 
     } else {
-        (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)operand->getValue(), baseReg));
+        (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)operand->getValue(), tempReg1));
     }
 
     if (operand->GET(index)){
@@ -132,32 +190,29 @@ Vector<Instruction*>* MemoryOperand::generateAddressCalculation64(uint64_t addre
         if (!scale){
             scale++;
         }
-        (*addressCalc).append(InstructionGenerator64::generateRegImmMultReg(indexReg, scale, indexReg));
-        (*addressCalc).append(InstructionGenerator64::generateRegAddReg2OpForm(indexReg, baseReg));
+        (*addressCalc).append(InstructionGenerator64::generateRegImmMultReg(tempReg2, scale, tempReg2));
+        (*addressCalc).append(InstructionGenerator64::generateRegAddReg2OpForm(tempReg2, tempReg1));
     }
     
-    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(0, baseReg));
-    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(baseReg, elfFileInst->getExtraDataAddress() + addressStore));
+    //    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(0, tempReg1));
+    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg1, elfFileInst->getExtraDataAddress() + addressStore));
     
-    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)operand->getValue(), baseReg));
-    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(baseReg, elfFileInst->getExtraDataAddress() + offsetStore));
+    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)operand->getValue(), tempReg1));
+    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg1, elfFileInst->getExtraDataAddress() + offsetStore));
     
     //    PRINT_INFOR("pathflag %08x", pathflag);
-    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(pathflag, baseReg));
-    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(baseReg, elfFileInst->getExtraDataAddress() + indexStore));
+    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(pathflag, tempReg1));
+    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg1, elfFileInst->getExtraDataAddress() + indexStore));
     
-    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)operand->getInstruction()->getProgramAddress(), baseReg));
-    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(baseReg, elfFileInst->getExtraDataAddress() + scaleStore));
+    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)operand->getInstruction()->getProgramAddress(), tempReg1));
+    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg1, elfFileInst->getExtraDataAddress() + scaleStore));
     
-    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)operand->getInstruction()->getProgramAddress(), baseReg));
-    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(baseReg, elfFileInst->getExtraDataAddress() + regStore));
+    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)operand->getInstruction()->getProgramAddress(), tempReg1));
+    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg1, elfFileInst->getExtraDataAddress() + regStore));
 
-    if (operand->GET(index)){
-        (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(elfFileInst->getExtraDataAddress() + elfFileInst->getRegStorageOffset() + 3*(sizeof(uint64_t)), indexReg));
-    }
-    if (operand->GET(base)){
-        (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(elfFileInst->getExtraDataAddress() + elfFileInst->getRegStorageOffset() + 2*(sizeof(uint64_t)), baseReg));
-    }
+    (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(elfFileInst->getExtraDataAddress() + elfFileInst->getRegStorageOffset() + 3*(sizeof(uint64_t)), tempReg2));
+    (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(elfFileInst->getExtraDataAddress() + elfFileInst->getRegStorageOffset() + 2*(sizeof(uint64_t)), tempReg1));
+
     (*addressCalc).append(InstructionGenerator::generateNoop());
 
     return addressCalc;
@@ -249,7 +304,7 @@ Operand* Instruction::getMemoryOperand(){
 bool Instruction::isMemoryOperation(){
     uint32_t memCount = 0;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i] && operands[i]->GET(type) == UD_OP_MEM){
+        if (operands[i] && operands[i]->GET(type) == UD_OP_MEM && GET(mnemonic) != UD_Ilea){
             memCount++;
         }
     }

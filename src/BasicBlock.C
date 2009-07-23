@@ -10,6 +10,21 @@
 
 static const char* bytes_not_instructions = "<x86_inst_unreachable_text>";
 
+void BasicBlock::findCompareAndCBranch(){
+    if (instructions.size() < 2){
+        ASSERT(instructions.size());
+        return;
+    }
+    if (instructions.back()->isConditionalBranch()){
+        if (!instructions[instructions.size()-2]->isConditionCompare()){
+            //PRINT_INFOR("found block with cond/br split");
+            //            printDisassembly(false);
+            //            setCmpCtrlSplit();
+        }
+    }
+    return;
+}
+
 uint32_t BasicBlock::bloat(uint32_t minBlockSize){
 
     PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx", baseAddress);
@@ -377,6 +392,7 @@ void BasicBlock::print(){
     char ext = '-';
     char ctr = '-';
     char rch = '-';
+    char ccs = '-';
 
     if (isPadding()){
         pad = 'P';
@@ -393,8 +409,11 @@ void BasicBlock::print(){
     if (isReachable()){
         rch = 'R';
     }
+    if (isCmpCtrlSplit()){
+        ccs = 'S';
+    }
 
-    PRINT_INFOR("BASICBLOCK(%d) range=[0x%llx,0x%llx), %d instructions, flags %c%c%c%c%c%c", index, getBaseAddress(), getBaseAddress()+getNumberOfBytes(), getNumberOfInstructions(), pad, ent, ext, ctr, rch);
+    PRINT_INFOR("BASICBLOCK(%d) range=[0x%llx,0x%llx), %d instructions, flags [%c%c%c%c%c%c%c]", index, getBaseAddress(), getBaseAddress()+getNumberOfBytes(), getNumberOfInstructions(), pad, ent, ext, ctr, rch, ccs);
     if (immDominatedBy){
         PRINT_INFOR("\tdom: %d", immDominatedBy->getIndex());
     }

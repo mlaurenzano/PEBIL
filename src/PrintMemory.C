@@ -69,12 +69,16 @@ void PrintMemory::instrument(){
         ASSERT(f->hasCompleteDisassembly() && isEligibleFunction(f));
         for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
             BasicBlock* b = f->getBasicBlock(j);
-            (*allBlocks).append(b);
-            (*allLineInfos).append(lineInfoFinder->lookupLineInfo(b));
-            for (uint32_t k = 0; k < b->getNumberOfInstructions(); k++){
-                Instruction* m = b->getInstruction(k);
-                if (m->isMemoryOperation()){
-                    (*allMemOps).append(m);
+            if (b->isCmpCtrlSplit()){
+                PRINT_WARN(10, "Comparison/cond branch are split in block at %#llx, not instrumenting", b->getBaseAddress());
+            } else {
+                (*allBlocks).append(b);
+                (*allLineInfos).append(lineInfoFinder->lookupLineInfo(b));
+                for (uint32_t k = 0; k < b->getNumberOfInstructions(); k++){
+                    Instruction* m = b->getInstruction(k);
+                    if (m->isMemoryOperation()){
+                        (*allMemOps).append(m);
+                    }
                 }
             }
         }
