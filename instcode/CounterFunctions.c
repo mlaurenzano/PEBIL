@@ -6,6 +6,16 @@
 #include <dlfcn.h>
 
 #define PRINT_MINIMUM 1
+#define FILTER 1000000
+
+#define COMPILE_32BIT
+#ifdef COMPILE_32BIT
+  #define DINT_TYPE int32_t
+  #define DINT_PRNTSZ l
+#else
+  #define DINT_TYPE int64_t
+  #define DINT_PRNTSZ ll
+#endif // COMPILE_32BIT
 
 #define PRINT_INSTR(...) fprintf(stdout, "-[p%d]- ", getpid()); \
     fprintf(stdout, __VA_ARGS__); \
@@ -18,17 +28,22 @@ char** fileNames;
 char** functionNames;
 int64_t* hashValues;
 
-int32_t printmemory(int64_t* memory, int64_t* base, int64_t* offset, int64_t* index, int64_t* scale){
-    int64_t memloc = *memory;
-    int64_t memval;
-    PRINT_INSTR("raw args: m[%llx]=%#llx m[%llx]=%lld m[%llx]=%lld m[%llx]=%lld m[%llx]=%llx", memory, *memory, base, *base, offset, *offset, index, *index, scale, *scale);
+int32_t filter = 0;
+
+DINT_TYPE printmemory(DINT_TYPE* memory, DINT_TYPE* base, DINT_TYPE* offset, DINT_TYPE* index, DINT_TYPE* scale){
+    DINT_TYPE memloc = *memory;
+    DINT_TYPE memval;
+    //    PRINT_INSTR("raw args: m[%x]=%#x m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%x", memory, *memory, base, *base, offset, *offset, index, *index, scale, *scale);
     if (memloc == 0){
-        PRINT_INSTR("raw args: m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%d", memory, memval, base, *base, offset, *offset, index, *index, scale, *scale);
+        //        PRINT_INSTR("raw args: m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%d", memory, memval, base, *base, offset, *offset, index, *index, scale, *scale);
         memval = 0;
     } else {
-        memval = *((int64_t*)memloc);
+        memval = *((DINT_TYPE*)memloc);
     }
-    PRINT_INSTR("mem[%#llx]\t%#llx", memloc, memval);
+    if (filter % FILTER == 0){
+        PRINT_INSTR("mem[%#x]\t%#x", memloc, memval);
+    }
+    filter++;
     return 0;
 }
 

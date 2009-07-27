@@ -104,6 +104,7 @@ public:
     static Instruction* generateAddImmByteToMem(uint8_t, uint64_t);
     static Instruction* generateRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg);
     static Instruction* generateRegImm1ByteMultReg(uint32_t src, uint8_t imm, uint32_t dest);
+    static Instruction* generateMoveRegToReg(uint32_t srcreg, uint32_t destreg);
 };
 
 #endif /* _InstructionGenerator_h_ */

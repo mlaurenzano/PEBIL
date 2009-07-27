@@ -30,8 +30,8 @@ uint32_t readBytes = 0;
 //#define RELOC_MOD 1024
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define TURNOFF_CODE_BLOAT
-//#define SWAP_MOD_OFF 2436
-//#define SWAP_MOD 16384
+//#define SWAP_MOD_OFF 1728
+//#define SWAP_MOD 2048
 //#define SWAP_FUNCTION_ONLY "setSectionType"
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
