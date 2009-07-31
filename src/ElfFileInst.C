@@ -30,9 +30,9 @@ uint32_t readBytes = 0;
 //#define RELOC_MOD 1024
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define TURNOFF_CODE_BLOAT
-//#define SWAP_MOD_OFF 1728
-//#define SWAP_MOD 2048
-//#define SWAP_FUNCTION_ONLY "setSectionType"
+//#define SWAP_MOD_OFF 0
+//#define SWAP_MOD 1
+//#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
 #define VALIDATE_ANCHOR_SEARCH
@@ -708,7 +708,7 @@ void ElfFileInst::generateInstrumentation(){
             } else if (pt->getSourceObject()->getType() == ElfClassTypes_Instruction){
                 Instruction* ins = (Instruction*)pt->getSourceObject();
 #ifdef SWAP_FUNCTION_ONLY
-                if (strstr(bb->getFunction()->getName(), SWAP_FUNCTION_ONLY)){
+                if (strstr(ins->getContainer()->getName(), SWAP_FUNCTION_ONLY)){
 #endif
                     PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx in %s", i, instrumentationPoints.size(), pt->getSourceObject()->getBaseAddress(), ins->getContainer()->getName());
                     performSwap = true;

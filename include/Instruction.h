@@ -18,6 +18,7 @@ class TextObject;
 #define JUMP_TABLE_REACHES 0x1000
 #define DISASSEMBLY_MODE UD_SYN_ATT
 #define MAX_X86_INSTRUCTION_LENGTH 20
+#define MIN_CONST_MEMADDR 0x10000
 
 #define IS_8BIT_GPR(__val) ((__val >= UD_R_AL) && (__val <= UD_R_R15B))
 #define IS_16BIT_GPR(__val) ((__val >= UD_R_AX) && (__val <= UD_R_R15W))

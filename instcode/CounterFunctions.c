@@ -8,7 +8,7 @@
 #define PRINT_MINIMUM 1
 #define FILTER 1000000
 
-#define COMPILE_32BIT
+//#define COMPILE_32BIT
 #ifdef COMPILE_32BIT
   #define DINT_TYPE int32_t
   #define DINT_PRNTSZ l
@@ -31,6 +31,7 @@ int64_t* hashValues;
 int32_t filter = 0;
 
 DINT_TYPE printmemory(DINT_TYPE* memory, DINT_TYPE* base, DINT_TYPE* offset, DINT_TYPE* index, DINT_TYPE* scale){
+    return 0;
     DINT_TYPE memloc = *memory;
     DINT_TYPE memval;
     //    PRINT_INSTR("raw args: m[%x]=%#x m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%x", memory, *memory, base, *base, offset, *offset, index, *index, scale, *scale);

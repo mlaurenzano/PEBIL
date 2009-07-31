@@ -125,6 +125,8 @@ Vector<Instruction*>* MemoryOperand::generateAddressCalculation64(uint64_t addre
 
     uint8_t baseReg = 0;
     uint32_t pathflag = 0;
+    uint64_t lValue =  operand->getValue();
+
     if (operand->GET(base)){
         pathflag = pathflag | 0x01;
         if (!IS_64BIT_GPR(operand->GET(base)) && !IS_PC_REG(operand->GET(base))){
@@ -137,7 +139,15 @@ Vector<Instruction*>* MemoryOperand::generateAddressCalculation64(uint64_t addre
             baseReg = UD_R_RAX - UD_R_RAX;
         }
     } else {
-        ASSERT(operand->getValue() || operand->GET(index));
+        if (!lValue && !operand->GET(index)){
+            PRINT_WARN(3, "Operand requesting memory address 0?");
+        }
+        if (!operand->GET(index)){
+            if (lValue < MIN_CONST_MEMADDR){
+                PRINT_WARN(6, "Const memory address probably isn't valid %#llx, zeroing", lValue);
+                lValue = 0;
+            }
+        }
     }
 
     uint8_t indexReg = 0;
@@ -149,7 +159,8 @@ Vector<Instruction*>* MemoryOperand::generateAddressCalculation64(uint64_t addre
         ASSERT(!operand->GET(scale));
     }
 
-    //    PRINT_INFOR("Using tmp1/tmp2/base/index/value/scale/baddr %hhd/%hhd/%hhd/%hhd/%#llx/%d/%#llx", tempReg1, tempReg2, baseReg, indexReg, operand->getValue(), operand->GET(scale), operand->getInstruction()->getProgramAddress());
+    //operand->getInstruction()->print();
+    //PRINT_INFOR("Using tmp1/tmp2/base/index/value/scale/baddr %hhd/%hhd/%hhd/%hhd/%#llx/%d/%#llx", tempReg1, tempReg2, baseReg, indexReg, lValue, operand->GET(scale), operand->getInstruction()->getProgramAddress());
 
     (*addressCalc).append(InstructionGenerator::generateNoop());
     
@@ -169,9 +180,9 @@ Vector<Instruction*>* MemoryOperand::generateAddressCalculation64(uint64_t addre
     }
 
     if (operand->GET(base)){
-        (*addressCalc).append(InstructionGenerator64::generateRegAddImmediate(tempReg1, (uint32_t)operand->getValue())); 
+        (*addressCalc).append(InstructionGenerator64::generateRegAddImmediate(tempReg1, (uint32_t)lValue)); 
     } else {
-        (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)operand->getValue(), tempReg1));
+        (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)lValue, tempReg1));
     }
 
     if (operand->GET(index)){
@@ -185,7 +196,7 @@ Vector<Instruction*>* MemoryOperand::generateAddressCalculation64(uint64_t addre
     
     (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg1, elfFileInst->getExtraDataAddress() + addressStore));
     
-    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)operand->getValue(), tempReg1));
+    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)lValue, tempReg1));
     (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg1, elfFileInst->getExtraDataAddress() + offsetStore));
     
     (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(pathflag, tempReg1));
