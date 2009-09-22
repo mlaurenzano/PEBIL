@@ -1,0 +1,31 @@
+%%% from intro
+
+
+%need this paragraph?
+But while this information might accurately describe what is going to be run by the computer hardware, the
+binary is a form of the program that is least understandble to the human. It can be difficult to map the
+program structure seen in the binary to what was originally written in the source code because any number of
+complex optimizations may have been applied to it, things such as loop unrolling, induction variable 
+elimination, code-block reordering, and the inclusion of hand-optimized functionality. But even though these
+make the code more difficult to understand, it is important to note that the exposure of these diffulties
+goes hand in hand with the exposure of certain details of the program to the binary instrumentation tool. For example, the exact structure
+of a function's control flow graph may not be known until all optimizations have been applied, which might
+make the resulting control flow graph difficult to understand in terms of the original program. But is in fact
+modified function with its modified control flow graph that actually gets executed by the hardware, so it is
+important that we have access to it.
+
+Additionaly there are cases where efficiency of the instrumented code produced is paramount, such as for long running scientific simulations or programs that have
+real-time constraints or must meet quality of service guarantees. Most instrumentation toolkits are designed for ease
+of use and to provide as much general functionality as possible \cite{nethercote2007valgrind}. Following this design paradigm, these tools (rightfully) forgo
+many domain or tool-specific optimization opportunities in order to preserve general capabilities. One such opportunity that
+is overlooked in most cases is the opportunity to process gathered information asynchronously \cite{gao2005aliter}. In such
+cases, the data can be stored very efficiently at each instrumentation point and processed in batches rather than being processed
+at each instrumentation point. 
+
+The remainder of this paper is organized as follows: Section \ref{Section:Relocation} includes a discussion
+of our code relocation algorithm and implementation. Section \ref{Section:Coverage} will discuss our code discovery
+algorithm and implementation.
+Section \ref{Section:Implementation} shows the basic implementation of
+this instrumentation toolkit and Section \ref{Section:Optimizations} will detail the 
+optimizations used. Section \ref{Section:Results} will present experimental results about the
+performance of these optimizations, and Section \ref{Section:Conclusions} will conclude. 

@@ -32,6 +32,7 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <MemTrack.h>
+
 #ifdef DEBUG_MEMTRACK
 #include <Base.h>
 #include <typeinfo>

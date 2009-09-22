@@ -164,12 +164,17 @@ private:
 
     Vector<Instruction*>* generateAddressCalculation32(uint64_t addressStore, uint64_t offsetStore, uint64_t regStore, uint64_t indexStore, uint64_t scaleStore);
     Vector<Instruction*>* generateAddressCalculation64(uint64_t addressStore, uint64_t offsetStore, uint64_t regStore, uint64_t indexStore, uint64_t scaleStore);
+
+    Vector<Instruction*>* generateBufferedAddressCalculation32(uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t bufferSize);
+    Vector<Instruction*>* generateBufferedAddressCalculation64(uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t bufferSize);
+
 public:
     MemoryOperand(Operand* op, ElfFileInst* elfInst);
     ~MemoryOperand() {}
 
     Operand* getOperand() { return operand; }
     Vector<Instruction*>* generateAddressCalculation(uint64_t addressStore, uint64_t offsetStore, uint64_t regStore, uint64_t indexStore, uint64_t scaleStore);
+    Vector<Instruction*>* generateBufferedAddressCalculation(uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t bufferSize);
 };
 
 class Instruction : public Base {

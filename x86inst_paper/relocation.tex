@@ -1,0 +1,76 @@
+The novel use of relocation in our instrumentation strategy stems from the fact that we are performing
+the instrumentation statically on a platform that uses a variable-length instruction
+set. A typical strategy used by static instrumentation tools on platforms with 
+fixed-length instruction sets is to replace a single fixed-length instruction at 
+the instrumentation point with a branch instruction that will transfer control to 
+the code produced by the instrumentation tool. This is fairly straightforward to
+do because by the definition of a fixed-length instruction set,
+the instruction being replaced and the replacement branch have the same length. Performing
+static instrumentation in a variable-length instruction set does not afford us this luxury.
+In X86, an unconditional branch that uses a 32-bit offset requires 5 bytes, whereas some
+of the instrumentation points that interest us may use only a single byte.
+
+This leaves two options for how to transfer control to the instrumentation code. We must either use 
+a technique entirely distinct from the idea of using a single unconditional branch to execute the control
+transfer such as multiple shorter jumps or software interrupts, or we must somehow alter the
+application code so that it can accomodate a single large control instruction that is larger than the original
+amount of space available at the instrumentation point. A seperate technique for transferring control flow
+could be to use a series of branches, where the instruction in the instrumentation point is a small branch that
+transfers control to a larger intermediate branch. We do not consider this method any further because the smallest
+unconditional branch instruction is 2 bytes in length, making it ultimately a half measure since there are instrumentation
+points with only a single byte available to them. Another option to consider is the method proposed by the BIRD project 
+\ref{nanda2006bird}. They propose using the single-byte \begin{it}INT 3\end{it}
+instruction, a single-byte interrupt intended to be used by debuggers to set breakpoints, when a larger branch won't fit within 
+the specified area. This instructions is functionally perfect for static instrumentation because it consumes only a single
+byte and allows us to transfer control to an arbitrary location by registering an exception handler
+with the system. We performed a cursory study on this scheme from an efficiency standpoint to determine whether it was worth
+further investigation. On a small benchmark set, our
+implementation of using \begin{it}INT 3\end{it} only when 5-byte unconditional branches do
+not fit at the instrumentation point introduces slowdowns of no less than 100-fold for counting the
+number of executions of each basic block in the code. As one might expect, this mechanism is unsuitable
+for efficient instrumentation because the very heavyweight system call conventions are being invoked
+fairly often.
+
+We use the latter option, reorganizing the code at the function level so that there is enough space at every instrumentation
+point to accomodate a 5-byte branch. Specifically, the steps we use are as follows:
+\begin{enumerate}
+\item 
+1. Function Displacement
+\item
+2. Link Function Entries 
+\item
+3. Branch Conversion
+\item
+4. Instruction Padding
+\end{enumerate}
+
+
+Figure \ref{Figure:Relocation} gives a visual version of this process.
+
+1. Function Displacement: Relocate the contents of the entire function to an area of the text section allocated
+to the instrumentation tool. Since functions are often packed tightly together, it is generally not possible to
+expand the size of a function without disturbing the entry points of another function.
+
+2. Link Function Entries: Place an unconditional branch at the former function entry point that transfers control
+to the new function entry point. Most references to the entry point of a function are in the form of function calls, which
+routinely are indirect references (ie their value is computed or looked up at runtime) and are difficult to resolve
+prior to runtime.
+
+3. Branch Conversion: Convert each short conditional branch in the relocated function to the equivalent
+5-byte branch instruction. Since the code is being reorganized in the next step which may strain the limits of
+smaller 8-bit or 16-bit offsets, we convert all branches to use 32-bit offsets so that the targets of each branch
+will still be reachable without having the need to further reorganize the code. Note that there is some opportunity
+here to reduce space by using the smallest branch offset size that accomodates the branch, but this is an issue
+for future work.
+
+4. Instruction Padding: According to the needs of the instrumentation tool, pad the instruction at each instrumentation
+point with \begin{it}nop\end{it} instructions so that a 5-byte branch can fit.
+
+There are several ways that this process can adversely affect the performance of the application independant of the overhead
+that will be imposed by inserting any extra instrumentation code. Each function call
+now has an extra control interruption associated with it since control must be passed first to the original function entry
+point and then to the relocated function entry point. It is possible that using 32-bit offsets for every branch rather than
+some smaller number of bits has an overhead associated with it. And since the code is being reorganized and expanded, 
+we might destroy some positive alignment and size optimizations that the compiler might have made on the instructions in the
+function. We examine the practical overhead seen by these techniques by taking these steps without instrumenting the code
+for a series of benchmarks. The slowdown is XXXX...

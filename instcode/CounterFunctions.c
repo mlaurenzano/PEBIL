@@ -5,22 +5,10 @@
 #include <string.h>
 #include <dlfcn.h>
 
+#include <InstrumentationCommon.h>
+
 #define PRINT_MINIMUM 1
-#define FILTER 1000000
-
-//#define COMPILE_32BIT
-#ifdef COMPILE_32BIT
-  #define DINT_TYPE int32_t
-  #define DINT_PRNTSZ l
-#else
-  #define DINT_TYPE int64_t
-  #define DINT_PRNTSZ ll
-#endif // COMPILE_32BIT
-
-#define PRINT_INSTR(...) fprintf(stdout, "-[p%d]- ", getpid()); \
-    fprintf(stdout, __VA_ARGS__); \
-    fprintf(stdout, "\n"); \
-    fflush(stdout);
+#define FILTER 1
 
 int32_t numberOfBasicBlocks;
 int32_t* lineNumbers;
@@ -31,7 +19,6 @@ int64_t* hashValues;
 int32_t filter = 0;
 
 DINT_TYPE printmemory(DINT_TYPE* memory, DINT_TYPE* base, DINT_TYPE* offset, DINT_TYPE* index, DINT_TYPE* scale){
-    return 0;
     DINT_TYPE memloc = *memory;
     DINT_TYPE memval;
     //    PRINT_INSTR("raw args: m[%x]=%#x m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%x", memory, *memory, base, *base, offset, *offset, index, *index, scale, *scale);
@@ -42,7 +29,7 @@ DINT_TYPE printmemory(DINT_TYPE* memory, DINT_TYPE* base, DINT_TYPE* offset, DIN
         memval = *((DINT_TYPE*)memloc);
     }
     if (filter % FILTER == 0){
-        PRINT_INSTR("mem[%#x]\t%#x", memloc, memval);
+        //        PRINT_INSTR("iteration %d; mem[%#llx]\t%#llx", filter, memloc, memval);
     }
     filter++;
     return 0;

@@ -1,12 +1,10 @@
 #ifndef _BasicBlockCounter_h_
 #define _BasicBlockCounter_h_
 
-#include <ElfFileInst.h>
+#include <InstrumentationTool.h>
 
-class BasicBlockCounter : public ElfFileInst {
+class BasicBlockCounter : public InstrumentationTool {
 private:
-    void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos);
-
     InstrumentationFunction* entryFunc;
     InstrumentationFunction* exitFunc;
 public:

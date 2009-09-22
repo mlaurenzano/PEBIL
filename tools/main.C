@@ -1,5 +1,6 @@
 #include <Base.h>
 #include <BasicBlockCounter.h>
+#include <CacheSimulation.h>
 #include <ElfFile.h>
 #include <FunctionCounter.h>
 #include <PrintMemory.h>
@@ -58,7 +59,7 @@ void printBriefOptions(){
 void printUsage(bool shouldExt=true) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : x86inst\n");
-    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim)\n");
+    fprintf(stderr,"\t--typ (ide|fnc|jbb|mem|sim)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
     fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--ver [a-z]*]\n");
@@ -137,6 +138,7 @@ typedef enum {
     identical_inst_type,
     frequency_inst_type,
     simulation_inst_type,
+    memaddr_inst_type,
     simucntr_inst_type,
     bbtrace_inst_type,
     countblocks_inst_type,
@@ -196,6 +198,9 @@ int main(int argc,char* argv[]){
             } else if (!strcmp(argv[i],"sim")){
                 instType = simulation_inst_type;
                 extension = "siminst";
+            } else if (!strcmp(argv[i],"mem")){
+                instType = memaddr_inst_type;
+                extension = "meminst";
             } else if (!strcmp(argv[i],"csc")){
                 instType = simucntr_inst_type;
                 extension = "cscinst";
@@ -351,8 +356,10 @@ int main(int argc,char* argv[]){
         elfInst = new FunctionCounter(&elfFile, inputFuncList);
     } else if (instType == frequency_inst_type){
         elfInst = new BasicBlockCounter(&elfFile, inputFuncList);
-    } else if (instType == simulation_inst_type){
+    } else if (instType == memaddr_inst_type){
         elfInst = new PrintMemory(&elfFile, inputFuncList);
+    } else if (instType == simulation_inst_type){
+        elfInst = new CacheSimulation(&elfFile, inputFuncList);
     }
     else {
         PRINT_ERROR("Error : invalid instrumentation type");

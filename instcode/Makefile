@@ -22,10 +22,10 @@ SRCDIR      = ../instcode
 BINDIR      = ../bin
 LIBDIR      = ../lib
 
-SRCS        = CounterFunctions.c
-OBJS        = CounterFunctions.o
+SRCS        = CounterFunctions.c SimulationFunctions.c
+OBJS        = CounterFunctions.o SimulationFunctions.o
 
-TARGET_LIBS = libcounter.so libcounter.a
+TARGET_LIBS = libcounter.so libcounter.a libsimulator.so libsimulator.a
 
 all: $(TARGET_LIBS) install
 
@@ -37,6 +37,12 @@ libcounter.so : $(OBJS)
 
 libcounter.a : $(OBJS)
 	$(AR) $(AR_FLAGS) $@ CounterFunctions.o
+
+libsimulator.so : $(OBJS)
+	$(CC) $(SHARED_LIB) -o $@ SimulationFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
+
+libsimulator.a : $(OBJS)
+	$(AR) $(AR_FLAGS) $@ SimulationFunctions.o
 
 clean: 
 	rm -f core *.o *.O *.i *.s *.ii *.class $(TARGET_LIBS)

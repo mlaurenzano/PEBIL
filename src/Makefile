@@ -18,16 +18,75 @@ SRCDIR      = ../src
 BINDIR      = ../bin
 LIBDIR      = ../lib
 
-SRCS  = AddressAnchor.C Base.C BasicBlock.C BasicBlockCounter.C BinaryFile.C DynamicTable.C DwarfSection.C \
-	ElfFile.C ElfFileInst.C FileHeader.C FlowGraph.C Function.C FunctionCounter.C GlobalOffsetTable.C \
-	GnuVersion.C HashTable.C Instruction.C InstructionGenerator.C Instrumentation.C LengauerTarjan.C LineInformation.C Loop.C \
-	MemTrack.C NoteSection.C PrintMemory.C ProgramHeader.C RawSection.C RelocationTable.C SectionHeader.C StringTable.C \
-	SymbolTable.C TextSection.C
-OBJS  = AddressAnchor.o Base.o BasicBlock.o BasicBlockCounter.o BinaryFile.o DynamicTable.o DwarfSection.o \
-	ElfFile.o ElfFileInst.o FileHeader.o FlowGraph.o Function.o FunctionCounter.o GlobalOffsetTable.o \
-	GnuVersion.o HashTable.o Instruction.o InstructionGenerator.o Instrumentation.o LengauerTarjan.o LineInformation.o Loop.o \
-	MemTrack.o NoteSection.o PrintMemory.o ProgramHeader.o RawSection.o RelocationTable.o SectionHeader.o StringTable.o \
-	SymbolTable.o TextSection.o
+SRCS  = AddressAnchor.C \
+	Base.C \
+	BasicBlock.C \
+	BasicBlockCounter.C \
+	BinaryFile.C \
+	CacheSimulation.C \
+	DynamicTable.C \
+	DwarfSection.C \
+	ElfFile.C \
+	ElfFileInst.C \
+	FileHeader.C \
+	FlowGraph.C \
+	Function.C \
+	FunctionCounter.C \
+	GlobalOffsetTable.C \
+	GnuVersion.C \
+	HashTable.C \
+	Instruction.C \
+	InstructionGenerator.C \
+	Instrumentation.C \
+	InstrumentationTool.C \
+	LengauerTarjan.C \
+	LineInformation.C \
+	Loop.C \
+	MemTrack.C \
+	NoteSection.C \
+	PrintMemory.C \
+	ProgramHeader.C \
+	RawSection.C \
+	RelocationTable.C \
+	SectionHeader.C \
+	StringTable.C \
+	SymbolTable.C \
+	TextSection.C
+
+OBJS  = AddressAnchor.o \
+	Base.o \
+	BasicBlock.o \
+	BasicBlockCounter.o \
+	BinaryFile.o \
+	CacheSimulation.o \
+	DynamicTable.o \
+	DwarfSection.o \
+	ElfFile.o \
+	ElfFileInst.o \
+	FileHeader.o \
+	FlowGraph.o \
+	Function.o \
+	FunctionCounter.o \
+	GlobalOffsetTable.o \
+	GnuVersion.o \
+	HashTable.o \
+	Instruction.o \
+	InstructionGenerator.o \
+	Instrumentation.o \
+	InstrumentationTool.o \
+	LengauerTarjan.o \
+	LineInformation.o \
+	Loop.o \
+	MemTrack.o \
+	NoteSection.o \
+	PrintMemory.o \
+	ProgramHeader.o \
+	RawSection.o \
+	RelocationTable.o \
+	SectionHeader.o \
+	StringTable.o \
+	SymbolTable.o \
+	TextSection.o
 
 TARGET_LIB  = libx86inst.a 
 

@@ -1,4 +1,4 @@
-#include <PrintMemory.h>
+#include <CacheSimulation.h>
 
 #include <BasicBlock.h>
 #include <Function.h>
@@ -9,33 +9,34 @@
 #include <Loop.h>
 #include <TextSection.h>
 
-#define MEM_FUNCTION "printmemory"
-#define INST_LIB_NAME "libcounter.so"
+#define SIM_FUNCTION "processTrace"
+#define INST_LIB_NAME "libsimulator.so"
 #define INST_SUFFIX "siminst"
+#define BUFFER_ENTRIES 65536
 
-PrintMemory::PrintMemory(ElfFile* elf, char* inputFuncList)
+CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFuncList)
     : InstrumentationTool(elf, inputFuncList)
 {
     instSuffix = new char[__MAX_STRING_SIZE];
     sprintf(instSuffix,"%s\0", INST_SUFFIX);
 
-    memFunc = NULL;
+    simFunc = NULL;
 }
 
-void PrintMemory::declare(){
+void CacheSimulation::declare(){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
     
     // declare any shared library that will contain instrumentation functions
     declareLibrary(INST_LIB_NAME);
 
     // declare any instrumentation functions that will be used
-    memFunc = declareFunction(MEM_FUNCTION);
-    ASSERT(memFunc && "Cannot find memory print function, are you sure it was declared?");
+    simFunc = declareFunction(SIM_FUNCTION);
+    ASSERT(simFunc && "Cannot find memory print function, are you sure it was declared?");
 
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 }
 
-void PrintMemory::instrument(){
+void CacheSimulation::instrument(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
     
     TextSection* text = getTextSection();
@@ -87,31 +88,33 @@ void PrintMemory::instrument(){
     ASSERT(!(*allLineInfos).size() || (*allBlocks).size() == (*allLineInfos).size());
     uint32_t numberOfInstPoints = (*allMemOps).size();
 
-    uint64_t addressStore = reserveDataOffset(sizeof(uint64_t));
-    uint64_t regStore = reserveDataOffset(sizeof(uint64_t));
-    uint64_t offsetStore = reserveDataOffset(sizeof(uint64_t));
-    uint64_t indexStore = reserveDataOffset(sizeof(uint64_t));
-    uint64_t scaleStore = reserveDataOffset(sizeof(uint64_t));
+    uint64_t bufferStore  = reserveDataOffset(BUFFER_ENTRIES * sizeof(uint64_t));
+    uint64_t buffPtrStore = reserveDataOffset(sizeof(uint64_t));
 
-    memFunc->addArgumentAddress(addressStore);
-    memFunc->addArgumentAddress(regStore);
-    memFunc->addArgumentAddress(offsetStore);
-    memFunc->addArgumentAddress(indexStore);
-    memFunc->addArgumentAddress(scaleStore);
+
+    uint64_t addressStore = reserveDataOffset(sizeof(uint64_t));
+    uint64_t offsetStore  = reserveDataOffset(sizeof(uint64_t));
+    uint64_t regStore     = reserveDataOffset(sizeof(uint64_t));
+    uint64_t indexStore   = reserveDataOffset(sizeof(uint64_t));
+    uint64_t scaleStore   = reserveDataOffset(sizeof(uint64_t));
+
+    simFunc->addArgumentAddress(bufferStore);
+    simFunc->addArgumentAddress(buffPtrStore);
 
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
 
         Instruction* memop = (*allMemOps)[i];
-        InstrumentationPoint* pt = addInstrumentationPoint(memop, memFunc, SIZE_CONTROL_TRANSFER);
+        InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, SIZE_CONTROL_TRANSFER);
 
         MemoryOperand* memerand = new MemoryOperand(memop->getMemoryOperand(), this);
 
-        Vector<Instruction*>* addressCalcInstructions = memerand->generateAddressCalculation(addressStore, offsetStore, regStore, indexStore, scaleStore);
+        Vector<Instruction*>* addressCalcInstructions = memerand->generateBufferedAddressCalculation(bufferStore, buffPtrStore, BUFFER_ENTRIES);
         ASSERT(addressCalcInstructions);
         while ((*addressCalcInstructions).size()){
             pt->addPrecursorInstruction((*addressCalcInstructions).remove(0));
         }
         delete addressCalcInstructions;
+
 
     }
 

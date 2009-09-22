@@ -1,6 +1,7 @@
+#include <FunctionCounter.h>
+
 #include <BasicBlock.h>
 #include <Function.h>
-#include <FunctionCounter.h>
 #include <Instrumentation.h>
 #include <InstructionGenerator.h>
 #include <LineInformation.h>
@@ -9,11 +10,9 @@
 #define EXIT_FUNCTION "functioncounter"
 #define LIB_NAME "libcounter.so"
 #define NOINST_VALUE 0xffffffff
-#define FILE_UNK "__FILE_UNK__"
-#define INST_BUFFER_SIZE (65536*sizeof(uint32_t))
 
 FunctionCounter::FunctionCounter(ElfFile* elf, char* inputFuncList)
-    : ElfFileInst(elf, inputFuncList)
+    : InstrumentationTool(elf, inputFuncList)
 {
     instSuffix = new char[__MAX_STRING_SIZE];
     sprintf(instSuffix,"%s\0", "fncinst");

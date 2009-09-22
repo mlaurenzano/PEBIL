@@ -1,9 +1,9 @@
 #ifndef _FunctionCounter_h_
 #define _FunctionCounter_h_
 
-#include <ElfFileInst.h>
+#include <InstrumentationTool.h>
 
-class FunctionCounter : public ElfFileInst {
+class FunctionCounter : public InstrumentationTool {
 private:
 
 public:

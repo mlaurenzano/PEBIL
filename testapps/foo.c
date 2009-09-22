@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "foo.h"
 
 long long foo_global = 128;

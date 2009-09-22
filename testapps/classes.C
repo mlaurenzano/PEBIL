@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string.h>
 #include <stdio.h>
 
 unsigned short classes_global = 5;
