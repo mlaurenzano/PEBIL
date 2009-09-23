@@ -25,7 +25,7 @@ X86/X86\_64 platforms. The goal of x86elfinstrumentor is to provide the ability
 to build instrumentation tools that produce very efficient instrumented
 applications. We instrument the binary by placing an unconditional branch at each instrumentation
 point that transfers control to instrumentation code. This instrumentation code saves the
-program state, performs some functions that are determined by the particular instrumentation tool,
+program state, performs some tasks that are determined by the particular instrumentation tool,
 restores the program state, then returns control to the application.
 A typical binary instrumentation tool on a platform with fixed-length instructions 
 \cite{tikir2006pmac} accomplishes this initial control transfer by replacing a
@@ -37,17 +37,18 @@ relocates and reorganizes the code for each function to ensure that enough empty
 space (in the form of \begin{it}nops\end{it}) is available to hold a full-length branch instruction at each
 instrumentation point.
 
-Instrumented code efficiency is accomplished in several ways. The cost of
-instrumentation, tasks such as parsing, disassembly and code generation, is
-taken prior to runtime rather than at runtime as is done by current state of the
-art binary instrumentation tools for X86/X86\_64 \cite{luk2005pin,
-nethercote2007valgrind, dynamorio}. We relocate the application's
+Instrumented code efficiency is accomplished in several ways. Dynamic binary instrumentation
+is costly because the instrumentation tool must frequently disrupt the application in order
+to perform tasks such as parsing, disassembly, code generation, and other decisions. This
+interruption is simply not an issue with static binary instrumentation tools because all
+decisions and actions are taken prior to runtime. The only cost born at runtime is the direct
+cost of performing instrumentation-related functions. We relocate the application's
 functions, which affords us the opportunity to reorganize the code so that we
 can use large yet efficient instructions to transfer control from the
 application to the instrumentation code. We also use the concept of an
 instrumentation snippet, a lightweight hand-written body of assembly code that can
-be inserted into the application rather than inserting only heavyweight
-functions to accomplish instrumentation tasks.
+be inserted into the application rather than relying only on heavyweight
+instrumentation functions to accomplish instrumentation tasks.
 
 x86elfinstrumentor is open source and available to the public for download along with several
 instrumentation tools at \url{http://blind-review-forbids-real-urls.com/}. These tools include a basic block
@@ -55,7 +56,7 @@ execution counter, a function execution counter, and a memory address stream col
 
 The rest of the paper is organized as follows. Section
 \ref{Section:Overview} descries the design and implementation of our static
-instrumentation toolkit. Section \ref{Section:Challenges} discusses in greater detail
+instrumentation toolkit. Section \ref{Section:Efficiency} discusses in greater detail
 several aspects of the toolkit, including the function relocation mechanism and the
 instrumentation snippet concept. Section \ref{Section:Tools} shows the details of
 the instrumentation tools included in the package. Section \ref{Section:Results}
