@@ -1,19 +1,22 @@
 \begin{it}
-Binary instrumentation toolkits for the x86/x86\_64 platforms in use today have a tendancy
-to use dynamic instrumentation approaches. While these toolkits
-are often well-designed and effective, they suffer from a large deficiency; they
-are ineffient because they perform all of their analysis, disassembly, and
-instrumentation at runtime.
+Dynamic binary instrumentation toolkits that are in use today
+produce instrumented code that is at a performance disadvantage to the instrumented code
+produced by static binary instrumentation toolkits because dynamic binary instrumentation toolkits 
+act at runtime. Therefore in cases where efficiency is paramount it is important to have a
+binary instrumentation toolkit capable of meeting that need.
 
 In this work we present X86ElfInstrumentor, a static binary instrumentation
-toolkit for Linux on x86/x86\_64 platforms that relies on the use of wholesale
+toolkit for Linux on x86/x86\_64 platforms that uses wholesale
 code relocation in order to remedy the difficulty created by the platforms' use
 of variable-length instructions. Code relocation of this kind allows the
 instrumentation tool to reorganize the application code in such a way that it
-can use the fast but far-reaching ``long'' jmp instruction to transfer control
+can use the fast but far-reaching constructs to transfer control
 from the application to the instrumentation code rather than relying on multiple
-jumps or interrupts for the transfer. This technique leads to efficient
-instrumentation tools, with overheads for basic block counting that are an
+jumps or interrupts for the transfer. Furthermore, the API includes a means of
+allowing the tool developer to insert hand-coded assembly in a very lightweight
+way rather than relying solely on the insertion of entire instrumentation functions.
+These techniques yield very efficient instrumentation tools, with overheads 
+for basic block counting that are an
 average of 48\% of the overhead imposed by Pin, 18\% of the overhead imposed by
 DynamoRIO, 10\% of the overhead of Valgrind, and 5\% of the overhead of Dyninst.
 \end{it}

@@ -1,4 +1,3 @@
-\subsection{Code Coverage}
 Code and data can reside together in the text section of a program binary. This is done for a variety of reasons, including
 the storage of branch target locations (eg for a jump table) or small data structures that provide convenient lookup
 of certain data such as identifiers, descriptors, or other values.
@@ -24,7 +23,7 @@ works as follows:
 \item 
 1. Control-driven disassembly: from a function's entry point, follow all understandable control paths. If a problem is encountered, fall back to
 naive disassembly.
-
+\item
 2. Naive disassembly: from a function's entry point, disassemble each instruction in the order it appears in the
 function. If a problem is encountered, give up.
 \end{enumerate}
@@ -47,5 +46,5 @@ resides. Therefore we treat such a fixed address as the first entry in a table w
 We then make an iterative pass over this table to determine the target for each arm of the jump table, stopping when we find a value in the
 table that yeilds an address that is outside the scope of the function.
 
- PUT EXAMPLE OF GNU COMPILER JUMP TABLE HERE
+PUT EXAMPLE OF GNU COMPILER JUMP TABLE HERE
 

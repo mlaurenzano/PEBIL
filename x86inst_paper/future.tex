@@ -1,1 +1,15 @@
-There are several more places 
+Despite some success in terms of efficiency, there are several more techniques
+that might make the instrumented code even more efficient. Because we are relocating
+the text to give ourselves as much space as possible, rather than inserting just a branch
+that transfers control to the instrumentation code we have the opportunity to inline
+the instrumentation code itsself in order to reduce  or eliminate the control interruptions
+that otherwise must be taken when inserting instrumentation code.
+
+We could also perform register liveness analysis in order to determine whether there is
+state that doesn't need to be saved around instrumentation code or to guide the selection
+of usable registers by the instrumentation tool developer. And similar to Pin, we could perform
+liveness on the bits of the eflags/rflags register to determine whether it must be saved and
+restored. Saving and restoring state is a large portion of the overhead associated with performing
+small tasks in instrumentation snippets.
+
+tool-specific -- path counter, xiaofeng's memory instructrion subset

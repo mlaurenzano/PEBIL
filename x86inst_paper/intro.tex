@@ -1,55 +1,64 @@
+\section{Introduction}
 Binary instrumention is the act of inserting extra code into a compiled
-application in order to observe or modify something about its behavior.
+application in order to observe or modify something about its behavior. The data
+collected from binary instrumentation can be useful for guiding hardware and
+system design decisions, program debugging, compiler correctness/optimization,
+program debugging and security testing/verification.
+
+There are two common approaches to binary instrumentation: static binary
+instrumentation and dynamic binary instrumentation. Static binary
+instrumentation toolkits have the advantage of usually being able to produce
+more efficient instrumented code than comparable dynamic binary instrumentation toolkits
+because static instrumentation introduces only the instrumentation code itsself into the run of the
+application. Static binary instrumentation tools have some disadvantages,
+however. It is not possible to instrument shared libraries or dyanamically
+generated code with static binary instrumentation tools. They also provide less
+flexibility to the tool developer, since any instrumentation code that is
+inserted into the application will persist throughout the application run.
+However, there are cases where efficiency is of enough importance to outweigh
+these shortcomings in such a way that static binary instrumentation is the
+desirable paradigm.
+
 x86elfinstrumentor is a static binary instrumentation toolkit for Linux on
-X86/X86\_64 platforms. The goal of x86elfinstrumentor is to provide the ability to build instrumentation tools that produce very
-efficient instrumented applications. We accomplish this efficiency in several ways.
-The cost of instrumentation, tasks such as parsing, disassembly and code
-generation, is taken prior to runtime rather than at runtime as is done by
-current state of the art binary instrumentation tools for X86/X86\_64
-\cite{luk2005pin, nethercote2007valgrind, dynamorio}. We relocate the
-application code's functions, which affords us the opportunity to reorganize the
-code so that we can use larger yet more efficient instructions to transfer
-control from the application to the instrumentation code. We also use the
-concept of an instrumentation snippet, lightweight hand-written body of assembly
-code that can be inserted into the application rather than inserting only
-heavyweight functions.
-
-Static instrumentation is used because efficiency is our most important design 
-criteria. By performing instrumentation tasks statically we incur these costs 
-outside of the application's run cycle. This does make
-certain tasks more challenging. For instance, indirect control flow information is unknown or
-difficult to recover prior to runtime, which not only makes complete code
-coverage difficult but can also make correct instrumented code difficult to
-generate.
-
-The X86/X86\_64 family of platforms is the most utilized platform on the planet,
-yet binary instrumentation on them presents some major challenges. One such challenge
-is that X86/X86\_64 uses variable-length instructions. A typical binary
-instrumentation tool on a platform with fixed-length instructions will replace a
+X86/X86\_64 platforms. The goal of x86elfinstrumentor is to provide the ability
+to build instrumentation tools that produce very efficient instrumented
+applications. We instrument the binary by placing an unconditional branch at each instrumentation
+point that transfers control to instrumentation code. This instrumentation code saves the
+program state, performs some functions that are determined by the particular instrumentation tool,
+restores the program state, then returns control to the application.
+A typical binary instrumentation tool on a platform with fixed-length instructions 
+\cite{tikir2006pmac} accomplishes this initial control transfer by replacing a
 single instruction at the instrumentation point with a branch that transfers
-control to the instrumentation code. Using variable-length instructions this
-is not always possible since the branch instruction can be larger than the
+control to the instrumentation code. However when instructions are variable-length, as
+is the case for X86/X86\_64, this is not always possible since the branch instruction can be larger than the
 instruction at the instrumentation point. To address this, x86elfinstrumentor
 relocates and reorganizes the code for each function to ensure that enough empty
-space (ie nops) is available to hold a full-length branch instruction at each
+space (in the form of \begin{it}nops\end{it}) is available to hold a full-length branch instruction at each
 instrumentation point.
 
-The introduction of lightweight instrumentation snippets into the
-instrumentation tool allows us to produce much more
-efficient instrumented code than is possible with instrumentation functions
-alone. Using instrumentation snippets, we can perform tasks like basic block
-counting almost entirely without calling instrumentation functions, and it
-allows us to take advantage of some other opportunities like asynchronous
-processing \cite{gao2005aliter} for data collection tasks that do not require
-immediate processing.
+Instrumented code efficiency is accomplished in several ways. The cost of
+instrumentation, tasks such as parsing, disassembly and code generation, is
+taken prior to runtime rather than at runtime as is done by current state of the
+art binary instrumentation tools for X86/X86\_64 \cite{luk2005pin,
+nethercote2007valgrind, dynamorio}. We relocate the application's
+functions, which affords us the opportunity to reorganize the code so that we
+can use large yet efficient instructions to transfer control from the
+application to the instrumentation code. We also use the concept of an
+instrumentation snippet, a lightweight hand-written body of assembly code that can
+be inserted into the application rather than inserting only heavyweight
+functions to accomplish instrumentation tasks.
+
+x86elfinstrumentor is open source and available to the public for download along with several
+instrumentation tools at \url{empty.for.blind.review}. These tools include a basic block
+execution counter, a function execution counter, and a memory address stream collection tool.
 
 The rest of the paper is organized as follows. Section
-\ref{Section:Implementation} discusses the basic implementation of our static
-insstrumentation toolkit. Section \ref{Section:Relocation} discusses our
-technique for performing code relocation. Section \ref{Section:Coverage} details
-our code discovery technique and discusses issues pertaining to code coverage of
-our instrumentation package. Section \ref{Section:Snippets} shows and evaluates
-some situations where instrumentation snippets can be useful. Section
-\ref{Section:Results} shows our experimental results. Section
+\ref{Section:Overview} descries the design and implementation of our static
+instrumentation toolkit. Section \ref{Section:Challenges} discusses in greater detail
+several aspects of the toolkit, including the function relocation mechanism and the
+instrumentation snippet concept. Section \ref{Section:Tools} shows the details of
+the instrumentation tools included in the package. Section \ref{Section:Results}
+presents a comparison and discussion of the performance of x86elfinstrumentor relative
+to other state of the art instrumentation toolkits. Section
 \ref{Section:Future} discusses some ideas for the future of x86elfinstrumentor,
 and Section \ref{Section:Conclusions} concludes.
