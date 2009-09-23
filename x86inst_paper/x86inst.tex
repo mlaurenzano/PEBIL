@@ -1,16 +1,16 @@
-%\documentclass[a4paper,11pt,leqno,notitlepage,onecolumn]{article}
-\documentclass[a4paper,11pt,leqno,notitlepage,twocolumn]{article}
+\documentclass[a4paper,11pt,leqno,notitlepage,onecolumn]{article}
+%\documentclass[a4paper,11pt,leqno,notitlepage,twocolumn]{article}
 
 \usepackage[latin1]{inputenc}
 \usepackage{fontenc}
 \usepackage{graphicx}
 \usepackage[dvips]{hyperref}
-
+\usepackage{subfigure}
 \usepackage{setspace}
-%\doublespacing
+\doublespacing
 
 \begin{document}
-\title{Efficient Static Binary Instrumentation in the Presence of Variable-Length Instructions}
+\title{Efficient Static Binary Instrumentation for X86/X86\_64 on Linux}
 \author{Michael Laurenzano, Mustafa Tikir, Laura Carrington, Allan Snavely\\
 San Diego Supercomputer Center\\
 \it{\{michaell, mtikir, laurac, allans\}@sdsc.edu}}
@@ -24,35 +24,24 @@ San Diego Supercomputer Center\\
 \label{Section:Introduction}
 \input{intro}
 
-\label{Section:Implementation}
-\section{Implementation}
-\input{implementation}
+\label{Section:Overview}
+\input{overview}
 
-\label{Section:Relocation}
-\section{Relocation}
-\input{relocation}
-
-\label{Section:Coverage}
-\section{Coverage}
-\input{coverage}
-
-\label{Section:Snippets}
-\section{Snippets}
-%\input{snippets}
+\label{Section:Challenges}
+\input{challenges}
 
 \label{Section:Results}
 \section{Results}
 %\input{results}
 
 \label{Section:Future}
-\section{Future}
 \input{future}
 
 \label{Section:Conclusions}
 \section{Conclusions}
 %\input{conclusions}
 
-\bibliography{paperbib}
+\bibliography{x86inst}
 \bibliographystyle{unsrt}
 
 \end{document}

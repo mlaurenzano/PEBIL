@@ -1,3 +1,6 @@
+\section{Challenges}
+
+\subsection{Relocation}
 The novel use of relocation in our instrumentation strategy stems from the fact that we are performing
 the instrumentation statically on a platform that uses a variable-length instruction
 set. A typical strategy used by static instrumentation tools on platforms with 
@@ -74,3 +77,55 @@ some smaller number of bits has an overhead associated with it. And since the co
 we might destroy some positive alignment and size optimizations that the compiler might have made on the instructions in the
 function. We examine the practical overhead seen by these techniques by taking these steps without instrumenting the code
 for a series of benchmarks. The slowdown is XXXX...
+
+\subsection{Disassembly Coverage}
+Code and data can reside together in the text section of a program binary. This is done for a variety of reasons, including
+the storage of branch target locations (eg for a jump table) or small data structures that provide convenient lookup
+of certain data such as identifiers, descriptors, or other values.
+
+Correctly determining
+what parts of the text sections are code and what are data is important. Consider what can happen
+if we mistakenly treat some data as code. We might choose to modify or relocate the apparent code
+to serve our instrumentation purposes. Then when the data at this location is referenced, the
+original program behavior may not be preserved: if we are lucky this will cause application failure
+due to some unexpected change in control flow or some state condition that is checked by the program.
+If we are unlucky the corruption might silently manifest itsself by modifying the output of the
+program. Alternatively consider what can happen if we mistakenly treat some code as data. We then will
+not try to insert code into this area or we might perform some other type of analysis that should be reserved for
+data alone. While this is almost certainly preferrable to the situation where we treat data as code, it
+is ideal to avoid both situations.
+
+To this end, we use the program's symbol table to help us determine which parts of the text sections
+are functions that are eligible to be subject for our code discovery algorithm. Our code discovery algorithm
+consists of two phases; control-driven disassembly backed up by linear disassembly. In more detail, the algorithm
+works as follows:
+
+\begin{enumerate}
+\item 
+1. Control-driven disassembly: from a function's entry point, follow all understandable control paths. If a problem is encountered, fall back to
+naive disassembly.
+\item
+2. Naive disassembly: from a function's entry point, disassemble each instruction in the order it appears in the
+function. If a problem is encountered, give up.
+\end{enumerate}
+
+
+Problems that can be encountered are situations where an unknown opcode is encountered, where control jumps to the
+middle of an instruction we've already disassembled, or if control leaves the boundaries of the function. In most
+cases control-driven disassembly is sufficient to disassemble the entirety of a function, and in most cases control-driven
+disassembly is a straightforward process because control either falls through to the following instruction 
+or the location of a branch target is embedded entirely within the instruction itsself. But there are also cases
+where the an indirect branch is used, where the target resides either at a fixed address (possibly with some offset), the address that resides in a register,
+or the address that is at a location given by a register. The latter two cases are very difficult to resolve
+without runtime information because the computation of the target address can be arbitrarily complex and can span function
+boundaries. Nevertheless, we perform a peephole examination of the previous instructions to the and can determine 
+the address in simple cases.
+
+Fortunately simple calculations are all that most compilers use to determine targets for jump tables, one of the more common
+uses of an indirect branch. Often an offset is added to a fixed location to determine where the data comprising the branch target
+resides. Therefore we treat such a fixed address as the first entry in a table whose entries are treated either as addresses or as offsets.
+We then make an iterative pass over this table to determine the target for each arm of the jump table, stopping when we find a value in the
+table that yeilds an address that is outside the scope of the function.
+
+PUT EXAMPLE OF GNU COMPILER JUMP TABLE HERE
+
