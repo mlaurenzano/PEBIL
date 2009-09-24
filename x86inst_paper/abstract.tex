@@ -1,22 +1,21 @@
 \begin{it}
-Dynamic binary instrumentation toolkits that are in use today
-produce instrumented code that is at a performance disadvantage to the instrumented code
-produced by static binary instrumentation toolkits because dynamic binary instrumentation toolkits 
-act at runtime. Therefore in cases where efficiency is paramount it is important to have a
-binary instrumentation toolkit capable of meeting that need.
 
-In this work we present X86ElfInstrumentor, a static binary instrumentation
-toolkit for Linux on x86/x86\_64 platforms that uses wholesale
+Binary instrumention toolkits enable insertion of additional code into an
+executable in order to observe or modify the behavior of application runs. 
+There are two main approaches to binary instrumentation: \textit{static} 
+and \textit{dynamic} binary instrumentation. In this paper, we present X86ElfInstrumentor, 
+a static binary instrumentation toolkit for Linux on x86/x86\_64 platforms. The X86ElfInstrumentor
+is similar to the other toolkits in terms of how additional code is inserted. However, it uses wholesale
 code relocation in order to remedy the difficulty created by the platforms' use
 of variable-length instructions. Code relocation of this kind allows the
 instrumentation tool to reorganize the application code in such a way that it
 can use the fast but far-reaching constructs to transfer control
 from the application to the instrumentation code rather than relying on multiple
-jumps or interrupts for the transfer. Furthermore, the API includes a means of
+jumps or interrupts for the transfer. Furthermore, the API provides a means of
 allowing the tool developer to insert hand-coded assembly in a very lightweight
 way rather than relying solely on the insertion of entire instrumentation functions.
-These techniques yield very efficient instrumentation tools, with overheads 
-for basic block counting that are an
+Our static instrumentation toolkit enables implementation of efficient instrumentation tools, 
+with overheads  for basic block counting that are an
 average of 48\% of the overhead imposed by Pin, 18\% of the overhead imposed by
 DynamoRIO, 10\% of the overhead of Valgrind, and 5\% of the overhead of Dyninst.
 \end{it}
