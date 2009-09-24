@@ -61,6 +61,34 @@ branch. Specifically, the steps we use are as follows:
 
 
 Figure \ref{Figure:Relocation} gives a visual version of this process.
+\begin{figure}[ht]
+\centering
+\caption[Optional caption for list of figures]
+{The steps taken in order to prepare a function for instrumentation which collects
+the memory addresses of an application.}
+\subfigure[The two-segment structure of an unmodified ELF file.]{
+\includegraphics[scale=0.38]{funcp1.eps}
+\label{Figure:funcp1}
+}
+\subfigure[The two-segment structure of an unmodified ELF file.]{
+\includegraphics[scale=0.38]{funcp2.eps}
+\label{Figure:funcp2}
+}
+\subfigure[The two-segment structure of an unmodified ELF file.]{
+\includegraphics[scale=0.34]{funcp3.eps}
+\label{Figure:funcp3}
+}
+\subfigure[The two-segment structure of an unmodified ELF file.]{
+\includegraphics[scale=0.34]{funcp4.eps}
+\label{Figure:funcp4}
+}
+\subfigure[The two-segment structure of an unmodified ELF file.]{
+\includegraphics[scale=0.34]{funcp5.eps}
+\label{Figure:funcp5}
+}
+\label{Figure:Relocation}
+\end{figure}
+
 
 1. Function Displacement: Relocate the contents of the entire function to an area of the text section allocated
 to the instrumentation tool. Since functions are often packed tightly together, it is generally not possible to
