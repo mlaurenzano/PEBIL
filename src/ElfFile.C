@@ -510,6 +510,30 @@ void ElfFile::initSectionFilePointers(){
 
     for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
         textSections[i]->disassemble(&binaryInputFile);
+        
+        uint32_t binSizes[MAX_X86_INSTRUCTION_LENGTH+1];
+        bzero(binSizes, sizeof(uint32_t)*(MAX_X86_INSTRUCTION_LENGTH+1));
+        Instruction** allinsts = NULL;
+
+        PRINT_INFOR("Text Section %s instruction histogram", getSectionHeader(textSections[i]->getSectionIndex())->getSectionNamePtr());
+        if (strstr(getSectionHeader(textSections[i]->getSectionIndex())->getSectionNamePtr(), ".text")){
+            for (uint32_t j = 0; j < textSections[i]->getNumberOfTextObjects(); j++){
+                allinsts = new Instruction*[textSections[i]->getTextObject(j)->getNumberOfInstructions()];
+                textSections[i]->getTextObject(j)->getAllInstructions(allinsts, 0);
+                for (uint32_t l = 0; l < textSections[i]->getTextObject(j)->getNumberOfInstructions(); l++){
+                    //                PRINT_INFOR("%d", allinsts[l]->getSizeInBytes());
+                    binSizes[allinsts[l]->getSizeInBytes()]++;
+                }
+                delete[] allinsts;
+            }
+            
+            for (uint32_t j = 0; j < MAX_X86_INSTRUCTION_LENGTH+1; j++){
+                fprintf(stdout, "%d\t", binSizes[j]);
+                //                PRINT_INFOR("\t%d\t%d", j, binSizes[j]); 
+            }
+            fprintf(stdout, "\n");
+            fflush(stdout);
+        }
     }
 
 }
