@@ -617,6 +617,9 @@ void ElfFileInst::generateInstrumentation(){
 #endif
         ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
         codeOffset += relocateFunction(func,codeOffset);
+
+        
+
 #ifdef RELOC_MOD
         }
 #endif
@@ -1030,18 +1033,38 @@ void ElfFileInst::phasedInstrumentation(){
 
     // choose the set of functions to expose to the instrumentation tool
     PRINT_DEBUG_FUNC_RELOC("Choosing from %d functions", text->getNumberOfTextObjects()+fini->getNumberOfTextObjects()+init->getNumberOfTextObjects());
+
+    uint32_t numberOfBBs = 0;
+    uint32_t numberOfBBsReloc = 0;
+    uint32_t numberOfMemops = 0;
+    uint32_t numberOfMemopsReloc = 0;
+
     for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
         if (text->getTextObject(i)->isFunction()){
             Function* f = (Function*)text->getTextObject(i);
+
+            uint32_t memopsInFunc = 0;
+            for (uint32_t i = 0; i < f->getNumberOfBasicBlocks(); i++){
+                memopsInFunc += f->getBasicBlock(i)->getNumberOfMemoryOps();
+            } 
+            numberOfMemops += memopsInFunc;
+            numberOfBBs += f->getNumberOfBasicBlocks();
+
             if (f->hasCompleteDisassembly() && isEligibleFunction(f)){
                 PRINT_DEBUG_FUNC_RELOC("\texposed: %s", f->getName());
                 exposedFunctions.append(f);
+                numberOfMemopsReloc += memopsInFunc;
+                numberOfBBsReloc += f->getNumberOfBasicBlocks();
             } else {
                 PRINT_DEBUG_FUNC_RELOC("\thidden: %s", f->getName());
                 hiddenFunctions.append(f);
+                PRINT_INFOR("Hidden function:\t%s", f->getName());
             }
         }
     }
+
+    PRINT_INFOR("DisassemblyCoverageReport\tBlocks\t%d\t%d\tMemops\t%d\t%d", numberOfBBs, numberOfBBsReloc, numberOfMemops, numberOfMemopsReloc);
+
     for (uint32_t i = 0; i < fini->getNumberOfTextObjects(); i++){
         if (fini->getTextObject(i)->isFunction()){
             Function* f = (Function*)fini->getTextObject(i);

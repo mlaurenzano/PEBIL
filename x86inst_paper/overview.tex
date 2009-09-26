@@ -46,9 +46,10 @@ accompany it. When control is transferred from the application to the
 instrumentation code, it is necessary to maintain the machine state of
 the application in order to preserve its original behavior. This machine state
 can contain anything modified by the instrumentation code, but in practice is
-usually limited to a relatively limited set of registers. The code snippet, called \textit{trampoline} [CITE Dyninst], 
-saves any registers it intends to use, performs the instrumentation task, restores
-any machine state after the instrumentation, executes the
+usually limited to a relatively limited set of registers but in some cases includes
+some information about the call stack. The code snippet, called a \textit{trampoline} [CITE Dyninst], 
+saves any machine state that will be destoryed, performs the instrumentation task, restores
+the machine state after the instrumentation, executes the
 original instructions that were displaced by the initial control transfer,
 finally restoring control to the application. Since we are using a jump instruction at the instrumentation point, the
 instrumentation code has no information about where control was transferred from

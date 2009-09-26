@@ -163,3 +163,45 @@ table that yields an address that is outside the scope of the function.
 PUT EXAMPLE OF GNU COMPILER JUMP TABLE HERE
 
 \subsection{Instrumentation Snippets}
+
+In most instrumentation tools, the tasks accomplished by the instrumentation tool are accomplished by allowing the user
+to transfer control from instrumentation points in the application to instrumentation functions provided by the user, typically
+via a shared library or some other type of object code. Since these instrumentation functions are delivered via a shared library or other
+object code, the instrumentation tool developer has the advantage of the use of a software devlepment toolchain and can
+write the code in a language that compiles to object code. This delivery mechanism is, however, somewhat heavyweight. Each time
+the instrumentation tool needs to accompish any task, the overhead of a function invokation must be born. In cases where
+efficiency is important and where the instrumentation task is relatively small, it can be desirable to insert small sequences of assembly code
+to perform a task rather than relying entirely on more heavyweight instrumentation functions.
+
+Consider the example of an instrumentation point where we wish to update a counter that resides in memory, which could be of particular use for
+basic block or instruction counting tools. In order to accompish this task with an instrumentation snippet, we transfer control to the
+instrumentation point's trampoline which will save athe flags register, update the counter in memory (this does not even require a register), restore
+the flags register, then transfer control back to the application. Using an instrumentation function, prior to performing
+the task the trampoline must save the flags register, any registers used by the function, and perform stack protection in some cases. 
+The larger costs associated with using an instrumentation occur because the instrumentation function requires at least 2 more control flow transfers
+to enter and exit the function. Furthermore these control flow transfers generally use the call/return paradigm, which in addition to changing the
+application's program counter will also store and retreive information about the function call site onto the stack. There will also be some overhead
+associated with setting up a stack frame for the instrumentation function. The use of the instrumentation function is also likely to pollute the
+instruction cache more than using an instrumentation snippet. For an instrumentation snippet the application code must contend with the trampoline code
+only, whereas using an instrumentation function puts the function code into contention with the other two as well.
+
+These factors show us that instrumentation functions tend to be a much more heaviweight solution, which is not appropriate for certain kinds of instrumentation
+tasks. This technique can allow us to more efficiently gather asynchronous program information, which intuitively can be thought of as any information that could be dumped to
+disk an processed offline. The authors of \cite{gao2005aliter} show that using lightweight instrumentation snippets to buffer information
+which is later processed by more heavyweight instrumentation functions in batches can be an efficient yet entirely lossless way of processing asynchronous
+program information. The avaialability of instrumentation snippets gives tool authors the flexibility to choose between these and instrumentation
+functions depending on their efficiency and software engineering needs.
+
+
+% move this to overview section
+The stack requires protection from the instrumentation function because compilers will often optimize a leaf function
+by not explicitly creating a stack frame for the local function data to operate in. This optimization is safe for the application because during its
+normal execution a leaf function will never call another function and thus its errant stack contents can never be smashed. In the case of an instrumentation
+tool that calls an instrumentation function from a leaf, this guarantee no longer holds. Thus we must protect the area above the stack when we call
+an instrumentation function from a leaf function. During the disassembly of a function we note whether it is a leaf (ie whether it contains any call
+instructions), and then during instrumentation we automatically protect the stack contents for any instrumentation function calls that are made by
+incrementing the stack pointer by a large fixed amount, which has the effect of giving the leaf function a large stack frame while the instrumentation
+function's stack frame uses the stack.
+
+
+
