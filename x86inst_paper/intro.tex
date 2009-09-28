@@ -64,14 +64,17 @@ instrumentation functions to accomplish instrumentation tasks.
 The PIX toolkit is open source and available to the public for download 
 at \url{http://blind-review-forbids-real-urls.com/}. The distribution includes already implemented tools 
 including a function execution counter, a basic block
-execution counter, and a memory address stream collection tool.
+execution counter, and a memory address stream collection tool. Each of these tools is built on top of
+an API that provides both enough low-level detail to allow the tool-developer to get involved in the 
+details of the instrumentation tool's operation and enough high-level detail to allow the tool builder
+to ignore these details if he wishes. The three instrumentation tools provided with the distribution are written in
+less than 600 lines of C++ code.
 
 The remainder of the paper is organized as follows. Section
 \ref{Section:Overview} describes the design and implementation of PIX.
 Section \ref{Section:Efficiency} discusses
 several aspects of the toolkit, including the function relocation mechanism and the
-instrumentation snippet. Section \ref{Section:Tools} shows the details of
-the instrumentation tools included in the package. Section \ref{Section:Results}
+instrumentation snippet. Section \ref{Section:Results}
 presents a comparison of the performance of applications instrumented by out PIX to
 the other state of the art instrumentation toolkits including Dyninst, Pin, Valgrind and DynamoRIO. Section
 \ref{Section:Future} discusses the future of PIX, and Section \ref{Section:Conclusions} concludes.

@@ -1,2 +1,30 @@
 \section{Results}
 
+Above all PIX is designed to produce efficient instrumented code. In order to test how efficient the
+instrumented code actually is we ran experiments on a selection of benchmarks from the the SPEC CPU2000
+Integer benchmark suite. All of the experiments described here, unless otherwise noted, were run on
+one core of a quad-core 2.4GHz IA32 Intel Xeon running Red Hat linux Enterprise 4.1.2 (linux kernel 2.6.18).
+
+The first set of experiments is intended to quantify the overhead of the program reorganization technique 
+described in section \ref{Subsection:Relocation}. Recall that this technique adds an extra unconditional
+branch to each function call in order to relocate the function and extends all of the branches in the code
+to use 32-bit offsets. We perform these transformations on our benchmark set then run the resulting executable
+to see how much (if any) slowdown occurs as compared to the unaltered executable. Figure \ref{Figure:RelocOverhead} shows
+the original execution times versus the executables modified with the transformations just described in order to
+accomodate our approach to instrumentation. This figure shows that the slowdown varies from -2\% to 3.4\%, with an
+average slowdown of just 0.8\%. This amount of overhead is minimal at worst. A few percent overhead is
+insignificant when compared to the amount of overhead we would incur by selecting a more inefficienct overall
+scheme to accomplish the control transfer from application to instrumentation code.
+
+The next set of experiments shows how efficient the code produced by instrumentation tools written with PIX is.
+For these experiments we create an instrumentation tool that counts the number of times each basic block is
+executed over the course of a program run. The instrumentation tool is then used to produce an instrumented
+executable for each program in our benchmark suite, whose runtime is compared to the runtime of the 
+unmodified executable. The results of this experiment are shown in figure \ref{Figure:ToolOverheads}. The
+resulting overhead of our basic block counter is an average of 84\%, compared to average overheads of
+135\% for Pin, 396\% for DynamoRIO, 660\% for Valgrind, and 5701\% for Dyninst. This represents a savings of
+51\% of the original application runtime when using PIX over the next most efficient option, Pin. Furthermore,
+Pin uses a variety of optimizations such as tracking eflags bit liveness \cite{luk2005pin} that are currently
+unincorporated into PIX. Our future plans (see Section \ref{Section:Future}) for this project include the addition of several
+such optimizations already in use by Pin, which should only further improve on the efficiency of the instrumented
+code produced by our tool.

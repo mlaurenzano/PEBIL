@@ -1,5 +1,6 @@
 \section{Efficiency}
 
+\label{Subsection:Relocation}
 \subsection{Function Relocation}
 The use of relocation at the function level in PIX stems from the fact
 that we are performing the instrumentation statically on a platform that uses a
@@ -16,7 +17,7 @@ jump instruction that uses a 32-bit offset requires 5 bytes. However, for some o
 the instrumentation points of interest there may not be enough space to hold a 5 byte
 jump instruction. This can occur in cases where a basic block or an instruction of interest
 is smaller than 5 bytes. Figure \ref{Figure:InstructionSizes} shows a breakdown of the sizes of
-instructions for many of the SPEC INT 2000 benchmarks. This figure shows that for these benchmarks,
+instructions for many of the SPEC CPU2000 Integer benchmarks. This figure shows that for these benchmarks,
 at least 52\% of instructions are smaller than 4 bytes. In fact, an average of 64\% of instructions
 are smaller than the 5 byte threshold, which indicates that the the generic technique of replacing 
 an instruction with a branch to instrumentation code deserves reexamination because without modification
@@ -25,8 +26,8 @@ this technique will not be able to provide instrumentation to large portions of 
 \begin{figure}[ht]
 \centering
 \label{Figure:InstructionSizes}
-\includegraphics[scale=0.4]{instsize.eps}
-\caption{Instruction sizes for several benchmarks presented in a cumulative basis. \textbf{(COMMENT: Smaller figure, bigger legend font and line rather than plus markers)}}
+\includegraphics[scale=0.5]{instsize.eps}
+\caption{Instruction sizes for several benchmarks presented in a cumulative basis.}
 \end{figure}
 
 This leaves two options for how to transfer control to the instrumentation code.

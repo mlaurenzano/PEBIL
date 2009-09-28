@@ -7,11 +7,13 @@ that transfers control to the instrumentation code we have the opportunity to in
 the instrumentation code itsself in order to reduce  or eliminate the control interruptions
 that otherwise must be taken when inserting instrumentation code.
 
-We could also perform register liveness analysis in order to determine whether there is
-state that doesn't need to be saved around instrumentation code or to guide the selection
-of usable registers by the instrumentation tool developer. And similar to Pin, we could perform
+Currently we save all general purpose registers around each function call and we allow the
+tool developer to state which resgiters are saved around instrumentation snippets. For instrumentation
+snippets we could automatically detect which registers are killed by the snippet and live at the entry point
+of the snippet adn automatically save only those. Similarly we could perform register analysis in order to determine whether there is
+state that doesn't need to be saved around instrumentation functions. And similar to Pin, we could perform
 liveness on the bits of the eflags/rflags register to determine whether it must be saved and
-restored. Saving and restoring state is a large portion of the overhead associated with performing
-small tasks in instrumentation snippets.
+restored at each instrumentation point. Saving and restoring state is a large portion of the overhead associated with performing
+small tasks in instrumentation snippets and these optimizations can help reduce or eliminate these overheads
+entirely.
 
-tool-specific -- path counter, xiaofeng's memory instructrion subset
