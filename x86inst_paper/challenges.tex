@@ -1,10 +1,10 @@
 \section{Efficiency}
 
 \subsection{Function Relocation}
-The use of relocation at the function level in our instrumentation strategy stems from the fact
+The use of relocation at the function level in PIX stems from the fact
 that we are performing the instrumentation statically on a platform that uses a
 variable-length instruction set and it may not be always possible to instrument
-an arbitrary point in the executable due to the lack of enough space for jump instruction to the instrumented code. 
+an arbitrary point in the executable due to the lack of enough space for jump instruction to the instrumentation code. 
 A typical strategy used by static
 instrumentation tools on platforms with fixed-length instruction sets is to
 replace a single fixed-length instruction at the instrumentation point with a
@@ -17,7 +17,7 @@ the instrumentation points of interest there may not be enough space to hold a 5
 jump instruction. This can occur in cases where a basic block or an instruction of interest
 is smaller than 5 bytes. Figure \ref{Figure:InstructionSizes} shows a breakdown of the sizes of
 instructions for many of the SPEC INT 2000 benchmarks. This figure shows that for these benchmarks,
-at least 52\% of instructions are smaller than 5 bytes. In fact, an average of 64\% of instructions
+at least 52\% of instructions are smaller than 4 bytes. In fact, an average of 64\% of instructions
 are smaller than the 5 byte threshold, which indicates that the the generic technique of replacing 
 an instruction with a branch to instrumentation code deserves reexamination because without modification
 this technique will not be able to provide instrumentation to large portions of the application code.
@@ -26,7 +26,7 @@ this technique will not be able to provide instrumentation to large portions of 
 \centering
 \label{Figure:InstructionSizes}
 \includegraphics[scale=0.4]{instsize.eps}
-\caption{The breakdown of instruction sizes for several benchmarks shown on a cumulative basis.}
+\caption{Instruction sizes for several benchmarks presented in a cumulative basis. \textbf{(COMMENT: Smaller figure, bigger legend font and line rather than plus markers)}}
 \end{figure}
 
 This leaves two options for how to transfer control to the instrumentation code.
@@ -39,7 +39,8 @@ where the instruction in the instrumentation point is a small branch that
 transfers control to a larger intermediate branch. This
 method is unsatisfactory because the smallest traditional unconditional branch instruction available
 on the x86 platform is 2 bytes in length, yet there are
-instrumentation points with only a single byte available to them. Besides, this technique would
+instrumentation points with only a single byte available to them. \textbf{(COMMENT: Put the percetage of instruction under 2 bytes)}.
+Besides, this technique would
 require additional space to be available in close proximity to the instrumentation points since these
 smaller branches are also very short reaching. Another option
 to consider is the method proposed by the BIRD project \cite{nanda2006bird}, which
@@ -54,37 +55,36 @@ investigation. On a small benchmark set, our implementation of using
 the instrumentation point introduces slowdown of at least 100-fold for
 even a simple task of counting the number of executions of each basic block in the code. As one might
 expect, this mechanism is unsuitable for efficient instrumentation since the
-very heavyweight system call conventions are being invoked on a fairly regular basis.
+ heavyweight system call conventions are being invoked on a fairly regular basis.
 
 In PIX, we use reorganization of the code at the function level so that
 there is enough space at every instrumentation point to accommodate a 5-byte
-branch. Specifically, the steps in whole function relocation includes function displacement, linking function entry points,
-branch conversion and instruction padding.  \textbf{(COMMENT: What about the targets of branches in to the middle?)}
-Figure \ref{Figure:Relocation} presents the flow of information on this process with a simple example function in the original text section
-of an executable.
+jump. Specifically, the steps in whole function relocation includes function displacement, linking function entry points,
+branch conversion and instruction padding. Figure \ref{Figure:Relocation} presents the flow of information on 
+this process with a simple example function in the original text section of an executable.
 
 \begin{figure}[ht]
 \centering
 \caption[Optional caption for list of figures]
 {The steps taken in order to prepare a function for instrumentation which collects
 the memory addresses of an application.}
-\subfigure[The two-segment structure of an unmodified ELF file.]{
+\subfigure[Original instruction sequence.]{
 \includegraphics[scale=0.38]{funcp1.eps}
 \label{Figure:funcp1}
 }
-\subfigure[The two-segment structure of an unmodified ELF file.]{
+\subfigure[Instructions after linking function entries.]{
 \includegraphics[scale=0.38]{funcp2.eps}
 \label{Figure:funcp2}
 }
-\subfigure[The two-segment structure of an unmodified ELF file.]{
+\subfigure[Instructions after branch conversion.]{
 \includegraphics[scale=0.34]{funcp3.eps}
 \label{Figure:funcp3}
 }
-\subfigure[The two-segment structure of an unmodified ELF file.]{
+\subfigure[Instructions after padding.]{
 \includegraphics[scale=0.34]{funcp4.eps}
 \label{Figure:funcp4}
 }
-\subfigure[The two-segment structure of an unmodified ELF file.]{
+\subfigure[Relocated function body.]{
 \includegraphics[scale=0.34]{funcp5.eps}
 \label{Figure:funcp5}
 }

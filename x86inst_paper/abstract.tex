@@ -8,9 +8,9 @@ an efficient static  instrumentation toolkit for Linux on x86/x86\_64 platforms.
 is similar to the other toolkits in terms of how additional code is inserted. However, it uses whole function level
 code relocation in order to remedy the difficulty created by the variable-length instruction set. Code relocation of this kind allows the
 instrumentation tool to reorganize the application code in such a way that it
-can use the fast  far-reaching constructs to transfer control
+can use  fast  far-reaching constructs to transfer control
 from the application to the instrumentation code rather than relying on multiple
-jumps or interrupts for the transfer. Furthermore, the PIX API provides a means to
+jumps or interrupts. Furthermore, the PIX API provides means to
 tool developers to insert lightweight hand-coded assembly
 rather than relying solely on the insertion of entire instrumentation functions.
 PIX also enables implementation of efficient instrumentation tools, 

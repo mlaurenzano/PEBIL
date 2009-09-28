@@ -18,10 +18,10 @@ during execution without any permanent modifications to the executable.
 The static approach has the advantage of usually being able to produce
 a more efficient executable compared to the dynamic approach
 since static instrumentation introduces only the instrumentation code itself, 
-which is included in the text section of the executable. However, static binary instrumentation has disadvantages. 
+which is included in the text section of the executable. 
 Unlike static instrumentation, dynamic
 instrumentation may insert additional code in to the program heap and use the data section as text space.
-It is not possible to instrument shared libraries 
+However, static binary instrumentation has disadvantages. It is not possible to instrument shared libraries 
 unless the shared libraries are instrumented separately and executable is modified to use those libraries. 
 Static instrumentation also provides less flexibility to tool developers, since any instrumentation code that is
 inserted persists throughout the application run where as dynamic instrumentation 
@@ -30,7 +30,7 @@ However, there are cases where the importance of efficiency is enough to outweig
 these shortcomings in static instrumentation \cite{carrington2006performance} such that static binary instrumentation is the
 desirable paradigm.
 
-In this paper, we introduce a static binary instrumentation toolkit, \textit{PIX}, for Linux on
+In this paper, we introduce a static binary instrumentation toolkit, \textit{PIX}, for Linux ELF executables on
 x86/x86\_64 platforms. The goal of PIX is to provide a toolkit that enables the construction of
 instrumentation tools that produce an efficient instrumented
 executable. Similar to previous instrumentation toolkits \cite{buck2000api}, we instrument the executable 
@@ -48,7 +48,7 @@ relocates and reorganizes the code for each function to ensure that enough
 space (in the form of \begin{it}nops\end{it}) is available to hold a full-length branch instruction at each
 instrumentation point.
 
-The efficiency of instrumented executables is a main design factor in instrumentation tools. In dynamic binary instrumentation,
+The efficiency of instrumented executables is a main design goal in instrumentation tools. In dynamic binary instrumentation,
 inefficiency in the form of increased overheads results from the instrumentation tool performing additional tasks such 
 as parsing, disassembly, code generation, and making other decisions at runtime. This
 is simply not an issue with static binary instrumentation tools as all
@@ -57,7 +57,7 @@ cost of performing instrumentation-related functions. In PIX, we relocate the
 functions in the executable, which affords us the opportunity to reorganize the code so that we
 can use large yet efficient instructions to transfer control from the
 application to the instrumentation code. We also use the concept of an
-instrumentation snippet, as in Dyninst, a lightweight hand-written body of assembly code that can
+instrumentation snippet, similar to Dyninst, a lightweight hand-written body of assembly code that can
 be inserted into the application rather than relying only on heavyweight
 instrumentation functions to accomplish instrumentation tasks.
 
