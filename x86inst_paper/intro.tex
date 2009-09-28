@@ -2,13 +2,13 @@
 
 Binary instrumentation toolkits enable insertion of additional code into an
 executable in order to observe or modify the behavior of application runs. 
-Instrumentation toolkits such as Pin\textbf{[CITE]}, Dyninst\textbf{[CITE]}, 
-Valgrind\textbf{[CITE]}, DynamoRIO\textbf{[CITE]} have been widely used to gather information about the
+Instrumentation toolkits such as Pin\cite{luk2005pin}, Dynint\cite{buck2000api}, 
+Valgrind\cite{nethercote2007valgrind}, DynamoRIO\cite{bruening2004efficient} have been widely used to gather information about the
 application runs to be later used in modeling and optimization
 of the applications. It has been shown that data gathered 
 from such binary instrumentation tools can be effectively used in guiding hardware and
 system design, program debugging and correctness, compiler optimizations,
-performance modeling/prediction, and security verification \textbf{[CITE PMAC]}.
+performance modeling/prediction, and security verification \cite{snavely2001modeling}.
 
 There are two main approaches to binary instrumentation: \textit{static} 
 and \textit{dynamic} binary instrumentation. Static binary
@@ -24,15 +24,15 @@ However, static binary instrumentation has disadvantages. It is not possible to 
 unless the shared libraries are instrumented separately and executable is informed to use those libraries. 
 Static instrumentation also provides less flexibility to tool developers, since any instrumentation code that is
 inserted persists throughout the application run where as dynamic instrumentation 
-provides means to delete instrumentation code when it is not needed \textbf{[CITE CODE COVERAGE]}.
+provides means to delete instrumentation code when it is not needed \cite{tikir2002efficient}.
 However, there are cases where efficiency is of enough importance to outweigh
-these shortcomings in static instrumentation \textbf{[CITE PMAC]} such that static binary instrumentation is the
+these shortcomings in static instrumentation \cite{carrington2006performance} such that static binary instrumentation is the
 desirable paradigm.
 
 In this paper, we introduce a static binary instrumentation toolkit, \textit{PIX}, for Linux on
 x86/x86\_64 platforms. The goal of PIX is to provide the ability
 to build instrumentation tools that produce efficient instrumented
-executable. Similar to previous instrumentation toolkits \textbf{[CITE Dyninst]}, we instrument the executable 
+executable. Similar to previous instrumentation toolkits \cite{buck2000api}, we instrument the executable 
 by placing a jump instruction at each instrumentation
 point that transfers control to instrumentation code. This instrumentation code saves the
 program state, performs tasks that are determined by the instrumentation,

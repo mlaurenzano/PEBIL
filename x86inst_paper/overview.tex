@@ -47,7 +47,7 @@ instrumentation code, it is necessary to maintain the machine state of
 the application in order to preserve its original behavior. This machine state
 can contain anything modified by the instrumentation code, but in practice is
 usually limited to a relatively limited set of registers but in some cases includes
-some information about the call stack. The code snippet, called a \textit{trampoline} [CITE Dyninst], 
+some information about the call stack. The code snippet, called a \textit{trampoline} \cite{buck2000api}, 
 saves any machine state that will be destoryed, performs the instrumentation task, restores
 the machine state after the instrumentation, executes the
 original instructions that were displaced by the initial control transfer,
@@ -63,11 +63,11 @@ PIX provides mechanisms to add and initialize additional data in to the executab
 The instrumentation text also includes code to initialize this additional data for use by the
 instrumentation tool. Recall from Figure \ref{Figure:Executable} that the instrumentation
 data was appended to the end of the application's data segment, after the
-application's uninitialized data section  (BSS section). \textbf{(COMMENT: Let's say something why after BSS? I suppose
-to reserve the original addresses in the code)} The initialized data and BSS
+application's uninitialized data section (BSS section) in order to preserve the application's 
+original addresses. The initialized data and BSS
 sections of the data segment are usually implemented by declaring the size of
 the data segment in the executable to be smaller than the size of the data
-segment in memory. According to the ELF[CITE] specification, the extra part of any
+segment in memory. According to the ELF specification\cite{standard1995executable}, the extra part of any
 segment whose memory size is greater than its file size should be filled with
 zeroes by the loader. Hence most programs just increase the size of the data
 segment in memory by the size of the BSS section in order to get a large
