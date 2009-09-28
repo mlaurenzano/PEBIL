@@ -1,12 +1,12 @@
 \section{Overview}
 
-Static binary instrumentation generates a modified executable 
- that can be run at a later time. When the instrumented executable is
+In the design of PIX we use static binary instrumentation because it is more efficient
+due to the fact that it generates a persistent instrumented executable 
+that can be run at a later time. When the instrumented executable is
 run, the extra instrumentation code is run
 in addition to the original code of the program. In order to insert additional code
-and data, additional space must be allocated within the executable in a way that it
-will, at load-time, be treated by the system in a manner appropriate to its
-purpose. 
+and data, additional space must be allocated within the executable in a way that they
+will, at load-time, be treated as code and data respectively. 
 
 Most compilers produce an ELF executable whose
 structure is similar to that shown in Figure \ref{Figure:OrigExecutable}. By
@@ -23,7 +23,7 @@ default, in which case we provide a set of tools that produces a modified linker
 script that provides up to 128MB of space.} and append the instrumentation data to the
 data segment (as shown in Figure \ref{Figure:InstExecutable}). This
 scheme has the added benefit of causing no immediate disturbance to the
-addresses of the existing text and data segments of the program.
+addresses of the original data and most of the original text segments of the program.
 
 \begin{figure}[ht]
 \centering
@@ -33,7 +33,7 @@ of instrumentation text to the existing text, and the prepending of instrumentat
 \includegraphics[scale=0.65]{executablep1.eps}
 \label{Figure:OrigExecutable}
 }
-\subfigure[The structure of instrumented ELF file.]{
+\subfigure[The structure of an instrumented ELF file.]{
 \includegraphics[scale=0.65]{executablep2.eps}
 \label{Figure:InstExecutable}
 }
@@ -41,24 +41,24 @@ of instrumentation text to the existing text, and the prepending of instrumentat
 \end{figure}
 
 The instrumentation text contains several types of additional code. The first
-contains code that accomplishes the instrumentation task as well as some code to
-accompany it. When control is transferred from the application to the
+is code that accomplishes the instrumentation tasks as well as any bookkeeping code
+that must accompany it. When control is transferred from the application to the
 instrumentation code, it is necessary to maintain the machine state of
 the application in order to preserve its original behavior. This machine state
 can contain anything modified by the instrumentation code, but in practice is
 usually limited to a relatively limited set of registers but in some cases includes
-some information about the call stack. The code snippet, called a \textit{trampoline} \cite{buck2000api}, 
+some information about the call stack. The code sequence, called a \textit{trampoline} \cite{buck2000api}, 
 saves any machine state that will be destoryed, performs the instrumentation task, restores
 the machine state after the instrumentation, executes the
 original instructions that were displaced by the initial control transfer,
-finally restoring control to the application. Since we are using a jump instruction at the instrumentation point, the
+and finally restoring control to the application. Since we are using a jump instruction at the instrumentation point, the
 instrumentation code has no information about where control was transferred from
-(as might be the case if we used a more heavyweight call instruction). Hence
+(as might be the case if we used the more heavyweight call instruction). Hence
 each instrumentation point uses its own trampoline so that the location of the
 instrumentation point can be hard-coded into an unconditional branch instruction
 at the end of the trampoline.
 
-Since some instrumentation tasks may need to include additional data for instrumentation code inserted,
+Since some instrumentation tools may need to include additional data to support the inserted instrumentation code,
 PIX provides mechanisms to add and initialize additional data in to the executable.
 The instrumentation text also includes code to initialize this additional data for use by the
 instrumentation tool. Recall from Figure \ref{Figure:Executable} that the instrumentation

@@ -11,29 +11,39 @@ replace a single fixed-length instruction at the instrumentation point with a
 branch instruction that will transfer control to the instrumentation code. This is fairly straightforward because by the
 definition of a fixed-length instruction set, the instruction being replaced and
 the replacing jump have the same length. Performing static instrumentation
-in a variable-length instruction set does not afford us this luxury. In x86 platforms, a
-jump instruction that uses a 32-bit offset requires 5 bytes, whereas for some of
-the instrumentation points that interest us, there may not be enough space due
-to several reasons including the size of basic block or whether it falls in between the target
-of another jump/branch instruction in the original text of the executable.
+in a variable-length instruction set does not afford us this luxury. In x86 platforms a
+jump instruction that uses a 32-bit offset requires 5 bytes. However, for some of
+the instrumentation points of interest there may not be enough space to hold a 5 byte
+jump instruction. This can occur in cases where a basic block or an instruction of interest
+is smaller than 5 bytes. Figure \ref{Figure:InstructionSizes} shows a breakdown of the sizes of
+instructions for many of the SPEC INT 2000 benchmarks. This figure shows that for these benchmarks,
+at least 52\% of instructions are smaller than 5 bytes. In fact, an average of 64\% of instructions
+are smaller than the 5 byte threshold, which indicates that the the generic technique of replacing 
+an instruction with a branch to instrumentation code deserves reexamination because without modification
+this technique will not be able to provide instrumentation to large portions of the application code.
+
+\begin{figure}[ht]
+\centering
+\label{Figure:InstructionSizes}
+\includegraphics[scale=0.4]{instsize.eps}
+\caption{The breakdown of instruction sizes for several benchmarks shown on a cumulative basis.}
+\end{figure}
 
 This leaves two options for how to transfer control to the instrumentation code.
 We must either use a technique entirely distinct from the idea of using a single
-unconditional branch to execute the control transfer such as multiple shorter
-jumps or software interrupts and traps, or we must somehow alter the application code so
+unconditional branch to execute the control transfer or we must somehow alter the application code so
 that it can accommodate a single large control instruction that is larger than
-the original amount of space available at the instrumentation point. A separate
+the original amount of space available at the instrumentation point. One alternative
 technique for transferring control flow could be to use a series of branches,
 where the instruction in the instrumentation point is a small branch that
-transfers control to a larger intermediate branch. We do not consider this
-method any further because the smallest unconditional branch instruction is 2
-bytes in length, making it ultimately a half measure since there are
+transfers control to a larger intermediate branch. This
+method is unsatisfactory because the smallest traditional unconditional branch instruction available
+on the x86 platform is 2 bytes in length, yet there are
 instrumentation points with only a single byte available to them. Besides, this technique would
-require additional space to be inserted in the text section in the close proximity of
-the instrumentation points. Another option
-to consider is the method proposed by the BIRD project \ref{nanda2006bird}, which
-proposes the use of the single-byte \begin{it}INT3\end{it} instruction, a single-byte
-interrupt intended to be used by debuggers to set breakpoints. When a larger
+require additional space to be available in close proximity to the instrumentation points since these
+smaller branches are also very short reaching. Another option
+to consider is the method proposed by the BIRD project \cite{nanda2006bird}, which
+proposes the use of the single-byte \begin{it}INT3\end{it} instruction when a larger traditional
 branch won't fit within the specified area. This instruction is functionally
 perfect for static instrumentation because it consumes only a single byte and
 allows us to transfer control to an arbitrary location by registering an
@@ -41,12 +51,12 @@ exception handler with the system. We performed a cursory study on this scheme
 from an efficiency standpoint to determine whether it was worth further
 investigation. On a small benchmark set, our implementation of using
 \begin{it}INT3\end{it} only when 5-byte unconditional branches do not fit at
-the instrumentation point introduces slowdown of no less than 100-fold for
+the instrumentation point introduces slowdown of at least 100-fold for
 even a simple task of counting the number of executions of each basic block in the code. As one might
 expect, this mechanism is unsuitable for efficient instrumentation since the
-very heavyweight system call conventions are being invoked fairly often.
+very heavyweight system call conventions are being invoked on a fairly regular basis.
 
-In PIX, we use the reorganization of the code at the function level so that
+In PIX, we use reorganization of the code at the function level so that
 there is enough space at every instrumentation point to accommodate a 5-byte
 branch. Specifically, the steps in whole function relocation includes function displacement, linking function entry points,
 branch conversion and instruction padding.  \textbf{(COMMENT: What about the targets of branches in to the middle?)}
@@ -101,15 +111,16 @@ There are several ways that whole function relocation may adversely affect
 the performance of the instrumented executable independent of the overhead
 that will be imposed by the additional instrumentation code. Each function call
 now has an extra control interruption associated with it since control must be passed first to the original function entry
-point and then to the relocated function entry point. It is possible that using 32-bit offsets for every branch rather than
+point and then to the relocated function entry point. In addition it is possible that using 32-bit offsets for every branch rather than
 some smaller number of bits has an overhead associated with it. And since the code is being reorganized and expanded, 
 we might destroy some positive alignment and size optimizations that the compiler might have made on the instructions in the
-function. To quantify the impact of whole function relocation on the performance of applications, we conducted several experiments
-where we generated executables in which only functions are relocated and no instrumentation code is inserted and compared 
-their performance to the original executables. Thus, we examine the practical overhead seen by these techniques 
-by taking these steps without instrumenting the code for a series of benchmarks. The results of these experiments are described 
-in detail in Section SSSS but in the average the slowdown incurred by whole function relocation is XXXX in the average, which is
-negligible.
+function. To quantify the impact of whole function relocation and the other organizational changes we make
+on the performance of applications, we show the results of an experiment
+where we generated executables in which functions are relocated and branches are converted to use 32-bit offsets
+and no instrumentation code is inserted and compared 
+their performance to the original executables. The overhead on the SPEC INT 2000 benchmarks never exceeds 3.4\%, with an average
+overhead of 0.8\%. Thus the basic overhead incurred by the code organization changes needed to accomodate instrumentation is
+well within reason and does not represent a major hurdle for efficiency.
 
 \subsection{Disassembly Coverage}
 Code and data can reside together in the text section of a program binary. This is done for a variety of reasons, including
