@@ -1,19 +1,20 @@
 \section{Future Work}
 
-Despite some success in terms of efficiency, there are several more techniques
-that might make the instrumented code even more efficient. Because we are relocating
+Despite the success in terms of efficiency, there are several additional techniques
+that might make the instrumented code even more efficient in PIX. Because we are relocating
 the text to give ourselves as much space as possible, rather than inserting just a branch
 that transfers control to the instrumentation code we have the opportunity to inline
-the instrumentation code itsself in order to reduce  or eliminate the control interruptions
-that otherwise must be taken when inserting instrumentation code.
+the instrumentation code itsself (similar to the Just-In-Time compilation techniques) 
+in order to reduce or eliminate the control interruptions  that otherwise must be taken 
+when inserting the instrumentation code.
 
-Currently we save all general purpose registers around each function call and we allow the
-tool developer to state which resgiters are saved around instrumentation snippets. For instrumentation
-snippets we could automatically detect which registers are killed by the snippet and live at the entry point
-of the snippet adn automatically save only those. Similarly we could perform register analysis in order to determine whether there is
-state that doesn't need to be saved around instrumentation functions. And similar to Pin, we could perform
-liveness on the bits of the eflags/rflags register to determine whether it must be saved and
+Currently PIX saves all general purpose registers around each function call and allows the
+tool developer to state which registers are saved around instrumentation snippets. For even more efficient instrumentation
+snippets, we could automatically detect which registers are killed by the instrumentation code and which are live at the entry point
+of the instrumentation code, and automatically save only the ones that are alive. Similarly, we could perform register 
+analysis in order to identify the instrumentation points where the machine state doesn't need to be saved around instrumentation functions. 
+Finally, similar to Pin, we could perform liveness on the bits of the eflags/rflags register to determine whether the flag registers need to be saved and
 restored at each instrumentation point. Saving and restoring state is a large portion of the overhead associated with performing
-small tasks in instrumentation snippets and these optimizations can help reduce or eliminate these overheads
-entirely.
+small tasks in the instrumentation code and we believe these optimizations will help reduce the overhead due to the instrumentation code even more.
+
 
