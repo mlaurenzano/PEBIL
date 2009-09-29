@@ -13,27 +13,30 @@ performance modeling/prediction, and security verification \cite{snavely2001mode
 There are two main approaches to binary instrumentation: \textit{static} 
 and \textit{dynamic} binary instrumentation. Static binary
 instrumentation inserts additional code in to an executable and generates a new
-executable with the instrumentation whereas the dynamic instrumentation inserts additional code 
+executable whereas the dynamic instrumentation inserts additional code 
 during execution without any permanent modifications to the executable.
 The static approach has the advantage of usually being able to produce
 a more efficient executable compared to the dynamic approach
 since static instrumentation introduces only the instrumentation code itself, 
-which is included in the text section of the executable. 
+which is also included in the text section of the executable. 
 Unlike static instrumentation, dynamic
-instrumentation may insert additional code in to the program heap and use the data section as text space.
+instrumentation uses the program heap for the instrumentation code and hence, use the data section as text space.
 However, static binary instrumentation has disadvantages. It is not possible to instrument shared libraries 
 unless the shared libraries are instrumented separately and executable is modified to use those libraries. 
-Static instrumentation also provides less flexibility to tool developers, since any instrumentation code that is
+Static instrumentation also provides less flexibility to tool developers since any instrumentation code that is
 inserted persists throughout the application run where as dynamic instrumentation 
 provides means to delete instrumentation code when it is not needed \cite{tikir2002efficient}.
 However, there are cases where the importance of efficiency is enough to outweigh
-these shortcomings in static instrumentation \cite{carrington2006performance} such that static binary instrumentation is the
+these shortcomings \cite{carrington2006performance} such that static binary instrumentation is the
 desirable paradigm.
 
 In this paper, we introduce a static binary instrumentation toolkit, \textit{PIX}, for Linux ELF executables on
 x86/x86\_64 platforms. The goal of PIX is to provide a toolkit that enables the construction of
 instrumentation tools that produce an efficient instrumented
-executable. Similar to previous instrumentation toolkits \cite{buck2000api}, we instrument the executable 
+executable. More importantly, one of the design goals of PIX is to genearte efficient instrumented executables
+when number of instrumentation points is rather high \textbf{(COMMENT: Here we mention that the design is for many inst insertions)} 
+
+Similar to previous instrumentation toolkits \cite{buck2000api}, we instrument the executable 
 by placing a jump instruction at each instrumentation
 point that transfers control to instrumentation code. This instrumentation code saves the
 program state, performs tasks that are determined by the instrumentation,
@@ -41,8 +44,8 @@ restores the program state, then returns control to the application.
 A typical binary instrumentation tool on a platform with fixed-length instructions 
 \cite{tikir2006pmac} accomplishes initial control transfer by replacing a
 single instruction at the instrumentation point with a jump that transfers
-control to the instrumentation code. However when instructions are variable-length, as
-is the case for x86/x86\_64, this is not always possible since there may not be enough space for 
+control to the instrumentation code. However when instructions are variable-length,
+this is not always possible since there may not be enough space for 
 inserting the jump instruction correctly. To address this, PIX
 relocates and reorganizes the code for each function to ensure that enough
 space (in the form of \begin{it}nops\end{it}) is available to hold a full-length branch instruction at each
@@ -53,20 +56,20 @@ inefficiency in the form of increased overheads results from the instrumentation
 as parsing, disassembly, code generation, and making other decisions at runtime. This
 is simply not an issue with static binary instrumentation tools as all
 decisions and actions are taken prior to runtime. The only cost born at runtime is the direct
-cost of performing instrumentation-related functions. In PIX, we relocate the 
-functions in the executable, which affords us the opportunity to reorganize the code so that we
-can use large yet efficient instructions to transfer control from the
+cost of performing additional  instrumentation code. In PIX, whole function relocation mechanism
+enables the reorganization of the code so that we
+can use higher-range yet efficient jump instructions to transfer control from the
 application to the instrumentation code. We also use the concept of an
 instrumentation snippet, similar to Dyninst, a lightweight hand-written body of assembly code that can
 be inserted into the application rather than relying only on heavyweight
-instrumentation functions to accomplish instrumentation tasks.
+instrumentation functions.
 
 The PIX toolkit is open source and available to the public for download 
 at \url{http://blind-review-forbids-real-urls.com/}. The distribution includes already implemented tools 
 including a function execution counter, a basic block
 execution counter, and a memory address stream collection tool. Each of these tools is built on top of
 an API that provides both enough low-level detail to allow the tool-developer to get involved in the 
-details of the instrumentation tool's operation and enough high-level detail to allow the tool builder
+details of the instrumentation and enough high-level detail to allow the tool builder
 to ignore these details if he wishes. The three instrumentation tools provided with the distribution are written in
 less than 600 lines of C++ code.
 

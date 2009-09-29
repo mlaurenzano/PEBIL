@@ -49,7 +49,8 @@ proposes the use of the single-byte \begin{it}INT3\end{it} instruction when a la
 branch won't fit within the specified area. This instruction is functionally
 perfect for static instrumentation because it consumes only a single byte and
 allows us to transfer control to an arbitrary location by registering an
-exception handler with the system. We performed a cursory study on this scheme
+exception haThere will also be some overhead
+associated with setting up a stack frame for the instrumentation function.ndler with the system. We performed a cursory study on this scheme
 from an efficiency standpoint to determine whether it was worth further
 investigation. On a small benchmark set, our implementation of using
 \begin{it}INT3\end{it} only when 5-byte unconditional branches do not fit at
@@ -124,96 +125,89 @@ overhead of 0.8\%. Thus the basic overhead incurred by the code organization cha
 well within reason and does not represent a major hurdle for efficiency.
 
 \subsection{Disassembly Coverage}
-Code and data can reside together in the text section of a program binary. This is done for a variety of reasons, including
-the storage of branch target locations (eg for a jump table) or small data structures that provide convenient look-up
-of certain data such as identifiers, descriptors, or other values.
-
-Correctly determining
-what parts of the text sections are code and what are data is important. Consider what can happen
-if we mistakenly treat some data as code. We might choose to modify or relocate the apparent code
-to serve our instrumentation purposes. Then when the data at this location is referenced, the
-original program behavior may not be preserved: if we are lucky this will cause application failure
-due to some unexpected change in control flow or some state condition that is checked by the program.
-If we are unlucky the corruption might silently manifest itself by modifying the output of the
-program. Alternatively consider what can happen if we mistakenly treat some code as data. We then will
-not try to insert code into this area or we might perform some other type of analysis that should be reserved for
+Code and data can reside together in the text section of an executable due to several reasons, including
+the storage of branch target locations (e.g. for a jump table as a result of switch statements) or small data structures 
+that provide convenient and efficient look-up of data such as identifiers and descriptors. 
+For the correctness of the executable after instrumentation, it is extremely important to identify  which parts of the text 
+section are code and which parts are data as mishandling of already existing data in text section as code 
+may result in a different behavior than the original behavior of the uninstrumented run.
+Especially, if the instrumentation tool chooses to modify or relocate the part tha data resides 
+to serve the needs of the instrumentation task and when the data at that location is referenced. 
+Such change in program behavior may cause application failure due to some unexpected change in control flow 
+or some state condition that is checked by the program.
+However, the corruption in data in text section might silently manifest itself by modifying the output of the
+program, which would be more undesirable.  Alternatively, if we mistakenly treat some code as data in text section, we may skip
+to insert instrumentation code into this area or we might perform some other type of analysis that should be reserved for
 data alone. While this is almost certainly preferable to the situation where we treat data as code, it
-is ideal to avoid both situations.
+is ideal to avoid both situations completely for instrumentation task to be complete and correct.
 
-To this end, we use the program's symbol table to help us determine which parts of the text sections
-are functions that are eligible to be subject for our code discovery algorithm. Our code discovery algorithm
-consists of two phases; control-driven disassembly backed up by linear disassembly. In more detail, the algorithm
-works as follows:
+To determine which parts of the text sections are functions that are eligible to be subject for our code discovery algorithm, 
+we use the program's symbol table entries. Our code discovery algorithm
+consists of two phases; control-driven disassembly backed up by linear disassembly. During the control driven disassembly, 
+we follow all understandable control paths starting at a function's entry point. If a problem is encountered such as 
+\textbf{(COMMENT some problematic examples)}, 
+we fall back to naive disassembly. During the naive disassembly, we disassemble each instruction in the order it appears in the
+function starting at a function's entry point. If a problem is encountered such as \textbf{(COMMENT some problematic examples)}, 
+we tag the function uninstrumentable. For our code discovery algorithm, we start with the 
+\textbf{(COMMENT: Which function or entry point we start with???)} function in the executable. 
 
-\begin{enumerate}
-\item 
-1. Control-driven disassembly: from a function's entry point, follow all understandable control paths. If a problem is encountered, fall back to
-naive disassembly.
-\item
-2. Naive disassembly: from a function's entry point, disassemble each instruction in the order it appears in the
-function. If a problem is encountered, give up.
-\end{enumerate}
-
-
-Problems that can be encountered are situations where an unknown opcode is encountered, where control jumps to the
+Even though our code discovery algorithm identifies most of the control flow and instructions, it may fail to 
+identify the complete control flow and instructions for some functions.  Problems that can be encountered during code discovery
+are situations where an unknown opcode is encountered, where control jumps to the
 middle of an instruction we've already disassembled, or if control leaves the boundaries of the function. In most
 cases control-driven disassembly is sufficient to disassemble the entirety of a function, and in most cases control-driven
 disassembly is a straightforward process because control either falls through to the following instruction 
 or the location of a branch target is embedded entirely within the instruction itself. But there are also cases
-where the an indirect branch is used, where the target resides either at a fixed address (possibly with some offset), the address that resides in a register,
-or the address that is at a location given by a register. The latter two cases are very difficult to resolve
-without runtime information because the computation of the target address can be arbitrarily complex and can span function
-boundaries. Nevertheless, we perform a peephole examination of the previous instructions to the and can determine 
-the address in simple cases.
+where an indirect branch is used, the target resides either at a fixed address (possibly with some offset),
+the address that resides in a register, or the address that is at a location given by a register. The latter two cases are difficult to resolve
+without runtime information since the computation of the target address can be arbitrarily complex and can span function
+boundaries. Nevertheless, we perform a peephole examination of the preceeding instructions and can determine 
+the address in most of the cases.
 
-Fortunately simple calculations are all that most compilers use to determine targets for jump tables, one of the more common
+Fortunately, simple calculations are all that most compilers use to determine targets for jump tables, one of the more common
 uses of an indirect branch. Often an offset is added to a fixed location to determine where the data comprising the branch target
-resides. Therefore we treat such a fixed address as the first entry in a table whose entries are treated either as addresses or as offsets.
-We then make an iterative pass over this table to determine the target for each arm of the jump table, stopping when we find a value in the
+resides. Therefore, we treat such a fixed address as the first entry in a table whose entries are treated either as addresses or as offsets.
+We then make an iterative pass over this table to determine the target for each entry in the jump table, stopping when we find a value in the
 table that yields an address that is outside the scope of the function.
 
-PUT EXAMPLE OF GNU COMPILER JUMP TABLE HERE
+\textbf{(COMMENT : Put an example of GNU compiler Jump table entry).}
 
 \subsection{Instrumentation Snippets}
 
 In most instrumentation tools, the tasks accomplished by the instrumentation tool are accomplished by allowing the user
-to transfer control from instrumentation points in the application to instrumentation functions provided by the user, typically
+to transfer control from instrumentation points to the instrumentation functions provided by the user, typically
 via a shared library or some other type of object code. Since these instrumentation functions are delivered via a shared library or other
-object code, the instrumentation tool developer has the advantage of the use of a software devlepment toolchain and can
-write the code in a language that compiles to object code. This delivery mechanism is, however, somewhat heavyweight. Each time
-the instrumentation tool needs to accompish any task, the overhead of a function invokation must be born. In cases where
-efficiency is important and where the instrumentation task is relatively small, it can be desirable to insert small sequences of assembly code
-to perform a task rather than relying entirely on more heavyweight instrumentation functions.
+object code, the instrumentation tool developer has the advantage to use a software devlepment toolchain and can
+write the code in a language that compiles to the underlying object code. However, such delivery mechanism is heavyweight due to 
+the overhead of a function invocation including saving the complete machine state for all possibles cases. In cases where
+efficiency is important, it is more desirable to insert small sequences of assembly code to perform a task and only
+save a small subset of machine state that will be affected rather than relying entirely on more heavyweight instrumentation functions.
 
-Consider the example of an instrumentation point where we wish to update a counter that resides in memory, which could be of particular use for
-basic block or instruction counting tools. In order to accompish this task with an instrumentation snippet, we transfer control to the
-instrumentation point's trampoline which will save athe flags register, update the counter in memory (this does not even require a register), restore
+Consider the example of an instrumentation point where we wish to update a counter that resides in memory. 
+In order to accompish this task with an instrumentation snippet, we transfer control to the
+instrumentation point's trampoline which will save the flags register, update the counter in memory (this does not even require a register), restore
 the flags register, then transfer control back to the application. Using an instrumentation function, prior to performing
-the task the trampoline must save the flags register, any registers used by the function, and perform stack protection in some cases. 
-The larger costs associated with using an instrumentation occur because the instrumentation function requires at least 2 more control flow transfers
-to enter and exit the function. Furthermore these control flow transfers generally use the call/return paradigm, which in addition to changing the
-application's program counter will also store and retreive information about the function call site onto the stack. There will also be some overhead
-associated with setting up a stack frame for the instrumentation function. The use of the instrumentation function is also likely to pollute the
-instruction cache more than using an instrumentation snippet. For an instrumentation snippet the application code must contend with the trampoline code
-only, whereas using an instrumentation function puts the function code into contention with the other two as well.
-
-These factors show us that instrumentation functions tend to be a much more heaviweight solution, which is not appropriate for certain kinds of instrumentation
-tasks. This technique can allow us to more efficiently gather asynchronous program information, which intuitively can be thought of as any information that could be dumped to
+the task the trampoline must save the flags register, any registers used by the function, and perform pushing an entry to the call stack.  
+This would also require at least 2 more control flow transfers to enter and exit the instrumentation function. 
+Furthermore these control flow transfers generally use the call/return paradigm, which in addition to changing the
+application's program counter will also store and retreive information about the function call site onto the stack. 
+The use of the instrumentation function is also more likely to pollute the instruction cache more than using a compact
+instrumentation snippet. For an instrumentation snippet the application code must contend with the trampoline code
+only, whereas using an instrumentation function puts the function code into contention with the other two as well. Hence, 
+instrumentation functions tend to be more heaviweight solution, which would not be as appropriate when efficiency is considered
+in instrumentation. Using simple snippets rather than instrumentation functions can allow us to more efficiently gather asynchronous program information, 
+which intuitively can be thought of as any information that could be dumped to
 disk an processed offline. The authors of \cite{gao2005aliter} show that using lightweight instrumentation snippets to buffer information
 which is later processed by more heavyweight instrumentation functions in batches can be an efficient yet entirely lossless way of processing asynchronous
-program information. The avaialability of instrumentation snippets gives tool authors the flexibility to choose between these and instrumentation
-functions depending on their efficiency and software engineering needs.
-
+program information. The avaialability of instrumentation snippets gives tool authors the flexibility to choose 
+depending on their efficiency and software engineering needs.
 
 % move this to overview section
-The stack requires protection from the instrumentation function because compilers will often optimize a leaf function
+The call stack during execution requires protection from the instrumentation function because compilers will often optimize a leaf function
 by not explicitly creating a stack frame for the local function data to operate in. This optimization is safe for the application because during its
 normal execution a leaf function will never call another function and thus its errant stack contents can never be smashed. In the case of an instrumentation
-tool that calls an instrumentation function from a leaf, this guarantee no longer holds. Thus we must protect the area above the stack when we call
-an instrumentation function from a leaf function. During the disassembly of a function we note whether it is a leaf (ie whether it contains any call
+tool that calls an instrumentation function from a leaf, this guarantee no longer holds. Thus, we must protect the area above the stack when we call
+an instrumentation function from a leaf function. During the disassembly of a function, we note whether it is a leaf function(i.e. whether it contains any call
 instructions), and then during instrumentation we automatically protect the stack contents for any instrumentation function calls that are made by
-incrementing the stack pointer by a large fixed amount, which has the effect of giving the leaf function a large stack frame while the instrumentation
+incrementing the stack pointer by a fixed safe amount, which has the effect of giving the leaf function a large stack frame while the instrumentation
 function's stack frame uses the stack.
-
-
-
