@@ -28,19 +28,20 @@ data alone. While this is almost certainly preferable to the situation where we 
 is ideal to avoid both situations completely for instrumentation task to be complete and correct.
 
 To determine which parts of the text sections are functions that are eligible to be subject for our code discovery algorithm, 
-we use the program's symbol table entries \textbf{(COMMENT: The minimal or -g is required)}. Our code discovery algorithm
+we use the program's symbol table entries\footnote{The use of the program's symbol table requires that the program be compiled
+with debugging information, -g in most cases}. Our code discovery algorithm
 consists of two phases; control-driven disassembly backed up by linear disassembly. During the control driven disassembly, 
-we follow all understandable control paths starting at a function's entry point. If a problem is encountered such as 
-\textbf{(COMMENT some problematic examples)}, 
+we follow all understandable control paths starting at a function's entry point. If a problem is encountered during disassembly such as 
+finding an undefined opcode or a branch that jumps into the middle of a previously disassembled instruction, 
 we fall back to naive disassembly. During the naive disassembly, we disassemble each instruction in the order it appears in the
-function starting at a function's entry point. If a problem is encountered such as \textbf{(COMMENT some problematic examples)}, 
-we tag the function uninstrumentable. For our code discovery algorithm, we start with the 
-\textbf{(COMMENT: Which function or entry point we start with???)} function in the executable. 
+function starting at a function's entry point. Again if a problem such as an undefined opcode or an inconsistent control flow target 
+is found we tag the function uninstrumentable.  
 
 Even though our code discovery algorithm identifies most of the control flow and instructions, it may fail to 
 identify the complete control flow and instructions for some functions.  Problems that can be encountered during code discovery
 are situations where an unknown opcode is encountered, where control jumps to the
-middle of an instruction we've already disassembled, or if control leaves the boundaries of the function. In most
+middle of an instruction we've already disassembled, or if control leaves the boundaries of the function via a traditional branch
+instruction. In most
 cases control-driven disassembly is sufficient to disassemble the entirety of a function, and in most cases control-driven
 disassembly is a straightforward process because control either falls through to the following instruction 
 or the location of a branch target is embedded entirely within the instruction itself. But there are also cases
@@ -56,15 +57,7 @@ resides. Therefore, we treat such a fixed address as the first entry in a table 
 We then make an iterative pass over this table to determine the target for each entry in the jump table, stopping when we find a value in the
 table that yields an address that is outside the scope of the function.
 
-\textbf{(COMMENT : Put an example of GNU compiler Jump table entry).}
-
 \subsection{Additional Code and Data Insertion}
-
-%In the design of PIX we use static binary instrumentation because it is more efficient
-%due to the fact that it generates a persistent instrumented executable 
-%that can be run at a later time. When the instrumented executable is
-%run, the extra instrumentation code is run
-%in addition to the original code of the program. 
 
 In PIX, we prepend the instrumentation text to the existing text
 segment\footnote{The amount of space allocated prior to the text section is

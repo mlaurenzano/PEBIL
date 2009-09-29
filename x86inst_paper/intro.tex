@@ -28,13 +28,14 @@ inserted persists throughout the application run where as dynamic instrumentatio
 provides means to delete instrumentation code when it is not needed \cite{tikir2002efficient}.
 However, there are cases where the importance of efficiency is enough to outweigh
 these shortcomings \cite{carrington2006performance} such that static binary instrumentation is the
-desirable paradigm.
+desirable paradigm. 
 
 In this paper, we introduce a static binary instrumentation toolkit, \textit{PIX}, for Linux ELF executables on
 x86/x86\_64 platforms. The goal of PIX is to provide a toolkit that enables the construction of
 instrumentation tools that produce an efficient instrumented
-executable. More importantly, one of the design goals of PIX is to genearte efficient instrumented executables
-when number of instrumentation points is rather high \textbf{(COMMENT: Here we mention that the design is for many inst insertions)} 
+executable. More importantly, one of the design goals of PIX is to generate efficient instrumented executables
+when there are a large number of instrumentation points because these are the situations where efficiency
+is expected to be affected most significantly by the introduction of instrumentation. 
 
 Similar to previous instrumentation toolkits \cite{buck2000api}, we instrument the executable 
 by placing a jump instruction at each instrumentation

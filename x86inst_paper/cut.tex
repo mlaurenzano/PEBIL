@@ -1,5 +1,11 @@
-%%% from intro
+%In the design of PIX we use static binary instrumentation because it is more efficient
+%due to the fact that it generates a persistent instrumented executable 
+%that can be run at a later time. When the instrumented executable is
+%run, the extra instrumentation code is run
+%in addition to the original code of the program. 
 
+
+%%% from intro
 
 Static instrumentation is used because efficiency is our most important design 
 criteria. By performing instrumentation tasks statically we incur these costs 
