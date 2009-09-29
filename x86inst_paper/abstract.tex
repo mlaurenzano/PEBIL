@@ -3,17 +3,17 @@
 Binary instrumentation enables insertion of additional code into an
 executable in order to observe or modify the behavior of application runs. 
 There are two main approaches to binary instrumentation: static and dynamic
-binary instrumentation. In this paper, we present PMaC's instrumentation toolkit (PIX), 
-an efficient static  instrumentation toolkit for Linux on x86/x86\_64 platforms. PIX
-is similar to  other toolkits in terms of how additional code is inserted. However, it uses whole function level
+binary instrumentation. In this paper we present PMaC's instrumentation toolkit, PIX, 
+an efficient static instrumentation toolkit for Linux on x86/x86\_64 platforms. PIX
+is similar to  other toolkits in terms of how additional code is inserted. However, it uses function-level
 code relocation in order to remedy the difficulty created by the underyling variable-length instruction set. 
 Code relocation of this kind allows the reorganization of the application code in such a way that it
-can use  fast  far-reaching constructs to transfer control
+can use fast far-reaching constructs to transfer control
 from the application to the instrumentation code rather than relying on multiple
 jumps or interrupts. Furthermore, the PIX API provides 
 tool developers means to insert lightweight hand-coded assembly
 rather than relying solely on the insertion of entire instrumentation functions.
-PIX also enables implementation of efficient instrumentation tools. 
+Because of these features PIX enables implementation of efficient instrumentation tools. 
 The overhead for a simple basic block counting using PIX is an
 average of 1.6x less than the overhead imposed by Pin, 4.7x less than the overhead imposed by
 DynamoRIO, 7.8x less than the overhead imposed by Valgrind, and 10x less than the overhead imposed by Dyninst.
