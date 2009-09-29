@@ -1,3 +1,42 @@
-There are several freely-available binary instrumentation toolkits for x86/Linux. One such toolkit
-is Pin \cite{luk2005pin}, which is a dynamic binary instrumentation toolkit that uses Just In Time (JIT)
-compilation in order to insert calls to a user's instrumentation functions.
+ATOM [CITE] was one of the first and has remained one of
+the more popular static binary instrumentation tools
+available. ATOM works in a way that is very similar to
+PMaCinst; instrumentation is performed on the compiled
+binary prior to runtime, meaning that any overhead due to
+code analysis and code generation is incurred outside of
+the instrumented application’s runtime. Unfortunately,
+ATOM is available only for the Alpha platform. Since this
+processor is not being produced anymore, ATOM is no
+longer viable as a long-term solution for those who wish to
+perform static, efficient instrumentation on a RISC-based
+platform. 
+
+Pin[CITE] is a dynamic binary instrumentation tool that
+uses a JIT-based (Just In Time compilation) approach to
+instrumentation. This approach entails running the
+application on top of Pin, while Pin intercepts the
+application at a natural control flow interruption in the
+program to perform instrumentation on the next part of the
+program. For efficiency, Pin does many things including
+caching these instrumented sequences of code to allow for
+re-use and chaining instrumented sequences of code
+together to avoid tool intervention.
+
+Dyninst[CITE] is another popular dynamic
+instrumentation tool that uses a technique called codepatching
+to perform instrumentation. Similar in concept to
+what is done in PMaCinst, this technique replaces an
+instruction from the application with a jump instruction
+(which they call a trampoline) to the function call stub and
+instrumentation code. The key difference between
+PIX and Dyninst is that Dyninst performs all codepatching
+at runtime instead of prior to runtime. This has
+several advantages, including the ability to insert, remove
+and customize instrumentation during runtime. But
+performing modification to the program at runtime also
+may have a significant performance disadvantage, resulting in
+inefficient execution of the instrumented application.
+
+DynamoRIO
+
+Valgrind
