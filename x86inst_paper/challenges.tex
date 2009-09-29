@@ -1,7 +1,13 @@
 \section{Efficiency}
 
+The goal of PIX is to provide a toolkit that enables the construction of
+instrumentation tools that produce an efficient instrumented
+executable. More importantly, one of the design goals of PIX is to genearte efficient instrumented executables
+when number of instrumentation points is rather high  In this section, we describe the mechanism used in PIX 
+to produce efficient instrumented executables.
+
 \label{Subsection:Relocation}
-\subsection{Function Relocation}
+\subsection{Code Relocation at Function Level}
 The use of relocation at the function level in PIX stems from the fact
 that we are performing the instrumentation statically on a platform that uses a
 variable-length instruction set and it may not be always possible to instrument
@@ -11,17 +17,21 @@ instrumentation tools on platforms with fixed-length instruction sets is to
 replace a single fixed-length instruction at the instrumentation point with a
 branch instruction that will transfer control to the instrumentation code. This is fairly straightforward because by the
 definition of a fixed-length instruction set, the instruction being replaced and
-the replacing jump have the same length. Performing static instrumentation
-in a variable-length instruction set does not afford us this luxury. In x86 platforms a
+the replacing jump have the same length. 
+%Performing static instrumentation in a variable-length instruction set does not afford us this luxury. 
+In x86 platforms, a
 jump instruction that uses a 32-bit offset requires 5 bytes. However, for some of
 the instrumentation points of interest there may not be enough space to hold a 5 byte
 jump instruction. This can occur in cases where a basic block or an instruction of interest
-is smaller than 5 bytes. Figure \ref{Figure:InstructionSizes} shows a breakdown of the sizes of
+is smaller than 5 bytes. 
+
+Figure \ref{Figure:InstructionSizes} shows a breakdown of the sizes of
 instructions for many of the SPEC CPU2000 Integer benchmarks. This figure shows that for these benchmarks,
-at least 52\% of instructions are smaller than 4 bytes. In fact, an average of 64\% of instructions
-are smaller than the 5 byte threshold, which indicates that the the generic technique of replacing 
+at least 52\% \textbf{(COMMENT: Let's put min-max range)} of instructions are smaller than 4 bytes. In fact, an average of 64\% \textbf{(COMMENT: Let's put min-max range)} of instructions
+are smaller than the 5 bytes, which indicates that the the generic technique of replacing 
 an instruction with a branch to instrumentation code deserves reexamination because without modification
-this technique will not be able to provide instrumentation to large portions of the application code.
+this technique will not be able to provide instrumentation to large portions of the application code, especially 
+if the instrumentation tool requires many instrumentation points.
 
 \begin{figure}[ht]
 \centering
@@ -43,8 +53,9 @@ on the x86 platform is 2 bytes in length, yet there are
 instrumentation points with only a single byte available to them. \textbf{(COMMENT: Put the percetage of instruction under 2 bytes)}.
 Besides, this technique would
 require additional space to be available in close proximity to the instrumentation points since these
-smaller branches are also very short reaching. Another option
-to consider is the method proposed by the BIRD project \cite{nanda2006bird}, which
+smaller branches are also very short reaching. 
+
+Another option is the method proposed by the BIRD project \cite{nanda2006bird}, which
 proposes the use of the single-byte \begin{it}INT3\end{it} instruction when a larger traditional
 branch won't fit within the specified area. This instruction is functionally
 perfect for static instrumentation because it consumes only a single byte and
@@ -54,15 +65,15 @@ associated with setting up a stack frame for the instrumentation function.ndler 
 from an efficiency standpoint to determine whether it was worth further
 investigation. On a small benchmark set, our implementation of using
 \begin{it}INT3\end{it} only when 5-byte unconditional branches do not fit at
-the instrumentation point introduces slowdown of at least 100-fold for
+the instrumentation point introduces slowdown of at least 100X for
 even a simple task of counting the number of executions of each basic block in the code. As one might
 expect, this mechanism is unsuitable for efficient instrumentation since the
  heavyweight system call conventions are being invoked on a fairly regular basis.
 
 In PIX, we use reorganization of the code at the function level so that
 there is enough space at every instrumentation point to accommodate a 5-byte
-jump. Specifically, the steps in whole function relocation includes function displacement, linking function entry points,
-branch conversion and instruction padding. Figure \ref{Figure:Relocation} presents the flow of information on 
+jump. Specifically, the steps in whole function relocation includes \textit{function displacement}, \textit{linking function entry points},
+\textit{branch conversion} and \textit{instruction padding}. Figure \ref{Figure:Relocation} presents the flow of information on 
 this process with a simple example function in the original text section of an executable.
 
 \begin{figure}[ht]
@@ -95,7 +106,7 @@ the memory addresses of an application.}
 
 
 \textit{Function Displacement} relocates the contents of the entire function to an area of the text section allocated
-for the instrumentation tool. Since functions are often packed tightly together, it is generally not possible to
+for the instrumentation. Since functions are often packed tightly together, it is generally not possible to
 expand the size of a function without disturbing the entry points of another function using the original location of a function. 
 \textit{Linking Function Entries} places an unconditional branch at the former function entry point that transfers control
 to the new relocated function entry point. Most references to the entry point of a function are in the form of function calls, which
@@ -107,7 +118,7 @@ will still be reachable without having the need to further reorganize the code. 
 here to reduce space by using the smallest branch offset size that accommodates the branch, but we chose to use a single 
 mechanism to simplify the implementation and optimize the space usage in the future. \textit{Instruction Padding} pads
 the instruction at each instrumentation point with \begin{it}nop\end{it} instructions so that a 5-byte branch can fit
- according to the needs of the instrumentation tool. 
+ according to the needs of the instrumentation. 
 
 There are several ways that whole function relocation may adversely affect 
 the performance of the instrumented executable independent of the overhead
@@ -116,98 +127,53 @@ now has an extra control interruption associated with it since control must be p
 point and then to the relocated function entry point. In addition it is possible that using 32-bit offsets for every branch rather than
 some smaller number of bits has an overhead associated with it. And since the code is being reorganized and expanded, 
 we might destroy some positive alignment and size optimizations that the compiler might have made on the instructions in the
-function. To quantify the impact of whole function relocation and the other organizational changes we make
-on the performance of applications, we show the results of an experiment
-where we generated executables in which functions are relocated and branches are converted to use 32-bit offsets
-and no instrumentation code is inserted and compared 
-their performance to the original executables. The overhead on the SPEC INT 2000 benchmarks never exceeds 3.4\%, with an average
-overhead of 0.8\%. Thus the basic overhead incurred by the code organization changes needed to accomodate instrumentation is
+function.
+
+To quantify the impact of whole function relocation and the other organizational changes we make
+on the performance of applications, we show the results of experiments
+where we generated executables in which functions are relocated and branches are converted to use 32-bit offsets, 
+instruction padding is applied. This is basically the overhead of the transformations applied to the executable 
+before any instrumentation code is inserted. We compared the performance of several applications to
+the performance of the original executables. The overhead on the SPECINT 2000 benchmarks never exceeds 3.4\%, with an average
+overhead of 0.8\%. Thus the basic overhead incurred by the code reorganization in PIX to accomodate all instrumentation points is
 well within reason and does not represent a major hurdle for efficiency.
 
-\subsection{Disassembly Coverage}
-Code and data can reside together in the text section of an executable due to several reasons, including
-the storage of branch target locations (e.g. for a jump table as a result of switch statements) or small data structures 
-that provide convenient and efficient look-up of data such as identifiers and descriptors. 
-For the correctness of the executable after instrumentation, it is extremely important to identify  which parts of the text 
-section are code and which parts are data as mishandling of already existing data in text section as code 
-may result in a different behavior than the original behavior of the uninstrumented run.
-Especially, if the instrumentation tool chooses to modify or relocate the part tha data resides 
-to serve the needs of the instrumentation task and when the data at that location is referenced. 
-Such change in program behavior may cause application failure due to some unexpected change in control flow 
-or some state condition that is checked by the program.
-However, the corruption in data in text section might silently manifest itself by modifying the output of the
-program, which would be more undesirable.  Alternatively, if we mistakenly treat some code as data in text section, we may skip
-to insert instrumentation code into this area or we might perform some other type of analysis that should be reserved for
-data alone. While this is almost certainly preferable to the situation where we treat data as code, it
-is ideal to avoid both situations completely for instrumentation task to be complete and correct.
-
-To determine which parts of the text sections are functions that are eligible to be subject for our code discovery algorithm, 
-we use the program's symbol table entries. Our code discovery algorithm
-consists of two phases; control-driven disassembly backed up by linear disassembly. During the control driven disassembly, 
-we follow all understandable control paths starting at a function's entry point. If a problem is encountered such as 
-\textbf{(COMMENT some problematic examples)}, 
-we fall back to naive disassembly. During the naive disassembly, we disassemble each instruction in the order it appears in the
-function starting at a function's entry point. If a problem is encountered such as \textbf{(COMMENT some problematic examples)}, 
-we tag the function uninstrumentable. For our code discovery algorithm, we start with the 
-\textbf{(COMMENT: Which function or entry point we start with???)} function in the executable. 
-
-Even though our code discovery algorithm identifies most of the control flow and instructions, it may fail to 
-identify the complete control flow and instructions for some functions.  Problems that can be encountered during code discovery
-are situations where an unknown opcode is encountered, where control jumps to the
-middle of an instruction we've already disassembled, or if control leaves the boundaries of the function. In most
-cases control-driven disassembly is sufficient to disassemble the entirety of a function, and in most cases control-driven
-disassembly is a straightforward process because control either falls through to the following instruction 
-or the location of a branch target is embedded entirely within the instruction itself. But there are also cases
-where an indirect branch is used, the target resides either at a fixed address (possibly with some offset),
-the address that resides in a register, or the address that is at a location given by a register. The latter two cases are difficult to resolve
-without runtime information since the computation of the target address can be arbitrarily complex and can span function
-boundaries. Nevertheless, we perform a peephole examination of the preceeding instructions and can determine 
-the address in most of the cases.
-
-Fortunately, simple calculations are all that most compilers use to determine targets for jump tables, one of the more common
-uses of an indirect branch. Often an offset is added to a fixed location to determine where the data comprising the branch target
-resides. Therefore, we treat such a fixed address as the first entry in a table whose entries are treated either as addresses or as offsets.
-We then make an iterative pass over this table to determine the target for each entry in the jump table, stopping when we find a value in the
-table that yields an address that is outside the scope of the function.
-
-\textbf{(COMMENT : Put an example of GNU compiler Jump table entry).}
-
-\subsection{Instrumentation Snippets}
+\subsection{Efficient Instrumentation Snippets}
 
 In most instrumentation tools, the tasks accomplished by the instrumentation tool are accomplished by allowing the user
-to transfer control from instrumentation points to the instrumentation functions provided by the user, typically
-via a shared library or some other type of object code. Since these instrumentation functions are delivered via a shared library or other
+to transfer control from instrumentation points to the functions provided by the user, typically
+via a shared library or some object code. Since these instrumentation functions are delivered via a shared library or other
 object code, the instrumentation tool developer has the advantage to use a software devlepment toolchain and can
 write the code in a language that compiles to the underlying object code. However, such delivery mechanism is heavyweight due to 
 the overhead of a function invocation including saving the complete machine state for all possibles cases. In cases where
 efficiency is important, it is more desirable to insert small sequences of assembly code to perform a task and only
 save a small subset of machine state that will be affected rather than relying entirely on more heavyweight instrumentation functions.
 
-Consider the example of an instrumentation point where we wish to update a counter that resides in memory. 
+Consider the example of an instrumentation point where we wish to increment a counter that resides in memory. 
 In order to accompish this task with an instrumentation snippet, we transfer control to the
-instrumentation point's trampoline which will save the flags register, update the counter in memory (this does not even require a register), restore
+instrumentation point's trampoline which will save the flag registers, update the counter in memory, restore
 the flags register, then transfer control back to the application. Using an instrumentation function, prior to performing
-the task the trampoline must save the flags register, any registers used by the function, and perform pushing an entry to the call stack.  
-This would also require at least 2 more control flow transfers to enter and exit the instrumentation function. 
+the task the trampoline must save the flag registers, any registers used by the function, and perform pushing an entry to the call stack.
+This would also require at least 2 more jump instructions to enter and exit the instrumentation function. 
 Furthermore these control flow transfers generally use the call/return paradigm, which in addition to changing the
 application's program counter will also store and retreive information about the function call site onto the stack. 
 The use of the instrumentation function is also more likely to pollute the instruction cache more than using a compact
 instrumentation snippet. For an instrumentation snippet the application code must contend with the trampoline code
 only, whereas using an instrumentation function puts the function code into contention with the other two as well. Hence, 
 instrumentation functions tend to be more heaviweight solution, which would not be as appropriate when efficiency is considered
-in instrumentation. Using simple snippets rather than instrumentation functions can allow us to more efficiently gather asynchronous program information, 
-which intuitively can be thought of as any information that could be dumped to
-disk an processed offline. The authors of \cite{gao2005aliter} show that using lightweight instrumentation snippets to buffer information
-which is later processed by more heavyweight instrumentation functions in batches can be an efficient yet entirely lossless way of processing asynchronous
-program information. The avaialability of instrumentation snippets gives tool authors the flexibility to choose 
-depending on their efficiency and software engineering needs.
+in instrumentation. Using simple snippets rather than instrumentation functions allows us to more efficiently gather 
+asynchronous program information, which intuitively can be thought of as any information that could be dumped to
+disk an processed offline. The Gao et. al. \cite{gao2005aliter} demostrates that using lightweight instrumentation snippets to buffer information
+which is later processed by more heavyweight instrumentation functions in batches is an efficient yet entirely lossless way of processing asynchronous
+program information. The avaialability of instrumentation snippets gives tool developers the flexibility to choose 
+depending on their performance goals and software engineering needs.
 
 % move this to overview section
-The call stack during execution requires protection from the instrumentation function because compilers will often optimize a leaf function
+The call stack during execution requires protection from the instrumentation code because compilers will often optimize a leaf function
 by not explicitly creating a stack frame for the local function data to operate in. This optimization is safe for the application because during its
 normal execution a leaf function will never call another function and thus its errant stack contents can never be smashed. In the case of an instrumentation
-tool that calls an instrumentation function from a leaf, this guarantee no longer holds. Thus, we must protect the area above the stack when we call
-an instrumentation function from a leaf function. During the disassembly of a function, we note whether it is a leaf function(i.e. whether it contains any call
-instructions), and then during instrumentation we automatically protect the stack contents for any instrumentation function calls that are made by
+tool that calls an instrumentation function from a leaf, this guarantee no longer holds. Thus, the area above the stack needs to be protected when
+an instrumentation function is called from a leaf function. During the disassembly of a function, PIX notes whether it is a leaf function (i.e. whether it contains any call
+instructions). Later, during instrumentation, it automatically protects the stack contents for any instrumentation function calls that are made by
 incrementing the stack pointer by a fixed safe amount, which has the effect of giving the leaf function a large stack frame while the instrumentation
 function's stack frame uses the stack.
