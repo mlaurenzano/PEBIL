@@ -1,4 +1,5 @@
 \section{Related Work}
+\label{sec:Related}
 
 ATOM \cite{srivastava1994atom} was one of the first and has remained one of the more popular static binary instrumentation toolkits
 available. ATOM works in a way that is conceptually similar to PIX; instrumentation is performed on the compiled
@@ -10,7 +11,7 @@ perform static, efficient instrumentation.
 Dyninst \cite{buck2000api} is a popular dynamic instrumentation toolkit that uses a technique called code patching
 to perform instrumentation. Similar in concept to what is done in PIX, this technique replaces an
 instruction from the application with a jump instruction to a function call stub and
-instrumentation code. The key difference between PIX and Dyninst is that Dyninst performs all codepatching
+instrumentation code. The key difference between PIX and Dyninst is that Dyninst performs all code patching
 at runtime instead of prior to runtime. This has several advantages, including the ability to insert, remove
 and customize instrumentation during runtime. But performing modification to the program at runtime also
 may have a significant performance disadvantage, resulting in inefficient execution of the instrumented application.
@@ -22,7 +23,7 @@ program. For efficiency, Pin performs many optimizations including caching these
 re-use, chaining instrumented sequences of code together to avoid unnecessary tool intervention, and avoiding state protection
 overheads whenever possible.
 
-DynamoRIO \cite{bruening2004efficent} and Valgrind \cite{nethercote2007valgrind} are two other dyanmic
+DynamoRIO \cite{bruening2004efficient} and Valgrind \cite{nethercote2007valgrind} are two other dynamic
 binary instrumentation toolkits that use a JIT-based approach to instrumentation and operate in a similar fashion
 to Pin. These toolkits offer certain functionality that is not available anywhere else. For example, Valgrind offers
 support for a feature called shadow values \cite{nethercote2007shadow}, 

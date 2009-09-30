@@ -1,4 +1,5 @@
 \section{Future Work}
+\label{sec:Future}
 
 Despite the success in terms of efficiency, there are several additional techniques
 that might make the instrumented code even more efficient in PIX. Because PIX relocates
@@ -16,7 +17,8 @@ of the instrumentation code, and automatically save only the ones that are alive
 analysis in order to identify the instrumentation points where the machine state doesn't need to be saved around instrumentation functions. 
 
 Finally, similar to Pin, we could perform liveness on the bits of the eflags/rflags register to determine whether the flag registers need to be saved and
-restored at each instrumentation point. Saving and restoring state is a large portion of the overhead associated with performing
-small tasks in the instrumentation code and we believe these optimizations will help reduce the overhead due to the instrumentation code even more.
+restored at each instrumentation point. Optimizations that help PIX avoid saving and restoring state at each instrumentation point 
+have the potential to further the overhead associated with instrumentation and we beleive 
+that they will further the goal of generating efficient instrumented code with PIX.
 
 
