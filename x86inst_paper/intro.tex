@@ -30,14 +30,14 @@ However, there are cases where the importance of efficiency is enough to outweig
 other shortcomings \cite{carrington2006performance} so that static binary instrumentation is the
 desirable paradigm. 
 
-In this paper, we introduce a static binary instrumentation toolkit, \textit{PIX}, for Linux ELF executables on
-x86/x86\_64 platforms. The goal of PIX is to provide a toolkit that enables the construction of
+In this paper we introduce \textbf{P}MaC's \textbf{E}fficient static \textbf{B}inary \textbf{I}nstrumentation 
+toolkit for \textbf{L}inux on x86/x86\_64, \textit{PEBIL}. The goal of PEBIL is to provide a toolkit that enables the construction of
 instrumentation tools that produce an efficient instrumented
-executable. More specifically, one of the design goals of PIX is to generate efficient instrumented executables
+executable. More specifically, one of the design goals of PEBIL is to generate efficient instrumented executables
 for instrumentation tools that require a large number of instrumentation points because these are the situations 
 where efficiency is expected to be negatively impacted as more instrumentation is introduced. 
 
-Similar to previous instrumentation toolkits \cite{buck2000api}, PIX instruments the executable 
+Similar to previous instrumentation toolkits \cite{buck2000api}, PEBIL instruments the executable 
 by placing a jump instruction at each instrumentation
 point in the application which transfers control to instrumentation code. This instrumentation code saves
 program state, performs tasks that are determined by the particular instrumentation tool,
@@ -47,7 +47,7 @@ A typical binary instrumentation tool on a platform with fixed-length instructio
 single instruction at the instrumentation point with a jump that transfers
 control to the instrumentation code. However when instructions are variable-length,
 this is not always possible since there may not be enough space to correctly 
-insert such a jump instruction. To address this, PIX
+insert such a jump instruction. To address this, PEBIL
 relocates and reorganizes the code for each function to ensure that enough
 space (in the form of \begin{it}nops\end{it}) is available to hold a full-length branch instruction at each
 instrumentation point.
@@ -57,15 +57,15 @@ additional overhead is introduced because the instrumentation tool must perform 
 as parsing, disassembly, code generation, and making other decisions at runtime. This
 is simply not an issue with static binary instrumentation tools because all
 decisions and actions are taken prior to runtime. The only cost born at runtime is the direct
-cost of performing additional instrumentation. In PIX, entire function relocation
+cost of performing additional instrumentation. In PEBIL, entire function relocation
 enables reorganization of the code so that it
 can use longer-range yet efficient jump instructions to transfer control from the
-application to the instrumentation code. Similar to Dyninst \cite{buck2000api}, PIX uses the concept of an
+application to the instrumentation code. Similar to Dyninst \cite{buck2000api}, PEBIL uses the concept of an
 instrumentation \textit{snippet}, which is a lightweight hand-written body of assembly code that can
 be used to perform instrumentation tasks, rather than relying only on heavyweight
 instrumentation functions.
 
-The PIX toolkit, along with other accompanying tools and documentation,
+The PEBIL toolkit, along with other accompanying tools and documentation,
 is open source and available to the public for download 
 at \url{http://blind-review-forbids-real-urls.com/}. The distribution includes several instrumentation tools 
 including a function execution counter, a basic block
@@ -76,11 +76,11 @@ to ignore these details if he wishes. The three instrumentation tools provided w
 less than 600 lines of C++ code.
 
 The remainder of the paper is organized as follows. Section
-\ref{sec:Overview} describes the design and implementation of PIX.
+\ref{sec:Overview} describes the design and implementation of PEBIL.
 Section \ref{sec:Efficiency} discusses
 several aspects of the toolkit that are related to efficiency, including the function relocation mechanism and the
 instrumentation snippet. Section \ref{sec:Results} presents some
-experiments that expose the performance penalties imposed by instrumenting applications with PIX, as well as
-a comparison of PIX to other state of the art binary instrumentation toolkits for x86 including Dyninst, Pin, Valgrind and DynamoRIO. Section
-\ref{sec:Future} discusses the future of PIX, Section \ref{sec:Related} discusses 
-other popular instrumentation tools related to PIX and Section \ref{sec:Conclusions} concludes.
+experiments that expose the performance penalties imposed by instrumenting applications with PEBIL, as well as
+a comparison of PEBIL to other state of the art binary instrumentation toolkits for x86 including Dyninst, Pin, Valgrind and DynamoRIO. Section
+\ref{sec:Future} discusses the future of PEBIL, Section \ref{sec:Related} discusses 
+other popular instrumentation tools related to PEBIL and Section \ref{sec:Conclusions} concludes.

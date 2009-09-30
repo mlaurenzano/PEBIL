@@ -2,7 +2,7 @@
 \label{sec:Future}
 
 Despite the success in terms of efficiency, there are several additional techniques
-that might make the instrumented code even more efficient in PIX. Because PIX relocates
+that might make the instrumented code even more efficient in PEBIL. Because PEBIL relocates
 the text to yeild extra space for the manipulation of the application functions, 
 rather than inserting just a branch
 that transfers control to the instrumentation code we have the opportunity to inline
@@ -10,15 +10,15 @@ the instrumentation code itsself
 in order to reduce or eliminate the control interruptions  that otherwise must be taken 
 when inserting the instrumentation code.
 
-Currently PIX saves all general purpose registers around each function call and allows the
+Currently PEBIL saves all general purpose registers around each function call and allows the
 tool developer to state which registers are saved around instrumentation snippets. For even more efficient instrumentation
 snippets, we could automatically detect which registers are killed by the instrumentation code and which are live at the entry point
 of the instrumentation code, and automatically save only the ones that are alive. Similarly, we could perform register 
 analysis in order to identify the instrumentation points where the machine state doesn't need to be saved around instrumentation functions. 
 
 Finally, similar to Pin, we could perform liveness on the bits of the eflags/rflags register to determine whether the flag registers need to be saved and
-restored at each instrumentation point. Optimizations that help PIX avoid saving and restoring state at each instrumentation point 
+restored at each instrumentation point. Optimizations that help PEBIL avoid saving and restoring state at each instrumentation point 
 have the potential to further the overhead associated with instrumentation and we beleive 
-that they will further the goal of generating efficient instrumented code with PIX.
+that they will further the goal of generating efficient instrumented code with PEBIL.
 
 

@@ -1,21 +1,21 @@
 \section{Efficiency of Instrumented Code}
 \label{sec:Efficiency}
 
-The goal of PIX is to provide a toolkit that enables the construction of
+The goal of PEBIL is to provide a toolkit that enables the construction of
 instrumentation tools that produce an efficient instrumented
-executables. Specifically PIX is designed to provide efficiency when
+executables. Specifically PEBIL is designed to provide efficiency when
 the number of instrumentation points is large since cases where the number of
 instrumentation points is high are the cases where instrumentation
 has the largest overhead on application performance. 
 Several techniques are employed to produce efficient instrumented code. In order
 to allow the use of fast constructs to get control to the instrumentation code,
-the application code is relocated and transformed. PIX also allows the use
+the application code is relocated and transformed. PEBIL also allows the use
 of lightweight instrumentation snippets that can be used in place of
 instrumentation functions for simple instrumentation tasks.
 
 \subsection{Code Relocation and Transformation}
 \label{Subsection:Relocation}
-The use of relocation at the function level in PIX stems from the fact
+The use of relocation at the function level in PEBIL stems from the fact
 that instrumentation is being performed statically on a platform that uses a
 variable-length instruction set. Because of the variable-length length instructions, it may not always be possible to instrument
 an arbitrary point using traditional techniques due to the lack of space for a jump instruction large enough to reach the instrumentation code. 
@@ -75,9 +75,9 @@ expect, this mechanism is unsuitable for efficient instrumentation because the
 heavyweight system call conventions are being invoked on a fairly regular basis to
 transfer control between the application and the instrumentation code.
 
-PIX uses relocation and reorganization of the code at the function level so that
+PEBIL uses relocation and reorganization of the code at the function level so that
 there is enough space at every instrumentation point to accommodate a 5 byte
-jump. Specifically, the steps used by PIX to relocate the application's functions and prepare them
+jump. Specifically, the steps used by PEBIL to relocate the application's functions and prepare them
 for instrumentation are as follows. Figure \ref{fig:Relocation} shows how this process looks when performed on 
 a trivial example function in order to prepare the function for instrumentation
 that will be inserted at every basic block.
@@ -160,7 +160,7 @@ These experiments show the overhead of the transformations applied to the execut
 in order to prepare it for instrumentation independent of any overhead imposed by the 
 instrumentation itself. The overhead on a set of ten of the 
 SPECINT 2000 benchmarks never exceeds 6.5\%, with an average
-overhead of just 1.6\%. Thus the basic overhead incurred by code relocation and transformation in PIX to accommodate all instrumentation points is
+overhead of just 1.6\%. Thus the basic overhead incurred by code relocation and transformation in PEBIL to accommodate all instrumentation points is
 well within reason and does not represent a significant hurdle for efficiency of the instrumented code.
 
 \subsection{Efficient Instrumentation Snippets}
@@ -186,7 +186,7 @@ normal execution a leaf function will never call another function and thus its w
 can never be destroyed. In the case of an instrumented
 application that calls an instrumentation function from a leaf, this guarantee no longer holds. Thus, the area above the stack needs to be protected when
 an instrumentation function is called from a leaf function. During the disassembly 
-of a function, PIX notes whether it is a leaf function (i.e. whether it contains any call
+of a function, PEBIL notes whether it is a leaf function (i.e. whether it contains any call
 instructions). Later, during instrumentation, it automatically protects the stack contents 
 for any instrumentation function calls that are made from that function by
 incrementing the stack pointer by a fixed amount\footnote{Currently this amount is

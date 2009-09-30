@@ -1,7 +1,7 @@
 \section{Design and Implementation}
 \label{sec:Overview}
 
-PIX is designed to instrument ELF executables that run on the Linux/x86 platform.
+PEBIL is designed to instrument ELF executables that run on the Linux/x86 platform.
 There are several challenges that must be
 addressed by any instrumentation tool in this setting, the largest of which include how to correctly
 interpret the information found in the text segment of the application and how to organize the
@@ -27,14 +27,14 @@ application data alone. While this is almost certainly preferable to the situati
 is ideal to avoid both situations completely so that the application, 
 instrumentation and any resulting analysis is both complete and correct.
 
-PIX's code discovery algorithm operates on a per-function basis.
+PEBIL's code discovery algorithm operates on a per-function basis.
 In order to determine which parts of the text sections are functions that are to be subject to its code discovery algorithm, 
-PIX uses the program's symbol table entries\footnote{The use of the program's symbol table requires that the program be compiled
+PEBIL uses the program's symbol table entries\footnote{The use of the program's symbol table requires that the program be compiled
 with debugging information, -g in most cases} to guide it to each function's entry point. The code discovery algorithm then
 consists of two possible phases; control-driven disassembly that is backed up by linear disassembly. During the control-driven disassembly phase, 
-PIX follows the control flow through a function starting at its entry point. If a problem is encountered during disassembly such as 
+PEBIL follows the control flow through a function starting at its entry point. If a problem is encountered during disassembly such as 
 finding an undefined opcode or an inconsistent control target, 
-PIX assumes that some part of the disassembly is incorrect and falls back to naive 
+PEBIL assumes that some part of the disassembly is incorrect and falls back to naive 
 disassembly. During the naive disassembly phase, each instruction is disassembled in the order it appears in the
 function beginning at the function's entry point. If again a problem 
 is found, the function is tagged as uninstrumentable and the disassembly of the function is left incomplete and
@@ -43,7 +43,7 @@ an average of 99.8\% of the basic blocks for a set of the SPEC CPU2000 Integer b
 
 Problems that can be encountered during both phases of code discovery
 are situations where an undefined opcode is encountered, where control jumps to the
-middle of an instruction PIX has already disassembled, or if control leaves the boundaries of the function via a traditional branch
+middle of an instruction PEBIL has already disassembled, or if control leaves the boundaries of the function via a traditional branch
 instruction. In most
 cases control-driven disassembly is sufficient to disassemble the entirety of a function, and in most cases control-driven
 disassembly is a straightforward process because control either falls through to the following instruction 
@@ -51,7 +51,7 @@ or the location of another possible control target is encoded entirely within th
 where an indirect address is used by a control instruction, the target residing either at a fixed address (possibly with some offset), in a register, 
 or at a location given by a register. The latter two cases are difficult to resolve
 without runtime information since the computation of the target address can be arbitrarily complex and can span function
-boundaries. Nevertheless, PIX performs a peephole examination of the preceding instructions and can determine 
+boundaries. Nevertheless, PEBIL performs a peephole examination of the preceding instructions and can determine 
 the target address of the branch in most cases.
 
 One of the more common uses of the indirect branch is as part of a jump table. 
@@ -59,7 +59,7 @@ Fortunately most compilers use relatively simple calculations to determine targe
 Often an offset is added to a fixed location to determine where the data comprising the branch target
 resides. Therefore, such a fixed address found in a nearby instruction 
 is treated as the first entry in a table whose remaining entries are considered to be either addresses or offsets.
-PIX makes an iterative pass over this table to determine the target 
+PEBIL makes an iterative pass over this table to determine the target 
 address for each entry in the jump table, stopping when it finds a value in the
 table that yields a target address that is outside the function.
 
@@ -75,11 +75,11 @@ implementations, such as FreeBSD, only allow two loadable segments. Thus, it is
 preferable to incorporate instrumentation text and data into the
 existing text and data segments of the application. 
 
-To accommodate the code and data needed for instrumentation, PIX prepends the instrumentation code to the existing text
+To accommodate the code and data needed for instrumentation, PEBIL prepends the instrumentation code to the existing text
 segment\footnote{The amount of space allocated prior to the text section is
 controlled by the linker variable \_\_executable\_start. There are cases
 where the system does not provide enough space prior to the text segment by
-default, in which case PIX comes with a set of tools that produces a modified linker
+default, in which case PEBIL comes with a set of tools that produces a modified linker
 script on the system that provides up to 128MB of space.} and appends the instrumentation data to the
 data segment, as shown in Figure \ref{fig:Executable}(b). This
 scheme has the added benefit of causing no immediate disturbance to the
@@ -101,7 +101,7 @@ tool is appended to the data application data.}
 }
 \end{figure}
 
-The instrumentation code introduced by PIX can be classified by the several distinct functions it
+The instrumentation code introduced by PEBIL can be classified by the several distinct functions it
 performs. The first
 is code that accomplishes the instrumentation tasks as well as any bookkeeping code.
 This code sequence, called a \textit{trampoline} \cite{buck2000api}, 
@@ -122,7 +122,7 @@ instrumentation point can be encoded into an unconditional branch instruction
 at the end of the trampoline so that control is returned to the application correctly.
 
 Since some instrumentation tools may need additional data to support the inserted instrumentation code,
-PIX provides mechanisms to insert and initialize additional data within the executable.
+PEBIL provides mechanisms to insert and initialize additional data within the executable.
 The instrumentation text includes code to, at the beginning of the instrumented 
 application run, initialize this additional data for use by the
 instrumentation tool. Recall from Figure \ref{fig:Executable} that the instrumentation
@@ -143,7 +143,7 @@ segment's contents, including the applications BSS section and the instrumentati
 must be included in the executable file or space can be implicitly reserved and later initialized using the
 technique currently employed in most ELF files.
 Since the BSS section of an application can be very large and explicit inclusion of its contents
-into the executable would bloat the size of the executable file unnecessarily, PIX uses the implicit
+into the executable would bloat the size of the executable file unnecessarily, PEBIL uses the implicit
 technique to reserve this section for instrumentation data. Therefore the instrumentation data is
 temporarily stored with the instrumentation text in the
 executable. This data is then copied to the correct location in the data segment once execution
