@@ -1,6 +1,6 @@
 \begin{it}
 
-Binary instrumentation enables insertion of additional code into an
+Binary instrumentation facilitates the insertion of additional code into an
 executable in order to observe or modify the behavior of application runs. 
 There are two main approaches to binary instrumentation: static and dynamic
 binary instrumentation. In this paper we present PMaC's instrumentation toolkit, PIX, 
@@ -14,7 +14,7 @@ jumps or interrupts. Furthermore, the PIX API provides
 tool developers means to insert lightweight hand-coded assembly
 rather than relying solely on the insertion of entire instrumentation functions.
 Because of these features PIX enables implementation of efficient instrumentation tools. 
-The overhead for a simple basic block counting using PIX is an
+The overhead imposed by a simple basic block counting tool created using PIX is an
 average of 1.6x less than the overhead imposed by Pin, 4.7x less than the overhead imposed by
 DynamoRIO, 7.8x less than the overhead imposed by Valgrind, and 10x less than the overhead imposed by Dyninst.
 

@@ -1,20 +1,19 @@
 \section{Introduction}
 
-Binary instrumentation toolkits enable insertion of additional code into an
+Binary instrumentation toolkits facilitate the insertion of additional code into an
 executable in order to observe or modify the behavior of application runs. 
 Instrumentation toolkits such as Pin\cite{luk2005pin}, Dyninst\cite{buck2000api}, 
 Valgrind\cite{nethercote2007valgrind} and DynamoRIO\cite{bruening2004efficient} have been widely used to gather information about
-application runs to be later used in modeling and optimization
-of the applications. It has been shown that data gathered 
+application runs. It has been shown that data gathered 
 from such binary instrumentation tools can be effectively used in guiding hardware and
 system design, program debugging and correctness, compiler optimizations, security verification,
 and performance modeling/prediction\cite{snavely2001modeling}.
 
 There are two main approaches to binary instrumentation: \textit{static} 
 and \textit{dynamic} binary instrumentation. Static binary
-instrumentation inserts additional code in to an executable and generates a persistent
-modified executable whereas the dynamic instrumentation inserts additional code 
-during execution without any permanent modifications to the executable.
+instrumentation inserts additional information into an executable and generates a persistent
+modified executable whereas the dynamic instrumentation inserts additional information 
+during execution without making any permanent modifications to the executable.
 The static instrumentation approach is advantageous because it usually results in more
 efficient execution when compared to the dynamic approach
 since static instrumentation introduces only the instrumentation code itself, 
@@ -22,17 +21,17 @@ which is also included in the text section of the executable.
 Unlike static instrumentation, dynamic
 instrumentation uses the program heap for the instrumentation code and hence, use the data section as text space.
 However, static binary instrumentation has disadvantages. It is not possible to instrument shared libraries 
-unless the shared libraries are instrumented separately and the executable is modified to use those libraries. 
+unless the shared libraries are instrumented separately and the executable is modified to use those instrumented libraries. 
 Static instrumentation also provides less flexibility to tool developers since any instrumentation code that is
 inserted persists throughout the application run while dynamic instrumentation 
 provides the means to delete instrumentation code when it is not needed \cite{tikir2002efficient}.
 However, there are cases where the importance of efficiency is enough to outweigh
-these other shortcomings \cite{carrington2006performance} such that static binary instrumentation is the
+these other shortcomings \cite{carrington2006performance} so that static binary instrumentation is the
 desirable paradigm. 
 
 In this paper, we introduce a static binary instrumentation toolkit, \textit{PIX}, for Linux ELF executables on
 x86/x86\_64 platforms (from this point forward we will use the term x86 to describe the entire family
-of x86/x86\_64 unless otherwise noted). The goal of PIX is to provide a toolkit that enables the construction of
+of x86/x86\_64 platforms unless otherwise noted). The goal of PIX is to provide a toolkit that enables the construction of
 instrumentation tools that produce an efficient instrumented
 executable. More specifically, one of the design goals of PIX is to generate efficient instrumented executables
 for instrumentation tools that require a large number of instrumentation points because these are the situations 
@@ -40,9 +39,9 @@ where efficiency is expected to be negatively impacted most significantly by the
 
 Similar to previous instrumentation toolkits \cite{buck2000api}, PIX instruments the executable 
 by placing a jump instruction at each instrumentation
-point which transfers control to instrumentation code. This instrumentation code saves the
-program state, performs tasks that are determined by the instrumentation,
-restores the program state, then returns control to the application.
+point in the application which transfers control to instrumentation code. This instrumentation code saves
+program state, performs tasks that are determined by the particular instrumentation tool,
+restores program state, then returns control to the application.
 A typical binary instrumentation tool on a platform with fixed-length instructions 
 \cite{tikir2006pmac} accomplishes initial control transfer by replacing a
 single instruction at the instrumentation point with a jump that transfers
@@ -56,21 +55,22 @@ instrumentation point.
 The efficiency of instrumented executables is an important design goal in instrumentation tools. In dynamic binary instrumentation,
 inefficiency in the form of increased overheads results from the instrumentation tool performing additional tasks such 
 as parsing, disassembly, code generation, and making other decisions at runtime. This
-is simply not an issue with static binary instrumentation tools as all
+is simply not an issue with static binary instrumentation tools because all
 decisions and actions are taken prior to runtime. The only cost born at runtime is the direct
 cost of performing additional instrumentation tasks. In PIX, entire function relocation
 enables reorganization of the code so that we
-can use longer-range yet efficient jump instructions to transfer control from the
-application to the instrumentation code. PIX also uses the concept of an
-instrumentation snippet, similar to Dyninst \cite{buck2000api}, a lightweight hand-written body of assembly code that can
-be inserted into the application rather than relying only on heavyweight
+can use longer-range yet efficient jump instructions can be used to transfer control from the
+application to the instrumentation code. Similar to Dyninst \cite{buck2000api}, PIX uses the concept of an
+instrumentation snippet, which is a lightweight hand-written body of assembly code that can
+be used to perform instrumentation tasks, rather than relying only on heavyweight
 instrumentation functions.
 
-The PIX toolkit is open source and available to the public for download 
+The PIX toolkit, along with other accompanying tools and documentation,
+is open source and available to the public for download 
 at \url{http://blind-review-forbids-real-urls.com/}. The distribution includes several instrumentation tools 
 including a function execution counter, a basic block
 execution counter, and a memory address stream collection tool. Each of these tools is built on top of
-an API that provides both enough low-level detail to allow the tool-developer to get involved in the 
+an API that provides both enough low-level detail to allow the tool developer to get involved in the 
 details of the instrumentation and enough high-level capability to allow the tool builder
 to ignore these details if he wishes. The three instrumentation tools provided with the distribution are written in
 less than 600 lines of C++ code.
@@ -81,5 +81,5 @@ Section \ref{Section:Efficiency} discusses
 several aspects of the toolkit that are related to efficiency, including the function relocation mechanism and the
 instrumentation snippet. Section \ref{Section:Results} presents some
 experiments that expose the performance penalties imposed by instrumenting applications with PIX, as well as
-a comparison of PIX to other state of the art binary instrumentation toolkits for x86, including Dyninst, Pin, Valgrind and DynamoRIO. Section
+a comparison of PIX to other state of the art binary instrumentation toolkits for x86 including Dyninst, Pin, Valgrind and DynamoRIO. Section
 \ref{Section:Future} discusses the future of PIX, and Section \ref{Section:Conclusions} concludes.
