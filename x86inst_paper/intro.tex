@@ -1,86 +1,97 @@
 \section{Introduction}
 \label{sec:Introduction}
 
-Binary instrumentation toolkits facilitate the insertion of additional code into an
-executable in order to observe or modify the behavior of application runs. 
-Instrumentation toolkits such as Pin\cite{luk2005pin}, Dyninst\cite{buck2000api}, 
-Valgrind\cite{nethercote2007valgrind} and DynamoRIO\cite{bruening2004efficient} have been widely used to gather information about
-application runs. It has been shown that data gathered 
-from instrumentation tools can be effectively used in guiding hardware and
-system design, program debugging and correctness, compiler optimizations, security verification,
-and performance modeling/prediction\cite{snavely2001modeling}.
+Binary instrumentation toolkits can be used to insert additional code into an
+executable in order to observe or modify the behavior of application runs.
+Instrumentation toolkits such as Pin\cite{luk2005pin},
+Dyninst\cite{buck2000api}, Valgrind\cite{nethercote2007valgrind} and
+DynamoRIO\cite{bruening2004efficient} have been widely used to gather
+information about application runs. It has been shown that data gathered from
+instrumentation tools can be effectively used in guiding hardware and system
+design\cite{uhlig1997trace}, program debugging and
+correctness\cite{nethercote2007shadow}, program
+optimization\cite{romer1997instrumentation}, security
+verification\cite{miller-playing}, and performance
+modeling/prediction\cite{snavely2001modeling}.
 
-There are two main approaches to binary instrumentation: \textit{static} 
-and \textit{dynamic} binary instrumentation. Static binary
-instrumentation inserts additional information into an executable and generates a persistent
-modified executable whereas the dynamic instrumentation inserts additional information 
+There are two main approaches to binary instrumentation: \textit{static} and
+\textit{dynamic} binary instrumentation. Static binary instrumentation inserts
+additional information into an executable and generates a persistent modified
+executable whereas the dynamic instrumentation inserts additional information
 during execution without making any permanent modifications to the executable.
-The static instrumentation approach can be advantageous because it usually results in more
-efficient executables when compared to the dynamic approach
-since static instrumentation introduces only the instrumentation code itself, 
-which is also included in the text section of the executable. 
-Unlike static instrumentation, dynamic
-instrumentation uses the program heap for the instrumentation code and hence, use the data section as text space.
-However, static binary instrumentation has disadvantages. It is not possible to instrument shared libraries 
-unless the shared libraries are instrumented separately and the executable is modified to use those instrumented libraries. 
-Static instrumentation also provides less flexibility to tool developers since any instrumentation code that is
-inserted persists throughout the application run while dynamic instrumentation 
-provides the means to delete instrumentation code when it is not needed \cite{tikir2002efficient}.
-However, there are cases where the importance of efficiency is enough to outweigh
-other shortcomings \cite{carrington2006performance} so that static binary instrumentation is the
-desirable paradigm. 
+The static instrumentation approach can be advantageous because it usually
+results in more efficient executables when compared to the dynamic approach.
+This is a result of the fact that static instrumentation introduces only the
+instrumentation code itself, which is also included in the text section of the
+executable. In dynamic binary instrumentation, additional overhead is introduced
+because the instrumentation tool must perform additional tasks such as parsing,
+disassembly, code generation, and making other decisions at runtime.
 
-In this paper we introduce \textbf{P}MaC's \textbf{E}fficient static \textbf{B}inary \textbf{I}nstrumentation 
-toolkit for \textbf{L}inux on x86/x86\_64, \textit{PEBIL}. The goal of PEBIL is to provide a toolkit that enables the construction of
-instrumentation tools that produce an efficient instrumented
-executable. More specifically, one of the design goals of PEBIL is to generate efficient instrumented executables
-for instrumentation tools that require a large number of instrumentation points because these are the situations 
-where efficiency is expected to be negatively impacted as more instrumentation is introduced. 
+This is simply not an issue with static binary instrumentation tools because all
+decisions and actions are taken prior to runtime. The only cost born at runtime
+is the direct cost of performing additional instrumentation. Unlike static
+instrumentation, dynamic instrumentation uses the program heap for the
+instrumentation code and hence, use the data section as text space. However,
+static binary instrumentation has disadvantages. It is not possible to
+instrument shared libraries unless the shared libraries are instrumented
+separately and the executable is modified to use those instrumented libraries.
+Static instrumentation also provides less flexibility to tool developers since
+any instrumentation code that is inserted persists throughout the application
+run while dynamic instrumentation provides the means to delete instrumentation
+code when it is not needed \cite{tikir2002efficient}. However, there are cases
+where the importance of efficiency is enough to outweigh other shortcomings
+\cite{carrington2006performance} so that static binary instrumentation is the
+desirable paradigm.   
 
-Similar to previous instrumentation toolkits \cite{buck2000api}, PEBIL instruments the executable 
-by placing a jump instruction at each instrumentation
-point in the application which transfers control to instrumentation code. This instrumentation code saves
-program state, performs tasks that are determined by the particular instrumentation tool,
-restores program state, then returns control to the application.
-A typical binary instrumentation tool on a platform with fixed-length instructions 
-\cite{tikir2006pmac} accomplishes initial control transfer by replacing a
-single instruction at the instrumentation point with a jump that transfers
-control to the instrumentation code. However when instructions are variable-length,
-this is not always possible since there may not be enough space to correctly 
-insert such a jump instruction. To address this, PEBIL
-relocates and reorganizes the code for each function to ensure that enough
-space (in the form of \begin{it}nops\end{it}) is available to hold a full-length branch instruction at each
-instrumentation point.
+In this paper we introduce \textbf{P}MaC's \textbf{E}fficient static
+\textbf{B}inary \textbf{I}nstrumentation toolkit for \textbf{L}inux on
+x86/x86\_64, \textit{PEBIL}. The goal of PEBIL is to provide a toolkit that
+enables the construction of instrumentation tools that produce an efficient
+instrumented executable. More specifically, PEBIL is designed to generate
+efficient instrumented executables for instrumentation tools that require a
+large number of instrumentation points because these are the situations where
+efficiency is expected to be most impacted. Similar to previous instrumentation
+toolkits \cite{buck2000api}, PEBIL instruments the executable by placing a jump
+instruction at each instrumentation point in the application which transfers
+control to the instrumentation code. This instrumentation code saves program
+state, performs tasks requested by the instrumentation tool, restores program
+state, and then returns control to the application. A typical binary
+instrumentation tool on a platform with fixed-length instructions
+\cite{tikir2006pmac} accomplishes initial control transfer by replacing a single
+instruction at the instrumentation point with a jump that transfers control to
+the instrumentation code. 
 
-The efficiency of instrumented executables is an important design goal in instrumentation tools. In dynamic binary instrumentation,
-additional overhead is introduced because the instrumentation tool must perform additional tasks such 
-as parsing, disassembly, code generation, and making other decisions at runtime. This
-is simply not an issue with static binary instrumentation tools because all
-decisions and actions are taken prior to runtime. The only cost born at runtime is the direct
-cost of performing additional instrumentation. In PEBIL, entire function relocation
-enables reorganization of the code so that it
-can use longer-range yet efficient jump instructions to transfer control from the
-application to the instrumentation code. Similar to Dyninst \cite{buck2000api}, PEBIL uses the concept of an
-instrumentation \textit{snippet}, which is a lightweight hand-written body of assembly code that can
-be used to perform instrumentation tasks, rather than relying only on heavyweight
-instrumentation functions.
+When instructions are variable-length, however, this strategy is not always
+possible since there may not be enough space to correctly insert such a jump
+instruction. To address this, PEBIL relocates and tranforms the code for each
+function to ensure that enough space (in the form of \begin{it}nops\end{it}) is
+available to hold a full-length branch instruction at each instrumentation
+point. This method of function relocation enables transformation of the code so
+that it can use longer-range yet efficient jump instructions to transfer control
+from the application to the instrumentation code. Similar to Dyninst
+\cite{buck2000api}, PEBIL uses the concept of an instrumentation
+\textit{snippet}, which is a lightweight hand-written body of assembly code that
+can be used to perform instrumentation tasks, rather than relying only on
+heavyweight instrumentation functions.
 
-The PEBIL toolkit, along with other accompanying tools and documentation,
-is open source and available to the public for download 
-at \url{http://blind-review-forbids-real-urls.com/}. The distribution includes several instrumentation tools 
-including a function execution counter, a basic block
-execution counter, and a memory address stream collection tool. Each of these tools is built on top of
-an API that provides both enough low-level detail to allow the tool developer to get involved in the 
-details of the instrumentation and enough high-level capability to allow the tool builder
-to ignore these details if he wishes. The three instrumentation tools provided with the distribution are implemented in
-less than 600 lines of C++ code.
-
-The remainder of the paper is organized as follows. Section
-\ref{sec:Overview} describes the design and implementation of PEBIL.
-Section \ref{sec:Efficiency} discusses
-several aspects of the toolkit that are related to efficiency, including the function relocation mechanism and the
-instrumentation snippet. Section \ref{sec:Results} presents some
-experiments that expose the performance penalties imposed by instrumenting applications with PEBIL, as well as
-a comparison of PEBIL to other state of the art binary instrumentation toolkits for x86 including Dyninst, Pin, Valgrind and DynamoRIO. Section
-\ref{sec:Future} discusses the future of PEBIL, Section \ref{sec:Related} discusses 
-other popular instrumentation tools related to PEBIL and Section \ref{sec:Conclusions} concludes.
+The PEBIL toolkit, along with other accompanying tools and documentation, is
+open source and available to the public for download at
+\url{http://blind-review-forbids-real-urls.com/}. The distribution includes
+several instrumentation tools including a function execution counter, a basic
+block execution counter, and a memory address stream collection tool. Each of
+these tools is built on top of an API that provides both enough low-level detail
+to allow the tool developer to get involved in the details of the
+instrumentation and enough high-level capability to allow the tool builder to
+ignore these details if he wishes. The three instrumentation tools provided with
+the distribution are implemented in less than 600 lines of C++ code. The
+remainder of the paper is organized as follows. Section \ref{sec:Overview}
+describes the design and implementation of PEBIL. Section \ref{sec:Efficiency}
+discusses several aspects of the toolkit that are related to efficiency,
+including the function relocation mechanism and the instrumentation snippet.
+Section \ref{sec:Results} presents some experiments that expose the performance
+penalties imposed by instrumenting applications with PEBIL, as well as a
+comparison of PEBIL to other state of the art binary instrumentation toolkits
+for x86 including Dyninst, Pin, Valgrind and DynamoRIO. Section \ref{sec:Future}
+discusses the future of PEBIL, Section \ref{sec:Related} discusses other popular
+instrumentation tools related to PEBIL and Section \ref{sec:Conclusions}
+concludes.
