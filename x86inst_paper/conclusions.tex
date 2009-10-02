@@ -1,3 +1,17 @@
 \section{Conclusions}
 \label{sec:Conclusions}
 
+In this paper we have introduced an efficient static instrumentation toolkit,
+PEBIL, for Linux on the x86/x86\_64 platform family. PEBIL uses function
+relocation in order to create enough space to enable instrumentation at
+arbitrary points in an executable. PEBIL's function relocation mechanism and the
+ability to insert efficient assembly code snippets are what allow PEBIL to
+produce efficient instrumented executables. The overhead of PEBIL for counting
+basic block executions on a set of applications is 1.6x less than the overhead of Dyninst, 
+1.6x less than the overhead
+of Pin, 4.7x less than the overhead of DynamoRIO, and 7.8x less than the overhead of
+Valgrind. PEBIL is freely available
+to the public for download at \url{http://blankforblindreview.com/}.
+
+
+

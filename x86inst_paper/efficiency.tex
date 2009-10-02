@@ -10,7 +10,7 @@ employed to produce efficient instrumented code. One such technique is the use
 of fast constructs to get control to the instrumentation code, which requires
 the application code to be relocated and transformed. PEBIL also allows the use
 of lightweight instrumentation snippets that can be used in place of
-instrumentation functions for simple instrumentation tasks.
+instrumentation functions.
 
 \subsection{Code Relocation and Transformation}
 \label{Subsection:Relocation}
@@ -63,7 +63,7 @@ Figure \ref{fig:InstructionSizes}, which shows that an average of 4\% of
 instructions use only a single byte. Besides, this technique requires additional
 space to be available in close proximity to the instrumentation points since
 these smaller 2-byte branches are also short reaching, which is unlikely to be
-available since function are often packed tightly within the application text.
+available since functions are often packed tightly within the application text.
 
 Another option is the method proposed by the BIRD project \cite{nanda2006bird},
 which is to use a single-byte \begin{it}INT3\end{it} instruction when a larger

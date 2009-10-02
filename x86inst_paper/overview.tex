@@ -5,8 +5,7 @@ PEBIL is designed to instrument ELF executables that run on the Linux/x86
 platform. There are several challenges that must be addressed by any
 instrumentation tool in this setting, the largest of which include how to
 correctly interpret the information found in the text segment of the application
-and how to organize the extra information needed by an instrumentation tool
-given the constraints of the binary format and platform.
+and how to organize the extra information needed by an instrumentation tool.
 
 \subsection{Application Code and Data Discovery}
 When compilers explicitly produce a text and data segment for an application,
@@ -26,13 +25,13 @@ behavior may cause outright application failure due to some unintended change in
 control flow or some state condition that is checked by the program.
 Alternatively, if code is mistakenly treated as data in the text section,
 instrumentation might not be inserted or analysis performed that should be
-reserved for application data alone.
+reserved for data alone.
 
 PEBIL's code discovery algorithm operates on a per-function basis. In order to
 determine which parts of the text sections are functions, PEBIL uses the
 program's symbol table entries\footnote{The use of the program's symbol table
 requires that the program be compiled with debugging information, -g in most
-cases} to guide it to each function's entry point. The code discovery algorithm
+cases.} to guide it to each function's entry point. The code discovery algorithm
 then consists of two possible phases; control-driven disassembly that is backed
 up by linear disassembly. During the control-driven disassembly phase, PEBIL
 follows the control flow through a function starting at its entry point. If a
@@ -57,14 +56,14 @@ location of another possible control target is encoded entirely within the
 instruction itself. In more challenging cases an indirect address is used
 by a control instruction, where the target resides either at a fixed address
 (possibly with some offset), in a register, or at a location given by a
-register. The cases where the target computation uses a value from a register 
+register. The cases where the target computation uses a register 
 can be difficult to resolve without runtime
 information since the computation of the target address can be arbitrarily
 complex and can span function boundaries. Nevertheless, PEBIL performs a
-peephole examination of the preceding instructions and can determine the target
+peephole examination of the preceding instructions and determines the target
 address of the branch in most cases.
 
-One of the more common uses of the indirect branch is as part of a jump table.
+One of the more common uses of the indirect jump is as part of a jump table.
 Fortunately most compilers use relatively simple calculations to determine
 targets for jump tables. Often an offset is added to a fixed location to
 determine where the data comprising the branch target resides. Therefore, such a
@@ -136,8 +135,8 @@ control returns to the application correctly.
 Since some instrumentation tools may need additional data to support the
 inserted instrumentation code, PEBIL provides mechanisms to insert and
 initialize additional data within the executable. The instrumentation text
-includes code to initialize this additional data at the beginng of the
-application run for use by the instrumentation tool. Recall from Figure
+includes code to initialize this additional data at the beginning of the
+application run. Recall from Figure
 \ref{fig:Executable} that the instrumentation data was appended to the end of
 the application's data segment, after the application's uninitialized data
 section (BSS section) in order to preserve the application's original addresses.
@@ -158,7 +157,7 @@ using the technique currently employed in most ELF files. Since the BSS section
 of an application can be very large and explicit inclusion of its contents into
 the executable would bloat the size of the executable file unnecessarily, PEBIL
 uses the implicit technique to reserve this section for instrumentation data.
-Therefore the instrumentation data is temporarily stored with the
+Therefore, the instrumentation data is temporarily stored with the
 instrumentation text in the executable. This data is then copied to the correct
 location in the data segment once execution of the instrumented executable
 begins, thus code to accomplish this is included in the instrumentation text as

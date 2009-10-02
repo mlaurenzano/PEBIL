@@ -3,12 +3,12 @@
 
 Despite the success in terms of efficiency, there are several additional
 techniques that might make PEBIL even more efficient. One such technique would be
-to inline the instrumentation code itsself in order to reduce or eliminate the
+to inline the instrumentation code itself in order to reduce or eliminate the
 control interruptions  that otherwise must be taken when inserting the
 instrumentation code. This could be accomplished because PEBIL relocates the
-text to yeild extra space for the manipulation of the application functions
-leaving space for inlining, rather than inserting just a branch that transfers
-control to the instrumentation code. 
+text to yield extra space for the manipulation of the application functions
+leaving space for inlining instrumentation snippets, rather than 
+inserting a branch that transfers control to the instrumentation code. 
 
 Another technique would be to reduce the saving and storing of registers.
 Currently PEBIL saves all general purpose registers around each function call
@@ -24,7 +24,7 @@ Finally, similar to Pin, we could perform liveness on the bits of the
 eflags/rflags register to determine whether the flag registers need to be saved
 and restored at each instrumentation point. Optimizations that help PEBIL avoid
 saving and restoring state at each instrumentation point have the potential to
-further the overhead associated with instrumentation and we beleive that they
+further the overhead associated with instrumentation and we believe that they
 will further the goal of generating efficient instrumented code with PEBIL.
 
 
