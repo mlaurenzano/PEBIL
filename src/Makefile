@@ -88,16 +88,16 @@ OBJS  = AddressAnchor.o \
 	SymbolTable.o \
 	TextSection.o
 
-TARGET_LIB  = libx86inst.a 
+TARGET_LIB  = libpebil.a 
 
-all: $(TARGET_LIB) install x86inst
+all: $(TARGET_LIB) install pebil
 
-x86inst: $(TARGET_LIB)
+pebil: $(TARGET_LIB)
 	$(MAKE) -C ../tools
 
 $(TARGET_LIB) : $(OBJS)
 	$(AR) $@ $(OBJS)
-#	$(CPP) $(CFLAGS) -o $@ $(OBJS) $(CFLAGS) $(INCLUDE) $(EXTRA_LIBS) $(X86INST_LD_FLAGS)
+#	$(CPP) $(CFLAGS) -o $@ $(OBJS) $(CFLAGS) $(INCLUDE) $(EXTRA_LIBS) $(PEBIL_LD_FLAGS)
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< $(INCLUDE) $(EXTRA_INC)
@@ -109,7 +109,7 @@ $(TARGET_LIB) : $(OBJS)
 # but now it is static library that is included in executable 
 
 clean: 
-	rm -f *~ *.ideinst *.fncinst *.jbbinst *.siminst *.static core *.o *.ii *.s *.class $(TARGET_LIB) $(BINDIR)/$(TARGET_LIB) x86inst
+	rm -f *~ *.ideinst *.fncinst *.jbbinst *.siminst *.static core *.o *.ii *.s *.class $(TARGET_LIB) $(BINDIR)/$(TARGET_LIB) pebil
 
 depend:
 	g++ -E -MM $(INCLUDE) $(SRCS) > DEPENDS

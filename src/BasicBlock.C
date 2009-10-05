@@ -40,6 +40,7 @@ uint32_t BasicBlock::bloat(uint32_t minBlockSize){
             }
         }
 
+        /*
         // ensure that each memory operation is padded with nops so that they can be replaced by a jump
         if (instructions[i]->isMemoryOperation()){
             if (instructions[i]->getSizeInBytes() < SIZE_NEEDED_AT_INST_POINT){
@@ -55,6 +56,7 @@ uint32_t BasicBlock::bloat(uint32_t minBlockSize){
             memPad--;
             i++;
         }
+        */
 
     }
 
@@ -198,6 +200,7 @@ bool BasicBlock::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
         if (instructions[i]->isFunctionCall()){
             uint64_t targetAddr = instructions[i]->getTargetAddress();
             if (targetAddr >= lowAddr && targetAddr < highAddr){
+                PRINT_INFOR("instruction at %#llx calls into function [%#llx,%#llx)", targetAddr, lowAddr, highAddr);
                 return true;
             }
         }
@@ -298,6 +301,7 @@ uint32_t CodeBlock::addInstruction(Instruction* inst){
     }
     inst->setIndex(instructions.size());
     instructions.append(inst);
+    sizeInBytes += instructions.size();
     return instructions.size();
 }
 

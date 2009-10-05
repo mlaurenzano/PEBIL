@@ -10,16 +10,16 @@ CPP           = $(GNU_CPP)
 INCLUDE       = -I../include -I../external/udis86-1.7
 SRCDIR        = ../src
 BINDIR        = ../bin
-EXTRA_LIBS    = -lx86inst -L../external/udis86-1.7/lib -ludis86
+EXTRA_LIBS    = -lpebil -L../external/udis86-1.7/lib -ludis86
 
-TARGET_BIN  = quickdump x86inst
+TARGET_BIN  = quickdump pebil
 
 all: clean $(TARGET_BIN) install
 
 quickdump : quickdump.o
 	$(CPP) $(CFLAGS) -o $@ quickdump.o $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS)
 
-x86inst : main.o
+pebil : main.o
 	$(CPP) $(CFLAGS) -o $@ main.o $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS)
 
 %.o: %.C

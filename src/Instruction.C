@@ -577,8 +577,7 @@ int64_t Instruction::getRelativeValue(){
 uint64_t Instruction::getTargetAddress(){
     uint64_t tgtAddress;
     if (getInstructionType() == X86InstructionType_uncond_branch ||
-        getInstructionType() == X86InstructionType_cond_branch ||
-        getInstructionType() == X86InstructionType_call){
+        getInstructionType() == X86InstructionType_cond_branch){
         if (addressAnchor){
             tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
         } else if (operands && operands[JUMP_TARGET_OPERAND]){
@@ -593,7 +592,25 @@ uint64_t Instruction::getTargetAddress(){
         } else {
             tgtAddress = 0;
         }
-    } else if (getInstructionType() == X86InstructionType_system_call){
+    }
+    else if (getInstructionType() == X86InstructionType_call){
+        if (addressAnchor){
+            tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
+        } else if (operands && operands[JUMP_TARGET_OPERAND]){
+            if (operands[JUMP_TARGET_OPERAND]->getType() == UD_OP_JIMM){
+                tgtAddress = getBaseAddress();
+                tgtAddress += operands[JUMP_TARGET_OPERAND]->getValue();
+                tgtAddress += getSizeInBytes();
+                PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx + %d", tgtAddress, getBaseAddress(), operands[JUMP_TARGET_OPERAND]->getValue(), getSizeInBytes());
+            } else {
+                tgtAddress = 0;
+            }
+        } else {
+            tgtAddress = 0;
+        }
+
+    }
+    else if (getInstructionType() == X86InstructionType_system_call){
         tgtAddress = 0;
     } else {
         tgtAddress = getBaseAddress() + getSizeInBytes();
@@ -664,7 +681,7 @@ uint32_t Instruction::convertTo4ByteTargetOperand(){
             rawBytes[0] = 0x0f;
 
         } else if (isFunctionCall()){
-            __FUNCTION_NOT_IMPLEMENTED;
+            PRINT_WARN(10, "Unhandled short call at address %#llx", getProgramAddress());
         } else if (isReturn()){
             // nothing to do since returns dont have target ops
             ASSERT(sizeInBytes == 1);

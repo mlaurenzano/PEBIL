@@ -12,7 +12,7 @@
 #define ENTRY_FUNCTION "initcounter"
 #define EXIT_FUNCTION "blockcounter"
 #define INST_LIB_NAME "libcounter.so"
-#define INST_SUFFIX "jbbinst"
+#define INST_SUFFIX "onlyreloc"
 
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf, char* inputFuncList)
     : InstrumentationTool(elf, inputFuncList)

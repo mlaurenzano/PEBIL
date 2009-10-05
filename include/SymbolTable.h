@@ -11,7 +11,7 @@ class StringTable;
 class SymbolTable;
 class TextSection;
 
-static char* symbol_without_name = "<__no_name__x86_instrumentor>";
+static char* symbol_without_name = "<__no_name__pebil>";
 
 extern int compareSymbolValue(const void* arg1,const void* arg2);
 extern int searchSymbolValue(const void* arg1,const void* arg2);

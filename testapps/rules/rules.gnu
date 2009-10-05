@@ -1,4 +1,4 @@
 COMP            = gnu
-X86INST_CC      = gcc
-X86INST_CPP     = g++ -DCPP
-X86INST_F77     = ${X86INST_GFORT}
+PEBIL_CC      = gcc
+PEBIL_CPP     = g++ -DCPP
+PEBIL_F77     = ${PEBIL_GFORT}

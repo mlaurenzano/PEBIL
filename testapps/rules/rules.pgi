@@ -1,5 +1,5 @@
 COMP            = pgi
-X86INST_CC      = pgcc
-X86INST_CPP     = pgCC
-X86INST_F77     = pgf95
+PEBIL_CC      = pgcc
+PEBIL_CPP     = pgCC
+PEBIL_F77     = pgf95
 

@@ -8,7 +8,7 @@ gnu-style hash tables. This may result in very slight performance
 degradation when resolving shared lib functions, but the result
 should not be noticeable.
 
-2. -T x86inst_link_script
+2. -T pebil_link_script
 
 If there isn't enough space prior to the beginning of the text
 section to hold the extra text for instrumentation, it is possible to 

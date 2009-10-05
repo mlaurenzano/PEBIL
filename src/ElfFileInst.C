@@ -33,7 +33,7 @@ uint32_t readBytes = 0;
 //#define SWAP_MOD_OFF 0
 //#define SWAP_MOD 1
 //#define SWAP_FUNCTION_ONLY "raise"
-//#define TURNOFF_INSTRUCTION_SWAP
+#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
 #define VALIDATE_ANCHOR_SEARCH
 
@@ -1058,12 +1058,16 @@ void ElfFileInst::phasedInstrumentation(){
             } else {
                 PRINT_DEBUG_FUNC_RELOC("\thidden: %s", f->getName());
                 hiddenFunctions.append(f);
-                PRINT_INFOR("Hidden function:\t%s", f->getName());
+                PRINT_INFOR("Hidden function\t%#llx\t%s\t%d\t%d\t%d%d%d%d%d", f->getBaseAddress(), f->getName(), f->getNumberOfBasicBlocks(), memopsInFunc, f->hasCompleteDisassembly(), f->containsCallToRange(f->getBaseAddress()+1, f->getBaseAddress()+f->getSizeInBytes()), !isEligibleFunction(f), f->isJumpTable(), !canRelocateFunction(f));
+                if (f->hasCompleteDisassembly() && f->isJumpTable()){
+                    numberOfMemopsReloc += memopsInFunc;
+                    numberOfBBsReloc += f->getNumberOfBasicBlocks();
+                }
             }
         }
     }
 
-    PRINT_INFOR("DisassemblyCoverageReport\tBlocks\t%d\t%d\tMemops\t%d\t%d", numberOfBBs, numberOfBBsReloc, numberOfMemops, numberOfMemopsReloc);
+    PRINT_INFOR("DisassemblyCoverageReportWithJumpTable\tBlocks\t%d\t%d\tMemops\t%d\t%d", numberOfBBs, numberOfBBsReloc, numberOfMemops, numberOfMemopsReloc);
 
     for (uint32_t i = 0; i < fini->getNumberOfTextObjects(); i++){
         if (fini->getTextObject(i)->isFunction()){

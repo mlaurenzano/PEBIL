@@ -2,11 +2,11 @@ include rules/rules.$(COMP)
 
 DBG         = -save-temps -g #-Wall
 OPT         = -O0 -g #-static
-CC          = $(X86INST_CC)  $(OPT)
-CPP         = $(X86INST_CPP) $(OPT)
-F77         = $(X86INST_F77) $(OPT)
+CC          = $(PEBIL_CC)  $(OPT)
+CPP         = $(PEBIL_CPP) $(OPT)
+F77         = $(PEBIL_F77) $(OPT)
 LNK         = ld
-LINK_FLAGS  = $(X86INST_LD_FLAGS)
+LINK_FLAGS  = $(PEBIL_LD_FLAGS)
 
 SRCDIR      = ../test
 BINDIR      = ../src
