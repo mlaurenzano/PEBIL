@@ -510,54 +510,7 @@ void ElfFile::initSectionFilePointers(){
 
     for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
         textSections[i]->disassemble(&binaryInputFile);
-        
-        uint32_t binSizes[MAX_X86_INSTRUCTION_LENGTH+1];
-        bzero(binSizes, sizeof(uint32_t)*(MAX_X86_INSTRUCTION_LENGTH+1));
-        Instruction** allinsts = NULL;
-
-#define BB_BINAMOUNT 32
-        uint32_t bbSizes[BB_BINAMOUNT+1];
-        bzero(bbSizes, sizeof(uint32_t)*(BB_BINAMOUNT+1));
-
-        if (strstr(getSectionHeader(textSections[i]->getSectionIndex())->getSectionNamePtr(), ".text")){
-            for (uint32_t j = 0; j < textSections[i]->getNumberOfTextObjects(); j++){
-                allinsts = new Instruction*[textSections[i]->getTextObject(j)->getNumberOfInstructions()];
-                textSections[i]->getTextObject(j)->getAllInstructions(allinsts, 0);
-                for (uint32_t k = 0; k < textSections[i]->getTextObject(j)->getNumberOfInstructions(); k++){
-                    binSizes[allinsts[k]->getSizeInBytes()]++;
-                }
-                delete[] allinsts;
-
-                if (textSections[i]->getTextObject(j)->isFunction()){
-                    Function* f = (Function*)textSections[i]->getTextObject(j);
-                    for (uint32_t k = 0; k < f->getNumberOfBasicBlocks(); k++){
-                        BasicBlock* bb = f->getBasicBlock(k);
-                        if (bb->getSizeInBytes() > BB_BINAMOUNT){
-                            bbSizes[BB_BINAMOUNT]++;
-                        } else {
-                            bbSizes[bb->getSizeInBytes()]++;
-                        }
-                    }
-                }
-
-            }
-            
-            PRINT_INFOR("Text Section %s instruction histogram", getSectionHeader(textSections[i]->getSectionIndex())->getSectionNamePtr());
-            for (uint32_t j = 0; j < MAX_X86_INSTRUCTION_LENGTH+1; j++){
-                fprintf(stdout, "%d\t", binSizes[j]);
-            }
-            fprintf(stdout, "\n");
-
-            PRINT_INFOR("Text Section %s bb histogram", getSectionHeader(textSections[i]->getSectionIndex())->getSectionNamePtr());
-            for (uint32_t j = 0; j < BB_BINAMOUNT+1; j++){
-                fprintf(stdout, "%d\t", bbSizes[j]);
-            }
-            fprintf(stdout, "\n");
-
-            fflush(stdout);
-        }
     }
-
 }
 
 

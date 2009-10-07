@@ -8,7 +8,7 @@
 
 #define MAX_SIZE_LINEAR_SEARCH 4096
 
-static const char* bytes_not_instructions = "<x86_inst_unreachable_text>";
+static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
 
 void BasicBlock::findCompareAndCBranch(){
     if (instructions.size() < 2){

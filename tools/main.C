@@ -41,7 +41,7 @@ void printBriefOptions(){
     fprintf(stderr,"\t      : z : <none>\n");   
     fprintf(stderr,"\t--dry : optional for all. processes options only.\n");
     fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
-    fprintf(stderr,"\t        default is $X86INST_LIB\n");
+    fprintf(stderr,"\t        default is $PEBIL_LIB\n");
     fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions\n");
     fprintf(stderr,"\t        by default this is off\n");
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
@@ -58,13 +58,13 @@ void printBriefOptions(){
 
 void printUsage(bool shouldExt=true) {
     fprintf(stderr,"\n");
-    fprintf(stderr,"usage : x86inst\n");
+    fprintf(stderr,"usage : pebil\n");
     fprintf(stderr,"\t--typ (ide|fnc|jbb|mem|sim)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
     fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--ver [a-z]*]\n");
     fprintf(stderr,"\t[--lib <shared_lib_dir>]\n");
-    fprintf(stderr,"\t\tdefault is $X86INST_LIB\n");
+    fprintf(stderr,"\t\tdefault is $PEBIL_LIB\n");
     fprintf(stderr,"\t[--ext <output_suffix>]\n");
     fprintf(stderr,"\t[--dtl]\n");
     fprintf(stderr,"\t[--fbl]\n");
@@ -308,9 +308,9 @@ int main(int argc,char* argv[]){
     }
 
     if(!libPath){
-        libPath = getenv("X86INST_LIB");
+        libPath = getenv("PEBIL_LIB");
         if (!libPath){
-            PRINT_ERROR("Error : use --lib option or define set the X86INST_LIB_HOME variable"); 
+            PRINT_ERROR("Error : use --lib option or define set the PEBIL_LIB variable"); 
         }
     }
     PRINT_INFOR("The instrumentation libraries will be used from %s",libPath);
