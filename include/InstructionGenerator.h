@@ -10,31 +10,33 @@ protected:
 
 public:
     static Instruction* generateNoop();
+    static Instruction* generateInterrupt(uint8_t idx);
+
+    static Instruction* generateBranchJL(uint64_t offset);
+    static Instruction* generateJumpRelative(uint64_t addr, uint64_t tgt);
+    static Instruction* generateCallRelative(uint64_t addr, uint64_t tgt);
+    static Instruction* generateReturn();
 
     static Instruction* generateStringMove(bool repeat);
     static Instruction* generateSetDirectionFlag(bool backward);
     static Instruction* generateMoveImmToSegmentReg(uint64_t imm, uint32_t idx);
     static Instruction* generateSTOSByte(bool repeat);
 
-    static Instruction* generateReturn();
     static Instruction* generatePushEflags();
     static Instruction* generatePopEflags();
     static Instruction* generatePushSegmentReg(uint32_t idx);
     static Instruction* generatePopSegmentReg(uint32_t idx);
+    static Instruction* generateStackPushImm(uint64_t imm);
+
     static Instruction* generateMoveImmByteToMemIndirect(uint8_t byt, uint64_t off, uint32_t idx);
     static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
     static Instruction* generateMoveImmByteToReg(uint8_t imm, uint32_t idx);
-    static Instruction* generateJumpRelative(uint64_t addr, uint64_t tgt);
-    static Instruction* generateStackPushImm(uint64_t imm);
-    static Instruction* generateCallRelative(uint64_t addr, uint64_t tgt);
     static Instruction* generateRegAddImm(uint32_t idx, uint64_t imm);
+    static Instruction* generateMoveRegToRegaddr(uint32_t srcidx, uint32_t destidx);
+
     static Instruction* generateRegIncrement(uint32_t idx);
     static Instruction* generateRegSubImm(uint32_t idx, uint64_t imm);
     static Instruction* generateAddByteToRegaddr(uint8_t byt, uint32_t idx);
-
-    static Instruction* generateMoveRegToRegaddr(uint32_t srcidx, uint32_t destidx);
-    static Instruction* generateInterrupt(uint8_t idx);
-
     static Instruction* generateAndImmReg(uint64_t, uint32_t);
 };
 
@@ -54,7 +56,6 @@ private:
 
 public:
     static Instruction* generateCompareImmReg(uint64_t imm, uint8_t reg);
-    static Instruction* generateBranchJG(uint64_t offset);
 
     static Instruction* generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx);
     static Instruction* generateStackPush(uint32_t idx);
@@ -90,6 +91,8 @@ private:
     static Instruction* generateInstructionBase(uint32_t sz, char* buf);
 
 public:
+    static Instruction* generateCompareImmReg(uint64_t imm, uint8_t reg);
+
     static Instruction* generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx);
     static Instruction* generateJumpIndirect(uint64_t tgt);
     static Instruction* generateStackPush(uint32_t idx);
@@ -106,6 +109,9 @@ public:
 
     static Instruction* generateStoreEflagsToAH();
     static Instruction* generateLoadEflagsFromAH();
+
+    static Instruction* generateShiftLeftLogical(uint8_t imm, uint8_t reg);
+    static Instruction* generateShiftRightLogical(uint8_t imm, uint8_t reg);
 
     static Instruction* generateAddImmByteToMem(uint8_t, uint64_t);
     static Instruction* generateRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg);

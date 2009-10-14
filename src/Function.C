@@ -102,7 +102,6 @@ bool Function::hasCompleteDisassembly(){
 bool Function::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         if (flowGraph->getBasicBlock(i)->containsCallToRange(lowAddr,highAddr)){
-            PRINT_INFOR("yes at block %#llx", flowGraph->getBasicBlock(i)->getBaseAddress());
             return true;
         }
     }
@@ -124,7 +123,7 @@ Vector<Instruction*>* Function::swapInstructions(uint64_t addr, Vector<Instructi
             return getBasicBlock(i)->swapInstructions(addr,replacements);
         }
     }
-    PRINT_ERROR("Cannot find instructions at address 0x%llx to replace", addr);
+    PRINT_ERROR("Cannot find instructions at address 0x%llx to replace (function %s)", addr, getName());
     return 0;
 }
 

@@ -194,7 +194,7 @@ int main(int argc,char* argv[]){
                 extension = "fncinst";
             } else if (!strcmp(argv[i],"jbb")){
                 instType = frequency_inst_type;
-                extension = "onlyreloc";
+                extension = "jbbinst";
             } else if (!strcmp(argv[i],"sim")){
                 instType = simulation_inst_type;
                 extension = "siminst";

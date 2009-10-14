@@ -114,7 +114,7 @@ void CacheSimulation::instrument(){
             pt->addPrecursorInstruction((*addressCalcInstructions).remove(0));
         }
         delete addressCalcInstructions;
-
+        delete memerand;
 
     }
 

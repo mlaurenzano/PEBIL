@@ -57,6 +57,7 @@ Instruction* InstructionGenerator64::generateShiftRightLogical(uint8_t imm, uint
 
     return generateInstructionBase(len,buff);
 }
+
 Instruction* InstructionGenerator64::generateShiftLeftLogical(uint8_t imm, uint8_t reg){
     ASSERT(reg < X86_64BIT_GPRS && "Illegal register index given");
 
@@ -71,6 +72,32 @@ Instruction* InstructionGenerator64::generateShiftLeftLogical(uint8_t imm, uint8
     buff[1] = 0xc1;
     buff[2] = 0xe0 + reg % X86_32BIT_GPRS;
     buff[3] = imm;
+
+    return generateInstructionBase(len,buff);
+}
+
+Instruction* InstructionGenerator32::generateShiftRightLogical(uint8_t imm, uint8_t reg){
+    ASSERT(reg < X86_32BIT_GPRS && "Illegal register index given");
+
+    uint32_t len = 3;
+    char* buff = new char[len];
+
+    buff[0] = 0xc1;
+    buff[1] = 0xe8 + reg;
+    buff[2] = imm;
+
+    return generateInstructionBase(len,buff);
+}
+
+Instruction* InstructionGenerator32::generateShiftLeftLogical(uint8_t imm, uint8_t reg){
+    ASSERT(reg < X86_32BIT_GPRS && "Illegal register index given");
+
+    uint32_t len = 3;
+    char* buff = new char[len];
+
+    buff[0] = 0xc1;
+    buff[1] = 0xe0 + reg;
+    buff[2] = imm;
 
     return generateInstructionBase(len,buff);
 }
@@ -96,7 +123,23 @@ Instruction* InstructionGenerator64::generateCompareImmReg(uint64_t imm, uint8_t
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateBranchJG(uint64_t off){
+Instruction* InstructionGenerator32::generateCompareImmReg(uint64_t imm, uint8_t reg){
+    ASSERT(reg < X86_32BIT_GPRS && "Illegal register index given");
+
+    uint32_t len = 6;
+    char* buff = new char[len];
+
+    buff[0] = 0x81;
+    buff[1] = 0xf8 + reg;
+
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == imm && "Cannot use more than 32 bits for imm");
+    memcpy(buff+2, &imm32, sizeof(uint32_t));
+
+    return generateInstructionBase(len,buff);
+}
+
+Instruction* InstructionGenerator::generateBranchJL(uint64_t off){
     uint32_t len = 6;
     char* buff = new char[len];
 

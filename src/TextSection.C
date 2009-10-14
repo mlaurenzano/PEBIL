@@ -393,7 +393,7 @@ Vector<Instruction*>* TextSection::swapInstructions(uint64_t addr, Vector<Instru
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         if (sortedTextObjects[i]->getType() == ElfClassTypes_Function){
             Function* f = (Function*)sortedTextObjects[i];
-            PRINT_INFOR("Searching function %s at range [%#llx,%#llx)", f->getName(), f->getBaseAddress(), f->getBaseAddress()+f->getSizeInBytes());
+            //            PRINT_INFOR("Searching function %s at range [%#llx,%#llx)", f->getName(), f->getBaseAddress(), f->getBaseAddress()+f->getSizeInBytes());
             if (f->inRange(addr)){
                 return f->swapInstructions(addr, replacements);
                 for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
