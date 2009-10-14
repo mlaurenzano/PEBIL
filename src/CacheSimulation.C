@@ -12,7 +12,7 @@
 #define SIM_FUNCTION "processTrace"
 #define INST_LIB_NAME "libsimulator.so"
 #define INST_SUFFIX "siminst"
-#define BUFFER_ENTRIES 65536
+#define BUFFER_ENTRIES 128
 
 CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFuncList)
     : InstrumentationTool(elf, inputFuncList)

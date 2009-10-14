@@ -5,10 +5,11 @@
 #include <ElfFile.h>
 #include <ElfFileInst.h>
 #include <Function.h>
+#include <Instruction.h>
 #include <InstructionGenerator.h>
+#include <Instrumentation.h>
 #include <SectionHeader.h>
 #include <TextSection.h>
-#include <Instruction.h>
 
 #define PRINT_INSTRUCTION_DETAIL
 
@@ -142,7 +143,7 @@ Vector<Instruction*>* MemoryOperand::generateBufferedAddressCalculation64(uint64
     (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + elfFileInst->getRegStorageOffset() + 3*(sizeof(uint64_t)), tempReg2));
     (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + elfFileInst->getRegStorageOffset() + 2*(sizeof(uint64_t)), tempReg1));
 
-    (*addressCalc).append(InstructionGenerator::generateBranchJL(20));
+    (*addressCalc).append(InstructionGenerator::generateBranchJL(Size__64_bit_inst_function_call_support));
 
     (*addressCalc).append(InstructionGenerator::generateNoop());
 
@@ -252,7 +253,7 @@ Vector<Instruction*>* MemoryOperand::generateBufferedAddressCalculation32(uint64
     (*addressCalc).append(InstructionGenerator32::generateMoveMemToReg(dataAddr + elfFileInst->getRegStorageOffset() + 3*(sizeof(uint64_t)), tempReg2));
     (*addressCalc).append(InstructionGenerator32::generateMoveMemToReg(dataAddr + elfFileInst->getRegStorageOffset() + 2*(sizeof(uint64_t)), tempReg1));
 
-    (*addressCalc).append(InstructionGenerator::generateBranchJL(20));
+    (*addressCalc).append(InstructionGenerator::generateBranchJL(Size__32_bit_inst_function_call_support));
 
     (*addressCalc).append(InstructionGenerator::generateNoop());
 

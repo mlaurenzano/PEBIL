@@ -20,6 +20,9 @@ class InstrumentationPoint;
 
 #define TRAMPOLINE_FRAME_AUTOINC_SIZE 0x1000
 
+#define Size__32_bit_inst_function_call_support 18
+#define Size__64_bit_inst_function_call_support 20
+
 extern int compareSourceAddress(const void* arg1,const void* arg2);
 
 class Instrumentation : public Base {
