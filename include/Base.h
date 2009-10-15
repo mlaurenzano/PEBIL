@@ -367,6 +367,7 @@ typedef enum {
     ElfClassTypes_BasicBlock,
     ElfClassTypes_CodeBlock,
     ElfClassTypes_DataReference,
+    ElfClassTypes_DataSection,
     ElfClassTypes_DwarfSection,
     ElfClassTypes_DwarfLineInfoSection,
     ElfClassTypes_Dynamic,

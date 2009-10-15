@@ -37,7 +37,6 @@ public:
     void print();
 };
 
-
 class RawSection : public Base {
 protected:
     char* rawDataPtr;
@@ -46,11 +45,12 @@ protected:
     HashCode hashCode;
 
     Vector<DataReference*> dataReferences;
+
 public:
     RawSection(ElfClassTypes classType, char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf);
     ~RawSection();
 
-    virtual uint32_t read(BinaryInputFile* b) {}
+    virtual uint32_t read(BinaryInputFile* b);
     virtual void print() { __SHOULD_NOT_ARRIVE; }
     virtual bool verify();
 
@@ -62,7 +62,6 @@ public:
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     void printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine);
-
     uint32_t addDataReference(DataReference* dr) { dataReferences.append(dr); return dataReferences.size(); }
 
     SectionHeader* getSectionHeader();
@@ -71,6 +70,26 @@ public:
     ElfFile* getElfFile() { return elfFile; }
 
     HashCode getHashCode() { return hashCode; }
+};
+
+class DataSection : public RawSection {
+protected:
+    char* sectionContents;
+
+public:
+    DataSection(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf);
+    ~DataSection();
+
+    char* getSectionContents() { return sectionContents; }
+
+    void setSectionContents(char* content);
+    void setSizeInBytes(uint32_t sz) { sizeInBytes = sz; }
+    void setContentsAtAddress(uint64_t addr, uint32_t size, char* buff);
+    void setContentsAtOffset(uint64_t offset, uint32_t size, char* buff);
+
+    uint32_t read(BinaryInputFile* b);
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    bool verify();
 };
 
 #endif /* _RawSection_h_ */

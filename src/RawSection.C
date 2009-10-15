@@ -6,6 +6,38 @@
 #include <Instruction.h>
 #include <SectionHeader.h>
 
+void DataSection::setSectionContents(char* content){
+    if (sectionContents){
+        delete[] sectionContents;
+    }
+    sectionContents = content;
+}
+
+DataSection::DataSection(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
+    : RawSection(ElfClassTypes_DataSection, rawPtr, size, scnIdx, elf)
+{
+    sectionContents = NULL;
+}
+
+uint32_t DataSection::read(BinaryInputFile* b){
+    ASSERT(sizeInBytes);
+    ASSERT(!sectionContents);
+
+    sectionContents = new char[sizeInBytes];
+    memcpy(sectionContents, rawDataPtr, sizeInBytes);
+
+    verify();
+    return sizeInBytes;
+}
+
+uint32_t RawSection::read(BinaryInputFile* b){
+    b->setInPointer(rawDataPtr);
+    setFileOffset(b->currentOffset());
+
+    verify();
+    return sizeInBytes;
+}
+
 char* RawSection::getStreamAtAddress(uint64_t addr){
     uint32_t offset = addr - getSectionHeader()->GET(sh_addr);
     return charStream(offset);
@@ -17,6 +49,12 @@ void DataReference::print(){
         sidx = rawSection->getSectionIndex();
     }
     PRINT_INFOR("DATAREF: Offset %#llx in section %d -- %#llx", sectionOffset, sidx, data);
+}
+
+DataSection::~DataSection(){
+    if (sectionContents){
+        delete[] sectionContents;
+    }
 }
 
 RawSection::~RawSection(){
@@ -69,7 +107,7 @@ void DataReference::dump(BinaryOutputFile* b, uint32_t offset){
 
 
 RawSection::RawSection(ElfClassTypes classType, char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
-    : Base(classType),rawDataPtr(rawPtr),sectionIndex(scnIdx),elfFile(elf) 
+    : Base(classType),rawDataPtr(rawPtr),sectionIndex(scnIdx),elfFile(elf)
 { 
     sizeInBytes = size; 
 
@@ -84,6 +122,7 @@ bool RawSection::verify(){
         PRINT_ERROR("RawSection %d HashCode is malformed", (uint32_t)sectionIndex);
         return false;
     }
+
     /*
     if (getSectionHeader()->GET(sh_size) != getSizeInBytes()){
         PRINT_ERROR("RawSection %d: size of section (%d) does not match section header size (%d)", sectionIndex, getSizeInBytes(), getSectionHeader()->GET(sh_size));
@@ -97,16 +136,40 @@ SectionHeader* RawSection::getSectionHeader(){
     return elfFile->getSectionHeader(getSectionIndex());
 }
 
+bool DataSection::verify(){
+    if (!sectionContents){
+        PRINT_ERROR("Data section should have bits");
+        return false;
+    }
+    if (getType() != ElfClassTypes_DataSection){
+        PRINT_ERROR("Data section has wrong class type");
+        return false;
+    }
+    if (!getSizeInBytes()){
+        PRINT_ERROR("Data section should have valid size");
+        return false;        
+    }
+    return true;
+}
 
-void RawSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset)
-{ 
+void DataSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    binaryOutputFile->copyBytes(getSectionContents(), getSizeInBytes(), offset);
+    for (uint32_t i = 0; i < dataReferences.size(); i++){
+        dataReferences[i]->dump(binaryOutputFile,offset);
+    }
+}
+
+void RawSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){ 
     if (getType() != ElfClassTypes_RawSection && getType() != ElfClassTypes_no_type &&
         getType() != ElfClassTypes_DwarfSection && getType() != ElfClassTypes_DwarfLineInfoSection){
         PRINT_ERROR("You should implement the dump function for class type %d", getType());
     }
 
+    
     if (getSectionHeader()->hasBitsInFile() && getSizeInBytes()){
-        binaryOutputFile->copyBytes(getFilePointer(),getSizeInBytes(),offset); 
+        char* sectionOutput = getFilePointer();
+        
+        binaryOutputFile->copyBytes(sectionOutput, getSizeInBytes(), offset); 
         for (uint32_t i = 0; i < dataReferences.size(); i++){
             dataReferences[i]->dump(binaryOutputFile,offset);
         }

@@ -5,6 +5,7 @@
 #include <BinaryFile.h>
 #include <Vector.h>
 
+class DataSection;
 class DwarfLineInfoSection;
 class DwarfSection;
 class DynamicTable;
@@ -41,6 +42,7 @@ private:
     Vector<DwarfSection*> dwarfSections;
     Vector<TextSection*> textSections;
     Vector<NoteSection*> noteSections;
+    DataSection* bssSection;
     GlobalOffsetTable* globalOffsetTable;
     DynamicTable* dynamicTable;
     HashTable* hashTable;
@@ -94,7 +96,7 @@ public:
     bool verify();
 
     ElfFile(char* f): is64BitFlag(false),staticLinked(false),elfFileName(f),
-        fileHeader(NULL),globalOffsetTable(NULL),dynamicTable(NULL),
+        fileHeader(NULL),bssSection(NULL),globalOffsetTable(NULL),dynamicTable(NULL),
         hashTable(NULL),gnuVerneedTable(NULL),gnuVersymTable(NULL),
         dynamicStringTable(NULL),dynamicSymbolTable(NULL),pltRelocationTable(NULL),dynamicRelocationTable(NULL),
         lineInfoSection(NULL),
@@ -132,6 +134,7 @@ public:
     RelocationTable* getRelocationTable(uint32_t idx) { return relocationTables[idx]; }
     DwarfSection* getDwarfSection(uint32_t idx) { return dwarfSections[idx]; }
     TextSection* getTextSection(uint32_t idx) { return textSections[idx]; }
+    DataSection* getBssSection() { return bssSection; }
     GlobalOffsetTable* getGlobalOffsetTable() { return globalOffsetTable; }
     DynamicTable* getDynamicTable() { return dynamicTable; }
     HashTable* getHashTable() { return hashTable; }

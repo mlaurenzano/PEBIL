@@ -203,7 +203,8 @@ Instruction.o: Instruction.C ../include/Instruction.h \
   ../include/defines/Instruction.d ../include/BinaryFile.h \
   ../include/ElfFile.h ../include/ElfFileInst.h ../include/Function.h \
   ../include/TextSection.h ../include/InstructionGenerator.h \
-  ../include/SectionHeader.h ../include/defines/SectionHeader.d
+  ../include/Instrumentation.h ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d
 InstructionGenerator.o: InstructionGenerator.C ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/InstructionGenerator.h ../include/Instruction.h \

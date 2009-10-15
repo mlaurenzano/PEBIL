@@ -79,7 +79,6 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     uint32_t reserveData(uint64_t offset, uint32_t size);
-    void initializeReservedData(uint32_t idx, uint32_t size, char* buff, uint64_t dataBaseAddress);
 
     uint32_t generateSnippetControl();
 

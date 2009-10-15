@@ -888,24 +888,6 @@ uint32_t ElfFile::printDisassembly(bool instructionDetail){
     return numInstrs;
 }
 
-/*
-uint32_t ElfFile::findSectionNameInStrTab(char* name){
-    if (!stringTables.size()){
-        return 0;
-    }
-    StringTable* st = stringTables[sectionNameStrTabIdx];
-
-    for (uint32_t currByte = 0; currByte < st->getSizeInBytes(); currByte++){
-        char* ptr = (char*)(st->getFilePointer() + currByte);
-        if (strcmp(name,ptr) == 0){
-            return currByte;
-        }
-    }
-
-    return 0;
-}
-*/
-
 void ElfFile::dump(char* extension){
     char fileName[80] = "";
     sprintf(fileName,"%s.%s", elfFileName, extension);
@@ -1066,38 +1048,54 @@ void ElfFile::readRawSections(){
         char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[i]->GET(sh_offset));
         uint64_t sectionSize = (uint64_t)sectionHeaders[i]->GET(sh_size);
 
-        if (sectionHeaders[i]->getSectionType() == ElfClassTypes_StringTable){
+        switch(sectionHeaders[i]->getSectionType()){
+        case ElfClassTypes_StringTable:
             rawSections.append(new StringTable(sectionFilePtr, sectionSize, i, getNumberOfStringTables(), this));
             stringTables.append((StringTable*)rawSections.back());
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_SymbolTable){
+            break;
+        case ElfClassTypes_SymbolTable:
             rawSections.append(new SymbolTable(sectionFilePtr, sectionSize, i, getNumberOfSymbolTables(), this));
             symbolTables.append((SymbolTable*)rawSections.back());
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_RelocationTable){
+            break;
+        case ElfClassTypes_RelocationTable:
             rawSections.append(new RelocationTable(sectionFilePtr, sectionSize, i, getNumberOfRelocationTables(), this));
             relocationTables.append((RelocationTable*)rawSections.back());
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_DwarfSection){
+            break;
+        case ElfClassTypes_DwarfSection:
             rawSections.append(new DwarfSection(sectionFilePtr, sectionSize, i, getNumberOfDwarfSections(), this));
             dwarfSections.append((DwarfSection*)rawSections.back());
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_TextSection){
+            break;
+        case ElfClassTypes_TextSection:
             rawSections.append(new TextSection(sectionFilePtr, sectionSize, i, getNumberOfTextSections(), this, ByteSource_Application));
             textSections.append((TextSection*)rawSections.back());
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_HashTable){
+            break;
+        case ElfClassTypes_HashTable:
             ASSERT(!hashTable && "Cannot have multiple hash table sections");
             rawSections.append(new HashTable(sectionFilePtr, sectionSize, i, this));
             hashTable = (HashTable*)rawSections.back();
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_NoteSection){
+            break;
+        case ElfClassTypes_NoteSection:
             rawSections.append(new NoteSection(sectionFilePtr, sectionSize, i, getNumberOfNoteSections(), this));
             noteSections.append((NoteSection*)rawSections.back());
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_GnuVerneedTable){
+            break;
+        case ElfClassTypes_GnuVerneedTable:
             ASSERT(!gnuVerneedTable && "Cannot have more than one GNU_verneed section");
             rawSections.append(new GnuVerneedTable(sectionFilePtr, sectionSize, i, this));
             gnuVerneedTable = (GnuVerneedTable*)rawSections.back();
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_GnuVersymTable){
+            break;
+        case ElfClassTypes_GnuVersymTable:
             ASSERT(!gnuVersymTable && "Cannot have more than one GNU_versym section");
             rawSections.append(new GnuVersymTable(sectionFilePtr, sectionSize, i, this));
             gnuVersymTable = (GnuVersymTable*)rawSections.back();
-        } else {
-            rawSections.append(new RawSection(ElfClassTypes_no_type, sectionFilePtr, sectionSize, i, this));
+            break;
+        case ElfClassTypes_DataSection:
+            ASSERT(!bssSection && "Cannot have more than one bss section");
+            rawSections.append(new DataSection(sectionFilePtr, sectionSize, i, this));
+            bssSection = (DataSection*)rawSections.back();
+            break;
+        default:
+            rawSections.append(new RawSection(ElfClassTypes_RawSection, sectionFilePtr, sectionSize, i, this));
+            break;
         }
     }
 

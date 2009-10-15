@@ -38,6 +38,78 @@ uint32_t readBytes = 0;
 #define VALIDATE_ANCHOR_SEARCH
 
 
+void ElfFileInst::extendDataSection(uint64_t size){
+    ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
+
+    ProgramHeader* dataHeader = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
+
+    DataSection* bssSection = elfFile->getBssSection();
+    ASSERT(bssSection);
+
+    uint16_t bssSectionIdx = bssSection->getSectionIndex();
+    SectionHeader* bssSectionHeader = elfFile->getSectionHeader(bssSectionIdx);
+    bssSectionHeader->SET(sh_type, SHT_PROGBITS);
+
+    extraDataIdx = bssSectionIdx;
+    bssOffset = 0;
+    bssReserved = bssSectionHeader->GET(sh_size);
+
+    regStorageOffset = bssReserved;
+    regStorageReserved = sizeof(uint64_t)*X86_64BIT_GPRS;
+
+    // increase the memory size of the bss section (note: this section has no size in the file)
+    bssSectionHeader->INCREMENT(sh_size,size);
+    char* bssContents = new char[bssSectionHeader->GET(sh_size)];
+    bzero(bssContents, bssSectionHeader->GET(sh_size));
+    for (uint32_t i = 0; i < bssSectionHeader->GET(sh_size); i++){
+        if (i >= bssReserved){
+            switch(i % 4){
+            case 0:
+                bssContents[i] = 0xef;
+                break;
+            case 1:
+                bssContents[i] = 0xbe;
+                break;
+            case 2:
+                bssContents[i] = 0xad;
+                break;
+            case 3:
+                bssContents[i] = 0xde;
+                break;
+            default:
+                __SHOULD_NOT_ARRIVE;
+                break;
+            }
+        }
+    }
+    bzero(bssContents, bssSectionHeader->GET(sh_size));
+    bssSection->setSectionContents(bssContents);
+    bssSection->setSizeInBytes(bssSectionHeader->GET(sh_size));
+
+    // increase the memory size of the data segment
+    dataHeader->INCREMENT(p_memsz,size);
+    dataHeader->INCREMENT(p_filesz,size);
+
+    for (uint32_t i = bssSectionIdx+1; i < elfFile->getNumberOfSections(); i++){
+        SectionHeader* sHdr = elfFile->getSectionHeader(i);
+        sHdr->INCREMENT(sh_offset,bssSectionHeader->GET(sh_size));
+    }
+
+    // since some sections were displaced in the file, displace the section header table also so
+    // that it occurs after all of the sections in the file
+    elfFile->getFileHeader()->INCREMENT(e_shoff,bssSectionHeader->GET(sh_size));
+
+    SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
+
+    for (uint32_t i = extraDataIdx+1; i < elfFile->getNumberOfSections(); i++){
+        SectionHeader* scn = elfFile->getSectionHeader(i);
+        ASSERT(!scn->GET(sh_addr) && "The bss section should be the final section the programs address space");
+    }
+
+    verify();
+}
+
+
 void ElfFileInst::initializeDisabledFunctions(char* inputFuncList){
     ASSERT(!disabledFunctions.size());
     
@@ -139,21 +211,12 @@ uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, vo
     for (uint32_t i = 0; i < size; i++){
         uint8_t d = bytes[i];
         STATS(dataBytesInit++);
-        if (d){
-            snip->addSnippetInstruction(InstructionGenerator::generateMoveImmByteToReg(d,X86_REG_AX));
-
-            // this looks like it pretty obviously should work but it doesn't -- need to investigate
-            /*
-            if (i == 0){
-                snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(address+i,X86_REG_DI));
-            } else {
-                snip->addSnippetInstruction(InstructionGenerator::generateRegIncrement(X86_REG_DI));
-            }
-            */
-            snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(address+i,X86_REG_DI));
-            snip->addSnippetInstruction(InstructionGenerator::generateSTOSByte(false));
-        }
+        snip->addSnippetInstruction(InstructionGenerator::generateMoveImmByteToReg(d,X86_REG_AX));
+        snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(address+i,X86_REG_DI));
+        snip->addSnippetInstruction(InstructionGenerator::generateSTOSByte(false));
     }
+
+    PRINT_INFOR("initializing data at %#llx", address);
 
     return size;
 }
@@ -915,50 +978,6 @@ uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
     return avail;
 }
 
-void ElfFileInst::extendDataSection(uint64_t size){
-    ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
-
-    ProgramHeader* dataHeader = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
-
-    // we first find the bss section. Since the bss has to be the last section in the data
-    // segment, we will extend the size of the bss segment then place any extra data in this
-    // extra space in the bss section.
-    uint16_t bssSectionIdx = 0;
-    for (uint32_t i = 1; i < elfFile->getNumberOfSections(); i++){
-        if (elfFile->getSectionHeader(i)->GET(sh_type) == SHT_NOBITS){
-            // any section of type NOBITS is a bss section
-            // ASSERT(!bssSectionIdx && "Cannot have more than 1 bss section (defined by having type SHT_NOBITS)");
-            bssSectionIdx = i;
-        }
-    }
-    ASSERT(bssSectionIdx && "Could not find the BSS section in the file");
-    SectionHeader* bssSection = elfFile->getSectionHeader(bssSectionIdx);
-    //    ASSERT(!strcmp(bssSection->getSectionNamePtr(),".bss") && "BSS section named something other than `.bss'");
-
-    extraDataIdx = bssSectionIdx;
-    bssOffset = 0;
-    bssReserved = bssSection->GET(sh_size);
-
-    regStorageOffset = bssReserved;
-    regStorageReserved = sizeof(uint64_t)*X86_64BIT_GPRS;
-
-    // increase the memory size of the bss section (note: this section has no size in the file)
-    bssSection->INCREMENT(sh_size,size);
-
-    // increase the memory size of the data segment
-    dataHeader->INCREMENT(p_memsz,size);
-
-    SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
-
-    for (uint32_t i = extraDataIdx+1; i < elfFile->getNumberOfSections(); i++){
-        SectionHeader* scn = elfFile->getSectionHeader(i);
-        ASSERT(!scn->GET(sh_addr) && "The bss section should be the final section the programs address space");
-    }
-
-    verify();
-}
-
-
 uint32_t ElfFileInst::addInstrumentationSnippet(InstrumentationSnippet* snip){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     instrumentationSnippets.append(snip);
@@ -1022,7 +1041,7 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
     extendTextSection(0x4000000);
-    extendDataSection(0x2000000);
+    extendDataSection(0x200000);
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
@@ -1343,7 +1362,7 @@ void ElfFileInst::extendTextSection(uint64_t size){
     }
 
     // update section symbols for the sections that were moved. technically the loader won't use them 
-    // but we will try to keep the binary as consistent as possible
+    // but we will try to keep them as consistent as possible anyway
     for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
         SymbolTable* symTab = elfFile->getSymbolTable(i);
         for (uint32_t j = 0; j < symTab->getNumberOfSymbols(); j++){
@@ -1538,7 +1557,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
     currentPhase = ElfInstPhase_no_phase;
     elfFile = elf;
 
-    // automatically set 2 snippet for the beginning and end of bootstrap code
+    // automatically set 2 snippets for the beginning and end of bootstrap code
     instrumentationSnippets.append(new InstrumentationSnippet());
     instrumentationSnippets.append(new InstrumentationSnippet());
 
@@ -1579,6 +1598,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
     if (inputFuncList){
         initializeDisabledFunctions(inputFuncList);
     }
+
 }
 
 uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx){

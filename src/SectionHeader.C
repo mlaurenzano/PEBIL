@@ -55,7 +55,7 @@ void SectionHeader::setSectionType(){
         sectionType = ElfClassTypes_NoteSection;
         break;
     case SHT_NOBITS:
-        sectionType = ElfClassTypes_no_type;
+        sectionType = ElfClassTypes_DataSection;
         break;
     case SHT_REL:
         sectionType = ElfClassTypes_RelocationTable;

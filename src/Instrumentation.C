@@ -912,6 +912,7 @@ uint32_t InstrumentationSnippet::reserveData(uint64_t offset, uint32_t size){
     return numberOfDataEntries-1;
 }
 
+/*
 void InstrumentationSnippet::initializeReservedData(uint32_t idx, uint32_t size, char* buff, uint64_t dataBaseAddress){
     ASSERT(idx < numberOfDataEntries && size == dataEntrySizes[idx]);
 
@@ -923,6 +924,7 @@ void InstrumentationSnippet::initializeReservedData(uint32_t idx, uint32_t size,
         bootstrapInstructions.append(InstructionGenerator::generateMoveImmByteToMemIndirect(buff[size],i,X86_REG_CX));
     }
 }
+*/
 
 InstrumentationSnippet::InstrumentationSnippet()
     : Instrumentation(ElfClassTypes_InstrumentationSnippet)
