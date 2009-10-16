@@ -539,27 +539,11 @@ Instrumentation::~Instrumentation(){
     }
 }
 
-uint32_t InstrumentationFunction::addArgumentAddress(uint64_t offset){
-    return addArgumentAddress(offset, 0);
-}
-
-uint32_t InstrumentationFunction::addArgumentAddress(uint64_t offset, uint32_t value){
-    return addRawArgument(ArgumentType_Address, value, offset);
-}
-
-uint32_t InstrumentationFunction::addArgumentRegCompute(uint64_t offset, uint32_t reg){
-    return addRawArgument(ArgumentType_RegCompute, reg, offset);
-}
-
-uint32_t InstrumentationFunction::addRawArgument(uint32_t type, uint32_t value, uint64_t offset){
+uint32_t InstrumentationFunction::addArgument(uint64_t offset){
     Argument arg;
 
-    arg.type = type;
-    arg.value = value;
     arg.offset = offset;
-
     arguments.append(arg);
-
     return arguments.size();
 }
 
@@ -696,9 +680,11 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
 
         wrapperInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
 
+        /*
         bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(arguments[idx].value, X86_REG_CX));
         bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, X86_REG_DX));
         bootstrapInstructions.append(InstructionGenerator::generateMoveRegToRegaddr(X86_REG_CX, X86_REG_DX));
+        */
     }
 
     /*
@@ -745,8 +731,10 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
         wrapperInstructions.append(InstructionGenerator32::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, X86_REG_DX));
         wrapperInstructions.append(InstructionGenerator32::generateStackPush(X86_REG_DX));
 
+        /*
         bootstrapInstructions.append(InstructionGenerator32::generateMoveImmToReg(arguments[idx].value, X86_REG_CX));
         bootstrapInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX, dataBaseAddress + arguments[idx].offset));
+        */
     }
 
     wrapperInstructions.append(InstructionGenerator32::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));

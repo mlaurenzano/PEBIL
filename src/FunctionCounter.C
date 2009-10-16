@@ -55,15 +55,17 @@ void FunctionCounter::instrument(){
     // the number blocks in the code
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
     // we have the option of giving an initialization value to addArgument
-    exitFunc->addArgumentAddress(counterArrayEntries,allFunctions.size());
+    exitFunc->addArgument(counterArrayEntries);
+    uint64_t numberOfInstPoints = allFunctions.size();
+    initializeReservedData(dataBaseAddress + counterArrayEntries, sizeof(uint64_t), &numberOfInstPoints);
 
     // an array of counters. note that everything is passed by reference
     uint64_t counterArray = reserveDataOffset(allFunctions.size()*sizeof(uint32_t));
-    exitFunc->addArgumentAddress(counterArray);
+    exitFunc->addArgument(counterArray);
 
     // an array for function name pointers
     uint64_t funcNameArray = reserveDataOffset(allFunctions.size()*sizeof(char*));
-    exitFunc->addArgumentAddress(funcNameArray);
+    exitFunc->addArgument(funcNameArray);
 
     if (fini->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
         InstrumentationPoint* p = addInstrumentationPoint(fini,exitFunc,SIZE_CONTROL_TRANSFER);

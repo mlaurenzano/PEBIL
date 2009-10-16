@@ -93,11 +93,11 @@ void PrintMemory::instrument(){
     uint64_t indexStore = reserveDataOffset(sizeof(uint64_t));
     uint64_t scaleStore = reserveDataOffset(sizeof(uint64_t));
 
-    memFunc->addArgumentAddress(addressStore);
-    memFunc->addArgumentAddress(regStore);
-    memFunc->addArgumentAddress(offsetStore);
-    memFunc->addArgumentAddress(indexStore);
-    memFunc->addArgumentAddress(scaleStore);
+    memFunc->addArgument(addressStore);
+    memFunc->addArgument(regStore);
+    memFunc->addArgument(offsetStore);
+    memFunc->addArgument(indexStore);
+    memFunc->addArgument(scaleStore);
 
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
 

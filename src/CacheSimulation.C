@@ -98,8 +98,8 @@ void CacheSimulation::instrument(){
     uint64_t indexStore   = reserveDataOffset(sizeof(uint64_t));
     uint64_t scaleStore   = reserveDataOffset(sizeof(uint64_t));
 
-    simFunc->addArgumentAddress(bufferStore);
-    simFunc->addArgumentAddress(buffPtrStore);
+    simFunc->addArgument(bufferStore);
+    simFunc->addArgument(buffPtrStore);
 
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
 

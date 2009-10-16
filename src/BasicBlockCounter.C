@@ -13,6 +13,7 @@
 #define EXIT_FUNCTION "blockcounter"
 #define INST_LIB_NAME "libcounter.so"
 #define INST_SUFFIX "jbbinst"
+#define NOSTRING "__no_string__"
 
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf, char* inputFuncList)
     : InstrumentationTool(elf, inputFuncList)
@@ -91,13 +92,13 @@ void BasicBlockCounter::instrument(){
     uint64_t funcNameArray = reserveDataOffset(numberOfInstPoints * sizeof(char*));
     uint64_t hashCodeArray = reserveDataOffset(numberOfInstPoints * sizeof(uint64_t));
     uint64_t appName = reserveDataOffset((strlen(getApplicationName()) + 1) * sizeof(char));
-    initializeReservedData(dataBaseAddress + appName, strlen(getApplicationName()), getApplicationName());
+    initializeReservedData(dataBaseAddress + appName, strlen(getApplicationName()) + 1, getApplicationName());
     uint64_t instExt = reserveDataOffset((strlen(getInstSuffix()) + 1) * sizeof(char));
-    initializeReservedData(dataBaseAddress + instExt, strlen(getInstSuffix()), getInstSuffix());
+    initializeReservedData(dataBaseAddress + instExt, strlen(getInstSuffix()) + 1, getInstSuffix());
 
-    exitFunc->addArgumentAddress(counterArray);
-    exitFunc->addArgumentAddress(appName);
-    exitFunc->addArgumentAddress(instExt);
+    exitFunc->addArgument(counterArray);
+    exitFunc->addArgument(appName);
+    exitFunc->addArgument(instExt);
 
     if (fini->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
         addInstrumentationPoint(fini, exitFunc, SIZE_CONTROL_TRANSFER);
@@ -105,16 +106,18 @@ void BasicBlockCounter::instrument(){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
 
-    // we have the option of giving an initialization value to addArgument so it is initialized in the function wrapper
-    entryFunc->addArgumentAddress(counterArrayEntries,numberOfInstPoints);
+    // the number of inst points
+    entryFunc->addArgument(counterArrayEntries);
+    uint64_t ninstpoints64 = (uint64_t)numberOfInstPoints;
+    initializeReservedData(dataBaseAddress + counterArrayEntries, sizeof(uint64_t), &ninstpoints64);
     // an array for line numbers
-    entryFunc->addArgumentAddress(lineArray);
+    entryFunc->addArgument(lineArray);
     // an array for file name pointers
-    entryFunc->addArgumentAddress(fileNameArray);
+    entryFunc->addArgument(fileNameArray);
     // an array for function name pointers
-    entryFunc->addArgumentAddress(funcNameArray);
+    entryFunc->addArgument(funcNameArray);
     // an array for hashcodes
-    entryFunc->addArgumentAddress(hashCodeArray);
+    entryFunc->addArgument(hashCodeArray);
 
     BasicBlock* entryBlock = getProgramEntryBlock();
     if (entryBlock->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
@@ -123,6 +126,11 @@ void BasicBlockCounter::instrument(){
     } else {
         PRINT_ERROR("Cannot find an instrumentation point at the entry block");
     }
+
+    uint64_t noDataAddr = dataBaseAddress + reserveDataOffset(strlen(NOSTRING) + 1);
+    char* nostring = new char[strlen(NOSTRING) + 1];
+    sprintf(nostring, "%s\0", NOSTRING);
+    initializeReservedData(noDataAddr, strlen(NOSTRING) + 1, nostring);
 
 #ifdef DEBUG_MEMTRACK
     PRINT_DEBUG_MEMTRACK("There are %d instrumentation points", numberOfInstPoints);
@@ -145,9 +153,12 @@ void BasicBlockCounter::instrument(){
 
             uint64_t filename = reserveDataOffset(strlen(li->getFileName()) + 1);
             uint64_t filenameAddr = dataBaseAddress + filename;
+            PRINT_INFOR("file name at address %#llx", dataBaseAddress + fileNameArray + i*sizeof(char*));
             initializeReservedData(dataBaseAddress + fileNameArray + i*sizeof(char*), sizeof(char*), &filenameAddr);
             initializeReservedData(dataBaseAddress + filename, strlen(li->getFileName()) + 1, (void*)li->getFileName());
 
+        } else {
+            initializeReservedData(dataBaseAddress + fileNameArray + i*sizeof(char*), sizeof(char*), &noDataAddr);
         }
         uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
         uint64_t funcnameAddr = dataBaseAddress + funcname;
@@ -181,6 +192,7 @@ void BasicBlockCounter::instrument(){
 
     printStaticFile(allBlocks, allLineInfos);
 
+    delete[] nostring;
     delete allBlocks;
     delete allLineInfos;
 

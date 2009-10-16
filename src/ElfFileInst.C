@@ -83,8 +83,9 @@ void ElfFileInst::extendDataSection(uint64_t size){
         }
     }
     bzero(bssContents, bssSectionHeader->GET(sh_size));
-    bssSection->setSectionContents(bssContents);
     bssSection->setSizeInBytes(bssSectionHeader->GET(sh_size));
+    bssSection->setBytesAtOffset(0, bssSectionHeader->GET(sh_size), bssContents);
+    delete[] bssContents;
 
     // increase the memory size of the data segment
     dataHeader->INCREMENT(p_memsz,size);
@@ -205,18 +206,21 @@ void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
 
 uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, void* data){
     InstrumentationSnippet* snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END];
-    uint8_t* bytes = (uint8_t*)data;
+    char* bytes = (char*)data;
 
+    /*
     bool setLoc = false;
     for (uint32_t i = 0; i < size; i++){
         uint8_t d = bytes[i];
         STATS(dataBytesInit++);
         snip->addSnippetInstruction(InstructionGenerator::generateMoveImmByteToReg(d,X86_REG_AX));
         snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(address+i,X86_REG_DI));
-        snip->addSnippetInstruction(InstructionGenerator::generateSTOSByte(false));
+        snip->addSnippetInstruction(InstructionGenerator::generateSTOSByte(setLoc));
     }
+    */
 
-    PRINT_INFOR("initializing data at %#llx", address);
+    PRINT_INFOR("initializing data -- %d bytes at %#llx: %s", size, address, bytes);
+    elfFile->getBssSection()->setBytesAtAddress(address, size, bytes);
 
     return size;
 }

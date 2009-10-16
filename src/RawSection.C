@@ -1,30 +1,58 @@
 #include <RawSection.h>
 
 #include <AddressAnchor.h>
+#include <Base.h>
 #include <BinaryFile.h>
 #include <ElfFile.h>
 #include <Instruction.h>
 #include <SectionHeader.h>
 
-void DataSection::setSectionContents(char* content){
-    if (sectionContents){
-        delete[] sectionContents;
+void DataSection::printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine){
+    fprintf(stdout, "\n");
+    PRINT_INFOR("Raw bytes for DATA section %d:", sectionIndex);
+    //    printBufferPretty(charStream(), getSizeInBytes(), getSectionHeader()->GET(sh_offset), bytesPerWord, bytesPerLine);
+    printBufferPretty(charStream(), 1024, getSectionHeader()->GET(sh_offset), bytesPerWord, bytesPerLine);
+}
+
+void DataSection::setSizeInBytes(uint32_t sz){
+    if (sz != sizeInBytes){
+        char* newBytes = new char[sz];
+        if (sz < sizeInBytes){
+            ASSERT(0 && "We currently don't support shrinking a data section");
+        } else {
+            memcpy(newBytes, rawBytes, sizeInBytes);
+            bzero(newBytes + sizeInBytes, sz - sizeInBytes);
+        }
+        delete[] rawBytes;
+        rawBytes = newBytes;
+        sizeInBytes = sz;
     }
-    sectionContents = content;
+}
+
+void DataSection::setBytesAtAddress(uint64_t addr, uint32_t size, char* content){
+    ASSERT(getSectionHeader()->inRange(addr));
+    setBytesAtOffset(addr - getSectionHeader()->GET(sh_addr), size, content);
+}
+
+void DataSection::setBytesAtOffset(uint64_t offset, uint32_t size, char* content){
+    ASSERT(offset + size <= getSizeInBytes());
+    ASSERT(rawBytes);
+
+    memcpy(rawBytes + offset, content, size);
 }
 
 DataSection::DataSection(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
     : RawSection(ElfClassTypes_DataSection, rawPtr, size, scnIdx, elf)
 {
-    sectionContents = NULL;
+    rawBytes = NULL;
 }
 
 uint32_t DataSection::read(BinaryInputFile* b){
     ASSERT(sizeInBytes);
-    ASSERT(!sectionContents);
+    ASSERT(!rawBytes);
 
-    sectionContents = new char[sizeInBytes];
-    memcpy(sectionContents, rawDataPtr, sizeInBytes);
+    rawBytes = new char[sizeInBytes];
+    memcpy(rawBytes, rawDataPtr, sizeInBytes);
 
     verify();
     return sizeInBytes;
@@ -52,8 +80,8 @@ void DataReference::print(){
 }
 
 DataSection::~DataSection(){
-    if (sectionContents){
-        delete[] sectionContents;
+    if (rawBytes){
+        delete[] rawBytes;
     }
 }
 
@@ -62,7 +90,6 @@ RawSection::~RawSection(){
         delete dataReferences[i];
     }
 }
-
 
 DataReference::DataReference(uint64_t dat, RawSection* rawsect, uint32_t addrAlign, uint64_t off)
     : Base(ElfClassTypes_DataReference)
@@ -137,7 +164,7 @@ SectionHeader* RawSection::getSectionHeader(){
 }
 
 bool DataSection::verify(){
-    if (!sectionContents){
+    if (!rawBytes){
         PRINT_ERROR("Data section should have bits");
         return false;
     }
@@ -153,7 +180,9 @@ bool DataSection::verify(){
 }
 
 void DataSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    binaryOutputFile->copyBytes(getSectionContents(), getSizeInBytes(), offset);
+    binaryOutputFile->copyBytes(charStream(), getSizeInBytes(), offset);
+    PRINT_INFOR("dumping data section of %d bytes at offset %#x", getSizeInBytes(), offset);
+    printBytes(0,0);
     for (uint32_t i = 0; i < dataReferences.size(); i++){
         dataReferences[i]->dump(binaryOutputFile,offset);
     }
@@ -177,28 +206,8 @@ void RawSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 void RawSection::printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine){
-    if (bytesPerWord <= 0){
-        bytesPerWord = 8;
-    }
-    if (bytesPerLine <= 0){
-        bytesPerLine = 64;
-    }
-    
-    uint32_t currByte = 0;
-
     fprintf(stdout, "\n");
     PRINT_INFOR("Raw bytes for section %d:", sectionIndex);
-    for (currByte = 0; currByte < sizeInBytes; currByte++){     
-        if (currByte % bytesPerLine == 0){
-            if (currByte){
-                fprintf(stdout, "\n");
-            }
-            fprintf(stdout, "(%16llx) %8x: ", getSectionHeader()->GET(sh_offset)+currByte, currByte);
-        } else if (currByte && currByte % bytesPerWord == 0){
-            fprintf(stdout, " ");
-        }
-        fprintf(stdout, "%02hhx", *(char*)(rawDataPtr + currByte));
-    }
-    fprintf(stdout, "\n");
+    printBufferPretty(charStream(), getSizeInBytes(), getSectionHeader()->GET(sh_offset), bytesPerWord, bytesPerLine);
 }
 

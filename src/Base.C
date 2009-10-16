@@ -1,5 +1,29 @@
 #include <Base.h>
 
+void printBufferPretty(char* buff, uint32_t sizeInBytes, uint64_t baseAddress, uint32_t bytesPerWord, uint32_t bytesPerLine){
+    if (bytesPerWord <= 0){
+        bytesPerWord = 8;
+    }
+    if (bytesPerLine <= 0){
+        bytesPerLine = 64;
+    }
+    
+    uint32_t currByte = 0;
+    
+    for (currByte = 0; currByte < sizeInBytes; currByte++){
+        if (currByte % bytesPerLine == 0){
+            if (currByte){
+                fprintf(stdout, "\n");
+            }
+            fprintf(stdout, "(%16llx) %8x: ", baseAddress + currByte, currByte);
+        } else if (currByte && currByte % bytesPerWord == 0){
+            fprintf(stdout, " ");
+        }
+        fprintf(stdout, "%02hhx", *(char*)(buff + currByte));
+    }
+    fprintf(stdout, "\n");
+}
+
 bool isHexNumeral(char c1){
     if (c1 >= '0' && c1 <= '9'){
         return true;
