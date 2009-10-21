@@ -377,6 +377,7 @@ uint64_t TextSection::findInstrumentationPoint(uint32_t size, InstLocations loc)
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         if (sortedTextObjects[i]->getType() == ElfClassTypes_Function){
             Function* f = (Function*)sortedTextObjects[i];
+
             uint64_t instAddress = f->findInstrumentationPoint(size,loc);
             if (instAddress){
                 return instAddress;
@@ -526,7 +527,7 @@ void TextSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
 
     char* buff = new char[getSizeInBytes()];
-    memset(buff, 0x90, getSizeInBytes());
+    memset(buff, 0x00, getSizeInBytes());
     binaryOutputFile->copyBytes(buff, getSizeInBytes(), offset);
     delete[] buff;
 

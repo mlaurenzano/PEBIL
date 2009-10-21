@@ -10,6 +10,17 @@
 
 static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
 
+uint64_t CodeBlock::getProgramAddress(){
+    ASSERT(instructions.size());
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (IS_BYTE_SOURCE_APPLICATION(instructions[i]->getByteSource())){
+            return instructions[i]->getProgramAddress();
+        }
+    }
+    __SHOULD_NOT_ARRIVE;
+    return 0;
+}
+
 void BasicBlock::findCompareAndCBranch(){
     if (instructions.size() < 2){
         ASSERT(instructions.size());
@@ -25,7 +36,38 @@ void BasicBlock::findCompareAndCBranch(){
     return;
 }
 
-uint32_t BasicBlock::bloat(uint32_t minBlockSize){
+uint32_t BasicBlock::bloat(BloatTypes bloatType){
+    PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx", baseAddress);
+
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        // convert all branches to use 4byte operands (ensuring that they cover at least 5 bytes and giving them
+        // much larger immediate range)
+        if (instructions[i]->isControl() && !instructions[i]->isReturn()){
+            if (instructions[i]->bytesUsedForTarget() < sizeof(uint32_t)){
+                PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", instructions[i]->bytesUsedForTarget());
+                instructions[i]->convertTo4ByteTargetOperand();
+            }
+        }
+    }
+
+    if (bloatType == BloatType_BasicBlock){
+        for (uint32_t i = 0; i < SIZE_NEEDED_AT_INST_POINT; i++){
+            instructions.insert(InstructionGenerator::generateNoop(), 0);
+        }
+    } else if (bloatType == BloatType_MemoryInstruction){
+        __SHOULD_NOT_ARRIVE;
+    } else {
+        PRINT_ERROR("Unrecognized bloat type %d", bloatType);
+        __SHOULD_NOT_ARRIVE;
+    }
+
+    setBaseAddress(getBaseAddress());
+
+    return getNumberOfBytes();
+}
+
+/*
+uint32_t BasicBlock::bloat(BloatTypes bloatType){
 
     PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx", baseAddress);
 
@@ -59,10 +101,10 @@ uint32_t BasicBlock::bloat(uint32_t minBlockSize){
     }
 
     // pad with noops if necessary
-    if (getNumberOfBytes() < minBlockSize){
-        PRINT_DEBUG_FUNC_RELOC("\tblock at %#llx is only %d bytes, adding %d noops", getBaseAddress(), getNumberOfBytes(), minBlockSize - getNumberOfBytes());
+    if (getNumberOfBytes() < SIZE_NEEDED_AT_INST_POINT){
+        PRINT_DEBUG_FUNC_RELOC("\tblock at %#llx is only %d bytes, adding %d noops", getBaseAddress(), getNumberOfBytes(), SIZE_NEEDED_AT_INST_POINT - getNumberOfBytes());
     }
-    while (getNumberOfBytes() < minBlockSize){
+    while (getNumberOfBytes() < SIZE_NEEDED_AT_INST_POINT){
         PRINT_DEBUG_FUNC_RELOC("\t\tadding nop at p%d", instructions.size());
         instructions.append(InstructionGenerator::generateNoop());
     }
@@ -71,6 +113,7 @@ uint32_t BasicBlock::bloat(uint32_t minBlockSize){
 
     return getNumberOfBytes();
 }
+*/
 
 uint32_t BasicBlock::getNumberOfIntegerOps(){
     uint32_t intCount = 0;

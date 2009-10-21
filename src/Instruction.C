@@ -11,7 +11,7 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
-#define PRINT_INSTRUCTION_DETAIL
+//#define PRINT_INSTRUCTION_DETAIL
 
 // base and index regs are saved and restored by the caller
 Vector<Instruction*>* MemoryOperand::generateBufferedAddressCalculation(uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t bufferSize){
@@ -1053,6 +1053,9 @@ bool Instruction::usesIndirectAddress(){
             if (operands[i]->getType() == UD_OP_MEM){
                 return true;
             }
+            if (operands[i]->getType() == UD_OP_REG){
+                return true;
+            }
         }
     }
     return false;
@@ -2069,6 +2072,7 @@ void Instruction::print(){
     }
     PRINT_INFOR("General Purpose Register usage -- [%s]", regs);
 
+    delete usedRegs;
 #endif // PRINT_INSTRUCTION_DETAIL
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){

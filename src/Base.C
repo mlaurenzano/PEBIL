@@ -19,7 +19,8 @@ void printBufferPretty(char* buff, uint32_t sizeInBytes, uint64_t baseAddress, u
         } else if (currByte && currByte % bytesPerWord == 0){
             fprintf(stdout, " ");
         }
-        fprintf(stdout, "%02hhx", *(char*)(buff + currByte));
+        char* currBuff = (char*)(buff + currByte);
+        fprintf(stdout, "%02hhx", *currBuff);
     }
     fprintf(stdout, "\n");
 }
@@ -188,7 +189,7 @@ extern uint64_t nextAlignAddress(uint64_t addr, uint32_t align){
     if (align > addr){
         return align;
     }
-    ASSERT(isPowerOfTwo(align) && "alignment must be a power of 2 to call this function");
+    ASSERT(isPowerOfTwo(align) && "alignment must be a power of 2");
     int32_t pow = -1;
     uint32_t tmp = align;
     while (tmp > 0){

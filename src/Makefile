@@ -1,6 +1,6 @@
 DBG         = -g
 #PROFILE     = -pg
-OPT         = -O0
+OPT         = -O3
 #CFLAGS      = -bmaxdata:0x80000000 $(DBG) $(OPT)
 NATIVE_CPP  = CC
 GNU_CPP     = g++
@@ -13,7 +13,7 @@ AR          = ar rus
 RANLIB      = ranlib
 
 
-INCLUDE     = -I../include -I../external/udis86-1.7/# -I../external/udis86-1.7/include/libudis86
+INCLUDE     = -I../include -I../external/udis86-1.7/
 SRCDIR      = ../src
 BINDIR      = ../bin
 LIBDIR      = ../lib

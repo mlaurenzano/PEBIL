@@ -13,7 +13,7 @@
 #define EXIT_FUNCTION "blockcounter"
 #define INST_LIB_NAME "libcounter.so"
 #define INST_SUFFIX "jbbinst"
-#define NOSTRING "__no_string__"
+#define NOSTRING "__pebil_no_string__"
 
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf, char* inputFuncList)
     : InstrumentationTool(elf, inputFuncList)
@@ -23,6 +23,9 @@ BasicBlockCounter::BasicBlockCounter(ElfFile* elf, char* inputFuncList)
 
     entryFunc = NULL;
     exitFunc = NULL;
+
+    // opens enough space for an instrumentation point in each basic block
+    bloatType = BloatType_BasicBlock;
 }
 
 void BasicBlockCounter::declare(){
@@ -108,8 +111,8 @@ void BasicBlockCounter::instrument(){
 
     // the number of inst points
     entryFunc->addArgument(counterArrayEntries);
-    uint64_t ninstpoints64 = (uint64_t)numberOfInstPoints;
-    initializeReservedData(dataBaseAddress + counterArrayEntries, sizeof(uint64_t), &ninstpoints64);
+    initializeReservedData(dataBaseAddress + counterArrayEntries, sizeof(uint32_t), &numberOfInstPoints);
+
     // an array for line numbers
     entryFunc->addArgument(lineArray);
     // an array for file name pointers
@@ -120,7 +123,7 @@ void BasicBlockCounter::instrument(){
     entryFunc->addArgument(hashCodeArray);
 
     BasicBlock* entryBlock = getProgramEntryBlock();
-    if (entryBlock->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
+    if (entryBlock->findInstrumentationPoint(SIZE_NEEDED_AT_INST_POINT, InstLocation_dont_care)){
         InstrumentationPoint* p = addInstrumentationPoint(entryBlock, entryFunc, SIZE_CONTROL_TRANSFER);
         p->setPriority(InstPriority_userinit);
     } else {
@@ -153,11 +156,12 @@ void BasicBlockCounter::instrument(){
 
             uint64_t filename = reserveDataOffset(strlen(li->getFileName()) + 1);
             uint64_t filenameAddr = dataBaseAddress + filename;
-            PRINT_INFOR("file name at address %#llx", dataBaseAddress + fileNameArray + i*sizeof(char*));
             initializeReservedData(dataBaseAddress + fileNameArray + i*sizeof(char*), sizeof(char*), &filenameAddr);
             initializeReservedData(dataBaseAddress + filename, strlen(li->getFileName()) + 1, (void*)li->getFileName());
 
         } else {
+            uint32_t zerozero = 0;
+            initializeReservedData(dataBaseAddress + lineArray + sizeof(uint32_t)*i, sizeof(uint32_t), &zerozero);
             initializeReservedData(dataBaseAddress + fileNameArray + i*sizeof(char*), sizeof(char*), &noDataAddr);
         }
         uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
@@ -181,12 +185,10 @@ void BasicBlockCounter::instrument(){
         // the snippet automatically during code generation
             
         // register the snippet we just created
-        addInstrumentationSnippet(snip);
-            
+        addInstrumentationSnippet(snip);            
+        
         // register an instrumentation point at the function that uses this snippet
-            InstrumentationPoint* p = addInstrumentationPoint(bb,snip,SIZE_CONTROL_TRANSFER);
-        if (strcmp(f->getName(),"_start")){
-        }
+        InstrumentationPoint* p = addInstrumentationPoint(bb,snip,SIZE_CONTROL_TRANSFER);
     }
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 

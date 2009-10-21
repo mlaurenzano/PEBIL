@@ -82,19 +82,7 @@ LineInfo* LineInfoFinder::lookupLineInfo(BasicBlock* bb){
     if (!sortedLineInfos.size()){
         return NULL;
     }
-    return lookupLineInfo(bb->getBaseAddress());
-    uint64_t targetAddr = bb->getBaseAddress();
-
-    //    PRINT_DEBUG_LINEINFO("Need to search %d lineinfos", sortedLineInfos.size());
-
-    for (uint32_t i = 0; i < sortedLineInfos.size()-1; i++){
-        //  PRINT_DEBUG_LINEINFO("Searching for address at idx %d -- %llx <= %llx < %llx?", i, sortedLineInfos[i]->GET(lr_address), targetAddr, sortedLineInfos[i+1]->GET(lr_address));
-        if (targetAddr >= sortedLineInfos[i]->GET(lr_address) &&
-            targetAddr < sortedLineInfos[i+1]->GET(lr_address)){
-            return sortedLineInfos[i];
-        }
-    }
-    return NULL;
+    return lookupLineInfo(bb->getProgramAddress());
 }
 
 bool LineInfoFinder::verify(){

@@ -182,8 +182,12 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
                 }
             }
             (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
-            trampolineInstructions.append((*insts)[i]);
-            trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+            if (!(*insts)[i]->isNoop()){
+                trampolineInstructions.append((*insts)[i]);
+                trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+            } else {
+                delete (*insts)[i];
+            }
 #ifdef DEBUG_FUNC_RELOC
             if ((*insts).size()){
                 PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for trampoline", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
@@ -244,6 +248,13 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         }
     }
     delete usedRegs;
+    if (tempReg1 == X86_32BIT_GPRS || tempReg2 == X86_32BIT_GPRS){
+        PRINT_INFOR("Unable to alocate registers");
+        for (uint32_t i = 0; i < (*insts).size(); i++){
+            (*insts)[i]->print();
+        }
+    }
+    
     ASSERT(tempReg1 < X86_32BIT_GPRS && tempReg2 < X86_32BIT_GPRS && "Could not find free registers for this instrumentation point");
     //    PRINT_INFOR("using temp regs %d %d", tempReg1, tempReg2);
 
@@ -343,8 +354,13 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
                 }
             }
             (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
-            trampolineInstructions.append((*insts)[i]);
-            trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+            (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
+            if (!(*insts)[i]->isNoop()){
+                trampolineInstructions.append((*insts)[i]);
+                trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+            } else {
+                delete (*insts)[i];
+            }
 #ifdef DEBUG_FUNC_RELOC
             if ((*insts).size()){
                 PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for trampoline", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
@@ -354,7 +370,7 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         
         ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
 
-        trampolineInstructions.append(InstructionGenerator::generateJumpRelative(offset+trampolineSize,returnOffset));
+        trampolineInstructions.append(InstructionGenerator::generateJumpRelative(offset + trampolineSize, returnOffset));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 

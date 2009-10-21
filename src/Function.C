@@ -40,15 +40,15 @@ void Function::printDisassembly(bool instructionDetail){
     }
 }
 
-uint32_t Function::bloatBasicBlocks(uint32_t minBlockSize){
+uint32_t Function::bloatBasicBlocks(BloatTypes bloatType){
     uint32_t currByte = 0;
     for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
         Block* block = flowGraph->getBlock(i);
-        block->setBaseAddress(baseAddress+currByte);
+        block->setBaseAddress(baseAddress + currByte);
         if (block->getType() == ElfClassTypes_BasicBlock){
-            ((BasicBlock*)block)->bloat(minBlockSize);
+            ((BasicBlock*)block)->bloat(bloatType);
         } 
-        block->setBaseAddress(baseAddress+currByte);
+        block->setBaseAddress(baseAddress + currByte);
         currByte += block->getNumberOfBytes();
     }
     sizeInBytes = currByte;
@@ -61,10 +61,12 @@ bool Function::hasCompleteDisassembly(){
         return false;
     }
 
+    /*
     // if this function calls into the middle of itsself
     if (containsCallToRange(baseAddress+1,baseAddress+getNumberOfBytes())){
         return false;
     }
+    */
 
     // if this function references data that is inside the function body
     uint32_t numberOfInstructions = getNumberOfInstructions();

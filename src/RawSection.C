@@ -10,27 +10,31 @@
 void DataSection::printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine){
     fprintf(stdout, "\n");
     PRINT_INFOR("Raw bytes for DATA section %d:", sectionIndex);
-    //    printBufferPretty(charStream(), getSizeInBytes(), getSectionHeader()->GET(sh_offset), bytesPerWord, bytesPerLine);
-    printBufferPretty(charStream(), 1024, getSectionHeader()->GET(sh_offset), bytesPerWord, bytesPerLine);
+
+    uint32_t printMax = getSectionHeader()->GET(sh_size);
+    if (0x1000 < printMax){
+        printMax = 0x1000;
+    }
+    printBufferPretty(charStream(), printMax, getSectionHeader()->GET(sh_addr), bytesPerWord, bytesPerLine);
 }
 
-void DataSection::setSizeInBytes(uint32_t sz){
-    if (sz != sizeInBytes){
-        char* newBytes = new char[sz];
-        if (sz < sizeInBytes){
-            ASSERT(0 && "We currently don't support shrinking a data section");
-        } else {
-            memcpy(newBytes, rawBytes, sizeInBytes);
-            bzero(newBytes + sizeInBytes, sz - sizeInBytes);
-        }
-        delete[] rawBytes;
-        rawBytes = newBytes;
-        sizeInBytes = sz;
-    }
+uint32_t DataSection::extendSize(uint32_t sz){
+    char* newBytes = new char[sz + sizeInBytes];
+    bzero(newBytes, sz + sizeInBytes);
+
+    memcpy(newBytes, rawBytes, sizeInBytes);
+
+    delete[] rawBytes;
+    rawBytes = newBytes;
+    sizeInBytes += sz;
+
+    return sizeInBytes;
 }
 
 void DataSection::setBytesAtAddress(uint64_t addr, uint32_t size, char* content){
     ASSERT(getSectionHeader()->inRange(addr));
+    ASSERT(size);
+    ASSERT(getSectionHeader()->inRange(addr + size - 1));
     setBytesAtOffset(addr - getSectionHeader()->GET(sh_addr), size, content);
 }
 
@@ -52,7 +56,11 @@ uint32_t DataSection::read(BinaryInputFile* b){
     ASSERT(!rawBytes);
 
     rawBytes = new char[sizeInBytes];
-    memcpy(rawBytes, rawDataPtr, sizeInBytes);
+    if (getSectionHeader()->GET(sh_type) == SHT_NOBITS){
+        bzero(rawBytes, sizeInBytes);
+    } else {
+        memcpy(rawBytes, rawDataPtr, sizeInBytes);
+    }
 
     verify();
     return sizeInBytes;
@@ -181,8 +189,7 @@ bool DataSection::verify(){
 
 void DataSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     binaryOutputFile->copyBytes(charStream(), getSizeInBytes(), offset);
-    PRINT_INFOR("dumping data section of %d bytes at offset %#x", getSizeInBytes(), offset);
-    printBytes(0,0);
+
     for (uint32_t i = 0; i < dataReferences.size(); i++){
         dataReferences[i]->dump(binaryOutputFile,offset);
     }

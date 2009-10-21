@@ -21,6 +21,7 @@ CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFuncList)
     sprintf(instSuffix,"%s\0", INST_SUFFIX);
 
     simFunc = NULL;
+    bloatType = BloatType_MemoryInstruction;
 }
 
 void CacheSimulation::declare(){
