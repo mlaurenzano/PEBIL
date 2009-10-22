@@ -2,7 +2,7 @@
 64BITPROGS_PAR = xmesh_specfem3D.pgi hycom.standard wrf.standard
 32BITPROGS_SER = cTest.gnu cppTest.gnu htcoef.gnu dynTest.gnu
 32BITPROGS_PAR =
-X86INSTREGEXP  = "(Instrumentation Successfull)"
+PEBILREGEXP  = "(Instrumentation Successfull)"
 DIFFREGEXP     = "are identical"
 TESTAPPREGEXP  = "(Test Application Successfull)"
 INSTCODEREGEXP = "(Instrumentation Code Successfull)"
@@ -12,7 +12,7 @@ TESTBINS       = .
 32BITBIN       = $(TESTBINS)/32bit/
 64BITBIN       = $(TESTBINS)/64bit/
 #LEAKCHECK      = valgrind --leak-check=yes
-INSTRUMENTOR   = $(LEAKCHECK) $(BIN)/x86inst
+INSTRUMENTOR   = $(LEAKCHECK) $(BIN)/pebil
 INSTFLAGS      = --lib ../../lib --dtl
 IDEEXT         = ideinst
 FNCEXT         = fncinst
@@ -44,21 +44,21 @@ clean:
 
 ide32:
 	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ ide $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ ide $(INSTFLAGS) | egrep $(PEBILREGEXP); \
 		diff -s $(32BITBIN)/"$$i" $(32BITBIN)/"$$i".$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(32BITBIN)/*.$(IDEEXT)
 
 ide64:
 	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ ide $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ ide $(INSTFLAGS) | egrep $(PEBILREGEXP); \
 		diff -s $(64BITBIN)/"$$i" $(64BITBIN)/"$$i".$(IDEEXT) | egrep $(DIFFREGEXP); \
 	done
 	rm -f $(64BITBIN)/*.$(IDEEXT)
 
 fnc32inst:
 	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ fnc $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ fnc $(INSTFLAGS) | egrep $(PEBILREGEXP); \
 	done
 
 fnc32run:
@@ -68,7 +68,7 @@ fnc32run:
 
 fnc32ide:
 	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(FNCEXT) --typ ide $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(FNCEXT) --typ ide $(INSTFLAGS) | egrep $(PEBILREGEXP); \
 	done
 	rm -f $(32BITBIN)/*.$(IDEEXT)
 
@@ -77,7 +77,7 @@ fnc32rm:
 
 fnc64inst:
 	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ fnc $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ fnc $(INSTFLAGS) | egrep $(PEBILREGEXP); \
 	done
 
 fnc64run:
@@ -87,7 +87,7 @@ fnc64run:
 
 fnc64ide:
 	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(FNCEXT) --typ ide $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(FNCEXT) --typ ide $(INSTFLAGS) | egrep $(PEBILREGEXP); \
 	done
 	rm -f $(64BITBIN)/*.$(IDEEXT)
 
@@ -97,7 +97,7 @@ fnc64rm:
 
 jbb32inst:
 	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ jbb $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ jbb $(INSTFLAGS) | egrep $(PEBILREGEXP); \
 	done
 
 jbb32run:
@@ -107,7 +107,7 @@ jbb32run:
 
 jbb32ide:
 	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(JBBEXT) --typ ide $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(JBBEXT) --typ ide $(INSTFLAGS) | egrep $(PEBILREGEXP); \
 	done
 	rm -f $(32BITBIN)/*.$(IDEEXT)
 
@@ -116,7 +116,7 @@ jbb32rm:
 
 jbb64inst:
 	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ jbb $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i" --typ jbb $(INSTFLAGS) | egrep $(PEBILREGEXP); \
 	done
 
 jbb64run:
@@ -126,7 +126,7 @@ jbb64run:
 
 jbb64ide:
 	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(JBBEXT) --typ ide $(INSTFLAGS) | egrep $(X86INSTREGEXP); \
+		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(JBBEXT) --typ ide $(INSTFLAGS) | egrep $(PEBILREGEXP); \
 	done
 	rm -f $(64BITBIN)/*.$(IDEEXT)
 

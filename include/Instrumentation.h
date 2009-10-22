@@ -93,17 +93,7 @@ public:
 
 };
 
-typedef enum {
-    ArgumentType_undefined = 0,
-    ArgumentType_RegCompute,
-    ArgumentType_Address,
-    ArgumentType_Total_Types
-} ArgumentTypes;
-
-
 typedef struct {
-    uint32_t type;
-    uint32_t value;
     uint64_t offset;
 } Argument;
 
@@ -127,8 +117,6 @@ protected:
     uint64_t relocationOffset;
 
     Vector<Argument> arguments;
-
-    uint32_t addRawArgument(uint32_t type, uint32_t value, uint64_t offset);
 
 public:
     InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset, uint64_t fEntry);
@@ -168,9 +156,7 @@ public:
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
-    uint32_t addArgumentAddress(uint64_t offset);
-    uint32_t addArgumentAddress(uint64_t offset, uint32_t value);
-    uint32_t addArgumentRegCompute(uint64_t offset, uint32_t reg);
+    uint32_t addArgument(uint64_t offset);
 
     uint64_t getEntryPoint();
 

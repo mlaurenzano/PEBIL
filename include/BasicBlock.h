@@ -46,6 +46,8 @@ public:
     uint32_t getNumberOfBytes();
     Instruction* getInstructionAtAddress(uint64_t addr);
 
+    uint64_t getProgramAddress();
+
     uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
     uint32_t getNumberOfInstructions() { return instructions.size(); }
     Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }
@@ -97,7 +99,7 @@ public:
     BasicBlock(uint32_t idx, FlowGraph* cfg);
     ~BasicBlock() {}
 
-    uint32_t bloat(uint32_t minBlockSize);
+    uint32_t bloat(BloatTypes bloatType);
 
     bool containsOnlyControl();
     bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);

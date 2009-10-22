@@ -55,13 +55,13 @@ public:
     virtual bool verify();
 
     char* charStream(uint32_t offset) { ASSERT(offset < sizeInBytes); return (char*)(rawDataPtr+offset); }
-    char* charStream() { return rawDataPtr; }
+    virtual char* charStream() { return rawDataPtr; }
     char* getFilePointer() { return rawDataPtr; }
     char* getStreamAtAddress(uint64_t addr);
     uint64_t getAddressFromOffset(uint32_t offset);
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-    void printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine);
+    virtual void printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine);
     uint32_t addDataReference(DataReference* dr) { dataReferences.append(dr); return dataReferences.size(); }
 
     SectionHeader* getSectionHeader();
@@ -74,18 +74,18 @@ public:
 
 class DataSection : public RawSection {
 protected:
-    char* sectionContents;
+    char* rawBytes;
 
 public:
     DataSection(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf);
     ~DataSection();
 
-    char* getSectionContents() { return sectionContents; }
+    char* charStream() { return rawBytes; }
+    void printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine);
 
-    void setSectionContents(char* content);
-    void setSizeInBytes(uint32_t sz) { sizeInBytes = sz; }
-    void setContentsAtAddress(uint64_t addr, uint32_t size, char* buff);
-    void setContentsAtOffset(uint64_t offset, uint32_t size, char* buff);
+    uint32_t extendSize(uint32_t sz);
+    void setBytesAtAddress(uint64_t addr, uint32_t size, char* buff);
+    void setBytesAtOffset(uint64_t offset, uint32_t size, char* buff);
 
     uint32_t read(BinaryInputFile* b);
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);

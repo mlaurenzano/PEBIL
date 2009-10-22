@@ -52,7 +52,7 @@ public:
     uint64_t getRawDataSize() { return GET(sh_size); }
 
     uint16_t getIndex() { return index; }
-    bool inRange(uint64_t address);
+    bool inRange(uint64_t addr);
 
     void setIndex(uint16_t newidx) { index = newidx; }
 };

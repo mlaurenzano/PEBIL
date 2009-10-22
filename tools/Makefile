@@ -1,6 +1,6 @@
 DBG           = -g
 #PROFILE       = -pg
-OPT           = -O0
+OPT           = -O3
 NATIVE_CPP    = CC
 GNU_CPP       = g++
 CFLAGS        = $(DBG) $(OPT) $(PROFILE)##--save-temps
@@ -20,7 +20,7 @@ quickdump : quickdump.o
 	$(CPP) $(CFLAGS) -o $@ quickdump.o $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS)
 
 pebil : main.o
-	$(CPP) $(CFLAGS) -o $@ main.o $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS)
+	$(CPP) $(CFLAGS) -o $@ main.o $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS) $(PEBIL_LD_FLAGS)
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< $(INCLUDE) $(EXTRA_INC)

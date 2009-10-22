@@ -47,6 +47,8 @@ typedef enum {
 class ElfFileInst {
 private:
     ElfFile* elfFile;
+
+    BasicBlock* programEntryBlock;
     Vector<Function*> hiddenFunctions;
 
     Vector<InstrumentationSnippet*> instrumentationSnippets;
@@ -69,6 +71,8 @@ private:
     uint64_t bssReserved;
     uint64_t regStorageOffset;
     uint64_t regStorageReserved;
+
+    uint64_t relocatedTextSize;
 
     STATS(uint64_t dataBytesInit);
     STATS(uint64_t textBytesUsed);
@@ -93,6 +97,7 @@ protected:
     Vector<char*> disabledFunctions;
 
     uint32_t currentPhase;
+    BloatTypes bloatType;
 
     char* instSuffix;
     char* sharedLibraryPath;
@@ -158,6 +163,9 @@ public:
 
     uint64_t reserveDataOffset(uint64_t size);
     uint32_t initializeReservedData(uint64_t address, uint32_t size, void* data);
+
+    void functionSelect();
+    uint64_t functionRelocateAndTransform();
 
     InstrumentationFunction* declareFunction(char* funcName);
     uint32_t declareLibrary(char* libName);

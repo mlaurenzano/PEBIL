@@ -286,6 +286,9 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 #endif
 
+#define MINIMUM(I,J) ((I) < (J) ? : (I) : (J))
+
+
 #define Invalid_UInteger_ID                 (uint32_t)-1
 #define Size__32_bit_File_Header            sizeof(Elf32_Ehdr)
 #define Size__64_bit_File_Header            sizeof(Elf64_Ehdr)
@@ -340,6 +343,13 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 #define HAS_PRINT_CODE(__value,__Print_Code) ((__value & __Print_Code) || (__value & Print_Code_All))
 #define SET_PRINT_CODE(__value,__Print_Code) (__value |= __Print_Code)
+
+typedef enum {
+    BloatType_undefined = 0,
+    BloatType_BasicBlock,
+    BloatType_MemoryInstruction,
+    BloatType_Total_Types
+} BloatTypes;
 
 typedef enum {
     InstLocation_dont_care = 0,
@@ -531,6 +541,7 @@ extern int64_t absoluteValue(uint64_t d);
 extern int32_t scmp(const void *a, const void *b);
 
 extern char mapCharsToByte(char c1, char c2);
+extern void printBufferPretty(char* buff, uint32_t sizeInBytes, uint64_t baseAddress, uint32_t bytesPerWord, uint32_t bytesPerLine);
 
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)
