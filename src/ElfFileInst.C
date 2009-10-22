@@ -40,7 +40,7 @@ uint32_t readBytes = 0;
 //#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
-#define VALIDATE_ANCHOR_SEARCH
+//#define VALIDATE_ANCHOR_SEARCH
 
 #ifdef BLOAT_MOD
 uint32_t bloatCount = 0;
@@ -677,6 +677,10 @@ BasicBlock* ElfFileInst::getProgramEntryBlock(){
 
 // the order of operations in this function in very important, things will break if they are changed
 void ElfFileInst::generateInstrumentation(){
+#ifndef VALIDATE_ANCHOR_SEARCH
+    PRINT_INFOR("Not validating anchor search, if problems are encountered try enabling VALIDATE_ANCHOR_SEARCH in %s", __FILE__);
+#endif
+
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
     STATS(gatherCoverageStats(false, "Coverage before relocation"));
