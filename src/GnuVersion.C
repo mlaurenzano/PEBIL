@@ -80,7 +80,7 @@ void GnuVerneedTable::print(){
 void GnuVerneedTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
     for (uint32_t i = 0; i < verneeds.size(); i++){
-        binaryOutputFile->copyBytes(verneeds[i]->charStream(),entrySize,offset+currByte);
+        binaryOutputFile->copyBytes(verneeds[i]->charStream(), entrySize, offset + currByte);
         currByte += entrySize;
     }
 
@@ -160,9 +160,10 @@ void GnuVersymTable::print(){
 
 void GnuVersymTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
-
     for (uint32_t i = 0; i < versyms.size(); i++){
-        binaryOutputFile->copyBytes(getFilePointer()+entrySize*i,entrySize,offset+currByte);
+        ASSERT(entrySize == sizeof(uint16_t) && "Unexpected Gnu versym table entry size");
+        uint16_t versym = versyms[i];
+        binaryOutputFile->copyBytes((char*)&versym, entrySize, offset + currByte);
         currByte += entrySize;
     }
     ASSERT(currByte == sizeInBytes && "Size written to file does not match theoretical size");

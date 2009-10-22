@@ -354,8 +354,6 @@ Instruction* InstructionGenerator32::generateAddImmByteToMem(uint8_t imm, uint64
 }
 
 Instruction* InstructionGenerator64::generateAddImmByteToMem(uint8_t imm, uint64_t addr){
-    __SHOULD_NOT_ARRIVE; // i think there is a bug here but I'm writing the paper and don't have time to fix it ATM
-
     uint32_t len = 8;
     char* buff = new char[len];
 
