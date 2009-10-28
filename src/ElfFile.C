@@ -27,6 +27,10 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
+DataSection* ElfFile::getDotDataSection(){
+    return (DataSection*)getRawSection(findSectionIdx(".data"));
+}
+
 void ElfFile::gatherDisassemblyStats(){
     STATS(totalFunctions = 0);
     STATS(totalBlocks = 0);
@@ -200,7 +204,7 @@ bool ElfFile::verify(){
     while (addrs.size()){
         currSize = addrs.deleteMin(&currBegin);
         //        PRINT_INFOR("Verifying address ranges [%llx,%llx],[%llx,%llx]", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
-        if (prevBegin+prevSize > currBegin && currSize != 0){
+        if (prevBegin + prevSize > currBegin && currSize != 0){
             PRINT_ERROR("Address ranges [%llx,%llx],[%llx,%llx] should not intersect", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
             return false;
         }
@@ -554,21 +558,23 @@ void ElfFile::initDynamicFilePointers(){
     ASSERT(gotBaseAddress && "Cannot find a symbol for the global offset table");
 
     // find the global offset table
-    uint16_t gotSectionIdx = 0;
+    uint16_t gotSectionIdx = findSectionIdx(gotBaseAddress);
+    /*
     for (uint32_t i = 0; i < getNumberOfSections(); i++){
         if (sectionHeaders[i]->inRange(gotBaseAddress)){
             ASSERT(!gotSectionIdx && "Cannot have multiple global offset tables");
             gotSectionIdx = i;
         }
     }
+    */
     ASSERT(gotSectionIdx && "Cannot find a section for the global offset table");
     ASSERT(getSectionHeader(gotSectionIdx)->GET(sh_type) == SHT_PROGBITS && "Global Offset Table section header is wrong type");
 
 
-    // The raw section for the global offset table should already have been initialized as a generic RawSection
+    // The raw section for the global offset table should already have been initialized as a generic DataSection
     // we will destroy it and create it as a GlobalOffsetTable
     ASSERT(rawSections[gotSectionIdx] && "Global Offset Table not yet created");
-    ASSERT(sectionHeaders[gotSectionIdx]->getSectionType() == ElfClassTypes_RawSection);
+    ASSERT(sectionHeaders[gotSectionIdx]->getSectionType() == ElfClassTypes_DataSection);
     delete rawSections[gotSectionIdx];
     
     char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[gotSectionIdx]->GET(sh_offset));
@@ -1089,9 +1095,8 @@ void ElfFile::readRawSections(){
             gnuVersymTable = (GnuVersymTable*)rawSections.back();
             break;
         case ElfClassTypes_DataSection:
-            ASSERT(!bssSection && "Cannot have more than one bss section");
             rawSections.append(new DataSection(sectionFilePtr, sectionSize, i, this));
-            bssSection = (DataSection*)rawSections.back();
+            dataSections.append((DataSection*)rawSections.back());
             break;
         default:
             rawSections.append(new RawSection(ElfClassTypes_RawSection, sectionFilePtr, sectionSize, i, this));

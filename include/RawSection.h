@@ -61,7 +61,7 @@ public:
     uint64_t getAddressFromOffset(uint32_t offset);
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-    virtual void printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine);
+    virtual void printBytes(uint64_t offset, uint32_t bytesPerWord, uint32_t bytesPerLine);
     uint32_t addDataReference(DataReference* dr) { dataReferences.append(dr); return dataReferences.size(); }
 
     SectionHeader* getSectionHeader();
@@ -81,7 +81,8 @@ public:
     ~DataSection();
 
     char* charStream() { return rawBytes; }
-    void printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine);
+    void printBytes(uint64_t offset, uint32_t bytesPerWord, uint32_t bytesPerLine);
+    void printBytes() { printBytes(0,0,0); }
 
     uint32_t extendSize(uint32_t sz);
     void setBytesAtAddress(uint64_t addr, uint32_t size, char* buff);

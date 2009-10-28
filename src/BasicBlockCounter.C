@@ -15,6 +15,8 @@
 #define INST_SUFFIX "jbbinst"
 #define NOSTRING "__pebil_no_string__"
 
+uint32_t zerozero = 0;
+
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf, char* inputFuncList)
     : InstrumentationTool(elf, inputFuncList)
 {
@@ -90,6 +92,10 @@ void BasicBlockCounter::instrument(){
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
     // an array of counters. note that everything is passed by reference
     uint64_t counterArray = reserveDataOffset(numberOfInstPoints * sizeof(uint32_t));
+    for (uint32_t i = 0; i < numberOfInstPoints; i++){
+        initializeReservedData(dataBaseAddress + counterArray + i*sizeof(uint32_t), sizeof(uint32_t), &zerozero);
+    }
+
     uint64_t lineArray = reserveDataOffset(numberOfInstPoints * sizeof(uint32_t));
     uint64_t fileNameArray = reserveDataOffset(numberOfInstPoints * sizeof(char*));
     uint64_t funcNameArray = reserveDataOffset(numberOfInstPoints * sizeof(char*));
@@ -160,7 +166,6 @@ void BasicBlockCounter::instrument(){
             initializeReservedData(dataBaseAddress + filename, strlen(li->getFileName()) + 1, (void*)li->getFileName());
 
         } else {
-            uint32_t zerozero = 0;
             initializeReservedData(dataBaseAddress + lineArray + sizeof(uint32_t)*i, sizeof(uint32_t), &zerozero);
             initializeReservedData(dataBaseAddress + fileNameArray + i*sizeof(char*), sizeof(char*), &noDataAddr);
         }

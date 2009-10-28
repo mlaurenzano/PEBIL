@@ -7,15 +7,15 @@
 #include <Instruction.h>
 #include <SectionHeader.h>
 
-void DataSection::printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine){
+void DataSection::printBytes(uint64_t offset, uint32_t bytesPerWord, uint32_t bytesPerLine){
     fprintf(stdout, "\n");
     PRINT_INFOR("Raw bytes for DATA section %d:", sectionIndex);
 
     uint32_t printMax = getSectionHeader()->GET(sh_size);
-    if (0x1000 < printMax){
-        printMax = 0x1000;
+    if (0x400 < printMax){
+        printMax = 0x400;
     }
-    printBufferPretty(charStream(), printMax, getSectionHeader()->GET(sh_addr), bytesPerWord, bytesPerLine);
+    printBufferPretty(charStream() + offset, printMax, getSectionHeader()->GET(sh_addr) + offset, bytesPerWord, bytesPerLine);
 }
 
 uint32_t DataSection::extendSize(uint32_t sz){
@@ -212,9 +212,9 @@ void RawSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     }
 }
 
-void RawSection::printBytes(uint32_t bytesPerWord, uint32_t bytesPerLine){
+void RawSection::printBytes(uint64_t offset, uint32_t bytesPerWord, uint32_t bytesPerLine){
     fprintf(stdout, "\n");
     PRINT_INFOR("Raw bytes for section %d:", sectionIndex);
-    printBufferPretty(charStream(), getSizeInBytes(), getSectionHeader()->GET(sh_offset), bytesPerWord, bytesPerLine);
+    printBufferPretty(charStream() + offset, getSizeInBytes(), getSectionHeader()->GET(sh_offset) + offset, bytesPerWord, bytesPerLine);
 }
 

@@ -67,12 +67,15 @@ private:
     uint16_t dataIdx;
 
     uint64_t usableDataOffset;
-    uint64_t bssOffset;
-    uint64_t bssReserved;
     uint64_t regStorageOffset;
     uint64_t regStorageReserved;
-
+    uint64_t programDataSize;
+    uint64_t programBssSize;
+    uint64_t systemReservedBss;
+    
     uint64_t relocatedTextSize;
+    char* instrumentationData;
+    uint64_t instrumentationDataSize;
 
     STATS(uint64_t dataBytesInit);
     STATS(uint64_t textBytesUsed);
@@ -113,6 +116,7 @@ protected:
     uint64_t getProgramBaseAddress();
     void extendTextSection(uint64_t size);
     void extendDataSection(uint64_t size);
+    void buildInstrumentationData();
     void generateInstrumentation();
     uint32_t relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation);
     bool isEligibleFunction(Function* func);

@@ -17,10 +17,11 @@ public:
     static Instruction* generateCallRelative(uint64_t addr, uint64_t tgt);
     static Instruction* generateReturn();
 
-    static Instruction* generateStringMove(bool repeat);
     static Instruction* generateSetDirectionFlag(bool backward);
     static Instruction* generateMoveImmToSegmentReg(uint64_t imm, uint32_t idx);
     static Instruction* generateSTOSByte(bool repeat);
+    static Instruction* generateSTOSWord(bool repeat);
+    static Instruction* generateMoveString(bool repeat);
 
     static Instruction* generatePushEflags();
     static Instruction* generatePopEflags();

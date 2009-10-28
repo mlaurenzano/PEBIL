@@ -919,7 +919,6 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
     }
     ASSERT(dataSection);
     if (!dataSection->getSectionHeader()->hasBitsInFile()){
-        dataSection->getSectionHeader()->print();
         return;
     }
     ASSERT(dataSection->getSectionHeader()->hasBitsInFile());

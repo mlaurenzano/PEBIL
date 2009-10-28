@@ -45,7 +45,7 @@ void DwarfLineInfoSection::print(){
 
     PRINT_INFOR("Dwarf Line Info Section (%d)", getSectionIndex());
 
-    printBytes(0,0);
+    printBytes(0,0,0);
 
     for (uint32_t i = 0; i < lineInfoTables.size(); i++){
         lineInfoTables[i]->print();

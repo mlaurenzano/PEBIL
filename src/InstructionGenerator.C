@@ -543,24 +543,37 @@ Instruction* InstructionGenerator::generateSetDirectionFlag(bool backward){
 }
 
 Instruction* InstructionGenerator::generateSTOSByte(bool repeat){
-    ASSERT(!repeat && "Repeat prefix not implemented yet for this instruction");
-    uint32_t len = 1;
-    char* buff = new char[len];
-    buff[0] = 0xaa;
-
-    return generateInstructionBase(len,buff);
-}
-
-Instruction* InstructionGenerator::generateStringMove(bool repeat){
     uint32_t len = 1;
     if (repeat){
         len++;
     }
     char* buff = new char[len];
-    buff[len-1] = 0xa4;
+    buff[0] = 0xf3;
+    buff[len-1] = 0xaa;
+
+    return generateInstructionBase(len,buff);
+}
+
+Instruction* InstructionGenerator::generateSTOSWord(bool repeat){
+    uint32_t len = 1;
     if (repeat){
-        buff[0] = 0xf3;
+        len++;
     }
+    char* buff = new char[len];
+    buff[0] = 0xf3;
+    buff[len-1] = 0xab;
+
+    return generateInstructionBase(len,buff);
+}
+
+Instruction* InstructionGenerator::generateMoveString(bool repeat){
+    uint32_t len = 1;
+    if (repeat){
+        len++;
+    }
+    char* buff = new char[len];
+    buff[0] = 0xf3;
+    buff[len-1] = 0xa5;
 
     return generateInstructionBase(len,buff);
 }

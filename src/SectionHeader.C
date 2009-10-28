@@ -34,6 +34,8 @@ void SectionHeader::setSectionType(){
             sectionType = ElfClassTypes_DwarfSection;
         } else if (hasExecInstrBit()){
             sectionType = ElfClassTypes_TextSection;
+        } else if (hasWriteBit()){
+            sectionType = ElfClassTypes_DataSection;
         }
         break;
     case SHT_SYMTAB:
@@ -55,7 +57,7 @@ void SectionHeader::setSectionType(){
         sectionType = ElfClassTypes_NoteSection;
         break;
     case SHT_NOBITS:
-        sectionType = ElfClassTypes_DataSection;
+        sectionType = ElfClassTypes_no_type;
         break;
     case SHT_REL:
         sectionType = ElfClassTypes_RelocationTable;
@@ -242,7 +244,7 @@ void SectionHeader::print() {
         }
     }
     PRINT_INFOR("\tSflg : %s",tmpstr);
-    PRINT_INFOR("\tSoff : @%llu with %lluB",GET(sh_offset),GET(sh_size));
+    PRINT_INFOR("\tSoff : @%llx with %lluB",GET(sh_offset),GET(sh_size));
     if(GET(sh_addr)){
         PRINT_INFOR("\tSvad : %#llx",GET(sh_addr));
     } else {
