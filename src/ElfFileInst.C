@@ -60,7 +60,7 @@ void ElfFileInst::extendDataSection(uint64_t size){
         bzero(instrumentationData, size);
     }
     for (uint32_t i = 0; i < size; i++){
-        instrumentationData[instrumentationDataSize + i] = i % 0x100;
+        //        instrumentationData[instrumentationDataSize + i] = i % 0x100;
     }
     instrumentationDataSize += size;
 }
@@ -757,6 +757,8 @@ void ElfFileInst::generateInstrumentation(){
 
     instrumentationPoints.sort(compareSourceAddress);
 
+    PRINT_DEBUG_DATA_PLACEMENT("Register storage is at address %#llx", getExtraDataAddress() + regStorageOffset);
+
     for (uint32_t i = 0; i < instrumentationPoints.size(); i++){
         InstrumentationPoint* pt = instrumentationPoints[i];
         if (!pt){
@@ -903,7 +905,13 @@ void ElfFileInst::generateInstrumentation(){
                 }
             }
             
-            pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, isLastInChain, getExtraDataAddress() + regStorageOffset, stackIsSafe);
+            uint64_t registerStorage = getExtraDataAddress() + regStorageOffset;
+            // need to treat the bootstrap instrumentation point specially because the instrumentation data
+            // is not initialized to its correct location (that is done by the code in this inst point)
+            if (i == INST_POINT_BOOTSTRAP1){
+                registerStorage = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + programDataSize + regStorageOffset;
+            }
+            pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, isLastInChain, registerStorage, stackIsSafe);
             
             codeOffset += pt->sizeNeeded();
             if (!isLastInChain){
@@ -925,7 +933,7 @@ void ElfFileInst::generateInstrumentation(){
         if (snip){
             snip->setBootstrapOffset(codeOffset);
             codeOffset += snip->bootstrapSize();
-            ASSERT(snip->bootstrapSize() == 0 && "Snippets should not require bootstrap code (for now)");
+            ASSERT(snip->bootstrapSize() == 0 && "Snippets should not require bootstrap code");
         }
     }
 
@@ -1678,13 +1686,16 @@ ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
         systemReservedBss = systemReservedBss - elfFile->getSectionHeader(extraDataIdx+1)->GET(sh_addr);
     }
 
-    // also add in space to account for empty space caused by alignment constraints on the bss section
+    PRINT_DEBUG_DATA_PLACEMENT("Reserving %d bytes for system in BSS section", systemReservedBss);
+
+    // also add in space to account for empty space between sections caused by alignment constraints on the bss section
     systemReservedBss += elfFile->getSectionHeader(extraDataIdx+1)->GET(sh_addr) - elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) - programDataSize;
+    PRINT_DEBUG_DATA_PLACEMENT("Reserving %d bytes for sysBSS + alignment", systemReservedBss);
 
     regStorageOffset = systemReservedBss;
     regStorageReserved = sizeof(uint64_t) * X86_64BIT_GPRS;
     usableDataOffset = regStorageOffset + regStorageReserved;
-
+    
     if (systemReservedBss > programBssSize){
         systemReservedBss = programBssSize;
     }

@@ -786,7 +786,7 @@ uint32_t Instruction::convertTo4ByteTargetOperand(){
             rawBytes[0] = 0x0f;
 
         } else if (isFunctionCall()){
-            PRINT_WARN(10, "Unhandled short call at address %#llx", getProgramAddress());
+            PRINT_WARN(8, "Unhandled short call at address %#llx", getProgramAddress());
         } else if (isReturn()){
             // nothing to do since returns dont have target ops
             ASSERT(sizeInBytes == 1);

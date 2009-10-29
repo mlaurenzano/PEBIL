@@ -47,7 +47,6 @@ private:
 
     static Instruction* generateMoveRegToRegaddrImm4Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm);
     static Instruction* generateMoveRegToRegaddrImm1Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm);
-    static Instruction* generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest);
 
     static Instruction* generateRegSubImm4Byte(uint32_t idx, uint64_t imm);
     static Instruction* generateRegSubImm1Byte(uint32_t idx, uint64_t imm);
@@ -69,6 +68,7 @@ public:
     static Instruction* generateMoveRegaddrImmToReg(uint32_t, uint64_t, uint32_t);
     static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
     static Instruction* generateMoveImmToRegaddrImm(uint64_t immval, uint32_t idx, uint64_t immoff);
+    static Instruction* generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest);
 
     static Instruction* generateMoveRegToMem(uint32_t idx, uint64_t addr);
     static Instruction* generateMoveMemToReg(uint64_t addr, uint32_t idx);

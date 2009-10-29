@@ -90,8 +90,10 @@ void BasicBlockCounter::instrument(){
 
     // the number blocks in the code
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
+    PRINT_DEBUG_DATA_PLACEMENT("user allocated instrumentation data starting at %#llx", getExtraDataAddress() + counterArrayEntries);
     // an array of counters. note that everything is passed by reference
     uint64_t counterArray = reserveDataOffset(numberOfInstPoints * sizeof(uint32_t));
+    PRINT_DEBUG_DATA_PLACEMENT("counter array: %#llx + %x", dataBaseAddress + counterArray, numberOfInstPoints * sizeof(uint32_t));
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
         initializeReservedData(dataBaseAddress + counterArray + i*sizeof(uint32_t), sizeof(uint32_t), &zerozero);
     }
@@ -118,6 +120,7 @@ void BasicBlockCounter::instrument(){
     // the number of inst points
     entryFunc->addArgument(counterArrayEntries);
     initializeReservedData(dataBaseAddress + counterArrayEntries, sizeof(uint32_t), &numberOfInstPoints);
+    PRINT_DEBUG_DATA_PLACEMENT("counter entries: %#llx", dataBaseAddress + counterArrayEntries);
 
     // an array for line numbers
     entryFunc->addArgument(lineArray);

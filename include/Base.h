@@ -16,7 +16,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 // debugging macros -- these can produce copious amounts of output
 
-#define WARNING_SEVERITY 5
+#define WARNING_SEVERITY 10
 //#define DEVELOPMENT
 //#define DEBUG_MEMTRACK
 //#define DEBUG_OPERAND
@@ -35,6 +35,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_JUMP_TABLE
 //#define DEBUG_POINT_CHAIN
 //#define DEBUG_LEAF_OPT
+//#define DEBUG_DATA_PLACEMENT
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -257,6 +258,15 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define PRINT_DEBUG_LEAF_OPT(...)
 #endif
 
+#ifdef DEBUG_DATA_PLACEMENT
+#define PRINT_DEBUG_DATA_PLACEMENT(...) fprintf(stdout,"DATA_PLACEMENT : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_DATA_PLACEMENT(...)
+#endif
+
 
 
 #ifdef  DEVELOPMENT
@@ -302,8 +312,8 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Size__64_bit_Relocation             sizeof(Elf64_Rel)
 #define Size__32_bit_Relocation_Addend      sizeof(Elf32_Rela)
 #define Size__64_bit_Relocation_Addend      sizeof(Elf64_Rela)
-#define Size__32_bit_Global_Offset_Table_Entry sizeof (uint32_t)
-#define Size__64_bit_Global_Offset_Table_Entry sizeof (uint64_t)
+#define Size__32_bit_Global_Offset_Table_Entry sizeof(uint32_t)
+#define Size__64_bit_Global_Offset_Table_Entry sizeof(uint64_t)
 #define Size__32_bit_Dynamic_Entry          sizeof(Elf32_Dyn)
 #define Size__64_bit_Dynamic_Entry          sizeof(Elf64_Dyn)
 #define Size__32_bit_Hash_Entry             sizeof(uint32_t)
