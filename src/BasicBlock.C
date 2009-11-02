@@ -36,7 +36,7 @@ void BasicBlock::findCompareAndCBranch(){
     return;
 }
 
-uint32_t BasicBlock::bloat(BloatTypes bloatType){
+uint32_t BasicBlock::bloat(BloatTypes bloatType, uint32_t bloatAmount){
     PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx", baseAddress);
 
     for (uint32_t i = 0; i < instructions.size(); i++){
@@ -51,11 +51,18 @@ uint32_t BasicBlock::bloat(BloatTypes bloatType){
     }
 
     if (bloatType == BloatType_BasicBlock){
-        for (uint32_t i = 0; i < SIZE_NEEDED_AT_INST_POINT; i++){
+        for (uint32_t i = 0; i < bloatAmount; i++){
             instructions.insert(InstructionGenerator::generateNoop(), 0);
         }
     } else if (bloatType == BloatType_MemoryInstruction){
-        __SHOULD_NOT_ARRIVE;
+        for (uint32_t i = 0; i < instructions.size(); i++){
+            if (instructions[i]->isMemoryOperation()){
+                for (uint32_t j = 0; j < bloatAmount; j++){
+                    instructions.insert(InstructionGenerator::generateNoop(), i);
+                }
+                i += bloatAmount;
+            }
+        }
     } else {
         PRINT_ERROR("Unrecognized bloat type %d", bloatType);
         __SHOULD_NOT_ARRIVE;
@@ -65,55 +72,6 @@ uint32_t BasicBlock::bloat(BloatTypes bloatType){
 
     return getNumberOfBytes();
 }
-
-/*
-uint32_t BasicBlock::bloat(BloatTypes bloatType){
-
-    PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx", baseAddress);
-
-    for (uint32_t i = 0; i < instructions.size(); i++){
-        int32_t memPad = 0;
-        // convert all branches to use 4byte operands (ensuring that they cover at least 5 bytes and giving them
-        // much larger immediate range)
-        if (instructions[i]->isControl() && !instructions[i]->isReturn()){
-            if (instructions[i]->bytesUsedForTarget() < sizeof(uint32_t)){
-                PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", instructions[i]->bytesUsedForTarget());
-                instructions[i]->convertTo4ByteTargetOperand();
-            }
-        }
-
-        // ensure that each memory operation is padded with nops so that they can be replaced by a jump
-        if (instructions[i]->isMemoryOperation()){
-            if (instructions[i]->getSizeInBytes() < SIZE_NEEDED_AT_INST_POINT){
-                memPad = SIZE_NEEDED_AT_INST_POINT - instructions[i]->getSizeInBytes();
-            }
-            if (memPad){
-                PRINT_DEBUG_FUNC_RELOC("\tmemop at %#llx is onyl %d bytes, adding %d noops", instructions[i]->getBaseAddress(), instructions[i]->getSizeInBytes(), memPad);
-            }
-        }
-        while (memPad > 0){
-            PRINT_DEBUG_FUNC_RELOC("\t\tadding nop at m%d", i+1);
-            instructions.insert(InstructionGenerator::generateNoop(),i+1);
-            memPad--;
-            i++;
-        }
-
-    }
-
-    // pad with noops if necessary
-    if (getNumberOfBytes() < SIZE_NEEDED_AT_INST_POINT){
-        PRINT_DEBUG_FUNC_RELOC("\tblock at %#llx is only %d bytes, adding %d noops", getBaseAddress(), getNumberOfBytes(), SIZE_NEEDED_AT_INST_POINT - getNumberOfBytes());
-    }
-    while (getNumberOfBytes() < SIZE_NEEDED_AT_INST_POINT){
-        PRINT_DEBUG_FUNC_RELOC("\t\tadding nop at p%d", instructions.size());
-        instructions.append(InstructionGenerator::generateNoop());
-    }
-
-    setBaseAddress(getBaseAddress());
-
-    return getNumberOfBytes();
-}
-*/
 
 uint32_t BasicBlock::getNumberOfIntegerOps(){
     uint32_t intCount = 0;
@@ -197,7 +155,7 @@ void CodeBlock::printDisassembly(bool instructionDetail){
     }
 }
 
-Block::Block(ElfClassTypes typ, uint32_t idx, FlowGraph* cfg)
+Block::Block(PebilClassTypes typ, uint32_t idx, FlowGraph* cfg)
     : Base(typ)
 {
     index = idx;
@@ -205,7 +163,7 @@ Block::Block(ElfClassTypes typ, uint32_t idx, FlowGraph* cfg)
 }
 
 RawBlock::RawBlock(uint32_t idx, FlowGraph* cfg, char* byt, uint32_t sz, uint64_t addr)
-    : Block(ElfClassTypes_RawBlock,idx,cfg)
+    : Block(PebilClassTypes_RawBlock,idx,cfg)
 {
     sizeInBytes = sz;
      
@@ -383,7 +341,7 @@ bool BasicBlock::inRange(uint64_t addr){
 }
 
 CodeBlock::CodeBlock(uint32_t idx, FlowGraph* cfg)
-    : Block(ElfClassTypes_CodeBlock,idx,cfg)
+    : Block(PebilClassTypes_CodeBlock,idx,cfg)
 {
 }
 
@@ -391,7 +349,7 @@ CodeBlock::CodeBlock(uint32_t idx, FlowGraph* cfg)
 BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg)
     : CodeBlock(idx,cfg)
 {
-    type = ElfClassTypes_BasicBlock;
+    type = PebilClassTypes_BasicBlock;
 
     flags = 0;
     immDominatedBy = NULL;
@@ -507,6 +465,8 @@ bool BasicBlock::verify(){
 }
 
 uint64_t BasicBlock::findInstrumentationPoint(uint32_t size, InstLocations loc){
+
+    PRINT_INFOR("finding instrumentation point Location is %d", loc);
 
     for (uint32_t i = 0; i < instructions.size(); i++){
         uint32_t j = i;

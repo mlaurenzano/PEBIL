@@ -15,7 +15,7 @@ protected:
     FlowGraph* flowGraph;
 
 public:
-    Block(ElfClassTypes typ, uint32_t idx, FlowGraph* cfg);
+    Block(PebilClassTypes typ, uint32_t idx, FlowGraph* cfg);
     ~Block() {}
 
     virtual uint32_t getNumberOfBytes() { __SHOULD_NOT_ARRIVE; return 0; }
@@ -99,7 +99,7 @@ public:
     BasicBlock(uint32_t idx, FlowGraph* cfg);
     ~BasicBlock() {}
 
-    uint32_t bloat(BloatTypes bloatType);
+    uint32_t bloat(BloatTypes bloatType, uint32_t bloatAmount);
 
     bool containsOnlyControl();
     bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);

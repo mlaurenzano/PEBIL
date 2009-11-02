@@ -34,7 +34,7 @@ protected:
     InstrumentationPoint* point;
 
 public:
-    Instrumentation(ElfClassTypes typ);
+    Instrumentation(PebilClassTypes typ);
     ~Instrumentation();
 
     virtual void print() { __SHOULD_NOT_ARRIVE; }

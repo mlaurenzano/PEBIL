@@ -24,7 +24,7 @@ public:
     char* symbolPtr;
     SymbolTable* table;
 
-    Symbol(SymbolTable* tbl, char* symPtr, uint32_t idx) : Base(ElfClassTypes_Symbol),table(tbl),symbolPtr(symPtr),index(idx) {}
+    Symbol(SymbolTable* tbl, char* symPtr, uint32_t idx) : Base(PebilClassTypes_Symbol),table(tbl),symbolPtr(symPtr),index(idx) {}
         ~Symbol(){};
 
     SYMBOL_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");

@@ -46,7 +46,7 @@ public:
     bool hasCompleteDisassembly();
     bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);
 
-    uint32_t bloatBasicBlocks(BloatTypes bloatType);
+    uint32_t bloatBasicBlocks(BloatTypes bloatType, uint32_t bloatAmount);
 
     void setBaseAddress(uint64_t newBaseAddress);
 

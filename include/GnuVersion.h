@@ -17,7 +17,7 @@ private:
 protected:
     bool isAuxiliary;
 public:
-    GnuVerneed(uint32_t idx) : Base(ElfClassTypes_GnuVerneed),
+    GnuVerneed(uint32_t idx) : Base(PebilClassTypes_GnuVerneed),
         rawDataPtr(NULL), index(idx) {}
     ~GnuVerneed() {}
 

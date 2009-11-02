@@ -413,7 +413,7 @@ uint32_t InstrumentationFunction::globalDataSize(){
     return Size__32_bit_Global_Offset_Table_Entry;
 }
 
-Instrumentation::Instrumentation(ElfClassTypes typ)
+Instrumentation::Instrumentation(PebilClassTypes typ)
     : Base(typ)
 {
     bootstrapOffset = 0;
@@ -661,7 +661,7 @@ uint32_t InstrumentationFunction::sizeNeeded(){
 }
 
 InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset, uint64_t fEntry)
-    : Instrumentation(ElfClassTypes_InstrumentationFunction)
+    : Instrumentation(PebilClassTypes_InstrumentationFunction)
 {
     index = idx;
 
@@ -788,7 +788,7 @@ uint32_t InstrumentationSnippet::reserveData(uint64_t offset, uint32_t size){
 }
 
 InstrumentationSnippet::InstrumentationSnippet()
-    : Instrumentation(ElfClassTypes_InstrumentationSnippet)
+    : Instrumentation(PebilClassTypes_InstrumentationSnippet)
 {
     snippetOffset = 0;    
 
@@ -806,9 +806,9 @@ InstrumentationSnippet::~InstrumentationSnippet(){
 }
 
 Vector<Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(Vector<Instruction*>* replacements){
-    if (point->getType() == ElfClassTypes_Instruction){
+    if (point->getType() == PebilClassTypes_Instruction){
         Instruction* instruction = (Instruction*)point;
-        ASSERT(instruction->getContainer() && instruction->getContainer()->getType() == ElfClassTypes_Function);
+        ASSERT(instruction->getContainer() && instruction->getContainer()->getType() == PebilClassTypes_Function);
         Function* func = (Function*)instruction->getContainer();
         return func->swapInstructions(getSourceAddress(), replacements);
     } else {
@@ -838,7 +838,7 @@ uint64_t InstrumentationPoint::getSourceAddress(){
 }
 
 InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc)
-    : Base(ElfClassTypes_InstrumentationPoint)
+    : Base(PebilClassTypes_InstrumentationPoint)
 {
     point = pt;
 

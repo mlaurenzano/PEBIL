@@ -363,8 +363,7 @@ typedef enum {
 
 typedef enum {
     InstLocation_dont_care = 0,
-    InstLocation_start,
-    InstLocation_end,
+    InstLocation_prior,
     InstLocation_Total_Types
 } InstLocations;
 
@@ -383,42 +382,42 @@ typedef enum {
 } ElfRelTypes;
 
 typedef enum {
-    ElfClassTypes_no_type = 0,
-    ElfClassTypes_BasicBlock,
-    ElfClassTypes_CodeBlock,
-    ElfClassTypes_DataReference,
-    ElfClassTypes_DataSection,
-    ElfClassTypes_DwarfSection,
-    ElfClassTypes_DwarfLineInfoSection,
-    ElfClassTypes_Dynamic,
-    ElfClassTypes_DynamicTable,
-    ElfClassTypes_FileHeader,
-    ElfClassTypes_FreeText,
-    ElfClassTypes_Function,
-    ElfClassTypes_GlobalOffsetTable,
-    ElfClassTypes_GnuVerneed,
-    ElfClassTypes_GnuVerneedTable,
-    ElfClassTypes_GnuVersym,
-    ElfClassTypes_GnuVersymTable,
-    ElfClassTypes_HashTable,
-    ElfClassTypes_Instruction,
-    ElfClassTypes_InstrumentationFunction,
-    ElfClassTypes_InstrumentationPoint,
-    ElfClassTypes_InstrumentationSnippet,
-    ElfClassTypes_Note,
-    ElfClassTypes_NoteSection,
-    ElfClassTypes_ProgramHeader,
-    ElfClassTypes_RawBlock,
-    ElfClassTypes_RawSection,
-    ElfClassTypes_RelocationTable,
-    ElfClassTypes_Relocation,
-    ElfClassTypes_SectionHeader,
-    ElfClassTypes_StringTable,
-    ElfClassTypes_Symbol,
-    ElfClassTypes_SymbolTable,
-    ElfClassTypes_TextSection,
-    ElfClassTypes_Total_Types
-} ElfClassTypes;
+    PebilClassTypes_no_type = 0,
+    PebilClassTypes_BasicBlock,
+    PebilClassTypes_CodeBlock,
+    PebilClassTypes_DataReference,
+    PebilClassTypes_DataSection,
+    PebilClassTypes_DwarfSection,
+    PebilClassTypes_DwarfLineInfoSection,
+    PebilClassTypes_Dynamic,
+    PebilClassTypes_DynamicTable,
+    PebilClassTypes_FileHeader,
+    PebilClassTypes_FreeText,
+    PebilClassTypes_Function,
+    PebilClassTypes_GlobalOffsetTable,
+    PebilClassTypes_GnuVerneed,
+    PebilClassTypes_GnuVerneedTable,
+    PebilClassTypes_GnuVersym,
+    PebilClassTypes_GnuVersymTable,
+    PebilClassTypes_HashTable,
+    PebilClassTypes_Instruction,
+    PebilClassTypes_InstrumentationFunction,
+    PebilClassTypes_InstrumentationPoint,
+    PebilClassTypes_InstrumentationSnippet,
+    PebilClassTypes_Note,
+    PebilClassTypes_NoteSection,
+    PebilClassTypes_ProgramHeader,
+    PebilClassTypes_RawBlock,
+    PebilClassTypes_RawSection,
+    PebilClassTypes_RelocationTable,
+    PebilClassTypes_Relocation,
+    PebilClassTypes_SectionHeader,
+    PebilClassTypes_StringTable,
+    PebilClassTypes_Symbol,
+    PebilClassTypes_SymbolTable,
+    PebilClassTypes_TextSection,
+    PebilClassTypes_Total_Types
+} PebilClassTypes;
 
 typedef enum {
     ByteSource_no_source = 0,
@@ -443,18 +442,18 @@ class Base {
 protected:
     const static uint32_t invalidOffset = 0xffffffff;
 
-    ElfClassTypes type;
+    PebilClassTypes type;
     uint32_t sizeInBytes;
     uint32_t fileOffset;
 
-    Base() : type(ElfClassTypes_no_type),sizeInBytes(0),fileOffset(invalidOffset),baseAddress(0) {}
-    Base(ElfClassTypes t) : type(t),sizeInBytes(0),fileOffset(invalidOffset),baseAddress(0) {}
+    Base() : type(PebilClassTypes_no_type),sizeInBytes(0),fileOffset(invalidOffset),baseAddress(0) {}
+    Base(PebilClassTypes t) : type(t),sizeInBytes(0),fileOffset(invalidOffset),baseAddress(0) {}
     virtual ~Base() {}
 
 public:
     uint64_t baseAddress;
 
-    ElfClassTypes getType() { return type; }
+    PebilClassTypes getType() { return type; }
     uint32_t getSizeInBytes() { return sizeInBytes; }
 
     virtual void print() { __SHOULD_NOT_ARRIVE; }
@@ -468,13 +467,13 @@ public:
     bool includesFileOffset(uint32_t offset);
 
 
-    bool containsProgramBits() { return (type == ElfClassTypes_Instruction             || 
-                                         type == ElfClassTypes_BasicBlock              || 
-                                         type == ElfClassTypes_Function                || 
-                                         type == ElfClassTypes_TextSection             ||
-                                         type == ElfClassTypes_InstrumentationSnippet  ||
-                                         type == ElfClassTypes_InstrumentationFunction ||
-                                         type == ElfClassTypes_DataReference
+    bool containsProgramBits() { return (type == PebilClassTypes_Instruction             || 
+                                         type == PebilClassTypes_BasicBlock              || 
+                                         type == PebilClassTypes_Function                || 
+                                         type == PebilClassTypes_TextSection             ||
+                                         type == PebilClassTypes_InstrumentationSnippet  ||
+                                         type == PebilClassTypes_InstrumentationFunction ||
+                                         type == PebilClassTypes_DataReference
                                          ); }
     virtual Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements) { __SHOULD_NOT_ARRIVE; return NULL; }
     virtual uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc) { __SHOULD_NOT_ARRIVE; return 0; }

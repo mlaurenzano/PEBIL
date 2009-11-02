@@ -4,7 +4,7 @@
 #include <ElfFile.h>
 
 Note::Note(uint32_t idx, uint32_t namsz, uint32_t dessz, uint32_t typ, char* nam, char* des)
-    : Base(ElfClassTypes_Note)
+    : Base(PebilClassTypes_Note)
 {
     index = idx;
     namesz = namsz;
@@ -93,7 +93,7 @@ bool NoteSection::verify(){
 
 
 NoteSection::NoteSection(char* rawPtr, uint32_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
-    : RawSection(ElfClassTypes_NoteSection,rawPtr,size,scnIdx,elf)
+    : RawSection(PebilClassTypes_NoteSection,rawPtr,size,scnIdx,elf)
 {
     index = idx;
 }

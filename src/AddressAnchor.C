@@ -61,9 +61,9 @@ Base* AddressAnchor::updateLink(Base* newLink){
 }
 
 void AddressAnchor::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    if (linkedParent->getType() == ElfClassTypes_Instruction){
+    if (linkedParent->getType() == PebilClassTypes_Instruction){
         dumpInstruction(binaryOutputFile, offset);
-    } else if (linkedParent->getType() == ElfClassTypes_DataReference){
+    } else if (linkedParent->getType() == PebilClassTypes_DataReference){
         dumpDataReference(binaryOutputFile, offset);
     } else {
         __FUNCTION_NOT_IMPLEMENTED;
@@ -132,14 +132,14 @@ void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t
 }
 
 uint64_t AddressAnchor::getLinkOffset(){
-    if (linkedParent->getType() == ElfClassTypes_Instruction){ 
+    if (linkedParent->getType() == PebilClassTypes_Instruction){ 
         Instruction* instl = (Instruction*)linkedParent;
         if (instl->isControl()){
             return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
         } else {
             return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
         }
-    } else if (linkedParent->getType() == ElfClassTypes_DataReference){
+    } else if (linkedParent->getType() == PebilClassTypes_DataReference){
         return link->getBaseAddress();
     }
     __SHOULD_NOT_ARRIVE;
@@ -168,8 +168,8 @@ bool AddressAnchor::verify(){
         return false;
     }
 
-    if (link->getType() == ElfClassTypes_Instruction){
-    } else if (link->getType() == ElfClassTypes_DataReference){
+    if (link->getType() == PebilClassTypes_Instruction){
+    } else if (link->getType() == PebilClassTypes_DataReference){
     } else {
         PRINT_ERROR("Address link cannot have type %d", link->getType());
         return false;

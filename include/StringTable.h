@@ -13,7 +13,7 @@ protected:
 
 public:
     StringTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
-        : RawSection(ElfClassTypes_StringTable,rawPtr,size,scnIdx,elf),index(idx) {};
+        : RawSection(PebilClassTypes_StringTable,rawPtr,size,scnIdx,elf),index(idx) {};
 
     ~StringTable();
 

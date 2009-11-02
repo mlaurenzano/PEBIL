@@ -7,7 +7,6 @@
 
 #include <InstrumentationCommon.h>
 
-#define PRINT_MINIMUM 1
 #define FILTER 1
 #define INV_ADDRESS 0
 
@@ -29,7 +28,7 @@ DINT_TYPE processTrace(DINT_TYPE* bufferloc, DINT_TYPE* bufferptr){
             memval = *((DINT_TYPE*)memloc);
         }
         if (filter % FILTER == 0){
-            //            PRINT_INSTR("iteration %d; mom[%#llx]\t%#llx", filter, memloc, memval);
+            PRINT_INSTR("\titeration %d; mem[%#llx]\t%#llx", filter, memloc, memval);
         }
         filter++;
         (*bufferptr)--;

@@ -14,14 +14,14 @@ protected:
     uint32_t numOfLineInfo;
 
     char* sectionNamePtr;
-    ElfClassTypes sectionType;
+    PebilClassTypes sectionType;
 
     uint16_t index;
 protected:
-    SectionHeader() : Base(ElfClassTypes_SectionHeader),
+    SectionHeader() : Base(PebilClassTypes_SectionHeader),
         relocationPtr(NULL), lineInfoPointer(NULL),
         numOfRelocations(0),numOfLineInfo(0),
-        index(0),sectionNamePtr(NULL),sectionType(ElfClassTypes_no_type) {}
+        index(0),sectionNamePtr(NULL),sectionType(PebilClassTypes_no_type) {}
 
 public:
     bool verify();
@@ -42,7 +42,7 @@ public:
 
 
     void setSectionType();
-    ElfClassTypes getSectionType() { return sectionType; }
+    PebilClassTypes getSectionType() { return sectionType; }
 
     void setSectionNamePtr(char* namePtr) { sectionNamePtr = namePtr; }
     char* getSectionNamePtr() { return sectionNamePtr; }

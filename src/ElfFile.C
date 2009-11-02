@@ -46,7 +46,7 @@ void ElfFile::gatherDisassemblyStats(){
     for (uint32_t i = 0; i < numberOfTextSections; i++){
         TextSection* ts = getTextSection(i);
         for (uint32_t j = 0; j < ts->getNumberOfTextObjects(); j++){
-            if (ts->getTextObject(j)->getType() == ElfClassTypes_Function){
+            if (ts->getTextObject(j)->getType() == PebilClassTypes_Function){
                 Function* func = (Function*)ts->getTextObject(j);
                 STATS(totalFunctions++);
                 STATS(totalFunctionBytes += func->getSizeInBytes());
@@ -284,7 +284,7 @@ bool ElfFile::verifyDynamic(){
             return false;
         }
 
-        if (sectionHeaders[i]->getSectionType() == ElfClassTypes_HashTable){
+        if (sectionHeaders[i]->getSectionType() == PebilClassTypes_HashTable){
             if (hashSectionAddress){
                 PRINT_ERROR("Cannot have more than one hash section");
                 return false;
@@ -294,7 +294,7 @@ bool ElfFile::verifyDynamic(){
                 return false;
             }
             hashSectionAddress = sectionHeaders[i]->GET(sh_addr);
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_SymbolTable &&
+        } else if (sectionHeaders[i]->getSectionType() == PebilClassTypes_SymbolTable &&
             sectionHeaders[i]->GET(sh_type) == SHT_DYNSYM){
             if (dynsymSectionAddress){
                 PRINT_ERROR("Cannot have more than one dynamic symbol table -- already found one at 0x%016llx", dynsymSectionAddress);
@@ -305,7 +305,7 @@ bool ElfFile::verifyDynamic(){
                 return false;
             }
             dynsymSectionAddress = sectionHeaders[i]->GET(sh_addr);
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_StringTable &&
+        } else if (sectionHeaders[i]->getSectionType() == PebilClassTypes_StringTable &&
             sectionHeaders[i]->GET(sh_addr) == dynstrSectionAddress_DT){
             if (dynstrSectionAddress){
                 PRINT_ERROR("Cannot have more than one dynamic string table");
@@ -335,7 +335,7 @@ bool ElfFile::verifyDynamic(){
                 PRINT_ERROR("Verneed section should come before plt/got section");
                 return false;
             }
-        } else if (sectionHeaders[i]->getSectionType() == ElfClassTypes_RelocationTable &&
+        } else if (sectionHeaders[i]->getSectionType() == PebilClassTypes_RelocationTable &&
             sectionHeaders[i]->GET(sh_addr) == relocationSectionAddress_DT){
             if (relocationSectionAddress){
                 PRINT_ERROR("Cannot have more than one relocation table");
@@ -355,7 +355,7 @@ bool ElfFile::verifyDynamic(){
 }
 
 
-uint64_t ElfFile::addSection(uint16_t idx, ElfClassTypes classtype, char* bytes, uint32_t name, uint32_t type, 
+uint64_t ElfFile::addSection(uint16_t idx, PebilClassTypes classtype, char* bytes, uint32_t name, uint32_t type, 
                              uint64_t flags, uint64_t addr, uint64_t offset, uint64_t size, uint32_t link, 
                              uint32_t info, uint64_t addralign, uint64_t entsize){
 
@@ -377,7 +377,7 @@ uint64_t ElfFile::addSection(uint16_t idx, ElfClassTypes classtype, char* bytes,
     sectionHeaders[idx]->SET(sh_entsize,entsize);
     sectionHeaders[idx]->setSectionType();
 
-    if (classtype == ElfClassTypes_TextSection){
+    if (classtype == PebilClassTypes_TextSection){
         textSections.append(new TextSection(bytes, size, idx, getNumberOfTextSections(), this, ByteSource_Instrumentation));
         rawSections.insert((RawSection*)textSections.back(), idx);
     } else {
@@ -486,7 +486,7 @@ void ElfFile::initSectionFilePointers(){
         char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[lineInfoIdx]->GET(sh_offset));
         uint64_t sectionSize = (uint64_t)sectionHeaders[lineInfoIdx]->GET(sh_size);
 
-        ASSERT(sectionHeaders[lineInfoIdx]->getSectionType() == ElfClassTypes_DwarfSection);
+        ASSERT(sectionHeaders[lineInfoIdx]->getSectionType() == PebilClassTypes_DwarfSection);
         uint32_t dwarfIdx = ((DwarfSection*)rawSections[lineInfoIdx])->getIndex();
         delete rawSections[lineInfoIdx];
 
@@ -574,7 +574,7 @@ void ElfFile::initDynamicFilePointers(){
     // The raw section for the global offset table should already have been initialized as a generic DataSection
     // we will destroy it and create it as a GlobalOffsetTable
     ASSERT(rawSections[gotSectionIdx] && "Global Offset Table not yet created");
-    ASSERT(sectionHeaders[gotSectionIdx]->getSectionType() == ElfClassTypes_DataSection);
+    ASSERT(sectionHeaders[gotSectionIdx]->getSectionType() == PebilClassTypes_DataSection);
     delete rawSections[gotSectionIdx];
     
     char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[gotSectionIdx]->GET(sh_offset));
@@ -631,7 +631,7 @@ void ElfFile::initDynamicFilePointers(){
     // The raw section for the dynamic table should already have been initialized as a generic RawSection
     // we will destroy it and create it as a DynamicTable
     ASSERT(rawSections[dynamicTableSectionIdx] && "Dynamic Table raw section not yet created");
-    ASSERT(sectionHeaders[dynamicTableSectionIdx]->getSectionType() == ElfClassTypes_DynamicTable);
+    ASSERT(sectionHeaders[dynamicTableSectionIdx]->getSectionType() == PebilClassTypes_DynamicTable);
     delete rawSections[dynamicTableSectionIdx];
 
     sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[dynamicTableSectionIdx]->GET(sh_offset));
@@ -656,19 +656,19 @@ void ElfFile::initDynamicFilePointers(){
     uint64_t reltabAddr = dynamicTable->getDynamicByType(reltype,0)->GET_A(d_ptr,d_un);
 
     for (uint32_t i = 0; i < getNumberOfSections(); i++){
-        if (rawSections[i]->getType() == ElfClassTypes_StringTable &&
+        if (rawSections[i]->getType() == PebilClassTypes_StringTable &&
             sectionHeaders[i]->GET(sh_addr) == strtabAddr){
             dynamicStringTable = (StringTable*)rawSections[i];
         }
-        else if (rawSections[i]->getType() == ElfClassTypes_SymbolTable &&
+        else if (rawSections[i]->getType() == PebilClassTypes_SymbolTable &&
             sectionHeaders[i]->GET(sh_addr) == symtabAddr){
             dynamicSymbolTable = (SymbolTable*)rawSections[i];
         }
-        else if (rawSections[i]->getType() == ElfClassTypes_RelocationTable &&
+        else if (rawSections[i]->getType() == PebilClassTypes_RelocationTable &&
             sectionHeaders[i]->GET(sh_addr) == pltreltabAddr){
             pltRelocationTable = (RelocationTable*)rawSections[i];
         }
-        else if (rawSections[i]->getType() == ElfClassTypes_RelocationTable &&
+        else if (rawSections[i]->getType() == PebilClassTypes_RelocationTable &&
             sectionHeaders[i]->GET(sh_addr) == reltabAddr){
             dynamicRelocationTable = (RelocationTable*)rawSections[i];
         }
@@ -1055,51 +1055,51 @@ void ElfFile::readRawSections(){
         uint64_t sectionSize = (uint64_t)sectionHeaders[i]->GET(sh_size);
 
         switch(sectionHeaders[i]->getSectionType()){
-        case ElfClassTypes_StringTable:
+        case PebilClassTypes_StringTable:
             rawSections.append(new StringTable(sectionFilePtr, sectionSize, i, getNumberOfStringTables(), this));
             stringTables.append((StringTable*)rawSections.back());
             break;
-        case ElfClassTypes_SymbolTable:
+        case PebilClassTypes_SymbolTable:
             rawSections.append(new SymbolTable(sectionFilePtr, sectionSize, i, getNumberOfSymbolTables(), this));
             symbolTables.append((SymbolTable*)rawSections.back());
             break;
-        case ElfClassTypes_RelocationTable:
+        case PebilClassTypes_RelocationTable:
             rawSections.append(new RelocationTable(sectionFilePtr, sectionSize, i, getNumberOfRelocationTables(), this));
             relocationTables.append((RelocationTable*)rawSections.back());
             break;
-        case ElfClassTypes_DwarfSection:
+        case PebilClassTypes_DwarfSection:
             rawSections.append(new DwarfSection(sectionFilePtr, sectionSize, i, getNumberOfDwarfSections(), this));
             dwarfSections.append((DwarfSection*)rawSections.back());
             break;
-        case ElfClassTypes_TextSection:
+        case PebilClassTypes_TextSection:
             rawSections.append(new TextSection(sectionFilePtr, sectionSize, i, getNumberOfTextSections(), this, ByteSource_Application));
             textSections.append((TextSection*)rawSections.back());
             break;
-        case ElfClassTypes_HashTable:
+        case PebilClassTypes_HashTable:
             ASSERT(!hashTable && "Cannot have multiple hash table sections");
             rawSections.append(new HashTable(sectionFilePtr, sectionSize, i, this));
             hashTable = (HashTable*)rawSections.back();
             break;
-        case ElfClassTypes_NoteSection:
+        case PebilClassTypes_NoteSection:
             rawSections.append(new NoteSection(sectionFilePtr, sectionSize, i, getNumberOfNoteSections(), this));
             noteSections.append((NoteSection*)rawSections.back());
             break;
-        case ElfClassTypes_GnuVerneedTable:
+        case PebilClassTypes_GnuVerneedTable:
             ASSERT(!gnuVerneedTable && "Cannot have more than one GNU_verneed section");
             rawSections.append(new GnuVerneedTable(sectionFilePtr, sectionSize, i, this));
             gnuVerneedTable = (GnuVerneedTable*)rawSections.back();
             break;
-        case ElfClassTypes_GnuVersymTable:
+        case PebilClassTypes_GnuVersymTable:
             ASSERT(!gnuVersymTable && "Cannot have more than one GNU_versym section");
             rawSections.append(new GnuVersymTable(sectionFilePtr, sectionSize, i, this));
             gnuVersymTable = (GnuVersymTable*)rawSections.back();
             break;
-        case ElfClassTypes_DataSection:
+        case PebilClassTypes_DataSection:
             rawSections.append(new DataSection(sectionFilePtr, sectionSize, i, this));
             dataSections.append((DataSection*)rawSections.back());
             break;
         default:
-            rawSections.append(new RawSection(ElfClassTypes_RawSection, sectionFilePtr, sectionSize, i, this));
+            rawSections.append(new RawSection(PebilClassTypes_RawSection, sectionFilePtr, sectionSize, i, this));
             break;
         }
     }

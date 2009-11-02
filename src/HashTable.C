@@ -272,7 +272,7 @@ void HashTable::initFilePointers(){
 
 
 HashTable::HashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
-    : RawSection(ElfClassTypes_HashTable,rawPtr,size,scnIdx,elf)
+    : RawSection(PebilClassTypes_HashTable,rawPtr,size,scnIdx,elf)
 {
     symTabIdx = elfFile->getNumberOfSymbolTables();
 

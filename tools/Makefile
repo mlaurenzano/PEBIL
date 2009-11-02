@@ -26,7 +26,7 @@ pebil : main.o
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< $(INCLUDE) $(EXTRA_INC)
 
 clean: 
-	rm -f *~ *.ideinst *.fncinst *.jbbinst *.static core *.o *.ii *.s *.class $(TARGET_BIN)
+	rm -f *~ *.ideinst *.fncinst *.jbbinst *.static core *.o *.ii *.s *.class $(TARGET_BIN) $(BINDIR)/*
 
 install:
 	cp $(TARGET_BIN) $(BINDIR)

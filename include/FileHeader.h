@@ -9,7 +9,7 @@ protected:
 
 public:
 
-    FileHeader() : Base(ElfClassTypes_FileHeader){}
+    FileHeader() : Base(PebilClassTypes_FileHeader){}
     bool verify();
 
     virtual ~FileHeader() {}

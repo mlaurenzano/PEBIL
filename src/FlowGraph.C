@@ -36,7 +36,7 @@ bool FlowGraph::verify(){
 }
 
 void FlowGraph::addBlock(Block* block){
-    if (block->getType() == ElfClassTypes_BasicBlock){
+    if (block->getType() == PebilClassTypes_BasicBlock){
         basicBlocks.append((BasicBlock*)block);
     }
     blocks.insertSorted(block,compareBaseAddress);

@@ -584,8 +584,11 @@ Operand* Instruction::getMemoryOperand(){
 bool Instruction::isMemoryOperation(){
     uint32_t memCount = 0;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        if (operands[i] && operands[i]->GET(type) == UD_OP_MEM && GET(mnemonic) != UD_Ilea){
+        if (operands[i] && operands[i]->GET(type) == UD_OP_MEM){
             memCount++;
+        }
+        if (operands[i] && operands[i]->GET(type) == UD_OP_MEM && GET(mnemonic) == UD_Ilea){
+            PRINT_INFOR("instruction at %#llx is lea", programAddress);
         }
     }
     ASSERT(memCount < 2);
@@ -1937,7 +1940,7 @@ Operand* Instruction::getOperand(uint32_t idx){
 }
 
 Instruction::Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx)
-    : Base(ElfClassTypes_Instruction)
+    : Base(PebilClassTypes_Instruction)
 {
     ud_t ud_obj;
     ud_init(&ud_obj);
@@ -1982,7 +1985,7 @@ Instruction::Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_
 }
 
 Instruction::Instruction(struct ud* init)
-    : Base(ElfClassTypes_Instruction)
+    : Base(PebilClassTypes_Instruction)
 {
     memcpy(&entry, init, sizeof(struct ud));
 

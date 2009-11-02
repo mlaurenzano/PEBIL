@@ -47,7 +47,7 @@ protected:
     Vector<DataReference*> dataReferences;
 
 public:
-    RawSection(ElfClassTypes classType, char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf);
+    RawSection(PebilClassTypes classType, char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf);
     ~RawSection();
 
     virtual uint32_t read(BinaryInputFile* b);

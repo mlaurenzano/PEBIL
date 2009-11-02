@@ -6,7 +6,7 @@
 
 class ProgramHeader : public Base {
 protected:
-    ProgramHeader() : Base(ElfClassTypes_ProgramHeader),index(0) {}
+    ProgramHeader() : Base(PebilClassTypes_ProgramHeader),index(0) {}
 
     uint16_t index;
 public:

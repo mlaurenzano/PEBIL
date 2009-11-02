@@ -70,7 +70,7 @@ void ElfFileInst::buildInstrumentationData(){
 
     ProgramHeader* dataSegmentHeader = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
     DataSection* dataSection = (DataSection*)elfFile->getRawSection(extraDataIdx);
-    ASSERT(dataSection && dataSection->getType() == ElfClassTypes_DataSection);
+    ASSERT(dataSection && dataSection->getType() == PebilClassTypes_DataSection);
 
     SectionHeader* dataSectionHeader = elfFile->getSectionHeader(extraDataIdx);
 
@@ -172,7 +172,7 @@ void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
         for (uint32_t i = 0; i < elfFile->getNumberOfTextSections(); i++){
             TextSection* ts = elfFile->getTextSection(i);
             for (uint32_t j = 0; j < ts->getNumberOfTextObjects(); j++){
-                if (ts->getTextObject(j)->getType() == ElfClassTypes_Function){
+                if (ts->getTextObject(j)->getType() == PebilClassTypes_Function){
                     Function* func = (Function*)ts->getTextObject(j);
                     for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
                         BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
@@ -413,7 +413,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
                     SectionHeader* dataSectionHeader = elfFile->getSectionHeader(i);
 
                     PRINT_DEBUG_ANCHOR("Checking section %d for inst->data link: [%#llx,%#llx)", i, dataSectionHeader->GET(sh_addr), dataSectionHeader->GET(sh_addr) + dataRawSection->getSizeInBytes());
-                    if (dataRawSection->getType() != ElfClassTypes_TextSection){
+                    if (dataRawSection->getType() != PebilClassTypes_TextSection){
                         PRINT_DEBUG_ANCHOR("\tFound nontext");
                         if (dataSectionHeader->inRange(relativeAddress)){
                             PRINT_DEBUG_ANCHOR("Found inst -> data link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
@@ -620,7 +620,7 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
 #endif
 
     if (doBloat){
-        displacedFunction->bloatBasicBlocks(bloatType);
+        displacedFunction->bloatBasicBlocks(bloatType, SIZE_NEEDED_AT_INST_POINT);
     }
 
 
@@ -773,7 +773,7 @@ void ElfFileInst::generateInstrumentation(){
 #ifdef SWAP_MOD
         performSwap = false;
         if (i % SWAP_MOD == SWAP_MOD_OFF || pt->getPriority() < InstPriority_regular){
-            if (pt->getSourceObject()->getType() == ElfClassTypes_BasicBlock){
+            if (pt->getSourceObject()->getType() == PebilClassTypes_BasicBlock){
                 BasicBlock* bb = (BasicBlock*)pt->getSourceObject();
 #ifdef SWAP_FUNCTION_ONLY
                 if (strstr(bb->getFunction()->getName(), SWAP_FUNCTION_ONLY)){
@@ -784,7 +784,7 @@ void ElfFileInst::generateInstrumentation(){
                 }
 #endif
 
-            } else if (pt->getSourceObject()->getType() == ElfClassTypes_Instruction){
+            } else if (pt->getSourceObject()->getType() == PebilClassTypes_Instruction){
                 Instruction* ins = (Instruction*)pt->getSourceObject();
 #ifdef SWAP_FUNCTION_ONLY
                 if (strstr(ins->getContainer()->getName(), SWAP_FUNCTION_ONLY)){
@@ -884,19 +884,19 @@ void ElfFileInst::generateInstrumentation(){
             uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
             
             bool stackIsSafe = false;
-            if (pt->getSourceObject()->getType() == ElfClassTypes_BasicBlock){
+            if (pt->getSourceObject()->getType() == PebilClassTypes_BasicBlock){
                 BasicBlock* bb = (BasicBlock*)pt->getSourceObject();
                 if (!bb->getFlowGraph()->getFunction()->hasLeafOptimization()){
                     PRINT_DEBUG_LEAF_OPT("Basic block at %#llx in function %s is safe from leaf optimization", bb->getBaseAddress(), bb->getFlowGraph()->getFunction()->getName());
                     stackIsSafe = true;
                 }
-            } else if (pt->getSourceObject()->getType() == ElfClassTypes_Function){
+            } else if (pt->getSourceObject()->getType() == PebilClassTypes_Function){
                 Function* fn = (Function*)pt->getSourceObject();
                 if (!fn->hasLeafOptimization()){
                     PRINT_DEBUG_LEAF_OPT("Function at %#llx in function %s is safe from leaf optimization", fn->getBaseAddress(), fn->getName());
                     stackIsSafe = true;
                 }
-            } else if (pt->getSourceObject()->getType() == ElfClassTypes_TextSection){
+            } else if (pt->getSourceObject()->getType() == PebilClassTypes_TextSection){
                 TextSection* ts = (TextSection*)pt->getSourceObject();
                 BasicBlock* bb = ts->getBasicBlockAtAddress(pt->getSourceAddress());
                 if (!bb->getFlowGraph()->getFunction()->hasLeafOptimization()){
@@ -1079,9 +1079,9 @@ void ElfFileInst::functionSelect(){
     TextSection* text = getTextSection();
     TextSection* fini = getFiniSection();
     TextSection* init = getInitSection();
-    ASSERT(text && text->getType() == ElfClassTypes_TextSection && "Cannot find the text section");
-    ASSERT(fini && text->getType() == ElfClassTypes_TextSection && "Cannot find the fini section");
-    ASSERT(init && text->getType() == ElfClassTypes_TextSection && "Cannot find the init section");
+    ASSERT(text && text->getType() == PebilClassTypes_TextSection && "Cannot find the text section");
+    ASSERT(fini && text->getType() == PebilClassTypes_TextSection && "Cannot find the fini section");
+    ASSERT(init && text->getType() == PebilClassTypes_TextSection && "Cannot find the init section");
 
     Vector<TextObject*> textObjects = Vector<TextObject*>();
     for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
@@ -1235,11 +1235,16 @@ bool ElfFileInst::verify(){
 InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* inst, uint32_t sz){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");    
 
+    InstLocations location = InstLocation_dont_care;
+    if (instpoint->getType() == PebilClassTypes_Instruction){
+        location = InstLocation_prior;
+    }
+
     InstrumentationPoint* newpoint;
     if (elfFile->is64Bit()){
-        newpoint = new InstrumentationPoint64(instpoint,inst,sz,InstLocation_dont_care);
+        newpoint = new InstrumentationPoint64(instpoint, inst, sz, location);
     } else {
-        newpoint = new InstrumentationPoint32(instpoint,inst,sz,InstLocation_dont_care);
+        newpoint = new InstrumentationPoint32(instpoint, inst, sz, location);
     }
 
     instrumentationPoints.append(newpoint);
@@ -1264,7 +1269,7 @@ InstrumentationFunction* ElfFileInst::declareFunction(char* funcName){
         for (uint32_t i = 0; i < elfFile->getNumberOfTextSections(); i++){
             for (uint32_t j = 0; j < elfFile->getTextSection(i)->getNumberOfTextObjects(); j++){
                 TextObject* tobj = elfFile->getTextSection(i)->getTextObject(j);
-                if (tobj->getType() == ElfClassTypes_Function &&
+                if (tobj->getType() == PebilClassTypes_Function &&
                     !strcmp(((Function*)tobj)->getName(), funcName)){
                     functionEntry = ((Function*)tobj)->getBaseAddress();
                     ((Function*)tobj)->setInstrumentationFunction();
@@ -1317,7 +1322,7 @@ uint64_t ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOf
     ASSERT(relocTableAddr && "Count not find a relocation table address in the dynamic table");
 
     RelocationTable* relocTable = (RelocationTable*)elfFile->getRawSection(elfFile->findSectionIdx(relocTableAddr));
-    ASSERT(relocTable->getType() == ElfClassTypes_RelocationTable && "Found wrong section type when searching for relocation table");
+    ASSERT(relocTable->getType() == PebilClassTypes_RelocationTable && "Found wrong section type when searching for relocation table");
 
     uint64_t gotAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset;    
     uint64_t relocOffset;
@@ -1473,7 +1478,7 @@ void ElfFileInst::extendTextSection(uint64_t size){
     }
 
     SectionHeader* textHdr = elfFile->getSectionHeader(lowestTextSectionIdx);
-    elfFile->addSection(lowestTextSectionIdx, ElfClassTypes_TextSection, elfFile->getFileName(), textHdr->GET(sh_name), textHdr->GET(sh_type),
+    elfFile->addSection(lowestTextSectionIdx, PebilClassTypes_TextSection, elfFile->getFileName(), textHdr->GET(sh_name), textHdr->GET(sh_type),
                         textHdr->GET(sh_flags), textHdr->GET(sh_addr)-size, textHdr->GET(sh_offset)-size, size, textHdr->GET(sh_link), 
                         textHdr->GET(sh_info), textHdr->GET(sh_addralign), textHdr->GET(sh_entsize));
 

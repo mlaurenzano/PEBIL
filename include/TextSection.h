@@ -24,7 +24,7 @@ protected:
 
     Vector<Instruction*>* digestLinear();
 public:
-    TextObject(ElfClassTypes typ, TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz);
+    TextObject(PebilClassTypes typ, TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz);
     ~TextObject() {}
 
     uint32_t getIndex() { return index; }
