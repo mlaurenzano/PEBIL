@@ -26,80 +26,80 @@ void SectionHeader::setSectionType(){
 
     switch (GET(sh_type)){
     case SHT_NULL:
-        sectionType = PebilClassTypes_no_type;
+        sectionType = PebilClassType_no_type;
         break;
     case SHT_PROGBITS:
-        sectionType = PebilClassTypes_RawSection;
+        sectionType = PebilClassType_RawSection;
         if (!hasWriteBit() && !hasAllocBit() && !hasExecInstrBit()){
-            sectionType = PebilClassTypes_DwarfSection;
+            sectionType = PebilClassType_DwarfSection;
         } else if (hasExecInstrBit()){
-            sectionType = PebilClassTypes_TextSection;
+            sectionType = PebilClassType_TextSection;
         } else if (hasWriteBit()){
-            sectionType = PebilClassTypes_DataSection;
+            sectionType = PebilClassType_DataSection;
         }
         break;
     case SHT_SYMTAB:
-        sectionType = PebilClassTypes_SymbolTable;
+        sectionType = PebilClassType_SymbolTable;
         break;
     case SHT_STRTAB:
-        sectionType = PebilClassTypes_StringTable;
+        sectionType = PebilClassType_StringTable;
         break;
     case SHT_RELA:
-        sectionType = PebilClassTypes_RelocationTable;
+        sectionType = PebilClassType_RelocationTable;
         break;
     case SHT_HASH:
-        sectionType = PebilClassTypes_HashTable;
+        sectionType = PebilClassType_HashTable;
         break;
     case SHT_DYNAMIC:
-        sectionType = PebilClassTypes_DynamicTable;
+        sectionType = PebilClassType_DynamicTable;
         break;
     case SHT_NOTE:
-        sectionType = PebilClassTypes_NoteSection;
+        sectionType = PebilClassType_NoteSection;
         break;
     case SHT_NOBITS:
-        sectionType = PebilClassTypes_no_type;
+        sectionType = PebilClassType_no_type;
         break;
     case SHT_REL:
-        sectionType = PebilClassTypes_RelocationTable;
+        sectionType = PebilClassType_RelocationTable;
         break;
     case SHT_SHLIB:
-        sectionType = PebilClassTypes_no_type;
+        sectionType = PebilClassType_no_type;
         break;
     case SHT_DYNSYM:
-        sectionType = PebilClassTypes_SymbolTable;
+        sectionType = PebilClassType_SymbolTable;
         break;
     case SHT_INIT_ARRAY:
-        sectionType = PebilClassTypes_no_type;
+        sectionType = PebilClassType_no_type;
         break;
     case SHT_FINI_ARRAY:
-        sectionType = PebilClassTypes_no_type;
+        sectionType = PebilClassType_no_type;
         break;
     case SHT_PREINIT_ARRAY:
-        sectionType = PebilClassTypes_no_type;
+        sectionType = PebilClassType_no_type;
         break;
     case SHT_GROUP:
-        sectionType = PebilClassTypes_no_type;
+        sectionType = PebilClassType_no_type;
         break;
     case SHT_SYMTAB_SHNDX:
-        sectionType = PebilClassTypes_no_type;
+        sectionType = PebilClassType_no_type;
         break;
     case SHT_NUM:
-        sectionType = PebilClassTypes_no_type;
+        sectionType = PebilClassType_no_type;
         break;
     case SHT_GNU_LIBLIST:
-        sectionType = PebilClassTypes_no_type;
+        sectionType = PebilClassType_no_type;
         break;
     case SHT_GNU_HASH:
-        sectionType = PebilClassTypes_HashTable;
+        sectionType = PebilClassType_HashTable;
         break;
     case SHT_GNU_verneed:
-        sectionType = PebilClassTypes_GnuVerneedTable;
+        sectionType = PebilClassType_GnuVerneedTable;
         break;
     case SHT_GNU_versym:
-        sectionType = PebilClassTypes_GnuVersymTable;
+        sectionType = PebilClassType_GnuVersymTable;
         break;
     default:
-        sectionType = PebilClassTypes_RawSection;
+        sectionType = PebilClassType_RawSection;
         PRINT_ERROR("Unknown section type %d (%#x)", GET(sh_type), GET(sh_type));
     }
 }

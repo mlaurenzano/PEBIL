@@ -163,7 +163,7 @@ Block::Block(PebilClassTypes typ, uint32_t idx, FlowGraph* cfg)
 }
 
 RawBlock::RawBlock(uint32_t idx, FlowGraph* cfg, char* byt, uint32_t sz, uint64_t addr)
-    : Block(PebilClassTypes_RawBlock,idx,cfg)
+    : Block(PebilClassType_RawBlock,idx,cfg)
 {
     sizeInBytes = sz;
      
@@ -341,7 +341,7 @@ bool BasicBlock::inRange(uint64_t addr){
 }
 
 CodeBlock::CodeBlock(uint32_t idx, FlowGraph* cfg)
-    : Block(PebilClassTypes_CodeBlock,idx,cfg)
+    : Block(PebilClassType_CodeBlock,idx,cfg)
 {
 }
 
@@ -349,7 +349,7 @@ CodeBlock::CodeBlock(uint32_t idx, FlowGraph* cfg)
 BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg)
     : CodeBlock(idx,cfg)
 {
-    type = PebilClassTypes_BasicBlock;
+    type = PebilClassType_BasicBlock;
 
     flags = 0;
     immDominatedBy = NULL;
@@ -464,19 +464,50 @@ bool BasicBlock::verify(){
     return true;
 }
 
-uint64_t BasicBlock::findInstrumentationPoint(uint32_t size, InstLocations loc){
+uint64_t BasicBlock::findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc){
+    if (loc == InstLocation_prior){
+        addr = addr - size;
+        loc = InstLocation_exact;
+    }
+    if (loc == InstLocation_after){
+        Instruction* instruction = getInstructionAtAddress(addr);
+        ASSERT(instruction);
+        addr = instruction->getBaseAddress() + instruction->getSizeInBytes();
+        loc = InstLocation_exact;
+    }
 
-    PRINT_INFOR("finding instrumentation point Location is %d", loc);
+    ASSERT((loc == InstLocation_dont_care || loc == InstLocation_exact) && "Unsupported inst location being used in BasicBlock");
+    ASSERT(inRange(addr) && "Instrumentation address should fall within BasicBlock bounds");
 
-    for (uint32_t i = 0; i < instructions.size(); i++){
-        uint32_t j = i;
+    if (loc == InstLocation_exact){
+        Instruction* instruction = getInstructionAtAddress(addr);
+        if (!instruction){
+            print();
+        }
+        ASSERT(instruction);
         uint32_t instBytes = 0;
-        while (j < instructions.size() && instructions[j]->isRelocatable()){
-            instBytes += instructions[j]->getSizeInBytes();
-            j++;
+        uint32_t instIdx = instruction->getIndex();
+        while (instBytes < size){
+            if (!instructions[instIdx]->isRelocatable()){
+                break;
+            }
+            instBytes += instruction->getSizeInBytes();
+            instIdx++;
         }
         if (instBytes >= size){
-            return instructions[i]->getBaseAddress();
+            return addr;
+        }
+    } else { // loc == InstLocation_dont_care
+        for (uint32_t i = 0; i < instructions.size(); i++){
+            uint32_t j = i;
+            uint32_t instBytes = 0;
+            while (j < instructions.size() && instructions[j]->isRelocatable()){
+                instBytes += instructions[j]->getSizeInBytes();
+                j++;
+            }
+            if (instBytes >= size){
+                return instructions[i]->getBaseAddress();
+            }
         }
     }
     return 0;

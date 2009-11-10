@@ -46,7 +46,7 @@ void DataSection::setBytesAtOffset(uint64_t offset, uint32_t size, char* content
 }
 
 DataSection::DataSection(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
-    : RawSection(PebilClassTypes_DataSection, rawPtr, size, scnIdx, elf)
+    : RawSection(PebilClassType_DataSection, rawPtr, size, scnIdx, elf)
 {
     rawBytes = NULL;
 }
@@ -100,7 +100,7 @@ RawSection::~RawSection(){
 }
 
 DataReference::DataReference(uint64_t dat, RawSection* rawsect, uint32_t addrAlign, uint64_t off)
-    : Base(PebilClassTypes_DataReference)
+    : Base(PebilClassType_DataReference)
 {
     data = dat;
     rawSection = rawsect;
@@ -176,7 +176,7 @@ bool DataSection::verify(){
         PRINT_ERROR("Data section should have bits");
         return false;
     }
-    if (getType() != PebilClassTypes_DataSection){
+    if (getType() != PebilClassType_DataSection){
         PRINT_ERROR("Data section has wrong class type");
         return false;
     }
@@ -196,8 +196,8 @@ void DataSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 void RawSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){ 
-    if (getType() != PebilClassTypes_RawSection && getType() != PebilClassTypes_no_type &&
-        getType() != PebilClassTypes_DwarfSection && getType() != PebilClassTypes_DwarfLineInfoSection){
+    if (getType() != PebilClassType_RawSection && getType() != PebilClassType_no_type &&
+        getType() != PebilClassType_DwarfSection && getType() != PebilClassType_DwarfLineInfoSection){
         PRINT_ERROR("You should implement the dump function for class type %d", getType());
     }
 

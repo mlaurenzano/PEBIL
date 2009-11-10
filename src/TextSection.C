@@ -10,8 +10,8 @@
 uint32_t FreeText::getNumberOfInstructions(){
     uint32_t numberOfInstructions = 0;
     for (uint32_t i = 0; i < blocks.size(); i++){
-        if (blocks[i]->getType() == PebilClassTypes_BasicBlock ||
-            blocks[i]->getType() == PebilClassTypes_CodeBlock){
+        if (blocks[i]->getType() == PebilClassType_BasicBlock ||
+            blocks[i]->getType() == PebilClassType_CodeBlock){
             numberOfInstructions += ((CodeBlock*)blocks[i])->getNumberOfInstructions();
         }
     }
@@ -48,11 +48,11 @@ uint32_t FreeText::getAllInstructions(Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
 
     for (uint32_t i = 0; i < blocks.size(); i++){
-        if (blocks[i]->getType() == PebilClassTypes_BasicBlock){
+        if (blocks[i]->getType() == PebilClassType_BasicBlock){
             BasicBlock* bb = (BasicBlock*)blocks[i];
             bb->getAllInstructions(allinsts,nexti+instructionCount);
             instructionCount += bb->getNumberOfInstructions();
-        } else if (blocks[i]->getType() == PebilClassTypes_CodeBlock){
+        } else if (blocks[i]->getType() == PebilClassType_CodeBlock){
             CodeBlock* cb = (CodeBlock*)blocks[i];
             cb->getAllInstructions(allinsts,nexti+instructionCount);
             instructionCount += cb->getNumberOfInstructions();
@@ -146,7 +146,7 @@ void TextSection::printLoops(){
 }
 
 bool TextObject::isFunction(){
-    return (getType() == PebilClassTypes_Function);
+    return (getType() == PebilClassType_Function);
 }
 
 
@@ -224,9 +224,9 @@ Vector<Instruction*>* TextObject::digestLinear(){
         currByte -= extraBytes;
 
         char oType[9];
-        if (getType() == PebilClassTypes_FreeText){
+        if (getType() == PebilClassType_FreeText){
             sprintf(oType, "%s", "FreeText\0");
-        } else if (getType() == PebilClassTypes_Function){
+        } else if (getType() == PebilClassType_Function){
             sprintf(oType, "%s", "Function\0");
         }
 
@@ -273,7 +273,7 @@ void FreeText::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 FreeText::FreeText(TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz, bool usesI)
-    : TextObject(PebilClassTypes_FreeText, text, idx, sym, addr, sz)
+    : TextObject(PebilClassType_FreeText, text, idx, sym, addr, sz)
 {
     usesInstructions = usesI;
 }
@@ -311,7 +311,7 @@ bool TextSection::inRange(uint64_t addr) {
 }
 
 TextSection::TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf, ByteSources src) :
-    RawSection(PebilClassTypes_TextSection,filePtr,size,scnIdx,elf)
+    RawSection(PebilClassType_TextSection,filePtr,size,scnIdx,elf)
 {
     index = idx;
     source = src;
@@ -373,18 +373,26 @@ uint32_t TextSection::read(BinaryInputFile* binaryInputFile){
 }
 
 
-uint64_t TextSection::findInstrumentationPoint(uint32_t size, InstLocations loc){
-    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
-        if (sortedTextObjects[i]->getType() == PebilClassTypes_Function){
-            Function* f = (Function*)sortedTextObjects[i];
+uint64_t TextSection::findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc){
+    ASSERT((loc == InstLocation_dont_care || loc == InstLocation_exact) && "Unsupported inst location being used in TextSection");
+    ASSERT(inRange(addr) && "Instrumentation address should fall within TextSection bounds");
 
-            uint64_t instAddress = f->findInstrumentationPoint(size,loc);
-            if (instAddress){
-                return instAddress;
+    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+        if (sortedTextObjects[i]->getType() == PebilClassType_Function){
+            Function* f = (Function*)sortedTextObjects[i];
+            if (loc == InstLocation_exact){
+                if (f->inRange(addr)){
+                    return f->findInstrumentationPoint(addr, size, loc);
+                }
+            } else { // loc == InstLocation_dont_care
+                uint64_t instAddress = f->findInstrumentationPoint(addr, size, loc);
+                if (instAddress){
+                    return instAddress;
+                }
             }
         }
     }
-    PRINT_ERROR("There should be an instrumentation point in text section %d", getSectionIndex());
+    PRINT_ERROR("No instrumentation point found in (text) section %d", getSectionIndex());
     __SHOULD_NOT_ARRIVE;
     return 0;
 }
@@ -392,7 +400,7 @@ uint64_t TextSection::findInstrumentationPoint(uint32_t size, InstLocations loc)
 
 Vector<Instruction*>* TextSection::swapInstructions(uint64_t addr, Vector<Instruction*>* replacements){
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
-        if (sortedTextObjects[i]->getType() == PebilClassTypes_Function){
+        if (sortedTextObjects[i]->getType() == PebilClassType_Function){
             Function* f = (Function*)sortedTextObjects[i];
             //            PRINT_INFOR("Searching function %s at range [%#llx,%#llx)", f->getName(), f->getBaseAddress(), f->getBaseAddress()+f->getSizeInBytes());
             if (f->inRange(addr)){
@@ -413,7 +421,7 @@ Vector<Instruction*>* TextSection::swapInstructions(uint64_t addr, Vector<Instru
 void TextSection::printInstructions(){
     PRINT_INFOR("Printing Instructions for (text) section %d", getSectionIndex());
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
-        if (sortedTextObjects[i]->getType() == PebilClassTypes_Function){
+        if (sortedTextObjects[i]->getType() == PebilClassType_Function){
             ((Function*)sortedTextObjects[i])->printInstructions();
         }
     }
@@ -427,7 +435,7 @@ Instruction* TextSection::getInstructionAtAddress(uint64_t addr){
     }
 
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
-        if (sortedTextObjects[i]->getType() == PebilClassTypes_Function){
+        if (sortedTextObjects[i]->getType() == PebilClassType_Function){
             Function* f = (Function*)sortedTextObjects[i];
             if (f->inRange(addr)){
                 return f->getInstructionAtAddress(addr);
@@ -444,7 +452,7 @@ BasicBlock* TextSection::getBasicBlockAtAddress(uint64_t addr){
     }
 
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
-        if (sortedTextObjects[i]->getType() == PebilClassTypes_Function){
+        if (sortedTextObjects[i]->getType() == PebilClassType_Function){
             Function* f = (Function*)sortedTextObjects[i];
             if (f->inRange(addr)){
                 return f->getBasicBlockAtAddress(addr);

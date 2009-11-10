@@ -66,7 +66,6 @@ public:
                           BitSet<BasicBlock*>* completedSet=NULL,LinkedList<BasicBlock*>* backEdges=NULL);
     
     void setImmDominatorBlocks(BasicBlock* root=NULL);
-    void testGraphAvailability();
 
     bool verify();
 };

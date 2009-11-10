@@ -36,7 +36,7 @@ bool FlowGraph::verify(){
 }
 
 void FlowGraph::addBlock(Block* block){
-    if (block->getType() == PebilClassTypes_BasicBlock){
+    if (block->getType() == PebilClassType_BasicBlock){
         basicBlocks.append((BasicBlock*)block);
     }
     blocks.insertSorted(block,compareBaseAddress);
@@ -64,31 +64,6 @@ uint32_t FlowGraph::getNumberOfInstructions(){
         numberOfInstructions += basicBlocks[i]->getNumberOfInstructions();
     }
     return numberOfInstructions;
-}
-
-void FlowGraph::testGraphAvailability(){
-
-    BitSet<BasicBlock*>* badBlocks = newBitSet();
-
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        if (!basicBlocks[i]->findInstrumentationPoint(SIZE_NEEDED_AT_INST_POINT, InstLocation_dont_care) && !basicBlocks[i]->containsOnlyControl()){
-            for (uint32_t j = 0; j < basicBlocks[i]->getNumberOfSources(); j++){
-                if (!basicBlocks[i]->getSourceBlock(j)->findInstrumentationPoint(SIZE_NEEDED_AT_INST_POINT, InstLocation_dont_care)){
-                    badBlocks->insert(i);
-                }
-            }
-        }
-    }
-
-    PRINT_DEBUG_CFG("Graph for function %s has %d/%d bad blocks", function->getName(), badBlocks->size(), basicBlocks.size());
-    BasicBlock** allBadBlocks = badBlocks->duplicateMembers();
-    for (uint32_t i = 0; i < badBlocks->size(); i++){
-        PRINT_INFOR("block %d @ %llx", allBadBlocks[i]->getIndex(), allBadBlocks[i]->getBaseAddress());
-        allBadBlocks[i]->print();
-        allBadBlocks[i]->printSourceBlocks();
-    }
-
-    delete badBlocks;
 }
 
 void FlowGraph::connectGraph(BasicBlock* entry){
@@ -159,9 +134,6 @@ void FlowGraph::connectGraph(BasicBlock* entry){
     PRINT_DEBUG_CFG("******** Found %d unreachable blocks for function %s",unreachableCount,getFunction()->getName());
     delete edgeSet;
 
-#ifdef DEBUG_CFG
-    testGraphAvailability();
-#endif
 }
 
 void FlowGraph::printLoops(){

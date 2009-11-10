@@ -18,10 +18,10 @@ protected:
 
     uint16_t index;
 protected:
-    SectionHeader() : Base(PebilClassTypes_SectionHeader),
+    SectionHeader() : Base(PebilClassType_SectionHeader),
         relocationPtr(NULL), lineInfoPointer(NULL),
         numOfRelocations(0),numOfLineInfo(0),
-        index(0),sectionNamePtr(NULL),sectionType(PebilClassTypes_no_type) {}
+        index(0),sectionNamePtr(NULL),sectionType(PebilClassType_no_type) {}
 
 public:
     bool verify();

@@ -24,6 +24,7 @@ clean:
 	$(MAKE) -C src clean
 	$(MAKE) -C testapps clean
 	$(MAKE) -C instcode clean
+	rm -rf bin/*
 
 depend:
 	$(MAKE) -C src depend

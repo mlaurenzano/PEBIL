@@ -41,7 +41,7 @@ uint32_t GnuVerneedTable::findVersion(uint32_t ver){
 }
 
 GnuVerneedTable::GnuVerneedTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
-    : RawSection(PebilClassTypes_GnuVerneedTable,rawPtr,size,scnIdx,elf)
+    : RawSection(PebilClassType_GnuVerneedTable,rawPtr,size,scnIdx,elf)
 {
     if (elfFile->is64Bit()){
         entrySize = Size__64_bit_Gnu_Verneed;
@@ -128,7 +128,7 @@ uint32_t GnuVersymTable::addSymbol(uint16_t val){
 
 
 GnuVersymTable::GnuVersymTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
-    : RawSection(PebilClassTypes_GnuVersymTable,rawPtr,size,scnIdx,elf)
+    : RawSection(PebilClassType_GnuVersymTable,rawPtr,size,scnIdx,elf)
 {
     if (elfFile->is64Bit()){
         entrySize = Size__64_bit_Gnu_Versym;

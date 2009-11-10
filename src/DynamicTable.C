@@ -51,7 +51,7 @@ void DynamicTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 DynamicTable::DynamicTable(char* rawPtr, uint32_t size, uint16_t scnIdx, uint16_t segmentIdx, ElfFile* elf) :
-    RawSection(PebilClassTypes_DynamicTable,rawPtr, size, scnIdx, elf)
+    RawSection(PebilClassType_DynamicTable,rawPtr, size, scnIdx, elf)
 {
     sizeInBytes = size;
     segmentIndex = segmentIdx;
@@ -487,7 +487,7 @@ uint32_t Dynamic64::read(BinaryInputFile* binaryInputFile){
 
 
 Dynamic::Dynamic(char* dPtr, uint32_t idx) :
-    Base(PebilClassTypes_Dynamic)
+    Base(PebilClassType_Dynamic)
 {
     dynPtr = dPtr;
     index = idx;

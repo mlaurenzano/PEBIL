@@ -92,7 +92,7 @@ public:
     uint32_t read(BinaryInputFile* b);
     uint32_t disassemble(BinaryInputFile* b);
 
-    uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
+    uint64_t findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc);
 
     bool verify();
 

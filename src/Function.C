@@ -45,7 +45,7 @@ uint32_t Function::bloatBasicBlocks(BloatTypes bloatType, uint32_t bloatAmount){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
         Block* block = flowGraph->getBlock(i);
         block->setBaseAddress(baseAddress + currByte);
-        if (block->getType() == PebilClassTypes_BasicBlock){
+        if (block->getType() == PebilClassType_BasicBlock){
             ((BasicBlock*)block)->bloat(bloatType, bloatAmount);
         } 
         block->setBaseAddress(baseAddress + currByte);
@@ -89,7 +89,7 @@ bool Function::hasCompleteDisassembly(){
     // if this function calls __i686.get_pc_thunk.bx
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
         TextObject* tobj = textSection->getTextObject(i);
-        if (tobj->getType() == PebilClassTypes_Function){
+        if (tobj->getType() == PebilClassType_Function){
             Function* func = (Function*)tobj;
             if (!strcmp(func->getName(),"__i686.get_pc_thunk.bx")){
                 if (containsCallToRange(func->getBaseAddress(),func->getBaseAddress()+func->getSizeInBytes())){
@@ -306,9 +306,9 @@ Vector<Instruction*>* Function::digestRecursive(){
             tail->setSizeInBytes(tail->getSizeInBytes() - extraBytes);
 
             char oType[9];
-            if (getType() == PebilClassTypes_FreeText){
+            if (getType() == PebilClassType_FreeText){
                 sprintf(oType, "%s", "FreeText\0");
-            } else if (getType() == PebilClassTypes_Function){
+            } else if (getType() == PebilClassType_Function){
                 sprintf(oType, "%s", "Function\0");
             }
 
@@ -403,7 +403,7 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
     flowGraph->setImmDominatorBlocks();
 
     for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
-        if (flowGraph->getBlock(i)->getType() == PebilClassTypes_BasicBlock){
+        if (flowGraph->getBlock(i)->getType() == PebilClassType_BasicBlock){
             BasicBlock* bb = (BasicBlock*)flowGraph->getBlock(i);
             bb->findCompareAndCBranch();
         }
@@ -472,11 +472,20 @@ BasicBlock* Function::getBasicBlockAtAddress(uint64_t addr){
     return NULL;
 }
 
-uint64_t Function::findInstrumentationPoint(uint32_t size, InstLocations loc){
+uint64_t Function::findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc){
+    ASSERT((loc == InstLocation_dont_care || loc == InstLocation_exact) && "Unsupported inst location being used in Function");
+    ASSERT(inRange(addr) && "Instrumentation address should fall within Function bounds");
+
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        uint64_t instAddress = flowGraph->getBasicBlock(i)->findInstrumentationPoint(size,loc);
-        if (instAddress){
-            return instAddress;
+        if (loc == InstLocation_exact){
+            if (flowGraph->getBasicBlock(i)->inRange(addr)){
+                return flowGraph->getBasicBlock(i)->findInstrumentationPoint(addr, size, loc);
+            }
+        } else { // loc == InstLocation_dont_care
+            uint64_t instAddress = flowGraph->getBasicBlock(i)->findInstrumentationPoint(addr, size, loc);
+            if (instAddress){
+                return instAddress;
+            }
         }
     }
     return 0;
@@ -490,7 +499,7 @@ Function::~Function(){
 
 
 Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz)
-    : TextObject(PebilClassTypes_Function,text,idx,sym,sym->GET(st_value),sz)
+    : TextObject(PebilClassType_Function,text,idx,sym,sym->GET(st_value),sz)
 {
     ASSERT(sym);
 

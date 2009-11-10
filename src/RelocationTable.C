@@ -49,7 +49,7 @@ uint32_t RelocationTable::addRelocation(uint64_t offset, uint64_t info){
 
 
 RelocationTable::RelocationTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
-    : RawSection(PebilClassTypes_RelocationTable,rawPtr,size,scnIdx,elf),index(idx),symbolTable(NULL),relocationSection(NULL)
+    : RawSection(PebilClassType_RelocationTable,rawPtr,size,scnIdx,elf),index(idx),symbolTable(NULL),relocationSection(NULL)
 {
     ASSERT(elfFile);
     ASSERT(elfFile->getSectionHeader(sectionIndex));
@@ -111,7 +111,7 @@ void RelocationTable::setSymbolTable(){
     
     RawSection* sy = elfFile->getRawSection(sh->GET(sh_link));
 
-    ASSERT(sy->getType() == PebilClassTypes_SymbolTable);
+    ASSERT(sy->getType() == PebilClassType_SymbolTable);
     symbolTable = (SymbolTable*)sy;
 }
 

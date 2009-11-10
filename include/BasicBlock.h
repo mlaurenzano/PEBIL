@@ -124,7 +124,7 @@ public:
     bool controlFallsThrough();
     bool findExitInstruction();
 
-    uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
+    uint64_t findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc);
     bool inRange(uint64_t addr);
 
     bool verify();

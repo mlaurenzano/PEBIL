@@ -33,7 +33,7 @@ DwarfLineInfoSection::~DwarfLineInfoSection(){
 DwarfLineInfoSection::DwarfLineInfoSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
     : DwarfSection(filePtr, size, scnIdx, idx, elf) 
 { 
-    type = PebilClassTypes_DwarfLineInfoSection; 
+    type = PebilClassType_DwarfLineInfoSection; 
 }
 
 

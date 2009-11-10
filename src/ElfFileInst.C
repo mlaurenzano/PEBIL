@@ -70,7 +70,7 @@ void ElfFileInst::buildInstrumentationData(){
 
     ProgramHeader* dataSegmentHeader = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
     DataSection* dataSection = (DataSection*)elfFile->getRawSection(extraDataIdx);
-    ASSERT(dataSection && dataSection->getType() == PebilClassTypes_DataSection);
+    ASSERT(dataSection && dataSection->getType() == PebilClassType_DataSection);
 
     SectionHeader* dataSectionHeader = elfFile->getSectionHeader(extraDataIdx);
 
@@ -131,70 +131,6 @@ bool ElfFileInst::isDisabledFunction(Function* func){
         }
     }
     return false;
-}
-
-void ElfFileInst::gatherCoverageStats(bool relocHasOccurred, const char* msg){
-    STATS(totalBlocks = 0);
-    STATS(totalBlockBytes = 0);
-
-    STATS(blocksInstrumented = 0);
-    STATS(blockBytesInstrumented = 0);
-
-    if (relocHasOccurred){
-        for (uint32_t i = 0; i < relocatedFunctions.size(); i++){
-            Function* func = relocatedFunctions[i];
-            for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
-                BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
-                STATS(totalBlocks++);
-                STATS(totalBlockBytes += bb->getNumberOfBytes());
-                STATS(blocksInstrumented++);
-                STATS(blockBytesInstrumented += bb->getNumberOfBytes());
-            }
-        }
-
-        for (uint32_t i = 0; i < hiddenFunctions.size(); i++){
-            Function* func = hiddenFunctions[i];
-            for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
-                BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
-                STATS(totalBlocks++);
-                STATS(totalBlockBytes += bb->getNumberOfBytes());
-                if (bb->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care) &&
-                    !func->getBadInstruction()){
-                    STATS(blocksInstrumented++);
-                    STATS(blockBytesInstrumented += bb->getNumberOfBytes());
-                } else {
-                    //                    PRINT_INFOR("uninstrumentable block at %#llx", bb->getBaseAddress());
-                }
-            }
-        }
-
-    } else {
-        for (uint32_t i = 0; i < elfFile->getNumberOfTextSections(); i++){
-            TextSection* ts = elfFile->getTextSection(i);
-            for (uint32_t j = 0; j < ts->getNumberOfTextObjects(); j++){
-                if (ts->getTextObject(j)->getType() == PebilClassTypes_Function){
-                    Function* func = (Function*)ts->getTextObject(j);
-                    for (uint32_t k = 0; k < func->getFlowGraph()->getNumberOfBasicBlocks(); k++){
-                        BasicBlock* bb = func->getFlowGraph()->getBasicBlock(k);
-                        STATS(totalBlocks++);
-                        STATS(totalBlockBytes += bb->getNumberOfBytes());
-                        if (bb->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care) &&
-                            !func->getBadInstruction()){
-                            STATS(blocksInstrumented++);
-                            STATS(blockBytesInstrumented += bb->getNumberOfBytes());
-                        }
-                    }                    
-                }
-            }
-        }
-    }
-
-    STATS(float ratio1, ratio2);
-    STATS(ratio1 = (float)blocksInstrumented / (float)totalBlocks * 100.0);
-    STATS(ratio2 = (float)blockBytesInstrumented / (float)totalBlockBytes * 100.0);
-
-    STATS(PRINT_INFOR("___stats: %s: %d out of %d blocks (%.2f\%); %d out of %d bytes (%.2f\%)", msg, blocksInstrumented, totalBlocks, ratio1, blockBytesInstrumented, totalBlockBytes, ratio2));
-
 }
 
 uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, void* data){
@@ -260,7 +196,7 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
         binIdx = idx;
         while (idx < addressAnchors.size() &&
                 addressAnchors[idx]->linkBaseAddress <= addr &&
-                addr < addressAnchors[idx]->linkBaseAddress + addressAnchors[idx]->getLink()->getSizeInBytes()){
+               addr < addressAnchors[idx]->linkBaseAddress + addressAnchors[idx]->getLink()->getSizeInBytes()){
             PRINT_DEBUG_ANCHOR("found %#llx <= %#llx < %#llx + %d", addressAnchors[idx]->linkBaseAddress, addr, addressAnchors[idx]->linkBaseAddress, addressAnchors[idx]->getLink()->getSizeInBytes());
             (*binaryUpdate).append(allAnchors[idx++]);
         }
@@ -299,7 +235,7 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
         for (uint32_t i = 0; i < addressAnchors.size(); i++){
             PRINT_DEBUG_ANCHOR("anchors[%d]: %#llx", i, allAnchors[i]->linkBaseAddress);
         }
-        
+
     }
     ASSERT(addressAnchors.isSorted(compareLinkBaseAddress));
     ASSERT((*binaryUpdate).size() == (*linearUpdate).size());
@@ -349,7 +285,6 @@ uint32_t ElfFileInst::anchorProgramElements(){
             __SHOULD_NOT_ARRIVE;
         }
     }
-
 #ifdef DEBUG_ANCHOR
     for (uint32_t i = 0; i < instructionCount-1; i++){
         if (allInstructions[i+1]->getBaseAddress() <= allInstructions[i]->getBaseAddress()){
@@ -396,7 +331,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
             // search special data references
             if (!currentInstruction->getAddressAnchor()){
                 for (uint32_t i = 0; i < specialDataRefs.size(); i++){
-                    if (specialDataRefs[i]->getBaseAddress() == relativeAddress){                        
+                    if (specialDataRefs[i]->getBaseAddress() == relativeAddress){
                         PRINT_DEBUG_ANCHOR("Found inst -> sdata link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
                         currentInstruction->initializeAnchor(specialDataRefs[i]);
                         addressAnchors.append(currentInstruction->getAddressAnchor());
@@ -405,7 +340,6 @@ uint32_t ElfFileInst::anchorProgramElements(){
                     }
                 }
             }
-
             // search non-text sections
             if (!currentInstruction->getAddressAnchor()){
                 for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
@@ -413,7 +347,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
                     SectionHeader* dataSectionHeader = elfFile->getSectionHeader(i);
 
                     PRINT_DEBUG_ANCHOR("Checking section %d for inst->data link: [%#llx,%#llx)", i, dataSectionHeader->GET(sh_addr), dataSectionHeader->GET(sh_addr) + dataRawSection->getSizeInBytes());
-                    if (dataRawSection->getType() != PebilClassTypes_TextSection){
+                    if (dataRawSection->getType() != PebilClassType_TextSection){
                         PRINT_DEBUG_ANCHOR("\tFound nontext");
                         if (dataSectionHeader->inRange(relativeAddress)){
                             PRINT_DEBUG_ANCHOR("Found inst -> data link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
@@ -449,15 +383,15 @@ uint32_t ElfFileInst::anchorProgramElements(){
                 }
             }
             if (!currentInstruction->getAddressAnchor()){
-                PRINT_WARN(4, "Creating special AddressRelocation for %#llx at the behest of the instruction at %#llx since it wasn't an instruction or part of a data section", 
-                           relativeAddress, currentInstruction->getBaseAddress()); 
+                PRINT_WARN(4, "Creating special AddressRelocation for %#llx at the behest of the instruction at %#llx since it wasn't an instruction or part of a data section",
+                           relativeAddress, currentInstruction->getBaseAddress());
                 DataReference* dataRef = new DataReference(0, NULL, addrAlign, relativeAddress);
                 specialDataRefs.append(dataRef);
                 currentInstruction->initializeAnchor(dataRef);
                 addressAnchors.append(currentInstruction->getAddressAnchor());
                 currentInstruction->getAddressAnchor()->setIndex(anchorCount);
                 anchorCount++;
-             }
+            }
 
 #if WARNING_SEVERITY <= 4
             if (!currentInstruction->getAddressAnchor()){
@@ -469,7 +403,6 @@ uint32_t ElfFileInst::anchorProgramElements(){
     }
 
     ASSERT(anchorCount == addressAnchors.size());
-
     PRINT_DEBUG_ANCHOR("Found %d instructions that required anchoring", anchorCount);
     PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
     PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
@@ -518,7 +451,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
                 PRINT_DEBUG_ANCHOR("Found data -> inst link: %#llx -> %#llx, offset %x", dataSectionHeader->GET(sh_addr)+currByte, extendedData, currByte);
                 DataReference* dataRef = new DataReference(extendedData, dataRawSection, addrAlign, currByte);
 #ifdef DEBUG_ANCHOR
-                            dataRef->print();
+                dataRef->print();
 #endif
                 dataRef->initializeAnchor(linkedInstruction);
                 dataRawSection->addDataReference(dataRef);
@@ -531,7 +464,6 @@ uint32_t ElfFileInst::anchorProgramElements(){
             }
         }
     }
-    
     PRINT_DEBUG_ANCHOR("Found %d anchors total", anchorCount);
     PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
     PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
@@ -549,7 +481,6 @@ uint32_t ElfFileInst::anchorProgramElements(){
     return anchorCount;
 }
 
-
 uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation){
     ASSERT(isEligibleFunction(functionToRelocate) && functionToRelocate->hasCompleteDisassembly());
 
@@ -558,13 +489,13 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
     uint64_t relocationAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + offsetToRelocation;
     uint32_t functionSize = functionToRelocate->getNumberOfBytes();
     Vector<Instruction*>* trampEmpty = new Vector<Instruction*>();
-    
+
     uint32_t currentByte = 0;
 
     (*trampEmpty).append(InstructionGenerator::generateJumpRelative(functionToRelocate->getBaseAddress(), relocationAddress));
     currentByte += (*trampEmpty).back()->getSizeInBytes();
     (*trampEmpty).back()->setBaseAddress(functionToRelocate->getBaseAddress());
-    
+
     if (currentByte > functionToRelocate->getNumberOfBytes()){
         PRINT_WARN(5, "Function %s at address %#llx is only %d bytes -- cannot relocate or fully instrument", functionToRelocate->getName(), functionToRelocate->getBaseAddress(), functionToRelocate->getNumberOfBytes());
         for (uint32_t i = 0; i < (*trampEmpty).size(); i++){
@@ -623,7 +554,6 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
         displacedFunction->bloatBasicBlocks(bloatType, SIZE_NEEDED_AT_INST_POINT);
     }
 
-
     PRINT_DEBUG_FUNC_RELOC("Function %s relocation map [%#llx,%#llx) --> [%#llx,%#llx)", displacedFunction->getName(), oldBase, oldBase+oldSize, displacedFunction->getBaseAddress(), displacedFunction->getBaseAddress() + displacedFunction->getSizeInBytes());
     PRINT_DEBUG_FUNC_RELOC("Function %s placeholder [%#llx,%#llx)", placeHolder->getName(), placeHolder->getBaseAddress(), placeHolder->getBaseAddress() + placeHolder->getSizeInBytes());
 
@@ -641,8 +571,6 @@ void ElfFileInst::generateInstrumentation(){
 #endif
 
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
-
-    STATS(gatherCoverageStats(false, "Coverage before relocation"));
 
     buildInstrumentationData();
 
@@ -755,7 +683,7 @@ void ElfFileInst::generateInstrumentation(){
     uint64_t returnOffset = 0;
     uint64_t chainOffset = 0;
 
-    instrumentationPoints.sort(compareSourceAddress);
+    instrumentationPoints.sort(compareInstAddress);
 
     PRINT_DEBUG_DATA_PLACEMENT("Register storage is at address %#llx", getExtraDataAddress() + regStorageOffset);
 
@@ -773,7 +701,7 @@ void ElfFileInst::generateInstrumentation(){
 #ifdef SWAP_MOD
         performSwap = false;
         if (i % SWAP_MOD == SWAP_MOD_OFF || pt->getPriority() < InstPriority_regular){
-            if (pt->getSourceObject()->getType() == PebilClassTypes_BasicBlock){
+            if (pt->getPointType() == PebilClassType_BasicBlock){
                 BasicBlock* bb = (BasicBlock*)pt->getSourceObject();
 #ifdef SWAP_FUNCTION_ONLY
                 if (strstr(bb->getFunction()->getName(), SWAP_FUNCTION_ONLY)){
@@ -784,7 +712,7 @@ void ElfFileInst::generateInstrumentation(){
                 }
 #endif
 
-            } else if (pt->getSourceObject()->getType() == PebilClassTypes_Instruction){
+            } else if (pt->getPointType() == PebilClassType_Instruction){
                 Instruction* ins = (Instruction*)pt->getSourceObject();
 #ifdef SWAP_FUNCTION_ONLY
                 if (strstr(ins->getContainer()->getName(), SWAP_FUNCTION_ONLY)){
@@ -799,22 +727,17 @@ void ElfFileInst::generateInstrumentation(){
 #endif
 
         if (performSwap){
-
-            if (!pt->getSourceAddress()){
+            if (!pt->getInstAddress()){
                 PRINT_WARN(4,"Could not find a place to instrument for point at %#llx", pt->getSourceObject()->getBaseAddress());
                 continue;
             }
-            if (!pt->getSourceObject()->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
-                PRINT_WARN(4,"Could not find a place to instrument for point at %#llx", pt->getSourceObject()->getBaseAddress());
-                continue;
-            }
-            PRINT_DEBUG_INST("Generating code for InstrumentationPoint %d at address %llx", i, pt->getSourceAddress());
-            PRINT_DEBUG_POINT_CHAIN("Examining instrumentation point %d at %#llx", i, pt->getSourceAddress());
+            PRINT_DEBUG_INST("Generating code for InstrumentationPoint %d at address %llx", i, pt->getInstAddress());
+            PRINT_DEBUG_POINT_CHAIN("Examining instrumentation point %d at %#llx", i, pt->getInstAddress());
             
             bool isFirstInChain = false;
             if (i == 0 || 
-                (i > 0 && instrumentationPoints[i-1]->getSourceAddress() != pt->getSourceAddress())){
-                PRINT_DEBUG_POINT_CHAIN("\tFirst in chain at %#llx (%d)", pt->getSourceAddress(), i);
+                (i > 0 && instrumentationPoints[i-1]->getInstAddress() != pt->getInstAddress())){
+                PRINT_DEBUG_POINT_CHAIN("\tFirst in chain at %#llx (%d)", pt->getInstAddress(), i);
                 
                 isFirstInChain = true;
                 chainOffset = codeOffset;
@@ -825,7 +748,7 @@ void ElfFileInst::generateInstrumentation(){
             
             repl = new Vector<Instruction*>();
             if (instrumentationPoints[i]->getNumberOfBytes() == SIZE_CONTROL_TRANSFER){
-                (*repl).append(InstructionGenerator::generateJumpRelative(pt->getSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
+                (*repl).append(InstructionGenerator::generateJumpRelative(pt->getInstAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
             } else {
                 PRINT_ERROR("This size instrumentation point (%d) not supported", instrumentationPoints[i]->getNumberOfBytes());
             }
@@ -833,7 +756,7 @@ void ElfFileInst::generateInstrumentation(){
             // disassemble the newly minted instructions
             uint32_t bytesUsed = 0;
             for (uint32_t j = 0; j < (*repl).size(); j++){
-                (*repl)[j]->setBaseAddress(pt->getSourceAddress()+bytesUsed);
+                (*repl)[j]->setBaseAddress(pt->getInstAddress()+bytesUsed);
                 bytesUsed += (*repl)[j]->getSizeInBytes();
                 
 #ifdef DEBUG_INST
@@ -848,8 +771,8 @@ void ElfFileInst::generateInstrumentation(){
             
             bool isLastInChain = false;
             if (i == instrumentationPoints.size()-1 || 
-                (i < instrumentationPoints.size()-1 && instrumentationPoints[i+1]->getSourceAddress() != pt->getSourceAddress())){
-                PRINT_DEBUG_POINT_CHAIN("\tLast of chain at %#llx (%d)", pt->getSourceAddress(), i);
+                (i < instrumentationPoints.size()-1 && instrumentationPoints[i+1]->getInstAddress() != pt->getInstAddress())){
+                PRINT_DEBUG_POINT_CHAIN("\tLast of chain at %#llx (%d)", pt->getInstAddress(), i);
                 isLastInChain = true;
                 
                 displaced = pt->swapInstructionsAtPoint(repl);
@@ -878,27 +801,27 @@ void ElfFileInst::generateInstrumentation(){
             }
             
             if (isFirstInChain){
-                returnOffset = pt->getSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
+                returnOffset = pt->getInstAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
             }
             
             uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
             
             bool stackIsSafe = false;
-            if (pt->getSourceObject()->getType() == PebilClassTypes_BasicBlock){
+            if (pt->getPointType() == PebilClassType_BasicBlock){
                 BasicBlock* bb = (BasicBlock*)pt->getSourceObject();
                 if (!bb->getFlowGraph()->getFunction()->hasLeafOptimization()){
                     PRINT_DEBUG_LEAF_OPT("Basic block at %#llx in function %s is safe from leaf optimization", bb->getBaseAddress(), bb->getFlowGraph()->getFunction()->getName());
                     stackIsSafe = true;
                 }
-            } else if (pt->getSourceObject()->getType() == PebilClassTypes_Function){
+            } else if (pt->getPointType() == PebilClassType_Function){
                 Function* fn = (Function*)pt->getSourceObject();
                 if (!fn->hasLeafOptimization()){
                     PRINT_DEBUG_LEAF_OPT("Function at %#llx in function %s is safe from leaf optimization", fn->getBaseAddress(), fn->getName());
                     stackIsSafe = true;
                 }
-            } else if (pt->getSourceObject()->getType() == PebilClassTypes_TextSection){
+            } else if (pt->getPointType() == PebilClassType_TextSection){
                 TextSection* ts = (TextSection*)pt->getSourceObject();
-                BasicBlock* bb = ts->getBasicBlockAtAddress(pt->getSourceAddress());
+                BasicBlock* bb = ts->getBasicBlockAtAddress(pt->getInstAddress());
                 if (!bb->getFlowGraph()->getFunction()->hasLeafOptimization()){
                     PRINT_DEBUG_LEAF_OPT("Basic block at %#llx in function %s is safe from leaf optimization", bb->getBaseAddress(), bb->getFlowGraph()->getFunction()->getName());
                     stackIsSafe = true;
@@ -937,8 +860,6 @@ void ElfFileInst::generateInstrumentation(){
         }
     }
 
-    STATS(textBytesUsed = codeOffset);
-    STATS(dataBytesUsed = usableDataOffset);
     PRINT_INFOR("%d instrumentation points, %lld bytes used for text, %#lld bytes used for data", instrumentationPoints.size(), codeOffset, usableDataOffset);
     ASSERT(codeOffset <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough space in the text section to accomodate the extra code");
 
@@ -967,8 +888,6 @@ void ElfFileInst::generateInstrumentation(){
     }
     PRINT_DEBUG_ANCHOR("Still have %d anchors", addressAnchors.size());
 #endif
-    STATS(gatherCoverageStats(true, "Coverage after relocation"));
-    STATS(PRINT_INFOR("___stats: %d instrumentation points are free of stack optimizations, %d points are not", InstrumentationPoint::countStackSafe , InstrumentationPoint::countStackUnsafe));
 
 }
 
@@ -1079,9 +998,9 @@ void ElfFileInst::functionSelect(){
     TextSection* text = getTextSection();
     TextSection* fini = getFiniSection();
     TextSection* init = getInitSection();
-    ASSERT(text && text->getType() == PebilClassTypes_TextSection && "Cannot find the text section");
-    ASSERT(fini && text->getType() == PebilClassTypes_TextSection && "Cannot find the fini section");
-    ASSERT(init && text->getType() == PebilClassTypes_TextSection && "Cannot find the init section");
+    ASSERT(text && text->getType() == PebilClassType_TextSection && "Cannot find the text section");
+    ASSERT(fini && text->getType() == PebilClassType_TextSection && "Cannot find the fini section");
+    ASSERT(init && text->getType() == PebilClassType_TextSection && "Cannot find the init section");
 
     Vector<TextObject*> textObjects = Vector<TextObject*>();
     for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
@@ -1236,7 +1155,7 @@ InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Base* instpoint, Inst
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");    
 
     InstLocations location = InstLocation_dont_care;
-    if (instpoint->getType() == PebilClassTypes_Instruction){
+    if (instpoint->getType() == PebilClassType_Instruction){
         location = InstLocation_prior;
     }
 
@@ -1269,7 +1188,7 @@ InstrumentationFunction* ElfFileInst::declareFunction(char* funcName){
         for (uint32_t i = 0; i < elfFile->getNumberOfTextSections(); i++){
             for (uint32_t j = 0; j < elfFile->getTextSection(i)->getNumberOfTextObjects(); j++){
                 TextObject* tobj = elfFile->getTextSection(i)->getTextObject(j);
-                if (tobj->getType() == PebilClassTypes_Function &&
+                if (tobj->getType() == PebilClassType_Function &&
                     !strcmp(((Function*)tobj)->getName(), funcName)){
                     functionEntry = ((Function*)tobj)->getBaseAddress();
                     ((Function*)tobj)->setInstrumentationFunction();
@@ -1322,7 +1241,7 @@ uint64_t ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOf
     ASSERT(relocTableAddr && "Count not find a relocation table address in the dynamic table");
 
     RelocationTable* relocTable = (RelocationTable*)elfFile->getRawSection(elfFile->findSectionIdx(relocTableAddr));
-    ASSERT(relocTable->getType() == PebilClassTypes_RelocationTable && "Found wrong section type when searching for relocation table");
+    ASSERT(relocTable->getType() == PebilClassType_RelocationTable && "Found wrong section type when searching for relocation table");
 
     uint64_t gotAddress = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + gotOffset;    
     uint64_t relocOffset;
@@ -1478,7 +1397,7 @@ void ElfFileInst::extendTextSection(uint64_t size){
     }
 
     SectionHeader* textHdr = elfFile->getSectionHeader(lowestTextSectionIdx);
-    elfFile->addSection(lowestTextSectionIdx, PebilClassTypes_TextSection, elfFile->getFileName(), textHdr->GET(sh_name), textHdr->GET(sh_type),
+    elfFile->addSection(lowestTextSectionIdx, PebilClassType_TextSection, elfFile->getFileName(), textHdr->GET(sh_name), textHdr->GET(sh_type),
                         textHdr->GET(sh_flags), textHdr->GET(sh_addr)-size, textHdr->GET(sh_offset)-size, size, textHdr->GET(sh_link), 
                         textHdr->GET(sh_info), textHdr->GET(sh_addralign), textHdr->GET(sh_entsize));
 
@@ -1592,20 +1511,12 @@ void ElfFileInst::print(uint32_t printCodes){
         float ratio;
         if (extraTextIdx){
             SectionHeader* extendedText = elfFile->getSectionHeader(extraTextIdx);
-            STATS(ratio = (float)textBytesUsed / (float)extendedText->GET(sh_size) * 100.0);
-            STATS(PRINT_INFOR("___stats: Extended TEXT: section %hd @ addr %#llx + %d bytes, used %d bytes (%.2f\%)", 
-                              extraTextIdx, extendedText->GET(sh_addr), extendedText->GET(sh_size), textBytesUsed, ratio));
         }
         if (extraDataIdx){
             SectionHeader* extendedData = elfFile->getSectionHeader(extraDataIdx);
-            STATS(ratio = (float)dataBytesUsed / (float)extendedData->GET(sh_size) * 100.0);
-            STATS(PRINT_INFOR("___stats: Extended DATA: section %hd @ addr %#llx + %d bytes, used %d bytes (%.2f\%)", 
-                              extraDataIdx, extendedData->GET(sh_addr), extendedData->GET(sh_size), dataBytesUsed, ratio));
         }
         if (instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]){
             uint32_t bytesUsed = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END]->snippetSize();
-            STATS(ratio = (float)bytesUsed/(float)dataBytesInit);
-            STATS(PRINT_INFOR("___stats: Data Initialization: %lld bytes to init, %d bytes to initialize for a ratio of 1:%.2f", dataBytesInit, bytesUsed, ratio));
         }
 
     }
@@ -1660,7 +1571,6 @@ ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
     specialDataRefs.append(zeroAddrRef);
 
     anchorsAreSorted = false;
-    STATS(dataBytesInit = 0);
 
     if (inputFuncList){
         initializeDisabledFunctions(inputFuncList);

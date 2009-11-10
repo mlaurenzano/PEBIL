@@ -9,7 +9,7 @@ protected:
 
 public:
 
-    FileHeader() : Base(PebilClassTypes_FileHeader){}
+    FileHeader() : Base(PebilClassType_FileHeader){}
     bool verify();
 
     virtual ~FileHeader() {}

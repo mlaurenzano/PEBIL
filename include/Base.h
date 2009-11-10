@@ -282,7 +282,6 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define DEBUG_MORE(...)
 #define TIMER(...) __VA_ARGS__
 #define INNER_TIMER(...) __VA_ARGS__
-#define STATS(...) __VA_ARGS__
 
 #else
 
@@ -292,7 +291,6 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define ASSERT(__str) assert(__str);
 #define TIMER(...) __VA_ARGS__
 #define INNER_TIMER(...) 
-#define STATS(...)
 
 #endif
 
@@ -364,6 +362,8 @@ typedef enum {
 typedef enum {
     InstLocation_dont_care = 0,
     InstLocation_prior,
+    InstLocation_after,
+    InstLocation_exact,
     InstLocation_Total_Types
 } InstLocations;
 
@@ -382,41 +382,41 @@ typedef enum {
 } ElfRelTypes;
 
 typedef enum {
-    PebilClassTypes_no_type = 0,
-    PebilClassTypes_BasicBlock,
-    PebilClassTypes_CodeBlock,
-    PebilClassTypes_DataReference,
-    PebilClassTypes_DataSection,
-    PebilClassTypes_DwarfSection,
-    PebilClassTypes_DwarfLineInfoSection,
-    PebilClassTypes_Dynamic,
-    PebilClassTypes_DynamicTable,
-    PebilClassTypes_FileHeader,
-    PebilClassTypes_FreeText,
-    PebilClassTypes_Function,
-    PebilClassTypes_GlobalOffsetTable,
-    PebilClassTypes_GnuVerneed,
-    PebilClassTypes_GnuVerneedTable,
-    PebilClassTypes_GnuVersym,
-    PebilClassTypes_GnuVersymTable,
-    PebilClassTypes_HashTable,
-    PebilClassTypes_Instruction,
-    PebilClassTypes_InstrumentationFunction,
-    PebilClassTypes_InstrumentationPoint,
-    PebilClassTypes_InstrumentationSnippet,
-    PebilClassTypes_Note,
-    PebilClassTypes_NoteSection,
-    PebilClassTypes_ProgramHeader,
-    PebilClassTypes_RawBlock,
-    PebilClassTypes_RawSection,
-    PebilClassTypes_RelocationTable,
-    PebilClassTypes_Relocation,
-    PebilClassTypes_SectionHeader,
-    PebilClassTypes_StringTable,
-    PebilClassTypes_Symbol,
-    PebilClassTypes_SymbolTable,
-    PebilClassTypes_TextSection,
-    PebilClassTypes_Total_Types
+    PebilClassType_no_type = 0,
+    PebilClassType_BasicBlock,
+    PebilClassType_CodeBlock,
+    PebilClassType_DataReference,
+    PebilClassType_DataSection,
+    PebilClassType_DwarfSection,
+    PebilClassType_DwarfLineInfoSection,
+    PebilClassType_Dynamic,
+    PebilClassType_DynamicTable,
+    PebilClassType_FileHeader,
+    PebilClassType_FreeText,
+    PebilClassType_Function,
+    PebilClassType_GlobalOffsetTable,
+    PebilClassType_GnuVerneed,
+    PebilClassType_GnuVerneedTable,
+    PebilClassType_GnuVersym,
+    PebilClassType_GnuVersymTable,
+    PebilClassType_HashTable,
+    PebilClassType_Instruction,
+    PebilClassType_InstrumentationFunction,
+    PebilClassType_InstrumentationPoint,
+    PebilClassType_InstrumentationSnippet,
+    PebilClassType_Note,
+    PebilClassType_NoteSection,
+    PebilClassType_ProgramHeader,
+    PebilClassType_RawBlock,
+    PebilClassType_RawSection,
+    PebilClassType_RelocationTable,
+    PebilClassType_Relocation,
+    PebilClassType_SectionHeader,
+    PebilClassType_StringTable,
+    PebilClassType_Symbol,
+    PebilClassType_SymbolTable,
+    PebilClassType_TextSection,
+    PebilClassType_Total_Types
 } PebilClassTypes;
 
 typedef enum {
@@ -446,7 +446,7 @@ protected:
     uint32_t sizeInBytes;
     uint32_t fileOffset;
 
-    Base() : type(PebilClassTypes_no_type),sizeInBytes(0),fileOffset(invalidOffset),baseAddress(0) {}
+    Base() : type(PebilClassType_no_type),sizeInBytes(0),fileOffset(invalidOffset),baseAddress(0) {}
     Base(PebilClassTypes t) : type(t),sizeInBytes(0),fileOffset(invalidOffset),baseAddress(0) {}
     virtual ~Base() {}
 
@@ -467,13 +467,13 @@ public:
     bool includesFileOffset(uint32_t offset);
 
 
-    bool containsProgramBits() { return (type == PebilClassTypes_Instruction             || 
-                                         type == PebilClassTypes_BasicBlock              || 
-                                         type == PebilClassTypes_Function                || 
-                                         type == PebilClassTypes_TextSection             ||
-                                         type == PebilClassTypes_InstrumentationSnippet  ||
-                                         type == PebilClassTypes_InstrumentationFunction ||
-                                         type == PebilClassTypes_DataReference
+    bool containsProgramBits() { return (type == PebilClassType_Instruction             || 
+                                         type == PebilClassType_BasicBlock              || 
+                                         type == PebilClassType_Function                || 
+                                         type == PebilClassType_TextSection             ||
+                                         type == PebilClassType_InstrumentationSnippet  ||
+                                         type == PebilClassType_InstrumentationFunction ||
+                                         type == PebilClassType_DataReference
                                          ); }
     virtual Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements) { __SHOULD_NOT_ARRIVE; return NULL; }
     virtual uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc) { __SHOULD_NOT_ARRIVE; return 0; }

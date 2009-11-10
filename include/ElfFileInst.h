@@ -77,14 +77,6 @@ private:
     char* instrumentationData;
     uint64_t instrumentationDataSize;
 
-    STATS(uint64_t dataBytesInit);
-    STATS(uint64_t textBytesUsed);
-    STATS(uint64_t dataBytesUsed);
-    STATS(uint32_t totalBlocks);
-    STATS(uint32_t totalBlockBytes);
-    STATS(uint32_t blocksInstrumented);
-    STATS(uint32_t blockBytesInstrumented);
-
     LineInfoFinder* lineInfoFinder;
 
     bool anchorsAreSorted;

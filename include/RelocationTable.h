@@ -12,7 +12,7 @@ class SymbolTable;
 
 class Relocation : public Base {
 protected:
-    Relocation(char* relPtr, uint32_t idx) : Base(PebilClassTypes_Relocation), relocationPtr(relPtr), index(idx) {}
+    Relocation(char* relPtr, uint32_t idx) : Base(PebilClassType_Relocation), relocationPtr(relPtr), index(idx) {}
     char* relocationPtr;
     uint32_t index;
 public:

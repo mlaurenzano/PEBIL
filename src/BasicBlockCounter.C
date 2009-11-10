@@ -111,9 +111,8 @@ void BasicBlockCounter::instrument(){
     exitFunc->addArgument(appName);
     exitFunc->addArgument(instExt);
 
-    if (fini->findInstrumentationPoint(SIZE_CONTROL_TRANSFER, InstLocation_dont_care)){
-        addInstrumentationPoint(fini, exitFunc, SIZE_CONTROL_TRANSFER);
-    } else {
+    InstrumentationPoint* p = addInstrumentationPoint(fini, exitFunc, SIZE_NEEDED_AT_INST_POINT);
+    if (!p->getInstAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
 
@@ -132,10 +131,9 @@ void BasicBlockCounter::instrument(){
     entryFunc->addArgument(hashCodeArray);
 
     BasicBlock* entryBlock = getProgramEntryBlock();
-    if (entryBlock->findInstrumentationPoint(SIZE_NEEDED_AT_INST_POINT, InstLocation_dont_care)){
-        InstrumentationPoint* p = addInstrumentationPoint(entryBlock, entryFunc, SIZE_CONTROL_TRANSFER);
-        p->setPriority(InstPriority_userinit);
-    } else {
+    p = addInstrumentationPoint(entryBlock, entryFunc, SIZE_NEEDED_AT_INST_POINT);
+    p->setPriority(InstPriority_userinit);
+    if (!p->getInstAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the entry block");
     }
 
@@ -196,7 +194,7 @@ void BasicBlockCounter::instrument(){
         addInstrumentationSnippet(snip);            
         
         // register an instrumentation point at the function that uses this snippet
-        InstrumentationPoint* p = addInstrumentationPoint(bb,snip,SIZE_CONTROL_TRANSFER);
+        InstrumentationPoint* p = addInstrumentationPoint(bb, snip, SIZE_NEEDED_AT_INST_POINT);
     }
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 

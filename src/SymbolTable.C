@@ -193,7 +193,7 @@ uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, ui
 
 
 SymbolTable::SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf)
-    : RawSection(PebilClassTypes_SymbolTable,rawPtr,size,scnIdx,elf)
+    : RawSection(PebilClassType_SymbolTable,rawPtr,size,scnIdx,elf)
 {
     index = idx;
     sizeInBytes = size;
@@ -294,7 +294,7 @@ void SymbolTable::setStringTable(){
     ASSERT(elfFile->getRawSection(sh->GET(sh_link)));
 
     RawSection* st = elfFile->getRawSection(sh->GET(sh_link));
-    ASSERT(st->getType() == PebilClassTypes_StringTable);
+    ASSERT(st->getType() == PebilClassType_StringTable);
     stringTable = (StringTable*)st;
 }
 

@@ -66,15 +66,6 @@ private:
     uint32_t numberOfMemoryOps;
     uint32_t numberOfFloatPOps;
 
-    STATS(uint32_t totalFunctions);
-    STATS(uint32_t totalBlocks);
-    STATS(uint32_t totalFunctionBytes);
-    STATS(uint32_t totalBlockBytes);
-    STATS(uint32_t functionsCovered);
-    STATS(uint32_t functionBytesCovered);
-    STATS(uint32_t blocksCovered);
-    STATS(uint32_t blockBytesCovered);
-
     BinaryInputFile   binaryInputFile;
 
     void readFileHeader();

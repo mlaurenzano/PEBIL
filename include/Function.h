@@ -75,7 +75,7 @@ public:
     HashCode getHashCode() { return hashCode; }
 
     Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
-    uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc);
+    uint64_t findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc);
 
     void printDisassembly(bool instructionDetail);
 };

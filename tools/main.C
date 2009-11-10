@@ -3,7 +3,6 @@
 #include <CacheSimulation.h>
 #include <ElfFile.h>
 #include <FunctionCounter.h>
-#include <PrintMemory.h>
 #include <Vector.h>
 
 void printBriefOptions(){
@@ -138,7 +137,6 @@ typedef enum {
     identical_inst_type,
     frequency_inst_type,
     simulation_inst_type,
-    memaddr_inst_type,
     simucntr_inst_type,
     bbtrace_inst_type,
     countblocks_inst_type,
@@ -198,9 +196,6 @@ int main(int argc,char* argv[]){
             } else if (!strcmp(argv[i],"sim")){
                 instType = simulation_inst_type;
                 extension = "siminst";
-            } else if (!strcmp(argv[i],"mem")){
-                instType = memaddr_inst_type;
-                extension = "meminst";
             } else if (!strcmp(argv[i],"csc")){
                 instType = simucntr_inst_type;
                 extension = "cscinst";
@@ -338,7 +333,6 @@ int main(int argc,char* argv[]){
     }
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-    STATS(elfFile.gatherDisassemblyStats());
 
     if (verbose){
         elfFile.print(printCodes);
@@ -356,8 +350,6 @@ int main(int argc,char* argv[]){
         elfInst = new FunctionCounter(&elfFile, inputFuncList);
     } else if (instType == frequency_inst_type){
         elfInst = new BasicBlockCounter(&elfFile, inputFuncList);
-    } else if (instType == memaddr_inst_type){
-        elfInst = new PrintMemory(&elfFile, inputFuncList);
     } else if (instType == simulation_inst_type){
         elfInst = new CacheSimulation(&elfFile, inputFuncList);
     }

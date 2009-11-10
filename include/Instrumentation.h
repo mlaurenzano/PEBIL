@@ -23,7 +23,7 @@ class InstrumentationPoint;
 #define Size__32_bit_inst_function_call_support 18
 #define Size__64_bit_inst_function_call_support 20
 
-extern int compareSourceAddress(const void* arg1,const void* arg2);
+extern int compareInstAddress(const void* arg1, const void* arg2);
 
 class Instrumentation : public Base {
 protected:
@@ -219,8 +219,6 @@ protected:
     Vector<Instruction*> postcursorInstructions;
 
 public:
-    STATS(static uint32_t countStackSafe);
-    STATS(static uint32_t countStackUnsafe);
 
     InstrumentationPoint(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc);
     ~InstrumentationPoint();
@@ -233,11 +231,12 @@ public:
     void setPriority(InstPriorities p) { ASSERT(p && p < InstPriority_Total_Types); priority = p; }
     InstPriorities getPriority() { return priority; }
 
-    uint64_t getSourceAddress();
     uint64_t getTargetOffset() { ASSERT(instrumentation); return instrumentation->getEntryPoint(); }
     Instrumentation* getInstrumentation() { return instrumentation; }
 
     Base* getSourceObject() { return point; }
+    PebilClassTypes getPointType() { return getSourceObject()->getType(); }
+    uint64_t getInstAddress();
 
     uint32_t getNumberOfBytes() { return numberOfBytes; }
     uint32_t sizeNeeded();

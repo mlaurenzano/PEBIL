@@ -44,7 +44,6 @@ SRCS  = AddressAnchor.C \
 	Loop.C \
 	MemTrack.C \
 	NoteSection.C \
-	PrintMemory.C \
 	ProgramHeader.C \
 	RawSection.C \
 	RelocationTable.C \
@@ -79,7 +78,6 @@ OBJS  = AddressAnchor.o \
 	Loop.o \
 	MemTrack.o \
 	NoteSection.o \
-	PrintMemory.o \
 	ProgramHeader.o \
 	RawSection.o \
 	RelocationTable.o \
