@@ -1,5 +1,5 @@
 DBG         = -g
-OPT         = -O3
+OPT         = -O0
 SHARED_OPT  = -fPIC
 GNU_C       = gcc
 CC          = $(GNU_C) $(DBG) $(OPT)

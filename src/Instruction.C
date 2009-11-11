@@ -465,6 +465,8 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
     ASSERT(func);
     ASSERT(addressList);
 
+    PRINT_INFOR("Jump table possible at %#llx pointing to %#llx", getProgramAddress(), tableBase);
+
     RawSection* dataSection = container->getTextSection()->getElfFile()->findDataSectionAtAddr(tableBase);
     if (!dataSection){
         print();

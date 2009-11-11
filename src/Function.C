@@ -73,15 +73,18 @@ bool Function::hasCompleteDisassembly(){
     Instruction** allInstructions = new Instruction*[numberOfInstructions];
     getAllInstructions(allInstructions,0);
     for (uint32_t i = 0; i < numberOfInstructions; i++){
-        if (allInstructions[i]->usesRelativeAddress() &&
-            !allInstructions[i]->isControl() &&
-            inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getRelativeValue())){
-            PRINT_DEBUG_FUNC_RELOC("Instruction self-data-ref inside function %s", getName());
+        if (allInstructions[i]->getAddressAnchor()){
+            if (allInstructions[i]->usesRelativeAddress() &&
+                !allInstructions[i]->isControl() &&
+                inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getAddressAnchor()->getLinkOffset())){
+                //                inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getRelativeValue())){
+                PRINT_DEBUG_FUNC_RELOC("Instruction self-data-ref inside function %s", getName());
 #ifdef DEBUG_FUNC_RELOC
-            allInstructions[i]->print();
+                allInstructions[i]->print();
 #endif
-            delete[] allInstructions;
-            return false;
+                delete[] allInstructions;
+                return false;
+            }
         }
     }
     delete[] allInstructions;

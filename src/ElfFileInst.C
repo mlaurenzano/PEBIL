@@ -550,8 +550,15 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
     bloatCount++;
 #endif
 
+
+    if (!displacedFunction->hasCompleteDisassembly()){
+        PRINT_ERROR("Function %s before bloated to have bad disassembly", displacedFunction->getName());
+    }
     if (doBloat){
         displacedFunction->bloatBasicBlocks(bloatType, SIZE_NEEDED_AT_INST_POINT);
+    }
+    if (!displacedFunction->hasCompleteDisassembly()){
+        PRINT_ERROR("Function %s after bloated to have bad disassembly", displacedFunction->getName());
     }
 
     PRINT_DEBUG_FUNC_RELOC("Function %s relocation map [%#llx,%#llx) --> [%#llx,%#llx)", displacedFunction->getName(), oldBase, oldBase+oldSize, displacedFunction->getBaseAddress(), displacedFunction->getBaseAddress() + displacedFunction->getSizeInBytes());

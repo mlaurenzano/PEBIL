@@ -107,16 +107,17 @@ void CacheSimulation::instrument(){
 
         MemoryOperand* memerand = new MemoryOperand(memop->getMemoryOperand(), this);
 
-        pt->addPrecursorInstruction(InstructionGenerator32::generateStackPush(X86_REG_AX));
         if (getElfFile()->is64Bit()){
+            pt->addPrecursorInstruction(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + getRegStorageOffset()));
             pt->addPrecursorInstruction(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_AX));
             pt->addPrecursorInstruction(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + ptIndexStore));
+            pt->addPrecursorInstruction(InstructionGenerator64::generateMoveMemToReg(getExtraDataAddress() + getRegStorageOffset(), X86_REG_AX));
         } else {
+            pt->addPrecursorInstruction(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + getRegStorageOffset()));
             pt->addPrecursorInstruction(InstructionGenerator32::generateMoveImmToReg(i, X86_REG_AX));
             pt->addPrecursorInstruction(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + ptIndexStore));
+            pt->addPrecursorInstruction(InstructionGenerator32::generateMoveMemToReg(getExtraDataAddress() + getRegStorageOffset(), X86_REG_AX));
         }
-        pt->addPrecursorInstruction(InstructionGenerator32::generateStackPop(X86_REG_AX));
-
 
         Vector<Instruction*>* addressCalcInstructions = generateBufferedAddressCalculation(memerand, bufferStore, buffPtrStore, BUFFER_ENTRIES);
         ASSERT(addressCalcInstructions);
@@ -233,7 +234,8 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation64(Memo
     }
 
     if (IS_PC_REG(operand->GET(base))){
-        (*addressCalc).append(InstructionGenerator64::generateLoadRipImmToReg(0, tempReg1));
+        //        (*addressCalc).append(InstructionGenerator64::generateLoadRipImmToReg(0, tempReg1));
+        (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(memerand->getOperand()->getInstruction()->getProgramAddress(), tempReg1));
     }
 
     if (operand->GET(base)){
