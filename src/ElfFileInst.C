@@ -1013,13 +1013,14 @@ void ElfFileInst::functionSelect(){
     for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
         textObjects.append(text->getTextObject(i));
     }
+    /*
     for (uint32_t i = 0; i < init->getNumberOfTextObjects(); i++){
         textObjects.append(init->getTextObject(i));
     }
     for (uint32_t i = 0; i < fini->getNumberOfTextObjects(); i++){
         textObjects.append(fini->getTextObject(i));
     }
-
+    */
     // choose the set of functions to expose to the instrumentation tool
     PRINT_DEBUG_FUNC_RELOC("Choosing from %d functions", text->getNumberOfTextObjects()+fini->getNumberOfTextObjects()+init->getNumberOfTextObjects());
 

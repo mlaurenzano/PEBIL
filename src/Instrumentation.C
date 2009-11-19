@@ -186,11 +186,6 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
             } else {
                 delete (*insts)[i];
             }
-#ifdef DEBUG_FUNC_RELOC
-            if ((*insts).size()){
-                PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for trampoline", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
-            }
-#endif
         }
         
         ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
@@ -352,11 +347,6 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
             } else {
                 delete (*insts)[i];
             }
-#ifdef DEBUG_FUNC_RELOC
-            if ((*insts).size()){
-                PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for trampoline", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
-            }
-#endif
         }
         
         ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
@@ -837,8 +827,8 @@ uint64_t InstrumentationPoint::getInstAddress(){
         BasicBlock* bblock = (BasicBlock*)point;
         loc = bblock->findInstrumentationPoint(bblock->getBaseAddress(), numberOfBytes, instLocation);
     } else if (getPointType() == PebilClassType_TextSection){
-        TextSection* tsection = (TextSection*)point;
-        loc = tsection->findInstrumentationPoint(tsection->getBaseAddress(), numberOfBytes, instLocation);
+        PRINT_ERROR("Not allowed to instrument a TextSection directly");
+        __SHOULD_NOT_ARRIVE;
     } else {
         PRINT_ERROR("Unexpected instrumentation point class type %d", getPointType());
         __SHOULD_NOT_ARRIVE;
