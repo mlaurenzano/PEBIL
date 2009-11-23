@@ -85,6 +85,7 @@ public:
     static Instruction* generateRegImmMultReg(uint32_t src, uint32_t imm, uint32_t dest);
     static Instruction* generateLoadRipImmToReg(uint32_t imm, uint32_t destreg);
     static Instruction* generateMoveRegToReg(uint32_t srcreg, uint32_t destreg);
+    static Instruction* generateLoadRegImmReg(uint8_t src, uint64_t imm, uint8_t dest);
 };
 
 class InstructionGenerator32 : public InstructionGenerator {
@@ -93,6 +94,7 @@ private:
 
 public:
     static Instruction* generateCompareImmReg(uint64_t imm, uint8_t reg);
+    static Instruction* generateLoadRegImmReg(uint8_t src, uint64_t imm, uint8_t dest);
 
     static Instruction* generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx);
     static Instruction* generateJumpIndirect(uint64_t tgt);

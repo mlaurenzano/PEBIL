@@ -7,6 +7,35 @@ Instruction* InstructionGenerator32::generateInstructionBase(uint32_t sz, char* 
     return InstructionGenerator::generateInstructionBase(sz, buff);
 }
 
+Instruction* InstructionGenerator32::generateLoadRegImmReg(uint8_t idxsrc, uint64_t imm, uint8_t idxdest){
+    ASSERT(idxsrc < X86_32BIT_GPRS && "Illegal register index given");
+    ASSERT(idxdest < X86_32BIT_GPRS && "Illegal register index given");    
+    uint32_t len = 6;
+    if (idxdest == X86_REG_SP){
+        len++;
+    }    
+    char* buff = new char[len];
+
+    // set opcode
+    buff[0] = 0x8d;
+    buff[1] = 0x80 + (char)(idxsrc*8) + (char)(idxdest);
+    uint32_t imm32 = (uint32_t)imm;
+    uint32_t immoff = 2;
+    if (idxdest == X86_REG_SP){
+        buff[2] = 0x24;
+        immoff++;
+    }
+    ASSERT(imm32 == (uint32_t)imm && "Cannot use more than 32 bits for the immediate");
+    memcpy(buff+immoff,&imm32,sizeof(uint32_t));
+
+    return generateInstructionBase(len,buff);    
+}
+
+Instruction* InstructionGenerator64::generateLoadRegImmReg(uint8_t src, uint64_t imm, uint8_t dest){
+    __SHOULD_NOT_ARRIVE;
+    return NULL;
+}
+
 Instruction* InstructionGenerator64::generateInstructionBase(uint32_t sz, char* buff){
     ud_t ud_obj;
     ud_init(&ud_obj);
