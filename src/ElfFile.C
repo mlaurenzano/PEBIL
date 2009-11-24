@@ -28,7 +28,22 @@ uint32_t readBytes = 0;
 );
 
 DataSection* ElfFile::getDotDataSection(){
-    return (DataSection*)getRawSection(findSectionIdx(".data"));
+    uint16_t dataSectionIndex = 0;
+
+    // pick the section prior to the .bss section
+    for (uint16_t i = getNumberOfSections() - 1; i > 0; i--){
+        if (getSectionHeader(i)->GET(sh_type) == SHT_NOBITS){
+            dataSectionIndex = i - 1;
+        }
+    }
+    ASSERT(dataSectionIndex);
+    if (strstr(getSectionHeader(dataSectionIndex)->getSectionNamePtr(), ".data") != 
+        getSectionHeader(dataSectionIndex)->getSectionNamePtr()){
+        PRINT_ERROR("section prior to .bss should conform to name `.data*'");
+        __SHOULD_NOT_ARRIVE;
+    }
+
+    return (DataSection*)getRawSection(dataSectionIndex);
 }
 
 

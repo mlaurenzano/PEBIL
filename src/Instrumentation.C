@@ -10,7 +10,7 @@
 // this next optimization will not be valid on some old intel-based x64 systems that don't support lahf/sahf
 //#define TRAMPOLINE_AVOIDS_STACK
 #define SNIPPET_TRAMPOLINE_DEFAULT false
-#define TRAPFLAG_PATCH false
+//#define TRAPFLAG_PATCH
 
 uint32_t InstrumentationPoint::addPrecursorInstruction(Instruction* inst){
     precursorInstructions.append(inst);
@@ -79,33 +79,29 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
     ASSERT(tempReg1 < X86_64BIT_GPRS && "Could not find free registers for this instrumentation point");
     //    PRINT_INFOR("using temp reg %d", tempReg1);
 
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(tempReg1, regStorageBase));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-    // save eflags in a way that doesn't touch the stack, since this could corrupt the stack in the case of a leaf-optimized function
-    if (!stackIsSafe){    
-        trampolineInstructions.append(InstructionGenerator64::generateMoveRegaddrImmToReg(X86_REG_SP, 0 - sizeof(uint64_t), tempReg1));
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-        trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(tempReg1, regStorageBase + sizeof(uint64_t)));
+    if (!stackIsSafe){
+        trampolineInstructions.append(InstructionGenerator64::generateLoadRegImmReg(X86_REG_SP, -1*TRAMPOLINE_FRAME_AUTOINC_SIZE, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
     trampolineInstructions.append(InstructionGenerator::generatePushEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    // the problem of the trap flag being pushed has not appeared on any 32bit executables that I've seen (yet)
-    // nullify the trap flag in value of the flag reg that was stored on the stack
+    // this is for cases where the flags value pushed onto the stack has the trap
+    // flag set, even though it was not set in flags register.
+    // this problem has not appeared on any 32bit executables that I've seen (yet)
+#ifdef TRAPFLAG_PATCH
+    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(tempReg1, regStorageBase));
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     trampolineInstructions.append(InstructionGenerator64::generateMoveRegaddrImmToReg(X86_REG_SP, 0, tempReg1));
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     trampolineInstructions.append(InstructionGenerator64::generateAndImmReg(0xfffffeff, tempReg1));
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     trampolineInstructions.append(InstructionGenerator64::generateMoveRegToRegaddrImm(tempReg1, X86_REG_SP, 0));
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
     trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase, tempReg1));
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
+#endif // TRAPFLAG_PATCH
 
     while (hasMorePrecursorInstructions()){
         trampolineInstructions.append(removeNextPrecursorInstruction());
@@ -119,19 +115,9 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
             trampolineSize += trampolineInstructions.back()->getSizeInBytes();
         }
     } else {
-        if (!stackIsSafe){
-            trampolineInstructions.append(InstructionGenerator64::generateRegSubImm(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE));
-            trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-        }
-
         PRINT_DEBUG_INST("Generating relative call for trampoline %#llx + %d, %#llx", textBaseAddress + offset, trampolineSize, textBaseAddress+getTargetOffset());
         trampolineInstructions.append(InstructionGenerator::generateCallRelative(offset + trampolineSize, getTargetOffset()));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-        if (!stackIsSafe){
-            trampolineInstructions.append(InstructionGenerator64::generateRegAddImm(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE));
-            trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-        }
     }
 
     // this should be unused for now
@@ -141,24 +127,14 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(tempReg1, regStorageBase));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
     // restore eflags
     trampolineInstructions.append(InstructionGenerator::generatePopEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
     if (!stackIsSafe){
-        trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase + sizeof(uint64_t), tempReg1));
+        trampolineInstructions.append(InstructionGenerator64::generateLoadRegImmReg(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-        trampolineInstructions.append(InstructionGenerator64::generateMoveRegToRegaddrImm(tempReg1, X86_REG_SP, 0 - sizeof(uint64_t)));
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();        
     }
-
-    trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase, tempReg1));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
 
     uint64_t displacementDist = returnOffset - (offset + trampolineSize + numberOfBytes);
 

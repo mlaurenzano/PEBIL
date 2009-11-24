@@ -30,8 +30,8 @@ uint32_t readBytes = 0;
 #define SYSTEM_RESERVED_AT_STARTUP 0x1000
 
 // some common macros to help debug the instrumentation process
-//#define RELOC_MOD_OFF 704
-//#define RELOC_MOD 2048
+//#define RELOC_MOD_OFF 231
+//#define RELOC_MOD 512
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define BLOAT_MOD_OFF 704
 //#define BLOAT_MOD 2048
@@ -74,8 +74,10 @@ void ElfFileInst::buildInstrumentationData(){
 
     SectionHeader* dataSectionHeader = elfFile->getSectionHeader(extraDataIdx);
 
-    dataSegmentHeader->INCREMENT(p_memsz, instrumentationDataSize);
-    dataSegmentHeader->INCREMENT(p_filesz, instrumentationDataSize);
+    uint32_t dataSegmentInc = instrumentationDataSize;
+    dataSegmentInc += programBssSize;
+    dataSegmentHeader->INCREMENT(p_memsz, dataSegmentInc);
+    dataSegmentHeader->INCREMENT(p_filesz, dataSegmentInc);
 
     dataSection->extendSize(instrumentationDataSize);
     dataSection->setBytesAtOffset(dataSectionHeader->GET(sh_size), instrumentationDataSize, instrumentationData);
@@ -1589,30 +1591,38 @@ ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
     instrumentationData = NULL;
     instrumentationDataSize = 0;
 
+    uint16_t bssDataIdx = 0;
+    for (uint16_t i = extraDataIdx + 1; i < elfFile->getNumberOfSections(); i++){
+        if (elfFile->getSectionHeader(i)->GET(sh_type) == SHT_NOBITS){
+            bssDataIdx = i;
+        }
+    }
+    ASSERT(bssDataIdx == extraDataIdx + 1 && ".data and .bss sections should be adjacent");
+
     //programDataSize = elfFile->getSectionHeader(extraDataIdx+1)->GET(sh_addr) - elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr);
     programDataSize = elfFile->getSectionHeader(extraDataIdx)->GET(sh_size);
-    ASSERT(elfFile->getSectionHeader(extraDataIdx+1)->GET(sh_type) == SHT_NOBITS);
-    programBssSize = elfFile->getSectionHeader(extraDataIdx+1)->GET(sh_size);
+    ASSERT(elfFile->getSectionHeader(bssDataIdx)->GET(sh_type) == SHT_NOBITS);
+    programBssSize = elfFile->getSectionHeader(bssDataIdx)->GET(sh_size);
 
     // find out which is the last (address-wise) symbol to use the the BSS section
     systemReservedBss = 0;
     SymbolTable* dynamicSymtab = elfFile->getDynamicSymbolTable();
     for (uint32_t i = 0; i < dynamicSymtab->getNumberOfSymbols(); i++){
         Symbol* sym = dynamicSymtab->getSymbol(i);
-        if (sym->GET(st_shndx) == extraDataIdx + 1){
+        if (sym->GET(st_shndx) == bssDataIdx){
             if (systemReservedBss < sym->GET(st_size) + sym->GET(st_value)){
                 systemReservedBss = sym->GET(st_size) + sym->GET(st_value);
             }
         }
     }
     if (systemReservedBss){
-        systemReservedBss = systemReservedBss - elfFile->getSectionHeader(extraDataIdx+1)->GET(sh_addr);
+        systemReservedBss = systemReservedBss - elfFile->getSectionHeader(bssDataIdx)->GET(sh_addr);
     }
 
     PRINT_DEBUG_DATA_PLACEMENT("Reserving %d bytes for system in BSS section", systemReservedBss);
 
     // also add in space to account for empty space between sections caused by alignment constraints on the bss section
-    systemReservedBss += elfFile->getSectionHeader(extraDataIdx+1)->GET(sh_addr) - elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) - programDataSize;
+    systemReservedBss += elfFile->getSectionHeader(bssDataIdx)->GET(sh_addr) - elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) - programDataSize;
     PRINT_DEBUG_DATA_PLACEMENT("Reserving %d bytes for sysBSS + alignment", systemReservedBss);
 
     regStorageOffset = systemReservedBss;

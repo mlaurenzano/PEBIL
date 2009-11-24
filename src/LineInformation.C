@@ -12,7 +12,7 @@ char* LineInfoTable::getFileName(uint32_t idx){
 
 char* LineInfoTable::getIncludePath(uint32_t idx){
     uint8_t dirIndex;
-    if (fileNames[idx].fn_dir_index == 0){
+    if (idx >= fileNames.size() || fileNames[idx].fn_dir_index == 0){
         return currentDirectory;
     } else {
         dirIndex = fileNames[idx].fn_dir_index-1;

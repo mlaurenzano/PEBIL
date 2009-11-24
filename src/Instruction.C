@@ -465,8 +465,6 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
     ASSERT(func);
     ASSERT(addressList);
 
-    PRINT_INFOR("Jump table possible at %#llx pointing to %#llx", getProgramAddress(), tableBase);
-
     RawSection* dataSection = container->getTextSection()->getElfFile()->findDataSectionAtAddr(tableBase);
     if (!dataSection){
         print();
@@ -1418,10 +1416,10 @@ uint32_t Instruction::getInstructionType(){
     };
 
     if (optype == X86InstructionType_unknown){
-        PRINT_ERROR("unknown type -- addr %llx, mne %s", baseAddress, ud_lookup_mnemonic(GET(mnemonic)));
+        PRINT_ERROR("Unknown instruction mnemonic `%s' found at address %#llx", ud_lookup_mnemonic(GET(mnemonic)), baseAddress);
     }
     if (optype == X86InstructionType_invalid){
-        PRINT_ERROR("invalid type -- addr %llx, mne %s", baseAddress, ud_lookup_mnemonic(GET(mnemonic)));
+        PRINT_ERROR("Invalid instruction mnemonic `%s' found at address %#llx", ud_lookup_mnemonic(GET(mnemonic)), baseAddress);
     }
     ASSERT(optype != X86InstructionType_unknown && optype != X86InstructionType_invalid);
     return optype;
