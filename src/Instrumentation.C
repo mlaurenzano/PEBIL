@@ -10,7 +10,6 @@
 // this next optimization will not be valid on some old intel-based x64 systems that don't support lahf/sahf
 //#define TRAMPOLINE_AVOIDS_STACK
 #define SNIPPET_TRAMPOLINE_DEFAULT false
-//#define TRAPFLAG_PATCH
 
 uint32_t InstrumentationPoint::addPrecursorInstruction(Instruction* inst){
     precursorInstructions.append(inst);
@@ -87,22 +86,6 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
     trampolineInstructions.append(InstructionGenerator::generatePushEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    // this is for cases where the flags value pushed onto the stack has the trap
-    // flag set, even though it was not set in flags register.
-    // this problem has not appeared on any 32bit executables that I've seen (yet)
-#ifdef TRAPFLAG_PATCH
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(tempReg1, regStorageBase));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegaddrImmToReg(X86_REG_SP, 0, tempReg1));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    trampolineInstructions.append(InstructionGenerator64::generateAndImmReg(0xfffffeff, tempReg1));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToRegaddrImm(tempReg1, X86_REG_SP, 0));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase, tempReg1));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#endif // TRAPFLAG_PATCH
-
     while (hasMorePrecursorInstructions()){
         trampolineInstructions.append(removeNextPrecursorInstruction());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
@@ -151,7 +134,6 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
                 numberOfBranches++;
                 if ((*insts)[i]->bytesUsedForTarget() < sizeof(uint32_t)){
                     PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", (*insts)[i]->bytesUsedForTarget());
-                    PRINT_INFOR("This instruction uses %d bytes for target calculation", (*insts)[i]->bytesUsedForTarget());
                     (*insts)[i]->convertTo4ByteTargetOperand();
                 }
             }

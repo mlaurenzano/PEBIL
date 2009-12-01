@@ -59,6 +59,10 @@ bool Function::hasCompleteDisassembly(){
     // if something happened during disassembly that we dont understand
     if (getBadInstruction()){
         return false;
+    }    
+
+    if (isDisasmFail()){
+        return false;
     }
 
     /*
@@ -87,7 +91,19 @@ bool Function::hasCompleteDisassembly(){
             }
         }
     }
+
+    // if this function does not contain a return instruction
+    bool hasReturn = false;
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (allInstructions[i]->isReturn()){
+            hasReturn = true;
+            i = numberOfInstructions;
+        }
+    }
     delete[] allInstructions;
+    if (!hasReturn){
+        return false;
+    }
 
     // if this function calls __i686.get_pc_thunk.bx
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
@@ -191,7 +207,11 @@ uint32_t Function::digest(){
     }
 
     ASSERT(allInstructions);
-    generateCFG(allInstructions);
+
+    if (!isDisasmFail()){
+        generateCFG(allInstructions);        
+    }
+
     delete allInstructions;
 
     return sizeInBytes;
@@ -237,14 +257,15 @@ Vector<Instruction*>* Function::digestRecursive(){
         (*allInstructions).insertSorted(currentInstruction,compareBaseAddress);
 
         // make sure the targets of this branch have not been processed yet
-        uint64_t fallThroughAddr = currentInstruction->getBaseAddress()+currentInstruction->getSizeInBytes();
+        uint64_t fallThroughAddr = currentInstruction->getBaseAddress() + currentInstruction->getSizeInBytes();
         PRINT_DEBUG_CFG("\tChecking FTaddr %#llx", fallThroughAddr);
         void* fallThrough = bsearch(&fallThroughAddr,&(*allInstructions),(*allInstructions).size(),sizeof(Instruction*),searchBaseAddress);
         if (!fallThrough){
             if (currentInstruction->controlFallsThrough()){
                 PRINT_DEBUG_CFG("\t\tpushing %#llx", fallThroughAddr);
                 unprocessed.push(fallThroughAddr);
-            } else {
+            } else { 
+                PRINT_DEBUG_CFG("\t\tsetting FTAddr = 0");
                 fallThroughAddr = 0;
             }
         } else {
@@ -256,8 +277,10 @@ Vector<Instruction*>* Function::digestRecursive(){
         
         Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
         if (currentInstruction->isJumpTableBase()){
+            PRINT_DEBUG_CFG("\t\t%#llx is jump table base", currentInstruction->getBaseAddress());
             uint64_t jumpTableBase = currentInstruction->findJumpTableBaseAddress(allInstructions);
             if (inRange(jumpTableBase) || !jumpTableBase){
+                PRINT_DEBUG_CFG("cannot locate jump table info");
                 setBadInstruction(currentInstruction->getBaseAddress());
             } else {
                 ASSERT(!(*controlTargetAddrs).size());

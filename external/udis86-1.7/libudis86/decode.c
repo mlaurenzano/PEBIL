@@ -217,9 +217,9 @@ static int search_itab( struct ud * u )
         /* X86INST */
         /* 3byte opcodes */
         if ( 0x38 == curr ) {
-            printf("3byte opcode %hhx\n", curr);
+            //printf("3byte opcode %hhx\n", curr);
             curr  = inp_next(u);
-            printf("\topcode %hhx\n", curr);
+            //printf("\topcode %hhx\n", curr);
             if ( ud_itab_list[ ITAB__0F__OP___3BYTE_38__REG ][ curr ].mnemonic != UD_Iinvalid ) {
                 table = ITAB__0F__OP___3BYTE_38__REG;
             }
@@ -229,9 +229,9 @@ static int search_itab( struct ud * u )
                 }
             }
         } else if ( 0x3A == curr ) {
-            printf("3byte opcode %hhx\n", curr);
+            //printf("3byte opcode %hhx\n", curr);
             curr  = inp_next(u);
-            printf("\topcode %hhx\n", curr);
+            //printf("\topcode %hhx\n", curr);
             if ( ud_itab_list[ ITAB__0F__OP___3BYTE_3A__REG ][ curr ].mnemonic != UD_Iinvalid ) {
                 table = ITAB__0F__OP___3BYTE_3A__REG;
             }

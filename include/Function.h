@@ -18,6 +18,7 @@ private:
     const static uint32_t recursivedisasmMask     = 0x1;
     const static uint32_t instrumentationfuncMask = 0x2;
     const static uint32_t jumptableMask           = 0x4;
+    const static uint32_t disasmfailMask          = 0x8;
 
 protected:
     FlowGraph* flowGraph;
@@ -35,10 +36,12 @@ public:
     bool isRecursiveDisasm()          { return (flags & recursivedisasmMask); }
     bool isInstrumentationFunction()  { return (flags & instrumentationfuncMask); }
     bool isJumpTable()                { return (flags & jumptableMask); }
+    bool isDisasmFail()               { return (flags & disasmfailMask); }
 
     void setRecursiveDisasm()         { flags |= recursivedisasmMask; }
     void setInstrumentationFunction() { flags |= instrumentationfuncMask; }
     void setJumpTable()               { flags |= jumptableMask; }
+    void setDisasmFail()              { flags |= disasmfailMask; }
 
     uint64_t getBadInstruction() { return badInstruction; }
     void setBadInstruction(uint64_t addr) { badInstruction = addr; }

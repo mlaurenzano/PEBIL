@@ -19,17 +19,18 @@ DINT_TYPE processTrace(DINT_TYPE* bufferloc, DINT_TYPE* bufferptr, DINT_TYPE* po
 
     //    PRINT_INSTR("raw args: m[%x]=%#x m[%x]=%lld m[%x]=%lld m[%x]=%lld", bufferloc, *bufferloc, bufferptr, *bufferptr, pointIdx, *pointIdx, pointAddrArray, *pointAddrArray);
     DINT_TYPE pointAddr = *(pointAddrArray + *pointIdx);
-    PRINT_INSTR("This is inst point %lld from program address %#llx", *pointIdx, pointAddr);
+    //    PRINT_INSTR("This is inst point %lld from program address %#llx", *pointIdx, pointAddr);
     while (0 < *bufferptr){
         //        PRINT_INSTR("trying %d %llx %llx", *bufferptr, bufferloc, *bufferloc);
         memloc = *bufferloc;
         if (memloc == 0){
             memval = 0;
         } else {
+            //            PRINT_INSTR("unravelling addr %#x", memloc);
             memval = *((DINT_TYPE*)memloc);
         }
         if (filter % FILTER == 0){
-            PRINT_INSTR("\titeration %d; mem[%#llx]\t%#llx", filter, memloc, memval);
+            //            PRINT_INSTR("\titeration %d; mem[%#llx]\t%#llx", filter, memloc, memval);
         }
         filter++;
         (*bufferptr)--;

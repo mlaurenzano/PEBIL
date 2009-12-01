@@ -1,4 +1,7 @@
-fnc32: fnc32inst fnc32ide fnc32rm
-fnc64: fnc64inst fnc64run fnc64ide fnc64rm
-jbb32: jbb32inst jbb32ide jbb32rm
-jbb64: jbb64inst jbb64run jbb64ide jbb64rm
+fnc32: fnc32inst          fnc32rm
+fnc64: fnc64inst fnc64run fnc64rm
+jbb32: jbb32inst          jbb32rm
+jbb64: jbb64inst jbb64run jbb64rm
+sim32: sim32inst          sim32rm
+sim64: sim64inst sim64run sim64rm
+

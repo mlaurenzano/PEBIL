@@ -25,12 +25,11 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
-#define DATA_SECTION_EXTEND_SIZE 0x4000
-#define TEXT_SECTION_EXTEND_SIZE 0x4000000
-#define SYSTEM_RESERVED_AT_STARTUP 0x1000
+#define TEXT_EXTENSION_FUNC (nextAlignAddress(0x10000 + (0x100 * numberOfBasicBlocks), 0x4000))
+#define DATA_EXTENSION_INC  0x4000
 
 // some common macros to help debug the instrumentation process
-//#define RELOC_MOD_OFF 231
+//#define RELOC_MOD_OFF 233
 //#define RELOC_MOD 512
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define BLOAT_MOD_OFF 704
@@ -75,7 +74,7 @@ void ElfFileInst::buildInstrumentationData(){
     SectionHeader* dataSectionHeader = elfFile->getSectionHeader(extraDataIdx);
 
     uint32_t dataSegmentInc = instrumentationDataSize;
-    dataSegmentInc += programBssSize;
+    dataSegmentInc += systemReservedBss;
     dataSegmentHeader->INCREMENT(p_memsz, dataSegmentInc);
     dataSegmentHeader->INCREMENT(p_filesz, dataSegmentInc);
 
@@ -917,7 +916,7 @@ uint64_t ElfFileInst::getExtraDataAddress() { return elfFile->getSectionHeader(e
 uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
     ASSERT(currentPhase > ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     while (usableDataOffset + size  >= instrumentationDataSize){
-        extendDataSection(DATA_SECTION_EXTEND_SIZE);
+        extendDataSection(DATA_EXTENSION_INC);
     }
     ASSERT(usableDataOffset + size < instrumentationDataSize && "Not enough space for the requested data");
 
@@ -1076,9 +1075,8 @@ void ElfFileInst::phasedInstrumentation(){
     uint32_t numberOfBasicBlocks = getInitSection()->getNumberOfBasicBlocks() + 
         getTextSection()->getNumberOfBasicBlocks() + getFiniSection()->getNumberOfBasicBlocks();
 
-    uint64_t textExtensionSize = nextAlignAddress(0x10000 + (0x80 * numberOfBasicBlocks), 0x4000);
-    extendTextSection(textExtensionSize);
-    extendDataSection(DATA_SECTION_EXTEND_SIZE);
+    extendTextSection(TEXT_EXTENSION_FUNC);
+    extendDataSection(DATA_EXTENSION_INC);
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     anchorProgramElements();
@@ -1339,6 +1337,7 @@ void ElfFileInst::extendTextSection(uint64_t size){
             if (subHeader->GET(p_vaddr) < size){
                 PRINT_WARN(5,"Unable to extend text section by 0x%llx bytes: the maximum size of a text extension for this binary is 0x%llx bytes", size, subHeader->GET(p_vaddr));
             }
+            PRINT_INFOR("program header vaddr %#llx, size %#llx", subHeader->GET(p_vaddr), size);
             ASSERT(subHeader->GET(p_vaddr) >= size && "The text extension size is too large");
             subHeader->SET(p_vaddr,subHeader->GET(p_vaddr)-size);
             subHeader->SET(p_paddr,subHeader->GET(p_paddr)-size);

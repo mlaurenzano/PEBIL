@@ -12,13 +12,16 @@ TESTBINS       = .
 32BITBIN       = $(TESTBINS)/32bit/
 64BITBIN       = $(TESTBINS)/64bit/
 #LEAKCHECK      = valgrind --leak-check=yes
-INSTRUMENTOR   = $(LEAKCHECK) $(BIN)/pebil
+INST_OPTS      = --fbl ../../scripts/exclusion/system.func
+INSTRUMENTOR   = $(LEAKCHECK) $(BIN)/pebil $(INST_OPTS)
 INSTFLAGS      = --lib ../../lib --dtl
 IDEEXT         = ideinst
 FNCEXT         = fncinst
 JBBEXT         = jbbinst
+SIMEXT         = siminst
+SIM_OPTS       = --inp foobarnada
 STATICEXT      = static
-64BITPROGS     = $(64BITPROGS_SER) $(64BITPROGS_PAR)
+64BITPROGS     = $(64BITPROGS_SER) #$(64BITPROGS_PAR)
 32BITPROGS     = $(32BITPROGS_SER) $(32BITPROGS_PAR)
 
 
@@ -26,8 +29,9 @@ all: ide fnc
 ide: ide32 ide64
 fnc: fnc32 fnc64
 jbb: jbb32 jbb64
-32:  ide32 fnc32 jbb32
-64:  ide64 fnc64 jbb64
+sim: sim32 sim64
+32:  ide32 fnc32 jbb32 sim32
+64:  ide64 fnc64 jbb64 sim64
 
 include rules.$(BITS)
 
@@ -66,12 +70,6 @@ fnc32run:
 		$(32BITBIN)/"$$i".$(FNCEXT) | egrep $(TESTAPPREGEXP); \
 	done	
 
-fnc32ide:
-	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(FNCEXT) --typ ide $(INSTFLAGS) | egrep $(PEBILREGEXP); \
-	done
-	rm -f $(32BITBIN)/*.$(IDEEXT)
-
 fnc32rm:
 	rm -f $(32BITBIN)/*.$(FNCEXT)
 
@@ -84,12 +82,6 @@ fnc64run:
 	for i in ${64BITPROGS_SER}; do \
 		$(64BITBIN)/"$$i".$(FNCEXT) | egrep $(TESTAPPREGEXP); \
 	done
-
-fnc64ide:
-	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(FNCEXT) --typ ide $(INSTFLAGS) | egrep $(PEBILREGEXP); \
-	done
-	rm -f $(64BITBIN)/*.$(IDEEXT)
 
 fnc64rm:
 	rm -f $(64BITBIN)/*.$(FNCEXT)
@@ -105,12 +97,6 @@ jbb32run:
 		$(32BITBIN)/"$$i".$(JBBEXT) | egrep $(TESTAPPREGEXP); \
 	done	
 
-jbb32ide:
-	for i in ${32BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i".$(JBBEXT) --typ ide $(INSTFLAGS) | egrep $(PEBILREGEXP); \
-	done
-	rm -f $(32BITBIN)/*.$(IDEEXT)
-
 jbb32rm:
 	rm -f $(32BITBIN)/*.$(JBBEXT)
 
@@ -124,14 +110,34 @@ jbb64run:
 		$(64BITBIN)/"$$i".$(JBBEXT) | egrep $(TESTAPPREGEXP); \
 	done
 
-jbb64ide:
-	for i in ${64BITPROGS}; do \
-		$(INSTRUMENTOR) --app $(64BITBIN)/"$$i".$(JBBEXT) --typ ide $(INSTFLAGS) | egrep $(PEBILREGEXP); \
-	done
-	rm -f $(64BITBIN)/*.$(IDEEXT)
-
 jbb64rm:
 	rm -f $(64BITBIN)/*.$(JBBEXT)
+
+sim32inst:
+	for i in ${32BITPROGS}; do \
+		$(INSTRUMENTOR) --app $(32BITBIN)/"$$i" --typ sim $(INSTFLAGS) | egrep $(PEBILREGEXP); \
+	done
+
+sim32run:
+	for i in ${32BITPROGS_SER}; do \
+		$(32BITBIN)/"$$i".$(SIMEXT) | egrep $(TESTAPPREGEXP); \
+	done	
+
+sim32rm:
+	rm -f $(32BITBIN)/*.$(SIMEXT)
+
+sim64inst:
+	for i in ${64BITPROGS}; do \
+		$(INSTRUMENTOR) $(SIM_OPTS) --app $(64BITBIN)/"$$i" --typ sim $(INSTFLAGS) | egrep $(PEBILREGEXP); \
+	done
+
+sim64run:
+	for i in ${64BITPROGS_SER}; do \
+		$(64BITBIN)/"$$i".$(SIMEXT) | egrep $(TESTAPPREGEXP); \
+	done
+
+sim64rm:
+	rm -f $(64BITBIN)/*.$(SIMEXT)
 
 nobitswarn:
 	echo ""

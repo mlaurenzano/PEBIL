@@ -1,4 +1,6 @@
-fnc32: fnc32inst nobitswarn fnc32ide fnc32rm
-fnc64: fnc64inst nobitswarn fnc64ide fnc64rm
-jbb32: jbb32inst nobitswarn jbb32ide jbb32rm
-jbb64: jbb64inst nobitswarn jbb64ide jbb64rm
+fnc32: fnc32inst nobitswarn fnc32rm
+fnc64: fnc64inst nobitswarn fnc64rm
+jbb32: jbb32inst nobitswarn jbb32rm
+jbb64: jbb64inst nobitswarn jbb64rm
+sim32: sim32inst nobitswarn sim32rm
+sim64: sim64inst nobitswarn sim64rm

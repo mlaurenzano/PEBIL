@@ -948,7 +948,7 @@ Instruction* InstructionGenerator64::generateMoveRegToRegaddrImm(uint32_t idxsrc
     uint32_t len = 7;
     uint32_t immoff = 3;
 
-    if (idxdest == X86_REG_SP){
+    if (idxdest % X86_32BIT_GPRS == X86_REG_SP){
         len++;
         immoff++;
     }

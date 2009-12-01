@@ -157,6 +157,7 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation64(Memo
     Vector<Instruction*>* addressCalc = new Vector<Instruction*>();
     uint64_t dataAddr = getExtraDataAddress();
     Operand* operand = memerand->getOperand();
+    Instruction* instruction = operand->getInstruction();
 
     // find 3 temp registers to use in the calculation
     BitSet<uint32_t>* availableRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
@@ -235,7 +236,8 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation64(Memo
 
     if (IS_PC_REG(operand->GET(base))){
         //        (*addressCalc).append(InstructionGenerator64::generateLoadRipImmToReg(0, tempReg1));
-        (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(memerand->getOperand()->getInstruction()->getProgramAddress(), tempReg1));
+        (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(instruction->getProgramAddress(), tempReg1));
+        (*addressCalc).append(InstructionGenerator64::generateRegAddImm(tempReg1, instruction->getSizeInBytes()));
     }
 
     if (operand->GET(base)){
@@ -280,6 +282,7 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(Memo
     Vector<Instruction*>* addressCalc = new Vector<Instruction*>();
     uint64_t dataAddr = getExtraDataAddress();
     Operand* operand = memerand->getOperand();
+    Instruction* instruction = operand->getInstruction();
 
     // find 3 temp registers
     BitSet<uint32_t>* availableRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);

@@ -135,13 +135,12 @@ bool Instruction::isExplicitMemoryOperation(){
     uint32_t memCount = 0;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i] && operands[i]->GET(type) == UD_OP_MEM){
-            memCount++;
-        }
-        if (operands[i] && operands[i]->GET(type) == UD_OP_MEM && GET(mnemonic) == UD_Ilea){
-            //            PRINT_INFOR("instruction at %#llx is lea", programAddress);
+            if (GET(mnemonic) != UD_Ilea){
+                memCount++;
+            }
         }
     }
-    ASSERT(memCount < 2);
+    ASSERT(!memCount || memCount == 1 && "Shouldn't have found multiple memops in an instruction");
     if (memCount){
         return true;
     }
@@ -1418,10 +1417,6 @@ uint32_t Instruction::getInstructionType(){
     if (optype == X86InstructionType_unknown){
         PRINT_ERROR("Unknown instruction mnemonic `%s' found at address %#llx", ud_lookup_mnemonic(GET(mnemonic)), baseAddress);
     }
-    if (optype == X86InstructionType_invalid){
-        PRINT_ERROR("Invalid instruction mnemonic `%s' found at address %#llx", ud_lookup_mnemonic(GET(mnemonic)), baseAddress);
-    }
-    ASSERT(optype != X86InstructionType_unknown && optype != X86InstructionType_invalid);
     return optype;
 }
 
