@@ -1,5 +1,5 @@
 DBG           = -g
-#PROFILE       = -pg
+PROFILE       = -pg
 OPT           = -O3
 NATIVE_CPP    = CC
 GNU_CPP       = g++

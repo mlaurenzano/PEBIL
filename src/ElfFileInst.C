@@ -516,7 +516,7 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
     delete modAnchors;
 
     while (currentByte < functionSize){
-        (*trampEmpty).append(InstructionGenerator::generateNoop());
+        (*trampEmpty).append(InstructionGenerator::generateInterrupt(X86TRAPCODE_BREAKPOINT));
         (*trampEmpty).back()->setBaseAddress(functionToRelocate->getBaseAddress()+currentByte);
         currentByte += (*trampEmpty).back()->getSizeInBytes();
     }

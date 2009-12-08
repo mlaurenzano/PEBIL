@@ -106,14 +106,13 @@ uint16_t getUInt16(char* buf){
 }
 
 // this function needs to be as fast as possible
-int compareBaseAddress(const void* arg1,const void* arg2){
+int compareBaseAddress(const void* arg1, const void* arg2){
     uint64_t vl1 = (*((Base**)arg1))->baseAddress;
     uint64_t vl2 = (*((Base**)arg2))->baseAddress;
 
-    if(vl1 < vl2)
-        return -1;
-    if(vl1 > vl2)
-        return 1;
+    if      (vl1 < vl2) return -1;
+    else if (vl1 > vl2) return  1;
+    else                return  0;
     return 0;
 }
 
