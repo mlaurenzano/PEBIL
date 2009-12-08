@@ -459,10 +459,12 @@ void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     }
 }
 
-void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList){
+TableModes Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList){
     ASSERT(isJumpTableBase() && "Cannot compute jump table targets for this instruction");
     ASSERT(func);
     ASSERT(addressList);
+
+    TableModes tableMode = TableMode_undefined;
 
     RawSection* dataSection = container->getTextSection()->getElfFile()->findDataSectionAtAddr(tableBase);
     if (!dataSection){
@@ -471,7 +473,7 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
     }
     ASSERT(dataSection);
     if (!dataSection->getSectionHeader()->hasBitsInFile()){
-        return;
+        return tableMode;
     }
     ASSERT(dataSection->getSectionHeader()->hasBitsInFile());
 
@@ -483,25 +485,24 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
         rawData = (uint64_t)getUInt32(dataSection->getStreamAtAddress(tableBase));
     }
 
-    bool directMode;
     // the data found is an address
     if (func->inRange(rawData)){
-        directMode = true;
-
+        tableMode = TableMode_direct;
         PRINT_DEBUG_JUMP_TABLE("\tJumpMode for table base %#llx -- Direct", tableBase);
     }
     // the data found is an address offset
     else if (func->inRange(rawData+baseAddress) || absoluteValue(rawData) < JUMP_TABLE_REACHES){
-        directMode = false;
+        tableMode = TableMode_indirect;
         PRINT_DEBUG_JUMP_TABLE("\tJumpMode for table base %#llx -- Indirect", tableBase);
     }
     // the data found is neither of the above -- we interpret this to mean that it is instructions
     else {
+        tableMode = TableMode_instructions;
         (*addressList).append(tableBase);
         PRINT_DEBUG_JUMP_TABLE("\tJumpMode for table base %#llx -- Instructions", tableBase);
-        return;
+        return tableMode;
     }
-
+    ASSERT(tableMode && tableMode < TableMode_Total_Types);
 
     uint32_t currByte = 0;
     uint32_t dataLen;
@@ -519,7 +520,7 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
         }
         currByte += dataLen;
         
-        if (!directMode){
+        if (!tableMode){
             rawData += baseAddress;
         }
         PRINT_DEBUG_JUMP_TABLE("Jump Table target %#llx", rawData);
@@ -527,6 +528,8 @@ void Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Ve
     } while (func->inRange((*addressList).back()) &&
              (tableBase+currByte)-dataSection->getSectionHeader()->GET(sh_addr) < dataSection->getSizeInBytes());
     (*addressList).remove((*addressList).size()-1);
+
+    return tableMode;
 }
 
 

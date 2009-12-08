@@ -353,6 +353,14 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define SET_PRINT_CODE(__value,__Print_Code) (__value |= __Print_Code)
 
 typedef enum {
+    TableMode_undefined = 0,
+    TableMode_direct,
+    TableMode_indirect,
+    TableMode_instructions,
+    TableMode_Total_Types
+} TableModes;
+
+typedef enum {
     BloatType_undefined = 0,
     BloatType_BasicBlock,
     BloatType_MemoryInstruction,

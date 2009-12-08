@@ -12,6 +12,8 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+#define ALLOW_JUMP_TABLE
+
 bool Function::hasLeafOptimization(){
     uint32_t numberOfInstructions = getNumberOfInstructions();
     Instruction** allInstructions = new Instruction*[numberOfInstructions];
@@ -362,18 +364,27 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
     Vector<uint64_t> leaderAddrs;
 
     for (uint32_t i = 0; i < (*instructions).size(); i++){
+#ifndef ALLOW_JUMP_TABLE
+        setJumpTable();
+#endif
         Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
         if ((*instructions)[i]->isJumpTableBase()){
-            setJumpTable();
             uint64_t jumpTableBase = (*instructions)[i]->findJumpTableBaseAddress(instructions);
             if (!jumpTableBase){
                 PRINT_WARN(6,"Cannot determine indirect jump target for instruction at %#llx", (*instructions)[i]->getBaseAddress());
                 ASSERT(getBadInstruction());
+                setJumpTable();
             } else if (inRange(jumpTableBase)){
                 ASSERT(getBadInstruction());
+                setJumpTable();
             } else {
                 ASSERT(!(*controlTargetAddrs).size());
-                (*instructions)[i]->computeJumpTableTargets(jumpTableBase, this, controlTargetAddrs);
+                TableModes tableMode = (*instructions)[i]->computeJumpTableTargets(jumpTableBase, this, controlTargetAddrs);
+                if (tableMode != TableMode_direct){
+                    setJumpTable();
+                } else {
+                    PRINT_INFOR("Function %s allowing jump table at address %#llx", getName(), (*instructions)[i]->getBaseAddress());
+                }
                 PRINT_DEBUG_CFG("Jump table targets (%d):", (*controlTargetAddrs).size());
             }
             (*controlTargetAddrs).append((*instructions)[i]->getBaseAddress() + (*instructions)[i]->getSizeInBytes());
