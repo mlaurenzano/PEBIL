@@ -105,7 +105,7 @@ uint16_t getUInt16(char* buf){
     return data;
 }
 
-// this function needs to be as fast as possible
+// this function needs to be fast; it gets called A LOT
 int compareBaseAddress(const void* arg1, const void* arg2){
     uint64_t vl1 = (*((Base**)arg1))->baseAddress;
     uint64_t vl2 = (*((Base**)arg2))->baseAddress;

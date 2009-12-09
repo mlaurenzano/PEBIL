@@ -10,7 +10,7 @@
 // this next optimization will not be valid on some old intel-based x64 systems that don't support lahf/sahf
 //#define TRAMPOLINE_AVOIDS_STACK
 #define SNIPPET_TRAMPOLINE_DEFAULT false
-#define SAVEREST_FLAGS_OFF
+//#define SAVEREST_FLAGS_OFF
 
 uint32_t InstrumentationPoint::addPrecursorInstruction(Instruction* inst){
     precursorInstructions.append(inst);

@@ -40,7 +40,7 @@ uint32_t readBytes = 0;
 //#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
-//#define VALIDATE_ANCHOR_SEARCH
+#define VALIDATE_ANCHOR_SEARCH
 
 #ifdef BLOAT_MOD
 uint32_t bloatCount = 0;
@@ -75,6 +75,7 @@ void ElfFileInst::buildInstrumentationData(){
 
     uint32_t dataSegmentInc = instrumentationDataSize;
     dataSegmentInc += systemReservedBss;
+
     dataSegmentHeader->INCREMENT(p_memsz, dataSegmentInc);
     dataSegmentHeader->INCREMENT(p_filesz, dataSegmentInc);
 

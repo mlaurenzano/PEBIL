@@ -12,7 +12,7 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
-#define ALLOW_JUMP_TABLE
+//#define ALLOW_JUMP_TABLE
 
 bool Function::hasLeafOptimization(){
     uint32_t numberOfInstructions = getNumberOfInstructions();
@@ -364,11 +364,11 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
     Vector<uint64_t> leaderAddrs;
 
     for (uint32_t i = 0; i < (*instructions).size(); i++){
-#ifndef ALLOW_JUMP_TABLE
-        setJumpTable();
-#endif
         Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
         if ((*instructions)[i]->isJumpTableBase()){
+#ifndef ALLOW_JUMP_TABLE
+            setJumpTable();
+#endif
             uint64_t jumpTableBase = (*instructions)[i]->findJumpTableBaseAddress(instructions);
             if (!jumpTableBase){
                 PRINT_WARN(6,"Cannot determine indirect jump target for instruction at %#llx", (*instructions)[i]->getBaseAddress());
