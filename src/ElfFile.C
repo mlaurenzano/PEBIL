@@ -31,15 +31,11 @@ DataSection* ElfFile::getDotDataSection(){
     uint16_t dataSectionIndex = 0;
 
     // pick the section prior to the .bss section
-    for (uint16_t i = getNumberOfSections() - 1; i > 0; i--){
-        if (getSectionHeader(i)->GET(sh_type) == SHT_NOBITS){
-            dataSectionIndex = i - 1;
-        }
-    }
-    ASSERT(dataSectionIndex);
+    dataSectionIndex = findSectionIdx(".bss") - 1;
+    ASSERT(dataSectionIndex && dataSectionIndex < getNumberOfSections());
     if (strstr(getSectionHeader(dataSectionIndex)->getSectionNamePtr(), ".data") != 
         getSectionHeader(dataSectionIndex)->getSectionNamePtr()){
-        PRINT_ERROR("section prior to .bss should conform to name `.data*'");
+        PRINT_ERROR("section prior to .bss should conform to name `.data*' -- actual name is %s", getSectionHeader(dataSectionIndex)->getSectionNamePtr());
         __SHOULD_NOT_ARRIVE;
     }
 
@@ -155,12 +151,16 @@ bool ElfFile::verify(){
     }
 
     PriorityQueue<uint64_t,uint64_t> addrs = PriorityQueue<uint64_t,uint64_t>(getNumberOfSections()+3);
-    addrs.insert(fileHeader->GET(e_ehsize),0);
+    addrs.insert(fileHeader->GET(e_ehsize),0); 
     addrs.insert(fileHeader->GET(e_phentsize)*fileHeader->GET(e_phnum),fileHeader->GET(e_phoff));
     addrs.insert(fileHeader->GET(e_shentsize)*fileHeader->GET(e_shnum),fileHeader->GET(e_shoff));
+    //PRINT_INFOR("file header range (%#llx,%#llx)", fileHeader->GET(e_ehsize),0);
+    //PRINT_INFOR("pheader table range (%#llx,%#llx)", fileHeader->GET(e_phentsize)*fileHeader->GET(e_phnum),fileHeader->GET(e_phoff));
+    //PRINT_INFOR("sheader range (%#llx,%#llx)", fileHeader->GET(e_shentsize)*fileHeader->GET(e_shnum),fileHeader->GET(e_shoff));
     for (uint32_t i = 1; i < getNumberOfSections(); i++){
         if (sectionHeaders[i]->GET(sh_type) != SHT_NOBITS){
             addrs.insert(sectionHeaders[i]->GET(sh_size),sectionHeaders[i]->GET(sh_offset));
+            //PRINT_INFOR("section header %d range (%#llx,%#llx)", i, sectionHeaders[i]->GET(sh_size), sectionHeaders[i]->GET(sh_offset));
         }
     }
     ASSERT(addrs.size() && "This queue should not be empty");
@@ -170,7 +170,7 @@ bool ElfFile::verify(){
     prevSize = addrs.deleteMin(&prevBegin);
     while (addrs.size()){
         currSize = addrs.deleteMin(&currBegin);
-        //        PRINT_INFOR("Verifying address ranges [%llx,%llx],[%llx,%llx]", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
+        //PRINT_INFOR("Verifying address ranges [%llx,%llx],[%llx,%llx]", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
         if (prevBegin + prevSize > currBegin && currSize != 0){
             PRINT_ERROR("Address ranges [%llx,%llx],[%llx,%llx] should not intersect", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
             return false;
@@ -926,7 +926,7 @@ void ElfFile::parse(){
  
     if (ISELFMAGIC(e_ident[EI_MAG0],e_ident[EI_MAG1],e_ident[EI_MAG2],e_ident[EI_MAG3])){
     } else {
-        PRINT_ERROR("The magic number [%02hhx%02hhx%02hhx%02hhx] is not a valid one",e_ident[EI_MAG0],e_ident[EI_MAG1],e_ident[EI_MAG2],e_ident[EI_MAG3]);
+        PRINT_ERROR("The file magic number [%02hhx%02hhx%02hhx%02hhx] is not a valid one",e_ident[EI_MAG0],e_ident[EI_MAG1],e_ident[EI_MAG2],e_ident[EI_MAG3]);
     }
 
     if(ISELF64BIT(e_ident[EI_CLASS])){

@@ -351,7 +351,6 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
         sortedTextObjects.append(new FreeText(this, 0, NULL, sectionHeader->GET(sh_addr), sectionHeader->GET(sh_size), true));
     }
 
-    PRINT_INFOR("There are %d objects to disassemble", sortedTextObjects.size());
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
 #ifdef DEBUG_CFG
         if (sortedTextObjects[i]->isFunction()){
@@ -360,16 +359,9 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
             PRINT_DEBUG_CFG("Digesting gentext object at %#llx", sortedTextObjects[i]->getBaseAddress());
         }
 #endif
-        if (sortedTextObjects[i]->getSizeInBytes() > 0xffff){
-            PRINT_INFOR("digesting text object (%d/%d) with size %#llx at symbol %s", i, sortedTextObjects.size(), sortedTextObjects[i]->getSizeInBytes(), sortedTextObjects[i]->getName());
-        }
         sortedTextObjects[i]->digest();
     }
 
-    if (sortedTextObjects.size() > 200){
-        PRINT_INFOR("Killing code for testing");
-        exit(-1);
-    }
     verify();
 
     return sortedTextObjects.size();

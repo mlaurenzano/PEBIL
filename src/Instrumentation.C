@@ -10,6 +10,7 @@
 // this next optimization will not be valid on some old intel-based x64 systems that don't support lahf/sahf
 //#define TRAMPOLINE_AVOIDS_STACK
 #define SNIPPET_TRAMPOLINE_DEFAULT false
+#define SAVEREST_FLAGS_OFF
 
 uint32_t InstrumentationPoint::addPrecursorInstruction(Instruction* inst){
     precursorInstructions.append(inst);
@@ -83,8 +84,10 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
+#ifndef SAVEREST_FLAGS_OFF
     trampolineInstructions.append(InstructionGenerator::generatePushEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+#endif
 
     while (hasMorePrecursorInstructions()){
         trampolineInstructions.append(removeNextPrecursorInstruction());
@@ -111,8 +114,10 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
     }
 
     // restore eflags
+#ifndef SAVEREST_FLAGS_OFF
     trampolineInstructions.append(InstructionGenerator::generatePopEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+#endif
 
     if (!stackIsSafe){
         trampolineInstructions.append(InstructionGenerator64::generateLoadRegImmReg(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE, X86_REG_SP));
@@ -203,8 +208,10 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
+#ifndef SAVEREST_FLAGS_OFF
     trampolineInstructions.append(InstructionGenerator::generatePushEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+#endif
 
     while (hasMorePrecursorInstructions()){
         trampolineInstructions.append(removeNextPrecursorInstruction());
@@ -230,8 +237,10 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
+#ifndef SAVEREST_FLAGS_OFF
     trampolineInstructions.append(InstructionGenerator::generatePopEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+#endif
 
     if (!stackIsSafe){
         trampolineInstructions.append(InstructionGenerator32::generateLoadRegImmReg(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE, X86_REG_SP));

@@ -382,8 +382,6 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
                 TableModes tableMode = (*instructions)[i]->computeJumpTableTargets(jumpTableBase, this, controlTargetAddrs);
                 if (tableMode != TableMode_direct){
                     setJumpTable();
-                } else {
-                    PRINT_INFOR("Function %s allowing jump table at address %#llx", getName(), (*instructions)[i]->getBaseAddress());
                 }
                 PRINT_DEBUG_CFG("Jump table targets (%d):", (*controlTargetAddrs).size());
             }

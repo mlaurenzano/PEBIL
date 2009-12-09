@@ -84,20 +84,21 @@ void ElfFileInst::buildInstrumentationData(){
 
 
     uint32_t align = 0;
+    uint32_t sOffsetInc = 0;
     for (uint32_t i = extraDataIdx + 1; i < elfFile->getNumberOfSections(); i++){
         SectionHeader* sHdr = elfFile->getSectionHeader(i);
-        if (sHdr->GET(sh_offset) > elfFile->getFileHeader()->GET(e_shoff)){
-            elfFile->getFileHeader()->INCREMENT(e_shoff, instrumentationDataSize + align);
+        if (sHdr->GET(sh_offset) > elfFile->getFileHeader()->GET(e_shoff) && !sOffsetInc){
+            sOffsetInc = instrumentationDataSize + align;
         }
 
         align += nextAlignAddress(sHdr->GET(sh_addr) + instrumentationDataSize + align, sHdr->GET(sh_addralign)) - (sHdr->GET(sh_addr) + instrumentationDataSize + align);
-
         sHdr->INCREMENT(sh_offset, instrumentationDataSize + align);
     }
+    elfFile->getFileHeader()->INCREMENT(e_shoff, sOffsetInc);
 
     for (uint32_t i = extraDataIdx + 2; i < elfFile->getNumberOfSections(); i++){
         SectionHeader* scn = elfFile->getSectionHeader(i);
-        ASSERT(!scn->GET(sh_addr) && "The bss section should be the final section the programs address space");
+        //        ASSERT(!scn->GET(sh_addr) && "The bss section should be the final section the programs address space");
     }
 
     //    dataSection->printBytes(programDataSize, 0, 0);
@@ -967,6 +968,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(){
 
     uint64_t codeOffset = 0;
     uint32_t numberOfFunctions = exposedFunctions.size();
+
 #ifdef TURNOFF_FUNCTION_RELOCATION
     numberOfFunctions = 0;
     PRINT_WARN(10,"Function relocation has been disabled by the macro TURNOFF_FUNCTION_RELOCATION");
@@ -981,10 +983,14 @@ uint64_t ElfFileInst::functionRelocateAndTransform(){
     for (uint32_t i = 0; i < numberOfFunctions; i++){
         Function* func = exposedFunctions[i];
 
+        if (!isEligibleFunction(func)){
+            func->print();
+        }
 #ifdef RELOC_MOD
         if (i % RELOC_MOD == RELOC_MOD_OFF){
             PRINT_INFOR("relocating function (%d) %s", i, func->getName());
 #endif
+            
         ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
         codeOffset += relocateFunction(func, codeOffset);
 
@@ -1080,13 +1086,14 @@ void ElfFileInst::phasedInstrumentation(){
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     anchorProgramElements();
-    functionSelect();
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
     declare();
+    functionSelect();
+
     if (!elfFile->isStaticLinked()){
         addSharedLibraryPath();
 
@@ -1337,7 +1344,6 @@ void ElfFileInst::extendTextSection(uint64_t size){
             if (subHeader->GET(p_vaddr) < size){
                 PRINT_WARN(5,"Unable to extend text section by 0x%llx bytes: the maximum size of a text extension for this binary is 0x%llx bytes", size, subHeader->GET(p_vaddr));
             }
-            PRINT_INFOR("program header vaddr %#llx, size %#llx", subHeader->GET(p_vaddr), size);
             ASSERT(subHeader->GET(p_vaddr) >= size && "The text extension size is too large");
             subHeader->SET(p_vaddr,subHeader->GET(p_vaddr)-size);
             subHeader->SET(p_paddr,subHeader->GET(p_paddr)-size);
@@ -1591,11 +1597,18 @@ ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
     instrumentationDataSize = 0;
 
     uint16_t bssDataIdx = 0;
+
+    /*** apparently some newer pgi compilers use thread-local storage and thus have a .tbss
+         that has sh_type = SHT_NOBITS, so this doesn't really work 
     for (uint16_t i = extraDataIdx + 1; i < elfFile->getNumberOfSections(); i++){
         if (elfFile->getSectionHeader(i)->GET(sh_type) == SHT_NOBITS){
             bssDataIdx = i;
         }
     }
+    **/
+    bssDataIdx = elfFile->findSectionIdx(".bss");
+
+
     ASSERT(bssDataIdx == extraDataIdx + 1 && ".data and .bss sections should be adjacent");
 
     //programDataSize = elfFile->getSectionHeader(extraDataIdx+1)->GET(sh_addr) - elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr);
@@ -1605,15 +1618,19 @@ ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
 
     // find out which is the last (address-wise) symbol to use the the BSS section
     systemReservedBss = 0;
+
     SymbolTable* dynamicSymtab = elfFile->getDynamicSymbolTable();
-    for (uint32_t i = 0; i < dynamicSymtab->getNumberOfSymbols(); i++){
-        Symbol* sym = dynamicSymtab->getSymbol(i);
-        if (sym->GET(st_shndx) == bssDataIdx){
-            if (systemReservedBss < sym->GET(st_size) + sym->GET(st_value)){
-                systemReservedBss = sym->GET(st_size) + sym->GET(st_value);
+    if (dynamicSymtab){
+        for (uint32_t i = 0; i < dynamicSymtab->getNumberOfSymbols(); i++){
+            Symbol* sym = dynamicSymtab->getSymbol(i);
+            if (sym->GET(st_shndx) == bssDataIdx){
+                if (systemReservedBss < sym->GET(st_size) + sym->GET(st_value)){
+                    systemReservedBss = sym->GET(st_size) + sym->GET(st_value);
+                }
             }
         }
     }
+
     if (systemReservedBss){
         systemReservedBss = systemReservedBss - elfFile->getSectionHeader(bssDataIdx)->GET(sh_addr);
     }

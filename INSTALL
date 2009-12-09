@@ -38,6 +38,9 @@ setenv PEBIL_GFORT gfortran
 setenv PATH ${PATH}:${PEBIL_BIN}
 
 3. build 
+        a. build the udis86 library. go to external/udis86 and see the build instructions within
+           for details
+
 `gmake` from the top-level directory
 
 4. run
