@@ -73,8 +73,8 @@ public:
     static Instruction* generateMoveRegToMem(uint32_t idx, uint64_t addr);
     static Instruction* generateMoveMemToReg(uint64_t addr, uint32_t idx);
 
-    static Instruction* generateStoreEflagsToAH();
-    static Instruction* generateLoadEflagsFromAH();
+    static Instruction* generateStoreAHToFlags();
+    static Instruction* generateLoadAHFromFlags();
 
     static Instruction* generateShiftLeftLogical(uint8_t imm, uint8_t reg);
     static Instruction* generateShiftRightLogical(uint8_t imm, uint8_t reg);
@@ -110,8 +110,8 @@ public:
     static Instruction* generateMoveRegaddrImmToReg(uint32_t, uint64_t, uint32_t);
     static Instruction* generateMoveRegToRegaddrImm(uint32_t, uint32_t, uint64_t);
 
-    static Instruction* generateStoreEflagsToAH();
-    static Instruction* generateLoadEflagsFromAH();
+    static Instruction* generateStoreAHToFlags();
+    static Instruction* generateLoadAHFromFlags();
 
     static Instruction* generateShiftLeftLogical(uint8_t imm, uint8_t reg);
     static Instruction* generateShiftRightLogical(uint8_t imm, uint8_t reg);

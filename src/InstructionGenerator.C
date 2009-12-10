@@ -370,28 +370,28 @@ Instruction* InstructionGenerator64::generateXorRegReg(uint8_t src, uint8_t tgt)
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateStoreEflagsToAH(){
+Instruction* InstructionGenerator32::generateLoadAHFromFlags(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x9f;
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateLoadEflagsFromAH(){
+Instruction* InstructionGenerator32::generateStoreAHToFlags(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x9e;
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateStoreEflagsToAH(){
+Instruction* InstructionGenerator64::generateLoadAHFromFlags(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x9f;
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateLoadEflagsFromAH(){
+Instruction* InstructionGenerator64::generateStoreAHToFlags(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x9e;

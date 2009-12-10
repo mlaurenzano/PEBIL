@@ -2,6 +2,7 @@ __pthread_initialize_minimal
 _start
 call_gmon_start
 __do_global_dtors_aux
+ValidatePosition
 MPI_Comm_rank
 PMPI_Comm_size
 MPIR_Free_contextid

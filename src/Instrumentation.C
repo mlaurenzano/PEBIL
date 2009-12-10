@@ -6,9 +6,7 @@
 #include <InstructionGenerator.h>
 #include <TextSection.h>
 
-//#define OPTIMIZE_NONLEAF
-// this next optimization will not be valid on some old intel-based x64 systems that don't support lahf/sahf
-//#define TRAMPOLINE_AVOIDS_STACK
+#define OPTIMIZE_NONLEAF
 #define SNIPPET_TRAMPOLINE_DEFAULT false
 //#define SAVEREST_FLAGS_OFF
 
@@ -209,7 +207,13 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
     }
 
 #ifndef SAVEREST_FLAGS_OFF
-    trampolineInstructions.append(InstructionGenerator::generatePushEflags());
+    //trampolineInstructions.append(InstructionGenerator::generatePushEflags());
+    //trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+
+    trampolineInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, regStorageBase));
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+
+    trampolineInstructions.append(InstructionGenerator32::generateLoadAHFromFlags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 #endif
 
@@ -238,7 +242,13 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
     }
 
 #ifndef SAVEREST_FLAGS_OFF
-    trampolineInstructions.append(InstructionGenerator::generatePopEflags());
+    //trampolineInstructions.append(InstructionGenerator::generatePopEflags());
+    //trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+
+    trampolineInstructions.append(InstructionGenerator32::generateStoreAHToFlags());
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+
+    trampolineInstructions.append(InstructionGenerator32::generateMoveMemToReg(regStorageBase, X86_REG_AX));
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 #endif
 

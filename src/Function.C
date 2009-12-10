@@ -12,7 +12,7 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
-//#define ALLOW_JUMP_TABLE
+#define ALLOW_JUMP_TABLE
 
 bool Function::hasLeafOptimization(){
     uint32_t numberOfInstructions = getNumberOfInstructions();
