@@ -6,6 +6,7 @@
 class CacheSimulation : public InstrumentationTool {
 private:
     InstrumentationFunction* simFunc;
+    InstrumentationFunction* exitFunc;
 
     Vector<Instruction*>* generateBufferedAddressCalculation32(MemoryOperand* memerand, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t bufferSize);
     Vector<Instruction*>* generateBufferedAddressCalculation64(MemoryOperand* memerand, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t bufferSize);

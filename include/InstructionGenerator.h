@@ -32,11 +32,11 @@ public:
     static Instruction* generateMoveImmByteToMemIndirect(uint8_t byt, uint64_t off, uint32_t idx);
     static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
     static Instruction* generateMoveImmByteToReg(uint8_t imm, uint32_t idx);
-    static Instruction* generateRegAddImm(uint32_t idx, uint64_t imm);
+    static Instruction* generateRegAddImm(uint8_t idx, uint32_t imm);
     static Instruction* generateMoveRegToRegaddr(uint32_t srcidx, uint32_t destidx);
 
     static Instruction* generateRegIncrement(uint32_t idx);
-    static Instruction* generateRegSubImm(uint32_t idx, uint64_t imm);
+    static Instruction* generateRegSubImm(uint8_t idx, uint32_t imm);
     static Instruction* generateAddByteToRegaddr(uint8_t byt, uint32_t idx);
     static Instruction* generateAndImmReg(uint64_t, uint32_t);
 };
@@ -48,11 +48,10 @@ private:
     static Instruction* generateMoveRegToRegaddrImm4Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm);
     static Instruction* generateMoveRegToRegaddrImm1Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm);
 
-    static Instruction* generateRegSubImm4Byte(uint32_t idx, uint64_t imm);
-    static Instruction* generateRegSubImm1Byte(uint32_t idx, uint64_t imm);
+    static Instruction* generateRegSubImm4Byte(uint8_t idx, uint32_t imm);
+    static Instruction* generateRegSubImm1Byte(uint8_t idx, uint32_t imm);
 
-    static Instruction* generateRegAddImm4Byte(uint32_t idx, uint64_t imm);
-    static Instruction* generateRegAddImm1Byte(uint32_t idx, uint64_t imm);
+    static Instruction* generateRegAddImm4Byte(uint8_t idx, uint32_t imm);
 
 public:
     static Instruction* generateCompareImmReg(uint64_t imm, uint8_t reg);
@@ -62,8 +61,8 @@ public:
     static Instruction* generateStackPop(uint32_t idx);
     static Instruction* generateIndirectRelativeJump(uint64_t addr, uint64_t tgt);
     static Instruction* generateStackPush4Byte(uint32_t idx);
-    static Instruction* generateRegAddImm(uint32_t, uint64_t);
-    static Instruction* generateRegSubImm(uint32_t, uint64_t);
+    static Instruction* generateRegAddImm(uint8_t, uint32_t);
+    static Instruction* generateRegSubImm(uint8_t, uint32_t);
     static Instruction* generateMoveRegToRegaddrImm(uint32_t, uint32_t, uint64_t);
     static Instruction* generateMoveRegaddrImmToReg(uint32_t, uint64_t, uint32_t);
     static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
@@ -101,8 +100,8 @@ public:
     static Instruction* generateStackPush(uint32_t idx);
     static Instruction* generateStackPop(uint32_t idx);
 
-    static Instruction* generateRegAddImm(uint32_t idx, uint64_t imm);
-    static Instruction* generateRegSubImm(uint32_t idx, uint64_t imm);
+    static Instruction* generateRegAddImm(uint8_t idx, uint32_t imm);
+    static Instruction* generateRegSubImm(uint8_t idx, uint32_t imm);
 
     static Instruction* generateMoveRegToMem(uint32_t idx, uint64_t addr);
     static Instruction* generateMoveMemToReg(uint64_t addr, uint32_t idx);

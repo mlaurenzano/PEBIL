@@ -10,6 +10,7 @@
 #include <TextSection.h>
 
 #define SIM_FUNCTION "processTrace"
+#define EXIT_FUNCTION "endTrace"
 #define INST_LIB_NAME "libsimulator.so"
 #define INST_SUFFIX "siminst"
 #define BUFFER_ENTRIES 1
@@ -21,6 +22,8 @@ CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFuncList)
     sprintf(instSuffix,"%s\0", INST_SUFFIX);
 
     simFunc = NULL;
+    exitFunc = NULL;
+
     bloatType = BloatType_MemoryInstruction;
 }
 
@@ -33,6 +36,8 @@ void CacheSimulation::declare(){
     // declare any instrumentation functions that will be used
     simFunc = declareFunction(SIM_FUNCTION);
     ASSERT(simFunc && "Cannot find memory print function, are you sure it was declared?");
+    exitFunc = declareFunction(EXIT_FUNCTION);
+    ASSERT(exitFunc && "Cannot find exit function, are you sure it was declared?");
 
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 }
@@ -99,6 +104,17 @@ void CacheSimulation::instrument(){
     simFunc->addArgument(ptIndexStore);
     simFunc->addArgument(ptSourceAddrs);
 
+    exitFunc->addArgument(bufferStore);
+    exitFunc->addArgument(buffPtrStore);
+    exitFunc->addArgument(ptIndexStore);
+    exitFunc->addArgument(ptSourceAddrs);
+
+    BasicBlock* exitBlock = ((Function*)fini->getTextObject(0))->getFlowGraph()->getBasicBlock(0);
+    InstrumentationPoint* p = addInstrumentationPoint(exitBlock, exitFunc, SIZE_NEEDED_AT_INST_POINT);
+    if (!p->getInstAddress()){
+        PRINT_ERROR("Cannot find an instrumentation point at the exit function");
+    }
+
 
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
 
@@ -108,15 +124,15 @@ void CacheSimulation::instrument(){
         MemoryOperand* memerand = new MemoryOperand(memop->getMemoryOperand(), this);
 
         if (getElfFile()->is64Bit()){
-            pt->addPrecursorInstruction(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + getRegStorageOffset()));
-            pt->addPrecursorInstruction(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_AX));
-            pt->addPrecursorInstruction(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + ptIndexStore));
-            pt->addPrecursorInstruction(InstructionGenerator64::generateMoveMemToReg(getExtraDataAddress() + getRegStorageOffset(), X86_REG_AX));
+            pt->addPrecursorInstruction(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getExtraDataAddress() + getRegStorageOffset() + sizeof(uint64_t)));
+            pt->addPrecursorInstruction(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_CX));
+            pt->addPrecursorInstruction(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getExtraDataAddress() + ptIndexStore));
+            pt->addPrecursorInstruction(InstructionGenerator64::generateMoveMemToReg(getExtraDataAddress() + getRegStorageOffset() + sizeof(uint64_t), X86_REG_CX));
         } else {
-            pt->addPrecursorInstruction(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + getRegStorageOffset()));
-            pt->addPrecursorInstruction(InstructionGenerator32::generateMoveImmToReg(i, X86_REG_AX));
-            pt->addPrecursorInstruction(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + ptIndexStore));
-            pt->addPrecursorInstruction(InstructionGenerator32::generateMoveMemToReg(getExtraDataAddress() + getRegStorageOffset(), X86_REG_AX));
+            pt->addPrecursorInstruction(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX, getExtraDataAddress() + getRegStorageOffset() + sizeof(uint64_t)));
+            pt->addPrecursorInstruction(InstructionGenerator32::generateMoveImmToReg(i, X86_REG_CX));
+            pt->addPrecursorInstruction(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX, getExtraDataAddress() + ptIndexStore));
+            pt->addPrecursorInstruction(InstructionGenerator32::generateMoveMemToReg(getExtraDataAddress() + getRegStorageOffset() + sizeof(uint64_t), X86_REG_CX));
         }
 
         Vector<Instruction*>* addressCalcInstructions = generateBufferedAddressCalculation(memerand, bufferStore, buffPtrStore, BUFFER_ENTRIES);
@@ -229,21 +245,35 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation64(Memo
  
     if (operand->GET(base)){
         (*addressCalc).append(InstructionGenerator64::generateMoveRegToReg(baseReg, tempReg1));
+#ifndef NO_LAHF_SAHF
+        // AX contains the flags values and the legitimate value of AX is in regStorage when LAHF/SAHF are in place
+        if (baseReg == X86_REG_AX){
+            (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg1));
+        }
+#endif
     }
     if (operand->GET(index)){
         (*addressCalc).append(InstructionGenerator64::generateMoveRegToReg(indexReg, tempReg2));
+#ifndef NO_LAHF_SAHF
+        // AX contains the flags values and the legitimate value of AX is in regStorage when LAHF/SAHF are in place
+        if (indexReg == X86_REG_AX){
+            (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg2));
+        }
+#endif
     }
 
     if (IS_PC_REG(operand->GET(base))){
-        //        (*addressCalc).append(InstructionGenerator64::generateLoadRipImmToReg(0, tempReg1));
         (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(instruction->getProgramAddress(), tempReg1));
         (*addressCalc).append(InstructionGenerator64::generateRegAddImm(tempReg1, instruction->getSizeInBytes()));
     }
 
+    if (lValue == 0xffffff80){
+        PRINT_ERROR("Cast of %hhd causing problems", lValue);
+    }
     if (operand->GET(base)){
-        (*addressCalc).append(InstructionGenerator64::generateRegAddImm(tempReg1, (uint32_t)lValue)); 
+        (*addressCalc).append(InstructionGenerator64::generateRegAddImm(tempReg1, lValue)); 
     } else {
-        (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg((uint32_t)lValue, tempReg1));
+        (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(lValue, tempReg1));
     }
 
     if (operand->GET(index)){
@@ -343,9 +373,21 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(Memo
  
     if (operand->GET(base)){
         (*addressCalc).append(InstructionGenerator32::generateMoveRegToReg(baseReg, tempReg1));
+#ifndef NO_LAHF_SAHF
+        // AX contains the flags values and the legitimate value of AX is in regStorage when LAHF/SAHF are in place
+        if (baseReg == X86_REG_AX){
+            (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg1));
+        }
+#endif
     }
     if (operand->GET(index)){
         (*addressCalc).append(InstructionGenerator32::generateMoveRegToReg(indexReg, tempReg2));
+#ifndef NO_LAHF_SAHF
+        // AX contains the flags values and the legitimate value of AX is in regStorage when LAHF/SAHF are in place
+        if (indexReg == X86_REG_AX){
+            (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg2));
+        }
+#endif
     }
 
     if (operand->GET(base)){

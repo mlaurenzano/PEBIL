@@ -8,6 +8,11 @@
 class Instruction;
 class InstrumentationPoint;
 
+#define OPTIMIZE_NONLEAF
+#define SNIPPET_TRAMPOLINE_DEFAULT false
+//#define SAVE_REST_FLAGS_OFF
+//#define NO_LAHF_SAHF // some rare systems don't implement lahf/sahf, in which case we will use push/popf (instr code will beslower)
+
 #define PLT_RETURN_OFFSET_32BIT 6
 #define PLT_RETURN_OFFSET_64BIT 6
 

@@ -7,10 +7,9 @@
 
 #include <InstrumentationCommon.h>
 
-#define FILTER 1
-#define INV_ADDRESS 0
+int32_t numBins = 16;
+int32_t bins[16];
 
-int32_t filter = 0;
 
 DINT_TYPE processTrace(DINT_TYPE* bufferloc, DINT_TYPE* bufferptr, DINT_TYPE* pointIdx, DINT_TYPE* pointAddrArray){
     DINT_TYPE memloc = *bufferloc;
@@ -28,14 +27,23 @@ DINT_TYPE processTrace(DINT_TYPE* bufferloc, DINT_TYPE* bufferptr, DINT_TYPE* po
         } else {
             //            PRINT_INSTR("unravelling addr %#x", memloc);
             memval = *((DINT_TYPE*)memloc);
+            bins[memloc % numBins]++;
         }
-        if (filter % FILTER == 0){
-            //            PRINT_INSTR("\titeration %d; mem[%#llx]\t%#llx", filter, memloc, memval);
-        }
-        filter++;
         (*bufferptr)--;
         bufferloc++;
     }
 
+    return 0;
+}
+
+int32_t endTrace(DINT_TYPE* bufferloc, DINT_TYPE* bufferptr, DINT_TYPE* pointIdx, DINT_TYPE* pointAddrArray){
+    int32_t i;
+
+    PRINT_INSTR("raw args: m[%x]=%#x m[%x]=%lld m[%x]=%lld m[%x]=%lld", bufferloc, *bufferloc, bufferptr, *bufferptr, pointIdx, *pointIdx, pointAddrArray, *pointAddrArray);
+    //    processTrace(bufferloc, bufferptr, pointIdx, pointAddrArray);
+
+    for (i = 0; i < numBins; i++){
+        PRINT_INSTR("bins[%d] = %d", i, bins[i]);
+    }
     return 0;
 }

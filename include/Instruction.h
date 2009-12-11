@@ -20,22 +20,26 @@ class TextObject;
 #define MAX_X86_INSTRUCTION_LENGTH 20
 #define MIN_CONST_MEMADDR 0x10000
 
-#define IS_8BIT_GPR(__val) ((__val >= UD_R_AL) && (__val <= UD_R_R15B))
-#define IS_16BIT_GPR(__val) ((__val >= UD_R_AX) && (__val <= UD_R_R15W))
-#define IS_32BIT_GPR(__val) ((__val >= UD_R_EAX) && (__val <= UD_R_R15D))
-#define IS_64BIT_GPR(__val) ((__val >= UD_R_RAX) && (__val <= UD_R_R15))
-#define IS_SEGMENT_REG(__val) ((__val >= UD_R_ES) && (__val <= UD_R_GS))
-#define IS_CONTROL_REG(__val) ((__val >= UD_R_CR0) && (__val <= UD_R_CR15))
-#define IS_DEBUG_REG(__val) ((__val >= UD_R_DR0) && (__val <= UD_R_DR15))
-#define IS_MMX_REG(__val) ((__val >= UD_R_MM0) && (__val <= UD_R_MM7))
-#define IS_X87_REG(__val) ((__val >= UD_R_ST0) && (__val <= UD_R_ST7))
-#define IS_XMM_REG(__val) ((__val >= UD_R_XMM0) && (__val <= UD_R_XMM15))
-#define IS_PC_REG(__val) (__val == UD_R_RIP)
-#define IS_OPERAND_TYPE(__val) ((__val >= UD_OP_REG) && (__val <= UD_OP_CONST))
+#define IS_8BIT_GPR(__reg) ((__reg >= UD_R_AL) && (__reg <= UD_R_R15B))
+#define IS_16BIT_GPR(__reg) ((__reg >= UD_R_AX) && (__reg <= UD_R_R15W))
+#define IS_32BIT_GPR(__reg) ((__reg >= UD_R_EAX) && (__reg <= UD_R_R15D))
+#define IS_64BIT_GPR(__reg) ((__reg >= UD_R_RAX) && (__reg <= UD_R_R15))
+#define IS_SEGMENT_REG(__reg) ((__reg >= UD_R_ES) && (__reg <= UD_R_GS))
+#define IS_CONTROL_REG(__reg) ((__reg >= UD_R_CR0) && (__reg <= UD_R_CR15))
+#define IS_DEBUG_REG(__reg) ((__reg >= UD_R_DR0) && (__reg <= UD_R_DR15))
+#define IS_MMX_REG(__reg) ((__reg >= UD_R_MM0) && (__reg <= UD_R_MM7))
+#define IS_X87_REG(__reg) ((__reg >= UD_R_ST0) && (__reg <= UD_R_ST7))
+#define IS_XMM_REG(__reg) ((__reg >= UD_R_XMM0) && (__reg <= UD_R_XMM15))
+#define IS_PC_REG(__reg) (__reg == UD_R_RIP)
+#define IS_OPERAND_TYPE(__opr) ((__opr >= UD_OP_REG) && (__opr <= UD_OP_CONST))
 
-#define IS_GPR(__val) (IS_8BIT_GPR(__val) || IS_16BIT_GPR(__val) || IS_32BIT_GPR(__val) || IS_64BIT_GPR(__val))
-#define IS_REG(__val) (IS_GPR(__val) || IS_SEGMENT_REG(__val) || IS_CONTROL_REG(__val) || IS_DEBUG_REG(__val) || \
-                       IS_MMX_REG(__val) || IS_X87_REG(__val) || IS_XMM_REG(__val) || IS_PC_REG(__val))
+#define IS_GPR(__reg) (IS_8BIT_GPR(__reg) || IS_16BIT_GPR(__reg) || IS_32BIT_GPR(__reg) || IS_64BIT_GPR(__reg))
+#define IS_REG(__reg) (IS_GPR(__reg) || IS_SEGMENT_REG(__reg) || IS_CONTROL_REG(__reg) || IS_DEBUG_REG(__reg) || \
+                       IS_MMX_REG(__reg) || IS_X87_REG(__reg) || IS_XMM_REG(__reg) || IS_PC_REG(__reg))
+
+#define IS_LOADADDR(__mne) (__mne == UD_Ilea)
+#define IS_PREFETCH(__mne) (__mne == UD_Iprefetch || __mne == UD_Iprefetchnta || __mne == UD_Iprefetcht0 || \
+                          __mne == UD_Iprefetcht1 || __mne ==UD_Iprefetcht2)
 
 
 // my non-gnu definitions for X86

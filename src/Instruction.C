@@ -135,7 +135,7 @@ bool Instruction::isExplicitMemoryOperation(){
     uint32_t memCount = 0;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i] && operands[i]->GET(type) == UD_OP_MEM){
-            if (GET(mnemonic) != UD_Ilea){
+            if (!IS_LOADADDR(GET(mnemonic)) && !IS_PREFETCH(GET(mnemonic))){
                 memCount++;
             }
         }

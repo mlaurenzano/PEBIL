@@ -25,7 +25,7 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
-#define TEXT_EXTENSION_FUNC (nextAlignAddress(0x10000 + (0x100 * numberOfBasicBlocks), 0x4000))
+#define TEXT_EXTENSION_FUNC (nextAlignAddress(0x10000 + (0x120 * numberOfBasicBlocks), 0x4000))
 #define DATA_EXTENSION_INC  0x4000
 
 // some common macros to help debug the instrumentation process
@@ -40,7 +40,7 @@ uint32_t readBytes = 0;
 //#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
-#define VALIDATE_ANCHOR_SEARCH
+//#define VALIDATE_ANCHOR_SEARCH
 
 #ifdef BLOAT_MOD
 uint32_t bloatCount = 0;
@@ -576,7 +576,9 @@ BasicBlock* ElfFileInst::getProgramEntryBlock(){
 
 // the order of operations in this function in very important, things will break if they are changed
 void ElfFileInst::generateInstrumentation(){
-#ifndef VALIDATE_ANCHOR_SEARCH
+#ifdef VALIDATE_ANCHOR_SEARCH
+    PRINT_INFOR("Validating anchor search, this can cause much longer instrumentation times, see VALIDATE_ANCHOR_SEARCH in %s", __FILE__);
+#else
     PRINT_INFOR("Not validating anchor search, if problems are encountered try enabling VALIDATE_ANCHOR_SEARCH in %s", __FILE__);
 #endif
 

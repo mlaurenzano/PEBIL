@@ -6,10 +6,6 @@
 #include <InstructionGenerator.h>
 #include <TextSection.h>
 
-#define OPTIMIZE_NONLEAF
-#define SNIPPET_TRAMPOLINE_DEFAULT false
-//#define SAVEREST_FLAGS_OFF
-
 uint32_t InstrumentationPoint::addPrecursorInstruction(Instruction* inst){
     precursorInstructions.append(inst);
     return precursorInstructions.size();
@@ -82,10 +78,18 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
-#ifndef SAVEREST_FLAGS_OFF
+#ifndef SAVE_REST_FLAGS_OFF
+#ifdef NO_LAHF_SAHF
     trampolineInstructions.append(InstructionGenerator::generatePushEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#endif
+#else
+    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, regStorageBase));
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+
+    trampolineInstructions.append(InstructionGenerator64::generateLoadAHFromFlags());
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+#endif // NO_LAHF_SAHF
+#endif // SAVE_REST_FLAGS_OFF
 
     while (hasMorePrecursorInstructions()){
         trampolineInstructions.append(removeNextPrecursorInstruction());
@@ -112,10 +116,18 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
     }
 
     // restore eflags
-#ifndef SAVEREST_FLAGS_OFF
+#ifndef SAVE_REST_FLAGS_OFF
+#ifdef NO_LAHF_SAHF
     trampolineInstructions.append(InstructionGenerator::generatePopEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#endif
+#else
+    trampolineInstructions.append(InstructionGenerator64::generateStoreAHToFlags());
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+
+    trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase, X86_REG_AX));
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+#endif // NO_LAHF_SAHF
+#endif // SAVE_REST_FLAGS_OFF
 
     if (!stackIsSafe){
         trampolineInstructions.append(InstructionGenerator64::generateLoadRegImmReg(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE, X86_REG_SP));
@@ -206,16 +218,18 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
-#ifndef SAVEREST_FLAGS_OFF
-    //trampolineInstructions.append(InstructionGenerator::generatePushEflags());
-    //trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-    trampolineInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, regStorageBase));
+#ifndef SAVE_REST_FLAGS_OFF
+#ifdef NO_LAHF_SAHF
+    trampolineInstructions.append(InstructionGenerator::generatePushEflags());
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+#else
+    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, regStorageBase));
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator32::generateLoadAHFromFlags());
+    trampolineInstructions.append(InstructionGenerator64::generateLoadAHFromFlags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#endif
+#endif // NO_LAHF_SAHF
+#endif // SAVE_REST_FLAGS_OFF
 
     while (hasMorePrecursorInstructions()){
         trampolineInstructions.append(removeNextPrecursorInstruction());
@@ -241,16 +255,18 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
-#ifndef SAVEREST_FLAGS_OFF
-    //trampolineInstructions.append(InstructionGenerator::generatePopEflags());
-    //trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
+#ifndef SAVE_REST_FLAGS_OFF
+#ifdef NO_LAHF_SAHF
+    trampolineInstructions.append(InstructionGenerator::generatePopEflags());
+    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+#else
     trampolineInstructions.append(InstructionGenerator32::generateStoreAHToFlags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
     trampolineInstructions.append(InstructionGenerator32::generateMoveMemToReg(regStorageBase, X86_REG_AX));
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#endif
+#endif // NO_LAHF_SAHF
+#endif // SAVE_REST_FLAGS_OFF
 
     if (!stackIsSafe){
         trampolineInstructions.append(InstructionGenerator32::generateLoadRegImmReg(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE, X86_REG_SP));
