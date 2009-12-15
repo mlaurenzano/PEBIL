@@ -1089,13 +1089,16 @@ void ElfFileInst::phasedInstrumentation(){
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     anchorProgramElements();
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
     declare();
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     functionSelect();
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     if (!elfFile->isStaticLinked()){
         addSharedLibraryPath();

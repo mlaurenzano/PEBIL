@@ -1528,8 +1528,6 @@ Instruction::Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_
     leader = false;
     
     verify();
-    //    print();
-
 }
 
 Instruction::Instruction(struct ud* init)

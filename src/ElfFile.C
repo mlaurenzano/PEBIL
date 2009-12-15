@@ -950,6 +950,10 @@ void ElfFile::parse(){
         setStaticLinked(true);
         PRINT_INFOR("The executable is statically linked");
     }
+
+    PRINT_INFOR("Instruction size is %d", sizeof(Instruction));
+    PRINT_INFOR("struct ud size is %d", sizeof(struct ud));
+    PRINT_INFOR("struct ud_operand size is %d", sizeof(struct ud_operand));
 }
 
 void ElfFile::readFileHeader() {

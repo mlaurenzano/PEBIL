@@ -12,12 +12,9 @@ SRCDIR        = ../src
 BINDIR        = ../bin
 EXTRA_LIBS    = -lpebil -L../external/udis86-1.7/lib -ludis86
 
-TARGET_BIN  = quickdump pebil
+TARGET_BIN  = pebil
 
 all: clean $(TARGET_BIN) install
-
-quickdump : quickdump.o
-	$(CPP) $(CFLAGS) -o $@ quickdump.o $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS)
 
 pebil : main.o
 	$(CPP) $(CFLAGS) -o $@ main.o $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS) $(PEBIL_LD_FLAGS)
