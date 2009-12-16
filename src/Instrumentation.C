@@ -223,10 +223,10 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
     trampolineInstructions.append(InstructionGenerator::generatePushEflags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 #else
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, regStorageBase));
+    trampolineInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, regStorageBase));
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator64::generateLoadAHFromFlags());
+    trampolineInstructions.append(InstructionGenerator32::generateLoadAHFromFlags());
     trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 #endif // NO_LAHF_SAHF
 #endif // SAVE_REST_FLAGS_OFF

@@ -25,7 +25,7 @@ class InstrumentationPoint;
 
 #define TRAMPOLINE_FRAME_AUTOINC_SIZE 0x80
 
-#define Size__32_bit_inst_function_call_support 5
+#define Size__32_bit_inst_function_call_support 6
 #define Size__64_bit_inst_function_call_support 6
 
 extern int compareInstAddress(const void* arg1, const void* arg2);

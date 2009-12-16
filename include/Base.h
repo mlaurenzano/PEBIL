@@ -35,7 +35,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_JUMP_TABLE
 //#define DEBUG_POINT_CHAIN
 //#define DEBUG_LEAF_OPT
-//#define DEBUG_DATA_PLACEMENT
+#define DEBUG_DATA_PLACEMENT
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")

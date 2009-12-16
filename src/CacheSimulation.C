@@ -13,7 +13,7 @@
 #define EXIT_FUNCTION "endTrace"
 #define INST_LIB_NAME "libsimulator.so"
 #define INST_SUFFIX "siminst"
-#define BUFFER_ENTRIES 1
+#define BUFFER_ENTRIES 0x00020000
 
 CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFuncList)
     : InstrumentationTool(elf, inputFuncList)
@@ -310,6 +310,7 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation64(Memo
 
 Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(MemoryOperand* memerand, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t bufferSize){
     Vector<Instruction*>* addressCalc = new Vector<Instruction*>();
+
     uint64_t dataAddr = getExtraDataAddress();
     Operand* operand = memerand->getOperand();
     Instruction* instruction = operand->getInstruction();
@@ -340,7 +341,6 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(Memo
     ASSERT(tempReg1 != X86_32BIT_GPRS && tempReg2 != X86_32BIT_GPRS && tempReg3 != X86_32BIT_GPRS);
     delete availableRegs;
 
-
     uint8_t baseReg = 0;
     if (operand->GET(base)){
         if (!IS_32BIT_GPR(operand->GET(base))){
@@ -365,7 +365,7 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(Memo
 
     //    PRINT_INFOR("Using tmp1/tmp2/base/index/value/scale/baddr %hhd/%hhd/%hhd/%hhd/%#llx/%d/%#llx", tempReg1, tempReg2, baseReg, indexReg, operand->getValue(), operand->GET(scale), operand->getInstruction()->getProgramAddress());
 
-    (*addressCalc).append(InstructionGenerator::generateNoop());
+    //    (*addressCalc).append(InstructionGenerator::generateNoop());
     
     (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(tempReg1, dataAddr + getRegStorageOffset() + 2*(sizeof(uint64_t))));
     (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(tempReg2, dataAddr + getRegStorageOffset() + 3*(sizeof(uint64_t))));
@@ -376,7 +376,7 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(Memo
 #ifndef NO_LAHF_SAHF
         // AX contains the flags values and the legitimate value of AX is in regStorage when LAHF/SAHF are in place
         if (baseReg == X86_REG_AX){
-            (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg1));
+            //(*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg1));
         }
 #endif
     }
@@ -385,15 +385,15 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(Memo
 #ifndef NO_LAHF_SAHF
         // AX contains the flags values and the legitimate value of AX is in regStorage when LAHF/SAHF are in place
         if (indexReg == X86_REG_AX){
-            (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg2));
+            //(*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg2));
         }
 #endif
     }
 
     if (operand->GET(base)){
-        (*addressCalc).append(InstructionGenerator32::generateRegAddImm(tempReg1, (uint32_t)operand->getValue())); 
+        (*addressCalc).append(InstructionGenerator32::generateRegAddImm(tempReg1, operand->getValue())); 
     } else {
-        (*addressCalc).append(InstructionGenerator32::generateMoveImmToReg((uint32_t)operand->getValue(), tempReg1));
+        (*addressCalc).append(InstructionGenerator32::generateMoveImmToReg(operand->getValue(), tempReg1));
     }
 
     if (operand->GET(index)){
@@ -421,10 +421,8 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(Memo
     (*addressCalc).append(InstructionGenerator32::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 3*(sizeof(uint64_t)), tempReg2));
     (*addressCalc).append(InstructionGenerator32::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 2*(sizeof(uint64_t)), tempReg1));
 
-    (*addressCalc).append(InstructionGenerator::generateBranchJL(Size__32_bit_inst_function_call_support));
-
-    (*addressCalc).append(InstructionGenerator::generateNoop());
-
+    (*addressCalc).append(InstructionGenerator::generateBranchJL(Size__32_bit_inst_function_call_support-1));
+    //    (*addressCalc).append(InstructionGenerator::generateNoop());
     return addressCalc;
 }
 
