@@ -2,7 +2,8 @@ __pthread_initialize_minimal
 _start
 call_gmon_start
 __do_global_dtors_aux
-ValidatePosition
+__hpf_init_consts
+mod_xc_xcspmd_
 MPI_Comm_rank
 PMPI_Comm_size
 MPIR_Free_contextid

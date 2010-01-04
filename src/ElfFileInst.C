@@ -25,7 +25,7 @@ DEBUG(
 uint32_t readBytes = 0;
 );
 
-#define TEXT_EXTENSION_FUNC (nextAlignAddress(0x10000 + (0x180 * numberOfBasicBlocks), 0x4000))
+#define TEXT_EXTENSION_FUNC (nextAlignAddress(0x10000 + (0x1c0 * numberOfBasicBlocks), 0x4000))
 #define DATA_EXTENSION_INC  0x4000
 
 // some common macros to help debug the instrumentation process
@@ -34,9 +34,15 @@ uint32_t readBytes = 0;
 #define TURNOFF_FUNCTION_RELOCATION
 //#define BLOAT_MOD_OFF 704
 //#define BLOAT_MOD 2048
+<<<<<<< .mine
+//#define TURNOFF_FUNCTION_BLOAT
+//#define SWAP_MOD_OFF 1472
+//#define SWAP_MOD 262144
+=======
 #define TURNOFF_FUNCTION_BLOAT
 //#define SWAP_MOD_OFF 1
 //#define SWAP_MOD 4
+>>>>>>> .r3131
 //#define SWAP_FUNCTION_ONLY "raise"
 #define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY

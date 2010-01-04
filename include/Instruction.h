@@ -39,7 +39,7 @@ class TextObject;
 
 #define IS_LOADADDR(__mne) (__mne == UD_Ilea)
 #define IS_PREFETCH(__mne) (__mne == UD_Iprefetch || __mne == UD_Iprefetchnta || __mne == UD_Iprefetcht0 || \
-                          __mne == UD_Iprefetcht1 || __mne ==UD_Iprefetcht2)
+                            __mne == UD_Iprefetcht1 || __mne == UD_Iprefetcht2)
 
 
 // my non-gnu definitions for X86
