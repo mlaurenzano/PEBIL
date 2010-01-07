@@ -700,7 +700,7 @@ void ElfFile::initDynamicFilePointers(){
 uint32_t ElfFile::findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t bufCnt,char** namestr){
     uint32_t retValue = 0;
     if(namestr){
-        *namestr = new char[__MAX_STRING_SIZE+2];
+        *namestr = new char[__MAX_STRING_SIZE];
         **namestr = '\0';
     }
 
@@ -911,7 +911,7 @@ uint32_t ElfFile::printDisassembly(bool instructionDetail){
 }
 
 void ElfFile::dump(char* extension){
-    char fileName[80] = "";
+    char fileName[__MAX_STRING_SIZE] = "";
     sprintf(fileName,"%s.%s", elfFileName, extension);
 
     PRINT_INFOR("Output file is %s", fileName);

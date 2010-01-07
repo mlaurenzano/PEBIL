@@ -97,7 +97,7 @@ void ElfFileInst::buildInstrumentationSections(){
     ASSERT(instDataHeader && elfFile->getRawSection(extraDataIdx)->getType() == PebilClassType_DataSection);
 
     elfFile->addSegment(DEFAULT_SEGMENT_INCLUSION_DATA, dHdr->GET(p_type), instDataHeader->GET(sh_offset), instDataHeader->GET(sh_addr),
-                        instDataHeader->GET(sh_addr), instrumentationDataSize + 0x8000, instrumentationDataSize, dHdr->GET(p_flags), dHdr->GET(p_align));
+                        instDataHeader->GET(sh_addr), instrumentationDataSize, instrumentationDataSize, dHdr->GET(p_flags), dHdr->GET(p_align));
 
     // if any sections fall after the program header table, update their offset to give room for the new entry
     uint32_t extraSize = elfFile->getFileHeader()->GET(e_phentsize);
@@ -127,49 +127,6 @@ void ElfFileInst::buildInstrumentationSections(){
     verify();
     ASSERT(elfFile->getRawSection(extraDataIdx)->charStream());
     return;
-
-    /*
-    DataSection* dataSection = (DataSection*)elfFile->getRawSection(extraDataIdx);
-
-    SectionHeader* dataSectionHeader = elfFile->getSectionHeader(extraDataIdx);
-
-    uint32_t dataSegmentInc = instrumentationDataSize;
-    dataSegmentInc += systemReservedBss;
-
-    dataSegmentHeader->INCREMENT(p_memsz, dataSegmentInc);
-    dataSegmentHeader->INCREMENT(p_filesz, dataSegmentInc);
-
-    dataSection->setBytesAtOffset(dataSectionHeader->GET(sh_size), instrumentationDataSize, instrumentationData);
-    dataSectionHeader->INCREMENT(sh_size, instrumentationDataSize);
-
-    uint32_t align = 0;
-    uint32_t sOffsetInc = 0;
-    // assumes that the last section is the inst text section
-    for (uint32_t i = extraDataIdx + 1; i < elfFile->getNumberOfSections()-1; i++){
-        SectionHeader* sHdr = elfFile->getSectionHeader(i);
-        if (sHdr->GET(sh_offset) > elfFile->getFileHeader()->GET(e_shoff) && !sOffsetInc){
-            sOffsetInc = instrumentationDataSize + align;
-        }
-
-        align += nextAlignAddress(sHdr->GET(sh_addr) + instrumentationDataSize + align, sHdr->GET(sh_addralign)) - (sHdr->GET(sh_addr) + instrumentationDataSize + align);
-        sHdr->INCREMENT(sh_offset, instrumentationDataSize + align);
-        if (sHdr->GET(sh_addr)){
-            sHdr->INCREMENT(sh_addr, instrumentationDataSize + align);
-        }
-    }
-    elfFile->getFileHeader()->INCREMENT(e_shoff, sOffsetInc);
-    //    elfFile->getFileHeader()->INCREMENT(e_phoff, nextAlignAddress(sOffsetInc, elfFile->getProgramHeaderPHDR()->GET(p_align)));
-    //elfFile->getProgramHeaderPHDR()->SET(p_offset, elfFile->getFileHeader()->GET(e_phoff));
-
-    for (uint32_t i = extraDataIdx + 2; i < elfFile->getNumberOfSections(); i++){
-        SectionHeader* scn = elfFile->getSectionHeader(i);
-        //        ASSERT(!scn->GET(sh_addr) && "The bss section should be the final section the programs address space");
-    }
-
-    //    dataSection->printBytes(programDataSize, 0, 0);
-    */
-
-    verify();
 }
 
 void ElfFileInst::allocateInstrumentationText(uint64_t size){
@@ -355,10 +312,6 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
 
 #if !defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        /*
-        if (addr >= addressAnchors[i]->linkBaseAddress &&
-            addr <  addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes()){
-        */
         if (addr == addressAnchors[i]->linkBaseAddress){
             PRINT_DEBUG_ANCHOR("%#llx <= %#llx < %#llx", addressAnchors[i]->linkBaseAddress, addr, addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes());
             PRINT_DEBUG_ANCHOR("%#llx <= %#llx < %#llx", addressAnchors[i]->linkBaseAddress, addr, addressAnchors[i]->linkBaseAddress + addressAnchors[i]->getLink()->getSizeInBytes());
@@ -1649,7 +1602,7 @@ ElfFileInst::~ElfFileInst(){
 void ElfFileInst::dump(char* extension){
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
 
-    char fileName[80] = "";
+    char fileName[__MAX_STRING_SIZE] = "";
     sprintf(fileName,"%s.%s", elfFile->getFileName(), extension);
 
     BinaryOutputFile binaryOutputFile;

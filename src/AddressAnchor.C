@@ -176,7 +176,7 @@ bool AddressAnchor::verify(){
     }
 
     if (linkBaseAddress != link->getBaseAddress()){
-        PRINT_ERROR("Link base address %#llx cached does not match actual value %#llx", linkBaseAddress, link->getBaseAddress());
+        PRINT_ERROR("Link base address %#lx cached does not match actual value %#llx", linkBaseAddress, link->getBaseAddress());
         return false;
     }
 

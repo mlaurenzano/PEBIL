@@ -157,10 +157,11 @@ uint32_t BinaryOutputFile::alreadyWritten(){
 
 void BinaryOutputFile::open(char* filenm) { 
     uint32_t namelen = strlen(filenm);
-    fileName = new char[namelen+1];
+    fileName = new char[__MAX_STRING_SIZE];
     strncpy(fileName, filenm, namelen);
     fileName[namelen] = '\0';
     outFile = fopen(fileName,"w");
+    ASSERT(outFile && "Cannot open output file");
 }
 
 bool BinaryOutputFile::operator!() { return !outFile; }

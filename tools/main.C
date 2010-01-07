@@ -147,8 +147,8 @@ typedef enum {
 
 
 int main(int argc,char* argv[]){
+    int overflow = 0xbeefbeef;
 
-    char*    execName   = NULL;
     char*    inptName   = NULL;
     char*    extension  = "";
     char*    libPath    = NULL;
@@ -166,6 +166,7 @@ int main(int argc,char* argv[]){
     uint32_t printCodes = 0x00000000;
     char* rawPrintCodes = NULL;
     char* inputFuncList = NULL;
+    char*    execName   = NULL;
 
     TIMER(double t = timer());
     for (int32_t i = 1; i < argc; i++){
