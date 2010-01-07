@@ -21,6 +21,8 @@ public:
     bool isExecutable() { return ISPF_X(GET(p_flags)); } 
 
     bool inRange(uint64_t addr);
+    uint16_t getIndex() { return index; }
+    void setIndex(uint16_t idx) { index = idx; }
 
     bool verify();
 };

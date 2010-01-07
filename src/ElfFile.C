@@ -99,6 +99,12 @@ bool ElfFile::verify(){
             PRINT_ERROR("Program header %d should exist", i)
                 return false;
         }
+        if (i == 0){
+            if (phdr->GET(p_type) != PT_PHDR){
+                PRINT_ERROR("First segment descriptor should be program header table");
+                return false;
+            }
+        }
         if (phdr->GET(p_type) == PT_LOAD){
             if (phdr->isReadable() && phdr->isExecutable()){
                 textSegmentIdx = i;
@@ -112,6 +118,7 @@ bool ElfFile::verify(){
             }
         }
     }
+    /*
     if (textSegCount != 1){
         PRINT_ERROR("Exactly 1 loadable text segment must be present, %d found", textSegCount);
         return false;
@@ -120,6 +127,7 @@ bool ElfFile::verify(){
         PRINT_ERROR("Exactly 1 loadable data segment must be present, %d found", dataSegCount);
         return false;
     }
+    */
 
 
     // enforce constrainst on where PT_INTERP segments fall
@@ -154,13 +162,13 @@ bool ElfFile::verify(){
     addrs.insert(fileHeader->GET(e_ehsize),0); 
     addrs.insert(fileHeader->GET(e_phentsize)*fileHeader->GET(e_phnum),fileHeader->GET(e_phoff));
     addrs.insert(fileHeader->GET(e_shentsize)*fileHeader->GET(e_shnum),fileHeader->GET(e_shoff));
-    //PRINT_INFOR("file header range (%#llx,%#llx)", fileHeader->GET(e_ehsize),0);
-    //PRINT_INFOR("pheader table range (%#llx,%#llx)", fileHeader->GET(e_phentsize)*fileHeader->GET(e_phnum),fileHeader->GET(e_phoff));
-    //PRINT_INFOR("sheader range (%#llx,%#llx)", fileHeader->GET(e_shentsize)*fileHeader->GET(e_shnum),fileHeader->GET(e_shoff));
+    PRINT_DEBUG_ADDR_ALIGN("file header range (%#llx,%#llx)", fileHeader->GET(e_ehsize),0);
+    PRINT_DEBUG_ADDR_ALIGN("pheader table range (%#llx,%#llx)", fileHeader->GET(e_phentsize)*fileHeader->GET(e_phnum),fileHeader->GET(e_phoff));
+    PRINT_DEBUG_ADDR_ALIGN("sheader range (%#llx,%#llx)", fileHeader->GET(e_shentsize)*fileHeader->GET(e_shnum),fileHeader->GET(e_shoff));
     for (uint32_t i = 1; i < getNumberOfSections(); i++){
         if (sectionHeaders[i]->GET(sh_type) != SHT_NOBITS){
             addrs.insert(sectionHeaders[i]->GET(sh_size),sectionHeaders[i]->GET(sh_offset));
-            //PRINT_INFOR("section header %d range (%#llx,%#llx)", i, sectionHeaders[i]->GET(sh_size), sectionHeaders[i]->GET(sh_offset));
+            PRINT_DEBUG_ADDR_ALIGN("section header %d range (%#llx,%#llx)", i, sectionHeaders[i]->GET(sh_size), sectionHeaders[i]->GET(sh_offset));
         }
     }
     ASSERT(addrs.size() && "This queue should not be empty");
@@ -170,7 +178,7 @@ bool ElfFile::verify(){
     prevSize = addrs.deleteMin(&prevBegin);
     while (addrs.size()){
         currSize = addrs.deleteMin(&currBegin);
-        //PRINT_INFOR("Verifying address ranges [%llx,%llx],[%llx,%llx]", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
+        PRINT_DEBUG_ADDR_ALIGN("Verifying address ranges [%llx,%llx],[%llx,%llx]", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
         if (prevBegin + prevSize > currBegin && currSize != 0){
             PRINT_ERROR("Address ranges [%llx,%llx],[%llx,%llx] should not intersect", prevBegin, prevBegin+prevSize, currBegin, currBegin+currSize);
             return false;
@@ -321,6 +329,35 @@ bool ElfFile::verifyDynamic(){
 
 }
 
+uint64_t ElfFile::addSegment(uint16_t idx, uint32_t type, uint64_t offset, uint64_t vaddr, uint64_t paddr,
+                             uint32_t memsz, uint32_t filesz, uint32_t flags, uint32_t align){
+    if (is64Bit()){
+        programHeaders.insert(new ProgramHeader64(idx), idx);
+    } else {
+        programHeaders.insert(new ProgramHeader32(idx), idx);
+    }
+
+    programHeaders[idx]->SET(p_type, type);
+    programHeaders[idx]->SET(p_offset, offset);
+    programHeaders[idx]->SET(p_vaddr, vaddr);
+    programHeaders[idx]->SET(p_paddr, paddr);
+    programHeaders[idx]->SET(p_memsz, memsz);
+    programHeaders[idx]->SET(p_filesz, filesz);
+    programHeaders[idx]->SET(p_flags, flags);
+    programHeaders[idx]->SET(p_align, align);
+
+    for (uint32_t i = 0; i < getNumberOfPrograms(); i++){
+        programHeaders[i]->setIndex(i);
+    }
+
+    // increment the number of sections in the file header
+    getFileHeader()->INCREMENT(e_phnum, 1);
+
+    getProgramHeaderPHDR()->INCREMENT(p_memsz, fileHeader->GET(e_phentsize));
+    getProgramHeaderPHDR()->INCREMENT(p_filesz, fileHeader->GET(e_phentsize));
+
+    return programHeaders[idx]->GET(p_paddr);
+}
 
 uint64_t ElfFile::addSection(uint16_t idx, PebilClassTypes classtype, char* bytes, uint32_t name, uint32_t type, 
                              uint64_t flags, uint64_t addr, uint64_t offset, uint64_t size, uint32_t link, 
@@ -332,23 +369,26 @@ uint64_t ElfFile::addSection(uint16_t idx, PebilClassTypes classtype, char* byte
         sectionHeaders.insert(new SectionHeader32(idx), idx);
     }
 
-    sectionHeaders[idx]->SET(sh_name,name);
-    sectionHeaders[idx]->SET(sh_type,type);
-    sectionHeaders[idx]->SET(sh_flags,flags);
-    sectionHeaders[idx]->SET(sh_addr,addr);
-    sectionHeaders[idx]->SET(sh_offset,offset);
-    sectionHeaders[idx]->SET(sh_size,size);
-    sectionHeaders[idx]->SET(sh_link,link);
-    sectionHeaders[idx]->SET(sh_info,info);
-    sectionHeaders[idx]->SET(sh_addralign,addralign);
-    sectionHeaders[idx]->SET(sh_entsize,entsize);
+    sectionHeaders[idx]->SET(sh_name, name);
+    sectionHeaders[idx]->SET(sh_type, type);
+    sectionHeaders[idx]->SET(sh_flags, flags);
+    sectionHeaders[idx]->SET(sh_addr, addr);
+    sectionHeaders[idx]->SET(sh_offset, offset);
+    sectionHeaders[idx]->SET(sh_size, size);
+    sectionHeaders[idx]->SET(sh_link, link);
+    sectionHeaders[idx]->SET(sh_info, info);
+    sectionHeaders[idx]->SET(sh_addralign, addralign);
+    sectionHeaders[idx]->SET(sh_entsize, entsize);
     sectionHeaders[idx]->setSectionType();
 
     if (classtype == PebilClassType_TextSection){
         textSections.append(new TextSection(bytes, size, idx, getNumberOfTextSections(), this, ByteSource_Instrumentation));
         rawSections.insert((RawSection*)textSections.back(), idx);
+    } else if (classtype == PebilClassType_DataSection){
+        dataSections.append(new DataSection(bytes, size, idx, this));
+        rawSections.insert((RawSection*)dataSections.back(), idx);
     } else {
-        rawSections.insert(new RawSection(classtype, bytes, 0, idx, this), idx);
+        __SHOULD_NOT_ARRIVE;
     }
 
     for (uint32_t i = 0; i < getNumberOfSections(); i++){
@@ -377,21 +417,30 @@ uint64_t ElfFile::addSection(uint16_t idx, PebilClassTypes classtype, char* byte
         for (uint32_t j = 0; j < symtab->getNumberOfSymbols(); j++){
             Symbol* sym = symtab->getSymbol(j);
             if (sym->GET(st_shndx) >= idx && sym->GET(st_shndx) < getNumberOfSections()){
-                sym->INCREMENT(st_shndx,1);
+                sym->INCREMENT(st_shndx, 1);
             }
         }
     }
 
-    // if any sections fall after the section header table, update their offset to give room for the new entry in the
+    // if any sections fall after the section header table, update their offset to give room for the new entry in the table
+    uint32_t extraSize = fileHeader->GET(e_shentsize);
+    /*
+    getFileHeader()->INCREMENT(e_phoff, extraSize);
+    getProgramHeaderPHDR()->SET(p_offset, getFileHeader()->GET(e_phoff));
+    */
+    
     for (uint32_t i = 0; i < getNumberOfSections(); i++){
         uint64_t currentOffset = sectionHeaders[i]->GET(sh_offset);
         if (currentOffset > fileHeader->GET(e_shoff)){
-            uint64_t newOffset = nextAlignAddress(currentOffset+fileHeader->GET(e_shentsize),sectionHeaders[i]->GET(sh_addralign));
-            sectionHeaders[i]->SET(sh_offset,newOffset);
+            extraSize = nextAlignAddress(currentOffset + extraSize, sectionHeaders[i]->GET(sh_addralign)) - currentOffset;
+            sectionHeaders[i]->INCREMENT(sh_offset, extraSize);
+            if (sectionHeaders[i]->GET(sh_addr)){
+                sectionHeaders[i]->INCREMENT(sh_addr, extraSize);
+            }
         }
     }
 
-    return sectionHeaders[idx]->GET(sh_addr);
+    return sectionHeaders[idx]->GET(sh_offset);
 }
 
 
@@ -950,10 +999,6 @@ void ElfFile::parse(){
         setStaticLinked(true);
         PRINT_INFOR("The executable is statically linked");
     }
-
-    PRINT_INFOR("Instruction size is %d", sizeof(Instruction));
-    PRINT_INFOR("struct ud size is %d", sizeof(struct ud));
-    PRINT_INFOR("struct ud_operand size is %d", sizeof(struct ud_operand));
 }
 
 void ElfFile::readFileHeader() {

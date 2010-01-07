@@ -35,7 +35,8 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_JUMP_TABLE
 //#define DEBUG_POINT_CHAIN
 //#define DEBUG_LEAF_OPT
-#define DEBUG_DATA_PLACEMENT
+//#define DEBUG_DATA_PLACEMENT
+//#define DEBUG_ADDR_ALIGN
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -268,6 +269,16 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #endif
 
 
+#ifdef DEBUG_ADDR_ALIGN
+#define PRINT_DEBUG_ADDR_ALIGN(...) fprintf(stdout,"ADDR_ALIGN : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#else
+#define PRINT_DEBUG_ADDR_ALIGN(...)
+#endif
+
+
 
 #ifdef  DEVELOPMENT
 
@@ -390,37 +401,37 @@ typedef enum {
 } ElfRelTypes;
 
 typedef enum {
-    PebilClassType_no_type = 0,
+    PebilClassType_no_type = 0, // 0
     PebilClassType_BasicBlock,
     PebilClassType_CodeBlock,
     PebilClassType_DataReference,
     PebilClassType_DataSection,
-    PebilClassType_DwarfSection,
+    PebilClassType_DwarfSection, // 5
     PebilClassType_DwarfLineInfoSection,
     PebilClassType_Dynamic,
     PebilClassType_DynamicTable,
     PebilClassType_FileHeader,
-    PebilClassType_FreeText,
+    PebilClassType_FreeText, // 10
     PebilClassType_Function,
     PebilClassType_GlobalOffsetTable,
     PebilClassType_GnuVerneed,
     PebilClassType_GnuVerneedTable,
-    PebilClassType_GnuVersym,
+    PebilClassType_GnuVersym, // 15
     PebilClassType_GnuVersymTable,
     PebilClassType_HashTable,
     PebilClassType_Instruction,
     PebilClassType_InstrumentationFunction,
-    PebilClassType_InstrumentationPoint,
+    PebilClassType_InstrumentationPoint, // 20
     PebilClassType_InstrumentationSnippet,
     PebilClassType_Note,
     PebilClassType_NoteSection,
     PebilClassType_ProgramHeader,
-    PebilClassType_RawBlock,
+    PebilClassType_RawBlock, // 25
     PebilClassType_RawSection,
     PebilClassType_RelocationTable,
     PebilClassType_Relocation,
-    PebilClassType_SectionHeader,
-    PebilClassType_StringTable,
+    PebilClassType_SectionHeader, 
+    PebilClassType_StringTable, // 30
     PebilClassType_Symbol,
     PebilClassType_SymbolTable,
     PebilClassType_TextSection,

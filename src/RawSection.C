@@ -22,12 +22,15 @@ uint32_t DataSection::extendSize(uint32_t sz){
     char* newBytes = new char[sz + sizeInBytes];
     bzero(newBytes, sz + sizeInBytes);
 
-    memcpy(newBytes, rawBytes, sizeInBytes);
+    if (rawBytes){
+        memcpy(newBytes, rawBytes, sizeInBytes);
+        delete[] rawBytes;
+    }
 
-    delete[] rawBytes;
     rawBytes = newBytes;
     sizeInBytes += sz;
 
+    ASSERT(rawBytes);
     return sizeInBytes;
 }
 
@@ -172,10 +175,6 @@ SectionHeader* RawSection::getSectionHeader(){
 }
 
 bool DataSection::verify(){
-    if (!rawBytes){
-        PRINT_ERROR("Data section should have bits");
-        return false;
-    }
     if (getType() != PebilClassType_DataSection){
         PRINT_ERROR("Data section has wrong class type");
         return false;
@@ -188,6 +187,8 @@ bool DataSection::verify(){
 }
 
 void DataSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    ASSERT(rawBytes);
+
     binaryOutputFile->copyBytes(charStream(), getSizeInBytes(), offset);
 
     for (uint32_t i = 0; i < dataReferences.size(); i++){

@@ -26,25 +26,26 @@ uint32_t readBytes = 0;
 );
 
 #define TEXT_EXTENSION_FUNC (nextAlignAddress(0x10000 + (0x1c0 * numberOfBasicBlocks), 0x4000))
+#define TEXT_EXTENSION_INC  0x4000
 #define DATA_EXTENSION_INC  0x4000
+#define INSTTEXT_BASE_ADDR  0x1000000
+#define INSTDATA_BASE_ADDR  0x6000000
+#define DEFAULT_SEGMENT_INCLUSION_TEXT 2
+#define DEFAULT_SEGMENT_INCLUSION_DATA (DEFAULT_SEGMENT_INCLUSION_TEXT+1)
+#define DEFAULT_SEGMENT_SIZE 0x5000000
+#define INSTTEXT_PADDING 0x4000
 
-// some common macros to help debug the instrumentation process
+// some common macros to help debug instrumentation
 //#define RELOC_MOD_OFF 233
 //#define RELOC_MOD 512
-#define TURNOFF_FUNCTION_RELOCATION
+//#define TURNOFF_FUNCTION_RELOCATION
 //#define BLOAT_MOD_OFF 704
 //#define BLOAT_MOD 2048
-<<<<<<< .mine
 //#define TURNOFF_FUNCTION_BLOAT
 //#define SWAP_MOD_OFF 1472
 //#define SWAP_MOD 262144
-=======
-#define TURNOFF_FUNCTION_BLOAT
-//#define SWAP_MOD_OFF 1
-//#define SWAP_MOD 4
->>>>>>> .r3131
 //#define SWAP_FUNCTION_ONLY "raise"
-#define TURNOFF_INSTRUCTION_SWAP
+//#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
 //#define VALIDATE_ANCHOR_SEARCH
 
@@ -52,30 +53,83 @@ uint32_t readBytes = 0;
 uint32_t bloatCount = 0;
 #endif
 
-void ElfFileInst::extendDataSection(uint64_t size){
+void ElfFileInst::extendDataSection(){
     if (instrumentationDataSize){
-        char* tmpData = new char[instrumentationDataSize + size];
+        char* tmpData = new char[instrumentationDataSize + DATA_EXTENSION_INC];
         memcpy(tmpData, instrumentationData, instrumentationDataSize);
-        bzero(tmpData + instrumentationDataSize, size);
+        bzero(tmpData + instrumentationDataSize, DATA_EXTENSION_INC);
         delete[] instrumentationData;
         instrumentationData = tmpData;
     } else {
         ASSERT(!instrumentationData);
-        instrumentationData = new char[size];
-        bzero(instrumentationData, size);
+        instrumentationData = new char[DATA_EXTENSION_INC];
+        bzero(instrumentationData, DATA_EXTENSION_INC);
+
+        SectionHeader* finalHeader = elfFile->getSectionHeader(elfFile->getNumberOfSections()-1);
+        ASSERT(finalHeader->GET(sh_type) == SHT_PROGBITS);
+
+        SectionHeader* genericDataHdr = elfFile->getSectionHeader(elfFile->findSectionIdx(".data"));
+        ASSERT(genericDataHdr);
+
+        extraDataIdx = finalHeader->getIndex() + 1;
+        elfFile->addSection(extraDataIdx, PebilClassType_DataSection, elfFile->getFileName(), genericDataHdr->GET(sh_name), genericDataHdr->GET(sh_type),
+                            genericDataHdr->GET(sh_flags), INSTDATA_BASE_ADDR, INSTDATA_BASE_ADDR, DATA_EXTENSION_INC, genericDataHdr->GET(sh_link),
+                            genericDataHdr->GET(sh_info), genericDataHdr->GET(sh_addralign), genericDataHdr->GET(sh_entsize));
+
+        elfFile->getSectionHeader(extraDataIdx)->SET(sh_addr, INSTDATA_BASE_ADDR);
+        
+        ASSERT(elfFile->getRawSection(extraDataIdx)->getType() == PebilClassType_DataSection);
     }
-    for (uint32_t i = 0; i < size; i++){
+    for (uint32_t i = 0; i < DATA_EXTENSION_INC; i++){
         //        instrumentationData[instrumentationDataSize + i] = i % 0x100;
     }
-    instrumentationDataSize += size;
+
+    instrumentationDataSize += DATA_EXTENSION_INC;
+    verify();
 }
 
-void ElfFileInst::buildInstrumentationData(){
+void ElfFileInst::buildInstrumentationSections(){
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
-    ProgramHeader* dataSegmentHeader = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
+    ProgramHeader* dHdr = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
+    SectionHeader* instDataHeader = elfFile->getSectionHeader(extraDataIdx);
+    SectionHeader* instTextHeader = elfFile->getSectionHeader(extraTextIdx);
+    ASSERT(instDataHeader && elfFile->getRawSection(extraDataIdx)->getType() == PebilClassType_DataSection);
+
+    elfFile->addSegment(DEFAULT_SEGMENT_INCLUSION_DATA, dHdr->GET(p_type), instDataHeader->GET(sh_offset), instDataHeader->GET(sh_addr),
+                        instDataHeader->GET(sh_addr), instrumentationDataSize + 0x8000, instrumentationDataSize, dHdr->GET(p_flags), dHdr->GET(p_align));
+
+    // if any sections fall after the program header table, update their offset to give room for the new entry
+    uint32_t extraSize = elfFile->getFileHeader()->GET(e_phentsize);
+    for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
+        uint64_t currentOffset = elfFile->getSectionHeader(i)->GET(sh_offset);
+        if (currentOffset > elfFile->getFileHeader()->GET(e_phoff) && i != extraTextIdx && i != extraDataIdx){
+            extraSize = nextAlignAddress(currentOffset + extraSize, elfFile->getSectionHeader(i)->GET(sh_addralign)) - currentOffset;
+            elfFile->getSectionHeader(i)->INCREMENT(sh_offset, extraSize);
+            if (elfFile->getSectionHeader(i)->GET(sh_addr)){
+                elfFile->getSectionHeader(i)->INCREMENT(sh_addr, extraSize);
+            }
+        }
+    }
+
+    ProgramHeader* instDataSeg = elfFile->getProgramHeader(DEFAULT_SEGMENT_INCLUSION_DATA);
+
+    ((DataSection*)elfFile->getRawSection(extraDataIdx))->extendSize(instrumentationDataSize - DATA_EXTENSION_INC);
+    ((DataSection*)elfFile->getRawSection(extraDataIdx))->setBytesAtOffset(0, instrumentationDataSize, instrumentationData);
+
+    instDataHeader->SET(sh_addr, INSTDATA_BASE_ADDR);
+    instDataHeader->SET(sh_offset, nextAlignAddress(instTextHeader->GET(sh_offset) + instTextHeader->GET(sh_size), instDataSeg->GET(p_align)));
+    instDataHeader->SET(sh_size, instrumentationDataSize);
+    instDataSeg->SET(p_paddr, instDataHeader->GET(sh_addr));
+    instDataSeg->SET(p_vaddr, instDataHeader->GET(sh_addr));
+    instDataSeg->SET(p_offset, instDataHeader->GET(sh_offset));
+    
+    verify();
+    ASSERT(elfFile->getRawSection(extraDataIdx)->charStream());
+    return;
+
+    /*
     DataSection* dataSection = (DataSection*)elfFile->getRawSection(extraDataIdx);
-    ASSERT(dataSection && dataSection->getType() == PebilClassType_DataSection);
 
     SectionHeader* dataSectionHeader = elfFile->getSectionHeader(extraDataIdx);
 
@@ -85,14 +139,13 @@ void ElfFileInst::buildInstrumentationData(){
     dataSegmentHeader->INCREMENT(p_memsz, dataSegmentInc);
     dataSegmentHeader->INCREMENT(p_filesz, dataSegmentInc);
 
-    dataSection->extendSize(instrumentationDataSize);
     dataSection->setBytesAtOffset(dataSectionHeader->GET(sh_size), instrumentationDataSize, instrumentationData);
     dataSectionHeader->INCREMENT(sh_size, instrumentationDataSize);
 
-
     uint32_t align = 0;
     uint32_t sOffsetInc = 0;
-    for (uint32_t i = extraDataIdx + 1; i < elfFile->getNumberOfSections(); i++){
+    // assumes that the last section is the inst text section
+    for (uint32_t i = extraDataIdx + 1; i < elfFile->getNumberOfSections()-1; i++){
         SectionHeader* sHdr = elfFile->getSectionHeader(i);
         if (sHdr->GET(sh_offset) > elfFile->getFileHeader()->GET(e_shoff) && !sOffsetInc){
             sOffsetInc = instrumentationDataSize + align;
@@ -100,8 +153,13 @@ void ElfFileInst::buildInstrumentationData(){
 
         align += nextAlignAddress(sHdr->GET(sh_addr) + instrumentationDataSize + align, sHdr->GET(sh_addralign)) - (sHdr->GET(sh_addr) + instrumentationDataSize + align);
         sHdr->INCREMENT(sh_offset, instrumentationDataSize + align);
+        if (sHdr->GET(sh_addr)){
+            sHdr->INCREMENT(sh_addr, instrumentationDataSize + align);
+        }
     }
     elfFile->getFileHeader()->INCREMENT(e_shoff, sOffsetInc);
+    //    elfFile->getFileHeader()->INCREMENT(e_phoff, nextAlignAddress(sOffsetInc, elfFile->getProgramHeaderPHDR()->GET(p_align)));
+    //elfFile->getProgramHeaderPHDR()->SET(p_offset, elfFile->getFileHeader()->GET(e_phoff));
 
     for (uint32_t i = extraDataIdx + 2; i < elfFile->getNumberOfSections(); i++){
         SectionHeader* scn = elfFile->getSectionHeader(i);
@@ -109,9 +167,93 @@ void ElfFileInst::buildInstrumentationData(){
     }
 
     //    dataSection->printBytes(programDataSize, 0, 0);
+    */
+
     verify();
 }
 
+void ElfFileInst::allocateInstrumentationText(uint64_t size){
+    uint64_t lowestTextAddress = -1;
+    uint16_t lowestTextSectionIdx = -1;
+
+    ProgramHeader* textHeader = elfFile->getProgramHeader(elfFile->getTextSegmentIdx());
+
+    // first we will find the address of the first text section
+    for (uint32_t i = 1; i < elfFile->getNumberOfSections(); i++){
+        if (elfFile->getSectionHeader(i)->GET(sh_type) == SHT_PROGBITS &&
+            elfFile->getSectionHeader(i)->hasAllocBit() && elfFile->getSectionHeader(i)->hasExecInstrBit()){
+            if (lowestTextAddress > elfFile->getSectionHeader(i)->GET(sh_addr)){
+                ASSERT(lowestTextAddress == -1 && "Text section addresses should appear in increasing order");
+                lowestTextAddress = elfFile->getSectionHeader(i)->GET(sh_addr);
+                lowestTextSectionIdx = i;
+            }
+        }
+    }
+    ASSERT(lowestTextSectionIdx != elfFile->getNumberOfSections() && "Could not find any text sections in the file");
+
+    ProgramHeader* pHdr = elfFile->getProgramHeaderPHDR();
+    SectionHeader* genericTextHdr = elfFile->getSectionHeader(lowestTextSectionIdx);
+    SectionHeader* finalHeader = elfFile->getSectionHeader(elfFile->getNumberOfSections()-1);
+    uint64_t textSegOffset = nextAlignAddress(finalHeader->GET(sh_offset) + finalHeader->GET(sh_size) + DATA_EXTENSION_INC + INSTTEXT_PADDING, pHdr->GET(p_align));
+
+    // leave space for 2 segments that will be inserted
+    uint64_t textSecOffset = nextAlignAddress(textSegOffset + elfFile->getFileHeader()->GET(e_phentsize) * (elfFile->getFileHeader()->GET(e_phnum) - 1), genericTextHdr->GET(sh_addralign));
+
+    extraTextIdx = finalHeader->getIndex() + 1;
+    elfFile->addSection(extraTextIdx, PebilClassType_TextSection, elfFile->getFileName(), genericTextHdr->GET(sh_name), genericTextHdr->GET(sh_type),
+                        genericTextHdr->GET(sh_flags), INSTTEXT_BASE_ADDR + textSecOffset, textSecOffset, size, genericTextHdr->GET(sh_link),
+                        genericTextHdr->GET(sh_info), genericTextHdr->GET(sh_addralign), genericTextHdr->GET(sh_entsize));
+
+    ProgramHeader* tHdr = elfFile->getProgramHeader(elfFile->getTextSegmentIdx());
+    elfFile->addSegment(DEFAULT_SEGMENT_INCLUSION_TEXT, tHdr->GET(p_type), textSegOffset, INSTTEXT_BASE_ADDR + textSegOffset,
+                        INSTTEXT_BASE_ADDR + textSegOffset, DEFAULT_SEGMENT_SIZE, DEFAULT_SEGMENT_SIZE, tHdr->GET(p_flags), tHdr->GET(p_align));
+
+    // if any sections fall after the program header table, update their offset to give room for the new entry
+    uint32_t extraSize = elfFile->getFileHeader()->GET(e_phentsize);
+    for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
+        uint64_t currentOffset = elfFile->getSectionHeader(i)->GET(sh_offset);
+        if (currentOffset > elfFile->getFileHeader()->GET(e_phoff)){
+            extraSize = nextAlignAddress(currentOffset + extraSize, elfFile->getSectionHeader(i)->GET(sh_addralign)) - currentOffset;
+            elfFile->getSectionHeader(i)->INCREMENT(sh_offset, extraSize);
+            if (elfFile->getSectionHeader(i)->GET(sh_addr)){
+                elfFile->getSectionHeader(i)->INCREMENT(sh_addr, extraSize);
+            }
+        }
+    }
+
+    // set the program header table to the base address of the inst text section
+    pHdr->SET(p_vaddr, INSTTEXT_BASE_ADDR + textSegOffset);
+    pHdr->SET(p_paddr, pHdr->GET(p_vaddr));
+    pHdr->SET(p_offset, textSegOffset);
+    elfFile->getFileHeader()->SET(e_phoff, textSegOffset);
+    
+    SectionHeader* extendedText = elfFile->getSectionHeader(extraTextIdx);
+    
+    // this section offset shouldn't conflict with any other sections
+    for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
+        if (i != extraTextIdx){
+            SectionHeader* scn = elfFile->getSectionHeader(i);
+            ASSERT(scn && "Section Header should exist");
+            if (scn->hasBitsInFile()){
+                if (scn->GET(sh_offset) >= extendedText->GET(sh_offset) && scn->GET(sh_offset) < extendedText->GET(sh_offset) + extendedText->GET(sh_size)){
+                    extendedText->print();
+                    scn->print();
+                    PRINT_ERROR("Section %d should not begin in the middle of the new text section", i);
+                } else if (scn->GET(sh_offset) + scn->GET(sh_size) > extendedText->GET(sh_offset) && scn->GET(sh_offset) + scn->GET(sh_size) <= extendedText->GET(sh_offset) + extendedText->GET(sh_size)){
+                    extendedText->print();
+                    scn->print();
+                    PRINT_ERROR("Section %d should not end in the middle of the new text section", i);
+                } else if (extendedText->GET(sh_offset) >= scn->GET(sh_offset) && extendedText->GET(sh_offset) < scn->GET(sh_offset) + scn->GET(sh_size)){
+                    extendedText->print();
+                    scn->print();
+                    PRINT_ERROR("The new text section should not be contained by section %d", i);
+                }
+            }
+        }
+    }
+
+    verify();
+}
 
 void ElfFileInst::initializeDisabledFunctions(char* inputFuncList){
     ASSERT(!disabledFunctions.size());
@@ -143,7 +285,6 @@ bool ElfFileInst::isDisabledFunction(Function* func){
 }
 
 uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, void* data){
-    InstrumentationSnippet* snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_END];
     char* bytes = (char*)data;
 
     if (address + size > getExtraDataAddress() + usableDataOffset ||
@@ -349,6 +490,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
                     }
                 }
             }
+
             // search non-text sections
             if (!currentInstruction->getAddressAnchor()){
                 for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
@@ -433,7 +575,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
         SectionHeader* dataSectionHeader = elfFile->getSectionHeader(dataSections[i]);
 
         // since there are no constraints on the alignment of stuff in the data sections we must check starting at EVERY byte
-        // ^^^NO TO THIS^^^, we will check just word-aligned addresses since we were getting false positives
+        // ^^^NO TO THE ABOVE STATEMENT^^^: we will check just word-aligned addresses since we were getting false positives
         for (uint32_t currByte = 0; currByte < dataRawSection->getSizeInBytes() - addrAlign; currByte += sizeof(uint32_t)){
             char* dataPtr = (char*)(dataRawSection->getFilePointer()+currByte);
             uint64_t extendedData;
@@ -590,7 +732,7 @@ void ElfFileInst::generateInstrumentation(){
 
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
-    buildInstrumentationData();
+    buildInstrumentationSections();
 
     TextSection* textSection = getTextSection();
     TextSection* pltSection = getPltSection();
@@ -602,30 +744,6 @@ void ElfFileInst::generateInstrumentation(){
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
         snip->addSnippetInstruction(InstructionGenerator32::generateStackPush(i));
     }
-
-    // add code to correctly initialize the instrumentation data and application bss sections
-    ASSERT(instrumentationDataSize);
-
-    uint64_t programDataAddress = getExtraDataSection()->getSectionHeader()->GET(sh_addr);
-    uint64_t instdataAddress = programDataAddress + programDataSize + systemReservedBss;
-
-    // these two aren't necessary but show us the low-end bound of the string move that is about to happen
-    snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(instdataAddress, X86_REG_SI));
-    snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(instdataAddress + programBssSize, X86_REG_DI));
-
-    snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(instdataAddress + instrumentationDataSize, X86_REG_SI));
-    snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(instdataAddress + instrumentationDataSize + programBssSize, X86_REG_DI));
-    snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(instrumentationDataSize / sizeof(uint32_t), X86_REG_CX));
-
-    snip->addSnippetInstruction(InstructionGenerator::generateSetDirectionFlag(true));
-    snip->addSnippetInstruction(InstructionGenerator::generateMoveString(true));
-
-    snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(0, X86_REG_AX));
-    snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg(instdataAddress, X86_REG_DI));
-    snip->addSnippetInstruction(InstructionGenerator::generateMoveImmToReg((programBssSize - systemReservedBss)/ sizeof(uint32_t), X86_REG_CX));
-    snip->addSnippetInstruction(InstructionGenerator::generateSetDirectionFlag(false));
-    snip->addSnippetInstruction(InstructionGenerator::generateSTOSWord(true));
-    
 
     // find the entry point of the program and put an instrumentation point for our initialization there
     ASSERT(!instrumentationPoints[INST_POINT_BOOTSTRAP1] && "instrumentationPoint[INST_POINT_BOOTSTRAP1] is reserved");
@@ -641,7 +759,6 @@ void ElfFileInst::generateInstrumentation(){
             new InstrumentationPoint32((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], SIZE_FIRST_INST_POINT, InstLocation_dont_care);    
     }
     instrumentationPoints[INST_POINT_BOOTSTRAP1]->setPriority(InstPriority_sysinit);
-            
     uint64_t codeOffset = relocatedTextSize;
 
     // some padding so that the instrumentation code is more readable
@@ -847,11 +964,7 @@ void ElfFileInst::generateInstrumentation(){
             }
             
             uint64_t registerStorage = getExtraDataAddress() + regStorageOffset;
-            // need to treat the bootstrap instrumentation point specially because the instrumentation data
-            // is not initialized to its correct location (that is done by the code in this inst point)
-            if (i == INST_POINT_BOOTSTRAP1){
-                registerStorage = elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + programDataSize + regStorageOffset;
-            }
+
             pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, isLastInChain, registerStorage, stackIsSafe);
             
             codeOffset += pt->sizeNeeded();
@@ -879,6 +992,9 @@ void ElfFileInst::generateInstrumentation(){
     }
 
     PRINT_INFOR("%d instrumentation points, %lld bytes used for text, %#lld bytes used for data", instrumentationPoints.size(), codeOffset, usableDataOffset);
+    if (codeOffset > elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)){
+        PRINT_INFOR("code used %#llx bytes > available space %#llx bytes", codeOffset, elfFile->getSectionHeader(extraTextIdx)->GET(sh_size));
+    }
     ASSERT(codeOffset <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough space in the text section to accomodate the extra code");
 
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
@@ -921,12 +1037,12 @@ void ElfFileInst::setPathToInstLib(char* libPath){
 
 TextSection* ElfFileInst::getExtraTextSection() { return (TextSection*)(elfFile->getRawSection(extraTextIdx)); }
 RawSection* ElfFileInst::getExtraDataSection() { return elfFile->getRawSection(extraDataIdx); }
-uint64_t ElfFileInst::getExtraDataAddress() { return elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr) + programDataSize + programBssSize; }
+uint64_t ElfFileInst::getExtraDataAddress() { return elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr); }
 
 uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
     ASSERT(currentPhase > ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     while (usableDataOffset + size  >= instrumentationDataSize){
-        extendDataSection(DATA_EXTENSION_INC);
+        extendDataSection();
     }
     ASSERT(usableDataOffset + size < instrumentationDataSize && "Not enough space for the requested data");
 
@@ -973,9 +1089,9 @@ InstrumentationFunction* ElfFileInst::getInstrumentationFunction(const char* fun
     return NULL;
 }
 
-uint64_t ElfFileInst::functionRelocateAndTransform(){
+uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
 
-    uint64_t codeOffset = 0;
+    uint64_t codeOffset = offset;
     uint32_t numberOfFunctions = exposedFunctions.size();
 
 #ifdef TURNOFF_FUNCTION_RELOCATION
@@ -1002,9 +1118,6 @@ uint64_t ElfFileInst::functionRelocateAndTransform(){
             
         ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
         codeOffset += relocateFunction(func, codeOffset);
-
-        
-
 #ifdef RELOC_MOD
         }
 #endif
@@ -1090,8 +1203,9 @@ void ElfFileInst::phasedInstrumentation(){
     uint32_t numberOfBasicBlocks = getInitSection()->getNumberOfBasicBlocks() + 
         getTextSection()->getNumberOfBasicBlocks() + getFiniSection()->getNumberOfBasicBlocks();
 
-    extendTextSection(TEXT_EXTENSION_FUNC);
-    extendDataSection(DATA_EXTENSION_INC);
+    extendTextSection(TEXT_EXTENSION_INC); // creates space for extra elf control info (symbols, dynamic table entries, hash entries, etc)
+    allocateInstrumentationText(DEFAULT_SEGMENT_SIZE);
+    extendDataSection();
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     anchorProgramElements();
@@ -1103,6 +1217,7 @@ void ElfFileInst::phasedInstrumentation(){
 
     declare();
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+
     functionSelect();
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
@@ -1118,7 +1233,11 @@ void ElfFileInst::phasedInstrumentation(){
             addFunction(instrumentationFunctions[i]);
         }
     }
-    relocatedTextSize = functionRelocateAndTransform();
+    verify();
+
+    // save space at the beginning of text for phdr table
+    relocatedTextSize = elfFile->getFileHeader()->GET(e_phentsize) * elfFile->getFileHeader()->GET(e_phnum);
+    relocatedTextSize += functionRelocateAndTransform(relocatedTextSize);
 
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
@@ -1127,6 +1246,7 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
     instrument();
+    verify();
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
@@ -1276,8 +1396,7 @@ uint64_t ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOf
         relocOffset = relocTable->addRelocation(gotAddress,ELF64_R_INFO(symbolIndex,R_X86_64_JUMP_SLOT));
     } else {
         relocOffset = relocTable->addRelocation(gotAddress,ELF32_R_INFO(symbolIndex,R_386_JMP_SLOT));
-
-        // in 32bit the linker uses an offset into the table instead of its index
+        // for 32bit the linker uses an offset into the table instead of its index
         relocOffset *= relocTable->getRelocationSize();
     }
     ASSERT(relocOffset && "Should set the relocation offset to a non-trival value");
@@ -1288,15 +1407,18 @@ uint64_t ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOf
     relocationSection->INCREMENT(sh_size,extraSize);
 
     // displace every section in the text segment that comes after the dynamic string section and before the initial text section
-    for (uint32_t i = relocationSection->getIndex()+1; i <= extraTextIdx; i++){
+    uint16_t ftidx = elfFile->findSectionIdx(".init") - 1;
+    for (uint32_t i = relocationSection->getIndex()+1; i <= ftidx; i++){
         SectionHeader* sHdr = elfFile->getSectionHeader(i);
         extraSize = nextAlignAddress(sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign)) - sHdr->GET(sh_addr);
         sHdr->INCREMENT(sh_offset, extraSize);
-        sHdr->INCREMENT(sh_addr, extraSize);
+        if (sHdr->GET(sh_addr)){
+            sHdr->INCREMENT(sh_addr, extraSize);
+        }
     }
 
     // shrink the size of the extra text section to accomodate the increase in size of the control sections
-    elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
+    //    elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
 
     for (uint32_t i = 0; i < dynTable->getNumberOfDynamics(); i++){
         Dynamic* dyn = dynTable->getDynamic(i);
@@ -1323,7 +1445,7 @@ uint64_t ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOf
 void ElfFileInst::extendTextSection(uint64_t size){
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
-    size = nextAlignAddress(size,elfFile->getProgramHeader(elfFile->getTextSegmentIdx())->GET(p_align));
+    size = nextAlignAddress(size, elfFile->getProgramHeader(elfFile->getTextSegmentIdx())->GET(p_align));
     uint64_t lowestTextAddress = -1;
     uint16_t lowestTextSectionIdx = -1;
 
@@ -1357,8 +1479,8 @@ void ElfFileInst::extendTextSection(uint64_t size){
                 PRINT_WARN(5,"Unable to extend text section by 0x%llx bytes: the maximum size of a text extension for this binary is 0x%llx bytes", size, subHeader->GET(p_vaddr));
             }
             ASSERT(subHeader->GET(p_vaddr) >= size && "The text extension size is too large");
-            subHeader->SET(p_vaddr,subHeader->GET(p_vaddr)-size);
-            subHeader->SET(p_paddr,subHeader->GET(p_paddr)-size);
+            subHeader->SET(p_vaddr, subHeader->GET(p_vaddr) - size);
+            subHeader->SET(p_paddr, subHeader->GET(p_paddr) - size);
         } 
     }
 
@@ -1400,14 +1522,28 @@ void ElfFileInst::extendTextSection(uint64_t size){
             ASSERT(elfFile->getSectionHeader(i)->GET(sh_addr) < lowestTextAddress && "No section that occurs before the first text section should have a larger address");
             // strictly speaking the loader doesn't use these, but for consistency we change them anyway
             ASSERT(elfFile->getSectionHeader(i)->GET(sh_addr) > size && "The text extension size is too large");
-            sHdr->SET(sh_addr,sHdr->GET(sh_addr)-size);
+            sHdr->SET(sh_addr,sHdr->GET(sh_addr) - size);
         } else {
-            sHdr->INCREMENT(sh_offset,size);            
+            sHdr->INCREMENT(sh_offset, size);            
         }
     }
 
+    FileHeader* fHdr = elfFile->getFileHeader();
     // since some sections were displaced in the file, displace the section header table also
-    elfFile->getFileHeader()->INCREMENT(e_shoff,size);
+    fHdr->INCREMENT(e_shoff, size);
+
+    // move the program header table to fall all the sections in the file
+    SectionHeader* ultSection = elfFile->getSectionHeader(elfFile->getNumberOfSections()-1);
+    fHdr->SET(e_phoff, nextAlignAddress(ultSection->GET(sh_offset) + ultSection->GET(sh_size), elfFile->getProgramHeaderPHDR()->GET(p_align)));
+    elfFile->getProgramHeaderPHDR()->SET(p_offset, elfFile->getFileHeader()->GET(e_phoff));
+
+    // move the sections that fall after the program/section tables to accomodate the phdr movement
+    for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
+        if (fHdr->GET(e_phoff) <= elfFile->getSectionHeader(i)->GET(sh_offset)){
+            elfFile->getSectionHeader(i)->INCREMENT(sh_offset, fHdr->GET(e_phentsize) * fHdr->GET(e_phnum));
+        }
+    }
+    
 
     // update the dynamic table to correctly point to the displaced elf control sections
     if (!elfFile->isStaticLinked()){
@@ -1423,9 +1559,10 @@ void ElfFileInst::extendTextSection(uint64_t size){
         }
     }
 
+    /*
     SectionHeader* textHdr = elfFile->getSectionHeader(lowestTextSectionIdx);
     elfFile->addSection(lowestTextSectionIdx, PebilClassType_TextSection, elfFile->getFileName(), textHdr->GET(sh_name), textHdr->GET(sh_type),
-                        textHdr->GET(sh_flags), textHdr->GET(sh_addr)-size, textHdr->GET(sh_offset)-size, size, textHdr->GET(sh_link), 
+                        textHdr->GET(sh_flags), textHdr->GET(sh_addr)-size, textHdr->GET(sh_offset)-size, size, textHdr->GET(sh_link),
                         textHdr->GET(sh_info), textHdr->GET(sh_addralign), textHdr->GET(sh_entsize));
 
     extraTextIdx = lowestTextSectionIdx;
@@ -1436,7 +1573,7 @@ void ElfFileInst::extendTextSection(uint64_t size){
     }
 
     SectionHeader* extendedText = elfFile->getSectionHeader(extraTextIdx);
-    
+
     // this section offset shouldn't conflict with any other sections
     for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
         if (i != lowestTextSectionIdx){
@@ -1457,7 +1594,7 @@ void ElfFileInst::extendTextSection(uint64_t size){
             }
         }
     }
-
+    */
 
     verify();
 }
@@ -1618,6 +1755,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
         }
     }
     **/
+
     bssDataIdx = elfFile->findSectionIdx(".bss");
 
 
@@ -1695,14 +1833,19 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
 
     uint32_t extraSize = entrySize;
     // displace every section that comes after the dynamic symbol section and before the code
-    for (uint32_t i = dynamicSymbolSection->getIndex()+1; i <= extraTextIdx; i++){
+    uint16_t ftidx = elfFile->findSectionIdx(".init") - 1;
+    for (uint32_t i = dynamicSymbolSection->getIndex()+1; i <= ftidx; i++){
         SectionHeader* sHdr = elfFile->getSectionHeader(i);
         extraSize = nextAlignAddress(sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign)) - sHdr->GET(sh_addr);
         sHdr->INCREMENT(sh_offset,entrySize);
-        sHdr->INCREMENT(sh_addr,entrySize);
+        if (sHdr->GET(sh_addr)){
+            sHdr->INCREMENT(sh_addr,entrySize);
+        }
     }
+    /*
     ASSERT(extraSize <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough room to insert extra ELF control");
     elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
+    */
 
     // adjust the dynamic table entries for the section shifts
     for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
@@ -1735,14 +1878,16 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
     versymHeader->INCREMENT(sh_size,entrySize);
 
     // displace every section that comes after the gnu versym section and before the code
-    for (uint32_t i = versymHeader->getIndex()+1; i <= extraTextIdx; i++){
+    for (uint32_t i = versymHeader->getIndex()+1; i <= ftidx; i++){
         SectionHeader* sHdr = elfFile->getSectionHeader(i);
         extraSize = nextAlignAddress(sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign)) - sHdr->GET(sh_addr);
         sHdr->INCREMENT(sh_offset,extraSize);
         sHdr->INCREMENT(sh_addr,extraSize);
     } 
+    /*
     ASSERT(extraSize <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough room to insert extra ELF control");
     elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
+    */
 
     dynamicTable->getDynamicByType(DT_VERSYM,0)->SET_A(d_ptr,d_un,elfFile->getSectionHeader(elfFile->getGnuVersymTable()->getSectionIndex())->GET(sh_addr));
     dynamicTable->getDynamicByType(DT_VERNEED,0)->SET_A(d_ptr,d_un,elfFile->getSectionHeader(elfFile->getGnuVerneedTable()->getSectionIndex())->GET(sh_addr));
@@ -1767,14 +1912,17 @@ uint32_t ElfFileInst::expandHashTable(){
     uint32_t extraSize = extraHashEntries * hashTable->getEntrySize();
     hashHeader->INCREMENT(sh_size,extraSize);
 
-    for (uint32_t i = hashTable->getSectionIndex() + 1; i <= extraTextIdx; i++){
+    uint16_t ftidx = elfFile->findSectionIdx(".init") - 1;
+    for (uint32_t i = hashTable->getSectionIndex() + 1; i <= ftidx; i++){
         SectionHeader* sHdr = elfFile->getSectionHeader(i);
         extraSize = nextAlignAddress(sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign)) - sHdr->GET(sh_addr);
         sHdr->INCREMENT(sh_offset,extraSize);
         sHdr->INCREMENT(sh_addr,extraSize);
     }
+    /*
     ASSERT(extraSize <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough room to insert extra ELF control");
     elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
+    */
 
     DynamicTable* dynamicTable = elfFile->getDynamicTable();
     for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
@@ -1822,30 +1970,33 @@ uint32_t ElfFileInst::addStringToDynamicStringTable(const char* str){
     dynamicStringSection->INCREMENT(sh_size,extraSize);
 
     // displace every section in the text segment that comes after the dynamic string section and before the initial text section
-    for (uint32_t i = dynamicStringSection->getIndex()+1; i <= extraTextIdx; i++){
+    uint16_t ftidx = elfFile->findSectionIdx(".init") - 1;
+    for (uint32_t i = dynamicStringSection->getIndex()+1; i <= ftidx; i++){
         SectionHeader* sHdr = elfFile->getSectionHeader(i);
         extraSize = nextAlignAddress(sHdr->GET(sh_addr) + extraSize, sHdr->GET(sh_addralign)) - sHdr->GET(sh_addr);
-        sHdr->INCREMENT(sh_offset,extraSize);
-        sHdr->INCREMENT(sh_addr,extraSize);
+        sHdr->INCREMENT(sh_offset, extraSize);
+        sHdr->INCREMENT(sh_addr, extraSize);
     }
 
     // shrink the size of the extra text section to accomodate the increase of the control sections
-    ASSERT(extraSize <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough room to insert extra ELF control");
-    elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
+    /*
+    ASSERT(extraSize <= elfFile->getSectionHeader(ftidx)->GET(sh_size) && "Not enough room to insert extra ELF control");
+    elfFile->getSectionHeader(ftidx)->SET(sh_size,elfFile->getSectionHeader(ftidx)->GET(sh_size)-extraSize);
+    */
 
     for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
         Dynamic* dyn = dynamicTable->getDynamic(i);
         uint64_t tag = dyn->GET(d_tag);
         if (tag == DT_VERSYM || tag == DT_VERNEED ||
             tag == DT_REL || tag == DT_RELA || tag == DT_JMPREL){
-            ASSERT(dyn->GET_A(d_ptr,d_un) > dynamicStringSection->GET(sh_addr) && "The gnu version tables and relocation tables should be after the dynamic string table");
-            dyn->INCREMENT_A(d_ptr,d_un,extraSize);
+            ASSERT(dyn->GET_A(d_ptr, d_un) > dynamicStringSection->GET(sh_addr) && "The gnu version tables and relocation tables should be after the dynamic string table");
+            dyn->INCREMENT_A(d_ptr, d_un, extraSize);
         }
 
     }
 
+    verify();
     return origSize;
-
 }
 
 uint64_t ElfFileInst::addFunction(InstrumentationFunction* func){
@@ -1871,7 +2022,9 @@ uint32_t ElfFileInst::addSharedLibraryPath(){
     }
 
     DynamicTable* dynamicTable = elfFile->getDynamicTable();
+    verify();
     uint32_t strOffset = addStringToDynamicStringTable(sharedLibraryPath);
+    verify();
 
     // add a DT_NEEDED entry to the dynamic table
     uint32_t emptyDynamicIdx = dynamicTable->findEmptyDynamic();
@@ -1889,7 +2042,6 @@ uint32_t ElfFileInst::addSharedLibraryPath(){
     dynamicTable->getDynamic(emptyDynamicIdx)->SET_A(d_ptr,d_un,strOffset);
 
     verify();
-
     return strOffset;
 }
 
@@ -1932,6 +2084,6 @@ uint64_t ElfFileInst::getProgramBaseAddress(){
         }
     }
 
-    ASSERT(segmentBase != -1 && "No loadable segments found (or their v_addr fields are incorrect)");
+    ASSERT(segmentBase != -1 && "No loadable segments found (or their p_vaddr fields are incorrect)");
     return segmentBase;
 }

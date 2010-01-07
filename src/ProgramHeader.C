@@ -96,7 +96,7 @@ bool ProgramHeader::verify(){
     }
 
     if (GET(p_vaddr) % DEFAULT_PAGE_ALIGNMENT != GET(p_paddr) % DEFAULT_PAGE_ALIGNMENT){
-        PRINT_ERROR("Physical and virtual address must be congruent mod pagesize");
+        PRINT_ERROR("Physical and virtual address must be congruent mod pagesize for program header %d", index);
         return false;
     }
 

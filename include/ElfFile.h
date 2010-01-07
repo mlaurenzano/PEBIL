@@ -3,6 +3,7 @@
 
 #include <Base.h>
 #include <BinaryFile.h>
+#include <ProgramHeader.h>
 #include <Vector.h>
 
 class DataSection;
@@ -16,7 +17,6 @@ class GnuVersymTable;
 class HashTable;
 class Instruction;
 class NoteSection;
-class ProgramHeader;
 class RawSection;
 class RelocationTable;
 class SectionHeader;
@@ -118,6 +118,7 @@ public:
 
     FileHeader*  getFileHeader() { return fileHeader; }
     ProgramHeader* getProgramHeader(uint32_t idx) { return programHeaders[idx]; }
+    ProgramHeader* getProgramHeaderPHDR() { ASSERT(programHeaders[0]->GET(p_type) == PT_PHDR); return programHeaders[0]; }
     SectionHeader* getSectionHeader(uint32_t idx) { return sectionHeaders[idx]; }
     RawSection* getRawSection(uint32_t idx) { return rawSections[idx]; }
     StringTable* getStringTable(uint32_t idx) { return stringTables[idx]; }
@@ -167,6 +168,10 @@ public:
     void setLineInfoFinder();
     void findLoops();
     uint32_t printDisassembly(bool instructionDetail);
+    
+
+    uint64_t addSegment(uint16_t idx, uint32_t type, uint64_t offset, uint64_t vaddr, uint64_t paddr,
+                        uint32_t memsz, uint32_t filesz, uint32_t flags, uint32_t align);
     uint64_t addSection(uint16_t idx, PebilClassTypes classtype, char* bytes, uint32_t name, uint32_t type, uint64_t flags, uint64_t addr, uint64_t offset, 
                         uint64_t size, uint32_t link, uint32_t info, uint64_t addralign, uint64_t entsize);
 

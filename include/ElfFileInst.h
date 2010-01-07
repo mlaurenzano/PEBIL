@@ -107,8 +107,9 @@ protected:
     uint64_t relocateDynamicSection();
     uint64_t getProgramBaseAddress();
     void extendTextSection(uint64_t size);
-    void extendDataSection(uint64_t size);
-    void buildInstrumentationData();
+    void allocateInstrumentationText(uint64_t size);
+    void extendDataSection();
+    void buildInstrumentationSections();
     void generateInstrumentation();
     uint32_t relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation);
     bool isEligibleFunction(Function* func);
@@ -161,7 +162,7 @@ public:
     uint32_t initializeReservedData(uint64_t address, uint32_t size, void* data);
 
     void functionSelect();
-    uint64_t functionRelocateAndTransform();
+    uint64_t functionRelocateAndTransform(uint32_t offset);
 
     InstrumentationFunction* declareFunction(char* funcName);
     uint32_t declareLibrary(char* libName);
