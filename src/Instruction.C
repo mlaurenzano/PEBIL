@@ -1623,12 +1623,14 @@ void Instruction::print(){
     delete usedRegs;
 #endif // PRINT_INSTRUCTION_DETAIL
 
+    /*
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         ud_operand op = GET(operand)[i];
         if (op.type){
             getOperand(i)->print();
         }
     }
+    */
 }
 
 const char* ud_optype_str[] = { "reg", "mem", "ptr", "imm", "jimm", "const" };

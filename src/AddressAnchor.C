@@ -47,6 +47,10 @@ int compareLinkBaseAddress(const void* arg1, const void* arg2){
     return 0;
 }
 
+void AddressAnchor::refreshCache(){
+    linkBaseAddress = link->getBaseAddress();
+}
+
 
 Base* AddressAnchor::updateLink(Base* newLink){
     ASSERT(newLink->containsProgramBits());
@@ -54,7 +58,7 @@ Base* AddressAnchor::updateLink(Base* newLink){
     PRINT_DEBUG_ANCHOR("updating link: %#llx -> %#llx", linkBaseAddress, linkedParent->getBaseAddress());
     link = newLink;
 
-    linkBaseAddress = link->getBaseAddress();
+    refreshCache();
     verify();
 
     return oldLink;
@@ -99,6 +103,7 @@ void AddressAnchor::dump64(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 void AddressAnchor::dumpDataReference(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    ASSERT(linkedParent->getType() == PebilClassType_DataReference);
     DataReference* dataReference = (DataReference*)linkedParent;
     if (dataReference->is64Bit()){
         dump64(binaryOutputFile, offset + dataReference->getSectionOffset());
@@ -108,6 +113,7 @@ void AddressAnchor::dumpDataReference(BinaryOutputFile* binaryOutputFile, uint32
 }
 
 void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    ASSERT(linkedParent->getType() == PebilClassType_Instruction);
     Instruction* linkedInstruction = (Instruction*)linkedParent;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         Operand* op = linkedInstruction->getOperand(i);

@@ -34,6 +34,8 @@ public:
     uint64_t getLinkValue();
 
     Base* getLink() { return link; }
+    
+    void refreshCache();
     Base* updateLink(Base* newLink);
     Base* getLinkedParent() { return linkedParent; }
     uint32_t getIndex() { return index; }

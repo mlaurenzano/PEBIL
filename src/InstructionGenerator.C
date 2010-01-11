@@ -7,6 +7,19 @@ Instruction* InstructionGenerator32::generateInstructionBase(uint32_t sz, char* 
     return InstructionGenerator::generateInstructionBase(sz, buff);
 }
 
+Instruction* InstructionGenerator32::generateExchangeMemReg(uint64_t addr, uint8_t idx){
+    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
+    uint32_t len = 6;
+    char* buff = new char[len];
+    buff[0] = 0x87;
+    buff[1] = 0x05 + 8 * idx;
+    uint32_t addr32 = (uint32_t)addr;
+    ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the address");
+    memcpy(buff+2,&addr32,sizeof(uint32_t));
+
+    return generateInstructionBase(len,buff);
+}
+
 Instruction* InstructionGenerator32::generateLoadRegImmReg(uint8_t idxsrc, uint64_t imm, uint8_t idxdest){
     ASSERT(idxsrc < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(idxdest < X86_32BIT_GPRS && "Illegal register index given");    

@@ -1,3 +1,4 @@
+ValidatePosition
 __pthread_initialize_minimal
 _start
 call_gmon_start

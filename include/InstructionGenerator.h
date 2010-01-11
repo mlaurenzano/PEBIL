@@ -92,6 +92,8 @@ private:
     static Instruction* generateInstructionBase(uint32_t sz, char* buf);
 
 public:
+    static Instruction* generateExchangeMemReg(uint64_t addr, uint8_t idx);
+
     static Instruction* generateCompareImmReg(uint64_t imm, uint8_t reg);
     static Instruction* generateLoadRegImmReg(uint8_t src, uint64_t imm, uint8_t dest);
 

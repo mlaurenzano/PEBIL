@@ -40,8 +40,7 @@ uint32_t BasicBlock::bloat(BloatTypes bloatType, uint32_t bloatAmount){
     PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx", baseAddress);
 
     for (uint32_t i = 0; i < instructions.size(); i++){
-        // convert all branches to use 4byte operands (ensuring that they cover at least 5 bytes and giving them
-        // much larger immediate range)
+        // convert all branches to use 4byte operands (giving them much larger immediate range)
         if (instructions[i]->isControl() && !instructions[i]->isReturn()){
             if (instructions[i]->bytesUsedForTarget() < sizeof(uint32_t)){
                 PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", instructions[i]->bytesUsedForTarget());

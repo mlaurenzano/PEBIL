@@ -112,7 +112,7 @@ void BasicBlockCounter::instrument(){
     exitFunc->addArgument(instExt);
 
     BasicBlock* exitBlock = ((Function*)fini->getTextObject(0))->getFlowGraph()->getBasicBlock(0);
-    InstrumentationPoint* p = addInstrumentationPoint(exitBlock, exitFunc, SIZE_NEEDED_AT_INST_POINT);
+    InstrumentationPoint* p = addInstrumentationPoint(exitBlock, exitFunc, SIZE_CONTROL_TRANSFER);
     if (!p->getInstAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
@@ -132,7 +132,7 @@ void BasicBlockCounter::instrument(){
     entryFunc->addArgument(hashCodeArray);
 
     BasicBlock* entryBlock = getProgramEntryBlock();
-    p = addInstrumentationPoint(entryBlock, entryFunc, SIZE_NEEDED_AT_INST_POINT);
+    p = addInstrumentationPoint(entryBlock, entryFunc, SIZE_CONTROL_TRANSFER);
     p->setPriority(InstPriority_userinit);
     if (!p->getInstAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the entry block");

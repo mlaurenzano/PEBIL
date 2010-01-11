@@ -425,7 +425,10 @@ uint32_t ElfFileInst::anchorProgramElements(){
             if (link != NULL){
                 Instruction* linkedInstruction = *(Instruction**)link;
                 PRINT_DEBUG_ANCHOR("Found inst -> inst link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
+
                 currentInstruction->initializeAnchor(linkedInstruction);
+
+                ASSERT(currentInstruction->getAddressAnchor());
                 addressAnchors.append(currentInstruction->getAddressAnchor());
                 currentInstruction->getAddressAnchor()->setIndex(anchorCount);
                 anchorCount++;
@@ -640,7 +643,7 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
 
     // bloat the blocks in the function
     bool doBloat = true;
-#ifdef TURNOFF_CODE_BLOAT
+#ifdef TURNOFF_FUNCTION_BLOAT
     doBloat = false;
 #endif
 #ifdef BLOAT_MOD
@@ -654,12 +657,12 @@ uint32_t ElfFileInst::relocateFunction(Function* functionToRelocate, uint64_t of
     bloatCount++;
 #endif
 
-
     if (!displacedFunction->hasCompleteDisassembly()){
         PRINT_ERROR("Function %s before bloated to have bad disassembly", displacedFunction->getName());
     }
     if (doBloat){
         displacedFunction->bloatBasicBlocks(bloatType, SIZE_NEEDED_AT_INST_POINT);
+        anchorsAreSorted = false;
     }
     if (!displacedFunction->hasCompleteDisassembly()){
         PRINT_ERROR("Function %s after bloated to have bad disassembly", displacedFunction->getName());
@@ -837,6 +840,16 @@ void ElfFileInst::generateInstrumentation(){
             repl = new Vector<Instruction*>();
             if (instrumentationPoints[i]->getNumberOfBytes() == SIZE_CONTROL_TRANSFER){
                 (*repl).append(InstructionGenerator::generateJumpRelative(pt->getInstAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
+            } else if (instrumentationPoints[i]->getNumberOfBytes() == 19){
+                (*repl).append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + regStorageOffset));
+                //(*repl).append(InstructionGenerator32::generateMoveMemToReg(getExtraDataAddress() + 80, X86_REG_AX));
+                (*repl).append(InstructionGenerator32::generateLoadAHFromFlags());
+                (*repl).append(instrumentationPoints[i]->getInstrumentation()->removeNextCoreInstruction());
+                //(*repl).append(InstructionGenerator32::generateAddImmByteToMem(1, getExtraDataAddress() + 80));
+                //(*repl).append(InstructionGenerator32::generateLoadRegImmReg(X86_REG_AX, 1, X86_REG_AX));
+                (*repl).append(InstructionGenerator32::generateStoreAHToFlags());
+                //(*repl).append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + 80));
+                (*repl).append(InstructionGenerator32::generateMoveMemToReg(getExtraDataAddress() + regStorageOffset, X86_REG_AX));
             } else {
                 PRINT_ERROR("This size instrumentation point (%d) not supported", instrumentationPoints[i]->getNumberOfBytes());
             }
@@ -851,11 +864,11 @@ void ElfFileInst::generateInstrumentation(){
                 (*repl)[j]->print();
 #endif
             }
-            
+
+            /*            
             ASSERT((*repl).back()->getSizeInBytes() == SIZE_NEEDED_AT_INST_POINT ||
                    (*repl).back()->getSizeInBytes() == SIZE_FIRST_INST_POINT && "Instruction at instrumentation point has a different size than expected");
-            
-            
+            */
             
             bool isLastInChain = false;
             if (i == instrumentationPoints.size()-1 || 
@@ -1063,6 +1076,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
 
         if (!isEligibleFunction(func)){
             func->print();
+            __SHOULD_NOT_ARRIVE;
         }
 #ifdef RELOC_MOD
         if (i % RELOC_MOD == RELOC_MOD_OFF){
@@ -1075,6 +1089,37 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
         }
 #endif
     }
+
+    // update address anchors modified by the tranformation (things anchored to the
+    // instructions at the front of blocks)
+    for (uint32_t i = 0; i < addressAnchors.size(); i++){
+        addressAnchors[i]->refreshCache();
+    }
+    for (uint32_t i = 0; i < numberOfFunctions; i++){
+        Function* func = exposedFunctions[i];
+#ifdef RELOC_MOD
+        if (i % RELOC_MOD == RELOC_MOD_OFF){
+#endif
+        for (uint32_t j = 0; j < func->getNumberOfBasicBlocks(); j++){
+            Block* block = func->getFlowGraph()->getBlock(j);
+            if (block->getType() == PebilClassType_BasicBlock){
+                BasicBlock* bb = (BasicBlock*)block;
+
+                Vector<AddressAnchor*>* modAnchors = searchAddressAnchors(bb->getBaseAddress() + SIZE_NEEDED_AT_INST_POINT);
+                ASSERT(bb->getNumberOfInstructions() && bb->getInstruction(0));
+                PRINT_DEBUG_ANCHOR("In block at %#llx, updating %d anchors", bb->getBaseAddress(), (*modAnchors).size());
+                for (uint32_t k = 0; k < modAnchors->size(); k++){
+                    (*modAnchors)[k]->updateLink(bb->getInstruction(0));
+                    anchorsAreSorted = false;
+                }
+                delete modAnchors;
+            }
+        }
+#ifdef RELOC_MOD
+        }
+#endif
+    }
+
     return codeOffset;
 }
 
@@ -1191,7 +1236,6 @@ void ElfFileInst::phasedInstrumentation(){
     // save space at the beginning of text for phdr table
     relocatedTextSize = elfFile->getFileHeader()->GET(e_phentsize) * elfFile->getFileHeader()->GET(e_phnum);
     relocatedTextSize += functionRelocateAndTransform(relocatedTextSize);
-
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
