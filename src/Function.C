@@ -44,6 +44,7 @@ void Function::printDisassembly(bool instructionDetail){
 
 uint32_t Function::bloatBasicBlocks(BloatTypes bloatType, uint32_t bloatAmount){
     uint32_t currByte = 0;
+
     for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
         Block* block = flowGraph->getBlock(i);
         block->setBaseAddress(baseAddress + currByte);
@@ -69,43 +70,22 @@ bool Function::hasCompleteDisassembly(){
 
     /*
     // if this function calls into the middle of itsself
-    if (containsCallToRange(baseAddress+1,baseAddress+getNumberOfBytes())){
+    if (callsSelf()){
         return false;
     }
     */
 
     // if this function references data that is inside the function body
-    uint32_t numberOfInstructions = getNumberOfInstructions();
-    Instruction** allInstructions = new Instruction*[numberOfInstructions];
-    getAllInstructions(allInstructions,0);
-    for (uint32_t i = 0; i < numberOfInstructions; i++){
-        if (allInstructions[i]->getAddressAnchor()){
-            if (allInstructions[i]->usesRelativeAddress() &&
-                !allInstructions[i]->isControl() &&
-                inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getAddressAnchor()->getLinkOffset())){
-                //                inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getRelativeValue())){
-                PRINT_DEBUG_FUNC_RELOC("Instruction self-data-ref inside function %s", getName());
-#ifdef DEBUG_FUNC_RELOC
-                allInstructions[i]->print();
-#endif
-                delete[] allInstructions;
-                return false;
-            }
-        }
-    }
-
-    // if this function does not contain a return instruction
-    bool hasReturn = false;
-    for (uint32_t i = 0; i < numberOfInstructions; i++){
-        if (allInstructions[i]->isReturn()){
-            hasReturn = true;
-            i = numberOfInstructions;
-        }
-    }
-    delete[] allInstructions;
-    if (!hasReturn){
+    if (hasSelfDataReference()){
         return false;
     }
+
+    /*
+    // if this function does not contain a return instruction
+    if (!containsReturn()){
+        return false;
+    }
+    */
 
     // if this function calls __i686.get_pc_thunk.bx
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
@@ -120,6 +100,50 @@ bool Function::hasCompleteDisassembly(){
         }
     }
     return true;
+}
+
+bool Function::callsSelf(){
+    return containsCallToRange(baseAddress + 1, baseAddress + getNumberOfBytes());
+}
+
+bool Function::hasSelfDataReference(){
+    uint32_t numberOfInstructions = getNumberOfInstructions();
+    Instruction** allInstructions = new Instruction*[numberOfInstructions];
+    getAllInstructions(allInstructions,0);
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (allInstructions[i]->getAddressAnchor()){
+            if (allInstructions[i]->usesRelativeAddress() &&
+                !allInstructions[i]->isControl() &&
+                inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getAddressAnchor()->getLinkOffset())){
+                //                inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getRelativeValue())){
+                PRINT_DEBUG_FUNC_RELOC("Instruction self-data-ref inside function %s", getName());
+#ifdef DEBUG_FUNC_RELOC
+                allInstructions[i]->print();
+#endif
+                delete[] allInstructions;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool Function::containsReturn(){
+    uint32_t numberOfInstructions = getNumberOfInstructions();
+    Instruction** allInstructions = new Instruction*[numberOfInstructions];
+    getAllInstructions(allInstructions,0);
+    bool hasReturn = false;
+
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (allInstructions[i]->isReturn()){
+            hasReturn = true;
+            i = numberOfInstructions;
+        }
+    }
+    delete[] allInstructions;
+
+    return hasReturn;
 }
 
 bool Function::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){

@@ -1124,10 +1124,8 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
 }
 
 void ElfFileInst::functionSelect(){
-    uint32_t numberOfBBs = 0;
-    uint32_t numberOfBBsReloc = 0;
-    uint32_t numberOfMemops = 0;
-    uint32_t numberOfMemopsReloc = 0;
+    uint32_t numberOfBytes = 0;
+    uint32_t numberOfBytesReloc = 0;
 
     TextSection* text = getTextSection();
     TextSection* fini = getFiniSection();
@@ -1155,30 +1153,24 @@ void ElfFileInst::functionSelect(){
         if (textObjects[i]->isFunction()){
             Function* f = (Function*)textObjects[i];
 
-            uint32_t memopsInFunc = 0;
-            for (uint32_t i = 0; i < f->getNumberOfBasicBlocks(); i++){
-                memopsInFunc += f->getBasicBlock(i)->getNumberOfMemoryOps();
-            } 
-            numberOfMemops += memopsInFunc;
-            numberOfBBs += f->getNumberOfBasicBlocks();
+            numberOfBytes += f->getSizeInBytes();
+
+            if (!f->isDisasmFail() && isEligibleFunction(f)){
+                numberOfBytesReloc += f->getSizeInBytes();
+            }
 
             if (f->hasCompleteDisassembly() && isEligibleFunction(f)){
                 PRINT_DEBUG_FUNC_RELOC("\texposed: %s", f->getName());
                 exposedFunctions.append(f);
-                numberOfMemopsReloc += memopsInFunc;
-                numberOfBBsReloc += f->getNumberOfBasicBlocks();
             } else {
-                PRINT_DEBUG_FUNC_RELOC("\thidden: %s", f->getName());
+                PRINT_DEBUG_FUNC_RELOC("\thidden: %s\t%d %d %#llx %d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail());
+                //                PRINT_INFOR("\thidden: %s\tcomp%d isel%d getb%#llx isdf%d hsdr%d ctrt%d crlf%d isin%d isjt%d isdb%d szbt%d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail(), f->hasSelfDataReference(), f->containsReturn(), canRelocateFunction(f), f->isInstrumentationFunction(), f->isJumpTable(), isDisabledFunction(f), f->getNumberOfBytes());
                 hiddenFunctions.append(f);
-                if (f->hasCompleteDisassembly() && f->isJumpTable()){
-                    numberOfMemopsReloc += memopsInFunc;
-                    numberOfBBsReloc += f->getNumberOfBasicBlocks();
-                }
             }
         }
     }
 
-    //PRINT_INFOR("DisassemblyCoverageReportWithJumpTable\tBlocks\t%d\t%d\tMemops\t%d\t%d", numberOfBBs, numberOfBBsReloc, numberOfMemops, numberOfMemopsReloc);
+    PRINT_INFOR("DisassemblyCoverageReport\tBytes\t%d\t%d", numberOfBytes, numberOfBytesReloc);
 }
 
 

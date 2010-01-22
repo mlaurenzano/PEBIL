@@ -531,6 +531,51 @@ void ElfFile::initSectionFilePointers(){
     for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
         textSections[i]->disassemble(&binaryInputFile);
     }
+
+
+    /*
+    uint32_t* instBins;
+    instBins = new uint32_t[MAX_X86_INSTRUCTION_LENGTH+1];
+    bzero(instBins, sizeof(uint32_t) * (MAX_X86_INSTRUCTION_LENGTH+1));
+    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
+        for (uint32_t j = 0; j < textSections[i]->getNumberOfTextObjects(); j++){
+            if (textSections[i]->getTextObject(j)->isFunction()){
+                Function* f = (Function*)textSections[i]->getTextObject(j) ;
+                for (uint32_t k = 0; k < f->getNumberOfBasicBlocks(); k++){
+                    for (uint32_t l = 0; l < f->getBasicBlock(k)->getNumberOfInstructions(); l++){
+                        instBins[f->getBasicBlock(k)->getInstruction(l)->getSizeInBytes()]++;
+                    }
+                }
+            }
+        }
+    }
+    for (uint32_t i = 0; i < MAX_X86_INSTRUCTION_LENGTH+1; i++){
+
+        PRINT_INFOR("Instruction bins %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
+                    instBins[0],
+                    instBins[1],
+                    instBins[2],
+                    instBins[3],
+                    instBins[4],
+                    instBins[5],
+                    instBins[6],
+                    instBins[7],
+                    instBins[8],
+                    instBins[9],
+                    instBins[10],
+                    instBins[11],
+                    instBins[12],
+                    instBins[13],
+                    instBins[14],
+                    instBins[15],
+                    instBins[16],
+                    instBins[17],
+                    instBins[18],
+                    instBins[19],
+                    instBins[20]);
+    }
+    */
+
 }
 
 
