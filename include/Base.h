@@ -388,13 +388,6 @@ typedef enum {
 } TableModes;
 
 typedef enum {
-    BloatType_undefined = 0,
-    BloatType_BasicBlock,
-    BloatType_MemoryInstruction,
-    BloatType_Total_Types
-} BloatTypes;
-
-typedef enum {
     InstLocation_dont_care = 0,
     InstLocation_prior,
     InstLocation_after,

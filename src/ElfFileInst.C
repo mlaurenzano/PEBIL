@@ -662,7 +662,7 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
     }
     if (doBloat){
         Vector<InstrumentationPoint*>* functionInstPoints = instpointFilterAddressRange(displacedFunction, instrumentationPoints);
-        displacedFunction->bloatBasicBlocks(bloatType, functionInstPoints);
+        displacedFunction->bloatBasicBlocks(functionInstPoints);
         (*instrumentationPoints).sort(compareInstAddress);
         delete functionInstPoints;
         anchorsAreSorted = false;
@@ -1691,7 +1691,6 @@ void ElfFileInst::print(uint32_t printCodes){
 ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
     currentPhase = ElfInstPhase_no_phase;
     elfFile = elf;
-    bloatType = BloatType_undefined;
 
     // automatically set 2 snippets for the beginning and end of bootstrap code
     instrumentationSnippets.append(new InstrumentationSnippet());

@@ -57,7 +57,7 @@ public:
     bool hasSelfDataReference();
     bool containsReturn();
 
-    uint32_t bloatBasicBlocks(BloatTypes bloatType, Vector<InstrumentationPoint*>* instPoints);
+    uint32_t bloatBasicBlocks(Vector<InstrumentationPoint*>* instPoints);
 
     void setBaseAddress(uint64_t newBaseAddress);
 

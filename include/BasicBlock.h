@@ -99,7 +99,7 @@ public:
     BasicBlock(uint32_t idx, FlowGraph* cfg);
     ~BasicBlock() {}
 
-    uint32_t bloat(BloatTypes bloatType, Vector<InstrumentationPoint*>* instPoints);
+    uint32_t bloat(Vector<InstrumentationPoint*>* instPoints);
 
     bool containsOnlyControl();
     bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);

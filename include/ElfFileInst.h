@@ -93,7 +93,6 @@ protected:
     Vector<char*> disabledFunctions;
 
     uint32_t currentPhase;
-    BloatTypes bloatType;
 
     char* instSuffix;
     char* sharedLibraryPath;

@@ -23,8 +23,6 @@ CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFuncList)
 
     simFunc = NULL;
     exitFunc = NULL;
-
-    bloatType = BloatType_MemoryInstruction;
 }
 
 void CacheSimulation::declare(){

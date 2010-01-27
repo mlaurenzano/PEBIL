@@ -25,9 +25,6 @@ BasicBlockCounter::BasicBlockCounter(ElfFile* elf, char* inputFuncList)
 
     entryFunc = NULL;
     exitFunc = NULL;
-
-    // opens enough space for an instrumentation point in each basic block
-    bloatType = BloatType_BasicBlock;
 }
 
 void BasicBlockCounter::declare(){

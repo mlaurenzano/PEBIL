@@ -43,7 +43,7 @@ void Function::printDisassembly(bool instructionDetail){
     }
 }
 
-uint32_t Function::bloatBasicBlocks(BloatTypes bloatType, Vector<InstrumentationPoint*>* instPoints){
+uint32_t Function::bloatBasicBlocks(Vector<InstrumentationPoint*>* instPoints){
     uint32_t currByte = 0;
 
     Vector<InstrumentationPoint*>** blockInstPoints = new Vector<InstrumentationPoint*>*[flowGraph->getNumberOfBlocks()];
@@ -60,7 +60,7 @@ uint32_t Function::bloatBasicBlocks(BloatTypes bloatType, Vector<Instrumentation
     for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
         Block* block = flowGraph->getBlock(i);
         if (block->getType() == PebilClassType_BasicBlock){
-            ((BasicBlock*)block)->bloat(bloatType, blockInstPoints[i]);
+            ((BasicBlock*)block)->bloat(blockInstPoints[i]);
             delete blockInstPoints[i];
         } 
         block->setBaseAddress(baseAddress + currByte);

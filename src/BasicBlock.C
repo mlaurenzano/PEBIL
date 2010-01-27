@@ -37,17 +37,10 @@ void BasicBlock::findCompareAndCBranch(){
     return;
 }
 
-uint32_t BasicBlock::bloat(BloatTypes bloatType, Vector<InstrumentationPoint*>* instPoints){
+uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
     PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx", baseAddress);
 
-
-    /*
-    PRINT_INFOR("Bloating basic block");
-    print();
-    */
-
     for (uint32_t i = 0; i < (*instPoints).size(); i++){
-        //        (*instPoints)[i]->getSourceObject()->print();
         ASSERT(inRange((*instPoints)[i]->getInstBaseAddress()));
     }
     (*instPoints).sort(compareInstAddress);
@@ -97,31 +90,6 @@ uint32_t BasicBlock::bloat(BloatTypes bloatType, Vector<InstrumentationPoint*>* 
         }
     }
     setBaseAddress(baseAddress);
-
-    /*
-    uint32_t bloatAmount = Size__uncond_jump;
-    bloatAmount = 26;
-
-    if (bloatType == BloatType_BasicBlock){
-        for (uint32_t i = 0; i < bloatAmount; i++){
-            instructions.insert(InstructionGenerator::generateNoop(), 0);
-        }
-    } else if (bloatType == BloatType_MemoryInstruction){
-        for (uint32_t i = 0; i < instructions.size(); i++){
-            if (instructions[i]->isMemoryOperation()){
-                for (uint32_t j = 0; j < bloatAmount; j++){
-                    instructions.insert(InstructionGenerator::generateNoop(), i);
-                }
-                i += bloatAmount;
-            }
-        }
-    } else {
-        PRINT_ERROR("Unrecognized bloat type %d", bloatType);
-        __SHOULD_NOT_ARRIVE;
-    }
-
-    setBaseAddress(getBaseAddress());
-    */
 
     return getNumberOfBytes();
 }
