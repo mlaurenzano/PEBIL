@@ -22,9 +22,11 @@ class RawSection;
 class SectionHeader;
 class TextSection;
 
-#define SIZE_CONTROL_TRANSFER 5
-#define SIZE_NEEDED_AT_INST_POINT 19
-#define SIZE_FIRST_INST_POINT SIZE_CONTROL_TRANSFER
+#define Size__uncond_jump 5
+#define Size__flag_protect_full 2
+#define Size__32_bit_flag_protect_light 12
+#define Size__64_bit_flag_protect_light 18
+
 
 #define INST_SNIPPET_BOOTSTRAP_BEGIN 0
 #define INST_SNIPPET_BOOTSTRAP_END 1
@@ -53,7 +55,7 @@ private:
 
     Vector<InstrumentationSnippet*> instrumentationSnippets;
     Vector<InstrumentationFunction*> instrumentationFunctions;
-    Vector<InstrumentationPoint*> instrumentationPoints;
+    Vector<InstrumentationPoint*>* instrumentationPoints;
     Vector<char*> instrumentationLibraries;
     Vector<Function*> relocatedFunctions;
     Vector<uint64_t> relocatedFunctionOffsets;
@@ -71,7 +73,6 @@ private:
     uint64_t regStorageReserved;
     uint64_t programDataSize;
     uint64_t programBssSize;
-    uint64_t systemReservedBss;
     
     uint64_t relocatedTextSize;
     char* instrumentationData;
@@ -98,7 +99,8 @@ protected:
     char* sharedLibraryPath;
 
     // instrumentation functions
-    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, uint32_t sz);
+    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode) { return addInstrumentationPoint(instpoint, inst, instMode, FlagsProtectionMethod_full); }
+    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod);
     uint32_t addSharedLibrary(const char* libname);
     uint32_t addSharedLibraryPath();
     uint64_t addFunction(InstrumentationFunction* func);
@@ -111,7 +113,7 @@ protected:
     void extendDataSection();
     void buildInstrumentationSections();
     void generateInstrumentation();
-    uint32_t relocateFunction(Function* functionToRelocate, uint64_t offsetToRelocation);
+    uint32_t relocateAndBloatFunction(Function* functionToRelocate, uint64_t offsetToRelocation);
     bool isEligibleFunction(Function* func);
     bool is64Bit() { return elfFile->is64Bit(); }
 

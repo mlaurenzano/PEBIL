@@ -5,6 +5,7 @@
 #include <FlowGraph.h>
 #include <Instruction.h>
 #include <InstructionGenerator.h>
+#include <Instrumentation.h>
 
 #define MAX_SIZE_LINEAR_SEARCH 4096
 
@@ -36,8 +37,55 @@ void BasicBlock::findCompareAndCBranch(){
     return;
 }
 
-uint32_t BasicBlock::bloat(BloatTypes bloatType, uint32_t bloatAmount){
+uint32_t BasicBlock::bloat(BloatTypes bloatType, Vector<InstrumentationPoint*>* instPoints){
     PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx", baseAddress);
+
+
+    /*
+    PRINT_INFOR("Bloating basic block");
+    print();
+    */
+
+    for (uint32_t i = 0; i < (*instPoints).size(); i++){
+        //        (*instPoints)[i]->getSourceObject()->print();
+        ASSERT(inRange((*instPoints)[i]->getInstBaseAddress()));
+    }
+    (*instPoints).sort(compareInstAddress);
+
+    Vector<InstrumentationPoint*> expansions;
+    for (uint32_t i = 0; i < (*instPoints).size(); i++){
+        expansions.append((*instPoints)[i]);
+        uint32_t j = i;
+        while (i < (*instPoints).size() && (*instPoints)[i]->getInstBaseAddress() == (*instPoints)[j]->getInstBaseAddress()){
+            i++;
+            j++;
+        }
+    }
+    for (uint32_t i = 0; i < expansions.size(); i++){
+        bool isRep = false;
+        for (uint32_t j = i+1; j < (*instPoints).size(); j++){
+            if ((*instPoints)[j]->getInstBaseAddress() == expansions[i]->getInstBaseAddress()){
+                
+                if ((*instPoints)[j]->getInstrumentationMode() != InstrumentationMode_inline ||
+                    (*instPoints)[i]->getInstrumentationMode() != InstrumentationMode_inline){                
+                    isRep = true;
+                }
+            }
+        }
+        uint32_t bloatAmount;
+        if (isRep){
+            bloatAmount = Size__uncond_jump;
+        } else {
+            bloatAmount = expansions[i]->getNumberOfBytes();
+        }
+
+        uint32_t instructionIdx = expansions[i]->getSourceObject()->getIndex();
+        for (uint32_t j = 0; j < bloatAmount; j++){
+            instructions.insert(InstructionGenerator::generateNoop(), instructionIdx);
+        }
+
+        setBaseAddress(baseAddress);
+    }
 
     for (uint32_t i = 0; i < instructions.size(); i++){
         // convert all branches to use 4byte operands (giving them much larger immediate range)
@@ -48,6 +96,11 @@ uint32_t BasicBlock::bloat(BloatTypes bloatType, uint32_t bloatAmount){
             }
         }
     }
+    setBaseAddress(baseAddress);
+
+    /*
+    uint32_t bloatAmount = Size__uncond_jump;
+    bloatAmount = 26;
 
     if (bloatType == BloatType_BasicBlock){
         for (uint32_t i = 0; i < bloatAmount; i++){
@@ -68,6 +121,7 @@ uint32_t BasicBlock::bloat(BloatTypes bloatType, uint32_t bloatAmount){
     }
 
     setBaseAddress(getBaseAddress());
+    */
 
     return getNumberOfBytes();
 }
@@ -414,7 +468,7 @@ void BasicBlock::print(){
         ccs = 'S';
     }
 
-    PRINT_INFOR("BASICBLOCK(%d) range=[0x%llx,0x%llx), %d instructions, flags [%c%c%c%c%c%c%c]", index, getBaseAddress(), getBaseAddress()+getNumberOfBytes(), getNumberOfInstructions(), pad, ent, ext, ctr, rch, ccs);
+    PRINT_INFOR("BASICBLOCK(%d) range=[0x%llx,0x%llx), %d instructions, flags [%c%c%c%c%c%c]", index, getBaseAddress(), getBaseAddress()+getNumberOfBytes(), getNumberOfInstructions(), pad, ent, ext, ctr, rch, ccs);
     if (immDominatedBy){
         PRINT_INFOR("\tdom: %d", immDominatedBy->getIndex());
     }

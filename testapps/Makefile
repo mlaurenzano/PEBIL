@@ -1,7 +1,7 @@
 include rules/rules.$(COMP)
 
 DBG         = -save-temps -g #-Wall
-OPT         = -O0 -g #-static
+OPT         = -O0 -g -w#-static
 CC          = $(PEBIL_CC)  $(OPT)
 CPP         = $(PEBIL_CPP) $(OPT)
 F77         = $(PEBIL_F77) $(OPT)

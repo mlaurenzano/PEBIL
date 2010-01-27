@@ -188,6 +188,7 @@ private:
 
     bool isExplicitMemoryOperation();    
     bool isImplicitMemoryOperation();    
+    HashCode hashCode;
 
 public:
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
@@ -201,6 +202,8 @@ public:
 
     void print();
     bool verify();
+
+    HashCode getHashCode() { return hashCode; }
 
     void setBaseAddress(uint64_t addr) { baseAddress = addr; }
     uint32_t getSizeInBytes() { return sizeInBytes; }

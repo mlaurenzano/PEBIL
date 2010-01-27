@@ -44,7 +44,8 @@ void CacheSimulation::declare(){
 
 void CacheSimulation::instrument(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
-    
+
+    /*    
     TextSection* text = getTextSection();
     TextSection* fini = getFiniSection();
     ASSERT(text && "Cannot find text section");
@@ -110,7 +111,7 @@ void CacheSimulation::instrument(){
     exitFunc->addArgument(ptSourceAddrs);
 
     BasicBlock* exitBlock = ((Function*)fini->getTextObject(0))->getFlowGraph()->getBasicBlock(0);
-    InstrumentationPoint* p = addInstrumentationPoint(exitBlock, exitFunc, SIZE_NEEDED_AT_INST_POINT);
+    //    InstrumentationPoint* p = addInstrumentationPoint(exitBlock, exitFunc, SIZE_NEEDED_AT_INST_POINT);
     if (!p->getInstAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
@@ -154,6 +155,7 @@ void CacheSimulation::instrument(){
     delete allMemOps;
     delete allBlocks;
     delete allLineInfos;
+    */
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }

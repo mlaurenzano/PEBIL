@@ -6,6 +6,7 @@
 #include <ElfFileInst.h>
 #include <FlowGraph.h>
 #include <Instruction.h>
+#include <Instrumentation.h>
 #include <LengauerTarjan.h>
 #include <SectionHeader.h>
 #include <Stack.h>
@@ -42,19 +43,31 @@ void Function::printDisassembly(bool instructionDetail){
     }
 }
 
-uint32_t Function::bloatBasicBlocks(BloatTypes bloatType, uint32_t bloatAmount){
+uint32_t Function::bloatBasicBlocks(BloatTypes bloatType, Vector<InstrumentationPoint*>* instPoints){
     uint32_t currByte = 0;
+
+    Vector<InstrumentationPoint*>** blockInstPoints = new Vector<InstrumentationPoint*>*[flowGraph->getNumberOfBlocks()];
 
     for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
         Block* block = flowGraph->getBlock(i);
-        block->setBaseAddress(baseAddress + currByte);
         if (block->getType() == PebilClassType_BasicBlock){
-            ((BasicBlock*)block)->bloat(bloatType, bloatAmount);
+            blockInstPoints[i] = instpointFilterAddressRange(block, instPoints);
+        } 
+        currByte += block->getNumberOfBytes();
+    }
+    currByte = 0;
+
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
+        Block* block = flowGraph->getBlock(i);
+        if (block->getType() == PebilClassType_BasicBlock){
+            ((BasicBlock*)block)->bloat(bloatType, blockInstPoints[i]);
+            delete blockInstPoints[i];
         } 
         block->setBaseAddress(baseAddress + currByte);
         currByte += block->getNumberOfBytes();
     }
     sizeInBytes = currByte;
+    delete[] blockInstPoints;
     return sizeInBytes;
 }
 
@@ -125,7 +138,7 @@ bool Function::hasSelfDataReference(){
             }
         }
     }
-
+    delete[] allInstructions;
     return false;
 }
 
@@ -167,9 +180,11 @@ uint32_t Function::getAllInstructions(Instruction** allinsts, uint32_t nexti){
 Vector<Instruction*>* Function::swapInstructions(uint64_t addr, Vector<Instruction*>* replacements){
     for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
         if (getBasicBlock(i)->inRange(addr)){
-            return getBasicBlock(i)->swapInstructions(addr,replacements);
+            return getBasicBlock(i)->swapInstructions(addr, replacements);
         }
     }
+    print();
+    printInstructions();
     PRINT_ERROR("Cannot find instructions at address 0x%llx to replace (function %s)", addr, getName());
     return 0;
 }
@@ -202,7 +217,13 @@ BasicBlock* Function::getBasicBlock(uint32_t idx){
 }
 
 void Function::printInstructions(){
-    __FUNCTION_NOT_IMPLEMENTED;
+    Instruction** allInstructions = new Instruction*[getNumberOfInstructions()];
+    getAllInstructions(allInstructions,0);
+    for (uint32_t i = 0; i < getNumberOfInstructions(); i++){
+        ASSERT(allInstructions[i]);
+        allInstructions[i]->print();
+    }
+    delete[] allInstructions;
 }
 
 void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){

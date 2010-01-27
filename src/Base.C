@@ -105,7 +105,7 @@ uint16_t getUInt16(char* buf){
     return data;
 }
 
-// this function needs to be fast; it gets called A LOT
+// this function needs to be fast; it gets called -->*A LOT*<--
 int compareBaseAddress(const void* arg1, const void* arg2){
     uint64_t vl1 = (*((Base**)arg1))->baseAddress;
     uint64_t vl2 = (*((Base**)arg2))->baseAddress;
@@ -240,40 +240,40 @@ extern uint64_t nextAlignAddressDouble(uint64_t addr){
 HashCode::HashCode(uint32_t s){
     entry.bits = INVALID_FIELD;
     if(validSection(s)){
-        entry.fields.section  = ++s;
-        entry.fields.function = INVALID_FIELD;
-        entry.fields.block    = INVALID_FIELD;
-        entry.fields.memop    = INVALID_FIELD;
+        entry.fields.section     = ++s;
+        entry.fields.function    = INVALID_FIELD;
+        entry.fields.block       = INVALID_FIELD;
+        entry.fields.instruction = INVALID_FIELD;
     }
 }
 
 HashCode::HashCode(uint32_t s,uint32_t f){
     entry.bits = INVALID_FIELD;
     if(validSection(s) && validFunction(f)){
-        entry.fields.section  = ++s;
-        entry.fields.function = ++f;
-        entry.fields.block    = INVALID_FIELD;
-        entry.fields.memop    = INVALID_FIELD;
+        entry.fields.section     = ++s;
+        entry.fields.function    = ++f;
+        entry.fields.block       = INVALID_FIELD;
+        entry.fields.instruction = INVALID_FIELD;
     }
 }
 
 HashCode::HashCode(uint32_t s,uint32_t f,uint32_t b){
     entry.bits = INVALID_FIELD;
     if(validSection(s) && validFunction(f) && validBlock(b)){
-        entry.fields.section  = ++s;
-        entry.fields.function = ++f;
-        entry.fields.block    = ++b;
-        entry.fields.memop    = INVALID_FIELD;
+        entry.fields.section     = ++s;
+        entry.fields.function    = ++f;
+        entry.fields.block       = ++b;
+        entry.fields.instruction = INVALID_FIELD;
     }
 }
 
 HashCode::HashCode(uint32_t s,uint32_t f,uint32_t b,uint32_t m){
     entry.bits = INVALID_FIELD;
-    if(validSection(s) && validFunction(f) && validBlock(b) && validMemop(m)){
-        entry.fields.section  = ++s;
-        entry.fields.function = ++f;
-        entry.fields.block    = ++b;
-        entry.fields.memop    = ++m;
+    if(validSection(s) && validFunction(f) && validBlock(b) && validInstruction(m)){
+        entry.fields.section     = ++s;
+        entry.fields.function    = ++f;
+        entry.fields.block       = ++b;
+        entry.fields.instruction = ++m;
     }
 }
 

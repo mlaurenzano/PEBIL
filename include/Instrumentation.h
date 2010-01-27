@@ -10,8 +10,6 @@ class InstrumentationPoint;
 
 #define OPTIMIZE_NONLEAF
 #define SNIPPET_TRAMPOLINE_DEFAULT false
-//#define SAVE_REST_FLAGS_OFF
-//#define NO_LAHF_SAHF // some rare systems don't implement lahf/sahf, in which case we will use push/popf (instr code will beslower)
 
 #define PLT_RETURN_OFFSET_32BIT 6
 #define PLT_RETURN_OFFSET_64BIT 6
@@ -29,6 +27,9 @@ class InstrumentationPoint;
 #define Size__64_bit_inst_function_call_support 6
 
 extern int compareInstAddress(const void* arg1, const void* arg2);
+
+class InstrumentationPoint;
+extern Vector<InstrumentationPoint*>* instpointFilterAddressRange(Base* object, Vector<InstrumentationPoint*>* instPoints);
 
 class Instrumentation : public Base {
 protected:
@@ -89,6 +90,8 @@ public:
 
     uint64_t getEntryPoint();
 
+    uint32_t getNumberOfCoreInstructions() { return snippetInstructions.size(); }
+    Instruction* getCoreInstruction(uint32_t idx) { ASSERT(snippetInstructions[idx]); return snippetInstructions[idx]; }
     Instruction* removeNextCoreInstruction() { ASSERT(hasMoreCoreInstructions()); return snippetInstructions.remove(0); }
     bool hasMoreCoreInstructions() { return (snippetInstructions.size() != 0); }
 
@@ -209,7 +212,7 @@ typedef enum {
 
 class InstrumentationPoint : public Base {
 protected:
-    Base* point;
+    Instruction* point;
     Instrumentation* instrumentation;
 
     uint32_t numberOfBytes;
@@ -219,16 +222,18 @@ protected:
     uint64_t trampolineOffset;
 
     InstPriorities priority;
+    FlagsProtectionMethods protectionMethod;
+    InstrumentationModes instrumentationMode;
 
     Vector<Instruction*> precursorInstructions;
     Vector<Instruction*> postcursorInstructions;
 
 public:
 
-    InstrumentationPoint(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc);
+    InstrumentationPoint(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc);
     ~InstrumentationPoint();
 
-    Vector<Instruction*>* swapInstructionsAtPoint(Vector<Instruction*>* replacements);
+    Vector<Instruction*>* swapInstructionsAtPoint(bool isChain, Vector<Instruction*>* replacements);
 
     void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
@@ -239,11 +244,15 @@ public:
     uint64_t getTargetOffset() { ASSERT(instrumentation); return instrumentation->getEntryPoint(); }
     Instrumentation* getInstrumentation() { return instrumentation; }
 
-    Base* getSourceObject() { return point; }
-    PebilClassTypes getPointType() { return getSourceObject()->getType(); }
-    uint64_t getInstAddress();
+    Instruction* getSourceObject() { return point; }
+    PebilClassTypes getPointType() { ASSERT(getSourceObject()); return getSourceObject()->getType(); }
+    uint64_t getInstSourceAddress();
+    uint64_t getInstBaseAddress();
 
     uint32_t getNumberOfBytes() { return numberOfBytes; }
+    InstrumentationModes getInstrumentationMode() { return instrumentationMode; }
+    FlagsProtectionMethods getFlagsProtectionMethod() { return protectionMethod; }
+
     uint32_t sizeNeeded();
     virtual uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe)
          { __SHOULD_NOT_ARRIVE; }
@@ -260,14 +269,14 @@ public:
 
 class InstrumentationPoint32 : public InstrumentationPoint {
 public:
-    InstrumentationPoint32(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc) :
-        InstrumentationPoint(pt, inst, size, loc) {}
+    InstrumentationPoint32(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc) :
+        InstrumentationPoint(pt, inst, instMode, flagsMethod, loc) {}
     uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe);
 };
 class InstrumentationPoint64 : public InstrumentationPoint {
 public:
-    InstrumentationPoint64(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc) :
-        InstrumentationPoint(pt, inst, size, loc) {}
+    InstrumentationPoint64(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc) :
+        InstrumentationPoint(pt, inst, instMode, flagsMethod, loc) {}
     uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe);
 };
 

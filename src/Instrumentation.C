@@ -3,8 +3,95 @@
 #include <BasicBlock.h>
 #include <ElfFileInst.h>
 #include <Function.h>
+#include <Instruction.h>
 #include <InstructionGenerator.h>
 #include <TextSection.h>
+
+//#define VERIFY_FILTER
+
+int searchInstPoint(const void* arg1,const void* arg2){
+    uint64_t key = *((uint64_t*)arg1);
+    InstrumentationPoint* ip = *((InstrumentationPoint**)arg2);
+
+    ASSERT(ip && "Symbol should exist");
+
+    uint64_t val = ip->getInstBaseAddress();
+
+    if(key < val)
+        return -1;
+    if(key > val)
+        return 1;
+    return 0;
+}
+
+
+int compareInstPoint(const void* arg1, const void* arg2){
+    uint64_t vl1 = (*((InstrumentationPoint**)arg1))->getInstBaseAddress();
+    uint64_t vl2 = (*((InstrumentationPoint**)arg2))->getInstBaseAddress();
+
+    if      (vl1 < vl2) return -1;
+    else if (vl1 > vl2) return  1;
+    else                return  0;
+    return 0;
+}
+
+Vector<InstrumentationPoint*>* instpointFilterAddressRange(Base* object, Vector<InstrumentationPoint*>* instPoints){
+    (*instPoints).sort(compareInstAddress);
+
+    /*
+    PRINT_INFOR("Filtering %d points", (*instPoints).size());
+    for (uint32_t i = 0; i < (*instPoints).size(); i++){
+        (*instPoints)[i]->getSourceObject()->print();
+    }
+    */
+
+    uint64_t lowEnd = object->getBaseAddress();
+    uint64_t highEnd = object->getBaseAddress();
+
+    if (object->getType() == PebilClassType_BasicBlock){
+        highEnd += ((BasicBlock*)object)->getNumberOfBytes();
+    } else if (object->getType() == PebilClassType_Function){
+        highEnd += ((Function*)object)->getNumberOfBytes();
+    } else {
+        __SHOULD_NOT_ARRIVE;
+    }
+
+    InstrumentationPoint** points = &(*instPoints);
+
+    Vector<InstrumentationPoint*>* filtered = new Vector<InstrumentationPoint*>();
+    void *lowInstPoint = bsearch(&lowEnd, points, (*instPoints).size(), sizeof(InstrumentationPoint*), searchInstPoint);
+
+    uint32_t pidx;
+    if (lowInstPoint){
+        pidx = (((char*)lowInstPoint)-((char*)points))/sizeof(InstrumentationPoint*);
+    } else {
+        pidx = (*instPoints).size();
+    }
+
+    int32_t hidx = pidx;
+    while (pidx < (*instPoints).size() && (*instPoints)[pidx]->getInstBaseAddress() < highEnd){
+        (*filtered).append((*instPoints)[pidx]);
+        pidx++;
+    }
+    hidx--;
+    while (hidx >= 0 && (*instPoints)[hidx]->getInstBaseAddress() >= lowEnd){
+        (*filtered).append((*instPoints)[hidx]);
+        hidx--;
+    }
+
+#ifdef VERIFY_FILTER
+    Vector<InstrumentationPoint*>* filtered2 = new Vector<InstrumentationPoint*>();
+    for (uint32_t i = 0; i < (*instPoints).size(); i++){
+        if ((*instPoints)[i]->getInstBaseAddress() >= lowEnd &&
+            (*instPoints)[i]->getInstBaseAddress() < highEnd){
+            (*filtered2).append((*instPoints)[i]);
+        }
+    }
+    ASSERT((*filtered).size() == (*filtered2).size());
+#endif
+
+    return filtered;
+}
 
 uint32_t InstrumentationPoint::addPrecursorInstruction(Instruction* inst){
     precursorInstructions.append(inst);
@@ -15,12 +102,12 @@ int compareInstAddress(const void* arg1,const void* arg2){
     InstrumentationPoint* ip1 = *((InstrumentationPoint**)arg1);
     InstrumentationPoint* ip2 = *((InstrumentationPoint**)arg2);
 
-    if(ip1->getInstAddress() < ip2->getInstAddress()){
+    if(ip1->getInstBaseAddress() < ip2->getInstBaseAddress()){
         return -1;
-    } else if(ip1->getInstAddress() > ip2->getInstAddress()){
+    } else if(ip1->getInstBaseAddress() > ip2->getInstBaseAddress()){
         return 1;
     } else {
-        PRINT_DEBUG_POINT_CHAIN("Comparing priority of 2 points at %#llx: %d %d", ip1->getInstAddress(), ip1->getPriority(), ip2->getPriority());
+        PRINT_DEBUG_POINT_CHAIN("Comparing priority of 2 points at %#llx: %d %d", ip1->getInstBaseAddress(), ip1->getPriority(), ip2->getPriority());
         if (ip1->getPriority() < ip2->getPriority()){
             return -1;
         } else if (ip1->getPriority() > ip2->getPriority()){
@@ -78,18 +165,16 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
-#ifndef SAVE_REST_FLAGS_OFF
-#ifdef NO_LAHF_SAHF
-    trampolineInstructions.append(InstructionGenerator::generatePushEflags());
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#else
-    trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, regStorageBase));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-    trampolineInstructions.append(InstructionGenerator64::generateLoadAHFromFlags());
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#endif // NO_LAHF_SAHF
-#endif // SAVE_REST_FLAGS_OFF
+    if (protectionMethod == FlagsProtectionMethod_full){
+        trampolineInstructions.append(InstructionGenerator::generatePushEflags());
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes(); 
+    } else if (protectionMethod == FlagsProtectionMethod_light){
+        trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, regStorageBase));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();        
+        trampolineInstructions.append(InstructionGenerator64::generateLoadAHFromFlags());
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
 
     while (hasMorePrecursorInstructions()){
         trampolineInstructions.append(removeNextPrecursorInstruction());
@@ -116,18 +201,16 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
     }
 
     // restore eflags
-#ifndef SAVE_REST_FLAGS_OFF
-#ifdef NO_LAHF_SAHF
-    trampolineInstructions.append(InstructionGenerator::generatePopEflags());
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#else
-    trampolineInstructions.append(InstructionGenerator64::generateStoreAHToFlags());
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-    trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase, X86_REG_AX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#endif // NO_LAHF_SAHF
-#endif // SAVE_REST_FLAGS_OFF
+    if (protectionMethod == FlagsProtectionMethod_full){
+        trampolineInstructions.append(InstructionGenerator::generatePopEflags());
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    } else if (protectionMethod == FlagsProtectionMethod_light){
+        trampolineInstructions.append(InstructionGenerator64::generateStoreAHToFlags());
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        
+        trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase, X86_REG_AX));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
 
     if (!stackIsSafe){
         trampolineInstructions.append(InstructionGenerator64::generateLoadRegImmReg(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE, X86_REG_SP));
@@ -166,7 +249,6 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
         trampolineInstructions.append(InstructionGenerator::generateJumpRelative(offset+trampolineSize,returnOffset));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
-
     return trampolineSize;
 }
 
@@ -218,18 +300,15 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
-#ifndef SAVE_REST_FLAGS_OFF
-#ifdef NO_LAHF_SAHF
-    trampolineInstructions.append(InstructionGenerator::generatePushEflags());
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#else
-    trampolineInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, regStorageBase));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-    trampolineInstructions.append(InstructionGenerator32::generateLoadAHFromFlags());
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#endif // NO_LAHF_SAHF
-#endif // SAVE_REST_FLAGS_OFF
+    if (protectionMethod == FlagsProtectionMethod_full){
+        trampolineInstructions.append(InstructionGenerator::generatePushEflags());
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    } else if (protectionMethod == FlagsProtectionMethod_light){
+        trampolineInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, regStorageBase));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        trampolineInstructions.append(InstructionGenerator32::generateLoadAHFromFlags());
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
 
     while (hasMorePrecursorInstructions()){
         trampolineInstructions.append(removeNextPrecursorInstruction());
@@ -255,18 +334,16 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
-#ifndef SAVE_REST_FLAGS_OFF
-#ifdef NO_LAHF_SAHF
-    trampolineInstructions.append(InstructionGenerator::generatePopEflags());
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#else
-    trampolineInstructions.append(InstructionGenerator32::generateStoreAHToFlags());
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-    trampolineInstructions.append(InstructionGenerator32::generateMoveMemToReg(regStorageBase, X86_REG_AX));
-    trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-#endif // NO_LAHF_SAHF
-#endif // SAVE_REST_FLAGS_OFF
+    if (protectionMethod == FlagsProtectionMethod_full){
+        trampolineInstructions.append(InstructionGenerator::generatePopEflags());
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    } else if (protectionMethod== FlagsProtectionMethod_light){
+        trampolineInstructions.append(InstructionGenerator32::generateStoreAHToFlags());
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        
+        trampolineInstructions.append(InstructionGenerator32::generateMoveMemToReg(regStorageBase, X86_REG_AX));
+        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
 
     if (!stackIsSafe){
         trampolineInstructions.append(InstructionGenerator32::generateLoadRegImmReg(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE, X86_REG_SP));
@@ -733,14 +810,14 @@ InstrumentationSnippet::~InstrumentationSnippet(){
     }
 }
 
-Vector<Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(Vector<Instruction*>* replacements){
-    if (point->getType() == PebilClassType_Instruction){
-        Instruction* instruction = (Instruction*)point;
-        ASSERT(instruction->getContainer() && instruction->getContainer()->getType() == PebilClassType_Function);
-        Function* func = (Function*)instruction->getContainer();
-        return func->swapInstructions(getInstAddress(), replacements);
+Vector<Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(bool isChain, Vector<Instruction*>* replacements){
+    Instruction* instruction = (Instruction*)point;
+    ASSERT(instruction->getContainer() && instruction->getContainer()->getType() == PebilClassType_Function);
+    Function* func = (Function*)instruction->getContainer();
+    if (isChain){
+        return func->swapInstructions(getInstBaseAddress() - Size__uncond_jump, replacements);
     } else {
-        return point->swapInstructions(getInstAddress(), replacements);
+        return func->swapInstructions(getInstSourceAddress(), replacements);
     }
 }
 
@@ -760,47 +837,79 @@ uint32_t InstrumentationPoint::sizeNeeded(){
     return totalSize;
 }
 
-uint64_t InstrumentationPoint::getInstAddress(){
-    uint64_t loc = 0;
-    if (getPointType() == PebilClassType_Instruction){
-        Instruction* instruction = (Instruction*)point;
-        if (instruction->getContainer()->getType() == PebilClassType_Function){
-            Function* func = (Function*)instruction->getContainer();
-            for (uint32_t i = 0; i < func->getFlowGraph()->getNumberOfBasicBlocks(); i++){
-                if (func->getFlowGraph()->getBasicBlock(i)->inRange(instruction->getBaseAddress())){
-                    loc = func->getFlowGraph()->getBasicBlock(i)->findInstrumentationPoint(instruction->getBaseAddress(), numberOfBytes, instLocation);
-                }
-            }
-        } else {
-            PRINT_ERROR("Unexpected instruction container that isn't a function");
-            __SHOULD_NOT_ARRIVE;
-        }
-    } else if (getPointType() == PebilClassType_BasicBlock){
-        BasicBlock* bblock = (BasicBlock*)point;
-        loc = bblock->findInstrumentationPoint(bblock->getBaseAddress(), numberOfBytes, instLocation);
-    } else if (getPointType() == PebilClassType_TextSection){
-        PRINT_ERROR("Not allowed to instrument a TextSection directly");
-        __SHOULD_NOT_ARRIVE;
-    } else {
-        PRINT_ERROR("Unexpected instrumentation point class type %d", getPointType());
-        __SHOULD_NOT_ARRIVE;
-    }
-    return loc;
+uint64_t InstrumentationPoint::getInstBaseAddress(){
+    ASSERT(point);
+    return point->getBaseAddress();
 }
 
-InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, uint32_t size, InstLocations loc)
+uint64_t InstrumentationPoint::getInstSourceAddress(){
+    Function* f = (Function*)point->getContainer();
+    if (f->isRelocated()){
+        return getInstBaseAddress() - getNumberOfBytes();
+    } else {
+        return getInstBaseAddress();
+    }
+    __SHOULD_NOT_ARRIVE;
+}
+
+InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc)
     : Base(PebilClassType_InstrumentationPoint)
 {
-    point = pt;
+    if (pt->getType() == PebilClassType_Instruction){
+        point = (Instruction*)pt;
+    } else if (pt->getType() == PebilClassType_BasicBlock){
+        ASSERT(((BasicBlock*)pt)->getInstruction(0));
+        point = (Instruction*)((BasicBlock*)pt)->getInstruction(0);
+    } else if (pt->getType() == PebilClassType_Function){
+        Function* f = (Function*)pt;
+        BasicBlock* bb = f->getBasicBlockAtAddress(f->getBaseAddress());
+        ASSERT(bb);
+        ASSERT(bb->getInstruction(0));
+        point = bb->getInstruction(0);
+    } else {
+        PRINT_INFOR("Instrumentation point type not allowed %d", pt->getType());
+        __SHOULD_NOT_ARRIVE;
+    }
+    ASSERT(point);
 
     instrumentation = inst;
     instrumentation->setInstrumentationPoint(this);
 
-    numberOfBytes = size;
+    instrumentationMode = instMode;
+    protectionMethod = flagsMethod;
+
+    if (instrumentationMode == InstrumentationMode_inline && instrumentation->getType() != PebilClassType_InstrumentationSnippet){
+        PRINT_ERROR("InstrumentationMode_inline can only be used with snippets");
+    }    
+
     instLocation = loc;
 
     trampolineOffset = 0;
     priority = InstPriority_regular;
+
+    numberOfBytes = 0;
+    if (instMode == InstrumentationMode_inline){
+
+        // count the number of bytes the tool wants
+        InstrumentationSnippet* snippet = (InstrumentationSnippet*)instrumentation;
+        for (uint32_t i = 0; i < snippet->getNumberOfCoreInstructions(); i++){
+            numberOfBytes += snippet->getCoreInstruction(i)->getSizeInBytes();
+        }
+
+        // then add the number of bytes needed for state protection
+        if (protectionMethod == FlagsProtectionMethod_full){
+            numberOfBytes += Size__flag_protect_full;
+        } else if (protectionMethod == FlagsProtectionMethod_light){
+            numberOfBytes += Size__64_bit_flag_protect_light;
+        } else if (protectionMethod == FlagsProtectionMethod_none){
+            numberOfBytes += 0;
+        } else {
+            PRINT_ERROR("Protection method is invalid");
+        }
+    } else {
+        numberOfBytes = Size__uncond_jump;
+    }
+    ASSERT(numberOfBytes);
 
     verify();
 }
@@ -814,6 +923,11 @@ bool InstrumentationPoint::verify(){
         PRINT_ERROR("Instrumentation point not allowed to have priority %d", priority);
         return false;
     }
+    if (instrumentationMode == InstrumentationMode_inline && instrumentation->getType() != PebilClassType_InstrumentationSnippet){
+        PRINT_ERROR("InstrumentationMode_inline can only be used with snippets");
+        return false;
+    }
+
     return true;
 }
 

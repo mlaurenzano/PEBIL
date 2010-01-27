@@ -364,6 +364,22 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define SET_PRINT_CODE(__value,__Print_Code) (__value |= __Print_Code)
 
 typedef enum {
+    FlagsProtectionMethod_undefined = 0,
+    FlagsProtectionMethod_none,
+    FlagsProtectionMethod_light,
+    FlagsProtectionMethod_full,
+    FlagsProtectionMethod_Total_Types
+} FlagsProtectionMethods;
+
+typedef enum {
+    InstrumentationMode_undefined = 0,
+    InstrumentationMode_inline,
+    InstrumentationMode_trampinline,
+    InstrumentationMode_tramp,
+    InstrumentationMode_Total_Types
+} InstrumentationModes;
+
+typedef enum {
     TableMode_undefined = 0,
     TableMode_direct,
     TableMode_indirect,
@@ -503,11 +519,11 @@ class HashCode {
 private:
     typedef union {
         struct {
-            uint32_t memop   : 16;
-            uint32_t block   : 16;
-            uint32_t function: 16;
-            uint32_t section : 8;
-            uint32_t res     : 8;
+            uint32_t instruction : 16;
+            uint32_t block       : 16;
+            uint32_t function    : 16;
+            uint32_t section     : 8;
+            uint32_t res         : 8;
         } fields;
         uint64_t bits;
     } HashCodeEntry;
@@ -516,15 +532,15 @@ private:
 
     HashCodeEntry entry;
 
-    inline bool hasSection()       { return (entry.fields.section   != INVALID_FIELD); }
-    inline bool hasFunction()      { return (entry.fields.function  != INVALID_FIELD); }
-    inline bool hasBlock()         { return (entry.fields.block     != INVALID_FIELD); }
-    inline bool hasMemop()         { return (entry.fields.memop     != INVALID_FIELD); }
+    inline bool hasSection()       { return (entry.fields.section     != INVALID_FIELD); }
+    inline bool hasFunction()      { return (entry.fields.function    != INVALID_FIELD); }
+    inline bool hasBlock()         { return (entry.fields.block       != INVALID_FIELD); }
+    inline bool hasInstruction()   { return (entry.fields.instruction != INVALID_FIELD); }
 
-    inline static bool validSection(uint32_t s)    { return ((0 <= s) && (s < (0x1 << 8))); }
-    inline static bool validFunction(uint32_t f){ return ((0 <= f) && (f < ((0x1 << 16) - 1))); }
-    inline static bool validBlock(uint32_t b)    { return ((0 <= b) && (b < ((0x1 << 16) - 1))); }
-    inline static bool validMemop(uint32_t m)    { return ((0 <= m) && (m < ((0x1 << 16) - 1))); }
+    inline static bool validSection(uint32_t s)        { return ((0 <= s) && (s < (0x1 << 8))); }
+    inline static bool validFunction(uint32_t f)       { return ((0 <= f) && (f < ((0x1 << 16) - 1))); }
+    inline static bool validBlock(uint32_t b)          { return ((0 <= b) && (b < ((0x1 << 16) - 1))); }
+    inline static bool validInstruction(uint32_t i)    { return ((0 <= i) && (i < ((0x1 << 16) - 1))); }
 public:
 
     inline uint64_t getValue(){ return entry.bits; }
@@ -535,18 +551,18 @@ public:
     HashCode(uint32_t s);
     HashCode(uint32_t s,uint32_t f);
     HashCode(uint32_t s,uint32_t f,uint32_t b);
-    HashCode(uint32_t s,uint32_t f,uint32_t b,uint32_t m);
+    HashCode(uint32_t s,uint32_t f,uint32_t b,uint32_t i);
 
-    inline bool isSection()  { return (hasSection() && !hasFunction() && !hasBlock() && !hasMemop()); }
-    inline bool isFunction() { return (hasSection() && hasFunction() && !hasBlock() && !hasMemop()); }
-    inline bool isBlock()    { return (hasSection() && hasFunction() && hasBlock() && !hasMemop()); }
-    inline bool isMemop()    { return (hasSection() && hasFunction() && hasBlock() && hasMemop()); }
-    inline bool isValid()    { return (isSection() || isFunction() || isBlock() || isMemop()); }
+    inline bool isSection()     { return (hasSection() && !hasFunction() && !hasBlock() && !hasInstruction()); }
+    inline bool isFunction()    { return (hasSection() &&  hasFunction() && !hasBlock() && !hasInstruction()); }
+    inline bool isBlock()       { return (hasSection() &&  hasFunction() &&  hasBlock() && !hasInstruction()); }
+    inline bool isInstruction() { return (hasSection() &&  hasFunction() &&  hasBlock() &&  hasInstruction()); }
+    inline bool isValid()       { return (isSection() || isFunction() || isBlock() || isInstruction()); }
 
-    inline uint32_t getSection()  { return entry.fields.section; }
-    inline uint32_t getFunction() { return (hasFunction() ? (entry.fields.function - 1) : INVALID_FIELD); }
-    inline uint32_t getBlock()      { return (hasBlock() ? (entry.fields.block - 1) : INVALID_FIELD); }
-    inline uint32_t getMemop()    { return (hasMemop() ? (entry.fields.memop - 1) : INVALID_FIELD); }
+    inline uint32_t getSection()     { return entry.fields.section; }
+    inline uint32_t getFunction()    { return (hasFunction() ? (entry.fields.function - 1) : INVALID_FIELD); }
+    inline uint32_t getBlock()       { return (hasBlock() ? (entry.fields.block - 1) : INVALID_FIELD); }
+    inline uint32_t getInstruction() { return (hasInstruction() ? (entry.fields.instruction - 1) : INVALID_FIELD); }
 };
 
 

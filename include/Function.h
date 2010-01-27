@@ -10,6 +10,7 @@ class BasicBlock;
 class BinaryInputFile;
 class BinaryOutputFile;
 class FlowGraph;
+class InstrumentationPoint;
 class Symbol;
 class TextObject;
 
@@ -19,6 +20,7 @@ private:
     const static uint32_t instrumentationfuncMask = 0x2;
     const static uint32_t jumptableMask           = 0x4;
     const static uint32_t disasmfailMask          = 0x8;
+    const static uint32_t relocatedMask            = 0x10;
 
 protected:
     FlowGraph* flowGraph;
@@ -37,11 +39,13 @@ public:
     bool isInstrumentationFunction()  { return (flags & instrumentationfuncMask); }
     bool isJumpTable()                { return (flags & jumptableMask); }
     bool isDisasmFail()               { return (flags & disasmfailMask); }
+    bool isRelocated()                { return (flags & relocatedMask); }
 
     void setRecursiveDisasm()         { flags |= recursivedisasmMask; }
     void setInstrumentationFunction() { flags |= instrumentationfuncMask; }
     void setJumpTable()               { flags |= jumptableMask; }
     void setDisasmFail()              { flags |= disasmfailMask; }
+    void setRelocated()               { flags |= relocatedMask; }
 
     uint64_t getBadInstruction() { return badInstruction; }
     void setBadInstruction(uint64_t addr) { badInstruction = addr; }
@@ -53,7 +57,7 @@ public:
     bool hasSelfDataReference();
     bool containsReturn();
 
-    uint32_t bloatBasicBlocks(BloatTypes bloatType, uint32_t bloatAmount);
+    uint32_t bloatBasicBlocks(BloatTypes bloatType, Vector<InstrumentationPoint*>* instPoints);
 
     void setBaseAddress(uint64_t newBaseAddress);
 

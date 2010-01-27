@@ -61,7 +61,6 @@ void BasicBlockCounter::instrument(){
         PRINT_ERROR("This executable does not have any line information");
     }
 
-
     uint64_t dataBaseAddress = getExtraDataAddress();
 
     Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
@@ -112,8 +111,9 @@ void BasicBlockCounter::instrument(){
     exitFunc->addArgument(instExt);
 
     BasicBlock* exitBlock = ((Function*)fini->getTextObject(0))->getFlowGraph()->getBasicBlock(0);
-    InstrumentationPoint* p = addInstrumentationPoint(exitBlock, exitFunc, SIZE_CONTROL_TRANSFER);
-    if (!p->getInstAddress()){
+    InstrumentationPoint* p = addInstrumentationPoint(exitBlock, exitFunc, InstrumentationMode_tramp);
+    ASSERT(p);
+    if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
 
@@ -132,9 +132,9 @@ void BasicBlockCounter::instrument(){
     entryFunc->addArgument(hashCodeArray);
 
     BasicBlock* entryBlock = getProgramEntryBlock();
-    p = addInstrumentationPoint(entryBlock, entryFunc, SIZE_CONTROL_TRANSFER);
+    p = addInstrumentationPoint(entryBlock, entryFunc, InstrumentationMode_tramp);
     p->setPriority(InstPriority_userinit);
-    if (!p->getInstAddress()){
+    if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the entry block");
     }
 
@@ -195,7 +195,7 @@ void BasicBlockCounter::instrument(){
         addInstrumentationSnippet(snip);            
         
         // register an instrumentation point at the function that uses this snippet
-        InstrumentationPoint* p = addInstrumentationPoint(bb, snip, SIZE_NEEDED_AT_INST_POINT);
+        InstrumentationPoint* p = addInstrumentationPoint(bb, snip, InstrumentationMode_inline, FlagsProtectionMethod_light);
     }
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
