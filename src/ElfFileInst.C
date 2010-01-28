@@ -824,19 +824,31 @@ void ElfFileInst::generateInstrumentation(){
                 (*repl).append(InstructionGenerator::generateJumpRelative(instAddress, elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
                 //(*repl).append(InstructionGenerator::generateJumpRelative(pt->getInstSourceAddress(), elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
             } else if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_inline){
-                if (elfFile->is64Bit()){
-                    (*repl).append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + regStorageOffset));
-                    (*repl).append(InstructionGenerator64::generateLoadAHFromFlags());
-                    (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
-                    (*repl).append(InstructionGenerator64::generateStoreAHToFlags());
-                    (*repl).append(InstructionGenerator64::generateMoveMemToReg(getExtraDataAddress() + regStorageOffset, X86_REG_AX));
-                } else { 
-                    (*repl).append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + regStorageOffset));
-                    (*repl).append(InstructionGenerator32::generateLoadAHFromFlags());
-                    (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
-                    (*repl).append(InstructionGenerator32::generateStoreAHToFlags());
-                    (*repl).append(InstructionGenerator32::generateMoveMemToReg(getExtraDataAddress() + regStorageOffset, X86_REG_AX));
-                }                
+                if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_light){
+                    if (elfFile->is64Bit()){
+                        (*repl).append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + regStorageOffset));
+                        (*repl).append(InstructionGenerator64::generateLoadAHFromFlags());
+                        while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
+                            (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
+                        }
+                        (*repl).append(InstructionGenerator64::generateStoreAHToFlags());
+                        (*repl).append(InstructionGenerator64::generateMoveMemToReg(getExtraDataAddress() + regStorageOffset, X86_REG_AX));
+                    } else { 
+                        (*repl).append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + regStorageOffset));
+                        (*repl).append(InstructionGenerator32::generateLoadAHFromFlags());
+                        while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
+                            (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
+                        }
+                        (*repl).append(InstructionGenerator32::generateStoreAHToFlags());
+                        (*repl).append(InstructionGenerator32::generateMoveMemToReg(getExtraDataAddress() + regStorageOffset, X86_REG_AX));
+                    }                
+                } else if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_full){
+                    (*repl).append(InstructionGenerator::generatePushEflags());
+                    while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
+                        (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
+                    }
+                    (*repl).append(InstructionGenerator::generatePopEflags());                    
+                }
             } else {
                 PRINT_ERROR("This instrumentation mode (%d) not supported", (*instrumentationPoints)[i]->getInstrumentationMode());
             }

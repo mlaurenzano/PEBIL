@@ -37,6 +37,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 //#define DEBUG_LEAF_OPT
 //#define DEBUG_DATA_PLACEMENT
 //#define DEBUG_ADDR_ALIGN
+//#define DEBUG_BLOAT_FILTER
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -268,7 +269,6 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define PRINT_DEBUG_DATA_PLACEMENT(...)
 #endif
 
-
 #ifdef DEBUG_ADDR_ALIGN
 #define PRINT_DEBUG_ADDR_ALIGN(...) fprintf(stdout,"ADDR_ALIGN : "); \
     fprintf(stdout,## __VA_ARGS__); \
@@ -276,6 +276,17 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     fflush(stdout);
 #else
 #define PRINT_DEBUG_ADDR_ALIGN(...)
+#endif
+
+#ifdef DEBUG_BLOAT_FILTER
+#define PRINT_DEBUG_BLOAT_FILTER(...) fprintf(stdout,"BLOAT_FILTER : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#define DEBUG_BLOAT_FILTER(...) __VA_ARGS__
+#else
+#define PRINT_DEBUG_BLOAT_FILTER(...)
+#define DEBUG_BLOAT_FILTER(...)
 #endif
 
 

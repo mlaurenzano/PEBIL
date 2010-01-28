@@ -38,13 +38,6 @@ int compareInstPoint(const void* arg1, const void* arg2){
 Vector<InstrumentationPoint*>* instpointFilterAddressRange(Base* object, Vector<InstrumentationPoint*>* instPoints){
     (*instPoints).sort(compareInstAddress);
 
-    /*
-    PRINT_INFOR("Filtering %d points", (*instPoints).size());
-    for (uint32_t i = 0; i < (*instPoints).size(); i++){
-        (*instPoints)[i]->getSourceObject()->print();
-    }
-    */
-
     uint64_t lowEnd = object->getBaseAddress();
     uint64_t highEnd = object->getBaseAddress();
 
@@ -56,38 +49,41 @@ Vector<InstrumentationPoint*>* instpointFilterAddressRange(Base* object, Vector<
         __SHOULD_NOT_ARRIVE;
     }
 
-    InstrumentationPoint** points = &(*instPoints);
+    PRINT_DEBUG_BLOAT_FILTER("Filtering %d points for range [%#llx,%#llx)", (*instPoints).size(), lowEnd, highEnd);
+    for (uint32_t i = 0; i < (*instPoints).size(); i++){
+        DEBUG_BLOAT_FILTER((*instPoints)[i]->getSourceObject()->print();)
+    }
 
     Vector<InstrumentationPoint*>* filtered = new Vector<InstrumentationPoint*>();
-    void *lowInstPoint = bsearch(&lowEnd, points, (*instPoints).size(), sizeof(InstrumentationPoint*), searchInstPoint);
-
-    uint32_t pidx;
-    if (lowInstPoint){
-        pidx = (((char*)lowInstPoint)-((char*)points))/sizeof(InstrumentationPoint*);
-    } else {
-        pidx = (*instPoints).size();
+    int32_t lidx = 0, hidx = (*instPoints).size()-1, midx;
+    bool searchDone = false;
+    while (lidx != hidx && !searchDone && midx != (lidx+hidx)/2){
+        midx = (lidx + hidx)/2;
+        if ((*instPoints)[midx]->getInstBaseAddress() >= highEnd){
+            hidx = midx;
+        } else if ((*instPoints)[midx]->getInstBaseAddress() < lowEnd){
+            lidx = midx;
+        } else {
+            searchDone = true;
+        }
     }
-
-    int32_t hidx = pidx;
-    while (pidx < (*instPoints).size() && (*instPoints)[pidx]->getInstBaseAddress() < highEnd){
-        (*filtered).append((*instPoints)[pidx]);
-        pidx++;
-    }
-    hidx--;
-    while (hidx >= 0 && (*instPoints)[hidx]->getInstBaseAddress() >= lowEnd){
-        (*filtered).append((*instPoints)[hidx]);
-        hidx--;
+    for (int32_t i = lidx; i <= hidx; i++){
+        if ((*instPoints)[i]->getInstBaseAddress() >= lowEnd &&
+            (*instPoints)[i]->getInstBaseAddress() < highEnd){
+            (*filtered).append((*instPoints)[i]);
+        }        
     }
 
 #ifdef VERIFY_FILTER
     Vector<InstrumentationPoint*>* filtered2 = new Vector<InstrumentationPoint*>();
-    for (uint32_t i = 0; i < (*instPoints).size(); i++){
+    for (int32_t i = 0; i < (*instPoints).size(); i++){
         if ((*instPoints)[i]->getInstBaseAddress() >= lowEnd &&
             (*instPoints)[i]->getInstBaseAddress() < highEnd){
             (*filtered2).append((*instPoints)[i]);
         }
     }
     ASSERT((*filtered).size() == (*filtered2).size());
+    delete filtered2;
 #endif
 
     return filtered;

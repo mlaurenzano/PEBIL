@@ -40,23 +40,32 @@ void BasicBlock::findCompareAndCBranch(){
 uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
     PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx", baseAddress);
 
+    PRINT_DEBUG_BLOAT_FILTER("block range for bloat [%#llx,%#llx)", getBaseAddress(), getBaseAddress() + getNumberOfBytes());
     for (uint32_t i = 0; i < (*instPoints).size(); i++){
+        DEBUG_BLOAT_FILTER((*instPoints)[i]->getSourceObject()->print();)
         ASSERT(inRange((*instPoints)[i]->getInstBaseAddress()));
     }
     (*instPoints).sort(compareInstAddress);
 
     Vector<InstrumentationPoint*> expansions;
-    for (uint32_t i = 0; i < (*instPoints).size(); i++){
+    Vector<uint32_t> expansionIndices;
+    for (uint32_t i = 0; i < (*instPoints).size();){
         expansions.append((*instPoints)[i]);
-        uint32_t j = i;
-        while (i < (*instPoints).size() && (*instPoints)[i]->getInstBaseAddress() == (*instPoints)[j]->getInstBaseAddress()){
-            i++;
+        expansionIndices.append((*instPoints)[i]->getSourceObject()->getIndex());
+        uint32_t j = i+1;
+        while (j < (*instPoints).size() && (*instPoints)[i]->getInstBaseAddress() == (*instPoints)[j]->getInstBaseAddress()){
             j++;
         }
+        i = j;
     }
+
+    PRINT_DEBUG_BLOAT_FILTER("Printing expansions");
     for (uint32_t i = 0; i < expansions.size(); i++){
+        DEBUG_BLOAT_FILTER(expansions[i]->getSourceObject()->print();)
+    }
+    for (int32_t i = expansions.size()-1; i >= 0; i--){
         bool isRep = false;
-        for (uint32_t j = i+1; j < (*instPoints).size(); j++){
+        for (int32_t j = i-1; j >= 0; j--){
             if ((*instPoints)[j]->getInstBaseAddress() == expansions[i]->getInstBaseAddress()){
                 
                 if ((*instPoints)[j]->getInstrumentationMode() != InstrumentationMode_inline ||
@@ -72,12 +81,10 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
             bloatAmount = expansions[i]->getNumberOfBytes();
         }
 
-        uint32_t instructionIdx = expansions[i]->getSourceObject()->getIndex();
+        uint32_t instructionIdx = expansionIndices[i];
         for (uint32_t j = 0; j < bloatAmount; j++){
             instructions.insert(InstructionGenerator::generateNoop(), instructionIdx);
         }
-
-        setBaseAddress(baseAddress);
     }
 
     for (uint32_t i = 0; i < instructions.size(); i++){
@@ -536,6 +543,10 @@ uint64_t BasicBlock::findInstrumentationPoint(uint64_t addr, uint32_t size, Inst
 
 Vector<Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<Instruction*>* replacements){
     Instruction* tgtInstruction = getInstructionAtAddress(addr);
+    if (!tgtInstruction){
+        PRINT_INFOR("looking for addr %#llx", addr);
+        printInstructions();
+    }
     ASSERT(tgtInstruction && "This basic block should have an instruction at the given address");
 
     Vector<Instruction*>* replaced = new Vector<Instruction*>();
