@@ -157,7 +157,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
     //    PRINT_INFOR("using temp reg %d", tempReg1);
 
     if (!stackIsSafe){
-        trampolineInstructions.append(InstructionGenerator64::generateLoadRegImmReg(X86_REG_SP, -1*TRAMPOLINE_FRAME_AUTOINC_SIZE, X86_REG_SP));
+        trampolineInstructions.append(InstructionGenerator64::generateLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -209,7 +209,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
     }
 
     if (!stackIsSafe){
-        trampolineInstructions.append(InstructionGenerator64::generateLoadRegImmReg(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE, X86_REG_SP));
+        trampolineInstructions.append(InstructionGenerator64::generateLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -217,11 +217,10 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
 
     if (doReloc){
         ASSERT(insts);
-#ifdef DEBUG_FUNC_RELOC
         if ((*insts).size()){
             PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for relocation", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
         }
-#endif
+
         int32_t numberOfBranches = 0;
         for (uint32_t i = 0; i < (*insts).size(); i++){
             if ((*insts)[i]->isControl() && !(*insts)[i]->isReturn()){
@@ -292,7 +291,7 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
     //    PRINT_INFOR("using temp reg %d", tempReg1);
 
     if (!stackIsSafe){
-        trampolineInstructions.append(InstructionGenerator32::generateLoadRegImmReg(X86_REG_SP, -1*TRAMPOLINE_FRAME_AUTOINC_SIZE, X86_REG_SP));
+        trampolineInstructions.append(InstructionGenerator32::generateLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -342,7 +341,7 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
     }
 
     if (!stackIsSafe){
-        trampolineInstructions.append(InstructionGenerator32::generateLoadRegImmReg(X86_REG_SP, TRAMPOLINE_FRAME_AUTOINC_SIZE, X86_REG_SP));
+        trampolineInstructions.append(InstructionGenerator32::generateLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -350,11 +349,10 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
 
     if (doReloc){
         ASSERT(insts);
-#ifdef DEBUG_FUNC_RELOC
         if ((*insts).size()){
             PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for relocation", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
         }
-#endif
+
         int32_t numberOfBranches = 0;
         for (uint32_t i = 0; i < (*insts).size(); i++){
             if ((*insts)[i]->isControl() && !(*insts)[i]->isReturn()){
@@ -883,6 +881,40 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, Inst
     trampolineOffset = 0;
     priority = InstPriority_regular;
 
+    verify();
+}
+
+InstrumentationPoint32::InstrumentationPoint32(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc) :
+    InstrumentationPoint(pt, inst, instMode, flagsMethod, loc)
+{
+    numberOfBytes = 0;
+    if (instMode == InstrumentationMode_inline){
+
+        // count the number of bytes the tool wants
+        InstrumentationSnippet* snippet = (InstrumentationSnippet*)instrumentation;
+        for (uint32_t i = 0; i < snippet->getNumberOfCoreInstructions(); i++){
+            numberOfBytes += snippet->getCoreInstruction(i)->getSizeInBytes();
+        }
+
+        // then add the number of bytes needed for state protection
+        if (protectionMethod == FlagsProtectionMethod_full){
+            numberOfBytes += Size__flag_protect_full;
+        } else if (protectionMethod == FlagsProtectionMethod_light){
+            numberOfBytes += Size__32_bit_flag_protect_light;
+        } else if (protectionMethod == FlagsProtectionMethod_none){
+            numberOfBytes += 0;
+        } else {
+            PRINT_ERROR("Protection method is invalid");
+        }
+    } else {
+        numberOfBytes = Size__uncond_jump;
+    }
+    ASSERT(numberOfBytes);
+}
+
+InstrumentationPoint64::InstrumentationPoint64(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc) :
+    InstrumentationPoint(pt, inst, instMode, flagsMethod, loc)
+{
     numberOfBytes = 0;
     if (instMode == InstrumentationMode_inline){
 
@@ -906,9 +938,8 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, Inst
         numberOfBytes = Size__uncond_jump;
     }
     ASSERT(numberOfBytes);
-
-    verify();
 }
+
 
 bool InstrumentationPoint::verify(){
     if (!point->containsProgramBits()){

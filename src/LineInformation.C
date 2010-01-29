@@ -219,9 +219,7 @@ uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
         sizeInBytes += 8;
     }
 
-#ifdef DEBUG_LINEINFO
-    dwarfLineInfoSection->printBytes(0,0);
-#endif
+    DEBUG_LINEINFO(dwarfLineInfoSection->printBytes(0,0,0);)
 
     registers = new LineInfo(0,NULL,this);
     registers->SET(lr_is_stmt,GET(li_default_is_stmt));
@@ -275,9 +273,7 @@ uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
     uint32_t liIndex = 0;
     while (currByte < sizeInBytes){
         lineInformations.append(new LineInfo(liIndex++,rawDataPtr+currByte,this));
-#ifdef DEBUG_LINEINFO    
-        //        lineInformations.back()->print();
-#endif
+        DEBUG_LINEINFO(lineInformations.back()->print();)
         currByte += lineInformations.back()->getInstructionSize();
     }
 

@@ -248,9 +248,7 @@ uint32_t FlowGraph::buildLoops(){
             Loop* newLoop = new Loop(to, from, this, inLoop);
             loopList.insert(newLoop);
 
-#ifdef DEBUG_LOOP
-            newLoop->print();
-#endif
+            DEBUG_LOOP(newLoop->print();)
         }
     }
 

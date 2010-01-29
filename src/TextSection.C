@@ -352,13 +352,11 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
     }
 
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
-#ifdef DEBUG_CFG
         if (sortedTextObjects[i]->isFunction()){
             PRINT_DEBUG_CFG("Digesting function object at %#llx", sortedTextObjects[i]->getBaseAddress());
         } else {
             PRINT_DEBUG_CFG("Digesting gentext object at %#llx", sortedTextObjects[i]->getBaseAddress());
         }
-#endif
         sortedTextObjects[i]->digest();
     }
 

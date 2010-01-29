@@ -21,10 +21,15 @@ class InstrumentationPoint;
 #define Size__32_bit_function_wrapper 64
 #define Size__64_bit_function_wrapper 128
 
-#define TRAMPOLINE_FRAME_AUTOINC_SIZE 0x80
+#define Size__trampoline_autoinc 0x80
 
 #define Size__32_bit_inst_function_call_support 6
 #define Size__64_bit_inst_function_call_support 6
+
+#define Size__uncond_jump 5
+#define Size__flag_protect_full 2
+#define Size__32_bit_flag_protect_light 12
+#define Size__64_bit_flag_protect_light 18
 
 extern int compareInstAddress(const void* arg1, const void* arg2);
 
@@ -269,14 +274,12 @@ public:
 
 class InstrumentationPoint32 : public InstrumentationPoint {
 public:
-    InstrumentationPoint32(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc) :
-        InstrumentationPoint(pt, inst, instMode, flagsMethod, loc) {}
+    InstrumentationPoint32(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc);
     uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe);
 };
 class InstrumentationPoint64 : public InstrumentationPoint {
 public:
-    InstrumentationPoint64(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc) :
-        InstrumentationPoint(pt, inst, instMode, flagsMethod, loc) {}
+    InstrumentationPoint64(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc);
     uint32_t generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe);
 };
 

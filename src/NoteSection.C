@@ -67,15 +67,12 @@ void Note::print(){
 
 void NoteSection::print(){
     PRINT_INFOR("NoteSection : %d with %d notes",index,notes.size());
-    //    printBytes(0,0);
     PRINT_INFOR("\tsect : %d",sectionIndex);
     for (uint32_t i = 0; i < notes.size(); i++){
         ASSERT(notes[i] && "notes.size() should indicate the number of elements in the notes array");
         notes[i]->print();
     }
-#ifdef DEBUG_NOTE
-    printBytes(0,0);
-#endif
+    DEBUG_NOTE(printBytes(0,0,0);)
 }
 
 bool NoteSection::verify(){

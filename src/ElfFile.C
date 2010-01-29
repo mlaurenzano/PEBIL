@@ -23,10 +23,6 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
-DEBUG(
-uint32_t readBytes = 0;
-);
-
 DataSection* ElfFile::getDotDataSection(){
     uint16_t dataSectionIndex = 0;
 
@@ -1054,10 +1050,6 @@ void ElfFile::readFileHeader() {
     }
     ASSERT(fileHeader);
     fileHeader->read(&binaryInputFile);
-    DEBUG(
-        readBytes += fileHeader->getSizeInBytes();
-        ASSERT(binaryInputFile.alreadyRead() == readBytes);
-    );
 
     ASSERT(fileHeader->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
 }

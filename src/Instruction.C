@@ -290,10 +290,8 @@ uint32_t Instruction::bytesUsedForTarget(){
 uint32_t Instruction::convertTo4ByteTargetOperand(){
     ASSERT(isControl());
 
-#ifdef DEBUG_INST
-    PRINT_INFOR("Before mod");
-    print();
-#endif
+    PRINT_DEBUG_INST("Before mod");
+    DEBUG_INST(print();)
 
     // extract raw bytes from hex representation
     char rawBytes[MAX_X86_INSTRUCTION_LENGTH];
@@ -392,8 +390,8 @@ uint32_t Instruction::convertTo4ByteTargetOperand(){
     }
 
 #ifdef DEBUG_INST
-    PRINT_INFOR("After mod");
-    print();
+    PRINT_DEBUG_INST("After mod");
+    DEBUG_INST(print();)
 #endif
 
     return sizeInBytes;

@@ -598,5 +598,5 @@ void operator delete[](void *p)
 {
     MemTrack::TrackFree(p);
 }
+#endif // DEBUG_MEMTRACK
 
-#endif //DEBUG_MEMTRACK

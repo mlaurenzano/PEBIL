@@ -140,21 +140,18 @@ void BasicBlockCounter::instrument(){
     sprintf(nostring, "%s\0", NOSTRING);
     initializeReservedData(noDataAddr, strlen(NOSTRING) + 1, nostring);
 
-#ifdef DEBUG_MEMTRACK
     PRINT_DEBUG_MEMTRACK("There are %d instrumentation points", numberOfInstPoints);
-#endif
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
 
         BasicBlock* bb = (*allBlocks)[i];
         LineInfo* li = (*allLineInfos)[i];
         Function* f = bb->getFunction();
 
-#ifdef DEBUG_MEMTRACK
         if (i % 1000 == 0){
             PRINT_DEBUG_MEMTRACK("inst point %d", i);
             PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);            
         }
-#endif
+
         if (li){
             uint32_t line = li->GET(lr_line);
             initializeReservedData(dataBaseAddress + lineArray + sizeof(uint32_t)*i, sizeof(uint32_t), &line);

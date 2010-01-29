@@ -235,9 +235,7 @@ void HashTable::print(){
 
         }
     }
-#ifdef DEBUG_HASH
-    printBytes(0,0);
-#endif
+
 }
 
 

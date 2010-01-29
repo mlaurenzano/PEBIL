@@ -130,9 +130,7 @@ bool Function::hasSelfDataReference(){
                 inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getAddressAnchor()->getLinkOffset())){
                 //                inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getRelativeValue())){
                 PRINT_DEBUG_FUNC_RELOC("Instruction self-data-ref inside function %s", getName());
-#ifdef DEBUG_FUNC_RELOC
-                allInstructions[i]->print();
-#endif
+                DEBUG_FUNC_RELOC(allInstructions[i]->print();)
                 delete[] allInstructions;
                 return true;
             }
@@ -473,11 +471,9 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
         currentBlock->addInstruction((*instructions)[i]);
     }
 
-#ifdef DEBUG_CFG
     for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
-        PRINT_INFOR("Have a block at adr %#llx", flowGraph->getBlock(i)->getBaseAddress());
+        PRINT_DEBUG_CFG("Have a block at adr %#llx", flowGraph->getBlock(i)->getBaseAddress());
     }
-#endif
 
     flowGraph->connectGraph(entryBlock);
     flowGraph->setImmDominatorBlocks();
@@ -490,9 +486,7 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
     }
 
 
-#ifdef DEBUG_CFG
-    print();
-#endif
+    DEBUG_CFG(print();)
 
     ASSERT(flowGraph->getNumberOfBlocks() == flowGraph->getNumberOfBasicBlocks());
     ASSERT(flowGraph->getNumberOfBlocks());
@@ -522,9 +516,7 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
                                               funcEnds-blockEnds, blockEnds));
     }
     for (uint32_t i = 0; i < unknownBlocks.size(); i++){
-#ifdef DEBUG_CFG
-        unknownBlocks[i]->print();
-#endif
+        DEBUG_CFG(unknownBlocks[i]->print();)
         flowGraph->addBlock(unknownBlocks[i]);
     }
 

@@ -21,10 +21,6 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
-DEBUG(
-uint32_t readBytes = 0;
-);
-
 #define TEXT_EXTENSION_FUNC (nextAlignAddress(0x10000 + (0x1c0 * numberOfBasicBlocks), 0x4000))
 #define TEXT_EXTENSION_INC  0x4000
 #define DATA_EXTENSION_INC  0x4000
@@ -287,12 +283,12 @@ Vector<AddressAnchor*>* ElfFileInst::searchAddressAnchors(uint64_t addr){
         anchorsAreSorted = true;
     }
     AddressAnchor** allAnchors = &addressAnchors;
-#ifdef DEBUG_ANCHOR
+
     PRINT_DEBUG_ANCHOR("Array is:");
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
         PRINT_DEBUG_ANCHOR("%#llx", allAnchors[i]->linkBaseAddress);
     }
-#endif //DEBUG_ANCHOR
+
     void* anchor = bsearch(&addr, allAnchors, addressAnchors.size(), sizeof(AddressAnchor*), searchLinkBaseAddressExact);
     if (anchor){
         // get the FIRST occurrence of addr in the anchor array
@@ -376,11 +372,12 @@ uint32_t ElfFileInst::anchorProgramElements(){
     }
     qsort(allInstructions, instructionCount, sizeof(Instruction*), compareBaseAddress);
 
-#ifdef DEBUG_ANCHOR
+
+    DEBUG_ANCHOR(
     for (uint32_t i = 0; i < instructionCount; i++){
         allInstructions[i]->print();
     }
-#endif
+    )
 
     for (uint32_t i = 0; i < instructionCount; i++){
         if (!allInstructions[i]->getBaseAddress()){
@@ -388,7 +385,8 @@ uint32_t ElfFileInst::anchorProgramElements(){
             __SHOULD_NOT_ARRIVE;
         }
     }
-#ifdef DEBUG_ANCHOR
+
+    DEBUG_ANCHOR(
     for (uint32_t i = 0; i < instructionCount-1; i++){
         if (allInstructions[i+1]->getBaseAddress() <= allInstructions[i]->getBaseAddress()){
             allInstructions[i]->print();
@@ -396,7 +394,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
         }
         ASSERT(allInstructions[i]->getBaseAddress() < allInstructions[i+1]->getBaseAddress() && "Problem with qsort");
     }
-#endif
+    )
 
     uint32_t addrAlign;
     if (elfFile->is64Bit()){
@@ -557,9 +555,9 @@ uint32_t ElfFileInst::anchorProgramElements(){
                 Instruction* linkedInstruction = *(Instruction**)link;
                 PRINT_DEBUG_ANCHOR("Found data -> inst link: %#llx -> %#llx, offset %x", dataSectionHeader->GET(sh_addr)+currByte, extendedData, currByte);
                 DataReference* dataRef = new DataReference(extendedData, dataRawSection, addrAlign, currByte);
-#ifdef DEBUG_ANCHOR
-                dataRef->print();
-#endif
+
+                DEBUG_ANCHOR(dataRef->print();)
+
                 dataRef->initializeAnchor(linkedInstruction);
                 dataRawSection->addDataReference(dataRef);
 
@@ -577,12 +575,11 @@ uint32_t ElfFileInst::anchorProgramElements(){
     PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
 
     ASSERT(anchorCount == addressAnchors.size());
-#ifdef DEBUG_ANCHOR
+
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
-        PRINT_INFOR("");
-        addressAnchors[i]->print();
+        PRINT_DEBUG_ANCHOR("");
+        DEBUG_ANCHOR(addressAnchors[i]->print();)
     }
-#endif
 
     delete[] allInstructions;
     return anchorCount;
@@ -721,9 +718,8 @@ void ElfFileInst::generateInstrumentation(){
             PRINT_DEBUG_INST("Setting InstrumentationFunction %d Wrapper offset to %#llx", i, codeOffset);
             func->setWrapperOffset(codeOffset);
             codeOffset += func->wrapperReservedSize();
-#ifdef DEBUG_INST
-            func->print();
-#endif
+
+            DEBUG_ANCHOR(func->print();)
         }
     }
 
@@ -859,9 +855,7 @@ void ElfFileInst::generateInstrumentation(){
                 (*repl)[j]->setBaseAddress(pt->getInstBaseAddress()+bytesUsed);
                 bytesUsed += (*repl)[j]->getSizeInBytes();
                 
-#ifdef DEBUG_INST
-                (*repl)[j]->print();
-#endif
+                DEBUG_INST((*repl)[j]->print();)
             }
 
             ASSERT((*repl).size());
@@ -886,9 +880,8 @@ void ElfFileInst::generateInstrumentation(){
                     PRINT_DEBUG_ANCHOR("Looking for anchors for address %#llx", (*displaced)[j]->getBaseAddress());
                     for (uint32_t k = 0; k < modAnchors->size(); k++){
                         PRINT_DEBUG_ANCHOR("Instruction swapping at address %#llx because of anchor/swap", (*displaced)[j]->getBaseAddress());
-#ifdef DEBUG_ANCHOR
-                        (*modAnchors)[k]->print();
-#endif
+                        DEBUG_ANCHOR((*modAnchors)[k]->print();)
+
                         for (uint32_t l = 0; l < (*repl).size(); l++){
                             PRINT_DEBUG_ANCHOR("\t\t********Comparing addresses %#llx and %#llx", (*displaced)[j]->getBaseAddress(), (*repl)[l]->getBaseAddress());
                             if ((*displaced)[j]->getBaseAddress() == (*repl)[l]->getBaseAddress()){
@@ -907,7 +900,6 @@ void ElfFileInst::generateInstrumentation(){
             ASSERT(pt->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
             Function* f = (Function*)pt->getSourceObject()->getContainer();
             if (!f->hasLeafOptimization()){
-                PRINT_DEBUG_LEAF_OPT("Basic block at %#llx in function %s is safe from leaf optimization", bb->getBaseAddress(), bb->getFlowGraph()->getFunction()->getName());
                 stackIsSafe = true;
             }
             
@@ -964,9 +956,8 @@ void ElfFileInst::generateInstrumentation(){
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
         if (func){
-#ifdef DEBUG_INST
-            func->print();
-#endif
+            DEBUG_INST(func->print();)
+
             func->generateGlobalData(textBaseAddress);
             func->generateWrapperInstructions(textBaseAddress, getExtraDataAddress());
             func->generateBootstrapInstructions(textBaseAddress, getExtraDataAddress());
@@ -980,12 +971,10 @@ void ElfFileInst::generateInstrumentation(){
         }
     }
 
-#ifdef DEBUG_ANCHOR
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
-            addressAnchors[i]->print();
+        DEBUG_ANCHOR(addressAnchors[i]->print();)
     }
     PRINT_DEBUG_ANCHOR("Still have %d anchors", addressAnchors.size());
-#endif
 
 }
 
