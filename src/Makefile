@@ -1,4 +1,4 @@
-DBG         = -g #-Wall
+DBG         = #-g #-Wall
 #PROFILE     = -pg
 OPT         = -O3 -w
 #CFLAGS      = -bmaxdata:0x80000000 $(DBG) $(OPT)

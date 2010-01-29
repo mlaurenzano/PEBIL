@@ -1173,7 +1173,7 @@ void ElfFileInst::functionSelect(){
         }
     }
 
-    PRINT_INFOR("DisassemblyCoverageReport\tBytes\t%d\t%d", numberOfBytes, numberOfBytesReloc);
+    PRINT_INFOR("Disassembly Coverage (bytes):\t%d/%d (%.2f%)", numberOfBytesReloc, numberOfBytes, ((float)((float)numberOfBytesReloc*100)/((float)numberOfBytes)));
 }
 
 
