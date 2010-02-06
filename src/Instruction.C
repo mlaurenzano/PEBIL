@@ -98,6 +98,7 @@ Operand* Instruction::getMemoryOperand(){
         __SHOULD_NOT_ARRIVE;
         return NULL;
     } else { // isImplicitMemoryOperation()
+        print();
         for (uint32_t i = 0; i < MAX_OPERANDS; i++){
             // implicit mem ops only have 1 operand
             if (operands[i]){
@@ -105,12 +106,12 @@ Operand* Instruction::getMemoryOperand(){
             }
         }
     }
-
+    __SHOULD_NOT_ARRIVE;
+    return NULL;
 }
 
 bool Instruction::isMemoryOperation(){
-    return isExplicitMemoryOperation();
-    //return (isImplicitMemoryOperation() || isExplicitMemoryOperation());
+    return (isImplicitMemoryOperation() || isExplicitMemoryOperation());
 }
 
 bool Instruction::isImplicitMemoryOperation(){
@@ -1621,14 +1622,12 @@ void Instruction::print(){
     delete usedRegs;
 #endif // PRINT_INSTRUCTION_DETAIL
 
-    /*
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         ud_operand op = GET(operand)[i];
         if (op.type){
             getOperand(i)->print();
         }
     }
-    */
 }
 
 const char* ud_optype_str[] = { "reg", "mem", "ptr", "imm", "jimm", "const" };

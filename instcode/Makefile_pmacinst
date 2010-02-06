@@ -1,0 +1,99 @@
+DBG         = -g -Wall
+OPT         = -O3 #-w
+NATIVE_C    = gcc
+CC          = $(NATIVE_C) $(OPT)
+SHARED_LIB  = -shared
+
+
+CFLGS32     = -DMETASIM_32_BIT_LIB
+CFLGS64     = -q64 -DMETASIM_64_BIT_LIB
+
+#### -DNO_SAMPLING_MODE    : Add to disable sampling (note that MAX visit count is still on).
+#### -DEXTENDED_SAMPLING   : Add to vary the ignore and sampling intervals during sampling
+#### -DFINE_GRAIN_SAMPLING : Add to increase the granularity of sampling. Smaller intervals.
+#### -DPER_SET_RECENT      : Add to simulcate LRU using per set most recent entry for replacement
+
+## Following macros are disjoint. Only one is defined in corresponding C file.
+## Check SimulationFunctions.c and SimulationCounter.c
+
+#### -DCOUNT_BB_EXECCOUNT  : Add to print the overall BB visit counts (only for csc type SimulationCounter.c)
+
+EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT  # default for MultiMAPS tracing
+#EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DVICTIM_CACHE  # allows victim caching also
+#EXTRA_CFLGS = -DEXTENDED_SAMPLING -DPER_SET_RECENT -DVICTIM_CACHE  # default for application tracing
+#EXTRA_CFLGS = -DEXTENDED_SAMPLING -DPER_SET_RECENT  # default for application tracing
+EXTRA_LIBS  = 
+
+INCDIR      = ../instcode
+SRCDIR      = ../instcode
+BINDIR      = ../bin
+LIBDIR      = ../lib
+
+SRCS        = CounterFunctions.c SimulationFunctions.c TracerFunctions.c NewCacheSimulator.c SingleCounterFunctions.c SimulationCounter.c
+OBJS_32     = CounterFunctions.o SimulationFunctions.o TracerFunctions.o NewCacheSimulator.o SingleCounterFunctions.o SimulationCounter.o
+OBJS_64     = CounterFunctions.O SimulationFunctions.O TracerFunctions.O NewCacheSimulator.o SingleCounterFunctions.O SimulationCounter.o
+
+TARGET_BINS = libcntrFunc.a libsimuFunc.a libtracFunc.a libsinglecntrFunc.a libsimuCntr.a \
+			  libcntrFunc_64.a libsimuFunc_64.a libtracFunc_64.a libsinglecntrFunc_64.a libsimuCntr_64.a
+
+all: $(TARGET_BINS) install
+
+new_sim : new_sim32 new_sim64 new_simins
+
+%.o: %.c 
+	$(CC) $(EXTRA_CFLGS) $(CFLGS32) -I$(INCDIR) -c -o $@ $< 
+
+%.O: %.c 
+	$(CC) $(EXTRA_CFLGS) $(CFLGS64) -I$(INCDIR) -c -o $@ $< 
+
+libcntrFunc.a : CounterFunctions.o
+	$(CC) $(SHARED_LIB) $(CFLGS32) -o $@ CounterFunctions.o -L$(LIBDIR) $(EXTRA_LIBS)
+
+libsimuFunc.a : SimulationFunctions.o
+	$(CC) $(SHARED_LIB) $(CFLGS32) -o $@ SimulationFunctions.o -L$(LIBDIR) $(EXTRA_LIBS)
+
+libsimuCntr.a : SimulationCounter.o
+	$(CC) $(SHARED_LIB) $(CFLGS32) -o $@ SimulationCounter.o -L$(LIBDIR) $(EXTRA_LIBS)
+
+libtracFunc.a : TracerFunctions.o
+	$(CC) $(SHARED_LIB) $(CFLGS32) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS)
+
+libsinglecntrFunc.a : SingleCounterFunctions.o
+	$(CC) $(SHARED_LIB) $(CFLGS32) -o $@ SingleCounterFunctions.o -L$(LIBDIR) $(EXTRA_LIBS)
+
+libcntrFunc_64.a : CounterFunctions.O
+	$(CC) $(SHARED_LIB) $(CFLGS64) -o $@ CounterFunctions.O -L$(LIBDIR) $(EXTRA_LIBS)
+
+libsimuFunc_64.a : SimulationFunctions.O
+	$(CC) $(SHARED_LIB) $(CFLGS64) -o $@ SimulationFunctions.O -L$(LIBDIR) $(EXTRA_LIBS)
+
+libsimuCntr_64.a : SimulationCounter.O
+	$(CC) $(SHARED_LIB) $(CFLGS64) -o $@ SimulationCounter.O -L$(LIBDIR) $(EXTRA_LIBS)
+
+libtracFunc_64.a : TracerFunctions.O
+	$(CC) $(SHARED_LIB) $(CFLGS64) -o $@ TracerFunctions.O -L$(LIBDIR) $(EXTRA_LIBS)
+
+libsinglecntrFunc_64.a : SingleCounterFunctions.O
+	$(CC) $(SHARED_LIB) $(CFLGS64) -o $@ SingleCounterFunctions.O -L$(LIBDIR) $(EXTRA_LIBS)
+
+new_sim32 : NewCacheSimulator.o
+	$(CC) $(SHARED_LIB) $(CFLGS32) -o libsimuFunc.a NewCacheSimulator.o -L$(LIBDIR) $(EXTRA_LIBS)
+
+new_sim64 : NewCacheSimulator.O
+	$(CC) $(SHARED_LIB) $(CFLGS64) -o libsimuFunc_64.a NewCacheSimulator.O -L$(LIBDIR) $(EXTRA_LIBS)
+
+clean: 
+	rm -f core *.o *.O *.i *.ii *.s *.class $(TARGET_BINS)
+	(cd $(LIBDIR); rm -f $(TARGET_BINS))
+
+install: $(TARGET_BINS)
+	cp $(TARGET_BINS) $(LIBDIR)
+
+new_simins:
+	rm $(LIBDIR)/libsimuFunc.a $(LIBDIR)/libsimuFunc_64.a
+	cp libsimuFunc.a libsimuFunc_64.a $(LIBDIR) 
+
+depend:
+	g++ -E -MM -I$(INCDIR) $(SRCS) > DEPENDS
+
+include DEPENDS

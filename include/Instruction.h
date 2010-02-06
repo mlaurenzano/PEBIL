@@ -186,8 +186,6 @@ private:
     bool leader;
     TextObject* container;
 
-    bool isExplicitMemoryOperation();    
-    bool isImplicitMemoryOperation();    
     HashCode hashCode;
 
 public:
@@ -258,6 +256,9 @@ public:
     bool isIntegerOperation();
     bool isStringOperation();
     bool isMemoryOperation();    
+    bool isExplicitMemoryOperation();    
+    bool isImplicitMemoryOperation();    
+
     Operand* getMemoryOperand();
 };
 

@@ -31,9 +31,10 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include <MemTrack.h>
 
 #ifdef DEBUG_MEMTRACK
+#include <MemTrack.h>
+
 #include <Base.h>
 #include <typeinfo>
 #include <assert.h>

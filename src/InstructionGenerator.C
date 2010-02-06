@@ -906,7 +906,7 @@ Instruction* InstructionGenerator::generateNoop(){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateMoveRegToRegaddrImm(uint32_t idxsrc, uint32_t idxdest, uint64_t imm){
+Instruction* InstructionGenerator64::generateMoveRegToRegaddrImm(uint32_t idxsrc, uint32_t idxdest, uint64_t imm, bool source64Bit){
     ASSERT(idxsrc < X86_64BIT_GPRS && "Illegal register index given");
     ASSERT(idxdest < X86_64BIT_GPRS && "Illegal register index given");    
 
@@ -921,11 +921,13 @@ Instruction* InstructionGenerator64::generateMoveRegToRegaddrImm(uint32_t idxsrc
     char* buff = new char[len];
 
     if (idxsrc < X86_32BIT_GPRS){
-        buff[0] = 0x48;
+        buff[0] = 0x40;
     } else {
-        buff[0] = 0x4c;
+        buff[0] = 0x44;
     }
-
+    if (source64Bit){
+        buff[0] |= 0x08;
+    }
     if (idxdest < X86_32BIT_GPRS){
     } else {
         buff[0]++;

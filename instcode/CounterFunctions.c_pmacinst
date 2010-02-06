@@ -1,0 +1,83 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <strings.h>
+
+#define __MAX_STRING_SIZE  1024
+
+FILE* openOutputFile(const char* comment){
+
+    uint32_t rankId = 0;
+
+    char strBuffer[__MAX_STRING_SIZE];
+
+    uint32_t processId = getpid();
+    uint32_t hostId = gethostid();
+
+    FILE* fp = fopen("RankPid","r");
+    if(fp){
+        uint32_t entryFound = 0;
+        while(fgets(strBuffer,1024,fp)){
+            strBuffer[1023] = '\0';
+            uint32_t corresPid = 0,corresHid = 0;
+            sscanf(strBuffer,"%u %u %u",&rankId,&corresPid,&corresHid);
+            if((corresPid == processId) && (corresHid == hostId)){
+                entryFound = 1;
+                break;
+            }
+        }
+        fclose(fp);
+        if(!entryFound){
+            rankId = processId;
+        }
+    } else {
+        rankId = processId;
+    }
+
+    char appName[__MAX_STRING_SIZE];
+    uint32_t phaseId = 0;
+    char extension[__MAX_STRING_SIZE];
+
+    sscanf(comment,"%s %u %s",appName,&phaseId,extension);
+
+    if(phaseId > 0){
+        sprintf(strBuffer,"%s.phase.%d.meta_%04d.%s",appName,phaseId,rankId,extension);
+    } else {
+        sprintf(strBuffer,"%s.meta_%04d.%s",appName,rankId,extension);
+    }
+    
+    fp = fopen(strBuffer,"w");
+    if(!fp){
+        fprintf(stderr,"Error : Can not open %s to write results\n",strBuffer);
+        return NULL;
+    }
+
+    fprintf(fp,"# appname   = %s\n",appName);
+    fprintf(fp,"# extension = %s\n",extension);
+    fprintf(fp,"# phase     = %d\n",phaseId);
+    fprintf(fp,"# rank      = %d\n",rankId);
+
+    return fp;
+}
+
+void MetaSim_endFuncCall_Freq(char* base,uint32_t entryCount,const char* comment){
+    if(!base || !entryCount || (comment[0] == '\0')){
+        fprintf(stdout,"Dummy MetaSim_endFuncCall\n");
+        return;
+    }
+    fprintf(stdout,"MetaSim_endFuncCall(0x%p,%d,%p,%s)\n",base,entryCount,comment,comment);
+
+    FILE* fp = openOutputFile(comment);
+    if(fp){
+        fprintf(fp,"# buffer    = %d\n",entryCount);
+
+        uint64_t* frequency = (uint64_t*)base;
+        uint32_t i = 0;
+        for (i = 0; i < entryCount; i++){
+            if (frequency[i]){
+                fprintf(fp,"%d\t%lld\n",i,frequency[i]);
+            }
+        }
+        fclose(fp);
+    }
+}

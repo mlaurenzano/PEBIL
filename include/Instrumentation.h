@@ -23,8 +23,8 @@ class InstrumentationPoint;
 
 #define Size__trampoline_autoinc 0x80
 
-#define Size__32_bit_inst_function_call_support 6
-#define Size__64_bit_inst_function_call_support 6
+#define Size__32_bit_inst_function_call_support 5
+#define Size__64_bit_inst_function_call_support 5
 
 #define Size__uncond_jump 5
 #define Size__flag_protect_full 2

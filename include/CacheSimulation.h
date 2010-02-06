@@ -8,14 +8,14 @@ private:
     InstrumentationFunction* simFunc;
     InstrumentationFunction* exitFunc;
 
-    Vector<Instruction*>* generateBufferedAddressCalculation32(MemoryOperand* memerand, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t bufferSize);
-    Vector<Instruction*>* generateBufferedAddressCalculation64(MemoryOperand* memerand, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t bufferSize);
+    Vector<Instruction*>* generateBufferedAddressCalculation32(Instruction* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method);
+    Vector<Instruction*>* generateBufferedAddressCalculation64(Instruction* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method);
 
 public:
     CacheSimulation(ElfFile* elf, char* inputFuncList);
     ~CacheSimulation() {}
 
-    Vector<Instruction*>* generateBufferedAddressCalculation(MemoryOperand* memerand, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t bufferSize);
+    Vector<Instruction*>* generateBufferedAddressCalculation(Instruction* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method);
 
     void declare();
     void instrument();

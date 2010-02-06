@@ -63,7 +63,7 @@ public:
     static Instruction* generateStackPush4Byte(uint32_t idx);
     static Instruction* generateRegAddImm(uint8_t, uint32_t);
     static Instruction* generateRegSubImm(uint8_t, uint32_t);
-    static Instruction* generateMoveRegToRegaddrImm(uint32_t, uint32_t, uint64_t);
+    static Instruction* generateMoveRegToRegaddrImm(uint32_t, uint32_t, uint64_t, bool);
     static Instruction* generateMoveRegaddrImmToReg(uint32_t, uint64_t, uint32_t);
     static Instruction* generateMoveImmToReg(uint64_t imm, uint32_t idx);
     static Instruction* generateMoveImmToRegaddrImm(uint64_t immval, uint32_t idx, uint64_t immoff);

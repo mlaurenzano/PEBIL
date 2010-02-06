@@ -87,13 +87,9 @@ int32_t blockcounter(int32_t* blockCounts, char* appName, char* instExt){
     for (i = 0; i < numberOfBasicBlocks; i++){
         if (blockCounts[i] >= PRINT_MINIMUM){
             fprintf(outFile, "%#lld\t", hashValues[i]);
-            fflush(outFile);
             fprintf(outFile, "%d\t#", blockCounts[i]);
-            fflush(outFile);
             fprintf(outFile, "%s:", fileNames[i]);
-            fflush(outFile);
             fprintf(outFile, "%d\t", lineNumbers[i]);
-            fflush(outFile);
             fprintf(outFile, "%s\n", functionNames[i]);
             fflush(outFile);
         }

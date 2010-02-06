@@ -143,7 +143,7 @@ uint32_t BasicBlock::getNumberOfFloatOps(){
 
 // obviously these are not implemented correctly yet
 uint32_t BasicBlock::getNumberOfLoads(){
-    return getNumberOfFloatOps();
+    return getNumberOfMemoryOps();
 }
 uint32_t BasicBlock::getNumberOfStores(){
     return 0;

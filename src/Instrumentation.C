@@ -55,7 +55,7 @@ Vector<InstrumentationPoint*>* instpointFilterAddressRange(Base* object, Vector<
     }
 
     Vector<InstrumentationPoint*>* filtered = new Vector<InstrumentationPoint*>();
-    int32_t lidx = 0, hidx = (*instPoints).size()-1, midx;
+    int32_t lidx = 0, hidx = (*instPoints).size()-1, midx = (lidx + hidx)/2;
     bool searchDone = false;
     while (lidx != hidx && !searchDone && midx != (lidx+hidx)/2){
         midx = (lidx + hidx)/2;
