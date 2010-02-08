@@ -5,6 +5,8 @@
 
 class FunctionCounter : public InstrumentationTool {
 private:
+    InstrumentationFunction* entryFunc;
+    InstrumentationFunction* exitFunc;
 
 public:
     FunctionCounter(ElfFile* elf, char* inputFuncList);

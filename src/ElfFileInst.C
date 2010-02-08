@@ -38,8 +38,8 @@
 //#define BLOAT_MOD_OFF 704
 //#define BLOAT_MOD 2048
 //#define TURNOFF_FUNCTION_BLOAT
-//#define SWAP_MOD_OFF 1472
-//#define SWAP_MOD 262144
+//#define SWAP_MOD_OFF 4995
+//#define SWAP_MOD 32768
 //#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
@@ -899,9 +899,10 @@ void ElfFileInst::generateInstrumentation(){
             bool stackIsSafe = false;
             ASSERT(pt->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
             Function* f = (Function*)pt->getSourceObject()->getContainer();
-            if (!f->hasLeafOptimization()){
+            BasicBlock* bb = f->getBasicBlockAtAddress(pt->getInstSourceAddress());
+            if (!f->hasLeafOptimization() && bb->getIndex()){
                 stackIsSafe = true;
-            }
+            } 
             
             uint64_t registerStorage = getExtraDataAddress() + regStorageOffset;
 

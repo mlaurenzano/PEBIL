@@ -839,7 +839,7 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
     entries->lastFreeIdx = 1;
     return;
 #else
-    PRINT_INSTR("MetaSim_simulFuncCall_Simu args: %#llx %x(->%d) %#llx", base, entryCountPtr, *entryCountPtr, comment);
+    //    PRINT_INSTR("MetaSim_simulFuncCall_Simu args: %#llx %x(->%d) %#llx", base, entryCountPtr, *entryCountPtr, comment);
     uint32_t entryCount = *entryCountPtr;
     register uint32_t      i;
 
@@ -848,7 +848,7 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
     register Attribute_t startIndex = 1;
     register Attribute_t lastIndex = entries->lastFreeIdx;
     lastIndex--;
-    PRINT_INSTR("startIndex %d, lastIndex %d", startIndex, lastIndex);
+    //    PRINT_INSTR("startIndex %d, lastIndex %d", startIndex, lastIndex);
 
     totalNumberOfAccesses += lastIndex;
 
