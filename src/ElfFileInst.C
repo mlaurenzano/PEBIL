@@ -900,7 +900,7 @@ void ElfFileInst::generateInstrumentation(){
             ASSERT(pt->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
             Function* f = (Function*)pt->getSourceObject()->getContainer();
             BasicBlock* bb = f->getBasicBlockAtAddress(pt->getInstSourceAddress());
-            if (!f->hasLeafOptimization() && bb->getIndex()){
+            if (!f->hasLeafOptimization() && !bb->isEntry()){
                 stackIsSafe = true;
             } 
             
