@@ -148,6 +148,17 @@ int searchBaseAddress(const void* arg1, const void* arg2){
 }
 
 
+extern uint32_t logBase2(uint32_t n){
+    ASSERT(n); 
+    n >>= 1;
+    uint32_t l = 0;
+    while (n){
+        n >>= 1;
+        l++;
+    }
+    return l;
+}
+
 extern bool isPowerOfTwo(uint32_t n){
     uint32_t currVal = 1;
     for (uint32_t i = 0; i < sizeof(uint32_t) * 8; i++){

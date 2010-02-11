@@ -188,8 +188,7 @@ FunctionCounter.o: FunctionCounter.C ../include/FunctionCounter.h \
   ../include/defines/Instruction.d ../include/BasicBlock.h \
   ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
   ../include/LinkedList.h ../include/Instrumentation.h \
-  ../include/InstructionGenerator.h ../include/LineInformation.h \
-  ../include/defines/LineInformation.d
+  ../include/InstructionGenerator.h
 GlobalOffsetTable.o: GlobalOffsetTable.C ../include/GlobalOffsetTable.h \
   ../include/RawSection.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
@@ -315,9 +314,7 @@ Loop.o: Loop.C ../include/Loop.h ../include/Base.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/Instruction.d ../include/TextSection.h \
   ../include/BasicBlock.h ../include/FlowGraph.h ../include/LinkedList.h
-MemTrack.o: MemTrack.C ../include/MemTrack.h ../include/Base.h \
-  ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/Debug.h
+MemTrack.o: MemTrack.C
 NoteSection.o: NoteSection.C ../include/NoteSection.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/Debug.h ../include/RawSection.h ../include/Vector.h \

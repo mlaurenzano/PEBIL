@@ -12,12 +12,15 @@ SRCDIR        = ../src
 BINDIR        = ../bin
 EXTRA_LIBS    = -lpebil -L../external/udis86-1.7/lib -ludis86
 
-TARGET_BIN  = pebil
+TARGET_BIN  = pebil pebilprof
 
 all: clean $(TARGET_BIN) install
 
 pebil : main.o
 	$(CPP) $(CFLAGS) -o $@ main.o $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS) $(PEBIL_LD_FLAGS)
+
+pebilprof: pebilprof.o
+	$(CPP) $(CFLAGS) -o $@ pebilprof.o $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS) $(PEBIL_LD_FLAGS)
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< $(INCLUDE) $(EXTRA_INC)

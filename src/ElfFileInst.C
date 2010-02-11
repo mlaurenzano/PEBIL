@@ -49,6 +49,12 @@
 uint32_t bloatCount = 0;
 #endif
 
+BasicBlock* ElfFileInst::getProgramExitBlock(){
+    TextSection* fini = getFiniSection();
+    ASSERT(fini && "Cannot find fini section");
+    return ((Function*)fini->getTextObject(0))->getFlowGraph()->getBasicBlock(0);
+}
+
 void ElfFileInst::extendDataSection(){
     if (instrumentationDataSize){
         char* tmpData = new char[instrumentationDataSize + DATA_EXTENSION_INC];
@@ -240,15 +246,15 @@ bool ElfFileInst::isDisabledFunction(Function* func){
 uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, void* data){
     char* bytes = (char*)data;
 
-    if (address + size > getExtraDataAddress() + usableDataOffset ||
-        address < getExtraDataAddress()){
-        PRINT_INFOR("address range %#llx+%d out of range of data section [%#llx,%#llx)", address, size, getExtraDataAddress(),
-                    getExtraDataAddress() + usableDataOffset);
+    if (address + size > getInstDataAddress() + usableDataOffset ||
+        address < getInstDataAddress()){
+        PRINT_INFOR("address range %#llx+%d out of range of data section [%#llx,%#llx)", address, size, getInstDataAddress(),
+                    getInstDataAddress() + usableDataOffset);
     }
-    ASSERT(address + size <= getExtraDataAddress() + usableDataOffset && address >= getExtraDataAddress() &&
+    ASSERT(address + size <= getInstDataAddress() + usableDataOffset && address >= getInstDataAddress() &&
            "Data initialization address out of range, you should reserve the data first");
 
-    memcpy(instrumentationData + address - getExtraDataAddress(), bytes, size);
+    memcpy(instrumentationData + address - getInstDataAddress(), bytes, size);
 
     return size;
 }
@@ -761,8 +767,6 @@ void ElfFileInst::generateInstrumentation(){
 
     (*instrumentationPoints).sort(compareInstAddress);
 
-    PRINT_DEBUG_DATA_PLACEMENT("Register storage is at address %#llx", getExtraDataAddress() + regStorageOffset);
-
     for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
         InstrumentationPoint* pt = (*instrumentationPoints)[i];
         if (!pt){
@@ -822,21 +826,21 @@ void ElfFileInst::generateInstrumentation(){
             } else if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_inline){
                 if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_light){
                     if (elfFile->is64Bit()){
-                        (*repl).append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + regStorageOffset));
+                        (*repl).append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, getInstDataAddress() + regStorageOffset));
                         (*repl).append(InstructionGenerator64::generateLoadAHFromFlags());
                         while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
                             (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
                         }
                         (*repl).append(InstructionGenerator64::generateStoreAHToFlags());
-                        (*repl).append(InstructionGenerator64::generateMoveMemToReg(getExtraDataAddress() + regStorageOffset, X86_REG_AX));
+                        (*repl).append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + regStorageOffset, X86_REG_AX));
                     } else { 
-                        (*repl).append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, getExtraDataAddress() + regStorageOffset));
+                        (*repl).append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, getInstDataAddress() + regStorageOffset));
                         (*repl).append(InstructionGenerator32::generateLoadAHFromFlags());
                         while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
                             (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
                         }
                         (*repl).append(InstructionGenerator32::generateStoreAHToFlags());
-                        (*repl).append(InstructionGenerator32::generateMoveMemToReg(getExtraDataAddress() + regStorageOffset, X86_REG_AX));
+                        (*repl).append(InstructionGenerator32::generateMoveMemToReg(getInstDataAddress() + regStorageOffset, X86_REG_AX));
                     }                
                 } else if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_full){
                     (*repl).append(InstructionGenerator::generatePushEflags());
@@ -900,11 +904,11 @@ void ElfFileInst::generateInstrumentation(){
             ASSERT(pt->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
             Function* f = (Function*)pt->getSourceObject()->getContainer();
             BasicBlock* bb = f->getBasicBlockAtAddress(pt->getInstSourceAddress());
-            if (!f->hasLeafOptimization() && !bb->isEntry()){
+            if (!f->hasLeafOptimization() && bb && !bb->isEntry()){
                 stackIsSafe = true;
             } 
             
-            uint64_t registerStorage = getExtraDataAddress() + regStorageOffset;
+            uint64_t registerStorage = getInstDataAddress() + regStorageOffset;
 
             if (isFirstInChain){
                     returnOffset = pt->getInstSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
@@ -960,15 +964,15 @@ void ElfFileInst::generateInstrumentation(){
             DEBUG_INST(func->print();)
 
             func->generateGlobalData(textBaseAddress);
-            func->generateWrapperInstructions(textBaseAddress, getExtraDataAddress());
-            func->generateBootstrapInstructions(textBaseAddress, getExtraDataAddress());
+            func->generateWrapperInstructions(textBaseAddress, getInstDataAddress());
+            func->generateBootstrapInstructions(textBaseAddress, getInstDataAddress());
 
             // plt section only exists in dynamic binary, and for static binary we don't use this value
             uint64_t realPLTaddr = 0;
             if (!elfFile->isStaticLinked()){
                 realPLTaddr = pltSection->getBaseAddress();
             }
-            func->generateProcedureLinkInstructions(textBaseAddress, getExtraDataAddress(), realPLTaddr);
+            func->generateProcedureLinkInstructions(textBaseAddress, getInstDataAddress(), realPLTaddr);
         }
     }
 
@@ -989,9 +993,9 @@ void ElfFileInst::setPathToInstLib(char* libPath){
     sprintf(sharedLibraryPath, "%s\0", libPath);
 }
 
-TextSection* ElfFileInst::getExtraTextSection() { return (TextSection*)(elfFile->getRawSection(extraTextIdx)); }
-RawSection* ElfFileInst::getExtraDataSection() { return elfFile->getRawSection(extraDataIdx); }
-uint64_t ElfFileInst::getExtraDataAddress() { return elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr); }
+TextSection* ElfFileInst::getInstTextSection() { return (TextSection*)(elfFile->getRawSection(extraTextIdx)); }
+RawSection* ElfFileInst::getInstDataSection() { return elfFile->getRawSection(extraDataIdx); }
+uint64_t ElfFileInst::getInstDataAddress() { return elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr); }
 
 uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
     ASSERT(currentPhase > ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
@@ -1155,6 +1159,17 @@ void ElfFileInst::functionSelect(){
             if (f->hasCompleteDisassembly() && isEligibleFunction(f)){
                 PRINT_DEBUG_FUNC_RELOC("\texposed: %s", f->getName());
                 exposedFunctions.append(f);
+                for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
+                    BasicBlock* bb = f->getBasicBlock(j);
+                    exposedBasicBlocks.append(bb);
+                    for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
+                        Instruction* ins = bb->getInstruction(k);
+                        exposedInstructions.append(ins);
+                        if (ins->isMemoryOperation()){
+                            exposedMemOps.append(ins);
+                        }
+                    }
+                }
             } else {
                 PRINT_DEBUG_FUNC_RELOC("\thidden: %s\t%d %d %#llx %d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail());
                 //                PRINT_INFOR("\thidden: %s\tcomp%d isel%d getb%#llx isdf%d hsdr%d ctrt%d crlf%d isin%d isjt%d isdb%d szbt%d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail(), f->hasSelfDataReference(), f->containsReturn(), canRelocateFunction(f), f->isInstrumentationFunction(), f->isJumpTable(), isDisabledFunction(f), f->getNumberOfBytes());
@@ -1199,6 +1214,7 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
     declare();
+    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     functionSelect();
@@ -1221,9 +1237,10 @@ void ElfFileInst::phasedInstrumentation(){
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
     currentPhase++;
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     instrument();
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
     (*instrumentationPoints).sort(compareInstAddress);
     verify();

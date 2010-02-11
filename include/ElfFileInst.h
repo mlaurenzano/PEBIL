@@ -90,6 +90,9 @@ private:
 
 protected:
     Vector<Function*> exposedFunctions;
+    Vector<BasicBlock*> exposedBasicBlocks;
+    Vector<Instruction*> exposedInstructions;
+    Vector<Instruction*> exposedMemOps;
     Vector<char*> disabledFunctions;
 
     uint32_t currentPhase;
@@ -117,6 +120,18 @@ protected:
     bool is64Bit() { return elfFile->is64Bit(); }
 
     bool isDisabledFunction(Function* func);
+
+
+    uint32_t getNumberOfExposedFunctions() { return exposedFunctions.size(); }
+    Function* getExposedFunction(uint32_t idx) { return exposedFunctions[idx]; }
+    uint32_t getNumberOfExposedBasicBlocks() { return exposedBasicBlocks.size(); }
+    BasicBlock* getExposedBasicBlock(uint32_t idx) { return exposedBasicBlocks[idx]; }
+    uint32_t getNumberOfExposedInstructions() { return exposedInstructions.size(); }
+    Instruction* getExposedInstruction(uint32_t idx) { return exposedInstructions[idx]; }
+    uint32_t getNumberOfExposedMemOps() { return exposedMemOps.size(); }
+    Instruction* getExposedMemOp(uint32_t idx) { return exposedMemOps[idx]; }    
+
+    BasicBlock* getProgramExitBlock();
 
 public:
     ElfFileInst(ElfFile* elf, char* inputFileList);
@@ -155,9 +170,9 @@ public:
     char* getInstrumentationLibrary(uint32_t idx) { return instrumentationLibraries[idx]; }
     uint32_t getNumberOfInstrumentationLibraries() { return instrumentationLibraries.size(); }
 
-    TextSection* getExtraTextSection();
-    RawSection* getExtraDataSection();
-    uint64_t getExtraDataAddress();
+    TextSection* getInstTextSection();
+    RawSection* getInstDataSection();
+    uint64_t getInstDataAddress();
 
     uint64_t reserveDataOffset(uint64_t size);
     uint32_t initializeReservedData(uint64_t address, uint32_t size, void* data);

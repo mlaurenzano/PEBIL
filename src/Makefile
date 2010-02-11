@@ -1,5 +1,5 @@
 DBG         = -g #-Wall
-#PROFILE     = -pg
+PROFILE     = -pg
 OPT         = -O3 -w
 #CFLAGS      = -bmaxdata:0x80000000 $(DBG) $(OPT)
 NATIVE_CPP  = CC
@@ -32,6 +32,7 @@ SRCS  = AddressAnchor.C \
 	FlowGraph.C \
 	Function.C \
 	FunctionCounter.C \
+	FunctionProfiler.C \
 	GlobalOffsetTable.C \
 	GnuVersion.C \
 	HashTable.C \
@@ -66,6 +67,7 @@ OBJS  = AddressAnchor.o \
 	FlowGraph.o \
 	Function.o \
 	FunctionCounter.o \
+	FunctionProfiler.o \
 	GlobalOffsetTable.o \
 	GnuVersion.o \
 	HashTable.o \

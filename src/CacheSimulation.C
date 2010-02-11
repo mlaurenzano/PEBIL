@@ -27,7 +27,6 @@ CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFuncList)
 }
 
 void CacheSimulation::declare(){
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
     
     // declare any shared library that will contain instrumentation functions
     declareLibrary(INST_LIB_NAME);
@@ -37,18 +36,11 @@ void CacheSimulation::declare(){
     ASSERT(simFunc && "Cannot find memory print function, are you sure it was declared?");
     exitFunc = declareFunction(EXIT_FUNCTION);
     ASSERT(exitFunc && "Cannot find exit function, are you sure it was declared?");
-
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 }
 
 void CacheSimulation::instrument(){
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
-
-    TextSection* text = getTextSection();
-    TextSection* fini = getFiniSection();
-    ASSERT(text && "Cannot find text section");
-    ASSERT(fini && "Cannot find fini section");
-
+    uint32_t temp32;
+    
     LineInfoFinder* lineInfoFinder = NULL;
     if (hasLineInformation()){
         lineInfoFinder = getLineInfoFinder();
@@ -56,51 +48,10 @@ void CacheSimulation::instrument(){
         PRINT_ERROR("This executable does not have any line information");
     }
 
-    uint64_t dataBaseAddress = getExtraDataAddress();
-
-    Vector<uint32_t> blockIds = Vector<uint32_t>();
-    uint32_t bbId = 0;
-    Vector<Instruction*>* allMemOps = new Vector<Instruction*>();
-    Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
-    Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
-
-    PRINT_DEBUG_FUNC_RELOC("Instrumenting %d functions", exposedFunctions.size());
-    for (uint32_t i = 0; i < exposedFunctions.size(); i++){
-        Function* f = exposedFunctions[i];
-        PRINT_DEBUG_FUNC_RELOC("\t%s", f->getName());
-        if (!f->hasCompleteDisassembly()){
-            PRINT_ERROR("function %s should have complete disassembly", f->getName());
-        }
-        if (!isEligibleFunction(f)){
-            PRINT_ERROR("function %s should be eligible", f->getName());
-        }
-        ASSERT(f->hasCompleteDisassembly() && isEligibleFunction(f));
-        for (uint32_t j = 0; j < f->getNumberOfBasicBlocks(); j++){
-            BasicBlock* b = f->getBasicBlock(j);
-            if (b->isCmpCtrlSplit()){
-                PRINT_WARN(10, "Comparison/cond branch are split in block at %#llx, not instrumenting", b->getBaseAddress());
-            } else {
-                (*allBlocks).append(b);
-                (*allLineInfos).append(lineInfoFinder->lookupLineInfo(b));
-                for (uint32_t k = 0; k < b->getNumberOfInstructions(); k++){
-                    Instruction* m = b->getInstruction(k);
-                    if (m->isMemoryOperation()){
-                        (*allMemOps).append(m);
-                        blockIds.append(bbId);
-                    }
-                }
-            }
-            bbId++;
-        }
-    }
-
-    ASSERT(!(*allLineInfos).size() || (*allBlocks).size() == (*allLineInfos).size());
-    uint32_t numberOfInstPoints = (*allMemOps).size();
-
     ASSERT(isPowerOfTwo(Size__BufferEntry));
     uint64_t bufferStore  = reserveDataOffset(BUFFER_ENTRIES * Size__BufferEntry);
     uint32_t startValue = 1;
-    initializeReservedData(getExtraDataAddress() + bufferStore, sizeof(uint32_t), &startValue);
+    initializeReservedData(getInstDataAddress() + bufferStore, sizeof(uint32_t), &startValue);
     uint64_t buffPtrStore = reserveDataOffset(sizeof(uint64_t));
 
 
@@ -111,8 +62,8 @@ void CacheSimulation::instrument(){
     uint32_t commentSize = strlen(appName) + sizeof(uint32_t) + strlen(extension) + sizeof(uint32_t) + sizeof(uint32_t) + 4;
     uint64_t commentStore = reserveDataOffset(commentSize);
     char* comment = (char*)malloc(commentSize);
-    sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, bbId, dumpCode);
-    initializeReservedData(getExtraDataAddress() + commentStore, commentSize, comment);
+    sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedBasicBlocks(), dumpCode);
+    initializeReservedData(getInstDataAddress() + commentStore, commentSize, comment);
 
     simFunc->addArgument(bufferStore);
     simFunc->addArgument(buffPtrStore);
@@ -122,31 +73,42 @@ void CacheSimulation::instrument(){
     exitFunc->addArgument(buffPtrStore);
     exitFunc->addArgument(commentStore);
 
-    BasicBlock* exitBlock = ((Function*)fini->getTextObject(0))->getFlowGraph()->getBasicBlock(0);
-    InstrumentationPoint* p = addInstrumentationPoint(exitBlock, exitFunc, InstrumentationMode_tramp);
+    InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp);
+    ASSERT(p);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
 
-    for (uint32_t i = 0; i < numberOfInstPoints; i++){
+    Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
+    Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
 
-        Instruction* memop = (*allMemOps)[i];
-        
-        InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline);
+    uint32_t blockId = 0;
+    uint32_t memopId = 0;
+    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+        BasicBlock* bb = getExposedBasicBlock(i);
+        (*allBlocks).append(bb);
+        (*allLineInfos).append(lineInfoFinder->lookupLineInfo(bb));
 
-        uint32_t blockId = blockIds[i];
-        uint32_t memopId = i;
-        Vector<Instruction*>* addressCalcInstructions = generateBufferedAddressCalculation(memop, bufferStore, buffPtrStore, blockId, memopId, BUFFER_ENTRIES, FlagsProtectionMethod_full);
-        ASSERT(addressCalcInstructions);
-        while ((*addressCalcInstructions).size()){
-            pt->addPrecursorInstruction((*addressCalcInstructions).remove(0));
+        for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
+            Instruction* memop = bb->getInstruction(j);
+            if (memop->isMemoryOperation()){            
+                InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline);
+                
+                Vector<Instruction*>* addressCalcInstructions = generateBufferedAddressCalculation(memop, bufferStore, buffPtrStore, blockId, memopId, BUFFER_ENTRIES, FlagsProtectionMethod_full);
+                ASSERT(addressCalcInstructions);
+                while ((*addressCalcInstructions).size()){
+                    pt->addPrecursorInstruction((*addressCalcInstructions).remove(0));
+                }
+                delete addressCalcInstructions;
+                memopId++;
+            }
         }
-        delete addressCalcInstructions;
+        blockId++;
     }
+    ASSERT(memopId == getNumberOfExposedMemOps());
 
     printStaticFile(allBlocks, allLineInfos);
 
-    delete allMemOps;
     delete allBlocks;
     delete allLineInfos;
 
@@ -166,7 +128,7 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation(Instru
 
 Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation64(Instruction* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method){
     Vector<Instruction*>* addressCalc = new Vector<Instruction*>();
-    uint64_t dataAddr = getExtraDataAddress();
+    uint64_t dataAddr = getInstDataAddress();
 
     MemoryOperand* memerand = NULL;
     Operand* operand = NULL;
@@ -300,9 +262,9 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation64(Inst
     (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + bufferPtrStore, tempReg3));
 
     // compute the address of the buffer entry
-    (*addressCalc).append(InstructionGenerator64::generateShiftLeftLogical(4, tempReg3));
+    (*addressCalc).append(InstructionGenerator64::generateShiftLeftLogical(logBase2(Size__BufferEntry), tempReg3));
     (*addressCalc).append(InstructionGenerator64::generateRegAddReg2OpForm(tempReg3, tempReg2));
-    (*addressCalc).append(InstructionGenerator64::generateShiftRightLogical(4, tempReg3));
+    (*addressCalc).append(InstructionGenerator64::generateShiftRightLogical(logBase2(Size__BufferEntry), tempReg3));
 
     // fill the buffer entry
     (*addressCalc).append(InstructionGenerator64::generateMoveRegToRegaddrImm(tempReg1, tempReg2, 2*sizeof(uint32_t), true));
@@ -328,7 +290,7 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation64(Inst
 
 Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(Instruction* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method){
     Vector<Instruction*>* addressCalc = new Vector<Instruction*>();
-    uint64_t dataAddr = getExtraDataAddress();
+    uint64_t dataAddr = getInstDataAddress();
 
     MemoryOperand* memerand = NULL;
     Operand* operand = NULL;
@@ -436,9 +398,9 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(Inst
     (*addressCalc).append(InstructionGenerator32::generateMoveImmToReg(dataAddr + bufferStore, tempReg2));
     (*addressCalc).append(InstructionGenerator32::generateMoveMemToReg(dataAddr + bufferPtrStore, tempReg3));
 
-    (*addressCalc).append(InstructionGenerator32::generateShiftLeftLogical(3, tempReg3));
+    (*addressCalc).append(InstructionGenerator32::generateShiftLeftLogical(logBase2(Size__BufferEntry), tempReg3));
     (*addressCalc).append(InstructionGenerator32::generateRegAddReg2OpForm(tempReg3, tempReg2));
-    (*addressCalc).append(InstructionGenerator32::generateShiftRightLogical(3, tempReg3));
+    (*addressCalc).append(InstructionGenerator32::generateShiftRightLogical(logBase2(Size__BufferEntry), tempReg3));
     (*addressCalc).append(InstructionGenerator32::generateMoveRegToRegaddrImm(tempReg1, tempReg2, 0));
 
     (*addressCalc).append(InstructionGenerator32::generateRegAddImm(tempReg3, 1));

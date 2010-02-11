@@ -281,8 +281,21 @@ BasicBlock* FlowGraph::getEntryBlock(){
             entryBlock = basicBlocks[i];
         }
     }
-    ASSERT(entryBlock && "No entry block found");
     return entryBlock;
+}
+
+BasicBlock* FlowGraph::getExitBlock(){
+    BasicBlock* exitBlock = NULL;
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        if (basicBlocks[i]->isExit()){
+            if (exitBlock){
+                return NULL;
+            }
+            ASSERT(!exitBlock && "There should not be multiple exit blocks to the same graph");
+            exitBlock = basicBlocks[i];
+        }
+    }
+    return exitBlock;
 }
 
 

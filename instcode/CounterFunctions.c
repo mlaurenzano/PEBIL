@@ -45,10 +45,16 @@ int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** f
     PRINT_INSTR("Printing functions with at least %d executions", PRINT_MINIMUM);
 
     for (i = 0; i < *numFunctions; i++){
+        /*
+        PRINT_INSTR("i %d", i);
+        PRINT_INSTR("name %s", functionNames[i]);
+        PRINT_INSTR("count %d", functionCounts[i]);
+        */
         if (functionCounts[i] >= PRINT_MINIMUM){
-            PRINT_INSTR("\tFunction(%d) %.24s executed %d times", i, functionNames[i], functionCounts[i]);
+            PRINT_INSTR("\tFunction(%d) %.80s executed %d times", i, functionNames[i], functionCounts[i]);
         }
     }
+
     return i;
 }
 

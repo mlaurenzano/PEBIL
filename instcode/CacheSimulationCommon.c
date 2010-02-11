@@ -834,6 +834,8 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
 
 
 void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* comment){
+    *entryCountPtr = 1;
+    return;
 #ifdef IGNORE_ACTUAL_SIMULATION
     register BufferEntry* entries = (BufferEntry*)base;
     entries->lastFreeIdx = 1;

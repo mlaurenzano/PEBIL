@@ -50,6 +50,7 @@ public:
     uint32_t getNumberOfFloatOps();
     
     BasicBlock* getEntryBlock();
+    BasicBlock* getExitBlock();
 
     Loop* getLoop(uint32_t idx) { return loops[idx]; }
     uint32_t getNumberOfLoops() { return loops.size(); }

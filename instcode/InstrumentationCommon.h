@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
-#include <dlfcn.h>
+#include <sys/time.h>
 
 //#define COMPILE_32BIT
 #ifdef COMPILE_32BIT

@@ -30,10 +30,10 @@ SRCDIR      = ../instcode
 BINDIR      = ../bin
 LIBDIR      = ../lib
 
-SRCS        = CounterFunctions.c SimulationFunctions.c
-OBJS        = CounterFunctions.o SimulationFunctions.o
+SRCS        = CounterFunctions.c SimulationFunctions.c CacheSimulationCommon.c ProfilerFunctions.c
+OBJS        = CounterFunctions.o SimulationFunctions.o CacheSimulationCommon.o ProfilerFunctions.o
 
-TARGET_LIBS = libcounter.so libcounter.a libsimulator.so libsimulator.a
+TARGET_LIBS = libcounter.so libcounter.a libsimulator.so libsimulator.a libprofiler.so libprofiler.a
 
 all: $(TARGET_LIBS) install
 
@@ -51,6 +51,12 @@ libsimulator.so : $(OBJS)
 
 libsimulator.a : $(OBJS)
 	$(AR) $(AR_FLAGS) $@ SimulationFunctions.o
+
+libprofiler.so : $(OBJS)
+	$(CC) $(SHARED_LIB) -o $@ ProfilerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
+
+libprofiler.a : $(OBJS)
+	$(AR) $(AR_FLAGS) $@ ProfilerFunctions.o
 
 clean: 
 	rm -f core *.o *.O *.i *.s *.ii *.class $(TARGET_LIBS)

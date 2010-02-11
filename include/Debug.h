@@ -4,7 +4,7 @@
 #include <iostream>
 
 // debugging macros -- these can produce copious amounts of output
-#define WARNING_SEVERITY 10
+#define WARNING_SEVERITY 7
 
 //#define DEVELOPMENT
 //#define DEBUG_MEMTRACK

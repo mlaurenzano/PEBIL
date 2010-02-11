@@ -166,6 +166,7 @@ int main(int argc,char* argv[]){
     uint32_t printCodes = 0x00000000;
     char* rawPrintCodes = NULL;
     char* inputFuncList = NULL;
+    bool deleteInpList  = false;
     char*    execName   = NULL;
 
     TIMER(double t = timer());
@@ -306,10 +307,21 @@ int main(int argc,char* argv[]){
     if(!libPath){
         libPath = getenv("PEBIL_LIB");
         if (!libPath){
-            PRINT_ERROR("Error : use --lib option or define set the PEBIL_LIB variable"); 
+            PRINT_ERROR("Use the -lib option or define the PEBIL_LIB variable"); 
         }
     }
     PRINT_INFOR("The instrumentation libraries will be used from %s",libPath);
+
+    if (!inputFuncList){
+        deleteInpList = true;
+        char* pebilRoot = getenv("PEBIL_ROOT");
+        if (!pebilRoot){
+            PRINT_ERROR("Set the PEBIL_ROOT variable"); 
+        }
+        inputFuncList = new char[__MAX_STRING_SIZE];
+        sprintf(inputFuncList, "%s/%s", pebilRoot, "scripts/exclusion/system.func");
+    }
+    PRINT_INFOR("The function blacklist is taken from %s", inputFuncList);
 
     if (dryRun){
         PRINT_INFOR("--dry option was used, exiting...");
@@ -381,6 +393,9 @@ int main(int argc,char* argv[]){
         delete elfInst;
     }
 
+    if (deleteInpList){
+        delete[] inputFuncList;
+    }
     PRINT_INFOR("******** Instrumentation Successfull ********");
 
     TIMER(t = timer()-t;PRINT_INFOR("___timer: Total Execution Time          : %.2f seconds",t););
