@@ -284,18 +284,16 @@ BasicBlock* FlowGraph::getEntryBlock(){
     return entryBlock;
 }
 
-BasicBlock* FlowGraph::getExitBlock(){
-    BasicBlock* exitBlock = NULL;
+Vector<BasicBlock*>* FlowGraph::getExitBlocks(){
+    Vector<BasicBlock*>* exitBlocks = new Vector<BasicBlock*>();
     for (uint32_t i = 0; i < basicBlocks.size(); i++){
         if (basicBlocks[i]->isExit()){
-            if (exitBlock){
-                return NULL;
-            }
-            ASSERT(!exitBlock && "There should not be multiple exit blocks to the same graph");
-            exitBlock = basicBlocks[i];
-        }
+            (*exitBlocks).append(basicBlocks[i]);
+        } else if (!getFunction()->inRange(basicBlocks[i]->getBaseAddress())){
+            (*exitBlocks).append(basicBlocks[i]);
+        }        
     }
-    return exitBlock;
+    return exitBlocks;
 }
 
 

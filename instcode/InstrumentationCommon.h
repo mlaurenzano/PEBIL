@@ -18,3 +18,5 @@
     fprintf(stdout, __VA_ARGS__); \
     fprintf(stdout, "\n"); \
     fflush(stdout);
+#define PRINT_DEBUG(...) 
+//#define PRINT_DEBUG(...) PRINT_INSTR(__VA_ARGS__)

@@ -1,12 +1,12 @@
 #include <Base.h>
 #include <ElfFile.h>
 #include <ElfFileInst.h>
-#include <FunctionProfiler.h>
+#include <FunctionTimer.h>
 #include <Vector.h>
 
 int main(int argc,char* argv[]){
     char*    inptName   = NULL;
-    char*    extension  = "pblprof";
+    char*    extension  = "ftminst";
     char*    libPath    = NULL;
     int32_t  phaseNo    = 0;
     char* inputFuncList = NULL;
@@ -55,7 +55,7 @@ int main(int argc,char* argv[]){
 
     ElfFileInst* elfInst = NULL;
 
-    elfInst = new FunctionProfiler(&elfFile, inputFuncList);
+    elfInst = new FunctionTimer(&elfFile, inputFuncList);
 
     if (elfInst){
         elfInst->setPathToInstLib(libPath);

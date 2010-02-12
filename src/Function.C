@@ -369,7 +369,7 @@ Vector<Instruction*>* Function::digestRecursive(){
 
         // in case the disassembler found an instruction that exceeds the function boundary, we will
         // reduce the size of the last instruction accordingly so that the extra bytes will not be
-        // used
+        // used. This is common when data is stored at the end of function code
         Instruction* tail = (*allInstructions).back();
         uint32_t currByte = tail->getBaseAddress() + tail->getSizeInBytes() - getBaseAddress();
         if ( currByte > sizeInBytes){

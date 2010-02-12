@@ -1,4 +1,4 @@
-#include <FunctionProfiler.h>
+#include <FunctionTimer.h>
 
 #include <BasicBlock.h>
 #include <Function.h>
@@ -10,10 +10,10 @@
 #define PROGRAM_EXIT   "program_exit"
 #define FUNCTION_ENTRY "function_entry"
 #define FUNCTION_EXIT  "function_exit"
-#define INST_LIB_NAME "libprofiler.so"
-#define INST_SUFFIX "pblprof"
+#define INST_LIB_NAME "libtimer.so"
+#define INST_SUFFIX "ftminst"
 
-FunctionProfiler::FunctionProfiler(ElfFile* elf, char* inputFuncList)
+FunctionTimer::FunctionTimer(ElfFile* elf, char* inputFuncList)
     : InstrumentationTool(elf, inputFuncList)
 {
     instSuffix = new char[__MAX_STRING_SIZE];
@@ -25,7 +25,7 @@ FunctionProfiler::FunctionProfiler(ElfFile* elf, char* inputFuncList)
     functionExit = NULL;
 }
 
-void FunctionProfiler::declare(){
+void FunctionTimer::declare(){
     // declare any shared library that will contain instrumentation functions
     declareLibrary(INST_LIB_NAME);
 
@@ -40,7 +40,7 @@ void FunctionProfiler::declare(){
     ASSERT(functionExit);
 }
 
-void FunctionProfiler::instrument(){
+void FunctionTimer::instrument(){
     uint32_t temp32;
     uint64_t temp64;
 
@@ -69,42 +69,59 @@ void FunctionProfiler::instrument(){
     functionExit->addArgument(functionIndexAddr);
 
     for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
-        uint64_t funcname = reserveDataOffset(strlen(getExposedFunction(i)->getName()) + 1);
+        Function* f = getExposedFunction(i);
+        
+        uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
         uint64_t funcnameAddr = getInstDataAddress() + funcname;
         initializeReservedData(getInstDataAddress() + funcNameArray + i*sizeof(char*), sizeof(char*), &funcnameAddr);
-        initializeReservedData(getInstDataAddress() + funcname, strlen(getExposedFunction(i)->getName()) + 1, (void*)getExposedFunction(i)->getName());
+        initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
 
-        if (!getExposedFunction(i)->getFlowGraph()->getEntryBlock() ||
-            !getExposedFunction(i)->getFlowGraph()->getExitBlock()){
-            PRINT_WARN(8, "Function %s is missing either an entry or exit block (probably exit)", getExposedFunction(i)->getName());
-            continue;
-        }
+        BasicBlock* bb = f->getFlowGraph()->getEntryBlock();
+        Vector<BasicBlock*>* exitBlocks = f->getFlowGraph()->getExitBlocks();
 
-        BasicBlock* bb = getExposedFunction(i)->getFlowGraph()->getEntryBlock();
-
-        Vector<Instruction*> fillIndex = Vector<Instruction*>();
-        Vector<Instruction*> fillIndex2 = Vector<Instruction*>();
-
-        fillIndex.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-        fillIndex.append(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_CX));
-        fillIndex.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-        fillIndex.append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
-
-        fillIndex2.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-        fillIndex2.append(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_CX));
-        fillIndex2.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-        fillIndex2.append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+        Vector<Instruction*> fillEntry = Vector<Instruction*>();
+        fillEntry.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+        fillEntry.append(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_CX));
+        fillEntry.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
+        fillEntry.append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
 
         p = addInstrumentationPoint(bb, functionEntry, InstrumentationMode_tramp);
-        for (uint32_t j = 0; j < fillIndex.size(); j++){
-            p->addPrecursorInstruction(fillIndex[j]);
+        for (uint32_t j = 0; j < fillEntry.size(); j++){
+            p->addPrecursorInstruction(fillEntry[j]);
         }
 
-        bb = getExposedFunction(i)->getFlowGraph()->getExitBlock();
-        p = addInstrumentationPoint(bb, functionExit, InstrumentationMode_tramp);
-        for (uint32_t j = 0; j < fillIndex.size(); j++){
-            p->addPrecursorInstruction(fillIndex2[j]);
+        for (uint32_t j = 0; j < (*exitBlocks).size(); j++){
+            Vector<Instruction*> fillExit = Vector<Instruction*>();
+            fillExit.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+            fillExit.append(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_CX));
+            fillExit.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
+            fillExit.append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+
+            p = addInstrumentationPoint((*exitBlocks)[j], functionExit, InstrumentationMode_tramp);
+            for (uint32_t k = 0; k < fillExit.size(); k++){
+                p->addPrecursorInstruction(fillExit[k]);
+            }
         }
+        if (!(*exitBlocks).size()){
+            Vector<Instruction*> fillExit = Vector<Instruction*>();
+            fillExit.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+            fillExit.append(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_CX));
+            fillExit.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
+            fillExit.append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+
+            BasicBlock* lastbb = f->getBasicBlock(f->getNumberOfBasicBlocks()-1);
+            Instruction* lastin = lastbb->getInstruction(lastbb->getNumberOfInstructions()-1);
+            if (lastin){
+                p = addInstrumentationPoint(lastin, functionExit, InstrumentationMode_tramp);
+                for (uint32_t k = 0; k < fillExit.size(); k++){
+                    p->addPrecursorInstruction(fillExit[k]);
+                }
+            } else {
+                PRINT_WARN(10, "No exit from function %s", f->getName());
+            }
+        }
+
+        delete exitBlocks;
     }
 
     

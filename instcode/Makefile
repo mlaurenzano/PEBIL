@@ -1,5 +1,5 @@
 DBG         = -g
-OPT         = -O0 -w
+OPT         = -O3 -w
 SHARED_OPT  = -fPIC
 GNU_C       = gcc
 CC          = $(GNU_C) $(DBG) $(OPT)
@@ -30,10 +30,10 @@ SRCDIR      = ../instcode
 BINDIR      = ../bin
 LIBDIR      = ../lib
 
-SRCS        = CounterFunctions.c SimulationFunctions.c CacheSimulationCommon.c ProfilerFunctions.c
-OBJS        = CounterFunctions.o SimulationFunctions.o CacheSimulationCommon.o ProfilerFunctions.o
+SRCS        = CounterFunctions.c SimulationFunctions.c CacheSimulationCommon.c TimerFunctions.c
+OBJS        = CounterFunctions.o SimulationFunctions.o CacheSimulationCommon.o TimerFunctions.o
 
-TARGET_LIBS = libcounter.so libcounter.a libsimulator.so libsimulator.a libprofiler.so libprofiler.a
+TARGET_LIBS = libcounter.so libcounter.a libsimulator.so libsimulator.a libtimer.so libtimer.a
 
 all: $(TARGET_LIBS) install
 
@@ -52,11 +52,11 @@ libsimulator.so : $(OBJS)
 libsimulator.a : $(OBJS)
 	$(AR) $(AR_FLAGS) $@ SimulationFunctions.o
 
-libprofiler.so : $(OBJS)
-	$(CC) $(SHARED_LIB) -o $@ ProfilerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
+libtimer.so : $(OBJS)
+	$(CC) $(SHARED_LIB) -o $@ TimerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
 
-libprofiler.a : $(OBJS)
-	$(AR) $(AR_FLAGS) $@ ProfilerFunctions.o
+libtimer.a : $(OBJS)
+	$(AR) $(AR_FLAGS) $@ TimerFunctions.o
 
 clean: 
 	rm -f core *.o *.O *.i *.s *.ii *.class $(TARGET_LIBS)

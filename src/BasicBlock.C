@@ -7,8 +7,6 @@
 #include <InstructionGenerator.h>
 #include <Instrumentation.h>
 
-#define MAX_SIZE_LINEAR_SEARCH 4096
-
 static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
 
 uint64_t CodeBlock::getProgramAddress(){
@@ -336,18 +334,6 @@ Instruction* CodeBlock::getInstructionAtAddress(uint64_t addr){
         if (instructions[i]->getBaseAddress() == addr){
             return instructions[i];
         }
-    }
-
-    if (instructions.size() < MAX_SIZE_LINEAR_SEARCH){
-        for (uint32_t i = 0; i < instructions.size(); i++){
-            if (instructions[i]->getBaseAddress() == addr){
-                return instructions[i];
-            }
-        }
-    } else {
-        PRINT_ERROR("The author should implement a non-linear instruction search");
-        __SHOULD_NOT_ARRIVE;
-        return NULL;
     }
     return NULL;
 }

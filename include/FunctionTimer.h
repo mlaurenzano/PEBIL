@@ -1,9 +1,9 @@
-#ifndef _FunctionProfiler_h_
-#define _FunctionProfiler_h_
+#ifndef _FunctionTimer_h_
+#define _FunctionTimer_h_
 
 #include <InstrumentationTool.h>
 
-class FunctionProfiler : public InstrumentationTool {
+class FunctionTimer : public InstrumentationTool {
 private:
     InstrumentationFunction* programEntry;
     InstrumentationFunction* programExit;
@@ -11,12 +11,12 @@ private:
     InstrumentationFunction* functionExit;
 
 public:
-    FunctionProfiler(ElfFile* elf, char* inputFuncList);
-    ~FunctionProfiler();
+    FunctionTimer(ElfFile* elf, char* inputFuncList);
+    ~FunctionTimer();
 
     void declare();
     void instrument();
 };
 
 
-#endif /* _FunctionProfiler_h_ */
+#endif /* _FunctionTimer_h_ */
