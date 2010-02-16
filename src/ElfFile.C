@@ -23,10 +23,22 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+ProgramHeader* ElfFile::getProgramHeaderPHDR(){
+    if (getProgramHeader(0)->GET(p_type) == PT_PHDR){
+        return getProgramHeader(0);
+    }
+    return NULL;
+}
+
 DataSection* ElfFile::getDotDataSection(){
     uint16_t dataSectionIndex = 0;
 
     // pick the section prior to the .bss section
+    dataSectionIndex = findSectionIdx(".data");
+    if (dataSectionIndex){
+        return (DataSection*)getRawSection(dataSectionIndex);
+    }
+
     dataSectionIndex = findSectionIdx(".bss") - 1;
     ASSERT(dataSectionIndex && dataSectionIndex < getNumberOfSections());
     if (strstr(getSectionHeader(dataSectionIndex)->getSectionNamePtr(), ".data") != 
@@ -94,12 +106,6 @@ bool ElfFile::verify(){
         if (!phdr){
             PRINT_ERROR("Program header %d should exist", i)
                 return false;
-        }
-        if (i == 0){
-            if (phdr->GET(p_type) != PT_PHDR){
-                PRINT_ERROR("First segment descriptor should be program header table");
-                return false;
-            }
         }
         if (phdr->GET(p_type) == PT_LOAD){
             if (phdr->isReadable() && phdr->isExecutable()){
@@ -349,8 +355,10 @@ uint64_t ElfFile::addSegment(uint16_t idx, uint32_t type, uint64_t offset, uint6
     // increment the number of sections in the file header
     getFileHeader()->INCREMENT(e_phnum, 1);
 
-    getProgramHeaderPHDR()->INCREMENT(p_memsz, fileHeader->GET(e_phentsize));
-    getProgramHeaderPHDR()->INCREMENT(p_filesz, fileHeader->GET(e_phentsize));
+    if (getProgramHeaderPHDR()){
+        getProgramHeaderPHDR()->INCREMENT(p_memsz, fileHeader->GET(e_phentsize));
+        getProgramHeaderPHDR()->INCREMENT(p_filesz, fileHeader->GET(e_phentsize));
+    }
 
     return programHeaders[idx]->GET(p_paddr);
 }

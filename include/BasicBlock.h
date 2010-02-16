@@ -34,6 +34,8 @@ public:
 class CodeBlock : public Block {
 protected:
     Vector<Instruction*> instructions;
+    bool byteCountUpdate;
+    uint32_t numberOfBytes;
 public:
     CodeBlock(uint32_t idx, FlowGraph* cfg);
     ~CodeBlock();

@@ -153,7 +153,12 @@ void ElfFileInst::allocateInstrumentationText(uint64_t size){
     ProgramHeader* pHdr = elfFile->getProgramHeaderPHDR();
     SectionHeader* genericTextHdr = elfFile->getSectionHeader(lowestTextSectionIdx);
     SectionHeader* finalHeader = elfFile->getSectionHeader(elfFile->getNumberOfSections()-1);
-    uint64_t textSegOffset = nextAlignAddress(finalHeader->GET(sh_offset) + finalHeader->GET(sh_size) + DATA_EXTENSION_INC + INSTTEXT_PADDING, pHdr->GET(p_align));
+
+    uint32_t alignment = 1;
+    if (pHdr){
+        alignment = pHdr->GET(p_align);
+    }
+    uint64_t textSegOffset = nextAlignAddress(finalHeader->GET(sh_offset) + finalHeader->GET(sh_size) + DATA_EXTENSION_INC + INSTTEXT_PADDING, alignment);
 
     // leave space for 2 segments that will be inserted
     uint64_t textSecOffset = nextAlignAddress(textSegOffset + elfFile->getFileHeader()->GET(e_phentsize) * (elfFile->getFileHeader()->GET(e_phnum) - 1), genericTextHdr->GET(sh_addralign));
@@ -181,9 +186,11 @@ void ElfFileInst::allocateInstrumentationText(uint64_t size){
     }
 
     // set the program header table to the base address of the inst text section
-    pHdr->SET(p_vaddr, INSTTEXT_BASE_ADDR + textSegOffset);
-    pHdr->SET(p_paddr, pHdr->GET(p_vaddr));
-    pHdr->SET(p_offset, textSegOffset);
+    if (pHdr){
+        pHdr->SET(p_vaddr, INSTTEXT_BASE_ADDR + textSegOffset);
+        pHdr->SET(p_paddr, pHdr->GET(p_vaddr));
+        pHdr->SET(p_offset, textSegOffset);
+    }
     elfFile->getFileHeader()->SET(e_phoff, textSegOffset);
     
     SectionHeader* extendedText = elfFile->getSectionHeader(extraTextIdx);
@@ -404,7 +411,8 @@ uint32_t ElfFileInst::anchorProgramElements(){
 
     uint32_t addrAlign;
     if (elfFile->is64Bit()){
-        addrAlign = sizeof(uint64_t);
+        //        addrAlign = sizeof(uint64_t);
+        addrAlign = sizeof(uint32_t);
     } else {
         addrAlign = sizeof(uint32_t);
     }
@@ -493,6 +501,7 @@ uint32_t ElfFileInst::anchorProgramElements(){
                     }
                 }
             }
+
             if (!currentInstruction->getAddressAnchor()){
                 PRINT_WARN(4, "Creating special AddressRelocation for %#llx at the behest of the instruction at %#llx since it wasn't an instruction or part of a data section",
                            relativeAddress, currentInstruction->getBaseAddress());
@@ -534,9 +543,14 @@ uint32_t ElfFileInst::anchorProgramElements(){
         RawSection* dataRawSection = elfFile->getRawSection(dataSections[i]);
         SectionHeader* dataSectionHeader = elfFile->getSectionHeader(dataSections[i]);
 
+        uint32_t sectionSize = 0;
+        if (dataRawSection->getSizeInBytes() > addrAlign){
+            sectionSize = dataRawSection->getSizeInBytes() - addrAlign;
+        }
+
         // since there are no constraints on the alignment of stuff in the data sections we must check starting at EVERY byte
         // ^^^NO TO THE ABOVE STATEMENT^^^: we will check just word-aligned addresses since we were getting false positives
-        for (uint32_t currByte = 0; currByte < dataRawSection->getSizeInBytes() - addrAlign; currByte += sizeof(uint32_t)){
+        for (int32_t currByte = 0; currByte < sectionSize; currByte += sizeof(uint32_t)){
             char* dataPtr = (char*)(dataRawSection->getFilePointer()+currByte);
             uint64_t extendedData;
             if (addrAlign == sizeof(uint64_t)){
@@ -1536,8 +1550,16 @@ void ElfFileInst::extendTextSection(uint64_t size){
 
     // move the program header table to fall all the sections in the file
     SectionHeader* ultSection = elfFile->getSectionHeader(elfFile->getNumberOfSections()-1);
-    fHdr->SET(e_phoff, nextAlignAddress(ultSection->GET(sh_offset) + ultSection->GET(sh_size), elfFile->getProgramHeaderPHDR()->GET(p_align)));
-    elfFile->getProgramHeaderPHDR()->SET(p_offset, elfFile->getFileHeader()->GET(e_phoff));
+    ProgramHeader* pHdr = elfFile->getProgramHeaderPHDR();
+    uint32_t alignment = 1;
+    if (pHdr){
+        alignment = pHdr->GET(p_align);
+    }
+    fHdr->SET(e_phoff, nextAlignAddress(ultSection->GET(sh_offset) + ultSection->GET(sh_size), alignment));
+
+    if (pHdr){
+        pHdr->SET(p_offset, elfFile->getFileHeader()->GET(e_phoff));
+    }
 
     // move the sections that fall after the program/section tables to accomodate the phdr movement
     for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
@@ -1778,7 +1800,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
     (*instrumentationPoints)[INST_POINT_BOOTSTRAP1]->setPriority(InstPriority_sysinit);
 
 
-    ASSERT(bssDataIdx == extraDataIdx + 1 && ".data and .bss sections should be adjacent");
+    //    ASSERT(bssDataIdx == extraDataIdx + 1 && ".data and .bss sections should be adjacent");
 
     //programDataSize = elfFile->getSectionHeader(extraDataIdx+1)->GET(sh_addr) - elfFile->getSectionHeader(extraDataIdx)->GET(sh_addr);
     programDataSize = elfFile->getSectionHeader(extraDataIdx)->GET(sh_size);

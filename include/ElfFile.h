@@ -118,7 +118,7 @@ public:
 
     FileHeader*  getFileHeader() { return fileHeader; }
     ProgramHeader* getProgramHeader(uint32_t idx) { return programHeaders[idx]; }
-    ProgramHeader* getProgramHeaderPHDR() { ASSERT(programHeaders[0]->GET(p_type) == PT_PHDR); return programHeaders[0]; }
+    ProgramHeader* getProgramHeaderPHDR();
     SectionHeader* getSectionHeader(uint32_t idx) { return sectionHeaders[idx]; }
     RawSection* getRawSection(uint32_t idx) { return rawSections[idx]; }
     StringTable* getStringTable(uint32_t idx) { return stringTables[idx]; }

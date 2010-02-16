@@ -215,6 +215,7 @@ public:
 
     // control instruction id
     bool isControl();
+    bool isBranch() { return isUnconditionalBranch() || isConditionalBranch(); }
     bool isUnconditionalBranch() { return (getInstructionType() == X86InstructionType_uncond_branch); }
     bool isConditionalBranch() { return (getInstructionType() == X86InstructionType_cond_branch); }
     bool isReturn() { return (getInstructionType() == X86InstructionType_return); }

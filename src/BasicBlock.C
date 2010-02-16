@@ -82,6 +82,7 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
         uint32_t instructionIdx = expansionIndices[i];
         for (uint32_t j = 0; j < bloatAmount; j++){
             instructions.insert(InstructionGenerator::generateNoop(), instructionIdx);
+            byteCountUpdate = true;
         }
     }
 
@@ -91,6 +92,7 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
             if (instructions[i]->bytesUsedForTarget() < sizeof(uint32_t)){
                 PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", instructions[i]->bytesUsedForTarget());
                 instructions[i]->convertTo4ByteTargetOperand();
+                byteCountUpdate = true;
             }
         }
     }
@@ -263,7 +265,16 @@ uint32_t BasicBlock::addTargetBlock(BasicBlock* bb){
 }
 
 bool BasicBlock::findExitInstruction(){
-    return instructions.back()->isReturn();
+    if (instructions.back()->isReturn()){
+        return true;
+    }
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBranch() &&
+            !getFlowGraph()->getFunction()->inRange(instructions[i]->getTargetAddress())){
+            return true;
+        }
+    }
+    return false;
 }
 
 
@@ -326,6 +337,7 @@ uint32_t CodeBlock::addInstruction(Instruction* inst){
     inst->setIndex(instructions.size());
     instructions.append(inst);
     sizeInBytes += instructions.size();
+    byteCountUpdate = true;
     return instructions.size();
 }
 
@@ -339,9 +351,12 @@ Instruction* CodeBlock::getInstructionAtAddress(uint64_t addr){
 }
 
 uint32_t CodeBlock::getNumberOfBytes(){
-    uint32_t numberOfBytes = 0;
-    for (uint32_t i = 0; i < instructions.size(); i++){
-        numberOfBytes += instructions[i]->getSizeInBytes();
+    if (byteCountUpdate){
+        numberOfBytes = 0;
+        for (uint32_t i = 0; i < instructions.size(); i++){
+            numberOfBytes += instructions[i]->getSizeInBytes();
+        }
+        byteCountUpdate = false;
     }
     return numberOfBytes;
 }
@@ -357,6 +372,8 @@ bool BasicBlock::inRange(uint64_t addr){
 CodeBlock::CodeBlock(uint32_t idx, FlowGraph* cfg)
     : Block(PebilClassType_CodeBlock,idx,cfg)
 {
+    byteCountUpdate = true;
+    numberOfBytes = 0;
 }
 
 
@@ -575,6 +592,7 @@ Vector<Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<Instruct
     }
 
     verify();
-
+    byteCountUpdate = true;
+    
     return replaced;
 }
