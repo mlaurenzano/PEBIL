@@ -111,6 +111,7 @@ void BasicBlockCounter::instrument(){
     PRINT_DEBUG_MEMTRACK("There are %d instrumentation points", getNumberOfExposedBasicBlocks());
     Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
+
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
 
         BasicBlock* bb = getExposedBasicBlock(i);
@@ -173,5 +174,6 @@ void BasicBlockCounter::instrument(){
     delete allBlocks;
     delete allLineInfos;
 
+    PRINT_INFOR("leaving instrument");
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }

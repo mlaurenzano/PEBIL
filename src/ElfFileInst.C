@@ -630,7 +630,7 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
     }
     ASSERT(currentByte <= operatedFunction->getNumberOfBytes() && "Function is not big enough to relocate");
 
-    Function* placeHolder = new Function(text,operatedFunction->getIndex(),operatedFunction->getFunctionSymbol(),functionSize);
+    Function* placeHolder = new Function(text, operatedFunction->getIndex(), operatedFunction->getFunctionSymbol(), functionSize);
     Vector<AddressAnchor*>* modAnchors = searchAddressAnchors(operatedFunction->getBaseAddress());
     for (uint32_t i = 0; i < modAnchors->size(); i++){
         (*modAnchors)[i]->updateLink((*trampEmpty).back());
@@ -781,7 +781,13 @@ void ElfFileInst::generateInstrumentation(){
 
     (*instrumentationPoints).sort(compareInstAddress);
 
+    PRINT_INFOR("starting on %d inst points", (*instrumentationPoints).size());
+
     for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
+        if (i % 1000 == 0){
+            PRINT_INFOR("Processing instrumentation point %d of %d", i, (*instrumentationPoints).size());
+        }
+
         InstrumentationPoint* pt = (*instrumentationPoints)[i];
         if (!pt){
             PRINT_ERROR("Instrumentation point %d should exist", i);
@@ -1080,6 +1086,10 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     for (uint32_t i = 0; i < numberOfFunctions; i++){
         Function* func = exposedFunctions[i];
 
+        if (i % 10 == 0){
+            PRINT_INFOR("Relocating function %d of %d", i, numberOfFunctions);
+        }
+
         if (!isEligibleFunction(func)){
             func->print();
             __SHOULD_NOT_ARRIVE;
@@ -1102,34 +1112,31 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
         addressAnchors[i]->refreshCache();
     }
-    for (uint32_t i = 0; i < numberOfFunctions; i++){
-        Function* func = exposedFunctions[i];
 #ifdef RELOC_MOD
-        if (i % RELOC_MOD == RELOC_MOD_OFF){
+    if (i % RELOC_MOD == RELOC_MOD_OFF){
 #endif
-        for (uint32_t j = 0; j < (*instrumentationPoints).size(); j++){
-            uint64_t searchAddr = 0;
-
-            searchAddr = (*instrumentationPoints)[j]->getInstBaseAddress();
-            ASSERT((*instrumentationPoints)[j]->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
-            Function* container = (Function*)(*instrumentationPoints)[j]->getSourceObject()->getContainer();
-            BasicBlock* containerBB = (BasicBlock*)container->getBasicBlockAtAddress(searchAddr);
-            ASSERT(containerBB);
-            
-            //                Vector<AddressAnchor*>* modAnchors = searchAddressAnchors(bb->getBaseAddress() + SIZE_NEEDED_AT_INST_POINT);
-            Vector<AddressAnchor*>* modAnchors = searchAddressAnchors(searchAddr);
-            ASSERT(containerBB->getNumberOfInstructions() && containerBB->getInstruction(0));
-            PRINT_DEBUG_ANCHOR("In block at %#llx, updating %d anchors", containerBB->getBaseAddress(), (*modAnchors).size());
-            for (uint32_t k = 0; k < modAnchors->size(); k++){
-                (*modAnchors)[k]->updateLink(containerBB->getInstruction(0));
-                anchorsAreSorted = false;
-            }
-            delete modAnchors;
+    for (uint32_t j = 0; j < (*instrumentationPoints).size(); j++){
+        uint64_t searchAddr = 0;
+        
+        searchAddr = (*instrumentationPoints)[j]->getInstBaseAddress();
+        ASSERT((*instrumentationPoints)[j]->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
+        Function* container = (Function*)(*instrumentationPoints)[j]->getSourceObject()->getContainer();
+        BasicBlock* containerBB = (BasicBlock*)container->getBasicBlockAtAddress(searchAddr);
+        ASSERT(containerBB);
+        
+        //                Vector<AddressAnchor*>* modAnchors = searchAddressAnchors(bb->getBaseAddress() + SIZE_NEEDED_AT_INST_POINT);
+        Vector<AddressAnchor*>* modAnchors = searchAddressAnchors(searchAddr);
+        ASSERT(containerBB->getNumberOfInstructions() && containerBB->getInstruction(0));
+        PRINT_DEBUG_ANCHOR("In block at %#llx, updating %d anchors", containerBB->getBaseAddress(), (*modAnchors).size());
+        for (uint32_t k = 0; k < modAnchors->size(); k++){
+            (*modAnchors)[k]->updateLink(containerBB->getInstruction(0));
+            anchorsAreSorted = false;
         }
-#ifdef RELOC_MOD
-        }
-#endif
+        delete modAnchors;
     }
+#ifdef RELOC_MOD
+    }
+#endif
 
     return codeOffset;
 }
@@ -1149,14 +1156,7 @@ void ElfFileInst::functionSelect(){
     for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
         textObjects.append(text->getTextObject(i));
     }
-    /*
-    for (uint32_t i = 0; i < init->getNumberOfTextObjects(); i++){
-        textObjects.append(init->getTextObject(i));
-    }
-    for (uint32_t i = 0; i < fini->getNumberOfTextObjects(); i++){
-        textObjects.append(fini->getTextObject(i));
-    }
-    */
+
     // choose the set of functions to expose to the instrumentation tool
     PRINT_DEBUG_FUNC_RELOC("Choosing from %d functions", text->getNumberOfTextObjects()+fini->getNumberOfTextObjects()+init->getNumberOfTextObjects());
 
@@ -1186,7 +1186,6 @@ void ElfFileInst::functionSelect(){
                 }
             } else {
                 PRINT_DEBUG_FUNC_RELOC("\thidden: %s\t%d %d %#llx %d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail());
-                //                PRINT_INFOR("\thidden: %s\tcomp%d isel%d getb%#llx isdf%d hsdr%d ctrt%d crlf%d isin%d isjt%d isdb%d szbt%d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail(), f->hasSelfDataReference(), f->containsReturn(), canRelocateFunction(f), f->isInstrumentationFunction(), f->isJumpTable(), isDisabledFunction(f), f->getNumberOfBytes());
                 hiddenFunctions.append(f);
             }
         }
@@ -1220,6 +1219,7 @@ void ElfFileInst::phasedInstrumentation(){
     extendDataSection();
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
+    PRINT_INFOR("Beginning to anchor");
     anchorProgramElements();
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
@@ -1227,10 +1227,12 @@ void ElfFileInst::phasedInstrumentation(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
+    PRINT_INFOR("Begin declare");
     declare();
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
+    PRINT_INFOR("Begin function select");
     functionSelect();
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
@@ -1253,16 +1255,18 @@ void ElfFileInst::phasedInstrumentation(){
     currentPhase++;
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
+    PRINT_INFOR("Begin instrument");
     instrument();
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
     (*instrumentationPoints).sort(compareInstAddress);
     verify();
 
-
+    PRINT_INFOR("begin relocate");
     // save space at the beginning of text for phdr table
     relocatedTextSize = elfFile->getFileHeader()->GET(e_phentsize) * elfFile->getFileHeader()->GET(e_phnum);
     relocatedTextSize += functionRelocateAndTransform(relocatedTextSize);
+    PRINT_INFOR("end relocate");
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
@@ -1276,6 +1280,7 @@ void ElfFileInst::phasedInstrumentation(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
+    PRINT_INFOR("begin geninst");
     generateInstrumentation();
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
