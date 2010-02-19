@@ -278,7 +278,7 @@ Vector<Instruction*>* Function::digestRecursive(){
     while (!unprocessed.empty() && !getBadInstruction()){
         currentAddress = unprocessed.pop();
 
-        void* inst = bsearch(&currentAddress,&(*allInstructions),(*allInstructions).size(),sizeof(Instruction*),searchBaseAddress);
+        void* inst = bsearch(&currentAddress, &(*allInstructions), (*allInstructions).size(), sizeof(Instruction*), searchBaseAddress);
         if (inst){
             Instruction* tgtInstruction = *(Instruction**)inst;
             ASSERT(tgtInstruction->getBaseAddress() == currentAddress && "Problem in disassembly -- found instruction that enters the middle of another instruction");
@@ -291,6 +291,14 @@ Vector<Instruction*>* Function::digestRecursive(){
 
         currentInstruction = new Instruction(this, currentAddress,
                                              textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0);
+        for (uint32_t i = 0; i < currentInstruction->getSizeInBytes(); i++){
+            inst = bsearch(&currentAddress+i,&(*allInstructions),(*allInstructions).size(),sizeof(Instruction*),searchBaseAddress);
+            if (inst){
+                Instruction* tgtInstruction = *(Instruction**)inst;
+                ASSERT(tgtInstruction->getBaseAddress() == currentAddress && "Problem in disassembly -- found instruction that enters the middle of another instruction");
+                continue;
+            }
+        }
 
         PRINT_DEBUG_CFG("recursive cfg: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());
         uint64_t checkAddr = currentInstruction->getBaseAddress();
@@ -356,6 +364,16 @@ Vector<Instruction*>* Function::digestRecursive(){
         delete controlTargetAddrs;
     }
 
+    qsort(&(*allInstructions), (*allInstructions).size(), sizeof(Instruction*), compareBaseAddress);
+    ASSERT((*allInstructions).isSorted(compareBaseAddress));
+
+    for (uint32_t i = 0; i < (*allInstructions).size() - 1; i++){
+        if ((*allInstructions)[i]->getBaseAddress() + (*allInstructions)[i]->getSizeInBytes() >
+            (*allInstructions)[i+1]->getBaseAddress()){
+            setBadInstruction((*allInstructions)[i+1]->getBaseAddress());
+        }
+    }
+
     if (getBadInstruction()){
         for (uint32_t i = 0; i < (*allInstructions).size(); i++){
             delete (*allInstructions)[i];
@@ -363,9 +381,6 @@ Vector<Instruction*>* Function::digestRecursive(){
         delete allInstructions;
         return NULL;
     } else {
-
-        qsort(&(*allInstructions), (*allInstructions).size(), sizeof(Instruction*), compareBaseAddress);
-        ASSERT((*allInstructions).isSorted(compareBaseAddress));
 
         // in case the disassembler found an instruction that exceeds the function boundary, we will
         // reduce the size of the last instruction accordingly so that the extra bytes will not be

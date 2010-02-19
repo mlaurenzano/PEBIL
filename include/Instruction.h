@@ -149,6 +149,8 @@ public:
     char* charStream() { return (char*)&entry; }
     bool verify();
 
+    uint32_t getOperandIndex() { return operandIndex; }
+    
     uint32_t getBytesUsed();
     uint32_t getBytePosition();
     uint32_t getBaseRegister();

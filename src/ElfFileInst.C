@@ -45,9 +45,70 @@
 #define ANCHOR_SEARCH_BINARY
 //#define VALIDATE_ANCHOR_SEARCH
 
+#define __patch_phdr_symbol_name "_dl_phdr"
+
 #ifdef BLOAT_MOD
 uint32_t bloatCount = 0;
 #endif
+
+void ElfFileInst::patchProgramContents(){
+    // patch the location of the program header -- for static executables the compiler assumes that the
+    // address of the program header is the base address of the program + the file offset of the phdr table.
+    // pebil modifies the phdr to start at the beginning of the instrumentation text section
+    if (elfFile->isStaticLinked()){
+        Symbol* phdrBaseSymbol = NULL;
+        for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+            SymbolTable* symtab = elfFile->getSymbolTable(i);
+            for (uint32_t j = 0; j < symtab->getNumberOfSymbols(); j++){
+                Symbol* sym = symtab->getSymbol(j);
+                if (!strcmp(sym->getSymbolName(), __patch_phdr_symbol_name)){
+                    phdrBaseSymbol = sym;
+                }
+            }
+        }    
+        ASSERT(phdrBaseSymbol && "Static linked binaries should contain phdr symbol");
+        phdrBaseSymbol->print();
+
+        Vector<Instruction*> needPhdrPatch = Vector<Instruction*>();
+        uint64_t phdrSymbolAddress = phdrBaseSymbol->GET(st_value);
+
+        PRINT_INFOR("Looking for phdr at %#llx", phdrSymbolAddress);
+        for (uint32_t i = 0; i < exposedMemOps.size(); i++){
+            ASSERT(exposedMemOps[i]->getMemoryOperand());
+            Operand* memOperand = exposedMemOps[i]->getMemoryOperand();
+
+            // must be the destination operand
+            if (memOperand->getOperandIndex() == 0){
+                if (memOperand->isRelative()){
+                    if (memOperand->getValue() + exposedMemOps[i]->getBaseAddress() + exposedMemOps[i]->getSizeInBytes() == phdrSymbolAddress){
+                        needPhdrPatch.append(exposedMemOps[i]);
+                    }
+                } else {
+                    if (memOperand->getValue() == phdrSymbolAddress){
+                        needPhdrPatch.append(exposedMemOps[i]);
+                    }
+                }
+            }
+        }
+        ASSERT(needPhdrPatch.size() == 1);
+        PRINT_INFOR("needs patches %d", needPhdrPatch.size());
+        for (uint32_t i = 0 ; i < needPhdrPatch.size(); i++){
+            needPhdrPatch[i]->print();
+        }
+
+        InstrumentationSnippet* snip = new InstrumentationSnippet();
+        ASSERT(needPhdrPatch[0]->getOperand(1));
+        uint8_t sourceReg = needPhdrPatch[0]->getOperand(1)->getBaseRegister();
+
+        ASSERT(instTextSegment);
+        if (elfFile->is64Bit()){
+            snip->addSnippetInstruction(InstructionGenerator64::generateMoveImmToReg(instTextSegment->GET(p_paddr), sourceReg));
+        } else {
+            snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(instTextSegment->GET(p_paddr), sourceReg));
+        }
+        addInstrumentationPoint(needPhdrPatch[0], snip, InstrumentationMode_inline, FlagsProtectionMethod_none);
+    }
+}
 
 BasicBlock* ElfFileInst::getProgramExitBlock(){
     TextSection* fini = getFiniSection();
@@ -98,7 +159,7 @@ void ElfFileInst::buildInstrumentationSections(){
     SectionHeader* instTextHeader = elfFile->getSectionHeader(extraTextIdx);
     ASSERT(instDataHeader && elfFile->getRawSection(extraDataIdx)->getType() == PebilClassType_DataSection);
 
-    elfFile->addSegment(DEFAULT_SEGMENT_INCLUSION_DATA, dHdr->GET(p_type), instDataHeader->GET(sh_offset), instDataHeader->GET(sh_addr),
+    instDataSegment = elfFile->addSegment(DEFAULT_SEGMENT_INCLUSION_DATA, dHdr->GET(p_type), instDataHeader->GET(sh_offset), instDataHeader->GET(sh_addr),
                         instDataHeader->GET(sh_addr), instrumentationDataSize, instrumentationDataSize, dHdr->GET(p_flags), dHdr->GET(p_align));
 
     // if any sections fall after the program header table, update their offset to give room for the new entry
@@ -169,7 +230,7 @@ void ElfFileInst::allocateInstrumentationText(uint64_t size){
                         genericTextHdr->GET(sh_info), genericTextHdr->GET(sh_addralign), genericTextHdr->GET(sh_entsize));
 
     ProgramHeader* tHdr = elfFile->getProgramHeader(elfFile->getTextSegmentIdx());
-    elfFile->addSegment(DEFAULT_SEGMENT_INCLUSION_TEXT, tHdr->GET(p_type), textSegOffset, INSTTEXT_BASE_ADDR + textSegOffset,
+    instTextSegment = elfFile->addSegment(DEFAULT_SEGMENT_INCLUSION_TEXT, tHdr->GET(p_type), textSegOffset, INSTTEXT_BASE_ADDR + textSegOffset,
                         INSTTEXT_BASE_ADDR + textSegOffset, DEFAULT_SEGMENT_SIZE, DEFAULT_SEGMENT_SIZE, tHdr->GET(p_flags), tHdr->GET(p_align));
 
     // if any sections fall after the program header table, update their offset to give room for the new entry
@@ -868,6 +929,10 @@ void ElfFileInst::generateInstrumentation(){
                         (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
                     }
                     (*repl).append(InstructionGenerator::generatePopEflags());                    
+                } else { // (*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_none
+                    while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
+                        (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
+                    }
                 }
             } else {
                 PRINT_ERROR("This instrumentation mode (%d) not supported", (*instrumentationPoints)[i]->getInstrumentationMode());
@@ -1257,6 +1322,7 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     PRINT_INFOR("Begin instrument");
     instrument();
+    patchProgramContents();
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
     (*instrumentationPoints).sort(compareInstAddress);
@@ -1815,6 +1881,9 @@ ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
     regStorageOffset = 0;
     regStorageReserved = sizeof(uint64_t) * X86_64BIT_GPRS;
     usableDataOffset = regStorageOffset + regStorageReserved;
+
+    instTextSegment = NULL;
+    instDataSegment = NULL;
 }
 
 uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx){

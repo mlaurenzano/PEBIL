@@ -64,6 +64,9 @@ private:
     Vector<AddressAnchor*> addressAnchors;
     Vector<DataReference*> specialDataRefs;
 
+    ProgramHeader* instTextSegment;
+    ProgramHeader* instDataSegment;
+
     uint16_t extraTextIdx;
     uint16_t extraDataIdx;
     uint16_t dataIdx;
@@ -185,6 +188,8 @@ public:
 
     InstrumentationFunction* getInstrumentationFunction(const char* funcName);
     uint32_t addInstrumentationSnippet(InstrumentationSnippet* snip);
+
+    void patchProgramContents(); 
 
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }

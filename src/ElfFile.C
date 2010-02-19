@@ -331,7 +331,7 @@ bool ElfFile::verifyDynamic(){
 
 }
 
-uint64_t ElfFile::addSegment(uint16_t idx, uint32_t type, uint64_t offset, uint64_t vaddr, uint64_t paddr,
+ProgramHeader* ElfFile::addSegment(uint16_t idx, uint32_t type, uint64_t offset, uint64_t vaddr, uint64_t paddr,
                              uint32_t memsz, uint32_t filesz, uint32_t flags, uint32_t align){
     if (is64Bit()){
         programHeaders.insert(new ProgramHeader64(idx), idx);
@@ -360,7 +360,7 @@ uint64_t ElfFile::addSegment(uint16_t idx, uint32_t type, uint64_t offset, uint6
         getProgramHeaderPHDR()->INCREMENT(p_filesz, fileHeader->GET(e_phentsize));
     }
 
-    return programHeaders[idx]->GET(p_paddr);
+    return programHeaders[idx];
 }
 
 uint64_t ElfFile::addSection(uint16_t idx, PebilClassTypes classtype, char* bytes, uint32_t name, uint32_t type, 

@@ -98,7 +98,6 @@ Operand* Instruction::getMemoryOperand(){
         __SHOULD_NOT_ARRIVE;
         return NULL;
     } else { // isImplicitMemoryOperation()
-        print();
         for (uint32_t i = 0; i < MAX_OPERANDS; i++){
             // implicit mem ops only have 1 operand
             if (operands[i]){
