@@ -1,6 +1,5 @@
 ValidatePosition
 __pthread_initialize_minimal
-_start
 call_gmon_start
 __do_global_dtors_aux
 __hpf_init_consts
@@ -1296,7 +1295,6 @@ _dl_allocate_tls_init
 _dl_allocate_tls_storage
 _dl_allocate_tls
 _dl_make_stack_executable
-_dl_aux_init
 _dl_important_hwcaps
 _dl_non_dynamic_init
 __dl_iterate_phdr
