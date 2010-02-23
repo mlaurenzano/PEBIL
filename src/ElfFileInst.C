@@ -27,19 +27,19 @@
 #define INSTTEXT_BASE_ADDR  0x1000000
 #define INSTDATA_BASE_ADDR  0x6000000
 #define DEFAULT_SEGMENT_INCLUSION_TEXT 2
-#define DEFAULT_SEGMENT_INCLUSION_DATA (DEFAULT_SEGMENT_INCLUSION_TEXT+1)
+#define DEFAULT_SEGMENT_INCLUSION_DATA (DEFAULT_SEGMENT_INCLUSION_TEXT + 1)
 #define DEFAULT_SEGMENT_SIZE 0x5000000
 #define INSTTEXT_PADDING 0x4000
 
 // some common macros to help debug instrumentation
-//#define RELOC_MOD_OFF 233
-//#define RELOC_MOD 512
+//#define RELOC_MOD_OFF 0
+//#define RELOC_MOD 32
 //#define TURNOFF_FUNCTION_RELOCATION
-//#define BLOAT_MOD_OFF 704
-//#define BLOAT_MOD 2048
+//#define BLOAT_MOD_OFF 3
+//#define BLOAT_MOD     2
 //#define TURNOFF_FUNCTION_BLOAT
-//#define SWAP_MOD_OFF 4995
-//#define SWAP_MOD 32768
+//#define SWAP_MOD_OFF 3
+//#define SWAP_MOD     2
 //#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
@@ -106,7 +106,8 @@ void ElfFileInst::patchProgramContents(){
         } else {
             snip->addSnippetInstruction(InstructionGenerator32::generateMoveImmToReg(instTextSegment->GET(p_paddr), sourceReg));
         }
-        addInstrumentationPoint(needPhdrPatch[0], snip, InstrumentationMode_inline, FlagsProtectionMethod_none);
+        InstrumentationPoint* pt = addInstrumentationPoint(needPhdrPatch[0], snip, InstrumentationMode_inline, FlagsProtectionMethod_none);
+        pt->setPriority(InstPriority_sysinit);
     }
 }
 
@@ -726,7 +727,8 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
 #endif
 #ifdef BLOAT_MOD
     doBloat = false;
-    if (bloatCount % BLOAT_MOD == BLOAT_MOD_OFF){
+    if (bloatCount % BLOAT_MOD == BLOAT_MOD_OFF || !strcmp(operatedFunction->getName(),"_start") ||
+        !strcmp(operatedFunction->getName(),"_dl_aux_init")){
         doBloat = true;
         PRINT_INFOR("Bloating function (%d) %s", bloatCount, displacedFunction->getName());
     } else {
@@ -890,7 +892,6 @@ void ElfFileInst::generateInstrumentation(){
                 isFirstInChain = true;
                 chainOffset = codeOffset;
             }
-            
             Vector<Instruction*>* repl = NULL;
             Vector<Instruction*>* displaced = NULL;
             
@@ -1151,7 +1152,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     for (uint32_t i = 0; i < numberOfFunctions; i++){
         Function* func = exposedFunctions[i];
 
-        if (i % 10 == 0){
+        if (i % 100 == 0){
             PRINT_INFOR("Relocating function %d of %d", i, numberOfFunctions);
         }
 
@@ -1160,7 +1161,8 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
             __SHOULD_NOT_ARRIVE;
         }
 #ifdef RELOC_MOD
-        if (i % RELOC_MOD == RELOC_MOD_OFF){
+        if (i % RELOC_MOD == RELOC_MOD_OFF || !strcmp(func->getName(),"_start") ||
+            !strcmp(func->getName(),"_dl_aux_init")){
             PRINT_INFOR("relocating function (%d) %s", i, func->getName());
 #endif
             
@@ -1177,9 +1179,6 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     for (uint32_t i = 0; i < addressAnchors.size(); i++){
         addressAnchors[i]->refreshCache();
     }
-#ifdef RELOC_MOD
-    if (i % RELOC_MOD == RELOC_MOD_OFF){
-#endif
     for (uint32_t j = 0; j < (*instrumentationPoints).size(); j++){
         uint64_t searchAddr = 0;
         
@@ -1199,9 +1198,6 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
         }
         delete modAnchors;
     }
-#ifdef RELOC_MOD
-    }
-#endif
 
     return codeOffset;
 }

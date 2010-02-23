@@ -808,6 +808,7 @@ Vector<Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(bool isChain
     Instruction* instruction = (Instruction*)point;
     ASSERT(instruction->getContainer() && instruction->getContainer()->getType() == PebilClassType_Function);
     Function* func = (Function*)instruction->getContainer();
+
     if (isChain){
         return func->swapInstructions(getInstBaseAddress() - Size__uncond_jump, replacements);
     } else {

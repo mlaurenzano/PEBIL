@@ -1,6 +1,6 @@
 DBG           = -g
 #PROFILE       = -pg
-OPT           = -O3 -w
+OPT           = -O3 -w -static
 NATIVE_CPP    = CC
 GNU_CPP       = g++
 CFLAGS        = $(DBG) $(OPT) $(PROFILE)##--save-temps

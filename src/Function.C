@@ -93,12 +93,11 @@ bool Function::hasCompleteDisassembly(){
         return false;
     }
 
-    /*
+    
     // if this function does not contain a return instruction
     if (!containsReturn()){
         return false;
     }
-    */
 
     // if this function calls __i686.get_pc_thunk.bx
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
@@ -147,7 +146,7 @@ bool Function::containsReturn(){
     bool hasReturn = false;
 
     for (uint32_t i = 0; i < numberOfInstructions; i++){
-        if (allInstructions[i]->isReturn()){
+        if (allInstructions[i]->isReturn() || allInstructions[i]->isHalt()){
             hasReturn = true;
             i = numberOfInstructions;
         }
@@ -291,14 +290,6 @@ Vector<Instruction*>* Function::digestRecursive(){
 
         currentInstruction = new Instruction(this, currentAddress,
                                              textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0);
-        for (uint32_t i = 0; i < currentInstruction->getSizeInBytes(); i++){
-            inst = bsearch(&currentAddress+i,&(*allInstructions),(*allInstructions).size(),sizeof(Instruction*),searchBaseAddress);
-            if (inst){
-                Instruction* tgtInstruction = *(Instruction**)inst;
-                ASSERT(tgtInstruction->getBaseAddress() == currentAddress && "Problem in disassembly -- found instruction that enters the middle of another instruction");
-                continue;
-            }
-        }
 
         PRINT_DEBUG_CFG("recursive cfg: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());
         uint64_t checkAddr = currentInstruction->getBaseAddress();
