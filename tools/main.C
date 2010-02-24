@@ -5,6 +5,8 @@
 #include <FunctionCounter.h>
 #include <Vector.h>
 
+#define DEFAULT_FUNC_BLACKLIST "scripts/exclusion/system.func"
+
 void printBriefOptions(){
     fprintf(stderr,"\n");
     fprintf(stderr,"Brief Descriptions for Options:\n");
@@ -42,6 +44,8 @@ void printBriefOptions(){
     fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
     fprintf(stderr,"\t        default is $PEBIL_LIB\n");
     fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions\n");
+    fprintf(stderr,"\t        default is %s\n", DEFAULT_FUNC_BLACKLIST);
+    fprintf(stderr,"\t--ibl : optional for all. input file which lists blacklisted files\n");
     fprintf(stderr,"\t        by default this is off\n");
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
@@ -67,6 +71,7 @@ void printUsage(bool shouldExt=true) {
     fprintf(stderr,"\t[--ext <output_suffix>]\n");
     fprintf(stderr,"\t[--dtl]\n");
     fprintf(stderr,"\t[--fbl]\n");
+    fprintf(stderr,"\t[--ibl]\n");
     fprintf(stderr,"\t[--lpi]                     <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--phs <phase_no>]          <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--help]\n");
@@ -166,6 +171,7 @@ int main(int argc,char* argv[]){
     uint32_t printCodes = 0x00000000;
     char* rawPrintCodes = NULL;
     char* inputFuncList = NULL;
+    char* inputFileList = NULL;
     bool deleteInpList  = false;
     char*    execName   = NULL;
 
@@ -282,6 +288,11 @@ int main(int argc,char* argv[]){
                 printUsage(true);
             }
             inputFuncList = argv[++i];
+        } else if (!strcmp(argv[i],"--ibl")){
+            if (inputFileList){
+                printUsage(true);
+            }
+            inputFileList = argv[++i];
         } else {
             fprintf(stderr,"\nError : Unknown switch at %s\n\n",argv[i]);
             printUsage();
@@ -319,9 +330,13 @@ int main(int argc,char* argv[]){
             PRINT_ERROR("Set the PEBIL_ROOT variable"); 
         }
         inputFuncList = new char[__MAX_STRING_SIZE];
-        sprintf(inputFuncList, "%s/%s", pebilRoot, "scripts/exclusion/system.func");
+        sprintf(inputFuncList, "%s/%s", pebilRoot, DEFAULT_FUNC_BLACKLIST);
     }
     PRINT_INFOR("The function blacklist is taken from %s", inputFuncList);
+
+    if (inputFileList){
+        PRINT_INFOR("The file blacklist is taken from %s", inputFileList);
+    }
 
     if (dryRun){
         PRINT_INFOR("--dry option was used, exiting...");
@@ -360,11 +375,11 @@ int main(int argc,char* argv[]){
     if (instType == identical_inst_type){
         elfFile.dump(extension);
     } else if (instType == function_counter_type){
-        elfInst = new FunctionCounter(&elfFile, inputFuncList);
+        elfInst = new FunctionCounter(&elfFile, inputFuncList, inputFileList);
     } else if (instType == frequency_inst_type){
-        elfInst = new BasicBlockCounter(&elfFile, inputFuncList);
+        elfInst = new BasicBlockCounter(&elfFile, inputFuncList, inputFileList);
     } else if (instType == simulation_inst_type){
-        elfInst = new CacheSimulation(&elfFile, inputFuncList);
+        elfInst = new CacheSimulation(&elfFile, inputFuncList, inputFileList);
     }
     else {
         PRINT_ERROR("Error : invalid instrumentation type");

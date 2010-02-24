@@ -10,6 +10,7 @@ int main(int argc,char* argv[]){
     char*    libPath    = NULL;
     int32_t  phaseNo    = 0;
     char* inputFuncList = NULL;
+    char* inputFileList = NULL;
     bool deleteInpList  = false;
     char*    execName   = NULL;
 
@@ -55,7 +56,7 @@ int main(int argc,char* argv[]){
 
     ElfFileInst* elfInst = NULL;
 
-    elfInst = new FunctionTimer(&elfFile, inputFuncList);
+    elfInst = new FunctionTimer(&elfFile, inputFuncList, inputFileList);
 
     if (elfInst){
         elfInst->setPathToInstLib(libPath);

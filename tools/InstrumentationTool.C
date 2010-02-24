@@ -7,8 +7,8 @@
 #include <Loop.h>
 #include <TextSection.h>
 
-InstrumentationTool::InstrumentationTool(ElfFile* elf, char* inputFuncList)
-    : ElfFileInst(elf, inputFuncList)
+InstrumentationTool::InstrumentationTool(ElfFile* elf, char* inputFuncList, char* inputFileList)
+    : ElfFileInst(elf, inputFuncList, inputFileList)
 {
 }
 

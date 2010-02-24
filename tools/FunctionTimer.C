@@ -13,8 +13,8 @@
 #define INST_LIB_NAME "libtimer.so"
 #define INST_SUFFIX "ftminst"
 
-FunctionTimer::FunctionTimer(ElfFile* elf, char* inputFuncList)
-    : InstrumentationTool(elf, inputFuncList)
+FunctionTimer::FunctionTimer(ElfFile* elf, char* inputFuncList, char* inputFileList)
+    : InstrumentationTool(elf, inputFuncList, inputFileList)
 {
     instSuffix = new char[__MAX_STRING_SIZE];
     sprintf(instSuffix,"%s\0", INST_SUFFIX);

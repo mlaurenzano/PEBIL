@@ -16,8 +16,8 @@
 #define BUFFER_ENTRIES 0x00010000
 #define Size__BufferEntry 16
 
-CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFuncList)
-    : InstrumentationTool(elf, inputFuncList)
+CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFuncList, char* inputFileList)
+    : InstrumentationTool(elf, inputFuncList, inputFileList)
 {
     instSuffix = new char[__MAX_STRING_SIZE];
     sprintf(instSuffix,"%s\0", INST_SUFFIX);

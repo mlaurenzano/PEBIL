@@ -32,14 +32,14 @@
 #define INSTTEXT_PADDING 0x4000
 
 // some common macros to help debug instrumentation
-//#define RELOC_MOD_OFF 0
-//#define RELOC_MOD 32
+//#define RELOC_MOD_OFF 3
+//#define RELOC_MOD 2
 //#define TURNOFF_FUNCTION_RELOCATION
-//#define BLOAT_MOD_OFF 3
-//#define BLOAT_MOD     2
+#define BLOAT_MOD_OFF 3
+#define BLOAT_MOD     2
 //#define TURNOFF_FUNCTION_BLOAT
-//#define SWAP_MOD_OFF 3
-//#define SWAP_MOD     2
+#define SWAP_MOD_OFF 3
+#define SWAP_MOD     2
 //#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
@@ -303,9 +303,38 @@ void ElfFileInst::initializeDisabledFunctions(char* inputFuncList){
     fclose(inFile);
 }
 
+void ElfFileInst::initializeDisabledFiles(char* inputFileList){
+    ASSERT(!disabledFiles.size());
+    
+    FILE* inFile = NULL;
+    inFile = fopen(inputFileList, "r");
+    if(!inFile){
+        PRINT_ERROR("Input file can not be opened [%s]", inputFileList);
+    }
+
+    char* inBuffer = new char[__MAX_STRING_SIZE];
+    while (fgets(inBuffer, __MAX_STRING_SIZE, inFile) != NULL) {
+        char* line = new char[strlen(inBuffer)+1];
+        sprintf(line, "%s", inBuffer);
+        line[strlen(inBuffer)-1] = '\0';
+        disabledFiles.append(line);
+    }
+    delete[] inBuffer;
+    fclose(inFile);
+}
+
 bool ElfFileInst::isDisabledFunction(Function* func){
     for (uint32_t i = 0; i < disabledFunctions.size(); i++){
         if (!strcmp(func->getName(), disabledFunctions[i])){
+            return true;
+        }
+    }
+    return false;
+}
+
+bool ElfFileInst::isDisabledFile(char* file){
+    for (uint32_t i = 0; i < disabledFiles.size(); i++){
+        if (!strcmp(file, disabledFiles[i])){
             return true;
         }
     }
@@ -329,6 +358,13 @@ uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, vo
 }
 
 bool ElfFileInst::isEligibleFunction(Function* func){
+    if (!strcmp("_start", func->getName())){
+        return true;
+    }
+    if (!strcmp("_dl_aux_init", func->getName())){
+        return true;
+    }
+
     if (!canRelocateFunction(func)){
         return false;
     }
@@ -344,6 +380,26 @@ bool ElfFileInst::isEligibleFunction(Function* func){
     if (func->getNumberOfBytes() < Size__uncond_jump){
         return false;
     }
+
+    bool allBlocksBad = true;
+    FlowGraph* fg = func->getFlowGraph();
+    for (uint32_t i = 0; i < fg->getNumberOfBasicBlocks(); i++){
+        BasicBlock* bb = fg->getBasicBlock(i);
+        LineInfo* li = lineInfoFinder->lookupLineInfo(bb);
+        if (li){
+            if (!isDisabledFile(li->getFileName())){
+                allBlocksBad = false;
+                break;
+            }
+        } else {
+            allBlocksBad = false;
+            break;
+        }
+    }
+    if (allBlocksBad){
+        return false;
+    }
+
     return true;
 }
 
@@ -847,10 +903,6 @@ void ElfFileInst::generateInstrumentation(){
     PRINT_INFOR("starting on %d inst points", (*instrumentationPoints).size());
 
     for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
-        if (i % 1000 == 0){
-            PRINT_INFOR("Processing instrumentation point %d of %d", i, (*instrumentationPoints).size());
-        }
-
         InstrumentationPoint* pt = (*instrumentationPoints)[i];
         if (!pt){
             PRINT_ERROR("Instrumentation point %d should exist", i);
@@ -1151,11 +1203,6 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
 
     for (uint32_t i = 0; i < numberOfFunctions; i++){
         Function* func = exposedFunctions[i];
-
-        if (i % 100 == 0){
-            PRINT_INFOR("Relocating function %d of %d", i, numberOfFunctions);
-        }
-
         if (!isEligibleFunction(func)){
             func->print();
             __SHOULD_NOT_ARRIVE;
@@ -1165,6 +1212,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
             !strcmp(func->getName(),"_dl_aux_init")){
             PRINT_INFOR("relocating function (%d) %s", i, func->getName());
 #endif
+            PRINT_INFOR("relocating function (%d) %s", i, func->getName());
             
         ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
         codeOffset += relocateAndBloatFunction(func, codeOffset);
@@ -1227,10 +1275,6 @@ void ElfFileInst::functionSelect(){
 
             numberOfBytes += f->getSizeInBytes();
 
-            if (!f->isDisasmFail() && isEligibleFunction(f)){
-                numberOfBytesReloc += f->getSizeInBytes();
-            }
-
             if (f->hasCompleteDisassembly() && isEligibleFunction(f)){
                 PRINT_DEBUG_FUNC_RELOC("\texposed: %s", f->getName());
                 exposedFunctions.append(f);
@@ -1280,7 +1324,6 @@ void ElfFileInst::phasedInstrumentation(){
     extendDataSection();
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
-    PRINT_INFOR("Beginning to anchor");
     anchorProgramElements();
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
@@ -1288,12 +1331,10 @@ void ElfFileInst::phasedInstrumentation(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
-    PRINT_INFOR("Begin declare");
     declare();
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
-    PRINT_INFOR("Begin function select");
     functionSelect();
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
@@ -1316,7 +1357,6 @@ void ElfFileInst::phasedInstrumentation(){
     currentPhase++;
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
-    PRINT_INFOR("Begin instrument");
     instrument();
     patchProgramContents();
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
@@ -1324,11 +1364,9 @@ void ElfFileInst::phasedInstrumentation(){
     (*instrumentationPoints).sort(compareInstAddress);
     verify();
 
-    PRINT_INFOR("begin relocate");
     // save space at the beginning of text for phdr table
     relocatedTextSize = elfFile->getFileHeader()->GET(e_phentsize) * elfFile->getFileHeader()->GET(e_phnum);
     relocatedTextSize += functionRelocateAndTransform(relocatedTextSize);
-    PRINT_INFOR("end relocate");
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
@@ -1342,7 +1380,6 @@ void ElfFileInst::phasedInstrumentation(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
-    PRINT_INFOR("begin geninst");
     generateInstrumentation();
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
@@ -1796,7 +1833,7 @@ void ElfFileInst::print(uint32_t printCodes){
 }
 
 
-ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
+ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList, char* inputFileList){
     currentPhase = ElfInstPhase_no_phase;
     elfFile = elf;
 
@@ -1829,6 +1866,9 @@ ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList){
 
     if (inputFuncList){
         initializeDisabledFunctions(inputFuncList);
+    }
+    if (inputFileList){
+        initializeDisabledFiles(inputFileList);
     }
 
     programEntryBlock = getTextSection()->getBasicBlockAtAddress(elfFile->getFileHeader()->GET(e_entry));

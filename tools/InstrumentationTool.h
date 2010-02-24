@@ -10,7 +10,7 @@ protected:
     void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos);
 
 public:
-    InstrumentationTool(ElfFile* elf, char* inputFuncList);
+    InstrumentationTool(ElfFile* elf, char* inputFuncList, char* inputFileList);
     ~InstrumentationTool() {}
 
     virtual void declare() { __SHOULD_NOT_ARRIVE; }

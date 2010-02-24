@@ -90,6 +90,7 @@ private:
     uint32_t expandHashTable();
 
     void initializeDisabledFunctions(char* inputFuncList);
+    void initializeDisabledFiles(char* inputFuncList);
 
 protected:
     Vector<Function*> exposedFunctions;
@@ -97,6 +98,7 @@ protected:
     Vector<Instruction*> exposedInstructions;
     Vector<Instruction*> exposedMemOps;
     Vector<char*> disabledFunctions;
+    Vector<char*> disabledFiles;
 
     uint32_t currentPhase;
 
@@ -123,7 +125,7 @@ protected:
     bool is64Bit() { return elfFile->is64Bit(); }
 
     bool isDisabledFunction(Function* func);
-
+    bool isDisabledFile(char* file);
 
     uint32_t getNumberOfExposedFunctions() { return exposedFunctions.size(); }
     Function* getExposedFunction(uint32_t idx) { return exposedFunctions[idx]; }
@@ -137,7 +139,7 @@ protected:
     BasicBlock* getProgramExitBlock();
 
 public:
-    ElfFileInst(ElfFile* elf, char* inputFileList);
+    ElfFileInst(ElfFile* elf, char* inputFuncList, char* inputFileList);
     ~ElfFileInst();
     ElfFile* getElfFile() { return elfFile; }
     uint64_t getRegStorageOffset() { return regStorageOffset; }
