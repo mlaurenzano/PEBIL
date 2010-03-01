@@ -32,14 +32,14 @@
 #define INSTTEXT_PADDING 0x4000
 
 // some common macros to help debug instrumentation
-#define RELOC_MOD_OFF 3
-#define RELOC_MOD 2
+//#define RELOC_MOD_OFF 3
+//#define RELOC_MOD 2
 //#define TURNOFF_FUNCTION_RELOCATION
-#define BLOAT_MOD_OFF 3
-#define BLOAT_MOD     2
+//#define BLOAT_MOD_OFF 3
+//#define BLOAT_MOD     2
 //#define TURNOFF_FUNCTION_BLOAT
-#define SWAP_MOD_OFF 3
-#define SWAP_MOD     2
+//#define SWAP_MOD_OFF 3
+//#define SWAP_MOD     2
 //#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
@@ -67,12 +67,10 @@ void ElfFileInst::patchProgramContents(){
             }
         }    
         ASSERT(phdrBaseSymbol && "Static linked binaries should contain phdr symbol");
-        phdrBaseSymbol->print();
 
         Vector<Instruction*> needPhdrPatch = Vector<Instruction*>();
         uint64_t phdrSymbolAddress = phdrBaseSymbol->GET(st_value);
 
-        PRINT_INFOR("Looking for phdr at %#llx", phdrSymbolAddress);
         for (uint32_t i = 0; i < exposedMemOps.size(); i++){
             ASSERT(exposedMemOps[i]->getMemoryOperand());
             Operand* memOperand = exposedMemOps[i]->getMemoryOperand();
@@ -91,10 +89,7 @@ void ElfFileInst::patchProgramContents(){
             }
         }
         ASSERT(needPhdrPatch.size() == 1);
-        PRINT_INFOR("needs patches %d", needPhdrPatch.size());
-        for (uint32_t i = 0 ; i < needPhdrPatch.size(); i++){
-            needPhdrPatch[i]->print();
-        }
+        PRINT_WARN(10, "Patching instruction w/ reference to _dl_phdr at %#llx", needPhdrPatch[0]->getProgramAddress());
 
         InstrumentationSnippet* snip = new InstrumentationSnippet();
         ASSERT(needPhdrPatch[0]->getOperand(1));
@@ -857,7 +852,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
 #ifdef VALIDATE_ANCHOR_SEARCH
     PRINT_INFOR("Validating anchor search, this can cause much longer instrumentation times, see VALIDATE_ANCHOR_SEARCH in %s", __FILE__);
 #else
-    PRINT_INFOR("Not validating anchor search, if problems are encountered try enabling VALIDATE_ANCHOR_SEARCH in %s", __FILE__);
+    PRINT_WARN(10, "Not validating anchor search, if problems are encountered try enabling VALIDATE_ANCHOR_SEARCH in %s", __FILE__);
 #endif
 
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
@@ -1117,6 +1112,8 @@ uint32_t ElfFileInst::generateInstrumentation(){
         }
     }
 
+    PRINT_OUT("\n");
+        
     for (uint32_t i = INST_SNIPPET_BOOTSTRAP_END + 1; i < instrumentationSnippets.size(); i++){        
         snip = instrumentationSnippets[i];
         if (snip){
@@ -1339,7 +1336,7 @@ void ElfFileInst::functionSelect(){
         }
     }
 
-    PRINT_INFOR("Disassembly Coverage (bytes):\t%d/%d (%.2f%)", numberOfBytesReloc, numberOfBytes, ((float)((float)numberOfBytesReloc*100)/((float)numberOfBytes)));
+    //    PRINT_INFOR("Disassembly Coverage (bytes):\t%d/%d (%.2f%)", numberOfBytesReloc, numberOfBytes, ((float)((float)numberOfBytesReloc*100)/((float)numberOfBytes)));
 }
 
 
@@ -1424,7 +1421,7 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
     uint32_t textSize = generateInstrumentation();
-    compressSegments(textSize);
+    //    compressSegments(textSize);
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");

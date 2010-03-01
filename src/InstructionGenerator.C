@@ -1242,7 +1242,6 @@ Instruction* InstructionGenerator::generateCallRelative(uint64_t addr, uint64_t 
     uint64_t imm = tgt - addr - len;
     uint32_t imm32 = (uint32_t)imm;
 
-    PRINT_INFOR("addr %#llx, tgt %#llx", addr, tgt);
     ASSERT(addr == (uint32_t)addr && "Cannot use more than 32 bits for address");
     ASSERT(tgt == (uint32_t)tgt && "Cannot use more than 32 bits for target");
     memcpy(buff+1,&imm32,sizeof(uint32_t));

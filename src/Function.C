@@ -140,8 +140,6 @@ bool Function::refersToInstruction(){
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         if (allInstructions[i]->getAddressAnchor() && !allInstructions[i]->isControl()){
             if (allInstructions[i]->getAddressAnchor()->getLink()->getType() == PebilClassType_Instruction){
-                PRINT_INFOR("Found i->i connection in function (%d) %s", getIndex(), getName());
-                allInstructions[i]->print();
                 delete[] allInstructions;
                 return true;
             }

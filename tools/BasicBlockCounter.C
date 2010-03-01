@@ -68,7 +68,7 @@ void BasicBlockCounter::instrument(){
     uint64_t counterArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(uint32_t));
 
     exitFunc->addArgument(counterArray);
-    exitFunc->addArgument(funcNameArray);
+    exitFunc->addArgument(appName);
     exitFunc->addArgument(instExt);
 
     InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp);
@@ -153,7 +153,7 @@ void BasicBlockCounter::instrument(){
 
         // snippet contents, in this case just increment a counter
         if (is64Bit()){
-            //            snip->addSnippetInstruction(InstructionGenerator64::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+            snip->addSnippetInstruction(InstructionGenerator64::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         } else {
             snip->addSnippetInstruction(InstructionGenerator32::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         }
@@ -164,7 +164,7 @@ void BasicBlockCounter::instrument(){
         addInstrumentationSnippet(snip);            
         
         // register an instrumentation point at the function that uses this snippet
-        //        InstrumentationPoint* p = addInstrumentationPoint(bb, snip, InstrumentationMode_inline, FlagsProtectionMethod_light);
+        InstrumentationPoint* p = addInstrumentationPoint(bb, snip, InstrumentationMode_inline, FlagsProtectionMethod_light);
     }
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
