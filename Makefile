@@ -2,7 +2,7 @@
 DOXYGEN = doxygen
 
 SUBDIRS = instcode testapps src tools
-DISTDIR = PEBIL-1.0.`svnversion -n`
+DISTDIR = PEBIL-0.1.`svnversion -n`
 
 .PHONY: subdirs $(SUBDIRS)
 
