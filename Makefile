@@ -1,7 +1,8 @@
 ## change the following variables to fit your system:
 DOXYGEN = doxygen
 
-SUBDIRS = linker instcode testapps src tools
+SUBDIRS = instcode testapps src tools
+DISTDIR = PEBIL-1.0.3064
 
 .PHONY: subdirs $(SUBDIRS)
 
@@ -31,6 +32,11 @@ depend:
 	$(MAKE) -C testapps depend
 	$(MAKE) -C instcode depend
 
-
-
+dist: clean
+	mkdir $(DISTDIR)
+	cp -r testapps src tools external bin docs include lib instcode COPYING INSTALL Makefile $(DISTDIR)
+	rm -rf $(DISTDIR)/.svn $(DISTDIR)/*/.svn $(DISTDIR)/*/*/.svn $(DISTDIR)/*/*/*/.svn $(DISTDIR)/*/*/*/*/.svn
+	rm -rf $(DISTDIR)/testapps/compiled/32bit/* $(DISTDIR)/testapps/compiled/64bit/* $(DISTDIR)/testapps/bit
+	tar czf $(DISTDIR).tgz $(DISTDIR)
+	rm -rf $(DISTDIR)
 

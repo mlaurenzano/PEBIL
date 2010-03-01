@@ -84,7 +84,7 @@ public:
 
     ByteSources getByteSource();
     void setByteSource(ByteSources src) { source = src; }
-
+    uint32_t setSizeInBytes(uint32_t sz) { sizeInBytes = sz; }
     uint32_t readNoFile();
     uint32_t getIndex() { return index; }
     uint32_t disassemble();

@@ -1,3 +1,12 @@
+stdio2.h
+alps_utils.c
+daemon.c
+era.c
+mmap.c
+_pmi_get_pes_on_smp.c
+pmi_get_pes_on_smp.c
+_pmi_get_numpes_on_smp.c
+pmi_get_numpes_on_smp.c
 api-wrap.c
 types.h
 api-ni.c

@@ -40,6 +40,8 @@ public:
     CodeBlock(uint32_t idx, FlowGraph* cfg);
     ~CodeBlock();
 
+    uint32_t addTailJump(Instruction* tgtInstruction);
+
     Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
     void printInstructions();
     void setBaseAddress(uint64_t newBaseAddress);
@@ -93,9 +95,7 @@ protected:
     BasicBlock* immDominatedBy;
 
     HashCode hashCode;
-
     //    MemoryOperation** memoryOps;
-
     uint32_t flags;
 public:
     BasicBlock(uint32_t idx, FlowGraph* cfg);

@@ -93,6 +93,7 @@ private:
     void initializeDisabledFiles(char* inputFuncList);
 
 protected:
+    Vector<Function*> allFunctions;
     Vector<Function*> exposedFunctions;
     Vector<BasicBlock*> exposedBasicBlocks;
     Vector<Instruction*> exposedInstructions;
@@ -119,7 +120,8 @@ protected:
     void allocateInstrumentationText(uint64_t size);
     void extendDataSection();
     void buildInstrumentationSections();
-    void generateInstrumentation();
+    uint32_t generateInstrumentation();
+    void compressSegments(uint32_t textSize);
     uint32_t relocateAndBloatFunction(Function* functionToRelocate, uint64_t offsetToRelocation);
     bool isEligibleFunction(Function* func);
     bool is64Bit() { return elfFile->is64Bit(); }

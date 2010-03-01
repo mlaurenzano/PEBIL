@@ -52,17 +52,6 @@ void BasicBlockCounter::instrument(){
         PRINT_ERROR("This executable does not have any line information");
     }
 
-    // the number blocks in the code
-    uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
-
-    // an array of counters. note that everything is passed by reference
-    uint64_t counterArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(uint32_t));
-
-    temp32 = 0;
-    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
-        initializeReservedData(getInstDataAddress() + counterArray + i*sizeof(uint32_t), sizeof(uint32_t), &temp32);
-    }
-
     uint64_t lineArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(uint32_t));
     uint64_t fileNameArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(char*));
     uint64_t funcNameArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(char*));
@@ -72,14 +61,25 @@ void BasicBlockCounter::instrument(){
     uint64_t instExt = reserveDataOffset((strlen(getInstSuffix()) + 1) * sizeof(char));
     initializeReservedData(getInstDataAddress() + instExt, strlen(getInstSuffix()) + 1, getInstSuffix());
 
+    // the number blocks in the code
+    uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
+
+    // an array of counters. note that everything is passed by reference
+    uint64_t counterArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(uint32_t));
+
     exitFunc->addArgument(counterArray);
-    exitFunc->addArgument(appName);
+    exitFunc->addArgument(funcNameArray);
     exitFunc->addArgument(instExt);
 
     InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp);
     ASSERT(p);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
+    }
+
+    temp32 = 0;
+    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+        initializeReservedData(getInstDataAddress() + counterArray + i*sizeof(uint32_t), sizeof(uint32_t), &temp32);
     }
 
     // the number of inst points
@@ -153,7 +153,7 @@ void BasicBlockCounter::instrument(){
 
         // snippet contents, in this case just increment a counter
         if (is64Bit()){
-            snip->addSnippetInstruction(InstructionGenerator64::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+            //            snip->addSnippetInstruction(InstructionGenerator64::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         } else {
             snip->addSnippetInstruction(InstructionGenerator32::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         }
@@ -174,6 +174,5 @@ void BasicBlockCounter::instrument(){
     delete allBlocks;
     delete allLineInfos;
 
-    PRINT_INFOR("leaving instrument");
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }

@@ -87,7 +87,7 @@ void DataReference::print(){
     if (rawSection){
         sidx = rawSection->getSectionIndex();
     }
-    PRINT_INFOR("DATAREF: Offset %#llx in section %d -- %#llx", sectionOffset, sidx, data);
+    PRINT_INFOR("DATAREF %#llx: Offset %#llx in section %d -- %#llx", getBaseAddress(), sectionOffset, sidx, data);
 }
 
 DataSection::~DataSection(){
@@ -190,7 +190,6 @@ void DataSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(rawBytes);
 
     binaryOutputFile->copyBytes(charStream(), getSizeInBytes(), offset);
-
     for (uint32_t i = 0; i < dataReferences.size(); i++){
         dataReferences[i]->dump(binaryOutputFile,offset);
     }

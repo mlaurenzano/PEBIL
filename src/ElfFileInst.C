@@ -24,16 +24,16 @@
 #define TEXT_EXTENSION_FUNC (nextAlignAddress(0x10000 + (0x1c0 * numberOfBasicBlocks), 0x4000))
 #define TEXT_EXTENSION_INC  0x4000
 #define DATA_EXTENSION_INC  0x4000
-#define INSTTEXT_BASE_ADDR  0x1000000
+#define INSTTEXT_BASE_ADDR  0x10000000
 #define INSTDATA_BASE_ADDR  0x6000000
 #define DEFAULT_SEGMENT_INCLUSION_TEXT 2
 #define DEFAULT_SEGMENT_INCLUSION_DATA (DEFAULT_SEGMENT_INCLUSION_TEXT + 1)
-#define DEFAULT_SEGMENT_SIZE 0x5000000
+#define TEMP_SEGMENT_SIZE 0x5000000
 #define INSTTEXT_PADDING 0x4000
 
 // some common macros to help debug instrumentation
-//#define RELOC_MOD_OFF 3
-//#define RELOC_MOD 2
+#define RELOC_MOD_OFF 3
+#define RELOC_MOD 2
 //#define TURNOFF_FUNCTION_RELOCATION
 #define BLOAT_MOD_OFF 3
 #define BLOAT_MOD     2
@@ -117,6 +117,31 @@ BasicBlock* ElfFileInst::getProgramExitBlock(){
     return ((Function*)fini->getTextObject(0))->getFlowGraph()->getBasicBlock(0);
 }
 
+void ElfFileInst::compressSegments(uint32_t textSize){
+    SectionHeader* textSHeader = getInstTextSection()->getSectionHeader();
+    SectionHeader* dataSHeader = getInstDataSection()->getSectionHeader();
+
+   ProgramHeader* phdrTable = elfFile->getProgramHeaderPHDR();
+    uint32_t ptableSize = 0;
+    if (phdrTable){
+        ptableSize = phdrTable->GET(p_memsz);
+    }
+
+    textSHeader->SET(sh_size, textSize);
+    getInstTextSection()->setSizeInBytes(textSize);
+    instTextSegment->SET(p_memsz, textSize + ptableSize);
+    instTextSegment->SET(p_filesz, textSize + ptableSize);
+
+    dataSHeader->SET(sh_addr, INSTDATA_BASE_ADDR);
+    dataSHeader->SET(sh_offset, nextAlignAddress(textSHeader->GET(sh_offset) + textSHeader->GET(sh_size), instDataSegment->GET(p_align)));
+    dataSHeader->SET(sh_size, instrumentationDataSize);
+    instDataSegment->SET(p_paddr, dataSHeader->GET(sh_addr));
+    instDataSegment->SET(p_vaddr, dataSHeader->GET(sh_addr));
+    instDataSegment->SET(p_offset, dataSHeader->GET(sh_offset));
+
+    verify();
+}
+
 void ElfFileInst::extendDataSection(){
     if (instrumentationDataSize){
         char* tmpData = new char[instrumentationDataSize + DATA_EXTENSION_INC];
@@ -143,9 +168,6 @@ void ElfFileInst::extendDataSection(){
         elfFile->getSectionHeader(extraDataIdx)->SET(sh_addr, INSTDATA_BASE_ADDR);
         
         ASSERT(elfFile->getRawSection(extraDataIdx)->getType() == PebilClassType_DataSection);
-    }
-    for (uint32_t i = 0; i < DATA_EXTENSION_INC; i++){
-        //        instrumentationData[instrumentationDataSize + i] = i % 0x100;
     }
 
     instrumentationDataSize += DATA_EXTENSION_INC;
@@ -232,7 +254,7 @@ void ElfFileInst::allocateInstrumentationText(uint64_t size){
 
     ProgramHeader* tHdr = elfFile->getProgramHeader(elfFile->getTextSegmentIdx());
     instTextSegment = elfFile->addSegment(DEFAULT_SEGMENT_INCLUSION_TEXT, tHdr->GET(p_type), textSegOffset, INSTTEXT_BASE_ADDR + textSegOffset,
-                        INSTTEXT_BASE_ADDR + textSegOffset, DEFAULT_SEGMENT_SIZE, DEFAULT_SEGMENT_SIZE, tHdr->GET(p_flags), tHdr->GET(p_align));
+                        INSTTEXT_BASE_ADDR + textSegOffset, TEMP_SEGMENT_SIZE, TEMP_SEGMENT_SIZE, tHdr->GET(p_flags), tHdr->GET(p_align));
 
     // if any sections fall after the program header table, update their offset to give room for the new entry
     uint32_t extraSize = elfFile->getFileHeader()->GET(e_phentsize);
@@ -773,6 +795,19 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
     uint64_t oldBase = displacedFunction->getBaseAddress();
     uint64_t oldSize = displacedFunction->getSizeInBytes();
 
+    if (displacedFunction->getIndex() < allFunctions.size() - 1){
+        Function* nextFunc = allFunctions[displacedFunction->getIndex() + 1];
+        Instruction* firstI = nextFunc->getFlowGraph()->getBasicBlock(0)->getInstruction(0);
+        Instruction* safetyJump;
+        if (elfFile->is64Bit()){
+            safetyJump = InstructionGenerator64::generateJumpRelative(0,0);
+        } else {
+            safetyJump = InstructionGenerator64::generateJumpRelative(0,0);
+        }
+        safetyJump->initializeAnchor(firstI);
+        displacedFunction->addSafetyJump(safetyJump);
+    }
+
     // adjust the base addresses of the relocated function
     displacedFunction->setBaseAddress(relocationAddress);
 
@@ -818,7 +853,7 @@ BasicBlock* ElfFileInst::getProgramEntryBlock(){
 }
 
 // the order of operations in this function in very important, things will break if they are changed
-void ElfFileInst::generateInstrumentation(){
+uint32_t ElfFileInst::generateInstrumentation(){
 #ifdef VALIDATE_ANCHOR_SEARCH
     PRINT_INFOR("Validating anchor search, this can cause much longer instrumentation times, see VALIDATE_ANCHOR_SEARCH in %s", __FILE__);
 #else
@@ -900,7 +935,8 @@ void ElfFileInst::generateInstrumentation(){
 
     (*instrumentationPoints).sort(compareInstAddress);
 
-    PRINT_INFOR("starting on %d inst points", (*instrumentationPoints).size());
+    PRINT_INFO();
+    PRINT_OUT("Processing %d instrumentation points", (*instrumentationPoints).size());
 
     for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
         InstrumentationPoint* pt = (*instrumentationPoints)[i];
@@ -910,7 +946,7 @@ void ElfFileInst::generateInstrumentation(){
 #ifdef TURNOFF_INSTRUCTION_SWAP
         break;
 #endif
-
+        PRINT_PROGRESS(i, (*instrumentationPoints).size(), 40);
         bool performSwap = true;
 
 #ifdef SWAP_MOD
@@ -1119,6 +1155,8 @@ void ElfFileInst::generateInstrumentation(){
     }
     PRINT_DEBUG_ANCHOR("Still have %d anchors", addressAnchors.size());
 
+    return codeOffset;
+
 }
 
 
@@ -1201,6 +1239,9 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     PRINT_WARN(10,"Instruction swapping has been disabled by the macro TURNOFF_INSTRUCTION_SWAP");
 #endif
 
+    PRINT_INFO();
+    PRINT_OUT("Relocating %d functions", numberOfFunctions);
+    
     for (uint32_t i = 0; i < numberOfFunctions; i++){
         Function* func = exposedFunctions[i];
         if (!isEligibleFunction(func)){
@@ -1212,8 +1253,8 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
             !strcmp(func->getName(),"_dl_aux_init")){
             PRINT_INFOR("relocating function (%d) %s", i, func->getName());
 #endif
-            PRINT_INFOR("relocating function (%d) %s", i, func->getName());
-            
+        PRINT_PROGRESS(i, numberOfFunctions, 40);
+    
         ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
         codeOffset += relocateAndBloatFunction(func, codeOffset);
         func->setRelocated();
@@ -1221,6 +1262,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
         }
 #endif
     }
+    PRINT_OUT("\n");
 
     // update address anchors modified by the tranformation (things anchored to the
     // instructions at the front of blocks)
@@ -1272,6 +1314,7 @@ void ElfFileInst::functionSelect(){
     for (uint32_t i = 0; i < textObjects.size(); i++){
         if (textObjects[i]->isFunction()){
             Function* f = (Function*)textObjects[i];
+            allFunctions.append(f);
 
             numberOfBytes += f->getSizeInBytes();
 
@@ -1320,7 +1363,7 @@ void ElfFileInst::phasedInstrumentation(){
         getTextSection()->getNumberOfBasicBlocks() + getFiniSection()->getNumberOfBasicBlocks();
 
     extendTextSection(TEXT_EXTENSION_INC); // creates space for extra elf control info (symbols, dynamic table entries, hash entries, etc)
-    allocateInstrumentationText(DEFAULT_SEGMENT_SIZE);
+    allocateInstrumentationText(TEMP_SEGMENT_SIZE);
     extendDataSection();
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
@@ -1380,7 +1423,8 @@ void ElfFileInst::phasedInstrumentation(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
-    generateInstrumentation();
+    uint32_t textSize = generateInstrumentation();
+    compressSegments(textSize);
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");

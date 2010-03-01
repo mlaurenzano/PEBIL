@@ -35,6 +35,12 @@ void BasicBlock::findCompareAndCBranch(){
     return;
 }
 
+uint32_t CodeBlock::addTailJump(Instruction* tgtInstruction){
+    instructions.append(tgtInstruction);
+    byteCountUpdate = true;
+    return getNumberOfBytes();
+}
+
 uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
     PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx", baseAddress);
 

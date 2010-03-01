@@ -582,6 +582,9 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     uint64_t wrapperTargetOffset = 0;
     if (isStaticLinked()){
         wrapperTargetOffset = functionEntry - textBaseAddress;
+        if (textBaseAddress > functionEntry){
+            wrapperTargetOffset = (uint32_t)wrapperTargetOffset;
+        }
     } else {
         wrapperTargetOffset = procedureLinkOffset;
     }

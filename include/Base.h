@@ -73,6 +73,9 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define PRINT_OUT(...) fprintf(stdout,## __VA_ARGS__); \
     fflush(stdout);
 
+#define PRINT_PROGRESS(__inc, __tot, __break) \
+    if (__inc % ((__tot > __break) ? (__tot / __break) : 1) == 0){ fprintf(stdout, "."); fflush(stdout); }
+
 
 #define MINIMUM(I,J) ((I) < (J) ? : (I) : (J))
 

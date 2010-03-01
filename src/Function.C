@@ -71,6 +71,17 @@ uint32_t Function::bloatBasicBlocks(Vector<InstrumentationPoint*>* instPoints){
     return sizeInBytes;
 }
 
+uint32_t Function::addSafetyJump(Instruction* tgtInstruction){
+    Block* block = flowGraph->getBasicBlock(flowGraph->getNumberOfBasicBlocks() - 1);
+    if (block->getType() == PebilClassType_BasicBlock){
+        CodeBlock* cb = ((CodeBlock*)block);
+        sizeInBytes -= cb->getNumberOfBytes();
+        sizeInBytes += cb->addTailJump(tgtInstruction);
+    } else {
+        PRINT_ERROR("End of function %s isn't basic block", getName());
+    }
+}
+
 bool Function::hasCompleteDisassembly(){
     // if something happened during disassembly that we dont understand
     if (getBadInstruction()){
@@ -93,11 +104,15 @@ bool Function::hasCompleteDisassembly(){
         return false;
     }
 
+    if (refersToInstruction()){
+    }
     
+    /*
     // if this function does not contain a return instruction
     if (!containsReturn()){
         return false;
     }
+    */
 
     // if this function calls __i686.get_pc_thunk.bx
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
@@ -118,6 +133,24 @@ bool Function::callsSelf(){
     return containsCallToRange(baseAddress + 1, baseAddress + getNumberOfBytes());
 }
 
+bool Function::refersToInstruction(){
+    uint32_t numberOfInstructions = getNumberOfInstructions();
+    Instruction** allInstructions = new Instruction*[numberOfInstructions];
+    getAllInstructions(allInstructions,0);
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        if (allInstructions[i]->getAddressAnchor() && !allInstructions[i]->isControl()){
+            if (allInstructions[i]->getAddressAnchor()->getLink()->getType() == PebilClassType_Instruction){
+                PRINT_INFOR("Found i->i connection in function (%d) %s", getIndex(), getName());
+                allInstructions[i]->print();
+                delete[] allInstructions;
+                return true;
+            }
+        }
+    }
+    delete[] allInstructions;
+    return false;    
+}
+
 bool Function::hasSelfDataReference(){
     uint32_t numberOfInstructions = getNumberOfInstructions();
     Instruction** allInstructions = new Instruction*[numberOfInstructions];
@@ -127,7 +160,6 @@ bool Function::hasSelfDataReference(){
             if (allInstructions[i]->usesRelativeAddress() &&
                 !allInstructions[i]->isControl() &&
                 inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getAddressAnchor()->getLinkOffset())){
-                //                inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getRelativeValue())){
                 PRINT_DEBUG_FUNC_RELOC("Instruction self-data-ref inside function %s", getName());
                 DEBUG_FUNC_RELOC(allInstructions[i]->print();)
                 delete[] allInstructions;

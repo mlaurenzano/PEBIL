@@ -1,0 +1,11 @@
+found bugs:
+1. SOLVED pinsrw/pextrw -- hacked so it now behaves like the non op-extented version (without 66 prefix)
+of the instruction. the first operand is now interpreted incorrectly as mm? instead of xmm?.
+updated the tables in itab.c/h
+
+2. SOLVED fld/fstp(?) -- giving a operand size of 80, which is apparently the correct size of
+a double-extended-precision fp operand in memory. no update needed or made
+
+3. SOLVED fxsave -- patched correctly. updated the tables in itab.c/h
+
+4. SOLVED paddd -- patched correctly. updated the tables in itab.c/h

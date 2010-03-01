@@ -55,9 +55,11 @@ public:
 
     bool callsSelf();
     bool hasSelfDataReference();
+    bool refersToInstruction();
     bool containsReturn();
 
     uint32_t bloatBasicBlocks(Vector<InstrumentationPoint*>* instPoints);
+    uint32_t addSafetyJump(Instruction* tgtInstruction);
 
     void setBaseAddress(uint64_t newBaseAddress);
 

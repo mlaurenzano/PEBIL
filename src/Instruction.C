@@ -1415,7 +1415,7 @@ uint32_t Instruction::getInstructionType(){
             break;
     };
 
-    if (optype == X86InstructionType_unknown){
+    if (optype == X86InstructionType_unknown || optype == X86InstructionType_invalid){
         PRINT_ERROR("Unknown instruction mnemonic `%s' found at address %#llx", ud_lookup_mnemonic(GET(mnemonic)), baseAddress);
     }
     return optype;

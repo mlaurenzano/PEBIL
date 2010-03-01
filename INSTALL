@@ -4,10 +4,6 @@ A basic outline for how to install PEBIL.
 Operating System        Linux
 Binary Format           Elf
 Architecture            X86 or X86_64
-Other                   To call instrumentation functions from a shared library
-                        the system must have dynamic linking enabled. Also requires
-                        the gnu linker to be used.
-
 
 2. Add the following to your shell login script (assuming the installation is
 at /path/to/pebil/)
@@ -16,7 +12,7 @@ bash:
 PEBIL_ROOT=/path/to/pebil/
 PEBIL_LIB=${PEBIL_ROOT}/lib
 PEBIL_BIN=${PEBIL_ROOT}/bin
-PEBIL_LD_FLAGS="-Wl,--hash-style=sysv -Wl,-T,${PEBIL_ROOT}/linker/pebil_ld_script"
+PEBIL_LD_FLAGS="-Wl,--hash-style=sysv"
 PEBIL_LD=ld
 PEBIL_GFORT=gfortran
 PATH=${PATH}:${PEBIL_BIN}
@@ -32,16 +28,21 @@ csh:
 setenv PEBIL_ROOT /path/to/pebil/
 setenv PEBIL_LIB ${PEBIL_ROOT}/lib
 setenv PEBIL_BIN ${PEBIL_ROOT}/bin
-setenv PEBIL_LD_FLAGS "-Wl,--hash-style=sysv -Wl,-T,${PEBIL_ROOT}/linker/pebil_ld_script"
+setenv PEBIL_LD_FLAGS "-Wl,--hash-style=sysv"
 setenv PEBIL_LD ld
 setenv PEBIL_GFORT gfortran
 setenv PATH ${PATH}:${PEBIL_BIN}
 
-3. build 
-        a. build the udis86 library. go to external/udis86 and see the build instructions within
-           for details
+NOTE: if you get a build error/warning saying that your compiler doesn't 
+recognize the argument --hash-style, your compiler is likely already using 
+sysv-style tables and you can entirely disregard the PEBIL_LD_FLAGS 
+variable.
 
-`gmake` from the top-level directory
+3. build 
+   A. build the udis86 library. go to external/udis86 and see the README within
+   for details
+
+run `gmake' from the top-level directory
 
 4. run
 Details on how to run:
