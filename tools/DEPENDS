@@ -1,10 +1,10 @@
 BasicBlockCounter.o: BasicBlockCounter.C BasicBlockCounter.h \
   InstrumentationTool.h ../include/ElfFileInst.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/Debug.h ../include/ElfFile.h ../include/BinaryFile.h \
-  ../include/ProgramHeader.h ../include/defines/ProgramHeader.d \
-  ../include/Vector.h ../include/Instruction.h ../include/AddressAnchor.h \
-  ../include/BitSet.h ../include/RawSection.h \
+  ../include/Debug.h ../include/Vector.h ../include/ElfFile.h \
+  ../include/BinaryFile.h ../include/ProgramHeader.h \
+  ../include/defines/ProgramHeader.d ../include/Instruction.h \
+  ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
@@ -19,10 +19,10 @@ BasicBlockCounter.o: BasicBlockCounter.C BasicBlockCounter.h \
 CacheSimulation.o: CacheSimulation.C CacheSimulation.h \
   InstrumentationTool.h ../include/ElfFileInst.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/Debug.h ../include/ElfFile.h ../include/BinaryFile.h \
-  ../include/ProgramHeader.h ../include/defines/ProgramHeader.d \
-  ../include/Vector.h ../include/Instruction.h ../include/AddressAnchor.h \
-  ../include/BitSet.h ../include/RawSection.h \
+  ../include/Debug.h ../include/Vector.h ../include/ElfFile.h \
+  ../include/BinaryFile.h ../include/ProgramHeader.h \
+  ../include/defines/ProgramHeader.d ../include/Instruction.h \
+  ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
@@ -37,10 +37,10 @@ CacheSimulation.o: CacheSimulation.C CacheSimulation.h \
 FunctionCounter.o: FunctionCounter.C FunctionCounter.h \
   InstrumentationTool.h ../include/ElfFileInst.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
-  ../include/Debug.h ../include/ElfFile.h ../include/BinaryFile.h \
-  ../include/ProgramHeader.h ../include/defines/ProgramHeader.d \
-  ../include/Vector.h ../include/Instruction.h ../include/AddressAnchor.h \
-  ../include/BitSet.h ../include/RawSection.h \
+  ../include/Debug.h ../include/Vector.h ../include/ElfFile.h \
+  ../include/BinaryFile.h ../include/ProgramHeader.h \
+  ../include/defines/ProgramHeader.d ../include/Instruction.h \
+  ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
@@ -53,11 +53,27 @@ FunctionCounter.o: FunctionCounter.C FunctionCounter.h \
   ../include/InstructionGenerator.h
 FunctionTimer.o: FunctionTimer.C FunctionTimer.h InstrumentationTool.h \
   ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
-  ../include/CStructuresDwarf.h ../include/Debug.h ../include/ElfFile.h \
-  ../include/BinaryFile.h ../include/ProgramHeader.h \
-  ../include/defines/ProgramHeader.d ../include/Vector.h \
-  ../include/Instruction.h ../include/AddressAnchor.h ../include/BitSet.h \
-  ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
+  ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+  ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+  ../include/defines/ProgramHeader.d ../include/Instruction.h \
+  ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
+  ../external/udis86-1.7/libudis86/syn.h \
+  ../external/udis86-1.7/libudis86/types.h \
+  ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
+  ../external/udis86-1.7/libudis86/types.h \
+  ../external/udis86-1.7/libudis86/extern.h \
+  ../external/udis86-1.7/libudis86/itab.h \
+  ../include/defines/Instruction.d ../include/BasicBlock.h \
+  ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
+  ../include/LinkedList.h ../include/Instrumentation.h \
+  ../include/InstructionGenerator.h
+IOTracer.o: IOTracer.C IOTracer.h InstrumentationTool.h \
+  ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
+  ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+  ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+  ../include/defines/ProgramHeader.d ../include/Instruction.h \
+  ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
+  ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
@@ -69,11 +85,11 @@ FunctionTimer.o: FunctionTimer.C FunctionTimer.h InstrumentationTool.h \
   ../include/InstructionGenerator.h
 InstrumentationTool.o: InstrumentationTool.C InstrumentationTool.h \
   ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
-  ../include/CStructuresDwarf.h ../include/Debug.h ../include/ElfFile.h \
-  ../include/BinaryFile.h ../include/ProgramHeader.h \
-  ../include/defines/ProgramHeader.d ../include/Vector.h \
-  ../include/Instruction.h ../include/AddressAnchor.h ../include/BitSet.h \
-  ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
+  ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+  ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+  ../include/defines/ProgramHeader.d ../include/Instruction.h \
+  ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
+  ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \

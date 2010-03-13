@@ -5,6 +5,8 @@
 #include <string.h>
 #include <sys/time.h>
 
+#define __MAX_STRING_SIZE 1024
+
 //#define COMPILE_32BIT
 #ifdef COMPILE_32BIT
   #define DINT_TYPE int32_t

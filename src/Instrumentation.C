@@ -8,6 +8,11 @@
 #include <TextSection.h>
 
 //#define VERIFY_FILTER
+#define OPTIMIZE_NONLEAF
+
+void InstrumentationPoint::print(){
+    PRINT_INFOR("Instrumentation point at %#llx: size %d, priority %d, protection %d, mode %d", getInstSourceAddress(), numberOfBytes, priority, protectionMethod, instrumentationMode);
+}
 
 int searchInstPoint(const void* arg1,const void* arg2){
     uint64_t key = *((uint64_t*)arg1);
@@ -127,13 +132,6 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
 
     BitSet<uint32_t>* usedRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
     usedRegs->insert(X86_REG_SP);
-    /*
-    if (insts){
-        for (uint32_t i = 0; i < (*insts).size(); i++){
-            (*insts)[i]->touchedRegisters(usedRegs);
-        }
-    }
-    */
     ~(*usedRegs);
 
     uint32_t tempReg1 = X86_64BIT_GPRS;
@@ -154,7 +152,6 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
     }
     
     ASSERT(tempReg1 < X86_64BIT_GPRS && "Could not find free registers for this instrumentation point");
-    //    PRINT_INFOR("using temp reg %d", tempReg1);
 
     if (!stackIsSafe){
         trampolineInstructions.append(InstructionGenerator64::generateLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
@@ -261,13 +258,6 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
 
     BitSet<uint32_t>* usedRegs = new BitSet<uint32_t>(X86_32BIT_GPRS);
     usedRegs->insert(X86_REG_SP);
-    /*
-    if (insts){
-        for (uint32_t i = 0; i < (*insts).size(); i++){
-            (*insts)[i]->touchedRegisters(usedRegs);
-        }
-    }
-    */
     ~(*usedRegs);
 
     uint32_t tempReg1 = X86_32BIT_GPRS;
@@ -288,7 +278,6 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
     }
     
     ASSERT(tempReg1 < X86_32BIT_GPRS && "Could not find free registers for this instrumentation point");
-    //    PRINT_INFOR("using temp reg %d", tempReg1);
 
     if (!stackIsSafe){
         trampolineInstructions.append(InstructionGenerator32::generateLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
@@ -565,19 +554,7 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         }
 
         wrapperInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
-
-        /*
-        bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(arguments[idx].value, X86_REG_CX));
-        bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, X86_REG_DX));
-        bootstrapInstructions.append(InstructionGenerator::generateMoveRegToRegaddr(X86_REG_CX, X86_REG_DX));
-        */
     }
-
-    /*
-    wrapperInstructions.append(InstructionGenerator64::generateStackPush(X86_REG_BX));
-    wrapperInstructions.append(InstructionGenerator64::generateXorRegReg(X86_REG_AX, X86_REG_AX));
-    wrapperInstructions.append(InstructionGenerator64::generateRegSubImm(X86_REG_SP,8));
-    */
 
     uint64_t wrapperTargetOffset = 0;
     if (isStaticLinked()){
@@ -619,11 +596,6 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
         // everything is passed on the stack
         wrapperInstructions.append(InstructionGenerator32::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, X86_REG_DX));
         wrapperInstructions.append(InstructionGenerator32::generateStackPush(X86_REG_DX));
-
-        /*
-        bootstrapInstructions.append(InstructionGenerator32::generateMoveImmToReg(arguments[idx].value, X86_REG_CX));
-        bootstrapInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX, dataBaseAddress + arguments[idx].offset));
-        */
     }
 
     wrapperInstructions.append(InstructionGenerator32::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
@@ -812,7 +784,7 @@ Vector<Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(bool isChain
     ASSERT(instruction->getContainer() && instruction->getContainer()->getType() == PebilClassType_Function);
     Function* func = (Function*)instruction->getContainer();
 
-    if (isChain){
+    if (instLocation == InstLocation_prior || isChain){
         return func->swapInstructions(getInstBaseAddress() - Size__uncond_jump, replacements);
     } else {
         return func->swapInstructions(getInstSourceAddress(), replacements);
@@ -843,7 +815,11 @@ uint64_t InstrumentationPoint::getInstBaseAddress(){
 uint64_t InstrumentationPoint::getInstSourceAddress(){
     Function* f = (Function*)point->getContainer();
     if (f->isRelocated()){
-        return getInstBaseAddress() - getNumberOfBytes();
+        if (instrumentationMode == InstrumentationMode_inline){
+            return getInstBaseAddress() - getNumberOfBytes();
+        } else {
+            return getInstBaseAddress() - Size__uncond_jump;
+        }
     } else {
         return getInstBaseAddress();
     }
@@ -968,6 +944,3 @@ InstrumentationPoint::~InstrumentationPoint(){
     }
 }
 
-void InstrumentationPoint::print(){
-    __FUNCTION_NOT_IMPLEMENTED;
-}

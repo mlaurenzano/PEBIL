@@ -135,10 +135,10 @@ public:
         elements[idx] = elt;
     }
 
-    void print(){
-        PRINT_INFOR("Vector with %d/%d elements", numberOfElements, capacity);
+    void print(){        
+        fprintf(stdout, "Vector with %d/%d elements", numberOfElements, capacity);
         for (uint32_t i = 0; i < numberOfElements; i++){
-            PRINT_INFOR("\telements[%d] = %d", i, elements[i]);
+            fprintf(stdout, "\telements[%d] = %d", i, elements[i]);
         }
     }
 

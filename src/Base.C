@@ -1,5 +1,36 @@
 #include <Base.h>
 
+bool searchFileList(Vector<char*>* list, char* name){
+    for (uint32_t i = 0; i < (*list).size(); i++){
+        if (!strcmp((*list)[i], name)){
+            return i;
+        }
+    }
+    return -1;
+}
+
+uint32_t initializeFileList(char* fileName, Vector<char*>* list){
+    ASSERT(!(*list).size());
+
+    FILE* inFile = NULL;
+    inFile = fopen(fileName, "r");
+    if(!inFile){
+        PRINT_ERROR("Input file can not be opened [%s]", fileName);
+    }
+
+    char* inBuffer = new char[__MAX_STRING_SIZE];
+    while (fgets(inBuffer, __MAX_STRING_SIZE, inFile) != NULL) {
+        char* line = new char[strlen(inBuffer)+1];
+        sprintf(line, "%s", inBuffer);
+        line[strlen(inBuffer)-1] = '\0';
+        (*list).append(line);
+    }
+    delete[] inBuffer;
+    fclose(inFile);
+
+    return (*list).size();
+}
+
 void printBufferPretty(char* buff, uint32_t sizeInBytes, uint64_t baseAddress, uint32_t bytesPerWord, uint32_t bytesPerLine){
     if (bytesPerWord <= 0){
         bytesPerWord = 8;
@@ -68,14 +99,6 @@ char getHexValue(char c1){
 char mapCharsToByte(char c1, char c2){
     ASSERT(isHexDigit(c1) && isHexDigit(c2));
     return (getHexValue(c1) << 4) + getHexValue(c2);
-}
-
-
-int32_t scmp(const void *a, const void *b)
-{
-    const char **ia = (const char **)a;
-    const char **ib = (const char **)b;
-    return strcmp(*ia, *ib);
 }
 
 

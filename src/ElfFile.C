@@ -426,24 +426,6 @@ uint64_t ElfFile::addSection(uint16_t idx, PebilClassTypes classtype, char* byte
         }
     }
 
-    // if any sections fall after the section header table, update their offset to give room for the new entry in the table
-    uint32_t extraSize = fileHeader->GET(e_shentsize);
-    /*
-    getFileHeader()->INCREMENT(e_phoff, extraSize);
-    getProgramHeaderPHDR()->SET(p_offset, getFileHeader()->GET(e_phoff));
-    */
-    
-    for (uint32_t i = 0; i < getNumberOfSections(); i++){
-        uint64_t currentOffset = sectionHeaders[i]->GET(sh_offset);
-        if (currentOffset > fileHeader->GET(e_shoff)){
-            extraSize = nextAlignAddress(currentOffset + extraSize, sectionHeaders[i]->GET(sh_addralign)) - currentOffset;
-            sectionHeaders[i]->INCREMENT(sh_offset, extraSize);
-            if (sectionHeaders[i]->GET(sh_addr)){
-                sectionHeaders[i]->INCREMENT(sh_addr, extraSize);
-            }
-        }
-    }
-
     return sectionHeaders[idx]->GET(sh_offset);
 }
 

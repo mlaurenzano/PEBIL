@@ -37,7 +37,7 @@ void ProgramHeader::print() {
         PRINT_INFOR("\tPtyp : %s (%#x)",ptr,GET(p_type));
     }
 
-    PRINT_INFOR("\tPoff : @%llu for %lluB",GET(p_offset),GET(p_filesz));
+    PRINT_INFOR("\tPoff : @%llx for %lluB",GET(p_offset),GET(p_filesz));
     PRINT_INFOR("\tPvad : %#llx for %lluB",GET(p_vaddr),GET(p_memsz));
     PRINT_INFOR("\tPpad : %#llx",GET(p_paddr));
     uint32_t alignment = GET(p_align);

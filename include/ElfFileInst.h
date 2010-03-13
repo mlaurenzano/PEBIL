@@ -35,6 +35,10 @@ class TextSection;
 #define MAX_ARGUMENTS_32BIT 6
 #define MAX_ARGUMENTS_64BIT 6
 
+#define HAS_INSTRUMENTOR_FLAG(__flag, __n) ((__flag) & (__n))
+#define InstrumentorFlag_none       0x0
+#define InstrumentorFlag_norelocate 0x1
+
 typedef enum {
     ElfInstPhase_no_phase = 0,
     ElfInstPhase_extend_space,
@@ -64,8 +68,7 @@ private:
     Vector<AddressAnchor*> addressAnchors;
     Vector<DataReference*> specialDataRefs;
 
-    ProgramHeader* instTextSegment;
-    ProgramHeader* instDataSegment;
+    ProgramHeader* instSegment;
 
     uint16_t extraTextIdx;
     uint16_t extraDataIdx;
@@ -74,12 +77,11 @@ private:
     uint64_t usableDataOffset;
     uint64_t regStorageOffset;
     uint64_t regStorageReserved;
-    uint64_t programDataSize;
-    uint64_t programBssSize;
     
     uint64_t relocatedTextSize;
     char* instrumentationData;
     uint64_t instrumentationDataSize;
+    uint64_t instrumentationDataAddress;
 
     LineInfoFinder* lineInfoFinder;
 
@@ -98,17 +100,23 @@ protected:
     Vector<BasicBlock*> exposedBasicBlocks;
     Vector<Instruction*> exposedInstructions;
     Vector<Instruction*> exposedMemOps;
-    Vector<char*> disabledFunctions;
-    Vector<char*> disabledFiles;
+    Vector<char*>* disabledFunctions;
+    Vector<char*>* disabledFiles;
+
+    Vector<SectionHeader*> instSectionHeaders;
+    Vector<ProgramHeader*> instProgramHeaders;
 
     uint32_t currentPhase;
 
     char* instSuffix;
     char* sharedLibraryPath;
+    uint64_t flags;
+    
 
     // instrumentation functions
     InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode) { return addInstrumentationPoint(instpoint, inst, instMode, FlagsProtectionMethod_full); }
     InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod);
+    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc);
     uint32_t addSharedLibrary(const char* libname);
     uint32_t addSharedLibraryPath();
     uint64_t addFunction(InstrumentationFunction* func);
@@ -116,12 +124,12 @@ protected:
     void addInstrumentationFunction(const char* funcname);
     uint64_t relocateDynamicSection();
     uint64_t getProgramBaseAddress();
-    void extendTextSection(uint64_t size);
-    void allocateInstrumentationText(uint64_t size);
+    void extendTextSection(uint64_t totalSize, uint64_t headerSize);
+    void allocateInstrumentationText(uint64_t totalSize, uint64_t headerSize);
     void extendDataSection();
     void buildInstrumentationSections();
     uint32_t generateInstrumentation();
-    void compressSegments(uint32_t textSize);
+    void compressInstrumentation(uint32_t textSize);
     uint32_t relocateAndBloatFunction(Function* functionToRelocate, uint64_t offsetToRelocation);
     bool isEligibleFunction(Function* func);
     bool is64Bit() { return elfFile->is64Bit(); }
@@ -192,8 +200,6 @@ public:
 
     InstrumentationFunction* getInstrumentationFunction(const char* funcName);
     uint32_t addInstrumentationSnippet(InstrumentationSnippet* snip);
-
-    void patchProgramContents(); 
 
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }

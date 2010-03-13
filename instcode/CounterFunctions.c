@@ -77,7 +77,7 @@ int32_t blockcounter(int32_t* blockCounts, char* appName, char* instExt){
     PRINT_INSTR("There are %d basic blocks in the code:", numberOfBasicBlocks);
     PRINT_INSTR("Printing blocks with at least %d executions", PRINT_MINIMUM);
 
-    char* outFileName = malloc(sizeof(char)* 80);
+    char* outFileName = malloc(sizeof(char) * __MAX_STRING_SIZE);
     sprintf(outFileName, "%s.%d.%s", appName, getpid(), instExt);
     PRINT_INSTR("Writing output file %s", outFileName);
     FILE* outFile = fopen(outFileName, "w");

@@ -30,10 +30,10 @@ SRCDIR      = ../instcode
 BINDIR      = ../bin
 LIBDIR      = ../lib
 
-SRCS        = CounterFunctions.c SimulationFunctions.c CacheSimulationCommon.c TimerFunctions.c
-OBJS        = CounterFunctions.o SimulationFunctions.o CacheSimulationCommon.o TimerFunctions.o
+SRCS        = CounterFunctions.c SimulationFunctions.c CacheSimulationCommon.c TimerFunctions.c TracerFunctions.c
+OBJS        = CounterFunctions.o SimulationFunctions.o CacheSimulationCommon.o TimerFunctions.o TracerFunctions.o
 
-TARGET_LIBS = libcounter.so libcounter.a libsimulator.so libsimulator.a libtimer.so libtimer.a
+TARGET_LIBS = libcounter.so libcounter.a libsimulator.so libsimulator.a libtimer.so libtimer.a libtracer.so libtracer.a
 
 all: $(TARGET_LIBS) install
 
@@ -57,6 +57,12 @@ libtimer.so : $(OBJS)
 
 libtimer.a : $(OBJS)
 	$(AR) $(AR_FLAGS) $@ TimerFunctions.o
+
+libtracer.so : $(OBJS)
+	$(CC) $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
+
+libtracer.a : $(OBJS)
+	$(AR) $(AR_FLAGS) $@ TracerFunctions.o
 
 clean: 
 	rm -f core *.o *.O *.i *.s *.ii *.class $(TARGET_LIBS)

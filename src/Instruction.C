@@ -1557,7 +1557,6 @@ Instruction::Instruction(struct ud* init)
 }
 
 void Instruction::print(){
-
     char flags[9];
     flags[0] = 'r';
     if (usesRelativeAddress()){

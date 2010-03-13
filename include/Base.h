@@ -12,6 +12,7 @@
 #include <CStructuresElf.h>
 #include <CStructuresDwarf.h>
 #include <Debug.h>
+#include <Vector.h>
 
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
@@ -352,6 +353,9 @@ extern int32_t scmp(const void *a, const void *b);
 
 extern char mapCharsToByte(char c1, char c2);
 extern void printBufferPretty(char* buff, uint32_t sizeInBytes, uint64_t baseAddress, uint32_t bytesPerWord, uint32_t bytesPerLine);
+
+extern bool searchFileList(Vector<char*>* list, char* name);
+extern uint32_t initializeFileList(char* fileName, Vector<char*>* list);
 
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)

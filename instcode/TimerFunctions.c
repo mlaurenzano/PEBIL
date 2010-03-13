@@ -13,6 +13,7 @@ int32_t* stackError = NULL;
 #define HASH_STACK_HEAD hashFunction(funcStack_peep(7), funcStack_peep(6), funcStack_peep(5), funcStack_peep(4), funcStack_peep(3), funcStack_peep(2), funcStack_peep(1), funcStack_peep(0))
 
 unsigned long long ticksPerSecond = 0;
+//#define EXCLUDE_TIMER
 
 __inline__ unsigned long long readtsc(){
     unsigned low, high;
@@ -95,8 +96,12 @@ void funcStack_print(){
 
 void printFunctionInfo(int i){
     int j;
+#ifdef EXCLUDE_TIMER
+    PRINT_INSTR("%s (%d): %lld executions", functionNames[funcInfos[i].backtrace[0]], funcInfos[i].hash % (numberOfFunctions * RECORDS_PER_FUNCTION), funcInfos[i].count);    
+#else
     double p = (double)funcInfos[i].timer_total / (double)ticksPerSecond;
     PRINT_INSTR("%s (%d): %lld executions, %.6f seconds", functionNames[funcInfos[i].backtrace[0]], funcInfos[i].hash % (numberOfFunctions * RECORDS_PER_FUNCTION), funcInfos[i].count, ((double)((double)funcInfos[i].timer_total/(double)ticksPerSecond)));
+#endif
     for (j = 1; j < STACK_BACKTRACE_SIZE; j++){
         if (funcInfos[i].backtrace[j] >= 0){
             if (stackError[funcInfos[i].backtrace[j]]){
@@ -125,7 +130,7 @@ int32_t program_entry(int32_t* numFunctions, char** funcNames){
     numberOfFunctions = *numFunctions;
     functionNames = funcNames;
 
-    ticksPerSecond = 2600000000;
+    ticksPerSecond = CLOCK_RATE_HZ;
     PRINT_DEBUG("%lld ticks per second", ticksPerSecond);
 
     if (!funcInfos){
@@ -144,7 +149,7 @@ int32_t program_entry(int32_t* numFunctions, char** funcNames){
 }
 
 int32_t program_exit(){
-    PRINT_DEBUG("PROGRAM EXIT");
+    PRINT_INSTR("Printing the %d most time-consuming call paths + up to %d stack frames", NUM_PRINT, STACK_BACKTRACE_SIZE);
     int32_t i, j;
 
     qsort((void*)funcInfos, numberOfFunctions * RECORDS_PER_FUNCTION, sizeof(struct funcInfo), compareFuncInfos);
@@ -183,11 +188,21 @@ int32_t function_entry(int64_t* functionIndex){
         }
     }
 
+#ifdef EXCLUDE_TIMER
+    funcInfos[currentRecord].timer_start = 0;
+#else
     funcInfos[currentRecord].timer_start = readtsc();
+#endif
 }
 
 int32_t function_exit(int64_t* functionIndex){
-    int64_t tstop = readtsc();
+    int64_t tstop;
+#ifdef EXCLUDE_TIMER
+    tstop = 1;
+#else
+    tstop = readtsc();
+#endif
+
     int32_t currentRecord = getRecordIndex();
 
     int32_t popped = funcStack_pop();
