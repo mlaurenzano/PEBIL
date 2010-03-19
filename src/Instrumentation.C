@@ -7,9 +7,6 @@
 #include <InstructionGenerator.h>
 #include <TextSection.h>
 
-//#define VERIFY_FILTER
-#define OPTIMIZE_NONLEAF
-
 void InstrumentationPoint::print(){
     PRINT_INFOR("Instrumentation point at %#llx: size %d, priority %d, protection %d, mode %d", getInstSourceAddress(), numberOfBytes, priority, protectionMethod, instrumentationMode);
 }
@@ -78,18 +75,6 @@ Vector<InstrumentationPoint*>* instpointFilterAddressRange(Base* object, Vector<
             (*filtered).append((*instPoints)[i]);
         }        
     }
-
-#ifdef VERIFY_FILTER
-    Vector<InstrumentationPoint*>* filtered2 = new Vector<InstrumentationPoint*>();
-    for (int32_t i = 0; i < (*instPoints).size(); i++){
-        if ((*instPoints)[i]->getInstBaseAddress() >= lowEnd &&
-            (*instPoints)[i]->getInstBaseAddress() < highEnd){
-            (*filtered2).append((*instPoints)[i]);
-        }
-    }
-    ASSERT((*filtered).size() == (*filtered2).size());
-    delete filtered2;
-#endif
 
     return filtered;
 }

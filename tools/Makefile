@@ -12,7 +12,7 @@ SRCDIR        = ../src
 BINDIR        = ../bin
 EXTRA_LIBS    = -lpebil -L../external/udis86-1.7/lib -ludis86
 
-TARGET_BIN  = pebil ftimer iotrace
+TARGET_BIN  = pebil
 
 SRCS  = BasicBlockCounter.C \
 	CacheSimulation.C \
@@ -30,14 +30,8 @@ OBJS  =	BasicBlockCounter.o \
 
 all: clean $(TARGET_BIN) install
 
-pebil :	$(OBJS) main.o
-	$(CPP) $(CFLAGS) -o $@ main.o $(OBJS) $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS) $(PEBIL_LD_FLAGS)
-
-ftimer: $(OBJS) ftimer.o
-	$(CPP) $(CFLAGS) -o $@ ftimer.o $(OBJS) $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS) $(PEBIL_LD_FLAGS)
-
-iotrace: $(OBJS) iotrace.o
-	$(CPP) $(CFLAGS) -o $@ iotrace.o $(OBJS) $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS) $(PEBIL_LD_FLAGS)
+pebil :	$(OBJS) pebil.o
+	$(CPP) $(CFLAGS) -o $@ pebil.o $(OBJS) $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(EXTRA_LIBS) $(PEBIL_LD_FLAGS)
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< $(INCLUDE) $(EXTRA_INC)

@@ -3,10 +3,10 @@
 bool searchFileList(Vector<char*>* list, char* name){
     for (uint32_t i = 0; i < (*list).size(); i++){
         if (!strcmp((*list)[i], name)){
-            return i;
+            return true;
         }
     }
-    return -1;
+    return false;
 }
 
 uint32_t initializeFileList(char* fileName, Vector<char*>* list){

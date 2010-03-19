@@ -13,8 +13,6 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
-#define ALLOW_JUMP_TABLE
-
 bool Function::hasLeafOptimization(){
     uint32_t numberOfInstructions = getNumberOfInstructions();
     Instruction** allInstructions = new Instruction*[numberOfInstructions];
@@ -92,28 +90,15 @@ bool Function::hasCompleteDisassembly(){
         return false;
     }
 
-    /*
-    // if this function calls into the middle of itsself
-    if (callsSelf()){
-        return false;
-    }
-    */
-
     // if this function references data that is inside the function body
     if (hasSelfDataReference()){
         return false;
     }
 
     if (refersToInstruction()){
+        PRINT_ERROR("Unexpected condition -- function refers to self");
     }
     
-    /*
-    // if this function does not contain a return instruction
-    if (!containsReturn()){
-        return false;
-    }
-    */
-
     // if this function calls __i686.get_pc_thunk.bx
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
         TextObject* tobj = textSection->getTextObject(i);
@@ -445,9 +430,8 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
     for (uint32_t i = 0; i < (*instructions).size(); i++){
         Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
         if ((*instructions)[i]->isJumpTableBase()){
-#ifndef ALLOW_JUMP_TABLE
             setJumpTable();
-#endif
+
             uint64_t jumpTableBase = (*instructions)[i]->findJumpTableBaseAddress(instructions);
             if (!jumpTableBase){
                 PRINT_WARN(6,"Cannot determine indirect jump target for instruction at %#llx", (*instructions)[i]->getBaseAddress());

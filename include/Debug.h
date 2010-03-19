@@ -28,6 +28,23 @@
 //#define DEBUG_ADDR_ALIGN
 //#define DEBUG_BLOAT_FILTER
 
+// some common macros to help debug instrumentation
+//#define RELOC_MOD_OFF 102
+//#define RELOC_MOD 1024
+//#define TURNOFF_FUNCTION_RELOCATION
+//#define BLOAT_MOD_OFF 3
+//#define BLOAT_MOD     2
+//#define TURNOFF_FUNCTION_BLOAT
+//#define SWAP_MOD_OFF 3
+//#define SWAP_MOD     8192
+//#define SWAP_FUNCTION_ONLY "raise"
+//#define TURNOFF_INSTRUCTION_SWAP
+#define ANCHOR_SEARCH_BINARY
+//#define VALIDATE_ANCHOR_SEARCH     
+//#define PRINT_INSTRUCTION_DETAIL 
+#define OPTIMIZE_NONLEAF
+
+
 #ifdef WARNING_SEVERITY
 #define WARN_FILE stderr
 #define PRINT_WARN(__severity,...)  if (__severity >= WARNING_SEVERITY){ \

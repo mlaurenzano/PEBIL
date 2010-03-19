@@ -11,7 +11,7 @@ private:
     InstrumentationFunction* functionExit;
 
 public:
-    FunctionTimer(ElfFile* elf, char* inputFuncList, char* inputFileList);
+    FunctionTimer(ElfFile* elf);
     ~FunctionTimer();
 
     void declare();

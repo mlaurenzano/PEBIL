@@ -82,7 +82,8 @@ IOTracer.o: IOTracer.C IOTracer.h InstrumentationTool.h \
   ../include/defines/Instruction.d ../include/BasicBlock.h \
   ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
   ../include/LinkedList.h ../include/Instrumentation.h \
-  ../include/InstructionGenerator.h
+  ../include/InstructionGenerator.h ../include/SymbolTable.h \
+  ../include/defines/SymbolTable.d
 InstrumentationTool.o: InstrumentationTool.C InstrumentationTool.h \
   ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \

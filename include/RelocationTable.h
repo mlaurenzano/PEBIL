@@ -111,6 +111,7 @@ public:
     bool verify();
 
     uint32_t getNumberOfRelocations() { return relocations.size(); }
+    Relocation* getRelocation(uint32_t idx) { return relocations[idx]; }
 
     ElfFile* getElfFile() { return elfFile; }
     uint32_t getIndex() { return index; }

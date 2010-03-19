@@ -23,6 +23,64 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+Symbol* ElfFile::lookupFunctionSymbol(uint64_t addr){
+    GlobalOffsetTable* gotTable = getGlobalOffsetTable();
+    RelocationTable* pltRelocTable = getPLTRelocationTable();
+    SymbolTable* dynsymTable = getDynamicSymbolTable();
+    ASSERT(gotTable && pltRelocTable && dynsymTable);
+
+    char* namestr = NULL;
+    uint32_t numSyms = 8;
+    Symbol* foundSymbols[numSyms];
+    bzero(&foundSymbols, sizeof(Symbol*) * numSyms);
+
+    // first search directly for a symbol (non-PLT functions)
+    findSymbol4Addr(addr, foundSymbols, numSyms, &namestr);
+    if (namestr){
+        delete[] namestr;
+    }
+    for (uint32_t i = 0; i < numSyms; i++){
+        if (foundSymbols[i]){
+            if (is64Bit()){
+                if (ELF64_ST_TYPE(foundSymbols[i]->GET(st_info)) == STT_FUNC){
+                    return foundSymbols[i];
+                }
+            } else {
+                if (ELF32_ST_TYPE(foundSymbols[i]->GET(st_info)) == STT_FUNC){
+                    return foundSymbols[i];
+                }
+            } 
+        }
+    }
+
+    uint64_t val = addr + Size__ProcedureLink_Intermediate;
+    uint64_t gotAddr = 0;
+    int64_t symIndex = -1;
+
+    // search GOT to get relocation entry to get symbol index (PLT function)
+    for (uint32_t i = 0; i < gotTable->getNumberOfEntries(); i++){
+        if (gotTable->getEntry(gotTable->minIndex()+i) == val){
+            gotAddr = gotTable->getEntryAddress(i);
+            break;
+        }
+    }
+
+    if (gotAddr){
+        for (uint32_t i = 0; i < pltRelocTable->getNumberOfRelocations(); i++){
+            if (pltRelocTable->getRelocation(i)->GET(r_offset) == gotAddr){
+                symIndex = pltRelocTable->getRelocation(i)->getSymbol();
+                break;
+            }
+        }
+    }
+
+    if (symIndex > 0){
+        return dynamicSymbolTable->getSymbol(symIndex);
+    }
+
+    return NULL;
+}
+
 ProgramHeader* ElfFile::getProgramHeaderPHDR(){
     if (getProgramHeader(0)->GET(p_type) == PT_PHDR){
         return getProgramHeader(0);
@@ -1174,148 +1232,24 @@ ElfFile::~ElfFile(){
 
 }
 
-
-
-
-
 void ElfFile::briefPrint(){
 }
 
 void ElfFile::displaySymbols(){
-/*
-    ASSERT(rawSections && "FATAL : Raw data is not read");
-    ASSERT(symbolTable && "FATAL : Symbol table is missing");
-
-    uint32_t numberOfSymbols = symbolTable->getNumberOfSymbols();
-    Symbol** addressSymbols = new Symbol*[numberOfSymbols];
-    numberOfSymbols = symbolTable->filterSortAddressSymbols(addressSymbols,numberOfSymbols);
-
-    if(numberOfSymbols){
-        for(uint32_t i=1;i<=getNumberOfSections();i++){
-            if(!rawSections[i]->IS_SECT_TYPE(OVRFLO)){
-                rawSections[i]->displaySymbols(addressSymbols,numberOfSymbols);
-            }
-        }
-    }
-    delete[] addressSymbols;
-*/
 }
 
 
 void ElfFile::generateCFGs(){
-/*
-    ASSERT(rawSections && "FATAL : Raw data is not read");
-    for(uint32_t i=1;i<=getNumberOfSections();i++){
-        rawSections[i]->generateCFGs();
-    }
-*/
 }
 
 void ElfFile::findMemoryFloatOps(){
-/*
-    ASSERT(rawSections && "FATAL : Raw data is not read");
-    for(uint32_t i=1;i<=getNumberOfSections();i++){
-        rawSections[i]->findMemoryFloatOps();
-    }
-*/
 }
 
-/*
-RawSection* ElfFile::findRawSection(uint64_t addr){
-
-    ASSERT(rawSections && "FATAL : Raw data is not read");
-    for(uint32_t i=1;i<=getNumberOfSections();i++){
-        if(rawSections[i]->inRange(addr))
-            return rawSections[i];
-    }
-
-    return NULL;
-}
-
-*/
-
-/*
-RawSection* ElfFile::getBSSSection(){
-    if(bssSectionIndex)
-        return rawSections[bssSectionIndex];
-    return NULL;
-}
-*/
-
-/*
-RawSection* ElfFile::getLoaderSection(){
-    if(loaderSectionIndex)
-        return rawSections[loaderSectionIndex];
-    return NULL;
-}
-*/
-
-
-/*
-BasicBlock* ElfFile::findBasicBlock(HashCode* hashCode){
-    ASSERT(hashCode->isBlock() && "FATAL: The given hashcode for the block is incorrect");
-
-    uint32_t sectionNo = hashCode->getSection();
-    uint32_t functionNo = hashCode->getFunction(); 
-    uint32_t blockNo = hashCode->getBlock();
-
-    if(sectionNo >= getNumberOfSections())
-        return NULL;
-
-    Function* func = rawSections[sectionNo]->getFunction(functionNo);
-    if(!func)
-        return NULL;
-
-    return func->getBlock(blockNo);
-}
-*/
-
-/*
-uint32_t ElfFile::getAllBlocks(BasicBlock** arr){
-    uint32_t ret = 0;
-    for(uint32_t i=1;i<=getNumberOfSections();i++){
-        uint32_t n = rawSections[i]->getAllBlocks(arr);
-        arr += n;
-        ret += n;
-    }
-    return ret;
-}
-*/
 uint32_t ElfFile::getFileSize() { 
     return binaryInputFile.getSize(); 
 }
 
-/*
-RelocationTable* ElfFile::getRelocationTable(uint32_t idx){ 
-    return sectionHeaders[idx]->getRelocationTable(); 
-}
-LineInfoTable* ElfFile::getLineInfoTable(uint32_t idx){ 
-    return sectionHeaders[idx]->getLineInfoTable(); 
-}
-uint64_t ElfFile::getDataSectionVAddr(){
-    return sectionHeaders[dataSectionIndex]->GET(s_vaddr);
-}
-uint32_t ElfFile::getDataSectionSize(){
-    return sectionHeaders[dataSectionIndex]->GET(s_size);
-}
-uint64_t ElfFile::getBSSSectionVAddr(){
-    if(bssSectionIndex)
-        return sectionHeaders[bssSectionIndex]->GET(s_vaddr);
-    return 0;
-}
-
-uint64_t ElfFile::getTextSectionVAddr(){
-    return sectionHeaders[textSectionIndex]->GET(s_vaddr);
-}
-*/
-
 void ElfFile::setLineInfoFinder(){
-/*
-    PRINT_INFOR("Building LineInfoFinders");
-    for (uint32_t i = 1; i <= getNumberOfSections(); i++){
-        rawSections[i]->buildLineInfoFinder();
-    }
-*/
 }
 
 void ElfFile::findLoops(){

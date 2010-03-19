@@ -53,7 +53,7 @@ void GlobalOffsetTable::print(){
         uint64_t val = getEntry(i);
         char* namestr = NULL;
         Symbol* foundsymbols[3];
-        getElfFile()->findSymbol4Addr(val,foundsymbols,3,&namestr);
+        getElfFile()->findSymbol4Addr(val, foundsymbols, 3, &namestr);
         PRINT_INFOR("\t%5d : %#12llx -- %s",i,val,namestr);
         delete[] namestr;
     }

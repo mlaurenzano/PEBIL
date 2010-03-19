@@ -12,15 +12,11 @@
 #define ENTRY_FUNCTION "initcounter"
 #define EXIT_FUNCTION "blockcounter"
 #define INST_LIB_NAME "libcounter.so"
-#define INST_SUFFIX "jbbinst"
 #define NOSTRING "__pebil_no_string__"
 
-BasicBlockCounter::BasicBlockCounter(ElfFile* elf, char* inputFuncList, char* inputFileList)
-    : InstrumentationTool(elf, inputFuncList, inputFileList)
+BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
+    : InstrumentationTool(elf)
 {
-    instSuffix = new char[__MAX_STRING_SIZE];
-    sprintf(instSuffix,"%s\0", INST_SUFFIX);
-
     entryFunc = NULL;
     exitFunc = NULL;
 }

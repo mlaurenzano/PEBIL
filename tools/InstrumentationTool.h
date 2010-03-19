@@ -3,14 +3,14 @@
 
 #include <ElfFileInst.h>
 
-#define FILE_UNK "__FILE_UNK__"
+#define INFO_UNKNOWN "__info_unknown__"
 
 class InstrumentationTool : public ElfFileInst {
 protected:
     void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos);
 
 public:
-    InstrumentationTool(ElfFile* elf, char* inputFuncList, char* inputFileList);
+    InstrumentationTool(ElfFile* elf);
     ~InstrumentationTool() {}
 
     virtual void declare() { __SHOULD_NOT_ARRIVE; }

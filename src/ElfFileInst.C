@@ -21,31 +21,15 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
-#define INSTHDR_RESERVE_AMT 0x1000
-#define TEXT_EXTENSION_INC  0x4000
-#define DATA_EXTENSION_INC  0x4000
-#define DEFAULT_INST_SEGMENT_IDX 4
-#define TEMP_SEGMENT_SIZE 0x80000000
-
-// some common macros to help debug instrumentation
-//#define RELOC_MOD_OFF 0
-//#define RELOC_MOD 2
-//#define TURNOFF_FUNCTION_RELOCATION
-//#define BLOAT_MOD_OFF 3
-//#define BLOAT_MOD     2
-//#define TURNOFF_FUNCTION_BLOAT
-//#define SWAP_MOD_OFF 3
-//#define SWAP_MOD     8192
-//#define SWAP_FUNCTION_ONLY "raise"
-//#define TURNOFF_INSTRUCTION_SWAP
-#define ANCHOR_SEARCH_BINARY
-//#define VALIDATE_ANCHOR_SEARCH
-
-#define __patch_phdr_symbol_name "_dl_phdr"
-
 #ifdef BLOAT_MOD
 uint32_t bloatCount = 0;
 #endif
+
+void ElfFileInst::setInstExtension(char* extension){
+    ASSERT(!instSuffix);
+    instSuffix = new char[__MAX_STRING_SIZE];
+    sprintf(instSuffix, "%s\0", extension);
+}
 
 BasicBlock* ElfFileInst::getProgramExitBlock(){
     TextSection* fini = getFiniSection();
@@ -195,10 +179,6 @@ bool ElfFileInst::isEligibleFunction(Function* func){
     if (!strcmp("_start", func->getName())){
         return true;
     }
-    if (!strcmp("_dl_aux_init", func->getName())){
-        return true;
-    }
-
     if (!canRelocateFunction(func)){
         return false;
     }
@@ -570,6 +550,7 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
 
     Instruction* connector = InstructionGenerator::generateJumpRelative(operatedFunction->getBaseAddress(), relocationAddress);
     connector->initializeAnchor(operatedFunction->getFlowGraph()->getBasicBlock(0)->getInstruction(0));
+    
     (*trampEmpty).append(connector);
     currentByte += (*trampEmpty).back()->getSizeInBytes();
     (*trampEmpty).back()->setBaseAddress(operatedFunction->getBaseAddress());
@@ -597,7 +578,7 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
 
     while (currentByte < functionSize){
         (*trampEmpty).append(InstructionGenerator::generateInterrupt(X86TRAPCODE_BREAKPOINT));
-        (*trampEmpty).back()->setBaseAddress(operatedFunction->getBaseAddress()+currentByte);
+        (*trampEmpty).back()->setBaseAddress(operatedFunction->getBaseAddress() + currentByte);
         currentByte += (*trampEmpty).back()->getSizeInBytes();
     }
 
@@ -636,8 +617,7 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
 #endif
 #ifdef BLOAT_MOD
     doBloat = false;
-    if (bloatCount % BLOAT_MOD == BLOAT_MOD_OFF || !strcmp(operatedFunction->getName(),"_start") ||
-        !strcmp(operatedFunction->getName(),"_dl_aux_init")){
+    if (bloatCount % BLOAT_MOD == BLOAT_MOD_OFF || !strcmp(operatedFunction->getName(),"_start")){
         doBloat = true;
         PRINT_INFOR("Bloating function (%d) %s", bloatCount, displacedFunction->getName());
     } else {
@@ -891,7 +871,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
             BasicBlock* bb = f->getBasicBlockAtAddress(pt->getInstSourceAddress());
             if (!f->hasLeafOptimization() && bb && !bb->isEntry()){
                 stackIsSafe = true;
-            }
+            } 
             uint64_t registerStorage = getInstDataAddress() + regStorageOffset;
 
             if (isFirstInChain){
@@ -1064,8 +1044,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
                 __SHOULD_NOT_ARRIVE;
             }
 #ifdef RELOC_MOD
-            if (i % RELOC_MOD == RELOC_MOD_OFF || !strcmp(func->getName(),"_start") ||
-                !strcmp(func->getName(),"_dl_aux_init")){
+            if (i % RELOC_MOD == RELOC_MOD_OFF || !strcmp(func->getName(),"_start")){
                 PRINT_INFOR("relocating function (%d) %s", i, func->getName());
 #endif
                 PRINT_PROGRESS(i, numberOfFunctions, 40);
@@ -1620,11 +1599,11 @@ ElfFileInst::~ElfFileInst(){
     }
 }
 
-void ElfFileInst::dump(char* extension){
+void ElfFileInst::dump(){
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
 
     char fileName[__MAX_STRING_SIZE] = "";
-    sprintf(fileName,"%s.%s", elfFile->getFileName(), extension);
+    sprintf(fileName,"%s.%s", elfFile->getFileName(), getInstSuffix());
 
     BinaryOutputFile binaryOutputFile;
     binaryOutputFile.open(fileName);
@@ -1675,7 +1654,7 @@ void ElfFileInst::print(uint32_t printCodes){
 }
 
 
-ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList, char* inputFileList){
+ElfFileInst::ElfFileInst(ElfFile* elf){
     currentPhase = ElfInstPhase_no_phase;
     elfFile = elf;
 
@@ -1749,14 +1728,23 @@ ElfFileInst::ElfFileInst(ElfFile* elf, char* inputFuncList, char* inputFileList)
     disabledFunctions = new Vector<char*>();
     disabledFiles = new Vector<char*>();
 
+    flags = InstrumentorFlag_none;
+}
+
+void ElfFileInst::setInputFunctions(char* inputFuncList){
+    ASSERT(!(*disabledFunctions).size());
+
     if (inputFuncList){
         initializeFileList(inputFuncList, disabledFunctions);
     }
+}
+
+void ElfFileInst::setInputFiles(char* inputFileList){
+    ASSERT(!(*disabledFiles).size());
+
     if (inputFileList){
         initializeFileList(inputFileList, disabledFiles);
     }
-
-    flags = InstrumentorFlag_none;
 }
 
 uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx){

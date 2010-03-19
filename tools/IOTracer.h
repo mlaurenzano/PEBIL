@@ -12,7 +12,7 @@ private:
     Vector<char*>* traceFunctions;
 
 public:
-    IOTracer(ElfFile* elf, char* inputFuncList, char* inputFileList, char* traceFile);
+    IOTracer(ElfFile* elf, char* traceFile);
     ~IOTracer();
 
     void declare();

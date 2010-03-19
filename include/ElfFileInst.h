@@ -27,7 +27,6 @@ class TextSection;
 #define Size__32_bit_flag_protect_light 12
 #define Size__64_bit_flag_protect_light 18
 
-
 #define INST_SNIPPET_BOOTSTRAP_BEGIN 0
 #define INST_SNIPPET_BOOTSTRAP_END 1
 #define INST_POINT_BOOTSTRAP1 0
@@ -38,6 +37,12 @@ class TextSection;
 #define HAS_INSTRUMENTOR_FLAG(__flag, __n) ((__flag) & (__n))
 #define InstrumentorFlag_none       0x0
 #define InstrumentorFlag_norelocate 0x1
+
+#define INSTHDR_RESERVE_AMT 0x1000
+#define TEXT_EXTENSION_INC  0x4000
+#define DATA_EXTENSION_INC  0x4000
+#define DEFAULT_INST_SEGMENT_IDX 4
+#define TEMP_SEGMENT_SIZE 0x80000000
 
 typedef enum {
     ElfInstPhase_no_phase = 0,
@@ -94,6 +99,7 @@ private:
     void initializeDisabledFunctions(char* inputFuncList);
     void initializeDisabledFiles(char* inputFuncList);
 
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 protected:
     Vector<Function*> allFunctions;
     Vector<Function*> exposedFunctions;
@@ -149,7 +155,7 @@ protected:
     BasicBlock* getProgramExitBlock();
 
 public:
-    ElfFileInst(ElfFile* elf, char* inputFuncList, char* inputFileList);
+    ElfFileInst(ElfFile* elf);
     ~ElfFileInst();
     ElfFile* getElfFile() { return elfFile; }
     uint64_t getRegStorageOffset() { return regStorageOffset; }
@@ -158,8 +164,7 @@ public:
 
     void print();
     void print(uint32_t printCodes);
-    void dump(char* extension);
-    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    void dump();
 
     bool verify();
 
@@ -174,9 +179,13 @@ public:
 
     BasicBlock* getProgramEntryBlock();
 
+    void setInputFunctions(char* inputFuncList);
+    void setInputFiles(char* inputFileList);    
+
     LineInfoFinder* getLineInfoFinder() { return lineInfoFinder; }
     bool hasLineInformation() { return (lineInfoFinder != NULL); }
     void setPathToInstLib(char* libPath);
+    void setInstExtension(char* extension);
 
     char* getApplicationName() { return elfFile->getFileName(); }
     uint32_t getApplicationSize() { return elfFile->getFileSize(); }

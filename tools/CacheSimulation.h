@@ -12,7 +12,7 @@ private:
     Vector<Instruction*>* generateBufferedAddressCalculation64(Instruction* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method);
 
 public:
-    CacheSimulation(ElfFile* elf, char* inputFuncList, char* inputFileList);
+    CacheSimulation(ElfFile* elf);
     ~CacheSimulation() {}
 
     Vector<Instruction*>* generateBufferedAddressCalculation(Instruction* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method);

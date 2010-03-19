@@ -94,7 +94,7 @@ void SymbolTable::sortSymbols(){
 }
 
 
-uint32_t SymbolTable::findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t buffCnt,char** namestr){
+uint32_t SymbolTable::findSymbol4Addr(uint64_t addr, Symbol** buffer, uint32_t buffCnt, char** namestr){
     uint32_t retValue = 0;
 
     sortSymbols();

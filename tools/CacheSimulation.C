@@ -12,16 +12,12 @@
 #define SIM_FUNCTION "MetaSim_simulFuncCall_Simu"
 #define EXIT_FUNCTION "MetaSim_endFuncCall_Simu"
 #define INST_LIB_NAME "libsimulator.so"
-#define INST_SUFFIX "siminst"
 #define BUFFER_ENTRIES 0x00010000
 #define Size__BufferEntry 16
 
-CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFuncList, char* inputFileList)
-    : InstrumentationTool(elf, inputFuncList, inputFileList)
+CacheSimulation::CacheSimulation(ElfFile* elf)
+    : InstrumentationTool(elf)
 {
-    instSuffix = new char[__MAX_STRING_SIZE];
-    sprintf(instSuffix,"%s\0", INST_SUFFIX);
-
     simFunc = NULL;
     exitFunc = NULL;
 }

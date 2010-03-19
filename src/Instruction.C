@@ -11,7 +11,6 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
-//#define PRINT_INSTRUCTION_DETAIL
 
 bool Instruction::isConditionCompare(){
     int32_t m = GET(mnemonic);

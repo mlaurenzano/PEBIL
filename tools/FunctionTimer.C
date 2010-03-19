@@ -11,14 +11,10 @@
 #define FUNCTION_ENTRY "function_entry"
 #define FUNCTION_EXIT  "function_exit"
 #define INST_LIB_NAME "libtimer.so"
-#define INST_SUFFIX "ftminst"
 
-FunctionTimer::FunctionTimer(ElfFile* elf, char* inputFuncList, char* inputFileList)
-    : InstrumentationTool(elf, inputFuncList, inputFileList)
+FunctionTimer::FunctionTimer(ElfFile* elf)
+    : InstrumentationTool(elf)
 {
-    instSuffix = new char[__MAX_STRING_SIZE];
-    sprintf(instSuffix,"%s\0", INST_SUFFIX);
-
     programEntry = NULL;
     programExit = NULL;
     functionEntry = NULL;

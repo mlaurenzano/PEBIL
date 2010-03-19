@@ -7,8 +7,8 @@
 #include <Loop.h>
 #include <TextSection.h>
 
-InstrumentationTool::InstrumentationTool(ElfFile* elf, char* inputFuncList, char* inputFileList)
-    : ElfFileInst(elf, inputFuncList, inputFileList)
+InstrumentationTool::InstrumentationTool(ElfFile* elf)
+    : ElfFileInst(elf)
 {
 }
 
@@ -72,7 +72,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
             fileName = li->getFileName();
             lineNo = li->GET(lr_line);
         } else {
-            fileName = FILE_UNK;
+            fileName = INFO_UNKNOWN;
             lineNo = 0;
         }
         fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\t%d\t%d\n", 

@@ -9,15 +9,11 @@
 #define ENTRY_FUNCTION "initcounter"
 #define EXIT_FUNCTION "functioncounter"
 #define INST_LIB_NAME "libcounter.so"
-#define INST_SUFFIX "fncinst"
 #define NOSTRING "__pebil_no_string__"
 
-FunctionCounter::FunctionCounter(ElfFile* elf, char* inputFuncList, char* inputFileList)
-    : InstrumentationTool(elf, inputFuncList, inputFileList)
+FunctionCounter::FunctionCounter(ElfFile* elf)
+    : InstrumentationTool(elf)
 {
-    instSuffix = new char[__MAX_STRING_SIZE];
-    sprintf(instSuffix,"%s\0", INST_SUFFIX);
-
     entryFunc = NULL;
     exitFunc = NULL;
 }

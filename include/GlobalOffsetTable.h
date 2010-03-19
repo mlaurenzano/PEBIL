@@ -5,6 +5,8 @@
 
 class ElfFile;
 
+#define Size__ProcedureLink_Intermediate 6
+
 class GlobalOffsetTable : public RawSection {
 protected:
     uint32_t numberOfEntries;
@@ -20,6 +22,8 @@ public:
     uint32_t read(BinaryInputFile* b);
 
     uint64_t getEntry(uint32_t index);
+    uint32_t getEntrySize() { return entrySize; }
+    uint64_t getEntryAddress(uint32_t index) { ASSERT(getEntry(index)); return (baseAddress + index*getEntrySize()); }
     uint32_t getNumberOfEntries() { return numberOfEntries; }
     uint32_t minIndex() { return -1*tableBaseIdx; }
     uint32_t maxIndex() { return numberOfEntries-tableBaseIdx; }

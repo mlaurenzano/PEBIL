@@ -2,9 +2,9 @@
 
 #define CLOCK_RATE_HZ 2600000000
 
-#define RECORDS_PER_FUNCTION 4
+#define RECORDS_PER_FUNCTION 8
 #define STACK_BACKTRACE_SIZE  8
-#define NUM_PRINT 10
+#define NUM_PRINT 10000
 
 struct funcInfo* funcInfos = NULL;
 int32_t numberOfFunctions = 0;

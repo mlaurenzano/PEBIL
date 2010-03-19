@@ -1,12 +1,12 @@
 include rules/rules.$(COMP)
 
 DBG         = -save-temps -g #-Wall
-OPT         = -O0 -g -w
+OPT         = -O3 -g -w #-static
 CC          = $(PEBIL_CC)  $(OPT)
 CPP         = $(PEBIL_CPP) $(OPT)
 F77         = $(PEBIL_F77) $(OPT)
 LNK         = ld
-LINK_FLAGS  = $(PEBIL_LD_FLAGS)
+LINK_FLAGS  = $(PEBIL_LD_FLAGS) ../instcode/CounterFunctions.o
 
 SRCDIR      = ../test
 BINDIR      = ../src
@@ -50,7 +50,3 @@ clean:
 fullclean: clean
 	( cd $(BINDIR); rm -f $(EXECUTABLE) )
 
-depend:
-	$(GNU_CPP) -E -MM $(SRCS) $(SRCSCPP) > DEPENDS
-
-#include DEPENDS

@@ -112,7 +112,7 @@ public:
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
-    uint32_t findSymbol4Addr(uint64_t addr,Symbol** buffer,uint32_t bufCnt,char** namestr=NULL);
+    uint32_t findSymbol4Addr(uint64_t addr, Symbol** buffer, uint32_t bufCnt, char** namestr=NULL);
 };
 
 #endif /* _SymbolTable_h_ */
