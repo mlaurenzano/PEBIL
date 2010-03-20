@@ -98,9 +98,12 @@ void SectionHeader::setSectionType(){
     case SHT_GNU_versym:
         sectionType = PebilClassType_GnuVersymTable;
         break;
+    case SHT_GNU_verdef:
+        sectionType = PebilClassType_no_type;
+	break;
     default:
         sectionType = PebilClassType_RawSection;
-        PRINT_ERROR("Unknown section type %d (%#x)", GET(sh_type), GET(sh_type));
+        PRINT_ERROR("Section %d: Unknown section type %#x", getIndex(), GET(sh_type));
     }
 }
 

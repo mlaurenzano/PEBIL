@@ -21,6 +21,22 @@
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 02 ; V W </opcode>
   </instruction>
 
+  <instruction mnemonic="roundps">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 08; V W Ib </opcode>
+  </instruction>
+
+  <instruction mnemonic="roundpd">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 09; V W Ib </opcode>
+  </instruction>
+
+  <instruction mnemonic="roundss">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0a; V W Ib </opcode>
+  </instruction>
+
+  <instruction mnemonic="roundsd">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0b; V W Ib </opcode>
+  </instruction>
+
   <!-- 3byte-opcode sse/mmx instructions added by michael laurenzano: michaell at sdsc.edu
        these will be implemented as needed since there are so many
 
@@ -229,18 +245,6 @@
     <opcode> ; ; </opcode>
   </instruction>
   <instruction mnemonic="pcmpistri">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="roundps">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="roundpd">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="roundss">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="roundsd">
     <opcode> ; ; </opcode>
   </instruction>
   <instruction mnemonic="blendps">

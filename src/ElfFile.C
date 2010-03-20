@@ -178,17 +178,6 @@ bool ElfFile::verify(){
             }
         }
     }
-    /*
-    if (textSegCount != 1){
-        PRINT_ERROR("Exactly 1 loadable text segment must be present, %d found", textSegCount);
-        return false;
-    }
-    if (dataSegCount != 1){
-        PRINT_ERROR("Exactly 1 loadable data segment must be present, %d found", dataSegCount);
-        return false;
-    }
-    */
-
 
     // enforce constrainst on where PT_INTERP segments fall
     uint32_t ptInterpIdx = getNumberOfPrograms();
@@ -202,12 +191,7 @@ bool ElfFile::verify(){
         }
     }
 
-    if (isStaticLinked()){
-        if (ptInterpIdx != getNumberOfPrograms()){
-            PRINT_ERROR("Static linked executables shouldn't have a PT_INTERP segment");
-            return false;
-        }
-    } else {
+    if (ptInterpIdx < getNumberOfPrograms()){
         for (uint32_t i = 0; i < getNumberOfPrograms(); i++){    
             if (programHeaders[i]->GET(p_type) == PT_LOAD){
                 if (i < ptInterpIdx){
@@ -215,6 +199,11 @@ bool ElfFile::verify(){
                     return false;
                 }
             }
+        }
+    } else {
+        if (isStaticLinked()){
+            PRINT_ERROR("Static linked executables shouldn't have a PT_INTERP segment");
+            return false;
         }
     }
 

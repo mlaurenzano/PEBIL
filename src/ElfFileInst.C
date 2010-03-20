@@ -1830,10 +1830,6 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
         sHdr->INCREMENT(sh_offset,extraSize);
         sHdr->INCREMENT(sh_addr,extraSize);
     } 
-    /*
-    ASSERT(extraSize <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough room to insert extra ELF control");
-    elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
-    */
 
     dynamicTable->getDynamicByType(DT_VERSYM,0)->SET_A(d_ptr,d_un,elfFile->getSectionHeader(elfFile->getGnuVersymTable()->getSectionIndex())->GET(sh_addr));
     dynamicTable->getDynamicByType(DT_VERNEED,0)->SET_A(d_ptr,d_un,elfFile->getSectionHeader(elfFile->getGnuVerneedTable()->getSectionIndex())->GET(sh_addr));
@@ -1865,10 +1861,6 @@ uint32_t ElfFileInst::expandHashTable(){
         sHdr->INCREMENT(sh_offset,extraSize);
         sHdr->INCREMENT(sh_addr,extraSize);
     }
-    /*
-    ASSERT(extraSize <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough room to insert extra ELF control");
-    elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
-    */
 
     DynamicTable* dynamicTable = elfFile->getDynamicTable();
     for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
