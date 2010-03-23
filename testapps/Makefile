@@ -6,7 +6,7 @@ CC          = $(PEBIL_CC)  $(OPT)
 CPP         = $(PEBIL_CPP) $(OPT)
 F77         = $(PEBIL_F77) $(OPT)
 LNK         = ld
-LINK_FLAGS  = $(PEBIL_LD_FLAGS) ../instcode/CounterFunctions.o
+LINK_FLAGS  = $(PEBIL_LD_FLAGS)
 
 SRCDIR      = ../test
 BINDIR      = ../src

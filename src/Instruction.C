@@ -234,8 +234,8 @@ uint64_t Instruction::getTargetAddress(){
     uint64_t tgtAddress;
     if (getInstructionType() == X86InstructionType_uncond_branch ||
         getInstructionType() == X86InstructionType_cond_branch){
-        if (addressAnchor){
-            tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
+        if (addressAnchor){ 
+           tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
         } else if (operands && operands[JUMP_TARGET_OPERAND]){
             if (operands[JUMP_TARGET_OPERAND]->getType() == UD_OP_JIMM){
                 tgtAddress = getBaseAddress();
@@ -251,7 +251,11 @@ uint64_t Instruction::getTargetAddress(){
     }
     else if (getInstructionType() == X86InstructionType_call){
         if (addressAnchor){
-            tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
+            if (getContainer()->getTextSection()->getElfFile()->is64Bit()){
+                tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
+            } else {
+                tgtAddress = getBaseAddress() + addressAnchor->getLinkValue();
+            }
         } else if (operands && operands[JUMP_TARGET_OPERAND]){
             if (operands[JUMP_TARGET_OPERAND]->getType() == UD_OP_JIMM){
                 tgtAddress = getBaseAddress();
@@ -1593,6 +1597,7 @@ void Instruction::print(){
     flags[8] = '\0';
 
     PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%8s]\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
+    PRINT_INFOR("%d", getInstructionType());
 
 
 #ifdef PRINT_INSTRUCTION_DETAIL

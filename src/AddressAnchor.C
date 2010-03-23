@@ -4,6 +4,21 @@
 #include <Instruction.h>
 #include <RawSection.h>
 
+uint64_t AddressAnchor::getLinkOffset(){
+    if (linkedParent->getType() == PebilClassType_Instruction){ 
+        Instruction* instl = (Instruction*)linkedParent;
+        if (instl->isControl()){
+            return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
+        } else {
+            return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
+        }
+    } else if (linkedParent->getType() == PebilClassType_DataReference){
+        return link->getBaseAddress();
+    }
+    __SHOULD_NOT_ARRIVE;
+    return 0;
+}
+
 int searchLinkBaseAddressExact(const void* arg1, const void* arg2){
     uint64_t key = *((uint64_t*)arg1);
     AddressAnchor* a = *((AddressAnchor**)arg2);
@@ -135,21 +150,6 @@ void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t
             }
         }
     }
-}
-
-uint64_t AddressAnchor::getLinkOffset(){
-    if (linkedParent->getType() == PebilClassType_Instruction){ 
-        Instruction* instl = (Instruction*)linkedParent;
-        if (instl->isControl()){
-            return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
-        } else {
-            return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
-        }
-    } else if (linkedParent->getType() == PebilClassType_DataReference){
-        return link->getBaseAddress();
-    }
-    __SHOULD_NOT_ARRIVE;
-    return 0;
 }
 
 AddressAnchor::AddressAnchor(Base* lnk, Base* par){
