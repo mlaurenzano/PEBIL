@@ -156,7 +156,7 @@ void BasicBlockCounter::instrument(){
             
         // register the snippet we just created
         addInstrumentationSnippet(snip);            
-        
+            
         // register an instrumentation point at the function that uses this snippet
         InstrumentationPoint* p = addInstrumentationPoint(bb, snip, InstrumentationMode_inline, FlagsProtectionMethod_light);
     }

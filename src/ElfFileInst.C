@@ -97,7 +97,7 @@ void ElfFileInst::buildInstrumentationSections(){
     // add the instrumentation segment
     usableAddress = nextAlignAddress(usableAddress, dHdr->GET(p_align));
     usableOffset = nextAlignAddress(usableOffset, dHdr->GET(p_align));
-    ASSERT(usableAddress == instrumentationDataAddress);
+    //    ASSERT(usableAddress == instrumentationDataAddress);
     instSegment = elfFile->addSegment(DEFAULT_INST_SEGMENT_IDX, dHdr->GET(p_type), usableOffset, usableAddress,
                                       usableAddress, TEMP_SEGMENT_SIZE, TEMP_SEGMENT_SIZE, PF_R | PF_W | PF_X, dHdr->GET(p_align));
 
@@ -185,9 +185,11 @@ bool ElfFileInst::isEligibleFunction(Function* func){
     if (func->isInstrumentationFunction()){
         return false;
     }
+    /*
     if (func->isJumpTable()){
         return false;
     }
+    */
     if (isDisabledFunction(func)){
         return false;
     }
@@ -471,6 +473,8 @@ uint32_t ElfFileInst::anchorProgramElements(){
         }
     }
 
+    TextSection* text = getTextSection();
+
     for (uint32_t i = 0; i < dataSections.size(); i++){
         RawSection* dataRawSection = elfFile->getRawSection(dataSections[i]);
         SectionHeader* dataSectionHeader = elfFile->getSectionHeader(dataSections[i]);
@@ -500,6 +504,13 @@ uint32_t ElfFileInst::anchorProgramElements(){
 
             void* link = bsearch(&extendedData,allInstructions,instructionCount,sizeof(Instruction*),searchBaseAddressExact);
             if (link != NULL){
+#ifndef FILL_RELOCATED_WITH_INTERRUPTS
+                for (uint32_t j = 0; j < text->getNumberOfTextObjects(); j++){
+                    if (extendedData >= text->getTextObject(j)->getBaseAddress() &&
+                        extendedData < text->getTextObject(j)->getBaseAddress() + Size__uncond_jump){
+                        //                        text->getTextObject(j)->print();
+                        //                        PRINT_WARN(10, "Data value %#llx at %#llx refers to function entry at base %#llx", extendedData, dataSectionHeader->GET(sh_addr)+currByte, text->getTextObject(j)->getBaseAddress());
+#endif // FILL_RELOCATED_WITH_INTERRUPTS
                 if (!(dataSectionHeader->GET(sh_addr)+currByte % sizeof(uint64_t))){
                     PRINT_WARN(10, "unaligned data %#llx at %llx", extendedData, dataSectionHeader->GET(sh_addr)+currByte);
                 }
@@ -516,11 +527,16 @@ uint32_t ElfFileInst::anchorProgramElements(){
                 addressAnchors.append(dataRef->getAddressAnchor());
                 dataRef->getAddressAnchor()->setIndex(anchorCount);
                 anchorCount++;
+#ifndef FILL_RELOCATED_WITH_INTERRUPTS
+                    }
+                }
+#endif // FILL_RELOCATED_WITH_INTERRUPTS
             } else {
                 //PRINT_DEBUG_ANCHOR("found data %#llx not linked to an instruction", extendedData);
             }
         }
     }
+
     PRINT_DEBUG_ANCHOR("Found %d anchors total", anchorCount);
     PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
     PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
@@ -576,11 +592,13 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
     // we dont want the above search to find this anchor, so we add after the search is done
     addressAnchors.append(connector->getAddressAnchor());
 
+#ifdef FILL_RELOCATED_WITH_INTERRUPTS
     while (currentByte < functionSize){
         (*trampEmpty).append(InstructionGenerator::generateInterrupt(X86TRAPCODE_BREAKPOINT));
         (*trampEmpty).back()->setBaseAddress(operatedFunction->getBaseAddress() + currentByte);
         currentByte += (*trampEmpty).back()->getSizeInBytes();
     }
+#endif
 
     placeHolder->generateCFG(trampEmpty);
     delete trampEmpty;
@@ -617,7 +635,7 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
 #endif
 #ifdef BLOAT_MOD
     doBloat = false;
-    if (bloatCount % BLOAT_MOD == BLOAT_MOD_OFF || !strcmp(operatedFunction->getName(),"_start")){
+    if (bloatCount % BLOAT_MOD == BLOAT_MOD_OFF){
         doBloat = true;
         PRINT_INFOR("Bloating function (%d) %s", bloatCount, displacedFunction->getName());
     } else {
@@ -672,10 +690,6 @@ uint32_t ElfFileInst::generateInstrumentation(){
     }
 
     uint64_t codeOffset = relocatedTextSize;
-
-    // some padding so that the instrumentation code is more readable
-    codeOffset += 32;
-
 
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
@@ -1044,7 +1058,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
                 __SHOULD_NOT_ARRIVE;
             }
 #ifdef RELOC_MOD
-            if (i % RELOC_MOD == RELOC_MOD_OFF || !strcmp(func->getName(),"_start")){
+            if (i % RELOC_MOD == RELOC_MOD_OFF){
                 PRINT_INFOR("relocating function (%d) %s", i, func->getName());
 #endif
                 PRINT_PROGRESS(i, numberOfFunctions, 40);
@@ -1128,6 +1142,7 @@ void ElfFileInst::functionSelect(){
                 }
             } else {
                 PRINT_DEBUG_FUNC_RELOC("\thidden: %s\t%d %d %#llx %d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail());
+                PRINT_INFOR("\thidden: %s\t%d %d %#llx %d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail());
                 hiddenFunctions.append(f);
             }
         }
@@ -1145,7 +1160,7 @@ void ElfFileInst::phasedInstrumentation(){
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     ASSERT(elfFile->getFileHeader()->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
-    elfFile->getFileHeader()->SET(e_flags,EFINSTSTATUS_MOD);
+    elfFile->getFileHeader()->SET(e_flags, EFINSTSTATUS_MOD);
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
@@ -1686,11 +1701,12 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     anchorsAreSorted = false;
 
     programEntryBlock = getTextSection()->getBasicBlockAtAddress(elfFile->getFileHeader()->GET(e_entry));
-    
+
     relocatedTextSize = 0;
     instrumentationData = NULL;
     instrumentationDataSize = 0;
     instrumentationDataAddress = 0;
+
     for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
         SectionHeader* sec = elfFile->getSectionHeader(i);
         if (sec->GET(sh_addr)){
@@ -1788,10 +1804,6 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
             sHdr->INCREMENT(sh_addr,entrySize);
         }
     }
-    /*
-    ASSERT(extraSize <= elfFile->getSectionHeader(extraTextIdx)->GET(sh_size) && "Not enough room to insert extra ELF control");
-    elfFile->getSectionHeader(extraTextIdx)->SET(sh_size,elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)-extraSize);
-    */
 
     // adjust the dynamic table entries for the section shifts
     for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
@@ -1915,12 +1927,6 @@ uint32_t ElfFileInst::addStringToDynamicStringTable(const char* str){
         sHdr->INCREMENT(sh_offset, extraSize);
         sHdr->INCREMENT(sh_addr, extraSize);
     }
-
-    // shrink the size of the extra text section to accomodate the increase of the control sections
-    /*
-    ASSERT(extraSize <= elfFile->getSectionHeader(ftidx)->GET(sh_size) && "Not enough room to insert extra ELF control");
-    elfFile->getSectionHeader(ftidx)->SET(sh_size,elfFile->getSectionHeader(ftidx)->GET(sh_size)-extraSize);
-    */
 
     for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
         Dynamic* dyn = dynamicTable->getDynamic(i);

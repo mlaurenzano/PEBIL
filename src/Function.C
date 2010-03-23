@@ -95,9 +95,11 @@ bool Function::hasCompleteDisassembly(){
         return false;
     }
 
+    /*
     if (refersToInstruction()){
-        PRINT_ERROR("Unexpected condition -- function refers to self");
+        return false;
     }
+    */
     
     // if this function calls __i686.get_pc_thunk.bx
     for (uint32_t i = 0; i < textSection->getNumberOfTextObjects(); i++){
