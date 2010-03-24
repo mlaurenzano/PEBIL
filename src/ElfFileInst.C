@@ -1141,8 +1141,8 @@ void ElfFileInst::functionSelect(){
                     }
                 }
             } else {
-                PRINT_DEBUG_FUNC_RELOC("\thidden: %s\t%d %d %#llx %d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail());
-                PRINT_INFOR("\thidden: %s\t%d %d %#llx %d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail());
+                PRINT_DEBUG_FUNC_RELOC("\thidden: %s\t%d %d %#llx %d %d %d %d %d %d %d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail(), canRelocateFunction(f), f->isInstrumentationFunction(), f->getNumberOfBytes(), isDisabledFunction(f), f->hasSelfDataReference(), f->isDisasmFail());
+                PRINT_INFOR("Hiding function %s", f->getName());
                 hiddenFunctions.append(f);
             }
         }

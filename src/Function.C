@@ -127,8 +127,11 @@ bool Function::refersToInstruction(){
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         if (allInstructions[i]->getAddressAnchor() && !allInstructions[i]->isControl()){
             if (allInstructions[i]->getAddressAnchor()->getLink()->getType() == PebilClassType_Instruction){
-                delete[] allInstructions;
-                return true;
+                if (allInstructions[i]->isMemoryOperation()){
+                    allInstructions[i]->print();
+                    delete[] allInstructions;
+                    return true;
+                }
             }
         }
     }

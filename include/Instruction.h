@@ -187,8 +187,10 @@ private:
     AddressAnchor* addressAnchor;
     bool leader;
     TextObject* container;
+    uint32_t instructionType;
 
     HashCode hashCode;
+    uint32_t setInstructionType();
 
 public:
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");

@@ -29,8 +29,8 @@
 //#define DEBUG_BLOAT_FILTER
 
 // some common macros to help debug instrumentation
-//#define RELOC_MOD_OFF 103
-//#define RELOC_MOD 2048
+//#define RELOC_MOD_OFF 760
+//#define RELOC_MOD 1024
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define BLOAT_MOD_OFF 3
 //#define BLOAT_MOD     2

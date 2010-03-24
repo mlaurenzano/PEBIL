@@ -622,12 +622,19 @@ bool Instruction::isJumpTableBase(){
 }
 
 uint32_t Instruction::getInstructionType(){
+    if (instructionType){
+        return instructionType;
+    }
+    return setInstructionType();
+}
+
+uint32_t Instruction::setInstructionType(){
     uint32_t optype = X86InstructionType_unknown;
     switch(GET(mnemonic)){
         case UD_Ipalignr:
         case UD_Ipshufb:
         case UD_Iphaddd:
-            optype = X86InstructionType_int;
+            optype = X86InstructionType_simd;
         case UD_I3dnow:
             optype = X86InstructionType_special;
             break;
@@ -1248,6 +1255,12 @@ uint32_t Instruction::getInstructionType(){
         case UD_Iretf:
             optype = X86InstructionType_return;
             break;
+        case UD_Iroundpd:
+        case UD_Iroundps:
+        case UD_Iroundsd:
+        case UD_Iroundss:
+	    optype = X86InstructionType_simd;
+	    break;
         case UD_Irsm:
             optype = X86InstructionType_special;
             break;
@@ -1418,10 +1431,17 @@ uint32_t Instruction::getInstructionType(){
             break;
     };
 
+    /*
     if (optype == X86InstructionType_unknown || optype == X86InstructionType_invalid){
-        PRINT_ERROR("Unknown instruction mnemonic `%s' found at address %#llx", ud_lookup_mnemonic(GET(mnemonic)), baseAddress);
+        PRINT_WARN(10, "Unknown instruction mnemonic `%s' found at address %#llx", ud_lookup_mnemonic(GET(mnemonic)), baseAddress);
     }
-    return optype;
+    */
+    if (optype == X86InstructionType_unknown){
+        PRINT_WARN(10, "Unknown instruction mnemonic `%s' found at address %#llx", ud_lookup_mnemonic(GET(mnemonic)), baseAddress);
+    }
+
+    instructionType = optype;
+    return instructionType;
 }
 
 bool Instruction::controlFallsThrough(){
@@ -1515,6 +1535,7 @@ Instruction::Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_
     byteSource = src;
     container = cont;
     addressAnchor = NULL;
+    instructionType = X86InstructionType_unknown;
 
     operands = new Operand*[MAX_OPERANDS];
 
