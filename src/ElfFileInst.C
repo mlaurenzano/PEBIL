@@ -800,7 +800,7 @@ void ElfFileInst::functionSelect(){
                 }
             } else {
                 PRINT_DEBUG_FUNC_RELOC("\thidden: %s\t%d %d %#llx %d %d %d %d %d %d %d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail(), canRelocateFunction(f), f->isInstrumentationFunction(), f->getNumberOfBytes(), isDisabledFunction(f), f->hasSelfDataReference(), f->isDisasmFail());
-                PRINT_INFOR("Hiding function from instrumentation: %s (%#llx)", f->getName(), f->getBaseAddress());
+                PRINT_INFOR("Hiding function from instrumentation: %s (%#llx + %d bytes)", f->getName(), f->getBaseAddress(), f->getSizeInBytes());
                 hiddenFunctions.append(f);
             }
         }
