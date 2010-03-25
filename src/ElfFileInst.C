@@ -339,7 +339,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
 #ifdef VALIDATE_ANCHOR_SEARCH
     PRINT_INFOR("Validating anchor search, this can cause much longer instrumentation times, see VALIDATE_ANCHOR_SEARCH in %s", __FILE__);
 #else
-    PRINT_WARN(10, "Not validating anchor search, if problems are encountered try enabling VALIDATE_ANCHOR_SEARCH in %s", __FILE__);
+    PRINT_WARN(4, "Not validating anchor search, if problems are encountered try enabling VALIDATE_ANCHOR_SEARCH in %s", __FILE__);
 #endif
 
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
@@ -800,7 +800,7 @@ void ElfFileInst::functionSelect(){
                 }
             } else {
                 PRINT_DEBUG_FUNC_RELOC("\thidden: %s\t%d %d %#llx %d %d %d %d %d %d %d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail(), canRelocateFunction(f), f->isInstrumentationFunction(), f->getNumberOfBytes(), isDisabledFunction(f), f->hasSelfDataReference(), f->isDisasmFail());
-                PRINT_INFOR("Hiding function %s", f->getName());
+                PRINT_INFOR("Hiding function from instrumentation: %s (%#llx)", f->getName(), f->getBaseAddress());
                 hiddenFunctions.append(f);
             }
         }

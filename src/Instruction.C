@@ -553,7 +553,6 @@ uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionIns
 #else // JUMPTABLE_USE_REGISTER_OPS
     jumpOperand = operands[JUMP_TARGET_OPERAND]->getValue();
 #endif // JUMPTABLE_USE_REGISTER_OPS
-
     PRINT_DEBUG_JUMP_TABLE("Finding jump table base address for instruction at %#llx", baseAddress);
 
     // jump target is a register
@@ -581,10 +580,8 @@ uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionIns
                             if (op->getType()){
 #ifdef JUMPTABLE_USE_REGISTER_OPS
                                 if (op->getType() == UD_OP_MEM && op->getValue() == jumpOperand){
-                                    op->print();
                                     jumpOpFound = true;
                                 } else if (op->getType() == UD_OP_REG && op->getBaseRegister() == jumpOperand){
-                                    op->print();
                                     jumpOpFound = true;
                                 }
 #else // JUMPTABLE_USE_REGISTER_OPS

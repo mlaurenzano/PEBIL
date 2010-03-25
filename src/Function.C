@@ -456,14 +456,14 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions, Vector<Addres
                 ASSERT((*controlTargetAddrs).size() == (*controlStorageAddrs).size());
                 if (tableMode == TableMode_direct){
                     if ((*controlStorageAddrs).size()){
-                        PRINT_INFOR("Jump table in memory at %#llx for %d entries", (*controlStorageAddrs)[0], (*controlStorageAddrs).size());
+                        //PRINT_INFOR("Jump table in memory at %#llx for %d entries", (*controlStorageAddrs)[0], (*controlStorageAddrs).size());
                     }
                     for (uint32_t j = 0; j < (*controlTargetAddrs).size(); j++){
                         anchorInstrs.append((*controlTargetAddrs)[j]);
                         anchorAddrs.append((*controlStorageAddrs)[j]);
                     }
                 } else {
-                    PRINT_INFOR("Untouched jump table at %#llx", (*instructions)[i]->getBaseAddress());
+                    //PRINT_INFOR("Untouched jump table at %#llx", (*instructions)[i]->getBaseAddress());
                     setJumpTable();
                 }
                 PRINT_DEBUG_CFG("Jump table targets (%d):", (*controlTargetAddrs).size());
