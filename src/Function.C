@@ -256,7 +256,7 @@ void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(currByte == sizeInBytes);
 }
 
-uint32_t Function::digest(){
+uint32_t Function::digest(Vector<AddressAnchor*>* addressAnchors){
     Vector<Instruction*>* allInstructions = NULL;
 
     // try to use a recursive algorithm
@@ -273,7 +273,7 @@ uint32_t Function::digest(){
     ASSERT(allInstructions);
 
     if (!isDisasmFail()){
-        generateCFG(allInstructions);        
+        generateCFG(allInstructions, addressAnchors);        
     }
 
     delete allInstructions;
@@ -340,6 +340,7 @@ Vector<Instruction*>* Function::digestRecursive(){
         }
         
         Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
+        Vector<uint64_t>* controlStorageAddrs = new Vector<uint64_t>();
         if (currentInstruction->isJumpTableBase()){
             PRINT_DEBUG_CFG("\t\t%#llx is jump table base", currentInstruction->getBaseAddress());
             uint64_t jumpTableBase = currentInstruction->findJumpTableBaseAddress(allInstructions);
@@ -348,7 +349,7 @@ Vector<Instruction*>* Function::digestRecursive(){
                 setBadInstruction(currentInstruction->getBaseAddress());
             } else {
                 ASSERT(!(*controlTargetAddrs).size());
-                currentInstruction->computeJumpTableTargets(jumpTableBase, this, controlTargetAddrs);
+                currentInstruction->computeJumpTableTargets(jumpTableBase, this, controlTargetAddrs, controlStorageAddrs);
                 PRINT_DEBUG_CFG("Jump table targets (%d):", (*controlTargetAddrs).size());
             }
         } else if (currentInstruction->usesControlTarget()){
@@ -373,6 +374,7 @@ Vector<Instruction*>* Function::digestRecursive(){
             }
         }
         delete controlTargetAddrs;
+        delete controlStorageAddrs;
     }
 
     qsort(&(*allInstructions), (*allInstructions).size(), sizeof(Instruction*), compareBaseAddress);
@@ -395,7 +397,7 @@ Vector<Instruction*>* Function::digestRecursive(){
 
         // in case the disassembler found an instruction that exceeds the function boundary, we will
         // reduce the size of the last instruction accordingly so that the extra bytes will not be
-        // used. This is common when data is stored at the end of function code
+        // used. This can happen when data is stored at the end of function code
         Instruction* tail = (*allInstructions).back();
         uint32_t currByte = tail->getBaseAddress() + tail->getSizeInBytes() - getBaseAddress();
         if ( currByte > sizeInBytes){
@@ -417,7 +419,7 @@ Vector<Instruction*>* Function::digestRecursive(){
     return allInstructions;
 }
 
-uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
+uint32_t Function::generateCFG(Vector<Instruction*>* instructions, Vector<AddressAnchor*>* addressAnchors){
     BasicBlock* currentBlock = NULL;
     BasicBlock* entryBlock = NULL;
     uint32_t numberOfBasicBlocks = 0;
@@ -431,9 +433,12 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
     // find the block leaders
     (*instructions)[0]->setLeader(true);
     Vector<uint64_t> leaderAddrs;
-
+    Vector<uint64_t> anchorAddrs;
+    Vector<uint64_t> anchorInstrs;
+    
     for (uint32_t i = 0; i < (*instructions).size(); i++){
         Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
+        Vector<uint64_t>* controlStorageAddrs = new Vector<uint64_t>();
         if ((*instructions)[i]->isJumpTableBase()){
             setJumpTable();
 
@@ -446,9 +451,19 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
                 ASSERT(getBadInstruction());
                 setJumpTable();
             } else {
-                ASSERT(!(*controlTargetAddrs).size());
-                TableModes tableMode = (*instructions)[i]->computeJumpTableTargets(jumpTableBase, this, controlTargetAddrs);
-                if (tableMode != TableMode_direct){
+                ASSERT(!(*controlTargetAddrs).size() && !(*controlStorageAddrs).size());
+                TableModes tableMode = (*instructions)[i]->computeJumpTableTargets(jumpTableBase, this, controlTargetAddrs, controlStorageAddrs);
+                ASSERT((*controlTargetAddrs).size() == (*controlStorageAddrs).size());
+                if (tableMode == TableMode_direct){
+                    if ((*controlStorageAddrs).size()){
+                        PRINT_INFOR("Jump table in memory at %#llx for %d entries", (*controlStorageAddrs)[0], (*controlStorageAddrs).size());
+                    }
+                    for (uint32_t j = 0; j < (*controlTargetAddrs).size(); j++){
+                        anchorInstrs.append((*controlTargetAddrs)[j]);
+                        anchorAddrs.append((*controlStorageAddrs)[j]);
+                    }
+                } else {
+                    PRINT_INFOR("Untouched jump table at %#llx", (*instructions)[i]->getBaseAddress());
                     setJumpTable();
                 }
                 PRINT_DEBUG_CFG("Jump table targets (%d):", (*controlTargetAddrs).size());
@@ -464,6 +479,7 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
             leaderAddrs.append((*controlTargetAddrs)[j]);
         }
         delete controlTargetAddrs;
+        delete controlStorageAddrs;
     }
 
     for (uint32_t i = 0; i < leaderAddrs.size(); i++){
@@ -543,6 +559,46 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions){
     for (uint32_t i = 0; i < unknownBlocks.size(); i++){
         DEBUG_CFG(unknownBlocks[i]->print();)
         flowGraph->addBlock(unknownBlocks[i]);
+    }
+
+    // anchor any jump table entries to instructions in this function
+    uint32_t dataLen;
+    if (getTextSection()->getElfFile()->is64Bit()){
+        dataLen = sizeof(uint64_t);
+    } else {
+        dataLen = sizeof(uint32_t);
+    }
+
+    Vector<uint64_t> unqStorageAddrs = Vector<uint64_t>();
+    Vector<uint64_t> unqTargetAddrs = Vector<uint64_t>();
+
+    for (uint32_t i = 0; i < anchorAddrs.size(); i++){
+        bool foundRepeat = false;
+        for (uint32_t j = 0; j < unqStorageAddrs.size(); j++){
+            if (unqStorageAddrs[j] == anchorAddrs[i]){
+                foundRepeat = true;
+            }
+        }
+        if (!foundRepeat){
+            unqStorageAddrs.append(anchorAddrs[i]);
+            unqTargetAddrs.append(anchorInstrs[i]);
+        }
+    }
+
+    for (uint32_t i = 0; i < unqStorageAddrs.size(); i++){
+        RawSection* dataSection = getTextSection()->getElfFile()->findDataSectionAtAddr(unqStorageAddrs[i]);
+        ASSERT(dataSection);
+        DataReference* dataRef = new DataReference(unqStorageAddrs[i], dataSection, dataLen, unqStorageAddrs[i] - dataSection->getSectionHeader()->GET(sh_addr));
+
+        DEBUG_ANCHOR(dataRef->print();)
+
+        Instruction* linkedInstruction = getInstructionAtAddress(unqTargetAddrs[i]);
+        ASSERT(linkedInstruction);
+        dataRef->initializeAnchor(linkedInstruction);
+        dataSection->addDataReference(dataRef);
+
+        (*addressAnchors).append(dataRef->getAddressAnchor());
+        dataRef->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
     }
 
     verify();

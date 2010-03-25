@@ -40,7 +40,7 @@ public:
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
     virtual char* getName();
-    virtual uint32_t digest() { __SHOULD_NOT_ARRIVE; }
+    virtual uint32_t digest(Vector<AddressAnchor*>* addressAnchors) { __SHOULD_NOT_ARRIVE; }
     virtual void printDisassembly(bool instructionDetail) { __SHOULD_NOT_ARRIVE; }
 
     virtual void print() { __SHOULD_NOT_ARRIVE; }
@@ -56,7 +56,7 @@ public:
     ~FreeText();
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-    uint32_t digest();
+    uint32_t digest(Vector<AddressAnchor*>* addressAnchors);
 
     uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
 
@@ -90,7 +90,7 @@ public:
     uint32_t disassemble();
     uint32_t printDisassembly(bool instructionDetail);
     uint32_t read(BinaryInputFile* b);
-    uint32_t disassemble(BinaryInputFile* b);
+    uint32_t disassemble(BinaryInputFile* b, Vector<AddressAnchor*>* addressAnchors);
 
     uint64_t findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc);
 

@@ -6,6 +6,8 @@
 #include <ProgramHeader.h>
 #include <Vector.h>
 
+class AddressAnchor;
+class DataReference;
 class DataSection;
 class DwarfLineInfoSection;
 class DwarfSection;
@@ -54,6 +56,10 @@ private:
     RelocationTable* dynamicRelocationTable;
     DwarfLineInfoSection* lineInfoSection;
 
+    Vector<AddressAnchor*>* addressAnchors;
+    bool anchorsAreSorted;
+    Vector<DataReference*> specialDataRefs;
+
     uint16_t sectionNameStrTabIdx;
     uint16_t dynamicSymtabIdx;
     uint64_t dynamicSectionAddress;
@@ -86,13 +92,7 @@ private:
 public:
     bool verify();
 
-    ElfFile(char* f): is64BitFlag(false),staticLinked(false),elfFileName(f),
-        fileHeader(NULL),globalOffsetTable(NULL),dynamicTable(NULL),
-        hashTable(NULL),gnuVerneedTable(NULL),gnuVersymTable(NULL),
-        dynamicStringTable(NULL),dynamicSymbolTable(NULL),pltRelocationTable(NULL),dynamicRelocationTable(NULL),
-        lineInfoSection(NULL),
-        dynamicSymtabIdx(0),dynamicSectionAddress(0),dynamicTableSectionIdx(0),textSegmentIdx(0),dataSegmentIdx(0),
-        numberOfFunctions(0),numberOfBlocks(0),numberOfMemoryOps(0),numberOfFloatPOps(0) {}
+    ElfFile(char* f);
     ~ElfFile();
 
     bool is64Bit() { return is64BitFlag; }
@@ -101,6 +101,16 @@ public:
 
     uint32_t getAddressAlignment(){ if (is64Bit()) { return sizeof(uint64_t); } else { return sizeof(uint32_t); } }
     void gatherDisassemblyStats();
+
+    Vector<AddressAnchor*>* getAddressAnchors() { return addressAnchors; }
+    uint32_t anchorProgramElements();
+    Vector<AddressAnchor*>* searchAddressAnchors(uint64_t addr);
+    void setAnchorsSorted(bool areSorted) { anchorsAreSorted = areSorted; }
+
+    TextSection* getDotTextSection();
+    TextSection* getDotFiniSection();
+    TextSection* getDotInitSection();
+    TextSection* getDotPltSection();
 
     void parse();
     void initSectionFilePointers();

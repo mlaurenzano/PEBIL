@@ -238,7 +238,7 @@ Vector<Instruction*>* TextObject::digestLinear(){
     return allInstructions;   
 }
 
-uint32_t FreeText::digest(){
+uint32_t FreeText::digest(Vector<AddressAnchor*>* addressAnchors){
     ASSERT(!blocks.size());
     if (usesInstructions){
         PRINT_DEBUG_CFG("\tdigesting freetext instructions at %#llx", getBaseAddress());
@@ -317,7 +317,7 @@ TextSection::TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t
     source = src;
 }
 
-uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
+uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile, Vector<AddressAnchor*>* addressAnchors){
     SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
 
     Vector<Symbol*> textSymbols = discoverTextObjects();
@@ -357,7 +357,7 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
         } else {
             PRINT_DEBUG_CFG("Digesting gentext object at %#llx", sortedTextObjects[i]->getBaseAddress());
         }
-        sortedTextObjects[i]->digest();
+        sortedTextObjects[i]->digest(addressAnchors);
     }
 
     verify();

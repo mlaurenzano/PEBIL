@@ -23,7 +23,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 
-    TextSection* text = getTextSection();
+    TextSection* text = getDotTextSection();
 
     fprintf(staticFD, "# appname   = %s\n", getApplicationName());
     fprintf(staticFD, "# appsize   = %d\n", getApplicationSize());

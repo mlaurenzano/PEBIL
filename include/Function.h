@@ -64,7 +64,7 @@ public:
     void setBaseAddress(uint64_t newBaseAddress);
 
     Symbol* getFunctionSymbol() { return symbol; }
-    uint32_t generateCFG(Vector<Instruction*>* instructions);
+    uint32_t generateCFG(Vector<Instruction*>* instructions, Vector<AddressAnchor*>* addressAnchors);
 
     FlowGraph* getFlowGraph() { return flowGraph; }
     uint32_t getNumberOfBasicBlocks();
@@ -79,7 +79,7 @@ public:
 
     void printInstructions();
 
-    uint32_t digest();
+    uint32_t digest(Vector<AddressAnchor*>* addressAnchors);
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
     bool verify();
     void print();

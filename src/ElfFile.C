@@ -12,6 +12,7 @@
 #include <GnuVersion.h>
 #include <HashTable.h>
 #include <Instruction.h>
+#include <Instrumentation.h>
 #include <LineInformation.h>
 #include <NoteSection.h>
 #include <PriorityQueue.h>
@@ -22,6 +23,50 @@
 #include <StringTable.h>
 #include <SymbolTable.h>
 #include <TextSection.h>
+
+TextSection* ElfFile::getDotTextSection(){
+    uint16_t textIdx = findSectionIdx(".text");
+    TextSection* textSection = (TextSection*)getRawSection(textIdx);
+    return textSection;
+}
+TextSection* ElfFile::getDotFiniSection(){
+    uint16_t textIdx = findSectionIdx(".fini");
+    TextSection* textSection = (TextSection*)getRawSection(textIdx);
+    return textSection;
+}
+TextSection* ElfFile::getDotInitSection(){
+    uint16_t textIdx = findSectionIdx(".init");
+    TextSection* textSection = (TextSection*)getRawSection(textIdx);
+    return textSection;
+}
+TextSection* ElfFile::getDotPltSection(){
+    uint16_t textIdx = findSectionIdx(".plt");
+    TextSection* textSection = (TextSection*)getRawSection(textIdx);
+    return textSection;
+}
+
+
+ElfFile::ElfFile(char* f) :
+is64BitFlag(false), staticLinked(false), elfFileName(f), fileHeader(NULL), globalOffsetTable(NULL), dynamicTable(NULL),
+hashTable(NULL), gnuVerneedTable(NULL), gnuVersymTable(NULL), dynamicStringTable(NULL), dynamicSymbolTable(NULL),
+pltRelocationTable(NULL), dynamicRelocationTable(NULL), lineInfoSection(NULL), dynamicSymtabIdx(0),
+dynamicSectionAddress(0), dynamicTableSectionIdx(0), textSegmentIdx(0), dataSegmentIdx(0), numberOfFunctions(0),
+numberOfBlocks(0), numberOfMemoryOps(0), numberOfFloatPOps(0)
+{
+    uint32_t addrAlign;
+    if (is64Bit()){
+        addrAlign = sizeof(uint64_t);
+    } else {
+        addrAlign = sizeof(uint32_t);
+    }
+
+    DataReference* zeroAddrRef = new DataReference(0, NULL, addrAlign, 0);
+    specialDataRefs.append(zeroAddrRef);
+
+    addressAnchors = new Vector<AddressAnchor*>();
+    anchorsAreSorted = false;
+}
+
 
 Symbol* ElfFile::lookupFunctionSymbol(uint64_t addr){
     GlobalOffsetTable* gotTable = getGlobalOffsetTable();
@@ -562,7 +607,7 @@ void ElfFile::initSectionFilePointers(){
     }
 
     for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
-        textSections[i]->disassemble(&binaryInputFile);
+        textSections[i]->disassemble(&binaryInputFile, addressAnchors);
     }
 
 
@@ -1218,6 +1263,12 @@ ElfFile::~ElfFile(){
             delete rawSections[i];
         }
     }
+    for (uint32_t i = 0; i < specialDataRefs.size(); i++){
+        delete specialDataRefs[i];
+    }
+    if (addressAnchors){
+        delete addressAnchors;
+    }
 
 }
 
@@ -1248,3 +1299,327 @@ void ElfFile::findLoops(){
 }
 
 
+Vector<AddressAnchor*>* ElfFile::searchAddressAnchors(uint64_t addr){
+    Vector<AddressAnchor*>* linearUpdate = new Vector<AddressAnchor*>();
+    Vector<AddressAnchor*>* binaryUpdate = new Vector<AddressAnchor*>();
+    uint64_t binIdx = 0, linIdx = 0;
+
+#if defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
+    if (!anchorsAreSorted){
+        (*addressAnchors).sort(compareLinkBaseAddress);
+        anchorsAreSorted = true;
+    }
+    AddressAnchor** allAnchors = &(*addressAnchors);
+
+    PRINT_DEBUG_ANCHOR("Array is:");
+    for (uint32_t i = 0; i < (*addressAnchors).size(); i++){
+        PRINT_DEBUG_ANCHOR("%#llx", allAnchors[i]->linkBaseAddress);
+    }
+
+    void* anchor = bsearch(&addr, allAnchors, (*addressAnchors).size(), sizeof(AddressAnchor*), searchLinkBaseAddressExact);
+    if (anchor){
+        // get the FIRST occurrence of addr in the anchor array
+        uint64_t idx = ((uint64_t)anchor-(uint64_t)allAnchors)/sizeof(AddressAnchor*);
+        while (idx > 0 && (*addressAnchors)[idx-1]->linkBaseAddress == (*addressAnchors)[idx]->linkBaseAddress){
+            idx--;
+        }
+        binIdx = idx;
+        while (idx < (*addressAnchors).size() &&
+                (*addressAnchors)[idx]->linkBaseAddress <= addr &&
+               addr < (*addressAnchors)[idx]->linkBaseAddress + (*addressAnchors)[idx]->getLink()->getSizeInBytes()){
+            PRINT_DEBUG_ANCHOR("found %#llx <= %#llx < %#llx + %d", (*addressAnchors)[idx]->linkBaseAddress, addr, (*addressAnchors)[idx]->linkBaseAddress, (*addressAnchors)[idx]->getLink()->getSizeInBytes());
+            (*binaryUpdate).append(allAnchors[idx++]);
+        }
+    }
+#endif //defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
+
+#if !defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
+    for (uint32_t i = 0; i < (*addressAnchors).size(); i++){
+        if (addr == (*addressAnchors)[i]->linkBaseAddress){
+            PRINT_DEBUG_ANCHOR("%#llx <= %#llx < %#llx", (*addressAnchors)[i]->linkBaseAddress, addr, (*addressAnchors)[i]->linkBaseAddress + (*addressAnchors)[i]->getLink()->getSizeInBytes());
+            PRINT_DEBUG_ANCHOR("%#llx <= %#llx < %#llx", (*addressAnchors)[i]->linkBaseAddress, addr, (*addressAnchors)[i]->linkBaseAddress + (*addressAnchors)[i]->getLink()->getSizeInBytes());
+            if (!(*linearUpdate).size()){
+                linIdx = i;
+            }
+            linearUpdate->append((*addressAnchors)[i]);
+        }
+    }
+#endif //!defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
+
+#ifdef VALIDATE_ANCHOR_SEARCH
+    if ((*binaryUpdate).size() != (*linearUpdate).size()){
+        PRINT_DEBUG_ANCHOR("Mismatch in binary/linear anchor search results for %#llx...", addr);
+        PRINT_DEBUG_ANCHOR("Binary search yields %d hits -- see entry %d", (*binaryUpdate).size(), binIdx);
+        for (uint32_t i = 0; i < (*binaryUpdate).size(); i++){
+            PRINT_DEBUG_ANCHOR("\tbinary[%d] = %#llx", i, (*binaryUpdate)[i]->linkBaseAddress);
+        }
+        PRINT_DEBUG_ANCHOR("Linear search yields %d hits -- see entry %d", (*linearUpdate).size(), linIdx);
+        for (uint32_t i = 0; i < (*linearUpdate).size(); i++){
+            PRINT_DEBUG_ANCHOR("\tlinear[%d] = %#llx", i, (*linearUpdate)[i]->linkBaseAddress);
+        }
+        PRINT_DEBUG_ANCHOR("Array is:");
+        for (uint32_t i = 0; i < (*addressAnchors).size(); i++){
+            PRINT_DEBUG_ANCHOR("anchors[%d]: %#llx", i, allAnchors[i]->linkBaseAddress);
+        }
+
+    }
+    ASSERT((*addressAnchors).isSorted(compareLinkBaseAddress));
+    ASSERT((*binaryUpdate).size() == (*linearUpdate).size());
+#endif //VALIDATE_ANCHOR_SEARCH
+
+    PRINT_DEBUG_ANCHOR("search done... %#llx", addr);
+
+#ifdef ANCHOR_SEARCH_BINARY
+    delete linearUpdate;
+    return binaryUpdate;
+#else
+    delete binaryUpdate;
+    return linearUpdate;
+#endif //ANCHOR_SEARCH_BINARY
+    __SHOULD_NOT_ARRIVE;
+}
+
+
+uint32_t ElfFile::anchorProgramElements(){
+
+    uint32_t instructionCount = 0;
+    PRINT_DEBUG_ANCHOR("Found %d text sections", getNumberOfTextSections());
+    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
+        instructionCount += getTextSection(i)->getNumberOfInstructions();
+        PRINT_DEBUG_ANCHOR("\tTextSection %d is section %d with %d instructions", i, getTextSection(i)->getSectionIndex(), getTextSection(i)->getNumberOfInstructions());
+    }
+    PRINT_DEBUG_ANCHOR("Found %d instructions in all sections", instructionCount);
+
+    Instruction** allInstructions = new Instruction*[instructionCount];
+    instructionCount = 0;
+    PRINT_DEBUG_ANCHOR("allinst address %lx", allInstructions);
+    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
+        instructionCount += getTextSection(i)->getAllInstructions(allInstructions, instructionCount);
+    }
+    qsort(allInstructions, instructionCount, sizeof(Instruction*), compareBaseAddress);
+
+
+    DEBUG_ANCHOR(
+    for (uint32_t i = 0; i < instructionCount; i++){
+        allInstructions[i]->print();
+    }
+    )
+
+    for (uint32_t i = 0; i < instructionCount; i++){
+        if (!allInstructions[i]->getBaseAddress()){
+            allInstructions[i]->print();
+            __SHOULD_NOT_ARRIVE;
+        }
+    }
+
+    DEBUG_ANCHOR(
+    for (uint32_t i = 0; i < instructionCount-1; i++){
+        if (allInstructions[i+1]->getBaseAddress() <= allInstructions[i]->getBaseAddress()){
+            allInstructions[i]->print();
+            allInstructions[i+1]->print();
+        }
+        ASSERT(allInstructions[i]->getBaseAddress() < allInstructions[i+1]->getBaseAddress() && "Problem with qsort");
+    }
+    )
+
+    uint32_t addrAlign;
+    if (is64Bit()){
+        //        addrAlign = sizeof(uint64_t);
+        addrAlign = sizeof(uint32_t);
+    } else {
+        addrAlign = sizeof(uint32_t);
+    }
+
+    for (uint32_t i = 0; i < instructionCount; i++){
+        Instruction* currentInstruction = allInstructions[i];
+        ASSERT(!currentInstruction->getAddressAnchor());
+        if (currentInstruction->usesRelativeAddress()){
+            uint64_t relativeAddress = currentInstruction->getRelativeValue() + currentInstruction->getBaseAddress() + currentInstruction->getSizeInBytes();
+            if (!is64Bit()){
+                if (!currentInstruction->isControl() || currentInstruction->usesIndirectAddress()){
+                    relativeAddress += currentInstruction->getSizeInBytes();
+                }
+            }
+            if (!currentInstruction->getRelativeValue()){
+                PRINT_WARN(4,"An Instruction links to null address %#llx", currentInstruction->getRelativeValue());
+            }
+            PRINT_DEBUG_ANCHOR("Searching for relative address %llx", relativeAddress);
+
+            // search other instructions
+            void* link = bsearch(&relativeAddress, allInstructions, instructionCount, sizeof(Instruction*), searchBaseAddressExact);
+            if (link != NULL){
+                Instruction* linkedInstruction = *(Instruction**)link;
+                PRINT_DEBUG_ANCHOR("Found inst -> inst link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
+
+                currentInstruction->initializeAnchor(linkedInstruction);
+
+                ASSERT(currentInstruction->getAddressAnchor());
+                (*addressAnchors).append(currentInstruction->getAddressAnchor());
+                currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
+            }
+
+            // search special data references
+            if (!currentInstruction->getAddressAnchor()){
+                for (uint32_t i = 0; i < specialDataRefs.size(); i++){
+                    if (specialDataRefs[i]->getBaseAddress() == relativeAddress){
+                        PRINT_DEBUG_ANCHOR("Found inst -> sdata link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
+                        currentInstruction->initializeAnchor(specialDataRefs[i]);
+                        (*addressAnchors).append(currentInstruction->getAddressAnchor());
+                        currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
+                    }
+                }
+            }
+
+            // search non-text sections
+            if (!currentInstruction->getAddressAnchor()){
+                for (uint32_t i = 0; i < getNumberOfSections(); i++){
+                    RawSection* dataRawSection = getRawSection(i);
+                    SectionHeader* dataSectionHeader = getSectionHeader(i);
+
+                    PRINT_DEBUG_ANCHOR("Checking section %d for inst->data link: [%#llx,%#llx)", i, dataSectionHeader->GET(sh_addr), dataSectionHeader->GET(sh_addr) + dataRawSection->getSizeInBytes());
+                    if (dataRawSection->getType() != PebilClassType_TextSection){
+                        PRINT_DEBUG_ANCHOR("\tFound nontext");
+                        if (dataSectionHeader->inRange(relativeAddress)){
+                            PRINT_DEBUG_ANCHOR("Found inst -> data link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
+                            uint64_t sectionOffset = relativeAddress - dataSectionHeader->GET(sh_addr);
+                            uint64_t extendedData = 0;
+                            if (dataSectionHeader->hasBitsInFile()){
+                                if (addrAlign == sizeof(uint64_t)){
+                                    uint64_t currentData = 0;
+                                    if (sectionOffset >= dataRawSection->getSizeInBytes()){
+                                        PRINT_ERROR("section %s: sectionOffset %d, sizeInBytes %d", dataSectionHeader->getSectionNamePtr(), sectionOffset, dataRawSection->getSizeInBytes());
+                                    }
+                                    ASSERT(sectionOffset < dataRawSection->getSizeInBytes());
+                                    memcpy(&currentData, dataRawSection->getFilePointer() + sectionOffset, addrAlign);
+                                    extendedData = currentData;
+                                } else if (addrAlign == sizeof(uint32_t)){
+                                    uint32_t currentData;
+                                    memcpy(&currentData, dataRawSection->getFilePointer()+sectionOffset, addrAlign);
+                                    extendedData = (uint64_t)currentData;
+                                } else {
+                                    __SHOULD_NOT_ARRIVE;
+                                }
+                            }
+                            DataReference* dataRef = new DataReference(extendedData, dataRawSection, addrAlign, sectionOffset);
+
+                            currentInstruction->initializeAnchor(dataRef);
+                            (*addressAnchors).append(currentInstruction->getAddressAnchor());
+                            currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
+                            dataRawSection->addDataReference(dataRef);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!currentInstruction->getAddressAnchor()){
+                PRINT_WARN(4, "Creating special AddressRelocation for %#llx at the behest of the instruction at %#llx since it wasn't an instruction or part of a data section",
+                           relativeAddress, currentInstruction->getBaseAddress());
+                DataReference* dataRef = new DataReference(0, NULL, addrAlign, relativeAddress);
+                specialDataRefs.append(dataRef);
+                currentInstruction->initializeAnchor(dataRef);
+                (*addressAnchors).append(currentInstruction->getAddressAnchor());
+                currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
+            }
+
+#if WARNING_SEVERITY <= 4
+            if (!currentInstruction->getAddressAnchor()){
+                PRINT_WARN(4,"Unable to link the instruction at %#llx (-> %#llx) to another object", currentInstruction->getBaseAddress(), relativeAddress);
+                currentInstruction->print();
+            }
+#endif
+        }
+    }
+
+    PRINT_DEBUG_ANCHOR("Found %d instructions that required anchoring", (*addressAnchors).size());
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+
+    // find the data sections
+    Vector<uint16_t> dataSections;
+    for (uint32_t i = 1; i < getNumberOfSections(); i++){
+        if (getSectionHeader(i)->getSectionNamePtr()){
+            if (strstr(getSectionHeader(i)->getSectionNamePtr(),"data")){
+                PRINT_DEBUG_ANCHOR("Found data section at %d", i);
+                dataSections.append((uint16_t)i);
+            }
+        }
+    }
+
+    TextSection* text = getDotTextSection();
+
+    for (uint32_t i = 0; i < dataSections.size(); i++){
+        RawSection* dataRawSection = getRawSection(dataSections[i]);
+        SectionHeader* dataSectionHeader = getSectionHeader(dataSections[i]);
+
+        uint32_t sectionSize = 0;
+        if (dataRawSection->getSizeInBytes() > addrAlign){
+            sectionSize = dataRawSection->getSizeInBytes() - addrAlign;
+        }
+
+        // since there are no constraints on the alignment of stuff in the data sections we must check starting at EVERY byte
+        // ^^^NO TO THE ABOVE STATEMENT^^^: we will check just word-aligned addresses since we were getting false positives
+        for (int32_t currByte = 0; currByte < sectionSize; currByte += sizeof(uint32_t)){
+            char* dataPtr = (char*)(dataRawSection->getFilePointer()+currByte);
+            uint64_t extendedData;
+            if (addrAlign == sizeof(uint64_t)){
+                uint64_t currentData;
+                memcpy(&currentData,dataPtr,addrAlign);
+                extendedData = currentData;
+            } else if (addrAlign == sizeof(uint32_t)){
+                uint32_t currentData;
+                memcpy(&currentData,dataPtr,addrAlign);
+                extendedData = (uint64_t)currentData;
+            } else {
+                __SHOULD_NOT_ARRIVE;
+            }
+            PRINT_DEBUG_ANCHOR("data section %d(%x): extendedData is %#016llx", i, dataPtr, extendedData);
+
+            void* link = bsearch(&extendedData,allInstructions,instructionCount,sizeof(Instruction*),searchBaseAddressExact);
+            if (link != NULL){
+#ifndef FILL_RELOCATED_WITH_INTERRUPTS
+                for (uint32_t j = 0; j < text->getNumberOfTextObjects(); j++){
+                    if (extendedData >= text->getTextObject(j)->getBaseAddress() &&
+                        extendedData < text->getTextObject(j)->getBaseAddress() + Size__uncond_jump){
+                        //                        text->getTextObject(j)->print();
+                        //                        PRINT_WARN(10, "Data value %#llx at %#llx refers to function entry at base %#llx", extendedData, dataSectionHeader->GET(sh_addr)+currByte, text->getTextObject(j)->getBaseAddress());
+#endif // FILL_RELOCATED_WITH_INTERRUPTS
+                if (!(dataSectionHeader->GET(sh_addr)+currByte % sizeof(uint64_t))){
+                    PRINT_WARN(10, "unaligned data %#llx at %llx", extendedData, dataSectionHeader->GET(sh_addr)+currByte);
+                }
+
+                Instruction* linkedInstruction = *(Instruction**)link;
+                PRINT_DEBUG_ANCHOR("Found data -> inst link: %#llx -> %#llx, offset %x", dataSectionHeader->GET(sh_addr)+currByte, extendedData, currByte);
+                DataReference* dataRef = new DataReference(extendedData, dataRawSection, addrAlign, currByte);
+
+                DEBUG_ANCHOR(dataRef->print();)
+
+                dataRef->initializeAnchor(linkedInstruction);
+                dataRawSection->addDataReference(dataRef);
+
+                (*addressAnchors).append(dataRef->getAddressAnchor());
+                dataRef->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
+#ifndef FILL_RELOCATED_WITH_INTERRUPTS
+                    }
+                }
+#endif // FILL_RELOCATED_WITH_INTERRUPTS
+            } else {
+                //PRINT_DEBUG_ANCHOR("found data %#llx not linked to an instruction", extendedData);
+            }
+        }
+    }
+
+    PRINT_DEBUG_ANCHOR("Found %d anchors total", (*addressAnchors).size());
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+    PRINT_DEBUG_ANCHOR("----------------------------------------------------------");
+
+    for (uint32_t i = 0; i < (*addressAnchors).size(); i++){
+        PRINT_DEBUG_ANCHOR("");
+        DEBUG_ANCHOR((*addressAnchors)[i]->print();)
+    }
+
+    delete[] allInstructions;
+    return (*addressAnchors).size();
+}

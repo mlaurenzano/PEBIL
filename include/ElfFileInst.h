@@ -6,7 +6,6 @@
 #include <Instruction.h>
 #include <Vector.h>
 
-class AddressAnchor;
 class BasicBlock;
 class BinaryOutputFile;
 class DataReference;
@@ -70,9 +69,6 @@ private:
     Vector<uint64_t> relocatedFunctionOffsets;
     Vector<Function*> nonRelocatedFunctions;
 
-    Vector<AddressAnchor*> addressAnchors;
-    Vector<DataReference*> specialDataRefs;
-
     ProgramHeader* instSegment;
 
     uint16_t extraTextIdx;
@@ -89,8 +85,6 @@ private:
     uint64_t instrumentationDataAddress;
 
     LineInfoFinder* lineInfoFinder;
-
-    bool anchorsAreSorted;
 
     uint32_t addStringToDynamicStringTable(const char* str);
     uint32_t addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx);
@@ -169,13 +163,11 @@ public:
     bool verify();
 
     void phasedInstrumentation();
-    uint32_t anchorProgramElements();
-    Vector<AddressAnchor*>* searchAddressAnchors(uint64_t addr);
 
-    TextSection* getTextSection();
-    TextSection* getFiniSection();
-    TextSection* getInitSection();
-    TextSection* getPltSection();
+    TextSection* getDotTextSection();
+    TextSection* getDotFiniSection();
+    TextSection* getDotInitSection();
+    TextSection* getDotPltSection();
 
     BasicBlock* getProgramEntryBlock();
 

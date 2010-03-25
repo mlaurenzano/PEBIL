@@ -460,10 +460,11 @@ void Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     }
 }
 
-TableModes Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList){
+TableModes Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList, Vector<uint64_t>* tableStorageList){
     ASSERT(isJumpTableBase() && "Cannot compute jump table targets for this instruction");
     ASSERT(func);
     ASSERT(addressList);
+    ASSERT(tableStorageList);
 
     TableModes tableMode = TableMode_undefined;
 
@@ -500,6 +501,7 @@ TableModes Instruction::computeJumpTableTargets(uint64_t tableBase, Function* fu
     else {
         tableMode = TableMode_instructions;
         (*addressList).append(tableBase);
+        (*tableStorageList).append(rawData);
         PRINT_DEBUG_JUMP_TABLE("\tJumpMode for table base %#llx -- Instructions", tableBase);
         return tableMode;
     }
@@ -519,16 +521,19 @@ TableModes Instruction::computeJumpTableTargets(uint64_t tableBase, Function* fu
         } else {
             rawData = (uint64_t)getUInt32(dataSection->getStreamAtAddress(tableBase+currByte));
         }
-        currByte += dataLen;
         
         if (!tableMode){
             rawData += baseAddress;
         }
         PRINT_DEBUG_JUMP_TABLE("Jump Table target %#llx", rawData);
         (*addressList).append(rawData);
+        (*tableStorageList).append(tableBase+currByte);
+
+        currByte += dataLen;
     } while (func->inRange((*addressList).back()) &&
              (tableBase+currByte)-dataSection->getSectionHeader()->GET(sh_addr) < dataSection->getSizeInBytes());
     (*addressList).remove((*addressList).size()-1);
+    (*tableStorageList).remove((*tableStorageList).size()-1);
 
     return tableMode;
 }
@@ -537,7 +542,18 @@ TableModes Instruction::computeJumpTableTargets(uint64_t tableBase, Function* fu
 uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions){
     ASSERT(isJumpTableBase() && "Cannot compute jump table base for this instruction");
 
-    uint64_t jumpOperand = operands[JUMP_TARGET_OPERAND]->getValue();
+    uint64_t jumpOperand;
+#ifdef JUMPTABLE_USE_REGISTER_OPS
+    if (operands[JUMP_TARGET_OPERAND]->getType() == UD_OP_MEM){
+        jumpOperand = operands[JUMP_TARGET_OPERAND]->getValue();
+    } 
+    else if (operands[JUMP_TARGET_OPERAND]->getType() == UD_OP_REG){
+        jumpOperand = operands[JUMP_TARGET_OPERAND]->getBaseRegister();
+    }
+#else // JUMPTABLE_USE_REGISTER_OPS
+    jumpOperand = operands[JUMP_TARGET_OPERAND]->getValue();
+#endif // JUMPTABLE_USE_REGISTER_OPS
+
     PRINT_DEBUG_JUMP_TABLE("Finding jump table base address for instruction at %#llx", baseAddress);
 
     // jump target is a register
@@ -562,8 +578,20 @@ uint64_t Instruction::findJumpTableBaseAddress(Vector<Instruction*>* functionIns
                     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
                         Operand* op = previousInstruction->getOperand(i);
                         if (op){
-                            if (op->getType() && op->getValue() == jumpOperand){
-                                jumpOpFound = true;
+                            if (op->getType()){
+#ifdef JUMPTABLE_USE_REGISTER_OPS
+                                if (op->getType() == UD_OP_MEM && op->getValue() == jumpOperand){
+                                    op->print();
+                                    jumpOpFound = true;
+                                } else if (op->getType() == UD_OP_REG && op->getBaseRegister() == jumpOperand){
+                                    op->print();
+                                    jumpOpFound = true;
+                                }
+#else // JUMPTABLE_USE_REGISTER_OPS
+                                if (op->getValue() == jumpOperand){
+                                    jumpOpFound = true;
+                                }
+#endif // JUMPTABLE_USE_REGISTER_OPS
                             }
                             if (op->getType() && op->getValue() >= X86_64BIT_GPRS){
                                 immediate = op->getValue();

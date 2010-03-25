@@ -238,7 +238,7 @@ public:
 
     bool isJumpTableBase();
     uint64_t findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions);
-    TableModes computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList);
+    TableModes computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList, Vector<uint64_t>* tableStorageEntries);
     void setSizeInBytes(uint32_t sz) { sizeInBytes = sz; }
     void setLeader(bool ldr) { leader = ldr; }
     bool isLeader() { return leader; }

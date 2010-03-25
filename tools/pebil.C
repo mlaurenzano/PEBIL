@@ -7,7 +7,7 @@
 #include <IOTracer.h>
 #include <Vector.h>
 
-#define DEFAULT_FUNC_BLACKLIST "scripts/exclusion/system.func"
+#define DEFAULT_FUNC_BLACKLIST "scripts/exclusion/none.func"
 
 void printBriefOptions(bool detail){
     fprintf(stderr,"\n");
