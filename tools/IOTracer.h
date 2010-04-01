@@ -3,6 +3,8 @@
 
 #include <InstrumentationTool.h>
 
+class Symbol;
+
 class IOTracer : public InstrumentationTool {
 private:
     InstrumentationFunction* programEntry;
@@ -10,7 +12,6 @@ private:
     InstrumentationFunction* functionTrace;
 
     Vector<char*>* traceFunctions;
-
 public:
     IOTracer(ElfFile* elf, char* traceFile);
     ~IOTracer();

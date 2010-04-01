@@ -97,17 +97,17 @@ void funcStack_print(){
 void printFunctionInfo(int i){
     int j;
 #ifdef EXCLUDE_TIMER
-    PRINT_INSTR("%s (%d): %lld executions", functionNames[funcInfos[i].backtrace[0]], funcInfos[i].hash % (numberOfFunctions * RECORDS_PER_FUNCTION), funcInfos[i].count);    
+    PRINT_INSTR(stdout, "%s (%d): %lld executions", functionNames[funcInfos[i].backtrace[0]], funcInfos[i].hash % (numberOfFunctions * RECORDS_PER_FUNCTION), funcInfos[i].count);    
 #else
     double p = (double)funcInfos[i].timer_total / (double)ticksPerSecond;
-    PRINT_INSTR("%s (%d): %lld executions, %.6f seconds", functionNames[funcInfos[i].backtrace[0]], funcInfos[i].hash % (numberOfFunctions * RECORDS_PER_FUNCTION), funcInfos[i].count, ((double)((double)funcInfos[i].timer_total/(double)ticksPerSecond)));
+    PRINT_INSTR(stdout, "%s (%d): %lld executions, %.6f seconds", functionNames[funcInfos[i].backtrace[0]], funcInfos[i].hash % (numberOfFunctions * RECORDS_PER_FUNCTION), funcInfos[i].count, ((double)((double)funcInfos[i].timer_total/(double)ticksPerSecond)));
 #endif
     for (j = 1; j < STACK_BACKTRACE_SIZE; j++){
         if (funcInfos[i].backtrace[j] >= 0){
             if (stackError[funcInfos[i].backtrace[j]]){
-                PRINT_INSTR("[%d]\t-e-\t%s", j, functionNames[funcInfos[i].backtrace[j]]);
+                PRINT_INSTR(stdout, "[%d]\t-e-\t%s", j, functionNames[funcInfos[i].backtrace[j]]);
             } else {
-                PRINT_INSTR("[%d]\t\t%s", j, functionNames[funcInfos[i].backtrace[j]]);
+                PRINT_INSTR(stdout, "[%d]\t\t%s", j, functionNames[funcInfos[i].backtrace[j]]);
             }
         }
     }
@@ -149,7 +149,7 @@ int32_t program_entry(int32_t* numFunctions, char** funcNames){
 }
 
 int32_t program_exit(){
-    PRINT_INSTR("Printing the %d most time-consuming call paths + up to %d stack frames", NUM_PRINT, STACK_BACKTRACE_SIZE);
+    PRINT_INSTR(stdout, "Printing the %d most time-consuming call paths + up to %d stack frames", NUM_PRINT, STACK_BACKTRACE_SIZE);
     int32_t i, j;
 
     qsort((void*)funcInfos, numberOfFunctions * RECORDS_PER_FUNCTION, sizeof(struct funcInfo), compareFuncInfos);
@@ -166,11 +166,11 @@ int32_t program_exit(){
 
     for (i = 0; i < numberOfFunctions; i++){
         if (stackError[i]){
-            PRINT_INSTR("Function %s timer failed (exit not taken) -- execution count %d", functionNames[i], stackError[i]);
+            PRINT_INSTR(stdout, "Function %s timer failed (exit not taken) -- execution count %d", functionNames[i], stackError[i]);
         }
     }
 
-    PRINT_INSTR("Hash Table usage = %d of %d entries (%.3f)", numUsed, numberOfFunctions * RECORDS_PER_FUNCTION, ((double)((double)numUsed/((double)(numberOfFunctions * RECORDS_PER_FUNCTION)))));
+    PRINT_INSTR(stdout, "Hash Table usage = %d of %d entries (%.3f)", numUsed, numberOfFunctions * RECORDS_PER_FUNCTION, ((double)((double)numUsed/((double)(numberOfFunctions * RECORDS_PER_FUNCTION)))));
 }
 
 int32_t function_entry(int64_t* functionIndex){

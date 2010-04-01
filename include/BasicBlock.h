@@ -103,6 +103,8 @@ public:
 
     uint32_t bloat(Vector<InstrumentationPoint*>* instPoints);
 
+    uint32_t searchForArgsPrep(bool is64Bit);
+
     bool containsOnlyControl();
     bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);
 

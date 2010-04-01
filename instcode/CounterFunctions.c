@@ -21,15 +21,15 @@ int32_t filter = 0;
 DINT_TYPE printmemory(DINT_TYPE* memory, DINT_TYPE* base, DINT_TYPE* offset, DINT_TYPE* index, DINT_TYPE* scale){
     DINT_TYPE memloc = *memory;
     DINT_TYPE memval;
-    //    PRINT_INSTR("raw args: m[%x]=%#x m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%x", memory, *memory, base, *base, offset, *offset, index, *index, scale, *scale);
+    //    PRINT_INSTR(stdout, "raw args: m[%x]=%#x m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%x", memory, *memory, base, *base, offset, *offset, index, *index, scale, *scale);
     if (memloc == 0){
-        //        PRINT_INSTR("raw args: m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%d", memory, memval, base, *base, offset, *offset, index, *index, scale, *scale);
+        //        PRINT_INSTR(stdout, "raw args: m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%d m[%x]=%d", memory, memval, base, *base, offset, *offset, index, *index, scale, *scale);
         memval = 0;
     } else {
         memval = *((DINT_TYPE*)memloc);
     }
     if (filter % FILTER == 0){
-        //        PRINT_INSTR("iteration %d; mem[%#llx]\t%#llx", filter, memloc, memval);
+        //        PRINT_INSTR(stdout, "iteration %d; mem[%#llx]\t%#llx", filter, memloc, memval);
     }
     filter++;
     return 0;
@@ -39,19 +39,19 @@ DINT_TYPE printmemory(DINT_TYPE* memory, DINT_TYPE* base, DINT_TYPE* offset, DIN
 int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** functionNames){
     int32_t i;
 
-    PRINT_INSTR("*** Instrumentation Summary ****");
-    PRINT_INSTR("raw args: %x %x %x", numFunctions, functionCounts, functionNames);
-    PRINT_INSTR("There are %d functions in the code:", *numFunctions);
-    PRINT_INSTR("Printing functions with at least %d executions", PRINT_MINIMUM);
+    PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
+    PRINT_INSTR(stdout, "raw args: %x %x %x", numFunctions, functionCounts, functionNames);
+    PRINT_INSTR(stdout, "There are %d functions in the code:", *numFunctions);
+    PRINT_INSTR(stdout, "Printing functions with at least %d executions", PRINT_MINIMUM);
 
     for (i = 0; i < *numFunctions; i++){
         /*
-        PRINT_INSTR("i %d", i);
-        PRINT_INSTR("name %s", functionNames[i]);
-        PRINT_INSTR("count %d", functionCounts[i]);
+        PRINT_INSTR(stdout, "i %d", i);
+        PRINT_INSTR(stdout, "name %s", functionNames[i]);
+        PRINT_INSTR(stdout, "count %d", functionCounts[i]);
         */
         if (functionCounts[i] >= PRINT_MINIMUM){
-            PRINT_INSTR("\tFunction(%d) %.80s executed %d times", i, functionNames[i], functionCounts[i]);
+            PRINT_INSTR(stdout, "\tFunction(%d) %.80s executed %d times", i, functionNames[i], functionCounts[i]);
         }
     }
 
@@ -71,15 +71,14 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
 int32_t blockcounter(int32_t* blockCounts, char* appName, char* instExt){
     int32_t i;
 
-    PRINT_INSTR("raw fini args: %x %x %x", blockCounts, appName, instExt);
-    PRINT_INSTR("actual fini args: %x %s %s", blockCounts, appName, instExt);
-    PRINT_INSTR("*** Instrumentation Summary ****");
-    PRINT_INSTR("There are %d basic blocks in the code:", numberOfBasicBlocks);
-    PRINT_INSTR("Printing blocks with at least %d executions", PRINT_MINIMUM);
+    //    PRINT_INSTR(stdout, "raw fini args: %x %x %x", blockCounts, appName, instExt);
+    //PRINT_INSTR(stdout, "actual fini args: %x %s %s", blockCounts, appName, instExt);
+    PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
+    PRINT_INSTR(stdout, "There are %d basic blocks in the code:", numberOfBasicBlocks);
 
     char* outFileName = malloc(sizeof(char) * __MAX_STRING_SIZE);
     sprintf(outFileName, "%s.%d.%s", appName, getpid(), instExt);
-    PRINT_INSTR("Writing output file %s", outFileName);
+    PRINT_INSTR(stdout, "Printing blocks with at least %d executions to file %s", PRINT_MINIMUM, outFileName);
     FILE* outFile = fopen(outFileName, "w");
     free(outFileName);
     if (!outFile){

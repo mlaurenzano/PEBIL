@@ -440,6 +440,21 @@ uint32_t ElfFileInst::generateInstrumentation(){
         }
 #endif
 
+        uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
+            
+        bool stackIsSafe = false;
+        ASSERT(pt->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
+        Function* f = (Function*)pt->getSourceObject()->getContainer();
+        BasicBlock* bb = f->getBasicBlockAtAddress(pt->getInstSourceAddress());
+        if (!f->hasLeafOptimization() && bb && !bb->isEntry()){
+            stackIsSafe = true;
+        } 
+#ifdef THREAD_SAFE
+        uint64_t registerStorage = (f->getStackSize() + sizeof(uint64_t)) * (-1);
+#else
+        uint64_t registerStorage = getInstDataAddress() + regStorageOffset;
+#endif
+
         if (performSwap){
             if (!pt->getInstBaseAddress()){
                 PRINT_WARN(4,"Could not find a place to instrument for point at %#llx", pt->getSourceObject()->getBaseAddress());
@@ -471,21 +486,37 @@ uint32_t ElfFileInst::generateInstrumentation(){
             } else if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_inline){
                 if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_light){
                     if (elfFile->is64Bit()){
-                        (*repl).append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, getInstDataAddress() + regStorageOffset));
+#ifdef THREAD_SAFE
+                        (*repl).append(InstructionGenerator64::generateMoveRegToRegaddrImm(X86_REG_AX, X86_REG_SP, registerStorage, true));
+#else
+                        (*repl).append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, registerStorage));
+#endif
                         (*repl).append(InstructionGenerator64::generateLoadAHFromFlags());
                         while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
                             (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
                         }
                         (*repl).append(InstructionGenerator64::generateStoreAHToFlags());
-                        (*repl).append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + regStorageOffset, X86_REG_AX));
+#ifdef THREAD_SAFE
+                        (*repl).append(InstructionGenerator64::generateMoveRegaddrImmToReg(X86_REG_SP, registerStorage, X86_REG_AX));
+#else
+                        (*repl).append(InstructionGenerator64::generateMoveMemToReg(registerStorage, X86_REG_AX));
+#endif
                     } else { 
-                        (*repl).append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, getInstDataAddress() + regStorageOffset));
+#ifdef THREAD_SAFE
+                        (*repl).append(InstructionGenerator32::generateMoveRegToRegaddrImm(X86_REG_AX, X86_REG_SP, registerStorage));
+#else
+                        (*repl).append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, registerStorage));
+#endif
                         (*repl).append(InstructionGenerator32::generateLoadAHFromFlags());
                         while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
                             (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
                         }
                         (*repl).append(InstructionGenerator32::generateStoreAHToFlags());
-                        (*repl).append(InstructionGenerator32::generateMoveMemToReg(getInstDataAddress() + regStorageOffset, X86_REG_AX));
+#ifdef THREAD_SAFE
+                        (*repl).append(InstructionGenerator32::generateMoveRegaddrImmToReg(X86_REG_SP, registerStorage, X86_REG_AX));
+#else
+                        (*repl).append(InstructionGenerator32::generateMoveMemToReg(registerStorage, X86_REG_AX));
+#endif
                     }                
                 } else if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_full){
                     (*repl).append(InstructionGenerator::generatePushEflags());
@@ -543,16 +574,6 @@ uint32_t ElfFileInst::generateInstrumentation(){
                 }
             }
             
-            uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
-            
-            bool stackIsSafe = false;
-            ASSERT(pt->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
-            Function* f = (Function*)pt->getSourceObject()->getContainer();
-            BasicBlock* bb = f->getBasicBlockAtAddress(pt->getInstSourceAddress());
-            if (!f->hasLeafOptimization() && bb && !bb->isEntry()){
-                stackIsSafe = true;
-            } 
-            uint64_t registerStorage = getInstDataAddress() + regStorageOffset;
 
             if (isFirstInChain){
                     returnOffset = pt->getInstSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
@@ -760,7 +781,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
 
 void ElfFileInst::functionSelect(){
     uint32_t numberOfBytes = 0;
-    uint32_t numberOfBytesReloc = 0;
+    uint32_t missingBytes = 0;
 
     TextSection* text = getDotTextSection();
     TextSection* fini = getDotFiniSection();
@@ -802,11 +823,12 @@ void ElfFileInst::functionSelect(){
                 PRINT_DEBUG_FUNC_RELOC("\thidden: %s\t%d %d %#llx %d %d %d %d %d %d %d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail(), canRelocateFunction(f), f->isInstrumentationFunction(), f->getNumberOfBytes(), isDisabledFunction(f), f->hasSelfDataReference(), f->isDisasmFail());
                 PRINT_INFOR("Hiding function from instrumentation: %s (%#llx + %d bytes)", f->getName(), f->getBaseAddress(), f->getSizeInBytes());
                 hiddenFunctions.append(f);
+                missingBytes += f->getSizeInBytes();
             }
         }
     }
 
-    //    PRINT_INFOR("Disassembly Coverage (bytes):\t%d/%d (%.2f%)", numberOfBytesReloc, numberOfBytes, ((float)((float)numberOfBytesReloc*100)/((float)numberOfBytes)));
+    PRINT_INFOR("Disassembly missing (bytes):\t%d/%d (%.2f%)", missingBytes, numberOfBytes, ((float)((float)missingBytes*100)/((float)numberOfBytes)));
 }
 
 

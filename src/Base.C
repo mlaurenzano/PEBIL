@@ -1,12 +1,14 @@
 #include <Base.h>
 
-bool searchFileList(Vector<char*>* list, char* name){
+uint32_t searchFileList(Vector<char*>* list, char* name){
+    if (!list) return 1;
+
     for (uint32_t i = 0; i < (*list).size(); i++){
-        if (!strcmp((*list)[i], name)){
-            return true;
+        if (strstr((*list)[i], name)){
+            return i;
         }
     }
-    return false;
+    return (*list).size();
 }
 
 uint32_t initializeFileList(char* fileName, Vector<char*>* list){

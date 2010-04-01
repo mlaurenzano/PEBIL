@@ -28,9 +28,20 @@ class InstrumentationPoint;
 
 #define Size__uncond_jump 5
 #define Size__flag_protect_full 2
+
+#ifdef THREAD_SAFE
 #define Size__32_bit_flag_protect_light 12
 #define Size__64_bit_flag_protect_light 18
+#else 
+#define Size__32_bit_flag_protect_light 12
+#define Size__64_bit_flag_protect_light 18
+#endif // THREAD_SAFE
 
+#define Num__64_bit_StackArgs 6
+#define Num__32_bit_StackArgs 0
+#define __MAX_ARGS_SUPPORTED 6
+
+extern uint32_t map64BitArgToReg(uint32_t idx);
 extern int compareInstAddress(const void* arg1, const void* arg2);
 
 class InstrumentationPoint;

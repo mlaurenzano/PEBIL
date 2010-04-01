@@ -9,6 +9,48 @@
 
 static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
 
+uint32_t BasicBlock::searchForArgsPrep(bool is64Bit){
+    ASSERT(containsCallToRange(0,-1));
+    uint32_t argsToSearch = Num__64_bit_StackArgs;
+
+    bool foundArgs[argsToSearch];
+    bzero(foundArgs, sizeof(bool) * argsToSearch);
+
+    uint32_t numArgs = 0;
+    if (is64Bit){
+        for (uint32_t i = 0; i < instructions.size(); i++){
+            //            instructions[i]->print();
+            if (instructions[i]->getInstructionType() == X86InstructionType_int){
+                Operand* destOp = instructions[i]->getOperand(COMP_DEST_OPERAND);
+
+                if (!destOp->getValue()){
+                    for (uint32_t j = 0; j < Num__64_bit_StackArgs; j++){
+                        if (destOp->getBaseRegister() == map64BitArgToReg(j)){
+                            foundArgs[j] = true;
+                        }
+                    }
+                }
+                //                instructions[i]->getOperand(COMP_DEST_OPERAND)->print();
+            }
+        }
+    } else {
+        __FUNCTION_NOT_IMPLEMENTED;
+    }
+
+    for (uint32_t i = 0; i < argsToSearch; i++){
+        if (foundArgs[i]){
+            numArgs++;
+        } else {
+            break;
+        }
+    }
+
+
+    PRINT_INFOR("found %d args ------------------------------------------------------", numArgs);
+
+    return numArgs;
+}
+
 uint64_t CodeBlock::getProgramAddress(){
     ASSERT(instructions.size());
     for (uint32_t i = 0; i < instructions.size(); i++){

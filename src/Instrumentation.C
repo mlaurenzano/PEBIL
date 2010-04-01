@@ -7,6 +7,38 @@
 #include <InstructionGenerator.h>
 #include <TextSection.h>
 
+
+uint32_t map64BitArgToReg(uint32_t idx){
+    uint32_t argumentRegister;
+    ASSERT(idx < Num__64_bit_StackArgs);
+
+    // use GPRs rdi,rsi,rdx,rcx,r8,r9, then push onto stack                                                                                                  
+    switch(idx){
+    case 0:
+        argumentRegister = X86_REG_DI;
+        break;
+    case 1:
+        argumentRegister = X86_REG_SI;
+        break;
+    case 2:
+        argumentRegister = X86_REG_DX;
+        break;
+    case 3:
+        argumentRegister = X86_REG_CX;
+        break;
+    case 4:
+        argumentRegister = X86_REG_R8;
+        break;
+    case 5:
+        argumentRegister = X86_REG_R9;
+        break;
+    default:
+        PRINT_ERROR("Cannot pass more than %d argument to an instrumentation function", Num__64_bit_StackArgs);
+        __SHOULD_NOT_ARRIVE;
+    }
+    return argumentRegister;
+}
+
 void InstrumentationPoint::print(){
     PRINT_INFOR("Instrumentation point at %#llx: size %d, priority %d, protection %d, mode %d", getInstSourceAddress(), numberOfBytes, priority, protectionMethod, instrumentationMode);
 }
@@ -148,8 +180,13 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
         trampolineInstructions.append(InstructionGenerator::generatePushEflags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes(); 
     } else if (protectionMethod == FlagsProtectionMethod_light){
+#ifdef THREAD_SAFE
+        trampolineInstructions.append(InstructionGenerator64::generateMoveRegToRegaddrImm(X86_REG_AX, X86_REG_SP, regStorageBase, true));
+#else
         trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, regStorageBase));
+#endif
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();        
+
         trampolineInstructions.append(InstructionGenerator64::generateLoadAHFromFlags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
@@ -185,8 +222,12 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
     } else if (protectionMethod == FlagsProtectionMethod_light){
         trampolineInstructions.append(InstructionGenerator64::generateStoreAHToFlags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-        
+
+#ifdef THREAD_SAFE
+        trampolineInstructions.append(InstructionGenerator64::generateMoveRegaddrImmToReg(X86_REG_SP, regStorageBase, X86_REG_AX));
+#else
         trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase, X86_REG_AX));
+#endif
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -273,7 +314,11 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         trampolineInstructions.append(InstructionGenerator::generatePushEflags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     } else if (protectionMethod == FlagsProtectionMethod_light){
+#ifdef THREAD_SAFE
+        trampolineInstructions.append(InstructionGenerator32::generateMoveRegToRegaddrImm(X86_REG_AX, X86_REG_SP, regStorageBase));
+#else
         trampolineInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, regStorageBase));
+#endif
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
         trampolineInstructions.append(InstructionGenerator32::generateLoadAHFromFlags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
@@ -310,7 +355,11 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         trampolineInstructions.append(InstructionGenerator32::generateStoreAHToFlags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
         
+#ifdef THREAD_SAFE
+        trampolineInstructions.append(InstructionGenerator32::generateMoveRegaddrImmToReg(X86_REG_SP, regStorageBase, X86_REG_AX));
+#else
         trampolineInstructions.append(InstructionGenerator32::generateMoveMemToReg(regStorageBase, X86_REG_AX));
+#endif
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -507,38 +556,17 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         wrapperInstructions.append(InstructionGenerator64::generateStackPush(i));
     }
 
-    ASSERT(arguments.size() < MAX_ARGUMENTS_64BIT && "More arguments must be pushed onto stack, which is not yet implemented"); 
+    ASSERT(arguments.size() < Num__64_bit_StackArgs && "More arguments must be pushed onto stack, which is not yet implemented"); 
 
     for (uint32_t i = 0; i < arguments.size(); i++){
         uint32_t idx = arguments.size() - i - 1;
-        uint32_t argumentRegister;
 
-        // use GPRs rdi,rsi,rdx,rcx,r8,r9, then push onto stack
-        switch(idx){
-        case 0:
-            argumentRegister = X86_REG_DI;
-            break;
-        case 1:
-            argumentRegister = X86_REG_SI;
-            break;
-        case 2:
-            argumentRegister = X86_REG_DX;
-            break;
-        case 3:
-            argumentRegister = X86_REG_CX;
-            break;
-        case 4:
-            argumentRegister = X86_REG_R8;
-            break;
-        case 5:
-            argumentRegister = X86_REG_R9;
-            break;
-        default:
-            PRINT_ERROR("Cannot pass more than %d argument to an instrumentation function", MAX_ARGUMENTS_64BIT);
-            __SHOULD_NOT_ARRIVE;
+        if (i < Num__64_bit_StackArgs){
+            uint32_t argumentRegister = map64BitArgToReg(idx);            
+            wrapperInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
+        } else {
+            PRINT_ERROR("64Bit instrumentation supports only %d args currently", Num__64_bit_StackArgs);
         }
-
-        wrapperInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
     }
 
     uint64_t wrapperTargetOffset = 0;

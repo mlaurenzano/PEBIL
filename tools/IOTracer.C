@@ -11,6 +11,7 @@
 #define PROGRAM_EXIT   "finishtracer"
 #define FUNCTION_TRACE  "functiontracer"
 #define INST_LIB_NAME "libtracer.so"
+#define MAX_ARG_COUNT 6
 
 IOTracer::IOTracer(ElfFile* elf, char* traceFile)
     : InstrumentationTool(elf)
@@ -20,12 +21,13 @@ IOTracer::IOTracer(ElfFile* elf, char* traceFile)
     functionTrace = NULL;
 
     traceFunctions = new Vector<char*>();
+
     initializeFileList(traceFile, traceFunctions);
+
     for (uint32_t i = 0; i < (*traceFunctions).size(); i++){
-        PRINT_INFOR("Trace file read from input: %s", (*traceFunctions)[i]);
+        PRINT_INFOR("Trace list -- %s", (*traceFunctions)[i]);
     }
 
-    //    flags = InstrumentorFlag_norelocate;
 }
 
 IOTracer::~IOTracer(){
@@ -48,6 +50,7 @@ void IOTracer::declare(){
     ASSERT(functionTrace);
 }
 
+
 void IOTracer::instrument(){
     uint32_t temp32;
     uint64_t temp64;
@@ -66,6 +69,7 @@ void IOTracer::instrument(){
 
     Vector<Instruction*> myInstPoints;
     Vector<Symbol*> myInstSymbols;
+
     for (uint32_t i = 0; i < getNumberOfExposedInstructions(); i++){
         Instruction* instruction = getExposedInstruction(i);
         ASSERT(instruction->getContainer()->isFunction());
@@ -73,9 +77,18 @@ void IOTracer::instrument(){
         
         if (instruction->isFunctionCall()){
             Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol(instruction->getTargetAddress());
-            if (functionSymbol && searchFileList(traceFunctions, functionSymbol->getSymbolName())){
-                myInstPoints.append(instruction);
-                myInstSymbols.append(functionSymbol);
+
+
+            if (functionSymbol){
+                uint32_t funcIdx = searchFileList(traceFunctions, functionSymbol->getSymbolName());
+                if (funcIdx < (*traceFunctions).size()){
+                    BasicBlock* bb = function->getBasicBlockAtAddress(instruction->getBaseAddress());
+                    ASSERT(bb->containsCallToRange(0,-1));
+                    //                    ASSERT(bb->searchForArgsPrep(is64Bit()) == (*argTypeLists)[funcIdx].size());
+                    
+                    myInstPoints.append(instruction);
+                    myInstSymbols.append(functionSymbol);
+                }
             }
         } 
     }
@@ -91,10 +104,20 @@ void IOTracer::instrument(){
     uint64_t funcNameArray = reserveDataOffset(myInstPoints.size() * sizeof(char*));
     programEntry->addArgument(funcNameArray);
 
+    char* fileName = getElfFile()->getFileName();
+    uint64_t fileNameStorage = reserveDataOffset(strlen(fileName)+1);
+    programEntry->addArgument(fileNameStorage);
+    initializeReservedData(getInstDataAddress() + fileNameStorage, strlen(fileName), fileName);
+
     uint64_t functionIndexAddr = reserveDataOffset(sizeof(uint64_t));
     functionTrace->addArgument(functionIndexAddr);
 
+    uint64_t funcArgumentStorage = reserveDataOffset(sizeof(uint64_t) * MAX_ARG_COUNT);
+    functionTrace->addArgument(funcArgumentStorage);
+
     for (uint32_t i = 0; i < myInstPoints.size(); i++){
+
+        uint32_t numArgs = MAX_ARG_COUNT;
 
         InstrumentationPoint* pt = addInstrumentationPoint(myInstPoints[i], functionTrace, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
 
@@ -108,10 +131,24 @@ void IOTracer::instrument(){
         initializeReservedData(functionNameAddr, strlen(functionName) + 1, functionName);
 
         Vector<Instruction*> setupReg;
-        setupReg.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_DI, getInstDataAddress() + getRegStorageOffset() + (0 * sizeof(uint64_t))));
+
+        ASSERT(numArgs);
+        setupReg.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_DI, getInstDataAddress() + funcArgumentStorage));
+
+        // already did the first one (di) so we could use it as a scratch regargumentTypeStorage
+        for (uint32_t j = 1; j < numArgs; j++){
+            ASSERT(j < MAX_ARG_COUNT);
+            if (j < Num__64_bit_StackArgs){
+                setupReg.append(InstructionGenerator64::generateMoveRegToMem(map64BitArgToReg(j), getInstDataAddress() + funcArgumentStorage + (j * sizeof(uint64_t))));
+            } else {
+                PRINT_ERROR("64Bit instrumentation supports only %d args currently", Num__64_bit_StackArgs);
+            }
+        }
+
         setupReg.append(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_DI));
         setupReg.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_DI, getInstDataAddress() + functionIndexAddr));
-        setupReg.append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + (0 * sizeof(uint64_t)), X86_REG_DI));
+
+        setupReg.append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + funcArgumentStorage, X86_REG_DI));
 
         while (setupReg.size()){
             pt->addPrecursorInstruction(setupReg.remove(0));

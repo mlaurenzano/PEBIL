@@ -16,9 +16,9 @@
   #define DINT_PRNTSZ ll
 #endif // COMPILE_32BIT
 
-#define PRINT_INSTR(...) fprintf(stdout, "-[p%d]- ", getpid()); \
-    fprintf(stdout, __VA_ARGS__); \
-    fprintf(stdout, "\n"); \
-    fflush(stdout);
+#define PRINT_INSTR(__file, ...) fprintf(__file, "-[p%d]- ", getpid());  \
+    fprintf(__file, __VA_ARGS__); \
+    fprintf(__file, "\n"); \
+    fflush(__file);
 #define PRINT_DEBUG(...) 
 //#define PRINT_DEBUG(...) PRINT_INSTR(__VA_ARGS__)

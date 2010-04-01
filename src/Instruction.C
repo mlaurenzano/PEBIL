@@ -1599,7 +1599,7 @@ Instruction::Instruction(struct ud* init)
             operands[i] = new Operand(this, &GET(operand)[i], i);
         }
     }
-
+    instructionType = X86InstructionType_unknown;
     leader = false;
     
     verify();
@@ -1643,8 +1643,6 @@ void Instruction::print(){
     flags[8] = '\0';
 
     PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%8s]\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
-    PRINT_INFOR("%d", getInstructionType());
-
 
 #ifdef PRINT_INSTRUCTION_DETAIL
     PRINT_INFOR("\t%s (%d,%d) (%d,%d) (%d,%d) %d", ud_lookup_mnemonic(GET(itab_entry)->mnemonic), GET(itab_entry)->operand1.type, GET(itab_entry)->operand1.size, GET(itab_entry)->operand2.type, GET(itab_entry)->operand2.size, GET(itab_entry)->operand3.type, GET(itab_entry)->operand3.size, GET(itab_entry)->prefix);
