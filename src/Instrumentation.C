@@ -3,8 +3,8 @@
 #include <BasicBlock.h>
 #include <ElfFileInst.h>
 #include <Function.h>
-#include <Instruction.h>
-#include <InstructionGenerator.h>
+#include <InstrucX86.h>
+#include <InstrucX86Generator.h>
 #include <TextSection.h>
 
 
@@ -111,7 +111,7 @@ Vector<InstrumentationPoint*>* instpointFilterAddressRange(Base* object, Vector<
     return filtered;
 }
 
-uint32_t InstrumentationPoint::addPrecursorInstruction(Instruction* inst){
+uint32_t InstrumentationPoint::addPrecursorInstruction(InstrucX86* inst){
     precursorInstructions.append(inst);
     return precursorInstructions.size();
 }
@@ -135,7 +135,7 @@ int compareInstAddress(const void* arg1,const void* arg2){
     return 0;
 }
 
-uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, 
+uint32_t InstrumentationPoint64::generateTrampoline(Vector<InstrucX86*>* insts, uint64_t textBaseAddress, uint64_t offset, 
                                                     uint64_t returnOffset, bool doReloc, uint64_t regStorageBase, bool stackIsSafe){
     ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
 
@@ -171,23 +171,23 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
     ASSERT(tempReg1 < X86_64BIT_GPRS && "Could not find free registers for this instrumentation point");
 
     if (!stackIsSafe){
-        trampolineInstructions.append(InstructionGenerator64::generateLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
+        trampolineInstructions.append(InstrucX86Generator64::generateLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
 
     if (protectionMethod == FlagsProtectionMethod_full){
-        trampolineInstructions.append(InstructionGenerator::generatePushEflags());
+        trampolineInstructions.append(InstrucX86Generator::generatePushEflags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes(); 
     } else if (protectionMethod == FlagsProtectionMethod_light){
 #ifdef THREAD_SAFE
-        trampolineInstructions.append(InstructionGenerator64::generateMoveRegToRegaddrImm(X86_REG_AX, X86_REG_SP, regStorageBase, true));
+        trampolineInstructions.append(InstrucX86Generator64::generateMoveRegToRegaddrImm(X86_REG_AX, X86_REG_SP, regStorageBase, true));
 #else
-        trampolineInstructions.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_AX, regStorageBase));
+        trampolineInstructions.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_AX, regStorageBase));
 #endif
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();        
 
-        trampolineInstructions.append(InstructionGenerator64::generateLoadAHFromFlags());
+        trampolineInstructions.append(InstrucX86Generator64::generateLoadAHFromFlags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -204,7 +204,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
         }
     } else {
         PRINT_DEBUG_INST("Generating relative call for trampoline %#llx + %d, %#llx", textBaseAddress + offset, trampolineSize, textBaseAddress+getTargetOffset());
-        trampolineInstructions.append(InstructionGenerator::generateCallRelative(offset + trampolineSize, getTargetOffset()));
+        trampolineInstructions.append(InstrucX86Generator::generateCallRelative(offset + trampolineSize, getTargetOffset()));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -217,22 +217,22 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
 
     // restore eflags
     if (protectionMethod == FlagsProtectionMethod_full){
-        trampolineInstructions.append(InstructionGenerator::generatePopEflags());
+        trampolineInstructions.append(InstrucX86Generator::generatePopEflags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     } else if (protectionMethod == FlagsProtectionMethod_light){
-        trampolineInstructions.append(InstructionGenerator64::generateStoreAHToFlags());
+        trampolineInstructions.append(InstrucX86Generator64::generateStoreAHToFlags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
 #ifdef THREAD_SAFE
-        trampolineInstructions.append(InstructionGenerator64::generateMoveRegaddrImmToReg(X86_REG_SP, regStorageBase, X86_REG_AX));
+        trampolineInstructions.append(InstrucX86Generator64::generateMoveRegaddrImmToReg(X86_REG_SP, regStorageBase, X86_REG_AX));
 #else
-        trampolineInstructions.append(InstructionGenerator64::generateMoveMemToReg(regStorageBase, X86_REG_AX));
+        trampolineInstructions.append(InstrucX86Generator64::generateMoveMemToReg(regStorageBase, X86_REG_AX));
 #endif
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
     if (!stackIsSafe){
-        trampolineInstructions.append(InstructionGenerator64::generateLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
+        trampolineInstructions.append(InstrucX86Generator64::generateLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -264,13 +264,13 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<Instruction*>* insts,
         
         ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
 
-        trampolineInstructions.append(InstructionGenerator::generateJumpRelative(offset+trampolineSize,returnOffset));
+        trampolineInstructions.append(InstrucX86Generator::generateJumpRelative(offset+trampolineSize,returnOffset));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
     return trampolineSize;
 }
 
-uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, 
+uint32_t InstrumentationPoint32::generateTrampoline(Vector<InstrucX86*>* insts, uint64_t textBaseAddress, uint64_t offset, 
                                                     uint64_t returnOffset, bool doReloc, uint64_t regStorageBase, bool stackIsSafe){
     ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
 
@@ -306,21 +306,21 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
     ASSERT(tempReg1 < X86_32BIT_GPRS && "Could not find free registers for this instrumentation point");
 
     if (!stackIsSafe){
-        trampolineInstructions.append(InstructionGenerator32::generateLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
+        trampolineInstructions.append(InstrucX86Generator32::generateLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
     if (protectionMethod == FlagsProtectionMethod_full){
-        trampolineInstructions.append(InstructionGenerator::generatePushEflags());
+        trampolineInstructions.append(InstrucX86Generator::generatePushEflags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     } else if (protectionMethod == FlagsProtectionMethod_light){
 #ifdef THREAD_SAFE
-        trampolineInstructions.append(InstructionGenerator32::generateMoveRegToRegaddrImm(X86_REG_AX, X86_REG_SP, regStorageBase));
+        trampolineInstructions.append(InstrucX86Generator32::generateMoveRegToRegaddrImm(X86_REG_AX, X86_REG_SP, regStorageBase));
 #else
-        trampolineInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_AX, regStorageBase));
+        trampolineInstructions.append(InstrucX86Generator32::generateMoveRegToMem(X86_REG_AX, regStorageBase));
 #endif
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-        trampolineInstructions.append(InstructionGenerator32::generateLoadAHFromFlags());
+        trampolineInstructions.append(InstrucX86Generator32::generateLoadAHFromFlags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -337,7 +337,7 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         }
     } else {
         PRINT_DEBUG_INST("Generating relative call for trampoline %#llx + %d, %#llx", textBaseAddress + offset, trampolineSize, textBaseAddress+getTargetOffset());
-        trampolineInstructions.append(InstructionGenerator::generateCallRelative(offset + trampolineSize, getTargetOffset()));
+        trampolineInstructions.append(InstrucX86Generator::generateCallRelative(offset + trampolineSize, getTargetOffset()));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -349,22 +349,22 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
     }
 
     if (protectionMethod == FlagsProtectionMethod_full){
-        trampolineInstructions.append(InstructionGenerator::generatePopEflags());
+        trampolineInstructions.append(InstrucX86Generator::generatePopEflags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     } else if (protectionMethod== FlagsProtectionMethod_light){
-        trampolineInstructions.append(InstructionGenerator32::generateStoreAHToFlags());
+        trampolineInstructions.append(InstrucX86Generator32::generateStoreAHToFlags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
         
 #ifdef THREAD_SAFE
-        trampolineInstructions.append(InstructionGenerator32::generateMoveRegaddrImmToReg(X86_REG_SP, regStorageBase, X86_REG_AX));
+        trampolineInstructions.append(InstrucX86Generator32::generateMoveRegaddrImmToReg(X86_REG_SP, regStorageBase, X86_REG_AX));
 #else
-        trampolineInstructions.append(InstructionGenerator32::generateMoveMemToReg(regStorageBase, X86_REG_AX));
+        trampolineInstructions.append(InstrucX86Generator32::generateMoveMemToReg(regStorageBase, X86_REG_AX));
 #endif
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
     if (!stackIsSafe){
-        trampolineInstructions.append(InstructionGenerator32::generateLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
+        trampolineInstructions.append(InstrucX86Generator32::generateLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -397,7 +397,7 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
         
         ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
 
-        trampolineInstructions.append(InstructionGenerator::generateJumpRelative(offset + trampolineSize, returnOffset));
+        trampolineInstructions.append(InstrucX86Generator::generateJumpRelative(offset + trampolineSize, returnOffset));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -405,7 +405,7 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<Instruction*>* insts,
 }
 
 
-uint32_t InstrumentationSnippet::addSnippetInstruction(Instruction* inst){
+uint32_t InstrumentationSnippet::addSnippetInstruction(InstrucX86* inst){
     snippetInstructions.append(inst);
     return snippetInstructions.size();
 }
@@ -494,11 +494,11 @@ uint32_t InstrumentationFunction64::generateProcedureLinkInstructions(uint64_t t
     }
 
     uint64_t procedureLinkAddress = textBaseAddress + procedureLinkOffset;
-    procedureLinkInstructions.append(InstructionGenerator64::generateIndirectRelativeJump(procedureLinkAddress,dataBaseAddress + globalDataOffset));
-    procedureLinkInstructions.append(InstructionGenerator64::generateStackPushImm(relocationOffset));
+    procedureLinkInstructions.append(InstrucX86Generator64::generateIndirectRelativeJump(procedureLinkAddress,dataBaseAddress + globalDataOffset));
+    procedureLinkInstructions.append(InstrucX86Generator64::generateStackPushImm(relocationOffset));
 
     uint32_t returnAddress = procedureLinkAddress + procedureLinkSize();
-    procedureLinkInstructions.append(InstructionGenerator64::generateJumpRelative(returnAddress,realPLTAddress));
+    procedureLinkInstructions.append(InstrucX86Generator64::generateJumpRelative(returnAddress,realPLTAddress));
 
     ASSERT(procedureLinkSize() == procedureLinkReservedSize());
     return procedureLinkInstructions.size();
@@ -514,10 +514,10 @@ uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t t
 
     PRINT_DEBUG_INST("Generating PLT instructions at offset %llx", procedureLinkOffset);
 
-    procedureLinkInstructions.append(InstructionGenerator32::generateJumpIndirect(dataBaseAddress + globalDataOffset));
-    procedureLinkInstructions.append(InstructionGenerator32::generateStackPushImm(relocationOffset));
+    procedureLinkInstructions.append(InstrucX86Generator32::generateJumpIndirect(dataBaseAddress + globalDataOffset));
+    procedureLinkInstructions.append(InstrucX86Generator32::generateStackPushImm(relocationOffset));
     uint32_t returnAddress = textBaseAddress + procedureLinkOffset + procedureLinkSize();
-    procedureLinkInstructions.append(InstructionGenerator32::generateJumpRelative(returnAddress,realPLTAddress));
+    procedureLinkInstructions.append(InstrucX86Generator32::generateJumpRelative(returnAddress,realPLTAddress));
 
     ASSERT(procedureLinkSize() == procedureLinkReservedSize());
 
@@ -526,23 +526,23 @@ uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t t
 
 uint32_t InstrumentationFunction64::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
     PRINT_DEBUG_DATA_PLACEMENT("Inst function global offset data is at %#llx", dataBaseAddress + globalDataOffset);
-    bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(globalData, X86_REG_CX));
-    bootstrapInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + globalDataOffset, X86_REG_DX));
-    bootstrapInstructions.append(InstructionGenerator64::generateMoveRegToRegaddr(X86_REG_CX, X86_REG_DX));
+    bootstrapInstructions.append(InstrucX86Generator64::generateMoveImmToReg(globalData, X86_REG_CX));
+    bootstrapInstructions.append(InstrucX86Generator64::generateMoveImmToReg(dataBaseAddress + globalDataOffset, X86_REG_DX));
+    bootstrapInstructions.append(InstrucX86Generator64::generateMoveRegToRegaddr(X86_REG_CX, X86_REG_DX));
 
     while (bootstrapSize() < bootstrapReservedSize()){
-        bootstrapInstructions.append(InstructionGenerator64::generateNoop());
+        bootstrapInstructions.append(InstrucX86Generator64::generateNoop());
     }
     ASSERT(bootstrapSize() == bootstrapReservedSize());
     return bootstrapInstructions.size();
 }
 
 uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
-    bootstrapInstructions.append(InstructionGenerator32::generateMoveImmToReg(globalData,X86_REG_CX));
-    bootstrapInstructions.append(InstructionGenerator32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress + globalDataOffset));
+    bootstrapInstructions.append(InstrucX86Generator32::generateMoveImmToReg(globalData,X86_REG_CX));
+    bootstrapInstructions.append(InstrucX86Generator32::generateMoveRegToMem(X86_REG_CX,dataBaseAddress + globalDataOffset));
 
     while (bootstrapSize() < bootstrapReservedSize()){
-        bootstrapInstructions.append(InstructionGenerator32::generateNoop());
+        bootstrapInstructions.append(InstrucX86Generator32::generateNoop());
     }
     ASSERT(bootstrapSize() == bootstrapReservedSize());
     return bootstrapInstructions.size();
@@ -551,9 +551,9 @@ uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textB
 uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
     ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
-    wrapperInstructions.append(InstructionGenerator64::generatePushEflags());
+    wrapperInstructions.append(InstrucX86Generator64::generatePushEflags());
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        wrapperInstructions.append(InstructionGenerator64::generateStackPush(i));
+        wrapperInstructions.append(InstrucX86Generator64::generateStackPush(i));
     }
 
     ASSERT(arguments.size() < Num__64_bit_StackArgs && "More arguments must be pushed onto stack, which is not yet implemented"); 
@@ -563,7 +563,7 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
 
         if (i < Num__64_bit_StackArgs){
             uint32_t argumentRegister = map64BitArgToReg(idx);            
-            wrapperInstructions.append(InstructionGenerator64::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
+            wrapperInstructions.append(InstrucX86Generator64::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
         } else {
             PRINT_ERROR("64Bit instrumentation supports only %d args currently", Num__64_bit_StackArgs);
         }
@@ -578,17 +578,17 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     } else {
         wrapperTargetOffset = procedureLinkOffset;
     }
-    wrapperInstructions.append(InstructionGenerator64::generateCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
+    wrapperInstructions.append(InstrucX86Generator64::generateCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
 
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        wrapperInstructions.append(InstructionGenerator64::generateStackPop(X86_64BIT_GPRS-1-i));
+        wrapperInstructions.append(InstrucX86Generator64::generateStackPop(X86_64BIT_GPRS-1-i));
     }
-    wrapperInstructions.append(InstructionGenerator64::generatePopEflags());
+    wrapperInstructions.append(InstrucX86Generator64::generatePopEflags());
 
-    wrapperInstructions.append(InstructionGenerator64::generateReturn());
+    wrapperInstructions.append(InstrucX86Generator64::generateReturn());
 
     while (wrapperSize() < wrapperReservedSize()){
-        wrapperInstructions.append(InstructionGenerator64::generateNoop());
+        wrapperInstructions.append(InstrucX86Generator64::generateNoop());
     }
     ASSERT(wrapperSize() == wrapperReservedSize());
 
@@ -598,34 +598,34 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
 uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress){
     ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
-    wrapperInstructions.append(InstructionGenerator32::generatePushEflags());
+    wrapperInstructions.append(InstrucX86Generator32::generatePushEflags());
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        wrapperInstructions.append(InstructionGenerator32::generateStackPush(i));
+        wrapperInstructions.append(InstrucX86Generator32::generateStackPush(i));
     }
 
     for (uint32_t i = 0; i < arguments.size(); i++){
         uint32_t idx = arguments.size() - i - 1;
 
         // everything is passed on the stack
-        wrapperInstructions.append(InstructionGenerator32::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, X86_REG_DX));
-        wrapperInstructions.append(InstructionGenerator32::generateStackPush(X86_REG_DX));
+        wrapperInstructions.append(InstrucX86Generator32::generateMoveImmToReg(dataBaseAddress + arguments[idx].offset, X86_REG_DX));
+        wrapperInstructions.append(InstrucX86Generator32::generateStackPush(X86_REG_DX));
     }
 
-    wrapperInstructions.append(InstructionGenerator32::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
+    wrapperInstructions.append(InstrucX86Generator32::generateCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
 
     for (uint32_t i = 0; i < arguments.size(); i++){
-        wrapperInstructions.append(InstructionGenerator32::generateStackPop(X86_REG_CX));
+        wrapperInstructions.append(InstrucX86Generator32::generateStackPop(X86_REG_CX));
     }
 
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        wrapperInstructions.append(InstructionGenerator32::generateStackPop(X86_32BIT_GPRS-1-i));
+        wrapperInstructions.append(InstrucX86Generator32::generateStackPop(X86_32BIT_GPRS-1-i));
     }
-    wrapperInstructions.append(InstructionGenerator32::generatePopEflags());
+    wrapperInstructions.append(InstrucX86Generator32::generatePopEflags());
 
-    wrapperInstructions.append(InstructionGenerator32::generateReturn());
+    wrapperInstructions.append(InstrucX86Generator32::generateReturn());
 
     while (wrapperSize() < wrapperReservedSize()){
-        wrapperInstructions.append(InstructionGenerator32::generateNoop());
+        wrapperInstructions.append(InstrucX86Generator32::generateNoop());
     }
     ASSERT(wrapperSize() == wrapperReservedSize());
 
@@ -703,7 +703,7 @@ void InstrumentationFunction::print(){
 
 uint32_t InstrumentationSnippet::generateSnippetControl(){
     if (distinctTrampoline){
-        snippetInstructions.append(InstructionGenerator::generateReturn());
+        snippetInstructions.append(InstrucX86Generator::generateReturn());
     }
     return snippetInstructions.size();
 }
@@ -792,8 +792,8 @@ InstrumentationSnippet::~InstrumentationSnippet(){
     }
 }
 
-Vector<Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(bool isChain, Vector<Instruction*>* replacements){
-    Instruction* instruction = (Instruction*)point;
+Vector<InstrucX86*>* InstrumentationPoint::swapInstructionsAtPoint(bool isChain, Vector<InstrucX86*>* replacements){
+    InstrucX86* instruction = (InstrucX86*)point;
     ASSERT(instruction->getContainer() && instruction->getContainer()->getType() == PebilClassType_Function);
     Function* func = (Function*)instruction->getContainer();
 
@@ -842,11 +842,11 @@ uint64_t InstrumentationPoint::getInstSourceAddress(){
 InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc)
     : Base(PebilClassType_InstrumentationPoint)
 {
-    if (pt->getType() == PebilClassType_Instruction){
-        point = (Instruction*)pt;
+    if (pt->getType() == PebilClassType_InstrucX86){
+        point = (InstrucX86*)pt;
     } else if (pt->getType() == PebilClassType_BasicBlock){
         ASSERT(((BasicBlock*)pt)->getInstruction(0));
-        point = (Instruction*)((BasicBlock*)pt)->getInstruction(0);
+        point = (InstrucX86*)((BasicBlock*)pt)->getInstruction(0);
     } else if (pt->getType() == PebilClassType_Function){
         Function* f = (Function*)pt;
         BasicBlock* bb = f->getBasicBlockAtAddress(f->getBaseAddress());

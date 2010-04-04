@@ -3,8 +3,8 @@
 #include <BasicBlock.h>
 #include <Function.h>
 #include <Instrumentation.h>
-#include <Instruction.h>
-#include <InstructionGenerator.h>
+#include <InstrucX86.h>
+#include <InstrucX86Generator.h>
 #include <SymbolTable.h>
 
 #define PROGRAM_ENTRY  "inittracer"
@@ -67,11 +67,11 @@ void IOTracer::instrument(){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
 
-    Vector<Instruction*> myInstPoints;
+    Vector<InstrucX86*> myInstPoints;
     Vector<Symbol*> myInstSymbols;
 
     for (uint32_t i = 0; i < getNumberOfExposedInstructions(); i++){
-        Instruction* instruction = getExposedInstruction(i);
+        InstrucX86* instruction = getExposedInstruction(i);
         ASSERT(instruction->getContainer()->isFunction());
         Function* function = (Function*)instruction->getContainer();
         
@@ -130,25 +130,25 @@ void IOTracer::instrument(){
         initializeReservedData(getInstDataAddress() + funcNameArray + sizeof(char*)*i, sizeof(char*), &functionNameAddr);
         initializeReservedData(functionNameAddr, strlen(functionName) + 1, functionName);
 
-        Vector<Instruction*> setupReg;
+        Vector<InstrucX86*> setupReg;
 
         ASSERT(numArgs);
-        setupReg.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_DI, getInstDataAddress() + funcArgumentStorage));
+        setupReg.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_DI, getInstDataAddress() + funcArgumentStorage));
 
         // already did the first one (di) so we could use it as a scratch regargumentTypeStorage
         for (uint32_t j = 1; j < numArgs; j++){
             ASSERT(j < MAX_ARG_COUNT);
             if (j < Num__64_bit_StackArgs){
-                setupReg.append(InstructionGenerator64::generateMoveRegToMem(map64BitArgToReg(j), getInstDataAddress() + funcArgumentStorage + (j * sizeof(uint64_t))));
+                setupReg.append(InstrucX86Generator64::generateMoveRegToMem(map64BitArgToReg(j), getInstDataAddress() + funcArgumentStorage + (j * sizeof(uint64_t))));
             } else {
                 PRINT_ERROR("64Bit instrumentation supports only %d args currently", Num__64_bit_StackArgs);
             }
         }
 
-        setupReg.append(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_DI));
-        setupReg.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_DI, getInstDataAddress() + functionIndexAddr));
+        setupReg.append(InstrucX86Generator64::generateMoveImmToReg(i, X86_REG_DI));
+        setupReg.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_DI, getInstDataAddress() + functionIndexAddr));
 
-        setupReg.append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + funcArgumentStorage, X86_REG_DI));
+        setupReg.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + funcArgumentStorage, X86_REG_DI));
 
         while (setupReg.size()){
             pt->addPrecursorInstruction(setupReg.remove(0));

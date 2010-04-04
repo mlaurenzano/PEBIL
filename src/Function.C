@@ -5,7 +5,7 @@
 #include <ElfFile.h>
 #include <ElfFileInst.h>
 #include <FlowGraph.h>
-#include <Instruction.h>
+#include <InstrucX86.h>
 #include <Instrumentation.h>
 #include <LengauerTarjan.h>
 #include <SectionHeader.h>
@@ -20,7 +20,7 @@ uint32_t Function::findStackSize(){
         BasicBlock* bb = flowGraph->getBasicBlock(i);
         if (bb->isEntry()){
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
-                Instruction* ins = bb->getInstruction(j);
+                InstrucX86* ins = bb->getInstruction(j);
                 Operand* srcop = ins->getOperand(COMP_DEST_OPERAND);
                 if (ins->GET(mnemonic) == UD_Isub && !srcop->getValue()){
                     if (srcop->getBaseRegister() == X86_REG_SP){
@@ -41,7 +41,7 @@ uint32_t Function::findStackSize(){
 
 bool Function::hasLeafOptimization(){
     uint32_t numberOfInstructions = getNumberOfInstructions();
-    Instruction** allInstructions = new Instruction*[numberOfInstructions];
+    InstrucX86** allInstructions = new InstrucX86*[numberOfInstructions];
     getAllInstructions(allInstructions,0);
 
     bool callFound = false;
@@ -95,7 +95,7 @@ uint32_t Function::bloatBasicBlocks(Vector<InstrumentationPoint*>* instPoints){
     return sizeInBytes;
 }
 
-uint32_t Function::addSafetyJump(Instruction* tgtInstruction){
+uint32_t Function::addSafetyJump(InstrucX86* tgtInstruction){
     Block* block = flowGraph->getBasicBlock(flowGraph->getNumberOfBasicBlocks() - 1);
     if (block->getType() == PebilClassType_BasicBlock){
         CodeBlock* cb = ((CodeBlock*)block);
@@ -148,11 +148,11 @@ bool Function::callsSelf(){
 
 bool Function::refersToInstruction(){
     uint32_t numberOfInstructions = getNumberOfInstructions();
-    Instruction** allInstructions = new Instruction*[numberOfInstructions];
+    InstrucX86** allInstructions = new InstrucX86*[numberOfInstructions];
     getAllInstructions(allInstructions,0);
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         if (allInstructions[i]->getAddressAnchor() && !allInstructions[i]->isControl()){
-            if (allInstructions[i]->getAddressAnchor()->getLink()->getType() == PebilClassType_Instruction){
+            if (allInstructions[i]->getAddressAnchor()->getLink()->getType() == PebilClassType_InstrucX86){
                 if (allInstructions[i]->isMemoryOperation()){
                     allInstructions[i]->print();
                     delete[] allInstructions;
@@ -167,7 +167,7 @@ bool Function::refersToInstruction(){
 
 bool Function::hasSelfDataReference(){
     uint32_t numberOfInstructions = getNumberOfInstructions();
-    Instruction** allInstructions = new Instruction*[numberOfInstructions];
+    InstrucX86** allInstructions = new InstrucX86*[numberOfInstructions];
     getAllInstructions(allInstructions,0);
     for (uint32_t i = 0; i < numberOfInstructions; i++){
         if (allInstructions[i]->getAddressAnchor()){
@@ -187,7 +187,7 @@ bool Function::hasSelfDataReference(){
 
 bool Function::containsReturn(){
     uint32_t numberOfInstructions = getNumberOfInstructions();
-    Instruction** allInstructions = new Instruction*[numberOfInstructions];
+    InstrucX86** allInstructions = new InstrucX86*[numberOfInstructions];
     getAllInstructions(allInstructions,0);
     bool hasReturn = false;
 
@@ -211,7 +211,7 @@ bool Function::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
     return false;
 }
 
-uint32_t Function::getAllInstructions(Instruction** allinsts, uint32_t nexti){
+uint32_t Function::getAllInstructions(InstrucX86** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         instructionCount += flowGraph->getBasicBlock(i)->getAllInstructions(allinsts, instructionCount+nexti);
@@ -220,7 +220,7 @@ uint32_t Function::getAllInstructions(Instruction** allinsts, uint32_t nexti){
     return instructionCount;
 }
 
-Vector<Instruction*>* Function::swapInstructions(uint64_t addr, Vector<Instruction*>* replacements){
+Vector<InstrucX86*>* Function::swapInstructions(uint64_t addr, Vector<InstrucX86*>* replacements){
     for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
         if (getBasicBlock(i)->inRange(addr)){
             return getBasicBlock(i)->swapInstructions(addr, replacements);
@@ -260,7 +260,7 @@ BasicBlock* Function::getBasicBlock(uint32_t idx){
 }
 
 void Function::printInstructions(){
-    Instruction** allInstructions = new Instruction*[getNumberOfInstructions()];
+    InstrucX86** allInstructions = new InstrucX86*[getNumberOfInstructions()];
     getAllInstructions(allInstructions,0);
     for (uint32_t i = 0; i < getNumberOfInstructions(); i++){
         ASSERT(allInstructions[i]);
@@ -283,7 +283,7 @@ void Function::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 }
 
 uint32_t Function::digest(Vector<AddressAnchor*>* addressAnchors){
-    Vector<Instruction*>* allInstructions = NULL;
+    Vector<InstrucX86*>* allInstructions = NULL;
 
     // try to use a recursive algorithm
     allInstructions = digestRecursive();
@@ -308,9 +308,9 @@ uint32_t Function::digest(Vector<AddressAnchor*>* addressAnchors){
     return sizeInBytes;
 }
 
-Vector<Instruction*>* Function::digestRecursive(){
-    Vector<Instruction*>* allInstructions = new Vector<Instruction*>();
-    Instruction* currentInstruction;
+Vector<InstrucX86*>* Function::digestRecursive(){
+    Vector<InstrucX86*>* allInstructions = new Vector<InstrucX86*>();
+    InstrucX86* currentInstruction;
     uint64_t currentAddress = 0;
 
     PRINT_DEBUG_CFG("Recursively digesting function %s at [%#llx,%#llx)", getName(), getBaseAddress(), getBaseAddress()+getSizeInBytes());
@@ -324,9 +324,9 @@ Vector<Instruction*>* Function::digestRecursive(){
     while (!unprocessed.empty() && !getBadInstruction()){
         currentAddress = unprocessed.pop();
 
-        void* inst = bsearch(&currentAddress, &(*allInstructions), (*allInstructions).size(), sizeof(Instruction*), searchBaseAddress);
+        void* inst = bsearch(&currentAddress, &(*allInstructions), (*allInstructions).size(), sizeof(InstrucX86*), searchBaseAddress);
         if (inst){
-            Instruction* tgtInstruction = *(Instruction**)inst;
+            InstrucX86* tgtInstruction = *(InstrucX86**)inst;
             ASSERT(tgtInstruction->getBaseAddress() == currentAddress && "Problem in disassembly -- found instruction that enters the middle of another instruction");
             continue;
         }
@@ -335,7 +335,7 @@ Vector<Instruction*>* Function::digestRecursive(){
             continue;
         }
 
-        currentInstruction = new Instruction(this, currentAddress,
+        currentInstruction = new InstrucX86(this, currentAddress,
                                              textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0);
 
         PRINT_DEBUG_CFG("recursive cfg: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());
@@ -350,7 +350,7 @@ Vector<Instruction*>* Function::digestRecursive(){
         // make sure the targets of this branch have not been processed yet
         uint64_t fallThroughAddr = currentInstruction->getBaseAddress() + currentInstruction->getSizeInBytes();
         PRINT_DEBUG_CFG("\tChecking FTaddr %#llx", fallThroughAddr);
-        void* fallThrough = bsearch(&fallThroughAddr,&(*allInstructions),(*allInstructions).size(),sizeof(Instruction*),searchBaseAddress);
+        void* fallThrough = bsearch(&fallThroughAddr,&(*allInstructions),(*allInstructions).size(),sizeof(InstrucX86*),searchBaseAddress);
         if (!fallThrough){
             if (currentInstruction->controlFallsThrough()){
                 PRINT_DEBUG_CFG("\t\tpushing %#llx", fallThroughAddr);
@@ -360,7 +360,7 @@ Vector<Instruction*>* Function::digestRecursive(){
                 fallThroughAddr = 0;
             }
         } else {
-            Instruction* tgtInstruction = *(Instruction**)fallThrough;
+            InstrucX86* tgtInstruction = *(InstrucX86**)fallThrough;
             if (tgtInstruction->getBaseAddress() != fallThroughAddr){
                 setBadInstruction(fallThroughAddr);
             }
@@ -386,7 +386,7 @@ Vector<Instruction*>* Function::digestRecursive(){
         for (uint32_t i = 0; i < (*controlTargetAddrs).size(); i++){
             uint64_t controlTargetAddr = (*controlTargetAddrs)[i];
             PRINT_DEBUG_CFG("\tChecking CTaddr %#llx", controlTargetAddr);
-            void* controlTarget = bsearch(&controlTargetAddr,&(*allInstructions),(*allInstructions).size(),sizeof(Instruction*),searchBaseAddress);
+            void* controlTarget = bsearch(&controlTargetAddr,&(*allInstructions),(*allInstructions).size(),sizeof(InstrucX86*),searchBaseAddress);
             if (!controlTarget){
                 if (inRange(controlTargetAddr)                 // target address is in this functions also
                     && controlTargetAddr != fallThroughAddr){  // target and fall through are the same, meaning the address is already pushed above
@@ -394,7 +394,7 @@ Vector<Instruction*>* Function::digestRecursive(){
                     unprocessed.push(controlTargetAddr);
                 }
             } else {
-                Instruction* tgtInstruction = *(Instruction**)controlTarget;
+                InstrucX86* tgtInstruction = *(InstrucX86**)controlTarget;
                 if (tgtInstruction->getBaseAddress() != controlTargetAddr){
                     setBadInstruction(controlTargetAddr);
                 }              
@@ -404,7 +404,7 @@ Vector<Instruction*>* Function::digestRecursive(){
         delete controlStorageAddrs;
     }
 
-    qsort(&(*allInstructions), (*allInstructions).size(), sizeof(Instruction*), compareBaseAddress);
+    qsort(&(*allInstructions), (*allInstructions).size(), sizeof(InstrucX86*), compareBaseAddress);
     ASSERT((*allInstructions).isSorted(compareBaseAddress));
 
     for (uint32_t i = 0; i < (*allInstructions).size() - 1; i++){
@@ -425,7 +425,7 @@ Vector<Instruction*>* Function::digestRecursive(){
         // in case the disassembler found an instruction that exceeds the function boundary, we will
         // reduce the size of the last instruction accordingly so that the extra bytes will not be
         // used. This can happen when data is stored at the end of function code
-        Instruction* tail = (*allInstructions).back();
+        InstrucX86* tail = (*allInstructions).back();
         uint32_t currByte = tail->getBaseAddress() + tail->getSizeInBytes() - getBaseAddress();
         if ( currByte > sizeInBytes){
             uint32_t extraBytes = currByte - sizeInBytes;
@@ -446,7 +446,7 @@ Vector<Instruction*>* Function::digestRecursive(){
     return allInstructions;
 }
 
-uint32_t Function::generateCFG(Vector<Instruction*>* instructions, Vector<AddressAnchor*>* addressAnchors){
+uint32_t Function::generateCFG(Vector<InstrucX86*>* instructions, Vector<AddressAnchor*>* addressAnchors){
     BasicBlock* currentBlock = NULL;
     BasicBlock* entryBlock = NULL;
     uint32_t numberOfBasicBlocks = 0;
@@ -511,11 +511,11 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions, Vector<Addres
 
     for (uint32_t i = 0; i < leaderAddrs.size(); i++){
         uint64_t tgtAddr = leaderAddrs[i];
-        void* inst = bsearch(&tgtAddr,&(*instructions),(*instructions).size(),sizeof(Instruction*),searchBaseAddress);
+        void* inst = bsearch(&tgtAddr,&(*instructions),(*instructions).size(),sizeof(InstrucX86*),searchBaseAddress);
         PRINT_DEBUG_CFG("Looking for leader addr %#llx", tgtAddr);
         if (inst){
             PRINT_DEBUG_CFG("\tFound it");
-            Instruction* tgtInstruction = *(Instruction**)inst;
+            InstrucX86* tgtInstruction = *(InstrucX86**)inst;
             if (!getBadInstruction()){
                 if (tgtInstruction->getBaseAddress() != tgtAddr){
                     PRINT_ERROR("found instruction that enters the middle of another instruction -- function %s instruction %#llx", getName(), tgtAddr);
@@ -619,7 +619,7 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions, Vector<Addres
 
         DEBUG_ANCHOR(dataRef->print();)
 
-        Instruction* linkedInstruction = getInstructionAtAddress(unqTargetAddrs[i]);
+        InstrucX86* linkedInstruction = getInstructionAtAddress(unqTargetAddrs[i]);
         ASSERT(linkedInstruction);
         dataRef->initializeAnchor(linkedInstruction);
         dataSection->addDataReference(dataRef);
@@ -632,7 +632,7 @@ uint32_t Function::generateCFG(Vector<Instruction*>* instructions, Vector<Addres
     
 }
 
-Instruction* Function::getInstructionAtAddress(uint64_t addr){
+InstrucX86* Function::getInstructionAtAddress(uint64_t addr){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         if (flowGraph->getBasicBlock(i)->inRange(addr)){
             return flowGraph->getBasicBlock(i)->getInstructionAtAddress(addr); 
@@ -717,9 +717,9 @@ bool Function::verify(){
         if (getNumberOfBytes() > sizeInBytes){
             PRINT_ERROR("Function %s has more bytes in BBs (%d) than in its size (%d)", getName(), getNumberOfBytes(), sizeInBytes);
         }
-        Instruction** allInstructions = new Instruction*[getNumberOfInstructions()];
+        InstrucX86** allInstructions = new InstrucX86*[getNumberOfInstructions()];
         getAllInstructions(allInstructions,0);
-        qsort(allInstructions,getNumberOfInstructions(),sizeof(Instruction*),compareBaseAddress);
+        qsort(allInstructions,getNumberOfInstructions(),sizeof(InstrucX86*),compareBaseAddress);
         for (uint32_t i = 0; i < getNumberOfInstructions()-1; i++){
             if (allInstructions[i+1]->getBaseAddress() && allInstructions[i]->getBaseAddress() == allInstructions[i+1]->getBaseAddress()){
                 allInstructions[i]->print();

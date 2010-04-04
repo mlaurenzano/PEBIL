@@ -3,8 +3,8 @@
 #include <BasicBlock.h>
 #include <Function.h>
 #include <Instrumentation.h>
-#include <Instruction.h>
-#include <InstructionGenerator.h>
+#include <InstrucX86.h>
+#include <InstrucX86Generator.h>
 #include <LineInformation.h>
 #include <Loop.h>
 #include <TextSection.h>
@@ -57,7 +57,7 @@ void CacheSimulation::instrument(){
     uint32_t dumpCode = 0;
     uint32_t commentSize = strlen(appName) + sizeof(uint32_t) + strlen(extension) + sizeof(uint32_t) + sizeof(uint32_t) + 4;
     uint64_t commentStore = reserveDataOffset(commentSize);
-    char* comment = (char*)malloc(commentSize);
+    char* comment = new char[commentSize];
     sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedBasicBlocks(), dumpCode);
     initializeReservedData(getInstDataAddress() + commentStore, commentSize, comment);
 
@@ -86,14 +86,18 @@ void CacheSimulation::instrument(){
         (*allLineInfos).append(lineInfoFinder->lookupLineInfo(bb));
 
         for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
-            Instruction* memop = bb->getInstruction(j);
+            InstrucX86* memop = bb->getInstruction(j);
             if (memop->isMemoryOperation()){            
-                InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline);
+                InstrumentationSnippet* snip = new InstrumentationSnippet();
                 
-                Vector<Instruction*>* addressCalcInstructions = generateBufferedAddressCalculation(memop, bufferStore, buffPtrStore, blockId, memopId, BUFFER_ENTRIES, FlagsProtectionMethod_full);
+                InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, FlagsProtectionMethod_none);
+                //InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline, FlagsProtectionMethod_none);
+                
+                Vector<InstrucX86*>* addressCalcInstructions = generateBufferedAddressCalculation(memop, bufferStore, buffPtrStore, blockId, memopId, BUFFER_ENTRIES, FlagsProtectionMethod_none);
                 ASSERT(addressCalcInstructions);
                 while ((*addressCalcInstructions).size()){
-                    pt->addPrecursorInstruction((*addressCalcInstructions).remove(0));
+                    snip->addSnippetInstruction((*addressCalcInstructions).remove(0));
+                    //                    pt->addPrecursorInstruction((*addressCalcInstructions).remove(0));
                 }
                 delete addressCalcInstructions;
                 memopId++;
@@ -107,14 +111,15 @@ void CacheSimulation::instrument(){
 
     delete allBlocks;
     delete allLineInfos;
+    delete[] comment;
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }
 
 // base and index regs are saved and restored by the caller
-Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation(Instruction* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method){
+Vector<InstrucX86*>* CacheSimulation::generateBufferedAddressCalculation(InstrucX86* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method){
     if (getElfFile()->is64Bit()){
-        return generateBufferedAddressCalculation64(instruction, bufferStore, bufferPtrStore, blockId, memopId, bufferSize, method);
+        return tmp_generateBufferedAddressCalculation64(instruction, bufferStore, bufferPtrStore, blockId, memopId, bufferSize, method);
     } else {
         return generateBufferedAddressCalculation32(instruction, bufferStore, bufferPtrStore, blockId, memopId, bufferSize, method);
     }
@@ -122,15 +127,99 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation(Instru
     return NULL;
 }
 
-Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation64(Instruction* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method){
-    Vector<Instruction*>* addressCalc = new Vector<Instruction*>();
+Vector<InstrucX86*>* CacheSimulation::tmp_generateBufferedAddressCalculation64(InstrucX86* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method){
+    Vector<InstrucX86*>* addressCalc = new Vector<InstrucX86*>();
     uint64_t dataAddr = getInstDataAddress();
 
-    MemoryOperand* memerand = NULL;
     Operand* operand = NULL;
     if (instruction->isExplicitMemoryOperation()){
-        memerand = new MemoryOperand(instruction->getMemoryOperand(), this);
-        operand = memerand->getOperand();
+        operand = instruction->getMemoryOperand();
+    }
+
+
+    // find 3 temp registers to use in the calculation
+    BitSet<uint32_t>* availableRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
+    availableRegs->insert(X86_REG_SP);
+    if (method == FlagsProtectionMethod_light){
+        availableRegs->insert(X86_REG_AX);
+    }
+    if (operand){
+        operand->getInstruction()->touchedRegisters(availableRegs);
+    }
+
+    ~(*availableRegs);
+
+    uint32_t tempReg1 = X86_64BIT_GPRS;
+    uint32_t tempReg2 = X86_64BIT_GPRS;
+    uint32_t tempReg3 = X86_64BIT_GPRS;
+
+    for (int32_t i = 0; i < availableRegs->size(); i++){
+        uint32_t idx = X86_64BIT_GPRS - i;
+        if (availableRegs->contains(idx)){
+            if (tempReg1 == X86_64BIT_GPRS){
+                tempReg1 = idx;
+            } else if (tempReg2 == X86_64BIT_GPRS){
+                tempReg2 = idx;
+            } else if (tempReg3 == X86_64BIT_GPRS){
+                tempReg3 = idx;
+            }
+        }
+    }
+    ASSERT(tempReg1 != X86_64BIT_GPRS && tempReg2 != X86_64BIT_GPRS && tempReg3 != X86_64BIT_GPRS);
+    delete availableRegs;
+
+
+    //operand->getInstruction()->print();
+    //PRINT_INFOR("Using tmp1/tmp2/base/index/value/scale/baddr %hhd/%hhd/%hhd/%hhd/%#llx/%d/%#llx", tempReg1, tempReg2, baseReg, indexReg, lValue, operand->GET(scale), operand->getInstruction()->getProgramAddress());
+
+    // save a few temp regs
+    (*addressCalc).append(InstrucX86Generator64::generateMoveRegToMem(tempReg1, dataAddr + getRegStorageOffset() + 2*(sizeof(uint64_t))));
+    //    (*addressCalc).append(InstrucX86Generator64::generateMoveRegToMem(tempReg2, dataAddr + getRegStorageOffset() + 3*(sizeof(uint64_t))));
+    //(*addressCalc).append(InstrucX86Generator64::generateMoveRegToMem(tempReg3, dataAddr + getRegStorageOffset() + 4*(sizeof(uint64_t))));
+
+    Vector<InstrucX86*>* addrComputation = InstrucX86Generator64::generateAddressComputation(instruction, tempReg1);
+    while (!(*addrComputation).empty()){
+        (*addressCalc).append((*addrComputation).remove(0));
+    }
+    delete addrComputation;
+    //(*addressCalc).append(InstrucX86Generator64::generateMoveImmToReg(dataAddr + bufferStore, tempReg2));
+    //(*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + bufferPtrStore, tempReg3));
+
+    // compute the address of the buffer entry
+    //(*addressCalc).append(InstrucX86Generator64::generateShiftLeftLogical(logBase2(Size__BufferEntry), tempReg3));
+    //(*addressCalc).append(InstrucX86Generator64::generateRegAddReg2OpForm(tempReg3, tempReg2));
+    //(*addressCalc).append(InstrucX86Generator64::generateShiftRightLogical(logBase2(Size__BufferEntry), tempReg3));
+
+    // fill the buffer entry
+    //(*addressCalc).append(InstrucX86Generator64::generateMoveRegToRegaddrImm(tempReg1, tempReg2, 2*sizeof(uint32_t), true));
+    //(*addressCalc).append(InstrucX86Generator64::generateMoveImmToReg(blockId, tempReg1));
+    //(*addressCalc).append(InstrucX86Generator64::generateMoveRegToRegaddrImm(tempReg1, tempReg2, 0, false));
+    //(*addressCalc).append(InstrucX86Generator64::generateMoveImmToReg(memopId, tempReg1));
+    //(*addressCalc).append(InstrucX86Generator64::generateMoveRegToRegaddrImm(tempReg1, tempReg2, sizeof(uint32_t), false));
+
+    // inc the buffer pointer and see if the buffer is full
+    //(*addressCalc).append(InstrucX86Generator64::generateRegAddImm(tempReg3, 1));
+    //(*addressCalc).append(InstrucX86Generator64::generateMoveRegToMem(tempReg3, dataAddr + bufferPtrStore));
+    //(*addressCalc).append(InstrucX86Generator64::generateCompareImmReg(bufferSize, tempReg3));
+    
+    // restore regs
+    //(*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 4*(sizeof(uint64_t)), tempReg3));
+    //(*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 3*(sizeof(uint64_t)), tempReg2));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 2*(sizeof(uint64_t)), tempReg1));
+
+    //(*addressCalc).append(InstrucX86Generator::generateBranchJL(Size__64_bit_inst_function_call_support));
+    //    (*addressCalc).append(InstrucX86Generator::generateJumpRelative(0,5 + Size__64_bit_inst_function_call_support));
+
+    return addressCalc;
+}
+
+Vector<InstrucX86*>* CacheSimulation::generateBufferedAddressCalculation64(InstrucX86* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method){
+    Vector<InstrucX86*>* addressCalc = new Vector<InstrucX86*>();
+    uint64_t dataAddr = getInstDataAddress();
+
+    Operand* operand = NULL;
+    if (instruction->isExplicitMemoryOperation()){
+        operand = instruction->getMemoryOperand();
     }
 
 
@@ -204,44 +293,44 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation64(Inst
     //PRINT_INFOR("Using tmp1/tmp2/base/index/value/scale/baddr %hhd/%hhd/%hhd/%hhd/%#llx/%d/%#llx", tempReg1, tempReg2, baseReg, indexReg, lValue, operand->GET(scale), operand->getInstruction()->getProgramAddress());
 
     // save a few temp regs
-    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg1, dataAddr + getRegStorageOffset() + 2*(sizeof(uint64_t))));
-    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg2, dataAddr + getRegStorageOffset() + 3*(sizeof(uint64_t))));
-    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg3, dataAddr + getRegStorageOffset() + 4*(sizeof(uint64_t))));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveRegToMem(tempReg1, dataAddr + getRegStorageOffset() + 2*(sizeof(uint64_t))));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveRegToMem(tempReg2, dataAddr + getRegStorageOffset() + 3*(sizeof(uint64_t))));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveRegToMem(tempReg3, dataAddr + getRegStorageOffset() + 4*(sizeof(uint64_t))));
  
     if (operand){
         if (operand->GET(base)){
-            (*addressCalc).append(InstructionGenerator64::generateMoveRegToReg(baseReg, tempReg1));
+            (*addressCalc).append(InstrucX86Generator64::generateMoveRegToReg(baseReg, tempReg1));
 #ifndef NO_LAHF_SAHF
             // AX contains the flags values and the legitimate value of AX is in regStorage when LAHF/SAHF are in place
             if (baseReg == X86_REG_AX && method == FlagsProtectionMethod_light){
-                (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg1));
+                (*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg1));
             }
 #endif
         }
     } else {
-        (*addressCalc).append(InstructionGenerator64::generateMoveRegToReg(X86_REG_SP, tempReg1));
+        (*addressCalc).append(InstrucX86Generator64::generateMoveRegToReg(X86_REG_SP, tempReg1));
     }
 
     if (operand){
         if (operand->GET(index)){
-            (*addressCalc).append(InstructionGenerator64::generateMoveRegToReg(indexReg, tempReg2));
+            (*addressCalc).append(InstrucX86Generator64::generateMoveRegToReg(indexReg, tempReg2));
 #ifndef NO_LAHF_SAHF
             // AX contains the flags values and the legitimate value of AX is in regStorage when LAHF/SAHF are in place
             if (indexReg == X86_REG_AX && method == FlagsProtectionMethod_light){
-                (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg2));
+                (*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg2));
             }
 #endif
         }
 
         if (IS_PC_REG(operand->GET(base))){
-            (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(instruction->getProgramAddress(), tempReg1));
-            (*addressCalc).append(InstructionGenerator64::generateRegAddImm(tempReg1, instruction->getSizeInBytes()));
+            (*addressCalc).append(InstrucX86Generator64::generateMoveImmToReg(instruction->getProgramAddress(), tempReg1));
+            (*addressCalc).append(InstrucX86Generator64::generateRegAddImm(tempReg1, instruction->getSizeInBytes()));
         }
         
         if (operand->GET(base)){
-            (*addressCalc).append(InstructionGenerator64::generateRegAddImm(tempReg1, lValue)); 
+            (*addressCalc).append(InstrucX86Generator64::generateRegAddImm(tempReg1, lValue)); 
         } else {
-            (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(lValue, tempReg1));
+            (*addressCalc).append(InstrucX86Generator64::generateMoveImmToReg(lValue, tempReg1));
         }
 
         if (operand->GET(index)){
@@ -249,50 +338,48 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation64(Inst
             if (!scale){
                 scale++;
             }
-            (*addressCalc).append(InstructionGenerator64::generateRegImmMultReg(tempReg2, scale, tempReg2));
-            (*addressCalc).append(InstructionGenerator64::generateRegAddReg2OpForm(tempReg2, tempReg1));
+            (*addressCalc).append(InstrucX86Generator64::generateRegImmMultReg(tempReg2, scale, tempReg2));
+            (*addressCalc).append(InstrucX86Generator64::generateRegAddReg2OpForm(tempReg2, tempReg1));
         }
     }
 
-    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(dataAddr + bufferStore, tempReg2));
-    (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + bufferPtrStore, tempReg3));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveImmToReg(dataAddr + bufferStore, tempReg2));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + bufferPtrStore, tempReg3));
 
     // compute the address of the buffer entry
-    (*addressCalc).append(InstructionGenerator64::generateShiftLeftLogical(logBase2(Size__BufferEntry), tempReg3));
-    (*addressCalc).append(InstructionGenerator64::generateRegAddReg2OpForm(tempReg3, tempReg2));
-    (*addressCalc).append(InstructionGenerator64::generateShiftRightLogical(logBase2(Size__BufferEntry), tempReg3));
+    (*addressCalc).append(InstrucX86Generator64::generateShiftLeftLogical(logBase2(Size__BufferEntry), tempReg3));
+    (*addressCalc).append(InstrucX86Generator64::generateRegAddReg2OpForm(tempReg3, tempReg2));
+    (*addressCalc).append(InstrucX86Generator64::generateShiftRightLogical(logBase2(Size__BufferEntry), tempReg3));
 
     // fill the buffer entry
-    (*addressCalc).append(InstructionGenerator64::generateMoveRegToRegaddrImm(tempReg1, tempReg2, 2*sizeof(uint32_t), true));
-    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(blockId, tempReg1));
-    (*addressCalc).append(InstructionGenerator64::generateMoveRegToRegaddrImm(tempReg1, tempReg2, 0, false));
-    (*addressCalc).append(InstructionGenerator64::generateMoveImmToReg(memopId, tempReg1));
-    (*addressCalc).append(InstructionGenerator64::generateMoveRegToRegaddrImm(tempReg1, tempReg2, sizeof(uint32_t), false));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveRegToRegaddrImm(tempReg1, tempReg2, 2*sizeof(uint32_t), true));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveImmToReg(blockId, tempReg1));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveRegToRegaddrImm(tempReg1, tempReg2, 0, false));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveImmToReg(memopId, tempReg1));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveRegToRegaddrImm(tempReg1, tempReg2, sizeof(uint32_t), false));
 
     // inc the buffer pointer and see if the buffer is full
-    (*addressCalc).append(InstructionGenerator64::generateRegAddImm(tempReg3, 1));
-    (*addressCalc).append(InstructionGenerator64::generateMoveRegToMem(tempReg3, dataAddr + bufferPtrStore));
-    (*addressCalc).append(InstructionGenerator64::generateCompareImmReg(bufferSize, tempReg3));
+    (*addressCalc).append(InstrucX86Generator64::generateRegAddImm(tempReg3, 1));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveRegToMem(tempReg3, dataAddr + bufferPtrStore));
+    (*addressCalc).append(InstrucX86Generator64::generateCompareImmReg(bufferSize, tempReg3));
     
     // restore regs
-    (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 4*(sizeof(uint64_t)), tempReg3));
-    (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 3*(sizeof(uint64_t)), tempReg2));
-    (*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 2*(sizeof(uint64_t)), tempReg1));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 4*(sizeof(uint64_t)), tempReg3));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 3*(sizeof(uint64_t)), tempReg2));
+    (*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 2*(sizeof(uint64_t)), tempReg1));
 
-    (*addressCalc).append(InstructionGenerator::generateBranchJL(Size__64_bit_inst_function_call_support));
+    (*addressCalc).append(InstrucX86Generator::generateBranchJL(Size__64_bit_inst_function_call_support));
 
     return addressCalc;
 }
 
-Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(Instruction* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method){
-    Vector<Instruction*>* addressCalc = new Vector<Instruction*>();
+Vector<InstrucX86*>* CacheSimulation::generateBufferedAddressCalculation32(InstrucX86* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method){
+    Vector<InstrucX86*>* addressCalc = new Vector<InstrucX86*>();
     uint64_t dataAddr = getInstDataAddress();
 
-    MemoryOperand* memerand = NULL;
     Operand* operand = NULL;
     if (instruction->isExplicitMemoryOperation()){
-        memerand = new MemoryOperand(instruction->getMemoryOperand(), this);
-        operand = memerand->getOperand();
+        operand = instruction->getMemoryOperand();
     }
 
     // find 3 temp registers
@@ -351,34 +438,34 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(Inst
 
     //    PRINT_INFOR("Using tmp1/tmp2/base/index/value/scale/baddr %hhd/%hhd/%hhd/%hhd/%#llx/%d/%#llx", tempReg1, tempReg2, baseReg, indexReg, operand->getValue(), operand->GET(scale), operand->getInstruction()->getProgramAddress());
     
-    (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(tempReg1, dataAddr + getRegStorageOffset() + 2*(sizeof(uint64_t))));
-    (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(tempReg2, dataAddr + getRegStorageOffset() + 3*(sizeof(uint64_t))));
-    (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(tempReg3, dataAddr + getRegStorageOffset() + 4*(sizeof(uint64_t))));
+    (*addressCalc).append(InstrucX86Generator32::generateMoveRegToMem(tempReg1, dataAddr + getRegStorageOffset() + 2*(sizeof(uint64_t))));
+    (*addressCalc).append(InstrucX86Generator32::generateMoveRegToMem(tempReg2, dataAddr + getRegStorageOffset() + 3*(sizeof(uint64_t))));
+    (*addressCalc).append(InstrucX86Generator32::generateMoveRegToMem(tempReg3, dataAddr + getRegStorageOffset() + 4*(sizeof(uint64_t))));
  
     if (operand){
         if (operand->GET(base)){
-            (*addressCalc).append(InstructionGenerator32::generateMoveRegToReg(baseReg, tempReg1));
+            (*addressCalc).append(InstrucX86Generator32::generateMoveRegToReg(baseReg, tempReg1));
 #ifndef NO_LAHF_SAHF
             // AX contains the flags values and the legitimate value of AX is in regStorage when LAHF/SAHF are in place
             if (baseReg == X86_REG_AX && method == FlagsProtectionMethod_light){
-                //(*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg1));
+                //(*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg1));
             }
 #endif
         }
         if (operand->GET(index)){
-            (*addressCalc).append(InstructionGenerator32::generateMoveRegToReg(indexReg, tempReg2));
+            (*addressCalc).append(InstrucX86Generator32::generateMoveRegToReg(indexReg, tempReg2));
 #ifndef NO_LAHF_SAHF
             // AX contains the flags values and the legitimate value of AX is in regStorage when LAHF/SAHF are in place
             if (indexReg == X86_REG_AX && method == FlagsProtectionMethod_light){
-                //(*addressCalc).append(InstructionGenerator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg2));
+                //(*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + getRegStorageOffset(), tempReg2));
             }
 #endif
         }
 
         if (operand->GET(base)){
-            (*addressCalc).append(InstructionGenerator32::generateRegAddImm(tempReg1, operand->getValue())); 
+            (*addressCalc).append(InstrucX86Generator32::generateRegAddImm(tempReg1, operand->getValue())); 
         } else {
-            (*addressCalc).append(InstructionGenerator32::generateMoveImmToReg(operand->getValue(), tempReg1));
+            (*addressCalc).append(InstrucX86Generator32::generateMoveImmToReg(operand->getValue(), tempReg1));
         }
 
         if (operand->GET(index)){
@@ -386,28 +473,28 @@ Vector<Instruction*>* CacheSimulation::generateBufferedAddressCalculation32(Inst
             if (!scale){
                 scale++;
             }
-            (*addressCalc).append(InstructionGenerator32::generateRegImm1ByteMultReg(tempReg2, scale, tempReg2));
-            (*addressCalc).append(InstructionGenerator32::generateRegAddReg2OpForm(tempReg2, tempReg1));
+            (*addressCalc).append(InstrucX86Generator32::generateRegImm1ByteMultReg(tempReg2, scale, tempReg2));
+            (*addressCalc).append(InstrucX86Generator32::generateRegAddReg2OpForm(tempReg2, tempReg1));
         }
     }
 
-    (*addressCalc).append(InstructionGenerator32::generateMoveImmToReg(dataAddr + bufferStore, tempReg2));
-    (*addressCalc).append(InstructionGenerator32::generateMoveMemToReg(dataAddr + bufferPtrStore, tempReg3));
+    (*addressCalc).append(InstrucX86Generator32::generateMoveImmToReg(dataAddr + bufferStore, tempReg2));
+    (*addressCalc).append(InstrucX86Generator32::generateMoveMemToReg(dataAddr + bufferPtrStore, tempReg3));
 
-    (*addressCalc).append(InstructionGenerator32::generateShiftLeftLogical(logBase2(Size__BufferEntry), tempReg3));
-    (*addressCalc).append(InstructionGenerator32::generateRegAddReg2OpForm(tempReg3, tempReg2));
-    (*addressCalc).append(InstructionGenerator32::generateShiftRightLogical(logBase2(Size__BufferEntry), tempReg3));
-    (*addressCalc).append(InstructionGenerator32::generateMoveRegToRegaddrImm(tempReg1, tempReg2, 0));
+    (*addressCalc).append(InstrucX86Generator32::generateShiftLeftLogical(logBase2(Size__BufferEntry), tempReg3));
+    (*addressCalc).append(InstrucX86Generator32::generateRegAddReg2OpForm(tempReg3, tempReg2));
+    (*addressCalc).append(InstrucX86Generator32::generateShiftRightLogical(logBase2(Size__BufferEntry), tempReg3));
+    (*addressCalc).append(InstrucX86Generator32::generateMoveRegToRegaddrImm(tempReg1, tempReg2, 0));
 
-    (*addressCalc).append(InstructionGenerator32::generateRegAddImm(tempReg3, 1));
-    (*addressCalc).append(InstructionGenerator32::generateMoveRegToMem(tempReg3, dataAddr + bufferPtrStore));
-    (*addressCalc).append(InstructionGenerator32::generateCompareImmReg(bufferSize, tempReg3));
+    (*addressCalc).append(InstrucX86Generator32::generateRegAddImm(tempReg3, 1));
+    (*addressCalc).append(InstrucX86Generator32::generateMoveRegToMem(tempReg3, dataAddr + bufferPtrStore));
+    (*addressCalc).append(InstrucX86Generator32::generateCompareImmReg(bufferSize, tempReg3));
 
-    (*addressCalc).append(InstructionGenerator32::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 4*(sizeof(uint64_t)), tempReg3));
-    (*addressCalc).append(InstructionGenerator32::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 3*(sizeof(uint64_t)), tempReg2));
-    (*addressCalc).append(InstructionGenerator32::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 2*(sizeof(uint64_t)), tempReg1));
+    (*addressCalc).append(InstrucX86Generator32::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 4*(sizeof(uint64_t)), tempReg3));
+    (*addressCalc).append(InstrucX86Generator32::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 3*(sizeof(uint64_t)), tempReg2));
+    (*addressCalc).append(InstrucX86Generator32::generateMoveMemToReg(dataAddr + getRegStorageOffset() + 2*(sizeof(uint64_t)), tempReg1));
 
-    (*addressCalc).append(InstructionGenerator::generateBranchJL(Size__32_bit_inst_function_call_support));
+    (*addressCalc).append(InstrucX86Generator::generateBranchJL(Size__32_bit_inst_function_call_support));
     return addressCalc;
 }
 

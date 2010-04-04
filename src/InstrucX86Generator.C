@@ -1,13 +1,263 @@
 #include <Base.h>
 
-#include <InstructionGenerator.h>
+#include <InstrucX86Generator.h>
 
-// this function deletes the incoming buffer after copying it to the new instruction's local memory
-Instruction* InstructionGenerator32::generateInstructionBase(uint32_t sz, char* buff){
-    return InstructionGenerator::generateInstructionBase(sz, buff);
+InstrucX86* InstrucX86Generator64::generateMoveSegmentRegToReg(uint32_t src, uint32_t dest){
+    ASSERT(src < X86_SEGMENT_REGS);
+    ASSERT(dest < X86_64BIT_GPRS);
+
+    uint32_t len = 3;
+    char* buff = new char[len];
+
+    if (dest < X86_32BIT_GPRS){
+        buff[0] = 0x48;
+    } else {
+        buff[0] = 0x49;
+    }
+    buff[1] = 0x8c;
+    buff[2] = 0xc0 + 8 * src + (dest % X86_32BIT_GPRS);
+
+    return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateExchangeMemReg(uint64_t addr, uint8_t idx){
+Vector<InstrucX86*>* InstrucX86Generator64::generateAddressComputation(InstrucX86* instruction, uint32_t dest){
+    ASSERT(dest < X86_64BIT_GPRS && "Illegal register index given");
+    ASSERT(instruction->isMemoryOperation());
+
+    DEBUG_LOADADDR(
+    instruction->print();
+    PRINT_DEBUG_LOADADDR("---");
+                   )
+
+    Vector<InstrucX86*>* compInstructions = new Vector<InstrucX86*>();
+    Operand* op = NULL;
+
+    if (instruction->isExplicitMemoryOperation()){
+
+        op = instruction->getMemoryOperand();
+
+        if (instruction->GET(pfx_seg)){
+            uint32_t segIdx = instruction->GET(pfx_seg) - UD_R_ES;
+            uint64_t imm = op->getValue();
+
+            (*compInstructions).append(generateMoveSegmentRegToReg(segIdx, dest));
+            (*compInstructions).append(generateRegAddImm(dest, imm));
+        } else if (op->GET(base) == UD_R_RIP){
+            PRINT_DEBUG_LOADADDR("making lea: mov rip imm");
+            uint64_t addr = op->getInstruction()->getProgramAddress() + op->getValue() + op->getInstruction()->getSizeInBytes();
+            (*compInstructions).append(generateMoveImmToReg(addr, dest));
+        } else {
+            (*compInstructions).append(generateLoadEffectiveAddress(op, dest));
+            ASSERT((*compInstructions).back() && op && (*compInstructions).back()->getOperand(COMP_SRC_OPERAND));
+            ASSERT(op->isSameOperand((*compInstructions).back()->getOperand(COMP_SRC_OPERAND)) && "The generated Address Computation operand does not match the operand given");
+        }
+
+    } else {
+        ASSERT(instruction->isImplicitMemoryOperation());
+        uint64_t stackOffset = 0;
+        if (instruction->isStackPush()){
+            stackOffset = -1 * sizeof(uint64_t);
+        } else {
+            ASSERT(instruction->isStackPop());
+            stackOffset = 0;
+        }
+        (*compInstructions).append(generateLoadEffectiveAddress(X86_REG_SP, 0, 1, stackOffset, dest, true, false));
+    }
+
+    
+    PRINT_DEBUG_LOADADDR("have %d instructions for addr computation", (*compInstructions).size());
+    DEBUG_LOADADDR(
+    for (uint32_t i = 0; i < (*compInstructions).size(); i++){
+        (*compInstructions)[i]->print();
+    }
+    PRINT_DEBUG_LOADADDR("-----------------------------------------------------------");
+                   )
+
+    return compInstructions;
+}
+
+InstrucX86* InstrucX86Generator64::generateLoadEffectiveAddress(uint32_t baseReg, uint32_t indexReg, uint8_t scale, uint64_t value, uint32_t dest, bool hasBase, bool hasIndex){
+    ASSERT(dest < X86_64BIT_GPRS && "Illegal register index given");
+    ASSERT(baseReg < X86_64BIT_GPRS || baseReg + UD_R_RAX == UD_R_RIP);
+    ASSERT(indexReg < X86_64BIT_GPRS && "Illegal register index given");
+    ASSERT(scale && isPowerOfTwo(scale) && scale <= 8);
+
+    uint32_t len;
+    char* buff;
+    InstrucX86* lea = NULL;
+
+    // scale/index/base
+    if (hasIndex){
+        uint8_t sa = (logBase2(scale)) << 6;
+
+        // base is a reg
+        if (hasBase && !value){
+            PRINT_DEBUG_LOADADDR("making lea: SIB, base is only reg");
+
+            len = 4;
+            buff = new char[len];
+            
+            buff[0] = 0x48;
+            if (baseReg >= X86_32BIT_GPRS){
+                buff[0]++;
+            }
+            if (indexReg >= X86_32BIT_GPRS){
+                buff[0] += 2;
+            }
+            if (dest >= X86_32BIT_GPRS){
+                buff[0] += 4;
+            }
+            
+            buff[1] = 0x8d;
+            buff[2] = 0x04 + 8 * (dest % X86_32BIT_GPRS);
+            if (baseReg % X86_32BIT_GPRS == X86_REG_BP){
+                buff[2] += 0x40;
+                len++;
+                buff[4] = 0x00;
+            }
+            buff[3] = 0x00 + 8 * (indexReg % X86_32BIT_GPRS) + (baseReg % X86_32BIT_GPRS) + sa;
+            
+            lea = generateInstructionBase(len,buff);
+        }
+
+        // base is a value
+        else {
+            PRINT_DEBUG_LOADADDR("making lea: SIB, base is value");
+
+            len = 8;
+            buff = new char[len];
+
+            buff[0] = 0x48;
+            if (hasBase && baseReg >= X86_32BIT_GPRS){
+                buff[0]++;
+            }
+            if (indexReg >= X86_32BIT_GPRS){
+                buff[0] += 2;
+            }
+            if (dest >= X86_32BIT_GPRS){
+                buff[0] += 4;
+            }
+
+            buff[1] = 0x8d;
+            buff[2] = 0x04 + 8 * (dest % X86_32BIT_GPRS);
+            buff[3] = 0x00 + 8 * (indexReg % X86_32BIT_GPRS);
+            if (hasBase){
+                PRINT_DEBUG_LOADADDR("\tbase also has reg");
+                buff[2] += 0x80;
+                buff[3] += (baseReg % X86_32BIT_GPRS);
+            } else {
+                buff[3] += 0x05;
+            }
+            
+            buff[3] += sa;
+            
+            memcpy(buff + 4, &value, sizeof(uint32_t));
+            lea = generateInstructionBase(len,buff);
+        } 
+
+    } 
+
+    // base + offset
+    else if (hasBase){
+        len = 7;
+        uint32_t immoff = 3;
+        PRINT_DEBUG_LOADADDR("making lea: base + offset");
+
+        if (baseReg % X86_32BIT_GPRS == X86_REG_SP){
+            len++;
+            immoff++;
+        }
+        buff = new char[len];
+
+        if (dest < X86_32BIT_GPRS){
+            buff[0] = 0x48;
+        } else {
+            buff[0] = 0x4c;
+        }
+        if (baseReg < X86_32BIT_GPRS){
+        } else {
+            buff[0]++;
+        }
+        buff[1] = 0x8d;
+        if (baseReg + UD_R_RAX == UD_R_RIP){
+            buff[2] = 0x05;
+        } else {
+            buff[2] = 0x80 + (baseReg % X86_32BIT_GPRS);
+        }
+        buff[2] += 8 * (dest % X86_32BIT_GPRS);
+
+        if (baseReg % X86_32BIT_GPRS == X86_REG_SP){
+            buff[3] = 0x24;
+        }
+
+        uint32_t addr32 = value;
+        memcpy(buff + immoff, &addr32, sizeof(uint32_t));
+        lea = generateInstructionBase(len,buff);
+    } 
+
+    // constant
+    else {
+        PRINT_DEBUG_LOADADDR("making lea: const");
+
+        len = 8;
+        buff = new char[len];
+        if (dest < X86_32BIT_GPRS){
+            buff[0] = 0x48;
+        } else {
+            buff[0] = 0x4c;
+        }
+        buff[1] = 0x8d;
+        buff[2] = 0x04 + 8 * (dest % X86_32BIT_GPRS);
+        buff[3] = 0x25;
+
+        uint32_t addr32 = value;
+        memcpy(buff + 4, &addr32, sizeof(uint32_t));
+        lea = generateInstructionBase(len,buff);
+    }
+
+    ASSERT(lea);
+    return lea;
+}
+
+InstrucX86* InstrucX86Generator64::generateLoadEffectiveAddress(Operand* op, uint32_t dest){
+    ASSERT(dest < X86_64BIT_GPRS && "Illegal register index given");
+    ASSERT(op);
+
+    uint32_t baseReg = 0;
+    uint32_t indexReg = 0;
+    uint8_t scale = op->GET(scale);
+    if (!scale) { 
+        scale++; 
+    }
+    uint64_t value = op->getValue();
+
+    bool hasBase = false;
+    if (op->GET(base)){
+        hasBase = true;
+        baseReg = op->GET(base) - UD_R_RAX;
+    }
+    bool hasIndex = false;
+    if (op->GET(index)){
+        hasIndex = true;
+        indexReg = op->GET(index) - UD_R_RAX;
+    }
+
+    InstrucX86* lea = generateLoadEffectiveAddress(baseReg, indexReg, scale, value, dest, hasBase, hasIndex);
+    if (!lea || !op || !lea->getOperand(COMP_SRC_OPERAND)){
+        lea->print();
+    }
+    ASSERT(lea && op && lea->getOperand(COMP_SRC_OPERAND));
+    ASSERT(op->isSameOperand(lea->getOperand(COMP_SRC_OPERAND)) && "The generated LEA operand does not match the operand given");
+
+    return lea;
+}
+
+// this function deletes the incoming buffer after copying it to the new instruction's local memory
+InstrucX86* InstrucX86Generator32::generateInstructionBase(uint32_t sz, char* buff){
+    return InstrucX86Generator::generateInstructionBase(sz, buff);
+}
+
+InstrucX86* InstrucX86Generator32::generateExchangeMemReg(uint64_t addr, uint8_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 6;
     char* buff = new char[len];
@@ -20,7 +270,7 @@ Instruction* InstructionGenerator32::generateExchangeMemReg(uint64_t addr, uint8
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateLoadRegImmReg(uint8_t idxsrc, uint64_t imm, uint8_t idxdest){
+InstrucX86* InstrucX86Generator32::generateLoadRegImmReg(uint8_t idxsrc, uint64_t imm, uint8_t idxdest){
     ASSERT(idxsrc < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(idxdest < X86_32BIT_GPRS && "Illegal register index given");    
     uint32_t len = 6;
@@ -44,7 +294,7 @@ Instruction* InstructionGenerator32::generateLoadRegImmReg(uint8_t idxsrc, uint6
     return generateInstructionBase(len,buff);    
 }
 
-Instruction* InstructionGenerator64::generateLoadRegImmReg(uint8_t idxsrc, uint64_t imm, uint8_t idxdest){
+InstrucX86* InstrucX86Generator64::generateLoadRegImmReg(uint8_t idxsrc, uint64_t imm, uint8_t idxdest){
     ASSERT(idxsrc < X86_64BIT_GPRS && "Illegal register index given");
     ASSERT(idxdest < X86_64BIT_GPRS && "Illegal register index given");    
 
@@ -80,7 +330,7 @@ Instruction* InstructionGenerator64::generateLoadRegImmReg(uint8_t idxsrc, uint6
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateInstructionBase(uint32_t sz, char* buff){
+InstrucX86* InstrucX86Generator64::generateInstructionBase(uint32_t sz, char* buff){
     ud_t ud_obj;
     ud_init(&ud_obj);
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, sz);
@@ -89,16 +339,22 @@ Instruction* InstructionGenerator64::generateInstructionBase(uint32_t sz, char* 
 
     uint32_t size = ud_disassemble(&ud_obj);
     if (size != sz){
+        PRINT_INFO();
+        PRINT_OUT("Problem disassembling bytes: ");
+        for (uint32_t i = 0; i < sz; i++){
+            PRINT_OUT("%02hhx ", buff[i]);
+        }
+        PRINT_OUT("\n");
         PRINT_ERROR("bytes do not match for size %d -- %s", size, ud_insn_hex(&ud_obj));
     }
     ASSERT(size == sz);
-    Instruction* ret = new Instruction(&ud_obj);
+    InstrucX86* ret = new InstrucX86(&ud_obj);
 
     delete[] buff;
     return ret;
 }
 
-Instruction* InstructionGenerator::generateInstructionBase(uint32_t sz, char* buff){
+InstrucX86* InstrucX86Generator::generateInstructionBase(uint32_t sz, char* buff){
     ud_t ud_obj;
     ud_init(&ud_obj);
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, sz);
@@ -107,13 +363,13 @@ Instruction* InstructionGenerator::generateInstructionBase(uint32_t sz, char* bu
 
     uint32_t size = ud_disassemble(&ud_obj);
     ASSERT(size == sz);
-    Instruction* ret = new Instruction(&ud_obj);
+    InstrucX86* ret = new InstrucX86(&ud_obj);
 
     delete[] buff;
     return ret;
 }
 
-Instruction* InstructionGenerator64::generateShiftRightLogical(uint8_t imm, uint8_t reg){
+InstrucX86* InstrucX86Generator64::generateShiftRightLogical(uint8_t imm, uint8_t reg){
     ASSERT(reg < X86_64BIT_GPRS && "Illegal register index given");
 
     uint32_t len = 4;
@@ -131,7 +387,7 @@ Instruction* InstructionGenerator64::generateShiftRightLogical(uint8_t imm, uint
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateShiftLeftLogical(uint8_t imm, uint8_t reg){
+InstrucX86* InstrucX86Generator64::generateShiftLeftLogical(uint8_t imm, uint8_t reg){
     ASSERT(reg < X86_64BIT_GPRS && "Illegal register index given");
 
     uint32_t len = 4;
@@ -149,7 +405,7 @@ Instruction* InstructionGenerator64::generateShiftLeftLogical(uint8_t imm, uint8
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateShiftRightLogical(uint8_t imm, uint8_t reg){
+InstrucX86* InstrucX86Generator32::generateShiftRightLogical(uint8_t imm, uint8_t reg){
     ASSERT(reg < X86_32BIT_GPRS && "Illegal register index given");
 
     uint32_t len = 3;
@@ -162,7 +418,7 @@ Instruction* InstructionGenerator32::generateShiftRightLogical(uint8_t imm, uint
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateShiftLeftLogical(uint8_t imm, uint8_t reg){
+InstrucX86* InstrucX86Generator32::generateShiftLeftLogical(uint8_t imm, uint8_t reg){
     ASSERT(reg < X86_32BIT_GPRS && "Illegal register index given");
 
     uint32_t len = 3;
@@ -175,7 +431,7 @@ Instruction* InstructionGenerator32::generateShiftLeftLogical(uint8_t imm, uint8
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateCompareImmReg(uint64_t imm, uint8_t reg){
+InstrucX86* InstrucX86Generator64::generateCompareImmReg(uint64_t imm, uint8_t reg){
     ASSERT(reg < X86_64BIT_GPRS && "Illegal register index given");
 
     uint32_t len = 7;
@@ -196,7 +452,7 @@ Instruction* InstructionGenerator64::generateCompareImmReg(uint64_t imm, uint8_t
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateCompareImmReg(uint64_t imm, uint8_t reg){
+InstrucX86* InstrucX86Generator32::generateCompareImmReg(uint64_t imm, uint8_t reg){
     ASSERT(reg < X86_32BIT_GPRS && "Illegal register index given");
 
     uint32_t len = 6;
@@ -212,7 +468,7 @@ Instruction* InstructionGenerator32::generateCompareImmReg(uint64_t imm, uint8_t
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateBranchJL(uint64_t off){
+InstrucX86* InstrucX86Generator::generateBranchJL(uint64_t off){
     uint32_t len = 6;
     char* buff = new char[len];
 
@@ -226,7 +482,7 @@ Instruction* InstructionGenerator::generateBranchJL(uint64_t off){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateMoveRegToReg(uint32_t srcreg, uint32_t destreg){
+InstrucX86* InstrucX86Generator64::generateMoveRegToReg(uint32_t srcreg, uint32_t destreg){
     ASSERT(srcreg < X86_64BIT_GPRS && "Illegal register index given");    
     ASSERT(destreg < X86_64BIT_GPRS && "Illegal register index given");    
 
@@ -250,7 +506,7 @@ Instruction* InstructionGenerator64::generateMoveRegToReg(uint32_t srcreg, uint3
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateMoveRegToReg(uint32_t srcreg, uint32_t destreg){
+InstrucX86* InstrucX86Generator32::generateMoveRegToReg(uint32_t srcreg, uint32_t destreg){
     ASSERT(srcreg < X86_32BIT_GPRS && "Illegal register index given");    
     ASSERT(destreg < X86_32BIT_GPRS && "Illegal register index given");    
 
@@ -263,7 +519,7 @@ Instruction* InstructionGenerator32::generateMoveRegToReg(uint32_t srcreg, uint3
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateLoadRipImmToReg(uint32_t imm, uint32_t destreg){
+InstrucX86* InstrucX86Generator64::generateLoadRipImmToReg(uint32_t imm, uint32_t destreg){
     ASSERT(destreg < X86_64BIT_GPRS && "Illegal register index given");
 
     uint32_t len = 7;
@@ -283,7 +539,7 @@ Instruction* InstructionGenerator64::generateLoadRipImmToReg(uint32_t imm, uint3
 }
 
 
-Instruction* InstructionGenerator32::generateRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg){
+InstrucX86* InstrucX86Generator32::generateRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg){
     ASSERT(srcdestreg < X86_32BIT_GPRS && "Illegal register index given");    
     ASSERT(srcreg < X86_32BIT_GPRS && "Illegal register index given");    
     uint32_t len = 2;
@@ -294,7 +550,7 @@ Instruction* InstructionGenerator32::generateRegAddReg2OpForm(uint32_t srcdestre
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg){
+InstrucX86* InstrucX86Generator64::generateRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg){
     ASSERT(srcdestreg < X86_64BIT_GPRS && "Illegal register index given");    
     ASSERT(srcreg < X86_64BIT_GPRS && "Illegal register index given");    
 
@@ -318,7 +574,7 @@ Instruction* InstructionGenerator64::generateRegAddReg2OpForm(uint32_t srcdestre
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateRegImm1ByteMultReg(uint32_t src, uint8_t imm, uint32_t dest){
+InstrucX86* InstrucX86Generator32::generateRegImm1ByteMultReg(uint32_t src, uint8_t imm, uint32_t dest){
     ASSERT(src < X86_32BIT_GPRS && "Illegal register index given");    
     ASSERT(dest < X86_32BIT_GPRS && "Illegal register index given");    
 
@@ -331,7 +587,7 @@ Instruction* InstructionGenerator32::generateRegImm1ByteMultReg(uint32_t src, ui
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateRegImmMultReg(uint32_t src, uint32_t imm, uint32_t dest){
+InstrucX86* InstrucX86Generator64::generateRegImmMultReg(uint32_t src, uint32_t imm, uint32_t dest){
     ASSERT(src < X86_64BIT_GPRS && "Illegal register index given");    
     ASSERT(dest < X86_64BIT_GPRS && "Illegal register index given");    
 
@@ -358,7 +614,7 @@ Instruction* InstructionGenerator64::generateRegImmMultReg(uint32_t src, uint32_
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateRegAddImm(uint8_t idx, uint32_t imm){
+InstrucX86* InstrucX86Generator32::generateRegAddImm(uint8_t idx, uint32_t imm){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 6;
     char* buff = new char[len];
@@ -369,7 +625,7 @@ Instruction* InstructionGenerator32::generateRegAddImm(uint8_t idx, uint32_t imm
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateXorRegReg(uint8_t src, uint8_t tgt){
+InstrucX86* InstrucX86Generator64::generateXorRegReg(uint8_t src, uint8_t tgt){
     ASSERT(src < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(tgt < X86_32BIT_GPRS && "Illegal register index given");
     
@@ -381,35 +637,35 @@ Instruction* InstructionGenerator64::generateXorRegReg(uint8_t src, uint8_t tgt)
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateLoadAHFromFlags(){
+InstrucX86* InstrucX86Generator32::generateLoadAHFromFlags(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x9f;
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateStoreAHToFlags(){
+InstrucX86* InstrucX86Generator32::generateStoreAHToFlags(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x9e;
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateLoadAHFromFlags(){
+InstrucX86* InstrucX86Generator64::generateLoadAHFromFlags(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x9f;
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateStoreAHToFlags(){
+InstrucX86* InstrucX86Generator64::generateStoreAHToFlags(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x9e;
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateAddImmByteToMem(uint8_t imm, uint64_t addr){
+InstrucX86* InstrucX86Generator32::generateAddImmByteToMem(uint8_t imm, uint64_t addr){
     uint32_t len = 7;
     char* buff = new char[len];
 
@@ -424,7 +680,7 @@ Instruction* InstructionGenerator32::generateAddImmByteToMem(uint8_t imm, uint64
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateAddImmByteToMem(uint8_t imm, uint64_t addr){
+InstrucX86* InstrucX86Generator64::generateAddImmByteToMem(uint8_t imm, uint64_t addr){
     uint32_t len = 8;
     char* buff = new char[len];
 
@@ -440,7 +696,7 @@ Instruction* InstructionGenerator64::generateAddImmByteToMem(uint8_t imm, uint64
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateAndImmReg(uint64_t imm, uint32_t idx){
+InstrucX86* InstrucX86Generator::generateAndImmReg(uint64_t imm, uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 6;
     uint32_t immoff = 2;
@@ -466,7 +722,7 @@ Instruction* InstructionGenerator::generateAndImmReg(uint64_t imm, uint32_t idx)
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateMoveImmToRegaddrImm(uint64_t immval, uint32_t idx, uint64_t immoff){
+InstrucX86* InstrucX86Generator64::generateMoveImmToRegaddrImm(uint64_t immval, uint32_t idx, uint64_t immoff){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 10;
     if (idx == X86_REG_SP){
@@ -496,7 +752,7 @@ Instruction* InstructionGenerator64::generateMoveImmToRegaddrImm(uint64_t immval
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateMoveRegaddrImmToReg(uint32_t idxsrc, uint64_t imm, uint32_t idxdest){
+InstrucX86* InstrucX86Generator64::generateMoveRegaddrImmToReg(uint32_t idxsrc, uint64_t imm, uint32_t idxdest){
     ASSERT(idxsrc < X86_64BIT_GPRS && "Illegal register index given");
     ASSERT(idxdest < X86_64BIT_GPRS && "Illegal register index given");    
     uint32_t len = 7;
@@ -530,7 +786,7 @@ Instruction* InstructionGenerator64::generateMoveRegaddrImmToReg(uint32_t idxsrc
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateMoveRegaddrImmToReg(uint32_t idxsrc, uint64_t imm, uint32_t idxdest){
+InstrucX86* InstrucX86Generator32::generateMoveRegaddrImmToReg(uint32_t idxsrc, uint64_t imm, uint32_t idxdest){
     ASSERT(idxsrc < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(idxdest < X86_32BIT_GPRS && "Illegal register index given");    
     uint32_t len = 6;
@@ -554,7 +810,7 @@ Instruction* InstructionGenerator32::generateMoveRegaddrImmToReg(uint32_t idxsrc
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateMoveImmByteToReg(uint8_t imm, uint32_t idx){
+InstrucX86* InstrucX86Generator::generateMoveImmByteToReg(uint8_t imm, uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 2;
     uint32_t reg = 0;
@@ -575,7 +831,7 @@ Instruction* InstructionGenerator::generateMoveImmByteToReg(uint8_t imm, uint32_
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateRegIncrement(uint32_t idx){
+InstrucX86* InstrucX86Generator::generateRegIncrement(uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 1;
     char* buff = new char[len];
@@ -583,7 +839,7 @@ Instruction* InstructionGenerator::generateRegIncrement(uint32_t idx){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateInterrupt(uint8_t idx){
+InstrucX86* InstrucX86Generator::generateInterrupt(uint8_t idx){
     uint32_t len = 1;
     if (idx != X86TRAPCODE_BREAKPOINT &&
         idx != X86TRAPCODE_OVERFLOW){
@@ -602,7 +858,7 @@ Instruction* InstructionGenerator::generateInterrupt(uint8_t idx){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateSetDirectionFlag(bool backward){
+InstrucX86* InstrucX86Generator::generateSetDirectionFlag(bool backward){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0xfc;
@@ -613,7 +869,7 @@ Instruction* InstructionGenerator::generateSetDirectionFlag(bool backward){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateSTOSByte(bool repeat){
+InstrucX86* InstrucX86Generator::generateSTOSByte(bool repeat){
     uint32_t len = 1;
     if (repeat){
         len++;
@@ -625,7 +881,7 @@ Instruction* InstructionGenerator::generateSTOSByte(bool repeat){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateSTOSWord(bool repeat){
+InstrucX86* InstrucX86Generator::generateSTOSWord(bool repeat){
     uint32_t len = 1;
     if (repeat){
         len++;
@@ -637,7 +893,7 @@ Instruction* InstructionGenerator::generateSTOSWord(bool repeat){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateMoveString(bool repeat){
+InstrucX86* InstrucX86Generator::generateMoveString(bool repeat){
     uint32_t len = 1;
     if (repeat){
         len++;
@@ -649,7 +905,7 @@ Instruction* InstructionGenerator::generateMoveString(bool repeat){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateMoveImmToSegmentReg(uint64_t imm, uint32_t idx){
+InstrucX86* InstrucX86Generator::generateMoveImmToSegmentReg(uint64_t imm, uint32_t idx){
     ASSERT(idx < X86_SEGMENT_REGS && "Illegal segment register index given");
     ASSERT(idx != X86_SEGREG_CS && "Illegal segment register index given");
 
@@ -666,7 +922,7 @@ Instruction* InstructionGenerator::generateMoveImmToSegmentReg(uint64_t imm, uin
 }
 
 
-Instruction* InstructionGenerator::generatePushSegmentReg(uint32_t idx){
+InstrucX86* InstrucX86Generator::generatePushSegmentReg(uint32_t idx){
     ASSERT(idx < X86_SEGMENT_REGS && "Illegal segment register index given");
     ASSERT(idx != X86_SEGREG_CS && "Illegal segment register index given");
 
@@ -684,7 +940,7 @@ Instruction* InstructionGenerator::generatePushSegmentReg(uint32_t idx){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generatePopSegmentReg(uint32_t idx){
+InstrucX86* InstrucX86Generator::generatePopSegmentReg(uint32_t idx){
     ASSERT(idx < X86_SEGMENT_REGS && "Illegal segment register index given");
     ASSERT(idx != X86_SEGREG_CS && "Illegal segment register index given");
 
@@ -703,7 +959,7 @@ Instruction* InstructionGenerator::generatePopSegmentReg(uint32_t idx){
 }
 
 
-Instruction* InstructionGenerator64::generateStackPush4Byte(uint32_t idx){
+InstrucX86* InstrucX86Generator64::generateStackPush4Byte(uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 2;
     char* buff = new char[len];
@@ -712,7 +968,7 @@ Instruction* InstructionGenerator64::generateStackPush4Byte(uint32_t idx){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateAddByteToRegaddr(uint8_t byt, uint32_t idx){
+InstrucX86* InstrucX86Generator::generateAddByteToRegaddr(uint8_t byt, uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 3;
     char* buff = new char[len];
@@ -722,7 +978,7 @@ Instruction* InstructionGenerator::generateAddByteToRegaddr(uint8_t byt, uint32_
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx){
+InstrucX86* InstrucX86Generator32::generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx){
     ASSERT(srcidx < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(destidx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 2;
@@ -732,7 +988,7 @@ Instruction* InstructionGenerator32::generateMoveRegaddrToReg(uint32_t srcidx, u
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx){
+InstrucX86* InstrucX86Generator64::generateMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx){
     ASSERT(srcidx < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(destidx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 3;
@@ -743,19 +999,19 @@ Instruction* InstructionGenerator64::generateMoveRegaddrToReg(uint32_t srcidx, u
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateRegSubImm(uint8_t idx, uint32_t imm){
+InstrucX86* InstrucX86Generator64::generateRegSubImm(uint8_t idx, uint32_t imm){
     ASSERT(idx > 0 && idx < X86_64BIT_GPRS && "Illegal register index given");
 
     if (!imm){
-        return InstructionGenerator64::generateNoop();
+        return InstrucX86Generator64::generateNoop();
     } else {
-        return InstructionGenerator64::generateRegSubImm4Byte(idx, imm);
+        return InstrucX86Generator64::generateRegSubImm4Byte(idx, imm);
     }
     __SHOULD_NOT_ARRIVE;
     return NULL;
 }
 
-Instruction* InstructionGenerator64::generateRegSubImm4Byte(uint8_t idx, uint32_t imm){
+InstrucX86* InstrucX86Generator64::generateRegSubImm4Byte(uint8_t idx, uint32_t imm){
     ASSERT(idx > 0 && idx < X86_64BIT_GPRS && "Illegal register index given");
 
     uint32_t len = 7;
@@ -780,19 +1036,19 @@ Instruction* InstructionGenerator64::generateRegSubImm4Byte(uint8_t idx, uint32_
 
 
 
-Instruction* InstructionGenerator64::generateRegAddImm(uint8_t idx, uint32_t imm){
+InstrucX86* InstrucX86Generator64::generateRegAddImm(uint8_t idx, uint32_t imm){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
 
     if (!imm){
-        return InstructionGenerator64::generateNoop();
+        return InstrucX86Generator64::generateNoop();
     } else {
-        return InstructionGenerator64::generateRegAddImm4Byte(idx, imm);
+        return InstrucX86Generator64::generateRegAddImm4Byte(idx, imm);
     }
     __SHOULD_NOT_ARRIVE;
     return NULL;
 }
 
-Instruction* InstructionGenerator64::generateRegAddImm4Byte(uint8_t idx, uint32_t imm){
+InstrucX86* InstrucX86Generator64::generateRegAddImm4Byte(uint8_t idx, uint32_t imm){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
 
     uint32_t len = 7;
@@ -818,7 +1074,7 @@ Instruction* InstructionGenerator64::generateRegAddImm4Byte(uint8_t idx, uint32_
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateRegSubImm(uint8_t idx, uint32_t imm){
+InstrucX86* InstrucX86Generator32::generateRegSubImm(uint8_t idx, uint32_t imm){
     ASSERT(idx > 0 && idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 6;
     char* buff = new char[len];
@@ -831,7 +1087,7 @@ Instruction* InstructionGenerator32::generateRegSubImm(uint8_t idx, uint32_t imm
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateMoveImmByteToMemIndirect(uint8_t byt, uint64_t off, uint32_t idx){
+InstrucX86* InstrucX86Generator::generateMoveImmByteToMemIndirect(uint8_t byt, uint64_t off, uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 7;
     char* buff = new char[len];
@@ -845,7 +1101,7 @@ Instruction* InstructionGenerator::generateMoveImmByteToMemIndirect(uint8_t byt,
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateReturn(){
+InstrucX86* InstrucX86Generator::generateReturn(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0xc3;
@@ -854,10 +1110,10 @@ Instruction* InstructionGenerator::generateReturn(){
 }
 
 
-Instruction* InstructionGenerator64::generateStackPush(uint32_t idx){
+InstrucX86* InstrucX86Generator64::generateStackPush(uint32_t idx){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
     if (idx < X86_32BIT_GPRS){
-        return InstructionGenerator32::generateStackPush(idx);
+        return InstrucX86Generator32::generateStackPush(idx);
     }
     uint32_t len = 2;
     char* buff = new char[len];
@@ -867,10 +1123,10 @@ Instruction* InstructionGenerator64::generateStackPush(uint32_t idx){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateStackPop(uint32_t idx){
+InstrucX86* InstrucX86Generator64::generateStackPop(uint32_t idx){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
     if (idx < X86_32BIT_GPRS){
-        return InstructionGenerator32::generateStackPop(idx);
+        return InstrucX86Generator32::generateStackPop(idx);
     }
     uint32_t len = 2;
     char* buff = new char[len];
@@ -881,7 +1137,7 @@ Instruction* InstructionGenerator64::generateStackPop(uint32_t idx){
 }
 
 
-Instruction* InstructionGenerator::generatePushEflags(){
+InstrucX86* InstrucX86Generator::generatePushEflags(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x9c;
@@ -889,7 +1145,7 @@ Instruction* InstructionGenerator::generatePushEflags(){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generatePopEflags(){
+InstrucX86* InstrucX86Generator::generatePopEflags(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x9d;
@@ -898,7 +1154,7 @@ Instruction* InstructionGenerator::generatePopEflags(){
 }
 
 
-Instruction* InstructionGenerator::generateNoop(){
+InstrucX86* InstrucX86Generator::generateNoop(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x90;
@@ -906,7 +1162,7 @@ Instruction* InstructionGenerator::generateNoop(){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateMoveRegToRegaddrImm(uint32_t idxsrc, uint32_t idxdest, uint64_t imm, bool source64Bit){
+InstrucX86* InstrucX86Generator64::generateMoveRegToRegaddrImm(uint32_t idxsrc, uint32_t idxdest, uint64_t imm, bool source64Bit){
     ASSERT(idxsrc < X86_64BIT_GPRS && "Illegal register index given");
     ASSERT(idxdest < X86_64BIT_GPRS && "Illegal register index given");    
 
@@ -945,11 +1201,11 @@ Instruction* InstructionGenerator64::generateMoveRegToRegaddrImm(uint32_t idxsrc
 }
 
 
-Instruction* InstructionGenerator64::generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest){
+InstrucX86* InstrucX86Generator64::generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest){
     ASSERT(idxsrc < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(idxdest < X86_32BIT_GPRS && "Illegal register index given");    
     if (idxdest == X86_REG_BP){
-        return InstructionGenerator64::generateMoveRegToRegaddrImm1Byte(idxsrc,idxdest,0);
+        return InstrucX86Generator64::generateMoveRegToRegaddrImm1Byte(idxsrc,idxdest,0);
     }
     uint32_t len = 3;
     if (idxdest == X86_REG_SP){
@@ -968,7 +1224,7 @@ Instruction* InstructionGenerator64::generateMoveRegToRegaddr(uint32_t idxsrc, u
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateMoveRegToRegaddrImm1Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm){
+InstrucX86* InstrucX86Generator64::generateMoveRegToRegaddrImm1Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm){
     ASSERT(idxsrc < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(idxdest < X86_32BIT_GPRS && "Illegal register index given");    
     uint32_t len = 4;
@@ -993,7 +1249,7 @@ Instruction* InstructionGenerator64::generateMoveRegToRegaddrImm1Byte(uint32_t i
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateMoveRegToRegaddrImm4Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm){
+InstrucX86* InstrucX86Generator64::generateMoveRegToRegaddrImm4Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm){
     ASSERT(idxsrc < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(idxdest < X86_32BIT_GPRS && "Illegal register index given");    
     uint32_t len = 7;
@@ -1018,7 +1274,7 @@ Instruction* InstructionGenerator64::generateMoveRegToRegaddrImm4Byte(uint32_t i
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateMoveRegToRegaddrImm(uint32_t idxsrc, uint32_t idxdest, uint64_t imm){
+InstrucX86* InstrucX86Generator32::generateMoveRegToRegaddrImm(uint32_t idxsrc, uint32_t idxdest, uint64_t imm){
     ASSERT(idxsrc < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(idxdest < X86_32BIT_GPRS && "Illegal register index given");    
     uint32_t len = 6;
@@ -1042,7 +1298,7 @@ Instruction* InstructionGenerator32::generateMoveRegToRegaddrImm(uint32_t idxsrc
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest){
+InstrucX86* InstrucX86Generator::generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest){
     ASSERT(idxsrc < 8 && "Illegal register index given");
     ASSERT(idxdest < 8 && "Illegal register index given");    
     uint32_t len = 2;
@@ -1055,7 +1311,7 @@ Instruction* InstructionGenerator::generateMoveRegToRegaddr(uint32_t idxsrc, uin
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateIndirectRelativeJump(uint64_t addr, uint64_t tgt){
+InstrucX86* InstrucX86Generator64::generateIndirectRelativeJump(uint64_t addr, uint64_t tgt){
     uint32_t len = 6;
     char* buff = new char[len];
 
@@ -1071,7 +1327,7 @@ Instruction* InstructionGenerator64::generateIndirectRelativeJump(uint64_t addr,
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateMoveImmToReg(uint64_t imm, uint32_t idx){
+InstrucX86* InstrucX86Generator64::generateMoveImmToReg(uint64_t imm, uint32_t idx){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
     uint32_t len = 7;
     char* buff = new char[len];
@@ -1093,7 +1349,7 @@ Instruction* InstructionGenerator64::generateMoveImmToReg(uint64_t imm, uint32_t
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateMoveImmToReg(uint64_t imm, uint32_t idx){
+InstrucX86* InstrucX86Generator::generateMoveImmToReg(uint64_t imm, uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 5;
     char* buff = new char[len];
@@ -1109,7 +1365,7 @@ Instruction* InstructionGenerator::generateMoveImmToReg(uint64_t imm, uint32_t i
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateMoveRegToMem(uint32_t idx, uint64_t addr){
+InstrucX86* InstrucX86Generator32::generateMoveRegToMem(uint32_t idx, uint64_t addr){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 6;
     uint32_t immoff = 2;
@@ -1135,7 +1391,7 @@ Instruction* InstructionGenerator32::generateMoveRegToMem(uint32_t idx, uint64_t
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateMoveRegToMem(uint32_t idx, uint64_t addr){
+InstrucX86* InstrucX86Generator64::generateMoveRegToMem(uint32_t idx, uint64_t addr){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
     uint32_t len = 8;
     char* buff = new char[len];
@@ -1159,7 +1415,7 @@ Instruction* InstructionGenerator64::generateMoveRegToMem(uint32_t idx, uint64_t
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateMoveMemToReg(uint64_t addr, uint32_t idx){
+InstrucX86* InstrucX86Generator32::generateMoveMemToReg(uint64_t addr, uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 6;
     uint32_t immoff = 2;
@@ -1185,7 +1441,7 @@ Instruction* InstructionGenerator32::generateMoveMemToReg(uint64_t addr, uint32_
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator64::generateMoveMemToReg(uint64_t addr, uint32_t idx){
+InstrucX86* InstrucX86Generator64::generateMoveMemToReg(uint64_t addr, uint32_t idx){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
     uint32_t len = 8;
     char* buff = new char[len];
@@ -1209,7 +1465,7 @@ Instruction* InstructionGenerator64::generateMoveMemToReg(uint64_t addr, uint32_
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateStackPush(uint32_t idx){
+InstrucX86* InstrucX86Generator32::generateStackPush(uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 1;
     char* buff = new char[len];
@@ -1220,7 +1476,7 @@ Instruction* InstructionGenerator32::generateStackPush(uint32_t idx){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator32::generateStackPop(uint32_t idx){
+InstrucX86* InstrucX86Generator32::generateStackPop(uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 1;
     char* buff = new char[len];
@@ -1232,7 +1488,7 @@ Instruction* InstructionGenerator32::generateStackPop(uint32_t idx){
 }
 
 
-Instruction* InstructionGenerator::generateCallRelative(uint64_t addr, uint64_t tgt){
+InstrucX86* InstrucX86Generator::generateCallRelative(uint64_t addr, uint64_t tgt){
     uint32_t len = 5;
     char* buff = new char[len];
 
@@ -1249,7 +1505,7 @@ Instruction* InstructionGenerator::generateCallRelative(uint64_t addr, uint64_t 
     return generateInstructionBase(len,buff);    
 }
 
-Instruction* InstructionGenerator32::generateJumpIndirect(uint64_t tgt){
+InstrucX86* InstrucX86Generator32::generateJumpIndirect(uint64_t tgt){
     uint32_t len = 6;
     char* buff = new char[len];
 
@@ -1265,7 +1521,7 @@ Instruction* InstructionGenerator32::generateJumpIndirect(uint64_t tgt){
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateJumpRelative(uint64_t addr, uint64_t tgt){
+InstrucX86* InstrucX86Generator::generateJumpRelative(uint64_t addr, uint64_t tgt){
     uint32_t len = 5;
     char* buff = new char[len];
 
@@ -1281,7 +1537,7 @@ Instruction* InstructionGenerator::generateJumpRelative(uint64_t addr, uint64_t 
     return generateInstructionBase(len,buff);
 }
 
-Instruction* InstructionGenerator::generateStackPushImm(uint64_t imm){
+InstrucX86* InstrucX86Generator::generateStackPushImm(uint64_t imm){
     uint32_t len = 5;
     char* buff = new char[len];
 

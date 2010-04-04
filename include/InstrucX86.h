@@ -1,5 +1,5 @@
-#ifndef _Instruction_h_
-#define _Instruction_h_
+#ifndef _InstrucX86_h_
+#define _InstrucX86_h_
 
 #include <AddressAnchor.h>
 #include <Base.h>
@@ -7,7 +7,12 @@
 #include <RawSection.h>
 #include <libudis86/syn.h>
 #include <udis86.h>
-#include <defines/Instruction.d>
+#include <defines/InstrucX86.d>
+
+/*
+#include "InstructionDecoder.h"
+using namespace Dyninst::InstructionAPI;
+*/
 
 class ElfFileInst;
 class Function;
@@ -21,6 +26,9 @@ class TextObject;
 #define DISASSEMBLY_MODE UD_SYN_ATT
 #define MAX_X86_INSTRUCTION_LENGTH 20
 #define MIN_CONST_MEMADDR 0x10000
+
+#define UD_R_NAME_LOOKUP(__ud_reg) (ud_reg_tab[__ud_reg - 1])
+#define UD_OP_NAME_LOOKUP(__ud_type) (ud_optype_str[__ud_type - UD_OP_REG])
 
 #define IS_8BIT_GPR(__reg) ((__reg >= UD_R_AL) && (__reg <= UD_R_R15B))
 #define IS_16BIT_GPR(__reg) ((__reg >= UD_R_AX) && (__reg <= UD_R_R15W))
@@ -91,27 +99,27 @@ struct ud_itab_entry
 };
 
 
-enum X86InstructionType {
-    X86InstructionType_unknown = 0,
-    X86InstructionType_invalid,
-    X86InstructionType_cond_branch,
-    X86InstructionType_uncond_branch,
-    X86InstructionType_call,
-    X86InstructionType_return,
-    X86InstructionType_int,
-    X86InstructionType_float,
-    X86InstructionType_string,
-    X86InstructionType_simd,
-    X86InstructionType_io,
-    X86InstructionType_prefetch,
-    X86InstructionType_system_call,
-    X86InstructionType_halt,
-    X86InstructionType_hwcount,
-    X86InstructionType_nop,
-    X86InstructionType_trap,
-    X86InstructionType_vmx,
-    X86InstructionType_special,
-    X86InstructionType_Total
+enum InstrucX86Type {
+    InstrucX86Type_unknown = 0,
+    InstrucX86Type_invalid,
+    InstrucX86Type_cond_branch,
+    InstrucX86Type_uncond_branch,
+    InstrucX86Type_call,
+    InstrucX86Type_return,
+    InstrucX86Type_int,
+    InstrucX86Type_float,
+    InstrucX86Type_string,
+    InstrucX86Type_simd,
+    InstrucX86Type_io,
+    InstrucX86Type_prefetch,
+    InstrucX86Type_system_call,
+    InstrucX86Type_halt,
+    InstrucX86Type_hwcount,
+    InstrucX86Type_nop,
+    InstrucX86Type_trap,
+    InstrucX86Type_vmx,
+    InstrucX86Type_special,
+    InstrucX86Type_Total
 };
 
 
@@ -136,16 +144,17 @@ extern uint32_t regbase_to_type(uint32_t base);
 class Operand {
 private:
     struct ud_operand entry;
-    Instruction* instruction;
+    InstrucX86* instruction;
     uint32_t operandIndex;
 
 public:
     OPERAND_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
-    Operand(Instruction* inst, struct ud_operand* init, uint32_t idx);
+    Operand(InstrucX86* inst, struct ud_operand* init, uint32_t idx);
     ~Operand() {}
 
-    Instruction* getInstruction() { return instruction; }
+    InstrucX86* getInstruction() { return instruction; }
+    bool isSameOperand(Operand* other);
 
     void print();
     char* charStream() { return (char*)&entry; }
@@ -165,22 +174,11 @@ public:
 
 };
 
-class MemoryOperand {
-private:
-    Operand* operand;
-    ElfFileInst* elfFileInst;
-
-public:
-    MemoryOperand(Operand* op, ElfFileInst* elfInst);
-    ~MemoryOperand() {}
-
-    Operand* getOperand() { return operand; }
-    uint32_t getMemoryRegister();
-};
-
-class Instruction : public Base {
+class InstrucX86 : public Base {
 private:
     struct ud entry;
+    //    DyninstAPI::InstructionAPI::Instruction::Ptr apiInsn;
+
     Operand** operands;
     uint32_t instructionIndex;
 
@@ -197,9 +195,9 @@ private:
 public:
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
-    Instruction(struct ud* init);
-    Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx);
-    ~Instruction();
+    InstrucX86(struct ud* init);
+    InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx);
+    ~InstrucX86();
 
     Operand* getOperand(uint32_t idx);
     TextObject* getContainer() { return container; }
@@ -222,14 +220,16 @@ public:
     // control instruction id
     bool isControl();
     bool isBranch() { return isUnconditionalBranch() || isConditionalBranch(); }
-    bool isUnconditionalBranch() { return (getInstructionType() == X86InstructionType_uncond_branch); }
-    bool isConditionalBranch() { return (getInstructionType() == X86InstructionType_cond_branch); }
-    bool isReturn() { return (getInstructionType() == X86InstructionType_return); }
-    bool isFunctionCall() { return (getInstructionType() == X86InstructionType_call); }
-    bool isSystemCall() { return (getInstructionType() == X86InstructionType_system_call); }
-    bool isHalt() { return (getInstructionType() == X86InstructionType_halt); }
-    bool isNoop() { return (getInstructionType() == X86InstructionType_nop); }
+    bool isUnconditionalBranch() { return (getInstructionType() == InstrucX86Type_uncond_branch); }
+    bool isConditionalBranch() { return (getInstructionType() == InstrucX86Type_cond_branch); }
+    bool isReturn() { return (getInstructionType() == InstrucX86Type_return); }
+    bool isFunctionCall() { return (getInstructionType() == InstrucX86Type_call); }
+    bool isSystemCall() { return (getInstructionType() == InstrucX86Type_system_call); }
+    bool isHalt() { return (getInstructionType() == InstrucX86Type_halt); }
+    bool isNoop() { return (getInstructionType() == InstrucX86Type_nop); }
     bool isConditionCompare();
+    bool isStackPush();
+    bool isStackPop();
 
     uint8_t getByteSource() { return byteSource; }
     bool isRelocatable() { return true; }
@@ -239,7 +239,7 @@ public:
     void initializeAnchor(Base*);
 
     bool isJumpTableBase();
-    uint64_t findJumpTableBaseAddress(Vector<Instruction*>* functionInstructions);
+    uint64_t findJumpTableBaseAddress(Vector<InstrucX86*>* functionInstructions);
     TableModes computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList, Vector<uint64_t>* tableStorageEntries);
     void setSizeInBytes(uint32_t sz) { sizeInBytes = sz; }
     void setLeader(bool ldr) { leader = ldr; }
@@ -269,4 +269,4 @@ public:
     Operand* getMemoryOperand();
 };
 
-#endif /* _Instruction_h_ */
+#endif /* _InstrucX86_h_ */

@@ -3,100 +3,277 @@ BasicBlockCounter.o: BasicBlockCounter.C BasicBlockCounter.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/Debug.h ../include/Vector.h ../include/ElfFile.h \
   ../include/BinaryFile.h ../include/ProgramHeader.h \
-  ../include/defines/ProgramHeader.d ../include/Instruction.h \
+  ../include/defines/ProgramHeader.d ../include/InstrucX86.h \
   ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/extern.h \
-  ../external/udis86-1.7/libudis86/itab.h \
-  ../include/defines/Instruction.d ../include/BasicBlock.h \
-  ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
-  ../include/LinkedList.h ../include/Instrumentation.h \
-  ../include/InstructionGenerator.h ../include/LineInformation.h \
-  ../include/defines/LineInformation.d ../include/Loop.h
+  ../external/udis86-1.7/libudis86/itab.h ../include/defines/InstrucX86.d \
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+  ../include/TextSection.h ../include/LinkedList.h \
+  ../include/Instrumentation.h \
+  /home/michaell/instructionAPI/include/Instruction.h \
+  /home/michaell/instructionAPI/include/Expression.h \
+  /home/michaell/instructionAPI/include/InstructionAST.h \
+  /home/michaell/instructionAPI/include/util.h \
+  /home/michaell/instructionAPI/include/dyntypes.h \
+  /home/michaell/instructionAPI/include/dyn_regs.h \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/shared_ptr.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config/suffix.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config/no_tr1/memory.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/assert.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/checked_delete.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/throw_exception.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/workaround.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/shared_count.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/bad_weak_ptr.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_base.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_base_gcc_x86.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_typeinfo.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_impl.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_convertible.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock_pool.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock_sync.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/yield_k.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/memory_order.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/enable_shared_from_this.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/weak_ptr.hpp \
+  /home/michaell/instructionAPI/include/Result.h \
+  /home/michaell/instructionAPI/include/Operation.h \
+  /home/michaell/instructionAPI/include/Register.h \
+  /home/michaell/instructionAPI/include/RegisterIDs-x86.h \
+  /home/michaell/instructionAPI/include/dyntypes.h \
+  /home/michaell/instructionAPI/include/entryIDs-IA32.h \
+  /home/michaell/instructionAPI/include/Operand.h \
+  /home/michaell/instructionAPI/include/InstructionCategories.h \
+  ../include/LineInformation.h ../include/defines/LineInformation.d \
+  ../include/Loop.h
 CacheSimulation.o: CacheSimulation.C CacheSimulation.h \
   InstrumentationTool.h ../include/ElfFileInst.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/Debug.h ../include/Vector.h ../include/ElfFile.h \
   ../include/BinaryFile.h ../include/ProgramHeader.h \
-  ../include/defines/ProgramHeader.d ../include/Instruction.h \
+  ../include/defines/ProgramHeader.d ../include/InstrucX86.h \
   ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/extern.h \
-  ../external/udis86-1.7/libudis86/itab.h \
-  ../include/defines/Instruction.d ../include/BasicBlock.h \
-  ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
-  ../include/LinkedList.h ../include/Instrumentation.h \
-  ../include/InstructionGenerator.h ../include/LineInformation.h \
-  ../include/defines/LineInformation.d ../include/Loop.h
+  ../external/udis86-1.7/libudis86/itab.h ../include/defines/InstrucX86.d \
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+  ../include/TextSection.h ../include/LinkedList.h \
+  ../include/Instrumentation.h \
+  /home/michaell/instructionAPI/include/Instruction.h \
+  /home/michaell/instructionAPI/include/Expression.h \
+  /home/michaell/instructionAPI/include/InstructionAST.h \
+  /home/michaell/instructionAPI/include/util.h \
+  /home/michaell/instructionAPI/include/dyntypes.h \
+  /home/michaell/instructionAPI/include/dyn_regs.h \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/shared_ptr.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config/suffix.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config/no_tr1/memory.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/assert.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/checked_delete.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/throw_exception.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/workaround.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/shared_count.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/bad_weak_ptr.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_base.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_base_gcc_x86.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_typeinfo.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_impl.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_convertible.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock_pool.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock_sync.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/yield_k.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/memory_order.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/enable_shared_from_this.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/weak_ptr.hpp \
+  /home/michaell/instructionAPI/include/Result.h \
+  /home/michaell/instructionAPI/include/Operation.h \
+  /home/michaell/instructionAPI/include/Register.h \
+  /home/michaell/instructionAPI/include/RegisterIDs-x86.h \
+  /home/michaell/instructionAPI/include/dyntypes.h \
+  /home/michaell/instructionAPI/include/entryIDs-IA32.h \
+  /home/michaell/instructionAPI/include/Operand.h \
+  /home/michaell/instructionAPI/include/InstructionCategories.h \
+  ../include/LineInformation.h ../include/defines/LineInformation.d \
+  ../include/Loop.h
 FunctionCounter.o: FunctionCounter.C FunctionCounter.h \
   InstrumentationTool.h ../include/ElfFileInst.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/Debug.h ../include/Vector.h ../include/ElfFile.h \
   ../include/BinaryFile.h ../include/ProgramHeader.h \
-  ../include/defines/ProgramHeader.d ../include/Instruction.h \
+  ../include/defines/ProgramHeader.d ../include/InstrucX86.h \
   ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/extern.h \
-  ../external/udis86-1.7/libudis86/itab.h \
-  ../include/defines/Instruction.d ../include/BasicBlock.h \
-  ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
-  ../include/LinkedList.h ../include/Instrumentation.h \
-  ../include/InstructionGenerator.h
+  ../external/udis86-1.7/libudis86/itab.h ../include/defines/InstrucX86.d \
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+  ../include/TextSection.h ../include/LinkedList.h \
+  ../include/Instrumentation.h \
+  /home/michaell/instructionAPI/include/Instruction.h \
+  /home/michaell/instructionAPI/include/Expression.h \
+  /home/michaell/instructionAPI/include/InstructionAST.h \
+  /home/michaell/instructionAPI/include/util.h \
+  /home/michaell/instructionAPI/include/dyntypes.h \
+  /home/michaell/instructionAPI/include/dyn_regs.h \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/shared_ptr.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config/suffix.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config/no_tr1/memory.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/assert.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/checked_delete.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/throw_exception.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/workaround.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/shared_count.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/bad_weak_ptr.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_base.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_base_gcc_x86.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_typeinfo.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_impl.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_convertible.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock_pool.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock_sync.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/yield_k.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/memory_order.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/enable_shared_from_this.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/weak_ptr.hpp \
+  /home/michaell/instructionAPI/include/Result.h \
+  /home/michaell/instructionAPI/include/Operation.h \
+  /home/michaell/instructionAPI/include/Register.h \
+  /home/michaell/instructionAPI/include/RegisterIDs-x86.h \
+  /home/michaell/instructionAPI/include/dyntypes.h \
+  /home/michaell/instructionAPI/include/entryIDs-IA32.h \
+  /home/michaell/instructionAPI/include/Operand.h \
+  /home/michaell/instructionAPI/include/InstructionCategories.h
 FunctionTimer.o: FunctionTimer.C FunctionTimer.h InstrumentationTool.h \
   ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
   ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
-  ../include/defines/ProgramHeader.d ../include/Instruction.h \
+  ../include/defines/ProgramHeader.d ../include/InstrucX86.h \
   ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/extern.h \
-  ../external/udis86-1.7/libudis86/itab.h \
-  ../include/defines/Instruction.d ../include/BasicBlock.h \
-  ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
-  ../include/LinkedList.h ../include/Instrumentation.h \
-  ../include/InstructionGenerator.h
+  ../external/udis86-1.7/libudis86/itab.h ../include/defines/InstrucX86.d \
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+  ../include/TextSection.h ../include/LinkedList.h \
+  ../include/Instrumentation.h \
+  /home/michaell/instructionAPI/include/Instruction.h \
+  /home/michaell/instructionAPI/include/Expression.h \
+  /home/michaell/instructionAPI/include/InstructionAST.h \
+  /home/michaell/instructionAPI/include/util.h \
+  /home/michaell/instructionAPI/include/dyntypes.h \
+  /home/michaell/instructionAPI/include/dyn_regs.h \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/shared_ptr.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config/suffix.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config/no_tr1/memory.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/assert.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/checked_delete.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/throw_exception.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/workaround.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/shared_count.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/bad_weak_ptr.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_base.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_base_gcc_x86.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_typeinfo.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_impl.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_convertible.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock_pool.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock_sync.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/yield_k.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/memory_order.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/enable_shared_from_this.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/weak_ptr.hpp \
+  /home/michaell/instructionAPI/include/Result.h \
+  /home/michaell/instructionAPI/include/Operation.h \
+  /home/michaell/instructionAPI/include/Register.h \
+  /home/michaell/instructionAPI/include/RegisterIDs-x86.h \
+  /home/michaell/instructionAPI/include/dyntypes.h \
+  /home/michaell/instructionAPI/include/entryIDs-IA32.h \
+  /home/michaell/instructionAPI/include/Operand.h \
+  /home/michaell/instructionAPI/include/InstructionCategories.h
 IOTracer.o: IOTracer.C IOTracer.h InstrumentationTool.h \
   ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
   ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
-  ../include/defines/ProgramHeader.d ../include/Instruction.h \
+  ../include/defines/ProgramHeader.d ../include/InstrucX86.h \
   ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/extern.h \
-  ../external/udis86-1.7/libudis86/itab.h \
-  ../include/defines/Instruction.d ../include/BasicBlock.h \
-  ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
-  ../include/LinkedList.h ../include/Instrumentation.h \
-  ../include/InstructionGenerator.h ../include/SymbolTable.h \
-  ../include/defines/SymbolTable.d
+  ../external/udis86-1.7/libudis86/itab.h ../include/defines/InstrucX86.d \
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+  ../include/TextSection.h ../include/LinkedList.h \
+  ../include/Instrumentation.h \
+  /home/michaell/instructionAPI/include/Instruction.h \
+  /home/michaell/instructionAPI/include/Expression.h \
+  /home/michaell/instructionAPI/include/InstructionAST.h \
+  /home/michaell/instructionAPI/include/util.h \
+  /home/michaell/instructionAPI/include/dyntypes.h \
+  /home/michaell/instructionAPI/include/dyn_regs.h \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/shared_ptr.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config/suffix.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/config/no_tr1/memory.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/assert.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/checked_delete.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/throw_exception.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/workaround.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/shared_count.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/bad_weak_ptr.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_base.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_base_gcc_x86.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_typeinfo.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_counted_impl.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/sp_convertible.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock_pool.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/spinlock_sync.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/detail/yield_k.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/memory_order.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/enable_shared_from_this.hpp \
+  /home/michaell/instructionAPI/include/dyn_detail/boost/weak_ptr.hpp \
+  /home/michaell/instructionAPI/include/Result.h \
+  /home/michaell/instructionAPI/include/Operation.h \
+  /home/michaell/instructionAPI/include/Register.h \
+  /home/michaell/instructionAPI/include/RegisterIDs-x86.h \
+  /home/michaell/instructionAPI/include/dyntypes.h \
+  /home/michaell/instructionAPI/include/entryIDs-IA32.h \
+  /home/michaell/instructionAPI/include/Operand.h \
+  /home/michaell/instructionAPI/include/InstructionCategories.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d
 InstrumentationTool.o: InstrumentationTool.C InstrumentationTool.h \
   ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
   ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
-  ../include/defines/ProgramHeader.d ../include/Instruction.h \
+  ../include/defines/ProgramHeader.d ../include/InstrucX86.h \
   ../include/AddressAnchor.h ../include/BitSet.h ../include/RawSection.h \
   ../external/udis86-1.7/libudis86/syn.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/extern.h \
-  ../external/udis86-1.7/libudis86/itab.h \
-  ../include/defines/Instruction.d ../include/BasicBlock.h \
-  ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
-  ../include/LinkedList.h ../include/LineInformation.h \
-  ../include/defines/LineInformation.d ../include/Loop.h
+  ../external/udis86-1.7/libudis86/itab.h ../include/defines/InstrucX86.d \
+  ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+  ../include/TextSection.h ../include/LinkedList.h \
+  ../include/LineInformation.h ../include/defines/LineInformation.d \
+  ../include/Loop.h

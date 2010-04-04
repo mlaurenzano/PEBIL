@@ -3,8 +3,8 @@
 #include <BasicBlock.h>
 #include <Function.h>
 #include <Instrumentation.h>
-#include <Instruction.h>
-#include <InstructionGenerator.h>
+#include <InstrucX86.h>
+#include <InstrucX86Generator.h>
 
 #define ENTRY_FUNCTION "initcounter"
 #define EXIT_FUNCTION "functioncounter"
@@ -71,9 +71,9 @@ void FunctionCounter::instrument(){
 
         // snippet contents, in this case just increment a counter
         if (is64Bit()){
-            snip->addSnippetInstruction(InstructionGenerator64::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+            snip->addSnippetInstruction(InstrucX86Generator64::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         } else {
-            snip->addSnippetInstruction(InstructionGenerator32::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+            snip->addSnippetInstruction(InstrucX86Generator32::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         }
         // do not generate control instructions to get back to the application, this is done for
         // the snippet automatically during code generation

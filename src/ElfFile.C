@@ -11,7 +11,7 @@
 #include <GlobalOffsetTable.h>
 #include <GnuVersion.h>
 #include <HashTable.h>
-#include <Instruction.h>
+#include <InstrucX86.h>
 #include <Instrumentation.h>
 #include <LineInformation.h>
 #include <NoteSection.h>
@@ -1390,13 +1390,13 @@ uint32_t ElfFile::anchorProgramElements(){
     }
     PRINT_DEBUG_ANCHOR("Found %d instructions in all sections", instructionCount);
 
-    Instruction** allInstructions = new Instruction*[instructionCount];
+    InstrucX86** allInstructions = new InstrucX86*[instructionCount];
     instructionCount = 0;
     PRINT_DEBUG_ANCHOR("allinst address %lx", allInstructions);
     for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
         instructionCount += getTextSection(i)->getAllInstructions(allInstructions, instructionCount);
     }
-    qsort(allInstructions, instructionCount, sizeof(Instruction*), compareBaseAddress);
+    qsort(allInstructions, instructionCount, sizeof(InstrucX86*), compareBaseAddress);
 
 
     DEBUG_ANCHOR(
@@ -1431,7 +1431,7 @@ uint32_t ElfFile::anchorProgramElements(){
     }
 
     for (uint32_t i = 0; i < instructionCount; i++){
-        Instruction* currentInstruction = allInstructions[i];
+        InstrucX86* currentInstruction = allInstructions[i];
         ASSERT(!currentInstruction->getAddressAnchor());
         if (currentInstruction->usesRelativeAddress()){
             uint64_t relativeAddress = currentInstruction->getRelativeValue() + currentInstruction->getBaseAddress() + currentInstruction->getSizeInBytes();
@@ -1446,9 +1446,9 @@ uint32_t ElfFile::anchorProgramElements(){
             PRINT_DEBUG_ANCHOR("Searching for relative address %llx", relativeAddress);
 
             // search other instructions
-            void* link = bsearch(&relativeAddress, allInstructions, instructionCount, sizeof(Instruction*), searchBaseAddressExact);
+            void* link = bsearch(&relativeAddress, allInstructions, instructionCount, sizeof(InstrucX86*), searchBaseAddressExact);
             if (link != NULL){
-                Instruction* linkedInstruction = *(Instruction**)link;
+                InstrucX86* linkedInstruction = *(InstrucX86**)link;
                 PRINT_DEBUG_ANCHOR("Found inst -> inst link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
 
                 currentInstruction->initializeAnchor(linkedInstruction);
@@ -1576,7 +1576,7 @@ uint32_t ElfFile::anchorProgramElements(){
             }
             PRINT_DEBUG_ANCHOR("data section %d(%x): extendedData is %#016llx", i, dataPtr, extendedData);
 
-            void* link = bsearch(&extendedData,allInstructions,instructionCount,sizeof(Instruction*),searchBaseAddressExact);
+            void* link = bsearch(&extendedData,allInstructions,instructionCount,sizeof(InstrucX86*),searchBaseAddressExact);
             if (link != NULL){
 #ifndef FILL_RELOCATED_WITH_INTERRUPTS
                 for (uint32_t j = 0; j < text->getNumberOfTextObjects(); j++){
@@ -1589,7 +1589,7 @@ uint32_t ElfFile::anchorProgramElements(){
                     PRINT_WARN(10, "unaligned data %#llx at %llx", extendedData, dataSectionHeader->GET(sh_addr)+currByte);
                 }
 
-                Instruction* linkedInstruction = *(Instruction**)link;
+                InstrucX86* linkedInstruction = *(InstrucX86**)link;
                 PRINT_DEBUG_ANCHOR("Found data -> inst link: %#llx -> %#llx, offset %x", dataSectionHeader->GET(sh_addr)+currByte, extendedData, currByte);
                 DataReference* dataRef = new DataReference(extendedData, dataRawSection, addrAlign, currByte);
 

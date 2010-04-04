@@ -7,7 +7,7 @@
 #include <Vector.h>
 
 class Function;
-class Instruction;
+class InstrucX86;
 
 class Block : public Base {
 protected:
@@ -33,28 +33,28 @@ public:
 
 class CodeBlock : public Block {
 protected:
-    Vector<Instruction*> instructions;
+    Vector<InstrucX86*> instructions;
     bool byteCountUpdate;
     uint32_t numberOfBytes;
 public:
     CodeBlock(uint32_t idx, FlowGraph* cfg);
     ~CodeBlock();
 
-    uint32_t addTailJump(Instruction* tgtInstruction);
+    uint32_t addTailJump(InstrucX86* tgtInstruction);
 
-    Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
+    Vector<InstrucX86*>* swapInstructions(uint64_t addr, Vector<InstrucX86*>* replacements);
     void printInstructions();
     void setBaseAddress(uint64_t newBaseAddress);
-    uint32_t addInstruction(Instruction* inst);
+    uint32_t addInstruction(InstrucX86* inst);
     void printDisassembly(bool instructionDetail);
     uint32_t getNumberOfBytes();
-    Instruction* getInstructionAtAddress(uint64_t addr);
+    InstrucX86* getInstructionAtAddress(uint64_t addr);
 
     uint64_t getProgramAddress();
 
-    uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
+    uint32_t getAllInstructions(InstrucX86** allinsts, uint32_t nexti);
     uint32_t getNumberOfInstructions() { return instructions.size(); }
-    Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }
+    InstrucX86* getInstruction(uint32_t idx) { return instructions[idx]; }
 
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
 

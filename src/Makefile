@@ -13,7 +13,7 @@ AR          = ar rus
 RANLIB      = ranlib
 
 
-INCLUDE     = -I../include -I../external/udis86-1.7/
+INCLUDE     = -I../include -I../external/udis86-1.7/ -I$(HOME)/instructionAPI/include
 SRCDIR      = ../src
 BINDIR      = ../bin
 LIBDIR      = ../lib
@@ -32,8 +32,8 @@ SRCS  = AddressAnchor.C \
 	GlobalOffsetTable.C \
 	GnuVersion.C \
 	HashTable.C \
-	Instruction.C \
-	InstructionGenerator.C \
+	InstrucX86.C \
+	InstrucX86Generator.C \
 	Instrumentation.C \
 	LengauerTarjan.C \
 	LineInformation.C \
@@ -62,8 +62,8 @@ OBJS  = AddressAnchor.o \
 	GlobalOffsetTable.o \
 	GnuVersion.o \
 	HashTable.o \
-	Instruction.o \
-	InstructionGenerator.o \
+	InstrucX86.o \
+	InstrucX86Generator.o \
 	Instrumentation.o \
 	LengauerTarjan.o \
 	LineInformation.o \

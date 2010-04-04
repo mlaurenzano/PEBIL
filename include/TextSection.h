@@ -2,7 +2,7 @@
 #define _TextSection_h_
 
 #include <Base.h>
-#include <Instruction.h>
+#include <InstrucX86.h>
 #include <RawSection.h>
 #include <Vector.h>
 
@@ -12,7 +12,7 @@ class BinaryOutputFile;
 class Block;
 class ElfFile;
 class Function;
-class Instruction;
+class InstrucX86;
 class Symbol;
 class TextSection;
 
@@ -22,7 +22,7 @@ protected:
     uint32_t index;
     Symbol* symbol;
 
-    Vector<Instruction*>* digestLinear();
+    Vector<InstrucX86*>* digestLinear();
 public:
     TextObject(PebilClassTypes typ, TextSection* text, uint32_t idx, Symbol* sym, uint64_t addr, uint32_t sz);
     ~TextObject() {}
@@ -36,7 +36,7 @@ public:
     virtual uint32_t getNumberOfInstructions() { __SHOULD_NOT_ARRIVE; }
     TextSection* getTextSection() { return textSection; }
 
-    virtual uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti) { __SHOULD_NOT_ARRIVE; }
+    virtual uint32_t getAllInstructions(InstrucX86** allinsts, uint32_t nexti) { __SHOULD_NOT_ARRIVE; }
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
     virtual char* getName();
@@ -58,7 +58,7 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     uint32_t digest(Vector<AddressAnchor*>* addressAnchors);
 
-    uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
+    uint32_t getAllInstructions(InstrucX86** allinsts, uint32_t nexti);
 
     Block* getBlock(uint32_t idx) { return blocks[idx]; }
     uint32_t getNumberOfInstructions();
@@ -99,8 +99,8 @@ public:
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     BasicBlock* getBasicBlockAtAddress(uint64_t addr);
-    Instruction* getInstructionAtAddress(uint64_t addr);
-    uint32_t getAllInstructions(Instruction** allinsts, uint32_t nexti);
+    InstrucX86* getInstructionAtAddress(uint64_t addr);
+    uint32_t getAllInstructions(InstrucX86** allinsts, uint32_t nexti);
 
     uint64_t getBaseAddress();
     bool inRange(uint64_t addr);
@@ -113,7 +113,7 @@ public:
     uint32_t getNumberOfFloatOps();
     uint32_t getNumberOfInstructions();
 
-    Vector<Instruction*>* swapInstructions(uint64_t addr, Vector<Instruction*>* replacements);
+    Vector<InstrucX86*>* swapInstructions(uint64_t addr, Vector<InstrucX86*>* replacements);
 
     void printLoops();
     uint32_t buildLoops();

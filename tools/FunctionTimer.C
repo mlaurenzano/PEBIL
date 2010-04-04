@@ -3,8 +3,8 @@
 #include <BasicBlock.h>
 #include <Function.h>
 #include <Instrumentation.h>
-#include <Instruction.h>
-#include <InstructionGenerator.h>
+#include <InstrucX86.h>
+#include <InstrucX86Generator.h>
 
 #define PROGRAM_ENTRY  "program_entry"
 #define PROGRAM_EXIT   "program_exit"
@@ -75,11 +75,11 @@ void FunctionTimer::instrument(){
         BasicBlock* bb = f->getFlowGraph()->getEntryBlock();
         Vector<BasicBlock*>* exitBlocks = f->getFlowGraph()->getExitBlocks();
 
-        Vector<Instruction*> fillEntry = Vector<Instruction*>();
-        fillEntry.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-        fillEntry.append(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_CX));
-        fillEntry.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-        fillEntry.append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+        Vector<InstrucX86*> fillEntry = Vector<InstrucX86*>();
+        fillEntry.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+        fillEntry.append(InstrucX86Generator64::generateMoveImmToReg(i, X86_REG_CX));
+        fillEntry.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
+        fillEntry.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
 
         p = addInstrumentationPoint(bb, functionEntry, InstrumentationMode_tramp);
         for (uint32_t j = 0; j < fillEntry.size(); j++){
@@ -87,11 +87,11 @@ void FunctionTimer::instrument(){
         }
 
         for (uint32_t j = 0; j < (*exitBlocks).size(); j++){
-            Vector<Instruction*> fillExit = Vector<Instruction*>();
-            fillExit.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-            fillExit.append(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_CX));
-            fillExit.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-            fillExit.append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+            Vector<InstrucX86*> fillExit = Vector<InstrucX86*>();
+            fillExit.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+            fillExit.append(InstrucX86Generator64::generateMoveImmToReg(i, X86_REG_CX));
+            fillExit.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
+            fillExit.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
 
             p = addInstrumentationPoint((*exitBlocks)[j], functionExit, InstrumentationMode_tramp);
             for (uint32_t k = 0; k < fillExit.size(); k++){
@@ -99,14 +99,14 @@ void FunctionTimer::instrument(){
             }
         }
         if (!(*exitBlocks).size()){
-            Vector<Instruction*> fillExit = Vector<Instruction*>();
-            fillExit.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-            fillExit.append(InstructionGenerator64::generateMoveImmToReg(i, X86_REG_CX));
-            fillExit.append(InstructionGenerator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-            fillExit.append(InstructionGenerator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+            Vector<InstrucX86*> fillExit = Vector<InstrucX86*>();
+            fillExit.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+            fillExit.append(InstrucX86Generator64::generateMoveImmToReg(i, X86_REG_CX));
+            fillExit.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
+            fillExit.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
 
             BasicBlock* lastbb = f->getBasicBlock(f->getNumberOfBasicBlocks()-1);
-            Instruction* lastin = lastbb->getInstruction(lastbb->getNumberOfInstructions()-1);
+            InstrucX86* lastin = lastbb->getInstruction(lastbb->getNumberOfInstructions()-1);
             if (lastin){
                 p = addInstrumentationPoint(lastin, functionExit, InstrumentationMode_tramp);
                 for (uint32_t k = 0; k < fillExit.size(); k++){
@@ -161,9 +161,9 @@ void FunctionTimer::instrument(){
 
         // snippet contents, in this case just increment a counter
         if (is64Bit()){
-            snip->addSnippetInstruction(InstructionGenerator64::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+            snip->addSnippetInstruction(InstrucX86Generator64::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         } else {
-            snip->addSnippetInstruction(InstructionGenerator32::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+            snip->addSnippetInstruction(InstrucX86Generator32::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         }
         // do not generate control instructions to get back to the application, this is done for
         // the snippet automatically during code generation

@@ -837,9 +837,9 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
 #ifdef IGNORE_ACTUAL_SIMULATION
     register BufferEntry* entries = (BufferEntry*)base;
     entries->lastFreeIdx = 1;
+    *entryCountPtr = 1;
     return;
 #else
-    //    PRINT_INSTR(stdout, "MetaSim_simulFuncCall_Simu args: %#llx %x(->%d) %#llx", base, entryCountPtr, *entryCountPtr, comment);
     uint32_t entryCount = *entryCountPtr;
     register uint32_t      i;
 

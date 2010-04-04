@@ -1,12 +1,12 @@
 #include <AddressAnchor.h>
 
 #include <BinaryFile.h>
-#include <Instruction.h>
+#include <InstrucX86.h>
 #include <RawSection.h>
 
 uint64_t AddressAnchor::getLinkOffset(){
-    if (linkedParent->getType() == PebilClassType_Instruction){ 
-        Instruction* instl = (Instruction*)linkedParent;
+    if (linkedParent->getType() == PebilClassType_InstrucX86){ 
+        InstrucX86* instl = (InstrucX86*)linkedParent;
         if (instl->isControl()){
             return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
         } else {
@@ -80,7 +80,7 @@ Base* AddressAnchor::updateLink(Base* newLink){
 }
 
 void AddressAnchor::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    if (linkedParent->getType() == PebilClassType_Instruction){
+    if (linkedParent->getType() == PebilClassType_InstrucX86){
         dumpInstruction(binaryOutputFile, offset);
     } else if (linkedParent->getType() == PebilClassType_DataReference){
         dumpDataReference(binaryOutputFile, offset);
@@ -128,8 +128,8 @@ void AddressAnchor::dumpDataReference(BinaryOutputFile* binaryOutputFile, uint32
 }
 
 void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    ASSERT(linkedParent->getType() == PebilClassType_Instruction);
-    Instruction* linkedInstruction = (Instruction*)linkedParent;
+    ASSERT(linkedParent->getType() == PebilClassType_InstrucX86);
+    InstrucX86* linkedInstruction = (InstrucX86*)linkedParent;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         Operand* op = linkedInstruction->getOperand(i);
         if (op){
@@ -174,7 +174,7 @@ bool AddressAnchor::verify(){
         return false;
     }
 
-    if (link->getType() == PebilClassType_Instruction){
+    if (link->getType() == PebilClassType_InstrucX86){
     } else if (link->getType() == PebilClassType_DataReference){
     } else {
         PRINT_ERROR("Address link cannot have type %d", link->getType());

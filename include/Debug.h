@@ -27,6 +27,7 @@
 //#define DEBUG_DATA_PLACEMENT
 //#define DEBUG_ADDR_ALIGN
 //#define DEBUG_BLOAT_FILTER
+//#define DEBUG_LOADADDR
 
 // some common macros to help debug instrumentation
 //#define RELOC_MOD_OFF 760
@@ -35,7 +36,7 @@
 //#define BLOAT_MOD_OFF 3
 //#define BLOAT_MOD     2
 //#define TURNOFF_FUNCTION_BLOAT
-//#define SWAP_MOD_OFF 3
+//#define SWAP_MOD_OFF 3432
 //#define SWAP_MOD     8192
 //#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
@@ -45,7 +46,7 @@
 //#define VALIDATE_ANCHOR_SEARCH
 //#define FILL_RELOCATED_WITH_INTERRUPTS
 //#define JUMPTABLE_USE_REGISTER_OPS
-#define THREAD_SAFE
+//#define THREAD_SAFE
 
 #ifdef WARNING_SEVERITY
 #define WARN_FILE stderr
@@ -265,6 +266,18 @@
 #else
 #define PRINT_DEBUG_BLOAT_FILTER(...)
 #define DEBUG_BLOAT_FILTER(...)
+#endif
+
+
+#ifdef DEBUG_LOADADDR
+#define PRINT_DEBUG_LOADADDR(...) fprintf(stdout,"LOADADDR : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#define DEBUG_LOADADDR(...) __VA_ARGS__
+#else
+#define PRINT_DEBUG_LOADADDR(...)
+#define DEBUG_LOADADDR(...)
 #endif
 
 

@@ -3,7 +3,7 @@
 
 #include <Base.h>
 #include <ElfFile.h>
-#include <Instruction.h>
+#include <InstrucX86.h>
 #include <Vector.h>
 
 class BasicBlock;
@@ -14,7 +14,7 @@ class Instrumentation;
 class InstrumentationFunction;
 class InstrumentationPoint;
 class InstrumentationSnippet;
-class Instruction;
+class InstrucX86;
 class LineInfo;
 class LineInfoFinder;
 class RawSection;
@@ -98,8 +98,8 @@ protected:
     Vector<Function*> allFunctions;
     Vector<Function*> exposedFunctions;
     Vector<BasicBlock*> exposedBasicBlocks;
-    Vector<Instruction*> exposedInstructions;
-    Vector<Instruction*> exposedMemOps;
+    Vector<InstrucX86*> exposedInstructions;
+    Vector<InstrucX86*> exposedMemOps;
     Vector<char*>* disabledFunctions;
     Vector<char*>* disabledFiles;
 
@@ -142,9 +142,9 @@ protected:
     uint32_t getNumberOfExposedBasicBlocks() { return exposedBasicBlocks.size(); }
     BasicBlock* getExposedBasicBlock(uint32_t idx) { return exposedBasicBlocks[idx]; }
     uint32_t getNumberOfExposedInstructions() { return exposedInstructions.size(); }
-    Instruction* getExposedInstruction(uint32_t idx) { return exposedInstructions[idx]; }
+    InstrucX86* getExposedInstruction(uint32_t idx) { return exposedInstructions[idx]; }
     uint32_t getNumberOfExposedMemOps() { return exposedMemOps.size(); }
-    Instruction* getExposedMemOp(uint32_t idx) { return exposedMemOps[idx]; }    
+    InstrucX86* getExposedMemOp(uint32_t idx) { return exposedMemOps[idx]; }    
 
     BasicBlock* getProgramExitBlock();
 
