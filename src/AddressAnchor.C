@@ -131,7 +131,7 @@ void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t
     ASSERT(linkedParent->getType() == PebilClassType_InstrucX86);
     InstrucX86* linkedInstruction = (InstrucX86*)linkedParent;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        Operand* op = linkedInstruction->getOperand(i);
+        OperandX86* op = linkedInstruction->getOperand(i);
         if (op){
             if (op->isRelative()){
                 if (op->getBytesUsed() == sizeof(uint8_t)){

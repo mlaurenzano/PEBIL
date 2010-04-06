@@ -26,6 +26,7 @@ public:
     ~FlowGraph();
 
     void setBaseAddress(uint64_t newBaseAddress);
+    void flowAnalysis();
 
     uint32_t getNumberOfInstructions();
     TextSection* getTextSection();

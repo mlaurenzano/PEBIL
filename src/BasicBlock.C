@@ -21,7 +21,7 @@ uint32_t BasicBlock::searchForArgsPrep(bool is64Bit){
         for (uint32_t i = 0; i < instructions.size(); i++){
             //            instructions[i]->print();
             if (instructions[i]->getInstructionType() == InstrucX86Type_int){
-                Operand* destOp = instructions[i]->getOperand(COMP_DEST_OPERAND);
+                OperandX86* destOp = instructions[i]->getOperand(COMP_DEST_OPERAND);
 
                 if (!destOp->getValue()){
                     for (uint32_t j = 0; j < Num__64_bit_StackArgs; j++){

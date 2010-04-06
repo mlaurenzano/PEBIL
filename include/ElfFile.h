@@ -83,7 +83,6 @@ private:
 
     uint32_t findSectionNameInStrTab(char* name);
     void findFunctions();
-    void generateCFGs();
     void findMemoryFloatOps();
 
     bool verifyDynamic();
@@ -116,6 +115,7 @@ public:
     void initSectionFilePointers();
     void dump(char* extension);
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    void generateCFGs();
 
     void briefPrint();
     void print();

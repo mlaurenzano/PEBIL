@@ -106,6 +106,8 @@ void BasicBlockCounter::instrument(){
     Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
 
+    uint32_t noProtPoints = 0;
+    uint32_t complexSelection = 0;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
 
         BasicBlock* bb = getExposedBasicBlock(i);
@@ -158,9 +160,22 @@ void BasicBlockCounter::instrument(){
         addInstrumentationSnippet(snip);            
             
         // register an instrumentation point at the function that uses this snippet
-        InstrumentationPoint* p = addInstrumentationPoint(bb, snip, InstrumentationMode_inline, FlagsProtectionMethod_light);
+        FlagsProtectionMethods prot = FlagsProtectionMethod_light;
+        if (bb->getLeader()->allFlagsDeadIn()){
+            prot = FlagsProtectionMethod_none;
+            noProtPoints++;
+        }
+        for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
+            if (bb->getInstruction(j)->allFlagsDeadIn() || bb->getInstruction(j)->allFlagsDeadOut()){
+                complexSelection++;
+                break;
+            }
+        }
+        InstrumentationPoint* p = addInstrumentationPoint(bb, snip, InstrumentationMode_inline, prot);
     }
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+    PRINT_INFOR("Not protecting %d/%d instrumentation points", noProtPoints, getNumberOfExposedBasicBlocks());
+    PRINT_INFOR("complex inst point selection: %d/%d instrumentation points", complexSelection, getNumberOfExposedBasicBlocks());
 
     printStaticFile(allBlocks, allLineInfos);
 

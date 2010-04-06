@@ -131,7 +131,7 @@ Vector<InstrucX86*>* CacheSimulation::tmp_generateBufferedAddressCalculation64(I
     Vector<InstrucX86*>* addressCalc = new Vector<InstrucX86*>();
     uint64_t dataAddr = getInstDataAddress();
 
-    Operand* operand = NULL;
+    OperandX86* operand = NULL;
     if (instruction->isExplicitMemoryOperation()){
         operand = instruction->getMemoryOperand();
     }
@@ -217,7 +217,7 @@ Vector<InstrucX86*>* CacheSimulation::generateBufferedAddressCalculation64(Instr
     Vector<InstrucX86*>* addressCalc = new Vector<InstrucX86*>();
     uint64_t dataAddr = getInstDataAddress();
 
-    Operand* operand = NULL;
+    OperandX86* operand = NULL;
     if (instruction->isExplicitMemoryOperation()){
         operand = instruction->getMemoryOperand();
     }
@@ -377,7 +377,7 @@ Vector<InstrucX86*>* CacheSimulation::generateBufferedAddressCalculation32(Instr
     Vector<InstrucX86*>* addressCalc = new Vector<InstrucX86*>();
     uint64_t dataAddr = getInstDataAddress();
 
-    Operand* operand = NULL;
+    OperandX86* operand = NULL;
     if (instruction->isExplicitMemoryOperation()){
         operand = instruction->getMemoryOperand();
     }

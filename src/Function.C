@@ -14,18 +14,16 @@
 #include <TextSection.h>
 
 uint32_t Function::findStackSize(){
-    //    PRINT_INFOR("Looking for stacksize at %s", getName());
     ASSERT(flowGraph);
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         BasicBlock* bb = flowGraph->getBasicBlock(i);
         if (bb->isEntry()){
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
                 InstrucX86* ins = bb->getInstruction(j);
-                Operand* srcop = ins->getOperand(COMP_DEST_OPERAND);
+                OperandX86* srcop = ins->getOperand(COMP_DEST_OPERAND);
                 if (ins->GET(mnemonic) == UD_Isub && !srcop->getValue()){
                     if (srcop->getBaseRegister() == X86_REG_SP){
                         stackSize = ins->getOperand(COMP_SRC_OPERAND)->getValue();
-                        //                  ins->print();
                         break;
                     }
                 }
@@ -36,7 +34,6 @@ uint32_t Function::findStackSize(){
     if (!stackSize){
         stackSize = Size__trampoline_autoinc;
     }
-    //    PRINT_INFOR("Function %s -- using stack size of %d", getName(), stackSize);
 }
 
 bool Function::hasLeafOptimization(){
@@ -301,6 +298,7 @@ uint32_t Function::digest(Vector<AddressAnchor*>* addressAnchors){
     if (!isDisasmFail()){
         generateCFG(allInstructions, addressAnchors);        
         findStackSize();
+        flowGraph->flowAnalysis();
     }
 
     delete allInstructions;

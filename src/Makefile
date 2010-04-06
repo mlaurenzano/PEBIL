@@ -13,10 +13,11 @@ AR          = ar rus
 RANLIB      = ranlib
 
 
-INCLUDE     = -I../include -I../external/udis86-1.7/ -I$(HOME)/instructionAPI/include
 SRCDIR      = ../src
 BINDIR      = ../bin
 LIBDIR      = ../lib
+EXTDIR      = ../external
+INCLUDE     = -I../include -I$(EXTDIR)/udis86-1.7/ -I$(EXTDIR)/instructionAPI/include
 
 SRCS  = AddressAnchor.C \
 	Base.C \

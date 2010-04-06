@@ -541,23 +541,6 @@ void ElfFile::sortSectionHeaders(){
 
 void ElfFile::initSectionFilePointers(){
 
-    /*
-    // find the string table for section names
-    ASSERT(fileHeader->GET(e_shstrndx) && "No section name string table");
-    PRINT_INFOR("%d", fileHeader->GET(e_shstrndx));
-    for (uint32_t i = 0; i < getNumberOfStringTables(); i++){
-        PRINT_INFOR("%d %d", fileHeader->GET(e_shstrndx), stringTables[i]->getSectionIndex());
-        if (stringTables[i]->getSectionIndex() == fileHeader->GET(e_shstrndx)){
-            sectionNameStrTabIdx = i;
-            PRINT_INFOR("yes");
-        }
-    }
-
-    // set section names
-    ASSERT(sectionNameStrTabIdx && "Section header string table index must be defined");
-    ASSERT(
-    */
-
     char* stringTablePtr = ((StringTable*)rawSections[fileHeader->GET(e_shstrndx)])->getFilePointer();
 
     // skip first section header since it is reserved and its values are null
@@ -607,7 +590,7 @@ void ElfFile::initSectionFilePointers(){
     }
 
     for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
-        textSections[i]->disassemble(&binaryInputFile, addressAnchors);
+        textSections[i]->disassemble(&binaryInputFile);
     }
 
 
@@ -1110,6 +1093,8 @@ void ElfFile::parse(){
         PRINT_ERROR("The class identifier is not a valid one [%#x]",e_ident[EI_CLASS]);
     }
 
+    InstrucX86::initializeInstructionAPIDecoder(is64BitFlag);
+
     readFileHeader();
     readProgramHeaders();
     readSectionHeaders();
@@ -1270,6 +1255,7 @@ ElfFile::~ElfFile(){
         delete addressAnchors;
     }
 
+    InstrucX86::destroyInstructionAPIDecoder();
 }
 
 void ElfFile::briefPrint(){
@@ -1280,6 +1266,9 @@ void ElfFile::displaySymbols(){
 
 
 void ElfFile::generateCFGs(){
+    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
+        textSections[i]->generateCFGs(addressAnchors);
+    }
 }
 
 void ElfFile::findMemoryFloatOps(){

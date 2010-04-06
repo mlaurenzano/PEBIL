@@ -88,9 +88,10 @@ public:
     uint32_t readNoFile();
     uint32_t getIndex() { return index; }
     uint32_t disassemble();
+    uint32_t generateCFGs(Vector<AddressAnchor*>* addressAnchors);
     uint32_t printDisassembly(bool instructionDetail);
     uint32_t read(BinaryInputFile* b);
-    uint32_t disassemble(BinaryInputFile* b, Vector<AddressAnchor*>* addressAnchors);
+    uint32_t disassemble(BinaryInputFile* b);
 
     uint64_t findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc);
 

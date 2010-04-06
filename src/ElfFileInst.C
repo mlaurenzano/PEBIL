@@ -231,7 +231,7 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
     uint32_t currentByte = 0;
 
     InstrucX86* connector = InstrucX86Generator::generateJumpRelative(operatedFunction->getBaseAddress(), relocationAddress);
-    connector->initializeAnchor(operatedFunction->getFlowGraph()->getBasicBlock(0)->getInstruction(0));
+    connector->initializeAnchor(operatedFunction->getFlowGraph()->getBasicBlock(0)->getLeader());
     
     (*trampEmpty).append(connector);
     currentByte += (*trampEmpty).back()->getSizeInBytes();
@@ -279,7 +279,7 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
 
     if (displacedFunction->getIndex() < allFunctions.size() - 1){
         Function* nextFunc = allFunctions[displacedFunction->getIndex() + 1];
-        InstrucX86* firstI = nextFunc->getFlowGraph()->getBasicBlock(0)->getInstruction(0);
+        InstrucX86* firstI = nextFunc->getFlowGraph()->getBasicBlock(0)->getLeader();
         InstrucX86* safetyJump;
         if (elfFile->is64Bit()){
             safetyJump = InstrucX86Generator64::generateJumpRelative(0,0);
@@ -767,10 +767,10 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
         ASSERT(containerBB);
         
         Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors(searchAddr);
-        ASSERT(containerBB->getNumberOfInstructions() && containerBB->getInstruction(0));
+        ASSERT(containerBB->getNumberOfInstructions() && containerBB->getLeader());
         PRINT_DEBUG_ANCHOR("In block at %#llx, updating %d anchors", containerBB->getBaseAddress(), (*modAnchors).size());
         for (uint32_t k = 0; k < modAnchors->size(); k++){
-            (*modAnchors)[k]->updateLink(containerBB->getInstruction(0));
+            (*modAnchors)[k]->updateLink(containerBB->getLeader());
             elfFile->setAnchorsSorted(false);
         }
         delete modAnchors;
@@ -793,6 +793,12 @@ void ElfFileInst::functionSelect(){
     Vector<TextObject*> textObjects = Vector<TextObject*>();
     for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
         textObjects.append(text->getTextObject(i));
+    }
+    for (uint32_t i = 0; i < fini->getNumberOfTextObjects(); i++){
+        textObjects.append(fini->getTextObject(i));
+    }
+    for (uint32_t i = 0; i < init->getNumberOfTextObjects(); i++){
+        textObjects.append(init->getTextObject(i));
     }
 
     // choose the set of functions to expose to the instrumentation tool

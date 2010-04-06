@@ -39,6 +39,10 @@ public:
     static InstrucX86* generateRegSubImm(uint8_t idx, uint32_t imm);
     static InstrucX86* generateAddByteToRegaddr(uint8_t byt, uint32_t idx);
     static InstrucX86* generateAndImmReg(uint64_t, uint32_t);
+
+    static InstrucX86* generateStoreAHToFlags();
+    static InstrucX86* generateLoadAHFromFlags();
+
 };
 
 class InstrucX86Generator64 : public InstrucX86Generator {
@@ -72,9 +76,6 @@ public:
     static InstrucX86* generateMoveRegToMem(uint32_t idx, uint64_t addr);
     static InstrucX86* generateMoveMemToReg(uint64_t addr, uint32_t idx);
 
-    static InstrucX86* generateStoreAHToFlags();
-    static InstrucX86* generateLoadAHFromFlags();
-
     static InstrucX86* generateShiftLeftLogical(uint8_t imm, uint8_t reg);
     static InstrucX86* generateShiftRightLogical(uint8_t imm, uint8_t reg);
 
@@ -87,7 +88,7 @@ public:
     static InstrucX86* generateLoadRegImmReg(uint8_t src, uint64_t imm, uint8_t dest);
 
     static Vector<InstrucX86*>* generateAddressComputation(InstrucX86* instruction, uint32_t dest);
-    static InstrucX86* generateLoadEffectiveAddress(Operand* op, uint32_t dest);
+    static InstrucX86* generateLoadEffectiveAddress(OperandX86* op, uint32_t dest);
     static InstrucX86* generateLoadEffectiveAddress(uint32_t baseReg, uint32_t indexReg, uint8_t scale, uint64_t value, uint32_t dest, bool hasBase, bool hasIndex);
 
     static InstrucX86* generateMoveSegmentRegToReg(uint32_t src, uint32_t dest);
@@ -116,9 +117,6 @@ public:
 
     static InstrucX86* generateMoveRegaddrImmToReg(uint32_t, uint64_t, uint32_t);
     static InstrucX86* generateMoveRegToRegaddrImm(uint32_t, uint32_t, uint64_t);
-
-    static InstrucX86* generateStoreAHToFlags();
-    static InstrucX86* generateLoadAHFromFlags();
 
     static InstrucX86* generateShiftLeftLogical(uint8_t imm, uint8_t reg);
     static InstrucX86* generateShiftRightLogical(uint8_t imm, uint8_t reg);

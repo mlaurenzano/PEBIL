@@ -28,6 +28,7 @@
 //#define DEBUG_ADDR_ALIGN
 //#define DEBUG_BLOAT_FILTER
 //#define DEBUG_LOADADDR
+//#define DEBUG_LIVE_REGS
 
 // some common macros to help debug instrumentation
 //#define RELOC_MOD_OFF 760
@@ -278,6 +279,39 @@
 #else
 #define PRINT_DEBUG_LOADADDR(...)
 #define DEBUG_LOADADDR(...)
+#endif
+
+#define PRINT_REG_LIST_BASIS(__list, __elts, __i)         \
+    PRINT_INFO(); \
+    PRINT_OUT("instruction %d %s list: ", __i, #__list);      \
+    for (uint32_t __j = 0; __j < __elts; __j++){\
+    if (__list[__i]->contains(__j)){\
+    if (IAPIREG_TYPE(__j) == iapiRegType_GPR){\
+    PRINT_OUT("gpr:%d ", IAPIREG_VALUE(__j));\
+    } else if (IAPIREG_TYPE(__j) == iapiRegType_flag){\
+    PRINT_OUT("flg:%d ", IAPIREG_VALUE(__j));\
+    } else if (IAPIREG_TYPE(__j) == iapiRegType_unknown){\
+    PRINT_OUT("und:%d ", IAPIREG_VALUE(__j));\
+    } else {\
+    PRINT_OUT("huh?%x", __j);\
+    }\
+    }\
+    }\
+    PRINT_OUT("\n");
+
+#ifdef DEBUG_LIVE_REGS
+#define PRINT_DEBUG_LIVE_REGS(...) fprintf(stdout,"LIVE_REGS : "); \
+    fprintf(stdout,## __VA_ARGS__); \
+    fprintf(stdout,"\n"); \
+    fflush(stdout);
+#define PRINT_REG_LIST_R PRINT_REG_LIST_BASIS
+#define PRINT_REG_LIST PRINT_REG_LIST_BASIS
+#define DEBUG_LIVE_REGS(...) __VA_ARGS__
+#else
+#define PRINT_DEBUG_LIVE_REGS(...)
+#define DEBUG_LIVE_REGS(...)
+#define PRINT_REG_LIST(...)
+#define PRINT_REG_LIST_R PRINT_REG_LIST_BASIS
 #endif
 
 

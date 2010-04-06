@@ -7,11 +7,12 @@ CFLAGS        = $(DBG) $(OPT) $(PROFILE)##--save-temps
 CPP           = $(GNU_CPP)
 
 
-INCLUDE       = -I. -I../include -I../external/udis86-1.7/ -I$(HOME)/instructionAPI/include
 SRCDIR        = ../src
 BINDIR        = ../bin
+EXTDIR        = ../external
+INCLUDE       = -I. -I../include -I$(EXTDIR)/udis86-1.7/ -I$(EXTDIR)/instructionAPI/include
 LIBS          = -lpebil
-EXTRA_LIBS    = -L../external/udis86-1.7/lib -ludis86 -L/home/michaell/instructionAPI//x86_64-unknown-linux2.4/lib -linstructionAPI -lbfd
+EXTRA_LIBS    = -L$(EXTDIR)/udis86-1.7/lib -ludis86 -L$(EXTDIR)/instructionAPI/$(IAPI_PLATFORM)/lib -linstructionAPI -lbfd
 
 TARGET_BIN  = pebil
 

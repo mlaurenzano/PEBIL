@@ -29,8 +29,8 @@ clean:
 
 depend:
 	$(MAKE) -C src depend
-	$(MAKE) -C testapps depend
 	$(MAKE) -C instcode depend
+	$(MAKE) -C tools depend
 
 dist: clean
 	mkdir $(DISTDIR)

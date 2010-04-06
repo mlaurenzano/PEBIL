@@ -108,6 +108,8 @@ public:
     bool containsOnlyControl();
     bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);
 
+    std::set<Dyninst::InstructionAPI::RegisterAST::Ptr> getLiveIns();
+
     void print();
     void printSourceBlocks();
     void printTargetBlocks();
@@ -137,6 +139,8 @@ public:
     uint64_t getTargetAddress();
 
     void findCompareAndCBranch();
+
+    InstrucX86* getLeader() { return instructions[0]; }
 
     bool isPadding()  { return (flags & PaddingMask); }
     bool isEntry()    { return (flags & EntryMask); }

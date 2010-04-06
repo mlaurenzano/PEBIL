@@ -37,6 +37,25 @@ public:
 
     ~BitSet() { delete[] bits; }
 
+    BitSet& operator-=(BitSet& src){
+        ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are SUBed");
+
+        uint32_t count = internalCount();
+        for(uint32_t i=0;i<count;i++){
+            bits[i] = bits[i] & ~(src.bits[i]);
+            if (src.contains(i)){
+                remove(i);
+                cardinality--;
+            }
+        }        
+        for(uint32_t i=0;i<count;i++){
+            if (src.bits[i] & bits[i]){
+                PRINT_ERROR("bits dont match");
+            }
+        }
+        return *this;
+    }
+
     BitSet& operator&=(BitSet& src){
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are ANDed");
 
@@ -52,6 +71,19 @@ public:
         }
         return *this;
     }
+
+    bool operator==(BitSet& src){
+        ASSERT(maximum == src.maximum && "FATAL: Two sets with different max numbers are EQed");
+        
+        uint32_t count = internalCount();
+        for(uint32_t i=0;i<count;i++){
+            if (bits[i] != src.bits[i]){
+                return false;
+            }
+        }
+        return true;
+    }
+
     BitSet& operator|=(BitSet& src){
 
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are ORed");
@@ -66,6 +98,17 @@ public:
                 cardinality++;
             }
         }
+        return *this;
+    }
+
+    BitSet& operator=(BitSet& src){
+        ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are CPed");
+
+        uint32_t count = internalCount();
+        for(uint32_t i=0;i<count;i++){
+            bits[i] = src.bits[i];
+        }
+        cardinality = src.cardinality;
         return *this;
     }
 
@@ -98,7 +141,7 @@ public:
         uint32_t count = internalCount();
         fprintf(stdout, "%d bits: ", maximum);
         for (uint32_t i = 0; i < count; i++){
-            fprintf(stdout, "%2x", bits[i]);
+            fprintf(stdout, "%02x", bits[i]);
         }
         fprintf(stdout, "\n");
     }
@@ -107,7 +150,7 @@ public:
         if(n >= maximum)
             return;
         uint32_t index = n >> DivideLog;
-        uint8_t mask = 1 << (n & ModMask);
+        uint32_t mask = 1 << (n & ModMask);
         if(!(bits[index] & mask))
             cardinality++;
         bits[index] |= mask;
@@ -117,7 +160,7 @@ public:
         if(n >= maximum)
             return;
         uint32_t index = n >> DivideLog;
-        uint8_t mask = 1 << (n & ModMask);
+        uint32_t mask = 1 << (n & ModMask);
         if(bits[index] & mask)
             cardinality--;
         bits[index] &= ~mask;
@@ -127,7 +170,7 @@ public:
         if(n >= maximum)
             return false;
         uint32_t index = n >> DivideLog;
-        uint8_t mask = 1 << (n & ModMask);
+        uint32_t mask = 1 << (n & ModMask);
         return (bits[index] & mask);
     }
 
@@ -142,9 +185,9 @@ public:
     T* duplicateMembers(){
         if(!size())
             return NULL;
-
+        
         T* ret = new T[size()];
-
+        
         uint32_t arrIdx = 0;
         uint32_t idx = 0;
         for(uint32_t i=0;idx<maximum;i++){
@@ -156,9 +199,9 @@ public:
                 }
             }
         }
-
+        
         ASSERT(size() == arrIdx);
-
+        
         return ret;
     }
 };

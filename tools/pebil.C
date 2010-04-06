@@ -363,6 +363,9 @@ int main(int argc,char* argv[]){
     elfFile.initSectionFilePointers();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Disasm  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
+    elfFile.generateCFGs();
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d GenCFG  : %.2f seconds",++stepNumber,t2-t1);t1=t2);    
+
     if (extdPrnt){
         elfFile.findLoops();
         TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Loop    : %.2f seconds",++stepNumber,t2-t1);t1=t2);

@@ -8,29 +8,29 @@ Architecture            X86 or X86_64
 2. Add the following to your shell login script (assuming the installation is
 at /path/to/pebil/)
 
-bash:
-PEBIL_ROOT=/path/to/pebil/
+bash (64bit example):
+PEBIL_ROOT=${HOME}/PEBIL
 PEBIL_LIB=${PEBIL_ROOT}/lib
 PEBIL_BIN=${PEBIL_ROOT}/bin
 PEBIL_LD_FLAGS="-Wl,--hash-style=sysv"
-PEBIL_LD=ld
 PEBIL_GFORT=gfortran
+IAPI_PLATFORM=x86_64-unknown-linux2.4
 PATH=${PATH}:${PEBIL_BIN}
 export PEBIL_ROOT
 export PEBIL_LIB
 export PEBIL_BIN
 export PEBIL_LD_FLAGS
-export PEBIL_LD
 export PEBIL_GFORT
+export IAPI_PLATFORM
 export PATH
 
-csh:
+csh (32bit example):
 setenv PEBIL_ROOT /path/to/pebil/
 setenv PEBIL_LIB ${PEBIL_ROOT}/lib
 setenv PEBIL_BIN ${PEBIL_ROOT}/bin
 setenv PEBIL_LD_FLAGS "-Wl,--hash-style=sysv"
-setenv PEBIL_LD ld
 setenv PEBIL_GFORT gfortran
+setenv IAPI_PLATFORM i386-unknown-linux2.4
 setenv PATH ${PATH}:${PEBIL_BIN}
 
 NOTE: if you get a build error/warning saying that your compiler doesn't 

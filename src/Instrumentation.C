@@ -845,14 +845,14 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, Inst
     if (pt->getType() == PebilClassType_InstrucX86){
         point = (InstrucX86*)pt;
     } else if (pt->getType() == PebilClassType_BasicBlock){
-        ASSERT(((BasicBlock*)pt)->getInstruction(0));
-        point = (InstrucX86*)((BasicBlock*)pt)->getInstruction(0);
+        ASSERT(((BasicBlock*)pt)->getLeader());
+        point = (InstrucX86*)((BasicBlock*)pt)->getLeader();
     } else if (pt->getType() == PebilClassType_Function){
         Function* f = (Function*)pt;
         BasicBlock* bb = f->getBasicBlockAtAddress(f->getBaseAddress());
         ASSERT(bb);
-        ASSERT(bb->getInstruction(0));
-        point = bb->getInstruction(0);
+        ASSERT(bb->getLeader());
+        point = bb->getLeader();
     } else {
         PRINT_INFOR("Instrumentation point type not allowed %d", pt->getType());
         __SHOULD_NOT_ARRIVE;

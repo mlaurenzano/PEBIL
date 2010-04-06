@@ -1,12 +1,160 @@
 #include <FlowGraph.h>
 
 #include <BasicBlock.h>
+#include <BitSet.h>
 #include <ElfFileInst.h>
 #include <Function.h>
 #include <LengauerTarjan.h>
 #include <LinkedList.h>
 #include <Loop.h>
 #include <Stack.h>
+
+using namespace std;
+
+void FlowGraph::flowAnalysis(){
+    Vector<BitSet<uint32_t>*> uses;
+    Vector<BitSet<uint32_t>*> defs;
+    Vector<BitSet<uint32_t>*> ins;
+    Vector<BitSet<uint32_t>*> outs;
+    Vector<BitSet<uint32_t>*> ins_prime;
+    Vector<BitSet<uint32_t>*> outs_prime;
+    Vector<std::set<uint32_t>*> succs;
+    Vector<InstrucX86*> allInstructions;
+    uint32_t maxElts = IAPIREG_MAXREG;
+
+    // reindex instructions
+    uint32_t currIdx = 0;
+    for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
+        BasicBlock* bb = getBasicBlock(i);
+        for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
+            InstrucX86* instruction = bb->getInstruction(j);
+            instruction->setIndex(currIdx++);
+        }
+    }
+    PRINT_DEBUG_LIVE_REGS("Flow analysis on function %s (%d instructions)", function->getName(), currIdx);
+
+    // initialize data structures
+    for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
+        BasicBlock* bb = getBasicBlock(i);
+        for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
+            InstrucX86* instruction = bb->getInstruction(j);
+            uses.append(instruction->getUseRegs());
+            defs.append(instruction->getDefRegs());
+            ins.append(new BitSet<uint32_t>(maxElts));
+            outs.append(new BitSet<uint32_t>(maxElts));
+            ins_prime.append(new BitSet<uint32_t>(maxElts));
+            outs_prime.append(new BitSet<uint32_t>(maxElts));
+
+            allInstructions.append(instruction);
+
+            succs.append(new std::set<uint32_t>());
+            if (j == bb->getNumberOfInstructions() - 1){
+                for (uint32_t k = 0; k < bb->getNumberOfTargets(); k++){
+                    succs.back()->insert(bb->getTargetBlock(k)->getLeader()->getIndex());
+                }
+            } else {
+                succs.back()->insert(bb->getInstruction(j+1)->getIndex());
+            }
+        }
+    }
+    ASSERT(allInstructions.size() == currIdx);
+    ASSERT(uses.size() == currIdx);
+    ASSERT(defs.size() == currIdx);
+    ASSERT(ins.size() == currIdx);
+    ASSERT(outs.size() == currIdx);
+    ASSERT(ins_prime.size() == currIdx);
+    ASSERT(outs_prime.size() == currIdx);
+    ASSERT(succs.size() == currIdx);
+
+    DEBUG_LIVE_REGS(
+                    for (uint32_t i = 0; i < allInstructions.size(); i++){
+                        PRINT_INFO();
+                        PRINT_OUT("instruction %d succ list: ", i);
+                        for (std::set<uint32_t>::const_iterator it = succs[i]->begin(); it != succs[i]->end(); it++){
+                            PRINT_OUT("%d ", (*it));
+                        }
+                        PRINT_OUT("\n");
+                        PRINT_REG_LIST(uses, maxElts, i);
+                        PRINT_REG_LIST(defs, maxElts, i);
+                    }
+                    )
+
+    bool setsSame = false;
+    uint32_t iterCount = 0;
+    while (!setsSame){
+        for (uint32_t i = 0; i < allInstructions.size(); i++){
+            // ins'[n] = ins[n]
+            *(ins_prime[i]) = *(ins[i]);
+
+            // outs'[n] = outs[n]
+            *(outs_prime[i]) = *(outs[i]);
+
+            PRINT_DEBUG_LIVE_REGS("before in[n] = use[n] U (out[n] - def[n])");
+            PRINT_REG_LIST(ins, maxElts, i);
+            PRINT_REG_LIST(uses, maxElts, i);
+            PRINT_REG_LIST(defs, maxElts, i);
+            PRINT_REG_LIST(outs, maxElts, i);
+
+            // in[n] = use[n] U (out[n] - def[n])
+            BitSet<uint32_t>* tmpbt = new BitSet<uint32_t>(*(outs[i]));
+            *(tmpbt) -= *(defs[i]);
+            *(ins[i]) |= *(uses[i]);
+            *(ins[i]) |= *(tmpbt);
+            delete tmpbt;
+
+            PRINT_DEBUG_LIVE_REGS("after in[n] = use[n] U (out[n] - def[n])");
+            PRINT_REG_LIST(ins, maxElts, i);
+            PRINT_REG_LIST(outs, maxElts, i);
+
+            // out[n] = U(s in succ[n]) in[s]
+            //            (outs[i])->clear();
+            for (std::set<uint32_t>::const_iterator it = succs[i]->begin(); it != succs[i]->end(); it++){
+                *(outs[i]) |= *(ins[(*it)]);
+                PRINT_REG_LIST(ins, maxElts, (*it));
+            }
+
+            PRINT_DEBUG_LIVE_REGS("after out[n] = U(s in succ[n]) in[s]");
+            PRINT_REG_LIST(outs, maxElts, i);
+        }
+
+        // check if in/out have changed this iteration for any n
+        setsSame = true;
+        for (uint32_t i = 0; i < allInstructions.size() && setsSame; i++){
+            if (!(*(ins[i]) == *(ins_prime[i]))){
+                PRINT_DEBUG_LIVE_REGS("ins %d different", i);
+                setsSame = false;
+            }
+            if (!(*(outs[i]) == *(outs_prime[i]))){
+                PRINT_DEBUG_LIVE_REGS("outs %d different", i);
+                setsSame = false;
+            }
+        }
+
+        for (uint32_t i = 0; i < allInstructions.size(); i++){
+            PRINT_REG_LIST(ins, maxElts, i);
+            PRINT_REG_LIST(ins_prime, maxElts, i);
+            PRINT_REG_LIST(outs, maxElts, i);
+            PRINT_REG_LIST(outs_prime, maxElts, i);
+        }   
+
+        iterCount++;
+    }
+
+    for (uint32_t i = 0; i < allInstructions.size(); i++){
+        allInstructions[i]->setLiveIns(ins[i]);
+        allInstructions[i]->setLiveOuts(outs[i]);
+    }
+
+    for (uint32_t i = 0; i < allInstructions.size(); i++){
+        delete uses[i];
+        delete defs[i];
+        delete ins[i];
+        delete outs[i];
+        delete ins_prime[i];
+        delete outs_prime[i];
+        delete succs[i];
+    }
+}
 
 bool FlowGraph::verify(){
     if (blocks.size()){

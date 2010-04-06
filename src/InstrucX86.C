@@ -11,7 +11,113 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
-bool Operand::isSameOperand(Operand* other){
+using namespace std;
+
+Dyninst::InstructionAPI::InstructionDecoder* iapiDecoder;
+
+void InstrucX86::setLiveIns(BitSet<uint32_t>* live){
+    ASSERT(!liveIns);
+    liveIns = new BitSet<uint32_t>(*(live));
+
+    DEBUG_LIVE_REGS(
+                    PRINT_INFO();
+                    PRINT_OUT("\t\tlive-ins %d registers: ", (*liveIns).size());
+                    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+                        if ((*liveIns).contains(IAPIREG_REG(iapiRegType_GPR, i))){
+                            PRINT_OUT("gpr:%d ", i);
+                        }
+                    }    
+                    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+                        if ((*liveIns).contains(IAPIREG_REG(iapiRegType_flag, i))){
+                            PRINT_OUT("flag:%d ", i);
+                        }
+                    }
+                    PRINT_OUT("\n");    
+                    )
+}
+
+void InstrucX86::setLiveOuts(BitSet<uint32_t>* live){
+    ASSERT(!liveOuts);
+    liveOuts = new BitSet<uint32_t>(*(live));
+
+    DEBUG_LIVE_REGS(
+                    PRINT_INFO();
+                    PRINT_OUT("\t\tliveOuts %d registers: ", (*liveOuts).size());
+                    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+                        if ((*liveOuts).contains(IAPIREG_REG(iapiRegType_GPR, i))){
+                            PRINT_OUT("gpr:%d ", i);
+                        }
+                    }    
+                    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+                        if ((*liveOuts).contains(IAPIREG_REG(iapiRegType_flag, i))){
+                            PRINT_OUT("flag:%d ", i);
+                        }
+                    }
+                    PRINT_OUT("\n");
+                    )
+}
+
+bool InstrucX86::allFlagsDeadIn(){
+    if (!liveIns){
+        return false;
+    }
+    for (uint32_t i = 0; i < IAPIREG_MAXREG; i++){
+        if (liveIns->contains(i)){
+            if (IAPIREG_TYPE(i) == iapiRegType_flag){
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool InstrucX86::allFlagsDeadOut(){
+    if (!liveOuts){
+        return false;
+    }
+    for (uint32_t i = 0; i < IAPIREG_MAXREG; i++){
+        if (liveOuts->contains(i)){
+            if (IAPIREG_TYPE(i) == iapiRegType_flag){
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+void InstrucX86::initializeInstructionAPIDecoder(bool is64bit){
+    iapiDecoder = new InstructionDecoder();
+    iapiDecoder->setMode(is64bit);
+}
+void InstrucX86::destroyInstructionAPIDecoder(){
+    if (iapiDecoder){
+        delete iapiDecoder;
+    }
+}
+
+BitSet<uint32_t>* InstrucX86::getUseRegs(){
+    BitSet<uint32_t>* regs = new BitSet<uint32_t>(IAPIREG_MAXREG);
+    std::set<Dyninst::InstructionAPI::RegisterAST::Ptr> dregs = std::set<Dyninst::InstructionAPI::RegisterAST::Ptr>();    
+    iapiInsn->getReadSet(dregs);
+
+    for (std::set<Dyninst::InstructionAPI::RegisterAST::Ptr>::const_iterator it = dregs.begin(); it != dregs.end(); it++){
+        regs->insert(IAPIREG_REG(getIapiRegType((*it)->getID()), convertIapiReg((*it)->getID())));
+    }
+    return regs;
+}
+
+BitSet<uint32_t>* InstrucX86::getDefRegs(){
+    BitSet<uint32_t>* regs = new BitSet<uint32_t>(IAPIREG_MAXREG);
+    std::set<Dyninst::InstructionAPI::RegisterAST::Ptr> dregs = std::set<Dyninst::InstructionAPI::RegisterAST::Ptr>();
+    iapiInsn->getWriteSet(dregs);
+
+    for (std::set<Dyninst::InstructionAPI::RegisterAST::Ptr>::const_iterator it = dregs.begin(); it != dregs.end(); it++){
+        regs->insert(IAPIREG_REG(getIapiRegType((*it)->getID()), convertIapiReg((*it)->getID())));
+    }
+    return regs;
+}
+
+bool OperandX86::isSameOperand(OperandX86* other){
     if (other->getValue() == getValue() &&
         other->GET(base) == GET(base) &&
         other->GET(index) == GET(index) &&
@@ -19,8 +125,6 @@ bool Operand::isSameOperand(Operand* other){
         other->GET(type) == GET(type)){
         return true;
     }
-    print();
-    other->print();
     return false;
 }
 
@@ -67,16 +171,16 @@ uint32_t convertUdGPReg(uint32_t reg){
     return 0;
 }
 
-uint32_t Operand::getBaseRegister(){
+uint32_t OperandX86::getBaseRegister(){
     ASSERT(GET(base) && IS_GPR(GET(base)));
     return convertUdGPReg(GET(base));
 }
-uint32_t Operand::getIndexRegister(){
+uint32_t OperandX86::getIndexRegister(){
     ASSERT(GET(index) && IS_GPR(GET(index)));
     return convertUdGPReg(GET(index));
 }
 
-void Operand::touchedRegisters(BitSet<uint32_t>* regs){
+void OperandX86::touchedRegisters(BitSet<uint32_t>* regs){
     if (GET(base) && IS_GPR(GET(base))){
         regs->insert(getBaseRegister());
     }
@@ -93,7 +197,7 @@ void InstrucX86::touchedRegisters(BitSet<uint32_t>* regs){
     }
 }
 
-Operand* InstrucX86::getMemoryOperand(){
+OperandX86* InstrucX86::getMemoryOperand(){
     ASSERT(isMemoryOperation());
     if (isExplicitMemoryOperation()){
         for (uint32_t i = 0; i < MAX_OPERANDS; i++){
@@ -192,14 +296,14 @@ bool InstrucX86::isFloatPOperation(){
     return false;
 }
 
-uint32_t Operand::getBytesUsed(){
+uint32_t OperandX86::getBytesUsed(){
     if (GET(type) == UD_OP_MEM){
         return (GET(offset) >> 3);
     }
     return (GET(size) >> 3);
 }
 
-int64_t Operand::getValue(){
+int64_t OperandX86::getValue(){
     int64_t value;
     if (getBytesUsed() == 0){
         return 0;
@@ -219,11 +323,11 @@ int64_t Operand::getValue(){
     return value;
 }
 
-uint32_t Operand::getBytePosition(){
+uint32_t OperandX86::getBytePosition(){
     return GET(position);
 }
 
-bool Operand::isRelative(){
+bool OperandX86::isRelative(){
     if (GET(type) == UD_OP_JIMM){
         return true;
     }
@@ -403,12 +507,12 @@ uint32_t InstrucX86::convertTo4ByteTargetOperand(){
             PRINT_ERROR("Problem doing instruction disassembly");
         }
 
-        operands = new Operand*[MAX_OPERANDS];
+        operands = new OperandX86*[MAX_OPERANDS];
         for (uint32_t i = 0; i < MAX_OPERANDS; i++){
             ud_operand op = GET(operand)[i];
             operands[i] = NULL;
             if (op.type){
-                operands[i] = new Operand(this, &GET(operand)[i], i);
+                operands[i] = new OperandX86(this, &GET(operand)[i], i);
             }
         }
 
@@ -597,7 +701,7 @@ uint64_t InstrucX86::findJumpTableBaseAddress(Vector<InstrucX86*>* functionInstr
                     bool jumpOpFound = false;
                     uint64_t immediate = 0;
                     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-                        Operand* op = previousInstruction->getOperand(i);
+                        OperandX86* op = previousInstruction->getOperand(i);
                         if (op){
                             if (op->getType()){
 #ifdef JUMPTABLE_USE_REGISTER_OPS
@@ -1487,18 +1591,17 @@ uint32_t InstrucX86::setInstructionType(){
 }
 
 bool InstrucX86::controlFallsThrough(){
-    if (isHalt()
-        || isReturn()
-        || isUnconditionalBranch()
-        || isJumpTableBase()){
+    if (isHalt() ||
+        isReturn() ||
+        isUnconditionalBranch() ||
+        isJumpTableBase()){
         return false;
     }
-
     return true;
 }
 
 
-Operand::Operand(InstrucX86* inst, struct ud_operand* init, uint32_t idx){
+OperandX86::OperandX86(InstrucX86* inst, struct ud_operand* init, uint32_t idx){
     instruction = inst;
     memcpy(&entry, init, sizeof(struct ud_operand));
     operandIndex = idx;
@@ -1506,7 +1609,7 @@ Operand::Operand(InstrucX86* inst, struct ud_operand* init, uint32_t idx){
     verify();
 }
 
-bool Operand::verify(){
+bool OperandX86::verify(){
     if (GET(size)){
         if (GET(size) != 8 &&
             GET(size) != 16 &&
@@ -1534,13 +1637,74 @@ InstrucX86::~InstrucX86(){
     if (addressAnchor){
         delete addressAnchor;
     }
+
+    if (liveIns){
+        delete liveIns;
+    }
+    if (liveOuts){
+        delete liveOuts;
+    }
 }
 
-Operand* InstrucX86::getOperand(uint32_t idx){
+OperandX86* InstrucX86::getOperand(uint32_t idx){
     ASSERT(operands);
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
 
     return operands[idx];
+}
+
+
+InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx, bool is64bit, uint32_t sz)
+    : Base(PebilClassType_InstrucX86)
+{
+    ud_t ud_obj;
+    ud_init(&ud_obj);
+    ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
+
+    if (is64bit){
+        ud_set_mode(&ud_obj, 64);
+        iapiDecoder->setMode(true);
+    } else {
+        ud_set_mode(&ud_obj, 32);
+        iapiDecoder->setMode(false);
+    }
+
+    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
+
+    sizeInBytes = ud_disassemble(&ud_obj);
+    if (sizeInBytes) {
+        memcpy(&entry, &ud_obj, sizeof(struct ud));
+    } else {
+        PRINT_ERROR("Problem doing instruction disassembly");
+    }
+    ASSERT(sz == sizeInBytes);
+
+    baseAddress = baseAddr;
+    programAddress = baseAddr;
+    instructionIndex = idx;
+    byteSource = src;
+    container = cont;
+    addressAnchor = NULL;
+    instructionType = InstrucX86Type_unknown;
+    liveIns = NULL;
+    liveOuts = NULL;
+
+    operands = new OperandX86*[MAX_OPERANDS];
+
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        ud_operand op = GET(operand)[i];
+        operands[i] = NULL;
+        if (op.type){
+            operands[i] = new OperandX86(this, &GET(operand)[i], i);
+        }
+    }
+
+    leader = false;
+    
+    iapiInsn = iapiDecoder->decode((const unsigned char*)buff);
+    ASSERT(iapiInsn->size() == sizeInBytes);
+
+    verify();
 }
 
 InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx)
@@ -1550,13 +1714,15 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
     ud_init(&ud_obj);
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
 
-    //    apiInsn = NULL;
-
+    ASSERT(cont);
     if (cont->getTextSection()->getElfFile()->is64Bit()){
         ud_set_mode(&ud_obj, 64);
+        iapiDecoder->setMode(true);
     } else {
         ud_set_mode(&ud_obj, 32);
+        iapiDecoder->setMode(false);
     }
+
     ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
 
     sizeInBytes = ud_disassemble(&ud_obj);
@@ -1573,47 +1739,24 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
     container = cont;
     addressAnchor = NULL;
     instructionType = InstrucX86Type_unknown;
-
-    operands = new Operand*[MAX_OPERANDS];
+    liveIns = NULL;
+    liveOuts = NULL;
+    
+    operands = new OperandX86*[MAX_OPERANDS];
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         ud_operand op = GET(operand)[i];
         operands[i] = NULL;
         if (op.type){
-            operands[i] = new Operand(this, &GET(operand)[i], i);
+            operands[i] = new OperandX86(this, &GET(operand)[i], i);
         }
     }
 
     leader = false;
     
-    verify();
-}
+    iapiInsn = iapiDecoder->decode((const unsigned char*)buff);
+    ASSERT(iapiInsn->size() == sizeInBytes);
 
-InstrucX86::InstrucX86(struct ud* init)
-    : Base(PebilClassType_InstrucX86)
-{
-    memcpy(&entry, init, sizeof(struct ud));
-
-    sizeInBytes = ud_insn_len(&entry);
-
-    baseAddress = 0;
-    instructionIndex = 0;
-    byteSource = ByteSource_Instrumentation;
-    container = NULL;
-    addressAnchor = NULL;
-
-    operands = new Operand*[MAX_OPERANDS];
-
-    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
-        ud_operand op = GET(operand)[i];
-        operands[i] = NULL;
-        if (op.type){
-            operands[i] = new Operand(this, &GET(operand)[i], i);
-        }
-    }
-    instructionType = InstrucX86Type_unknown;
-    leader = false;
-    
     verify();
 }
 
@@ -1656,6 +1799,40 @@ void InstrucX86::print(){
 
     PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%8s]\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
 
+    BitSet<uint32_t>* useRegs = getUseRegs();
+    BitSet<uint32_t>* defRegs = getDefRegs();
+
+    PRINT_INFO();
+    PRINT_OUT("\t\tuses %d registers: ", (*useRegs).size());
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+        if ((*useRegs).contains(IAPIREG_REG(iapiRegType_GPR, i))){
+            PRINT_OUT("gpr:%d ", i);
+        }
+    }    
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+        if ((*useRegs).contains(IAPIREG_REG(iapiRegType_flag, i))){
+            PRINT_OUT("flag:%d ", i);
+        }
+    }
+    PRINT_OUT("\n");
+    
+    PRINT_INFO();
+    PRINT_OUT("\t\tdefs %d registers: ", (*defRegs).size());
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+        if ((*defRegs).contains(IAPIREG_REG(iapiRegType_GPR, i))){
+            PRINT_OUT("gpr:%d ", i);
+        }
+    }    
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+        if ((*defRegs).contains(IAPIREG_REG(iapiRegType_flag, i))){
+            PRINT_OUT("flag:%d ", i);
+        }
+    }
+    PRINT_OUT("\n");
+    
+    delete useRegs;
+    delete defRegs;
+    
 #ifdef PRINT_INSTRUCTION_DETAIL
     PRINT_INFOR("\t%s (%d,%d) (%d,%d) (%d,%d) %d", ud_lookup_mnemonic(GET(itab_entry)->mnemonic), GET(itab_entry)->operand1.type, GET(itab_entry)->operand1.size, GET(itab_entry)->operand2.type, GET(itab_entry)->operand2.size, GET(itab_entry)->operand3.type, GET(itab_entry)->operand3.size, GET(itab_entry)->prefix);
 
@@ -1709,7 +1886,7 @@ uint32_t regbase_to_type(uint32_t base){
 }
 
 
-void Operand::print(){
+void OperandX86::print(){
     ud_operand op = entry;
 
     ASSERT(op.type);
@@ -1798,5 +1975,46 @@ bool InstrucX86::verify(){
     }
 
     return true;
+}
+
+uint32_t getIapiRegType(uint32_t iapiReg){
+    if (iapiReg < r_EDXEAX ||
+        (iapiReg >= r_rAX && iapiReg <= r_R15)){
+        return iapiRegType_GPR;
+    } else if ((iapiReg >= r_OF && iapiReg <= r_RF) || iapiReg == r_EFLAGS){
+        return iapiRegType_flag;
+    }
+    return iapiRegType_unknown;
+}
+
+uint32_t convertIapiReg(uint32_t iapiReg){
+    uint32_t reg;
+    uint32_t dreg = iapiReg;
+    if (IAPIREG_IS_AX(iapiReg)){
+        reg = X86_REG_AX;
+    } else if (IAPIREG_IS_BX(iapiReg)){
+        reg = X86_REG_BX;
+    } else if (IAPIREG_IS_CX(iapiReg)){
+        reg = X86_REG_CX;
+    } else if (IAPIREG_IS_DX(iapiReg)){
+        reg = X86_REG_DX;
+    } else if (IAPIREG_IS_SI(iapiReg)){
+        reg = X86_REG_SI;
+    } else if (IAPIREG_IS_DI(iapiReg)){
+        reg = X86_REG_DI;
+    } else if (IAPIREG_IS_SP(iapiReg)){
+        reg = X86_REG_SP;
+    } else if (IAPIREG_IS_BP(iapiReg)){
+        reg = X86_REG_BP;
+    } else if (IAPIREG_IS_RX(iapiReg)){
+        reg = iapiReg - r_R8 + X86_32BIT_GPRS;
+    } else if (IAPIREG_IS_FLAG(iapiReg)){
+        reg = iapiReg - r_OF;
+    } else if (iapiReg == r_EFLAGS){
+        reg = (r_RF + 1) - r_OF;
+    } else {
+        reg = 0;
+    }
+    return reg;
 }
 

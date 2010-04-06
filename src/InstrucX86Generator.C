@@ -30,7 +30,7 @@ Vector<InstrucX86*>* InstrucX86Generator64::generateAddressComputation(InstrucX8
                    )
 
     Vector<InstrucX86*>* compInstructions = new Vector<InstrucX86*>();
-    Operand* op = NULL;
+    OperandX86* op = NULL;
 
     if (instruction->isExplicitMemoryOperation()){
 
@@ -219,7 +219,7 @@ InstrucX86* InstrucX86Generator64::generateLoadEffectiveAddress(uint32_t baseReg
     return lea;
 }
 
-InstrucX86* InstrucX86Generator64::generateLoadEffectiveAddress(Operand* op, uint32_t dest){
+InstrucX86* InstrucX86Generator64::generateLoadEffectiveAddress(OperandX86* op, uint32_t dest){
     ASSERT(dest < X86_64BIT_GPRS && "Illegal register index given");
     ASSERT(op);
 
@@ -331,40 +331,15 @@ InstrucX86* InstrucX86Generator64::generateLoadRegImmReg(uint8_t idxsrc, uint64_
 }
 
 InstrucX86* InstrucX86Generator64::generateInstructionBase(uint32_t sz, char* buff){
-    ud_t ud_obj;
-    ud_init(&ud_obj);
-    ud_set_input_buffer(&ud_obj, (uint8_t*)buff, sz);
-    ud_set_mode(&ud_obj, 64);
-    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
-
-    uint32_t size = ud_disassemble(&ud_obj);
-    if (size != sz){
-        PRINT_INFO();
-        PRINT_OUT("Problem disassembling bytes: ");
-        for (uint32_t i = 0; i < sz; i++){
-            PRINT_OUT("%02hhx ", buff[i]);
-        }
-        PRINT_OUT("\n");
-        PRINT_ERROR("bytes do not match for size %d -- %s", size, ud_insn_hex(&ud_obj));
-    }
-    ASSERT(size == sz);
-    InstrucX86* ret = new InstrucX86(&ud_obj);
-
+    InstrucX86* ret = new InstrucX86(NULL, 0, buff, ByteSource_Instrumentation, 0, true, sz);
+    ASSERT(ret->getSizeInBytes() == sz);
     delete[] buff;
     return ret;
 }
 
 InstrucX86* InstrucX86Generator::generateInstructionBase(uint32_t sz, char* buff){
-    ud_t ud_obj;
-    ud_init(&ud_obj);
-    ud_set_input_buffer(&ud_obj, (uint8_t*)buff, sz);
-    ud_set_mode(&ud_obj, 32);
-    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
-
-    uint32_t size = ud_disassemble(&ud_obj);
-    ASSERT(size == sz);
-    InstrucX86* ret = new InstrucX86(&ud_obj);
-
+    InstrucX86* ret = new InstrucX86(NULL, 0, buff, ByteSource_Instrumentation, 0, false, sz);
+    ASSERT(ret->getSizeInBytes() == sz);
     delete[] buff;
     return ret;
 }
@@ -637,28 +612,14 @@ InstrucX86* InstrucX86Generator64::generateXorRegReg(uint8_t src, uint8_t tgt){
     return generateInstructionBase(len,buff);
 }
 
-InstrucX86* InstrucX86Generator32::generateLoadAHFromFlags(){
+InstrucX86* InstrucX86Generator::generateLoadAHFromFlags(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x9f;
     return generateInstructionBase(len,buff);
 }
 
-InstrucX86* InstrucX86Generator32::generateStoreAHToFlags(){
-    uint32_t len = 1;
-    char* buff = new char[len];
-    buff[0] = 0x9e;
-    return generateInstructionBase(len,buff);
-}
-
-InstrucX86* InstrucX86Generator64::generateLoadAHFromFlags(){
-    uint32_t len = 1;
-    char* buff = new char[len];
-    buff[0] = 0x9f;
-    return generateInstructionBase(len,buff);
-}
-
-InstrucX86* InstrucX86Generator64::generateStoreAHToFlags(){
+InstrucX86* InstrucX86Generator::generateStoreAHToFlags(){
     uint32_t len = 1;
     char* buff = new char[len];
     buff[0] = 0x9e;

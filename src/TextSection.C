@@ -317,7 +317,7 @@ TextSection::TextSection(char* filePtr, uint64_t size, uint16_t scnIdx, uint32_t
     source = src;
 }
 
-uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile, Vector<AddressAnchor*>* addressAnchors){
+uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
     SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
 
     Vector<Symbol*> textSymbols = discoverTextObjects();
@@ -351,6 +351,12 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile, Vector<Addre
         sortedTextObjects.append(new FreeText(this, 0, NULL, sectionHeader->GET(sh_addr), sectionHeader->GET(sh_size), true));
     }
 
+    verify();
+
+    return sortedTextObjects.size();
+}
+
+uint32_t TextSection::generateCFGs(Vector<AddressAnchor*>* addressAnchors){
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         if (sortedTextObjects[i]->isFunction()){
             PRINT_DEBUG_CFG("Digesting function object at %#llx", sortedTextObjects[i]->getBaseAddress());
@@ -361,10 +367,7 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile, Vector<Addre
     }
 
     verify();
-
-    return sortedTextObjects.size();
 }
-
 
 uint32_t TextSection::read(BinaryInputFile* binaryInputFile){
     return 0;
