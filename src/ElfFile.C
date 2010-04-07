@@ -593,7 +593,6 @@ void ElfFile::initSectionFilePointers(){
         textSections[i]->disassemble(&binaryInputFile);
     }
 
-
     /*
     uint32_t* instBins;
     instBins = new uint32_t[MAX_X86_INSTRUCTION_LENGTH+1];
@@ -1537,6 +1536,41 @@ uint32_t ElfFile::anchorProgramElements(){
     }
 
     TextSection* text = getDotTextSection();
+
+    /*
+    uint64_t prevMax = 0;
+    uint32_t openBytes = 0;
+    uint32_t functionsCounted = 0;
+    for (uint32_t i = 0; i < text->getNumberOfTextObjects(); i++){
+        if (text->getTextObject(i)->isFunction()){
+            Function* f = (Function*)text->getTextObject(i);
+
+            uint64_t maxAddr = 0;
+            for (uint32_t j = 0; j < f->getFlowGraph()->getNumberOfBasicBlocks(); j++){
+                BasicBlock* bb = f->getFlowGraph()->getBasicBlock(j);
+                if (bb->getBaseAddress() + bb->getNumberOfBytes() > maxAddr){
+                    maxAddr = bb->getBaseAddress() + bb->getNumberOfBytes();
+                }
+            }
+            if (i > 0){
+                uint32_t obytes = f->getBaseAddress() - prevMax;
+                openBytes += obytes;
+                functionsCounted++;
+                PRINT_INFOR("OPENBYTES: %s %d", f->getName(), obytes);
+
+            }
+            if (i == text->getNumberOfTextObjects() - 1){
+                uint64_t secEnd = text->getSectionHeader()->GET(sh_addr) + text->getSectionHeader()->GET(sh_size);
+                uint32_t obytes = secEnd - maxAddr;
+                openBytes += obytes;
+                functionsCounted++;
+                PRINT_INFOR("OPENBYTES: SECTEND %d", obytes);
+            } 
+            prevMax = maxAddr;
+        }
+    }
+    PRINT_INFOR("Open bytes on functions %d, functions %d", openBytes, functionsCounted);
+    */
 
     for (uint32_t i = 0; i < dataSections.size(); i++){
         RawSection* dataRawSection = getRawSection(dataSections[i]);

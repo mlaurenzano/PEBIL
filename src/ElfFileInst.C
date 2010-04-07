@@ -670,13 +670,14 @@ uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
     ASSERT(currentPhase > ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     ASSERT(currentPhase <= ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
-    while (usableDataOffset + size  >= instrumentationDataSize){
+    uint64_t nextOffset = nextAlignAddress(usableDataOffset + size, sizeof(uint64_t));
+    while (nextOffset  >= instrumentationDataSize){
         extendDataSection();
     }
-    ASSERT(usableDataOffset + size < instrumentationDataSize && "Not enough space for the requested data");
+    ASSERT(nextOffset < instrumentationDataSize && "Not enough space for the requested data");
 
     uint64_t avail = usableDataOffset;
-    usableDataOffset += size;
+    usableDataOffset = nextOffset;
     return avail;
 }
 

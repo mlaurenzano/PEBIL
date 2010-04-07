@@ -14,6 +14,8 @@
 #define INST_LIB_NAME "libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
+//#define NO_REG_ANALYSIS
+
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     : InstrumentationTool(elf)
 {
@@ -161,6 +163,7 @@ void BasicBlockCounter::instrument(){
             
         // register an instrumentation point at the function that uses this snippet
         FlagsProtectionMethods prot = FlagsProtectionMethod_light;
+#ifndef NO_REG_ANALYSIS
         if (bb->getLeader()->allFlagsDeadIn()){
             prot = FlagsProtectionMethod_none;
             noProtPoints++;
@@ -171,9 +174,13 @@ void BasicBlockCounter::instrument(){
                 break;
             }
         }
+#endif
         InstrumentationPoint* p = addInstrumentationPoint(bb, snip, InstrumentationMode_inline, prot);
     }
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+#ifdef NO_REG_ANALYSIS
+    PRINT_WARN(10, "Warning: register analysis disabled");
+#endif
     PRINT_INFOR("Not protecting %d/%d instrumentation points", noProtPoints, getNumberOfExposedBasicBlocks());
     PRINT_INFOR("complex inst point selection: %d/%d instrumentation points", complexSelection, getNumberOfExposedBasicBlocks());
 

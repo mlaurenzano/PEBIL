@@ -29,7 +29,7 @@ class InstrumentationPoint;
 #define Size__flag_protect_full 2
 
 #ifdef THREAD_SAFE
-#define Size__32_bit_flag_protect_light 12
+#define Size__32_bit_flag_protect_light 16
 #define Size__64_bit_flag_protect_light 18
 #else 
 #define Size__32_bit_flag_protect_light 12

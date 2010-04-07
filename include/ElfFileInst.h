@@ -21,11 +21,6 @@ class RawSection;
 class SectionHeader;
 class TextSection;
 
-#define Size__uncond_jump 5
-#define Size__flag_protect_full 2
-#define Size__32_bit_flag_protect_light 12
-#define Size__64_bit_flag_protect_light 18
-
 #define INST_SNIPPET_BOOTSTRAP_BEGIN 0
 #define INST_SNIPPET_BOOTSTRAP_END 1
 #define INST_POINT_BOOTSTRAP1 0
