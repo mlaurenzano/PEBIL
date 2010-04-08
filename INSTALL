@@ -1,31 +1,33 @@
-A basic outline for how to install PEBIL.
+This document contains a basic outline for how to install the
+PEBIL binary instrumentation package.
+
+Before installing, if you are an HPC user consider emailing me
+to see if I maintain an installation on the system you are interested
+in installing for -- michaell@sdsc.edu
 
 1. System Requirements
+
 Operating System        Linux
 Binary Format           Elf
-Architecture            X86 or X86_64
+Architecture            ia32 or x86_64
 
-2. Add the following to your shell login script (assuming the installation is
-at /path/to/pebil/)
+
+2. configure your environment
+
+Add the following to your shell login script (assuming the installation is
+at /path/to/PEBIL/)
 
 bash (64bit example):
-PEBIL_ROOT=${HOME}/PEBIL
-PEBIL_LIB=${PEBIL_ROOT}/lib
-PEBIL_BIN=${PEBIL_ROOT}/bin
-PEBIL_LD_FLAGS="-Wl,--hash-style=sysv"
-PEBIL_GFORT=gfortran
-IAPI_PLATFORM=x86_64-unknown-linux2.4
-PATH=${PATH}:${PEBIL_BIN}
-export PEBIL_ROOT
-export PEBIL_LIB
-export PEBIL_BIN
-export PEBIL_LD_FLAGS
-export PEBIL_GFORT
-export IAPI_PLATFORM
-export PATH
+export PEBIL_ROOT=/path/to/PEBIL
+export PEBIL_LIB=${PEBIL_ROOT}/lib
+export PEBIL_BIN=${PEBIL_ROOT}/bin
+export PEBIL_LD_FLAGS="-Wl,--hash-style=sysv"
+export PEBIL_GFORT=gfortran
+export IAPI_PLATFORM=x86_64-unknown-linux2.4
+export PATH=${PATH}:${PEBIL_BIN}
 
 csh (32bit example):
-setenv PEBIL_ROOT /path/to/pebil/
+setenv PEBIL_ROOT /path/to/PEBIL/
 setenv PEBIL_LIB ${PEBIL_ROOT}/lib
 setenv PEBIL_BIN ${PEBIL_ROOT}/bin
 setenv PEBIL_LD_FLAGS "-Wl,--hash-style=sysv"
@@ -38,13 +40,15 @@ recognize the argument --hash-style, your compiler is likely already using
 sysv-style tables and you can entirely disregard the PEBIL_LD_FLAGS 
 variable.
 
-3. build 
-   A. build the udis86 library. go to external/udis86 and see the README within
-   for details
 
+3. build external libraries
+go the the external directory and read the INSTALL file there
+
+
+4. build PEBIL
 run `gmake' from the top-level directory
 
-4. run
+5. run PEBIL
 Details on how to run:
 pebil --help
 

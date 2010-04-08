@@ -298,7 +298,9 @@ uint32_t Function::digest(Vector<AddressAnchor*>* addressAnchors){
     if (!isDisasmFail()){
         generateCFG(allInstructions, addressAnchors);        
         findStackSize();
+#ifndef NO_REG_ANALYSIS
         flowGraph->flowAnalysis();
+#endif
     }
 
     delete allInstructions;

@@ -1700,9 +1700,11 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
     }
 
     leader = false;
-    
+
+#ifndef NO_REG_ANALYSIS
     iapiInsn = iapiDecoder->decode((const unsigned char*)buff);
     ASSERT(iapiInsn->size() == sizeInBytes);
+#endif
 
     verify();
 }
@@ -1754,8 +1756,15 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
 
     leader = false;
     
+#ifndef NO_REG_ANALYSIS
     iapiInsn = iapiDecoder->decode((const unsigned char*)buff);
+    if (iapiInsn->size() != sizeInBytes){
+        PRINT_INFOR("Size disagreement between udis86 and iapi -- %d to %d", sizeInBytes, iapiInsn->size());
+        //        cout << iapiInsn->format() << endl;
+        print();
+    }
     ASSERT(iapiInsn->size() == sizeInBytes);
+#endif
 
     verify();
 }
@@ -1799,6 +1808,7 @@ void InstrucX86::print(){
 
     PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%8s]\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
 
+#ifndef NO_REG_ANALYSIS
     BitSet<uint32_t>* useRegs = getUseRegs();
     BitSet<uint32_t>* defRegs = getDefRegs();
 
@@ -1832,6 +1842,7 @@ void InstrucX86::print(){
     
     delete useRegs;
     delete defRegs;
+#endif
     
 #ifdef PRINT_INSTRUCTION_DETAIL
     PRINT_INFOR("\t%s (%d,%d) (%d,%d) (%d,%d) %d", ud_lookup_mnemonic(GET(itab_entry)->mnemonic), GET(itab_entry)->operand1.type, GET(itab_entry)->operand1.size, GET(itab_entry)->operand2.type, GET(itab_entry)->operand2.size, GET(itab_entry)->operand3.type, GET(itab_entry)->operand3.size, GET(itab_entry)->prefix);
