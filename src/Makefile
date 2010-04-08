@@ -17,7 +17,7 @@ SRCDIR      = ../src
 BINDIR      = ../bin
 LIBDIR      = ../lib
 EXTDIR      = ../external
-INCLUDE     = -I../include -I$(EXTDIR)/udis86-1.7/ -I$(EXTDIR)/instructionAPI/include
+INCLUDE     = -I../include -I$(EXTDIR)/udis86-1.7/ -I$(EXTDIR)/instructionAPI-1.1/include
 
 SRCS  = AddressAnchor.C \
 	Base.C \

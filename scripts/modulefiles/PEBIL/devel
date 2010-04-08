@@ -1,0 +1,23 @@
+#%Module
+
+proc ModulesHelp { } {
+   global PEBIL_LEVEL
+   puts stderr "This modulefile defines the system paths and"
+   puts stderr "environment variables needed to use the"
+   puts stderr "PEBIL software package, version $PEBIL_LEVEL."
+   puts stderr ""
+}
+
+# list all versions except this one here
+conflict PEBIL/0.1.3210
+
+set PEBIL_LEVEL devel
+set PEBIL_CURPATH /usr/local/u/michaell/PEBIL
+setenv PEBIL_ROOT $PEBIL_CURPATH
+prepend-path PATH $PEBIL_CURPATH/bin
+prepend-path LD_LIBRARY_PATH $PEBIL_CURPATH/external/instructionAPI-1.1/x86_64-unknown-linux2.4/lib
+
+setenv PEBIL_GFORT gfortran
+setenv PEBIL_LD_FLAGS ""
+setenv PEBIL_LIB $PEBIL_CURPATH/lib
+setenv IAPI_PLATFORM x86_64-unknown-linux2.4
