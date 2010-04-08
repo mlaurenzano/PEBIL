@@ -1,0 +1,84 @@
+# 
+# Common makefile template for the dyninstAPI library.  This file is not
+# intended to be a useful Makefile in isolation; instead, it should be
+# included from within an architecture-specific Makefile.
+#
+# $Id: make.module.tmpl,v 1.4 2008/09/15 17:38:17 jaw Exp $
+#
+
+SUITE_NAME	= Dyninst
+RELEASE_NUM	= 6.1
+
+#BUILD_MARK should be (re-)defined in core/make.config.local rather than here!
+
+
+CFLAGS		     += $(USEFULWARNINGS) $(DEFINES)
+CXXFLAGS	     += $(USEFULWARNINGS) $(DEFINES)
+
+LDFLAGS += -lcommon
+
+LDFLAGS     += -L../../common/$(PLATFORM)
+ifndef USES_NATIVE_CC
+LD		= $(GXX)
+LDFLAGS		+= -shared $(G_PTHREAD_LD)
+CFLAGS		+= -fPIC -g
+CXXFLAGS	+= -fPIC $(G_PTHREAD) -felide-constructors -g
+else
+ifeq (solaris,$(findstring solaris,$(PLATFORM)))
+LDFLAGS		+= -G
+endif #sparc
+endif #USES_NATIVE
+
+
+ifdef AUTO_TEMPLATES
+CFLAGS += -DAUTO_TEMPLATES
+CXXFLAGS += -DAUTO_TEMPLATES
+endif
+
+SRCS +=	../src/Instruction.C \
+	../src/InstructionAST.C \
+	../src/Operation.C \
+	../src/Operand.C \
+	../src/Register.C \
+	../src/Expression.C \
+	../src/BinaryFunction.C \
+	../src/InstructionCategories.C \
+	../src/Immediate.C
+
+
+IFLAGS       += -I../$(PLATFORM) -I../src -I../h -I../../common/h -I../../dynutil/h -I../../symtabAPI/h -I../external
+
+DOCDIR	= ../doc
+
+TO_INC = ../h
+PUBLIC_H =      BinaryFunction.h \
+                Dereference.h \
+                entryIDs-IA32.h \
+                Expression.h \
+                Immediate.h \
+                InstructionAST.h \
+                InstructionDecoder.h \
+                Instruction.h \
+                Operand.h \
+                Operation.h \
+                Register.h \
+                RegisterIDs-x86.h \
+                Result.h \
+	       InstructionCategories.h \
+	       Visitor.h
+
+
+
+# All that, and we finally get a target...
+all: $(TARGET) $(EXTRA_LIBS)
+
+
+
+docs: $(SRCS)
+	cd ..; doxygen instructionAPI.conf
+	cd $(DOCDIR)/latex; ./manual-preproc.pl *.tex; $(MAKE) clean
+	$(MAKE) -C $(DOCDIR)/latex
+	cp $(DOCDIR)/latex/refman.pdf ../instructionProgGuide.v11.pdf
+
+
+
