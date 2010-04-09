@@ -25,6 +25,7 @@ export PEBIL_LD_FLAGS="-Wl,--hash-style=sysv"
 export PEBIL_GFORT=gfortran
 export IAPI_PLATFORM=x86_64-unknown-linux2.4
 export PATH=${PATH}:${PEBIL_BIN}
+export LD_LIBRARY_PATH=${PEBIL_ROOT}/external/instructionAPI-1.1/${IAPI_PLATFORM}/lib:${LD_LIBRARY_PATH}
 
 csh (32bit example):
 setenv PEBIL_ROOT /path/to/PEBIL/
@@ -34,6 +35,7 @@ setenv PEBIL_LD_FLAGS "-Wl,--hash-style=sysv"
 setenv PEBIL_GFORT gfortran
 setenv IAPI_PLATFORM i386-unknown-linux2.4
 setenv PATH ${PATH}:${PEBIL_BIN}
+setenv LD_LIBRARY_PATH ${PEBIL_ROOT}/external/instructionAPI-1.1/${IAPI_PLATFORM}/lib:${LD_LIBRARY_PATH}
 
 NOTE: if you get a build error/warning saying that your linker doesn't 
 recognize the argument --hash-style, your compiler is likely already using 

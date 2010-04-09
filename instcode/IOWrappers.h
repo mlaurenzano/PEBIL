@@ -67,4 +67,8 @@ int write_formatstr(char* str, const char* format, int64_t* args){
     __elif_begin #__fname)) { __wrapper_name(__wname)((__a0)args[0], (__a1)args[1], (__a2)args[2], (__a3)args[3]); }
 #define __wrapper_decision_4arg_variadic(__fname, __wname, __a0, __a1, __a2, __a3) \
     __elif_begin #__fname)) { __wrapper_name(__wname)((__a0)args[0], (__a1)args[1], (__a2)args[2], (__a3)&args[3]); }
+#define __wrapper_decision_5arg_full(__fname, __wname, __a0, __a1, __a2, __a3, __a4) \
+    __elif_begin #__fname)) { __wrapper_name(__wname)((__a0)args[0], (__a1)args[1], (__a2)args[2], (__a3)args[3], (__a4)args[4]); }
+#define __wrapper_decision_5arg_variadic(__fname, __wname, __a0, __a1, __a2, __a3, __a4) \
+    __elif_begin #__fname)) { __wrapper_name(__wname)((__a0)args[0], (__a1)args[1], (__a2)args[2], (__a3)args[3], (__a4)&args[4])); }
 

@@ -20,13 +20,13 @@ int32_t inittracer(int32_t* numSites, char** funcNames, char* execName){
     char logname[__MAX_STRING_SIZE];
     sprintf(logname, "%s.log.%d", execName, getpid());
     logfile = fopen(logname, "w");
-
+    logfile = stdout;
     PRINT_INSTR(stdout, "Real args inittracer: %x %x", numSites, funcNames);
 }
 
 int32_t functiontracer(int32_t* idx, int64_t* args){
-    PRINT_INSTR(stdout, "Real args functiontracer: %x %x", idx, args);
-    PRINT_INSTR(stdout, "Call site for %s (%d)", functionNames[*idx], *idx);
+  //    PRINT_INSTR(stdout, "Real args functiontracer: %x %x", idx, args);
+  //  PRINT_INSTR(stdout, "Call site for %s (%d)", functionNames[*idx], *idx);
 
     // a macro from IOWrappers.h
     __all_wrapper_decisions
