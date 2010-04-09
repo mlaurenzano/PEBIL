@@ -139,6 +139,10 @@ Vector<InstrucX86*>* CacheSimulation::tmp_generateBufferedAddressCalculation64(I
 
     // find 3 temp registers to use in the calculation
     BitSet<uint32_t>* availableRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
+    uint32_t tempReg1 = X86_64BIT_GPRS;
+    uint32_t tempReg2 = X86_64BIT_GPRS;
+    uint32_t tempReg3 = X86_64BIT_GPRS;
+
     availableRegs->insert(X86_REG_SP);
     if (method == FlagsProtectionMethod_light){
         availableRegs->insert(X86_REG_AX);
@@ -148,10 +152,6 @@ Vector<InstrucX86*>* CacheSimulation::tmp_generateBufferedAddressCalculation64(I
     }
 
     ~(*availableRegs);
-
-    uint32_t tempReg1 = X86_64BIT_GPRS;
-    uint32_t tempReg2 = X86_64BIT_GPRS;
-    uint32_t tempReg3 = X86_64BIT_GPRS;
 
     for (int32_t i = 0; i < availableRegs->size(); i++){
         uint32_t idx = X86_64BIT_GPRS - i;
@@ -166,6 +166,7 @@ Vector<InstrucX86*>* CacheSimulation::tmp_generateBufferedAddressCalculation64(I
         }
     }
     ASSERT(tempReg1 != X86_64BIT_GPRS && tempReg2 != X86_64BIT_GPRS && tempReg3 != X86_64BIT_GPRS);
+
     delete availableRegs;
 
 

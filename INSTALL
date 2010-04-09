@@ -35,7 +35,7 @@ setenv PEBIL_GFORT gfortran
 setenv IAPI_PLATFORM i386-unknown-linux2.4
 setenv PATH ${PATH}:${PEBIL_BIN}
 
-NOTE: if you get a build error/warning saying that your compiler doesn't 
+NOTE: if you get a build error/warning saying that your linker doesn't 
 recognize the argument --hash-style, your compiler is likely already using 
 sysv-style tables and you can entirely disregard the PEBIL_LD_FLAGS 
 variable.
@@ -46,6 +46,7 @@ go the the external directory and read the INSTALL file there
 
 
 4. build PEBIL
+>>>>>>> .r3247
 run `gmake' from the top-level directory
 
 5. run PEBIL
