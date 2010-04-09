@@ -40,7 +40,7 @@ uint32_t map64BitArgToReg(uint32_t idx){
 }
 
 void InstrumentationPoint::print(){
-    PRINT_INFOR("Instrumentation point at %#llx: size %d, priority %d, protection %d, mode %d", getInstSourceAddress(), numberOfBytes, priority, protectionMethod, instrumentationMode);
+    PRINT_INFOR("Instrumentation point at %#llx -> %#llx: size %d, priority %d, protection %d, mode %d, loc %d", getInstBaseAddress(), getInstSourceAddress(), numberOfBytes, priority, protectionMethod, instrumentationMode, instLocation);
 }
 
 int searchInstPoint(const void* arg1,const void* arg2){
@@ -797,7 +797,9 @@ Vector<InstrucX86*>* InstrumentationPoint::swapInstructionsAtPoint(bool isChain,
     ASSERT(instruction->getContainer() && instruction->getContainer()->getType() == PebilClassType_Function);
     Function* func = (Function*)instruction->getContainer();
 
-    if (instLocation == InstLocation_prior || isChain){
+    if (instLocation == InstLocation_after){
+        return func->swapInstructions(getInstBaseAddress() + instruction->getSizeInBytes(), replacements);
+    } else if (instLocation == InstLocation_prior || isChain){
         return func->swapInstructions(getInstBaseAddress() - Size__uncond_jump, replacements);
     } else {
         return func->swapInstructions(getInstSourceAddress(), replacements);
@@ -827,12 +829,18 @@ uint64_t InstrumentationPoint::getInstBaseAddress(){
 
 uint64_t InstrumentationPoint::getInstSourceAddress(){
     Function* f = (Function*)point->getContainer();
+
     if (f->isRelocated()){
-        if (instrumentationMode == InstrumentationMode_inline){
-            return getInstBaseAddress() - getNumberOfBytes();
+        if (instLocation == InstLocation_after){
+            return getInstBaseAddress() + point->getSizeInBytes();
         } else {
-            return getInstBaseAddress() - Size__uncond_jump;
+            if (instrumentationMode == InstrumentationMode_inline){
+                return getInstBaseAddress() - getNumberOfBytes();
+            } else {
+                return getInstBaseAddress() - Size__uncond_jump;
+            }            
         }
+
     } else {
         return getInstBaseAddress();
     }
@@ -842,6 +850,7 @@ uint64_t InstrumentationPoint::getInstSourceAddress(){
 InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc)
     : Base(PebilClassType_InstrumentationPoint)
 {
+
     if (pt->getType() == PebilClassType_InstrucX86){
         point = (InstrucX86*)pt;
     } else if (pt->getType() == PebilClassType_BasicBlock){
@@ -870,10 +879,10 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, Inst
     }    
 
     instLocation = loc;
-
     trampolineOffset = 0;
     priority = InstPriority_regular;
 
+    print();
     verify();
 }
 

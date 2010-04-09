@@ -416,6 +416,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
 
     for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
         InstrumentationPoint* pt = (*instrumentationPoints)[i];
+        pt->print();
         if (!pt){
             PRINT_ERROR("Instrumentation point %d should exist", i);
         }
@@ -465,8 +466,8 @@ uint32_t ElfFileInst::generateInstrumentation(){
             
             bool isFirstInChain = false;
             if (i == 0 || 
-                (i > 0 && (*instrumentationPoints)[i-1]->getInstBaseAddress() != pt->getInstBaseAddress())){
-                PRINT_DEBUG_POINT_CHAIN("\tFirst in chain at %#llx (%d)", pt->getInstBaseAddress(), i);
+                (i > 0 && (*instrumentationPoints)[i-1]->getInstSourceAddress() != pt->getInstSourceAddress())){
+                PRINT_DEBUG_POINT_CHAIN("\tFirst in chain at %#llx (%d)", pt->getInstSourceAddress(), i);
                 
                 isFirstInChain = true;
                 chainOffset = codeOffset;
@@ -478,10 +479,9 @@ uint32_t ElfFileInst::generateInstrumentation(){
             if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_tramp ||
                 (*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_trampinline ||
                 !isFirstInChain){
-                uint64_t instAddress = pt->getInstBaseAddress();
-                if (((Function*)pt->getSourceObject()->getContainer())->isRelocated()){
-                    instAddress -= Size__uncond_jump;
-                }
+                uint64_t instAddress = pt->getInstSourceAddress();
+                PRINT_INFOR("using instaddress = %#llx", instAddress);
+                ASSERT(((Function*)pt->getSourceObject()->getContainer())->isRelocated());
                 (*repl).append(InstrucX86Generator::generateJumpRelative(instAddress, elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
             } else if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_inline){
                 if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_light){
@@ -536,7 +536,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
             // disassemble the newly minted instructions
             uint32_t bytesUsed = 0;
             for (uint32_t j = 0; j < (*repl).size(); j++){
-                (*repl)[j]->setBaseAddress(pt->getInstBaseAddress()+bytesUsed);
+                (*repl)[j]->setBaseAddress(pt->getInstSourceAddress()+bytesUsed);
                 bytesUsed += (*repl)[j]->getSizeInBytes();
                 
                 DEBUG_INST((*repl)[j]->print();)
@@ -546,8 +546,8 @@ uint32_t ElfFileInst::generateInstrumentation(){
             
             bool isLastInChain = false;
             if (i == (*instrumentationPoints).size()-1 || 
-                (i < (*instrumentationPoints).size()-1 && (*instrumentationPoints)[i+1]->getInstBaseAddress() != pt->getInstBaseAddress())){
-                PRINT_DEBUG_POINT_CHAIN("\tLast of chain at %#llx (%d)", pt->getInstBaseAddress(), i);
+                (i < (*instrumentationPoints).size()-1 && (*instrumentationPoints)[i+1]->getInstSourceAddress() != pt->getInstSourceAddress())){
+                PRINT_DEBUG_POINT_CHAIN("\tLast of chain at %#llx (%d)", pt->getInstSourceAddress(), i);
                 isLastInChain = true;
                 
                 displaced = pt->swapInstructionsAtPoint(!isFirstInChain, repl);

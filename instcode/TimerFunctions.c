@@ -1,25 +1,16 @@
 #include <InstrumentationCommon.h>
 
-#define CLOCK_RATE_HZ 2600000000
-
 #define RECORDS_PER_FUNCTION 8
 #define STACK_BACKTRACE_SIZE  8
 #define NUM_PRINT 10000
+
+int64_t ticksPerSecond;
 
 struct funcInfo* funcInfos = NULL;
 int32_t numberOfFunctions = 0;
 char** functionNames = NULL;
 int32_t* stackError = NULL;
 #define HASH_STACK_HEAD hashFunction(funcStack_peep(7), funcStack_peep(6), funcStack_peep(5), funcStack_peep(4), funcStack_peep(3), funcStack_peep(2), funcStack_peep(1), funcStack_peep(0))
-
-unsigned long long ticksPerSecond = 0;
-//#define EXCLUDE_TIMER
-
-__inline__ unsigned long long readtsc(){
-    unsigned low, high;
-    __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));
-    return ((unsigned long long)low | (((unsigned long long)high) << 32));
-}
 
 struct funcInfo
 {
@@ -99,7 +90,6 @@ void printFunctionInfo(int i){
 #ifdef EXCLUDE_TIMER
     PRINT_INSTR(stdout, "%s (%d): %lld executions", functionNames[funcInfos[i].backtrace[0]], funcInfos[i].hash % (numberOfFunctions * RECORDS_PER_FUNCTION), funcInfos[i].count);    
 #else
-    double p = (double)funcInfos[i].timer_total / (double)ticksPerSecond;
     PRINT_INSTR(stdout, "%s (%d): %lld executions, %.6f seconds", functionNames[funcInfos[i].backtrace[0]], funcInfos[i].hash % (numberOfFunctions * RECORDS_PER_FUNCTION), funcInfos[i].count, ((double)((double)funcInfos[i].timer_total/(double)ticksPerSecond)));
 #endif
     for (j = 1; j < STACK_BACKTRACE_SIZE; j++){

@@ -9,7 +9,8 @@
 
 #define PROGRAM_ENTRY  "inittracer"
 #define PROGRAM_EXIT   "finishtracer"
-#define FUNCTION_TRACE  "functiontracer"
+#define FUNCTION_TRACE  "functionentry"
+#define FUNCTION_STOPTMR "functiontracer"
 #define INST_LIB_NAME "libtracer.so"
 #define MAX_ARG_COUNT 6
 
@@ -18,6 +19,7 @@ IOTracer::IOTracer(ElfFile* elf, char* traceFile)
 {
     programEntry = NULL;
     programExit = NULL;
+    functionEntry = NULL;
     functionTrace = NULL;
 
     traceFunctions = new Vector<char*>();
@@ -46,7 +48,9 @@ void IOTracer::declare(){
     ASSERT(programEntry);
     programExit = declareFunction(PROGRAM_EXIT);
     ASSERT(programExit);
-    functionTrace = declareFunction(FUNCTION_TRACE);
+    functionEntry = declareFunction(FUNCTION_TRACE);
+    ASSERT(functionEntry);
+    functionTrace = declareFunction(FUNCTION_STOPTMR);
     ASSERT(functionTrace);
 }
 
@@ -119,7 +123,7 @@ void IOTracer::instrument(){
 
         uint32_t numArgs = MAX_ARG_COUNT;
 
-        InstrumentationPoint* pt = addInstrumentationPoint(myInstPoints[i], functionTrace, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+        InstrumentationPoint* pt = addInstrumentationPoint(myInstPoints[i], functionEntry, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
 
         char* functionName = myInstSymbols[i]->getSymbolName();
         if (!functionName){
@@ -153,6 +157,8 @@ void IOTracer::instrument(){
         while (setupReg.size()){
             pt->addPrecursorInstruction(setupReg.remove(0));
         }
+
+        InstrumentationPoint* pt_after = addInstrumentationPoint(myInstPoints[i], functionTrace, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_after);
     }
 
 }

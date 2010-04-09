@@ -9,6 +9,7 @@ class IOTracer : public InstrumentationTool {
 private:
     InstrumentationFunction* programEntry;
     InstrumentationFunction* programExit;
+    InstrumentationFunction* functionEntry;
     InstrumentationFunction* functionTrace;
 
     Vector<char*>* traceFunctions;

@@ -27,7 +27,7 @@ Then use the following link line:
 $ ./configure --with-libelf-incdir=${PEBIL_ROOT}/external/libelf-0.8.9/lib --with-libelf-libdir=${PEBIL_ROOT}/external/libelf-0.8.9/lib --with-libdwarf-incdir=${PEBIL_ROOT}/external/dwarf-20100404/libdwarf/ --with-libdwarf-libdir=${PEBIL_ROOT}/external/dwarf-20100404/libdwarf/ --prefix=${PEBIL_ROOT}/external/instructionAPI-1.1
 
 If your system already has libelf + libdwarf, use this config line:
-$ ./configure --prefix=${PEBIL_ROOT}/external
+$ ./configure --prefix=${PEBIL_ROOT}/external/instructionAPI-1.1
 
 Then continue with the normal build stuff...
 $ make
