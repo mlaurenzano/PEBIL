@@ -73,6 +73,52 @@ typedef enum {
     iapiRegType_TotalTypes
 } iapiRegTypes;
 
+
+// use the last bit for flag bit 0                                                                                                                   
+#define __x86_flag_none                           0x00000000
+#define __x86_flag_carry                          0x80000000
+// reserved                                       0x00000001
+#define __x86_flag_parity                         0x00000002
+// reserved                                       0x00000004
+#define __x86_flag_adjust                         0x00000008
+// reserved                                       0x00000010
+#define __x86_flag_zero                           0x00000020
+#define __x86_flag_sign                           0x00000040
+#define __x86_flag_trap                           0x00000080
+#define __x86_flag_interrupt                      0x00000100
+#define __x86_flag_direction                      0x00000200
+#define __x86_flag_overflow                       0x00000400
+#define __x86_flag_iopl_mode1                     0x00000800
+#define __x86_flag_iopl_mode2                     0x00001000
+#define __x86_flag_nested_task                    0x00002000
+// reserved                                       0x00004000
+#define __x86_flag_resume                         0x00008000
+#define __x86_flag_virtual_8086_mode              0x00010000
+#define __x86_flag_alignment_check                0x00020000
+#define __x86_flag_virtual_interrupt              0x00040000
+#define __x86_flag_virtual_interrupt_pending      0x00080000
+#define __x86_flag_identification                 0x00100000
+// reserved                                       0x00200000
+// reserved                                       0x00400000
+// reserved                                       0x00800000
+// reserved                                       0x01000000
+// reserved                                       0x02000000
+// reserved                                       0x04000000
+// reserved                                       0x08000000
+// reserved                                       0x10000000
+// reserved                                       0x20000000
+// reserved                                       0x40000000
+
+#define __flag_mask__protect_none  0x11111111
+#define __flag_mask__protect_light 0x11111100
+#define __flag_mask__protect_full  0x11110000
+#define __x86_flagset_alustd       (__x86_flag_carry | __x86_flag_parity | __x86_flag_adjust | __x86_flag_zero | __x86_flag_sign | __x86_flag_overflow)
+
+#define __flags_use 0
+#define __flags_def 1
+
+static uint32_t flags_usedef[2][UD_Inone];
+
 // my non-gnu definitions for X86
 #define X86_32BIT_GPRS 8
 #define X86_64BIT_GPRS 16
@@ -230,6 +276,7 @@ public:
     TextObject* getContainer() { return container; }
 
     static void initializeInstructionAPIDecoder(bool is64bit);
+    static void setFlags();
     static void destroyInstructionAPIDecoder();
     BitSet<uint32_t>* getUseRegs();
     BitSet<uint32_t>* getDefRegs();

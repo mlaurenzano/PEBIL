@@ -2020,12 +2020,198 @@ uint32_t convertIapiReg(uint32_t iapiReg){
     } else if (IAPIREG_IS_RX(iapiReg)){
         reg = iapiReg - r_R8 + X86_32BIT_GPRS;
     } else if (IAPIREG_IS_FLAG(iapiReg)){
-        reg = iapiReg - r_OF;
+	if (iapiReg == r_OF){
+	  reg = __x86_flag_overflow;
+	} else if (iapiReg == r_SF){
+	  reg = __x86_flag_sign;
+	} else if (iapiReg == r_ZF){
+	  reg = __x86_flag_zero;
+	} else if (iapiReg == r_AF){
+	  reg = __x86_flag_adjust;
+	} else if (iapiReg == r_PF){
+	  reg = __x86_flag_parity;
+	} else if (iapiReg == r_CF){
+	  reg = __x86_flag_carry;
+	} else if (iapiReg == r_TF){
+	  reg = __x86_flag_trap;
+	} else if (iapiReg == r_IF){
+	  reg = __x86_flag_interrupt;
+	} else if (iapiReg == r_DF){
+	  reg = __x86_flag_direction;
+	} else if (iapiReg == r_NT){
+	  reg = __x86_flag_nested_task;
+	} else if (iapiReg == r_RF){
+	  reg = __x86_flag_resume;
+	} else {
+	  __SHOULD_NOT_ARRIVE;
+	}
     } else if (iapiReg == r_EFLAGS){
         reg = (r_RF + 1) - r_OF;
     } else {
         reg = 0;
     }
     return reg;
+}
+
+void InstrucX86::setFlags()
+{
+  bzero(flags_usedef, sizeof(uint32_t) * UD_Inone * 2);
+	
+  flags_usedef[UD_Iaaa] = { __x86_flag_adjust, __x86_flagset_alustd  };
+  flags_usedef[UD_Iaad] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Iaam] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Iaas] = { __x86_flag_adjust, __x86_flagset_alustd  };
+  flags_usedef[UD_Iadc] = { __x86_flag_carry, __x86_flagset_alustd  };
+  flags_usedef[UD_Iadd] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Iand] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Iarpl] = { __x86_flag_none, __x86_flag_zero  };
+  flags_usedef[UD_Ibsf] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Ibt] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Ibts] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Ibtr] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Ibtc] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Iclc] = { __x86_flag_none, __x86_flag_carry  };
+  flags_usedef[UD_Icld] = { __x86_flag_none, __x86_flag_direction  };
+  flags_usedef[UD_Icli] = { __x86_flag_none, __x86_flag_interrupt  };
+  flags_usedef[UD_Icmc] = { __x86_flag_none, __x86_flag_carry  };
+  flags_usedef[UD_Icmovbe] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovo] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovno] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovb] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovae] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovz] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovnz] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovbe] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmova] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovs] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovns] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovp] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovnp] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovl] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovge] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovle] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmovg] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Icmp] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Icmpsb] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Icmpsd] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Icmpss] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Icmpsw] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Icmpxchg] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Icmpxchg8b] = { __x86_flag_none, __x86_flag_zero  };
+  flags_usedef[UD_Icomisd] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Icomiss] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Idaa] = { __x86_flag_adjust | __x86_flag_carry, __x86_flagset_alustd  };
+  flags_usedef[UD_Idas] = { __x86_flag_adjust | __x86_flag_carry, __x86_flagset_alustd  };
+  flags_usedef[UD_Idec] = { __x86_flag_none, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity  };
+  flags_usedef[UD_Idiv] = { __x86_flag_adjust | __x86_flag_carry, __x86_flagset_alustd  };
+  flags_usedef[UD_Ifcmovb] = { __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none };
+  flags_usedef[UD_Ifcmove] = { __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none };
+  flags_usedef[UD_Ifcmovbe] = { __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none };
+  flags_usedef[UD_Ifcmovu] = { __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none };
+  flags_usedef[UD_Ifcmovnb] = { __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none };
+  flags_usedef[UD_Ifcmovne] = { __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none };
+  flags_usedef[UD_Ifcmovnbe] = { __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none };
+  flags_usedef[UD_Ifcmovnu] = { __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none };
+  flags_usedef[UD_Ifcomi] = { __x86_flag_none, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry };
+  flags_usedef[UD_Ifcomip] = { __x86_flag_none, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry };
+  flags_usedef[UD_Ifucomi] = { __x86_flag_none, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry };
+  flags_usedef[UD_Ifucomip] = { __x86_flag_none, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry };
+  flags_usedef[UD_Iidiv] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Iimul] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Iinc] = { __x86_flag_none, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity  };
+  flags_usedef[UD_Iinsb] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Iinsw] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Iinsd] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Iint] = { __x86_flag_none, __x86_flag_trap | __x86_flag_nested_task  };
+  flags_usedef[UD_Iint1] = { __x86_flag_none, __x86_flag_trap | __x86_flag_nested_task  };
+  flags_usedef[UD_Iint3] = { __x86_flag_none, __x86_flag_trap | __x86_flag_nested_task  };
+  flags_usedef[UD_Iinto] = { __x86_flag_overflow, __x86_flag_trap | __x86_flag_nested_task  };
+  flags_usedef[UD_Iucomisd] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Iucomiss] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Iiretw] = { __x86_flag_nested_task, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction  };
+  flags_usedef[UD_Iiretd] = { __x86_flag_nested_task, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction  };
+  flags_usedef[UD_Iiretq] = { __x86_flag_nested_task, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction  };
+  flags_usedef[UD_Ijo] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijno] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijb] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijae] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijz] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijnz] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijbe] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ija] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijs] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijns] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijp] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijnp] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijl] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijge] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijle] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijg] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijcxz] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijecxz] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ijrcxz] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ilahf] = { __x86_flag_none, __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry };
+  flags_usedef[UD_Ilar] = { __x86_flag_none, __x86_flag_zero  };
+  flags_usedef[UD_Iloop] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Iloope] = { __x86_flag_zero, __x86_flag_none  };
+  flags_usedef[UD_Iloopnz] = { __x86_flag_zero, __x86_flag_none  };
+  flags_usedef[UD_Ilsl] = { __x86_flag_none, __x86_flag_zero  };
+  flags_usedef[UD_Imul] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Ineg] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Ior] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Ioutsb] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Ioutsw] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Ioutsd] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Ipopfw] = { __x86_flag_none, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task  };
+  flags_usedef[UD_Ipopfd] = { __x86_flag_none, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task  };
+  flags_usedef[UD_Ipopfq] = { __x86_flag_none, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task  };
+  flags_usedef[UD_Ipushfw] = {__x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task, __x86_flag_none };
+  flags_usedef[UD_Ipushfd] = {__x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task, __x86_flag_none };
+  flags_usedef[UD_Ipushfq] = {__x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task, __x86_flag_none };
+  flags_usedef[UD_Ircl] = { __x86_flag_carry, __x86_flag_overflow | __x86_flag_carry  };
+  flags_usedef[UD_Ircr] = { __x86_flag_carry, __x86_flag_overflow | __x86_flag_carry  };
+  flags_usedef[UD_Irol] = { __x86_flag_carry, __x86_flag_overflow | __x86_flag_carry  };
+  flags_usedef[UD_Iror] = { __x86_flag_carry, __x86_flag_overflow | __x86_flag_carry  };
+  flags_usedef[UD_Irsm] = { __x86_flag_none, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task | __x86_flag_resume  };
+  flags_usedef[UD_Isahf] = { __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isar] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Isbb] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Ishr] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Iseto] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetno] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetb] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetnb] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetz] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetnz] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetbe] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Iseta] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isets] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetns] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetns] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetp] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetl] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetge] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetle] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Isetg] = { __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none  };
+  flags_usedef[UD_Ishld] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Ishrd] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Isal] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Ishl] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Istc] = { __x86_flag_none, __x86_flag_carry  };
+  flags_usedef[UD_Istd] = { __x86_flag_none, __x86_flag_direction  };
+  flags_usedef[UD_Isti] = { __x86_flag_none, __x86_flag_interrupt  };
+  flags_usedef[UD_Istosb] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Istosw] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Istosq] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Istosd] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Isub] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Iverr] = { __x86_flag_none, __x86_flag_zero  };
+  flags_usedef[UD_Iverw] = { __x86_flag_none, __x86_flag_zero  };
+  flags_usedef[UD_Ixadd] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Ixor] = { __x86_flag_none, __x86_flagset_alustd  };
+  flags_usedef[UD_Iscasb] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Iscasw] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Iscasq] = { __x86_flag_direction, __x86_flag_none  };
+  flags_usedef[UD_Iscasd] = { __x86_flag_direction, __x86_flag_none  };
 }
 
