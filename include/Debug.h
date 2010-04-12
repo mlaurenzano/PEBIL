@@ -37,8 +37,8 @@
 //#define BLOAT_MOD_OFF 3
 //#define BLOAT_MOD     2
 //#define TURNOFF_FUNCTION_BLOAT
-//#define SWAP_MOD_OFF 3432
-//#define SWAP_MOD     8192
+//#define SWAP_MOD_OFF 935
+//#define SWAP_MOD     4096
 //#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
@@ -51,7 +51,7 @@
 //#define NO_REG_ANALYSIS
 
 #ifdef WARNING_SEVERITY
-#define WARN_FILE stderr
+#define WARN_FILE stdout
 #define PRINT_WARN(__severity,...)  if (__severity >= WARNING_SEVERITY){ \
     fprintf(WARN_FILE,"*** WARNING : ");                            \
     fprintf(WARN_FILE,## __VA_ARGS__);                              \

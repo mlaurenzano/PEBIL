@@ -54,7 +54,7 @@ extern uint32_t convertIapiReg(uint32_t iapiReg);
 extern uint32_t getIapiRegType(uint32_t iapiReg);
 #define IAPIREG_TYPE(__reg)      ((__reg >> 4) & 0x0000ffff)
 #define IAPIREG_VALUE(__reg)     (__reg & 0x0000ffff)
-#define IAPIREG_REG(__typ,__val) ((__typ << 4) | (__val))
+#define IAPIREG_REG(__typ,__val) ((__typ << 4) + (__val))
 #define IAPIREG_IS_AX(__r) (__r == r_AH || __r == r_AL || __r == r_AX || __r == r_eAX || __r == r_EAX || __r == r_rAX || __r == r_RAX)
 #define IAPIREG_IS_BX(__r) (__r == r_BH || __r == r_BL || __r == r_BX || __r == r_eBX || __r == r_EBX || __r == r_rBX || __r == r_RBX)
 #define IAPIREG_IS_CX(__r) (__r == r_CH || __r == r_CL || __r == r_CX || __r == r_eCX || __r == r_ECX || __r == r_rCX || __r == r_RCX)
@@ -74,31 +74,30 @@ typedef enum {
 } iapiRegTypes;
 
 
-// use the last bit for flag bit 0                                                                                                                   
+// use the last bit for flag bit 0
 #define __x86_flag_none                           0x00000000
-#define __x86_flag_carry                          0x80000000
-// reserved                                       0x00000001
-#define __x86_flag_parity                         0x00000002
-// reserved                                       0x00000004
-#define __x86_flag_adjust                         0x00000008
-// reserved                                       0x00000010
-#define __x86_flag_zero                           0x00000020
-#define __x86_flag_sign                           0x00000040
-#define __x86_flag_trap                           0x00000080
-#define __x86_flag_interrupt                      0x00000100
-#define __x86_flag_direction                      0x00000200
-#define __x86_flag_overflow                       0x00000400
-#define __x86_flag_iopl_mode1                     0x00000800
-#define __x86_flag_iopl_mode2                     0x00001000
-#define __x86_flag_nested_task                    0x00002000
-// reserved                                       0x00004000
-#define __x86_flag_resume                         0x00008000
-#define __x86_flag_virtual_8086_mode              0x00010000
-#define __x86_flag_alignment_check                0x00020000
-#define __x86_flag_virtual_interrupt              0x00040000
-#define __x86_flag_virtual_interrupt_pending      0x00080000
-#define __x86_flag_identification                 0x00100000
-// reserved                                       0x00200000
+#define __x86_flag_carry                          0x00000001
+// reserved                                       0x00000002
+#define __x86_flag_parity                         0x00000004
+// reserved                                       0x00000008
+#define __x86_flag_adjust                         0x00000010
+// reserved                                       0x00000020
+#define __x86_flag_zero                           0x00000040
+#define __x86_flag_sign                           0x00000080
+#define __x86_flag_trap                           0x00000100
+#define __x86_flag_interrupt                      0x00000200
+#define __x86_flag_direction                      0x00000400
+#define __x86_flag_overflow                       0x00000800
+#define __x86_flag_iopl_mode1                     0x00001000
+#define __x86_flag_iopl_mode2                     0x00002000
+#define __x86_flag_nested_task                    0x00004000
+// reserved                                       0x00008000
+#define __x86_flag_resume                         0x00010000
+#define __x86_flag_virtual_8086_mode              0x00020000
+#define __x86_flag_alignment_check                0x00040000
+#define __x86_flag_virtual_interrupt              0x00080000
+#define __x86_flag_virtual_interrupt_pending      0x00100000
+#define __x86_flag_identification                 0x00200000
 // reserved                                       0x00400000
 // reserved                                       0x00800000
 // reserved                                       0x01000000
@@ -108,6 +107,17 @@ typedef enum {
 // reserved                                       0x10000000
 // reserved                                       0x20000000
 // reserved                                       0x40000000
+// reserved                                       0x80000000
+
+#define __flag_reserved "reserved"
+const static char* flag_name_map[32] = { "carry", __flag_reserved, "parity", __flag_reserved, 
+                           "adjust", __flag_reserved, "zero", "sign",
+                           "trap", "interrupt", "direction", "overflow",
+                           "iopl1", "iopl2", "nested_task", __flag_reserved,
+                           "resume", "v8086", "alignchk", "vint",
+                           "vint_pending", "ident", __flag_reserved, __flag_reserved,
+                           __flag_reserved, __flag_reserved, __flag_reserved, __flag_reserved,
+                           __flag_reserved, __flag_reserved, __flag_reserved, __flag_reserved };
 
 #define __flag_mask__protect_none  0x11111111
 #define __flag_mask__protect_light 0x11111100
@@ -117,11 +127,10 @@ typedef enum {
 #define __flags_use 0
 #define __flags_def 1
 
-static uint32_t flags_usedef[2][UD_Inone];
+#define __flags_define(__array, __mnemonic, __use, __def) \
+    if (GET(mnemonic) == __mnemonic) { __array[__flags_use] = __use; __array[__flags_def] = __def; }
 
 // my non-gnu definitions for X86
-#define X86_32BIT_GPRS 8
-#define X86_64BIT_GPRS 16
 #define X86_REG_AX 0
 #define X86_REG_CX 1
 #define X86_REG_DX 2
@@ -138,24 +147,26 @@ static uint32_t flags_usedef[2][UD_Inone];
 #define X86_REG_R13 13
 #define X86_REG_R14 14
 #define X86_REG_R15 15
+#define X86_32BIT_GPRS 8
+#define X86_64BIT_GPRS 16
 
-#define X86_SEGMENT_REGS 6
 #define X86_SEGREG_ES 0
 #define X86_SEGREG_CS 1
 #define X86_SEGREG_SS 2
 #define X86_SEGREG_DS 3
 #define X86_SEGREG_FS 4
 #define X86_SEGREG_GS 5
+#define X86_SEGMENT_REGS 6
 
 #define X86TRAPCODE_BREAKPOINT   3
 #define X86TRAPCODE_OVERFLOW     4
-
 
 struct ud_itab_entry_operand
 {
     uint32_t type;
     uint32_t size;
 };
+
 struct ud_itab_entry
 {
     enum ud_mnemonic_code         mnemonic;
@@ -164,7 +175,6 @@ struct ud_itab_entry
     struct ud_itab_entry_operand  operand3;
     uint32_t                      prefix;
 };
-
 
 enum InstrucX86Type {
     InstrucX86Type_unknown = 0,
@@ -188,7 +198,6 @@ enum InstrucX86Type {
     InstrucX86Type_special,
     InstrucX86Type_Total
 };
-
 
 typedef enum {
     RegType_undefined = 0,
@@ -238,7 +247,6 @@ public:
     bool isRelative();
     uint32_t getType() { return GET(type); }
     int64_t getValue();
-
 };
 
 class InstrucX86 : public Base {
@@ -248,6 +256,7 @@ private:
     Dyninst::InstructionAPI::Instruction::Ptr iapiInsn;
     BitSet<uint32_t>* liveIns;
     BitSet<uint32_t>* liveOuts;
+    uint32_t* flags_usedef;
 
     OperandX86** operands;
     uint32_t instructionIndex;
@@ -267,7 +276,6 @@ private:
 public:
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
-    //    InstrucX86(struct ud* init);
     InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx);
     InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx, bool is64bit, uint32_t sz);
     ~InstrucX86();
@@ -276,12 +284,15 @@ public:
     TextObject* getContainer() { return container; }
 
     static void initializeInstructionAPIDecoder(bool is64bit);
-    static void setFlags();
+    void setFlags();
     static void destroyInstructionAPIDecoder();
     BitSet<uint32_t>* getUseRegs();
     BitSet<uint32_t>* getDefRegs();
     bool allFlagsDeadIn();
     bool allFlagsDeadOut();
+
+    bool usesFlag(uint32_t flg);
+    bool defsFlag(uint32_t flg);
 
     void print();
     bool verify();

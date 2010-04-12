@@ -263,6 +263,7 @@ public:
     PebilClassTypes getPointType() { ASSERT(getSourceObject()); return getSourceObject()->getType(); }
     uint64_t getInstSourceAddress();
     uint64_t getInstBaseAddress();
+    InstLocations getInstLocation() { return instLocation; }
 
     uint32_t getNumberOfBytes() { return numberOfBytes; }
     InstrumentationModes getInstrumentationMode() { return instrumentationMode; }

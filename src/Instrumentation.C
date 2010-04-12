@@ -882,7 +882,6 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, Inst
     trampolineOffset = 0;
     priority = InstPriority_regular;
 
-    print();
     verify();
 }
 

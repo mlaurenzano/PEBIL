@@ -14,8 +14,6 @@
 #define INST_LIB_NAME "libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
-#define NO_REG_ANALYSIS
-
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     : InstrumentationTool(elf)
 {

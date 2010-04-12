@@ -4,7 +4,7 @@ uint32_t searchFileList(Vector<char*>* list, char* name){
     if (!list) return 1;
 
     for (uint32_t i = 0; i < (*list).size(); i++){
-        if (strstr((*list)[i], name)){
+        if (!strcmp((*list)[i], name)){
             return i;
         }
     }

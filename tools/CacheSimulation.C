@@ -80,6 +80,8 @@ void CacheSimulation::instrument(){
 
     uint32_t blockId = 0;
     uint32_t memopId = 0;
+    uint32_t noProtPoints = 0;
+
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
         (*allBlocks).append(bb);
@@ -91,9 +93,17 @@ void CacheSimulation::instrument(){
                 
                 //InstrumentationSnippet* snip = new InstrumentationSnippet();
                 //InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, FlagsProtectionMethod_none);
-                InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline, FlagsProtectionMethod_full);
                 
-                Vector<InstrucX86*>* addressCalcInstructions = generateBufferedAddressCalculation(memop, bufferStore, buffPtrStore, blockId, memopId, BUFFER_ENTRIES, FlagsProtectionMethod_none);
+                FlagsProtectionMethods prot = FlagsProtectionMethod_full;
+#ifndef NO_REG_ANALYSIS
+                if (memop->allFlagsDeadIn()){
+                    noProtPoints++;
+                    prot = FlagsProtectionMethod_none;
+                }
+#endif
+
+                InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline, prot, InstLocation_prior);
+                Vector<InstrucX86*>* addressCalcInstructions = generateBufferedAddressCalculation(memop, bufferStore, buffPtrStore, blockId, memopId, BUFFER_ENTRIES, prot);
                 ASSERT(addressCalcInstructions);
                 while ((*addressCalcInstructions).size()){
                     //snip->addSnippetInstruction((*addressCalcInstructions).remove(0));
@@ -106,6 +116,10 @@ void CacheSimulation::instrument(){
         blockId++;
     }
     ASSERT(memopId == getNumberOfExposedMemOps());
+#ifdef NO_REG_ANALYSIS
+    PRINT_WARN(10, "Warning: register analysis disabled");
+#endif
+    PRINT_INFOR("Not protecting %d/%d instrumentation points", noProtPoints, getNumberOfExposedMemOps());
 
     printStaticFile(allBlocks, allLineInfos);
 
@@ -183,6 +197,7 @@ Vector<InstrucX86*>* CacheSimulation::tmp_generateBufferedAddressCalculation64(I
         (*addressCalc).append((*addrComputation).remove(0));
     }
     delete addrComputation;
+
     (*addressCalc).append(InstrucX86Generator64::generateMoveImmToReg(dataAddr + bufferStore, tempReg2));
     (*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + bufferPtrStore, tempReg3));
 

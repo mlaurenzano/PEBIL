@@ -416,7 +416,6 @@ uint32_t ElfFileInst::generateInstrumentation(){
 
     for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
         InstrumentationPoint* pt = (*instrumentationPoints)[i];
-        pt->print();
         if (!pt){
             PRINT_ERROR("Instrumentation point %d should exist", i);
         }
@@ -466,7 +465,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
             
             bool isFirstInChain = false;
             if (i == 0 || 
-                (i > 0 && (*instrumentationPoints)[i-1]->getInstSourceAddress() != pt->getInstSourceAddress())){
+                (i > 0 && (*instrumentationPoints)[i-1]->getInstBaseAddress() != pt->getInstBaseAddress())){
                 PRINT_DEBUG_POINT_CHAIN("\tFirst in chain at %#llx (%d)", pt->getInstSourceAddress(), i);
                 
                 isFirstInChain = true;
@@ -480,7 +479,9 @@ uint32_t ElfFileInst::generateInstrumentation(){
                 (*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_trampinline ||
                 !isFirstInChain){
                 uint64_t instAddress = pt->getInstSourceAddress();
-                PRINT_INFOR("using instaddress = %#llx", instAddress);
+                if (!isFirstInChain){
+                    instAddress = pt->getInstBaseAddress() - Size__uncond_jump;
+                }
                 ASSERT(((Function*)pt->getSourceObject()->getContainer())->isRelocated());
                 (*repl).append(InstrucX86Generator::generateJumpRelative(instAddress, elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
             } else if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_inline){
@@ -546,7 +547,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
             
             bool isLastInChain = false;
             if (i == (*instrumentationPoints).size()-1 || 
-                (i < (*instrumentationPoints).size()-1 && (*instrumentationPoints)[i+1]->getInstSourceAddress() != pt->getInstSourceAddress())){
+                (i < (*instrumentationPoints).size()-1 && (*instrumentationPoints)[i+1]->getInstBaseAddress() != pt->getInstBaseAddress())){
                 PRINT_DEBUG_POINT_CHAIN("\tLast of chain at %#llx (%d)", pt->getInstSourceAddress(), i);
                 isLastInChain = true;
                 
@@ -957,12 +958,7 @@ bool ElfFileInst::verify(){
 
 InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");    
-
-    InstLocations location = InstLocation_dont_care;
-    if (instpoint->getType() == PebilClassType_InstrucX86){
-        location = InstLocation_prior;
-    }
-    return addInstrumentationPoint(instpoint, inst, instMode, flagsMethod, location);
+    return addInstrumentationPoint(instpoint, inst, instMode, flagsMethod, InstLocation_dont_care);
 }
 InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");    
@@ -1400,10 +1396,10 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     ASSERT(entryBlock && "Cannot find instruction at the program's entry point");
     if (elfFile->is64Bit()){
         (*instrumentationPoints)[INST_POINT_BOOTSTRAP1] = 
-            new InstrumentationPoint64((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_dont_care);    
+            new InstrumentationPoint64((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);    
     } else {
         (*instrumentationPoints)[INST_POINT_BOOTSTRAP1] = 
-            new InstrumentationPoint32((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_dont_care);    
+            new InstrumentationPoint32((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);    
     }
     (*instrumentationPoints)[INST_POINT_BOOTSTRAP1]->setPriority(InstPriority_sysinit);
 

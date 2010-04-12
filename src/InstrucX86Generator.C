@@ -95,6 +95,9 @@ InstrucX86* InstrucX86Generator64::generateLoadEffectiveAddress(uint32_t baseReg
             PRINT_DEBUG_LOADADDR("making lea: SIB, base is only reg");
 
             len = 4;
+            if (baseReg % X86_32BIT_GPRS == X86_REG_BP){
+                len++;
+            }
             buff = new char[len];
             
             buff[0] = 0x48;
@@ -112,7 +115,6 @@ InstrucX86* InstrucX86Generator64::generateLoadEffectiveAddress(uint32_t baseReg
             buff[2] = 0x04 + 8 * (dest % X86_32BIT_GPRS);
             if (baseReg % X86_32BIT_GPRS == X86_REG_BP){
                 buff[2] += 0x40;
-                len++;
                 buff[4] = 0x00;
             }
             buff[3] = 0x00 + 8 * (indexReg % X86_32BIT_GPRS) + (baseReg % X86_32BIT_GPRS) + sa;

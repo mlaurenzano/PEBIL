@@ -335,8 +335,7 @@ Vector<InstrucX86*>* Function::digestRecursive(){
             continue;
         }
 
-        currentInstruction = new InstrucX86(this, currentAddress,
-                                             textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0);
+        currentInstruction = new InstrucX86(this, currentAddress, textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0);
 
         PRINT_DEBUG_CFG("recursive cfg: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());
         uint64_t checkAddr = currentInstruction->getBaseAddress();

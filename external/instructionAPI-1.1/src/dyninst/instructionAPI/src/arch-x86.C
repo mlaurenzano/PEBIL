@@ -796,6 +796,7 @@ void ia32_instruction::initFlagTable(dyn_hash_map<entryID, flagInfo>& flagTable)
   flagTable[e_rsm] = flagInfo(vector<IA32Regs>(), list_of(r_OF)(r_SF)(r_ZF)(r_AF)(r_PF)(r_CF)(r_TF)(r_IF)(r_DF)(r_NT)(r_RF));
   flagTable[e_sahf] = flagInfo(list_of(r_SF)(r_ZF)(r_AF)(r_PF)(r_CF), vector<IA32Regs>());
   flagTable[e_sar] = flagInfo(vector<IA32Regs>(), standardFlags);
+  flagTable[e_sbb] = flagInfo(list_of(r_CF), standardFlags);
   flagTable[e_shr] = flagInfo(vector<IA32Regs>(), standardFlags);
   flagTable[e_setb] = flagInfo(list_of(r_OF)(r_SF)(r_ZF)(r_PF)(r_CF), vector<IA32Regs>());
   flagTable[e_setbe] = flagInfo(list_of(r_OF)(r_SF)(r_ZF)(r_PF)(r_CF), vector<IA32Regs>());
