@@ -41,7 +41,8 @@ class InstrumentationPoint;
 #define __MAX_ARGS_SUPPORTED 6
 
 extern uint32_t map64BitArgToReg(uint32_t idx);
-extern int compareInstAddress(const void* arg1, const void* arg2);
+extern int compareInstBaseAddress(const void* arg1, const void* arg2);
+extern int compareInstSourceAddress(const void* arg1, const void* arg2);
 
 class InstrumentationPoint;
 extern Vector<InstrumentationPoint*>* instpointFilterAddressRange(Base* object, Vector<InstrumentationPoint*>* instPoints);
@@ -279,6 +280,7 @@ public:
     uint32_t addPrecursorInstruction(InstrucX86* inst);
     InstrucX86* removeNextPostcursorInstruction() { ASSERT(hasMorePostcursorInstructions()); return postcursorInstructions.remove(0); }
     bool hasMorePostcursorInstructions() { return (postcursorInstructions.size() != 0); }
+    uint32_t addPostcursorInstruction(InstrucX86* inst);
 
     bool verify();
 };

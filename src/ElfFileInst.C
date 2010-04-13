@@ -316,7 +316,7 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
     if (doBloat){
         Vector<InstrumentationPoint*>* functionInstPoints = instpointFilterAddressRange(displacedFunction, instrumentationPoints);
         displacedFunction->bloatBasicBlocks(functionInstPoints);
-        (*instrumentationPoints).sort(compareInstAddress);
+        (*instrumentationPoints).sort(compareInstBaseAddress);
         delete functionInstPoints;
         elfFile->setAnchorsSorted(false);
     }
@@ -409,7 +409,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
     uint64_t returnOffset = 0;
     uint64_t chainOffset = 0;
 
-    (*instrumentationPoints).sort(compareInstAddress);
+    (*instrumentationPoints).sort(compareInstBaseAddress);
 
     PRINT_INFO();
     PRINT_OUT("Processing %d instrumentation points", (*instrumentationPoints).size());
@@ -461,11 +461,12 @@ uint32_t ElfFileInst::generateInstrumentation(){
                 continue;
             }
             PRINT_DEBUG_INST("Generating code for InstrumentationPoint %d at address %llx", i, pt->getInstBaseAddress());
-            PRINT_DEBUG_POINT_CHAIN("Examining instrumentation point %d at %#llx", i, pt->getInstBaseAddress());
+            PRINT_DEBUG_POINT_CHAIN("Examining instrumentation point %d at %#llx in function %s", i, pt->getInstBaseAddress(), f->getName());
             
             bool isFirstInChain = false;
             if (i == 0 || 
-                (i > 0 && (*instrumentationPoints)[i-1]->getInstBaseAddress() != pt->getInstBaseAddress())){
+                (i > 0 && (*instrumentationPoints)[i-1]->getInstBaseAddress() != pt->getInstBaseAddress()) ||
+                (i > 0 && (*instrumentationPoints)[i-1]->getInstLocation() != pt->getInstLocation())){
                 PRINT_DEBUG_POINT_CHAIN("\tFirst in chain at %#llx (%d)", pt->getInstSourceAddress(), i);
                 
                 isFirstInChain = true;
@@ -547,7 +548,8 @@ uint32_t ElfFileInst::generateInstrumentation(){
             
             bool isLastInChain = false;
             if (i == (*instrumentationPoints).size()-1 || 
-                (i < (*instrumentationPoints).size()-1 && (*instrumentationPoints)[i+1]->getInstBaseAddress() != pt->getInstBaseAddress())){
+                (i < (*instrumentationPoints).size()-1 && (*instrumentationPoints)[i+1]->getInstBaseAddress() != pt->getInstBaseAddress()) ||
+                (i < (*instrumentationPoints).size()-1 && (*instrumentationPoints)[i+1]->getInstLocation() != pt->getInstLocation())){
                 PRINT_DEBUG_POINT_CHAIN("\tLast of chain at %#llx (%d)", pt->getInstSourceAddress(), i);
                 isLastInChain = true;
                 
@@ -898,7 +900,7 @@ void ElfFileInst::phasedInstrumentation(){
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
-    (*instrumentationPoints).sort(compareInstAddress);
+    (*instrumentationPoints).sort(compareInstBaseAddress);
     verify();
 
     buildInstrumentationSections();
@@ -957,7 +959,7 @@ bool ElfFileInst::verify(){
 
 InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");    
-    return addInstrumentationPoint(instpoint, inst, instMode, flagsMethod, InstLocation_dont_care);
+    return addInstrumentationPoint(instpoint, inst, instMode, flagsMethod, InstLocation_prior);
 }
 InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");    

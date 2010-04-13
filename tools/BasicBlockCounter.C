@@ -91,7 +91,7 @@ void BasicBlockCounter::instrument(){
     // an array for hashcodes
     entryFunc->addArgument(hashCodeArray);
 
-    p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_dont_care);
+    p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
     p->setPriority(InstPriority_userinit);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the entry block");

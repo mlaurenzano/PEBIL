@@ -375,22 +375,23 @@ uint32_t TextSection::read(BinaryInputFile* binaryInputFile){
 
 
 uint64_t TextSection::findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc){
-    ASSERT((loc == InstLocation_dont_care || loc == InstLocation_exact) && "Unsupported inst location being used in TextSection");
+    //    ASSERT((loc == InstLocation_dont_care || loc == InstLocation_exact) && "Unsupported inst location being used in TextSection");
     ASSERT(inRange(addr) && "Instrumentation address should fall within TextSection bounds");
 
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         if (sortedTextObjects[i]->getType() == PebilClassType_Function){
             Function* f = (Function*)sortedTextObjects[i];
-            if (loc == InstLocation_exact){
-                if (f->inRange(addr)){
-                    return f->findInstrumentationPoint(addr, size, loc);
-                }
-            } else { // loc == InstLocation_dont_care
+            if (f->inRange(addr)){
+                return f->findInstrumentationPoint(addr, size, loc);
+            }
+            /*
+              else { // loc == InstLocation_dont_care
                 uint64_t instAddress = f->findInstrumentationPoint(addr, size, loc);
                 if (instAddress){
                     return instAddress;
                 }
             }
+            */
         }
     }
     PRINT_ERROR("No instrumentation point found in (text) section %d", getSectionIndex());

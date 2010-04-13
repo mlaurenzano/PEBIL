@@ -84,22 +84,29 @@ uint32_t CodeBlock::addTailJump(InstrucX86* tgtInstruction){
 }
 
 uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
-    PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx", baseAddress);
+    PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx for function %s", baseAddress, getContainer()->getName());
 
     PRINT_DEBUG_BLOAT_FILTER("block range for bloat [%#llx,%#llx)", getBaseAddress(), getBaseAddress() + getNumberOfBytes());
     for (uint32_t i = 0; i < (*instPoints).size(); i++){
         DEBUG_BLOAT_FILTER((*instPoints)[i]->getSourceObject()->print();)
         ASSERT(inRange((*instPoints)[i]->getInstBaseAddress()));
     }
-    (*instPoints).sort(compareInstAddress);
+    (*instPoints).sort(compareInstBaseAddress);
 
     Vector<InstrumentationPoint*> expansions;
     Vector<uint32_t> expansionIndices;
     for (uint32_t i = 0; i < (*instPoints).size();){
         expansions.append((*instPoints)[i]);
-        expansionIndices.append((*instPoints)[i]->getSourceObject()->getIndex());
+        if ((*instPoints)[i]->getInstLocation() == InstLocation_prior){
+            expansionIndices.append((*instPoints)[i]->getSourceObject()->getIndex());
+        } else if ((*instPoints)[i]->getInstLocation() == InstLocation_after){
+            expansionIndices.append((*instPoints)[i]->getSourceObject()->getIndex() + 1);
+        } else {
+            __SHOULD_NOT_ARRIVE;
+        }
         uint32_t j = i+1;
-        while (j < (*instPoints).size() && (*instPoints)[i]->getInstBaseAddress() == (*instPoints)[j]->getInstBaseAddress()){
+        while (j < (*instPoints).size() && (*instPoints)[i]->getInstBaseAddress() == (*instPoints)[j]->getInstBaseAddress() &&
+               (*instPoints)[i]->getInstLocation() == (*instPoints)[j]->getInstLocation()){
             j++;
         }
         i = j;
@@ -547,49 +554,48 @@ bool BasicBlock::verify(){
 uint64_t BasicBlock::findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc){
     if (loc == InstLocation_prior){
         addr = addr - size;
-        loc = InstLocation_exact;
-    }
-    if (loc == InstLocation_after){
+    } else if (loc == InstLocation_after){
         InstrucX86* instruction = getInstructionAtAddress(addr);
         ASSERT(instruction);
         addr = instruction->getBaseAddress() + instruction->getSizeInBytes();
-        loc = InstLocation_exact;
+    } else {
+        __SHOULD_NOT_ARRIVE;
     }
 
-    ASSERT((loc == InstLocation_dont_care || loc == InstLocation_exact) && "Unsupported inst location being used in BasicBlock");
     ASSERT(inRange(addr) && "Instrumentation address should fall within BasicBlock bounds");
 
-    if (loc == InstLocation_exact){
-        InstrucX86* instruction = getInstructionAtAddress(addr);
-        if (!instruction){
-            print();
+    InstrucX86* instruction = getInstructionAtAddress(addr);
+    if (!instruction){
+        print();
+    }
+    ASSERT(instruction);
+    uint32_t instBytes = 0;
+    uint32_t instIdx = instruction->getIndex();
+    while (instBytes < size){
+        if (!instructions[instIdx]->isRelocatable()){
+            break;
         }
-        ASSERT(instruction);
-        uint32_t instBytes = 0;
-        uint32_t instIdx = instruction->getIndex();
-        while (instBytes < size){
-            if (!instructions[instIdx]->isRelocatable()){
-                break;
-            }
-            instBytes += instruction->getSizeInBytes();
-            instIdx++;
-        }
-        if (instBytes >= size){
-            return addr;
-        }
-    } else { // loc == InstLocation_dont_care
-        for (uint32_t i = 0; i < instructions.size(); i++){
-            uint32_t j = i;
-            uint32_t instBytes = 0;
-            while (j < instructions.size() && instructions[j]->isRelocatable()){
+        instBytes += instruction->getSizeInBytes();
+        instIdx++;
+    }
+    if (instBytes >= size){
+        return addr;
+    }
+    /*
+      } else { // loc == InstLocation_dont_care
+      for (uint32_t i = 0; i < instructions.size(); i++){
+      uint32_t j = i;
+      uint32_t instBytes = 0;
+      while (j < instructions.size() && instructions[j]->isRelocatable()){
                 instBytes += instructions[j]->getSizeInBytes();
                 j++;
-            }
-            if (instBytes >= size){
+                }
+                if (instBytes >= size){
                 return instructions[i]->getBaseAddress();
-            }
+                }
         }
-    }
+        }
+    */
     return 0;
 }
 

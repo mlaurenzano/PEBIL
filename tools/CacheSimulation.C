@@ -54,7 +54,7 @@ void CacheSimulation::instrument(){
     uint32_t startValue = 1;
     initializeReservedData(getInstDataAddress() + bufferStore, sizeof(uint32_t), &startValue);
     uint64_t buffPtrStore = reserveDataOffset(sizeof(uint64_t));
-
+    uint64_t blockSizeStore = reserveDataOffset(sizeof(uint64_t));
 
     char* appName = getElfFile()->getFileName();
     char* extension = "siminst";
@@ -97,6 +97,7 @@ void CacheSimulation::instrument(){
     uint32_t blockId = 0;
     uint32_t memopId = 0;
     uint32_t noProtPoints = 0;
+    uint32_t totalProt = 0;
     uint32_t regDefault = 0;
 
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
@@ -108,34 +109,71 @@ void CacheSimulation::instrument(){
         for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
             InstrucX86* memop = bb->getInstruction(j);
             if (memop->isMemoryOperation()){            
-                //InstrumentationSnippet* snip = new InstrumentationSnippet();
-                //InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, FlagsProtectionMethod_none);
 
-                // check the buffer on the last memop in the block
-                if (memopIdInBlock == bb->getNumberOfMemoryOps()){
-                    __SHOULD_NOT_ARRIVE;
+                // check the buffer on the first memop in the block
+                if (memopIdInBlock == 0){
                     FlagsProtectionMethods prot = FlagsProtectionMethod_full;
+                    totalProt++;
 #ifndef NO_REG_ANALYSIS
                     if (memop->allFlagsDeadIn()){
                         noProtPoints++;
                         prot = FlagsProtectionMethod_none;
                     }
 #endif
+                    uint32_t tmpReg1 = X86_REG_AX;
+                    uint32_t tmpReg2 = X86_REG_CX;
+                    uint32_t tmpReg3 = X86_REG_DX;
                     
                     InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline, prot, InstLocation_prior);
-                    Vector<InstrucX86*>* addressCalcInstructions = generateBufferedAddressCalculation(memop, bufferStore, buffPtrStore, blockId, memopId, BUFFER_ENTRIES, prot);
-                    ASSERT(addressCalcInstructions);
-                    while ((*addressCalcInstructions).size()){
-                        //snip->addSnippetInstruction((*addressCalcInstructions).remove(0));
-                        pt->addPrecursorInstruction((*addressCalcInstructions).remove(0));
+                    Vector<InstrucX86*>* bufferDumpInstructions = new Vector<InstrucX86*>();
+
+                    (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t))));
+                    (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + buffPtrStore, tmpReg1));
+                    (*bufferDumpInstructions).append(InstrucX86Generator64::generateCompareImmReg(BUFFER_ENTRIES - bb->getNumberOfMemoryOps(), tmpReg1));
+                    (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t)), tmpReg1));
+
+                    (*bufferDumpInstructions).append(InstrucX86Generator::generateBranchJL(Size__64_bit_inst_function_call_support));
+
+                    //generateBufferedAddressCalculation(memop, bufferStore, buffPtrStore, blockId, memopId, BUFFER_ENTRIES, prot);
+                    ASSERT(bufferDumpInstructions);
+                    while ((*bufferDumpInstructions).size()){
+                        //snip->addSnippetInstruction((*bufferDumpInstructions).remove(0));
+                        pt->addPrecursorInstruction((*bufferDumpInstructions).remove(0));
                     }
-                    delete addressCalcInstructions;
+                    delete bufferDumpInstructions;
+
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t))));
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveRegToMem(tmpReg2, getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t))));
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveRegToMem(tmpReg3, getInstDataAddress() + getRegStorageOffset() + 3*(sizeof(uint64_t))));
+                    
+                    Vector<InstrucX86*>* addrStore = InstrucX86Generator64::generateAddressComputation(memop, tmpReg1);
+                    (*addrStore).append(InstrucX86Generator64::generateMoveRegToMem(tmpReg1, getInstDataAddress() + addrScratchSpace + (memopIdInBlock * sizeof(uint64_t))));
+                    while (!(*addrStore).empty()){
+                        pt->addPostcursorInstruction((*addrStore).remove(0));
+                    }
+                    delete addrStore;
+
+                    /*
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + bufferPtrStore, tmpReg1));
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + bufferPtrStore, tmpReg1));
+                    (*addressCalc).append(InstrucX86Generator64::generateMoveImmToReg(dataAddr + bufferStore, tempReg2));
+                    (*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + bufferPtrStore, tempReg3));
+
+                    // compute the address of the buffer entry                                                                                                                                                                                               
+                    (*addressCalc).append(InstrucX86Generator64::generateShiftLeftLogical(logBase2(Size__BufferEntry), tempReg3));
+                    (*addressCalc).append(InstrucX86Generator64::generateRegAddReg2OpForm(tempReg3, tempReg2));
+                    (*addressCalc).append(InstrucX86Generator64::generateShiftRightLogical(logBase2(Size__BufferEntry), tempReg3));
+                    */
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 3*(sizeof(uint64_t)), tmpReg3));
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t)), tmpReg2));
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t)), tmpReg1));
+
                 // for every memop just quickly buffer the address
                 } else {
                     // TODO: get which gprs are dead at this point and use one of those 
                     InstrumentationSnippet* snip = new InstrumentationSnippet();
                     
-                    uint32_t tmpReg1 = X86_REG_AX;
+                    uint32_t tmpReg1 = X86_REG_CX;
                     bool usesLiveReg = true;
                     ASSERT(tmpReg1 < X86_64BIT_GPRS);
                     if (usesLiveReg){
@@ -148,8 +186,9 @@ void CacheSimulation::instrument(){
                     }
                     delete addrStore;
                     if (usesLiveReg){
-                        snip->addSnippetInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t), tmpReg1));
+                        snip->addSnippetInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t), tmpReg1));                        
                     }
+                    // generateAddressComputation is guaranteed to use instructions that dont def any flags, so no protection is necessary
                     InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_inline, FlagsProtectionMethod_none, InstLocation_prior);
                 }
                 memopId++;
@@ -163,7 +202,7 @@ void CacheSimulation::instrument(){
 #ifdef NO_REG_ANALYSIS
     PRINT_WARN(10, "Warning: register analysis disabled");
 #endif
-    PRINT_INFOR("Not protecting %d/%d instrumentation points", noProtPoints, getNumberOfExposedMemOps());
+    PRINT_INFOR("Not protecting %d/%d dump points", noProtPoints, totalProt);
     PRINT_INFOR("No live scratch reg at %d/%d instrumentation points", regDefault, getNumberOfExposedMemOps());
 
     printStaticFile(allBlocks, allLineInfos);

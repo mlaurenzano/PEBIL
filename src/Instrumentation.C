@@ -70,7 +70,7 @@ int compareInstPoint(const void* arg1, const void* arg2){
 }
 
 Vector<InstrumentationPoint*>* instpointFilterAddressRange(Base* object, Vector<InstrumentationPoint*>* instPoints){
-    (*instPoints).sort(compareInstAddress);
+    (*instPoints).sort(compareInstBaseAddress);
 
     uint64_t lowEnd = object->getBaseAddress();
     uint64_t highEnd = object->getBaseAddress();
@@ -116,7 +116,14 @@ uint32_t InstrumentationPoint::addPrecursorInstruction(InstrucX86* inst){
     return precursorInstructions.size();
 }
 
-int compareInstAddress(const void* arg1,const void* arg2){
+uint32_t InstrumentationPoint::addPostcursorInstruction(InstrucX86* inst){
+    postcursorInstructions.append(inst);
+    return postcursorInstructions.size();
+}
+
+
+
+int compareInstBaseAddress(const void* arg1,const void* arg2){
     InstrumentationPoint* ip1 = *((InstrumentationPoint**)arg1);
     InstrumentationPoint* ip2 = *((InstrumentationPoint**)arg2);
 
@@ -126,6 +133,25 @@ int compareInstAddress(const void* arg1,const void* arg2){
         return 1;
     } else {
         PRINT_DEBUG_POINT_CHAIN("Comparing priority of 2 points at %#llx: %d %d", ip1->getInstBaseAddress(), ip1->getPriority(), ip2->getPriority());
+        if (ip1->getPriority() < ip2->getPriority()){
+            return -1;
+        } else if (ip1->getPriority() > ip2->getPriority()){
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int compareInstSourceAddress(const void* arg1,const void* arg2){
+    InstrumentationPoint* ip1 = *((InstrumentationPoint**)arg1);
+    InstrumentationPoint* ip2 = *((InstrumentationPoint**)arg2);
+
+    if(ip1->getInstSourceAddress() < ip2->getInstSourceAddress()){
+        return -1;
+    } else if(ip1->getInstSourceAddress() > ip2->getInstSourceAddress()){
+        return 1;
+    } else {
+        PRINT_DEBUG_POINT_CHAIN("Comparing priority of 2 points at %#llx: %d %d", ip1->getInstSourceAddress(), ip1->getPriority(), ip2->getPriority());
         if (ip1->getPriority() < ip2->getPriority()){
             return -1;
         } else if (ip1->getPriority() > ip2->getPriority()){
@@ -208,8 +234,6 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<InstrucX86*>* insts, 
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
-    // this should be unused for now
-    ASSERT(!hasMorePostcursorInstructions());
     while (hasMorePostcursorInstructions()){
         trampolineInstructions.append(removeNextPostcursorInstruction());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
@@ -341,8 +365,6 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<InstrucX86*>* insts, 
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
-    // postcursor should be unused for now
-    ASSERT(!hasMorePostcursorInstructions());
     while (hasMorePostcursorInstructions()){
         trampolineInstructions.append(removeNextPostcursorInstruction());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();

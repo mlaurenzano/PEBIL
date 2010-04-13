@@ -25,11 +25,6 @@ IOTracer::IOTracer(ElfFile* elf, char* traceFile)
     traceFunctions = new Vector<char*>();
 
     initializeFileList(traceFile, traceFunctions);
-
-    for (uint32_t i = 0; i < (*traceFunctions).size(); i++){
-        PRINT_INFOR("Trace list -- %s", (*traceFunctions)[i]);
-    }
-
 }
 
 IOTracer::~IOTracer(){
@@ -59,13 +54,13 @@ void IOTracer::instrument(){
     uint32_t temp32;
     uint64_t temp64;
 
-    InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_dont_care);
+    InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
     ASSERT(p);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
 
-    p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_dont_care);
+    p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
     ASSERT(p);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
@@ -138,6 +133,8 @@ void IOTracer::instrument(){
 
         ASSERT(numArgs);
         setupReg.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_DI, getInstDataAddress() + funcArgumentStorage));
+
+        PRINT_INFOR("Wrapping call to %s (site id %d) at address %#llx", functionName, i, myInstPoints[i]->getProgramAddress());
 
         // already did the first one (di) so we could use it as a scratch regargumentTypeStorage
         for (uint32_t j = 1; j < numArgs; j++){

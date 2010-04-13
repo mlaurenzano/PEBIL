@@ -162,10 +162,8 @@ typedef enum {
 } TableModes;
 
 typedef enum {
-    InstLocation_dont_care = 0,
     InstLocation_prior,
     InstLocation_after,
-    InstLocation_exact,
     InstLocation_Total_Types
 } InstLocations;
 
