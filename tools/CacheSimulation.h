@@ -7,6 +7,7 @@ class CacheSimulation : public InstrumentationTool {
 private:
     InstrumentationFunction* simFunc;
     InstrumentationFunction* exitFunc;
+    InstrumentationFunction* entryFunc;
 
     Vector<InstrucX86*>* generateBufferedAddressCalculation32(InstrucX86* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method);
     Vector<InstrucX86*>* generateBufferedAddressCalculation64(InstrucX86* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method);

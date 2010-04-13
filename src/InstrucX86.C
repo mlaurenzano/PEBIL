@@ -13,19 +13,20 @@
 
 using namespace std;
 
-Dyninst::InstructionAPI::InstructionDecoder* iapiDecoder;
-
 bool InstrucX86::usesFlag(uint32_t flg) { 
     ASSERT(flags_usedef); 
-    return (flags_usedef[__flags_use] & flg); 
+    return (flags_usedef[__flags_use] & (1 << flg)); 
 }
 
 bool InstrucX86::defsFlag(uint32_t flg) { 
     ASSERT(flags_usedef); 
-    return (flags_usedef[__flags_def] & flg); 
+    return (flags_usedef[__flags_def] & (1 << flg)); 
 }
 
 void InstrucX86::setLiveIns(BitSet<uint32_t>* live){
+    if (liveIns){
+        print();
+    }
     ASSERT(!liveIns);
     liveIns = new BitSet<uint32_t>(*(live));
 
@@ -33,15 +34,10 @@ void InstrucX86::setLiveIns(BitSet<uint32_t>* live){
                     PRINT_INFO();
                     PRINT_OUT("\t\tlive-ins %d registers: ", (*liveIns).size());
                     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-                        if ((*liveIns).contains(IAPIREG_REG(iapiRegType_GPR, i))){
-                            PRINT_OUT("gpr:%d ", i);
+                        if ((*liveIns).contains(i)){
+                            PRINT_OUT("reg:%d ", i);
                         }
                     }    
-                    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-                        if ((*liveIns).contains(IAPIREG_REG(iapiRegType_flag, i))){
-                            PRINT_OUT("flag:%d ", i);
-                        }
-                    }
                     PRINT_OUT("\n");    
                     )
 }
@@ -54,28 +50,27 @@ void InstrucX86::setLiveOuts(BitSet<uint32_t>* live){
                     PRINT_INFO();
                     PRINT_OUT("\t\tliveOuts %d registers: ", (*liveOuts).size());
                     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-                        if ((*liveOuts).contains(IAPIREG_REG(iapiRegType_GPR, i))){
-                            PRINT_OUT("gpr:%d ", i);
+                        if ((*liveOuts).contains(i)){
+                            PRINT_OUT("reg:%d ", i);
                         }
                     }    
-                    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-                        if ((*liveOuts).contains(IAPIREG_REG(iapiRegType_flag, i))){
-                            PRINT_OUT("flag:%d ", i);
-                        }
-                    }
                     PRINT_OUT("\n");
                     )
+}
+
+bool InstrucX86::isGPRegDeadIn(uint32_t idx){
+    ASSERT(idx < X86_64BIT_GPRS);
+    __FUNCTION_NOT_IMPLEMENTED;
+    return false;
 }
 
 bool InstrucX86::allFlagsDeadIn(){
     if (!liveIns){
         return false;
     }
-    for (uint32_t i = 0; i < IAPIREG_MAXREG; i++){
+    for (uint32_t i = 0; i < ANALYSIS_MAXREG; i++){
         if (liveIns->contains(i)){
-            if (IAPIREG_TYPE(i) == iapiRegType_flag){
-                return false;
-            }
+            return false;
         }
     }
     return true;
@@ -85,44 +80,30 @@ bool InstrucX86::allFlagsDeadOut(){
     if (!liveOuts){
         return false;
     }
-    for (uint32_t i = 0; i < IAPIREG_MAXREG; i++){
+    for (uint32_t i = 0; i < ANALYSIS_MAXREG; i++){
         if (liveOuts->contains(i)){
-            if (IAPIREG_TYPE(i) == iapiRegType_flag){
-                return false;
-            }
+            return false;
         }
     }
     return true;
 }
 
-void InstrucX86::initializeInstructionAPIDecoder(bool is64bit){
-    iapiDecoder = new InstructionDecoder();
-    iapiDecoder->setMode(is64bit);
-}
-void InstrucX86::destroyInstructionAPIDecoder(){
-    if (iapiDecoder){
-        delete iapiDecoder;
-    }
-}
-
 BitSet<uint32_t>* InstrucX86::getUseRegs(){
-    BitSet<uint32_t>* regs = new BitSet<uint32_t>(IAPIREG_MAXREG);
-    std::set<Dyninst::InstructionAPI::RegisterAST::Ptr> dregs = std::set<Dyninst::InstructionAPI::RegisterAST::Ptr>();    
-    iapiInsn->getReadSet(dregs);
-
-    for (std::set<Dyninst::InstructionAPI::RegisterAST::Ptr>::const_iterator it = dregs.begin(); it != dregs.end(); it++){
-        regs->insert(IAPIREG_REG(getIapiRegType((*it)->getID()), convertIapiReg((*it)->getID())));
+    BitSet<uint32_t>* regs = new BitSet<uint32_t>(ANALYSIS_MAXREG);
+    for (uint32_t i = 0; i < ANALYSIS_MAXREG; i++){
+        if (usesFlag(i)){
+            regs->insert(i);
+        }
     }
     return regs;
 }
 
 BitSet<uint32_t>* InstrucX86::getDefRegs(){
-    BitSet<uint32_t>* regs = new BitSet<uint32_t>(IAPIREG_MAXREG);
-    std::set<Dyninst::InstructionAPI::RegisterAST::Ptr> dregs = std::set<Dyninst::InstructionAPI::RegisterAST::Ptr>();
-    iapiInsn->getWriteSet(dregs);
-
-    for (std::set<Dyninst::InstructionAPI::RegisterAST::Ptr>::const_iterator it = dregs.begin(); it != dregs.end(); it++){
-        regs->insert(IAPIREG_REG(getIapiRegType((*it)->getID()), convertIapiReg((*it)->getID())));
+    BitSet<uint32_t>* regs = new BitSet<uint32_t>(ANALYSIS_MAXREG);
+    for (uint32_t i = 0; i < ANALYSIS_MAXREG; i++){
+        if (defsFlag(i)){
+            regs->insert(i);
+        }
     }
     return regs;
 }
@@ -1652,6 +1633,9 @@ InstrucX86::~InstrucX86(){
     if (liveOuts){
         delete liveOuts;
     }
+    if (flags_usedef){
+        delete[] flags_usedef;
+    }
 }
 
 OperandX86* InstrucX86::getOperand(uint32_t idx){
@@ -1671,10 +1655,8 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
 
     if (is64bit){
         ud_set_mode(&ud_obj, 64);
-        iapiDecoder->setMode(true);
     } else {
         ud_set_mode(&ud_obj, 32);
-        iapiDecoder->setMode(false);
     }
 
     ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
@@ -1709,11 +1691,6 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
 
     leader = false;
 
-#ifndef NO_REG_ANALYSIS
-    iapiInsn = iapiDecoder->decode((const unsigned char*)buff);
-    ASSERT(iapiInsn->size() == sizeInBytes);
-#endif
-
     flags_usedef = NULL;
     setFlags();
 
@@ -1730,10 +1707,8 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
     ASSERT(cont);
     if (cont->getTextSection()->getElfFile()->is64Bit()){
         ud_set_mode(&ud_obj, 64);
-        iapiDecoder->setMode(true);
     } else {
         ud_set_mode(&ud_obj, 32);
-        iapiDecoder->setMode(false);
     }
 
     ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
@@ -1766,23 +1741,6 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
     }
 
     leader = false;
-    /*
-    PRINT_INFO();
-    PRINT_OUT("%#llx: ", getProgramAddress());
-    for (uint32_t i = 0; i < sizeInBytes; i++){
-        PRINT_OUT("%02hhx ", buff[i]);
-    }
-    PRINT_OUT("\n");
-    */
-#ifndef NO_REG_ANALYSIS
-    iapiInsn = iapiDecoder->decode((const unsigned char*)buff);
-    if (iapiInsn->size() != sizeInBytes){
-        PRINT_INFOR("Size disagreement between udis86 and iapi -- %d to %d", sizeInBytes, iapiInsn->size());
-        cout << iapiInsn->format() << endl;
-        print();
-    }
-    //    ASSERT(iapiInsn->size() == sizeInBytes);
-#endif
 
     flags_usedef = NULL;
     setFlags();
@@ -1836,29 +1794,19 @@ void InstrucX86::print(){
     PRINT_INFO();
     PRINT_OUT("\t\tuses %d registers: ", (*useRegs).size());
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        if ((*useRegs).contains(IAPIREG_REG(iapiRegType_GPR, i))){
-            PRINT_OUT("gpr:%d ", i);
+        if ((*useRegs).contains(i)){
+            PRINT_OUT("reg:%d ", i);
         }
     }    
-    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        if ((*useRegs).contains(IAPIREG_REG(iapiRegType_flag, i))){
-            PRINT_OUT("flag:%d ", i);
-        }
-    }
     PRINT_OUT("\n");
     
     PRINT_INFO();
     PRINT_OUT("\t\tdefs %d registers: ", (*defRegs).size());
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        if ((*defRegs).contains(IAPIREG_REG(iapiRegType_GPR, i))){
-            PRINT_OUT("gpr:%d ", i);
+        if ((*defRegs).contains(i)){
+            PRINT_OUT("reg:%d ", i);
         }
     }    
-    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        if ((*defRegs).contains(IAPIREG_REG(iapiRegType_flag, i))){
-            PRINT_OUT("flag:%d ", i);
-        }
-    }
     PRINT_OUT("\n");
     
     delete useRegs;
@@ -2007,77 +1955,6 @@ bool InstrucX86::verify(){
     }
 
     return true;
-}
-
-uint32_t getIapiRegType(uint32_t iapiReg){
-    if (iapiReg < r_EDXEAX ||
-        (iapiReg >= r_rAX && iapiReg <= r_R15)){
-        return iapiRegType_GPR;
-    } else if ((iapiReg >= r_OF && iapiReg <= r_RF) || iapiReg == r_EFLAGS){
-        return iapiRegType_flag;
-    }
-    return iapiRegType_unknown;
-}
-
-uint32_t convertIapiReg(uint32_t iapiReg){
-    uint32_t reg;
-    uint32_t dreg = iapiReg;
-    if (IAPIREG_IS_AX(iapiReg)){
-        reg = X86_REG_AX;
-    } else if (IAPIREG_IS_BX(iapiReg)){
-        reg = X86_REG_BX;
-    } else if (IAPIREG_IS_CX(iapiReg)){
-        reg = X86_REG_CX;
-    } else if (IAPIREG_IS_DX(iapiReg)){
-        reg = X86_REG_DX;
-    } else if (IAPIREG_IS_SI(iapiReg)){
-        reg = X86_REG_SI;
-    } else if (IAPIREG_IS_DI(iapiReg)){
-        reg = X86_REG_DI;
-    } else if (IAPIREG_IS_SP(iapiReg)){
-        reg = X86_REG_SP;
-    } else if (IAPIREG_IS_BP(iapiReg)){
-        reg = X86_REG_BP;
-    } else if (IAPIREG_IS_RX(iapiReg)){
-        reg = iapiReg - r_R8 + X86_32BIT_GPRS;
-    } else if (IAPIREG_IS_FLAG(iapiReg)){
-	if (iapiReg == r_OF){
-	  reg = __x86_flag_overflow;
-	} else if (iapiReg == r_SF){
-	  reg = __x86_flag_sign;
-	} else if (iapiReg == r_ZF){
-	  reg = __x86_flag_zero;
-	} else if (iapiReg == r_AF){
-	  reg = __x86_flag_adjust;
-	} else if (iapiReg == r_PF){
-	  reg = __x86_flag_parity;
-	} else if (iapiReg == r_CF){
-	  reg = __x86_flag_carry;
-	} else if (iapiReg == r_TF){
-	  reg = __x86_flag_trap;
-	} else if (iapiReg == r_IF){
-	  reg = __x86_flag_interrupt;
-	} else if (iapiReg == r_DF){
-	  reg = __x86_flag_direction;
-	} else if (iapiReg == r_NT){
-	  reg = __x86_flag_nested_task;
-	} else if (iapiReg == r_RF){
-	  reg = __x86_flag_resume;
-	} else {
-	  __SHOULD_NOT_ARRIVE;
-	}
-        uint32_t tmp = 0;
-        while (reg != 1){
-            reg = reg >> 1;
-            tmp++;
-        }
-        reg = tmp;
-    } else if (iapiReg == r_EFLAGS){
-        reg = (r_RF + 1) - r_OF;
-    } else {
-        reg = 0;
-    }
-    return reg;
 }
 
 void InstrucX86::setFlags()

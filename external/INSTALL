@@ -1,39 +1,4 @@
-1. instructionAPI
-Uses instructionAPI version 1.1.
-
-32bit libraries are in instructionAPI/i386-unknown-linux2.4
-- I had to build the 32-bit version of libcommon.so from source,
-the distributed copy of libcommon.so couldn't find the symbol
-cplus_demangle at link time (linking libbfd didn't seem to help)
-
-64bit libraries are in instructionAPI/x86_64-unknown-linux2.4
-
-to install:
-$ cd instructionAPI-1.1/src/dyninst/
-
-Some systems may not already have libelf + libdwarf. If this
-is the case you will have to build your own libraries:
-    1a. libelf
-    $ cd libelf-0.8.9
-    $ ./configure
-    $ make
-
-    1b. libdwarf
-    $ cd dwarf-20100404/libdwarf/
-    $ ./configure
-    $ make
-
-Then use the following link line:
-$ ./configure --with-libelf-incdir=${PEBIL_ROOT}/external/libelf-0.8.9/lib --with-libelf-libdir=${PEBIL_ROOT}/external/libelf-0.8.9/lib --with-libdwarf-incdir=${PEBIL_ROOT}/external/dwarf-20100404/libdwarf/ --with-libdwarf-libdir=${PEBIL_ROOT}/external/dwarf-20100404/libdwarf/ --prefix=${PEBIL_ROOT}/external/instructionAPI-1.1
-
-If your system already has libelf + libdwarf, use this config line:
-$ ./configure --prefix=${PEBIL_ROOT}/external/instructionAPI-1.1
-
-Then continue with the normal build stuff...
-$ make
-$ make install
-
-2. udis86
+1. udis86
 
 to install:
 $ cd udis86-1.7

@@ -10,9 +10,9 @@ CPP           = $(GNU_CPP)
 SRCDIR        = ../src
 BINDIR        = ../bin
 EXTDIR        = ../external
-INCLUDE       = -I. -I../include -I$(EXTDIR)/udis86-1.7/ -I$(EXTDIR)/instructionAPI-1.1/include
+INCLUDE       = -I. -I../include -I$(EXTDIR)/udis86-1.7/
 LIBS          = -lpebil
-EXTRA_LIBS    = -L$(EXTDIR)/udis86-1.7/lib -ludis86 -L$(EXTDIR)/instructionAPI-1.1/$(IAPI_PLATFORM)/lib -linstructionAPI -lbfd
+EXTRA_LIBS    = -L$(EXTDIR)/udis86-1.7/lib -ludis86
 
 TARGET_BIN  = pebil
 

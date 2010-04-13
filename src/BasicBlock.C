@@ -113,9 +113,8 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
         bool isRep = false;
         for (int32_t j = i-1; j >= 0; j--){
             if ((*instPoints)[j]->getInstBaseAddress() == expansions[i]->getInstBaseAddress()){
-                
                 if ((*instPoints)[j]->getInstrumentationMode() != InstrumentationMode_inline ||
-                    (*instPoints)[i]->getInstrumentationMode() != InstrumentationMode_inline){                
+                    (*instPoints)[i]->getInstrumentationMode() != InstrumentationMode_inline){
                     isRep = true;
                 }
             }
@@ -128,6 +127,8 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
         }
 
         uint32_t instructionIdx = expansionIndices[i];
+        PRINT_DEBUG_BLOAT_FILTER("bloating point at instruction %#llx by %d bytes", instructions[instructionIdx]->getProgramAddress(), bloatAmount);
+
         for (uint32_t j = 0; j < bloatAmount; j++){
             instructions.insert(InstrucX86Generator::generateNoop(), instructionIdx);
             byteCountUpdate = true;

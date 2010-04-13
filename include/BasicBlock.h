@@ -108,8 +108,6 @@ public:
     bool containsOnlyControl();
     bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);
 
-    std::set<Dyninst::InstructionAPI::RegisterAST::Ptr> getLiveIns();
-
     void print();
     void printSourceBlocks();
     void printTargetBlocks();

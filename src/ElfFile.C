@@ -1092,8 +1092,6 @@ void ElfFile::parse(){
         PRINT_ERROR("The class identifier is not a valid one [%#x]",e_ident[EI_CLASS]);
     }
 
-    InstrucX86::initializeInstructionAPIDecoder(is64BitFlag);
-
     readFileHeader();
     readProgramHeaders();
     readSectionHeaders();
@@ -1253,8 +1251,6 @@ ElfFile::~ElfFile(){
     if (addressAnchors){
         delete addressAnchors;
     }
-
-    InstrucX86::destroyInstructionAPIDecoder();
 }
 
 void ElfFile::briefPrint(){

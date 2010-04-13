@@ -8,6 +8,7 @@
 #include <LinkedList.h>
 #include <Loop.h>
 #include <Stack.h>
+#include <set>
 
 using namespace std;
 
@@ -20,7 +21,7 @@ void FlowGraph::flowAnalysis(){
     Vector<BitSet<uint32_t>*> outs_prime;
     Vector<std::set<uint32_t>*> succs;
     Vector<InstrucX86*> allInstructions;
-    uint32_t maxElts = IAPIREG_MAXREG;
+    uint32_t maxElts = 32;
 
     // reindex instructions
     uint32_t currIdx = 0;
@@ -79,63 +80,6 @@ void FlowGraph::flowAnalysis(){
                         PRINT_REG_LIST(defs, maxElts, i);
                     }
                     )
-
-    for (uint32_t i = 0; i < allInstructions.size(); i++){
-        PRINT_REG_LIST(uses, maxElts, i);
-        uint32_t nativeuse = 0;
-        uint32_t dynuse = 0;
-        for (uint32_t j = 0; j < 32; j++){
-            if (allInstructions[i]->usesFlag(1 << j)){
-                nativeuse |= (1 << j);
-            }
-            if (uses[i]->contains(32+j)){
-                dynuse |= (1 << j);
-            }
-        }
-        if (
-            allInstructions[i]->GET(mnemonic) == UD_Icvtsi2ss ||
-            allInstructions[i]->GET(mnemonic) == UD_Icvttss2si ||
-            allInstructions[i]->GET(mnemonic) == UD_Icvtsi2sd ||
-            allInstructions[i]->GET(mnemonic) == UD_Icvttsd2si ||
-            allInstructions[i]->GET(mnemonic) == UD_Imovdqu ||
-            allInstructions[i]->GET(mnemonic) == UD_Imovss ||
-            allInstructions[i]->GET(mnemonic) == UD_Imovsd ||
-            allInstructions[i]->GET(mnemonic) == UD_Isubss ||
-            allInstructions[i]->GET(mnemonic) == UD_Iaddss ||
-            allInstructions[i]->GET(mnemonic) == UD_Imaxss ||
-            allInstructions[i]->GET(mnemonic) == UD_Iminss ||
-            allInstructions[i]->GET(mnemonic) == UD_Imulss ||
-            allInstructions[i]->GET(mnemonic) == UD_Idivss
-            ){
-            if (dynuse != nativeuse){
-                PRINT_WARN(10, "disagreement between iapi and native flags table for use");
-                PRINT_INFOR("dynuse %08x, nativeuse %08x", dynuse, nativeuse);
-                allInstructions[i]->print();
-            }
-        } else {
-            if (dynuse != nativeuse){
-                PRINT_INFOR("dynuse %08x, nativeuse %08x", dynuse, nativeuse);
-                allInstructions[i]->print();
-            }
-            ASSERT(dynuse == nativeuse);
-        }
-        PRINT_REG_LIST(defs, maxElts, i);
-        uint32_t nativedef = 0;
-        uint32_t dyndef = 0;
-        for (uint32_t j = 0; j < 32; j++){
-            if (allInstructions[i]->defsFlag(1 << j)){
-                nativedef |= (1 << j);
-            }
-            if (defs[i]->contains(32+j)){
-                dyndef |= (1 << j);
-            }
-        }
-        ASSERT(dyndef == nativedef);
-        if (dyndef != nativedef){
-            PRINT_INFOR("dyndef %08x, nativedef %08x", dyndef, nativedef);
-            allInstructions[i]->print();
-        }
-    }
 
     bool setsSame = false;
     uint32_t iterCount = 0;

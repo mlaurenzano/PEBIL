@@ -36,7 +36,7 @@ class TextSection;
 #define TEXT_EXTENSION_INC  0x4000
 #define DATA_EXTENSION_INC  0x4000
 #define DEFAULT_INST_SEGMENT_IDX 4
-#define TEMP_SEGMENT_SIZE 0x80000000
+#define TEMP_SEGMENT_SIZE 0x10000000
 
 typedef enum {
     ElfInstPhase_no_phase = 0,

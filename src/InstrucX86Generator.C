@@ -41,7 +41,8 @@ Vector<InstrucX86*>* InstrucX86Generator64::generateAddressComputation(InstrucX8
             uint64_t imm = op->getValue();
 
             (*compInstructions).append(generateMoveSegmentRegToReg(segIdx, dest));
-            (*compInstructions).append(generateRegAddImm(dest, imm));
+            //            (*compInstructions).append(generateRegAddImm(dest, imm));
+            //            (*compInstructions).append(generateLoadEffectiveAddress(dest, 0, 1, imm, dest, true, false));
         } else if (op->GET(base) == UD_R_RIP){
             PRINT_DEBUG_LOADADDR("making lea: mov rip imm");
             uint64_t addr = op->getInstruction()->getProgramAddress() + op->getValue() + op->getInstruction()->getSizeInBytes();

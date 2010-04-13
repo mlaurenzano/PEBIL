@@ -4,7 +4,7 @@
 #include <Base.h>
 #include <BinaryFile.h>
 #include <ElfFile.h>
-#include <Instruction.h>
+#include <InstrucX86.h>
 #include <SectionHeader.h>
 
 void DataSection::printBytes(uint64_t offset, uint32_t bytesPerWord, uint32_t bytesPerLine){

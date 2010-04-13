@@ -799,9 +799,13 @@ Vector<InstrucX86*>* InstrumentationPoint::swapInstructionsAtPoint(bool isChain,
 
     if (instLocation == InstLocation_after){
         return func->swapInstructions(getInstBaseAddress() + instruction->getSizeInBytes(), replacements);
-    } else if (instLocation == InstLocation_prior || isChain){
-        return func->swapInstructions(getInstBaseAddress() - Size__uncond_jump, replacements);
     } else {
+        if (isChain){
+            return func->swapInstructions(getInstBaseAddress() - Size__uncond_jump, replacements);
+        }
+        if (instLocation == InstLocation_prior){
+            return func->swapInstructions(getInstSourceAddress(), replacements);
+        }
         return func->swapInstructions(getInstSourceAddress(), replacements);
     }
 }

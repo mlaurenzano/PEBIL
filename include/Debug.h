@@ -37,8 +37,8 @@
 //#define BLOAT_MOD_OFF 3
 //#define BLOAT_MOD     2
 //#define TURNOFF_FUNCTION_BLOAT
-//#define SWAP_MOD_OFF 935
-//#define SWAP_MOD     4096
+//#define SWAP_MOD_OFF 0
+//#define SWAP_MOD     2
 //#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY
@@ -287,15 +287,7 @@
     PRINT_OUT("instruction %d %s list: ", __i, #__list);      \
     for (uint32_t __j = 0; __j < __elts; __j++){\
     if (__list[__i]->contains(__j)){\
-    if (IAPIREG_TYPE(__j) == iapiRegType_GPR){\
-    PRINT_OUT("gpr:%d ", IAPIREG_VALUE(__j));\
-    } else if (IAPIREG_TYPE(__j) == iapiRegType_flag){\
-    PRINT_OUT("flg:%d ", IAPIREG_VALUE(__j));\
-    } else if (IAPIREG_TYPE(__j) == iapiRegType_unknown){\
-    PRINT_OUT("und:%d ", IAPIREG_VALUE(__j));\
-    } else {\
-    PRINT_OUT("huh?%x", __j);\
-    }\
+    PRINT_OUT("reg:%d ", __j);\
     }\
     }\
     PRINT_OUT("\n");

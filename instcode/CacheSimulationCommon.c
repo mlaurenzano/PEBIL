@@ -29,6 +29,11 @@ void* local_malloc(uint32_t n){
     return ret;
 }
 
+// empty for now. should do initialization here rather than checking
+// for "first hit" on every buffer dump
+int entry_function(){
+}
+
 int getRandomNumber();
 uint32_t local_random() {
     uint32_t dummy = 0;

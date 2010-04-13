@@ -586,8 +586,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
                 }
             }
             
-            if (pt->getInstrumentationMode() != InstrumentationMode_inline ||
-                !isFirstInChain || !isLastInChain){
+            if (pt->getInstrumentationMode() != InstrumentationMode_inline || !isFirstInChain || !isLastInChain){
                 pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, isLastInChain, registerStorage, stackIsSafe);
             } else {
                 for (uint32_t k = 0; k < (*displaced).size(); k++){

@@ -9,9 +9,6 @@
 #include <udis86.h>
 #include <defines/InstrucX86.d>
 
-#include "InstructionDecoder.h"
-using namespace Dyninst::InstructionAPI;
-
 class ElfFileInst;
 class Function;
 class TextObject;
@@ -49,30 +46,7 @@ class TextObject;
 #define IS_PREFETCH(__mne) (__mne == UD_Iprefetch || __mne == UD_Iprefetchnta || __mne == UD_Iprefetcht0 || \
                             __mne == UD_Iprefetcht1 || __mne == UD_Iprefetcht2)
 
-#define IAPIREG_MAXREG (IAPIREG_REG(iapiRegType_TotalTypes,0))
-extern uint32_t convertIapiReg(uint32_t iapiReg);
-extern uint32_t getIapiRegType(uint32_t iapiReg);
-#define IAPIREG_TYPE(__reg)      ((__reg >> 4) & 0x0000ffff)
-#define IAPIREG_VALUE(__reg)     (__reg & 0x0000ffff)
-#define IAPIREG_REG(__typ,__val) ((__typ << 4) + (__val))
-#define IAPIREG_IS_AX(__r) (__r == r_AH || __r == r_AL || __r == r_AX || __r == r_eAX || __r == r_EAX || __r == r_rAX || __r == r_RAX)
-#define IAPIREG_IS_BX(__r) (__r == r_BH || __r == r_BL || __r == r_BX || __r == r_eBX || __r == r_EBX || __r == r_rBX || __r == r_RBX)
-#define IAPIREG_IS_CX(__r) (__r == r_CH || __r == r_CL || __r == r_CX || __r == r_eCX || __r == r_ECX || __r == r_rCX || __r == r_RCX)
-#define IAPIREG_IS_DX(__r) (__r == r_DH || __r == r_DL || __r == r_DX || __r == r_eDX || __r == r_EDX || __r == r_rDX || __r == r_RDX)
-#define IAPIREG_IS_SI(__r) (__r == r_SI || __r == r_eSI || __r == r_ESI || __r == r_rSI || __r == r_RSI)
-#define IAPIREG_IS_DI(__r) (__r == r_DI || __r == r_eDI || __r == r_EDI || __r == r_rDI || __r == r_RDI)
-#define IAPIREG_IS_SP(__r) (__r == r_eSP || __r == r_ESP || __r == r_rSP || __r == r_RSP)
-#define IAPIREG_IS_BP(__r) (__r == r_eBP || __r == r_EBP || __r == r_rBP || __r == r_RBP)
-#define IAPIREG_IS_RX(__r) (__r >= r_R8 && __r <= r_R15)
-#define IAPIREG_IS_FLAG(__r) (__r >= r_OF && __r <= r_RF)
-
-typedef enum {
-    iapiRegType_unknown = 0,
-    iapiRegType_GPR,
-    iapiRegType_flag,
-    iapiRegType_TotalTypes
-} iapiRegTypes;
-
+#define ANALYSIS_MAXREG 32
 
 // use the last bit for flag bit 0
 #define __x86_flag_none                           0x00000000
@@ -253,7 +227,6 @@ class InstrucX86 : public Base {
 private:
 
     struct ud entry;
-    Dyninst::InstructionAPI::Instruction::Ptr iapiInsn;
     BitSet<uint32_t>* liveIns;
     BitSet<uint32_t>* liveOuts;
     uint32_t* flags_usedef;
@@ -267,11 +240,11 @@ private:
     bool leader;
     TextObject* container;
     uint32_t instructionType;
+    //    uint64_t wastespace[2048];
 
     HashCode hashCode;
-    uint32_t setInstructionType();
 
-    void computeRegisterSets();
+    uint32_t setInstructionType();
 
 public:
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
@@ -290,6 +263,7 @@ public:
     BitSet<uint32_t>* getDefRegs();
     bool allFlagsDeadIn();
     bool allFlagsDeadOut();
+    bool isGPRegDeadIn(uint32_t idx);
 
     bool usesFlag(uint32_t flg);
     bool defsFlag(uint32_t flg);
