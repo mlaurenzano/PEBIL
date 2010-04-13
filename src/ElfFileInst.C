@@ -482,7 +482,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
                 if (!isFirstInChain){
                     instAddress = pt->getInstBaseAddress() - Size__uncond_jump;
                 }
-                ASSERT(((Function*)pt->getSourceObject()->getContainer())->isRelocated());
+		//                ASSERT(((Function*)pt->getSourceObject()->getContainer())->isRelocated());
                 (*repl).append(InstrucX86Generator::generateJumpRelative(instAddress, elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
             } else if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_inline){
                 if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_light){

@@ -1693,6 +1693,7 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
 
     flags_usedef = NULL;
     setFlags();
+    setImpliedRegs();
 
     verify();
 }
@@ -1744,6 +1745,7 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
 
     flags_usedef = NULL;
     setFlags();
+    setImpliedRegs();
 
     verify();
 }
@@ -1957,179 +1959,221 @@ bool InstrucX86::verify(){
     return true;
 }
 
+void InstrucX86::setImpliedRegs(){
+    impreg_usedef = new uint32_t[2];
+    bzero(impreg_usedef, sizeof(uint32_t) * 2);
+
+    if (!impreg_usedef) { __SHOULD_NOT_ARRIVE; }
+    /*
+      // 4 other types for all of these string ops -- *sb, *sw, *sd, *sq
+    __flags_define(impreg_usedef, UD_Icmps, __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_DI), __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_EI));
+    __flags_define(impreg_usedef, UD_Ilods, __bit_shift(X86_REG_SI) , __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_AX));
+    __flags_define(impreg_usedef, UD_Imovs, __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_DI), __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_DI)); 
+    __flags_define(impreg_usedef, UD_Iouts, __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_DX), __bit_shift(X86_REG_SI)); 
+    __flags_define(impreg_usedef, UD_Istos, __bit_shift(X86_REG_AX) | __bit_shift(X86_REG_DI), __bit_shift(X86_REG_DI));
+    __flags_define(impreg_usedef, UD_Iscas, __bit_shift(X86_REG_AX | __bit_shift(X86_REG_DI)), __bit_shift(X86_REG_DI));
+    __flags_define(impreg_usedef, UD_Iins, __bit_shift(X86_REG_DI) | __bit_shift(X86_REG_DX), __bit_shift(X86_REG_DI));
+
+    // other random instructions with implicit operands
+    __flags_define(impreg_usedef, UD_Ixlat, __bit_shift(X86_REG_AX) | __bit_shift(X86_REG_BX), __bit_shift(X86_REG_AX));
+    __flags_define(impreg_usedef, UD_Ixlatb, __bit_shift(X86_REG_AX) | __bit_shift(X86_REG_BX), __bit_shift(X86_REG_AX));
+    // xrstor
+    // xsave
+    // fadd
+    // fdiv
+    // fdivr
+    // fmul
+    // fsub
+    // fsubr
+
+    // stack ops
+    if (isStackPush() || isStackPop() || isFunctionCall() || isReturn()){
+        impreg_usedef[__reg_use] |= __bit_shift(X86_REG_SP);
+        impreg_usedef[__reg_use] |= __bit_shift(X86_REG_SP);
+    }
+
+    // check for rep prefix, if so add cx as both source and dest
+    if (GET(pfx_rep)){
+        impreg[__reg_use] |= __bit_shift(X86_REG_CX);
+        impreg[__reg_def] |= __bit_shift(X86_REG_CX);
+    }
+    */
+}
+
 void InstrucX86::setFlags()
 {
     flags_usedef = new uint32_t[2];
     bzero(flags_usedef, sizeof(uint32_t) * 2);
 
     if (!flags_usedef) { __SHOULD_NOT_ARRIVE; }
-    __flags_define(flags_usedef, UD_Iaaa, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iaad, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iaam, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iaas, __x86_flag_adjust, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iadc, __x86_flag_carry, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iadd, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iand, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iarpl, __x86_flag_none, __x86_flag_zero);
-    __flags_define(flags_usedef, UD_Ibsf, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Ibt, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Ibts, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Ibtr, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Ibtc, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iclc, __x86_flag_none, __x86_flag_carry);
-    __flags_define(flags_usedef, UD_Icld, __x86_flag_none, __x86_flag_direction);
-    __flags_define(flags_usedef, UD_Icli, __x86_flag_none, __x86_flag_interrupt);
-    __flags_define(flags_usedef, UD_Icmc, __x86_flag_none, __x86_flag_carry);
-    __flags_define(flags_usedef, UD_Icmovbe, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovo, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovno, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovb, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovae, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovz, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovnz, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovbe, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmova, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovs, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovns, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovp, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovnp, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovl, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovge, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovle, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmovg, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Icmp, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Icmpsb, __x86_flag_direction, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Icmpsd, __x86_flag_direction, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Icmpss, __x86_flag_direction, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Icmpsw, __x86_flag_direction, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Icmpsq, __x86_flag_direction, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Icmpxchg, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Icmpxchg8b, __x86_flag_none, __x86_flag_zero);
-    __flags_define(flags_usedef, UD_Icomisd, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Icomiss, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Idaa, __x86_flag_adjust | __x86_flag_carry, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Idas, __x86_flag_adjust | __x86_flag_carry, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Idec, __x86_flag_none, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity);
-    __flags_define(flags_usedef, UD_Idiv, __x86_flag_adjust | __x86_flag_carry, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Ifcmovb, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ifcmove, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ifcmovbe, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ifcmovu, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ifcmovnb, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ifcmovne, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ifcmovnbe, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ifcmovnu, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ifcomi, __x86_flag_none, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry);
-    __flags_define(flags_usedef, UD_Ifcomip, __x86_flag_none, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry);
-    __flags_define(flags_usedef, UD_Ifucomi, __x86_flag_none, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry);
-    __flags_define(flags_usedef, UD_Ifucomip, __x86_flag_none, __x86_flag_zero | __x86_flag_parity | __x86_flag_carry);
-    __flags_define(flags_usedef, UD_Iidiv, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iimul, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iinc, __x86_flag_none, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity);
-    __flags_define(flags_usedef, UD_Iinsb, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Iinsw, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Iinsd, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Iint, __x86_flag_none, __x86_flag_trap | __x86_flag_nested_task);
-    __flags_define(flags_usedef, UD_Iint1, __x86_flag_none, __x86_flag_trap | __x86_flag_nested_task);
-    __flags_define(flags_usedef, UD_Iint3, __x86_flag_none, __x86_flag_trap | __x86_flag_nested_task);
-    __flags_define(flags_usedef, UD_Iinto, __x86_flag_overflow, __x86_flag_trap | __x86_flag_nested_task);
-    __flags_define(flags_usedef, UD_Iucomisd, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iucomiss, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iiretw, __x86_flag_nested_task, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction);
-    __flags_define(flags_usedef, UD_Iiretd, __x86_flag_nested_task, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction);
-    __flags_define(flags_usedef, UD_Iiretq, __x86_flag_nested_task, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction);
-    __flags_define(flags_usedef, UD_Ijo, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijno, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijb, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijae, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijz, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijnz, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijbe, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ija, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijs, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijns, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijp, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijnp, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijl, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijge, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijle, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijg, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijcxz, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijecxz, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ijrcxz, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ilahf, __x86_flag_none, __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry);
-    __flags_define(flags_usedef, UD_Ilar, __x86_flag_none, __x86_flag_zero);
-    __flags_define(flags_usedef, UD_Iloop, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Iloope, __x86_flag_zero, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Iloopnz, __x86_flag_zero, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ilsl, __x86_flag_none, __x86_flag_zero);
-    __flags_define(flags_usedef, UD_Imul, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Imovsb, __x86_flag_none, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Imovsw, __x86_flag_none, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Imovsd, __x86_flag_none, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Imovsq, __x86_flag_none, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ineg, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Ior, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Ioutsb, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ioutsw, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ioutsd, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ipopfw, __x86_flag_none, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task);
-    __flags_define(flags_usedef, UD_Ipopfd, __x86_flag_none, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task);
-    __flags_define(flags_usedef, UD_Ipopfq, __x86_flag_none, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task);
-    __flags_define(flags_usedef, UD_Ipushfw,__x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ipushfd,__x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ipushfq,__x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ircl, __x86_flag_carry, __x86_flag_overflow | __x86_flag_carry);
-    __flags_define(flags_usedef, UD_Ircr, __x86_flag_carry, __x86_flag_overflow | __x86_flag_carry);
-    __flags_define(flags_usedef, UD_Irol, __x86_flag_carry, __x86_flag_overflow | __x86_flag_carry);
-    __flags_define(flags_usedef, UD_Iror, __x86_flag_carry, __x86_flag_overflow | __x86_flag_carry);
-    __flags_define(flags_usedef, UD_Irsm, __x86_flag_none, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry | __x86_flag_trap | __x86_flag_interrupt | __x86_flag_direction | __x86_flag_nested_task | __x86_flag_resume);
-    __flags_define(flags_usedef, UD_Isahf, __x86_flag_sign | __x86_flag_zero | __x86_flag_adjust | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isar, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Isbb, __x86_flag_carry, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Ishr, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iseto, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetno, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetnp, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetb, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetnb, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetz, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetnz, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetbe, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Iseta, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isets, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetns, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetns, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetp, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetl, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetge, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetle, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isetg, __x86_flag_overflow | __x86_flag_sign | __x86_flag_zero | __x86_flag_parity | __x86_flag_carry, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Ishld, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Ishrd, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Isal, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Ishl, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Istc, __x86_flag_none, __x86_flag_carry);
-    __flags_define(flags_usedef, UD_Istd, __x86_flag_none, __x86_flag_direction);
-    __flags_define(flags_usedef, UD_Isti, __x86_flag_none, __x86_flag_interrupt);
-    __flags_define(flags_usedef, UD_Istosb, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Istosw, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Istosq, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Istosd, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Isub, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iverr, __x86_flag_none, __x86_flag_zero);
-    __flags_define(flags_usedef, UD_Iverw, __x86_flag_none, __x86_flag_zero);
-    __flags_define(flags_usedef, UD_Ixadd, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Ixor, __x86_flag_none, __x86_flagset_alustd);
-    __flags_define(flags_usedef, UD_Iscasb, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Iscasw, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Iscasq, __x86_flag_direction, __x86_flag_none);
-    __flags_define(flags_usedef, UD_Iscasd, __x86_flag_direction, __x86_flag_none);
+    __flags_define(flags_usedef, UD_Iaaa, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iaad, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iaam, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iaas, __bit_shift(X86_FLAG_AF), __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iadc, __bit_shift(X86_FLAG_CF), __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iadd, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iand, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iarpl, 0, __bit_shift(X86_FLAG_ZF));
+    __flags_define(flags_usedef, UD_Ibsf, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Ibt, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Ibts, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Ibtr, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Ibtc, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iclc, 0, __bit_shift(X86_FLAG_CF));
+    __flags_define(flags_usedef, UD_Icld, 0, __bit_shift(X86_FLAG_DF));
+    __flags_define(flags_usedef, UD_Icli, 0, __bit_shift(X86_FLAG_IF));
+    __flags_define(flags_usedef, UD_Icmc, 0, __bit_shift(X86_FLAG_CF));
+    __flags_define(flags_usedef, UD_Icmovbe, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovo, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovno, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovb, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovae, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovz, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovnz, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovbe, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmova, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovs, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovns, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovp, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovnp, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovl, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovge, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovle, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmovg, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Icmp, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Icmpsb, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Icmpsd, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Icmpss, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Icmpsw, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Icmpsq, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Icmpxchg, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Icmpxchg8b, 0, __bit_shift(X86_FLAG_ZF));
+    __flags_define(flags_usedef, UD_Icomisd, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Icomiss, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Idaa, __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_CF), __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Idas, __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_CF), __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Idec, 0, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF));
+    __flags_define(flags_usedef, UD_Idiv, __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_CF), __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Ifcmovb, __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ifcmove, __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ifcmovbe, __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ifcmovu, __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ifcmovnb, __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ifcmovne, __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ifcmovnbe, __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ifcmovnu, __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ifcomi, 0, __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF));
+    __flags_define(flags_usedef, UD_Ifcomip, 0, __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF));
+    __flags_define(flags_usedef, UD_Ifucomi, 0, __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF));
+    __flags_define(flags_usedef, UD_Ifucomip, 0, __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF));
+    __flags_define(flags_usedef, UD_Iidiv, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iimul, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iinc, 0, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF));
+    __flags_define(flags_usedef, UD_Iinsb, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Iinsw, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Iinsd, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Iint, 0, __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_NT));
+    __flags_define(flags_usedef, UD_Iint1, 0, __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_NT));
+    __flags_define(flags_usedef, UD_Iint3, 0, __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_NT));
+    __flags_define(flags_usedef, UD_Iinto, __bit_shift(X86_FLAG_OF), __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_NT));
+    __flags_define(flags_usedef, UD_Iucomisd, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iucomiss, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iiretw, __bit_shift(X86_FLAG_NT), __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF));
+    __flags_define(flags_usedef, UD_Iiretd, __bit_shift(X86_FLAG_NT), __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF));
+    __flags_define(flags_usedef, UD_Iiretq, __bit_shift(X86_FLAG_NT), __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF));
+    __flags_define(flags_usedef, UD_Ijo, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijno, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijb, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijae, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijz, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijnz, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijbe, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ija, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijs, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijns, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijp, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijnp, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijl, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijge, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijle, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijg, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijcxz, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijecxz, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ijrcxz, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ilahf, 0, __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF));
+    __flags_define(flags_usedef, UD_Ilar, 0, __bit_shift(X86_FLAG_ZF));
+    __flags_define(flags_usedef, UD_Iloop, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Iloope, __bit_shift(X86_FLAG_ZF), 0);
+    __flags_define(flags_usedef, UD_Iloopnz, __bit_shift(X86_FLAG_ZF), 0);
+    __flags_define(flags_usedef, UD_Ilsl, 0, __bit_shift(X86_FLAG_ZF));
+    __flags_define(flags_usedef, UD_Imul, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Imovsb, 0, 0);
+    __flags_define(flags_usedef, UD_Imovsw, 0, 0);
+    __flags_define(flags_usedef, UD_Imovsd, 0, 0);
+    __flags_define(flags_usedef, UD_Imovsq, 0, 0);
+    __flags_define(flags_usedef, UD_Ineg, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Ior, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Ioutsb, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Ioutsw, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Ioutsd, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Ipopfw, 0, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT));
+    __flags_define(flags_usedef, UD_Ipopfd, 0, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT));
+    __flags_define(flags_usedef, UD_Ipopfq, 0, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT));
+    __flags_define(flags_usedef, UD_Ipushfw,__bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT), 0);
+    __flags_define(flags_usedef, UD_Ipushfd,__bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT), 0);
+    __flags_define(flags_usedef, UD_Ipushfq,__bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT), 0);
+    __flags_define(flags_usedef, UD_Ircl, __bit_shift(X86_FLAG_CF), __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_CF));
+    __flags_define(flags_usedef, UD_Ircr, __bit_shift(X86_FLAG_CF), __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_CF));
+    __flags_define(flags_usedef, UD_Irol, __bit_shift(X86_FLAG_CF), __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_CF));
+    __flags_define(flags_usedef, UD_Iror, __bit_shift(X86_FLAG_CF), __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_CF));
+    __flags_define(flags_usedef, UD_Irsm, 0, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT) | __bit_shift(X86_FLAG_RF));
+    __flags_define(flags_usedef, UD_Isahf, __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isar, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Isbb, __bit_shift(X86_FLAG_CF), __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Ishr, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iseto, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetno, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetnp, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetb, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetnb, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetz, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetnz, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetbe, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Iseta, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isets, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetns, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetns, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetp, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetl, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetge, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetle, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Isetg, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __flags_define(flags_usedef, UD_Ishld, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Ishrd, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Isal, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Ishl, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Istc, 0, __bit_shift(X86_FLAG_CF));
+    __flags_define(flags_usedef, UD_Istd, 0, __bit_shift(X86_FLAG_DF));
+    __flags_define(flags_usedef, UD_Isti, 0, __bit_shift(X86_FLAG_IF));
+    __flags_define(flags_usedef, UD_Istosb, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Istosw, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Istosq, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Istosd, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Isub, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iverr, 0, __bit_shift(X86_FLAG_ZF));
+    __flags_define(flags_usedef, UD_Iverw, 0, __bit_shift(X86_FLAG_ZF));
+    __flags_define(flags_usedef, UD_Ixadd, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Ixor, 0, __x86_flagset_alustd);
+    __flags_define(flags_usedef, UD_Iscasb, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Iscasw, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Iscasq, __bit_shift(X86_FLAG_DF), 0);
+    __flags_define(flags_usedef, UD_Iscasd, __bit_shift(X86_FLAG_DF), 0);
 
     // these instructions have 2 versions: 1 is a string instruction that uses DF, the other is an SSE instruction
     if (GET(mnemonic) == UD_Imovsb || GET(mnemonic) == UD_Imovsw || GET(mnemonic) == UD_Imovsd || GET(mnemonic) == UD_Imovsq){
+        // has no operands -- they must be implicit
         if (!getOperand(COMP_DEST_OPERAND) && !getOperand(COMP_SRC_OPERAND)){
-            flags_usedef[__flags_use] = __x86_flag_direction;
+            flags_usedef[__flags_use] = __bit_shift(X86_FLAG_DF);
         }
     }
 

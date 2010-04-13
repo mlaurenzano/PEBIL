@@ -48,40 +48,24 @@ class TextObject;
 
 #define ANALYSIS_MAXREG 32
 
-// use the last bit for flag bit 0
-#define __x86_flag_none                           0x00000000
-#define __x86_flag_carry                          0x00000001
-// reserved                                       0x00000002
-#define __x86_flag_parity                         0x00000004
-// reserved                                       0x00000008
-#define __x86_flag_adjust                         0x00000010
-// reserved                                       0x00000020
-#define __x86_flag_zero                           0x00000040
-#define __x86_flag_sign                           0x00000080
-#define __x86_flag_trap                           0x00000100
-#define __x86_flag_interrupt                      0x00000200
-#define __x86_flag_direction                      0x00000400
-#define __x86_flag_overflow                       0x00000800
-#define __x86_flag_iopl_mode1                     0x00001000
-#define __x86_flag_iopl_mode2                     0x00002000
-#define __x86_flag_nested_task                    0x00004000
-// reserved                                       0x00008000
-#define __x86_flag_resume                         0x00010000
-#define __x86_flag_virtual_8086_mode              0x00020000
-#define __x86_flag_alignment_check                0x00040000
-#define __x86_flag_virtual_interrupt              0x00080000
-#define __x86_flag_virtual_interrupt_pending      0x00100000
-#define __x86_flag_identification                 0x00200000
-// reserved                                       0x00400000
-// reserved                                       0x00800000
-// reserved                                       0x01000000
-// reserved                                       0x02000000
-// reserved                                       0x04000000
-// reserved                                       0x08000000
-// reserved                                       0x10000000
-// reserved                                       0x20000000
-// reserved                                       0x40000000
-// reserved                                       0x80000000
+#define X86_FLAG_CF 0
+#define X86_FLAG_PF 2
+#define X86_FLAG_AF 4
+#define X86_FLAG_ZF 6
+#define X86_FLAG_SF 7
+#define X86_FLAG_TF 8
+#define X86_FLAG_IF 9
+#define X86_FLAG_DF 10
+#define X86_FLAG_OF 11
+#define X86_FLAG_IOPL1 12
+#define X86_FLAG_IOPL2 13
+#define X86_FLAG_NT 14
+#define X86_FLAG_RF 16
+#define X86_FLAG_VF 17
+#define X86_FLAG_AC 18
+#define X86_FLAG_VI 19
+#define X86_FLAG_VP 20
+#define X86_FLAG_ID 21
 
 #define __flag_reserved "reserved"
 const static char* flag_name_map[32] = { "carry", __flag_reserved, "parity", __flag_reserved, 
@@ -96,7 +80,7 @@ const static char* flag_name_map[32] = { "carry", __flag_reserved, "parity", __f
 #define __flag_mask__protect_none  0x11111111
 #define __flag_mask__protect_light 0x11111100
 #define __flag_mask__protect_full  0x11110000
-#define __x86_flagset_alustd       (__x86_flag_carry | __x86_flag_parity | __x86_flag_adjust | __x86_flag_zero | __x86_flag_sign | __x86_flag_overflow)
+#define __x86_flagset_alustd       (__bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_OF))
 
 #define __flags_use 0
 #define __flags_def 1
@@ -230,6 +214,7 @@ private:
     BitSet<uint32_t>* liveIns;
     BitSet<uint32_t>* liveOuts;
     uint32_t* flags_usedef;
+    uint32_t* impreg_usedef;
 
     OperandX86** operands;
     uint32_t instructionIndex;
@@ -258,6 +243,7 @@ public:
 
     static void initializeInstructionAPIDecoder(bool is64bit);
     void setFlags();
+    void setImpliedRegs();
     static void destroyInstructionAPIDecoder();
     BitSet<uint32_t>* getUseRegs();
     BitSet<uint32_t>* getDefRegs();

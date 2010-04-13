@@ -1,8 +1,1 @@
-_start
-_fini
-__i686.get_pc_thunk.bx
-call_gmon_start
-__do_global_ctors_aux
-__libc_csu_fini
-__libc_csu_init
-__do_global_dtors_aux
+_init

@@ -80,6 +80,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 #define MINIMUM(I,J) ((I) < (J) ? : (I) : (J))
 
+#define __bit_shift(__v) (1 << __v)
 
 #define Invalid_UInteger_ID                 (uint32_t)-1
 #define Size__32_bit_File_Header            sizeof(Elf32_Ehdr)
