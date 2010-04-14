@@ -1,5 +1,21 @@
 #include <Base.h>
 
+bool allSpace(char* str){
+    int32_t len = strlen(str);
+    for(int32_t i=0;i<len;i++){
+        switch(str[i]){
+        case ' ' :
+        case '\n':
+        case '\t':
+            break;
+        default:
+            return false;
+        }
+    }
+    return true;
+}
+
+
 uint32_t searchFileList(Vector<char*>* list, char* name){
     if (!list) return 1;
 
@@ -130,6 +146,16 @@ uint16_t getUInt16(char* buf){
     return data;
 }
 
+int compareHashCode(const void* arg1, const void* arg2){
+    uint64_t vl1 = (*((HashCode**)arg1))->getValue();
+    uint64_t vl2 = (*((HashCode**)arg2))->getValue();
+
+    if      (vl1 < vl2) return -1;
+    else if (vl1 > vl2) return  1;
+    else                return  0;
+    return 0;
+}
+
 // this function needs to be fast; it gets called -->*A LOT*<--
 int compareBaseAddress(const void* arg1, const void* arg2){
     uint64_t vl1 = (*((Base**)arg1))->baseAddress;
@@ -141,6 +167,8 @@ int compareBaseAddress(const void* arg1, const void* arg2){
     return 0;
 }
 
+
+
 int searchBaseAddressExact(const void* arg1, const void* arg2){
     uint64_t key = *((uint64_t*)arg1);
     Base* b = *((Base**)arg2);
@@ -148,6 +176,23 @@ int searchBaseAddressExact(const void* arg1, const void* arg2){
     ASSERT(b && "Base should exist");
 
     uint64_t val = b->baseAddress;
+
+    if (key < val)
+        return -1;
+    if (key > val)
+        return 1;
+    return 0;
+}
+
+
+
+int searchHashCode(const void* arg1, const void* arg2){
+    uint64_t key = *((uint64_t*)arg1);
+    HashCode* h = *((HashCode**)arg2);
+
+    ASSERT(h && "HashCode should exist");
+
+    uint64_t val = h->getValue();
 
     if (key < val)
         return -1;

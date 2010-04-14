@@ -390,7 +390,7 @@ int main(int argc,char* argv[]){
     } else if (instType == frequency_inst_type){
         elfInst = new BasicBlockCounter(&elfFile);
     } else if (instType == simulation_inst_type){
-        elfInst = new CacheSimulation(&elfFile);
+        elfInst = new CacheSimulation(&elfFile, inptName);
     } else if (instType == iotrace_inst_type){
         if (!inputTrackList){
             fprintf(stderr, "\nError: option --trk needs to be given with iotracer\n");

@@ -330,6 +330,7 @@ public:
     inline uint32_t getInstruction() { return (hasInstruction() ? (entry.fields.instruction - 1) : INVALID_FIELD); }
 };
 
+extern bool allSpace(char* str);
 
 extern bool isAddressAligned(uint64_t addr, uint32_t align);
 extern bool isPowerOfTwo(uint32_t n);
@@ -339,6 +340,8 @@ extern uint64_t nextAlignAddressHalfWord(uint64_t addr);
 extern uint64_t nextAlignAddressWord(uint64_t addr);
 extern uint64_t nextAlignAddressDouble(uint64_t addr);
 
+extern int compareHashCode(const void* arg1,const void* arg2);
+extern int searchHashCode(const void* arg1, const void* arg2);
 extern int compareBaseAddress(const void* arg1,const void* arg2);
 extern int searchBaseAddressExact(const void* arg1, const void* arg2);
 extern int searchBaseAddress(const void* arg1, const void* arg2);
