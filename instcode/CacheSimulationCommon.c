@@ -735,14 +735,14 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
             // currentMemOp is set in such a way that values will be skipped by this code due to sampling.
             // This is a bit of a hack. Ideally, we would use something like 0xffffffffffffffff as the "bad"
             // address value since addresses can be 0 sometimes.
-            if(!currentAddress){
+            if(currentAddress == 0xffffffff){
                 if(currentMemOp > accessIdx){
                     accessIdx = currentMemOp;
                     continue;
                 }
             }
 
-            //            PRINT_INSTR(stdout, "Buffer Entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
+            PRINT_INSTR(stdout, "Buffer Entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
 
             register BasicBlockInfo* currentBlock = (blocks + currentEntry->blockId);
             accessIdx++;
@@ -853,7 +853,7 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
     register Attribute_t startIndex = 1;
     register Attribute_t lastIndex = entries->lastFreeIdx;
     lastIndex--;
-    //    PRINT_INSTR(stdout, "startIndex %d, lastIndex %d", startIndex, lastIndex);
+    PRINT_INSTR(stdout, "startIndex %d, lastIndex %d", startIndex, lastIndex);
 
     totalNumberOfAccesses += lastIndex;
 
@@ -1013,11 +1013,12 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
                 lastInvalidEntry = i;
             }
         } else {
-            //            PRINT_INSTR(stdout, "current entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
+            PRINT_INSTR(stdout, "current entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
             if(currentEntry->address == INVALID_ADDRESS){
                 assert(0 && "Fatal: Dangerous for assumption that addr can not be 0");
             }
             currentBlock->sampleCount++;
+            PRINT_INSTR(stdout, "updating sample count in block %d to %lld", currentEntry->blockId, currentBlock->sampleCount);
             if(lastInvalidEntry > -1){
                 entries[lastInvalidEntry].memOpId = i;
                 lastInvalidEntry = -1;

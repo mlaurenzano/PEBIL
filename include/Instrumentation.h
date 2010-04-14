@@ -223,6 +223,7 @@ typedef enum {
     InstPriority_sysinit,
     InstPriority_userinit,
     InstPriority_regular,
+    InstPriority_low,
     InstPriority_Total_Types
 } InstPriorities;
 

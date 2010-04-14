@@ -139,6 +139,7 @@ public:
     void findCompareAndCBranch();
 
     InstrucX86* getLeader() { return instructions[0]; }
+    InstrucX86* getExitInstruction() { return instructions.back(); }
 
     bool isPadding()  { return (flags & PaddingMask); }
     bool isEntry()    { return (flags & EntryMask); }
