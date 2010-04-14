@@ -153,17 +153,22 @@ void CacheSimulation::instrument(){
                     }
                     delete addrStore;
 
-                    /*
-                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + bufferPtrStore, tmpReg1));
-                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + bufferPtrStore, tmpReg1));
-                    (*addressCalc).append(InstrucX86Generator64::generateMoveImmToReg(dataAddr + bufferStore, tempReg2));
-                    (*addressCalc).append(InstrucX86Generator64::generateMoveMemToReg(dataAddr + bufferPtrStore, tempReg3));
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveImmToReg(getInstDataAddress() + bufferStore, tmpReg2));
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + buffPtrStore, tmpReg3));
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateShiftLeftLogical(logBase2(Size__BufferEntry), tmpReg3));
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateRegAddReg2OpForm(tmpReg3, tmpReg2));
+                    for (uint32_t j = 0; j < bb->getNumberOfMemoryOps(); j++){
+                        pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + addrScratchSpace + (j * sizeof(uint64_t)), tmpReg1));
+                        pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveRegToRegaddrImm(tmpReg1, tmpReg2, 8 + (j * Size__BufferEntry), true));
+                        pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveImmToRegaddrImm(blockId, tmpReg2, 0 + (j * Size__BufferEntry)));
+                        pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveImmToRegaddrImm(i + j, tmpReg2, 4 + (j * Size__BufferEntry)));
+                    }
 
-                    // compute the address of the buffer entry                                                                                                                                                                                               
-                    (*addressCalc).append(InstrucX86Generator64::generateShiftLeftLogical(logBase2(Size__BufferEntry), tempReg3));
-                    (*addressCalc).append(InstrucX86Generator64::generateRegAddReg2OpForm(tempReg3, tempReg2));
-                    (*addressCalc).append(InstrucX86Generator64::generateShiftRightLogical(logBase2(Size__BufferEntry), tempReg3));
-                    */
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateShiftRightLogical(logBase2(Size__BufferEntry), tmpReg3));
+
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateRegAddImm(tmpReg3, bb->getNumberOfMemoryOps()));
+                    pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveRegToMem(tmpReg3, getInstDataAddress() + buffPtrStore));
+
                     pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 3*(sizeof(uint64_t)), tmpReg3));
                     pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t)), tmpReg2));
                     pt->addPostcursorInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t)), tmpReg1));
