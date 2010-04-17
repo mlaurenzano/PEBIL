@@ -4,78 +4,237 @@
 #include <SectionHeader.h>
 #include <SymbolTable.h>
 
+void GnuHashTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    uint32_t currByte = 0;
+    uint32_t tmpEntry;
 
-// while maintaining a fixed-size table, we will increment the number of chains,
-// decrement the number of buckets, then rebuild the table
-void HashTable::addChain(){
-    buildTable(numberOfChains+1, numberOfBuckets-1);
+    binaryOutputFile->copyBytes((char*)&numberOfBuckets, sizeof(uint32_t), offset + currByte);
+    currByte += sizeof(uint32_t);
+
+    binaryOutputFile->copyBytes((char*)&firstSymIndex, sizeof(uint32_t), offset + currByte);
+    currByte += sizeof(uint32_t);
+
+    binaryOutputFile->copyBytes((char*)&numberOfBloomFilters, sizeof(uint32_t), offset + currByte);
+    currByte += sizeof(uint32_t);
+
+    binaryOutputFile->copyBytes((char*)&shiftCount, sizeof(uint32_t), offset + currByte);
+    currByte += sizeof(uint32_t);
+
+    for (uint32_t i = 0; i < numberOfBloomFilters; i++){
+        if (hashEntrySize == sizeof(uint64_t)){
+            binaryOutputFile->copyBytes((char*)&bloomFilters[i], sizeof(uint64_t), offset + currByte);
+            currByte += sizeof(uint64_t);
+        } else {
+            uint32_t bloom32 = (uint32_t)bloomFilters[i];
+            binaryOutputFile->copyBytes((char*)&bloom32, sizeof(uint32_t), offset + currByte);
+            currByte += sizeof(uint32_t);
+        }
+    }
+    
+    for (uint32_t i = 0; i < numberOfBuckets; i++){
+        binaryOutputFile->copyBytes((char*)&buckets[i], sizeof(uint32_t), offset + currByte);
+        currByte += sizeof(uint32_t);
+    }
+    
+    for (uint32_t i = 0; i < numberOfEntries; i++){
+        binaryOutputFile->copyBytes((char*)&entries[i], sizeof(uint32_t), offset + currByte);
+        currByte += sizeof(uint32_t);
+    }
 }
 
-void HashTable::buildTable(uint32_t numChains, uint32_t numBuckets){
+
+uint32_t GnuHashTable::read(BinaryInputFile* binaryInputFile){
+    binaryInputFile->setInPointer(rawDataPtr);
+    setFileOffset(binaryInputFile->currentOffset());
+
+    ASSERT(sizeInBytes >= sizeof(uint32_t) * 4 && "Hash Table must contain at least 4 values");
+
+    if (!binaryInputFile->copyBytesIterate((char*)&numberOfBuckets, sizeof(uint32_t))){
+        PRINT_ERROR("Cannot read nbucket from Hash Table");
+    }
+    buckets = new uint32_t[numberOfBuckets];
+
+    if (!binaryInputFile->copyBytesIterate((char*)&firstSymIndex, sizeof(uint32_t))){
+        PRINT_ERROR("Cannot read symndx from Hash Table");
+    }
+
+    if (!binaryInputFile->copyBytesIterate((char*)&numberOfBloomFilters, sizeof(uint32_t))){
+        PRINT_ERROR("Cannot read maskwords from Hash Table");
+    }
+    bloomFilters = new uint64_t[numberOfBloomFilters];
+
+    if (!binaryInputFile->copyBytesIterate((char*)&shiftCount, sizeof(uint32_t))){
+        PRINT_ERROR("Cannot read shift2 from Hash Table");
+    }
+
+    for (uint32_t i = 0; i < numberOfBloomFilters; i++){
+        if (!binaryInputFile->copyBytesIterate((char*)&bloomFilters[i], hashEntrySize)){
+            PRINT_ERROR("Cannot read bloom filter %d", i);
+        }
+    }
+
+    for (uint32_t i = 0; i < numberOfBuckets; i++){
+        if (!binaryInputFile->copyBytesIterate((char*)&buckets[i], sizeof(uint32_t))){
+            PRINT_ERROR("Cannot read bucket %d", i);
+        }
+    }
+
+    // a bit of a hack here since the symbol table isn't initialized. we will just assume
+    // that all remaining bytes are entries and verify that this is correct later when 
+    // the symbol table is present
+    uint32_t remainingBytes = (sizeInBytes - (4 * sizeof(uint32_t)) - (numberOfBloomFilters * hashEntrySize) - (numberOfBuckets * sizeof(uint32_t)));
+    ASSERT(remainingBytes % sizeof(uint32_t) == 0);
+    numberOfEntries = remainingBytes / sizeof(uint32_t);
+    entries = new uint32_t[numberOfEntries];
+    for (uint32_t i = 0; i < numberOfEntries; i++){
+        if (!binaryInputFile->copyBytesIterate((char*)&entries[i], sizeof(uint32_t))){
+            PRINT_ERROR("Cannot read value %d", i);
+        }
+    }
+}
+
+void GnuHashTable::initFilePointers(){
+    // locate the symbol table for this hash table (should be the dynamic symbol table
+    symTabIdx = elfFile->getNumberOfSymbolTables();
+    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+        PRINT_DEBUG_HASH("Symbol Table %d is section %d", i, elfFile->getSymbolTable(i)->getSectionIndex());
+        if (elfFile->getSymbolTable(i)->getSectionIndex() == elfFile->getSectionHeader(sectionIndex)->GET(sh_link)){
+            ASSERT(elfFile->getSymbolTable(i)->isDynamic() && "Hash table should be linked with a symbol table that is dynamic");
+            symTabIdx = i;
+        }
+    }
+    ASSERT(symTabIdx < elfFile->getNumberOfSymbolTables() && "Could not find a symbol table for the Hash Table");
+
+    SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
+    ASSERT(numberOfEntries == symTab->getNumberOfSymbols() - firstSymIndex);
+}
+
+GnuHashTable::GnuHashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
+    : HashTable(PebilClassType_GnuHashTable, rawPtr, size, scnIdx, elf)
+{
+    numberOfBloomFilters = 0;
+    bloomFilters = NULL;
+
+    if (elfFile->is64Bit()){
+        hashEntrySize = Size__64_bit_Hash_Entry;
+    } else {
+        hashEntrySize = Size__32_bit_Hash_Entry;
+    }
+
+    firstSymIndex = 0;
+    shiftCount = 0;
+}
+
+void GnuHashTable::print(){
+
+    SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
+    PRINT_INFOR("GnuHashTable: sect %d ( for sect(dynsym) %d) with %d x %d, firstSym %d, shiftCount %d",
+                sectionIndex, symTab->getSectionIndex(), numberOfBuckets, numberOfBloomFilters, firstSymIndex, shiftCount);
+
+    for (uint32_t i = 0; i < numberOfBloomFilters; i++){
+        if (hashEntrySize == sizeof(uint64_t)){
+            PRINT_INFOR("\tbloomf(64) %4d: %llx", i, bloomFilters[i]);
+        } else {
+            PRINT_INFOR("\tbloomf(32) %4d: %llx", i, bloomFilters[i]);
+        }
+    }
+
+    for (uint32_t i = 0; i < numberOfBuckets; i++){
+        PRINT_INFOR("buc %5d: %d", i, buckets[i]);
+    }
+
+    for (uint32_t i = 0; i < numberOfEntries; i++){
+        PRINT_INFOR("value %5d: %d", i, entries[i]);
+    }
+}
+
+GnuHashTable::~GnuHashTable(){
+    if (bloomFilters){
+        delete[] bloomFilters;
+    }
+}
+
+bool GnuHashTable::verify(){
+    return true;
+}
+
+
+bool SysvHashTable::passedThreshold(){
+    return (numberOfBuckets < numberOfEntries/2);
+}
+
+
+// while maintaining a fixed-size table, we will increment the number of entries,
+// decrement the number of buckets, then rebuild the table
+void SysvHashTable::addEntry(){
+    buildTable(numberOfEntries + 1, numberOfBuckets - 1);
+}
+
+void SysvHashTable::buildTable(uint32_t numEntries, uint32_t numBuckets){
 
     ASSERT(buckets && "buckets should be initialized");
-    ASSERT(chains && "chains should be initialized");
+    ASSERT(entries && "entries should be initialized");
 
-    numberOfChains = numChains;
+    numberOfEntries = numEntries;
     numberOfBuckets = numBuckets;
 
     ASSERT(numberOfBuckets > 0 && "The hash table must be expanded in order to create room for more buckets");
     
-    delete[] chains;
+    delete[] entries;
     delete[] buckets;
 
-    chains = new uint32_t[numberOfChains];
+    entries = new uint32_t[numberOfEntries];
     buckets = new uint32_t[numberOfBuckets];
 
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
 
-    ASSERT(symTab->getNumberOfSymbols() == numberOfChains && "Symbol table should have the same number of symbols as there are chains in the hash table");
+    ASSERT(symTab->getNumberOfSymbols() == numberOfEntries && "Symbol table should have the same number of symbols as there are entries in the hash table");
 
-    PRINT_DEBUG_HASH("Building hash table with c=%d and b=%d", numberOfChains, numberOfBuckets);
+    PRINT_DEBUG_HASH("Building hash table with c=%d and b=%d", numberOfEntries, numberOfBuckets);
 
-    // temporarily set chain[i] to the bucket index a name lookup on chain[i] with have to pass through
-    for (uint32_t i = 0; i < numberOfChains; i++){
-        chains[i] = elf_sysv_hash(symTab->getSymbolName(i)) % numberOfBuckets;
-        PRINT_DEBUG_HASH("Chain[%d] = (%d)%d -- %s", i, chains[i] % numberOfBuckets, chains[i], symTab->getSymbolName(i));
+    // temporarily set entry[i] to the bucket index a name lookup on entry[i] with have to pass through
+    for (uint32_t i = 0; i < numberOfEntries; i++){
+        entries[i] = elf_sysv_hash(symTab->getSymbolName(i)) % numberOfBuckets;
+        PRINT_DEBUG_HASH("Entry[%d] = (%d)%d -- %s", i, entries[i] % numberOfBuckets, entries[i], symTab->getSymbolName(i));
     }
 
-    // set bucket[i] to the last chain index which uses that bucket (ie, where chains[i] == i)
+    // set bucket[i] to the last entry index which uses that bucket (ie, where entries[i] == i)
     for (uint32_t i = 0; i < numberOfBuckets; i++){
-        buckets[i] = numberOfChains;
-        int32_t chainidx = numberOfChains-1;
-        while (buckets[i] == numberOfChains && chainidx >= 0){
-            if (chains[chainidx] == i){
-                buckets[i] = chainidx;
+        buckets[i] = numberOfEntries;
+        int32_t entryidx = numberOfEntries-1;
+        while (buckets[i] == numberOfEntries && entryidx >= 0){
+            if (entries[entryidx] == i){
+                buckets[i] = entryidx;
             }
-            chainidx--;
+            entryidx--;
         }
-        if (buckets[i] == numberOfChains){
+        if (buckets[i] == numberOfEntries){
             buckets[i] = 0;
         }
         PRINT_DEBUG_HASH("Bucket[%d] = %d", i, buckets[i]);
     }
 
-    // point chain[i] to chain[j] where j<i and the symbol names for symbols i,j hash to the same bucket
-    for (int32_t i = numberOfChains-1; i >= 0; i--){
+    // point entry[i] to entry[j] where j<i and the symbol names for symbols i,j hash to the same bucket
+    for (int32_t i = numberOfEntries-1; i >= 0; i--){
         bool isChanged = false;
         for (int32_t j = i-1; j >= 0; j--){
-            if (chains[i] == chains[j]){
-                chains[i] = j;
+            if (entries[i] == entries[j]){
+                entries[i] = j;
                 j = -1;
                 isChanged = true;
             }
         }
         if (!isChanged){
-            chains[i] = 0;
+            entries[i] = 0;
         }
-        PRINT_DEBUG_HASH("real Chain[%d] = %d", i, chains[i]);
+        PRINT_DEBUG_HASH("real Entry[%d] = %d", i, entries[i]);
     }
-    sizeInBytes = hashEntrySize * (2 + numberOfBuckets + numberOfChains);
+    sizeInBytes = sizeof(uint32_t) * (2 + numberOfBuckets + numberOfEntries);
 }
 
 
-uint32_t HashTable::expandSize(uint32_t amt){
-    buildTable(numberOfChains, numberOfBuckets + amt);
+uint32_t SysvHashTable::expandSize(uint32_t amt){
+    buildTable(numberOfEntries, numberOfBuckets + amt);
     return amt;
 }
 
@@ -94,27 +253,27 @@ bool HashTable::isGnuStyleHash(){
     return false;
 }
 
-uint32_t HashTable::findSymbol(const char* symbolName){
+uint32_t SysvHashTable::findSymbol(const char* symbolName){
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
 
     uint32_t x = buckets[elf_sysv_hash(symbolName)%numberOfBuckets];
-    uint32_t chainVal;
+    uint32_t entryVal;
 
-    PRINT_DEBUG_HASH("Symbol with name %s has hash buckets[%d]=%d", symbolName, elf_sysv_hash(symbolName)%numberOfBuckets, x);
+    PRINT_DEBUG_HASH("Symbol with name %s has hash buckets[%d]=%d", symbolName, elf_sysv_hash(symbolName) % numberOfBuckets, x);
 
     while (strcmp(symbolName,symTab->getSymbolName(x))){
-        if (x == chains[x]){
+        if (x == entries[x]){
             PRINT_ERROR("The symbol being searched (%s) is non-existent", symbolName);
             return -1;
         }
-        x = chains[x];
+        x = entries[x];
     }
     return x;
 
 }
 
 
-bool HashTable::verify(){
+bool SysvHashTable::verify(){
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
 
     if (!symTab){
@@ -127,20 +286,20 @@ bool HashTable::verify(){
         return false;
     }
 
-    if (numberOfChains != symTab->getNumberOfSymbols()){
-        PRINT_ERROR("In the hash table, the number of chains should be equal to the number of symbols in the corresponding symbol table");
+    if (numberOfEntries != symTab->getNumberOfSymbols()){
+        PRINT_ERROR("In the hash table, the number of entries should be equal to the number of symbols in the corresponding symbol table");
         return false;
     }
     
-    for (uint32_t i = 1; i < numberOfChains; i++){
+    for (uint32_t i = 1; i < numberOfEntries; i++){
         if (findSymbol(symTab->getSymbolName(i)) != i){
             PRINT_ERROR("Hash Table search function is erroneous");
         return false;
         }
     }
     
-    if (elfFile->getSectionHeader(sectionIndex)->GET(sh_entsize) != hashEntrySize){
-        PRINT_ERROR("Hash table entry size must be %d bytes", hashEntrySize);
+    if (elfFile->getSectionHeader(sectionIndex)->GET(sh_entsize) != sizeof(uint32_t)){
+        PRINT_ERROR("Hash table entry size must be %d bytes", sizeof(uint32_t));
         return false;
     }
     
@@ -157,7 +316,7 @@ bool HashTable::verify(){
         }
     }
 
-    if (sizeInBytes != hashEntrySize * (2 + numberOfChains + numberOfBuckets)){
+    if (sizeInBytes != sizeof(uint32_t) * (2 + numberOfEntries + numberOfBuckets)){
         PRINT_ERROR("Hash Table size is incorrect");
         return false;
     }
@@ -166,72 +325,72 @@ bool HashTable::verify(){
 }
 
 
-void HashTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+void SysvHashTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
     uint32_t tmpEntry;
 
-    binaryOutputFile->copyBytes((char*)&numberOfBuckets,hashEntrySize,offset+currByte);
-    currByte += hashEntrySize;
+    binaryOutputFile->copyBytes((char*)&numberOfBuckets,sizeof(uint32_t),offset+currByte);
+    currByte += sizeof(uint32_t);
 
-    binaryOutputFile->copyBytes((char*)&numberOfChains,hashEntrySize,offset+currByte);
-    currByte += hashEntrySize;
+    binaryOutputFile->copyBytes((char*)&numberOfEntries,sizeof(uint32_t),offset+currByte);
+    currByte += sizeof(uint32_t);
     
     for (uint32_t i = 0; i < numberOfBuckets; i++){
-        binaryOutputFile->copyBytes((char*)&buckets[i],hashEntrySize,offset+currByte);
-        currByte += hashEntrySize;
+        binaryOutputFile->copyBytes((char*)&buckets[i],sizeof(uint32_t),offset+currByte);
+        currByte += sizeof(uint32_t);
     }
     
-    for (uint32_t i = 0; i < numberOfChains; i++){
-        binaryOutputFile->copyBytes((char*)&chains[i],hashEntrySize,offset+currByte);
-        currByte += hashEntrySize;
+    for (uint32_t i = 0; i < numberOfEntries; i++){
+        binaryOutputFile->copyBytes((char*)&entries[i],sizeof(uint32_t),offset+currByte);
+        currByte += sizeof(uint32_t);
     }
 }
 
-uint32_t HashTable::read(BinaryInputFile* binaryInputFile){
+uint32_t SysvHashTable::read(BinaryInputFile* binaryInputFile){
     binaryInputFile->setInPointer(rawDataPtr);
     setFileOffset(binaryInputFile->currentOffset());
 
-    ASSERT(sizeInBytes >= hashEntrySize * 2 && "Hash Table must contain at least 2 entries");
+    ASSERT(sizeInBytes >= sizeof(uint32_t) * 2 && "Hash Table must contain at least 2 entries");
     
-    if (!binaryInputFile->copyBytesIterate((char*)&numberOfBuckets, hashEntrySize)){
+    if (!binaryInputFile->copyBytesIterate((char*)&numberOfBuckets, sizeof(uint32_t))){
         PRINT_ERROR("Cannot read nbucket from Hash Table");
     }
     buckets = new uint32_t[numberOfBuckets];
     
-    if (!binaryInputFile->copyBytesIterate((char*)&numberOfChains, hashEntrySize)){
-        PRINT_ERROR("Cannot read nchain from Hash Table");
+    if (!binaryInputFile->copyBytesIterate((char*)&numberOfEntries, sizeof(uint32_t))){
+        PRINT_ERROR("Cannot read nentry from Hash Table");
     }
-    chains = new uint32_t[numberOfChains];
+    entries = new uint32_t[numberOfEntries];
     
-    ASSERT(sizeInBytes == hashEntrySize*(numberOfBuckets + numberOfChains + 2) && "Hash Table size is inconsistent with its internal information");
+    ASSERT(sizeInBytes == sizeof(uint32_t)*(numberOfBuckets + numberOfEntries + 2) && "Hash Table size is inconsistent with its internal information");
     
     for (uint32_t i = 0; i < numberOfBuckets; i++){
-        if (!binaryInputFile->copyBytesIterate((char*)&buckets[i], hashEntrySize)){
+        if (!binaryInputFile->copyBytesIterate((char*)&buckets[i], sizeof(uint32_t))){
             PRINT_ERROR("Cannot read bucket[%d] from Hash Table", i);
         }
     }
     
-    for (uint32_t i = 0; i < numberOfChains; i++){
-        if (!binaryInputFile->copyBytesIterate((char*)&chains[i], hashEntrySize)){
-            PRINT_ERROR("Cannot read chain[%d] from Hash Table)", i);
+    for (uint32_t i = 0; i < numberOfEntries; i++){
+        if (!binaryInputFile->copyBytesIterate((char*)&entries[i], sizeof(uint32_t))){
+            PRINT_ERROR("Cannot read entry[%d] from Hash Table)", i);
         }
     }
 
     return sizeInBytes;
 }
 
-void HashTable::print(){
+void SysvHashTable::print(){
 
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
-    PRINT_INFOR("HashTable: sect %d ( for sect(dynsym?) %d) with %d x %d",
-        sectionIndex,symTab->getSectionIndex(),numberOfBuckets,numberOfChains);
+    PRINT_INFOR("SysvHashTable: sect %d ( for sect(dynsym?) %d) with %d x %d",
+        sectionIndex,symTab->getSectionIndex(),numberOfBuckets,numberOfEntries);
 
     for (uint32_t i = 0; i < numberOfBuckets; i++){
         PRINT_INFOR("\tbuc%5d",i);
-        uint32_t chainidx = buckets[i];
-        while (chainidx){
-            PRINT_INFOR("\t\tchn%5d -- %s",chainidx,symTab->getSymbolName(chainidx));
-            chainidx = chains[chainidx];
+        uint32_t entryidx = buckets[i];
+        while (entryidx){
+            PRINT_INFOR("\t\tchn%5d -- %s",entryidx,symTab->getSymbolName(entryidx));
+            entryidx = entries[entryidx];
 
         }
     }
@@ -246,14 +405,14 @@ uint32_t HashTable::getBucket(uint32_t idx){
     return buckets[idx];
 }
 
-uint32_t HashTable::getChain(uint32_t idx){
-    ASSERT(idx < numberOfChains && "index into Hash Table chain array is out of bounds");
-    ASSERT(chains && "chain array should be initialized");
+uint32_t HashTable::getEntry(uint32_t idx){
+    ASSERT(idx < numberOfEntries && "index into Hash Table entry array is out of bounds");
+    ASSERT(entries && "entry array should be initialized");
 
-    return chains[idx];
+    return entries[idx];
 }
 
-void HashTable::initFilePointers(){
+void SysvHashTable::initFilePointers(){
 
     // locate the symbol table for this hash table (should be the dynamic symbol table
     symTabIdx = elfFile->getNumberOfSymbolTables();
@@ -268,43 +427,31 @@ void HashTable::initFilePointers(){
 
 }
 
-
-HashTable::HashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
-    : RawSection(PebilClassType_HashTable,rawPtr,size,scnIdx,elf)
+HashTable::HashTable(PebilClassTypes classType, char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
+    : RawSection(classType, rawPtr, size, scnIdx, elf)
 {
     symTabIdx = elfFile->getNumberOfSymbolTables();
 
-    if (elfFile->is64Bit()){
-        hashEntrySize = Size__64_bit_Hash_Entry;
-    } else {
-        hashEntrySize = Size__32_bit_Hash_Entry;
-    }
-
     numberOfBuckets = 0;
     buckets = NULL;
-
-    numberOfChains = 0;
-    chains = NULL;
-
-    if (elfFile->getSectionHeader(scnIdx)->GET(sh_type) != SHT_HASH){
-        if (elfFile->getSectionHeader(scnIdx)->GET(sh_type) == SHT_GNU_HASH){
-            PRINT_ERROR("Hash table cannot use gnu-style hash table, relink with -Wl,--hash-style=sysv");
-            __SHOULD_NOT_ARRIVE;
-        } else {
-            PRINT_ERROR("Hash table has a non-hash section type; this is very wrong");
-            __SHOULD_NOT_ARRIVE;
-        }
-    }
-
 }
 
+SysvHashTable::SysvHashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
+    : HashTable(PebilClassType_SysvHashTable, rawPtr, size, scnIdx, elf)
+{
+    numberOfEntries = 0;
+    entries = NULL;
+
+    hashEntrySize = Size__32_bit_Hash_Entry;
+}
 
 HashTable::~HashTable(){
     if (buckets){
         delete[] buckets;
     }
-    if (chains){
-        delete[] chains;
+    if (entries){
+        delete[] entries;
     }
 }
+
 

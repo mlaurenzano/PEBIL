@@ -1194,7 +1194,7 @@ void ElfFileInst::extendTextSection(uint64_t totalSize, uint64_t headerSize){
         for (uint32_t i = 0; i < elfFile->getDynamicTable()->getNumberOfDynamics(); i++){
             Dynamic* dyn = elfFile->getDynamicTable()->getDynamic(i);
             uint64_t tag = dyn->GET(d_tag);
-            if (tag == DT_HASH || tag == DT_STRTAB || tag == DT_SYMTAB ||
+            if (tag == DT_HASH || tag == DT_GNU_HASH || tag == DT_STRTAB || tag == DT_SYMTAB ||
                 tag == DT_VERSYM || tag == DT_VERNEED ||
                 tag == DT_REL || tag == DT_RELA || tag == DT_JMPREL){
                 dyn->SET_A(d_ptr,d_un,dyn->GET_A(d_ptr,d_un)-totalSize);
@@ -1216,7 +1216,7 @@ void ElfFileInst::extendTextSection(uint64_t totalSize, uint64_t headerSize){
         for (uint32_t i = 0; i < elfFile->getDynamicTable()->getNumberOfDynamics(); i++){
             Dynamic* dyn = elfFile->getDynamicTable()->getDynamic(i);
             uint64_t tag = dyn->GET(d_tag);
-            if (tag == DT_HASH || tag == DT_STRTAB || tag == DT_SYMTAB ||
+            if (tag == DT_HASH || tag == DT_GNU_HASH || tag == DT_STRTAB || tag == DT_SYMTAB ||
                 tag == DT_VERSYM || tag == DT_VERNEED ||
                 tag == DT_REL || tag == DT_RELA || tag == DT_JMPREL){
                 dyn->SET_A(d_ptr,d_un,dyn->GET_A(d_ptr,d_un) + headerSize);
@@ -1488,8 +1488,8 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
 
     // add an entry to the hash table
     HashTable* hashTable = elfFile->getHashTable();
-    hashTable->addChain();
-    if (hashTable->getNumberOfBuckets() < hashTable->getNumberOfChains()/2){
+    hashTable->addEntry();
+    if (hashTable->passedThreshold()){
         expandHashTable();
     }    
 
@@ -1529,7 +1529,7 @@ uint32_t ElfFileInst::expandHashTable(){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
     HashTable* hashTable = elfFile->getHashTable();
-    uint32_t extraHashEntries = hashTable->expandSize(hashTable->getNumberOfChains()/2);
+    uint32_t extraHashEntries = hashTable->expandSize(hashTable->getNumberOfEntries()/2);
 
     SectionHeader* hashHeader = elfFile->getSectionHeader(hashTable->getSectionIndex());
     uint32_t extraSize = extraHashEntries * hashTable->getEntrySize();

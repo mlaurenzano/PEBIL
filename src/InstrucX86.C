@@ -1636,6 +1636,9 @@ InstrucX86::~InstrucX86(){
     if (flags_usedef){
         delete[] flags_usedef;
     }
+    if (impreg_usedef){
+        delete[] impreg_usedef;
+    }
 }
 
 OperandX86* InstrucX86::getOperand(uint32_t idx){

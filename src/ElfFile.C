@@ -307,7 +307,13 @@ bool ElfFile::verify(){
 
 bool ElfFile::verifyDynamic(){
     
-    uint64_t hashSectionAddress_DT = dynamicTable->getDynamicByType(DT_HASH,0)->GET_A(d_val,d_un);
+    uint64_t hashSectionAddress_DT;
+    if (hashTable->isGnuStyleHash()){
+        hashSectionAddress_DT = dynamicTable->getDynamicByType(DT_GNU_HASH,0)->GET_A(d_val,d_un);        
+    } else {
+        hashSectionAddress_DT = dynamicTable->getDynamicByType(DT_HASH,0)->GET_A(d_val,d_un);
+    }
+
     uint64_t dynstrSectionAddress_DT = dynamicTable->getDynamicByType(DT_STRTAB,0)->GET_A(d_val,d_un);
     uint64_t dynsymSectionAddress_DT = dynamicTable->getDynamicByType(DT_SYMTAB,0)->GET_A(d_val,d_un);
     if (dynamicTable->countDynamics(DT_REL) + dynamicTable->countDynamics(DT_RELA) != 1){
@@ -353,7 +359,8 @@ bool ElfFile::verifyDynamic(){
             return false;
         }
 
-        if (sectionHeaders[i]->getSectionType() == PebilClassType_HashTable){
+        if (sectionHeaders[i]->getSectionType() == PebilClassType_SysvHashTable || 
+            sectionHeaders[i]->getSectionType() == PebilClassType_GnuHashTable){
             if (hashSectionAddress){
                 PRINT_ERROR("Cannot have more than one hash section");
                 return false;
@@ -1192,9 +1199,14 @@ void ElfFile::readRawSections(){
             rawSections.append(new TextSection(sectionFilePtr, sectionSize, i, getNumberOfTextSections(), this, ByteSource_Application));
             textSections.append((TextSection*)rawSections.back());
             break;
-        case PebilClassType_HashTable:
+        case PebilClassType_SysvHashTable:
             ASSERT(!hashTable && "Cannot have multiple hash table sections");
-            rawSections.append(new HashTable(sectionFilePtr, sectionSize, i, this));
+            rawSections.append(new SysvHashTable(sectionFilePtr, sectionSize, i, this));
+            hashTable = (HashTable*)rawSections.back();
+            break;
+        case PebilClassType_GnuHashTable:
+            ASSERT(!hashTable && "Cannot have multiple hash table sections");
+            rawSections.append(new GnuHashTable(sectionFilePtr, sectionSize, i, this));
             hashTable = (HashTable*)rawSections.back();
             break;
         case PebilClassType_NoteSection:

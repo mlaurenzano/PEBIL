@@ -100,7 +100,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 #define Size__32_bit_Dynamic_Entry          sizeof(Elf32_Dyn)
 #define Size__64_bit_Dynamic_Entry          sizeof(Elf64_Dyn)
 #define Size__32_bit_Hash_Entry             sizeof(uint32_t)
-#define Size__64_bit_Hash_Entry             sizeof(uint32_t)
+#define Size__64_bit_Hash_Entry             sizeof(uint64_t)
 #define Size__32_bit_GNU_Hash_Bloom_Entry   sizeof(uint32_t)
 #define Size__64_bit_GNU_Hash_Bloom_Entry   sizeof(uint64_t)
 #define Size__32_bit_Note_Section_Entry     sizeof(uint32_t)
@@ -195,11 +195,11 @@ typedef enum {
     PebilClassType_FreeText, // 10
     PebilClassType_Function,
     PebilClassType_GlobalOffsetTable,
+    PebilClassType_GnuHashTable,
     PebilClassType_GnuVerneed,
-    PebilClassType_GnuVerneedTable,
-    PebilClassType_GnuVersym, // 15
+    PebilClassType_GnuVerneedTable, // 15
+    PebilClassType_GnuVersym,
     PebilClassType_GnuVersymTable,
-    PebilClassType_HashTable,
     PebilClassType_InstrucX86,
     PebilClassType_InstrumentationFunction,
     PebilClassType_InstrumentationPoint, // 20
@@ -215,6 +215,7 @@ typedef enum {
     PebilClassType_StringTable, // 30
     PebilClassType_Symbol,
     PebilClassType_SymbolTable,
+    PebilClassType_SysvHashTable,
     PebilClassType_TextSection,
     PebilClassType_Total_Types
 } PebilClassTypes;

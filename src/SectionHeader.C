@@ -48,7 +48,7 @@ void SectionHeader::setSectionType(){
         sectionType = PebilClassType_RelocationTable;
         break;
     case SHT_HASH:
-        sectionType = PebilClassType_HashTable;
+        sectionType = PebilClassType_SysvHashTable;
         break;
     case SHT_DYNAMIC:
         sectionType = PebilClassType_DynamicTable;
@@ -90,7 +90,7 @@ void SectionHeader::setSectionType(){
         sectionType = PebilClassType_no_type;
         break;
     case SHT_GNU_HASH:
-        sectionType = PebilClassType_HashTable;
+        sectionType = PebilClassType_GnuHashTable;
         break;
     case SHT_GNU_verneed:
         sectionType = PebilClassType_GnuVerneedTable;
