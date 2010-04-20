@@ -104,6 +104,7 @@ class GnuVersymTable : public RawSection {
 private:
     Vector<uint16_t> versyms;
     uint32_t entrySize;
+
 public:
     GnuVersymTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf);
     ~GnuVersymTable() {}
@@ -113,6 +114,9 @@ public:
     bool verify();
 
     uint32_t addSymbol(uint16_t val);
+    uint16_t getSymbol(uint32_t idx) { return versyms[idx]; }
+    void setSymbol(uint32_t idx, uint16_t val) { versyms[idx] = val; }
+    uint32_t getNumberOfSymbols() { return versyms.size(); }
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 };

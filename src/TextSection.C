@@ -171,7 +171,7 @@ Vector<Symbol*> TextSection::discoverTextObjects(){
         }
     }
 
-    // sort text symbols in into decreasing order
+    // sort text symbols in decreasing order
     qsort(&functionSymbols,functionSymbols.size(),sizeof(Symbol*),compareSymbolValue);
 
     // delete symbol values that have duplicate values

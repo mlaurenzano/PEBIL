@@ -16,7 +16,6 @@ static char* symbol_without_name = "<__no_name__pebil>";
 extern int compareSymbolValue(const void* arg1,const void* arg2);
 extern int searchSymbolValue(const void* arg1,const void* arg2);
 
-
 class Symbol : public Base {
 public:
 
@@ -38,6 +37,7 @@ public:
     bool verify(uint16_t targetSize);
     virtual char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
     char* getSymbolName();
+    void setIndex(uint32_t idx) { index = idx; }
 
     virtual unsigned char getSymbolBinding() { __SHOULD_NOT_ARRIVE; }
     virtual unsigned char getSymbolType() { __SHOULD_NOT_ARRIVE; }
@@ -80,15 +80,15 @@ public:
 class SymbolTable : public RawSection {
 protected:
     Vector<Symbol*> symbols;
-    Vector<Symbol*> sortedSymbols;
+    //    Vector<Symbol*> sortedSymbols;
 
     StringTable* stringTable;
     uint32_t index;
     bool dynamic;
     uint32_t symbolSize;
 
-    bool symbolsAreSorted();
-    void sortSymbols();
+    //    bool symbolsAreSorted();
+    //    void sortSymbols();
 public:
 
     SymbolTable(char* rawPtr, uint64_t size, uint16_t scnIdx, uint32_t idx, ElfFile* elf);
@@ -113,6 +113,7 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     uint32_t findSymbol4Addr(uint64_t addr, Symbol** buffer, uint32_t bufCnt, char** namestr=NULL);
+    void sortForGnuHash(uint32_t firstSymIndex, uint32_t numberOfBuckets);
 };
 
 #endif /* _SymbolTable_h_ */

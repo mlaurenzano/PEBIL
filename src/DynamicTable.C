@@ -133,7 +133,8 @@ bool DynamicTable::verify(){
     uint64_t relocAddendDynamicAddr = 0;
     uint64_t relocAddendDynamicSize = 0;
     uint64_t relocAddendDynamicEnt = 0;
-    uint64_t hashTableAddress = 0;
+    uint64_t gnuHashTableAddress = 0;
+    uint64_t sysvHashTableAddress = 0;
     uint64_t stringTableAddress = 0;
     uint64_t symbolTableAddress = 0;
     uint64_t pltgotAddress = 0;
@@ -218,8 +219,10 @@ bool DynamicTable::verify(){
 
         if (dyn->GET(d_tag) == DT_PLTGOT){
             pltgotAddress = dyn->GET_A(d_ptr,d_un);
-        } else if (dyn->GET(d_tag) == DT_HASH || dyn->GET(d_tag) == DT_GNU_HASH){
-            hashTableAddress = dyn->GET_A(d_ptr,d_un);
+        } else if (dyn->GET(d_tag) == DT_HASH){
+            sysvHashTableAddress = dyn->GET_A(d_ptr,d_un);
+        } else if (dyn->GET(d_tag) == DT_GNU_HASH){
+            gnuHashTableAddress = dyn->GET_A(d_ptr,d_un);
         } else if (dyn->GET(d_tag) == DT_INIT){
             initFunctionAddress = dyn->GET_A(d_ptr,d_un);
         } else if (dyn->GET(d_tag) == DT_FINI){
@@ -236,7 +239,11 @@ bool DynamicTable::verify(){
     }
 
     // enforce an order on the addresses of certain sections
-    if (hashTableAddress >= symbolTableAddress){
+    if (gnuHashTableAddress >= symbolTableAddress){
+        PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
+        return false;
+    }
+    if (sysvHashTableAddress >= symbolTableAddress){
         PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
         return false;
     }
@@ -276,13 +283,45 @@ bool DynamicTable::verify(){
         return false;
     }
 
-    if (entryCounts[DT_HASH] == 1){
-        uint16_t scnIdx = elfFile->getHashTable()->getSectionIndex();
-        if (hashTableAddress != elfFile->getSectionHeader(scnIdx)->GET(sh_addr)){
-            PRINT_ERROR("Hash table address in the dynamic table is inconsistent with the hash table address found in the section header");
+    for (uint32_t i = 0; i < elfFile->getNumberOfHashTables(); i++){
+        if (elfFile->getHashTable(i)->getSectionHeader()->GET(sh_type) == SHT_HASH){
+            uint16_t scnIdx = elfFile->getHashTable(i)->getSectionIndex();
+            if (sysvHashTableAddress != elfFile->getSectionHeader(scnIdx)->GET(sh_addr)){
+                PRINT_ERROR("(Sysv) Hash table address in the dynamic table is inconsistent with the hash table address found in the section header");
+                return false;
+            }
+        }
+
+        if (elfFile->getHashTable(i)->getSectionHeader()->GET(sh_type) == SHT_GNU_HASH){
+            uint16_t scnIdx = elfFile->getHashTable(i)->getSectionIndex();
+            if (gnuHashTableAddress != elfFile->getSectionHeader(scnIdx)->GET(sh_addr)){
+                PRINT_ERROR("(Gnu) Hash table address in the dynamic table is inconsistent with the hash table address found in the section header");
+                return false;
+            }
+        }
+
+    } 
+    if (entryCounts[DT_HASH] == 0){
+        if (sysvHashTableAddress || gnuHashTableAddress){
+            PRINT_ERROR("Unexpected hash section(s) found");
             return false;
         }
-    } 
+    } else if (entryCounts[DT_HASH] == 1){
+        //        PRINT_INFOR("sysv addr %#llx, gnu addr %#llx", sysvHashTableAddress, gnuHashTableAddress);
+        if (sysvHashTableAddress & gnuHashTableAddress){
+            PRINT_ERROR("Unexpected hash section(s) found");
+            return false;
+        }
+    } else if (entryCounts[DT_HASH] == 2){
+        if (!sysvHashTableAddress || !gnuHashTableAddress){
+            PRINT_ERROR("Unexpected hash section(s) found");
+            return false;
+        }
+    } else {
+        PRINT_ERROR("Too many hash tables found");
+        return false;
+    }
+
     // must have a DT_HASH entry only if the executable participates in dynamic linking
     /*
     else {

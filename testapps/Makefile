@@ -6,7 +6,7 @@ CC          = $(PEBIL_CC)  $(OPT)
 CPP         = $(PEBIL_CPP) $(OPT)
 F77         = $(PEBIL_F77) $(OPT)
 LNK         = ld
-LINK_FLAGS  = $(PEBIL_LD_FLAGS) $(DBG)
+LINK_FLAGS  = $(DBG)
 
 SRCDIR      = ../test
 BINDIR      = ../src

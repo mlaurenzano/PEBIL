@@ -6,14 +6,29 @@
 #include <SectionHeader.h>
 #include <SymbolTable.h>
 
+void Relocation64::setSymbolInfo(uint32_t sym){
+    entry.r_info = ELF64_R_INFO(sym, getType());
+}
+
+void RelocationAddend64::setSymbolInfo(uint32_t sym){
+    entry.r_info = ELF64_R_INFO(sym, getType());    
+}
+
+void Relocation32::setSymbolInfo(uint32_t sym){
+    entry.r_info = ELF32_R_INFO(sym, getType());
+}
+
+void RelocationAddend32::setSymbolInfo(uint32_t sym){
+    entry.r_info = ELF32_R_INFO(sym, getType());    
+}
+
 void RelocationTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currentByte = 0;
     for (uint32_t i = 0; i < relocations.size(); i++){
-        binaryOutputFile->copyBytes(relocations[i]->charStream(),relocationSize,offset+currentByte);
+        binaryOutputFile->copyBytes(relocations[i]->charStream(), relocationSize, offset + currentByte);
         currentByte += relocationSize;
     }
 }
-
 
 uint32_t RelocationTable::addRelocation(uint64_t offset, uint64_t info){
 

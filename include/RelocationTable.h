@@ -15,6 +15,7 @@ protected:
     Relocation(char* relPtr, uint32_t idx) : Base(PebilClassType_Relocation), relocationPtr(relPtr), index(idx) {}
     char* relocationPtr;
     uint32_t index;
+
 public:
     virtual ~Relocation() {}
     virtual char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
@@ -23,6 +24,7 @@ public:
     virtual uint64_t getSymbol() { __SHOULD_NOT_ARRIVE; }
     virtual uint64_t getType() { __SHOULD_NOT_ARRIVE; }
     virtual bool verify() { return true; }
+    virtual void setSymbolInfo(uint32_t sym) { __SHOULD_NOT_ARRIVE; }
 
     RELOCATION_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 };
@@ -38,6 +40,7 @@ public:
     void print(char*);
     uint64_t getSymbol() { return (uint64_t)ELF32_R_SYM (GET(r_info)); }
     uint64_t getType()   { return (uint64_t)ELF32_R_TYPE(GET(r_info)); }
+    void setSymbolInfo(uint32_t sym);
 
     RELOCATION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 };
@@ -51,7 +54,8 @@ public:
     char* charStream() { return (char*)&entry; }
     uint32_t read(BinaryInputFile* binaryInputFile);
     void print(char*);
-
+    void setSymbolInfo(uint32_t sym)
+;
     RELOCATION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 };
 
@@ -66,6 +70,7 @@ public:
     void print(char*);
     uint64_t getSymbol() { return (uint64_t)ELF32_R_SYM (GET(r_info)); }
     uint64_t getType()   { return (uint64_t)ELF32_R_TYPE(GET(r_info)); }
+    void setSymbolInfo(uint32_t sym);
 
 
     RELOCATION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
@@ -84,6 +89,7 @@ public:
     void print(char*);
     uint64_t getSymbol() { return (uint64_t)ELF64_R_SYM (GET(r_info)); }
     uint64_t getType()   { return (uint64_t)ELF64_R_TYPE(GET(r_info)); }
+    void setSymbolInfo(uint32_t sym);
 
     RELOCATION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
     // need a seperate macro set (actually just 1) for the relocation addend structure

@@ -48,7 +48,7 @@ TextSection* ElfFile::getDotPltSection(){
 
 ElfFile::ElfFile(char* f) :
 is64BitFlag(false), staticLinked(false), elfFileName(f), fileHeader(NULL), globalOffsetTable(NULL), dynamicTable(NULL),
-hashTable(NULL), gnuVerneedTable(NULL), gnuVersymTable(NULL), dynamicStringTable(NULL), dynamicSymbolTable(NULL),
+gnuVerneedTable(NULL), gnuVersymTable(NULL), dynamicStringTable(NULL), dynamicSymbolTable(NULL),
 pltRelocationTable(NULL), dynamicRelocationTable(NULL), lineInfoSection(NULL), dynamicSymtabIdx(0),
 dynamicSectionAddress(0), dynamicTableSectionIdx(0), textSegmentIdx(0), dataSegmentIdx(0), numberOfFunctions(0),
 numberOfBlocks(0), numberOfMemoryOps(0), numberOfFloatPOps(0)
@@ -307,11 +307,29 @@ bool ElfFile::verify(){
 
 bool ElfFile::verifyDynamic(){
     
-    uint64_t hashSectionAddress_DT;
-    if (hashTable->isGnuStyleHash()){
-        hashSectionAddress_DT = dynamicTable->getDynamicByType(DT_GNU_HASH,0)->GET_A(d_val,d_un);        
-    } else {
-        hashSectionAddress_DT = dynamicTable->getDynamicByType(DT_HASH,0)->GET_A(d_val,d_un);
+    uint64_t gnuHashSectionAddress_DT = 0;
+    uint64_t sysvHashSectionAddress_DT = 0;
+    for (uint32_t i = 0; i < getNumberOfHashTables(); i++){
+        if (hashTables[i]->isGnuStyleHash()){
+            if (gnuHashSectionAddress_DT){
+                PRINT_ERROR("Cannot have more than one (gnu) hash table");
+                return false;
+            }
+            gnuHashSectionAddress_DT = dynamicTable->getDynamicByType(DT_GNU_HASH,0)->GET_A(d_val,d_un);        
+        } else {
+            if (sysvHashSectionAddress_DT){
+                PRINT_ERROR("Cannot have more than one (sysv) hash table");
+                return false;
+            }
+            sysvHashSectionAddress_DT = dynamicTable->getDynamicByType(DT_HASH,0)->GET_A(d_val,d_un);
+        }
+    }
+    // if both types are present, we assume the sysv style version comes first
+    if (getNumberOfHashTables() == 2){
+        if (gnuHashSectionAddress_DT <= sysvHashSectionAddress_DT){
+            PRINT_ERROR("Sysv hash table should come before gnu hash table");
+            return false;
+        }
     }
 
     uint64_t dynstrSectionAddress_DT = dynamicTable->getDynamicByType(DT_STRTAB,0)->GET_A(d_val,d_un);
@@ -330,7 +348,8 @@ bool ElfFile::verifyDynamic(){
 
     // here we will enforce an ordering on the sections in the file.
     // The file must start with note and interp sections
-    uint64_t hashSectionAddress = 0;
+    uint64_t gnuHashSectionAddress = 0;
+    uint64_t sysvHashSectionAddress = 0;
     uint64_t dynamicSectionAddress = 0;
     uint64_t dynstrSectionAddress = 0;
     uint64_t dynsymSectionAddress = 0;
@@ -359,17 +378,26 @@ bool ElfFile::verifyDynamic(){
             return false;
         }
 
-        if (sectionHeaders[i]->getSectionType() == PebilClassType_SysvHashTable || 
-            sectionHeaders[i]->getSectionType() == PebilClassType_GnuHashTable){
-            if (hashSectionAddress){
-                PRINT_ERROR("Cannot have more than one hash section");
+        if (sectionHeaders[i]->getSectionType() == PebilClassType_SysvHashTable){
+            if (sysvHashSectionAddress){
+                PRINT_ERROR("Cannot have more than one (sysv) hash section");
                 return false;
             }
             if (dynstrSectionAddress){
-                PRINT_ERROR("Hash table should come before dynamic string table");
+                PRINT_ERROR("(Sysv) Hash table should come before dynamic string table");
                 return false;
             }
-            hashSectionAddress = sectionHeaders[i]->GET(sh_addr);
+            sysvHashSectionAddress = sectionHeaders[i]->GET(sh_addr);
+        } else if (sectionHeaders[i]->getSectionType() == PebilClassType_GnuHashTable){
+            if (gnuHashSectionAddress){
+                PRINT_ERROR("Cannot have more than one (gnu) hash section");
+                return false;
+            }
+            if (dynstrSectionAddress){
+                PRINT_ERROR("(Gnu) Hash table should come before dynamic string table");
+                return false;
+            }
+            gnuHashSectionAddress = sectionHeaders[i]->GET(sh_addr);
         } else if (sectionHeaders[i]->getSectionType() == PebilClassType_SymbolTable &&
             sectionHeaders[i]->GET(sh_type) == SHT_DYNSYM){
             if (dynsymSectionAddress){
@@ -648,11 +676,15 @@ void ElfFile::initSectionFilePointers(){
 
 void ElfFile::initDynamicFilePointers(){
 
-    if (hashTable){
-        hashTable->initFilePointers();
+    for (uint32_t i = 0; i < hashTables.size(); i++){
+        ASSERT(hashTables[i] && "Hash Table should exist");
+        hashTables[i]->initFilePointers();
+        if (hashTables[i]->isGnuStyleHash()){
+            PRINT_INFOR("has GNU hash table!");
+        } else {
+            PRINT_INFOR("has SYSV hash table!");
+        }
     }
-
-    ASSERT(hashTable && "Hash Table should exist");
 
     // find the dynamic symbol table
     dynamicSymtabIdx = getNumberOfSymbolTables();
@@ -926,9 +958,11 @@ void ElfFile::print(uint32_t printCodes)
     if (HAS_PRINT_CODE(printCodes,Print_Code_HashTable)){
         PRINT_INFOR("Hash Table");
         PRINT_INFOR("=============");
-        if (hashTable){
-            hashTable->print();
-        } else {
+        for (uint32_t i = 0; i < hashTables.size(); i++){
+            hashTables[i]->print();
+        }
+
+        if (!hashTables.size()){
             PRINT_WARN(4,"\tNo Hash Table Found");
         }
     }
@@ -1104,7 +1138,7 @@ void ElfFile::parse(){
     readSectionHeaders();
     readRawSections();
 
-    if (hashTable){
+    if (hashTables.size()){
         setStaticLinked(false);
         PRINT_INFOR("The executable is dynamically linked");
     } else {
@@ -1200,14 +1234,12 @@ void ElfFile::readRawSections(){
             textSections.append((TextSection*)rawSections.back());
             break;
         case PebilClassType_SysvHashTable:
-            ASSERT(!hashTable && "Cannot have multiple hash table sections");
             rawSections.append(new SysvHashTable(sectionFilePtr, sectionSize, i, this));
-            hashTable = (HashTable*)rawSections.back();
+            hashTables.append((HashTable*)rawSections.back());
             break;
         case PebilClassType_GnuHashTable:
-            ASSERT(!hashTable && "Cannot have multiple hash table sections");
             rawSections.append(new GnuHashTable(sectionFilePtr, sectionSize, i, this));
-            hashTable = (HashTable*)rawSections.back();
+            hashTables.append((HashTable*)rawSections.back());
             break;
         case PebilClassType_NoteSection:
             rawSections.append(new NoteSection(sectionFilePtr, sectionSize, i, getNumberOfNoteSections(), this));

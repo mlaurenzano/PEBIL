@@ -47,7 +47,7 @@ private:
     Vector<DataSection*> dataSections;
     GlobalOffsetTable* globalOffsetTable;
     DynamicTable* dynamicTable;
-    HashTable* hashTable;
+    Vector<HashTable*> hashTables;
     GnuVerneedTable* gnuVerneedTable;
     GnuVersymTable* gnuVersymTable;
     StringTable* dynamicStringTable;
@@ -140,7 +140,7 @@ public:
     DataSection* getDotDataSection();
     GlobalOffsetTable* getGlobalOffsetTable() { return globalOffsetTable; }
     DynamicTable* getDynamicTable() { return dynamicTable; }
-    HashTable* getHashTable() { return hashTable; }
+    HashTable* getHashTable(uint32_t idx) { return hashTables[idx]; }
     NoteSection* getNoteSection(uint32_t idx) { return noteSections[idx]; }
     GnuVerneedTable* getGnuVerneedTable() { return gnuVerneedTable; }
     GnuVersymTable* getGnuVersymTable() { return gnuVersymTable; }
@@ -160,6 +160,7 @@ public:
     uint32_t getNumberOfDwarfSections() { return dwarfSections.size(); }
     uint32_t getNumberOfTextSections() { return textSections.size(); }
     uint32_t getNumberOfNoteSections() { return noteSections.size(); }
+    uint32_t getNumberOfHashTables() { return hashTables.size(); }
 
     uint64_t getDynamicSectionAddress() { return dynamicSectionAddress; }
     uint16_t getDynamicTableSectionIdx() { return dynamicTableSectionIdx; }

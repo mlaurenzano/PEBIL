@@ -1486,15 +1486,10 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
 
     }
 
-    // add an entry to the hash table
-    HashTable* hashTable = elfFile->getHashTable();
-    hashTable->addEntry();
-    if (hashTable->passedThreshold()){
-        expandHashTable();
-    }    
-
+    // add an entry to the hash table and version symbol table
     GnuVersymTable* versymTable = elfFile->getGnuVersymTable();
     SectionHeader* versymHeader = elfFile->getSectionHeader(versymTable->getSectionIndex());
+
     versymTable->addSymbol(VER_NDX_GLOBAL);
     if (elfFile->is64Bit()){
         entrySize = Size__64_bit_Gnu_Versym;
@@ -1503,6 +1498,23 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
     }
     extraSize = entrySize;
     versymHeader->INCREMENT(sh_size,entrySize);
+
+    for (uint32_t i = 0; i < elfFile->getNumberOfHashTables(); i++){
+        HashTable* hashTable = elfFile->getHashTable(i);
+
+        // wow! this is an ultrahack. the gnu hash table is required to come after the
+        // expansion because it is possible that the addition of the element prior to
+        // expansion causes a build with 0 buckets available
+        if (!hashTable->isGnuStyleHash()){
+            hashTable->addEntry();
+        }
+        if (hashTable->passedThreshold()){
+            expandHashTable(i);
+        }    
+        if (hashTable->isGnuStyleHash()){
+            hashTable->addEntry();
+        }
+    }
 
     // displace every section that comes after the gnu versym section and before the code
     for (uint32_t i = versymHeader->getIndex()+1; i <= ftidx; i++){
@@ -1525,10 +1537,10 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
     return symbolIndex;
 }
 
-uint32_t ElfFileInst::expandHashTable(){
+uint32_t ElfFileInst::expandHashTable(uint32_t idx){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
-    HashTable* hashTable = elfFile->getHashTable();
+    HashTable* hashTable = elfFile->getHashTable(idx);
     uint32_t extraHashEntries = hashTable->expandSize(hashTable->getNumberOfEntries()/2);
 
     SectionHeader* hashHeader = elfFile->getSectionHeader(hashTable->getSectionIndex());
@@ -1549,6 +1561,9 @@ uint32_t ElfFileInst::expandHashTable(){
         uint64_t tag = dyn->GET(d_tag);
         if (tag == DT_VERSYM || tag == DT_VERNEED || tag == DT_STRTAB || tag == DT_SYMTAB ||
             tag == DT_REL || tag == DT_RELA || tag == DT_JMPREL){
+            dyn->INCREMENT_A(d_ptr,d_un,extraSize);
+        }
+        if (!hashTable->isGnuStyleHash() && tag == DT_GNU_HASH){
             dyn->INCREMENT_A(d_ptr,d_un,extraSize);
         }
 
@@ -1616,9 +1631,24 @@ uint64_t ElfFileInst::addFunction(InstrumentationFunction* func){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
     uint32_t funcNameOffset = addStringToDynamicStringTable(func->getFunctionName());
+
+    DynamicTable* dynamicTable = elfFile->getDynamicTable();
+    uint64_t symtabAddr = dynamicTable->getDynamicByType(DT_SYMTAB,0)->GET_A(d_val,d_un);
+    uint16_t symtabIdx = elfFile->getNumberOfSymbolTables();
+    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+        SymbolTable* symTab = elfFile->getSymbolTable(i);
+        SectionHeader* sHdr = elfFile->getSectionHeader(symTab->getSectionIndex());
+        if (sHdr->GET(sh_addr) == symtabAddr){
+            ASSERT(symtabIdx == elfFile->getNumberOfSymbolTables() && "Cannot have multiple symbol tables linked to the dynamic table");
+            symtabIdx = i;
+        }
+    }
+    ASSERT(symtabIdx != elfFile->getNumberOfSymbolTables() && "There must be a symbol table that is identifiable with the dynamic table");
+    SymbolTable* dynamicSymbolTable = elfFile->getSymbolTable(symtabIdx);
+
+    uint64_t relocationOffset = addPLTRelocationEntry(dynamicSymbolTable->getNumberOfSymbols(), func->getGlobalDataOffset());
     uint32_t symbolIndex = addSymbolToDynamicSymbolTable(funcNameOffset, 0, 0, STB_GLOBAL, STT_FUNC, 0, 0);
 
-    uint64_t relocationOffset = addPLTRelocationEntry(symbolIndex, func->getGlobalDataOffset());
     func->setRelocationOffset(relocationOffset);
 
     verify();

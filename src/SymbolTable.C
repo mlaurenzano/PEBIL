@@ -2,9 +2,89 @@
 
 #include <BinaryFile.h>
 #include <ElfFile.h>
+#include <GnuVersion.h>
+#include <RelocationTable.h>
 #include <SectionHeader.h>
 #include <StringTable.h>
 #include <TextSection.h>
+
+void SymbolTable::sortForGnuHash(uint32_t firstSymIndex, uint32_t numberOfBuckets){
+    ASSERT(stringTable);
+    ASSERT(dynamic);
+
+    GnuVersymTable* gnuVersymTable = elfFile->getGnuVersymTable();
+    ASSERT(gnuVersymTable->getNumberOfSymbols() == symbols.size());
+
+    PRINT_INFOR("sorting for gnu hash with nbuckets = %d", numberOfBuckets);
+
+    for (uint32_t i = firstSymIndex; i < symbols.size(); i++){
+        PRINT_INFOR("symbol[%d] bucketn %d", i, elf_gnu_hash(symbols[i]->getSymbolName()) % numberOfBuckets);
+    }
+
+    // used to keep track of the locations of symbols before/after sort, which we can use
+    // to correctly reconfigure the relocation tables
+    uint32_t sortRep[symbols.size()];
+    for (uint32_t i = 0; i < symbols.size(); i++){
+        sortRep[i] = i;
+    }
+
+    for (uint32_t i = firstSymIndex; i < symbols.size(); i++){
+        for (uint32_t j = firstSymIndex; j < symbols.size() - 1; j++){
+            uint32_t h1 = elf_gnu_hash(symbols[j]->getSymbolName()) % numberOfBuckets;
+            uint32_t h2 = elf_gnu_hash(symbols[j + 1]->getSymbolName()) % numberOfBuckets;
+            if (h1 > h2){
+                // swap symbols in this table
+                Symbol* tmpsym = symbols[j];
+                symbols[j] = symbols[j + 1];
+                symbols[j]->setIndex(j);
+                symbols[j + 1] = tmpsym;
+                symbols[j + 1]->setIndex(j + 1);
+
+                // also swap symbol in gnu versym table
+                uint16_t tmpv = gnuVersymTable->getSymbol(j);
+                gnuVersymTable->setSymbol(j, gnuVersymTable->getSymbol(j + 1));
+                gnuVersymTable->setSymbol(j + 1, tmpv);
+
+                uint32_t tmp = sortRep[j];
+                sortRep[j] = sortRep[j + 1];
+                sortRep[j + 1] = tmp;
+            }
+        }
+    }
+
+    
+
+    PRINT_INFOR("symbol mapping:");
+    for (uint32_t i = firstSymIndex; i < symbols.size(); i++){
+        PRINT_INFOR("\t\t%d -> %d", sortRep[i], i);
+    }
+
+    bool doneMod[symbols.size()];
+    bzero(doneMod, sizeof(bool) * symbols.size());
+    for (uint32_t i = firstSymIndex; i < symbols.size(); i++){
+        for (uint32_t k = 0; k < elfFile->getNumberOfRelocationTables(); k++){
+            RelocationTable* relocTable = elfFile->getRelocationTable(k);
+            if (relocTable->getSectionHeader()->GET(sh_link) == sectionIndex){
+                for (uint32_t j = 0; j < relocTable->getNumberOfRelocations(); j++){
+                    if (getElfFile()->is64Bit()){
+                        if (relocTable->getRelocation(j)->getSymbol() == sortRep[i] &&
+                            !doneMod[j]){
+                            PRINT_INFOR("\t\tmodifying relocation %d: %d -> %d", j, sortRep[i], i); 
+                            relocTable->getRelocation(j)->setSymbolInfo(i);
+                            doneMod[j] = true;
+                        }
+                    } else {
+                        __FUNCTION_NOT_IMPLEMENTED;
+                    }
+                }
+            }
+        }
+    } 
+
+    for (uint32_t i = firstSymIndex; i < symbols.size(); i++){
+        PRINT_INFOR("symbol[%d] bucketn %d", i, elf_gnu_hash(symbols[i]->getSymbolName()) % numberOfBuckets);
+    }
+}
 
 bool Symbol::isTextObjectSymbol(TextSection* text){
     if (getSymbolType() == STT_NOTYPE && GET(st_shndx) == text->getSectionIndex() && 
@@ -28,7 +108,7 @@ char* Symbol::getSymbolName(){
     return NULL;
 }
 
-int compareSymbolValue(const void* arg1,const void* arg2){
+int compareSymbolValue(const void* arg1, const void* arg2){
     Symbol* sym1 = *((Symbol**)arg1);
     Symbol* sym2 = *((Symbol**)arg2);
 
@@ -68,6 +148,7 @@ int searchSymbolValue(const void* arg1,const void* arg2){
     return 0;
 }
 
+/*
 bool SymbolTable::symbolsAreSorted(){
     for (uint32_t i = 0; i < sortedSymbols.size()-1; i++){
         ASSERT(sortedSymbols[i] && sortedSymbols[i+1] && "Symbols should be initialized");
@@ -92,11 +173,22 @@ void SymbolTable::sortSymbols(){
     }
     delete[] symbolArray;
 }
-
+*/
 
 uint32_t SymbolTable::findSymbol4Addr(uint64_t addr, Symbol** buffer, uint32_t buffCnt, char** namestr){
     uint32_t retValue = 0;
 
+    // turns out we CANNOT use a sort-by-value scheme with a symbol table because
+    // gnu hash tables require a different sorting. so we resort to linear search
+    for (uint32_t i = 0; i < symbols.size(); i++){
+        if (symbols[i]->GET(st_value) == addr){
+            buffer[retValue++] = symbols[i];
+        }
+    }
+
+    return retValue;
+
+    /*
     sortSymbols();
 
     if (!symbolsAreSorted()){
@@ -154,6 +246,7 @@ uint32_t SymbolTable::findSymbol4Addr(uint64_t addr, Symbol** buffer, uint32_t b
     }
 
     return retValue;
+    */
 }
 
 uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t shndx){
@@ -186,7 +279,7 @@ uint32_t SymbolTable::addSymbol(uint32_t name, uint64_t value, uint64_t size, ui
         sizeInBytes += Size__32_bit_Symbol;
     }
 
-    sortSymbols();
+    //    sortSymbols();
     verify();
     return symbols.size()-1;
 }
@@ -245,10 +338,12 @@ bool SymbolTable::verify(){
         return false;
     }
 
+    /*
     if (symbols.size() != sortedSymbols.size() && sortedSymbols.size()){
         PRINT_ERROR("There are a different number of symbols and sortedSymbols");
         return false;
     }
+    */
 
     for (uint32_t i = 0; i < symbols.size(); i++){
         if (!symbols[i]){
@@ -295,7 +390,9 @@ void SymbolTable::setStringTable(){
 
     RawSection* st = elfFile->getRawSection(sh->GET(sh_link));
     ASSERT(st->getType() == PebilClassType_StringTable);
+
     stringTable = (StringTable*)st;
+    ASSERT(stringTable);
 }
 
 
