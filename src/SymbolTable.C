@@ -15,10 +15,10 @@ void SymbolTable::sortForGnuHash(uint32_t firstSymIndex, uint32_t numberOfBucket
     GnuVersymTable* gnuVersymTable = elfFile->getGnuVersymTable();
     ASSERT(gnuVersymTable->getNumberOfSymbols() == symbols.size());
 
-    PRINT_INFOR("sorting for gnu hash with nbuckets = %d", numberOfBuckets);
+    PRINT_DEBUG_HASH("sorting for gnu hash with nbuckets = %d", numberOfBuckets);
 
     for (uint32_t i = firstSymIndex; i < symbols.size(); i++){
-        PRINT_INFOR("symbol[%d] bucketn %d", i, elf_gnu_hash(symbols[i]->getSymbolName()) % numberOfBuckets);
+        PRINT_DEBUG_HASH("symbol[%d] bucketn %d", i, elf_gnu_hash(symbols[i]->getSymbolName()) % numberOfBuckets);
     }
 
     // used to keep track of the locations of symbols before/after sort, which we can use
@@ -54,9 +54,9 @@ void SymbolTable::sortForGnuHash(uint32_t firstSymIndex, uint32_t numberOfBucket
 
     
 
-    PRINT_INFOR("symbol mapping:");
+    PRINT_DEBUG_HASH("symbol mapping:");
     for (uint32_t i = firstSymIndex; i < symbols.size(); i++){
-        PRINT_INFOR("\t\t%d -> %d", sortRep[i], i);
+        PRINT_DEBUG_HASH("\t\t%d -> %d", sortRep[i], i);
     }
 
     bool doneMod[symbols.size()];
@@ -69,7 +69,7 @@ void SymbolTable::sortForGnuHash(uint32_t firstSymIndex, uint32_t numberOfBucket
                     if (getElfFile()->is64Bit()){
                         if (relocTable->getRelocation(j)->getSymbol() == sortRep[i] &&
                             !doneMod[j]){
-                            PRINT_INFOR("\t\tmodifying relocation %d: %d -> %d", j, sortRep[i], i); 
+                            PRINT_DEBUG_HASH("\t\tmodifying relocation %d: %d -> %d", j, sortRep[i], i); 
                             relocTable->getRelocation(j)->setSymbolInfo(i);
                             doneMod[j] = true;
                         }
@@ -82,7 +82,7 @@ void SymbolTable::sortForGnuHash(uint32_t firstSymIndex, uint32_t numberOfBucket
     } 
 
     for (uint32_t i = firstSymIndex; i < symbols.size(); i++){
-        PRINT_INFOR("symbol[%d] bucketn %d", i, elf_gnu_hash(symbols[i]->getSymbolName()) % numberOfBuckets);
+        PRINT_DEBUG_HASH("symbol[%d] bucketn %d", i, elf_gnu_hash(symbols[i]->getSymbolName()) % numberOfBuckets);
     }
 }
 
@@ -432,7 +432,6 @@ uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
     binaryInputFile->setInPointer(getFilePointer());
     setFileOffset(binaryInputFile->currentOffset());
 
-    //    PRINT_INFOR("Reading %d symbols for symtable %d", symbols.size(), index);
     uint32_t totalBytesRead = 0;
 
     uint32_t numberOfSymbols = sizeInBytes / symbolSize;

@@ -17,5 +17,4 @@ setenv PEBIL_ROOT $PEBIL_CURPATH
 prepend-path PATH $PEBIL_CURPATH/bin
 
 setenv PEBIL_GFORT gfortran
-setenv PEBIL_LD_FLAGS ""
 setenv PEBIL_LIB $PEBIL_CURPATH/lib

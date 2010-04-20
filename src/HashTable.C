@@ -13,45 +13,21 @@ void GnuHashTable::buildTable(uint32_t numEntries, uint32_t numBuckets){
     ASSERT(entries && "entries should be initialized");
     ASSERT(bloomFilters && "bloomFilters should be initialized");
 
-
-    // in order to correctly remove this, we must rebuild the sysv hash table
-    // when we rebuild this to reflect the sorting that happens to the dynsym table.
-#ifdef CLEAR_GNU_HASH
-    numberOfBuckets = 1;
-    numberOfBloomFilters = 1;
-    numberOfEntries = 0;
-    shiftCount = 0;
-    firstSymIndex = 1;
-
-    delete[] entries;
-    delete[] buckets;
-    delete[] bloomFilters;
-
-    entries = new uint32_t[numberOfEntries];
-    buckets = new uint32_t[numberOfBuckets];
-    buckets[0] = 0;
-    bloomFilters = new uint64_t[numberOfBloomFilters];
-    bloomFilters[0] = 0;
-
-    return;
-#endif
-
-
-    PRINT_INFOR("gonna build gnu hash table with %d entries and %d buckets, %d bloom filters", numEntries, numBuckets, numberOfBloomFilters);
+    PRINT_DEBUG_HASH("gonna build gnu hash table with %d entries and %d buckets, %d bloom filters", numEntries, numBuckets, numberOfBloomFilters);
 
     numberOfEntries = numEntries;
     numberOfBuckets = numBuckets + numberOfBloomFilters - 1;
     numberOfBloomFilters = 1;
 
-    PRINT_INFOR("minimizing bloom filters: %d entries and %d buckets, %d bloom filters", numEntries, numBuckets, numberOfBloomFilters);
+    PRINT_DEBUG_HASH("minimizing bloom filters: %d entries and %d buckets, %d bloom filters", numEntries, numBuckets, numberOfBloomFilters);
 
-    PRINT_INFOR("re-sorting symbol table");
+    PRINT_DEBUG_HASH("re-sorting symbol table");
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
     symTab->sortForGnuHash(firstSymIndex, numberOfBuckets);
 
-    PRINT_INFOR("bucket listing:");
+    PRINT_DEBUG_HASH("bucket listing:");
     for (uint32_t i = firstSymIndex; i < symTab->getNumberOfSymbols(); i++){
-        PRINT_INFOR("\tsym[%d] hashbuck %d", i, elf_gnu_hash(symTab->getSymbolName(i)) % numberOfBuckets);
+        PRINT_DEBUG_HASH("\tsym[%d] hashbuck %d", i, elf_gnu_hash(symTab->getSymbolName(i)) % numberOfBuckets);
     }
 
     ASSERT(numberOfBuckets);
@@ -69,14 +45,14 @@ void GnuHashTable::buildTable(uint32_t numEntries, uint32_t numBuckets){
     }
 
     for (uint32_t i = 0; i < numberOfBuckets; i++){
-        PRINT_INFOR("buckets[%d] = %d", i, buckets[i]);
+        PRINT_DEBUG_HASH("buckets[%d] = %d", i, buckets[i]);
     }
 
     bool stopBits[numberOfEntries];
     bzero(stopBits, sizeof(bool) * numberOfEntries);
     for (uint32_t i = 1; i < numberOfBuckets; i++){
         if (buckets[i]){
-            PRINT_INFOR("accessing stop bit %d/%d", buckets[i] - firstSymIndex - 1, numberOfEntries);
+            PRINT_DEBUG_HASH("accessing stop bit %d/%d", buckets[i] - firstSymIndex - 1, numberOfEntries);
             stopBits[buckets[i] - firstSymIndex - 1] = true;
         }
     }
@@ -97,7 +73,6 @@ void GnuHashTable::buildTable(uint32_t numEntries, uint32_t numBuckets){
 
     sizeInBytes = (4 * sizeof(uint32_t)) + (hashEntrySize * numberOfBloomFilters) + (sizeof(uint32_t) * numberOfBuckets) + (sizeof(uint32_t) * numberOfEntries);
 
-    print();
 }
 
 uint32_t GnuHashTable::findSymbol(const char* symbolName){
@@ -288,7 +263,6 @@ void GnuHashTable::print(){
         }
         PRINT_INFOR("value %5d: %8x %s", i, entries[i], stp);
     }
-    symTab->print();
 }
 
 GnuHashTable::~GnuHashTable(){

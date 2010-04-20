@@ -1499,12 +1499,12 @@ uint32_t ElfFileInst::addSymbolToDynamicSymbolTable(uint32_t name, uint64_t valu
     extraSize = entrySize;
     versymHeader->INCREMENT(sh_size,entrySize);
 
-    for (uint32_t i = 0; i < elfFile->getNumberOfHashTables(); i++){
+    for (int32_t i = elfFile->getNumberOfHashTables() - 1; i >= 0; i--){
         HashTable* hashTable = elfFile->getHashTable(i);
 
         // wow! this is an ultrahack. the gnu hash table is required to come after the
         // expansion because it is possible that the addition of the element prior to
-        // expansion causes a build with 0 buckets available
+        // expansion causes a build with 0 buckets available, which we dont want
         if (!hashTable->isGnuStyleHash()){
             hashTable->addEntry();
         }
