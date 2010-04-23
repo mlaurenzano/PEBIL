@@ -137,7 +137,7 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
         PRINT_DEBUG_BLOAT_FILTER("bloating point at instruction %#llx by %d bytes", instructions[instructionIdx]->getProgramAddress(), bloatAmount);
 
         for (uint32_t j = 0; j < bloatAmount; j++){
-            instructions.insert(InstrucX86Generator::generateNoop(), instructionIdx);
+            instructions.insert(InstrucX86Generator::generateNop(), instructionIdx);
             byteCountUpdate = true;
         }
     }
@@ -341,7 +341,7 @@ bool BasicBlock::controlFallsThrough(){
 
 bool BasicBlock::containsOnlyControl(){
     for (uint32_t i = 0; i < instructions.size(); i++){
-        if (!instructions[i]->isControl() && !instructions[i]->isNoop()){
+        if (!instructions[i]->isControl() && !instructions[i]->isNop()){
             return false;
         }
     }
@@ -629,7 +629,7 @@ Vector<InstrucX86*>* CodeBlock::swapInstructions(uint64_t addr, Vector<InstrucX8
     }
 
     while (bytesToReplace < replacedBytes){
-        (*replacements).append(InstrucX86Generator::generateNoop());
+        (*replacements).append(InstrucX86Generator::generateNop());
         bytesToReplace++;
     }
 

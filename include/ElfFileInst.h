@@ -72,6 +72,7 @@ private:
 
     uint64_t usableDataOffset;
     uint64_t regStorageOffset;
+    uint64_t fxStorageOffset;
     uint64_t regStorageReserved;
     
     uint64_t relocatedTextSize;
@@ -88,6 +89,7 @@ private:
     void initializeDisabledFunctions(char* inputFuncList);
     void initializeDisabledFiles(char* inputFuncList);
 
+    void applyInstrumentationDataToRaw();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 protected:
     Vector<Function*> allFunctions;
@@ -199,6 +201,7 @@ public:
 
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }
+    virtual void usesModifiedProgram() { __SHOULD_NOT_ARRIVE; }
     virtual bool canRelocateFunction(Function* func) { return true; }
 };
 

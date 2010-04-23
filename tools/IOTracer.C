@@ -149,7 +149,7 @@ void IOTracer::instrument(){
         setupReg.append(InstrucX86Generator64::generateMoveImmToReg(i, X86_REG_DI));
         setupReg.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_DI, getInstDataAddress() + functionIndexAddr));
 
-        setupReg.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + funcArgumentStorage, X86_REG_DI));
+        setupReg.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + funcArgumentStorage, X86_REG_DI, true));
 
         while (setupReg.size()){
             pt->addPrecursorInstruction(setupReg.remove(0));

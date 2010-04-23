@@ -123,11 +123,15 @@ void ElfFileInst::buildInstrumentationSections(){
     ASSERT(instDataHeader && elfFile->getRawSection(extraDataIdx)->getType() == PebilClassType_DataSection);
 
     ((DataSection*)elfFile->getRawSection(extraDataIdx))->extendSize(instrumentationDataSize - DATA_EXTENSION_INC);
-    ((DataSection*)elfFile->getRawSection(extraDataIdx))->setBytesAtOffset(0, instrumentationDataSize, instrumentationData);
+    applyInstrumentationDataToRaw();
 
     verify();
     ASSERT(elfFile->getRawSection(extraDataIdx)->charStream());
     return;
+}
+
+void ElfFileInst::applyInstrumentationDataToRaw(){
+    ((DataSection*)elfFile->getRawSection(extraDataIdx))->setBytesAtOffset(0, instrumentationDataSize, instrumentationData);
 }
 
 void ElfFileInst::compressInstrumentation(uint32_t textSize){
@@ -449,11 +453,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
         if (!f->hasLeafOptimization() && bb && !bb->isEntry()){
             stackIsSafe = true;
         } 
-#ifdef THREAD_SAFE
-        uint64_t registerStorage = (f->getStackSize() + sizeof(uint64_t)) * (-1) - 0x1000;
-#else
         uint64_t registerStorage = getInstDataAddress() + regStorageOffset;
-#endif
 
         if (performSwap){
             if (!pt->getInstBaseAddress()){
@@ -488,37 +488,21 @@ uint32_t ElfFileInst::generateInstrumentation(){
             } else if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_inline){
                 if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_light){
                     if (elfFile->is64Bit()){
-#ifdef THREAD_SAFE
-                        (*repl).append(InstrucX86Generator64::generateMoveRegToRegaddrImm(X86_REG_AX, X86_REG_SP, registerStorage, true));
-#else
                         (*repl).append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_AX, registerStorage));
-#endif
                         (*repl).append(InstrucX86Generator64::generateLoadAHFromFlags());
                         while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
                             (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
                         }
                         (*repl).append(InstrucX86Generator64::generateStoreAHToFlags());
-#ifdef THREAD_SAFE
-                        (*repl).append(InstrucX86Generator64::generateMoveRegaddrImmToReg(X86_REG_SP, registerStorage, X86_REG_AX));
-#else
-                        (*repl).append(InstrucX86Generator64::generateMoveMemToReg(registerStorage, X86_REG_AX));
-#endif
+                        (*repl).append(InstrucX86Generator64::generateMoveMemToReg(registerStorage, X86_REG_AX, true));
                     } else { 
-#ifdef THREAD_SAFE
-                        (*repl).append(InstrucX86Generator32::generateMoveRegToRegaddrImm(X86_REG_AX, X86_REG_SP, registerStorage));
-#else
                         (*repl).append(InstrucX86Generator32::generateMoveRegToMem(X86_REG_AX, registerStorage));
-#endif
                         (*repl).append(InstrucX86Generator32::generateLoadAHFromFlags());
                         while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
                             (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
                         }
                         (*repl).append(InstrucX86Generator32::generateStoreAHToFlags());
-#ifdef THREAD_SAFE
-                        (*repl).append(InstrucX86Generator32::generateMoveRegaddrImmToReg(X86_REG_SP, registerStorage, X86_REG_AX));
-#else
                         (*repl).append(InstrucX86Generator32::generateMoveMemToReg(registerStorage, X86_REG_AX));
-#endif
                     }                
                 } else if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_full){
                     (*repl).append(InstrucX86Generator::generatePushEflags());
@@ -633,7 +617,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
             DEBUG_INST(func->print();)
 
             func->generateGlobalData(textBaseAddress);
-            func->generateWrapperInstructions(textBaseAddress, getInstDataAddress());
+            func->generateWrapperInstructions(textBaseAddress, getInstDataAddress(), fxStorageOffset);
             func->generateBootstrapInstructions(textBaseAddress, getInstDataAddress());
 
             // plt section only exists in dynamic binary, and for static binary we don't use this value
@@ -846,12 +830,8 @@ void ElfFileInst::phasedInstrumentation(){
     TIMER(double t1 = timer(), t2; char stepNumber = 'A');
     ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
 
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-
     ASSERT(elfFile->getFileHeader()->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
     elfFile->getFileHeader()->SET(e_flags, EFINSTSTATUS_MOD);
-
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
     currentPhase++;
@@ -861,10 +841,7 @@ void ElfFileInst::phasedInstrumentation(){
         getDotTextSection()->getNumberOfBasicBlocks() + getDotFiniSection()->getNumberOfBasicBlocks();
 
     extendTextSection(TEXT_EXTENSION_INC, INSTHDR_RESERVE_AMT); // creates space for extra elf control info (symbols, dynamic table entries, hash entries, etc)
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-
     elfFile->anchorProgramElements();
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     currentPhase++;
@@ -872,10 +849,8 @@ void ElfFileInst::phasedInstrumentation(){
 
     declare();
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     functionSelect();
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
     if (!elfFile->isStaticLinked()){
         addSharedLibraryPath();
@@ -906,13 +881,11 @@ void ElfFileInst::phasedInstrumentation(){
     buildInstrumentationSections();
     relocatedTextSize += functionRelocateAndTransform(relocatedTextSize);
 
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c UsrResrv : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c Control  : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;
@@ -920,8 +893,10 @@ void ElfFileInst::phasedInstrumentation(){
 
     uint32_t textSize = generateInstrumentation();
     compressInstrumentation(textSize);
+    
+    usesModifiedProgram();
+    applyInstrumentationDataToRaw();
 
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c Generate : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;
@@ -1405,7 +1380,9 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     (*instrumentationPoints)[INST_POINT_BOOTSTRAP1]->setPriority(InstPriority_sysinit);
 
     regStorageOffset = 0;
-    regStorageReserved = sizeof(uint64_t) * X86_64BIT_GPRS;
+    fxStorageOffset = sizeof(uint64_t) * X86_64BIT_GPRS;
+    // space for gprs, plus space for fp state
+    regStorageReserved = fxStorageOffset + 1024;
     usableDataOffset = regStorageOffset + regStorageReserved;
 
     instSegment = NULL;

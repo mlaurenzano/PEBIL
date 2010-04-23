@@ -11,6 +11,108 @@
 
 #include <CacheSimulationCommon.h>
 
+
+void* instrumentationPoints;
+int32_t numberOfInstrumentationPoints;
+int32_t numberOfBasicBlocks;
+char* blockIsKilled;
+
+//#define ENABLE_INSTRUMENTATION_KILL
+//#define DEBUG_INST_KILL
+
+// should also do initialization here rather than checking
+// for "first hit" on every buffer dump
+int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks){
+    instrumentationPoints = instpoints;
+    numberOfInstrumentationPoints = *numpoints;
+    numberOfBasicBlocks = *numblocks;
+    blockIsKilled = malloc(sizeof(char) * numberOfBasicBlocks);
+    bzero(blockIsKilled, sizeof(char) * numberOfBasicBlocks);
+
+    instpoint_info* ip;
+    int i;
+#ifdef DEBUG_INST_KILL
+    PRINT_INSTR(stdout, "entry_function called -- args %x %x %x -- %d points. %d blocks", instpoints, numpoints, numblocks, *numpoints, *numblocks);
+
+    /*
+    for (i = 0; i < numberOfInstrumentationPoints; i++){
+        ip = (instpoint_info*)(instpoints + (i * sizeof(instpoint_info)));
+        assert(ip->pt_size == 5);
+        PRINT_INSTR(stdout, "instrumentation for memop %d: block %d, size %d", i, ip->pt_blockid, ip->pt_size);
+    }
+    */
+#endif
+    /*
+    for (i = 0; i < numberOfInstrumentationPoints; i++){
+        ip = (instpoint_info*)(instpoints + (i * sizeof(instpoint_info)));
+        PRINT_INSTR(stdout, "killing instrumentation for memop %d (block %d)", i, ip->pt_blockid);
+
+        int32_t size = ip->pt_size;
+        int64_t vaddr = ip->pt_vaddr;
+        void* program_point = (void*)vaddr;
+
+        memcpy(program_point, ip->pt_disable, size);
+    }
+    */
+}
+
+void disableInstrumentationPointsInBlock(BufferEntry* currentEntry){
+    int32_t memOpId = currentEntry->memOpId;
+    int32_t blockId = currentEntry->blockId;
+    instpoint_info* ip;
+    int i;
+
+#ifdef DEBUG_INST_KILL
+    PRINT_INSTR(stdout, "inst point structs based at %#llx", instrumentationPoints);
+#endif
+    
+    // since all points from a block are bunched together we will roll back to the first point for this block
+    ip = instrumentationPoints + (memOpId * sizeof(instpoint_info));
+#ifdef DEBUG_INST_KILL
+    PRINT_INSTR(stdout, "checking memop %d + blockid %d", memOpId, ip->pt_blockid);
+#endif
+    while (memOpId > 0 && ip->pt_blockid == blockId){
+        memOpId--;
+        ip = instrumentationPoints + (memOpId * sizeof(instpoint_info));
+#ifdef DEBUG_INST_KILL
+        PRINT_INSTR(stdout, "checking memop %d + blockid %d", memOpId, ip->pt_blockid);
+#endif
+    }
+#ifdef DEBUG_INST_KILL
+    PRINT_INSTR(stdout, "now basing on memop %d", memOpId);
+#endif
+    memOpId++;
+    ip = (instpoint_info*)(instrumentationPoints + (memOpId * sizeof(instpoint_info)));
+
+    int32_t killedPoints = 0;
+    // now roll forward over each point in the block and disable them
+    while (ip->pt_blockid == blockId && memOpId < numberOfInstrumentationPoints){
+        int32_t size = ip->pt_size;
+        int64_t vaddr = ip->pt_vaddr;
+        char* program_point = (char*)vaddr;
+        char buff[5];
+        buff[0] = 0xe9;
+        buff[1] = 0x00;
+        buff[2] = 0x00;
+        buff[3] = 0x00;
+        buff[4] = 0x00;
+
+#ifdef DEBUG_INST_KILL
+        PRINT_INSTR(stdout, "killing instrumentation for memop %d (block %d) at %#llx", memOpId, currentEntry->blockId, vaddr);
+#endif
+        for (i = 0; i < size; i++){
+            program_point[i] = buff[i];
+        }
+        memcpy(program_point, ip->pt_disable, size);
+        //        memcpy(program_point, buff, size);
+
+        memOpId++;
+        ip = (instpoint_info*)(instrumentationPoints + (memOpId * sizeof(instpoint_info)));
+        killedPoints++;
+    }
+    PRINT_INSTR(stdout, "Killing instrumentation points for block %d (%d points)", blockId, killedPoints);
+}
+
 #ifdef USE_SAFE_STD_FUNCTIONS
 
 #define __MAX_BLOCK_AREA  (0x1000 * (sizeof(BasicBlockInfo)/sizeof(Address_t) + 1))
@@ -27,11 +129,6 @@ void* local_malloc(uint32_t n){
     exit(-1);
     }
     return ret;
-}
-
-// empty for now. should do initialization here rather than checking
-// for "first hit" on every buffer dump
-int entry_function(){
 }
 
 int getRandomNumber();
@@ -305,6 +402,8 @@ const char* DFPatternTypeNames[] = {
                                  ((__t) == dfTypePattern_FunctionCallGS))
 
 void initDfPatterns(DFPatternSpec* dfps,uint32_t n,BasicBlockInfo* bbs){
+    PRINT_INSTR(stdout, "Disabling dfpattern code");
+    return;
     register uint32_t i = 0, j = 0;
 
     dfPatterns = NULL;
@@ -735,7 +834,7 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
             // currentMemOp is set in such a way that values will be skipped by this code due to sampling.
             // This is a bit of a hack. Ideally, we would use something like 0xffffffffffffffff as the "bad"
             // address value since addresses can be 0 sometimes.
-            if(currentAddress == 0xffffffff){
+            if(currentAddress == INVALID_ADDRESS){
                 if(currentMemOp > accessIdx){
                     accessIdx = currentMemOp;
                     continue;
@@ -838,22 +937,19 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
 }
 
 
-void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* comment){
+void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* comment){
 #ifdef IGNORE_ACTUAL_SIMULATION
     register BufferEntry* entries = (BufferEntry*)base;
     entries->lastFreeIdx = 1;
-    *entryCountPtr = 1;
     return;
 #else
-    uint32_t entryCount = *entryCountPtr;
     register uint32_t      i;
 
     register BufferEntry* entries = (BufferEntry*)base;
-    entries->lastFreeIdx = *entryCountPtr;
     register Attribute_t startIndex = 1;
     register Attribute_t lastIndex = entries->lastFreeIdx;
     lastIndex--;
-    //PRINT_INSTR(stdout, "startIndex %d, lastIndex %d", startIndex, lastIndex);
+    PRINT_INSTR(stdout, "starting sim function -- startIndex %d, lastfree %d, entryCount %d", startIndex, entries->lastFreeIdx, *entryCountPtr);
 
     totalNumberOfAccesses += lastIndex;
 
@@ -872,7 +968,7 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
         bzero(blocks,sizeof(BasicBlockInfo)*blockCount);
         initCaches();
 
-        DFPatternSpec* dfps = (DFPatternSpec*)(entries + entryCount);
+        DFPatternSpec* dfps = (DFPatternSpec*)(entries + *entryCountPtr);
 
         uint32_t rankId = lookupRankId();
         char strBuffer[__MAX_STRING_SIZE];
@@ -904,7 +1000,7 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
 
 
 #ifdef COUNT_BB_EXECCOUNT
-        uint64_t* counters = (uint64_t*)(entries + entryCount);
+        uint64_t* counters = (uint64_t*)(entries + *entryCountPtr);
         for(i=0;i<blockCount;i++){
             blocks[i].counter = (counters + i);
         }
@@ -914,7 +1010,7 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
     }
 
 #ifdef DEBUG_RUN_2
-    fprintf(stdout,"MetaSim_simulFuncCall_Simu(0x%p,%d,%s,%d)\n",base,entryCount,comment,entries->lastFreeIdx);
+    fprintf(stdout,"MetaSim_simulFuncCall_Simu(0x%p,%d,%s,%d)\n",base,*entryCountPtr,comment,entries->lastFreeIdx);
 #endif
 
     if(dfPatterns){ 
@@ -923,6 +1019,7 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
 
     if(blockCount && (saturatedBlockCount == blockCount)){
         entries->lastFreeIdx = 1;
+        PRINT_INSTR(stdout, "leaving sim function 1-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx);
         return;
     }
 
@@ -955,6 +1052,7 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
             alreadyIgnored = 0;
         } else {
             entries->lastFreeIdx = 1;
+            PRINT_INSTR(stdout, "leaving sim function 2-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx);
             return;
         }
     } else {
@@ -989,6 +1087,7 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
 #ifdef DEBUG_RUN_1
         fprintf(stdout,"DONE lastIndex < startIndex\n");
 #endif
+        PRINT_INSTR(stdout, "leaving sim function 3-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx); 
         return;
     }
 #endif
@@ -1003,6 +1102,7 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
         register BasicBlockInfo* currentBlock = (blocks + currentEntry->blockId);
         register Attribute_t currentMemOp = currentEntry->memOpId;
 
+        //PRINT_INSTR(stdout, "current entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
         if(!currentMemOp || (currentBlock != previousBlock)){
             currentBlock->visitCount++;
             previousBlock = currentBlock;
@@ -1012,6 +1112,13 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
             if(lastInvalidEntry < 0){
                 lastInvalidEntry = i;
             }
+#ifdef ENABLE_INSTRUMENTATION_KILL
+            if (!blockIsKilled[currentEntry->blockId]){
+                assert(0 && "instrumentation should be killed when visitcount == MAX_VISIT");
+                blockIsKilled[currentEntry->blockId] = 1;
+                disableInstrumentationPointsInBlock(currentEntry);
+            }
+#endif
         } else {
             //PRINT_INSTR(stdout, "current entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
             if(currentEntry->address == INVALID_ADDRESS){
@@ -1020,12 +1127,22 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
             currentBlock->sampleCount++;
             //PRINT_INSTR(stdout, "updating sample count in block %d to %lld", currentEntry->blockId, currentBlock->sampleCount);
             if(lastInvalidEntry > -1){
+                if (lastInvalidEntry == 0){
+                    PRINT_INSTR(stdout, "causing horrible errors -- the buffer addr computation (the double lea sequence in inst) needs to use 4 bytes not 8");
+                    //assert(0);
+                }
                 entries[lastInvalidEntry].memOpId = i;
                 lastInvalidEntry = -1;
             }
             if(currentBlock->visitCount == __MAXIMUM_BLOCK_VISIT){
                 currentBlock->saturationPoint = totalNumberOfAccesses;
                 saturatedBlockCount++;
+#ifdef ENABLE_INSTRUMENTATION_KILL
+                if (!blockIsKilled[currentEntry->blockId]){
+                    blockIsKilled[currentEntry->blockId] = 1;
+                    disableInstrumentationPointsInBlock(currentEntry);
+                }
+#endif
             }
         }
     }
@@ -1041,9 +1158,8 @@ void MetaSim_simulFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* c
     }
 
     entries->lastFreeIdx = 1;
+    PRINT_INSTR(stdout, "leaving sim function 4-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx); 
 #endif
-
-    *entryCountPtr = 1;
 }
 
 float getPercentage(Counter_t val1,Counter_t val2){
@@ -1134,7 +1250,7 @@ void printDFPatternInfo(int blockSeq,FILE* dfpFp,BasicBlockInfo* bb){
     }
 }
 
-void MetaSim_endFuncCall_Simu(char* base,uint32_t entryCount,const char* comment){
+void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* comment){
 #ifdef IGNORE_ACTUAL_SIMULATION
     BufferEntry* entries = (BufferEntry*)base;
     return;
@@ -1147,12 +1263,12 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t entryCount,const char* comment
     uint32_t lastIndex = entries->lastFreeIdx;
     lastIndex--;
 
-    fprintf(stdout,"MetaSim_endFuncCall(0x%p,%d,%s,%d)\n",base,entryCount,comment,entries->lastFreeIdx);
+    fprintf(stdout,"MetaSim_endFuncCall(0x%p,%d,%s,%d)\n",base,*entryCountPtr,comment,entries->lastFreeIdx);
 #ifdef DEBUG_RUN_1
     fprintf(stdout,"HashSearches(%lld) Traversals(%lld)\n",howManyHashSearches,howManyHashTraverses);
 #endif
 
-    MetaSim_simulFuncCall_Simu(base,entryCount,comment);
+    MetaSim_simulFuncCall_Simu(base,entryCountPtr,comment);
 
     if (DUMPCODE_HASVALUE_DUMP(dumpCode)){
         fprintf(stdout, "Closing output file for address stream dump\n");
@@ -1173,14 +1289,14 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t entryCount,const char* comment
                 processedSampleCount += currentBlock->sampleCount;
             }
         }
-        fprintf(fp,"# buffer    = %d\n",entryCount);              
+        fprintf(fp,"# buffer    = %d\n",*entryCountPtr);              
         fprintf(fp,"# total     = %lld\n",totalNumberOfAccesses); 
         fprintf(fp,"# sampled   = %lld\n",totalNumberOfSamples);  
         fprintf(fp,"# processed = %lld\n",processedSampleCount);  
         fprintf(fp,"# saturate  = %lld\n",lastSaturationAccess); 
 
         if(dfpFp) {
-            fprintf(dfpFp,"# buffer    = %d\n",entryCount);
+            fprintf(dfpFp,"# buffer    = %d\n",*entryCountPtr);
             fprintf(dfpFp,"# total     = %lld\n",totalNumberOfAccesses);
             fprintf(dfpFp,"# sampled   = %lld\n",totalNumberOfSamples);
             fprintf(dfpFp,"# processed = %lld\n",processedSampleCount);

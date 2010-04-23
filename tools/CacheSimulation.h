@@ -10,19 +10,17 @@ private:
     InstrumentationFunction* entryFunc;
 
     Vector<HashCode*> blocksToInst;
-
-    Vector<InstrucX86*>* generateBufferedAddressCalculation32(InstrucX86* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method);
-    Vector<InstrucX86*>* generateBufferedAddressCalculation64(InstrucX86* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method);
-    Vector<InstrucX86*>* tmp_generateBufferedAddressCalculation64(InstrucX86* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method);
+    Vector<InstrumentationPoint*> memInstPoints;
+    Vector<uint32_t> memInstBlockIds;
+    uint64_t instPointInfo;
 
 public:
     CacheSimulation(ElfFile* elf, char* inputName);
-    ~CacheSimulation() {}
-
-    Vector<InstrucX86*>* generateBufferedAddressCalculation(InstrucX86* instruction, uint64_t bufferStore, uint64_t bufferPtrStore, uint32_t blockId, uint32_t memopId, uint32_t bufferSize, FlagsProtectionMethods method);
+    ~CacheSimulation();
 
     void declare();
     void instrument();
+    void usesModifiedProgram();
 
     const char* briefName() { return "CacheSimulation"; }
 };

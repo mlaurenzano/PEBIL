@@ -249,7 +249,7 @@ bool InstrucX86::isExplicitMemoryOperation(){
     uint32_t memCount = 0;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i] && operands[i]->GET(type) == UD_OP_MEM){
-            if (!IS_LOADADDR(GET(mnemonic)) && !IS_PREFETCH(GET(mnemonic)) && !isNoop()){
+            if (!IS_LOADADDR(GET(mnemonic)) && !IS_PREFETCH(GET(mnemonic)) && !isNop()){
                 memCount++;
             }
         }
@@ -1639,6 +1639,9 @@ InstrucX86::~InstrucX86(){
     if (impreg_usedef){
         delete[] impreg_usedef;
     }
+    if (rawBytes){
+        delete[] rawBytes;
+    }
 }
 
 OperandX86* InstrucX86::getOperand(uint32_t idx){
@@ -1670,7 +1673,10 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
     } else {
         PRINT_ERROR("Problem doing instruction disassembly");
     }
+
     ASSERT(sz == sizeInBytes);
+    rawBytes = new char[sizeInBytes];
+    memcpy(rawBytes, buff, sizeInBytes);
 
     baseAddress = baseAddr;
     programAddress = baseAddr;
@@ -1723,6 +1729,8 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
     } else {
         PRINT_ERROR("Problem doing instruction disassembly");
     }
+    rawBytes = new char[sizeInBytes];
+    memcpy(rawBytes, buff, sizeInBytes);
 
     baseAddress = baseAddr;
     programAddress = baseAddr;

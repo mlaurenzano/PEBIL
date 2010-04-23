@@ -2,6 +2,40 @@
 
 #include <InstrucX86Generator.h>
 
+InstrucX86* InstrucX86Generator::generateFxSave(uint64_t addr){
+    uint32_t len = 8;
+    char* buff = new char[len];
+
+    buff[0] = 0x0f;
+    buff[1] = 0xae;
+    buff[2] = 0x04;
+    buff[3] = 0x25;
+
+    uint32_t addr32 = (uint32_t)addr;
+    ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the address");
+    memcpy(buff+4,&addr32,sizeof(uint32_t));
+
+    //PRINT_INFOR("generating fxsave -- %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx", buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[5], buff[6], buff[7]);
+    return generateInstructionBase(len,buff);    
+}
+
+InstrucX86* InstrucX86Generator::generateFxRstor(uint64_t addr){
+    uint32_t len = 8;
+    char* buff = new char[len];
+
+    buff[0] = 0x0f;
+    buff[1] = 0xae;
+    buff[2] = 0x0c;
+    buff[3] = 0x25;
+
+    uint32_t addr32 = (uint32_t)addr;
+    ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the address");
+    memcpy(buff+4,&addr32,sizeof(uint32_t));
+
+    //PRINT_INFOR("generating fxrstor -- %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx", buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[5], buff[6], buff[7]);
+    return generateInstructionBase(len,buff);    
+}
+
 InstrucX86* InstrucX86Generator64::generateMoveSegmentRegToReg(uint32_t src, uint32_t dest){
     ASSERT(src < X86_SEGMENT_REGS);
     ASSERT(dest < X86_64BIT_GPRS);
@@ -967,7 +1001,7 @@ InstrucX86* InstrucX86Generator64::generateRegSubImm(uint8_t idx, uint32_t imm){
     ASSERT(idx > 0 && idx < X86_64BIT_GPRS && "Illegal register index given");
 
     if (!imm){
-        return InstrucX86Generator64::generateNoop();
+        return InstrucX86Generator64::generateNop();
     } else {
         return InstrucX86Generator64::generateRegSubImm4Byte(idx, imm);
     }
@@ -1004,7 +1038,7 @@ InstrucX86* InstrucX86Generator64::generateRegAddImm(uint8_t idx, uint32_t imm){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
 
     if (!imm){
-        return InstrucX86Generator64::generateNoop();
+        return InstrucX86Generator64::generateNop();
     } else {
         return InstrucX86Generator64::generateRegAddImm4Byte(idx, imm);
     }
@@ -1118,12 +1152,93 @@ InstrucX86* InstrucX86Generator::generatePopEflags(){
 }
 
 
-InstrucX86* InstrucX86Generator::generateNoop(){
-    uint32_t len = 1;
+InstrucX86* InstrucX86Generator::generateNop(uint32_t len){
+    ASSERT(len < 9);
+    /* from the AMD k8 optimization manual
+    NOP1_OVERRIDE_NOP TEXTEQU <DB 090h>
+    NOP2_OVERRIDE_NOP TEXTEQU <DB 066h,090h>
+    NOP3_OVERRIDE_NOP TEXTEQU <DB 066h,066h,090h>
+    NOP4_OVERRIDE_NOP TEXTEQU <DB 066h,066h,066h,090h>
+    NOP5_OVERRIDE_NOP TEXTEQU <DB 066h,066h,090h,066h,090h>
+    NOP6_OVERRIDE_NOP TEXTEQU <DB 066h,066h,090h,066h,066h,090h>
+    NOP7_OVERRIDE_NOP TEXTEQU <DB 066h,066h,066h,090h,066h,066h,090h>
+    NOP8_OVERRIDE_NOP TEXTEQU <DB 066h,066h,066h,090h,066h,066h,066h,090h>
+    NOP9_OVERRIDE_NOP TEXTEQU <DB 066h,066h,090h,066h,066h,090h,066h,066h,090h>
+    */
+
+    /* uses eax-dependencies
+    +#define P6_NOP1GENERIC_NOP1
+    +#define P6_NOP2".byte 0x66,0x90\n"
+    +#define P6_NOP3".byte 0x0f,0x1f,0x00\n"
+    +#define P6_NOP4".byte 0x0f,0x1f,0x40,0\n"
+    +#define P6_NOP5".byte 0x0f,0x1f,0x44,0x00,0\n"
+    +#define P6_NOP6".byte 0x66,0x0f,0x1f,0x44,0x00,0\n"
+    +#define P6_NOP7".byte 0x0f,0x1f,0x80,0,0,0,0\n"
+    +#define P6_NOP8".byte 0x0f,0x1f,0x84,0x00,0,0,0,0\n"
+    */
     char* buff = new char[len];
-    buff[0] = 0x90;
+    switch(len){
+    case 1:
+        buff[0] = 0x90;
+        break;
+    case 2:
+        buff[0] = 0x66;
+        buff[1] = 0x90;
+        break;
+    case 3:
+        buff[0] = 0x0f;
+        buff[1] = 0x1f;
+        buff[2] = 0x00;
+        break;
+    case 4:
+        buff[0] = 0x0f;
+        buff[1] = 0x1f;
+        buff[2] = 0x40;
+        buff[3] = 0x00;
+        break;
+    case 5:
+        buff[0] = 0x0f;
+        buff[1] = 0x1f;
+        buff[2] = 0x44;
+        buff[3] = 0x00;
+        buff[4] = 0x00;
+        break;
+    case 6:
+        buff[0] = 0x66;
+        buff[1] = 0x0f;
+        buff[2] = 0x1f;
+        buff[3] = 0x44;
+        buff[4] = 0x00;
+        buff[5] = 0x00;
+        break;
+    case 7:
+        buff[0] = 0x0f;
+        buff[1] = 0x1f;
+        buff[2] = 0x80;
+        buff[3] = 0x00;
+        buff[4] = 0x00;
+        buff[5] = 0x00;
+        buff[6] = 0x00;
+        break;
+    case 8:
+        buff[0] = 0x0f;
+        buff[1] = 0x1f;
+        buff[2] = 0x84;
+        buff[3] = 0x00;
+        buff[4] = 0x00;
+        buff[5] = 0x00;
+        buff[6] = 0x00;
+        buff[7] = 0x00;
+        break;
+    default:
+        __SHOULD_NOT_ARRIVE;
+    }
 
     return generateInstructionBase(len,buff);
+}
+
+InstrucX86* InstrucX86Generator::generateNop(){
+    return generateNop(1);
 }
 
 InstrucX86* InstrucX86Generator64::generateMoveRegToRegaddrImm(uint32_t idxsrc, uint32_t idxdest, uint64_t imm, bool source64Bit){
@@ -1405,26 +1520,33 @@ InstrucX86* InstrucX86Generator32::generateMoveMemToReg(uint64_t addr, uint32_t 
     return generateInstructionBase(len,buff);
 }
 
-InstrucX86* InstrucX86Generator64::generateMoveMemToReg(uint64_t addr, uint32_t idx){
+InstrucX86* InstrucX86Generator64::generateMoveMemToReg(uint64_t addr, uint32_t idx, bool is64Bit){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
     uint32_t len = 8;
+    uint32_t baseidx = 1;
+    if (!is64Bit){
+        ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
+        len--;
+        baseidx--;
+    }
+
     char* buff = new char[len];
 
     // set opcode
     if (idx < X86_32BIT_GPRS){
         buff[0] = 0x48;
-        buff[2] = 0x04 + 0x8*(char)idx;
+        buff[baseidx + 1] = 0x04 + 0x8*(char)idx;
     } else {
         buff[0] = 0x4c;
-        buff[2] = 0x04 + 0x8*((char)(idx-X86_32BIT_GPRS));
+        buff[baseidx + 1] = 0x04 + 0x8*((char)(idx-X86_32BIT_GPRS));
     }
-    buff[1] = 0x8b;
-    buff[3] = 0x25;
+    buff[baseidx] = 0x8b;
+    buff[baseidx + 2] = 0x25;
 
     // set target address
     uint32_t addr32 = (uint32_t)addr;
     ASSERT(addr32 == addr && "Cannot use more than 32 bits for address");
-    memcpy(buff+4,&addr32,sizeof(uint32_t));
+    memcpy(buff + baseidx + 3,&addr32,sizeof(uint32_t));
 
     return generateInstructionBase(len,buff);
 }

@@ -153,6 +153,7 @@ void BasicBlockCounter::instrument(){
         } else {
             snip->addSnippetInstruction(InstrucX86Generator32::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         }
+
         // do not generate control instructions to get back to the application, this is done for
         // the snippet automatically during code generation
             

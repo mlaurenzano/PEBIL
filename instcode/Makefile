@@ -1,5 +1,5 @@
 DBG         = -g
-OPT         = -O3 -w --save-temps
+OPT         = -O0 -w --save-temps
 SHARED_OPT  = -fPIC
 GNU_C       = gcc
 CC          = $(GNU_C) $(DBG) $(OPT)
@@ -20,8 +20,8 @@ CFLGS64     = -DMETASIM_64_BIT_LIB
 #### -DCOUNT_BB_EXECCOUNT  : Add to print the overall BB visit counts (only for csc type SimulationCounter.c)
 
 #EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT  # default for MultiMAPS tracing
-EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DVICTIM_CACHE  # allows victim caching also
-#EXTRA_CFLGS = -DEXTENDED_SAMPLING -DPER_SET_RECENT -DVICTIM_CACHE  # default for application tracing
+#EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DVICTIM_CACHE  # allows victim caching also
+EXTRA_CFLGS = -DEXTENDED_SAMPLING -DPER_SET_RECENT -DVICTIM_CACHE  # default for application tracing
 #EXTRA_CFLGS = -DEXTENDED_SAMPLING -DPER_SET_RECENT  # default for application tracing
 #EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DVICTIM_CACHE -DIGNORE_ACTUAL_SIMULATION # allows victim caching also
 EXTRA_LIBS  =

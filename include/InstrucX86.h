@@ -219,6 +219,7 @@ private:
     OperandX86** operands;
     uint32_t instructionIndex;
 
+    char* rawBytes;
     uint8_t byteSource;
     uint64_t programAddress;
     AddressAnchor* addressAnchor;
@@ -257,6 +258,8 @@ public:
     void print();
     bool verify();
 
+    char* charStream() { return rawBytes; }
+
     HashCode getHashCode() { return hashCode; }
     void setLiveIns(BitSet<uint32_t>* live);
     void setLiveOuts(BitSet<uint32_t>* live);
@@ -280,7 +283,7 @@ public:
     bool isFunctionCall() { return (getInstructionType() == InstrucX86Type_call); }
     bool isSystemCall() { return (getInstructionType() == InstrucX86Type_system_call); }
     bool isHalt() { return (getInstructionType() == InstrucX86Type_halt); }
-    bool isNoop() { return (getInstructionType() == InstrucX86Type_nop); }
+    bool isNop() { return (getInstructionType() == InstrucX86Type_nop); }
     bool isConditionCompare();
     bool isStackPush();
     bool isStackPop();

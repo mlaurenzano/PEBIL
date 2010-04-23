@@ -79,7 +79,7 @@ void FunctionTimer::instrument(){
         fillEntry.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
         fillEntry.append(InstrucX86Generator64::generateMoveImmToReg(i, X86_REG_CX));
         fillEntry.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-        fillEntry.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+        fillEntry.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
 
         p = addInstrumentationPoint(bb, functionEntry, InstrumentationMode_tramp);
         for (uint32_t j = 0; j < fillEntry.size(); j++){
@@ -91,7 +91,7 @@ void FunctionTimer::instrument(){
             fillExit.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
             fillExit.append(InstrucX86Generator64::generateMoveImmToReg(i, X86_REG_CX));
             fillExit.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-            fillExit.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+            fillExit.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
 
             p = addInstrumentationPoint((*exitBlocks)[j], functionExit, InstrumentationMode_tramp);
             for (uint32_t k = 0; k < fillExit.size(); k++){
@@ -103,7 +103,7 @@ void FunctionTimer::instrument(){
             fillExit.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
             fillExit.append(InstrucX86Generator64::generateMoveImmToReg(i, X86_REG_CX));
             fillExit.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-            fillExit.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+            fillExit.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
 
             BasicBlock* lastbb = f->getBasicBlock(f->getNumberOfBasicBlocks()-1);
             InstrucX86* lastin = lastbb->getInstruction(lastbb->getNumberOfInstructions()-1);

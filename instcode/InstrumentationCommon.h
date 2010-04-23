@@ -1,6 +1,7 @@
 #ifndef __INSTRUMENTATION_COMMON_H__
 #define __INSTRUMENTATION_COMMON_H__
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
@@ -34,4 +35,16 @@ __inline__ unsigned long long readtsc(){
     __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));
     return ((unsigned long long)low | (((unsigned long long)high) << 32));
 }
+
+typedef struct
+{
+    int64_t pt_vaddr;
+    int64_t pt_target;
+    int64_t pt_flags;
+    int32_t pt_size;
+    int32_t pt_blockid;
+    unsigned char pt_content[16];
+    unsigned char pt_disable[16];
+} instpoint_info;
+
 #endif // __INSTRUMENTATION_COMMON_H__

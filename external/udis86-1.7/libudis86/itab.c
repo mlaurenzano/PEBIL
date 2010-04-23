@@ -1044,7 +1044,7 @@ static struct ud_itab_entry itab__0f__op_73__reg[8] = {
 
 static struct ud_itab_entry itab__0f__op_ae__reg[8] = {
   /* 00 */  { UD_Ifxsave,      O_M,     O_NONE,  O_NONE,  P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
-  /* 01 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },
+  /* 01 */  { UD_Ifxrstor,     O_M,     O_NONE,  O_NONE,  P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
   /* 02 */  { UD_Ildmxcsr,     O_Md,    O_NONE,  O_NONE,  P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
   /* 03 */  { UD_Istmxcsr,     O_Md,    O_NONE,  O_NONE,  P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
   /* 04 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE,    P_none },

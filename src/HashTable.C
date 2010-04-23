@@ -50,9 +50,9 @@ void GnuHashTable::buildTable(uint32_t numEntries, uint32_t numBuckets){
 
     bool stopBits[numberOfEntries];
     bzero(stopBits, sizeof(bool) * numberOfEntries);
-    for (uint32_t i = 1; i < numberOfBuckets; i++){
-        if (buckets[i]){
-            PRINT_DEBUG_HASH("accessing stop bit %d/%d", buckets[i] - firstSymIndex - 1, numberOfEntries);
+    for (uint32_t i = 0; i < numberOfBuckets; i++){
+        if (buckets[i] > firstSymIndex){
+            PRINT_DEBUG_HASH("accessing stop bit %d/%d -- bucket[%d] is %d", buckets[i] - firstSymIndex - 1, numberOfEntries, i, buckets[i]);
             stopBits[buckets[i] - firstSymIndex - 1] = true;
         }
     }

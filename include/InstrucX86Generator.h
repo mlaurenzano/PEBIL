@@ -9,13 +9,17 @@ protected:
     static InstrucX86* generateInstructionBase(uint32_t sz, char* buf);
 
 public:
-    static InstrucX86* generateNoop();
+    static InstrucX86* generateNop();
+    static InstrucX86* generateNop(uint32_t len);
     static InstrucX86* generateInterrupt(uint8_t idx);
 
     static InstrucX86* generateBranchJL(uint64_t offset);
     static InstrucX86* generateJumpRelative(uint64_t addr, uint64_t tgt);
     static InstrucX86* generateCallRelative(uint64_t addr, uint64_t tgt);
     static InstrucX86* generateReturn();
+
+    static InstrucX86* generateFxSave(uint64_t addr);
+    static InstrucX86* generateFxRstor(uint64_t addr);
 
     static InstrucX86* generateSetDirectionFlag(bool backward);
     static InstrucX86* generateMoveImmToSegmentReg(uint64_t imm, uint32_t idx);
@@ -74,7 +78,7 @@ public:
     static InstrucX86* generateMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest);
 
     static InstrucX86* generateMoveRegToMem(uint32_t idx, uint64_t addr);
-    static InstrucX86* generateMoveMemToReg(uint64_t addr, uint32_t idx);
+    static InstrucX86* generateMoveMemToReg(uint64_t addr, uint32_t idx, bool is64bit);
 
     static InstrucX86* generateShiftLeftLogical(uint8_t imm, uint8_t reg);
     static InstrucX86* generateShiftRightLogical(uint8_t imm, uint8_t reg);
