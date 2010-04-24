@@ -206,12 +206,18 @@ void CacheSimulation::instrument(){
                         
                         // fill the buffer entry with this block's info
                         (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
+                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
                         (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
                         // update the buffer counter
                         uint32_t maxMemopsInSuccessor = MAX_MEMOPS_PER_BLOCK;
                         ASSERT(bb->getNumberOfMemoryOps() < MAX_MEMOPS_PER_BLOCK);
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateAddImmByteToMem(bb->getNumberOfMemoryOps(), getInstDataAddress() + bufferStore));
+                        uint32_t memcnt = bb->getNumberOfMemoryOps();
+                        while (memcnt > 0x7f){
+                            PRINT_INFOR("opting memcnt > 0x7f");
+                            (*bufferDumpInstructions).append(InstrucX86Generator64::generateAddImmByteToMem(0x7f, getInstDataAddress() + bufferStore));
+                            memcnt -= 0x7f;
+                        }
+                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateAddImmByteToMem(memcnt, getInstDataAddress() + bufferStore));
                         (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg1, false));
                         (*bufferDumpInstructions).append(InstrucX86Generator64::generateCompareImmReg(BUFFER_ENTRIES - maxMemopsInSuccessor, tmpReg1));
                         
@@ -258,7 +264,7 @@ void CacheSimulation::instrument(){
                         
                         // fill the buffer entry with this block's info
                         snip->addSnippetInstruction(InstrucX86Generator64::generateMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
-                        snip->addSnippetInstruction(InstrucX86Generator64::generateMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
+                        snip->addSnippetInstruction(InstrucX86Generator64::generateMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
                         snip->addSnippetInstruction(InstrucX86Generator64::generateMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
                         if (usesLiveReg){
                             snip->addSnippetInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t), tmpReg2, true));
@@ -277,9 +283,8 @@ void CacheSimulation::instrument(){
 
         }
         blockId++;
-
     }
-
+        
     ASSERT(memInstPoints.size() && "There are no memory operations found through the filter");
 
     instPointInfo = reserveDataOffset(sizeof(instpoint_info) * memInstPoints.size());

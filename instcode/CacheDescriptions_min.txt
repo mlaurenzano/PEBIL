@@ -1,0 +1,9 @@
+# TI08 cache structures    
+# ------------------------------------------------------------------------------------------------------------    
+# [sysid] [lvl_count] L1[size assoc line repl] L2[size assoc line repl] L3[size assoc line repl]    
+# ------------------------------------------------------------------------------------------------------------    
+    
+ 1  3   32KB    2   128   lru    768KB   4  128   lru  16384KB   8  512   lru    # 1 Theoretical Kraken
+ 2  3   32KB    2   128   lru    768KB   8  128   lru  16384KB   8  512   lru    # 2 Theoretical DataStar
+ 3  2   64KB    2    64   lru   1024KB  16   64   lru                            # 3 Theoretical AMD Opteron
+ 4  2  256KB    8   128   lru   6144KB  12  128   lru                            # 4 Theoretical IT2 6MB L3 Eagle

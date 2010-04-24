@@ -16,9 +16,10 @@ void* instrumentationPoints;
 int32_t numberOfInstrumentationPoints;
 int32_t numberOfBasicBlocks;
 char* blockIsKilled;
+int32_t numberKilled;
 
 //#define ENABLE_INSTRUMENTATION_KILL
-//#define DEBUG_INST_KILL
+#define DEBUG_INST_KILL
 
 // should also do initialization here rather than checking
 // for "first hit" on every buffer dump
@@ -28,12 +29,13 @@ int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks){
     numberOfBasicBlocks = *numblocks;
     blockIsKilled = malloc(sizeof(char) * numberOfBasicBlocks);
     bzero(blockIsKilled, sizeof(char) * numberOfBasicBlocks);
+    numberKilled = 0;
 
     instpoint_info* ip;
     int i;
-#ifdef DEBUG_INST_KILL
-    PRINT_INSTR(stdout, "entry_function called -- args %x %x %x -- %d points. %d blocks", instpoints, numpoints, numblocks, *numpoints, *numblocks);
 
+    PRINT_INSTR(stdout, "entry_function called -- args %x %x %x -- %d points. %d blocks", instpoints, numpoints, numblocks, *numpoints, *numblocks);
+#ifdef DEBUG_INST_KILL
     /*
     for (i = 0; i < numberOfInstrumentationPoints; i++){
         ip = (instpoint_info*)(instpoints + (i * sizeof(instpoint_info)));
@@ -42,75 +44,51 @@ int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks){
     }
     */
 #endif
+
+#ifdef ENABLE_INSTRUMENTATION_KILL
     /*
     for (i = 0; i < numberOfInstrumentationPoints; i++){
+
         ip = (instpoint_info*)(instpoints + (i * sizeof(instpoint_info)));
+
         PRINT_INSTR(stdout, "killing instrumentation for memop %d (block %d)", i, ip->pt_blockid);
 
         int32_t size = ip->pt_size;
         int64_t vaddr = ip->pt_vaddr;
         void* program_point = (void*)vaddr;
 
+        memcpy(ip->pt_content, program_point, size);
         memcpy(program_point, ip->pt_disable, size);
+        numberKilled++;
     }
     */
+#endif
 }
 
 void disableInstrumentationPointsInBlock(BufferEntry* currentEntry){
-    int32_t memOpId = currentEntry->memOpId;
     int32_t blockId = currentEntry->blockId;
     instpoint_info* ip;
     int i;
 
-#ifdef DEBUG_INST_KILL
-    PRINT_INSTR(stdout, "inst point structs based at %#llx", instrumentationPoints);
-#endif
-    
-    // since all points from a block are bunched together we will roll back to the first point for this block
-    ip = instrumentationPoints + (memOpId * sizeof(instpoint_info));
-#ifdef DEBUG_INST_KILL
-    PRINT_INSTR(stdout, "checking memop %d + blockid %d", memOpId, ip->pt_blockid);
-#endif
-    while (memOpId > 0 && ip->pt_blockid == blockId){
-        memOpId--;
-        ip = instrumentationPoints + (memOpId * sizeof(instpoint_info));
-#ifdef DEBUG_INST_KILL
-        PRINT_INSTR(stdout, "checking memop %d + blockid %d", memOpId, ip->pt_blockid);
-#endif
-    }
-#ifdef DEBUG_INST_KILL
-    PRINT_INSTR(stdout, "now basing on memop %d", memOpId);
-#endif
-    memOpId++;
-    ip = (instpoint_info*)(instrumentationPoints + (memOpId * sizeof(instpoint_info)));
-
     int32_t killedPoints = 0;
-    // now roll forward over each point in the block and disable them
-    while (ip->pt_blockid == blockId && memOpId < numberOfInstrumentationPoints){
-        int32_t size = ip->pt_size;
-        int64_t vaddr = ip->pt_vaddr;
-        char* program_point = (char*)vaddr;
-        char buff[5];
-        buff[0] = 0xe9;
-        buff[1] = 0x00;
-        buff[2] = 0x00;
-        buff[3] = 0x00;
-        buff[4] = 0x00;
-
+    for (i = 0; i < numberOfInstrumentationPoints; i++){
+        ip = (instpoint_info*)(instrumentationPoints + (i * sizeof(instpoint_info)));
+        if (ip->pt_blockid == blockId){
+            int32_t size = ip->pt_size;
+            int64_t vaddr = ip->pt_vaddr;
+            char* program_point = (char*)vaddr;
+            
 #ifdef DEBUG_INST_KILL
-        PRINT_INSTR(stdout, "killing instrumentation for memop %d (block %d) at %#llx", memOpId, currentEntry->blockId, vaddr);
+            PRINT_INSTR(stdout, "killing instrumentation for memop %d in block %d at %#llx", i, currentEntry->blockId, vaddr);
 #endif
-        for (i = 0; i < size; i++){
-            program_point[i] = buff[i];
+            memcpy(ip->pt_content, program_point, size);
+            memcpy(program_point, ip->pt_disable, size);
+            killedPoints++;
         }
-        memcpy(program_point, ip->pt_disable, size);
-        //        memcpy(program_point, buff, size);
-
-        memOpId++;
-        ip = (instpoint_info*)(instrumentationPoints + (memOpId * sizeof(instpoint_info)));
-        killedPoints++;
     }
-    PRINT_INSTR(stdout, "Killing instrumentation points for block %d (%d points)", blockId, killedPoints);
+
+    numberKilled += killedPoints;
+    PRINT_INSTR(stdout, "Killing instrumentation points for block %d (%d points) -- %d killed so far", blockId, killedPoints, numberKilled);
 }
 
 #ifdef USE_SAFE_STD_FUNCTIONS
@@ -949,7 +927,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
     register Attribute_t startIndex = 1;
     register Attribute_t lastIndex = entries->lastFreeIdx;
     lastIndex--;
-    PRINT_INSTR(stdout, "starting sim function -- startIndex %d, lastfree %d, entryCount %d", startIndex, entries->lastFreeIdx, *entryCountPtr);
+    //    PRINT_INSTR(stdout, "starting sim function -- startIndex %d, lastfree %d, entryCount %d", startIndex, entries->lastFreeIdx, *entryCountPtr);
 
     totalNumberOfAccesses += lastIndex;
 
@@ -1019,7 +997,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
 
     if(blockCount && (saturatedBlockCount == blockCount)){
         entries->lastFreeIdx = 1;
-        PRINT_INSTR(stdout, "leaving sim function 1-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx);
+        //        PRINT_INSTR(stdout, "leaving sim function 1-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx);
         return;
     }
 
@@ -1052,7 +1030,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             alreadyIgnored = 0;
         } else {
             entries->lastFreeIdx = 1;
-            PRINT_INSTR(stdout, "leaving sim function 2-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx);
+            //            PRINT_INSTR(stdout, "leaving sim function 2-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx);
             return;
         }
     } else {
@@ -1087,13 +1065,15 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
 #ifdef DEBUG_RUN_1
         fprintf(stdout,"DONE lastIndex < startIndex\n");
 #endif
-        PRINT_INSTR(stdout, "leaving sim function 3-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx); 
+        //        PRINT_INSTR(stdout, "leaving sim function 3-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx); 
         return;
     }
 #endif
 
     totalNumberOfSamples += (lastIndex-startIndex+1);
 
+    fprintf(stdout, ".");
+    fflush(stdout);
     register int32_t lastInvalidEntry = startIndex-1;
 
     register BasicBlockInfo* previousBlock = NULL;
@@ -1102,9 +1082,14 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         register BasicBlockInfo* currentBlock = (blocks + currentEntry->blockId);
         register Attribute_t currentMemOp = currentEntry->memOpId;
 
-        //PRINT_INSTR(stdout, "current entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
+        //        PRINT_INSTR(stdout, "current entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
         if(!currentMemOp || (currentBlock != previousBlock)){
             currentBlock->visitCount++;
+            /*
+            if (currentBlock->visitCount % 1000 == 0){
+                PRINT_INSTR(stdout, "block %d his %d visits", currentEntry->blockId, currentBlock->visitCount);
+            }
+            */
             previousBlock = currentBlock;
         }
         if(currentBlock->visitCount > __MAXIMUM_BLOCK_VISIT){
@@ -1127,10 +1112,6 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             currentBlock->sampleCount++;
             //PRINT_INSTR(stdout, "updating sample count in block %d to %lld", currentEntry->blockId, currentBlock->sampleCount);
             if(lastInvalidEntry > -1){
-                if (lastInvalidEntry == 0){
-                    PRINT_INSTR(stdout, "causing horrible errors -- the buffer addr computation (the double lea sequence in inst) needs to use 4 bytes not 8");
-                    //assert(0);
-                }
                 entries[lastInvalidEntry].memOpId = i;
                 lastInvalidEntry = -1;
             }
@@ -1158,7 +1139,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
     }
 
     entries->lastFreeIdx = 1;
-    PRINT_INSTR(stdout, "leaving sim function 4-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx); 
+    //    PRINT_INSTR(stdout, "leaving sim function 4-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx); 
 #endif
 }
 
@@ -1264,6 +1245,9 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* com
     lastIndex--;
 
     fprintf(stdout,"MetaSim_endFuncCall(0x%p,%d,%s,%d)\n",base,*entryCountPtr,comment,entries->lastFreeIdx);
+#ifdef ENABLE_INSTRUMENTATION_KILL
+    PRINT_INSTR(stdout, "Killed instrumentation in %d memory ops", numberKilled);
+#endif
 #ifdef DEBUG_RUN_1
     fprintf(stdout,"HashSearches(%lld) Traversals(%lld)\n",howManyHashSearches,howManyHashTraverses);
 #endif
