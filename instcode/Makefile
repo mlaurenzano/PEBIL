@@ -1,5 +1,5 @@
 DBG         = -g
-OPT         = -O0 -w --save-temps
+OPT         = -O3 -w --save-temps
 SHARED_OPT  = -fPIC
 GNU_C       = gcc
 CC          = $(GNU_C) $(DBG) $(OPT)
