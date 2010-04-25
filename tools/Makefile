@@ -33,7 +33,7 @@ OBJS  =	BasicBlockCounter.o \
 all: clean $(TARGET_BIN) install
 
 pebil :	$(OBJS) pebil.o
-	$(CPP) $(CFLAGS) -o $@ pebil.o $(OBJS) $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(LIBS) $(EXTRA_LIBS) -Wl,--hash-style=gnu
+	$(CPP) $(CFLAGS) -o $@ pebil.o $(OBJS) $(CFLAGS) $(INCLUDE) -L$(BINDIR) $(LIBS) $(EXTRA_LIBS)
 
 %.o: %.C
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< $(INCLUDE) $(EXTRA_INC)

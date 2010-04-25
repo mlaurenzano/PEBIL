@@ -131,7 +131,7 @@ void CacheSimulation::instrument(){
     exitFunc->addArgument(entryCountStore);
     exitFunc->addArgument(commentStore);
 
-    uint64_t addrScratchSpace = reserveDataOffset(Size__BufferEntry * MAX_MEMOPS_PER_BLOCK);
+    uint64_t counterArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(uint32_t));
 
     InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp);
     ASSERT(p);
@@ -148,8 +148,6 @@ void CacheSimulation::instrument(){
 
     uint32_t blockId = 0;
     uint32_t memopId = 0;
-    uint32_t noProtPoints = 0;
-    uint32_t totalProt = 0;
     uint32_t regDefault = 0;
 
     if (!getElfFile()->is64Bit()){
@@ -176,10 +174,8 @@ void CacheSimulation::instrument(){
                     // check the buffer at the last memop
                     if (memopIdInBlock == bb->getNumberOfMemoryOps() - 1){
                         FlagsProtectionMethods prot = FlagsProtectionMethod_full;
-                        totalProt++;
 #ifndef NO_REG_ANALYSIS
                         if (memop->allFlagsDeadIn()){
-                            noProtPoints++;
                             prot = FlagsProtectionMethod_none;
                         }
 #endif
@@ -203,7 +199,6 @@ void CacheSimulation::instrument(){
                         delete addrStore;
                         
                         // put the current buffer address in tmp2
-                        // replace this with a 4-wide move
                         (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg2, false));
                         (*bufferDumpInstructions).append(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, 0, tmpReg2, false, true));
                         (*bufferDumpInstructions).append(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
@@ -284,6 +279,24 @@ void CacheSimulation::instrument(){
             }
             ASSERT(memopIdInBlock < MAX_MEMOPS_PER_BLOCK);
 
+            if (memopIdInBlock){
+                InstrumentationSnippet* snip = new InstrumentationSnippet();
+                addInstrumentationSnippet(snip);
+
+                uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
+                if (is64Bit()){
+                    snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+                } else {
+                    snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+                }
+                FlagsProtectionMethods prot = FlagsProtectionMethod_light;
+                if (bb->getExitInstruction()->allFlagsDeadOut()){
+                    prot = FlagsProtectionMethod_none;
+                }
+
+                InstrumentationPoint* p = addInstrumentationPoint(bb->getExitInstruction(), snip, InstrumentationMode_inline, prot);
+            }
+
         }
         blockId++;
     }
@@ -301,12 +314,11 @@ void CacheSimulation::instrument(){
     initializeReservedData(getInstDataAddress() + blockCount, sizeof(uint32_t), &temp32);
     entryFunc->addArgument(instPointCount);
     entryFunc->addArgument(blockCount);
+    entryFunc->addArgument(counterArray);
 
 #ifdef NO_REG_ANALYSIS
     PRINT_WARN(10, "Warning: register analysis disabled");
 #endif
-    PRINT_INFOR("Not protecting %d/%d dump points", noProtPoints, totalProt);
-    PRINT_INFOR("No live scratch reg at %d/%d instrumentation points", regDefault, getNumberOfExposedMemOps());
 
     printStaticFile(allBlocks, allLineInfos);
 
