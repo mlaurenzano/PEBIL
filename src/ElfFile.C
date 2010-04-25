@@ -11,7 +11,7 @@
 #include <GlobalOffsetTable.h>
 #include <GnuVersion.h>
 #include <HashTable.h>
-#include <InstrucX86.h>
+#include <X86Instruction.h>
 #include <Instrumentation.h>
 #include <LineInformation.h>
 #include <NoteSection.h>
@@ -679,11 +679,6 @@ void ElfFile::initDynamicFilePointers(){
     for (uint32_t i = 0; i < hashTables.size(); i++){
         ASSERT(hashTables[i] && "Hash Table should exist");
         hashTables[i]->initFilePointers();
-        if (hashTables[i]->isGnuStyleHash()){
-            PRINT_INFOR("has GNU hash table!");
-        } else {
-            PRINT_INFOR("has SYSV hash table!");
-        }
     }
 
     // find the dynamic symbol table
@@ -1418,13 +1413,13 @@ uint32_t ElfFile::anchorProgramElements(){
     }
     PRINT_DEBUG_ANCHOR("Found %d instructions in all sections", instructionCount);
 
-    InstrucX86** allInstructions = new InstrucX86*[instructionCount];
+    X86Instruction** allInstructions = new X86Instruction*[instructionCount];
     instructionCount = 0;
     PRINT_DEBUG_ANCHOR("allinst address %lx", allInstructions);
     for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
         instructionCount += getTextSection(i)->getAllInstructions(allInstructions, instructionCount);
     }
-    qsort(allInstructions, instructionCount, sizeof(InstrucX86*), compareBaseAddress);
+    qsort(allInstructions, instructionCount, sizeof(X86Instruction*), compareBaseAddress);
 
 
     DEBUG_ANCHOR(
@@ -1459,7 +1454,7 @@ uint32_t ElfFile::anchorProgramElements(){
     }
 
     for (uint32_t i = 0; i < instructionCount; i++){
-        InstrucX86* currentInstruction = allInstructions[i];
+        X86Instruction* currentInstruction = allInstructions[i];
         ASSERT(!currentInstruction->getAddressAnchor());
         if (currentInstruction->usesRelativeAddress()){
             uint64_t relativeAddress = currentInstruction->getRelativeValue() + currentInstruction->getBaseAddress() + currentInstruction->getSizeInBytes();
@@ -1474,9 +1469,9 @@ uint32_t ElfFile::anchorProgramElements(){
             PRINT_DEBUG_ANCHOR("Searching for relative address %llx", relativeAddress);
 
             // search other instructions
-            void* link = bsearch(&relativeAddress, allInstructions, instructionCount, sizeof(InstrucX86*), searchBaseAddressExact);
+            void* link = bsearch(&relativeAddress, allInstructions, instructionCount, sizeof(X86Instruction*), searchBaseAddressExact);
             if (link != NULL){
-                InstrucX86* linkedInstruction = *(InstrucX86**)link;
+                X86Instruction* linkedInstruction = *(X86Instruction**)link;
                 PRINT_DEBUG_ANCHOR("Found inst -> inst link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
 
                 currentInstruction->initializeAnchor(linkedInstruction);
@@ -1639,7 +1634,7 @@ uint32_t ElfFile::anchorProgramElements(){
             }
             PRINT_DEBUG_ANCHOR("data section %d(%x): extendedData is %#016llx", i, dataPtr, extendedData);
 
-            void* link = bsearch(&extendedData,allInstructions,instructionCount,sizeof(InstrucX86*),searchBaseAddressExact);
+            void* link = bsearch(&extendedData,allInstructions,instructionCount,sizeof(X86Instruction*),searchBaseAddressExact);
             if (link != NULL){
 #ifndef FILL_RELOCATED_WITH_INTERRUPTS
                 for (uint32_t j = 0; j < text->getNumberOfTextObjects(); j++){
@@ -1652,7 +1647,7 @@ uint32_t ElfFile::anchorProgramElements(){
                     PRINT_WARN(10, "unaligned data %#llx at %llx", extendedData, dataSectionHeader->GET(sh_addr)+currByte);
                 }
 
-                InstrucX86* linkedInstruction = *(InstrucX86**)link;
+                X86Instruction* linkedInstruction = *(X86Instruction**)link;
                 PRINT_DEBUG_ANCHOR("Found data -> inst link: %#llx -> %#llx, offset %x", dataSectionHeader->GET(sh_addr)+currByte, extendedData, currByte);
                 DataReference* dataRef = new DataReference(extendedData, dataRawSection, addrAlign, currByte);
 

@@ -3,8 +3,8 @@
 #include <BasicBlock.h>
 #include <Function.h>
 #include <Instrumentation.h>
-#include <InstrucX86.h>
-#include <InstrucX86Generator.h>
+#include <X86Instruction.h>
+#include <X86InstructionFactory.h>
 #include <SymbolTable.h>
 
 #define PROGRAM_ENTRY  "inittracer"
@@ -66,11 +66,11 @@ void IOTracer::instrument(){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
 
-    Vector<InstrucX86*> myInstPoints;
+    Vector<X86Instruction*> myInstPoints;
     Vector<Symbol*> myInstSymbols;
 
     for (uint32_t i = 0; i < getNumberOfExposedInstructions(); i++){
-        InstrucX86* instruction = getExposedInstruction(i);
+        X86Instruction* instruction = getExposedInstruction(i);
         ASSERT(instruction->getContainer()->isFunction());
         Function* function = (Function*)instruction->getContainer();
         
@@ -129,10 +129,10 @@ void IOTracer::instrument(){
         initializeReservedData(getInstDataAddress() + funcNameArray + sizeof(char*)*i, sizeof(char*), &functionNameAddr);
         initializeReservedData(functionNameAddr, strlen(functionName) + 1, functionName);
 
-        Vector<InstrucX86*> setupReg;
+        Vector<X86Instruction*> setupReg;
 
         ASSERT(numArgs);
-        setupReg.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_DI, getInstDataAddress() + funcArgumentStorage));
+        setupReg.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_DI, getInstDataAddress() + funcArgumentStorage));
 
         PRINT_INFOR("Wrapping call to %s (site id %d) at address %#llx", functionName, i, myInstPoints[i]->getProgramAddress());
 
@@ -140,16 +140,16 @@ void IOTracer::instrument(){
         for (uint32_t j = 1; j < numArgs; j++){
             ASSERT(j < MAX_ARG_COUNT);
             if (j < Num__64_bit_StackArgs){
-                setupReg.append(InstrucX86Generator64::generateMoveRegToMem(map64BitArgToReg(j), getInstDataAddress() + funcArgumentStorage + (j * sizeof(uint64_t))));
+                setupReg.append(X86InstructionFactory64::emitMoveRegToMem(map64BitArgToReg(j), getInstDataAddress() + funcArgumentStorage + (j * sizeof(uint64_t))));
             } else {
                 PRINT_ERROR("64Bit instrumentation supports only %d args currently", Num__64_bit_StackArgs);
             }
         }
 
-        setupReg.append(InstrucX86Generator64::generateMoveImmToReg(i, X86_REG_DI));
-        setupReg.append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_DI, getInstDataAddress() + functionIndexAddr));
+        setupReg.append(X86InstructionFactory64::emitMoveImmToReg(i, X86_REG_DI));
+        setupReg.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_DI, getInstDataAddress() + functionIndexAddr));
 
-        setupReg.append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + funcArgumentStorage, X86_REG_DI, true));
+        setupReg.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + funcArgumentStorage, X86_REG_DI, true));
 
         while (setupReg.size()){
             pt->addPrecursorInstruction(setupReg.remove(0));

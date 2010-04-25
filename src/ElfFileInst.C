@@ -10,8 +10,8 @@
 #include <FlowGraph.h>
 #include <GnuVersion.h>
 #include <HashTable.h>
-#include <InstrucX86.h>
-#include <InstrucX86Generator.h>
+#include <X86Instruction.h>
+#include <X86InstructionFactory.h>
 #include <Instrumentation.h>
 #include <LineInformation.h>
 #include <ProgramHeader.h>
@@ -230,11 +230,11 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
     TextSection* text = operatedFunction->getTextSection();
     uint64_t relocationAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + offsetToRelocation;
     uint32_t functionSize = operatedFunction->getNumberOfBytes();
-    Vector<InstrucX86*>* trampEmpty = new Vector<InstrucX86*>();
+    Vector<X86Instruction*>* trampEmpty = new Vector<X86Instruction*>();
 
     uint32_t currentByte = 0;
 
-    InstrucX86* connector = InstrucX86Generator::generateJumpRelative(operatedFunction->getBaseAddress(), relocationAddress);
+    X86Instruction* connector = X86InstructionFactory::emitJumpRelative(operatedFunction->getBaseAddress(), relocationAddress);
     connector->initializeAnchor(operatedFunction->getFlowGraph()->getBasicBlock(0)->getLeader());
     
     (*trampEmpty).append(connector);
@@ -264,7 +264,7 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
 
 #ifdef FILL_RELOCATED_WITH_INTERRUPTS
     while (currentByte < functionSize){
-        (*trampEmpty).append(InstrucX86Generator::generateInterrupt(X86TRAPCODE_BREAKPOINT));
+        (*trampEmpty).append(X86InstructionFactory::emitInterrupt(X86TRAPCODE_BREAKPOINT));
         (*trampEmpty).back()->setBaseAddress(operatedFunction->getBaseAddress() + currentByte);
         currentByte += (*trampEmpty).back()->getSizeInBytes();
     }
@@ -283,12 +283,12 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
 
     if (displacedFunction->getIndex() < allFunctions.size() - 1){
         Function* nextFunc = allFunctions[displacedFunction->getIndex() + 1];
-        InstrucX86* firstI = nextFunc->getFlowGraph()->getBasicBlock(0)->getLeader();
-        InstrucX86* safetyJump;
+        X86Instruction* firstI = nextFunc->getFlowGraph()->getBasicBlock(0)->getLeader();
+        X86Instruction* safetyJump;
         if (elfFile->is64Bit()){
-            safetyJump = InstrucX86Generator64::generateJumpRelative(0,0);
+            safetyJump = X86InstructionFactory64::emitJumpRelative(0,0);
         } else {
-            safetyJump = InstrucX86Generator32::generateJumpRelative(0,0);
+            safetyJump = X86InstructionFactory32::emitJumpRelative(0,0);
         }
         safetyJump->initializeAnchor(firstI);
         (*(elfFile->getAddressAnchors())).append(safetyJump->getAddressAnchor());
@@ -356,7 +356,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
     InstrumentationSnippet* snip = instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN];
     snip->setRequiresDistinctTrampoline(true);
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        snip->addSnippetInstruction(InstrucX86Generator32::generateStackPush(i));
+        snip->addSnippetInstruction(X86InstructionFactory32::emitStackPush(i));
     }
 
     uint64_t codeOffset = relocatedTextSize;
@@ -404,9 +404,9 @@ uint32_t ElfFileInst::generateInstrumentation(){
     snip->setCodeOffset(codeOffset);
 
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        snip->addSnippetInstruction(InstrucX86Generator32::generateStackPop(X86_32BIT_GPRS-i-1));
+        snip->addSnippetInstruction(X86InstructionFactory32::emitStackPop(X86_32BIT_GPRS-i-1));
     }
-    snip->addSnippetInstruction(InstrucX86Generator::generateReturn());
+    snip->addSnippetInstruction(X86InstructionFactory::emitReturn());
 
     codeOffset += snip->snippetSize();
 
@@ -432,7 +432,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
 #ifdef SWAP_MOD
         performSwap = false;
         if (i % SWAP_MOD == SWAP_MOD_OFF || pt->getPriority() < InstPriority_regular){
-            InstrucX86* ins = pt->getSourceObject();
+            X86Instruction* ins = pt->getSourceObject();
 #ifdef SWAP_FUNCTION_ONLY
             if (strstr(ins->getContainer()->getName(), SWAP_FUNCTION_ONLY)){
 #endif
@@ -472,10 +472,10 @@ uint32_t ElfFileInst::generateInstrumentation(){
                 isFirstInChain = true;
                 chainOffset = codeOffset;
             }
-            Vector<InstrucX86*>* repl = NULL;
-            Vector<InstrucX86*>* displaced = NULL;
+            Vector<X86Instruction*>* repl = NULL;
+            Vector<X86Instruction*>* displaced = NULL;
             
-            repl = new Vector<InstrucX86*>();
+            repl = new Vector<X86Instruction*>();
             if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_tramp ||
                 (*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_trampinline ||
                 !isFirstInChain){
@@ -484,32 +484,32 @@ uint32_t ElfFileInst::generateInstrumentation(){
                     instAddress = pt->getInstBaseAddress() - Size__uncond_jump;
                 }
 		//                ASSERT(((Function*)pt->getSourceObject()->getContainer())->isRelocated());
-                (*repl).append(InstrucX86Generator::generateJumpRelative(instAddress, elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
+                (*repl).append(X86InstructionFactory::emitJumpRelative(instAddress, elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
             } else if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_inline){
                 if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_light){
                     if (elfFile->is64Bit()){
-                        (*repl).append(InstrucX86Generator64::generateMoveRegToMem(X86_REG_AX, registerStorage));
-                        (*repl).append(InstrucX86Generator64::generateLoadAHFromFlags());
+                        (*repl).append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_AX, registerStorage));
+                        (*repl).append(X86InstructionFactory64::emitLoadAHFromFlags());
                         while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
                             (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
                         }
-                        (*repl).append(InstrucX86Generator64::generateStoreAHToFlags());
-                        (*repl).append(InstrucX86Generator64::generateMoveMemToReg(registerStorage, X86_REG_AX, true));
+                        (*repl).append(X86InstructionFactory64::emitStoreAHToFlags());
+                        (*repl).append(X86InstructionFactory64::emitMoveMemToReg(registerStorage, X86_REG_AX, true));
                     } else { 
-                        (*repl).append(InstrucX86Generator32::generateMoveRegToMem(X86_REG_AX, registerStorage));
-                        (*repl).append(InstrucX86Generator32::generateLoadAHFromFlags());
+                        (*repl).append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_AX, registerStorage));
+                        (*repl).append(X86InstructionFactory32::emitLoadAHFromFlags());
                         while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
                             (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
                         }
-                        (*repl).append(InstrucX86Generator32::generateStoreAHToFlags());
-                        (*repl).append(InstrucX86Generator32::generateMoveMemToReg(registerStorage, X86_REG_AX));
+                        (*repl).append(X86InstructionFactory32::emitStoreAHToFlags());
+                        (*repl).append(X86InstructionFactory32::emitMoveMemToReg(registerStorage, X86_REG_AX));
                     }                
                 } else if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_full){
-                    (*repl).append(InstrucX86Generator::generatePushEflags());
+                    (*repl).append(X86InstructionFactory::emitPushEflags());
                     while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
                         (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
                     }
-                    (*repl).append(InstrucX86Generator::generatePopEflags());                    
+                    (*repl).append(X86InstructionFactory::emitPopEflags());                    
                 } else { // (*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_none
                     while ((*instrumentationPoints)[i]->getInstrumentation()->hasMoreCoreInstructions()){
                         (*repl).append((*instrumentationPoints)[i]->getInstrumentation()->removeNextCoreInstruction());
@@ -605,7 +605,6 @@ uint32_t ElfFileInst::generateInstrumentation(){
         }
     }
 
-    PRINT_INFOR("%d instrumentation points, %lld bytes used for text, %#lld bytes used for data", (*instrumentationPoints).size(), codeOffset, usableDataOffset);
     if (codeOffset > elfFile->getSectionHeader(extraTextIdx)->GET(sh_size)){
         PRINT_INFOR("code used %#llx bytes > available space %#llx bytes", codeOffset, elfFile->getSectionHeader(extraTextIdx)->GET(sh_size));
     }
@@ -805,7 +804,7 @@ void ElfFileInst::functionSelect(){
                     BasicBlock* bb = f->getBasicBlock(j);
                     exposedBasicBlocks.append(bb);
                     for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
-                        InstrucX86* ins = bb->getInstruction(k);
+                        X86Instruction* ins = bb->getInstruction(k);
                         exposedInstructions.append(ins);
                         if (ins->isMemoryOperation()){
                             exposedMemOps.append(ins);
@@ -821,7 +820,7 @@ void ElfFileInst::functionSelect(){
         }
     }
 
-    PRINT_INFOR("Disassembly missing (bytes):\t%d/%d (%.2f%)", missingBytes, numberOfBytes, ((float)((float)missingBytes*100)/((float)numberOfBytes)));
+    PRINT_INFOR("Possibly incorrect disasm (bytes):\t%d/%d (%.2f%)", missingBytes, numberOfBytes, ((float)((float)missingBytes*100)/((float)numberOfBytes)));
 }
 
 

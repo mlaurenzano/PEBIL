@@ -4,7 +4,7 @@
 #include <BinaryFile.h>
 #include <BitSet.h>
 #include <Function.h>
-#include <InstrucX86.h>
+#include <X86Instruction.h>
 #include <LinkedList.h>
 #include <Loop.h>
 #include <RawSection.h>

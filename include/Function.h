@@ -2,7 +2,7 @@
 #define _Function_h_
 
 #include <BitSet.h>
-#include <InstrucX86.h>
+#include <X86Instruction.h>
 #include <TextSection.h>
 #include <Vector.h>
 
@@ -29,7 +29,7 @@ protected:
     uint64_t flags;
     uint32_t stackSize;
 
-    Vector<InstrucX86*>* digestRecursive();
+    Vector<X86Instruction*>* digestRecursive();
 public:
     Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz);
     ~Function();
@@ -63,23 +63,23 @@ public:
     bool containsReturn();
 
     uint32_t bloatBasicBlocks(Vector<InstrumentationPoint*>* instPoints);
-    uint32_t addSafetyJump(InstrucX86* tgtInstruction);
+    uint32_t addSafetyJump(X86Instruction* tgtInstruction);
 
     void setBaseAddress(uint64_t newBaseAddress);
 
     Symbol* getFunctionSymbol() { return symbol; }
-    uint32_t generateCFG(Vector<InstrucX86*>* instructions, Vector<AddressAnchor*>* addressAnchors);
+    uint32_t generateCFG(Vector<X86Instruction*>* instructions, Vector<AddressAnchor*>* addressAnchors);
 
     FlowGraph* getFlowGraph() { return flowGraph; }
     uint32_t getNumberOfBasicBlocks();
     BasicBlock* getBasicBlock(uint32_t idx);
-    InstrucX86* getInstructionAtAddress(uint64_t addr);
+    X86Instruction* getInstructionAtAddress(uint64_t addr);
     BasicBlock* getBasicBlockAtAddress(uint64_t addr);
 
     uint32_t getNumberOfInstructions();
     uint32_t getNumberOfBytes();
 
-    uint32_t getAllInstructions(InstrucX86** allinsts, uint32_t nexti);
+    uint32_t getAllInstructions(X86Instruction** allinsts, uint32_t nexti);
 
     void printInstructions();
 
@@ -91,7 +91,7 @@ public:
     const char* briefName() { return "Function"; }
     HashCode getHashCode() { return hashCode; }
 
-    Vector<InstrucX86*>* swapInstructions(uint64_t addr, Vector<InstrucX86*>* replacements);
+    Vector<X86Instruction*>* swapInstructions(uint64_t addr, Vector<X86Instruction*>* replacements);
     uint64_t findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc);
 
     void printDisassembly(bool instructionDetail);

@@ -20,7 +20,7 @@ void FlowGraph::flowAnalysis(){
     Vector<BitSet<uint32_t>*> ins_prime;
     Vector<BitSet<uint32_t>*> outs_prime;
     Vector<std::set<uint32_t>*> succs;
-    Vector<InstrucX86*> allInstructions;
+    Vector<X86Instruction*> allInstructions;
     uint32_t maxElts = 32;
 
     // reindex instructions
@@ -28,7 +28,7 @@ void FlowGraph::flowAnalysis(){
     for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
         BasicBlock* bb = getBasicBlock(i);
         for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
-            InstrucX86* instruction = bb->getInstruction(j);
+            X86Instruction* instruction = bb->getInstruction(j);
             instruction->setIndex(currIdx++);
         }
     }
@@ -38,7 +38,7 @@ void FlowGraph::flowAnalysis(){
     for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
         BasicBlock* bb = getBasicBlock(i);
         for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
-            InstrucX86* instruction = bb->getInstruction(j);
+            X86Instruction* instruction = bb->getInstruction(j);
             uses.append(instruction->getUseRegs());
             defs.append(instruction->getDefRegs());
             ins.append(new BitSet<uint32_t>(maxElts));

@@ -3,8 +3,8 @@
 #include <BasicBlock.h>
 #include <Function.h>
 #include <Instrumentation.h>
-#include <InstrucX86.h>
-#include <InstrucX86Generator.h>
+#include <X86Instruction.h>
+#include <X86InstructionFactory.h>
 #include <LineInformation.h>
 #include <Loop.h>
 #include <TextSection.h>
@@ -18,7 +18,7 @@
 #define MAX_MEMOPS_PER_BLOCK 256
 
 void CacheSimulation::usesModifiedProgram(){
-    InstrucX86* nop5Byte = InstrucX86Generator::generateNop(5);
+    X86Instruction* nop5Byte = X86InstructionFactory::emitNop(5);
     instpoint_info iinf;
     bzero(&iinf, sizeof(instpoint_info));
     iinf.pt_size = Size__uncond_jump;
@@ -152,6 +152,10 @@ void CacheSimulation::instrument(){
     uint32_t totalProt = 0;
     uint32_t regDefault = 0;
 
+    if (!getElfFile()->is64Bit()){
+        __FUNCTION_NOT_IMPLEMENTED;
+    }
+
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
 
@@ -165,7 +169,7 @@ void CacheSimulation::instrument(){
             uint32_t memopIdInBlock = 0;
             
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
-                InstrucX86* memop = bb->getInstruction(j);
+                X86Instruction* memop = bb->getInstruction(j);
                 
                 if (memop->isMemoryOperation()){            
                     
@@ -185,14 +189,14 @@ void CacheSimulation::instrument(){
                         
                         InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline, prot, InstLocation_prior);
                         pt->setPriority(InstPriority_low);
-                        Vector<InstrucX86*>* bufferDumpInstructions = new Vector<InstrucX86*>();
+                        Vector<X86Instruction*>* bufferDumpInstructions = new Vector<X86Instruction*>();
                         
                         // save temp regs
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t))));
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveRegToMem(tmpReg2, getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t))));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t))));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveRegToMem(tmpReg2, getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t))));
                         
                         // put the memory address in tmp1
-                        Vector<InstrucX86*>* addrStore = InstrucX86Generator64::generateAddressComputation(memop, tmpReg1);
+                        Vector<X86Instruction*>* addrStore = X86InstructionFactory64::emitAddressComputation(memop, tmpReg1);
                         while (!(*addrStore).empty()){
                             (*bufferDumpInstructions).append((*addrStore).remove(0));
                         }
@@ -200,33 +204,32 @@ void CacheSimulation::instrument(){
                         
                         // put the current buffer address in tmp2
                         // replace this with a 4-wide move
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg2, false));
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateLoadEffectiveAddress(0, tmpReg2, 4, 0, tmpReg2, false, true));
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg2, false));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, 0, tmpReg2, false, true));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
                         
                         // fill the buffer entry with this block's info
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
                         // update the buffer counter
                         uint32_t maxMemopsInSuccessor = MAX_MEMOPS_PER_BLOCK;
                         ASSERT(bb->getNumberOfMemoryOps() < MAX_MEMOPS_PER_BLOCK);
                         uint32_t memcnt = bb->getNumberOfMemoryOps();
                         while (memcnt > 0x7f){
-                            PRINT_INFOR("opting memcnt > 0x7f");
-                            (*bufferDumpInstructions).append(InstrucX86Generator64::generateAddImmByteToMem(0x7f, getInstDataAddress() + bufferStore));
+                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitAddImmByteToMem(0x7f, getInstDataAddress() + bufferStore));
                             memcnt -= 0x7f;
                         }
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateAddImmByteToMem(memcnt, getInstDataAddress() + bufferStore));
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg1, false));
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateCompareImmReg(BUFFER_ENTRIES - maxMemopsInSuccessor, tmpReg1));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitAddImmByteToMem(memcnt, getInstDataAddress() + bufferStore));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg1, false));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitCompareImmReg(BUFFER_ENTRIES - maxMemopsInSuccessor, tmpReg1));
                         
                         // restore regs
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t)), tmpReg2, true));
-                        (*bufferDumpInstructions).append(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t)), tmpReg1, true));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t)), tmpReg2, true));
+                        (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t)), tmpReg1, true));
                         
                         // jump to non-buffer-jump code
-                        (*bufferDumpInstructions).append(InstrucX86Generator::generateBranchJL(Size__64_bit_inst_function_call_support));
+                        (*bufferDumpInstructions).append(X86InstructionFactory::emitBranchJL(Size__64_bit_inst_function_call_support));
                         
                         ASSERT(bufferDumpInstructions);
                         while ((*bufferDumpInstructions).size()){
@@ -246,29 +249,29 @@ void CacheSimulation::instrument(){
                         
                         // save 2 temp regs
                         if (usesLiveReg){
-                            snip->addSnippetInstruction(InstrucX86Generator64::generateMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t)));
-                            snip->addSnippetInstruction(InstrucX86Generator64::generateMoveRegToMem(tmpReg2, getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t)));
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t)));
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToMem(tmpReg2, getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t)));
                         }
                         
                         // put the memory address in tmp1
-                        Vector<InstrucX86*>* addrStore = InstrucX86Generator64::generateAddressComputation(memop, tmpReg1);
+                        Vector<X86Instruction*>* addrStore = X86InstructionFactory64::emitAddressComputation(memop, tmpReg1);
                         while (!(*addrStore).empty()){
                             snip->addSnippetInstruction((*addrStore).remove(0));
                         }
                         delete addrStore;
                         
                         // put the current buffer address in tmp2
-                        snip->addSnippetInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg2, false));
-                        snip->addSnippetInstruction(InstrucX86Generator64::generateLoadEffectiveAddress(0, tmpReg2, 4, 0, tmpReg2, false, true));
-                        snip->addSnippetInstruction(InstrucX86Generator64::generateLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg2, false));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, 0, tmpReg2, false, true));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
                         
                         // fill the buffer entry with this block's info
-                        snip->addSnippetInstruction(InstrucX86Generator64::generateMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
-                        snip->addSnippetInstruction(InstrucX86Generator64::generateMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                        snip->addSnippetInstruction(InstrucX86Generator64::generateMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
                         if (usesLiveReg){
-                            snip->addSnippetInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t), tmpReg2, true));
-                            snip->addSnippetInstruction(InstrucX86Generator64::generateMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t), tmpReg1, true));
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t), tmpReg2, true));
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t), tmpReg1, true));
                         }
                         // generateAddressComputation is guaranteed to use instructions that dont def any flags, so no protection is necessary
                         InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, FlagsProtectionMethod_none, InstLocation_prior);

@@ -3,7 +3,7 @@
 #include <BasicBlock.h>
 #include <ElfFile.h>
 #include <Function.h>
-#include <InstrucX86.h>
+#include <X86Instruction.h>
 #include <SectionHeader.h>
 #include <SymbolTable.h>
 
@@ -44,7 +44,7 @@ void FreeText::printDisassembly(bool instructionDetail){
     }
 }
 
-uint32_t FreeText::getAllInstructions(InstrucX86** allinsts, uint32_t nexti){
+uint32_t FreeText::getAllInstructions(X86Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
 
     for (uint32_t i = 0; i < blocks.size(); i++){
@@ -61,7 +61,7 @@ uint32_t FreeText::getAllInstructions(InstrucX86** allinsts, uint32_t nexti){
     return instructionCount;
 }
 
-uint32_t TextSection::getAllInstructions(InstrucX86** allinsts, uint32_t nexti){
+uint32_t TextSection::getAllInstructions(X86Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         instructionCount += sortedTextObjects[i]->getAllInstructions(allinsts, instructionCount+nexti);
@@ -195,8 +195,8 @@ char* TextObject::charStream(){
     return (char*)(textSection->getFilePointer() + functionOffset);
 }
 
-Vector<InstrucX86*>* TextObject::digestLinear(){
-    Vector<InstrucX86*>* allInstructions = new Vector<InstrucX86*>();
+Vector<X86Instruction*>* TextObject::digestLinear(){
+    Vector<X86Instruction*>* allInstructions = new Vector<X86Instruction*>();
 
     uint32_t currByte = 0;
     uint32_t instructionLength = 0;
@@ -208,7 +208,7 @@ Vector<InstrucX86*>* TextObject::digestLinear(){
     while (currByte < sizeInBytes){
 
         instructionAddress = (uint64_t)((uint64_t)charStream() + currByte);
-        InstrucX86* newInstruction = new InstrucX86(this, getBaseAddress() + currByte, charStream() + currByte, ByteSource_Application_FreeText, numberOfInstructions++);
+        X86Instruction* newInstruction = new X86Instruction(this, getBaseAddress() + currByte, charStream() + currByte, ByteSource_Application_FreeText, numberOfInstructions++);
         PRINT_DEBUG_CFG("linear cfg: instruction at %#llx with %d bytes", newInstruction->getBaseAddress(), newInstruction->getSizeInBytes());
 
         (*allInstructions).append(newInstruction);
@@ -242,7 +242,7 @@ uint32_t FreeText::digest(Vector<AddressAnchor*>* addressAnchors){
     ASSERT(!blocks.size());
     if (usesInstructions){
         PRINT_DEBUG_CFG("\tdigesting freetext instructions at %#llx", getBaseAddress());
-        Vector<InstrucX86*>* allInstructions = digestLinear();
+        Vector<X86Instruction*>* allInstructions = digestLinear();
         ASSERT(allInstructions);
         (*allInstructions).sort(compareBaseAddress);
 
@@ -400,7 +400,7 @@ uint64_t TextSection::findInstrumentationPoint(uint64_t addr, uint32_t size, Ins
 }
 
 
-Vector<InstrucX86*>* TextSection::swapInstructions(uint64_t addr, Vector<InstrucX86*>* replacements){
+Vector<X86Instruction*>* TextSection::swapInstructions(uint64_t addr, Vector<X86Instruction*>* replacements){
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         if (sortedTextObjects[i]->getType() == PebilClassType_Function){
             Function* f = (Function*)sortedTextObjects[i];
@@ -430,7 +430,7 @@ void TextSection::printInstructions(){
 }
 
 
-InstrucX86* TextSection::getInstructionAtAddress(uint64_t addr){
+X86Instruction* TextSection::getInstructionAtAddress(uint64_t addr){
     SectionHeader* sectionHeader = elfFile->getSectionHeader(getSectionIndex());
     if (!sectionHeader->inRange(addr)){
         return NULL;

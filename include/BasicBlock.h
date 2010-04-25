@@ -7,7 +7,7 @@
 #include <Vector.h>
 
 class Function;
-class InstrucX86;
+class X86Instruction;
 
 class Block : public Base {
 protected:
@@ -33,28 +33,28 @@ public:
 
 class CodeBlock : public Block {
 protected:
-    Vector<InstrucX86*> instructions;
+    Vector<X86Instruction*> instructions;
     bool byteCountUpdate;
     uint32_t numberOfBytes;
 public:
     CodeBlock(uint32_t idx, FlowGraph* cfg);
     ~CodeBlock();
 
-    uint32_t addTailJump(InstrucX86* tgtInstruction);
+    uint32_t addTailJump(X86Instruction* tgtInstruction);
 
-    Vector<InstrucX86*>* swapInstructions(uint64_t addr, Vector<InstrucX86*>* replacements);
+    Vector<X86Instruction*>* swapInstructions(uint64_t addr, Vector<X86Instruction*>* replacements);
     void printInstructions();
     void setBaseAddress(uint64_t newBaseAddress);
-    uint32_t addInstruction(InstrucX86* inst);
+    uint32_t addInstruction(X86Instruction* inst);
     void printDisassembly(bool instructionDetail);
     uint32_t getNumberOfBytes();
-    InstrucX86* getInstructionAtAddress(uint64_t addr);
+    X86Instruction* getInstructionAtAddress(uint64_t addr);
 
     uint64_t getProgramAddress();
 
-    uint32_t getAllInstructions(InstrucX86** allinsts, uint32_t nexti);
+    uint32_t getAllInstructions(X86Instruction** allinsts, uint32_t nexti);
     uint32_t getNumberOfInstructions() { return instructions.size(); }
-    InstrucX86* getInstruction(uint32_t idx) { return instructions[idx]; }
+    X86Instruction* getInstruction(uint32_t idx) { return instructions[idx]; }
 
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
@@ -138,8 +138,8 @@ public:
 
     void findCompareAndCBranch();
 
-    InstrucX86* getLeader() { return instructions[0]; }
-    InstrucX86* getExitInstruction() { return instructions.back(); }
+    X86Instruction* getLeader() { return instructions[0]; }
+    X86Instruction* getExitInstruction() { return instructions.back(); }
 
     bool isPadding()  { return (flags & PaddingMask); }
     bool isEntry()    { return (flags & EntryMask); }

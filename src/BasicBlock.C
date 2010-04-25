@@ -3,8 +3,8 @@
 #include <ElfFileInst.h>
 #include <Function.h>
 #include <FlowGraph.h>
-#include <InstrucX86.h>
-#include <InstrucX86Generator.h>
+#include <X86Instruction.h>
+#include <X86InstructionFactory.h>
 #include <Instrumentation.h>
 
 static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
@@ -20,7 +20,7 @@ uint32_t BasicBlock::searchForArgsPrep(bool is64Bit){
     if (is64Bit){
         for (uint32_t i = 0; i < instructions.size(); i++){
             //            instructions[i]->print();
-            if (instructions[i]->getInstructionType() == InstrucX86Type_int){
+            if (instructions[i]->getInstructionType() == X86InstructionType_int){
                 OperandX86* destOp = instructions[i]->getOperand(COMP_DEST_OPERAND);
 
                 if (!destOp->getValue()){
@@ -77,7 +77,7 @@ void BasicBlock::findCompareAndCBranch(){
     return;
 }
 
-uint32_t CodeBlock::addTailJump(InstrucX86* tgtInstruction){
+uint32_t CodeBlock::addTailJump(X86Instruction* tgtInstruction){
     instructions.append(tgtInstruction);
     byteCountUpdate = true;
     return getNumberOfBytes();
@@ -137,7 +137,7 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
         PRINT_DEBUG_BLOAT_FILTER("bloating point at instruction %#llx by %d bytes", instructions[instructionIdx]->getProgramAddress(), bloatAmount);
 
         for (uint32_t j = 0; j < bloatAmount; j++){
-            instructions.insert(InstrucX86Generator::generateNop(), instructionIdx);
+            instructions.insert(X86InstructionFactory::emitNop(), instructionIdx);
             byteCountUpdate = true;
         }
     }
@@ -290,7 +290,7 @@ bool BasicBlock::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
     return false;
 }
 
-uint32_t CodeBlock::getAllInstructions(InstrucX86** allinsts, uint32_t nexti){
+uint32_t CodeBlock::getAllInstructions(X86Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
         allinsts[i+nexti] = instructions[i];
@@ -335,7 +335,7 @@ bool BasicBlock::findExitInstruction(){
 
 
 bool BasicBlock::controlFallsThrough(){
-    InstrucX86* last = instructions.back();
+    X86Instruction* last = instructions.back();
     return last->controlFallsThrough();
 }
 
@@ -386,7 +386,7 @@ void CodeBlock::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(currByte == getNumberOfBytes());
 }
 
-uint32_t CodeBlock::addInstruction(InstrucX86* inst){
+uint32_t CodeBlock::addInstruction(X86Instruction* inst){
     if (!instructions.size()){
         baseAddress = inst->getBaseAddress();
     }
@@ -397,7 +397,7 @@ uint32_t CodeBlock::addInstruction(InstrucX86* inst){
     return instructions.size();
 }
 
-InstrucX86* CodeBlock::getInstructionAtAddress(uint64_t addr){
+X86Instruction* CodeBlock::getInstructionAtAddress(uint64_t addr){
     for (uint32_t i = 0; i < instructions.size(); i++){
         if (instructions[i]->getBaseAddress() == addr){
             return instructions[i];
@@ -555,7 +555,7 @@ uint64_t BasicBlock::findInstrumentationPoint(uint64_t addr, uint32_t size, Inst
     if (loc == InstLocation_prior){
         addr = addr - size;
     } else if (loc == InstLocation_after){
-        InstrucX86* instruction = getInstructionAtAddress(addr);
+        X86Instruction* instruction = getInstructionAtAddress(addr);
         ASSERT(instruction);
         addr = instruction->getBaseAddress() + instruction->getSizeInBytes();
     } else {
@@ -564,7 +564,7 @@ uint64_t BasicBlock::findInstrumentationPoint(uint64_t addr, uint32_t size, Inst
 
     ASSERT(inRange(addr) && "Instrumentation address should fall within BasicBlock bounds");
 
-    InstrucX86* instruction = getInstructionAtAddress(addr);
+    X86Instruction* instruction = getInstructionAtAddress(addr);
     if (!instruction){
         print();
     }
@@ -599,15 +599,15 @@ uint64_t BasicBlock::findInstrumentationPoint(uint64_t addr, uint32_t size, Inst
     return 0;
 }
 
-Vector<InstrucX86*>* CodeBlock::swapInstructions(uint64_t addr, Vector<InstrucX86*>* replacements){
-    InstrucX86* tgtInstruction = getInstructionAtAddress(addr);
+Vector<X86Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<X86Instruction*>* replacements){
+    X86Instruction* tgtInstruction = getInstructionAtAddress(addr);
     if (!tgtInstruction){
         PRINT_INFOR("looking for addr %#llx", addr);
         printInstructions();
     }
     ASSERT(tgtInstruction && "This basic block should have an instruction at the given address");
 
-    Vector<InstrucX86*>* replaced = new Vector<InstrucX86*>();
+    Vector<X86Instruction*>* replaced = new Vector<X86Instruction*>();
     if (!(*replacements).size()){
         return replaced;
     }
@@ -629,7 +629,7 @@ Vector<InstrucX86*>* CodeBlock::swapInstructions(uint64_t addr, Vector<InstrucX8
     }
 
     while (bytesToReplace < replacedBytes){
-        (*replacements).append(InstrucX86Generator::generateNop());
+        (*replacements).append(X86InstructionFactory::emitNop());
         bytesToReplace++;
     }
 

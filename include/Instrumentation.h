@@ -2,10 +2,10 @@
 #define _Instrumentation_h_
 
 #include <Base.h>
-#include <InstrucX86.h>
+#include <X86Instruction.h>
 #include <Vector.h>
 
-class InstrucX86;
+class X86Instruction;
 class InstrumentationPoint;
 
 #define SNIPPET_TRAMPOLINE_DEFAULT false
@@ -49,7 +49,7 @@ extern Vector<InstrumentationPoint*>* instpointFilterAddressRange(Base* object, 
 
 class Instrumentation : public Base {
 protected:
-    Vector<InstrucX86*> bootstrapInstructions;
+    Vector<X86Instruction*> bootstrapInstructions;
     uint64_t bootstrapOffset;
 
     bool distinctTrampoline;
@@ -65,7 +65,7 @@ public:
     virtual bool verify() { return true; }
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; } 
 
-    virtual InstrucX86* removeNextCoreInstruction() { __SHOULD_NOT_ARRIVE; }
+    virtual X86Instruction* removeNextCoreInstruction() { __SHOULD_NOT_ARRIVE; }
     virtual bool hasMoreCoreInstructions() { __SHOULD_NOT_ARRIVE; }
 
     void setRequiresDistinctTrampoline(bool rdt) { distinctTrampoline = rdt; }
@@ -81,7 +81,7 @@ public:
 
 class InstrumentationSnippet : public Instrumentation {
 private:
-    Vector<InstrucX86*> snippetInstructions;
+    Vector<X86Instruction*> snippetInstructions;
     uint64_t snippetOffset;
 
     uint32_t numberOfDataEntries;
@@ -107,11 +107,11 @@ public:
     uint64_t getEntryPoint();
 
     uint32_t getNumberOfCoreInstructions() { return snippetInstructions.size(); }
-    InstrucX86* getCoreInstruction(uint32_t idx) { ASSERT(snippetInstructions[idx]); return snippetInstructions[idx]; }
-    InstrucX86* removeNextCoreInstruction() { ASSERT(hasMoreCoreInstructions()); return snippetInstructions.remove(0); }
+    X86Instruction* getCoreInstruction(uint32_t idx) { ASSERT(snippetInstructions[idx]); return snippetInstructions[idx]; }
+    X86Instruction* removeNextCoreInstruction() { ASSERT(hasMoreCoreInstructions()); return snippetInstructions.remove(0); }
     bool hasMoreCoreInstructions() { return (snippetInstructions.size() != 0); }
 
-    uint32_t addSnippetInstruction(InstrucX86* inst);
+    uint32_t addSnippetInstruction(X86Instruction* inst);
     void setCodeOffset(uint64_t off) { snippetOffset = off; }
     uint64_t getCodeOffset() { return snippetOffset; }
 
@@ -129,10 +129,10 @@ protected:
     bool staticLinked;
     uint64_t functionEntry;
 
-    Vector<InstrucX86*> procedureLinkInstructions;
+    Vector<X86Instruction*> procedureLinkInstructions;
     uint64_t procedureLinkOffset;
 
-    Vector<InstrucX86*> wrapperInstructions;
+    Vector<X86Instruction*> wrapperInstructions;
     uint64_t wrapperOffset;
 
     uint32_t globalData;
@@ -170,7 +170,7 @@ public:
 
     void setRelocationOffset(uint64_t relocOffset) { relocationOffset = relocOffset; }
 
-    InstrucX86* removeNextCoreInstruction() { ASSERT(hasMoreCoreInstructions()); return wrapperInstructions.remove(0); }
+    X86Instruction* removeNextCoreInstruction() { ASSERT(hasMoreCoreInstructions()); return wrapperInstructions.remove(0); }
     bool hasMoreCoreInstructions() { return (wrapperInstructions.size() != 0); }
 
     virtual uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress) { __SHOULD_NOT_ARRIVE; }
@@ -229,28 +229,28 @@ typedef enum {
 
 class InstrumentationPoint : public Base {
 protected:
-    InstrucX86* point;
+    X86Instruction* point;
     Instrumentation* instrumentation;
 
     uint32_t numberOfBytes;
     InstLocations instLocation;
 
-    Vector<InstrucX86*> trampolineInstructions;
+    Vector<X86Instruction*> trampolineInstructions;
     uint64_t trampolineOffset;
 
     InstPriorities priority;
     FlagsProtectionMethods protectionMethod;
     InstrumentationModes instrumentationMode;
 
-    Vector<InstrucX86*> precursorInstructions;
-    Vector<InstrucX86*> postcursorInstructions;
+    Vector<X86Instruction*> precursorInstructions;
+    Vector<X86Instruction*> postcursorInstructions;
 
 public:
 
     InstrumentationPoint(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc);
     ~InstrumentationPoint();
 
-    Vector<InstrucX86*>* swapInstructionsAtPoint(bool isChain, Vector<InstrucX86*>* replacements);
+    Vector<X86Instruction*>* swapInstructionsAtPoint(bool isChain, Vector<X86Instruction*>* replacements);
 
     void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
@@ -261,7 +261,7 @@ public:
     uint64_t getTargetOffset() { ASSERT(instrumentation); return instrumentation->getEntryPoint(); }
     Instrumentation* getInstrumentation() { return instrumentation; }
 
-    InstrucX86* getSourceObject() { return point; }
+    X86Instruction* getSourceObject() { return point; }
     PebilClassTypes getPointType() { ASSERT(getSourceObject()); return getSourceObject()->getType(); }
     uint64_t getInstSourceAddress();
     uint64_t getInstBaseAddress();
@@ -272,16 +272,16 @@ public:
     FlagsProtectionMethods getFlagsProtectionMethod() { return protectionMethod; }
 
     uint32_t sizeNeeded();
-    virtual uint32_t generateTrampoline(Vector<InstrucX86*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe)
+    virtual uint32_t generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe)
          { __SHOULD_NOT_ARRIVE; }
     uint64_t getTrampolineOffset() { return trampolineOffset; }
 
-    InstrucX86* removeNextPrecursorInstruction() { ASSERT(hasMorePrecursorInstructions()); return precursorInstructions.remove(0); }
+    X86Instruction* removeNextPrecursorInstruction() { ASSERT(hasMorePrecursorInstructions()); return precursorInstructions.remove(0); }
     bool hasMorePrecursorInstructions() { return (precursorInstructions.size() != 0); }
-    uint32_t addPrecursorInstruction(InstrucX86* inst);
-    InstrucX86* removeNextPostcursorInstruction() { ASSERT(hasMorePostcursorInstructions()); return postcursorInstructions.remove(0); }
+    uint32_t addPrecursorInstruction(X86Instruction* inst);
+    X86Instruction* removeNextPostcursorInstruction() { ASSERT(hasMorePostcursorInstructions()); return postcursorInstructions.remove(0); }
     bool hasMorePostcursorInstructions() { return (postcursorInstructions.size() != 0); }
-    uint32_t addPostcursorInstruction(InstrucX86* inst);
+    uint32_t addPostcursorInstruction(X86Instruction* inst);
 
     bool verify();
 };
@@ -289,12 +289,12 @@ public:
 class InstrumentationPoint32 : public InstrumentationPoint {
 public:
     InstrumentationPoint32(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc);
-    uint32_t generateTrampoline(Vector<InstrucX86*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe);
+    uint32_t generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe);
 };
 class InstrumentationPoint64 : public InstrumentationPoint {
 public:
     InstrumentationPoint64(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc);
-    uint32_t generateTrampoline(Vector<InstrucX86*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe);
+    uint32_t generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe);
 };
 
 

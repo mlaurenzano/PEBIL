@@ -200,7 +200,7 @@ typedef enum {
     PebilClassType_GnuVerneedTable, // 15
     PebilClassType_GnuVersym,
     PebilClassType_GnuVersymTable,
-    PebilClassType_InstrucX86,
+    PebilClassType_X86Instruction,
     PebilClassType_InstrumentationFunction,
     PebilClassType_InstrumentationPoint, // 20
     PebilClassType_InstrumentationSnippet,
@@ -236,7 +236,7 @@ typedef enum {
 
 class BinaryInputFile;
 class BinaryOutputFile;
-class InstrucX86;
+class X86Instruction;
 template <class anonymous> class Vector;
 
 class Base {
@@ -268,7 +268,7 @@ public:
     bool includesFileOffset(uint32_t offset);
 
 
-    bool containsProgramBits() { return (type == PebilClassType_InstrucX86             || 
+    bool containsProgramBits() { return (type == PebilClassType_X86Instruction             || 
                                          type == PebilClassType_BasicBlock              || 
                                          type == PebilClassType_Function                || 
                                          type == PebilClassType_TextSection             ||
@@ -276,7 +276,7 @@ public:
                                          type == PebilClassType_InstrumentationFunction ||
                                          type == PebilClassType_DataReference
                                          ); }
-    virtual Vector<InstrucX86*>* swapInstructions(uint64_t addr, Vector<InstrucX86*>* replacements) { __SHOULD_NOT_ARRIVE; return NULL; }
+    virtual Vector<X86Instruction*>* swapInstructions(uint64_t addr, Vector<X86Instruction*>* replacements) { __SHOULD_NOT_ARRIVE; return NULL; }
     virtual uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc) { __SHOULD_NOT_ARRIVE; return 0; }
     virtual uint64_t getBaseAddress() { __SHOULD_NOT_ARRIVE; }
 };

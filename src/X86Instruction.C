@@ -1,29 +1,29 @@
-#include <InstrucX86.h>
+#include <X86Instruction.h>
 
 #include <Base.h>
 #include <BinaryFile.h>
 #include <ElfFile.h>
 #include <ElfFileInst.h>
 #include <Function.h>
-#include <InstrucX86.h>
-#include <InstrucX86Generator.h>
+#include <X86Instruction.h>
+#include <X86InstructionFactory.h>
 #include <Instrumentation.h>
 #include <SectionHeader.h>
 #include <TextSection.h>
 
 using namespace std;
 
-bool InstrucX86::usesFlag(uint32_t flg) { 
+bool X86Instruction::usesFlag(uint32_t flg) { 
     ASSERT(flags_usedef); 
     return (flags_usedef[__flags_use] & (1 << flg)); 
 }
 
-bool InstrucX86::defsFlag(uint32_t flg) { 
+bool X86Instruction::defsFlag(uint32_t flg) { 
     ASSERT(flags_usedef); 
     return (flags_usedef[__flags_def] & (1 << flg)); 
 }
 
-void InstrucX86::setLiveIns(BitSet<uint32_t>* live){
+void X86Instruction::setLiveIns(BitSet<uint32_t>* live){
     if (liveIns){
         print();
     }
@@ -42,7 +42,7 @@ void InstrucX86::setLiveIns(BitSet<uint32_t>* live){
                     )
 }
 
-void InstrucX86::setLiveOuts(BitSet<uint32_t>* live){
+void X86Instruction::setLiveOuts(BitSet<uint32_t>* live){
     ASSERT(!liveOuts);
     liveOuts = new BitSet<uint32_t>(*(live));
 
@@ -58,13 +58,13 @@ void InstrucX86::setLiveOuts(BitSet<uint32_t>* live){
                     )
 }
 
-bool InstrucX86::isGPRegDeadIn(uint32_t idx){
+bool X86Instruction::isGPRegDeadIn(uint32_t idx){
     ASSERT(idx < X86_64BIT_GPRS);
     __FUNCTION_NOT_IMPLEMENTED;
     return false;
 }
 
-bool InstrucX86::allFlagsDeadIn(){
+bool X86Instruction::allFlagsDeadIn(){
     if (!liveIns){
         return false;
     }
@@ -76,7 +76,7 @@ bool InstrucX86::allFlagsDeadIn(){
     return true;
 }
 
-bool InstrucX86::allFlagsDeadOut(){
+bool X86Instruction::allFlagsDeadOut(){
     if (!liveOuts){
         return false;
     }
@@ -88,7 +88,7 @@ bool InstrucX86::allFlagsDeadOut(){
     return true;
 }
 
-BitSet<uint32_t>* InstrucX86::getUseRegs(){
+BitSet<uint32_t>* X86Instruction::getUseRegs(){
     BitSet<uint32_t>* regs = new BitSet<uint32_t>(ANALYSIS_MAXREG);
     for (uint32_t i = 0; i < ANALYSIS_MAXREG; i++){
         if (usesFlag(i)){
@@ -98,7 +98,7 @@ BitSet<uint32_t>* InstrucX86::getUseRegs(){
     return regs;
 }
 
-BitSet<uint32_t>* InstrucX86::getDefRegs(){
+BitSet<uint32_t>* X86Instruction::getDefRegs(){
     BitSet<uint32_t>* regs = new BitSet<uint32_t>(ANALYSIS_MAXREG);
     for (uint32_t i = 0; i < ANALYSIS_MAXREG; i++){
         if (defsFlag(i)){
@@ -119,7 +119,7 @@ bool OperandX86::isSameOperand(OperandX86* other){
     return false;
 }
 
-bool InstrucX86::isConditionCompare(){
+bool X86Instruction::isConditionCompare(){
     int32_t m = GET(mnemonic);
 
     if ((m == UD_Icmp) ||
@@ -180,7 +180,7 @@ void OperandX86::touchedRegisters(BitSet<uint32_t>* regs){
     }
 }
 
-void InstrucX86::touchedRegisters(BitSet<uint32_t>* regs){
+void X86Instruction::touchedRegisters(BitSet<uint32_t>* regs){
     for (uint32_t i = 0 ; i < MAX_OPERANDS; i++){
         if (operands[i]){
             operands[i]->touchedRegisters(regs);
@@ -188,7 +188,7 @@ void InstrucX86::touchedRegisters(BitSet<uint32_t>* regs){
     }
 }
 
-OperandX86* InstrucX86::getMemoryOperand(){
+OperandX86* X86Instruction::getMemoryOperand(){
     ASSERT(isMemoryOperation());
     if (isExplicitMemoryOperation()){
         for (uint32_t i = 0; i < MAX_OPERANDS; i++){
@@ -210,7 +210,7 @@ OperandX86* InstrucX86::getMemoryOperand(){
     return NULL;
 }
 
-bool InstrucX86::isStackPush(){
+bool X86Instruction::isStackPush(){
     if (GET(mnemonic) == UD_Ipush   ||
         GET(mnemonic) == UD_Ipusha  ||
         GET(mnemonic) == UD_Ipushad ||
@@ -222,7 +222,7 @@ bool InstrucX86::isStackPush(){
     return false;
 }
 
-bool InstrucX86::isStackPop(){
+bool X86Instruction::isStackPop(){
     if (GET(mnemonic) == UD_Ipop    ||
         GET(mnemonic) == UD_Ipopa   ||
         GET(mnemonic) == UD_Ipopad  ||
@@ -234,18 +234,18 @@ bool InstrucX86::isStackPop(){
     return false;
 }
 
-bool InstrucX86::isMemoryOperation(){
+bool X86Instruction::isMemoryOperation(){
     return (isImplicitMemoryOperation() || isExplicitMemoryOperation());
 }
 
-bool InstrucX86::isImplicitMemoryOperation(){
+bool X86Instruction::isImplicitMemoryOperation(){
     if (isStackPush() || isStackPop()){
         return true;
     }
     return false;
 }
 
-bool InstrucX86::isExplicitMemoryOperation(){
+bool X86Instruction::isExplicitMemoryOperation(){
     uint32_t memCount = 0;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i] && operands[i]->GET(type) == UD_OP_MEM){
@@ -261,25 +261,25 @@ bool InstrucX86::isExplicitMemoryOperation(){
     return false;
 }
 
-bool InstrucX86::isStringOperation(){
-    if (getInstructionType() == InstrucX86Type_string){
+bool X86Instruction::isStringOperation(){
+    if (getInstructionType() == X86InstructionType_string){
         return true;
     }
     return false;
 }
 
-bool InstrucX86::isIntegerOperation(){
-    if (getInstructionType() == InstrucX86Type_int){
+bool X86Instruction::isIntegerOperation(){
+    if (getInstructionType() == X86InstructionType_int){
         return true;
     }
     return false;
 }
 
-bool InstrucX86::isFloatPOperation(){
-    if (getInstructionType() == InstrucX86Type_float){
+bool X86Instruction::isFloatPOperation(){
+    if (getInstructionType() == X86InstructionType_float){
         return true;
     }
-    if (getInstructionType() == InstrucX86Type_simd){
+    if (getInstructionType() == X86InstructionType_simd){
         return true;
     }
     return false;
@@ -326,7 +326,7 @@ bool OperandX86::isRelative(){
     return false;
 }
 
-bool InstrucX86::usesRelativeAddress(){
+bool X86Instruction::usesRelativeAddress(){
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i] && operands[i]->isRelative()){
             return true;
@@ -335,7 +335,7 @@ bool InstrucX86::usesRelativeAddress(){
     return false;
 }
 
-int64_t InstrucX86::getRelativeValue(){
+int64_t X86Instruction::getRelativeValue(){
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i] && operands[i]->isRelative()){
             return operands[i]->getValue();
@@ -345,10 +345,10 @@ int64_t InstrucX86::getRelativeValue(){
     return 0;
 }
 
-uint64_t InstrucX86::getTargetAddress(){
+uint64_t X86Instruction::getTargetAddress(){
     uint64_t tgtAddress;
-    if (getInstructionType() == InstrucX86Type_uncond_branch ||
-        getInstructionType() == InstrucX86Type_cond_branch){
+    if (getInstructionType() == X86InstructionType_uncond_branch ||
+        getInstructionType() == X86InstructionType_cond_branch){
         if (addressAnchor){ 
            tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
         } else if (operands && operands[JUMP_TARGET_OPERAND]){
@@ -364,7 +364,7 @@ uint64_t InstrucX86::getTargetAddress(){
             tgtAddress = 0;
         }
     }
-    else if (getInstructionType() == InstrucX86Type_call){
+    else if (getInstructionType() == X86InstructionType_call){
         if (addressAnchor){
             if (getContainer()->getTextSection()->getElfFile()->is64Bit()){
                 tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
@@ -385,7 +385,7 @@ uint64_t InstrucX86::getTargetAddress(){
         }
 
     }
-    else if (getInstructionType() == InstrucX86Type_system_call){
+    else if (getInstructionType() == X86InstructionType_system_call){
         tgtAddress = 0;
     } else {
         tgtAddress = getBaseAddress() + getSizeInBytes();
@@ -394,7 +394,7 @@ uint64_t InstrucX86::getTargetAddress(){
     return tgtAddress;
 }
 
-uint32_t InstrucX86::bytesUsedForTarget(){
+uint32_t X86Instruction::bytesUsedForTarget(){
     if (isControl()){
         if (isUnconditionalBranch() || isConditionalBranch() || isFunctionCall()){
             if (operands && operands[JUMP_TARGET_OPERAND]){
@@ -405,7 +405,7 @@ uint32_t InstrucX86::bytesUsedForTarget(){
     return 0;
 }
 
-uint32_t InstrucX86::convertTo4ByteTargetOperand(){
+uint32_t X86Instruction::convertTo4ByteTargetOperand(){
     ASSERT(isControl());
 
     PRINT_DEBUG_INST("Before mod");
@@ -515,7 +515,7 @@ uint32_t InstrucX86::convertTo4ByteTargetOperand(){
     return sizeInBytes;
 }
 
-void InstrucX86::binutilsPrint(FILE* stream){
+void X86Instruction::binutilsPrint(FILE* stream){
     fprintf(stream, "%llx: ", getBaseAddress());
 
     ASSERT(strlen(GET(insn_hexcode)) % 2 == 0);
@@ -541,7 +541,7 @@ void InstrucX86::binutilsPrint(FILE* stream){
 }
 
 
-bool InstrucX86::usesControlTarget(){
+bool X86Instruction::usesControlTarget(){
     if (isConditionalBranch() ||
         isUnconditionalBranch() ||
         isFunctionCall() ||
@@ -551,7 +551,7 @@ bool InstrucX86::usesControlTarget(){
     return false;
 }
 
-void InstrucX86::initializeAnchor(Base* link){
+void X86Instruction::initializeAnchor(Base* link){
     if (addressAnchor){
         print();
     }
@@ -561,7 +561,7 @@ void InstrucX86::initializeAnchor(Base* link){
 }
 
 
-void InstrucX86::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+void X86Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(sizeInBytes && "This instruction has no bytes thus it cannot be dumped");
 
     for (uint32_t i = 0; i < sizeInBytes; i++){
@@ -575,7 +575,7 @@ void InstrucX86::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     }
 }
 
-TableModes InstrucX86::computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList, Vector<uint64_t>* tableStorageList){
+TableModes X86Instruction::computeJumpTableTargets(uint64_t tableBase, Function* func, Vector<uint64_t>* addressList, Vector<uint64_t>* tableStorageList){
     ASSERT(isJumpTableBase() && "Cannot compute jump table targets for this instruction");
     ASSERT(func);
     ASSERT(addressList);
@@ -654,7 +654,7 @@ TableModes InstrucX86::computeJumpTableTargets(uint64_t tableBase, Function* fun
 }
 
 
-uint64_t InstrucX86::findJumpTableBaseAddress(Vector<InstrucX86*>* functionInstructions){
+uint64_t X86Instruction::findJumpTableBaseAddress(Vector<X86Instruction*>* functionInstructions){
     ASSERT(isJumpTableBase() && "Cannot compute jump table base for this instruction");
 
     uint64_t jumpOperand;
@@ -673,20 +673,20 @@ uint64_t InstrucX86::findJumpTableBaseAddress(Vector<InstrucX86*>* functionInstr
     // jump target is a register
     if (jumpOperand < X86_64BIT_GPRS){
         if ((*functionInstructions).size()){
-            InstrucX86** allInstructions = new InstrucX86*[(*functionInstructions).size()];
+            X86Instruction** allInstructions = new X86Instruction*[(*functionInstructions).size()];
             for (uint32_t i = 0; i < (*functionInstructions).size(); i++){
                 allInstructions[i] = (*functionInstructions)[i];
             }
-            qsort(allInstructions,(*functionInstructions).size(),sizeof(InstrucX86*),compareBaseAddress);
+            qsort(allInstructions,(*functionInstructions).size(),sizeof(X86Instruction*),compareBaseAddress);
 
             // search backwards through instructions to find jump table base
             uint64_t prevAddr = baseAddress-1;
             void* prev = NULL;
             do {
                 PRINT_DEBUG_JUMP_TABLE("\tTrying Jump base address %#llx", prevAddr);
-                prev = bsearch(&prevAddr,allInstructions,(*functionInstructions).size(),sizeof(InstrucX86*),searchBaseAddress);
+                prev = bsearch(&prevAddr,allInstructions,(*functionInstructions).size(),sizeof(X86Instruction*),searchBaseAddress);
                 if (prev){
-                    InstrucX86* previousInstruction = *(InstrucX86**)prev;
+                    X86Instruction* previousInstruction = *(X86Instruction**)prev;
                     bool jumpOpFound = false;
                     uint64_t immediate = 0;
                     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
@@ -737,12 +737,12 @@ uint64_t InstrucX86::findJumpTableBaseAddress(Vector<InstrucX86*>* functionInstr
     return 0;
 }
 
-bool InstrucX86::isControl(){
+bool X86Instruction::isControl(){
     return  (isConditionalBranch() || isUnconditionalBranch() || isSystemCall() || isFunctionCall() || isReturn());
 }
 
 
-bool InstrucX86::usesIndirectAddress(){
+bool X86Instruction::usesIndirectAddress(){
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i]){
             if (operands[i]->getType() == UD_OP_MEM){
@@ -757,26 +757,26 @@ bool InstrucX86::usesIndirectAddress(){
 }
 
 
-bool InstrucX86::isJumpTableBase(){
+bool X86Instruction::isJumpTableBase(){
     return (isUnconditionalBranch() && usesIndirectAddress());
 }
 
-uint32_t InstrucX86::getInstructionType(){
+uint32_t X86Instruction::getInstructionType(){
     if (instructionType){
         return instructionType;
     }
     return setInstructionType();
 }
 
-uint32_t InstrucX86::setInstructionType(){
-    uint32_t optype = InstrucX86Type_unknown;
+uint32_t X86Instruction::setInstructionType(){
+    uint32_t optype = X86InstructionType_unknown;
     switch(GET(mnemonic)){
         case UD_Ipalignr:
         case UD_Ipshufb:
         case UD_Iphaddd:
-            optype = InstrucX86Type_simd;
+            optype = X86InstructionType_simd;
         case UD_I3dnow:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Iaaa:
         case UD_Iaad:
@@ -784,7 +784,7 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Iaas:
         case UD_Iadc:
         case UD_Iadd:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Iaddpd:
         case UD_Iaddps:
@@ -792,19 +792,19 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Iaddss:
         case UD_Iaddsubpd:
         case UD_Iaddsubps:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Iand:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Iandpd:
         case UD_Iandps:
         case UD_Iandnpd:
         case UD_Iandnps:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Iarpl:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Imovsxd:
         case UD_Ibound:
@@ -815,10 +815,10 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Ibtc:
         case UD_Ibtr:
         case UD_Ibts:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Icall:
-            optype = InstrucX86Type_call;
+            optype = X86InstructionType_call;
             break;
         case UD_Icbw:
         case UD_Icwde:
@@ -830,7 +830,7 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Icli:
         case UD_Iclts:
         case UD_Icmc:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Icmovo:
         case UD_Icmovno:
@@ -849,35 +849,35 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Icmovle:
         case UD_Icmovg:
         case UD_Icmp:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Icmppd:
         case UD_Icmpps:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Icmpsb:
         case UD_Icmpsw:
-            optype = InstrucX86Type_string;
+            optype = X86InstructionType_string;
             break;
         case UD_Icmpsd:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Icmpsq:
-            optype = InstrucX86Type_string;
+            optype = X86InstructionType_string;
             break;
         case UD_Icmpss:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Icmpxchg:
         case UD_Icmpxchg8b:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Icomisd:
         case UD_Icomiss:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Icpuid:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Icvtdq2pd:
         case UD_Icvtdq2ps:
@@ -901,28 +901,28 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Icvttsd2si:
         case UD_Icvtsi2sd:
         case UD_Icvttss2si:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Icwd:
         case UD_Icdq:
         case UD_Icqo:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Idaa:
         case UD_Idas:
         case UD_Idec:
         case UD_Idiv:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Idivpd:
         case UD_Idivps:
         case UD_Idivsd:
         case UD_Idivss:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Iemms:
         case UD_Ienter:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_If2xm1:
         case UD_Ifabs:
@@ -980,30 +980,30 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Ifldlg2:
         case UD_Ifldln2:
         case UD_Ifldz:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Ifldcw:
         case UD_Ifldenv:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ifmul:
         case UD_Ifmulp:
         case UD_Ifimul:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Ifnop:
-            optype = InstrucX86Type_nop;
+            optype = X86InstructionType_nop;
             break;
         case UD_Ifpatan:
         case UD_Ifprem:
         case UD_Ifprem1:
         case UD_Ifptan:
         case UD_Ifrndint:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Ifrstor:
         case UD_Ifnsave:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ifscale:
         case UD_Ifsin:
@@ -1014,12 +1014,12 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Ifstp8:
         case UD_Ifstp9:
         case UD_Ifst:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Ifnstcw:
         case UD_Ifnstenv:
         case UD_Ifnstsw:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ifsub:
         case UD_Ifsubp:
@@ -1033,56 +1033,56 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Ifxch:
         case UD_Ifxch4:
         case UD_Ifxch7:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Ifxrstor:
         case UD_Ifxsave:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ifpxtract:
         case UD_Ifyl2x:
         case UD_Ifyl2xp1:
         case UD_Ihaddpd:
         case UD_Ihaddps:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Ihlt:
-            optype = InstrucX86Type_halt;
+            optype = X86InstructionType_halt;
             break;
         case UD_Ihsubpd:
         case UD_Ihsubps:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Iidiv:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Iin:
-            optype = InstrucX86Type_io;
+            optype = X86InstructionType_io;
             break;
         case UD_Iimul:
         case UD_Iinc:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Iinsb:
         case UD_Iinsw:
         case UD_Iinsd:
-            optype = InstrucX86Type_io;
+            optype = X86InstructionType_io;
             break;
         case UD_Iint1:
         case UD_Iint3:
         case UD_Iint:
         case UD_Iinto:
-            optype = InstrucX86Type_trap;
+            optype = X86InstructionType_trap;
             break;
         case UD_Iinvd:
         case UD_Iinvlpg:
         case UD_Iinvlpga:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Iiretw:
         case UD_Iiretd:
         case UD_Iiretq:
-            optype = InstrucX86Type_return;
+            optype = X86InstructionType_return;
             break;
         case UD_Ijo:
         case UD_Ijno:
@@ -1103,35 +1103,35 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Ijcxz:
         case UD_Ijecxz:
         case UD_Ijrcxz:
-            optype = InstrucX86Type_cond_branch;
+            optype = X86InstructionType_cond_branch;
             break;
         case UD_Ijmp:
-            optype = InstrucX86Type_uncond_branch;
+            optype = X86InstructionType_uncond_branch;
             break;
         case UD_Ilahf:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Ilar:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ilddqu:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Ildmxcsr:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ilds:
         case UD_Ilea:
         case UD_Iles:
         case UD_Ilfs:
         case UD_Ilgs:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Ilidt:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ilss:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Ileave:
         case UD_Ilfence:
@@ -1139,42 +1139,42 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Illdt:
         case UD_Ilmsw:
         case UD_Ilock:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ilodsb:
         case UD_Ilodsw:
         case UD_Ilodsd:
         case UD_Ilodsq:
-            optype = InstrucX86Type_string;
+            optype = X86InstructionType_string;
             break;
         case UD_Iloopnz:
         case UD_Iloope:
         case UD_Iloop:
         case UD_Ilsl:
         case UD_Iltr:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Imaskmovq:
         case UD_Imaxpd:
         case UD_Imaxps:
         case UD_Imaxsd:
         case UD_Imaxss:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Imfence:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Iminpd:
         case UD_Iminps:
         case UD_Iminsd:
         case UD_Iminss:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Imonitor:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Imov:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Imovapd:
         case UD_Imovaps:
@@ -1209,41 +1209,41 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Imovsx:
         case UD_Imovupd:
         case UD_Imovups:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Imovzx:
         case UD_Imul:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Imulpd:
         case UD_Imulps:
         case UD_Imulsd:
         case UD_Imulss:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Imwait:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ineg:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Inop:
-            optype = InstrucX86Type_nop;
+            optype = X86InstructionType_nop;
             break;
         case UD_Inot:
         case UD_Ior:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Iorpd:
         case UD_Iorps:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Iout:
         case UD_Ioutsb:
         case UD_Ioutsw:
         case UD_Ioutsd:
         case UD_Ioutsq:
-            optype = InstrucX86Type_io;
+            optype = X86InstructionType_io;
             break;
         case UD_Ipacksswb:
         case UD_Ipackssdw:
@@ -1258,10 +1258,10 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Ipaddusw:
         case UD_Ipand:
         case UD_Ipandn:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Ipause:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ipavgb:
         case UD_Ipavgw:
@@ -1284,24 +1284,24 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Ipmullw:
         case UD_Ipmuludq:
         case UD_Ipop:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Ipopa:
         case UD_Ipopad:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ipopfw:
         case UD_Ipopfd:
         case UD_Ipopfq:
         case UD_Ipor:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Iprefetch:
         case UD_Iprefetchnta:
         case UD_Iprefetcht0:
         case UD_Iprefetcht1:
         case UD_Iprefetcht2:
-            optype = InstrucX86Type_prefetch;
+            optype = X86InstructionType_prefetch;
             break;
         case UD_Ipsadbw:
         case UD_Ipshufd:
@@ -1359,11 +1359,11 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Ipswapd:
         case UD_Ipavgusb:
         case UD_Ipush:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Ipusha:
         case UD_Ipushad:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ipushfw:
         case UD_Ipushfd:
@@ -1373,40 +1373,40 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Ircr:
         case UD_Irol:
         case UD_Iror:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Ircpps:
         case UD_Ircpss:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Irdmsr:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Irdpmc:
         case UD_Irdtsc:
         case UD_Irdtscp:
-            optype = InstrucX86Type_hwcount;
+            optype = X86InstructionType_hwcount;
             break;
         case UD_Irepne:
         case UD_Irep:
-            optype = InstrucX86Type_string;
+            optype = X86InstructionType_string;
             break;
         case UD_Iret:
         case UD_Iretf:
-            optype = InstrucX86Type_return;
+            optype = X86InstructionType_return;
             break;
         case UD_Iroundpd:
         case UD_Iroundps:
         case UD_Iroundsd:
         case UD_Iroundss:
-	    optype = InstrucX86Type_simd;
+	    optype = X86InstructionType_simd;
 	    break;
         case UD_Irsm:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Irsqrtps:
         case UD_Irsqrtss:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Isahf:
         case UD_Isal:
@@ -1415,13 +1415,13 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Ishl:
         case UD_Ishr:
         case UD_Isbb:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Iscasb:
         case UD_Iscasw:
         case UD_Iscasd:
         case UD_Iscasq:
-            optype = InstrucX86Type_string;
+            optype = X86InstructionType_string;
             break;
         case UD_Iseto:
         case UD_Isetno:
@@ -1439,30 +1439,30 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Isetge:
         case UD_Isetle:
         case UD_Isetg:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Isfence:
         case UD_Isgdt:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ishld:
         case UD_Ishrd:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Ishufpd:
         case UD_Ishufps:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Isidt:
         case UD_Isldt:
         case UD_Ismsw:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Isqrtps:
         case UD_Isqrtpd:
         case UD_Isqrtsd:
         case UD_Isqrtss:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Istc:
         case UD_Istd:
@@ -1470,54 +1470,54 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Isti:
         case UD_Iskinit:
         case UD_Istmxcsr:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Istosb:
         case UD_Istosw:
         case UD_Istosd:
         case UD_Istosq:
-            optype = InstrucX86Type_string;
+            optype = X86InstructionType_string;
             break;
         case UD_Istr:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Isub:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Isubpd:
         case UD_Isubps:
         case UD_Isubsd:
         case UD_Isubss:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Iswapgs:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Isyscall:
         case UD_Isysenter:
         case UD_Isysexit:
         case UD_Isysret:
-            optype = InstrucX86Type_system_call;
+            optype = X86InstructionType_system_call;
             break;
         case UD_Itest:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Iucomisd:
         case UD_Iucomiss:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Iud2:
-            optype = InstrucX86Type_invalid;
+            optype = X86InstructionType_invalid;
             break;
         case UD_Iunpckhpd:
         case UD_Iunpckhps:
         case UD_Iunpcklps:
         case UD_Iunpcklpd:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Iverr:
         case UD_Iverw:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ivmcall:
         case UD_Ivmclear:
@@ -1530,26 +1530,26 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Ivmmcall:
         case UD_Ivmload:
         case UD_Ivmsave:
-            optype = InstrucX86Type_vmx;
+            optype = X86InstructionType_vmx;
             break;
         case UD_Iwait:
         case UD_Iwbinvd:
         case UD_Iwrmsr:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ixadd:
         case UD_Ixchg:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Ixlatb:
-            optype = InstrucX86Type_special;
+            optype = X86InstructionType_special;
             break;
         case UD_Ixor:
-            optype = InstrucX86Type_int;
+            optype = X86InstructionType_int;
             break;
         case UD_Ixorpd:
         case UD_Ixorps:
-            optype = InstrucX86Type_float;
+            optype = X86InstructionType_float;
             break;
         case UD_Idb:
         case UD_Iinvalid:
@@ -1564,14 +1564,14 @@ uint32_t InstrucX86::setInstructionType(){
         case UD_Igrp_asize:
         case UD_Igrp_mod:
         case UD_Inone:
-            optype = InstrucX86Type_invalid;
+            optype = X86InstructionType_invalid;
             break;
         default:
-            optype = InstrucX86Type_unknown;
+            optype = X86InstructionType_unknown;
             break;
     };
 
-    if (optype == InstrucX86Type_unknown){
+    if (optype == X86InstructionType_unknown){
         PRINT_WARN(10, "Unknown instruction mnemonic `%s' found at address %#llx", ud_lookup_mnemonic(GET(mnemonic)), baseAddress);
     }
 
@@ -1579,7 +1579,7 @@ uint32_t InstrucX86::setInstructionType(){
     return instructionType;
 }
 
-bool InstrucX86::controlFallsThrough(){
+bool X86Instruction::controlFallsThrough(){
     if (isHalt() ||
         isReturn() ||
         isUnconditionalBranch() ||
@@ -1590,7 +1590,7 @@ bool InstrucX86::controlFallsThrough(){
 }
 
 
-OperandX86::OperandX86(InstrucX86* inst, struct ud_operand* init, uint32_t idx){
+OperandX86::OperandX86(X86Instruction* inst, struct ud_operand* init, uint32_t idx){
     instruction = inst;
     memcpy(&entry, init, sizeof(struct ud_operand));
     operandIndex = idx;
@@ -1615,7 +1615,7 @@ bool OperandX86::verify(){
     return true;
 }
 
-InstrucX86::~InstrucX86(){
+X86Instruction::~X86Instruction(){
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         if (operands[i]){
             delete operands[i];
@@ -1644,7 +1644,7 @@ InstrucX86::~InstrucX86(){
     }
 }
 
-OperandX86* InstrucX86::getOperand(uint32_t idx){
+OperandX86* X86Instruction::getOperand(uint32_t idx){
     ASSERT(operands);
     ASSERT(idx < MAX_OPERANDS && "Index into operand table has a limited range");
 
@@ -1652,8 +1652,8 @@ OperandX86* InstrucX86::getOperand(uint32_t idx){
 }
 
 
-InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx, bool is64bit, uint32_t sz)
-    : Base(PebilClassType_InstrucX86)
+X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx, bool is64bit, uint32_t sz)
+    : Base(PebilClassType_X86Instruction)
 {
     ud_t ud_obj;
     ud_init(&ud_obj);
@@ -1684,7 +1684,7 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
     byteSource = src;
     container = cont;
     addressAnchor = NULL;
-    instructionType = InstrucX86Type_unknown;
+    instructionType = X86InstructionType_unknown;
     liveIns = NULL;
     liveOuts = NULL;
 
@@ -1707,8 +1707,8 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
     verify();
 }
 
-InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx)
-    : Base(PebilClassType_InstrucX86)
+X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx)
+    : Base(PebilClassType_X86Instruction)
 {
     ud_t ud_obj;
     ud_init(&ud_obj);
@@ -1738,7 +1738,7 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
     byteSource = src;
     container = cont;
     addressAnchor = NULL;
-    instructionType = InstrucX86Type_unknown;
+    instructionType = X86InstructionType_unknown;
     liveIns = NULL;
     liveOuts = NULL;
     
@@ -1761,7 +1761,7 @@ InstrucX86::InstrucX86(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t 
     verify();
 }
 
-void InstrucX86::print(){
+void X86Instruction::print(){
     char flags[9];
     flags[0] = 'r';
     if (usesRelativeAddress()){
@@ -1939,7 +1939,7 @@ void OperandX86::print(){
     PRINT_INFOR("\t[op%d] %s: %s", operandIndex, typstr, valstr, GET(index));
 }
 
-bool InstrucX86::verify(){
+bool X86Instruction::verify(){
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         ud_operand op = GET(operand)[i];
@@ -1970,7 +1970,7 @@ bool InstrucX86::verify(){
     return true;
 }
 
-void InstrucX86::setImpliedRegs(){
+void X86Instruction::setImpliedRegs(){
     impreg_usedef = new uint32_t[2];
     bzero(impreg_usedef, sizeof(uint32_t) * 2);
 
@@ -2011,7 +2011,7 @@ void InstrucX86::setImpliedRegs(){
     */
 }
 
-void InstrucX86::setFlags()
+void X86Instruction::setFlags()
 {
     flags_usedef = new uint32_t[2];
     bzero(flags_usedef, sizeof(uint32_t) * 2);

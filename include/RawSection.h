@@ -8,7 +8,7 @@ class AddressAnchor;
 class BinaryInputFile;
 class BinaryOutputFile;
 class ElfFile;
-class InstrucX86;
+class X86Instruction;
 class RawSection;
 class SectionHeader;
 

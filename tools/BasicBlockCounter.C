@@ -3,8 +3,8 @@
 #include <BasicBlock.h>
 #include <Function.h>
 #include <Instrumentation.h>
-#include <InstrucX86.h>
-#include <InstrucX86Generator.h>
+#include <X86Instruction.h>
+#include <X86InstructionFactory.h>
 #include <LineInformation.h>
 #include <Loop.h>
 #include <TextSection.h>
@@ -149,9 +149,9 @@ void BasicBlockCounter::instrument(){
 
         // snippet contents, in this case just increment a counter
         if (is64Bit()){
-            snip->addSnippetInstruction(InstrucX86Generator64::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         } else {
-            snip->addSnippetInstruction(InstrucX86Generator32::generateAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         }
 
         // do not generate control instructions to get back to the application, this is done for
@@ -180,8 +180,8 @@ void BasicBlockCounter::instrument(){
 #ifdef NO_REG_ANALYSIS
     PRINT_WARN(10, "Warning: register analysis disabled");
 #endif
-    PRINT_INFOR("Not protecting %d/%d instrumentation points", noProtPoints, getNumberOfExposedBasicBlocks());
-    PRINT_INFOR("complex inst point selection: %d/%d instrumentation points", complexSelection, getNumberOfExposedBasicBlocks());
+    PRINT_INFOR("Excluding flags protection for %d/%d instrumentation points", noProtPoints, getNumberOfExposedBasicBlocks());
+    //PRINT_INFOR("complex inst point selection: %d/%d instrumentation points", complexSelection, getNumberOfExposedBasicBlocks());
 
     printStaticFile(allBlocks, allLineInfos);
 

@@ -18,8 +18,8 @@ int32_t numberOfBasicBlocks;
 char* blockIsKilled;
 int32_t numberKilled;
 
-//#define ENABLE_INSTRUMENTATION_KILL
-#define DEBUG_INST_KILL
+#define ENABLE_INSTRUMENTATION_KILL
+//#define DEBUG_INST_KILL
 
 // should also do initialization here rather than checking
 // for "first hit" on every buffer dump
@@ -1072,8 +1072,6 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
 
     totalNumberOfSamples += (lastIndex-startIndex+1);
 
-    fprintf(stdout, ".");
-    fflush(stdout);
     register int32_t lastInvalidEntry = startIndex-1;
 
     register BasicBlockInfo* previousBlock = NULL;

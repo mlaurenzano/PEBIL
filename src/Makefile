@@ -33,8 +33,6 @@ SRCS  = AddressAnchor.C \
 	GlobalOffsetTable.C \
 	GnuVersion.C \
 	HashTable.C \
-	InstrucX86.C \
-	InstrucX86Generator.C \
 	Instrumentation.C \
 	LengauerTarjan.C \
 	LineInformation.C \
@@ -47,7 +45,9 @@ SRCS  = AddressAnchor.C \
 	SectionHeader.C \
 	StringTable.C \
 	SymbolTable.C \
-	TextSection.C
+	TextSection.C \
+	X86Instruction.C \
+	X86InstructionFactory.C
 
 OBJS  = AddressAnchor.o \
 	Base.o \
@@ -63,8 +63,6 @@ OBJS  = AddressAnchor.o \
 	GlobalOffsetTable.o \
 	GnuVersion.o \
 	HashTable.o \
-	InstrucX86.o \
-	InstrucX86Generator.o \
 	Instrumentation.o \
 	LengauerTarjan.o \
 	LineInformation.o \
@@ -77,7 +75,9 @@ OBJS  = AddressAnchor.o \
 	SectionHeader.o \
 	StringTable.o \
 	SymbolTable.o \
-	TextSection.o
+	TextSection.o \
+	X86Instruction.o \
+	X86InstructionFactory.o
 
 TARGET_LIB  = libpebil.a 
 
