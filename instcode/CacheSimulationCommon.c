@@ -18,21 +18,9 @@ int32_t numberOfBasicBlocks;
 char* blockIsKilled;
 int32_t numberKilled;
 uint32_t* blockCounters;
-uint32_t* blockTotals;
 
-//#define ENABLE_INSTRUMENTATION_KILL
+#define ENABLE_INSTRUMENTATION_KILL
 //#define DEBUG_INST_KILL
-
-void harvestBlockCounters(){
-    int32_t i;
-    for (i = 0; i < numberOfBasicBlocks; i++){
-        if (i == 249 && blockCounters[i]){
-            PRINT_INSTR(stdout, "incrementing total by %d -- counter is at %#x", blockCounters[i], &blockCounters[i]);
-        }
-        blockTotals[i] += blockCounters[i];
-        blockCounters[i] = 0;
-    }
-}
 
 void clearBlockCounters(){
     bzero(blockCounters, sizeof(uint32_t) * numberOfBasicBlocks);
@@ -45,8 +33,6 @@ int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uin
     numberOfInstrumentationPoints = *numpoints;
     numberOfBasicBlocks = *numblocks;
     blockCounters = counters;
-    blockTotals = malloc(sizeof(uint32_t) * numberOfBasicBlocks);
-    bzero(blockTotals, sizeof(uint32_t) * numberOfBasicBlocks);
 
     blockIsKilled = malloc(sizeof(char) * numberOfBasicBlocks);
     bzero(blockIsKilled, sizeof(char) * numberOfBasicBlocks);
@@ -1024,8 +1010,6 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
 
     lastSaturationAccess = totalNumberOfAccesses;
 
-    PRINT_INSTR(stdout, "counter[%d] = %d", 249, blockCounters[249]);
-
 #ifndef NO_SAMPLING_MODE
     if(currentSamplingStatus == ignoring_accesses){
         alreadyIgnored += lastIndex;
@@ -1038,18 +1022,6 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
                 startIndex = 1;
             } else {
 #endif
-                int32_t prev = numberOfBasicBlocks;
-                for (i = startIndex; i < (lastIndex - alreadySampled + 1); i++){
-                    register BufferEntry* currentEntry = (entries + i);
-                    register BasicBlockInfo* currentBlock = (blocks + currentEntry->blockId);
-                    if (prev != currentEntry->blockId){
-                        blockTotals[currentEntry->blockId]--;
-                    }
-                    prev = currentEntry->blockId;
-                    if (currentEntry->blockId == 249){
-                        PRINT_INSTR(stdout, "\tditching partial buffer value in entry %d", i);
-                    }
-                }
             startIndex = (lastIndex - alreadySampled + 1);
 #ifdef EXTENDED_SAMPLING
             }
@@ -1067,7 +1039,6 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         } else {
             entries->lastFreeIdx = 1;
             //PRINT_INSTR(stdout, "leaving sim function 2-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx);
-            clearBlockCounters();
             return;
         }
     } else {
@@ -1078,24 +1049,9 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             alreadyIgnored = alreadySampled - __WHICH_SAMPLING_VALUE;
 #ifdef EXTENDED_SAMPLING
             if(alreadyIgnored > lastIndex){
-                clearBlockCounters();
                 lastIndex = 0;
             } else {
 #endif
-                /*
-                int32_t prev = numberOfBasicBlocks;
-                for (i = lastIndex; i < (lastIndex - alreadyIgnored); i++){
-                    register BufferEntry* currentEntry = (entries + i);
-                    register BasicBlockInfo* currentBlock = (blocks + currentEntry->blockId);
-                    if (prev != currentEntry->blockId){
-                        blockTotals[currentEntry->blockId]--;
-                    }
-                    prev = currentEntry->blockId;
-                    if (currentEntry->blockId == 249){
-                        PRINT_INSTR(stdout, "\tditching partial buffer value in entry %d", i);
-                    }
-                }
-                */
             lastIndex = (lastIndex - alreadyIgnored);
 #ifdef EXTENDED_SAMPLING
             }
@@ -1119,15 +1075,11 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         fprintf(stdout,"DONE lastIndex < startIndex\n");
 #endif
         //PRINT_INSTR(stdout, "leaving sim function 3-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx); 
-        clearBlockCounters();
         return;
     }
 #endif
 
     totalNumberOfSamples += (lastIndex-startIndex+1);
-    int32_t cupdate = 0;
-    PRINT_INSTR(stdout, "2counter[%d] = %d", 249, blockCounters[249]);
-    harvestBlockCounters();
 
     register int32_t lastInvalidEntry = startIndex-1;
     register BasicBlockInfo* previousBlock = NULL;
@@ -1136,15 +1088,9 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         register BasicBlockInfo* currentBlock = (blocks + currentEntry->blockId);
         register Attribute_t currentMemOp = currentEntry->memOpId;
 
-        if (currentEntry->blockId == 249){
-            PRINT_INSTR(stdout, "current entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
-        }
         if(!currentMemOp || (currentBlock != previousBlock)){
             currentBlock->visitCount++;
             previousBlock = currentBlock;
-            if (currentEntry->blockId == 249){
-                PRINT_INSTR(stdout, "counter update %d", ++cupdate);
-            }
         }
         if(currentBlock->visitCount > __MAXIMUM_BLOCK_VISIT){
             currentEntry->address = INVALID_ADDRESS;
@@ -1307,14 +1253,6 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* com
 
     MetaSim_simulFuncCall_Simu(base,entryCountPtr,comment);
 
-    for (i = 0; i < numberOfBasicBlocks; i++){
-        BasicBlockInfo* currentBlock = NULL;
-        currentBlock = (blocks + i);
-        if(blocks && currentBlock->sampleCount){
-            PRINT_INSTR(stdout, "counter %d = %d", i, blockTotals[i]);
-        }
-    }
-
     if (DUMPCODE_HASVALUE_DUMP(dumpCode)){
         fprintf(stdout, "Closing output file for address stream dump\n");
         fclose(streamDumpOutputFile);
@@ -1403,7 +1341,7 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* com
                 fprintf(fp,"block\t%d\t%lld\t%lld\t%lld\n",i,*(currentBlock->counter),
                         currentBlock->visitCount,currentBlock->sampleCount);
 #else
-                fprintf(fp,"block\t%d\t%lld\t%lld\n",i,currentBlock->visitCount,currentBlock->sampleCount);
+                fprintf(fp,"block\t%d\t%d\t%lld\t%lld\n",i,blockCounters[i],currentBlock->visitCount,currentBlock->sampleCount);
 #endif
                 for(j=0;j<systemCount;j++){
                     MemoryHierarchy* memoryHierarchy = (systems + j);
