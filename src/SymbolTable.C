@@ -182,30 +182,45 @@ uint32_t SymbolTable::findSymbol4Addr(uint64_t addr, Symbol** buffer, uint32_t b
     // gnu hash tables require a different sorting. so we resort to linear search
     for (uint32_t i = 0; i < symbols.size(); i++){
         if (symbols[i]->GET(st_value) == addr){
-            buffer[retValue++] = symbols[i];
+            if (retValue < buffCnt){
+                buffer[retValue++] = symbols[i];
+            }
+        }
+    }
+
+    if (namestr){
+        if(!retValue){
+            *namestr = new char[__MAX_STRING_SIZE];
+            sprintf(*namestr,"<__no_symbol_found>");
+        } else {
+            char* allnames = new char[__MAX_STRING_SIZE+2];
+            *allnames = '\0';
+            for(uint32_t i=0;i<retValue;i++){
+                char* nm = getSymbolName(buffer[i]->getIndex());
+                if((__MAX_STRING_SIZE-strlen(allnames)) > strlen(nm)){
+                    sprintf(allnames+strlen(allnames),"%s ",nm);
+                } else {
+                    sprintf(allnames+strlen(allnames),"?");
+                }
+            }
+            *namestr = allnames;
         }
     }
 
     return retValue;
 
     /*
-    sortSymbols();
-
-    if (!symbolsAreSorted()){
-        for (uint32_t i = 0; i < symbols.size(); i++){
-            sortedSymbols[i]->print();
-        }
-        __SHOULD_NOT_ARRIVE;
+    Symbol** sortedSymbols = new Symbol*[symbols.size()];
+    for (uint32_t i = 0; i < symbols.size(); i++){
+        sortedSymbols[i] = symbols[i];
     }
+    qsort(sortedSymbols, symbols.size(), sizeof(Symbol*), compareSymbolValue);
 
-    ASSERT(sortedSymbols.size() && "symbol should be sorted by now");
-
-    Symbol** sortedSymbolArray = &sortedSymbols;
-    void* checkRes = bsearch(&addr,sortedSymbolArray,symbols.size(),sizeof(Symbol*),searchSymbolValue);
+    void* checkRes = bsearch(&addr,sortedSymbols,symbols.size(),sizeof(Symbol*),searchSymbolValue);
 
     if (checkRes){
 
-        uint32_t sidx = (((char*)checkRes)-((char*)sortedSymbolArray))/sizeof(Symbol*);
+        uint32_t sidx = (((char*)checkRes)-((char*)sortedSymbols))/sizeof(Symbol*);
         uint32_t eidx = sidx;
         for (;eidx < symbols.size();eidx++){
             Symbol* sym = sortedSymbols[eidx];

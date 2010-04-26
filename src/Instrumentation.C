@@ -133,10 +133,16 @@ int compareInstBaseAddress(const void* arg1,const void* arg2){
         return 1;
     } else {
         PRINT_DEBUG_POINT_CHAIN("Comparing priority of 2 points at %#llx: %d %d", ip1->getInstBaseAddress(), ip1->getPriority(), ip2->getPriority());
-        if (ip1->getPriority() < ip2->getPriority()){
+        if (ip1->getInstLocation() < ip2->getInstLocation()){
             return -1;
-        } else if (ip1->getPriority() > ip2->getPriority()){
+        } else if (ip1->getInstLocation() > ip2->getInstLocation()){
             return 1;
+        } else {
+            if (ip1->getPriority() < ip2->getPriority()){
+                return -1;
+            } else if (ip1->getPriority() > ip2->getPriority()){
+                return 1;
+            }
         }
     }
     return 0;
@@ -801,22 +807,12 @@ InstrumentationSnippet::~InstrumentationSnippet(){
     }
 }
 
-Vector<X86Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(bool isChain, Vector<X86Instruction*>* replacements){
+Vector<X86Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(Vector<X86Instruction*>* replacements){
     X86Instruction* instruction = (X86Instruction*)point;
     ASSERT(instruction->getContainer() && instruction->getContainer()->getType() == PebilClassType_Function);
     Function* func = (Function*)instruction->getContainer();
 
-    if (instLocation == InstLocation_after){
-        return func->swapInstructions(getInstBaseAddress() + instruction->getSizeInBytes(), replacements);
-    } else {
-        if (isChain){
-            return func->swapInstructions(getInstBaseAddress() - Size__uncond_jump, replacements);
-        }
-        if (instLocation == InstLocation_prior){
-            return func->swapInstructions(getInstSourceAddress(), replacements);
-        }
-        return func->swapInstructions(getInstSourceAddress(), replacements);
-    }
+    return func->swapInstructions(getInstSourceAddress(), replacements);
 }
 
 void InstrumentationPoint::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
@@ -838,26 +834,6 @@ uint32_t InstrumentationPoint::sizeNeeded(){
 uint64_t InstrumentationPoint::getInstBaseAddress(){
     ASSERT(point);
     return point->getBaseAddress();
-}
-
-uint64_t InstrumentationPoint::getInstSourceAddress(){
-    Function* f = (Function*)point->getContainer();
-
-    if (f->isRelocated()){
-        if (instLocation == InstLocation_after){
-            return getInstBaseAddress() + point->getSizeInBytes();
-        } else {
-            if (instrumentationMode == InstrumentationMode_inline){
-                return getInstBaseAddress() - getNumberOfBytes();
-            } else {
-                return getInstBaseAddress() - Size__uncond_jump;
-            }            
-        }
-
-    } else {
-        return getInstBaseAddress();
-    }
-    __SHOULD_NOT_ARRIVE;
 }
 
 InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc)
@@ -894,6 +870,7 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, Inst
     instLocation = loc;
     trampolineOffset = 0;
     priority = InstPriority_regular;
+    offsetFromPoint = 0;
 
     verify();
 }

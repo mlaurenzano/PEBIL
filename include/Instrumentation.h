@@ -234,6 +234,7 @@ protected:
 
     uint32_t numberOfBytes;
     InstLocations instLocation;
+    int32_t offsetFromPoint;
 
     Vector<X86Instruction*> trampolineInstructions;
     uint64_t trampolineOffset;
@@ -250,8 +251,10 @@ public:
     InstrumentationPoint(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc);
     ~InstrumentationPoint();
 
-    Vector<X86Instruction*>* swapInstructionsAtPoint(bool isChain, Vector<X86Instruction*>* replacements);
+    Vector<X86Instruction*>* swapInstructionsAtPoint(Vector<X86Instruction*>* replacements);
 
+    void setInstSourceOffset(int32_t off) { offsetFromPoint = off; }
+    uint64_t getInstSourceAddress() { return getInstBaseAddress() + offsetFromPoint; }
     void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
@@ -263,7 +266,6 @@ public:
 
     X86Instruction* getSourceObject() { return point; }
     PebilClassTypes getPointType() { ASSERT(getSourceObject()); return getSourceObject()->getType(); }
-    uint64_t getInstSourceAddress();
     uint64_t getInstBaseAddress();
     InstLocations getInstLocation() { return instLocation; }
 

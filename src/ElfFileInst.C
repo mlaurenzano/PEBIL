@@ -456,35 +456,21 @@ uint32_t ElfFileInst::generateInstrumentation(){
         uint64_t registerStorage = getInstDataAddress() + regStorageOffset;
 
         if (performSwap){
-            if (!pt->getInstBaseAddress()){
+            if (!pt->getInstBaseAddress() || !pt->getInstSourceAddress()){
                 PRINT_WARN(4,"Could not find a place to instrument for point at %#llx", pt->getSourceObject()->getBaseAddress());
                 continue;
             }
             PRINT_DEBUG_INST("Generating code for InstrumentationPoint %d at address %llx", i, pt->getInstBaseAddress());
             PRINT_DEBUG_POINT_CHAIN("Examining instrumentation point %d at %#llx in function %s", i, pt->getInstBaseAddress(), f->getName());
             
-            bool isFirstInChain = false;
-            if (i == 0 || 
-                (i > 0 && (*instrumentationPoints)[i-1]->getInstBaseAddress() != pt->getInstBaseAddress()) ||
-                (i > 0 && (*instrumentationPoints)[i-1]->getInstLocation() != pt->getInstLocation())){
-                PRINT_DEBUG_POINT_CHAIN("\tFirst in chain at %#llx (%d)", pt->getInstSourceAddress(), i);
-                
-                isFirstInChain = true;
-                chainOffset = codeOffset;
-            }
             Vector<X86Instruction*>* repl = NULL;
             Vector<X86Instruction*>* displaced = NULL;
             
             repl = new Vector<X86Instruction*>();
             if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_tramp ||
-                (*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_trampinline ||
-                !isFirstInChain){
+                (*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_trampinline){
                 uint64_t instAddress = pt->getInstSourceAddress();
-                if (!isFirstInChain){
-                    instAddress = pt->getInstBaseAddress() - Size__uncond_jump;
-                }
-		//                ASSERT(((Function*)pt->getSourceObject()->getContainer())->isRelocated());
-                (*repl).append(X86InstructionFactory::emitJumpRelative(instAddress, elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + chainOffset));
+                (*repl).append(X86InstructionFactory::emitJumpRelative(instAddress, elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + codeOffset));
             } else if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_inline){
                 if ((*instrumentationPoints)[i]->getFlagsProtectionMethod() == FlagsProtectionMethod_light){
                     if (elfFile->is64Bit()){
@@ -530,25 +516,18 @@ uint32_t ElfFileInst::generateInstrumentation(){
 
             ASSERT((*repl).size());
             
-            bool isLastInChain = false;
-            if (i == (*instrumentationPoints).size()-1 || 
-                (i < (*instrumentationPoints).size()-1 && (*instrumentationPoints)[i+1]->getInstBaseAddress() != pt->getInstBaseAddress()) ||
-                (i < (*instrumentationPoints).size()-1 && (*instrumentationPoints)[i+1]->getInstLocation() != pt->getInstLocation())){
-                PRINT_DEBUG_POINT_CHAIN("\tLast of chain at %#llx (%d)", pt->getInstSourceAddress(), i);
-                isLastInChain = true;
-                
-                displaced = pt->swapInstructionsAtPoint(!isFirstInChain, repl);
-                ASSERT((*repl).size());
-                ASSERT((*displaced).size());
-                
-                // update any address anchor that pointed to the old instruction to point to the new
-                for (uint32_t j = 0; j < (*displaced).size(); j++){
-                    Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors((*displaced)[j]->getBaseAddress());
-                    PRINT_DEBUG_ANCHOR("Looking for anchors for address %#llx", (*displaced)[j]->getBaseAddress());
-                    for (uint32_t k = 0; k < modAnchors->size(); k++){
-                        PRINT_DEBUG_ANCHOR("Instruction swapping at address %#llx because of anchor/swap", (*displaced)[j]->getBaseAddress());
-                        DEBUG_ANCHOR((*modAnchors)[k]->print();)
+            displaced = pt->swapInstructionsAtPoint(repl);
+            ASSERT((*repl).size());
+            ASSERT((*displaced).size());
 
+            // update any address anchor that pointed to the old instruction to point to the new
+            for (uint32_t j = 0; j < (*displaced).size(); j++){
+                Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors((*displaced)[j]->getBaseAddress());
+                PRINT_DEBUG_ANCHOR("Looking for anchors for address %#llx", (*displaced)[j]->getBaseAddress());
+                for (uint32_t k = 0; k < modAnchors->size(); k++){
+                    PRINT_DEBUG_ANCHOR("Instruction swapping at address %#llx because of anchor/swap", (*displaced)[j]->getBaseAddress());
+                    DEBUG_ANCHOR((*modAnchors)[k]->print();)
+                        
                         for (uint32_t l = 0; l < (*repl).size(); l++){
                             PRINT_DEBUG_ANCHOR("\t\t********Comparing addresses %#llx and %#llx", (*displaced)[j]->getBaseAddress(), (*repl)[l]->getBaseAddress());
                             if ((*displaced)[j]->getBaseAddress() == (*repl)[l]->getBaseAddress()){
@@ -556,35 +535,21 @@ uint32_t ElfFileInst::generateInstrumentation(){
                                 elfFile->setAnchorsSorted(false);
                             }
                         }
-                    }
-                    delete modAnchors;
                 }
+                delete modAnchors;
             }
             
 
-            if (isFirstInChain){
-                    returnOffset = pt->getInstSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
-                if (isLastInChain){
-                    returnOffset = pt->getInstSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
-                } 
-                else {
-                    returnOffset = pt->getInstBaseAddress() - Size__uncond_jump -  elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
-                }
-            }
+            returnOffset = pt->getInstSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
             
-            if (pt->getInstrumentationMode() != InstrumentationMode_inline || !isFirstInChain || !isLastInChain){
-                pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, isLastInChain, registerStorage, stackIsSafe);
+            if (pt->getInstrumentationMode() != InstrumentationMode_inline){
+                pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, true, registerStorage, stackIsSafe);
             } else {
                 for (uint32_t k = 0; k < (*displaced).size(); k++){
                     delete (*displaced)[k];
                 }
             }
             codeOffset += pt->sizeNeeded();
-            if (!isLastInChain){
-                for (uint32_t j = 0; j < (*repl).size(); j++){
-                    delete (*repl)[j];
-                }
-            }
             if (repl){
                 delete repl;
             }
@@ -877,6 +842,45 @@ void ElfFileInst::phasedInstrumentation(){
     (*instrumentationPoints).sort(compareInstBaseAddress);
     verify();
 
+    for (uint32_t i = 0; i < (*instrumentationPoints).size();){
+        Vector<InstrumentationPoint*> priorpt = Vector<InstrumentationPoint*>();
+        Vector<InstrumentationPoint*> afterpt = Vector<InstrumentationPoint*>();
+        uint32_t j = i;
+        while (j < (*instrumentationPoints).size() && 
+               (*instrumentationPoints)[j]->getInstBaseAddress() == (*instrumentationPoints)[i]->getInstBaseAddress()){
+            if ((*instrumentationPoints)[j]->getInstLocation() == InstLocation_prior){
+                priorpt.append((*instrumentationPoints)[j]);
+            } else if ((*instrumentationPoints)[j]->getInstLocation() == InstLocation_after){
+                afterpt.append((*instrumentationPoints)[j]);
+            } else {
+                __SHOULD_NOT_ARRIVE;
+            }
+            j++;
+        }
+        
+        int32_t currentOffset = 0;
+        for (int32_t k = priorpt.size() - 1; k >= 0; k--){
+            uint32_t bytesreq = Size__uncond_jump;
+            if (priorpt[k]->getInstrumentationMode() == InstrumentationMode_inline){
+                bytesreq = priorpt[k]->getNumberOfBytes();
+            }
+            currentOffset -= bytesreq;
+            priorpt[k]->setInstSourceOffset(currentOffset);
+        }
+
+        currentOffset = (*instrumentationPoints)[i]->getSourceObject()->getSizeInBytes();
+        for (uint32_t k = 0; k < afterpt.size(); k++){
+            uint32_t bytesreq = Size__uncond_jump;
+            if (afterpt[k]->getInstrumentationMode() == InstrumentationMode_inline){
+                bytesreq = afterpt[k]->getNumberOfBytes();
+            }
+            afterpt[k]->setInstSourceOffset(bytesreq);
+            currentOffset += bytesreq;
+        }
+        i = j;
+    }
+
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     buildInstrumentationSections();
     relocatedTextSize += functionRelocateAndTransform(relocatedTextSize);
 

@@ -95,7 +95,7 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
 
     Vector<InstrumentationPoint*> expansions;
     Vector<uint32_t> expansionIndices;
-    for (uint32_t i = 0; i < (*instPoints).size();){
+    for (uint32_t i = 0; i < (*instPoints).size(); i++){
         expansions.append((*instPoints)[i]);
         if ((*instPoints)[i]->getInstLocation() == InstLocation_prior){
             expansionIndices.append((*instPoints)[i]->getSourceObject()->getIndex());
@@ -104,12 +104,6 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
         } else {
             __SHOULD_NOT_ARRIVE;
         }
-        uint32_t j = i+1;
-        while (j < (*instPoints).size() && (*instPoints)[i]->getInstBaseAddress() == (*instPoints)[j]->getInstBaseAddress() &&
-               (*instPoints)[i]->getInstLocation() == (*instPoints)[j]->getInstLocation()){
-            j++;
-        }
-        i = j;
     }
 
     PRINT_DEBUG_BLOAT_FILTER("Printing expansions");
@@ -117,22 +111,7 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
         DEBUG_BLOAT_FILTER(expansions[i]->getSourceObject()->print();)
     }
     for (int32_t i = expansions.size()-1; i >= 0; i--){
-        bool isRep = false;
-        for (int32_t j = i-1; j >= 0; j--){
-            if ((*instPoints)[j]->getInstBaseAddress() == expansions[i]->getInstBaseAddress()){
-                if ((*instPoints)[j]->getInstrumentationMode() != InstrumentationMode_inline ||
-                    (*instPoints)[i]->getInstrumentationMode() != InstrumentationMode_inline){
-                    isRep = true;
-                }
-            }
-        }
-        uint32_t bloatAmount;
-        if (isRep){
-            bloatAmount = Size__uncond_jump;
-        } else {
-            bloatAmount = expansions[i]->getNumberOfBytes();
-        }
-
+        uint32_t bloatAmount = expansions[i]->getNumberOfBytes();
         uint32_t instructionIdx = expansionIndices[i];
         PRINT_DEBUG_BLOAT_FILTER("bloating point at instruction %#llx by %d bytes", instructions[instructionIdx]->getProgramAddress(), bloatAmount);
 

@@ -77,7 +77,6 @@ void IOTracer::instrument(){
         if (instruction->isFunctionCall()){
             Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol(instruction->getTargetAddress());
 
-
             if (functionSymbol){
                 uint32_t funcIdx = searchFileList(traceFunctions, functionSymbol->getSymbolName());
                 if (funcIdx < (*traceFunctions).size()){

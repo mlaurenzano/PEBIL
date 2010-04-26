@@ -278,26 +278,24 @@ void CacheSimulation::instrument(){
                 }
             }
             ASSERT(memopIdInBlock < MAX_MEMOPS_PER_BLOCK);
-
-            if (memopIdInBlock){
-                InstrumentationSnippet* snip = new InstrumentationSnippet();
-                addInstrumentationSnippet(snip);
-
-                uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
-                if (is64Bit()){
-                    snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
-                } else {
-                    snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
-                }
-                FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-                if (bb->getExitInstruction()->allFlagsDeadOut()){
-                    prot = FlagsProtectionMethod_none;
-                }
-
-                InstrumentationPoint* p = addInstrumentationPoint(bb->getExitInstruction(), snip, InstrumentationMode_inline, prot);
-            }
-
         }
+
+        InstrumentationSnippet* snip = new InstrumentationSnippet();
+        addInstrumentationSnippet(snip);
+        
+        uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
+        ASSERT(i == blockId);
+        if (is64Bit()){
+            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+        } else {
+            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+        }
+        FlagsProtectionMethods prot = FlagsProtectionMethod_light;
+        if (bb->getLeader()->allFlagsDeadIn()){
+            prot = FlagsProtectionMethod_none;
+        }
+        InstrumentationPoint* p = addInstrumentationPoint(bb->getLeader(), snip, InstrumentationMode_inline, prot, InstLocation_prior);
+        PRINT_INFOR("block counter %d for block at %#llx -- counter is at %#llx", blockId, bb->getBaseAddress(), getInstDataAddress() + counterArray + (sizeof(uint32_t) * blockId));
         blockId++;
     }
         
