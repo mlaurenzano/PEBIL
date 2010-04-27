@@ -295,7 +295,6 @@ void CacheSimulation::instrument(){
             prot = FlagsProtectionMethod_none;
         }
         InstrumentationPoint* p = addInstrumentationPoint(bb->getLeader(), snip, InstrumentationMode_inline, prot, InstLocation_prior);
-        PRINT_INFOR("block counter %d for block at %#llx -- counter is at %#llx", blockId, bb->getBaseAddress(), getInstDataAddress() + counterArray + (sizeof(uint32_t) * blockId));
         blockId++;
     }
         

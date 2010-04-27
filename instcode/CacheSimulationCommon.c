@@ -1015,7 +1015,6 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         alreadyIgnored += lastIndex;
         if(alreadyIgnored > __WHICH_IGNORING_VALUE){
             currentSamplingStatus = sampling_accesses;
-            PRINT_INSTR(stdout, "sampling on");
             alreadySampled = alreadyIgnored - __WHICH_IGNORING_VALUE;
 #ifdef EXTENDED_SAMPLING
             if(alreadySampled > lastIndex){
@@ -1045,7 +1044,6 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         alreadySampled += lastIndex;
         if(alreadySampled > __WHICH_SAMPLING_VALUE){
             currentSamplingStatus = ignoring_accesses;
-            PRINT_INSTR(stdout, "sampling off");
             alreadyIgnored = alreadySampled - __WHICH_SAMPLING_VALUE;
 #ifdef EXTENDED_SAMPLING
             if(alreadyIgnored > lastIndex){

@@ -235,7 +235,6 @@ bool ElfFile::verify(){
             ptInterpIdx = i;
         }
     }
-    PRINT_INFOR("pt_interp found at %d", ptInterpIdx);
 
     if (ptInterpIdx < getNumberOfPrograms()){
         for (uint32_t i = 0; i < getNumberOfPrograms(); i++){    
