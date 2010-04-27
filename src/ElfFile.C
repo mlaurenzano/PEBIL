@@ -72,7 +72,11 @@ Symbol* ElfFile::lookupFunctionSymbol(uint64_t addr){
     GlobalOffsetTable* gotTable = getGlobalOffsetTable();
     RelocationTable* pltRelocTable = getPLTRelocationTable();
     SymbolTable* dynsymTable = getDynamicSymbolTable();
-    ASSERT(gotTable && pltRelocTable && dynsymTable);
+    if (isStaticLinked()){
+        ASSERT(!gotTable && !pltRelocTable && !dynsymTable);
+    } else {
+        ASSERT(gotTable && pltRelocTable && dynsymTable);
+    }
 
     char* namestr = NULL;
     uint32_t numSyms = 8;
@@ -101,6 +105,10 @@ Symbol* ElfFile::lookupFunctionSymbol(uint64_t addr){
     uint64_t val = addr + Size__ProcedureLink_Intermediate;
     uint64_t gotAddr = 0;
     int64_t symIndex = -1;
+
+    if (isStaticLinked()){
+        return NULL;
+    }
 
     // search GOT to get relocation entry to get symbol index (PLT function)
     for (uint32_t i = 0; i < gotTable->getNumberOfEntries(); i++){
@@ -246,7 +254,7 @@ bool ElfFile::verify(){
             }
         }
         if (isStaticLinked()){
-            PRINT_ERROR("Static linked executables shouldn't have a PT_INTERP segment");
+            PRINT_ERROR("Static linked executables can't have a PT_INTERP segment");
             return false;
         }
     }
