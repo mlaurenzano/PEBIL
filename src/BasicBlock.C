@@ -45,7 +45,6 @@ uint32_t BasicBlock::searchForArgsPrep(bool is64Bit){
         }
     }
 
-
     PRINT_INFOR("found %d args ------------------------------------------------------", numArgs);
 
     return numArgs;
@@ -84,6 +83,10 @@ uint32_t CodeBlock::addTailJump(X86Instruction* tgtInstruction){
 }
 
 uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
+    if (!(*instPoints).size()){
+        return getNumberOfBytes();
+    }
+
     PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx for function %s", baseAddress, getContainer()->getName());
 
     PRINT_DEBUG_BLOAT_FILTER("block range for bloat [%#llx,%#llx)", getBaseAddress(), getBaseAddress() + getNumberOfBytes());
@@ -92,6 +95,8 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
         ASSERT(inRange((*instPoints)[i]->getInstBaseAddress()));
     }
     (*instPoints).sort(compareInstBaseAddress);
+
+    X86Instruction* firstInstruction = instructions[0];
 
     Vector<InstrumentationPoint*> expansions;
     Vector<uint32_t> expansionIndices;

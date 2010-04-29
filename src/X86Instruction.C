@@ -1800,6 +1800,7 @@ void X86Instruction::print(){
 
     PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%8s]\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
 
+#ifdef PRINT_INSTRUCTION_DETAIL
 #ifndef NO_REG_ANALYSIS
     BitSet<uint32_t>* useRegs = getUseRegs();
     BitSet<uint32_t>* defRegs = getDefRegs();
@@ -1826,7 +1827,6 @@ void X86Instruction::print(){
     delete defRegs;
 #endif
     
-#ifdef PRINT_INSTRUCTION_DETAIL
     PRINT_INFOR("\t%s (%d,%d) (%d,%d) (%d,%d) %d", ud_lookup_mnemonic(GET(itab_entry)->mnemonic), GET(itab_entry)->operand1.type, GET(itab_entry)->operand1.size, GET(itab_entry)->operand2.type, GET(itab_entry)->operand2.size, GET(itab_entry)->operand3.type, GET(itab_entry)->operand3.size, GET(itab_entry)->prefix);
 
     PRINT_INFOR("%d(%s)\t%hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd", GET(mnemonic), ud_lookup_mnemonic(GET(mnemonic)),
@@ -1848,7 +1848,6 @@ void X86Instruction::print(){
     PRINT_INFOR("General Purpose Register usage -- [%s]", regs);
 
     delete usedRegs;
-#endif // PRINT_INSTRUCTION_DETAIL
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         ud_operand op = GET(operand)[i];
@@ -1856,6 +1855,7 @@ void X86Instruction::print(){
             getOperand(i)->print();
         }
     }
+#endif // PRINT_INSTRUCTION_DETAIL
 }
 
 const char* ud_optype_str[] = { "reg", "mem", "ptr", "imm", "jimm", "const" };

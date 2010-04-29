@@ -516,7 +516,6 @@ uint32_t ElfFileInst::generateInstrumentation(){
 
             ASSERT((*repl).size());
             
-            pt->print();
             displaced = pt->swapInstructionsAtPoint(repl);
             ASSERT((*repl).size());
             ASSERT((*displaced).size());
@@ -848,7 +847,8 @@ void ElfFileInst::phasedInstrumentation(){
         Vector<InstrumentationPoint*> afterpt = Vector<InstrumentationPoint*>();
         uint32_t j = i;
         while (j < (*instrumentationPoints).size() && 
-               (*instrumentationPoints)[j]->getInstBaseAddress() == (*instrumentationPoints)[i]->getInstBaseAddress()){
+               (*instrumentationPoints)[j]->getInstBaseAddress() == (*instrumentationPoints)[i]->getInstBaseAddress() &&
+               (*instrumentationPoints)[j]->getSourceObject() == (*instrumentationPoints)[i]->getSourceObject()){
             if ((*instrumentationPoints)[j]->getInstLocation() == InstLocation_prior){
                 priorpt.append((*instrumentationPoints)[j]);
             } else if ((*instrumentationPoints)[j]->getInstLocation() == InstLocation_after){

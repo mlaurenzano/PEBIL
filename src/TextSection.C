@@ -7,8 +7,6 @@
 #include <SectionHeader.h>
 #include <SymbolTable.h>
 
-#define USE_DEFINED_FUNC_SIZE
-
 uint32_t FreeText::getNumberOfInstructions(){
     uint32_t numberOfInstructions = 0;
     for (uint32_t i = 0; i < blocks.size(); i++){
@@ -268,7 +266,7 @@ void FreeText::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
 
     for (uint32_t i = 0; i < blocks.size(); i++){
-        blocks[i]->dump(binaryOutputFile,offset+currByte);
+        blocks[i]->dump(binaryOutputFile,offset + currByte);
         currByte += blocks[i]->getNumberOfBytes();
     }
     ASSERT(currByte == sizeInBytes && "Size dumped does not match object size");
@@ -328,16 +326,11 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
         uint32_t i;
 
         for (i = 0; i < textSymbols.size()-1; i++){
+
+            // use the max of: the size listed in the symbol table and the size between this function and the next
             uint32_t size = textSymbols[i+1]->GET(st_value) - textSymbols[i]->GET(st_value);
-#ifdef USE_DEFINED_FUNC_SIZE
             if (textSymbols[i]->GET(st_size) > size){
                 size = textSymbols[i]->GET(st_size);
-            }
-#endif
-            if (size < textSymbols[i]->GET(st_size)){
-                textSymbols[i]->print();
-                PRINT_ERROR("symbol size mismatch: listed size %d != computed size %d", textSymbols[i]->GET(st_size), size);
-                __SHOULD_NOT_ARRIVE;
             }
 
             if (textSymbols[i]->isFunctionSymbol(this)){
@@ -353,11 +346,9 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
 
         // the last function ends at the end of the section
         uint32_t size = sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size) - textSymbols.back()->GET(st_value);
-#ifdef USE_DEFINED_FUNC_SIZE
         if (textSymbols[i]->GET(st_size) > size){
             size = textSymbols[i]->GET(st_size);
         }
-#endif
         if (textSymbols.back()->isFunctionSymbol(this)){
             sortedTextObjects.append(new Function(this, i, textSymbols.back(), size));
         } else {
@@ -529,24 +520,6 @@ bool TextSection::verify(){
                 PRINT_ERROR("First function in section %d should be at the beginning of the section", getSectionIndex());
                 return false;
             }
-            
-#ifndef USE_DEFINED_FUNC_SIZE
-            // check that function boundaries are contiguous
-            for (uint32_t i = 0; i < sortedTextObjects.size()-1; i++){
-                if (sortedTextObjects[i]->getBaseAddress() + sortedTextObjects[i]->getSizeInBytes() !=
-                    sortedTextObjects[i+1]->getBaseAddress()){
-                    PRINT_ERROR("In section %d, boundaries on function %d and %d do not align", getSectionIndex(), i, i+1);
-                    return false;
-                }
-            }
-            
-            // check the the last function ends at the section end
-            if (sortedTextObjects[sortedTextObjects.size()-1]->getBaseAddress() + sortedTextObjects[sortedTextObjects.size()-1]->getSizeInBytes() !=
-                sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size)){
-                PRINT_ERROR("Last function in section %d should be at the end of the section", getSectionIndex());
-                return false;
-            }
-#endif
         }
     }
 
@@ -562,10 +535,16 @@ void TextSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     binaryOutputFile->copyBytes(buff, getSizeInBytes(), offset);
     delete[] buff;
 
-    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
-        ASSERT(sortedTextObjects[i] && "The functions in this text section should be initialized");
-        sortedTextObjects[i]->dump(binaryOutputFile, offset + currByte);
-        currByte += sortedTextObjects[i]->getSizeInBytes();
+    if (sortedTextObjects.size()){
+        for (int32_t i = 0; i < sortedTextObjects.size() - 1; i++){
+            ASSERT(sortedTextObjects[i] && "The functions in this text section should be initialized");
+            sortedTextObjects[i]->dump(binaryOutputFile, offset + currByte);
+            
+            // functions can overlap! this puts the function in the correct original spot
+            uint32_t actualFunctionSize = sortedTextObjects[i+1]->getSymbolValue() - sortedTextObjects[i]->getSymbolValue();
+            currByte += actualFunctionSize;
+        }
+        sortedTextObjects.back()->dump(binaryOutputFile, offset + currByte);
     }
 }
 

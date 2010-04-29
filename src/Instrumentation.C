@@ -40,7 +40,7 @@ uint32_t map64BitArgToReg(uint32_t idx){
 }
 
 void InstrumentationPoint::print(){
-    PRINT_INFOR("Instrumentation point at %#llx -> %#llx: size %d, priority %d, protection %d, mode %d, loc %d", getInstBaseAddress(), getInstSourceAddress(), numberOfBytes, priority, protectionMethod, instrumentationMode, instLocation);
+    PRINT_INFOR("Instrumentation point at %#llx -> %#llx: size %d, priority %d, protection %d, mode %d, loc %d, offset %d, function %s", getInstBaseAddress(), getInstSourceAddress(), numberOfBytes, priority, protectionMethod, instrumentationMode, instLocation, offsetFromPoint, point->getContainer()->getName());
 }
 
 int searchInstPoint(const void* arg1,const void* arg2){
@@ -127,21 +127,27 @@ int compareInstBaseAddress(const void* arg1,const void* arg2){
     InstrumentationPoint* ip1 = *((InstrumentationPoint**)arg1);
     InstrumentationPoint* ip2 = *((InstrumentationPoint**)arg2);
 
-    if(ip1->getInstBaseAddress() < ip2->getInstBaseAddress()){
+    if (ip1->getInstBaseAddress() < ip2->getInstBaseAddress()){
         return -1;
     } else if(ip1->getInstBaseAddress() > ip2->getInstBaseAddress()){
         return 1;
     } else {
-        PRINT_DEBUG_POINT_CHAIN("Comparing priority of 2 points at %#llx: %d %d", ip1->getInstBaseAddress(), ip1->getPriority(), ip2->getPriority());
-        if (ip1->getInstLocation() < ip2->getInstLocation()){
+        if (ip1->getSourceObject() < ip2->getSourceObject()){
             return -1;
-        } else if (ip1->getInstLocation() > ip2->getInstLocation()){
+        } else if (ip1->getSourceObject() > ip2->getSourceObject()){
             return 1;
         } else {
-            if (ip1->getPriority() < ip2->getPriority()){
+            PRINT_DEBUG_POINT_CHAIN("Comparing priority of 2 points at %#llx: %d %d", ip1->getInstBaseAddress(), ip1->getPriority(), ip2->getPriority());
+            if (ip1->getInstLocation() < ip2->getInstLocation()){
                 return -1;
-            } else if (ip1->getPriority() > ip2->getPriority()){
+            } else if (ip1->getInstLocation() > ip2->getInstLocation()){
                 return 1;
+            } else {
+                if (ip1->getPriority() < ip2->getPriority()){
+                    return -1;
+                } else if (ip1->getPriority() > ip2->getPriority()){
+                    return 1;
+                }
             }
         }
     }

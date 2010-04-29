@@ -4,6 +4,7 @@
 #include <Base.h>
 #include <X86Instruction.h>
 #include <RawSection.h>
+#include <SymbolTable.h>
 #include <Vector.h>
 
 class BasicBlock;
@@ -13,7 +14,6 @@ class Block;
 class ElfFile;
 class Function;
 class X86Instruction;
-class Symbol;
 class TextSection;
 
 class TextObject : public Base {
@@ -35,6 +35,7 @@ public:
 
     virtual uint32_t getNumberOfInstructions() { __SHOULD_NOT_ARRIVE; }
     TextSection* getTextSection() { return textSection; }
+    uint64_t getSymbolValue() { return symbol->GET(st_value); }
 
     virtual uint32_t getAllInstructions(X86Instruction** allinsts, uint32_t nexti) { __SHOULD_NOT_ARRIVE; }
 

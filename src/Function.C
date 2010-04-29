@@ -89,6 +89,7 @@ uint32_t Function::bloatBasicBlocks(Vector<InstrumentationPoint*>* instPoints){
     }
     sizeInBytes = currByte;
     delete[] blockInstPoints;
+
     return sizeInBytes;
 }
 
