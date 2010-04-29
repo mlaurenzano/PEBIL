@@ -516,6 +516,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
 
             ASSERT((*repl).size());
             
+            pt->print();
             displaced = pt->swapInstructionsAtPoint(repl);
             ASSERT((*repl).size());
             ASSERT((*displaced).size());

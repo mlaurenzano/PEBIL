@@ -581,7 +581,7 @@ uint64_t BasicBlock::findInstrumentationPoint(uint64_t addr, uint32_t size, Inst
 Vector<X86Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<X86Instruction*>* replacements){
     X86Instruction* tgtInstruction = getInstructionAtAddress(addr);
     if (!tgtInstruction){
-        PRINT_INFOR("looking for addr %#llx", addr);
+        PRINT_INFOR("looking for addr %#llx inside block with range [%#llx,%#llx)", addr, getBaseAddress(), getBaseAddress() + getNumberOfBytes());
         printInstructions();
     }
     ASSERT(tgtInstruction && "This basic block should have an instruction at the given address");

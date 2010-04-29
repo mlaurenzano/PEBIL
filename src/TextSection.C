@@ -7,6 +7,8 @@
 #include <SectionHeader.h>
 #include <SymbolTable.h>
 
+#define USE_DEFINED_FUNC_SIZE
+
 uint32_t FreeText::getNumberOfInstructions(){
     uint32_t numberOfInstructions = 0;
     for (uint32_t i = 0; i < blocks.size(); i++){
@@ -324,8 +326,20 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
 
     if (textSymbols.size()){
         uint32_t i;
+
         for (i = 0; i < textSymbols.size()-1; i++){
             uint32_t size = textSymbols[i+1]->GET(st_value) - textSymbols[i]->GET(st_value);
+#ifdef USE_DEFINED_FUNC_SIZE
+            if (textSymbols[i]->GET(st_size) > size){
+                size = textSymbols[i]->GET(st_size);
+            }
+#endif
+            if (size < textSymbols[i]->GET(st_size)){
+                textSymbols[i]->print();
+                PRINT_ERROR("symbol size mismatch: listed size %d != computed size %d", textSymbols[i]->GET(st_size), size);
+                __SHOULD_NOT_ARRIVE;
+            }
+
             if (textSymbols[i]->isFunctionSymbol(this)){
                 sortedTextObjects.append(new Function(this, i, textSymbols[i], size));
                 ASSERT(sortedTextObjects.back()->isFunction());
@@ -339,6 +353,11 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
 
         // the last function ends at the end of the section
         uint32_t size = sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size) - textSymbols.back()->GET(st_value);
+#ifdef USE_DEFINED_FUNC_SIZE
+        if (textSymbols[i]->GET(st_size) > size){
+            size = textSymbols[i]->GET(st_size);
+        }
+#endif
         if (textSymbols.back()->isFunctionSymbol(this)){
             sortedTextObjects.append(new Function(this, i, textSymbols.back(), size));
         } else {
@@ -511,6 +530,7 @@ bool TextSection::verify(){
                 return false;
             }
             
+#ifndef USE_DEFINED_FUNC_SIZE
             // check that function boundaries are contiguous
             for (uint32_t i = 0; i < sortedTextObjects.size()-1; i++){
                 if (sortedTextObjects[i]->getBaseAddress() + sortedTextObjects[i]->getSizeInBytes() !=
@@ -526,6 +546,7 @@ bool TextSection::verify(){
                 PRINT_ERROR("Last function in section %d should be at the end of the section", getSectionIndex());
                 return false;
             }
+#endif
         }
     }
 

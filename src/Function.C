@@ -313,7 +313,7 @@ Vector<X86Instruction*>* Function::digestRecursive(){
     X86Instruction* currentInstruction;
     uint64_t currentAddress = 0;
 
-    PRINT_DEBUG_CFG("Recursively digesting function %s at [%#llx,%#llx)", getName(), getBaseAddress(), getBaseAddress()+getSizeInBytes());
+    PRINT_DEBUG_CFG("Recursively digesting function %s at [%#llx,%#llx)", getName(), getBaseAddress(), getBaseAddress() + getSizeInBytes());
 
     Stack<uint64_t> unprocessed = Stack<uint64_t>(sizeInBytes);
 
@@ -404,6 +404,13 @@ Vector<X86Instruction*>* Function::digestRecursive(){
     }
 
     qsort(&(*allInstructions), (*allInstructions).size(), sizeof(X86Instruction*), compareBaseAddress);
+    if (!(*allInstructions).isSorted(compareBaseAddress)){
+        PRINT_INFOR("function %s instructions are not sorted", getName());
+        for (uint32_t i = 0; i < (*allInstructions).size() - 1; i++){
+            (*allInstructions)[i]->print();
+        }
+    }
+
     ASSERT((*allInstructions).isSorted(compareBaseAddress));
 
     for (uint32_t i = 0; i < (*allInstructions).size() - 1; i++){

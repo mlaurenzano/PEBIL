@@ -7,13 +7,13 @@
 template <class T=uint32_t>
 class Stack {
 private:
-    uint32_t maxSize;
     T* elements;
+    uint32_t maxSize;
     int32_t topIndex;
 
     void growStack(){
-        T* newElts = new T[maxSize*STACK_GROWTH_FACTOR];
-        memcpy(newElts,elements,maxSize*sizeof(T));
+        T* newElts = new T[maxSize * STACK_GROWTH_FACTOR];
+        memcpy(newElts, elements, maxSize * sizeof(T));
         delete[] elements;
         maxSize *= STACK_GROWTH_FACTOR;
         elements = newElts;
@@ -27,6 +27,9 @@ public:
     }
     Stack(uint32_t size){
         maxSize = size;
+        if (!maxSize){
+            maxSize = DEFAULT_STACK_SIZE;
+        }
         elements = new T[size];
         topIndex = -1;
     }
@@ -38,10 +41,12 @@ public:
         topIndex = -1;
     }
     void push(T elt){
-        if (topIndex+1 >= maxSize){
+        if (topIndex + 1 >= maxSize){
+            PRINT_INFOR("top %d, max %d", topIndex, maxSize);
             growStack();
+            PRINT_INFOR("top %d, max %d", topIndex, maxSize);
         }
-        ASSERT((topIndex+1) < maxSize);
+        ASSERT((topIndex + 1) < maxSize);
         elements[++topIndex] = elt;
     }
     T pop(){
