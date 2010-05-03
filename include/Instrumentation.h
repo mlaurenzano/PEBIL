@@ -141,6 +141,7 @@ protected:
     uint64_t relocationOffset;
 
     Vector<Argument> arguments;
+    bool minimalWrapper;
 
 public:
     InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset, uint64_t fEntry);
@@ -155,6 +156,7 @@ public:
     uint32_t wrapperSize();
     uint32_t procedureLinkSize();
     uint32_t globalDataSize();
+    void setMinimalWrapper() { minimalWrapper = true; }
 
     virtual uint32_t bootstrapReservedSize() { __SHOULD_NOT_ARRIVE; }
     virtual uint32_t procedureLinkReservedSize() { Size__32_bit_procedure_link; }

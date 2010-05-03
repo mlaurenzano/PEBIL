@@ -545,9 +545,12 @@ uint32_t InstrumentationFunction64::generateBootstrapInstructions(uint64_t textB
     bootstrapInstructions.append(X86InstructionFactory64::emitMoveImmToReg(dataBaseAddress + globalDataOffset, X86_REG_DX));
     bootstrapInstructions.append(X86InstructionFactory64::emitMoveRegToRegaddr(X86_REG_CX, X86_REG_DX));
 
-    while (bootstrapSize() < bootstrapReservedSize()){
-        bootstrapInstructions.append(X86InstructionFactory64::emitNop());
+    uint32_t nopBytes = bootstrapReservedSize() - bootstrapSize();
+    Vector<X86Instruction*>* nops = X86InstructionFactory64::emitNopSeries(nopBytes);
+    while ((*nops).size()){
+        bootstrapInstructions.append((*nops).remove(0));
     }
+    delete nops;
     ASSERT(bootstrapSize() == bootstrapReservedSize());
     return bootstrapInstructions.size();
 }
@@ -556,9 +559,12 @@ uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textB
     bootstrapInstructions.append(X86InstructionFactory32::emitMoveImmToReg(globalData,X86_REG_CX));
     bootstrapInstructions.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX,dataBaseAddress + globalDataOffset));
 
-    while (bootstrapSize() < bootstrapReservedSize()){
-        bootstrapInstructions.append(X86InstructionFactory32::emitNop());
+    uint32_t nopBytes = bootstrapReservedSize() - bootstrapSize();
+    Vector<X86Instruction*>* nops = X86InstructionFactory64::emitNopSeries(nopBytes);
+    while ((*nops).size()){
+        bootstrapInstructions.append((*nops).remove(0));
     }
+    delete nops;
     ASSERT(bootstrapSize() == bootstrapReservedSize());
     return bootstrapInstructions.size();
 }
@@ -566,22 +572,24 @@ uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textB
 uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset){
     ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
-    wrapperInstructions.append(X86InstructionFactory64::emitPushEflags());
-    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        wrapperInstructions.append(X86InstructionFactory64::emitStackPush(i));
-    }
-    wrapperInstructions.append(X86InstructionFactory::emitFxSave(dataBaseAddress + fxStorageOffset));
+    if (!minimalWrapper){
+        wrapperInstructions.append(X86InstructionFactory64::emitPushEflags());
+        for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+            wrapperInstructions.append(X86InstructionFactory64::emitStackPush(i));
+        }
+        wrapperInstructions.append(X86InstructionFactory::emitFxSave(dataBaseAddress + fxStorageOffset));
 
-    ASSERT(arguments.size() < Num__64_bit_StackArgs && "More arguments must be pushed onto stack, which is not yet implemented"); 
-
-    for (uint32_t i = 0; i < arguments.size(); i++){
-        uint32_t idx = arguments.size() - i - 1;
-
-        if (i < Num__64_bit_StackArgs){
-            uint32_t argumentRegister = map64BitArgToReg(idx);            
-            wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
-        } else {
-            PRINT_ERROR("64Bit instrumentation supports only %d args currently", Num__64_bit_StackArgs);
+        ASSERT(arguments.size() < Num__64_bit_StackArgs && "More arguments must be pushed onto stack, which is not yet implemented"); 
+        
+        for (uint32_t i = 0; i < arguments.size(); i++){
+            uint32_t idx = arguments.size() - i - 1;
+            
+            if (i < Num__64_bit_StackArgs){
+                uint32_t argumentRegister = map64BitArgToReg(idx);            
+                wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
+            } else {
+                PRINT_ERROR("64Bit instrumentation supports only %d args currently", Num__64_bit_StackArgs);
+            }
         }
     }
 
@@ -596,17 +604,22 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     }
     wrapperInstructions.append(X86InstructionFactory64::emitCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
 
-    wrapperInstructions.append(X86InstructionFactory::emitFxRstor(dataBaseAddress + fxStorageOffset));
-    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_64BIT_GPRS-1-i));
+    if (!minimalWrapper){
+        wrapperInstructions.append(X86InstructionFactory::emitFxRstor(dataBaseAddress + fxStorageOffset));
+        for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+            wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_64BIT_GPRS-1-i));
+        }
+        wrapperInstructions.append(X86InstructionFactory64::emitPopEflags());
     }
-    wrapperInstructions.append(X86InstructionFactory64::emitPopEflags());
 
     wrapperInstructions.append(X86InstructionFactory64::emitReturn());
 
-    while (wrapperSize() < wrapperReservedSize()){
-        wrapperInstructions.append(X86InstructionFactory64::emitNop());
+    uint32_t nopBytes = wrapperReservedSize() - wrapperSize();
+    Vector<X86Instruction*>* nops = X86InstructionFactory64::emitNopSeries(nopBytes);
+    while ((*nops).size()){
+        wrapperInstructions.append((*nops).remove(0));
     }
+    delete nops;
     ASSERT(wrapperSize() == wrapperReservedSize());
 
     return wrapperInstructions.size();
@@ -615,38 +628,45 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
 uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset){
     ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
-    wrapperInstructions.append(X86InstructionFactory32::emitPushEflags());
-    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        wrapperInstructions.append(X86InstructionFactory32::emitStackPush(i));
-    }
-
-    wrapperInstructions.append(X86InstructionFactory::emitFxSave(dataBaseAddress + fxStorageOffset));
-
-    for (uint32_t i = 0; i < arguments.size(); i++){
-        uint32_t idx = arguments.size() - i - 1;
-
-        // everything is passed on the stack
-        wrapperInstructions.append(X86InstructionFactory32::emitMoveImmToReg(dataBaseAddress + arguments[idx].offset, X86_REG_DX));
-        wrapperInstructions.append(X86InstructionFactory32::emitStackPush(X86_REG_DX));
+    if (!minimalWrapper){
+        wrapperInstructions.append(X86InstructionFactory32::emitPushEflags());
+        for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
+            wrapperInstructions.append(X86InstructionFactory32::emitStackPush(i));
+        }
+        
+        wrapperInstructions.append(X86InstructionFactory::emitFxSave(dataBaseAddress + fxStorageOffset));
+        
+        for (uint32_t i = 0; i < arguments.size(); i++){
+            uint32_t idx = arguments.size() - i - 1;
+            
+            // everything is passed on the stack
+            wrapperInstructions.append(X86InstructionFactory32::emitMoveImmToReg(dataBaseAddress + arguments[idx].offset, X86_REG_DX));
+            wrapperInstructions.append(X86InstructionFactory32::emitStackPush(X86_REG_DX));
+        }
     }
 
     wrapperInstructions.append(X86InstructionFactory32::emitCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
 
-    wrapperInstructions.append(X86InstructionFactory::emitFxRstor(dataBaseAddress + fxStorageOffset));
-    for (uint32_t i = 0; i < arguments.size(); i++){
-        wrapperInstructions.append(X86InstructionFactory32::emitStackPop(X86_REG_CX));
+    if (!minimalWrapper){
+        wrapperInstructions.append(X86InstructionFactory::emitFxRstor(dataBaseAddress + fxStorageOffset));
+        for (uint32_t i = 0; i < arguments.size(); i++){
+            wrapperInstructions.append(X86InstructionFactory32::emitStackPop(X86_REG_CX));
+        }
+        
+        for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
+            wrapperInstructions.append(X86InstructionFactory32::emitStackPop(X86_32BIT_GPRS-1-i));
+        }
+        wrapperInstructions.append(X86InstructionFactory32::emitPopEflags());
     }
-
-    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        wrapperInstructions.append(X86InstructionFactory32::emitStackPop(X86_32BIT_GPRS-1-i));
-    }
-    wrapperInstructions.append(X86InstructionFactory32::emitPopEflags());
 
     wrapperInstructions.append(X86InstructionFactory32::emitReturn());
 
-    while (wrapperSize() < wrapperReservedSize()){
-        wrapperInstructions.append(X86InstructionFactory32::emitNop());
+    uint32_t nopBytes = wrapperReservedSize() - wrapperSize();
+    Vector<X86Instruction*>* nops = X86InstructionFactory64::emitNopSeries(nopBytes);
+    while ((*nops).size()){
+        wrapperInstructions.append((*nops).remove(0));
     }
+    delete nops;
     ASSERT(wrapperSize() == wrapperReservedSize());
 
     return wrapperInstructions.size();
@@ -685,6 +705,7 @@ InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, u
     globalDataOffset = dataoffset;
 
     distinctTrampoline = true;
+    minimalWrapper = false;
 }
 
 InstrumentationFunction::~InstrumentationFunction(){

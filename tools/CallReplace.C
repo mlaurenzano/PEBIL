@@ -8,7 +8,7 @@
 
 #define PROGRAM_ENTRY  "initwrapper"
 #define PROGRAM_EXIT   "finishwrapper"
-#define INST_LIB_NAME "libtracer.so"
+#define INST_LIB_NAME "libmpiwrapper.so"
 
 CallReplace::~CallReplace(){
     for (uint32_t i = 0; i < (*functionList).size(); i++){
@@ -66,6 +66,7 @@ void CallReplace::declare(){
 
     for (uint32_t i = 0; i < (*functionList).size(); i++){
         functionWrappers.append(declareFunction(getWrapperName(i)));
+        functionWrappers.back()->setMinimalWrapper();
     }
 }
 

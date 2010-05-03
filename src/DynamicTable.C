@@ -12,7 +12,7 @@ uint32_t DynamicTable::extendTable(uint32_t num){
     char* emptyDyn = new char[dynamicSize];
     bzero(emptyDyn, dynamicSize);
 
-    PRINT_INFOR("extending dynamic table by %d entries", num);
+    //    PRINT_INFOR("extending dynamic table by %d entries", num);
     for (uint32_t i = 0; i < num; i++){
         if (elfFile->is64Bit()){
             dynamics.append(new Dynamic64(NULL, dynamics.size()));

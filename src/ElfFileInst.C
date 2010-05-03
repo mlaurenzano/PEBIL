@@ -1748,6 +1748,8 @@ uint32_t ElfFileInst::addSharedLibraryPath(){
 uint32_t ElfFileInst::addSharedLibrary(const char* libname){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
+    PRINT_INFOR("Including shared library: %s", libname);
+
     DynamicTable* dynamicTable = elfFile->getDynamicTable();
     uint32_t strOffset = addStringToDynamicStringTable(libname);
 

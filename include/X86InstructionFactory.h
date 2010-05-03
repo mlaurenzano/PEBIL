@@ -11,6 +11,7 @@ protected:
 public:
     static X86Instruction* emitNop();
     static X86Instruction* emitNop(uint32_t len);
+    static Vector<X86Instruction*>* emitNopSeries(uint32_t len);
     static X86Instruction* emitInterrupt(uint8_t idx);
 
     static X86Instruction* emitBranchJL(uint64_t offset);
