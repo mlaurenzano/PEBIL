@@ -50,11 +50,11 @@ uint32_t FreeText::getAllInstructions(X86Instruction** allinsts, uint32_t nexti)
     for (uint32_t i = 0; i < blocks.size(); i++){
         if (blocks[i]->getType() == PebilClassType_BasicBlock){
             BasicBlock* bb = (BasicBlock*)blocks[i];
-            bb->getAllInstructions(allinsts,nexti+instructionCount);
+            bb->getAllInstructions(allinsts, nexti + instructionCount);
             instructionCount += bb->getNumberOfInstructions();
         } else if (blocks[i]->getType() == PebilClassType_CodeBlock){
             CodeBlock* cb = (CodeBlock*)blocks[i];
-            cb->getAllInstructions(allinsts,nexti+instructionCount);
+            cb->getAllInstructions(allinsts, nexti + instructionCount);
             instructionCount += cb->getNumberOfInstructions();
         }
     }

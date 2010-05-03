@@ -17,6 +17,8 @@
 #define Size__BufferEntry 16
 #define MAX_MEMOPS_PER_BLOCK 256
 
+//#define DISABLE_BLOCK_COUNT
+
 void CacheSimulation::usesModifiedProgram(){
     X86Instruction* nop5Byte = X86InstructionFactory::emitNop(5);
     instpoint_info iinf;
@@ -103,6 +105,11 @@ void CacheSimulation::instrument(){
 
     ASSERT(isPowerOfTwo(Size__BufferEntry));
     uint64_t bufferStore  = reserveDataOffset(BUFFER_ENTRIES * Size__BufferEntry);
+    char* emptyBuff = new char[BUFFER_ENTRIES * Size__BufferEntry];
+    bzero(emptyBuff, BUFFER_ENTRIES * Size__BufferEntry);
+    initializeReservedData(getInstDataAddress() + bufferStore, BUFFER_ENTRIES * Size__BufferEntry, emptyBuff);
+    delete[] emptyBuff;
+
     uint32_t startValue = 1;
     initializeReservedData(getInstDataAddress() + bufferStore, sizeof(uint32_t), &startValue);
     uint64_t dfpEmpty = reserveDataOffset(4*sizeof(uint64_t));
@@ -280,6 +287,7 @@ void CacheSimulation::instrument(){
             ASSERT(memopIdInBlock < MAX_MEMOPS_PER_BLOCK);
         }
 
+#ifndef DISABLE_BLOCK_COUNT
         InstrumentationSnippet* snip = new InstrumentationSnippet();
         addInstrumentationSnippet(snip);
         
@@ -295,6 +303,7 @@ void CacheSimulation::instrument(){
             prot = FlagsProtectionMethod_none;
         }
         InstrumentationPoint* p = addInstrumentationPoint(bb->getLeader(), snip, InstrumentationMode_inline, prot, InstLocation_prior);
+#endif
         blockId++;
     }
         

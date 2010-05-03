@@ -7,7 +7,6 @@
 #include <X86InstructionFactory.h>
 #include <TextSection.h>
 
-
 uint32_t map64BitArgToReg(uint32_t idx){
     uint32_t argumentRegister;
     ASSERT(idx < Num__64_bit_StackArgs);
@@ -869,10 +868,6 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, Inst
     instrumentationMode = instMode;
     protectionMethod = flagsMethod;
 
-    if (instrumentationMode == InstrumentationMode_inline && instrumentation->getType() != PebilClassType_InstrumentationSnippet){
-        PRINT_ERROR("InstrumentationMode_inline can only be used with snippets");
-    }    
-
     instLocation = loc;
     trampolineOffset = 0;
     priority = InstPriority_regular;
@@ -886,11 +881,16 @@ InstrumentationPoint32::InstrumentationPoint32(Base* pt, Instrumentation* inst, 
 {
     numberOfBytes = 0;
     if (instMode == InstrumentationMode_inline){
+        ASSERT(instrumentation->getType() == PebilClassType_InstrumentationSnippet);
 
         // count the number of bytes the tool wants
-        InstrumentationSnippet* snippet = (InstrumentationSnippet*)instrumentation;
-        for (uint32_t i = 0; i < snippet->getNumberOfCoreInstructions(); i++){
-            numberOfBytes += snippet->getCoreInstruction(i)->getSizeInBytes();
+        if (instrumentation->getType() == PebilClassType_InstrumentationSnippet){
+            InstrumentationSnippet* snippet = (InstrumentationSnippet*)instrumentation;
+            for (uint32_t i = 0; i < snippet->getNumberOfCoreInstructions(); i++){
+                numberOfBytes += snippet->getCoreInstruction(i)->getSizeInBytes();
+            }
+        } else {
+            __SHOULD_NOT_ARRIVE;
         }
 
         // then add the number of bytes needed for state protection
@@ -914,11 +914,16 @@ InstrumentationPoint64::InstrumentationPoint64(Base* pt, Instrumentation* inst, 
 {
     numberOfBytes = 0;
     if (instMode == InstrumentationMode_inline){
+        ASSERT(instrumentation->getType() == PebilClassType_InstrumentationSnippet);
 
         // count the number of bytes the tool wants
-        InstrumentationSnippet* snippet = (InstrumentationSnippet*)instrumentation;
-        for (uint32_t i = 0; i < snippet->getNumberOfCoreInstructions(); i++){
-            numberOfBytes += snippet->getCoreInstruction(i)->getSizeInBytes();
+        if (instrumentation->getType() == PebilClassType_InstrumentationSnippet){
+            InstrumentationSnippet* snippet = (InstrumentationSnippet*)instrumentation;
+            for (uint32_t i = 0; i < snippet->getNumberOfCoreInstructions(); i++){
+                numberOfBytes += snippet->getCoreInstruction(i)->getSizeInBytes();
+            }
+        } else {
+            __SHOULD_NOT_ARRIVE;
         }
 
         // then add the number of bytes needed for state protection
@@ -947,10 +952,12 @@ bool InstrumentationPoint::verify(){
         PRINT_ERROR("Instrumentation point not allowed to have priority %d", priority);
         return false;
     }
+    /*
     if (instrumentationMode == InstrumentationMode_inline && instrumentation->getType() != PebilClassType_InstrumentationSnippet){
         PRINT_ERROR("InstrumentationMode_inline can only be used with snippets");
         return false;
     }
+    */
 
     return true;
 }

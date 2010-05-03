@@ -63,6 +63,7 @@ private:
     Vector<Function*> relocatedFunctions;
     Vector<uint64_t> relocatedFunctionOffsets;
     Vector<Function*> nonRelocatedFunctions;
+    Vector<X86Instruction*> replacedInstructions;
 
     ProgramHeader* instSegment;
 
@@ -74,6 +75,7 @@ private:
     uint64_t regStorageOffset;
     uint64_t fxStorageOffset;
     uint64_t regStorageReserved;
+    uint64_t dynamicTableReserved;
     
     uint64_t relocatedTextSize;
     char* instrumentationData;
@@ -118,12 +120,12 @@ protected:
     uint32_t addSharedLibraryPath();
     uint64_t addFunction(InstrumentationFunction* func);
     uint64_t addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOffset);
-    void addInstrumentationFunction(const char* funcname);
     uint64_t relocateDynamicSection();
     uint64_t getProgramBaseAddress();
     void extendTextSection(uint64_t totalSize, uint64_t headerSize);
     void allocateInstrumentationText(uint64_t totalSize, uint64_t headerSize);
     void extendDataSection();
+    void extendDynamicTable();
     void buildInstrumentationSections();
     uint32_t generateInstrumentation();
     void compressInstrumentation(uint32_t textSize);

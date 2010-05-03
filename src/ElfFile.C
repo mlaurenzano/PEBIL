@@ -24,6 +24,17 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+void ElfFile::swapSections(uint32_t idx1, uint32_t idx2){
+    ASSERT(idx1 < sectionHeaders.size() && idx2 < sectionHeaders.size());
+    SectionHeader* tmpSectionHeader = sectionHeaders[idx1];
+    sectionHeaders[idx1] = sectionHeaders[idx2];
+    sectionHeaders[idx2] = tmpSectionHeader;
+
+    RawSection* tmpRawSection = rawSections[idx1];
+    rawSections[idx1] = rawSections[idx2];
+    rawSections[idx2] = tmpRawSection;
+}
+
 TextSection* ElfFile::getDotTextSection(){
     uint16_t textIdx = findSectionIdx(".text");
     TextSection* textSection = (TextSection*)getRawSection(textIdx);
@@ -525,7 +536,8 @@ uint64_t ElfFile::addSection(uint16_t idx, PebilClassTypes classtype, char* byte
     } else if (classtype == PebilClassType_DataSection){
         dataSections.append(new DataSection(bytes, size, idx, this));
         rawSections.insert((RawSection*)dataSections.back(), idx);
-    } else {
+    }
+    else {
         __SHOULD_NOT_ARRIVE;
     }
 
@@ -1432,6 +1444,16 @@ uint32_t ElfFile::anchorProgramElements(){
     }
     qsort(allInstructions, instructionCount, sizeof(X86Instruction*), compareBaseAddress);
 
+    for (uint32_t i = 0; i < instructionCount; i++){
+        if (!strcmp(allInstructions[i]->getContainer()->getName(), "__write_nocancel")){
+            PRINT_INFOR("__write_nocancel instruction");
+            allInstructions[i]->print();
+        }
+        if (allInstructions[i]->getBaseAddress() == 0x418870){
+            PRINT_INFOR("found base instruction");
+            allInstructions[i]->print();
+        }
+    }
 
     DEBUG_ANCHOR(
     for (uint32_t i = 0; i < instructionCount; i++){
@@ -1651,8 +1673,8 @@ uint32_t ElfFile::anchorProgramElements(){
                 for (uint32_t j = 0; j < text->getNumberOfTextObjects(); j++){
                     if (extendedData >= text->getTextObject(j)->getBaseAddress() &&
                         extendedData < text->getTextObject(j)->getBaseAddress() + Size__uncond_jump){
-                        //                        text->getTextObject(j)->print();
-                        //                        PRINT_WARN(10, "Data value %#llx at %#llx refers to function entry at base %#llx", extendedData, dataSectionHeader->GET(sh_addr)+currByte, text->getTextObject(j)->getBaseAddress());
+                        //text->getTextObject(j)->print();
+                        //PRINT_WARN(10, "Data value %#llx at %#llx refers to function entry at base %#llx", extendedData, dataSectionHeader->GET(sh_addr)+currByte, text->getTextObject(j)->getBaseAddress());
 #endif // FILL_RELOCATED_WITH_INTERRUPTS
                 if (!(dataSectionHeader->GET(sh_addr)+currByte % sizeof(uint64_t))){
                     PRINT_WARN(10, "unaligned data %#llx at %llx", extendedData, dataSectionHeader->GET(sh_addr)+currByte);
@@ -1687,6 +1709,11 @@ uint32_t ElfFile::anchorProgramElements(){
     for (uint32_t i = 0; i < (*addressAnchors).size(); i++){
         PRINT_DEBUG_ANCHOR("");
         DEBUG_ANCHOR((*addressAnchors)[i]->print();)
+
+            if ((*addressAnchors)[i]->linkBaseAddress == 0x419a10){
+                (*addressAnchors)[i]->print();
+            }
+
     }
 
     delete[] allInstructions;

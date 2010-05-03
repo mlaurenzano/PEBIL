@@ -23,6 +23,7 @@ BasicBlock.o: BasicBlock.C ../include/BasicBlock.h ../include/Base.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/X86Instruction.d ../include/TextSection.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/LinkedList.h ../include/ElfFileInst.h ../include/ElfFile.h \
   ../include/BinaryFile.h ../include/ProgramHeader.h \
   ../include/defines/ProgramHeader.d ../include/X86InstructionFactory.h \
@@ -60,6 +61,7 @@ ElfFile.o: ElfFile.C ../include/ElfFile.h ../include/Base.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/X86Instruction.d ../include/TextSection.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/LinkedList.h ../include/DwarfSection.h \
   ../include/defines/LineInformation.d ../include/DynamicTable.h \
   ../include/defines/DynamicTable.d ../include/FileHeader.h \
@@ -69,8 +71,7 @@ ElfFile.o: ElfFile.C ../include/ElfFile.h ../include/Base.h \
   ../include/LineInformation.h ../include/NoteSection.h \
   ../include/PriorityQueue.h ../include/RelocationTable.h \
   ../include/defines/RelocationTable.d ../include/SectionHeader.h \
-  ../include/defines/SectionHeader.d ../include/StringTable.h \
-  ../include/SymbolTable.h ../include/defines/SymbolTable.d
+  ../include/defines/SectionHeader.d ../include/StringTable.h
 ElfFileInst.o: ElfFileInst.C ../include/ElfFileInst.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/Debug.h ../include/Vector.h ../include/ElfFile.h \
@@ -85,6 +86,7 @@ ElfFileInst.o: ElfFileInst.C ../include/ElfFileInst.h ../include/Base.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/X86Instruction.d ../include/BasicBlock.h \
   ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/LinkedList.h ../include/DynamicTable.h \
   ../include/defines/DynamicTable.d ../include/FileHeader.h \
   ../include/defines/FileHeader.d ../include/GnuVersion.h \
@@ -93,8 +95,7 @@ ElfFileInst.o: ElfFileInst.C ../include/ElfFileInst.h ../include/Base.h \
   ../include/LineInformation.h ../include/defines/LineInformation.d \
   ../include/RelocationTable.h ../include/defines/RelocationTable.d \
   ../include/SectionHeader.h ../include/defines/SectionHeader.d \
-  ../include/StringTable.h ../include/SymbolTable.h \
-  ../include/defines/SymbolTable.d
+  ../include/StringTable.h
 FileHeader.o: FileHeader.C ../include/FileHeader.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/Debug.h ../include/Vector.h ../include/defines/FileHeader.d \
@@ -111,6 +112,7 @@ FlowGraph.o: FlowGraph.C ../include/FlowGraph.h ../include/BitSet.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/X86Instruction.d ../include/TextSection.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/LinkedList.h ../include/BasicBlock.h \
   ../include/ElfFileInst.h ../include/ElfFile.h ../include/BinaryFile.h \
   ../include/ProgramHeader.h ../include/defines/ProgramHeader.d \
@@ -126,13 +128,13 @@ Function.o: Function.C ../include/Function.h ../include/BitSet.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/X86Instruction.d ../include/TextSection.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/BasicBlock.h ../include/FlowGraph.h ../include/LinkedList.h \
   ../include/BinaryFile.h ../include/ElfFile.h ../include/ProgramHeader.h \
   ../include/defines/ProgramHeader.d ../include/ElfFileInst.h \
   ../include/Instrumentation.h ../include/LengauerTarjan.h \
   ../include/SectionHeader.h ../include/defines/SectionHeader.d \
-  ../include/Stack.h ../include/SymbolTable.h \
-  ../include/defines/SymbolTable.d
+  ../include/Stack.h
 GlobalOffsetTable.o: GlobalOffsetTable.C ../include/GlobalOffsetTable.h \
   ../include/RawSection.h ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
@@ -165,6 +167,7 @@ Instrumentation.o: Instrumentation.C ../include/Instrumentation.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/X86Instruction.d ../include/BasicBlock.h \
   ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/LinkedList.h ../include/ElfFileInst.h ../include/ElfFile.h \
   ../include/BinaryFile.h ../include/ProgramHeader.h \
   ../include/defines/ProgramHeader.d ../include/X86InstructionFactory.h
@@ -181,9 +184,9 @@ LengauerTarjan.o: LengauerTarjan.C ../include/LengauerTarjan.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/X86Instruction.d ../include/TextSection.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/BinaryFile.h ../include/Loop.h ../include/SectionHeader.h \
-  ../include/defines/SectionHeader.d ../include/Stack.h \
-  ../include/SymbolTable.h ../include/defines/SymbolTable.d
+  ../include/defines/SectionHeader.d ../include/Stack.h
 LineInformation.o: LineInformation.C ../include/LineInformation.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
@@ -197,6 +200,7 @@ LineInformation.o: LineInformation.C ../include/LineInformation.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/X86Instruction.d ../include/TextSection.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/LinkedList.h ../include/BinaryFile.h \
   ../include/DwarfSection.h ../include/ElfFile.h \
   ../include/ProgramHeader.h ../include/defines/ProgramHeader.d
@@ -212,6 +216,7 @@ Loop.o: Loop.C ../include/Loop.h ../include/Base.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/X86Instruction.d ../include/TextSection.h \
+  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/BasicBlock.h ../include/FlowGraph.h ../include/LinkedList.h
 MemTrack.o: MemTrack.C
 NoteSection.o: NoteSection.C ../include/NoteSection.h ../include/Base.h \
@@ -284,12 +289,12 @@ TextSection.o: TextSection.C ../include/TextSection.h ../include/Base.h \
   ../external/udis86-1.7/libudis86/types.h \
   ../external/udis86-1.7/libudis86/extern.h \
   ../external/udis86-1.7/libudis86/itab.h \
-  ../include/defines/X86Instruction.d ../include/BasicBlock.h \
+  ../include/defines/X86Instruction.d ../include/SymbolTable.h \
+  ../include/defines/SymbolTable.d ../include/BasicBlock.h \
   ../include/FlowGraph.h ../include/Function.h ../include/LinkedList.h \
   ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
   ../include/defines/ProgramHeader.d ../include/SectionHeader.h \
-  ../include/defines/SectionHeader.d ../include/SymbolTable.h \
-  ../include/defines/SymbolTable.d
+  ../include/defines/SectionHeader.d
 X86Instruction.o: X86Instruction.C ../include/X86Instruction.h \
   ../include/AddressAnchor.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
@@ -303,9 +308,10 @@ X86Instruction.o: X86Instruction.C ../include/X86Instruction.h \
   ../include/defines/X86Instruction.d ../include/BinaryFile.h \
   ../include/ElfFile.h ../include/ProgramHeader.h \
   ../include/defines/ProgramHeader.d ../include/ElfFileInst.h \
-  ../include/Function.h ../include/TextSection.h \
-  ../include/X86InstructionFactory.h ../include/Instrumentation.h \
-  ../include/SectionHeader.h ../include/defines/SectionHeader.d
+  ../include/Function.h ../include/TextSection.h ../include/SymbolTable.h \
+  ../include/defines/SymbolTable.d ../include/X86InstructionFactory.h \
+  ../include/Instrumentation.h ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d
 X86InstructionFactory.o: X86InstructionFactory.C ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/Debug.h ../include/Vector.h \

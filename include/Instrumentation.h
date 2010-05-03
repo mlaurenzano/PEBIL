@@ -157,7 +157,7 @@ public:
     uint32_t globalDataSize();
 
     virtual uint32_t bootstrapReservedSize() { __SHOULD_NOT_ARRIVE; }
-    virtual uint32_t procedureLinkReservedSize() { __SHOULD_NOT_ARRIVE; }
+    virtual uint32_t procedureLinkReservedSize() { Size__32_bit_procedure_link; }
     virtual uint32_t wrapperReservedSize() { __SHOULD_NOT_ARRIVE; }
 
     char* getFunctionName() { return functionName; }
@@ -170,6 +170,8 @@ public:
 
     void setRelocationOffset(uint64_t relocOffset) { relocationOffset = relocOffset; }
 
+    uint32_t getNumberOfCoreInstructions() { return wrapperInstructions.size(); }
+    X86Instruction* getCoreInstruction(uint32_t idx) { ASSERT(wrapperInstructions[idx]); return wrapperInstructions[idx]; }
     X86Instruction* removeNextCoreInstruction() { ASSERT(hasMoreCoreInstructions()); return wrapperInstructions.remove(0); }
     bool hasMoreCoreInstructions() { return (wrapperInstructions.size() != 0); }
 
@@ -195,7 +197,7 @@ public:
 
     uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress);
     uint32_t generateBootstrapInstructions(uint64_t textbaseAddress, uint64_t dataBaseAddress);
-    uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset);
+    virtual uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset);
     uint32_t generateGlobalData(uint64_t textBaseAddress);
 
     uint32_t bootstrapReservedSize() { return Size__32_bit_function_bootstrap; }
@@ -210,7 +212,7 @@ public:
 
     uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress);
     uint32_t generateBootstrapInstructions(uint64_t textbaseAddress, uint64_t dataBaseAddress);
-    uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset);
+    virtual uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset);
     uint32_t generateGlobalData(uint64_t textBaseAddress);
 
     uint32_t bootstrapReservedSize() { return Size__64_bit_function_bootstrap; }

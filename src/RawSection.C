@@ -188,7 +188,6 @@ bool DataSection::verify(){
 
 void DataSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(rawBytes);
-
     binaryOutputFile->copyBytes(charStream(), getSizeInBytes(), offset);
     for (uint32_t i = 0; i < dataReferences.size(); i++){
         dataReferences[i]->dump(binaryOutputFile,offset);

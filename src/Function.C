@@ -212,7 +212,7 @@ bool Function::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
 uint32_t Function::getAllInstructions(X86Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        instructionCount += flowGraph->getBasicBlock(i)->getAllInstructions(allinsts, instructionCount+nexti);
+        instructionCount += flowGraph->getBasicBlock(i)->getAllInstructions(allinsts, instructionCount + nexti);
     }
     ASSERT(instructionCount == getNumberOfInstructions());
     return instructionCount;

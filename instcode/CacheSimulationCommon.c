@@ -19,7 +19,7 @@ char* blockIsKilled;
 int32_t numberKilled;
 uint32_t* blockCounters;
 
-#define ENABLE_INSTRUMENTATION_KILL
+//#define ENABLE_INSTRUMENTATION_KILL
 //#define DEBUG_INST_KILL
 
 void clearBlockCounters(){
@@ -1257,6 +1257,12 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* com
     }
     if (!DUMPCODE_HASVALUE_SIMU(dumpCode)){
         return;
+    }
+
+    for (i = 0; i < numberOfBasicBlocks; i++){
+        if (blockCounters[i]){
+            PRINT_INSTR(stdout, "block %d execution count: %d", i, blockCounters[i]);
+        }
     }
 
     Counter_t processedSampleCount = 0;

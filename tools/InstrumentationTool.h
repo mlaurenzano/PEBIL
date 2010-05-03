@@ -22,7 +22,7 @@ protected:
 
 public:
     InstrumentationTool(ElfFile* elf);
-    ~InstrumentationTool() {}
+    ~InstrumentationTool() { }
 
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }

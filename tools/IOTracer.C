@@ -75,6 +75,7 @@ void IOTracer::instrument(){
         Function* function = (Function*)instruction->getContainer();
         
         if (instruction->isFunctionCall()){
+            instruction->print();
             Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol(instruction->getTargetAddress());
 
             if (functionSymbol){

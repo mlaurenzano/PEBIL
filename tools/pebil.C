@@ -1,13 +1,14 @@
 #include <Base.h>
 #include <BasicBlockCounter.h>
 #include <CacheSimulation.h>
+#include <CallReplace.h>
 #include <ElfFile.h>
 #include <FunctionCounter.h>
 #include <FunctionTimer.h>
 #include <IOTracer.h>
 #include <Vector.h>
 
-#define DEFAULT_FUNC_BLACKLIST "scripts/exclusion/none.func"
+#define DEFAULT_FUNC_BLACKLIST "scripts/inputlist/none.func"
 
 void printBriefOptions(bool detail){
     fprintf(stderr,"\n");
@@ -60,14 +61,14 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\t        cache simulation. default is no.\n");
     fprintf(stderr,"\t--phs : optional for sim/csc. phase number. defaults to no phase,\n"); 
     fprintf(stderr,"\t        otherwise, .phase.N. is included in output file names\n");
-    fprintf(stderr,"\t--trk : required for iot. input file which lists the functions to track\n");
+    fprintf(stderr,"\t--trk : required for iot or crp. input file which lists the functions to track\n");
     fprintf(stderr,"\n");
 }
 
 void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : pebil\n");
-    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|iot|ftm)\n");
+    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|iot|ftm|crp)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
     fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--ver [a-z]*]\n");
@@ -152,6 +153,7 @@ typedef enum {
     function_counter_type,
     iotrace_inst_type,
     func_timer_type,
+    call_wrapper_type,
     Total_InstrumentationType
 } InstrumentationType;
 
@@ -216,6 +218,9 @@ int main(int argc,char* argv[]){
             } else if (!strcmp(argv[i],"ftm")){
                 instType = func_timer_type;
                 extension = "ftminst";
+            } else if (!strcmp(argv[i],"crp")){
+                instType = call_wrapper_type;
+                extension = "crpinst";
             }
         } else if (!strcmp(argv[i],"--help")){
             printUsage(true, true);
@@ -385,6 +390,7 @@ int main(int argc,char* argv[]){
 
     if (instType == identical_inst_type){
         elfFile.dump(extension);
+        return 0;
     } else if (instType == function_counter_type){
         elfInst = new FunctionCounter(&elfFile);
     } else if (instType == frequency_inst_type){
@@ -400,41 +406,57 @@ int main(int argc,char* argv[]){
         elfInst = new IOTracer(&elfFile, inputTrackList);
     } else if (instType == func_timer_type){
         elfInst = new FunctionTimer(&elfFile);
+    } else if (instType == call_wrapper_type){
+        if (!inputTrackList){
+            fprintf(stderr, "\nError: option --trk needs to be given with call wrapper\n");
+            printUsage();
+        }
+        ASSERT(inputTrackList);
+        elfInst = new CallReplace(&elfFile, inputTrackList);
     }
     else {
         PRINT_ERROR("Error : invalid instrumentation type");
     }
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+    ASSERT(elfInst);
+    ASSERT(libPath);
+    ASSERT(extension);
 
-    if (elfInst){
-        ASSERT(libPath);
-        elfInst->setPathToInstLib(libPath);
-        ASSERT(extension);
-        elfInst->setInstExtension(extension);
-        if (inputFuncList){
-            elfInst->setInputFunctions(inputFuncList);
-        }
-        if (inputFileList){
-            elfInst->setInputFiles(inputFileList);
-        }
+    elfInst->setPathToInstLib(libPath);
+    elfInst->setInstExtension(extension);
+    if (inputFuncList){
+        elfInst->setInputFunctions(inputFuncList);
+    }
+    if (inputFileList){
+        elfInst->setInputFiles(inputFileList);
+    }
+    
+    elfInst->phasedInstrumentation();
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+    elfInst->print(Print_Code_Instrumentation);
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Instr   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+    
+    if (verbose){
+        elfInst->print(printCodes);
+        TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+    }
+    
+    elfInst->dump();
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Dump    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+    if (verbose){
+        elfInst->print(printCodes);
+        TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+    }
 
-        elfInst->phasedInstrumentation();
-        PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-        elfInst->print(Print_Code_Instrumentation);
-        TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Instr   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
-
-        if (verbose){
-            elfInst->print(printCodes);
-            TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
-        }
-
-        elfInst->dump();
-        TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Dump    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
-        if (verbose){
-            elfInst->print(printCodes);
-            TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
-        }
+    // arrrrrg. i can't figure out why just deleting elfInst doesn't
+    // call the CallReplace destructor in this case without the cast
+    if (instType == call_wrapper_type){
+        delete (CallReplace*)elfInst;
+        //        delete (CallReplace*)elfInst;
+    } else if (instType == simulation_inst_type){
+        delete (CacheSimulation*)elfInst;
+    } else {
         delete elfInst;
     }
 

@@ -83,10 +83,6 @@ uint32_t CodeBlock::addTailJump(X86Instruction* tgtInstruction){
 }
 
 uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
-    if (!(*instPoints).size()){
-        return getNumberOfBytes();
-    }
-
     PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx for function %s", baseAddress, getContainer()->getName());
 
     PRINT_DEBUG_BLOAT_FILTER("block range for bloat [%#llx,%#llx)", getBaseAddress(), getBaseAddress() + getNumberOfBytes());
@@ -106,6 +102,9 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
             expansionIndices.append((*instPoints)[i]->getSourceObject()->getIndex());
         } else if ((*instPoints)[i]->getInstLocation() == InstLocation_after){
             expansionIndices.append((*instPoints)[i]->getSourceObject()->getIndex() + 1);
+        } else if ((*instPoints)[i]->getInstLocation() == InstLocation_replace){
+            // send a dummy value so that no expansion happens
+            expansionIndices.append(getNumberOfInstructions() + 2);
         } else {
             __SHOULD_NOT_ARRIVE;
         }
@@ -119,10 +118,11 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
         uint32_t bloatAmount = expansions[i]->getNumberOfBytes();
         uint32_t instructionIdx = expansionIndices[i];
         PRINT_DEBUG_BLOAT_FILTER("bloating point at instruction %#llx by %d bytes", instructions[instructionIdx]->getProgramAddress(), bloatAmount);
-
-        for (uint32_t j = 0; j < bloatAmount; j++){
-            instructions.insert(X86InstructionFactory::emitNop(), instructionIdx);
-            byteCountUpdate = true;
+        if (instructionIdx < instructions.size() + 1){
+            for (uint32_t j = 0; j < bloatAmount; j++){
+                instructions.insert(X86InstructionFactory::emitNop(), instructionIdx);
+                byteCountUpdate = true;
+            }
         }
     }
 
@@ -536,6 +536,7 @@ bool BasicBlock::verify(){
 }
 
 uint64_t BasicBlock::findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc){
+    __SHOULD_NOT_ARRIVE;
     if (loc == InstLocation_prior){
         addr = addr - size;
     } else if (loc == InstLocation_after){

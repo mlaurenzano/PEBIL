@@ -12,7 +12,7 @@ private:
 
 public:
     FunctionTimer(ElfFile* elf);
-    ~FunctionTimer();
+    ~FunctionTimer() {}
 
     void declare();
     void instrument();

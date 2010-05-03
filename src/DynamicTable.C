@@ -7,6 +7,29 @@
 #include <SectionHeader.h>
 #include <StringTable.h>
 
+uint32_t DynamicTable::extendTable(uint32_t num){
+    uint32_t extraSize = 0;
+    char* emptyDyn = new char[dynamicSize];
+    bzero(emptyDyn, dynamicSize);
+
+    PRINT_INFOR("extending dynamic table by %d entries", num);
+    for (uint32_t i = 0; i < num; i++){
+        if (elfFile->is64Bit()){
+            dynamics.append(new Dynamic64(NULL, dynamics.size()));
+            dynamics.back()->clear();
+        } else {
+            dynamics.append(new Dynamic64(NULL, dynamics.size()));
+            dynamics.back()->clear();
+        }
+        extraSize += dynamicSize;
+    }
+    sizeInBytes += extraSize;
+    
+    delete[] emptyDyn;
+    verify();
+    return extraSize;
+}
+
 uint32_t DynamicTable::countDynamics(uint32_t type){
     uint32_t dynCount = 0;
     for (uint32_t i = 0; i < dynamics.size(); i++){
@@ -123,7 +146,7 @@ bool DynamicTable::verify(){
     }
     uint32_t numberOfDynamics = sizeInBytes / dynamicSize;
     if (numberOfDynamics != dynamics.size()){
-        PRINT_ERROR("Size of dynamic table is off");
+        PRINT_ERROR("Size of dynamic table (%d) does not match expeced size (%d)",  dynamics.size(), numberOfDynamics);
     }
 
     Dynamic* dyn;

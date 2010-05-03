@@ -24,6 +24,7 @@ public:
     Dynamic(char* dPtr, uint32_t idx);
     ~Dynamic() {}
     void print(char* s);
+    virtual void clear() { __SHOULD_NOT_ARRIVE; }
 
     DYNAMIC_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 };
@@ -41,6 +42,7 @@ public:
     DYNAMIC_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     uint32_t read(BinaryInputFile* binaryInputFile);
+    void clear() { bzero(charStream(), Size__32_bit_Dynamic_Entry); }
 };
 
 class Dynamic64 : public Dynamic {
@@ -55,6 +57,7 @@ public:
     DYNAMIC_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     uint32_t read(BinaryInputFile* binaryInputFile);
+    void clear() { bzero(charStream(), Size__64_bit_Dynamic_Entry); }
 };
 
 class DynamicTable : public RawSection {
@@ -80,6 +83,7 @@ public:
     uint16_t getSegmentIndex() { return segmentIndex; }
     uint32_t countDynamics(uint32_t type);
     Dynamic* getDynamicByType(uint32_t type, uint32_t idx);
+    uint32_t extendTable(uint32_t num);
 
     void relocateStringTable(uint64_t newAddr);
 

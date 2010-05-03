@@ -25,6 +25,69 @@
 uint32_t bloatCount = 0;
 #endif
 
+#define Reserve__Instrumentation_DynamicTable 0x8000
+
+void ElfFileInst::extendDynamicTable(){
+    DynamicTable* dynamicTable = elfFile->getDynamicTable();
+    uint32_t oldDynamicIdx = dynamicTable->getSectionIndex();
+    uint32_t oldDynamicSize = dynamicTable->getSizeInBytes();
+    SectionHeader* dynTableHdr = dynamicTable->getSectionHeader();
+    uint64_t oldDynamicOffset = dynTableHdr->GET(sh_offset);
+    uint64_t oldDynamicAddress = dynTableHdr->GET(sh_addr);
+    SectionHeader* finalHeader = elfFile->getSectionHeader(elfFile->getNumberOfSections() - 1);
+    ProgramHeader* dHdr = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
+    uint64_t usableOffset = nextAlignAddress(finalHeader->GET(sh_offset) + finalHeader->GET(sh_size), dHdr->GET(p_align));
+
+    dynTableHdr->INCREMENT(sh_size, dynamicTable->extendTable(instrumentationFunctions.size()));
+    ASSERT(dynamicTable->getSizeInBytes() <= 0x8000);
+
+    uint64_t newDynamicAddress = dynamicTableReserved;
+    dynTableHdr->SET(sh_addr, newDynamicAddress);
+    dynTableHdr->SET(sh_offset, usableOffset);
+
+    for (uint32_t i = 0; i < elfFile->getNumberOfSymbolTables(); i++){
+        SymbolTable* symbolTable = elfFile->getSymbolTable(i);
+        for (uint32_t j = 0; j < symbolTable->getNumberOfSymbols(); j++){
+            Symbol* symbol = symbolTable->getSymbol(j);
+            if (symbol->GET(st_value) == oldDynamicAddress){
+                symbol->SET(st_value, newDynamicAddress);
+            }
+        }
+    }
+
+    for (uint32_t i = 0; i < elfFile->getNumberOfPrograms(); i++){
+        ProgramHeader* programHeader = elfFile->getProgramHeader(i);
+        if (programHeader->GET(p_type) == PT_DYNAMIC){
+            ASSERT(programHeader->GET(p_vaddr) == oldDynamicAddress);
+            programHeader->SET(p_vaddr, newDynamicAddress);
+            programHeader->SET(p_paddr, newDynamicAddress);
+            programHeader->SET(p_offset, usableOffset);
+            programHeader->SET(p_filesz, dynamicTable->getSizeInBytes());
+            programHeader->SET(p_memsz, dynamicTable->getSizeInBytes());
+        }
+    }
+
+    // add a new data section, which will be swapped with the grown dynamic section
+    SectionHeader* genericDataHdr = elfFile->getSectionHeader(elfFile->findSectionIdx(".data"));
+    ASSERT(genericDataHdr);
+
+    uint32_t newDynamicIdx = elfFile->getNumberOfSections();
+    elfFile->addSection(newDynamicIdx, PebilClassType_DataSection, elfFile->getFileName(), genericDataHdr->GET(sh_name), genericDataHdr->GET(sh_type),
+                        genericDataHdr->GET(sh_flags), oldDynamicAddress, oldDynamicOffset, 0, genericDataHdr->GET(sh_link),
+                        genericDataHdr->GET(sh_info), dynTableHdr->GET(sh_addralign), genericDataHdr->GET(sh_entsize));
+
+    elfFile->swapSections(newDynamicIdx, oldDynamicIdx);
+    ((DataSection*)elfFile->getRawSection(oldDynamicIdx))->extendSize(oldDynamicSize);
+
+    for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
+        elfFile->getSectionHeader(i)->setIndex(i);
+        if (elfFile->getSectionHeader(i)->GET(sh_link) == oldDynamicIdx){
+            elfFile->getSectionHeader(i)->SET(sh_link, newDynamicIdx);
+        }
+        elfFile->getRawSection(i)->setSectionIndex(i);
+    }
+}
+
 void ElfFileInst::setInstExtension(char* extension){
     ASSERT(!instSuffix);
     instSuffix = new char[__MAX_STRING_SIZE];
@@ -60,9 +123,10 @@ void ElfFileInst::buildInstrumentationSections(){
 
     FileHeader* fileHeader = elfFile->getFileHeader();
     SectionHeader* finalHeader = elfFile->getSectionHeader(elfFile->getNumberOfSections() - 1);
+    ASSERT(finalHeader->GET(sh_type) == SHT_DYNAMIC);
 
-    uint64_t usableAddress = instrumentationDataAddress;
-    uint64_t usableOffset = finalHeader->GET(sh_offset) + finalHeader->GET(sh_size);
+    uint64_t usableAddress = dynamicTableReserved;
+    uint64_t usableOffset = finalHeader->GET(sh_offset);
 
     SectionHeader* genericDataHdr = elfFile->getSectionHeader(elfFile->findSectionIdx(".data"));
     ASSERT(genericDataHdr);
@@ -95,11 +159,14 @@ void ElfFileInst::buildInstrumentationSections(){
     ProgramHeader* dHdr = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
 
     // add the instrumentation segment
-    usableAddress = nextAlignAddress(usableAddress, dHdr->GET(p_align));
-    usableOffset = nextAlignAddress(usableOffset, dHdr->GET(p_align));
-    //    ASSERT(usableAddress == instrumentationDataAddress);
+    //    PRINT_INFOR("usable address %#llx, align %x", usableAddress, dHdr->GET(p_align));
+    ASSERT(usableAddress % dHdr->GET(p_align) == usableOffset % dHdr->GET(p_align));
     instSegment = elfFile->addSegment(DEFAULT_INST_SEGMENT_IDX, dHdr->GET(p_type), usableOffset, usableAddress,
                                       usableAddress, TEMP_SEGMENT_SIZE, TEMP_SEGMENT_SIZE, PF_R | PF_W | PF_X, dHdr->GET(p_align));
+
+
+    usableAddress += Reserve__Instrumentation_DynamicTable;
+    usableOffset += Reserve__Instrumentation_DynamicTable;
 
     // add the instrumentation data section
     extraDataIdx = elfFile->getNumberOfSections();
@@ -127,6 +194,7 @@ void ElfFileInst::buildInstrumentationSections(){
 
     verify();
     ASSERT(elfFile->getRawSection(extraDataIdx)->charStream());
+
     return;
 }
 
@@ -140,8 +208,8 @@ void ElfFileInst::compressInstrumentation(uint32_t textSize){
     elfFile->getSectionHeader(extraTextIdx)->SET(sh_size, textSize);
     ((TextSection*)elfFile->getRawSection(extraTextIdx))->setSizeInBytes(textSize);
 
-    instSegment->SET(p_memsz, instrumentationDataSize + textSize);
-    instSegment->SET(p_filesz, instrumentationDataSize + textSize);
+    instSegment->SET(p_memsz, Reserve__Instrumentation_DynamicTable + instrumentationDataSize + textSize);
+    instSegment->SET(p_filesz, Reserve__Instrumentation_DynamicTable + instrumentationDataSize + textSize);
     
 }
 
@@ -187,6 +255,9 @@ bool ElfFileInst::isEligibleFunction(Function* func){
         return false;
     }
     if (func->isInstrumentationFunction()){
+        return false;
+    }
+    if (!func->containsReturn()){
         return false;
     }
     /*
@@ -467,6 +538,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
             Vector<X86Instruction*>* displaced = NULL;
             
             repl = new Vector<X86Instruction*>();
+
             if ((*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_tramp ||
                 (*instrumentationPoints)[i]->getInstrumentationMode() == InstrumentationMode_trampinline){
                 uint64_t instAddress = pt->getInstSourceAddress();
@@ -541,7 +613,13 @@ uint32_t ElfFileInst::generateInstrumentation(){
             
 
             returnOffset = pt->getInstSourceAddress() - elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr) + (*repl)[0]->getSizeInBytes();
-            
+
+            if (pt->getInstLocation() == InstLocation_replace){
+                while ((*displaced).size()){
+                    replacedInstructions.append((*displaced).remove(0));
+                }
+            }
+
             if (pt->getInstrumentationMode() != InstrumentationMode_inline){
                 pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, true, registerStorage, stackIsSafe);
             } else {
@@ -594,7 +672,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
     }
 
     for (uint32_t i = 0; i < (*(elfFile->getAddressAnchors())).size(); i++){
-        DEBUG_ANCHOR(addressAnchors[i]->print();)
+        DEBUG_ANCHOR((*(elfFile->getAddressAnchors()))[i]->print();)
     }
     PRINT_DEBUG_ANCHOR("Still have %d anchors", (*(elfFile->getAddressAnchors())).size());
 
@@ -677,9 +755,10 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     PRINT_WARN(10,"Instruction swapping has been disabled by the macro TURNOFF_INSTRUCTION_SWAP");
 #endif
 
+    uint32_t skippedRelocation = 0;
     if (!HAS_INSTRUMENTOR_FLAG(InstrumentorFlag_norelocate, flags)){
         PRINT_INFO();
-        PRINT_OUT("Relocating %d functions", numberOfFunctions);
+        PRINT_OUT("Attempting to relocate %d functions", numberOfFunctions);
 
         for (uint32_t i = 0; i < numberOfFunctions; i++){
             Function* func = exposedFunctions[i];
@@ -694,14 +773,29 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
                 PRINT_PROGRESS(i, numberOfFunctions, 40);
                 
                 ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
-                codeOffset += relocateAndBloatFunction(func, codeOffset);
-                func->setRelocated();
+                Vector<InstrumentationPoint*>* functionInstPoints = instpointFilterAddressRange(func, instrumentationPoints);
+                bool needsRelocate = false;
+                for (uint32_t j = 0; j < (*functionInstPoints).size(); j++){
+                    if ((*functionInstPoints)[j]->getInstLocation() != InstLocation_replace){
+                        needsRelocate = true;
+                        break;
+                    }
+                }
+                delete functionInstPoints;
+                if (needsRelocate){
+                    codeOffset += relocateAndBloatFunction(func, codeOffset);
+                    func->setRelocated();
+                } else {
+                    func->setBaseAddress(func->getBaseAddress());
+                    skippedRelocation++;
+                }
 #ifdef RELOC_MOD
             }
 #endif
         }
         PRINT_OUT("\n");
     }
+    PRINT_INFOR("Skipped relocation on %d/%d functions", skippedRelocation, numberOfFunctions);
 
     // update address anchors modified by the tranformation (things anchored to the
     // instructions at the front of blocks)
@@ -812,6 +906,8 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
     declare();
+    extendDynamicTable();
+
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
     functionSelect();
@@ -845,6 +941,7 @@ void ElfFileInst::phasedInstrumentation(){
     for (uint32_t i = 0; i < (*instrumentationPoints).size();){
         Vector<InstrumentationPoint*> priorpt = Vector<InstrumentationPoint*>();
         Vector<InstrumentationPoint*> afterpt = Vector<InstrumentationPoint*>();
+        Vector<InstrumentationPoint*> replacept = Vector<InstrumentationPoint*>();
         uint32_t j = i;
         while (j < (*instrumentationPoints).size() && 
                (*instrumentationPoints)[j]->getInstBaseAddress() == (*instrumentationPoints)[i]->getInstBaseAddress() &&
@@ -853,6 +950,8 @@ void ElfFileInst::phasedInstrumentation(){
                 priorpt.append((*instrumentationPoints)[j]);
             } else if ((*instrumentationPoints)[j]->getInstLocation() == InstLocation_after){
                 afterpt.append((*instrumentationPoints)[j]);
+            } else if ((*instrumentationPoints)[j]->getInstLocation() == InstLocation_replace){
+                replacept.append((*instrumentationPoints)[j]);
             } else {
                 __SHOULD_NOT_ARRIVE;
             }
@@ -878,6 +977,13 @@ void ElfFileInst::phasedInstrumentation(){
             afterpt[k]->setInstSourceOffset(bytesreq);
             currentOffset += bytesreq;
         }
+
+        currentOffset = 0;
+        ASSERT(replacept.size() < 2 && "Cannot have more than 1 point replacement");
+        for (uint32_t k = 0; k < afterpt.size(); k++){
+            replacept[k]->setInstSourceOffset(currentOffset);
+        }        
+
         i = j;
     }
 
@@ -1203,7 +1309,7 @@ void ElfFileInst::extendTextSection(uint64_t totalSize, uint64_t headerSize){
         }
     }
 
-    // update the phdr table to reflact the reserved space
+    // update the phdr table to reflect the reserved space
     for (uint32_t i = 0; i < elfFile->getNumberOfPrograms(); i++){
         ProgramHeader* pHdr = elfFile->getProgramHeader(i);
         if (pHdr->GET(p_type) == PT_INTERP ||
@@ -1270,6 +1376,10 @@ ElfFileInst::~ElfFileInst(){
 
     if (instrumentationPoints){
         delete instrumentationPoints;
+    }
+
+    for (uint32_t i = 0; i < replacedInstructions.size(); i++){
+        delete replacedInstructions[i];
     }
 }
 
@@ -1363,8 +1473,11 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
             }
         }
     }
+
     ProgramHeader* dHdr = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
     instrumentationDataAddress = nextAlignAddress(instrumentationDataAddress, dHdr->GET(p_align));
+    dynamicTableReserved = instrumentationDataAddress;
+    instrumentationDataAddress += Reserve__Instrumentation_DynamicTable;
 
     instrumentationPoints = new Vector<InstrumentationPoint*>();
     // automatically set the 1st instrumentation point to go to the bootstrap code
@@ -1626,12 +1739,17 @@ uint64_t ElfFileInst::addFunction(InstrumentationFunction* func){
     }
     ASSERT(symtabIdx != elfFile->getNumberOfSymbolTables() && "There must be a symbol table that is identifiable with the dynamic table");
     SymbolTable* dynamicSymbolTable = elfFile->getSymbolTable(symtabIdx);
+    for (uint32_t i = 0; i < dynamicSymbolTable->getNumberOfSymbols(); i++){
+        if (!strcmp(dynamicSymbolTable->getSymbolName(i),func->getFunctionName())){
+            PRINT_ERROR("A symbol named `%s' already exists in the dynamic symbol table", dynamicSymbolTable->getSymbolName(i));
+            __SHOULD_NOT_ARRIVE;
+        }
+    }
 
     uint64_t relocationOffset = addPLTRelocationEntry(dynamicSymbolTable->getNumberOfSymbols(), func->getGlobalDataOffset());
     uint32_t symbolIndex = addSymbolToDynamicSymbolTable(funcNameOffset, 0, 0, STB_GLOBAL, STT_FUNC, 0, 0);
 
     func->setRelocationOffset(relocationOffset);
-
     verify();
 
     return relocationOffset;

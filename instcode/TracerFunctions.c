@@ -16,6 +16,26 @@ char* appName;
 
 #include <IOWrappers.c>
 
+puts_wrapper(const char* str){
+    PRINT_INSTR(stdout, "puts: %s", str);
+    return puts(str);
+}
+
+fflush_wrapper(FILE* stream){
+    if (stream == NULL){
+        PRINT_INSTR(stdout, "fflush all");
+    } else {
+        PRINT_INSTR(stdout, "fflush %hhd", stream->_fileno);
+    }
+    return fflush(stream);
+}
+
+int32_t initwrapper(){
+}
+
+int32_t finishwrapper(){
+}
+
 int32_t inittracer(int32_t* numSites, char** funcNames, char* execName){
     numberOfCallSites = *numSites;
     functionNames = funcNames;

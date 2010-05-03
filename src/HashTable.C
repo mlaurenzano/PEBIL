@@ -72,6 +72,7 @@ void GnuHashTable::buildTable(uint32_t numEntries, uint32_t numBuckets){
     //bloomFilters[0] = 0;
 
     sizeInBytes = (4 * sizeof(uint32_t)) + (hashEntrySize * numberOfBloomFilters) + (sizeof(uint32_t) * numberOfBuckets) + (sizeof(uint32_t) * numberOfEntries);
+    verify();
 
 }
 
@@ -94,7 +95,7 @@ uint32_t GnuHashTable::findSymbol(const char* symbolName){
 
     PRINT_DEBUG_HASH("Symbol with name %s has hash buckets[%d]=%d", symbolName, elf_sysv_hash(symbolName) % numberOfBuckets, x);
 
-    while (x < symTab->getNumberOfSymbols() && !entryHasStopBit(x - firstSymIndex) && strcmp(symbolName,symTab->getSymbolName(x))){
+    while (x - firstSymIndex < numberOfEntries && !entryHasStopBit(x - firstSymIndex) && strcmp(symbolName,symTab->getSymbolName(x))){
         x++;
     }
     if (strcmp(symbolName,symTab->getSymbolName(x))){
@@ -211,7 +212,7 @@ void GnuHashTable::initFilePointers(){
     ASSERT(symTabIdx < elfFile->getNumberOfSymbolTables() && "Could not find a symbol table for the Hash Table");
 
     SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
-    ASSERT(numberOfEntries == symTab->getNumberOfSymbols() - firstSymIndex || !numberOfEntries);
+    ASSERT(!numberOfEntries || numberOfEntries == symTab->getNumberOfSymbols() - firstSymIndex);
 }
 
 GnuHashTable::GnuHashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile* elf)
@@ -231,10 +232,12 @@ GnuHashTable::GnuHashTable(char* rawPtr, uint32_t size, uint16_t scnIdx, ElfFile
 }
 
 bool GnuHashTable::entryHasStopBit(uint32_t idx){
+    ASSERT(idx < numberOfEntries);
     return (entries[idx] & 1);
 }
 
 bool GnuHashTable::matchesEntry(uint32_t idx, uint32_t val){
+    ASSERT(idx < numberOfEntries);
     return (entries[idx] & ~1) == (val & ~1);
 }
 
@@ -375,6 +378,7 @@ void SysvHashTable::buildTable(uint32_t numEntries, uint32_t numBuckets){
         PRINT_DEBUG_HASH("real Entry[%d] = %d", i, entries[i]);
     }
     sizeInBytes = sizeof(uint32_t) * (2 + numberOfBuckets + numberOfEntries);
+    verify();
 }
 
 
@@ -438,8 +442,9 @@ bool SysvHashTable::verify(){
     
     for (uint32_t i = 1; i < numberOfEntries; i++){
         if (findSymbol(symTab->getSymbolName(i)) != i){
-            PRINT_ERROR("Hash Table search function is erroneous");
-        return false;
+            print();
+            PRINT_ERROR("Hash Table search for %s is erroneous", symTab->getSymbolName(i));
+            return false;
         }
     }
     

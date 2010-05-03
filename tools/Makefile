@@ -1,6 +1,6 @@
 DBG           = -g
 #PROFILE       = -pg
-OPT           = -O3 -w
+OPT           = -O0 -w
 NATIVE_CPP    = CC
 GNU_CPP       = g++
 CFLAGS        = $(DBG) $(OPT) $(PROFILE)##--save-temps
@@ -18,6 +18,7 @@ TARGET_BIN  = pebil
 
 SRCS  = BasicBlockCounter.C \
 	CacheSimulation.C \
+	CallReplace.C \
 	FunctionCounter.C \
 	FunctionTimer.C \
 	IOTracer.C \
@@ -25,6 +26,7 @@ SRCS  = BasicBlockCounter.C \
 
 OBJS  =	BasicBlockCounter.o \
 	CacheSimulation.o \
+	CallReplace.o \
 	FunctionCounter.o \
 	FunctionTimer.o \
 	IOTracer.o \
@@ -39,7 +41,7 @@ pebil :	$(OBJS) pebil.o
 	$(CPP) $(CFLAGS) $(EXTRA_CFLGS) -c -o $@ $< $(INCLUDE) $(EXTRA_INC)
 
 clean: 
-	rm -f *~ *.ideinst *.fncinst *.jbbinst *.static core *.o *.ii *.s *.class $(TARGET_BIN)
+	rm -f *.???inst *.static core *.o *.ii *.s *.class $(TARGET_BIN)
 
 depend:
 	g++ -E -MM $(INCLUDE) $(SRCS) > DEPENDS

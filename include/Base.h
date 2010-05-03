@@ -162,6 +162,7 @@ typedef enum {
 typedef enum {
     InstLocation_prior,
     InstLocation_after,
+    InstLocation_replace,
     InstLocation_Total_Types
 } InstLocations;
 
@@ -185,7 +186,7 @@ typedef enum {
     PebilClassType_CodeBlock,
     PebilClassType_DataReference,
     PebilClassType_DataSection,
-    PebilClassType_DwarfSection, // 5
+    PebilClassType_DwarfSection,
     PebilClassType_DwarfLineInfoSection,
     PebilClassType_Dynamic,
     PebilClassType_DynamicTable,
@@ -195,7 +196,7 @@ typedef enum {
     PebilClassType_GlobalOffsetTable,
     PebilClassType_GnuHashTable,
     PebilClassType_GnuVerneed,
-    PebilClassType_GnuVerneedTable, // 15
+    PebilClassType_GnuVerneedTable,
     PebilClassType_GnuVersym,
     PebilClassType_GnuVersymTable,
     PebilClassType_X86Instruction,
@@ -205,16 +206,16 @@ typedef enum {
     PebilClassType_Note,
     PebilClassType_NoteSection,
     PebilClassType_ProgramHeader,
-    PebilClassType_RawBlock, // 25
+    PebilClassType_RawBlock,
     PebilClassType_RawSection,
     PebilClassType_RelocationTable,
     PebilClassType_Relocation,
-    PebilClassType_SectionHeader, 
+    PebilClassType_SectionHeader,
     PebilClassType_StringTable, // 30
     PebilClassType_Symbol,
     PebilClassType_SymbolTable,
     PebilClassType_SysvHashTable,
-    PebilClassType_TextSection,
+    PebilClassType_TextSection, 
     PebilClassType_Total_Types
 } PebilClassTypes;
 
