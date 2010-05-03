@@ -139,7 +139,6 @@ void CallReplace::instrument(){
             line = myLineInfos[i]->GET(lr_line);
             fname = myLineInfos[i]->getFileName();
         }
-        PRINT_INFOR("passing along %s", fname);
         uint64_t filenameaddr = getInstDataAddress() + reserveDataOffset(strlen(fname) + 1);
         initializeReservedData(getInstDataAddress() + fileNames + i*sizeof(char*), sizeof(char*), &filenameaddr);
         initializeReservedData(filenameaddr, strlen(fname), fname);
