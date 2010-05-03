@@ -123,10 +123,6 @@ void ElfFileInst::buildInstrumentationSections(){
 
     FileHeader* fileHeader = elfFile->getFileHeader();
     SectionHeader* finalHeader = elfFile->getSectionHeader(elfFile->getNumberOfSections() - 1);
-    ASSERT(finalHeader->GET(sh_type) == SHT_DYNAMIC);
-
-    uint64_t usableAddress = dynamicTableReserved;
-    uint64_t usableOffset = finalHeader->GET(sh_offset);
 
     SectionHeader* genericDataHdr = elfFile->getSectionHeader(elfFile->findSectionIdx(".data"));
     ASSERT(genericDataHdr);
@@ -155,8 +151,16 @@ void ElfFileInst::buildInstrumentationSections(){
         phdrAlign = pHdr->GET(p_align);
     }
     SectionHeader* genericTextHdr = elfFile->getSectionHeader(lowestTextSectionIdx);
-
     ProgramHeader* dHdr = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
+    uint64_t usableAddress = dynamicTableReserved;
+    uint64_t usableOffset = finalHeader->GET(sh_offset);
+    if (!elfFile->isStaticLinked()){
+        ASSERT(finalHeader->GET(sh_type) == SHT_DYNAMIC);
+    } else {
+        usableOffset += finalHeader->GET(sh_size);
+	usableAddress = nextAlignAddress(usableAddress, dHdr->GET(p_align));
+	usableOffset = nextAlignAddress(usableOffset, dHdr->GET(p_align));
+    }
 
     // add the instrumentation segment
     //    PRINT_INFOR("usable address %#llx, align %x", usableAddress, dHdr->GET(p_align));
@@ -165,8 +169,10 @@ void ElfFileInst::buildInstrumentationSections(){
                                       usableAddress, TEMP_SEGMENT_SIZE, TEMP_SEGMENT_SIZE, PF_R | PF_W | PF_X, dHdr->GET(p_align));
 
 
-    usableAddress += Reserve__Instrumentation_DynamicTable;
-    usableOffset += Reserve__Instrumentation_DynamicTable;
+    if (!elfFile->isStaticLinked()){
+        usableAddress += Reserve__Instrumentation_DynamicTable;
+        usableOffset += Reserve__Instrumentation_DynamicTable;
+    }
 
     // add the instrumentation data section
     extraDataIdx = elfFile->getNumberOfSections();
@@ -844,7 +850,7 @@ void ElfFileInst::functionSelect(){
                 }
             } else {
                 PRINT_DEBUG_FUNC_RELOC("\thidden: %s\t%d %d %#llx %d %d %d %d %d %d %d", f->getName(), f->hasCompleteDisassembly(), isEligibleFunction(f), f->getBadInstruction(), f->isDisasmFail(), canRelocateFunction(f), f->isInstrumentationFunction(), f->getNumberOfBytes(), isDisabledFunction(f), f->hasSelfDataReference(), f->isDisasmFail());
-                PRINT_INFOR("Hiding function from instrumentation: %s (%#llx + %d bytes)", f->getName(), f->getBaseAddress(), f->getSizeInBytes());
+                //PRINT_INFOR("Hiding function from instrumentation: %s (%#llx + %d bytes)", f->getName(), f->getBaseAddress(), f->getSizeInBytes());
                 hiddenFunctions.append(f);
                 missingBytes += f->getSizeInBytes();
             }
@@ -878,7 +884,9 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
     declare();
-    extendDynamicTable();
+    if (!elfFile->isStaticLinked()){
+        extendDynamicTable();
+    }
 
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
@@ -1040,8 +1048,8 @@ InstrumentationFunction* ElfFileInst::declareFunction(char* funcName){
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
         if (!strcmp(funcName,func->getFunctionName())){
-            PRINT_ERROR("Trying to add a function that was already added -- %s", funcName);
-            return NULL;
+            PRINT_WARN(10, "Trying to add a function that was already added -- %s", funcName);
+            return func;
         }
     }
 
@@ -1444,7 +1452,9 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     ProgramHeader* dHdr = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
     instrumentationDataAddress = nextAlignAddress(instrumentationDataAddress, dHdr->GET(p_align));
     dynamicTableReserved = instrumentationDataAddress;
-    instrumentationDataAddress += Reserve__Instrumentation_DynamicTable;
+    if (!elfFile->isStaticLinked()){
+      instrumentationDataAddress += Reserve__Instrumentation_DynamicTable;
+    }
 
     instrumentationPoints = new Vector<InstrumentationPoint*>();
     // automatically set the 1st instrumentation point to go to the bootstrap code

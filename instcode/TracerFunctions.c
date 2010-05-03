@@ -6,75 +6,46 @@
 
 #include <InstrumentationCommon.h>
 
-int32_t numberOfCallSites;
-char** functionNames;
-
 FILE* logfile;
 int64_t timerstart;
-int32_t nameIsSet;
+int64_t timerstop;
 char* appName;
+int32_t* currentSiteIndex;
+char** fileNames;
+int32_t* lineNumbers;
 
-#include <IOWrappers.c>
-
-puts_wrapper(const char* str){
-    PRINT_INSTR(stdout, "puts: %s", str);
-    return puts(str);
-}
-
-fflush_wrapper(FILE* stream){
-    if (stream == NULL){
-        PRINT_INSTR(stdout, "fflush all");
-    } else {
-        PRINT_INSTR(stdout, "fflush %hhd", stream->_fileno);
-    }
-    return fflush(stream);
-}
-
-int32_t initwrapper(){
-}
-
-int32_t finishwrapper(){
-}
-
-int32_t inittracer(int32_t* numSites, char** funcNames, char* execName){
-    numberOfCallSites = *numSites;
-    functionNames = funcNames;
-    nameIsSet = 0;
-    logfile = NULL;
-    appName = execName;
-//    PRINT_INSTR(stdout, "Real args inittracer: %x %x", numSites, funcNames);
-}
-
-int32_t functionentry(){
-  if (!nameIsSet){
-    char logname[__MAX_STRING_SIZE];
-    sprintf(logname, "%s.log.%d", appName, getpid());
-    logfile = fopen(logname, "w");
-    logfile = stdout;
-    nameIsSet = 1;
-  }
-  assert(logfile);
+inline int starttimer(){
     timerstart = readtsc();
 }
 
-int32_t functiontracer(int32_t* idx, int64_t* args){
-    unsigned long long timerstop = readtsc();
-
-    PRINT_INSTR(stdout, "Real args functiontracer: %x %x", idx, args);
-    PRINT_INSTR(stdout, "Call site for %s (%d)", functionNames[*idx], *idx);
-
-    unsigned long long tmr = (timerstop - timerstart);
-
-    // a macro from IOWrappers.h
-    __all_wrapper_decisions
-
-    PRINT_INSTR(logfile, "function %s: %lld cycles", functionNames[*idx], tmr);
+inline int stoptimer(){
+    timerstop = readtsc();
 }
 
-int32_t finishtracer(){
-    int i;
-    PRINT_INSTR(stdout, "number of call sites %d", numberOfCallSites);
-
-    //    fclose(logfile);
+inline int64_t gettimer(){
+    return timerstop - timerstart;
 }
+
+inline void printtimer(FILE* stream){
+    PRINT_INSTR(stream, "timer value (in cycles): %lld", gettimer());
+}
+
+#include <IOWrappers.c>
+
+// do any initialization here
+// NOTE: on static-linked binaries, calling any functions from here will cause some problems
+int32_t initwrapper(int32_t* indexLoc, char** fNames, int32_t* lNum){
+    // at each call site we will put the index of the originating point in this location
+    currentSiteIndex = indexLoc;
+
+    fileNames = fNames;
+    lineNumbers = lNum;
+
+    logfile = stdout;
+}
+
+// do any cleanup here
+int32_t finishwrapper(){
+}
+
 

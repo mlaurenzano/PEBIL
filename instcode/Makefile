@@ -1,5 +1,5 @@
 DBG         = -g
-OPT         = -O3 -w --save-temps
+OPT         = -O3 -w# --save-temps
 SHARED_OPT  = -fPIC
 GNU_C       = gcc
 CC          = $(GNU_C) $(DBG) $(OPT)
@@ -31,10 +31,10 @@ SRCDIR      = ../instcode
 BINDIR      = ../bin
 LIBDIR      = ../lib
 
-SRCS        = CounterFunctions.c SimulationFunctions.c CacheSimulationCommon.c TimerFunctions.c TracerFunctions.c MPIWrappers.c
-OBJS        = CounterFunctions.o SimulationFunctions.o CacheSimulationCommon.o TimerFunctions.o TracerFunctions.o MPIWrappers.o
+SRCS        = CounterFunctions.c SimulationFunctions.c CacheSimulationCommon.c TimerFunctions.c TracerFunctions.c# MPIWrappers.c
+OBJS        = CounterFunctions.o SimulationFunctions.o CacheSimulationCommon.o TimerFunctions.o TracerFunctions.o# MPIWrappers.o
 
-TARGET_LIBS = libcounter.so libcounter.a libsimulator.so libsimulator.a libtimer.so libtimer.a libtracer.so libtracer.a libmpiwrapper.so
+TARGET_LIBS = libcounter.so libcounter.a libsimulator.so libsimulator.a libtimer.so libtimer.a libtracer.so libtracer.a# libmpiwrapper.so
 
 all: $(TARGET_LIBS) install
 
@@ -66,7 +66,7 @@ libtracer.a : $(OBJS)
 	$(AR) $(AR_FLAGS) $@ TracerFunctions.o
 
 libmpiwrapper.so : $(OBJS)
-	icc $(SHARED_LIB) -lmpi -I/opt/sgi/mpt/mpt-1.26/include -o $@ MPIWrappers.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
+	cc $(SHARED_LIB) -o $@ MPIWrappers.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
 
 clean: 
 	rm -f core *.o *.O *.i *.s *.ii *.class $(TARGET_LIBS)

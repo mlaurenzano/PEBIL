@@ -1444,17 +1444,6 @@ uint32_t ElfFile::anchorProgramElements(){
     }
     qsort(allInstructions, instructionCount, sizeof(X86Instruction*), compareBaseAddress);
 
-    for (uint32_t i = 0; i < instructionCount; i++){
-        if (!strcmp(allInstructions[i]->getContainer()->getName(), "__write_nocancel")){
-            PRINT_INFOR("__write_nocancel instruction");
-            allInstructions[i]->print();
-        }
-        if (allInstructions[i]->getBaseAddress() == 0x418870){
-            PRINT_INFOR("found base instruction");
-            allInstructions[i]->print();
-        }
-    }
-
     DEBUG_ANCHOR(
     for (uint32_t i = 0; i < instructionCount; i++){
         allInstructions[i]->print();
