@@ -44,8 +44,6 @@ void BasicBlockCounter::instrument(){
     LineInfoFinder* lineInfoFinder = NULL;
     if (hasLineInformation()){
         lineInfoFinder = getLineInfoFinder();
-    } else {
-        PRINT_ERROR("This executable does not have any line information");
     }
 
     uint64_t lineArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(uint32_t));
@@ -111,7 +109,10 @@ void BasicBlockCounter::instrument(){
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
 
         BasicBlock* bb = getExposedBasicBlock(i);
-        LineInfo* li = lineInfoFinder->lookupLineInfo(bb);
+        LineInfo* li = NULL;
+        if (lineInfoFinder){
+            li = lineInfoFinder->lookupLineInfo(bb);
+        }
         Function* f = bb->getFunction();
 
         (*allBlocks).append(bb);

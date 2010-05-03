@@ -89,7 +89,6 @@ private:
     uint32_t expandHashTable(uint32_t idx);
 
     void initializeDisabledFunctions(char* inputFuncList);
-    void initializeDisabledFiles(char* inputFuncList);
 
     void applyInstrumentationDataToRaw();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
@@ -100,7 +99,6 @@ protected:
     Vector<X86Instruction*> exposedInstructions;
     Vector<X86Instruction*> exposedMemOps;
     Vector<char*>* disabledFunctions;
-    Vector<char*>* disabledFiles;
 
     Vector<SectionHeader*> instSectionHeaders;
     Vector<ProgramHeader*> instProgramHeaders;
@@ -134,7 +132,6 @@ protected:
     bool is64Bit() { return elfFile->is64Bit(); }
 
     bool isDisabledFunction(Function* func);
-    bool isDisabledFile(char* file);
 
     uint32_t getNumberOfExposedFunctions() { return exposedFunctions.size(); }
     Function* getExposedFunction(uint32_t idx) { return exposedFunctions[idx]; }
@@ -171,7 +168,6 @@ public:
     BasicBlock* getProgramEntryBlock();
 
     void setInputFunctions(char* inputFuncList);
-    void setInputFiles(char* inputFileList);    
 
     LineInfoFinder* getLineInfoFinder() { return lineInfoFinder; }
     bool hasLineInformation() { return (lineInfoFinder != NULL); }

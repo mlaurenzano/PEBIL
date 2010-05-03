@@ -99,8 +99,6 @@ void CacheSimulation::instrument(){
     LineInfoFinder* lineInfoFinder = NULL;
     if (hasLineInformation()){
         lineInfoFinder = getLineInfoFinder();
-    } else {
-        PRINT_ERROR("This executable does not have any line information");
     }
 
     ASSERT(isPowerOfTwo(Size__BufferEntry));
@@ -169,8 +167,11 @@ void CacheSimulation::instrument(){
 
         if (bfound || !blocksToInst.size()){
             (*allBlocks).append(bb);
-            (*allLineInfos).append(lineInfoFinder->lookupLineInfo(bb));
-            
+            if (lineInfoFinder){
+                (*allLineInfos).append(lineInfoFinder->lookupLineInfo(bb));
+            } else {
+                (*allLineInfos).append(NULL);
+            }
             uint32_t memopIdInBlock = 0;
             
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){

@@ -222,15 +222,6 @@ bool ElfFileInst::isDisabledFunction(Function* func){
     return false;
 }
 
-bool ElfFileInst::isDisabledFile(char* file){
-    for (uint32_t i = 0; i < (*disabledFiles).size(); i++){
-        if (!strcmp(file, (*disabledFiles)[i])){
-            return true;
-        }
-    }
-    return false;
-}
-
 uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, void* data){
     char* bytes = (char*)data;
 
@@ -269,25 +260,6 @@ bool ElfFileInst::isEligibleFunction(Function* func){
         return false;
     }
     if (func->getNumberOfBytes() < Size__uncond_jump){
-        return false;
-    }
-
-    bool allBlocksBad = true;
-    FlowGraph* fg = func->getFlowGraph();
-    for (uint32_t i = 0; i < fg->getNumberOfBasicBlocks(); i++){
-        BasicBlock* bb = fg->getBasicBlock(i);
-        LineInfo* li = lineInfoFinder->lookupLineInfo(bb);
-        if (li){
-            if (!isDisabledFile(li->getFileName())){
-                allBlocksBad = false;
-                break;
-            }
-        } else {
-            allBlocksBad = false;
-            break;
-        }
-    }
-    if (allBlocksBad){
         return false;
     }
 
@@ -1365,11 +1337,6 @@ ElfFileInst::~ElfFileInst(){
     }
     delete disabledFunctions;
     
-    for (uint32_t i = 0; i < (*disabledFiles).size(); i++){
-        delete[] (*disabledFiles)[i];
-    }
-    delete disabledFiles;
-
     if (instrumentationData){
         delete[] instrumentationData;
     }
@@ -1505,7 +1472,6 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     instSegment = NULL;
 
     disabledFunctions = new Vector<char*>();
-    disabledFiles = new Vector<char*>();
 
     flags = InstrumentorFlag_none;
 }
@@ -1515,14 +1481,6 @@ void ElfFileInst::setInputFunctions(char* inputFuncList){
 
     if (inputFuncList){
         initializeFileList(inputFuncList, disabledFunctions);
-    }
-}
-
-void ElfFileInst::setInputFiles(char* inputFileList){
-    ASSERT(!(*disabledFiles).size());
-
-    if (inputFileList){
-        initializeFileList(inputFileList, disabledFiles);
     }
 }
 
