@@ -17,3 +17,4 @@ _IO_fopen:fopen_pebil_wrapper
 _IO_fprintf:fprintf_pebil_wrapper
 _IO_printf:printf_pebil_wrapper
 __printf:printf_pebil_wrapper
+MPI_File_close:MPI_File_close_pebil_wrapper

@@ -60,7 +60,8 @@ libtimer.a : $(OBJS)
 	$(AR) $(AR_FLAGS) $@ TimerFunctions.o
 
 libtracer.so : $(OBJS)
-	$(CC) $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
+#	$(CC) $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
+	icc $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT) -lmpi
 
 libtracer.a : $(OBJS)
 	$(AR) $(AR_FLAGS) $@ TracerFunctions.o

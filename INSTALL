@@ -37,7 +37,6 @@ go the the external directory and read the INSTALL file there
 
 
 4. build PEBIL
->>>>>>> .r3247
 run `gmake' from the top-level directory
 
 5. run PEBIL
@@ -47,3 +46,4 @@ pebil --help
 Examples:
 pebil --typ jbb --app testapps/dynTest.gnu
 pebil --lib lib --typ ide src/pebil
+pebil --typ crp --trk $PEBIL_ROOT/scripts/inputlist/test.wrap --app cg.A.8
