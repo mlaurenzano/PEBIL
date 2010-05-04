@@ -1,8 +1,10 @@
 DBG         = -g
-OPT         = -O3 -w# --save-temps
+OPT         = -O3 -w -I/opt/mpt/3.5.0/xt/mpich2-pgi/include# --save-temps
 SHARED_OPT  = -fPIC
 GNU_C       = gcc
-CC          = $(GNU_C) $(DBG) $(OPT)
+NATIVE_C    = cc
+#CC          = $(GNU_C) $(DBG) $(OPT)
+CC          = $(NATIVE_C) $(DBG) $(OPT)
 SHARED_LIB  = -shared
 AR          = ar
 AR_FLAGS    = rcs
@@ -31,12 +33,24 @@ SRCDIR      = ../instcode
 BINDIR      = ../bin
 LIBDIR      = ../lib
 
-SRCS        = CounterFunctions.c SimulationFunctions.c CacheSimulationCommon.c TimerFunctions.c TracerFunctions.c# MPIWrappers.c
-OBJS        = CounterFunctions.o SimulationFunctions.o CacheSimulationCommon.o TimerFunctions.o TracerFunctions.o# MPIWrappers.o
+SRCS        = CounterFunctions.c SimulationFunctions.c CacheSimulationCommon.c TimerFunctions.c TracerFunctions.c
+OBJS        = CounterFunctions.o SimulationFunctions.o CacheSimulationCommon.o TimerFunctions.o TracerFunctions.o
 
-TARGET_LIBS = libcounter.so libcounter.a libsimulator.so libsimulator.a libtimer.so libtimer.a libtracer.so libtracer.a# libmpiwrapper.so
+TARGET_LIBS_SHARED = libcounter.so libsimulator.so libtimer.so libtracer.so
+TARGET_LIBS_STATIC = libcounter.a  libsimulator.a  libtimer.a  libtracer.a
+
+# this might need to be defined differently depending on whether the system supports shared libraries or not
+#TARGET_LIBS = $(TARGET_LIBS_SHARED) $(TARGET_LIBS_STATIC)
+#TARGET_LIBS = $(TARGET_LIBS_SHARED)
+TARGET_LIBS = $(TARGET_LIBS_STATIC)
 
 all: $(TARGET_LIBS) install
+
+shared: $(TARGET_LIBS_SHARED)
+
+static: $(TARGET_LIBS_STATIC)
+
+object: $(OBJS)
 
 %.o: %.c 
 	$(CC) $(EXTRA_CFLGS) $(CFLGS64) -I$(INCDIR) -c -o $@ $< $(SHARED_OPT)
@@ -61,13 +75,15 @@ libtimer.a : $(OBJS)
 
 libtracer.so : $(OBJS)
 #	$(CC) $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
-	icc $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT) -lmpi
+#	jade
+	cc $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT) -I/opt/mpt/3.5.0/xt/mpich2-pgi/include -lmpi
+
+#	diamond
+#	icc $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT) -lmpi
 
 libtracer.a : $(OBJS)
 	$(AR) $(AR_FLAGS) $@ TracerFunctions.o
 
-libmpiwrapper.so : $(OBJS)
-	cc $(SHARED_LIB) -o $@ MPIWrappers.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
 
 clean: 
 	rm -f core *.o *.O *.i *.s *.ii *.class $(TARGET_LIBS)

@@ -1698,11 +1698,6 @@ uint32_t ElfFile::anchorProgramElements(){
     for (uint32_t i = 0; i < (*addressAnchors).size(); i++){
         PRINT_DEBUG_ANCHOR("");
         DEBUG_ANCHOR((*addressAnchors)[i]->print();)
-
-            if ((*addressAnchors)[i]->linkBaseAddress == 0x419a10){
-                (*addressAnchors)[i]->print();
-            }
-
     }
 
     delete[] allInstructions;

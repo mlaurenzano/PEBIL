@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <string.h>
 #include <sys/time.h>
+#include <stdarg.h>
 
 #define __MAX_STRING_SIZE 1024
 
@@ -47,4 +48,49 @@ typedef struct
     unsigned char pt_disable[16];
 } instpoint_info;
 
+#define __wrapper_name(__fname) \
+    __fname ## _pebil_wrapper
+
+// simplistic method to fill format strings
+int write_formatstr(char* str, const char* format, int64_t* args){
+    int i;
+    int isescaped = 0, argcount = 0;
+    for (i = 0; i < strlen(format); i++){
+        if (format[i] == '\\'){
+            isescaped++;
+        } else {
+            if (format[i] == '%' && !isescaped){
+                argcount++;
+            }
+            isescaped = 0;
+        }
+    }
+    switch (argcount){
+    case 0:
+        sprintf(str, format);
+        break;
+    case 1:
+        sprintf(str, format, args[0]);
+        break;
+    case 2:
+        sprintf(str, format, args[0], args[1]);
+        break;
+    case 3:
+        sprintf(str, format, args[0], args[1], args[2]);
+        break;
+    case 4:
+        sprintf(str, format, args[0], args[1], args[2], args[3]);
+        break;
+    case 5:
+        sprintf(str, format, args[0], args[1], args[2], args[3], args[4]);
+        break;
+    case 6:
+        sprintf(str, format, args[0], args[1], args[2], args[3], args[4], args[5]);
+        break;
+    default:
+        return;
+    }
+}
+
 #endif // __INSTRUMENTATION_COMMON_H__
+

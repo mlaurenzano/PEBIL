@@ -41,7 +41,11 @@ uint32_t initializeFileList(char* fileName, Vector<char*>* list){
         char* line = new char[strlen(inBuffer)+1];
         sprintf(line, "%s", inBuffer);
         line[strlen(inBuffer)-1] = '\0';
-        (*list).append(line);
+        if (strlen(line) && line[0] == '#'){
+            delete[] line;
+        } else {
+            (*list).append(line);
+        }
     }
     delete[] inBuffer;
     fclose(inFile);

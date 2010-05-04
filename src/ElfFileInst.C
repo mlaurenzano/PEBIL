@@ -1048,7 +1048,6 @@ InstrumentationFunction* ElfFileInst::declareFunction(char* funcName){
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
         InstrumentationFunction* func = instrumentationFunctions[i];
         if (!strcmp(funcName,func->getFunctionName())){
-            PRINT_WARN(10, "Trying to add a function that was already added -- %s", funcName);
             return func;
         }
     }
@@ -1067,7 +1066,7 @@ InstrumentationFunction* ElfFileInst::declareFunction(char* funcName){
             }
         }
         if (!functionEntry){
-            PRINT_ERROR("In static linked binary instrumentation function %s must be linked in", funcName);
+            PRINT_WARN(15, "In static linked binary instrumentation function %s should be linked in", funcName);
         }
     }
         

@@ -148,7 +148,7 @@ void CallReplace::instrument(){
     programEntry->addArgument(lineNumbers);
 
     for (uint32_t i = 0; i < myInstPoints.size(); i++){
-        PRINT_INFOR("%#llx: replacing call %s -> %s in function %s", myInstPoints[i]->getBaseAddress(), getFunctionName(myInstList[i]), getWrapperName(myInstList[i]), myInstPoints[i]->getContainer()->getName());
+        PRINT_INFOR("(site %d) %#llx: replacing call %s -> %s in function %s", i, myInstPoints[i]->getBaseAddress(), getFunctionName(myInstList[i]), getWrapperName(myInstList[i]), myInstPoints[i]->getContainer()->getName());
         InstrumentationPoint* pt = addInstrumentationPoint(myInstPoints[i], functionWrappers[myInstList[i]], InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
         if (getElfFile()->is64Bit()){
             pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));

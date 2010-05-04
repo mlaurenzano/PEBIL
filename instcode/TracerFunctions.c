@@ -3,8 +3,10 @@
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
-
 #include <InstrumentationCommon.h>
+
+#define USING_MPI_WRAPPERS
+#define USING_CSTD_WRAPPERS
 
 FILE* logfile;
 int64_t timerstart;
@@ -26,11 +28,7 @@ inline int64_t gettimer(){
     return timerstop - timerstart;
 }
 
-inline void printtimer(FILE* stream){
-    PRINT_INSTR(stream, "timer value (in cycles): %lld", gettimer());
-}
-
-#include <IOWrappers.c>
+#define printtimer(__stream) PRINT_INSTR(__stream, "timer value (in cycles): %lld", gettimer())
 
 // do any initialization here
 // NOTE: on static-linked binaries, calling any functions from here will cause some problems
@@ -48,4 +46,10 @@ int32_t initwrapper(int32_t* indexLoc, char** fNames, int32_t* lNum){
 int32_t finishwrapper(){
 }
 
+#ifdef USING_CSTD_WRAPPERS
+#include <IOWrappers.c>
+#endif // USING_CSTD_WRAPPERS
 
+#ifdef USING_MPI_WRAPPERS
+#include <MPIWrappers.c>
+#endif // USING_MPI

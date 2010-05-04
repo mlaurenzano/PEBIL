@@ -131,18 +131,10 @@ void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t
     ASSERT(linkedParent->getType() == PebilClassType_X86Instruction);
     X86Instruction* linkedInstruction = (X86Instruction*)linkedParent;
 
-    if (linkBaseAddress == 0x419a10){
-        print();
-    }
-
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         OperandX86* op = linkedInstruction->getOperand(i);
         if (op){
             if (op->isRelative()){
-                if (linkBaseAddress == 0x419a10){
-                    PRINT_INFOR("has relative op!!!");
-                }
-
                 if (op->getBytesUsed() == sizeof(uint8_t)){
                     dump8(binaryOutputFile, offset + op->getBytePosition());
                 } else if (op->getBytesUsed() == sizeof(uint16_t)){
