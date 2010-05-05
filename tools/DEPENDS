@@ -52,6 +52,7 @@ CallReplace.o: CallReplace.C CallReplace.h InstrumentationTool.h \
   ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
   ../include/SymbolTable.h ../include/defines/SymbolTable.d \
   ../include/LinkedList.h ../include/Instrumentation.h \
+  ../include/LineInformation.h ../include/defines/LineInformation.d \
   ../include/X86InstructionFactory.h
 FunctionCounter.o: FunctionCounter.C FunctionCounter.h \
   InstrumentationTool.h ../include/ElfFileInst.h ../include/Base.h \

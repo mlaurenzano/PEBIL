@@ -1,11 +1,16 @@
 DBG         = -g
+# Jade
 OPT         = -O3 -w -I/opt/mpt/3.5.0/xt/mpich2-pgi/include# --save-temps
+CC          = $(GNU_C) $(DBG) $(OPT)
+SHARED_LIB  = -shared -lmpi
+# Diamond
+#OPT	= -O3 -w
+#CC          = $(NATIVE_C) $(DBG) $(OPT)
+#SHARED_LIB  = -shared -lmpi
+
 SHARED_OPT  = -fPIC
 GNU_C       = gcc
-NATIVE_C    = cc
-#CC          = $(GNU_C) $(DBG) $(OPT)
-CC          = $(NATIVE_C) $(DBG) $(OPT)
-SHARED_LIB  = -shared
+NATIVE_C    = icc
 AR          = ar
 AR_FLAGS    = rcs
 
@@ -41,8 +46,8 @@ TARGET_LIBS_STATIC = libcounter.a  libsimulator.a  libtimer.a  libtracer.a
 
 # this might need to be defined differently depending on whether the system supports shared libraries or not
 #TARGET_LIBS = $(TARGET_LIBS_SHARED) $(TARGET_LIBS_STATIC)
-#TARGET_LIBS = $(TARGET_LIBS_SHARED)
-TARGET_LIBS = $(TARGET_LIBS_STATIC)
+TARGET_LIBS = $(TARGET_LIBS_SHARED)
+#TARGET_LIBS = $(TARGET_LIBS_STATIC)
 
 all: $(TARGET_LIBS) install
 
@@ -76,17 +81,17 @@ libtimer.a : $(OBJS)
 libtracer.so : $(OBJS)
 #	$(CC) $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
 #	jade
-	cc $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT) -I/opt/mpt/3.5.0/xt/mpich2-pgi/include -lmpi
+#	cc $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
 
 #	diamond
-#	icc $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT) -lmpi
+	cc $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
 
 libtracer.a : $(OBJS)
 	$(AR) $(AR_FLAGS) $@ TracerFunctions.o
 
 
 clean: 
-	rm -f core *.o *.O *.i *.s *.ii *.class $(TARGET_LIBS)
+	rm -f core *.o *.O *.i *.s *.ii *.class *.a *.so $(TARGET_LIBS)
 	(cd $(LIBDIR); rm -f $(TARGET_LIBS))
 
 install: $(TARGET_LIBS)

@@ -16,7 +16,6 @@ int32_t* currentSiteIndex;
 char** fileNames;
 int32_t* lineNumbers;
 
-int32_t glob;
 inline int starttimer(){
     timerstart = readtsc();
 }
@@ -41,7 +40,6 @@ int32_t initwrapper(int32_t* indexLoc, char** fNames, int32_t* lNum){
     lineNumbers = lNum;
 
     logfile = stdout;
-    glob = 0;
 }
 
 // do any cleanup here
@@ -53,5 +51,5 @@ int32_t finishwrapper(){
 #endif // USING_CSTD_WRAPPERS
 
 #ifdef USING_MPI_WRAPPERS
-#include <MPIWrappers.c>
+#include <MPIIOWrappers.c>
 #endif // USING_MPI
