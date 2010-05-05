@@ -2,6 +2,8 @@
 #define _InstrumentationTool_h_
 
 #include <ElfFileInst.h>
+#include <Instrumentation.h>
+#include <X86Instruction.h>
 
 #define INFO_UNKNOWN "__info_unknown__"
 
@@ -20,12 +22,13 @@ class InstrumentationTool : public ElfFileInst {
 protected:
     void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos);
 
+    InstrumentationFunction* initWrapper;
 public:
     InstrumentationTool(ElfFile* elf);
     ~InstrumentationTool() { }
 
-    virtual void declare() { __SHOULD_NOT_ARRIVE; }
-    virtual void instrument() { __SHOULD_NOT_ARRIVE; }
+    virtual void declare();
+    virtual void instrument();
     virtual void usesModifiedProgram() { }
 
     virtual const char* briefName() { __SHOULD_NOT_ARRIVE; }

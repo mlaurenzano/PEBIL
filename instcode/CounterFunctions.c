@@ -66,6 +66,15 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
     hashValues = hashVals;
 
     return numberOfBasicBlocks;
+
+#ifdef USING_MPI_WRAPPERS
+    // use an unlikely value, so if we see this value we know there was
+    // a problem getting task id
+    taskid = 0xdeadbeef;
+#else
+    taskid = 0;
+#endif
+
 }
 
 int32_t blockcounter(int32_t* blockCounts, char* appName, char* instExt){
@@ -77,7 +86,7 @@ int32_t blockcounter(int32_t* blockCounts, char* appName, char* instExt){
     PRINT_INSTR(stdout, "There are %d basic blocks in the code:", numberOfBasicBlocks);
 
     char* outFileName = malloc(sizeof(char) * __MAX_STRING_SIZE);
-    sprintf(outFileName, "%s.%d.%s", appName, getpid(), instExt);
+    sprintf(outFileName, "%s.meta_%04d.%s", appName, __taskid, instExt);
     PRINT_INSTR(stdout, "Printing blocks with at least %d executions to file %s", PRINT_MINIMUM, outFileName);
     FILE* outFile = fopen(outFileName, "w");
     free(outFileName);

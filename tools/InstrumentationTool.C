@@ -7,9 +7,30 @@
 #include <Loop.h>
 #include <TextSection.h>
 
+#define MPI_INIT_WRAPPER "MPI_Init_pebil_wrapper"
+#define MPI_INIT_LIST "PMPI_Init:MPI_Init"
+
 InstrumentationTool::InstrumentationTool(ElfFile* elf)
     : ElfFileInst(elf)
 {
+}
+
+void InstrumentationTool::declare(){
+    initWrapper = declareFunction("MPI_Init_pebil_wrapper");
+    ASSERT(initWrapper && "Cannot find MPI_Init function, are you sure it was declared?");
+}
+
+void InstrumentationTool::instrument(){
+    // wrap any call to MPI_Init
+    Vector<X86Instruction*>* mpiInitCalls = findAllCalls("PMPI_Init:MPI_Init");
+    initWrapper->setMinimalWrapper();
+    for (uint32_t i = 0; i < (*mpiInitCalls).size(); i++){
+        ASSERT((*mpiInitCalls)[i]->isFunctionCall());
+        ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
+        PRINT_INFOR("Adding MPI_Init wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapper, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+    }
+
 }
 
 void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos){

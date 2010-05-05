@@ -27,6 +27,44 @@ uint32_t bloatCount = 0;
 
 #define Reserve__Instrumentation_DynamicTable 0x8000
 
+
+Vector<X86Instruction*>* ElfFileInst::findAllCalls(char* names){
+    char* fnames = new char[strlen(names)+1];
+    memcpy(fnames, names, strlen(names));
+    fnames[strlen(names)] = '\0';
+
+    Vector<uint32_t> fstart;
+    fstart.append(0);
+    for (uint32_t i = 0; i < strlen(fnames); i++){
+        if (fnames[i] == ':'){
+            fnames[i] = '\0';
+            fstart.append(i+1);
+        }
+    }
+
+    Vector<X86Instruction*>* calls = new Vector<X86Instruction*>();
+    for (uint32_t i = 0; i < getNumberOfExposedInstructions(); i++){
+        X86Instruction* instruction = getExposedInstruction(i);
+        ASSERT(instruction->getContainer()->isFunction());
+        Function* function = (Function*)instruction->getContainer();
+
+        if (instruction->isFunctionCall()){
+            Symbol* functionSymbol = elfFile->lookupFunctionSymbol(instruction->getTargetAddress());
+
+            if (functionSymbol){
+                for (uint32_t j = 0; j < fstart.size(); j++){
+                    if (!strcmp(fnames + fstart[j], functionSymbol->getSymbolName())){
+                        (*calls).append(instruction);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    delete[] fnames;
+    return calls;
+}
+
 void ElfFileInst::extendDynamicTable(){
     DynamicTable* dynamicTable = elfFile->getDynamicTable();
     uint32_t oldDynamicIdx = dynamicTable->getSectionIndex();

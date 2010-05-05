@@ -80,6 +80,7 @@ CacheSimulation::~CacheSimulation(){
 }
 
 void CacheSimulation::declare(){
+    InstrumentationTool::declare();
     
     // declare any shared library that will contain instrumentation functions
     declareLibrary(INST_LIB_NAME);
@@ -94,6 +95,8 @@ void CacheSimulation::declare(){
 }
 
 void CacheSimulation::instrument(){
+    InstrumentationTool::instrument();
+
     uint32_t temp32;
     
     LineInfoFinder* lineInfoFinder = NULL;

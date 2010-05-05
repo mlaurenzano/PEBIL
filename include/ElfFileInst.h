@@ -143,6 +143,7 @@ protected:
     X86Instruction* getExposedMemOp(uint32_t idx) { return exposedMemOps[idx]; }    
 
     BasicBlock* getProgramExitBlock();
+    Vector<X86Instruction*>* findAllCalls(char* fnames);
 
 public:
     ElfFileInst(ElfFile* elf);

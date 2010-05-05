@@ -102,6 +102,8 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     MPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
     MPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
 
+    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
+
     return retval;
 }
 

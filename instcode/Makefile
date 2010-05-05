@@ -1,18 +1,18 @@
 DBG         = -g
-# Jade
-OPT         = -O3 -w -I/opt/mpt/3.5.0/xt/mpich2-pgi/include# --save-temps
-CC          = $(GNU_C) $(DBG) $(OPT)
-SHARED_LIB  = -shared
-# Diamond
-#OPT	= -O3 -w
-#CC          = $(NATIVE_C) $(DBG) $(OPT)
-#SHARED_LIB  = -shared
-
 SHARED_OPT  = -fPIC
 GNU_C       = gcc
 NATIVE_C    = icc
 AR          = ar
 AR_FLAGS    = rcs
+# Jade
+OPT         = -O3 -w -I/opt/mpt/3.5.0/xt/mpich2-pgi/include# --save-temps
+CC          = $(GNU_C) $(DBG) $(OPT)
+SHARED_LIB  = -shared
+# Diamond
+#OPT	    = -O3 -w
+#CC          = $(GNU_C) $(DBG) $(OPT)
+#SHARED_LIB  = -shared
+
 
 CFLGS64     = -DMETASIM_64_BIT_LIB
 

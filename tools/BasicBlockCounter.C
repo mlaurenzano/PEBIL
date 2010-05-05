@@ -21,7 +21,9 @@ BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     exitFunc = NULL;
 }
 
-void BasicBlockCounter::declare(){
+void BasicBlockCounter::declare()
+{
+    InstrumentationTool::declare();
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
     
     // declare any shared library that will contain instrumentation functions
@@ -37,7 +39,9 @@ void BasicBlockCounter::declare(){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 }
 
-void BasicBlockCounter::instrument(){
+void BasicBlockCounter::instrument() 
+{
+    InstrumentationTool::instrument();
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
     uint32_t temp32;
 
