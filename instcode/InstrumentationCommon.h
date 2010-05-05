@@ -88,6 +88,7 @@ int write_formatstr(char* str, const char* format, int64_t* args){
     }
 }
 
+int taskid;
 #ifdef USING_MPI_WRAPPERS
 #define __taskid taskid
 #define __ntasks ntasks
@@ -95,7 +96,6 @@ int write_formatstr(char* str, const char* format, int64_t* args){
 
 #include <mpi.h>
 
-int __taskid;
 int __ntasks;
 int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     int retval = MPI_Init(argc, argv);
