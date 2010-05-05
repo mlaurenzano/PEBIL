@@ -84,6 +84,7 @@ size_t __wrapper_name(libc_read)(int fd, void* buf, size_t count){
     int retval = read(fd, buf, count);
     stoptimer();
     PRINT_INSTR(stdout, "libc_read ([%d]%s:%d): handle=%d size=%d timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], fd, count, gettimer());    
+    PRINT_INSTR(stdout, "glob %d", glob++);
     return retval;
 }
 
