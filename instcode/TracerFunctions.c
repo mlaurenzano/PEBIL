@@ -5,9 +5,6 @@
 #include <string.h>
 #include <InstrumentationCommon.h>
 
-#define USING_MPI_WRAPPERS
-#define USING_CSTD_WRAPPERS
-
 FILE* logfile;
 int64_t timerstart;
 int64_t timerstop;

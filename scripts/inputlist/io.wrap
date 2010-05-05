@@ -13,6 +13,10 @@ FUNCTION_DOESNOTEXIST:vfprintf_pebil_wrapper
 FUNCTION_DOESNOTEXIST:printf_pebil_wrapper
 FUNCTION_DOESNOTEXIST:_IO_new_file_write
 #
+# MPI basics
+PMPI_Init:MPI_Init_pebil_wrapper
+MPI_Init:MPI_Init_pebil_wrapper
+#
 # C lib calls
 puts:puts_pebil_wrapper
 fflush:fflush_pebil_wrapper

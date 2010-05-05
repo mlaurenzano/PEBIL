@@ -6,7 +6,7 @@ SHARED_LIB  = -shared
 # Diamond
 #OPT	= -O3 -w
 #CC          = $(NATIVE_C) $(DBG) $(OPT)
-#SHARED_LIB  = -shared -lmpi
+#SHARED_LIB  = -shared
 
 SHARED_OPT  = -fPIC
 GNU_C       = gcc
