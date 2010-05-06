@@ -50,7 +50,7 @@ int __wrapper_name(fseek)(FILE* stream, long int offset, int origin){
         } else if (origin == SEEK_END){
             sprintf(org, "SEEK_END\0");
         }
-        PRINT_INSTR(logfile, "fseek ([%d]%s:%d): offset=%d origin=%s fileno=%hhd", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], offset, org, stream->_fileno);
+        PRINT_INSTR(logfile, "fseek ([%d]%s:%d): offset=%lld origin=%s fileno=%hhd", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], offset, org, stream->_fileno);
         free(org);
     }
 

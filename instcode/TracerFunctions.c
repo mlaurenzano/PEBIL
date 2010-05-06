@@ -27,6 +27,7 @@ inline int64_t gettimer(){
 
 #define printtimer(__stream) PRINT_INSTR(__stream, "timer value (in cycles): %lld", gettimer())
 
+
 // do any initialization here
 // NOTE: on static-linked binaries, calling any functions from here will cause some problems
 int32_t initwrapper(int32_t* indexLoc, char** fNames, int32_t* lNum){
