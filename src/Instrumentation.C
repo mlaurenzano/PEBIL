@@ -602,7 +602,12 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     } else {
         wrapperTargetOffset = procedureLinkOffset;
     }
+
+    // keep the stack aligned
+    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*(Size__trampoline_autoinc - Size__near_call_stack_inc), X86_REG_SP));
+
     wrapperInstructions.append(X86InstructionFactory64::emitCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
+    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc - Size__near_call_stack_inc, X86_REG_SP));
 
     if (!minimalWrapper){
         wrapperInstructions.append(X86InstructionFactory::emitFxRstor(dataBaseAddress + fxStorageOffset));
@@ -645,7 +650,10 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
         }
     }
 
+    // keep the stack aligned
+    wrapperInstructions.append(X86InstructionFactory32::emitLoadRegImmReg(X86_REG_SP, -1*(Size__trampoline_autoinc - Size__near_call_stack_inc), X86_REG_SP));
     wrapperInstructions.append(X86InstructionFactory32::emitCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
+    wrapperInstructions.append(X86InstructionFactory32::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc - Size__near_call_stack_inc, X86_REG_SP));
 
     if (!minimalWrapper){
         wrapperInstructions.append(X86InstructionFactory::emitFxRstor(dataBaseAddress + fxStorageOffset));
