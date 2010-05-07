@@ -12,8 +12,9 @@ private:
     Vector<InstrumentationFunction*> functionWrappers;
 
     Vector<char*>* functionList;
+    Vector<char*> libraries;
 public:
-    CallReplace(ElfFile* elf, char* traceFile);
+    CallReplace(ElfFile* elf, char* traceFile, char* libList);
     ~CallReplace();
 
     void declare();

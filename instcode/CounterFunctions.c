@@ -65,7 +65,13 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
     functionNames = functionNms;
     hashValues = hashVals;
 
-    return numberOfBasicBlocks;
+    PRINT_INSTR(stdout, "initcounter called");
+    int i;
+    double* a = (double*)malloc(4 * sizeof(double));
+    for (i = 0; i < 4; i++){
+        a[i] = 0.01*i;
+        PRINT_INSTR(stdout, "%f\n", a[i]);
+    }
 
 #ifdef USING_MPI_WRAPPERS
     // use an unlikely value, so if we see this value we know there was
@@ -75,13 +81,14 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
     taskid = 0;
 #endif
 
+    return numberOfBasicBlocks;
 }
 
 int32_t blockcounter(int32_t* blockCounts, char* appName, char* instExt){
     int32_t i;
 
-    //    PRINT_INSTR(stdout, "raw fini args: %x %x %x", blockCounts, appName, instExt);
-    //PRINT_INSTR(stdout, "actual fini args: %x %s %s", blockCounts, appName, instExt);
+    PRINT_INSTR(stdout, "raw fini args: %x %x %x", blockCounts, appName, instExt);
+    PRINT_INSTR(stdout, "actual fini args: %x %s %s", blockCounts, appName, instExt);
     PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
     PRINT_INSTR(stdout, "There are %d basic blocks in the code:", numberOfBasicBlocks);
 

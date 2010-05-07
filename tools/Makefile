@@ -21,7 +21,6 @@ SRCS  = BasicBlockCounter.C \
 	CallReplace.C \
 	FunctionCounter.C \
 	FunctionTimer.C \
-	IOTracer.C \
 	InstrumentationTool.C
 
 OBJS  =	BasicBlockCounter.o \
@@ -29,7 +28,6 @@ OBJS  =	BasicBlockCounter.o \
 	CallReplace.o \
 	FunctionCounter.o \
 	FunctionTimer.o \
-	IOTracer.o \
 	InstrumentationTool.o
 
 all: clean $(TARGET_BIN) install

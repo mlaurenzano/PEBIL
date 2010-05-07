@@ -5,13 +5,13 @@ NATIVE_C    = icc
 AR          = ar
 AR_FLAGS    = rcs
 # Jade
-OPT         = -O3 -w -I/opt/mpt/3.5.0/xt/mpich2-pgi/include# --save-temps
-CC          = $(GNU_C) $(DBG) $(OPT)
-SHARED_LIB  = -shared
-# Diamond
-#OPT	    = -O3 -w
+#OPT         = -O3 -w -I/opt/mpt/3.5.0/xt/mpich2-pgi/include# --save-temps
 #CC          = $(GNU_C) $(DBG) $(OPT)
 #SHARED_LIB  = -shared
+# Diamond
+OPT	    = -O3 -w -mpreferred-stack-boundary=6
+CC          = $(GNU_C) $(DBG) $(OPT)
+SHARED_LIB  = -shared
 
 
 CFLGS64     = -DMETASIM_64_BIT_LIB
@@ -46,8 +46,8 @@ TARGET_LIBS_STATIC = libcounter.a  libsimulator.a  libtimer.a  libtracer.a
 
 # this might need to be defined differently depending on whether the system supports shared libraries or not
 #TARGET_LIBS = $(TARGET_LIBS_SHARED) $(TARGET_LIBS_STATIC)
-#TARGET_LIBS = $(TARGET_LIBS_SHARED)
-TARGET_LIBS = $(TARGET_LIBS_STATIC)
+TARGET_LIBS = $(TARGET_LIBS_SHARED)
+#TARGET_LIBS = $(TARGET_LIBS_STATIC)
 
 all: $(TARGET_LIBS) install
 

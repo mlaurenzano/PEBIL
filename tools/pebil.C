@@ -5,7 +5,6 @@
 #include <ElfFile.h>
 #include <FunctionCounter.h>
 #include <FunctionTimer.h>
-#include <IOTracer.h>
 #include <Vector.h>
 
 #define DEFAULT_FUNC_BLACKLIST "scripts/inputlist/none.func"
@@ -54,19 +53,20 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
     fprintf(stderr,"\t--dtl : optional for all. detailed .static file with lineno\n");
     fprintf(stderr,"\t        and filenames. default is no details.\n");
-    fprintf(stderr,"\t--inp : required for sim/csc. (non-functional for now)\n");
+    fprintf(stderr,"\t--inp : required for sim/csc.\n");
     fprintf(stderr,"\t--lpi : optional for sim/csc. loop level block inclusion for\n");
     fprintf(stderr,"\t        cache simulation. default is no.\n");
     fprintf(stderr,"\t--phs : optional for sim/csc. phase number. defaults to no phase,\n"); 
     fprintf(stderr,"\t        otherwise, .phase.N. is included in output file names\n");
-    fprintf(stderr,"\t--trk : required for iot or crp. input file which lists the functions to track\n");
+    fprintf(stderr,"\t--trk : required for crp. input file which lists the functions to track\n");
+    fprintf(stderr,"\t--lnc : required for crp. list of shared libraries to use, comma seperated\n");
     fprintf(stderr,"\n");
 }
 
 void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : pebil\n");
-    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|iot|ftm|crp)\n");
+    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|ftm|crp)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
     fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--ver [a-z]*]\n");
@@ -77,7 +77,8 @@ void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\t[--fbl file]\n");
     fprintf(stderr,"\t[--lpi]                     <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--phs <phase_no>]          <-- valid for sim/csc\n");
-    fprintf(stderr,"\t[--trk file]                <-- required for iot/crp\n");
+    fprintf(stderr,"\t[--trk file]                <-- required for crp\n");
+    fprintf(stderr,"\t[--lnc <lib_list>]          <-- required for crp\n");
     fprintf(stderr,"\t[--help]\n");
     fprintf(stderr,"\n");
     if(shouldExt){
@@ -148,7 +149,6 @@ typedef enum {
     simulation_inst_type,
     simucntr_inst_type,
     function_counter_type,
-    iotrace_inst_type,
     func_timer_type,
     call_wrapper_type,
     Total_InstrumentationType
@@ -176,6 +176,7 @@ int main(int argc,char* argv[]){
     char* rawPrintCodes = NULL;
     char* inputFuncList = NULL;
     char* inputTrackList = NULL;
+    char* libList       = NULL;
     bool deleteInpList  = false;
     char*    execName   = NULL;
 
@@ -208,9 +209,6 @@ int main(int argc,char* argv[]){
             } else if (!strcmp(argv[i],"csc")){
                 instType = simucntr_inst_type;
                 extension = "cscinst";
-            } else if (!strcmp(argv[i],"iot")){
-                instType = iotrace_inst_type;
-                extension = "iotinst";
             } else if (!strcmp(argv[i],"ftm")){
                 instType = func_timer_type;
                 extension = "ftminst";
@@ -297,6 +295,11 @@ int main(int argc,char* argv[]){
                 printUsage();
             }
             inputTrackList = argv[++i];
+        } else if (!strcmp(argv[i],"--lnc")){
+            if (libList){
+                printUsage();
+            }
+            libList = argv[++i];
         } else {
             fprintf(stderr,"\nError : Unknown switch at %s\n\n",argv[i]);
             printUsage();
@@ -384,22 +387,19 @@ int main(int argc,char* argv[]){
         elfInst = new BasicBlockCounter(&elfFile);
     } else if (instType == simulation_inst_type){
         elfInst = new CacheSimulation(&elfFile, inptName);
-    } else if (instType == iotrace_inst_type){
-        if (!inputTrackList){
-            fprintf(stderr, "\nError: option --trk needs to be given with iotracer\n");
-            printUsage();
-        }
-        ASSERT(inputTrackList);
-        elfInst = new IOTracer(&elfFile, inputTrackList);
     } else if (instType == func_timer_type){
         elfInst = new FunctionTimer(&elfFile);
     } else if (instType == call_wrapper_type){
         if (!inputTrackList){
-            fprintf(stderr, "\nError: option --trk needs to be given with call wrapper\n");
+            fprintf(stderr, "\nError: option --trk needs to be given with call wrapper inst\n");
             printUsage();
         }
         ASSERT(inputTrackList);
-        elfInst = new CallReplace(&elfFile, inputTrackList);
+        if (!libList){
+            fprintf(stderr, "\nError: option --lnc needs to be given with call wrapper inst\n");
+        }
+        ASSERT(libList);
+        elfInst = new CallReplace(&elfFile, inputTrackList, libList);
     }
     else {
         PRINT_ERROR("Error : invalid instrumentation type");

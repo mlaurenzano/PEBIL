@@ -9,7 +9,6 @@
 
 #define PROGRAM_ENTRY  "initwrapper"
 #define PROGRAM_EXIT   "finishwrapper"
-#define INST_LIB_NAME "libtracer.so"
 #define NOSTRING "__pebil_no_string__"
 
 CallReplace::~CallReplace(){
@@ -31,7 +30,7 @@ char* CallReplace::getWrapperName(uint32_t idx){
     return both;
 }
 
-CallReplace::CallReplace(ElfFile* elf, char* traceFile)
+CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* libList)
     : InstrumentationTool(elf)
 {
     programEntry = NULL;
@@ -54,11 +53,36 @@ CallReplace::CallReplace(ElfFile* elf, char* traceFile)
             PRINT_ERROR("input file %s line %d should contain a ':'", traceFile, i+1);
         }
     }
+
+    Vector<uint32_t> libIdx;
+    libIdx.append(0);
+    uint32_t listSize = strlen(libList);
+    for (uint32_t i = 0; i < listSize; i++){
+        if (libList[i] == ','){
+            libList[i] = '\0';
+            libIdx.append(i+1);
+        }
+    }
+    for (uint32_t i = 0; i < libIdx.size(); i++){
+        if (libIdx[i] < listSize){
+            libraries.append(libList + libIdx[i]);
+        } else {
+            PRINT_ERROR("improperly formatted library list given to call replacement tool");
+            __SHOULD_NOT_ARRIVE;
+        }
+    }
+
+    for (uint32_t i = 0; i < libraries.size(); i++){
+        PRINT_INFOR("library -- %s", libraries[i]);
+    }
+
 }
 
 void CallReplace::declare(){
     // declare any shared library that will contain instrumentation functions
-    declareLibrary(INST_LIB_NAME);
+    for (uint32_t i = 0; i < libraries.size(); i++){
+        declareLibrary(libraries[i]);
+    }
 
     // declare any instrumentation functions that will be used
     programEntry = declareFunction(PROGRAM_ENTRY);
