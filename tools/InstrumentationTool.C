@@ -23,7 +23,7 @@ void InstrumentationTool::declare(){
 void InstrumentationTool::instrument(){
     // wrap any call to MPI_Init
     Vector<X86Instruction*>* mpiInitCalls = findAllCalls("PMPI_Init:MPI_Init");
-    initWrapper->setMinimalWrapper();
+    initWrapper->setSkipWrapper();
     for (uint32_t i = 0; i < (*mpiInitCalls).size(); i++){
         ASSERT((*mpiInitCalls)[i]->isFunctionCall());
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);

@@ -9,10 +9,13 @@ AR_FLAGS    = rcs
 #CC          = $(GNU_C) $(DBG) $(OPT)
 #SHARED_LIB  = -shared
 # Diamond
-OPT	    = -O3 -w -mpreferred-stack-boundary=6
+#OPT	    = -O3 -w
+#CC          = $(GNU_C) $(DBG) $(OPT)
+#SHARED_LIB  = -shared
+# Normal
+OPT         = -O3 -w
 CC          = $(GNU_C) $(DBG) $(OPT)
 SHARED_LIB  = -shared
-
 
 CFLGS64     = -DMETASIM_64_BIT_LIB
 

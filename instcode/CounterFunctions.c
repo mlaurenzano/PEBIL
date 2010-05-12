@@ -45,11 +45,6 @@ int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** f
     PRINT_INSTR(stdout, "Printing functions with at least %d executions", PRINT_MINIMUM);
 
     for (i = 0; i < *numFunctions; i++){
-        /*
-        PRINT_INSTR(stdout, "i %d", i);
-        PRINT_INSTR(stdout, "name %s", functionNames[i]);
-        PRINT_INSTR(stdout, "count %d", functionCounts[i]);
-        */
         if (functionCounts[i] >= PRINT_MINIMUM){
             PRINT_INSTR(stdout, "\tFunction(%d) %.80s executed %d times", i, functionNames[i], functionCounts[i]);
         }
@@ -64,14 +59,6 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
     fileNames = fileNms;
     functionNames = functionNms;
     hashValues = hashVals;
-
-    PRINT_INSTR(stdout, "initcounter called");
-    int i;
-    double* a = (double*)malloc(4 * sizeof(double));
-    for (i = 0; i < 4; i++){
-        a[i] = 0.01*i;
-        PRINT_INSTR(stdout, "%f\n", a[i]);
-    }
 
 #ifdef USING_MPI_WRAPPERS
     // use an unlikely value, so if we see this value we know there was

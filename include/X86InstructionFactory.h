@@ -43,7 +43,6 @@ public:
     static X86Instruction* emitRegIncrement(uint32_t idx);
     static X86Instruction* emitRegSubImm(uint8_t idx, uint32_t imm);
     static X86Instruction* emitAddByteToRegaddr(uint8_t byt, uint32_t idx);
-    static X86Instruction* emitAndImmReg(uint64_t, uint32_t);
 
     static X86Instruction* emitStoreAHToFlags();
     static X86Instruction* emitLoadAHFromFlags();
@@ -97,6 +96,7 @@ public:
     static X86Instruction* emitLoadEffectiveAddress(uint32_t baseReg, uint32_t indexReg, uint8_t scale, uint64_t value, uint32_t dest, bool hasBase, bool hasIndex);
 
     static X86Instruction* emitMoveSegmentRegToReg(uint32_t src, uint32_t dest);
+    static X86Instruction* emitRegAndReg(uint32_t, uint32_t);
 };
 
 class X86InstructionFactory32 : public X86InstructionFactory {

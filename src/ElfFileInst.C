@@ -637,7 +637,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
             }
 
             if (pt->getInstrumentationMode() != InstrumentationMode_inline){
-                pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, true, registerStorage, stackIsSafe);
+                pt->generateTrampoline(displaced, textBaseAddress, codeOffset, returnOffset, true, registerStorage, stackIsSafe, codeOffset);
             } else {
                 for (uint32_t k = 0; k < (*displaced).size(); k++){
                     delete (*displaced)[k];
@@ -1513,7 +1513,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     regStorageOffset = 0;
     fxStorageOffset = sizeof(uint64_t) * X86_64BIT_GPRS;
     // space for gprs, plus space for fp state
-    regStorageReserved = fxStorageOffset + 1024;
+    regStorageReserved = fxStorageOffset + FXSTORAGE_RESERVED;
     usableDataOffset = regStorageOffset + regStorageReserved;
 
     instSegment = NULL;

@@ -694,28 +694,24 @@ X86Instruction* X86InstructionFactory64::emitAddImmByteToMem(uint8_t imm, uint64
     return emitInstructionBase(len,buff);
 }
 
-X86Instruction* X86InstructionFactory::emitAndImmReg(uint64_t imm, uint32_t idx){
-    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
-    uint32_t len = 6;
-    uint32_t immoff = 2;
-    if (idx == X86_REG_AX){
-        len--;
-        immoff--;
-    }
+X86Instruction* X86InstructionFactory64::emitRegAndReg(uint32_t src, uint32_t srcdest){
+    ASSERT(src < X86_64BIT_GPRS && "Illegal register index given");
+    ASSERT(srcdest < X86_64BIT_GPRS && "Illegal register index given");
 
+    uint32_t len = 3;
     char* buff = new char[len];
-
-    // set opcode
-    buff[0] = 0x81;
-    buff[1] = 0xe0 + (char)(idx);
-    if (idx == X86_REG_AX){
-        buff[0] = 0x25;
+    
+    if (srcdest < X86_32BIT_GPRS){
+        buff[0] = 0x48;
+    } else {
+        buff[0] = 0x4c;
     }
-
-    uint32_t imm32 = (uint32_t)imm;
-    ASSERT(imm32 == (uint32_t)imm && "Cannot use more than 32 bits for the immediate");
-
-    memcpy(buff+immoff,&imm32,sizeof(uint32_t));
+    if (src < X86_32BIT_GPRS){
+    } else {
+        buff[0]++;
+    }
+    buff[1] = 0x21;
+    buff[2] = 0xc0 + 8*(srcdest % X86_32BIT_GPRS) + (src % X86_32BIT_GPRS);
 
     return emitInstructionBase(len,buff);
 }

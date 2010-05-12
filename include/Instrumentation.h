@@ -17,9 +17,11 @@ class InstrumentationPoint;
 #define Size__64_bit_function_bootstrap 128
 #define Size__32_bit_procedure_link 16
 #define Size__64_bit_procedure_link 16
-#define Size__32_bit_function_wrapper 64
-#define Size__64_bit_function_wrapper 128
+#define Size__32_bit_function_wrapper 128
+#define Size__64_bit_function_wrapper 256
 
+#define FXSTORAGE_RESERVED 0x1000
+#define Size__trampoline_stackalign 0x1000
 #define Size__trampoline_autoinc 0x80
 #define Size__near_call_stack_inc 0x08
 
@@ -142,7 +144,8 @@ protected:
     uint64_t relocationOffset;
 
     Vector<Argument> arguments;
-    bool minimalWrapper;
+    bool skipWrapper;
+    X86Instruction* pltHook;
 
 public:
     InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset, uint64_t fEntry);
@@ -157,7 +160,9 @@ public:
     uint32_t wrapperSize();
     uint32_t procedureLinkSize();
     uint32_t globalDataSize();
-    void setMinimalWrapper() { minimalWrapper = true; }
+    void setSkipWrapper() { skipWrapper = true; }
+    bool hasSkipWrapper() { return skipWrapper; }
+    void setPLTHook(X86Instruction* hook) { pltHook = hook; }
 
     virtual uint32_t bootstrapReservedSize() { __SHOULD_NOT_ARRIVE; }
     virtual uint32_t procedureLinkReservedSize() { Size__32_bit_procedure_link; }
@@ -279,7 +284,7 @@ public:
     FlagsProtectionMethods getFlagsProtectionMethod() { return protectionMethod; }
 
     uint32_t sizeNeeded();
-    virtual uint32_t generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe)
+    virtual uint32_t generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe, uint64_t currentOffset)
          { __SHOULD_NOT_ARRIVE; }
     uint64_t getTrampolineOffset() { return trampolineOffset; }
 
@@ -296,12 +301,12 @@ public:
 class InstrumentationPoint32 : public InstrumentationPoint {
 public:
     InstrumentationPoint32(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc);
-    uint32_t generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe);
+    uint32_t generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe, uint64_t currentOffset);
 };
 class InstrumentationPoint64 : public InstrumentationPoint {
 public:
     InstrumentationPoint64(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc);
-    uint32_t generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe);
+    uint32_t generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, uint64_t returnOffset, bool doReloc, uint64_t regStorageOffset, bool stackIsSafe, uint64_t currentOffset);
 };
 
 

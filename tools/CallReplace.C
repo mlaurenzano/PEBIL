@@ -92,7 +92,7 @@ void CallReplace::declare(){
 
     for (uint32_t i = 0; i < (*functionList).size(); i++){
         functionWrappers.append(declareFunction(getWrapperName(i)));
-        functionWrappers.back()->setMinimalWrapper();
+        functionWrappers.back()->setSkipWrapper();
     }
 }
 

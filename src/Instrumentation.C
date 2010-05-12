@@ -173,7 +173,8 @@ int compareInstSourceAddress(const void* arg1,const void* arg2){
 }
 
 uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, 
-                                                    uint64_t returnOffset, bool doReloc, uint64_t regStorageBase, bool stackIsSafe){
+                                                    uint64_t returnOffset, bool doReloc, uint64_t regStorageBase, bool stackIsSafe,
+                                                    uint64_t currentOffset){
     ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
 
     trampolineOffset = offset;
@@ -237,8 +238,14 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
         }
     } else {
         PRINT_DEBUG_INST("Generating relative call for trampoline %#llx + %d, %#llx", textBaseAddress + offset, trampolineSize, textBaseAddress+getTargetOffset());
+
         trampolineInstructions.append(X86InstructionFactory::emitCallRelative(offset + trampolineSize, getTargetOffset()));
+        trampolineInstructions.back()->setBaseAddress(textBaseAddress + currentOffset + trampolineSize);
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+
+        if (instrumentation->getType() == PebilClassType_InstrumentationFunction && ((InstrumentationFunction*)instrumentation)->hasSkipWrapper()){
+            ((InstrumentationFunction*)instrumentation)->setPLTHook(trampolineInstructions.back());            
+        }
     }
 
     while (hasMorePostcursorInstructions()){
@@ -253,6 +260,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
     } else if (protectionMethod == FlagsProtectionMethod_light){
         trampolineInstructions.append(X86InstructionFactory64::emitStoreAHToFlags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+
         trampolineInstructions.append(X86InstructionFactory64::emitMoveMemToReg(regStorageBase, X86_REG_AX, true));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
@@ -297,7 +305,8 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
 }
 
 uint32_t InstrumentationPoint32::generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, 
-                                                    uint64_t returnOffset, bool doReloc, uint64_t regStorageBase, bool stackIsSafe){
+                                                    uint64_t returnOffset, bool doReloc, uint64_t regStorageBase, bool stackIsSafe,
+                                                    uint64_t currentOffset){
     ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
 
     trampolineOffset = offset;
@@ -360,6 +369,7 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<X86Instruction*>* ins
     } else {
         PRINT_DEBUG_INST("Generating relative call for trampoline %#llx + %d, %#llx", textBaseAddress + offset, trampolineSize, textBaseAddress+getTargetOffset());
         trampolineInstructions.append(X86InstructionFactory::emitCallRelative(offset + trampolineSize, getTargetOffset()));
+        trampolineInstructions.back()->setBaseAddress(textBaseAddress + currentOffset + trampolineSize);
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -510,6 +520,12 @@ uint32_t InstrumentationFunction64::generateProcedureLinkInstructions(uint64_t t
 
     uint64_t procedureLinkAddress = textBaseAddress + procedureLinkOffset;
     procedureLinkInstructions.append(X86InstructionFactory64::emitIndirectRelativeJump(procedureLinkAddress,dataBaseAddress + globalDataOffset));
+    if (pltHook){
+        ASSERT(skipWrapper);
+        procedureLinkInstructions.back()->setBaseAddress(procedureLinkAddress);
+        pltHook->initializeAnchor(procedureLinkInstructions.back());
+    }
+
     procedureLinkInstructions.append(X86InstructionFactory64::emitStackPushImm(relocationOffset));
 
     uint32_t returnAddress = procedureLinkAddress + procedureLinkSize();
@@ -530,6 +546,13 @@ uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t t
     PRINT_DEBUG_INST("Generating PLT instructions at offset %llx", procedureLinkOffset);
 
     procedureLinkInstructions.append(X86InstructionFactory32::emitJumpIndirect(dataBaseAddress + globalDataOffset));
+    if (skipWrapper){
+        ASSERT(pltHook);
+        procedureLinkInstructions.back()->initializeAnchor(pltHook);
+    } else {
+        ASSERT(!pltHook);
+    }
+
     procedureLinkInstructions.append(X86InstructionFactory32::emitStackPushImm(relocationOffset));
     uint32_t returnAddress = textBaseAddress + procedureLinkOffset + procedureLinkSize();
     procedureLinkInstructions.append(X86InstructionFactory32::emitJumpRelative(returnAddress,realPLTAddress));
@@ -572,27 +595,26 @@ uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textB
 uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset){
     ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
-    if (!minimalWrapper){
-        wrapperInstructions.append(X86InstructionFactory64::emitPushEflags());
-        for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-            wrapperInstructions.append(X86InstructionFactory64::emitStackPush(i));
-        }
-        wrapperInstructions.append(X86InstructionFactory::emitFxSave(dataBaseAddress + fxStorageOffset));
-
-        ASSERT(arguments.size() < Num__64_bit_StackArgs && "More arguments must be pushed onto stack, which is not yet implemented"); 
+    wrapperInstructions.append(X86InstructionFactory64::emitPushEflags());
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+        wrapperInstructions.append(X86InstructionFactory64::emitStackPush(i));
+    }
+    uint64_t fxStorage = nextAlignAddress(dataBaseAddress + fxStorageOffset + sizeof(uint64_t), 16);
+    wrapperInstructions.append(X86InstructionFactory::emitFxSave(fxStorage));
+    
+    ASSERT(arguments.size() < Num__64_bit_StackArgs && "More arguments must be pushed onto stack, which is not yet implemented"); 
+    
+    for (uint32_t i = 0; i < arguments.size(); i++){
+        uint32_t idx = arguments.size() - i - 1;
         
-        for (uint32_t i = 0; i < arguments.size(); i++){
-            uint32_t idx = arguments.size() - i - 1;
-            
-            if (i < Num__64_bit_StackArgs){
-                uint32_t argumentRegister = map64BitArgToReg(idx);            
-                wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
-            } else {
-                PRINT_ERROR("64Bit instrumentation supports only %d args currently", Num__64_bit_StackArgs);
-            }
+        if (i < Num__64_bit_StackArgs){
+            uint32_t argumentRegister = map64BitArgToReg(idx);            
+            wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
+        } else {
+            PRINT_ERROR("64Bit instrumentation supports only %d args currently", Num__64_bit_StackArgs);
         }
     }
-
+    
     uint64_t wrapperTargetOffset = 0;
     if (isStaticLinked()){
         wrapperTargetOffset = functionEntry - textBaseAddress;
@@ -602,23 +624,26 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     } else {
         wrapperTargetOffset = procedureLinkOffset;
     }
-
-    // keep the stack aligned
-    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*(Size__trampoline_autoinc - Size__near_call_stack_inc), X86_REG_SP));
+    
+    // align the stack
+    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_SP, dataBaseAddress + fxStorageOffset));
+    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_stackalign, X86_REG_SP));
+    wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg((uint32_t)~(Size__trampoline_stackalign - 1), X86_REG_R15));
+    wrapperInstructions.append(X86InstructionFactory64::emitRegAndReg(X86_REG_SP, X86_REG_R15));
+    //    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__near_call_stack_inc, X86_REG_SP));
 
     wrapperInstructions.append(X86InstructionFactory64::emitCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
-    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc - Size__near_call_stack_inc, X86_REG_SP));
 
-    if (!minimalWrapper){
-        wrapperInstructions.append(X86InstructionFactory::emitFxRstor(dataBaseAddress + fxStorageOffset));
-        for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-            wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_64BIT_GPRS-1-i));
-        }
-        wrapperInstructions.append(X86InstructionFactory64::emitPopEflags());
+    wrapperInstructions.append(X86InstructionFactory64::emitMoveMemToReg(dataBaseAddress + fxStorageOffset, X86_REG_SP, true));
+    
+    wrapperInstructions.append(X86InstructionFactory::emitFxRstor(fxStorage));
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+        wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_64BIT_GPRS-1-i));
     }
-
+    wrapperInstructions.append(X86InstructionFactory64::emitPopEflags());
+    
     wrapperInstructions.append(X86InstructionFactory64::emitReturn());
-
+    
     uint32_t nopBytes = wrapperReservedSize() - wrapperSize();
     Vector<X86Instruction*>* nops = X86InstructionFactory64::emitNopSeries(nopBytes);
     while ((*nops).size()){
@@ -633,7 +658,7 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
 uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset){
     ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
-    if (!minimalWrapper){
+    if (!skipWrapper){
         wrapperInstructions.append(X86InstructionFactory32::emitPushEflags());
         for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
             wrapperInstructions.append(X86InstructionFactory32::emitStackPush(i));
@@ -651,11 +676,9 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
     }
 
     // keep the stack aligned
-    wrapperInstructions.append(X86InstructionFactory32::emitLoadRegImmReg(X86_REG_SP, -1*(Size__trampoline_autoinc - Size__near_call_stack_inc), X86_REG_SP));
     wrapperInstructions.append(X86InstructionFactory32::emitCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
-    wrapperInstructions.append(X86InstructionFactory32::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc - Size__near_call_stack_inc, X86_REG_SP));
 
-    if (!minimalWrapper){
+    if (!skipWrapper){
         wrapperInstructions.append(X86InstructionFactory::emitFxRstor(dataBaseAddress + fxStorageOffset));
         for (uint32_t i = 0; i < arguments.size(); i++){
             wrapperInstructions.append(X86InstructionFactory32::emitStackPop(X86_REG_CX));
@@ -713,7 +736,8 @@ InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, u
     globalDataOffset = dataoffset;
 
     distinctTrampoline = true;
-    minimalWrapper = false;
+    skipWrapper = false;
+    pltHook = NULL;
 }
 
 InstrumentationFunction::~InstrumentationFunction(){
