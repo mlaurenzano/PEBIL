@@ -12,6 +12,15 @@
 
 using namespace std;
 
+bool FlowGraph::isBlockInLoop(uint32_t idx){
+    for (uint32_t i = 0; i < loops.size(); i++){
+        if (loops[i]->isBlockIn(idx)){
+            return true;
+        }
+    }
+    return false;
+}
+
 void FlowGraph::flowAnalysis(){
     Vector<BitSet<uint32_t>*> uses;
     Vector<BitSet<uint32_t>*> defs;
@@ -287,11 +296,8 @@ void FlowGraph::connectGraph(BasicBlock* entry){
 }
 
 void FlowGraph::printLoops(){
-    if (basicBlocks.size()){
-        PRINT_INFOR("Flowgraph has base address %#llx", basicBlocks[0]->getBaseAddress());
-    }
     if (loops.size()){
-        print();
+        PRINT_INFOR("Flowgraph @ %#llx has %d loops", basicBlocks[0]->getBaseAddress(), loops.size());
     }
     for (uint32_t i = 0; i < loops.size(); i++){
         loops[i]->print();
@@ -407,7 +413,7 @@ uint32_t FlowGraph::buildLoops(){
 
     delete inLoop;
 
-    PRINT_DEBUG("\t%d Contains %d loops (back edges) from %d", getIndex(),numberOfLoops,basicBlocks.size());
+    PRINT_DEBUG_LOOP("\t%d Contains %d loops (back edges) from %d", getIndex(),numberOfLoops,basicBlocks.size());
 
     if (numberOfLoops){
         uint32_t i = 0;
@@ -420,7 +426,7 @@ uint32_t FlowGraph::buildLoops(){
     }
     ASSERT(loops.size() == numberOfLoops);
 
-    DEBUG_MORE(printInnerLoops());
+    DEBUG_LOOP(printInnerLoops());
 }
 
 BasicBlock* FlowGraph::getEntryBlock(){

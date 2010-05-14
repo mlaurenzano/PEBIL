@@ -30,7 +30,7 @@ void InstrumentationTool::instrument(){
         PRINT_INFOR("Adding MPI_Init wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
         InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapper, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
     }
-
+    delete mpiInitCalls;
 }
 
 void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos){

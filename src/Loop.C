@@ -29,7 +29,8 @@ void Loop::print(){
                 head->getBaseAddress(), tail->getIndex(), flowGraph->getNumberOfBasicBlocks());
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         if (blocks->contains(i)){
-            PRINT_INFOR("\tMember Block %d", i);
+            BasicBlock* bb = flowGraph->getBasicBlock(i);
+            PRINT_INFOR("\tMember Block %d: [%#llx,%#llx)", i, bb->getBaseAddress(), bb->getBaseAddress() + bb->getNumberOfBytes());
         }
     }
 }

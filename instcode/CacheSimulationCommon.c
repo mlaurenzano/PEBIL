@@ -167,7 +167,7 @@ int getRandomNumber()
 }
 
 uint32_t lookupRankId(){
-    return __taskid;
+    return taskid;
     uint32_t rankId = 0;
     char strBuffer[__MAX_STRING_SIZE];
 
@@ -476,7 +476,6 @@ void initCaches(){
             }
         }
 
-#ifdef VICTIM_CACHE
         for (i = 0; i < memoryHierarchy->levelCount; i++){
             Cache* cache = &(memoryHierarchy->levels[i]);
 
@@ -512,11 +511,9 @@ void initCaches(){
                 }
             }
         }
-#endif // VICTIM_CACHE
     }
 }
 
-#ifdef VICTIM_CACHE
 uint32_t processInclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startLevel, uint32_t levelCount, Address_t currentAddress, 
                                Address_t* victim, AccessStatus* status, BasicBlockInfo* currentBlock, uint32_t systemIdx, uint32_t accessIdx){
 
@@ -713,7 +710,6 @@ uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
     }
     return levelCount;
 }
-#endif //VICTIM_CACHE
 
 void processDFPatternEntry(BufferEntry* entries,Attribute_t startIndex,Attribute_t lastIndex){
     register Attribute_t i = 0;
@@ -836,7 +832,6 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
 
             register uint8_t levelCount = memoryHierarchy->levelCount;
 
-#ifdef VICTIM_CACHE
             Address_t victim;
             AccessStatus status = cache_miss;
             for (level = 0; level < levelCount; ){
@@ -857,67 +852,6 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
                     break;
                 }
             }
-#else // VICTIM_CACHE
-            for(level=0;level<levelCount;level++){
-                register Cache* cache = &(memoryHierarchy->levels[level]);
-                register Attribute_t sizeInBits = cache->attributes[line_size_in_bits];
-                register Attribute_t setCount  = cache->attributes[number_of_sets];
-                register Attribute_t assocCount = cache->attributes[set_associativity];
-
-                register Address_t cacheLineIndex = currentAddress >> sizeInBits;
-                register uint32_t setIdx = (cacheLineIndex % setCount);
-
-                register Address_t* content = cache->content + (setIdx * assocCount);
-
-                register uint16_t mostRecent = 0;
-                register uint32_t i = 0;
-                register AccessStatus status = cache_miss;
-
-                if(assocCount >= __MAX_LINEAR_SEARCH_ASSOC){
-                    i = findInHash(cacheLineIndex,setCount,assocCount,cache->highAssocHash,setIdx);
-                    if(i < assocCount){
-                        status = cache_hit;
-                        mostRecent = i;
-                    }
-                } else {
-                    for(i=0;i<assocCount;i++){
-                        if(content[i] == cacheLineIndex){
-                            status = cache_hit;
-                            mostRecent = i;
-                            break;
-                        }
-                    }
-                }
-
-                if(status == cache_hit){
-                    cache->hitMissCounters[cache_hit]++;
-                    currentBlock->hitMissCounters[STATUS_IDX(systemIdx,level,cache_hit)]++;
-                } else {
-                    cache->hitMissCounters[cache_miss]++;
-                    currentBlock->hitMissCounters[STATUS_IDX(systemIdx,level,cache_miss)]++;
-
-                    register Attribute_t replPolicy = cache->attributes[replacement_policy];
-                    if(replPolicy == repl_ran){
-                        mostRecent = getRandomNumber();
-                    } else if(replPolicy == repl_lru){
-                        mostRecent = (cache->MOSTRECENT(setIdx) + 1) % assocCount;
-                    } else if(replPolicy == repl_dir){
-                        mostRecent = 0;
-                    }
-
-                    if(assocCount >= __MAX_LINEAR_SEARCH_ASSOC){
-                        deleteFromHash(content[mostRecent],setCount,assocCount,cache->highAssocHash,setIdx);
-                        insertInHash(cacheLineIndex,setCount,assocCount,cache->highAssocHash,setIdx,mostRecent);
-                    }
-                    content[mostRecent] = cacheLineIndex;
-                }
-                cache->MOSTRECENT(setIdx) = mostRecent;
-
-                if(status == cache_hit){
-                    break;
-                }
-            }
-#endif // VICTIM_CACHE
         }
     }
 }
@@ -940,16 +874,12 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
     totalNumberOfAccesses += lastIndex;
 
     if(!blocks){
-#ifdef COUNT_BB_EXECCOUNT
-        assert(0 && "Cannot use counter within simulator currently");
-#endif
-
         char      appName[__MAX_STRING_SIZE];
         uint32_t  phaseId = 0;
         char      extension[__MAX_STRING_SIZE];
 
         sscanf(comment,"%s %u %s %u %u",appName,&phaseId,extension,&blockCount,&dumpCode);
-        //PRINT_INSTR(stdout, "comment handled -- %s %u %s %u %u", appName, phaseId, extension, blockCount, dumpCode);
+        PRINT_INSTR(stdout, "comment handled -- %s %u %s %u %u", appName, phaseId, extension, blockCount, dumpCode);
         blocks = (BasicBlockInfo*)malloc(sizeof(BasicBlockInfo) * blockCount);
         bzero(blocks,sizeof(BasicBlockInfo)*blockCount);
         initCaches();
@@ -985,13 +915,6 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         }
 
 
-#ifdef COUNT_BB_EXECCOUNT
-        uint64_t* counters = (uint64_t*)(entries + *entryCountPtr);
-        for(i=0;i<blockCount;i++){
-            blocks[i].counter = (counters + i);
-        }
-        dfps = (DFPatternSpec*)(counters + blockCount);
-#endif
         initDfPatterns(dfps,blockCount,blocks);
     }
 
@@ -1260,12 +1183,6 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* com
         return;
     }
 
-    for (i = 0; i < numberOfBasicBlocks; i++){
-        if (blockCounters[i]){
-            PRINT_INSTR(stdout, "block %d execution count: %d", i, blockCounters[i]);
-        }
-    }
-
     Counter_t processedSampleCount = 0;
     FILE* dfpFp = NULL;
     FILE* fp = openOutputFile(comment,&dfpFp);
@@ -1330,11 +1247,7 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* com
             fprintf(dfpFp,"#range <ranid> <minaddress> <maxaddress>\n");
         }
 
-#ifdef COUNT_BB_EXECCOUNT
-        fprintf(fp,"#block <seqid> <visitcount> <samplingvisits> <samplecount>\n");
-#else
         fprintf(fp,"#block <seqid> <visitcount> <samplecount>\n");
-#endif
         fprintf(fp,"#\tsys <sysid> lvl <cachelvl> <hitcount> <miscount> <hitpercent>\n");
         fprintf(fp,"#\tsaturation <satpercent>\n");
 
@@ -1342,12 +1255,8 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* com
             currentBlock = (blocks + i);
             if(blocks && currentBlock->sampleCount){
 
-#ifdef COUNT_BB_EXECCOUNT
-                fprintf(fp,"block\t%d\t%lld\t%lld\t%lld\n",i,*(currentBlock->counter),
-                        currentBlock->visitCount,currentBlock->sampleCount);
-#else
                 fprintf(fp,"block\t%d\t%d\t%lld\t%lld\n",i,blockCounters[i],currentBlock->visitCount,currentBlock->sampleCount);
-#endif
+
                 for(j=0;j<systemCount;j++){
                     MemoryHierarchy* memoryHierarchy = (systems + j);
                     for(k=0;k<memoryHierarchy->levelCount;k++){
@@ -1369,11 +1278,6 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* com
                     fprintf(fp,"\tsaturation\t%5.2f\n",getPercentage(currentBlock->saturationPoint,
                                                                    totalNumberOfAccesses));
                 }
-#ifdef COUNT_BB_EXECCOUNT
-            } else if(blocks) {
-                fprintf(fp,"## block\t%d\t%lld\t%lld\t%lld\n",i,*(currentBlock->counter),
-                        currentBlock->visitCount,currentBlock->sampleCount);
-#endif
             }
             if(dfpFp){
                 printDFPatternInfo(i,dfpFp,currentBlock);

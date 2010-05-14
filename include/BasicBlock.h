@@ -124,7 +124,7 @@ public:
     uint32_t getNumberOfIntegerOps();
     uint32_t getNumberOfStringOps();
 
-
+    bool isInLoop();
     bool controlFallsThrough();
     bool findExitInstruction();
 

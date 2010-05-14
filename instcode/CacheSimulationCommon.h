@@ -48,20 +48,16 @@ typedef enum {
     repl_lru = 0,
     repl_ran,
     repl_dir,
-#ifdef VICTIM_CACHE
     repl_lru_vc,
-#endif // VICTIM_CACHE
     Total_ReplacementPolicy
 } ReplacementPolicy;
 
-#ifdef VICTIM_CACHE
 #define IS_REPL_POLICY_VC(__policy)  (__policy == repl_lru_vc)
 #define IS_REPL_POLICY_LRU(__policy) ((__policy == repl_lru) || (__policy == repl_lru_vc))
 #define IS_REPL_POLICY_RAN(__policy) (__policy == repl_ran)
 #define IS_REPL_POLICY_DIR(__policy) (__policy == repl_dir)
 #define CACHE_LINE_INDEX(__addr,__bits) (__addr >> __bits)
 #define __L1_CACHE_LEVEL 0
-#endif //VICTIM_CACHE
 
 typedef enum {
     number_of_sets = 0,
@@ -99,9 +95,7 @@ typedef struct {
     uint32_t  index;
     uint8_t   levelCount;
     Cache     levels[__MAX_LEVEL]; 
-#ifdef VICTIM_CACHE
     uint8_t   isVictimCacheHierarchy;
-#endif
 } MemoryHierarchy;
 
 #ifndef NO_SAMPLING_MODE
@@ -133,9 +127,6 @@ typedef struct {
     Counter_t visitCount;
     Counter_t sampleCount;
     Counter_t hitMissCounters[__SYSTEM_COUNT*__MAX_LEVEL*Total_AccessStatus];
-#ifdef COUNT_BB_EXECCOUNT
-    Counter_t *counter;
-#endif
 } BasicBlockInfo;
 
 typedef struct {

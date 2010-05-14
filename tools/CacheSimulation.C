@@ -37,12 +37,16 @@ void CacheSimulation::usesModifiedProgram(){
     delete nop5Byte;
 }
 
-CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile)
+CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile, char* ext, uint32_t phase, bool lp)
     : InstrumentationTool(elf)
 {
     simFunc = NULL;
     exitFunc = NULL;
     entryFunc = NULL;
+
+    extension = ext;
+    phaseNo = phase;
+    loopIncl = lp;
 
     Vector<char*>* fileLines = new Vector<char*>();
     initializeFileList(inputFile, fileLines);
@@ -71,6 +75,7 @@ CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile)
     delete fileLines;
 
     blocksToInst.sort(compareHashCode);
+
 }
 
 CacheSimulation::~CacheSimulation(){
@@ -104,6 +109,44 @@ void CacheSimulation::instrument(){
         lineInfoFinder = getLineInfoFinder();
     }
 
+
+    // if any loop contains blocks that are in our list, include all blocks from those loops
+    if (loopIncl){
+        PRINT_INFOR("evaluating loops");
+
+        for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+            BasicBlock* bb = getExposedBasicBlock(i);
+            uint64_t hashValue = bb->getHashCode().getValue();
+
+            void* bfound = bsearch(&hashValue, &blocksToInst, blocksToInst.size(), sizeof(HashCode*), searchHashCode);
+
+            PRINT_INFOR("evaluating block @ %#llx", bb->getBaseAddress());
+            if (bfound || !blocksToInst.size()){                
+                if (bb->isInLoop()){
+                    PRINT_INFOR("block @ %#llx is in loop", bb->getBaseAddress());
+                    FlowGraph* fg = bb->getFlowGraph();
+                    for (uint32_t j = 0; j < fg->getNumberOfLoops(); j++){
+                        Loop* lp = fg->getLoop(j);
+                        if (lp->isBlockIn(bb->getIndex())){
+                            BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
+                            lp->getAllBlocks(allBlocks);
+                            for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
+                                uint64_t code = allBlocks[k]->getHashCode().getValue();
+                                HashCode* hashCode = new HashCode(code);
+                                blocksToInst.append(hashCode);
+                            }
+                            delete[] allBlocks;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // also sorts the vector
+    blocksToInst.removeRep(compareHashCode);
+
+
     ASSERT(isPowerOfTwo(Size__BufferEntry));
     uint64_t bufferStore  = reserveDataOffset(BUFFER_ENTRIES * Size__BufferEntry);
     char* emptyBuff = new char[BUFFER_ENTRIES * Size__BufferEntry];
@@ -122,8 +165,8 @@ void CacheSimulation::instrument(){
     uint64_t blockSizeStore = reserveDataOffset(sizeof(uint64_t));
 
     char* appName = getElfFile()->getFileName();
-    char* extension = "siminst";
-    uint32_t phaseId = 0;
+    char* ext = extension;
+    uint32_t phaseId = phaseNo;
     uint32_t dumpCode = 0;
     uint32_t commentSize = strlen(appName) + sizeof(uint32_t) + strlen(extension) + sizeof(uint32_t) + sizeof(uint32_t) + 4;
     uint64_t commentStore = reserveDataOffset(commentSize);

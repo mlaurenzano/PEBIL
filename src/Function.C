@@ -660,21 +660,11 @@ BasicBlock* Function::getBasicBlockAtAddress(uint64_t addr){
 }
 
 uint64_t Function::findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc){
-    //    ASSERT((loc == InstLocation_dont_care || loc == InstLocation_exact) && "Unsupported inst location being used in Function");
     ASSERT(inRange(addr) && "Instrumentation address should fall within Function bounds");
-
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         if (flowGraph->getBasicBlock(i)->inRange(addr)){
             return flowGraph->getBasicBlock(i)->findInstrumentationPoint(addr, size, loc);
         }
-            /*
-        } else { // loc == InstLocation_dont_care
-            uint64_t instAddress = flowGraph->getBasicBlock(i)->findInstrumentationPoint(addr, size, loc);
-            if (instAddress){
-                return instAddress;
-            }
-        }
-            */
     }
     return 0;
 }

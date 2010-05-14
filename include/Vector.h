@@ -49,6 +49,15 @@ public:
         qsort(elements, numberOfElements, sizeof(T), comparator);
     }
 
+    void removeRep(int (*comparator) (const void*, const void*)){
+        qsort(elements, numberOfElements, sizeof(T), comparator);
+        for (int32_t i = numberOfElements - 1; i > 0; i--){
+            if ((*comparator)((const void*)elements[i-1], (const void*)elements[i]) == 0){
+                remove(i-1);
+            }
+        }
+    }
+
     bool isSorted(int (*comparator) (const void*, const void*)){
         for (uint32_t i = 0; i < numberOfElements-1; i++){
             if (comparator(&elements[i],&elements[i+1]) > 0){

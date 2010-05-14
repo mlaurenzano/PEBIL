@@ -61,13 +61,16 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\t        otherwise, .phase.N. is included in output file names\n");
     fprintf(stderr,"\t--trk : required for crp. input file which lists the functions to track\n");
     fprintf(stderr,"\t--lnc : required for crp. list of shared libraries to use, comma seperated\n");
+    fprintf(stderr,"\t--dmp : optional for sim/csc. dump the address stream to disk.\n");
+    fprintf(stderr,"\t        default is off");
+    fprintf(stderr,"\t--dfp : optional for sim/csc. dfpattern file. defaults to no dfpattern file,\n");
     fprintf(stderr,"\n");
 }
 
 void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : pebil\n");
-    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|ftm|crp)\n");
+    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|csc|ftm|crp)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
     fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--ver [a-z]*]\n");
@@ -80,6 +83,8 @@ void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\t[--phs <phase_no>]          <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--trk file]                <-- required for crp\n");
     fprintf(stderr,"\t[--lnc <lib_list>]          <-- required for crp\n");
+    fprintf(stderr,"\t[--dfp <pattern_file>]      <-- valid for sim/csc\n");
+    fprintf(stderr,"\t[--dmp (off|on|nosim)]      <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--help]\n");
     fprintf(stderr,"\n");
     if(shouldExt){
@@ -87,6 +92,14 @@ void printUsage(bool shouldExt=true, bool optDetail=false) {
         exit(-1);
     }
 }
+
+typedef enum {
+    dumpcode_off = 0,
+    dumpcode_nosim = 1,
+    dumpcode_on = 2,
+    Total_DumpCode
+} DumpCode;
+
 
 uint32_t processPrintCodes(char* rawPrintCodes){
     uint32_t printCodes = 0;
@@ -148,7 +161,6 @@ typedef enum {
     identical_inst_type,
     frequency_inst_type,
     simulation_inst_type,
-    simucntr_inst_type,
     function_counter_type,
     func_timer_type,
     call_wrapper_type,
@@ -157,8 +169,6 @@ typedef enum {
 
 
 int main(int argc,char* argv[]){
-    int overflow = 0xbeefbeef;
-
     char*    inptName   = NULL;
     char*    extension  = "";
     char*    libPath    = NULL;
@@ -180,6 +190,8 @@ int main(int argc,char* argv[]){
     char* libList       = NULL;
     bool deleteInpList  = false;
     char*    execName   = NULL;
+    char*    dfpName    = NULL;
+    uint32_t dumpCode   = Total_DumpCode;
 
     TIMER(double t = timer());
     for (int32_t i = 1; i < argc; i++){
@@ -208,7 +220,7 @@ int main(int argc,char* argv[]){
                 instType = simulation_inst_type;
                 extension = "siminst";
             } else if (!strcmp(argv[i],"csc")){
-                instType = simucntr_inst_type;
+                instType = simulation_inst_type;
                 extension = "cscinst";
             } else if (!strcmp(argv[i],"ftm")){
                 instType = func_timer_type;
@@ -247,7 +259,7 @@ int main(int argc,char* argv[]){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
                 printUsage();
             }
-            if ((instType != simulation_inst_type) && (instType != simucntr_inst_type)){
+            if (instType != simulation_inst_type){
                 fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i]);
                 printUsage();
             }
@@ -265,7 +277,7 @@ int main(int argc,char* argv[]){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
                 printUsage();
             }
-            if ((instType != simulation_inst_type) && (instType != simucntr_inst_type)){
+            if (instType != simulation_inst_type){
                 fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i]);
                 printUsage();
             }
@@ -273,7 +285,7 @@ int main(int argc,char* argv[]){
             inptName = argv[++i];
         } else if (!strcmp(argv[i],"--lpi")){
             loopIncl = true;
-            if ((instType != simulation_inst_type) && (instType != simucntr_inst_type)){
+            if (instType != simulation_inst_type){
                 fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i++]);
                 printUsage();
             }
@@ -301,19 +313,45 @@ int main(int argc,char* argv[]){
                 printUsage();
             }
             libList = argv[++i];
+        } else if (!strcmp(argv[i],"--dmp")){
+            if (dumpCode != Total_DumpCode){
+                fprintf(stderr,"\nError : Option %d already given\n",argv[i]);
+                printUsage(argv);
+            }
+            ++i;
+            if (!strcmp(argv[i],"off")){
+                dumpCode = dumpcode_off;
+            } else if (!strcmp(argv[i],"on")){
+                dumpCode = dumpcode_on;
+            } else if (!strcmp(argv[i],"nosim")){
+                dumpCode = dumpcode_nosim;
+            } else {
+                fprintf(stderr,"\nError : Option %s given to --dmp is invalid\n",argv[i]);
+                printUsage(argv);
+            }
         } else {
             fprintf(stderr,"\nError : Unknown switch at %s\n\n",argv[i]);
             printUsage();
         }
     }
 
-    if (((instType == simulation_inst_type) || 
-         (instType == simucntr_inst_type)) && !inptName){
+    if (dumpCode == Total_DumpCode){
+        dumpCode = dumpcode_off;
+    }
+    if (dumpCode != dumpcode_off){
+        fprintf(stderr, "\tError : --dmp must be off");
+        printUsage();
+    }
+
+    if (instType == simulation_inst_type && !inptName){
         fprintf(stderr,"\nError : Input is required for cache simulation instrumentation\n\n");
         printUsage();
     }
 
-    ASSERT((instType == simulation_inst_type) || (instType == simucntr_inst_type) || (phaseNo == 0));
+    ASSERT(instType == simulation_inst_type || phaseNo == 0);
+    if (instType == simulation_inst_type){
+        ASSERT(!phaseNo || phaseNo == 1 && "Error : Support for multiple phases is deprecated");
+    }
 
     if (verbose){
         if (!rawPrintCodes){
@@ -363,6 +401,7 @@ int main(int argc,char* argv[]){
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Disasm  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
     elfFile.generateCFGs();
+    elfFile.findLoops();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d GenCFG  : %.2f seconds",++stepNumber,t2-t1);t1=t2);    
 
     if (extdPrnt){
@@ -390,7 +429,7 @@ int main(int argc,char* argv[]){
     } else if (instType == frequency_inst_type){
         elfInst = new BasicBlockCounter(&elfFile);
     } else if (instType == simulation_inst_type){
-        elfInst = new CacheSimulation(&elfFile, inptName);
+        elfInst = new CacheSimulation(&elfFile, inptName, extension, phaseNo, loopIncl);
     } else if (instType == func_timer_type){
         elfInst = new FunctionTimer(&elfFile);
     } else if (instType == call_wrapper_type){
@@ -413,6 +452,12 @@ int main(int argc,char* argv[]){
     ASSERT(elfInst);
     ASSERT(libPath);
     ASSERT(extension);
+
+    if (phaseNo > 0){
+        char* tmp = new char[__MAX_STRING_SIZE];
+        sprintf(tmp, "phase.%d.%s", phaseNo, extension);
+        extension = tmp;
+    }
 
     elfInst->setPathToInstLib(libPath);
     elfInst->setInstExtension(extension);

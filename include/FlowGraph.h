@@ -58,6 +58,7 @@ public:
     uint32_t buildLoops();
     void printInnerLoops();
     void printLoops();
+    bool isBlockInLoop(uint32_t idx);
 
     void addBlock(Block* block);    
     

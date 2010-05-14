@@ -9,6 +9,10 @@
 
 static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
 
+bool BasicBlock::isInLoop(){
+    return flowGraph->isBlockInLoop(getIndex());
+}
+
 uint32_t BasicBlock::searchForArgsPrep(bool is64Bit){
     ASSERT(containsCallToRange(0,-1));
     uint32_t argsToSearch = Num__64_bit_StackArgs;
