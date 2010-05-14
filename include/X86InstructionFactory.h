@@ -47,6 +47,7 @@ public:
     static X86Instruction* emitStoreAHToFlags();
     static X86Instruction* emitLoadAHFromFlags();
 
+    static X86Instruction* emitMoveImmToRegaddrImm(uint64_t immval, uint32_t idx, uint64_t immoff);
 };
 
 class X86InstructionFactory64 : public X86InstructionFactory {
@@ -74,7 +75,6 @@ public:
     static X86Instruction* emitMoveRegToRegaddrImm(uint32_t, uint32_t, uint64_t, bool);
     static X86Instruction* emitMoveRegaddrImmToReg(uint32_t, uint64_t, uint32_t);
     static X86Instruction* emitMoveImmToReg(uint64_t imm, uint32_t idx);
-    static X86Instruction* emitMoveImmToRegaddrImm(uint64_t immval, uint32_t idx, uint64_t immoff);
     static X86Instruction* emitMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest);
 
     static X86Instruction* emitMoveRegToMem(uint32_t idx, uint64_t addr);
@@ -104,6 +104,11 @@ private:
     static X86Instruction* emitInstructionBase(uint32_t sz, char* buf);
 
 public:
+    static Vector<X86Instruction*>* emitAddressComputation(X86Instruction* instruction, uint32_t dest);
+    static X86Instruction* emitLoadEffectiveAddress(OperandX86* op, uint32_t dest);
+    static X86Instruction* emitLoadEffectiveAddress(uint32_t baseReg, uint32_t indexReg, uint8_t scale, uint64_t value, uint32_t dest, bool hasBase, bool hasIndex);
+    static X86Instruction* emitMoveSegmentRegToReg(uint32_t src, uint32_t dest);
+
     static X86Instruction* emitExchangeMemReg(uint64_t addr, uint8_t idx);
 
     static X86Instruction* emitCompareImmReg(uint64_t imm, uint8_t reg);

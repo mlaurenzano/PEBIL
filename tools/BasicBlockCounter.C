@@ -69,7 +69,7 @@ void BasicBlockCounter::instrument()
     exitFunc->addArgument(appName);
     exitFunc->addArgument(instExt);
 
-    InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp);
+    InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
@@ -109,7 +109,7 @@ void BasicBlockCounter::instrument()
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
 
     uint32_t noProtPoints = 0;
-    uint32_t complexSelection = 0;
+    uint32_t callOut = 0;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
 
         BasicBlock* bb = getExposedBasicBlock(i);
@@ -167,26 +167,30 @@ void BasicBlockCounter::instrument()
             
         // register an instrumentation point at the function that uses this snippet
         FlagsProtectionMethods prot = FlagsProtectionMethod_light;
+        X86Instruction* bestinst = bb->getLeader();
+        InstLocations loc = InstLocation_prior;
 #ifndef NO_REG_ANALYSIS
-        if (bb->getLeader()->allFlagsDeadIn()){
-            prot = FlagsProtectionMethod_none;
-            noProtPoints++;
-        }
-        for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
-            if (bb->getInstruction(j)->allFlagsDeadIn() || bb->getInstruction(j)->allFlagsDeadOut()){
-                complexSelection++;
+        uint32_t j;
+        for (j = 0; j < bb->getNumberOfInstructions(); j++){
+            if (bb->getInstruction(j)->allFlagsDeadIn()){
+                bestinst = bb->getInstruction(j);
+                noProtPoints++;
+                prot = FlagsProtectionMethod_none;
                 break;
+            } else if (j == bb->getNumberOfInstructions() - 1 &&
+                       bb->getInstruction(j)->isCall() &&
+                       bb->getInstruction(j)->allFlagsDeadOut()){
+                callOut++;
             }
         }
 #endif
-        InstrumentationPoint* p = addInstrumentationPoint(bb, snip, InstrumentationMode_inline, prot);
+        InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, loc);
     }
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 #ifdef NO_REG_ANALYSIS
     PRINT_WARN(10, "Warning: register analysis disabled");
 #endif
-    PRINT_INFOR("Excluding flags protection for %d/%d instrumentation points", noProtPoints, getNumberOfExposedBasicBlocks());
-    //PRINT_INFOR("complex inst point selection: %d/%d instrumentation points", complexSelection, getNumberOfExposedBasicBlocks());
+    PRINT_INFOR("Excluding flags protection for %d/%d instrumentation points (+ %d w/ callout)", noProtPoints, getNumberOfExposedBasicBlocks(), callOut);
 
     printStaticFile(allBlocks, allLineInfos);
 

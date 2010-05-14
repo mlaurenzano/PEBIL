@@ -1,4 +1,4 @@
-#!/bin/perl
+#!/usr/bin/env perl
 
 use strict;
 use Cwd;
@@ -336,7 +336,7 @@ sub TraceHelper_Main {
     my $jbb_static    = undef;
     my $exec_name     = undef;
     my $run_dir       = undef;
-    my $pmacinst_exec   = "pmacinst";
+    my $pmacinst_exec   = "pebil";
     my $simulation_type = "sim";
     my $dump_type       = "off";
     my $bb_significance   = 0.95;
@@ -401,7 +401,7 @@ sub TraceHelper_Main {
             unless defined($inst_lib_top_dir);
 
     if(defined($inst_lib_top_dir)){
-        my $tmpdir = "$inst_lib_top_dir/lib";
+        my $tmpdir = "$inst_lib_top_dir";
         die "Error: The inst_lib directory $tmpdir does not exist\n" unless (-e $tmpdir);
     } 
 

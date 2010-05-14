@@ -371,6 +371,10 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<X86Instruction*>* ins
         trampolineInstructions.append(X86InstructionFactory::emitCallRelative(offset + trampolineSize, getTargetOffset()));
         trampolineInstructions.back()->setBaseAddress(textBaseAddress + currentOffset + trampolineSize);
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+
+        if (instrumentation->getType() == PebilClassType_InstrumentationFunction && ((InstrumentationFunction*)instrumentation)->hasSkipWrapper()){
+            ((InstrumentationFunction*)instrumentation)->setPLTHook(trampolineInstructions.back());            
+        }
     }
 
     while (hasMorePostcursorInstructions()){
@@ -527,7 +531,6 @@ uint32_t InstrumentationFunction64::generateProcedureLinkInstructions(uint64_t t
     }
 
     procedureLinkInstructions.append(X86InstructionFactory64::emitStackPushImm(relocationOffset));
-
     uint32_t returnAddress = procedureLinkAddress + procedureLinkSize();
     procedureLinkInstructions.append(X86InstructionFactory64::emitJumpRelative(returnAddress,realPLTAddress));
 
@@ -545,12 +548,12 @@ uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t t
 
     PRINT_DEBUG_INST("Generating PLT instructions at offset %llx", procedureLinkOffset);
 
+    uint64_t procedureLinkAddress = textBaseAddress + procedureLinkOffset;
     procedureLinkInstructions.append(X86InstructionFactory32::emitJumpIndirect(dataBaseAddress + globalDataOffset));
-    if (skipWrapper){
-        ASSERT(pltHook);
-        procedureLinkInstructions.back()->initializeAnchor(pltHook);
-    } else {
-        ASSERT(!pltHook);
+    if (pltHook){
+        ASSERT(skipWrapper);
+        procedureLinkInstructions.back()->setBaseAddress(procedureLinkAddress);
+        pltHook->initializeAnchor(procedureLinkInstructions.back());
     }
 
     procedureLinkInstructions.append(X86InstructionFactory32::emitStackPushImm(relocationOffset));

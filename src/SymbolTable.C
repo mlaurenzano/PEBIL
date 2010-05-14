@@ -74,7 +74,12 @@ void SymbolTable::sortForGnuHash(uint32_t firstSymIndex, uint32_t numberOfBucket
                             doneMod[j] = true;
                         }
                     } else {
-                        __FUNCTION_NOT_IMPLEMENTED;
+                        if (relocTable->getRelocation(j)->getSymbol() == sortRep[i] &&
+                            !doneMod[j]){
+                            PRINT_DEBUG_HASH("\t\tmodifying relocation %d: %d -> %d", j, sortRep[i], i); 
+                            relocTable->getRelocation(j)->setSymbolInfo(i);
+                            doneMod[j] = true;
+                        }
                     }
                 }
             }
@@ -179,7 +184,7 @@ uint32_t SymbolTable::findSymbol4Addr(uint64_t addr, Symbol** buffer, uint32_t b
     uint32_t retValue = 0;
 
     // turns out we CANNOT use a sort-by-value scheme with a symbol table because
-    // gnu hash tables require a different sorting. so we resort to linear search
+    // gnu hash tables require a different sorting. so we use a linear search
     for (uint32_t i = 0; i < symbols.size(); i++){
         if (symbols[i]->GET(st_value) == addr){
             if (retValue < buffCnt){

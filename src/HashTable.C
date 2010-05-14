@@ -68,8 +68,7 @@ void GnuHashTable::buildTable(uint32_t numEntries, uint32_t numBuckets){
     // create a single-entry bloom filter with all bits set. this will filter nothing.
     // there is a potential for a performance penalty when looking up symbols without a bloom filter
     bloomFilters = new uint64_t[numberOfBloomFilters];
-    bloomFilters[0] = 0xffffffffffffffff;
-    //bloomFilters[0] = 0;
+    bloomFilters[0] = (uint64_t)(0xffffffff << 32) | (uint64_t)(0xffffffff);
 
     sizeInBytes = (4 * sizeof(uint32_t)) + (hashEntrySize * numberOfBloomFilters) + (sizeof(uint32_t) * numberOfBuckets) + (sizeof(uint32_t) * numberOfEntries);
     verify();

@@ -366,11 +366,7 @@ uint64_t X86Instruction::getTargetAddress(){
     }
     else if (getInstructionType() == X86InstructionType_call){
         if (addressAnchor){
-            if (getContainer()->getTextSection()->getElfFile()->is64Bit()){
-                tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
-            } else {
-                tgtAddress = getBaseAddress() + addressAnchor->getLinkValue();
-            }
+            tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
         } else if (operands && operands[JUMP_TARGET_OPERAND]){
             if (operands[JUMP_TARGET_OPERAND]->getType() == UD_OP_JIMM){
                 tgtAddress = getBaseAddress();

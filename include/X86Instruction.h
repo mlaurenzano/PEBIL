@@ -282,6 +282,7 @@ public:
     bool isReturn() { return (getInstructionType() == X86InstructionType_return); }
     bool isFunctionCall() { return (getInstructionType() == X86InstructionType_call); }
     bool isSystemCall() { return (getInstructionType() == X86InstructionType_system_call); }
+    bool isCall() { return isSystemCall() || isFunctionCall(); }
     bool isHalt() { return (getInstructionType() == X86InstructionType_halt); }
     bool isNop() { return (getInstructionType() == X86InstructionType_nop); }
     bool isConditionCompare();

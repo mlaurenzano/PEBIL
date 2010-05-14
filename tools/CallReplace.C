@@ -130,6 +130,7 @@ void CallReplace::instrument(){
         Function* function = (Function*)instruction->getContainer();
         
         if (instruction->isFunctionCall()){
+            PRINT_INFOR("found function call @ %#llx", instruction->getBaseAddress());
             Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol(instruction->getTargetAddress());
 
             if (functionSymbol){

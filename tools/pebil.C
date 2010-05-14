@@ -7,7 +7,8 @@
 #include <FunctionTimer.h>
 #include <Vector.h>
 
-#define DEFAULT_FUNC_BLACKLIST "scripts/inputlist/none.func"
+#define DEFAULT_FUNC_BLACKLIST64 "scripts/inputlist/none.func"
+#define DEFAULT_FUNC_BLACKLIST32 "scripts/inputlist/system32.func"
 
 void printBriefOptions(bool detail){
     fprintf(stderr,"\n");
@@ -48,7 +49,7 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
     fprintf(stderr,"\t        default is $PEBIL_LIB\n");
     fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions\n");
-    fprintf(stderr,"\t        default is %s\n", DEFAULT_FUNC_BLACKLIST);
+    fprintf(stderr,"\t        default is %s(32b)/%s(64b)\n", DEFAULT_FUNC_BLACKLIST32, DEFAULT_FUNC_BLACKLIST64);
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
     fprintf(stderr,"\t--dtl : optional for all. detailed .static file with lineno\n");
@@ -330,17 +331,6 @@ int main(int argc,char* argv[]){
     }
     PRINT_INFOR("The instrumentation libraries will be used from %s",libPath);
 
-    if (!inputFuncList){
-        deleteInpList = true;
-        char* pebilRoot = getenv("PEBIL_ROOT");
-        if (!pebilRoot){
-            PRINT_ERROR("Set the PEBIL_ROOT variable"); 
-        }
-        inputFuncList = new char[__MAX_STRING_SIZE];
-        sprintf(inputFuncList, "%s/%s", pebilRoot, DEFAULT_FUNC_BLACKLIST);
-    }
-    PRINT_INFOR("The function blacklist is taken from %s", inputFuncList);
-
     if (dryRun){
         PRINT_INFOR("--dry option was used, exiting...");
         exit(0);
@@ -351,9 +341,23 @@ int main(int argc,char* argv[]){
 
     PRINT_INFOR("******** Instrumentation Beginning ********");
     ElfFile elfFile(execName);
-
     elfFile.parse();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Parse   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+
+    if (!inputFuncList){
+        deleteInpList = true;
+        char* pebilRoot = getenv("PEBIL_ROOT");
+        if (!pebilRoot){
+            PRINT_ERROR("Set the PEBIL_ROOT variable"); 
+        }
+        inputFuncList = new char[__MAX_STRING_SIZE];
+        if (elfFile.is64Bit()){
+            sprintf(inputFuncList, "%s/%s", pebilRoot, DEFAULT_FUNC_BLACKLIST64);
+        } else {
+            sprintf(inputFuncList, "%s/%s", pebilRoot, DEFAULT_FUNC_BLACKLIST32);
+        }
+    }
+    PRINT_INFOR("The function blacklist is taken from %s", inputFuncList);
 
     elfFile.initSectionFilePointers();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Disasm  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
