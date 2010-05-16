@@ -260,7 +260,7 @@ int main(int argc,char* argv[]){
                 printUsage();
             }
             if (instType != simulation_inst_type){
-                fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i]);
+                fprintf(stderr,"\nError : Option %s is not valid for typ other than sim/csc\n",argv[i]);
                 printUsage();
             }
 

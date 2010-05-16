@@ -49,13 +49,15 @@ public:
         qsort(elements, numberOfElements, sizeof(T), comparator);
     }
 
-    void removeRep(int (*comparator) (const void*, const void*)){
+    Vector<T>* removeRep(int (*comparator) (const void*, const void*)){
         qsort(elements, numberOfElements, sizeof(T), comparator);
+        Vector<T>* rem = new Vector<T>();
         for (int32_t i = numberOfElements - 1; i > 0; i--){
-            if ((*comparator)((const void*)elements[i-1], (const void*)elements[i]) == 0){
-                remove(i-1);
+            if (comparator(&elements[i-1], &elements[i]) == 0){
+                (*rem).append(remove(i-1));
             }
         }
+        return rem;
     }
 
     bool isSorted(int (*comparator) (const void*, const void*)){

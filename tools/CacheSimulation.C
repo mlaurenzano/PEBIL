@@ -112,18 +112,14 @@ void CacheSimulation::instrument(){
 
     // if any loop contains blocks that are in our list, include all blocks from those loops
     if (loopIncl){
-        PRINT_INFOR("evaluating loops");
-
         for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
             BasicBlock* bb = getExposedBasicBlock(i);
             uint64_t hashValue = bb->getHashCode().getValue();
 
             void* bfound = bsearch(&hashValue, &blocksToInst, blocksToInst.size(), sizeof(HashCode*), searchHashCode);
 
-            PRINT_INFOR("evaluating block @ %#llx", bb->getBaseAddress());
             if (bfound || !blocksToInst.size()){                
                 if (bb->isInLoop()){
-                    PRINT_INFOR("block @ %#llx is in loop", bb->getBaseAddress());
                     FlowGraph* fg = bb->getFlowGraph();
                     for (uint32_t j = 0; j < fg->getNumberOfLoops(); j++){
                         Loop* lp = fg->getLoop(j);
@@ -144,7 +140,11 @@ void CacheSimulation::instrument(){
     }
 
     // also sorts the vector
-    blocksToInst.removeRep(compareHashCode);
+    Vector<HashCode*>* rep = blocksToInst.removeRep(compareHashCode);
+    for (uint32_t i = 0; i < (*rep).size(); i++){
+        delete (*rep)[i];
+    }
+    delete rep;
 
 
     ASSERT(isPowerOfTwo(Size__BufferEntry));
