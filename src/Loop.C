@@ -46,7 +46,7 @@ uint32_t Loop::getAllBlocks(BasicBlock** arr){
     return blocks->size();
 }
 
-bool Loop::isInnerLoop(Loop* loop){
+bool Loop::isInnerLoopOf(Loop* loop){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         if (loop->isBlockIn(i) && !isBlockIn(i)){
             return false;

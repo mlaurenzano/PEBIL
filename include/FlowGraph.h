@@ -54,11 +54,13 @@ public:
     Vector<BasicBlock*>* getExitBlocks();
 
     Loop* getLoop(uint32_t idx) { return loops[idx]; }
+    uint32_t getLoopDepth(uint32_t idx);
     uint32_t getNumberOfLoops() { return loops.size(); }
     uint32_t buildLoops();
     void printInnerLoops();
     void printLoops();
     bool isBlockInLoop(uint32_t idx);
+    Loop* getInnermostLoopForBlock(uint32_t idx);
 
     void addBlock(Block* block);    
     

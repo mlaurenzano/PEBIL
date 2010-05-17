@@ -8,7 +8,7 @@ private:
     InstrumentationFunction* entryFunc;
     InstrumentationFunction* exitFunc;
 public:
-    BasicBlockCounter(ElfFile* elf);
+    BasicBlockCounter(ElfFile* elf, char* ext, bool lpi, bool dtl);
     ~BasicBlockCounter() {}
 
     void declare();

@@ -9,7 +9,7 @@ private:
     InstrumentationFunction* exitFunc;
 
 public:
-    FunctionCounter(ElfFile* elf);
+    FunctionCounter(ElfFile* elf, char* ext, bool lpi, bool dtl);
     ~FunctionCounter() {}
 
     void declare();

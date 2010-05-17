@@ -288,6 +288,11 @@ public:
     bool isConditionCompare();
     bool isStackPush();
     bool isStackPop();
+    bool isLoad();
+    bool isStore();
+    bool isSpecialRegOp();
+    bool isLogicOp();
+
 
     uint8_t getByteSource() { return byteSource; }
     bool isRelocatable() { return true; }
@@ -320,7 +325,8 @@ public:
     bool isFloatPOperation();
     bool isIntegerOperation();
     bool isStringOperation();
-    bool isMemoryOperation();    
+    uint32_t getNumberOfMemoryBytes();
+    bool isMemoryOperation();
     bool isExplicitMemoryOperation();    
     bool isImplicitMemoryOperation();    
 

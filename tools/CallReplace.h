@@ -14,7 +14,7 @@ private:
     Vector<char*>* functionList;
     Vector<char*> libraries;
 public:
-    CallReplace(ElfFile* elf, char* traceFile, char* libList);
+    CallReplace(ElfFile* elf, char* traceFile, char* libList, char* ext, bool lpi, bool dtl);
     ~CallReplace();
 
     void declare();

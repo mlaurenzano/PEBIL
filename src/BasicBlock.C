@@ -9,6 +9,14 @@
 
 static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
 
+uint32_t BasicBlock::getNumberOfMemoryBytes(){
+    uint32_t byteCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        byteCount += instructions[i]->getNumberOfMemoryBytes();
+    }
+    return byteCount;
+}
+
 bool BasicBlock::isInLoop(){
     return flowGraph->isBlockInLoop(getIndex());
 }
@@ -185,12 +193,73 @@ uint32_t BasicBlock::getNumberOfFloatOps(){
     return fpCount;
 }
 
-// obviously these are not implemented correctly yet
 uint32_t BasicBlock::getNumberOfLoads(){
-    return getNumberOfMemoryOps();
+    uint32_t loadCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isLoad()){
+            loadCount++;
+        }
+    }
+    return loadCount;
 }
 uint32_t BasicBlock::getNumberOfStores(){
-    return 0;
+    uint32_t storeCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isStore()){
+            storeCount++;
+        }
+    }
+    return storeCount;
+}
+
+uint32_t BasicBlock::getNumberOfSpecialRegOps(){
+    uint32_t specialRegCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isSpecialRegOp()){
+            specialRegCount++;
+        }
+    }
+    return specialRegCount;
+}
+
+uint32_t BasicBlock::getNumberOfShiftRotOps(){
+    uint32_t shiftRotCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isSpecialRegOp()){
+            shiftRotCount++;
+        }
+    }
+    return shiftRotCount;
+}
+
+uint32_t BasicBlock::getNumberOfSyscalls(){
+    uint32_t syscallCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isSystemCall()){
+            syscallCount++;
+        }
+    }
+    return syscallCount;
+}
+
+uint32_t BasicBlock::getNumberOfLogicOps(){
+    uint32_t logicOpCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isLogicOp()){
+            logicOpCount++;
+        }
+    }
+    return logicOpCount;
+}
+
+uint32_t BasicBlock::getNumberOfBranches(){
+    uint32_t branchCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBranch()){
+            branchCount++;
+        }
+    }
+    return branchCount;
 }
 
 void RawBlock::printDisassembly(bool instructionDetail){

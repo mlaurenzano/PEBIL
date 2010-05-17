@@ -11,8 +11,8 @@
 #define INST_LIB_NAME "libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
-FunctionCounter::FunctionCounter(ElfFile* elf)
-    : InstrumentationTool(elf)
+FunctionCounter::FunctionCounter(ElfFile* elf, char* ext, bool lpi, bool dtl)
+    : InstrumentationTool(elf, ext, 0, lpi, dtl)
 {
     entryFunc = NULL;
     exitFunc = NULL;

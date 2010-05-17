@@ -401,10 +401,9 @@ int main(int argc,char* argv[]){
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Disasm  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
     elfFile.generateCFGs();
-    elfFile.findLoops();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d GenCFG  : %.2f seconds",++stepNumber,t2-t1);t1=t2);    
 
-    if (extdPrnt){
+    if (loopIncl){
         elfFile.findLoops();
         TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Loop    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
     }
@@ -425,13 +424,13 @@ int main(int argc,char* argv[]){
         elfFile.dump(extension);
         return 0;
     } else if (instType == function_counter_type){
-        elfInst = new FunctionCounter(&elfFile);
+        elfInst = new FunctionCounter(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == frequency_inst_type){
-        elfInst = new BasicBlockCounter(&elfFile);
+        elfInst = new BasicBlockCounter(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == simulation_inst_type){
-        elfInst = new CacheSimulation(&elfFile, inptName, extension, phaseNo, loopIncl);
+        elfInst = new CacheSimulation(&elfFile, inptName, extension, phaseNo, loopIncl, extdPrnt);
     } else if (instType == func_timer_type){
-        elfInst = new FunctionTimer(&elfFile);
+        elfInst = new FunctionTimer(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == call_wrapper_type){
         if (!inputTrackList){
             fprintf(stderr, "\nError: option --trk needs to be given with call wrapper inst\n");
@@ -442,7 +441,7 @@ int main(int argc,char* argv[]){
             fprintf(stderr, "\nError: option --lnc needs to be given with call wrapper inst\n");
         }
         ASSERT(libList);
-        elfInst = new CallReplace(&elfFile, inputTrackList, libList);
+        elfInst = new CallReplace(&elfFile, inputTrackList, libList, extension, loopIncl, extdPrnt);
     }
     else {
         PRINT_ERROR("Error : invalid instrumentation type");

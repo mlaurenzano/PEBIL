@@ -14,8 +14,8 @@
 #define INST_LIB_NAME "libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
-BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
-    : InstrumentationTool(elf)
+BasicBlockCounter::BasicBlockCounter(ElfFile* elf, char* ext, bool lpi, bool dtl)
+    : InstrumentationTool(elf, ext, 0, lpi, dtl)
 {
     entryFunc = NULL;
     exitFunc = NULL;
@@ -192,7 +192,7 @@ void BasicBlockCounter::instrument()
 #endif
     PRINT_INFOR("Excluding flags protection for %d/%d instrumentation points (+ %d w/ callout)", noProtPoints, getNumberOfExposedBasicBlocks(), callOut);
 
-    printStaticFile(allBlocks, allLineInfos);
+    printStaticFile(allBlocks, allLineInfos, allBlocks->size());
 
     delete[] nostring;
     delete allBlocks;

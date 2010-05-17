@@ -118,11 +118,17 @@ public:
     uint32_t getNumberOfSources() { return sourceBlocks.size(); }
     uint32_t getNumberOfTargets() { return targetBlocks.size(); }
     uint32_t getNumberOfMemoryOps();
+    uint32_t getNumberOfMemoryBytes();
     uint32_t getNumberOfFloatOps();
     uint32_t getNumberOfLoads();
     uint32_t getNumberOfStores();
     uint32_t getNumberOfIntegerOps();
     uint32_t getNumberOfStringOps();
+    uint32_t getNumberOfBranches();
+    uint32_t getNumberOfShiftRotOps();
+    uint32_t getNumberOfSyscalls();
+    uint32_t getNumberOfSpecialRegOps();
+    uint32_t getNumberOfLogicOps();
 
     bool isInLoop();
     bool controlFallsThrough();

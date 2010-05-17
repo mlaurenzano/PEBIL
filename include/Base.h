@@ -80,7 +80,7 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 
 #define __bit_shift(__v) (1 << __v)
 
-#define Invalid_UInteger_ID                 (uint32_t)-1
+#define Invalid_UInteger_ID                 ((uint32_t)-1)
 #define Size__32_bit_File_Header            sizeof(Elf32_Ehdr)
 #define Size__64_bit_File_Header            sizeof(Elf64_Ehdr)
 #define Size__32_bit_Program_Header         sizeof(Elf32_Phdr)

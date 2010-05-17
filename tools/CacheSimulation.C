@@ -15,7 +15,7 @@
 #define INST_LIB_NAME "libsimulator.so"
 #define BUFFER_ENTRIES 0x00010000
 #define Size__BufferEntry 16
-#define MAX_MEMOPS_PER_BLOCK 256
+#define MAX_MEMOPS_PER_BLOCK 512
 
 //#define DISABLE_BLOCK_COUNT
 
@@ -37,16 +37,12 @@ void CacheSimulation::usesModifiedProgram(){
     delete nop5Byte;
 }
 
-CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile, char* ext, uint32_t phase, bool lp)
-    : InstrumentationTool(elf)
+CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile, char* ext, uint32_t phase, bool lpi, bool dtl)
+    : InstrumentationTool(elf, ext, phase, lpi, dtl)
 {
     simFunc = NULL;
     exitFunc = NULL;
     entryFunc = NULL;
-
-    extension = ext;
-    phaseNo = phase;
-    loopIncl = lp;
 
     Vector<char*>* fileLines = new Vector<char*>();
     initializeFileList(inputFile, fileLines);
@@ -109,6 +105,12 @@ void CacheSimulation::instrument(){
         lineInfoFinder = getLineInfoFinder();
     }
 
+    if (!blocksToInst.size()){
+        for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+            HashCode* h = new HashCode(getExposedBasicBlock(i)->getHashCode().getValue());
+            blocksToInst.append(h);
+        }
+    }
 
     // if any loop contains blocks that are in our list, include all blocks from those loops
     if (loopIncl){
@@ -118,7 +120,7 @@ void CacheSimulation::instrument(){
 
             void* bfound = bsearch(&hashValue, &blocksToInst, blocksToInst.size(), sizeof(HashCode*), searchHashCode);
 
-            if (bfound || !blocksToInst.size()){                
+            if (bfound){
                 if (bb->isInLoop()){
                     FlowGraph* fg = bb->getFlowGraph();
                     for (uint32_t j = 0; j < fg->getNumberOfLoops(); j++){
@@ -145,7 +147,6 @@ void CacheSimulation::instrument(){
         delete (*rep)[i];
     }
     delete rep;
-
 
     ASSERT(isPowerOfTwo(Size__BufferEntry));
     uint64_t bufferStore  = reserveDataOffset(BUFFER_ENTRIES * Size__BufferEntry);
@@ -207,7 +208,7 @@ void CacheSimulation::instrument(){
         uint64_t hashValue = bb->getHashCode().getValue();
         void* bfound = bsearch(&hashValue, &blocksToInst, blocksToInst.size(), sizeof(HashCode*), searchHashCode);
 
-        if (bfound || !blocksToInst.size()){
+        if (bfound){
             (*allBlocks).append(bb);
             if (lineInfoFinder){
                 (*allLineInfos).append(lineInfoFinder->lookupLineInfo(bb));
@@ -476,7 +477,7 @@ void CacheSimulation::instrument(){
     PRINT_WARN(10, "Warning: register analysis disabled");
 #endif
 
-    printStaticFile(allBlocks, allLineInfos);
+    printStaticFile(allBlocks, allLineInfos, BUFFER_ENTRIES);
 
     delete allBlocks;
     delete allLineInfos;

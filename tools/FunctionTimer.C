@@ -12,8 +12,8 @@
 #define FUNCTION_EXIT  "function_exit"
 #define INST_LIB_NAME "libtimer.so"
 
-FunctionTimer::FunctionTimer(ElfFile* elf)
-    : InstrumentationTool(elf)
+FunctionTimer::FunctionTimer(ElfFile* elf, char* ext, bool lpi, bool dtl)
+    : InstrumentationTool(elf, ext, 0, lpi, dtl)
 {
     programEntry = NULL;
     programExit = NULL;

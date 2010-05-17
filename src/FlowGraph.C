@@ -21,6 +21,37 @@ bool FlowGraph::isBlockInLoop(uint32_t idx){
     return false;
 }
 
+Loop* FlowGraph::getInnermostLoopForBlock(uint32_t idx){
+    Loop* loop = NULL;
+    for (uint32_t i = 0; i < loops.size(); i++){
+        if (loops[i]->isBlockIn(idx)){
+            if (loop){
+                if (loops[i]->getNumberOfBlocks() < loop->getNumberOfBlocks()){
+                    loop = loops[i];
+                }
+            } else {
+                loop = loops[i];
+            }
+        }
+    }
+    return loop;
+}
+
+uint32_t FlowGraph::getLoopDepth(uint32_t idx){
+    Loop* loop = getInnermostLoopForBlock(idx);
+    uint32_t depth = 0;
+    if (loop){
+        for (uint32_t i = 0; i < loops.size(); i++){
+            if (loop->getIndex() != i){
+                if (loop->isInnerLoopOf(loops[i])){
+                    depth++;
+                }
+            }
+        }
+    }
+    return depth;
+}
+
 void FlowGraph::flowAnalysis(){
     Vector<BitSet<uint32_t>*> uses;
     Vector<BitSet<uint32_t>*> defs;
@@ -307,7 +338,7 @@ void FlowGraph::printLoops(){
 void FlowGraph::printInnerLoops(){
     for (uint32_t i = 0; i < loops.size(); i++){
         for (uint32_t j = 0; j < loops.size(); j++){
-            if (loops[i]->isInnerLoop(loops[j])){
+            if (loops[i]->isInnerLoopOf(loops[j])){
                 PRINT_INFOR("Loop %d is inside loop %d", j, i);
             }
             if (i == j){

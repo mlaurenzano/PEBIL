@@ -126,7 +126,6 @@ Vector<X86Instruction*>* X86InstructionFactory32::emitAddressComputation(X86Inst
     ASSERT(dest < X86_32BIT_GPRS && "Illegal register index given");
     ASSERT(instruction->isMemoryOperation());
 
-    instruction->print();
     DEBUG_LOADADDR(
     instruction->print();
     PRINT_DEBUG_LOADADDR("---");

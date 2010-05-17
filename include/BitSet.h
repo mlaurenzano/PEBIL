@@ -56,6 +56,17 @@ public:
         return *this;
     }
 
+    bool isSubsetOf(BitSet& src){
+        ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are subsetted");
+        uint32_t count = internalCount();
+        for (uint32_t i = 0; i < count; i++){
+            if (bits[i] & ~(src.bits[i])){
+                return false;
+            }
+        }
+        return true;
+    }
+
     BitSet& operator&=(BitSet& src){
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are ANDed");
 

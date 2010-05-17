@@ -10,9 +10,13 @@
 #define MPI_INIT_WRAPPER "MPI_Init_pebil_wrapper"
 #define MPI_INIT_LIST "PMPI_Init:MPI_Init"
 
-InstrumentationTool::InstrumentationTool(ElfFile* elf)
+InstrumentationTool::InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase, bool lpi, bool dtl)
     : ElfFileInst(elf)
 {
+    extension = ext;
+    phaseNo = phase;
+    loopIncl = lpi;
+    printDetail = dtl;
 }
 
 void InstrumentationTool::declare(){
@@ -33,7 +37,7 @@ void InstrumentationTool::instrument(){
     delete mpiInitCalls;
 }
 
-void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos){
+void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos, uint32_t bufferSize){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 
     ASSERT(!(*allLineInfos).size() || (*allBlocks).size() == (*allLineInfos).size());
@@ -51,18 +55,42 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     fprintf(staticFD, "# extension = %s\n", getInstSuffix());
     fprintf(staticFD, "# phase     = %d\n", 0);
     fprintf(staticFD, "# type      = %s\n", briefName());
-    fprintf(staticFD, "# cantidate = %d\n", 0);
-    fprintf(staticFD, "# blocks    = %d\n", text->getNumberOfBasicBlocks());
-    fprintf(staticFD, "# memops    = %d\n", text->getNumberOfMemoryOps());
-    fprintf(staticFD, "# fpops     = %d\n", text->getNumberOfFloatOps());
-    fprintf(staticFD, "# insns     = %d\n", text->getNumberOfInstructions());
-    fprintf(staticFD, "# buffer    = %d\n", 0);
+    fprintf(staticFD, "# cantidate = %d\n", getNumberOfExposedBasicBlocks());
+    uint32_t memopcnt = 0;
+    uint32_t membytcnt = 0;
+    uint32_t fltopcnt = 0;
+    uint32_t insncnt = 0;
+    for (uint32_t i = 0; i < allBlocks->size(); i++){
+        BasicBlock* bb = (*allBlocks)[i];
+        memopcnt += bb->getNumberOfMemoryOps();
+        membytcnt += bb->getNumberOfMemoryBytes();
+        fltopcnt += bb->getNumberOfFloatOps();
+        insncnt += bb->getNumberOfInstructions();
+    }
+    fprintf(staticFD, "# blocks    = %d\n", allBlocks->size());
+    fprintf(staticFD, "# memops    = %d\n", memopcnt);
+
+    float memopavg = 0.0;
+    if (memopcnt){
+        memopavg = (float)membytcnt/(float)memopcnt;
+    }
+    fprintf(staticFD, "# memopbyte = %d ( %.5f bytes/op)\n", membytcnt, memopavg);
+    fprintf(staticFD, "# fpops     = %d\n", fltopcnt);
+    fprintf(staticFD, "# insns     = %d\n", insncnt);
+    fprintf(staticFD, "# buffer    = %d\n", bufferSize);
     for (uint32_t i = 0; i < getNumberOfInstrumentationLibraries(); i++){
         fprintf(staticFD, "# library   = %s\n", getInstrumentationLibrary(i));
     }
-    fprintf(staticFD, "# libTag    = %s\n", "");
-    fprintf(staticFD, "# %s\n", "");
-    fprintf(staticFD, "# <sequence> <block_uid> <memop> <fpop> <insn> <line> <fname> <loopcnt> <loopid> <ldepth> <hex_uid> <vaddr> <loads> <stores>\n");
+    fprintf(staticFD, "# libTag    = %s\n", "revision REVISION");
+    fprintf(staticFD, "# %s\n", "<no additional info>");
+    fprintf(staticFD, "# <sequence> <block_unqid> <memop> <fpop> <insn> <line> <fname> # <hex_unq_id> <vaddr>\n");
+    if (loopIncl){
+        fprintf(staticFD, "# +lpi <loopcnt> <loopid> <ldepth>\n");
+    }
+    if (printDetail){
+        fprintf(staticFD, "# +cnt <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op>\n");
+        fprintf(staticFD, "# +mem <total_mem_op> <total_mem_bytes> <bytes/op>\n");
+    }
 
     uint32_t noInst = 0;
     uint32_t fileNameSize = 1;
@@ -75,17 +103,13 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
         LineInfo* li = (*allLineInfos)[i];
         Function* f = bb->getFunction();
 
-        uint32_t loopId = Invalid_UInteger_ID;
-        uint32_t loopDepth = 0;
-        uint32_t loopCount = bb->getFlowGraph()->getNumberOfLoops();
-
-        for(uint32_t j = 0;j < loopCount; j++){
-            Loop* currLoop = bb->getFlowGraph()->getLoop(j);
-            if(currLoop->isBlockIn(bb->getIndex())){
-                loopDepth++;
-                loopId = currLoop->getIndex();
-            }
+        uint32_t loopId = Invalid_UInteger_ID; 
+        Loop* loop = bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex());
+        if (loop){
+            loopId = loop->getIndex();
         }
+        uint32_t loopDepth = bb->getFlowGraph()->getLoopDepth(bb->getIndex());
+        uint32_t loopCount = bb->getFlowGraph()->getNumberOfLoops();
 
         char* fileName;
         uint32_t lineNo;
@@ -96,11 +120,28 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
             fileName = INFO_UNKNOWN;
             lineNo = 0;
         }
-        fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t#%d\t%d\t%d\t0x%012llx\t0x%llx\t%d\t%d\t%d\t%d\n", 
+        fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t# %#llx\t%#llx\n", 
                 i, bb->getHashCode().getValue(), bb->getNumberOfMemoryOps(), bb->getNumberOfFloatOps(), 
-                bb->getNumberOfInstructions(), fileName, lineNo, bb->getFunction()->getName(), loopCount, loopId, loopDepth, 
-                bb->getHashCode().getValue(), bb->getBaseAddress(), bb->getNumberOfLoads(), bb->getNumberOfStores(),
-                bb->getNumberOfIntegerOps(), bb->getNumberOfStringOps());
+                bb->getNumberOfInstructions(), fileName, lineNo, bb->getFunction()->getName(), 
+                bb->getHashCode().getValue(), bb->getLeader()->getProgramAddress());
+        if (loopIncl){
+            fprintf(staticFD, "\t+lpi\t%d\t%d\t%d # %#llx\n", loopCount, loopId, loopDepth, bb->getHashCode().getValue());
+        }
+        if (printDetail){
+            fprintf(staticFD, "\t+cnt\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", 
+                    bb->getNumberOfBranches(), bb->getNumberOfIntegerOps(), bb->getNumberOfLogicOps(), bb->getNumberOfShiftRotOps(),
+                    bb->getNumberOfSyscalls(), bb->getNumberOfSpecialRegOps(), bb->getNumberOfStringOps(),
+                    bb->getNumberOfLoads(), bb->getNumberOfStores(), bb->getNumberOfMemoryOps(), bb->getHashCode().getValue());
+
+            ASSERT(bb->getNumberOfLoads() + bb->getNumberOfStores() == bb->getNumberOfMemoryOps());
+
+            memopavg = 0.0;
+            if (bb->getNumberOfMemoryOps()){
+                memopavg = ((float)bb->getNumberOfMemoryBytes())/((float)bb->getNumberOfMemoryOps());
+            }
+            fprintf(staticFD, "\t+mem\t%d\t%d\t%.5f # %#llx\n", bb->getNumberOfMemoryOps(), bb->getNumberOfMemoryBytes(),
+                    memopavg, bb->getHashCode().getValue());
+        }
     }
     fclose(staticFD);
 

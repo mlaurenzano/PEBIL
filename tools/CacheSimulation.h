@@ -14,12 +14,8 @@ private:
     Vector<uint32_t> memInstBlockIds;
     uint64_t instPointInfo;
 
-    uint32_t phaseNo;
-    char* extension;
-    bool loopIncl;
-
 public:
-    CacheSimulation(ElfFile* elf, char* inputName, char* ext, uint32_t phase, bool lp);
+    CacheSimulation(ElfFile* elf, char* inputName, char* ext, uint32_t phase, bool lpi, bool dtl);
     ~CacheSimulation();
 
     void declare();

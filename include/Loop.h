@@ -20,7 +20,7 @@ public:
     uint32_t getNumberOfBlocks() { return blocks->size(); }
     uint32_t getAllBlocks(BasicBlock** arr);
     bool isBlockIn(uint32_t idx) { return blocks->contains(idx); }
-    bool isInnerLoop(Loop* loop);
+    bool isInnerLoopOf(Loop* loop);
     bool isIdenticalLoop(Loop* loop);
     void print();
     void setIndex(uint32_t idx) { index = idx; }

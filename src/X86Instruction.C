@@ -13,6 +13,68 @@
 
 using namespace std;
 
+bool X86Instruction::isLoad(){
+    if (isStackPop()){
+        return true;
+    }
+    if (isExplicitMemoryOperation()){
+        OperandX86* op = getMemoryOperand();
+        ASSERT(op);
+        if (op->getOperandIndex() == COMP_SRC_OPERAND){
+            return true;
+        }
+    }
+    return false;
+}
+
+bool X86Instruction::isStore(){
+    if (isStackPush()){
+        return true;
+    }
+    if (isExplicitMemoryOperation()){
+        OperandX86* op = getMemoryOperand();
+        ASSERT(op);
+        if (op->getOperandIndex() == COMP_DEST_OPERAND){
+            return true;
+        }
+    }
+    return false;
+}
+
+bool X86Instruction::isSpecialRegOp(){
+    return (instructionType == X86InstructionType_special);
+}
+
+bool X86Instruction::isLogicOp(){
+    return false;
+}
+
+uint32_t X86Instruction::getNumberOfMemoryBytes(){
+    if (isMemoryOperation()){
+        if (isImplicitMemoryOperation()){
+            OperandX86* op = operands[0];
+            ASSERT(op);
+            if (op->GET(size)){
+                return op->GET(size)/8;
+            } else {
+                if (IS_32BIT_GPR(op->GET(base))){
+                    return sizeof(uint32_t);
+                } else if (IS_64BIT_GPR(op->GET(base))){
+                    return sizeof(uint64_t);
+                } else {
+                    print();
+                    PRINT_ERROR("unexpected register size in implicit mem op");
+                }
+            }
+        } else { // isExplicitMemoryOperation()
+            OperandX86* op = getMemoryOperand();
+            ASSERT(op);
+            return op->GET(size)/8;
+        }
+    }
+    return 0;
+}
+
 bool X86Instruction::usesFlag(uint32_t flg) { 
     ASSERT(flags_usedef); 
     return (flags_usedef[__flags_use] & (1 << flg)); 

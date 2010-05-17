@@ -20,11 +20,16 @@ typedef struct
 
 class InstrumentationTool : public ElfFileInst {
 protected:
-    void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos);
+    void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos, uint32_t bufferSize);
 
     InstrumentationFunction* initWrapper;
+
+    uint32_t phaseNo;
+    char* extension;
+    bool loopIncl;
+    bool printDetail;
 public:
-    InstrumentationTool(ElfFile* elf);
+    InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase, bool lpi, bool dtl);
     ~InstrumentationTool() { }
 
     virtual void declare();
