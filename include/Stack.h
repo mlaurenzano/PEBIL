@@ -42,9 +42,7 @@ public:
     }
     void push(T elt){
         if (topIndex + 1 >= maxSize){
-            PRINT_INFOR("top %d, max %d", topIndex, maxSize);
             growStack();
-            PRINT_INFOR("top %d, max %d", topIndex, maxSize);
         }
         ASSERT((topIndex + 1) < maxSize);
         elements[++topIndex] = elt;

@@ -1112,7 +1112,11 @@ void ElfFile::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     for (uint32_t i = 0; i < getNumberOfSections(); i++){
         currentOffset = sectionHeaders[i]->GET(sh_offset);
         if (sectionHeaders[i]->hasBitsInFile()){
-            rawSections[i]->dump(binaryOutputFile,currentOffset);
+            if (i == 21){
+                rawSections[37]->dump(binaryOutputFile,currentOffset);
+            } else {
+                rawSections[i]->dump(binaryOutputFile,currentOffset);
+            }
         }
     }
 }
@@ -1480,6 +1484,7 @@ uint32_t ElfFile::anchorProgramElements(){
         ASSERT(!currentInstruction->getAddressAnchor());
         if (currentInstruction->usesRelativeAddress()){
             uint64_t relativeAddress = currentInstruction->getRelativeValue() + currentInstruction->getBaseAddress() + currentInstruction->getSizeInBytes();
+
             if (!is64Bit()){
                 if (!currentInstruction->isControl() || currentInstruction->usesIndirectAddress()){
                     relativeAddress += currentInstruction->getSizeInBytes();

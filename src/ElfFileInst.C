@@ -76,7 +76,7 @@ void ElfFileInst::extendDynamicTable(){
     ProgramHeader* dHdr = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
     uint64_t usableOffset = nextAlignAddress(finalHeader->GET(sh_offset) + finalHeader->GET(sh_size), dHdr->GET(p_align));
 
-    dynTableHdr->INCREMENT(sh_size, dynamicTable->extendTable(instrumentationFunctions.size()));
+    dynTableHdr->INCREMENT(sh_size, dynamicTable->extendTable(instrumentationFunctions.size() + 5));
     ASSERT(dynamicTable->getSizeInBytes() <= 0x8000);
 
     uint64_t newDynamicAddress = dynamicTableReserved;
@@ -110,12 +110,13 @@ void ElfFileInst::extendDynamicTable(){
     ASSERT(genericDataHdr);
 
     uint32_t newDynamicIdx = elfFile->getNumberOfSections();
-    elfFile->addSection(newDynamicIdx, PebilClassType_DataSection, elfFile->getFileName(), genericDataHdr->GET(sh_name), genericDataHdr->GET(sh_type),
-                        genericDataHdr->GET(sh_flags), oldDynamicAddress, oldDynamicOffset, 0, genericDataHdr->GET(sh_link),
-                        genericDataHdr->GET(sh_info), dynTableHdr->GET(sh_addralign), genericDataHdr->GET(sh_entsize));
+    elfFile->addSection(newDynamicIdx, PebilClassType_DataSection, elfFile->getFileName(), genericDataHdr->GET(sh_name), dynTableHdr->GET(sh_type),
+                        dynTableHdr->GET(sh_flags), oldDynamicAddress, oldDynamicOffset, 0, dynTableHdr->GET(sh_link),
+                        dynTableHdr->GET(sh_info), dynTableHdr->GET(sh_addralign), dynTableHdr->GET(sh_entsize));
 
     elfFile->swapSections(newDynamicIdx, oldDynamicIdx);
     ((DataSection*)elfFile->getRawSection(oldDynamicIdx))->extendSize(oldDynamicSize);
+    elfFile->getSectionHeader(oldDynamicIdx)->SET(sh_size, oldDynamicSize);
 
     for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
         elfFile->getSectionHeader(i)->setIndex(i);

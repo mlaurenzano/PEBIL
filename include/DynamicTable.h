@@ -77,6 +77,7 @@ public:
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     uint32_t findEmptyDynamic();
+    uint32_t getDynamicSize() { return dynamicSize; }
 
     Dynamic* getDynamic(uint32_t idx) { return dynamics[idx]; }
     uint32_t getNumberOfDynamics() { return dynamics.size(); }

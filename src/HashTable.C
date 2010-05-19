@@ -68,7 +68,7 @@ void GnuHashTable::buildTable(uint32_t numEntries, uint32_t numBuckets){
     // create a single-entry bloom filter with all bits set. this will filter nothing.
     // there is a potential for a performance penalty when looking up symbols without a bloom filter
     bloomFilters = new uint64_t[numberOfBloomFilters];
-    bloomFilters[0] = (uint64_t)(0xffffffff << 32) | (uint64_t)(0xffffffff);
+    bloomFilters[0] = (uint64_t)(0xffffffffffffffff);
 
     sizeInBytes = (4 * sizeof(uint32_t)) + (hashEntrySize * numberOfBloomFilters) + (sizeof(uint32_t) * numberOfBuckets) + (sizeof(uint32_t) * numberOfEntries);
     verify();
@@ -194,6 +194,7 @@ uint32_t GnuHashTable::read(BinaryInputFile* binaryInputFile){
     }
 
     verify();
+
 }
 
 void GnuHashTable::initFilePointers(){
@@ -259,11 +260,18 @@ void GnuHashTable::print(){
     }
 
     for (uint32_t i = 0; i < numberOfEntries; i++){
-        char stp[6] = "\0";
-        if (entryHasStopBit(i)){
-            sprintf(stp, "(stp)\0");
+        char stp[7] = "\0";
+        if (entryHasStopBit(i) || i == numberOfEntries - 1){
+            sprintf(stp, "(stop)\0");
         }
-        PRINT_INFOR("value %5d: %8x %s", i, entries[i], stp);
+        PRINT_INFOR("value %5d: %8x %s", i + firstSymIndex, entries[i], stp);
+    }
+
+    if (numberOfEntries){
+        SymbolTable* symTab = elfFile->getSymbolTable(symTabIdx);
+        for (uint32_t i = firstSymIndex; i < symTab->getNumberOfSymbols(); i++){
+            PRINT_INFOR("SYMBOL (%4d): elf_gnu_hash(%s) mod %d = %d", i, symTab->getSymbolName(i), numberOfBuckets, elf_gnu_hash(symTab->getSymbolName(i)) % numberOfBuckets);
+        }
     }
 }
 
