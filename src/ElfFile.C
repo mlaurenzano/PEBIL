@@ -1413,7 +1413,7 @@ Vector<AddressAnchor*>* ElfFile::searchAddressAnchors(uint64_t addr){
         }
 
     }
-    ASSERT((*addressAnchors).isSorted(compareLinkBaseAddress));
+    ASSERT(0 && (*addressAnchors).isSorted(compareLinkBaseAddress));
     ASSERT((*binaryUpdate).size() == (*linearUpdate).size());
 #endif //VALIDATE_ANCHOR_SEARCH
 

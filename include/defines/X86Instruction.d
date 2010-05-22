@@ -47,7 +47,7 @@ udis86 ud_operand
 
 /* we don't give all fields macro access
 ##################################################################
-udis86 ud
+udis86 ud_compact
   Type	                Name
   int                   (*inp_hook) (struct ud*);
   uint8_t               inp_curr;
@@ -97,32 +97,11 @@ udis86 ud
     GET_FIELD_CLASS(uint64_t,insn_offset); \
     GET_FIELD_CLASS(char*,insn_hexcode); \
     GET_FIELD_CLASS(char*,insn_buffer); \
-    GET_FIELD_CLASS(unsigned int,insn_fill); \
-    GET_FIELD_CLASS(uint8_t,dis_mode); \
-    GET_FIELD_CLASS(uint64_t,pc); \
-    GET_FIELD_CLASS(uint8_t,vendor); \
     GET_FIELD_CLASS(enum ud_mnemonic_code,mnemonic); \
     GET_FIELD_CLASS(struct ud_operand*,operand); \
-    GET_FIELD_CLASS(uint8_t,error); \
-    GET_FIELD_CLASS(uint8_t,pfx_rex); \
     GET_FIELD_CLASS(uint8_t,pfx_seg); \
-    GET_FIELD_CLASS(uint8_t,pfx_opr); \
-    GET_FIELD_CLASS(uint8_t,pfx_adr); \
-    GET_FIELD_CLASS(uint8_t,pfx_lock); \
     GET_FIELD_CLASS(uint8_t,pfx_rep); \
-    GET_FIELD_CLASS(uint8_t,pfx_repe); \
-    GET_FIELD_CLASS(uint8_t,pfx_repne); \
-    GET_FIELD_CLASS(uint8_t,pfx_insn); \
-    GET_FIELD_CLASS(uint8_t,default64); \
-    GET_FIELD_CLASS(uint8_t,opr_mode); \
     GET_FIELD_CLASS(uint8_t,adr_mode); \
-    GET_FIELD_CLASS(uint8_t,br_far); \
-    GET_FIELD_CLASS(uint8_t,br_near); \
-    GET_FIELD_CLASS(uint8_t,implicit_addr); \
-    GET_FIELD_CLASS(uint8_t,c1); \
-    GET_FIELD_CLASS(uint8_t,c2); \
-    GET_FIELD_CLASS(uint8_t,c3); \
-    GET_FIELD_CLASS(struct ud_itab_entry *,itab_entry); \
         \
     SET_FIELD_CLASS(uint64_t,insn_offset); 
 

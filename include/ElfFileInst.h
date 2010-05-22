@@ -127,7 +127,7 @@ protected:
     void buildInstrumentationSections();
     uint32_t generateInstrumentation();
     void compressInstrumentation(uint32_t textSize);
-    uint32_t relocateAndBloatFunction(Function* functionToRelocate, uint64_t offsetToRelocation);
+    uint32_t relocateAndBloatFunction(Function* functionToRelocate, uint64_t offsetToRelocation, Vector<InstrumentationPoint*>* functionInstPoints);
     bool isEligibleFunction(Function* func);
     bool is64Bit() { return elfFile->is64Bit(); }
 

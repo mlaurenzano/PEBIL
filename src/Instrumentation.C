@@ -126,22 +126,26 @@ int compareInstBaseAddress(const void* arg1,const void* arg2){
     InstrumentationPoint* ip1 = *((InstrumentationPoint**)arg1);
     InstrumentationPoint* ip2 = *((InstrumentationPoint**)arg2);
 
+    // first compare by base address
     if (ip1->getInstBaseAddress() < ip2->getInstBaseAddress()){
         return -1;
     } else if(ip1->getInstBaseAddress() > ip2->getInstBaseAddress()){
         return 1;
     } else {
+        // then see if they are the same instruction
         if (ip1->getSourceObject() < ip2->getSourceObject()){
             return -1;
         } else if (ip1->getSourceObject() > ip2->getSourceObject()){
             return 1;
         } else {
             PRINT_DEBUG_POINT_CHAIN("Comparing priority of 2 points at %#llx: %d %d", ip1->getInstBaseAddress(), ip1->getPriority(), ip2->getPriority());
+            // then compare by where the inst is happening relcative to the instruction
             if (ip1->getInstLocation() < ip2->getInstLocation()){
                 return -1;
             } else if (ip1->getInstLocation() > ip2->getInstLocation()){
                 return 1;
             } else {
+                // then compare by priority
                 if (ip1->getPriority() < ip2->getPriority()){
                     return -1;
                 } else if (ip1->getPriority() > ip2->getPriority()){
@@ -890,11 +894,6 @@ uint32_t InstrumentationPoint::sizeNeeded(){
         totalSize += trampolineInstructions[i]->getSizeInBytes();
     }
     return totalSize;
-}
-
-uint64_t InstrumentationPoint::getInstBaseAddress(){
-    ASSERT(point);
-    return point->getBaseAddress();
 }
 
 InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc)

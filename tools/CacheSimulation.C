@@ -449,11 +449,18 @@ void CacheSimulation::instrument(){
         } else {
             snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         }
+
         FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-        if (bb->getLeader()->allFlagsDeadIn()){
-            prot = FlagsProtectionMethod_none;
+        X86Instruction* bestinst = bb->getExitInstruction();
+        for (int32_t j = bb->getNumberOfInstructions() - 1; j >= 0; j--){
+            if (bb->getInstruction(j)->allFlagsDeadIn()){
+                bestinst = bb->getInstruction(j);
+                prot = FlagsProtectionMethod_none;
+                break;
+            }
         }
-        InstrumentationPoint* p = addInstrumentationPoint(bb->getLeader(), snip, InstrumentationMode_inline, prot, InstLocation_prior);
+
+        InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, InstLocation_prior);
 #endif
         blockId++;
     }

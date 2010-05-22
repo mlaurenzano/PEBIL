@@ -311,7 +311,7 @@ bool ElfFileInst::isEligibleFunction(Function* func){
     return true;
 }
 
-uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint64_t offsetToRelocation){
+uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint64_t offsetToRelocation, Vector<InstrumentationPoint*>* functionInstPoints){
     ASSERT(isEligibleFunction(operatedFunction) && operatedFunction->hasCompleteDisassembly());
 
     TextSection* extraText = (TextSection*)elfFile->getRawSection(extraTextIdx);
@@ -406,10 +406,7 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
         PRINT_ERROR("Function %s before bloated to have bad disassembly", displacedFunction->getName());
     }
     if (doBloat){
-        Vector<InstrumentationPoint*>* functionInstPoints = instpointFilterAddressRange(displacedFunction, instrumentationPoints);
         displacedFunction->bloatBasicBlocks(functionInstPoints);
-        (*instrumentationPoints).sort(compareInstBaseAddress);
-        delete functionInstPoints;
         elfFile->setAnchorsSorted(false);
     }
     if (!displacedFunction->hasCompleteDisassembly()){
@@ -757,6 +754,7 @@ InstrumentationFunction* ElfFileInst::getInstrumentationFunction(const char* fun
 }
 
 uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
+    TIMER(double t1 = timer(), t2; char stepNumber = '1');
 
     uint64_t codeOffset = offset;
     uint32_t numberOfFunctions = exposedFunctions.size();
@@ -798,14 +796,14 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
                         break;
                     }
                 }
-                delete functionInstPoints;
                 if (needsRelocate){
-                    codeOffset += relocateAndBloatFunction(func, codeOffset);
+                    codeOffset += relocateAndBloatFunction(func, codeOffset, functionInstPoints);
                     func->setRelocated();
                 } else {
                     func->setBaseAddress(func->getBaseAddress());
                     skippedRelocation++;
                 }
+                delete functionInstPoints;
 #ifdef RELOC_MOD
             }
 #endif
@@ -814,29 +812,32 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     }
     PRINT_INFOR("Skipped relocation on %d/%d functions", skippedRelocation, numberOfFunctions);
 
+    TIMER(t2 = timer();PRINT_INFOR("___timer: \t\tFncReloc Step %c Reloc : %.2f seconds",stepNumber++,t2-t1);t1=t2);
+
     // update address anchors modified by the tranformation (things anchored to the
     // instructions at the front of blocks)
     for (uint32_t i = 0; i < (*(elfFile->getAddressAnchors())).size(); i++){
         (*(elfFile->getAddressAnchors()))[i]->refreshCache();
     }
     for (uint32_t j = 0; j < (*instrumentationPoints).size(); j++){
-        uint64_t searchAddr = 0;
-        
-        searchAddr = (*instrumentationPoints)[j]->getInstBaseAddress();
-        ASSERT((*instrumentationPoints)[j]->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
-        Function* container = (Function*)(*instrumentationPoints)[j]->getSourceObject()->getContainer();
-        BasicBlock* containerBB = (BasicBlock*)container->getBasicBlockAtAddress(searchAddr);
-        ASSERT(containerBB);
-        
-        Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors(searchAddr);
-        ASSERT(containerBB->getNumberOfInstructions() && containerBB->getLeader());
-        PRINT_DEBUG_ANCHOR("In block at %#llx, updating %d anchors", containerBB->getBaseAddress(), (*modAnchors).size());
-        for (uint32_t k = 0; k < modAnchors->size(); k++){
-            (*modAnchors)[k]->updateLink(containerBB->getLeader());
-            elfFile->setAnchorsSorted(false);
+        if ((*instrumentationPoints)[j]->getSourceObject()->isLeader()){
+            uint64_t searchAddr = (*instrumentationPoints)[j]->getInstBaseAddress();
+            ASSERT((*instrumentationPoints)[j]->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
+            Function* container = (Function*)(*instrumentationPoints)[j]->getSourceObject()->getContainer();
+            BasicBlock* containerBB = (BasicBlock*)container->getBasicBlockAtAddress(searchAddr);
+            ASSERT(containerBB);
+            
+            Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors(searchAddr);
+            ASSERT(containerBB->getNumberOfInstructions() && containerBB->getLeader());
+            PRINT_DEBUG_ANCHOR("In block at %#llx, updating %d anchors", containerBB->getBaseAddress(), (*modAnchors).size());
+            for (uint32_t k = 0; k < modAnchors->size(); k++){
+                (*modAnchors)[k]->updateLink(containerBB->getLeader());
+                elfFile->setAnchorsSorted(false);
+            }
+            delete modAnchors;
         }
-        delete modAnchors;
     }
+    TIMER(t2 = timer();PRINT_INFOR("___timer: \t\tFncReloc Step %c Reanchor : %.2f seconds",stepNumber++,t2-t1);t1=t2);
 
     return codeOffset;
 }
@@ -1008,10 +1009,11 @@ void ElfFileInst::phasedInstrumentation(){
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     buildInstrumentationSections();
+    TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c UsrResrv : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     relocatedTextSize += functionRelocateAndTransform(relocatedTextSize);
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
-    TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c UsrResrv : %.2f seconds",stepNumber++,t2-t1);t1=t2);
+    TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c FncReloc : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 

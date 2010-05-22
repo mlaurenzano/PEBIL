@@ -134,6 +134,52 @@ struct ud_itab_entry
     uint32_t                      prefix;
 };
 
+extern void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg);
+struct ud_compact
+{
+    //int                   (*inp_hook) (struct ud*);
+    //uint8_t               inp_curr;
+    //uint8_t               inp_fill;
+    //FILE*                 inp_file;
+    //uint8_t               inp_ctr;
+    //uint8_t*              inp_buff;
+    //uint8_t*              inp_buff_end;
+    //uint8_t               inp_end;
+    //void                  (*translator)(struct ud*);
+    uint64_t              insn_offset;
+    char                  insn_hexcode[32];
+    char                  insn_buffer[64];
+    //unsigned int          insn_fill;
+    //uint8_t               dis_mode;
+    //uint64_t              pc;
+    //uint8_t               vendor;
+    //struct map_entry*     mapen;
+    enum ud_mnemonic_code mnemonic;
+    struct ud_operand     operand[3];
+    //uint8_t               error;
+    //uint8_t               pfx_rex;
+    uint8_t               pfx_seg;
+    //uint8_t               pfx_opr;
+    //uint8_t               pfx_adr;
+    //uint8_t               pfx_lock;
+    uint8_t               pfx_rep;
+    //uint8_t               pfx_repe;
+    //uint8_t               pfx_repne;
+    //uint8_t               pfx_insn;
+    //uint8_t               default64;
+    //uint8_t               opr_mode;
+    uint8_t               adr_mode;
+    //uint8_t               br_far;
+    //uint8_t               br_near;
+    //uint8_t               implicit_addr;
+    //uint8_t               c1;
+    //uint8_t               c2;
+    //uint8_t               c3;
+    //uint8_t               inp_cache[256];
+    //uint8_t               inp_sess[64];
+    //struct ud_itab_entry * itab_entry;
+};
+
 enum X86InstructionType {
     X86InstructionType_unknown = 0,
     X86InstructionType_invalid,
@@ -209,8 +255,7 @@ public:
 
 class X86Instruction : public Base {
 private:
-
-    struct ud entry;
+    struct ud_compact entry;
     BitSet<uint32_t>* liveIns;
     BitSet<uint32_t>* liveOuts;
     uint32_t* flags_usedef;
@@ -226,13 +271,14 @@ private:
     bool leader;
     TextObject* container;
     uint32_t instructionType;
-    //    uint64_t wastespace[2048];
 
     HashCode hashCode;
 
     uint32_t setInstructionType();
 
 public:
+    uint64_t cacheBaseAddress;
+
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
     X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx);
@@ -264,7 +310,7 @@ public:
     void setLiveIns(BitSet<uint32_t>* live);
     void setLiveOuts(BitSet<uint32_t>* live);
 
-    void setBaseAddress(uint64_t addr) { baseAddress = addr; }
+    void setBaseAddress(uint64_t addr) { baseAddress = addr; cacheBaseAddress = addr; }
     uint32_t getSizeInBytes() { return sizeInBytes; }
     uint32_t getIndex() { return instructionIndex; }
     void setIndex(uint32_t idx) { instructionIndex = idx; }

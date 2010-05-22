@@ -328,6 +328,7 @@
 #define DEBUG(...)
 #define DEBUG_MORE(...)
 #define ASSERT(__str) assert(__str);
+//#define ASSERT(__str)
 #define TIMER(...) __VA_ARGS__
 #define INNER_TIMER(...) 
 

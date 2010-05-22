@@ -276,7 +276,7 @@ public:
 
     X86Instruction* getSourceObject() { return point; }
     PebilClassTypes getPointType() { ASSERT(getSourceObject()); return getSourceObject()->getType(); }
-    uint64_t getInstBaseAddress();
+    uint64_t getInstBaseAddress() { return point->cacheBaseAddress; }
     InstLocations getInstLocation() { return instLocation; }
 
     uint32_t getNumberOfBytes() { return numberOfBytes; }

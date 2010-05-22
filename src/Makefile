@@ -1,5 +1,5 @@
 DBG         = -g #-Wall
-#PROFILE     = -pg
+PROFILE     = -pg
 OPT         = -O3 -w
 #CFLAGS      = -bmaxdata:0x80000000 $(DBG) $(OPT)
 NATIVE_CPP  = CC

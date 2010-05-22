@@ -13,6 +13,17 @@
 
 using namespace std;
 
+void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg){
+    memcpy(comp->insn_hexcode, reg->insn_hexcode, sizeof(char)*32);
+    memcpy(comp->insn_buffer, reg->insn_buffer, sizeof(char)*64);
+    comp->mnemonic = reg->mnemonic;
+    memcpy(comp->operand, reg->operand, sizeof(struct ud_operand)*3);
+    comp->pfx_seg = reg->pfx_seg;
+    comp->pfx_rep = reg->pfx_rep;
+    comp->adr_mode = reg->adr_mode;
+}
+
+
 bool X86Instruction::isLoad(){
     if (isStackPop()){
         return true;
@@ -552,7 +563,7 @@ uint32_t X86Instruction::convertTo4ByteTargetOperand(){
 
         sizeInBytes = ud_disassemble(&ud_obj);
         if (sizeInBytes) {
-            memcpy(&entry, &ud_obj, sizeof(struct ud));
+            copy_ud_to_compact(&entry, &ud_obj);
         } else {
             PRINT_ERROR("Problem doing instruction disassembly");
         }
@@ -1730,7 +1741,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
 
     sizeInBytes = ud_disassemble(&ud_obj);
     if (sizeInBytes) {
-        memcpy(&entry, &ud_obj, sizeof(struct ud));
+        copy_ud_to_compact(&entry, &ud_obj);
     } else {
         PRINT_ERROR("Problem doing instruction disassembly");
     }
@@ -1740,6 +1751,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     memcpy(rawBytes, buff, sizeInBytes);
 
     baseAddress = baseAddr;
+    cacheBaseAddress = baseAddr;
     programAddress = baseAddr;
     instructionIndex = idx;
     byteSource = src;
@@ -1786,7 +1798,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
 
     sizeInBytes = ud_disassemble(&ud_obj);
     if (sizeInBytes) {
-        memcpy(&entry, &ud_obj, sizeof(struct ud));
+        copy_ud_to_compact(&entry, &ud_obj);
     } else {
         PRINT_ERROR("Problem doing instruction disassembly");
     }
@@ -1794,6 +1806,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     memcpy(rawBytes, buff, sizeInBytes);
 
     baseAddress = baseAddr;
+    cacheBaseAddress = baseAddr;
     programAddress = baseAddr;
     instructionIndex = idx;
     byteSource = src;
@@ -1888,12 +1901,14 @@ void X86Instruction::print(){
     delete defRegs;
 #endif
     
+    /*
     PRINT_INFOR("\t%s (%d,%d) (%d,%d) (%d,%d) %d", ud_lookup_mnemonic(GET(itab_entry)->mnemonic), GET(itab_entry)->operand1.type, GET(itab_entry)->operand1.size, GET(itab_entry)->operand2.type, GET(itab_entry)->operand2.size, GET(itab_entry)->operand3.type, GET(itab_entry)->operand3.size, GET(itab_entry)->prefix);
 
     PRINT_INFOR("%d(%s)\t%hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd", GET(mnemonic), ud_lookup_mnemonic(GET(mnemonic)),
                 GET(error), GET(pfx_rex), GET(pfx_seg), GET(pfx_opr), GET(pfx_adr), GET(pfx_lock), GET(pfx_rep),
                 GET(pfx_repe), GET(pfx_repne), GET(pfx_insn), GET(default64), GET(opr_mode), GET(adr_mode),
                 GET(br_far), GET(br_near), GET(implicit_addr), GET(c1), GET(c2), GET(c3));
+    */
 
     BitSet<uint32_t>* usedRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
     touchedRegisters(usedRegs);
@@ -2026,6 +2041,11 @@ bool X86Instruction::verify(){
                 return false;
             }
         }
+    }
+
+    if (cacheBaseAddress != baseAddress){
+        PRINT_ERROR("base address cached copy is different than orig");
+        return false;
     }
 
     return true;

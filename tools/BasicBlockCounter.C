@@ -109,7 +109,6 @@ void BasicBlockCounter::instrument()
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
 
     uint32_t noProtPoints = 0;
-    uint32_t callOut = 0;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
 
         BasicBlock* bb = getExposedBasicBlock(i);
@@ -167,20 +166,15 @@ void BasicBlockCounter::instrument()
             
         // register an instrumentation point at the function that uses this snippet
         FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-        X86Instruction* bestinst = bb->getLeader();
+        X86Instruction* bestinst = bb->getExitInstruction();
         InstLocations loc = InstLocation_prior;
 #ifndef NO_REG_ANALYSIS
-        uint32_t j;
-        for (j = 0; j < bb->getNumberOfInstructions(); j++){
+        for (int32_t j = bb->getNumberOfInstructions() - 1; j >= 0; j--){
             if (bb->getInstruction(j)->allFlagsDeadIn()){
                 bestinst = bb->getInstruction(j);
                 noProtPoints++;
                 prot = FlagsProtectionMethod_none;
                 break;
-            } else if (j == bb->getNumberOfInstructions() - 1 &&
-                       bb->getInstruction(j)->isCall() &&
-                       bb->getInstruction(j)->allFlagsDeadOut()){
-                callOut++;
             }
         }
 #endif
@@ -190,7 +184,7 @@ void BasicBlockCounter::instrument()
 #ifdef NO_REG_ANALYSIS
     PRINT_WARN(10, "Warning: register analysis disabled");
 #endif
-    PRINT_INFOR("Excluding flags protection for %d/%d instrumentation points (+ %d w/ callout)", noProtPoints, getNumberOfExposedBasicBlocks(), callOut);
+    PRINT_INFOR("Excluding flags protection for %d/%d instrumentation points", noProtPoints, getNumberOfExposedBasicBlocks());
 
     printStaticFile(allBlocks, allLineInfos, allBlocks->size());
 
