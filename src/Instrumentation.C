@@ -121,6 +121,23 @@ uint32_t InstrumentationPoint::addPostcursorInstruction(X86Instruction* inst){
 }
 
 
+int compareInstFuncBaseAddress(const void* arg1, const void* arg2){
+    InstrumentationPoint* ip1 = *((InstrumentationPoint**)arg1);
+    InstrumentationPoint* ip2 = *((InstrumentationPoint**)arg2);
+
+    if (ip1->getSourceObject()->getContainer()->getBaseAddress() <
+        ip2->getSourceObject()->getContainer()->getBaseAddress()){
+        return -1;
+    } else if (ip1->getSourceObject()->getContainer()->getBaseAddress() > 
+               ip2->getSourceObject()->getContainer()->getBaseAddress()){
+        return 1;
+    } else {
+        return compareInstBaseAddress(arg1, arg2);
+    }
+    __SHOULD_NOT_ARRIVE;
+    return 0;
+}
+
 
 int compareInstBaseAddress(const void* arg1,const void* arg2){
     InstrumentationPoint* ip1 = *((InstrumentationPoint**)arg1);

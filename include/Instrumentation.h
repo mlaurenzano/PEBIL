@@ -44,6 +44,7 @@ class InstrumentationPoint;
 #define __MAX_ARGS_SUPPORTED 6
 
 extern uint32_t map64BitArgToReg(uint32_t idx);
+extern int compareInstFuncBaseAddress(const void* arg1, const void* arg2);
 extern int compareInstBaseAddress(const void* arg1, const void* arg2);
 extern int compareInstSourceAddress(const void* arg1, const void* arg2);
 

@@ -778,15 +778,47 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
 
         exposedFunctions.sort(compareBaseAddress);
         exposedBasicBlocks.sort(compareBaseAddress);
+        (*instrumentationPoints).sort(compareInstFuncBaseAddress);
 
         ASSERT(exposedFunctions.isSorted(compareBaseAddress));
         ASSERT(exposedBasicBlocks.isSorted(compareBaseAddress));
-        ASSERT((*instrumentationPoints).isSorted(compareInstBaseAddress));
+        ASSERT((*instrumentationPoints).isSorted(compareInstFuncBaseAddress));
 
         Vector<Vector<Vector<InstrumentationPoint*>*>*>* instPointsPerBlock = new Vector<Vector<Vector<InstrumentationPoint*>*>*>();
+
         for (uint32_t i = 0; i < numberOfFunctions; i++){
             (*instPointsPerBlock).append(new Vector<Vector<InstrumentationPoint*>*>());
+            for (uint32_t j = 0; j < exposedBasicBlocks.size(); j++){
+                if (exposedFunctions[i]->getBaseAddress() == exposedBasicBlocks[j]->getFunction()->getBaseAddress()){
+                    (*instPointsPerBlock)[i]->append(new Vector<InstrumentationPoint*>());
+                }
+            }
+            ASSERT((*instPointsPerBlock)[i]->size() == exposedFunctions[i]->getNumberOfBasicBlocks());
         }
+
+        bool* needsRelocate = new bool[numberOfFunctions];
+        for (uint32_t i = 0; i < numberOfFunctions; i++){
+            needsRelocate[i] = false;
+        }
+
+        uint32_t currentFunc = 0;
+        uint32_t localBlock = 0;
+        for (uint32_t k = 0; k < (*instrumentationPoints).size(); k++){
+            while (exposedFunctions[currentFunc]->getBaseAddress() < (*instrumentationPoints)[k]->getSourceObject()->getContainer()->getBaseAddress()){
+                currentFunc++;
+                localBlock = 0;
+            }
+            while (!exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->inRange((*instrumentationPoints)[k]->getInstBaseAddress())){
+                localBlock++;
+            }
+            (*((*instPointsPerBlock)[currentFunc]))[localBlock]->append((*instrumentationPoints)[k]);
+            if ((*instrumentationPoints)[k]->getInstLocation() != InstLocation_replace){
+                needsRelocate[currentFunc] = true;
+            }
+        }
+
+        (*instrumentationPoints).sort(compareInstBaseAddress);
+        /*
         uint32_t currentFunction = 0;
         for (uint32_t i = 0; i < exposedBasicBlocks.size(); i++){
             while (exposedFunctions[currentFunction]->getBaseAddress() + exposedFunctions[currentFunction]->getSizeInBytes() - 1
@@ -794,8 +826,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
                 currentFunction++;
                 ASSERT(currentFunction < exposedFunctions.size());
             }
-            if (exposedFunctions[currentFunction]->inRange(exposedBasicBlocks[i]->getBaseAddress())){
-                (*instPointsPerBlock)[currentFunction]->append(new Vector<InstrumentationPoint*>());
+            if (exposedFunctions[currentFunction]->getBaseAddress() == exposedBasicBlocks[i]->getFunction()->getBaseAddress()){
             }
         }
         ASSERT(currentFunction == exposedFunctions.size()-1);
@@ -803,10 +834,6 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
         currentFunction = 0;
         uint32_t currentBlock = 0;
         uint32_t localBlock = 0;
-        bool* needsRelocate = new bool[numberOfFunctions];
-        for (uint32_t i = 0; i < numberOfFunctions; i++){
-            needsRelocate[i] = false;
-        }
 
         for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
             while (exposedBasicBlocks[currentBlock]->getBaseAddress() + exposedBasicBlocks[currentBlock]->getNumberOfBytes() - 1
@@ -823,11 +850,12 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
             }
             ASSERT(exposedFunctions[currentFunction]->inRange(exposedBasicBlocks[currentBlock]->getBaseAddress()));
             ASSERT(exposedBasicBlocks[currentBlock]->inRange((*instrumentationPoints)[i]->getInstBaseAddress()));
-            (*((*instPointsPerBlock)[currentFunction]))[localBlock]->append((*instrumentationPoints)[i]);
+            (*instrumentationPoints)[i]->print();
             if ((*instrumentationPoints)[i]->getInstLocation() != InstLocation_replace){
                 needsRelocate[currentFunction] = true;
             }
         }
+        */
 
 
         for (uint32_t i = 0; i < numberOfFunctions; i++){
