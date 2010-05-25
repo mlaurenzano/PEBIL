@@ -64,31 +64,22 @@ void Function::printDisassembly(bool instructionDetail){
     }
 }
 
-uint32_t Function::bloatBasicBlocks(Vector<InstrumentationPoint*>* instPoints){
+uint32_t Function::bloatBasicBlocks(Vector<Vector<InstrumentationPoint*>*>* instPoints){
     uint32_t currByte = 0;
+    ASSERT((*instPoints).size() == flowGraph->getNumberOfBasicBlocks());
 
-    Vector<InstrumentationPoint*>** blockInstPoints = new Vector<InstrumentationPoint*>*[flowGraph->getNumberOfBlocks()];
-
+    uint32_t bbidx = 0;
     for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
         Block* block = flowGraph->getBlock(i);
         if (block->getType() == PebilClassType_BasicBlock){
-            blockInstPoints[i] = instpointFilterAddressRange(block, instPoints);
-        } 
-        currByte += block->getNumberOfBytes();
-    }
-    currByte = 0;
-
-    for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
-        Block* block = flowGraph->getBlock(i);
-        if (block->getType() == PebilClassType_BasicBlock){
-            ((BasicBlock*)block)->bloat(blockInstPoints[i]);
-            delete blockInstPoints[i];
-        } 
+            ((BasicBlock*)block)->bloat((*instPoints)[bbidx]);
+            bbidx++;
+        }
         block->setBaseAddress(baseAddress + currByte);
         currByte += block->getNumberOfBytes();
     }
+    ASSERT(bbidx == flowGraph->getNumberOfBasicBlocks());
     sizeInBytes = currByte;
-    delete[] blockInstPoints;
 
     return sizeInBytes;
 }

@@ -62,7 +62,7 @@ public:
     bool refersToInstruction();
     bool containsReturn();
 
-    uint32_t bloatBasicBlocks(Vector<InstrumentationPoint*>* instPoints);
+    uint32_t bloatBasicBlocks(Vector<Vector<InstrumentationPoint*>*>* instPoints);
     uint32_t addSafetyJump(X86Instruction* tgtInstruction);
 
     void setBaseAddress(uint64_t newBaseAddress);

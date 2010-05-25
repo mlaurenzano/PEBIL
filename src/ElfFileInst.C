@@ -311,7 +311,7 @@ bool ElfFileInst::isEligibleFunction(Function* func){
     return true;
 }
 
-uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint64_t offsetToRelocation, Vector<InstrumentationPoint*>* functionInstPoints){
+uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint64_t offsetToRelocation, Vector<Vector<InstrumentationPoint*>*>* functionInstPoints){
     ASSERT(isEligibleFunction(operatedFunction) && operatedFunction->hasCompleteDisassembly());
 
     TextSection* extraText = (TextSection*)elfFile->getRawSection(extraTextIdx);
@@ -775,6 +775,57 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
         PRINT_INFO();
         PRINT_OUT("Attempting to relocate %d functions", numberOfFunctions);
 
+        ASSERT(exposedFunctions.isSorted(compareBaseAddress));
+        ASSERT(exposedBasicBlocks.isSorted(compareBaseAddress));
+        ASSERT((*instrumentationPoints).isSorted(compareInstBaseAddress));
+
+        Vector<Vector<Vector<InstrumentationPoint*>*>*>* instPointsPerBlock = new Vector<Vector<Vector<InstrumentationPoint*>*>*>();
+        for (uint32_t i = 0; i < numberOfFunctions; i++){
+            (*instPointsPerBlock).append(new Vector<Vector<InstrumentationPoint*>*>());
+        }
+        uint32_t currentFunction = 0;
+        for (uint32_t i = 0; i < exposedBasicBlocks.size(); i++){
+            while (exposedFunctions[currentFunction]->getBaseAddress() + exposedFunctions[currentFunction]->getSizeInBytes() - 1
+                   < exposedBasicBlocks[i]->getBaseAddress()){
+                currentFunction++;
+                ASSERT(currentFunction < exposedFunctions.size());
+            }
+            if (exposedFunctions[currentFunction]->inRange(exposedBasicBlocks[i]->getBaseAddress())){
+                (*instPointsPerBlock)[currentFunction]->append(new Vector<InstrumentationPoint*>());
+            }
+        }
+        ASSERT(currentFunction == exposedFunctions.size()-1);
+
+        currentFunction = 0;
+        uint32_t currentBlock = 0;
+        uint32_t localBlock = 0;
+        bool* needsRelocate = new bool[numberOfFunctions];
+        for (uint32_t i = 0; i < numberOfFunctions; i++){
+            needsRelocate[i] = false;
+        }
+
+        for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
+            while (exposedBasicBlocks[currentBlock]->getBaseAddress() + exposedBasicBlocks[currentBlock]->getNumberOfBytes() - 1
+                   < (*instrumentationPoints)[i]->getInstBaseAddress()){
+                currentBlock++;
+                ASSERT(currentBlock < exposedBasicBlocks.size());
+                localBlock++;
+            }
+            while (exposedFunctions[currentFunction]->getBaseAddress() + exposedFunctions[currentFunction]->getNumberOfBytes() - 1
+                   < (*instrumentationPoints)[i]->getInstBaseAddress()){
+                currentFunction++;
+                ASSERT(currentFunction < exposedFunctions.size());
+                localBlock = 0;
+            }
+            ASSERT(exposedFunctions[currentFunction]->inRange(exposedBasicBlocks[currentBlock]->getBaseAddress()));
+            ASSERT(exposedBasicBlocks[currentBlock]->inRange((*instrumentationPoints)[i]->getInstBaseAddress()));
+            (*((*instPointsPerBlock)[currentFunction]))[localBlock]->append((*instrumentationPoints)[i]);
+            if ((*instrumentationPoints)[i]->getInstLocation() != InstLocation_replace){
+                needsRelocate[currentFunction] = true;
+            }
+        }
+
+
         for (uint32_t i = 0; i < numberOfFunctions; i++){
             Function* func = exposedFunctions[i];
             if (!isEligibleFunction(func)){
@@ -788,27 +839,19 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
                 PRINT_PROGRESS(i, numberOfFunctions, 40);
                 
                 ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
-                Vector<InstrumentationPoint*>* functionInstPoints = instpointFilterAddressRange(func, instrumentationPoints);
-                bool needsRelocate = false;
-                for (uint32_t j = 0; j < (*functionInstPoints).size(); j++){
-                    if ((*functionInstPoints)[j]->getInstLocation() != InstLocation_replace){
-                        needsRelocate = true;
-                        break;
-                    }
-                }
-                if (needsRelocate){
-                    codeOffset += relocateAndBloatFunction(func, codeOffset, functionInstPoints);
+                if (needsRelocate[i]){
+                    codeOffset += relocateAndBloatFunction(func, codeOffset, (*instPointsPerBlock)[i]);
                     func->setRelocated();
                 } else {
                     func->setBaseAddress(func->getBaseAddress());
                     skippedRelocation++;
                 }
-                delete functionInstPoints;
 #ifdef RELOC_MOD
             }
 #endif
         }
         PRINT_OUT("\n");
+
     }
     PRINT_INFOR("Skipped relocation on %d/%d functions", skippedRelocation, numberOfFunctions);
 
@@ -896,6 +939,7 @@ void ElfFileInst::functionSelect(){
             }
         }
     }
+    exposedBasicBlocks.sort(compareBaseAddress);
 
     PRINT_INFOR("Possibly incorrect disasm (bytes):\t%d/%d (%.2f%)", missingBytes, numberOfBytes, ((float)((float)missingBytes*100)/((float)numberOfBytes)));
 }

@@ -102,7 +102,6 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
         DEBUG_BLOAT_FILTER((*instPoints)[i]->getSourceObject()->print();)
         ASSERT(inRange((*instPoints)[i]->getInstBaseAddress()));
     }
-    (*instPoints).sort(compareInstBaseAddress);
 
     X86Instruction* firstInstruction = instructions[0];
 
