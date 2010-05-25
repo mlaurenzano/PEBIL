@@ -650,7 +650,6 @@ uint32_t ElfFileInst::generateInstrumentation(){
             }
         }
     }
-
     PRINT_OUT("\n");
         
     for (uint32_t i = INST_SNIPPET_BOOTSTRAP_END + 1; i < instrumentationSnippets.size(); i++){        
@@ -772,8 +771,6 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
 
     uint32_t skippedRelocation = 0;
     if (!HAS_INSTRUMENTOR_FLAG(InstrumentorFlag_norelocate, flags)){
-        PRINT_INFO();
-        PRINT_OUT("Attempting to relocate %d functions", numberOfFunctions);
 
         ASSERT(exposedFunctions.isSorted(compareBaseAddress));
         ASSERT(exposedBasicBlocks.isSorted(compareBaseAddress));
@@ -836,8 +833,6 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
             if (i % RELOC_MOD == RELOC_MOD_OFF){
                 PRINT_INFOR("relocating function (%d) %s", i, func->getName());
 #endif
-                PRINT_PROGRESS(i, numberOfFunctions, 40);
-                
                 ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
                 if (needsRelocate[i]){
                     codeOffset += relocateAndBloatFunction(func, codeOffset, (*instPointsPerBlock)[i]);
@@ -850,10 +845,20 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
             }
 #endif
         }
-        PRINT_OUT("\n");
+        delete[] needsRelocate;
 
+        while (instPointsPerBlock->size()){
+            Vector<Vector<InstrumentationPoint*>*>* tmp = (*instPointsPerBlock).remove(0);
+            while (tmp->size()){
+                delete (*tmp).remove(0);
+            }
+            delete tmp;
+        }
+        delete instPointsPerBlock;
     }
-    PRINT_INFOR("Skipped relocation on %d/%d functions", skippedRelocation, numberOfFunctions);
+    if (skippedRelocation){
+        PRINT_INFOR("Skipped relocation on %d/%d functions", skippedRelocation, numberOfFunctions);
+    }
 
     TIMER(t2 = timer();PRINT_INFOR("___timer: \t\tFncReloc Step %c Reloc : %.2f seconds",stepNumber++,t2-t1);t1=t2);
 
@@ -862,6 +867,9 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     for (uint32_t i = 0; i < (*(elfFile->getAddressAnchors())).size(); i++){
         (*(elfFile->getAddressAnchors()))[i]->refreshCache();
     }
+
+    Vector<Vector<AddressAnchor*>*> anchors;
+    Vector<BasicBlock*> blocks;
     for (uint32_t j = 0; j < (*instrumentationPoints).size(); j++){
         if ((*instrumentationPoints)[j]->getSourceObject()->isLeader()){
             uint64_t searchAddr = (*instrumentationPoints)[j]->getInstBaseAddress();
@@ -872,14 +880,24 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
             
             Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors(searchAddr);
             ASSERT(containerBB->getNumberOfInstructions() && containerBB->getLeader());
-            PRINT_DEBUG_ANCHOR("In block at %#llx, updating %d anchors", containerBB->getBaseAddress(), (*modAnchors).size());
-            for (uint32_t k = 0; k < modAnchors->size(); k++){
-                (*modAnchors)[k]->updateLink(containerBB->getLeader());
-                elfFile->setAnchorsSorted(false);
-            }
-            delete modAnchors;
+            PRINT_DEBUG_ANCHOR("In block at %#llx, updating %d anchors", containerBB->getBaseAddress(), modAnchors->size());
+            anchors.append(modAnchors);
+            blocks.append(containerBB);
         }
     }
+
+    ASSERT(anchors.size() == blocks.size());
+    while (anchors.size()){
+        Vector<AddressAnchor*>* modAnchors = anchors.remove(0);
+        BasicBlock* containerBB = blocks.remove(0);
+        for (uint32_t k = 0; k < modAnchors->size(); k++){
+            (*modAnchors)[k]->updateLink(containerBB->getLeader());
+            elfFile->setAnchorsSorted(false);
+        }
+        delete modAnchors;
+    }
+    ASSERT(!blocks.size());
+
     TIMER(t2 = timer();PRINT_INFOR("___timer: \t\tFncReloc Step %c Reanchor : %.2f seconds",stepNumber++,t2-t1);t1=t2);
 
     return codeOffset;
