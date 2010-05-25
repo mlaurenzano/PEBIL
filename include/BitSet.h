@@ -178,10 +178,10 @@ public:
     }
 
     inline bool contains(uint32_t n){
-        if(n >= maximum)
-            return false;
         uint32_t index = n >> DivideLog;
         uint32_t mask = 1 << (n & ModMask);
+        if(n >= maximum)
+            return false;
         return (bits[index] & mask);
     }
 

@@ -500,8 +500,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
 
     (*instrumentationPoints).sort(compareInstBaseAddress);
 
-    PRINT_INFO();
-    PRINT_OUT("Processing %d instrumentation points", (*instrumentationPoints).size());
+    PRINT_INFOR("There are %d instrumentation points", (*instrumentationPoints).size());
 
     Vector<AddressAnchor*> anchors;
     Vector<X86Instruction*> updates;
@@ -514,7 +513,6 @@ uint32_t ElfFileInst::generateInstrumentation(){
 #ifdef TURNOFF_INSTRUCTION_SWAP
         break;
 #endif
-        PRINT_PROGRESS(i, (*instrumentationPoints).size(), 40);
         bool performSwap = true;
 
 #ifdef SWAP_MOD
@@ -648,7 +646,6 @@ uint32_t ElfFileInst::generateInstrumentation(){
             }
         }
     }
-    PRINT_OUT("\n");
 
     ASSERT(anchors.size() == updates.size());
     while (anchors.size()){
@@ -778,6 +775,9 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
 
     uint32_t skippedRelocation = 0;
     if (!HAS_INSTRUMENTOR_FLAG(InstrumentorFlag_norelocate, flags)){
+
+        exposedFunctions.sort(compareBaseAddress);
+        exposedBasicBlocks.sort(compareBaseAddress);
 
         ASSERT(exposedFunctions.isSorted(compareBaseAddress));
         ASSERT(exposedBasicBlocks.isSorted(compareBaseAddress));

@@ -66,6 +66,11 @@ void Function::printDisassembly(bool instructionDetail){
 
 uint32_t Function::bloatBasicBlocks(Vector<Vector<InstrumentationPoint*>*>* instPoints){
     uint32_t currByte = 0;
+    if ((*instPoints).size() != flowGraph->getNumberOfBasicBlocks()){
+        print();
+        flowGraph->print();
+        PRINT_INFOR("%d inst point lists, %d blocks", (*instPoints).size(), flowGraph->getNumberOfBasicBlocks());
+    }
     ASSERT((*instPoints).size() == flowGraph->getNumberOfBasicBlocks());
 
     uint32_t bbidx = 0;
@@ -396,14 +401,7 @@ Vector<X86Instruction*>* Function::digestRecursive(){
     }
 
     qsort(&(*allInstructions), (*allInstructions).size(), sizeof(X86Instruction*), compareBaseAddress);
-    if (!(*allInstructions).isSorted(compareBaseAddress)){
-        PRINT_INFOR("function %s instructions are not sorted", getName());
-        for (uint32_t i = 0; i < (*allInstructions).size() - 1; i++){
-            (*allInstructions)[i]->print();
-        }
-    }
-
-    ASSERT((*allInstructions).isSorted(compareBaseAddress));
+    //    ASSERT((*allInstructions).isSorted(compareBaseAddress));
 
     for (uint32_t i = 0; i < (*allInstructions).size() - 1; i++){
         if ((*allInstructions)[i]->getBaseAddress() + (*allInstructions)[i]->getSizeInBytes() >

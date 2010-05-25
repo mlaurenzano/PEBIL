@@ -1112,11 +1112,7 @@ void ElfFile::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     for (uint32_t i = 0; i < getNumberOfSections(); i++){
         currentOffset = sectionHeaders[i]->GET(sh_offset);
         if (sectionHeaders[i]->hasBitsInFile()){
-            if (i == 21){
-                rawSections[37]->dump(binaryOutputFile,currentOffset);
-            } else {
-                rawSections[i]->dump(binaryOutputFile,currentOffset);
-            }
+            rawSections[i]->dump(binaryOutputFile,currentOffset);
         }
     }
 }
