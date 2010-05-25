@@ -293,10 +293,10 @@ bool ElfFileInst::isEligibleFunction(Function* func){
     if (func->isInstrumentationFunction()){
         return false;
     }
+    /*
     if (!func->containsReturn()){
         return false;
     }
-    /*
     if (func->isJumpTable()){
         return false;
     }
@@ -503,6 +503,9 @@ uint32_t ElfFileInst::generateInstrumentation(){
     PRINT_INFO();
     PRINT_OUT("Processing %d instrumentation points", (*instrumentationPoints).size());
 
+    Vector<AddressAnchor*> anchors;
+    Vector<X86Instruction*> updates;
+
     for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
         InstrumentationPoint* pt = (*instrumentationPoints)[i];
         if (!pt){
@@ -607,22 +610,17 @@ uint32_t ElfFileInst::generateInstrumentation(){
             ASSERT((*displaced).size());
 
             // update any address anchor that pointed to the old instruction to point to the new
-            for (uint32_t j = 0; j < (*displaced).size(); j++){
-                Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors((*displaced)[j]->getBaseAddress());
-                PRINT_DEBUG_ANCHOR("Looking for anchors for address %#llx", (*displaced)[j]->getBaseAddress());
-                for (uint32_t k = 0; k < modAnchors->size(); k++){
-                    PRINT_DEBUG_ANCHOR("Instruction swapping at address %#llx because of anchor/swap", (*displaced)[j]->getBaseAddress());
-                    DEBUG_ANCHOR((*modAnchors)[k]->print();)
-                        
-                        for (uint32_t l = 0; l < (*repl).size(); l++){
-                            PRINT_DEBUG_ANCHOR("\t\t********Comparing addresses %#llx and %#llx", (*displaced)[j]->getBaseAddress(), (*repl)[l]->getBaseAddress());
-                            if ((*displaced)[j]->getBaseAddress() == (*repl)[l]->getBaseAddress()){
-                                (*modAnchors)[k]->updateLink((*repl)[l]);
-                                elfFile->setAnchorsSorted(false);
-                            }
-                        }
+            if ((*displaced).size()){
+                if ((*repl).size() && (*repl)[0]->getBaseAddress() == (*displaced)[0]->getBaseAddress()){
+                    Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors((*displaced)[0]->getBaseAddress());
+                    PRINT_DEBUG_ANCHOR("Looking for anchors for address %#llx", (*displaced)[0]->getBaseAddress());
+                    for (uint32_t k = 0; k < modAnchors->size(); k++){
+                        X86Instruction* modInst = (*repl)[0];
+                        anchors.append((*modAnchors)[k]);
+                        updates.append(modInst);
+                    }
+                    delete modAnchors;
                 }
-                delete modAnchors;
             }
             
 
@@ -651,7 +649,16 @@ uint32_t ElfFileInst::generateInstrumentation(){
         }
     }
     PRINT_OUT("\n");
-        
+
+    ASSERT(anchors.size() == updates.size());
+    while (anchors.size()){
+        AddressAnchor* modAnchor = anchors.remove(0);
+        X86Instruction* update = updates.remove(0);
+        modAnchor->updateLink(update);
+        elfFile->setAnchorsSorted(false);
+    }
+    ASSERT(!updates.size());
+
     for (uint32_t i = INST_SNIPPET_BOOTSTRAP_END + 1; i < instrumentationSnippets.size(); i++){        
         snip = instrumentationSnippets[i];
         if (snip){
