@@ -15,7 +15,7 @@
 #define INST_LIB_NAME "libsimulator.so"
 #define BUFFER_ENTRIES 0x00010000
 #define Size__BufferEntry 16
-#define MAX_MEMOPS_PER_BLOCK 512
+#define MAX_MEMOPS_PER_BLOCK 1024
 
 //#define DISABLE_BLOCK_COUNT
 
@@ -435,7 +435,7 @@ void CacheSimulation::instrument(){
                     memopIdInBlock++;
                 }
             }
-            ASSERT(memopIdInBlock < MAX_MEMOPS_PER_BLOCK);
+            ASSERT(memopIdInBlock < MAX_MEMOPS_PER_BLOCK && "Try increasing MAX_MEMOPS_PER_BLOCK");
         }
 
 #ifndef DISABLE_BLOCK_COUNT

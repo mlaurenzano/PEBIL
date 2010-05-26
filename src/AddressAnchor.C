@@ -5,6 +5,8 @@
 #include <RawSection.h>
 
 uint64_t AddressAnchor::getLinkOffset(){
+    ASSERT(linkedParent);
+    ASSERT(link);
     if (linkedParent->getType() == PebilClassType_X86Instruction){ 
         X86Instruction* instl = (X86Instruction*)linkedParent;
         if (instl->isControl()){
@@ -129,6 +131,7 @@ void AddressAnchor::dumpDataReference(BinaryOutputFile* binaryOutputFile, uint32
 }
 
 void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    ASSERT(linkedParent);
     ASSERT(linkedParent->getType() == PebilClassType_X86Instruction);
     X86Instruction* linkedInstruction = (X86Instruction*)linkedParent;
 
