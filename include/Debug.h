@@ -31,8 +31,8 @@
 //#define DEBUG_LIVE_REGS
 
 // some common macros to help debug instrumentation
-//#define RELOC_MOD_OFF 0
-//#define RELOC_MOD 2
+//#define RELOC_MOD_OFF 44077
+//#define RELOC_MOD 131072
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define BLOAT_MOD_OFF 3
 //#define BLOAT_MOD     2

@@ -8,12 +8,7 @@ uint64_t AddressAnchor::getLinkOffset(){
     ASSERT(linkedParent);
     ASSERT(link);
     if (linkedParent->getType() == PebilClassType_X86Instruction){ 
-        X86Instruction* instl = (X86Instruction*)linkedParent;
-        if (instl->isControl()){
-            return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
-        } else {
-            return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
-        }
+        return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
     } else if (linkedParent->getType() == PebilClassType_DataReference){
         return link->getBaseAddress();
     }

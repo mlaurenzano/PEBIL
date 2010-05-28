@@ -27,7 +27,6 @@ uint32_t bloatCount = 0;
 
 #define Reserve__Instrumentation_DynamicTable 0x8000
 
-
 Vector<X86Instruction*>* ElfFileInst::findAllCalls(char* names){
     char* fnames = new char[strlen(names)+1];
     memcpy(fnames, names, strlen(names));
@@ -786,7 +785,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
 
         Vector<Vector<Vector<InstrumentationPoint*>*>*>* instPointsPerBlock = new Vector<Vector<Vector<InstrumentationPoint*>*>*>();
 
-        for (uint32_t i = 0; i < numberOfFunctions; i++){
+        for (uint32_t i = 0; i < exposedFunctions.size(); i++){
             (*instPointsPerBlock).append(new Vector<Vector<InstrumentationPoint*>*>());
             for (uint32_t j = 0; j < exposedBasicBlocks.size(); j++){
                 if (exposedFunctions[i]->getBaseAddress() == exposedBasicBlocks[j]->getFunction()->getBaseAddress()){
@@ -796,8 +795,8 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
             ASSERT((*instPointsPerBlock)[i]->size() == exposedFunctions[i]->getNumberOfBasicBlocks());
         }
 
-        bool* needsRelocate = new bool[numberOfFunctions];
-        for (uint32_t i = 0; i < numberOfFunctions; i++){
+        bool* needsRelocate = new bool[exposedFunctions.size()];
+        for (uint32_t i = 0; i < exposedFunctions.size(); i++){
             needsRelocate[i] = false;
         }
 
@@ -994,7 +993,7 @@ void ElfFileInst::functionSelect(){
     }
     exposedBasicBlocks.sort(compareBaseAddress);
 
-    PRINT_INFOR("Possibly incorrect disasm (bytes):\t%d/%d (%.2f%)", missingBytes, numberOfBytes, ((float)((float)missingBytes*100)/((float)numberOfBytes)));
+    PRINT_INFOR("Hidden from instrumentation (bytes):\t%d/%d (%.2f%)", missingBytes, numberOfBytes, ((float)((float)missingBytes*100)/((float)numberOfBytes)));
 }
 
 

@@ -711,55 +711,22 @@ void ElfFile::initDynamicFilePointers(){
     }
     ASSERT(dynamicSymtabIdx != getNumberOfSymbolTables() && "Cannot analyze a file if it doesn't have a dynamic symbol table");
 
-    // find the global offset table's address
-    uint64_t gotBaseAddress = 0;
-    for (uint32_t i = 0; i < getNumberOfSymbolTables(); i++){
-        SymbolTable* currentSymtab = getSymbolTable(i);
-        for (uint32_t j = 0; j < currentSymtab->getNumberOfSymbols(); j++){
-
-            // yes, we actually have to look for this symbol's name to find it!
-            char* symName = currentSymtab->getSymbolName(j);
-            if (!strcmp(symName,GOT_SYM_NAME)){
-                if (gotBaseAddress){
-                    PRINT_WARN(4,"Found mutiple symbols for Global Offset Table (symbols named %s), addresses are 0x%016llx, 0x%016llx",
-                               GOT_SYM_NAME, gotBaseAddress, currentSymtab->getSymbol(j)->GET(st_value));
-                    ASSERT(gotBaseAddress == currentSymtab->getSymbol(j)->GET(st_value) && "Conflicting addresses for Global Offset Table Found!");
-                }
-                gotBaseAddress = currentSymtab->getSymbol(j)->GET(st_value);
-            }
-        }
-    }
-    ASSERT(gotBaseAddress && "Cannot find a symbol for the global offset table");
-
-    // find the global offset table
-    uint16_t gotSectionIdx = findSectionIdx(gotBaseAddress);
-    /*
-    for (uint32_t i = 0; i < getNumberOfSections(); i++){
-        if (sectionHeaders[i]->inRange(gotBaseAddress)){
-            ASSERT(!gotSectionIdx && "Cannot have multiple global offset tables");
-            gotSectionIdx = i;
-        }
-    }
-    */
-    ASSERT(gotSectionIdx && "Cannot find a section for the global offset table");
-    ASSERT(getSectionHeader(gotSectionIdx)->GET(sh_type) == SHT_PROGBITS && "Global Offset Table section header is wrong type");
-
-
-    // The raw section for the global offset table should already have been initialized as a generic DataSection
-    // we will destroy it and create it as a GlobalOffsetTable
-    ASSERT(rawSections[gotSectionIdx] && "Global Offset Table not yet created");
-    ASSERT(sectionHeaders[gotSectionIdx]->getSectionType() == PebilClassType_DataSection);
-    delete rawSections[gotSectionIdx];
-    
-    char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[gotSectionIdx]->GET(sh_offset));
-    uint64_t sectionSize = (uint64_t)sectionHeaders[gotSectionIdx]->GET(sh_size);    
-    rawSections[gotSectionIdx] = new GlobalOffsetTable(sectionFilePtr, sectionSize, gotSectionIdx, gotBaseAddress, this);
-    ASSERT(!globalOffsetTable && "global offset table should not be initialized");
-    globalOffsetTable = (GlobalOffsetTable*)rawSections[gotSectionIdx];
-    globalOffsetTable->read(&binaryInputFile);
-    
+    char* sectionFilePtr;
+    uint64_t sectionSize;
 
     // find the dynamic section's address
+    uint16_t dynamicSegmentIdx = 0;
+    for (uint32_t i = 0; i < getNumberOfPrograms(); i++){
+        if (programHeaders[i]->GET(p_type) == PT_DYNAMIC){
+            ASSERT(!dynamicSegmentIdx && "Cannot have multiple segments for the dynamic section");
+            dynamicSegmentIdx = i;
+        }
+    }
+    ASSERT(dynamicSegmentIdx && "Cannot find a segment for the dynamic table");
+    dynamicSectionAddress = getProgramHeader(dynamicSegmentIdx)->GET(p_vaddr);
+    ASSERT(getProgramHeader(dynamicSegmentIdx)->GET(p_vaddr) == dynamicSectionAddress && "Dynamic segment address from symbol and programHeader don't match");
+
+    /*
     dynamicSectionAddress = 0;
     for (uint32_t i = 0; i < getNumberOfSymbolTables(); i++){
         SymbolTable* currentSymtab = getSymbolTable(i);
@@ -778,6 +745,7 @@ void ElfFile::initDynamicFilePointers(){
         }
     }
     ASSERT(dynamicSectionAddress && "Cannot find a symbol for the dynamic section");
+    */
 
     // find the dynamic table
     dynamicTableSectionIdx = 0;
@@ -791,16 +759,6 @@ void ElfFile::initDynamicFilePointers(){
     ASSERT(getSectionHeader(dynamicTableSectionIdx)->GET(sh_type) == SHT_DYNAMIC && "Dynamic Section section header is wrong type");
     ASSERT(getSectionHeader(dynamicTableSectionIdx)->hasAllocBit() && "Dynamic Section section header missing an attribute");
 
-
-    uint16_t dynamicSegmentIdx = 0;
-    for (uint32_t i = 0; i < getNumberOfPrograms(); i++){
-        if (programHeaders[i]->GET(p_type) == PT_DYNAMIC){
-            ASSERT(!dynamicSegmentIdx && "Cannot have multiple segments for the dynamic section");
-            dynamicSegmentIdx = i;
-        }
-    }
-    ASSERT(dynamicSegmentIdx && "Cannot find a segment for the dynamic table");
-    ASSERT(getProgramHeader(dynamicSegmentIdx)->GET(p_vaddr) == dynamicSectionAddress && "Dynamic segment address from symbol and programHeader don't match");
 
     // The raw section for the dynamic table should already have been initialized as a generic RawSection
     // we will destroy it and create it as a DynamicTable
@@ -816,6 +774,52 @@ void ElfFile::initDynamicFilePointers(){
     dynamicTable = (DynamicTable*)rawSections[dynamicTableSectionIdx];
     dynamicTable->read(&binaryInputFile);
     dynamicTable->verify();
+
+
+    // find the global offset table's address
+    Dynamic* gotdyn = dynamicTable->getDynamicByType(DT_PLTGOT,0);
+    ASSERT(gotdyn);
+    uint64_t gotBaseAddress = gotdyn->GET_A(d_ptr,d_un);
+    /*
+    for (uint32_t i = 0; i < getNumberOfSymbolTables(); i++){
+        SymbolTable* currentSymtab = getSymbolTable(i);
+        for (uint32_t j = 0; j < currentSymtab->getNumberOfSymbols(); j++){
+
+            // yes, we actually have to look for this symbol's name to find it!
+            char* symName = currentSymtab->getSymbolName(j);
+            if (!strcmp(symName,GOT_SYM_NAME)){
+                if (gotBaseAddress){
+                    PRINT_WARN(4,"Found mutiple symbols for Global Offset Table (symbols named %s), addresses are 0x%016llx, 0x%016llx",
+                               GOT_SYM_NAME, gotBaseAddress, currentSymtab->getSymbol(j)->GET(st_value));
+                    ASSERT(gotBaseAddress == currentSymtab->getSymbol(j)->GET(st_value) && "Conflicting addresses for Global Offset Table Found!");
+                }
+                gotBaseAddress = currentSymtab->getSymbol(j)->GET(st_value);
+            }
+        }
+    }
+    */
+    ASSERT(gotBaseAddress && "Cannot find a symbol for the global offset table");
+
+    // find the global offset table
+    uint16_t gotSectionIdx = findSectionIdx(gotBaseAddress);
+    
+    ASSERT(gotSectionIdx && "Cannot find a section for the global offset table");
+    ASSERT(getSectionHeader(gotSectionIdx)->GET(sh_type) == SHT_PROGBITS && "Global Offset Table section header is wrong type");
+
+
+    // The raw section for the global offset table should already have been initialized as a generic DataSection
+    // we will destroy it and create it as a GlobalOffsetTable
+    ASSERT(rawSections[gotSectionIdx] && "Global Offset Table not yet created");
+    ASSERT(sectionHeaders[gotSectionIdx]->getSectionType() == PebilClassType_DataSection);
+    delete rawSections[gotSectionIdx];
+    
+    sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[gotSectionIdx]->GET(sh_offset));
+    sectionSize = (uint64_t)sectionHeaders[gotSectionIdx]->GET(sh_size);    
+    rawSections[gotSectionIdx] = new GlobalOffsetTable(sectionFilePtr, sectionSize, gotSectionIdx, gotBaseAddress, this);
+    ASSERT(!globalOffsetTable && "global offset table should not be initialized");
+    globalOffsetTable = (GlobalOffsetTable*)rawSections[gotSectionIdx];
+    globalOffsetTable->read(&binaryInputFile);
+    
 
     // find certain sections whose addresses are in the dynamic table
     uint64_t strtabAddr = dynamicTable->getDynamicByType(DT_STRTAB,0)->GET_A(d_ptr,d_un);
