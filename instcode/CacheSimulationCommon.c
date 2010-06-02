@@ -33,7 +33,6 @@ int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uin
     numberOfInstrumentationPoints = *numpoints;
     numberOfBasicBlocks = *numblocks;
     blockCounters = counters;
-
     blockIsKilled = malloc(sizeof(char) * numberOfBasicBlocks);
     bzero(blockIsKilled, sizeof(char) * numberOfBasicBlocks);
     numberKilled = 0;
@@ -518,7 +517,6 @@ uint32_t processInclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
                                Address_t* victim, AccessStatus* status, BasicBlockInfo* currentBlock, uint32_t systemIdx, uint32_t accessIdx){
 
     uint32_t level;
-
     for (level = 0; level < levelCount; level++){
         uint32_t currentLevel = startLevel + level;
         register Cache* cache = &(memoryHierarchy->levels[currentLevel]);
@@ -559,7 +557,7 @@ uint32_t processInclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
             
             register Attribute_t replPolicy = cache->attributes[replacement_policy];
             if(replPolicy == repl_ran){
-                mostRecent = getRandomNumber();
+                mostRecent = getRandomNumber(); //FIXME I don't think this guarantees a valid index
             } else if(replPolicy == repl_lru){
                 mostRecent = (cache->MOSTRECENT(setIdx) + 1) % assocCount;
             } else if(replPolicy == repl_dir){
@@ -588,7 +586,7 @@ uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
     register uint8_t hitLevel = levelCount;
     register uint16_t leastRecent = 0;
     register uint16_t hitLine = 0;
-    
+
     Cache* cache[levelCount];
     Attribute_t sizeInBits[levelCount];
     Attribute_t setCount[levelCount];
@@ -617,6 +615,10 @@ uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
         *status = cache_miss;
         uint32_t currentLevel = startLevel + level;
         
+//printf("Searching level %d for cache line index %d\n",
+//       currentLevel,
+//       CACHE_LINE_INDEX(currentAddress, sizeInBits[level]));
+
         if (assocCount[level] >= __MAX_LINEAR_SEARCH_ASSOC){
             lineInSet = findInHash(CACHE_LINE_INDEX(currentAddress,sizeInBits[level]),setCount[level],assocCount[level],cache[level]->highAssocHash,setIdx[level]);
             if(lineInSet < assocCount[level]){
@@ -626,7 +628,7 @@ uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
             }
         } else {
             for (lineInSet = 0; lineInSet < assocCount[level]; lineInSet++){ 
-                if(CACHE_LINE_INDEX(content[level][lineInSet],sizeInBits[level]) == CACHE_LINE_INDEX(currentAddress,sizeInBits[level])){ 
+                if(CACHE_LINE_INDEX(content[level][lineInSet],sizeInBits[level]) == CACHE_LINE_INDEX(currentAddress,sizeInBits[level])){
                     *status = cache_hit;  
                     hitLine = lineInSet;  
                     hitLevel = level;
@@ -635,6 +637,7 @@ uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
             }
         }
         if (*status == cache_hit){
+//printf("hit %d\n", CACHE_LINE_INDEX(currentAddress, sizeInBits[level]));
             // record that we hit in this level
             cache[level]->hitMissCounters[cache_hit]++;
             currentBlock->hitMissCounters[STATUS_IDX(systemIdx,currentLevel,cache_hit)]++;
@@ -643,6 +646,8 @@ uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
                 // set mostRecent to the entry prior to the location where the entry was found so
                 // that the inevitable eviction will replace the hole made
                 cache[level]->MOSTRECENT(setIdx[level]) = (hitLine + (assocCount[level]-1)) % assocCount[level];
+
+                content[level][lineInSet] = 0;
             }
             break;
             
@@ -654,13 +659,12 @@ uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
 
     // If the line was found outside L1, evict something from L1 and move the line into L1
     if (hitLevel != __L1_CACHE_LEVEL){
-        
         // find out which line to replace in L1
         leastRecent = (cache[__L1_CACHE_LEVEL]->MOSTRECENT(setIdx[__L1_CACHE_LEVEL]) + 1) % assocCount[__L1_CACHE_LEVEL];
         
         // get the victim data from L1
         *victim = content[__L1_CACHE_LEVEL][leastRecent];
-        
+
         // move the requested line into L1
         if (assocCount[__L1_CACHE_LEVEL] >= __MAX_LINEAR_SEARCH_ASSOC){
             insertInHash(CACHE_LINE_INDEX(currentAddress,sizeInBits[__L1_CACHE_LEVEL]), setCount[__L1_CACHE_LEVEL], assocCount[__L1_CACHE_LEVEL], 
@@ -679,7 +683,7 @@ uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
         // the cache where the data was found. This applies to the set of consecutive caches above
         // L1 which have the same number of sets as L1 (for now this is just L2).
         if (hitLevel == __L1_CACHE_LEVEL+1){
-            maxEvictionLevel = hitLevel + 1;
+            maxEvictionLevel = hitLevel + 1; //FIXME is this always true?
             
             // this is the case where eviction must go through every cache level
         } else {
@@ -687,25 +691,53 @@ uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
         }
         
         // victimize all the way up the cache hierarchy
+        // Coming into the loop *victim is the line to be inserted here
         for (level = __L1_CACHE_LEVEL + 1; level < maxEvictionLevel; level++){
-            
+
+            // Determine the set index for the victim in this level
             uint32_t VCsetIdx = (CACHE_LINE_INDEX(*victim,sizeInBits[level]) % setCount[level]);
+            // This is the set for the victim
             Address_t* VCcontent = cache[level]->content + (VCsetIdx * assocCount[level]);
-            
-            // find where the victim goes
+            // Line in the this set for the victim
             leastRecent = (cache[level]->MOSTRECENT(VCsetIdx) + 1) % assocCount[level];
-            
+
+            // Save the new victim
+            Address_t newEvicted = VCcontent[leastRecent];
+
             // swap the entry being evicted and the victim from the lower level
-            *victim = content[level][leastRecent];
+            // This can't be right, it overwrites the victim we are supposed to place here
+            //*victim = content[level][leastRecent];
             
+            // Remove newly evicted; Insert the victim from the lower level cache
+            if(assocCount[level] >= __MAX_LINEAR_SEARCH_ASSOC) {
+//              printf("rargh\n");
+                deleteFromHash(CACHE_LINE_INDEX(newEvicted, sizeInBits[level]),
+                  setCount[level], assocCount[level],
+                  cache[level]->highAssocHash, VCsetIdx);
+                insertInHash(CACHE_LINE_INDEX(*victim, sizeInBits[level]),
+                  setCount[level], assocCount[level],
+                  cache[level]->highAssocHash, VCsetIdx, leastRecent);
+            }
+/*
             if(assocCount[level] >= __MAX_LINEAR_SEARCH_ASSOC){
                 deleteFromHash(CACHE_LINE_INDEX(content[level][leastRecent],sizeInBits[level]),setCount[level],assocCount[level],cache[level]->highAssocHash,setIdx[level]);
                 insertInHash(CACHE_LINE_INDEX(*victim,sizeInBits[level]),setCount[level],assocCount[level],cache[level]->highAssocHash,setIdx[level],leastRecent);
                 //insertInHash(*victim,setCount[level],assocCount[level],cache[level]->highAssocHash,setIdx[level],leastRecent);
             }
-            content[level][leastRecent] = *victim;
-            
+            content[level][leastRecent] = *victim; 
             cache[level]->MOSTRECENT(VCsetIdx) = leastRecent;
+*/
+//printf("Deleting cache line index %d from level %d "
+//       "inserting cache line index %d\n",
+//        CACHE_LINE_INDEX(newEvicted, sizeInBits[level]),
+//        level,
+//        CACHE_LINE_INDEX(*victim, sizeInBits[level]));
+
+
+            VCcontent[leastRecent] = *victim;
+            *victim = newEvicted;
+            cache[level]->MOSTRECENT(VCsetIdx) = leastRecent;
+
         }
     }
     return levelCount;
@@ -843,7 +875,7 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
                         vcEnds++;
                         vcSearch = &(memoryHierarchy->levels[vcEnds]);
                     }
-                    vcEnds = levelCount;
+                    //vcEnds = levelCount;
                     level += processExclusiveCache(memoryHierarchy,level,vcEnds-level,currentAddress,&victim,&status,currentBlock,systemIdx,accessIdx);
                 } else {
                     level += processInclusiveCache(memoryHierarchy,level,1,currentAddress,&victim,&status,currentBlock,systemIdx,accessIdx);
