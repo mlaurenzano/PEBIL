@@ -165,7 +165,7 @@ void CacheSimulation::instrument(){
 
     uint64_t blockSizeStore = reserveDataOffset(sizeof(uint64_t));
 
-    char* appName = getElfFile()->getFileName();
+    char* appName = getElfFile()->getAppName();
     char* ext = extension;
     uint32_t phaseId = phaseNo;
     uint32_t dumpCode = 0;
@@ -221,6 +221,8 @@ void CacheSimulation::instrument(){
                 X86Instruction* memop = bb->getInstruction(j);
                 
                 if (memop->isMemoryOperation()){            
+                    //PRINT_INFOR("The following instruction has %d membytes", memop->getNumberOfMemoryBytes());
+                    //memop->print();
 
                     if (getElfFile()->is64Bit()){
                         // check the buffer at the last memop

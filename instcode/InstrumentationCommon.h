@@ -11,7 +11,7 @@
 
 #define __MAX_STRING_SIZE 1024
 
-//#define USING_MPI_WRAPPERS
+#define USING_MPI_WRAPPERS
 #define USING_CSTD_WRAPPERS
 
 //#define COMPILE_32BIT
@@ -97,6 +97,8 @@ int taskid;
 #include <mpi.h>
 
 int __ntasks;
+
+// C init wrapper
 int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     int retval = MPI_Init(argc, argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
@@ -105,6 +107,21 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     fprintf(stdout, "-[p%d]- remapping to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
 
     return retval;
+}
+
+// fortran init wrapper
+extern void mpi_init_(int* ierr);
+extern void mpi_comm_rank_(int* comm, int* rank, int* ierr);
+extern void mpi_comm_size_(int* comm, int* rank, int* ierr);
+void __wrapper_name(mpi_init_)(int* ierr){
+    mpi_init_(ierr);
+
+    int myerr;
+    MPI_Comm world = MPI_COMM_WORLD;
+    mpi_comm_rank_(&world, &__taskid, &myerr);
+    mpi_comm_size_(&world, &__ntasks, &myerr);
+
+    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
 }
 
 #else

@@ -83,7 +83,10 @@ uint32_t X86Instruction::getNumberOfMemoryBytes(){
         } else { // isExplicitMemoryOperation()
             OperandX86* op = getMemoryOperand();
             ASSERT(op);
-            return op->GET(size)/8;
+            if (op->GET(size)){
+                return op->GET(size)/8;
+            }
+            return GET(adr_mode)/8;
         }
     }
     return 0;

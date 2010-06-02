@@ -190,6 +190,7 @@ int main(int argc,char* argv[]){
     char* libList       = NULL;
     bool deleteInpList  = false;
     char*    execName   = NULL;
+    char*    appName    = NULL;
     char*    dfpName    = NULL;
     uint32_t dumpCode   = Total_DumpCode;
 
@@ -237,6 +238,17 @@ int main(int argc,char* argv[]){
     if (!execName){
         fprintf(stderr,"\nError : No executable is specified\n\n");
         printUsage();
+    } else {
+        // remove the path from the filename
+        appName = new char[__MAX_STRING_SIZE];
+        uint32_t startApp = 0;
+        for (uint32_t i = 0; i < strlen(execName); i++){
+            if (execName[i] == '/'){
+                startApp = i + 1;
+            }
+        }
+        sprintf(appName, "%s\0", execName + startApp);
+        PRINT_INFOR("application name: %s", appName);
     }
 
     if ((instType <= unknown_inst_type) || 
@@ -378,7 +390,7 @@ int main(int argc,char* argv[]){
     TIMER(double t1 = timer(), t2);
 
     PRINT_INFOR("******** Instrumentation Beginning ********");
-    ElfFile elfFile(execName);
+    ElfFile elfFile(execName, appName);
     elfFile.parse();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Parse   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
@@ -495,6 +507,7 @@ int main(int argc,char* argv[]){
     if (deleteInpList){
         delete[] inputFuncList;
     }
+    delete[] appName;
     PRINT_INFOR("******** Instrumentation Successfull ********");
 
     TIMER(t = timer()-t;PRINT_INFOR("___timer: Total Execution Time          : %.2f seconds",t););

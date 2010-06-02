@@ -175,7 +175,7 @@ public:
     void setPathToInstLib(char* libPath);
     void setInstExtension(char* extension);
 
-    char* getApplicationName() { return elfFile->getFileName(); }
+    char* getApplicationName() { return elfFile->getAppName(); }
     uint32_t getApplicationSize() { return elfFile->getFileSize(); }
     char* getInstSuffix() { return instSuffix; }
 

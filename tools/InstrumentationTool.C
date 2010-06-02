@@ -7,8 +7,11 @@
 #include <Loop.h>
 #include <TextSection.h>
 
-#define MPI_INIT_WRAPPER "MPI_Init_pebil_wrapper"
-#define MPI_INIT_LIST "PMPI_Init:MPI_Init"
+#define MPI_INIT_WRAPPER_CBIND "MPI_Init_pebil_wrapper"
+#define MPI_INIT_LIST_CBIND "PMPI_Init:MPI_Init"
+
+#define MPI_INIT_WRAPPER_FBIND "mpi_init__pebil_wrapper"
+#define MPI_INIT_LIST_FBIND "mpi_init_"
 
 InstrumentationTool::InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase, bool lpi, bool dtl)
     : ElfFileInst(elf)
@@ -20,19 +23,31 @@ InstrumentationTool::InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase
 }
 
 void InstrumentationTool::declare(){
-    initWrapper = declareFunction("MPI_Init_pebil_wrapper");
-    ASSERT(initWrapper && "Cannot find MPI_Init function, are you sure it was declared?");
+    initWrapperC = declareFunction(MPI_INIT_WRAPPER_CBIND);
+    initWrapperF = declareFunction(MPI_INIT_WRAPPER_FBIND);
+    ASSERT(initWrapperC && "Cannot find MPI_Init function, are you sure it was declared?");
+    ASSERT(initWrapperF && "Cannot find MPI_Init function, are you sure it was declared?");
 }
 
 void InstrumentationTool::instrument(){
     // wrap any call to MPI_Init
-    Vector<X86Instruction*>* mpiInitCalls = findAllCalls("PMPI_Init:MPI_Init");
-    initWrapper->setSkipWrapper();
+    Vector<X86Instruction*>* mpiInitCalls = findAllCalls(MPI_INIT_LIST_CBIND);
+    initWrapperC->setSkipWrapper();
     for (uint32_t i = 0; i < (*mpiInitCalls).size(); i++){
         ASSERT((*mpiInitCalls)[i]->isFunctionCall());
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
         PRINT_INFOR("Adding MPI_Init wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
-        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapper, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperC, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+    }
+    delete mpiInitCalls;
+
+    mpiInitCalls = findAllCalls(MPI_INIT_LIST_FBIND);
+    initWrapperF->setSkipWrapper();
+    for (uint32_t i = 0; i < (*mpiInitCalls).size(); i++){
+        ASSERT((*mpiInitCalls)[i]->isFunctionCall());
+        ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
+        PRINT_INFOR("Adding mpi_init_ wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
     }
     delete mpiInitCalls;
 }

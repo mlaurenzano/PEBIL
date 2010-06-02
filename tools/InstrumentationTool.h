@@ -22,7 +22,8 @@ class InstrumentationTool : public ElfFileInst {
 protected:
     void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos, uint32_t bufferSize);
 
-    InstrumentationFunction* initWrapper;
+    InstrumentationFunction* initWrapperC;
+    InstrumentationFunction* initWrapperF;
 
     uint32_t phaseNo;
     char* extension;

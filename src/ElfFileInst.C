@@ -30,11 +30,12 @@ uint32_t bloatCount = 0;
 Vector<X86Instruction*>* ElfFileInst::findAllCalls(char* names){
     char* fnames = new char[strlen(names)+1];
     memcpy(fnames, names, strlen(names));
-    fnames[strlen(names)] = '\0';
+    uint32_t len = strlen(names);
+    fnames[len] = '\0';
 
     Vector<uint32_t> fstart;
     fstart.append(0);
-    for (uint32_t i = 0; i < strlen(fnames); i++){
+    for (uint32_t i = 0; i < len; i++){
         if (fnames[i] == ':'){
             fnames[i] = '\0';
             fstart.append(i+1);

@@ -33,6 +33,7 @@ private:
     bool staticLinked;
 
     char*        elfFileName;
+    char*        applicationName;
 
     FileHeader*  fileHeader;
     Vector<ProgramHeader*> programHeaders;
@@ -91,7 +92,7 @@ private:
 public:
     bool verify();
 
-    ElfFile(char* f);
+    ElfFile(char* f, char* a);
     ~ElfFile();
 
     bool is64Bit() { return is64BitFlag; }
@@ -171,6 +172,7 @@ public:
 
     uint32_t getFileSize();
     char* getFileName() { return elfFileName; }
+    char* getAppName() { return applicationName; }
 
     uint64_t getDataSectionVAddr();
     uint32_t getDataSectionSize();
