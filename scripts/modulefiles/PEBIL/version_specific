@@ -15,6 +15,7 @@ set PEBIL_LEVEL 0.1.3210
 set PEBIL_CURPATH /usr/local/u/michaell/PEBIL-$PEBIL_LEVEL
 setenv PEBIL_ROOT $PEBIL_CURPATH
 prepend-path PATH $PEBIL_CURPATH/bin
+prepend-path PATH $PEBIL_CURPATH/scripts
 
 setenv PEBIL_GFORT gfortran
 setenv PEBIL_LIB $PEBIL_CURPATH/lib

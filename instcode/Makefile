@@ -4,23 +4,26 @@ GNU_C       = gcc
 NATIVE_C    = icc
 AR          = ar
 AR_FLAGS    = rcs
+
 # Jade
 #OPT         = -O3 -w -I/opt/mpt/3.5.0/xt/mpich2-pgi/include# --save-temps
 #CC          = $(GNU_C) $(DBG) $(OPT)
 #SHARED_LIB  = -shared
+
 # Diamond
 #OPT	    = -O3 -w
 #CC          = $(GNU_C) $(DBG) $(OPT)
 #SHARED_LIB  = -shared
+
 # Ubuntu Linux (no MPI)
 #OPT         = -O3 -w
 #CC          = $(GNU_C) $(DBG) $(OPT)
 #SHARED_LIB  = -shared
-# Ubuntu Linux MPICH2
-OPT         = -O3 -w -I/usr/include/mpich2
-CC          = $(GNU_C) $(DBG) $(OPT)
-SHARED_LIB  = -shared
 
+# Ubuntu Linux MPICH2
+#OPT         = -O3 -w -I/usr/include/mpich2
+#CC          = $(GNU_C) $(DBG) $(OPT)
+#SHARED_LIB  = -shared
 
 CFLGS64     = -DMETASIM_64_BIT_LIB
 
@@ -29,8 +32,8 @@ CFLGS64     = -DMETASIM_64_BIT_LIB
 #### -DFINE_GRAIN_SAMPLING : Add to increase the granularity of sampling. Smaller intervals.
 #### -DPER_SET_RECENT      : Add to simulcate LRU using per set most recent entry for replacement
 
-EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT  # default for MultiMAPS tracing
-#EXTRA_CFLGS = -DEXTENDED_SAMPLING -DPER_SET_RECENT  # default for application tracing
+#EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT  # default for MultiMAPS tracing
+EXTRA_CFLGS = -DEXTENDED_SAMPLING -DPER_SET_RECENT  # default for application tracing
 #EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DIGNORE_ACTUAL_SIMULATION # no simulation
 EXTRA_LIBS  =
 

@@ -11,7 +11,7 @@
 
 #define __MAX_STRING_SIZE 1024
 
-//#define USING_MPI_WRAPPERS
+#define USING_MPI_WRAPPERS
 #define USING_CSTD_WRAPPERS
 
 //#define COMPILE_32BIT
