@@ -66,7 +66,7 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
     return numberOfBasicBlocks;
 }
 
-int32_t blockcounter(int32_t* blockCounts, char* appName, char* instExt){
+int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     int32_t i;
 
     PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
@@ -88,7 +88,7 @@ int32_t blockcounter(int32_t* blockCounts, char* appName, char* instExt){
     for (i = 0; i < numberOfBasicBlocks; i++){
         if (blockCounts[i] >= PRINT_MINIMUM){
             fprintf(outFile, "%#d\t", i);
-            fprintf(outFile, "%d\t#", blockCounts[i]);
+            fprintf(outFile, "%llu\t#", blockCounts[i]);
             fprintf(outFile, "%s:", fileNames[i]);
             fprintf(outFile, "%d\t", lineNumbers[i]);
             fprintf(outFile, "%s\t", functionNames[i]);

@@ -882,6 +882,23 @@ X86Instruction* X86InstructionFactory32::emitAddImmByteToMem(uint8_t imm, uint64
     return emitInstructionBase(len,buff);
 }
 
+X86Instruction* X86InstructionFactory64::emitAddImmByteToMem64(uint8_t imm, uint64_t addr){
+    uint32_t len = 9;
+    char* buff = new char[len];
+
+    buff[0] = 0x48;
+    buff[1] = 0x83;
+    buff[2] = 0x04;
+    buff[3] = 0x25;
+
+    uint32_t addr32 = (uint32_t)addr;
+    ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the immediate");
+    memcpy(buff+4,&addr32,sizeof(uint32_t));
+    memcpy(buff+8,&imm,sizeof(uint8_t));
+
+    return emitInstructionBase(len,buff);
+}
+
 X86Instruction* X86InstructionFactory64::emitAddImmByteToMem(uint8_t imm, uint64_t addr){
     uint32_t len = 8;
     char* buff = new char[len];

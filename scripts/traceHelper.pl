@@ -10,7 +10,7 @@ my %size_hash   = ( "standard" => 1,"medium" => 1,"large" => 1 );
 
 my $help_string = undef;
 my $readme_string = undef;
-my $top_pmacinst_dir = "pmacTRACE";
+my $top_pebil_dir = "pmacTRACE";
 
 sub printUsage {
     my ($script,$msg) = @_;
@@ -48,11 +48,11 @@ sub call_ls {
     }
 }
 sub satisfy_jbbinst {
-    my ($exec_file,$target_for_files,$run_dir,$pmacinst_exec,$inst_lib_top_dir,$no_detail_print) = @_;
+    my ($exec_file,$target_for_files,$run_dir,$pebil_exec,$inst_lib_top_dir,$no_detail_print) = @_;
 
     die "Error : *** Executable $exec_file does not exist\n" unless(-e $exec_file);
 
-    my $run_command = "$pmacinst_exec --typ jbb --app $exec_file" .
+    my $run_command = "$pebil_exec --typ jbb --app $exec_file" .
                       (!defined($no_detail_print) ? " --dtl" : "") .
                       (defined($inst_lib_top_dir) ? " --lib $inst_lib_top_dir" : "");
     my $insted_exec = "$exec_file.jbbinst";
@@ -112,7 +112,7 @@ sub include_dfp_blocks {
 sub satisfy_siminst {
     my ($app_name,$cpu_count,$exec_file,$jbb_trace_dir,
         $phase_count,$jbb_static,$target_for_files,$run_dir,
-        $pmacinst_exec,$simulation_type,$dump_type,
+        $pebil_exec,$simulation_type,$dump_type,
         $bb_significance,$select_visit_only,$select_per_rank,$disable_loop_level,
         $inst_lib_top_dir,$no_detail_print,$dfp_file) = @_;
 
@@ -187,7 +187,7 @@ sub satisfy_siminst {
 
         `cp $lbb_file $phs_dir`;
 
-        $run_command = "$pmacinst_exec --typ $simulation_type --app $exec_file --inp $lbb_file " .
+        $run_command = "$pebil_exec --typ $simulation_type --app $exec_file --inp $lbb_file " .
                        "--dmp $dump_type" . 
                        (defined($disable_loop_level) ? "" : " --lpi") .
                        (!defined($no_detail_print) ? " --dtl" : "") .
@@ -336,7 +336,7 @@ sub TraceHelper_Main {
     my $jbb_static    = undef;
     my $exec_name     = undef;
     my $run_dir       = undef;
-    my $pmacinst_exec   = "pebil";
+    my $pebil_exec   = "pebil";
     my $simulation_type = "sim";
     my $dump_type       = "off";
     my $bb_significance   = 0.95;
@@ -355,7 +355,7 @@ sub TraceHelper_Main {
         'application=s'      => \$app_name,
         'dataset=s'          => \$data_size,
         'cpu_count=i'        => \$cpu_count,
-        'pmacinst_dir=s'     => \$store_dir,
+        'pebil_dir=s'     => \$store_dir,
         'exec_file=s'        => \$exec_file,
         'phase_count=i'      => \$phase_count,
         'phase_no=i'         => \$phase_number,
@@ -364,7 +364,7 @@ sub TraceHelper_Main {
         'jbb_static=s'       => \$jbb_static,
         'exec_name=s'        => \$exec_name,
         'run_dir=s'          => \$run_dir,
-        'instor=s'           => \$pmacinst_exec,
+        'instor=s'           => \$pebil_exec,
         'simtyp=s'           => \$simulation_type,
         'dmptyp=s'           => \$dump_type,
         'inst_lib=s'         => \$inst_lib_top_dir,
@@ -431,10 +431,10 @@ sub TraceHelper_Main {
 
     print "\nInform : Running $0 from $curr_dir\n";
     print "Inform : Newly generated and already existing files will be collected under\n";
-    print "         $store_dir/$top_pmacinst_dir\n";
+    print "         $store_dir/$top_pebil_dir\n";
     print "Inform : Action is \"$action\"\n";
 
-    my $top_level_dir = "$store_dir/$top_pmacinst_dir";
+    my $top_level_dir = "$store_dir/$top_pebil_dir";
     my $target_for_action = "$top_level_dir/$action";
 
     mkdir $store_dir or 
@@ -472,7 +472,7 @@ sub TraceHelper_Main {
     print "Inform : Files for $action will be generated/collected under $target_for_files\n";
 
     if($action eq "jbbinst"){
-        &satisfy_jbbinst($exec_file,$target_for_files,$run_dir,$pmacinst_exec,$inst_lib_top_dir,$no_detail_print);
+        &satisfy_jbbinst($exec_file,$target_for_files,$run_dir,$pebil_exec,$inst_lib_top_dir,$no_detail_print);
     } elsif($action eq "siminst"){
         &printUsage($0,"Error : *** Type of the simulation is incorrect")
             unless (($simulation_type eq "sim") || ($simulation_type eq "csc"));
@@ -481,7 +481,7 @@ sub TraceHelper_Main {
         die "Error : DFPattern file \"$dfp_file\" does not exist\n" if(defined($dfp_file) && !-e $dfp_file);
         &satisfy_siminst($app_name,$cpu_count,$exec_file,$jbb_trace_dir,
                          $phase_count,$jbb_static,$target_for_files,$run_dir,
-                         $pmacinst_exec,$simulation_type,$dump_type,
+                         $pebil_exec,$simulation_type,$dump_type,
                          $bb_significance,$select_visit_only,$select_per_rank,$disable_loop_level,
                          $inst_lib_top_dir,$no_detail_print,$dfp_file);
     } elsif($action eq "jbbcoll"){
@@ -509,7 +509,7 @@ usage: $0
   --sim_trc_dir  <dir_path_to_sim_traces>    
   --jbb_static   <jbbinst_static_file>   
   --run_dir      <run_dir_for_jbb_execution> 
-  --pmacinst_dir <collection_dir_for_traces_and_execs>
+  --pebil_dir <collection_dir_for_traces_and_execs>
   --inst_lib     <top_directory_of_inst_libs>
   --dfp          ?<filename>
   --readme
@@ -533,7 +533,7 @@ Summary:
 =======================================================================================
 
 traceHelper.pl is designed to automate many of the steps in gathering a 
-PMaCinst trace for an application. There are 5 steps to gathering a complete 
+Pebil trace for an application. There are 5 steps to gathering a complete 
 trace:
 
   1.run the original executable 
@@ -543,27 +543,27 @@ trace:
     d. submit the original executable and the execution time
 
   2.instrument given executable for basic block execution counts (jbb) 
-    a. run pmacinst to get instrumented executable 
+    a. run pebil to get instrumented executable 
        \$ traceHelper.pl \
           --action jbbinst \
           --application hycom --dataset standard \
           --exec_file /scr/mtikir/hycom/bin/hycom.standard \
-          --pmacinst_dir /home/mtikir 
+          --pebil_dir /home/mtikir 
     b. run the new instrumented executable to produce jbb traces
     c. submit the jbb instrumented executable 
 
   3.copy the jbb execution traces under collection directory
-    a. run pmacinst to copy jbb trace files
+    a. run pebil to copy jbb trace files
        \$ traceHelper.pl \
           --action jbbcoll \
           --application hycom --dataset standard --cpu_count 59 \
           --jbb_trc_dir /scr/mtikir/hycom_jbb_trace \
           --exec_name hycom.standard \
-          --pmacinst_dir /home/mtikir
+          --pebil_dir /home/mtikir
     b. submit jbb trace files with runtime with jbb instrumentation
 
   4.instrument the executable for cache simulations in one or more phases(sim)
-    a. run pmacinst to get instrumented executable 
+    a. run pebil to get instrumented executable 
        \$ traceHelper.pl \
           --action siminst \
           --application hycom --dataset standard --cpu_count 59 \
@@ -571,19 +571,19 @@ trace:
           --phase_count 1 \
           --jbb_trc_dir /scr/mtikir/hycom_jbb_trace
           --jbb_static /home/mtikir/hycom_standard/hycom.standard.jbbinst.static
-          --pmacinst_dir /home/mtikir 
+          --pebil_dir /home/mtikir 
           --dfp /scr/mtikir/hycom_dfpattern_file
     b. run the new instrumented executable to gather traces for cache simulation
     c. submit the sim instrumented executable
 
   5.copy the sim execution traces for a given phase under collection directory
-    a. run pmacinst to copy sim trace files
+    a. run pebil to copy sim trace files
        \$ traceHelper.pl \
           --action simcoll \
           --application hycom --dataset standard --cpu_count 59 \
           --phase_no 1 --sim_trc_dir /scr/mtikir/hycom_sim_trace \
           --exec_name hycom.standard \
-          --pmacinst_dir /home/mtikir 
+          --pebil_dir /home/mtikir 
           --dfp
     b. submit sim trace files with runtime with sim instrumentation 
 
@@ -595,7 +595,7 @@ trace:
     \$ pmacSubmit \
        --project ti07 --round 1 \
        --application hycom --dataset standard --cpu_count 59 \
-       --pmacinst_dir /home/mtikir/pmacTRACE \
+       --pebil_dir /home/mtikir/pmacTRACE \
        --exec /scr/mtikir/hycom/bin/hycom.standard,1234 \
        --jbbinst \
        --jbbcoll 2543 \
@@ -611,16 +611,16 @@ $help_string
 Before Invoking traceHelper.pl:
 ============================
   Please make sure you include the /site/pmac_tools/bin directory in your path, 
-  and set the PMACINST_LIB_HOME variable to /site/pmac_tools. Users are
+  and set the PEBIL_ROOT variable to /site/pmac_tools. Users are
   encouraged to include the following lines in their .cshrc or .profile files.
 
   tcsh:
-  setenv PMACINST_LIB_HOME /site/pmac_tools
-  setenv PATH \$PMACINST_LIB_HOME/bin:\$PATH
+  setenv PEBIL_ROOT /site/pmac_tools
+  setenv PATH \$PEBIL_ROOT/bin:\$PATH
 
   bash:
-  export PMACINST_LIB_HOME=/site/pmac_tools
-  PATH = ( \$PMACINST_LIB_HOME/bin \$PATH )
+  export PEBIL_ROOT=/site/pmac_tools
+  PATH = ( \$PEBIL_ROOT/bin \$PATH )
 
 
 Descriptions of Arguments:
@@ -637,7 +637,7 @@ Descriptions of Arguments:
                name should be hycom. (this should be all lower case)
  dataset     : Input data size. Can be one of standard, medium, and large.
  cpu_count   : Number of MPI tasks.
- pmacinst_dir: Collection directory where all files generated by instrumentation
+ pebil_dir: Collection directory where all files generated by instrumentation
                or tracing will be copied under. It is recommended one directory
                is used for all tracing activities for an application as this 
                target directory is given to the submission script pmacSubmit. 
@@ -693,18 +693,18 @@ Description:
   during tracing for Technology Insertion rounds for a given application. 
 
   The main goal is to store all files related to tracing under one top directory
-  (given with --pmacinst_dir option) that later can be used to submit data. 
+  (given with --pebil_dir option) that later can be used to submit data. 
   (This directory should be placed in a \$HOME directory rather than work or 
-  scratch directory). It is recommended that the same --pmacinst_dir directory 
+  scratch directory). It is recommended that the same --pebil_dir directory 
   is used as an argument for an application. This script handles directory 
   making and copying files, hence, users of this script should keep in mind that
   if the script is invoked more than once with the same arguments, some files 
   will be overwritten.
 
   All files are stored/copied under a user provided directory given with the 
-  option --pmacinst_dir. The directory hierarchy is predefined based on the 
+  option --pebil_dir. The directory hierarchy is predefined based on the 
   functionality of this script. There is a pmacTRACE directory below the 
-  directory given with --pmacinst_dir option which includes tracing related 
+  directory given with --pebil_dir option which includes tracing related 
   files. Note that when you see a directory names pmacTRACE anywhere in your 
   work area, it is likely that this directory is the outcome of a call to this 
   script.
@@ -735,7 +735,7 @@ Description:
 
     The instrumented executable and static files generated during 
     instrumentation are stored under jbbinst directory under the target 
-    directory defined with the --pmacinst_dir flag. Since an application may 
+    directory defined with the --pebil_dir flag. Since an application may 
     have more than one executable depending on input data size (hycom.standard,
     hycom.large), this script takes both the application name(hycom) and path to
     the executable itself and stores instrumentation files under different 
@@ -750,7 +750,7 @@ Description:
     it the same as the original executable.
 
     Required arguments for jbbinst are:
-      --action --application --pmacinst_dir --exec_file
+      --action --application --pebil_dir --exec_file
 
     Optional arguments for jbbinst are:
       --dataset --cpu_count
@@ -761,9 +761,9 @@ Description:
           --action jbbinst \
           --application hycom --dataset standard \
           --exec_file /scr/mtikir/hycom/bin/hycom.standard \
-          --pmacinst_dir /home/mtikir 
+          --pebil_dir /home/mtikir 
 
-    makes pmacTRACE/jbbinst/hycom_standard directory under pmacinst_dir 
+    makes pmacTRACE/jbbinst/hycom_standard directory under pebil_dir 
     collection directory and stores instrumented executable and static file(s) 
     about the instrumentation. The instrumented executable has a suffix .jbbinst
     following the original executable name.
@@ -778,7 +778,7 @@ Description:
 
 2. "jbbcoll" takes a directory where the trace files for jbb instrumentation are
     located and copies them under jbbcoll directory under the target directory 
-    (e.g. --pmacinst_dir).
+    (e.g. --pebil_dir).
 
     When an jbb-instrumented executable runs, it generates trace files with an
     extension of .jbbinst. This functionality checks whether the number of these
@@ -786,7 +786,7 @@ Description:
     directory. 
 
     Required arguments for jbbcoll are:
-      --action --application --dataset --cpu_count --pmacinst_dir 
+      --action --application --dataset --cpu_count --pebil_dir 
       --jbb_trc_dir --exec_name
 
     For example:
@@ -796,9 +796,9 @@ Description:
           --application hycom --dataset standard --cpu_count 59 \
           --jbb_trc_dir /scr/mtikir/hycom_jbb_trace \
           --exec_name hycom.standard \
-          --pmacinst_dir /home/mtikir
+          --pebil_dir /home/mtikir
 
-    makes pmacTRACE/jbbcoll/hycom_standard_0059 directory under pmacinst_dir
+    makes pmacTRACE/jbbcoll/hycom_standard_0059 directory under pebil_dir
     collection directory and copies the jbb execution traces from the run 
     directory. User needs to run jbbcoll action after jbb instrumented 
     executable completes successfully. 
@@ -830,7 +830,7 @@ Description:
     same as the original executable itself.
 
     Required arguments for siminst are:
-      --action --application --dataset --cpu_count --pmacinst_dir
+      --action --application --dataset --cpu_count --pebil_dir
       --exec_file --phase_count --jbb_trc_dir --jbb_static 
 
     For example:
@@ -842,9 +842,9 @@ Description:
           --phase_count 1 \
           --jbb_trc_dir /scr/mtikir/hycom_jbb_trace
           --jbb_static /home/mtikir/hycom_standard/hycom.standard.jbbinst.static
-          --pmacinst_dir /home/mtikir 
+          --pebil_dir /home/mtikir 
 
-    makes pmacTRACE/siminst/hycom_standard_0059/p01 directory under pmacinst_dir
+    makes pmacTRACE/siminst/hycom_standard_0059/p01 directory under pebil_dir
     collection directory and stores instrumented executable and static file(s) 
     about the cache simulation instrumentation. The instrumented executable has 
     a suffix .siminst following the original executable name.
@@ -867,7 +867,7 @@ Description:
     them under the target directory. 
 
     Required arguments for simcoll are:
-      --action --application --dataset --cpu_count --pmacinst_dir
+      --action --application --dataset --cpu_count --pebil_dir
       --phase_no --sim_trc_dir --exec_name
 
     For example:
@@ -877,9 +877,9 @@ Description:
           --application hycom --dataset standard --cpu_count 59 \
           --phase_no 1 --sim_trc_dir /scr/mtikir/hycom_sim_trace \
           --exec_name hycom.standard \
-          --pmacinst_dir /home/mtikir 
+          --pebil_dir /home/mtikir 
 
-    makes pmacTRACE/simcoll/hycom_standard_0059/p01 directory under pmacinst_dir
+    makes pmacTRACE/simcoll/hycom_standard_0059/p01 directory under pebil_dir
     collection directory and copies the execution traces for cache simulation 
     from the run directory. User needs to run simcoll action after instrumented 
     executable completes successfully.

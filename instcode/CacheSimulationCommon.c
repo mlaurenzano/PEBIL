@@ -17,18 +17,18 @@ int32_t numberOfInstrumentationPoints;
 int32_t numberOfBasicBlocks;
 char* blockIsKilled;
 int32_t numberKilled;
-uint32_t* blockCounters;
+uint64_t* blockCounters;
 
-//#define ENABLE_INSTRUMENTATION_KILL
+#define ENABLE_INSTRUMENTATION_KILL
 //#define DEBUG_INST_KILL
 
 void clearBlockCounters(){
-    bzero(blockCounters, sizeof(uint32_t) * numberOfBasicBlocks);
+    bzero(blockCounters, sizeof(uint64_t) * numberOfBasicBlocks);
 }
 
 // should also do initialization here rather than checking
 // for "first hit" on every buffer dump
-int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uint32_t* counters){
+int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uint64_t* counters){
     instrumentationPoints = instpoints;
     numberOfInstrumentationPoints = *numpoints;
     numberOfBasicBlocks = *numblocks;
@@ -1287,7 +1287,7 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* com
             currentBlock = (blocks + i);
             if(blocks && currentBlock->sampleCount){
 
-                fprintf(fp,"block\t%d\t%d\t%lld\t%lld\n",i,blockCounters[i],currentBlock->visitCount,currentBlock->sampleCount);
+                fprintf(fp,"block\t%d\t%llu\t%lld\t%lld\n",i,blockCounters[i],currentBlock->visitCount,currentBlock->sampleCount);
 
                 for(j=0;j<systemCount;j++){
                     MemoryHierarchy* memoryHierarchy = (systems + j);

@@ -183,7 +183,7 @@ void CacheSimulation::instrument(){
     exitFunc->addArgument(entryCountStore);
     exitFunc->addArgument(commentStore);
 
-    uint64_t counterArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(uint32_t));
+    uint64_t counterArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(uint64_t));
 
     InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp);
     ASSERT(p);
@@ -444,10 +444,10 @@ void CacheSimulation::instrument(){
         InstrumentationSnippet* snip = new InstrumentationSnippet();
         addInstrumentationSnippet(snip);
         
-        uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
+        uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
         ASSERT(i == blockId);
         if (is64Bit()){
-            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
         } else {
             snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         }

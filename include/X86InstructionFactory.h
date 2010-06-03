@@ -84,6 +84,7 @@ public:
     static X86Instruction* emitShiftRightLogical(uint8_t imm, uint8_t reg);
 
     static X86Instruction* emitAddImmByteToMem(uint8_t, uint64_t);
+    static X86Instruction* emitAddImmByteToMem64(uint8_t, uint64_t);
     static X86Instruction* emitXorRegReg(uint8_t, uint8_t);
     static X86Instruction* emitRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg);
     static X86Instruction* emitRegImmMultReg(uint32_t src, uint32_t imm, uint32_t dest);

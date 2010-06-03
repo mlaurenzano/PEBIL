@@ -60,10 +60,10 @@ void BasicBlockCounter::instrument()
     initializeReservedData(getInstDataAddress() + instExt, strlen(getInstSuffix()) + 1, getInstSuffix());
 
     // the number blocks in the code
-    uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
+    uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint64_t));
 
     // an array of counters. note that everything is passed by reference
-    uint64_t counterArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(uint32_t));
+    uint64_t counterArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(uint64_t));
 
     exitFunc->addArgument(counterArray);
     exitFunc->addArgument(appName);
@@ -149,11 +149,11 @@ void BasicBlockCounter::instrument()
         initializeReservedData(getInstDataAddress() + hashCodeArray + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
         
         InstrumentationSnippet* snip = new InstrumentationSnippet();
-        uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
+        uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
 
         // snippet contents, in this case just increment a counter
         if (is64Bit()){
-            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
         } else {
             snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         }

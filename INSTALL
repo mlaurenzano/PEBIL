@@ -19,17 +19,13 @@ at /path/to/PEBIL/)
 
 bash (64bit example):
 export PEBIL_ROOT=/path/to/PEBIL
-export PEBIL_LIB=${PEBIL_ROOT}/lib
-export PEBIL_BIN=${PEBIL_ROOT}/bin
 export PEBIL_GFORT=gfortran
-export PATH=${PATH}:${PEBIL_BIN}:${PEBIL_ROOT}/scripts
+export PATH=${PATH}:${PEBIL_ROOT}/bin:${PEBIL_ROOT}/scripts
 
 csh (32bit example):
 setenv PEBIL_ROOT /path/to/PEBIL/
-setenv PEBIL_LIB ${PEBIL_ROOT}/lib
-setenv PEBIL_BIN ${PEBIL_ROOT}/bin
 setenv PEBIL_GFORT gfortran
-setenv PATH ${PATH}:${PEBIL_BIN}:${PEBIL_ROOT}/scripts
+setenv PATH ${PATH}:${PEBIL_ROOT}/bin:${PEBIL_ROOT}/scripts
 
 
 3. build external libraries

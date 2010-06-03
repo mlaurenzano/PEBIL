@@ -47,7 +47,7 @@ void printBriefOptions(bool detail){
     }
     fprintf(stderr,"\t--dry : optional for all. processes options only.\n");
     fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
-    fprintf(stderr,"\t        default is $PEBIL_LIB\n");
+    fprintf(stderr,"\t        default is $PEBIL_ROOT\n");
     fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions\n");
     fprintf(stderr,"\t        default is %s(32b)/%s(64b)\n", DEFAULT_FUNC_BLACKLIST32, DEFAULT_FUNC_BLACKLIST64);
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
@@ -75,7 +75,7 @@ void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--ver [a-z]*]\n");
     fprintf(stderr,"\t[--lib <shared_lib_dir>]\n");
-    fprintf(stderr,"\t\tdefault is $PEBIL_LIB\n");
+    fprintf(stderr,"\t\tdefault is $PEBIL_ROOT\n");
     fprintf(stderr,"\t[--ext <output_suffix>]\n");
     fprintf(stderr,"\t[--dtl]\n");
     fprintf(stderr,"\t[--fbl file]\n");
@@ -172,6 +172,7 @@ int main(int argc,char* argv[]){
     char*    inptName   = NULL;
     char*    extension  = "";
     char*    libPath    = NULL;
+    bool     libAlloc   = false;
     int32_t  phaseNo    = 0;
     uint32_t instType   = unknown_inst_type;
     uint32_t argApp     = 0;
@@ -374,12 +375,15 @@ int main(int argc,char* argv[]){
     }
 
     if(!libPath){
-        libPath = getenv("PEBIL_LIB");
-        if (!libPath){
-            PRINT_ERROR("Use the -lib option or define the PEBIL_LIB variable"); 
+        char* pebilRoot = getenv("PEBIL_ROOT");
+        if (!pebilRoot){
+            PRINT_ERROR("Use the --lib option or define the PEBIL_ROOT variable"); 
         }
+        libPath = new char[__MAX_STRING_SIZE];
+        libAlloc = true;
+        sprintf(libPath, "%s/lib", pebilRoot);
     }
-    PRINT_INFOR("The instrumentation libraries will be used from %s",libPath);
+    PRINT_INFOR("The instrumentation libraries will be used from %s", libPath);
 
     if (dryRun){
         PRINT_INFOR("--dry option was used, exiting...");
@@ -507,7 +511,11 @@ int main(int argc,char* argv[]){
     if (deleteInpList){
         delete[] inputFuncList;
     }
+    if (libAlloc){
+        delete[] libPath;
+    }
     delete[] appName;
+
     PRINT_INFOR("******** Instrumentation Successfull ********");
 
     TIMER(t = timer()-t;PRINT_INFOR("___timer: Total Execution Time          : %.2f seconds",t););
