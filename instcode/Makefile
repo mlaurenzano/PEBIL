@@ -32,8 +32,8 @@ CFLGS64     = -DMETASIM_64_BIT_LIB
 #### -DFINE_GRAIN_SAMPLING : Add to increase the granularity of sampling. Smaller intervals.
 #### -DPER_SET_RECENT      : Add to simulcate LRU using per set most recent entry for replacement
 
-#EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT  # default for MultiMAPS tracing
-EXTRA_CFLGS = -DEXTENDED_SAMPLING -DPER_SET_RECENT  # default for application tracing
+EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DUSING_MPI_WRAPPERS # default for MultiMAPS tracing
+#EXTRA_CFLGS = -DEXTENDED_SAMPLING -DPER_SET_RECENT  # default for application tracing
 #EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DIGNORE_ACTUAL_SIMULATION # no simulation
 EXTRA_LIBS  =
 

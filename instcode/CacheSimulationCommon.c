@@ -20,7 +20,7 @@ int32_t numberKilled;
 uint64_t* blockCounters;
 
 #define ENABLE_INSTRUMENTATION_KILL
-//#define DEBUG_INST_KILL
+#define DEBUG_INST_KILL
 
 void clearBlockCounters(){
     bzero(blockCounters, sizeof(uint64_t) * numberOfBasicBlocks);
@@ -216,7 +216,7 @@ FILE* openOutputFile(const char* comment,FILE** dfpFp){
     
     FILE* fp = fopen(strBuffer,"w");
     if(!fp){
-        fprintf(stderr,"Error : Can not open %s to write results\n",strBuffer);
+        PRINT_INSTR(stderr,"Error : Can not open %s to write results",strBuffer);
         return NULL;
     }
 
@@ -234,7 +234,7 @@ FILE* openOutputFile(const char* comment,FILE** dfpFp){
         
         *dfpFp = fopen(strBuffer,"w");
         if(!(*dfpFp)){
-            fprintf(stderr,"Error : Can not open %s to write results\n",strBuffer);
+            PRINT_INSTR(stderr,"Error : Can not open %s to write results",strBuffer);
             return NULL;
         }
 
@@ -393,18 +393,18 @@ void initDfPatterns(DFPatternSpec* dfps,uint32_t n,BasicBlockInfo* bbs){
 
     dfPatterns = NULL;
     if(dfps->type == DFPattern_Active){
-        fprintf(stdout,"DFPatterns are activated with %u entries\n",n);
+        PRINT_INSTR(stdout,"DFPatterns are activated with %u entries",n);
         uint32_t anyTagged = 0;
         for(i=1;i<=n;i++){
             if(dfps[i].type == dfTypePattern_undefined){
-                fprintf(stdout,"Error in dfpattern type %i %s\n",i,DFPatternTypeNames[dfps[i].type]);
+                PRINT_INSTR(stdout,"Error in dfpattern type %i %s",i,DFPatternTypeNames[dfps[i].type]);
                 assert (dfps[i].type != dfTypePattern_undefined);
             }
             if(DFPATTERN_INTEREST(dfps[i].type)){
                anyTagged++;
             }
         }
-        fprintf(stdout,"DFPatterns are tagged in only %u of %u\n",anyTagged,n);
+        PRINT_INSTR(stdout,"DFPatterns are tagged in only %u of %u",anyTagged,n);
         if(anyTagged){
             dfPatterns = (DFPatternInfo*)malloc(sizeof(DFPatternInfo)*n);
             bzero(dfPatterns,sizeof(DFPatternInfo)*n);
@@ -425,7 +425,7 @@ void initDfPatterns(DFPatternSpec* dfps,uint32_t n,BasicBlockInfo* bbs){
             }
         }
     } else {
-        fprintf(stdout,"DFPatterns are not activated\n");
+        PRINT_INSTR(stdout,"DFPatterns are not activated");
     }
 }
 
@@ -482,14 +482,14 @@ void initCaches(){
             if(!IS_REPL_POLICY_RAN(cache->attributes[replacement_policy]) && 
                !IS_REPL_POLICY_LRU(cache->attributes[replacement_policy]) && 
                !IS_REPL_POLICY_DIR(cache->attributes[replacement_policy])){
-                fprintf(stderr,"***** fatal error in instrumentation lib: unknown replacement policy found in level %d of cache structure %d\n", i, memoryHierarchy->index);
+                PRINT_INSTR(stderr,"***** fatal error in instrumentation lib: unknown replacement policy found in level %d of cache structure %d", i, memoryHierarchy->index);
                 exit(-1);
             }
 
             // make sure that the last cache level does not use a VC policy
             if (i == memoryHierarchy->levelCount-1){
                 if (IS_REPL_POLICY_VC(cache->attributes[replacement_policy])){
-                    fprintf(stderr, "***** fatal error in instrumentation lib: cannot use a victim cache policy in the highest cache level\n");
+                    PRINT_INSTR(stderr, "***** fatal error in instrumentation lib: cannot use a victim cache policy in the highest cache level");
                     exit(-1);
                 }
             }
@@ -502,7 +502,7 @@ void initCaches(){
             if (IS_REPL_POLICY_VC(cache->attributes[replacement_policy])){
                 if (numOfSets){
                     if (numOfSets != cache->attributes[number_of_sets]){
-                        fprintf(stderr, "***** fatal error in instrumentation lib: all victim cache levels must have the same number of sets\n");
+                        PRINT_INSTR(stderr, "***** fatal error in instrumentation lib: all victim cache levels must have the same number of sets");
                         exit(-1);
                     }
                 } else {
@@ -942,8 +942,8 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         }
 
         if (!DUMPCODE_HASVALUE_SIMU(dumpCode)){
-            fprintf(stdout, "WARNING: this run has simulation turned off via an option to the --dump flag\n");
-            fprintf(stderr, "WARNING: this run has simulation turned off via an option to the --dump flag\n");
+            PRINT_INSTR(stdout, "WARNING: this run has simulation turned off via an option to the --dump flag");
+            PRINT_INSTR(stderr, "WARNING: this run has simulation turned off via an option to the --dump flag");
         }
 
 
@@ -951,7 +951,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
     }
 
 #ifdef DEBUG_RUN_2
-    fprintf(stdout,"MetaSim_simulFuncCall_Simu(0x%p,%d,%s,%d)\n",base,*entryCountPtr,comment,entries->lastFreeIdx);
+    PRINT_INSTR(stdout,"MetaSim_simulFuncCall_Simu(0x%p,%d,%s,%d)",base,*entryCountPtr,comment,entries->lastFreeIdx);
 #endif
 
     if(dfPatterns){ 
@@ -983,7 +983,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             Attribute_t tmp_rand = rand_value;
             rand_value = (Attribute_t)(random() % (SEGMENT_COUNT+1));
 #ifdef DEBUG_RUN_1
-            fprintf(stdout,"* %12lld IGNORED > %8lld sampled %8lld ignored %8lld [%6d,%6d] rand (%2d,%2d)\n",
+            PRINT_INSTR(stdout,"* %12lld IGNORED > %8lld sampled %8lld ignored %8lld [%6d,%6d] rand (%2d,%2d)",
                     totalNumberOfAccesses,__WHICH_IGNORING_VALUE,alreadySampled,alreadyIgnored,
                     startIndex,lastIndex,tmp_rand,rand_value);
 #endif
@@ -1011,7 +1011,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             }
             Attribute_t tmp_rand = (random() % (SEGMENT_COUNT+1)) + (SEGMENT_COUNT/2);
 #ifdef DEBUG_RUN_1
-            fprintf(stdout,"- %12lld SAMPLED > %8lld ignored %8lld sampled %8lld [%6d,%6d] rand (%2d)\n",
+            PRINT_INSTR(stdout,"- %12lld SAMPLED > %8lld ignored %8lld sampled %8lld [%6d,%6d] rand (%2d)",
                     totalNumberOfAccesses,__WHICH_SAMPLING_VALUE,alreadyIgnored,alreadySampled,
                     startIndex,lastIndex,tmp_rand);
 #endif
@@ -1026,7 +1026,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
     if(lastIndex < startIndex){
         entries->lastFreeIdx = 1;
 #ifdef DEBUG_RUN_1
-        fprintf(stdout,"DONE lastIndex < startIndex\n");
+        PRINT_INSTR(stdout,"DONE lastIndex < startIndex");
 #endif
         //PRINT_INSTR(stdout, "leaving sim function 3-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx); 
         return;
@@ -1196,19 +1196,19 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* com
     uint32_t lastIndex = entries->lastFreeIdx;
     lastIndex--;
 
-    fprintf(stdout,"MetaSim_endFuncCall(0x%p,%d,%s,%d)\n",base,*entryCountPtr,comment,entries->lastFreeIdx);
+    PRINT_INSTR(stdout,"MetaSim_endFuncCall(0x%p,%d,%s,%d)",base,*entryCountPtr,comment,entries->lastFreeIdx);
 
 #ifdef ENABLE_INSTRUMENTATION_KILL
     PRINT_INSTR(stdout, "Killed instrumentation in %d memory ops", numberKilled);
 #endif
 #ifdef DEBUG_RUN_1
-    fprintf(stdout,"HashSearches(%lld) Traversals(%lld)\n",howManyHashSearches,howManyHashTraverses);
+    PRINT_INSTR(stdout,"HashSearches(%lld) Traversals(%lld)",howManyHashSearches,howManyHashTraverses);
 #endif
 
     MetaSim_simulFuncCall_Simu(base,entryCountPtr,comment);
 
     if (DUMPCODE_HASVALUE_DUMP(dumpCode)){
-        fprintf(stdout, "Closing output file for address stream dump\n");
+        PRINT_INSTR(stdout, "Closing output file for address stream dump");
         fclose(streamDumpOutputFile);
     }
     if (!DUMPCODE_HASVALUE_SIMU(dumpCode)){
