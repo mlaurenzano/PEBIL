@@ -15,7 +15,7 @@ AR_FLAGS    = rcs
 #CC          = $(GNU_C) $(DBG) $(OPT)
 #SHARED_LIB  = -shared
 
-# Diamond
+# Diamond/Harold
 #OPT	    = -O3 -w
 #CC          = $(GNU_C) $(DBG) $(OPT)
 #SHARED_LIB  = -shared
