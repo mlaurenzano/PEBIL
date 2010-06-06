@@ -16,14 +16,14 @@ AR_FLAGS    = rcs
 #SHARED_LIB  = -shared
 
 # Ubuntu Linux (no MPI)
-OPT         = -O3 -w
-CC          = $(GNU_C) $(DBG) $(OPT)
-SHARED_LIB  = -shared
+#OPT         = -O3 -w
+#CC          = $(GNU_C) $(DBG) $(OPT)
+#SHARED_LIB  = -shared
 
 # Ubuntu Linux MPICH2
-OPT         = -O3 -w -I/usr/include/mpich2
-CC          = $(GNU_C) $(DBG) $(OPT)
-SHARED_LIB  = -shared
+#OPT         = -O3 -w -I/usr/include/mpich2
+#CC          = $(GNU_C) $(DBG) $(OPT)
+#SHARED_LIB  = -shared
 
 CFLGS64     = -DMETASIM_64_BIT_LIB
 
