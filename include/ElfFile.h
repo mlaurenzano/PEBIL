@@ -95,6 +95,8 @@ public:
     ElfFile(char* f, char* a);
     ~ElfFile();
 
+    uint64_t getCheckSum();
+
     bool is64Bit() { return is64BitFlag; }
     bool isStaticLinked() { return staticLinked; }
     void setStaticLinked(bool val) { staticLinked = val; }

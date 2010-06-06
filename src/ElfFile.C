@@ -24,6 +24,10 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+uint64_t ElfFile::getCheckSum(){
+    return getFileSize();
+}
+
 void ElfFile::swapSections(uint32_t idx1, uint32_t idx2){
     ASSERT(idx1 < sectionHeaders.size() && idx2 < sectionHeaders.size());
     SectionHeader* tmpSectionHeader = sectionHeaders[idx1];
