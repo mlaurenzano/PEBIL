@@ -35,7 +35,7 @@ depend:
 
 dist: clean
 	mkdir $(DISTDIR)
-	cp -r testapps src tools external bin docs include lib instcode scripts COPYING INSTALL Makefile $(DISTDIR)
+	cp -r testapps src tools external bin docs include lib instcode scripts COPYING INSTALL VERSION Makefile $(DISTDIR)
 	rm -rf $(DISTDIR)/.svn $(DISTDIR)/*/.svn $(DISTDIR)/*/*/.svn $(DISTDIR)/*/*/*/.svn $(DISTDIR)/*/*/*/*/.svn
 	rm -rf $(DISTDIR)/.git $(DISTDIR)/*/.git $(DISTDIR)/*/*/.git $(DISTDIR)/*/*/*/.git $(DISTDIR)/*/*/*/*/.git
 	rm -rf $(DISTDIR)/testapps/compiled/32bit/* $(DISTDIR)/testapps/compiled/64bit/* $(DISTDIR)/testapps/bit
