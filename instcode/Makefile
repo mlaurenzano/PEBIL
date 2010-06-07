@@ -26,9 +26,9 @@ AR_FLAGS    = rcs
 #SHARED_LIB  = -shared
 
 # Ubuntu Linux MPICH2
-#OPT         = -O3 -w -I/usr/include/mpich2
-#CC          = $(GNU_C) $(DBG) $(OPT)
-#SHARED_LIB  = -shared
+OPT         = -O3 -w -I/usr/include/mpich2
+CC          = $(GNU_C) $(DBG) $(OPT)
+SHARED_LIB  = -shared
 
 CFLGS64     = -DMETASIM_64_BIT_LIB
 
@@ -37,9 +37,9 @@ CFLGS64     = -DMETASIM_64_BIT_LIB
 #### -DFINE_GRAIN_SAMPLING : Add to increase the granularity of sampling. Smaller intervals.
 #### -DPER_SET_RECENT      : Add to simulcate LRU using per set most recent entry for replacement
 
-EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DUSING_MPI_WRAPPERS # default for MultiMAPS tracing
-#EXTRA_CFLGS = -DEXTENDED_SAMPLING -DPER_SET_RECENT  # default for application tracing
-#EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DIGNORE_ACTUAL_SIMULATION # no simulation
+#EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DUSING_MPI_WRAPPERS # default for MultiMAPS tracing
+EXTRA_CFLGS = -DEXTENDED_SAMPLING -DPER_SET_RECENT -DUSING_MPI_WRAPPERS # default for application tracing
+#EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DIGNORE_ACTUAL_SIMULATION -DUSING_MPI_WRAPPERS # no simulation
 EXTRA_LIBS  =
 
 INCDIR      = ../instcode

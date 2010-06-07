@@ -29,10 +29,13 @@ setenv PATH ${PATH}:${PEBIL_ROOT}/bin:${PEBIL_ROOT}/scripts
 
 
 3. build external libraries
-go the the external directory and read the INSTALL file there
+go the external/ directory and read the INSTALL file there
 
 
 4. build PEBIL
+first, check that the flags in instcode/Makefile are right for your system.
+the mpi install directory probably is not correct for your system.
+
 run `gmake' from the top-level directory
 
 5. run PEBIL
