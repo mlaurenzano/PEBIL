@@ -2,6 +2,6 @@
 
 to install:
 $ cd udis86-1.7
-$ ./configure --prefix=${PWD}/external
+$ ./configure --prefix=`pwd`
 $ make
 $ make install
