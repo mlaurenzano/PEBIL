@@ -55,13 +55,7 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
     functionNames = functionNms;
     hashValues = hashVals;
 
-#ifdef USING_MPI_WRAPPERS
-    // use an unlikely value, so if we see this value we know there was
-    // a problem getting task id
-    taskid = 0x100000;
-#else
     taskid = 0;
-#endif
 
     return numberOfBasicBlocks;
 }
