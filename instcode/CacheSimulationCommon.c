@@ -512,7 +512,7 @@ void initCaches(){
         }
     }
 }
-
+/*
 uint32_t processInclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startLevel, uint32_t levelCount, Address_t currentAddress, 
                                Address_t* victim, AccessStatus* status, BasicBlockInfo* currentBlock, uint32_t systemIdx, uint32_t accessIdx){
 
@@ -579,7 +579,8 @@ uint32_t processInclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
     *victim = currentAddress;
     return levelCount;
 }
-
+*/
+/*
 uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startLevel, uint32_t levelCount, Address_t currentAddress, 
                                Address_t* victim, AccessStatus* status, BasicBlockInfo* currentBlock, uint32_t systemIdx, uint32_t accessIdx){
 
@@ -706,7 +707,7 @@ uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
 
             // swap the entry being evicted and the victim from the lower level
             // This can't be right, it overwrites the victim we are supposed to place here
-            //*victim = content[level][leastRecent];
+            // *victim = content[level][leastRecent];
             
             // Remove newly evicted; Insert the victim from the lower level cache
             if(assocCount[level] >= __MAX_LINEAR_SEARCH_ASSOC) {
@@ -718,15 +719,7 @@ uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
                   setCount[level], assocCount[level],
                   cache[level]->highAssocHash, VCsetIdx, leastRecent);
             }
-/*
-            if(assocCount[level] >= __MAX_LINEAR_SEARCH_ASSOC){
-                deleteFromHash(CACHE_LINE_INDEX(content[level][leastRecent],sizeInBits[level]),setCount[level],assocCount[level],cache[level]->highAssocHash,setIdx[level]);
-                insertInHash(CACHE_LINE_INDEX(*victim,sizeInBits[level]),setCount[level],assocCount[level],cache[level]->highAssocHash,setIdx[level],leastRecent);
-                //insertInHash(*victim,setCount[level],assocCount[level],cache[level]->highAssocHash,setIdx[level],leastRecent);
-            }
-            content[level][leastRecent] = *victim; 
-            cache[level]->MOSTRECENT(VCsetIdx) = leastRecent;
-*/
+
 //printf("Deleting cache line index %d from level %d "
 //       "inserting cache line index %d\n",
 //        CACHE_LINE_INDEX(newEvicted, sizeInBits[level]),
@@ -742,6 +735,7 @@ uint32_t processExclusiveCache(MemoryHierarchy* memoryHierarchy, uint32_t startL
     }
     return levelCount;
 }
+*/
 
 void processDFPatternEntry(BufferEntry* entries,Attribute_t startIndex,Attribute_t lastIndex){
     register Attribute_t i = 0;
@@ -825,6 +819,129 @@ void processSamples_StreamDump(BufferEntry* entries,Attribute_t startIndex,Attri
     }
 }
 
+/*  searchCache
+  Search this level for *address
+  Sets status to hit or miss
+*/
+void searchCache(Address_t address, AccessStatus* status,
+                 Cache* cache, uint32_t invalidate) {
+    Attribute_t lineSizeInBits;
+    Attribute_t setCount;
+    Attribute_t assocCount;
+    uint32_t setIdx, lineInSet;
+    Address_t* thisSet;
+
+    lineSizeInBits = cache->attributes[line_size_in_bits];
+    setCount = cache->attributes[number_of_sets];
+    assocCount = cache->attributes[set_associativity];
+
+    setIdx = CACHE_LINE_INDEX(address, lineSizeInBits) % setCount;
+    thisSet = &cache->content[setIdx * assocCount];
+
+    *status = cache_miss;
+
+    // Search for the address
+//printf("Searching for cli %llx\n", CACHE_LINE_INDEX(address, lineSizeInBits));
+    if (assocCount >= __MAX_LINEAR_SEARCH_ASSOC){
+        lineInSet = findInHash(CACHE_LINE_INDEX(address,lineSizeInBits),
+                       setCount,assocCount,cache->highAssocHash,setIdx);
+        if(lineInSet < assocCount){
+            *status = cache_hit;
+        }
+    } else {
+        for (lineInSet = 0; lineInSet < assocCount; ++lineInSet){
+            if(CACHE_LINE_INDEX(thisSet[lineInSet],lineSizeInBits) ==
+               CACHE_LINE_INDEX(address,lineSizeInBits)){
+                *status = cache_hit;
+                break;
+            }
+        }
+    }
+
+    // Update the most recent access and hit counters
+    if(*status == cache_hit){
+        if(invalidate){
+            cache->MOSTRECENT(setIdx) = (lineInSet - 1) % assocCount;
+        } else {
+            cache->MOSTRECENT(setIdx) = lineInSet;
+        }
+        ++cache->hitMissCounters[cache_hit];
+    } else{
+        ++cache->hitMissCounters[cache_miss];
+    }
+}
+
+/* insertIntoCache
+
+   inserts address into the cache
+   returns the victimized address in address
+*/
+void insertIntoCache(Address_t* address, Cache* cache) {
+
+    // insert address, set to victim
+    Address_t victim;
+
+    Attribute_t lineSizeInBits;
+    Attribute_t setCount;
+    Attribute_t assocCount;
+    uint32_t setIdx, lineInSet;
+    Address_t* thisSet;
+
+    lineSizeInBits = cache->attributes[line_size_in_bits];
+    setCount = cache->attributes[number_of_sets];
+    assocCount = cache->attributes[set_associativity];
+
+    setIdx = CACHE_LINE_INDEX(*address, lineSizeInBits) % setCount;
+    thisSet = &cache->content[setIdx * assocCount];
+    lineInSet = (cache->MOSTRECENT(setIdx) + 1) % assocCount;
+
+    victim = thisSet[lineInSet];
+//printf("Inserting cli %llx at Set: %llu Line: %llu\n",
+//  CACHE_LINE_INDEX(*address, cache->attributes[line_size_in_bits]),
+//  setIdx,
+//  lineInSet);
+
+    thisSet[lineInSet] = *address;
+    cache->MOSTRECENT(setIdx) = lineInSet;
+    *address = victim;
+}
+
+/* Inclusive Caching
+
+  Search the cache for the address
+  Set the status to hit or miss
+  If status is miss, evicted is set to the victimized address
+*/
+void processInclusiveCache(Address_t toFind, Address_t* victim,
+                           AccessStatus* status, Cache* cache) {
+//printf("Searching inclusive cache for cli %llx\n", CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]));
+    searchCache(toFind, status, cache, 0);
+//if(*status == cache_hit) printf("Hit cli %llx in inclusive cache\n", CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]));
+    if(*status == cache_miss){
+//printf("Missed, inserting cli %llx in inclusive cache\n",CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]));
+        insertIntoCache(&toFind, cache);
+//printf("had to evict cli %llx from inclusive cache\n", CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]));
+        *victim = toFind;
+    }
+}
+
+/* Victim Caching
+  
+  Search for address and invalidate if found
+  Insert the victim into the cache
+  Victim is set to evicted address
+*/
+void processVictimCache(Address_t toFind, Address_t* victim,
+                        AccessStatus* status, Cache* cache) {
+//printf("Processing victim cache: total lines %llu\n", cache->attributes[number_of_sets] * cache->attributes[set_associativity]);
+//printf("Searching victim cache for cli %llx\n", CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]));
+    searchCache(toFind, status, cache, 1);
+//printf("Inserting victim cli %llx into victim cache\n", CACHE_LINE_INDEX(*victim, cache->attributes[line_size_in_bits]));
+    insertIntoCache(victim, cache);
+//printf("Evicted cli %llx from victim cache\n", CACHE_LINE_INDEX(*victim, cache->attributes[line_size_in_bits]));
+}
+
+
 
 void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribute_t lastIndex){
 #ifdef DEBUG_RUN_2
@@ -840,7 +957,7 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
     for (systemIdx = 0; systemIdx < systemCount; systemIdx++){
         register MemoryHierarchy* memoryHierarchy = (systems + systemIdx);
 
-        for(accessIdx=entries[startIndex-1].memOpId;accessIdx<=lastIndex;){
+        for(accessIdx=entries[startIndex-1].memOpId;accessIdx<=lastIndex; ++accessIdx){
             register BufferEntry* currentEntry = (entries + accessIdx);
             register Attribute_t currentMemOp = currentEntry->memOpId;
             register Address_t currentAddress = currentEntry->address;
@@ -858,32 +975,41 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
             //PRINT_INSTR(stdout, "Buffer Entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
 
             register BasicBlockInfo* currentBlock = (blocks + currentEntry->blockId);
-            accessIdx++;
 
             register uint32_t isStrideCheckSystem = (memoryHierarchy->index == __STRIDE_TARGET_SYSTEM);
 
             register uint8_t levelCount = memoryHierarchy->levelCount;
 
-            Address_t victim;
-            AccessStatus status = cache_miss;
-            for (level = 0; level < levelCount; ){
-                Cache* cache = &(memoryHierarchy->levels[level]);
-                if (IS_REPL_POLICY_VC(cache->attributes[replacement_policy])){
-                    uint32_t vcEnds = level+1;
-                    Cache* vcSearch = &(memoryHierarchy->levels[vcEnds]);
-                    while (IS_REPL_POLICY_VC(vcSearch->attributes[replacement_policy])){
-                        vcEnds++;
-                        vcSearch = &(memoryHierarchy->levels[vcEnds]);
-                    }
-                    //vcEnds = levelCount;
-                    level += processExclusiveCache(memoryHierarchy,level,vcEnds-level,currentAddress,&victim,&status,currentBlock,systemIdx,accessIdx);
+            AccessStatus status;
+            Address_t    victim;
+            Cache*       prevLevel;
+            Cache*       cache;
+
+            status = cache_miss;
+            level = 0;
+            prevLevel = NULL;
+            do{
+//printf("Searching level %d for address 0x%llx\n", level, currentAddress);
+                cache = &memoryHierarchy->levels[level];
+                if (prevLevel != NULL &&
+                    IS_REPL_POLICY_VC(prevLevel->attributes[replacement_policy])){
+                    processVictimCache(currentAddress, &victim, &status, cache);
                 } else {
-                    level += processInclusiveCache(memoryHierarchy,level,1,currentAddress,&victim,&status,currentBlock,systemIdx,accessIdx);
+                    processInclusiveCache(currentAddress, &victim, &status, cache);
                 }
-                if (status == cache_hit){
-                    break;
-                }
+
+                ++level;
+                prevLevel = cache;
+            } while (status == cache_miss && level < memoryHierarchy->levelCount);
+
+            if(status == cache_miss) {
+                ++currentBlock->hitMissCounters[STATUS_IDX(
+                     systemIdx, level - 1, cache_miss)];
+            } else {
+                ++currentBlock->hitMissCounters[STATUS_IDX(
+                    systemIdx, level - 1, cache_hit)];
             }
+
         }
     }
 }
