@@ -47,8 +47,8 @@ SRCDIR      = ../instcode
 BINDIR      = ../bin
 LIBDIR      = ../lib
 
-SRCS        = CounterFunctions.c SimulationFunctions.c CacheSimulationCommon.c TimerFunctions.c TracerFunctions.c CacheSim.c
-OBJS        = CounterFunctions.o SimulationFunctions.o CacheSimulationCommon.o TimerFunctions.o TracerFunctions.o CacheSim.o
+SRCS        = CounterFunctions.c SimulationFunctions.c CacheSimulationCommon.c TimerFunctions.c TracerFunctions.c Simulation.c
+OBJS        = CounterFunctions.o SimulationFunctions.o CacheSimulationCommon.o TimerFunctions.o TracerFunctions.o Simulation.o
 
 TARGET_LIBS_SHARED = libcounter.so libsimulator.so libtimer.so libtracer.so
 TARGET_LIBS_STATIC = libcounter.a  libsimulator.a  libtimer.a  libtracer.a
@@ -76,7 +76,7 @@ libcounter.a : $(OBJS)
 	$(AR) $(AR_FLAGS) $@ CounterFunctions.o
 
 libsimulator.so : $(OBJS)
-	$(CC) $(SHARED_LIB) -o $@ SimulationFunctions.o CacheSim.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
+	$(CC) $(SHARED_LIB) -o $@ SimulationFunctions.o CacheSimulationCommon.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
 
 libsimulator.a : $(OBJS)
 	$(AR) $(AR_FLAGS) $@ SimulationFunctions.o

@@ -2,7 +2,7 @@
 #define _TracerMethods_h_
 
 #include <DFPattern.h>
-#include <CacheSim.h>
+#include <CacheSimulationCommon.h>
 #include <CacheStructures.h>
 
 #ifdef NO_SAMPLING_MODE

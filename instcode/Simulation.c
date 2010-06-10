@@ -8,6 +8,7 @@
 
 #define MAX_OF(__a,__b) ((__a) > (__b) ? (__a) : (__b))
 
+#include <Simulation.h>
 #include <CacheSimulationCommon.h>
 
 void* instrumentationPoints;

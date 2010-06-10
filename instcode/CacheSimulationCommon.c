@@ -1,7 +1,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <CacheSim.h>
+#include <CacheSimulationCommon.h>
 
 
 /************* Helpers ***********/
