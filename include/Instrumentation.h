@@ -132,6 +132,8 @@ protected:
 
     bool staticLinked;
     uint64_t functionEntry;
+    bool assumeFunctionFP;
+    bool assumeFlagsUnsafe;
 
     Vector<X86Instruction*> procedureLinkInstructions;
     uint64_t procedureLinkOffset;
@@ -156,6 +158,8 @@ public:
 
     bool isStaticLinked() { return (functionEntry != 0); }
     uint64_t getFunctionEntry() { return functionEntry; }
+    void assumeNoFunctionFP();
+    void assumeNoFlagsUnsafe();
 
     uint32_t sizeNeeded();
     uint32_t wrapperSize();

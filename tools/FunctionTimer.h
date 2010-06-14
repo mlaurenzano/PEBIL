@@ -7,8 +7,11 @@ class FunctionTimer : public InstrumentationTool {
 private:
     InstrumentationFunction* programEntry;
     InstrumentationFunction* programExit;
+
     InstrumentationFunction* functionEntry;
     InstrumentationFunction* functionExit;
+    InstrumentationFunction* functionEntryFlagsSafe;
+    InstrumentationFunction* functionExitFlagsSafe;
 
 public:
     FunctionTimer(ElfFile* elf, char* ext, bool lpi, bool dtl);
