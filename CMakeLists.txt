@@ -14,3 +14,14 @@ add_subdirectory(src)
 add_subdirectory(tools)
 add_subdirectory(testapps)
 add_subdirectory(instcode)
+
+enable_testing()
+add_test(NAME pebilide-dynTest
+  COMMAND pebil --typ ide --app testapps/dynTest)
+add_test(NAME pebilide-cTest
+  COMMAND pebil --typ ide --app testapps/cTest)
+#add_test(NAME pebilide-cppTest
+#  COMMAND pebil --typ ide --app testapps/cppTest)
+add_test(NAME pebilide-htcoef
+  COMMAND pebil --typ ide --app testapps/htcoef)
+

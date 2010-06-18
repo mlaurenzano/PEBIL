@@ -24,9 +24,11 @@ add_executable(cTest ${cTest_SOURCES})
 #add_executable(cppTest ${cppTest_SOURCES})
 add_executable(htcoef ${htcoef_SOURCES})
 
-# set compiler for a single target -- doesn't seem to work
-#set_target_properties(helloc PROPERTIES CMAKE_C_COMPILER ${MPI_C_COMPILER})
-
-# set link/include vars
-#target_link_libraries(helloc mpi)
-#set(helloc_INCLUDES ${MPI_INCLUDE_PATH})
+add_test(NAME pebilide-dynTest
+  COMMAND pebil --typ ide --app dynTest)
+add_test(NAME pebilide-cTest
+  COMMAND pebil --typ ide --app cTest)
+#add_test(NAME pebilide-cppTest                                                                                                                                        
+#  COMMAND pebil --typ ide --app testapps/cppTest) 
+add_test(NAME pebilide-htcoef
+  COMMAND pebil --typ ide --app htcoef)
