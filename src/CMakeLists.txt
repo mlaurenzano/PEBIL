@@ -8,3 +8,4 @@ file(GLOB pebilinst_SOURCES *.C)
 include_directories("../include" "../external/udis86-1.7/")
 
 add_library(pebilinst SHARED ${pebilinst_SOURCES})
+install(TARGETS pebilinst DESTINATION "lib")
