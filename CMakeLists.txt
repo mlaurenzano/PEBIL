@@ -1,0 +1,16 @@
+# Project name is not mandatory, but you should use it
+project(hello_world C CXX Fortran)
+
+# States that CMake required version must be >= 2.6
+cmake_minimum_required(VERSION 2.6)
+
+set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_CXX_FLAGS_RELEASE "-w")
+set(CMAKE_C_FLAGS_RELEASE "-w")
+
+set(CMAKE_INSTALL_PREFIX ".")
+
+add_subdirectory(src)
+add_subdirectory(tools)
+add_subdirectory(testapps)
+add_subdirectory(instcode)
