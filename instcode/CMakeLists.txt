@@ -8,7 +8,10 @@ cmake_minimum_required(VERSION 2.6)
 find_package(MPI)
 find_program(MPI_C_COMPILER NAMES mpicc mpxlc mpxlc_r mpcc)
 if(NOT MPI_C_COMPILER)
-  message(FATAL_ERROR "Could not find MPI C Compiler")
+  message(STATUS "Could not find MPI C Compiler, falling back to serial")
+else(MPI_C_COMPILER)
+  set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
+  set(USING_MPI_WRAPPERS 1)
 endif(NOT MPI_C_COMPILER)
 
 #### -DNO_SAMPLING_MODE    : Add to disable sampling (note that MAX visit count is still on).
@@ -21,7 +24,7 @@ endif(NOT MPI_C_COMPILER)
 #EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DIGNORE_ACTUAL_SIMULATION -DUSING_MPI_WRAPPERS # no simulation
 #EXTRA_LIBS  =
 
-set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-DEXTENDED_SAMPLING -DPER_SET_RECENT -DUSING_MPI_WRAPPERS")
+set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-DEXTENDED_SAMPLING -DPER_SET_RECENT")
 
 # Create a variable called helloworld_SOURCES containing all .cpp files:
 set(counter_SOURCES CounterFunctions.c)
@@ -30,7 +33,6 @@ set(timer_SOURCES TimerFunctions.c)
 set(tracer_SOURCES TracerFunctions.c)
 
 # set this globally? doesn't make sense here
-set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
 include_directories(".")
 
 # set link/include vars
