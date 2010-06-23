@@ -13,9 +13,10 @@ private:
     Vector<InstrumentationPoint*> memInstPoints;
     Vector<uint32_t> memInstBlockIds;
     uint64_t instPointInfo;
+    char* dfPatternFile;
 
 public:
-    CacheSimulation(ElfFile* elf, char* inputName, char* ext, uint32_t phase, bool lpi, bool dtl);
+    CacheSimulation(ElfFile* elf, char* inputName, char* ext, uint32_t phase, bool lpi, bool dtl, char* dfpFile);
     ~CacheSimulation();
 
     void declare();

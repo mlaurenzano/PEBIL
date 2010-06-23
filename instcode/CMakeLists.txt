@@ -14,17 +14,9 @@ else(MPI_C_COMPILER)
   set(USING_MPI_WRAPPERS 1)
 endif(NOT MPI_C_COMPILER)
 
-#### -DNO_SAMPLING_MODE    : Add to disable sampling (note that MAX visit count is still on).
-#### -DEXTENDED_SAMPLING   : Add to vary the ignore and sampling intervals during sampling
-#### -DFINE_GRAIN_SAMPLING : Add to increase the granularity of sampling. Smaller intervals.
-#### -DPER_SET_RECENT      : Add to simulcate LRU using per set most recent entry for replacement
-
-#EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DUSING_MPI_WRAPPERS # default for MultiMAPS tracing
-#EXTRA_CFLGS = -DEXTENDED_SAMPLING -DPER_SET_RECENT -DUSING_MPI_WRAPPERS # default for application tracing
-#EXTRA_CFLGS = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DIGNORE_ACTUAL_SIMULATION -DUSING_MPI_WRAPPERS # no simulation
-#EXTRA_LIBS  =
-
-set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-DEXTENDED_SAMPLING -DPER_SET_RECENT")
+set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-DNO_SAMPLING_MODE -DPER_SET_RECENT")
+#set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-DEXTENDED_SAMPLING -DPER_SET_RECENT")
+#set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-DNO_SAMPLING_MODE -DPER_SET_RECENT -DIGNORE_ACTUAL_SIMULATION")
 
 # Create a variable called helloworld_SOURCES containing all .cpp files:
 set(counter_SOURCES CounterFunctions.c)

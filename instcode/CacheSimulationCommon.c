@@ -387,11 +387,12 @@ const char* DFPatternTypeNames[] = {
                                  ((__t) == dfTypePattern_FunctionCallGS))
 
 void initDfPatterns(DFPatternSpec* dfps,uint32_t n,BasicBlockInfo* bbs){
-    PRINT_INSTR(stdout, "Disabling dfpattern code");
-    return;
     register uint32_t i = 0, j = 0;
+    PRINT_INSTR(stdout, "foobar");
 
     dfPatterns = NULL;
+
+    PRINT_INSTR(stdout, "patterns at %#llx", dfps);
     if(dfps->type == DFPattern_Active){
         PRINT_INSTR(stdout,"DFPatterns are activated with %u entries",n);
         uint32_t anyTagged = 0;

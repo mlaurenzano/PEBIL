@@ -8,6 +8,8 @@
 #include <LineInformation.h>
 #include <Loop.h>
 #include <TextSection.h>
+#include <DFPattern.h>
+#include <SimpleHash.h>
 
 #define ENTRY_FUNCTION "entry_function"
 #define SIM_FUNCTION "MetaSim_simulFuncCall_Simu"
@@ -20,7 +22,7 @@
 //#define DISABLE_BLOCK_COUNT
 
 void CacheSimulation::usesModifiedProgram(){
-    X86Instruction* nop5Byte = X86InstructionFactory::emitNop(5);
+    X86Instruction* nop5Byte = X86InstructionFactory::emitNop(Size__uncond_jump);
     instpoint_info iinf;
     bzero(&iinf, sizeof(instpoint_info));
     iinf.pt_size = Size__uncond_jump;
@@ -37,12 +39,14 @@ void CacheSimulation::usesModifiedProgram(){
     delete nop5Byte;
 }
 
-CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile, char* ext, uint32_t phase, bool lpi, bool dtl)
+CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile, char* ext, uint32_t phase, bool lpi, bool dtl, char* dfpFile)
     : InstrumentationTool(elf, ext, phase, lpi, dtl)
 {
     simFunc = NULL;
     exitFunc = NULL;
     entryFunc = NULL;
+
+    dfPatternFile = dfpFile;
 
     Vector<char*>* fileLines = new Vector<char*>();
     initializeFileList(inputFile, fileLines);
@@ -63,6 +67,7 @@ CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile, char* ext, uint3
         if(!hashCode->isBlock()){
             PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block", i, inputFile);
         }
+        blocksToInst.insert(blockHash, 
         blocksToInst.append(hashCode);
     }
     for (uint32_t i = 0; i < (*fileLines).size(); i++){
@@ -155,12 +160,21 @@ void CacheSimulation::instrument(){
     initializeReservedData(getInstDataAddress() + bufferStore, BUFFER_ENTRIES * Size__BufferEntry, emptyBuff);
     delete[] emptyBuff;
 
-    uint32_t startValue = 1;
-    initializeReservedData(getInstDataAddress() + bufferStore, sizeof(uint32_t), &startValue);
-    uint64_t dfpEmpty = reserveDataOffset(4*sizeof(uint64_t));
+    uint32_t blockId = 0;
+    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+        BasicBlock* bb = getExposedBasicBlock(i);
+        void* bfound = bsearch(&hashValue, &blocksToInst, blocksToInst.size(), sizeof(HashCode*), searchHashCode);
+        if (bfound){
+            blockId++;
+        }
+    }
+    uint64_t dfPatternStore = reserveDataOffset(sizeof(DFPatternSpec) * blockId);
+
+    PRINT_INFOR("buffer @ %#llx, dfp @ %#llx -- %d entries", getInstDataAddress() + bufferStore, getInstDataAddress() + dfPatternStore, blockId);
 
     uint64_t entryCountStore = reserveDataOffset(sizeof(uint64_t));
-    startValue = Size__BufferEntry * BUFFER_ENTRIES;
+    startValue = BUFFER_ENTRIES;
+    PRINT_INFOR("adding entrycount = %#llx", startValue);
     initializeReservedData(getInstDataAddress() + entryCountStore, sizeof(uint64_t), &startValue);
 
     uint64_t blockSizeStore = reserveDataOffset(sizeof(uint64_t));
@@ -198,7 +212,7 @@ void CacheSimulation::instrument(){
     Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
 
-    uint32_t blockId = 0;
+    blockId = 0;
     uint32_t memopId = 0;
     uint32_t regDefault = 0;
 

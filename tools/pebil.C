@@ -180,6 +180,7 @@ int main(int argc,char* argv[]){
     uint32_t argExt     = 0;
     uint32_t argPhs     = 0;
     uint32_t argInp     = 0;
+    uint32_t argDfp     = 0;
     bool     loopIncl   = false;
     bool     extdPrnt   = false;
     bool     verbose    = false;
@@ -302,6 +303,16 @@ int main(int argc,char* argv[]){
                 fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i++]);
                 printUsage();
             }
+        } else if (!strcmp(argv[1], "--dfp")){
+            if (argDfp++){
+                fprintf(stderr, "\nError: Duplicate %s option\n", argv[i]);
+                printUsage();
+            }
+            if (instType != simulation_inst_type){
+                fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i++]);
+                printUsage();
+            }
+            dfpName = argv[++i];
         } else if (!strcmp(argv[i],"--ver")){
             verbose = true;
             rawPrintCodes = argv[++i];
@@ -444,7 +455,7 @@ int main(int argc,char* argv[]){
     } else if (instType == frequency_inst_type){
         elfInst = new BasicBlockCounter(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == simulation_inst_type){
-        elfInst = new CacheSimulation(&elfFile, inptName, extension, phaseNo, loopIncl, extdPrnt);
+        elfInst = new CacheSimulation(&elfFile, inptName, extension, phaseNo, loopIncl, extdPrnt, dfpName);
     } else if (instType == func_timer_type){
         elfInst = new FunctionTimer(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == call_wrapper_type){
