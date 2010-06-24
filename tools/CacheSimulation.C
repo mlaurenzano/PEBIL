@@ -145,11 +145,13 @@ void CacheSimulation::filterBBs(){
                 PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block", i+1, dfPatternFile);
             }
 
-            BasicBlock* bb;
-            if(!blocksToInst.get(hashCode.getValue(), &bb) || !bb || bb->getHashCode().getValue() != id){
+            // if the bb is not in the list already but is a valid block, include it!
+            BasicBlock* bb = findExposedBasicBlock(hashCode);
+            if(!bb || bb->getHashCode().getValue() != id){
                 PRINT_ERROR("Line %d of %s is not a valid basic block id", i+1, dfPatternFile);
                 continue;
             }
+            blocksToInst.insert(hashCode.getValue(), bb);
 
             if (dfpType != dfTypePattern_None){
                 dfpSet.insert(hashCode.getValue(), dfpType);
@@ -167,6 +169,7 @@ void CacheSimulation::filterBBs(){
     }
 
     ASSERT(!dfpBlocks.size() || dfpBlocks.size() == blocksToInst.size());
+    delete[] bbs;
 }
 
 
@@ -228,11 +231,9 @@ void CacheSimulation::instrument(){
         initializeReservedData(getInstDataAddress() + dfPatternStore, sizeof(DFPatternSpec), (void*)&dfInfo);
     }
 
-    PRINT_INFOR("buffer @ %#llx, dfp @ %#llx + %d", getInstDataAddress() + bufferStore, getInstDataAddress() + dfPatternStore, sizeof(DFPatternSpec) * (getNumberOfExposedBasicBlocks() + 1));
-
     uint64_t entryCountStore = reserveDataOffset(sizeof(uint64_t));
     uint32_t startValue = BUFFER_ENTRIES;
-    PRINT_INFOR("adding entrycount = %#llx", startValue);
+
     initializeReservedData(getInstDataAddress() + entryCountStore, sizeof(uint64_t), &startValue);
 
     uint64_t blockSizeStore = reserveDataOffset(sizeof(uint64_t));
@@ -268,6 +269,7 @@ void CacheSimulation::instrument(){
     ASSERT(p);
 
     Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
+    Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
 
     uint32_t blockId = 0;
@@ -285,11 +287,11 @@ void CacheSimulation::instrument(){
         spec.type = dfpType;
         spec.memopCnt = bb->getNumberOfMemoryOps();
         initializeReservedData(getInstDataAddress() + dfPatternStore + (i+1)*sizeof(DFPatternSpec), sizeof(DFPatternSpec), &spec);
-        PRINT_INFOR("dfp init at %#llx", getInstDataAddress() + dfPatternStore + (i+1)*sizeof(DFPatternSpec));
 
         if (blocksToInst.get(bb->getHashCode().getValue())){
 
             (*allBlocks).append(bb);
+            (*allBlockIds).append(blockId);
             if (lineInfoFinder){
                 (*allLineInfos).append(lineInfoFinder->lookupLineInfo(bb));
             } else {
@@ -567,9 +569,10 @@ void CacheSimulation::instrument(){
     PRINT_WARN(10, "Warning: register analysis disabled");
 #endif
 
-    printStaticFile(allBlocks, allLineInfos, BUFFER_ENTRIES);
+    printStaticFile(allBlocks, allBlockIds, allLineInfos, BUFFER_ENTRIES);
 
     delete allBlocks;
+    delete allBlockIds;
     delete allLineInfos;
     delete[] comment;
 

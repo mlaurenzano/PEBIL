@@ -388,17 +388,14 @@ const char* DFPatternTypeNames[] = {
 
 void initDfPatterns(DFPatternSpec* dfps,uint32_t n,BasicBlockInfo* bbs){
     register uint32_t i = 0, j = 0;
-    PRINT_INSTR(stdout, "foobar");
-
     dfPatterns = NULL;
 
-    PRINT_INSTR(stdout, "patterns at %#llx", dfps);
     if(dfps->type == DFPattern_Active){
         PRINT_INSTR(stdout,"DFPatterns are activated with %u entries",n);
         uint32_t anyTagged = 0;
         for(i=1;i<=n;i++){
             if(dfps[i].type == dfTypePattern_undefined){
-                PRINT_INSTR(stdout,"Error in dfpattern type %i %s",i,DFPatternTypeNames[dfps[i].type]);
+                PRINT_INSTR(stdout, "Error in dfpattern type %i %s",i,DFPatternTypeNames[dfps[i].type]);
                 assert (dfps[i].type != dfTypePattern_undefined);
             }
             if(DFPATTERN_INTEREST(dfps[i].type)){

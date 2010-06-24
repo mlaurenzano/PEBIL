@@ -106,6 +106,7 @@ void BasicBlockCounter::instrument()
 
     PRINT_DEBUG_MEMTRACK("There are %d instrumentation points", getNumberOfExposedBasicBlocks());
     Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
+    Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
 
     uint32_t noProtPoints = 0;
@@ -119,6 +120,7 @@ void BasicBlockCounter::instrument()
         Function* f = bb->getFunction();
 
         (*allBlocks).append(bb);
+        (*allBlockIds).append(i);
         (*allLineInfos).append(li);
 
         if (i % 1000 == 0){
@@ -186,10 +188,11 @@ void BasicBlockCounter::instrument()
 #endif
     PRINT_INFOR("Excluding flags protection for %d/%d instrumentation points", noProtPoints, getNumberOfExposedBasicBlocks());
 
-    printStaticFile(allBlocks, allLineInfos, allBlocks->size());
+    printStaticFile(allBlocks, allBlockIds, allLineInfos, allBlocks->size());
 
     delete[] nostring;
     delete allBlocks;
+    delete allBlockIds;
     delete allLineInfos;
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 

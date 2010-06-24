@@ -52,10 +52,12 @@ void InstrumentationTool::instrument(){
     delete mpiInitCalls;
 }
 
-void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<LineInfo*>* allLineInfos, uint32_t bufferSize){
+void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos, uint32_t bufferSize){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 
     ASSERT(!(*allLineInfos).size() || (*allBlocks).size() == (*allLineInfos).size());
+    ASSERT((*allBlocks).size() == (*allBlockIds).size());
+
     uint32_t numberOfInstPoints = (*allBlocks).size();
 
     char* staticFile = new char[__MAX_STRING_SIZE];
@@ -137,7 +139,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
             lineNo = 0;
         }
         fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t# %#llx\t%#llx\n", 
-                i, bb->getHashCode().getValue(), bb->getNumberOfMemoryOps(), bb->getNumberOfFloatOps(), 
+                (*allBlockIds)[i], bb->getHashCode().getValue(), bb->getNumberOfMemoryOps(), bb->getNumberOfFloatOps(), 
                 bb->getNumberOfInstructions(), fileName, lineNo, bb->getFunction()->getName(), 
                 bb->getHashCode().getValue(), bb->getLeader()->getProgramAddress());
         if (loopIncl){
