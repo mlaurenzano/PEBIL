@@ -5,8 +5,10 @@
 #include <CacheSimulationCommon.h>
 #include <CacheStructures.h>
 
+#define INVALID_ADDRESS 0xdeadbeef
+
 #ifdef NO_SAMPLING_MODE
-  #define __MAXIMUM_BLOCK_VISIT       500000
+  #define __MAXIMUM_BLOCK_VISIT      500000
 #else
   #define __MAXIMUM_BLOCK_VISIT        50000
   #ifdef FINE_GRAIN_SAMPLING

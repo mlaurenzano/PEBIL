@@ -400,6 +400,8 @@ void processSamples_StreamDump(BufferEntry* entries,Attribute_t startIndex,Attri
   Run cache simulation on entries
 */
 void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribute_t lastIndex){
+static int ntimes;
+static int ntimes2;
 #ifdef DEBUG_RUN_2
     static Attribute_t howManyProcessSamplesCall = 0;
     printf("processSamples_Simulate is called for %dth\n",howManyProcessSamplesCall++);
@@ -413,7 +415,7 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
     for (systemIdx = 0; systemIdx < systemCount; systemIdx++){
         register MemoryHierarchy* memoryHierarchy = (systems + systemIdx);
 
-        for(accessIdx=entries[startIndex-1].memOpId;accessIdx<=lastIndex; ++accessIdx){
+        for(accessIdx=entries[startIndex-1].memOpId;accessIdx<=lastIndex;){
             register BufferEntry* currentEntry = (entries + accessIdx);
             register Attribute_t currentMemOp = currentEntry->memOpId;
             register Address_t currentAddress = currentEntry->address;
@@ -427,6 +429,7 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
                     continue;
                 }
             }
+            ++accessIdx;
 
             //PRINT_INSTR(stdout, "Buffer Entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
 
@@ -444,6 +447,37 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
             status = cache_miss;
             level = 0;
             prevLevel = NULL;
+
+            do{
+              cache = &memoryHierarchy->levels[level];
+              if( prevLevel != NULL && IS_REPL_POLICY_VC(prevLevel->attributes[replacement_policy])) {
+                processVictimCache(currentAddress, &victim, &status, cache);
+              } else {
+                processInclusiveCache(currentAddress, &victim, &status, cache);
+              }
+
+/*
+              switch(cache->attributes[cache_type]) {
+
+                case inclusive_cache:
+                  processInclusiveCache(currentAddress, &victim, &status, cache);
+                  break;
+
+                case victim_cache:
+                  processVictimCache(currentAddress, &victim, &status, cache);
+                  break;
+
+                case prediction_cache:
+                  processPredictionCache(currentAddress,&victim, &status, cache);
+                  // FIXME Need to handly possibility of multiple victims
+                  break;
+              }
+*/
+              ++level;
+              prevLevel = cache;
+            } while( status == cache_miss && level < memoryHierarchy->levelCount);
+
+/*
             do{
 //printf("Searching level %d for address 0x%llx\n", level, currentAddress);
                 cache = &memoryHierarchy->levels[level];
@@ -457,7 +491,7 @@ void processSamples_Simulate(BufferEntry* entries,Attribute_t startIndex,Attribu
                 ++level;
                 prevLevel = cache;
             } while (status == cache_miss && level < memoryHierarchy->levelCount);
-
+*/
             if(status == cache_miss) {
                 ++currentBlock->hitMissCounters[STATUS_IDX(
                      systemIdx, level - 1, cache_miss)];

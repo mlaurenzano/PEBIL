@@ -25,7 +25,7 @@ set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-DEXTENDED_SAMPLING -DPER_SET_RECENT -DUSING
 
 # Create a variable called helloworld_SOURCES containing all .cpp files:
 set(counter_SOURCES CounterFunctions.c)
-set(simulator_SOURCES SimulationFunctions.c)
+set(simulator_SOURCES SimulationFunctions.c CacheSimulationCommon.c)
 set(timer_SOURCES TimerFunctions.c)
 set(tracer_SOURCES TracerFunctions.c)
 

@@ -1,15 +1,20 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <malloc.h>
+#include <strings.h>
 #include <CacheSimulationCommon.h>
 
 
+#ifndef PRINT_INSTR
+#define PRINT_INSTR(file, ...) fprintf(file, __VA_ARGS__); \
+    fprintf(file, "\n"); \
+    fflush(file);
+#endif
+
 /************* Helpers ***********/
-
-
 #define __HASH_FUNC(__x,__y,__z) (((__x) / __y) % (__z))
-
-
 HashEntry* initHash(Attribute_t setCount,Attribute_t assocCount){
     uint32_t setIdx;
     uint32_t linIdx;
@@ -125,11 +130,6 @@ void insertInHash(Address_t lineIdx,Attribute_t setCount,Attribute_t assocCount,
         }
     }
 }
-
-
-
-
-
 /************* End Helpers ******/
 
 /*
@@ -137,8 +137,8 @@ void insertInHash(Address_t lineIdx,Attribute_t setCount,Attribute_t assocCount,
 */
 void initCaches(
     MemoryHierarchy* systems,
-    uint32_t systemCount
-){
+    uint32_t systemCount)
+{
     register uint32_t i;
     register uint32_t systemIdx;
     register uint32_t level;
@@ -190,13 +190,14 @@ void initCaches(
             // make sure an unknown replacement policy is not used
             if(!IS_REPL_POLICY_RAN(cache->attributes[replacement_policy]) && 
                !IS_REPL_POLICY_LRU(cache->attributes[replacement_policy]) && 
-               !IS_REPL_POLICY_DIR(cache->attributes[replacement_policy])){
-                PRINT_INSTR(stderr,"***** fatal error in instrumentation lib: unknown replacement policy found in level %d of cache structure %d", i, memoryHierarchy->index);
+               !IS_REPL_POLICY_DIR(cache->attributes[replacement_policy]) &&
+               !IS_REPL_POLICY_VC(cache->attributes[replacement_policy])){
+                PRINT_INSTR(stderr,"***** fatal error in instrumentation lib: unknown replacement policy found in level %d of cache structure %d, %d", i, memoryHierarchy->index, cache->attributes[replacement_policy]);
                 exit(-1);
             }
 
             // make sure that the last cache level does not use a VC policy
-            if (i == memoryHierarchy->levelCount-1){
+            if (i == memoryHierarchy->levelCount - 1){
                 if (IS_REPL_POLICY_VC(cache->attributes[replacement_policy])){
                     PRINT_INSTR(stderr, "***** fatal error in instrumentation lib: cannot use a victim cache policy in the highest cache level");
                     exit(-1);
@@ -211,7 +212,7 @@ void initCaches(
             if (IS_REPL_POLICY_VC(cache->attributes[replacement_policy])){
                 if (numOfSets){
                     if (numOfSets != cache->attributes[number_of_sets]){
-                        PRINT_INSTR(stderr, "***** fatal error in instrumentation lib: all victim cache levels must have the same number of sets");
+                        //PRINT_INSTR(stderr, "***** fatal error in instrumentation lib: all victim cache levels must have the same number of sets");
                         exit(-1);
                     }
                 } else {
@@ -223,11 +224,16 @@ void initCaches(
 }
 
 /*  searchCache
-  Search this level for *address
-  Sets status to hit or miss
+
+  address: the address to search for
+  status:  outvalue, indicates whether we hit or miss
+  cache: invalue, pointer to this cache
+  invalidiate: invalue, if true, remove the item from the cache
 */
-void searchCache(Address_t address, AccessStatus* status,
-                 Cache* cache, uint32_t invalidate) {
+void searchCache(Address_t address,
+                 AccessStatus* status,
+                 Cache* cache,
+                 uint32_t invalidate) {
     Attribute_t lineSizeInBits;
     Attribute_t setCount;
     Attribute_t assocCount;
@@ -276,13 +282,13 @@ void searchCache(Address_t address, AccessStatus* status,
 
 /* insertIntoCache
 
-   inserts address into the cache
-   returns the victimized address in address
+  address: invalue, the address to insert
+  victim: outvalue, the address we evicted
+  cache: invalue, pointer to this cache
 */
-void insertIntoCache(Address_t* address, Cache* cache) {
-
-    // insert address, set to victim
-    Address_t victim;
+void insertIntoCache(Address_t address,
+                     Address_t* victim,
+                     Cache* cache) {
 
     Attribute_t lineSizeInBits;
     Attribute_t setCount;
@@ -294,54 +300,120 @@ void insertIntoCache(Address_t* address, Cache* cache) {
     setCount = cache->attributes[number_of_sets];
     assocCount = cache->attributes[set_associativity];
 
-    setIdx = CACHE_LINE_INDEX(*address, lineSizeInBits) % setCount;
+    setIdx = CACHE_LINE_INDEX(address, lineSizeInBits) % setCount;
     thisSet = &cache->content[setIdx * assocCount];
     lineInSet = (cache->MOSTRECENT(setIdx) + 1) % assocCount;
 
-    victim = thisSet[lineInSet];
+    *victim = thisSet[lineInSet];
 //printf("Inserting cli %llx at Set: %llu Line: %llu\n",
-//  CACHE_LINE_INDEX(*address, cache->attributes[line_size_in_bits]),
+//  CACHE_LINE_INDEX(address, cache->attributes[line_size_in_bits]),
 //  setIdx,
 //  lineInSet);
 
-    thisSet[lineInSet] = *address;
+    thisSet[lineInSet] = address;
     cache->MOSTRECENT(setIdx) = lineInSet;
-    *address = victim;
 }
 
 /* Inclusive Caching
 
-  Search the cache for the address
-  Set the status to hit or miss
-  If status is miss, evicted is set to the victimized address
+  toFind: invalue, the address to search for it is inserted
+  victim: outvalue, the evicted address
+  status: outvalue, indicates hit or miss in this level
+  cache:  invalue, pointer to this cache
+
 */
-void processInclusiveCache(Address_t toFind, Address_t* victim,
-                           AccessStatus* status, Cache* cache) {
+void processInclusiveCache(Address_t toFind,
+                           Address_t* victim,
+                           AccessStatus* status,
+                           Cache* cache) {
 //printf("Searching inclusive cache for cli %llx\n", CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]));
     searchCache(toFind, status, cache, 0);
 //if(*status == cache_hit) printf("Hit cli %llx in inclusive cache\n", CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]));
     if(*status == cache_miss){
 //printf("Missed, inserting cli %llx in inclusive cache\n",CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]));
-        insertIntoCache(&toFind, cache);
-//printf("had to evict cli %llx from inclusive cache\n", CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]));
-        *victim = toFind;
+        insertIntoCache(toFind, victim, cache);
+//printf("had to evict cli %llx from inclusive cache\n", CACHE_LINE_INDEX(*victim, cache->attributes[line_size_in_bits]));
     }
 }
 
 /* Victim Caching
-  
-  Search for address and invalidate if found
-  Insert the victim into the cache
-  Victim is set to evicted address
+
+  toFind: invalue, address to search for
+  victim: in-outvalue, insert this value and set to value we evict
+  status: outvalue, indicates hit or miss in this level
+  cache:  invalue, pointer to this cache
 */
-void processVictimCache(Address_t toFind, Address_t* victim,
-                        AccessStatus* status, Cache* cache) {
+void processVictimCache(Address_t toFind,
+                        Address_t* victim,
+                        uint8_t*   nVictims,
+                        AccessStatus* status,
+                        Cache* cache) {
+    int i;
 //printf("Processing victim cache: total lines %llu\n", cache->attributes[number_of_sets] * cache->attributes[set_associativity]);
 //printf("Searching victim cache for cli %llx\n", CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]));
     searchCache(toFind, status, cache, 1);
 //printf("Inserting victim cli %llx into victim cache\n", CACHE_LINE_INDEX(*victim, cache->attributes[line_size_in_bits]));
-    insertIntoCache(victim, cache);
+    for( i = 0; i < *nVictims; ++i ) {
+      insertIntoCache(victim[i], &victim[i], cache);
+    }
 //printf("Evicted cli %llx from victim cache\n", CACHE_LINE_INDEX(*victim, cache->attributes[line_size_in_bits]));
 }
 
 
+/*
+  Predictive Caching/prefetching
+
+  Predicts unit stride access patterns
+
+  toFind: invalue, the address to search for
+  victim: outvalue, addresses we evict
+  status: outvalue, indicates hit or miss at this level
+  cache: invalue, pointer to this cache level
+*/
+/*
+void processPredictionCache(Address_t toFind,
+                            Address_t* victim,
+                            uint8_t*   nVictims,
+                            AccessStatus* status,
+                            Cache* cache) {
+
+  Address_t cli;
+
+  searchCache(toFind, status, cache, 0);
+
+  *nVictims = 1;  
+  cli = CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]);
+
+  // If status is miss, pull in data and train
+  if( *status == cache_miss ) {
+    insertIntoCache(toFind, victim, cache);
+    
+    // If we last accessed the previous cache line, train to the next
+    if( cache->trainer == cli - 1 ) {
+      cache->stream = cli;
+      // prefetch to fetchDistance
+      // check to see if they are already in cache?
+      for(cache->nFetched = 0; cache->nFetched < cache->fetchDistance; ++cache->nFetched) {
+        insertIntoCache((cli + cache->nFetched + 1) << cache->attributes[line_size_in_bits],
+                        &victim[cache->nFetched + 1], cache);
+      }
+      *nVictims = cache->nFetched;
+    }
+  }
+
+  // If status is hit, check if address is in our current prediction stream
+  // if it is, propagate stream
+  if( *status == cache_hit ) {
+    if( cli == cache->stream + 1 ) {
+      cache->stream = cli;
+      // Pull in the next line in the stream 
+      insertIntoCache((cli + cache->fetchDistance) << cache->attributes[line_size_in_bits],
+                      &victim[1], cache);
+      *nVictims = 2;
+    }
+  }
+
+  // Update the last cache line used
+  cache->trainer = cli;
+}
+*/

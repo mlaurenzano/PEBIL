@@ -1,6 +1,8 @@
 #ifndef _CacheSim_h_
 #define _CacheSim_h_
 
+#include <stdint.h>
+
 #ifdef PER_SET_RECENT
   #define MOSTRECENT(__setIdx) mostRecent[__setIdx]
 #else
@@ -10,8 +12,6 @@
 #define __MAX_LEVEL                      3
 #define __MAX_LINEAR_SEARCH_ASSOC       64
 #define __MAX_STRING_SIZE             1024
-
-#define INVALID_ADDRESS 0xdeadbeef
 
 
 typedef uint32_t     Attribute_t;  
@@ -30,10 +30,25 @@ typedef enum {
     Total_ReplacementPolicy
 } ReplacementPolicy;
 
+typedef enum {
+    inclusive_cache,
+    victim_cache,
+    prediction_cache
+} CacheType;
+
+/*
+#define IS_REPL_POLICY_LRU(__policy) (__policy == repl_lru)
+#define IS_REPL_POLICY_RAN(__policy) (__policy == repl_ran)
+#define IS_REPL_POLICY_DIR(__policy) (__policy == repl_dir)
+*/
+
+
 #define IS_REPL_POLICY_VC(__policy)  (__policy == repl_lru_vc)
 #define IS_REPL_POLICY_LRU(__policy) ((__policy == repl_lru) || (__policy == repl_lru_vc))
 #define IS_REPL_POLICY_RAN(__policy) (__policy == repl_ran)
 #define IS_REPL_POLICY_DIR(__policy) (__policy == repl_dir)
+
+
 #define CACHE_LINE_INDEX(__addr,__bits) (__addr >> __bits)
 #define __L1_CACHE_LEVEL 0
 
@@ -42,6 +57,7 @@ typedef enum {
     set_associativity,
     line_size_in_bits,
     replacement_policy,
+    cache_type,
     Total_CacheAttributes
 } CacheAttributes;
 
@@ -67,6 +83,13 @@ typedef struct {
 #endif
     Address_t*  content;
     HashEntry*  highAssocHash;
+// Prediction Cache info, may want to move this elsewhere
+/*
+    Address_t trainer;
+    Address_t stream;
+    uint8_t   nFetched;
+    uint8_t   fetchDistance;
+*/
 } Cache;
 
 typedef struct {
