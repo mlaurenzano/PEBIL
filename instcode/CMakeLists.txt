@@ -21,7 +21,7 @@ set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-DNO_SAMPLING_MODE -DPER_SET_RECENT")
 
 # Create a variable called helloworld_SOURCES containing all .cpp files:
 set(counter_SOURCES CounterFunctions.c)
-set(simulator_SOURCES SimulationFunctions.c)
+set(simulator_SOURCES SimulationFunctions.c CacheSimulationCommon.c)
 set(timer_SOURCES TimerFunctions.c)
 set(tracer_SOURCES TracerFunctions.c)
 
