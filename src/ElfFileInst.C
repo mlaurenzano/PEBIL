@@ -27,6 +27,15 @@ uint32_t bloatCount = 0;
 
 #define Reserve__Instrumentation_DynamicTable 0x8000
 
+BasicBlock* ElfFileInst::findExposedBasicBlock(HashCode hashCode){
+    for (uint32_t i = 0; i < exposedBasicBlocks.size(); i++){
+        if (exposedBasicBlocks[i]->getHashCode().getValue() == hashCode.getValue()){
+            return exposedBasicBlocks[i];
+        }
+    }
+    return NULL;
+}
+
 Vector<X86Instruction*>* ElfFileInst::findAllCalls(char* names){
     char* fnames = new char[strlen(names)+1];
     memcpy(fnames, names, strlen(names));

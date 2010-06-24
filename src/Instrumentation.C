@@ -781,6 +781,7 @@ InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, u
     pltHook = NULL;
 
     assumeFunctionFP = true;
+    assumeFlagsUnsafe = true;
 }
 
 void InstrumentationFunction::assumeNoFunctionFP(){

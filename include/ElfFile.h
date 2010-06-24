@@ -7,6 +7,7 @@
 #include <Vector.h>
 
 class AddressAnchor;
+class BasicBlock;
 class DataReference;
 class DataSection;
 class DwarfLineInfoSection;

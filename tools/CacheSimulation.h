@@ -2,6 +2,8 @@
 #define _CacheSimulation_h_
 
 #include <InstrumentationTool.h>
+#include <SimpleHash.h>
+#include <DFPattern.h>
 
 class CacheSimulation : public InstrumentationTool {
 private:
@@ -9,11 +11,20 @@ private:
     InstrumentationFunction* exitFunc;
     InstrumentationFunction* entryFunc;
 
-    Vector<HashCode*> blocksToInst;
+    char* bbFile;
+    char* dfPatternFile;
+
+    SimpleHash<BasicBlock*> blocksToInst;
+    SimpleHash<DFPatternType> dfpSet;
+
+    Vector<DFPatternSpec> dfpBlocks;
+    uint32_t dfpTaggedBlockCnt;
+
     Vector<InstrumentationPoint*> memInstPoints;
     Vector<uint32_t> memInstBlockIds;
     uint64_t instPointInfo;
-    char* dfPatternFile;
+
+    void filterBBs();
 
 public:
     CacheSimulation(ElfFile* elf, char* inputName, char* ext, uint32_t phase, bool lpi, bool dtl, char* dfpFile);

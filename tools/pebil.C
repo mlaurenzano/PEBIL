@@ -303,7 +303,7 @@ int main(int argc,char* argv[]){
                 fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i++]);
                 printUsage();
             }
-        } else if (!strcmp(argv[1], "--dfp")){
+        } else if (!strcmp(argv[i], "--dfp")){
             if (argDfp++){
                 fprintf(stderr, "\nError: Duplicate %s option\n", argv[i]);
                 printUsage();
