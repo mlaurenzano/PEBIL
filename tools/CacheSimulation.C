@@ -8,6 +8,8 @@
 #include <LineInformation.h>
 #include <Loop.h>
 #include <TextSection.h>
+#include <DFPattern.h>
+#include <SimpleHash.h>
 
 #define ENTRY_FUNCTION "entry_function"
 #define SIM_FUNCTION "MetaSim_simulFuncCall_Simu"
@@ -20,7 +22,7 @@
 //#define DISABLE_BLOCK_COUNT
 
 void CacheSimulation::usesModifiedProgram(){
-    X86Instruction* nop5Byte = X86InstructionFactory::emitNop(5);
+    X86Instruction* nop5Byte = X86InstructionFactory::emitNop(Size__uncond_jump);
     instpoint_info iinf;
     bzero(&iinf, sizeof(instpoint_info));
     iinf.pt_size = Size__uncond_jump;
@@ -37,15 +39,21 @@ void CacheSimulation::usesModifiedProgram(){
     delete nop5Byte;
 }
 
-CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile, char* ext, uint32_t phase, bool lpi, bool dtl)
-    : InstrumentationTool(elf, ext, phase, lpi, dtl)
-{
-    simFunc = NULL;
-    exitFunc = NULL;
-    entryFunc = NULL;
+DFPatternType convertDFPattenType(char* patternString){
+    if(!strcmp(patternString,"dfTypePattern_Gather")){
+        return dfTypePattern_Gather;
+    } else if(!strcmp(patternString,"dfTypePattern_Scatter")){
+        return dfTypePattern_Scatter;
+    } else if(!strcmp(patternString,"dfTypePattern_FunctionCallGS")){
+        return dfTypePattern_FunctionCallGS;
+    }
+    return dfTypePattern_undefined;
+}
 
+void CacheSimulation::filterBBs(){
     Vector<char*>* fileLines = new Vector<char*>();
-    initializeFileList(inputFile, fileLines);
+    initializeFileList(bbFile, fileLines);
+
     int32_t err;
     uint64_t blockHash;
     for (uint32_t i = 0; i < (*fileLines).size(); i++){
@@ -57,27 +65,127 @@ CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile, char* ext, uint3
 
         err = sscanf((*fileLines)[i], "%lld", &blockHash);
         if(err <= 0){
-            PRINT_ERROR("Line %d of %s has a wrong format", i, inputFile);
+            PRINT_ERROR("Line %d of %s has a wrong format", i+1, bbFile);
         }
         HashCode* hashCode = new HashCode(blockHash);
         if(!hashCode->isBlock()){
-            PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block", i, inputFile);
+            PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block", i+1, bbFile);
         }
-        blocksToInst.append(hashCode);
+        BasicBlock* bb = findExposedBasicBlock(*hashCode);
+        delete hashCode;
+
+        ASSERT(bb && "cannot find basic block for hash code found in input file");
+        blocksToInst.insert(blockHash, bb);
     }
     for (uint32_t i = 0; i < (*fileLines).size(); i++){
         delete[] (*fileLines)[i];
     }
     delete fileLines;
 
-    blocksToInst.sort(compareHashCode);
+    if (!blocksToInst.size()){
+        for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+            BasicBlock* bb = getExposedBasicBlock(i);
+            blocksToInst.insert(bb->getHashCode().getValue(), bb);
+        }
+    }
 
+    // if any loop contains blocks that are in our list, include all blocks from those loops
+    if (loopIncl){
+        for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+            BasicBlock* bb = getExposedBasicBlock(i);
+            uint64_t hashValue = bb->getHashCode().getValue();
+
+            if (blocksToInst.get(hashValue)){
+                if (bb->isInLoop()){
+                    FlowGraph* fg = bb->getFlowGraph();
+                    for (uint32_t j = 0; j < fg->getNumberOfLoops(); j++){
+                        Loop* lp = fg->getLoop(j);
+                        if (lp->isBlockIn(bb->getIndex())){
+                            BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
+                            lp->getAllBlocks(allBlocks);
+                            for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
+                                uint64_t code = allBlocks[k]->getHashCode().getValue();
+                                blocksToInst.insert(code, allBlocks[k]);
+                            }
+                            delete[] allBlocks;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    BasicBlock** bbs = blocksToInst.values();
+    qsort(bbs, blocksToInst.size(), sizeof(BasicBlock*), compareBaseAddress);
+    
+    if (dfPatternFile){
+
+        Vector<char*>* dfpFileLines = new Vector<char*>();
+        initializeFileList(dfPatternFile, dfpFileLines);
+
+        ASSERT(!dfpSet.size());
+
+        for (uint32_t i = 0; i < dfpFileLines->size(); i++){
+            PRINT_INFOR("dfp line %d: %s", i, (*dfpFileLines)[i]);
+
+            uint64_t id = 0;
+            char patternString[__MAX_STRING_SIZE];
+            int32_t err = sscanf((*dfpFileLines)[i], "%lld %s", &id, patternString);
+            if(err <= 0){
+                PRINT_ERROR("Line %d of %s has a wrong format", i+1, dfPatternFile);
+            }
+            DFPatternType dfpType = convertDFPattenType(patternString);
+            if(dfpType == dfTypePattern_undefined){
+                PRINT_ERROR("Line %d of %s is a wrong pattern type [%s]", i+1, dfPatternFile, patternString);
+            } else {
+                PRINT_INFOR("found valid pattern %s -> %d", patternString, dfpType);
+            }
+            HashCode hashCode(id);
+            if(!hashCode.isBlock()){
+                PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block", i+1, dfPatternFile);
+            }
+
+            // if the bb is not in the list already but is a valid block, include it!
+            BasicBlock* bb = findExposedBasicBlock(hashCode);
+            if(!bb || bb->getHashCode().getValue() != id){
+                PRINT_ERROR("Line %d of %s is not a valid basic block id", i+1, dfPatternFile);
+                continue;
+            }
+            blocksToInst.insert(hashCode.getValue(), bb);
+
+            if (dfpType != dfTypePattern_None){
+                dfpSet.insert(hashCode.getValue(), dfpType);
+            }
+        }
+
+        for (uint32_t i = 0; i < dfpFileLines->size(); i++){
+            delete[] (*dfpFileLines)[i];
+        }
+
+        delete dfpFileLines;
+
+        PRINT_INFOR("**** Number of basic blocks tagged for DFPattern %d (out of %d) ******",
+                    dfpSet.size(), blocksToInst.size());
+    }
+
+    ASSERT(!dfpBlocks.size() || dfpBlocks.size() == blocksToInst.size());
+    delete[] bbs;
 }
 
+
+CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile, char* ext, uint32_t phase, bool lpi, bool dtl, char* dfpFile)
+    : InstrumentationTool(elf, ext, phase, lpi, dtl)
+{
+    simFunc = NULL;
+    exitFunc = NULL;
+    entryFunc = NULL;
+
+    bbFile = inputFile;
+    dfPatternFile = dfpFile;
+}
+
+
 CacheSimulation::~CacheSimulation(){
-    for (uint32_t i = 0; i < blocksToInst.size(); i++){
-        delete blocksToInst[i];
-    }
 }
 
 void CacheSimulation::declare(){
@@ -97,6 +205,7 @@ void CacheSimulation::declare(){
 
 void CacheSimulation::instrument(){
     InstrumentationTool::instrument();
+    filterBBs();
 
     uint32_t temp32;
     
@@ -105,62 +214,26 @@ void CacheSimulation::instrument(){
         lineInfoFinder = getLineInfoFinder();
     }
 
-    if (!blocksToInst.size()){
-        for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
-            HashCode* h = new HashCode(getExposedBasicBlock(i)->getHashCode().getValue());
-            blocksToInst.append(h);
-        }
-    }
-
-    // if any loop contains blocks that are in our list, include all blocks from those loops
-    if (loopIncl){
-        for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
-            BasicBlock* bb = getExposedBasicBlock(i);
-            uint64_t hashValue = bb->getHashCode().getValue();
-
-            void* bfound = bsearch(&hashValue, &blocksToInst, blocksToInst.size(), sizeof(HashCode*), searchHashCode);
-
-            if (bfound){
-                if (bb->isInLoop()){
-                    FlowGraph* fg = bb->getFlowGraph();
-                    for (uint32_t j = 0; j < fg->getNumberOfLoops(); j++){
-                        Loop* lp = fg->getLoop(j);
-                        if (lp->isBlockIn(bb->getIndex())){
-                            BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
-                            lp->getAllBlocks(allBlocks);
-                            for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
-                                uint64_t code = allBlocks[k]->getHashCode().getValue();
-                                HashCode* hashCode = new HashCode(code);
-                                blocksToInst.append(hashCode);
-                            }
-                            delete[] allBlocks;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // also sorts the vector
-    Vector<HashCode*>* rep = blocksToInst.removeRep(compareHashCode);
-    for (uint32_t i = 0; i < (*rep).size(); i++){
-        delete (*rep)[i];
-    }
-    delete rep;
-
     ASSERT(isPowerOfTwo(Size__BufferEntry));
+
     uint64_t bufferStore  = reserveDataOffset(BUFFER_ENTRIES * Size__BufferEntry);
     char* emptyBuff = new char[BUFFER_ENTRIES * Size__BufferEntry];
     bzero(emptyBuff, BUFFER_ENTRIES * Size__BufferEntry);
     initializeReservedData(getInstDataAddress() + bufferStore, BUFFER_ENTRIES * Size__BufferEntry, emptyBuff);
     delete[] emptyBuff;
 
-    uint32_t startValue = 1;
-    initializeReservedData(getInstDataAddress() + bufferStore, sizeof(uint32_t), &startValue);
-    uint64_t dfpEmpty = reserveDataOffset(4*sizeof(uint64_t));
+    uint64_t dfPatternStore = reserveDataOffset(sizeof(DFPatternSpec) * (getNumberOfExposedBasicBlocks() + 1));
+    if(dfpSet.size()){
+        DFPatternSpec dfInfo;
+        dfInfo.memopCnt = 0;
+        dfInfo.type = DFPattern_Active;
+
+        initializeReservedData(getInstDataAddress() + dfPatternStore, sizeof(DFPatternSpec), (void*)&dfInfo);
+    }
 
     uint64_t entryCountStore = reserveDataOffset(sizeof(uint64_t));
-    startValue = Size__BufferEntry * BUFFER_ENTRIES;
+    uint32_t startValue = BUFFER_ENTRIES;
+
     initializeReservedData(getInstDataAddress() + entryCountStore, sizeof(uint64_t), &startValue);
 
     uint64_t blockSizeStore = reserveDataOffset(sizeof(uint64_t));
@@ -196,6 +269,7 @@ void CacheSimulation::instrument(){
     ASSERT(p);
 
     Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
+    Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
 
     uint32_t blockId = 0;
@@ -205,11 +279,19 @@ void CacheSimulation::instrument(){
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
 
-        uint64_t hashValue = bb->getHashCode().getValue();
-        void* bfound = bsearch(&hashValue, &blocksToInst, blocksToInst.size(), sizeof(HashCode*), searchHashCode);
+        DFPatternType dfpType = dfTypePattern_None;
+        DFPatternSpec spec;
+        if (dfpSet.get(bb->getHashCode().getValue(), &dfpType)){
+            PRINT_INFOR("found dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
+        }
+        spec.type = dfpType;
+        spec.memopCnt = bb->getNumberOfMemoryOps();
+        initializeReservedData(getInstDataAddress() + dfPatternStore + (i+1)*sizeof(DFPatternSpec), sizeof(DFPatternSpec), &spec);
 
-        if (bfound){
+        if (blocksToInst.get(bb->getHashCode().getValue())){
+
             (*allBlocks).append(bb);
+            (*allBlockIds).append(blockId);
             if (lineInfoFinder){
                 (*allLineInfos).append(lineInfoFinder->lookupLineInfo(bb));
             } else {
@@ -223,7 +305,7 @@ void CacheSimulation::instrument(){
                 if (memop->isMemoryOperation()){            
                     //PRINT_INFOR("The following instruction has %d membytes", memop->getNumberOfMemoryBytes());
                     //memop->print();
-
+                    
                     if (getElfFile()->is64Bit()){
                         // check the buffer at the last memop
                         if (memopIdInBlock == bb->getNumberOfMemoryOps() - 1){
@@ -287,7 +369,7 @@ void CacheSimulation::instrument(){
                             delete bufferDumpInstructions;
                             memInstPoints.append(pt);
                         } else {
-                            // TODO: get which gprs are dead at this point and use one of those 
+                        // TODO: get which gprs are dead at this point and use one of those 
                             InstrumentationSnippet* snip = new InstrumentationSnippet();
                             addInstrumentationSnippet(snip);
                             
@@ -322,13 +404,13 @@ void CacheSimulation::instrument(){
                                 snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t), tmpReg2, true));
                                 snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t), tmpReg1, true));
                             }
-
+                            
                             // generateAddressComputation doesn't def any flags, so no protection is necessary
                             InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, FlagsProtectionMethod_none, InstLocation_prior);
                             memInstPoints.append(pt);
                         } 
                     } else {
-
+                        
                         // check the buffer at the last memop
                         if (memopIdInBlock == bb->getNumberOfMemoryOps() - 1){
                             FlagsProtectionMethods prot = FlagsProtectionMethod_full;
@@ -426,7 +508,7 @@ void CacheSimulation::instrument(){
                                 snip->addSnippetInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t), tmpReg2));
                                 snip->addSnippetInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t), tmpReg1));
                             }
-
+                            
                             // generateAddressComputation doesn't def any flags, so no protection is necessary
                             InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, FlagsProtectionMethod_none, InstLocation_prior);
                             memInstPoints.append(pt);
@@ -436,10 +518,10 @@ void CacheSimulation::instrument(){
                     memopId++;
                     memopIdInBlock++;
                 }
+                ASSERT(memopIdInBlock < MAX_MEMOPS_PER_BLOCK && "Too many memory ops in some basic block... try increasing MAX_MEMOPS_PER_BLOCK");
             }
-            ASSERT(memopIdInBlock < MAX_MEMOPS_PER_BLOCK && "Try increasing MAX_MEMOPS_PER_BLOCK");
-        }
 
+        }
 #ifndef DISABLE_BLOCK_COUNT
         InstrumentationSnippet* snip = new InstrumentationSnippet();
         addInstrumentationSnippet(snip);
@@ -451,7 +533,7 @@ void CacheSimulation::instrument(){
         } else {
             snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
         }
-
+        
         FlagsProtectionMethods prot = FlagsProtectionMethod_light;
         X86Instruction* bestinst = bb->getExitInstruction();
         for (int32_t j = bb->getNumberOfInstructions() - 1; j >= 0; j--){
@@ -461,9 +543,10 @@ void CacheSimulation::instrument(){
                 break;
             }
         }
-
+        
         InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, InstLocation_prior);
 #endif
+
         blockId++;
     }
         
@@ -486,9 +569,10 @@ void CacheSimulation::instrument(){
     PRINT_WARN(10, "Warning: register analysis disabled");
 #endif
 
-    printStaticFile(allBlocks, allLineInfos, BUFFER_ENTRIES);
+    printStaticFile(allBlocks, allBlockIds, allLineInfos, BUFFER_ENTRIES);
 
     delete allBlocks;
+    delete allBlockIds;
     delete allLineInfos;
     delete[] comment;
 

@@ -109,6 +109,7 @@ protected:
     char* sharedLibraryPath;
     uint64_t flags;
     
+    BasicBlock* findExposedBasicBlock(HashCode hashCode);
 
     // instrumentation functions
     InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode) { return addInstrumentationPoint(instpoint, inst, instMode, FlagsProtectionMethod_full); }
