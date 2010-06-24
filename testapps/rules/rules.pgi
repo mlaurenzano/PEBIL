@@ -1,5 +1,0 @@
-COMP            = pgi
-PEBIL_CC      = pgcc
-PEBIL_CPP     = pgCC
-PEBIL_F77     = pgf95
-

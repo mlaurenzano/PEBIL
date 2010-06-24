@@ -1,0 +1,41 @@
+CC          = @CC@
+CXX         = @CXX@
+FC          = @FC@
+
+BINDIR      = ../src
+
+SRCS        = foo.c bar.c dum.c main.c
+OBJS        = foo.o bar.o dum.o main.o
+SRCSCPP	    = classes.C
+OBJSCPP	    = classes.o
+EXTRA_INC   = -I../instcode
+EXTRA_LIBS  = -lm
+
+TARGETS  = cTest cppTest htcoef dynTest sgbench
+
+all: $(TARGETS) 
+
+%.o: %.c
+	$(CC) -c -o $@ $< 
+
+%.o: %.C
+	$(CXX) -c -o $@ $< 
+
+cTest: $(OBJS)
+	$(CC) -o $@ $(OBJS)
+
+cppTest: $(OBJSCPP)
+	$(CXX) -o $@ $(OBJSCPP)
+
+htcoef:
+	$(FC) -o $@ htcoef.f
+
+dynTest:
+	$(CC) -o $@ dynTest.c
+
+sgbench:
+	$(CC) -o $@ sgbench.c $(EXTRA_INC) $(EXTRA_LIBS)
+
+clean: 
+	rm -f *.o $(TARGETS) 
+
