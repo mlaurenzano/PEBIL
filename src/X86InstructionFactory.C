@@ -2,7 +2,7 @@
 
 #include <X86InstructionFactory.h>
 
-X86Instruction* X86InstructionFactory::emitFxSave(uint64_t addr){
+X86Instruction* X86InstructionFactory64::emitFxSave(uint64_t addr){
     uint32_t len = 8;
     char* buff = new char[len];
 
@@ -15,11 +15,10 @@ X86Instruction* X86InstructionFactory::emitFxSave(uint64_t addr){
     ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the address");
     memcpy(buff+4,&addr32,sizeof(uint32_t));
 
-    //PRINT_INFOR("generating fxsave -- %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx", buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[5], buff[6], buff[7]);
     return emitInstructionBase(len,buff);    
 }
 
-X86Instruction* X86InstructionFactory::emitFxRstor(uint64_t addr){
+X86Instruction* X86InstructionFactory64::emitFxRstor(uint64_t addr){
     uint32_t len = 8;
     char* buff = new char[len];
 
@@ -32,7 +31,36 @@ X86Instruction* X86InstructionFactory::emitFxRstor(uint64_t addr){
     ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the address");
     memcpy(buff+4,&addr32,sizeof(uint32_t));
 
-    //PRINT_INFOR("generating fxrstor -- %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx %02hhx", buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[5], buff[6], buff[7]);
+    return emitInstructionBase(len,buff);    
+}
+
+X86Instruction* X86InstructionFactory32::emitFxSave(uint64_t addr){
+    uint32_t len = 7;
+    char* buff = new char[len];
+
+    buff[0] = 0x0f;
+    buff[1] = 0xae;
+    buff[2] = 0x05;
+
+    uint32_t addr32 = (uint32_t)addr;
+    ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the address");
+    memcpy(buff+3,&addr32,sizeof(uint32_t));
+
+    return emitInstructionBase(len,buff);    
+}
+
+X86Instruction* X86InstructionFactory32::emitFxRstor(uint64_t addr){
+    uint32_t len = 7;
+    char* buff = new char[len];
+
+    buff[0] = 0x0f;
+    buff[1] = 0xae;
+    buff[2] = 0x0d;
+
+    uint32_t addr32 = (uint32_t)addr;
+    ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the address");
+    memcpy(buff+3,&addr32,sizeof(uint32_t));
+
     return emitInstructionBase(len,buff);    
 }
 

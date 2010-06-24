@@ -619,13 +619,18 @@ uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textB
 uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset){
     ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
-    wrapperInstructions.append(X86InstructionFactory64::emitPushEflags());
+    if (assumeFlagsUnsafe){
+        wrapperInstructions.append(X86InstructionFactory64::emitPushEflags());
+    }
+
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
         wrapperInstructions.append(X86InstructionFactory64::emitStackPush(i));
     }
     uint64_t fxStorage = nextAlignAddress(dataBaseAddress + fxStorageOffset + sizeof(uint64_t), 16);
-    wrapperInstructions.append(X86InstructionFactory::emitFxSave(fxStorage));
-    
+
+    if (assumeFunctionFP){
+        wrapperInstructions.append(X86InstructionFactory64::emitFxSave(fxStorage));
+    }
     ASSERT(arguments.size() < Num__64_bit_StackArgs && "More arguments must be pushed onto stack, which is not yet implemented"); 
     
     for (uint32_t i = 0; i < arguments.size(); i++){
@@ -659,12 +664,16 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     wrapperInstructions.append(X86InstructionFactory64::emitCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
 
     wrapperInstructions.append(X86InstructionFactory64::emitMoveMemToReg(dataBaseAddress + fxStorageOffset, X86_REG_SP, true));
-    
-    wrapperInstructions.append(X86InstructionFactory::emitFxRstor(fxStorage));
+
+    if (assumeFunctionFP){
+        wrapperInstructions.append(X86InstructionFactory64::emitFxRstor(fxStorage));
+    }
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
         wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_64BIT_GPRS-1-i));
     }
-    wrapperInstructions.append(X86InstructionFactory64::emitPopEflags());
+    if (assumeFlagsUnsafe){
+        wrapperInstructions.append(X86InstructionFactory64::emitPopEflags());
+    }
     
     wrapperInstructions.append(X86InstructionFactory64::emitReturn());
     
@@ -683,12 +692,16 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
     ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
     if (!skipWrapper){
-        wrapperInstructions.append(X86InstructionFactory32::emitPushEflags());
+        if (assumeFlagsUnsafe){
+            wrapperInstructions.append(X86InstructionFactory32::emitPushEflags());
+        }
         for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
             wrapperInstructions.append(X86InstructionFactory32::emitStackPush(i));
         }
         
-        wrapperInstructions.append(X86InstructionFactory::emitFxSave(dataBaseAddress + fxStorageOffset));
+        if (assumeFunctionFP){
+            wrapperInstructions.append(X86InstructionFactory32::emitFxSave(dataBaseAddress + fxStorageOffset));
+        }
         
         for (uint32_t i = 0; i < arguments.size(); i++){
             uint32_t idx = arguments.size() - i - 1;
@@ -703,7 +716,9 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
     wrapperInstructions.append(X86InstructionFactory32::emitCallRelative(wrapperOffset + wrapperSize(), procedureLinkOffset));
 
     if (!skipWrapper){
-        wrapperInstructions.append(X86InstructionFactory::emitFxRstor(dataBaseAddress + fxStorageOffset));
+        if (assumeFunctionFP){
+            wrapperInstructions.append(X86InstructionFactory32::emitFxRstor(dataBaseAddress + fxStorageOffset));
+        }
         for (uint32_t i = 0; i < arguments.size(); i++){
             wrapperInstructions.append(X86InstructionFactory32::emitStackPop(X86_REG_CX));
         }
@@ -711,7 +726,9 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
         for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
             wrapperInstructions.append(X86InstructionFactory32::emitStackPop(X86_32BIT_GPRS-1-i));
         }
-        wrapperInstructions.append(X86InstructionFactory32::emitPopEflags());
+        if (assumeFlagsUnsafe){
+            wrapperInstructions.append(X86InstructionFactory32::emitPopEflags());
+        }
     }
 
     wrapperInstructions.append(X86InstructionFactory32::emitReturn());
@@ -762,6 +779,16 @@ InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, u
     distinctTrampoline = true;
     skipWrapper = false;
     pltHook = NULL;
+
+    assumeFunctionFP = true;
+}
+
+void InstrumentationFunction::assumeNoFunctionFP(){
+    assumeFunctionFP = false;
+}
+
+void InstrumentationFunction::assumeNoFlagsUnsafe(){
+    assumeFlagsUnsafe = false;
 }
 
 InstrumentationFunction::~InstrumentationFunction(){

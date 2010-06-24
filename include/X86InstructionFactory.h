@@ -19,9 +19,6 @@ public:
     static X86Instruction* emitCallRelative(uint64_t addr, uint64_t tgt);
     static X86Instruction* emitReturn();
 
-    static X86Instruction* emitFxSave(uint64_t addr);
-    static X86Instruction* emitFxRstor(uint64_t addr);
-
     static X86Instruction* emitSetDirectionFlag(bool backward);
     static X86Instruction* emitMoveImmToSegmentReg(uint64_t imm, uint32_t idx);
     static X86Instruction* emitSTOSByte(bool repeat);
@@ -63,6 +60,9 @@ private:
     static X86Instruction* emitRegAddImm4Byte(uint8_t idx, uint32_t imm);
 
 public:
+    static X86Instruction* emitFxSave(uint64_t addr);
+    static X86Instruction* emitFxRstor(uint64_t addr);
+
     static X86Instruction* emitCompareImmReg(uint64_t imm, uint8_t reg);
 
     static X86Instruction* emitMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx);
@@ -105,6 +105,9 @@ private:
     static X86Instruction* emitInstructionBase(uint32_t sz, char* buf);
 
 public:
+    static X86Instruction* emitFxSave(uint64_t addr);
+    static X86Instruction* emitFxRstor(uint64_t addr);
+
     static Vector<X86Instruction*>* emitAddressComputation(X86Instruction* instruction, uint32_t dest);
     static X86Instruction* emitLoadEffectiveAddress(OperandX86* op, uint32_t dest);
     static X86Instruction* emitLoadEffectiveAddress(uint32_t baseReg, uint32_t indexReg, uint8_t scale, uint64_t value, uint32_t dest, bool hasBase, bool hasIndex);

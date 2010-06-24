@@ -17,8 +17,11 @@ FunctionTimer::FunctionTimer(ElfFile* elf, char* ext, bool lpi, bool dtl)
 {
     programEntry = NULL;
     programExit = NULL;
+
     functionEntry = NULL;
     functionExit = NULL;
+    functionEntryFlagsSafe = NULL;
+    functionExitFlagsSafe = NULL;
 }
 
 void FunctionTimer::declare(){
@@ -31,9 +34,13 @@ void FunctionTimer::declare(){
     programExit = declareFunction(PROGRAM_EXIT);
     ASSERT(programExit);
     functionEntry = declareFunction(FUNCTION_ENTRY);
+    functionEntryFlagsSafe = declareFunction(FUNCTION_ENTRY);
     ASSERT(functionEntry);
+    ASSERT(functionEntryFlagsSafe);
     functionExit = declareFunction(FUNCTION_EXIT);
+    functionExitFlagsSafe = declareFunction(FUNCTION_EXIT);
     ASSERT(functionExit);
+    ASSERT(functionExitFlagsSafe);
 }
 
 void FunctionTimer::instrument(){
@@ -62,8 +69,17 @@ void FunctionTimer::instrument(){
 
     uint64_t functionIndexAddr = reserveDataOffset(sizeof(uint64_t));
     functionEntry->addArgument(functionIndexAddr);
-    functionExit->addArgument(functionIndexAddr);
+    functionEntry->assumeNoFunctionFP();
+    functionEntryFlagsSafe->addArgument(functionIndexAddr);
+    functionEntryFlagsSafe->assumeNoFunctionFP();
 
+    functionExit->addArgument(functionIndexAddr);
+    functionExit->assumeNoFunctionFP();
+    functionExitFlagsSafe->addArgument(functionIndexAddr);
+    functionExitFlagsSafe->assumeNoFunctionFP();
+
+    uint32_t noProtPoints = 0;
+    uint32_t totalPoints = 0;
     for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
         Function* f = getExposedFunction(i);
         
@@ -76,39 +92,111 @@ void FunctionTimer::instrument(){
         Vector<BasicBlock*>* exitBlocks = f->getFlowGraph()->getExitBlocks();
 
         Vector<X86Instruction*> fillEntry = Vector<X86Instruction*>();
-        fillEntry.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-        fillEntry.append(X86InstructionFactory64::emitMoveImmToReg(i, X86_REG_CX));
-        fillEntry.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-        fillEntry.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
 
-        p = addInstrumentationPoint(bb, functionEntry, InstrumentationMode_tramp);
+        if (getElfFile()->is64Bit()){
+            fillEntry.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+            fillEntry.append(X86InstructionFactory64::emitMoveImmToReg(i, X86_REG_CX));
+            fillEntry.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
+            fillEntry.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+        } else {
+            fillEntry.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+            fillEntry.append(X86InstructionFactory32::emitMoveImmToReg(i, X86_REG_CX));
+            fillEntry.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
+            fillEntry.append(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+        }
+
+        FlagsProtectionMethods prot = FlagsProtectionMethod_full;
+        X86Instruction* bestinst = bb->getExitInstruction();
+        InstLocations loc = InstLocation_prior;
+        for (int32_t j = bb->getNumberOfInstructions() - 1; j >= 0; j--){
+            if (bb->getInstruction(j)->allFlagsDeadIn()){
+                bestinst = bb->getInstruction(j);
+                noProtPoints++;
+                prot = FlagsProtectionMethod_none;
+                break;
+            }
+        }
+        if (prot == FlagsProtectionMethod_full){
+            p = addInstrumentationPoint(bestinst, functionEntry, InstrumentationMode_tramp, prot, loc);
+        } else {
+            p = addInstrumentationPoint(bestinst, functionEntryFlagsSafe, InstrumentationMode_tramp, prot, loc);
+        }
+        totalPoints++;
         for (uint32_t j = 0; j < fillEntry.size(); j++){
             p->addPrecursorInstruction(fillEntry[j]);
         }
 
         for (uint32_t j = 0; j < (*exitBlocks).size(); j++){
             Vector<X86Instruction*> fillExit = Vector<X86Instruction*>();
-            fillExit.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-            fillExit.append(X86InstructionFactory64::emitMoveImmToReg(i, X86_REG_CX));
-            fillExit.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-            fillExit.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+ 
+            if (getElfFile()->is64Bit()){
+                fillExit.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+                fillExit.append(X86InstructionFactory64::emitMoveImmToReg(i, X86_REG_CX));
+                fillExit.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
+                fillExit.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+            } else {
+                fillExit.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+                fillExit.append(X86InstructionFactory32::emitMoveImmToReg(i, X86_REG_CX));
+                fillExit.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
+                fillExit.append(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+            }
 
-            p = addInstrumentationPoint((*exitBlocks)[j], functionExit, InstrumentationMode_tramp);
+            FlagsProtectionMethods prot = FlagsProtectionMethod_full;
+            X86Instruction* bestinst = (*exitBlocks)[j]->getExitInstruction();
+            InstLocations loc = InstLocation_prior;
+            for (int32_t k = (*exitBlocks)[j]->getNumberOfInstructions() - 1; k >= 0; k--){
+                if ((*exitBlocks)[j]->getInstruction(k)->allFlagsDeadIn()){
+                    bestinst = (*exitBlocks)[j]->getInstruction(k);
+                    noProtPoints++;
+                    prot = FlagsProtectionMethod_none;
+                    break;
+                }
+            }
+            if (prot == FlagsProtectionMethod_full){
+                p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, prot, loc);
+            } else {
+                p = addInstrumentationPoint(bestinst, functionExitFlagsSafe, InstrumentationMode_tramp, prot, loc);
+            }
+            totalPoints++;
             for (uint32_t k = 0; k < fillExit.size(); k++){
                 p->addPrecursorInstruction(fillExit[k]);
             }
         }
         if (!(*exitBlocks).size()){
             Vector<X86Instruction*> fillExit = Vector<X86Instruction*>();
-            fillExit.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-            fillExit.append(X86InstructionFactory64::emitMoveImmToReg(i, X86_REG_CX));
-            fillExit.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-            fillExit.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+
+            if (getElfFile()->is64Bit()){
+                fillExit.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+                fillExit.append(X86InstructionFactory64::emitMoveImmToReg(i, X86_REG_CX));
+                fillExit.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
+                fillExit.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+            } else {
+                fillExit.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+                fillExit.append(X86InstructionFactory32::emitMoveImmToReg(i, X86_REG_CX));
+                fillExit.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
+                fillExit.append(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+            }
 
             BasicBlock* lastbb = f->getBasicBlock(f->getNumberOfBasicBlocks()-1);
             X86Instruction* lastin = lastbb->getInstruction(lastbb->getNumberOfInstructions()-1);
             if (lastin){
-                p = addInstrumentationPoint(lastin, functionExit, InstrumentationMode_tramp);
+                FlagsProtectionMethods prot = FlagsProtectionMethod_full;
+                X86Instruction* bestinst = lastbb->getExitInstruction();
+                InstLocations loc = InstLocation_prior;
+                for (int32_t j = lastbb->getNumberOfInstructions() - 1; j >= 0; j--){
+                    if (lastbb->getInstruction(j)->allFlagsDeadIn()){
+                        bestinst = lastbb->getInstruction(j);
+                        noProtPoints++;
+                        prot = FlagsProtectionMethod_none;
+                        break;
+                    }
+                }
+                if (prot == FlagsProtectionMethod_full){
+                    p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, prot, loc);
+                } else {
+                    p = addInstrumentationPoint(bestinst, functionExitFlagsSafe, InstrumentationMode_tramp, prot, loc);
+                }
+                totalPoints++;
                 for (uint32_t k = 0; k < fillExit.size(); k++){
                     p->addPrecursorInstruction(fillExit[k]);
                 }
@@ -119,60 +207,6 @@ void FunctionTimer::instrument(){
 
         delete exitBlocks;
     }
+    PRINT_INFOR("Excluding protection from %d/%d instrumentation points", noProtPoints, totalPoints);
 
-    
-    /*
-    
-    // the number functions in the code
-    uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint32_t));
-    temp32 = getNumberOfExposedFunctions();
-    initializeReservedData(getInstDataAddress() + counterArrayEntries, sizeof(uint32_t), &temp32);
-
-    // an array of counters. note that everything is passed by reference
-    uint64_t counterArray = reserveDataOffset(getNumberOfExposedFunctions() * sizeof(uint32_t));
-    temp32 = 0;
-    for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
-        initializeReservedData(getInstDataAddress() + counterArray + i*sizeof(uint32_t), sizeof(uint32_t), &temp32);
-    }
-
-    // the names of all the functions
-    uint64_t funcNameArray = reserveDataOffset(getNumberOfExposedFunctions() * sizeof(char*));
-
-    exitFunc->addArgument(counterArrayEntries);
-    exitFunc->addArgument(counterArray);
-    exitFunc->addArgument(funcNameArray);
-
-    InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp);
-    ASSERT(p);
-    if (!p->getInstBaseAddress()){
-        PRINT_ERROR("Cannot find an instrumentation point at the exit function");
-    }
-
-    for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
-        Function* f = getExposedFunction(i);
-
-        uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
-        uint64_t funcnameAddr = getInstDataAddress() + funcname;
-        initializeReservedData(getInstDataAddress() + funcNameArray + i*sizeof(char*), sizeof(char*), &funcnameAddr);
-        initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
-
-        InstrumentationSnippet* snip = new InstrumentationSnippet();
-        uint64_t counterOffset = counterArray + (i * sizeof(uint32_t));
-
-        // snippet contents, in this case just increment a counter
-        if (is64Bit()){
-            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
-        } else {
-            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
-        }
-        // do not generate control instructions to get back to the application, this is done for
-        // the snippet automatically during code generation
-            
-        // register the snippet we just created
-        addInstrumentationSnippet(snip);            
-        
-        // register an instrumentation point at the function that uses this snippet
-        InstrumentationPoint* p = addInstrumentationPoint(f, snip, InstrumentationMode_inline, FlagsProtectionMethod_light);
-    }
-    */
 }

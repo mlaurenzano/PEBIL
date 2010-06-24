@@ -100,6 +100,7 @@ int __ntasks;
 
 // C init wrapper
 int __wrapper_name(MPI_Init)(int* argc, char*** argv){
+    fprintf(stdout, "original program args %d %x\n", *argc, *argv);
     int retval = MPI_Init(argc, argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
     MPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
