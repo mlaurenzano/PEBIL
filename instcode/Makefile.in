@@ -1,0 +1,92 @@
+ifeq ($(USE_STATIC),yes)
+	TARGETS = libcounter.a  libsimulator.a  libtimer.a  libtracer.a
+else
+	TARGETS = libcounter.so libsimulator.so libtimer.so libtracer.so
+endif
+
+# @configure_input@
+MPICC       = @MPICC@
+CFLAGS      = @CFLAGS@
+
+EXTRA_FLAGS = -w
+SHARED_OPT  = -fPIC
+SHARED_LIB  = -shared
+AR          = ar rcs
+
+# Jade
+#OPT         = -O3 -w -I/opt/mpt/3.5.0/xt/mpich2-pgi/include# --save-temps
+#CC          = $(GNU_C) $(DBG) $(OPT)
+#SHARED_LIB  = -shared
+
+# Diamond
+#OPT	    = -O3 -w
+#CC          = $(GNU_C) $(DBG) $(OPT)
+#SHARED_LIB  = -shared
+
+# Ubuntu Linux (no MPI)
+#OPT         = -O3 -w
+#CC          = $(GNU_C) $(DBG) $(OPT)
+#SHARED_LIB  = -shared
+
+# Ubuntu Linux MPICH2
+#OPT         = -O3 -w -I/usr/include/mpich2
+#CC          = $(GNU_C) $(DBG) $(OPT)
+
+#### -DNO_SAMPLING_MODE    : Add to disable sampling (note that MAX visit count is still on).
+#### -DEXTENDED_SAMPLING   : Add to vary the ignore and sampling intervals during sampling
+#### -DFINE_GRAIN_SAMPLING : Add to increase the granularity of sampling. Smaller intervals.
+#### -DPER_SET_RECENT      : Add to simulcate LRU using per set most recent entry for replacement
+EXTRA_DEF = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DUSING_MPI_WRAPPERS # default for MultiMAPS tracing
+#EXTRA_DEF = -DEXTENDED_SAMPLING -DPER_SET_RECENT  # default for application tracing
+#EXTRA_DEF = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DIGNORE_ACTUAL_SIMULATION # no simulation
+
+EXTRA_LIBS  =
+EXTRA_INC   = -I../instcode
+
+LIBDIR      = ../lib
+
+SRCS        = CounterFunctions.c SimulationFunctions.c TimerFunctions.c TracerFunctions.c
+OBJS        = CounterFunctions.o SimulationFunctions.o TimerFunctions.o TracerFunctions.o
+
+# this might need to be defined differently depending on whether the system supports shared libraries or not
+#TARGET_LIBS = $(TARGET_LIBS_SHARED) $(TARGET_LIBS_STATIC)
+TARGET_LIBS = $(TARGET_LIBS_SHARED)
+#TARGET_LIBS = $(TARGET_LIBS_STATIC)
+
+all: $(TARGETS)
+
+%.o: %.c
+	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
+
+libcounter.so : $(OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ CounterFunctions.o $(EXTRA_LIBS) $(SHARED_OPT)
+
+libcounter.a : $(OBJS)
+	$(AR) $@ CounterFunctions.o
+
+libsimulator.so : $(OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ SimulationFunctions.o $(EXTRA_LIBS) $(SHARED_OPT)
+
+libsimulator.a : $(OBJS)
+	$(AR) $@ SimulationFunctions.o
+
+libtimer.so : $(OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ TimerFunctions.o $(EXTRA_LIBS) $(SHARED_OPT)
+
+libtimer.a : $(OBJS)
+	$(AR) $@ TimerFunctions.o
+
+libtracer.so : $(OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
+
+libtracer.a : $(OBJS)
+	$(AR) $@ TracerFunctions.o
+
+clean: 
+	rm -f *.o *.i *.s *.ii *.a *.so $(TARGETS)
+
+install: $(TARGETS)
+	cp $(TARGETS) $(LIBDIR)
+
+depend:
+	g++ -E -MM -I$(INCDIR) $(SRCS) > DEPENDS

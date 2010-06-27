@@ -1,0 +1,44 @@
+CXX           = @CXX@
+CXXFLAGS      = @CXXFLAGS@
+EXTRA_FLAGS   = -w
+
+SRCDIR        = ../src
+BINDIR        = ../bin
+EXTDIR        = ../external
+EXTRA_INC     = -I. -I../include -I$(EXTDIR)/udis86-1.7/ -I../instcode
+EXTRA_LIBS    = -L$(SRCDIR) -lpebilinst -L$(EXTDIR)/udis86-1.7/libudis86/.libs -ludis86
+
+TARGETS  = pebil
+
+SRCS  = BasicBlockCounter.C \
+	CacheSimulation.C \
+	CallReplace.C \
+	FunctionCounter.C \
+	FunctionTimer.C \
+	InstrumentationTool.C
+
+OBJS  =	BasicBlockCounter.o \
+	CacheSimulation.o \
+	CallReplace.o \
+	FunctionCounter.o \
+	FunctionTimer.o \
+	InstrumentationTool.o
+
+all: $(TARGETS)
+
+pebil :	$(OBJS) pebil.o
+	$(CXX) $(CXXFLAGS) -o $@ pebil.o $(OBJS) $(CFLAGS) $(EXTRA_INC) $(EXTRA_LIBS)
+
+%.o: %.C
+	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) -c -o $@ $< $(EXTRA_INC)
+
+clean: 
+	rm -f *inst *.static core *.o *.ii *.s $(TARGETS)
+
+depend:
+	g++ -E -MM $(INCLUDE) $(SRCS) > DEPENDS
+
+install: $(TARGETS)
+	cp $(TARGETS) $(BINDIR)
+
+include DEPENDS
