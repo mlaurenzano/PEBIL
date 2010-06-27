@@ -1,7 +1,7 @@
 ## change the following variables to fit your system:
 DOXYGEN = doxygen
 
-SUBDIRS = instcode testapps src tools external/udis86-1.7
+SUBDIRS = external/udis86-1.7 instcode testapps src tools
 
 include VERSION
 DISTDIR = PEBIL-$(PEBIL_MAJOR_VER).$(PEBIL_MINOR_VER).$(PEBIL_REVIS_VER)
@@ -16,10 +16,10 @@ $(SUBDIRS):
 	$(MAKE) -C $@ 
 
 clean:
+	$(MAKE) -C external/udis86-1.7 clean
 	$(MAKE) -C src clean
 	$(MAKE) -C testapps clean
 	$(MAKE) -C instcode clean
-	$(MAKE) -C external/udis86-1.7 clean
 	rm -rf bin/*
 
 install:
