@@ -1,4 +1,0 @@
-COMP          = intel
-PEBIL_CC    = icc
-PEBIL_CPP   = icc -lstdc++
-PEBIL_F77   = ifort
