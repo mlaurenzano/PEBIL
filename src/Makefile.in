@@ -87,7 +87,7 @@ clean:
 depend:
 	g++ -E -MM $(INCLUDE) $(SRCS) > DEPENDS
 
-install:
+install: $(TARGETS)
 	cp $(TARGETS) $(LIBDIR)
 
 include DEPENDS

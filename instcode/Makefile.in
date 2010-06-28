@@ -45,36 +45,32 @@ EXTRA_INC   = -I../instcode
 
 LIBDIR      = ../lib
 
-SRCS        = CounterFunctions.c SimulationFunctions.c TimerFunctions.c TracerFunctions.c
-OBJS        = CounterFunctions.o SimulationFunctions.o TimerFunctions.o TracerFunctions.o
+SRCS        = CounterFunctions.c SimulationFunctions.c TimerFunctions.c TracerFunctions.c CacheSimulationCommon.c
+OBJS        = CounterFunctions.o SimulationFunctions.o TimerFunctions.o TracerFunctions.o CacheSimulationCommon.o
 
 all: $(TARGETS)
 
 %.o: %.c
 	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
 
-libcounter.so : $(OBJS)
+libcounter.so : CounterFunctions.o
 	$(MPICC) $(SHARED_LIB) -o $@ CounterFunctions.o $(EXTRA_LIBS)
-
-libcounter.a : $(OBJS)
+libcounter.a : CounterFunctions.o
 	$(AR) $@ CounterFunctions.o
 
-libsimulator.so : $(OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ SimulationFunctions.o $(EXTRA_LIBS)
+libsimulator.so : SimulationFunctions.o CacheSimulationCommon.o
+	$(MPICC) $(SHARED_LIB) -o $@ SimulationFunctions.o CacheSimulationCommon.o $(EXTRA_LIBS)
+libsimulator.a : SimulationFunctions.o CacheSimulationCommon.o
+	$(AR) $@ SimulationFunctions.o CacheSimulationCommon.o
 
-libsimulator.a : $(OBJS)
-	$(AR) $@ SimulationFunctions.o
-
-libtimer.so : $(OBJS)
+libtimer.so : TimerFunctions.o
 	$(MPICC) $(SHARED_LIB) -o $@ TimerFunctions.o $(EXTRA_LIBS)
-
-libtimer.a : $(OBJS)
+libtimer.a : TimerFunctions.o
 	$(AR) $@ TimerFunctions.o
 
-libtracer.so : $(OBJS)
+libtracer.so : TracerFunctions.o
 	$(MPICC) $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS)
-
-libtracer.a : $(OBJS)
+libtracer.a : TracerFunctions.o
 	$(AR) $@ TracerFunctions.o
 
 clean: 

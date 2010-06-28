@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 2.6)
 # For a large number of source files you can create it in a simpler way
 file(GLOB pebil_SOURCES *.C)
 include_directories("." "../include" "../external/udis86-1.7" "../instcode")
-link_directories("../src/" "../external/udis86-1.7/lib")
+link_directories("../src/" "../external/udis86-1.7/libudis86/.libs")
 
 add_executable(pebil ${pebil_SOURCES})
 target_link_libraries(pebil "libpebilinst.so" "libudis86.a")
