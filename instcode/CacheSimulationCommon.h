@@ -84,12 +84,10 @@ typedef struct {
     Address_t*  content;
     HashEntry*  highAssocHash;
 // Prediction Cache info, may want to move this elsewhere
-/*
     Address_t trainer;
     Address_t stream;
     uint8_t   nFetched;
     uint8_t   fetchDistance;
-*/
 } Cache;
 
 typedef struct {

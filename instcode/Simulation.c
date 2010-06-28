@@ -441,32 +441,34 @@ static int ntimes2;
             Address_t    victim;
             Cache*       prevLevel;
             Cache*       cache;
+            uint8_t      nvictims;
 
             status = cache_miss;
             level = 0;
             prevLevel = NULL;
+            nvictims = 0;
 
             do{
               cache = &memoryHierarchy->levels[level];
               if( prevLevel != NULL && IS_REPL_POLICY_VC(prevLevel->attributes[replacement_policy])) {
-                processVictimCache(currentAddress, &victim, &status, cache);
+                processVictimCache(currentAddress, &victim, &nvictims, &status, cache);
               } else {
-                processInclusiveCache(currentAddress, &victim, &status, cache);
+                processInclusiveCache(currentAddress, &victim, &nvictims, &status, cache);
               }
 
 /*
               switch(cache->attributes[cache_type]) {
 
                 case inclusive_cache:
-                  processInclusiveCache(currentAddress, &victim, &status, cache);
+                  processInclusiveCache(currentAddress, &victim, &nvictims, &status, cache);
                   break;
 
                 case victim_cache:
-                  processVictimCache(currentAddress, &victim, &status, cache);
+                  processVictimCache(currentAddress, &victim, &nvictims, &status, cache);
                   break;
 
                 case prediction_cache:
-                  processPredictionCache(currentAddress,&victim, &status, cache);
+                  processPredictionCache(currentAddress,&victim, &nvictims, &status, cache);
                   // FIXME Need to handly possibility of multiple victims
                   break;
               }
@@ -475,21 +477,6 @@ static int ntimes2;
               prevLevel = cache;
             } while( status == cache_miss && level < memoryHierarchy->levelCount);
 
-/*
-            do{
-//printf("Searching level %d for address 0x%llx\n", level, currentAddress);
-                cache = &memoryHierarchy->levels[level];
-                if (prevLevel != NULL &&
-                    IS_REPL_POLICY_VC(prevLevel->attributes[replacement_policy])){
-                    processVictimCache(currentAddress, &victim, &status, cache);
-                } else {
-                    processInclusiveCache(currentAddress, &victim, &status, cache);
-                }
-
-                ++level;
-                prevLevel = cache;
-            } while (status == cache_miss && level < memoryHierarchy->levelCount);
-*/
             if(status == cache_miss) {
                 ++currentBlock->hitMissCounters[STATUS_IDX(
                      systemIdx, level - 1, cache_miss)];

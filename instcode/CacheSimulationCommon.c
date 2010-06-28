@@ -370,7 +370,6 @@ void processVictimCache(Address_t toFind,
   status: outvalue, indicates hit or miss at this level
   cache: invalue, pointer to this cache level
 */
-/*
 void processPredictionCache(Address_t toFind,
                             Address_t* victim,
                             uint8_t*   nVictims,
@@ -416,4 +415,3 @@ void processPredictionCache(Address_t toFind,
   // Update the last cache line used
   cache->trainer = cli;
 }
-*/
