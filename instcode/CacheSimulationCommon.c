@@ -168,11 +168,13 @@ void initCaches(
             memoryHierarchy->levels[level].content = allLines;
 #ifdef PER_SET_RECENT
             memoryHierarchy->levels[level].mostRecent = (uint16_t*)malloc(sizeof(uint16_t)*setCount);
+
             for(setIdx=0;setIdx<setCount;setIdx++){
                 memoryHierarchy->levels[level].mostRecent[setIdx] = (linePerSet-1);
             }
 #else
             memoryHierarchy->levels[level].mostRecent = (linePerSet-1);
+
 #endif
             allLines += sizeInLines;
 
@@ -317,12 +319,14 @@ void insertIntoCache(Address_t address,
 
   toFind: invalue, the address to search for it is inserted
   victim: outvalue, the evicted address
+  nvictims: if we evict, set to 1
   status: outvalue, indicates hit or miss in this level
   cache:  invalue, pointer to this cache
 
 */
 void processInclusiveCache(Address_t toFind,
                            Address_t* victim,
+                           uint8_t*   nvictims,
                            AccessStatus* status,
                            Cache* cache) {
 //printf("Searching inclusive cache for cli %llx\n", CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]));
@@ -331,6 +335,7 @@ void processInclusiveCache(Address_t toFind,
     if(*status == cache_miss){
 //printf("Missed, inserting cli %llx in inclusive cache\n",CACHE_LINE_INDEX(toFind, cache->attributes[line_size_in_bits]));
         insertIntoCache(toFind, victim, cache);
+        *nvictims = 1;
 //printf("had to evict cli %llx from inclusive cache\n", CACHE_LINE_INDEX(*victim, cache->attributes[line_size_in_bits]));
     }
 }

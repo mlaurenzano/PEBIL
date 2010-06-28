@@ -460,7 +460,7 @@ static int ntimes2;
               switch(cache->attributes[cache_type]) {
 
                 case inclusive_cache:
-                  processInclusiveCache(currentAddress, &victim, &nvictims, &status, cache);
+                  processInclusiveCache(currentAddress, &victim, &status, cache);
                   break;
 
                 case victim_cache:
