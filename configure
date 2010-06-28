@@ -601,6 +601,7 @@ LIBOBJS
 EGREP
 GREP
 CPP
+STATIC_INST_LIB
 MPILIBS
 MPICC
 INSTALL_DATA
@@ -1289,6 +1290,7 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-static         Use static archives for instrumentation libraries
+                          [yes|no]
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -3917,16 +3919,17 @@ $as_echo "#define HAVE_MPI 1" >>confdefs.h
         :
 fi
 
+
 # Check whether --enable-static was given.
 if test "${enable_static+set}" = set; then :
   enableval=$enable_static; ok=$enableval
 fi
 
 if test "$ok" = "yes"; then
-   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: yes path" >&5
-$as_echo "$as_me: WARNING: yes path" >&2;}
-   USE_STATIC="yes"
+   STATIC_INST_LIB="yes"
 fi
+
+
 
 # Checks for header files.
 ac_ext=c

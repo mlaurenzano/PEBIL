@@ -1,10 +1,10 @@
-ifeq ($(USE_STATIC),yes)
+STATIC_INST_LIB  = @STATIC_INST_LIB@
+ifeq ($(STATIC_INST_LIB),yes)
 	TARGETS = libcounter.a  libsimulator.a  libtimer.a  libtracer.a
 else
 	TARGETS = libcounter.so libsimulator.so libtimer.so libtracer.so
 endif
 
-# @configure_input@
 MPICC       = @MPICC@
 CFLAGS      = @CFLAGS@
 
@@ -48,36 +48,31 @@ LIBDIR      = ../lib
 SRCS        = CounterFunctions.c SimulationFunctions.c TimerFunctions.c TracerFunctions.c
 OBJS        = CounterFunctions.o SimulationFunctions.o TimerFunctions.o TracerFunctions.o
 
-# this might need to be defined differently depending on whether the system supports shared libraries or not
-#TARGET_LIBS = $(TARGET_LIBS_SHARED) $(TARGET_LIBS_STATIC)
-TARGET_LIBS = $(TARGET_LIBS_SHARED)
-#TARGET_LIBS = $(TARGET_LIBS_STATIC)
-
 all: $(TARGETS)
 
 %.o: %.c
 	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
 
 libcounter.so : $(OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ CounterFunctions.o $(EXTRA_LIBS) $(SHARED_OPT)
+	$(MPICC) $(SHARED_LIB) -o $@ CounterFunctions.o $(EXTRA_LIBS)
 
 libcounter.a : $(OBJS)
 	$(AR) $@ CounterFunctions.o
 
 libsimulator.so : $(OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ SimulationFunctions.o $(EXTRA_LIBS) $(SHARED_OPT)
+	$(MPICC) $(SHARED_LIB) -o $@ SimulationFunctions.o $(EXTRA_LIBS)
 
 libsimulator.a : $(OBJS)
 	$(AR) $@ SimulationFunctions.o
 
 libtimer.so : $(OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ TimerFunctions.o $(EXTRA_LIBS) $(SHARED_OPT)
+	$(MPICC) $(SHARED_LIB) -o $@ TimerFunctions.o $(EXTRA_LIBS)
 
 libtimer.a : $(OBJS)
 	$(AR) $@ TimerFunctions.o
 
 libtracer.so : $(OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS) $(SHARED_OPT)
+	$(MPICC) $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS)
 
 libtracer.a : $(OBJS)
 	$(AR) $@ TracerFunctions.o

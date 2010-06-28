@@ -15,11 +15,13 @@ AC_PROG_INSTALL
 
 AC_LANG([C])
 ACX_MPI
-AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Use static archives for instrumentation libraries]), ok=$enableval)
+
+AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Use static archives for instrumentation libraries [yes|no]]), ok=$enableval)
 if test "$ok" = "yes"; then
-   AC_MSG_WARN([yes path])
-   USE_STATIC="yes"
+   STATIC_INST_LIB="yes"
 fi
+
+AC_SUBST(STATIC_INST_LIB)
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h strings.h unistd.h])
