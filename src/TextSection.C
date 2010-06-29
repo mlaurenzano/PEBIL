@@ -329,7 +329,7 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
 
             // use the max of: the size listed in the symbol table and the size between this function and the next
             uint32_t size = textSymbols[i+1]->GET(st_value) - textSymbols[i]->GET(st_value);
-            if (textSymbols[i]->GET(st_size) > size){
+            if (textSymbols[i]->GET(st_size) > size && textSymbols[i]->GET(st_size) < sectionHeader->GET(sh_size)){
                 size = textSymbols[i]->GET(st_size);
             }
 

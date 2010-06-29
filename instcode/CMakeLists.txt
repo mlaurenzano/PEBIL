@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 2.6)
 
 # locate mpi compilers
 find_package(MPI)
-find_program(MPI_C_COMPILER NAMES mpicc mpxlc mpxlc_r mpcc)
+find_program(MPI_C_COMPILER NAMES mpicc mpxlc mpxlc_r mpcc cc)
 if(NOT MPI_C_COMPILER)
   message(STATUS "Could not find MPI C Compiler, falling back to serial")
 else(MPI_C_COMPILER)
