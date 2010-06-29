@@ -560,7 +560,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
 
     if(blockCount && (saturatedBlockCount == blockCount)){
         entries->lastFreeIdx = 1;
-        PRINT_INSTR(stdout, "leaving sim function 1-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx);
+        //        PRINT_INSTR(stdout, "leaving sim function 1-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx);
         return;
     }
 
@@ -593,7 +593,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             alreadyIgnored = 0;
         } else {
             entries->lastFreeIdx = 1;
-            PRINT_INSTR(stdout, "leaving sim function 2-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx);
+            //            PRINT_INSTR(stdout, "leaving sim function 2-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx);
             return;
         }
     } else {
@@ -628,7 +628,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
 #ifdef DEBUG_RUN_1
         PRINT_INSTR(stdout,"DONE lastIndex < startIndex");
 #endif
-        PRINT_INSTR(stdout, "leaving sim function 3-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx); 
+        //        PRINT_INSTR(stdout, "leaving sim function 3-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx); 
         return;
     }
 #endif
@@ -691,7 +691,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
     }
 
     entries->lastFreeIdx = 1;
-        PRINT_INSTR(stdout, "leaving sim function 4-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx); 
+    //        PRINT_INSTR(stdout, "leaving sim function 4-- startIndex %d, lastIndex %d", startIndex, entries->lastFreeIdx); 
 #endif
 }
 
