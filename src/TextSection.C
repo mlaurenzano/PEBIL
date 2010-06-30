@@ -336,6 +336,7 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
             if (textSymbols[i]->isFunctionSymbol(this)){
                 sortedTextObjects.append(new Function(this, i, textSymbols[i], size));
                 ASSERT(sortedTextObjects.back()->isFunction());
+                //fprintf(stdout, "%s\n", ((Function*)sortedTextObjects.back())->getName());
             } else if (textSymbols[i]->isTextObjectSymbol(this)){
                 sortedTextObjects.append(new FreeText(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size, false));
                 ASSERT(!sortedTextObjects.back()->isFunction());

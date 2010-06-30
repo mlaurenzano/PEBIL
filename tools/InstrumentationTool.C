@@ -11,7 +11,7 @@
 #define MPI_INIT_LIST_CBIND "PMPI_Init:MPI_Init"
 
 #define MPI_INIT_WRAPPER_FBIND "mpi_init__pebil_wrapper"
-#define MPI_INIT_LIST_FBIND "mpi_init_"
+#define MPI_INIT_LIST_FBIND "pmpi_init_:mpi_init_:MPI_INIT"
 
 InstrumentationTool::InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase, bool lpi, bool dtl)
     : ElfFileInst(elf)
