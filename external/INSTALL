@@ -1,7 +1,5 @@
-1. udis86
-
-to install:
+to install for use by pebil:
 $ cd udis86-1.7
-$ ./configure --prefix=`pwd`
+$ ./configure
 $ make
-$ make install
+
