@@ -17,7 +17,7 @@
 #define INST_LIB_NAME "libsimulator.so"
 #define BUFFER_ENTRIES 0x00010000
 #define Size__BufferEntry 16
-#define MAX_MEMOPS_PER_BLOCK 1024
+#define MAX_MEMOPS_PER_BLOCK 2048
 
 //#define DISABLE_BLOCK_COUNT
 

@@ -1,9 +1,6 @@
 This document contains a basic outline for how to install the
-PEBIL binary instrumentation package.
-
-Before installing, if you are an HPC user consider emailing me
-to see if I maintain an installation on the system you are interested
-in installing for -- michaell@sdsc.edu
+PEBIL binary instrumentation package. Direct any questions or
+comments to michaell@sdsc.edu
 
 1. System Requirements
 
@@ -12,31 +9,36 @@ Binary Format           Elf
 Architecture            ia32 or x86_64
 
 
-2. configure your environment
+2. set up environment
 
-Add the following to your shell login script (assuming the installation is
-at /path/to/PEBIL/)
+You will need to set the following variables (assuming the installation is
+at /path/to/PEBIL/):
 
-bash (64bit example):
+bash:
 export PEBIL_ROOT=/path/to/PEBIL
-export PEBIL_GFORT=gfortran
 export PATH=${PATH}:${PEBIL_ROOT}/bin:${PEBIL_ROOT}/scripts
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PEBIL_ROOT}/lib
 
-csh (32bit example):
+csh:
 setenv PEBIL_ROOT /path/to/PEBIL/
-setenv PEBIL_GFORT gfortran
 setenv PATH ${PATH}:${PEBIL_ROOT}/bin:${PEBIL_ROOT}/scripts
+setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${PEBIL_ROOT}/lib
 
 
-3. build external libraries
-go the external/ directory and read the INSTALL file there
+3. run the configure script. The mpi compiler detection is currently 
+pretty weak so setting the MPICC variable might be helpful.
+
+$ ./configure [MPICC=...]
 
 
-4. build PEBIL
-first, check that the flags in instcode/Makefile are right for your system.
-the mpi install directory probably is not correct for your system.
+4. build
 
-run `gmake' from the top-level directory
+$ make
+$ make install
+
+The install target installs things to /path/to/PEBIL/lib/ and 
+/path/to/PEBIL/bin/.
+
 
 5. run PEBIL
 Details on how to run:
