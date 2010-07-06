@@ -110,7 +110,7 @@ public:
     ElfFile(char* f, char* a);
     ~ElfFile();
 
-    uint64_t getCheckSum();
+    char* getSHA1Sum();
 
     bool is64Bit() { return is64BitFlag; }
     bool isStaticLinked() { return staticLinked; }

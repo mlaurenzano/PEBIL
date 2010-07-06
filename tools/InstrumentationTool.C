@@ -87,7 +87,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     fprintf(staticFD, "# phase     = %d\n", 0);
     fprintf(staticFD, "# type      = %s\n", briefName());
     fprintf(staticFD, "# cantidate = %d\n", getNumberOfExposedBasicBlocks());
-    fprintf(staticFD, "# checksum  = %llx\n", getElfFile()->getCheckSum());
+    fprintf(staticFD, "# sha1sum   = %s\n", getElfFile()->getSHA1Sum());
     uint32_t memopcnt = 0;
     uint32_t membytcnt = 0;
     uint32_t fltopcnt = 0;

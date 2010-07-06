@@ -376,5 +376,14 @@ extern uint32_t initializeFileList(char* fileName, Vector<char*>* list);
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)
 
+#define rotateleft(x,n) ((x<<n) | (x>>(32-n)))
+#define rotateright(x,n) ((x>>n) | (x<<(32-n)))
+
+extern void SHA1(unsigned char * str1);
+
+//sha1 functions                                                                                                                                             
+void calc(const void *src, const int bytelength, unsigned char *hash);
+void toHexString(const unsigned char *hash, char *hexstring);
+
 extern double timer();
 #endif
