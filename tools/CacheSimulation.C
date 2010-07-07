@@ -535,32 +535,32 @@ void CacheSimulation::instrument(){
                 ASSERT(memopIdInBlock < MAX_MEMOPS_PER_BLOCK && "Too many memory ops in some basic block... try increasing MAX_MEMOPS_PER_BLOCK");
             }
 
-        }
 #ifndef DISABLE_BLOCK_COUNT
-        InstrumentationSnippet* snip = new InstrumentationSnippet();
-        addInstrumentationSnippet(snip);
+            InstrumentationSnippet* snip = new InstrumentationSnippet();
+            addInstrumentationSnippet(snip);
         
-        uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
-        ASSERT(i == blockId);
-        if (is64Bit()){
-            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
-        } else {
-            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
-        }
-        
-        FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-        X86Instruction* bestinst = bb->getExitInstruction();
-        for (int32_t j = bb->getNumberOfInstructions() - 1; j >= 0; j--){
-            if (bb->getInstruction(j)->allFlagsDeadIn()){
-                bestinst = bb->getInstruction(j);
-                prot = FlagsProtectionMethod_none;
-                break;
+            uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
+            ASSERT(i == blockId);
+            if (is64Bit()){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
+            } else {
+                snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
             }
+            
+            FlagsProtectionMethods prot = FlagsProtectionMethod_light;
+            X86Instruction* bestinst = bb->getExitInstruction();
+            for (int32_t j = bb->getNumberOfInstructions() - 1; j >= 0; j--){
+                if (bb->getInstruction(j)->allFlagsDeadIn()){
+                    bestinst = bb->getInstruction(j);
+                    prot = FlagsProtectionMethod_none;
+                    break;
+                }
+            }
+            
+            InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, InstLocation_prior);
+#endif
         }
         
-        InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, InstLocation_prior);
-#endif
-
         blockId++;
     }
         
