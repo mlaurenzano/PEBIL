@@ -39,12 +39,13 @@
 #include <TextSection.h>
 
 char* ElfFile::getSHA1Sum(){
-
     unsigned char* allbytes = new unsigned char[getFileSize()];
     int end;
     char *line;
-    char hexstring[41];
+    char* hexstring = new char[41];
+    bzero(hexstring, 41);
     unsigned char hash[20];
+    bzero(hash, 20);
 
     binaryInputFile.setInBufferPointer(0);
     binaryInputFile.copyBytes(allbytes, getFileSize());
@@ -54,12 +55,8 @@ char* ElfFile::getSHA1Sum(){
     calc(allbytes,end,hash);
     toHexString(hash, hexstring);
 
-    //used for testing                                                                                                                                   
-    //printf("\n->hexstring:%s<-\n", hexstring);                                                                                                             
-
-    //    delete[] allbytes;                                                                                                                                 
+    delete[] allbytes;                                                                                                                                 
     return hexstring;
-
 }
 
 void ElfFile::swapSections(uint32_t idx1, uint32_t idx2){

@@ -41,19 +41,18 @@ void clearBlockCounters(){
 
 // should also do initialization here rather than checking
 // for "first hit" on every buffer dump
-int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uint64_t* counters){
+int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uint64_t* counters, char* killed){
     instrumentationPoints = instpoints;
     numberOfInstrumentationPoints = *numpoints;
     numberOfBasicBlocks = *numblocks;
     blockCounters = counters;
-    blockIsKilled = malloc(sizeof(char) * numberOfBasicBlocks);
-    bzero(blockIsKilled, sizeof(char) * numberOfBasicBlocks);
+    blockIsKilled = killed;
     numberKilled = 0;
 
     instpoint_info* ip;
     int i;
 
-    PRINT_INSTR(stdout, "entry_function called -- args %x %x %x %x -- %d points. %d blocks", instpoints, numpoints, numblocks, counters, *numpoints, *numblocks);
+    //    PRINT_INSTR(stdout, "entry_function called -- args %x %x %x %x -- %d points. %d blocks", instpoints, numpoints, numblocks, counters, *numpoints, *numblocks);
 #ifdef DEBUG_INST_KILL
     /*
     for (i = 0; i < numberOfInstrumentationPoints; i++){

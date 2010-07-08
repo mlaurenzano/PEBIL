@@ -271,6 +271,7 @@ void CacheSimulation::instrument(){
     exitFunc->addArgument(commentStore);
 
     uint64_t counterArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(uint64_t));
+    uint64_t killedArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(char));
 
     InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp);
     ASSERT(p);
@@ -362,11 +363,11 @@ void CacheSimulation::instrument(){
                             ASSERT(bb->getNumberOfMemoryOps() < MAX_MEMOPS_PER_BLOCK);
                             uint32_t memcnt = bb->getNumberOfMemoryOps();
                             while (memcnt > 0x7f){
-                                (*bufferDumpInstructions).append(X86InstructionFactory64::emitAddImmByteToMem(0x7f, getInstDataAddress() + bufferStore));
+                                (*bufferDumpInstructions).append(X86InstructionFactory64::emitAddImmByteToMem64(0x7f, getInstDataAddress() + bufferStore));
                                 memcnt -= 0x7f;
                             }
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitAddImmByteToMem(memcnt, getInstDataAddress() + bufferStore));
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg1, false));
+                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitAddImmByteToMem64(memcnt, getInstDataAddress() + bufferStore));
+                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg1, true));
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitCompareImmReg(BUFFER_ENTRIES - maxMemopsInSuccessor, tmpReg1));
                             
                             // restore regs
@@ -578,6 +579,7 @@ void CacheSimulation::instrument(){
     entryFunc->addArgument(instPointCount);
     entryFunc->addArgument(blockCount);
     entryFunc->addArgument(counterArray);
+    entryFunc->addArgument(killedArray);
 
 #ifdef NO_REG_ANALYSIS
     PRINT_WARN(10, "Warning: register analysis disabled");
