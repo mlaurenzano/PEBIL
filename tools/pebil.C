@@ -28,6 +28,8 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\n");
     fprintf(stderr,"Brief Descriptions for Options:\n");
     fprintf(stderr,"===============================\n");
+    fprintf(stderr,"\t--help : print this help message\n");
+    fprintf(stderr,"\t--version : print version number and exit\n");
     fprintf(stderr,"\t--typ : required for all.\n");
     fprintf(stderr,"\t--app : required for all.\n");
     fprintf(stderr,"\t--ver : optional for all. prints informative details about parts of the application binary.\n");
@@ -81,7 +83,7 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\n");
 }
 
-void printUsage(bool shouldExt=true, bool optDetail=false) {
+void printUsage(bool shouldExt=false, bool optDetail=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : pebil\n");
     fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|csc|ftm|crp)\n");
@@ -100,6 +102,7 @@ void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\t[--dfp <pattern_file>]      <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--dmp (off|on|nosim)]      <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--help]\n");
+    fprintf(stderr,"\t[--version]\n");
     fprintf(stderr,"\n");
     if(shouldExt){
         printBriefOptions(optDetail);
@@ -248,6 +251,9 @@ int main(int argc,char* argv[]){
             }
         } else if (!strcmp(argv[i],"--help")){
             printUsage(true, true);
+        } else if (!strcmp(argv[i],"--version")){
+            fprintf(stdout, "pebil %s\n", PEBIL_VER);
+            exit(-1);
         }
     }
 

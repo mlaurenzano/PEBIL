@@ -1,5 +1,7 @@
+include ../VERSION
+
 CXX           = @CXX@
-CXXFLAGS      = @CXXFLAGS@
+CXXFLAGS      = @CXXFLAGS@ -DPEBIL_VER="\"$(PEBIL_FULL_VER)\""
 EXTRA_FLAGS   = -w
 
 SRCDIR        = ../src
@@ -27,7 +29,7 @@ OBJS  =	BasicBlockCounter.o \
 all: $(TARGETS)
 
 pebil :	$(OBJS) pebil.o
-	$(CXX) $(CXXFLAGS) -o $@ pebil.o $(OBJS) $(CFLAGS) $(EXTRA_INC) $(EXTRA_LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ pebil.o $(OBJS) $(EXTRA_INC) $(EXTRA_LIBS)
 
 %.o: %.C
 	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) -c -o $@ $< $(EXTRA_INC)

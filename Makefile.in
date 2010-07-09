@@ -4,7 +4,7 @@ DOXYGEN = doxygen
 SUBDIRS = external/udis86-1.7 instcode testapps src tools
 
 include VERSION
-DISTDIR = PEBIL-$(PEBIL_MAJOR_VER).$(PEBIL_MINOR_VER).$(PEBIL_REVIS_VER)
+DISTDIR = PEBIL-$(PEBIL_FULL_VER)
 
 .PHONY: subdirs $(SUBDIRS)
 
