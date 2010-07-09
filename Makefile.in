@@ -39,10 +39,6 @@ dist: clean
 	rm -rf $(DISTDIR)/.svn $(DISTDIR)/*/.svn $(DISTDIR)/*/*/.svn $(DISTDIR)/*/*/*/.svn $(DISTDIR)/*/*/*/*/.svn
 	rm -rf $(DISTDIR)/.git $(DISTDIR)/*/.git $(DISTDIR)/*/*/.git $(DISTDIR)/*/*/*/.git $(DISTDIR)/*/*/*/*/.git
 	rm -rf $(DISTDIR)/testapps/compiled/32bit/* $(DISTDIR)/testapps/compiled/64bit/* $(DISTDIR)/testapps/bit
-	cp $(DISTDIR)/instcode/CacheDescriptions_min.txt ./CacheDescriptions.txt
-	rm -rf $(DISTDIR)/instcode/CacheDescriptions*.txt
-	$(DISTDIR)/scripts/generateCaches.pl
-	mv ./CacheStructures.h ./CacheDescriptions.txt $(DISTDIR)/instcode/
 	tar czf $(DISTDIR).tgz $(DISTDIR)
 	rm -rf $(DISTDIR)
 
