@@ -601,6 +601,7 @@ LIBOBJS
 EGREP
 GREP
 CPP
+MPI_FLAGS
 STATIC_INST_LIB
 MPILIBS
 MPICC
@@ -662,6 +663,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_static
+enable_mpi
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1291,6 +1293,8 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-static         Use static archives for instrumentation libraries
                           [yes|no]
+  --enable-mpi            Use mpi compiler when building instrumentation
+                          libraries [yes*|no]
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -3929,6 +3933,18 @@ if test "$ok" = "yes"; then
    STATIC_INST_LIB="yes"
 fi
 
+
+# Check whether --enable-mpi was given.
+if test "${enable_mpi+set}" = set; then :
+  enableval=$enable_mpi; ok=$enableval
+fi
+
+if test "$ok" = "no"; then
+   MPICC="$CC"
+   MPI_FLAGS=""
+else
+   MPI_FLAGS="-DUSING_MPI_WRAPPERS"
+fi
 
 
 # Checks for header files.
