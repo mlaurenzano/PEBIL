@@ -20,8 +20,16 @@ AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Use static archives for
 if test "$ok" = "yes"; then
    STATIC_INST_LIB="yes"
 fi
-
 AC_SUBST(STATIC_INST_LIB)
+
+AC_ARG_ENABLE(mpi, AC_HELP_STRING([--enable-mpi], [Use mpi compiler when building instrumentation libraries [yes*|no]]), ok=$enableval)
+if test "$ok" = "no"; then
+   MPICC="$CC"
+   MPI_FLAGS=""
+else
+   MPI_FLAGS="-DUSING_MPI_WRAPPERS"
+fi
+AC_SUBST(MPI_FLAGS)
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h strings.h unistd.h])
