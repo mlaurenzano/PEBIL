@@ -162,7 +162,7 @@ protected:
 
     Vector<Argument> arguments;
     bool skipWrapper;
-    X86Instruction* pltHook;
+    Vector<X86Instruction*> pltHooks;
 
 public:
     InstrumentationFunction(uint32_t idx, char* funcName, uint64_t dataoffset, uint64_t fEntry);
@@ -181,7 +181,7 @@ public:
     uint32_t globalDataSize();
     void setSkipWrapper() { skipWrapper = true; }
     bool hasSkipWrapper() { return skipWrapper; }
-    void setPLTHook(X86Instruction* hook) { pltHook = hook; }
+    void addPLTHook(X86Instruction* hook) { pltHooks.append(hook); }
 
     virtual uint32_t bootstrapReservedSize() { __SHOULD_NOT_ARRIVE; }
     virtual uint32_t procedureLinkReservedSize() { Size__32_bit_procedure_link; }

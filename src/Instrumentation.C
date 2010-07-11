@@ -279,7 +279,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
         if (instrumentation->getType() == PebilClassType_InstrumentationFunction && ((InstrumentationFunction*)instrumentation)->hasSkipWrapper()){
-            ((InstrumentationFunction*)instrumentation)->setPLTHook(trampolineInstructions.back());            
+            ((InstrumentationFunction*)instrumentation)->addPLTHook(trampolineInstructions.back());            
         }
     }
 
@@ -408,7 +408,7 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<X86Instruction*>* ins
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
         if (instrumentation->getType() == PebilClassType_InstrumentationFunction && ((InstrumentationFunction*)instrumentation)->hasSkipWrapper()){
-            ((InstrumentationFunction*)instrumentation)->setPLTHook(trampolineInstructions.back());            
+            ((InstrumentationFunction*)instrumentation)->addPLTHook(trampolineInstructions.back());            
         }
     }
 
@@ -559,10 +559,12 @@ uint32_t InstrumentationFunction64::generateProcedureLinkInstructions(uint64_t t
 
     uint64_t procedureLinkAddress = textBaseAddress + procedureLinkOffset;
     procedureLinkInstructions.append(X86InstructionFactory64::emitIndirectRelativeJump(procedureLinkAddress,dataBaseAddress + globalDataOffset));
-    if (pltHook){
+    if (pltHooks.size()){
         ASSERT(skipWrapper);
         procedureLinkInstructions.back()->setBaseAddress(procedureLinkAddress);
-        pltHook->initializeAnchor(procedureLinkInstructions.back());
+	for (uint32_t i = 0; i < pltHooks.size(); i++){
+	    pltHooks[i]->initializeAnchor(procedureLinkInstructions.back());
+	}
     }
 
     procedureLinkInstructions.append(X86InstructionFactory64::emitStackPushImm(relocationOffset));
@@ -585,10 +587,12 @@ uint32_t InstrumentationFunction32::generateProcedureLinkInstructions(uint64_t t
 
     uint64_t procedureLinkAddress = textBaseAddress + procedureLinkOffset;
     procedureLinkInstructions.append(X86InstructionFactory32::emitJumpIndirect(dataBaseAddress + globalDataOffset));
-    if (pltHook){
+    if (pltHooks.size()){
         ASSERT(skipWrapper);
         procedureLinkInstructions.back()->setBaseAddress(procedureLinkAddress);
-        pltHook->initializeAnchor(procedureLinkInstructions.back());
+	for (uint32_t i = 0; i < pltHooks.size(); i++){
+	    pltHooks[i]->initializeAnchor(procedureLinkInstructions.back());
+	}
     }
 
     procedureLinkInstructions.append(X86InstructionFactory32::emitStackPushImm(relocationOffset));
@@ -792,7 +796,6 @@ InstrumentationFunction::InstrumentationFunction(uint32_t idx, char* funcName, u
 
     distinctTrampoline = true;
     skipWrapper = false;
-    pltHook = NULL;
 
     assumeFunctionFP = true;
     assumeFlagsUnsafe = true;
