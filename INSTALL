@@ -26,9 +26,12 @@ setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${PEBIL_ROOT}/lib
 
 
 3. run the configure script. The mpi compiler detection is currently 
-pretty weak so setting the MPICC variable might be helpful.
+pretty weak so setting the MPICC variable might be helpful. Some other
+useful flags might be to use --enable-mpi=no if you don't want MPI
+support or --enable-static=yes if your system doesn't support shared
+libraries.
 
-$ ./configure [MPICC=...]
+$ ./configure [MPICC=...] [--enable-mpi=no] [--enable-static=yes]
 
 
 4. build
