@@ -1584,6 +1584,7 @@
 
   <instruction mnemonic="fxrstor">
     <opcode> aso rexw rexr rexx rexb ; AE /mod=!11 /1 ; M </opcode>
+    <opcode> aso rexw rexr rexx rexb ; 0F AE /1 ; M </opcode>
   </instruction>
 
   <instruction mnemonic="fxsave">
