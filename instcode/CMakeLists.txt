@@ -11,13 +11,16 @@ if(NOT MPI_C_COMPILER)
   message(STATUS "Could not find MPI C Compiler, falling back to serial")
 else(MPI_C_COMPILER)
   set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
-  set(USING_MPI_WRAPPERS 1)
+  add_definitions(-DUSING_MPI_WRAPPERS)
   message(STATUS "Found MPI C Compiler! Defining USING_MPI_WRAPPERS")
 endif(NOT MPI_C_COMPILER)
 
-set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-DNO_SAMPLING_MODE -DPER_SET_RECENT")
-#set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-DEXTENDED_SAMPLING -DPER_SET_RECENT")
-#set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-DNO_SAMPLING_MODE -DPER_SET_RECENT -DIGNORE_ACTUAL_SIMULATION")
+add_definitions(-DPER_SET_RECENT)
+
+# pick the sampling mode
+add_definitions(-DNO_SAMPLING_MODE)
+#add_definitions(-DEXTENDED_SAMPLING_MODE)
+#add_definitions(-DNO_SAMPLING_MODE -DIGNORE_ACTUAL_SIMULATION)
 
 # Create a variable called helloworld_SOURCES containing all .cpp files:
 set(counter_SOURCES CounterFunctions.c)

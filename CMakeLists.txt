@@ -4,6 +4,8 @@ project(hello_world C CXX Fortran)
 # States that CMake required version must be >= 2.6
 cmake_minimum_required(VERSION 2.6)
 
+set(PEBIL_FULL_VER "0.3.1-devel")
+
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_FLAGS_RELEASE "-w -g")
 set(CMAKE_C_FLAGS_RELEASE "-w -g")
