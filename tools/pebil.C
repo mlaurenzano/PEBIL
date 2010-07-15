@@ -64,7 +64,7 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\t--dry : optional for all. processes options only.\n");
     fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
     fprintf(stderr,"\t        default is $PEBIL_ROOT\n");
-    fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions\n");
+    fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions. if first line of file is '*\\n', this is treated as a whitelist\n");
     fprintf(stderr,"\t        default is %s(32b)/%s(64b)\n", DEFAULT_FUNC_BLACKLIST32, DEFAULT_FUNC_BLACKLIST64);
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
