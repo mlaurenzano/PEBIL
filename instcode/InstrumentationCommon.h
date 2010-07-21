@@ -62,6 +62,7 @@ typedef struct
     __fname ## _pebil_wrapper
 
 // simplistic method to fill format strings
+/*
 int write_formatstr(char* str, const char* format, int64_t* args){
     int i;
     int isescaped = 0, argcount = 0;
@@ -101,6 +102,7 @@ int write_formatstr(char* str, const char* format, int64_t* args){
         return;
     }
 }
+*/
 
 int taskid;
 #ifdef USING_MPI_WRAPPERS
