@@ -166,8 +166,16 @@ void RelocationTable::print(){
     for (uint32_t i = 0; i < relocations.size(); i++){
         char* namestr = NULL;
         Symbol* foundsymbols[3];
+        for (uint32_t j = 0; j < 3; j++){
+            foundsymbols[j] = NULL;
+        }
         symbolTable->findSymbol4Addr(relocations[i]->GET(r_offset),foundsymbols,3,&namestr);
         relocations[i]->print(namestr);
+        for (uint32_t j = 0; j < 3; j++){
+            if (foundsymbols[j]){
+                foundsymbols[j]->print();
+            }
+        }
         delete[] namestr;
     }
 }

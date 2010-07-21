@@ -86,7 +86,6 @@ void GnuHashTable::buildTable(uint32_t numEntries, uint32_t numBuckets){
 
     sizeInBytes = (4 * sizeof(uint32_t)) + (hashEntrySize * numberOfBloomFilters) + (sizeof(uint32_t) * numberOfBuckets) + (sizeof(uint32_t) * numberOfEntries);
     verify();
-
 }
 
 uint32_t GnuHashTable::findSymbol(const char* symbolName){
