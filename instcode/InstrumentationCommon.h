@@ -62,6 +62,7 @@ typedef struct
     __fname ## _pebil_wrapper
 
 // simplistic method to fill format strings
+/*
 int write_formatstr(char* str, const char* format, int64_t* args){
     int i;
     int isescaped = 0, argcount = 0;
@@ -101,6 +102,7 @@ int write_formatstr(char* str, const char* format, int64_t* args){
         return;
     }
 }
+*/
 
 int taskid;
 #ifdef USING_MPI_WRAPPERS
@@ -119,7 +121,7 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     MPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
     MPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
 
-    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
+    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in MPI_Init wrapper\n", getpid(), __taskid, __ntasks, gethostid());
 
     return retval;
 }
@@ -136,7 +138,7 @@ void __wrapper_name(mpi_init_)(int* ierr){
     mpi_comm_rank_(&world, &__taskid, &myerr);
     mpi_comm_size_(&world, &__ntasks, &myerr);
 
-    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
+    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
 }
 
 #else
