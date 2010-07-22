@@ -178,7 +178,7 @@ int getRandomNumber()
 }
 
 uint32_t lookupRankId(){
-    return taskid;
+    return __taskid;
     uint32_t rankId = 0;
     char strBuffer[__MAX_STRING_SIZE];
 
