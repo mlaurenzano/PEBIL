@@ -1,7 +1,7 @@
 include ../VERSION
 
 CXX           = @CXX@
-CXXFLAGS      = @CXXFLAGS@ -DPEBIL_VER="\"$(PEBIL_FULL_VER)\""
+CXXFLAGS      = @CXXFLAGS@ @MPI_FLAGS@ -DPEBIL_VER="\"$(PEBIL_FULL_VER)\""
 EXTRA_FLAGS   = -w
 
 SRCDIR        = ../src

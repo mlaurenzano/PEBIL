@@ -23,7 +23,6 @@
 
 #define MPI_INIT_WRAPPER_CBIND "MPI_Init_pebil_wrapper"
 #define MPI_INIT_LIST_CBIND "PMPI_Init:MPI_Init"
-
 #define MPI_INIT_WRAPPER_FBIND "mpi_init__pebil_wrapper"
 #define MPI_INIT_LIST_FBIND "pmpi_init_:mpi_init_:MPI_INIT"
 
@@ -37,13 +36,16 @@ InstrumentationTool::InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase
 }
 
 void InstrumentationTool::declare(){
+#ifdef HAVE_MPI
     initWrapperC = declareFunction(MPI_INIT_WRAPPER_CBIND);
     initWrapperF = declareFunction(MPI_INIT_WRAPPER_FBIND);
     ASSERT(initWrapperC && "Cannot find MPI_Init function, are you sure it was declared?");
     ASSERT(initWrapperF && "Cannot find MPI_Init function, are you sure it was declared?");
+#endif //HAVE_MPI
 }
 
 void InstrumentationTool::instrument(){
+#ifdef HAVE_MPI
     // wrap any call to MPI_Init
     Vector<X86Instruction*>* mpiInitCalls = findAllCalls(MPI_INIT_LIST_CBIND);
     initWrapperC->setSkipWrapper();
@@ -64,6 +66,7 @@ void InstrumentationTool::instrument(){
         InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
     }
     delete mpiInitCalls;
+#endif //HAVE_MPI
 }
 
 void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos, uint32_t bufferSize){
@@ -87,10 +90,10 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     fprintf(staticFD, "# phase     = %d\n", 0);
     fprintf(staticFD, "# type      = %s\n", briefName());
     fprintf(staticFD, "# cantidate = %d\n", getNumberOfExposedBasicBlocks());
-
     char* sha1sum = getElfFile()->getSHA1Sum();
     fprintf(staticFD, "# sha1sum   = %s\n", sha1sum);
     delete[] sha1sum;
+
     uint32_t memopcnt = 0;
     uint32_t membytcnt = 0;
     uint32_t fltopcnt = 0;

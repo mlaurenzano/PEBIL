@@ -69,14 +69,13 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
     functionNames = functionNms;
     hashValues = hashVals;
 
-    taskid = 0;
-
     return numberOfBasicBlocks;
 }
 
 int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     int32_t i;
 
+    taskid = getpid();
     PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
     PRINT_INSTR(stdout, "There are %d basic blocks in the code:", numberOfBasicBlocks);
 

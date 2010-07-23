@@ -25,7 +25,6 @@
 
 #define __MAX_STRING_SIZE 1024
 
-//#define USING_MPI_WRAPPERS
 #define USING_CSTD_WRAPPERS
 
 //#define COMPILE_32BIT
@@ -105,7 +104,7 @@ int write_formatstr(char* str, const char* format, int64_t* args){
 */
 
 int taskid;
-#ifdef USING_MPI_WRAPPERS
+#ifdef HAVE_MPI
 #define __taskid taskid
 #define __ntasks ntasks
 #define __taskmarker "-[t%d]- "

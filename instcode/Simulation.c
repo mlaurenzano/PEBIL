@@ -39,8 +39,10 @@ void clearBlockCounters(){
     bzero(blockCounters, sizeof(uint64_t) * numberOfBasicBlocks);
 }
 
-// should also do initialization here rather than checking
+// should concider doing initialization here rather than checking
 // for "first hit" on every buffer dump
+// PROBLEM^^ on some systems (cray XT) it is unsafe to call functions
+// from the entry function
 int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uint64_t* counters, char* killed){
     instrumentationPoints = instpoints;
     numberOfInstrumentationPoints = *numpoints;
@@ -51,36 +53,6 @@ int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uin
 
     instpoint_info* ip;
     int i;
-
-    //    PRINT_INSTR(stdout, "entry_function called -- args %x %x %x %x -- %d points. %d blocks", instpoints, numpoints, numblocks, counters, *numpoints, *numblocks);
-#ifdef DEBUG_INST_KILL
-    /*
-    for (i = 0; i < numberOfInstrumentationPoints; i++){
-        ip = (instpoint_info*)(instpoints + (i * sizeof(instpoint_info)));
-        assert(ip->pt_size == 5);
-        PRINT_INSTR(stdout, "instrumentation for memop %d: block %d, size %d", i, ip->pt_blockid, ip->pt_size);
-    }
-    */
-#endif
-
-#ifdef ENABLE_INSTRUMENTATION_KILL
-    /*
-    for (i = 0; i < numberOfInstrumentationPoints; i++){
-
-        ip = (instpoint_info*)(instpoints + (i * sizeof(instpoint_info)));
-
-        PRINT_INSTR(stdout, "killing instrumentation for memop %d (block %d)", i, ip->pt_blockid);
-
-        int32_t size = ip->pt_size;
-        int64_t vaddr = ip->pt_vaddr;
-        void* program_point = (void*)vaddr;
-
-        memcpy(ip->pt_content, program_point, size);
-        memcpy(program_point, ip->pt_disable, size);
-        numberKilled++;
-    }
-    */
-#endif
 }
 
 void disableInstrumentationPointsInBlock(BufferEntry* currentEntry){
@@ -519,6 +491,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
     totalNumberOfAccesses += lastIndex;
 
     if(!blocks){
+        taskid = getpid();
         char      appName[__MAX_STRING_SIZE];
         uint32_t  phaseId = 0;
         char      extension[__MAX_STRING_SIZE];

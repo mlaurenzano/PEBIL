@@ -53,7 +53,7 @@ int32_t initwrapper(int32_t* indexLoc, char** fNames, int32_t* lNum){
 
     logfile = stdout;
 
-#ifdef USING_MPI_WRAPPERS
+#ifdef HAVE_MPI
     // use an unlikely value, so if we see this value we know there was
     // a problem getting task id
     taskid = 0xdeadbeef;
@@ -70,6 +70,6 @@ int32_t finishwrapper(){
 #include <IOWrappers.c>
 #endif // USING_CSTD_WRAPPERS
 
-#ifdef USING_MPI_WRAPPERS
+#ifdef HAVE_MPI
 #include <MPIIOWrappers.c>
-#endif // USING_MPI
+#endif // HAVE_MPI

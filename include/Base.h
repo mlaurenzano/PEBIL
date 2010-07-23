@@ -29,6 +29,8 @@
 #include <Vector.h>
 
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
+extern FILE* pebilOutp;
+
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -77,19 +79,19 @@ typedef void (*fprintf_ftype)(FILE*, const char*, ...);
     ASSERT(0); \
     exit(-1);
 
-#define PRINT_INFOR(...) fprintf(stdout,"Information : "); \
-    fprintf(stdout,## __VA_ARGS__);                        \
-    fprintf(stdout,"\n");                                  \
-    fflush(stdout);
+#define PRINT_INFOR(...) fprintf(pebilOutp,"Information : "); \
+    fprintf(pebilOutp,## __VA_ARGS__);                        \
+    fprintf(pebilOutp,"\n");                                  \
+    fflush(pebilOutp);
 
-#define PRINT_INFO() fprintf(stdout,"Information : "); \
-    fflush(stdout);
+#define PRINT_INFO() fprintf(pebilOutp,"Information : "); \
+    fflush(pebilOutp);
 
-#define PRINT_OUT(...) fprintf(stdout,## __VA_ARGS__); \
-    fflush(stdout);
+#define PRINT_OUT(...) fprintf(pebilOutp,## __VA_ARGS__); \
+    fflush(pebilOutp);
 
 #define PRINT_PROGRESS(__inc, __tot, __break) \
-    if (__inc % ((__tot > __break) ? (__tot / __break) : 1) == 0){ fprintf(stdout, "."); fflush(stdout); }
+    if (__inc % ((__tot > __break) ? (__tot / __break) : 1) == 0){ fprintf(pebilOutp, "."); fflush(pebilOutp); }
 
 
 #define __bit_shift(__v) (1 << __v)
