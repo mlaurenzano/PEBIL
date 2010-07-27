@@ -491,7 +491,9 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
     totalNumberOfAccesses += lastIndex;
 
     if(!blocks){
+#ifndef HAVE_MPI
         taskid = getpid();
+#endif
         char      appName[__MAX_STRING_SIZE];
         uint32_t  phaseId = 0;
         char      extension[__MAX_STRING_SIZE];
