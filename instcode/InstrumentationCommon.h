@@ -115,8 +115,7 @@ int __ntasks;
 
 // C init wrapper
 int __wrapper_name(MPI_Init)(int* argc, char*** argv){
-    fprintf(stdout, "original program args %d %x\n", *argc, *argv);
-    int retval = MPI_Init(argc, argv);
+    int retval = PMPI_Init(argc, argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
     MPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
 
@@ -126,16 +125,16 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
 }
 
 // fortran init wrapper
-extern void mpi_init_(int* ierr);
-extern void mpi_comm_rank_(int* comm, int* rank, int* ierr);
-extern void mpi_comm_size_(int* comm, int* rank, int* ierr);
+extern void pmpi_init_(int* ierr);
+extern void pmpi_comm_rank_(int* comm, int* rank, int* ierr);
+extern void pmpi_comm_size_(int* comm, int* rank, int* ierr);
 void __wrapper_name(mpi_init_)(int* ierr){
-    mpi_init_(ierr);
+    pmpi_init_(&ierr);
 
     int myerr;
     MPI_Comm world = MPI_COMM_WORLD;
-    mpi_comm_rank_(&world, &__taskid, &myerr);
-    mpi_comm_size_(&world, &__ntasks, &myerr);
+    pmpi_comm_rank_(&world, &__taskid, &myerr);
+    pmpi_comm_size_(&world, &__ntasks, &myerr);
 
     fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
 }
