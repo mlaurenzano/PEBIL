@@ -1,0 +1,12 @@
+/*! \mainpage The PEBIL Project
+ * \section about_section About
+ * PEBIL is a lightweight binary instrumentation tool for x86(both the 32 and 64 bit varieties)/Linux 
+ * that can be used to capture information about the behavior of a running executable.
+ * It is designed primarily to provide the tool writer with the facilities needed to perform various instrumentation and modification-related
+ * tasks. It is open source and Licenced under the <a href="http://www.gnu.org/licenses/gpl.html">GNU General Public License</a>.
+ * More information about the PEBIL project can be found in the ISPASS 2010 paper <a href="http://www.sdsc.edu/pmac/publications/pubs/laurenzanopebil2010.pdf">PEBIL: Efficient Static Binary Instrumentation for Linux</a>.
+ * Questions or comments about the PEBIL project can be directed to michaell@pmaclabs.com
+ *
+ * The source code for PEBIL can be downloaded from the <a href="http://www.pmaclabs.com/pebil/index.html">PEBIL project page</a>, or can be obtained
+ * from the git repository at git://trebek.pmaclabs.com/PEBIL.git/
+ */

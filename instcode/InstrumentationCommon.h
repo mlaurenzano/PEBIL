@@ -116,8 +116,9 @@ int __ntasks;
 // C init wrapper
 int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     int retval = PMPI_Init(argc, argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
-    MPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
+
+    PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
+    PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
 
     fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in MPI_Init wrapper\n", getpid(), __taskid, __ntasks, gethostid());
 

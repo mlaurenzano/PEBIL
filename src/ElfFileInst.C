@@ -565,6 +565,10 @@ uint32_t ElfFileInst::generateInstrumentation(){
         BasicBlock* bb = f->getBasicBlockAtAddress(pt->getInstSourceAddress());
         if (!f->hasLeafOptimization() && bb && !bb->isEntry()){
             stackIsSafe = true;
+        }
+        if (pt->getInstrumentation()->getType() == PebilClassType_InstrumentationFunction &&
+            ((InstrumentationFunction*)pt->getInstrumentation())->hasSkipWrapper()){
+            stackIsSafe = true;
         } 
         uint64_t registerStorage = getInstDataAddress() + regStorageOffset;
 
