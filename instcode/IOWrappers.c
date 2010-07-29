@@ -12,150 +12,98 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <assert.h>
+#include <string.h>
 #include <InstrumentationCommon.h>
+#include <IOWrapper.h>
 
-int __wrapper_name(printf)(const char* format, ...){
-    PRINT_INSTR(stdout, "printf");
-    va_list argp;
-    va_start(argp, format);
-    int retval = __wrapper_name(vfprintf)(stdout, format, argp);
-    va_end(argp);
-    return retval;
-}
+char* appName;
+int32_t* currentSiteIndex;
+char** fileNames;
+int32_t* lineNumbers;
 
-int __wrapper_name(vprintf)(const char* format, va_list argp){
-    PRINT_INSTR(stdout, "vprintf");
-    int retval = __wrapper_name(vfprintf)(stdout, format, argp);
-    return retval;
-}
+// to handle trace buffering
+TraceBuffer_t traceBuffer;
+char message[__MAX_STRING_SIZE];
 
-int __wrapper_name(fprintf)(FILE* stream, const char* format, ...){
-    PRINT_INSTR(stdout, "fprintf");
-    va_list argp;
-    va_start(argp, format);
-    int retval = __wrapper_name(vfprintf)(stream, format, argp);
-    va_end(argp);
-    return retval;
-}
+// to handle timers
+int64_t timerstart;
+int64_t timerstop;
+#define TIMER_START (timerstart = readtsc())
+#define TIMER_STOP  (timerstop  = readtsc())
+#define TIMER_VALUE (timerstop - timerstart)
+#define TIMER_EXECUTE(__stmts) TIMER_START; __stmts TIMER_STOP; 
+#define PRINT_TIMER(__file) PRINT_INSTR(__file, "timer value (in cycles): %lld", TIMER_VALUE)
 
-int __wrapper_name(vfprintf)(FILE* stream, const char* format, va_list argp){
-    PRINT_INSTR(stdout, "vfprintf");
-    starttimer();
-    int retval = vfprintf(stream, format, argp);
-    stoptimer();
-    if (stream == NULL){
-        PRINT_INSTR(logfile, "fprintf ([%d]%s:%d): fileno=INV timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], gettimer());
-    } else {
-        PRINT_INSTR(logfile, "fprintf ([%d]%s:%d): size=%d fileno=%hhd timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], strlen(format), stream->_fileno, gettimer());
-    }
-    return retval;
-}
 
-int __wrapper_name(fseek)(FILE* stream, long int offset, int origin){
-    if (stream == NULL){        
-        PRINT_INSTR(logfile, "fseek ([%d]%s:%d): fileno=INV", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex]);
-    } else {
-        char* org = malloc(9);
-        sprintf(org, "SEEK_INV\0");
-        if (origin == SEEK_SET){
-            sprintf(org, "SEEK_SET\0");
-        } else if (origin == SEEK_CUR){
-            sprintf(org, "SEEK_CUR\0");
-        } else if (origin == SEEK_END){
-            sprintf(org, "SEEK_END\0");
-        }
-        PRINT_INSTR(logfile, "fseek ([%d]%s:%d): offset=%lld origin=%s fileno=%hhd", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], offset, org, stream->_fileno);
-        free(org);
+uint32_t dumpBuffer(){
+    if (traceBuffer.outFile == NULL){
+        char fname[__MAX_STRING_SIZE];
+        sprintf(fname, "pebiliotrace.%d.log", __taskid);
+        traceBuffer.outFile = fopen(fname, "w");
     }
 
-    return fseek(stream, offset, origin);
+    uint32_t oerr = fwrite(traceBuffer.storage, sizeof(char), traceBuffer.freeIdx, traceBuffer.outFile);
+    assert(oerr == traceBuffer.freeIdx);
+    traceBuffer.freeIdx = 0;
+
+    assert(traceBuffer.freeIdx == 0);
+    return traceBuffer.freeIdx;
 }
 
-size_t __wrapper_name(libc_write)(int fd, const void* ptr, size_t count){
-    starttimer();
-    int retval = write(fd, ptr, count);
-    stoptimer();
-    PRINT_INSTR(stdout, "libc_write ([%d]%s:%d): handle=%d size=%d timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], fd, count, gettimer());
-
-    return retval;
-}
-
-size_t __wrapper_name(fwrite)(const void* ptr, size_t size, size_t count, FILE* stream){
-    starttimer();
-    int retval = fwrite(ptr, size, count, stream);
-    stoptimer();
-    if (stream == NULL){
-        PRINT_INSTR(logfile, "fwrite ([%d]%s:%d): fileno=INV timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], gettimer());
-    } else {
-        PRINT_INSTR(logfile, "fwrite ([%d]%s:%d): size=%d fileno=%hhd timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], size * count, stream->_fileno, gettimer());
+uint32_t storeToBuffer(char* msg, uint32_t sizeInBytes){
+    // if traceBuffer is full dump it
+    if (sizeInBytes > traceBuffer.size - traceBuffer.freeIdx){
+        dumpBuffer(traceBuffer);
     }
+    assert(sizeInBytes < traceBuffer.size - traceBuffer.freeIdx);
 
-    return retval;
+    // store the msg to the buffer
+    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), msg, sizeInBytes);
+    traceBuffer.freeIdx += sizeInBytes;
+
+    return traceBuffer.freeIdx;
 }
 
-size_t __wrapper_name(libc_read)(int fd, void* buf, size_t count){
-    starttimer();
-    int retval = read(fd, buf, count);
-    stoptimer();
-    PRINT_INSTR(stdout, "libc_read ([%d]%s:%d): handle=%d size=%d timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], fd, count, gettimer());    
-    return retval;
+// do any initialization here
+// NOTE: on static-linked binaries, calling any functions from here will cause some problems
+int32_t initwrapper(int32_t* indexLoc, char** fNames, int32_t* lNum){
+    // at each call site we will put the index of the originating point in this location
+    currentSiteIndex = indexLoc;
+
+    fileNames = fNames;
+    lineNumbers = lNum;
+
+#ifdef HAVE_MPI
+    // use an unlikely value, so if we see this value we know there was
+    // a problem getting task id
+    taskid = 0xdeadbeef;
+#else
+    taskid = 0;
+#endif
+
+    traceBuffer.freeIdx = 0;
+    traceBuffer.size = IO_BUFFER_SIZE;
+    traceBuffer.outFile = NULL;
 }
 
-size_t __wrapper_name(fread)(void* ptr, size_t size, size_t count, FILE* stream){
-    starttimer();
-    int retval = fread(ptr, size, count, stream);
-    stoptimer();
-    if (stream == NULL){
-        PRINT_INSTR(logfile, "fread ([%d]%s:%d): fileno=INV timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], gettimer());
-    } else {
-        PRINT_INSTR(logfile, "fread ([%d]%s:%d): size=%d fileno=%hhd timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], size * count, stream->_fileno, gettimer());
-    }
-
-    return retval;
+// do any cleanup here
+int32_t finishwrapper(){
+    PRINT_INSTR(stdout, "Finishing IO Trace for task %d, dumping buffer", __taskid);
+    dumpBuffer(&traceBuffer);
+    fclose(traceBuffer.outFile);
 }
 
-int __wrapper_name(puts)(const char* str){
-    int retval = puts(str);
-    PRINT_INSTR(logfile, "puts ([%d]%s:%d): size=%d timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], strlen(str), gettimer());
-    return retval;
-}
+#include <CLIBWrappers.c>
+#include <POSXWrappers.c>
 
-int __wrapper_name(fflush)(FILE* stream){
-    starttimer();
-    int retval = fflush(stream);
-    stoptimer();
-    if (stream == NULL){
-        PRINT_INSTR(logfile, "fflush ([%d]%s:%d): fileno=ALL timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], gettimer());
-    } else {
-        PRINT_INSTR(logfile, "fflush ([%d]%s:%d): fileno=%hhd timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], stream->_fileno, gettimer());
-    }
-    return retval;
-}
+#ifdef HAVE_MPI
+#include <MPIIOWrappers.c>
+#endif // HAVE_MPI    
 
-int __wrapper_name(libc_close)(int fd){
-    int retval = close(fd);
-    PRINT_INSTR(logfile, "libc_close ([%d]%s:%d): handle=%d", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], fd);
-}
-
-int __wrapper_name(fclose)(FILE* stream){
-    if (stream == NULL){
-        PRINT_INSTR(logfile, "fclose ([%d]%s:%d): fileno=INV", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex]);
-    } else {
-        PRINT_INSTR(logfile, "fclose ([%d]%s:%d): fileno=%hhd", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], stream->_fileno);
-    }
-    return fclose(stream);
-}
-
-// is this variadic? there is no vopen version, but i've seen it called without flags. for now we just dont use flags
-int __wrapper_name(libc_open64)(const char* filename, int mode, int flags){
-    int retval = open64(filename, mode, flags);
-    PRINT_INSTR(logfile, "libc_open64 ([%d]%s:%d): file=%s mode=%d handle=%d", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], filename, mode, retval);
-    return retval;
-}
-
-FILE* __wrapper_name(fopen)(const char* filename, const char* mode){
-    FILE* retval = fopen(filename, mode);
-    PRINT_INSTR(logfile, "fopen ([%d]%s:%d): file=%s mode=%s fileno=%d", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], filename, mode, retval->_fileno);
-    return retval;
-}
-
+#ifdef HAVE_HDF5
+#include <HDF5Wrappers.c>
+#endif // HAVE_HDF5

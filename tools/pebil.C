@@ -84,7 +84,7 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\n");
 }
 
-void printUsage(bool shouldExt=false, bool optDetail=false) {
+void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : pebil\n");
     fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|csc|ftm|crp)\n");

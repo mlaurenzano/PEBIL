@@ -1,8 +1,8 @@
 STATIC_INST_LIB  = @STATIC_INST_LIB@
 ifeq ($(STATIC_INST_LIB),yes)
-	TARGETS = libcounter.a  libsimulator.a  libtimer.a  libtracer.a
+	TARGETS = libcounter.a  libsimulator.a  libtimer.a  libiowrapper.a
 else
-	TARGETS = libcounter.so libsimulator.so libtimer.so libtracer.so
+	TARGETS = libcounter.so libsimulator.so libtimer.so libiowrapper.so
 endif
 
 MPICC       = @MPICC@
@@ -45,8 +45,8 @@ EXTRA_INC   = -I../instcode
 
 LIBDIR      = ../lib
 
-SRCS        = CounterFunctions.c SimulationFunctions.c TimerFunctions.c TracerFunctions.c CacheSimulationCommon.c
-OBJS        = CounterFunctions.o SimulationFunctions.o TimerFunctions.o TracerFunctions.o CacheSimulationCommon.o
+SRCS        = CounterFunctions.c SimulationFunctions.c TimerFunctions.c IOWrappers.c CacheSimulationCommon.c
+OBJS        = CounterFunctions.o SimulationFunctions.o TimerFunctions.o IOWrappers.o CacheSimulationCommon.o
 
 all: $(TARGETS)
 
@@ -68,10 +68,10 @@ libtimer.so : TimerFunctions.o
 libtimer.a : TimerFunctions.o
 	$(AR) $@ TimerFunctions.o
 
-libtracer.so : TracerFunctions.o
-	$(MPICC) $(SHARED_LIB) -o $@ TracerFunctions.o -L$(LIBDIR) $(EXTRA_LIBS)
-libtracer.a : TracerFunctions.o
-	$(AR) $@ TracerFunctions.o
+libiowrapper.so : IOWrappers.o
+	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o -L$(LIBDIR) $(EXTRA_LIBS)
+libiowrapper.a : IOWrappers.o
+	$(AR) $@ IOWrappers.o
 
 clean: 
 	rm -f *.o *.i *.s *.ii *.a *.so $(TARGETS)

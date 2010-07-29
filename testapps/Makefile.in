@@ -11,7 +11,7 @@ OBJSCPP	    = classes.o
 EXTRA_INC   = -I../instcode
 EXTRA_LIBS  = -lm
 
-TARGETS  = cTest cppTest htcoef dynTest sgbench
+TARGETS  = cTest cppTest htcoef dynTest sgbench ioTest
 
 all: $(TARGETS) 
 
@@ -35,6 +35,9 @@ dynTest:
 
 sgbench:
 	$(CC) -o $@ sgbench.c $(EXTRA_INC) $(EXTRA_LIBS)
+
+ioTest:
+	$(CC) -o $@ ioTest.c
 
 clean: 
 	rm -f *.o $(TARGETS) 
