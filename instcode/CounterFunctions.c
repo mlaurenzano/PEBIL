@@ -69,19 +69,21 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
     functionNames = functionNms;
     hashValues = hashVals;
 
-    taskid = 0;
-
     return numberOfBasicBlocks;
 }
 
 int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     int32_t i;
 
+#ifndef HAVE_MPI
+    taskid = getpid();
+#endif
+
     PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
     PRINT_INSTR(stdout, "There are %d basic blocks in the code:", numberOfBasicBlocks);
 
     char* outFileName = malloc(sizeof(char) * __MAX_STRING_SIZE);
-    sprintf(outFileName, "%s.meta_%04d.%s", appName, taskid, instExt);
+    sprintf(outFileName, "%s.meta_%04d.%s", appName, __taskid, instExt);
     PRINT_INSTR(stdout, "Printing blocks with at least %d executions to file %s", PRINT_MINIMUM, outFileName);
     FILE* outFile = fopen(outFileName, "w");
     free(outFileName);

@@ -27,7 +27,7 @@ if test "$ok" = "no"; then
    MPICC="$CC"
    MPI_FLAGS=""
 else
-   MPI_FLAGS="-DUSING_MPI_WRAPPERS"
+   MPI_FLAGS="-DHAVE_MPI"
 fi
 AC_SUBST(MPI_FLAGS)
 

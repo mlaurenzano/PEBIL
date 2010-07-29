@@ -73,8 +73,11 @@ void SymbolTable::sortForGnuHash(uint32_t firstSymIndex, uint32_t numberOfBucket
         PRINT_DEBUG_HASH("\t\t%d -> %d", sortRep[i], i);
     }
 
-    bool doneMod[symbols.size()];
-    bzero(doneMod, sizeof(bool) * symbols.size());
+    bool* doneMod[elfFile->getNumberOfRelocationTables()];
+    for (uint32_t i = 0; i < elfFile->getNumberOfRelocationTables(); i++){
+        doneMod[i] = new bool[elfFile->getRelocationTable(i)->getNumberOfRelocations()];
+        bzero(doneMod[i], sizeof(bool) * elfFile->getRelocationTable(i)->getNumberOfRelocations());
+    }
     for (uint32_t i = firstSymIndex; i < symbols.size(); i++){
         for (uint32_t k = 0; k < elfFile->getNumberOfRelocationTables(); k++){
             RelocationTable* relocTable = elfFile->getRelocationTable(k);
@@ -82,23 +85,26 @@ void SymbolTable::sortForGnuHash(uint32_t firstSymIndex, uint32_t numberOfBucket
                 for (uint32_t j = 0; j < relocTable->getNumberOfRelocations(); j++){
                     if (getElfFile()->is64Bit()){
                         if (relocTable->getRelocation(j)->getSymbol() == sortRep[i] &&
-                            !doneMod[j]){
+                            !doneMod[k][j]){
                             PRINT_DEBUG_HASH("\t\tmodifying relocation %d: %d -> %d", j, sortRep[i], i); 
                             relocTable->getRelocation(j)->setSymbolInfo(i);
-                            doneMod[j] = true;
+                            doneMod[k][j] = true;
                         }
                     } else {
                         if (relocTable->getRelocation(j)->getSymbol() == sortRep[i] &&
-                            !doneMod[j]){
+                            !doneMod[k][j]){
                             PRINT_DEBUG_HASH("\t\tmodifying relocation %d: %d -> %d", j, sortRep[i], i); 
                             relocTable->getRelocation(j)->setSymbolInfo(i);
-                            doneMod[j] = true;
+                            doneMod[k][j] = true;
                         }
                     }
                 }
             }
         }
     } 
+    for (uint32_t i = 0; i < elfFile->getNumberOfRelocationTables(); i++){
+        delete[] doneMod[i];
+    }
 
     for (uint32_t i = firstSymIndex; i < symbols.size(); i++){
         PRINT_DEBUG_HASH("symbol[%d] bucketn %d", i, elf_gnu_hash(symbols[i]->getSymbolName()) % numberOfBuckets);

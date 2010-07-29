@@ -25,7 +25,6 @@
 
 #define __MAX_STRING_SIZE 1024
 
-//#define USING_MPI_WRAPPERS
 #define USING_CSTD_WRAPPERS
 
 //#define COMPILE_32BIT
@@ -62,6 +61,7 @@ typedef struct
     __fname ## _pebil_wrapper
 
 // simplistic method to fill format strings
+/*
 int write_formatstr(char* str, const char* format, int64_t* args){
     int i;
     int isescaped = 0, argcount = 0;
@@ -101,9 +101,10 @@ int write_formatstr(char* str, const char* format, int64_t* args){
         return;
     }
 }
+*/
 
 int taskid;
-#ifdef USING_MPI_WRAPPERS
+#ifdef HAVE_MPI
 #define __taskid taskid
 #define __ntasks ntasks
 #define __taskmarker "-[t%d]- "
@@ -114,29 +115,29 @@ int __ntasks;
 
 // C init wrapper
 int __wrapper_name(MPI_Init)(int* argc, char*** argv){
-    fprintf(stdout, "original program args %d %x\n", *argc, *argv);
-    int retval = MPI_Init(argc, argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
-    MPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
+    int retval = PMPI_Init(argc, argv);
 
-    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
+    PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
+    PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
+
+    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in MPI_Init wrapper\n", getpid(), __taskid, __ntasks, gethostid());
 
     return retval;
 }
 
 // fortran init wrapper
-extern void mpi_init_(int* ierr);
-extern void mpi_comm_rank_(int* comm, int* rank, int* ierr);
-extern void mpi_comm_size_(int* comm, int* rank, int* ierr);
+extern void pmpi_init_(int* ierr);
+extern void pmpi_comm_rank_(int* comm, int* rank, int* ierr);
+extern void pmpi_comm_size_(int* comm, int* rank, int* ierr);
 void __wrapper_name(mpi_init_)(int* ierr){
-    mpi_init_(ierr);
+    pmpi_init_(&ierr);
 
     int myerr;
     MPI_Comm world = MPI_COMM_WORLD;
-    mpi_comm_rank_(&world, &__taskid, &myerr);
-    mpi_comm_size_(&world, &__ntasks, &myerr);
+    pmpi_comm_rank_(&world, &__taskid, &myerr);
+    pmpi_comm_size_(&world, &__ntasks, &myerr);
 
-    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
+    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
 }
 
 #else

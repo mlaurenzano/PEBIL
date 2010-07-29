@@ -32,6 +32,9 @@ depend:
 	$(MAKE) -C instcode depend
 	$(MAKE) -C tools depend
 
+docs:
+	doxygen
+
 dist: clean
 	mkdir $(DISTDIR)
 	cp -r testapps src tools external bin docs include lib instcode scripts COPYING INSTALL VERSION Makefile $(DISTDIR)

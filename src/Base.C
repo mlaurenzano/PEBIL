@@ -14,6 +14,8 @@
 
 #include <Base.h>
 
+FILE* pebilOutp = stdout;
+
 bool allSpace(char* str){
     int32_t len = strlen(str);
     for(int32_t i=0;i<len;i++){

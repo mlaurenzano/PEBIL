@@ -30,9 +30,10 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"===============================\n");
     fprintf(stderr,"\t--help : print this help message\n");
     fprintf(stderr,"\t--version : print version number and exit\n");
+    fprintf(stderr,"\t--silent : supress all non-critical messages\n");
     fprintf(stderr,"\t--typ : required for all.\n");
     fprintf(stderr,"\t--app : required for all.\n");
-    fprintf(stderr,"\t--ver : optional for all. prints informative details about parts of the application binary.\n");
+    fprintf(stderr,"\t--inf : optional for all. prints informative details about parts of the application binary.\n");
     if (detail){
         fprintf(stderr,"\t      : a : all parts of the application\n");
         fprintf(stderr,"\t      : b : <none>\n");
@@ -63,8 +64,8 @@ void printBriefOptions(bool detail){
     }
     fprintf(stderr,"\t--dry : optional for all. processes options only.\n");
     fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
-    fprintf(stderr,"\t        default is $PEBIL_ROOT\n");
-    fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions\n");
+    fprintf(stderr,"\t        default is $PEBIL_ROOT/lib\n");
+    fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions. if first line of file is '*\\n', this is treated as a whitelist\n");
     fprintf(stderr,"\t        default is %s(32b)/%s(64b)\n", DEFAULT_FUNC_BLACKLIST32, DEFAULT_FUNC_BLACKLIST64);
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
@@ -89,9 +90,9 @@ void printUsage(bool shouldExt=false, bool optDetail=false) {
     fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|csc|ftm|crp)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
     fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
-    fprintf(stderr,"\t[--ver [a-z]*]\n");
+    fprintf(stderr,"\t[--inf [a-z]*]\n");
     fprintf(stderr,"\t[--lib <shared_lib_dir>]\n");
-    fprintf(stderr,"\t\tdefault is $PEBIL_ROOT\n");
+    fprintf(stderr,"\t\tdefault is $PEBIL_ROOT/lib\n");
     fprintf(stderr,"\t[--ext <output_suffix>]\n");
     fprintf(stderr,"\t[--dtl]\n");
     fprintf(stderr,"\t[--fbl file]\n");
@@ -103,6 +104,7 @@ void printUsage(bool shouldExt=false, bool optDetail=false) {
     fprintf(stderr,"\t[--dmp (off|on|nosim)]      <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--help]\n");
     fprintf(stderr,"\t[--version]\n");
+    fprintf(stderr,"\t[--silent]\n");
     fprintf(stderr,"\n");
     if(shouldExt){
         printBriefOptions(optDetail);
@@ -212,6 +214,7 @@ int main(int argc,char* argv[]){
     char*    appName    = NULL;
     char*    dfpName    = NULL;
     uint32_t dumpCode   = Total_DumpCode;
+    bool runSilent      = false;
 
     TIMER(double t = timer());
     for (int32_t i = 1; i < argc; i++){
@@ -253,7 +256,7 @@ int main(int argc,char* argv[]){
             printUsage(true, true);
         } else if (!strcmp(argv[i],"--version")){
             fprintf(stdout, "pebil %s\n", PEBIL_VER);
-            exit(-1);
+            exit(0);
         }
     }
 
@@ -270,7 +273,6 @@ int main(int argc,char* argv[]){
             }
         }
         sprintf(appName, "%s\0", execName + startApp);
-        PRINT_INFOR("application name: %s", appName);
     }
 
     if ((instType <= unknown_inst_type) || 
@@ -333,7 +335,7 @@ int main(int argc,char* argv[]){
                 printUsage();
             }
             dfpName = argv[++i];
-        } else if (!strcmp(argv[i],"--ver")){
+        } else if (!strcmp(argv[i],"--inf")){
             verbose = true;
             rawPrintCodes = argv[++i];
         } else if (!strcmp(argv[i],"--dtl")){
@@ -373,6 +375,8 @@ int main(int argc,char* argv[]){
                 fprintf(stderr,"\nError : Option %s given to --dmp is invalid\n",argv[i]);
                 printUsage(argv);
             }
+        } else if (!strcmp(argv[i],"--silent")){
+            runSilent = true;
         } else {
             fprintf(stderr,"\nError : Unknown switch at %s\n\n",argv[i]);
             printUsage();
@@ -396,6 +400,15 @@ int main(int argc,char* argv[]){
     if (instType == simulation_inst_type){
         ASSERT(!phaseNo || phaseNo == 1 && "Error : Support for multiple phases is deprecated");
     }
+
+    if (runSilent){
+        pebilOutp = fopen("/dev/null", "w");
+        if (!pebilOutp){
+            PRINT_WARN(10, "Cannot open file /dev/null for silent output");
+            pebilOutp = stdout;
+        }
+    }
+    PRINT_INFOR("application name: %s", appName);
 
     if (verbose){
         if (!rawPrintCodes){

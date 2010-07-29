@@ -21,11 +21,12 @@
 #include <Loop.h>
 #include <TextSection.h>
 
-#define MPI_INIT_WRAPPER_CBIND "MPI_Init_pebil_wrapper"
-#define MPI_INIT_LIST_CBIND "PMPI_Init:MPI_Init"
-
-#define MPI_INIT_WRAPPER_FBIND "mpi_init__pebil_wrapper"
-#define MPI_INIT_LIST_FBIND "pmpi_init_:mpi_init_:MPI_INIT"
+#define MPI_INIT_WRAPPER_CBIND   "MPI_Init_pebil_wrapper"
+#define MPI_INIT_LIST_CBIND_PREF "PMPI_Init"
+#define MPI_INIT_LIST_CBIND      "MPI_Init"
+#define MPI_INIT_WRAPPER_FBIND   "mpi_init__pebil_wrapper"
+#define MPI_INIT_LIST_FBIND_PREF "pmpi_init_"
+#define MPI_INIT_LIST_FBIND      "mpi_init_:MPI_INIT"
 
 InstrumentationTool::InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase, bool lpi, bool dtl)
     : ElfFileInst(elf)
@@ -37,21 +38,54 @@ InstrumentationTool::InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase
 }
 
 void InstrumentationTool::declare(){
+#ifdef HAVE_MPI
     initWrapperC = declareFunction(MPI_INIT_WRAPPER_CBIND);
     initWrapperF = declareFunction(MPI_INIT_WRAPPER_FBIND);
     ASSERT(initWrapperC && "Cannot find MPI_Init function, are you sure it was declared?");
     ASSERT(initWrapperF && "Cannot find MPI_Init function, are you sure it was declared?");
+#endif //HAVE_MPI
 }
 
 void InstrumentationTool::instrument(){
+#ifdef HAVE_MPI
+    int initFound = 0;
+
     // wrap any call to MPI_Init
-    Vector<X86Instruction*>* mpiInitCalls = findAllCalls(MPI_INIT_LIST_CBIND);
+    Vector<X86Instruction*>* mpiInitCalls = findAllCalls(MPI_INIT_LIST_CBIND_PREF);
     initWrapperC->setSkipWrapper();
     for (uint32_t i = 0; i < (*mpiInitCalls).size(); i++){
         ASSERT((*mpiInitCalls)[i]->isFunctionCall());
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
         PRINT_INFOR("Adding MPI_Init wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
         InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperC, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        initFound++;
+    }
+    delete mpiInitCalls;
+
+    mpiInitCalls = findAllCalls(MPI_INIT_LIST_FBIND_PREF);
+    initWrapperF->setSkipWrapper();
+    for (uint32_t i = 0; i < (*mpiInitCalls).size(); i++){
+        ASSERT((*mpiInitCalls)[i]->isFunctionCall());
+        ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
+        PRINT_INFOR("Adding mpi_init_ wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        initFound++;
+    }
+    delete mpiInitCalls;
+    if (initFound){
+        PRINT_INFOR("MPI Profile library calls found, skipping regular...");
+        return;
+    }
+
+    // we just looked for PMPI calls. if none were found look for normal mpi functions
+    mpiInitCalls = findAllCalls(MPI_INIT_LIST_CBIND);
+    initWrapperC->setSkipWrapper();
+    for (uint32_t i = 0; i < (*mpiInitCalls).size(); i++){
+        ASSERT((*mpiInitCalls)[i]->isFunctionCall());
+        ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
+        PRINT_INFOR("Adding MPI_Init wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperC, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        initFound++;
     }
     delete mpiInitCalls;
 
@@ -62,8 +96,11 @@ void InstrumentationTool::instrument(){
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
         PRINT_INFOR("Adding mpi_init_ wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
         InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        initFound++;
     }
     delete mpiInitCalls;
+
+#endif //HAVE_MPI
 }
 
 void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos, uint32_t bufferSize){
@@ -87,10 +124,10 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     fprintf(staticFD, "# phase     = %d\n", 0);
     fprintf(staticFD, "# type      = %s\n", briefName());
     fprintf(staticFD, "# cantidate = %d\n", getNumberOfExposedBasicBlocks());
-
     char* sha1sum = getElfFile()->getSHA1Sum();
     fprintf(staticFD, "# sha1sum   = %s\n", sha1sum);
     delete[] sha1sum;
+
     uint32_t memopcnt = 0;
     uint32_t membytcnt = 0;
     uint32_t fltopcnt = 0;

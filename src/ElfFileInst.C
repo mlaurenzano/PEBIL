@@ -282,12 +282,13 @@ void ElfFileInst::compressInstrumentation(uint32_t textSize){
 }
 
 bool ElfFileInst::isDisabledFunction(Function* func){
-    for (uint32_t i = 0; i < (*disabledFunctions).size(); i++){
+    bool white = (*disabledFunctions).size() && (*disabledFunctions)[0][0]=='*';
+    for (uint32_t i = 0 + white; i < (*disabledFunctions).size(); i++){
         if (!strcmp(func->getName(), (*disabledFunctions)[i])){
-            return true;
+            return true ^ white;
         }
     }
-    return false;
+    return false ^ white;
 }
 
 uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, void* data){
@@ -308,6 +309,9 @@ uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, vo
 
 bool ElfFileInst::isEligibleFunction(Function* func){
     if (!strcmp("_start", func->getName())){
+        return true;
+    }
+    if (!strcmp("_fini", func->getName())){
         return true;
     }
     if (!canRelocateFunction(func)){
@@ -560,6 +564,10 @@ uint32_t ElfFileInst::generateInstrumentation(){
         Function* f = (Function*)pt->getSourceObject()->getContainer();
         BasicBlock* bb = f->getBasicBlockAtAddress(pt->getInstSourceAddress());
         if (!f->hasLeafOptimization() && bb && !bb->isEntry()){
+            stackIsSafe = true;
+        }
+        if (pt->getInstrumentation()->getType() == PebilClassType_InstrumentationFunction &&
+            ((InstrumentationFunction*)pt->getInstrumentation())->hasSkipWrapper()){
             stackIsSafe = true;
         } 
         uint64_t registerStorage = getInstDataAddress() + regStorageOffset;

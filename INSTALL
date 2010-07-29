@@ -25,11 +25,23 @@ setenv PATH ${PATH}:${PEBIL_ROOT}/bin:${PEBIL_ROOT}/scripts
 setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${PEBIL_ROOT}/lib
 
 
-3. run the configure script. The mpi compiler detection is currently 
-pretty weak so setting the MPICC variable might be helpful.
+3. PEBIL can be built using either autoconf configure script and the
+resulting makefile or with cmake. 
+3a. Option 1: run the configure script. The mpi compiler detection is currently 
+pretty weak so setting the MPICC variable might be helpful. Some other
+useful flags might be to use --enable-mpi=no if you don't want MPI
+support or --enable-static=yes if your system doesn't support shared
+libraries.
 
-$ ./configure [MPICC=...]
+$ ./configure [MPICC=...] [--enable-mpi=no] [--enable-static=yes]
 
+ b. Options 2: run cmake. If you use this option you will also need to
+    configure/build the udis library.
+
+$ cmake .
+$ cd external/udis86-1.7
+$ ./configure; make
+$ cd -
 
 4. build
 
