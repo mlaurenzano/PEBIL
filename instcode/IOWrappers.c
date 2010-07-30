@@ -101,7 +101,7 @@ int32_t finishwrapper(){
 #include <POSXWrappers.c>
 
 #ifdef HAVE_MPI
-#include <MPIIOWrappers.c>
+//#include <MPIOWrappers.c>
 #endif // HAVE_MPI    
 
 #ifdef HAVE_HDF5
