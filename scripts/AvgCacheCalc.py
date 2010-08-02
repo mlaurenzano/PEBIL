@@ -324,11 +324,17 @@ def printAvgSingle(fileNamepAvg, printType):
 
 # used to sort list of files in natural or numeric order
 def sort_nicely( l ): 
-  """ Sort the given list in the way that humans expect. 
-  """ 
-  convert = lambda text: int(text) if text.isdigit() else text 
-  alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
-  l.sort( key=alphanum_key ) 
+	""" Sort the given list in the way that humans expect. 
+	""" 
+	def convert(text):
+		if text.isdigit():
+			return int(text)
+		else:	
+			return text
+
+	##convert = lambda text: int(text) if text.isdigit() else text
+	alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
+	l.sort( key=alphanum_key ) 
 
 
 
