@@ -19,7 +19,9 @@
 #include <CacheSimulationCommon.h>
 #include <CacheStructures.h>
 
-#define INVALID_ADDRESS 0xdeadbeef
+#ifndef SHIFT_ADDRESS_BUFFER
+  #define INVALID_ADDRESS 0xdeadbeef
+#endif // SHIFT_ADDRESS_BUFFER
 
 #ifdef NO_SAMPLING_MODE
   #define __MAXIMUM_BLOCK_VISIT      500000

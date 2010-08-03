@@ -16,6 +16,7 @@ else(MPI_C_COMPILER)
 endif(NOT MPI_C_COMPILER)
 
 add_definitions(-DPER_SET_RECENT)
+add_definitions(-DSHIFT_ADDRESS_BUFFER)
 
 # pick the sampling mode
 add_definitions(-DNO_SAMPLING_MODE)
