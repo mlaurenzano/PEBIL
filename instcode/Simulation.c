@@ -699,9 +699,14 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         }
 #endif // SHIFT_ADDRESS_BUFFER
     }
+
+#ifdef SHIFT_ADDRESS_BUFFER
+    lastIndex = shiftIdx - 1;
+#else
     if(lastInvalidEntry > -1){
         entries[lastInvalidEntry].memOpId = i;
     }
+#endif // SHIFT_ADDRESS_BUFFER
 
     if (DUMPCODE_HASVALUE_SIMU(dumpCode)){
         processSamples_Simulate(entries,startIndex,lastIndex);
@@ -877,6 +882,13 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* com
 #else
         fprintf(fp,"# recentptr = per cache\n");
 #endif
+
+#ifdef SHIFT_ADDRESS_BUFFER
+        fprintf(fp,"# shiftaddr = yes\n");
+#else
+        fprintf(fp,"# shiftaddr = no\n");
+#endif
+
         fprintf(fp,"#\n");
         for(j=0;j<systemCount;j++){
             MemoryHierarchy* memoryHierarchy = (systems + j);

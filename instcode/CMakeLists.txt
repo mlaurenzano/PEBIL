@@ -1,4 +1,4 @@
-# Project name is not mandatory, but you should use it
+B1;2305;0c# Project name is not mandatory, but you should use it
 project(pebil_instcode C)
 
 # States that CMake required version must be >= 2.6
@@ -19,8 +19,8 @@ add_definitions(-DPER_SET_RECENT)
 add_definitions(-DSHIFT_ADDRESS_BUFFER)
 
 # pick the sampling mode
-add_definitions(-DNO_SAMPLING_MODE)
-#add_definitions(-DEXTENDED_SAMPLING_MODE)
+#add_definitions(-DNO_SAMPLING_MODE)
+add_definitions(-DEXTENDED_SAMPLING_MODE)
 #add_definitions(-DNO_SAMPLING_MODE -DIGNORE_ACTUAL_SIMULATION)
 
 # Create a variable called helloworld_SOURCES containing all .cpp files:
