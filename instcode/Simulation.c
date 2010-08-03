@@ -653,7 +653,9 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             currentBlock->sampleCount++;
             if(currentBlock->visitCount == __MAXIMUM_BLOCK_VISIT){
                 currentBlock->saturationPoint = totalNumberOfAccesses;
-                if (firstRecordForBB) saturatedBlockCount++;
+                if (firstRecordForBB){
+                    saturatedBlockCount++;
+                }
 #ifdef ENABLE_INSTRUMENTATION_KILL
                 if (firstRecordForBB){
                     if (!blockIsKilled[currentEntry->blockId]){
@@ -688,11 +690,15 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             }
             if(currentBlock->visitCount == __MAXIMUM_BLOCK_VISIT){
                 currentBlock->saturationPoint = totalNumberOfAccesses;
-                saturatedBlockCount++;
+                if (firstRecordForBB){
+                    saturatedBlockCount++;
+                }
 #ifdef ENABLE_INSTRUMENTATION_KILL
-                if (!blockIsKilled[currentEntry->blockId]){
-                    blockIsKilled[currentEntry->blockId] = 1;
-                    disableInstrumentationPointsInBlock(currentEntry);
+                if (firstRecordForBB){
+                    if (!blockIsKilled[currentEntry->blockId]){
+                        blockIsKilled[currentEntry->blockId] = 1;
+                        disableInstrumentationPointsInBlock(currentEntry);
+                    }
                 }
 #endif // ENABLE_INSTRUMENTATION_KILL
             }
