@@ -112,7 +112,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     uint32_t numberOfInstPoints = (*allBlocks).size();
 
     char* staticFile = new char[__MAX_STRING_SIZE];
-    sprintf(staticFile,"%s.%s.%s", getApplicationName(), getInstSuffix(), "static");
+    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getInstSuffix(), "static");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 
