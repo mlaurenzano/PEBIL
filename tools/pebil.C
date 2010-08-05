@@ -191,7 +191,7 @@ int main(int argc,char* argv[]){
     char*    inptName   = NULL;
     char*    extension  = "";
     char*    libPath    = NULL;
-    bool     libAlloc   = false;
+    char*    libArg     = NULL;
     int32_t  phaseNo    = 0;
     uint32_t instType   = unknown_inst_type;
     uint32_t argApp     = 0;
@@ -341,7 +341,7 @@ int main(int argc,char* argv[]){
         } else if (!strcmp(argv[i],"--dtl")){
             extdPrnt = true;
         } else if (!strcmp(argv[i],"--lib")){
-            libPath = argv[++i];
+            libArg = argv[++i];
         } else if (!strcmp(argv[i],"--dry")){
             dryRun = true;
         } else if (!strcmp(argv[i],"--fbl")){
@@ -418,14 +418,16 @@ int main(int argc,char* argv[]){
         printCodes = processPrintCodes(rawPrintCodes);
     }
 
-    if(!libPath){
+    if(!libArg){
         char* pebilRoot = getenv("PEBIL_ROOT");
         if (!pebilRoot){
             PRINT_ERROR("Use the --lib option or define the PEBIL_ROOT variable"); 
         }
         libPath = new char[__MAX_STRING_SIZE];
-        libAlloc = true;
         sprintf(libPath, "%s/lib", pebilRoot);
+    } else {
+        libPath = new char[__MAX_STRING_SIZE];
+        sprintf(libPath, "%s/lib", libArg);
     }
     PRINT_INFOR("The instrumentation libraries will be used from %s", libPath);
 
@@ -555,9 +557,7 @@ int main(int argc,char* argv[]){
     if (deleteInpList){
         delete[] inputFuncList;
     }
-    if (libAlloc){
-        delete[] libPath;
-    }
+    delete[] libPath;
     delete[] appName;
 
     PRINT_INFOR("******** Instrumentation Successfull ********");
