@@ -56,6 +56,7 @@ uint32_t FlowGraph::getLoopDepth(uint32_t idx){
     uint32_t depth = 0;
 
     if (loop){
+        depth++;
         for (uint32_t i = 0; i < loops.size(); i++){
             if (loop->getIndex() != i){
                 if (loop->isInnerLoopOf(loops[i])){
