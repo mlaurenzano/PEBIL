@@ -465,7 +465,7 @@ int main(int argc,char* argv[]){
     elfFile.generateCFGs();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d GenCFG  : %.2f seconds",++stepNumber,t2-t1);t1=t2);    
 
-    if (loopIncl){
+    if (loopIncl || extdPrnt){
         elfFile.findLoops();
         TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Loop    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
     }
