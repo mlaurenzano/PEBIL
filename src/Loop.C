@@ -61,8 +61,11 @@ uint32_t Loop::getAllBlocks(BasicBlock** arr){
 }
 
 bool Loop::isInnerLoopOf(Loop* loop){
+    if (getNumberOfBlocks() > loop->getNumberOfBlocks()){
+        return false;
+    }
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        if (loop->isBlockIn(i) && !isBlockIn(i)){
+        if (isBlockIn(i) && !loop->isBlockIn(i)){
             return false;
         }
     }
@@ -70,6 +73,9 @@ bool Loop::isInnerLoopOf(Loop* loop){
 }
 
 bool Loop::isIdenticalLoop(Loop* loop){
+    if (getNumberOfBlocks() != loop->getNumberOfBlocks()){
+        return false;
+    }
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         if (isBlockIn(i) != loop->isBlockIn(i)){
             return false;

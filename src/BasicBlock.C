@@ -419,7 +419,7 @@ bool BasicBlock::containsOnlyControl(){
 }
 
 bool BasicBlock::isDominatedBy(BasicBlock* bb){
-    BasicBlock* dom = immDominatedBy;
+    BasicBlock* dom = this;
     while (dom){
         if (dom == bb){
             return true;
