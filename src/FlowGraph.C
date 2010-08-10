@@ -473,7 +473,6 @@ uint32_t FlowGraph::buildLoops(){
         }
     }
     ASSERT(loops.size() == numberOfLoops);
-    printLoops();
 
     DEBUG_LOOP(printInnerLoops());
 }
