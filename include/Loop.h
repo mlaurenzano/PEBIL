@@ -19,6 +19,8 @@
 #include <BitSet.h>
 #include <Function.h>
 
+extern int compareLoopEntry(const void* arg1,const void* arg2);
+
 class Loop : public Base {
 protected:
     uint32_t index;

@@ -467,11 +467,13 @@ uint32_t FlowGraph::buildLoops(){
         while (!loopList.empty()){
             loops.append(loopList.shift());
         }
+        qsort(&loops,loops.size(),sizeof(Loop*),compareLoopEntry);
         for (i=0; i < loops.size(); i++){
             loops[i]->setIndex(i);
         }
     }
     ASSERT(loops.size() == numberOfLoops);
+    printLoops();
 
     DEBUG_LOOP(printInnerLoops());
 }
