@@ -1,0 +1,138 @@
+<!-- defines IO events that can be passed to a script that automaticaly generates
+     headers and wrappers for them
+  -->
+  <!-- ioclass class=<IO type> # no data # -->
+    <!-- function decl=<function name> ret=<return type> # no data # -->
+      <!-- arg type=<C datatype> trace=<IOEvent_t struct entry> # <argument name> #-->
+      <!-- special location=<n in [0,1]> # some special handling code # -->
+      <!-- trace dest=<IOEvent_t struct entry> # C expr # -->
+      <!-- trace_hdr UNDEFINED # some data that gets put into the trace header #-->
+
+<ioevents>
+
+  <ioclass> POSX
+    <function ret="int"> chmod
+      <arg type="const char*"> path </arg>
+      <arg type="mode_t"> mode </arg>
+    </function>
+
+<!--
+    <function ret="int"> pwrite
+      <arg type="int" trace="handle_id"> fd </arg>
+      <arg type="const void*"> ptr </arg>
+      <arg type="size_t" trace="size"> count </arg>
+      <arg type="off_t" trace="offset"> offset </arg>
+    </function>
+
+    <function ret="int"> pwrite64
+      <arg type="int" trace="handle_id"> fd </arg>
+      <arg type="const void*"> ptr </arg>
+      <arg type="size_t" trace="size"> count </arg>
+      <arg type="off_t" trace="offset"> offset </arg>
+    </function>
+
+    <function ret="int"> write
+      <arg type="int" trace="handle_id"> fd </arg>
+      <arg type="const void*"> ptr </arg>
+      <arg type="size_t" trace="size"> count </arg>
+    </function>
+
+    <function ret="int"> pread
+      <arg type="int" trace="handle_id"> fd </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="size_t" trace="size"> count </arg>
+      <arg type="off_t" trace="offset"> offset </arg>
+    </function>
+
+    <function ret="int"> pread64
+      <arg type="int" trace="handle_id"> fd </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="size_t" trace="size"> count </arg>
+      <arg type="off_t" trace="offset"> offset </arg>
+    </function>
+
+    <function ret="int"> read
+      <arg type="int" trace="handle_id"> fd </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="size_t" trace="size"> count </arg>
+    </function>
+-->
+
+    <function ret="int"> close
+      <arg type="int" trace="handle_id"> fd </arg>
+    </function>
+
+    <function ret="int"> open64
+      <arg type="const char*"> filename </arg>
+      <arg type="int" trace="mode"> mode </arg>
+      <arg type="int" trace="flags"> flags </arg>
+    </function>
+
+    <function ret="int"> stat
+      <arg type="const char*"> pathname </arg>
+      <arg type="struct stat*"> buf </arg>
+    </function>
+
+    <function ret="int"> creat
+      <arg type="const char*"> filename </arg>
+      <arg type="int" trace="flags"> flags </arg>
+    </function>
+  </ioclass>
+
+
+  <ioclass> CLIB
+    <function ret="int"> fseek
+      <arg type="FILE*" trace="handle_id"> stream </arg>
+      <arg type="long int" trace="offset"> offset </arg>
+      <arg type="int" trace="flags"> origin </arg>
+    </function>
+
+    <function ret="size_t"> fwrite
+      <arg type="const void*"> ptr </arg>
+      <arg type="size_t"> size </arg>
+      <arg type="size_t"> count </arg>
+      <trace dest="size"> (size * count) </trace>
+      <arg type="FILE*" trace="handle_id"> stream </arg>
+    </function>
+
+<!--
+    <function ret="size_t"> fread
+      <arg type="const void*"> ptr </arg>
+      <arg type="size_t"> size </arg>
+      <arg type="size_t"> count </arg>
+      <trace dest="size"> (size * count) </trace>
+      <arg type="FILE*"> stream </arg>
+    </function>
+-->
+
+    <function ret="int"> puts
+      <arg type="const char*"> str </arg>
+      <trace dist="size"> strlen(str) </trace>
+    </function>
+
+    <function ret="int"> fflush
+      <arg type="FILE*"> stream </arg>
+    </function>
+
+    <function ret="int"> fclose
+      <arg type="FILE*"> stream </arg>
+    </function>
+
+<!--
+    <function ret="int"> fopen
+      <arg type="const char*"> filename </arg>
+      <arg type="const char*"> mode </arg>
+    </function>
+-->
+
+    <function ret="int"> fstat
+      <arg type="int"> fildes </arg>
+      <arg type="struct stat*"> buf </arg>
+    </function>
+
+    <function ret="int"> fchmod
+      <arg type="int"> fildes </arg>
+      <arg type="mode_t"> mode </arg>
+    </function>
+  </ioclass>
+</ioevents>

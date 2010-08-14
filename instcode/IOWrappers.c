@@ -12,6 +12,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef PRELOAD_WRAPPERS
+#define _GNU_SOURCE
+#include <dlfcn.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,8 +31,9 @@ char** fileNames;
 int32_t* lineNumbers;
 
 // to handle trace buffering
-TraceBuffer_t traceBuffer;
+TraceBuffer_t traceBuffer = { NULL, 65536, 0, 0 };
 char message[__MAX_STRING_SIZE];
+uint32_t callDepth = 0;
 
 // to handle timers
 int64_t timerstart;
@@ -40,6 +46,7 @@ int64_t timerstop;
 
 
 uint32_t dumpBuffer(){
+    PRINT_INSTR(stdout, "dumping buffer");
     if (traceBuffer.outFile == NULL){
         char fname[__MAX_STRING_SIZE];
         sprintf(fname, "pebiliotrace.%d.log", __taskid);
@@ -51,6 +58,7 @@ uint32_t dumpBuffer(){
     traceBuffer.freeIdx = 0;
 
     assert(traceBuffer.freeIdx == 0);
+    PRINT_INSTR(stdout, "dumping buffer out");
     return traceBuffer.freeIdx;
 }
 
@@ -65,6 +73,10 @@ uint32_t storeToBuffer(char* msg, uint32_t sizeInBytes){
     memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), msg, sizeInBytes);
     traceBuffer.freeIdx += sizeInBytes;
 
+#ifdef PRELOAD_WRAPPERS
+    dumpBuffer(traceBuffer);
+#endif
+
     return traceBuffer.freeIdx;
 }
 
@@ -78,10 +90,6 @@ int32_t initwrapper(int32_t* indexLoc, char** fNames, int32_t* lNum){
     lineNumbers = lNum;
 
     taskid = getpid();
-
-    traceBuffer.freeIdx = 0;
-    traceBuffer.size = IO_BUFFER_SIZE;
-    traceBuffer.outFile = NULL;
 }
 
 // do any cleanup here
@@ -91,13 +99,4 @@ int32_t finishwrapper(){
     fclose(traceBuffer.outFile);
 }
 
-#include <CLIBWrappers.c>
-#include <POSXWrappers.c>
-
-#ifdef HAVE_MPI
-//#include <MPIOWrappers.c>
-#endif // HAVE_MPI    
-
-#ifdef HAVE_HDF5
-#include <HDF5Wrappers.c>
-#endif // HAVE_HDF5
+#include <IOEvents.c>

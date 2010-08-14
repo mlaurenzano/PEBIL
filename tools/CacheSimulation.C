@@ -29,7 +29,7 @@
 #define SIM_FUNCTION "MetaSim_simulFuncCall_Simu"
 #define EXIT_FUNCTION "MetaSim_endFuncCall_Simu"
 #define INST_LIB_NAME "libsimulator.so"
-#define BUFFER_ENTRIES 0x00010000
+#define BUFFER_ENTRIES 0x00001000
 #define Size__BufferEntry 16
 #define MAX_MEMOPS_PER_BLOCK 2048
 

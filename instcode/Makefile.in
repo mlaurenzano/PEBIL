@@ -12,6 +12,8 @@ EXTRA_FLAGS = -w
 SHARED_OPT  = -fPIC
 SHARED_LIB  = -shared
 AR          = ar rcs
+PRELD_FLAGS = -DPRELOAD_WRAPPERS $(SHARED_OPT)
+PRELD_LINK  = -ldl
 
 # Jade
 #OPT         = -O3 -w -I/opt/mpt/3.5.0/xt/mpich2-pgi/include# --save-temps
@@ -48,7 +50,8 @@ LIBDIR      = ../lib
 SRCS        = CounterFunctions.c SimulationFunctions.c TimerFunctions.c IOWrappers.c CacheSimulationCommon.c
 OBJS        = CounterFunctions.o SimulationFunctions.o TimerFunctions.o IOWrappers.o CacheSimulationCommon.o
 
-all: $(TARGETS)
+all: IOEvents.h $(TARGETS)
+preload: IOEvents.h libiowrappers_preld.so
 
 %.o: %.c
 	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
@@ -70,14 +73,17 @@ libtimer.a : TimerFunctions.o
 
 libiowrapper.so : IOWrappers.o
 	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o -L$(LIBDIR) $(EXTRA_LIBS)
+libiowrappers_preld.so:
+	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(PRELD_FLAGS)
+	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o -L$(LIBDIR) $(EXTRA_LIBS) $(PRELD_FLAGS) $(PRELD_LINK)
 libiowrapper.a : IOWrappers.o
 	$(AR) $@ IOWrappers.o
 
+IOEvents.h:
+	../scripts/generateIOevents.py
+
 clean: 
-	rm -f *.o *.i *.s *.ii *.a *.so $(TARGETS)
+	rm -f *.o *.i *.s *.ii *.a *.so $(TARGETS) IOEvents.c IOEvents.h
 
 install: $(TARGETS)
 	cp $(TARGETS) $(LIBDIR)
-
-depend:
-	g++ -E -MM -I$(INCDIR) $(SRCS) > DEPENDS
