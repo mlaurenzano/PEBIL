@@ -29,7 +29,7 @@
 #define SIM_FUNCTION "MetaSim_simulFuncCall_Simu"
 #define EXIT_FUNCTION "MetaSim_endFuncCall_Simu"
 #define INST_LIB_NAME "libsimulator.so"
-#define BUFFER_ENTRIES 0x00001000
+#define BUFFER_ENTRIES 0x00010000
 #define Size__BufferEntry 16
 #define MAX_MEMOPS_PER_BLOCK 2048
 
@@ -233,6 +233,7 @@ void CacheSimulation::instrument(){
     uint64_t bufferStore  = reserveDataOffset(BUFFER_ENTRIES * Size__BufferEntry);
     char* emptyBuff = new char[BUFFER_ENTRIES * Size__BufferEntry];
     bzero(emptyBuff, BUFFER_ENTRIES * Size__BufferEntry);
+    emptyBuff[0] = 1;
     initializeReservedData(getInstDataAddress() + bufferStore, BUFFER_ENTRIES * Size__BufferEntry, emptyBuff);
     delete[] emptyBuff;
 
@@ -367,7 +368,7 @@ void CacheSimulation::instrument(){
                                 memcnt -= 0x7f;
                             }
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitAddImmByteToMem64(memcnt, getInstDataAddress() + bufferStore));
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg1, true));
+                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg1, false));
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitCompareImmReg(BUFFER_ENTRIES - maxMemopsInSuccessor, tmpReg1));
                             
                             // restore regs
