@@ -2,7 +2,7 @@ STATIC_INST_LIB  = @STATIC_INST_LIB@
 ifeq ($(STATIC_INST_LIB),yes)
 	TARGETS = libcounter.a  libsimulator.a  libtimer.a  libiowrapper.a
 else
-	TARGETS = libcounter.so libsimulator.so libtimer.so libiowrapper.so
+	TARGETS = libcounter.so libsimulator.so libtimer.so libiowrapper.so libiowrapper_preld.so
 endif
 
 MPICC       = @MPICC@
@@ -73,7 +73,7 @@ libtimer.a : TimerFunctions.o
 
 libiowrapper.so : IOWrappers.o
 	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o -L$(LIBDIR) $(EXTRA_LIBS)
-libiowrappers_preld.so:
+libiowrapper_preld.so:
 	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(PRELD_FLAGS)
 	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o -L$(LIBDIR) $(EXTRA_LIBS) $(PRELD_FLAGS) $(PRELD_LINK)
 libiowrapper.a : IOWrappers.o

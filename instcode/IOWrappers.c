@@ -23,7 +23,7 @@
 #include <assert.h>
 #include <string.h>
 #include <InstrumentationCommon.h>
-#include <IOWrapper.h>
+#include <IOWrappers.h>
 
 char* appName;
 int32_t* currentSiteIndex;
@@ -41,11 +41,14 @@ int64_t timerstop;
 #define TIMER_START (timerstart = readtsc())
 #define TIMER_STOP  (timerstop  = readtsc())
 #define TIMER_VALUE (timerstop - timerstart)
-#define TIMER_EXECUTE(__stmts) TIMER_START; __stmts TIMER_STOP; 
+#define TIMER_EXECUTE(__stmts) callDepth++; TIMER_START; __stmts callDepth--; TIMER_STOP; 
 #define PRINT_TIMER(__file) PRINT_INSTR(__file, "timer value (in cycles): %lld", TIMER_VALUE)
 
+// the dump function makes IO calls. so we must protect from an infinite recursion
+uint32_t iowrapperDepth = 0;
 
 uint32_t dumpBuffer(){
+    iowrapperDepth++;
     PRINT_INSTR(stdout, "dumping buffer");
     if (traceBuffer.outFile == NULL){
         char fname[__MAX_STRING_SIZE];
@@ -59,10 +62,15 @@ uint32_t dumpBuffer(){
 
     assert(traceBuffer.freeIdx == 0);
     PRINT_INSTR(stdout, "dumping buffer out");
+    iowrapperDepth--;
     return traceBuffer.freeIdx;
 }
 
 uint32_t storeToBuffer(char* msg, uint32_t sizeInBytes){
+    if (iowrapperDepth){
+        return 0;
+    }
+
     // if traceBuffer is full dump it
     if (sizeInBytes > traceBuffer.size - traceBuffer.freeIdx){
         dumpBuffer(traceBuffer);

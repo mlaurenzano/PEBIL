@@ -76,8 +76,6 @@
       <arg type="int" trace="flags"> flags </arg>
     </function>
   </ioclass>
-
-
   <ioclass> CLIB
     <function ret="int"> fseek
       <arg type="FILE*" trace="handle_id"> stream </arg>
@@ -93,13 +91,18 @@
       <arg type="FILE*" trace="handle_id"> stream </arg>
     </function>
 
+    <function ret="int"> fflush
+      <arg type="FILE*"> stream </arg>
+    </function>
+
+    <function ret="FILE*"> fopen
+      <arg type="const char*"> filename </arg>
+      <arg type="const char*"> mode </arg>
+    </function>
+
     <function ret="int"> puts
       <arg type="const char*"> str </arg>
       <trace dist="size"> strlen(str) </trace>
-    </function>
-
-    <function ret="int"> fflush
-      <arg type="FILE*"> stream </arg>
     </function>
 
     <function ret="int"> fclose
@@ -114,11 +117,6 @@
       <arg type="FILE*"> stream </arg>
     </function>
 
-    <function ret="FILE*"> fopen
-      <arg type="const char*"> filename </arg>
-      <arg type="const char*"> mode </arg>
-    </function>
-
     <function ret="int"> fstat
       <arg type="int"> fildes </arg>
       <arg type="struct stat*"> buf </arg>
@@ -128,5 +126,6 @@
       <arg type="int"> fildes </arg>
       <arg type="mode_t"> mode </arg>
     </function>
+
   </ioclass>
 </ioevents>
