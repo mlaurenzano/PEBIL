@@ -23,6 +23,13 @@ add_definitions(-DSHIFT_ADDRESS_BUFFER)
 add_definitions(-DEXTENDED_SAMPLING_MODE)
 #add_definitions(-DNO_SAMPLING_MODE -DIGNORE_ACTUAL_SIMULATION)
 
+ADD_CUSTOM_COMMAND(
+        OUTPUT IOEvents.C IOEvents.h
+        COMMAND ../scripts/generateIOevents.py
+        DEPENDS ../docs/ioevents.xml
+)
+ADD_CUSTOM_TARGET(ioevents ALL DEPENDS IOEvents.h)
+
 # Create a variable called helloworld_SOURCES containing all .cpp files:
 set(counter_SOURCES CounterFunctions.c)
 set(simulator_SOURCES SimulationFunctions.c CacheSimulationCommon.c)
