@@ -16,47 +16,45 @@
       <arg type="mode_t"> mode </arg>
     </function>
 
-<!--
-    <function ret="int"> pwrite
+    <function ret="ssize_t"> write
+      <arg type="int" trace="handle_id"> fd </arg>
+      <arg type="const void*"> ptr </arg>
+      <arg type="size_t" trace="size"> count </arg>
+    </function>
+
+    <function ret="ssize_t"> pwrite
       <arg type="int" trace="handle_id"> fd </arg>
       <arg type="const void*"> ptr </arg>
       <arg type="size_t" trace="size"> count </arg>
       <arg type="off_t" trace="offset"> offset </arg>
     </function>
 
-    <function ret="int"> pwrite64
+    <function ret="ssize_t"> pwrite64
       <arg type="int" trace="handle_id"> fd </arg>
       <arg type="const void*"> ptr </arg>
       <arg type="size_t" trace="size"> count </arg>
       <arg type="off_t" trace="offset"> offset </arg>
     </function>
 
-    <function ret="int"> write
-      <arg type="int" trace="handle_id"> fd </arg>
-      <arg type="const void*"> ptr </arg>
-      <arg type="size_t" trace="size"> count </arg>
-    </function>
-
-    <function ret="int"> pread
+    <function ret="ssize_t"> pread
       <arg type="int" trace="handle_id"> fd </arg>
       <arg type="void*"> buf </arg>
       <arg type="size_t" trace="size"> count </arg>
       <arg type="off_t" trace="offset"> offset </arg>
     </function>
 
-    <function ret="int"> pread64
+    <function ret="ssize_t"> pread64
       <arg type="int" trace="handle_id"> fd </arg>
       <arg type="void*"> buf </arg>
       <arg type="size_t" trace="size"> count </arg>
       <arg type="off_t" trace="offset"> offset </arg>
     </function>
 
-    <function ret="int"> read
+    <function ret="ssize_t"> read
       <arg type="int" trace="handle_id"> fd </arg>
       <arg type="void*"> buf </arg>
       <arg type="size_t" trace="size"> count </arg>
     </function>
--->
 
     <function ret="int"> close
       <arg type="int" trace="handle_id"> fd </arg>
@@ -95,16 +93,6 @@
       <arg type="FILE*" trace="handle_id"> stream </arg>
     </function>
 
-<!--
-    <function ret="size_t"> fread
-      <arg type="const void*"> ptr </arg>
-      <arg type="size_t"> size </arg>
-      <arg type="size_t"> count </arg>
-      <trace dest="size"> (size * count) </trace>
-      <arg type="FILE*"> stream </arg>
-    </function>
--->
-
     <function ret="int"> puts
       <arg type="const char*"> str </arg>
       <trace dist="size"> strlen(str) </trace>
@@ -118,12 +106,18 @@
       <arg type="FILE*"> stream </arg>
     </function>
 
-<!--
-    <function ret="int"> fopen
+    <function ret="size_t"> fread
+      <arg type="void*"> ptr </arg>
+      <arg type="size_t"> size </arg>
+      <arg type="size_t"> count </arg>
+      <trace dest="size"> (size * count) </trace>
+      <arg type="FILE*"> stream </arg>
+    </function>
+
+    <function ret="FILE*"> fopen
       <arg type="const char*"> filename </arg>
       <arg type="const char*"> mode </arg>
     </function>
--->
 
     <function ret="int"> fstat
       <arg type="int"> fildes </arg>
