@@ -21,13 +21,13 @@ int main(int argc, char** argv){
 int clibtest(){
 }
 int systest(){
-    char* buf;
+    char* buf = malloc(1024);
     struct stat* st = malloc(sizeof(struct stat));
     int f = open("/dev/null", O_APPEND, O_RDWR);
     write(f, TEST_MSG, 11);
     pwrite(f, TEST_MSG, 11, 0);
-    read(f, buf, 0);
-    pread(f, buf, 0, 0);
+    read(f, buf, 2);
+    pread(f, buf, 3, 0xab);
     close(f);
 
     f = creat(TEST_NAME, O_WRONLY);

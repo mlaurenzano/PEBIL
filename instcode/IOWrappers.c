@@ -32,8 +32,8 @@ int32_t* lineNumbers;
 
 // to handle trace buffering
 TraceBuffer_t traceBuffer = { NULL, 65536, 0, 0 };
-char message[__MAX_STRING_SIZE];
 uint32_t callDepth = 0;
+io_event entry;
 
 // to handle timers
 int64_t timerstart;
@@ -41,15 +41,18 @@ int64_t timerstop;
 #define TIMER_START (timerstart = readtsc())
 #define TIMER_STOP  (timerstop  = readtsc())
 #define TIMER_VALUE (timerstop - timerstart)
-#define TIMER_EXECUTE(__stmts) callDepth++; TIMER_START; __stmts callDepth--; TIMER_STOP; 
+#define TIMER_EXECUTE(__stmts) callDepth++; TIMER_START; __stmts TIMER_STOP; callDepth--;
 #define PRINT_TIMER(__file) PRINT_INSTR(__file, "timer value (in cycles): %lld", TIMER_VALUE)
 
-// the dump function makes IO calls. so we must protect from an infinite recursion
+// the dump function makes IO calls. so we must protect from an infinite recursion by not entering
+// any buffer function if one is already stacked
 uint32_t iowrapperDepth = 0;
 
 uint32_t dumpBuffer(){
+    if (iowrapperDepth){
+        return 0;
+    }
     iowrapperDepth++;
-    PRINT_INSTR(stdout, "dumping buffer");
     if (traceBuffer.outFile == NULL){
         char fname[__MAX_STRING_SIZE];
         sprintf(fname, "pebiliotrace.%d.log", __taskid);
@@ -61,31 +64,40 @@ uint32_t dumpBuffer(){
     traceBuffer.freeIdx = 0;
 
     assert(traceBuffer.freeIdx == 0);
-    PRINT_INSTR(stdout, "dumping buffer out");
     iowrapperDepth--;
     return traceBuffer.freeIdx;
 }
 
-uint32_t storeToBuffer(char* msg, uint32_t sizeInBytes){
+uint32_t storeToBuffer(io_event* event){
     if (iowrapperDepth){
         return 0;
     }
-
+    iowrapperDepth++;
     // if traceBuffer is full dump it
-    if (sizeInBytes > traceBuffer.size - traceBuffer.freeIdx){
+    if (sizeof(io_event) >= traceBuffer.size - traceBuffer.freeIdx){
         dumpBuffer(traceBuffer);
     }
-    assert(sizeInBytes < traceBuffer.size - traceBuffer.freeIdx);
+    assert(sizeof(io_event) < traceBuffer.size - traceBuffer.freeIdx);
 
+    char message[MAX_MESSAGE_SIZE];
+    bzero(&message, MAX_MESSAGE_SIZE);
+    sprintf(message, "class=%s, o_class=%hhd, h_class=%hhd, mode=%hhd, e_type=%s, h_id=%hd, flags=%d, source=%lld, size=%lld, offset=%lld\n\0",
+            IOEventClassNames[event->class], event->offset_class, event->handle_class, event->mode, 
+            IOEventNames[event->event_type], event->handle_id, event->flags, event->source, event->size, event->offset);
+    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), message, strlen(message));
     // store the msg to the buffer
-    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), msg, sizeInBytes);
-    traceBuffer.freeIdx += sizeInBytes;
+    //    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), event, sizeof(io_event));
+    traceBuffer.freeIdx += strlen(message);//sizeof(io_event);
 
+    iowrapperDepth--;
 #ifdef PRELOAD_WRAPPERS
     dumpBuffer(traceBuffer);
 #endif
-
     return traceBuffer.freeIdx;
+}
+
+int32_t checkFileName(char* filename){
+    return 0;
 }
 
 // do any initialization here
@@ -96,8 +108,6 @@ int32_t initwrapper(int32_t* indexLoc, char** fNames, int32_t* lNum){
 
     fileNames = fNames;
     lineNumbers = lNum;
-
-    taskid = getpid();
 }
 
 // do any cleanup here

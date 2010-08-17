@@ -13,7 +13,7 @@ typedef struct {
     uint8_t  class;
     uint8_t  offset_class;
     uint8_t  handle_class;
-    uint8_t  file_mode;
+    uint8_t  mode;
     uint16_t event_type;
     uint16_t handle_id;
     uint32_t flags;
@@ -25,12 +25,23 @@ typedef struct {
 } io_event;
 
 typedef enum {
-    IO_Offset_Invalid,
-    IO_Offset_SET,
-    IO_Offset_CUR,
-    IO_Offset_END,
-    IO_Offset_Total_Types
+    IOOffset_Invalid,
+    IOOffset_SET,
+    IOOffset_CUR,
+    IOOffset_END,
+    IOOffset_Total_Types
 } IOOffsetClasses;
+
+uint8_t offsetOriginToClass(int origin){
+    if (origin == SEEK_SET){
+        return IOOffset_SET;
+    } else if (origin == SEEK_CUR){
+        return IOOffset_CUR;
+    } else if (origin == SEEK_END){
+        return IOOffset_END;
+    }
+    return IOOffset_Invalid;
+}
 
 typedef struct {
     FILE*    outFile;
@@ -40,12 +51,12 @@ typedef struct {
 } TraceBuffer_t;
 
 typedef enum {
-    IO_Handle_Invalid,
-    IO_Handle_NAME,
-    IO_Handle_CLIB,
-    IO_Handle_POSX,
-    IO_Handle_MPIO,
-    IO_Handle_HDF5,
-    IO_Handle_FLIB,
-    IO_Handle_Total_Types
+    IOHandle_Invalid,
+    IOHandle_NAME,
+    IOHandle_CLIB,
+    IOHandle_POSX,
+    IOHandle_MPIO,
+    IOHandle_HDF5,
+    IOHandle_FLIB,
+    IOHandle_Total_Types
 } IOHandleClasses;

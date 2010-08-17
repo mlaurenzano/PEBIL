@@ -7,12 +7,28 @@
       <!-- special location=<n in [0,1]> # some special handling code # -->
       <!-- trace dest=<IOEvent_t struct entry> # C expr # -->
       <!-- trace_hdr UNDEFINED # some data that gets put into the trace header #-->
+<!-- for arg, trace attribute should be one of these
+typedef struct {
+    uint8_t  class;
+    uint8_t  offset_class;
+    uint8_t  handle_class;
+    uint8_t  mode;
+    uint16_t event_type;
+    uint16_t handle_id;
+    uint32_t flags;
+    uint64_t source;
+    uint64_t size;
+    uint64_t offset;
+    uint64_t start_time;
+    uint64_t end_time;
+} io_event;
+-->
 
 <ioevents>
 
   <ioclass> POSX
     <function ret="int"> chmod
-      <arg type="const char*"> path </arg>
+      <arg type="const char*" file="name"> path </arg>
       <arg type="mode_t"> mode </arg>
     </function>
 
@@ -27,6 +43,7 @@
       <arg type="const void*"> ptr </arg>
       <arg type="size_t" trace="size"> count </arg>
       <arg type="off_t" trace="offset"> offset </arg>
+      <trace dest="offset_class"> IOOffset_SET </trace>
     </function>
 
     <function ret="ssize_t"> pwrite64
@@ -34,6 +51,7 @@
       <arg type="const void*"> ptr </arg>
       <arg type="size_t" trace="size"> count </arg>
       <arg type="off_t" trace="offset"> offset </arg>
+      <trace dest="offset_class"> IOOffset_SET </trace>
     </function>
 
     <function ret="ssize_t"> pread
@@ -41,6 +59,7 @@
       <arg type="void*"> buf </arg>
       <arg type="size_t" trace="size"> count </arg>
       <arg type="off_t" trace="offset"> offset </arg>
+      <trace dest="offset_class"> IOOffset_SET </trace>
     </function>
 
     <function ret="ssize_t"> pread64
@@ -48,6 +67,7 @@
       <arg type="void*"> buf </arg>
       <arg type="size_t" trace="size"> count </arg>
       <arg type="off_t" trace="offset"> offset </arg>
+      <trace dest="offset_class"> IOOffset_SET </trace>
     </function>
 
     <function ret="ssize_t"> read
@@ -61,26 +81,28 @@
     </function>
 
     <function ret="int"> open64
-      <arg type="const char*"> filename </arg>
-      <arg type="int" trace="mode"> mode </arg>
+      <arg type="const char*" file="ret"> filename </arg>
+      <arg type="int"> mode </arg>
       <arg type="int" trace="flags"> flags </arg>
     </function>
 
     <function ret="int"> stat
-      <arg type="const char*"> pathname </arg>
+      <arg type="const char*" file="name"> pathname </arg>
       <arg type="struct stat*"> buf </arg>
     </function>
 
     <function ret="int"> creat
-      <arg type="const char*"> filename </arg>
+      <arg type="const char*" file="ret"> filename </arg>
       <arg type="int" trace="flags"> flags </arg>
     </function>
   </ioclass>
+
   <ioclass> CLIB
     <function ret="int"> fseek
       <arg type="FILE*" trace="handle_id"> stream </arg>
       <arg type="long int" trace="offset"> offset </arg>
       <arg type="int" trace="flags"> origin </arg>
+      <trace dest="offset_class"> offsetOriginToClass(origin) </trace>
     </function>
 
     <function ret="size_t"> fwrite
@@ -92,21 +114,21 @@
     </function>
 
     <function ret="int"> fflush
-      <arg type="FILE*"> stream </arg>
+      <arg type="FILE*" trace="handle_id"> stream </arg>
     </function>
 
     <function ret="FILE*"> fopen
-      <arg type="const char*"> filename </arg>
+      <arg type="const char*" file="ret"> filename </arg>
       <arg type="const char*"> mode </arg>
     </function>
 
     <function ret="int"> puts
-      <arg type="const char*"> str </arg>
-      <trace dist="size"> strlen(str) </trace>
+      <arg type="const char*" file="stdout"> str </arg>
+      <trace dest="size"> strlen(str) </trace>
     </function>
 
     <function ret="int"> fclose
-      <arg type="FILE*"> stream </arg>
+      <arg type="FILE*" trace="handle_id"> stream </arg>
     </function>
 
     <function ret="size_t"> fread
@@ -114,16 +136,16 @@
       <arg type="size_t"> size </arg>
       <arg type="size_t"> count </arg>
       <trace dest="size"> (size * count) </trace>
-      <arg type="FILE*"> stream </arg>
+      <arg type="FILE*" trace="handle_id"> stream </arg>
     </function>
 
     <function ret="int"> fstat
-      <arg type="int"> fildes </arg>
+      <arg type="int" trace="handle_id"> fildes </arg>
       <arg type="struct stat*"> buf </arg>
     </function>
 
     <function ret="int"> fchmod
-      <arg type="int"> fildes </arg>
+      <arg type="int" trace="handle_id"> fildes </arg>
       <arg type="mode_t"> mode </arg>
     </function>
 
