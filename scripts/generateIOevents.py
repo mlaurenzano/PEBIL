@@ -98,37 +98,32 @@ def buildFunctionCode(funcdom):
 #    code += ')\\n", ' + string.join([string.strip(a.firstChild.data) for a in args], ', ') + ');\n'
 #    code += '\tstoreToBuffer(message, strlen(message));\n'
     
-    code += '\tbzero(&entry, sizeof(io_event));\n'
+    code += '\tEventInfo_t entry;\n'
+    code += '\tbzero(&entry, sizeof(EventInfo_t));\n'
     code += '\tentry.class = ' + eventclassenum + '_' + classname + ';\n'
     code += '\tentry.event_type = IOEvent_' + classname + '_' + fname + ';\n'
 
+    traces = f.getElementsByTagName('trace')
+    for t in traces:
+        code += '\tentry.' + t.getAttribute('dest') + ' = ' + string.strip(t.firstChild.data) + ';\n';
+
     for a in args:
+        filetyp = a.getAttribute('file')
+        if filetyp:
+            if filetyp == 'name':
+                code += '\tentry.handle_id = storeFileName(' + string.strip(a.firstChild.data) + ', 0, IOHandle_NAME, IOFileAccess_ONCE, 1);\n'
+                code += '\tentry.handle_class = IOHandle_NAME;\n'
+            elif filetyp == 'handle':
+                code += '\tentry.handle_class = IOHandle_' + classname + ';\n'
+                code += '\tstoreFileName(' + string.strip(a.firstChild.data) + ', entry.handle_id, entry.handle_class, IOFileAccess_OPEN, 1);\n'
+
         trace = a.getAttribute('trace')
         if trace:
             code += '\tentry.' + trace + ' = ' + string.strip(a.firstChild.data) + ';\n'
             if trace == 'handle_id':
                 code += '\tentry.handle_class = IOHandle_' + classname  + ';\n'
 
-        filetyp = a.getAttribute('file')
-        if filetyp:
-            if filetyp == 'name':
-                code += '\tentry.handle_id = checkFileName(' + string.strip(a.firstChild.data) + ');\n'
-                code += '\tentry.handle_class = IOHandle_NAME;\n'
-            elif filetyp == 'ret':
-                code += '\tentry.handle_id = retval;\n'
-                code += '\tentry.handle_class = IOHandle_' + classname + ';\n'
-                code += '\tcheckFileName(' + string.strip(a.firstChild.data) + ');\n'
-            elif filetyp == 'stdout':
-                code += '\tentry.handle_id = stdout;\n'
-                code += '\tentry.handle_class = IOHandle_' + classname + ';\n'
-
-
-
-    traces = f.getElementsByTagName('trace')
-    for t in traces:
-        code += '\tentry.' + t.getAttribute('dest') + ' = ' + string.strip(t.firstChild.data) + ';\n';
-
-    code += '\tstoreToBuffer(&entry);\n'
+    code += '\tstoreEventInfo(&entry);\n'
 
     # special location 2 -- before return
     for s in specials:

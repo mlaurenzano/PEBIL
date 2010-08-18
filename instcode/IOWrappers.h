@@ -6,8 +6,21 @@
 #include <stdio.h>
 #include <IOEvents.h>
 
-#define IO_BUFFER_SIZE 0x100000
-#define MAX_MESSAGE_SIZE 2048
+#define __IO_BUFFER_SIZE 0x100000
+#define __MAX_MESSAGE_SIZE 0x800
+#define __MAX_FILE_NAMES 0x4000
+
+
+#define GET_RECORD_SIZE(__record) (__record >> 8)
+#define GET_RECORD_TYPE(__record) (__record & 0x000000ff)
+#define RECORD_HEADER(__type, __size) (((__size << 8) & 0xffffff00) | __type)
+
+typedef enum {
+    IORecord_Invalid,
+    IORecord_EventInfo,
+    IORecord_FileName,
+    IORecord_Total_Types
+} IORecordType_t;
 
 typedef struct {
     uint8_t  class;
@@ -16,13 +29,21 @@ typedef struct {
     uint8_t  mode;
     uint16_t event_type;
     uint16_t handle_id;
-    uint32_t flags;
+    uint64_t unqid;
     uint64_t source;
     uint64_t size;
     uint64_t offset;
     uint64_t start_time;
     uint64_t end_time;
-} io_event;
+} EventInfo_t;
+
+typedef struct {
+    uint8_t handle_class;
+    uint8_t access_type;
+    uint16_t numchars;
+    uint32_t handle;
+    uint64_t event_id;
+} IOFileName_t;
 
 typedef enum {
     IOOffset_Invalid,
@@ -30,7 +51,14 @@ typedef enum {
     IOOffset_CUR,
     IOOffset_END,
     IOOffset_Total_Types
-} IOOffsetClasses;
+} IOOffsetClass_t;
+extern const char* IOOffsetClassNames[IOOffset_Total_Types];
+const char* IOOffsetClassNames[IOOffset_Total_Types] = {
+    "Invalid",
+    "SET",
+    "CUR",
+    "END"
+};
 
 uint8_t offsetOriginToClass(int origin){
     if (origin == SEEK_SET){
@@ -47,7 +75,7 @@ typedef struct {
     FILE*    outFile;
     uint32_t size;
     uint32_t freeIdx;
-    char     storage[IO_BUFFER_SIZE];
+    char     storage[__IO_BUFFER_SIZE];
 } TraceBuffer_t;
 
 typedef enum {
@@ -60,3 +88,11 @@ typedef enum {
     IOHandle_FLIB,
     IOHandle_Total_Types
 } IOHandleClasses;
+
+typedef enum {
+    IOFileAccess_Invalid,
+    IOFileAccess_ONCE,
+    IOFileAccess_OPEN,
+    IOFileAccess_SYS,
+    IOFileAccess_Total_Types
+} IOFileAccess_t;
