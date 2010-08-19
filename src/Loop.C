@@ -19,6 +19,33 @@
 #include <FlowGraph.h>
 #include <Function.h>
 
+int compareLoopEntry(const void* arg1, const void* arg2){
+    Loop* lp1 = *((Loop**)arg1);
+    Loop* lp2 = *((Loop**)arg2);
+
+    ASSERT(lp1 && lp2 && "Symbols should exist");
+
+    uint64_t vl1 = lp1->getHead()->getBaseAddress();
+    uint64_t vl2 = lp2->getHead()->getBaseAddress();
+
+    if(vl1 < vl2)
+        return -1;
+    else if(vl1 > vl2)
+        return 1;
+    else { //(vl1 == vl2)
+        if (lp1->getHead()->getNumberOfBytes() < lp2->getHead()->getNumberOfBytes()){
+            return -1;
+        } else if (lp1->getHead()->getNumberOfBytes() > lp2->getHead()->getNumberOfBytes()){
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+
 Loop::~Loop(){
     delete blocks;
 }
@@ -61,8 +88,11 @@ uint32_t Loop::getAllBlocks(BasicBlock** arr){
 }
 
 bool Loop::isInnerLoopOf(Loop* loop){
+    if (getNumberOfBlocks() > loop->getNumberOfBlocks()){
+        return false;
+    }
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        if (loop->isBlockIn(i) && !isBlockIn(i)){
+        if (isBlockIn(i) && !loop->isBlockIn(i)){
             return false;
         }
     }
@@ -70,6 +100,9 @@ bool Loop::isInnerLoopOf(Loop* loop){
 }
 
 bool Loop::isIdenticalLoop(Loop* loop){
+    if (getNumberOfBlocks() != loop->getNumberOfBlocks()){
+        return false;
+    }
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         if (isBlockIn(i) != loop->isBlockIn(i)){
             return false;

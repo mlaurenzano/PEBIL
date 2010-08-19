@@ -112,7 +112,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     uint32_t numberOfInstPoints = (*allBlocks).size();
 
     char* staticFile = new char[__MAX_STRING_SIZE];
-    sprintf(staticFile,"%s.%s.%s", getApplicationName(), getInstSuffix(), "static");
+    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getInstSuffix(), "static");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 
@@ -156,10 +156,9 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     fprintf(staticFD, "# libTag    = %s\n", "revision REVISION");
     fprintf(staticFD, "# %s\n", "<no additional info>");
     fprintf(staticFD, "# <sequence> <block_unqid> <memop> <fpop> <insn> <line> <fname> # <hex_unq_id> <vaddr>\n");
-    if (loopIncl){
-        fprintf(staticFD, "# +lpi <loopcnt> <loopid> <ldepth>\n");
-    }
+
     if (printDetail){
+        fprintf(staticFD, "# +lpi <loopcnt> <loopid> <ldepth>\n");
         fprintf(staticFD, "# +cnt <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op>\n");
         fprintf(staticFD, "# +mem <total_mem_op> <total_mem_bytes> <bytes/op>\n");
     }
@@ -196,10 +195,9 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
                 (*allBlockIds)[i], bb->getHashCode().getValue(), bb->getNumberOfMemoryOps(), bb->getNumberOfFloatOps(), 
                 bb->getNumberOfInstructions(), fileName, lineNo, bb->getFunction()->getName(), 
                 bb->getHashCode().getValue(), bb->getLeader()->getProgramAddress());
-        if (loopIncl){
-            fprintf(staticFD, "\t+lpi\t%d\t%d\t%d # %#llx\n", loopCount, loopId, loopDepth, bb->getHashCode().getValue());
-        }
+
         if (printDetail){
+            fprintf(staticFD, "\t+lpi\t%d\t%d\t%d # %#llx\n", loopCount, loopId, loopDepth, bb->getHashCode().getValue());
             fprintf(staticFD, "\t+cnt\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", 
                     bb->getNumberOfBranches(), bb->getNumberOfIntegerOps(), bb->getNumberOfLogicOps(), bb->getNumberOfShiftRotOps(),
                     bb->getNumberOfSyscalls(), bb->getNumberOfSpecialRegOps(), bb->getNumberOfStringOps(),

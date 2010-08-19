@@ -54,7 +54,9 @@ Loop* FlowGraph::getInnermostLoopForBlock(uint32_t idx){
 uint32_t FlowGraph::getLoopDepth(uint32_t idx){
     Loop* loop = getInnermostLoopForBlock(idx);
     uint32_t depth = 0;
+
     if (loop){
+        depth++;
         for (uint32_t i = 0; i < loops.size(); i++){
             if (loop->getIndex() != i){
                 if (loop->isInnerLoopOf(loops[i])){
@@ -352,7 +354,7 @@ void FlowGraph::printLoops(){
 void FlowGraph::printInnerLoops(){
     for (uint32_t i = 0; i < loops.size(); i++){
         for (uint32_t j = 0; j < loops.size(); j++){
-            if (loops[i]->isInnerLoopOf(loops[j])){
+            if (i != j && loops[j]->isInnerLoopOf(loops[i])){
                 PRINT_INFOR("Loop %d is inside loop %d", j, i);
             }
             if (i == j){
@@ -404,7 +406,7 @@ uint32_t FlowGraph::buildLoops(){
     delete completedBitSet;
 
     if(backEdges.empty()){
-        PRINT_DEBUG("\t%d Contains %d loops (back edges) from %d", getIndex(),loops.size(),basicBlocks.size());
+        PRINT_DEBUG_LOOP("\t%d Contains %d loops (back edges) from %d", getIndex(),loops.size(),basicBlocks.size());
         return 0;
     }
 
@@ -465,6 +467,7 @@ uint32_t FlowGraph::buildLoops(){
         while (!loopList.empty()){
             loops.append(loopList.shift());
         }
+        qsort(&loops,loops.size(),sizeof(Loop*),compareLoopEntry);
         for (i=0; i < loops.size(); i++){
             loops[i]->setIndex(i);
         }

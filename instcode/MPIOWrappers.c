@@ -12,13 +12,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <InstrumentationCommon.h>
 #include <mpi.h>
-
 
 // MPI IO file basic ops
 int __wrapper_name(MPI_File_open)(MPI_Comm comm, char* filename, int amode, MPI_Info info, MPI_File *fh){
-    int retval = MPI_File_open(comm, filename, amode, info, fh);
+    TIME_INSIDE(int retval = MPI_File_open(comm, filename, amode, info, fh);)
     PRINT_INSTR(logfile, "MPI_File_open ([%d]%s:%d): comm=%x file=%s mode=%d mpifile=%d", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], comm, filename, amode, *fh);
     return retval;
 }
@@ -36,10 +34,8 @@ int __wrapper_name(MPI_File_seek)(MPI_File fh, MPI_Offset offset, int whence){
 
 // MPI IO read calls
 int __wrapper_name(MPI_File_read_at)(MPI_File fh, MPI_Offset offset, void* buf, int count, MPI_Datatype datatype, MPI_Status* status){
-    starttimer();
-    int retval = MPI_File_read_at(fh, offset, buf, count, datatype, status);
-    stoptimer();
-    PRINT_INSTR(logfile, "MPI_File_read_at ([%d]%s:%d): mpifile=%d offset=%lld count=%lld timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], fh, offset, count, gettimer());
+    TIME_INSIDE(int retval = MPI_File_read_at(fh, offset, buf, count, datatype, status);)
+    PRINT_INSTR(logfile, "MPI_File_read_at ([%d]%s:%d): mpifile=%d offset=%lld count=%lld timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], fh, offset, count, TIMER_VALUE());
     return retval;
 }
 

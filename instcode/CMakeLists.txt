@@ -16,17 +16,25 @@ else(MPI_C_COMPILER)
 endif(NOT MPI_C_COMPILER)
 
 add_definitions(-DPER_SET_RECENT)
+add_definitions(-DSHIFT_ADDRESS_BUFFER)
 
 # pick the sampling mode
-add_definitions(-DNO_SAMPLING_MODE)
-#add_definitions(-DEXTENDED_SAMPLING_MODE)
+#add_definitions(-DNO_SAMPLING_MODE)
+add_definitions(-DEXTENDED_SAMPLING_MODE)
 #add_definitions(-DNO_SAMPLING_MODE -DIGNORE_ACTUAL_SIMULATION)
+
+ADD_CUSTOM_COMMAND(
+        OUTPUT IOEvents.C IOEvents.h
+        COMMAND ../scripts/generateIOevents.py
+        DEPENDS ../docs/ioevents.xml
+)
+ADD_CUSTOM_TARGET(ioevents ALL DEPENDS IOEvents.h)
 
 # Create a variable called helloworld_SOURCES containing all .cpp files:
 set(counter_SOURCES CounterFunctions.c)
 set(simulator_SOURCES SimulationFunctions.c CacheSimulationCommon.c)
 set(timer_SOURCES TimerFunctions.c)
-set(tracer_SOURCES TracerFunctions.c)
+set(iowrapper_SOURCES IOWrappers.c)
 
 # set this globally? doesn't make sense here
 include_directories(".")
@@ -37,9 +45,9 @@ include_directories(".")
 add_library(counter SHARED ${counter_SOURCES})
 add_library(simulator SHARED ${simulator_SOURCES})
 add_library(timer SHARED ${timer_SOURCES})
-add_library(tracer SHARED ${tracer_SOURCES})
+add_library(iowrapper SHARED ${iowrapper_SOURCES})
 
 install(TARGETS counter DESTINATION "lib")
 install(TARGETS simulator DESTINATION "lib")
 install(TARGETS timer DESTINATION "lib")
-install(TARGETS tracer DESTINATION "lib")
+install(TARGETS iowrapper DESTINATION "lib")

@@ -32,7 +32,7 @@ char* blockIsKilled;
 int32_t numberKilled;
 uint64_t* blockCounters;
 
-#define ENABLE_INSTRUMENTATION_KILL
+//#define ENABLE_INSTRUMENTATION_KILL
 //#define DEBUG_INST_KILL
 
 void clearBlockCounters(){
@@ -357,6 +357,7 @@ void processSamples_StreamDump(BufferEntry* entries,Attribute_t startIndex,Attri
         register Attribute_t currentMemOp = currentEntry->memOpId;
         register Address_t currentAddress = currentEntry->address;
         
+#ifndef SHIFT_ADDRESS_BUFFER
         // currentMemOp is set in such a way that values will be skipped by this code due to sampling.
         // This is a bit of a hack. Ideally, we would use something like 0xffffffffffffffff as the "bad"
         // address value since addresses can be 0 sometimes.
@@ -366,6 +367,7 @@ void processSamples_StreamDump(BufferEntry* entries,Attribute_t startIndex,Attri
                 continue;
             }
         }
+#endif // SHIFT_ADDRESS_BUFFER
         accessIdx++;
         
 #ifdef METASIM_32_BIT_LIB
@@ -403,6 +405,7 @@ static int ntimes2;
             register Attribute_t currentMemOp = currentEntry->memOpId;
             register Address_t currentAddress = currentEntry->address;
 
+#ifndef SHIFT_ADDRESS_BUFFER
             // currentMemOp is set in such a way that values will be skipped by this code due to sampling.
             // This is a bit of a hack. Ideally, we would use something like 0xffffffffffffffff as the "bad"
             // address value since addresses can be 0 sometimes.
@@ -412,6 +415,7 @@ static int ntimes2;
                     continue;
                 }
             }
+#endif // SHIFT_ADDRESS_BUFFER
             ++accessIdx;
 
             //PRINT_INSTR(stdout, "Buffer Entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
@@ -460,15 +464,15 @@ static int ntimes2;
 */
               ++level;
               prevLevel = cache;
+              if(status == cache_miss) {
+                  ++currentBlock->hitMissCounters[STATUS_IDX(
+                                                             systemIdx, level - 1, cache_miss)];
+              } else {
+                  ++currentBlock->hitMissCounters[STATUS_IDX(
+                                                             systemIdx, level - 1, cache_hit)];
+              }
+              
             } while( status == cache_miss && level < memoryHierarchy->levelCount);
-
-            if(status == cache_miss) {
-                ++currentBlock->hitMissCounters[STATUS_IDX(
-                     systemIdx, level - 1, cache_miss)];
-            } else {
-                ++currentBlock->hitMissCounters[STATUS_IDX(
-                    systemIdx, level - 1, cache_hit)];
-            }
 
         }
     }
@@ -499,7 +503,9 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         char      extension[__MAX_STRING_SIZE];
 
         sscanf(comment,"%s %u %s %u %u",appName,&phaseId,extension,&blockCount,&dumpCode);
-        PRINT_INSTR(stdout, "comment handled -- %s %u %s %u %u", appName, phaseId, extension, blockCount, dumpCode);
+        //PRINT_INSTR(stdout, "comment handled -- %s %u %s %u %u", appName, phaseId, extension, blockCount, dumpCode);
+        // PRINT_INSTR(stdout, "%d blocks, %d entries in buffer, lastFree %d", blockCount, *entryCountPtr, entries->lastFreeIdx);
+
         blocks = (BasicBlockInfo*)malloc(sizeof(BasicBlockInfo) * blockCount);
         bzero(blocks,sizeof(BasicBlockInfo)*blockCount);
         initCaches(systems, systemCount);
@@ -625,6 +631,11 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
 
     register int32_t lastInvalidEntry = startIndex-1;
     register BasicBlockInfo* previousBlock = NULL;
+    register int32_t firstRecordForBB = 0;
+#ifdef SHIFT_ADDRESS_BUFFER
+    register Attribute_t shiftIdx = startIndex;
+    entries[lastInvalidEntry].memOpId = startIndex;
+#endif // SHIFT_ADDRESS_BUFFER
     for(i = startIndex;i <= lastIndex; i++){
         register BufferEntry* currentEntry = (entries + i);
         register BasicBlockInfo* currentBlock = (blocks + currentEntry->blockId);
@@ -633,7 +644,31 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         if(!currentMemOp || (currentBlock != previousBlock)){
             currentBlock->visitCount++;
             previousBlock = currentBlock;
+            firstRecordForBB = 1;
         }
+#ifdef SHIFT_ADDRESS_BUFFER
+        if(currentBlock->visitCount <= __MAXIMUM_BLOCK_VISIT){
+            if(i != shiftIdx){
+                entries[shiftIdx] = entries[i];
+            }
+            shiftIdx++;
+            currentBlock->sampleCount++;
+            if(currentBlock->visitCount == __MAXIMUM_BLOCK_VISIT){
+                currentBlock->saturationPoint = totalNumberOfAccesses;
+                if (firstRecordForBB){
+                    saturatedBlockCount++;
+                }
+#ifdef ENABLE_INSTRUMENTATION_KILL
+                if (firstRecordForBB){
+                    if (!blockIsKilled[currentEntry->blockId]){
+                        blockIsKilled[currentEntry->blockId] = 1;
+                        disableInstrumentationPointsInBlock(currentEntry);
+                    }
+                }
+#endif // ENABLE_INSTRUMENTATION_KILL
+            }
+        }
+#else // !SHIFT_ADDRESS_BUFFER
         if(currentBlock->visitCount > __MAXIMUM_BLOCK_VISIT){
             currentEntry->address = INVALID_ADDRESS;
             if(lastInvalidEntry < 0){
@@ -643,7 +678,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             if (!blockIsKilled[currentEntry->blockId]){
                 assert(0 && "fatal: instrumentation should be killed when visitcount == MAX_VISIT");
             }
-#endif
+#endif // ENABLE_INSTRUMENTATION_KILL
         } else {
             //PRINT_INSTR(stdout, "current entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
             if(currentEntry->address == INVALID_ADDRESS){
@@ -657,19 +692,29 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             }
             if(currentBlock->visitCount == __MAXIMUM_BLOCK_VISIT){
                 currentBlock->saturationPoint = totalNumberOfAccesses;
-                saturatedBlockCount++;
-#ifdef ENABLE_INSTRUMENTATION_KILL
-                if (!blockIsKilled[currentEntry->blockId]){
-                    blockIsKilled[currentEntry->blockId] = 1;
-                    disableInstrumentationPointsInBlock(currentEntry);
+                if (firstRecordForBB){
+                    saturatedBlockCount++;
                 }
-#endif
+#ifdef ENABLE_INSTRUMENTATION_KILL
+                if (firstRecordForBB){
+                    if (!blockIsKilled[currentEntry->blockId]){
+                        blockIsKilled[currentEntry->blockId] = 1;
+                        disableInstrumentationPointsInBlock(currentEntry);
+                    }
+                }
+#endif // ENABLE_INSTRUMENTATION_KILL
             }
         }
+#endif // SHIFT_ADDRESS_BUFFER
     }
+
+#ifdef SHIFT_ADDRESS_BUFFER
+    lastIndex = shiftIdx - 1;
+#else
     if(lastInvalidEntry > -1){
         entries[lastInvalidEntry].memOpId = i;
     }
+#endif // SHIFT_ADDRESS_BUFFER
 
     if (DUMPCODE_HASVALUE_SIMU(dumpCode)){
         processSamples_Simulate(entries,startIndex,lastIndex);
@@ -845,6 +890,13 @@ void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* com
 #else
         fprintf(fp,"# recentptr = per cache\n");
 #endif
+
+#ifdef SHIFT_ADDRESS_BUFFER
+        fprintf(fp,"# shiftaddr = yes\n");
+#else
+        fprintf(fp,"# shiftaddr = no\n");
+#endif
+
         fprintf(fp,"#\n");
         for(j=0;j<systemCount;j++){
             MemoryHierarchy* memoryHierarchy = (systems + j);

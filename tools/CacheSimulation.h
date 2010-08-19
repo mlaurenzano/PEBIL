@@ -39,6 +39,7 @@ private:
     uint64_t instPointInfo;
 
     void filterBBs();
+    void printDFPStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos);
 
 public:
     CacheSimulation(ElfFile* elf, char* inputName, char* ext, uint32_t phase, bool lpi, bool dtl, char* dfpFile);

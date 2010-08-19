@@ -192,6 +192,7 @@ public:
 
     char* getApplicationName() { return elfFile->getAppName(); }
     uint32_t getApplicationSize() { return elfFile->getFileSize(); }
+    char* getFullFileName() { return elfFile->getFileName(); }
     char* getInstSuffix() { return instSuffix; }
 
     char* getInstrumentationLibrary(uint32_t idx) { return instrumentationLibraries[idx]; }

@@ -12,150 +12,184 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef PRELOAD_WRAPPERS
+#define _GNU_SOURCE
+#include <dlfcn.h>
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <assert.h>
+#include <string.h>
 #include <InstrumentationCommon.h>
+#include <IOWrappers.h>
 
-int __wrapper_name(printf)(const char* format, ...){
-    PRINT_INSTR(stdout, "printf");
-    va_list argp;
-    va_start(argp, format);
-    int retval = __wrapper_name(vfprintf)(stdout, format, argp);
-    va_end(argp);
-    return retval;
-}
+char* appName;
+int32_t* currentSiteIndex;
+char** fileNames;
+int32_t* lineNumbers;
 
-int __wrapper_name(vprintf)(const char* format, va_list argp){
-    PRINT_INSTR(stdout, "vprintf");
-    int retval = __wrapper_name(vfprintf)(stdout, format, argp);
-    return retval;
-}
+// to handle trace buffering
+TraceBuffer_t traceBuffer = { NULL, __IO_BUFFER_SIZE, 0, 0 };
+uint32_t callDepth = 0;
+IOFileName_t filereg;
+uint64_t eventIndex = 0;
+uint32_t fileRegSeq = 0x400;
 
-int __wrapper_name(fprintf)(FILE* stream, const char* format, ...){
-    PRINT_INSTR(stdout, "fprintf");
-    va_list argp;
-    va_start(argp, format);
-    int retval = __wrapper_name(vfprintf)(stream, format, argp);
-    va_end(argp);
-    return retval;
-}
+// the dump function makes IO calls. so we must protect from an infinite recursion by not entering
+// any buffer function if one is already stacked
+uint32_t iowrapperDepth = 0;
+#define CALL_DEPTH_ENTER(__var) if (__var) { return 0; } __var++;
+#define CALL_DEPTH_EXIT(__var) __var--;
 
-int __wrapper_name(vfprintf)(FILE* stream, const char* format, va_list argp){
-    PRINT_INSTR(stdout, "vfprintf");
-    starttimer();
-    int retval = vfprintf(stream, format, argp);
-    stoptimer();
-    if (stream == NULL){
-        PRINT_INSTR(logfile, "fprintf ([%d]%s:%d): fileno=INV timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], gettimer());
-    } else {
-        PRINT_INSTR(logfile, "fprintf ([%d]%s:%d): size=%d fileno=%hhd timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], strlen(format), stream->_fileno, gettimer());
-    }
-    return retval;
-}
+// to handle timers
+int64_t timerstart;
+int64_t timerstop;
+#define TIMER_START (timerstart = readtsc())
+#define TIMER_STOP  (timerstop  = readtsc())
+#define TIMER_VALUE (timerstop - timerstart)
+#define TIMER_EXECUTE(__stmts) TIMER_START; __stmts TIMER_STOP; 
+#define PRINT_TIMER(__file) PRINT_INSTR(__file, "timer value (in cycles): %lld", TIMER_VALUE)
 
-int __wrapper_name(fseek)(FILE* stream, long int offset, int origin){
-    if (stream == NULL){        
-        PRINT_INSTR(logfile, "fseek ([%d]%s:%d): fileno=INV", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex]);
-    } else {
-        char* org = malloc(9);
-        sprintf(org, "SEEK_INV\0");
-        if (origin == SEEK_SET){
-            sprintf(org, "SEEK_SET\0");
-        } else if (origin == SEEK_CUR){
-            sprintf(org, "SEEK_CUR\0");
-        } else if (origin == SEEK_END){
-            sprintf(org, "SEEK_END\0");
-        }
-        PRINT_INSTR(logfile, "fseek ([%d]%s:%d): offset=%lld origin=%s fileno=%hhd", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], offset, org, stream->_fileno);
-        free(org);
+extern void printInitInfo(FILE* file);
+
+uint32_t dumpBuffer(){
+    CALL_DEPTH_ENTER(iowrapperDepth);
+
+    if (traceBuffer.outFile == NULL){
+        char fname[__MAX_STRING_SIZE];
+        sprintf(fname, "pebiliotrace.%d.log", __taskid);
+        traceBuffer.outFile = fopen(fname, "w");
+
+        printInitInfo(traceBuffer.outFile);
     }
 
-    return fseek(stream, offset, origin);
+    uint32_t oerr = fwrite(traceBuffer.storage, sizeof(char), traceBuffer.freeIdx, traceBuffer.outFile);
+    assert(oerr == traceBuffer.freeIdx);
+    traceBuffer.freeIdx = 0;
+
+    assert(traceBuffer.freeIdx == 0);
+    CALL_DEPTH_EXIT(iowrapperDepth);
+
+    return traceBuffer.freeIdx;
 }
 
-size_t __wrapper_name(libc_write)(int fd, const void* ptr, size_t count){
-    starttimer();
-    int retval = write(fd, ptr, count);
-    stoptimer();
-    PRINT_INSTR(stdout, "libc_write ([%d]%s:%d): handle=%d size=%d timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], fd, count, gettimer());
+uint32_t storeRecord(uint8_t type, uint32_t size){
 
-    return retval;
+    // RECORD_HEADER(type, size)
+    char message[__MAX_MESSAGE_SIZE];
+    bzero(&message, __MAX_MESSAGE_SIZE);
+    sprintf(message, "type %hhd\tsize %d\n", type, size);
+    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), message, strlen(message));
+    traceBuffer.freeIdx += strlen(message);//sizeof(EventInfo_t);
+
+#ifdef PRELOAD_WRAPPERS
+    dumpBuffer(traceBuffer);
+#endif
+
+    return 0;
 }
 
-size_t __wrapper_name(fwrite)(const void* ptr, size_t size, size_t count, FILE* stream){
-    starttimer();
-    int retval = fwrite(ptr, size, count, stream);
-    stoptimer();
-    if (stream == NULL){
-        PRINT_INSTR(logfile, "fwrite ([%d]%s:%d): fileno=INV timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], gettimer());
+uint32_t storeFileName(char* name, uint32_t handle, uint8_t class, uint8_t type, uint8_t protect){
+    if (protect) { CALL_DEPTH_ENTER(iowrapperDepth); }
+
+    bzero(&filereg, sizeof(IOFileName_t));
+    filereg.handle_class = class;
+    filereg.access_type = type;
+    filereg.numchars = strlen(name)+1;
+    if (class == IOFileAccess_ONCE){
+        filereg.handle = fileRegSeq++;
     } else {
-        PRINT_INSTR(logfile, "fwrite ([%d]%s:%d): size=%d fileno=%hhd timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], size * count, stream->_fileno, gettimer());
+        filereg.handle = handle;
     }
+    filereg.event_id = eventIndex;
 
-    return retval;
+    storeRecord(IORecord_FileName, sizeof(IOFileName_t) + filereg.numchars);
+
+    char message[__MAX_MESSAGE_SIZE];
+    bzero(&message, __MAX_MESSAGE_SIZE);
+    sprintf(message, "\tunqid %5lld: h_class %hhd\ta_type %hhd\tnumchars %d\thandle %d name %s\n",
+            filereg.event_id, filereg.handle_class, filereg.access_type, filereg.numchars, filereg.handle, name);
+
+    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), message, strlen(message));
+    traceBuffer.freeIdx += strlen(message);//sizeof(EventInfo_t);
+    if (protect) { CALL_DEPTH_EXIT(iowrapperDepth); }
+
+#ifdef PRELOAD_WRAPPERS
+    dumpBuffer(traceBuffer);
+#endif
+
+    return filereg.handle;
 }
 
-size_t __wrapper_name(libc_read)(int fd, void* buf, size_t count){
-    starttimer();
-    int retval = read(fd, buf, count);
-    stoptimer();
-    PRINT_INSTR(stdout, "libc_read ([%d]%s:%d): handle=%d size=%d timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], fd, count, gettimer());    
-    return retval;
-}
+uint32_t storeEventInfo(EventInfo_t* event){
+    CALL_DEPTH_ENTER(iowrapperDepth);
 
-size_t __wrapper_name(fread)(void* ptr, size_t size, size_t count, FILE* stream){
-    starttimer();
-    int retval = fread(ptr, size, count, stream);
-    stoptimer();
-    if (stream == NULL){
-        PRINT_INSTR(logfile, "fread ([%d]%s:%d): fileno=INV timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], gettimer());
-    } else {
-        PRINT_INSTR(logfile, "fread ([%d]%s:%d): size=%d fileno=%hhd timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], size * count, stream->_fileno, gettimer());
+    // if traceBuffer is full dump it
+
+    if (sizeof(EventInfo_t) >= traceBuffer.size - traceBuffer.freeIdx){
+        dumpBuffer(traceBuffer);
     }
+    assert(sizeof(EventInfo_t) < traceBuffer.size - traceBuffer.freeIdx);
+
+    storeRecord(IORecord_EventInfo, sizeof(EventInfo_t));
+
+    char message[__MAX_MESSAGE_SIZE];
+    bzero(&message, __MAX_MESSAGE_SIZE);
+    event->unqid = eventIndex;
+    sprintf(message, "\tunqid %5lld: class=%s, o_class=%s, h_class=%hhd, mode=%hhd, e_type=%s, h_id=%hd, source=%lld, size=%lld, offset=%lld\n\0",
+            event->unqid, IOEventClassNames[event->class], IOOffsetClassNames[event->offset_class], event->handle_class, event->mode, 
+            IOEventNames[event->event_type], event->handle_id, event->source, event->size, event->offset);
+    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), message, strlen(message));
+    // store the msg to the buffer
+    //    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), event, sizeof(EventInfo_t));
+    traceBuffer.freeIdx += strlen(message);//sizeof(EventInfo_t);
+
+    eventIndex++;
+    CALL_DEPTH_EXIT(iowrapperDepth);
+
+#ifdef PRELOAD_WRAPPERS
+    dumpBuffer(traceBuffer);
+#endif
+    return traceBuffer.freeIdx;
+}
+
+void printInitInfo(FILE* file){
+    storeFileName("stdout", stdout->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0);
+    storeFileName("stderr", stderr->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0);
+    storeFileName("stdin", stdin->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0);
+}
+
+// do any initialization here
+// NOTE: on static-linked binaries, calling any functions from here will cause some problems
+int32_t initwrapper(int32_t* indexLoc, char** fNames, int32_t* lNum){
+    // at each call site we will put the index of the originating point in this location
+    currentSiteIndex = indexLoc;
+
+    fileNames = fNames;
+    lineNumbers = lNum;
+}
+
+// do any cleanup here
+int32_t finishwrapper(){
+    PRINT_INSTR(stdout, "Finishing IO Trace for task %d, dumping buffer", __taskid);
+    dumpBuffer(&traceBuffer);
+    fclose(traceBuffer.outFile);
+}
+
+#ifdef PRELOAD_WRAPPERS
+int __libc_start_main(int *(main) (int, char * *, char * *), int argc, char * * ubp_av, void (*init) (void), void (*fini) (void), void (*rtld_fini) (void), void (* stack_end)){
+    PRINT_INSTR(stdout, "Program loaded using pebil IO tracing library, PRELOAD_WRAPPERS version");
+
+    static int *(*__libc_start_main_ptr)(int *(main) (int, char**, char**), int argc, char** ubp_av, void (*init) (void), void (*fini) (void), void (*rtld_fini) (void), void (*stack_end));
+    __libc_start_main_ptr = dlsym(RTLD_NEXT, "__libc_start_main");
+    int retval = __libc_start_main_ptr(main, argc, ubp_av, init, fini, rtld_fini, stack_end);
+
+    PRINT_INSTR(stdout, "Exxit wrap program");
 
     return retval;
 }
+#endif // PRELOAD_WRAPPERS
 
-int __wrapper_name(puts)(const char* str){
-    int retval = puts(str);
-    PRINT_INSTR(logfile, "puts ([%d]%s:%d): size=%d timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], strlen(str), gettimer());
-    return retval;
-}
-
-int __wrapper_name(fflush)(FILE* stream){
-    starttimer();
-    int retval = fflush(stream);
-    stoptimer();
-    if (stream == NULL){
-        PRINT_INSTR(logfile, "fflush ([%d]%s:%d): fileno=ALL timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], gettimer());
-    } else {
-        PRINT_INSTR(logfile, "fflush ([%d]%s:%d): fileno=%hhd timer=%lld", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], stream->_fileno, gettimer());
-    }
-    return retval;
-}
-
-int __wrapper_name(libc_close)(int fd){
-    int retval = close(fd);
-    PRINT_INSTR(logfile, "libc_close ([%d]%s:%d): handle=%d", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], fd);
-}
-
-int __wrapper_name(fclose)(FILE* stream){
-    if (stream == NULL){
-        PRINT_INSTR(logfile, "fclose ([%d]%s:%d): fileno=INV", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex]);
-    } else {
-        PRINT_INSTR(logfile, "fclose ([%d]%s:%d): fileno=%hhd", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], stream->_fileno);
-    }
-    return fclose(stream);
-}
-
-// is this variadic? there is no vopen version, but i've seen it called without flags. for now we just dont use flags
-int __wrapper_name(libc_open64)(const char* filename, int mode, int flags){
-    int retval = open64(filename, mode, flags);
-    PRINT_INSTR(logfile, "libc_open64 ([%d]%s:%d): file=%s mode=%d handle=%d", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], filename, mode, retval);
-    return retval;
-}
-
-FILE* __wrapper_name(fopen)(const char* filename, const char* mode){
-    FILE* retval = fopen(filename, mode);
-    PRINT_INSTR(logfile, "fopen ([%d]%s:%d): file=%s mode=%s fileno=%d", *currentSiteIndex, fileNames[*currentSiteIndex], lineNumbers[*currentSiteIndex], filename, mode, retval->_fileno);
-    return retval;
-}
-
+#include <IOEvents.c>

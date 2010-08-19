@@ -233,6 +233,7 @@ void CacheSimulation::instrument(){
     uint64_t bufferStore  = reserveDataOffset(BUFFER_ENTRIES * Size__BufferEntry);
     char* emptyBuff = new char[BUFFER_ENTRIES * Size__BufferEntry];
     bzero(emptyBuff, BUFFER_ENTRIES * Size__BufferEntry);
+    emptyBuff[0] = 1;
     initializeReservedData(getInstDataAddress() + bufferStore, BUFFER_ENTRIES * Size__BufferEntry, emptyBuff);
     delete[] emptyBuff;
 
@@ -367,7 +368,7 @@ void CacheSimulation::instrument(){
                                 memcnt -= 0x7f;
                             }
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitAddImmByteToMem64(memcnt, getInstDataAddress() + bufferStore));
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg1, true));
+                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg1, false));
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitCompareImmReg(BUFFER_ENTRIES - maxMemopsInSuccessor, tmpReg1));
                             
                             // restore regs
@@ -586,6 +587,9 @@ void CacheSimulation::instrument(){
 #endif
 
     printStaticFile(allBlocks, allBlockIds, allLineInfos, BUFFER_ENTRIES);
+    if(dfpSet.size()){
+        printDFPStaticFile(allBlocks, allBlockIds, allLineInfos);
+    }
 
     delete allBlocks;
     delete allBlockIds;
@@ -595,3 +599,71 @@ void CacheSimulation::instrument(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }
 
+void CacheSimulation::printDFPStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos){
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
+
+    ASSERT(!(*allLineInfos).size() || (*allBlocks).size() == (*allLineInfos).size());
+    ASSERT((*allBlocks).size() == (*allBlockIds).size());
+
+    uint32_t numberOfInstPoints = (*allBlocks).size();
+
+    char* staticFile = new char[__MAX_STRING_SIZE];
+    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getInstSuffix(), "dfp");
+    FILE* staticFD = fopen(staticFile, "w");
+    delete[] staticFile;
+
+    TextSection* text = getDotTextSection();
+
+    fprintf(staticFD, "# appname   = %s\n", getApplicationName());
+    fprintf(staticFD, "# appsize   = %d\n", getApplicationSize());
+    fprintf(staticFD, "# phase     = %d\n", 0);
+    fprintf(staticFD, "# blocks    = %d\n", dfpSet.size());
+    char* sha1sum = getElfFile()->getSHA1Sum();
+    fprintf(staticFD, "# sha1sum   = %s\n", sha1sum);
+    delete[] sha1sum;
+    for (uint32_t i = 0; i < getNumberOfInstrumentationLibraries(); i++){
+        fprintf(staticFD, "# library   = %s\n", getInstrumentationLibrary(i));
+    }
+    fprintf(staticFD, "# libTag    = %s\n", "revision REVISION");
+    fprintf(staticFD, "# <sequence> <block_unqid> <idiom> <loads> <stores> <line> <fname> # <vaddr>\n");
+    if (printDetail){
+        fprintf(staticFD, "# +lpi <loopcnt> <loopid> <ldepth>\n");
+    }
+
+    for (uint32_t i = 0; i < numberOfInstPoints; i++){
+        BasicBlock* bb = (*allBlocks)[i];
+        LineInfo* li = (*allLineInfos)[i];
+        Function* f = bb->getFunction();
+
+        uint32_t loopId = Invalid_UInteger_ID;
+        Loop* loop = bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex());
+        if (loop){
+            loopId = loop->getIndex();
+        }
+        uint32_t loopDepth = bb->getFlowGraph()->getLoopDepth(bb->getIndex());
+        uint32_t loopCount = bb->getFlowGraph()->getNumberOfLoops();
+
+        char* fileName;
+        uint32_t lineNo;
+        if (li){
+            fileName = li->getFileName();
+            lineNo = li->GET(lr_line);
+        } else {
+            fileName = INFO_UNKNOWN;
+            lineNo = 0;
+        }
+
+        DFPatternType dfpType = dfTypePattern_None;
+        if (dfpSet.get((*allBlocks)[i]->getHashCode().getValue(), &dfpType)){
+            fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s # %llx\n",
+                    (*allBlockIds)[i], bb->getHashCode().getValue(), dfpType, bb->getNumberOfLoads(), 
+                    bb->getNumberOfStores(), fileName, lineNo, bb->getFunction()->getName(),
+                    bb->getLeader()->getProgramAddress());
+
+            if (printDetail){
+                fprintf(staticFD, "\t+lpi\t%d\t%d\t%d # %#llx\n", loopCount, loopId, loopDepth, bb->getHashCode().getValue());
+            }
+        }
+
+    }
+}
