@@ -503,7 +503,9 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         char      extension[__MAX_STRING_SIZE];
 
         sscanf(comment,"%s %u %s %u %u",appName,&phaseId,extension,&blockCount,&dumpCode);
-        PRINT_INSTR(stdout, "comment handled -- %s %u %s %u %u", appName, phaseId, extension, blockCount, dumpCode);
+        //PRINT_INSTR(stdout, "comment handled -- %s %u %s %u %u", appName, phaseId, extension, blockCount, dumpCode);
+        // PRINT_INSTR(stdout, "%d blocks, %d entries in buffer, lastFree %d", blockCount, *entryCountPtr, entries->lastFreeIdx);
+
         blocks = (BasicBlockInfo*)malloc(sizeof(BasicBlockInfo) * blockCount);
         bzero(blocks,sizeof(BasicBlockInfo)*blockCount);
         initCaches(systems, systemCount);
