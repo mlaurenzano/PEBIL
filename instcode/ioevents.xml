@@ -21,7 +21,7 @@ typedef struct {
     uint64_t offset;
     uint64_t start_time; //autofilled
     uint64_t end_time; //autofilled
-} io_event;
+} EventInfo_t;
 -->
 
 <ioevents>

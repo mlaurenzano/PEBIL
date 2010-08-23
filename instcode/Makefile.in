@@ -1,9 +1,10 @@
 STATIC_INST_LIB  = @STATIC_INST_LIB@
 ifeq ($(STATIC_INST_LIB),yes)
-	TARGETS = libcounter.a  libsimulator.a  libtimer.a  libiowrapper.a
+	LIB_TARGETS = libcounter.a  libsimulator.a  libtimer.a  libiowrapper.a
 else
-	TARGETS = libcounter.so libsimulator.so libtimer.so libiowrapper.so libiowrapper_preld.so
+	LIB_TARGETS = libcounter.so libsimulator.so libtimer.so libiowrapper.so libiowrapper_preld.so
 endif
+EXEC_TARGETS = readIOLog
 
 MPICC       = @MPICC@
 CFLAGS      = @CFLAGS@
@@ -46,11 +47,9 @@ EXTRA_LIBS  =
 EXTRA_INC   = -I../instcode
 
 LIBDIR      = ../lib
+BINDIR      = ../bin
 
-SRCS        = CounterFunctions.c SimulationFunctions.c TimerFunctions.c IOWrappers.c CacheSimulationCommon.c
-OBJS        = CounterFunctions.o SimulationFunctions.o TimerFunctions.o IOWrappers.o CacheSimulationCommon.o
-
-all: IOEvents.h $(TARGETS)
+all: IOEvents.h $(LIB_TARGETS) $(EXEC_TARGETS)
 preload: IOEvents.h libiowrappers_preld.so
 
 %.o: %.c
@@ -82,8 +81,12 @@ libiowrapper.a : IOWrappers.o
 IOEvents.h:
 	../scripts/generateIOevents.py
 
-clean: 
-	rm -f *.o *.i *.s *.ii *.a *.so $(TARGETS) IOEvents.c IOEvents.h
+readIOLog: readIOLog.o
+	$(CC) $(CFLAGS) -o $@ $<
 
-install: $(TARGETS)
-	cp $(TARGETS) $(LIBDIR)
+clean: 
+	rm -f *.o *.i *.s *.ii *.a *.so $(LIB_TARGETS) IOEvents.c IOEvents.h
+
+install: $(LIB_TARGETS)
+	cp $(LIB_TARGETS) $(LIBDIR)
+	cp $(EXEC_TARGETS) $(BINDIR)

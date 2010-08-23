@@ -19,7 +19,7 @@ import os
 import string
 from xml.dom import minidom
 
-xmldocument = '../docs/ioevents.xml'
+xmldocument = '../instcode/ioevents.xml'
 headerfile  = 'IOEvents.h'
 sourcefile  = 'IOEvents.c'
 wrapperfile = '../scripts/inputlist/iowrappers.inp'

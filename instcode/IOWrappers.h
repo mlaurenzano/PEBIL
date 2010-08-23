@@ -35,6 +35,12 @@ typedef enum {
     IORecord_FileName,
     IORecord_Total_Types
 } IORecordType_t;
+extern const char* IORecordTypeNames[IORecord_Total_Types];
+const char* IORecordTypeNames[IORecord_Total_Types] = {
+    "Invalid",
+    "EventInfo",
+    "FileName"
+};
 
 typedef struct {
     uint8_t  class;

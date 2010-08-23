@@ -33,7 +33,6 @@ int32_t* lineNumbers;
 // to handle trace buffering
 TraceBuffer_t traceBuffer = { NULL, __IO_BUFFER_SIZE, 0, 0 };
 uint32_t callDepth = 0;
-IOFileName_t filereg;
 uint64_t eventIndex = 0;
 uint32_t fileRegSeq = 0x400;
 uint32_t activeTrace = 1;
@@ -56,8 +55,6 @@ int64_t timerstop;
 extern void printInitInfo();
 
 uint32_t dumpBuffer(){
-    //    CALL_DEPTH_ENTER(iowrapperDepth);
-
     if (activeTrace){
         if (traceBuffer.outFile == NULL){
             char fname[__MAX_STRING_SIZE];
@@ -71,56 +68,57 @@ uint32_t dumpBuffer(){
         
     traceBuffer.freeIdx = 0;
     assert(traceBuffer.freeIdx == 0);
-    //    CALL_DEPTH_EXIT(iowrapperDepth);
 
     return traceBuffer.freeIdx;
 }
 
 uint32_t storeRecord(uint8_t type, uint32_t size){
 
-    // RECORD_HEADER(type, size)
-    char message[__MAX_MESSAGE_SIZE];
-    bzero(&message, __MAX_MESSAGE_SIZE);
-    sprintf(message, "type %hhd\tsize %d\n", type, size);
-    if (__MAX_MESSAGE_SIZE >= traceBuffer.size - traceBuffer.freeIdx){
+    uint32_t headerSz = sizeof(uint32_t);
+    uint32_t header = RECORD_HEADER(type, size);
+    if (headerSz >= traceBuffer.size - traceBuffer.freeIdx){
         dumpBuffer();
     }
-    assert(__MAX_MESSAGE_SIZE < traceBuffer.size - traceBuffer.freeIdx);
+    assert(headerSz < traceBuffer.size - traceBuffer.freeIdx);
+    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), &header, headerSz);
+    traceBuffer.freeIdx += headerSz;
 
-    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), message, strlen(message));
-    traceBuffer.freeIdx += strlen(message);//sizeof(EventInfo_t);
-
-    return 0;
+    return headerSz;
 }
 
 uint32_t storeFileName(char* name, uint32_t handle, uint8_t class, uint8_t type, uint8_t protect){
     if (protect) { CALL_DEPTH_ENTER(iowrapperDepth); }
 
+    IOFileName_t filereg;
     bzero(&filereg, sizeof(IOFileName_t));
+
     filereg.handle_class = class;
     filereg.access_type = type;
-    filereg.numchars = strlen(name)+1;
+
+    char myname[__MAX_MESSAGE_SIZE];
+    sprintf(myname, "%s\0", name);
+    filereg.numchars = strlen(myname)+1;
+
     if (class == IOFileAccess_ONCE){
         filereg.handle = fileRegSeq++;
     } else {
         filereg.handle = handle;
     }
+
     filereg.event_id = eventIndex;
 
-    storeRecord(IORecord_FileName, sizeof(IOFileName_t) + filereg.numchars);
+    uint32_t nameSz = sizeof(IOFileName_t) + filereg.numchars;
+    storeRecord(IORecord_FileName, nameSz);
 
-    char message[__MAX_MESSAGE_SIZE];
-    bzero(&message, __MAX_MESSAGE_SIZE);
-    sprintf(message, "\tunqid %5lld: h_class %hhd\ta_type %hhd\tnumchars %d\thandle %d name %s\n",
-            filereg.event_id, filereg.handle_class, filereg.access_type, filereg.numchars, filereg.handle, name);
-
-    if (__MAX_MESSAGE_SIZE >= traceBuffer.size - traceBuffer.freeIdx){
+    if (nameSz >= traceBuffer.size - traceBuffer.freeIdx){
         dumpBuffer();
     }
-    assert(__MAX_MESSAGE_SIZE < traceBuffer.size - traceBuffer.freeIdx);
+    assert(nameSz < traceBuffer.size - traceBuffer.freeIdx);
 
-    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), message, strlen(message));
-    traceBuffer.freeIdx += strlen(message);//sizeof(EventInfo_t);
+    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), &filereg, sizeof(IOFileName_t));
+    traceBuffer.freeIdx += sizeof(IOFileName_t);
+    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), myname, strlen(myname) + 1);
+    traceBuffer.freeIdx += strlen(myname)+1;
 
     if (protect) { CALL_DEPTH_EXIT(iowrapperDepth); }
 
@@ -130,25 +128,19 @@ uint32_t storeFileName(char* name, uint32_t handle, uint8_t class, uint8_t type,
 uint32_t storeEventInfo(EventInfo_t* event){
     CALL_DEPTH_ENTER(iowrapperDepth);
 
-    // if traceBuffer is full dump it
+    uint32_t eventSz = sizeof(EventInfo_t);
+    storeRecord(IORecord_EventInfo, eventSz);
 
-    if (__MAX_MESSAGE_SIZE >= traceBuffer.size - traceBuffer.freeIdx){
+    event->unqid = eventIndex;
+
+    // if traceBuffer is full dump it
+    if (eventSz >= traceBuffer.size - traceBuffer.freeIdx){
         dumpBuffer();
     }
-    assert(__MAX_MESSAGE_SIZE < traceBuffer.size - traceBuffer.freeIdx);
+    assert(eventSz < traceBuffer.size - traceBuffer.freeIdx);
 
-    storeRecord(IORecord_EventInfo, sizeof(EventInfo_t));
-
-    char message[__MAX_MESSAGE_SIZE];
-    bzero(&message, __MAX_MESSAGE_SIZE);
-    event->unqid = eventIndex;
-    sprintf(message, "\tunqid %5lld: class=%s, o_class=%s, h_class=%hhd, mode=%hhd, e_type=%s, h_id=%hd, source=%lld, size=%lld, offset=%lld\n\0",
-            event->unqid, IOEventClassNames[event->class], IOOffsetClassNames[event->offset_class], event->handle_class, event->mode, 
-            IOEventNames[event->event_type], event->handle_id, event->source, event->size, event->offset);
-    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), message, strlen(message));
-    // store the msg to the buffer
-    //    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), event, sizeof(EventInfo_t));
-    traceBuffer.freeIdx += strlen(message);//sizeof(EventInfo_t);
+    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), event, eventSz);
+    traceBuffer.freeIdx += eventSz;
 
     eventIndex++;
     CALL_DEPTH_EXIT(iowrapperDepth);
