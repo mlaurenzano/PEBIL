@@ -36,6 +36,7 @@ uint32_t callDepth = 0;
 IOFileName_t filereg;
 uint64_t eventIndex = 0;
 uint32_t fileRegSeq = 0x400;
+uint32_t activeTrace = 1;
 
 // the dump function makes IO calls. so we must protect from an infinite recursion by not entering
 // any buffer function if one is already stacked
@@ -52,25 +53,25 @@ int64_t timerstop;
 #define TIMER_EXECUTE(__stmts) TIMER_START; __stmts TIMER_STOP; 
 #define PRINT_TIMER(__file) PRINT_INSTR(__file, "timer value (in cycles): %lld", TIMER_VALUE)
 
-extern void printInitInfo(FILE* file);
+extern void printInitInfo();
 
 uint32_t dumpBuffer(){
-    CALL_DEPTH_ENTER(iowrapperDepth);
+    //    CALL_DEPTH_ENTER(iowrapperDepth);
 
-    if (traceBuffer.outFile == NULL){
-        char fname[__MAX_STRING_SIZE];
-        sprintf(fname, "pebiliotrace.%d.log", __taskid);
-        traceBuffer.outFile = fopen(fname, "w");
+    if (activeTrace){
+        if (traceBuffer.outFile == NULL){
+            char fname[__MAX_STRING_SIZE];
+            sprintf(fname, "pebiliotrace.%d.log", __taskid);
+            traceBuffer.outFile = fopen(fname, "w");
+        }
 
-        printInitInfo(traceBuffer.outFile);
+        uint32_t oerr = fwrite(traceBuffer.storage, sizeof(char), traceBuffer.freeIdx, traceBuffer.outFile);
+        assert(oerr == traceBuffer.freeIdx);
     }
-
-    uint32_t oerr = fwrite(traceBuffer.storage, sizeof(char), traceBuffer.freeIdx, traceBuffer.outFile);
-    assert(oerr == traceBuffer.freeIdx);
+        
     traceBuffer.freeIdx = 0;
-
     assert(traceBuffer.freeIdx == 0);
-    CALL_DEPTH_EXIT(iowrapperDepth);
+    //    CALL_DEPTH_EXIT(iowrapperDepth);
 
     return traceBuffer.freeIdx;
 }
@@ -81,12 +82,13 @@ uint32_t storeRecord(uint8_t type, uint32_t size){
     char message[__MAX_MESSAGE_SIZE];
     bzero(&message, __MAX_MESSAGE_SIZE);
     sprintf(message, "type %hhd\tsize %d\n", type, size);
+    if (__MAX_MESSAGE_SIZE >= traceBuffer.size - traceBuffer.freeIdx){
+        dumpBuffer();
+    }
+    assert(__MAX_MESSAGE_SIZE < traceBuffer.size - traceBuffer.freeIdx);
+
     memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), message, strlen(message));
     traceBuffer.freeIdx += strlen(message);//sizeof(EventInfo_t);
-
-#ifdef PRELOAD_WRAPPERS
-    dumpBuffer(traceBuffer);
-#endif
 
     return 0;
 }
@@ -112,13 +114,15 @@ uint32_t storeFileName(char* name, uint32_t handle, uint8_t class, uint8_t type,
     sprintf(message, "\tunqid %5lld: h_class %hhd\ta_type %hhd\tnumchars %d\thandle %d name %s\n",
             filereg.event_id, filereg.handle_class, filereg.access_type, filereg.numchars, filereg.handle, name);
 
+    if (__MAX_MESSAGE_SIZE >= traceBuffer.size - traceBuffer.freeIdx){
+        dumpBuffer();
+    }
+    assert(__MAX_MESSAGE_SIZE < traceBuffer.size - traceBuffer.freeIdx);
+
     memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), message, strlen(message));
     traceBuffer.freeIdx += strlen(message);//sizeof(EventInfo_t);
-    if (protect) { CALL_DEPTH_EXIT(iowrapperDepth); }
 
-#ifdef PRELOAD_WRAPPERS
-    dumpBuffer(traceBuffer);
-#endif
+    if (protect) { CALL_DEPTH_EXIT(iowrapperDepth); }
 
     return filereg.handle;
 }
@@ -128,10 +132,10 @@ uint32_t storeEventInfo(EventInfo_t* event){
 
     // if traceBuffer is full dump it
 
-    if (sizeof(EventInfo_t) >= traceBuffer.size - traceBuffer.freeIdx){
-        dumpBuffer(traceBuffer);
+    if (__MAX_MESSAGE_SIZE >= traceBuffer.size - traceBuffer.freeIdx){
+        dumpBuffer();
     }
-    assert(sizeof(EventInfo_t) < traceBuffer.size - traceBuffer.freeIdx);
+    assert(__MAX_MESSAGE_SIZE < traceBuffer.size - traceBuffer.freeIdx);
 
     storeRecord(IORecord_EventInfo, sizeof(EventInfo_t));
 
@@ -149,13 +153,10 @@ uint32_t storeEventInfo(EventInfo_t* event){
     eventIndex++;
     CALL_DEPTH_EXIT(iowrapperDepth);
 
-#ifdef PRELOAD_WRAPPERS
-    dumpBuffer(traceBuffer);
-#endif
     return traceBuffer.freeIdx;
 }
 
-void printInitInfo(FILE* file){
+void printInitInfo(){
     storeFileName("stdout", stdout->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0);
     storeFileName("stderr", stderr->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0);
     storeFileName("stdin", stdin->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0);
@@ -163,33 +164,39 @@ void printInitInfo(FILE* file){
 
 // do any initialization here
 // NOTE: on static-linked binaries, calling any functions from here will cause some problems
-int32_t initwrapper(int32_t* indexLoc, char** fNames, int32_t* lNum){
+int32_t pebil_init(int32_t* indexLoc, char** fNames, int32_t* lNum){
     // at each call site we will put the index of the originating point in this location
     currentSiteIndex = indexLoc;
-
     fileNames = fNames;
     lineNumbers = lNum;
+
+    _init_wrappers();
 }
 
-// do any cleanup here
-int32_t finishwrapper(){
-    PRINT_INSTR(stdout, "Finishing IO Trace for task %d, dumping buffer", __taskid);
-    dumpBuffer(&traceBuffer);
-    fclose(traceBuffer.outFile);
+int32_t pebil_fini(){
+    _fini_wrappers();
 }
 
 #ifdef PRELOAD_WRAPPERS
-int __libc_start_main(int *(main) (int, char * *, char * *), int argc, char * * ubp_av, void (*init) (void), void (*fini) (void), void (*rtld_fini) (void), void (* stack_end)){
-    PRINT_INSTR(stdout, "Program loaded using pebil IO tracing library, PRELOAD_WRAPPERS version");
-
-    static int *(*__libc_start_main_ptr)(int *(main) (int, char**, char**), int argc, char** ubp_av, void (*init) (void), void (*fini) (void), void (*rtld_fini) (void), void (*stack_end));
-    __libc_start_main_ptr = dlsym(RTLD_NEXT, "__libc_start_main");
-    int retval = __libc_start_main_ptr(main, argc, ubp_av, init, fini, rtld_fini, stack_end);
-
-    PRINT_INSTR(stdout, "Exxit wrap program");
-
-    return retval;
-}
+// this works for gcc, what about intel?
+int32_t _init_wrappers() __attribute__ ((constructor));
+int32_t _fini_wrappers() __attribute__ ((destructor));
 #endif // PRELOAD_WRAPPERS
+
+int32_t _init_wrappers(){
+    CALL_DEPTH_ENTER(iowrapperDepth);
+    PRINT_INSTR(stdout, "Starting IO Trace for task %d", __taskid);
+    printInitInfo();    
+    CALL_DEPTH_EXIT(iowrapperDepth);
+}
+
+int32_t _fini_wrappers(){
+    CALL_DEPTH_ENTER(iowrapperDepth);
+    PRINT_INSTR(stdout, "Finishing IO Trace for task %d, dumping buffer", __taskid);
+    dumpBuffer();
+    activeTrace = 0;
+    fclose(traceBuffer.outFile);
+    CALL_DEPTH_EXIT(iowrapperDepth);
+}
 
 #include <IOEvents.c>
