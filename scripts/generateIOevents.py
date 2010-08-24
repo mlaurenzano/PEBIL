@@ -131,8 +131,8 @@ def buildFunctionCode(funcdom):
         filetyp = a.getAttribute('file')
         if filetyp:
             if filetyp == 'name':
-                code += '\tentry.handle_id = storeFileName(' + string.strip(a.firstChild.data) + ', 0, IOHandle_NAME, IOFileAccess_ONCE, 1);\n'
                 code += '\tentry.handle_class = IOHandle_NAME;\n'
+                code += '\tentry.handle_id = storeFileName(' + string.strip(a.firstChild.data) + ', 0, IOHandle_NAME, IOFileAccess_ONCE, 1);\n'
             elif filetyp == 'handle':
                 code += '\tentry.handle_class = IOHandle_' + classname + ';\n'
                 code += '\tstoreFileName(' + string.strip(a.firstChild.data) + ', entry.handle_id, entry.handle_class, IOFileAccess_OPEN, 1);\n'

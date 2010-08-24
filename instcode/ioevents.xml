@@ -165,6 +165,17 @@ typedef struct {
       <arg type="int" trace="handle_id"> fildes </arg>
       <arg type="mode_t"> mode </arg>
     </function>
-
   </ioclass>
+
+  <ioclass> MPIO
+    <function ret="int"> MPI_File_Open
+      <arg type="MPI_Comm"> comm </arg>
+      <arg type="char*" file="handle"> filename </arg>
+      <arg type="int"> amode </arg>
+      <arg type="MPI_Info"> info </arg>
+      <arg type="MPI_File*"> fh </arg>
+      <trace dest="handle_id"> retval </trace>
+    </function>
+  </ioclass>
+
 </ioevents>
