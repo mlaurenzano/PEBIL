@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+#
+# This file is part of the pebil project.
+#
+# Copyright (c) 2010, University of California Regents
+# All rights reserved.
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -11,6 +17,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 #this script is intended to be run out of $PEBIL_ROOT/scripts
 
