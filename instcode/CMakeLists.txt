@@ -26,7 +26,7 @@ add_definitions(-DEXTENDED_SAMPLING_MODE)
 ADD_CUSTOM_COMMAND(
         OUTPUT IOEvents.C IOEvents.h
         COMMAND ../scripts/generateIOevents.py
-        DEPENDS ../docs/ioevents.xml
+        DEPENDS ioevents.xml
 )
 ADD_CUSTOM_TARGET(ioevents ALL DEPENDS IOEvents.h)
 
@@ -35,6 +35,7 @@ set(counter_SOURCES CounterFunctions.c)
 set(simulator_SOURCES SimulationFunctions.c CacheSimulationCommon.c)
 set(timer_SOURCES TimerFunctions.c)
 set(iowrapper_SOURCES IOWrappers.c)
+set(readIOLog_SOURCES readIOLog.c)
 
 # set this globally? doesn't make sense here
 include_directories(".")
@@ -46,8 +47,10 @@ add_library(counter SHARED ${counter_SOURCES})
 add_library(simulator SHARED ${simulator_SOURCES})
 add_library(timer SHARED ${timer_SOURCES})
 add_library(iowrapper SHARED ${iowrapper_SOURCES})
+add_executable(readIOLog ${readIOLog_SOURCES})
 
 install(TARGETS counter DESTINATION "lib")
 install(TARGETS simulator DESTINATION "lib")
 install(TARGETS timer DESTINATION "lib")
 install(TARGETS iowrapper DESTINATION "lib")
+install(TARGETS readIOLog DESTINATION "bin")
