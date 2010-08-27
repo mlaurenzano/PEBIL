@@ -35,9 +35,10 @@
 #define SIM_FUNCTION "MetaSim_simulFuncCall_Simu"
 #define EXIT_FUNCTION "MetaSim_endFuncCall_Simu"
 #define INST_LIB_NAME "libsimulator.so"
-#define BUFFER_ENTRIES 0x00010000
 #define Size__BufferEntry 16
-#define MAX_MEMOPS_PER_BLOCK 2048
+#define USABLE_BUFFER_SIZE 0x00010000
+#define MAX_MEMOPS_PER_BLOCK 8192
+#define BUFFER_ENTRIES (USABLE_BUFFER_SIZE + MAX_MEMOPS_PER_BLOCK)
 
 //#define DISABLE_BLOCK_COUNT
 
@@ -539,6 +540,11 @@ void CacheSimulation::instrument(){
                     memInstBlockIds.append(blockId);
                     memopId++;
                     memopIdInBlock++;
+                }
+                if (memopIdInBlock >= MAX_MEMOPS_PER_BLOCK){
+                    PRINT_ERROR("Block @%#llx in function %s has %d memops (limited by MAX_MEMOPS_PER_BLOCK=%d)", 
+                                bb->getProgramAddress(), bb->getFunction()->getName(), bb->getNumberOfMemoryOps(), MAX_MEMOPS_PER_BLOCK);
+                   
                 }
                 ASSERT(memopIdInBlock < MAX_MEMOPS_PER_BLOCK && "Too many memory ops in some basic block... try increasing MAX_MEMOPS_PER_BLOCK");
             }
