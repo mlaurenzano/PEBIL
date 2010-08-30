@@ -88,8 +88,12 @@ def buildFunctionCode(funcdom):
     specials = f.getElementsByTagName('special')
     classname = string.strip(funcdom.parentNode.firstChild.data)
 
+    code = ''
+    if classname == 'MPIO':
+        code += '#ifdef HAVE_MPI\n'
+
     # function declaration
-    code = str(rettype) + ' __wrapper_name(' + str(fname) + ')'
+    code += str(rettype) + ' __wrapper_name(' + str(fname) + ')'
     args = f.getElementsByTagName('arg')
     code += '(' + string.join([str(a.getAttribute('type')) + ' ' + string.strip(a.firstChild.data) for a in args],', ') + ')\n{\n'
 
@@ -151,7 +155,12 @@ def buildFunctionCode(funcdom):
             code += '\t' + string.strip(s.firstChild.data) + '\n'
 
     code += '\treturn retval;\n'
-    code += '}\n\n'
+    code += '}\n'
+
+    if classname == 'MPIO':
+        code += '#endif // HAVE_MPI\n'
+
+    code += '\n'
     return code
 
 ##############################################################

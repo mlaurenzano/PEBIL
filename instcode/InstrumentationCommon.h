@@ -107,11 +107,11 @@ void __wrapper_name(mpi_init_)(int* ierr){
     fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
 }
 
-#else
+#else // HAVE_MPI
 #define __taskid getpid()
 #define __ntasks 1
 #define __taskmarker "-[p%d]- "
-#endif
+#endif // HAVE_MPI
 
 #define PRINT_INSTR(__file, ...) fprintf(__file, __taskmarker, __taskid);  \
     fprintf(__file, __VA_ARGS__); \
