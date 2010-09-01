@@ -28,28 +28,12 @@
 #include <InstrumentationCommon.h>
 
 #define PRINT_MINIMUM 1
-#define FILTER 1
 
 int32_t numberOfBasicBlocks;
 int32_t* lineNumbers;
 char** fileNames;
 char** functionNames;
 int64_t* hashValues;
-
-int32_t filter = 0;
-
-DINT_TYPE printmemory(DINT_TYPE* memory, DINT_TYPE* base, DINT_TYPE* offset, DINT_TYPE* index, DINT_TYPE* scale){
-    DINT_TYPE memloc = *memory;
-    DINT_TYPE memval;
-    if (memloc == 0){
-        memval = 0;
-    } else {
-        memval = *((DINT_TYPE*)memloc);
-    }
-    filter++;
-    return 0;
-}
-
 
 int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** functionNames){
     int32_t i;

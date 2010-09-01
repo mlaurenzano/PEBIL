@@ -64,7 +64,7 @@ uint32_t dumpBuffer(){
     if (activeTrace){
         if (traceBuffer.outFile == NULL){
             char fname[__MAX_STRING_SIZE];
-            sprintf(fname, "pebiliotrace.%d.log", __taskid);
+            sprintf(fname, "pebiliotrace.rank%05d.tasks%05d.bin", __taskid, __ntasks);
             traceBuffer.outFile = fopen(fname, "w");
         }
 
@@ -180,6 +180,7 @@ int32_t _pebil_fini(){
 }
 
 #ifdef PRELOAD_WRAPPERS
+// call these functions at program entry/exit
 // this works for gcc; intel?
 int32_t _init_wrappers() __attribute__ ((constructor));
 int32_t _fini_wrappers() __attribute__ ((destructor));
@@ -200,5 +201,11 @@ int32_t _fini_wrappers(){
     fclose(traceBuffer.outFile);
     CALL_DEPTH_EXIT(iowrapperDepth);
 }
+
+#ifdef HAVE_MPI
+#define WRAPPING_MPIO_IO
+#endif // HAVE_MPI
+#define WRAPPING_CLIB_IO
+#define WRAPPING_POSX_IO
 
 #include <IOEvents.c>

@@ -92,11 +92,13 @@ def buildFunctionCode(funcdom):
     code = ''
     fini = ''
     fcall = ''
+
     if classname == 'MPIO':
-        entry += '#ifdef HAVE_MPI\n'
         fcall = 'P' + fname
     else:
         fcall = fname
+
+    entry += '#ifdef WRAPPING_' + classname + '_IO\n'
 
     # function declaration
     entry += str(rettype) + ' __wrapper_name(' + str(fname) + ')'
@@ -174,8 +176,7 @@ def buildFunctionCode(funcdom):
     fini += '\treturn retval;\n'
     fini += '}\n'
 
-    if classname == 'MPIO':
-        fini += '#endif // HAVE_MPI\n'
+    fini += '#endif // WRAPPING_' + classname + '_IO\n'
     fini += '\n'
 
     return entry + code + fini

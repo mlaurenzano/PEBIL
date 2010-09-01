@@ -30,16 +30,6 @@
 #include <stdarg.h>
 
 #define __MAX_STRING_SIZE 1024
-
-//#define COMPILE_32BIT
-#ifdef COMPILE_32BIT
-  #define DINT_TYPE int32_t
-  #define DINT_PRNTSZ l
-#else
-  #define DINT_TYPE int64_t
-  #define DINT_PRNTSZ ll
-#endif // COMPILE_32BIT
-
 #define CLOCK_RATE_HZ 2600000000
 
 //#define EXCLUDE_TIMER
