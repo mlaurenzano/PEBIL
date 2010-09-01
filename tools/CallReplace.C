@@ -27,8 +27,8 @@
 #include <X86InstructionFactory.h>
 #include <SymbolTable.h>
 
-#define PROGRAM_ENTRY  "initwrapper"
-#define PROGRAM_EXIT   "finishwrapper"
+#define PROGRAM_ENTRY  "_pebil_init"
+#define PROGRAM_EXIT   "_pebil_fini"
 #define NOSTRING "__pebil_no_string__"
 
 CallReplace::~CallReplace(){

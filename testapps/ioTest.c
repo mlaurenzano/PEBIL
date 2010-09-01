@@ -24,16 +24,77 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <assert.h>
+
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif
 
 #define BUFFER_SIZE 1024
 #define TEST_NAME "./barbar"
 #define TEST_MSG "foobaronyou"
 
-int main(int argc, char** argv){
-    runtest();
+int run_mpio(){
+#ifdef HAVE_MPI
+    printf("Running MPI tests\n");
+    int i, n;
+    int rank, flag;
+    MPI_File fh;
+    MPI_Status status;
+    MPI_Info info, ininfo;
+    char buf[BUFFER_SIZE];
+    char* val = malloc(BUFFER_SIZE);
+    bzero(val, BUFFER_SIZE);
+    int err;
+
+    MPI_Info_create(&ininfo);
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Info_set(ininfo, "_pebil_unqid", "hello");
+    err = MPI_File_open(MPI_COMM_WORLD, "scratch", MPI_MODE_RDONLY, ininfo, &fh);
+    if (err){
+        printf("error %d\n", err);
+        exit(-1);
+    }
+
+    printf("file info %d -- %#llx\n", sizeof(MPI_File), fh);
+    MPI_File fh2;
+    MPI_File_open(MPI_COMM_WORLD, "scratch2", MPI_MODE_WRONLY, MPI_INFO_NULL, &fh2);;
+    printf("file info %d -- %#llx\n", sizeof(MPI_File), fh2);
+    //    MPI_Info_create(&info);
+    MPI_File_get_info(fh, &info);
+    MPI_Info_set(info, "_pebil_unqid", "hello");
+    MPI_File_set_info(fh, ininfo);
+
+    // does file handle have our hint?
+    MPI_File_get_info(fh, &info);
+    MPI_Info_get_nkeys(info, &n);
+    for (i = 0; i < n; i++){
+        MPI_Info_get_nthkey(info, i, val);
+        MPI_Info_get(info, val, BUFFER_SIZE, buf, &flag);
+        printf("\t(%d): %s -> %s\n", i, val, buf);
+    }
+    /*
+    MPI_Info_get_nkeys(ininfo, &n);
+    for (i = 0; i < n; i++){
+        MPI_Info_get_nthkey(ininfo, i, val);
+        MPI_Info_get(ininfo, val, BUFFER_SIZE, buf, &flag);
+        printf("\t(%d): %s -> %s\n", i, val, buf);
+    }
+    */
+
+    MPI_File_seek(fh2, rank * BUFFER_SIZE, MPI_SEEK_SET);
+    MPI_File_read(fh, buf, BUFFER_SIZE, MPI_CHAR, &status);
+    MPI_File_close(&fh);
+
+    free(val);
+#else // HAVE_MPI#
+    printf("Skipping MPI tests since configuration was done without MPI support\n");
+#endif //HAVE_MPI
+    return 1;
 }
 
-int runtest(){
+int run_posx_libc(){
     char* buf = malloc(BUFFER_SIZE);
     struct stat* st = malloc(sizeof(struct stat));
     int f = open(TEST_NAME, O_APPEND, O_RDWR);
@@ -68,5 +129,20 @@ int runtest(){
 
     free(st);
 
-    return 0;
+    return 1;
 }
+
+int main(int argc, char** argv){
+#ifdef HAVE_MPI
+    MPI_Init(&argc, &argv);
+#endif
+
+    run_posx_libc();
+    run_mpio();
+
+#ifdef HAVE_MPI
+    MPI_Finalize();
+#endif
+
+}
+

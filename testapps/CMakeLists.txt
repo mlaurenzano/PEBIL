@@ -4,6 +4,16 @@ project(hello_world C CXX Fortran)
 # States that CMake required version must be >= 2.6
 cmake_minimum_required(VERSION 2.6)
 
+find_package(MPI)
+find_program(MPI_C_COMPILER NAMES mpicc mpxlc mpxlc_r mpcc cc)
+if(NOT MPI_C_COMPILER)
+  message(STATUS "Could not find MPI C Compiler, falling back to serial")
+else(MPI_C_COMPILER)
+  set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
+  add_definitions(-DHAVE_MPI)
+  message(STATUS "Found MPI C Compiler for instcode. Using -DHAVE_MPI")
+endif(NOT MPI_C_COMPILER)
+
 link_libraries("-lm")
 include_directories("../instcode")
 

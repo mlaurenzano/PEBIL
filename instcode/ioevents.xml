@@ -4,7 +4,7 @@
   <!-- ioclass class=<IO type> # no data # -->
     <!-- function decl=<function name> ret=<return type> # no data # -->
       <!-- arg type=<C datatype> trace=<IOEvent_t struct entry> # <argument name> #-->
-      <!-- special location=<n in [0,1]> # some special handling code # -->
+      <!-- custom location=<n in [0,1]> # some custom handling code # -->
       <!-- trace dest=<IOEvent_t struct entry> # C expr # -->
       <!-- trace_hdr UNDEFINED # some data that gets put into the trace header #-->
 <!-- for arg, trace attribute should be one of these
@@ -25,6 +25,326 @@ typedef struct {
 -->
 
 <ioevents>
+
+  <ioclass> MPIO
+    <function ret="int"> MPI_File_open
+      <arg type="MPI_Comm"> comm </arg>
+      <arg type="char*" file="mpi"> filename </arg>
+      <arg type="int"> amode </arg>
+      <arg type="MPI_Info"> info </arg>
+      <arg type="MPI_File*"> fh </arg>
+      <trace dest="handle_id"> *fh </trace>
+    </function>
+
+    <function ret="int"> MPI_File_close
+      <arg type="MPI_File*"> fh </arg>
+      <custom location="0"> long int savef = *fh; </custom>
+      <trace dest="handle_id"> savef </trace>
+    </function>
+
+    <function ret="int"> MPI_File_delete
+      <arg type="char*" file="name"> filename </arg>
+      <arg type="MPI_Info"> info </arg>
+    </function>
+
+    <function ret="int"> MPI_File_set_size
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset" trace="offset"> size </arg>
+    </function>
+
+    <function ret="int"> MPI_File_preallocate
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset" trace="offset"> size </arg>
+    </function>
+
+    <function ret="int"> MPI_File_set_view
+      <custom location="0"> assert(0 &amp;&amp; "MPI_File_set_view is currently unhandled"); </custom>      
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset"> disp </arg>
+      <arg type="MPI_Datatype"> eype </arg>
+      <arg type="MPI_Datatype"> filetype </arg>
+      <arg type="char*"> datarep </arg>
+      <arg type="MPI_Info"> info </arg>
+    </function>
+
+    <function ret="int"> MPI_File_read_at
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset" trace="offset"> offset </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_read_at_all
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset" trace="offset"> offset </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_write_at
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset" trace="offset"> offset </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_write_at_all
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset" trace="offset"> offset </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_iread_at
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset" trace="offset"> offset </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Request*"> request </arg>
+    </function>
+
+    <function ret="int"> MPI_File_iwrite_at
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset" trace="offset"> offset </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Request*"> request </arg>
+    </function>
+
+    <function ret="int"> MPI_File_read
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_write
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_read_all
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_write_all
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_iread
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Request*"> request </arg>
+    </function>
+    <function ret="int"> MPI_File_iwrite
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Request*"> request </arg>
+    </function>
+
+    <function ret="int"> MPI_File_seek
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset" trace="offset"> offset </arg>
+      <arg type="int"> whence </arg>
+      <trace dest="offset_class"> offsetOriginToClass_MPIO(whence) </trace>
+    </function>
+
+    <function ret="int"> MPI_File_read_shared
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_write_shared
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_iread_shared
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Request*"> request </arg>
+    </function>
+
+    <function ret="int"> MPI_File_iwrite_shared
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Request*"> request </arg>
+    </function>
+
+    <function ret="int"> MPI_File_read_ordered
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_write_ordered
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_seek_shared
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset" trace="offset"> offset </arg>
+      <arg type="int"> whence </arg>
+      <trace dest="offset_class"> offsetOriginToClass_MPIO(whence) </trace>
+    </function>
+
+    <function ret="int"> MPI_File_read_at_all_begin
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset" trace="offset"> offset </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+    </function>
+
+    <function ret="int"> MPI_File_read_at_all_end
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_write_at_all_begin
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="MPI_Offset" trace="offset"> offset </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+    </function>
+
+    <function ret="int"> MPI_File_write_at_all_end
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_read_all_begin
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+    </function>
+
+    <function ret="int"> MPI_File_read_all_end
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_write_all_begin
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+    </function>
+
+    <function ret="int"> MPI_File_write_all_end
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_read_ordered_begin
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+    </function>
+
+    <function ret="int"> MPI_File_read_ordered_end
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_write_ordered_begin
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="int"> count </arg>
+      <arg type="MPI_Datatype" size="mpi_datatype"> datatype </arg>
+      <trace dest="size"> (count * datasize) </trace>
+    </function>
+
+    <function ret="int"> MPI_File_write_ordered_end
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="MPI_Status*"> status </arg>
+    </function>
+
+    <function ret="int"> MPI_File_set_atomicity
+      <custom location="0"> assert(0 &amp;&amp; "MPI_File_set_atomicity is currently unhandled"); </custom>      
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+      <arg type="int" trace="mode"> flag </arg>
+    </function>
+
+    <function ret="int"> MPI_File_sync
+      <arg type="MPI_File" trace="handle_id"> fh </arg>
+    </function>
+
+  </ioclass>
 
   <ioclass> POSX
     <function ret="int"> chmod
@@ -77,7 +397,9 @@ typedef struct {
     </function>
 
     <function ret="int"> close
-      <arg type="int" trace="handle_id"> fd </arg>
+      <arg type="int"> fd </arg>
+      <custom location="0"> long int savef = fd; </custom>
+      <trace dest="handle_id"> savef </trace>
     </function>
 
     <function ret="int"> open64
@@ -111,7 +433,7 @@ typedef struct {
       <arg type="FILE*"> stream </arg>
       <arg type="long int" trace="offset"> offset </arg>
       <arg type="int"> origin </arg>
-      <trace dest="offset_class"> offsetOriginToClass(origin) </trace>
+      <trace dest="offset_class"> offsetOriginToClass_CLIB(origin) </trace>
       <trace dest="handle_id"> stream->_fileno </trace>
     </function>
 
@@ -138,13 +460,14 @@ typedef struct {
     <function ret="int"> puts
       <arg type="const char*"> str </arg>
       <trace dest="size"> strlen(str) </trace>
-      <trace dest="handle_id"> stdout </trace>
+      <trace dest="handle_id"> stdout->_fileno </trace>
       <trace dest="handle_class"> IOHandle_CLIB </trace>
     </function>
 
     <function ret="int"> fclose
       <arg type="FILE*"> stream </arg>
-      <trace dest="handle_id"> stream->_fileno </trace>
+      <custom location="0"> long int savef = stream->_fileno; </custom>
+      <trace dest="handle_id"> savef </trace>
     </function>
 
     <function ret="size_t"> fread
@@ -164,17 +487,6 @@ typedef struct {
     <function ret="int"> fchmod
       <arg type="int" trace="handle_id"> fildes </arg>
       <arg type="mode_t"> mode </arg>
-    </function>
-  </ioclass>
-
-  <ioclass> MPIO
-    <function ret="int"> MPI_File_Open
-      <arg type="MPI_Comm"> comm </arg>
-      <arg type="char*" file="handle"> filename </arg>
-      <arg type="int"> amode </arg>
-      <arg type="MPI_Info"> info </arg>
-      <arg type="MPI_File*"> fh </arg>
-      <trace dest="handle_id"> retval </trace>
     </function>
   </ioclass>
 

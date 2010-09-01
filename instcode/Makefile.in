@@ -4,7 +4,7 @@ ifeq ($(STATIC_INST_LIB),yes)
 else
 	LIB_TARGETS = libcounter.so libsimulator.so libtimer.so libiowrapper.so libiowrapper_preld.so
 endif
-EXEC_TARGETS = readIOLog
+EXEC_TARGETS = iolog2txt
 
 MPICC       = @MPICC@
 CFLAGS      = @CFLAGS@
@@ -79,9 +79,9 @@ libiowrapper.a : IOWrappers.o
 	$(AR) $@ IOWrappers.o
 
 IOEvents.h:
-	../scripts/generateIOevents.py
+	../scripts/iogen.py
 
-readIOLog: readIOLog.o
+iolog2txt: iolog2txt.o
 	$(CC) $(CFLAGS) -o $@ $<
 
 clean: 

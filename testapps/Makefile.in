@@ -1,6 +1,7 @@
 CC          = @CC@
 CXX         = @CXX@
 FC          = @FC@
+MPICC       = @MPICC@
 
 BINDIR      = ../src
 
@@ -37,7 +38,7 @@ sgbench:
 	$(CC) -o $@ sgbench.c $(EXTRA_INC) $(EXTRA_LIBS)
 
 ioTest:
-	$(CC) -o $@ ioTest.c
+	$(MPICC) -o $@ ioTest.c @MPI_FLAGS@
 
 clean: 
 	rm -f *.o $(TARGETS) 

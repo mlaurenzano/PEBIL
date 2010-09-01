@@ -23,13 +23,18 @@
 #include <dlfcn.h>
 #endif
 
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif
+
 #include <stdio.h>
 #include <IOEvents.h>
 
 #define __IO_BUFFER_SIZE 0x100000
 #define __MAX_MESSAGE_SIZE 0x800
 #define __MAX_FILE_NAMES 0x4000
-
+//#define PEBIL_NULL_COMMUNICATOR 0x63b1747f
+#define PEBIL_NULL_COMMUNICATOR 0
 
 #define GET_RECORD_SIZE(__record) (__record >> 8)
 #define GET_RECORD_TYPE(__record) (__record & 0x000000ff)
@@ -54,7 +59,7 @@ typedef struct {
     uint8_t  handle_class;
     uint8_t  mode;
     uint16_t event_type;
-    uint16_t handle_id;
+    uint64_t handle_id;
     uint64_t unqid;
     uint64_t source;
     uint64_t size;
@@ -67,7 +72,8 @@ typedef struct {
     uint8_t handle_class;
     uint8_t access_type;
     uint16_t numchars;
-    uint32_t handle;
+    uint32_t communicator;
+    uint64_t handle;
     uint64_t event_id;
 } IOFileName_t;
 
@@ -86,7 +92,7 @@ const char* IOOffsetClassNames[IOOffset_Total_Types] = {
     "END"
 };
 
-uint8_t offsetOriginToClass(int origin){
+uint8_t offsetOriginToClass_CLIB(int origin){
     if (origin == SEEK_SET){
         return IOOffset_SET;
     } else if (origin == SEEK_CUR){
@@ -97,11 +103,24 @@ uint8_t offsetOriginToClass(int origin){
     return IOOffset_Invalid;
 }
 
+#ifdef HAVE_MPI
+uint8_t offsetOriginToClass_MPIO(int origin){
+    if (origin == MPI_SEEK_SET){
+        return IOOffset_SET;
+    } else if (origin == MPI_SEEK_CUR){
+        return IOOffset_CUR;
+    } else if (origin == MPI_SEEK_END){
+        return IOOffset_END;
+    }
+    return IOOffset_Invalid;
+}
+#endif // HAVE_MPI
+
 typedef struct {
     FILE*    outFile;
     uint32_t size;
     uint32_t freeIdx;
-    char     storage[__IO_BUFFER_SIZE];
+    char     buffer[__IO_BUFFER_SIZE];
 } TraceBuffer_t;
 
 typedef enum {
@@ -114,6 +133,15 @@ typedef enum {
     IOHandle_FLIB,
     IOHandle_Total_Types
 } IOHandleClasses;
+const char* IOHandleClassNames[IOHandle_Total_Types] = {
+    "Invalid",
+    "NAME",
+    "CLIB",
+    "POSX",
+    "MPIO",
+    "HDF5",
+    "FLIB"
+};
 
 typedef enum {
     IOFileAccess_Invalid,
@@ -122,3 +150,9 @@ typedef enum {
     IOFileAccess_SYS,
     IOFileAccess_Total_Types
 } IOFileAccess_t;
+const char* IOFileAccessNames[IOFileAccess_Total_Types] = {
+    "Invalid",
+    "ONCE",
+    "OPEN",
+    "SYS"
+};

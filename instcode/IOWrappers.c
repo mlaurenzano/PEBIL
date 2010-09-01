@@ -58,7 +58,7 @@ int64_t timerstop;
 #define TIMER_EXECUTE(__stmts) TIMER_START; __stmts TIMER_STOP; 
 #define PRINT_TIMER(__file) PRINT_INSTR(__file, "timer value (in cycles): %lld", TIMER_VALUE)
 
-extern void printInitInfo();
+extern void printSystemIORecords();
 
 uint32_t dumpBuffer(){
     if (activeTrace){
@@ -68,7 +68,7 @@ uint32_t dumpBuffer(){
             traceBuffer.outFile = fopen(fname, "w");
         }
 
-        uint32_t oerr = fwrite(traceBuffer.storage, sizeof(char), traceBuffer.freeIdx, traceBuffer.outFile);
+        uint32_t oerr = fwrite(traceBuffer.buffer, sizeof(char), traceBuffer.freeIdx, traceBuffer.outFile);
         assert(oerr == traceBuffer.freeIdx);
     }
         
@@ -86,13 +86,13 @@ uint32_t storeRecord(uint8_t type, uint32_t size){
         dumpBuffer();
     }
     assert(headerSz < traceBuffer.size - traceBuffer.freeIdx);
-    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), &header, headerSz);
+    memcpy(&(traceBuffer.buffer[traceBuffer.freeIdx]), &header, headerSz);
     traceBuffer.freeIdx += headerSz;
 
     return headerSz;
 }
 
-uint32_t storeFileName(char* name, uint32_t handle, uint8_t class, uint8_t type, uint8_t protect){
+uint32_t storeFileName(char* name, uint64_t handle, uint8_t class, uint8_t type, uint8_t protect, uint32_t comm){
     if (protect) { CALL_DEPTH_ENTER(iowrapperDepth); }
 
     IOFileName_t filereg;
@@ -112,6 +112,7 @@ uint32_t storeFileName(char* name, uint32_t handle, uint8_t class, uint8_t type,
     }
 
     filereg.event_id = eventIndex;
+    filereg.communicator = comm;
 
     uint32_t nameSz = sizeof(IOFileName_t) + filereg.numchars;
     storeRecord(IORecord_FileName, nameSz);
@@ -121,9 +122,9 @@ uint32_t storeFileName(char* name, uint32_t handle, uint8_t class, uint8_t type,
     }
     assert(nameSz < traceBuffer.size - traceBuffer.freeIdx);
 
-    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), &filereg, sizeof(IOFileName_t));
+    memcpy(&(traceBuffer.buffer[traceBuffer.freeIdx]), &filereg, sizeof(IOFileName_t));
     traceBuffer.freeIdx += sizeof(IOFileName_t);
-    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), myname, strlen(myname) + 1);
+    memcpy(&(traceBuffer.buffer[traceBuffer.freeIdx]), myname, strlen(myname) + 1);
     traceBuffer.freeIdx += strlen(myname)+1;
 
     if (protect) { CALL_DEPTH_EXIT(iowrapperDepth); }
@@ -145,7 +146,7 @@ uint32_t storeEventInfo(EventInfo_t* event){
     }
     assert(eventSz < traceBuffer.size - traceBuffer.freeIdx);
 
-    memcpy(&(traceBuffer.storage[traceBuffer.freeIdx]), event, eventSz);
+    memcpy(&(traceBuffer.buffer[traceBuffer.freeIdx]), event, eventSz);
     traceBuffer.freeIdx += eventSz;
 
     eventIndex++;
@@ -154,15 +155,18 @@ uint32_t storeEventInfo(EventInfo_t* event){
     return traceBuffer.freeIdx;
 }
 
-void printInitInfo(){
-    storeFileName("stdout", stdout->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0);
-    storeFileName("stderr", stderr->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0);
-    storeFileName("stdin", stdin->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0);
+void printSystemIORecords(){
+    storeFileName("stdout", stdout->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0, PEBIL_NULL_COMMUNICATOR);
+    eventIndex++;
+    storeFileName("stderr", stderr->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0, PEBIL_NULL_COMMUNICATOR);
+    eventIndex++;
+    storeFileName("stdin",  stdin->_fileno,  IOEventClass_CLIB, IOFileAccess_SYS, 0, PEBIL_NULL_COMMUNICATOR);
+    eventIndex++;
 }
 
 // do any initialization here
-// NOTE: on static-linked binaries, calling any functions from here will cause some problems
-int32_t pebil_init(int32_t* indexLoc, char** fNames, int32_t* lNum){
+// NOTE: on static-linked binaries, calling system/clib functions from here is a bad idea
+int32_t _pebil_init(int32_t* indexLoc, char** fNames, int32_t* lNum){
     // at each call site we will put the index of the originating point in this location
     currentSiteIndex = indexLoc;
     fileNames = fNames;
@@ -171,12 +175,12 @@ int32_t pebil_init(int32_t* indexLoc, char** fNames, int32_t* lNum){
     _init_wrappers();
 }
 
-int32_t pebil_fini(){
+int32_t _pebil_fini(){
     _fini_wrappers();
 }
 
 #ifdef PRELOAD_WRAPPERS
-// this works for gcc, what about intel?
+// this works for gcc; intel?
 int32_t _init_wrappers() __attribute__ ((constructor));
 int32_t _fini_wrappers() __attribute__ ((destructor));
 #endif // PRELOAD_WRAPPERS
@@ -184,7 +188,7 @@ int32_t _fini_wrappers() __attribute__ ((destructor));
 int32_t _init_wrappers(){
     CALL_DEPTH_ENTER(iowrapperDepth);
     PRINT_INSTR(stdout, "Starting IO Trace for task %d", __taskid);
-    printInitInfo();    
+    printSystemIORecords();    
     CALL_DEPTH_EXIT(iowrapperDepth);
 }
 

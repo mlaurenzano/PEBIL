@@ -85,35 +85,41 @@ def buildEnumeration(pattern, elist):
 def buildFunctionCode(funcdom):
     rettype = str(funcdom.getAttribute('ret'))
     fname = string.strip(funcdom.firstChild.data)
-    specials = f.getElementsByTagName('special')
+    customs = f.getElementsByTagName('custom')
     classname = string.strip(funcdom.parentNode.firstChild.data)
 
+    entry = ''
     code = ''
+    fini = ''
+    fcall = ''
     if classname == 'MPIO':
-        code += '#ifdef HAVE_MPI\n'
+        entry += '#ifdef HAVE_MPI\n'
+        fcall = 'P' + fname
+    else:
+        fcall = fname
 
     # function declaration
-    code += str(rettype) + ' __wrapper_name(' + str(fname) + ')'
+    entry += str(rettype) + ' __wrapper_name(' + str(fname) + ')'
     args = f.getElementsByTagName('arg')
-    code += '(' + string.join([str(a.getAttribute('type')) + ' ' + string.strip(a.firstChild.data) for a in args],', ') + ')\n{\n'
+    entry += '(' + string.join([str(a.getAttribute('type')) + ' ' + string.strip(a.firstChild.data) for a in args],', ') + ')\n{\n'
 
-    # special location 0 -- function entry
-    for s in specials:
+    # custom location 0 -- function entry
+    for s in customs:
         if cmp(s.getAttribute('location'),'0') == 0:
-            code += '\t' + string.strip(s.firstChild.data) + '\n'
+            entry += '\t' + string.strip(s.firstChild.data) + '\n'
+    entry += '\t' + str(rettype) + ' retval;\n'
 
-    code += '\t' + str(rettype) + ' retval;\n'
     code += '#ifdef PRELOAD_WRAPPERS\n'
     code += '\tstatic ' + str(rettype) + ' *(*' + str(fname) + '_ptr)('
     code += string.join([str(a.getAttribute('type')) + ' ' + string.strip(a.firstChild.data) for a in args],', ') + ');\n'
-    code += '\t' + str(fname) + '_ptr = dlsym(RTLD_NEXT, "' + fname + '");\n'
+    code += '\t' + str(fname) + '_ptr = dlsym(RTLD_NEXT, "' + fcall + '");\n'
     code += '\tTIMER_EXECUTE(retval = ' + str(fname) + '_ptr(' + string.join([string.strip(a.firstChild.data) for a in args], ', ') + ');)\n'
     code += '#else // PRELOAD_WRAPPERS\n'
-    code += '\tTIMER_EXECUTE(retval = ' + str(fname) + '(' + string.join([string.strip(a.firstChild.data) for a in args], ', ') + ');)\n'
+    code += '\tTIMER_EXECUTE(retval = ' + str(fcall) + '(' + string.join([string.strip(a.firstChild.data) for a in args], ', ') + ');)\n'
     code += '#endif // PRELOAD_WRAPPERS\n'
 
-    # special location 1 -- after call, before msg print
-    for s in specials:
+    # custom location 1 -- after call, before msg print
+    for s in customs:
         if cmp(s.getAttribute('location'),'1') == 0:
             code += '\t' + string.strip(s.firstChild.data) + '\n'
 
@@ -130,16 +136,27 @@ def buildFunctionCode(funcdom):
     traces = f.getElementsByTagName('trace')
     for t in traces:
         code += '\tentry.' + t.getAttribute('dest') + ' = ' + string.strip(t.firstChild.data) + ';\n';
+        if t.getAttribute('dest') == 'handle_id':
+            code += '\tentry.handle_class = IOHandle_' + classname  + ';\n'
 
     for a in args:
+        size = a.getAttribute('size')
+        if size:
+            if size == 'mpi_datatype':
+                entry += '\tint datasize;\n'
+                entry += '\tMPI_Type_size(' + string.strip(a.firstChild.data) + ', &datasize);\n'
+
         filetyp = a.getAttribute('file')
         if filetyp:
             if filetyp == 'name':
                 code += '\tentry.handle_class = IOHandle_NAME;\n'
-                code += '\tentry.handle_id = storeFileName(' + string.strip(a.firstChild.data) + ', 0, IOHandle_NAME, IOFileAccess_ONCE, 1);\n'
+                code += '\tentry.handle_id = storeFileName(' + string.strip(a.firstChild.data) + ', 0, IOHandle_NAME, IOFileAccess_ONCE, 1, PEBIL_NULL_COMMUNICATOR);\n'
             elif filetyp == 'handle':
                 code += '\tentry.handle_class = IOHandle_' + classname + ';\n'
-                code += '\tstoreFileName(' + string.strip(a.firstChild.data) + ', entry.handle_id, entry.handle_class, IOFileAccess_OPEN, 1);\n'
+                code += '\tstoreFileName(' + string.strip(a.firstChild.data) + ', entry.handle_id, entry.handle_class, IOFileAccess_OPEN, 1, PEBIL_NULL_COMMUNICATOR);\n'
+            elif filetyp == 'mpi':
+                code += '\tentry.handle_class = IOHandle_' + classname + ';\n'
+                code += '\tstoreFileName(' + string.strip(a.firstChild.data) + ', entry.handle_id, IOHandle_MPIO, IOFileAccess_OPEN, 1, comm);\n'
 
         trace = a.getAttribute('trace')
         if trace:
@@ -149,19 +166,19 @@ def buildFunctionCode(funcdom):
 
     code += '\tstoreEventInfo(&entry);\n'
 
-    # special location 2 -- before return
-    for s in specials:
+    # custom location 2 -- before return
+    for s in customs:
         if cmp(s.getAttribute('location'),'2') == 0:
-            code += '\t' + string.strip(s.firstChild.data) + '\n'
+            fini += '\t' + string.strip(s.firstChild.data) + '\n'
 
-    code += '\treturn retval;\n'
-    code += '}\n'
+    fini += '\treturn retval;\n'
+    fini += '}\n'
 
     if classname == 'MPIO':
-        code += '#endif // HAVE_MPI\n'
+        fini += '#endif // HAVE_MPI\n'
+    fini += '\n'
 
-    code += '\n'
-    return code
+    return entry + code + fini
 
 ##############################################################
 # print header file
@@ -187,6 +204,7 @@ header.close()
 source = open(sourcefile, 'w')
 source.write('// automatically generated by ' + str(sys.argv[0]) + '\n')
 source.write('#include <' + headerfile + '>\n\n')
+source.write('uint32_t mpiRegSeq = 0x800;\n\n')
 for c in classes:
     funcs = c.getElementsByTagName('function')
     for f in funcs:
