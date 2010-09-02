@@ -1,4 +1,4 @@
-project(pebil_lib CXX)
+project(pebil_src CXX)
 cmake_minimum_required(VERSION 2.6)
 if (POLICY CMP0015)
    cmake_policy(SET CMP0015 NEW)

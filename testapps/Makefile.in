@@ -5,9 +5,7 @@ MPICC       = @MPICC@
 
 BINDIR      = ../src
 
-SRCS        = foo.c bar.c dum.c main.c
 OBJS        = foo.o bar.o dum.o main.o
-SRCSCPP	    = classes.C
 OBJSCPP	    = classes.o
 EXTRA_INC   = -I../instcode
 EXTRA_LIBS  = -lm
