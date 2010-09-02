@@ -61,11 +61,6 @@ mapTypeToFormat = {
     'MPI_DataType': '%d'
 }
 
-dom = minidom.parse(xmldocument)
-
-classes = dom.getElementsByTagName('ioclass')
-classNames = [str(c.getAttribute('class')) for c in classes]
-
 def buildEnumeration(pattern, elist):
     enum = 'typedef enum {\n'
     elist.insert(0,'Invalid')
@@ -82,11 +77,10 @@ def buildEnumeration(pattern, elist):
 
     return enum
 
-def buildFunctionCode(funcdom):
+def buildSingleFunctionCode(funcdom, fname):
     rettype = str(funcdom.getAttribute('ret'))
-    fname = string.strip(funcdom.firstChild.data)
-    customs = f.getElementsByTagName('custom')
-    classname = string.strip(funcdom.parentNode.firstChild.data)
+    customs = funcdom.getElementsByTagName('custom')
+    classname = string.strip(c.firstChild.data)
 
     entry = ''
     code = ''
@@ -102,7 +96,7 @@ def buildFunctionCode(funcdom):
 
     # function declaration
     entry += str(rettype) + ' __wrapper_name(' + str(fname) + ')'
-    args = f.getElementsByTagName('arg')
+    args = funcdom.getElementsByTagName('arg')
     entry += '(' + string.join([str(a.getAttribute('type')) + ' ' + string.strip(a.firstChild.data) for a in args],', ') + ')\n{\n'
 
     # custom location 0 -- function entry
@@ -125,17 +119,12 @@ def buildFunctionCode(funcdom):
         if cmp(s.getAttribute('location'),'1') == 0:
             code += '\t' + string.strip(s.firstChild.data) + '\n'
 
-#    code += '\tsprintf(message, "' + string.strip(funcdom.parentNode.firstChild.data) + '_' + str(fname) + '('
-#    code += string.join([string.strip(a.firstChild.data) + '=' + mapTypeToFormat[str(a.getAttribute('type'))] for a in args], ', ')
-#    code += ')\\n", ' + string.join([string.strip(a.firstChild.data) for a in args], ', ') + ');\n'
-#    code += '\tstoreToBuffer(message, strlen(message));\n'
-    
     code += '\tEventInfo_t entry;\n'
     code += '\tbzero(&entry, sizeof(EventInfo_t));\n'
     code += '\tentry.class = ' + eventclassenum + '_' + classname + ';\n'
     code += '\tentry.event_type = IOEvent_' + classname + '_' + fname + ';\n'
 
-    traces = f.getElementsByTagName('trace')
+    traces = funcdom.getElementsByTagName('trace')
     for t in traces:
         code += '\tentry.' + t.getAttribute('dest') + ' = ' + string.strip(t.firstChild.data) + ';\n';
         if t.getAttribute('dest') == 'handle_id':
@@ -181,6 +170,24 @@ def buildFunctionCode(funcdom):
 
     return entry + code + fini
 
+def buildAllFunctionCode(funcdom):
+    fnames = string.strip(funcdom.firstChild.data)
+    flist = fnames.split(',')
+
+    code = ''
+    for f in flist:
+        code += buildSingleFunctionCode(funcdom, string.strip(f))
+    return code
+
+
+
+##############################################################
+# get high level info from the xml document
+##############################################################
+dom = minidom.parse(xmldocument)
+classes = dom.getElementsByTagName('ioclass')
+classNames = [str(c.getAttribute('class')) for c in classes]
+
 ##############################################################
 # print header file
 ##############################################################
@@ -193,8 +200,10 @@ header.write(buildEnumeration(eventclassenum, [string.strip(c.firstChild.data) f
 classFuncs = []
 for c in classes:
     funcs = c.getElementsByTagName('function')
-    for f in funcs:
-        classFuncs.append(string.strip(c.firstChild.data) + '_' + string.strip(f.firstChild.data))
+    for fraw in funcs:
+        flist = string.strip(fraw.firstChild.data).split(',')
+        for f in flist:
+            classFuncs.append(string.strip(c.firstChild.data) + '_' + string.strip(f))
 header.write(buildEnumeration(eventenum, classFuncs))
 header.write('#endif // _IOEVENTS_H_')
 header.close()
@@ -208,8 +217,8 @@ source.write('#include <' + headerfile + '>\n\n')
 source.write('uint32_t mpiRegSeq = 0x800;\n\n')
 for c in classes:
     funcs = c.getElementsByTagName('function')
-    for f in funcs:
-        source.write(buildFunctionCode(f))
+    for fraw in funcs:
+        source.write(buildAllFunctionCode(fraw))
 source.close()
 
 ##############################################################
@@ -222,8 +231,9 @@ for c in classes:
     wrapper.write('# ' + cName + ' wrappers\n')
     funcs = c.getElementsByTagName('function')
     prefixes = mapClassToNames[cName]
-    for f in funcs:
-        fName = string.strip(f.firstChild.data)
-        for p in prefixes:
-            wrapper.write(p + fName + ':' + fName + wrapperpost + '\n')
+    for fraw in funcs:
+        flist = string.strip(fraw.firstChild.data).split(',')
+        for f in flist:
+            for p in prefixes:
+                wrapper.write(p + string.strip(f) + ':' + string.strip(f) + wrapperpost + '\n')
 wrapper.close()
