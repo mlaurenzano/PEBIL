@@ -99,6 +99,8 @@ CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* libList, char* ext
 }
 
 void CallReplace::declare(){
+    InstrumentationTool::declare();
+
     // declare any shared library that will contain instrumentation functions
     for (uint32_t i = 0; i < libraries.size(); i++){
         declareLibrary(libraries[i]);
@@ -118,6 +120,8 @@ void CallReplace::declare(){
 
 
 void CallReplace::instrument(){
+    InstrumentationTool::instrument();
+
     uint32_t temp32;
     uint64_t temp64;
 

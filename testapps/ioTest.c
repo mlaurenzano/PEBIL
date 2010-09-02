@@ -50,7 +50,7 @@ int run_mpio(){
     MPI_Info_create(&ininfo);
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Info_set(ininfo, "_pebil_unqid", "hello");
+    MPI_Info_set(ininfo, "_pebil_testid", "somehint");
     err = MPI_File_open(MPI_COMM_WORLD, "scratch", MPI_MODE_RDONLY, ininfo, &fh);
     if (err){
         printf("error %d\n", err);
@@ -58,15 +58,14 @@ int run_mpio(){
     }
 
     printf("file info %d -- %#llx\n", sizeof(MPI_File), fh);
-    MPI_File fh2;
-    MPI_File_open(MPI_COMM_WORLD, "scratch2", MPI_MODE_WRONLY, MPI_INFO_NULL, &fh2);;
-    printf("file info %d -- %#llx\n", sizeof(MPI_File), fh2);
-    //    MPI_Info_create(&info);
+    MPI_File fh2 = fh;
+    assert(fh2 == fh && "File handle opaque object behaves unexpectedly");
+
     MPI_File_get_info(fh, &info);
-    MPI_Info_set(info, "_pebil_unqid", "hello");
+    MPI_Info_set(info, "_pebil_testid", "somehint");
     MPI_File_set_info(fh, ininfo);
 
-    // does file handle have our hint?
+    // does file handle have our hint? probably not
     MPI_File_get_info(fh, &info);
     MPI_Info_get_nkeys(info, &n);
     for (i = 0; i < n; i++){
@@ -74,16 +73,11 @@ int run_mpio(){
         MPI_Info_get(info, val, BUFFER_SIZE, buf, &flag);
         printf("\t(%d): %s -> %s\n", i, val, buf);
     }
-    /*
-    MPI_Info_get_nkeys(ininfo, &n);
-    for (i = 0; i < n; i++){
-        MPI_Info_get_nthkey(ininfo, i, val);
-        MPI_Info_get(ininfo, val, BUFFER_SIZE, buf, &flag);
-        printf("\t(%d): %s -> %s\n", i, val, buf);
-    }
-    */
 
-    MPI_File_seek(fh2, rank * BUFFER_SIZE, MPI_SEEK_SET);
+    if (rank % 2 == 0){
+        MPI_File_seek(fh2, rank * BUFFER_SIZE, MPI_SEEK_SET);
+    }
+
     MPI_File_read(fh, buf, BUFFER_SIZE, MPI_CHAR, &status);
     MPI_File_close(&fh);
 
