@@ -601,6 +601,7 @@ LIBOBJS
 EGREP
 GREP
 CPP
+PSINS_LIB_PATH
 MPI_FLAGS
 STATIC_INST_LIB
 MPILIBS
@@ -664,6 +665,7 @@ ac_user_opts='
 enable_option_checking
 enable_static
 enable_mpi
+with_psinstracer
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1292,9 +1294,15 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-static         Use static archives for instrumentation libraries
-                          [yes|no]
+                          [no]
   --enable-mpi            Use mpi compiler when building instrumentation
-                          libraries [yes*|no]
+                          libraries [yes]
+
+Optional Packages:
+  --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
+  --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-psinstracer      Build IO tracing library for use with psinstracer
+                          [no]
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -3926,24 +3934,62 @@ fi
 
 # Check whether --enable-static was given.
 if test "${enable_static+set}" = set; then :
-  enableval=$enable_static; ok=$enableval
+  enableval=$enable_static; static_ok=$enableval
 fi
 
-if test "$ok" = "yes"; then
+if test "$static_ok" = "yes"; then
    STATIC_INST_LIB="yes"
 fi
 
 
 # Check whether --enable-mpi was given.
 if test "${enable_mpi+set}" = set; then :
-  enableval=$enable_mpi; ok=$enableval
+  enableval=$enable_mpi; mpi_ok=$enableval
 fi
 
-if test "$ok" = "no"; then
+if test "$mpi_ok" = "no"; then
    MPICC="$CC"
    MPI_FLAGS=""
 else
    MPI_FLAGS="-DHAVE_MPI"
+fi
+
+
+
+# Check whether --with-psinstracer was given.
+if test "${with_psinstracer+set}" = set; then :
+  withval=$with_psinstracer;
+fi
+
+if test "$with_psinstracer" = ""; then
+   PSINS_LIB_PATH=no
+else
+   PSINS_LIB_PATH="$with_psinstracer"
+   PSINS_FILE="$with_psinstracer/libpsinstrace.a"
+   as_ac_File=`$as_echo "ac_cv_file_"$PSINS_FILE"" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for \"$PSINS_FILE\"" >&5
+$as_echo_n "checking for \"$PSINS_FILE\"... " >&6; }
+if { as_var=$as_ac_File; eval "test \"\${$as_var+set}\" = set"; }; then :
+  $as_echo_n "(cached) " >&6
+else
+  test "$cross_compiling" = yes &&
+  as_fn_error "cannot check for file existence when cross compiling" "$LINENO" 5
+if test -r ""$PSINS_FILE""; then
+  eval "$as_ac_File=yes"
+else
+  eval "$as_ac_File=no"
+fi
+fi
+eval ac_res=\$$as_ac_File
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+eval as_val=\$$as_ac_File
+   if test "x$as_val" = x""yes; then :
+
+else
+  as_fn_error "\"PSiNSTracer library \`$PSINS_FILE\` does not exist\"" "$LINENO" 5
+fi
+
 fi
 
 

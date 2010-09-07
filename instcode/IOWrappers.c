@@ -40,7 +40,7 @@ int32_t* lineNumbers;
 TraceBuffer_t traceBuffer = { NULL, __IO_BUFFER_SIZE, 0, 0 };
 uint32_t callDepth = 0;
 uint64_t eventIndex = 0;
-uint32_t fileRegSeq = 0x400;
+uint32_t fileRegSeq = 0x4000;
 uint32_t activeTrace = 1;
 
 // the dump function makes IO calls. so we must protect from an infinite recursion by not entering
@@ -212,7 +212,5 @@ int32_t _fini_wrappers(){
 #ifdef HAVE_MPI
 #define WRAPPING_MPIO_IO
 #endif // HAVE_MPI
-#define WRAPPING_CLIB_IO
-#define WRAPPING_POSX_IO
 
 #include <IOEvents.c>

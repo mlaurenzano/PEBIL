@@ -1,9 +1,21 @@
 STATIC_INST_LIB  = @STATIC_INST_LIB@
-ifeq ($(STATIC_INST_LIB),yes)
-	LIB_TARGETS = libcounter.a  libsimulator.a  libtimer.a  libiowrapper.a
+PSINS_LIB_PATH = @PSINS_LIB_PATH@
+
+LINKABLE_LIBS = 
+ifeq ($(PSINS_LIB_PATH),no)
 else
-	LIB_TARGETS = libcounter.so libsimulator.so libtimer.so libiowrapper.so libiowrapper_preld.so
+	LINKABLE_LIBS = libiowrapper_psins.a
+	PSINS_LIBS = @PSINS_LIB_PATH@/libpsinstrace.a
 endif
+
+PEBIL_LIBS = 
+ifeq ($(STATIC_INST_LIB),yes)
+	PEBIL_LIBS = libcounter.a  libsimulator.a  libtimer.a libiowrapper.a
+else
+	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so libiowrapper.so libiowrapper_preld.so
+endif
+
+LIB_TARGETS = $(PEBIL_LIBS) $(LINKABLE_LIBS)
 EXEC_TARGETS = iobin2txt
 
 MPICC       = @MPICC@
@@ -15,25 +27,7 @@ SHARED_LIB  = -shared
 AR          = ar rcs
 PRELD_FLAGS = -DPRELOAD_WRAPPERS $(SHARED_OPT)
 PRELD_LINK  = -ldl
-
-# Jade
-#OPT         = -O3 -w -I/opt/mpt/3.5.0/xt/mpich2-pgi/include# --save-temps
-#CC          = $(GNU_C) $(DBG) $(OPT)
-#SHARED_LIB  = -shared
-
-# Diamond
-#OPT	    = -O3 -w
-#CC          = $(GNU_C) $(DBG) $(OPT)
-#SHARED_LIB  = -shared
-
-# Ubuntu Linux (no MPI)
-#OPT         = -O3 -w
-#CC          = $(GNU_C) $(DBG) $(OPT)
-#SHARED_LIB  = -shared
-
-# Ubuntu Linux MPICH2
-#OPT         = -O3 -w -I/usr/include/mpich2
-#CC          = $(GNU_C) $(DBG) $(OPT)
+GEN_IOTRC   = -DWRAPPING_CLIB_IO -DWRAPPING_POSX_IO
 
 #### -DNO_SAMPLING_MODE    : Add to disable sampling (note that MAX visit count is still on).
 #### -DEXTENDED_SAMPLING   : Add to vary the ignore and sampling intervals during sampling
@@ -70,13 +64,18 @@ libtimer.so : TimerFunctions.o
 libtimer.a : TimerFunctions.o
 	$(AR) $@ TimerFunctions.o
 
-libiowrapper.so : IOWrappers.o
-	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o -L$(LIBDIR) $(EXTRA_LIBS)
+libiowrapper.so :
+	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC) $(SHARED_OPT)
+	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS)
 libiowrapper_preld.so:
-	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(PRELD_FLAGS)
-	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o -L$(LIBDIR) $(EXTRA_LIBS) $(PRELD_FLAGS) $(PRELD_LINK)
-libiowrapper.a : IOWrappers.o
-	$(AR) $@ IOWrappers.o
+	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC) $(PRELD_FLAGS)
+	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS) $(PRELD_FLAGS) $(PRELD_LINK)
+libiowrapper.a :
+	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC)
+	$(AR) $@ IOWrappers.o $(PSINS_LIBS)
+libiowrapper_psins.a : 
+	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o $(PSINS_LIB_PATH) IOWrappers.c
+	$(AR) $@ IOWrappers.o $(PSINS_LIBS)
 
 IOEvents.h:
 	../scripts/iogen.py
@@ -87,6 +86,6 @@ iobin2txt: iobin2txt.o
 clean: 
 	rm -f *.o *.i *.s *.ii *.a *.so $(LIB_TARGETS) IOEvents.c IOEvents.h
 
-install: $(LIB_TARGETS)
+install:
 	cp $(LIB_TARGETS) $(LIBDIR)
 	cp $(EXEC_TARGETS) $(BINDIR)

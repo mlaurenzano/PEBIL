@@ -16,20 +16,30 @@ AC_PROG_INSTALL
 AC_LANG([C])
 ACX_MPI
 
-AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Use static archives for instrumentation libraries [yes|no]]), ok=$enableval)
-if test "$ok" = "yes"; then
+AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Use static archives for instrumentation libraries [no]]), static_ok=$enableval)
+if test "$static_ok" = "yes"; then
    STATIC_INST_LIB="yes"
 fi
 AC_SUBST(STATIC_INST_LIB)
 
-AC_ARG_ENABLE(mpi, AC_HELP_STRING([--enable-mpi], [Use mpi compiler when building instrumentation libraries [yes*|no]]), ok=$enableval)
-if test "$ok" = "no"; then
+AC_ARG_ENABLE(mpi, AC_HELP_STRING([--enable-mpi], [Use mpi compiler when building instrumentation libraries [yes]]), mpi_ok=$enableval)
+if test "$mpi_ok" = "no"; then
    MPICC="$CC"
    MPI_FLAGS=""
 else
    MPI_FLAGS="-DHAVE_MPI"
 fi
 AC_SUBST(MPI_FLAGS)
+
+AC_ARG_WITH([psinstracer], AC_HELP_STRING([--with-psinstracer], [Build IO tracing library for use with psinstracer [no]]))
+if test "$with_psinstracer" = ""; then
+   PSINS_LIB_PATH=no
+else
+   PSINS_LIB_PATH="$with_psinstracer"
+   PSINS_FILE="$with_psinstracer/libpsinstrace.a"
+   AC_CHECK_FILE("$PSINS_FILE", [], AC_MSG_ERROR(["PSiNSTracer library `$PSINS_FILE` does not exist"]))
+fi
+AC_SUBST(PSINS_LIB_PATH)
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h strings.h unistd.h])

@@ -19,13 +19,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-#this script is intended to be run out of $PEBIL_ROOT/scripts
+# This script is intended to be run out of $PEBIL_ROOT/scripts, and is 
+# used to generate the source code for I/O function wrapper that can be
+# used to collect I/O traces.
 
+# import the packages we need
 import sys
 import os
 import string
 from xml.dom import minidom
 
+# define constants needed for execution. since these paths are hardcoded 
+# this file needs to be run from $PEBIL_ROOT/scripts/
 xmldocument = '../instcode/ioevents.xml'
 headerfile  = 'IOEvents.h'
 sourcefile  = 'IOEvents.c'
@@ -34,6 +39,9 @@ wrapperpost = '_pebil_wrapper'
 eventenum   = 'IOEvent'
 eventclassenum = 'IOEventClass'
 
+# the compiler sometimes prepends stuff to the name of functions. here we
+# list any such possibilities so we can correctly map any function named
+# by the compiler to the correct function
 mapClassToNames = {
     'CLIB': ['', '_IO_', '__'],
     'POSX': ['', '__libc_', '__'],
@@ -41,28 +49,26 @@ mapClassToNames = {
     'HDF5': []
 }
 
-mapTypeToFormat = {
-    'FILE*':        '%d',
-    'int':          '%d',
-    'const char*':  '%s',
-    'mode_t':       '%d',
-    'const void*':  '%d',
-    'size_t':       '%d',
-    'off_t':        '%d',
-    'struct stat*': '%d',
-    'long int':     '%lld',
-    'MPI_Comm':     '%d',
-    'char*':        '%s',
-    'MPI_Info':     '%d',
-    'MPI_File':     '%d',
-    'void*':        '%d',
-    'MPI_Offset':   '%d',
-    'MPI_Status*':  '%d',
-    'MPI_DataType': '%d'
-}
+# generate the code to store data to some member of the struct entry
+def buildEntryStorageStmt(trace, data, classname):
+    code = '\tentry.' + trace + ' = ' + data + ';\n'
+    if trace == 'handle_id':
+        code += '\tentry.handle_class = IOHandle_' + classname  + ';\n'
+    return code
 
+def buildFileHandleStore(name, handle, handleClass, accessType, protect, communicator):
+    code = '\tentry.handle_class = ' + handleClass + ';\n'
+    code += '\tentry.handle_id = storeFileName(' + name + ', ' + handle + ', ' + handleClass
+    code += ', IOFileAccess_' + accessType + ', ' + str(protect) + ', ' + communicator + ');\n'
+    return code
+
+# given a decription and a list of items, build an enumeration and name 
+# structure for that description/list pair.
 def buildEnumeration(pattern, elist):
+
+    # build enuemeration
     enum = 'typedef enum {\n'
+    # create an Invalid entry as the first value in the enum
     elist.insert(0,'Invalid')
     for item in elist:
         enum += '\t' + pattern + '_' + item + ',\n'
@@ -70,6 +76,7 @@ def buildEnumeration(pattern, elist):
     enum += '\t' + sizestr + '\n'
     enum += '} ' + pattern + '_t;\n'
 
+    # build name structure that maps to items in the enumeration
     enum += 'extern const char* ' + pattern + 'Names[' + sizestr + '];\n'
     enum += 'const char* ' + pattern + 'Names[' + sizestr + '] = {\n'
     enum += string.join(['\t"' + item for item in elist], '",\n')
@@ -82,16 +89,21 @@ def buildSingleFunctionCode(funcdom, fname):
     customs = funcdom.getElementsByTagName('custom')
     classname = string.strip(c.firstChild.data)
 
+    # function entry
     entry = ''
+    # function middle
     code = ''
+    # function exit
     fini = ''
     fcall = ''
 
+    # for MPI call the profiling interface instead of the exact function that we are wrapping
     if classname == 'MPIO':
         fcall = 'P' + fname
     else:
         fcall = fname
 
+    # set a macro that allows us to turn on/off clases of wrappers
     entry += '#ifdef WRAPPING_' + classname + '_IO\n'
 
     # function declaration
@@ -105,6 +117,7 @@ def buildSingleFunctionCode(funcdom, fname):
             entry += '\t' + string.strip(s.firstChild.data) + '\n'
     entry += '\t' + str(rettype) + ' retval;\n'
 
+    # call the original function, putting the return value in `retval`
     code += '#ifdef PRELOAD_WRAPPERS\n'
     code += '\tstatic ' + str(rettype) + ' *(*' + str(fname) + '_ptr)('
     code += string.join([str(a.getAttribute('type')) + ' ' + string.strip(a.firstChild.data) for a in args],', ') + ');\n'
@@ -119,41 +132,40 @@ def buildSingleFunctionCode(funcdom, fname):
         if cmp(s.getAttribute('location'),'1') == 0:
             code += '\t' + string.strip(s.firstChild.data) + '\n'
 
+    # create an EventInfo_t instance, initialize and fill some values that are known just by class type
     code += '\tEventInfo_t entry;\n'
     code += '\tbzero(&entry, sizeof(EventInfo_t));\n'
     code += '\tentry.class = ' + eventclassenum + '_' + classname + ';\n'
     code += '\tentry.event_type = IOEvent_' + classname + '_' + fname + ';\n'
 
+    # for any trace element, generate code to fill that item in entry
     traces = funcdom.getElementsByTagName('trace')
     for t in traces:
-        code += '\tentry.' + t.getAttribute('dest') + ' = ' + string.strip(t.firstChild.data) + ';\n';
-        if t.getAttribute('dest') == 'handle_id':
-            code += '\tentry.handle_class = IOHandle_' + classname  + ';\n'
+        code += buildEntryStorageStmt(t.getAttribute('dest'), string.strip(t.firstChild.data), classname)
 
+    # process all arg elements
     for a in args:
+        # handle the size attribute
         size = a.getAttribute('size')
         if size:
             if size == 'mpi_datatype':
                 entry += '\tint datasize;\n'
                 entry += '\tMPI_Type_size(' + string.strip(a.firstChild.data) + ', &datasize);\n'
 
+        # handle the file attribute, which generally stores the file name information
         filetyp = a.getAttribute('file')
         if filetyp:
             if filetyp == 'name':
-                code += '\tentry.handle_class = IOHandle_NAME;\n'
-                code += '\tentry.handle_id = storeFileName(' + string.strip(a.firstChild.data) + ', 0, IOHandle_NAME, IOFileAccess_ONCE, 1, PEBIL_NULL_COMMUNICATOR);\n'
+                code += buildFileHandleStore(string.strip(a.firstChild.data), '0', 'IOHandle_NAME', 'ONCE', 1, 'PEBIL_NULL_COMMUNICATOR')
             elif filetyp == 'handle':
-                code += '\tentry.handle_class = IOHandle_' + classname + ';\n'
-                code += '\tstoreFileName(' + string.strip(a.firstChild.data) + ', entry.handle_id, entry.handle_class, IOFileAccess_OPEN, 1, PEBIL_NULL_COMMUNICATOR);\n'
+                code += buildFileHandleStore(string.strip(a.firstChild.data), 'entry.handle_id', 'entry.handle_class', 'OPEN', 1, 'PEBIL_NULL_COMMUNICATOR')
             elif filetyp == 'mpi':
-                code += '\tentry.handle_class = IOHandle_' + classname + ';\n'
-                code += '\tstoreFileName(' + string.strip(a.firstChild.data) + ', entry.handle_id, IOHandle_MPIO, IOFileAccess_OPEN, 1, comm);\n'
+                code += buildFileHandleStore(string.strip(a.firstChild.data), 'entry.handle_id', 'IOHandle_MPIO', 'OPEN', 1, 'comm')
 
+        # handle the trace attribute, which is just a shorthand way of storing this arg to entry
         trace = a.getAttribute('trace')
         if trace:
-            code += '\tentry.' + trace + ' = ' + string.strip(a.firstChild.data) + ';\n'
-            if trace == 'handle_id':
-                code += '\tentry.handle_class = IOHandle_' + classname  + ';\n'
+            code += buildEntryStorageStmt(trace, string.strip(a.firstChild.data), classname)
 
     code += '\tstoreEventInfo(&entry);\n'
 
@@ -170,6 +182,7 @@ def buildSingleFunctionCode(funcdom, fname):
 
     return entry + code + fini
 
+# for every function listed, build the functions wrapper's source code
 def buildAllFunctionCode(funcdom):
     fnames = string.strip(funcdom.firstChild.data)
     flist = fnames.split(',')
@@ -214,7 +227,6 @@ header.close()
 source = open(sourcefile, 'w')
 source.write('// automatically generated by ' + str(sys.argv[0]) + '\n')
 source.write('#include <' + headerfile + '>\n\n')
-source.write('uint32_t mpiRegSeq = 0x800;\n\n')
 for c in classes:
     funcs = c.getElementsByTagName('function')
     for fraw in funcs:

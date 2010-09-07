@@ -197,6 +197,13 @@
   </ioclass>
 
   <ioclass> CLIB
+<!--
+    <function ret="int" variadic="vfprintf"> fprintf 
+      <arg type="FILE*"> stream </arg>
+      <arg type="const char*"> format </arg>
+      <arg type=""> ... </arg>
+    </function>
+-->
     <function ret="int"> fseek
       <arg type="FILE*"> stream </arg>
       <arg type="long int" trace="offset"> offset </arg>
