@@ -68,7 +68,7 @@ int taskid;
 
 #include <mpi.h>
 
-int __ntasks;
+int __ntasks = 1;
 
 // C init wrapper
 int __wrapper_name(MPI_Init)(int* argc, char*** argv){

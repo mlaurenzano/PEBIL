@@ -51,7 +51,7 @@ add_library(iowrapper_preld SHARED ${iowrapper_SOURCES})
 add_executable(iobin2txt ${iobin2txt_SOURCES})
 add_executable(ioTest ${ioTest_SOURCES})
 
-set_target_properties(iowrapper_preld PROPERTIES COMPILE_FLAGS "-DPRELOAD_WRAPPER")
+set_target_properties(iowrapper_preld PROPERTIES COMPILE_FLAGS "-DPRELOAD_WRAPPERS")
 
 # figure out whether to use an mpi compiler driver or not
 if (MPI_FOUND)

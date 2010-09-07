@@ -33,8 +33,8 @@
 #define __IO_BUFFER_SIZE 0x100000
 #define __MAX_MESSAGE_SIZE 0x800
 #define __MAX_FILE_NAMES 0x4000
-//#define PEBIL_NULL_COMMUNICATOR 0x63b1747f
-#define PEBIL_NULL_COMMUNICATOR 0
+#define PEBIL_NULL_COMMUNICATOR 0x63b1747f
+#define PEBIL_NULL_FILE_DESCRIPTOR 0x63b14aa
 
 #define GET_RECORD_SIZE(__record) (__record >> 8)
 #define GET_RECORD_TYPE(__record) (__record & 0x000000ff)

@@ -60,12 +60,20 @@ int64_t timerstop;
 
 extern void printSystemIORecords();
 
+uint32_t getFileDescriptor(FILE* stream){
+    if (stream){
+        return fileno(stream);
+    }
+    return PEBIL_NULL_FILE_DESCRIPTOR;
+}
+
 uint32_t dumpBuffer(){
     if (activeTrace){
         if (traceBuffer.outFile == NULL){
             char fname[__MAX_STRING_SIZE];
             sprintf(fname, "pebiliotrace.rank%05d.tasks%05d.bin", __taskid, __ntasks);
             traceBuffer.outFile = fopen(fname, "w");
+            PRINT_INSTR(stdout, "opening trace file: %s", fname);
         }
 
         uint32_t oerr = fwrite(traceBuffer.buffer, sizeof(char), traceBuffer.freeIdx, traceBuffer.outFile);
@@ -181,14 +189,13 @@ int32_t _pebil_fini(){
 
 #ifdef PRELOAD_WRAPPERS
 // call these functions at program entry/exit
-// this works for gcc; intel?
+// this works for gnu and intel. pathscale? pgi?
 int32_t _init_wrappers() __attribute__ ((constructor));
 int32_t _fini_wrappers() __attribute__ ((destructor));
 #endif // PRELOAD_WRAPPERS
 
 int32_t _init_wrappers(){
     CALL_DEPTH_ENTER(iowrapperDepth);
-    PRINT_INSTR(stdout, "Starting IO Trace for task %d", __taskid);
     printSystemIORecords();    
     CALL_DEPTH_EXIT(iowrapperDepth);
 }

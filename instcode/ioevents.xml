@@ -202,7 +202,7 @@
       <arg type="long int" trace="offset"> offset </arg>
       <arg type="int"> origin </arg>
       <trace dest="offset_class"> offsetOriginToClass_CLIB(origin) </trace>
-      <trace dest="handle_id"> stream->_fileno </trace>
+      <trace dest="handle_id"> getFileDescriptor(stream) </trace>
     </function>
 
     <function ret="size_t"> fwrite
@@ -211,30 +211,30 @@
       <arg type="size_t"> count </arg>
       <trace dest="size"> (size * count) </trace>
       <arg type="FILE*"> stream </arg>
-      <trace dest="handle_id"> stream->_fileno </trace>
+      <trace dest="handle_id"> getFileDescriptor(stream) </trace>
     </function>
 
     <function ret="int"> fflush
       <arg type="FILE*"> stream </arg>
-      <trace dest="handle_id"> stream->_fileno </trace>
+      <trace dest="handle_id"> getFileDescriptor(stream) </trace>
     </function>
 
     <function ret="FILE*"> fopen
       <arg type="const char*" file="handle"> filename </arg>
       <arg type="const char*"> mode </arg>
-      <trace dest="handle_id"> retval->_fileno </trace>
+      <trace dest="handle_id"> getFileDescriptor(retval) </trace>
     </function>
 
     <function ret="int"> puts
       <arg type="const char*"> str </arg>
       <trace dest="size"> strlen(str) </trace>
-      <trace dest="handle_id"> stdout->_fileno </trace>
+      <trace dest="handle_id"> getFileDescriptor(stdout) </trace>
       <trace dest="handle_class"> IOHandle_CLIB </trace>
     </function>
 
     <function ret="int"> fclose
       <arg type="FILE*"> stream </arg>
-      <custom location="0"> long int savef = stream->_fileno; </custom>
+      <custom location="0"> long int savef = getFileDescriptor(stream); </custom>
       <trace dest="handle_id"> savef </trace>
     </function>
 
@@ -244,7 +244,7 @@
       <arg type="size_t"> count </arg>
       <trace dest="size"> (size * count) </trace>
       <arg type="FILE*"> stream </arg>
-      <trace dest="handle_id"> stream->_fileno </trace>
+      <trace dest="handle_id"> getFileDescriptor(stream) </trace>
     </function>
 
     <function ret="int"> fstat

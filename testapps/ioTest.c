@@ -91,7 +91,7 @@ int run_mpio(){
 int run_posx_libc(){
     char* buf = malloc(BUFFER_SIZE);
     struct stat* st = malloc(sizeof(struct stat));
-    int f = open(TEST_NAME, O_APPEND, O_RDWR);
+    int f = open(TEST_NAME, O_APPEND);
     write(f, TEST_MSG, 11);
     pwrite(f, TEST_MSG, 5, 4);
     pwrite64(f, TEST_MSG, 5, 4);
@@ -115,6 +115,8 @@ int run_posx_libc(){
     fprintf(stdout, "stat info: %d %d %d\n", st->st_dev, st->st_uid, st->st_mode);
 
     FILE* h = fopen("/dev/null", "rw");
+    FILE* h2 = fopen("DUMP_NOW", "r");
+
     fseek(h, 3, SEEK_END);
     puts(TEST_MSG);
     fflush(h);
