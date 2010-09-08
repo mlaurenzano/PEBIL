@@ -149,7 +149,7 @@
       <arg type="size_t" trace="size"> count </arg>
     </function>
 
-    <function ret="ssize_t"> pwrite, pwrite64
+    <function ret="ssize_t"> pwrite
       <arg type="int" trace="handle_id"> fd </arg>
       <arg type="const void*"> ptr </arg>
       <arg type="size_t" trace="size"> count </arg>
@@ -157,11 +157,27 @@
       <trace dest="offset_class"> IOOffset_SET </trace>
     </function>
 
-    <function ret="ssize_t"> pread, pread64
+    <function ret="ssize_t" ifdef="__x86_64__"> pwrite64
+      <arg type="int" trace="handle_id"> fd </arg>
+      <arg type="const void*"> ptr </arg>
+      <arg type="size_t" trace="size"> count </arg>
+      <arg type="off64_t" trace="offset"> offset </arg>
+      <trace dest="offset_class"> IOOffset_SET </trace>
+    </function>
+
+    <function ret="ssize_t"> pread
       <arg type="int" trace="handle_id"> fd </arg>
       <arg type="void*"> buf </arg>
       <arg type="size_t" trace="size"> count </arg>
       <arg type="off_t" trace="offset"> offset </arg>
+      <trace dest="offset_class"> IOOffset_SET </trace>
+    </function>
+
+    <function ret="ssize_t" ifdef="__x86_64__"> pread64
+      <arg type="int" trace="handle_id"> fd </arg>
+      <arg type="void*"> buf </arg>
+      <arg type="size_t" trace="size"> count </arg>
+      <arg type="off64_t" trace="offset"> offset </arg>
       <trace dest="offset_class"> IOOffset_SET </trace>
     </function>
 

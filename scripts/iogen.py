@@ -106,6 +106,10 @@ def buildSingleFunctionCode(funcdom, fname):
     # set a macro that allows us to turn on/off clases of wrappers
     entry += '#ifdef WRAPPING_' + classname + '_IO\n'
 
+    # wrap with any special ifdef defined by ifdef attribute
+    if funcdom.hasAttribute('ifdef'):
+        entry += '#ifdef ' + str(funcdom.getAttribute('ifdef')) + '\n'
+
     # function declaration
     entry += str(rettype) + ' __wrapper_name(' + str(fname) + ')'
     args = funcdom.getElementsByTagName('arg')
@@ -176,6 +180,9 @@ def buildSingleFunctionCode(funcdom, fname):
 
     fini += '\treturn retval;\n'
     fini += '}\n'
+
+    if funcdom.hasAttribute('ifdef'):
+        fini += '#endif // ' + str(funcdom.getAttribute('ifdef')) + '\n'
 
     fini += '#endif // WRAPPING_' + classname + '_IO\n'
     fini += '\n'
