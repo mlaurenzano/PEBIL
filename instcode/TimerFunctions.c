@@ -252,10 +252,10 @@ int32_t program_exit(){
 }
 
 int32_t function_entry(int64_t* functionIndex){
+    return 0;
     int i, j;
 
     funcStack_push(*functionIndex);
-
     int32_t currentRecord = getRecordIndex();
 
     // initialize this backtrace's record
@@ -274,6 +274,7 @@ int32_t function_entry(int64_t* functionIndex){
 }
 
 int32_t function_exit(int64_t* functionIndex){
+    return 0;
     int64_t tstop;
 #ifdef EXCLUDE_TIMER
     tstop = 1;

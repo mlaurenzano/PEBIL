@@ -22,6 +22,43 @@
 
 #include <X86InstructionFactory.h>
 
+X86Instruction* X86InstructionFactory32::emitMoveImmToMem(uint64_t imm, uint64_t addr){
+    uint32_t len = 10;
+    char* buff = new char[len];
+
+    buff[0] = 0xc7;
+    buff[1] = 0x05;
+    
+    uint32_t addr32 = (uint32_t)addr;
+    ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the address");
+    memcpy(buff+2,&addr32,sizeof(uint32_t));
+
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == (uint32_t)imm && "Cannot use more than 32 bits for the address");
+    memcpy(buff+6,&imm32,sizeof(uint32_t));
+
+    return emitInstructionBase(len,buff);    
+}
+
+X86Instruction* X86InstructionFactory64::emitMoveImmToMem(uint64_t imm, uint64_t addr){
+    uint32_t len = 11;
+    char* buff = new char[len];
+
+    buff[0] = 0xc7;
+    buff[1] = 0x04;
+    buff[2] = 0x25;
+    
+    uint32_t addr32 = (uint32_t)addr;
+    ASSERT(addr32 == (uint32_t)addr && "Cannot use more than 32 bits for the address");
+    memcpy(buff+3,&addr32,sizeof(uint32_t));
+
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == (uint32_t)imm && "Cannot use more than 32 bits for the address");
+    memcpy(buff+7,&imm32,sizeof(uint32_t));
+
+    return emitInstructionBase(len,buff);    
+}
+
 X86Instruction* X86InstructionFactory64::emitFxSave(uint64_t addr){
     uint32_t len = 8;
     char* buff = new char[len];
@@ -1346,20 +1383,6 @@ X86Instruction* X86InstructionFactory32::emitRegSubImm(uint8_t idx, uint32_t imm
     uint32_t imm32 = (uint32_t)imm;
     ASSERT(imm32 == imm && "Cannot use more than 32 bits for immset");
     memcpy(buff+2,&imm32,sizeof(uint32_t));
-
-    return emitInstructionBase(len,buff);
-}
-
-X86Instruction* X86InstructionFactory::emitMoveImmByteToMemIndirect(uint8_t byt, uint64_t off, uint32_t idx){
-    ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
-    uint32_t len = 7;
-    char* buff = new char[len];
-    buff[0] = 0xc6;
-    buff[1] = 0x80 + (char)idx;
-    buff[6] = byt;
-    uint32_t off32 = (uint32_t)off;
-    ASSERT(off32 == off && "Cannot use more than 32 bits for offset");
-    memcpy(buff+2,&off32,sizeof(uint32_t));
 
     return emitInstructionBase(len,buff);
 }

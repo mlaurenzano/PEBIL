@@ -51,7 +51,6 @@ public:
     static X86Instruction* emitPopSegmentReg(uint32_t idx);
     static X86Instruction* emitStackPushImm(uint64_t imm);
 
-    static X86Instruction* emitMoveImmByteToMemIndirect(uint8_t byt, uint64_t off, uint32_t idx);
     static X86Instruction* emitMoveImmToReg(uint64_t imm, uint32_t idx);
     static X86Instruction* emitMoveImmByteToReg(uint8_t imm, uint32_t idx);
     static X86Instruction* emitRegAddImm(uint8_t idx, uint32_t imm);
@@ -99,6 +98,7 @@ public:
 
     static X86Instruction* emitMoveRegToMem(uint32_t idx, uint64_t addr);
     static X86Instruction* emitMoveMemToReg(uint64_t addr, uint32_t idx, bool is64bit);
+    static X86Instruction* emitMoveImmToMem(uint64_t imm, uint64_t addr);
 
     static X86Instruction* emitShiftLeftLogical(uint8_t imm, uint8_t reg);
     static X86Instruction* emitShiftRightLogical(uint8_t imm, uint8_t reg);
@@ -148,6 +148,7 @@ public:
 
     static X86Instruction* emitMoveRegToMem(uint32_t idx, uint64_t addr);
     static X86Instruction* emitMoveMemToReg(uint64_t addr, uint32_t idx);
+    static X86Instruction* emitMoveImmToMem(uint64_t imm, uint64_t addr);
 
     static X86Instruction* emitMoveRegaddrImmToReg(uint32_t, uint64_t, uint32_t);
     static X86Instruction* emitMoveRegToRegaddrImm(uint32_t, uint32_t, uint64_t);

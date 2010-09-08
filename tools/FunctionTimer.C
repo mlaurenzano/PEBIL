@@ -114,15 +114,9 @@ void FunctionTimer::instrument(){
         Vector<X86Instruction*> fillEntry = Vector<X86Instruction*>();
 
         if (getElfFile()->is64Bit()){
-            fillEntry.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-            fillEntry.append(X86InstructionFactory64::emitMoveImmToReg(i, X86_REG_CX));
-            fillEntry.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-            fillEntry.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+            fillEntry.append(X86InstructionFactory64::emitMoveImmToMem(i, getInstDataAddress() + getRegStorageOffset()));
         } else {
-            fillEntry.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-            fillEntry.append(X86InstructionFactory32::emitMoveImmToReg(i, X86_REG_CX));
-            fillEntry.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-            fillEntry.append(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+            fillEntry.append(X86InstructionFactory32::emitMoveImmToMem(i, getInstDataAddress() + getRegStorageOffset()));
         }
 
         FlagsProtectionMethods prot = FlagsProtectionMethod_full;
@@ -150,15 +144,9 @@ void FunctionTimer::instrument(){
             Vector<X86Instruction*> fillExit = Vector<X86Instruction*>();
  
             if (getElfFile()->is64Bit()){
-                fillExit.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                fillExit.append(X86InstructionFactory64::emitMoveImmToReg(i, X86_REG_CX));
-                fillExit.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-                fillExit.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+                fillExit.append(X86InstructionFactory64::emitMoveImmToMem(i, getInstDataAddress() + getRegStorageOffset()));
             } else {
-                fillExit.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                fillExit.append(X86InstructionFactory32::emitMoveImmToReg(i, X86_REG_CX));
-                fillExit.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-                fillExit.append(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+                fillExit.append(X86InstructionFactory32::emitMoveImmToMem(i, getInstDataAddress() + getRegStorageOffset()));
             }
 
             FlagsProtectionMethods prot = FlagsProtectionMethod_full;
