@@ -113,6 +113,7 @@ void printFunctionInfo(int i){
     PRINT_INSTR(stdout, "%s (%d): %lld executions, %.6f seconds", functionNames[funcInfos[i].backtrace[0]], funcInfos[i].hash % (numberOfFunctions * RECORDS_PER_FUNCTION), funcInfos[i].count, ((double)((double)funcInfos[i].timer_total/(double)ticksPerSecond)));
 #endif
     for (j = 1; j < STACK_BACKTRACE_SIZE; j++){
+        PRINT_INSTR(stdout, "%d", funcInfos[i].backtrace[j]);
         if (funcInfos[i].backtrace[j] >= 0){
             if (stackError[funcInfos[i].backtrace[j]]){
                 PRINT_INSTR(stdout, "[%d]\t-e-\t%s", j, functionNames[funcInfos[i].backtrace[j]]);

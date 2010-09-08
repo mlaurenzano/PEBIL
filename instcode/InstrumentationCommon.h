@@ -30,7 +30,7 @@
 #include <stdarg.h>
 
 #define __MAX_STRING_SIZE 1024
-#define CLOCK_RATE_HZ 2600000000
+#define CLOCK_RATE_HZ 2270000000
 
 //#define EXCLUDE_TIMER
 

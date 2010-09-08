@@ -53,7 +53,7 @@ int run_mpio(){
     MPI_Info_set(ininfo, "_pebil_testid", "somehint");
     err = MPI_File_open(MPI_COMM_WORLD, "scratch", MPI_MODE_RDONLY, ininfo, &fh);
     if (err){
-        printf("error %d\n", err);
+        printf("cannot open file scratch -- %d\n", err);
         exit(-1);
     }
 
