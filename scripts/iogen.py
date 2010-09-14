@@ -56,6 +56,7 @@ def buildEntryStorageStmt(trace, data, classname):
         code += '\tentry.handle_class = IOHandle_' + classname  + ';\n'
     return code
 
+# generate the code to store a file handle
 def buildFileHandleStore(name, handle, handleClass, accessType, protect, communicator):
     code = '\tentry.handle_class = ' + handleClass + ';\n'
     code += '\tentry.handle_id = storeFileName(' + name + ', ' + handle + ', ' + handleClass

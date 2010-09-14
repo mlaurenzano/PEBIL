@@ -51,12 +51,16 @@ typedef struct
     unsigned char pt_disable[16];
 } instpoint_info;
 
+
+#define __give_pebil_name(__fname) \
+    __fname ## _pebil_wrapper
+
 #ifdef PRELOAD_WRAPPERS
 #define __wrapper_name(__fname) \
     __fname
 #else // PRELOAD_WRAPPERS
 #define __wrapper_name(__fname) \
-    __fname ## _pebil_wrapper
+    __give_pebil_name(__fname)
 #endif // PRELOAD_WRAPPERS
 
 
@@ -71,8 +75,13 @@ int taskid;
 int __ntasks = 1;
 
 // C init wrapper
+#ifdef USES_PSINSTRACER
+int __give_pebil_name(MPI_Init)(int* argc, char*** argv){
+    int retval = 0;
+#else
 int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     int retval = PMPI_Init(argc, argv);
+#endif // USES_PSINSTRACER
 
     PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
     PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
@@ -86,6 +95,8 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
 extern void pmpi_init_(int* ierr);
 extern void pmpi_comm_rank_(int* comm, int* rank, int* ierr);
 extern void pmpi_comm_size_(int* comm, int* rank, int* ierr);
+
+#ifndef USES_PSINSTRACER
 void __wrapper_name(mpi_init_)(int* ierr){
     pmpi_init_(&ierr);
 
@@ -96,6 +107,7 @@ void __wrapper_name(mpi_init_)(int* ierr){
 
     fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
 }
+#endif // USES_PSINSTRACER
 
 #else // HAVE_MPI
 #define __taskid getpid()

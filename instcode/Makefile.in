@@ -6,6 +6,7 @@ ifeq ($(PSINS_LIB_PATH),no)
 else
 	LINKABLE_LIBS = libiowrapper_psins.a
 	PSINS_LIBS = @PSINS_LIB_PATH@/libpsinstrace.a
+	PSINSTRACER_FLAGS = -DUSES_PSINSTRACER
 endif
 
 PEBIL_LIBS = 
@@ -21,11 +22,11 @@ EXEC_TARGETS = iobin2txt
 MPICC       = @MPICC@
 CFLAGS      = @CFLAGS@
 
-EXTRA_FLAGS = -w
 SHARED_OPT  = -fPIC
+EXTRA_FLAGS = -w $(SHARED_OPT)
 SHARED_LIB  = -shared
 AR          = ar rcs
-PRELD_FLAGS = -DPRELOAD_WRAPPERS $(SHARED_OPT)
+PRELD_FLAGS = -DPRELOAD_WRAPPERS
 PRELD_LINK  = -ldl
 GEN_IOTRC   = -DWRAPPING_CLIB_IO -DWRAPPING_POSX_IO
 
@@ -65,16 +66,16 @@ libtimer.a : TimerFunctions.o
 	$(AR) $@ TimerFunctions.o
 
 libiowrapper.so :
-	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC) $(SHARED_OPT)
-	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS)
+	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC) $(SHARED_OPT) $(PSINSTRACER_FLAGS)
+	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS) $(PSINSTRACER_FLAGS)
 libiowrapper_preld.so:
-	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC) $(PRELD_FLAGS)
-	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS) $(PRELD_FLAGS) $(PRELD_LINK)
+	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC) $(PRELD_FLAGS) $(PSINSTRACER_FLAGS)
+	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS) $(PRELD_FLAGS) $(PRELD_LINK) $(PSINSTRACER_FLAGS)
 libiowrapper.a :
-	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC)
+	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC) $(PSINSTRACER_FLAGS)
 	$(AR) $@ IOWrappers.o $(PSINS_LIBS)
 libiowrapper_psins.a : 
-	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o $(PSINS_LIB_PATH) IOWrappers.c
+	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(PSINSTRACER_FLAGS)
 	$(AR) $@ IOWrappers.o $(PSINS_LIBS)
 
 IOEvents.h:

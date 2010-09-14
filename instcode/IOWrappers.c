@@ -68,6 +68,8 @@ uint32_t getFileDescriptor(FILE* stream){
 }
 
 uint32_t dumpBuffer(){
+    // this currently depends on the fact that __taskid and __ntasks get set by the MPI_Init wrapper prior to the
+    // buffer filling.
     if (activeTrace){
         if (traceBuffer.outFile == NULL){
             char fname[__MAX_STRING_SIZE];
