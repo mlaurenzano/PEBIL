@@ -38,9 +38,10 @@ void printRecordHeader(uint32_t header){
 }
 
 void printEventInfo(EventInfo_t* event){
-    fprintf(stdout, "unqid %5lld: class=%4s, o_class=%8s, h_class=%4s, mode=%hhd, handle=%lld, source=%lld, size=%lld, offset=%lld, e_type=%s\n\0",
-            event->unqid, IOEventClassNames[event->class], IOOffsetClassNames[event->offset_class], IOHandleClassNames[event->handle_class], event->mode,
-            event->handle_id, event->source, event->size, event->offset, IOEventNames[event->event_type]);
+    fprintf(stdout, "unqid %5lld: stime=%lld + %lld, class=%4s, o_class=%8s, h_class=%4s, mode=%hhd, handle=%lld, pid=%d, tid=%llx, size=%lld, offset=%lld, e_type=%s\n\0",
+            event->unqid, event->start_time, event->end_time - event->start_time,
+            IOEventClassNames[event->class], IOOffsetClassNames[event->offset_class], IOHandleClassNames[event->handle_class], event->mode,
+            event->handle_id, event->tinfo.process, event->tinfo.thread, event->size, event->offset, IOEventNames[event->event_type]);
 }
 
 void printIOFileName(IOFileName_t* filereg, char* name){

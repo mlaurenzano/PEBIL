@@ -28,16 +28,23 @@
 #include <string.h>
 #include <sys/time.h>
 #include <stdarg.h>
+#include <time.h>
 
 #define __MAX_STRING_SIZE 1024
 #define CLOCK_RATE_HZ 2270000000
 
 //#define EXCLUDE_TIMER
 
-__inline__ unsigned long long readtsc(){
+inline unsigned long long readtsc(){
     unsigned low, high;
     __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));
     return ((unsigned long long)low | (((unsigned long long)high) << 32));
+}
+
+inline uint64_t read_process_clock(){
+    struct timespec myclock;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &myclock);
+    return (1000000*myclock.tv_sec) + myclock.tv_nsec;
 }
 
 typedef struct
