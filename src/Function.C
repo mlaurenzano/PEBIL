@@ -33,17 +33,6 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
-bool Function::inMinRange(uint64_t addr){
-    uint32_t minSize = getSizeInBytes();
-    if (symbol && symbol->GET(st_size) < minSize){
-        minSize = symbol->GET(st_size);
-    }
-    if (addr >= baseAddress && addr < baseAddress + minSize){
-        return true;
-    }
-    return false;
-}
-
 uint32_t Function::findStackSize(){
     ASSERT(flowGraph);
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
