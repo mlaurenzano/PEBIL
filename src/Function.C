@@ -33,6 +33,17 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+bool Function::inMinRange(uint64_t addr){
+    uint32_t minSize = getSizeInBytes();
+    if (symbol && symbol->GET(st_size) < minSize){
+        minSize = symbol->GET(st_size);
+    }
+    if (addr >= baseAddress && addr < baseAddress + minSize){
+        return true;
+    }
+    return false;
+}
+
 uint32_t Function::findStackSize(){
     ASSERT(flowGraph);
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
@@ -187,8 +198,8 @@ bool Function::hasSelfDataReference(){
         if (allInstructions[i]->getAddressAnchor()){
             if (allInstructions[i]->usesRelativeAddress() &&
                 !allInstructions[i]->isControl() &&
-                inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getAddressAnchor()->getLinkOffset())){
-                PRINT_DEBUG_FUNC_RELOC("Instruction self-data-ref inside function %s", getName());
+                inRange(allInstructions[i]->getBaseAddress() + allInstructions[i]->getAddressAnchor()->getLinkOffset() + allInstructions[i]->getSizeInBytes())){
+                PRINT_DEBUG_FUNC_RELOC("Instruction self-data-ref inside function %s @ %#llx", getName(), allInstructions[i]->getBaseAddress());
                 DEBUG_FUNC_RELOC(allInstructions[i]->print();)
                 delete[] allInstructions;
                 return true;
