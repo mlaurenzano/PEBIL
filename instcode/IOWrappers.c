@@ -46,21 +46,24 @@ uint32_t activeTrace = 1;
 // the dump function makes IO calls. so we must protect from an infinite recursion by not entering
 // any buffer function if one is already stacked
 uint32_t iowrapperDepth = 0;
-#define CALL_DEPTH_ENTER(__var) if (__var) { return 0; } __var++;
-#define CALL_DEPTH_EXIT(__var) __var--;
+#define CALL_DEPTH_ENTER(__var) if (!__var) { __var++;
+#define CALL_DEPTH_EXIT(__var) __var--; }
 
 // to handle timers
-int64_t timerstart;
-int64_t timerstop;
-#define TIMER_START (timerstart = readtsc())
-#define TIMER_STOP  (timerstop  = readtsc())
+//#define CURRENT_TIMER (readtsc())
+#define CURRENT_TIMER (read_process_clock())
+#define TIMER_START (timerstart = CURRENT_TIMER)
+#define TIMER_STOP  (timerstop  = CURRENT_TIMER)
 #define TIMER_VALUE (timerstop - timerstart)
 #define TIMER_EXECUTE(__stmts) TIMER_START; __stmts TIMER_STOP; 
 #define PRINT_TIMER(__file) PRINT_INSTR(__file, "timer value (in cycles): %lld", TIMER_VALUE)
 
+pthread_mutex_t bufferlock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t depthlock = PTHREAD_MUTEX_INITIALIZER;
+
 extern void printSystemIORecords();
 
-uint32_t getFileDescriptor(FILE* stream){
+inline uint32_t getFileDescriptor(FILE* stream){
     if (stream){
         return fileno(stream);
     }
@@ -102,9 +105,13 @@ uint32_t storeRecord(uint8_t type, uint32_t size){
     return headerSz;
 }
 
-uint32_t storeFileName(char* name, uint64_t handle, uint8_t class, uint8_t type, uint8_t protect, uint32_t comm){
-    if (protect) { CALL_DEPTH_ENTER(iowrapperDepth); }
+uint32_t storeFileName(char* name, uint64_t handle, uint8_t class, uint8_t type, uint32_t comm){
+    uint32_t did_trace = 0;
 
+    pthread_mutex_lock(&bufferlock);
+    CALL_DEPTH_ENTER(iowrapperDepth);
+
+    did_trace = 1;
     IOFileName_t filereg;
     bzero(&filereg, sizeof(IOFileName_t));
 
@@ -137,14 +144,18 @@ uint32_t storeFileName(char* name, uint64_t handle, uint8_t class, uint8_t type,
     memcpy(&(traceBuffer.buffer[traceBuffer.freeIdx]), myname, strlen(myname) + 1);
     traceBuffer.freeIdx += strlen(myname)+1;
 
-    if (protect) { CALL_DEPTH_EXIT(iowrapperDepth); }
+    CALL_DEPTH_EXIT(iowrapperDepth); 
+    pthread_mutex_unlock(&bufferlock);
 
-    return filereg.handle;
+    return did_trace;
 }
 
 uint32_t storeEventInfo(EventInfo_t* event){
+    uint32_t did_trace = 0;
+    pthread_mutex_lock(&bufferlock);
     CALL_DEPTH_ENTER(iowrapperDepth);
 
+    did_trace = 1;
     uint32_t eventSz = sizeof(EventInfo_t);
     storeRecord(IORecord_EventInfo, eventSz);
 
@@ -160,17 +171,19 @@ uint32_t storeEventInfo(EventInfo_t* event){
     traceBuffer.freeIdx += eventSz;
 
     eventIndex++;
-    CALL_DEPTH_EXIT(iowrapperDepth);
 
-    return traceBuffer.freeIdx;
+    CALL_DEPTH_EXIT(iowrapperDepth);
+    pthread_mutex_unlock(&bufferlock);
+
+    return did_trace;
 }
 
 void printSystemIORecords(){
-    storeFileName("stdout", stdout->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0, PEBIL_NULL_COMMUNICATOR);
+    storeFileName("stdout", stdout->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, PEBIL_NULL_COMMUNICATOR);
     eventIndex++;
-    storeFileName("stderr", stderr->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, 0, PEBIL_NULL_COMMUNICATOR);
+    storeFileName("stderr", stderr->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, PEBIL_NULL_COMMUNICATOR);
     eventIndex++;
-    storeFileName("stdin",  stdin->_fileno,  IOEventClass_CLIB, IOFileAccess_SYS, 0, PEBIL_NULL_COMMUNICATOR);
+    storeFileName("stdin",  stdin->_fileno,  IOEventClass_CLIB, IOFileAccess_SYS, PEBIL_NULL_COMMUNICATOR);
     eventIndex++;
 }
 
@@ -197,9 +210,7 @@ int32_t _fini_wrappers() __attribute__ ((destructor));
 #endif // PRELOAD_WRAPPERS
 
 int32_t _init_wrappers(){
-    CALL_DEPTH_ENTER(iowrapperDepth);
     printSystemIORecords();    
-    CALL_DEPTH_EXIT(iowrapperDepth);
 }
 
 int32_t _fini_wrappers(){
@@ -209,6 +220,11 @@ int32_t _fini_wrappers(){
     activeTrace = 0;
     fclose(traceBuffer.outFile);
     CALL_DEPTH_EXIT(iowrapperDepth);
+}
+
+inline void get_thread_source(ThreadInfo_t* tinfo){
+    tinfo->process = getpid();
+    tinfo->thread = pthread_self();
 }
 
 #ifdef HAVE_MPI

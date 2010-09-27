@@ -57,10 +57,10 @@ def buildEntryStorageStmt(trace, data, classname):
     return code
 
 # generate the code to store a file handle
-def buildFileHandleStore(name, handle, handleClass, accessType, protect, communicator):
+def buildFileHandleStore(name, handle, handleClass, accessType, communicator):
     code = '\tentry.handle_class = ' + handleClass + ';\n'
     code += '\tentry.handle_id = storeFileName(' + name + ', ' + handle + ', ' + handleClass
-    code += ', IOFileAccess_' + accessType + ', ' + str(protect) + ', ' + communicator + ');\n'
+    code += ', IOFileAccess_' + accessType + ', ' + communicator + ');\n'
     return code
 
 # given a decription and a list of items, build an enumeration and name 
@@ -121,6 +121,7 @@ def buildSingleFunctionCode(funcdom, fname):
         if cmp(s.getAttribute('location'),'0') == 0:
             entry += '\t' + string.strip(s.firstChild.data) + '\n'
     entry += '\t' + str(rettype) + ' retval;\n'
+    entry += '\tuint64_t timerstart, timerstop;\n'
 
     # call the original function, putting the return value in `retval`
     code += '#ifdef PRELOAD_WRAPPERS\n'
@@ -142,6 +143,9 @@ def buildSingleFunctionCode(funcdom, fname):
     code += '\tbzero(&entry, sizeof(EventInfo_t));\n'
     code += '\tentry.class = ' + eventclassenum + '_' + classname + ';\n'
     code += '\tentry.event_type = IOEvent_' + classname + '_' + fname + ';\n'
+    code += '\tget_thread_source(&entry.tinfo);\n'
+    code += '\tentry.start_time = timerstart;\n'
+    code += '\tentry.end_time = timerstop;\n'
 
     # for any trace element, generate code to fill that item in entry
     traces = funcdom.getElementsByTagName('trace')
@@ -161,11 +165,11 @@ def buildSingleFunctionCode(funcdom, fname):
         filetyp = a.getAttribute('file')
         if filetyp:
             if filetyp == 'name':
-                code += buildFileHandleStore(string.strip(a.firstChild.data), '0', 'IOHandle_NAME', 'ONCE', 1, 'PEBIL_NULL_COMMUNICATOR')
+                code += buildFileHandleStore(string.strip(a.firstChild.data), '0', 'IOHandle_NAME', 'ONCE', 'PEBIL_NULL_COMMUNICATOR')
             elif filetyp == 'handle':
-                code += buildFileHandleStore(string.strip(a.firstChild.data), 'entry.handle_id', 'entry.handle_class', 'OPEN', 1, 'PEBIL_NULL_COMMUNICATOR')
+                code += buildFileHandleStore(string.strip(a.firstChild.data), 'entry.handle_id', 'entry.handle_class', 'OPEN', 'PEBIL_NULL_COMMUNICATOR')
             elif filetyp == 'mpi':
-                code += buildFileHandleStore(string.strip(a.firstChild.data), 'entry.handle_id', 'IOHandle_MPIO', 'OPEN', 1, 'comm')
+                code += buildFileHandleStore(string.strip(a.firstChild.data), 'entry.handle_id', 'IOHandle_MPIO', 'OPEN', 'comm')
 
         # handle the trace attribute, which is just a shorthand way of storing this arg to entry
         trace = a.getAttribute('trace')

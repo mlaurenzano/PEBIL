@@ -29,6 +29,7 @@
 
 #include <stdio.h>
 #include <IOEvents.h>
+#include <pthread.h>
 
 #define __IO_BUFFER_SIZE 0x100000
 #define __MAX_MESSAGE_SIZE 0x800
@@ -38,7 +39,7 @@
 
 #define GET_RECORD_SIZE(__record) (__record >> 8)
 #define GET_RECORD_TYPE(__record) (__record & 0x000000ff)
-#define RECORD_HEADER(__type, __size) (((__size << 8) & 0xffffff00) | __type)
+#define RECORD_HEADER(__type, __size) (((__size << 8) & 0xffffff00) | (__type & 0x000000ff))
 
 typedef enum {
     IORecord_Invalid,
@@ -54,6 +55,11 @@ const char* IORecordTypeNames[IORecord_Total_Types] = {
 };
 
 typedef struct {
+    uint64_t thread;
+    uint32_t process;
+} ThreadInfo_t;
+
+typedef struct {
     uint8_t  class;
     uint8_t  offset_class;
     uint8_t  handle_class;
@@ -61,11 +67,11 @@ typedef struct {
     uint16_t event_type;
     uint64_t handle_id;
     uint64_t unqid;
-    uint64_t source;
+    ThreadInfo_t tinfo;
     uint64_t size;
     uint64_t offset;
-    uint64_t start_time;
-    uint64_t end_time;
+    uint32_t start_time; // in nanoseconds
+    uint32_t end_time;
 } EventInfo_t;
 
 typedef struct {

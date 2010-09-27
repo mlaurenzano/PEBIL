@@ -194,10 +194,10 @@ int main(int argc,char* argv[]){
     initialize_index_array(idx_ptr,length);
     initialize_data();
 
-	uint32_t stack_array[STACK_ARRAY_SIZE];
-	for(i=0;i<STACK_ARRAY_SIZE;i++){
-		stack_array[i] = i;
-	}
+    uint32_t stack_array[STACK_ARRAY_SIZE];
+    for(i=0;i<STACK_ARRAY_SIZE;i++){
+        stack_array[i] = i;
+    }
 
     fprintf(stdout,"I = ( 0x%p, 0x%p, %u bytes)\n",idx_ptr,idx_ptr+length,sizeof(uint32_t)*length); 
     fprintf(stdout,"A = ( 0x%p, 0x%p, %u bytes)\n",a_ptr,a_ptr+length,sizeof(double)*length); 
