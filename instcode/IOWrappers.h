@@ -70,8 +70,8 @@ typedef struct {
     ThreadInfo_t tinfo;
     uint64_t size;
     uint64_t offset;
-    uint32_t start_time; // in nanoseconds
-    uint32_t end_time;
+    uint64_t start_time; // in nanoseconds
+    uint64_t end_time;
 } EventInfo_t;
 
 typedef struct {

@@ -31,8 +31,9 @@
 #include <time.h>
 
 #define __MAX_STRING_SIZE 1024
-#define CLOCK_RATE_HZ 2270000000
 
+#define CLOCK_RATE_HZ 2270000000
+#define NANOS_PER_SECOND 1000000000
 //#define EXCLUDE_TIMER
 
 inline unsigned long long readtsc(){
@@ -44,7 +45,7 @@ inline unsigned long long readtsc(){
 inline uint64_t read_process_clock(){
     struct timespec myclock;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &myclock);
-    return (1000000*myclock.tv_sec) + myclock.tv_nsec;
+    return (NANOS_PER_SECOND * myclock.tv_sec) + myclock.tv_nsec;
 }
 
 typedef struct

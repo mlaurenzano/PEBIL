@@ -107,7 +107,6 @@ uint32_t storeRecord(uint8_t type, uint32_t size){
 
 uint32_t storeFileName(char* name, uint64_t handle, uint8_t class, uint8_t type, uint32_t comm){
     uint32_t did_trace = 0;
-
     pthread_mutex_lock(&bufferlock);
     CALL_DEPTH_ENTER(iowrapperDepth);
 

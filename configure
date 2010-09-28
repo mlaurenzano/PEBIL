@@ -3965,16 +3965,17 @@ if test "$with_psinstracer" = ""; then
    PSINS_LIB_PATH=no
 else
    PSINS_LIB_PATH="$with_psinstracer"
-   PSINS_FILE="$with_psinstracer/libpsinstrace.a"
-   as_ac_File=`$as_echo "ac_cv_file_"$PSINS_FILE"" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for \"$PSINS_FILE\"" >&5
-$as_echo_n "checking for \"$PSINS_FILE\"... " >&6; }
+   PSINS_PRELD_FILE="$with_psinstracer/libpsinstrace_preld.a"
+   PSINS_COMPAT_FILE="$with_psinstracer/libpsinstrace_compat.a"
+   as_ac_File=`$as_echo "ac_cv_file_"$PSINS_PRELD_FILE"" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for \"$PSINS_PRELD_FILE\"" >&5
+$as_echo_n "checking for \"$PSINS_PRELD_FILE\"... " >&6; }
 if { as_var=$as_ac_File; eval "test \"\${$as_var+set}\" = set"; }; then :
   $as_echo_n "(cached) " >&6
 else
   test "$cross_compiling" = yes &&
   as_fn_error "cannot check for file existence when cross compiling" "$LINENO" 5
-if test -r ""$PSINS_FILE""; then
+if test -r ""$PSINS_PRELD_FILE""; then
   eval "$as_ac_File=yes"
 else
   eval "$as_ac_File=no"
@@ -3987,7 +3988,31 @@ eval as_val=\$$as_ac_File
    if test "x$as_val" = x""yes; then :
 
 else
-  as_fn_error "\"PSiNSTracer library \`$PSINS_FILE\` does not exist\"" "$LINENO" 5
+  as_fn_error "\"PSiNSTracer library \`$PSINS_PRELD_FILE\` does not exist\"" "$LINENO" 5
+fi
+
+   as_ac_File=`$as_echo "ac_cv_file_"$PSINS_COMPAT_FILE"" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for \"$PSINS_COMPAT_FILE\"" >&5
+$as_echo_n "checking for \"$PSINS_COMPAT_FILE\"... " >&6; }
+if { as_var=$as_ac_File; eval "test \"\${$as_var+set}\" = set"; }; then :
+  $as_echo_n "(cached) " >&6
+else
+  test "$cross_compiling" = yes &&
+  as_fn_error "cannot check for file existence when cross compiling" "$LINENO" 5
+if test -r ""$PSINS_COMPAT_FILE""; then
+  eval "$as_ac_File=yes"
+else
+  eval "$as_ac_File=no"
+fi
+fi
+eval ac_res=\$$as_ac_File
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+eval as_val=\$$as_ac_File
+   if test "x$as_val" = x""yes; then :
+
+else
+  as_fn_error "\"PSiNSTracer library \`$PSINS_COMPAT_FILE\` does not exist\"" "$LINENO" 5
 fi
 
 fi
