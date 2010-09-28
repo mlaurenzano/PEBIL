@@ -33,15 +33,11 @@ AC_SUBST(MPI_FLAGS)
 
 AC_ARG_WITH([psinstracer], AC_HELP_STRING([--with-psinstracer], [Build IO tracing library for use with psinstracer [no]]))
 if test "$with_psinstracer" = ""; then
-   PSINS_LIB_PATH=no
+   PSINS_TRC_PATH=no
 else
-   PSINS_LIB_PATH="$with_psinstracer"
-   PSINS_PRELD_FILE="$with_psinstracer/libpsinstrace_preld.a"
-   PSINS_COMPAT_FILE="$with_psinstracer/libpsinstrace_compat.a"
-   AC_CHECK_FILE("$PSINS_PRELD_FILE", [], AC_MSG_ERROR(["PSiNSTracer library `$PSINS_PRELD_FILE` does not exist"]))
-   AC_CHECK_FILE("$PSINS_COMPAT_FILE", [], AC_MSG_ERROR(["PSiNSTracer library `$PSINS_COMPAT_FILE` does not exist"]))
+   PSINS_TRC_PATH="$with_psinstracer"
 fi
-AC_SUBST(PSINS_LIB_PATH)
+AC_SUBST(PSINS_TRC_PATH)
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h strings.h unistd.h])
