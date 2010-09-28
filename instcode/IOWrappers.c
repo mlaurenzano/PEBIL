@@ -179,11 +179,11 @@ uint32_t storeEventInfo(EventInfo_t* event){
 }
 
 void printSystemIORecords(){
+    storeFileName("stdin",  stdin->_fileno,  IOEventClass_CLIB, IOFileAccess_SYS, PEBIL_NULL_COMMUNICATOR);
+    eventIndex++;
     storeFileName("stdout", stdout->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, PEBIL_NULL_COMMUNICATOR);
     eventIndex++;
     storeFileName("stderr", stderr->_fileno, IOEventClass_CLIB, IOFileAccess_SYS, PEBIL_NULL_COMMUNICATOR);
-    eventIndex++;
-    storeFileName("stdin",  stdin->_fileno,  IOEventClass_CLIB, IOFileAccess_SYS, PEBIL_NULL_COMMUNICATOR);
     eventIndex++;
 }
 

@@ -36,8 +36,10 @@ if test "$with_psinstracer" = ""; then
    PSINS_LIB_PATH=no
 else
    PSINS_LIB_PATH="$with_psinstracer"
-   PSINS_FILE="$with_psinstracer/libpsinstrace.a"
-   AC_CHECK_FILE("$PSINS_FILE", [], AC_MSG_ERROR(["PSiNSTracer library `$PSINS_FILE` does not exist"]))
+   PSINS_PRELD_FILE="$with_psinstracer/libpsinstrace_preld.a"
+   PSINS_COMPAT_FILE="$with_psinstracer/libpsinstrace_compat.a"
+   AC_CHECK_FILE("$PSINS_PRELD_FILE", [], AC_MSG_ERROR(["PSiNSTracer library `$PSINS_PRELD_FILE` does not exist"]))
+   AC_CHECK_FILE("$PSINS_COMPAT_FILE", [], AC_MSG_ERROR(["PSiNSTracer library `$PSINS_COMPAT_FILE` does not exist"]))
 fi
 AC_SUBST(PSINS_LIB_PATH)
 

@@ -5,7 +5,8 @@ LINKABLE_LIBS =
 ifeq ($(PSINS_LIB_PATH),no)
 else
 	LINKABLE_LIBS = libiowrapper_psins.a
-	PSINS_LIBS = @PSINS_LIB_PATH@/libpsinstrace.a
+	PSINS_PRELD_LIBS = @PSINS_LIB_PATH@/libpsinstrace_preld.a
+	PSINS_COMPAT_LIBS = @PSINS_LIB_PATH@/libpsinstrace_compat.a
 	PSINSTRACER_FLAGS = -DUSES_PSINSTRACER
 endif
 
@@ -21,6 +22,7 @@ EXEC_TARGETS = iobin2txt
 MPICC       = @MPICC@
 CFLAGS      = @CFLAGS@
 
+LD          = @LD@
 SHARED_OPT  = -fPIC
 EXTRA_FLAGS = -w $(SHARED_OPT)
 SHARED_LIB  = -shared
@@ -69,7 +71,8 @@ libiowrapper.so :
 	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS) $(PSINSTRACER_FLAGS)
 libiowrapper_preld.so:
 	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC) $(PRELD_FLAGS) $(PSINSTRACER_FLAGS)
-	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS) $(PRELD_FLAGS) $(PRELD_LINK) $(PSINSTRACER_FLAGS)
+#	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o -lrt -Xlinker --whole-archive $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS) $(PRELD_FLAGS) $(PRELD_LINK) $(PSINSTRACER_FLAGS)
+	$(LD) $(SHARED_LIB) -o $@ IOWrappers.o -lrt --whole-archive $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS) $(PRELD_FLAGS) $(PRELD_LINK) $(PSINSTRACER_FLAGS)
 libiowrapper.a :
 	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC) $(PSINSTRACER_FLAGS)
 	$(AR) $@ IOWrappers.o $(PSINS_LIBS)

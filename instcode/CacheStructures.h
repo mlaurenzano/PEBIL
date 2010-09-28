@@ -7,7 +7,7 @@
 
 #define __STRIDE_TARGET_SYSTEM 0
 
-#define __SYSTEM_COUNT 8
+#define __SYSTEM_COUNT 32
 uint8_t systemCount =  __SYSTEM_COUNT;
 MemoryHierarchy systems[__SYSTEM_COUNT] = {
 	{      /* <------ STRIDE SYSTEM */
@@ -18,12 +18,70 @@ MemoryHierarchy systems[__SYSTEM_COUNT] = {
 	    }
 	},
 	{
+	    3, /* sysid3 */
+	    2, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {   1024,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 2 cache */
+	    }
+	},
+	{
+	    4, /* sysid4 */
+	    2, /* cache level count */
+	    {
+	    { {    256,   8,   7, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {   4096,  12,   7, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 2 cache */
+	    }
+	},
+	{
+	   21, /* sysid21 */
+	    2, /* cache level count */
+	    {
+	    { {    128,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {   4096,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 2 cache */
+	    }
+	},
+	{
 	   22, /* sysid22 */
 	    3, /* cache level count */
 	    {
 	    { {     64,   4,   7, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
 	    { {    768,  10,   7, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
 	    { {   6144,  12,   8, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	   23, /* sysid23 */
+	    2, /* cache level count */
+	    {
+	    { {     64,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {   2048,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 2 cache */
+	    }
+	},
+	{
+	   44, /* sysid44 */
+	    3, /* cache level count */
+	    {
+	    { {     64,   4,   7, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {   1536,  10,   7, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {  12288,  12,   8, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	   54, /* sysid54 */
+	    2, /* cache level count */
+	    {
+	    { {     16,  64,   5, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {   2048,   8,   7, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 2 cache */
+	    }
+	},
+	{
+	   64, /* sysid64 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {    256,  32,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
 	    }
 	},
 	{
@@ -62,12 +120,165 @@ MemoryHierarchy systems[__SYSTEM_COUNT] = {
 	    }
 	},
 	{
+	   72, /* sysid72 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {    256,  32,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	   73, /* sysid73 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {    512,  48,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	   74, /* sysid74 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {    341,  48,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	   75, /* sysid75 */
+	    3, /* cache level count */
+	    {
+	    { {     64,   8,   7, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {   4096,   8,   7, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {   4096,  16,   8, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
 	   77, /* sysid77 */
 	    3, /* cache level count */
 	    {
 	    { {     64,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
 	    { {    512,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
 	    { {   2048,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	   78, /* sysid78 */
+	    3, /* cache level count */
+	    {
+	    { {     64,   8,   7, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {   4096,   8,   7, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {   8192,  16,   7, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	   81, /* sysid81 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {    512,  48,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	   82, /* sysid82 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {    341,  48,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	   96, /* sysid96 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {   1536,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	   97, /* sysid97 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {    768,  32,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	   98, /* sysid98 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {   1536,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	   99, /* sysid99 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {    768,  32,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	  100, /* sysid100 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {   1024,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	  101, /* sysid101 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {    512,  32,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	  102, /* sysid102 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {   1024,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	  103, /* sysid103 */
+	    3, /* cache level count */
+	    {
+	    { {    512,   2,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,  16,   6, repl_lru_vc }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {    512,  32,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	  104, /* sysid104 */
+	    3, /* cache level count */
+	    {
+	    { {     64,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {   3072,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	  105, /* sysid105 */
+	    3, /* cache level count */
+	    {
+	    { {     64,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {   2304,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
 	    }
 	}
 };

@@ -30,7 +30,7 @@
 #endif // SHIFT_ADDRESS_BUFFER
 
 #ifdef NO_SAMPLING_MODE
-  #define __MAXIMUM_BLOCK_VISIT      500000
+  #define __MAXIMUM_BLOCK_VISIT     10000000
 #else
   #define __MAXIMUM_BLOCK_VISIT        50000
   #ifdef FINE_GRAIN_SAMPLING

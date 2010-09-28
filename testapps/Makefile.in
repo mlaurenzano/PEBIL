@@ -36,7 +36,7 @@ sgbench:
 	$(CC) -o $@ sgbench.c $(EXTRA_INC) $(EXTRA_LIBS)
 
 ioTest:
-	$(MPICC) -o $@ ioTest.c @MPI_FLAGS@
+	$(MPICC) -o $@ ioTest.c @MPI_FLAGS@ @MPILIBS@
 
 clean: 
 	rm -f *.o $(TARGETS) 

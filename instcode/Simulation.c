@@ -28,6 +28,11 @@
 
 #define MAX_OF(__a,__b) ((__a) > (__b) ? (__a) : (__b))
 
+//#define MIKEY_DEBUG
+#ifdef MIKEY_DEBUG
+int onetengate = 0;
+#endif
+
 #include <Simulation.h>
 #include <CacheSimulationCommon.h>
 
@@ -403,6 +408,11 @@ static int ntimes2;
     register uint32_t accessIdx;
     register uint32_t level;
 
+#ifdef MIKEY_DEBUG
+    int ijk;
+    int k;
+#endif
+
     for (systemIdx = 0; systemIdx < systemCount; systemIdx++){
         register MemoryHierarchy* memoryHierarchy = (systems + systemIdx);
 
@@ -477,7 +487,37 @@ static int ntimes2;
                   ++currentBlock->hitMissCounters[STATUS_IDX(
                                                              systemIdx, level - 1, cache_hit)];
               }
-              
+
+#ifdef MIKEY_DEBUG
+              if (memoryHierarchy->index == 22 && currentEntry->blockId == 110){
+                  if (!onetengate){
+                      fprintf(stdout, "110 GATE started, printing overall rates\n");
+                      for(k=0;k<memoryHierarchy->levelCount;k++){
+                          Cache* cache = &(memoryHierarchy->levels[k]);
+                          fprintf(stdout, "L%d (%dm ~ %dh)\n", k+1, cache->hitMissCounters[cache_miss], cache->hitMissCounters[cache_hit]);
+                      }
+                      onetengate = 1;
+                  }
+              }
+              /*
+              if (memoryHierarchy->index == 22 && currentEntry->blockId == 110){
+                  if (!onetengate){
+                      fprintf(stdout, "110 GATE started, printing overall rates\n");
+                      for(k=0;k<memoryHierarchy->levelCount;k++){
+                          Cache* cache = &(memoryHierarchy->levels[k]);
+                          fprintf(stdout, "L%d (%dm ~ %dh)\n", k+1, cache->hitMissCounters[cache_miss], cache->hitMissCounters[cache_hit]);
+                      }
+                      onetengate = 1;
+                  }
+                  fprintf(stdout, "sys %3d\tblock %5d\t", memoryHierarchy->index, currentEntry->blockId);
+                  for (ijk = 0; ijk < level-1; ijk++){
+                      fprintf(stdout, "\t");
+                  }
+                  fprintf(stdout, "(L%d) %#llx %d (%dm ~ %dh)\n", level, currentAddress, status, currentBlock->hitMissCounters[STATUS_IDX(systemIdx, level-1, cache_miss)], currentBlock->hitMissCounters[STATUS_IDX(systemIdx, level-1, cache_hit)]);
+              }
+              */
+#endif
+
             } while( status == cache_miss && level < memoryHierarchy->levelCount);
 
         }

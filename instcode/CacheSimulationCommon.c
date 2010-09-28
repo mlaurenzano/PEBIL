@@ -271,7 +271,7 @@ void searchCache(Address_t address,
     *status = cache_miss;
 
     // Search for the address
-//printf("Searching for cli %llx\n", CACHE_LINE_INDEX(address, lineSizeInBits));
+    //    printf("Searching for cli %llx\n", CACHE_LINE_INDEX(address, lineSizeInBits));
     if (assocCount >= __MAX_LINEAR_SEARCH_ASSOC){
         lineInSet = findInHash(CACHE_LINE_INDEX(address,lineSizeInBits),
                        setCount,assocCount,cache->highAssocHash,setIdx);
