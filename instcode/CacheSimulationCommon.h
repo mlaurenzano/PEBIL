@@ -117,5 +117,9 @@ typedef struct {
     uint8_t   isVictimCacheHierarchy;
 } MemoryHierarchy;
 
+extern void initCaches(MemoryHierarchy* systems, uint32_t systemCount);
+extern void processVictimCache(Address_t toFind, Address_t* victim, uint8_t* nVictims, AccessStatus* status, Cache* cache);
+extern void processInclusiveCache(Address_t toFind, Address_t* victim, uint8_t* nvictims, AccessStatus* status, Cache* cache);
+
 #endif
 

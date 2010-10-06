@@ -28,11 +28,6 @@
 
 #define MAX_OF(__a,__b) ((__a) > (__b) ? (__a) : (__b))
 
-//#define MIKEY_DEBUG
-#ifdef MIKEY_DEBUG
-int onetengate = 0;
-#endif
-
 #include <Simulation.h>
 #include <CacheSimulationCommon.h>
 
@@ -66,6 +61,7 @@ int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uin
     int i;
 }
 
+#ifdef ENABLE_INSTRUMENTATION_KILL
 void disableInstrumentationPointsInBlock(BufferEntry* currentEntry){
     int32_t blockId = currentEntry->blockId;
     instpoint_info* ip;
@@ -80,7 +76,7 @@ void disableInstrumentationPointsInBlock(BufferEntry* currentEntry){
             char* program_point = (char*)vaddr;
             
 #ifdef DEBUG_INST_KILL
-            PRINT_INSTR(stdout, "killing instrumentation for memop %d in block %d at %#llx", i, currentEntry->blockId, vaddr);
+            PRINT_INSTR(stdout, "\tkilling instrumentation for memop %d in block %d at %#llx", i, currentEntry->blockId, vaddr);
 #endif
             memcpy(ip->pt_content, program_point, size);
             memcpy(program_point, ip->pt_disable, size);
@@ -89,8 +85,11 @@ void disableInstrumentationPointsInBlock(BufferEntry* currentEntry){
     }
 
     numberKilled += killedPoints;
+#ifdef DEBUG_INST_KILL
     PRINT_INSTR(stdout, "Killing instrumentation points for block %d (%d points) -- %d killed so far", blockId, killedPoints, numberKilled);
+#endif
 }
+#endif //ENABLE_INSTRUMENTATION_KILL
 
 #ifdef USE_SAFE_STD_FUNCTIONS
 
@@ -408,11 +407,6 @@ static int ntimes2;
     register uint32_t accessIdx;
     register uint32_t level;
 
-#ifdef MIKEY_DEBUG
-    int ijk;
-    int k;
-#endif
-
     for (systemIdx = 0; systemIdx < systemCount; systemIdx++){
         register MemoryHierarchy* memoryHierarchy = (systems + systemIdx);
 
@@ -487,36 +481,6 @@ static int ntimes2;
                   ++currentBlock->hitMissCounters[STATUS_IDX(
                                                              systemIdx, level - 1, cache_hit)];
               }
-
-#ifdef MIKEY_DEBUG
-              if (memoryHierarchy->index == 22 && currentEntry->blockId == 110){
-                  if (!onetengate){
-                      fprintf(stdout, "110 GATE started, printing overall rates\n");
-                      for(k=0;k<memoryHierarchy->levelCount;k++){
-                          Cache* cache = &(memoryHierarchy->levels[k]);
-                          fprintf(stdout, "L%d (%dm ~ %dh)\n", k+1, cache->hitMissCounters[cache_miss], cache->hitMissCounters[cache_hit]);
-                      }
-                      onetengate = 1;
-                  }
-              }
-              /*
-              if (memoryHierarchy->index == 22 && currentEntry->blockId == 110){
-                  if (!onetengate){
-                      fprintf(stdout, "110 GATE started, printing overall rates\n");
-                      for(k=0;k<memoryHierarchy->levelCount;k++){
-                          Cache* cache = &(memoryHierarchy->levels[k]);
-                          fprintf(stdout, "L%d (%dm ~ %dh)\n", k+1, cache->hitMissCounters[cache_miss], cache->hitMissCounters[cache_hit]);
-                      }
-                      onetengate = 1;
-                  }
-                  fprintf(stdout, "sys %3d\tblock %5d\t", memoryHierarchy->index, currentEntry->blockId);
-                  for (ijk = 0; ijk < level-1; ijk++){
-                      fprintf(stdout, "\t");
-                  }
-                  fprintf(stdout, "(L%d) %#llx %d (%dm ~ %dh)\n", level, currentAddress, status, currentBlock->hitMissCounters[STATUS_IDX(systemIdx, level-1, cache_miss)], currentBlock->hitMissCounters[STATUS_IDX(systemIdx, level-1, cache_hit)]);
-              }
-              */
-#endif
 
             } while( status == cache_miss && level < memoryHierarchy->levelCount);
 
@@ -862,7 +826,7 @@ void printDFPatternInfo(int blockSeq,FILE* dfpFp,BasicBlockInfo* bb){
     }
 }
 
-void MetaSim_endFuncCall_Simu(char* base,uint32_t* entryCountPtr,const char* comment){
+void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* comment){
 #ifdef IGNORE_ACTUAL_SIMULATION
     BufferEntry* entries = (BufferEntry*)base;
     return;

@@ -105,7 +105,7 @@ extern void pmpi_comm_size_(int* comm, int* rank, int* ierr);
 
 #ifndef USES_PSINSTRACER
 void __wrapper_name(mpi_init_)(int* ierr){
-    pmpi_init_(&ierr);
+    pmpi_init_(ierr);
 
     int myerr;
     MPI_Comm world = MPI_COMM_WORLD;

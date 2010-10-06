@@ -201,16 +201,16 @@ int32_t program_entry(int32_t* numFunctions, char** funcNames){
     numberOfBacktraces = nextPowerOfTwo(numberOfFunctions * RECORDS_PER_FUNCTION);
     PRINT_INSTR(stdout, "%d -> %d backtraces", numberOfFunctions * RECORDS_PER_FUNCTION, nextPowerOfTwo(numberOfFunctions * RECORDS_PER_FUNCTION));
 
-    backtraceInfo = malloc(sizeof(struct funcInfo) * numberOfBacktraces);
+    backtraceInfo = (struct funcInfo*)malloc(sizeof(struct funcInfo) * numberOfBacktraces);
     bzero(backtraceInfo, sizeof(struct funcInfo) * numberOfBacktraces);
 
-    funcStack = malloc(sizeof(int32_t) * MAX_STACK_IDX);
+    funcStack = (int32_t*)malloc(sizeof(int32_t) * MAX_STACK_IDX);
     bzero(funcStack, sizeof(int32_t) * MAX_STACK_IDX);
     for (i = 0; i < STACK_BACKTRACE_SIZE; i++){
         funcStack[i] = -1;
     }
 
-    stackError = malloc(sizeof(int32_t) * numberOfFunctions);
+    stackError = (int32_t*)malloc(sizeof(int32_t) * numberOfFunctions);
     bzero(stackError, sizeof(int32_t) * numberOfFunctions);
 
     assert(backtraceInfo);
