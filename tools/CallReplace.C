@@ -92,10 +92,6 @@ CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* libList, char* ext
         }
     }
 
-    for (uint32_t i = 0; i < libraries.size(); i++){
-        PRINT_INFOR("library -- %s", libraries[i]);
-    }
-
 }
 
 void CallReplace::declare(){

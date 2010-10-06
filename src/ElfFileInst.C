@@ -1043,7 +1043,7 @@ void ElfFileInst::functionSelect(){
     }
     exposedBasicBlocks.sort(compareBaseAddress);
 
-    PRINT_INFOR("Hidden from instrumentation (bytes):\t%d/%d (%.2f%)", missingBytes, numberOfBytes, ((float)((float)missingBytes*100)/((float)numberOfBytes)));
+    PRINT_INFOR("Total hidden from instrumentation (bytes):\t%d/%d (%.2f%)", missingBytes, numberOfBytes, ((float)((float)missingBytes*100)/((float)numberOfBytes)));
 }
 
 
@@ -1944,9 +1944,18 @@ uint32_t ElfFileInst::addSharedLibraryPath(){
 uint32_t ElfFileInst::addSharedLibrary(const char* libname){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
-    PRINT_INFOR("Including shared library: %s", libname);
+    PRINT_INFOR("Linking instrumented binary to shared library: %s", libname);
 
+    // first make sure the lib isn't already linked
     DynamicTable* dynamicTable = elfFile->getDynamicTable();
+    for (uint32_t i = 0; i < dynamicTable->countDynamics(DT_NEEDED); i++){
+        Dynamic* dyn = dynamicTable->getDynamicByType(DT_NEEDED, i);
+        if (!strcmp(elfFile->getDynamicStringTable()->getString(dyn->GET_A(d_ptr,d_un)), libname)){
+            PRINT_WARN(10, "Library %s already exists in the executable, skipping", libname);
+            return 0;
+        }
+    }
+
     uint32_t strOffset = addStringToDynamicStringTable(libname);
 
     // add a DT_NEEDED entry to the dynamic table
