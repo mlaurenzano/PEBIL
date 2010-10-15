@@ -36,7 +36,7 @@
 #define NANOS_PER_SECOND 1000000000
 //#define EXCLUDE_TIMER
 
-extern uint64_t readtsc();
+extern uint64_t read_timestamp_counter();
 extern uint64_t read_process_clock();
 
 typedef struct

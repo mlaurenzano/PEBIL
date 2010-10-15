@@ -202,7 +202,7 @@ int32_t function_entry(int64_t* functionIndex){
 #ifdef EXCLUDE_TIMER
     funcInfos[currentRecord].timer_start = 0;
 #else
-    funcInfos[currentRecord].timer_start = readtsc();
+    funcInfos[currentRecord].timer_start = read_timestamp_counter();
 #endif
 }
 
@@ -211,7 +211,7 @@ int32_t function_exit(int64_t* functionIndex){
 #ifdef EXCLUDE_TIMER
     tstop = 1;
 #else
-    tstop = readtsc();
+    tstop = read_timestamp_counter();
 #endif
 
     int32_t currentRecord = getRecordIndex();
