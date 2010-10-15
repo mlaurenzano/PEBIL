@@ -601,7 +601,6 @@ LIBOBJS
 EGREP
 GREP
 CPP
-PSINS_TRC_PATH
 MPI_FLAGS
 STATIC_INST_LIB
 MPILIBS
@@ -665,7 +664,6 @@ ac_user_opts='
 enable_option_checking
 enable_static
 enable_mpi
-with_psinstracer
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1297,12 +1295,6 @@ Optional Features:
                           [no]
   --enable-mpi            Use mpi compiler when building instrumentation
                           libraries [yes]
-
-Optional Packages:
-  --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
-  --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-psinstracer      Build IO tracing library for use with psinstracer
-                          [no]
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -3952,19 +3944,6 @@ if test "$mpi_ok" = "no"; then
    MPI_FLAGS=""
 else
    MPI_FLAGS="-DHAVE_MPI"
-fi
-
-
-
-# Check whether --with-psinstracer was given.
-if test "${with_psinstracer+set}" = set; then :
-  withval=$with_psinstracer;
-fi
-
-if test "$with_psinstracer" = ""; then
-   PSINS_TRC_PATH=no
-else
-   PSINS_TRC_PATH="$with_psinstracer"
 fi
 
 

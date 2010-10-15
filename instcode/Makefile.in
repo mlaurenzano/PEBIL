@@ -1,35 +1,20 @@
 STATIC_INST_LIB  = @STATIC_INST_LIB@
-PSINS_LIB_PATH = @PSINS_LIB_PATH@
-
-LINKABLE_LIBS = 
-ifeq ($(PSINS_LIB_PATH),no)
-else
-	LINKABLE_LIBS = libiowrapper_psins.a
-	PSINS_PRELD_LIBS = @PSINS_LIB_PATH@/libpsinstrace_preld.a
-	PSINS_COMPAT_LIBS = @PSINS_LIB_PATH@/libpsinstrace_compat.a
-	PSINSTRACER_FLAGS = -DUSES_PSINSTRACER
-endif
 
 PEBIL_LIBS = 
 ifeq ($(STATIC_INST_LIB),yes)
-	PEBIL_LIBS = libcounter.a  libsimulator.a  libtimer.a libiowrapper.a
+	PEBIL_LIBS = libcounter.a  libsimulator.a  libtimer.a
 else
-	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so libiowrapper.so libiowrapper_preld.so
+	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so
 endif
 
-LIB_TARGETS = $(PEBIL_LIBS) $(LINKABLE_LIBS)
-EXEC_TARGETS = iobin2txt
+LIB_TARGETS = $(PEBIL_LIBS)
 MPICC       = @MPICC@
 CFLAGS      = @CFLAGS@
 
-LD          = @LD@
 SHARED_OPT  = -fPIC
 EXTRA_FLAGS = -w $(SHARED_OPT)
 SHARED_LIB  = -shared
 AR          = ar rcs
-PRELD_FLAGS = -DPRELOAD_WRAPPERS
-PRELD_LINK  = -ldl
-GEN_IOTRC   = -DWRAPPING_CLIB_IO -DWRAPPING_POSX_IO
 
 #### -DNO_SAMPLING_MODE    : Add to disable sampling (note that MAX visit count is still on).
 #### -DEXTENDED_SAMPLING   : Add to vary the ignore and sampling intervals during sampling
@@ -45,8 +30,7 @@ EXTRA_INC   = -I../instcode
 LIBDIR      = ../lib
 BINDIR      = ../bin
 
-all: IOEvents.h $(LIB_TARGETS) $(EXEC_TARGETS)
-preload: IOEvents.h libiowrappers_preld.so
+all: $(LIB_TARGETS)
 
 %.o: %.c
 	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
@@ -66,29 +50,8 @@ libtimer.so : TimerFunctions.o
 libtimer.a : TimerFunctions.o
 	$(AR) $@ TimerFunctions.o
 
-libiowrapper.so :
-	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC) $(SHARED_OPT) $(PSINSTRACER_FLAGS)
-	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS) $(PSINSTRACER_FLAGS)
-libiowrapper_preld.so:
-	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC) $(PRELD_FLAGS) $(PSINSTRACER_FLAGS)
-#	$(MPICC) $(SHARED_LIB) -o $@ IOWrappers.o -lrt -Xlinker --whole-archive $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS) $(PRELD_FLAGS) $(PRELD_LINK) $(PSINSTRACER_FLAGS)
-	$(LD) $(SHARED_LIB) -o $@ IOWrappers.o -lrt --whole-archive $(PSINS_LIBS) -L$(LIBDIR) $(EXTRA_LIBS) $(PRELD_FLAGS) $(PRELD_LINK) $(PSINSTRACER_FLAGS)
-libiowrapper.a :
-	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(GEN_IOTRC) $(PSINSTRACER_FLAGS)
-	$(AR) $@ IOWrappers.o $(PSINS_LIBS)
-libiowrapper_psins.a : 
-	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o IOWrappers.o IOWrappers.c $(PSINSTRACER_FLAGS)
-	$(AR) $@ IOWrappers.o $(PSINS_LIBS)
-
-IOEvents.h:
-	../scripts/iogen.py
-
-iobin2txt: iobin2txt.o
-	$(CC) $(CFLAGS) -o $@ $<
-
 clean: 
-	rm -f *.o *.i *.s *.ii *.a *.so $(LIB_TARGETS) IOEvents.c IOEvents.h
+	rm -f *.o *.i *.s *.ii *.a *.so $(LIB_TARGETS)
 
 install:
 	cp $(LIB_TARGETS) $(LIBDIR)
-	cp $(EXEC_TARGETS) $(BINDIR)

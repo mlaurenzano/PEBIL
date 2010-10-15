@@ -31,14 +31,6 @@ else
 fi
 AC_SUBST(MPI_FLAGS)
 
-AC_ARG_WITH([psinstracer], AC_HELP_STRING([--with-psinstracer], [Build IO tracing library for use with psinstracer [no]]))
-if test "$with_psinstracer" = ""; then
-   PSINS_TRC_PATH=no
-else
-   PSINS_TRC_PATH="$with_psinstracer"
-fi
-AC_SUBST(PSINS_TRC_PATH)
-
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h strings.h unistd.h])
 

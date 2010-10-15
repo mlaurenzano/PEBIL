@@ -13,8 +13,6 @@ set(cTest_SOURCES foo.c bar.c dum.c main.c)
 set(cppTest_SOURCES classes.C)
 set(htcoef_SOURCES htcoef.f)
 set(sgbench_SOURCES sgbench.c)
-## NOTE: this is now built out of instcode/ so we that don't use the MPI compiler here
-#set(ioTest_SOURCES ioTest.c)
 
 # Create an executable file called helloworld from sources:
 add_executable(dynTest ${dynTest_SOURCES})
