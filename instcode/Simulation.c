@@ -159,40 +159,9 @@ int getRandomNumber()
     return ( (int)128*x +1);
 }
 
-uint32_t lookupRankId(){
-    return __taskid;
-    uint32_t rankId = 0;
-    char strBuffer[__MAX_STRING_SIZE];
-
-    uint32_t processId = getpid();
-    uint32_t hostId = gethostid();
-
-    FILE* fp = fopen("RankPid","r");
-    if(fp){
-        uint32_t entryFound = 0;
-        while(fgets(strBuffer,1024,fp)){
-            strBuffer[1023] = '\0';
-            uint32_t corresPid = 0,corresHid = 0;
-            sscanf(strBuffer,"%u %u %u",&rankId,&corresPid,&corresHid);
-            if((corresPid == processId) && (corresHid == hostId)){
-                entryFound = 1;
-                break;
-            }
-        }
-        fclose(fp);
-        if(!entryFound){
-            rankId = processId;
-        }
-    } else {
-        rankId = processId;
-    }
-
-    return rankId;
-}
-
 FILE* openOutputFile(const char* comment,FILE** dfpFp){
 
-    uint32_t rankId = lookupRankId();
+    uint32_t rankId = getTaskId();
 
     char strBuffer[__MAX_STRING_SIZE];
 
@@ -522,7 +491,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
 
         DFPatternSpec* dfps = (DFPatternSpec*)(entries + *entryCountPtr);
 
-        uint32_t rankId = lookupRankId();
+        uint32_t rankId = getTaskId();
         char strBuffer[__MAX_STRING_SIZE];
         
         if (DUMPCODE_HASVALUE_DUMP(dumpCode)){

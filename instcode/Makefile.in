@@ -30,25 +30,27 @@ EXTRA_INC   = -I../instcode
 LIBDIR      = ../lib
 BINDIR      = ../bin
 
+COMMON_OBJS = InstrumentationCommon.o
+
 all: $(LIB_TARGETS)
 
 %.o: %.c
 	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
 
-libcounter.so : CounterFunctions.o
-	$(MPICC) $(SHARED_LIB) -o $@ CounterFunctions.o $(EXTRA_LIBS)
-libcounter.a : CounterFunctions.o
-	$(AR) $@ CounterFunctions.o
+libcounter.so : CounterFunctions.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ CounterFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS)
+libcounter.a : CounterFunctions.o $(COMMON_OBJS)
+	$(AR) $@ CounterFunctions.o $(COMMON_OBJS)
 
-libsimulator.so : SimulationFunctions.o CacheSimulationCommon.o
-	$(MPICC) $(SHARED_LIB) -o $@ SimulationFunctions.o CacheSimulationCommon.o $(EXTRA_LIBS)
-libsimulator.a : SimulationFunctions.o CacheSimulationCommon.o
-	$(AR) $@ SimulationFunctions.o CacheSimulationCommon.o
+libsimulator.so : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS) $(EXTRA_LIBS)
+libsimulator.a : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
+	$(AR) $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 
-libtimer.so : TimerFunctions.o
-	$(MPICC) $(SHARED_LIB) -o $@ TimerFunctions.o $(EXTRA_LIBS)
-libtimer.a : TimerFunctions.o
-	$(AR) $@ TimerFunctions.o
+libtimer.so : TimerFunctions.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ TimerFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS)
+libtimer.a : TimerFunctions.o $(COMMON_OBJS) 
+	$(AR) $@ TimerFunctions.o $(COMMON_OBJS)
 
 clean: 
 	rm -f *.o *.i *.s *.ii *.a *.so $(LIB_TARGETS)

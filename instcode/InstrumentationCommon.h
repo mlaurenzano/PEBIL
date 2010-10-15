@@ -36,17 +36,8 @@
 #define NANOS_PER_SECOND 1000000000
 //#define EXCLUDE_TIMER
 
-inline unsigned long long readtsc(){
-    unsigned low, high;
-    __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));
-    return ((unsigned long long)low | (((unsigned long long)high) << 32));
-}
-
-inline uint64_t read_process_clock(){
-    struct timespec myclock;
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &myclock);
-    return (NANOS_PER_SECOND * myclock.tv_sec) + myclock.tv_nsec;
-}
+extern uint64_t readtsc();
+extern uint64_t read_process_clock();
 
 typedef struct
 {
@@ -72,57 +63,31 @@ typedef struct
 #endif // PRELOAD_WRAPPERS
 
 
-int taskid;
 #ifdef HAVE_MPI
-#define __taskid taskid
-#define __ntasks ntasks
 #define __taskmarker "-[t%d]- "
-
 #include <mpi.h>
-
-int __ntasks = 1;
 
 // C init wrapper
 #ifdef USES_PSINSTRACER
-int __give_pebil_name(MPI_Init)(int* argc, char*** argv){
-    int retval = 0;
+extern int __give_pebil_name(MPI_Init)(int* argc, char*** argv);
 #else
-int __wrapper_name(MPI_Init)(int* argc, char*** argv){
-    int retval = PMPI_Init(argc, argv);
+extern int __wrapper_name(MPI_Init)(int* argc, char*** argv);
 #endif // USES_PSINSTRACER
 
-    PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
-    PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
-
-    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in MPI_Init wrapper\n", getpid(), __taskid, __ntasks, gethostid());
-    return retval;
-}
-
-// fortran init wrapper
-extern void pmpi_init_(int* ierr);
-extern void pmpi_comm_rank_(int* comm, int* rank, int* ierr);
-extern void pmpi_comm_size_(int* comm, int* rank, int* ierr);
-
-#ifndef USES_PSINSTRACER
-void __wrapper_name(mpi_init_)(int* ierr){
-    pmpi_init_(ierr);
-
-    int myerr;
-    MPI_Comm world = MPI_COMM_WORLD;
-    pmpi_comm_rank_(&world, &__taskid, &myerr);
-    pmpi_comm_size_(&world, &__ntasks, &myerr);
-
-    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
-}
-#endif // USES_PSINSTRACER
+#ifdef USES_PSINSTRACER
+extern void __give_pebil_name(mpi_init_)(int* ierr);
+#else
+extern void __wrapper_name(mpi_init_)(int* ierr);
+#endif
 
 #else // HAVE_MPI
-#define __taskid getpid()
-#define __ntasks 1
 #define __taskmarker "-[p%d]- "
 #endif // HAVE_MPI
 
-#define PRINT_INSTR(__file, ...) fprintf(__file, __taskmarker, __taskid);  \
+extern int getTaskId();
+extern int getNTasks();
+
+#define PRINT_INSTR(__file, ...) fprintf(__file, __taskmarker, getTaskId()); \
     fprintf(__file, __VA_ARGS__); \
     fprintf(__file, "\n"); \
     fflush(__file);
