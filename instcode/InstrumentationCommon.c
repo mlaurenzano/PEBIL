@@ -30,7 +30,7 @@ int __ntasks = 1;
 #define __ntasks 1
 #endif //HAVE_MPI
 
-inline unsigned long long readtsc(){
+inline uint64_t read_timestamp_counter(){
     unsigned low, high;
     __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));
     return ((unsigned long long)low | (((unsigned long long)high) << 32));
