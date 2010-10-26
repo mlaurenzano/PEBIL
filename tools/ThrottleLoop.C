@@ -1,0 +1,313 @@
+/* 
+ * This file is part of the pebil project.
+ * 
+ * Copyright (c) 2010, University of California Regents
+ * All rights reserved.
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <ThrottleLoop.h>
+#include <BasicBlock.h>
+#include <Function.h>
+#include <Instrumentation.h>
+#include <LineInformation.h>
+#include <Loop.h>
+#include <X86Instruction.h>
+#include <X86InstructionFactory.h>
+#include <SymbolTable.h>
+
+#define LOOP_ENTRY "throttle_down"
+#define LOOP_EXIT "throttle_up"
+
+//#define DEBUG_INTERPOSE
+
+ThrottleLoop::~ThrottleLoop(){
+    for (uint32_t i = 0; i < (*loopList).size(); i++){
+        delete[] (*loopList)[i];
+    }
+    delete loopList;
+}
+
+ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* libList, char* ext, bool lpi, bool dtl)
+    : InstrumentationTool(elf, ext, 0, lpi, dtl)
+{
+    loopEntry = NULL;
+    loopExit = NULL;
+
+    loopList = new Vector<char*>();
+    ASSERT(inputFile && loopList);
+    initializeFileList(inputFile, loopList);
+
+    // replace any ':' character with a '\0'
+    for (uint32_t i = 0; i < (*loopList).size(); i++){
+        char* both = (*loopList)[i];
+        uint32_t numrepl = 0;
+        for (uint32_t j = 0; j < strlen(both); j++){
+            if (both[j] == ':'){
+                both[j] = '\0';
+                numrepl++;
+            }
+        }
+        if (numrepl != 1){
+            PRINT_ERROR("input file %s line %d should contain a ':'", inputFile, i+1);
+        }
+    }
+
+    Vector<uint32_t> libIdx;
+    libIdx.append(0);
+    uint32_t listSize = strlen(libList);
+    for (uint32_t i = 0; i < listSize; i++){
+        if (libList[i] == ','){
+            libList[i] = '\0';
+            libIdx.append(i+1);
+        }
+    }
+    for (uint32_t i = 0; i < libIdx.size(); i++){
+        if (libIdx[i] < listSize){
+            libraries.append(libList + libIdx[i]);
+        } else {
+            PRINT_ERROR("improperly formatted library list given to call replacement tool");
+            __SHOULD_NOT_ARRIVE;
+        }
+    }
+}
+
+char* ThrottleLoop::getFileName(uint32_t idx){
+    ASSERT(idx < (*loopList).size());
+    return (*loopList)[idx];
+}
+uint32_t ThrottleLoop::getLineNumber(uint32_t idx){
+    ASSERT(idx < (*loopList).size());
+    char* both = (*loopList)[idx];
+    both += strlen(both) + 1;
+
+    uint32_t lineNo = strtol(both, NULL, 0);
+    return lineNo;
+}
+
+void ThrottleLoop::declare(){
+    InstrumentationTool::declare();
+
+    // declare any shared library that will contain instrumentation functions
+    for (uint32_t i = 0; i < libraries.size(); i++){
+        declareLibrary(libraries[i]);
+    }
+
+    // declare any instrumentation functions that will be used
+    loopEntry = declareFunction(LOOP_ENTRY);
+    ASSERT(loopEntry);
+    loopExit = declareFunction(LOOP_EXIT);
+    ASSERT(loopExit);    
+}
+
+
+void ThrottleLoop::instrument(){
+    InstrumentationTool::instrument();
+
+    LineInfoFinder* lineInfoFinder = NULL;
+    if (hasLineInformation()){
+        lineInfoFinder = getLineInfoFinder();
+    } else {
+        PRINT_ERROR("Loop Throttling tool requires line information: recompile  your app with -g?");
+    }
+    ASSERT(lineInfoFinder);
+
+    Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
+    Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
+    Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
+
+    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+
+        BasicBlock* bb = getExposedBasicBlock(i);
+        LineInfo* li = NULL;
+        if (lineInfoFinder){
+            li = lineInfoFinder->lookupLineInfo(bb);
+        }
+        Function* f = bb->getFunction();
+
+        (*allBlocks).append(bb);
+        (*allBlockIds).append(i);
+        (*allLineInfos).append(li);
+    }
+
+    Vector<Loop*> loopsFound;
+    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+        BasicBlock* bb = getExposedBasicBlock(i);
+        LineInfo* li = lineInfoFinder->lookupLineInfo(bb);
+        if (li && bb->isInLoop()){
+            for (uint32_t i = 0; i < (*loopList).size(); i++){
+                if (li->GET(lr_line) == getLineNumber(i) &&
+                    !strcmp(li->getFileName(),getFileName(i))){
+                    FlowGraph* fg = bb->getFlowGraph();
+                    Loop* outerMost = fg->getOuterMostLoopForLoop(fg->getInnermostLoopForBlock(bb->getIndex())->getIndex());
+
+                    bool loopAlreadyInstrumented = false;
+                    for (uint32_t i = 0; i < loopsFound.size(); i++){
+                        if (outerMost->isIdenticalLoop(loopsFound[i])){
+                            loopAlreadyInstrumented = true;
+                        }
+                    }
+
+                    if (!loopAlreadyInstrumented){
+                        loopsFound.append(outerMost);
+
+                        PRINT_INFOR("Loop @ %s:%d (function %s) tagged for throttling", li->getFileName(), li->GET(lr_line), fg->getFunction()->getName());
+#ifdef DEBUG_INTERPOSE
+                        outerMost->print();                    
+                        outerMost->getHead()->print();
+                        outerMost->getHead()->printInstructions();
+#endif
+                        uint32_t entryPoints = 0;
+                        uint32_t exitPoints = 0;
+                        
+                        
+                        // it is important to perform all analysis on this loop before performing any interpositions because
+                        // doing the interpositions changes the CFG
+                        Vector<BasicBlock*> entryInterpositions;
+                        for (uint32_t i = 0; i < outerMost->getHead()->getNumberOfSources(); i++){
+                            BasicBlock* source = outerMost->getHead()->getSourceBlock(i);
+#ifdef DEBUG_INTERPOSE
+                            PRINT_INFOR("source block %d", source->getIndex());
+#endif
+                            if (!outerMost->isBlockIn(source->getIndex())){
+#ifdef DEBUG_INTERPOSE
+                                PRINT_INFOR("\tsource not in loop");
+#endif
+                                if (source->getBaseAddress() + source->getNumberOfBytes() == outerMost->getHead()->getBaseAddress()){
+                                    // instrument somewhere in the source block
+#ifdef DEBUG_INTERPOSE
+                                    PRINT_INFOR("\t\tsource falls through");
+#endif
+                                    X86Instruction* bestinst = source->getLeader();
+                                    FlagsProtectionMethods prot = FlagsProtectionMethod_full;
+                                    for (uint32_t k = 0; k < source->getNumberOfInstructions(); k++){
+                                        if (source->getInstruction(k)->allFlagsDeadIn()){
+                                            bestinst = source->getInstruction(k);
+                                            prot = FlagsProtectionMethod_none;
+                                        }
+                                    }
+                                    addInstrumentationPoint(bestinst, loopEntry, InstrumentationMode_trampinline, FlagsProtectionMethod_full);                                
+                                    entryPoints++;
+                                    PRINT_INFOR("\tENTR-FALLTHRU\tBLK:%#llx --> BLK:%#llx", source->getBaseAddress(), outerMost->getHead()->getBaseAddress());
+                                } else {
+                                    // interpose a block between head of loop and source and instrument the interposed block
+#ifdef DEBUG_INTERPOSE
+                                    PRINT_INFOR("\t\tsource interpose");
+#endif
+                                    entryInterpositions.append(source);
+                                }
+                            } else {
+#ifdef DEBUG_INTERPOSE
+                                PRINT_INFOR("\tsource in loop");
+#endif
+                            }
+                            
+                        }
+                        
+                        FlagsProtectionMethods prot = FlagsProtectionMethod_full;
+                        if (outerMost->getHead()->getLeader()->allFlagsDeadIn()){
+                            prot = FlagsProtectionMethod_none;
+                        }
+                        
+                        for (uint32_t i = 0; i < entryInterpositions.size(); i++){
+                            BasicBlock* interposed = initInterposeBlock(fg, entryInterpositions[i]->getIndex(), outerMost->getHead()->getIndex());
+#ifdef DEBUG_INTERPOSE
+                            interposed->print();
+#endif
+                            ASSERT(loopEntry);
+                            addInstrumentationPoint(interposed, loopEntry, InstrumentationMode_trampinline, FlagsProtectionMethod_full);
+                            entryPoints++;
+                            PRINT_INFOR("\tENTR-INTERPOS\tBLK:%#llx --> BLK:%#llx", entryInterpositions[i]->getBaseAddress(), outerMost->getHead()->getBaseAddress());
+                        }
+                        
+
+
+                        BasicBlock** allLoopBlocks = new BasicBlock*[outerMost->getNumberOfBlocks()];
+                        outerMost->getAllBlocks(allLoopBlocks);
+                        for (uint32_t i = 0; i < outerMost->getNumberOfBlocks(); i++){
+#ifdef DEBUG_INTERPOSE
+                            allLoopBlocks[i]->print();
+#endif
+                            
+                            Vector<BasicBlock*> exitInterpositions;
+                            for (uint32_t j = 0; j < allLoopBlocks[i]->getNumberOfTargets(); j++){
+                                BasicBlock* target = allLoopBlocks[i]->getTargetBlock(j);
+#ifdef DEBUG_INTERPOSE
+                                PRINT_INFOR("target block %d", target->getIndex());
+#endif
+                                if (!outerMost->isBlockIn(target->getIndex())){
+#ifdef DEBUG_INTERPOSE
+                                    PRINT_INFOR("\ttarget not in loop");
+#endif
+                                    if (target->getBaseAddress() == allLoopBlocks[i]->getBaseAddress() + allLoopBlocks[i]->getNumberOfBytes()){
+                                        // instrument somewhere in the target block
+#ifdef DEBUG_INTERPOSE
+                                        PRINT_INFOR("\t\ttarget falls through");
+#endif
+                                        X86Instruction* bestinst = target->getLeader();
+                                        FlagsProtectionMethods prot = FlagsProtectionMethod_full;
+                                        for (uint32_t k = 0; k < target->getNumberOfInstructions(); k++){
+                                            if (target->getInstruction(k)->allFlagsDeadIn()){
+                                                bestinst = target->getInstruction(k);
+                                                prot = FlagsProtectionMethod_none;
+                                                break;
+                                            }
+                                        }
+                                        addInstrumentationPoint(bestinst, loopExit, InstrumentationMode_trampinline, FlagsProtectionMethod_full);
+                                        exitPoints++;
+                                        PRINT_INFOR("\tEXIT-FALLTHRU\tBLK:%#llx --> BLK:%#llx", allLoopBlocks[i]->getBaseAddress(), target->getBaseAddress());
+                                    } else {
+                                        // interpose a block between head of loop and target and instrument the interposed block
+#ifdef DEBUG_INTERPOSE
+                                        PRINT_INFOR("\t\ttarget interpose");
+#endif
+                                        exitInterpositions.append(target);
+                                    }
+                                } else {
+#ifdef DEBUG_INTERPOSE
+                                    PRINT_INFOR("\ttarget in loop");
+#endif
+                                }
+                            }
+                            
+                            prot = FlagsProtectionMethod_full;
+                            if (allLoopBlocks[i]->getExitInstruction()->allFlagsDeadOut()){
+                                prot = FlagsProtectionMethod_none;
+                            }
+                            
+                            for (uint32_t j = 0; j < exitInterpositions.size(); j++){
+                                BasicBlock* interposed = initInterposeBlock(fg, allLoopBlocks[i]->getIndex(), exitInterpositions[j]->getIndex());
+#ifdef DEBUG_INTERPOSE
+                                interposed->print();
+#endif
+                                ASSERT(loopExit);
+                                addInstrumentationPoint(interposed, loopExit, InstrumentationMode_trampinline, FlagsProtectionMethod_full);
+                                exitPoints++;
+                                PRINT_INFOR("\tEXIT-INTERPOS\tBLK:%#llx --> BLK:%#llx", allLoopBlocks[i]->getBaseAddress(), exitInterpositions[j]->getBaseAddress());
+                            }
+                        }
+                        delete[] allLoopBlocks;
+                    }
+                }
+            }
+        }
+    }
+    printStaticFile(allBlocks, allBlockIds, allLineInfos, allBlocks->size());
+
+    delete allBlocks;
+    delete allBlockIds;
+    delete allLineInfos;
+}
+
