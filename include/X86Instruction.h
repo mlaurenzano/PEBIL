@@ -307,6 +307,7 @@ public:
 
     OperandX86* getOperand(uint32_t idx);
     TextObject* getContainer() { return container; }
+    void setContainer(TextObject* cont) { container = cont; }
 
     static void initializeInstructionAPIDecoder(bool is64bit);
     void setFlags();

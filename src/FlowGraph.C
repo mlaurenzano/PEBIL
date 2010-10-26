@@ -28,9 +28,58 @@
 #include <LinkedList.h>
 #include <Loop.h>
 #include <Stack.h>
-#include <set>
+#include <set.h>
+#include <X86Instruction.h>
+#include <X86InstructionFactory.h>
 
 using namespace std;
+
+void FlowGraph::interposeBlock(BasicBlock* bb){
+    ASSERT(bb->getNumberOfSources() == 1 && bb->getNumberOfTargets() == 1);
+    BasicBlock* sourceBlock = bb->getSourceBlock(0);
+    BasicBlock* targetBlock = bb->getTargetBlock(0);
+
+    bool linkFound = false;
+    for (uint32_t i = 0; i < sourceBlock->getNumberOfTargets(); i++){
+        if (sourceBlock->getTargetBlock(i)->getIndex() == targetBlock->getIndex()){
+            linkFound = true;
+            break;
+        }
+    }
+    /*
+    sourceBlock->print();
+    targetBlock->print();
+    */
+    ASSERT(linkFound && "There should be a source -> target block relationship between the blocks passed to this function");
+
+    ASSERT(sourceBlock->getBaseAddress() + sourceBlock->getNumberOfBytes() != targetBlock->getBaseAddress() && "Source shouldn't fall through to target");
+
+    bb->setBaseAddress(blocks.back()->getBaseAddress() + blocks.back()->getNumberOfBytes());
+    bb->setIndex(basicBlocks.size());
+    basicBlocks.append(bb);
+    /*
+    PRINT_INFOR("now there are %d bbs in function %s", basicBlocks.size(), function->getName());
+    PRINT_INFOR("new block has base addres %#llx", bb->getBaseAddress());
+    */
+    blocks.append(bb);
+
+    sourceBlock->removeTargetBlock(targetBlock);
+    sourceBlock->addTargetBlock(bb);
+    targetBlock->removeSourceBlock(sourceBlock);
+    targetBlock->addSourceBlock(bb);
+
+    X86Instruction* jumpToTarget = bb->getLeader();
+    jumpToTarget->initializeAnchor(targetBlock->getLeader());
+    jumpToTarget->setBaseAddress(blocks.back()->getBaseAddress() + blocks.back()->getSizeInBytes());
+    jumpToTarget->setIndex(0);
+    ASSERT(sourceBlock->getExitInstruction() && sourceBlock->getExitInstruction()->getAddressAnchor());
+    sourceBlock->getExitInstruction()->getAddressAnchor()->updateLink(jumpToTarget);
+
+    /*
+    bb->print();
+    bb->printInstructions();
+    */
+}
 
 bool FlowGraph::isBlockInLoop(uint32_t idx){
     for (uint32_t i = 0; i < loops.size(); i++){
@@ -55,6 +104,24 @@ Loop* FlowGraph::getInnermostLoopForBlock(uint32_t idx){
         }
     }
     return loop;
+}
+
+Loop* FlowGraph::getOuterMostLoopForLoop(uint32_t idx){
+    Loop* input = loops[idx];
+    while (input->getIndex() != getOuterLoop(input->getIndex())->getIndex()){
+        input = getOuterLoop(input->getIndex());
+    }
+    return input;
+}
+
+Loop* FlowGraph::getOuterLoop(uint32_t idx){
+    Loop* input = loops[idx];
+    for (uint32_t i = 0; i < loops.size(); i++){
+        if (input->isInnerLoopOf(loops[i])){
+            return loops[i];
+        }
+    }
+    return input;
 }
 
 uint32_t FlowGraph::getLoopDepth(uint32_t idx){
@@ -405,7 +472,7 @@ uint32_t FlowGraph::buildLoops(){
     BitSet <BasicBlock*>* visitedBitSet = newBitSet();
     BitSet <BasicBlock*>* completedBitSet = newBitSet();
 
-    depthFirstSearch(allBlocks[0],visitedBitSet,true,completedBitSet,&backEdges);
+    depthFirstSearch(allBlocks[0], visitedBitSet, true, completedBitSet, &backEdges);
 
     delete[] allBlocks;
     delete visitedBitSet;

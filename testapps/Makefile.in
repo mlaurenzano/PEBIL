@@ -15,25 +15,25 @@ TARGETS  = cTest cppTest htcoef dynTest sgbench
 all: $(TARGETS) 
 
 %.o: %.c
-	$(CC) -c -o $@ $< 
+	$(CC) -g -c -o $@ $< 
 
 %.o: %.C
-	$(CXX) -c -o $@ $< 
+	$(CXX) -g -c -o $@ $< 
 
 cTest: $(OBJS)
-	$(CC) -o $@ $(OBJS)
+	$(CC) -g -o $@ $(OBJS)
 
 cppTest: $(OBJSCPP)
-	$(CXX) -o $@ $(OBJSCPP)
+	$(CXX) -g -o $@ $(OBJSCPP)
 
 htcoef:
-	$(FC) -o $@ htcoef.f
+	$(FC) -g -o $@ htcoef.f
 
 dynTest:
-	$(CC) -o $@ dynTest.c
+	$(CC) -g -o $@ dynTest.c
 
 sgbench:
-	$(CC) -o $@ sgbench.c $(EXTRA_INC) $(EXTRA_LIBS)
+	$(CC) -g -o $@ sgbench.c $(EXTRA_INC) $(EXTRA_LIBS)
 
 clean: 
 	rm -f *.o $(TARGETS) 

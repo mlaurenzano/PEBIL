@@ -47,6 +47,7 @@ public:
     void print();
     void setIndex(uint32_t idx) { index = idx; }
     uint32_t getIndex() { return index; }
+    FlowGraph* getFlowGraph() { return flowGraph; }
 };
 
 #endif // _Loop_h_

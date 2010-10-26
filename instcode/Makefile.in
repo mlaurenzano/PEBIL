@@ -2,9 +2,9 @@ STATIC_INST_LIB  = @STATIC_INST_LIB@
 
 PEBIL_LIBS = 
 ifeq ($(STATIC_INST_LIB),yes)
-	PEBIL_LIBS = libcounter.a  libsimulator.a  libtimer.a
+	PEBIL_LIBS = libcounter.a  libsimulator.a  libtimer.a  libthrottle.a
 else
-	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so
+	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so libthrottle.so
 endif
 
 LIB_TARGETS = $(PEBIL_LIBS)
@@ -51,6 +51,11 @@ libtimer.so : TimerFunctions.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ TimerFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS)
 libtimer.a : TimerFunctions.o $(COMMON_OBJS) 
 	$(AR) $@ TimerFunctions.o $(COMMON_OBJS)
+
+libthrottle.so : ThrottleFunctions.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ ThrottleFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS)
+libthrottle.a : ThrottleFunctions.o $(COMMON_OBJS) 
+	$(AR) $@ ThrottleFunctions.o $(COMMON_OBJS)
 
 clean: 
 	rm -f *.o *.i *.s *.ii *.a *.so $(LIB_TARGETS)

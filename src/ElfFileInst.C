@@ -34,6 +34,7 @@
 #include <X86InstructionFactory.h>
 #include <Instrumentation.h>
 #include <LineInformation.h>
+#include <Loop.h>
 #include <ProgramHeader.h>
 #include <RelocationTable.h>
 #include <SectionHeader.h>
@@ -46,6 +47,26 @@ uint32_t bloatCount = 0;
 #endif
 
 #define Reserve__Instrumentation_DynamicTable 0x8000
+
+BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, uint32_t bbtgtidx){
+    BasicBlock* bb = new BasicBlock(fg->getNumberOfBasicBlocks(), fg);
+    interposedBlocks.append(bb);
+
+    X86Instruction* jumpToTarget = X86InstructionFactory::emitJumpRelative(0,0);
+    bb->addInstruction(jumpToTarget);
+
+    // store the source and target indices in the source/target bitsets
+    bb->addSourceBlock(fg->getBasicBlock(bbsrcidx));
+    bb->addTargetBlock(fg->getBasicBlock(bbtgtidx));
+
+    jumpToTarget->setLeader(true);
+    jumpToTarget->setContainer(fg->getFunction());
+    jumpToTarget->setIndex(0);
+
+    fg->getFunction()->setManipulated();
+
+    return bb;
+}
 
 BasicBlock* ElfFileInst::findExposedBasicBlock(HashCode hashCode){
     for (uint32_t i = 0; i < exposedBasicBlocks.size(); i++){
@@ -540,6 +561,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
 
     for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
         InstrumentationPoint* pt = (*instrumentationPoints)[i];
+
         if (!pt){
             PRINT_ERROR("Instrumentation point %d should exist", i);
         }
@@ -799,6 +821,12 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     uint64_t codeOffset = offset;
     uint32_t numberOfFunctions = exposedFunctions.size();
 
+    for (uint32_t i = 0; i < interposedBlocks.size(); i++){
+        BasicBlock* bb = interposedBlocks[i];
+        bb->getFlowGraph()->getFunction()->interposeBlock(bb);
+        exposedBasicBlocks.append(bb);
+    }
+
 #ifdef TURNOFF_FUNCTION_RELOCATION
     numberOfFunctions = 0;
     PRINT_WARN(10,"Function relocation has been disabled by the macro TURNOFF_FUNCTION_RELOCATION");
@@ -836,16 +864,22 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
         bool* needsRelocate = new bool[exposedFunctions.size()];
         for (uint32_t i = 0; i < exposedFunctions.size(); i++){
             needsRelocate[i] = false;
+            if (exposedFunctions[i]->isManipulated()){
+                needsRelocate[i] = true;
+            }
         }
 
         uint32_t currentFunc = 0;
         uint32_t localBlock = 0;
         for (uint32_t k = 0; k < (*instrumentationPoints).size(); k++){
-            while (exposedFunctions[currentFunc]->getBaseAddress() < (*instrumentationPoints)[k]->getSourceObject()->getContainer()->getBaseAddress()){
+            ASSERT((*instrumentationPoints)[k]->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
+            Function* pointsFunction = (Function*)(*instrumentationPoints)[k]->getSourceObject()->getContainer();
+            while (exposedFunctions[currentFunc]->getBaseAddress() < pointsFunction->getBaseAddress()){
                 currentFunc++;
                 localBlock = 0;
             }
             while (!exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->inRange((*instrumentationPoints)[k]->getInstBaseAddress())){
+                //PRINT_INFOR("local block %d -- %#llx", localBlock, exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->getBaseAddress());
                 localBlock++;
             }
             (*((*instPointsPerBlock)[currentFunc]))[localBlock]->append((*instrumentationPoints)[k]);

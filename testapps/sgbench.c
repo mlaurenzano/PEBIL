@@ -37,7 +37,7 @@ void scatter_body(double* A,double* B, uint32_t* index,uint32_t n,uint32_t* stac
     uint32_t i;
     for(i=0;i<n;i++){
         A[index[i]] = B[i];
-		stack_array[i % STACK_ARRAY_SIZE] = i;
+        stack_array[i % STACK_ARRAY_SIZE] = i;
     }
 }
 
