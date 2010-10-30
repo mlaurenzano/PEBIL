@@ -28,8 +28,10 @@
 #include <X86InstructionFactory.h>
 #include <SymbolTable.h>
 
-#define LOOP_ENTRY "throttle_down"
-#define LOOP_EXIT "throttle_up"
+#define PROGRAM_ENTRY "pfreq_throttle_init"
+#define PROGRAM_EXIT "pfreq_throttle_fini"
+#define LOOP_ENTRY "pfreq_throttle_high"
+#define LOOP_EXIT "pfreq_throttle_low"
 
 //#define DEBUG_INTERPOSE
 
@@ -45,6 +47,8 @@ ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* libList, char* e
 {
     loopEntry = NULL;
     loopExit = NULL;
+    programEntry = NULL;
+    programExit = NULL;
 
     loopList = new Vector<char*>();
     ASSERT(inputFile && loopList);
@@ -110,6 +114,10 @@ void ThrottleLoop::declare(){
     ASSERT(loopEntry);
     loopExit = declareFunction(LOOP_EXIT);
     ASSERT(loopExit);    
+    programEntry = declareFunction(PROGRAM_ENTRY);
+    ASSERT(programEntry);
+    programExit = declareFunction(PROGRAM_EXIT);
+    ASSERT(programExit);    
 }
 
 
@@ -123,6 +131,12 @@ void ThrottleLoop::instrument(){
         PRINT_ERROR("Loop Throttling tool requires line information: recompile  your app with -g?");
     }
     ASSERT(lineInfoFinder);
+
+    InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp);
+    ASSERT(p);
+    p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp);
+    ASSERT(p);
+
 
     Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
     Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();

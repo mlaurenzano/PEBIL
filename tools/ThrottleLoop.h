@@ -27,6 +27,8 @@ class ThrottleLoop : public InstrumentationTool {
 private:
     InstrumentationFunction* loopEntry;
     InstrumentationFunction* loopExit;
+    InstrumentationFunction* programEntry;
+    InstrumentationFunction* programExit;
 
     Vector<char*>* loopList;    
     Vector<char*> libraries;
