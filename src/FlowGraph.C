@@ -28,7 +28,7 @@
 #include <LinkedList.h>
 #include <Loop.h>
 #include <Stack.h>
-#include <set.h>
+#include <set>
 #include <X86Instruction.h>
 #include <X86InstructionFactory.h>
 

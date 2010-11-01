@@ -58,7 +58,7 @@ libpower.a : PowerFunctions.o $(COMMON_OBJS)
 	$(AR) $@ PowerFunctions.o $(COMMON_OBJS)
 
 clean: 
-	rm -f *.o *.i *.s *.ii *.a *.so $(LIB_TARGETS)
+	rm -f *.o *.i *.s *.ii $(LIB_TARGETS)
 
 install:
 	cp $(LIB_TARGETS) $(LIBDIR)
