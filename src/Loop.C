@@ -109,6 +109,9 @@ bool Loop::isIdenticalLoop(Loop* loop){
     if (getNumberOfBlocks() != loop->getNumberOfBlocks()){
         return false;
     }
+    if (getFlowGraph()->getFunction()->getBaseAddress() != loop->getFlowGraph()->getFunction()->getBaseAddress()){
+        return false;
+    }
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         if (isBlockIn(i) != loop->isBlockIn(i)){
             return false;

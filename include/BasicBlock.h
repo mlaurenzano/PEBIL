@@ -134,6 +134,8 @@ public:
 
     uint32_t addSourceBlock(BasicBlock* srcBlock);
     uint32_t addTargetBlock(BasicBlock* tgtBlock);
+    uint32_t removeSourceBlock(BasicBlock* srcBlock);
+    uint32_t removeTargetBlock(BasicBlock* tgtBlock);
 
     uint32_t getNumberOfSources() { return sourceBlocks.size(); }
     uint32_t getNumberOfTargets() { return targetBlocks.size(); }

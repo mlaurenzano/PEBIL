@@ -36,6 +36,8 @@ char** fileNames;
 char** functionNames;
 int64_t* hashValues;
 
+void tool_mpi_init(){}
+
 int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** functionNames){
     int32_t i;
 

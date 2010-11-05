@@ -81,6 +81,8 @@ public:
     void printLoops();
     bool isBlockInLoop(uint32_t idx);
     Loop* getInnermostLoopForBlock(uint32_t idx);
+    Loop* getOuterMostLoopForLoop(uint32_t idx);
+    Loop* getOuterLoop(uint32_t idx);
 
     void addBlock(Block* block);    
     
@@ -91,6 +93,7 @@ public:
                           BitSet<BasicBlock*>* completedSet=NULL,LinkedList<BasicBlock*>* backEdges=NULL);
     
     void setImmDominatorBlocks(BasicBlock* root=NULL);
+    void interposeBlock(BasicBlock* bb);
 
     bool verify();
 };

@@ -36,11 +36,19 @@ inline uint64_t read_timestamp_counter(){
     return ((unsigned long long)low | (((unsigned long long)high) << 32));
 }
 
+inline double read_process_clock(){
+    struct timespec myclock;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &myclock);
+    uint64_t nsec = (NANOS_PER_SECOND * myclock.tv_sec) + myclock.tv_nsec;
+    return (double)(nsec) / (double)(NANOS_PER_SECOND);
+}
+/*
 inline uint64_t read_process_clock(){
     struct timespec myclock;
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &myclock);
     return (NANOS_PER_SECOND * myclock.tv_sec) + myclock.tv_nsec;
 }
+*/
 
 #ifdef HAVE_MPI
 // C init wrapper
@@ -54,6 +62,8 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
 
     PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
     PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
+
+    tool_mpi_init();
 
     fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in MPI_Init wrapper\n", getpid(), __taskid, __ntasks, gethostid());
     return retval;
@@ -69,15 +79,15 @@ void__give_pebil_name(mpi_init_)(int* ierr){
 #else
 void __wrapper_name(mpi_init_)(int* ierr){
     pmpi_init_(ierr);
+#endif // USES_PSINSTRACER
 
-    int myerr;
-    MPI_Comm world = MPI_COMM_WORLD;
-    pmpi_comm_rank_(&world, &__taskid, &myerr);
-    pmpi_comm_size_(&world, &__ntasks, &myerr);
+    PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
+    PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
+
+    tool_mpi_init();
 
     fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
 }
-#endif // USES_PSINSTRACER
 
 #endif // HAVE_MPI
 

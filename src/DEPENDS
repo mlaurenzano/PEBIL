@@ -10,7 +10,8 @@ AddressAnchor.o: AddressAnchor.C ../include/AddressAnchor.h \
   ../external/udis86-1.7/libudis86/itab.h \
   ../include/defines/X86Instruction.d
 Base.o: Base.C ../include/Base.h ../include/CStructuresElf.h \
-  ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h
+  ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+  ../include/CheckSum.h
 BasicBlock.o: BasicBlock.C ../include/BasicBlock.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/Debug.h ../include/Vector.h ../include/BitSet.h \
@@ -93,9 +94,9 @@ ElfFileInst.o: ElfFileInst.C ../include/ElfFileInst.h ../include/Base.h \
   ../include/defines/GnuVersion.d ../include/HashTable.h \
   ../include/X86InstructionFactory.h ../include/Instrumentation.h \
   ../include/LineInformation.h ../include/defines/LineInformation.d \
-  ../include/RelocationTable.h ../include/defines/RelocationTable.d \
-  ../include/SectionHeader.h ../include/defines/SectionHeader.d \
-  ../include/StringTable.h
+  ../include/Loop.h ../include/RelocationTable.h \
+  ../include/defines/RelocationTable.d ../include/SectionHeader.h \
+  ../include/defines/SectionHeader.d ../include/StringTable.h
 FileHeader.o: FileHeader.C ../include/FileHeader.h ../include/Base.h \
   ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
   ../include/Debug.h ../include/Vector.h ../include/defines/FileHeader.d \
@@ -116,7 +117,8 @@ FlowGraph.o: FlowGraph.C ../include/FlowGraph.h ../include/BitSet.h \
   ../include/LinkedList.h ../include/BasicBlock.h \
   ../include/ElfFileInst.h ../include/ElfFile.h ../include/BinaryFile.h \
   ../include/ProgramHeader.h ../include/defines/ProgramHeader.d \
-  ../include/LengauerTarjan.h ../include/Loop.h ../include/Stack.h
+  ../include/LengauerTarjan.h ../include/Loop.h ../include/Stack.h \
+  ../include/X86InstructionFactory.h
 Function.o: Function.C ../include/Function.h ../include/BitSet.h \
   ../include/Base.h ../include/CStructuresElf.h \
   ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \

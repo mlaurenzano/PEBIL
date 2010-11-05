@@ -41,6 +41,8 @@ uint64_t* blockCounters;
 //#define ENABLE_INSTRUMENTATION_KILL
 //#define DEBUG_INST_KILL
 
+void tool_mpi_init(){}
+
 void clearBlockCounters(){
     bzero(blockCounters, sizeof(uint64_t) * numberOfBasicBlocks);
 }
