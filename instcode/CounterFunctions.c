@@ -84,6 +84,12 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
         exit(-1);
     }
 
+    fprintf(outFile, "# appname   = %s\n", appName);
+    fprintf(outFile, "# extension = %s\n", instExt);
+    fprintf(outFile, "# phase     = %d\n", 0);
+    fprintf(outFile, "# rank      = %d\n", getTaskId());
+
+
     fprintf(outFile, "#id\tcount\t#file:line\tfunc\thash\n");
     fflush(outFile);
     for (i = 0; i < numberOfBasicBlocks; i++){
