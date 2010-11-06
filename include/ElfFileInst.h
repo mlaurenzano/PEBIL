@@ -29,6 +29,7 @@
 class BasicBlock;
 class BinaryOutputFile;
 class DataReference;
+class FlowGraph;
 class Function;
 class Instrumentation;
 class InstrumentationFunction;
@@ -37,6 +38,7 @@ class InstrumentationSnippet;
 class X86Instruction;
 class LineInfo;
 class LineInfoFinder;
+class Loop;
 class RawSection;
 class SectionHeader;
 class TextSection;
@@ -84,6 +86,7 @@ private:
     Vector<uint64_t> relocatedFunctionOffsets;
     Vector<Function*> nonRelocatedFunctions;
     Vector<X86Instruction*> replacedInstructions;
+    Vector<BasicBlock*> interposedBlocks;
 
     ProgramHeader* instSegment;
 
@@ -165,6 +168,8 @@ protected:
 
     BasicBlock* getProgramExitBlock();
     Vector<X86Instruction*>* findAllCalls(char* fnames);
+
+    BasicBlock* initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, uint32_t bbtgtidx);
 
 public:
     ElfFileInst(ElfFile* elf);

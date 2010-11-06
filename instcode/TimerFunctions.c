@@ -114,6 +114,8 @@ uint32_t hashFunction(const uint32_t *k, size_t length)
     return c;
 }
 
+void tool_mpi_init(){}
+
 uint32_t getRecordIndex(){
     uint64_t hashCode = HASH_STACK(stackIdx);
     uint32_t idx = INDEX_RECORD(hashCode);

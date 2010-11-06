@@ -41,6 +41,7 @@ private:
     const static uint32_t jumptableMask           = 0x4;
     const static uint32_t disasmfailMask          = 0x8;
     const static uint32_t relocatedMask           = 0x10;
+    const static uint32_t manipulatedMask         = 0x20;
 
 protected:
     FlowGraph* flowGraph;
@@ -57,6 +58,7 @@ public:
     uint32_t getStackSize() { return stackSize; }
     uint32_t findStackSize();
 
+    void interposeBlock(BasicBlock* bb);
     bool hasLeafOptimization();
 
     bool isRecursiveDisasm()          { return (flags & recursivedisasmMask); }
@@ -64,12 +66,14 @@ public:
     bool isJumpTable()                { return (flags & jumptableMask); }
     bool isDisasmFail()               { return (flags & disasmfailMask); }
     bool isRelocated()                { return (flags & relocatedMask); }
+    bool isManipulated()              { return (flags & manipulatedMask); }
 
     void setRecursiveDisasm()         { flags |= recursivedisasmMask; }
     void setInstrumentationFunction() { flags |= instrumentationfuncMask; }
     void setJumpTable()               { flags |= jumptableMask; }
     void setDisasmFail()              { flags |= disasmfailMask; }
     void setRelocated()               { flags |= relocatedMask; }
+    void setManipulated()             { flags |= manipulatedMask; }
 
     uint64_t getBadInstruction() { return badInstruction; }
     void setBadInstruction(uint64_t addr) { badInstruction = addr; }

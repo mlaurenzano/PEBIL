@@ -565,6 +565,8 @@ void LineInfo::updateRegsSpecialOpcode(char* instruction){
     uint8_t adjusted_opcode = instruction[0] - header->GET(li_opcode_base);
 
     ASSERT(header->GET(li_line_range) && "A divide by zero error is about to occur");
+
+    // NOTE: sometimes it seems that we want int8_t for these, sometimes we don't (pgi multimaps)
     uint8_t addr_inc = (adjusted_opcode /  header->GET(li_line_range)) *  header->GET(li_min_insn_length);
     uint8_t line_inc = header->GET(li_line_base) + (adjusted_opcode % header->GET(li_line_range));
 
@@ -614,17 +616,18 @@ LineInfo::~LineInfo(){
 
 void LineInfo::print(){
 
+#define RAWBYTES_PRINT 12
     PRINT_INFO();
     PRINT_OUT("%6d\t%6d\t", index, instructionBytes.size());
-    if (instructionBytes.size() <= 8){
+    if (instructionBytes.size() <= RAWBYTES_PRINT){
         for (uint32_t i = 0; i < instructionBytes.size(); i++){
             PRINT_OUT("%02hhx", instructionBytes[i]);
         }
-        for (uint32_t i = 0; i < 8-instructionBytes.size(); i++){
+        for (uint32_t i = 0; i < RAWBYTES_PRINT-instructionBytes.size(); i++){
             PRINT_OUT("  ");
         }
     } else {
-        for (uint32_t i = 0; i < 8-2; i++){
+        for (uint32_t i = 0; i < RAWBYTES_PRINT-2; i++){
             PRINT_OUT("%02hhx", instructionBytes[i]);
         }
         PRINT_OUT("... ");

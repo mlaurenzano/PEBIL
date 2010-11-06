@@ -17,14 +17,16 @@ SRCS  = BasicBlockCounter.C \
 	CallReplace.C \
 	FunctionCounter.C \
 	FunctionTimer.C \
-	InstrumentationTool.C
+	InstrumentationTool.C \
+	ThrottleLoop.C
 
 OBJS  =	BasicBlockCounter.o \
 	CacheSimulation.o \
 	CallReplace.o \
 	FunctionCounter.o \
 	FunctionTimer.o \
-	InstrumentationTool.o
+	InstrumentationTool.o \
+	ThrottleLoop.o
 
 all: $(TARGETS)
 

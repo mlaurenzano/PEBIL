@@ -655,7 +655,6 @@ void X86Instruction::initializeAnchor(Base* link){
     addressAnchor = new AddressAnchor(link,this);
 }
 
-
 void X86Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(sizeInBytes && "This instruction has no bytes thus it cannot be dumped");
 

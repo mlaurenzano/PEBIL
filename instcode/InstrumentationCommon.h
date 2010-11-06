@@ -37,7 +37,7 @@
 //#define EXCLUDE_TIMER
 
 extern uint64_t read_timestamp_counter();
-extern uint64_t read_process_clock();
+extern double read_process_clock();
 
 typedef struct
 {

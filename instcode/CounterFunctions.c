@@ -36,6 +36,8 @@ char** fileNames;
 char** functionNames;
 int64_t* hashValues;
 
+void tool_mpi_init(){}
+
 int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** functionNames){
     int32_t i;
 
@@ -89,7 +91,10 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     fprintf(outFile, "# phase     = %d\n", 0);
     fprintf(outFile, "# rank      = %d\n", getTaskId());
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> master
     fprintf(outFile, "#id\tcount\t#file:line\tfunc\thash\n");
     fflush(outFile);
     for (i = 0; i < numberOfBasicBlocks; i++){

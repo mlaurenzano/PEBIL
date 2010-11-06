@@ -120,7 +120,9 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
     PRINT_DEBUG_BLOAT_FILTER("block range for bloat [%#llx,%#llx)", getBaseAddress(), getBaseAddress() + getNumberOfBytes());
     for (uint32_t i = 0; i < (*instPoints).size(); i++){
         DEBUG_BLOAT_FILTER((*instPoints)[i]->getSourceObject()->print();)
-        ASSERT(inRange((*instPoints)[i]->getInstBaseAddress()));
+        ASSERT((*instPoints)[i]->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
+        Function* pointsFunction = (Function*)(*instPoints)[i]->getSourceObject()->getContainer();
+        ASSERT(pointsFunction->getHashCode().getValue() == flowGraph->getFunction()->getHashCode().getValue());
     }
 
     X86Instruction* firstInstruction = instructions[0];
@@ -396,6 +398,26 @@ uint32_t BasicBlock::addTargetBlock(BasicBlock* bb){
     return targetBlocks.size();
 }
 
+uint32_t BasicBlock::removeSourceBlock(BasicBlock* srcBlock){
+    for (uint32_t i = 0; i < sourceBlocks.size(); i++){
+        if (srcBlock->getIndex() == sourceBlocks[i]->getIndex()){
+            sourceBlocks.remove(i);
+            i--;
+        }
+    }
+    return sourceBlocks.size();
+}
+
+uint32_t BasicBlock::removeTargetBlock(BasicBlock* tgtBlock){
+    for (uint32_t i = 0; i < targetBlocks.size(); i++){
+        if (tgtBlock->getIndex() == targetBlocks[i]->getIndex()){
+            targetBlocks.remove(i);
+            i--;
+        }
+    }
+    return targetBlocks.size();
+}
+
 bool BasicBlock::findExitInstruction(){
     if (instructions.back()->isReturn()){
         return true;
@@ -604,6 +626,8 @@ void BasicBlock::print(){
 bool BasicBlock::verify(){
     for (uint32_t i = 0; i < instructions.size(); i++){
         if (instructions[i]->getIndex() != i){
+            print();
+            printInstructions();
             PRINT_ERROR("Instruction index %d does not match expected index %d", instructions[i]->getIndex(), i);
             return false;
         }
@@ -681,6 +705,7 @@ Vector<X86Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<X86In
     if (!tgtInstruction){
         PRINT_INFOR("looking for addr %#llx inside block with range [%#llx,%#llx)", addr, getBaseAddress(), getBaseAddress() + getNumberOfBytes());
         printInstructions();
+        flowGraph->getFunction()->printInstructions();
     }
     ASSERT(tgtInstruction && "This basic block should have an instruction at the given address");
 

@@ -33,6 +33,11 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+void Function::interposeBlock(BasicBlock* bb){
+    flowGraph->interposeBlock(bb);
+    sizeInBytes += bb->getNumberOfBytes();
+}
+
 uint32_t Function::findStackSize(){
     ASSERT(flowGraph);
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
@@ -235,10 +240,14 @@ uint32_t Function::getAllInstructions(X86Instruction** allinsts, uint32_t nexti)
 }
 
 Vector<X86Instruction*>* Function::swapInstructions(uint64_t addr, Vector<X86Instruction*>* replacements){
+    BasicBlock* cantidate = NULL;
     for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
         if (getBasicBlock(i)->inRange(addr)){
-            return getBasicBlock(i)->swapInstructions(addr, replacements);
+            cantidate = getBasicBlock(i);
         }
+    }
+    if (cantidate){
+        return cantidate->swapInstructions(addr, replacements);
     }
     print();
     printInstructions();

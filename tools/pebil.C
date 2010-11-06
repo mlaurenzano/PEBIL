@@ -25,9 +25,10 @@
 #include <ElfFile.h>
 #include <FunctionCounter.h>
 #include <FunctionTimer.h>
+#include <ThrottleLoop.h>
 #include <Vector.h>
 
-#define DEFAULT_FUNC_BLACKLIST64 "scripts/inputlist/none.func"
+#define DEFAULT_FUNC_BLACKLIST64 "scripts/inputlist/zeus.func"
 #define DEFAULT_FUNC_BLACKLIST32 "scripts/inputlist/system32.func"
 
 void printBriefOptions(bool detail){
@@ -77,7 +78,7 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
     fprintf(stderr,"\t--dtl : optional for all. detailed .static file with lineno\n");
     fprintf(stderr,"\t        and filenames. default is no details.\n");
-    fprintf(stderr,"\t--inp : required for sim/csc.\n");
+    fprintf(stderr,"\t--inp : required for sim/csc and thr.\n");
     fprintf(stderr,"\t--lpi : optional for sim/csc. loop level block inclusion for\n");
     fprintf(stderr,"\t        cache simulation. default is no.\n");
     fprintf(stderr,"\t--phs : optional for sim/csc. phase number. defaults to no phase,\n"); 
@@ -93,9 +94,9 @@ void printBriefOptions(bool detail){
 void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : pebil\n");
-    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|csc|ftm|crp)\n");
+    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|csc|ftm|crp|thr)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
-    fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc\n");
+    fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc and thr\n");
     fprintf(stderr,"\t[--inf [a-z]*]\n");
     fprintf(stderr,"\t[--lib <shared_lib_dir>]\n");
     fprintf(stderr,"\t\tdefault is $PEBIL_ROOT/lib\n");
@@ -189,9 +190,9 @@ typedef enum {
     function_counter_type,
     func_timer_type,
     call_wrapper_type,
+    throttle_loop_type,
     Total_InstrumentationType
 } InstrumentationType;
-
 
 int main(int argc,char* argv[]){
     char*    inptName   = NULL;
@@ -257,6 +258,9 @@ int main(int argc,char* argv[]){
             } else if (!strcmp(argv[i],"crp")){
                 instType = call_wrapper_type;
                 extension = "crpinst";
+            } else if (!strcmp(argv[i],"thr")){
+                instType = throttle_loop_type;
+                extension = "thrinst";
             }
         } else if (!strcmp(argv[i],"--help")){
             printUsage(true, true);
@@ -319,7 +323,7 @@ int main(int argc,char* argv[]){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
                 printUsage();
             }
-            if (instType != simulation_inst_type){
+            if (instType != simulation_inst_type && instType != throttle_loop_type){
                 fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i]);
                 printUsage();
             }
@@ -397,7 +401,7 @@ int main(int argc,char* argv[]){
         printUsage();
     }
 
-    if (instType == simulation_inst_type && !inptName){
+    if ((instType == simulation_inst_type || instType == throttle_loop_type) && !inptName){
         fprintf(stderr,"\nError : Input is required for cache simulation instrumentation\n\n");
         printUsage();
     }
@@ -471,10 +475,8 @@ int main(int argc,char* argv[]){
     elfFile.generateCFGs();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d GenCFG  : %.2f seconds",++stepNumber,t2-t1);t1=t2);    
 
-    if (loopIncl || extdPrnt){
-        elfFile.findLoops();
-        TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Loop    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
-    }
+    elfFile.findLoops();
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Loop    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 
@@ -510,6 +512,12 @@ int main(int argc,char* argv[]){
         }
         ASSERT(libList);
         elfInst = new CallReplace(&elfFile, inputTrackList, libList, extension, loopIncl, extdPrnt);
+    } else if (instType == throttle_loop_type){
+        if (!libList){
+            fprintf(stderr, "\nError: option --lnc needs to be given with loop throttle inst\n");
+        }
+        ASSERT(libList);
+        elfInst = new ThrottleLoop(&elfFile, inptName, libList, extension, loopIncl, extdPrnt);
     }
     else {
         PRINT_ERROR("Error : invalid instrumentation type");
@@ -549,13 +557,15 @@ int main(int argc,char* argv[]){
         TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
     }
 
-    // arrrrrg. i can't figure out why just deleting elfInst doesn't
-    // call the CallReplace destructor in this case without the cast
+    // arrrrrrrrrg. i can't figure out why just deleting elfInst doesn't
+    // call the CallReplace destructor in this case without the cast. 
     if (instType == call_wrapper_type){
         delete (CallReplace*)elfInst;
         //        delete (CallReplace*)elfInst;
     } else if (instType == simulation_inst_type){
         delete (CacheSimulation*)elfInst;
+    } else if (instType == throttle_loop_type){
+        delete (ThrottleLoop*)elfInst;
     } else {
         delete elfInst;
     }
