@@ -60,15 +60,42 @@ AC_LANG_CASE([C], [
 	acx_mpi_save_F77="$F77"
 	F77="$MPIF77"
 	AC_SUBST(MPIF77)
+],
+[Fortran], [
+        AC_REQUIRE([AC_PROG_FC])
+        AC_ARG_VAR(MPIFC,[MPI Fortran compiler command])
+        AC_CHECK_PROGS(MPIFC, mpif90 mpxlf95_r mpxlf90_r mpxlf95 mpxlf90 mpf90 cmpif90c ftn, $FC)
+        ax_mpi_save_FC="$FC"
+        FC="$MPIFC"
+        AC_SUBST(MPIFC)
 ])
 
 if test x = x"$MPILIBS"; then
 	AC_LANG_CASE([C], [AC_CHECK_FUNC(MPI_Init, [MPILIBS=" "])],
 		[C++], [AC_CHECK_FUNC(MPI_Init, [MPILIBS=" "])],
 		[Fortran 77], [AC_MSG_CHECKING([for MPI_Init])
-			AC_TRY_LINK([],[      call MPI_Init], [MPILIBS=" "
+			AC_LINK_IFELSE([AC_LANG_PROGRAM([],[      call MPI_Init])],[MPILIBS=" "
+				AC_MSG_RESULT(yes)], [AC_MSG_RESULT(no)])],
+		[Fortran], [AC_MSG_CHECKING([for MPI_Init])
+			AC_LINK_IFELSE([AC_LANG_PROGRAM([],[      call MPI_Init])],[MPILIBS=" "
 				AC_MSG_RESULT(yes)], [AC_MSG_RESULT(no)])])
 fi
+AC_LANG_CASE([Fortran 77], [
+	if test x = x"$MPILIBS"; then
+		AC_CHECK_LIB(fmpi, MPI_Init, [MPILIBS="-lfmpi"])
+	fi
+	if test x = x"$MPILIBS"; then
+		AC_CHECK_LIB(fmpich, MPI_Init, [MPILIBS="-lfmpich"])
+	fi
+],
+[Fortran], [
+	if test x = x"$MPILIBS"; then
+		AC_CHECK_LIB(fmpi, MPI_Init, [MPILIBS="-lfmpi"])
+	fi
+	if test x = x"$MPILIBS"; then
+		AC_CHECK_LIB(mpichf90, MPI_Init, [MPILIBS="-lmpichf90"])
+	fi
+])
 if test x = x"$MPILIBS"; then
 	AC_CHECK_LIB(mpi, MPI_Init, [MPILIBS="-lmpi"])
 fi

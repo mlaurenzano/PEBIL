@@ -68,10 +68,6 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
 int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     int32_t i;
 
-#ifndef HAVE_MPI
-    taskid = getpid();
-#endif
-
     PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
     PRINT_INSTR(stdout, "There are %d basic blocks in the code:", numberOfBasicBlocks);
 

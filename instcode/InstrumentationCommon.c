@@ -42,13 +42,6 @@ inline double read_process_clock(){
     uint64_t nsec = (NANOS_PER_SECOND * myclock.tv_sec) + myclock.tv_nsec;
     return (double)(nsec) / (double)(NANOS_PER_SECOND);
 }
-/*
-inline uint64_t read_process_clock(){
-    struct timespec myclock;
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &myclock);
-    return (NANOS_PER_SECOND * myclock.tv_sec) + myclock.tv_nsec;
-}
-*/
 
 #ifdef HAVE_MPI
 // C init wrapper

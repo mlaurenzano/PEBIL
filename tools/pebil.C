@@ -28,8 +28,8 @@
 #include <ThrottleLoop.h>
 #include <Vector.h>
 
-#define DEFAULT_FUNC_BLACKLIST64 "scripts/inputlist/zeus.func"
-#define DEFAULT_FUNC_BLACKLIST32 "scripts/inputlist/system32.func"
+#define DEFAULT_FUNC_BLACKLIST64 "scripts/inputlist/autogen-system.func"
+#define DEFAULT_FUNC_BLACKLIST32 "scripts/inputlist/autogen-system.func"
 
 void printBriefOptions(bool detail){
     fprintf(stderr,"\n");

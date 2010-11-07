@@ -18,6 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_CPUFREQ
+
 #define  _GNU_SOURCE
 #include <sched.h>
 #include <errno.h>
@@ -318,3 +320,4 @@ int32_t pfreq_throttle_up(){
     }
     return -1;
 }
+#endif //HAVE_CPUFREQ
