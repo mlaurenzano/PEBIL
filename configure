@@ -598,10 +598,10 @@ enable_option_checking=no
 ac_subst_vars='LTLIBOBJS
 subdirs
 LIBOBJS
+MPI_FLAGS
 C_BLACKLIST
 CXX_BLACKLIST
 FORTRAN_BLACKLIST
-MPI_FLAGS
 THROTTLE_FLAGS
 EGREP
 GREP
@@ -670,6 +670,7 @@ ac_user_opts='
 enable_option_checking
 enable_static
 enable_mpi
+enable_mpiinit_check
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1303,6 +1304,8 @@ Optional Features:
                           [no]
   --enable-mpi            Use mpi compiler when building instrumentation
                           libraries [yes]
+  --enable-mpiinit-check  Disable output file printing in inst libraries
+                          unless mpi_init is executed [no]
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -5254,6 +5257,15 @@ fi
 
 
 
+
+# Check whether --enable-mpiinit_check was given.
+if test "${enable_mpiinit_check+set}" = set; then :
+  enableval=$enable_mpiinit_check; mpiinit_check_ok=$enableval
+fi
+
+if test "$mpiinit_check_ok" = "yes"; then
+   MPI_FLAGS="$MPI_FLAGS -DMPI_INIT_REQUIRED"
+fi
 
 
 

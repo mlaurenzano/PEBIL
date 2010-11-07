@@ -807,6 +807,13 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
     uint32_t lastIndex = entries->lastFreeIdx;
     lastIndex--;
 
+#ifdef MPI_INIT_REQUIRED
+    if (!isTaskValid()){
+        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print files", getpid());
+        return -1;
+    }
+#endif
+
     PRINT_INSTR(stdout,"MetaSim_endFuncCall(0x%p,%d,%s,%d)",base,*entryCountPtr,comment,entries->lastFreeIdx);
 
 #ifdef ENABLE_INSTRUMENTATION_KILL

@@ -113,11 +113,16 @@ else
    FC="$SAVE_FC"
    CXX="$SAVE_CXX"
 fi
-AC_SUBST(MPI_FLAGS)
-
 AC_SUBST(FORTRAN_BLACKLIST)
 AC_SUBST(CXX_BLACKLIST)
 AC_SUBST(C_BLACKLIST)
+
+AC_ARG_ENABLE(mpiinit_check, AC_HELP_STRING([--enable-mpiinit-check], [Disable output file printing in inst libraries unless mpi_init is executed [no]]), mpiinit_check_ok=$enableval)
+if test "$mpiinit_check_ok" = "yes"; then
+   MPI_FLAGS="$MPI_FLAGS -DMPI_INIT_REQUIRED"
+fi
+
+AC_SUBST(MPI_FLAGS)
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h strings.h unistd.h])

@@ -68,6 +68,13 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
 int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     int32_t i;
 
+#ifdef MPI_INIT_REQUIRED
+    if (!isTaskValid()){
+        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print files", getpid());
+        return -1;
+    }
+#endif
+
     PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
     PRINT_INSTR(stdout, "There are %d basic blocks in the code:", numberOfBasicBlocks);
 
@@ -84,6 +91,7 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
 
     fprintf(outFile, "# appname   = %s\n", appName);
     fprintf(outFile, "# extension = %s\n", instExt);
+
     fprintf(outFile, "# phase     = %d\n", 0);
     fprintf(outFile, "# rank      = %d\n", getTaskId());
 

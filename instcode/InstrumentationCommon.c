@@ -30,6 +30,12 @@ int __ntasks = 1;
 #define __ntasks 1
 #endif //HAVE_MPI
 
+#ifdef MPI_INIT_REQUIRED
+uint32_t taskValid = 0;
+uint32_t isTaskValid() { return taskValid; }
+#endif
+
+
 inline uint64_t read_timestamp_counter(){
     unsigned low, high;
     __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));
@@ -56,6 +62,9 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
     PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
 
+#ifdef MPI_INIT_REQUIRED
+    taskValid = 1;
+#endif
     tool_mpi_init();
 
     fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in MPI_Init wrapper\n", getpid(), __taskid, __ntasks, gethostid());
@@ -77,6 +86,9 @@ void __wrapper_name(mpi_init_)(int* ierr){
     PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
     PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
 
+#ifdef MPI_INIT_REQUIRED
+    taskValid = 1;
+#endif
     tool_mpi_init();
 
     fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
