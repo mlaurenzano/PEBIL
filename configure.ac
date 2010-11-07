@@ -155,4 +155,4 @@ AC_CONFIG_FILES([Makefile
 AC_CONFIG_SUBDIRS([external/udis86-1.7])
 AC_OUTPUT
 
-sort -u scripts/inputlist/local.func | grep [:alnum:] > scripts/inputlist/autogen-system.func
+sort -u scripts/inputlist/local.func > scripts/inputlist/autogen-system.func

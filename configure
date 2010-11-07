@@ -6912,4 +6912,4 @@ $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
 
-sort -u scripts/inputlist/local.func | grep :alnum: > scripts/inputlist/autogen-system.func
+sort -u scripts/inputlist/local.func > scripts/inputlist/autogen-system.func
