@@ -52,6 +52,7 @@ if test "$mpi_ok" = "no"; then
    AC_LANG_POP()
    bfuncs=`echo "$FORTRAN_BLACKLIST" | wc | awk '{print $2}'`
    AC_MSG_RESULT($bfuncs functions)
+
    AC_MSG_CHECKING([C++ function listing (serial)])
    AC_LANG_PUSH(C++)
    AC_TRY_RUN([int main(int argc, char** argv) { return 0; }],
@@ -60,6 +61,7 @@ if test "$mpi_ok" = "no"; then
    AC_LANG_POP()
    bfuncs=`echo "$CXX_BLACKLIST" | wc | awk '{print $2}'`
    AC_MSG_RESULT($bfuncs functions)
+
    AC_MSG_CHECKING([C function listing (serial)])
    AC_TRY_RUN([int main(int argc, char** argv) { return 0; }], 
       [C_BLACKLIST=`blacklist conftest$ac_exeext`],
@@ -92,6 +94,7 @@ else
    AC_LANG_POP()
    bfuncs=`echo "$FORTRAN_BLACKLIST" | wc | awk '{print $2}'`
    AC_MSG_RESULT($bfuncs functions)
+
    AC_MSG_CHECKING([C++ function listing (mpi)])
    AC_LANG_PUSH(C++)
    AC_TRY_RUN([#include <mpi.h>
@@ -101,6 +104,7 @@ else
    AC_LANG_POP()
    bfuncs=`echo "$CXX_BLACKLIST" | wc | awk '{print $2}'`
    AC_MSG_RESULT($bfuncs functions)
+
    AC_MSG_CHECKING([C function listing (mpi)])
    AC_TRY_RUN([#include <mpi.h>
       int main(int argc, char** argv) { MPI_Init(&argc, &argv); MPI_Finalize(); return 0; }], 
@@ -151,4 +155,4 @@ AC_CONFIG_FILES([Makefile
 AC_CONFIG_SUBDIRS([external/udis86-1.7])
 AC_OUTPUT
 
-sort -u scripts/inputlist/local.func > scripts/inputlist/autogen-system.func
+sort -u scripts/inputlist/local.func | grep [:alnum:] > scripts/inputlist/autogen-system.func

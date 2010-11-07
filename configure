@@ -5075,6 +5075,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
    bfuncs=`echo "$FORTRAN_BLACKLIST" | wc | awk '{print $2}'`
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $bfuncs functions" >&5
 $as_echo "$bfuncs functions" >&6; }
+
    { $as_echo "$as_me:${as_lineno-$LINENO}: checking C++ function listing (serial)" >&5
 $as_echo_n "checking C++ function listing (serial)... " >&6; }
    ac_ext=cpp
@@ -5111,6 +5112,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
    bfuncs=`echo "$CXX_BLACKLIST" | wc | awk '{print $2}'`
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $bfuncs functions" >&5
 $as_echo "$bfuncs functions" >&6; }
+
    { $as_echo "$as_me:${as_lineno-$LINENO}: checking C function listing (serial)" >&5
 $as_echo_n "checking C function listing (serial)... " >&6; }
    if test "$cross_compiling" = yes; then :
@@ -5187,6 +5189,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
    bfuncs=`echo "$FORTRAN_BLACKLIST" | wc | awk '{print $2}'`
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $bfuncs functions" >&5
 $as_echo "$bfuncs functions" >&6; }
+
    { $as_echo "$as_me:${as_lineno-$LINENO}: checking C++ function listing (mpi)" >&5
 $as_echo_n "checking C++ function listing (mpi)... " >&6; }
    ac_ext=cpp
@@ -5224,6 +5227,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
    bfuncs=`echo "$CXX_BLACKLIST" | wc | awk '{print $2}'`
    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $bfuncs functions" >&5
 $as_echo "$bfuncs functions" >&6; }
+
    { $as_echo "$as_me:${as_lineno-$LINENO}: checking C function listing (mpi)" >&5
 $as_echo_n "checking C function listing (mpi)... " >&6; }
    if test "$cross_compiling" = yes; then :
@@ -6908,4 +6912,4 @@ $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
 
-sort -u scripts/inputlist/local.func > scripts/inputlist/autogen-system.func
+sort -u scripts/inputlist/local.func | grep :alnum: > scripts/inputlist/autogen-system.func
