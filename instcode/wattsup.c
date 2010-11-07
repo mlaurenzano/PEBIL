@@ -1694,7 +1694,8 @@ static void enable_short_option(int c, char * arg)
 
 static int parse_args(int argc, char ** argv)
 {
-	struct option longopts[wu_num_options + 1] = { };
+    //	struct option longopts[wu_num_options + 1] = { };
+    struct option longopts[wu_num_options + 1];
 	char shortopts[wu_num_options * 2] = "";
 
 	make_longopt(longopts);

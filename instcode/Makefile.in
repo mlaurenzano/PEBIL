@@ -52,10 +52,10 @@ libtimer.so : TimerFunctions.o $(COMMON_OBJS)
 libtimer.a : TimerFunctions.o $(COMMON_OBJS) 
 	$(AR) $@ TimerFunctions.o $(COMMON_OBJS)
 
-libpower.so : PowerFunctions.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ PowerFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS)
-libpower.a : PowerFunctions.o $(COMMON_OBJS) 
-	$(AR) $@ PowerFunctions.o $(COMMON_OBJS)
+libpower.so : PowerFunctions.o wattsup.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ PowerFunctions.o wattsup.o $(COMMON_OBJS) $(EXTRA_LIBS)
+libpower.a : PowerFunctions.o wattsup.o $(COMMON_OBJS) 
+	$(AR) $@ PowerFunctions.o wattsup.o $(COMMON_OBJS)
 
 clean: 
 	rm -f *.o *.i *.s *.ii $(LIB_TARGETS)
