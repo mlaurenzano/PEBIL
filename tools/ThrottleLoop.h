@@ -30,14 +30,19 @@ private:
     InstrumentationFunction* programEntry;
     InstrumentationFunction* programExit;
 
+    Vector<InstrumentationFunction*> functionWrappers;
+
     Vector<char*>* loopList;    
+    Vector<char*>* functionList;
     Vector<char*> libraries;
 
     char* getFileName(uint32_t idx);
     uint32_t getLineNumber(uint32_t idx);
+    char* getWrappedFunction(uint32_t idx);
+    char* getWrapperFunction(uint32_t idx);    
 
 public:
-    ThrottleLoop(ElfFile* elf, char* inputFile, char* libList, char* ext, bool lpi, bool dtl);
+    ThrottleLoop(ElfFile* elf, char* inputFile, char* funcFile, char* libList, char* ext, bool lpi, bool dtl);
     ~ThrottleLoop();
 
     void declare();

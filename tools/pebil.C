@@ -517,7 +517,12 @@ int main(int argc,char* argv[]){
             fprintf(stderr, "\nError: option --lnc needs to be given with loop throttle inst\n");
         }
         ASSERT(libList);
-        elfInst = new ThrottleLoop(&elfFile, inptName, libList, extension, loopIncl, extdPrnt);
+        if (!inputTrackList){
+            fprintf(stderr, "\nError: option --trk needs to be given with loop throttle inst\n");
+            printUsage();
+        }
+        ASSERT(inputTrackList);
+        elfInst = new ThrottleLoop(&elfFile, inptName, inputTrackList, libList, extension, loopIncl, extdPrnt);
     }
     else {
         PRINT_ERROR("Error : invalid instrumentation type");
