@@ -35,7 +35,6 @@ uint32_t taskValid = 0;
 uint32_t isTaskValid() { return taskValid; }
 #endif
 
-
 inline uint64_t read_timestamp_counter(){
     unsigned low, high;
     __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));

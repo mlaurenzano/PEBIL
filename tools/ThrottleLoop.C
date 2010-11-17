@@ -40,9 +40,13 @@ ThrottleLoop::~ThrottleLoop(){
         delete[] (*loopList)[i];
     }
     delete loopList;
+    for (uint32_t i = 0; i < (*functionList).size(); i++){
+        delete[] (*functionList)[i];
+    }
+    delete functionList;
 }
 
-ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* libList, char* ext, bool lpi, bool dtl)
+ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* funcFile, char* libList, char* ext, bool lpi, bool dtl)
     : InstrumentationTool(elf, ext, 0, lpi, dtl)
 {
     loopEntry = NULL;
@@ -53,6 +57,10 @@ ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* libList, char* e
     loopList = new Vector<char*>();
     ASSERT(inputFile && loopList);
     initializeFileList(inputFile, loopList);
+
+    functionList = new Vector<char*>();
+    ASSERT(funcFile && functionList);
+    initializeFileList(funcFile, functionList);
 
     // replace any ':' character with a '\0'
     for (uint32_t i = 0; i < (*loopList).size(); i++){
@@ -65,8 +73,21 @@ ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* libList, char* e
             }
         }
         if (numrepl != 1){
-            PRINT_ERROR("input file %s line %d should contain a ':'", inputFile, i+1);
+            PRINT_ERROR("input file %s line %d should contain a single ':'", inputFile, i+1);
         }
+    }
+    for (uint32_t i = 0; i < (*functionList).size(); i++){
+        char* both = (*functionList)[i];
+        uint32_t numrepl = 0;
+        for (uint32_t j = 0; j < strlen(both); j++){
+            if (both[j] == ':'){
+                both[j] = '\0';
+                numrepl++;
+            }
+        }
+        if (numrepl != 1){
+            PRINT_ERROR("input file %s line %d should contain a single ':'", inputFile, i+1);
+        }        
     }
 
     Vector<uint32_t> libIdx;
@@ -101,12 +122,26 @@ uint32_t ThrottleLoop::getLineNumber(uint32_t idx){
     return lineNo;
 }
 
+char* ThrottleLoop::getWrappedFunction(uint32_t idx){
+    return (*functionList)[idx];
+}
+char* ThrottleLoop::getWrapperFunction(uint32_t idx){
+    char* both = (*functionList)[idx];
+    both += strlen(both) + 1;
+    return both;
+}
+
 void ThrottleLoop::declare(){
     InstrumentationTool::declare();
 
     // declare any shared library that will contain instrumentation functions
     for (uint32_t i = 0; i < libraries.size(); i++){
         declareLibrary(libraries[i]);
+    }
+
+    for (uint32_t i = 0; i < (*functionList).size(); i++){
+        functionWrappers.append(declareFunction(getWrapperFunction(i)));
+        functionWrappers.back()->setSkipWrapper();
     }
 
     // declare any instrumentation functions that will be used
@@ -134,6 +169,10 @@ void ThrottleLoop::instrument(){
 
     InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp);
     ASSERT(p);
+
+    uint64_t siteIndex = reserveDataOffset(sizeof(uint32_t));
+    programEntry->addArgument(siteIndex);
+
     p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp);
     ASSERT(p);
 
@@ -318,6 +357,43 @@ void ThrottleLoop::instrument(){
             }
         }
     }
+
+    uint32_t numCalls = 0;
+    for (uint32_t i = 0; i < getNumberOfExposedInstructions(); i++){
+        X86Instruction* instruction = getExposedInstruction(i);
+        ASSERT(instruction->getContainer()->isFunction());
+        Function* function = (Function*)instruction->getContainer();
+
+        if (instruction->isFunctionCall()){
+            Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol(instruction->getTargetAddress());
+
+            if (functionSymbol){
+                //PRINT_INFOR("looking for function %s", functionSymbol->getSymbolName());                                                                             
+                uint32_t funcIdx = searchFileList(functionList, functionSymbol->getSymbolName());
+                if (funcIdx < (*functionList).size()){
+                    BasicBlock* bb = function->getBasicBlockAtAddress(instruction->getBaseAddress());
+                    ASSERT(bb->containsCallToRange(0,-1));
+                    ASSERT(instruction->getSizeInBytes() == Size__uncond_jump);
+
+                    InstrumentationPoint* pt = addInstrumentationPoint(instruction, functionWrappers[funcIdx], InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+                    PRINT_INFOR("Wrapping function call for throttling: %s -> %s", getWrappedFunction(funcIdx), getWrapperFunction(funcIdx));
+                    if (getElfFile()->is64Bit()){
+                        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+                        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(numCalls, X86_REG_CX));
+                        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
+                        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+                    } else {
+                        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+                        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(numCalls, X86_REG_CX));
+                        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
+                        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+                    }
+                    numCalls++;
+                }
+            }
+        }
+    }
+
     printStaticFile(allBlocks, allBlockIds, allLineInfos, allBlocks->size());
 
     delete allBlocks;
