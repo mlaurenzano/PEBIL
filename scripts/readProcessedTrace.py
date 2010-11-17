@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
-# example usage:
-# ./readProcessedTrace.py --application 450.soplex_pds-50.mps --cpu_count 1 --cpu 0 --sysid 77 --level 3 --input_dir SPEC_CPU2006_trace/processed_trace/ | sort -n -k3 -r
+# example usage to read a trace file and sort the trace data by basic block execution count:
+# ./readProcessedTrace.py --application 450.soplex_pds-50.mps --cpu_count 1 --cpu 0 --sysid 77 --level 3 --input_dir SPEC_CPU2006_trace/processed_trace/ | sort -n -k13
+#
+# output format is:
+# hash_code dyn_fp_cnt dyn_mem_cnt L1hr L2hr [L3hr] func_name line_number static_ft_cnt static_mem_cnt avg_memop_size dynamic_bb_cnt
 
 import getopt
 import string
@@ -77,6 +80,9 @@ if sysid == 0:
     sys.exit(-1)
 if level == 0:
     print_usage('--level required')
+    sys.exit(-1)
+if level < 2 or level > 3:
+    print_usage('argument to --level should be 2 or 3')
     sys.exit(-1)
 if input_dir == '':
     print_usage('--input_dir required')
