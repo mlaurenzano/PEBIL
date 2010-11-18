@@ -27,18 +27,18 @@
 #include <signal.h>
 #include <InstrumentationCommon.h>
 
-#define NO_FINEGRAIN_LOOP
+//#define NO_FINEGRAIN_LOOP
 #define THROTTLE_LOOP
 #define POWER_MEASURE
 #ifdef POWER_MEASURE
-#define POWER_MEASURE_LOOP
+//#define POWER_MEASURE_LOOP
 #endif
 
 #define MAX_CPU_IN_SYSTEM 8
 #define PIN_LOGGER_TO_CORE 0
 
 #ifndef LOW_FREQ_IDX
-#define LOW_FREQ_IDX 4
+#define LOW_FREQ_IDX 0
 #endif
 
 uint64_t* siteIndex;
@@ -71,7 +71,7 @@ void pfreq_invoke_power_log(){
     check_and_admit_log(0);
     loggerProcess = fork();
     if (loggerProcess == 0){
-        assert(pfreq_affinity_get() == 0);
+        assert(pfreq_affinity_get() == 5);
         assert(PIN_LOGGER_TO_CORE < MAX_CPU_IN_SYSTEM);
         pfreq_affinity_set(PIN_LOGGER_TO_CORE);
 
@@ -123,12 +123,18 @@ void pfreq_kill_power_log(){
 // executes before a loop entry
 int32_t pfreq_throttle_low(){
 #ifdef NO_FINEGRAIN_LOOP
+    callCounters[*siteIndex]++;
     //    return internal_set_currentfreq(pfreq_affinity_get(), LOW_FREQ_IDX);
     return 0;
 #endif
     int32_t ret = 0;
 #ifdef THROTTLE_LOOP
+    callCounters[*siteIndex]++;
+    PRINT_INSTR(stdout, "doing throttle for site %lld", *siteIndex);
     ret = internal_set_currentfreq(pfreq_affinity_get(), LOW_FREQ_IDX);
+#else
+    unsigned long freqIs = cpufreq_get(pfreq_affinity_get());
+    PRINT_INSTR(stdout, "Not throttling loop; current frequency is %lldKHz", freqIs);
 #endif
 #ifdef POWER_MEASURE_LOOP
     // fast forwards the log to the current location
@@ -142,6 +148,7 @@ int32_t pfreq_throttle_low(){
 // executes after a loop exit
 int32_t pfreq_throttle_high(){
 #ifdef NO_FINEGRAIN_LOOP
+    callCounters[*siteIndex]++;
     //    pfreq_throttle_max();
     return 0;
 #endif
@@ -149,6 +156,8 @@ int32_t pfreq_throttle_high(){
     TIMER(loopEnd);
     int32_t ret = 0;
 #ifdef THROTTLE_LOOP
+    callCounters[*siteIndex]++;
+    //    PRINT_INSTR(stdout, "unthrottling site %lld", *siteIndex);
     ret = internal_set_currentfreq(pfreq_affinity_get(), totalFreqs - 1);
 #endif
 #ifdef POWER_MEASURE_LOOP
@@ -158,7 +167,7 @@ int32_t pfreq_throttle_high(){
     fprintf(nicePowerLog, "%f\t%f\t%d\n", loopEnd - loopStart, (double)(watts/samples), samples);
     fflush(nicePowerLog);
 #else
-    //    PRINT_INSTR(stdout, "Loop execution report -- cxxx runtime %f", loopEnd - loopStart);
+    PRINT_INSTR(stdout, "Loop execution report -- cxxx runtime %f", loopEnd - loopStart);
 #endif    
     return ret;
 }
@@ -247,16 +256,19 @@ uint32_t find_available_cpufreq(){
 }
 
 int32_t pfreq_throttle_init(uint64_t* site){
+    siteIndex = site;
+
     totalFreqs = find_available_cpufreq();
     currentFreq = find_current_cpufreq(pfreq_affinity_get());
 
-    siteIndex = site;
+    tool_mpi_init();
 
     TIMER(startTime);
     return 0;
 }
 
 void pfreq_throttle_fini(){
+    uint32_t i;
     double endTime, totalTime;
     TIMER(endTime);
     totalTime = endTime - startTime;
@@ -267,17 +279,20 @@ void pfreq_throttle_fini(){
         pfreq_kill_power_log();
     }
 #endif //POWER_MEASURE
+
     PRINT_INSTR(stdout, "Overall runtime CXXX %f -- made %lld frequency changes", totalTime, frequencyChanges);
-    for (uint32_t i = 0; i < 1024; i++){
+    for (i = 0; i < 1024; i++){
         if (callCounters[i]){
             PRINT_INSTR(stdout, "Per-call counters[%d]: %lld %f", i, callCounters[i], callTimers[i]);
         }
     }
+    PRINT_INSTR(stdout, "Overall runtime CXXX %f", totalTime);
 }
 
 void tool_mpi_init(){
     pfreq_affinity_get();
-    pfreq_affinity_set(getTaskId());
+    //    pfreq_affinity_set(getTaskId());
+    pfreq_affinity_set(5);
 
     PRINT_INSTR(stdout, "starting run with freq %luKHz", availableFreqs[currentFreq]);
     PRINT_INSTR(stdout, "throttle low is freq %luKHz", availableFreqs[LOW_FREQ_IDX]);
@@ -302,14 +317,14 @@ void tool_mpi_init(){
 }
 
 inline int32_t pfreq_throttle_set(uint32_t cpu, unsigned long freqInKiloHz){
+    frequencyChanges++;
     return cpufreq_set_frequency((unsigned int)cpu, freqInKiloHz);
     int32_t currCpu = pfreq_affinity_get();
 
     assert(cpu == (uint32_t)currCpu);
     int32_t ret = cpufreq_set_frequency((unsigned int)cpu, freqInKiloHz);
 
-    //    PRINT_INSTR(stdout, "Throttling for caller task pid %d and cpu %u to %luKHz (retcode %d)", getpid(), cpu, freqInKiloHz, ret);
-    frequencyChanges++;
+    PRINT_INSTR(stdout, "Throttling for caller task pid %d and cpu %u to %luKHz (retcode %d)", getpid(), cpu, freqInKiloHz, ret);
     unsigned long freqIs = cpufreq_get(cpu);
 
     if (freqInKiloHz != freqIs){
@@ -331,6 +346,7 @@ unsigned long pfreq_throttle_get(){
 
 inline int32_t internal_set_currentfreq(uint32_t cpu, uint32_t freqIndex){
     unsigned long freqInKiloHz = availableFreqs[freqIndex];
+    //    PRINT_INSTR(stdout, "throttling task %d to frequency %lldKHz", cpu, freqInKiloHz);
     currentFreq = freqIndex;
     return pfreq_throttle_set(cpu, (int)freqInKiloHz);
 }

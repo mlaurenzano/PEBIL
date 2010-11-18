@@ -34,6 +34,8 @@
 #define LOOP_EXIT "pfreq_throttle_high"
 
 //#define DEBUG_INTERPOSE
+#define UPDATE_SITEIDX
+#define FLAGS_METHOD FlagsProtectionMethod_full
 
 ThrottleLoop::~ThrottleLoop(){
     for (uint32_t i = 0; i < (*loopList).size(); i++){
@@ -147,6 +149,10 @@ void ThrottleLoop::declare(){
     // declare any instrumentation functions that will be used
     loopEntry = declareFunction(LOOP_ENTRY);
     ASSERT(loopEntry);
+    /*
+    loopEntry->assumeNoFunctionFP();
+    loopEntry->setSkipWrapper();
+    */
     loopExit = declareFunction(LOOP_EXIT);
     ASSERT(loopExit);    
     programEntry = declareFunction(PROGRAM_ENTRY);
@@ -195,6 +201,7 @@ void ThrottleLoop::instrument(){
         (*allLineInfos).append(li);
     }
 
+    uint32_t numCalls = 0;
     Vector<Loop*> loopsFound;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
@@ -244,16 +251,31 @@ void ThrottleLoop::instrument(){
                                     PRINT_INFOR("\t\tsource falls through");
 #endif
                                     X86Instruction* bestinst = source->getLeader();
-                                    FlagsProtectionMethods prot = FlagsProtectionMethod_full;
+                                    FlagsProtectionMethods prot = FLAGS_METHOD;
                                     for (uint32_t k = 0; k < source->getNumberOfInstructions(); k++){
                                         if (source->getInstruction(k)->allFlagsDeadIn()){
                                             bestinst = source->getInstruction(k);
                                             prot = FlagsProtectionMethod_none;
                                         }
                                     }
-                                    addInstrumentationPoint(bestinst, loopEntry, InstrumentationMode_trampinline, FlagsProtectionMethod_full);                                
+
+                                    InstrumentationPoint* pt = addInstrumentationPoint(bestinst, loopEntry, InstrumentationMode_trampinline, prot);
+#ifdef UPDATE_SITEIDX
+				    if (getElfFile()->is64Bit()){
+				      pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+				      pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(numCalls, X86_REG_CX));
+				      pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
+				      pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+				    } else {
+				      pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+				      pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(numCalls, X86_REG_CX));
+				      pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
+				      pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+				    }
+#endif
                                     entryPoints++;
-                                    PRINT_INFOR("\tENTR-FALLTHRU\tBLK:%#llx --> BLK:%#llx", source->getBaseAddress(), outerMost->getHead()->getBaseAddress());
+                                    PRINT_INFOR("\tENTR-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx", numCalls, source->getBaseAddress(), outerMost->getHead()->getBaseAddress());
+				    numCalls++;
                                 } else {
                                     // interpose a block between head of loop and source and instrument the interposed block
 #ifdef DEBUG_INTERPOSE
@@ -269,7 +291,7 @@ void ThrottleLoop::instrument(){
                             
                         }
                         
-                        FlagsProtectionMethods prot = FlagsProtectionMethod_full;
+                        FlagsProtectionMethods prot = FLAGS_METHOD;
                         if (outerMost->getHead()->getLeader()->allFlagsDeadIn()){
                             prot = FlagsProtectionMethod_none;
                         }
@@ -280,9 +302,23 @@ void ThrottleLoop::instrument(){
                             interposed->print();
 #endif
                             ASSERT(loopEntry);
-                            addInstrumentationPoint(interposed, loopEntry, InstrumentationMode_trampinline, FlagsProtectionMethod_full);
+                            InstrumentationPoint* pt = addInstrumentationPoint(interposed, loopEntry, InstrumentationMode_trampinline, prot);
+#ifdef UPDATE_SITEIDX
+			    if (getElfFile()->is64Bit()){
+			      pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+			      pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(numCalls, X86_REG_CX));
+			      pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
+			      pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+			    } else {
+			      pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+			      pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(numCalls, X86_REG_CX));
+			      pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
+			      pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+			    }
+#endif
                             entryPoints++;
-                            PRINT_INFOR("\tENTR-INTERPOS\tBLK:%#llx --> BLK:%#llx", entryInterpositions[i]->getBaseAddress(), outerMost->getHead()->getBaseAddress());
+                            PRINT_INFOR("\tENTR-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx", numCalls, entryInterpositions[i]->getBaseAddress(), outerMost->getHead()->getBaseAddress());
+			    numCalls++;
                         }
                         
 
@@ -310,7 +346,7 @@ void ThrottleLoop::instrument(){
                                         PRINT_INFOR("\t\ttarget falls through");
 #endif
                                         X86Instruction* bestinst = target->getLeader();
-                                        FlagsProtectionMethods prot = FlagsProtectionMethod_full;
+                                        FlagsProtectionMethods prot = FLAGS_METHOD;
                                         for (uint32_t k = 0; k < target->getNumberOfInstructions(); k++){
                                             if (target->getInstruction(k)->allFlagsDeadIn()){
                                                 bestinst = target->getInstruction(k);
@@ -318,9 +354,23 @@ void ThrottleLoop::instrument(){
                                                 break;
                                             }
                                         }
-                                        addInstrumentationPoint(bestinst, loopExit, InstrumentationMode_trampinline, FlagsProtectionMethod_full);
+                                        InstrumentationPoint* pt = addInstrumentationPoint(bestinst, loopExit, InstrumentationMode_trampinline, prot);
+#ifdef UPDATE_SITEIDX
+					if (getElfFile()->is64Bit()){
+					  pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+					  pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(numCalls, X86_REG_CX));
+					  pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
+					  pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+					} else {
+					  pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+					  pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(numCalls, X86_REG_CX));
+					  pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
+					  pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+					}
+#endif
                                         exitPoints++;
-                                        PRINT_INFOR("\tEXIT-FALLTHRU\tBLK:%#llx --> BLK:%#llx", allLoopBlocks[i]->getBaseAddress(), target->getBaseAddress());
+                                        PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx", numCalls, allLoopBlocks[i]->getBaseAddress(), target->getBaseAddress());
+					numCalls++;
                                     } else {
                                         // interpose a block between head of loop and target and instrument the interposed block
 #ifdef DEBUG_INTERPOSE
@@ -335,7 +385,7 @@ void ThrottleLoop::instrument(){
                                 }
                             }
                             
-                            prot = FlagsProtectionMethod_full;
+                            prot = FLAGS_METHOD;
                             if (allLoopBlocks[i]->getExitInstruction()->allFlagsDeadOut()){
                                 prot = FlagsProtectionMethod_none;
                             }
@@ -346,9 +396,23 @@ void ThrottleLoop::instrument(){
                                 interposed->print();
 #endif
                                 ASSERT(loopExit);
-                                addInstrumentationPoint(interposed, loopExit, InstrumentationMode_trampinline, FlagsProtectionMethod_full);
+                                InstrumentationPoint* pt = addInstrumentationPoint(interposed, loopExit, InstrumentationMode_trampinline, prot);
+#ifdef UPDATE_SITEIDX
+				if (getElfFile()->is64Bit()){
+				  pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+				  pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(numCalls, X86_REG_CX));
+				  pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
+				  pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+				} else {
+				  pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
+				  pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(numCalls, X86_REG_CX));
+				  pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
+				  pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+				}
+#endif
                                 exitPoints++;
-                                PRINT_INFOR("\tEXIT-INTERPOS\tBLK:%#llx --> BLK:%#llx", allLoopBlocks[i]->getBaseAddress(), exitInterpositions[j]->getBaseAddress());
+                                PRINT_INFOR("\tEXIT-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx", numCalls, allLoopBlocks[i]->getBaseAddress(), exitInterpositions[j]->getBaseAddress());
+				numCalls++;
                             }
                         }
                         delete[] allLoopBlocks;
@@ -358,7 +422,6 @@ void ThrottleLoop::instrument(){
         }
     }
 
-    uint32_t numCalls = 0;
     for (uint32_t i = 0; i < getNumberOfExposedInstructions(); i++){
         X86Instruction* instruction = getExposedInstruction(i);
         ASSERT(instruction->getContainer()->isFunction());

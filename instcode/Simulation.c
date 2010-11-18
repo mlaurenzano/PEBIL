@@ -38,7 +38,7 @@ char* blockIsKilled;
 int32_t numberKilled;
 uint64_t* blockCounters;
 
-//#define ENABLE_INSTRUMENTATION_KILL
+#define ENABLE_INSTRUMENTATION_KILL
 //#define DEBUG_INST_KILL
 
 void tool_mpi_init(){}
