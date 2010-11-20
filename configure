@@ -6909,3 +6909,4 @@ fi
 
 
 sort -u scripts/inputlist/local.func | grep . > scripts/inputlist/autogen-system.func
+exit 0
