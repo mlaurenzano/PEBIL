@@ -37,6 +37,38 @@
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0b; V W Ib </opcode>
   </instruction>
 
+  <instruction mnemonic="pminsb">
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 38; V W </opcode>
+  </instruction>
+
+  <instruction mnemonic="pminsd"> 
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 39; V W </opcode>
+  </instruction>
+
+  <instruction mnemonic="pminuw">
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3a; V W </opcode>
+  </instruction>
+
+  <instruction mnemonic="pminud">
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3b; V W </opcode>
+  </instruction>
+
+  <instruction mnemonic="pmaxsb">
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3c; V W </opcode>
+  </instruction>
+
+  <instruction mnemonic="pmaxsd">
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3d; V W </opcode>
+  </instruction>
+
+  <instruction mnemonic="pmaxuw">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3e; V W </opcode>
+  </instruction>
+
+  <instruction mnemonic="pmaxud">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3f; V W </opcode>
+  </instruction>
+
   <!-- 3byte-opcode sse/mmx instructions added by michael laurenzano: michaell at sdsc.edu
        these will be implemented as needed since there are so many
 
@@ -158,30 +190,6 @@
     <opcode> ; ; </opcode>
   </instruction>
   <instruction mnemonic="packusdw">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pminsb">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pminsd">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pminuw">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pminud">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmaxsb">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmaxsd">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmaxuw">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmaxud">
     <opcode> ; ; </opcode>
   </instruction>
   <instruction mnemonic="aesimc">
