@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+object-blacklist() { readelf -s $1 | grep FUNC |  grep -v UND | awk '{print $8}' | grep -wvi "main\|main_\|main__\|_fini\|_start"; }
+
+tmp_file="__pebil__tmp"
+list_dir="scripts/inputlist"
+list_intermed="$list_dir"/local.func
+list_final="$list_dir"/autogen-system.func
+
+trivialprog_CC="#ifdef HAVE_MPI\n#include <mpi.h>\n#endif\n\
+int main(int argc, char** argv){\n\
+#ifdef HAVE_MPI\nMPI_Init(&argc, &argv); MPI_Finalize();\n#endif\n\
+return 0; }"
+
+trivialprog_CXX="#ifdef HAVE_MPI\n#include <mpi.h>\n#endif\n\
+using namespace std;\nint main(int argc, char** argv){\n\
+#ifdef HAVE_MPI\nMPI::Init(argc, argv); MPI::Finalize();\n#endif\n\
+return 0; }"
+
+trivialprog_FC="\
+      program test\n\
+#ifdef HAVE_MPI\n\
+      include 'mpif.h'\n\
+#endif\n\
+      integer ierr\n\
+#ifdef HAVE_MPI\n\
+      call MPI_Init(ierr)\n\
+      call MPI_Finalize (ierr)\n\
+#endif\n\
+      end"
+
+# CC blacklist
+echo -e "$trivialprog_CC" > "$tmp_file".c
+@MPICC@ @MPI_FLAGS@ @MPILIBS@ -o "$tmp_file"_c "$tmp_file".c
+object-blacklist "$tmp_file"_c > "$list_intermed"
+
+# CXX blacklist
+echo -e "$trivialprog_CXX" > "$tmp_file".cxx
+@MPICXX@ @MPI_FLAGS@ @MPILIBS@ -o "$tmp_file"_cxx "$tmp_file".cxx
+object-blacklist "$tmp_file"_cxx >> "$list_intermed"
+
+# FC blacklist
+echo -e "$trivialprog_FC" > "$tmp_file"_f90.c
+@CPP@ "$tmp_file"_f90.c > "$tmp_file".f90
+@MPIFC@ @MPI_FLAGS@ @MPILIBS@ -o "$tmp_file"_f90 "$tmp_file".f90
+object-blacklist "$tmp_file"_f90 >> "$list_intermed"
+
+sort -u "$list_intermed" | grep . > "$list_final"
+rm "$list_intermed"
+rm "$tmp_file"*
+
+exit 0

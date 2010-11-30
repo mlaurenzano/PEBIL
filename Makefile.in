@@ -8,7 +8,7 @@ DISTDIR = PEBIL-$(PEBIL_FULL_VER)
 
 .PHONY: subdirs $(SUBDIRS)
 
-all: subdirs
+all: subdirs blacklist
 
 subdirs: $(SUBDIRS)
 
@@ -34,6 +34,9 @@ depend:
 
 docs:
 	doxygen
+
+blacklist:
+	scripts/blacklist.sh
 
 dist: clean
 	mkdir $(DISTDIR)
