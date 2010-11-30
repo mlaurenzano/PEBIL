@@ -51,8 +51,8 @@
 //#define DEBUG_LIVE_REGS
 
 // some common macros to help debug instrumentation
-#define RELOC_MOD_OFF 55
-#define RELOC_MOD 1024
+//#define RELOC_MOD_OFF 55
+//#define RELOC_MOD 1024
 //#define TURNOFF_FUNCTION_RELOCATION
 //#define BLOAT_MOD_OFF 3
 //#define BLOAT_MOD     2
@@ -60,7 +60,7 @@
 //#define SWAP_MOD_OFF 0
 //#define SWAP_MOD     2
 //#define SWAP_FUNCTION_ONLY "raise"
-#define TURNOFF_INSTRUCTION_SWAP
+//#define TURNOFF_INSTRUCTION_SWAP
 //#define ANCHOR_SEARCH_BINARY
 //#define PRINT_INSTRUCTION_DETAIL 
 #define OPTIMIZE_NONLEAF

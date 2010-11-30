@@ -869,6 +869,15 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ipshufb:
         case UD_Iphaddd:
             optype = X86InstructionType_simd;
+        case UD_Ipminsb:
+        case UD_Ipminsd:
+        case UD_Ipminuw:
+        case UD_Ipminud:
+        case UD_Ipmaxsb:
+        case UD_Ipmaxsd:
+        case UD_Ipmaxuw:
+        case UD_Ipmaxud:
+            optype = X86InstructionType_int;
         case UD_I3dnow:
             optype = X86InstructionType_special;
             break;
