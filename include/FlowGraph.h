@@ -82,6 +82,7 @@ public:
     bool isBlockInLoop(uint32_t idx);
     Loop* getInnermostLoopForBlock(uint32_t idx);
     Loop* getOuterMostLoopForLoop(uint32_t idx);
+    Loop* getParentLoop(uint32_t idx);
     Loop* getOuterLoop(uint32_t idx);
 
     void addBlock(Block* block);    

@@ -124,6 +124,18 @@ Loop* FlowGraph::getOuterLoop(uint32_t idx){
     return input;
 }
 
+Loop* FlowGraph::getParentLoop(uint32_t idx){
+    Loop* input = loops[idx];
+    for (uint32_t i = 0; i < loops.size(); i++){
+        if (input->isInnerLoopOf(loops[i])){
+            if (getLoopDepth(loops[idx]->getHead()->getIndex()) == getLoopDepth(loops[i]->getHead()->getIndex()) + 1){
+                return loops[i];
+            }
+        }
+    }
+    return input;
+}
+
 uint32_t FlowGraph::getLoopDepth(uint32_t idx){
     Loop* loop = getInnermostLoopForBlock(idx);
     uint32_t depth = 0;

@@ -41,6 +41,7 @@ typedef struct
 class InstrumentationTool : public ElfFileInst {
 protected:
     void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos, uint32_t bufferSize);
+    void printLoopStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos, uint32_t bufferSize);
 
     InstrumentationFunction* initWrapperC;
     InstrumentationFunction* initWrapperF;
