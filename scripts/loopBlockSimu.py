@@ -44,7 +44,7 @@ def total_access(list):
 
 ## set up command line args                                                                                                                                        
 try:
-    optlist, args = getopt.getopt(sys.argv[1:], '', ['application=', 'cpu_count=', 'trace_dir=', 'system_id='])
+    optlist, args = getopt.getopt(sys.argv[1:], '', ['application=', 'cpu_count=', 'trace_dir=', 'system_id=', 'stdout'])
 except getopt.GetoptError, err:
     print_usage(err)
     sys.exit(-1)
@@ -57,6 +57,7 @@ application = ''
 cpu_count = ''
 trace_dir = ''
 system_id = ''
+stdout = 0
 
 for i in range(0,len(optlist),1):
     if optlist[i][0] == '--cpu_count':
@@ -71,6 +72,8 @@ for i in range(0,len(optlist),1):
         except ValueError, err:
             print_usage(err)
             sys.exit(-1)
+    elif optlist[i][0] == '--stdout':
+        stdout = 1
     elif optlist[i][0] == '--application':
         application = optlist[i][1]
     elif optlist[i][0] == '--trace_dir':
@@ -92,6 +95,10 @@ if system_id == '':
     print_usage('--system_id required')
     sys.exit(-1)
 
+if stdout == 1:
+    outf = sys.stdout
+else:
+    outf = open(trace_dir + '/%(application)s_%(cpu_count)04d_sysid%(system_id)d.loops' % { 'application':application, 'cpu_count':cpu_count, 'system_id':system_id }, 'w')
 # read static data
 lsf = open(trace_dir + '/%(application)s.jbbinst.loop.static' % { 'application':application })
 lsraw = lsf.readlines()
@@ -201,9 +208,9 @@ for i in range(0,cpu_count,1):
     percpu_jbb_data.append(block_jbb_meta)
 
 for i in range(0,cpu_count,1):
-    print '#application:' + application + ' sysid:' + str(system_id) + ' cpu:' + str(i) + ' bbcount:' + str(block_total),
-    print ' bbprintmin:' + str(block_print_threshold) + ' bbexecmin:' + str(block_exec_threshold),
-    print ' L1hrmax:' + str(L1hr_threshold) + ' L2hrmax:' + str(L2hr_threshold)
+    outf.write('#application:' + application + ' sysid:' + str(system_id) + ' cpu:' + str(i) + ' bbcount:' + str(block_total))
+    outf.write(' bbprintmin:' + str(block_print_threshold) + ' bbexecmin:' + str(block_exec_threshold))
+    outf.write(' L1hrmax:' + str(L1hr_threshold) + ' L2hrmax:' + str(L2hr_threshold) + '\n')
     [block_total, block_sim_meta, block_hrs] = percpu_sim_data[i]
     block_loop_meta = percpu_loop_data[i]
     block_jbb_meta = percpu_jbb_data[i]
@@ -270,12 +277,15 @@ for i in range(0,cpu_count,1):
 # block_jbb_meta[bbhash]            = [bbid, bbcount]
             k = mostfreq_block
             if block_sim_meta.has_key(mostfreq_block):
-                print prefix + str(block_static[k][4]) + ':' + str(block_static[k][5]) + '\t',
-                print '#' + str(k) + '\t' + str(block_static[k][0]) + '\t' + str(loop_bb_exec) + '\t' + str(outer_entr) + '\t',
-                print str(exec_per_entr) + '\t' + str(total_access(loop_hr[1])) + '(' + str(L1hr) + ')\t',
-                print str(total_access(loop_hr[2])) + '(' + str(L2hr) + ')\t' + str(total_access(loop_hr[3])) + '(' + str(L3hr) + ')\t',
-                print str(block_static[k][6]) + '\t' + str(block_static[k][7]) + '\t'
+                outf.write(prefix + str(block_static[k][4]) + ':' + str(block_static[k][5]) + '\t')
+                outf.write('#' + str(k) + '\t' + str(block_static[k][0]) + '\t' + str(loop_bb_exec) + '\t' + str(outer_entr) + '\t')
+                outf.write(str(exec_per_entr) + '\t' + str(total_access(loop_hr[1])) + '(' + str(L1hr) + ')\t')
+                outf.write(str(total_access(loop_hr[2])) + '(' + str(L2hr) + ')\t' + str(total_access(loop_hr[3])) + '(' + str(L3hr) + ')\t')
+                outf.write(str(block_static[k][6]) + '\t' + str(block_static[k][7]) + '\n')
             else:
-                print 'probable error??!? found a block ' + str(k) + ' that has a bunch of info but is not in simulation data'
-                print str(exec_per_entr) + '\t' + str(L1hr) + '\t' + str(L2hr) + '\t' + str(L3hr) + '\t'
+                sys.stderr.write('probable error??!? found a block ' + str(k) + ' that has a bunch of info but is not in simulation data\n')
+                sys.stderr.write(str(exec_per_entr) + '\t' + str(L1hr) + '\t' + str(L2hr) + '\t' + str(L3hr) + '\t\n')
                 sys.exit(-1)
+
+if stdout != 1:
+    outf.close()
