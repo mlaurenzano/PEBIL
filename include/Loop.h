@@ -42,6 +42,7 @@ public:
     uint32_t getNumberOfBlocks() { return blocks->size(); }
     uint32_t getAllBlocks(BasicBlock** arr);
     bool isBlockIn(uint32_t idx) { return blocks->contains(idx); }
+    bool hasSharedHeader(Loop* loop);
     bool isInnerLoopOf(Loop* loop);
     bool isIdenticalLoop(Loop* loop);
     void print();

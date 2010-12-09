@@ -93,6 +93,10 @@ uint32_t Loop::getAllBlocks(BasicBlock** arr){
     return blocks->size();
 }
 
+bool Loop::hasSharedHeader(Loop* loop){
+    return getHead()->getBaseAddress() == loop->getHead()->getBaseAddress();
+}
+
 bool Loop::isInnerLoopOf(Loop* loop){
     if (getNumberOfBlocks() > loop->getNumberOfBlocks()){
         return false;

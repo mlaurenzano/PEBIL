@@ -8,8 +8,8 @@ app="$1"
 shift;
 
 # for MPI runs
-#app_run_prefix="time mpirun -np $cpu_count"
-app_run_prefix="time"
+app_run_prefix="time mpirun -np $cpu_count"
+#app_run_prefix="time"
 run_msg="RUNNING ==> "
 
 # collect all command line options into args
@@ -31,6 +31,8 @@ run_log_cmd "$app_run_prefix $app.jbbinst $args"
 run_log_cmd "selectSimBlocks.pl --block_info $app.jbbinst.static --exec_name `basename $app` --application $app --cpu_count $cpu_count"
 run_log_cmd "pebil --typ sim --inp $app.phase.1o1.`printf %04d $cpu_count`.jbbinst.lbb --dtl --lpi --app $app"
 run_log_cmd "$app_run_prefix $app.siminst $args"
+run_log_cmd "loopBlockSimu.py --application $app --cpu_count $cpu_count --trace_dir . --system_id 77"
+run_log_cmd "loopBlockSimu.py --application $app --cpu_count $cpu_count --trace_dir . --system_id 64"
 
 echo ""
 echo "see $app.tracelog for details"

@@ -168,12 +168,12 @@ void BasicBlockCounter::instrument()
 #ifdef COUNT_LOOP_ENTRY
         if (li && bb->isInLoop()){
             FlowGraph* fg = bb->getFlowGraph();
-            //            Loop* outerMost = fg->getOuterMostLoopForLoop(fg->getInnermostLoopForBlock(bb->getIndex())->getIndex());
-            Loop* outerMost = fg->getInnermostLoopForBlock(bb->getIndex());
+            Loop* outerMost = fg->getOuterMostLoopForLoop(fg->getInnermostLoopForBlock(bb->getIndex())->getIndex());
+            //            Loop* outerMost = fg->getInnermostLoopForBlock(bb->getIndex());
 
             bool loopAlreadyInstrumented = false;
             for (uint32_t i = 0; i < loopsFound.size(); i++){
-                if (outerMost->isIdenticalLoop(loopsFound[i])){
+                if (outerMost->isIdenticalLoop(loopsFound[i]) || outerMost->hasSharedHeader(loopsFound[i])){
                     loopAlreadyInstrumented = true;
                 }
             }
@@ -343,7 +343,7 @@ void BasicBlockCounter::instrument()
                     addInstrumentationSnippet(snip);
                     InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, loc);
                     
-                    //PRINT_INFOR("\tENTR-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, source->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
+                    PRINT_INFOR("\tENTR-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, source->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
                     numCalls++;
                 } else {
                     // interpose a block between head of loop and source and instrument the interposed block
@@ -367,7 +367,7 @@ void BasicBlockCounter::instrument()
                     addInstrumentationSnippet(snip);
                     InstrumentationPoint* pt = addInstrumentationPoint(interposed, snip, InstrumentationMode_inline, prot, loc);
 
-                    //PRINT_INFOR("\tENTR-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, entryInterpositions[k]->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
+                    PRINT_INFOR("\tENTR-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, entryInterpositions[k]->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
                     numCalls++;
                 }
 

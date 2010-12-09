@@ -46,10 +46,13 @@ void FlowGraph::interposeBlock(BasicBlock* bb){
             break;
         }
     }
-    /*
-    sourceBlock->print();
-    targetBlock->print();
-    */
+
+    if (!linkFound){
+        print();
+        sourceBlock->print();
+        targetBlock->print();        
+    }
+
     ASSERT(linkFound && "There should be a source -> target block relationship between the blocks passed to this function");
 
     ASSERT(sourceBlock->getBaseAddress() + sourceBlock->getNumberOfBytes() != targetBlock->getBaseAddress() && "Source shouldn't fall through to target");
