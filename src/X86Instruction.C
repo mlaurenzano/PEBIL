@@ -724,7 +724,23 @@ TableModes X86Instruction::computeJumpTableTargets(uint64_t tableBase, Function*
         dataLen = sizeof(uint32_t);
     }
     
-    do {
+
+    /* Modified by Jingyue */
+    /*
+     * The original do-while has logic problems. Change it to while-do
+     * while (in data range) {
+     *   get target
+     *   if (target not in function range)
+     *     break;
+     *   add to instruction list
+     *   increase currByte
+     * }
+     */
+    while ((tableBase + currByte) -
+           dataSection->getSectionHeader()->GET(sh_addr) <
+           dataSection->getSizeInBytes()) {
+
+        /* Get the target */
         if (container->getTextSection()->getElfFile()->is64Bit()){
             rawData = getUInt64(dataSection->getStreamAtAddress(tableBase+currByte));
         } else {
@@ -734,15 +750,16 @@ TableModes X86Instruction::computeJumpTableTargets(uint64_t tableBase, Function*
         if (!tableMode){
             rawData += baseAddress;
         }
+        if (!func->inRange(rawData)){
+            break;
+        }
+
         PRINT_DEBUG_JUMP_TABLE("Jump Table target %#llx", rawData);
         (*addressList).append(rawData);
         (*tableStorageList).append(tableBase+currByte);
 
         currByte += dataLen;
-    } while (func->inRange((*addressList).back()) &&
-             (tableBase+currByte)-dataSection->getSectionHeader()->GET(sh_addr) < dataSection->getSizeInBytes());
-    (*addressList).remove((*addressList).size()-1);
-    (*tableStorageList).remove((*tableStorageList).size()-1);
+    }
 
     return tableMode;
 }
