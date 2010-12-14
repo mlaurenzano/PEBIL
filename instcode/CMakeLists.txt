@@ -13,6 +13,8 @@ if(NOT MPI_FOUND)
   message(STATUS "${CMAKE_CURRENT_SOURCE_DIR}: could not find MPI; falling back to serial configuration")
 else(MPI_FOUND)
   add_definitions(-DHAVE_MPI)
+  include_directories(${MPI_INCLUDE_PATH})
+  target_link_libraries(${MPI_LIBRARY})
   message(STATUS "${CMAKE_CURRENT_SOURCE_DIR}: found MPI; using parallel configuration (-DHAVE_MPI)")
 endif(NOT MPI_FOUND)
 
@@ -26,8 +28,9 @@ add_definitions(-DEXTENDED_SAMPLING_MODE)
 
 # Create a variable called helloworld_SOURCES containing all .cpp files:
 set(counter_SOURCES CounterFunctions.c)
-set(simulator_SOURCES SimulationFunctions.c CacheSimulationCommon.c)
+set(simulator_SOURCES Simulation.c CacheSimulationCommon.c)
 set(timer_SOURCES TimerFunctions.c)
+set(power_SOURCES PowerFunctions.c)
 
 # set this globally? doesn't make sense here
 include_directories(".")
@@ -36,5 +39,6 @@ include_directories(".")
 add_library(counter SHARED ${counter_SOURCES})
 add_library(simulator SHARED ${simulator_SOURCES})
 add_library(timer SHARED ${timer_SOURCES})
+add_library(power SHARED ${power_SOURCES})
 
-install(TARGETS counter simulator timer DESTINATION "${CMAKE_BINARY_DIR}/lib")
+install(TARGETS counter simulator timer power DESTINATION "${CMAKE_BINARY_DIR}/lib")
