@@ -31,7 +31,22 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
-using namespace std;
+static ud_t ud_blank;
+
+void X86Instruction::initBlankUd(bool is64bit){
+    ud_t ud_obj;
+
+    ud_init(&ud_obj);
+    if (is64bit){
+        ud_set_mode(&ud_obj, 64);
+    } else {
+        ud_set_mode(&ud_obj, 32);
+    }
+    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
+
+    memcpy(&ud_blank, &ud_obj, sizeof(ud_t));
+}
+
 
 void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg){
     memcpy(comp->insn_hexcode, reg->insn_hexcode, sizeof(char)*32);
@@ -574,15 +589,8 @@ uint32_t X86Instruction::convertTo4ByteTargetOperand(){
         }
 
         ud_t ud_obj;
-        ud_init(&ud_obj);
+        memcpy(&ud_obj, &ud_blank, sizeof(ud_t));
         ud_set_input_buffer(&ud_obj, (uint8_t*)rawBytes, MAX_X86_INSTRUCTION_LENGTH);
-
-        if (container->getTextSection()->getElfFile()->is64Bit()){
-            ud_set_mode(&ud_obj, 64);
-        } else {
-            ud_set_mode(&ud_obj, 32);
-        }
-        ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
 
         sizeInBytes = ud_disassemble(&ud_obj);
         if (sizeInBytes) {
@@ -1776,16 +1784,8 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     : Base(PebilClassType_X86Instruction)
 {
     ud_t ud_obj;
-    ud_init(&ud_obj);
+    memcpy(&ud_obj, &ud_blank, sizeof(ud_t));
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
-
-    if (is64bit){
-        ud_set_mode(&ud_obj, 64);
-    } else {
-        ud_set_mode(&ud_obj, 32);
-    }
-
-    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
 
     sizeInBytes = ud_disassemble(&ud_obj);
     if (sizeInBytes) {
@@ -1832,17 +1832,8 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     : Base(PebilClassType_X86Instruction)
 {
     ud_t ud_obj;
-    ud_init(&ud_obj);
+    memcpy(&ud_obj, &ud_blank, sizeof(ud_t));
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
-
-    ASSERT(cont);
-    if (cont->getTextSection()->getElfFile()->is64Bit()){
-        ud_set_mode(&ud_obj, 64);
-    } else {
-        ud_set_mode(&ud_obj, 32);
-    }
-
-    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
 
     sizeInBytes = ud_disassemble(&ud_obj);
     if (sizeInBytes) {
