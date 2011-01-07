@@ -32,6 +32,10 @@ depend:
 	$(MAKE) -C instcode depend
 	$(MAKE) -C tools depend
 
+check:
+	bin/pebil --typ ide --app testapps/dynTest
+	diff testapps/dynTest.ideinst testapps/dynTest
+
 docs:
 	doxygen
 
