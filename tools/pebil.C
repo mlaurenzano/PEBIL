@@ -470,10 +470,10 @@ int main(int argc,char* argv[]){
     PRINT_INFOR("The function blacklist is taken from %s", inputFuncList);
 
     elfFile.initSectionFilePointers();
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Disasm  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Parse  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
     elfFile.generateCFGs();
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d GenCFG  : %.2f seconds",++stepNumber,t2-t1);t1=t2);    
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Disasm/cfg : %.2f seconds",++stepNumber,t2-t1);t1=t2);    
 
     elfFile.findLoops();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Loop    : %.2f seconds",++stepNumber,t2-t1);t1=t2);

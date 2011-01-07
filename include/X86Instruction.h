@@ -155,6 +155,8 @@ struct ud_itab_entry
 };
 
 extern void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg);
+
+// keep a much smaller rep of the instruction to save memory
 struct ud_compact
 {
     //int                   (*inp_hook) (struct ud*);
@@ -276,6 +278,7 @@ public:
 class X86Instruction : public Base {
 private:
     struct ud_compact entry;
+
     BitSet<uint32_t>* liveIns;
     BitSet<uint32_t>* liveOuts;
     uint32_t* flags_usedef;
@@ -304,6 +307,8 @@ public:
     X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx);
     X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx, bool is64bit, uint32_t sz);
     ~X86Instruction();
+
+    static void initBlankUd(bool is64Bit);
 
     OperandX86* getOperand(uint32_t idx);
     TextObject* getContainer() { return container; }

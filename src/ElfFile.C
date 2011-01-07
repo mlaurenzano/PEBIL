@@ -684,6 +684,7 @@ void ElfFile::initSectionFilePointers(){
         initDynamicFilePointers();
     }
 
+    X86Instruction::initBlankUd(is64Bit());
     for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
         textSections[i]->disassemble(&binaryInputFile);
     }
