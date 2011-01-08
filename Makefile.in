@@ -33,6 +33,8 @@ depend:
 	$(MAKE) -C tools depend
 
 check:
+	which pebil
+	ldd `which pebil`
 	pebil --typ ide --app testapps/dynTest
 	diff testapps/dynTest.ideinst testapps/dynTest
 
