@@ -31,6 +31,8 @@
 #define DEFAULT_FUNC_BLACKLIST64 "scripts/inputlist/autogen-system.func"
 #define DEFAULT_FUNC_BLACKLIST32 "scripts/inputlist/autogen-system.func"
 
+#define SUCCESS_MSG "******** Instrumentation Successfull ********"
+
 void printBriefOptions(bool detail){
     fprintf(stderr,"\n");
     fprintf(stderr,"Brief Descriptions for Options:\n");
@@ -492,6 +494,7 @@ int main(int argc,char* argv[]){
 
     if (instType == identical_inst_type){
         elfFile.dump(extension);
+        PRINT_INFOR(SUCCESS_MSG);
         return 0;
     } else if (instType == function_counter_type){
         elfInst = new FunctionCounter(&elfFile, extension, loopIncl, extdPrnt);
@@ -581,7 +584,7 @@ int main(int argc,char* argv[]){
     delete[] libPath;
     delete[] appName;
 
-    PRINT_INFOR("******** Instrumentation Successfull ********");
+    PRINT_INFOR(SUCCESS_MSG);
 
     TIMER(t = timer()-t;PRINT_INFOR("___timer: Total Execution Time          : %.2f seconds",t););
 
