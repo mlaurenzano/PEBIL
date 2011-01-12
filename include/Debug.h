@@ -327,31 +327,34 @@
 #define PRINT_REG_LIST_R PRINT_REG_LIST_BASIS
 #endif
 
+#define BACKTRACE_SIZE 32
+static void* _backtraceArray[BACKTRACE_SIZE];
+static size_t _backtraceSize;
+static char** _backtraceStrings;
+static int _arrayBacktraceIterator;
+
+#define ASSERT(__str) \
+    if (!(__str)){ _backtraceSize = backtrace(_backtraceArray, BACKTRACE_SIZE); _backtraceStrings = backtrace_symbols(_backtraceArray, _backtraceSize); \
+        fprintf(stderr, "assert fail at line %d in file %s, function %s\n", __LINE__, __FILE__,__FUNCTION__); \
+        for (_arrayBacktraceIterator = 0; _arrayBacktraceIterator < _backtraceSize; _arrayBacktraceIterator++){ fprintf(stderr, "\t%s\n", _backtraceStrings[_arrayBacktraceIterator]); } \
+        free(_backtraceStrings);\
+        assert(__str); }
 
 #ifdef  DEVELOPMENT
-
 #define PRINT_DEBUG(...) fprintf(stdout,"----------- DEBUG : "); \
                          fprintf(stdout,## __VA_ARGS__); \
                          fprintf(stdout,"\n"); \
                          fflush(stdout);
-
-
-#define ASSERT(__str) assert(__str);
 #define DEBUG(...) __VA_ARGS__
 #define DEBUG_MORE(...)
 #define TIMER(...) __VA_ARGS__
 #define INNER_TIMER(...) __VA_ARGS__
-
-#else
-
+#else //DEVELOPMENT
 #define PRINT_DEBUG(...)
 #define DEBUG(...)
 #define DEBUG_MORE(...)
-#define ASSERT(__str) assert(__str);
-//#define ASSERT(__str)
 #define TIMER(...) __VA_ARGS__
 #define INNER_TIMER(...) 
-
 #endif // DEVELOPMENT
 
 #endif // _Debug_h_
