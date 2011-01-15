@@ -25,6 +25,12 @@ def stringify(arr):
     strver = [str(i) for i in arr]
     return string.join(strver, ' ')
 
+def get_outer_loop_head(bbhash, block_static):
+    while bbhash != 0 and bbhash != int(block_static[bbhash][27]):
+        bbhash = int(block_static[bbhash][27])
+    return bbhash
+
+
 ## set up command line args                                                                                                                                        
 try:
     optlist, args = getopt.getopt(sys.argv[1:], '', ['application=', 'cpu_count=', 'trace_dir=', 'system_id='])
@@ -163,7 +169,7 @@ for i in range(0,cpu_count,1):
 print '#<cpu> <sysid>',
 print '<block_unqid> <sequence> <memop> <fpop> <insn> <flname> <line> <fncame> <vaddr> <loopcnt> <loopid> <ldepth> <lploc> <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op> <total_mem_op> <total_mem_bytes> <bytes/op> <loop_head> <parent_loop_head>',
 print '<jbb_block_count>',
-print '<loop_count>',
+print '<loop_count_this> <loop_count_outmost>',
 print '<sim_block_count> <visit_count> <sample_count>',
 print '<L1hit> <L1miss> <L2hit> <L2miss> <L3hit> <L3miss>',
 print '<dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...'
@@ -196,7 +202,18 @@ for bb in bbids:
         if len(loop_data) != 1:
             print_error('ill formed loop data')
         print stringify(loop_data) + ' ',
-            
+
+        loop_data = ''
+        loop_head = get_outer_loop_head(current_block, block_static)
+        if loop_head != 0 and percpu_loop_data[i].has_key(loop_head):
+            loop_data = [percpu_loop_data[i][loop_head][1]]
+        else:
+            loop_data = [-1]
+        if len(loop_data) != 1:
+            print_error('ill formed outer loop data')
+        print stringify(loop_data) + ' ',
+        
+
         ## dynamic sim info (block specific)
         sim_data = ''
         if percpu_sim_data[i][1].has_key(current_block):
