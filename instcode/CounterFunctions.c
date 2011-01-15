@@ -67,6 +67,8 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
     fileNames = fileNms;
     functionNames = functionNms;
     hashValues = hashVals;
+
+    ptimer(&pebiltimers[0]);
 }
 
 int32_t initloop(int32_t* numLoops, int32_t* lineNums, char** fileNms, char** functionNms, int64_t* hashVals){
@@ -79,6 +81,8 @@ int32_t initloop(int32_t* numLoops, int32_t* lineNums, char** fileNms, char** fu
 
 int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     int32_t i;
+
+    ptimer(&pebiltimers[1]);
 
 #ifdef MPI_INIT_REQUIRED
     if (!isTaskValid()){
@@ -120,6 +124,8 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     }
     fflush(outFile);
     fclose(outFile);
+
+    PRINT_INSTR(stdout, "cxxx Total Execution time: %f", pebiltimers[1] - pebiltimers[0]);
 
     return i;
 }

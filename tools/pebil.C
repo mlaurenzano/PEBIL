@@ -31,6 +31,8 @@
 #define DEFAULT_FUNC_BLACKLIST64 "scripts/inputlist/autogen-system.func"
 #define DEFAULT_FUNC_BLACKLIST32 "scripts/inputlist/autogen-system.func"
 
+#define SUCCESS_MSG "******** Instrumentation Successfull ********"
+
 void printBriefOptions(bool detail){
     fprintf(stderr,"\n");
     fprintf(stderr,"Brief Descriptions for Options:\n");
@@ -470,10 +472,10 @@ int main(int argc,char* argv[]){
     PRINT_INFOR("The function blacklist is taken from %s", inputFuncList);
 
     elfFile.initSectionFilePointers();
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Disasm  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Parse  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
     elfFile.generateCFGs();
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d GenCFG  : %.2f seconds",++stepNumber,t2-t1);t1=t2);    
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Disasm/cfg : %.2f seconds",++stepNumber,t2-t1);t1=t2);    
 
     elfFile.findLoops();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Loop    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
@@ -492,6 +494,7 @@ int main(int argc,char* argv[]){
 
     if (instType == identical_inst_type){
         elfFile.dump(extension);
+        PRINT_INFOR(SUCCESS_MSG);
         return 0;
     } else if (instType == function_counter_type){
         elfInst = new FunctionCounter(&elfFile, extension, loopIncl, extdPrnt);
@@ -581,7 +584,7 @@ int main(int argc,char* argv[]){
     delete[] libPath;
     delete[] appName;
 
-    PRINT_INFOR("******** Instrumentation Successfull ********");
+    PRINT_INFOR(SUCCESS_MSG);
 
     TIMER(t = timer()-t;PRINT_INFOR("___timer: Total Execution Time          : %.2f seconds",t););
 

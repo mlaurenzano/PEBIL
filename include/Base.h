@@ -29,6 +29,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <execinfo.h>
 #include <CStructuresElf.h>
 #include <CStructuresDwarf.h>
 #include <Debug.h>
@@ -79,7 +80,6 @@ extern FILE* pebilOutp;
 
 
 #define PRINT_ERROR(...) fprintf(stderr,"*********** ERROR : "); \
-    fprintf(stderr, "At line %d in file %s, function %s\n", __LINE__, __FILE__,__FUNCTION__);    \
     fprintf(stderr,## __VA_ARGS__);                              \
     fprintf(stderr,"\n");                                \
     ASSERT(0); \

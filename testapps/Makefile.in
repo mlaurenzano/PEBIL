@@ -10,10 +10,13 @@ OBJSCPP	    = classes.o
 EXTRA_INC   = -I../instcode
 EXTRA_LIBS  = -lm
 
-TARGETS  = cTest cppTest htcoef dynTest sgbench
+TARGETS  = cTest cppTest fTest dynTest sgTest
+IDETGT = $(subst Test,Test.ideinst,$(TARGETS))
+JBBTGT = $(subst Test,Test.jbbinst,$(TARGETS))
+SIMTGT = $(subst Test,Test.siminst,$(TARGETS))
 
 all: $(TARGETS) 
-
+	echo $(IDETGT)
 %.o: %.c
 	$(CC) -g -c -o $@ $< 
 
@@ -26,15 +29,35 @@ cTest: $(OBJS)
 cppTest: $(OBJSCPP)
 	$(CXX) -g -o $@ $(OBJSCPP)
 
-htcoef:
-	$(FC) -g -o $@ htcoef.f
+fTest:
+	$(FC) -g -o $@ fTest.f
 
 dynTest:
 	$(CC) -g -o $@ dynTest.c
 
-sgbench:
-	$(CC) -g -o $@ sgbench.c $(EXTRA_INC) $(EXTRA_LIBS)
+sgTest:
+	$(CC) -g -o $@ sgTest.c $(EXTRA_INC) $(EXTRA_LIBS)
+
+showme:
+	which pebil
+	ldd `which pebil`
+
+check: showme $(IDETGT) $(JBBTGT) $(SIMTGT)
+%.ideinst: %
+	pebil --typ ide --app $<
+	diff $< $@
+	./$@
+	./$<
+
+%.jbbinst: %
+	pebil --typ jbb --app $< --dtl
+	./$@
+	./$<
+
+%.siminst: %
+	pebil --typ sim --app $< --inp /dev/null --dtl
+	./$@
+	./$<
 
 clean: 
-	rm -f *.o $(TARGETS) 
-
+	rm -f *.o $(TARGETS) *.jbbinst *.loopcnt *.siminst *.ideinst *.static

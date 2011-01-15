@@ -38,6 +38,10 @@
 
 extern uint64_t read_timestamp_counter();
 extern double read_process_clock();
+extern void ptimer();
+
+#define MAX_TIMERS 1024
+double pebiltimers[MAX_TIMERS];
 
 typedef struct
 {
