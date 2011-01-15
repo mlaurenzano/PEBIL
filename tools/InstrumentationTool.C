@@ -170,7 +170,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
         fprintf(staticFD, "# +cnt <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op>\n");
         fprintf(staticFD, "# +mem <total_mem_op> <total_mem_bytes> <bytes/op>\n");
         fprintf(staticFD, "# +lpc <loop_head> <parent_loop_head>\n");
-        fprintf(staticFD, "# +dud <dudist1>:<ducnt1> <dudist2>:<ducnt2>...\n");
+        fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...\n");
     }
 
     uint32_t noInst = 0;
@@ -236,24 +236,30 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
                 loopHead = loop->getHead()->getHashCode().getValue();
                 parentHead = f->getFlowGraph()->getParentLoop(loop->getIndex())->getHead()->getHashCode().getValue();
             }
-            fprintf(staticFD, "\t+lpc\t%lld\t%lld\n", loopHead, parentHead);
+            fprintf(staticFD, "\t+lpc\t%lld\t%lld # %#llx\n", loopHead, parentHead, bb->getHashCode().getValue());
 
-            uint32_t currTot = 0;
+            uint32_t currINT = 0;
+            uint32_t currFP = 0;
             uint32_t currDist = 1;
             fprintf(staticFD, "\t+dud");
             while (currDist < MAX_DEF_USE_DIST_PRINT){
                 for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
                     if (bb->getInstruction(k)->getDefUseDist() == currDist){
-                        currTot++;
+                        if (bb->getInstruction(k)->isFloatPOperation()){
+                            currFP++;
+                        } else {
+                            currINT++;
+                        }
                     }
                 }
-                if (currTot > 0){
-                    fprintf(staticFD, "\t%d:%d", currDist, currTot);
+                if (currFP > 0 || currINT > 0){
+                    fprintf(staticFD, "\t%d:%d:%d", currDist, currINT, currFP);
                 }
                 currDist++;
-                currTot = 0;
+                currINT = 0;
+                currFP = 0;
             }
-            fprintf(staticFD, "\n");
+            fprintf(staticFD, " # %#llx\n", bb->getHashCode().getValue());
         }
     }
     fclose(staticFD);

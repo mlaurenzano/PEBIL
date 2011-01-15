@@ -85,12 +85,12 @@ extern FILE* pebilOutp;
     ASSERT(0); \
     exit(-1);
 
-#define PRINT_INFOR(...) fprintf(pebilOutp,"Information : "); \
+#define PRINT_INFOR(...) fprintf(pebilOutp,"[pebil-instr] "); \
     fprintf(pebilOutp,## __VA_ARGS__);                        \
     fprintf(pebilOutp,"\n");                                  \
     fflush(pebilOutp);
 
-#define PRINT_INFO() fprintf(pebilOutp,"Information : "); \
+#define PRINT_INFO() fprintf(pebilOutp,"[pebil-instr] "); \
     fflush(pebilOutp);
 
 #define PRINT_OUT(...) fprintf(pebilOutp,## __VA_ARGS__); \

@@ -57,9 +57,6 @@ void BinaryInputFile::readFileInMemory(char* fileName) {
 
     inBufferPointer = inBuffer;
     inBufferSize = length;
-
-    PRINT_INFOR("Input file ranges %x[0x0,%#x]",inBufferPointer,length);
-
 }
 
 BinaryInputFile::~BinaryInputFile(){
