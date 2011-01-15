@@ -130,11 +130,13 @@ for i in range(0,len(lsraw),1):
 # block_mem     [bbhash]            = []
 # block_lpc     [bbhash]            = [loop_head, parent_loop_head]
 # block_dud     [bbhash]            = [ def_use_dist:num_int:num_fp ... ]
-
-print '#<sequence> <block_unqid> <memop> <fpop> <insn> <flname> <line> <fncame> <vaddr> <loopcnt> <loopid> <ldepth> <lploc> <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op> <total_mem_op> <total_mem_bytes> <bytes/op> <loop_head> <parent_loop_head> <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...'
+line_info = '#<block_unqid> <sequence> <memop> <fpop> <insn> <flname> <line> <fncame> <vaddr> <loopcnt> <loopid> <ldepth> <lploc> <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op> <total_mem_op> <total_mem_bytes> <bytes/op> <loop_head> <parent_loop_head> <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...'
+print line_info
 
 bbs = bbid_map.keys()
 bbs.sort()
 for bbid in bbs:
     current_block = bbid_map[bbid]
-    print str(bbid) + " " + str(current_block) + " " + stringify(block_static[current_block]) + " " + stringify(block_lpi[current_block]) + " " + stringify(block_cnt[current_block]) + " " + stringify(block_mem[current_block]) + " " + stringify(block_lpc[current_block]) + " " + stringify(block_dud[current_block])
+    print str(current_block) + " " + stringify(block_static[current_block]) + " " + stringify(block_lpi[current_block]) + " " + stringify(block_cnt[current_block]) + " " + stringify(block_mem[current_block]) + " " + stringify(block_lpc[current_block]) + " " + stringify(block_dud[current_block])
+
+print line_info
