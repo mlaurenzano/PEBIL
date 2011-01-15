@@ -325,7 +325,7 @@ uint32_t Function::digest(Vector<AddressAnchor*>* addressAnchors){
         generateCFG(allInstructions, addressAnchors);        
         findStackSize();
 #ifndef NO_REG_ANALYSIS
-        flowGraph->flowAnalysis();
+        flowGraph->computeLiveness();
 #endif
     }
 

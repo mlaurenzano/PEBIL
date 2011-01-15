@@ -352,9 +352,11 @@ void CacheSimulation::instrument(){
                             
                             // put the memory address in tmp1
                             Vector<X86Instruction*>* addrStore = X86InstructionFactory64::emitAddressComputation(memop, tmpReg1);
+                            
                             while (!(*addrStore).empty()){
                                 (*bufferDumpInstructions).append((*addrStore).remove(0));
                             }
+                            
                             delete addrStore;
                             
                             // put the current buffer address in tmp2

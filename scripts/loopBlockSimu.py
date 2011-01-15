@@ -9,10 +9,11 @@ import getopt
 import string
 import sys
 
-block_print_threshold = 1000000
-block_exec_threshold   = 3000000
-L1hr_threshold       = 0.97
-L2hr_threshold       = 0.75
+block_print_threshold = 100000
+block_exec_threshold  = 100000
+L1hr_threshold        = 0.96
+L2hr_threshold        = 0.72
+full_level = 7
 
 def print_usage(err):
     print 'Error: ' + str(err)
@@ -21,6 +22,8 @@ def print_usage(err):
     print "        --cpu_count <cpu count>"
     print "        --trace_dir <trace dir>"
     print "        --system_id <sysid>"
+    print "        --stdout"
+    print "        --throttle_full"
 
 def compute_hitrate(hitmiss):
     if hitmiss[0] == 0:
@@ -42,9 +45,29 @@ def total_access(list):
         t += e
     return t
 
+def get_throttle_level(isfull, fp_ratio, mem_perc, L1hr, L2hr, L3hr):
+    return 0
+    if L1hr > L1hr_threshold or L2hr > L2hr_threshold:
+        return full_level
+    if exec_per_entr < block_exec_threshold:
+        return full_level
+    if loop_fp_ratio > 4.0:
+        return full_level
+    if isfull:
+        return full_level
+    if mem_perc < 0.2:
+        return full_level
+    if fp_ratio < 0.33 and L2hr < 0.5 and L1hr < 0.80:
+        return 0
+    elif fp_ratio < 4.0:
+        return 3
+    else:
+        return full_level
+    return full_level
+
 ## set up command line args                                                                                                                                        
 try:
-    optlist, args = getopt.getopt(sys.argv[1:], '', ['application=', 'cpu_count=', 'trace_dir=', 'system_id=', 'stdout'])
+    optlist, args = getopt.getopt(sys.argv[1:], '', ['application=', 'cpu_count=', 'trace_dir=', 'system_id=', 'stdout', 'throttle_full'])
 except getopt.GetoptError, err:
     print_usage(err)
     sys.exit(-1)
@@ -58,6 +81,7 @@ cpu_count = ''
 trace_dir = ''
 system_id = ''
 stdout = 0
+throttle_full = 0
 
 for i in range(0,len(optlist),1):
     if optlist[i][0] == '--cpu_count':
@@ -74,6 +98,8 @@ for i in range(0,len(optlist),1):
             sys.exit(-1)
     elif optlist[i][0] == '--stdout':
         stdout = 1
+    elif optlist[i][0] == '--throttle_full':
+        throttle_full = 1
     elif optlist[i][0] == '--application':
         application = optlist[i][1]
     elif optlist[i][0] == '--trace_dir':
@@ -169,13 +195,13 @@ for i in range(0,cpu_count,1):
                 block_hrs[current_block] = {}
         if len(line) == 7:
             if line[0].startswith('sys'):
-                sys = int(line[1])
+                sysid = int(line[1])
                 lvl = int(line[3])
                 hit = int(line[4])
                 miss = int(line[5])
-                if not block_hrs[current_block].has_key(sys):
-                    block_hrs[current_block][sys] = {}
-                block_hrs[current_block][sys][lvl] = [hit, miss]
+                if not block_hrs[current_block].has_key(sysid):
+                    block_hrs[current_block][sysid] = {}
+                block_hrs[current_block][sysid][lvl] = [hit, miss]
 
     percpu_sim_data.append([block_total, block_sim_meta, block_hrs])
 
@@ -214,34 +240,53 @@ for i in range(0,cpu_count,1):
     [block_total, block_sim_meta, block_hrs] = percpu_sim_data[i]
     block_loop_meta = percpu_loop_data[i]
     block_jbb_meta = percpu_jbb_data[i]
+    block_jbb_meta_copy = {}
+    for bb in block_jbb_meta.keys():
+        block_jbb_meta_copy[bb] = block_jbb_meta[bb]
 #    print block_jbb_meta
 
-    while len(block_jbb_meta.keys()):
+
+    while len(block_jbb_meta_copy.keys()):
 #    for k in block_sim_meta.keys():
-        mostfreq_block = block_jbb_meta.keys()[0]
+        mostfreq_block = block_jbb_meta_copy.keys()[0]
         curr_loop = get_outer_loop_head(block_lpc[mostfreq_block][0], block_lpc)
         blocks_in_loop = []
 
         current_max = 0
-        for k in block_jbb_meta.keys():
+        for k in block_jbb_meta_copy.keys():
             if get_outer_loop_head(block_lpc[k][0], block_lpc) == curr_loop:
                 blocks_in_loop.append(k)
-                if block_jbb_meta[k][1] > current_max:
-                    current_max = block_jbb_meta[k][1]
+                if block_jbb_meta_copy[k][1] > current_max:
+                    current_max = block_jbb_meta_copy[k][1]
+                    mostfreq_block = k
+                elif block_jbb_meta_copy[k][1] == current_max and block_sim_meta.has_key(k):
+                    current_max = block_jbb_meta_copy[k][1]
                     mostfreq_block = k
                 
 #        print mostfreq_block
 #        print blocks_in_loop
         if curr_loop == 0:
-            remove_hash_keys(blocks_in_loop, block_jbb_meta)
+            remove_hash_keys(blocks_in_loop, block_jbb_meta_copy)
             continue
 
-        outer_entr = block_loop_meta[curr_loop][1]
+        outer_entr = 0
+        if block_loop_meta.has_key(curr_loop):
+            outer_entr = block_loop_meta[curr_loop][1]
+        
         loop_bb_exec = 0
+        loop_mem_ops = 0
+        loop_fp_ops = 0
+        loop_total_ops = 0
         loop_hr = {1:[0,0], 2:[0,0], 3:[0,0]}
         for bbhash in blocks_in_loop:
-            if block_jbb_meta.has_key(bbhash):
-                loop_bb_exec += block_jbb_meta[bbhash][1]
+            bbexec = block_jbb_meta_copy[bbhash][1]
+            memexec = bbexec * block_static[bbhash][1]
+            fpexec = bbexec * block_static[bbhash][2]
+            instexec = bbexec * block_static[bbhash][3]
+            loop_bb_exec += bbexec
+            loop_mem_ops += memexec
+            loop_fp_ops += fpexec
+            loop_total_ops += instexec
             if block_sim_meta.has_key(bbhash):
                 loop_hr[1][0] += block_hrs[bbhash][system_id][1][0]
                 loop_hr[1][1] += block_hrs[bbhash][system_id][1][1]
@@ -250,20 +295,32 @@ for i in range(0,cpu_count,1):
                 if block_hrs[bbhash][system_id].has_key(3):
                     loop_hr[3][0] += block_hrs[bbhash][system_id][3][0]
                     loop_hr[3][1] += block_hrs[bbhash][system_id][3][1]
+
 #        print loop_bb_exec
 #        print loop_hr
 
-        remove_hash_keys(blocks_in_loop, block_jbb_meta)
+        remove_hash_keys(blocks_in_loop, block_jbb_meta_copy)
 
-        exec_per_entr = int(loop_bb_exec/outer_entr)
+        exec_per_entr = 0
+        if outer_entr != 0:
+            exec_per_entr = int(loop_bb_exec/outer_entr)
+
+        if loop_mem_ops == 0:
+            loop_fp_ratio = 1000.0
+        else:
+            loop_fp_ratio = round(float(loop_fp_ops) / float(loop_mem_ops), 2)
+
+        loop_mem_perc = round(float(loop_mem_ops) / float(loop_total_ops), 2)
+
+        loop_throttle_level = full_level
         if loop_hr[1][0] > 0 and exec_per_entr >= block_print_threshold:
             L1hr = round(compute_hitrate(loop_hr[1]),4)
             L2hr = round(compute_hitrate(loop_hr[2]),4)
             L3hr = round(compute_hitrate(loop_hr[3]),4)
+            loop_throttle_level = get_throttle_level(throttle_full, loop_fp_ratio, loop_mem_perc, L1hr, L2hr, L3hr)
+
             prefix = ''
-            if L1hr > L1hr_threshold or L2hr > L2hr_threshold:
-                prefix = '#'
-            if exec_per_entr < block_exec_threshold:
+            if loop_throttle_level == full_level:
                 prefix = '#'
 
 # block_static  [bbhash]            = [bbid, memop, fpop, insn, filename, lineno, funcname, vaddr]
@@ -277,14 +334,24 @@ for i in range(0,cpu_count,1):
 # block_jbb_meta[bbhash]            = [bbid, bbcount]
             k = mostfreq_block
             if block_sim_meta.has_key(mostfreq_block):
-                outf.write(prefix + str(block_static[k][4]) + ':' + str(block_static[k][5]) + '\t')
+                outf.write(prefix + str(block_static[k][4]) + ':' + str(block_static[k][5]) + ':' + str(loop_throttle_level) + '\t')
                 outf.write('#' + str(k) + '\t' + str(block_static[k][0]) + '\t' + str(loop_bb_exec) + '\t' + str(outer_entr) + '\t')
                 outf.write(str(exec_per_entr) + '\t' + str(total_access(loop_hr[1])) + '(' + str(L1hr) + ')\t')
                 outf.write(str(total_access(loop_hr[2])) + '(' + str(L2hr) + ')\t' + str(total_access(loop_hr[3])) + '(' + str(L3hr) + ')\t')
-                outf.write(str(block_static[k][6]) + '\t' + str(block_static[k][7]) + '\n')
+                outf.write(str(block_static[k][6]) + '\t' + str(block_static[k][7]) + '\t')
+                outf.write(str(loop_fp_ratio) + '\t' + str(loop_mem_perc) + '\t' + str(loop_total_ops) + '\n')
             else:
-                sys.stderr.write('probable error??!? found a block ' + str(k) + ' that has a bunch of info but is not in simulation data\n')
+                sys.stderr.write('possible error??!? found a block ' + str(k) + ' that has a bunch of info but is not in simulation data\n')
                 sys.stderr.write(str(exec_per_entr) + '\t' + str(L1hr) + '\t' + str(L2hr) + '\t' + str(L3hr) + '\t\n')
+                for bb in blocks_in_loop:
+                    if block_jbb_meta.has_key(bb):
+                        sys.stderr.write('\t' + str(block_jbb_meta[bb]) + '\n')
+                    else:
+                        sys.stderr.write('\t' + str(bb) + '\n')
+                    if block_sim_meta.has_key(bb):
+                        sys.stderr.write('\t' + str(bb) + ' ==> ' + str(block_sim_meta[bb]) + '\n')
+                    else:
+                        sys.stderr.write('\t' + str(bb) + '\n')
                 sys.exit(-1)
 
 if stdout != 1:

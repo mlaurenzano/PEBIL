@@ -27,8 +27,13 @@
 #include <signal.h>
 #include <InstrumentationCommon.h>
 
-//#define NO_FINEGRAIN_LOOP
-#define THROTTLE_LOOP
+#define HWCOUNT_COLLECT
+#ifdef HWCOUNT_COLLECT
+#include <papi.h>
+#endif
+
+//#define ALWAYS_THROTTLE_LOW
+//#define THROTTLE_LOOP
 #define POWER_MEASURE
 #ifdef POWER_MEASURE
 //#define POWER_MEASURE_LOOP
@@ -37,11 +42,14 @@
 #define MAX_CPU_IN_SYSTEM 8
 #define PIN_LOGGER_TO_CORE 0
 
+int32_t* throttleLevels;
+int32_t lowFreqIdx = 0;
 #ifndef LOW_FREQ_IDX
 #define LOW_FREQ_IDX 0
 #endif
 
 uint64_t* siteIndex;
+uint32_t numberOfSites = 0;
 
 uint32_t totalFreqs = 0;
 char* rawPowerName = "power_readings.txt";
@@ -60,18 +68,71 @@ double loopStart = 0.0;
 uint64_t frequencyChanges = 0;
 uint64_t callCounters[1024];
 double callTimers[1024];
+int32_t currentLoop = 0;
 #define CURRENT_TIMER (read_process_clock())
 //#define TIMER(__tmr) __tmr = CURRENT_TIMER
 
 #define TIMER(__t)        { struct timeval __tmp; gettimeofday(&__tmp,NULL); \
         __t = ((double)1.0 * __tmp.tv_sec)  + ((double)1.0e-6 * __tmp.tv_usec); }
 
+#ifdef HWCOUNT_COLLECT
+int papiEventSet;
+//#define PAPI_NATIVE_EVT3 "OFFCORE_REQUESTS"
+//#define PAPI_NATIVE_EVT0 "RESOURCE_STALLS:ANY"
+//#define PAPI_NATIVE_EVT1 "RESOURCE_STALLS:LOAD"
+//#define PAPI_NATIVE_EVT2 "RESOURCE_STALLS:STORE"
+#define PAPI_DEFINED_EVT0 PAPI_L2_DCM
+#define PAPI_DEFINED_EVT1 PAPI_RES_STL
+#define PAPI_DEFINED_EVT2 PAPI_TOT_INS
+#define PAPI_DEFINED_EVT3 PAPI_L2_ICM
+uint64_t values[1024][4];
+
+void pfreq_hwcount_init(int num_events, int* event_defs){
+    int i;
+    papiEventSet = PAPI_NULL;
+    if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT){
+        PRINT_INSTR(stderr, "Papi init error");
+        exit(-1);
+    } else {
+        PRINT_INSTR(stdout, "Papi init success");
+    }
+    PAPI_create_eventset(&papiEventSet);
+    int native;
+    /*
+    if (PAPI_event_name_to_code(PAPI_NATIVE_EVT0, &native) != PAPI_OK ||
+        PAPI_add_event(papiEventSet, native) != PAPI_OK){
+        PRINT_INSTR(stderr, "Problem adding papi evt %#s", PAPI_NATIVE_EVT0);
+        exit(-1);
+    }
+    */
+    for (i = 0; i < num_events; i++){
+        if (PAPI_add_event(papiEventSet, event_defs[i]) != PAPI_OK){
+            PRINT_INSTR(stderr, "Problem adding papi evt %#x", event_defs[i]);
+            exit(-1);
+        }
+    }
+}
+
+void pfreq_hwcount_fini(){
+    
+}
+
+void pfreq_hwcount_start(){
+    PAPI_start(papiEventSet);
+}
+
+void pfreq_hwcount_stop(int numevents, uint64_t* event_counts){
+    assert(numevents == 4);
+    PAPI_stop(papiEventSet, event_counts);
+    //    PRINT_INSTR(stdout, "Papi Counter[%d]: %lld\t%lld\t%lld\t%lld", currentLoop, values[currentLoop][0], values[currentLoop][1], values[currentLoop][2], values[currentLoop][3]);
+}
+#endif
 
 void pfreq_invoke_power_log(){
     check_and_admit_log(0);
     loggerProcess = fork();
     if (loggerProcess == 0){
-        assert(pfreq_affinity_get() == 5);
+        assert(pfreq_affinity_get() == getTaskId());
         assert(PIN_LOGGER_TO_CORE < MAX_CPU_IN_SYSTEM);
         pfreq_affinity_set(PIN_LOGGER_TO_CORE);
 
@@ -85,34 +146,42 @@ void pfreq_invoke_power_log(){
     PRINT_INSTR(stdout, "Raw power measurements will be written to %s", rawPowerName);
 }
 
-double pfreq_log_power(uint32_t* samples){
+double pfreq_log_power(uint32_t* samples, double* last){
     int full = 0;
     int decimal = 0;
     double watts = 0.0;
+    double tmp;
 
     assert(rawPowerLog);
     *samples = 0;
     while (fscanf(rawPowerLog, "%d.%d", &full, &decimal) != EOF){
-        watts += (double)((double)full) + (double)((double)decimal / 10.0);
+        tmp = (double)((double)full) + (double)((double)decimal / 10.0);
+        watts += tmp;
+        *last = tmp;
         (*samples)++;
-        //        PRINT_INSTR(stdout, "value from power log %d.%d", full, decimal);
+        /*
+        if (getTaskId() == 0){
+            PRINT_INSTR(stdout, "value from power log %d.%d", full, decimal);
+        }
+        */
     }
 
     return watts;
 }
 
-void pfreq_kill_power_log(){
+void pfreq_kill_power_log(double t){
     check_and_admit_log(1);
     kill(loggerProcess, SIGQUIT);
 
     int samples;
     double watts;
+    double last;
 
     rewind(rawPowerLog);
-    watts = pfreq_log_power(&samples);
+    watts = pfreq_log_power(&samples, &last);
     close(rawPowerLog);
 
-    PRINT_INSTR(stdout, "LOGGING KILLED: Overall power readings from %s -- %d samples; average %f watts", rawPowerName, samples, (double)(watts/samples));
+    PRINT_INSTR(stdout, "LOGGING KILLED: Overall power readings from %s -- %d samples; average %f watts; %f seconds; %f joules", rawPowerName, samples, (double)(watts/samples), t, (double)((watts/samples)*t));
 
     close(nicePowerLog);
 
@@ -122,52 +191,52 @@ void pfreq_kill_power_log(){
 // these are the main controllers for the tool for now
 // executes before a loop entry
 int32_t pfreq_throttle_low(){
-#ifdef NO_FINEGRAIN_LOOP
-    callCounters[*siteIndex]++;
-    //    return internal_set_currentfreq(pfreq_affinity_get(), LOW_FREQ_IDX);
-    return 0;
-#endif
+    currentLoop = *siteIndex;
+
     int32_t ret = 0;
 #ifdef THROTTLE_LOOP
-    callCounters[*siteIndex]++;
-    PRINT_INSTR(stdout, "doing throttle for site %lld", *siteIndex);
-    ret = internal_set_currentfreq(pfreq_affinity_get(), LOW_FREQ_IDX);
+    //    PRINT_INSTR(stdout, "doing throttle for site %lld", *siteIndex);
+    //    ret = internal_set_currentfreq(pfreq_affinity_get(), lowFreqIdx);
+    ret = internal_set_currentfreq(pfreq_affinity_get(), throttleLevels[*siteIndex]);
 #else
     unsigned long freqIs = cpufreq_get(pfreq_affinity_get());
-    PRINT_INSTR(stdout, "Not throttling loop; current frequency is %lldKHz", freqIs);
+    //    PRINT_INSTR(stdout, "Not throttling loop; current frequency is %lldKHz", freqIs);
 #endif
 #ifdef POWER_MEASURE_LOOP
     // fast forwards the log to the current location
     uint32_t samples;
-    double watts = pfreq_log_power(&samples);
+    double last;
+    double watts = pfreq_log_power(&samples, &last);
 #endif
     TIMER(loopStart);
+
     return ret;
 }
  
 // executes after a loop exit
 int32_t pfreq_throttle_high(){
-#ifdef NO_FINEGRAIN_LOOP
-    callCounters[*siteIndex]++;
-    //    pfreq_throttle_max();
-    return 0;
-#endif
     double loopEnd; 
     TIMER(loopEnd);
     int32_t ret = 0;
-#ifdef THROTTLE_LOOP
-    callCounters[*siteIndex]++;
+    callCounters[currentLoop]++;
+    callTimers[currentLoop] += (loopEnd - loopStart);
     //    PRINT_INSTR(stdout, "unthrottling site %lld", *siteIndex);
+#ifdef THROTTLE_LOOP
+#ifdef ALWAYS_THROTTLE_LOW
+    ret = internal_set_currentfreq(pfreq_affinity_get(), lowFreqIdx);
+#else
     ret = internal_set_currentfreq(pfreq_affinity_get(), totalFreqs - 1);
-#endif
+#endif //ALWAYS_THROTTLE_LOW
+#endif //THROTTLE_LOOP
 #ifdef POWER_MEASURE_LOOP
     uint32_t samples;
-    double watts = pfreq_log_power(&samples);
-    PRINT_INSTR(stdout, "Loop execution report -- cxxx runtime %f, %d samples, averaged %f watts", loopEnd - loopStart, samples, (double)(watts/samples));
+    double last;
+    double watts = pfreq_log_power(&samples, &last);
+    PRINT_INSTR(stdout, "Loop execution report (site %lld) -- cxxx runtime %f, %d samples, averaged %f watts", *siteIndex, loopEnd - loopStart, samples, (double)(watts/samples));
     fprintf(nicePowerLog, "%f\t%f\t%d\n", loopEnd - loopStart, (double)(watts/samples), samples);
     fflush(nicePowerLog);
 #else
-    PRINT_INSTR(stdout, "Loop execution report -- cxxx runtime %f", loopEnd - loopStart);
+    //    PRINT_INSTR(stdout, "Loop execution report (site %lld) -- cxxx runtime %f", *siteIndex, loopEnd - loopStart);
 #endif    
     return ret;
 }
@@ -255,20 +324,49 @@ uint32_t find_available_cpufreq(){
     return freqCount;
 }
 
-int32_t pfreq_throttle_init(uint64_t* site){
+int32_t pfreq_throttle_init(uint64_t* site, uint32_t* levels, uint32_t* numSites){
+    int32_t i;
+    /*
     siteIndex = site;
-
+    throttleLevels = levels;
+    numberOfSites = *numSites;
+    */
     totalFreqs = find_available_cpufreq();
     currentFreq = find_current_cpufreq(pfreq_affinity_get());
 
     tool_mpi_init();
 
+    /*
+    char *p;
+    char* end;
+    p = getenv("PFREQ_LOW_IDX");
+    if (p != NULL){
+        lowFreqIdx = strtol(p, &end, 10);
+        PRINT_INSTR(stdout, "Obtaining frequency from environment variable PFREQ_LOW_IDX (%lld)", availableFreqs[lowFreqIdx]);
+    } else {
+        lowFreqIdx = LOW_FREQ_IDX;
+        PRINT_INSTR(stdout, "Obtaining frequency from compilation (%lld)", availableFreqs[lowFreqIdx]);
+    }
+
+    if (getTaskId() == 0){
+        for (i = 0; i < numberOfSites; i++){
+            PRINT_INSTR(stdout, "call site %d throttles freq to %lld KHz", i, availableFreqs[throttleLevels[i]]);
+        }
+    }
+    */
+
     TIMER(startTime);
     return 0;
 }
 
+void pfreq_throttle_fini_(){
+    pfreq_throttle_fini();
+}
+
 void pfreq_throttle_fini(){
     uint32_t i;
+    int callCount;
+    double callTime;
     double endTime, totalTime;
     TIMER(endTime);
     totalTime = endTime - startTime;
@@ -276,14 +374,14 @@ void pfreq_throttle_fini(){
 
 #ifdef POWER_MEASURE
     if (getTaskId() == 0){
-        pfreq_kill_power_log();
+        pfreq_kill_power_log(totalTime);
     }
 #endif //POWER_MEASURE
 
     PRINT_INSTR(stdout, "Overall runtime CXXX %f -- made %lld frequency changes", totalTime, frequencyChanges);
     for (i = 0; i < 1024; i++){
         if (callCounters[i]){
-            PRINT_INSTR(stdout, "Per-call counters[%d]: %lld %f", i, callCounters[i], callTimers[i]);
+            PRINT_INSTR(stdout, "Per-call counters %d %lld %f", i, callCounters[i], callTimers[i]);
         }
     }
     PRINT_INSTR(stdout, "Overall runtime CXXX %f", totalTime);
@@ -291,25 +389,24 @@ void pfreq_throttle_fini(){
 
 void tool_mpi_init(){
     pfreq_affinity_get();
-    //    pfreq_affinity_set(getTaskId());
-    pfreq_affinity_set(5);
+    pfreq_affinity_set(getTaskId());
+    //    pfreq_affinity_set(5);
 
-    PRINT_INSTR(stdout, "starting run with freq %luKHz", availableFreqs[currentFreq]);
-    PRINT_INSTR(stdout, "throttle low is freq %luKHz", availableFreqs[LOW_FREQ_IDX]);
+    PRINT_INSTR(stdout, "starting freq %luKHz; throttle low freq %luKHz", availableFreqs[currentFreq], availableFreqs[lowFreqIdx]);
 
 #ifdef POWER_MEASURE
     char name[1024];
-    sprintf(name, "MultiMAPS_power_measure_%04d.txt", getTaskId());
+    sprintf(name, "pfreq_power_measure_%04d.txt", getTaskId());
     nicePowerLog = fopen(name, "w");
     fprintf(nicePowerLog, "time_sec\tavg_watts\tnum_samples\n");
     
-    PRINT_INSTR(stdout, "Nice power measurements will be written to %s", name);
+    //    PRINT_INSTR(stdout, "Nice power measurements will be written to %s", name);
 
     if (getTaskId() == 0){
         pfreq_invoke_power_log();
     }
+    sleep(1);
 
-    sleep(2);
     rawPowerLog = fopen(rawPowerName, "r");
     assert(rawPowerLog);
 #endif
@@ -373,83 +470,63 @@ int32_t pfreq_throttle_up(){
     return -1;
 }
 
-#define LOW_FREQ 1170000
-#define MAX_FREQ 2300000
+uint64_t loopCount = 0;
+double st, t1, t2;
+#define TIMER_PERIOD 3.0
+#define FREQ_FLIP 100
 
-#define REQ_THRESHOLD 3
-
-int __give_pebil_name(MPI_Barrier)(MPI_Comm comm){
-    return PMPI_Barrier(comm);
+void loop_hook_init_(){
+    loop_hook_init();
 }
 
-void __give_pebil_name(mpi_barrier)(MPI_Fint comm, int* ierr){
-    cpufreq_set_frequency((unsigned int)getTaskId(), LOW_FREQ);
-    pmpi_barrier(comm, ierr);
-    cpufreq_set_frequency((unsigned int)getTaskId(), MAX_FREQ);
+void loop_hook_init(){
+    pfreq_throttle_init(0, 0, 0);
+    PRINT_INSTR(stdout, "Frequency swap amt: %lld", FREQ_FLIP);
+    TIMER(st);
+    t1 = st;
 }
 
-int __give_pebil_name(MPI_Wait)(MPI_Request* request, MPI_Status* status){
-    int ret = PMPI_Wait(request, status);
-    return ret;
-}
-void __give_pebil_name(mpi_wait)(MPI_Request* request, MPI_Status* status, int* ierr){
-    pmpi_wait(request, status, ierr);
+void loop_hook_throttle_(){
+    loop_hook_throttle();
 }
 
-int __give_pebil_name(MPI_Waitall)(int count, MPI_Request requests[], MPI_Status statuses[]){
-    pfreq_throttle_down();
-    int ret = PMPI_Waitall(count, requests, statuses);
-    pfreq_throttle_up();
-    return ret;
-}
-void __give_pebil_name(mpi_waitall)(int* count, MPI_Fint* requests, MPI_Fint* statuses, int* ierr){
-    double t1, t2;
-    int doThrottle = 0;
-    /*
-    int flag = 0;
-    int err;
-    MPI_Status status;
-    int countWait = 0;
-
-    for (uint32_t i = 0; i < *count; i++){
-        MPI_Request req = PMPI_Request_f2c(requests[i]);
-        MPI_Request_get_status(req, &flag, &status);
-        if (flag){
-            countWait++;
+void loop_hook_throttle(){
+    int s;
+    double t2;
+    double last;
+    if (loopCount % 1000000000 == 0){
+        if (getTaskId() == 0){
+            unsigned long freqIs = cpufreq_get(pfreq_affinity_get());
+            TIMER(t2);
+            PRINT_INSTR(stdout, "Checkin Loop exec %lld; current frequency is %lldKHz, timer %f", loopCount, freqIs, t2-t1);
+            pfreq_log_power(&s, &last);
         }
     }
-    if (getTaskId() < 4){
-        doThrottle = 1;
+    if (loopCount % FREQ_FLIP == 0){
+        if (getTaskId() == 0){
+            TIMER(t2);
+            //            PRINT_INSTR(stdout, "Printing log at iteration %lld for frequency %lldKHz, timer %f ...", loopCount, availableFreqs[currentFreq], t2-t1);
+            pfreq_log_power(&s, &last);
+        }
+        if (currentFreq < totalFreqs - 1){
+            pfreq_throttle_max();
+        } else {
+            pfreq_throttle_min();
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
     }
-    */
-    
-    if (*siteIndex == 5 && getTaskId() > 3){
-        doThrottle = 1;
-    }
-    if (doThrottle){
-        cpufreq_set_frequency((unsigned int)getTaskId(), LOW_FREQ);
-    }
-    callCounters[*siteIndex]++;
-    TIMER(t1);
-    pmpi_waitall(count, requests, statuses, ierr);
-    TIMER(t2);
-    callTimers[*siteIndex] += (t2-t1);
 
-    if (doThrottle){
-        cpufreq_set_frequency((unsigned int)getTaskId(), MAX_FREQ);
-    }
     /*
-    callCounters[countWait]++;
-    //    PRINT_INSTR(stdout, "waitall timer %f, not-done %d", t2-t1, countWait);
+    if (t2-t1 >= TIMER_PERIOD){
+        if (getTaskId() == 0){
+            PRINT_INSTR(stdout, "loop execution %lld - timer %f", loopCount, t2-st);
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+        TIMER(t1);
+        pfreq_log_power(&s);
+    }
     */
-}
-
-int __give_pebil_name(MPI_Startall)(int count, MPI_Request requests[]){
-    int ret = PMPI_Startall(count, requests);
-    return ret;
-}
-int __give_pebil_name(mpi_startall)(int* count, MPI_Request* requests, int* ierr){
-    pmpi_startall(count, requests, ierr);
+    loopCount++;
 }
 
 #endif //HAVE_CPUFREQ

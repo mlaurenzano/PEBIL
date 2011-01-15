@@ -41,6 +41,11 @@ class TextObject;
 #define DISASSEMBLY_MODE UD_SYN_ATT
 #define MAX_X86_INSTRUCTION_LENGTH 20
 #define MIN_CONST_MEMADDR 0x10000
+#define ALU_DEST_OPERAND 0
+#define ALU_SRC1_OPERAND 1
+#define ALU_SRC2_OPERAND 0
+#define MOV_DEST_OPERAND 0
+#define MOV_SRC_OPERAND 1
 
 #define UD_R_NAME_LOOKUP(__ud_reg) (ud_reg_tab[__ud_reg - 1])
 #define UD_OP_NAME_LOOKUP(__ud_type) (ud_optype_str[__ud_type - UD_OP_REG])
@@ -61,6 +66,7 @@ class TextObject;
 #define IS_GPR(__reg) (IS_8BIT_GPR(__reg) || IS_16BIT_GPR(__reg) || IS_32BIT_GPR(__reg) || IS_64BIT_GPR(__reg))
 #define IS_REG(__reg) (IS_GPR(__reg) || IS_SEGMENT_REG(__reg) || IS_CONTROL_REG(__reg) || IS_DEBUG_REG(__reg) || \
                        IS_MMX_REG(__reg) || IS_X87_REG(__reg) || IS_XMM_REG(__reg) || IS_PC_REG(__reg))
+#define IS_ALU_REG(__reg) (IS_GPR(__reg) || IS_XMM_REG(__reg))
 
 #define IS_LOADADDR(__mne) (__mne == UD_Ilea)
 #define IS_PREFETCH(__mne) (__mne == UD_Iprefetch || __mne == UD_Iprefetchnta || __mne == UD_Iprefetcht0 || \
@@ -136,6 +142,25 @@ const static char* flag_name_map[32] = { "carry", __flag_reserved, "parity", __f
 #define X86_SEGREG_GS 5
 #define X86_SEGMENT_REGS 6
 
+#define X86_FPREG_XMM0 (0 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM1 (1 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM2 (2 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM3 (3 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM4 (4 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM5 (5 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM6 (6 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM7 (7 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM8 (8 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM9 (9 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM10 (10 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM11 (11 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM12 (12 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM13 (13 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM14 (14 + X86_64BIT_GPRS)
+#define X86_FPREG_XMM15 (15 + X86_64BIT_GPRS)
+#define X86_XMM_REGS 16
+#define X86_ALU_REGS (X86_64BIT_GPRS + X86_XMM_REGS)
+
 #define X86TRAPCODE_BREAKPOINT   3
 #define X86TRAPCODE_OVERFLOW     4
 
@@ -208,6 +233,7 @@ enum X86InstructionType {
     X86InstructionType_call,
     X86InstructionType_return,
     X86InstructionType_int,
+    X86InstructionType_move,
     X86InstructionType_float,
     X86InstructionType_string,
     X86InstructionType_simd,
@@ -278,6 +304,8 @@ private:
     struct ud_compact entry;
     BitSet<uint32_t>* liveIns;
     BitSet<uint32_t>* liveOuts;
+    uint32_t defUseDist;
+
     uint32_t* flags_usedef;
     uint32_t* impreg_usedef;
 
@@ -322,6 +350,10 @@ public:
     bool usesFlag(uint32_t flg);
     bool defsFlag(uint32_t flg);
 
+    uint32_t getDefUseDist() { return defUseDist; }
+    void setDefUseDist(uint32_t dudist) { defUseDist = dudist; }
+
+
     void print();
     bool verify();
 
@@ -338,6 +370,8 @@ public:
     uint32_t getInstructionType();
     uint64_t getProgramAddress() { return programAddress; }
 
+    void usesRegisters(BitSet<uint32_t>* regs);
+    void defsRegisters(BitSet<uint32_t>* regs);
     void touchedRegisters(BitSet<uint32_t>* regs);
     bool controlFallsThrough();
 
@@ -392,6 +426,7 @@ public:
     bool isFloatPOperation();
     bool isIntegerOperation();
     bool isStringOperation();
+    bool isMoveOperation();
     uint32_t getNumberOfMemoryBytes();
     bool isMemoryOperation();
     bool isExplicitMemoryOperation();    

@@ -38,6 +38,7 @@ private:
 
     char* getFileName(uint32_t idx);
     uint32_t getLineNumber(uint32_t idx);
+    uint32_t getThrottleLevel(uint32_t idx);
     char* getWrappedFunction(uint32_t idx);
     char* getWrapperFunction(uint32_t idx);    
 

@@ -366,7 +366,7 @@ bool ElfFileInst::isEligibleFunction(Function* func){
 }
 
 uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint64_t offsetToRelocation, Vector<Vector<InstrumentationPoint*>*>* functionInstPoints){
-    ASSERT(isEligibleFunction(operatedFunction) && operatedFunction->hasCompleteDisassembly());
+    //    ASSERT(isEligibleFunction(operatedFunction) && operatedFunction->hasCompleteDisassembly());
 
     TextSection* extraText = (TextSection*)elfFile->getRawSection(extraTextIdx);
     TextSection* text = operatedFunction->getTextSection();
@@ -577,7 +577,7 @@ uint32_t ElfFileInst::generateInstrumentation(){
 #ifdef SWAP_FUNCTION_ONLY
             if (strstr(ins->getContainer()->getName(), SWAP_FUNCTION_ONLY)){
 #endif
-                PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx in %s", i, (*instrumentationPoints).size(), pt->getSourceObject()->getBaseAddress(), ins->getContainer()->getName());
+                PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx in %s", i, (*instrumentationPoints).size(), pt->getSourceObject()->getProgramAddress(), ins->getContainer()->getName());
                 performSwap = true;
 #ifdef SWAP_FUNCTION_ONLY
             }
@@ -931,15 +931,21 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
 
         for (uint32_t i = 0; i < numberOfFunctions; i++){
             Function* func = exposedFunctions[i];
+            /*
             if (!isEligibleFunction(func)){
                 func->print();
                 __SHOULD_NOT_ARRIVE;
             }
+            if (!func->hasCompleteDisassembly()){
+                func->print();
+                __SHOULD_NOT_ARRIVE;
+            }
+            */
 #ifdef RELOC_MOD
             if (i % RELOC_MOD == RELOC_MOD_OFF){
                 PRINT_INFOR("relocating function (%d) %s", i, func->getName());
 #endif
-                ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
+                //                ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
                 if (needsRelocate[i]){
                     codeOffset += relocateAndBloatFunction(func, codeOffset, (*instPointsPerBlock)[i]);
                     func->setRelocated();

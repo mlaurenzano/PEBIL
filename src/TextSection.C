@@ -150,6 +150,7 @@ uint32_t TextSection::buildLoops(){
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
         if (sortedTextObjects[i]->isFunction()){
             numberOfLoops += ((Function*)sortedTextObjects[i])->getFlowGraph()->buildLoops();
+            ((Function*)sortedTextObjects[i])->getFlowGraph()->computeDefUseDist();
         }
     }
     return numberOfLoops;

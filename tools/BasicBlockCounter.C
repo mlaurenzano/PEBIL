@@ -343,7 +343,7 @@ void BasicBlockCounter::instrument()
                     addInstrumentationSnippet(snip);
                     InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, loc);
                     
-                    PRINT_INFOR("\tENTR-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, source->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
+                    //                    PRINT_INFOR("\tENTR-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, source->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
                     numCalls++;
                 } else {
                     // interpose a block between head of loop and source and instrument the interposed block
@@ -367,14 +367,14 @@ void BasicBlockCounter::instrument()
                     addInstrumentationSnippet(snip);
                     InstrumentationPoint* pt = addInstrumentationPoint(interposed, snip, InstrumentationMode_inline, prot, loc);
 
-                    PRINT_INFOR("\tENTR-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, entryInterpositions[k]->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
+                    //                    PRINT_INFOR("\tENTR-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, entryInterpositions[k]->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
                     numCalls++;
                 }
 
             }
         }
     }
-    printLoopStaticFile(allBlocks, allBlockIds, allLineInfos, allBlocks->size());
+    PRINT_INFOR("Loop-counter instrumentation adding %d points", numCalls);
 #endif
     printStaticFile(allBlocks, allBlockIds, allLineInfos, allBlocks->size());
 

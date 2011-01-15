@@ -27,12 +27,121 @@
 #include <LengauerTarjan.h>
 #include <LinkedList.h>
 #include <Loop.h>
+#include <PriorityQueue.h>
 #include <Stack.h>
 #include <set>
 #include <X86Instruction.h>
 #include <X86InstructionFactory.h>
 
 using namespace std;
+
+void FlowGraph::computeDefUseDist(){
+    //    PRINT_INFOR("computing def-use dist for function %s: %d loops", function->getName(), loops.size());
+    for (uint32_t i = 0; i < loops.size(); i++){
+        BasicBlock** allLoopBlocks = new BasicBlock*[loops[i]->getNumberOfBlocks()];
+        loops[i]->getAllBlocks(allLoopBlocks);
+        // PRINT_INFOR("\tcomputing def-use dist for function %s loop %d", function->getName(), i);
+
+        for (uint32_t j = 0; j < loops[i]->getNumberOfBlocks(); j++){
+            BasicBlock* bb = allLoopBlocks[j];
+            for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
+                X86Instruction* ins = bb->getInstruction(k);
+
+                if ((ins->isIntegerOperation() || ins->isFloatPOperation() || ins->isMoveOperation())
+                    && !ins->isConditionCompare()){
+                    ASSERT(!ins->usesControlTarget());
+
+                    BitSet<uint32_t>* origdefs = new BitSet<uint32_t>(X86_ALU_REGS);
+                    BitSet<uint32_t>* uses = new BitSet<uint32_t>(X86_ALU_REGS);
+                    BitSet<uint32_t>* defs = new BitSet<uint32_t>(X86_ALU_REGS);
+                    ins->defsRegisters(origdefs);
+
+                    if (!origdefs->empty()){
+                        //ins->print();
+                        //origdefs->print();
+                        
+                        PriorityQueue<X86Instruction*, uint32_t> paths = PriorityQueue<X86Instruction*, uint32_t>();
+                        bool blockTouched[function->getNumberOfBasicBlocks()];
+                        bzero(&blockTouched, sizeof(bool) * function->getNumberOfBasicBlocks());
+                        
+                        if (k == bb->getNumberOfInstructions() - 1){
+                            ASSERT(ins->controlFallsThrough());
+                            ASSERT(bb->getNumberOfTargets() == 1);
+                            if (loops[i]->isBlockIn(bb->getTargetBlock(0)->getIndex())){
+                                paths.insert(bb->getTargetBlock(0)->getLeader(), 1);
+                            }
+                        } else {
+                            paths.insert(bb->getInstruction(k + 1), 1);
+                        }
+                        
+                        while (!paths.isEmpty()){
+                            uint32_t currDist;
+                            X86Instruction* cand = paths.deleteMin(&currDist);
+                            uses->clear();
+                            cand->usesRegisters(uses);
+                            defs->clear();
+                            cand->defsRegisters(defs);
+                            //PRINT_INFOR("Examining instructon %llx, %d", cand->getBaseAddress(), currDist);
+                            //uses->print();
+                            (*uses) &= (*origdefs);
+                            (*defs) &= (*origdefs);
+
+                            if (!uses->empty()){
+                                /*
+                                PRINT_INFOR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                                PRINT_INFOR("Found use of reg at distance %d...", currDist);
+                                cand->print();
+                                PRINT_INFOR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                                */
+                                ins->setDefUseDist(currDist);
+                                break;
+                            }
+                            
+                            // this instruction squashes the registers we're looking for, so we stop looking on this path
+                            if (!defs->empty()){
+                                continue;
+                            }
+                            
+                            BasicBlock* candblock = function->getBasicBlockAtAddress(cand->getBaseAddress());
+                            if (cand->usesControlTarget() && !cand->isCall()){
+                                BasicBlock* tgtBlock = function->getBasicBlockAtAddress(cand->getTargetAddress());
+                                if (tgtBlock && loops[i]->isBlockIn(tgtBlock->getIndex()) && !blockTouched[tgtBlock->getIndex()]){
+                                    blockTouched[tgtBlock->getIndex()] = true;
+                                    paths.insert(tgtBlock->getLeader(), currDist + 1);
+                                }
+                            }
+                            if (cand->controlFallsThrough() && !cand->isCall()){
+                                BasicBlock* tgtBlock = function->getBasicBlockAtAddress(cand->getBaseAddress() + cand->getSizeInBytes());
+                                if (tgtBlock && loops[i]->isBlockIn(tgtBlock->getIndex())){
+                                    X86Instruction* ftTarget = function->getInstructionAtAddress(cand->getBaseAddress() + cand->getSizeInBytes());
+                                    if (ftTarget){
+                                        if (ftTarget->isLeader()){
+                                            if (!blockTouched[tgtBlock->getIndex()]){
+                                                blockTouched[tgtBlock->getIndex()] = true;
+                                                paths.insert(ftTarget, currDist + 1);
+                                            }
+                                        } else {
+                                            paths.insert(ftTarget, currDist + 1);
+                                        }
+                                        
+                                    }
+                                }
+                            }
+                            
+                        }
+                        if (!paths.isEmpty()){
+                            ins->setDefUseDist(-1);
+                        }
+                    }
+
+                    delete origdefs;
+                }
+            }
+        }
+
+        delete[] allLoopBlocks;
+    }
+}
 
 void FlowGraph::interposeBlock(BasicBlock* bb){
     ASSERT(bb->getNumberOfSources() == 1 && bb->getNumberOfTargets() == 1);
@@ -156,7 +265,7 @@ uint32_t FlowGraph::getLoopDepth(uint32_t idx){
     return depth;
 }
 
-void FlowGraph::flowAnalysis(){
+void FlowGraph::computeLiveness(){
     Vector<BitSet<uint32_t>*> uses;
     Vector<BitSet<uint32_t>*> defs;
     Vector<BitSet<uint32_t>*> ins;
@@ -167,7 +276,7 @@ void FlowGraph::flowAnalysis(){
     Vector<X86Instruction*> allInstructions;
     uint32_t maxElts = 32;
 
-    // reindex instructions
+    // re-index instructions
     uint32_t currIdx = 0;
     for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
         BasicBlock* bb = getBasicBlock(i);

@@ -170,7 +170,7 @@ public:
     }
     void print() {
         uint32_t count = internalCount();
-        fprintf(stdout, "%d bits: ", maximum);
+        fprintf(stdout, "[BitSet] %d bits: ", maximum);
         for (uint32_t i = 0; i < count; i++){
             fprintf(stdout, "%02x", bits[i]);
         }

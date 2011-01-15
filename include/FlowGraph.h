@@ -46,7 +46,8 @@ public:
     ~FlowGraph();
 
     void setBaseAddress(uint64_t newBaseAddress);
-    void flowAnalysis();
+    void computeLiveness();
+    void computeDefUseDist();
 
     uint32_t getNumberOfInstructions();
     TextSection* getTextSection();

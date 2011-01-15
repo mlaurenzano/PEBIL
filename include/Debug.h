@@ -51,10 +51,10 @@
 //#define DEBUG_LIVE_REGS
 
 // some common macros to help debug instrumentation
-//#define RELOC_MOD_OFF 55
-//#define RELOC_MOD 1024
+//#define RELOC_MOD_OFF 0
+//#define RELOC_MOD 2
 //#define TURNOFF_FUNCTION_RELOCATION
-//#define BLOAT_MOD_OFF 3
+//#define BLOAT_MOD_OFF 0
 //#define BLOAT_MOD     2
 //#define TURNOFF_FUNCTION_BLOAT
 //#define SWAP_MOD_OFF 0
@@ -63,12 +63,12 @@
 //#define TURNOFF_INSTRUCTION_SWAP
 //#define ANCHOR_SEARCH_BINARY
 //#define PRINT_INSTRUCTION_DETAIL 
-#define OPTIMIZE_NONLEAF
 //#define VALIDATE_ANCHOR_SEARCH
 //#define FILL_RELOCATED_WITH_INTERRUPTS
 //#define JUMPTABLE_USE_REGISTER_OPS
 //#define THREAD_SAFE
 //#define NO_REG_ANALYSIS
+#define OPTIMIZE_NONLEAF
 
 #ifdef WARNING_SEVERITY
 #define WARN_FILE stdout
