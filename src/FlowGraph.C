@@ -135,6 +135,8 @@ void FlowGraph::computeDefUseDist(){
                     }
 
                     delete origdefs;
+                    delete uses;
+                    delete defs;
                 }
             }
         }
