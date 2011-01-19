@@ -68,7 +68,7 @@
 //#define JUMPTABLE_USE_REGISTER_OPS
 //#define THREAD_SAFE
 //#define NO_REG_ANALYSIS
-#define OPTIMIZE_NONLEAF
+//#define OPTIMIZE_NONLEAF
 
 #ifdef WARNING_SEVERITY
 #define WARN_FILE stdout

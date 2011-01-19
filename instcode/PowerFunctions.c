@@ -33,10 +33,10 @@
 #endif
 
 //#define ALWAYS_THROTTLE_LOW
-//#define THROTTLE_LOOP
+#define THROTTLE_LOOP
 #define POWER_MEASURE
 #ifdef POWER_MEASURE
-//#define POWER_MEASURE_LOOP
+#define POWER_MEASURE_LOOP
 #endif
 
 #define MAX_CPU_IN_SYSTEM 8
@@ -232,7 +232,7 @@ int32_t pfreq_throttle_high(){
     uint32_t samples;
     double last;
     double watts = pfreq_log_power(&samples, &last);
-    PRINT_INSTR(stdout, "Loop execution report (site %lld) -- cxxx runtime %f, %d samples, averaged %f watts", *siteIndex, loopEnd - loopStart, samples, (double)(watts/samples));
+    PRINT_INSTR(stdout, "Loop execution report (site %lld) -- cxxx runtime %f, %d samples, averaged %f watts", *siteIndex, loopEnd - loopStart, samples, (double)last);
     fprintf(nicePowerLog, "%f\t%f\t%d\n", loopEnd - loopStart, (double)(watts/samples), samples);
     fflush(nicePowerLog);
 #else
@@ -326,15 +326,13 @@ uint32_t find_available_cpufreq(){
 
 int32_t pfreq_throttle_init(uint64_t* site, uint32_t* levels, uint32_t* numSites){
     int32_t i;
-    /*
     siteIndex = site;
     throttleLevels = levels;
     numberOfSites = *numSites;
-    */
     totalFreqs = find_available_cpufreq();
     currentFreq = find_current_cpufreq(pfreq_affinity_get());
 
-    tool_mpi_init();
+    //    tool_mpi_init();
 
     /*
     char *p;
@@ -347,13 +345,13 @@ int32_t pfreq_throttle_init(uint64_t* site, uint32_t* levels, uint32_t* numSites
         lowFreqIdx = LOW_FREQ_IDX;
         PRINT_INSTR(stdout, "Obtaining frequency from compilation (%lld)", availableFreqs[lowFreqIdx]);
     }
+    */
 
     if (getTaskId() == 0){
         for (i = 0; i < numberOfSites; i++){
             PRINT_INSTR(stdout, "call site %d throttles freq to %lld KHz", i, availableFreqs[throttleLevels[i]]);
         }
     }
-    */
 
     TIMER(startTime);
     return 0;

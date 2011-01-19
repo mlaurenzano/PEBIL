@@ -234,10 +234,15 @@ void ThrottleLoop::instrument(){
                         }
                     }
 
+                    if (outerMost->containsCall()){
+                        PRINT_WARN(10, "****** Skipping loop that contains a function call %s:%d", li->getFileName(), li->GET(lr_line));
+                        continue;
+                    }
                     if (!loopAlreadyInstrumented){
                         loopsFound.append(outerMost);
 
                         PRINT_INFOR("Loop @ %s:%d (function %s) tagged for throttling", li->getFileName(), li->GET(lr_line), fg->getFunction()->getName());
+                        //                        ASSERT(!outerMost->containsCall() && "It is weird to instrument blocks that contain calls with this tool");
 #ifdef DEBUG_INTERPOSE
                         outerMost->print();                    
                         outerMost->getHead()->print();

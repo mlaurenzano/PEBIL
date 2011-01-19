@@ -25,6 +25,21 @@
 #include <FlowGraph.h>
 #include <Function.h>
 
+bool Loop::containsCall(){
+    BasicBlock** allBlocks = new BasicBlock*[getNumberOfBlocks()];
+    getAllBlocks(allBlocks);
+    for (uint32_t i = 0; i < getNumberOfBlocks(); i++){
+        for (uint32_t j = 0; j < allBlocks[i]->getNumberOfInstructions(); j++){
+            if (allBlocks[i]->getInstruction(j)->isCall()){
+                delete[] allBlocks;
+                return true;
+            }
+        }
+    }
+    delete[] allBlocks;
+    return false;
+}
+
 int compareLoopEntry(const void* arg1, const void* arg2){
     Loop* lp1 = *((Loop**)arg1);
     Loop* lp2 = *((Loop**)arg2);
