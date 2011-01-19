@@ -5,7 +5,7 @@ import string
 import sys
 import math
 
-geo_weights = [1, 1, 1, 1, 1, 1]
+geo_weights = [1, 4, 4, 4, 4, 1]
 freq_names = ['1596000', '1729000', '1862000', '1995000', '2128000', '2261000', '2394000', '2395000']
 default_freq = '2395000'
 energy_penalty = 0.02
@@ -192,7 +192,7 @@ for line in pdata:
         fpratio = float(toks[10]) / float(toks[9])
         avgintDU = float(toks[15]) / float(toks[14]) / float(toks[11])
         avgfpDU = float(toks[13]) / float(toks[12]) / float(toks[11])
-        pbench_static[test_name] = [L1hr, L2hr, L3hr, fpratio, avgintDU, avgfpDU, 0.0]
+        pbench_static[test_name] = [round(L1hr,4), round(L2hr,4), round(L3hr,4), round(fpratio,4), round(avgintDU,4), round(avgfpDU,4), 0.0]
 
     lineno += 1
 
@@ -299,7 +299,7 @@ for mloop in mloop_data:
     else:
         avgfpDU = (dufpV / dufpT) / insnop
 
-    plain_inp = [L1hr, L2hr, L3hr, fpratio, avgfpDU, avgintDU]
+    plain_inp = [round(L1hr,4), round(L2hr,4), round(L3hr,4), round(fpratio,4), round(avgfpDU,2), round(avgintDU,2)]
     inpdata = whitewash_inp(normalize_inp(plain_inp), pbench_means, pbench_stdevs)
 
     mindist = 100000000
@@ -326,11 +326,16 @@ for mloop in mloop_data:
         best_ratios.append(round(float(pbench_results[minkey][best_freq][i]) / float(pbench_results[minkey][default_freq][i]), 4))
     best_ratios.append(round((bbcnt * insnop) / tot_instructions, 4))
 
-    prefix = ''
     if execlen >= exec_min:
-        print prefix + string.join([str(mloop[7]), str(mloop[8]), str(freq_names.index(best_freq))], ':'),
+        print string.join([str(mloop[7]), str(mloop[8]), str(freq_names.index(best_freq))], ':'),
         print '#' + stringify(mloop) + ' ' + str(plain_inp) + ' ' + str(minkey) + ' ' + str(pbench_static[minkey]) + ' ' + str([best_freq, freq_names.index(best_freq)]) + ' ' + stringify(best_ratios) + ' ' + str(inpdata) + '<==>' + str(pbench_washed[minkey]) + ' ' + str(execlen)
         tot_exec += float(best_ratios[3])
         tot_energy += float(best_ratios[2]*best_ratios[3])
+    else:
+        print '#' + string.join([str(mloop[7]), str(mloop[8]), str(freq_names.index(best_freq))], ':'),
+        print '#' + stringify(mloop) + ' ' + str(plain_inp) + ' ' + str(minkey) + ' ' + str(pbench_static[minkey]) + ' ' + str([best_freq, freq_names.index(best_freq)]) + ' ' + stringify(best_ratios) + ' ' + str(inpdata) + '<==>' + str(pbench_washed[minkey]) + ' ' + str(execlen)
+        tot_exec += float(best_ratios[3])
+        tot_energy += float(best_ratios[2]*best_ratios[3])
+        
 
 print '# estimated pfreq energy usage is ' + str(round((1.0-tot_exec)+tot_energy, 3))

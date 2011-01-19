@@ -241,7 +241,7 @@ for bb in bbids:
                 sys_data.append(-1)
                 sys_data.append(-1)
         else:
-            sys_data = [-1, -1, -1, -1, -1, -1]
+            sys_data = [0, 0, 0, 0, 0, 0]
         if len(sys_data) != 6:
             print_error('ill formed sys data')
         print stringify(sys_data) + ' ',

@@ -32,11 +32,12 @@
 #include <papi.h>
 #endif
 
+//#define INSTRUMENT
 //#define ALWAYS_THROTTLE_LOW
 #define THROTTLE_LOOP
 #define POWER_MEASURE
 #ifdef POWER_MEASURE
-#define POWER_MEASURE_LOOP
+//#define POWER_MEASURE_LOOP
 #endif
 
 #define MAX_CPU_IN_SYSTEM 8
@@ -326,13 +327,18 @@ uint32_t find_available_cpufreq(){
 
 int32_t pfreq_throttle_init(uint64_t* site, uint32_t* levels, uint32_t* numSites){
     int32_t i;
-    siteIndex = site;
-    throttleLevels = levels;
-    numberOfSites = *numSites;
+
+
     totalFreqs = find_available_cpufreq();
     currentFreq = find_current_cpufreq(pfreq_affinity_get());
 
-    //    tool_mpi_init();
+#ifdef INSTRUMENT
+    siteIndex = site;
+    throttleLevels = levels;
+    numberOfSites = *numSites;
+#else
+    tool_mpi_init();
+#endif
 
     /*
     char *p;
