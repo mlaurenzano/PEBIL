@@ -34,7 +34,7 @@
 #define MPI_INIT_LIST_FBIND_PREF "pmpi_init_"
 #define MPI_INIT_LIST_FBIND      "mpi_init_:MPI_INIT"
 
-#define MAX_DEF_USE_DIST_PRINT 64
+#define MAX_DEF_USE_DIST_PRINT 1024
 
 InstrumentationTool::InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase, bool lpi, bool dtl)
     : ElfFileInst(elf)
@@ -242,6 +242,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
             uint32_t currFP = 0;
             uint32_t currDist = 1;
             fprintf(staticFD, "\t+dud");
+
             while (currDist < MAX_DEF_USE_DIST_PRINT){
                 for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
                     if (bb->getInstruction(k)->getDefUseDist() == currDist){
