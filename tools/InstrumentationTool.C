@@ -242,6 +242,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
             uint32_t currFP = 0;
             uint32_t currDist = 1;
             fprintf(staticFD, "\t+dud");
+
             while (currDist < MAX_DEF_USE_DIST_PRINT){
                 for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
                     if (bb->getInstruction(k)->getDefUseDist() == currDist){

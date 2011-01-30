@@ -33,7 +33,7 @@
 #define LOOP_ENTRY "pfreq_throttle_low"
 #define LOOP_EXIT "pfreq_throttle_high"
 
-//#define SKIP_INNERCALL
+//#define SKIP_THROTTLE_IF_HASCALL
 //#define DEBUG_INTERPOSE
 #define UPDATE_SITEIDX
 #define FLAGS_METHOD FlagsProtectionMethod_full
@@ -235,7 +235,7 @@ void ThrottleLoop::instrument(){
                         }
                     }
 
-#ifdef SKIP_INNERCALL
+#ifdef SKIP_THROTTLE_IF_HASCALL
                     if (outerMost->containsCall()){
                         PRINT_WARN(10, "****** Skipping loop that contains a function call %s:%d", li->getFileName(), li->GET(lr_line));
                         continue;
