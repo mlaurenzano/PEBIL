@@ -34,7 +34,7 @@
 #define MPI_INIT_LIST_FBIND_PREF "pmpi_init_"
 #define MPI_INIT_LIST_FBIND      "mpi_init_:MPI_INIT"
 
-#define MAX_DEF_USE_DIST_PRINT 64
+#define MAX_DEF_USE_DIST_PRINT 1024
 
 InstrumentationTool::InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase, bool lpi, bool dtl)
     : ElfFileInst(elf)

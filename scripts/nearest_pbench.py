@@ -8,7 +8,7 @@ import math
 geo_weights = [1, 4, 4, 4, 4, 1]
 freq_names = ['1596000', '1729000', '1862000', '1995000', '2128000', '2261000', '2394000', '2395000']
 default_freq = '2395000'
-energy_penalty = 0.02
+energy_penalty = 0.00
 cache_line_size = 8
 exec_min = 5000000
 
@@ -40,7 +40,7 @@ def normalize_inp(inp):
     avgfpDU = float(inp[4])
     avgintDU = float(inp[5])
 
-    n_fpratio = math.log(fpratio, 2) / 4
+    n_fpratio = fpratio
 
     return [L1hr, L2hr, L3hr, n_fpratio, avgfpDU, avgintDU]
 
@@ -190,8 +190,12 @@ for line in pdata:
             print_error('unknown array size (' + toks[3] + ') on line ' + str(lineno))
             
         fpratio = float(toks[10]) / float(toks[9])
-        avgintDU = float(toks[15]) / float(toks[14]) / float(toks[11])
-        avgfpDU = float(toks[13]) / float(toks[12]) / float(toks[11])
+        avgintDU = 0.0
+        if not float(toks[14]) == 0.0:
+            avgintDU = (float(toks[15]) / float(toks[14])) / float(toks[11])
+        avgfpDU = 0.0
+        if not float(toks[12]) == 0.0:
+            avgfpDU = (float(toks[13]) / float(toks[12])) / float(toks[11])
         pbench_static[test_name] = [round(L1hr,4), round(L2hr,4), round(L3hr,4), round(fpratio,4), round(avgintDU,4), round(avgfpDU,4), 0.0]
 
     lineno += 1
@@ -328,14 +332,21 @@ for mloop in mloop_data:
 
     if execlen >= exec_min:
         print string.join([str(mloop[7]), str(mloop[8]), str(freq_names.index(best_freq))], ':'),
-        print '#' + stringify(mloop) + ' ' + str(plain_inp) + ' ' + str(minkey) + ' ' + str(pbench_static[minkey]) + ' ' + str([best_freq, freq_names.index(best_freq)]) + ' ' + stringify(best_ratios) + ' ' + str(inpdata) + '<==>' + str(pbench_washed[minkey]) + ' ' + str(execlen)
+        print '#' + stringify(mloop) + ' ' + str(plain_inp) + ' ' + str(minkey) + ' ' + str(pbench_static[minkey]) + ' ' + str([best_freq, freq_names.index(best_freq)]) + ' ' + stringify(best_ratios) + ' ' + str(inpdata) + '<==>' + str(pbench_washed[minkey]) + ' ' + str(execlen) + ' ' + str(lpcnt) + ' ',
+        for i in range(0,len(freq_names),1):
+            print str(pbench_results[minkey][freq_names[i]]) + ' ',
+        print ''
+
         tot_exec += float(best_ratios[3])
         tot_energy += float(best_ratios[2]*best_ratios[3])
     else:
-        print '#' + string.join([str(mloop[7]), str(mloop[8]), str(freq_names.index(best_freq))], ':'),
-        print '#' + stringify(mloop) + ' ' + str(plain_inp) + ' ' + str(minkey) + ' ' + str(pbench_static[minkey]) + ' ' + str([best_freq, freq_names.index(best_freq)]) + ' ' + stringify(best_ratios) + ' ' + str(inpdata) + '<==>' + str(pbench_washed[minkey]) + ' ' + str(execlen)
+#        print '#' + string.join([str(mloop[7]), str(mloop[8]), str(freq_names.index(best_freq))], ':'),
+#        print '#' + stringify(mloop) + ' ' + str(plain_inp) + ' ' + str(minkey) + ' ' + str(pbench_static[minkey]) + ' ' + str([best_freq, freq_names.index(best_freq)]) + ' ' + stringify(best_ratios) + ' ' + str(inpdata) + '<==>' + str(pbench_washed[minkey]) + ' ' + str(execlen)
+#        for i in range(0,len(freq_names),1):
+#            print str(pbench_results[minkey][freq_names[i]]) + ' ',
+#        print ''
         tot_exec += float(best_ratios[3])
-        tot_energy += float(best_ratios[2]*best_ratios[3])
+        tot_energy += float(best_ratios[3])
         
 
 print '# estimated pfreq energy usage is ' + str(round((1.0-tot_exec)+tot_energy, 3))

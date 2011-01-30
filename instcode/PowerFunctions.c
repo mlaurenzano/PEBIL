@@ -32,12 +32,12 @@
 #include <papi.h>
 #endif
 
-//#define INSTRUMENT
+#define INSTRUMENT
 //#define ALWAYS_THROTTLE_LOW
 #define THROTTLE_LOOP
 #define POWER_MEASURE
 #ifdef POWER_MEASURE
-//#define POWER_MEASURE_LOOP
+#define POWER_MEASURE_LOOP
 #endif
 
 #define MAX_CPU_IN_SYSTEM 8
@@ -234,7 +234,7 @@ int32_t pfreq_throttle_high(){
     double last;
     double watts = pfreq_log_power(&samples, &last);
     PRINT_INSTR(stdout, "Loop execution report (site %lld) -- cxxx runtime %f, %d samples, averaged %f watts", *siteIndex, loopEnd - loopStart, samples, (double)last);
-    fprintf(nicePowerLog, "%f\t%f\t%d\n", loopEnd - loopStart, (double)(watts/samples), samples);
+    fprintf(nicePowerLog, "%f\t%f\t%d\n", loopEnd - loopStart, (double)(last), samples);
     fflush(nicePowerLog);
 #else
     //    PRINT_INSTR(stdout, "Loop execution report (site %lld) -- cxxx runtime %f", *siteIndex, loopEnd - loopStart);
