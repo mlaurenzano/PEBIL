@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.65])
 AC_INIT([FULL-PACKAGE-NAME], [VERSION], [BUG-REPORT-ADDRESS])
-AC_CONFIG_SRCDIR([include/ElfFileInst.h])
+AC_CONFIG_SRCDIR([src/ElfFileInst.C])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/acx_mpi.m4])
 
