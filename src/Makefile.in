@@ -1,5 +1,5 @@
 CXX         = @CXX@
-CXXFLAGS    = @CXXFLAGS@
+CXXFLAGS    = @CXXFLAGS@ @MPI_FLAGS@
 
 AR          = ar cru
 EXTRA_FLAGS = -w

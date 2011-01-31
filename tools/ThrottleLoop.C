@@ -30,8 +30,8 @@
 
 #define PROGRAM_ENTRY "pfreq_throttle_init"
 #define PROGRAM_EXIT "pfreq_throttle_fini"
-#define LOOP_ENTRY "pfreq_throttle_low"
-#define LOOP_EXIT "pfreq_throttle_high"
+#define LOOP_ENTRY "pfreq_throttle_lpentry"
+#define LOOP_EXIT "pfreq_throttle_lpexit"
 
 //#define SKIP_THROTTLE_IF_HASCALL
 //#define DEBUG_INTERPOSE
