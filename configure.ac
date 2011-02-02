@@ -19,9 +19,6 @@ if test "$static_ok" = "yes"; then
 fi
 AC_SUBST(STATIC_INST_LIB)
 
-AC_CHECK_HEADERS([cpufreq.h], THROTTLE_FLAGS="-DHAVE_CPUFREQ", THROTTLE_FLAGS="")
-AC_SUBST(THROTTLE_FLAGS)
-
 AC_ARG_ENABLE(mpi, AC_HELP_STRING([--enable-mpi], [Use mpi compiler when building instrumentation libraries [yes]]), mpi_ok=$enableval)
 if test "$mpi_ok" = "no"; then
    MPICC="$CC"
