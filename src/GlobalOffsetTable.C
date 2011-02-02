@@ -92,10 +92,18 @@ GlobalOffsetTable::GlobalOffsetTable(char* rawPtr, uint32_t size, uint16_t scnId
 {
 
     entrySize = elfFile->getSectionHeader(sectionIndex)->GET(sh_entsize);
-
+ 
     if (elfFile->is64Bit()){
+        if (entrySize != sizeof(uint64_t)){
+            PRINT_WARN(10, "Global offset table entry size is %d... setting it to a sane value", entrySize);
+            entrySize = sizeof(uint64_t);
+        }
         ASSERT(entrySize == sizeof(uint64_t) && "GOT entry size is incorrect");
     } else {
+        if (entrySize != sizeof(uint32_t)){
+            PRINT_WARN(10, "Global offset table entry size is %d... setting it to a sane value", entrySize);
+            entrySize = sizeof(uint32_t);
+        }
         ASSERT(entrySize == sizeof(uint32_t) && "GOT entry size is incorrect"); 
     }
 
