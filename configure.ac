@@ -156,3 +156,4 @@ AC_CONFIG_SUBDIRS([external/udis86-1.7])
 AC_OUTPUT
 
 sort -u scripts/inputlist/local.func > scripts/inputlist/autogen-system.func
+exit 0
