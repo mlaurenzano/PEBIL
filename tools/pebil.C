@@ -28,8 +28,9 @@
 #include <ThrottleLoop.h>
 #include <Vector.h>
 
-#define DEFAULT_FUNC_BLACKLIST64 "scripts/inputlist/autogen-system.func"
-#define DEFAULT_FUNC_BLACKLIST32 "scripts/inputlist/autogen-system.func"
+#define DEFAULT_FUNC_BLACKLIST "scripts/inputlist/autogen-system.func"
+
+#define SUCCESS_MSG "******** Instrumentation Successfull ********"
 
 void printBriefOptions(bool detail){
     fprintf(stderr,"\n");
@@ -73,11 +74,11 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
     fprintf(stderr,"\t        default is $PEBIL_ROOT/lib\n");
     fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions. if first line of file is '*\\n', this is treated as a whitelist\n");
-    fprintf(stderr,"\t        default is %s(32b)/%s(64b)\n", DEFAULT_FUNC_BLACKLIST32, DEFAULT_FUNC_BLACKLIST64);
+    fprintf(stderr,"\t        default is %s\n", DEFAULT_FUNC_BLACKLIST);
     fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
-    fprintf(stderr,"\t--dtl : optional for all. detailed .static file with lineno\n");
-    fprintf(stderr,"\t        and filenames. default is no details.\n");
+    fprintf(stderr,"\t--dtl : detailed .static file with lineno and filenames\n");
+    fprintf(stderr,"\t        DEPRECATED: ALWAYS ON BY DEFAULT\n");
     fprintf(stderr,"\t--inp : required for sim/csc and thr.\n");
     fprintf(stderr,"\t--lpi : optional for sim/csc. loop level block inclusion for\n");
     fprintf(stderr,"\t        cache simulation. default is no.\n");
@@ -208,7 +209,7 @@ int main(int argc,char* argv[]){
     uint32_t argInp     = 0;
     uint32_t argDfp     = 0;
     bool     loopIncl   = false;
-    bool     extdPrnt   = false;
+    bool     extdPrnt   = true;
     bool     verbose    = false;
     bool     dryRun     = false;
     uint32_t printCodes = 0x00000000;
@@ -449,10 +450,8 @@ int main(int argc,char* argv[]){
     uint32_t stepNumber = 0;
     TIMER(double t1 = timer(), t2);
 
-    PRINT_INFOR("******** Instrumentation Beginning ********");
     ElfFile elfFile(execName, appName);
     elfFile.parse();
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Parse   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
     if (!inputFuncList){
         deleteInpList = true;
@@ -461,19 +460,15 @@ int main(int argc,char* argv[]){
             PRINT_ERROR("Set the PEBIL_ROOT variable"); 
         }
         inputFuncList = new char[__MAX_STRING_SIZE];
-        if (elfFile.is64Bit()){
-            sprintf(inputFuncList, "%s/%s", pebilRoot, DEFAULT_FUNC_BLACKLIST64);
-        } else {
-            sprintf(inputFuncList, "%s/%s", pebilRoot, DEFAULT_FUNC_BLACKLIST32);
-        }
+        sprintf(inputFuncList, "%s/%s", pebilRoot, DEFAULT_FUNC_BLACKLIST);
     }
     PRINT_INFOR("The function blacklist is taken from %s", inputFuncList);
 
     elfFile.initSectionFilePointers();
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Disasm  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Parse  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
     elfFile.generateCFGs();
-    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d GenCFG  : %.2f seconds",++stepNumber,t2-t1);t1=t2);    
+    TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Disasm/cfg : %.2f seconds",++stepNumber,t2-t1);t1=t2);    
 
     elfFile.findLoops();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Loop    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
@@ -492,6 +487,7 @@ int main(int argc,char* argv[]){
 
     if (instType == identical_inst_type){
         elfFile.dump(extension);
+        PRINT_INFOR(SUCCESS_MSG);
         return 0;
     } else if (instType == function_counter_type){
         elfInst = new FunctionCounter(&elfFile, extension, loopIncl, extdPrnt);
@@ -517,7 +513,12 @@ int main(int argc,char* argv[]){
             fprintf(stderr, "\nError: option --lnc needs to be given with loop throttle inst\n");
         }
         ASSERT(libList);
-        elfInst = new ThrottleLoop(&elfFile, inptName, libList, extension, loopIncl, extdPrnt);
+        if (!inputTrackList){
+            fprintf(stderr, "\nError: option --trk needs to be given with loop throttle inst\n");
+            printUsage();
+        }
+        ASSERT(inputTrackList);
+        elfInst = new ThrottleLoop(&elfFile, inptName, inputTrackList, libList, extension, loopIncl, extdPrnt);
     }
     else {
         PRINT_ERROR("Error : invalid instrumentation type");
@@ -576,11 +577,12 @@ int main(int argc,char* argv[]){
     delete[] libPath;
     delete[] appName;
 
-    PRINT_INFOR("******** Instrumentation Successfull ********");
+    PRINT_INFOR(SUCCESS_MSG);
 
     TIMER(t = timer()-t;PRINT_INFOR("___timer: Total Execution Time          : %.2f seconds",t););
 
-    PRINT_INFOR("\n");
-    PRINT_INFOR("******** DONE ******** SUCCESS ***** SUCCESS ***** SUCCESS ********\n");
+    PRINT_INFOR("");
+    PRINT_INFOR("******** DONE ******** SUCCESS ***** SUCCESS ***** SUCCESS ********");
+    PRINT_INFOR("");
     return 0;
 }

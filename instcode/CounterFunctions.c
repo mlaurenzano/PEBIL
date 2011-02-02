@@ -36,6 +36,12 @@ char** fileNames;
 char** functionNames;
 int64_t* hashValues;
 
+int32_t numberOfLoops;
+int32_t* loopLineNumbers;
+char** loopFileNames;
+char** loopFunctionNames;
+int64_t* loopHashValues;
+
 void tool_mpi_init(){}
 
 int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** functionNames){
@@ -62,11 +68,21 @@ int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char*
     functionNames = functionNms;
     hashValues = hashVals;
 
-    return numberOfBasicBlocks;
+    ptimer(&pebiltimers[0]);
+}
+
+int32_t initloop(int32_t* numLoops, int32_t* lineNums, char** fileNms, char** functionNms, int64_t* hashVals){
+    numberOfLoops = *numLoops;
+    loopLineNumbers = lineNums;
+    loopFileNames = fileNms;
+    loopFunctionNames = functionNms;
+    loopHashValues = hashVals;
 }
 
 int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     int32_t i;
+
+    ptimer(&pebiltimers[1]);
 
 #ifdef MPI_INIT_REQUIRED
     if (!isTaskValid()){
@@ -76,11 +92,10 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
 #endif
 
     PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
-    PRINT_INSTR(stdout, "There are %d basic blocks in the code:", numberOfBasicBlocks);
 
     char* outFileName = (char*)malloc(sizeof(char) * __MAX_STRING_SIZE);
     sprintf(outFileName, "%s.meta_%04d.%s", appName, getTaskId(), instExt);
-    PRINT_INSTR(stdout, "Printing blocks with at least %d executions to file %s", PRINT_MINIMUM, outFileName);
+    PRINT_INSTR(stdout, "%d blocks; printing those with at least %d executions to file %s", numberOfBasicBlocks, PRINT_MINIMUM, outFileName);
     FILE* outFile = fopen(outFileName, "w");
     free(outFileName);
     if (!outFile){
@@ -91,7 +106,6 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
 
     fprintf(outFile, "# appname   = %s\n", appName);
     fprintf(outFile, "# extension = %s\n", instExt);
-
     fprintf(outFile, "# phase     = %d\n", 0);
     fprintf(outFile, "# rank      = %d\n", getTaskId());
 
@@ -105,6 +119,54 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
             fprintf(outFile, "%d\t", lineNumbers[i]);
             fprintf(outFile, "%s\t", functionNames[i]);
             fprintf(outFile, "%#lld\n", hashValues[i]);
+            fflush(outFile);
+        }
+    }
+    fflush(outFile);
+    fclose(outFile);
+
+    PRINT_INSTR(stdout, "cxxx Total Execution time: %f", pebiltimers[1] - pebiltimers[0]);
+
+    return i;
+}
+
+int32_t loopcounter(uint64_t* loopCounters, char* appName, char* instExt){
+    int32_t i;
+
+#ifdef MPI_INIT_REQUIRED
+    if (!isTaskValid()){
+        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print files", getpid());
+        return -1;
+    }
+#endif
+
+    char* outFileName = (char*)malloc(sizeof(char) * __MAX_STRING_SIZE);
+    sprintf(outFileName, "%s.meta_%04d.%s", appName, getTaskId(), instExt);
+    PRINT_INSTR(stdout, "%d loops; printing those with at least %d executions to file %s", numberOfLoops, PRINT_MINIMUM, outFileName);
+    FILE* outFile = fopen(outFileName, "w");
+    free(outFileName);
+    if (!outFile){
+        fprintf(stderr, "Cannot open output file %s, exiting...\n", outFileName);
+        fflush(stderr);
+        exit(-1);
+    }
+
+    fprintf(outFile, "# appname   = %s\n", appName);
+    fprintf(outFile, "# extension = %s\n", instExt);
+    fprintf(outFile, "# phase     = %d\n", 0);
+    fprintf(outFile, "# rank      = %d\n", getTaskId());
+
+    fprintf(outFile, "#id\tcount\t#file:line\tfunc\thash\n");
+    fflush(outFile);
+
+    for (i = 0; i < numberOfLoops; i++){
+        if (loopCounters[i] >= PRINT_MINIMUM){
+            fprintf(outFile, "%#d\t", i);
+            fprintf(outFile, "%llu\t#", loopCounters[i]);
+            fprintf(outFile, "%s:", loopFileNames[i]);
+            fprintf(outFile, "%d\t", loopLineNumbers[i]);
+            fprintf(outFile, "%s\t", loopFunctionNames[i]);
+            fprintf(outFile, "%#lld\n", loopHashValues[i]);
             fflush(outFile);
         }
     }

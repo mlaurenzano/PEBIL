@@ -31,7 +31,22 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
-using namespace std;
+static ud_t ud_blank;
+
+void X86Instruction::initBlankUd(bool is64bit){
+    ud_t ud_obj;
+
+    ud_init(&ud_obj);
+    if (is64bit){
+        ud_set_mode(&ud_obj, 64);
+    } else {
+        ud_set_mode(&ud_obj, 32);
+    }
+    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
+
+    memcpy(&ud_blank, &ud_obj, sizeof(ud_t));
+}
+
 
 void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg){
     memcpy(comp->insn_hexcode, reg->insn_hexcode, sizeof(char)*32);
@@ -261,22 +276,76 @@ uint32_t convertUdGPReg(uint32_t reg){
     return 0;
 }
 
+uint32_t convertUdXMMReg(uint32_t reg){
+    ASSERT(reg && IS_XMM_REG(reg));
+    return reg - UD_R_XMM0 + X86_FPREG_XMM0;
+}
+
 uint32_t OperandX86::getBaseRegister(){
-    ASSERT(GET(base) && IS_GPR(GET(base)));
-    return convertUdGPReg(GET(base));
+    ASSERT(GET(base) && IS_ALU_REG(GET(base)));
+    if (IS_GPR(GET(base))){
+        return convertUdGPReg(GET(base));
+    } else if (IS_XMM_REG(GET(base))){
+        return convertUdXMMReg(GET(base));
+    } 
+    __SHOULD_NOT_ARRIVE;
+    return 0;
 }
 uint32_t OperandX86::getIndexRegister(){
-    ASSERT(GET(index) && IS_GPR(GET(index)));
-    return convertUdGPReg(GET(index));
+    ASSERT(GET(index) && IS_ALU_REG(GET(index)));
+    if (IS_GPR(GET(index))){
+        return convertUdGPReg(GET(index));
+    } else if (IS_XMM_REG(GET(index))){
+        return convertUdXMMReg(GET(index));
+    } 
+    __SHOULD_NOT_ARRIVE;
+    return 0;
 }
 
 void OperandX86::touchedRegisters(BitSet<uint32_t>* regs){
-    if (GET(base) && IS_GPR(GET(base))){
+    if (GET(base) && IS_ALU_REG(GET(base))){
         regs->insert(getBaseRegister());
     }
-    if (GET(index) && IS_GPR(GET(index))){
+    if (GET(index) && IS_ALU_REG(GET(index))){
         regs->insert(getIndexRegister());
     }
+}
+
+void X86Instruction::usesRegisters(BitSet<uint32_t>* regs){
+    if (isMoveOperation()){
+        if (operands[MOV_SRC_OPERAND]){
+            operands[MOV_SRC_OPERAND]->touchedRegisters(regs);
+        }
+        if (operands[MOV_DEST_OPERAND]){
+            if (operands[MOV_DEST_OPERAND]->getType() == UD_OP_MEM || 
+                operands[MOV_DEST_OPERAND]->getType() == UD_OP_PTR){
+                operands[MOV_DEST_OPERAND]->touchedRegisters(regs);
+            }
+        }
+    }
+    if (isIntegerOperation() || isFloatPOperation()){
+        if (operands[ALU_SRC1_OPERAND]){
+            operands[ALU_SRC1_OPERAND]->touchedRegisters(regs);
+        }
+        if (operands[ALU_SRC2_OPERAND]){
+            operands[ALU_SRC2_OPERAND]->touchedRegisters(regs);
+        }
+    }
+    // TODO: implement this for branches?
+}
+
+void X86Instruction::defsRegisters(BitSet<uint32_t>* regs){
+    if (isMoveOperation()){
+        if (operands[MOV_DEST_OPERAND] && operands[MOV_DEST_OPERAND]->getType() == UD_OP_REG){
+            operands[MOV_DEST_OPERAND]->touchedRegisters(regs);
+        }
+    }
+    if (isIntegerOperation() || isFloatPOperation()){
+        if (operands[ALU_DEST_OPERAND] && operands[ALU_DEST_OPERAND]->getType() == UD_OP_REG){
+            operands[ALU_DEST_OPERAND]->touchedRegisters(regs);
+        }
+    }
+    // TODO: implement this for branches?
 }
 
 void X86Instruction::touchedRegisters(BitSet<uint32_t>* regs){
@@ -362,6 +431,13 @@ bool X86Instruction::isExplicitMemoryOperation(){
 
 bool X86Instruction::isStringOperation(){
     if (getInstructionType() == X86InstructionType_string){
+        return true;
+    }
+    return false;
+}
+
+bool X86Instruction::isMoveOperation(){
+    if (getInstructionType() == X86InstructionType_move){
         return true;
     }
     return false;
@@ -574,15 +650,8 @@ uint32_t X86Instruction::convertTo4ByteTargetOperand(){
         }
 
         ud_t ud_obj;
-        ud_init(&ud_obj);
+        memcpy(&ud_obj, &ud_blank, sizeof(ud_t));
         ud_set_input_buffer(&ud_obj, (uint8_t*)rawBytes, MAX_X86_INSTRUCTION_LENGTH);
-
-        if (container->getTextSection()->getElfFile()->is64Bit()){
-            ud_set_mode(&ud_obj, 64);
-        } else {
-            ud_set_mode(&ud_obj, 32);
-        }
-        ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
 
         sizeInBytes = ud_disassemble(&ud_obj);
         if (sizeInBytes) {
@@ -724,7 +793,23 @@ TableModes X86Instruction::computeJumpTableTargets(uint64_t tableBase, Function*
         dataLen = sizeof(uint32_t);
     }
     
-    do {
+
+    /* Modified by Jingyue */
+    /*
+     * The original do-while has logic problems. Change it to while-do
+     * while (in data range) {
+     *   get target
+     *   if (target not in function range)
+     *     break;
+     *   add to instruction list
+     *   increase currByte
+     * }
+     */
+    while ((tableBase + currByte) -
+           dataSection->getSectionHeader()->GET(sh_addr) <
+           dataSection->getSizeInBytes()) {
+
+        /* Get the target */
         if (container->getTextSection()->getElfFile()->is64Bit()){
             rawData = getUInt64(dataSection->getStreamAtAddress(tableBase+currByte));
         } else {
@@ -734,15 +819,16 @@ TableModes X86Instruction::computeJumpTableTargets(uint64_t tableBase, Function*
         if (!tableMode){
             rawData += baseAddress;
         }
+        if (!func->inRange(rawData)){
+            break;
+        }
+
         PRINT_DEBUG_JUMP_TABLE("Jump Table target %#llx", rawData);
         (*addressList).append(rawData);
         (*tableStorageList).append(tableBase+currByte);
 
         currByte += dataLen;
-    } while (func->inRange((*addressList).back()) &&
-             (tableBase+currByte)-dataSection->getSectionHeader()->GET(sh_addr) < dataSection->getSizeInBytes());
-    (*addressList).remove((*addressList).size()-1);
-    (*tableStorageList).remove((*tableStorageList).size()-1);
+    }
 
     return tableMode;
 }
@@ -869,6 +955,15 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ipshufb:
         case UD_Iphaddd:
             optype = X86InstructionType_simd;
+        case UD_Ipminsb:
+        case UD_Ipminsd:
+        case UD_Ipminuw:
+        case UD_Ipminud:
+        case UD_Ipmaxsb:
+        case UD_Ipmaxsd:
+        case UD_Ipmaxuw:
+        case UD_Ipmaxud:
+            optype = X86InstructionType_int;
         case UD_I3dnow:
             optype = X86InstructionType_special;
             break;
@@ -901,6 +996,8 @@ uint32_t X86Instruction::setInstructionType(){
             optype = X86InstructionType_special;
             break;
         case UD_Imovsxd:
+            optype = X86InstructionType_move;
+            break;
         case UD_Ibound:
         case UD_Ibsf:
         case UD_Ibsr:
@@ -942,6 +1039,8 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Icmovge:
         case UD_Icmovle:
         case UD_Icmovg:
+            optype = X86InstructionType_move;
+            break;
         case UD_Icmp:
             optype = X86InstructionType_int;
             break;
@@ -1026,6 +1125,8 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ifbstp:
         case UD_Ifchs:
         case UD_Ifclex:
+            optype = X86InstructionType_int;
+            break;
         case UD_Ifcmovb:
         case UD_Ifcmove:
         case UD_Ifcmovbe:
@@ -1034,6 +1135,8 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ifcmovne:
         case UD_Ifcmovnbe:
         case UD_Ifcmovnu:
+            optype = X86InstructionType_move;
+            break;
         case UD_Ifucomi:
         case UD_Ifcom:
         case UD_Ifcom2:
@@ -1216,6 +1319,8 @@ uint32_t X86Instruction::setInstructionType(){
             break;
         case UD_Ilds:
         case UD_Ilea:
+            optype = X86InstructionType_move;
+            break;            
         case UD_Iles:
         case UD_Ilfs:
         case UD_Ilgs:
@@ -1249,6 +1354,8 @@ uint32_t X86Instruction::setInstructionType(){
             optype = X86InstructionType_special;
             break;
         case UD_Imaskmovq:
+            optype = X86InstructionType_move;
+            break;
         case UD_Imaxpd:
         case UD_Imaxps:
         case UD_Imaxsd:
@@ -1268,8 +1375,6 @@ uint32_t X86Instruction::setInstructionType(){
             optype = X86InstructionType_special;
             break;
         case UD_Imov:
-            optype = X86InstructionType_int;
-            break;
         case UD_Imovapd:
         case UD_Imovaps:
         case UD_Imovd:
@@ -1303,9 +1408,9 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Imovsx:
         case UD_Imovupd:
         case UD_Imovups:
-            optype = X86InstructionType_float;
-            break;
         case UD_Imovzx:
+            optype = X86InstructionType_move;
+            break;
         case UD_Imul:
             optype = X86InstructionType_int;
             break;
@@ -1372,7 +1477,11 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ipmaxub:
         case UD_Ipminsw:
         case UD_Ipminub:
+            optype = X86InstructionType_int;
+            break;
         case UD_Ipmovmskb:
+            optype = X86InstructionType_move;
+            break;
         case UD_Ipmulhuw:
         case UD_Ipmulhw:
         case UD_Ipmullw:
@@ -1750,16 +1859,8 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     : Base(PebilClassType_X86Instruction)
 {
     ud_t ud_obj;
-    ud_init(&ud_obj);
+    memcpy(&ud_obj, &ud_blank, sizeof(ud_t));
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
-
-    if (is64bit){
-        ud_set_mode(&ud_obj, 64);
-    } else {
-        ud_set_mode(&ud_obj, 32);
-    }
-
-    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
 
     sizeInBytes = ud_disassemble(&ud_obj);
     if (sizeInBytes) {
@@ -1782,6 +1883,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     instructionType = X86InstructionType_unknown;
     liveIns = NULL;
     liveOuts = NULL;
+    defUseDist = 0;
 
     operands = new OperandX86*[MAX_OPERANDS];
 
@@ -1806,17 +1908,8 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     : Base(PebilClassType_X86Instruction)
 {
     ud_t ud_obj;
-    ud_init(&ud_obj);
+    memcpy(&ud_obj, &ud_blank, sizeof(ud_t));
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
-
-    ASSERT(cont);
-    if (cont->getTextSection()->getElfFile()->is64Bit()){
-        ud_set_mode(&ud_obj, 64);
-    } else {
-        ud_set_mode(&ud_obj, 32);
-    }
-
-    ud_set_syntax(&ud_obj, DISASSEMBLY_MODE);
 
     sizeInBytes = ud_disassemble(&ud_obj);
     if (sizeInBytes) {
@@ -1837,6 +1930,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     instructionType = X86InstructionType_unknown;
     liveIns = NULL;
     liveOuts = NULL;
+    defUseDist = 0;
     
     operands = new OperandX86*[MAX_OPERANDS];
 
@@ -1903,7 +1997,7 @@ void X86Instruction::print(){
 
     PRINT_INFO();
     PRINT_OUT("\t\tuses %d registers: ", (*useRegs).size());
-    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
         if ((*useRegs).contains(i)){
             PRINT_OUT("reg:%d ", i);
         }
@@ -1912,12 +2006,14 @@ void X86Instruction::print(){
     
     PRINT_INFO();
     PRINT_OUT("\t\tdefs %d registers: ", (*defRegs).size());
-    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
         if ((*defRegs).contains(i)){
             PRINT_OUT("reg:%d ", i);
         }
     }    
     PRINT_OUT("\n");
+
+    PRINT_INFOR("Def-use distance %d", defUseDist);
     
     delete useRegs;
     delete defRegs;
@@ -1932,11 +2028,11 @@ void X86Instruction::print(){
                 GET(br_far), GET(br_near), GET(implicit_addr), GET(c1), GET(c2), GET(c3));
     */
 
-    BitSet<uint32_t>* usedRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
+    BitSet<uint32_t>* usedRegs = new BitSet<uint32_t>(X86_ALU_REGS);
     touchedRegisters(usedRegs);
-    char regs[X86_64BIT_GPRS+1];
-    regs[X86_64BIT_GPRS] = '\0';
-    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+    char regs[X86_ALU_REGS+1];
+    regs[X86_ALU_REGS] = '\0';
+    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
         if (usedRegs->contains(i)){
             regs[i] = 'R';
         } else {

@@ -38,7 +38,7 @@ char* blockIsKilled;
 int32_t numberKilled;
 uint64_t* blockCounters;
 
-//#define ENABLE_INSTRUMENTATION_KILL
+#define ENABLE_INSTRUMENTATION_KILL
 //#define DEBUG_INST_KILL
 
 void tool_mpi_init(){}
@@ -61,6 +61,8 @@ int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uin
 
     instpoint_info* ip;
     int i;
+
+    ptimer(&pebiltimers[0]);
 }
 
 #ifdef ENABLE_INSTRUMENTATION_KILL
@@ -807,6 +809,8 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
     uint32_t lastIndex = entries->lastFreeIdx;
     lastIndex--;
 
+    ptimer(&pebiltimers[1]);
+
 #ifdef MPI_INIT_REQUIRED
     if (!isTaskValid()){
         PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print files", getpid());
@@ -945,6 +949,7 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
 
     }
 #endif
+    PRINT_INSTR(stdout, "cxxx Total Execution time: %f", pebiltimers[1] - pebiltimers[0]);
 }
 
 

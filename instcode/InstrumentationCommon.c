@@ -35,7 +35,6 @@ uint32_t taskValid = 0;
 uint32_t isTaskValid() { return taskValid; }
 #endif
 
-
 inline uint64_t read_timestamp_counter(){
     unsigned low, high;
     __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));
@@ -48,6 +47,15 @@ inline double read_process_clock(){
     uint64_t nsec = (NANOS_PER_SECOND * myclock.tv_sec) + myclock.tv_nsec;
     return (double)(nsec) / (double)(NANOS_PER_SECOND);
 }
+
+void ptimer(double *tmr) {
+    struct timeval timestr;
+    void *tzp=0;
+
+    gettimeofday(&timestr, tzp);
+    *tmr=(double)timestr.tv_sec + 1.0E-06*(double)timestr.tv_usec;
+}
+
 
 #ifdef HAVE_MPI
 // C init wrapper

@@ -34,6 +34,8 @@
 #define MPI_INIT_LIST_FBIND_PREF "pmpi_init_"
 #define MPI_INIT_LIST_FBIND      "mpi_init_:MPI_INIT"
 
+#define MAX_DEF_USE_DIST_PRINT 1024
+
 InstrumentationTool::InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase, bool lpi, bool dtl)
     : ElfFileInst(elf)
 {
@@ -164,9 +166,11 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     fprintf(staticFD, "# <sequence> <block_unqid> <memop> <fpop> <insn> <line> <fname> # <hex_unq_id> <vaddr>\n");
 
     if (printDetail){
-        fprintf(staticFD, "# +lpi <loopcnt> <loopid> <ldepth>\n");
+        fprintf(staticFD, "# +lpi <loopcnt> <loopid> <ldepth> <lploc>\n");
         fprintf(staticFD, "# +cnt <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op>\n");
         fprintf(staticFD, "# +mem <total_mem_op> <total_mem_bytes> <bytes/op>\n");
+        fprintf(staticFD, "# +lpc <loop_head> <parent_loop_head>\n");
+        fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...\n");
     }
 
     uint32_t noInst = 0;
@@ -203,7 +207,15 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
                 bb->getHashCode().getValue(), bb->getLeader()->getProgramAddress());
 
         if (printDetail){
-            fprintf(staticFD, "\t+lpi\t%d\t%d\t%d # %#llx\n", loopCount, loopId, loopDepth, bb->getHashCode().getValue());
+            uint32_t loopLoc = 0;
+            if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())){
+                if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())->getHead()->getHashCode().getValue() == bb->getHashCode().getValue()){
+                    loopLoc = 1;
+                } else if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())->getTail()->getHashCode().getValue() == bb->getHashCode().getValue()){
+                    loopLoc = 2;
+                }
+            }
+            fprintf(staticFD, "\t+lpi\t%d\t%d\t%d\t%d # %#llx\n", loopCount, loopId, loopDepth, loopLoc, bb->getHashCode().getValue());
             fprintf(staticFD, "\t+cnt\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", 
                     bb->getNumberOfBranches(), bb->getNumberOfIntegerOps(), bb->getNumberOfLogicOps(), bb->getNumberOfShiftRotOps(),
                     bb->getNumberOfSyscalls(), bb->getNumberOfSpecialRegOps(), bb->getNumberOfStringOps(),
@@ -217,6 +229,38 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
             }
             fprintf(staticFD, "\t+mem\t%d\t%d\t%.5f # %#llx\n", bb->getNumberOfMemoryOps(), bb->getNumberOfMemoryBytes(),
                     memopavg, bb->getHashCode().getValue());
+
+            uint64_t loopHead = 0;
+            uint64_t parentHead = 0;
+            if (loop){
+                loopHead = loop->getHead()->getHashCode().getValue();
+                parentHead = f->getFlowGraph()->getParentLoop(loop->getIndex())->getHead()->getHashCode().getValue();
+            }
+            fprintf(staticFD, "\t+lpc\t%lld\t%lld # %#llx\n", loopHead, parentHead, bb->getHashCode().getValue());
+
+            uint32_t currINT = 0;
+            uint32_t currFP = 0;
+            uint32_t currDist = 1;
+            fprintf(staticFD, "\t+dud");
+
+            while (currDist < MAX_DEF_USE_DIST_PRINT){
+                for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
+                    if (bb->getInstruction(k)->getDefUseDist() == currDist){
+                        if (bb->getInstruction(k)->isFloatPOperation()){
+                            currFP++;
+                        } else {
+                            currINT++;
+                        }
+                    }
+                }
+                if (currFP > 0 || currINT > 0){
+                    fprintf(staticFD, "\t%d:%d:%d", currDist, currINT, currFP);
+                }
+                currDist++;
+                currINT = 0;
+                currFP = 0;
+            }
+            fprintf(staticFD, " # %#llx\n", bb->getHashCode().getValue());
         }
     }
     fclose(staticFD);

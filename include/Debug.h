@@ -51,10 +51,10 @@
 //#define DEBUG_LIVE_REGS
 
 // some common macros to help debug instrumentation
-//#define RELOC_MOD_OFF 44077
-//#define RELOC_MOD 131072
+//#define RELOC_MOD_OFF 0
+//#define RELOC_MOD 2
 //#define TURNOFF_FUNCTION_RELOCATION
-//#define BLOAT_MOD_OFF 3
+//#define BLOAT_MOD_OFF 0
 //#define BLOAT_MOD     2
 //#define TURNOFF_FUNCTION_BLOAT
 //#define SWAP_MOD_OFF 0
@@ -63,12 +63,12 @@
 //#define TURNOFF_INSTRUCTION_SWAP
 //#define ANCHOR_SEARCH_BINARY
 //#define PRINT_INSTRUCTION_DETAIL 
-#define OPTIMIZE_NONLEAF
 //#define VALIDATE_ANCHOR_SEARCH
 //#define FILL_RELOCATED_WITH_INTERRUPTS
 //#define JUMPTABLE_USE_REGISTER_OPS
 //#define THREAD_SAFE
 //#define NO_REG_ANALYSIS
+//#define OPTIMIZE_NONLEAF
 
 #ifdef WARNING_SEVERITY
 #define WARN_FILE stdout
@@ -327,31 +327,34 @@
 #define PRINT_REG_LIST_R PRINT_REG_LIST_BASIS
 #endif
 
+#define BACKTRACE_SIZE 32
+static void* _backtraceArray[BACKTRACE_SIZE];
+static size_t _backtraceSize;
+static char** _backtraceStrings;
+static int _arrayBacktraceIterator;
+
+#define ASSERT(__str) \
+    if (!(__str)){ _backtraceSize = backtrace(_backtraceArray, BACKTRACE_SIZE); _backtraceStrings = backtrace_symbols(_backtraceArray, _backtraceSize); \
+        fprintf(stderr, "assert fail at line %d in file %s, function %s\n", __LINE__, __FILE__,__FUNCTION__); \
+        for (_arrayBacktraceIterator = 0; _arrayBacktraceIterator < _backtraceSize; _arrayBacktraceIterator++){ fprintf(stderr, "\t%s\n", _backtraceStrings[_arrayBacktraceIterator]); } \
+        free(_backtraceStrings);\
+        assert(__str); }
 
 #ifdef  DEVELOPMENT
-
 #define PRINT_DEBUG(...) fprintf(stdout,"----------- DEBUG : "); \
                          fprintf(stdout,## __VA_ARGS__); \
                          fprintf(stdout,"\n"); \
                          fflush(stdout);
-
-
-#define ASSERT(__str) assert(__str);
 #define DEBUG(...) __VA_ARGS__
 #define DEBUG_MORE(...)
 #define TIMER(...) __VA_ARGS__
 #define INNER_TIMER(...) __VA_ARGS__
-
-#else
-
+#else //DEVELOPMENT
 #define PRINT_DEBUG(...)
 #define DEBUG(...)
 #define DEBUG_MORE(...)
-#define ASSERT(__str) assert(__str);
-//#define ASSERT(__str)
 #define TIMER(...) __VA_ARGS__
 #define INNER_TIMER(...) 
-
 #endif // DEVELOPMENT
 
 #endif // _Debug_h_

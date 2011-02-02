@@ -1,5 +1,5 @@
 CXX         = @CXX@
-CXXFLAGS    = @CXXFLAGS@
+CXXFLAGS    = @CXXFLAGS@ @MPI_FLAGS@
 
 AR          = ar cru
 EXTRA_FLAGS = -w
@@ -26,6 +26,7 @@ SRCS  = AddressAnchor.C \
 	GnuVersion.C \
 	HashTable.C \
 	Instrumentation.C \
+	InstrumentationTool.C \
 	LengauerTarjan.C \
 	LineInformation.C \
 	Loop.C \
@@ -56,6 +57,7 @@ OBJS  = AddressAnchor.o \
 	GnuVersion.o \
 	HashTable.o \
 	Instrumentation.o \
+	InstrumentationTool.o \
 	LengauerTarjan.o \
 	LineInformation.o \
 	Loop.o \

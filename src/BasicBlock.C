@@ -52,7 +52,8 @@ uint32_t BasicBlock::searchForArgsPrep(bool is64Bit){
     if (is64Bit){
         for (uint32_t i = 0; i < instructions.size(); i++){
             //            instructions[i]->print();
-            if (instructions[i]->getInstructionType() == X86InstructionType_int){
+            if (instructions[i]->getInstructionType() == X86InstructionType_int ||
+                instructions[i]->getInstructionType() == X86InstructionType_move){
                 OperandX86* destOp = instructions[i]->getOperand(COMP_DEST_OPERAND);
 
                 if (!destOp->getValue()){

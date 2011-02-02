@@ -27,6 +27,9 @@ class BasicBlockCounter : public InstrumentationTool {
 private:
     InstrumentationFunction* entryFunc;
     InstrumentationFunction* exitFunc;
+
+    InstrumentationFunction* loopEntry;
+    InstrumentationFunction* loopExit;
 public:
     BasicBlockCounter(ElfFile* elf, char* ext, bool lpi, bool dtl);
     ~BasicBlockCounter() {}

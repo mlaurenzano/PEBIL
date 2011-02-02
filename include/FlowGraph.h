@@ -46,7 +46,8 @@ public:
     ~FlowGraph();
 
     void setBaseAddress(uint64_t newBaseAddress);
-    void flowAnalysis();
+    void computeLiveness();
+    void computeDefUseDist();
 
     uint32_t getNumberOfInstructions();
     TextSection* getTextSection();
@@ -82,6 +83,7 @@ public:
     bool isBlockInLoop(uint32_t idx);
     Loop* getInnermostLoopForBlock(uint32_t idx);
     Loop* getOuterMostLoopForLoop(uint32_t idx);
+    Loop* getParentLoop(uint32_t idx);
     Loop* getOuterLoop(uint32_t idx);
 
     void addBlock(Block* block);    
