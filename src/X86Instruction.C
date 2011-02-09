@@ -1125,7 +1125,7 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ifbstp:
         case UD_Ifchs:
         case UD_Ifclex:
-            optype = X86InstructionType_int;
+            optype = X86InstructionType_float;
             break;
         case UD_Ifcmovb:
         case UD_Ifcmove:
