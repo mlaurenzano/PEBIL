@@ -35,7 +35,7 @@ sub printUsage {
     my ($script,$msg) = @_;
     print "$help_string\n";
     print "$msg\n\n";
-    exit;
+    exit -1;
 }
 
 sub checkForSuccess {
