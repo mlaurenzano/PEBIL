@@ -72,7 +72,11 @@ class TextObject;
 #define IS_PREFETCH(__mne) (__mne == UD_Iprefetch || __mne == UD_Iprefetchnta || __mne == UD_Iprefetcht0 || \
                             __mne == UD_Iprefetcht1 || __mne == UD_Iprefetcht2)
 
-#define ANALYSIS_MAXREG 32
+
+#define __reg_use 0
+#define __reg_def 1
+#define __reg_define(__array, __mnemonic, __use, __def) \
+    if (GET(mnemonic) == __mnemonic) { __array[__reg_use] = __use; __array[__reg_def] = __def; }
 
 #define X86_FLAG_CF 0
 #define X86_FLAG_PF 2
@@ -92,9 +96,15 @@ class TextObject;
 #define X86_FLAG_VI 19
 #define X86_FLAG_VP 20
 #define X86_FLAG_ID 21
+#define X86_FLAG_BITS 32
+
+#define __flag_mask__protect_none  0x11111111
+#define __flag_mask__protect_light 0x11111100
+#define __flag_mask__protect_full  0x11110000
+#define __x86_flagset_alustd       (__bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_OF))
 
 #define __flag_reserved "reserved"
-const static char* flag_name_map[32] = { "carry", __flag_reserved, "parity", __flag_reserved, 
+const static char* flag_name_map[X86_FLAG_BITS] = { "carry", __flag_reserved, "parity", __flag_reserved, 
                            "adjust", __flag_reserved, "zero", "sign",
                            "trap", "interrupt", "direction", "overflow",
                            "iopl1", "iopl2", "nested_task", __flag_reserved,
@@ -102,17 +112,6 @@ const static char* flag_name_map[32] = { "carry", __flag_reserved, "parity", __f
                            "vint_pending", "ident", __flag_reserved, __flag_reserved,
                            __flag_reserved, __flag_reserved, __flag_reserved, __flag_reserved,
                            __flag_reserved, __flag_reserved, __flag_reserved, __flag_reserved };
-
-#define __flag_mask__protect_none  0x11111111
-#define __flag_mask__protect_light 0x11111100
-#define __flag_mask__protect_full  0x11110000
-#define __x86_flagset_alustd       (__bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_OF))
-
-#define __flags_use 0
-#define __flags_def 1
-
-#define __flags_define(__array, __mnemonic, __use, __def) \
-    if (GET(mnemonic) == __mnemonic) { __array[__flags_use] = __use; __array[__flags_def] = __def; }
 
 // my non-gnu definitions for X86
 #define X86_REG_AX 0
@@ -134,14 +133,6 @@ const static char* flag_name_map[32] = { "carry", __flag_reserved, "parity", __f
 #define X86_32BIT_GPRS 8
 #define X86_64BIT_GPRS 16
 
-#define X86_SEGREG_ES 0
-#define X86_SEGREG_CS 1
-#define X86_SEGREG_SS 2
-#define X86_SEGREG_DS 3
-#define X86_SEGREG_FS 4
-#define X86_SEGREG_GS 5
-#define X86_SEGMENT_REGS 6
-
 #define X86_FPREG_XMM0 (0 + X86_64BIT_GPRS)
 #define X86_FPREG_XMM1 (1 + X86_64BIT_GPRS)
 #define X86_FPREG_XMM2 (2 + X86_64BIT_GPRS)
@@ -159,7 +150,31 @@ const static char* flag_name_map[32] = { "carry", __flag_reserved, "parity", __f
 #define X86_FPREG_XMM14 (14 + X86_64BIT_GPRS)
 #define X86_FPREG_XMM15 (15 + X86_64BIT_GPRS)
 #define X86_XMM_REGS 16
-#define X86_ALU_REGS (X86_64BIT_GPRS + X86_XMM_REGS)
+
+#define X87_REG_ST0 (0 + X86_64BIT_GPRS + X86_XMM_REGS)
+#define X87_REG_ST1 (1 + X86_64BIT_GPRS + X86_XMM_REGS)
+#define X87_REG_ST2 (2 + X86_64BIT_GPRS + X86_XMM_REGS)
+#define X87_REG_ST3 (3 + X86_64BIT_GPRS + X86_XMM_REGS)
+#define X87_REG_ST4 (4 + X86_64BIT_GPRS + X86_XMM_REGS)
+#define X87_REG_ST5 (5 + X86_64BIT_GPRS + X86_XMM_REGS)
+#define X87_REG_ST6 (6 + X86_64BIT_GPRS + X86_XMM_REGS)
+#define X87_REG_ST7 (7 + X86_64BIT_GPRS + X86_XMM_REGS)
+#define X87_REGS 8
+
+#define X86_ALU_REGS (X86_64BIT_GPRS + X86_XMM_REGS + X87_REGS)
+const static char* alu_name_map[X86_ALU_REGS] = { "ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
+                                                  "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7", 
+                                                  "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
+                                                  "st0", "st1", "st2", "st3", "st4", "st5", "st6", "st7" };
+
+#define X86_SEGREG_ES 0
+#define X86_SEGREG_CS 1
+#define X86_SEGREG_SS 2
+#define X86_SEGREG_DS 3
+#define X86_SEGREG_FS 4
+#define X86_SEGREG_GS 5
+#define X86_SEGMENT_REGS 6
+
 
 #define X86TRAPCODE_BREAKPOINT   3
 #define X86TRAPCODE_OVERFLOW     4
@@ -310,7 +325,7 @@ private:
     uint32_t defUseDist;
 
     uint32_t* flags_usedef;
-    uint32_t* impreg_usedef;
+    BitSet<uint32_t>** impreg_usedef;
 
     OperandX86** operands;
     uint32_t instructionIndex;
@@ -354,10 +369,11 @@ public:
 
     bool usesFlag(uint32_t flg);
     bool defsFlag(uint32_t flg);
+    bool usesAluReg(uint32_t alu);
+    bool defsAluReg(uint32_t alu);
 
     uint32_t getDefUseDist() { return defUseDist; }
     void setDefUseDist(uint32_t dudist) { defUseDist = dudist; }
-
 
     void print();
     bool verify();
@@ -375,6 +391,8 @@ public:
     uint32_t getInstructionType();
     uint64_t getProgramAddress() { return programAddress; }
 
+    void impliedUses(BitSet<uint32_t>* regs);
+    void impliedDefs(BitSet<uint32_t>* regs);
     void usesRegisters(BitSet<uint32_t>* regs);
     void defsRegisters(BitSet<uint32_t>* regs);
     void touchedRegisters(BitSet<uint32_t>* regs);
