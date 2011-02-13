@@ -1255,10 +1255,12 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ifucomp:
         case UD_Ifucompp:
         case UD_Ifxam:
+            optype = X86InstructionType_float;
+            break;
         case UD_Ifxch:
         case UD_Ifxch4:
         case UD_Ifxch7:
-            optype = X86InstructionType_float;
+            optype = X86InstructionType_int;
             break;
         case UD_Ifxrstor:
         case UD_Ifxsave:
@@ -2210,10 +2212,17 @@ void X86Instruction::setImpliedRegs(){
 
 #define iuse(__r) impreg_usedef[__reg_use]->insert(__r);
 #define idef(__r) impreg_usedef[__reg_def]->insert(__r);
-#define check_mnemonic(__mnemonic, __stmts) if (GET(mnemonic) == __mnemonic) { __stmts; }
+#define check_mnemonic(__mnemonic) (GET(mnemonic) == __mnemonic)
+#define has_2op (operands[ALU_SRC1_OPERAND] && operands[ALU_SRC2_OPERAND])
+#define has_0op (!operands[ALU_SRC1_OPERAND] && !operands[ALU_SRC2_OPERAND])
+#define has_1op (!has_0op && !has_2op)
+#define __set_impreg(__mnemonic, __numop, __stmts) else if (check_mnemonic(__mnemonic) && has_##__numop##op) { __stmts; }
+
     if (!impreg_usedef) { __SHOULD_NOT_ARRIVE; }
-    /* TODO: need to add info for all other instructions, also these can depend on which explicit args are present */
-    check_mnemonic(UD_Ifadd, iuse(X87_REG_ST0) idef(X87_REG_ST0));
+    /* TODO: need to add info for lots of other instructions */
+    __set_impreg(UD_Ifadd,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifaddp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifiadd, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
 
     /*
       // 4 other types for all of these string ops -- *sb, *sw, *sd, *sq
@@ -2249,6 +2258,7 @@ void X86Instruction::setImpliedRegs(){
         impreg[__reg_def] |= __bit_shift(X86_REG_CX);
     }
     */
+
     /*
     if (GET(mnemonic) == UD_Ifadd){
         print();
@@ -2256,6 +2266,7 @@ void X86Instruction::setImpliedRegs(){
         impreg_usedef[1]->print();
     }
     */
+
 }
 
 void X86Instruction::setFlags()
