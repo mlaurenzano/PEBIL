@@ -36,6 +36,10 @@
 using namespace std;
 
 void FlowGraph::computeDefUseDist(){
+    BitSet<uint32_t>* origdefs = new BitSet<uint32_t>(X86_ALU_REGS);
+    BitSet<uint32_t>* uses = new BitSet<uint32_t>(X86_ALU_REGS);
+    BitSet<uint32_t>* defs = new BitSet<uint32_t>(X86_ALU_REGS);
+    
     //    PRINT_INFOR("computing def-use dist for function %s: %d loops", function->getName(), loops.size());
     for (uint32_t i = 0; i < loops.size(); i++){
         BasicBlock** allLoopBlocks = new BasicBlock*[loops[i]->getNumberOfBlocks()];
@@ -51,9 +55,9 @@ void FlowGraph::computeDefUseDist(){
                     && !ins->isConditionCompare()){
                     ASSERT(!ins->usesControlTarget());
 
-                    BitSet<uint32_t>* origdefs = new BitSet<uint32_t>(X86_ALU_REGS);
-                    BitSet<uint32_t>* uses = new BitSet<uint32_t>(X86_ALU_REGS);
-                    BitSet<uint32_t>* defs = new BitSet<uint32_t>(X86_ALU_REGS);
+                    origdefs->clear();
+                    uses->clear();
+                    defs->clear();
                     ins->defsRegisters(origdefs);
 
                     if (!origdefs->empty()){
@@ -134,15 +138,15 @@ void FlowGraph::computeDefUseDist(){
                         }
                     }
 
-                    delete origdefs;
-                    delete uses;
-                    delete defs;
                 }
             }
         }
 
         delete[] allLoopBlocks;
     }
+    delete origdefs;
+    delete uses;
+    delete defs;
 }
 
 void FlowGraph::interposeBlock(BasicBlock* bb){
@@ -268,6 +272,7 @@ uint32_t FlowGraph::getLoopDepth(uint32_t idx){
 }
 
 void FlowGraph::computeLiveness(){
+    DEBUG_LIVE_REGS(double t1 = timer();)
     Vector<BitSet<uint32_t>*> uses;
     Vector<BitSet<uint32_t>*> defs;
     Vector<BitSet<uint32_t>*> ins;
@@ -339,39 +344,39 @@ void FlowGraph::computeLiveness(){
     bool setsSame = false;
     uint32_t iterCount = 0;
     while (!setsSame){
-        for (uint32_t i = 0; i < allInstructions.size(); i++){
+        for (int32_t i = allInstructions.size()-1; i >= 0; i--){
             // ins'[n] = ins[n]
             *(ins_prime[i]) = *(ins[i]);
-
+            
             // outs'[n] = outs[n]
             *(outs_prime[i]) = *(outs[i]);
-
+            
             PRINT_DEBUG_LIVE_REGS("before in[n] = use[n] U (out[n] - def[n])");
             PRINT_REG_LIST(ins, maxElts, i);
             PRINT_REG_LIST(uses, maxElts, i);
             PRINT_REG_LIST(defs, maxElts, i);
             PRINT_REG_LIST(outs, maxElts, i);
-
-            // in[n] = use[n] U (out[n] - def[n])
-            BitSet<uint32_t>* tmpbt = new BitSet<uint32_t>(*(outs[i]));
-            *(tmpbt) -= *(defs[i]);
-            *(ins[i]) |= *(uses[i]);
-            *(ins[i]) |= *(tmpbt);
-            delete tmpbt;
-
-            PRINT_DEBUG_LIVE_REGS("after in[n] = use[n] U (out[n] - def[n])");
-            PRINT_REG_LIST(ins, maxElts, i);
-            PRINT_REG_LIST(outs, maxElts, i);
-
+            
             // out[n] = U(s in succ[n]) in[s]
             //            (outs[i])->clear();
             for (std::set<uint32_t>::const_iterator it = succs[i]->begin(); it != succs[i]->end(); it++){
                 *(outs[i]) |= *(ins[(*it)]);
                 PRINT_REG_LIST(ins, maxElts, (*it));
             }
-
+            
             PRINT_DEBUG_LIVE_REGS("after out[n] = U(s in succ[n]) in[s]");
             PRINT_REG_LIST(outs, maxElts, i);
+            // in[n] = use[n] U (out[n] - def[n])
+            BitSet<uint32_t>* tmpbt = new BitSet<uint32_t>(*(outs[i]));
+            *(tmpbt) -= *(defs[i]);
+            *(ins[i]) |= *(uses[i]);
+            *(ins[i]) |= *(tmpbt);
+            delete tmpbt;
+            
+            PRINT_DEBUG_LIVE_REGS("after in[n] = use[n] U (out[n] - def[n])");
+            PRINT_REG_LIST(ins, maxElts, i);
+            PRINT_REG_LIST(outs, maxElts, i);
+            
         }
 
         // check if in/out have changed this iteration for any n
@@ -380,10 +385,12 @@ void FlowGraph::computeLiveness(){
             if (!(*(ins[i]) == *(ins_prime[i]))){
                 PRINT_DEBUG_LIVE_REGS("ins %d different", i);
                 setsSame = false;
+                break;
             }
             if (!(*(outs[i]) == *(outs_prime[i]))){
                 PRINT_DEBUG_LIVE_REGS("outs %d different", i);
                 setsSame = false;
+                break;
             }
         }
 
@@ -392,8 +399,7 @@ void FlowGraph::computeLiveness(){
             PRINT_REG_LIST(ins_prime, maxElts, i);
             PRINT_REG_LIST(outs, maxElts, i);
             PRINT_REG_LIST(outs_prime, maxElts, i);
-        }   
-
+        }
         iterCount++;
     }
 
@@ -411,6 +417,11 @@ void FlowGraph::computeLiveness(){
         delete outs_prime[i];
         delete succs[i];
     }
+
+    DEBUG_LIVE_REGS(
+                    double t2 = timer();
+                    PRINT_INFOR("___timer: LiveRegAnalysis function %s -- %d instructions, %d iterations: %.4f seconds", function->getName(), currIdx, iterCount, t2-t1);
+                    );
 }
 
 bool FlowGraph::verify(){
