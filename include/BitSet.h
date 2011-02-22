@@ -168,6 +168,7 @@ public:
         memset(bits,0xff,count);
         cardinality = maximum;
     }
+
     void print() {
         uint32_t count = internalCount();
         fprintf(stdout, "[BitSet] %d bits: ", maximum);
