@@ -3,3 +3,11 @@ PMPI_Init:MPI_Init_ps_wrapper
 MPI_Init:MPI_Init_ps_wrapper
 PMPI_Finalize:MPI_Finalize_ps_wrapper
 MPI_Finalize:MPI_Finalize_ps_wrapper
+mpi_init:mpi_init_ps_wrapper
+mpi_init_:mpi_init_ps_wrapper
+pmpi_init:mpi_init_ps_wrapper
+pmpi_init_:mpi_init_ps_wrapper
+mpi_finalize:mpi_finalize_ps_wrapper
+mpi_finalize_:mpi_finalize_ps_wrapper
+pmpi_finalize:mpi_finalize_ps_wrapper
+pmpi_finalize_:mpi_finalize_ps_wrapper
