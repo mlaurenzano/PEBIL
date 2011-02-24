@@ -2,7 +2,7 @@ CXX         = @CXX@
 CXXFLAGS    = @CXXFLAGS@ @MPI_FLAGS@
 
 AR          = ar cru
-EXTRA_FLAGS = -w
+EXTRA_FLAGS =
 SHARED_OPT  = -fPIC
 SHARED_LIB  = -shared
 

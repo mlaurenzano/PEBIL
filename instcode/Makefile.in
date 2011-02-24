@@ -12,7 +12,7 @@ MPICC       = @MPICC@
 CFLAGS      = @CFLAGS@
 
 SHARED_OPT  = -fPIC
-EXTRA_FLAGS = -w $(SHARED_OPT)
+EXTRA_FLAGS = $(SHARED_OPT)
 SHARED_LIB  = -shared
 AR          = ar rcs
 
