@@ -71,7 +71,7 @@ void printBriefOptions(bool detail){
         fprintf(stderr,"\t      : z : <none>\n");   
     }
     fprintf(stderr,"\t--dry : optional for all. processes options only.\n");
-    fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
+    fprintf(stderr,"\t--lib : (deprecated) optional for all. shared library directory.\n");
     fprintf(stderr,"\t        default is $PEBIL_ROOT/lib\n");
     fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions. if first line of file is '*\\n', this is treated as a whitelist\n");
     fprintf(stderr,"\t        default is %s\n", DEFAULT_FUNC_BLACKLIST);
@@ -429,19 +429,6 @@ int main(int argc,char* argv[]){
         printCodes = processPrintCodes(rawPrintCodes);
     }
 
-    if(!libArg){
-        char* pebilRoot = getenv("PEBIL_ROOT");
-        if (!pebilRoot){
-            PRINT_ERROR("Use the --lib option or define the PEBIL_ROOT variable"); 
-        }
-        libPath = new char[__MAX_STRING_SIZE];
-        sprintf(libPath, "%s/lib", pebilRoot);
-    } else {
-        libPath = new char[__MAX_STRING_SIZE];
-        sprintf(libPath, "%s/lib", libArg);
-    }
-    PRINT_INFOR("The instrumentation libraries will be used from %s", libPath);
-
     if (dryRun){
         PRINT_INFOR("--dry option was used, exiting...");
         exit(0);
@@ -526,7 +513,6 @@ int main(int argc,char* argv[]){
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(elfInst);
-    ASSERT(libPath);
     ASSERT(extension);
 
     if (phaseNo > 0){
@@ -535,7 +521,6 @@ int main(int argc,char* argv[]){
         extension = tmp;
     }
 
-    elfInst->setPathToInstLib(libPath);
     elfInst->setInstExtension(extension);
     if (inputFuncList){
         elfInst->setInputFunctions(inputFuncList);
