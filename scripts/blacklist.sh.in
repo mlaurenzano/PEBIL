@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -x verbose
+
 object-blacklist() { readelf -s $1 | grep FUNC |  grep -v UND | awk '{print $8}' | grep -wvi "main\|main_\|main__\|_fini\|_start"; }
 
 tmp_file="__pebil__tmp"
