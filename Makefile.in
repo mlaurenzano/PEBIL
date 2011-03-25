@@ -2,6 +2,7 @@
 DOXYGEN = doxygen
 
 SUBDIRS = external/udis86-1.7 instcode testapps src tools
+BLACKLIST = scripts/inputlist/autogen-system.func
 
 include VERSION
 DISTDIR = PEBIL-$(PEBIL_FULL_VER)
@@ -21,6 +22,7 @@ clean:
 	$(MAKE) -C testapps clean
 	$(MAKE) -C instcode clean
 	$(MAKE) -C tools clean
+	rm -rf $(BLACKLIST)
 
 install:
 	$(MAKE) -C src install
@@ -38,5 +40,6 @@ check:
 docs:
 	doxygen
 
-blacklist:
-	scripts/blacklist.sh
+blacklist: $(BLACKLIST)
+$(BLACKLIST):
+	scripts/blacklist.sh > $(BLACKLIST)
