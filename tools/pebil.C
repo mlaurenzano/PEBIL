@@ -71,7 +71,7 @@ void printBriefOptions(bool detail){
         fprintf(stderr,"\t      : z : <none>\n");   
     }
     fprintf(stderr,"\t--dry : optional for all. processes options only.\n");
-    fprintf(stderr,"\t--lib : optional for all. shared library directory.\n");
+    fprintf(stderr,"\t--lib : (deprecated) optional for all. shared library directory.\n");
     fprintf(stderr,"\t        default is $PEBIL_ROOT/lib\n");
     fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions. if first line of file is '*\\n', this is treated as a whitelist\n");
     fprintf(stderr,"\t        default is %s\n", DEFAULT_FUNC_BLACKLIST);
@@ -89,6 +89,7 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\t--dmp : optional for sim/csc. dump the address stream to disk.\n");
     fprintf(stderr,"\t        default is off");
     fprintf(stderr,"\t--dfp : optional for sim/csc. dfpattern file. defaults to no dfpattern file,\n");
+    fprintf(stderr,"\t--doi : optional for crp. whether to call intro/exit functions. default is no\n");
     fprintf(stderr,"\n");
 }
 
@@ -97,19 +98,20 @@ void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"usage : pebil\n");
     fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|csc|ftm|crp|thr)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
-    fprintf(stderr,"\t--inp <block_unique_ids>    <-- valid for sim/csc and thr\n");
+    fprintf(stderr,"\t[--inp <block_unique_ids>]    <-- valid for sim/csc and thr\n");
     fprintf(stderr,"\t[--inf [a-z]*]\n");
-    fprintf(stderr,"\t[--lib <shared_lib_dir>]\n");
+    fprintf(stderr,"\t[--lib (deprecated) <shared_lib_dir>]\n");
     fprintf(stderr,"\t\tdefault is $PEBIL_ROOT/lib\n");
     fprintf(stderr,"\t[--ext <output_suffix>]\n");
     fprintf(stderr,"\t[--dtl]\n");
     fprintf(stderr,"\t[--fbl file]\n");
     fprintf(stderr,"\t[--lpi]                     <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--phs <phase_no>]          <-- valid for sim/csc\n");
-    fprintf(stderr,"\t[--trk file]                <-- required for crp\n");
-    fprintf(stderr,"\t[--lnc <lib_list>]          <-- required for crp\n");
+    fprintf(stderr,"\t[--trk file]                <-- required for crp and thr\n");
+    fprintf(stderr,"\t[--lnc <lib_list>]          <-- required for crp and thr\n");
     fprintf(stderr,"\t[--dfp <pattern_file>]      <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--dmp (off|on|nosim)]      <-- valid for sim/csc\n");
+    fprintf(stderr,"\t[--doi]                     <-- valid for crp\n");
     fprintf(stderr,"\t[--help]\n");
     fprintf(stderr,"\t[--version]\n");
     fprintf(stderr,"\t[--silent]\n");
@@ -212,6 +214,7 @@ int main(int argc,char* argv[]){
     bool     extdPrnt   = true;
     bool     verbose    = false;
     bool     dryRun     = false;
+    bool     doIntro    = false;
     uint32_t printCodes = 0x00000000;
     char* rawPrintCodes = NULL;
     char* inputFuncList = NULL;
@@ -355,6 +358,8 @@ int main(int argc,char* argv[]){
             libArg = argv[++i];
         } else if (!strcmp(argv[i],"--dry")){
             dryRun = true;
+        } else if (!strcmp(argv[i],"--doi")){
+            doIntro = true;
         } else if (!strcmp(argv[i],"--fbl")){
             if (inputFuncList){
                 printUsage();
@@ -429,19 +434,6 @@ int main(int argc,char* argv[]){
         printCodes = processPrintCodes(rawPrintCodes);
     }
 
-    if(!libArg){
-        char* pebilRoot = getenv("PEBIL_ROOT");
-        if (!pebilRoot){
-            PRINT_ERROR("Use the --lib option or define the PEBIL_ROOT variable"); 
-        }
-        libPath = new char[__MAX_STRING_SIZE];
-        sprintf(libPath, "%s/lib", pebilRoot);
-    } else {
-        libPath = new char[__MAX_STRING_SIZE];
-        sprintf(libPath, "%s/lib", libArg);
-    }
-    PRINT_INFOR("The instrumentation libraries will be used from %s", libPath);
-
     if (dryRun){
         PRINT_INFOR("--dry option was used, exiting...");
         exit(0);
@@ -507,7 +499,7 @@ int main(int argc,char* argv[]){
             fprintf(stderr, "\nError: option --lnc needs to be given with call wrapper inst\n");
         }
         ASSERT(libList);
-        elfInst = new CallReplace(&elfFile, inputTrackList, libList, extension, loopIncl, extdPrnt);
+        elfInst = new CallReplace(&elfFile, inputTrackList, libList, extension, loopIncl, extdPrnt, doIntro);
     } else if (instType == throttle_loop_type){
         if (!libList){
             fprintf(stderr, "\nError: option --lnc needs to be given with loop throttle inst\n");
@@ -526,7 +518,6 @@ int main(int argc,char* argv[]){
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(elfInst);
-    ASSERT(libPath);
     ASSERT(extension);
 
     if (phaseNo > 0){
@@ -535,7 +526,6 @@ int main(int argc,char* argv[]){
         extension = tmp;
     }
 
-    elfInst->setPathToInstLib(libPath);
     elfInst->setInstExtension(extension);
     if (inputFuncList){
         elfInst->setInputFunctions(inputFuncList);

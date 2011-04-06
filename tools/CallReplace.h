@@ -33,8 +33,10 @@ private:
 
     Vector<char*>* functionList;
     Vector<char*> libraries;
+
+    bool doIntro;
 public:
-    CallReplace(ElfFile* elf, char* traceFile, char* libList, char* ext, bool lpi, bool dtl);
+    CallReplace(ElfFile* elf, char* traceFile, char* libList, char* ext, bool lpi, bool dtl, bool doI);
     ~CallReplace();
 
     void declare();

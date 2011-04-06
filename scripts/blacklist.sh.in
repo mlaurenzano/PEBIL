@@ -5,7 +5,6 @@ object-blacklist() { readelf -s $1 | grep FUNC |  grep -v UND | awk '{print $8}'
 tmp_file="__pebil__tmp"
 list_dir="scripts/inputlist"
 list_intermed="$list_dir"/local.func
-list_final="$list_dir"/autogen-system.func
 
 trivialprog_CC="#ifdef HAVE_MPI\n#include <mpi.h>\n#endif\n\
 int main(int argc, char** argv){\n\
@@ -45,7 +44,7 @@ echo -e "$trivialprog_FC" > "$tmp_file"_f90.c
 @MPIFC@ @MPI_FLAGS@ @MPILIBS@ -o "$tmp_file"_f90 "$tmp_file".f90
 object-blacklist "$tmp_file"_f90 >> "$list_intermed"
 
-sort -u "$list_intermed" | grep . > "$list_final"
+sort -u "$list_intermed" | grep .
 rm "$list_intermed"
 rm "$tmp_file"*
 

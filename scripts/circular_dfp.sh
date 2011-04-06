@@ -8,7 +8,7 @@ if [ "$sfile" == "" ]; then
 fi
 
 if [ -f $sfile ]; then
-    grep -P "$#" $sfile | grep -v "+" | awk '{print $2 " DFTypePattern_Gather"}'
+    grep -v "^#" $sfile | grep -v "+" | awk '{print $2 " dfTypePattern_Gather"}'
 else
     echo "file not found: $sfile"
     exit -1

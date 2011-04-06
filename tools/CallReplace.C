@@ -50,11 +50,13 @@ char* CallReplace::getWrapperName(uint32_t idx){
     return both;
 }
 
-CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* libList, char* ext, bool lpi, bool dtl)
+CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* libList, char* ext, bool lpi, bool dtl, bool doI)
     : InstrumentationTool(elf, ext, 0, lpi, dtl)
 {
     programEntry = NULL;
     programExit = NULL;
+
+    doIntro = doI;
 
     functionList = new Vector<char*>();
     initializeFileList(traceFile, functionList);
@@ -103,10 +105,12 @@ void CallReplace::declare(){
     }
 
     // declare any instrumentation functions that will be used
-    programEntry = declareFunction(PROGRAM_ENTRY);
-    ASSERT(programEntry);
-    programExit = declareFunction(PROGRAM_EXIT);
-    ASSERT(programExit);
+    if (doIntro){
+        programEntry = declareFunction(PROGRAM_ENTRY);
+        ASSERT(programEntry);
+        programExit = declareFunction(PROGRAM_EXIT);
+        ASSERT(programExit);
+    }
 
     for (uint32_t i = 0; i < (*functionList).size(); i++){
         functionWrappers.append(declareFunction(getWrapperName(i)));
@@ -126,20 +130,23 @@ void CallReplace::instrument(){
         lineInfoFinder = getLineInfoFinder();
     }
 
-    InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
-    ASSERT(p);
-    if (!p->getInstBaseAddress()){
-        PRINT_ERROR("Cannot find an instrumentation point at the exit function");
-    }
-
-    p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
-    ASSERT(p);
-    if (!p->getInstBaseAddress()){
-        PRINT_ERROR("Cannot find an instrumentation point at the exit function");
-    }
-
     uint64_t siteIndex = reserveDataOffset(sizeof(uint32_t));
-    programEntry->addArgument(siteIndex);
+
+    if (doIntro){
+        InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+        ASSERT(p);
+        if (!p->getInstBaseAddress()){
+            PRINT_ERROR("Cannot find an instrumentation point at the exit function");
+        }
+
+        p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+        ASSERT(p);
+        if (!p->getInstBaseAddress()){
+            PRINT_ERROR("Cannot find an instrumentation point at the exit function");
+        }
+
+        programEntry->addArgument(siteIndex);
+    }
 
     Vector<X86Instruction*> myInstPoints;
     Vector<uint32_t> myInstList;
@@ -151,7 +158,7 @@ void CallReplace::instrument(){
         
         if (instruction->isFunctionCall()){
             Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol(instruction->getTargetAddress());
-
+            
             if (functionSymbol){
                 //PRINT_INFOR("looking for function %s", functionSymbol->getSymbolName());
                 uint32_t funcIdx = searchFileList(functionList, functionSymbol->getSymbolName());
@@ -174,22 +181,24 @@ void CallReplace::instrument(){
     ASSERT(myInstPoints.size() == myInstList.size());
     ASSERT(myLineInfos.size() == myInstList.size());
 
-    uint64_t fileNames = reserveDataOffset(sizeof(char*) * myInstList.size());
-    uint64_t lineNumbers = reserveDataOffset(sizeof(uint32_t) * myInstList.size());
-    for (uint32_t i = 0; i < myInstList.size(); i++){
-        uint32_t line = 0;
-        char* fname = NOSTRING;
-        if (myLineInfos[i]){
-            line = myLineInfos[i]->GET(lr_line);
-            fname = myLineInfos[i]->getFileName();
+    if (doIntro){
+        uint64_t fileNames = reserveDataOffset(sizeof(char*) * myInstList.size());
+        uint64_t lineNumbers = reserveDataOffset(sizeof(uint32_t) * myInstList.size());
+        for (uint32_t i = 0; i < myInstList.size(); i++){
+            uint32_t line = 0;
+            char* fname = NOSTRING;
+            if (myLineInfos[i]){
+                line = myLineInfos[i]->GET(lr_line);
+                fname = myLineInfos[i]->getFileName();
+            }
+            uint64_t filenameaddr = getInstDataAddress() + reserveDataOffset(strlen(fname) + 1);
+            initializeReservedData(getInstDataAddress() + fileNames + i*sizeof(char*), sizeof(char*), &filenameaddr);
+            initializeReservedData(filenameaddr, strlen(fname), fname);
+            initializeReservedData(getInstDataAddress() + lineNumbers + i*sizeof(uint32_t), sizeof(uint32_t), &line);
         }
-        uint64_t filenameaddr = getInstDataAddress() + reserveDataOffset(strlen(fname) + 1);
-        initializeReservedData(getInstDataAddress() + fileNames + i*sizeof(char*), sizeof(char*), &filenameaddr);
-        initializeReservedData(filenameaddr, strlen(fname), fname);
-        initializeReservedData(getInstDataAddress() + lineNumbers + i*sizeof(uint32_t), sizeof(uint32_t), &line);
+        programEntry->addArgument(fileNames);
+        programEntry->addArgument(lineNumbers);
     }
-    programEntry->addArgument(fileNames);
-    programEntry->addArgument(lineNumbers);
 
     for (uint32_t i = 0; i < myInstPoints.size(); i++){
         PRINT_INFOR("(site %d) %#llx: replacing call %s -> %s in function %s", i, myInstPoints[i]->getBaseAddress(), getFunctionName(myInstList[i]), getWrapperName(myInstList[i]), myInstPoints[i]->getContainer()->getName());
