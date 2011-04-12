@@ -64,7 +64,9 @@ int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uin
     numberOfBasicBlocks = *numblocks;
     blockCounters = counters;
     blockIsKilled = killed;
+#ifdef STATS_PER_INSTRUCTION
     insnToBlock = insnMap;
+#endif
     numberKilled = 0;
 
     instpoint_info* ip;
