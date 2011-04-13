@@ -446,6 +446,8 @@ public:
     bool isIndirectBranch();
     uint32_t getIndirectBranchTarget();
 
+    uint32_t countExplicitOperands();
+
     bool isFloatPOperation();
     bool isIntegerOperation();
     bool isStringOperation();

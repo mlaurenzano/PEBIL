@@ -117,6 +117,7 @@ protected:
     HashCode hashCode;
     //    MemoryOperation** memoryOps;
     uint32_t flags;
+    uint32_t defXIterCount;
 public:
     BasicBlock(uint32_t idx, FlowGraph* cfg);
     ~BasicBlock() {}
@@ -183,10 +184,14 @@ public:
     void setNoPath()   { flags |= NoPathMask; }
     void setCmpCtrlSplit() { flags |= CmpCtrlSplitMask; }
 
+    void setDefXIter(uint32_t defcnt) { defXIterCount = defcnt; }
+    uint32_t getDefXIter() { return defXIterCount; }
+
     void setIndex(uint32_t idx);
 
     bool isUnreachable() { return isNoPath(); }
     bool isReachable() { return !isNoPath(); }
+    bool endsWithCall();
 
     HashCode getHashCode() { return hashCode; }
 

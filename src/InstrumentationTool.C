@@ -171,6 +171,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
         fprintf(staticFD, "# +mem <total_mem_op> <total_mem_bytes> <bytes/op>\n");
         fprintf(staticFD, "# +lpc <loop_head> <parent_loop_head>\n");
         fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...\n");
+        fprintf(staticFD, "# +dxi <count_def_use_cross> <count_call>\n");
     }
 
     uint32_t noInst = 0;
@@ -241,8 +242,8 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
             uint32_t currINT = 0;
             uint32_t currFP = 0;
             uint32_t currDist = 1;
-            fprintf(staticFD, "\t+dud");
 
+            fprintf(staticFD, "\t+dud");
             while (currDist < MAX_DEF_USE_DIST_PRINT){
                 for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
                     if (bb->getInstruction(k)->getDefUseDist() == currDist){
@@ -261,6 +262,8 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
                 currFP = 0;
             }
             fprintf(staticFD, " # %#llx\n", bb->getHashCode().getValue());
+
+            fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", bb->getDefXIter(), bb->endsWithCall(), bb->getHashCode().getValue());
         }
     }
     fclose(staticFD);

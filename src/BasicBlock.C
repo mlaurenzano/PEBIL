@@ -29,6 +29,10 @@
 
 static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
 
+bool BasicBlock::endsWithCall(){
+    return  instructions.back()->isCall();
+}
+
 uint32_t BasicBlock::getNumberOfMemoryBytes(){
     uint32_t byteCount = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
@@ -538,6 +542,7 @@ BasicBlock::BasicBlock(uint32_t idx, FlowGraph* cfg)
     type = PebilClassType_BasicBlock;
 
     flags = 0;
+    defXIterCount = 0;
     immDominatedBy = NULL;
 
     ASSERT(flowGraph);

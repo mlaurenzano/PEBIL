@@ -58,6 +58,15 @@ void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg){
     comp->adr_mode = reg->adr_mode;
 }
 
+uint32_t X86Instruction::countExplicitOperands(){
+    uint32_t opCount = 0;
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (getOperand(i)){
+            opCount++;
+        }
+    }
+    return opCount;
+}
 
 bool X86Instruction::isLoad(){
     if (isStackPop()){
@@ -350,11 +359,15 @@ void X86Instruction::usesRegisters(BitSet<uint32_t>* regs){
         }
     }
     if (isIntegerOperation() || isFloatPOperation()){
-        if (operands[ALU_SRC1_OPERAND]){
-            operands[ALU_SRC1_OPERAND]->touchedRegisters(regs);
+        if (countExplicitOperands() > 1){
+            if (operands[ALU_SRC1_OPERAND]){
+                operands[ALU_SRC1_OPERAND]->touchedRegisters(regs);
+            }
         }
-        if (operands[ALU_SRC2_OPERAND]){
-            operands[ALU_SRC2_OPERAND]->touchedRegisters(regs);
+        if (countExplicitOperands() > 0){
+            if (operands[ALU_SRC2_OPERAND]){
+                operands[ALU_SRC2_OPERAND]->touchedRegisters(regs);
+            }
         }
     }
     impliedUses(regs);
@@ -368,8 +381,10 @@ void X86Instruction::defsRegisters(BitSet<uint32_t>* regs){
         }
     }
     if (isIntegerOperation() || isFloatPOperation()){
-        if (operands[ALU_DEST_OPERAND] && operands[ALU_DEST_OPERAND]->getType() == UD_OP_REG){
-            operands[ALU_DEST_OPERAND]->touchedRegisters(regs);
+        if (!isConditionCompare() && countExplicitOperands() > 1){
+            if (operands[ALU_DEST_OPERAND] && operands[ALU_DEST_OPERAND]->getType() == UD_OP_REG){
+                operands[ALU_DEST_OPERAND]->touchedRegisters(regs);
+            }
         }
     }
     impliedDefs(regs);
@@ -2223,6 +2238,7 @@ void X86Instruction::setImpliedRegs(){
     __set_impreg(UD_Ifadd,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
     __set_impreg(UD_Ifaddp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
     __set_impreg(UD_Ifiadd, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Iidiv,  1, iuse(X86_REG_AX)  idef(X86_REG_AX))
 
     /*
       // 4 other types for all of these string ops -- *sb, *sw, *sd, *sq
