@@ -29,7 +29,7 @@
 
 uint32_t map64BitArgToReg(uint32_t idx){
     uint32_t argumentRegister;
-    ASSERT(idx < Num__64_bit_StackArgs);
+    ASSERT(idx <= Num__64_bit_StackArgs);
 
     // use GPRs rdi,rsi,rdx,rcx,r8,r9, then push onto stack                                                                                                  
     switch(idx){
@@ -655,12 +655,12 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     if (assumeFunctionFP){
         wrapperInstructions.append(X86InstructionFactory64::emitFxSave(fxStorage));
     }
-    ASSERT(arguments.size() < Num__64_bit_StackArgs && "More arguments must be pushed onto stack, which is not yet implemented"); 
+    ASSERT(arguments.size() <= Num__64_bit_StackArgs && "More arguments must be pushed onto stack, which is not yet implemented"); 
     
     for (uint32_t i = 0; i < arguments.size(); i++){
         uint32_t idx = arguments.size() - i - 1;
         
-        if (i < Num__64_bit_StackArgs){
+        if (i <= Num__64_bit_StackArgs){
             uint32_t argumentRegister = map64BitArgToReg(idx);            
             wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
         } else {
