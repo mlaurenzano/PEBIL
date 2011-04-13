@@ -123,6 +123,7 @@ public:
     void setStaticLinked(bool val) { staticLinked = val; }
     void swapSections(uint32_t idx1, uint32_t idx2);
 
+    void printDynamicLibraries();
     uint32_t getAddressAlignment(){ if (is64Bit()) { return sizeof(uint64_t); } else { return sizeof(uint32_t); } }
     void gatherDisassemblyStats();
 

@@ -22,6 +22,7 @@
 #include <BasicBlockCounter.h>
 #include <CacheSimulation.h>
 #include <CallReplace.h>
+#include <DynamicTable.h>
 #include <ElfFile.h>
 #include <FunctionCounter.h>
 #include <FunctionTimer.h>
@@ -536,6 +537,7 @@ int main(int argc,char* argv[]){
     elfInst->print(Print_Code_Instrumentation);
     TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Instr   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
     
+    elfFile.printDynamicLibraries();
     if (verbose){
         elfInst->print(printCodes);
         TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
@@ -552,7 +554,6 @@ int main(int argc,char* argv[]){
     // call the CallReplace destructor in this case without the cast. 
     if (instType == call_wrapper_type){
         delete (CallReplace*)elfInst;
-        //        delete (CallReplace*)elfInst;
     } else if (instType == simulation_inst_type){
         delete (CacheSimulation*)elfInst;
     } else if (instType == throttle_loop_type){
