@@ -734,6 +734,11 @@ void ElfFile::initSectionFilePointers(){
 
 }
 
+void ElfFile::printDynamicLibraries(){
+    if (dynamicTable){
+        dynamicTable->printSharedLibraries();
+    }
+}
 
 void ElfFile::initDynamicFilePointers(){
 
@@ -1036,7 +1041,7 @@ void ElfFile::print(uint32_t printCodes)
         PRINT_INFOR("=============");
         if (dynamicTable){
             dynamicTable->print();
-            dynamicTable->printSharedLibraries(&binaryInputFile);
+            dynamicTable->printSharedLibraries();
         } else {
             PRINT_WARN(4,"\tNo Dynamic Table Found");
         }

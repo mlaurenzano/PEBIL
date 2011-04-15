@@ -92,7 +92,7 @@ public:
     ~DynamicTable();
 
     void print();
-    void printSharedLibraries(BinaryInputFile* b);
+    void printSharedLibraries();
     uint32_t read(BinaryInputFile* b);
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 

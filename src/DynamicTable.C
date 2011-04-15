@@ -127,12 +127,12 @@ void DynamicTable::relocateStringTable(uint64_t newAddr){
 }
 
 
-void DynamicTable::printSharedLibraries(BinaryInputFile* b){
+void DynamicTable::printSharedLibraries(){
     Dynamic* dyn;
     uint64_t strTabAddr = getDynamicByType(DT_STRTAB,0)->GET_A(d_ptr,d_un);
     StringTable* strTab = NULL;
 
-    PRINT_INFOR("SharedLibDeps : %d",countDynamics(DT_NEEDED));
+    PRINT_INFOR("%d Shared Library Dependencies", countDynamics(DT_NEEDED));
 
     // locate the stringTable being referred to by strTabAddr
     for (uint32_t i = 0; i < elfFile->getNumberOfStringTables(); i++){
@@ -152,7 +152,7 @@ void DynamicTable::printSharedLibraries(BinaryInputFile* b){
             dyn = (Dynamic32*)dynamics[i];
         }
         if (dyn->GET(d_tag) == DT_NEEDED){
-            PRINT_INFOR("\tlib%5d -- %s",i,strTab->getString(dyn->GET_A(d_ptr,d_un)));
+            PRINT_INFOR("\t\t[%5d] %s", i, strTab->getString(dyn->GET_A(d_ptr,d_un)));
         }
     }
 
