@@ -394,14 +394,14 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
     ASSERT(currentByte <= operatedFunction->getNumberOfBytes() && "Function is not big enough to relocate");
 
     Function* placeHolder = new Function(text, operatedFunction->getIndex(), operatedFunction->getFunctionSymbol(), functionSize);
-    /*
+
     Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors(operatedFunction->getBaseAddress());
     for (uint32_t i = 0; i < modAnchors->size(); i++){
         (*modAnchors)[i]->updateLink((*trampEmpty).back());
         elfFile->setAnchorsSorted(false);
     }
     delete modAnchors;
-    */
+
     // we dont want the above search to find this anchor, so we add after the search is done
     (*(elfFile->getAddressAnchors())).append(connector->getAddressAnchor());
 
