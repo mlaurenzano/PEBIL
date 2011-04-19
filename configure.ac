@@ -13,12 +13,6 @@ AC_PROG_CC
 AC_PROG_FC
 AC_PROG_CPP
 
-AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Use static archives for instrumentation libraries [no]]), static_ok=$enableval)
-if test "$static_ok" = "yes"; then
-   STATIC_INST_LIB="yes"
-fi
-AC_SUBST(STATIC_INST_LIB)
-
 AC_ARG_ENABLE(mpi, AC_HELP_STRING([--enable-mpi], [Use mpi compiler when building instrumentation libraries [yes]]), mpi_ok=$enableval)
 if test "$mpi_ok" = "no"; then
    MPICC="$CC"
@@ -35,6 +29,17 @@ else
    ACX_MPI
    AC_LANG_POP()
    MPI_FLAGS="-DHAVE_MPI"
+fi
+
+AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Use static archives for instrumentation libraries [no]]), static_ok=$enableval)
+if test "$static_ok" = "yes"; then
+   STATIC_INST_LIB="yes"
+fi
+AC_SUBST(STATIC_INST_LIB)
+
+AC_ARG_ENABLE(instruction_trace, AC_HELP_STRING([--enable-instruction-trace], [Collect simulation stats per instruction [no]]), perinsn_ok=$enableval)
+if test "$perinsn_ok" = "yes"; then
+   MPI_FLAGS="$MPI_FLAGS -DSTATS_PER_INSTRUCTION"
 fi
 
 AC_ARG_ENABLE(mpiinit_check, AC_HELP_STRING([--enable-mpiinit-check], [Disable output file printing in inst libraries unless mpi_init is executed [no]]), mpiinit_check_ok=$enableval)

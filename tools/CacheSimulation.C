@@ -41,7 +41,6 @@
 #define BUFFER_ENTRIES (USABLE_BUFFER_SIZE + MAX_MEMOPS_PER_BLOCK)
 
 //#define DISABLE_BLOCK_COUNT
-//#define STATS_PER_INSTRUCTION
 
 void CacheSimulation::usesModifiedProgram(){
     X86Instruction* nop5Byte = X86InstructionFactory::emitNop(Size__uncond_jump);
@@ -269,7 +268,7 @@ void CacheSimulation::instrument(){
     uint64_t commentStore = reserveDataOffset(commentSize);
     char* comment = new char[commentSize];
 #ifdef STATS_PER_INSTRUCTION
-    sprintf(comment, "%s %u %sinsn %u %u", appName, phaseId, extension, getNumberOfExposedInstructions(), dumpCode);
+    sprintf(comment, "%s %u insn.%s %u %u", appName, phaseId, extension, getNumberOfExposedInstructions(), dumpCode);
     char insnMapName[__MAX_STRING_SIZE];
     sprintf(insnMapName, "%s.%s.perinsn", getFullFileName(), extension);
     FILE* perInsnMap = fopen(insnMapName, "w");

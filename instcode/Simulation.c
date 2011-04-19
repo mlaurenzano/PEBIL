@@ -41,7 +41,6 @@ uint64_t* blockCounters;
 #define ENABLE_INSTRUMENTATION_KILL
 //#define DEBUG_INST_KILL
 //#define PRINT_ADDRESS_STREAM
-//#define STATS_PER_INSTRUCTION
 
 void tool_mpi_init(){}
 
