@@ -267,15 +267,13 @@ void CacheSimulation::instrument(){
     uint32_t commentSize = strlen(appName) + sizeof(uint32_t) + strlen(extension) + sizeof(uint32_t) + sizeof(uint32_t) + 4;
     uint64_t commentStore = reserveDataOffset(commentSize);
     char* comment = new char[commentSize];
+    sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedInstructions(), dumpCode);
 #ifdef STATS_PER_INSTRUCTION
-    sprintf(comment, "%s %u insn.%s %u %u", appName, phaseId, extension, getNumberOfExposedInstructions(), dumpCode);
     char insnMapName[__MAX_STRING_SIZE];
     sprintf(insnMapName, "%s.%s.perinsn", getFullFileName(), extension);
     FILE* perInsnMap = fopen(insnMapName, "w");
     fprintf(perInsnMap, "#blockid\torig_blockid\torig_memopid\n");
     Vector<int32_t> insnToBlock;
-#else
-    sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedBasicBlocks(), dumpCode);
 #endif
     initializeReservedData(getInstDataAddress() + commentStore, commentSize, comment);
 

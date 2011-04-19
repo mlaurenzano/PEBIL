@@ -900,6 +900,12 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
         fprintf(fp,"# shiftaddr = no\n");
 #endif
 
+#ifdef STATS_PER_INSTRUCTION
+        fprintf(fp, "# statsperinsn = yes\n");
+#else
+        fprintf(fp, "# statsperinsn = no\n");
+#endif
+
         fprintf(fp,"#\n");
         for(j=0;j<systemCount;j++){
             MemoryHierarchy* memoryHierarchy = (systems + j);
