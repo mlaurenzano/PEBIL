@@ -43,21 +43,28 @@ showme:
 	ldd `which pebil`
 
 check: showme $(IDETGT) $(JBBTGT) $(SIMTGT)
+PEBIL_COMMAND = pebil --silent --typ
+FILTER_PEBIL_MSGS = grep -v "\-\["
+OUT = outp
+
 %.ideinst: %
-	pebil --typ ide --app $<
+	$(PEBIL_COMMAND) ide --app $<
 	diff $< $@
-	./$@
-	./$<
+	./$@ > $@.$(OUT)
+	./$< > $<.$(OUT)
+	diff $<.$(OUT) $@.$(OUT)
 
 %.jbbinst: %
-	pebil --typ jbb --app $< --dtl
-	./$@
-	./$<
+	$(PEBIL_COMMAND) jbb --app $<
+	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
+	./$< > $<.$(OUT)
+	diff $<.$(OUT) $@.$(OUT)
 
 %.siminst: %
-	pebil --typ sim --app $< --inp /dev/null --dtl
-	./$@
-	./$<
+	$(PEBIL_COMMAND) sim --app $< --inp /dev/null
+	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
+	./$< > $<.$(OUT)
+	diff $<.$(OUT) $@.$(OUT)
 
 clean: 
-	rm -f *.o $(TARGETS) *.jbbinst *.loopcnt *.siminst *.ideinst *.static
+	rm -f *.o $(TARGETS) *.jbbinst *.loopcnt *.siminst *.ideinst *.static *.$(OUT)

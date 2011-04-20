@@ -9,7 +9,7 @@ endif
 
 LIB_TARGETS = $(PEBIL_LIBS)
 MPICC       = @MPICC@
-CFLAGS      = @CFLAGS@
+CFLAGS      = @CFLAGS@ @MPI_FLAGS@ -DPER_SET_RECENT -DSHIFT_ADDRESS_BUFFER
 
 SHARED_OPT  = -fPIC
 EXTRA_FLAGS = $(SHARED_OPT)
@@ -19,10 +19,9 @@ AR          = ar rcs
 #### -DNO_SAMPLING_MODE    : Add to disable sampling (note that MAX visit count is still on).
 #### -DEXTENDED_SAMPLING   : Add to vary the ignore and sampling intervals during sampling
 #### -DFINE_GRAIN_SAMPLING : Add to increase the granularity of sampling. Smaller intervals.
-#### -DPER_SET_RECENT      : Add to simulcate LRU using per set most recent entry for replacement
-#EXTRA_DEF = -DNO_SAMPLING_MODE -DPER_SET_RECENT -DSHIFT_ADDRESS_BUFFER @MPI_FLAGS@ # default for MultiMAPS tracing
-EXTRA_DEF = -DEXTENDED_SAMPLING -DPER_SET_RECENT -DSHIFT_ADDRESS_BUFFER @MPI_FLAGS@ # default for application tracing
-#EXTRA_DEF = -DIGNORE_ACTUAL_SIMULATION -DNO_SAMPLING_MODE -DPER_SET_RECENT -DSHIFT_ADDRESS_BUFFER @MPI_FLAGS@ # no simulation
+#EXTRA_DEF = -DNO_SAMPLING_MODE # default for MultiMAPS tracing
+EXTRA_DEF = -DEXTENDED_SAMPLING # default for application tracing
+#EXTRA_DEF = -DIGNORE_ACTUAL_SIMULATION -DNO_SAMPLING_MODE # no simulation
 
 EXTRA_LIBS  =
 EXTRA_INC   = -I../instcode

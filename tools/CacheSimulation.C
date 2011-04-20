@@ -267,7 +267,14 @@ void CacheSimulation::instrument(){
     uint32_t commentSize = strlen(appName) + sizeof(uint32_t) + strlen(extension) + sizeof(uint32_t) + sizeof(uint32_t) + 4;
     uint64_t commentStore = reserveDataOffset(commentSize);
     char* comment = new char[commentSize];
-    sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedBasicBlocks(), dumpCode);
+    sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedInstructions(), dumpCode);
+#ifdef STATS_PER_INSTRUCTION
+    char insnMapName[__MAX_STRING_SIZE];
+    sprintf(insnMapName, "%s.%s.perinsn", getFullFileName(), extension);
+    FILE* perInsnMap = fopen(insnMapName, "w");
+    fprintf(perInsnMap, "#blockid\torig_blockid\torig_memopid\n");
+    Vector<int32_t> insnToBlock;
+#endif
     initializeReservedData(getInstDataAddress() + commentStore, commentSize, comment);
 
     simFunc->addArgument(bufferStore);
@@ -280,6 +287,7 @@ void CacheSimulation::instrument(){
 
     uint64_t counterArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(uint64_t));
     uint64_t killedArray = reserveDataOffset(getNumberOfExposedBasicBlocks() * sizeof(char));
+
 
     InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp);
     ASSERT(p);
@@ -297,6 +305,7 @@ void CacheSimulation::instrument(){
 
     uint32_t blockId = 0;
     uint32_t memopId = 0;
+    uint32_t instructionId = 0;
     uint32_t regDefault = 0;
 
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
@@ -365,9 +374,16 @@ void CacheSimulation::instrument(){
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
                             
                             // fill the buffer entry with this block's info
+#ifdef STATS_PER_INSTRUCTION
+                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
+                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
+                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(instructionId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
+                            fprintf(perInsnMap, "%d\t%d\t%d\n", instructionId, blockId, memopIdInBlock); instructionId++; insnToBlock.append(blockId);
+#else //STATS_PER_INSTRUCTION
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
+#endif //STATS_PER_INSTRUCTION
                             // update the buffer counter
                             uint32_t maxMemopsInSuccessor = MAX_MEMOPS_PER_BLOCK;
                             ASSERT(bb->getNumberOfMemoryOps() < MAX_MEMOPS_PER_BLOCK);
@@ -422,9 +438,16 @@ void CacheSimulation::instrument(){
                             snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
                             
                             // fill the buffer entry with this block's info
+#ifdef STATS_PER_INSTRUCTION
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(instructionId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
+                            fprintf(perInsnMap,	"%d\t%d\t%d\n",	instructionId, blockId, memopIdInBlock); instructionId++; insnToBlock.append(blockId);
+#else //STATS_PER_INSTRUCTION
                             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
                             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
                             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
+#endif //STATS_PER_INSTRUCTION
                             if (usesLiveReg){
                                 snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t), tmpReg2, true));
                                 snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t), tmpReg1, true));
@@ -469,9 +492,16 @@ void CacheSimulation::instrument(){
                             (*bufferDumpInstructions).append(X86InstructionFactory32::emitLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
                             
                             // fill the buffer entry with this block's info
+#ifdef STATS_PER_INSTRUCTION
+                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
+                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
+                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(instructionId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
+                            fprintf(perInsnMap,	"%d\t%d\t%d\n",	instructionId, blockId, memopIdInBlock); instructionId++; insnToBlock.append(blockId);
+#else //STATS_PER_INSTRUCTION
                             (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
                             (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
                             (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
+#endif //STATS_PER_INSTRUCTION
                             // update the buffer counter
                             uint32_t maxMemopsInSuccessor = MAX_MEMOPS_PER_BLOCK;
                             ASSERT(bb->getNumberOfMemoryOps() < MAX_MEMOPS_PER_BLOCK);
@@ -526,9 +556,16 @@ void CacheSimulation::instrument(){
                             snip->addSnippetInstruction(X86InstructionFactory32::emitLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
                             
                             // fill the buffer entry with this block's info
+#ifdef STATS_PER_INSTRUCTION
+                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
+                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
+                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(instructionId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
+                            fprintf(perInsnMap,	"%d\t%d\t%d\n",	instructionId, blockId, memopIdInBlock); instructionId++; insnToBlock.append(blockId);
+#else //STATS_PER_INSTRUCTION
                             snip->addSnippetInstruction(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
                             snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
                             snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
+#endif //STATS_PER_INSTRUCTION
                             if (usesLiveReg){
                                 snip->addSnippetInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t), tmpReg2));
                                 snip->addSnippetInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t), tmpReg1));
@@ -595,6 +632,11 @@ void CacheSimulation::instrument(){
     entryFunc->addArgument(blockCount);
     entryFunc->addArgument(counterArray);
     entryFunc->addArgument(killedArray);
+#ifdef STATS_PER_INSTRUCTION
+    uint64_t mapArray = reserveDataOffset(sizeof(int32_t) * insnToBlock.size());
+    initializeReservedData(getInstDataAddress() + mapArray, sizeof(int32_t) * insnToBlock.size(), &insnToBlock);
+    entryFunc->addArgument(mapArray);
+#endif
 
 #ifdef NO_REG_ANALYSIS
     PRINT_WARN(10, "Warning: register analysis disabled");
@@ -604,6 +646,9 @@ void CacheSimulation::instrument(){
     if(dfpSet.size()){
         printDFPStaticFile(allBlocks, allBlockIds, allLineInfos);
     }
+#ifdef STATS_PER_INSTRUCTION
+    fclose(perInsnMap);
+#endif
 
     delete allBlocks;
     delete allBlockIds;

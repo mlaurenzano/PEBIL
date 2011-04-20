@@ -40,6 +40,7 @@ uint64_t* blockCounters;
 
 #define ENABLE_INSTRUMENTATION_KILL
 //#define DEBUG_INST_KILL
+//#define PRINT_ADDRESS_STREAM
 
 void tool_mpi_init(){}
 
@@ -51,12 +52,20 @@ void clearBlockCounters(){
 // for "first hit" on every buffer dump
 // PROBLEM^^ on some systems (cray XT) it is unsafe to call functions
 // from the entry function
+#ifdef STATS_PER_INSTRUCTION
+int32_t* insnToBlock;
+int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uint64_t* counters, char* killed, int32_t* insnMap){
+#else
 int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uint64_t* counters, char* killed){
+#endif
     instrumentationPoints = instpoints;
     numberOfInstrumentationPoints = *numpoints;
     numberOfBasicBlocks = *numblocks;
     blockCounters = counters;
     blockIsKilled = killed;
+#ifdef STATS_PER_INSTRUCTION
+    insnToBlock = insnMap;
+#endif
     numberKilled = 0;
 
     instpoint_info* ip;
@@ -483,8 +492,8 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
         char      extension[__MAX_STRING_SIZE];
 
         sscanf(comment,"%s %u %s %u %u",appName,&phaseId,extension,&blockCount,&dumpCode);
-        //PRINT_INSTR(stdout, "comment handled -- %s %u %s %u %u", appName, phaseId, extension, blockCount, dumpCode);
-        // PRINT_INSTR(stdout, "%d blocks, %d entries in buffer, lastFree %d", blockCount, *entryCountPtr, entries->lastFreeIdx);
+        PRINT_INSTR(stdout, "comment handled -- %s %u %s %u %u", appName, phaseId, extension, blockCount, dumpCode);
+        //PRINT_INSTR(stdout, "%d blocks, %d entries in buffer, lastFree %d", blockCount, *entryCountPtr, entries->lastFreeIdx);
 
         blocks = (BasicBlockInfo*)malloc(sizeof(BasicBlockInfo) * blockCount);
         bzero(blocks,sizeof(BasicBlockInfo)*blockCount);
@@ -627,6 +636,9 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             firstRecordForBB = 1;
         }
 #ifdef SHIFT_ADDRESS_BUFFER
+#ifdef PRINT_ADDRESS_STREAM
+        PRINT_INSTR(stdout, "current entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
+#endif
         if(currentBlock->visitCount <= __MAXIMUM_BLOCK_VISIT){
             if(i != shiftIdx){
                 entries[shiftIdx] = entries[i];
@@ -660,7 +672,9 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             }
 #endif // ENABLE_INSTRUMENTATION_KILL
         } else {
-            //PRINT_INSTR(stdout, "current entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
+#ifdef PRINT_ADDRESS_STREAM
+            PRINT_INSTR(stdout, "current entry: %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
+#endif
             if(currentEntry->address == INVALID_ADDRESS){
                 assert(0 && "Fatal: Dangerous for assumption that addr can not be 0");
             }
@@ -886,6 +900,12 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
         fprintf(fp,"# shiftaddr = no\n");
 #endif
 
+#ifdef STATS_PER_INSTRUCTION
+        fprintf(fp, "# statsperinsn = yes\n");
+#else
+        fprintf(fp, "# statsperinsn = no\n");
+#endif
+
         fprintf(fp,"#\n");
         for(j=0;j<systemCount;j++){
             MemoryHierarchy* memoryHierarchy = (systems + j);
@@ -916,8 +936,11 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
             currentBlock = (blocks + i);
             if(blocks && currentBlock->sampleCount){
 
+#ifdef STATS_PER_INSTRUCTION
+                fprintf(fp,"block\t%d\t%llu\t%lld\t%lld\n",i,blockCounters[insnToBlock[i]],currentBlock->visitCount,currentBlock->sampleCount);
+#else
                 fprintf(fp,"block\t%d\t%llu\t%lld\t%lld\n",i,blockCounters[i],currentBlock->visitCount,currentBlock->sampleCount);
-
+#endif
                 for(j=0;j<systemCount;j++){
                     MemoryHierarchy* memoryHierarchy = (systems + j);
                     for(k=0;k<memoryHierarchy->levelCount;k++){
