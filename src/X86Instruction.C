@@ -637,6 +637,10 @@ uint32_t X86Instruction::convertTo4ByteTargetOperand(){
 
     if (bytesUsedForTarget() && bytesUsedForTarget() < sizeof(uint32_t)){
         if (isUnconditionalBranch()){
+            if (sizeInBytes != 2){
+                print();
+                PRINT_INFOR("faulty instruction location: function %s addr %#llx", getContainer()->getName(), getProgramAddress());
+            }
             ASSERT(sizeInBytes == 2); // we expect a single byte for the opcode and a single byte for the target offset
             if (!addressAnchor){
                 print();
