@@ -95,8 +95,12 @@ void CacheSimulation::filterBBs(){
         BasicBlock* bb = findExposedBasicBlock(*hashCode);
         delete hashCode;
 
-        ASSERT(bb && "cannot find basic block for hash code found in input file");
-        blocksToInst.insert(blockHash, bb);
+        if (!bb){
+            PRINT_WARN(10, "cannot find basic block for hash code %#llx found in input file", blockHash);
+        } else {
+            //        ASSERT(bb && "cannot find basic block for hash code found in input file");
+            blocksToInst.insert(blockHash, bb);
+        }
     }
     for (uint32_t i = 0; i < (*fileLines).size(); i++){
         delete[] (*fileLines)[i];
