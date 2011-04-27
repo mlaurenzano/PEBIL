@@ -115,7 +115,7 @@ struct ud_operand
 {
   enum ud_type		type;
   uint8_t		size;
-  uint8_t               position; // X86INST
+  uint8_t               position; /* PEBIL */
   union {
 	int8_t		sbyte;
 	uint8_t		ubyte;

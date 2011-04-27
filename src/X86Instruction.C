@@ -257,6 +257,12 @@ bool X86Instruction::isConditionCompare(){
 
     if ((m == UD_Icmp) ||
         (m == UD_Itest) ||
+        (m == UD_Iptest) ||
+        (m == UD_Iftst) ||
+        (m == UD_Ibt) ||
+        (m == UD_Ibtc) ||
+        (m == UD_Ibtr) ||
+        (m == UD_Ibts) ||
         (m == UD_Icmppd) ||
         (m == UD_Icmpps) ||
         (m == UD_Icmpsb) ||
@@ -272,6 +278,7 @@ bool X86Instruction::isConditionCompare(){
         (m == UD_Ipcmpgtb) ||
         (m == UD_Ipcmpgtw) ||
         (m == UD_Ipcmpgtd) ||
+        (m == UD_Ipcmpgtq) ||
         (m == UD_Ipfcmpge) ||
         (m == UD_Ipfcmpgt) ||
         (m == UD_Ipfcmpeq)){
@@ -998,10 +1005,21 @@ uint32_t X86Instruction::getInstructionType(){
 uint32_t X86Instruction::setInstructionType(){
     uint32_t optype = X86InstructionType_unknown;
     switch(GET(mnemonic)){
-        case UD_Ipalignr:
-        case UD_Ipshufb:
-        case UD_Iphaddd:
+        case UD_Impsadbw:
+        case UD_Iphminposuw:
+        case UD_Ipmuldq:
+        case UD_Idpps:
+        case UD_Idppd:
             optype = X86InstructionType_simd;
+            break; 
+        case UD_Ipblendvb:
+        case UD_Ipblendw:
+        case UD_Iblendvpd:
+        case UD_Iblendvps:
+        case UD_Iblendpd:
+        case UD_Iblendps:
+            optype = X86InstructionType_int;
+            break;
         case UD_Ipminsb:
         case UD_Ipminsd:
         case UD_Ipminuw:
@@ -1010,7 +1028,65 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ipmaxsd:
         case UD_Ipmaxuw:
         case UD_Ipmaxud:
+            optype = X86InstructionType_simd;
+            break;
+        case UD_Iroundps:
+        case UD_Iroundpd:
+        case UD_Iroundss:
+        case UD_Iroundsd:
+	    optype = X86InstructionType_simd;
+	    break;
+        case UD_Ipextrb:
+        case UD_Ipextrd:
+        case UD_Ipextrq:
+        case UD_Iextractps:
+        case UD_Ipinsrb:
+        case UD_Ipinsrd:
+        case UD_Ipinsrq:
+        case UD_Iinsertps:
+            optype = X86InstructionType_simd;
+            break;
+        case UD_Ipmovsxbw:
+        case UD_Ipmovsxbd:
+        case UD_Ipmovsxbq:
+        case UD_Ipmovsxwd:
+        case UD_Ipmovsxwq:
+        case UD_Ipmovsxdq:
+        case UD_Ipmovzxbw:
+        case UD_Ipmovzxbd:
+        case UD_Ipmovzxbq:
+        case UD_Ipmovzxwd:
+        case UD_Ipmovzxwq:
+        case UD_Ipmovzxdq:
+            optype = X86InstructionType_move;
+            break;
+        case UD_Iptest:
             optype = X86InstructionType_int;
+            break;
+        case UD_Ipcmpeqq:
+        case UD_Ipackusdw:
+            optype = X86InstructionType_simd;
+            break;
+        case UD_Imovntdqa:
+            optype = X86InstructionType_move;
+            break;
+        case UD_Ipcmpestrm:
+        case UD_Ipcmpestri:
+        case UD_Ipcmpistrm:
+        case UD_Ipcmpistri:
+            optype = X86InstructionType_simd;
+            break;
+        case UD_Ipcmpgtq:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ipclmulqdq:
+            optype = X86InstructionType_simd;
+            break;
+        case UD_Ipalignr:
+        case UD_Ipshufb:
+        case UD_Iphaddd:
+            optype = X86InstructionType_simd;
+            break;
         case UD_I3dnow:
             optype = X86InstructionType_special;
             break;
@@ -1519,6 +1595,8 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ipcmpgtb:
         case UD_Ipcmpgtw:
         case UD_Ipcmpgtd:
+            optype = X86InstructionType_int;
+            break;
         case UD_Ipextrw:
         case UD_Ipinsrw:
         case UD_Ipmaddwd:
@@ -1526,7 +1604,7 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ipmaxub:
         case UD_Ipminsw:
         case UD_Ipminub:
-            optype = X86InstructionType_int;
+            optype = X86InstructionType_simd;
             break;
         case UD_Ipmovmskb:
             optype = X86InstructionType_move;
@@ -1647,12 +1725,6 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Iretf:
             optype = X86InstructionType_return;
             break;
-        case UD_Iroundpd:
-        case UD_Iroundps:
-        case UD_Iroundsd:
-        case UD_Iroundss:
-	    optype = X86InstructionType_simd;
-	    break;
         case UD_Irsm:
             optype = X86InstructionType_special;
             break;
@@ -2243,6 +2315,13 @@ void X86Instruction::setImpliedRegs(){
     __set_impreg(UD_Ifaddp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
     __set_impreg(UD_Ifiadd, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
     __set_impreg(UD_Iidiv,  1, iuse(X86_REG_AX)  idef(X86_REG_AX))
+    __set_impreg(UD_Ipblendvb, 2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Iblendvpd, 2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Iblendvps, 2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Ipcmpestrm, 2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Ipcmpestri, 2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Ipcmpistrm, 2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Ipcmpistri, 2, iuse(X86_FPREG_XMM0))
 
     /*
       // 4 other types for all of these string ops -- *sb, *sw, *sd, *sq
@@ -2405,9 +2484,14 @@ void X86Instruction::setFlags()
     __reg_define(flags_usedef, UD_Ioutsb, __bit_shift(X86_FLAG_DF), 0);
     __reg_define(flags_usedef, UD_Ioutsw, __bit_shift(X86_FLAG_DF), 0);
     __reg_define(flags_usedef, UD_Ioutsd, __bit_shift(X86_FLAG_DF), 0);
+    __reg_define(flags_usedef, UD_Ipcmpestri, 0, __x86_flagset_alustd);
+    __reg_define(flags_usedef, UD_Ipcmpestrm, 0, __x86_flagset_alustd);
+    __reg_define(flags_usedef, UD_Ipcmpistri, 0, __x86_flagset_alustd);
+    __reg_define(flags_usedef, UD_Ipcmpistrm, 0, __x86_flagset_alustd);
     __reg_define(flags_usedef, UD_Ipopfw, 0, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT));
     __reg_define(flags_usedef, UD_Ipopfd, 0, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT));
     __reg_define(flags_usedef, UD_Ipopfq, 0, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT));
+    __reg_define(flags_usedef, UD_Iptest, 0, __x86_flagset_alustd);
     __reg_define(flags_usedef, UD_Ipushfw,__bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT), 0);
     __reg_define(flags_usedef, UD_Ipushfd,__bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT), 0);
     __reg_define(flags_usedef, UD_Ipushfq,__bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT), 0);
@@ -2457,6 +2541,7 @@ void X86Instruction::setFlags()
     __reg_define(flags_usedef, UD_Iscasw, __bit_shift(X86_FLAG_DF), 0);
     __reg_define(flags_usedef, UD_Iscasq, __bit_shift(X86_FLAG_DF), 0);
     __reg_define(flags_usedef, UD_Iscasd, __bit_shift(X86_FLAG_DF), 0);
+    __reg_define(flags_usedef, UD_Itest, 0, __x86_flagset_alustd);
 
     // these instructions have 2 versions: 1 is a string instruction that implicitly uses DF, the other is an SSE instruction
     if (GET(mnemonic) == UD_Imovsb || GET(mnemonic) == UD_Imovsw || GET(mnemonic) == UD_Imovsd || GET(mnemonic) == UD_Imovsq){

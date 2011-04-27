@@ -214,7 +214,7 @@ static int search_itab( struct ud * u )
             }
         }
 
-        /* X86INST */
+        /* PEBIL */
         /* 3byte opcodes */
         if ( 0x38 == curr ) {
             //printf("3byte opcode %hhx\n", curr);
@@ -241,7 +241,7 @@ static int search_itab( struct ud * u )
                 }
             }
         }
-        /* end X86INST */
+        /* end PEBIL */
 
     /* pick an instruction from the 1byte table */
     } else {
@@ -422,7 +422,7 @@ static int resolve_mnemonic( struct ud* u )
 static void 
 decode_a(struct ud* u, struct ud_operand *op)
 {
-  op->position = ud_insn_len(u); // X86INST
+  op->position = ud_insn_len(u); /* PEBIL */
   if (u->opr_mode == 16) {  
     /* seg16:off16 */
     op->type = UD_OP_PTR;
@@ -528,7 +528,7 @@ resolve_reg(struct ud* u, unsigned int type, unsigned char i)
 static void 
 decode_imm(struct ud* u, unsigned int s, struct ud_operand *op)
 {
-  op->position = ud_insn_len(u); // X86INST
+  op->position = ud_insn_len(u); /* PEBIL */
 
   op->size = resolve_operand_size(u, s);
   op->type = UD_OP_IMM;
@@ -554,7 +554,7 @@ decode_modrm(struct ud* u, struct ud_operand *op, unsigned int s,
   unsigned char mod, rm, reg;
 
   inp_next(u);
-  op->position = ud_insn_len(u); // X86INST
+  op->position = ud_insn_len(u); /* PEBIL */
 
   /* get mod, r/m and reg fields */
   mod = MODRM_MOD(inp_curr(u));
@@ -703,7 +703,7 @@ decode_modrm(struct ud* u, struct ud_operand *op, unsigned int s,
 static void 
 decode_o(struct ud* u, unsigned int s, struct ud_operand *op)
 {
-  op->position = ud_insn_len(u); // X86INST
+  op->position = ud_insn_len(u); /* PEBIL */
 
   switch (u->adr_mode) {
     case 64:
