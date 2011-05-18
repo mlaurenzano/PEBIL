@@ -60,7 +60,7 @@ void CacheSimulation::usesModifiedProgram(){
     delete nop5Byte;
 }
 
-DFPatternType convertDFPattenType(char* patternString){
+DFPatternType convertDFPatternType(char* patternString){
     if(!strcmp(patternString,"dfTypePattern_Gather")){
         return dfTypePattern_Gather;
     } else if(!strcmp(patternString,"dfTypePattern_Scatter")){
@@ -159,7 +159,7 @@ void CacheSimulation::filterBBs(){
             if(err <= 0){
                 PRINT_ERROR("Line %d of %s has a wrong format", i+1, dfPatternFile);
             }
-            DFPatternType dfpType = convertDFPattenType(patternString);
+            DFPatternType dfpType = convertDFPatternType(patternString);
             if(dfpType == dfTypePattern_undefined){
                 PRINT_ERROR("Line %d of %s is a wrong pattern type [%s]", i+1, dfPatternFile, patternString);
             } else {
@@ -271,8 +271,10 @@ void CacheSimulation::instrument(){
     uint32_t commentSize = strlen(appName) + sizeof(uint32_t) + strlen(extension) + sizeof(uint32_t) + sizeof(uint32_t) + 4;
     uint64_t commentStore = reserveDataOffset(commentSize);
     char* comment = new char[commentSize];
+#ifndef STATS_PER_INSTRUCTION
+    sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedBasicBlocks(), dumpCode);
+#else
     sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedInstructions(), dumpCode);
-#ifdef STATS_PER_INSTRUCTION
     char insnMapName[__MAX_STRING_SIZE];
     sprintf(insnMapName, "%s.%s.perinsn", getFullFileName(), extension);
     FILE* perInsnMap = fopen(insnMapName, "w");
@@ -319,6 +321,8 @@ void CacheSimulation::instrument(){
         DFPatternSpec spec;
         if (dfpSet.get(bb->getHashCode().getValue(), &dfpType)){
             PRINT_INFOR("found dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
+        } else {
+            PRINT_INFOR("not doing dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
         }
         spec.type = dfpType;
         spec.memopCnt = bb->getNumberOfMemoryOps();
