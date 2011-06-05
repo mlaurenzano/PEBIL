@@ -45,6 +45,8 @@ FunctionTimer::FunctionTimer(ElfFile* elf, char* ext, bool lpi, bool dtl)
 }
 
 void FunctionTimer::declare(){
+    InstrumentationTool::declare();
+
     // declare any shared library that will contain instrumentation functions
     declareLibrary(INST_LIB_NAME);
 
@@ -64,6 +66,8 @@ void FunctionTimer::declare(){
 }
 
 void FunctionTimer::instrument(){
+    InstrumentationTool::instrument();
+
     uint32_t temp32;
     uint64_t temp64;
 
@@ -88,14 +92,12 @@ void FunctionTimer::instrument(){
     programEntry->addArgument(funcNameArray);
 
     uint64_t functionIndexAddr = reserveDataOffset(sizeof(uint64_t));
-    functionEntry->addArgument(functionIndexAddr);
+    programEntry->addArgument(functionIndexAddr);
+
     functionEntry->assumeNoFunctionFP();
-    functionEntryFlagsSafe->addArgument(functionIndexAddr);
     functionEntryFlagsSafe->assumeNoFunctionFP();
 
-    functionExit->addArgument(functionIndexAddr);
     functionExit->assumeNoFunctionFP();
-    functionExitFlagsSafe->addArgument(functionIndexAddr);
     functionExitFlagsSafe->assumeNoFunctionFP();
 
     uint32_t noProtPoints = 0;
@@ -114,9 +116,9 @@ void FunctionTimer::instrument(){
         Vector<X86Instruction*> fillEntry = Vector<X86Instruction*>();
 
         if (getElfFile()->is64Bit()){
-            fillEntry.append(X86InstructionFactory64::emitMoveImmToMem(i, getInstDataAddress() + getRegStorageOffset()));
+            fillEntry.append(X86InstructionFactory64::emitMoveImmToMem(i, getInstDataAddress() + functionIndexAddr));
         } else {
-            fillEntry.append(X86InstructionFactory32::emitMoveImmToMem(i, getInstDataAddress() + getRegStorageOffset()));
+            fillEntry.append(X86InstructionFactory32::emitMoveImmToMem(i, getInstDataAddress() + functionIndexAddr));
         }
 
         FlagsProtectionMethods prot = FlagsProtectionMethod_full;
@@ -144,9 +146,9 @@ void FunctionTimer::instrument(){
             Vector<X86Instruction*> fillExit = Vector<X86Instruction*>();
  
             if (getElfFile()->is64Bit()){
-                fillExit.append(X86InstructionFactory64::emitMoveImmToMem(i, getInstDataAddress() + getRegStorageOffset()));
+                fillExit.append(X86InstructionFactory64::emitMoveImmToMem(i, getInstDataAddress() + functionIndexAddr));
             } else {
-                fillExit.append(X86InstructionFactory32::emitMoveImmToMem(i, getInstDataAddress() + getRegStorageOffset()));
+                fillExit.append(X86InstructionFactory32::emitMoveImmToMem(i, getInstDataAddress() + functionIndexAddr));
             }
 
             FlagsProtectionMethods prot = FlagsProtectionMethod_full;
