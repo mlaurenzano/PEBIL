@@ -31,12 +31,16 @@ private:
     InstrumentationFunction* programExit;
     Vector<InstrumentationFunction*> functionWrappers;
 
+    InstrumentationFunction* timerBegin;
+    InstrumentationFunction* timerEnd;
+
     Vector<char*>* functionList;
     Vector<char*> libraries;
+    Vector<char*>* timerFunctions;
 
     bool doIntro;
 public:
-    CallReplace(ElfFile* elf, char* traceFile, char* libList, char* ext, bool lpi, bool dtl, bool doI);
+    CallReplace(ElfFile* elf, char* traceFile, char* libList, char*inpFile, char* ext, bool lpi, bool dtl, bool doI);
     ~CallReplace();
 
     void declare();

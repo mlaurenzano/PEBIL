@@ -80,7 +80,7 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
     fprintf(stderr,"\t--dtl : detailed .static file with lineno and filenames\n");
     fprintf(stderr,"\t        DEPRECATED: ALWAYS ON BY DEFAULT\n");
-    fprintf(stderr,"\t--inp : required for sim/csc and thr.\n");
+    fprintf(stderr,"\t--inp : required for sim/csc and thr/crp.\n");
     fprintf(stderr,"\t--lpi : optional for sim/csc. loop level block inclusion for\n");
     fprintf(stderr,"\t        cache simulation. default is no.\n");
     fprintf(stderr,"\t--phs : optional for sim/csc. phase number. defaults to no phase,\n"); 
@@ -99,7 +99,7 @@ void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"usage : pebil\n");
     fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|csc|ftm|crp|thr)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
-    fprintf(stderr,"\t[--inp <block_unique_ids>]    <-- valid for sim/csc and thr\n");
+    fprintf(stderr,"\t[--inp <block_unique_ids>]    <-- valid for sim/csc and thr/crp\n");
     fprintf(stderr,"\t[--inf [a-z]*]\n");
     fprintf(stderr,"\t[--lib (deprecated) <shared_lib_dir>]\n");
     fprintf(stderr,"\t\tdefault is $PEBIL_ROOT/lib\n");
@@ -328,7 +328,7 @@ int main(int argc,char* argv[]){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
                 printUsage();
             }
-            if (instType != simulation_inst_type && instType != throttle_loop_type){
+            if (instType != simulation_inst_type && instType != throttle_loop_type && instType != call_wrapper_type){
                 fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i]);
                 printUsage();
             }
@@ -500,7 +500,7 @@ int main(int argc,char* argv[]){
             fprintf(stderr, "\nError: option --lnc needs to be given with call wrapper inst\n");
         }
         ASSERT(libList);
-        elfInst = new CallReplace(&elfFile, inputTrackList, libList, extension, loopIncl, extdPrnt, doIntro);
+        elfInst = new CallReplace(&elfFile, inputTrackList, libList, inptName, extension, loopIncl, extdPrnt, doIntro);
     } else if (instType == throttle_loop_type){
         if (!libList){
             fprintf(stderr, "\nError: option --lnc needs to be given with loop throttle inst\n");
