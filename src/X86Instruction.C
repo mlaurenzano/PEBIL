@@ -2308,20 +2308,186 @@ void X86Instruction::setImpliedRegs(){
 #define has_0op (!operands[ALU_SRC1_OPERAND] && !operands[ALU_SRC2_OPERAND])
 #define has_1op (!has_0op && !has_2op)
 #define __set_impreg(__mnemonic, __numop, __stmts) else if (check_mnemonic(__mnemonic) && has_##__numop##op) { __stmts; }
+#define check_operand(__op, __type, __stmts) if (operands[__op]->GET(type) == __type) { __stmts; }
 
     if (!impreg_usedef) { __SHOULD_NOT_ARRIVE; }
     /* TODO: need to add info for lots of other instructions */
+
+    // FPU Instructions
+    __set_impreg(UD_Ifadd,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
     __set_impreg(UD_Ifadd,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
     __set_impreg(UD_Ifaddp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
     __set_impreg(UD_Ifiadd, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-    __set_impreg(UD_Iidiv,  1, iuse(X86_REG_AX)  idef(X86_REG_AX))
-    __set_impreg(UD_Ipblendvb, 2, iuse(X86_FPREG_XMM0))
-    __set_impreg(UD_Iblendvpd, 2, iuse(X86_FPREG_XMM0))
-    __set_impreg(UD_Iblendvps, 2, iuse(X86_FPREG_XMM0))
+
+    __set_impreg(UD_Ifsub,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifsub,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifsubp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifisub, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Ifsubr,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifsubr,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifsubrp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifisubr, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Ifmul,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifmul,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifmulp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifimul, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Ifdiv,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifdiv,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifdivp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifidiv, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Ifdivr,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifdivr,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifdivrp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifidivr, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Ifcom,   0, iuse(X87_REG_ST0) iuse(X87_REG_ST1))
+    __set_impreg(UD_Ifcom,   1, iuse(X87_REG_ST0))
+    __set_impreg(UD_Ifcomp,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1))
+    __set_impreg(UD_Ifcompp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1))
+
+    __set_impreg(UD_Ifxch, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST0) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifxch, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Ifst, 0, iuse(X87_REG_ST0))
+    __set_impreg(UD_Ifstp, 0, iuse(X87_REG_ST0))
+
+    __set_impreg(UD_Ifchs, 0, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifabs, 0, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Iftst, 0, iuse(X87_REG_ST0))
+    __set_impreg(UD_Ifxam, 0, iuse(X87_REG_ST0))
+
+    //fld* How to handle floating point stack pushes/pops?
+
+    __set_impreg(UD_If2xm1, 0, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+
+    // SSE instructions
+    __set_impreg(UD_Ipblendvb,  2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Iblendvpd,  2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Iblendvps,  2, iuse(X86_FPREG_XMM0))
+
     __set_impreg(UD_Ipcmpestrm, 2, iuse(X86_FPREG_XMM0))
     __set_impreg(UD_Ipcmpestri, 2, iuse(X86_FPREG_XMM0))
     __set_impreg(UD_Ipcmpistrm, 2, iuse(X86_FPREG_XMM0))
     __set_impreg(UD_Ipcmpistri, 2, iuse(X86_FPREG_XMM0))
+
+
+    // General instructions
+
+    // Mem(DI) = Mem(SI)
+    __set_impreg(UD_Imovsb, 0, iuse(X86_REG_SI) iuse(X86_REG_DI))
+    __set_impreg(UD_Imovsw, 0, iuse(X86_REG_SI) iuse(X86_REG_DI))
+    __set_impreg(UD_Imovsd, 0, iuse(X86_REG_SI) iuse(X86_REG_DI))
+    __set_impreg(UD_Imovsq, 0, iuse(X86_REG_SI) iuse(X86_REG_DI))
+
+    __set_impreg(UD_Iaaa,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Iaad,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Iaam,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Iaas,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Idaa,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Idas,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Icbw,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Icwde, 0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Icwd,  0, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Icdq,  0, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_DX))
+
+    __set_impreg(UD_Iloop,   1, iuse(X86_REG_CX) idef(X86_REG_CX))
+    __set_impreg(UD_Iloope,  1, iuse(X86_REG_CX) idef(X86_REG_CX))
+    __set_impreg(UD_Iloopnz, 1, iuse(X86_REG_CX) idef(X86_REG_CX))
+
+    __set_impreg(UD_Imul,  1, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Iimul, 1, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Idiv,  1, iuse(X86_REG_AX) iuse(X86_REG_DX) idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Iidiv, 1, iuse(X86_REG_AX) iuse(X86_REG_DX) idef(X86_REG_AX) idef(X86_REG_DX))
+
+    __set_impreg(UD_Ijcxz,  1, iuse(X86_REG_CX))
+    __set_impreg(UD_Ijecxz, 1, iuse(X86_REG_CX))
+
+    __set_impreg(UD_Imonitor, 0, iuse(X86_REG_AX) iuse(X86_REG_CX) iuse(X86_REG_DX))
+    __set_impreg(UD_Imwait,   0, iuse(X86_REG_AX) iuse(X86_REG_CX))
+
+    // Only when the operand is an immediate
+    __set_impreg(UD_Iadc, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Iadd, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Iand, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Icmp, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Ior,  1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Isbb, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Isub, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Ixor, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+
+    // Mem(DI) = IO(DX)
+    __set_impreg(UD_Iinsb,  0, iuse(X86_REG_DX) iuse(X86_REG_DI))
+    __set_impreg(UD_Iinsw,  0, iuse(X86_REG_DX) iuse(X86_REG_DI))
+    __set_impreg(UD_Iinsd,  0, iuse(X86_REG_DX) iuse(X86_REG_DI))
+
+    // IO(DX) = Mem(SI)
+    __set_impreg(UD_Ioutsb, 0, iuse(X86_REG_DX) iuse(X86_REG_SI))
+    __set_impreg(UD_Ioutsw, 0, iuse(X86_REG_DX) iuse(X86_REG_SI))
+    __set_impreg(UD_Ioutsd, 0, iuse(X86_REG_DX) iuse(X86_REG_SI))
+
+    // Mem(DI) = AX
+    __set_impreg(UD_Istosb, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
+    __set_impreg(UD_Istosw, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
+    __set_impreg(UD_Istosd, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
+
+    // AX = MEM(SI) 
+    __set_impreg(UD_Ilodsb, 0, iuse(X86_REG_SI) idef(X86_REG_AX))
+    __set_impreg(UD_Ilodsw, 0, iuse(X86_REG_SI) idef(X86_REG_AX))
+    __set_impreg(UD_Ilodsd, 0, iuse(X86_REG_SI) idef(X86_REG_AX))
+
+    // CMP(AX, MEM(DI))
+    __set_impreg(UD_Iscasb, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
+    __set_impreg(UD_Iscasw, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
+    __set_impreg(UD_Iscasd, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
+
+    // Read/write flags
+    __set_impreg(UD_Isahf, 0, iuse(X86_REG_AX))
+    __set_impreg(UD_Ilahf, 0, idef(X86_REG_AX))
+    __set_impreg(UD_Isalc, 1, idef(X86_REG_AX))
+
+    // Read system values
+    __set_impreg(UD_Irdtsc, 0, idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Irdmsr, 0, iuse(X86_REG_CX) idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Irdpmc, 0, iuse(X86_REG_CX) idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Icpuid, 0, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_BX)
+                                                idef(X86_REG_CX) idef(X86_REG_DX))
+
+    // Reading/writing stack
+    __set_impreg(UD_Ipush,   0, iuse(X86_REG_SP) idef(X86_REG_SP))
+    __set_impreg(UD_Ipusha,  0, iuse(X86_REG_AX) iuse(X86_REG_BX) iuse(X86_REG_CX) iuse(X86_REG_DX)
+                                iuse(X86_REG_SP) iuse(X86_REG_BP) iuse(X86_REG_SI) iuse(X86_REG_DI))
+    __set_impreg(UD_Ipushad, 0, iuse(X86_REG_AX) iuse(X86_REG_BX) iuse(X86_REG_CX) iuse(X86_REG_DX)
+                                iuse(X86_REG_SP) iuse(X86_REG_BP) iuse(X86_REG_SI) iuse(X86_REG_DI))
+    __set_impreg(UD_Ipushfw, 0, iuse(X86_REG_SP) idef(X86_REG_SP))
+    __set_impreg(UD_Ipushfd, 0, iuse(X86_REG_SP) idef(X86_REG_SP))
+    __set_impreg(UD_Ipushfq, 0, iuse(X86_REG_SP) idef(X86_REG_SP))
+
+    __set_impreg(UD_Ipop,    0, iuse(X86_REG_SP) idef(X86_REG_SP))
+    __set_impreg(UD_Ipopa,   0, idef(X86_REG_AX) idef(X86_REG_BX) idef(X86_REG_CX) idef(X86_REG_DX)
+                                idef(X86_REG_SP) idef(X86_REG_BP) idef(X86_REG_SI) idef(X86_REG_DI))
+    __set_impreg(UD_Ipopad,  0, idef(X86_REG_AX) idef(X86_REG_BX) idef(X86_REG_CX) idef(X86_REG_DX)
+                                idef(X86_REG_SP) idef(X86_REG_BP) idef(X86_REG_SI) idef(X86_REG_DI))
+    __set_impreg(UD_Ipopfw,  0, iuse(X86_REG_SP) idef(X86_REG_SP))
+    __set_impreg(UD_Ipopfd,  0, iuse(X86_REG_SP) idef(X86_REG_SP))
+    __set_impreg(UD_Ipopfq,  0, iuse(X86_REG_SP) idef(X86_REG_SP))
+
+    __set_impreg(UD_Ienter,  2, iuse(X86_REG_BP) iuse(X86_REG_SP) idef(X86_REG_BP) idef(X86_REG_SP))
+    __set_impreg(UD_Ileave,  0, iuse(X86_REG_BP) idef(X86_REG_SP) idef(X86_REG_BP))
+
+    // Read from memory
+    __set_impreg(UD_Ixlatb, 0, iuse(X86_REG_AX) iuse(X86_REG_BX) idef(X86_REG_AX))
+
+    // Conditionally defines registers
+    __set_impreg(UD_Icmpxchg,   2, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Icmpxchg8b, 1, iuse(X86_REG_AX) iuse(X86_REG_BX) iuse(X86_REG_CX) iuse(X86_REG_DX)
+                                   idef(X86_REG_AX) idef(X86_REG_DX))
+
 
     /*
       // 4 other types for all of these string ops -- *sb, *sw, *sd, *sq
