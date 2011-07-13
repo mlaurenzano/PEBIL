@@ -241,6 +241,25 @@ BitSet<uint32_t>* X86Instruction::getDefRegs(){
     return regs;
 }
 
+uint32_t convertGPRegUd(uint32_t reg){
+   return reg + UD_R_RAX; 
+}
+
+uint32_t convertUdGPReg(uint32_t reg){
+    ASSERT(reg && IS_GPR(reg));
+    if (IS_8BIT_GPR(reg)){
+        return reg - UD_R_AL;
+    } else if (IS_16BIT_GPR(reg)){
+        return reg - UD_R_AX;
+    } else if (IS_32BIT_GPR(reg)){
+        return reg - UD_R_EAX;
+    } else if (IS_64BIT_GPR(reg)){
+        return reg - UD_R_RAX;
+    }
+    __SHOULD_NOT_ARRIVE;
+    return 0;
+}
+
 bool OperandX86::isSameOperand(OperandX86* other){
     if (other->getValue() == getValue() &&
         other->GET(base) == GET(base) &&
@@ -287,20 +306,6 @@ bool X86Instruction::isConditionCompare(){
     return false;
 }
 
-uint32_t convertUdGPReg(uint32_t reg){
-    ASSERT(reg && IS_GPR(reg));
-    if (IS_8BIT_GPR(reg)){
-        return reg - UD_R_AL;
-    } else if (IS_16BIT_GPR(reg)){
-        return reg - UD_R_AX;
-    } else if (IS_32BIT_GPR(reg)){
-        return reg - UD_R_EAX;
-    } else if (IS_64BIT_GPR(reg)){
-        return reg - UD_R_RAX;
-    }
-    __SHOULD_NOT_ARRIVE;
-    return 0;
-}
 
 uint32_t convertUdXMMReg(uint32_t reg){
     ASSERT(reg && IS_XMM_REG(reg));
@@ -396,6 +401,121 @@ void X86Instruction::defsRegisters(BitSet<uint32_t>* regs){
     }
     impliedDefs(regs);
     // TODO: implement this for branches?
+}
+
+#define has(reg) (op->GET(reg) && IS_ALU_REG(op->GET(reg)))
+
+LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getDefs(){
+
+    LinkedList<ReachingDefinition*>* defs =
+        new LinkedList<ReachingDefinition*>();
+
+    OperandX86* op;
+
+    if (isMoveOperation()) {
+        op = operands[MOV_DEST_OPERAND];
+        if (op) {
+            DefLocation loc;
+            loc.base = has(base) ? op->getBaseRegister() : 0;
+            loc.index = has(index) ? op->getIndexRegister() : 0;
+            loc.offset = op->GET(offset);
+            loc.scale = op->GET(scale);
+            defs->insert(new ReachingDefinition(this, loc));
+        } // else implied?
+
+
+    } else if ((isIntegerOperation() || isFloatPOperation()) && !isConditionCompare()) {
+        op = operands[ALU_DEST_OPERAND];
+        if (op) {
+            DefLocation loc;
+            loc.base = has(base) ? op->getBaseRegister() : 0;
+            loc.index = has(index) ? op->getIndexRegister() : 0;
+            loc.offset = op->GET(offset);
+            loc.scale = op->GET(scale);
+            defs->insert(new ReachingDefinition(this, loc));
+        } // else implied?
+    }
+
+    // Get the implied register defines
+    BitSet<uint32_t> imp_regs(X86_ALU_REGS);
+    impliedDefs(&imp_regs);
+
+    for (uint32_t i = 0; i < X86_ALU_REGS; ++i) {
+        if (imp_regs.contains(i)) {
+            struct DefLocation loc;
+            bzero(&loc, sizeof(loc));
+            loc.base = i;
+            defs->insert(new ReachingDefinition(this, loc));
+        }
+    } 
+
+    return defs;
+}
+
+LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
+
+    LinkedList<ReachingDefinition*>* uses =
+        new LinkedList<ReachingDefinition*>();
+
+    OperandX86* op;
+
+    if (isMoveOperation()) {
+        op = operands[MOV_SRC_OPERAND];
+        if (op) {
+            DefLocation loc;
+            loc.base = has(base) ? op->getBaseRegister() : 0;
+            loc.index = has(index) ? op->getIndexRegister() : 0;
+            loc.offset = op->GET(offset);
+            loc.scale = op->GET(scale);
+            uses->insert(new ReachingDefinition(this, loc));
+        } // else implied?
+
+
+    } else if ((isIntegerOperation() || isFloatPOperation()) && !isConditionCompare()) {
+        op = operands[ALU_SRC1_OPERAND];
+        if (op) {
+            DefLocation loc;
+            loc.base = has(base) ? op->getBaseRegister() : 0;
+            loc.index = has(index) ? op->getIndexRegister() : 0;
+            loc.offset = op->GET(offset);
+            loc.scale = op->GET(scale);
+            uses->insert(new ReachingDefinition(this, loc));
+        } // else implied?
+
+        op = operands[ALU_SRC2_OPERAND];
+        if (op) {
+            DefLocation loc;
+            loc.base = has(base) ? op->getBaseRegister() : 0;
+            loc.index = has(index) ? op->getIndexRegister() : 0;
+            loc.offset = op->GET(offset);
+            loc.scale = op->GET(scale);
+            uses->insert(new ReachingDefinition(this, loc));
+        }
+    }
+
+    // Get the implied register uses
+    BitSet<uint32_t> imp_regs(X86_ALU_REGS);
+    impliedUses(&imp_regs);
+
+    for (uint32_t i = 0; i < X86_ALU_REGS; ++i) {
+        if (imp_regs.contains(i)) {
+            struct DefLocation loc;
+            bzero(&loc, sizeof(loc));
+            loc.base = i;
+            uses->insert(new ReachingDefinition(this, loc));
+        }
+    } 
+
+    return uses;
+}
+
+bool X86Instruction::ReachingDefinition::sameLocAs(ReachingDefinition* other) {
+    return (this->location.base == other->location.base &&
+            this->location.index == other->location.index &&
+            this->location.offset == other->location.offset &&
+            this->location.scale == other->location.scale &&
+            this->location.type == other->location.type);
+
 }
 
 void X86Instruction::touchedRegisters(BitSet<uint32_t>* regs){

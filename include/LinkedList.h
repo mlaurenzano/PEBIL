@@ -85,6 +85,36 @@ public:
         PRINT_INFOR("\n");
     }
     uint32_t size() { return elementCount; }
+
+    class Iterator {
+    private:
+        entry_t * item;
+
+    public:
+        Iterator(entry_t* item) : item(item) {}
+        Iterator() : item(NULL) {}
+        Iterator next() {
+            return Iterator(item->next);
+        }
+        T operator*() const {
+            return this->item->data;
+        }
+        bool operator==(const Iterator &other) const {
+            return this->item == other.item;
+        }
+        bool operator!=(const Iterator &other) const {
+            return !(*this == other);
+        }
+    };
+
+
+    Iterator begin() {
+        return Iterator(elements);
+    }
+
+    Iterator end() {
+        return Iterator(NULL);
+    }
 };
 
 #endif

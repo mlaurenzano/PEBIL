@@ -24,6 +24,7 @@
 #include <AddressAnchor.h>
 #include <Base.h>
 #include <BitSet.h>
+#include <LinkedList.h>
 #include <RawSection.h>
 #include <libudis86/syn.h>
 #include <udis86.h>
@@ -314,6 +315,7 @@ public:
     bool isRelative();
     uint32_t getType() { return GET(type); }
     int64_t getValue();
+
 };
 
 class X86Instruction : public Base {
@@ -371,6 +373,24 @@ public:
     bool defsFlag(uint32_t flg);
     bool usesAluReg(uint32_t alu);
     bool defsAluReg(uint32_t alu);
+
+    struct DefLocation {
+        enum ud_type type;
+        uint32_t base;
+        uint32_t index;
+        uint8_t offset;
+        uint8_t scale;
+    };
+
+    struct ReachingDefinition {
+        X86Instruction * defined_by;
+        DefLocation location;
+        ReachingDefinition(X86Instruction* ins, DefLocation loc) : defined_by(ins), location(loc) {}
+        bool sameLocAs (ReachingDefinition* other);
+    };
+    LinkedList<ReachingDefinition*>* getDefs();
+    LinkedList<ReachingDefinition*>* getUses();
+
 
     uint32_t getDefUseDist() { return defUseDist; }
     void setDefUseDist(uint32_t dudist) { defUseDist = dudist; }
