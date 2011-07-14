@@ -88,6 +88,8 @@ private:
     Vector<X86Instruction*> replacedInstructions;
     Vector<BasicBlock*> interposedBlocks;
 
+    bool allowStatic;
+
     ProgramHeader* instSegment;
 
     uint16_t extraTextIdx;
@@ -200,6 +202,7 @@ public:
     bool hasLineInformation() { return (lineInfoFinder != NULL); }
     void setPathToInstLib(char* libPath);
     void setInstExtension(char* extension);
+    void setAllowStatic() { allowStatic = true; }
 
     char* getApplicationName() { return elfFile->getAppName(); }
     uint32_t getApplicationSize() { return elfFile->getFileSize(); }

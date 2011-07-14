@@ -91,6 +91,7 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\t        default is off");
     fprintf(stderr,"\t--dfp : optional for sim/csc. dfpattern file. defaults to no dfpattern file,\n");
     fprintf(stderr,"\t--doi : optional for crp. whether to call intro/exit functions. default is no\n");
+    fprintf(stderr,"\t--allow-static : optional for all. allows pebil to try to instrument static-linked binary. default is no\n");
     fprintf(stderr,"\n");
 }
 
@@ -113,6 +114,7 @@ void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\t[--dfp <pattern_file>]      <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--dmp (off|on|nosim)]      <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--doi]                     <-- valid for crp\n");
+    fprintf(stderr,"\t[--allow-static]\n");
     fprintf(stderr,"\t[--help]\n");
     fprintf(stderr,"\t[--version]\n");
     fprintf(stderr,"\t[--silent]\n");
@@ -227,6 +229,7 @@ int main(int argc,char* argv[]){
     char*    dfpName    = NULL;
     uint32_t dumpCode   = Total_DumpCode;
     bool runSilent      = false;
+    bool allowStatic    = false;
 
     TIMER(double t = timer());
     for (int32_t i = 1; i < argc; i++){
@@ -394,6 +397,8 @@ int main(int argc,char* argv[]){
             }
         } else if (!strcmp(argv[i],"--silent")){
             runSilent = true;
+        } else if (!strcmp(argv[i],"--allow-static")){
+            allowStatic = true;
         } else {
             fprintf(stderr,"\nError : Unknown switch at %s\n\n",argv[i]);
             printUsage();
@@ -530,6 +535,9 @@ int main(int argc,char* argv[]){
     elfInst->setInstExtension(extension);
     if (inputFuncList){
         elfInst->setInputFunctions(inputFuncList);
+    }
+    if (allowStatic){
+        elfInst->setAllowStatic();
     }
     
     elfInst->phasedInstrumentation();
