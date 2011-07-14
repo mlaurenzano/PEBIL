@@ -1187,7 +1187,7 @@ void ElfFileInst::phasedInstrumentation(){
 
         currentOffset = 0;
         ASSERT(replacept.size() < 2 && "Cannot have more than 1 point replacement");
-        for (uint32_t k = 0; k < afterpt.size(); k++){
+        for (uint32_t k = 0; k < replacept.size(); k++){
             replacept[k]->setInstSourceOffset(currentOffset);
         }        
 
