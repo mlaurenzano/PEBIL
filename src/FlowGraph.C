@@ -104,6 +104,11 @@ static bool hasIntersect(
             def2 = *it2;
 
             if (def1->sameLocAs(def2)) {
+printf("\nFound use in instruction:\n");
+def2->print();
+printf("From defintion at:\n");
+def1->print();
+printf("\n");
               return true;
             }
         }
@@ -112,6 +117,29 @@ static bool hasIntersect(
    return false; 
 }
 
+static void printIntersect(
+    LinkedList<X86Instruction::ReachingDefinition*>* list1,
+    LinkedList<X86Instruction::ReachingDefinition*>* list2){
+
+    X86Instruction::ReachingDefinition* def1, * def2;
+
+    printf("Use of:\n");
+    LinkedList<X86Instruction::ReachingDefinition*>::Iterator it, it2;
+    for (it = list1->begin(); it != list1->end(); it = it.next()) {
+        def1 = *it;
+        for (it2 = list2->begin(); it2 != list2->end(); it2 = it2.next()) {
+            def2 = *it2;
+
+            if (def1->sameLocAs(def2)) {
+                def1->print();
+                printf("\n");
+                break;
+            }
+        }
+    }
+    printf("End Uses\n");
+
+}
 /*
   If there is no intersection, return list1
   If list1 is a subset of list2, return NULL

@@ -376,6 +376,7 @@ public:
 
     struct DefLocation {
         enum ud_type type;
+        int64_t value;
         uint32_t base;
         uint32_t index;
         uint8_t offset;
@@ -387,6 +388,7 @@ public:
         DefLocation location;
         ReachingDefinition(X86Instruction* ins, DefLocation loc) : defined_by(ins), location(loc) {}
         bool sameLocAs (ReachingDefinition* other);
+        void print();
     };
     LinkedList<ReachingDefinition*>* getDefs();
     LinkedList<ReachingDefinition*>* getUses();

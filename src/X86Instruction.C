@@ -416,10 +416,12 @@ LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getDefs(){
         op = operands[MOV_DEST_OPERAND];
         if (op) {
             DefLocation loc;
-            loc.base = has(base) ? op->getBaseRegister() : 0;
-            loc.index = has(index) ? op->getIndexRegister() : 0;
+            loc.value = op->getValue();
+            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
+            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
             loc.offset = op->GET(offset);
             loc.scale = op->GET(scale);
+            loc.type = op->GET(type);
             defs->insert(new ReachingDefinition(this, loc));
         } // else implied?
 
@@ -428,10 +430,12 @@ LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getDefs(){
         op = operands[ALU_DEST_OPERAND];
         if (op) {
             DefLocation loc;
-            loc.base = has(base) ? op->getBaseRegister() : 0;
-            loc.index = has(index) ? op->getIndexRegister() : 0;
+            loc.value = op->getValue();
+            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
+            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
             loc.offset = op->GET(offset);
             loc.scale = op->GET(scale);
+            loc.type = op->GET(type);
             defs->insert(new ReachingDefinition(this, loc));
         } // else implied?
     }
@@ -445,6 +449,7 @@ LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getDefs(){
             struct DefLocation loc;
             bzero(&loc, sizeof(loc));
             loc.base = i;
+            loc.type = UD_OP_REG;
             defs->insert(new ReachingDefinition(this, loc));
         }
     } 
@@ -463,10 +468,12 @@ LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
         op = operands[MOV_SRC_OPERAND];
         if (op) {
             DefLocation loc;
-            loc.base = has(base) ? op->getBaseRegister() : 0;
-            loc.index = has(index) ? op->getIndexRegister() : 0;
+            loc.value = op->getValue();
+            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
+            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
             loc.offset = op->GET(offset);
             loc.scale = op->GET(scale);
+            loc.type = op->GET(type);
             uses->insert(new ReachingDefinition(this, loc));
         } // else implied?
 
@@ -475,20 +482,24 @@ LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
         op = operands[ALU_SRC1_OPERAND];
         if (op) {
             DefLocation loc;
-            loc.base = has(base) ? op->getBaseRegister() : 0;
-            loc.index = has(index) ? op->getIndexRegister() : 0;
+            loc.value = op->getValue();
+            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
+            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
             loc.offset = op->GET(offset);
             loc.scale = op->GET(scale);
+            loc.type = op->GET(type);
             uses->insert(new ReachingDefinition(this, loc));
         } // else implied?
 
         op = operands[ALU_SRC2_OPERAND];
         if (op) {
             DefLocation loc;
-            loc.base = has(base) ? op->getBaseRegister() : 0;
-            loc.index = has(index) ? op->getIndexRegister() : 0;
+            loc.value = op->getValue();
+            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
+            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
             loc.offset = op->GET(offset);
             loc.scale = op->GET(scale);
+            loc.type = op->GET(type);
             uses->insert(new ReachingDefinition(this, loc));
         }
     }
@@ -502,6 +513,7 @@ LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
             struct DefLocation loc;
             bzero(&loc, sizeof(loc));
             loc.base = i;
+            loc.type = UD_OP_REG;
             uses->insert(new ReachingDefinition(this, loc));
         }
     } 
@@ -510,12 +522,40 @@ LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
 }
 
 bool X86Instruction::ReachingDefinition::sameLocAs(ReachingDefinition* other) {
-    return (this->location.base == other->location.base &&
+    return (this->location.value == other->location.value &&
+            this->location.base == other->location.base &&
             this->location.index == other->location.index &&
             this->location.offset == other->location.offset &&
             this->location.scale == other->location.scale &&
             this->location.type == other->location.type);
 
+}
+
+void X86Instruction::ReachingDefinition::print() {
+
+    if (location.type == UD_OP_REG) {
+        printf("REG: %s\n", location.base < X86_ALU_REGS ? alu_name_map[location.base] : "None");
+    } else if (location.type == UD_OP_MEM) {
+        printf("MEM: %lld(%s, %s, %d)", location.value,
+                                      location.base < X86_ALU_REGS ? alu_name_map[location.base] : "None",
+                                      location.index < X86_ALU_REGS ? alu_name_map[location.index] : "None",
+                                      location.scale);
+    } else if (location.type == UD_OP_PTR) {
+        printf("PTR");
+    } else if (location.type == UD_OP_IMM) {
+        printf("IMM");
+    } else if (location.type == UD_OP_JIMM) {
+        printf("JIMM");
+    } else if (location.type == UD_OP_CONST) {
+        printf("CONST");
+    } else {
+        printf("???");
+    }
+
+    if (defined_by != NULL)
+        defined_by->print();
+    else
+        printf("???\n");
 }
 
 void X86Instruction::touchedRegisters(BitSet<uint32_t>* regs){
