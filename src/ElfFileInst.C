@@ -1247,6 +1247,11 @@ bool ElfFileInst::verify(){
     if (!elfFile->verify()){
         return false;
     }
+    if (!allowStatic && elfFile->isStaticLinked()){
+        PRINT_ERROR("Static-linked binaries can usually not be instrumented, use --allow-static to try to instrument anyway");
+	return false;
+    }
+
     return true;
 }
 
@@ -1711,6 +1716,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     disabledFunctions = new Vector<char*>();
 
     flags = InstrumentorFlag_none;
+    allowStatic = false;
 }
 
 void ElfFileInst::setInputFunctions(char* inputFuncList){
