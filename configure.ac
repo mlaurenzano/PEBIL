@@ -31,7 +31,7 @@ else
    MPI_FLAGS="-DHAVE_MPI"
 fi
 
-AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Use static archives for instrumentation libraries [no]]), static_ok=$enableval)
+AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Use static archives for instrumentation libraries; it is extremely unlikely that you want to use this [no]]), static_ok=$enableval)
 if test "$static_ok" = "yes"; then
    STATIC_INST_LIB="yes"
 fi
