@@ -290,6 +290,40 @@ sub satisfy_jbbcoll {
             unless (@result_lines  == $cpu_count);
 }
 
+sub satisfy_loopcnt {
+    my ($app_name,$cpu_count,$exec_name,$jbb_trace_dir,$target_for_files) = @_;
+
+    die "Error : *** $jbb_trace_dir does not exist\n" unless (-e $jbb_trace_dir);
+
+    my $jbb_file_name_templ = "$exec_name.*\\.meta_.*\\.loopcnt";
+
+    print "Inform : Listing files that follow $jbb_file_name_templ at $jbb_trace_dir\n";
+
+    my @result_lines;
+    &call_ls($jbb_trace_dir,$jbb_file_name_templ,\@result_lines);
+    my $result_line_count = scalar @result_lines;
+
+    die "Error : *** loopcnt file count ($result_line_count) != CPU count ($cpu_count)\n"
+            unless (@result_lines  == $cpu_count);
+
+    foreach my $line ( @result_lines ){
+        $line =~ /.*meta_(\d+)\./;
+        my $task_id = $1;
+        # TODO : here we can check which file in particular is missing 
+    }
+
+    foreach my $file ( @result_lines ){
+        `cp $jbb_trace_dir/$file $target_for_files`;
+    }
+
+    @result_lines = ();
+    &call_ls($target_for_files,$jbb_file_name_templ,\@result_lines);
+    $result_line_count = scalar @result_lines;
+
+    die "Error : *** Copying loopcnt trace files failed ($result_line_count of $cpu_count) at $target_for_files\n"
+            unless (@result_lines  == $cpu_count);
+}
+
 sub satisfy_simcoll {
     my ($app_name,$cpu_count,$exec_name,$phase_number,$sim_trace_dir,$target_for_files,$dfp_file) = @_;
 
@@ -505,6 +539,7 @@ sub TraceHelper_Main {
                          $inst_lib_top_dir,$no_detail_print,$dfp_file);
     } elsif($action eq "jbbcoll"){
         &satisfy_jbbcoll($app_name,$cpu_count,$exec_name,$jbb_trace_dir,$target_for_files);
+        &satisfy_loopcnt($app_name,$cpu_count,$exec_name,$jbb_trace_dir,$target_for_files);
     } elsif($action eq "simcoll"){ 
         &satisfy_simcoll($app_name,$cpu_count,$exec_name,$phase_number,$sim_trace_dir,$target_for_files,$dfp_file);
     } 
