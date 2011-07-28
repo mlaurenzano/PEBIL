@@ -478,6 +478,14 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
     entries->lastFreeIdx = 1;
     return;
 #else
+#ifdef MPI_INIT_REQUIRED
+    if (!isTaskValid()){
+        PRINT_INSTR(stdout, "Process %d did not execute MPI_Init... dropping address buffer until it does", getpid());
+        register BufferEntry* entries = (BufferEntry*)base;
+        entries->lastFreeIdx = 1;
+        return;
+    }
+#endif
     register uint32_t      i;
     register BufferEntry* entries = (BufferEntry*)base;
     register Attribute_t startIndex = 1;
