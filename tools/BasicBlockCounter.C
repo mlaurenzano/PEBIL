@@ -172,7 +172,6 @@ void BasicBlockCounter::instrument()
 
 #ifdef STATS_PER_INSTRUCTION
         X86Instruction* ins = getExposedInstruction(i);
-        PRINT_INFOR("instyrumenting jbb for instruction %d", i);
 
         LineInfo* li = NULL;
         if (lineInfoFinder){
