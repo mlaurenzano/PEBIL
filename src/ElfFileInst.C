@@ -69,9 +69,16 @@ BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, ui
 }
 
 BasicBlock* ElfFileInst::findExposedBasicBlock(HashCode hashCode){
+    //    PRINT_INFOR("Solving hashcode %d %d %d %d", hashCode.getSection(), hashCode.getFunction(), hashCode.getBlock(), hashCode.getInstruction());
     for (uint32_t i = 0; i < exposedBasicBlocks.size(); i++){
-        if (exposedBasicBlocks[i]->getHashCode().getValue() == hashCode.getValue()){
-            return exposedBasicBlocks[i];
+        HashCode blockHash = exposedBasicBlocks[i]->getHashCode();
+        //  PRINT_INFOR("\t\tblock %d %d %d %d", blockHash.getSection(), blockHash.getFunction(), blockHash.getBlock(), blockHash.getInstruction());
+        if (blockHash.getSection() == hashCode.getSection()){
+            if (blockHash.getFunction() == hashCode.getFunction()){
+                if (blockHash.getBlock() == hashCode.getBlock()){
+                    return exposedBasicBlocks[i];
+                }
+            }
         }
     }
     return NULL;

@@ -45,23 +45,13 @@
 #include <TextSection.h>
 
 char* ElfFile::getSHA1Sum(){
-    unsigned char* allbytes = new unsigned char[getFileSize()];
-    int end;
-    char *line;
-    char* hexstring = new char[41];
-    bzero(hexstring, 41);
-    unsigned char hash[20];
-    bzero(hash, 20);
+    char* allbytes = new char[getFileSize()];
 
     binaryInputFile.setInBufferPointer(0);
     binaryInputFile.copyBytes(allbytes, getFileSize());
 
-    end = getFileSize();
-
-    calc(allbytes,end,hash);
-    toHexString(hash, hexstring);
-
-    delete[] allbytes;                                                                                                                                 
+    char* hexstring = sha1sum(allbytes, getFileSize());
+    delete[] allbytes;                                                                                               
     return hexstring;
 }
 

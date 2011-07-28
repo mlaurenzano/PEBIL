@@ -346,7 +346,7 @@ public:
     inline bool isInstruction() { return (hasSection() &&  hasFunction() &&  hasBlock() &&  hasInstruction()); }
     inline bool isValid()       { return (isSection() || isFunction() || isBlock() || isInstruction()); }
 
-    inline uint32_t getSection()     { return entry.fields.section; }
+    inline uint32_t getSection()     { return (hasSection() ? (entry.fields.section - 1) : INVALID_FIELD); }
     inline uint32_t getFunction()    { return (hasFunction() ? (entry.fields.function - 1) : INVALID_FIELD); }
     inline uint32_t getBlock()       { return (hasBlock() ? (entry.fields.block - 1) : INVALID_FIELD); }
     inline uint32_t getInstruction() { return (hasInstruction() ? (entry.fields.instruction - 1) : INVALID_FIELD); }
@@ -392,6 +392,7 @@ extern void SHA1(unsigned char * str1);
 //sha1 functions                                                                                                                                             
 void calc(const void *src, const int bytelength, unsigned char *hash);
 void toHexString(const unsigned char *hash, char *hexstring);
+char* sha1sum(char* buffer, uint32_t size);
 
 extern double timer();
 #endif

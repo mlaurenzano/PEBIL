@@ -910,9 +910,9 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
 #endif
 
 #ifdef STATS_PER_INSTRUCTION
-        fprintf(fp, "# statsperinsn = yes\n");
+        fprintf(fp, "# perinsn = yes\n");
 #else
-        fprintf(fp, "# statsperinsn = no\n");
+        fprintf(fp, "# perinsn = no\n");
 #endif
 
         fprintf(fp,"#\n");

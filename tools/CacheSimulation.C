@@ -76,7 +76,7 @@ void CacheSimulation::filterBBs(){
     initializeFileList(bbFile, fileLines);
 
     int32_t err;
-    uint64_t blockHash;
+    uint64_t inputHash;
     for (uint32_t i = 0; i < (*fileLines).size(); i++){
         char* ptr = strchr((*fileLines)[i],'#');
         if(ptr) *ptr = '\0';
@@ -84,22 +84,22 @@ void CacheSimulation::filterBBs(){
         if(!strlen((*fileLines)[i]) || allSpace((*fileLines)[i]))
             continue;
 
-        err = sscanf((*fileLines)[i], "%lld", &blockHash);
+        err = sscanf((*fileLines)[i], "%lld", &inputHash);
         if(err <= 0){
             PRINT_ERROR("Line %d of %s has a wrong format", i+1, bbFile);
         }
-        HashCode* hashCode = new HashCode(blockHash);
-        if(!hashCode->isBlock()){
+        HashCode* hashCode = new HashCode(inputHash);
+        if(!hashCode->isBlock() && !hashCode->isInstruction()){
             PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block", i+1, bbFile);
         }
         BasicBlock* bb = findExposedBasicBlock(*hashCode);
         delete hashCode;
 
         if (!bb){
-            PRINT_WARN(10, "cannot find basic block for hash code %#llx found in input file", blockHash);
+            PRINT_WARN(10, "cannot find basic block for hash code %#llx found in input file", inputHash);
         } else {
             //        ASSERT(bb && "cannot find basic block for hash code found in input file");
-            blocksToInst.insert(blockHash, bb);
+            blocksToInst.insert(bb->getHashCode().getValue(), bb);
         }
     }
     for (uint32_t i = 0; i < (*fileLines).size(); i++){
@@ -144,6 +144,10 @@ void CacheSimulation::filterBBs(){
     qsort(bbs, blocksToInst.size(), sizeof(BasicBlock*), compareBaseAddress);
     
     if (dfPatternFile){
+
+#ifdef STATS_PER_INSTRUCTION
+        PRINT_ERROR("configure option --enable-instruction-trace not compatible with --dfp");
+#endif
 
         Vector<char*>* dfpFileLines = new Vector<char*>();
         initializeFileList(dfPatternFile, dfpFileLines);
@@ -275,10 +279,6 @@ void CacheSimulation::instrument(){
     sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedBasicBlocks(), dumpCode);
 #else
     sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedInstructions(), dumpCode);
-    char insnMapName[__MAX_STRING_SIZE];
-    sprintf(insnMapName, "%s.%s.perinsn", getFullFileName(), extension);
-    FILE* perInsnMap = fopen(insnMapName, "w");
-    fprintf(perInsnMap, "#blockid\torig_blockid\torig_memopid\n");
     Vector<int32_t> insnToBlock;
 #endif
     initializeReservedData(getInstDataAddress() + commentStore, commentSize, comment);
@@ -308,10 +308,14 @@ void CacheSimulation::instrument(){
     Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
     Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
+#ifdef STATS_PER_INSTRUCTION
+    Vector<X86Instruction*>* allInstructions = new Vector<X86Instruction*>();
+    Vector<uint32_t>* allInstructionIds = new Vector<uint32_t>();
+    Vector<LineInfo*>* allInstructionLineInfos = new Vector<LineInfo*>();
+#endif //STATS_PER_INSTRUCTION
 
     uint32_t blockId = 0;
     uint32_t memopId = 0;
-    uint32_t instructionId = 0;
     uint32_t regDefault = 0;
 
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
@@ -345,6 +349,17 @@ void CacheSimulation::instrument(){
                 if (memop->isMemoryOperation()){            
                     //PRINT_INFOR("The following instruction has %d membytes", memop->getNumberOfMemoryBytes());
                     //memop->print();
+#ifdef STATS_PER_INSTRUCTION
+                    insnToBlock.append(blockId);
+
+                    (*allInstructions).append(memop);
+                    (*allInstructionIds).append(memopId);
+                    if (lineInfoFinder){
+                        (*allInstructionLineInfos).append(lineInfoFinder->lookupLineInfo(memop));
+                    } else {
+                        (*allInstructionLineInfos).append(NULL);
+                    }
+#endif //STATS_PER_INSTRUCTION
                     
                     if (getElfFile()->is64Bit()){
                         // check the buffer at the last memop
@@ -385,8 +400,7 @@ void CacheSimulation::instrument(){
 #ifdef STATS_PER_INSTRUCTION
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(instructionId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-                            fprintf(perInsnMap, "%d\t%d\t%d\n", instructionId, blockId, memopIdInBlock); instructionId++; insnToBlock.append(blockId);
+                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
 #else //STATS_PER_INSTRUCTION
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
@@ -449,8 +463,7 @@ void CacheSimulation::instrument(){
 #ifdef STATS_PER_INSTRUCTION
                             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
                             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(instructionId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-                            fprintf(perInsnMap,	"%d\t%d\t%d\n",	instructionId, blockId, memopIdInBlock); instructionId++; insnToBlock.append(blockId);
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
 #else //STATS_PER_INSTRUCTION
                             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
                             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
@@ -503,8 +516,7 @@ void CacheSimulation::instrument(){
 #ifdef STATS_PER_INSTRUCTION
                             (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
                             (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(instructionId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-                            fprintf(perInsnMap,	"%d\t%d\t%d\n",	instructionId, blockId, memopIdInBlock); instructionId++; insnToBlock.append(blockId);
+                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
 #else //STATS_PER_INSTRUCTION
                             (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
                             (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
@@ -567,8 +579,7 @@ void CacheSimulation::instrument(){
 #ifdef STATS_PER_INSTRUCTION
                             snip->addSnippetInstruction(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
                             snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(instructionId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-                            fprintf(perInsnMap,	"%d\t%d\t%d\n",	instructionId, blockId, memopIdInBlock); instructionId++; insnToBlock.append(blockId);
+                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
 #else //STATS_PER_INSTRUCTION
                             snip->addSnippetInstruction(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
                             snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
@@ -650,18 +661,25 @@ void CacheSimulation::instrument(){
     PRINT_WARN(10, "Warning: register analysis disabled");
 #endif
 
+#ifdef STATS_PER_INSTRUCTION
+    printStaticFilePerInstruction(allInstructions, allInstructionIds, allInstructionLineInfos, allInstructions->size());
+#else //STATS_PER_INSTRUCTION
     printStaticFile(allBlocks, allBlockIds, allLineInfos, BUFFER_ENTRIES);
+#endif //STATS_PER_INSTRUCTION
     if(dfpSet.size()){
         printDFPStaticFile(allBlocks, allBlockIds, allLineInfos);
     }
-#ifdef STATS_PER_INSTRUCTION
-    fclose(perInsnMap);
-#endif
 
     delete allBlocks;
     delete allBlockIds;
     delete allLineInfos;
     delete[] comment;
+
+#ifdef STATS_PER_INSTRUCTION
+    delete allInstructions;
+    delete allInstructionIds;
+    delete allInstructionLineInfos;
+#endif //STATS_PER_INSTRUCTION
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }
