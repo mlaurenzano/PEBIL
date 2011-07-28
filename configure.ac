@@ -37,7 +37,7 @@ if test "$static_ok" = "yes"; then
 fi
 AC_SUBST(STATIC_INST_LIB)
 
-AC_ARG_ENABLE(instruction_trace, AC_HELP_STRING([--enable-instruction-trace], [Collect simulation stats per instruction [no]]), perinsn_ok=$enableval)
+AC_ARG_ENABLE(instruction_trace, AC_HELP_STRING([--enable-instruction-trace], [Collect simulation stats per instruction, affects jbb and sim only. [no]]), perinsn_ok=$enableval)
 if test "$perinsn_ok" = "yes"; then
    MPI_FLAGS="$MPI_FLAGS -DSTATS_PER_INSTRUCTION"
 fi
