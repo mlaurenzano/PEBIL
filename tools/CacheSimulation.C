@@ -89,8 +89,12 @@ void CacheSimulation::filterBBs(){
             PRINT_ERROR("Line %d of %s has a wrong format", i+1, bbFile);
         }
         HashCode* hashCode = new HashCode(inputHash);
+#ifdef STATS_PER_INSTRUCTION
         if(!hashCode->isBlock() && !hashCode->isInstruction()){
-            PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block", i+1, bbFile);
+#else //STATS_PER_INSTRUCTION
+        if(!hashCode->isBlock()){
+#endif //STATS_PER_INSTRUCTION
+            PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, bbFile);
         }
         BasicBlock* bb = findExposedBasicBlock(*hashCode);
         delete hashCode;
@@ -146,7 +150,7 @@ void CacheSimulation::filterBBs(){
     if (dfPatternFile){
 
 #ifdef STATS_PER_INSTRUCTION
-        PRINT_ERROR("configure option --enable-instruction-trace not compatible with --dfp");
+        //        PRINT_ERROR("configure option --enable-instruction-trace not compatible with --dfp");
 #endif
 
         Vector<char*>* dfpFileLines = new Vector<char*>();
@@ -170,20 +174,24 @@ void CacheSimulation::filterBBs(){
                 PRINT_INFOR("found valid pattern %s -> %d", patternString, dfpType);
             }
             HashCode hashCode(id);
+#ifdef STATS_PER_INSTRUCTION
+            if(!hashCode.isBlock() && !hashCode.isInstruction()){
+#else //STATS_PER_INSTRUCTION
             if(!hashCode.isBlock()){
-                PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block", i+1, dfPatternFile);
+#endif //STATS_PER_INSTRUCTION
+                PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, dfPatternFile);
             }
 
             // if the bb is not in the list already but is a valid block, include it!
             BasicBlock* bb = findExposedBasicBlock(hashCode);
-            if(!bb || bb->getHashCode().getValue() != id){
+            if(!bb){
                 PRINT_ERROR("Line %d of %s is not a valid basic block id", i+1, dfPatternFile);
                 continue;
             }
-            blocksToInst.insert(hashCode.getValue(), bb);
+            blocksToInst.insert(bb->getHashCode().getValue(), bb);
 
             if (dfpType != dfTypePattern_None){
-                dfpSet.insert(hashCode.getValue(), dfpType);
+                dfpSet.insert(bb->getHashCode().getValue(), dfpType);
             }
         }
 
@@ -252,7 +260,15 @@ void CacheSimulation::instrument(){
     initializeReservedData(getInstDataAddress() + bufferStore, BUFFER_ENTRIES * Size__BufferEntry, emptyBuff);
     delete[] emptyBuff;
 
-    uint64_t dfPatternStore = reserveDataOffset(sizeof(DFPatternSpec) * (getNumberOfExposedBasicBlocks() + 1));
+    
+#ifdef STATS_PER_INSTRUCTION
+    PRINT_WARN(10, "Performing instrumentation to gather PER-INSTRUCTION statistics");
+    uint32_t dfpCount = getNumberOfExposedInstructions();
+#else //STATS_PER_INSTRUCTION
+    uint32_t dfpCount = getNumberOfExposedBasicBlocks();
+#endif //STATS_PER_INSTRUCTION
+    uint64_t dfPatternStore = reserveDataOffset(sizeof(DFPatternSpec) * (dfpCount + 1));
+
     if(dfpSet.size()){
         DFPatternSpec dfInfo;
         dfInfo.memopCnt = 0;
@@ -318,19 +334,42 @@ void CacheSimulation::instrument(){
     uint32_t memopId = 0;
     uint32_t regDefault = 0;
 
-    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+    for (uint32_t i = 0; i < dfpCount; i++){
+#ifdef STATS_PER_INSTRUCTION
+        X86Instruction* ins = getExposedInstruction(i);
+        Function* f = (Function*)ins->getContainer();
+        BasicBlock* bb = f->getBasicBlockAtAddress(ins->getBaseAddress());
+
+        DFPatternType dfpType = dfTypePattern_None;
+        DFPatternSpec spec;
+        if (dfpSet.get(bb->getHashCode().getValue(), &dfpType)){
+            //            PRINT_INFOR("found dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
+        } else {
+            //            PRINT_INFOR("not doing dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
+        }
+        spec.memopCnt = (uint32_t)ins->isMemoryOperation();
+        spec.type = dfTypePattern_None;
+        if (ins->isMemoryOperation()){
+            spec.type = dfpType;
+        }
+#else //STATS_PER_INSTRUCTION
         BasicBlock* bb = getExposedBasicBlock(i);
 
         DFPatternType dfpType = dfTypePattern_None;
         DFPatternSpec spec;
         if (dfpSet.get(bb->getHashCode().getValue(), &dfpType)){
-            PRINT_INFOR("found dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
+            //            PRINT_INFOR("found dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
         } else {
-            PRINT_INFOR("not doing dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
+            //            PRINT_INFOR("not doing dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
         }
         spec.type = dfpType;
         spec.memopCnt = bb->getNumberOfMemoryOps();
+#endif //STATS_PER_INSTRUCTION
         initializeReservedData(getInstDataAddress() + dfPatternStore + (i+1)*sizeof(DFPatternSpec), sizeof(DFPatternSpec), &spec);
+    }
+
+    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+        BasicBlock* bb = getExposedBasicBlock(i);
 
         if (blocksToInst.get(bb->getHashCode().getValue())){
 
@@ -666,9 +705,6 @@ void CacheSimulation::instrument(){
 #else //STATS_PER_INSTRUCTION
     printStaticFile(allBlocks, allBlockIds, allLineInfos, BUFFER_ENTRIES);
 #endif //STATS_PER_INSTRUCTION
-    if(dfpSet.size()){
-        printDFPStaticFile(allBlocks, allBlockIds, allLineInfos);
-    }
 
     delete allBlocks;
     delete allBlockIds;

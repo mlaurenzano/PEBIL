@@ -94,6 +94,7 @@ void BasicBlockCounter::instrument()
 
 
 #ifdef STATS_PER_INSTRUCTION
+    PRINT_WARN(10, "Performing instrumentation to gather PER-INSTRUCTION statistics");
     uint32_t numberOfPoints = getNumberOfExposedInstructions();
 #else //STATS_PER_INSTRUCTION
     uint32_t numberOfPoints = getNumberOfExposedBasicBlocks();

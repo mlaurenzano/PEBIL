@@ -254,7 +254,7 @@ void initDfPatterns(DFPatternSpec* dfps,uint32_t n,BasicBlockInfo* bbs){
         PRINT_INSTR(stdout, "DFPatterns are activated with %u entries at address %#llx", n, dfps);
         uint32_t anyTagged = 0;
         for(i=1;i<=n;i++){
-            //PRINT_INSTR(stdout, "\tdfpattern[%d]: memop=%d, type=%s", i, dfps[i].memopCnt, DFPatternTypeNames[dfps[i].type]);
+            PRINT_INSTR(stdout, "\tdfpattern[%d]: memop=%d, type=%s", i, dfps[i].memopCnt, DFPatternTypeNames[dfps[i].type]);
             if(dfps[i].type == dfTypePattern_undefined){
                 PRINT_INSTR(stdout, "Error in dfpattern type %i %s",i,DFPatternTypeNames[dfps[i].type]);
                 assert (dfps[i].type != dfTypePattern_undefined);
@@ -310,6 +310,7 @@ void processDFPatternEntry(BufferEntry* entries,Attribute_t startIndex,Attribute
             continue;
         }
         if(memopIdx >= info->rangeCnt){
+            PRINT_INSTR(stdout, "memopidx %d allcnt %d", memopIdx, info->rangeCnt);
             assert (0 && "Fatal: How come memopidx is larger than all count");
         }
 
@@ -537,7 +538,6 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             PRINT_INSTR(stdout, "WARNING: this run has simulation turned off via an option to the --dump flag");
             PRINT_INSTR(stderr, "WARNING: this run has simulation turned off via an option to the --dump flag");
         }
-
 
         initDfPatterns(dfps,blockCount,blocks);
     }
@@ -882,6 +882,11 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
             fprintf(dfpFp,"# total     = %lld\n",totalNumberOfAccesses);
             fprintf(dfpFp,"# sampled   = %lld\n",totalNumberOfSamples);
             fprintf(dfpFp,"# processed = %lld\n",processedSampleCount);
+#ifdef STATS_PER_INSTRUCTION
+            fprintf(dfpFp, "# perinsn  = yes\n");
+#else
+            fprintf(dfpFp, "# perinsn  = no\n");
+#endif
         }
 
 #ifdef NO_SAMPLING_MODE
