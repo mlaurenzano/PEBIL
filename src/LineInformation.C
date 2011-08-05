@@ -105,6 +105,13 @@ LineInfo* LineInfoFinder::lookupLineInfo(BasicBlock* bb){
     return lookupLineInfo(bb->getProgramAddress());
 }
 
+LineInfo* LineInfoFinder::lookupLineInfo(X86Instruction* ins){
+    if (!sortedLineInfos.size()){
+        return NULL;
+    }
+    return lookupLineInfo(ins->getProgramAddress());
+}
+
 bool LineInfoFinder::verify(){
     uint32_t totalLineInfos = 0;
     for (uint32_t i = 0; i < dwarfLineInfoSection->getNumberOfLineInfoTables(); i++){

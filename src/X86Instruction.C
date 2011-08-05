@@ -21,6 +21,7 @@
 #include <X86Instruction.h>
 
 #include <Base.h>
+#include <BasicBlock.h>
 #include <BinaryFile.h>
 #include <ElfFile.h>
 #include <ElfFileInst.h>
@@ -31,8 +32,15 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
-static ud_t ud_blank;
+HashCode* X86Instruction::generateHashCode(BasicBlock* bb){
+    HashCode* hc = new HashCode(bb->getHashCode().getSection(),
+                                bb->getHashCode().getFunction(),
+                                bb->getHashCode().getBlock(),
+                                getIndex());
+    return hc;
+}
 
+static ud_t ud_blank;
 void X86Instruction::initBlankUd(bool is64bit){
     ud_t ud_obj;
 

@@ -108,6 +108,11 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     fprintf(outFile, "# extension = %s\n", instExt);
     fprintf(outFile, "# phase     = %d\n", 0);
     fprintf(outFile, "# rank      = %d\n", getTaskId());
+#ifdef STATS_PER_INSTRUCTION
+    fprintf(outFile, "# perinsn   = yes\n");
+#else
+    fprintf(outFile, "# perinsn   = no\n");
+#endif
 
     fprintf(outFile, "#id\tcount\t#file:line\tfunc\thash\n");
     fflush(outFile);

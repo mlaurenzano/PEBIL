@@ -111,10 +111,10 @@ void InstrumentationTool::instrument(){
 #endif //HAVE_MPI
 }
 
-void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos, uint32_t bufferSize){
+void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 
-    ASSERT(!(*allLineInfos).size() || (*allBlocks).size() == (*allLineInfos).size());
+    ASSERT(!(*allBlockLineInfos).size() || (*allBlocks).size() == (*allBlockLineInfos).size());
     ASSERT((*allBlocks).size() == (*allBlockIds).size());
 
     uint32_t numberOfInstPoints = (*allBlocks).size();
@@ -134,6 +134,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     fprintf(staticFD, "# cantidate = %d\n", getNumberOfExposedBasicBlocks());
     char* sha1sum = getElfFile()->getSHA1Sum();
     fprintf(staticFD, "# sha1sum   = %s\n", sha1sum);
+    fprintf(staticFD, "# perinsn   = no\n");
     delete[] sha1sum;
 
     uint32_t memopcnt = 0;
@@ -182,7 +183,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
 
         BasicBlock* bb = (*allBlocks)[i];
-        LineInfo* li = (*allLineInfos)[i];
+        LineInfo* li = (*allBlockLineInfos)[i];
         Function* f = bb->getFunction();
 
         uint32_t loopId = Invalid_UInteger_ID; 
@@ -265,6 +266,177 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
 
             fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", bb->getDefXIter(), bb->endsWithCall(), bb->getHashCode().getValue());
         }
+    }
+    fclose(staticFD);
+
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
+}
+
+void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize){
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
+
+    ASSERT(!(*allInstructionLineInfos).size() || (*allInstructions).size() == (*allInstructionLineInfos).size());
+    ASSERT((*allInstructions).size() == (*allInstructionIds).size());
+
+    uint32_t numberOfInstPoints = (*allInstructions).size();
+
+    char* staticFile = new char[__MAX_STRING_SIZE];
+    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getInstSuffix(), "static");
+    FILE* staticFD = fopen(staticFile, "w");
+    delete[] staticFile;
+
+    TextSection* text = getDotTextSection();
+
+    fprintf(staticFD, "# appname   = %s\n", getApplicationName());
+    fprintf(staticFD, "# appsize   = %d\n", getApplicationSize());
+    fprintf(staticFD, "# extension = %s\n", getInstSuffix());
+    fprintf(staticFD, "# phase     = %d\n", 0);
+    fprintf(staticFD, "# type      = %s\n", briefName());
+    fprintf(staticFD, "# cantidate = %d\n", getNumberOfExposedInstructions());
+    char* sha1sum = getElfFile()->getSHA1Sum();
+    fprintf(staticFD, "# sha1sum   = %s\n", sha1sum);
+    fprintf(staticFD, "# perinsn   = yes\n");
+    delete[] sha1sum;
+
+    uint32_t memopcnt = 0;
+    uint32_t membytcnt = 0;
+    uint32_t fltopcnt = 0;
+    uint32_t insncnt = 0;
+    for (uint32_t i = 0; i < allInstructions->size(); i++){
+        X86Instruction* ins = (*allInstructions)[i];
+        if (ins->isMemoryOperation()){
+            memopcnt++;
+        }
+        membytcnt += ins->getNumberOfMemoryBytes();
+        if (ins->isFloatPOperation()){
+            fltopcnt++;
+        }
+        insncnt++;
+    }
+    fprintf(staticFD, "# blocks    = %d\n", allInstructions->size());
+    fprintf(staticFD, "# memops    = %d\n", memopcnt);
+
+    float memopavg = 0.0;
+    if (memopcnt){
+        memopavg = (float)membytcnt/(float)memopcnt;
+    }
+    fprintf(staticFD, "# memopbyte = %d ( %.5f bytes/op)\n", membytcnt, memopavg);
+    fprintf(staticFD, "# fpops     = %d\n", fltopcnt);
+    fprintf(staticFD, "# insns     = %d\n", insncnt);
+    fprintf(staticFD, "# buffer    = %d\n", bufferSize);
+    for (uint32_t i = 0; i < getNumberOfInstrumentationLibraries(); i++){
+        fprintf(staticFD, "# library   = %s\n", getInstrumentationLibrary(i));
+    }
+    fprintf(staticFD, "# libTag    = %s\n", "revision REVISION");
+    fprintf(staticFD, "# %s\n", "<no additional info>");
+    fprintf(staticFD, "# <sequence> <block_unqid> <memop> <fpop> <insn> <line> <fname> # <hex_unq_id> <vaddr>\n");
+
+    if (printDetail){
+        fprintf(staticFD, "# +lpi <loopcnt> <loopid> <ldepth> <lploc>\n");
+        fprintf(staticFD, "# +cnt <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op>\n");
+        fprintf(staticFD, "# +mem <total_mem_op> <total_mem_bytes> <bytes/op>\n");
+        fprintf(staticFD, "# +lpc <loop_head> <parent_loop_head>\n");
+        fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...\n");
+        fprintf(staticFD, "# +dxi <count_def_use_cross> <count_call>\n");
+    }
+
+    uint32_t noInst = 0;
+    uint32_t fileNameSize = 1;
+    uint32_t trapCount = 0;
+    uint32_t jumpCount = 0;
+
+    for (uint32_t i = 0; i < numberOfInstPoints; i++){
+
+        X86Instruction* ins = (*allInstructions)[i];
+        Function* f = (Function*)ins->getContainer();
+        BasicBlock* bb = f->getBasicBlockAtAddress(ins->getBaseAddress());
+        LineInfo* li = (*allInstructionLineInfos)[i];
+
+        HashCode* hc = ins->generateHashCode(bb);
+        uint64_t hashValue = hc->getValue();
+
+        uint32_t loopId = Invalid_UInteger_ID; 
+        Loop* loop = bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex());
+        if (loop){
+            loopId = loop->getIndex();
+        }
+        uint32_t loopDepth = bb->getFlowGraph()->getLoopDepth(bb->getIndex());
+        uint32_t loopCount = bb->getFlowGraph()->getNumberOfLoops();
+
+        char* fileName;
+        uint32_t lineNo;
+        if (li){
+            fileName = li->getFileName();
+            lineNo = li->GET(lr_line);
+        } else {
+            fileName = INFO_UNKNOWN;
+            lineNo = 0;
+        }
+        fprintf(staticFD, "%d\t%lld\t%d\t%d\t%d\t%s:%d\t%s\t# %#llx\t%#llx\n", 
+                (*allInstructionIds)[i], hashValue, (uint32_t)ins->isMemoryOperation(), (uint32_t)ins->isFloatPOperation(), 
+                1, fileName, lineNo, f->getName(),
+                hashValue, ins->getProgramAddress());
+
+        if (printDetail){
+
+            // TODO +lpi info is per-block still
+            uint32_t loopLoc = 0;
+            if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())){
+                if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())->getHead()->getHashCode().getValue() == bb->getHashCode().getValue()){
+                    loopLoc = 1;
+                } else if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())->getTail()->getHashCode().getValue() == bb->getHashCode().getValue()){
+                    loopLoc = 2;
+                }
+            }
+            fprintf(staticFD, "\t+lpi\t%d\t%d\t%d\t%d # %#llx\n", loopCount, loopId, loopDepth, loopLoc, hashValue);
+            fprintf(staticFD, "\t+cnt\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", 
+                    (uint32_t)ins->isBranch(), (uint32_t)ins->isIntegerOperation(), (uint32_t)ins->isLogicOp(), (uint32_t)ins->isSpecialRegOp(),
+                    (uint32_t)ins->isSystemCall(), (uint32_t)ins->isSpecialRegOp(), (uint32_t)ins->isStringOperation(),
+                    (uint32_t)ins->isLoad(), (uint32_t)ins->isStore(), (uint32_t)ins->isMemoryOperation(), hashValue);
+
+            if (ins->isMemoryOperation()){
+                ASSERT(ins->isLoad() || ins->isStore());
+            }
+
+            memopavg = (float)ins->getNumberOfMemoryBytes();
+            fprintf(staticFD, "\t+mem\t%d\t%d\t%.5f # %#llx\n", (uint32_t)ins->isMemoryOperation(), ins->getNumberOfMemoryBytes(),
+                    memopavg, hashValue);
+
+            uint64_t loopHead = 0;
+            uint64_t parentHead = 0;
+            if (loop){
+                loopHead = loop->getHead()->getHashCode().getValue();
+                parentHead = f->getFlowGraph()->getParentLoop(loop->getIndex())->getHead()->getHashCode().getValue();
+            }
+            fprintf(staticFD, "\t+lpc\t%lld\t%lld # %#llx\n", loopHead, parentHead, hashValue);
+
+            uint32_t currINT = 0;
+            uint32_t currFP = 0;
+            uint32_t currDist = 1;
+
+            fprintf(staticFD, "\t+dud");
+            while (currDist < MAX_DEF_USE_DIST_PRINT){
+                if (ins->getDefUseDist() == currDist){
+                    if (ins->isFloatPOperation()){
+                        currFP++;
+                    } else {
+                        currINT++;
+                    }
+                }
+                if (currFP > 0 || currINT > 0){
+                    fprintf(staticFD, "\t%d:%d:%d", currDist, currINT, currFP);
+                }
+                currDist++;
+                currINT = 0;
+                currFP = 0;
+            }
+            fprintf(staticFD, " # %#llx\n", hashValue);
+
+            // TODO +dxi info is per-block still
+            fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", bb->getDefXIter(), bb->endsWithCall(), hashValue);
+        }
+
+        delete hc;
     }
     fclose(staticFD);
 

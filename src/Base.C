@@ -22,6 +22,24 @@
 
 FILE* pebilOutp = stdout;
 
+char* sha1sum(char* buffer, uint32_t size){
+    unsigned char* allbytes = new unsigned char[size];
+    int end = size;
+    char *line;
+    char* hexstring = new char[41];
+    unsigned char hash[20];
+
+    bzero(hexstring, 41);
+    bzero(hash, 20);
+    memcpy(allbytes, buffer, size);
+
+    calc(allbytes, end, hash);
+    toHexString(hash, hexstring);
+
+    delete[] allbytes;                                                                                                                                 
+    return hexstring;
+}
+
 bool allSpace(char* str){
     int32_t len = strlen(str);
     for(int32_t i=0;i<len;i++){

@@ -1297,10 +1297,12 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-mpi            Use mpi compiler when building instrumentation
                           libraries [yes]
-  --enable-static         Use static archives for instrumentation libraries
+  --enable-static         Use static archives for instrumentation libraries;
+                          it is extremely unlikely that you want to use this
                           [no]
   --enable-instruction-trace
-                          Collect simulation stats per instruction [no]
+                          Collect simulation stats per instruction, affects
+                          jbb and sim only. [no]
   --enable-mpiinit-check  Disable output file printing in inst libraries
                           unless mpi_init is executed [no]
 

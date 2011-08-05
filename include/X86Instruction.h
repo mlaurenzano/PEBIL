@@ -30,6 +30,7 @@
 #include <udis86.h>
 #include <defines/X86Instruction.d>
 
+class BasicBlock;
 class ElfFileInst;
 class Function;
 class TextObject;
@@ -340,8 +341,6 @@ private:
     TextObject* container;
     uint32_t instructionType;
 
-    HashCode hashCode;
-
     uint32_t setInstructionType();
 
 public:
@@ -402,7 +401,8 @@ public:
 
     char* charStream() { return rawBytes; }
 
-    HashCode getHashCode() { return hashCode; }
+    HashCode* generateHashCode(BasicBlock* bb);
+
     void setLiveIns(BitSet<uint32_t>* live);
     void setLiveOuts(BitSet<uint32_t>* live);
 
