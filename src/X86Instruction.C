@@ -529,15 +529,21 @@ LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
     return uses;
 }
 
-bool X86Instruction::ReachingDefinition::sameLocAs(ReachingDefinition* other) {
-    return (this->location.value == other->location.value &&
+bool X86Instruction::ReachingDefinition::invalidatedBy(ReachingDefinition* other) {
+
+    // this definition is invalidated if other defines the same location
+    return ((this->location.type == other->location.type &&
             this->location.base == other->location.base &&
             this->location.index == other->location.index &&
             this->location.offset == other->location.offset &&
             this->location.scale == other->location.scale &&
-            this->location.type == other->location.type);
-
+            this->location.value == other->location.value)
+            || // or if other defines a register used to compute this location
+            (other->location.type == UD_OP_REG &&
+               (other->location.base == this->location.base ||
+               other->location.base == this->location.index)));
 }
+
 
 void X86Instruction::ReachingDefinition::print() {
 

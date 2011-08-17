@@ -45,43 +45,6 @@ uint32_t trueDefUseDist(uint32_t currDist, uint32_t funcSize){
     return currDist;
 }
 
-
-
-    // flowFacts : block -> [reach_defs]
-    //   flowFacts is a map from basic blocks to a list of reaching_definitions.
-    //   These are the definitions coming out of the block
-
-    /*
-
-    union(flowFacts1, flowFacts2):
-        result = emptyList
-        while( flowFacts1 has items or flowFacts2 has items ):
-             if head(flowFacts1) == NULL
-               result.concat(flowFacts2)
-
-             if head(flowFacts2) == NULL
-               result.concat(flowFacts1)
-
-             if head(flowFacts1) < head(flowFacts2) 
-               result.append(head(flowFacts1))
-
-             if head(flowFacts2) < head(flowFacts1)
-               result.append(head(flowFacts2))
-
-             else equal: ???
-
-      
-        while( notAtFixedPoint )
-            notAtFixedPoint = false
-            for each loop
-                for each block
-                    flowFacts_in = union of in paths
-                    flowFacts_out = F_b(flowFacts_in)
-                    if flowFacts_out changed
-                        notAtFixedPoint = true
-    */
-
-
 struct path {
     X86Instruction* ins;
     LinkedList<X86Instruction::ReachingDefinition*>* defs;
@@ -91,25 +54,30 @@ struct path {
     {}
 };
 
-static bool hasIntersect(
-    LinkedList<X86Instruction::ReachingDefinition*>* list1,
-    LinkedList<X86Instruction::ReachingDefinition*>* list2){
+/* Return true iff
+    there is a definition in list1 that would invalidate a location in list2
+    That is, the value written by def is read by use.
+*/
+static bool anyDefsAreUsed(
+    LinkedList<X86Instruction::ReachingDefinition*>* defList,
+    LinkedList<X86Instruction::ReachingDefinition*>* useList){
 
-    X86Instruction::ReachingDefinition* def1, * def2;
+    X86Instruction::ReachingDefinition* def, * use;
 
     LinkedList<X86Instruction::ReachingDefinition*>::Iterator it, it2;
-    for (it = list1->begin(); it != list1->end(); it = it.next()) {
-        def1 = *it;
-        for (it2 = list2->begin(); it2 != list2->end(); it2 = it2.next()) {
-            def2 = *it2;
+    for (it = defList->begin(); it != defList->end(); it = it.next()) {
+        def = *it;
+        for (it2 = useList->begin(); it2 != useList->end(); it2 = it2.next()) {
+            use = *it2;
 
-            if (def1->sameLocAs(def2)) {
-printf("\nFound use in instruction:\n");
-def2->print();
-printf("From defintion at:\n");
-def1->print();
-printf("\n");
-              return true;
+            if (use->invalidatedBy(def)){
+                /*printf("Instruction:\n");
+                def->print();
+                printf("\nDefines:\n");
+                use->print();
+                printf("\n");
+                */
+                return true;
             }
         }
     }
@@ -117,35 +85,15 @@ printf("\n");
    return false; 
 }
 
-static void printIntersect(
-    LinkedList<X86Instruction::ReachingDefinition*>* list1,
-    LinkedList<X86Instruction::ReachingDefinition*>* list2){
-
-    X86Instruction::ReachingDefinition* def1, * def2;
-
-    printf("Use of:\n");
-    LinkedList<X86Instruction::ReachingDefinition*>::Iterator it, it2;
-    for (it = list1->begin(); it != list1->end(); it = it.next()) {
-        def1 = *it;
-        for (it2 = list2->begin(); it2 != list2->end(); it2 = it2.next()) {
-            def2 = *it2;
-
-            if (def1->sameLocAs(def2)) {
-                def1->print();
-                printf("\n");
-                break;
-            }
-        }
-    }
-    printf("End Uses\n");
-
-}
 /*
-  If there is no intersection, return list1
-  If list1 is a subset of list2, return NULL
-  Otherwise create a new list containing list1 - list2 and return it
+  Return a list of all defines from list1 that are not invalidated
+  by the defines in list2.
+ 
+  If no defines are invalidated, return list1.
+  If all defines are invalidated return NULL.
+  Otherwise, create a new list containing the remaining valid defines.
 */
-static LinkedList<X86Instruction::ReachingDefinition*>* subIntersection(
+static LinkedList<X86Instruction::ReachingDefinition*>* removeInvalidated (
     LinkedList<X86Instruction::ReachingDefinition*>* list1,
     LinkedList<X86Instruction::ReachingDefinition*>* list2){
 
@@ -157,17 +105,17 @@ static LinkedList<X86Instruction::ReachingDefinition*>* subIntersection(
     LinkedList<X86Instruction::ReachingDefinition*>::Iterator it, it2;
     for (it = list1->begin(); it != list1->end(); it = it.next()) {
         def1 = *it;
-        bool found = false;
+        bool invalidated = false;
         for (it2 = list2->begin(); it2 != list2->end(); it2 = it2.next()) {
             def2 = *it2;
 
-            if (def1->sameLocAs(def2)) {
-                found = true;
+            if (def1->invalidatedBy(def2)) {
+                invalidated = true;
                 break;
             }
         }
 
-        if (!found) {
+        if (!invalidated) {
             retval->insert(def1);
         }
     }
@@ -254,7 +202,7 @@ void FlowGraph::computeDefUseDist(){
                     i2uses = cand->getUses();
 
                     // Check if any of idefs is used
-                    if(i2uses != NULL && hasIntersect(idefs, i2uses)){
+                    if(i2uses != NULL && anyDefsAreUsed(idefs, i2uses)){
 
                         // Check if use is shortest
                         uint32_t duDist;
@@ -275,7 +223,7 @@ void FlowGraph::computeDefUseDist(){
 
                     // Check if any defines are overwritten
                     i2defs = cand->getDefs();
-                    newdefs = subIntersection(idefs, i2defs);
+                    newdefs = removeInvalidated(idefs, i2defs);
 
                     // If all definitions killed, stop searching along this path
                     if (newdefs == NULL)
@@ -325,6 +273,15 @@ void FlowGraph::computeDefUseDist(){
                 }
             }
         }
+    }
+
+    LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*>::Iterator it1;
+    for( it1 = defines.begin(); it1 != defines.end(); it1 = it1.next() ) {
+        LinkedList<X86Instruction::ReachingDefinition*>::Iterator it2;
+        for( it2 = (*it1)->begin();  it2 != (*it1)->end(); it2 = it2.next() ) {
+            delete *it2;
+        }
+        delete *it1;
     }
 }
 

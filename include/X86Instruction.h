@@ -386,7 +386,7 @@ public:
         X86Instruction * defined_by;
         DefLocation location;
         ReachingDefinition(X86Instruction* ins, DefLocation loc) : defined_by(ins), location(loc) {}
-        bool sameLocAs (ReachingDefinition* other);
+        bool invalidatedBy (ReachingDefinition* other);
         void print();
     };
     LinkedList<ReachingDefinition*>* getDefs();
