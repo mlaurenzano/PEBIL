@@ -486,7 +486,7 @@ LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
         } // else implied?
 
 
-    } else if ((isIntegerOperation() || isFloatPOperation()) && !isConditionCompare()) {
+    } else if ((isIntegerOperation() || isFloatPOperation())) {
         op = operands[ALU_SRC1_OPERAND];
         if (op) {
             DefLocation loc;
