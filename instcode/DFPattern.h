@@ -56,4 +56,6 @@ typedef struct {
     uint16_t      memopCnt;
 } DFPatternSpec;
 
+DFPatternType convertDFPattenType(char* patternString);
+
 #endif

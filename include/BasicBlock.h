@@ -153,6 +153,41 @@ public:
     uint32_t getNumberOfSpecialRegOps();
     uint32_t getNumberOfLogicOps();
 
+    uint32_t getNumberOfBinMem();
+    uint32_t getNumberOfBinSystem();
+    uint32_t getNumberOfBinMove();
+    uint32_t getNumberOfBinFloatv();
+    uint32_t getNumberOfBinFloat();
+    uint32_t getNumberOfBinIntv();
+    uint32_t getNumberOfBinInt();
+    uint32_t getNumberOfBinBin();
+    uint32_t getNumberOfBinBinv();
+    uint32_t getNumberOfBinUncond();
+    uint32_t getNumberOfBinCond();
+    uint32_t getNumberOfBinInvalid();
+    uint32_t getNumberOfBinUnknown();
+    uint32_t getNumberOfBinFloats();
+    uint32_t getNumberOfBinStack();
+    uint32_t getNumberOfBinString();
+    uint32_t getNumberOfBinCache();
+    uint32_t getNumberOfBinOther();
+    uint32_t getNumberOfBinSinglev();
+    uint32_t getNumberOfBinSingle();
+    uint32_t getNumberOfBinDoublev();
+    uint32_t getNumberOfBinDouble();
+    uint32_t getNumberOfBinSingles();
+    uint32_t getNumberOfBinDoubles();
+    uint32_t getNumberOfBinWordv();
+    uint32_t getNumberOfBinWord();
+    uint32_t getNumberOfBinBytev();
+    uint32_t getNumberOfBinByte();
+    uint32_t getNumberOfBinDwordv();
+    uint32_t getNumberOfBinDword();
+    uint32_t getNumberOfBinQwordv();
+    uint32_t getNumberOfBinQword();
+
+    void setBins();
+
     bool isInLoop();
     bool controlFallsThrough();
     bool findExitInstruction();

@@ -22,6 +22,7 @@
 #include <BasicBlockCounter.h>
 #include <CacheSimulation.h>
 #include <CallReplace.h>
+#include <Classification.h>
 #include <DynamicTable.h>
 #include <ElfFile.h>
 #include <FunctionCounter.h>
@@ -98,7 +99,7 @@ void printBriefOptions(bool detail){
 void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : pebil\n");
-    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|csc|ftm|crp|thr)\n");
+    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|bin|csc|ftm|crp|thr)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
     fprintf(stderr,"\t[--inp <block_unique_ids>]    <-- valid for sim/csc and thr/crp\n");
     fprintf(stderr,"\t[--inf [a-z]*]\n");
@@ -193,6 +194,7 @@ typedef enum {
     identical_inst_type,
     frequency_inst_type,
     simulation_inst_type,
+    classification_inst_type,
     function_counter_type,
     func_timer_type,
     call_wrapper_type,
@@ -245,6 +247,10 @@ int main(int argc,char* argv[]){
                 printUsage();
             }
             ++i;
+            if (i >= argc){
+                fprintf(stderr,"\nError : No argument supplied to --typ\n");
+                printUsage();
+            } 
             if (!strcmp(argv[i],"ide")){
                 instType = identical_inst_type;
                 extension = "ideinst";
@@ -260,6 +266,9 @@ int main(int argc,char* argv[]){
             } else if (!strcmp(argv[i],"csc")){
                 instType = simulation_inst_type;
                 extension = "cscinst";
+            } else if (!strcmp(argv[i],"bin")){
+                instType = classification_inst_type;
+                extension = "bininst";
             } else if (!strcmp(argv[i],"ftm")){
                 instType = func_timer_type;
                 extension = "ftminst";
@@ -493,6 +502,8 @@ int main(int argc,char* argv[]){
         elfInst = new BasicBlockCounter(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == simulation_inst_type){
         elfInst = new CacheSimulation(&elfFile, inptName, extension, phaseNo, loopIncl, extdPrnt, dfpName);
+    } else if (instType == classification_inst_type){
+        elfInst = new Classification(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == func_timer_type){
         elfInst = new FunctionTimer(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == call_wrapper_type){

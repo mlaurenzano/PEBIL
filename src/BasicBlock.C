@@ -288,6 +288,336 @@ uint32_t BasicBlock::getNumberOfBranches(){
     return branchCount;
 }
 
+uint32_t BasicBlock::getNumberOfBinMem(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinMem()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinSystem(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinSystem()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinMove(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinMove()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinSinglev(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinFloatv()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinSingle(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinFloat()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinDoublev(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinDoublev()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinDouble(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinDouble()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinFloatv(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinSinglev() || instructions[i]->isBinDoublev()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinFloat(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinSingle() || instructions[i]->isBinDouble()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinFloats(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinSingles() || instructions[i]->isBinDoubles()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinSingles(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinSingles()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinDoubles(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinDoubles()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinWordv(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinWordv()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinWord(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinWord()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinBytev(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinBytev()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinByte(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinByte()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinDwordv(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinDwordv()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinDword(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinDword()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinQwordv(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinQwordv()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinQword(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinQword()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinIntv(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinIntv()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinInt(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinInt()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinBin(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinBin()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinBinv(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinBinv()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinUncond(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinUncond()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinCond(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinCond()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinInvalid(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinInvalid()){
+	    instructions[i]->print();
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinCache(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinCache()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinString(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinString()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinStack(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinStack()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinOther(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinOther()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+uint32_t BasicBlock::getNumberOfBinUnknown(){
+    uint32_t binCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isBinUnknown()){
+            binCount++;
+        }
+    }
+    return binCount;
+}
+
+void BasicBlock::setBins(){
+    
+    //printf("block starting at %X\n", getBaseAddress());
+    for (uint32_t i = 0; i < instructions.size(); i++) {
+        instructions[i]->getInstructionBin();
+        //printf("instruction at %X  ", instructions[i]->getBaseAddress());
+        //instructions[i]->printBin();
+    }
+}
+
 void RawBlock::printDisassembly(bool instructionDetail){
     uint32_t bytesPerWord = 1;
     uint32_t bytesPerLine = 8;

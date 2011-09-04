@@ -173,6 +173,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
         fprintf(staticFD, "# +lpc <loop_head> <parent_loop_head>\n");
         fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...\n");
         fprintf(staticFD, "# +dxi <count_def_use_cross> <count_call>\n");
+        fprintf(staticFD, "# +bin <unknown> <invalid> <cond> <uncond> <bin> <binv> <intb> <intbv> <intw> <intwv> <intd> <intdv> <intq> <intqv> <floats> <floatsv> <floatss> <floatd> <floatdv> <floatds> <move> <stack> <string> <system> <cache> <mem> <other>\n");
     }
 
     uint32_t noInst = 0;
@@ -223,7 +224,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
                     bb->getNumberOfSyscalls(), bb->getNumberOfSpecialRegOps(), bb->getNumberOfStringOps(),
                     bb->getNumberOfLoads(), bb->getNumberOfStores(), bb->getNumberOfMemoryOps(), bb->getHashCode().getValue());
 
-            ASSERT(bb->getNumberOfLoads() + bb->getNumberOfStores() == bb->getNumberOfMemoryOps());
+            //            ASSERT(bb->getNumberOfLoads() + bb->getNumberOfStores() == bb->getNumberOfMemoryOps());
 
             memopavg = 0.0;
             if (bb->getNumberOfMemoryOps()){
@@ -265,6 +266,18 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
             fprintf(staticFD, " # %#llx\n", bb->getHashCode().getValue());
 
             fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", bb->getDefXIter(), bb->endsWithCall(), bb->getHashCode().getValue());
+
+            bb->setBins();
+            fprintf(staticFD, "\t+bin\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", 
+                    bb->getNumberOfBinUnknown(), bb->getNumberOfBinInvalid(), bb->getNumberOfBinCond(), bb->getNumberOfBinUncond(), 
+                    bb->getNumberOfBinBin(), bb->getNumberOfBinBinv(), bb->getNumberOfBinByte(), bb->getNumberOfBinBytev(),
+                    bb->getNumberOfBinWord(), bb->getNumberOfBinWordv(), bb->getNumberOfBinDword(), bb->getNumberOfBinDwordv(),
+                    bb->getNumberOfBinQword(), bb->getNumberOfBinQwordv(),
+                    bb->getNumberOfBinSingle(), bb->getNumberOfBinSinglev(), bb->getNumberOfBinSingles(),
+                    bb->getNumberOfBinDouble(), bb->getNumberOfBinDoublev(), bb->getNumberOfBinDoubles(), bb->getNumberOfBinMove(),
+                    bb->getNumberOfBinStack(), bb->getNumberOfBinString(), bb->getNumberOfBinSystem(), bb->getNumberOfBinCache(),
+                    bb->getNumberOfBinMem(), bb->getNumberOfBinOther());
+
         }
     }
     fclose(staticFD);
