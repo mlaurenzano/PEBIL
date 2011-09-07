@@ -134,7 +134,9 @@ static LinkedList<X86Instruction::ReachingDefinition*>* removeInvalidated (
 }
 
 void FlowGraph::computeDefUseDist(){
-    LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*> defines =
+    LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*> fulldefs =
+        LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*>();
+    LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*> listdefs =
         LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*>();
 
     // For each loop
@@ -170,7 +172,7 @@ void FlowGraph::computeDefUseDist(){
                 }
 
                 // Otherwise, save the defs
-                defines.insert(idefs);
+                fulldefs.insert(idefs);
 
                 PriorityQueue<struct path*, uint32_t> paths = PriorityQueue<struct path*, uint32_t>();
                 bool blockTouched[function->getNumberOfBasicBlocks()];
@@ -226,6 +228,9 @@ void FlowGraph::computeDefUseDist(){
                     // Check if any defines are overwritten
                     i2defs = cand->getDefs();
                     newdefs = removeInvalidated(idefs, i2defs);
+                    if (newdefs != idefs){
+                        listdefs.insert(newdefs);
+                    }
 
                     while (!i2uses->empty()) { delete i2uses->shift(); } delete i2uses;
                     while (!i2defs->empty()) { delete i2defs->shift(); } delete i2defs;
@@ -233,10 +238,6 @@ void FlowGraph::computeDefUseDist(){
                     // If all definitions killed, stop searching along this path
                     if (newdefs == NULL)
                         continue;
-
-                    // If some definitions were killed, keep track of the new defs
-                    if (newdefs != idefs)
-                        defines.insert(newdefs);
 
                     // end of block that is a branch
                     if (cand->usesControlTarget() && !cand->isCall()){
@@ -272,6 +273,7 @@ void FlowGraph::computeDefUseDist(){
                             }
                         }
                     }
+
                 }
                 if (!paths.isEmpty()){
                     ins->setDefUseDist(0);
@@ -284,6 +286,22 @@ void FlowGraph::computeDefUseDist(){
         delete[] allLoopBlocks;
     }
 
+    while (!fulldefs.empty()){
+        LinkedList<X86Instruction::ReachingDefinition*>* inner = fulldefs.shift();
+        while (!inner->empty()){
+            X86Instruction::ReachingDefinition* def = inner->shift();
+            if (def){
+                delete def;
+            }
+        }
+        delete inner;
+    }
+    while (!listdefs.empty()){
+        delete listdefs.shift();
+    }
+
+
+    /*
     LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*>::Iterator it1;
     for( it1 = defines.begin(); it1 != defines.end(); it1 = it1.next() ) {
         LinkedList<X86Instruction::ReachingDefinition*>::Iterator it2;
@@ -292,153 +310,8 @@ void FlowGraph::computeDefUseDist(){
         }
         delete *it1;
     }
+    */
 }
-
-/*
-void FlowGraph::computeDefUseDist(){
-
-    BitSet<uint32_t>* origuses = new BitSet<uint32_t>(X86_ALU_REGS);
-    BitSet<uint32_t>* origdefs = new BitSet<uint32_t>(X86_ALU_REGS);
-    BitSet<uint32_t>* uses = new BitSet<uint32_t>(X86_ALU_REGS);
-    BitSet<uint32_t>* defs = new BitSet<uint32_t>(X86_ALU_REGS);
-    
-    //    PRINT_INFOR("computing def-use dist for function %s: %d loops", function->getName(), loops.size());
-    //    print();
-    for (uint32_t i = 0; i < loops.size(); i++){
-        BasicBlock** allLoopBlocks = new BasicBlock*[loops[i]->getNumberOfBlocks()];
-        loops[i]->getAllBlocks(allLoopBlocks);
-        //        PRINT_INFOR("\tcomputing def-use dist for function %s loop %d", function->getName(), i);
-        uint64_t loopLeader = loops[i]->getHead()->getBaseAddress();
-
-        for (uint32_t j = 0; j < loops[i]->getNumberOfBlocks(); j++){
-            BasicBlock* bb = allLoopBlocks[j];
-            bb->setDefXIter(0);
-            for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
-                X86Instruction* ins = bb->getInstruction(k);
-
-                if ((ins->isIntegerOperation() || ins->isFloatPOperation() || ins->isMoveOperation())
-                    && !ins->isConditionCompare()){
-                    ASSERT(!ins->usesControlTarget());
-
-                    origuses->clear();
-                    origdefs->clear();
-                    uses->clear();
-                    defs->clear();
-                    ins->defsRegisters(origdefs);
-                    ins->usesRegisters(origuses);
-
-                    if (!origdefs->empty()){
-                        //ins->print();
-                        //origdefs->print();
-                        //origuses->print();
-                        
-                        PriorityQueue<struct path*, uint32_t> paths = PriorityQueue<struct path*, uint32_t>();
-                        bool blockTouched[function->getNumberOfBasicBlocks()];
-                        bzero(&blockTouched, sizeof(bool) * function->getNumberOfBasicBlocks());
-                        
-                        if (k == bb->getNumberOfInstructions() - 1){
-                            ASSERT(ins->controlFallsThrough());
-                            ASSERT(bb->getNumberOfTargets() == 1);
-                            if (loops[i]->isBlockIn(bb->getTargetBlock(0)->getIndex())){
-                                paths.insert(new path(bb->getTargetBlock(0)->getLeader(), NULL), 1);
-                            }
-                        } else {
-                            paths.insert(new path(bb->getInstruction(k+1), NULL), 1);
-                        }
-                        
-                        while (!paths.isEmpty()){
-                            uint32_t currDist;
-                            struct path * p = paths.deleteMin(&currDist);
-                            X86Instruction* cand = p->ins;
-                            delete p;
-                            uses->clear();
-                            cand->usesRegisters(uses);
-                            defs->clear();
-                            cand->defsRegisters(defs);
-                            //PRINT_INFOR("\t\tExamining instructon %llx, %d", cand->getBaseAddress(), currDist);
-                            //                            uses->print();
-                            (*uses) &= (*origdefs);
-                            (*defs) &= (*origdefs);
-
-                            BasicBlock* candblock = function->getBasicBlockAtAddress(cand->getBaseAddress());
-
-                            if (!uses->empty()){
-                                //PRINT_INFOR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                                //PRINT_INFOR("Found use of reg at distance %d...", currDist);
-                                //cand->print();
-                                //PRINT_INFOR("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                                // we only want to store the shortest DU dist for now
-                                if (!ins->getDefUseDist() || ins->getDefUseDist() > trueDefUseDist(currDist, function->getNumberOfInstructions())){
-                                    ins->setDefUseDist(trueDefUseDist(currDist, function->getNumberOfInstructions()));
-                                }
-                                if (currDist > function->getNumberOfInstructions()){
-                                    //PRINT_INFOR("Found defxiter @ %#llx flowing to %#llx for block %#llx", ins->getBaseAddress(), cand->getBaseAddress(), bb->getBaseAddress());
-                                    bb->setDefXIter(bb->getDefXIter()+1);
-                                    break;
-                                }
-                            }
-                            
-                            // this instruction squashes the register(s) we're looking for, so we stop looking on this path
-                            if (!defs->empty()){
-                                //   defs->print();
-                                //PRINT_INFOR("re-def");
-                                continue;
-                            }
-                            
-                            // end of block that is a branch
-                            if (cand->usesControlTarget() && !cand->isCall()){
-                                BasicBlock* tgtBlock = function->getBasicBlockAtAddress(cand->getTargetAddress());
-                                if (tgtBlock && loops[i]->isBlockIn(tgtBlock->getIndex()) && !blockTouched[tgtBlock->getIndex()]){
-                                    blockTouched[tgtBlock->getIndex()] = true;
-                                    if (tgtBlock->getBaseAddress() == loopLeader){
-                                        paths.insert(new path(tgtBlock->getLeader(), NULL), loopXDefUseDist(currDist + 1, function->getNumberOfInstructions()));
-                                    } else {
-                                        paths.insert(new path(tgtBlock->getLeader(), NULL), currDist + 1);
-                                    }
-                                }
-                            }
-
-                            // non-branching control
-                            if (cand->controlFallsThrough()){
-                                BasicBlock* tgtBlock = function->getBasicBlockAtAddress(cand->getBaseAddress() + cand->getSizeInBytes());
-                                if (tgtBlock && loops[i]->isBlockIn(tgtBlock->getIndex())){
-                                    X86Instruction* ftTarget = function->getInstructionAtAddress(cand->getBaseAddress() + cand->getSizeInBytes());
-                                    if (ftTarget){
-                                        if (ftTarget->isLeader()){
-                                            if (!blockTouched[tgtBlock->getIndex()]){
-                                                blockTouched[tgtBlock->getIndex()] = true;
-                                                if (ftTarget->getBaseAddress() == loopLeader){
-                                                    paths.insert(new path(ftTarget, NULL), loopXDefUseDist(currDist + 1, function->getNumberOfInstructions()));
-                                                } else {
-                                                    paths.insert(new path(ftTarget, NULL), currDist + 1);
-                                                }
-                                            }
-                                        } else {
-                                            paths.insert(new path(ftTarget, NULL), currDist + 1);
-                                        }
-                                        
-                                    }
-                                }
-                            }
-                            
-                        }
-                        if (!paths.isEmpty()){
-                            ins->setDefUseDist(0);
-                        }
-                    }
-
-                }
-            }
-        }
-
-        delete[] allLoopBlocks;
-    }
-    delete origuses;
-    delete origdefs;
-    delete uses;
-    delete defs;
-}
-*/
 
 void FlowGraph::interposeBlock(BasicBlock* bb){
     ASSERT(bb->getNumberOfSources() == 1 && bb->getNumberOfTargets() == 1);

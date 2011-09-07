@@ -26,6 +26,7 @@
 #include <LineInformation.h>
 #include <Loop.h>
 #include <TextSection.h>
+#include <X86InstructionFactory.h>
 
 #define MPI_INIT_WRAPPER_CBIND   "MPI_Init_pebil_wrapper"
 #define MPI_INIT_LIST_CBIND_PREF "PMPI_Init"
@@ -111,7 +112,7 @@ void InstrumentationTool::instrument(){
 #endif //HAVE_MPI
 }
 
-InstrumentationPoint* InstrumentationTool::insertTripCounter(uint64_t counterOffset, Base* within, InstLocations loc){
+InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, Base* within){
     BasicBlock* scope = NULL;
 
     if (within->getType() == PebilClassType_BasicBlock){
@@ -123,7 +124,38 @@ InstrumentationPoint* InstrumentationTool::insertTripCounter(uint64_t counterOff
     } else {
         PRINT_ERROR("Cannot call InstrumentationTool::insertTripCounter for an object of type %s", within->getTypeName());
     }
-            
+
+    InstrumentationSnippet* snip = new InstrumentationSnippet();
+
+    // snippet contents, in this case just increment a counter
+    if (is64Bit()){
+        snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
+    } else {
+        snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+    }
+
+    // do not generate control instructions to get back to the application, this is done for
+    // the snippet automatically during code generation
+
+    // register the snippet we just created
+    addInstrumentationSnippet(snip);
+
+    // register an instrumentation point at the function that uses this snippet
+    FlagsProtectionMethods prot = FlagsProtectionMethod_light;
+    X86Instruction* bestinst = scope->getExitInstruction();
+    InstLocations loc = InstLocation_prior;
+#ifndef NO_REG_ANALYSIS
+    for (int32_t j = scope->getNumberOfInstructions() - 1; j >= 0; j--){
+        if (scope->getInstruction(j)->allFlagsDeadIn()){
+            bestinst = scope->getInstruction(j);
+            prot = FlagsProtectionMethod_none;
+            break;
+        }
+    }
+#endif
+    InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, loc);
+
+    return p;
 }
 
 void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize){

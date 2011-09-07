@@ -98,5 +98,11 @@ extern int getNTasks();
 #define PRINT_DEBUG(...) 
 //#define PRINT_DEBUG(...) PRINT_INSTR(__VA_ARGS__)
 
+#ifdef STATS_PER_INSTRUCTION
+#define USES_STATS_PER_INSTRUCTION "yes"
+#else
+#define USES_STATS_PER_INSTRUCTION "no"
+#endif
+
 #endif // __INSTRUMENTATION_COMMON_H__
 

@@ -30,8 +30,8 @@
 #include <TextSection.h>
 
 #ifndef STATS_PER_INSTRUCTION
-#define COUNT_LOOP_ENTRY
 #endif //STATS_PER_INSTRUCTION
+#define COUNT_LOOP_ENTRY
 
 #ifdef COUNT_LOOP_ENTRY
 #define LOOP_EXT "loopcnt"
@@ -165,7 +165,6 @@ void BasicBlockCounter::instrument()
     Vector<LineInfo*>* allBlockLineInfos = new Vector<LineInfo*>();
 #endif //STATS_PER_INSTRUCTION
 
-    uint32_t noProtPoints = 0;
 #ifdef COUNT_LOOP_ENTRY
     Vector<Loop*> loopsFound;
 #endif
@@ -250,43 +249,14 @@ void BasicBlockCounter::instrument()
 
         initializeReservedData(getInstDataAddress() + hashCodeArray + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
         
-        InstrumentationSnippet* snip = new InstrumentationSnippet();
         uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
 
-        // snippet contents, in this case just increment a counter
-        if (is64Bit()){
-            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
-        } else {
-            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
-        }
-
-        // do not generate control instructions to get back to the application, this is done for
-        // the snippet automatically during code generation
-            
-        // register the snippet we just created
-        addInstrumentationSnippet(snip);            
-            
-        // register an instrumentation point at the function that uses this snippet
-        FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-        X86Instruction* bestinst = bb->getExitInstruction();
-        InstLocations loc = InstLocation_prior;
-#ifndef NO_REG_ANALYSIS
-        for (int32_t j = bb->getNumberOfInstructions() - 1; j >= 0; j--){
-            if (bb->getInstruction(j)->allFlagsDeadIn()){
-                bestinst = bb->getInstruction(j);
-                noProtPoints++;
-                prot = FlagsProtectionMethod_none;
-                break;
-            }
-        }
-#endif
-        InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, loc);
+        InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
     }
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
 #ifdef NO_REG_ANALYSIS
     PRINT_WARN(10, "Warning: register analysis disabled");
 #endif
-    PRINT_INFOR("Excluding flags protection for %d/%d instrumentation points", noProtPoints, numberOfPoints);
 
 #ifdef COUNT_LOOP_ENTRY
     PRINT_INFOR("Instrumenting %d loops for counting", loopsFound.size());
@@ -364,25 +334,8 @@ void BasicBlockCounter::instrument()
                 Vector<BasicBlock*> entryInterpositions;
                 if (source->getBaseAddress() + source->getNumberOfBytes() == loopsFound[i]->getHead()->getBaseAddress()){
                     // instrument somewhere in the source block
-                    X86Instruction* bestinst = source->getLeader();
-                    FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-                    InstLocations loc = InstLocation_prior;
-                    for (uint32_t k = 0; k < source->getNumberOfInstructions(); k++){
-                        if (source->getInstruction(k)->allFlagsDeadIn()){
-                            bestinst = source->getInstruction(k);
-                            prot = FlagsProtectionMethod_none;
-                        }
-                    }
-                    
-                    InstrumentationSnippet* snip = new InstrumentationSnippet();
-                    if (is64Bit()){
-                        snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
-                    } else {
-                        snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
-                    }
-                    addInstrumentationSnippet(snip);
-                    InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, loc);
-                    
+                    InstrumentationTool::insertInlinedTripCounter(counterOffset, source);
+
                     //                    PRINT_INFOR("\tENTR-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, source->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
                     numCalls++;
                 } else {
@@ -398,14 +351,8 @@ void BasicBlockCounter::instrument()
                 
                 for (uint32_t k = 0; k < entryInterpositions.size(); k++){
                     BasicBlock* interposed = initInterposeBlock(fg, entryInterpositions[k]->getIndex(), loopsFound[i]->getHead()->getIndex());
-                    InstrumentationSnippet* snip = new InstrumentationSnippet();
-                    if (is64Bit()){
-                        snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
-                    } else {
-                        snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
-                    }
-                    addInstrumentationSnippet(snip);
-                    InstrumentationPoint* pt = addInstrumentationPoint(interposed, snip, InstrumentationMode_inline, prot, loc);
+
+                    InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed);
 
                     //                    PRINT_INFOR("\tENTR-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, entryInterpositions[k]->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
                     numCalls++;

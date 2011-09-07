@@ -149,10 +149,6 @@ void CacheSimulation::filterBBs(){
     
     if (dfPatternFile){
 
-#ifdef STATS_PER_INSTRUCTION
-        //        PRINT_ERROR("configure option --enable-instruction-trace not compatible with --dfp");
-#endif
-
         Vector<char*>* dfpFileLines = new Vector<char*>();
         initializeFileList(dfPatternFile, dfpFileLines);
 
@@ -384,13 +380,13 @@ void CacheSimulation::instrument(){
             
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
                 X86Instruction* memop = bb->getInstruction(j);
-                
+#ifdef STATS_PER_INSTRUCTION
+                insnToBlock.append(blockId);
+#endif
                 if (memop->isMemoryOperation()){            
                     //PRINT_INFOR("The following instruction has %d membytes", memop->getNumberOfMemoryBytes());
                     //memop->print();
 #ifdef STATS_PER_INSTRUCTION
-                    insnToBlock.append(blockId);
-
                     (*allInstructions).append(memop);
                     (*allInstructionIds).append(memopId);
                     if (lineInfoFinder){

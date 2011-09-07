@@ -254,7 +254,7 @@ void initDfPatterns(DFPatternSpec* dfps,uint32_t n,BasicBlockInfo* bbs){
         PRINT_INSTR(stdout, "DFPatterns are activated with %u entries at address %#llx", n, dfps);
         uint32_t anyTagged = 0;
         for(i=1;i<=n;i++){
-            PRINT_INSTR(stdout, "\tdfpattern[%d]: memop=%d, type=%s", i, dfps[i].memopCnt, DFPatternTypeNames[dfps[i].type]);
+            PRINT_INSTR(stdout, "\tdfpattern(%d): memop=%d, type=%s", i-1, dfps[i].memopCnt, DFPatternTypeNames[dfps[i].type]);
             if(dfps[i].type == dfTypePattern_undefined){
                 PRINT_INSTR(stdout, "Error in dfpattern type %i %s",i,DFPatternTypeNames[dfps[i].type]);
                 assert (dfps[i].type != dfTypePattern_undefined);
@@ -305,6 +305,13 @@ void processDFPatternEntry(BufferEntry* entries,Attribute_t startIndex,Attribute
         if(info->basicBlock != bb){
             assert (0 && "Fatal: Something is wrong");
         }
+
+        /*
+        if (currentEntry->blockId < 35){
+            PRINT_INSTR(stdout, "foo! block %d memop %d", currentEntry->blockId, memopIdx);
+        }
+        */
+
         if((info->type == dfTypePattern_None) ||
            (info->type >= dfTypePattern_Total_Types)){
             continue;
@@ -882,11 +889,7 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
             fprintf(dfpFp,"# total     = %lld\n",totalNumberOfAccesses);
             fprintf(dfpFp,"# sampled   = %lld\n",totalNumberOfSamples);
             fprintf(dfpFp,"# processed = %lld\n",processedSampleCount);
-#ifdef STATS_PER_INSTRUCTION
-            fprintf(dfpFp, "# perinsn  = yes\n");
-#else
-            fprintf(dfpFp, "# perinsn  = no\n");
-#endif
+            fprintf(dfpFp, "# perinsn  = %s\n", USES_STATS_PER_INSTRUCTION);
         }
 
 #ifdef NO_SAMPLING_MODE
@@ -913,12 +916,7 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
 #else
         fprintf(fp,"# shiftaddr = no\n");
 #endif
-
-#ifdef STATS_PER_INSTRUCTION
-        fprintf(fp, "# perinsn = yes\n");
-#else
-        fprintf(fp, "# perinsn = no\n");
-#endif
+        fprintf(fp, "# perinsn = %s\n", USES_STATS_PER_INSTRUCTION);
 
         fprintf(fp,"#\n");
         for(j=0;j<systemCount;j++){
