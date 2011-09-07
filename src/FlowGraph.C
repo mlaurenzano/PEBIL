@@ -204,6 +204,8 @@ void FlowGraph::computeDefUseDist(){
                     // Check if any of idefs is used
                     if(i2uses != NULL && anyDefsAreUsed(idefs, i2uses)){
 
+                        while (!i2uses->empty()) { delete i2uses->shift(); } delete i2uses;
+
                         // Check if use is shortest
                         uint32_t duDist;
                         duDist = trueDefUseDist(currDist, function->getNumberOfInstructions());
@@ -224,6 +226,9 @@ void FlowGraph::computeDefUseDist(){
                     // Check if any defines are overwritten
                     i2defs = cand->getDefs();
                     newdefs = removeInvalidated(idefs, i2defs);
+
+                    while (!i2uses->empty()) { delete i2uses->shift(); } delete i2uses;
+                    while (!i2defs->empty()) { delete i2defs->shift(); } delete i2defs;
 
                     // If all definitions killed, stop searching along this path
                     if (newdefs == NULL)
@@ -271,8 +276,12 @@ void FlowGraph::computeDefUseDist(){
                 if (!paths.isEmpty()){
                     ins->setDefUseDist(0);
                 }
+                while (!paths.isEmpty()){
+                    delete paths.deleteMin(NULL);
+                }
             }
         }
+        delete[] allLoopBlocks;
     }
 
     LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*>::Iterator it1;

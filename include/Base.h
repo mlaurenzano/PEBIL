@@ -241,6 +241,46 @@ typedef enum {
     PebilClassType_Total_Types
 } PebilClassTypes;
 
+static const char* PebilClassTypeNames[PebilClassType_Total_Types] = {
+    "no_type", // 0
+    "BasicBlock",
+    "CodeBlock",
+    "DataReference",
+    "DataSection",
+    "DwarfSection",
+    "DwarfLineInfoSection",
+    "Dynamic",
+    "DynamicTable",
+    "FileHeader",
+    "FreeText", // 10
+    "Function",
+    "GlobalOffsetTable",
+    "GnuHashTable",
+    "GnuVerneed",
+    "GnuVerneedTable",
+    "GnuVersym",
+    "GnuVersymTable",
+    "X86Instruction",
+    "InstrumentationFunction",
+    "InstrumentationPoint", // 20
+    "InstrumentationSnippet",
+    "Note",
+    "NoteSection",
+    "ProgramHeader",
+    "RawBlock",
+    "RawSection",
+    "RelocationTable",
+    "Relocation",
+    "SectionHeader",
+    "StringTable", // 30
+    "Symbol",
+    "SymbolTable",
+    "SysvHashTable",
+    "TextSection"
+};
+
+#define GET_PEBIL_CLASS_NAME(__typ) (PebilClassTypeNames[__typ])
+
 typedef enum {
     ByteSource_no_source = 0,
     ByteSource_Application,
@@ -276,6 +316,7 @@ public:
     uint64_t baseAddress;
 
     PebilClassTypes getType() { return type; }
+    const char* getTypeName() { return GET_PEBIL_CLASS_NAME(type); }
     uint32_t getSizeInBytes() { return sizeInBytes; }
 
     virtual void print() { __SHOULD_NOT_ARRIVE; }

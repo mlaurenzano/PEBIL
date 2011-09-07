@@ -46,25 +46,27 @@ check: showme $(IDETGT) $(JBBTGT) $(SIMTGT)
 PEBIL_COMMAND = pebil --silent --typ
 FILTER_PEBIL_MSGS = grep -v "\-\["
 OUT = outp
+DIFF = diff
+NULL_FILE = /dev/null
 
 %.ideinst: %
 	$(PEBIL_COMMAND) ide --app $<
-	diff $< $@
+	$(DIFF) $< $@
 	./$@ > $@.$(OUT)
 	./$< > $<.$(OUT)
-	diff $<.$(OUT) $@.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
 
 %.jbbinst: %
 	$(PEBIL_COMMAND) jbb --app $<
 	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
 	./$< > $<.$(OUT)
-	diff $<.$(OUT) $@.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
 
 %.siminst: %
-	$(PEBIL_COMMAND) sim --app $< --inp /dev/null
+	$(PEBIL_COMMAND) sim --app $< --inp $(NULL_FILE)
 	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
 	./$< > $<.$(OUT)
-	diff $<.$(OUT) $@.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
 
 clean: 
 	rm -f *.o $(TARGETS) *.jbbinst *.loopcnt *.siminst *.ideinst *.static *.$(OUT)

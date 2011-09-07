@@ -111,6 +111,21 @@ void InstrumentationTool::instrument(){
 #endif //HAVE_MPI
 }
 
+InstrumentationPoint* InstrumentationTool::insertTripCounter(uint64_t counterOffset, Base* within, InstLocations loc){
+    BasicBlock* scope = NULL;
+
+    if (within->getType() == PebilClassType_BasicBlock){
+        scope = (BasicBlock*)within;
+    } else if (within->getType() == PebilClassType_X86Instruction){
+        X86Instruction* ins = (X86Instruction*)within;
+        Function* f = (Function*)(ins->getContainer());
+        scope = f->getBasicBlockAtAddress(ins->getBaseAddress());
+    } else {
+        PRINT_ERROR("Cannot call InstrumentationTool::insertTripCounter for an object of type %s", within->getTypeName());
+    }
+            
+}
+
 void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 

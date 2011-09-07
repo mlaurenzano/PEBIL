@@ -635,9 +635,9 @@ void CacheSimulation::instrument(){
                         }
                     }
                     memInstBlockIds.append(blockId);
-                    memopId++;
                     memopIdInBlock++;
                 }
+                memopId++;
                 if (memopIdInBlock >= MAX_MEMOPS_PER_BLOCK){
                     PRINT_ERROR("Block @%#llx in function %s has %d memops (limited by MAX_MEMOPS_PER_BLOCK=%d)", 
                                 bb->getProgramAddress(), bb->getFunction()->getName(), bb->getNumberOfMemoryOps(), MAX_MEMOPS_PER_BLOCK);
