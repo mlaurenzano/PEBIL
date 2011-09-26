@@ -5,6 +5,8 @@
 #
 # WARNING: this function overwrites the file you pass as an arg
 
+unqtoken="LOOPCNT_CONVERT_THIS_LINE_MARKER"
+
 function echo_err() {
     msg=$1
     echo "$msg" >&2
@@ -19,22 +21,6 @@ function print_usage(){
     exit 1
 }
 
-function convert_line(){
-    line=$1
-    x=`echo $line | grep -Pv "^#"`
-    if [ "$x" == "" ]; then
-        echo "$line"
-    else
-        n=`echo $line | wc -w | cut --delimiter=" " --fields=1`
-        if [ "$n" != "5" ]; then
-            echo_err ""
-            echo_err "!!!!! error: malformed loopcnt line: $line"
-            exit 1
-        fi
-        echo "$line" | awk '{ print $5 "\t" $2 "\t" $3 "\t" $4 "\t" $5 }'
-    fi
-}
-
 loopcnt=$1
 
 if [ "$loopcnt" == "" ]; then
@@ -44,11 +30,26 @@ if [ ! -f "$loopcnt" ]; then
     print_usage "cannot find loopcnt file: $loopcnt"
 fi
 
+tmp=`mktemp`
 outf=`mktemp`
 
 while read line; do
-    convert_line "$line" >> $outf
+    if [ "${line:0:1}" == "#" ]; then
+        echo "$line" >> $tmp
+    else
+        set $line
+        # don't put anything between "set" and this comparison
+        if [ "$#" != "5" ]; then
+            echo_err ""
+            echo_err "!!!!! error: malformed loopcnt line: $line"
+            exit 1
+        fi
+        echo "$unqtoken $line" >> $tmp
+    fi
 done < $loopcnt
 
-echo "overwriting $loopcnt"
+cat $tmp | awk -v unqtoken="$unqtoken" '{ if ($1 == unqtoken){ print $6 "\t" $3 "\t" $4 "\t" $5 "\t" $6 } else { print } }' > $outf
+
+echo "***** inform: overwriting $loopcnt"
 mv -f $outf $loopcnt
+rm -f $tmp
