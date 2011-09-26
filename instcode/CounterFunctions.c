@@ -163,7 +163,7 @@ int32_t loopcounter(uint64_t* loopCounters, char* appName, char* instExt){
 
     for (i = 0; i < numberOfLoops; i++){
         if (loopCounters[i] >= PRINT_MINIMUM){
-            fprintf(outFile, "%#d\t", i);
+            fprintf(outFile, "%#lld\t", loopHashValues[i]);
             fprintf(outFile, "%llu\t#", loopCounters[i]);
             fprintf(outFile, "%s:", loopFileNames[i]);
             fprintf(outFile, "%d\t", loopLineNumbers[i]);
