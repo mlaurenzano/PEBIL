@@ -90,10 +90,10 @@ TextSection* ElfFile::getDotPltSection(){
 
 ElfFile::ElfFile(char* f, char* a) :
     is64BitFlag(false), staticLinked(false), elfFileName(f), applicationName(a), fileHeader(NULL), globalOffsetTable(NULL), dynamicTable(NULL),
-gnuVerneedTable(NULL), gnuVersymTable(NULL), dynamicStringTable(NULL), dynamicSymbolTable(NULL),
-pltRelocationTable(NULL), dynamicRelocationTable(NULL), lineInfoSection(NULL), dynamicSymtabIdx(0),
-dynamicSectionAddress(0), dynamicTableSectionIdx(0), textSegmentIdx(0), dataSegmentIdx(0), numberOfFunctions(0),
-numberOfBlocks(0), numberOfMemoryOps(0), numberOfFloatPOps(0)
+    gnuVerneedTable(NULL), gnuVersymTable(NULL), dynamicStringTable(NULL), dynamicSymbolTable(NULL),
+    pltRelocationTable(NULL), dynamicRelocationTable(NULL), lineInfoSection(NULL), dynamicSymtabIdx(0),
+    dynamicSectionAddress(0), dynamicTableSectionIdx(0), textSegmentIdx(0), dataSegmentIdx(0), numberOfFunctions(0),
+    numberOfBlocks(0), numberOfMemoryOps(0), numberOfFloatPOps(0)
 {
     uint32_t addrAlign;
     if (is64Bit()){

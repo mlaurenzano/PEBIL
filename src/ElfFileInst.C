@@ -62,6 +62,10 @@ BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, ui
     jumpToTarget->setLeader(true);
     jumpToTarget->setContainer(fg->getFunction());
     jumpToTarget->setIndex(0);
+    jumpToTarget->initializeAnchor(fg->getBasicBlock(bbtgtidx)->getLeader());
+
+    ASSERT(jumpToTarget->getAddressAnchor() != NULL && jumpToTarget->getAddressAnchor()->getLink()->getType() == PebilClassType_X86Instruction);
+    (*(elfFile->getAddressAnchors())).append(jumpToTarget->getAddressAnchor());
 
     fg->getFunction()->setManipulated();
 
