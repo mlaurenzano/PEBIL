@@ -291,7 +291,7 @@ void CacheSimulation::instrument(){
     sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedBasicBlocks(), dumpCode);
 #else
     sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedInstructions(), dumpCode);
-    Vector<int32_t> insnToBlock;
+    uint32_t insnToBlock[getNumberOfExposedInstructions()];
 #endif
     initializeReservedData(getInstDataAddress() + commentStore, commentSize, comment);
 
@@ -347,7 +347,8 @@ void CacheSimulation::instrument(){
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
                 X86Instruction* memop = bb->getInstruction(j);
 #ifdef STATS_PER_INSTRUCTION
-                insnToBlock.append(blockId);
+                ASSERT(blockId == i);
+                insnToBlock[memopId] = blockId;
 #endif
                 if (memop->isMemoryOperation()){            
                     //PRINT_INFOR("The following instruction has %d membytes", memop->getNumberOfMemoryBytes());
@@ -610,6 +611,7 @@ void CacheSimulation::instrument(){
             }
 
 #ifndef DISABLE_BLOCK_COUNT
+            /*
             InstrumentationSnippet* snip = new InstrumentationSnippet();
             addInstrumentationSnippet(snip);
         
@@ -632,6 +634,9 @@ void CacheSimulation::instrument(){
             }
             
             InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, InstLocation_prior);
+            */
+            uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
+            InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
 #endif
         } else {
             memopId += bb->getNumberOfInstructions();
@@ -689,8 +694,8 @@ void CacheSimulation::instrument(){
     entryFunc->addArgument(counterArray);
     entryFunc->addArgument(killedArray);
 #ifdef STATS_PER_INSTRUCTION
-    uint64_t mapArray = reserveDataOffset(sizeof(int32_t) * insnToBlock.size());
-    initializeReservedData(getInstDataAddress() + mapArray, sizeof(int32_t) * insnToBlock.size(), &insnToBlock);
+    uint64_t mapArray = reserveDataOffset(sizeof(int32_t) * getNumberOfExposedInstructions());
+    initializeReservedData(getInstDataAddress() + mapArray, sizeof(int32_t) * getNumberOfExposedInstructions(), &insnToBlock);
     entryFunc->addArgument(mapArray);
 #endif
 

@@ -53,8 +53,9 @@ void clearBlockCounters(){
 // PROBLEM^^ on some systems (cray XT) it is unsafe to call functions
 // from the entry function
 #ifdef STATS_PER_INSTRUCTION
-int32_t* insnToBlock;
+uint32_t* insnToBlock;
 int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uint64_t* counters, char* killed, int32_t* insnMap){
+    insnToBlock = insnMap;
 #else
 int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uint64_t* counters, char* killed){
 #endif
@@ -63,9 +64,7 @@ int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uin
     numberOfBasicBlocks = *numblocks;
     blockCounters = counters;
     blockIsKilled = killed;
-#ifdef STATS_PER_INSTRUCTION
-    insnToBlock = insnMap;
-#endif
+
     numberKilled = 0;
 
     instpoint_info* ip;

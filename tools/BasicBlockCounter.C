@@ -29,8 +29,6 @@
 #include <Loop.h>
 #include <TextSection.h>
 
-#ifndef STATS_PER_INSTRUCTION
-#endif //STATS_PER_INSTRUCTION
 #define COUNT_LOOP_ENTRY
 
 #ifdef COUNT_LOOP_ENTRY
