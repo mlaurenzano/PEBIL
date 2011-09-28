@@ -351,7 +351,6 @@ void FlowGraph::interposeBlock(BasicBlock* bb){
     targetBlock->addSourceBlock(bb);
 
     X86Instruction* jumpToTarget = bb->getLeader();
-    jumpToTarget->initializeAnchor(targetBlock->getLeader());
     jumpToTarget->setBaseAddress(blocks.back()->getBaseAddress() + blocks.back()->getSizeInBytes());
     jumpToTarget->setIndex(0);
     ASSERT(sourceBlock->getExitInstruction() && sourceBlock->getExitInstruction()->getAddressAnchor());

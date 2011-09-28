@@ -64,7 +64,7 @@ public:
                 break;
             }
         }
-        return (current ? true : false);
+        return (current? true : false);
     }
 
     bool exists(uint64_t key,T value){

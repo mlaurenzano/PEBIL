@@ -5171,7 +5171,7 @@ fi
 done
 
 
-ac_config_files="$ac_config_files Makefile src/Makefile tools/Makefile testapps/Makefile instcode/Makefile scripts/blacklist.sh"
+ac_config_files="$ac_config_files Makefile src/Makefile tools/Makefile testapps/Makefile instcode/Makefile scripts/blacklist.sh pebilrc"
 
 ac_aux_dir=
 for ac_dir in "$srcdir" "$srcdir/.." "$srcdir/../.."; do
@@ -5917,6 +5917,7 @@ do
     "testapps/Makefile") CONFIG_FILES="$CONFIG_FILES testapps/Makefile" ;;
     "instcode/Makefile") CONFIG_FILES="$CONFIG_FILES instcode/Makefile" ;;
     "scripts/blacklist.sh") CONFIG_FILES="$CONFIG_FILES scripts/blacklist.sh" ;;
+    "pebilrc") CONFIG_FILES="$CONFIG_FILES pebilrc" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5 ;;
   esac

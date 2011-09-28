@@ -71,7 +71,8 @@ AC_CONFIG_FILES([Makefile
                  tools/Makefile
                  testapps/Makefile
                  instcode/Makefile
-                 scripts/blacklist.sh])
+                 scripts/blacklist.sh
+                 pebilrc])
 AC_CONFIG_SUBDIRS([external/udis86-1.7])
 AC_OUTPUT
 chmod +x scripts/blacklist.sh

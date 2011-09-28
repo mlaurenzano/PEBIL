@@ -171,7 +171,7 @@ void CacheSimulation::filterBBs(){
             }
             HashCode hashCode(id);
 #ifdef STATS_PER_INSTRUCTION
-            if(!hashCode.isBlock() && !hashCode.isInstruction()){
+            if(!hashCode.isInstruction()){
 #else //STATS_PER_INSTRUCTION
             if(!hashCode.isBlock()){
 #endif //STATS_PER_INSTRUCTION
@@ -256,7 +256,7 @@ void CacheSimulation::instrument(){
     initializeReservedData(getInstDataAddress() + bufferStore, BUFFER_ENTRIES * Size__BufferEntry, emptyBuff);
     delete[] emptyBuff;
 
-    
+
 #ifdef STATS_PER_INSTRUCTION
     PRINT_WARN(10, "Performing instrumentation to gather PER-INSTRUCTION statistics");
     uint32_t dfpCount = getNumberOfExposedInstructions();
@@ -291,7 +291,7 @@ void CacheSimulation::instrument(){
     sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedBasicBlocks(), dumpCode);
 #else
     sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedInstructions(), dumpCode);
-    Vector<int32_t> insnToBlock;
+    uint32_t insnToBlock[getNumberOfExposedInstructions()];
 #endif
     initializeReservedData(getInstDataAddress() + commentStore, commentSize, comment);
 
@@ -330,40 +330,6 @@ void CacheSimulation::instrument(){
     uint32_t memopId = 0;
     uint32_t regDefault = 0;
 
-    for (uint32_t i = 0; i < dfpCount; i++){
-#ifdef STATS_PER_INSTRUCTION
-        X86Instruction* ins = getExposedInstruction(i);
-        Function* f = (Function*)ins->getContainer();
-        BasicBlock* bb = f->getBasicBlockAtAddress(ins->getBaseAddress());
-
-        DFPatternType dfpType = dfTypePattern_None;
-        DFPatternSpec spec;
-        if (dfpSet.get(bb->getHashCode().getValue(), &dfpType)){
-            //            PRINT_INFOR("found dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
-        } else {
-            //            PRINT_INFOR("not doing dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
-        }
-        spec.memopCnt = (uint32_t)ins->isMemoryOperation();
-        spec.type = dfTypePattern_None;
-        if (ins->isMemoryOperation()){
-            spec.type = dfpType;
-        }
-#else //STATS_PER_INSTRUCTION
-        BasicBlock* bb = getExposedBasicBlock(i);
-
-        DFPatternType dfpType = dfTypePattern_None;
-        DFPatternSpec spec;
-        if (dfpSet.get(bb->getHashCode().getValue(), &dfpType)){
-            //            PRINT_INFOR("found dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
-        } else {
-            //            PRINT_INFOR("not doing dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
-        }
-        spec.type = dfpType;
-        spec.memopCnt = bb->getNumberOfMemoryOps();
-#endif //STATS_PER_INSTRUCTION
-        initializeReservedData(getInstDataAddress() + dfPatternStore + (i+1)*sizeof(DFPatternSpec), sizeof(DFPatternSpec), &spec);
-    }
-
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
 
@@ -381,7 +347,8 @@ void CacheSimulation::instrument(){
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
                 X86Instruction* memop = bb->getInstruction(j);
 #ifdef STATS_PER_INSTRUCTION
-                insnToBlock.append(blockId);
+                ASSERT(blockId == i);
+                insnToBlock[memopId] = blockId;
 #endif
                 if (memop->isMemoryOperation()){            
                     //PRINT_INFOR("The following instruction has %d membytes", memop->getNumberOfMemoryBytes());
@@ -467,7 +434,7 @@ void CacheSimulation::instrument(){
                             delete bufferDumpInstructions;
                             memInstPoints.append(pt);
                         } else {
-                        // TODO: get which gprs are dead at this point and use one of those 
+                            // TODO: get which gprs are dead at this point and use one of those 
                             InstrumentationSnippet* snip = new InstrumentationSnippet();
                             addInstrumentationSnippet(snip);
                             
@@ -633,16 +600,18 @@ void CacheSimulation::instrument(){
                     memInstBlockIds.append(blockId);
                     memopIdInBlock++;
                 }
-                memopId++;
                 if (memopIdInBlock >= MAX_MEMOPS_PER_BLOCK){
                     PRINT_ERROR("Block @%#llx in function %s has %d memops (limited by MAX_MEMOPS_PER_BLOCK=%d)", 
                                 bb->getProgramAddress(), bb->getFunction()->getName(), bb->getNumberOfMemoryOps(), MAX_MEMOPS_PER_BLOCK);
                    
                 }
                 ASSERT(memopIdInBlock < MAX_MEMOPS_PER_BLOCK && "Too many memory ops in some basic block... try increasing MAX_MEMOPS_PER_BLOCK");
+
+                memopId++;
             }
 
 #ifndef DISABLE_BLOCK_COUNT
+            /*
             InstrumentationSnippet* snip = new InstrumentationSnippet();
             addInstrumentationSnippet(snip);
         
@@ -665,13 +634,51 @@ void CacheSimulation::instrument(){
             }
             
             InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, InstLocation_prior);
+            */
+            uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
+            InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
 #endif
+        } else {
+            memopId += bb->getNumberOfInstructions();
         }
         
         blockId++;
     }
         
     ASSERT(memInstPoints.size() && "There are no memory operations found through the filter");
+
+#ifdef STATS_PER_INSTRUCTION
+    for (uint32_t i = 0; i < getNumberOfExposedInstructions(); i++){
+        X86Instruction* ins = getExposedInstruction(i);
+        Function* f = (Function*)ins->getContainer();
+        BasicBlock* bb = f->getBasicBlockAtAddress(ins->getBaseAddress());
+        
+        DFPatternSpec spec;
+        spec.memopCnt = (uint32_t)ins->isMemoryOperation();
+        spec.type = dfTypePattern_None;
+
+        DFPatternType dfpType = dfTypePattern_None;
+        if (dfpSet.get(bb->getHashCode().getValue(), &dfpType) && ins->isMemoryOperation()){
+            spec.type = dfpType;
+        }
+        initializeReservedData(getInstDataAddress() + dfPatternStore + (i+1)*sizeof(DFPatternSpec), sizeof(DFPatternSpec), &spec);
+    }
+#else //STATS_PER_INSTRUCTION
+    for (uint32_t i = 0; i < dfpCount; i++){
+        BasicBlock* bb = getExposedBasicBlock(i);
+
+        DFPatternType dfpType = dfTypePattern_None;
+        DFPatternSpec spec;
+        if (dfpSet.get(bb->getHashCode().getValue(), &dfpType)){
+            //            PRINT_INFOR("found dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
+        } else {
+            //            PRINT_INFOR("not doing dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
+        }
+        spec.type = dfpType;
+        spec.memopCnt = bb->getNumberOfMemoryOps();
+        initializeReservedData(getInstDataAddress() + dfPatternStore + (i+1)*sizeof(DFPatternSpec), sizeof(DFPatternSpec), &spec);
+    }
+#endif //STATS_PER_INSTRUCTION
 
     instPointInfo = reserveDataOffset(sizeof(instpoint_info) * memInstPoints.size());
     entryFunc->addArgument(instPointInfo);
@@ -687,8 +694,8 @@ void CacheSimulation::instrument(){
     entryFunc->addArgument(counterArray);
     entryFunc->addArgument(killedArray);
 #ifdef STATS_PER_INSTRUCTION
-    uint64_t mapArray = reserveDataOffset(sizeof(int32_t) * insnToBlock.size());
-    initializeReservedData(getInstDataAddress() + mapArray, sizeof(int32_t) * insnToBlock.size(), &insnToBlock);
+    uint64_t mapArray = reserveDataOffset(sizeof(int32_t) * getNumberOfExposedInstructions());
+    initializeReservedData(getInstDataAddress() + mapArray, sizeof(int32_t) * getNumberOfExposedInstructions(), &insnToBlock);
     entryFunc->addArgument(mapArray);
 #endif
 
