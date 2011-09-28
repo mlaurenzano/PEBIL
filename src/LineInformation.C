@@ -574,8 +574,14 @@ void LineInfo::updateRegsSpecialOpcode(char* instruction){
     ASSERT(header->GET(li_line_range) && "A divide by zero error is about to occur");
 
     // NOTE: sometimes it seems that we want int8_t for these, sometimes we don't (pgi multimaps)
+    //#define PGI_LINEINFO_PATCH
+#ifdef PGI_LINEINFO_PATCH
+    uint8_t addr_inc = (adjusted_opcode /  header->GET(li_line_range)) *  header->GET(li_min_insn_length);
+    uint8_t line_inc = header->GET(li_line_base) + (adjusted_opcode % header->GET(li_line_range));
+#else
     int8_t addr_inc = (adjusted_opcode /  header->GET(li_line_range)) *  header->GET(li_min_insn_length);
     int8_t line_inc = header->GET(li_line_base) + (adjusted_opcode % header->GET(li_line_range));
+#endif
 
     LineInfo* regs = header->getRegisters();
 

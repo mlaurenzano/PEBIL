@@ -2,12 +2,12 @@
 
 # a script that reads in a set of jbb/loop + siminst traces and static files
 # and prints out single lines containing all relevant info
-# ./loopBlockSimu.py --application cg.C.8 --cpu_count 8 --trace_dir ~/NPB3.3/NPB3.3-MPI/run/ --system_id 77
 #
 
 import getopt
 import string
 import sys
+import os
 
 def print_error(err):
     print 'Error: ' + str(err)
@@ -17,7 +17,9 @@ def print_usage(err):
     print "usage : " + sys.argv[0]
     print "        --application <application>"
     print "        --cpu_count <cpu count>"
-    print "        --trace_dir <trace dir>"
+    print "        --jbb_trace_dir <trace dir>"
+    print "        --sim_trace_dir <trace dir>"
+    print "        --unified_static <unified_static_file>"
     print "        --system_id <sysid>"
     print_error(err)
 
@@ -30,10 +32,15 @@ def get_outer_loop_head(bbhash, block_static):
         bbhash = int(block_static[bbhash][27])
     return bbhash
 
+def file_exists(filename):
+    if os.path.isfile(filename):
+        return true
+    return false
+
 
 ## set up command line args                                                                                                                                        
 try:
-    optlist, args = getopt.getopt(sys.argv[1:], '', ['application=', 'cpu_count=', 'trace_dir=', 'system_id='])
+    optlist, args = getopt.getopt(sys.argv[1:], '', ['application=', 'cpu_count=', 'jbb_trace_dir=', 'sim_trace_dir=', 'system_id=', 'unified_static='])
 except getopt.GetoptError, err:
     print_usage(err)
     sys.exit(-1)
@@ -44,8 +51,10 @@ if len(args) > 0:
 
 application = ''
 cpu_count = ''
-trace_dir = ''
+jbb_trace_dir = ''
+sim_trace_dir = ''
 system_id = ''
+unified_static = ''
 for i in range(0,len(optlist),1):
     if optlist[i][0] == '--cpu_count':
         try:
@@ -61,8 +70,12 @@ for i in range(0,len(optlist),1):
             sys.exit(-1)
     elif optlist[i][0] == '--application':
         application = optlist[i][1]
-    elif optlist[i][0] == '--trace_dir':
-        trace_dir = optlist[i][1]
+    elif optlist[i][0] == '--jbb_trace_dir':
+        jbb_trace_dir = optlist[i][1]
+    elif optlist[i][0] == '--sim_trace_dir':
+        sim_trace_dir = optlist[i][1]
+    elif optlist[i][0] == '--unified_static':
+        unified_static = optlist[i][1]
     else:
         print_usage('unknown argument ' + str(optlist[i][0]))
         sys.exit(-1)
@@ -73,18 +86,24 @@ if application == '':
 if cpu_count == '':
     print_usage('--cpu_count required')
     sys.exit(-1)
-if trace_dir == '':
-    print_usage('--trace_dir required')
+if jbb_trace_dir == '':
+    print_usage('--jbb_trace_dir required')
+    sys.exit(-1)
+if sim_trace_dir == '':
+    print_usage('--sim_trace_dir required')
     sys.exit(-1)
 if system_id == '':
     print_usage('--system_id required')
     sys.exit(-1)
+if unified_static == '':
+    print_usage('--unified_static required')
+    sys.exit(-1)
 
 # if we used a file for output maybe we should call it this
-#    outf = open(trace_dir + '/%(application)s_%(cpu_count)04d_sysid%(system_id)d.loops' % { 'application':application, 'cpu_count':cpu_count, 'system_id':system_id }, 'w')
+#    outf = open(sim_trace_dir + '/%(application)s_%(cpu_count)04d_sysid%(system_id)d.loops' % { 'application':application, 'cpu_count':cpu_count, 'system_id':system_id }, 'w')
 
 # read static data
-lsf = open(trace_dir + '/%(application)s.unified.static' % { 'application':application })
+lsf = open(unified_static)
 lsraw = lsf.readlines()
 lsf.close()
 
@@ -109,7 +128,15 @@ percpu_sim_data = []
 percpu_loop_data = []
 percpu_jbb_data = []
 for i in range(0,cpu_count,1):
-    sf = open(trace_dir + '/%(application)s.meta_%(cpu)04d.siminst' % { 'application':application, 'cpu':i })
+    simfiles = [sim_trace_dir + '/%(application)s.meta_%(cpu)04d.siminst' % { 'application':application, 'cpu':i },
+                sim_trace_dir + '/%(application)s.phase.1.meta_%(cpu)04d.%(cpustr)04d.siminst' % { 'application':application, 'cpu':i, 'cpustr':cpu_count }]
+    sf = ''
+    if file_exists(simfiles[0]):
+        sf = open(simfiles[0])
+    elif file_exists(simfiles[1]):
+        sf = open(simfiles[1])
+    else:
+        print_error('could not find meta.siminst file: ' + simfiles[0] + ' or ' + simfiles[1])
     sraw = sf.readlines()
     sf.close()
 
@@ -137,7 +164,7 @@ for i in range(0,cpu_count,1):
 
     percpu_sim_data.append([block_total, block_sim_meta, block_hrs])
 
-    lf = open(trace_dir + '/%(application)s.meta_%(cpu)04d.loopcnt' % { 'application':application, 'cpu':i })
+    lf = open(jbb_trace_dir + '/%(application)s.meta_%(cpu)04d.loopcnt' % { 'application':application, 'cpu':i })
     lraw = lf.readlines()
     lf.close()
 
@@ -151,7 +178,7 @@ for i in range(0,cpu_count,1):
             block_loop_meta[int(toks[4])] = [int(toks[0]), int(toks[1])]
     percpu_loop_data.append(block_loop_meta)
 
-    jf = open(trace_dir + '/%(application)s.meta_%(cpu)04d.jbbinst' % { 'application':application, 'cpu':i })
+    jf = open(jbb_trace_dir + '/%(application)s.meta_%(cpu)04d.jbbinst' % { 'application':application, 'cpu':i })
     jraw = jf.readlines()
     jf.close()
 
