@@ -34,8 +34,8 @@ def get_outer_loop_head(bbhash, block_static):
 
 def file_exists(filename):
     if os.path.isfile(filename):
-        return true
-    return false
+        return 1
+    return 0
 
 
 ## set up command line args                                                                                                                                        
