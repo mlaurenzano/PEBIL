@@ -594,5 +594,10 @@ int main(int argc,char* argv[]){
     PRINT_INFOR("");
     PRINT_INFOR("******** DONE ******** SUCCESS ***** SUCCESS ***** SUCCESS ********");
     PRINT_INFOR("");
+
+    if (runSilent){
+        fclose(pebilOutp);
+    }
+
     return 0;
 }
