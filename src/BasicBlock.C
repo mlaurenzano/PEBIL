@@ -120,7 +120,7 @@ uint32_t CodeBlock::addTailJump(X86Instruction* tgtInstruction){
 }
 
 uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
-    PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx for function %s", baseAddress, getContainer()->getName());
+    PRINT_DEBUG_FUNC_RELOC("fluffing block at %llx for function %s", baseAddress, getLeader()->getContainer()->getName());
 
     PRINT_DEBUG_BLOAT_FILTER("block range for bloat [%#llx,%#llx)", getBaseAddress(), getBaseAddress() + getNumberOfBytes());
     for (uint32_t i = 0; i < (*instPoints).size(); i++){
