@@ -220,7 +220,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
         fprintf(staticFD, "# +lpc <loop_head> <parent_loop_head>\n");
         fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...\n");
         fprintf(staticFD, "# +dxi <count_def_use_cross> <count_call>\n");
-        fprintf(staticFD, "# +ipa <ends_w_call> <call_target_addr> <call_target_name>\n");
+        fprintf(staticFD, "# +ipa <call_target_addr> <call_target_name>\n");
         fprintf(staticFD, "# +bin <unknown> <invalid> <cond> <uncond> <bin> <binv> <intb> <intbv> <intw> <intwv> <intd> <intdv> <intq> <intqv> <floats> <floatsv> <floatss> <floatd> <floatdv> <floatds> <move> <stack> <string> <system> <cache> <mem> <other>\n");
     }
 
@@ -315,18 +315,16 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
 
             fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", bb->getDefXIter(), bb->endsWithCall(), bb->getHashCode().getValue());
 
-            uint32_t endsWCall = 0;
             uint64_t callTgtAddr = 0;
             char* callTgtName = INFO_UNKNOWN;
             if (bb->endsWithCall()){
-                endsWCall = 1;
                 callTgtAddr = bb->getExitInstruction()->getTargetAddress();
                 Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol(callTgtAddr);
                 if (functionSymbol && functionSymbol->getSymbolName()){
                     callTgtName = functionSymbol->getSymbolName();
                 }
             }
-            fprintf(staticFD, "\t+ipa\t%d\t%#llx\t%s # %#llx\n", endsWCall, callTgtAddr, callTgtName, bb->getHashCode().getValue());
+            fprintf(staticFD, "\t+ipa\t%#llx\t%s # %#llx\n", callTgtAddr, callTgtName, bb->getHashCode().getValue());
 
             bb->setBins();
             fprintf(staticFD, "\t+bin\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", 
@@ -412,7 +410,7 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
         fprintf(staticFD, "# +lpc <loop_head> <parent_loop_head>\n");
         fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...\n");
         fprintf(staticFD, "# +dxi <count_def_use_cross> <count_call>\n");
-        fprintf(staticFD, "# +ipa <ends_w_call> <call_target_addr> <call_target_name>\n");
+        fprintf(staticFD, "# +ipa <call_target_addr> <call_target_name>\n");
     }
 
     uint32_t noInst = 0;
@@ -510,18 +508,16 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
             // TODO +dxi info is per-block still
             fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", bb->getDefXIter(), bb->endsWithCall(), hashValue);
 
-            uint32_t endsWCall = 0;
             uint64_t callTgtAddr = 0;
             char* callTgtName = INFO_UNKNOWN;
             if (ins->isCall()){
-                endsWCall = 1;
                 callTgtAddr = ins->getTargetAddress();
                 Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol(callTgtAddr);
                 if (functionSymbol && functionSymbol->getSymbolName()){
                     callTgtName = functionSymbol->getSymbolName();
                 }
             }
-            fprintf(staticFD, "\t+ipa\t%d\t%#llx\t%s # %#llx\n", endsWCall, callTgtAddr, callTgtName, hashValue);
+            fprintf(staticFD, "\t+ipa\t%#llx\t%s # %#llx\n", callTgtAddr, callTgtName, hashValue);
         }
 
         delete hc;
