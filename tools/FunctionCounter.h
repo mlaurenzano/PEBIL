@@ -28,6 +28,8 @@ private:
     InstrumentationFunction* entryFunc;
     InstrumentationFunction* exitFunc;
 
+    InstrumentationFunction* loopEntry;
+    InstrumentationFunction* loopExit;
 public:
     FunctionCounter(ElfFile* elf, char* ext, bool lpi, bool dtl);
     ~FunctionCounter() {}

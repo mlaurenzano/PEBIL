@@ -84,6 +84,7 @@ void BasicBlockCounter::instrument()
     InstrumentationTool::instrument();
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
     uint32_t temp32;
+    uint64_t temp64;
 
     LineInfoFinder* lineInfoFinder = NULL;
     if (hasLineInformation()){
@@ -122,15 +123,15 @@ void BasicBlockCounter::instrument()
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
 
-    temp32 = 0;
+    temp64 = 0;
     for (uint32_t i = 0; i < numberOfPoints; i++){
-        initializeReservedData(getInstDataAddress() + counterArray + i*sizeof(uint32_t), sizeof(uint32_t), &temp32);
+        initializeReservedData(getInstDataAddress() + counterArray + i*sizeof(uint64_t), sizeof(uint64_t), &temp64);
     }
 
     // the number of inst points
     entryFunc->addArgument(counterArrayEntries);
-    temp32 = numberOfPoints;
-    initializeReservedData(getInstDataAddress() + counterArrayEntries, sizeof(uint32_t), &temp32);
+    temp64 = numberOfPoints;
+    initializeReservedData(getInstDataAddress() + counterArrayEntries, sizeof(uint64_t), &temp64);
 
     // an array for line numbers
     entryFunc->addArgument(lineArray);
@@ -248,7 +249,6 @@ void BasicBlockCounter::instrument()
         initializeReservedData(getInstDataAddress() + hashCodeArray + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
         
         uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
-
         InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
     }
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
@@ -270,8 +270,8 @@ void BasicBlockCounter::instrument()
     uint64_t loopFuncNameArray = reserveDataOffset(loopsFound.size() * sizeof(char*));
     uint64_t loopHashCodeArray = reserveDataOffset(loopsFound.size() * sizeof(uint64_t));
 
-    temp32 = loopsFound.size();
-    initializeReservedData(getInstDataAddress() + loopCounterEntries, sizeof(uint32_t), &temp32);
+    temp64 = loopsFound.size();
+    initializeReservedData(getInstDataAddress() + loopCounterEntries, sizeof(uint64_t), &temp64);
 
     loopEntry->addArgument(loopCounterEntries);
     loopEntry->addArgument(loopLineArray);
@@ -360,7 +360,7 @@ void BasicBlockCounter::instrument()
         }
     }
     PRINT_INFOR("Loop-counter instrumentation adding %d points", numCalls);
-#endif
+#endif //COUNT_LOOP_ENTRY
 
 #ifdef STATS_PER_INSTRUCTION
     printStaticFilePerInstruction(allInstructions, allInstructionIds, allInstructionLineInfos, allInstructions->size());

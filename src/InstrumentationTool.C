@@ -121,6 +121,9 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
         X86Instruction* ins = (X86Instruction*)within;
         Function* f = (Function*)(ins->getContainer());
         scope = f->getBasicBlockAtAddress(ins->getBaseAddress());
+    } else if (within->getType() == PebilClassType_Function){
+        Function* f = (Function*)(within);
+        scope = f->getBasicBlockAtAddress(f->getBaseAddress());
     } else {
         PRINT_ERROR("Cannot call InstrumentationTool::insertTripCounter for an object of type %s", within->getTypeName());
     }

@@ -90,6 +90,9 @@ int compareLineInfoAddress(const void* arg1,const void* arg2){
 
 
 LineInfo* LineInfoFinder::lookupLineInfo(uint64_t addr){
+    if (!sortedLineInfos.size()){
+        return NULL;
+    }
     void* res = bsearch(&addr,&sortedLineInfos,sortedLineInfos.size(),sizeof(LineInfo*),searchLineInfoAddress);
     if (res){
         uint32_t ridx = (((char*)res)-((char*)&sortedLineInfos))/sizeof(LineInfo*);
@@ -98,17 +101,15 @@ LineInfo* LineInfoFinder::lookupLineInfo(uint64_t addr){
     return NULL;
 }
 
+LineInfo* LineInfoFinder::lookupLineInfo(Function* f){
+    return lookupLineInfo(f->getBasicBlockAtAddress(f->getBaseAddress())->getProgramAddress());
+}
+
 LineInfo* LineInfoFinder::lookupLineInfo(BasicBlock* bb){
-    if (!sortedLineInfos.size()){
-        return NULL;
-    }
     return lookupLineInfo(bb->getProgramAddress());
 }
 
 LineInfo* LineInfoFinder::lookupLineInfo(X86Instruction* ins){
-    if (!sortedLineInfos.size()){
-        return NULL;
-    }
     return lookupLineInfo(ins->getProgramAddress());
 }
 

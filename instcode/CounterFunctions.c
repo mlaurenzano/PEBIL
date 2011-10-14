@@ -44,23 +44,6 @@ int64_t* loopHashValues;
 
 void tool_mpi_init(){}
 
-int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** functionNames){
-    int32_t i;
-
-    PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
-    PRINT_INSTR(stdout, "raw args: %x %x %x", numFunctions, functionCounts, functionNames);
-    PRINT_INSTR(stdout, "There are %d functions in the code:", *numFunctions);
-    PRINT_INSTR(stdout, "Printing functions with at least %d executions", PRINT_MINIMUM);
-
-    for (i = 0; i < *numFunctions; i++){
-        if (functionCounts[i] >= PRINT_MINIMUM){
-            PRINT_INSTR(stdout, "\tFunction(%d) %.80s executed %d times", i, functionNames[i], functionCounts[i]);
-        }
-    }
-
-    return i;
-}
-
 int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char** functionNms, int64_t* hashVals){
     numberOfBasicBlocks = *numBlocks;
     lineNumbers = lineNums;

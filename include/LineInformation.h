@@ -28,6 +28,7 @@
 
 class BasicBlock;
 class DwarfLineInfoSection;
+class Function;
 class LineInfoTable;
 
 static char* currentDirectory = ".";
@@ -122,6 +123,7 @@ public:
     LineInfoFinder(DwarfLineInfoSection* dwarfLineSection);
     ~LineInfoFinder();
 
+    LineInfo* lookupLineInfo(Function* f);
     LineInfo* lookupLineInfo(BasicBlock* bb);
     LineInfo* lookupLineInfo(X86Instruction* ins);
     LineInfo* lookupLineInfo(uint64_t addr);
