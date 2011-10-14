@@ -62,6 +62,10 @@ BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, ui
     jumpToTarget->setLeader(true);
     jumpToTarget->setContainer(fg->getFunction());
     jumpToTarget->setIndex(0);
+    jumpToTarget->initializeAnchor(fg->getBasicBlock(bbtgtidx)->getLeader());
+
+    ASSERT(jumpToTarget->getAddressAnchor() != NULL && jumpToTarget->getAddressAnchor()->getLink()->getType() == PebilClassType_X86Instruction);
+    (*(elfFile->getAddressAnchors())).append(jumpToTarget->getAddressAnchor());
 
     fg->getFunction()->setManipulated();
 
@@ -69,9 +73,16 @@ BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, ui
 }
 
 BasicBlock* ElfFileInst::findExposedBasicBlock(HashCode hashCode){
+    //    PRINT_INFOR("Solving hashcode %d %d %d %d", hashCode.getSection(), hashCode.getFunction(), hashCode.getBlock(), hashCode.getInstruction());
     for (uint32_t i = 0; i < exposedBasicBlocks.size(); i++){
-        if (exposedBasicBlocks[i]->getHashCode().getValue() == hashCode.getValue()){
-            return exposedBasicBlocks[i];
+        HashCode blockHash = exposedBasicBlocks[i]->getHashCode();
+        //  PRINT_INFOR("\t\tblock %d %d %d %d", blockHash.getSection(), blockHash.getFunction(), blockHash.getBlock(), blockHash.getInstruction());
+        if (blockHash.getSection() == hashCode.getSection()){
+            if (blockHash.getFunction() == hashCode.getFunction()){
+                if (blockHash.getBlock() == hashCode.getBlock()){
+                    return exposedBasicBlocks[i];
+                }
+            }
         }
     }
     return NULL;
@@ -1187,7 +1198,7 @@ void ElfFileInst::phasedInstrumentation(){
 
         currentOffset = 0;
         ASSERT(replacept.size() < 2 && "Cannot have more than 1 point replacement");
-        for (uint32_t k = 0; k < afterpt.size(); k++){
+        for (uint32_t k = 0; k < replacept.size(); k++){
             replacept[k]->setInstSourceOffset(currentOffset);
         }        
 
@@ -1247,6 +1258,11 @@ bool ElfFileInst::verify(){
     if (!elfFile->verify()){
         return false;
     }
+    if (!allowStatic && elfFile->isStaticLinked()){
+        PRINT_ERROR("Static-linked binaries can usually not be instrumented, use --allow-static to try to instrument anyway");
+	return false;
+    }
+
     return true;
 }
 
@@ -1711,6 +1727,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     disabledFunctions = new Vector<char*>();
 
     flags = InstrumentorFlag_none;
+    allowStatic = false;
 }
 
 void ElfFileInst::setInputFunctions(char* inputFuncList){

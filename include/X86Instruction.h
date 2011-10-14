@@ -24,11 +24,13 @@
 #include <AddressAnchor.h>
 #include <Base.h>
 #include <BitSet.h>
+#include <LinkedList.h>
 #include <RawSection.h>
 #include <libudis86/syn.h>
 #include <udis86.h>
 #include <defines/X86Instruction.d>
 
+class BasicBlock;
 class ElfFileInst;
 class Function;
 class TextObject;
@@ -266,6 +268,37 @@ enum X86InstructionType {
     X86InstructionType_Total
 };
 
+enum X86InstructionBin {
+    X86InstructionBin_unknown = 0,   // Unknown
+    X86InstructionBin_invalid,       // Invalid
+    X86InstructionBin_cond,          // Control
+    X86InstructionBin_uncond,        // Control, including call and return
+    X86InstructionBin_bin,           // Binary
+    X86InstructionBin_binv,          // Binary
+    X86InstructionBin_int,           // Integer
+    X86InstructionBin_intv,          // Integer
+    X86InstructionBin_float,         // Floating
+    X86InstructionBin_floatv,        // Floating
+    X86InstructionBin_floats,        // Floating
+    X86InstructionBin_move,          // Data movement
+    X86InstructionBin_stack,         // Stack operations
+    X86InstructionBin_string,        // String operations
+    X86InstructionBin_system,        // system calls
+    X86InstructionBin_cache,         // Floating
+    X86InstructionBin_other,         // System (including halt, hwcount, nops, trap, vmx, and special)
+    X86InstructionBin_total
+};
+
+#define INSTBIN_DATATYPE(bytesUsed) (bytesUsed<<BinSizeShift)
+
+const uint16_t BinMask = 0xFF;
+const uint16_t BinSizeShift = 12;
+const uint16_t BinLoad = 0x800;
+const uint16_t BinStore = 0x400;
+const uint16_t BinStack = 0x200;
+const uint16_t BinFrame = 0x100;
+const uint16_t BinMem = 0xF00;
+
 typedef enum {
     RegType_undefined = 0,
     RegType_8Bit,
@@ -314,6 +347,7 @@ public:
     bool isRelative();
     uint32_t getType() { return GET(type); }
     int64_t getValue();
+
 };
 
 class X86Instruction : public Base {
@@ -337,10 +371,10 @@ private:
     bool leader;
     TextObject* container;
     uint32_t instructionType;
-
-    HashCode hashCode;
+    uint16_t instructionBin;
 
     uint32_t setInstructionType();
+    uint16_t setInstructionBin();
 
 public:
     uint64_t cacheBaseAddress;
@@ -372,6 +406,26 @@ public:
     bool usesAluReg(uint32_t alu);
     bool defsAluReg(uint32_t alu);
 
+    struct DefLocation {
+        enum ud_type type;
+        int64_t value;
+        uint32_t base;
+        uint32_t index;
+        uint8_t offset;
+        uint8_t scale;
+    };
+
+    struct ReachingDefinition {
+        X86Instruction * defined_by;
+        DefLocation location;
+        ReachingDefinition(X86Instruction* ins, DefLocation loc) : defined_by(ins), location(loc) {}
+        bool invalidatedBy (ReachingDefinition* other);
+        void print();
+    };
+    LinkedList<ReachingDefinition*>* getDefs();
+    LinkedList<ReachingDefinition*>* getUses();
+
+
     uint32_t getDefUseDist() { return defUseDist; }
     void setDefUseDist(uint32_t dudist) { defUseDist = dudist; }
 
@@ -380,7 +434,8 @@ public:
 
     char* charStream() { return rawBytes; }
 
-    HashCode getHashCode() { return hashCode; }
+    HashCode* generateHashCode(BasicBlock* bb);
+
     void setLiveIns(BitSet<uint32_t>* live);
     void setLiveOuts(BitSet<uint32_t>* live);
 
@@ -389,7 +444,10 @@ public:
     uint32_t getIndex() { return instructionIndex; }
     void setIndex(uint32_t idx) { instructionIndex = idx; }
     uint32_t getInstructionType();
+    uint16_t getInstructionBin();
     uint64_t getProgramAddress() { return programAddress; }
+
+    uint32_t getDstSizeInBytes();
 
     void impliedUses(BitSet<uint32_t>* regs);
     void impliedDefs(BitSet<uint32_t>* regs);
@@ -456,6 +514,74 @@ public:
     bool isMemoryOperation();
     bool isExplicitMemoryOperation();    
     bool isImplicitMemoryOperation();    
+
+    bool isBinUnknown() { return  (instructionBin & BinMask) == X86InstructionBin_unknown; }
+    bool isBinInvalid() { return  (instructionBin & BinMask) == X86InstructionBin_invalid; }
+    bool isBinCond()    { return  (instructionBin & BinMask) == X86InstructionBin_cond;    }
+    bool isBinUncond()  { return  (instructionBin & BinMask) == X86InstructionBin_uncond;  }
+    bool isBinBin()     { return  (instructionBin & BinMask) == X86InstructionBin_bin;     }
+    bool isBinBinv()    { return  (instructionBin & BinMask) == X86InstructionBin_binv;    }
+    bool isBinInt()     { return  (instructionBin & BinMask) == X86InstructionBin_int;     }
+    bool isBinIntv()    { return  (instructionBin & BinMask) == X86InstructionBin_intv;    }
+    bool isBinFloat()   { return  (instructionBin & BinMask) == X86InstructionBin_float;   }
+    bool isBinFloatv()  { return  (instructionBin & BinMask) == X86InstructionBin_floatv;  }
+    bool isBinFloats()  { return  (instructionBin & BinMask) == X86InstructionBin_floats;  }
+    bool isBinMove()    { return  (instructionBin & BinMask) == X86InstructionBin_move;    }
+    bool isBinSystem()  { return  (instructionBin & BinMask) == X86InstructionBin_system;  }
+    bool isBinStack()   { return  (instructionBin & BinMask) == X86InstructionBin_stack;   }
+    bool isBinOther()   { return  (instructionBin & BinMask) == X86InstructionBin_other;   }
+    bool isBinCache()   { return  (instructionBin & BinMask) == X86InstructionBin_cache;   }
+    bool isBinString()  { return  (instructionBin & BinMask) == X86InstructionBin_string;  }
+    bool isBinByte()    { return ((instructionBin & BinMask) == X86InstructionBin_int)    && (instructionBin >> BinSizeShift) == 1; }
+    bool isBinBytev()   { return ((instructionBin & BinMask) == X86InstructionBin_intv)   && (instructionBin >> BinSizeShift) == 1; }
+    bool isBinWord()    { return ((instructionBin & BinMask) == X86InstructionBin_int)    && (instructionBin >> BinSizeShift) == 2; }
+    bool isBinWordv()   { return ((instructionBin & BinMask) == X86InstructionBin_intv)   && (instructionBin >> BinSizeShift) == 2; }
+    bool isBinDword()   { return ((instructionBin & BinMask) == X86InstructionBin_int)    && (instructionBin >> BinSizeShift) == 4; }
+    bool isBinDwordv()  { return ((instructionBin & BinMask) == X86InstructionBin_intv)   && (instructionBin >> BinSizeShift) == 4; }
+    bool isBinQword()   { return ((instructionBin & BinMask) == X86InstructionBin_int)    && (instructionBin >> BinSizeShift) == 8; }
+    bool isBinQwordv()  { return ((instructionBin & BinMask) == X86InstructionBin_intv)   && (instructionBin >> BinSizeShift) == 8; }
+    bool isBinSingle()  { return ((instructionBin & BinMask) == X86InstructionBin_float)  && (instructionBin >> BinSizeShift) == 4; }
+    bool isBinSinglev() { return ((instructionBin & BinMask) == X86InstructionBin_floatv) && (instructionBin >> BinSizeShift) == 4; }
+    bool isBinSingles() { return ((instructionBin & BinMask) == X86InstructionBin_floats) && (instructionBin >> BinSizeShift) == 4; }
+    bool isBinDouble()  { return ((instructionBin & BinMask) == X86InstructionBin_float)  && (instructionBin >> BinSizeShift) == 8; }
+    bool isBinDoublev() { return ((instructionBin & BinMask) == X86InstructionBin_floatv) && (instructionBin >> BinSizeShift) == 8; }
+    bool isBinDoubles() { return ((instructionBin & BinMask) == X86InstructionBin_floats) && (instructionBin >> BinSizeShift) == 8; }
+    bool isBinMem()     { return   instructionBin & BinMem; }
+
+    void printBin()     {
+        if(isBinUnknown())      printf("Unknown");
+        else if(isBinInvalid()) printf("Invalid");
+        else if(isBinCond())    printf("Cond");
+        else if(isBinUncond())  printf("Uncond");
+        else if(isBinBin())     printf("Bin");
+        else if(isBinBinv())    printf("Binv");
+        //else if(isBinInt())     printf("Int");
+        //else if(isBinIntv())    printf("Intv");
+        //else if(isBinFloat())   printf("Float");
+        //else if(isBinFloatv())  printf("Floatv");
+        //else if(isBinFloats())  printf("Floats");
+        else if(isBinMove())    printf("Move");
+        else if(isBinSystem())  printf("System");
+        else if(isBinStack())   printf("Stack");
+        else if(isBinOther())   printf("Other");
+        else if(isBinCache())   printf("Cache");
+        else if(isBinString())  printf("String");
+        else if(isBinByte())    printf("Byte");
+        else if(isBinBytev())   printf("Bytev");
+        else if(isBinWord())    printf("Word");
+        else if(isBinWordv())   printf("Wordv");
+        else if(isBinDword())   printf("Dword");
+        else if(isBinDwordv())  printf("Dwordv");
+        else if(isBinQword())   printf("Qword");
+        else if(isBinQwordv())  printf("Qwordv");
+        else if(isBinSingle())  printf("Single");
+        else if(isBinSinglev()) printf("Singlev");
+        else if(isBinSingles()) printf("Singles");
+        else if(isBinDouble())  printf("Double");
+        else if(isBinDoublev()) printf("Doublev");
+        else if(isBinDoubles()) printf("Doubles");
+        printf("\n");
+    }
 
     OperandX86* getMemoryOperand();
 };

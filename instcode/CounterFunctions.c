@@ -108,6 +108,7 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     fprintf(outFile, "# extension = %s\n", instExt);
     fprintf(outFile, "# phase     = %d\n", 0);
     fprintf(outFile, "# rank      = %d\n", getTaskId());
+    fprintf(outFile, "# perinsn   = %s\n", USES_STATS_PER_INSTRUCTION);
 
     fprintf(outFile, "#id\tcount\t#file:line\tfunc\thash\n");
     fflush(outFile);
@@ -155,13 +156,14 @@ int32_t loopcounter(uint64_t* loopCounters, char* appName, char* instExt){
     fprintf(outFile, "# extension = %s\n", instExt);
     fprintf(outFile, "# phase     = %d\n", 0);
     fprintf(outFile, "# rank      = %d\n", getTaskId());
+    fprintf(outFile, "# perinsn   = %s\n", USES_STATS_PER_INSTRUCTION);
 
-    fprintf(outFile, "#id\tcount\t#file:line\tfunc\thash\n");
+    fprintf(outFile, "#hash\tcount\t#file:line\tfunc\thash\n");
     fflush(outFile);
 
     for (i = 0; i < numberOfLoops; i++){
         if (loopCounters[i] >= PRINT_MINIMUM){
-            fprintf(outFile, "%#d\t", i);
+            fprintf(outFile, "%#lld\t", loopHashValues[i]);
             fprintf(outFile, "%llu\t#", loopCounters[i]);
             fprintf(outFile, "%s:", loopFileNames[i]);
             fprintf(outFile, "%d\t", loopLineNumbers[i]);

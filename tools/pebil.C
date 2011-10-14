@@ -22,6 +22,7 @@
 #include <BasicBlockCounter.h>
 #include <CacheSimulation.h>
 #include <CallReplace.h>
+#include <Classification.h>
 #include <DynamicTable.h>
 #include <ElfFile.h>
 #include <FunctionCounter.h>
@@ -80,7 +81,7 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\t        jbbinst for type jbb.\n");
     fprintf(stderr,"\t--dtl : detailed .static file with lineno and filenames\n");
     fprintf(stderr,"\t        DEPRECATED: ALWAYS ON BY DEFAULT\n");
-    fprintf(stderr,"\t--inp : required for sim/csc and thr.\n");
+    fprintf(stderr,"\t--inp : required for sim/csc and thr/crp.\n");
     fprintf(stderr,"\t--lpi : optional for sim/csc. loop level block inclusion for\n");
     fprintf(stderr,"\t        cache simulation. default is no.\n");
     fprintf(stderr,"\t--phs : optional for sim/csc. phase number. defaults to no phase,\n"); 
@@ -91,15 +92,16 @@ void printBriefOptions(bool detail){
     fprintf(stderr,"\t        default is off");
     fprintf(stderr,"\t--dfp : optional for sim/csc. dfpattern file. defaults to no dfpattern file,\n");
     fprintf(stderr,"\t--doi : optional for crp. whether to call intro/exit functions. default is no\n");
+    fprintf(stderr,"\t--allow-static : optional for all. allows pebil to try to instrument static-linked binary. default is no\n");
     fprintf(stderr,"\n");
 }
 
 void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : pebil\n");
-    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|csc|ftm|crp|thr)\n");
+    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|bin|csc|ftm|crp|thr)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
-    fprintf(stderr,"\t[--inp <block_unique_ids>]    <-- valid for sim/csc and thr\n");
+    fprintf(stderr,"\t[--inp <block_unique_ids>]    <-- valid for sim/csc and thr/crp\n");
     fprintf(stderr,"\t[--inf [a-z]*]\n");
     fprintf(stderr,"\t[--lib (deprecated) <shared_lib_dir>]\n");
     fprintf(stderr,"\t\tdefault is $PEBIL_ROOT/lib\n");
@@ -113,6 +115,7 @@ void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\t[--dfp <pattern_file>]      <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--dmp (off|on|nosim)]      <-- valid for sim/csc\n");
     fprintf(stderr,"\t[--doi]                     <-- valid for crp\n");
+    fprintf(stderr,"\t[--allow-static]\n");
     fprintf(stderr,"\t[--help]\n");
     fprintf(stderr,"\t[--version]\n");
     fprintf(stderr,"\t[--silent]\n");
@@ -191,6 +194,7 @@ typedef enum {
     identical_inst_type,
     frequency_inst_type,
     simulation_inst_type,
+    classification_inst_type,
     function_counter_type,
     func_timer_type,
     call_wrapper_type,
@@ -227,6 +231,7 @@ int main(int argc,char* argv[]){
     char*    dfpName    = NULL;
     uint32_t dumpCode   = Total_DumpCode;
     bool runSilent      = false;
+    bool allowStatic    = false;
 
     TIMER(double t = timer());
     for (int32_t i = 1; i < argc; i++){
@@ -242,6 +247,10 @@ int main(int argc,char* argv[]){
                 printUsage();
             }
             ++i;
+            if (i >= argc){
+                fprintf(stderr,"\nError : No argument supplied to --typ\n");
+                printUsage();
+            } 
             if (!strcmp(argv[i],"ide")){
                 instType = identical_inst_type;
                 extension = "ideinst";
@@ -257,6 +266,9 @@ int main(int argc,char* argv[]){
             } else if (!strcmp(argv[i],"csc")){
                 instType = simulation_inst_type;
                 extension = "cscinst";
+            } else if (!strcmp(argv[i],"bin")){
+                instType = classification_inst_type;
+                extension = "bininst";
             } else if (!strcmp(argv[i],"ftm")){
                 instType = func_timer_type;
                 extension = "ftminst";
@@ -328,7 +340,7 @@ int main(int argc,char* argv[]){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
                 printUsage();
             }
-            if (instType != simulation_inst_type && instType != throttle_loop_type){
+            if (instType != simulation_inst_type && instType != throttle_loop_type && instType != call_wrapper_type){
                 fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i]);
                 printUsage();
             }
@@ -394,6 +406,8 @@ int main(int argc,char* argv[]){
             }
         } else if (!strcmp(argv[i],"--silent")){
             runSilent = true;
+        } else if (!strcmp(argv[i],"--allow-static")){
+            allowStatic = true;
         } else {
             fprintf(stderr,"\nError : Unknown switch at %s\n\n",argv[i]);
             printUsage();
@@ -488,6 +502,8 @@ int main(int argc,char* argv[]){
         elfInst = new BasicBlockCounter(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == simulation_inst_type){
         elfInst = new CacheSimulation(&elfFile, inptName, extension, phaseNo, loopIncl, extdPrnt, dfpName);
+    } else if (instType == classification_inst_type){
+        elfInst = new Classification(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == func_timer_type){
         elfInst = new FunctionTimer(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == call_wrapper_type){
@@ -500,7 +516,7 @@ int main(int argc,char* argv[]){
             fprintf(stderr, "\nError: option --lnc needs to be given with call wrapper inst\n");
         }
         ASSERT(libList);
-        elfInst = new CallReplace(&elfFile, inputTrackList, libList, extension, loopIncl, extdPrnt, doIntro);
+        elfInst = new CallReplace(&elfFile, inputTrackList, libList, inptName, extension, loopIncl, extdPrnt, doIntro);
     } else if (instType == throttle_loop_type){
         if (!libList){
             fprintf(stderr, "\nError: option --lnc needs to be given with loop throttle inst\n");
@@ -530,6 +546,9 @@ int main(int argc,char* argv[]){
     elfInst->setInstExtension(extension);
     if (inputFuncList){
         elfInst->setInputFunctions(inputFuncList);
+    }
+    if (allowStatic){
+        elfInst->setAllowStatic();
     }
     
     elfInst->phasedInstrumentation();
@@ -575,5 +594,10 @@ int main(int argc,char* argv[]){
     PRINT_INFOR("");
     PRINT_INFOR("******** DONE ******** SUCCESS ***** SUCCESS ***** SUCCESS ********");
     PRINT_INFOR("");
+
+    if (runSilent){
+        fclose(pebilOutp);
+    }
+
     return 0;
 }

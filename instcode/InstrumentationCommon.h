@@ -32,7 +32,7 @@
 
 #define __MAX_STRING_SIZE 1024
 
-#define CLOCK_RATE_HZ 2270000000
+#define CLOCK_RATE_HZ 2800000000
 #define NANOS_PER_SECOND 1000000000
 //#define EXCLUDE_TIMER
 
@@ -97,6 +97,12 @@ extern int getNTasks();
     fflush(__file);
 #define PRINT_DEBUG(...) 
 //#define PRINT_DEBUG(...) PRINT_INSTR(__VA_ARGS__)
+
+#ifdef STATS_PER_INSTRUCTION
+#define USES_STATS_PER_INSTRUCTION "yes"
+#else
+#define USES_STATS_PER_INSTRUCTION "no"
+#endif
 
 #endif // __INSTRUMENTATION_COMMON_H__
 

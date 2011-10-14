@@ -123,6 +123,7 @@ public:
     ~LineInfoFinder();
 
     LineInfo* lookupLineInfo(BasicBlock* bb);
+    LineInfo* lookupLineInfo(X86Instruction* ins);
     LineInfo* lookupLineInfo(uint64_t addr);
 
     bool verify();

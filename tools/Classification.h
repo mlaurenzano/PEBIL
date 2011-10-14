@@ -18,40 +18,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _ThrottleLoop_h_
-#define _ThrottleLoop_h_
+#ifndef _Classification_h_
+#define _Classification_h_
 
 #include <InstrumentationTool.h>
 
-class ThrottleLoop : public InstrumentationTool {
+class Classification : public InstrumentationTool {
+
 private:
-    InstrumentationFunction* loopEntry;
-    InstrumentationFunction* loopExit;
-    InstrumentationFunction* programEntry;
-    InstrumentationFunction* programExit;
-
-    Vector<InstrumentationFunction*> functionWrappers;
-
-    Vector<char*>* loopList;    
-    Vector<char*>* functionList;
-    Vector<char*> libraries;
-
-    char* getFileName(uint32_t idx);
-    uint32_t getLineNumber(uint32_t idx);
-    uint32_t loopMatch(LineInfo* li);
-    uint32_t getThrottleLevel(uint32_t idx);
-    char* getWrappedFunction(uint32_t idx);
-    char* getWrapperFunction(uint32_t idx);    
+    InstrumentationFunction* binFunc;
+    InstrumentationFunction* exitFunc;
+    InstrumentationFunction* entryFunc;
 
 public:
-    ThrottleLoop(ElfFile* elf, char* inputFile, char* funcFile, char* libList, char* ext, bool lpi, bool dtl);
-    ~ThrottleLoop();
+    Classification(ElfFile* elf, char* ext, bool lpi, bool dtl);
+    ~Classification();
 
     void declare();
     void instrument();
 
-    const char* briefName() { return "ThrottleLoop"; }
+    void addInt_Store(Vector<X86Instruction*>& instructions, int x, uint64_t store);
+
+    const char* briefName() { return "Classifier"; }
 };
 
 
-#endif /* _ThrottleLoop_h_ */
+#endif /* _Classification_h_ */

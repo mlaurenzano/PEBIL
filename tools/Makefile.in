@@ -15,6 +15,7 @@ TARGETS  = pebil
 SRCS  = BasicBlockCounter.C \
 	CacheSimulation.C \
 	CallReplace.C \
+	Classsification.C \
 	FunctionCounter.C \
 	FunctionTimer.C \
 	ThrottleLoop.C
@@ -22,6 +23,7 @@ SRCS  = BasicBlockCounter.C \
 OBJS  =	BasicBlockCounter.o \
 	CacheSimulation.o \
 	CallReplace.o \
+	Classification.o \
 	FunctionCounter.o \
 	FunctionTimer.o \
 	ThrottleLoop.o

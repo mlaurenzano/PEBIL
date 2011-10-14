@@ -60,7 +60,7 @@ void CacheSimulation::usesModifiedProgram(){
     delete nop5Byte;
 }
 
-DFPatternType convertDFPattenType(char* patternString){
+DFPatternType convertDFPatternType(char* patternString){
     if(!strcmp(patternString,"dfTypePattern_Gather")){
         return dfTypePattern_Gather;
     } else if(!strcmp(patternString,"dfTypePattern_Scatter")){
@@ -76,7 +76,7 @@ void CacheSimulation::filterBBs(){
     initializeFileList(bbFile, fileLines);
 
     int32_t err;
-    uint64_t blockHash;
+    uint64_t inputHash;
     for (uint32_t i = 0; i < (*fileLines).size(); i++){
         char* ptr = strchr((*fileLines)[i],'#');
         if(ptr) *ptr = '\0';
@@ -84,19 +84,27 @@ void CacheSimulation::filterBBs(){
         if(!strlen((*fileLines)[i]) || allSpace((*fileLines)[i]))
             continue;
 
-        err = sscanf((*fileLines)[i], "%lld", &blockHash);
+        err = sscanf((*fileLines)[i], "%lld", &inputHash);
         if(err <= 0){
             PRINT_ERROR("Line %d of %s has a wrong format", i+1, bbFile);
         }
-        HashCode* hashCode = new HashCode(blockHash);
+        HashCode* hashCode = new HashCode(inputHash);
+#ifdef STATS_PER_INSTRUCTION
+        if(!hashCode->isBlock() && !hashCode->isInstruction()){
+#else //STATS_PER_INSTRUCTION
         if(!hashCode->isBlock()){
-            PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block", i+1, bbFile);
+#endif //STATS_PER_INSTRUCTION
+            PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, bbFile);
         }
         BasicBlock* bb = findExposedBasicBlock(*hashCode);
         delete hashCode;
 
-        ASSERT(bb && "cannot find basic block for hash code found in input file");
-        blocksToInst.insert(blockHash, bb);
+        if (!bb){
+            PRINT_WARN(10, "cannot find basic block for hash code %#llx found in input file", inputHash);
+        } else {
+            //        ASSERT(bb && "cannot find basic block for hash code found in input file");
+            blocksToInst.insert(bb->getHashCode().getValue(), bb);
+        }
     }
     for (uint32_t i = 0; i < (*fileLines).size(); i++){
         delete[] (*fileLines)[i];
@@ -155,27 +163,31 @@ void CacheSimulation::filterBBs(){
             if(err <= 0){
                 PRINT_ERROR("Line %d of %s has a wrong format", i+1, dfPatternFile);
             }
-            DFPatternType dfpType = convertDFPattenType(patternString);
+            DFPatternType dfpType = convertDFPatternType(patternString);
             if(dfpType == dfTypePattern_undefined){
                 PRINT_ERROR("Line %d of %s is a wrong pattern type [%s]", i+1, dfPatternFile, patternString);
             } else {
                 PRINT_INFOR("found valid pattern %s -> %d", patternString, dfpType);
             }
             HashCode hashCode(id);
+#ifdef STATS_PER_INSTRUCTION
+            if(!hashCode.isInstruction()){
+#else //STATS_PER_INSTRUCTION
             if(!hashCode.isBlock()){
-                PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block", i+1, dfPatternFile);
+#endif //STATS_PER_INSTRUCTION
+                PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, dfPatternFile);
             }
 
             // if the bb is not in the list already but is a valid block, include it!
             BasicBlock* bb = findExposedBasicBlock(hashCode);
-            if(!bb || bb->getHashCode().getValue() != id){
+            if(!bb){
                 PRINT_ERROR("Line %d of %s is not a valid basic block id", i+1, dfPatternFile);
                 continue;
             }
-            blocksToInst.insert(hashCode.getValue(), bb);
+            blocksToInst.insert(bb->getHashCode().getValue(), bb);
 
             if (dfpType != dfTypePattern_None){
-                dfpSet.insert(hashCode.getValue(), dfpType);
+                dfpSet.insert(bb->getHashCode().getValue(), dfpType);
             }
         }
 
@@ -244,7 +256,15 @@ void CacheSimulation::instrument(){
     initializeReservedData(getInstDataAddress() + bufferStore, BUFFER_ENTRIES * Size__BufferEntry, emptyBuff);
     delete[] emptyBuff;
 
-    uint64_t dfPatternStore = reserveDataOffset(sizeof(DFPatternSpec) * (getNumberOfExposedBasicBlocks() + 1));
+
+#ifdef STATS_PER_INSTRUCTION
+    PRINT_WARN(10, "Performing instrumentation to gather PER-INSTRUCTION statistics");
+    uint32_t dfpCount = getNumberOfExposedInstructions();
+#else //STATS_PER_INSTRUCTION
+    uint32_t dfpCount = getNumberOfExposedBasicBlocks();
+#endif //STATS_PER_INSTRUCTION
+    uint64_t dfPatternStore = reserveDataOffset(sizeof(DFPatternSpec) * (dfpCount + 1));
+
     if(dfpSet.size()){
         DFPatternSpec dfInfo;
         dfInfo.memopCnt = 0;
@@ -267,13 +287,11 @@ void CacheSimulation::instrument(){
     uint32_t commentSize = strlen(appName) + sizeof(uint32_t) + strlen(extension) + sizeof(uint32_t) + sizeof(uint32_t) + 4;
     uint64_t commentStore = reserveDataOffset(commentSize);
     char* comment = new char[commentSize];
+#ifndef STATS_PER_INSTRUCTION
+    sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedBasicBlocks(), dumpCode);
+#else
     sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedInstructions(), dumpCode);
-#ifdef STATS_PER_INSTRUCTION
-    char insnMapName[__MAX_STRING_SIZE];
-    sprintf(insnMapName, "%s.%s.perinsn", getFullFileName(), extension);
-    FILE* perInsnMap = fopen(insnMapName, "w");
-    fprintf(perInsnMap, "#blockid\torig_blockid\torig_memopid\n");
-    Vector<int32_t> insnToBlock;
+    uint32_t insnToBlock[getNumberOfExposedInstructions()];
 #endif
     initializeReservedData(getInstDataAddress() + commentStore, commentSize, comment);
 
@@ -302,23 +320,18 @@ void CacheSimulation::instrument(){
     Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
     Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
+#ifdef STATS_PER_INSTRUCTION
+    Vector<X86Instruction*>* allInstructions = new Vector<X86Instruction*>();
+    Vector<uint32_t>* allInstructionIds = new Vector<uint32_t>();
+    Vector<LineInfo*>* allInstructionLineInfos = new Vector<LineInfo*>();
+#endif //STATS_PER_INSTRUCTION
 
     uint32_t blockId = 0;
     uint32_t memopId = 0;
-    uint32_t instructionId = 0;
     uint32_t regDefault = 0;
 
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
-
-        DFPatternType dfpType = dfTypePattern_None;
-        DFPatternSpec spec;
-        if (dfpSet.get(bb->getHashCode().getValue(), &dfpType)){
-            PRINT_INFOR("found dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
-        }
-        spec.type = dfpType;
-        spec.memopCnt = bb->getNumberOfMemoryOps();
-        initializeReservedData(getInstDataAddress() + dfPatternStore + (i+1)*sizeof(DFPatternSpec), sizeof(DFPatternSpec), &spec);
 
         if (blocksToInst.get(bb->getHashCode().getValue())){
 
@@ -333,10 +346,22 @@ void CacheSimulation::instrument(){
             
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
                 X86Instruction* memop = bb->getInstruction(j);
-                
+#ifdef STATS_PER_INSTRUCTION
+                ASSERT(blockId == i);
+                insnToBlock[memopId] = blockId;
+#endif
                 if (memop->isMemoryOperation()){            
                     //PRINT_INFOR("The following instruction has %d membytes", memop->getNumberOfMemoryBytes());
                     //memop->print();
+#ifdef STATS_PER_INSTRUCTION
+                    (*allInstructions).append(memop);
+                    (*allInstructionIds).append(memopId);
+                    if (lineInfoFinder){
+                        (*allInstructionLineInfos).append(lineInfoFinder->lookupLineInfo(memop));
+                    } else {
+                        (*allInstructionLineInfos).append(NULL);
+                    }
+#endif //STATS_PER_INSTRUCTION
                     
                     if (getElfFile()->is64Bit()){
                         // check the buffer at the last memop
@@ -377,8 +402,7 @@ void CacheSimulation::instrument(){
 #ifdef STATS_PER_INSTRUCTION
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(instructionId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-                            fprintf(perInsnMap, "%d\t%d\t%d\n", instructionId, blockId, memopIdInBlock); instructionId++; insnToBlock.append(blockId);
+                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
 #else //STATS_PER_INSTRUCTION
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
@@ -410,7 +434,7 @@ void CacheSimulation::instrument(){
                             delete bufferDumpInstructions;
                             memInstPoints.append(pt);
                         } else {
-                        // TODO: get which gprs are dead at this point and use one of those 
+                            // TODO: get which gprs are dead at this point and use one of those 
                             InstrumentationSnippet* snip = new InstrumentationSnippet();
                             addInstrumentationSnippet(snip);
                             
@@ -441,8 +465,7 @@ void CacheSimulation::instrument(){
 #ifdef STATS_PER_INSTRUCTION
                             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
                             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(instructionId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-                            fprintf(perInsnMap,	"%d\t%d\t%d\n",	instructionId, blockId, memopIdInBlock); instructionId++; insnToBlock.append(blockId);
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
 #else //STATS_PER_INSTRUCTION
                             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
                             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
@@ -495,8 +518,7 @@ void CacheSimulation::instrument(){
 #ifdef STATS_PER_INSTRUCTION
                             (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
                             (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(instructionId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-                            fprintf(perInsnMap,	"%d\t%d\t%d\n",	instructionId, blockId, memopIdInBlock); instructionId++; insnToBlock.append(blockId);
+                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
 #else //STATS_PER_INSTRUCTION
                             (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
                             (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
@@ -559,8 +581,7 @@ void CacheSimulation::instrument(){
 #ifdef STATS_PER_INSTRUCTION
                             snip->addSnippetInstruction(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
                             snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(instructionId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-                            fprintf(perInsnMap,	"%d\t%d\t%d\n",	instructionId, blockId, memopIdInBlock); instructionId++; insnToBlock.append(blockId);
+                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
 #else //STATS_PER_INSTRUCTION
                             snip->addSnippetInstruction(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
                             snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
@@ -577,7 +598,6 @@ void CacheSimulation::instrument(){
                         }
                     }
                     memInstBlockIds.append(blockId);
-                    memopId++;
                     memopIdInBlock++;
                 }
                 if (memopIdInBlock >= MAX_MEMOPS_PER_BLOCK){
@@ -586,9 +606,12 @@ void CacheSimulation::instrument(){
                    
                 }
                 ASSERT(memopIdInBlock < MAX_MEMOPS_PER_BLOCK && "Too many memory ops in some basic block... try increasing MAX_MEMOPS_PER_BLOCK");
+
+                memopId++;
             }
 
 #ifndef DISABLE_BLOCK_COUNT
+            /*
             InstrumentationSnippet* snip = new InstrumentationSnippet();
             addInstrumentationSnippet(snip);
         
@@ -611,13 +634,51 @@ void CacheSimulation::instrument(){
             }
             
             InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, InstLocation_prior);
+            */
+            uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
+            InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
 #endif
+        } else {
+            memopId += bb->getNumberOfInstructions();
         }
         
         blockId++;
     }
         
     ASSERT(memInstPoints.size() && "There are no memory operations found through the filter");
+
+#ifdef STATS_PER_INSTRUCTION
+    for (uint32_t i = 0; i < getNumberOfExposedInstructions(); i++){
+        X86Instruction* ins = getExposedInstruction(i);
+        Function* f = (Function*)ins->getContainer();
+        BasicBlock* bb = f->getBasicBlockAtAddress(ins->getBaseAddress());
+        
+        DFPatternSpec spec;
+        spec.memopCnt = (uint32_t)ins->isMemoryOperation();
+        spec.type = dfTypePattern_None;
+
+        DFPatternType dfpType = dfTypePattern_None;
+        if (dfpSet.get(bb->getHashCode().getValue(), &dfpType) && ins->isMemoryOperation()){
+            spec.type = dfpType;
+        }
+        initializeReservedData(getInstDataAddress() + dfPatternStore + (i+1)*sizeof(DFPatternSpec), sizeof(DFPatternSpec), &spec);
+    }
+#else //STATS_PER_INSTRUCTION
+    for (uint32_t i = 0; i < dfpCount; i++){
+        BasicBlock* bb = getExposedBasicBlock(i);
+
+        DFPatternType dfpType = dfTypePattern_None;
+        DFPatternSpec spec;
+        if (dfpSet.get(bb->getHashCode().getValue(), &dfpType)){
+            //            PRINT_INFOR("found dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
+        } else {
+            //            PRINT_INFOR("not doing dfpattern for block %d (hash %#lld)", i, bb->getHashCode().getValue());
+        }
+        spec.type = dfpType;
+        spec.memopCnt = bb->getNumberOfMemoryOps();
+        initializeReservedData(getInstDataAddress() + dfPatternStore + (i+1)*sizeof(DFPatternSpec), sizeof(DFPatternSpec), &spec);
+    }
+#endif //STATS_PER_INSTRUCTION
 
     instPointInfo = reserveDataOffset(sizeof(instpoint_info) * memInstPoints.size());
     entryFunc->addArgument(instPointInfo);
@@ -633,8 +694,8 @@ void CacheSimulation::instrument(){
     entryFunc->addArgument(counterArray);
     entryFunc->addArgument(killedArray);
 #ifdef STATS_PER_INSTRUCTION
-    uint64_t mapArray = reserveDataOffset(sizeof(int32_t) * insnToBlock.size());
-    initializeReservedData(getInstDataAddress() + mapArray, sizeof(int32_t) * insnToBlock.size(), &insnToBlock);
+    uint64_t mapArray = reserveDataOffset(sizeof(int32_t) * getNumberOfExposedInstructions());
+    initializeReservedData(getInstDataAddress() + mapArray, sizeof(int32_t) * getNumberOfExposedInstructions(), &insnToBlock);
     entryFunc->addArgument(mapArray);
 #endif
 
@@ -642,18 +703,22 @@ void CacheSimulation::instrument(){
     PRINT_WARN(10, "Warning: register analysis disabled");
 #endif
 
-    printStaticFile(allBlocks, allBlockIds, allLineInfos, BUFFER_ENTRIES);
-    if(dfpSet.size()){
-        printDFPStaticFile(allBlocks, allBlockIds, allLineInfos);
-    }
 #ifdef STATS_PER_INSTRUCTION
-    fclose(perInsnMap);
-#endif
+    printStaticFilePerInstruction(allInstructions, allInstructionIds, allInstructionLineInfos, allInstructions->size());
+#else //STATS_PER_INSTRUCTION
+    printStaticFile(allBlocks, allBlockIds, allLineInfos, BUFFER_ENTRIES);
+#endif //STATS_PER_INSTRUCTION
 
     delete allBlocks;
     delete allBlockIds;
     delete allLineInfos;
     delete[] comment;
+
+#ifdef STATS_PER_INSTRUCTION
+    delete allInstructions;
+    delete allInstructionIds;
+    delete allInstructionLineInfos;
+#endif //STATS_PER_INSTRUCTION
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }

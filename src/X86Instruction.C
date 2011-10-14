@@ -21,6 +21,7 @@
 #include <X86Instruction.h>
 
 #include <Base.h>
+#include <BasicBlock.h>
 #include <BinaryFile.h>
 #include <ElfFile.h>
 #include <ElfFileInst.h>
@@ -31,8 +32,15 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
-static ud_t ud_blank;
+HashCode* X86Instruction::generateHashCode(BasicBlock* bb){
+    HashCode* hc = new HashCode(bb->getHashCode().getSection(),
+                                bb->getHashCode().getFunction(),
+                                bb->getHashCode().getBlock(),
+                                getIndex());
+    return hc;
+}
 
+static ud_t ud_blank;
 void X86Instruction::initBlankUd(bool is64bit){
     ud_t ud_obj;
 
@@ -76,6 +84,9 @@ bool X86Instruction::isLoad(){
         OperandX86* op = getMemoryOperand();
         ASSERT(op);
         if (op->getOperandIndex() == COMP_SRC_OPERAND){
+            return true;
+        }
+        if (!isMoveOperation() && op->getOperandIndex() == ALU_SRC2_OPERAND){
             return true;
         }
     }
@@ -241,43 +252,8 @@ BitSet<uint32_t>* X86Instruction::getDefRegs(){
     return regs;
 }
 
-bool OperandX86::isSameOperand(OperandX86* other){
-    if (other->getValue() == getValue() &&
-        other->GET(base) == GET(base) &&
-        other->GET(index) == GET(index) &&
-        other->GET(scale) == GET(scale) &&
-        other->GET(type) == GET(type)){
-        return true;
-    }
-    return false;
-}
-
-bool X86Instruction::isConditionCompare(){
-    int32_t m = GET(mnemonic);
-
-    if ((m == UD_Icmp) ||
-        (m == UD_Itest) ||
-        (m == UD_Icmppd) ||
-        (m == UD_Icmpps) ||
-        (m == UD_Icmpsb) ||
-        (m == UD_Icmpsw) ||
-        (m == UD_Icmpsd) ||
-        (m == UD_Icmpsq) ||
-        (m == UD_Icmpss) ||
-        (m == UD_Icmpxchg) ||
-        (m == UD_Icmpxchg8b) ||
-        (m == UD_Ipcmpeqb) ||
-        (m == UD_Ipcmpeqw) ||
-        (m == UD_Ipcmpeqd) ||
-        (m == UD_Ipcmpgtb) ||
-        (m == UD_Ipcmpgtw) ||
-        (m == UD_Ipcmpgtd) ||
-        (m == UD_Ipfcmpge) ||
-        (m == UD_Ipfcmpgt) ||
-        (m == UD_Ipfcmpeq)){
-        return true;
-    }
-    return false;
+uint32_t convertGPRegUd(uint32_t reg){
+   return reg + UD_R_RAX; 
 }
 
 uint32_t convertUdGPReg(uint32_t reg){
@@ -294,6 +270,53 @@ uint32_t convertUdGPReg(uint32_t reg){
     __SHOULD_NOT_ARRIVE;
     return 0;
 }
+
+bool OperandX86::isSameOperand(OperandX86* other){
+    if (other->getValue() == getValue() &&
+        other->GET(base) == GET(base) &&
+        other->GET(index) == GET(index) &&
+        other->GET(scale) == GET(scale) &&
+        other->GET(type) == GET(type)){
+        return true;
+    }
+    return false;
+}
+
+bool X86Instruction::isConditionCompare(){
+    int32_t m = GET(mnemonic);
+
+    if ((m == UD_Icmp) ||
+        (m == UD_Itest) ||
+        (m == UD_Iptest) ||
+        (m == UD_Iftst) ||
+        (m == UD_Ibt) ||
+        (m == UD_Ibtc) ||
+        (m == UD_Ibtr) ||
+        (m == UD_Ibts) ||
+        (m == UD_Icmppd) ||
+        (m == UD_Icmpps) ||
+        (m == UD_Icmpsb) ||
+        (m == UD_Icmpsw) ||
+        (m == UD_Icmpsd) ||
+        (m == UD_Icmpsq) ||
+        (m == UD_Icmpss) ||
+        (m == UD_Icmpxchg) ||
+        (m == UD_Icmpxchg8b) ||
+        (m == UD_Ipcmpeqb) ||
+        (m == UD_Ipcmpeqw) ||
+        (m == UD_Ipcmpeqd) ||
+        (m == UD_Ipcmpgtb) ||
+        (m == UD_Ipcmpgtw) ||
+        (m == UD_Ipcmpgtd) ||
+        (m == UD_Ipcmpgtq) ||
+        (m == UD_Ipfcmpge) ||
+        (m == UD_Ipfcmpgt) ||
+        (m == UD_Ipfcmpeq)){
+        return true;
+    }
+    return false;
+}
+
 
 uint32_t convertUdXMMReg(uint32_t reg){
     ASSERT(reg && IS_XMM_REG(reg));
@@ -389,6 +412,167 @@ void X86Instruction::defsRegisters(BitSet<uint32_t>* regs){
     }
     impliedDefs(regs);
     // TODO: implement this for branches?
+}
+
+#define has(reg) (op->GET(reg) && IS_ALU_REG(op->GET(reg)))
+
+LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getDefs(){
+
+    LinkedList<ReachingDefinition*>* defs =
+        new LinkedList<ReachingDefinition*>();
+
+    OperandX86* op;
+
+    if (isMoveOperation()) {
+        op = operands[MOV_DEST_OPERAND];
+        if (op) {
+            DefLocation loc;
+            loc.value = op->getValue();
+            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
+            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
+            loc.offset = op->GET(offset);
+            loc.scale = op->GET(scale);
+            loc.type = op->GET(type);
+            defs->insert(new ReachingDefinition(this, loc));
+        } // else implied?
+
+
+    } else if ((isIntegerOperation() || isFloatPOperation()) && !isConditionCompare()) {
+        op = operands[ALU_DEST_OPERAND];
+        if (op) {
+            DefLocation loc;
+            loc.value = op->getValue();
+            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
+            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
+            loc.offset = op->GET(offset);
+            loc.scale = op->GET(scale);
+            loc.type = op->GET(type);
+            defs->insert(new ReachingDefinition(this, loc));
+        } // else implied?
+    }
+
+    // Get the implied register defines
+    BitSet<uint32_t> imp_regs(X86_ALU_REGS);
+    impliedDefs(&imp_regs);
+
+    for (uint32_t i = 0; i < X86_ALU_REGS; ++i) {
+        if (imp_regs.contains(i)) {
+            struct DefLocation loc;
+            bzero(&loc, sizeof(loc));
+            loc.base = i;
+            loc.type = UD_OP_REG;
+            defs->insert(new ReachingDefinition(this, loc));
+        }
+    } 
+
+    return defs;
+}
+
+LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
+
+    LinkedList<ReachingDefinition*>* uses =
+        new LinkedList<ReachingDefinition*>();
+
+    OperandX86* op;
+
+    if (isMoveOperation()) {
+        op = operands[MOV_SRC_OPERAND];
+        if (op) {
+            DefLocation loc;
+            loc.value = op->getValue();
+            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
+            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
+            loc.offset = op->GET(offset);
+            loc.scale = op->GET(scale);
+            loc.type = op->GET(type);
+            uses->insert(new ReachingDefinition(this, loc));
+        } // else implied?
+
+
+    } else if ((isIntegerOperation() || isFloatPOperation())) {
+        op = operands[ALU_SRC1_OPERAND];
+        if (op) {
+            DefLocation loc;
+            loc.value = op->getValue();
+            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
+            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
+            loc.offset = op->GET(offset);
+            loc.scale = op->GET(scale);
+            loc.type = op->GET(type);
+            uses->insert(new ReachingDefinition(this, loc));
+        } // else implied?
+
+        op = operands[ALU_SRC2_OPERAND];
+        if (op) {
+            DefLocation loc;
+            loc.value = op->getValue();
+            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
+            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
+            loc.offset = op->GET(offset);
+            loc.scale = op->GET(scale);
+            loc.type = op->GET(type);
+            uses->insert(new ReachingDefinition(this, loc));
+        }
+    }
+
+    // Get the implied register uses
+    BitSet<uint32_t> imp_regs(X86_ALU_REGS);
+    impliedUses(&imp_regs);
+
+    for (uint32_t i = 0; i < X86_ALU_REGS; ++i) {
+        if (imp_regs.contains(i)) {
+            struct DefLocation loc;
+            bzero(&loc, sizeof(loc));
+            loc.base = i;
+            loc.type = UD_OP_REG;
+            uses->insert(new ReachingDefinition(this, loc));
+        }
+    } 
+
+    return uses;
+}
+
+bool X86Instruction::ReachingDefinition::invalidatedBy(ReachingDefinition* other) {
+
+    // this definition is invalidated if other defines the same location
+    return ((this->location.type == other->location.type &&
+            this->location.base == other->location.base &&
+            this->location.index == other->location.index &&
+            this->location.offset == other->location.offset &&
+            this->location.scale == other->location.scale &&
+            this->location.value == other->location.value)
+            || // or if other defines a register used to compute this location
+            (other->location.type == UD_OP_REG &&
+               (other->location.base == this->location.base ||
+               other->location.base == this->location.index)));
+}
+
+
+void X86Instruction::ReachingDefinition::print() {
+
+    if (location.type == UD_OP_REG) {
+        printf("REG: %s\n", location.base < X86_ALU_REGS ? alu_name_map[location.base] : "None");
+    } else if (location.type == UD_OP_MEM) {
+        printf("MEM: %lld(%s, %s, %d)", location.value,
+                                      location.base < X86_ALU_REGS ? alu_name_map[location.base] : "None",
+                                      location.index < X86_ALU_REGS ? alu_name_map[location.index] : "None",
+                                      location.scale);
+    } else if (location.type == UD_OP_PTR) {
+        printf("PTR");
+    } else if (location.type == UD_OP_IMM) {
+        printf("IMM");
+    } else if (location.type == UD_OP_JIMM) {
+        printf("JIMM");
+    } else if (location.type == UD_OP_CONST) {
+        printf("CONST");
+    } else {
+        printf("???");
+    }
+
+    if (defined_by != NULL)
+        defined_by->print();
+    else
+        printf("???\n");
 }
 
 void X86Instruction::touchedRegisters(BitSet<uint32_t>* regs){
@@ -508,6 +692,14 @@ uint32_t OperandX86::getBytesUsed(){
         return (GET(offset) >> 3);
     }
     return (GET(size) >> 3);
+}
+
+uint32_t X86Instruction::getDstSizeInBytes(){
+    OperandX86* op;
+    if(op = getOperand(0))
+        return op->GET(size) >> 3;
+    else
+        return 0;
 }
 
 int64_t OperandX86::getValue(){
@@ -637,6 +829,10 @@ uint32_t X86Instruction::convertTo4ByteTargetOperand(){
 
     if (bytesUsedForTarget() && bytesUsedForTarget() < sizeof(uint32_t)){
         if (isUnconditionalBranch()){
+            if (sizeInBytes != 2){
+                print();
+                PRINT_INFOR("faulty instruction location: function %s addr %#llx", getContainer()->getName(), getProgramAddress());
+            }
             ASSERT(sizeInBytes == 2); // we expect a single byte for the opcode and a single byte for the target offset
             if (!addressAnchor){
                 print();
@@ -984,6 +1180,747 @@ bool X86Instruction::isJumpTableBase(){
     return (isUnconditionalBranch() && usesIndirectAddress());
 }
 
+uint16_t X86Instruction::getInstructionBin(){
+    if (instructionBin){
+        return instructionBin;
+    }
+    return setInstructionBin();
+}
+
+uint16_t X86Instruction::setInstructionBin(){
+    uint16_t bin = X86InstructionBin_unknown;
+    if(isLoad()) bin += BinLoad;
+    if(isStore()) bin += BinStore;
+    switch(GET(mnemonic)){
+        case UD_Iseto:
+        case UD_Isetno:
+        case UD_Isetb:
+        case UD_Isetnb:
+        case UD_Isetz:
+        case UD_Isetnz:
+        case UD_Isetbe:
+        case UD_Iseta:
+        case UD_Isets:
+        case UD_Isetns:
+        case UD_Isetp:
+        case UD_Isetnp:
+        case UD_Isetl:
+        case UD_Isetge:
+        case UD_Isetle:
+        case UD_Isetg:
+            bin += X86InstructionBin_bin;
+            bin += INSTBIN_DATATYPE(sizeof(int8_t));
+            break;
+        case UD_Icbw:
+            bin += X86InstructionBin_bin;
+            bin += INSTBIN_DATATYPE(sizeof(int16_t));
+            break;
+        case UD_Icwd:
+        case UD_Icwde:
+            bin += X86InstructionBin_bin;
+            bin += INSTBIN_DATATYPE(sizeof(int32_t));
+            break;
+        case UD_Icdqe:
+        case UD_Icdq:
+        case UD_Icqo:
+            bin += X86InstructionBin_bin;
+            bin += INSTBIN_DATATYPE(sizeof(int64_t));
+            break;
+        case UD_Iand:
+        case UD_Ibound:
+        case UD_Ibsf:
+        case UD_Ibsr:
+        case UD_Ibt:
+        case UD_Ibtc:
+        case UD_Ibtr:
+        case UD_Ibts:
+        case UD_Ibswap:
+        case UD_Inot:
+        case UD_Ior:
+        case UD_Ircl:
+        case UD_Ircr:
+        case UD_Irol:
+        case UD_Iror:
+        case UD_Isal:
+        case UD_Isalc:
+        case UD_Isar:
+        case UD_Ishl:
+        case UD_Ishr:
+        case UD_Ishld:
+        case UD_Ishrd:
+        case UD_Itest:
+        case UD_Ixor:
+            bin += X86InstructionBin_bin;
+            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
+            break;
+        case UD_Ipshufb:
+        case UD_Ipminsb:
+        case UD_Ipmaxsb:
+            bin += X86InstructionBin_binv;
+            bin += INSTBIN_DATATYPE(sizeof(int8_t));
+            break;
+        case UD_Ipshufhw:
+        case UD_Ipshuflw:
+        case UD_Ipshufw:
+        case UD_Ipsllw:
+        case UD_Ipsraw:
+        case UD_Ipsrlw:
+        case UD_Ipunpckhbw:
+        case UD_Ipunpcklbw:
+            bin += X86InstructionBin_binv;
+            bin += INSTBIN_DATATYPE(sizeof(int16_t));
+            break;
+        case UD_Ipshufd:
+        case UD_Ipslld:
+        case UD_Ipsrad:
+        case UD_Ipsrld:
+        case UD_Ipunpckhwd:
+        case UD_Ipunpcklwd:
+            bin += X86InstructionBin_binv;
+            bin += INSTBIN_DATATYPE(sizeof(int32_t));
+            break;
+        case UD_Ipslldq:
+        case UD_Ipsllq:
+        case UD_Ipsrlq:
+        case UD_Ipsrldq:
+        case UD_Ipunpckhdq:
+        case UD_Ipunpckhqdq:
+        case UD_Ipunpckldq:
+        case UD_Ipunpcklqdq:
+            bin += X86InstructionBin_binv;
+            bin += INSTBIN_DATATYPE(sizeof(int64_t));
+            break;
+        case UD_Iandpd:
+        case UD_Iandnpd:
+        case UD_Iorpd:
+        case UD_Ishufpd:
+        case UD_Ixorpd:
+        case UD_Iunpckhpd:
+        case UD_Iunpcklpd:
+            bin += X86InstructionBin_binv;
+            bin += INSTBIN_DATATYPE(sizeof(double));
+            break;
+        case UD_Iandps:
+        case UD_Iandnps:
+        case UD_Iorps:
+        case UD_Ishufps:
+        case UD_Ixorps:
+        case UD_Iunpckhps:
+        case UD_Iunpcklps:
+            bin += X86InstructionBin_binv;
+            bin += INSTBIN_DATATYPE(sizeof(float));
+            break;
+        case UD_Ipalignr:
+        case UD_Ipand:
+        case UD_Ipandn:
+        case UD_Ipor:
+        case UD_Ipxor:
+            bin += X86InstructionBin_binv;
+            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
+            break;
+        case UD_Iadc:
+        case UD_Iadd:
+        case UD_Icmp:
+        case UD_Icmpxchg:
+        case UD_Icmpxchg8b:
+        case UD_Idec:
+        case UD_Idiv:
+        case UD_Iidiv:
+        case UD_Iimul:
+        case UD_Iinc:
+        case UD_Imul:
+        case UD_Ineg:
+        case UD_Isbb:
+        case UD_Isub:
+        case UD_Ixadd:
+        case UD_Ixchg:
+            bin += X86InstructionBin_int;
+            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
+            break;
+        case UD_Ipacksswb:
+        case UD_Ipackuswb:
+        case UD_Ipaddb:
+        case UD_Ipaddsb:
+        case UD_Ipaddusb:
+        case UD_Ipavgb:
+        case UD_Ipcmpeqb:
+        case UD_Ipcmpgtb:
+        case UD_Ipmaxub:
+        case UD_Ipminub:
+            bin += X86InstructionBin_intv;
+            bin += INSTBIN_DATATYPE(sizeof(int8_t));
+            break;
+        case UD_Ipavgw:
+        case UD_Ipcmpeqw:
+        case UD_Ipcmpgtw:
+        case UD_Ipextrw:
+        case UD_Ipinsrw:
+        case UD_Ipmaxsw:
+        case UD_Ipminsw:
+        case UD_Ipmulhuw:
+        case UD_Ipmulhw:
+        case UD_Ipmullw:
+        case UD_Ipavgusb:
+        case UD_Ipsubb:
+        case UD_Ipsubsb:
+        case UD_Ipsubusb:
+        case UD_Ipsadbw:
+        case UD_Ipsubw:
+        case UD_Ipsubsw:
+        case UD_Ipsubusw:
+        case UD_Ipi2fw:
+        case UD_Ipf2iw:
+        case UD_Ipaddw:
+        case UD_Ipaddsw:
+        case UD_Ipaddusw:
+        case UD_Ipminuw:
+        case UD_Ipmaxuw:
+        case UD_Ipmulhrw:
+            bin += X86InstructionBin_intv;
+            bin += INSTBIN_DATATYPE(sizeof(int16_t));
+            break;
+        case UD_Ipcmpeqd:
+        case UD_Ipcmpgtd:
+        case UD_Ipf2id:
+        case UD_Ipfacc:
+        case UD_Ipfadd:
+        case UD_Ipfcmpeq:
+        case UD_Ipfcmpge:
+        case UD_Ipfcmpgt:
+        case UD_Ipfmax:
+        case UD_Ipfmin:
+        case UD_Ipfmul:
+        case UD_Ipfnacc:
+        case UD_Ipfpnacc:
+        case UD_Ipfrcp:
+        case UD_Ipfrcpit1:
+        case UD_Ipfrcpit2:
+        case UD_Ipfrspit1:
+        case UD_Ipfrsqrt:
+        case UD_Ipfsub:
+        case UD_Ipfsubr:
+        case UD_Ipi2fd:
+        case UD_Ipaddd:
+        case UD_Ipackssdw:
+        case UD_Iphaddd:
+        case UD_Ipmaddwd:
+        case UD_Ipminsd:
+        case UD_Ipminud:
+        case UD_Ipmaxsd:
+        case UD_Ipmaxud:
+        case UD_Ipmuludq:
+        case UD_Ipsubd:
+        case UD_Ipswapd:
+            bin += X86InstructionBin_intv;
+            bin += INSTBIN_DATATYPE(sizeof(int32_t));
+            break;
+        case UD_Ipaddq:
+        case UD_Ipsubq:
+            bin += X86InstructionBin_intv;
+            bin += INSTBIN_DATATYPE(sizeof(int64_t));
+            break;
+        case UD_Iaddpd:
+        case UD_Iaddsubpd:
+        case UD_Icmppd:
+        case UD_Icvtpd2dq:
+        case UD_Icvtpd2pi:
+        case UD_Icvttpd2pi:
+        case UD_Icvtdq2pd:
+        case UD_Icvtpi2pd:
+        case UD_Icvtps2pd:
+        case UD_Icvttpd2dq:
+        case UD_Idivpd:
+        case UD_Ihaddpd:
+        case UD_Ihsubpd:
+        case UD_Imaxpd:
+        case UD_Iminpd:
+        case UD_Imulpd:
+        case UD_Iroundpd:
+        case UD_Isqrtpd:
+        case UD_Isubpd:
+            bin += X86InstructionBin_floatv;
+            bin += INSTBIN_DATATYPE(sizeof(double));
+            break;
+        case UD_Iaddsd:
+        case UD_Icomisd:
+        case UD_Icvtsd2si:
+        case UD_Icvtsd2ss:
+        case UD_Icvtss2sd:
+        case UD_Icvtsi2sd:
+        case UD_Idivsd:
+        case UD_Imaxsd:
+        case UD_Iminsd:
+        case UD_Imulsd:
+        case UD_Iroundsd:
+        case UD_Isqrtsd:
+        case UD_Isubsd:
+        case UD_Iucomisd:
+            bin += X86InstructionBin_floats;
+            bin += INSTBIN_DATATYPE(sizeof(double));
+            break;
+        case UD_Iaddps:
+        case UD_Iaddsubps:
+        case UD_Icmpps:
+        case UD_Icvtps2dq:
+        case UD_Icvtps2pi:
+        case UD_Icvtdq2ps:
+        case UD_Icvtpd2ps:
+        case UD_Icvtpi2ps:
+        case UD_Icvttps2dq:
+        case UD_Icvttps2pi:
+        case UD_Idivps:
+        case UD_Ihaddps:
+        case UD_Ihsubps:
+        case UD_Imaxps:
+        case UD_Iminps:
+        case UD_Imulps:
+        case UD_Ircpps:
+        case UD_Iroundps:
+        case UD_Irsqrtps:
+        case UD_Isqrtps:
+        case UD_Isubps:
+            bin += X86InstructionBin_floatv;
+            bin += INSTBIN_DATATYPE(sizeof(float));
+            break;
+        case UD_Iaddss:
+        case UD_Icmpss:
+        case UD_Icomiss:
+        case UD_Icvtsi2ss:
+        case UD_Icvtss2si:
+        case UD_Icvttsd2si:
+        case UD_Icvttss2si:
+        case UD_Idivss:
+        case UD_Imaxss:
+        case UD_Iminss:
+        case UD_Imulss:
+        case UD_Ircpss:
+        case UD_Iroundss:
+        case UD_Irsqrtss:
+        case UD_Isqrtss:
+        case UD_Isubss:
+        case UD_Iucomiss:
+            bin += X86InstructionBin_floats;
+            bin += INSTBIN_DATATYPE(sizeof(float));
+            break;
+        case UD_If2xm1:
+        case UD_Ifabs:
+        case UD_Ifadd:
+        case UD_Ifaddp:
+        case UD_Ifbld:
+        case UD_Ifbstp:
+        case UD_Ifchs:
+        case UD_Ifclex:
+        case UD_Ifucomi:
+        case UD_Ifcomi:
+        case UD_Ifucomip:
+        case UD_Ifcomip:
+        case UD_Ifcom:
+        case UD_Ifcom2:
+        case UD_Ifcomp3:
+        case UD_Ifcomp:
+        case UD_Ifcomp5:
+        case UD_Ifcompp:
+        case UD_Ifcos:
+        case UD_Ifdecstp:
+        case UD_Ifdiv:
+        case UD_Ifdivp:
+        case UD_Ifdivr:
+        case UD_Ifdivrp:
+        case UD_Ifiadd:
+        case UD_Ifidivr:
+        case UD_Ifidiv:
+        case UD_Ifisub:
+        case UD_Ifisubr:
+        case UD_Ificom:
+        case UD_Ificomp:
+        case UD_Ifmul:
+        case UD_Ifmulp:
+        case UD_Ifimul:
+        case UD_Ifpatan:
+        case UD_Ifprem:
+        case UD_Ifprem1:
+        case UD_Ifptan:
+        case UD_Ifrndint:
+        case UD_Ifscale:
+        case UD_Ifsin:
+        case UD_Ifsincos:
+        case UD_Ifsqrt:
+        case UD_Ifsub:
+        case UD_Ifsubp:
+        case UD_Ifsubr:
+        case UD_Ifsubrp:
+        case UD_Iftst:
+        case UD_Ifucom:
+        case UD_Ifucomp:
+        case UD_Ifucompp:
+        case UD_Ifxam:
+        case UD_Ifpxtract:
+        case UD_Ifyl2x:
+        case UD_Ifyl2xp1:
+            bin += X86InstructionBin_float;
+            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
+            break;
+        case UD_Ifild:
+        case UD_Ifist:
+        case UD_Ifistp:
+        case UD_Ifisttp:
+        case UD_Ifld:
+        case UD_Ifld1:
+        case UD_Ifldl2t:
+        case UD_Ifldl2e:
+        case UD_Ifldlpi:
+        case UD_Ifldlg2:
+        case UD_Ifldln2:
+        case UD_Ifldz:
+        case UD_Icmovo:
+        case UD_Icmovno:
+        case UD_Icmovb:
+        case UD_Icmovae:
+        case UD_Icmovz:
+        case UD_Icmovnz:
+        case UD_Icmovbe:
+        case UD_Icmova:
+        case UD_Icmovs:
+        case UD_Icmovns:
+        case UD_Icmovp:
+        case UD_Icmovnp:
+        case UD_Icmovl:
+        case UD_Icmovge:
+        case UD_Icmovle:
+        case UD_Icmovg:
+        case UD_Ifcmovb:
+        case UD_Ifcmove:
+        case UD_Ifcmovbe:
+        case UD_Ifcmovu:
+        case UD_Ifcmovnb:
+        case UD_Ifcmovne:
+        case UD_Ifcmovnbe:
+        case UD_Ifcmovnu:
+        case UD_Ifxch:
+        case UD_Ifxch4:
+        case UD_Ifxch7:
+        case UD_Ifstp:
+        case UD_Ifstp1:
+        case UD_Ifstp8:
+        case UD_Ifstp9:
+        case UD_Ifst:
+        case UD_Ilddqu:
+        case UD_Ilds:
+        case UD_Ilea:
+        case UD_Iles:
+        case UD_Ilfs:
+        case UD_Ilgs:
+        case UD_Ilss:
+        case UD_Istr:
+        case UD_Imov:
+        case UD_Imovapd:
+        case UD_Imovaps:
+        case UD_Imovddup:
+        case UD_Imovdqa:
+        case UD_Imovdqu:
+        case UD_Imovmskpd:
+        case UD_Imovmskps:
+        case UD_Imovntdq:
+        case UD_Imovnti:
+        case UD_Imovntpd:
+        case UD_Imovntps:
+        case UD_Imovsldup:
+        case UD_Imovshdup:
+        case UD_Imovsx:
+        case UD_Imovupd:
+        case UD_Imovups:
+        case UD_Imovzx:
+        case UD_Imovsxd:
+        case UD_Ipmovmskb:
+            bin += X86InstructionBin_move;
+            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
+            break;
+        case UD_Ilodsb:
+        case UD_Istosb:
+            bin += X86InstructionBin_move;
+            bin += INSTBIN_DATATYPE(sizeof(int8_t));
+            break;
+        case UD_Ilodsw:
+        case UD_Istosw:
+            bin += X86InstructionBin_move;
+            bin += INSTBIN_DATATYPE(sizeof(int16_t));
+            break;
+        case UD_Ildmxcsr:
+        case UD_Ilodsd:
+        case UD_Istosd:
+            bin += X86InstructionBin_move;
+            bin += INSTBIN_DATATYPE(sizeof(int32_t));
+            break;
+        case UD_Ilodsq:
+        case UD_Imaskmovq:
+        case UD_Istosq:
+        case UD_Imovq:
+        case UD_Imovqa:
+        case UD_Imovq2dq:
+        case UD_Imovdq2q:
+            bin += X86InstructionBin_move;
+            bin += INSTBIN_DATATYPE(sizeof(int64_t));
+            break;
+        case UD_Imovss:
+        case UD_Imovhps:
+        case UD_Imovlps:
+        case UD_Imovlhps:
+        case UD_Imovhlps:
+            bin += X86InstructionBin_move;
+            bin += INSTBIN_DATATYPE(sizeof(float));
+            break;
+        case UD_Imovd:
+        case UD_Imovhpd:
+        case UD_Imovlpd:
+        case UD_Imovntq:
+        case UD_Imovsd:
+            bin += X86InstructionBin_move;
+            bin += INSTBIN_DATATYPE(sizeof(double));
+            break;
+        case UD_Imovsb:
+        case UD_Icmpsb:
+        case UD_Iscasb:
+            bin += X86InstructionBin_string;
+            bin += INSTBIN_DATATYPE(sizeof(int8_t));
+            break;
+        case UD_Icmpsw:
+        case UD_Imovsw:
+        case UD_Iscasw:
+            bin += X86InstructionBin_string;
+            bin += INSTBIN_DATATYPE(sizeof(int16_t));
+            break;
+        case UD_Icmpsd:
+        case UD_Iscasd:
+            bin += X86InstructionBin_string;
+            bin += INSTBIN_DATATYPE(sizeof(int32_t));
+            break;
+        case UD_Icmpsq:
+        case UD_Imovsq:
+        case UD_Iscasq:
+            bin += X86InstructionBin_string;
+            bin += INSTBIN_DATATYPE(sizeof(int64_t));
+            break;
+        case UD_Irepne: //FIXME variable size
+        case UD_Irep: //FIXME variable size
+            bin += X86InstructionBin_string;
+            break;
+        case UD_Ija:
+        case UD_Ijae:
+        case UD_Ijb:
+        case UD_Ijbe:
+        case UD_Ijcxz:
+        case UD_Ijecxz:
+        case UD_Ijg:
+        case UD_Ijge:
+        case UD_Ijl:
+        case UD_Ijle:
+        case UD_Ijno:
+        case UD_Ijnp:
+        case UD_Ijns:
+        case UD_Ijnz:
+        case UD_Ijo:
+        case UD_Ijp:
+        case UD_Ijrcxz:
+        case UD_Ijs:
+        case UD_Ijz:
+            bin += X86InstructionBin_cond;
+            break;
+        case UD_Icall:
+        case UD_Iret:
+        case UD_Iretf:
+            bin += BinFrame;
+        case UD_Ijmp:
+            bin += X86InstructionBin_uncond;
+            break;
+        case UD_Ienter:
+        case UD_Ileave:
+            bin += X86InstructionBin_stack;
+            bin += BinFrame;
+            break;
+        case UD_Ifnsave:
+        case UD_Ifnstcw:
+        case UD_Ifnstenv:
+        case UD_Ifnstsw:
+        case UD_Ifrstor:
+        case UD_Ifxrstor:
+        case UD_Ifxsave:
+            bin += X86InstructionBin_stack;
+            bin += BinFrame;
+            break;
+        case UD_Ipop:
+        case UD_Ipush:
+            bin += X86InstructionBin_stack;
+            bin += BinStack;
+            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
+            break;
+        case UD_Ipopa:
+        case UD_Ipusha:
+            bin += X86InstructionBin_stack;
+            bin += BinFrame;
+            bin += INSTBIN_DATATYPE(sizeof(int16_t));
+            break;
+        case UD_Ipopad:
+        case UD_Ipushad:
+            bin += X86InstructionBin_stack;
+            bin += BinFrame;
+            bin += INSTBIN_DATATYPE(sizeof(int32_t));
+            break;
+        case UD_Ipopfw:
+        case UD_Ipushfw:
+            bin += X86InstructionBin_stack;
+            bin += BinStack;
+            bin += INSTBIN_DATATYPE(sizeof(int16_t));
+            break;
+        case UD_Ipopfd:
+        case UD_Ipushfd:
+            bin += X86InstructionBin_stack;
+            bin += BinStack;
+            bin += INSTBIN_DATATYPE(sizeof(int32_t));
+            break;
+        case UD_Ipopfq:
+        case UD_Ipushfq:
+            bin += X86InstructionBin_stack;
+            bin += BinStack;
+            bin += INSTBIN_DATATYPE(sizeof(int64_t));
+            break;
+        case UD_Iclflush:
+        case UD_Iinvd:
+        case UD_Iinvlpg:
+        case UD_Iinvlpga:
+        case UD_Iprefetch:
+        case UD_Iprefetchnta:
+        case UD_Iprefetcht0:
+        case UD_Iprefetcht1:
+        case UD_Iprefetcht2:
+            bin += X86InstructionBin_cache;
+            break;
+        case UD_Iint:
+        case UD_Iint1:
+        case UD_Iint3:
+        case UD_Iinto:
+        case UD_Iiretd:
+        case UD_Iiretq:
+        case UD_Iiretw:
+        case UD_Isyscall:
+        case UD_Isysenter:
+        case UD_Isysexit:
+        case UD_Isysret:
+            bin += X86InstructionBin_system;
+            bin += BinFrame;
+            break;
+        case UD_Id3vil:
+        case UD_Idb:
+        case UD_Igrp_asize:
+        case UD_Igrp_mod:
+        case UD_Igrp_mode:
+        case UD_Igrp_osize:
+        case UD_Igrp_reg:
+        case UD_Igrp_rm:
+        case UD_Igrp_vendor:
+        case UD_Igrp_x87:
+        case UD_Iinvalid:
+        case UD_Ina:
+        case UD_Inone:
+        case UD_Iud2:
+            bin += X86InstructionBin_invalid;
+            break;
+        case UD_I3dnow:
+        case UD_Iaaa:
+        case UD_Iaad:
+        case UD_Iaam:
+        case UD_Iaas:
+        case UD_Iarpl:
+        case UD_Iclc:
+        case UD_Icld:
+        case UD_Iclgi:
+        case UD_Icli:
+        case UD_Iclts:
+        case UD_Icmc:
+        case UD_Icpuid:
+        case UD_Idaa:
+        case UD_Idas:
+        case UD_Iemms:
+        case UD_Ifemms:
+        case UD_Iffree:
+        case UD_Iffreep:
+        case UD_Ifldcw:
+        case UD_Ifldenv:
+        case UD_Ifncstp:
+        case UD_Ifninit:
+        case UD_Ifnop:
+        case UD_Ihlt:
+        case UD_Iin:
+        case UD_Iinsb:
+        case UD_Iinsd:
+        case UD_Iinsw:
+        case UD_Ilahf:
+        case UD_Ilar:
+        case UD_Ilfence:
+        case UD_Ilgdt:
+        case UD_Ilidt:
+        case UD_Illdt:
+        case UD_Ilmsw:
+        case UD_Ilock:
+        case UD_Iloop:
+        case UD_Iloope:
+        case UD_Iloopnz:
+        case UD_Ilsl:
+        case UD_Iltr:
+        case UD_Imfence:
+        case UD_Imonitor:
+        case UD_Imwait:
+        case UD_Inop:
+        case UD_Iout:
+        case UD_Ioutsb:
+        case UD_Ioutsd:
+        case UD_Ioutsq:
+        case UD_Ioutsw:
+        case UD_Ipause:
+        case UD_Irdmsr:
+        case UD_Irdpmc:
+        case UD_Irdtsc:
+        case UD_Irdtscp:
+        case UD_Irsm:
+        case UD_Isahf:
+        case UD_Isfence:
+        case UD_Isgdt:
+        case UD_Isidt:
+        case UD_Iskinit:
+        case UD_Isldt:
+        case UD_Ismsw:
+        case UD_Istc:
+        case UD_Istd:
+        case UD_Istgi:
+        case UD_Isti:
+        case UD_Istmxcsr:
+        case UD_Iswapgs:
+        case UD_Iverr:
+        case UD_Iverw:
+        case UD_Ivmcall:
+        case UD_Ivmclear:
+        case UD_Ivmload:
+        case UD_Ivmmcall:
+        case UD_Ivmptrld:
+        case UD_Ivmptrst:
+        case UD_Ivmresume:
+        case UD_Ivmrun:
+        case UD_Ivmsave:
+        case UD_Ivmxoff:
+        case UD_Ivmxon:
+        case UD_Iwait:
+        case UD_Iwbinvd:
+        case UD_Iwrmsr:
+        case UD_Ixlatb:
+            bin += X86InstructionBin_other;
+            break;
+        default:
+            bin = X86InstructionBin_unknown;
+            break;
+    };
+    instructionBin = bin;
+    return instructionBin;
+}
+
 uint32_t X86Instruction::getInstructionType(){
     if (instructionType){
         return instructionType;
@@ -994,10 +1931,21 @@ uint32_t X86Instruction::getInstructionType(){
 uint32_t X86Instruction::setInstructionType(){
     uint32_t optype = X86InstructionType_unknown;
     switch(GET(mnemonic)){
-        case UD_Ipalignr:
-        case UD_Ipshufb:
-        case UD_Iphaddd:
+        case UD_Impsadbw:
+        case UD_Iphminposuw:
+        case UD_Ipmuldq:
+        case UD_Idpps:
+        case UD_Idppd:
             optype = X86InstructionType_simd;
+            break; 
+        case UD_Ipblendvb:
+        case UD_Ipblendw:
+        case UD_Iblendvpd:
+        case UD_Iblendvps:
+        case UD_Iblendpd:
+        case UD_Iblendps:
+            optype = X86InstructionType_int;
+            break;
         case UD_Ipminsb:
         case UD_Ipminsd:
         case UD_Ipminuw:
@@ -1006,7 +1954,65 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ipmaxsd:
         case UD_Ipmaxuw:
         case UD_Ipmaxud:
+            optype = X86InstructionType_simd;
+            break;
+        case UD_Iroundps:
+        case UD_Iroundpd:
+        case UD_Iroundss:
+        case UD_Iroundsd:
+	    optype = X86InstructionType_simd;
+	    break;
+        case UD_Ipextrb:
+        case UD_Ipextrd:
+        case UD_Ipextrq:
+        case UD_Iextractps:
+        case UD_Ipinsrb:
+        case UD_Ipinsrd:
+        case UD_Ipinsrq:
+        case UD_Iinsertps:
+            optype = X86InstructionType_simd;
+            break;
+        case UD_Ipmovsxbw:
+        case UD_Ipmovsxbd:
+        case UD_Ipmovsxbq:
+        case UD_Ipmovsxwd:
+        case UD_Ipmovsxwq:
+        case UD_Ipmovsxdq:
+        case UD_Ipmovzxbw:
+        case UD_Ipmovzxbd:
+        case UD_Ipmovzxbq:
+        case UD_Ipmovzxwd:
+        case UD_Ipmovzxwq:
+        case UD_Ipmovzxdq:
+            optype = X86InstructionType_move;
+            break;
+        case UD_Iptest:
             optype = X86InstructionType_int;
+            break;
+        case UD_Ipcmpeqq:
+        case UD_Ipackusdw:
+            optype = X86InstructionType_simd;
+            break;
+        case UD_Imovntdqa:
+            optype = X86InstructionType_move;
+            break;
+        case UD_Ipcmpestrm:
+        case UD_Ipcmpestri:
+        case UD_Ipcmpistrm:
+        case UD_Ipcmpistri:
+            optype = X86InstructionType_simd;
+            break;
+        case UD_Ipcmpgtq:
+            optype = X86InstructionType_int;
+            break;
+        case UD_Ipclmulqdq:
+            optype = X86InstructionType_simd;
+            break;
+        case UD_Ipalignr:
+        case UD_Ipshufb:
+        case UD_Iphaddd:
+            optype = X86InstructionType_simd;
+            break;
         case UD_I3dnow:
             optype = X86InstructionType_special;
             break;
@@ -1515,6 +2521,8 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ipcmpgtb:
         case UD_Ipcmpgtw:
         case UD_Ipcmpgtd:
+            optype = X86InstructionType_int;
+            break;
         case UD_Ipextrw:
         case UD_Ipinsrw:
         case UD_Ipmaddwd:
@@ -1522,7 +2530,7 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Ipmaxub:
         case UD_Ipminsw:
         case UD_Ipminub:
-            optype = X86InstructionType_int;
+            optype = X86InstructionType_simd;
             break;
         case UD_Ipmovmskb:
             optype = X86InstructionType_move;
@@ -1643,12 +2651,6 @@ uint32_t X86Instruction::setInstructionType(){
         case UD_Iretf:
             optype = X86InstructionType_return;
             break;
-        case UD_Iroundpd:
-        case UD_Iroundps:
-        case UD_Iroundsd:
-        case UD_Iroundss:
-	    optype = X86InstructionType_simd;
-	    break;
         case UD_Irsm:
             optype = X86InstructionType_special;
             break;
@@ -1932,6 +2934,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     container = cont;
     addressAnchor = NULL;
     instructionType = X86InstructionType_unknown;
+    instructionBin = X86InstructionBin_unknown;
     liveIns = NULL;
     liveOuts = NULL;
     defUseDist = 0;
@@ -1947,6 +2950,8 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     }
 
     leader = false;
+
+    setInstructionType();
 
     flags_usedef = NULL;
     setFlags();
@@ -1979,6 +2984,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     container = cont;
     addressAnchor = NULL;
     instructionType = X86InstructionType_unknown;
+    instructionBin = X86InstructionBin_unknown;
     liveIns = NULL;
     liveOuts = NULL;
     defUseDist = 0;
@@ -1994,6 +3000,8 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     }
 
     leader = false;
+
+    setInstructionType();
 
     flags_usedef = NULL;
     setFlags();
@@ -2039,7 +3047,7 @@ void X86Instruction::print(){
 
     flags[8] = '\0';
 
-    PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%8s]\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
+    PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%8s]\t-> %#llx %hx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress(), getInstructionBin());
 
 #ifdef PRINT_INSTRUCTION_DETAIL
 #ifndef NO_REG_ANALYSIS
@@ -2232,13 +3240,186 @@ void X86Instruction::setImpliedRegs(){
 #define has_0op (!operands[ALU_SRC1_OPERAND] && !operands[ALU_SRC2_OPERAND])
 #define has_1op (!has_0op && !has_2op)
 #define __set_impreg(__mnemonic, __numop, __stmts) else if (check_mnemonic(__mnemonic) && has_##__numop##op) { __stmts; }
+#define check_operand(__op, __type, __stmts) if (operands[__op]->GET(type) == __type) { __stmts; }
 
     if (!impreg_usedef) { __SHOULD_NOT_ARRIVE; }
     /* TODO: need to add info for lots of other instructions */
+
+    // FPU Instructions
+    __set_impreg(UD_Ifadd,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
     __set_impreg(UD_Ifadd,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
     __set_impreg(UD_Ifaddp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
     __set_impreg(UD_Ifiadd, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-    __set_impreg(UD_Iidiv,  1, iuse(X86_REG_AX)  idef(X86_REG_AX))
+
+    __set_impreg(UD_Ifsub,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifsub,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifsubp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifisub, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Ifsubr,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifsubr,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifsubrp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifisubr, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Ifmul,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifmul,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifmulp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifimul, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Ifdiv,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifdiv,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifdivp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifidiv, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Ifdivr,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifdivr,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifdivrp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifidivr, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Ifcom,   0, iuse(X87_REG_ST0) iuse(X87_REG_ST1))
+    __set_impreg(UD_Ifcom,   1, iuse(X87_REG_ST0))
+    __set_impreg(UD_Ifcomp,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1))
+    __set_impreg(UD_Ifcompp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1))
+
+    __set_impreg(UD_Ifxch, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST0) idef(X87_REG_ST1))
+    __set_impreg(UD_Ifxch, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Ifst, 0, iuse(X87_REG_ST0))
+    __set_impreg(UD_Ifstp, 0, iuse(X87_REG_ST0))
+
+    __set_impreg(UD_Ifchs, 0, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+    __set_impreg(UD_Ifabs, 0, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+    __set_impreg(UD_Iftst, 0, iuse(X87_REG_ST0))
+    __set_impreg(UD_Ifxam, 0, iuse(X87_REG_ST0))
+
+    //fld* How to handle floating point stack pushes/pops?
+
+    __set_impreg(UD_If2xm1, 0, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+
+
+    // SSE instructions
+    __set_impreg(UD_Ipblendvb,  2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Iblendvpd,  2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Iblendvps,  2, iuse(X86_FPREG_XMM0))
+
+    __set_impreg(UD_Ipcmpestrm, 2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Ipcmpestri, 2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Ipcmpistrm, 2, iuse(X86_FPREG_XMM0))
+    __set_impreg(UD_Ipcmpistri, 2, iuse(X86_FPREG_XMM0))
+
+
+    // General instructions
+
+    // Mem(DI) = Mem(SI)
+    __set_impreg(UD_Imovsb, 0, iuse(X86_REG_SI) iuse(X86_REG_DI))
+    __set_impreg(UD_Imovsw, 0, iuse(X86_REG_SI) iuse(X86_REG_DI))
+    __set_impreg(UD_Imovsd, 0, iuse(X86_REG_SI) iuse(X86_REG_DI))
+    __set_impreg(UD_Imovsq, 0, iuse(X86_REG_SI) iuse(X86_REG_DI))
+
+    __set_impreg(UD_Iaaa,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Iaad,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Iaam,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Iaas,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Idaa,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Idas,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Icbw,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Icwde, 0, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Icwd,  0, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Icdq,  0, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_DX))
+
+    __set_impreg(UD_Iloop,   1, iuse(X86_REG_CX) idef(X86_REG_CX))
+    __set_impreg(UD_Iloope,  1, iuse(X86_REG_CX) idef(X86_REG_CX))
+    __set_impreg(UD_Iloopnz, 1, iuse(X86_REG_CX) idef(X86_REG_CX))
+
+    __set_impreg(UD_Imul,  1, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Iimul, 1, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Idiv,  1, iuse(X86_REG_AX) iuse(X86_REG_DX) idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Iidiv, 1, iuse(X86_REG_AX) iuse(X86_REG_DX) idef(X86_REG_AX) idef(X86_REG_DX))
+
+    __set_impreg(UD_Ijcxz,  1, iuse(X86_REG_CX))
+    __set_impreg(UD_Ijecxz, 1, iuse(X86_REG_CX))
+
+    __set_impreg(UD_Imonitor, 0, iuse(X86_REG_AX) iuse(X86_REG_CX) iuse(X86_REG_DX))
+    __set_impreg(UD_Imwait,   0, iuse(X86_REG_AX) iuse(X86_REG_CX))
+
+    // Only when the operand is an immediate
+    __set_impreg(UD_Iadc, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Iadd, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Iand, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Icmp, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Ior,  1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Isbb, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Isub, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+    __set_impreg(UD_Ixor, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
+
+    // Mem(DI) = IO(DX)
+    __set_impreg(UD_Iinsb,  0, iuse(X86_REG_DX) iuse(X86_REG_DI))
+    __set_impreg(UD_Iinsw,  0, iuse(X86_REG_DX) iuse(X86_REG_DI))
+    __set_impreg(UD_Iinsd,  0, iuse(X86_REG_DX) iuse(X86_REG_DI))
+
+    // IO(DX) = Mem(SI)
+    __set_impreg(UD_Ioutsb, 0, iuse(X86_REG_DX) iuse(X86_REG_SI))
+    __set_impreg(UD_Ioutsw, 0, iuse(X86_REG_DX) iuse(X86_REG_SI))
+    __set_impreg(UD_Ioutsd, 0, iuse(X86_REG_DX) iuse(X86_REG_SI))
+
+    // Mem(DI) = AX
+    __set_impreg(UD_Istosb, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
+    __set_impreg(UD_Istosw, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
+    __set_impreg(UD_Istosd, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
+
+    // AX = MEM(SI) 
+    __set_impreg(UD_Ilodsb, 0, iuse(X86_REG_SI) idef(X86_REG_AX))
+    __set_impreg(UD_Ilodsw, 0, iuse(X86_REG_SI) idef(X86_REG_AX))
+    __set_impreg(UD_Ilodsd, 0, iuse(X86_REG_SI) idef(X86_REG_AX))
+
+    // CMP(AX, MEM(DI))
+    __set_impreg(UD_Iscasb, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
+    __set_impreg(UD_Iscasw, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
+    __set_impreg(UD_Iscasd, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
+
+    // Read/write flags
+    __set_impreg(UD_Isahf, 0, iuse(X86_REG_AX))
+    __set_impreg(UD_Ilahf, 0, idef(X86_REG_AX))
+    __set_impreg(UD_Isalc, 1, idef(X86_REG_AX))
+
+    // Read system values
+    __set_impreg(UD_Irdtsc, 0, idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Irdmsr, 0, iuse(X86_REG_CX) idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Irdpmc, 0, iuse(X86_REG_CX) idef(X86_REG_AX) idef(X86_REG_DX))
+    __set_impreg(UD_Icpuid, 0, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_BX)
+                                                idef(X86_REG_CX) idef(X86_REG_DX))
+
+    // Reading/writing stack
+    __set_impreg(UD_Ipush,   0, iuse(X86_REG_SP) idef(X86_REG_SP))
+    __set_impreg(UD_Ipusha,  0, iuse(X86_REG_AX) iuse(X86_REG_BX) iuse(X86_REG_CX) iuse(X86_REG_DX)
+                                iuse(X86_REG_SP) iuse(X86_REG_BP) iuse(X86_REG_SI) iuse(X86_REG_DI))
+    __set_impreg(UD_Ipushad, 0, iuse(X86_REG_AX) iuse(X86_REG_BX) iuse(X86_REG_CX) iuse(X86_REG_DX)
+                                iuse(X86_REG_SP) iuse(X86_REG_BP) iuse(X86_REG_SI) iuse(X86_REG_DI))
+    __set_impreg(UD_Ipushfw, 0, iuse(X86_REG_SP) idef(X86_REG_SP))
+    __set_impreg(UD_Ipushfd, 0, iuse(X86_REG_SP) idef(X86_REG_SP))
+    __set_impreg(UD_Ipushfq, 0, iuse(X86_REG_SP) idef(X86_REG_SP))
+
+    __set_impreg(UD_Ipop,    0, iuse(X86_REG_SP) idef(X86_REG_SP))
+    __set_impreg(UD_Ipopa,   0, idef(X86_REG_AX) idef(X86_REG_BX) idef(X86_REG_CX) idef(X86_REG_DX)
+                                idef(X86_REG_SP) idef(X86_REG_BP) idef(X86_REG_SI) idef(X86_REG_DI))
+    __set_impreg(UD_Ipopad,  0, idef(X86_REG_AX) idef(X86_REG_BX) idef(X86_REG_CX) idef(X86_REG_DX)
+                                idef(X86_REG_SP) idef(X86_REG_BP) idef(X86_REG_SI) idef(X86_REG_DI))
+    __set_impreg(UD_Ipopfw,  0, iuse(X86_REG_SP) idef(X86_REG_SP))
+    __set_impreg(UD_Ipopfd,  0, iuse(X86_REG_SP) idef(X86_REG_SP))
+    __set_impreg(UD_Ipopfq,  0, iuse(X86_REG_SP) idef(X86_REG_SP))
+
+    __set_impreg(UD_Ienter,  2, iuse(X86_REG_BP) iuse(X86_REG_SP) idef(X86_REG_BP) idef(X86_REG_SP))
+    __set_impreg(UD_Ileave,  0, iuse(X86_REG_BP) idef(X86_REG_SP) idef(X86_REG_BP))
+
+    // Read from memory
+    __set_impreg(UD_Ixlatb, 0, iuse(X86_REG_AX) iuse(X86_REG_BX) idef(X86_REG_AX))
+
+    // Conditionally defines registers
+    __set_impreg(UD_Icmpxchg,   2, iuse(X86_REG_AX) idef(X86_REG_AX))
+    __set_impreg(UD_Icmpxchg8b, 1, iuse(X86_REG_AX) iuse(X86_REG_BX) iuse(X86_REG_CX) iuse(X86_REG_DX)
+                                   idef(X86_REG_AX) idef(X86_REG_DX))
+
 
     /*
       // 4 other types for all of these string ops -- *sb, *sw, *sd, *sq
@@ -2401,9 +3582,14 @@ void X86Instruction::setFlags()
     __reg_define(flags_usedef, UD_Ioutsb, __bit_shift(X86_FLAG_DF), 0);
     __reg_define(flags_usedef, UD_Ioutsw, __bit_shift(X86_FLAG_DF), 0);
     __reg_define(flags_usedef, UD_Ioutsd, __bit_shift(X86_FLAG_DF), 0);
+    __reg_define(flags_usedef, UD_Ipcmpestri, 0, __x86_flagset_alustd);
+    __reg_define(flags_usedef, UD_Ipcmpestrm, 0, __x86_flagset_alustd);
+    __reg_define(flags_usedef, UD_Ipcmpistri, 0, __x86_flagset_alustd);
+    __reg_define(flags_usedef, UD_Ipcmpistrm, 0, __x86_flagset_alustd);
     __reg_define(flags_usedef, UD_Ipopfw, 0, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT));
     __reg_define(flags_usedef, UD_Ipopfd, 0, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT));
     __reg_define(flags_usedef, UD_Ipopfq, 0, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT));
+    __reg_define(flags_usedef, UD_Iptest, 0, __x86_flagset_alustd);
     __reg_define(flags_usedef, UD_Ipushfw,__bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT), 0);
     __reg_define(flags_usedef, UD_Ipushfd,__bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT), 0);
     __reg_define(flags_usedef, UD_Ipushfq,__bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_NT), 0);
@@ -2453,6 +3639,7 @@ void X86Instruction::setFlags()
     __reg_define(flags_usedef, UD_Iscasw, __bit_shift(X86_FLAG_DF), 0);
     __reg_define(flags_usedef, UD_Iscasq, __bit_shift(X86_FLAG_DF), 0);
     __reg_define(flags_usedef, UD_Iscasd, __bit_shift(X86_FLAG_DF), 0);
+    __reg_define(flags_usedef, UD_Itest, 0, __x86_flagset_alustd);
 
     // these instructions have 2 versions: 1 is a string instruction that implicitly uses DF, the other is an SSE instruction
     if (GET(mnemonic) == UD_Imovsb || GET(mnemonic) == UD_Imovsw || GET(mnemonic) == UD_Imovsd || GET(mnemonic) == UD_Imovsq){

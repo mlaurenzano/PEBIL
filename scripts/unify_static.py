@@ -64,6 +64,8 @@ block_cnt = {}
 block_mem = {}
 block_lpc = {}
 block_dud = {}
+block_dxi = {}
+block_bin = {}
 for i in range(0,len(lsraw),1):
     line = lsraw[i].strip()
     if not line.startswith('#'):
@@ -99,6 +101,22 @@ for i in range(0,len(lsraw),1):
             bbhash = int(toks[4], 16)
             if bbhash != current_block:
                 print_error('block hashcode mismatch on (+lpc) line ' + str(i+1))
+        elif line.startswith('+dxi'):
+            toks = line.split()
+            if len(toks) != 5:
+                print_error('malformed line in loop static file line ' + str(i+1))
+            block_dxi[current_block] = [int(toks[1]), int(toks[2])]
+            bbhash = int(toks[4], 16)
+            if bbhash != current_block:
+                print_error('block hashcode mismatch on (+dxi) line ' + str(i+1))
+        elif line.startswith('+bin'):
+            toks = line.split()
+            if len(toks) != 30:
+                print_error('malformed line in loop static file line ' + str(i+1))
+            block_bin[current_block] = [int(toks[1]), int(toks[2]), int(toks[3]), int(toks[4]), int(toks[5]), int(toks[6]), int(toks[7]), int(toks[8]), int(toks[9]), int(toks[10]), int(toks[11]), int(toks[12]), int(toks[13]), int(toks[14]), int(toks[15]), int(toks[16]), int(toks[17]), int(toks[18]), int(toks[19]), int(toks[20]), int(toks[21]), int(toks[22]), int(toks[23]), int(toks[24]), int(toks[25]), int(toks[26]), int(toks[27])]
+            bbhash = int(toks[29], 16)
+            if bbhash != current_block:
+                print_error('block hashcode mismatch on (+bin) line ' + str(i+1))
         elif line.startswith('+dud'):
             toks = line.split()
             rawt = []

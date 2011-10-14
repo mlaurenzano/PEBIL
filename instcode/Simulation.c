@@ -53,8 +53,9 @@ void clearBlockCounters(){
 // PROBLEM^^ on some systems (cray XT) it is unsafe to call functions
 // from the entry function
 #ifdef STATS_PER_INSTRUCTION
-int32_t* insnToBlock;
+uint32_t* insnToBlock;
 int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uint64_t* counters, char* killed, int32_t* insnMap){
+    insnToBlock = insnMap;
 #else
 int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uint64_t* counters, char* killed){
 #endif
@@ -63,9 +64,7 @@ int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uin
     numberOfBasicBlocks = *numblocks;
     blockCounters = counters;
     blockIsKilled = killed;
-#ifdef STATS_PER_INSTRUCTION
-    insnToBlock = insnMap;
-#endif
+
     numberKilled = 0;
 
     instpoint_info* ip;
@@ -251,9 +250,10 @@ void initDfPatterns(DFPatternSpec* dfps,uint32_t n,BasicBlockInfo* bbs){
     dfPatterns = NULL;
 
     if(dfps->type == DFPattern_Active){
-        PRINT_INSTR(stdout,"DFPatterns are activated with %u entries",n);
+        PRINT_INSTR(stdout, "DFPatterns are activated with %u entries at address %#llx", n, dfps);
         uint32_t anyTagged = 0;
         for(i=1;i<=n;i++){
+            PRINT_INSTR(stdout, "\tdfpattern(%d): memop=%d, type=%s", i-1, dfps[i].memopCnt, DFPatternTypeNames[dfps[i].type]);
             if(dfps[i].type == dfTypePattern_undefined){
                 PRINT_INSTR(stdout, "Error in dfpattern type %i %s",i,DFPatternTypeNames[dfps[i].type]);
                 assert (dfps[i].type != dfTypePattern_undefined);
@@ -304,11 +304,19 @@ void processDFPatternEntry(BufferEntry* entries,Attribute_t startIndex,Attribute
         if(info->basicBlock != bb){
             assert (0 && "Fatal: Something is wrong");
         }
+
+        /*
+        if (currentEntry->blockId < 35){
+            PRINT_INSTR(stdout, "foo! block %d memop %d", currentEntry->blockId, memopIdx);
+        }
+        */
+
         if((info->type == dfTypePattern_None) ||
            (info->type >= dfTypePattern_Total_Types)){
             continue;
         }
         if(memopIdx >= info->rangeCnt){
+            PRINT_INSTR(stdout, "memopidx %d allcnt %d", memopIdx, info->rangeCnt);
             assert (0 && "Fatal: How come memopidx is larger than all count");
         }
 
@@ -477,6 +485,14 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
     entries->lastFreeIdx = 1;
     return;
 #else
+#ifdef MPI_INIT_REQUIRED
+    if (!isTaskValid()){
+        PRINT_INSTR(stdout, "Process %d did not execute MPI_Init... dropping address buffer until it does", getpid());
+        register BufferEntry* entries = (BufferEntry*)base;
+        entries->lastFreeIdx = 1;
+        return;
+    }
+#endif
     register uint32_t      i;
     register BufferEntry* entries = (BufferEntry*)base;
     register Attribute_t startIndex = 1;
@@ -528,7 +544,6 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
             PRINT_INSTR(stdout, "WARNING: this run has simulation turned off via an option to the --dump flag");
             PRINT_INSTR(stderr, "WARNING: this run has simulation turned off via an option to the --dump flag");
         }
-
 
         initDfPatterns(dfps,blockCount,blocks);
     }
@@ -873,6 +888,7 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
             fprintf(dfpFp,"# total     = %lld\n",totalNumberOfAccesses);
             fprintf(dfpFp,"# sampled   = %lld\n",totalNumberOfSamples);
             fprintf(dfpFp,"# processed = %lld\n",processedSampleCount);
+            fprintf(dfpFp, "# perinsn  = %s\n", USES_STATS_PER_INSTRUCTION);
         }
 
 #ifdef NO_SAMPLING_MODE
@@ -899,12 +915,7 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
 #else
         fprintf(fp,"# shiftaddr = no\n");
 #endif
-
-#ifdef STATS_PER_INSTRUCTION
-        fprintf(fp, "# statsperinsn = yes\n");
-#else
-        fprintf(fp, "# statsperinsn = no\n");
-#endif
+        fprintf(fp, "# perinsn = %s\n", USES_STATS_PER_INSTRUCTION);
 
         fprintf(fp,"#\n");
         for(j=0;j<systemCount;j++){

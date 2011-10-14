@@ -45,23 +45,13 @@
 #include <TextSection.h>
 
 char* ElfFile::getSHA1Sum(){
-    unsigned char* allbytes = new unsigned char[getFileSize()];
-    int end;
-    char *line;
-    char* hexstring = new char[41];
-    bzero(hexstring, 41);
-    unsigned char hash[20];
-    bzero(hash, 20);
+    char* allbytes = new char[getFileSize()];
 
     binaryInputFile.setInBufferPointer(0);
     binaryInputFile.copyBytes(allbytes, getFileSize());
 
-    end = getFileSize();
-
-    calc(allbytes,end,hash);
-    toHexString(hash, hexstring);
-
-    delete[] allbytes;                                                                                                                                 
+    char* hexstring = sha1sum(allbytes, getFileSize());
+    delete[] allbytes;                                                                                               
     return hexstring;
 }
 
@@ -100,10 +90,10 @@ TextSection* ElfFile::getDotPltSection(){
 
 ElfFile::ElfFile(char* f, char* a) :
     is64BitFlag(false), staticLinked(false), elfFileName(f), applicationName(a), fileHeader(NULL), globalOffsetTable(NULL), dynamicTable(NULL),
-gnuVerneedTable(NULL), gnuVersymTable(NULL), dynamicStringTable(NULL), dynamicSymbolTable(NULL),
-pltRelocationTable(NULL), dynamicRelocationTable(NULL), lineInfoSection(NULL), dynamicSymtabIdx(0),
-dynamicSectionAddress(0), dynamicTableSectionIdx(0), textSegmentIdx(0), dataSegmentIdx(0), numberOfFunctions(0),
-numberOfBlocks(0), numberOfMemoryOps(0), numberOfFloatPOps(0)
+    gnuVerneedTable(NULL), gnuVersymTable(NULL), dynamicStringTable(NULL), dynamicSymbolTable(NULL),
+    pltRelocationTable(NULL), dynamicRelocationTable(NULL), lineInfoSection(NULL), dynamicSymtabIdx(0),
+    dynamicSectionAddress(0), dynamicTableSectionIdx(0), textSegmentIdx(0), dataSegmentIdx(0), numberOfFunctions(0),
+    numberOfBlocks(0), numberOfMemoryOps(0), numberOfFloatPOps(0)
 {
     uint32_t addrAlign;
     if (is64Bit()){

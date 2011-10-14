@@ -6,72 +6,224 @@
    UDIS86 X86/AMD64/IA32/IA32e OPCODE TABLE   
   -->
 
-  <instruction mnemonic="palignr">
-    <opcode> aso oso rexr rexx rexb ; 0f /3byte=3a 0f ; P Q Ib </opcode>
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0f ; V W Ib </opcode>
+  <!-- SSE 4+ added by Michael Laurenzano michaell@sdsc.edu -->
+  <!-- TODO: AVX? -->
+
+  <!-- MAL SSE 4.1 -->
+  <instruction mnemonic="mpsadbw">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 42; V W Ib </opcode>
   </instruction>
 
-  <instruction mnemonic="pshufb">
-    <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 00 ; P Q </opcode>
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 00 ; V W </opcode>
+  <instruction mnemonic="phminposuw"> 
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 41; V W </opcode>
   </instruction>
 
-  <instruction mnemonic="phaddd">
-    <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 02 ; P Q </opcode>
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 02 ; V W </opcode>
+  <instruction mnemonic="pmuldq"> 
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 28; V W </opcode>
   </instruction>
 
-  <instruction mnemonic="roundps">
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 08; V W Ib </opcode>
+  <instruction mnemonic="dpps">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 40; V W Ib </opcode>
+  </instruction>
+  <instruction mnemonic="dppd">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 41; V W Ib </opcode>
   </instruction>
 
-  <instruction mnemonic="roundpd">
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 09; V W Ib </opcode>
+  <instruction mnemonic="pblendvb"> 
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 10; V W </opcode>
   </instruction>
-
-  <instruction mnemonic="roundss">
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0a; V W Ib </opcode>
+  <instruction mnemonic="pblendw">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0e; V W Ib </opcode>
   </instruction>
-
-  <instruction mnemonic="roundsd">
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0b; V W Ib </opcode>
+  <instruction mnemonic="blendvpd"> 
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 15; V W </opcode>
+  </instruction>
+  <instruction mnemonic="blendvps"> 
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 14; V W </opcode>
+  </instruction>
+  <instruction mnemonic="blendpd">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0d; V W Ib </opcode>
+  </instruction>
+  <instruction mnemonic="blendps">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0c; V W Ib </opcode>
   </instruction>
 
   <instruction mnemonic="pminsb">
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 38; V W </opcode>
   </instruction>
-
   <instruction mnemonic="pminsd"> 
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 39; V W </opcode>
   </instruction>
-
   <instruction mnemonic="pminuw">
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3a; V W </opcode>
   </instruction>
-
   <instruction mnemonic="pminud">
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3b; V W </opcode>
   </instruction>
-
   <instruction mnemonic="pmaxsb">
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3c; V W </opcode>
   </instruction>
-
   <instruction mnemonic="pmaxsd">
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3d; V W </opcode>
   </instruction>
-
   <instruction mnemonic="pmaxuw">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3e; V W </opcode>
   </instruction>
-
   <instruction mnemonic="pmaxud">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3f; V W </opcode>
   </instruction>
 
-  <!-- 3byte-opcode sse/mmx instructions added by michael laurenzano: michaell at sdsc.edu
-       these will be implemented as needed since there are so many
+  <instruction mnemonic="roundps">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 08; V W Ib </opcode>
+  </instruction>
+  <instruction mnemonic="roundpd">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 09; V W Ib </opcode>
+  </instruction>
+  <instruction mnemonic="roundss">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0a; V W Ib </opcode>
+  </instruction>
+  <instruction mnemonic="roundsd">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0b; V W Ib </opcode>
+  </instruction>
 
+  <instruction mnemonic="pextrb">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 14 ; V W Ib </opcode>
+  </instruction>
+  <instruction mnemonic="pextrd">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 16 ; V W Ib </opcode>
+  </instruction>
+  <instruction mnemonic="pextrq">
+    <opcode> aso oso rexw rexr rexx rexb ; sse66 0f /3byte=3a 16 ; V W Ib </opcode>
+  </instruction>
+  <instruction mnemonic="extractps">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 17; V W Ib </opcode>
+  </instruction>
+  <instruction mnemonic="pinsrb">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 20; V Ex Ib </opcode>
+  </instruction>
+  <instruction mnemonic="pinsrd">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 22; V Ex Ib </opcode>
+  </instruction>
+  <instruction mnemonic="pinsrq">
+    <opcode> aso oso rexw rexr rexx rexb ; sse66 0f /3byte=3a 22; V Ex Ib </opcode>
+  </instruction>
+  <instruction mnemonic="insertps">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 21; V W Ib </opcode>
+  </instruction>
+
+  <instruction mnemonic="pmovsxbw">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 20 ; V W </opcode>
+  </instruction>
+  <instruction mnemonic="pmovsxbd">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 21 ; V W </opcode>
+  </instruction>
+  <instruction mnemonic="pmovsxbq">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 22 ; V W </opcode>
+  </instruction>
+  <instruction mnemonic="pmovsxwd">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 23 ; V W </opcode>
+  </instruction>
+  <instruction mnemonic="pmovsxwq">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 24 ; V W </opcode>
+  </instruction>
+  <instruction mnemonic="pmovsxdq">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 25 ; V W </opcode>
+  </instruction>
+  <instruction mnemonic="pmovzxbw">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 30 ; V W </opcode>
+  </instruction>
+  <instruction mnemonic="pmovzxbd">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 31 ; V W </opcode>
+  </instruction>
+  <instruction mnemonic="pmovzxbq">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 32 ; V W </opcode>
+  </instruction>
+  <instruction mnemonic="pmovzxwd">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 33 ; V W </opcode>
+  </instruction>
+  <instruction mnemonic="pmovzxwq">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 34 ; V W </opcode>
+  </instruction>
+  <instruction mnemonic="pmovzxdq">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 35 ; V W </opcode>
+  </instruction>
+
+  <instruction mnemonic="ptest">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 17 ; V W </opcode>
+  </instruction>
+
+  <instruction mnemonic="pcmpeqq">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 29 ; V W </opcode>
+  </instruction>
+
+  <instruction mnemonic="packusdw">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 2b ; V W </opcode>
+  </instruction>
+
+  <instruction mnemonic="movntdqa">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 2a ; V M </opcode>
+  </instruction>
+
+<!-- MAL SSE 4.2 -->
+  <instruction mnemonic="pcmpestrm">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=3a 60 ; V W Ib </opcode>
+  </instruction>
+  <instruction mnemonic="pcmpestri">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=3a 61 ; V W Ib </opcode>
+  </instruction>
+  <instruction mnemonic="pcmpistrm">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=3a 62 ; V W Ib </opcode>
+  </instruction>
+  <instruction mnemonic="pcmpistri">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=3a 63 ; V W Ib </opcode>
+  </instruction>
+
+  <instruction mnemonic="pcmpgtq">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 37 ; V W </opcode>
+  </instruction>
+
+  <!-- MAL CLMUL -->
+  <instruction mnemonic="pclmulqdq">
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=3a 44 ; V W Ib </opcode>
+  </instruction>
+
+  <!-- MAL SSE 4a -->
+<!-- would like to find more complete docs before i implement
+  <instruction mnemonic="extrq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="insertq">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="movntsd">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="movntss">
+    <opcode> ; ; </opcode>
+  </instruction>
+-->
+
+<!-- MAL AES 
+  <instruction mnemonic="aesimc">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="aesenc">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="aesenclast">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="aesdec">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="aesdeclast">
+    <opcode> ; ; </opcode>
+  </instruction>
+  <instruction mnemonic="aeskeygen-assist">
+    <opcode> ; ; </opcode>
+  </instruction>
+
+MAL SSE 3 
   <instruction mnemonic="phaddw">
     <opcode> ; ; </opcode>
   </instruction>
@@ -90,61 +242,7 @@
   <instruction mnemonic="phsubsw">
     <opcode> ; ; </opcode>
   </instruction>
-  <instruction mnemonic="pblendvb">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="blendvps">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="blendvpd">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="ptest">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmovsxbw">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmovsxbd">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmovsxbq">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmovsxwd">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmovsxwq">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmovsxdq">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmovzxbw">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmovzxbd">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmovzxbq">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmovzxwd">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmovzxwq">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pmovzxbq">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pcmpgtq">
-    <opcode> ; ; </opcode>
-  </instruction>
   <instruction mnemonic="pmulld">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="phminposuw">
     <opcode> ; ; </opcode>
   </instruction>
   <instruction mnemonic="invept">
@@ -154,9 +252,6 @@
     <opcode> ; ; </opcode>
   </instruction>
   <instruction mnemonic="movbe">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="crc32">
     <opcode> ; ; </opcode>
   </instruction>
   <instruction mnemonic="psignb">
@@ -180,94 +275,34 @@
   <instruction mnemonic="pabsd">
     <opcode> ; ; </opcode>
   </instruction>
-  <instruction mnemonic="pmuldq">
+
+MAL MISSING PRE SSE?
+  <instruction mnemonic="crc32">
     <opcode> ; ; </opcode>
   </instruction>
-  <instruction mnemonic="pcmpeqq">
+  <instruction mnemonic="popcnt">
     <opcode> ; ; </opcode>
   </instruction>
-  <instruction mnemonic="movntdqa">
+  <instruction mnemonic="lzcnt">
     <opcode> ; ; </opcode>
   </instruction>
-  <instruction mnemonic="packusdw">
-    <opcode> ; ; </opcode>
+-->
+
+  <instruction mnemonic="palignr">
+    <opcode> aso oso rexr rexx rexb ; 0f /3byte=3a 0f ; P Q Ib </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0f ; V W Ib </opcode>
   </instruction>
-  <instruction mnemonic="aesimc">
-    <opcode> ; ; </opcode>
+  <instruction mnemonic="pshufb">
+    <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 00 ; P Q </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 00 ; V W </opcode>
   </instruction>
-  <instruction mnemonic="aesenc">
-    <opcode> ; ; </opcode>
+  <instruction mnemonic="phaddd">
+    <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 02 ; P Q </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 02 ; V W </opcode>
   </instruction>
-  <instruction mnemonic="aesenclast">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="aesdec">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="aesdeclast">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pextrb">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pextrw">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pextrd">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="extractps">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pinsrb">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="insertps">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pinsrd">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pinsrq">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="dpps">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="dppd">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="mpsadbw">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pclmulqdq">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pcmpestrm">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pcmpestri">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pcmpistrm">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pcmpistri">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="blendps">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="blendpd">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="blendw">
-    <opcode> ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="aeskeygen-assist">
-    <opcode> ; ; </opcode>
-  </instruction>
-  -->
+
+
+
 
   <instruction mnemonic="3dnow">
     <opcode> ; 0f 0f ; P Q </opcode>
@@ -2372,6 +2407,7 @@
   <instruction mnemonic="pextrw">
     <opcode> aso rexr rexb ; sse66 0f c5 ; Gd PR Ib </opcode>
     <opcode> aso oso rexw rexr rexx rexb ; 0f c5 ; Gd PR Ib </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 15; Ew W Ib </opcode>
   </instruction>
 
   <instruction mnemonic="pinsrw">

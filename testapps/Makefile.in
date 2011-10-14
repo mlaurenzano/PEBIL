@@ -14,6 +14,7 @@ TARGETS  = cTest cppTest fTest dynTest sgTest
 IDETGT = $(subst Test,Test.ideinst,$(TARGETS))
 JBBTGT = $(subst Test,Test.jbbinst,$(TARGETS))
 SIMTGT = $(subst Test,Test.siminst,$(TARGETS))
+THRTGT = $(subst Test,Test.thrinst,$(TARGETS))
 
 all: $(TARGETS) 
 	echo $(IDETGT)
@@ -42,29 +43,41 @@ showme:
 	which pebil
 	ldd `which pebil`
 
-check: showme $(IDETGT) $(JBBTGT) $(SIMTGT)
+check: showme $(IDETGT) $(JBBTGT) $(SIMTGT) $(THRTGT)
 PEBIL_COMMAND = pebil --silent --typ
 FILTER_PEBIL_MSGS = grep -v "\-\["
+LOOPS_FILE = all.loops
+CREATE_LOOPS_FILE = echo "*:*:0" > $(LOOPS_FILE)
 OUT = outp
+DIFF = diff
+NULL_FILE = /dev/null
 
 %.ideinst: %
 	$(PEBIL_COMMAND) ide --app $<
-	diff $< $@
+	$(DIFF) $< $@
 	./$@ > $@.$(OUT)
 	./$< > $<.$(OUT)
-	diff $<.$(OUT) $@.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
 
 %.jbbinst: %
 	$(PEBIL_COMMAND) jbb --app $<
 	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
 	./$< > $<.$(OUT)
-	diff $<.$(OUT) $@.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
 
 %.siminst: %
-	$(PEBIL_COMMAND) sim --app $< --inp /dev/null
+	$(PEBIL_COMMAND) sim --app $< --inp $(NULL_FILE)
 	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
 	./$< > $<.$(OUT)
-	diff $<.$(OUT) $@.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
+
+%.thrinst: %
+	$(CREATE_LOOPS_FILE)
+	$(PEBIL_COMMAND) thr --app $< --inp $(LOOPS_FILE) --lnc libpfreq.so --trk $(NULL_FILE)
+	rm -f $(LOOPS_FILE)
+	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
+	./$< > $<.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
 
 clean: 
 	rm -f *.o $(TARGETS) *.jbbinst *.loopcnt *.siminst *.ideinst *.static *.$(OUT)

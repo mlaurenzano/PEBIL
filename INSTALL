@@ -19,8 +19,8 @@ comments to michaell@sdsc.edu
    $ export PATH=${PATH}:${PEBIL_ROOT}/bin:${PEBIL_ROOT}/scripts
    $ export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PEBIL_ROOT}/lib
 
-   This functionality is also encapsulated in pebilrc, so you can try:
-   $ . pebilrc
+   This functionality is also encapsulated in bashrc, so you can try:
+   $ . bashrc
 
    B. csh:
    % setenv PEBIL_ROOT /path/to/PEBIL/

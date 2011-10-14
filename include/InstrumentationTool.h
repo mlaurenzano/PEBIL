@@ -25,6 +25,8 @@
 #include <Instrumentation.h>
 #include <X86Instruction.h>
 
+class InstrumentationPoint;
+
 #define INFO_UNKNOWN "__info_unknown__"
 
 typedef struct 
@@ -40,7 +42,10 @@ typedef struct
 
 class InstrumentationTool : public ElfFileInst {
 protected:
-    void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos, uint32_t bufferSize);
+    void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize);
+    void printStaticFilePerInstruction(Vector<X86Instruction*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize);
+
+    InstrumentationPoint* insertInlinedTripCounter(uint64_t, Base*);
 
     InstrumentationFunction* initWrapperC;
     InstrumentationFunction* initWrapperF;
