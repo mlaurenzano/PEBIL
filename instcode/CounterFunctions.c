@@ -25,6 +25,7 @@
 #include <assert.h>
 #include <string.h>
 #include <dlfcn.h>
+#include <signal.h>
 
 #include <InstrumentationCommon.h>
 
@@ -44,12 +45,25 @@ int64_t* loopHashValues;
 
 void tool_mpi_init(){}
 
+void dump_counter_state(int signum){
+    PRINT_INSTR(stdout, "dumping counter state");
+}
+
+void define_user_sig_handlers(){
+    if (signal (SIGUSR1, dump_counter_state) == SIG_IGN){
+        signal (SIGUSR1, SIG_IGN);
+    }
+    PRINT_INSTR(stdout, "setup signal handler dump_counter_state");
+}
+
 int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char** functionNms, int64_t* hashVals){
     numberOfBasicBlocks = *numBlocks;
     lineNumbers = lineNums;
     fileNames = fileNms;
     functionNames = functionNms;
     hashValues = hashVals;
+
+    define_user_sig_handlers();
 
     ptimer(&pebiltimers[0]);
 }
