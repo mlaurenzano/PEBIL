@@ -516,7 +516,7 @@ int main(int argc,char* argv[]){
             fprintf(stderr, "\nError: option --lnc needs to be given with call wrapper inst\n");
         }
         ASSERT(libList);
-        elfInst = new CallReplace(&elfFile, inputTrackList, libList, inptName, extension, loopIncl, extdPrnt, doIntro);
+        elfInst = new CallReplace(&elfFile, inputTrackList, inptName, extension, loopIncl, extdPrnt, doIntro);
     } else if (instType == throttle_loop_type){
         if (!libList){
             fprintf(stderr, "\nError: option --lnc needs to be given with loop throttle inst\n");
@@ -527,8 +527,12 @@ int main(int argc,char* argv[]){
             printUsage();
         }
         ASSERT(inputTrackList);
-        elfInst = new ThrottleLoop(&elfFile, inptName, inputTrackList, libList, extension, loopIncl, extdPrnt);
+        elfInst = new ThrottleLoop(&elfFile, inptName, inputTrackList, extension, loopIncl, extdPrnt);
     }
+    if (libList){
+        elfInst->setLibraryList(libList);
+    }
+
     else {
         PRINT_ERROR("Error : invalid instrumentation type");
     }

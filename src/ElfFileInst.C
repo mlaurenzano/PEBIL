@@ -1122,6 +1122,7 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
     declare();
+    declareLibraryList();
     if (!elfFile->isStaticLinked()){
         extendDynamicTable();
     }
@@ -1341,6 +1342,36 @@ uint32_t ElfFileInst::declareLibrary(char* libName){
 
     instrumentationLibraries.append(newLib);
     return instrumentationLibraries.size();
+}
+
+void ElfFileInst::declareLibraryList(){
+    if (!libraryList){
+        return;
+    }
+
+    Vector<uint32_t> libIdx;
+    Vector<char*> libraries;
+    libIdx.append(0);
+    uint32_t listSize = strlen(libraryList);
+    for (uint32_t i = 0; i < listSize; i++){
+        if (libraryList[i] == ','){
+            libraryList[i] = '\0';
+            libIdx.append(i+1);
+        }
+    }
+    for (uint32_t i = 0; i < libIdx.size(); i++){
+        if (libIdx[i] < listSize){
+            libraries.append(libraryList + libIdx[i]);
+        } else {
+            PRINT_ERROR("improperly formatted library list given instrumentation tool");
+            __SHOULD_NOT_ARRIVE;
+        }
+    }
+
+    // declare any shared library that will contain instrumentation functions
+    for (uint32_t i = 0; i < libraries.size(); i++){
+        declareLibrary(libraries[i]);
+    }
 }
 
 
@@ -1728,6 +1759,8 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
 
     flags = InstrumentorFlag_none;
     allowStatic = false;
+
+    libraryList = NULL;
 }
 
 void ElfFileInst::setInputFunctions(char* inputFuncList){

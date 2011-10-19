@@ -109,6 +109,7 @@ private:
 
     LineInfoFinder* lineInfoFinder;
 
+
     uint32_t addStringToDynamicStringTable(const char* str);
     uint32_t addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx);
     uint32_t expandHashTable(uint32_t idx);
@@ -117,6 +118,9 @@ private:
 
     void applyInstrumentationDataToRaw();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+
+    char* libraryList;
+    void declareLibraryList();
 protected:
     Vector<Function*> allFunctions;
     Vector<Function*> exposedFunctions;
@@ -224,6 +228,7 @@ public:
 
     InstrumentationFunction* declareFunction(char* funcName);
     uint32_t declareLibrary(char* libName);
+    void setLibraryList(char* libList) { libraryList = libList; }
 
     InstrumentationFunction* getInstrumentationFunction(const char* funcName);
     uint32_t addInstrumentationSnippet(InstrumentationSnippet* snip);
