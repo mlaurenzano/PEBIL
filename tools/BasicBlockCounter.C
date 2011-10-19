@@ -114,10 +114,6 @@ void BasicBlockCounter::instrument()
     // an array of counters. note that everything is passed by reference
     uint64_t counterArray = reserveDataOffset(numberOfPoints * sizeof(uint64_t));
 
-    exitFunc->addArgument(counterArray);
-    exitFunc->addArgument(appName);
-    exitFunc->addArgument(instExt);
-
     InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
@@ -129,18 +125,19 @@ void BasicBlockCounter::instrument()
     }
 
     // the number of inst points
-    entryFunc->addArgument(counterArrayEntries);
     temp64 = numberOfPoints;
     initializeReservedData(getInstDataAddress() + counterArrayEntries, sizeof(uint64_t), &temp64);
 
-    // an array for line numbers
-    entryFunc->addArgument(lineArray);
-    // an array for file name pointers
-    entryFunc->addArgument(fileNameArray);
-    // an array for function name pointers
-    entryFunc->addArgument(funcNameArray);
-    // an array for hashcodes
+    entryFunc->addArgument(counterArrayEntries);
+    entryFunc->addArgument(counterArray);
     entryFunc->addArgument(hashCodeArray);
+
+    exitFunc->addArgument(lineArray);
+    exitFunc->addArgument(fileNameArray);
+    exitFunc->addArgument(funcNameArray);
+    exitFunc->addArgument(appName);
+    exitFunc->addArgument(instExt);
+
 
     p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
     p->setPriority(InstPriority_userinit);
@@ -273,12 +270,6 @@ void BasicBlockCounter::instrument()
     temp64 = loopsFound.size();
     initializeReservedData(getInstDataAddress() + loopCounterEntries, sizeof(uint64_t), &temp64);
 
-    loopEntry->addArgument(loopCounterEntries);
-    loopEntry->addArgument(loopLineArray);
-    loopEntry->addArgument(loopFileNameArray);
-    loopEntry->addArgument(loopFuncNameArray);
-    loopEntry->addArgument(loopHashCodeArray);
-
     p = addInstrumentationPoint(getProgramEntryBlock(), loopEntry, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
     p->setPriority(InstPriority_userinit);
     if (!p->getInstBaseAddress()){
@@ -287,12 +278,19 @@ void BasicBlockCounter::instrument()
 
     // an array of counters. note that everything is passed by reference
     uint64_t loopCounters = reserveDataOffset(loopsFound.size() * sizeof(uint64_t));
-    loopExit->addArgument(loopCounters);
-    loopExit->addArgument(appName);
-
     uint64_t loopExt = reserveDataOffset((strlen(LOOP_EXT) + 1) * sizeof(char));
     initializeReservedData(getInstDataAddress() + loopExt, strlen(LOOP_EXT) + 1, (void*)LOOP_EXT);
+
+    loopEntry->addArgument(loopCounterEntries);
+    loopEntry->addArgument(loopCounters);
+    loopEntry->addArgument(loopHashCodeArray);
+
+    loopExit->addArgument(loopLineArray);
+    loopExit->addArgument(loopFileNameArray);
+    loopExit->addArgument(loopFuncNameArray);
+    loopExit->addArgument(appName);
     loopExit->addArgument(loopExt);
+
 
     uint32_t numCalls = 0;
     for (uint32_t i = 0; i < loopsFound.size(); i++){
