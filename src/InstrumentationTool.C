@@ -459,9 +459,13 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
             uint32_t loopLoc = 0;
             if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())){
                 if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())->getHead()->getHashCode().getValue() == bb->getHashCode().getValue()){
-                    loopLoc = 1;
+                    if (bb->getLeader()->getBaseAddress() == ins->getBaseAddress()){
+                        loopLoc = 1;
+                    }
                 } else if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())->getTail()->getHashCode().getValue() == bb->getHashCode().getValue()){
-                    loopLoc = 2;
+                    if (bb->getExitInstruction()->getBaseAddress() == ins->getBaseAddress()){
+                        loopLoc = 2;
+                    }
                 }
             }
             fprintf(staticFD, "\t+lpi\t%d\t%d\t%d\t%d # %#llx\n", loopCount, loopId, loopDepth, loopLoc, hashValue);
