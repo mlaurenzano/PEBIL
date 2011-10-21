@@ -528,13 +528,12 @@ int main(int argc,char* argv[]){
         }
         ASSERT(inputTrackList);
         elfInst = new ThrottleLoop(&elfFile, inptName, inputTrackList, extension, loopIncl, extdPrnt);
-    }
-    if (libList){
-        elfInst->setLibraryList(libList);
+    } else {
+        PRINT_ERROR("Error : invalid instrumentation type");
     }
 
-    else {
-        PRINT_ERROR("Error : invalid instrumentation type");
+    if (libList){
+        elfInst->setLibraryList(libList);
     }
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);

@@ -73,9 +73,9 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
 #ifdef MPI_INIT_REQUIRED
     taskValid = 1;
 #endif
+    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in MPI_Init wrapper\n", getpid(), __taskid, __ntasks, gethostid());
     tool_mpi_init();
 
-    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in MPI_Init wrapper\n", getpid(), __taskid, __ntasks, gethostid());
     return retval;
 }
 
@@ -97,9 +97,8 @@ void __wrapper_name(mpi_init_)(int* ierr){
 #ifdef MPI_INIT_REQUIRED
     taskValid = 1;
 #endif
-    tool_mpi_init();
-
     fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
+    tool_mpi_init();
 }
 
 #endif // HAVE_MPI
