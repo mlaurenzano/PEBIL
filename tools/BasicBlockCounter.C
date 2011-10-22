@@ -324,7 +324,7 @@ void BasicBlockCounter::instrument()
         HashCode* hc = loopsFound[i]->getHead()->getLeader()->generateHashCode(loopsFound[i]->getHead());
         uint64_t hashValue = hc->getValue();
 #else 
-        uint64_t hashValue = loopsFound[i]->getHead()->getHashCode.getValue();
+        uint64_t hashValue = loopsFound[i]->getHead()->getHashCode().getValue();
 #endif
 
         initializeReservedData(getInstDataAddress() + loopHashCodeArray + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
