@@ -375,8 +375,11 @@ private:
 
     uint32_t setInstructionType();
     uint16_t setInstructionBin();
-
+    bool defXIter;
 public:
+    void setDefXIter() { defXIter = true; }
+    bool hasDefXIter() { return defXIter; }
+
     uint64_t cacheBaseAddress;
 
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");

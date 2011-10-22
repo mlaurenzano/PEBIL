@@ -147,7 +147,7 @@ void FlowGraph::computeDefUseDist(){
         // For each block
         for (uint32_t j = 0; j < loops[i]->getNumberOfBlocks(); ++j){
             BasicBlock* bb = allLoopBlocks[j];
-            bb->setDefXIter(0);
+
             // For each instruction
             for (uint32_t k = 0; k < bb->getNumberOfInstructions(); ++k){
                 X86Instruction* ins = bb->getInstruction(k);
@@ -217,7 +217,7 @@ void FlowGraph::computeDefUseDist(){
 
                         // If dist has increased beyond size of function, we must be looping?
                         if (currDist > function->getNumberOfInstructions()) {
-                            bb->setDefXIter(bb->getDefXIter()+1);
+                            ins->setDefXIter();
                             break;
                         }
 

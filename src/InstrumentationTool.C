@@ -455,7 +455,6 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
 
         if (printDetail){
 
-            // TODO +lpi info is per-block still
             uint32_t loopLoc = 0;
             if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())){
                 if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())->getHead()->getHashCode().getValue() == bb->getHashCode().getValue()){
@@ -485,8 +484,13 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
             uint64_t loopHead = 0;
             uint64_t parentHead = 0;
             if (loop){
-                loopHead = loop->getHead()->getHashCode().getValue();
-                parentHead = f->getFlowGraph()->getParentLoop(loop->getIndex())->getHead()->getHashCode().getValue();
+                HashCode* headHash = loop->getHead()->getLeader()->generateHashCode(loop->getHead());
+                HashCode* parentHash = f->getFlowGraph()->getParentLoop(loop->getIndex())->getHead()->getLeader()->generateHashCode(f->getFlowGraph()->getParentLoop(loop->getIndex())->getHead());
+                loopHead = headHash->getValue();
+                parentHead = parentHash->getValue();
+
+                delete headHash;
+                delete parentHash;
             }
             fprintf(staticFD, "\t+lpc\t%lld\t%lld # %#llx\n", loopHead, parentHead, hashValue);
 
@@ -512,8 +516,7 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
             }
             fprintf(staticFD, " # %#llx\n", hashValue);
 
-            // TODO +dxi info is per-block still
-            fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", bb->getDefXIter(), bb->endsWithCall(), hashValue);
+            fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", (uint32_t)ins->hasDefXIter(), ins->isCall(), hashValue);
 
             uint64_t callTgtAddr = 0;
             char* callTgtName = INFO_UNKNOWN;

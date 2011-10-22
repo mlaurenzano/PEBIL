@@ -2957,6 +2957,8 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     setFlags();
     setImpliedRegs();
 
+    defXIter = false;
+
     verify();
 }
 
@@ -3006,6 +3008,8 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     flags_usedef = NULL;
     setFlags();
     setImpliedRegs();
+
+    defXIter = false;
 
     verify();
 }

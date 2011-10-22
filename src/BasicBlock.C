@@ -29,6 +29,16 @@
 
 static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
 
+uint32_t BasicBlock::getDefXIter(){
+    uint32_t defcnt = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->hasDefXIter()){
+            defcnt++;
+        }
+    }
+    return defcnt;
+}
+
 bool BasicBlock::endsWithCall(){
     return  instructions.back()->isCall();
 }

@@ -320,7 +320,13 @@ void BasicBlockCounter::instrument()
         initializeReservedData(getInstDataAddress() + loopFuncNameArray + i*sizeof(char*), sizeof(char*), &funcnameAddr);
         initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
 
-        uint64_t hashValue = loopsFound[i]->getHead()->getHashCode().getValue();
+#ifdef STATS_PER_INSTRUCTION
+        HashCode* hc = loopsFound[i]->getHead()->getLeader()->generateHashCode(loopsFound[i]->getHead());
+        uint64_t hashValue = hc->getValue();
+#else 
+        uint64_t hashValue = loopsFound[i]->getHead()->getHashCode.getValue();
+#endif
+
         initializeReservedData(getInstDataAddress() + loopHashCodeArray + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
         
         for (uint32_t j = 0; j < loopsFound[i]->getHead()->getNumberOfSources(); j++){

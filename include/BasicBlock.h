@@ -219,8 +219,7 @@ public:
     void setNoPath()   { flags |= NoPathMask; }
     void setCmpCtrlSplit() { flags |= CmpCtrlSplitMask; }
 
-    void setDefXIter(uint32_t defcnt) { defXIterCount = defcnt; }
-    uint32_t getDefXIter() { return defXIterCount; }
+    uint32_t getDefXIter();
 
     void setIndex(uint32_t idx);
 
