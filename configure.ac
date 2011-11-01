@@ -72,6 +72,7 @@ AC_CONFIG_FILES([Makefile
                  testapps/Makefile
                  instcode/Makefile
                  scripts/blacklist.sh
+                 cshrc
                  bashrc])
 AC_CONFIG_SUBDIRS([external/udis86-1.7])
 AC_OUTPUT
