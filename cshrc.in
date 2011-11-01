@@ -1,7 +1,6 @@
 #!/usr/bin/env csh
 
-set pebildir "@abs_top_builddir@"
-setenv PEBIL_ROOT $pebildir
+setenv PEBIL_ROOT @abs_top_builddir@
 echo "***** initializing environment using PEBIL_ROOT=$PEBIL_ROOT"
 setenv LD_LIBRARY_PATH ${PEBIL_ROOT}/lib:${LD_LIBRARY_PATH}
 setenv PATH ${PEBIL_ROOT}/bin:${PEBIL_ROOT}/scripts:${PATH}
