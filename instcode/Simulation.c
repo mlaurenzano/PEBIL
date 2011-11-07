@@ -38,7 +38,9 @@ char* blockIsKilled;
 int32_t numberKilled;
 uint64_t* blockCounters;
 
+#ifndef STATS_PER_INSTRUCTION
 #define ENABLE_INSTRUMENTATION_KILL
+#endif
 //#define DEBUG_INST_KILL
 //#define PRINT_ADDRESS_STREAM
 
