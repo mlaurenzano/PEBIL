@@ -196,8 +196,8 @@ void BasicBlockCounter::instrument()
 #ifdef COUNT_LOOP_ENTRY
         if (li && bb->isInLoop()){
             FlowGraph* fg = bb->getFlowGraph();
-            Loop* outerMost = fg->getOuterMostLoopForLoop(fg->getInnermostLoopForBlock(bb->getIndex())->getIndex());
-            //            Loop* outerMost = fg->getInnermostLoopForBlock(bb->getIndex());
+            //Loop* outerMost = fg->getOuterMostLoopForLoop(fg->getInnermostLoopForBlock(bb->getIndex())->getIndex());
+            Loop* outerMost = fg->getInnermostLoopForBlock(bb->getIndex());
 
             bool loopAlreadyInstrumented = false;
             for (uint32_t i = 0; i < loopsFound.size(); i++){
