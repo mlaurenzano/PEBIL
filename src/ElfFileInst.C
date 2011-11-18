@@ -48,6 +48,7 @@ uint32_t bloatCount = 0;
 
 #define Reserve__Instrumentation_DynamicTable 0x8000
 
+// only make modifications to the new/interposed block, the modifications to the source/target block will be made later
 BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, uint32_t bbtgtidx){
     BasicBlock* bb = new BasicBlock(fg->getNumberOfBasicBlocks(), fg);
     interposedBlocks.append(bb);
@@ -55,7 +56,6 @@ BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, ui
     X86Instruction* jumpToTarget = X86InstructionFactory::emitJumpRelative(0,0);
     bb->addInstruction(jumpToTarget);
 
-    // store the source and target indices in the source/target bitsets
     bb->addSourceBlock(fg->getBasicBlock(bbsrcidx));
     bb->addTargetBlock(fg->getBasicBlock(bbtgtidx));
 
@@ -66,6 +66,7 @@ BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, ui
 
     ASSERT(jumpToTarget->getAddressAnchor() != NULL && jumpToTarget->getAddressAnchor()->getLink()->getType() == PebilClassType_X86Instruction);
     (*(elfFile->getAddressAnchors())).append(jumpToTarget->getAddressAnchor());
+    elfFile->setAnchorsSorted(false);
 
     fg->getFunction()->setManipulated();
 
@@ -73,10 +74,8 @@ BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, ui
 }
 
 BasicBlock* ElfFileInst::findExposedBasicBlock(HashCode hashCode){
-    //    PRINT_INFOR("Solving hashcode %d %d %d %d", hashCode.getSection(), hashCode.getFunction(), hashCode.getBlock(), hashCode.getInstruction());
     for (uint32_t i = 0; i < exposedBasicBlocks.size(); i++){
         HashCode blockHash = exposedBasicBlocks[i]->getHashCode();
-        //  PRINT_INFOR("\t\tblock %d %d %d %d", blockHash.getSection(), blockHash.getFunction(), blockHash.getBlock(), blockHash.getInstruction());
         if (blockHash.getSection() == hashCode.getSection()){
             if (blockHash.getFunction() == hashCode.getFunction()){
                 if (blockHash.getBlock() == hashCode.getBlock()){
@@ -408,6 +407,18 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
 
     Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors(operatedFunction->getBaseAddress());
     for (uint32_t i = 0; i < modAnchors->size(); i++){
+        // skip any conditional branch originating outside the function. this situation is one that can occur due to the way
+        // block interposition is set up
+        if ((*modAnchors)[i]->getLinkedParent()->getType() == PebilClassType_X86Instruction){
+            X86Instruction* x = (X86Instruction*)(*modAnchors)[i]->getLinkedParent();
+            if (x->getContainer() && x->getContainer()->getType() == PebilClassType_Function){
+                Function* f = (Function*)x->getContainer();
+                if (f->getIndex() != operatedFunction->getIndex() &&
+                    !x->isCall()){
+                    continue;
+                }
+            }
+        }
         (*modAnchors)[i]->updateLink((*trampEmpty).back());
         elfFile->setAnchorsSorted(false);
     }
@@ -836,6 +847,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     for (uint32_t i = 0; i < interposedBlocks.size(); i++){
         BasicBlock* bb = interposedBlocks[i];
         bb->getFlowGraph()->getFunction()->interposeBlock(bb);
+        elfFile->setAnchorsSorted(false);
         exposedBasicBlocks.append(bb);
     }
 
@@ -940,7 +952,6 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
         }
         */
 
-
         for (uint32_t i = 0; i < numberOfFunctions; i++){
             Function* func = exposedFunctions[i];
             /*
@@ -953,6 +964,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
                 __SHOULD_NOT_ARRIVE;
             }
             */
+
 #ifdef RELOC_MOD
             if (i % RELOC_MOD == RELOC_MOD_OFF){
                 PRINT_INFOR("relocating function (%d) %s", i, func->getName());
@@ -1001,9 +1013,8 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
             Function* container = (Function*)(*instrumentationPoints)[j]->getSourceObject()->getContainer();
             BasicBlock* containerBB = (BasicBlock*)container->getBasicBlockAtAddress(searchAddr);
             ASSERT(containerBB);
-            
-            Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors(searchAddr);
             ASSERT(containerBB->getNumberOfInstructions() && containerBB->getLeader());
+            Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors(searchAddr);
             PRINT_DEBUG_ANCHOR("In block at %#llx, updating %d anchors", containerBB->getBaseAddress(), modAnchors->size());
             anchors.append(modAnchors);
             blocks.append(containerBB);

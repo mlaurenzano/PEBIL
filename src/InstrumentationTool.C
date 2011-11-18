@@ -113,6 +113,10 @@ void InstrumentationTool::instrument(){
 }
 
 InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, Base* within){
+    return insertInlinedTripCounter(counterOffset, within, true);
+}
+
+InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, Base* within, bool add){
     BasicBlock* scope = NULL;
 
     if (within->getType() == PebilClassType_BasicBlock){
@@ -132,9 +136,17 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
 
     // snippet contents, in this case just increment a counter
     if (is64Bit()){
-        snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
+        if (add){
+            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
+        } else {
+            snip->addSnippetInstruction(X86InstructionFactory64::emitSubImmByteToMem64(1, getInstDataAddress() + counterOffset));
+        }
     } else {
-        snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+        if (add){
+            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+        } else {
+            snip->addSnippetInstruction(X86InstructionFactory32::emitSubImmByteToMem(1, getInstDataAddress() + counterOffset));
+        }
     }
 
     // do not generate control instructions to get back to the application, this is done for

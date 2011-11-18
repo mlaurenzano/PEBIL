@@ -201,7 +201,7 @@ void BasicBlockCounter::instrument()
 
             bool loopAlreadyInstrumented = false;
             for (uint32_t i = 0; i < loopsFound.size(); i++){
-                if (outerMost->isIdenticalLoop(loopsFound[i]) || outerMost->hasSharedHeader(loopsFound[i])){
+                if (outerMost->isIdenticalLoop(loopsFound[i])){
                     loopAlreadyInstrumented = true;
                 }
             }
@@ -291,15 +291,18 @@ void BasicBlockCounter::instrument()
     loopExit->addArgument(appName);
     loopExit->addArgument(loopExt);
 
-
     uint32_t numCalls = 0;
     for (uint32_t i = 0; i < loopsFound.size(); i++){
         uint64_t counterOffset = loopCounters + (i * sizeof(uint64_t));
+        Loop* loop = loopsFound[i];
+        BasicBlock* head = loop->getHead();
+        BasicBlock* tail = loop->getTail();
+        ASSERT(head && tail);
 
-        Function* f = loopsFound[i]->getHead()->getFunction();
+        Function* f = head->getFunction();
         LineInfo* li = NULL;
         if (lineInfoFinder){
-            li = lineInfoFinder->lookupLineInfo(loopsFound[i]->getHead());
+            li = lineInfoFinder->lookupLineInfo(head);
         }
         if (li){
             uint32_t line = li->GET(lr_line);
@@ -321,45 +324,35 @@ void BasicBlockCounter::instrument()
         initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
 
 #ifdef STATS_PER_INSTRUCTION
-        HashCode* hc = loopsFound[i]->getHead()->getLeader()->generateHashCode(loopsFound[i]->getHead());
+        HashCode* hc = head->getLeader()->generateHashCode(head);
         uint64_t hashValue = hc->getValue();
 #else 
-        uint64_t hashValue = loopsFound[i]->getHead()->getHashCode().getValue();
+        uint64_t hashValue = head->getHashCode().getValue();
 #endif
 
         initializeReservedData(getInstDataAddress() + loopHashCodeArray + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
-        
-        for (uint32_t j = 0; j < loopsFound[i]->getHead()->getNumberOfSources(); j++){
-            BasicBlock* source = loopsFound[i]->getHead()->getSourceBlock(j);
-            FlowGraph* fg = source->getFlowGraph();
-            if (!loopsFound[i]->isBlockIn(source->getIndex())){
-                Vector<BasicBlock*> entryInterpositions;
-                if (source->getBaseAddress() + source->getNumberOfBytes() == loopsFound[i]->getHead()->getBaseAddress()){
-                    // instrument somewhere in the source block
-                    InstrumentationTool::insertInlinedTripCounter(counterOffset, source);
 
-                    //                    PRINT_INFOR("\tENTR-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, source->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
-                    numCalls++;
+        //increment counter on each time we encounter the loop head
+        InstrumentationTool::insertInlinedTripCounter(counterOffset, head);
+
+        // decrement counter each time we traverse a back edge
+        for (uint32_t j = 0; j < tail->getNumberOfTargets(); j++){
+            BasicBlock* target = tail->getTargetBlock(j);
+            FlowGraph* fg = target->getFlowGraph();
+            if (head->getHashCode().getValue() == target->getHashCode().getValue()){
+                ASSERT(head->getHashCode().getValue() == target->getHashCode().getValue());
+
+                // if control falls from tail to head AND that control flow isn't conditional
+                if (!tail->getExitInstruction()->isConditionalBranch() && 
+                    tail->getBaseAddress() + tail->getNumberOfBytes() == target->getBaseAddress()){
+                    InstrumentationTool::insertInlinedTripCounter(counterOffset, tail, false);
+                    //PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
                 } else {
-                    // interpose a block between head of loop and source and instrument the interposed block
-                    entryInterpositions.append(source);
+                    BasicBlock* interposed = initInterposeBlock(fg, tail->getIndex(), target->getIndex());
+                    InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed, false);
+                    //PRINT_INFOR("\tEXIT-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
                 }
-
-                FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-                InstLocations loc = InstLocation_prior;
-                if (loopsFound[i]->getHead()->getLeader()->allFlagsDeadIn()){
-                    prot = FlagsProtectionMethod_none;
-                }
-                
-                for (uint32_t k = 0; k < entryInterpositions.size(); k++){
-                    BasicBlock* interposed = initInterposeBlock(fg, entryInterpositions[k]->getIndex(), loopsFound[i]->getHead()->getIndex());
-
-                    InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed);
-
-                    //                    PRINT_INFOR("\tENTR-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, entryInterpositions[k]->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
-                    numCalls++;
-                }
-
+                numCalls++;
             }
         }
     }

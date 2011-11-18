@@ -36,6 +36,8 @@ public:
 
     void declare();
     void instrument();
+
+    const char* briefName() { return "FunctionCounter"; }
 };
 
 

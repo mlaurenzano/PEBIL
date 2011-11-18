@@ -69,6 +69,7 @@
 //#define THREAD_SAFE
 //#define NO_REG_ANALYSIS
 #define OPTIMIZE_NONLEAF
+#define INSTRUCTION_PRINT_SIZE (64)
 
 #ifdef WARNING_SEVERITY
 #define WARN_FILE stdout

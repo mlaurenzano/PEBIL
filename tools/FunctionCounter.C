@@ -166,7 +166,7 @@ void FunctionCounter::instrument(){
         initializeReservedData(getInstDataAddress() + funcNameArray + i*sizeof(char*), sizeof(char*), &funcnameAddr);
         initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
 
-        uint64_t hashValue = f->getHashCode().getValue();
+        uint64_t hashValue = f->getBasicBlockAtAddress(f->getBaseAddress())->getHashCode().getValue();
         initializeReservedData(getInstDataAddress() + hashCodeArray + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
 
         uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
@@ -308,4 +308,20 @@ void FunctionCounter::instrument(){
     PRINT_INFOR("Loop-counter instrumentation adding %d points", numCalls);
 #endif //COUNT_LOOP_ENTRY
 
+    Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
+    Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
+    Vector<LineInfo*>* allBlockLineInfos = new Vector<LineInfo*>();
+    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+        BasicBlock* bb = getExposedBasicBlock(i);
+        LineInfo* li = NULL;
+        if (lineInfoFinder){
+            li = lineInfoFinder->lookupLineInfo(bb);
+        }
+        Function* f = bb->getFunction();
+
+        (*allBlocks).append(bb);
+        (*allBlockIds).append(i);
+        (*allBlockLineInfos).append(li);
+    }
+    printStaticFile(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
 }

@@ -89,7 +89,7 @@ void dump_counter_state(int signum){
     //        print_64b_buffer(blockCounters, numberOfBasicBlocks, stdout, 'f');
     //        print_64b_buffer(loopCounters, numberOfLoops, stdout, 'l');
     //fprintf(stdout, "\n");
-    //        PRINT_INSTR(stdout, "dumping %d counters + %d loops", numberOfBasicBlocks, numberOfLoops);
+    //PRINT_INSTR(stdout, "dumping %d counters + %d loops", numberOfBasicBlocks, numberOfLoops);
 
 #ifdef SIGNAL_ALL_RANKS
     int i;
@@ -145,6 +145,8 @@ void tool_mpi_init(){
     hdr.magic = COUNTER_DUMP_MAGIC;
     hdr.blocks = numberOfBasicBlocks;
     hdr.loops = numberOfLoops;
+    PRINT_INSTR(stdout, "%x %d %d", hdr.magic, hdr.blocks, hdr.loops);
+
     fwrite((void*)&hdr, 1, sizeof(CounterDumpHeader_t), outp);
 }
 
@@ -155,26 +157,27 @@ void print_64b_buffer(uint64_t* b, uint32_t l, FILE* o, char d){
     }
 }
 #else //COUNTER_DUMP_SIGNAL
-void tool_mpi_init(){}
+void tool_mpi_init(){
+}
 #endif //COUNTER_DUMP_SIGNAL
 
 int32_t initcounter(int32_t* numBlocks, uint64_t* blockCounts, int64_t* hashVals){
     numberOfBasicBlocks = *numBlocks;
     blockCounters = blockCounts;
     hashValues = hashVals;
-
-#ifdef COUNTER_DUMP_SIGNAL
-    define_user_sig_handlers();
-#endif
-    tool_mpi_init();
-
-    ptimer(&pebiltimers[0]);
 }
 
 int32_t initloop(int32_t* numLoops, uint64_t* loopCounts, int64_t* hashVals){
     numberOfLoops = *numLoops;
     loopCounters = loopCounts;
     loopHashValues = hashVals;
+
+#ifdef COUNTER_DUMP_SIGNAL
+    define_user_sig_handlers();
+    //tool_mpi_init();
+#endif
+
+    ptimer(&pebiltimers[0]);
 }
 
 int32_t blockcounter(int32_t* lineNumbers, char** fileNames, char** functionNames, char* appName, char* instExt){
@@ -199,7 +202,6 @@ int32_t blockcounter(int32_t* lineNumbers, char** fileNames, char** functionName
         finalize_pmeasure();
     }
 #endif
-
 
     PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
 

@@ -46,6 +46,7 @@ protected:
     void printStaticFilePerInstruction(Vector<X86Instruction*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize);
 
     InstrumentationPoint* insertInlinedTripCounter(uint64_t, Base*);
+    InstrumentationPoint* insertInlinedTripCounter(uint64_t, Base*, bool);
 
     InstrumentationFunction* initWrapperC;
     InstrumentationFunction* initWrapperF;

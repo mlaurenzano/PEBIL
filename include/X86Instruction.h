@@ -212,7 +212,7 @@ struct ud_compact
     //void                  (*translator)(struct ud*);
     uint64_t              insn_offset;
     char                  insn_hexcode[32];
-    char                  insn_buffer[64];
+    char                  insn_buffer[INSTRUCTION_PRINT_SIZE];
     //unsigned int          insn_fill;
     //uint8_t               dis_mode;
     //uint64_t              pc;
