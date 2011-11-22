@@ -46,6 +46,11 @@ AC_ARG_ENABLE(mpiinit_check, AC_HELP_STRING([--enable-mpiinit-check], [Disable o
 if test "$mpiinit_check_ok" = "yes"; then
    MPI_FLAGS="$MPI_FLAGS -DMPI_INIT_REQUIRED"
 fi
+
+AC_ARG_ENABLE(pgi_lineinfo, AC_HELP_STRING([--enable-pgi-lineinfo], [Handle line information in a way that is compatible with PGI compilers]), pgi_lineinfo_ok=$enableval)
+if test "$pgi_lineinfo_ok" = "yes"; then
+   MPI_FLAGS="$MPI_FLAGS -DPGI_LINEINFO"
+fi
 AC_SUBST(MPI_FLAGS)
 
 # Checks for header files.
