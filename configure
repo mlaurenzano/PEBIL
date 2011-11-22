@@ -1306,7 +1306,7 @@ Optional Features:
   --enable-mpiinit-check  Disable output file printing in inst libraries
                           unless mpi_init is executed [no]
   --enable-pgi-lineinfo   Handle line information in a way that is compatible
-                          with PGI compilers
+                          with PGI compilers [no]
 
 Some influential environment variables:
   CXX         C++ compiler command
