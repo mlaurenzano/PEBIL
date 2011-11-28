@@ -330,7 +330,7 @@ public:
     bool includesFileOffset(uint32_t offset);
 
 
-    bool containsProgramBits() { return (type == PebilClassType_X86Instruction             || 
+    bool containsProgramBits() { return (type == PebilClassType_X86Instruction          || 
                                          type == PebilClassType_BasicBlock              || 
                                          type == PebilClassType_Function                || 
                                          type == PebilClassType_TextSection             ||

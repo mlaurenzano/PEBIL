@@ -124,6 +124,7 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
     } else if (within->getType() == PebilClassType_Function){
         Function* f = (Function*)(within);
         scope = f->getBasicBlockAtAddress(f->getBaseAddress());
+        ASSERT(scope->getNumberOfSources() == 0 && "Function entry block should not be a target of another block");
     } else {
         PRINT_ERROR("Cannot call InstrumentationTool::insertTripCounter for an object of type %s", within->getTypeName());
     }
