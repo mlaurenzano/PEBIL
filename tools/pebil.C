@@ -27,6 +27,7 @@
 #include <ElfFile.h>
 #include <FunctionCounter.h>
 #include <FunctionTimer.h>
+#include <RareEventCounter.h>
 #include <ThrottleLoop.h>
 #include <Vector.h>
 
@@ -99,7 +100,7 @@ void printBriefOptions(bool detail){
 void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : pebil\n");
-    fprintf(stderr,"\t--typ (ide|fnc|jbb|sim|bin|csc|ftm|crp|thr)\n");
+    fprintf(stderr,"\t--typ (ide|fnc|jbb|rec|sim|bin|csc|ftm|crp|thr)\n");
     fprintf(stderr,"\t--app <executable_path>\n");
     fprintf(stderr,"\t[--inp <block_unique_ids>]    <-- valid for sim/csc and thr/crp\n");
     fprintf(stderr,"\t[--inf [a-z]*]\n");
@@ -193,6 +194,7 @@ typedef enum {
     unknown_inst_type = 0,
     identical_inst_type,
     frequency_inst_type,
+    rare_event_type,
     simulation_inst_type,
     classification_inst_type,
     function_counter_type,
@@ -260,6 +262,9 @@ int main(int argc,char* argv[]){
             } else if (!strcmp(argv[i],"jbb")){
                 instType = frequency_inst_type;
                 extension = "jbbinst";
+            } else if (!strcmp(argv[i],"rec")){
+                instType = rare_event_type;
+                extension = "recinst";
             } else if (!strcmp(argv[i],"sim")){
                 instType = simulation_inst_type;
                 extension = "siminst";
@@ -500,6 +505,8 @@ int main(int argc,char* argv[]){
         elfInst = new FunctionCounter(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == frequency_inst_type){
         elfInst = new BasicBlockCounter(&elfFile, extension, loopIncl, extdPrnt);
+    } else if (instType == rare_event_type){
+        elfInst = new RareEventCounter(&elfFile, extension, loopIncl, extdPrnt);
     } else if (instType == simulation_inst_type){
         elfInst = new CacheSimulation(&elfFile, inptName, extension, phaseNo, loopIncl, extdPrnt, dfpName);
     } else if (instType == classification_inst_type){

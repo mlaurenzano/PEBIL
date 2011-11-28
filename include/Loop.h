@@ -40,6 +40,7 @@ public:
     BasicBlock* getHead() { return head; }
     BasicBlock* getTail() { return tail; }
     uint32_t getNumberOfBlocks() { return blocks->size(); }
+    uint32_t getNumberOfInstructions();
     uint32_t getAllBlocks(BasicBlock** arr);
     bool isBlockIn(uint32_t idx) { return blocks->contains(idx); }
     bool hasSharedHeader(Loop* loop);

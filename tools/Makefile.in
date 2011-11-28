@@ -18,6 +18,7 @@ SRCS  = BasicBlockCounter.C \
 	Classsification.C \
 	FunctionCounter.C \
 	FunctionTimer.C \
+	RareEventCounter.C \
 	ThrottleLoop.C
 
 OBJS  =	BasicBlockCounter.o \
@@ -26,6 +27,7 @@ OBJS  =	BasicBlockCounter.o \
 	Classification.o \
 	FunctionCounter.o \
 	FunctionTimer.o \
+	RareEventCounter.o \
 	ThrottleLoop.o
 
 all: $(TARGETS)
