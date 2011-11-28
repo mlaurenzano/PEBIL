@@ -40,6 +40,7 @@ int32_t numberOfLoops = 0;
 int64_t* loopHashValues = NULL;
 
 //#define COUNTER_DUMP_SIGNAL
+//#define FAKE_MEASURE
 //#define SIGNAL_ALL_RANKS
 #ifdef COUNTER_DUMP_SIGNAL
 #define COUNTER_DUMP_MAGIC (0x5ca1ab1e)
@@ -118,12 +119,57 @@ void define_user_sig_handlers(){
     PRINT_INSTR(stdout, "setup signal handler dump_counter_state");
 }
 
+#ifdef FAKE_MEASURE
+int continue_measuring = 0;
+pid_t other_pid = 0;
+#define SLEEP_INTERVAL 10
+
+void kill_self(int signum){
+    PRINT_INSTR(stdout, "gracefully killing signaller %d", getpid());
+    exit(0);
+}
+
+void initialize_signaller(){
+    continue_measuring = 1;
+    other_pid = getpid();
+
+    PRINT_INSTR(stdout, "setup signal handler dump_counter_state");
+    PRINT_INSTR(stdout, "forking to signaller from %d", other_pid);
+    pid_t pid;
+    if((pid = fork()) > 0) {
+        other_pid = pid;
+        return; // parent returns
+    }
+
+    PRINT_INSTR(stdout, "starting signaler in pid %d -> %d", pid, other_pid);
+    if (signal (SIGUSR2, kill_self) == SIG_IGN){
+        signal (SIGUSR2, SIG_IGN);
+    }
+
+    while (1){
+        usleep(SLEEP_INTERVAL);
+        //PRINT_INSTR(stdout, "signal!");
+        kill(other_pid, SIGUSR1);
+    }
+    PRINT_INSTR(stdout, "killed signaler in pid %d -> %d", pid, other_pid);
+}
+
+void finalize_signaller(){
+    kill(other_pid, SIGUSR2);
+}
+
+#endif //FAKE_MEASURE
+
 void tool_mpi_init(){
     counterDumpBuffer = malloc(COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
     bzero(counterDumpBuffer, COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
     bufferLoc = 0;
     if (getTaskId() == 0){
+#ifdef FAKE_MEASURE
+        initialize_signaller();
+#else
         initialize_pmeasure(1);
+#endif
     }
     clear_counter_state();
     entriesWritten = 0;
@@ -199,7 +245,11 @@ int32_t blockcounter(int32_t* lineNumbers, char** fileNames, char** functionName
         PRINT_INSTR(stderr, "This statement shouldn't be reached, but it seems to happen under some conditions?");
     }
     if (getTaskId() == 0){
+#ifdef FAKE_MEASURE
+        finalize_signaller();
+#else
         finalize_pmeasure();
+#endif
     }
 #endif
 
