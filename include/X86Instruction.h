@@ -212,7 +212,7 @@ struct ud_compact
     //void                  (*translator)(struct ud*);
     uint64_t              insn_offset;
     char                  insn_hexcode[32];
-    char                  insn_buffer[64];
+    char                  insn_buffer[INSTRUCTION_PRINT_SIZE];
     //unsigned int          insn_fill;
     //uint8_t               dis_mode;
     //uint64_t              pc;
@@ -375,8 +375,11 @@ private:
 
     uint32_t setInstructionType();
     uint16_t setInstructionBin();
-
+    bool defXIter;
 public:
+    void setDefXIter() { defXIter = true; }
+    bool hasDefXIter() { return defXIter; }
+
     uint64_t cacheBaseAddress;
 
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");

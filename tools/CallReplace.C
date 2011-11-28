@@ -54,7 +54,7 @@ char* CallReplace::getWrapperName(uint32_t idx){
     return both;
 }
 
-CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* libList, char* inpFile, char* ext, bool lpi, bool dtl, bool doI)
+CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* inpFile, char* ext, bool lpi, bool dtl, bool doI)
     : InstrumentationTool(elf, ext, 0, lpi, dtl)
 {
     programEntry = NULL;
@@ -80,24 +80,6 @@ CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* libList, char* inp
         }
     }
 
-    Vector<uint32_t> libIdx;
-    libIdx.append(0);
-    uint32_t listSize = strlen(libList);
-    for (uint32_t i = 0; i < listSize; i++){
-        if (libList[i] == ','){
-            libList[i] = '\0';
-            libIdx.append(i+1);
-        }
-    }
-    for (uint32_t i = 0; i < libIdx.size(); i++){
-        if (libIdx[i] < listSize){
-            libraries.append(libList + libIdx[i]);
-        } else {
-            PRINT_ERROR("improperly formatted library list given to call replacement tool");
-            __SHOULD_NOT_ARRIVE;
-        }
-    }
-
     if (inpFile){
         timerFunctions = new Vector<char*>();
         initializeFileList(inpFile, timerFunctions);
@@ -105,17 +87,10 @@ CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* libList, char* inp
     } else {
         timerFunctions = NULL;
     }
-
-
 }
 
 void CallReplace::declare(){
     //    InstrumentationTool::declare();
-
-    // declare any shared library that will contain instrumentation functions
-    for (uint32_t i = 0; i < libraries.size(); i++){
-        declareLibrary(libraries[i]);
-    }
 
     // declare any instrumentation functions that will be used
     if (doIntro){

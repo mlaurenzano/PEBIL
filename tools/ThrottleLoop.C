@@ -52,7 +52,7 @@ ThrottleLoop::~ThrottleLoop(){
     delete functionList;
 }
 
-ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* funcFile, char* libList, char* ext, bool lpi, bool dtl)
+ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* funcFile, char* ext, bool lpi, bool dtl)
     : InstrumentationTool(elf, ext, 0, lpi, dtl)
 {
     loopEntry = NULL;
@@ -95,24 +95,6 @@ ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* funcFile, char* 
         if (numrepl != 1){
             PRINT_ERROR("input file %s line %d should contain a single ':' token", inputFile, i+1);
         }        
-    }
-
-    Vector<uint32_t> libIdx;
-    libIdx.append(0);
-    uint32_t listSize = strlen(libList);
-    for (uint32_t i = 0; i < listSize; i++){
-        if (libList[i] == ','){
-            libList[i] = '\0';
-            libIdx.append(i+1);
-        }
-    }
-    for (uint32_t i = 0; i < libIdx.size(); i++){
-        if (libIdx[i] < listSize){
-            libraries.append(libList + libIdx[i]);
-        } else {
-            PRINT_ERROR("improperly formatted library list given to call replacement tool");
-            __SHOULD_NOT_ARRIVE;
-        }
     }
 }
 
@@ -183,11 +165,6 @@ char* ThrottleLoop::getWrapperFunction(uint32_t idx){
 
 void ThrottleLoop::declare(){
     InstrumentationTool::declare();
-
-    // declare any shared library that will contain instrumentation functions
-    for (uint32_t i = 0; i < libraries.size(); i++){
-        declareLibrary(libraries[i]);
-    }
 
     for (uint32_t i = 0; i < (*functionList).size(); i++){
         functionWrappers.append(declareFunction(getWrapperFunction(i)));

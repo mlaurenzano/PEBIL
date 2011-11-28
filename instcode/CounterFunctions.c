@@ -31,22 +31,85 @@
 
 #define PRINT_MINIMUM 1
 
-int32_t numberOfBasicBlocks;
-int32_t* lineNumbers;
-char** fileNames;
-char** functionNames;
-int64_t* hashValues;
+uint64_t* blockCounters = NULL;
+int32_t numberOfBasicBlocks = 0;
+int64_t* hashValues = NULL;
 
-int32_t numberOfLoops;
-int32_t* loopLineNumbers;
-char** loopFileNames;
-char** loopFunctionNames;
-int64_t* loopHashValues;
+uint64_t* loopCounters = NULL;
+int32_t numberOfLoops = 0;
+int64_t* loopHashValues = NULL;
 
-void tool_mpi_init(){}
+//#define COUNTER_DUMP_SIGNAL
+//#define FAKE_MEASURE
+//#define SIGNAL_ALL_RANKS
+#ifdef COUNTER_DUMP_SIGNAL
+#define COUNTER_DUMP_MAGIC (0x5ca1ab1e)
 
+uint64_t entriesWritten;
+uint64_t* counterDumpBuffer = NULL;
+#define COUNTER_BUFFER_ENTRIES 524288
+uint32_t bufferLoc = 0;
+FILE* outp = NULL;
+int* otherRanksPids;
+
+typedef struct {
+    uint32_t magic;
+    uint32_t blocks;
+    uint32_t loops;
+    uint8_t reserved[20];
+} CounterDumpHeader_t;
+
+void clear_counter_state(){
+    bzero(blockCounters, sizeof(uint64_t) * numberOfBasicBlocks);
+    bzero(loopCounters, sizeof(uint64_t) * numberOfLoops);
+}
+
+void clear_counter_buffer(){
+    uint32_t i = 0, j = 0;
+    if (!counterDumpBuffer || !outp){
+        bufferLoc = 0;
+        return;
+    }
+    PRINT_INSTR(stdout, "clearing dump buffer - %lld so far", entriesWritten);
+    while (i < bufferLoc){
+        fwrite((void*)&counterDumpBuffer[i], sizeof(uint64_t), numberOfBasicBlocks, outp);
+        fwrite((void*)&counterDumpBuffer[i + numberOfBasicBlocks], sizeof(uint64_t), numberOfLoops, outp);
+        i += numberOfBasicBlocks + numberOfLoops;
+    }
+    assert(i == bufferLoc);
+    entriesWritten += i;
+    bufferLoc = 0;
+}
 void dump_counter_state(int signum){
-    PRINT_INSTR(stdout, "dumping counter state");
+    if (!blockCounters){
+        return;
+    }
+    if (!loopCounters){
+        return;
+    }
+    //        print_64b_buffer(blockCounters, numberOfBasicBlocks, stdout, 'f');
+    //        print_64b_buffer(loopCounters, numberOfLoops, stdout, 'l');
+    //fprintf(stdout, "\n");
+    //PRINT_INSTR(stdout, "dumping %d counters + %d loops", numberOfBasicBlocks, numberOfLoops);
+
+#ifdef SIGNAL_ALL_RANKS
+    int i;
+    for (i = 0; i < getNTasks(); i++){
+        if (i != 0){
+            PRINT_INSTR(stdout, "signalling to %d", otherRanksPids[i]);
+            kill(otherRanksPids[i], signum);
+        }
+    }
+#endif
+
+    if (bufferLoc + numberOfBasicBlocks + numberOfLoops > COUNTER_BUFFER_ENTRIES){
+        clear_counter_buffer();
+    }
+    memcpy(&counterDumpBuffer[bufferLoc], blockCounters, numberOfBasicBlocks * sizeof(uint64_t));
+    bufferLoc += numberOfBasicBlocks;
+    memcpy(&counterDumpBuffer[bufferLoc], loopCounters, numberOfLoops * sizeof(uint64_t));
+    bufferLoc += numberOfLoops;
+    //    clear_counter_state();
 }
 
 void define_user_sig_handlers(){
@@ -56,27 +119,114 @@ void define_user_sig_handlers(){
     PRINT_INSTR(stdout, "setup signal handler dump_counter_state");
 }
 
-int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char** functionNms, int64_t* hashVals){
-    numberOfBasicBlocks = *numBlocks;
-    lineNumbers = lineNums;
-    fileNames = fileNms;
-    functionNames = functionNms;
-    hashValues = hashVals;
+#ifdef FAKE_MEASURE
+int continue_measuring = 0;
+pid_t other_pid = 0;
+#define SLEEP_INTERVAL 10
 
+void kill_self(int signum){
+    PRINT_INSTR(stdout, "gracefully killing signaller %d", getpid());
+    exit(0);
+}
+
+void initialize_signaller(){
+    continue_measuring = 1;
+    other_pid = getpid();
+
+    PRINT_INSTR(stdout, "setup signal handler dump_counter_state");
+    PRINT_INSTR(stdout, "forking to signaller from %d", other_pid);
+    pid_t pid;
+    if((pid = fork()) > 0) {
+        other_pid = pid;
+        return; // parent returns
+    }
+
+    PRINT_INSTR(stdout, "starting signaler in pid %d -> %d", pid, other_pid);
+    if (signal (SIGUSR2, kill_self) == SIG_IGN){
+        signal (SIGUSR2, SIG_IGN);
+    }
+
+    while (1){
+        usleep(SLEEP_INTERVAL);
+        //PRINT_INSTR(stdout, "signal!");
+        kill(other_pid, SIGUSR1);
+    }
+    PRINT_INSTR(stdout, "killed signaler in pid %d -> %d", pid, other_pid);
+}
+
+void finalize_signaller(){
+    kill(other_pid, SIGUSR2);
+}
+
+#endif //FAKE_MEASURE
+
+void tool_mpi_init(){
+    counterDumpBuffer = malloc(COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
+    bzero(counterDumpBuffer, COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
+    bufferLoc = 0;
+    if (getTaskId() == 0){
+#ifdef FAKE_MEASURE
+        initialize_signaller();
+#else
+        initialize_pmeasure(1);
+#endif
+    }
+    clear_counter_state();
+    entriesWritten = 0;
+
+#ifdef SIGNAL_ALL_RANKS
+    otherRanksPids = malloc(getNTasks() * sizeof(int));
+    otherRanksPids[0] = getpid();
+    MPI_Allgather(otherRanksPids, 1, MPI_INT, otherRanksPids, 1, MPI_INT, MPI_COMM_WORLD);
+    for (int i = 0; i < getNTasks(); i++){
+        PRINT_INSTR(stdout, "o[%d] = %d", i, otherRanksPids[i]);
+    }
+#endif
+
+    char fname[__MAX_STRING_SIZE];
+    sprintf(fname, "counter.dump.%04d", getTaskId());
+    outp = fopen(fname, "w");
+    CounterDumpHeader_t hdr;
+    bzero(&hdr, sizeof(CounterDumpHeader_t));
+    hdr.magic = COUNTER_DUMP_MAGIC;
+    hdr.blocks = numberOfBasicBlocks;
+    hdr.loops = numberOfLoops;
+    PRINT_INSTR(stdout, "%x %d %d", hdr.magic, hdr.blocks, hdr.loops);
+
+    fwrite((void*)&hdr, 1, sizeof(CounterDumpHeader_t), outp);
+}
+
+void print_64b_buffer(uint64_t* b, uint32_t l, FILE* o, char d){
+    uint32_t j;
+    for (j = 0; j < l; j++){
+        fprintf(o, "%c%lld\t", d, b[j]);
+    }
+}
+#else //COUNTER_DUMP_SIGNAL
+void tool_mpi_init(){
+}
+#endif //COUNTER_DUMP_SIGNAL
+
+int32_t initcounter(int32_t* numBlocks, uint64_t* blockCounts, int64_t* hashVals){
+    numberOfBasicBlocks = *numBlocks;
+    blockCounters = blockCounts;
+    hashValues = hashVals;
+}
+
+int32_t initloop(int32_t* numLoops, uint64_t* loopCounts, int64_t* hashVals){
+    numberOfLoops = *numLoops;
+    loopCounters = loopCounts;
+    loopHashValues = hashVals;
+
+#ifdef COUNTER_DUMP_SIGNAL
     define_user_sig_handlers();
+    //tool_mpi_init();
+#endif
 
     ptimer(&pebiltimers[0]);
 }
 
-int32_t initloop(int32_t* numLoops, int32_t* lineNums, char** fileNms, char** functionNms, int64_t* hashVals){
-    numberOfLoops = *numLoops;
-    loopLineNumbers = lineNums;
-    loopFileNames = fileNms;
-    loopFunctionNames = functionNms;
-    loopHashValues = hashVals;
-}
-
-int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
+int32_t blockcounter(int32_t* lineNumbers, char** fileNames, char** functionNames, char* appName, char* instExt){
     int32_t i;
 
     ptimer(&pebiltimers[1]);
@@ -85,6 +235,21 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     if (!isTaskValid()){
         PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print files", getpid());
         return -1;
+    }
+#endif
+#ifdef COUNTER_DUMP_SIGNAL
+    clear_counter_buffer();
+    if (outp){
+        fclose(outp);
+    } else {
+        PRINT_INSTR(stderr, "This statement shouldn't be reached, but it seems to happen under some conditions?");
+    }
+    if (getTaskId() == 0){
+#ifdef FAKE_MEASURE
+        finalize_signaller();
+#else
+        finalize_pmeasure();
+#endif
     }
 #endif
 
@@ -110,9 +275,9 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     fprintf(outFile, "#id\tcount\t#file:line\tfunc\thash\n");
     fflush(outFile);
     for (i = 0; i < numberOfBasicBlocks; i++){
-        if (blockCounts[i] >= PRINT_MINIMUM){
+        if (blockCounters[i] >= PRINT_MINIMUM){
             fprintf(outFile, "%#d\t", i);
-            fprintf(outFile, "%llu\t#", blockCounts[i]);
+            fprintf(outFile, "%llu\t#", blockCounters[i]);
             fprintf(outFile, "%s:", fileNames[i]);
             fprintf(outFile, "%d\t", lineNumbers[i]);
             fprintf(outFile, "%s\t", functionNames[i]);
@@ -128,7 +293,7 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     return i;
 }
 
-int32_t loopcounter(uint64_t* loopCounters, char* appName, char* instExt){
+int32_t loopcounter(int32_t* loopLineNumbers, char** loopFileNames, char** loopFunctionNames, char* appName, char* instExt){
     int32_t i;
 
 #ifdef MPI_INIT_REQUIRED

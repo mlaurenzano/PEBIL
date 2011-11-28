@@ -147,7 +147,7 @@ void FlowGraph::computeDefUseDist(){
         // For each block
         for (uint32_t j = 0; j < loops[i]->getNumberOfBlocks(); ++j){
             BasicBlock* bb = allLoopBlocks[j];
-            bb->setDefXIter(0);
+
             // For each instruction
             for (uint32_t k = 0; k < bb->getNumberOfInstructions(); ++k){
                 X86Instruction* ins = bb->getInstruction(k);
@@ -217,7 +217,7 @@ void FlowGraph::computeDefUseDist(){
 
                         // If dist has increased beyond size of function, we must be looping?
                         if (currDist > function->getNumberOfInstructions()) {
-                            bb->setDefXIter(bb->getDefXIter()+1);
+                            ins->setDefXIter();
                             break;
                         }
 
@@ -299,24 +299,15 @@ void FlowGraph::computeDefUseDist(){
     while (!listdefs.empty()){
         delete listdefs.shift();
     }
-
-
-    /*
-    LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*>::Iterator it1;
-    for( it1 = defines.begin(); it1 != defines.end(); it1 = it1.next() ) {
-        LinkedList<X86Instruction::ReachingDefinition*>::Iterator it2;
-        for( it2 = (*it1)->begin();  it2 != (*it1)->end(); it2 = it2.next() ) {
-            delete *it2;
-        }
-        delete *it1;
-    }
-    */
 }
 
 void FlowGraph::interposeBlock(BasicBlock* bb){
     ASSERT(bb->getNumberOfSources() == 1 && bb->getNumberOfTargets() == 1);
     BasicBlock* sourceBlock = bb->getSourceBlock(0);
     BasicBlock* targetBlock = bb->getTargetBlock(0);
+
+    //sourceBlock->print();
+    //targetBlock->print();
 
     bool linkFound = false;
     for (uint32_t i = 0; i < sourceBlock->getNumberOfTargets(); i++){
@@ -339,10 +330,9 @@ void FlowGraph::interposeBlock(BasicBlock* bb){
     bb->setBaseAddress(blocks.back()->getBaseAddress() + blocks.back()->getNumberOfBytes());
     bb->setIndex(basicBlocks.size());
     basicBlocks.append(bb);
-    /*
-    PRINT_INFOR("now there are %d bbs in function %s", basicBlocks.size(), function->getName());
-    PRINT_INFOR("new block has base addres %#llx", bb->getBaseAddress());
-    */
+
+    //PRINT_INFOR("now there are %d bbs in function %s", basicBlocks.size(), function->getName());
+    //PRINT_INFOR("new block has base addres %#llx", bb->getBaseAddress());
     blocks.append(bb);
 
     sourceBlock->removeTargetBlock(targetBlock);
@@ -353,13 +343,14 @@ void FlowGraph::interposeBlock(BasicBlock* bb){
     X86Instruction* jumpToTarget = bb->getLeader();
     jumpToTarget->setBaseAddress(blocks.back()->getBaseAddress() + blocks.back()->getSizeInBytes());
     jumpToTarget->setIndex(0);
-    ASSERT(sourceBlock->getExitInstruction() && sourceBlock->getExitInstruction()->getAddressAnchor());
+
+    ASSERT(sourceBlock->getExitInstruction());
+    ASSERT(sourceBlock->getExitInstruction()->getAddressAnchor());
+    ASSERT(sourceBlock->getExitInstruction()->getTargetAddress() == targetBlock->getBaseAddress());
     sourceBlock->getExitInstruction()->getAddressAnchor()->updateLink(jumpToTarget);
 
-    /*
-    bb->print();
-    bb->printInstructions();
-    */
+    //bb->print();
+    //bb->printInstructions();
 }
 
 bool FlowGraph::isBlockInLoop(uint32_t idx){
@@ -789,6 +780,7 @@ uint32_t FlowGraph::buildLoops(){
     LinkedList<Loop*> loopList;
 
     uint32_t numberOfLoops = 0;
+    uint32_t excluded = 0;
     while(!backEdges.empty()){
 
         BasicBlock* from = backEdges.shift();
@@ -821,14 +813,18 @@ uint32_t FlowGraph::buildLoops(){
                 }
             }
 
-            Loop* newLoop = new Loop(to, from, this, inLoop);
-            loopList.insert(newLoop);
-
-            DEBUG_LOOP(newLoop->print();)
+            if (from->endsWithCall()){
+                excluded++;
+            } else {
+                Loop* newLoop = new Loop(to, from, this, inLoop);
+                loopList.insert(newLoop);
+                
+                DEBUG_LOOP(newLoop->print();)
+            }
         }
     }
 
-    ASSERT((loopList.size() == numberOfLoops) && 
+    ASSERT((loopList.size() == numberOfLoops - excluded) && 
         "Fatal: Number of loops should match backedges defining them");
 
     delete inLoop;
@@ -845,7 +841,7 @@ uint32_t FlowGraph::buildLoops(){
             loops[i]->setIndex(i);
         }
     }
-    ASSERT(loops.size() == numberOfLoops);
+    ASSERT(loops.size() == numberOfLoops - excluded);
 
     DEBUG_LOOP(printInnerLoops());
 }

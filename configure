@@ -665,6 +665,7 @@ enable_mpi
 enable_static
 enable_instruction_trace
 enable_mpiinit_check
+enable_pgi_lineinfo
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1304,6 +1305,8 @@ Optional Features:
                           jbb and sim only. [no]
   --enable-mpiinit-check  Disable output file printing in inst libraries
                           unless mpi_init is executed [no]
+  --enable-pgi-lineinfo   Handle line information in a way that is compatible
+                          with PGI compilers [no]
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -4576,6 +4579,15 @@ if test "$mpiinit_check_ok" = "yes"; then
    MPI_FLAGS="$MPI_FLAGS -DMPI_INIT_REQUIRED"
 fi
 
+# Check whether --enable-pgi_lineinfo was given.
+if test "${enable_pgi_lineinfo+set}" = set; then :
+  enableval=$enable_pgi_lineinfo; pgi_lineinfo_ok=$enableval
+fi
+
+if test "$pgi_lineinfo_ok" = "yes"; then
+   MPI_FLAGS="$MPI_FLAGS -DPGI_LINEINFO"
+fi
+
 
 # Checks for header files.
 
@@ -5177,7 +5189,7 @@ fi
 done
 
 
-ac_config_files="$ac_config_files Makefile src/Makefile tools/Makefile testapps/Makefile instcode/Makefile scripts/blacklist.sh bashrc"
+ac_config_files="$ac_config_files Makefile src/Makefile tools/Makefile testapps/Makefile instcode/Makefile scripts/blacklist.sh cshrc bashrc"
 
 ac_aux_dir=
 for ac_dir in "$srcdir" "$srcdir/.." "$srcdir/../.."; do
@@ -5910,6 +5922,7 @@ do
     "testapps/Makefile") CONFIG_FILES="$CONFIG_FILES testapps/Makefile" ;;
     "instcode/Makefile") CONFIG_FILES="$CONFIG_FILES instcode/Makefile" ;;
     "scripts/blacklist.sh") CONFIG_FILES="$CONFIG_FILES scripts/blacklist.sh" ;;
+    "cshrc") CONFIG_FILES="$CONFIG_FILES cshrc" ;;
     "bashrc") CONFIG_FILES="$CONFIG_FILES bashrc" ;;
 
   *) as_fn_error "invalid argument: \`$ac_config_target'" "$LINENO" 5;;

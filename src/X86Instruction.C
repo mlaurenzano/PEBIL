@@ -58,7 +58,7 @@ void X86Instruction::initBlankUd(bool is64bit){
 
 void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg){
     memcpy(comp->insn_hexcode, reg->insn_hexcode, sizeof(char)*32);
-    memcpy(comp->insn_buffer, reg->insn_buffer, sizeof(char)*64);
+    memcpy(comp->insn_buffer, reg->insn_buffer, sizeof(char)*INSTRUCTION_PRINT_SIZE);
     comp->mnemonic = reg->mnemonic;
     memcpy(comp->operand, reg->operand, sizeof(struct ud_operand)*3);
     comp->pfx_seg = reg->pfx_seg;
@@ -2957,6 +2957,8 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     setFlags();
     setImpliedRegs();
 
+    defXIter = false;
+
     verify();
 }
 
@@ -3006,6 +3008,8 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     flags_usedef = NULL;
     setFlags();
     setImpliedRegs();
+
+    defXIter = false;
 
     verify();
 }

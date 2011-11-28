@@ -29,6 +29,16 @@
 
 static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
 
+uint32_t BasicBlock::getDefXIter(){
+    uint32_t defcnt = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->hasDefXIter()){
+            defcnt++;
+        }
+    }
+    return defcnt;
+}
+
 bool BasicBlock::endsWithCall(){
     return  instructions.back()->isCall();
 }
@@ -1061,7 +1071,7 @@ Vector<X86Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<X86In
     uint32_t idx = tgtInstruction->getIndex();
 
     while (replacedBytes < bytesToReplace){
-        ASSERT(instructions.size() >= idx && "You ran out of instructions in this block");
+        ASSERT(instructions.size() > idx && "You ran out of instructions in this block");
         (*replaced).append(instructions.remove(idx));
         replacedBytes += (*replaced).back()->getSizeInBytes();
     }

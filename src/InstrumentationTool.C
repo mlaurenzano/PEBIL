@@ -113,6 +113,10 @@ void InstrumentationTool::instrument(){
 }
 
 InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, Base* within){
+    return insertInlinedTripCounter(counterOffset, within, true);
+}
+
+InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, Base* within, bool add){
     BasicBlock* scope = NULL;
 
     if (within->getType() == PebilClassType_BasicBlock){
@@ -133,9 +137,17 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
 
     // snippet contents, in this case just increment a counter
     if (is64Bit()){
-        snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
+        if (add){
+            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
+        } else {
+            snip->addSnippetInstruction(X86InstructionFactory64::emitSubImmByteToMem64(1, getInstDataAddress() + counterOffset));
+        }
     } else {
-        snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+        if (add){
+            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+        } else {
+            snip->addSnippetInstruction(X86InstructionFactory32::emitSubImmByteToMem(1, getInstDataAddress() + counterOffset));
+        }
     }
 
     // do not generate control instructions to get back to the application, this is done for
@@ -456,13 +468,16 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
 
         if (printDetail){
 
-            // TODO +lpi info is per-block still
             uint32_t loopLoc = 0;
             if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())){
                 if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())->getHead()->getHashCode().getValue() == bb->getHashCode().getValue()){
-                    loopLoc = 1;
+                    if (bb->getLeader()->getBaseAddress() == ins->getBaseAddress()){
+                        loopLoc = 1;
+                    }
                 } else if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())->getTail()->getHashCode().getValue() == bb->getHashCode().getValue()){
-                    loopLoc = 2;
+                    if (bb->getExitInstruction()->getBaseAddress() == ins->getBaseAddress()){
+                        loopLoc = 2;
+                    }
                 }
             }
             fprintf(staticFD, "\t+lpi\t%d\t%d\t%d\t%d # %#llx\n", loopCount, loopId, loopDepth, loopLoc, hashValue);
@@ -482,8 +497,13 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
             uint64_t loopHead = 0;
             uint64_t parentHead = 0;
             if (loop){
-                loopHead = loop->getHead()->getHashCode().getValue();
-                parentHead = f->getFlowGraph()->getParentLoop(loop->getIndex())->getHead()->getHashCode().getValue();
+                HashCode* headHash = loop->getHead()->getLeader()->generateHashCode(loop->getHead());
+                HashCode* parentHash = f->getFlowGraph()->getParentLoop(loop->getIndex())->getHead()->getLeader()->generateHashCode(f->getFlowGraph()->getParentLoop(loop->getIndex())->getHead());
+                loopHead = headHash->getValue();
+                parentHead = parentHash->getValue();
+
+                delete headHash;
+                delete parentHash;
             }
             fprintf(staticFD, "\t+lpc\t%lld\t%lld # %#llx\n", loopHead, parentHead, hashValue);
 
@@ -509,8 +529,7 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
             }
             fprintf(staticFD, " # %#llx\n", hashValue);
 
-            // TODO +dxi info is per-block still
-            fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", bb->getDefXIter(), bb->endsWithCall(), hashValue);
+            fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", (uint32_t)ins->hasDefXIter(), ins->isCall(), hashValue);
 
             uint64_t callTgtAddr = 0;
             char* callTgtName = INFO_UNKNOWN;

@@ -46,6 +46,11 @@ AC_ARG_ENABLE(mpiinit_check, AC_HELP_STRING([--enable-mpiinit-check], [Disable o
 if test "$mpiinit_check_ok" = "yes"; then
    MPI_FLAGS="$MPI_FLAGS -DMPI_INIT_REQUIRED"
 fi
+
+AC_ARG_ENABLE(pgi_lineinfo, AC_HELP_STRING([--enable-pgi-lineinfo], [Handle line information in a way that is compatible with PGI compilers [no]]), pgi_lineinfo_ok=$enableval)
+if test "$pgi_lineinfo_ok" = "yes"; then
+   MPI_FLAGS="$MPI_FLAGS -DPGI_LINEINFO"
+fi
 AC_SUBST(MPI_FLAGS)
 
 # Checks for header files.
@@ -72,6 +77,7 @@ AC_CONFIG_FILES([Makefile
                  testapps/Makefile
                  instcode/Makefile
                  scripts/blacklist.sh
+                 cshrc
                  bashrc])
 AC_CONFIG_SUBDIRS([external/udis86-1.7])
 AC_OUTPUT

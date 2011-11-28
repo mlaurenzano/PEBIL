@@ -48,6 +48,7 @@ uint32_t bloatCount = 0;
 
 #define Reserve__Instrumentation_DynamicTable 0x8000
 
+// only make modifications to the new/interposed block, the modifications to the source/target block will be made later
 BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, uint32_t bbtgtidx){
     BasicBlock* bb = new BasicBlock(fg->getNumberOfBasicBlocks(), fg);
     interposedBlocks.append(bb);
@@ -55,7 +56,6 @@ BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, ui
     X86Instruction* jumpToTarget = X86InstructionFactory::emitJumpRelative(0,0);
     bb->addInstruction(jumpToTarget);
 
-    // store the source and target indices in the source/target bitsets
     bb->addSourceBlock(fg->getBasicBlock(bbsrcidx));
     bb->addTargetBlock(fg->getBasicBlock(bbtgtidx));
 
@@ -66,6 +66,7 @@ BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, ui
 
     ASSERT(jumpToTarget->getAddressAnchor() != NULL && jumpToTarget->getAddressAnchor()->getLink()->getType() == PebilClassType_X86Instruction);
     (*(elfFile->getAddressAnchors())).append(jumpToTarget->getAddressAnchor());
+    elfFile->setAnchorsSorted(false);
 
     fg->getFunction()->setManipulated();
 
@@ -73,10 +74,8 @@ BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, ui
 }
 
 BasicBlock* ElfFileInst::findExposedBasicBlock(HashCode hashCode){
-    //    PRINT_INFOR("Solving hashcode %d %d %d %d", hashCode.getSection(), hashCode.getFunction(), hashCode.getBlock(), hashCode.getInstruction());
     for (uint32_t i = 0; i < exposedBasicBlocks.size(); i++){
         HashCode blockHash = exposedBasicBlocks[i]->getHashCode();
-        //  PRINT_INFOR("\t\tblock %d %d %d %d", blockHash.getSection(), blockHash.getFunction(), blockHash.getBlock(), blockHash.getInstruction());
         if (blockHash.getSection() == hashCode.getSection()){
             if (blockHash.getFunction() == hashCode.getFunction()){
                 if (blockHash.getBlock() == hashCode.getBlock()){
@@ -408,6 +407,18 @@ uint32_t ElfFileInst::relocateAndBloatFunction(Function* operatedFunction, uint6
 
     Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors(operatedFunction->getBaseAddress());
     for (uint32_t i = 0; i < modAnchors->size(); i++){
+        // skip any conditional branch originating outside the function. this situation is one that can occur due to the way
+        // block interposition is set up
+        if ((*modAnchors)[i]->getLinkedParent()->getType() == PebilClassType_X86Instruction){
+            X86Instruction* x = (X86Instruction*)(*modAnchors)[i]->getLinkedParent();
+            if (x->getContainer() && x->getContainer()->getType() == PebilClassType_Function){
+                Function* f = (Function*)x->getContainer();
+                if (f->getIndex() != operatedFunction->getIndex() &&
+                    !x->isCall()){
+                    continue;
+                }
+            }
+        }
         (*modAnchors)[i]->updateLink((*trampEmpty).back());
         elfFile->setAnchorsSorted(false);
     }
@@ -836,6 +847,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     for (uint32_t i = 0; i < interposedBlocks.size(); i++){
         BasicBlock* bb = interposedBlocks[i];
         bb->getFlowGraph()->getFunction()->interposeBlock(bb);
+        elfFile->setAnchorsSorted(false);
         exposedBasicBlocks.append(bb);
     }
 
@@ -940,7 +952,6 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
         }
         */
 
-
         for (uint32_t i = 0; i < numberOfFunctions; i++){
             Function* func = exposedFunctions[i];
             /*
@@ -953,6 +964,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
                 __SHOULD_NOT_ARRIVE;
             }
             */
+
 #ifdef RELOC_MOD
             if (i % RELOC_MOD == RELOC_MOD_OFF){
                 PRINT_INFOR("relocating function (%d) %s", i, func->getName());
@@ -1001,9 +1013,8 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
             Function* container = (Function*)(*instrumentationPoints)[j]->getSourceObject()->getContainer();
             BasicBlock* containerBB = (BasicBlock*)container->getBasicBlockAtAddress(searchAddr);
             ASSERT(containerBB);
-            
-            Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors(searchAddr);
             ASSERT(containerBB->getNumberOfInstructions() && containerBB->getLeader());
+            Vector<AddressAnchor*>* modAnchors = elfFile->searchAddressAnchors(searchAddr);
             PRINT_DEBUG_ANCHOR("In block at %#llx, updating %d anchors", containerBB->getBaseAddress(), modAnchors->size());
             anchors.append(modAnchors);
             blocks.append(containerBB);
@@ -1098,64 +1109,7 @@ void ElfFileInst::functionSelect(){
     PRINT_INFOR("Total hidden from instrumentation (bytes):\t%d/%d (%.2f%)", missingBytes, numberOfBytes, ((float)((float)missingBytes*100)/((float)numberOfBytes)));
 }
 
-
-// the order of the operations in this function matters
-void ElfFileInst::phasedInstrumentation(){
-    TIMER(double t1 = timer(), t2; char stepNumber = 'A');
-    ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
-
-    ASSERT(elfFile->getFileHeader()->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
-    elfFile->getFileHeader()->SET(e_flags, EFINSTSTATUS_MOD);
-
-    ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
-    currentPhase++;
-    ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
-
-    uint32_t numberOfBasicBlocks = getDotInitSection()->getNumberOfBasicBlocks() + 
-        getDotTextSection()->getNumberOfBasicBlocks() + getDotFiniSection()->getNumberOfBasicBlocks();
-
-    extendTextSection(TEXT_EXTENSION_INC, INSTHDR_RESERVE_AMT); // creates space for extra elf control info (symbols, dynamic table entries, hash entries, etc)
-    elfFile->anchorProgramElements();
-
-    ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
-    currentPhase++;
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
-
-    declare();
-    if (!elfFile->isStaticLinked()){
-        extendDynamicTable();
-    }
-
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
-
-    functionSelect();
-
-    if (!elfFile->isStaticLinked()){
-        addSharedLibraryPath();
-
-        for (uint32_t i = 0; i < instrumentationLibraries.size(); i++){
-            addSharedLibrary(instrumentationLibraries[i]);
-        }
-
-        for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
-            ASSERT(instrumentationFunctions[i] && "Instrumentation functions should be initialized");
-            addFunction(instrumentationFunctions[i]);
-        }
-    }
-    verify();
-
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
-    currentPhase++;
-
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
-    instrument();
-
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
-
-    (*instrumentationPoints).sort(compareInstBaseAddress);
-    verify();
-
+void ElfFileInst::computeInstrumentationOffsets(){
     for (uint32_t i = 0; i < (*instrumentationPoints).size();){
         Vector<InstrumentationPoint*> priorpt = Vector<InstrumentationPoint*>();
         Vector<InstrumentationPoint*> afterpt = Vector<InstrumentationPoint*>();
@@ -1190,7 +1144,7 @@ void ElfFileInst::phasedInstrumentation(){
         for (uint32_t k = 0; k < afterpt.size(); k++){
             uint32_t bytesreq = Size__uncond_jump;
             if (afterpt[k]->getInstrumentationMode() == InstrumentationMode_inline){
-                bytesreq = afterpt[k]->getNumberOfBytes();
+                bytesreq = afterpt[k]->getSourceObject()->getSizeInBytes();
             }
             afterpt[k]->setInstSourceOffset(bytesreq);
             currentOffset += bytesreq;
@@ -1205,10 +1159,71 @@ void ElfFileInst::phasedInstrumentation(){
         i = j;
     }
 
+}
+
+// the order of the operations in this function matters
+void ElfFileInst::phasedInstrumentation(){
+    TIMER(double t1 = timer(), t2; char stepNumber = 'A');
+    ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
+
+    ASSERT(elfFile->getFileHeader()->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
+    elfFile->getFileHeader()->SET(e_flags, EFINSTSTATUS_MOD);
+
+    ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
+    currentPhase++;
+    ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
+
+    uint32_t numberOfBasicBlocks = getDotInitSection()->getNumberOfBasicBlocks() + 
+        getDotTextSection()->getNumberOfBasicBlocks() + getDotFiniSection()->getNumberOfBasicBlocks();
+
+    extendTextSection(TEXT_EXTENSION_INC, INSTHDR_RESERVE_AMT); // creates space for extra elf control info (symbols, dynamic table entries, hash entries, etc)
+    elfFile->anchorProgramElements();
+
+    ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
+    currentPhase++;
+    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
+
+    declare();
+    declareLibraryList();
+    if (!elfFile->isStaticLinked()){
+        extendDynamicTable();
+    }
+
+    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
+
+    functionSelect();
+
+    if (!elfFile->isStaticLinked()){
+        addSharedLibraryPath();
+
+        for (uint32_t i = 0; i < instrumentationLibraries.size(); i++){
+            addSharedLibrary(instrumentationLibraries[i]);
+        }
+
+        for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
+            ASSERT(instrumentationFunctions[i] && "Instrumentation functions should be initialized");
+            addFunction(instrumentationFunctions[i]);
+        }
+    }
+    verify();
+
+    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
+    currentPhase++;
+
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
+    instrument();
+
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
+
+    (*instrumentationPoints).sort(compareInstBaseAddress);
+    verify();
+
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     buildInstrumentationSections();
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c UsrResrv : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     relocatedTextSize += functionRelocateAndTransform(relocatedTextSize);
+    computeInstrumentationOffsets();
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c FncReloc : %.2f seconds",stepNumber++,t2-t1);t1=t2);
@@ -1341,6 +1356,36 @@ uint32_t ElfFileInst::declareLibrary(char* libName){
 
     instrumentationLibraries.append(newLib);
     return instrumentationLibraries.size();
+}
+
+void ElfFileInst::declareLibraryList(){
+    if (!libraryList){
+        return;
+    }
+
+    Vector<uint32_t> libIdx;
+    Vector<char*> libraries;
+    libIdx.append(0);
+    uint32_t listSize = strlen(libraryList);
+    for (uint32_t i = 0; i < listSize; i++){
+        if (libraryList[i] == ','){
+            libraryList[i] = '\0';
+            libIdx.append(i+1);
+        }
+    }
+    for (uint32_t i = 0; i < libIdx.size(); i++){
+        if (libIdx[i] < listSize){
+            libraries.append(libraryList + libIdx[i]);
+        } else {
+            PRINT_ERROR("improperly formatted library list given instrumentation tool");
+            __SHOULD_NOT_ARRIVE;
+        }
+    }
+
+    // declare any shared library that will contain instrumentation functions
+    for (uint32_t i = 0; i < libraries.size(); i++){
+        declareLibrary(libraries[i]);
+    }
 }
 
 
@@ -1728,6 +1773,8 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
 
     flags = InstrumentorFlag_none;
     allowStatic = false;
+
+    libraryList = NULL;
 }
 
 void ElfFileInst::setInputFunctions(char* inputFuncList){
