@@ -156,6 +156,7 @@ protected:
     void extendDynamicTable();
     void buildInstrumentationSections();
     uint32_t generateInstrumentation();
+    void computeInstrumentationOffsets();
     void compressInstrumentation(uint32_t textSize);
     uint32_t relocateAndBloatFunction(Function* functionToRelocate, uint64_t offsetToRelocation, Vector<Vector<InstrumentationPoint*>*>* functionInstPoints);
     bool isEligibleFunction(Function* func);

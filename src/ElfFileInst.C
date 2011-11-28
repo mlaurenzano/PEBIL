@@ -1109,6 +1109,57 @@ void ElfFileInst::functionSelect(){
     PRINT_INFOR("Total hidden from instrumentation (bytes):\t%d/%d (%.2f%)", missingBytes, numberOfBytes, ((float)((float)missingBytes*100)/((float)numberOfBytes)));
 }
 
+void ElfFileInst::computeInstrumentationOffsets(){
+    for (uint32_t i = 0; i < (*instrumentationPoints).size();){
+        Vector<InstrumentationPoint*> priorpt = Vector<InstrumentationPoint*>();
+        Vector<InstrumentationPoint*> afterpt = Vector<InstrumentationPoint*>();
+        Vector<InstrumentationPoint*> replacept = Vector<InstrumentationPoint*>();
+        uint32_t j = i;
+        while (j < (*instrumentationPoints).size() && 
+               (*instrumentationPoints)[j]->getInstBaseAddress() == (*instrumentationPoints)[i]->getInstBaseAddress() &&
+               (*instrumentationPoints)[j]->getSourceObject() == (*instrumentationPoints)[i]->getSourceObject()){
+            if ((*instrumentationPoints)[j]->getInstLocation() == InstLocation_prior){
+                priorpt.append((*instrumentationPoints)[j]);
+            } else if ((*instrumentationPoints)[j]->getInstLocation() == InstLocation_after){
+                afterpt.append((*instrumentationPoints)[j]);
+            } else if ((*instrumentationPoints)[j]->getInstLocation() == InstLocation_replace){
+                replacept.append((*instrumentationPoints)[j]);
+            } else {
+                __SHOULD_NOT_ARRIVE;
+            }
+            j++;
+        }
+        
+        int32_t currentOffset = 0;
+        for (int32_t k = priorpt.size() - 1; k >= 0; k--){
+            uint32_t bytesreq = Size__uncond_jump;
+            if (priorpt[k]->getInstrumentationMode() == InstrumentationMode_inline){
+                bytesreq = priorpt[k]->getNumberOfBytes();
+            }
+            currentOffset -= bytesreq;
+            priorpt[k]->setInstSourceOffset(currentOffset);
+        }
+
+        currentOffset = (*instrumentationPoints)[i]->getSourceObject()->getSizeInBytes();
+        for (uint32_t k = 0; k < afterpt.size(); k++){
+            uint32_t bytesreq = Size__uncond_jump;
+            if (afterpt[k]->getInstrumentationMode() == InstrumentationMode_inline){
+                bytesreq = afterpt[k]->getSourceObject()->getSizeInBytes();
+            }
+            afterpt[k]->setInstSourceOffset(bytesreq);
+            currentOffset += bytesreq;
+        }
+
+        currentOffset = 0;
+        ASSERT(replacept.size() < 2 && "Cannot have more than 1 point replacement");
+        for (uint32_t k = 0; k < replacept.size(); k++){
+            replacept[k]->setInstSourceOffset(currentOffset);
+        }        
+
+        i = j;
+    }
+
+}
 
 // the order of the operations in this function matters
 void ElfFileInst::phasedInstrumentation(){
@@ -1168,59 +1219,11 @@ void ElfFileInst::phasedInstrumentation(){
     (*instrumentationPoints).sort(compareInstBaseAddress);
     verify();
 
-    for (uint32_t i = 0; i < (*instrumentationPoints).size();){
-        Vector<InstrumentationPoint*> priorpt = Vector<InstrumentationPoint*>();
-        Vector<InstrumentationPoint*> afterpt = Vector<InstrumentationPoint*>();
-        Vector<InstrumentationPoint*> replacept = Vector<InstrumentationPoint*>();
-        uint32_t j = i;
-        while (j < (*instrumentationPoints).size() && 
-               (*instrumentationPoints)[j]->getInstBaseAddress() == (*instrumentationPoints)[i]->getInstBaseAddress() &&
-               (*instrumentationPoints)[j]->getSourceObject() == (*instrumentationPoints)[i]->getSourceObject()){
-            if ((*instrumentationPoints)[j]->getInstLocation() == InstLocation_prior){
-                priorpt.append((*instrumentationPoints)[j]);
-            } else if ((*instrumentationPoints)[j]->getInstLocation() == InstLocation_after){
-                afterpt.append((*instrumentationPoints)[j]);
-            } else if ((*instrumentationPoints)[j]->getInstLocation() == InstLocation_replace){
-                replacept.append((*instrumentationPoints)[j]);
-            } else {
-                __SHOULD_NOT_ARRIVE;
-            }
-            j++;
-        }
-        
-        int32_t currentOffset = 0;
-        for (int32_t k = priorpt.size() - 1; k >= 0; k--){
-            uint32_t bytesreq = Size__uncond_jump;
-            if (priorpt[k]->getInstrumentationMode() == InstrumentationMode_inline){
-                bytesreq = priorpt[k]->getNumberOfBytes();
-            }
-            currentOffset -= bytesreq;
-            priorpt[k]->setInstSourceOffset(currentOffset);
-        }
-
-        currentOffset = (*instrumentationPoints)[i]->getSourceObject()->getSizeInBytes();
-        for (uint32_t k = 0; k < afterpt.size(); k++){
-            uint32_t bytesreq = Size__uncond_jump;
-            if (afterpt[k]->getInstrumentationMode() == InstrumentationMode_inline){
-                bytesreq = afterpt[k]->getSourceObject()->getSizeInBytes();
-            }
-            afterpt[k]->setInstSourceOffset(bytesreq);
-            currentOffset += bytesreq;
-        }
-
-        currentOffset = 0;
-        ASSERT(replacept.size() < 2 && "Cannot have more than 1 point replacement");
-        for (uint32_t k = 0; k < replacept.size(); k++){
-            replacept[k]->setInstSourceOffset(currentOffset);
-        }        
-
-        i = j;
-    }
-
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     buildInstrumentationSections();
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c UsrResrv : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     relocatedTextSize += functionRelocateAndTransform(relocatedTextSize);
+    computeInstrumentationOffsets();
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c FncReloc : %.2f seconds",stepNumber++,t2-t1);t1=t2);
