@@ -1071,7 +1071,7 @@ Vector<X86Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<X86In
     uint32_t idx = tgtInstruction->getIndex();
 
     while (replacedBytes < bytesToReplace){
-        ASSERT(instructions.size() >= idx && "You ran out of instructions in this block");
+        ASSERT(instructions.size() > idx && "You ran out of instructions in this block");
         (*replaced).append(instructions.remove(idx));
         replacedBytes += (*replaced).back()->getSizeInBytes();
     }

@@ -282,10 +282,20 @@ void FunctionCounter::instrument(){
             if (head->getHashCode().getValue() == target->getHashCode().getValue()){
                 ASSERT(head->getHashCode().getValue() == target->getHashCode().getValue());
 
-                // if control falls from tail to head AND that control flow isn't conditional
-                if (!tail->getExitInstruction()->isConditionalBranch() && 
-                    tail->getBaseAddress() + tail->getNumberOfBytes() == target->getBaseAddress()){
-                    InstrumentationTool::insertInlinedTripCounter(counterOffset, tail, false);
+                // if control falls from tail to head, stick a decrement at the very end of the block
+                if (tail->getBaseAddress() + tail->getNumberOfBytes() == target->getBaseAddress()){
+                    InstrumentationSnippet* snip = new InstrumentationSnippet();
+                    if (is64Bit()){
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitSubImmByteToMem64(1, getInstDataAddress() + counterOffset));
+                    } else {
+                        snip->addSnippetInstruction(X86InstructionFactory32::emitSubImmByteToMem(1, getInstDataAddress() + counterOffset));
+                    }
+
+                    FlagsProtectionMethods prot = FlagsProtectionMethod_light;
+                    if (tail->getExitInstruction()->allFlagsDeadOut()){
+                        prot = FlagsProtectionMethod_none;
+                    }
+                    InstrumentationPoint* p = addInstrumentationPoint(tail->getExitInstruction(), snip, InstrumentationMode_inline, prot, InstLocation_after);
                     //PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
                 } else {
                     BasicBlock* interposed = initInterposeBlock(fg, tail->getIndex(), target->getIndex());

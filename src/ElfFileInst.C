@@ -1202,7 +1202,7 @@ void ElfFileInst::phasedInstrumentation(){
         for (uint32_t k = 0; k < afterpt.size(); k++){
             uint32_t bytesreq = Size__uncond_jump;
             if (afterpt[k]->getInstrumentationMode() == InstrumentationMode_inline){
-                bytesreq = afterpt[k]->getNumberOfBytes();
+                bytesreq = afterpt[k]->getSourceObject()->getSizeInBytes();
             }
             afterpt[k]->setInstSourceOffset(bytesreq);
             currentOffset += bytesreq;
