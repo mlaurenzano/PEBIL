@@ -502,17 +502,17 @@ int main(int argc,char* argv[]){
         PRINT_INFOR(SUCCESS_MSG);
         return 0;
     } else if (instType == function_counter_type){
-        elfInst = new FunctionCounter(&elfFile, extension, loopIncl, extdPrnt);
+        elfInst = new FunctionCounter(&elfFile);
     } else if (instType == frequency_inst_type){
-        elfInst = new BasicBlockCounter(&elfFile, extension, loopIncl, extdPrnt);
+        elfInst = new BasicBlockCounter(&elfFile);
     } else if (instType == rare_event_type){
-        elfInst = new RareEventCounter(&elfFile, extension, loopIncl, extdPrnt);
+        elfInst = new RareEventCounter(&elfFile);
     } else if (instType == simulation_inst_type){
-        elfInst = new CacheSimulation(&elfFile, inptName, extension, phaseNo, loopIncl, extdPrnt, dfpName);
+        elfInst = new CacheSimulation(&elfFile, inptName, dfpName);
     } else if (instType == classification_inst_type){
-        elfInst = new Classification(&elfFile, extension, loopIncl, extdPrnt);
+        elfInst = new Classification(&elfFile);
     } else if (instType == func_timer_type){
-        elfInst = new FunctionTimer(&elfFile, extension, loopIncl, extdPrnt);
+        elfInst = new FunctionTimer(&elfFile);
     } else if (instType == call_wrapper_type){
         if (!inputTrackList){
             fprintf(stderr, "\nError: option --trk needs to be given with call wrapper inst\n");
@@ -523,7 +523,7 @@ int main(int argc,char* argv[]){
             fprintf(stderr, "\nError: option --lnc needs to be given with call wrapper inst\n");
         }
         ASSERT(libList);
-        elfInst = new CallReplace(&elfFile, inputTrackList, inptName, extension, loopIncl, extdPrnt, doIntro);
+        elfInst = new CallReplace(&elfFile, inputTrackList, inptName, doIntro);
     } else if (instType == throttle_loop_type){
         if (!libList){
             fprintf(stderr, "\nError: option --lnc needs to be given with loop throttle inst\n");
@@ -534,10 +534,12 @@ int main(int argc,char* argv[]){
             printUsage();
         }
         ASSERT(inputTrackList);
-        elfInst = new ThrottleLoop(&elfFile, inptName, inputTrackList, extension, loopIncl, extdPrnt);
+        elfInst = new ThrottleLoop(&elfFile, inptName, inputTrackList);
     } else {
         PRINT_ERROR("Error : invalid instrumentation type");
     }
+
+    elfInst->init(phaseNo, extension, loopIncl, extdPrnt);
 
     if (libList){
         elfInst->setLibraryList(libList);

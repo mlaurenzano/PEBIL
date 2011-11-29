@@ -5,7 +5,8 @@ import sys
 import os
 import struct
 
-debug = True
+debug = False
+#debug = True
 
 uint64 = 'Q'
 uint32 = 'I'

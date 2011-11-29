@@ -43,13 +43,14 @@ private:
     char* getWrapperFunction(uint32_t idx);    
 
 public:
-    ThrottleLoop(ElfFile* elf, char* inputFile, char* funcFile, char* ext, bool lpi, bool dtl);
+    ThrottleLoop(ElfFile* elf, char* inputFile, char* funcFile);
     ~ThrottleLoop();
 
     void declare();
     void instrument();
 
     const char* briefName() { return "ThrottleLoop"; }
+    const char* getExtension() { return "thrinst"; }
 };
 
 

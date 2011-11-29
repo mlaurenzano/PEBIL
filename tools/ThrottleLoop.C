@@ -52,8 +52,8 @@ ThrottleLoop::~ThrottleLoop(){
     delete functionList;
 }
 
-ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* funcFile, char* ext, bool lpi, bool dtl)
-    : InstrumentationTool(elf, ext, 0, lpi, dtl)
+ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* funcFile)
+    : InstrumentationTool(elf)
 {
     loopEntry = NULL;
     loopExit = NULL;

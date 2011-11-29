@@ -238,6 +238,11 @@ public:
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }
     virtual void usesModifiedProgram() { __SHOULD_NOT_ARRIVE; }
     virtual bool canRelocateFunction(Function* func) { return true; }
+
+    virtual const char* briefName() { __SHOULD_NOT_ARRIVE; }
+    virtual const char* getExtension() { __SHOULD_NOT_ARRIVE; }
+
+    virtual void init(uint32_t phase, char* ext, bool lpi, bool dtl) { __SHOULD_NOT_ARRIVE; }
 };
 
 

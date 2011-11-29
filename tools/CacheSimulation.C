@@ -205,9 +205,8 @@ void CacheSimulation::filterBBs(){
     delete[] bbs;
 }
 
-
-CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile, char* ext, uint32_t phase, bool lpi, bool dtl, char* dfpFile)
-    : InstrumentationTool(elf, ext, phase, lpi, dtl)
+CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile, char* dfpFile)
+    : InstrumentationTool(elf)
 {
     simFunc = NULL;
     exitFunc = NULL;

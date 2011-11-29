@@ -37,13 +37,16 @@
 
 #define MAX_DEF_USE_DIST_PRINT 1024
 
-InstrumentationTool::InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase, bool lpi, bool dtl)
-    : ElfFileInst(elf)
-{
-    extension = ext;
+void InstrumentationTool::init(uint32_t phase, char* ext, bool lpi, bool dtl){
     phaseNo = phase;
+    extension = ext;
     loopIncl = lpi;
     printDetail = dtl;
+}
+
+InstrumentationTool::InstrumentationTool(ElfFile* elf)
+    : ElfFileInst(elf)
+{
 }
 
 void InstrumentationTool::declare(){

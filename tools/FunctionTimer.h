@@ -34,11 +34,14 @@ private:
     InstrumentationFunction* functionExitFlagsSafe;
 
 public:
-    FunctionTimer(ElfFile* elf, char* ext, bool lpi, bool dtl);
+    FunctionTimer(ElfFile* elf);
     ~FunctionTimer() {}
 
     void declare();
     void instrument();
+
+    const char* briefName() { return "FunctionTimer"; }
+    const char* getExtension() { return "ftminst"; }
 };
 
 

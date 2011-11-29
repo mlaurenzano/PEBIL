@@ -48,7 +48,7 @@ private:
     void printDFPStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos);
 
 public:
-    CacheSimulation(ElfFile* elf, char* inputName, char* ext, uint32_t phase, bool lpi, bool dtl, char* dfpFile);
+    CacheSimulation(ElfFile* elf, char* inputName, char* dfpFile);
     ~CacheSimulation();
 
     void declare();
@@ -56,6 +56,7 @@ public:
     void usesModifiedProgram();
 
     const char* briefName() { return "CacheSimulation"; }
+    const char* getExtension() { return "siminst"; }
 };
 
 

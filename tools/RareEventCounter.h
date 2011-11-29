@@ -31,13 +31,14 @@ private:
     InstrumentationFunction* loopEntry;
     InstrumentationFunction* loopExit;
 public:
-    RareEventCounter(ElfFile* elf, char* ext, bool lpi, bool dtl);
+    RareEventCounter(ElfFile* elf);
     ~RareEventCounter() {}
 
     void declare();
     void instrument();
 
     const char* briefName() { return "RareEventCounter"; }
+    const char* getExtension() { return "recinst"; }
 };
 
 

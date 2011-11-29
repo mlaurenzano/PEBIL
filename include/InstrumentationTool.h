@@ -56,14 +56,17 @@ protected:
     bool loopIncl;
     bool printDetail;
 public:
-    InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase, bool lpi, bool dtl);
+    InstrumentationTool(ElfFile* elf);
     ~InstrumentationTool() { }
+
+    void init(uint32_t phase, char* ext, bool lpi, bool dtl);
 
     virtual void declare();
     virtual void instrument();
     virtual void usesModifiedProgram() { }
 
     virtual const char* briefName() { __SHOULD_NOT_ARRIVE; }
+    virtual const char* getExtension() { __SHOULD_NOT_ARRIVE; }
 };
 
 

@@ -39,7 +39,7 @@ private:
 
     bool doIntro;
 public:
-    CallReplace(ElfFile* elf, char* traceFile, char* inpFile, char* ext, bool lpi, bool dtl, bool doI);
+    CallReplace(ElfFile* elf, char* traceFile, char* inpFile, bool doI);
     ~CallReplace();
 
     void declare();
@@ -47,6 +47,9 @@ public:
 
     char* getWrapperName(uint32_t idx);
     char* getFunctionName(uint32_t idx);
+
+    const char* briefName() { return "CallReplace"; }
+    const char* getExtension() { return "crpinst"; }
 };
 
 

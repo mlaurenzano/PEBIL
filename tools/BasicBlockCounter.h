@@ -31,13 +31,14 @@ private:
     InstrumentationFunction* loopEntry;
     InstrumentationFunction* loopExit;
 public:
-    BasicBlockCounter(ElfFile* elf, char* ext, bool lpi, bool dtl);
+    BasicBlockCounter(ElfFile* elf);
     ~BasicBlockCounter() {}
 
     void declare();
     void instrument();
 
     const char* briefName() { return "BasicBlockCounter"; }
+    const char* getExtension() { return "jbbinst"; }
 };
 
 

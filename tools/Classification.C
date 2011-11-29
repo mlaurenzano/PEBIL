@@ -35,8 +35,8 @@
 #define BINS_NUMBER (27)
 #define INSTRUCTIONS_THRESHOLD (1000000)
 
-Classification::Classification(ElfFile* elf, char* ext, bool lpi, bool dtl)
-    : InstrumentationTool(elf, ext, 0, lpi, dtl)
+Classification::Classification(ElfFile* elf)
+    : InstrumentationTool(elf)
 {
     binFunc = NULL;
     exitFunc = NULL;

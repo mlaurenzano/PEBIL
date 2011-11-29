@@ -45,8 +45,8 @@
 #define INST_LIB_NAME "libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
-RareEventCounter::RareEventCounter(ElfFile* elf, char* ext, bool lpi, bool dtl)
-    : InstrumentationTool(elf, ext, 0, lpi, dtl)
+RareEventCounter::RareEventCounter(ElfFile* elf)
+    : InstrumentationTool(elf)
 {
     entryFunc = NULL;
     exitFunc = NULL;

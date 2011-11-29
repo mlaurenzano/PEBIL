@@ -54,8 +54,8 @@ char* CallReplace::getWrapperName(uint32_t idx){
     return both;
 }
 
-CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* inpFile, char* ext, bool lpi, bool dtl, bool doI)
-    : InstrumentationTool(elf, ext, 0, lpi, dtl)
+CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* inpFile, bool doI)
+    : InstrumentationTool(elf)
 {
     programEntry = NULL;
     programExit = NULL;
