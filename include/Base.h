@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <execinfo.h>
+#include <dlfcn.h>
 #include <CStructuresElf.h>
 #include <CStructuresDwarf.h>
 #include <Debug.h>

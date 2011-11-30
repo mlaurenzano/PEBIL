@@ -187,12 +187,6 @@ void ElfFileInst::extendDynamicTable(){
     }
 }
 
-void ElfFileInst::setInstExtension(char* extension){
-    ASSERT(!instSuffix);
-    instSuffix = new char[__MAX_STRING_SIZE];
-    sprintf(instSuffix, "%s\0", extension);
-}
-
 BasicBlock* ElfFileInst::getProgramExitBlock(){
     TextSection* fini = getDotFiniSection();
     ASSERT(fini && "Cannot find fini section");
@@ -1340,7 +1334,7 @@ InstrumentationFunction* ElfFileInst::declareFunction(char* funcName){
     return instrumentationFunctions.back();
 }
 
-uint32_t ElfFileInst::declareLibrary(char* libName){
+uint32_t ElfFileInst::declareLibrary(const char* libName){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
     for (uint32_t i = 0; i < instrumentationLibraries.size(); i++){
@@ -1616,10 +1610,6 @@ ElfFileInst::~ElfFileInst(){
         delete lineInfoFinder;
     }
 
-    if (instSuffix){
-        delete[] instSuffix;
-    }
-
     if (sharedLibraryPath){
         delete[] sharedLibraryPath;
     }
@@ -1650,7 +1640,8 @@ void ElfFileInst::dump(){
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
 
     char fileName[__MAX_STRING_SIZE] = "";
-    sprintf(fileName,"%s.%s", elfFile->getFileName(), getInstSuffix());
+    sprintf(fileName,"%s.%s", elfFile->getFileName(), getExtension());
+    PRINT_INFOR("Instrumented binary is %s", fileName);
 
     BinaryOutputFile binaryOutputFile;
     binaryOutputFile.open(fileName);
@@ -1713,7 +1704,6 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     extraDataIdx = elfFile->getDotDataSection()->getSectionIndex();
     dataIdx = 0;
 
-    instSuffix = NULL;
     sharedLibraryPath = NULL;
 
     lineInfoFinder = NULL;

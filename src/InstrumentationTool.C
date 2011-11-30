@@ -37,17 +37,27 @@
 
 #define MAX_DEF_USE_DIST_PRINT 1024
 
-void InstrumentationTool::init(uint32_t phase, char* ext, bool lpi, bool dtl){
+const char* InstrumentationTool::getExtension(){
+    if (extension){
+        return extension;
+    }
+    return defaultExtension();
+}
+
+void InstrumentationTool::init(uint32_t phase, char* ext, bool lpi, bool dtl, char* inp, char* dfp, char* trk, bool doi){
     phaseNo = phase;
     extension = ext;
     loopIncl = lpi;
     printDetail = dtl;
+    inputFile = inp;
+    dfpFile = dfp;
+    trackFile = trk;
+    doIntro = doi;
 }
 
 InstrumentationTool::InstrumentationTool(ElfFile* elf)
     : ElfFileInst(elf)
-{
-}
+{}
 
 void InstrumentationTool::declare(){
 #ifdef HAVE_MPI
@@ -186,7 +196,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     uint32_t numberOfInstPoints = (*allBlocks).size();
 
     char* staticFile = new char[__MAX_STRING_SIZE];
-    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getInstSuffix(), "static");
+    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getExtension(), "static");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 
@@ -194,7 +204,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
 
     fprintf(staticFD, "# appname   = %s\n", getApplicationName());
     fprintf(staticFD, "# appsize   = %d\n", getApplicationSize());
-    fprintf(staticFD, "# extension = %s\n", getInstSuffix());
+    fprintf(staticFD, "# extension = %s\n", getExtension());
     fprintf(staticFD, "# phase     = %d\n", 0);
     fprintf(staticFD, "# type      = %s\n", briefName());
     fprintf(staticFD, "# cantidate = %d\n", getNumberOfExposedBasicBlocks());
@@ -372,7 +382,7 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
     uint32_t numberOfInstPoints = (*allInstructions).size();
 
     char* staticFile = new char[__MAX_STRING_SIZE];
-    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getInstSuffix(), "static");
+    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getExtension(), "static");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 
@@ -380,7 +390,7 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
 
     fprintf(staticFD, "# appname   = %s\n", getApplicationName());
     fprintf(staticFD, "# appsize   = %d\n", getApplicationSize());
-    fprintf(staticFD, "# extension = %s\n", getInstSuffix());
+    fprintf(staticFD, "# extension = %s\n", getExtension());
     fprintf(staticFD, "# phase     = %d\n", 0);
     fprintf(staticFD, "# type      = %s\n", briefName());
     fprintf(staticFD, "# cantidate = %d\n", getNumberOfExposedInstructions());

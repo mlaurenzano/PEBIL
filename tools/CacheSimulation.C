@@ -29,7 +29,7 @@
 #include <Loop.h>
 #include <TextSection.h>
 #include <DFPattern.h>
-#include <SimpleHash.h>
+//#include <SimpleHash.h>
 
 #define ENTRY_FUNCTION "entry_function"
 #define SIM_FUNCTION "MetaSim_simulFuncCall_Simu"
@@ -41,6 +41,12 @@
 #define BUFFER_ENTRIES (USABLE_BUFFER_SIZE + MAX_MEMOPS_PER_BLOCK)
 
 //#define DISABLE_BLOCK_COUNT
+
+extern "C" {
+    InstrumentationTool* CacheSimulationMaker(ElfFile* elf){
+        return new CacheSimulation(elf);
+    }
+}
 
 void CacheSimulation::usesModifiedProgram(){
     X86Instruction* nop5Byte = X86InstructionFactory::emitNop(Size__uncond_jump);
@@ -73,7 +79,7 @@ DFPatternType convertDFPatternType(char* patternString){
 
 void CacheSimulation::filterBBs(){
     Vector<char*>* fileLines = new Vector<char*>();
-    initializeFileList(bbFile, fileLines);
+    initializeFileList(inputFile, fileLines);
 
     int32_t err;
     uint64_t inputHash;
@@ -86,7 +92,7 @@ void CacheSimulation::filterBBs(){
 
         err = sscanf((*fileLines)[i], "%lld", &inputHash);
         if(err <= 0){
-            PRINT_ERROR("Line %d of %s has a wrong format", i+1, bbFile);
+            PRINT_ERROR("Line %d of %s has a wrong format", i+1, inputFile);
         }
         HashCode* hashCode = new HashCode(inputHash);
 #ifdef STATS_PER_INSTRUCTION
@@ -94,7 +100,7 @@ void CacheSimulation::filterBBs(){
 #else //STATS_PER_INSTRUCTION
         if(!hashCode->isBlock()){
 #endif //STATS_PER_INSTRUCTION
-            PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, bbFile);
+            PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, inputFile);
         }
         BasicBlock* bb = findExposedBasicBlock(*hashCode);
         delete hashCode;
@@ -147,10 +153,10 @@ void CacheSimulation::filterBBs(){
     BasicBlock** bbs = blocksToInst.values();
     qsort(bbs, blocksToInst.size(), sizeof(BasicBlock*), compareBaseAddress);
     
-    if (dfPatternFile){
+    if (dfpFile){
 
         Vector<char*>* dfpFileLines = new Vector<char*>();
-        initializeFileList(dfPatternFile, dfpFileLines);
+        initializeFileList(dfpFile, dfpFileLines);
 
         ASSERT(!dfpSet.size());
 
@@ -161,11 +167,11 @@ void CacheSimulation::filterBBs(){
             char patternString[__MAX_STRING_SIZE];
             int32_t err = sscanf((*dfpFileLines)[i], "%lld %s", &id, patternString);
             if(err <= 0){
-                PRINT_ERROR("Line %d of %s has a wrong format", i+1, dfPatternFile);
+                PRINT_ERROR("Line %d of %s has a wrong format", i+1, dfpFile);
             }
             DFPatternType dfpType = convertDFPatternType(patternString);
             if(dfpType == dfTypePattern_undefined){
-                PRINT_ERROR("Line %d of %s is a wrong pattern type [%s]", i+1, dfPatternFile, patternString);
+                PRINT_ERROR("Line %d of %s is a wrong pattern type [%s]", i+1, dfpFile, patternString);
             } else {
                 PRINT_INFOR("found valid pattern %s -> %d", patternString, dfpType);
             }
@@ -175,13 +181,13 @@ void CacheSimulation::filterBBs(){
 #else //STATS_PER_INSTRUCTION
             if(!hashCode.isBlock()){
 #endif //STATS_PER_INSTRUCTION
-                PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, dfPatternFile);
+                PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, dfpFile);
             }
 
             // if the bb is not in the list already but is a valid block, include it!
             BasicBlock* bb = findExposedBasicBlock(hashCode);
             if(!bb){
-                PRINT_ERROR("Line %d of %s is not a valid basic block id", i+1, dfPatternFile);
+                PRINT_ERROR("Line %d of %s is not a valid basic block id", i+1, dfpFile);
                 continue;
             }
             blocksToInst.insert(bb->getHashCode().getValue(), bb);
@@ -205,15 +211,18 @@ void CacheSimulation::filterBBs(){
     delete[] bbs;
 }
 
-CacheSimulation::CacheSimulation(ElfFile* elf, char* inputFile, char* dfpFile)
+bool CacheSimulation::checkArgs(){
+    if (inputFile == NULL){
+        PRINT_ERROR("argument --inp required for %s", briefName());
+    }
+}
+
+CacheSimulation::CacheSimulation(ElfFile* elf)
     : InstrumentationTool(elf)
 {
     simFunc = NULL;
     exitFunc = NULL;
     entryFunc = NULL;
-
-    bbFile = inputFile;
-    dfPatternFile = dfpFile;
 }
 
 
@@ -280,16 +289,16 @@ void CacheSimulation::instrument(){
     uint64_t blockSizeStore = reserveDataOffset(sizeof(uint64_t));
 
     char* appName = getElfFile()->getAppName();
-    char* ext = extension;
+    const char* ext = getExtension();
     uint32_t phaseId = phaseNo;
     uint32_t dumpCode = 0;
-    uint32_t commentSize = strlen(appName) + sizeof(uint32_t) + strlen(extension) + sizeof(uint32_t) + sizeof(uint32_t) + 4;
+    uint32_t commentSize = strlen(appName) + sizeof(uint32_t) + strlen(getExtension()) + sizeof(uint32_t) + sizeof(uint32_t) + 4;
     uint64_t commentStore = reserveDataOffset(commentSize);
     char* comment = new char[commentSize];
 #ifndef STATS_PER_INSTRUCTION
-    sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedBasicBlocks(), dumpCode);
+    sprintf(comment, "%s %u %s %u %u", appName, phaseId, getExtension(), getNumberOfExposedBasicBlocks(), dumpCode);
 #else
-    sprintf(comment, "%s %u %s %u %u", appName, phaseId, extension, getNumberOfExposedInstructions(), dumpCode);
+    sprintf(comment, "%s %u %s %u %u", appName, phaseId, getExtension(), getNumberOfExposedInstructions(), dumpCode);
     uint32_t insnToBlock[getNumberOfExposedInstructions()];
 #endif
     initializeReservedData(getInstDataAddress() + commentStore, commentSize, comment);
@@ -610,30 +619,6 @@ void CacheSimulation::instrument(){
             }
 
 #ifndef DISABLE_BLOCK_COUNT
-            /*
-            InstrumentationSnippet* snip = new InstrumentationSnippet();
-            addInstrumentationSnippet(snip);
-        
-            uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
-            ASSERT(i == blockId);
-            if (is64Bit()){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
-            } else {
-                snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
-            }
-            
-            FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-            X86Instruction* bestinst = bb->getExitInstruction();
-            for (int32_t j = bb->getNumberOfInstructions() - 1; j >= 0; j--){
-                if (bb->getInstruction(j)->allFlagsDeadIn()){
-                    bestinst = bb->getInstruction(j);
-                    prot = FlagsProtectionMethod_none;
-                    break;
-                }
-            }
-            
-            InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, InstLocation_prior);
-            */
             uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
             InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
 #endif
@@ -731,7 +716,7 @@ void CacheSimulation::printDFPStaticFile(Vector<BasicBlock*>* allBlocks, Vector<
     uint32_t numberOfInstPoints = (*allBlocks).size();
 
     char* staticFile = new char[__MAX_STRING_SIZE];
-    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getInstSuffix(), "dfp");
+    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getExtension(), "dfp");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 

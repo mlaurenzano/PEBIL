@@ -19,18 +19,11 @@
  */
 
 #include <Base.h>
-#include <BasicBlockCounter.h>
-#include <CacheSimulation.h>
-#include <CallReplace.h>
-#include <Classification.h>
-#include <DynamicTable.h>
-#include <ElfFile.h>
-#include <FunctionCounter.h>
-#include <FunctionTimer.h>
-#include <RareEventCounter.h>
-#include <ThrottleLoop.h>
-#include <Vector.h>
+//#include <DynamicTable.h>
+//#include <ElfFile.h>
+#include <InstrumentationTool.h>
 
+#define INVALID_LIB_NAME "INVALIDLIBNAME"
 #define DEFAULT_FUNC_BLACKLIST "scripts/inputlist/autogen-system.func"
 
 #define SUCCESS_MSG "******** Instrumentation Successfull ********"
@@ -204,11 +197,25 @@ typedef enum {
     Total_InstrumentationType
 } InstrumentationType;
 
+/* for backward compatibility with old-style args (--typ)*/
+static char* ToolNames[Total_InstrumentationType] = {
+    INVALID_LIB_NAME,
+    INVALID_LIB_NAME,
+    "BasicBlockCounter",
+    "RareEventCounter",
+    "CacheSimulation",
+    "Classification",
+    "FunctionCounter",
+    "FunctionTimer",
+    "CallReplace",
+    "ThrottleLoop"
+};
+
 int main(int argc,char* argv[]){
     char*    inptName   = NULL;
-    char*    extension  = "";
     char*    libPath    = NULL;
     char*    libArg     = NULL;
+    char*    extension  = NULL;
     int32_t  phaseNo    = 0;
     uint32_t instType   = unknown_inst_type;
     uint32_t argApp     = 0;
@@ -234,6 +241,7 @@ int main(int argc,char* argv[]){
     uint32_t dumpCode   = Total_DumpCode;
     bool runSilent      = false;
     bool allowStatic    = false;
+    char* toolName      = NULL;
 
     TIMER(double t = timer());
     for (int32_t i = 1; i < argc; i++){
@@ -243,6 +251,12 @@ int main(int argc,char* argv[]){
                 printUsage();
             }
             execName = argv[++i];
+        } else if (!strcmp(argv[i],"--tool")){
+            if (toolName != NULL){
+                fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
+                printUsage();
+            }
+            toolName = argv[++i];
         } else if (!strcmp(argv[i],"--typ")){
             if (argTyp++){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
@@ -258,31 +272,22 @@ int main(int argc,char* argv[]){
                 extension = "ideinst";
             } else if (!strcmp(argv[i],"fnc")){
                 instType = function_counter_type;
-                extension = "fncinst";
             } else if (!strcmp(argv[i],"jbb")){
                 instType = frequency_inst_type;
-                extension = "jbbinst";
             } else if (!strcmp(argv[i],"rec")){
                 instType = rare_event_type;
-                extension = "recinst";
             } else if (!strcmp(argv[i],"sim")){
                 instType = simulation_inst_type;
-                extension = "siminst";
             } else if (!strcmp(argv[i],"csc")){
                 instType = simulation_inst_type;
-                extension = "cscinst";
             } else if (!strcmp(argv[i],"bin")){
                 instType = classification_inst_type;
-                extension = "bininst";
             } else if (!strcmp(argv[i],"ftm")){
                 instType = func_timer_type;
-                extension = "ftminst";
             } else if (!strcmp(argv[i],"crp")){
                 instType = call_wrapper_type;
-                extension = "crpinst";
             } else if (!strcmp(argv[i],"thr")){
                 instType = throttle_loop_type;
-                extension = "thrinst";
             }
         } else if (!strcmp(argv[i],"--help")){
             printUsage(true, true);
@@ -309,12 +314,14 @@ int main(int argc,char* argv[]){
 
     if ((instType <= unknown_inst_type) || 
        (instType >= Total_InstrumentationType)){
-        fprintf(stderr,"\nError : Unknown instrumentation type\n");
-        printUsage();
+        if (toolName == NULL){
+            fprintf(stderr,"\nError : Unknown instrumentation type, either --typ or --tool is required\n");
+            printUsage();
+        }
     }
 
     for (int32_t i = 1; i < argc; i++){
-        if (!strcmp(argv[i],"--app") || !strcmp(argv[i],"--typ")){
+        if (!strcmp(argv[i],"--app") || !strcmp(argv[i],"--typ") || !strcmp(argv[i],"--tool")){
             ++i;
         } else if (!strcmp(argv[i],"--ext")){
             if (argExt++){
@@ -325,10 +332,6 @@ int main(int argc,char* argv[]){
         } else if(!strcmp(argv[i],"--phs")){
             if (argPhs++){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
-                printUsage();
-            }
-            if (instType != simulation_inst_type){
-                fprintf(stderr,"\nError : Option %s is not valid for typ other than sim/csc\n",argv[i]);
                 printUsage();
             }
 
@@ -345,25 +348,13 @@ int main(int argc,char* argv[]){
                 fprintf(stderr,"\nError : Duplicate %s option\n",argv[i]);
                 printUsage();
             }
-            if (instType != simulation_inst_type && instType != throttle_loop_type && instType != call_wrapper_type){
-                fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i]);
-                printUsage();
-            }
 
             inptName = argv[++i];
         } else if (!strcmp(argv[i],"--lpi")){
             loopIncl = true;
-            if (instType != simulation_inst_type){
-                fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i++]);
-                printUsage();
-            }
         } else if (!strcmp(argv[i], "--dfp")){
             if (argDfp++){
                 fprintf(stderr, "\nError: Duplicate %s option\n", argv[i]);
-                printUsage();
-            }
-            if (instType != simulation_inst_type){
-                fprintf(stderr,"\nError : Option %s is not valid other than simulation\n",argv[i++]);
                 printUsage();
             }
             dfpName = argv[++i];
@@ -424,11 +415,6 @@ int main(int argc,char* argv[]){
     }
     if (dumpCode != dumpcode_off){
         fprintf(stderr, "\tError : --dmp must be off");
-        printUsage();
-    }
-
-    if ((instType == simulation_inst_type || instType == throttle_loop_type) && !inptName){
-        fprintf(stderr,"\nError : Input is required for cache simulation instrumentation\n\n");
         printUsage();
     }
 
@@ -495,103 +481,74 @@ int main(int argc,char* argv[]){
     elfFile.verify();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Verify  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
-    ElfFileInst* elfInst = NULL;
+    InstrumentationTool* instTool = NULL;
 
     if (instType == identical_inst_type){
         elfFile.dump(extension);
         PRINT_INFOR(SUCCESS_MSG);
         return 0;
-    } else if (instType == function_counter_type){
-        elfInst = new FunctionCounter(&elfFile);
-    } else if (instType == frequency_inst_type){
-        elfInst = new BasicBlockCounter(&elfFile);
-    } else if (instType == rare_event_type){
-        elfInst = new RareEventCounter(&elfFile);
-    } else if (instType == simulation_inst_type){
-        elfInst = new CacheSimulation(&elfFile, inptName, dfpName);
-    } else if (instType == classification_inst_type){
-        elfInst = new Classification(&elfFile);
-    } else if (instType == func_timer_type){
-        elfInst = new FunctionTimer(&elfFile);
-    } else if (instType == call_wrapper_type){
-        if (!inputTrackList){
-            fprintf(stderr, "\nError: option --trk needs to be given with call wrapper inst\n");
-            printUsage();
-        }
-        ASSERT(inputTrackList);
-        if (!libList){
-            fprintf(stderr, "\nError: option --lnc needs to be given with call wrapper inst\n");
-        }
-        ASSERT(libList);
-        elfInst = new CallReplace(&elfFile, inputTrackList, inptName, doIntro);
-    } else if (instType == throttle_loop_type){
-        if (!libList){
-            fprintf(stderr, "\nError: option --lnc needs to be given with loop throttle inst\n");
-        }
-        ASSERT(libList);
-        if (!inputTrackList){
-            fprintf(stderr, "\nError: option --trk needs to be given with loop throttle inst\n");
-            printUsage();
-        }
-        ASSERT(inputTrackList);
-        elfInst = new ThrottleLoop(&elfFile, inptName, inputTrackList);
-    } else {
-        PRINT_ERROR("Error : invalid instrumentation type");
+    } else if (instType > unknown_inst_type && instType < Total_InstrumentationType){
+        toolName = ToolNames[instType];
     }
+    char toolLibName[__MAX_STRING_SIZE];
+    char toolConstructor[__MAX_STRING_SIZE];
+    sprintf(toolLibName, "lib%sTool.so\0", toolName);
+    sprintf(toolConstructor, "%sMaker", toolName);
 
-    elfInst->init(phaseNo, extension, loopIncl, extdPrnt);
+    void *libHandle = dlopen(toolLibName, RTLD_NOW);
+    if(libHandle == NULL){
+        PRINT_ERROR("cannot open tool library %s, it needs to be in your LD_LIBRARY_PATH", toolLibName);
+        exit(1);
+    }
+    void *maker = dlsym(libHandle, toolConstructor);
+    if (maker == NULL){
+        PRINT_ERROR("cannot find function %s in %s", toolConstructor, toolLibName);
+        exit(1);
+    }
+    instTool = reinterpret_cast<InstrumentationTool*(*)(ElfFile*)>(maker)(&elfFile);
+    ASSERT(!strcmp(toolName, instTool->briefName()) && "name yielded by briefName does not match tool name");
+
+    dlclose(libHandle);
 
     if (libList){
-        elfInst->setLibraryList(libList);
+        instTool->setLibraryList(libList);
     }
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-    ASSERT(elfInst);
-    ASSERT(extension);
+    ASSERT(instTool);
 
-    if (phaseNo > 0){
-        char* tmp = new char[__MAX_STRING_SIZE];
-        sprintf(tmp, "phase.%d.%s", phaseNo, extension);
-        extension = tmp;
-    }
-
-    elfInst->setInstExtension(extension);
     if (inputFuncList){
-        elfInst->setInputFunctions(inputFuncList);
+        instTool->setInputFunctions(inputFuncList);
     }
     if (allowStatic){
-        elfInst->setAllowStatic();
+        instTool->setAllowStatic();
     }
     
-    elfInst->phasedInstrumentation();
+    instTool->init(phaseNo, extension, loopIncl, extdPrnt, inptName, dfpName, inputTrackList, doIntro);
+    if (!instTool->checkArgs()){
+        fprintf(stderr,"\nError : Argument missing/incorrect\n\n");
+        printUsage();
+    }
+
+    instTool->phasedInstrumentation();
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-    elfInst->print(Print_Code_Instrumentation);
+    instTool->print(Print_Code_Instrumentation);
     TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Instr   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
     
     elfFile.printDynamicLibraries();
     if (verbose){
-        elfInst->print(printCodes);
+        instTool->print(printCodes);
         TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
     }
     
-    elfInst->dump();
+    instTool->dump();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Dump    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
     if (verbose){
-        elfInst->print(printCodes);
+        instTool->print(printCodes);
         TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
     }
 
-    // arrrrrrrrrg. i can't figure out why just deleting elfInst doesn't
-    // call the CallReplace destructor in this case without the cast. 
-    if (instType == call_wrapper_type){
-        delete (CallReplace*)elfInst;
-    } else if (instType == simulation_inst_type){
-        delete (CacheSimulation*)elfInst;
-    } else if (instType == throttle_loop_type){
-        delete (ThrottleLoop*)elfInst;
-    } else {
-        delete elfInst;
-    }
+    delete instTool;
 
     if (deleteInpList){
         delete[] inputFuncList;

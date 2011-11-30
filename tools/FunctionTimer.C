@@ -32,6 +32,12 @@
 #define FUNCTION_EXIT  "function_exit"
 #define INST_LIB_NAME "libtimer.so"
 
+extern "C" {
+    InstrumentationTool* FunctionTimerMaker(ElfFile* elf){
+        return new FunctionTimer(elf);
+    }
+}
+
 FunctionTimer::FunctionTimer(ElfFile* elf)
     : InstrumentationTool(elf)
 {

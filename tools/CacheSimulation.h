@@ -31,9 +31,6 @@ private:
     InstrumentationFunction* exitFunc;
     InstrumentationFunction* entryFunc;
 
-    char* bbFile;
-    char* dfPatternFile;
-
     SimpleHash<BasicBlock*> blocksToInst;
     SimpleHash<DFPatternType> dfpSet;
 
@@ -48,7 +45,7 @@ private:
     void printDFPStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos);
 
 public:
-    CacheSimulation(ElfFile* elf, char* inputName, char* dfpFile);
+    CacheSimulation(ElfFile* elf);
     ~CacheSimulation();
 
     void declare();
@@ -56,7 +53,8 @@ public:
     void usesModifiedProgram();
 
     const char* briefName() { return "CacheSimulation"; }
-    const char* getExtension() { return "siminst"; }
+    const char* defaultExtension() { return "siminst"; }
+    bool checkArgs();
 };
 
 

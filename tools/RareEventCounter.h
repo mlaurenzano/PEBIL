@@ -38,7 +38,8 @@ public:
     void instrument();
 
     const char* briefName() { return "RareEventCounter"; }
-    const char* getExtension() { return "recinst"; }
+    const char* defaultExtension() { return "recinst"; }
+    bool checkArgs() { return true; }
 };
 
 

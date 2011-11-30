@@ -33,6 +33,12 @@
 #define INST_LIB_NAME "libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
+extern "C" {
+    InstrumentationTool* FunctionCounterMaker(ElfFile* elf){
+        return new FunctionCounter(elf);
+    }
+}
+
 FunctionCounter::FunctionCounter(ElfFile* elf)
     : InstrumentationTool(elf)
 {
@@ -68,8 +74,8 @@ void FunctionCounter::instrument(){
 
     uint64_t appName = reserveDataOffset((strlen(getApplicationName()) + 1) * sizeof(char));
     initializeReservedData(getInstDataAddress() + appName, strlen(getApplicationName()) + 1, getApplicationName());
-    uint64_t instExt = reserveDataOffset((strlen(getInstSuffix()) + 1) * sizeof(char));
-    initializeReservedData(getInstDataAddress() + instExt, strlen(getInstSuffix()) + 1, getInstSuffix());
+    uint64_t instExt = reserveDataOffset((strlen(getExtension()) + 1) * sizeof(char));
+    initializeReservedData(getInstDataAddress() + instExt, strlen(getExtension()) + 1, (void*)getExtension());
 
     // the number blocks in the code
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint64_t));
@@ -94,7 +100,7 @@ void FunctionCounter::instrument(){
     char* nostring = new char[strlen(NOSTRING) + 1];
     sprintf(nostring, "%s\0", NOSTRING);
     initializeReservedData(noDataAddr, strlen(NOSTRING) + 1, nostring);
-
+    delete[] nostring;
 
     entryFunc->addArgument(counterArrayEntries);
     entryFunc->addArgument(counterArray);
@@ -169,4 +175,8 @@ void FunctionCounter::instrument(){
         (*allBlockLineInfos).append(li);
     }
     printStaticFile(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
+
+    delete allBlocks;
+    delete allBlockIds;
+    delete allBlockLineInfos;
 }

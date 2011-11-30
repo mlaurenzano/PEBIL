@@ -41,6 +41,9 @@ typedef struct
 } instpoint_info;
 
 class InstrumentationTool : public ElfFileInst {
+private:
+    char* extension;
+
 protected:
     void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize);
     void printStaticFilePerInstruction(Vector<X86Instruction*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize);
@@ -52,21 +55,27 @@ protected:
     InstrumentationFunction* initWrapperF;
 
     uint32_t phaseNo;
-    char* extension;
     bool loopIncl;
     bool printDetail;
+    char* inputFile;
+    char* dfpFile;
+    char* trackFile;
+    bool doIntro;
+
 public:
     InstrumentationTool(ElfFile* elf);
-    ~InstrumentationTool() { }
+    virtual ~InstrumentationTool() { }
 
-    void init(uint32_t phase, char* ext, bool lpi, bool dtl);
+    void init(uint32_t phase, char* ext, bool lpi, bool dtl, char* inp, char* dfp, char* trk, bool doi);
 
     virtual void declare();
     virtual void instrument();
     virtual void usesModifiedProgram() { }
 
     virtual const char* briefName() { __SHOULD_NOT_ARRIVE; }
-    virtual const char* getExtension() { __SHOULD_NOT_ARRIVE; }
+    virtual const char* defaultExtension() { __SHOULD_NOT_ARRIVE; }
+    const char* getExtension();
+    virtual bool checkArgs() { __SHOULD_NOT_ARRIVE; }
 };
 
 

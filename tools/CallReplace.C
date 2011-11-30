@@ -35,11 +35,31 @@
 
 #define MAX_TIMER_COUNT 128
 
+extern "C" {
+    InstrumentationTool* CallReplaceMaker(ElfFile* elf){
+        return new CallReplace(elf);
+    }
+}
+
+bool CallReplace::checkArgs(){
+    if (inputFile == NULL){
+        PRINT_ERROR("argument --inp required for %s", briefName());
+    }
+    if (trackFile == NULL){
+        PRINT_ERROR("argument --trk required for %s", briefName());
+    }
+}
+
 CallReplace::~CallReplace(){
     for (uint32_t i = 0; i < (*functionList).size(); i++){
         delete[] (*functionList)[i];
     }
     delete functionList;
+
+    for (uint32_t i = 0; i < (*timerFunctions).size(); i++){
+        delete[] (*timerFunctions)[i];
+    }
+    delete timerFunctions;
 }
 
 char* CallReplace::getFunctionName(uint32_t idx){
@@ -54,16 +74,19 @@ char* CallReplace::getWrapperName(uint32_t idx){
     return both;
 }
 
-CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* inpFile, bool doI)
+CallReplace::CallReplace(ElfFile* elf)
     : InstrumentationTool(elf)
 {
     programEntry = NULL;
     programExit = NULL;
 
-    doIntro = doI;
+}
+
+void CallReplace::declare(){
+    //    InstrumentationTool::declare();
 
     functionList = new Vector<char*>();
-    initializeFileList(traceFile, functionList);
+    initializeFileList(trackFile, functionList);
 
     // replace any ':' character with a '\0'
     for (uint32_t i = 0; i < (*functionList).size(); i++){
@@ -76,21 +99,17 @@ CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* inpFile, bool doI)
             }
         }
         if (numrepl != 1){
-            PRINT_ERROR("input file %s line %d should contain a ':'", traceFile, i+1);
+            PRINT_ERROR("input file %s line %d should contain a ':'", trackFile, i+1);
         }
     }
 
-    if (inpFile){
+    if (inputFile){
         timerFunctions = new Vector<char*>();
-        initializeFileList(inpFile, timerFunctions);
+        initializeFileList(inputFile, timerFunctions);
         ASSERT((*timerFunctions).size() <= MAX_TIMER_COUNT);
     } else {
         timerFunctions = NULL;
     }
-}
-
-void CallReplace::declare(){
-    //    InstrumentationTool::declare();
 
     // declare any instrumentation functions that will be used
     if (doIntro){

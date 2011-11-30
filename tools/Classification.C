@@ -35,6 +35,12 @@
 #define BINS_NUMBER (27)
 #define INSTRUCTIONS_THRESHOLD (1000000)
 
+extern "C" {
+    InstrumentationTool* ClassificationMaker(ElfFile* elf){
+        return new Classification(elf);
+    }
+}
+
 Classification::Classification(ElfFile* elf)
     : InstrumentationTool(elf)
 {
@@ -42,7 +48,6 @@ Classification::Classification(ElfFile* elf)
     exitFunc = NULL;
     entryFunc = NULL;
 }
-
 
 Classification::~Classification(){
 }
@@ -80,10 +85,10 @@ void Classification::instrument(){
     uint64_t bufferStore = reserveDataOffset(BINS_NUMBER*sizeof(uint64_t));
     uint64_t instructionsCountStore = reserveDataOffset(sizeof(uint64_t));
 
-    uint32_t traceNameSize = strlen(getElfFile()->getAppName())+7+strlen(extension);
+    uint32_t traceNameSize = strlen(getElfFile()->getAppName())+7+strlen(getExtension());
     uint64_t traceNameStore = reserveDataOffset(traceNameSize);
     char* traceName = new char[traceNameSize];
-    sprintf(traceName,"%s.0000.%s", getElfFile()->getAppName(), extension);
+    sprintf(traceName,"%s.0000.%s", getElfFile()->getAppName(), getExtension());
     initializeReservedData(getInstDataAddress()+traceNameStore, traceNameSize, traceName);
     delete[] traceName;
 

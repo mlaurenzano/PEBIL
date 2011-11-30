@@ -42,6 +42,12 @@
 #define INST_LIB_NAME "libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
+extern "C" {
+    InstrumentationTool* BasicBlockCounterMaker(ElfFile* elf){
+        return new BasicBlockCounter(elf);
+    }
+}
+
 BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     : InstrumentationTool(elf)
 {
@@ -105,8 +111,8 @@ void BasicBlockCounter::instrument()
 
     uint64_t appName = reserveDataOffset((strlen(getApplicationName()) + 1) * sizeof(char));
     initializeReservedData(getInstDataAddress() + appName, strlen(getApplicationName()) + 1, getApplicationName());
-    uint64_t instExt = reserveDataOffset((strlen(getInstSuffix()) + 1) * sizeof(char));
-    initializeReservedData(getInstDataAddress() + instExt, strlen(getInstSuffix()) + 1, getInstSuffix());
+    uint64_t instExt = reserveDataOffset((strlen(getExtension()) + 1) * sizeof(char));
+    initializeReservedData(getInstDataAddress() + instExt, strlen(getExtension()) + 1, (void*)getExtension());
 
     // the number blocks in the code
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint64_t));
@@ -355,6 +361,7 @@ void BasicBlockCounter::instrument()
                     if (tail->getExitInstruction()->allFlagsDeadOut()){
                         prot = FlagsProtectionMethod_none;
                     }
+                    addInstrumentationSnippet(snip);
                     InstrumentationPoint* p = addInstrumentationPoint(tail->getExitInstruction(), snip, InstrumentationMode_inline, prot, InstLocation_after);
                     //PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
                 } else {

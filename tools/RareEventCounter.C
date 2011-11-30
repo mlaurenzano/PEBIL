@@ -45,6 +45,12 @@
 #define INST_LIB_NAME "libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
+extern "C" {
+    InstrumentationTool* RareEventCounterMaker(ElfFile* elf){
+        return new RareEventCounter(elf);
+    }
+}
+
 RareEventCounter::RareEventCounter(ElfFile* elf)
     : InstrumentationTool(elf)
 {
@@ -167,8 +173,8 @@ void RareEventCounter::instrument()
 
     uint64_t appName = reserveDataOffset((strlen(getApplicationName()) + 1) * sizeof(char));
     initializeReservedData(getInstDataAddress() + appName, strlen(getApplicationName()) + 1, getApplicationName());
-    uint64_t instExt = reserveDataOffset((strlen(getInstSuffix()) + 1) * sizeof(char));
-    initializeReservedData(getInstDataAddress() + instExt, strlen(getInstSuffix()) + 1, getInstSuffix());
+    uint64_t instExt = reserveDataOffset((strlen(getExtension()) + 1) * sizeof(char));
+    initializeReservedData(getInstDataAddress() + instExt, strlen(getExtension()) + 1, (void*)getExtension());
 
     // the number blocks in the code
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint64_t));

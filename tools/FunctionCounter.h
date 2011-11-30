@@ -38,7 +38,8 @@ public:
     void instrument();
 
     const char* briefName() { return "FunctionCounter"; }
-    const char* getExtension() { return "fncinst"; }
+    const char* defaultExtension() { return "fncinst"; }
+    bool checkArgs() { return true; }
 };
 
 

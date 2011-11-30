@@ -38,7 +38,8 @@ public:
     void instrument();
 
     const char* briefName() { return "BasicBlockCounter"; }
-    const char* getExtension() { return "jbbinst"; }
+    const char* defaultExtension() { return "jbbinst"; }
+    bool checkArgs() { return true; }
 };
 
 

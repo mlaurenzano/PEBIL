@@ -37,9 +37,8 @@ private:
     Vector<char*>* functionList;
     Vector<char*>* timerFunctions;
 
-    bool doIntro;
 public:
-    CallReplace(ElfFile* elf, char* traceFile, char* inpFile, bool doI);
+    CallReplace(ElfFile* elf);
     ~CallReplace();
 
     void declare();
@@ -49,7 +48,8 @@ public:
     char* getFunctionName(uint32_t idx);
 
     const char* briefName() { return "CallReplace"; }
-    const char* getExtension() { return "crpinst"; }
+    const char* defaultExtension() { return "crpinst"; }
+    bool checkArgs();
 };
 
 

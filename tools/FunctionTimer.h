@@ -41,7 +41,8 @@ public:
     void instrument();
 
     const char* briefName() { return "FunctionTimer"; }
-    const char* getExtension() { return "ftminst"; }
+    const char* defaultExtension() { return "ftminst"; }
+    bool checkArgs() { return true; }
 };
 
 

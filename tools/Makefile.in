@@ -2,35 +2,24 @@ include ../VERSION
 
 CXX           = @CXX@
 CXXFLAGS      = @CXXFLAGS@ @MPI_FLAGS@ -DPEBIL_VER="\"$(PEBIL_FULL_VER)\""
-EXTRA_FLAGS   =
+SHARED_OPT    = -fPIC
+SHARED_LIB    = -shared
+EXTRA_FLAGS   = $(SHARED_OPT)
 
 SRCDIR        = ../src
 BINDIR        = ../bin
+LIBDIR        = ../lib
 EXTDIR        = ../external
 EXTRA_INC     = -I. -I../include -I$(EXTDIR)/udis86-1.7/ -I../instcode
-EXTRA_LIBS    = -L$(SRCDIR) -lpebilinst -L$(EXTDIR)/udis86-1.7/libudis86/.libs -ludis86
+EXTRA_LIBS    = -L$(SRCDIR) -lpebilinst -L$(EXTDIR)/udis86-1.7/libudis86/.libs -ludis86 -ldl
 
 TARGETS  = pebil
+TOOLS = BasicBlockCounter CacheSimulation CallReplace Classification FunctionCounter FunctionTimer RareEventCounter ThrottleLoop
+SRCS = $(foreach var,$(TOOLS),$(var).C)
+OBJS = $(foreach var,$(TOOLS),$(var).o)
+LIBS = $(foreach var,$(TOOLS),lib$(var)Tool.so)
 
-SRCS  = BasicBlockCounter.C \
-	CacheSimulation.C \
-	CallReplace.C \
-	Classsification.C \
-	FunctionCounter.C \
-	FunctionTimer.C \
-	RareEventCounter.C \
-	ThrottleLoop.C
-
-OBJS  =	BasicBlockCounter.o \
-	CacheSimulation.o \
-	CallReplace.o \
-	Classification.o \
-	FunctionCounter.o \
-	FunctionTimer.o \
-	RareEventCounter.o \
-	ThrottleLoop.o
-
-all: $(TARGETS)
+all: $(LIBS) $(TARGETS)
 
 pebil :	$(OBJS) pebil.o
 	$(CXX) $(CXXFLAGS) -o $@ pebil.o $(OBJS) $(EXTRA_INC) $(EXTRA_LIBS)
@@ -38,13 +27,17 @@ pebil :	$(OBJS) pebil.o
 %.o: %.C
 	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) -c -o $@ $< $(EXTRA_INC)
 
+lib%Tool.so: %.o
+	$(CXX) $(SHARED_LIB) -o $@ $<
+
 clean: 
-	rm -f *inst *.static core *.o *.ii *.s $(TARGETS)
+	rm -f *inst *.static core *.o *.ii *.s *.so $(TARGETS)
 
 depend:
 	g++ -E -MM $(INCLUDE) $(SRCS) > DEPENDS
 
-install: $(TARGETS)
+install: $(TARGETS) $(LIBS)
 	cp $(TARGETS) $(BINDIR)
+	cp $(LIBS) $(LIBDIR)
 
 include DEPENDS

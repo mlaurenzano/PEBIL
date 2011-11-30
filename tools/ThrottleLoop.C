@@ -41,6 +41,24 @@
 #define UPDATE_SITEIDX
 #define FLAGS_METHOD FlagsProtectionMethod_full
 
+extern "C" {
+    InstrumentationTool* ThrottleLoopMaker(ElfFile* elf){
+        return new ThrottleLoop(elf);
+    }
+}
+
+bool ThrottleLoop::checkArgs(){
+    if (inputFile == NULL){
+        PRINT_ERROR("argument --inp required for %s", briefName());
+    }
+    if (trackFile == NULL){
+        PRINT_ERROR("argument --trk required for %s", briefName());
+    }
+    if (libraryList == NULL){
+        PRINT_ERROR("argument --lnc required for %s", briefName());
+    }
+}
+
 ThrottleLoop::~ThrottleLoop(){
     for (uint32_t i = 0; i < (*loopList).size(); i++){
         delete[] (*loopList)[i];
@@ -52,7 +70,7 @@ ThrottleLoop::~ThrottleLoop(){
     delete functionList;
 }
 
-ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* funcFile)
+ThrottleLoop::ThrottleLoop(ElfFile* elf)
     : InstrumentationTool(elf)
 {
     loopEntry = NULL;
@@ -61,41 +79,6 @@ ThrottleLoop::ThrottleLoop(ElfFile* elf, char* inputFile, char* funcFile)
     programExit = NULL;
 
     loopList = new Vector<char*>();
-    ASSERT(inputFile && loopList);
-    initializeFileList(inputFile, loopList);
-
-    functionList = new Vector<char*>();
-    ASSERT(funcFile && functionList);
-    initializeFileList(funcFile, functionList);
-
-    // replace any ':' character with a '\0'
-    for (uint32_t i = 0; i < (*loopList).size(); i++){
-        char* both = (*loopList)[i];
-        uint32_t numrepl = 0;
-        uint32_t bothsz = strlen(both);
-        for (uint32_t j = 0; j < bothsz; j++){
-            if (both[j] == ':'){
-                both[j] = '\0';
-                numrepl++;
-            }
-        }
-        if (numrepl != 2){
-            PRINT_ERROR("input file %s line %d should contain two ':' tokens", inputFile, i+1);
-        }
-    }
-    for (uint32_t i = 0; i < (*functionList).size(); i++){
-        char* both = (*functionList)[i];
-        uint32_t numrepl = 0;
-        for (uint32_t j = 0; j < strlen(both); j++){
-            if (both[j] == ':'){
-                both[j] = '\0';
-                numrepl++;
-            }
-        }
-        if (numrepl != 1){
-            PRINT_ERROR("input file %s line %d should contain a single ':' token", inputFile, i+1);
-        }        
-    }
 }
 
 char* ThrottleLoop::getFileName(uint32_t idx){
@@ -165,6 +148,42 @@ char* ThrottleLoop::getWrapperFunction(uint32_t idx){
 
 void ThrottleLoop::declare(){
     InstrumentationTool::declare();
+
+    ASSERT(inputFile && loopList);
+    initializeFileList(inputFile, loopList);
+
+    functionList = new Vector<char*>();
+    ASSERT(trackFile && functionList);
+    initializeFileList(trackFile, functionList);
+
+    // replace any ':' character with a '\0'
+    for (uint32_t i = 0; i < (*loopList).size(); i++){
+        char* both = (*loopList)[i];
+        uint32_t numrepl = 0;
+        uint32_t bothsz = strlen(both);
+        for (uint32_t j = 0; j < bothsz; j++){
+            if (both[j] == ':'){
+                both[j] = '\0';
+                numrepl++;
+            }
+        }
+        if (numrepl != 2){
+            PRINT_ERROR("input file %s line %d should contain two ':' tokens", inputFile, i+1);
+        }
+    }
+    for (uint32_t i = 0; i < (*functionList).size(); i++){
+        char* both = (*functionList)[i];
+        uint32_t numrepl = 0;
+        for (uint32_t j = 0; j < strlen(both); j++){
+            if (both[j] == ':'){
+                both[j] = '\0';
+                numrepl++;
+            }
+        }
+        if (numrepl != 1){
+            PRINT_ERROR("input file %s line %d should contain a single ':' token", inputFile, i+1);
+        }        
+    }
 
     for (uint32_t i = 0; i < (*functionList).size(); i++){
         functionWrappers.append(declareFunction(getWrapperFunction(i)));

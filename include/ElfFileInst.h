@@ -119,7 +119,6 @@ private:
     void applyInstrumentationDataToRaw();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
-    char* libraryList;
     void declareLibraryList();
 protected:
     Vector<Function*> allFunctions;
@@ -134,9 +133,9 @@ protected:
 
     uint32_t currentPhase;
 
-    char* instSuffix;
     char* sharedLibraryPath;
     uint64_t flags;
+    char* libraryList;
     
     BasicBlock* findExposedBasicBlock(HashCode hashCode);
 
@@ -206,13 +205,11 @@ public:
     LineInfoFinder* getLineInfoFinder() { return lineInfoFinder; }
     bool hasLineInformation() { return (lineInfoFinder != NULL); }
     void setPathToInstLib(char* libPath);
-    void setInstExtension(char* extension);
     void setAllowStatic() { allowStatic = true; }
 
     char* getApplicationName() { return elfFile->getAppName(); }
     uint32_t getApplicationSize() { return elfFile->getFileSize(); }
     char* getFullFileName() { return elfFile->getFileName(); }
-    char* getInstSuffix() { return instSuffix; }
 
     char* getInstrumentationLibrary(uint32_t idx) { return instrumentationLibraries[idx]; }
     uint32_t getNumberOfInstrumentationLibraries() { return instrumentationLibraries.size(); }
@@ -228,7 +225,7 @@ public:
     uint64_t functionRelocateAndTransform(uint32_t offset);
 
     InstrumentationFunction* declareFunction(char* funcName);
-    uint32_t declareLibrary(char* libName);
+    uint32_t declareLibrary(const char* libName);
     void setLibraryList(char* libList) { libraryList = libList; }
 
     InstrumentationFunction* getInstrumentationFunction(const char* funcName);
@@ -237,12 +234,8 @@ public:
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }
     virtual void usesModifiedProgram() { __SHOULD_NOT_ARRIVE; }
-    virtual bool canRelocateFunction(Function* func) { return true; }
-
-    virtual const char* briefName() { __SHOULD_NOT_ARRIVE; }
     virtual const char* getExtension() { __SHOULD_NOT_ARRIVE; }
-
-    virtual void init(uint32_t phase, char* ext, bool lpi, bool dtl) { __SHOULD_NOT_ARRIVE; }
+    virtual bool canRelocateFunction(Function* func) { return true; }
 };
 
 

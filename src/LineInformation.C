@@ -646,8 +646,8 @@ void LineInfo::print(){
         PRINT_OUT("... ");
     }
 
-    char* typestr = "UNKNOWN";
-    char* opstr = "UNKNOWN";
+    const char* typestr = "UNKNOWN";
+    const char* opstr = "UNKNOWN";
     switch(instructionBytes[0]){
     case DW_LNS_extended_op: typestr = "EXTENDED"; 
         switch (instructionBytes[2]){
