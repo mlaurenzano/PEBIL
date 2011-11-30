@@ -1,7 +1,7 @@
 include ../VERSION
 
 CXX           = @CXX@
-CXXFLAGS      = @CXXFLAGS@ @MPI_FLAGS@ -DPEBIL_VER="\"$(PEBIL_FULL_VER)\""
+CXXFLAGS      = @CXXFLAGS@ @MPI_FLAGS@ -DPEBIL_VER="\"$(PEBIL_FULL_VER)\"" -w
 SHARED_OPT    = -fPIC
 SHARED_LIB    = -shared
 EXTRA_FLAGS   = $(SHARED_OPT)
