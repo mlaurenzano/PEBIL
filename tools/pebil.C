@@ -36,7 +36,7 @@ void printUsage(const char* msg = NULL){
     fprintf(stderr,"\t\t--typ <ide|jbb|sim|csc> : selects pre-made instrumentation tool\n");
     fprintf(stderr,"\t{executable selection} (at least one required)\n");
     fprintf(stderr,"\t\t--app <executable/path> : executable to instrument\n");
-    fprintf(stderr,"\t\t<path/to/app1> <path/to/app2> (TODO)\n");
+    fprintf(stderr,"\t\t[--] <path/to/app1> <path/to/app2>\n");
     fprintf(stderr,"\t{pebil options} (affect all tools)\n");
     fprintf(stderr,"\t\t[--inf [a-z]*] : print details about application binary\n");
     if (false){
