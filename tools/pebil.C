@@ -462,7 +462,6 @@ int main(int argc,char* argv[]){
         exit(1);
     }
     instTool = reinterpret_cast<InstrumentationTool*(*)(ElfFile*)>(maker)(&elfFile);
-    PRINT_INFOR("%s %s", toolName, instTool->briefName());
     ASSERT(!strcmp(toolName, instTool->briefName()) && "name yielded by briefName does not match tool name");
     
     if (libList){

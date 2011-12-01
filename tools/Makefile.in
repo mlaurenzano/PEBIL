@@ -14,7 +14,7 @@ EXTRA_INC     = -I. -I../include -I$(EXTDIR)/udis86-1.7/ -I../instcode
 EXTRA_LIBS    = -L$(SRCDIR) -lpebilinst -L$(EXTDIR)/udis86-1.7/libudis86/.libs -ludis86 -ldl
 
 TARGETS  = pebil
-TOOLS = BasicBlockCounter CacheSimulation CallReplace Classification FunctionCounter FunctionTimer RareEventCounter ThrottleLoop
+TOOLS = BasicBlockCounter CacheSimulation CallReplace Classification FunctionCounter FunctionTimer Minimal RareEventCounter ThrottleLoop
 SRCS = $(foreach var,$(TOOLS),$(var).C)
 OBJS = $(foreach var,$(TOOLS),$(var).o)
 LIBS = $(foreach var,$(TOOLS),lib$(var)Tool.so)

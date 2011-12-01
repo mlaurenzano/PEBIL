@@ -199,10 +199,6 @@ bool DataSection::verify(){
         PRINT_ERROR("Data section has wrong class type");
         return false;
     }
-    if (!getSizeInBytes()){
-        PRINT_ERROR("Data section should have valid size");
-        return false;        
-    }
     return true;
 }
 

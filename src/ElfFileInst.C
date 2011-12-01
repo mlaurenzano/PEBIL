@@ -288,7 +288,11 @@ void ElfFileInst::buildInstrumentationSections(){
     SectionHeader* instTextHeader = elfFile->getSectionHeader(extraTextIdx);
     ASSERT(instDataHeader && elfFile->getRawSection(extraDataIdx)->getType() == PebilClassType_DataSection);
 
-    ((DataSection*)elfFile->getRawSection(extraDataIdx))->extendSize(instrumentationDataSize - DATA_EXTENSION_INC);
+    uint32_t dataInc = 0;
+    if (instrumentationDataSize > DATA_EXTENSION_INC){
+        dataInc = instrumentationDataSize - DATA_EXTENSION_INC;
+    }
+    ((DataSection*)elfFile->getRawSection(extraDataIdx))->extendSize(dataInc);
     applyInstrumentationDataToRaw();
 
     verify();

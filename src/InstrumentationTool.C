@@ -53,7 +53,6 @@ bool InstrumentationTool::singleArgCheck(void* arg, uint32_t mask, const char* n
 }
 
 bool InstrumentationTool::verifyArgs(){
-    PRINT_INFOR("Checking args: allowed %#08x, requires %#08x", allowsArgs(), requiresArgs());
     singleArgCheck((void*)phaseNo, PEBIL_OPT_PHS, "--phs");
     singleArgCheck((void*)loopIncl, PEBIL_OPT_LPI, "--lpi");
     //singleArgCheck((void*)printDetail, PEBIL_OPT_DTL, "--dtl");
