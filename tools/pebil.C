@@ -37,7 +37,7 @@ void printDone(){
 void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\n");
     fprintf(stderr,"usage : pebil\n");
-    fprintf(stderr,"\t{tool selection} (only use one)\n");
+    fprintf(stderr,"\t{tool selection} (use exactly one)\n");
     fprintf(stderr,"\t\t--tool <ClassName> : provide the name of an arbitrary instrumentation tool (eg. `--tool BasicBlockCounter' is identical to `--typ jbb')\n");
     fprintf(stderr,"\t\t--typ <ide|jbb|sim|csc> : selects pre-made instrumentation tool\n");
     fprintf(stderr,"\t{executable selection} (at least one required)\n");
