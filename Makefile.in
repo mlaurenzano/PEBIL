@@ -31,7 +31,6 @@ install:
 
 depend:
 	$(MAKE) -C src depend
-	$(MAKE) -C instcode depend
 	$(MAKE) -C tools depend
 
 check:

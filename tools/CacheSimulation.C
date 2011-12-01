@@ -211,12 +211,6 @@ void CacheSimulation::filterBBs(){
     delete[] bbs;
 }
 
-bool CacheSimulation::checkArgs(){
-    if (inputFile == NULL){
-        PRINT_ERROR("argument --inp required for %s", briefName());
-    }
-}
-
 CacheSimulation::CacheSimulation(ElfFile* elf)
     : InstrumentationTool(elf)
 {

@@ -39,7 +39,8 @@ public:
 
     const char* briefName() { return "FunctionCounter"; }
     const char* defaultExtension() { return "fncinst"; }
-    bool checkArgs() { return true; }
+    uint32_t allowsArgs() { return PEBIL_OPT_NON; }
+    uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
 
 

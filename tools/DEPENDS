@@ -1,6 +1,161 @@
-BasicBlockCounter.o: BasicBlockCounter.C
-CacheSimulation.o: CacheSimulation.C
-CallReplace.o: CallReplace.C
-FunctionCounter.o: FunctionCounter.C
-FunctionTimer.o: FunctionTimer.C
-ThrottleLoop.o: ThrottleLoop.C
+BasicBlockCounter.o: BasicBlockCounter.C BasicBlockCounter.h \
+ ../include/InstrumentationTool.h ../include/ElfFileInst.h \
+ ../include/Base.h ../include/CStructuresElf.h \
+ ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+ ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+ ../include/defines/ProgramHeader.d ../include/X86Instruction.h \
+ ../include/AddressAnchor.h ../include/BitSet.h ../include/LinkedList.h \
+ ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/extern.h \
+ ../external/udis86-1.7/libudis86/itab.h \
+ ../include/defines/X86Instruction.d ../include/Instrumentation.h \
+ ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+ ../include/TextSection.h ../include/SymbolTable.h \
+ ../include/defines/SymbolTable.d ../include/X86InstructionFactory.h \
+ ../include/LineInformation.h ../include/defines/LineInformation.d \
+ ../include/Loop.h
+CacheSimulation.o: CacheSimulation.C CacheSimulation.h \
+ ../include/InstrumentationTool.h ../include/ElfFileInst.h \
+ ../include/Base.h ../include/CStructuresElf.h \
+ ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+ ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+ ../include/defines/ProgramHeader.d ../include/X86Instruction.h \
+ ../include/AddressAnchor.h ../include/BitSet.h ../include/LinkedList.h \
+ ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/extern.h \
+ ../external/udis86-1.7/libudis86/itab.h \
+ ../include/defines/X86Instruction.d ../include/Instrumentation.h \
+ ../include/SimpleHash.h ../instcode/DFPattern.h ../include/BasicBlock.h \
+ ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
+ ../include/SymbolTable.h ../include/defines/SymbolTable.d \
+ ../include/X86InstructionFactory.h ../include/LineInformation.h \
+ ../include/defines/LineInformation.d ../include/Loop.h
+CallReplace.o: CallReplace.C CallReplace.h \
+ ../include/InstrumentationTool.h ../include/ElfFileInst.h \
+ ../include/Base.h ../include/CStructuresElf.h \
+ ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+ ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+ ../include/defines/ProgramHeader.d ../include/X86Instruction.h \
+ ../include/AddressAnchor.h ../include/BitSet.h ../include/LinkedList.h \
+ ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/extern.h \
+ ../external/udis86-1.7/libudis86/itab.h \
+ ../include/defines/X86Instruction.d ../include/Instrumentation.h \
+ ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+ ../include/TextSection.h ../include/SymbolTable.h \
+ ../include/defines/SymbolTable.d ../include/LineInformation.h \
+ ../include/defines/LineInformation.d ../include/X86InstructionFactory.h
+Classification.o: Classification.C Classification.h \
+ ../include/InstrumentationTool.h ../include/ElfFileInst.h \
+ ../include/Base.h ../include/CStructuresElf.h \
+ ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+ ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+ ../include/defines/ProgramHeader.d ../include/X86Instruction.h \
+ ../include/AddressAnchor.h ../include/BitSet.h ../include/LinkedList.h \
+ ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/extern.h \
+ ../external/udis86-1.7/libudis86/itab.h \
+ ../include/defines/X86Instruction.d ../include/Instrumentation.h \
+ ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+ ../include/TextSection.h ../include/SymbolTable.h \
+ ../include/defines/SymbolTable.d ../include/X86InstructionFactory.h \
+ ../include/LineInformation.h ../include/defines/LineInformation.d
+FunctionCounter.o: FunctionCounter.C FunctionCounter.h \
+ ../include/InstrumentationTool.h ../include/ElfFileInst.h \
+ ../include/Base.h ../include/CStructuresElf.h \
+ ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+ ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+ ../include/defines/ProgramHeader.d ../include/X86Instruction.h \
+ ../include/AddressAnchor.h ../include/BitSet.h ../include/LinkedList.h \
+ ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/extern.h \
+ ../external/udis86-1.7/libudis86/itab.h \
+ ../include/defines/X86Instruction.d ../include/Instrumentation.h \
+ ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+ ../include/TextSection.h ../include/SymbolTable.h \
+ ../include/defines/SymbolTable.d ../include/LineInformation.h \
+ ../include/defines/LineInformation.d ../include/Loop.h \
+ ../include/X86InstructionFactory.h
+FunctionTimer.o: FunctionTimer.C FunctionTimer.h \
+ ../include/InstrumentationTool.h ../include/ElfFileInst.h \
+ ../include/Base.h ../include/CStructuresElf.h \
+ ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+ ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+ ../include/defines/ProgramHeader.d ../include/X86Instruction.h \
+ ../include/AddressAnchor.h ../include/BitSet.h ../include/LinkedList.h \
+ ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/extern.h \
+ ../external/udis86-1.7/libudis86/itab.h \
+ ../include/defines/X86Instruction.d ../include/Instrumentation.h \
+ ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+ ../include/TextSection.h ../include/SymbolTable.h \
+ ../include/defines/SymbolTable.d ../include/X86InstructionFactory.h
+RareEventCounter.o: RareEventCounter.C RareEventCounter.h \
+ ../include/InstrumentationTool.h ../include/ElfFileInst.h \
+ ../include/Base.h ../include/CStructuresElf.h \
+ ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+ ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+ ../include/defines/ProgramHeader.d ../include/X86Instruction.h \
+ ../include/AddressAnchor.h ../include/BitSet.h ../include/LinkedList.h \
+ ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/extern.h \
+ ../external/udis86-1.7/libudis86/itab.h \
+ ../include/defines/X86Instruction.d ../include/Instrumentation.h \
+ ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+ ../include/TextSection.h ../include/SymbolTable.h \
+ ../include/defines/SymbolTable.d ../include/X86InstructionFactory.h \
+ ../include/LineInformation.h ../include/defines/LineInformation.d \
+ ../include/Loop.h
+ThrottleLoop.o: ThrottleLoop.C ThrottleLoop.h \
+ ../include/InstrumentationTool.h ../include/ElfFileInst.h \
+ ../include/Base.h ../include/CStructuresElf.h \
+ ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+ ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+ ../include/defines/ProgramHeader.d ../include/X86Instruction.h \
+ ../include/AddressAnchor.h ../include/BitSet.h ../include/LinkedList.h \
+ ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/extern.h \
+ ../external/udis86-1.7/libudis86/itab.h \
+ ../include/defines/X86Instruction.d ../include/Instrumentation.h \
+ ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
+ ../include/TextSection.h ../include/SymbolTable.h \
+ ../include/defines/SymbolTable.d ../include/LineInformation.h \
+ ../include/defines/LineInformation.d ../include/Loop.h \
+ ../include/X86InstructionFactory.h
+pebil.o: pebil.C ../include/Base.h ../include/CStructuresElf.h \
+ ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
+ ../include/InstrumentationTool.h ../include/ElfFileInst.h \
+ ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+ ../include/defines/ProgramHeader.d ../include/X86Instruction.h \
+ ../include/AddressAnchor.h ../include/BitSet.h ../include/LinkedList.h \
+ ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
+ ../external/udis86-1.7/libudis86/types.h \
+ ../external/udis86-1.7/libudis86/extern.h \
+ ../external/udis86-1.7/libudis86/itab.h \
+ ../include/defines/X86Instruction.d ../include/Instrumentation.h

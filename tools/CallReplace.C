@@ -41,15 +41,6 @@ extern "C" {
     }
 }
 
-bool CallReplace::checkArgs(){
-    if (inputFile == NULL){
-        PRINT_ERROR("argument --inp required for %s", briefName());
-    }
-    if (trackFile == NULL){
-        PRINT_ERROR("argument --trk required for %s", briefName());
-    }
-}
-
 CallReplace::~CallReplace(){
     for (uint32_t i = 0; i < (*functionList).size(); i++){
         delete[] (*functionList)[i];

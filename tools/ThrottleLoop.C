@@ -47,18 +47,6 @@ extern "C" {
     }
 }
 
-bool ThrottleLoop::checkArgs(){
-    if (inputFile == NULL){
-        PRINT_ERROR("argument --inp required for %s", briefName());
-    }
-    if (trackFile == NULL){
-        PRINT_ERROR("argument --trk required for %s", briefName());
-    }
-    if (libraryList == NULL){
-        PRINT_ERROR("argument --lnc required for %s", briefName());
-    }
-}
-
 ThrottleLoop::~ThrottleLoop(){
     for (uint32_t i = 0; i < (*loopList).size(); i++){
         delete[] (*loopList)[i];

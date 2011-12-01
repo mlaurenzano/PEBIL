@@ -39,7 +39,8 @@ public:
 
     const char* briefName() { return "RareEventCounter"; }
     const char* defaultExtension() { return "recinst"; }
-    bool checkArgs() { return true; }
+    uint32_t allowsArgs() { return PEBIL_OPT_NON; }
+    uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
 
 

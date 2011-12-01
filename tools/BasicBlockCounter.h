@@ -39,8 +39,8 @@ public:
 
     const char* briefName() { return "BasicBlockCounter"; }
     const char* defaultExtension() { return "jbbinst"; }
-    bool checkArgs() { return true; }
+    uint32_t allowsArgs() { return PEBIL_OPT_LPI | PEBIL_OPT_DTL; }
+    uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
-
 
 #endif /* _BasicBlockCounter_h_ */

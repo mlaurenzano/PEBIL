@@ -28,17 +28,24 @@
 
 #define SUCCESS_MSG "******** Instrumentation Successfull ********"
 
-void printBriefOptions(bool detail){
+void printDone(){
+    PRINT_INFOR("");
+    PRINT_INFOR("******** DONE ******** SUCCESS ***** SUCCESS ***** SUCCESS ********");
+    PRINT_INFOR("");
+}
+
+void printUsage(bool shouldExt=true, bool optDetail=false) {
     fprintf(stderr,"\n");
-    fprintf(stderr,"Brief Descriptions for Options:\n");
-    fprintf(stderr,"===============================\n");
-    fprintf(stderr,"\t--help : print this help message\n");
-    fprintf(stderr,"\t--version : print version number and exit\n");
-    fprintf(stderr,"\t--silent : supress all non-critical messages\n");
-    fprintf(stderr,"\t--typ : required for all.\n");
-    fprintf(stderr,"\t--app : required for all.\n");
-    fprintf(stderr,"\t--inf : optional for all. prints informative details about parts of the application binary.\n");
-    if (detail){
+    fprintf(stderr,"usage : pebil\n");
+    fprintf(stderr,"\t{tool selection} (only use one)\n");
+    fprintf(stderr,"\t\t--tool <ClassName> : provide the name of an arbitrary instrumentation tool (eg. `--tool BasicBlockCounter' is identical to `--typ jbb')\n");
+    fprintf(stderr,"\t\t--typ <ide|jbb|sim|csc> : selects pre-made instrumentation tool\n");
+    fprintf(stderr,"\t{executable selection} (at least one required)\n");
+    fprintf(stderr,"\t\t--app <executable/path> : executable to instrument\n");
+    fprintf(stderr,"\t\t<path/to/app1> <path/to/app2> (TODO)\n");
+    fprintf(stderr,"\t{pebil options} (affect all tools)\n");
+    fprintf(stderr,"\t\t[--inf [a-z]*] : print details about application binary\n");
+    if (false){
         fprintf(stderr,"\t      : a : all parts of the application\n");
         fprintf(stderr,"\t      : b : <none>\n");
         fprintf(stderr,"\t      : c : full instruction printing (implies disassembly)\n");
@@ -66,56 +73,25 @@ void printBriefOptions(bool detail){
         fprintf(stderr,"\t      : y : dynamic table\n");
         fprintf(stderr,"\t      : z : <none>\n");   
     }
-    fprintf(stderr,"\t--dry : optional for all. processes options only.\n");
-    fprintf(stderr,"\t--lib : (deprecated) optional for all. shared library directory.\n");
-    fprintf(stderr,"\t        default is $PEBIL_ROOT/lib\n");
-    fprintf(stderr,"\t--fbl : optional for all. input file which lists blacklisted functions. if first line of file is '*\\n', this is treated as a whitelist\n");
-    fprintf(stderr,"\t        default is %s\n", DEFAULT_FUNC_BLACKLIST);
-    fprintf(stderr,"\t--ext : optional for all. default is (typ)inst, such as\n");
-    fprintf(stderr,"\t        jbbinst for type jbb.\n");
-    fprintf(stderr,"\t--dtl : detailed .static file with lineno and filenames\n");
-    fprintf(stderr,"\t        DEPRECATED: ALWAYS ON BY DEFAULT\n");
-    fprintf(stderr,"\t--inp : required for sim/csc and thr/crp.\n");
-    fprintf(stderr,"\t--lpi : optional for sim/csc. loop level block inclusion for\n");
-    fprintf(stderr,"\t        cache simulation. default is no.\n");
-    fprintf(stderr,"\t--phs : optional for sim/csc. phase number. defaults to no phase,\n"); 
-    fprintf(stderr,"\t        otherwise, .phase.N. is included in output file names\n");
-    fprintf(stderr,"\t--trk : required for crp. input file which lists the functions to track\n");
-    fprintf(stderr,"\t--lnc : required for crp. list of shared libraries to use, comma seperated\n");
-    fprintf(stderr,"\t--dmp : optional for sim/csc. dump the address stream to disk.\n");
-    fprintf(stderr,"\t        default is off");
-    fprintf(stderr,"\t--dfp : optional for sim/csc. dfpattern file. defaults to no dfpattern file,\n");
-    fprintf(stderr,"\t--doi : optional for crp. whether to call intro/exit functions. default is no\n");
-    fprintf(stderr,"\t--allow-static : optional for all. allows pebil to try to instrument static-linked binary. default is no\n");
-    fprintf(stderr,"\n");
-}
-
-void printUsage(bool shouldExt=true, bool optDetail=false) {
-    fprintf(stderr,"\n");
-    fprintf(stderr,"usage : pebil\n");
-    fprintf(stderr,"\t--typ (ide|fnc|jbb|rec|sim|bin|csc|ftm|crp|thr)\n");
-    fprintf(stderr,"\t--app <executable_path>\n");
-    fprintf(stderr,"\t[--inp <block_unique_ids>]    <-- valid for sim/csc and thr/crp\n");
-    fprintf(stderr,"\t[--inf [a-z]*]\n");
-    fprintf(stderr,"\t[--lib (deprecated) <shared_lib_dir>]\n");
-    fprintf(stderr,"\t\tdefault is $PEBIL_ROOT/lib\n");
-    fprintf(stderr,"\t[--ext <output_suffix>]\n");
-    fprintf(stderr,"\t[--dtl]\n");
-    fprintf(stderr,"\t[--fbl file]\n");
-    fprintf(stderr,"\t[--lpi]                     <-- valid for sim/csc\n");
-    fprintf(stderr,"\t[--phs <phase_no>]          <-- valid for sim/csc\n");
-    fprintf(stderr,"\t[--trk file]                <-- required for crp and thr\n");
-    fprintf(stderr,"\t[--lnc <lib_list>]          <-- required for crp and thr\n");
-    fprintf(stderr,"\t[--dfp <pattern_file>]      <-- valid for sim/csc\n");
-    fprintf(stderr,"\t[--dmp (off|on|nosim)]      <-- valid for sim/csc\n");
-    fprintf(stderr,"\t[--doi]                     <-- valid for crp\n");
-    fprintf(stderr,"\t[--allow-static]\n");
-    fprintf(stderr,"\t[--help]\n");
-    fprintf(stderr,"\t[--version]\n");
-    fprintf(stderr,"\t[--silent]\n");
+    fprintf(stderr,"\t\t[--lib <shared_lib_dir>] : DEPRECATED, kept for compatibility\n");
+    fprintf(stderr,"\t\t[--fbl <file/containing/function/list>] : list of functions to exclude from instrumentaiton (default is %s)\n", DEFAULT_FUNC_BLACKLIST);
+    fprintf(stderr,"\t\t[--ext <output_suffix>] : override default file extension for instrumented executable\n");
+    fprintf(stderr,"\t\t[--lnc <lib1.so,lib2.so>] : list of shared libraries to put in executable's dynamic table\n");
+    fprintf(stderr,"\t\t[--allow-static] : allow static-linked executable\n");
+    fprintf(stderr,"\t\t[--help] : print help message and exit\n");
+    fprintf(stderr,"\t\t[--version] : print version number and exit\n");
+    fprintf(stderr,"\t\t[--silent] : print nothing to stdout\n");
+    fprintf(stderr,"\t{tool options} (each tool decides if/how to use these)\n");
+    fprintf(stderr,"\t\t[--inp <input/file>] : path to an input file\n");
+    fprintf(stderr,"\t\t[--dtl] : DEPRECATED (always on), kepy for compatibility\n");
+    fprintf(stderr,"\t\t[--lpi] : include loop-level analysis\n");
+    fprintf(stderr,"\t\t[--doi] : do special initialization\n");
+    fprintf(stderr,"\t\t[--phs <phase_no>] : phase number\n");
+    fprintf(stderr,"\t\t[--trk <tracking/file>] : path to a tracking file\n");
+    fprintf(stderr,"\t\t[--dfp <pattern/file>] : path to pattern file\n");
+    fprintf(stderr,"\t\t[--dmp <off|on|nosim>] : DEPRECATED, kept for compatibility\n");
     fprintf(stderr,"\n");
     if(shouldExt){
-        printBriefOptions(optDetail);
         exit(-1);
     }
 }
@@ -187,13 +163,7 @@ typedef enum {
     unknown_inst_type = 0,
     identical_inst_type,
     frequency_inst_type,
-    rare_event_type,
     simulation_inst_type,
-    classification_inst_type,
-    function_counter_type,
-    func_timer_type,
-    call_wrapper_type,
-    throttle_loop_type,
     Total_InstrumentationType
 } InstrumentationType;
 
@@ -202,13 +172,7 @@ static char* ToolNames[Total_InstrumentationType] = {
     INVALID_LIB_NAME,
     INVALID_LIB_NAME,
     "BasicBlockCounter",
-    "RareEventCounter",
-    "CacheSimulation",
-    "Classification",
-    "FunctionCounter",
-    "FunctionTimer",
-    "CallReplace",
-    "ThrottleLoop"
+    "CacheSimulation"
 };
 
 int main(int argc,char* argv[]){
@@ -270,24 +234,12 @@ int main(int argc,char* argv[]){
             if (!strcmp(argv[i],"ide")){
                 instType = identical_inst_type;
                 extension = "ideinst";
-            } else if (!strcmp(argv[i],"fnc")){
-                instType = function_counter_type;
             } else if (!strcmp(argv[i],"jbb")){
                 instType = frequency_inst_type;
-            } else if (!strcmp(argv[i],"rec")){
-                instType = rare_event_type;
             } else if (!strcmp(argv[i],"sim")){
                 instType = simulation_inst_type;
             } else if (!strcmp(argv[i],"csc")){
                 instType = simulation_inst_type;
-            } else if (!strcmp(argv[i],"bin")){
-                instType = classification_inst_type;
-            } else if (!strcmp(argv[i],"ftm")){
-                instType = func_timer_type;
-            } else if (!strcmp(argv[i],"crp")){
-                instType = call_wrapper_type;
-            } else if (!strcmp(argv[i],"thr")){
-                instType = throttle_loop_type;
             }
         } else if (!strcmp(argv[i],"--help")){
             printUsage(true, true);
@@ -387,7 +339,7 @@ int main(int argc,char* argv[]){
         } else if (!strcmp(argv[i],"--dmp")){
             if (dumpCode != Total_DumpCode){
                 fprintf(stderr,"\nError : Option %d already given\n",argv[i]);
-                printUsage(argv);
+                printUsage();
             }
             ++i;
             if (!strcmp(argv[i],"off")){
@@ -398,7 +350,7 @@ int main(int argc,char* argv[]){
                 dumpCode = dumpcode_nosim;
             } else {
                 fprintf(stderr,"\nError : Option %s given to --dmp is invalid\n",argv[i]);
-                printUsage(argv);
+                printUsage();
             }
         } else if (!strcmp(argv[i],"--silent")){
             runSilent = true;
@@ -418,9 +370,8 @@ int main(int argc,char* argv[]){
         printUsage();
     }
 
-    ASSERT(instType == simulation_inst_type || phaseNo == 0);
-    if (instType == simulation_inst_type){
-        ASSERT(!phaseNo || phaseNo == 1 && "Error : Support for multiple phases is deprecated");
+    if (phaseNo > 1){
+        PRINT_ERROR("Error : Support for multiple phases is deprecated");
     }
 
     if (runSilent){
@@ -449,6 +400,13 @@ int main(int argc,char* argv[]){
     TIMER(double t1 = timer(), t2);
 
     ElfFile elfFile(execName, appName);
+    InstrumentationTool* instTool = NULL;
+    void *libHandle = NULL;
+
+    if (instType > unknown_inst_type && instType < Total_InstrumentationType){
+        toolName = ToolNames[instType];
+    }
+
     elfFile.parse();
 
     if (!inputFuncList){
@@ -481,21 +439,19 @@ int main(int argc,char* argv[]){
     elfFile.verify();
     TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Verify  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
-    InstrumentationTool* instTool = NULL;
-
     if (instType == identical_inst_type){
         elfFile.dump(extension);
-        PRINT_INFOR(SUCCESS_MSG);
+        PRINT_INFOR("Dumping identical binary from stored executable information");
+        printDone();
         return 0;
-    } else if (instType > unknown_inst_type && instType < Total_InstrumentationType){
-        toolName = ToolNames[instType];
     }
+
     char toolLibName[__MAX_STRING_SIZE];
     char toolConstructor[__MAX_STRING_SIZE];
     sprintf(toolLibName, "lib%sTool.so\0", toolName);
     sprintf(toolConstructor, "%sMaker", toolName);
-
-    void *libHandle = dlopen(toolLibName, RTLD_NOW);
+    
+    libHandle = dlopen(toolLibName, RTLD_NOW);
     if(libHandle == NULL){
         PRINT_ERROR("cannot open tool library %s, it needs to be in your LD_LIBRARY_PATH", toolLibName);
         exit(1);
@@ -506,17 +462,16 @@ int main(int argc,char* argv[]){
         exit(1);
     }
     instTool = reinterpret_cast<InstrumentationTool*(*)(ElfFile*)>(maker)(&elfFile);
+    PRINT_INFOR("%s %s", toolName, instTool->briefName());
     ASSERT(!strcmp(toolName, instTool->briefName()) && "name yielded by briefName does not match tool name");
-
-    dlclose(libHandle);
-
+    
     if (libList){
         instTool->setLibraryList(libList);
     }
-
+    
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     ASSERT(instTool);
-
+    
     if (inputFuncList){
         instTool->setInputFunctions(inputFuncList);
     }
@@ -524,12 +479,14 @@ int main(int argc,char* argv[]){
         instTool->setAllowStatic();
     }
     
-    instTool->init(phaseNo, extension, loopIncl, extdPrnt, inptName, dfpName, inputTrackList, doIntro);
-    if (!instTool->checkArgs()){
+    instTool->init(extension);
+    instTool->initToolArgs(phaseNo, loopIncl, extdPrnt, inptName, dfpName, inputTrackList, doIntro);
+    if (!instTool->verifyArgs()){
         fprintf(stderr,"\nError : Argument missing/incorrect\n\n");
         printUsage();
     }
 
+    ASSERT(instTool);
     instTool->phasedInstrumentation();
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
     instTool->print(Print_Code_Instrumentation);
@@ -549,6 +506,7 @@ int main(int argc,char* argv[]){
     }
 
     delete instTool;
+    dlclose(libHandle);
 
     if (deleteInpList){
         delete[] inputFuncList;
@@ -560,9 +518,7 @@ int main(int argc,char* argv[]){
 
     TIMER(t = timer()-t;PRINT_INFOR("___timer: Total Execution Time          : %.2f seconds",t););
 
-    PRINT_INFOR("");
-    PRINT_INFOR("******** DONE ******** SUCCESS ***** SUCCESS ***** SUCCESS ********");
-    PRINT_INFOR("");
+    printDone();
 
     if (runSilent){
         fclose(pebilOutp);

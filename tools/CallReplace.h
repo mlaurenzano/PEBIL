@@ -49,7 +49,8 @@ public:
 
     const char* briefName() { return "CallReplace"; }
     const char* defaultExtension() { return "crpinst"; }
-    bool checkArgs();
+    uint32_t allowsArgs() { return PEBIL_OPT_NON; }
+    uint32_t requiresArgs() { return PEBIL_OPT_INP | PEBIL_OPT_TRK; }
 };
 
 

@@ -41,8 +41,8 @@ public:
 
     const char* briefName() { return "Classification"; }
     const char* defaultExtension() { return "bininst"; }
-    bool checkArgs() { return true; }
+    uint32_t allowsArgs() { return PEBIL_OPT_NON; }
+    uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
-
 
 #endif /* _Classification_h_ */

@@ -43,6 +43,7 @@ typedef struct
 class InstrumentationTool : public ElfFileInst {
 private:
     char* extension;
+    bool singleArgCheck(void* arg, uint32_t mask, const char* name);
 
 protected:
     void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize);
@@ -62,11 +63,22 @@ protected:
     char* trackFile;
     bool doIntro;
 
+#define PEBIL_OPT_ALL 0xffffffff
+#define PEBIL_OPT_NON 0x00000000
+#define PEBIL_OPT_PHS 0x00000001
+#define PEBIL_OPT_LPI 0x00000002
+#define PEBIL_OPT_DTL 0x00000004
+#define PEBIL_OPT_INP 0x00000008
+#define PEBIL_OPT_DFP 0x00000010
+#define PEBIL_OPT_TRK 0x00000020
+#define PEBIL_OPT_DOI 0x00000040
+
 public:
     InstrumentationTool(ElfFile* elf);
     virtual ~InstrumentationTool() { }
 
-    void init(uint32_t phase, char* ext, bool lpi, bool dtl, char* inp, char* dfp, char* trk, bool doi);
+    void init(char* ext);
+    void initToolArgs(uint32_t phase, bool lpi, bool dtl, char* inp, char* dfp, char* trk, bool doi);
 
     virtual void declare();
     virtual void instrument();
@@ -75,7 +87,9 @@ public:
     virtual const char* briefName() { __SHOULD_NOT_ARRIVE; }
     virtual const char* defaultExtension() { __SHOULD_NOT_ARRIVE; }
     const char* getExtension();
-    virtual bool checkArgs() { __SHOULD_NOT_ARRIVE; }
+    bool verifyArgs();
+    virtual uint32_t allowsArgs() { return PEBIL_OPT_ALL; }
+    virtual uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
 
 

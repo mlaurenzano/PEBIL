@@ -51,7 +51,8 @@ public:
 
     const char* briefName() { return "ThrottleLoop"; }
     const char* defaultExtension() { return "thrinst"; }
-    bool checkArgs();
+    uint32_t allowsArgs() { return PEBIL_OPT_NON; }
+    uint32_t requiresArgs() { return PEBIL_OPT_INP | PEBIL_OPT_TRK; }
 };
 
 

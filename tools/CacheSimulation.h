@@ -54,7 +54,8 @@ public:
 
     const char* briefName() { return "CacheSimulation"; }
     const char* defaultExtension() { return "siminst"; }
-    bool checkArgs();
+    uint32_t allowsArgs() { return PEBIL_OPT_LPI | PEBIL_OPT_DTL | PEBIL_OPT_PHS | PEBIL_OPT_DFP; }
+    uint32_t requiresArgs() { return PEBIL_OPT_INP; }
 };
 
 

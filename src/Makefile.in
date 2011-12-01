@@ -11,67 +11,11 @@ LIBDIR      = ../lib
 EXTDIR      = ../external
 INCLUDE     = -I../include -I$(EXTDIR)/udis86-1.7/
 
-SRCS  = AddressAnchor.C \
-	Base.C \
-	BasicBlock.C \
-	BinaryFile.C \
-	DynamicTable.C \
-	DwarfSection.C \
-	ElfFile.C \
-	ElfFileInst.C \
-	FileHeader.C \
-	FlowGraph.C \
-	Function.C \
-	GlobalOffsetTable.C \
-	GnuVersion.C \
-	HashTable.C \
-	Instrumentation.C \
-	InstrumentationTool.C \
-	LengauerTarjan.C \
-	LineInformation.C \
-	Loop.C \
-	MemTrack.C \
-	NoteSection.C \
-	ProgramHeader.C \
-	RawSection.C \
-	RelocationTable.C \
-	SectionHeader.C \
-	StringTable.C \
-	SymbolTable.C \
-	TextSection.C \
-	X86Instruction.C \
-	X86InstructionFactory.C
 
-OBJS  = AddressAnchor.o \
-	Base.o \
-	BasicBlock.o \
-	BinaryFile.o \
-	DynamicTable.o \
-	DwarfSection.o \
-	ElfFile.o \
-	ElfFileInst.o \
-	FileHeader.o \
-	FlowGraph.o \
-	Function.o \
-	GlobalOffsetTable.o \
-	GnuVersion.o \
-	HashTable.o \
-	Instrumentation.o \
-	InstrumentationTool.o \
-	LengauerTarjan.o \
-	LineInformation.o \
-	Loop.o \
-	MemTrack.o \
-	NoteSection.o \
-	ProgramHeader.o \
-	RawSection.o \
-	RelocationTable.o \
-	SectionHeader.o \
-	StringTable.o \
-	SymbolTable.o \
-	TextSection.o \
-	X86Instruction.o \
-	X86InstructionFactory.o
+NAMES = AddressAnchor Base BasicBlock BinaryFile DynamicTable DwarfSection ElfFile ElfFileInst FileHeader FlowGraph Function GlobalOffsetTable GnuVersion HashTable Instrumentation InstrumentationTool LengauerTarjan LineInformation Loop MemTrack NoteSection ProgramHeader RawSection RelocationTable SectionHeader StringTable SymbolTable TextSection X86Instruction X86InstructionFactory
+
+SRCS = $(foreach var,$(NAMES),$(var).C)
+OBJS = $(foreach var,$(NAMES),$(var).o)
 
 TARGETS  = libpebilinst.so 
 
@@ -81,7 +25,7 @@ libpebilinst.so: $(OBJS)
 	$(CXX) $(SHARED_LIB) -o $@ $(OBJS)
 
 %.o: %.C
-	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(SHARED_OPT) -c -o $@ $< $(INCLUDE)
+	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(SHARED_OPT) $(INCLUDE) -c -o $@ $<
 
 clean: 
 	rm -f *inst core *.o *.ii *.s $(TARGETS)

@@ -37,6 +37,33 @@
 
 #define MAX_DEF_USE_DIST_PRINT 1024
 
+bool InstrumentationTool::singleArgCheck(void* arg, uint32_t mask, const char* name){
+    if (arg == NULL &&
+        (requiresArgs() & mask)){
+        PRINT_ERROR("Argument required by %s: %s", briefName(), name);
+        return false;
+    }
+    uint32_t allowed = requiresArgs() | allowsArgs();
+    if (arg != NULL &&
+        !(allowed & mask)){
+        PRINT_ERROR("Argument not allowed by %s: %s", briefName(), name);
+        return false;
+    }
+    return true;
+}
+
+bool InstrumentationTool::verifyArgs(){
+    PRINT_INFOR("Checking args: allowed %#08x, requires %#08x", allowsArgs(), requiresArgs());
+    singleArgCheck((void*)phaseNo, PEBIL_OPT_PHS, "--phs");
+    singleArgCheck((void*)loopIncl, PEBIL_OPT_LPI, "--lpi");
+    //singleArgCheck((void*)printDetail, PEBIL_OPT_DTL, "--dtl");
+    singleArgCheck((void*)inputFile, PEBIL_OPT_INP, "--inp");
+    singleArgCheck((void*)dfpFile, PEBIL_OPT_DFP, "--dfp");
+    singleArgCheck((void*)trackFile, PEBIL_OPT_TRK, "--trk");
+    singleArgCheck((void*)doIntro, PEBIL_OPT_DOI, "--doi");
+    return true;
+}
+
 const char* InstrumentationTool::getExtension(){
     if (extension){
         return extension;
@@ -44,9 +71,12 @@ const char* InstrumentationTool::getExtension(){
     return defaultExtension();
 }
 
-void InstrumentationTool::init(uint32_t phase, char* ext, bool lpi, bool dtl, char* inp, char* dfp, char* trk, bool doi){
-    phaseNo = phase;
+void InstrumentationTool::init(char* ext){
     extension = ext;
+}
+
+void InstrumentationTool::initToolArgs(uint32_t phase, bool lpi, bool dtl, char* inp, char* dfp, char* trk, bool doi){
+    phaseNo = phase;
     loopIncl = lpi;
     printDetail = dtl;
     inputFile = inp;

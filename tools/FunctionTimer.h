@@ -42,7 +42,8 @@ public:
 
     const char* briefName() { return "FunctionTimer"; }
     const char* defaultExtension() { return "ftminst"; }
-    bool checkArgs() { return true; }
+    uint32_t allowsArgs() { return PEBIL_OPT_NON; }
+    uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
 
 

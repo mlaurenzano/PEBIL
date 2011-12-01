@@ -21,11 +21,11 @@ LIBS = $(foreach var,$(TOOLS),lib$(var)Tool.so)
 
 all: $(LIBS) $(TARGETS)
 
-pebil :	$(OBJS) pebil.o
-	$(CXX) $(CXXFLAGS) -o $@ pebil.o $(OBJS) $(EXTRA_INC) $(EXTRA_LIBS)
+pebil :	pebil.o
+	$(CXX) $(CXXFLAGS) -o $@ pebil.o $(EXTRA_INC) $(EXTRA_LIBS)
 
 %.o: %.C
-	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) -c -o $@ $< $(EXTRA_INC)
+	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_INC) -c -o $@ $<
 
 lib%Tool.so: %.o
 	$(CXX) $(SHARED_LIB) -o $@ $<
@@ -34,7 +34,7 @@ clean:
 	rm -f *inst *.static core *.o *.ii *.s *.so $(TARGETS)
 
 depend:
-	g++ -E -MM $(INCLUDE) $(SRCS) > DEPENDS
+	g++ -E -MM $(EXTRA_INC) $(SRCS) pebil.C > DEPENDS
 
 install: $(TARGETS) $(LIBS)
 	cp $(TARGETS) $(BINDIR)
