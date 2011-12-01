@@ -78,7 +78,7 @@ public:
     virtual ~InstrumentationTool() { }
 
     void init(char* ext);
-    void initToolArgs(uint32_t phase, bool lpi, bool dtl, char* inp, char* dfp, char* trk, bool doi);
+    void initToolArgs(bool lpi, bool dtl, bool doi, uint32_t phase, char* inp, char* dfp, char* trk);
 
     virtual void declare();
     virtual void instrument();

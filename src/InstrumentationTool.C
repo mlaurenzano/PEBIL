@@ -74,14 +74,14 @@ void InstrumentationTool::init(char* ext){
     extension = ext;
 }
 
-void InstrumentationTool::initToolArgs(uint32_t phase, bool lpi, bool dtl, char* inp, char* dfp, char* trk, bool doi){
-    phaseNo = phase;
+void InstrumentationTool::initToolArgs(bool lpi, bool dtl, bool doi, uint32_t phase, char* inp, char* dfp, char* trk){
     loopIncl = lpi;
     printDetail = dtl;
+    doIntro = doi;
+    phaseNo = phase;
     inputFile = inp;
     dfpFile = dfp;
     trackFile = trk;
-    doIntro = doi;
 }
 
 InstrumentationTool::InstrumentationTool(ElfFile* elf)

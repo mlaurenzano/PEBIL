@@ -1272,7 +1272,7 @@ bool ElfFileInst::verify(){
         return false;
     }
     if (!allowStatic && elfFile->isStaticLinked()){
-        PRINT_ERROR("Static-linked binaries can usually not be instrumented, use --allow-static to try to instrument anyway");
+        PRINT_ERROR("Static-linked binaries can usually not be instrumented, use --allowstatic to try to instrument anyway");
 	return false;
     }
 
