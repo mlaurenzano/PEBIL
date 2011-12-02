@@ -456,6 +456,9 @@ void LineInfo::updateRegsExtendedOpcode(char* instruction){
     case DW_LNE_define_file:
         __FUNCTION_NOT_IMPLEMENTED;
         break;
+    case DW_LNE_set_discriminator:
+        PRINT_WARN(8, "DWARF4 not yet implemented... ignoring DW_LNE_set_discriminator extended opcode in line information");
+        break;
     default:
         PRINT_ERROR("This extended opcode %02hhx is not defined in the dwarf standard", opcode);
         break;
