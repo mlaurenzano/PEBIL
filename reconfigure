@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+prg=$0
+config_log="config.log"
+config_script="./configure"
+
+function print_err(){
+    echo $1 1>&2
+}
+
+function print_usage(){
+    if [ "$1" != "" ]; then
+        print_err $1
+    fi
+    print_err "usage: $prg"
+    exit 1
+}
+
+if [ ! -f $config_script ]; then
+    print_usage "there is no script $config_script"
+fi
+
+if [ ! -f $config_log ]; then
+    print_usage "evidence that you already ran configure ($config_log) does not exist"
+fi
+
+config_args=`head $config_log | grep "./configure" | awk '{ for(i=3;i<=NF;i++){ printf $i " " }}'`
+
+cmd="$config_script $config_args"
+echo "$cmd"
+$cmd
