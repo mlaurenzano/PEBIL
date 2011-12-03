@@ -38,9 +38,7 @@ char* blockIsKilled;
 int32_t numberKilled;
 uint64_t* blockCounters;
 
-#ifndef STATS_PER_INSTRUCTION
 #define ENABLE_INSTRUMENTATION_KILL
-#endif
 //#define DEBUG_INST_KILL
 //#define PRINT_ADDRESS_STREAM
 
@@ -81,14 +79,20 @@ void disableInstrumentationPointsInBlock(BufferEntry* currentEntry){
     instpoint_info* ip;
     int i;
 
+#ifdef DEBUG_INST_KILL
+    PRINT_INSTR(stdout, "disabling for entry %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
+#endif
+
     int32_t killedPoints = 0;
     for (i = 0; i < numberOfInstrumentationPoints; i++){
         ip = (instpoint_info*)(instrumentationPoints + (i * sizeof(instpoint_info)));
+#ifdef DEBUG_INST_KILL
+        PRINT_INSTR(stdout, "\t\tchecking ipid %d vs. blockid %d", ip->pt_blockid, blockId);
+#endif
         if (ip->pt_blockid == blockId){
             int32_t size = ip->pt_size;
             int64_t vaddr = ip->pt_vaddr;
             char* program_point = (char*)vaddr;
-            
 #ifdef DEBUG_INST_KILL
             PRINT_INSTR(stdout, "\tkilling instrumentation for memop %d in block %d at %#llx", i, currentEntry->blockId, vaddr);
 #endif
@@ -849,7 +853,7 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
     }
 #endif
 
-    PRINT_INSTR(stdout,"MetaSim_endFuncCall(0x%p,%d,%s,%d)",base,*entryCountPtr,comment,entries->lastFreeIdx);
+    PRINT_INSTR(stdout,"MetaSim_endFuncCall(%p,%d,%s,%d)",base,*entryCountPtr,comment,entries->lastFreeIdx);
 
 #ifdef ENABLE_INSTRUMENTATION_KILL
     PRINT_INSTR(stdout, "Killed instrumentation in %d memory ops", numberKilled);

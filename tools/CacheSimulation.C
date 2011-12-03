@@ -599,7 +599,11 @@ void CacheSimulation::instrument(){
                             memInstPoints.append(pt);
                         }
                     }
+#ifdef STATS_PER_INSTRUCTION
+                    memInstBlockIds.append(memopId);
+#else //STATS_PER_INSTRUCTION
                     memInstBlockIds.append(blockId);
+#endif
                     memopIdInBlock++;
                 }
                 if (memopIdInBlock >= MAX_MEMOPS_PER_BLOCK){
