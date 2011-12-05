@@ -173,11 +173,77 @@ typedef struct {
 uint64_t* rareCounters = NULL;
 uint32_t numberOfRareCounters = 0;
 
+uint64_t* matchCounters = NULL;
+FILE* matchesFile = NULL;
+uint32_t currentMatchCount = 0;
+
+void reset_match_count(){
+    int i;
+    currentMatchCount = 0;
+    for (i = 0; i < numberOfRareCounters; i++){
+        if (rareCounters[i] == matchCounters[i]){
+            currentMatchCount++;
+        }
+    }
+}
+
+void check_counter_state(){
+    if (counters_match()){
+        PRINT_INSTR(stdout, "Found matching counter state!");
+        read_next_matches();
+        reset_match_count();
+    } else {
+        PRINT_INSTR(stderr, "Counters do not match!");
+        exit(1);
+    }
+}
+
+void init_matches(uint64_t* blockMatches, uint32_t* numMatches){
+    matchCounters = blockMatches;
+
+    PRINT_INSTR(stdout, "init_matches opening counter file counter.dump.0000");
+    matchesFile = fopen("counter.dump.0000", "rb");
+    if (matchesFile == NULL){
+        PRINT_INSTR(stderr, "Cannot open input file");
+        exit(1);
+    }
+
+    CounterDumpHeader_t header;
+    fread(&header, sizeof(CounterDumpHeader_t), 1, matchesFile);
+    if (header.magic != COUNTER_DUMP_MAGIC){
+        PRINT_INSTR(stderr, "Counter input file magic number incorrect: %x", header.magic);
+        exit(1);
+    }
+    if (header.counters != numberOfRareCounters){
+        PRINT_INSTR(stderr, "Counter input file counters (%d) should match tool (%d)", header.counters, numberOfRareCounters);
+        exit(1);
+    }
+
+    read_next_matches();
+}
+
+int counters_match(){
+    int i;
+    for (i = 0; i < numberOfRareCounters; i++){
+        if (matchCounters[i] != rareCounters[i]){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+void read_next_matches(){
+    fread(matchCounters, sizeof(uint64_t), numberOfRareCounters, matchesFile);
+    //print_64b_buffer(matchCounters, numberOfRareCounters, stdout, 'f');
+}
+
 int32_t initrare(int32_t* numBlocks, uint64_t* blockCounts){
-    rareCounters = blockCounts;
     numberOfRareCounters = *numBlocks;
     assert(numberOfRareCounters > 0);
 
+    rareCounters = blockCounts;
+
+    PRINT_INSTR(stdout, "initrare");
     define_user_sig_handlers();
     //tool_mpi_init();
 
@@ -352,4 +418,5 @@ void print_64b_buffer(uint64_t* b, uint32_t l, FILE* o, char d){
     for (j = 0; j < l; j++){
         fprintf(o, "%c%lld\t", d, b[j]);
     }
+    fflush(stdout);
 }

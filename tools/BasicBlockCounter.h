@@ -47,6 +47,12 @@ class RareEventCounter : public BasicBlockCounter {
 private:
     InstrumentationFunction* entryRare;
     InstrumentationFunction* exitRare;    
+
+    InstrumentationFunction* checkFunc;
+    InstrumentationFunction* checkInit;
+
+    void insertPointCheck(BasicBlock* bb, uint32_t checkIdx, uint64_t counterArray);
+
 public:
     RareEventCounter(ElfFile* elf);
     ~RareEventCounter() {}
@@ -56,7 +62,7 @@ public:
 
     const char* briefName() { return "RareEventCounter"; }
     const char* defaultExtension() { return "recinst"; }
-    uint32_t allowsArgs() { return PEBIL_OPT_INP; }
+    uint32_t allowsArgs() { return PEBIL_OPT_DOI; }
 };
 
 #endif /* _BasicBlockCounter_h_ */

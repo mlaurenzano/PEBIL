@@ -400,6 +400,8 @@ void BasicBlockCounter::instrument()
 
 #define ENTRY_RARE "initrare"
 #define EXIT_RARE "finirare"
+#define COMPARE_COUNTERS "check_counter_state"
+#define COMPARE_INIT "init_matches"
 
 #define FUNCTION_ICOUNT_THRESHOLD 0
 #define LOOP_ICOUNT_THRESHOLD 20
@@ -424,6 +426,14 @@ void RareEventCounter::declare(){
 
     entryRare = declareFunction(ENTRY_RARE);
     ASSERT(entryRare && "Cannot find entry function, are you sure it was declared?");
+
+    checkFunc = declareFunction(COMPARE_COUNTERS);
+    ASSERT(checkFunc);
+
+    checkFunc->assumeNoFunctionFP();
+
+    checkInit = declareFunction(COMPARE_INIT);
+    ASSERT(checkInit);
 }
 
 void RareEventCounter::instrument() 
@@ -438,43 +448,14 @@ void RareEventCounter::instrument()
         lineInfoFinder = getLineInfoFinder();
     }
 
-    Vector<BasicBlock*> rareBlocks;
-#ifdef COUNT_LOOP_ENTRY
-    Vector<Loop*> rareLoops;
-
     PRINT_INFOR("Identifying rare blocks/loops based on the following thresholds:");
+#ifdef COUNT_LOOP_ENTRY
     PRINT_INFOR("\t\tLOOP_ICOUNT_THRESHOLD %d", LOOP_ICOUNT_THRESHOLD);
+#endif
     PRINT_INFOR("\t\tFUNCTION_ICOUNT_THRESHOLD %d", FUNCTION_ICOUNT_THRESHOLD);
     PRINT_INFOR("\t\tBB_ICOUNT_THRESHOLD %d", BB_ICOUNT_THRESHOLD);
 
-    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
-        BasicBlock* bb = getExposedBasicBlock(i);
-        LineInfo* li = NULL;
-        if (lineInfoFinder){
-            li = lineInfoFinder->lookupLineInfo(bb);
-        }
-        Function* f = bb->getFunction();
-        if (li && bb->isInLoop()){
-            FlowGraph* fg = bb->getFlowGraph();
-            //Loop* outerMost = fg->getOuterMostLoopForLoop(fg->getInnermostLoopForBlock(bb->getIndex())->getIndex());
-            Loop* outerMost = fg->getInnermostLoopForBlock(bb->getIndex());
-
-            if (outerMost->getNumberOfInstructions() <= LOOP_ICOUNT_THRESHOLD){
-                continue;
-            }
-
-            bool loopAlreadyInstrumented = false;
-            for (uint32_t i = 0; i < rareLoops.size(); i++){
-                if (outerMost->isIdenticalLoop(rareLoops[i])){
-                    loopAlreadyInstrumented = true;
-                }
-            }
-            if (!loopAlreadyInstrumented){
-                rareLoops.append(outerMost);
-            }
-        }
-    }
-#endif
+    Vector<BasicBlock*> rareBlocks;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
         LineInfo* li = NULL;
@@ -508,6 +489,37 @@ void RareEventCounter::instrument()
         }
     }
 
+#ifdef COUNT_LOOP_ENTRY
+    Vector<Loop*> rareLoops;
+
+    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+        BasicBlock* bb = getExposedBasicBlock(i);
+        LineInfo* li = NULL;
+        if (lineInfoFinder){
+            li = lineInfoFinder->lookupLineInfo(bb);
+        }
+        Function* f = bb->getFunction();
+        if (li && bb->isInLoop()){
+            FlowGraph* fg = bb->getFlowGraph();
+            //Loop* outerMost = fg->getOuterMostLoopForLoop(fg->getInnermostLoopForBlock(bb->getIndex())->getIndex());
+            Loop* outerMost = fg->getInnermostLoopForBlock(bb->getIndex());
+
+            if (outerMost->getNumberOfInstructions() <= LOOP_ICOUNT_THRESHOLD){
+                continue;
+            }
+
+            bool loopAlreadyInstrumented = false;
+            for (uint32_t i = 0; i < rareLoops.size(); i++){
+                if (outerMost->isIdenticalLoop(rareLoops[i])){
+                    loopAlreadyInstrumented = true;
+                }
+            }
+            if (!loopAlreadyInstrumented){
+                rareLoops.append(outerMost);
+            }
+        }
+    }
+#endif
     uint32_t numberOfPoints = rareBlocks.size() + rareLoops.size();
 
     uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint64_t));
@@ -528,6 +540,23 @@ void RareEventCounter::instrument()
     p->setPriority(InstPriority_userinit);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the entry block");
+    }
+
+    if (doIntro){
+        uint64_t matchArray = reserveDataOffset(numberOfPoints * sizeof(uint64_t));
+        
+        temp64 = 0;
+        for (uint32_t i = 0; i < numberOfPoints; i++){
+            initializeReservedData(getInstDataAddress() + matchArray + i*sizeof(uint64_t), sizeof(uint64_t), &temp64);
+        }
+        checkInit->addArgument(matchArray);
+
+        PRINT_INFOR("Adding init_matches!");
+        p = addInstrumentationPoint(getProgramEntryBlock(), checkInit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+        p->setPriority(InstPriority_userinit);
+        if (!p->getInstBaseAddress()){
+            PRINT_ERROR("Cannot find an instrumentation point at the entry block");
+        }
     }
 
     p = addInstrumentationPoint(getProgramExitBlock(), exitRare, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
@@ -597,3 +626,9 @@ void RareEventCounter::instrument()
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }
+
+void RareEventCounter::insertPointCheck(BasicBlock* bb, uint32_t checkIdx, uint64_t counterArray){
+    Vector<X86Instruction*> counterUpdate = Vector<X86Instruction*>();
+    InstrumentationPoint* checkp = addInstrumentationPoint(bb, checkFunc, InstrumentationMode_trampinline, FlagsProtectionMethod_full, InstLocation_prior);
+}
+
