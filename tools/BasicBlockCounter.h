@@ -30,6 +30,8 @@ protected:
 
     InstrumentationFunction* loopEntry;
     InstrumentationFunction* loopExit;
+
+    bool loopCount;
 public:
     BasicBlockCounter(ElfFile* elf);
     ~BasicBlockCounter() {}
@@ -51,7 +53,11 @@ private:
     InstrumentationFunction* checkFunc;
     InstrumentationFunction* checkInit;
 
-    void insertPointCheck(BasicBlock* bb, uint32_t checkIdx, uint64_t counterArray, uint64_t matchArray);
+    uint64_t matchArray;
+    uint64_t rareArray;
+    uint64_t matchCountAddress;
+
+    void insertPointCheck(Base* point, uint32_t checkIdx, InstLocations loc);
 
 public:
     RareEventCounter(ElfFile* elf);

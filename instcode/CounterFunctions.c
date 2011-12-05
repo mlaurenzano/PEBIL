@@ -178,7 +178,7 @@ uint32_t numberOfRareCounters = 0;
 
 uint64_t* matchCounters = NULL;
 FILE* matchesFile = NULL;
-uint32_t currentMatchCount = 0;
+uint32_t* currentMatchCount = NULL;
 
 void read_next_matches();
 void clear_counter_buffer();
@@ -187,33 +187,44 @@ void define_user_sig_handlers();
 
 void reset_match_count(){
     int i;
-    currentMatchCount = 0;
+    *currentMatchCount = numberOfRareCounters;
     for (i = 0; i < numberOfRareCounters; i++){
         if (rareCounters[i] == matchCounters[i]){
-            currentMatchCount++;
+            (*currentMatchCount)--;
         }
     }
+    PRINT_INSTR(stdout, "reset match count to %d", (*currentMatchCount));
 }
 
 void check_counter_state(){
-    if (counters_match()){
-        PRINT_INSTR(stdout, "Found matching counter state!");
-        read_next_matches();
-        reset_match_count();
-    } else {
+    PRINT_INSTR(stdout, "Checking counter state!");
+
+    print_64b_buffer(matchCounters, numberOfRareCounters, stdout, 'm');
+    print_64b_buffer(rareCounters, numberOfRareCounters, stdout, 'r');
+
+    if (!counters_match()){
         PRINT_INSTR(stderr, "Counters do not match!");
         exit(1);
     }
+
+    read_next_matches();
+    reset_match_count();
+
+    dump_counter_state(0);
 }
 
-void init_matches(uint64_t* blockMatches, uint32_t* numMatches){
+void init_matches(uint64_t* blockMatches, uint32_t* numMatches, uint64_t* rCounts, uint32_t* numRare){
     matchCounters = blockMatches;
+    currentMatchCount = numMatches;
 
     dumpCounters = blockCounters;
     numberOfDumpCounters = numberOfBasicBlocks;
 
-    PRINT_INSTR(stdout, "init_matches opening counter file counter.dump.0000");
-    matchesFile = fopen("counter.dump.0000", "rb");
+    rareCounters = rCounts;
+    numberOfRareCounters = *numRare;
+
+    PRINT_INSTR(stdout, "init_matches opening counter file counter.dump.cp.0000 -- match %#x", numMatches);
+    matchesFile = fopen("counter.dump.cp.0000", "rb");
     if (matchesFile == NULL){
         PRINT_INSTR(stderr, "Cannot open input file");
         exit(1);
@@ -221,6 +232,7 @@ void init_matches(uint64_t* blockMatches, uint32_t* numMatches){
 
     CounterDumpHeader_t header;
     fread(&header, sizeof(CounterDumpHeader_t), 1, matchesFile);
+    //fread(&header, 1, sizeof(CounterDumpHeader_t), matchesFile);
     if (header.magic != COUNTER_DUMP_MAGIC){
         PRINT_INSTR(stderr, "Counter input file magic number incorrect: %x", header.magic);
         exit(1);
@@ -231,6 +243,7 @@ void init_matches(uint64_t* blockMatches, uint32_t* numMatches){
     }
 
     read_next_matches();
+    reset_match_count();
 }
 
 int counters_match(){
@@ -245,7 +258,8 @@ int counters_match(){
 
 void read_next_matches(){
     fread(matchCounters, sizeof(uint64_t), numberOfRareCounters, matchesFile);
-    //print_64b_buffer(matchCounters, numberOfRareCounters, stdout, 'f');
+    PRINT_INSTR(stdout, "reading new match array");
+    print_64b_buffer(matchCounters, numberOfRareCounters, stdout, 'f');
 }
 
 int32_t initrare(int32_t* numBlocks, uint64_t* blockCounts){
@@ -255,11 +269,15 @@ int32_t initrare(int32_t* numBlocks, uint64_t* blockCounts){
     rareCounters = blockCounts;
 
     PRINT_INSTR(stdout, "initrare");
-    define_user_sig_handlers();
-    //tool_mpi_init();
 
-    dumpCounters = rareCounters;
-    numberOfDumpCounters = numberOfRareCounters;
+    // do this stuff when init_matches wasn't called
+    if (!matchCounters){
+        define_user_sig_handlers();
+        dumpCounters = rareCounters;
+        numberOfDumpCounters = numberOfRareCounters;
+    }
+
+    tool_mpi_init();
 
     ptimer(&pebiltimers[0]);
 }
@@ -278,12 +296,14 @@ int32_t finirare(){
     } else {
         PRINT_INSTR(stderr, "This statement shouldn't be reached, but it seems to happen under some conditions?");
     }
-    if (getTaskId() == 0){
+    if (!matchCounters){
+        if (getTaskId() == 0){
 #ifdef FAKE_MEASURE
-        finalize_signaller();
+            finalize_signaller();
 #else
-        finalize_pmeasure();
+            finalize_pmeasure();
 #endif
+        }
     }
 }
 
@@ -395,12 +415,15 @@ void tool_mpi_init(){
     counterDumpBuffer = malloc(COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
     bzero(counterDumpBuffer, COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
     bufferLoc = 0;
-    if (getTaskId() == 0){
+
+    if (!matchCounters){
+        if (getTaskId() == 0){
 #ifdef FAKE_MEASURE
-        initialize_signaller();
+            initialize_signaller();
 #else
-        initialize_pmeasure(1);
+            initialize_pmeasure(1);
 #endif
+        }
     }
     clear_counter_state(dumpCounters, numberOfDumpCounters);
     entriesWritten = 0;
@@ -433,5 +456,6 @@ void print_64b_buffer(uint64_t* b, uint32_t l, FILE* o, char d){
     for (j = 0; j < l; j++){
         fprintf(o, "%c%lld\t", d, b[j]);
     }
+    fprintf(stdout, "\n");
     fflush(stdout);
 }
