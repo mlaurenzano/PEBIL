@@ -180,6 +180,11 @@ uint64_t* matchCounters = NULL;
 FILE* matchesFile = NULL;
 uint32_t currentMatchCount = 0;
 
+void read_next_matches();
+void clear_counter_buffer();
+void finalize_signaller();
+void define_user_sig_handlers();
+
 void reset_match_count(){
     int i;
     currentMatchCount = 0;
