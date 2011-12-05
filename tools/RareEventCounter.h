@@ -39,7 +39,7 @@ public:
 
     const char* briefName() { return "RareEventCounter"; }
     const char* defaultExtension() { return "recinst"; }
-    uint32_t allowsArgs() { return PEBIL_OPT_NON; }
+    uint32_t allowsArgs() { return PEBIL_OPT_INP; }
     uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
 

@@ -31,7 +31,7 @@
 
 #define FUNCTION_ICOUNT_THRESHOLD 0
 #define LOOP_ICOUNT_THRESHOLD 20
-#define BB_ICOUNT_THRESHOLD 0
+#define BB_ICOUNT_THRESHOLD 12
 
 #define COUNT_LOOP_ENTRY
 #ifdef COUNT_LOOP_ENTRY
@@ -85,7 +85,7 @@ void RareEventCounter::declare()
     ASSERT(entryFunc && "Cannot find entry function, are you sure it was declared?");
 #endif
 
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
+    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 }
 
 void RareEventCounter::instrument() 
@@ -372,7 +372,7 @@ void RareEventCounter::instrument()
                     PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
                 } else {
                     BasicBlock* interposed = initInterposeBlock(fg, tail->getIndex(), target->getIndex());
-                    InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed, false);
+                    InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed);
                     PRINT_INFOR("\tEXIT-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
                 }
                 numCalls++;

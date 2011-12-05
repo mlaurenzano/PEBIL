@@ -39,8 +39,8 @@ uint64_t* loopCounters = NULL;
 int32_t numberOfLoops = 0;
 int64_t* loopHashValues = NULL;
 
-//#define COUNTER_DUMP_SIGNAL
-//#define FAKE_MEASURE
+#define COUNTER_DUMP_SIGNAL
+#define FAKE_MEASURE
 //#define SIGNAL_ALL_RANKS
 #ifdef COUNTER_DUMP_SIGNAL
 #define COUNTER_DUMP_MAGIC (0x5ca1ab1e)
@@ -80,6 +80,7 @@ void clear_counter_buffer(){
     entriesWritten += i;
     bufferLoc = 0;
 }
+
 void dump_counter_state(int signum){
     if (!blockCounters){
         return;
@@ -122,7 +123,7 @@ void define_user_sig_handlers(){
 #ifdef FAKE_MEASURE
 int continue_measuring = 0;
 pid_t other_pid = 0;
-#define SLEEP_INTERVAL 1000
+#define SLEEP_INTERVAL 10000
 
 void kill_self(int signum){
     PRINT_INSTR(stdout, "gracefully killing signaller %d", getpid());
@@ -140,6 +141,11 @@ void initialize_signaller(){
         other_pid = pid;
         return; // parent returns
     }
+
+#ifdef MPI_INIT_REQUIRED
+    // invalidate this task
+    setTaskValid(0);
+#endif
 
     PRINT_INSTR(stdout, "starting signaler in pid %d -> %d", pid, other_pid);
     if (signal (SIGUSR2, kill_self) == SIG_IGN){
@@ -194,6 +200,8 @@ void tool_mpi_init(){
     PRINT_INSTR(stdout, "%x %d %d", hdr.magic, hdr.blocks, hdr.loops);
 
     fwrite((void*)&hdr, 1, sizeof(CounterDumpHeader_t), outp);
+
+    ptimer(&pebiltimers[0]);
 }
 
 void print_64b_buffer(uint64_t* b, uint32_t l, FILE* o, char d){
@@ -233,8 +241,8 @@ int32_t blockcounter(int32_t* lineNumbers, char** fileNames, char** functionName
 
 #ifdef MPI_INIT_REQUIRED
     if (!isTaskValid()){
-        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print files", getpid());
-        return -1;
+        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print jbbinst files", getpid());
+        return 1;
     }
 #endif
 #ifdef COUNTER_DUMP_SIGNAL
@@ -298,8 +306,8 @@ int32_t loopcounter(int32_t* loopLineNumbers, char** loopFileNames, char** loopF
 
 #ifdef MPI_INIT_REQUIRED
     if (!isTaskValid()){
-        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print files", getpid());
-        return -1;
+        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print loopcnt files", getpid());
+        return 1;
     }
 #endif
 
