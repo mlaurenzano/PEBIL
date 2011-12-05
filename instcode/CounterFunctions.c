@@ -39,182 +39,6 @@ uint64_t* loopCounters = NULL;
 int32_t numberOfLoops = 0;
 int64_t* loopHashValues = NULL;
 
-#define COUNTER_DUMP_SIGNAL
-#define FAKE_MEASURE
-//#define SIGNAL_ALL_RANKS
-#ifdef COUNTER_DUMP_SIGNAL
-#define COUNTER_DUMP_MAGIC (0x5ca1ab1e)
-
-uint64_t entriesWritten;
-uint64_t* counterDumpBuffer = NULL;
-#define COUNTER_BUFFER_ENTRIES 524288
-uint32_t bufferLoc = 0;
-FILE* outp = NULL;
-int* otherRanksPids;
-
-typedef struct {
-    uint32_t magic;
-    uint32_t blocks;
-    uint32_t loops;
-    uint8_t reserved[20];
-} CounterDumpHeader_t;
-
-void clear_counter_state(){
-    bzero(blockCounters, sizeof(uint64_t) * numberOfBasicBlocks);
-    bzero(loopCounters, sizeof(uint64_t) * numberOfLoops);
-}
-
-void clear_counter_buffer(){
-    uint32_t i = 0, j = 0;
-    if (!counterDumpBuffer || !outp){
-        bufferLoc = 0;
-        return;
-    }
-    PRINT_INSTR(stdout, "clearing dump buffer - %lld so far", entriesWritten);
-    while (i < bufferLoc){
-        fwrite((void*)&counterDumpBuffer[i], sizeof(uint64_t), numberOfBasicBlocks, outp);
-        fwrite((void*)&counterDumpBuffer[i + numberOfBasicBlocks], sizeof(uint64_t), numberOfLoops, outp);
-        i += numberOfBasicBlocks + numberOfLoops;
-    }
-    assert(i == bufferLoc);
-    entriesWritten += i;
-    bufferLoc = 0;
-}
-
-void dump_counter_state(int signum){
-    if (!blockCounters){
-        return;
-    }
-    if (!loopCounters){
-        return;
-    }
-    //        print_64b_buffer(blockCounters, numberOfBasicBlocks, stdout, 'f');
-    //        print_64b_buffer(loopCounters, numberOfLoops, stdout, 'l');
-    //fprintf(stdout, "\n");
-    //PRINT_INSTR(stdout, "dumping %d counters + %d loops", numberOfBasicBlocks, numberOfLoops);
-
-#ifdef SIGNAL_ALL_RANKS
-    int i;
-    for (i = 0; i < getNTasks(); i++){
-        if (i != 0){
-            PRINT_INSTR(stdout, "signalling to %d", otherRanksPids[i]);
-            kill(otherRanksPids[i], signum);
-        }
-    }
-#endif
-
-    if (bufferLoc + numberOfBasicBlocks + numberOfLoops > COUNTER_BUFFER_ENTRIES){
-        clear_counter_buffer();
-    }
-    memcpy(&counterDumpBuffer[bufferLoc], blockCounters, numberOfBasicBlocks * sizeof(uint64_t));
-    bufferLoc += numberOfBasicBlocks;
-    memcpy(&counterDumpBuffer[bufferLoc], loopCounters, numberOfLoops * sizeof(uint64_t));
-    bufferLoc += numberOfLoops;
-    //    clear_counter_state();
-}
-
-void define_user_sig_handlers(){
-    if (signal (SIGUSR1, dump_counter_state) == SIG_IGN){
-        signal (SIGUSR1, SIG_IGN);
-    }
-    PRINT_INSTR(stdout, "setup signal handler dump_counter_state");
-}
-
-#ifdef FAKE_MEASURE
-int continue_measuring = 0;
-pid_t other_pid = 0;
-#define SLEEP_INTERVAL 10000
-
-void kill_self(int signum){
-    PRINT_INSTR(stdout, "gracefully killing signaller %d", getpid());
-    exit(0);
-}
-
-void initialize_signaller(){
-    continue_measuring = 1;
-    other_pid = getpid();
-
-    PRINT_INSTR(stdout, "setup signal handler dump_counter_state");
-    PRINT_INSTR(stdout, "forking to signaller from %d", other_pid);
-    pid_t pid;
-    if((pid = fork()) > 0) {
-        other_pid = pid;
-        return; // parent returns
-    }
-
-#ifdef MPI_INIT_REQUIRED
-    // invalidate this task
-    setTaskValid(0);
-#endif
-
-    PRINT_INSTR(stdout, "starting signaler in pid %d -> %d", pid, other_pid);
-    if (signal (SIGUSR2, kill_self) == SIG_IGN){
-        signal (SIGUSR2, SIG_IGN);
-    }
-
-    while (1){
-        usleep(SLEEP_INTERVAL);
-        //PRINT_INSTR(stdout, "signal!");
-        kill(other_pid, SIGUSR1);
-    }
-    PRINT_INSTR(stdout, "killed signaler in pid %d -> %d", pid, other_pid);
-}
-
-void finalize_signaller(){
-    kill(other_pid, SIGUSR2);
-}
-
-#endif //FAKE_MEASURE
-
-void tool_mpi_init(){
-    counterDumpBuffer = malloc(COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
-    bzero(counterDumpBuffer, COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
-    bufferLoc = 0;
-    if (getTaskId() == 0){
-#ifdef FAKE_MEASURE
-        initialize_signaller();
-#else
-        initialize_pmeasure(1);
-#endif
-    }
-    clear_counter_state();
-    entriesWritten = 0;
-
-#ifdef SIGNAL_ALL_RANKS
-    otherRanksPids = malloc(getNTasks() * sizeof(int));
-    otherRanksPids[0] = getpid();
-    MPI_Allgather(otherRanksPids, 1, MPI_INT, otherRanksPids, 1, MPI_INT, MPI_COMM_WORLD);
-    for (int i = 0; i < getNTasks(); i++){
-        PRINT_INSTR(stdout, "o[%d] = %d", i, otherRanksPids[i]);
-    }
-#endif
-
-    char fname[__MAX_STRING_SIZE];
-    sprintf(fname, "counter.dump.%04d", getTaskId());
-    outp = fopen(fname, "w");
-    CounterDumpHeader_t hdr;
-    bzero(&hdr, sizeof(CounterDumpHeader_t));
-    hdr.magic = COUNTER_DUMP_MAGIC;
-    hdr.blocks = numberOfBasicBlocks;
-    hdr.loops = numberOfLoops;
-    PRINT_INSTR(stdout, "%x %d %d", hdr.magic, hdr.blocks, hdr.loops);
-
-    fwrite((void*)&hdr, 1, sizeof(CounterDumpHeader_t), outp);
-
-    ptimer(&pebiltimers[0]);
-}
-
-void print_64b_buffer(uint64_t* b, uint32_t l, FILE* o, char d){
-    uint32_t j;
-    for (j = 0; j < l; j++){
-        fprintf(o, "%c%lld\t", d, b[j]);
-    }
-}
-#else //COUNTER_DUMP_SIGNAL
-void tool_mpi_init(){
-}
-#endif //COUNTER_DUMP_SIGNAL
-
 int32_t initcounter(int32_t* numBlocks, uint64_t* blockCounts, int64_t* hashVals){
     numberOfBasicBlocks = *numBlocks;
     blockCounters = blockCounts;
@@ -225,11 +49,6 @@ int32_t initloop(int32_t* numLoops, uint64_t* loopCounts, int64_t* hashVals){
     numberOfLoops = *numLoops;
     loopCounters = loopCounts;
     loopHashValues = hashVals;
-
-#ifdef COUNTER_DUMP_SIGNAL
-    define_user_sig_handlers();
-    //tool_mpi_init();
-#endif
 
     ptimer(&pebiltimers[0]);
 }
@@ -243,21 +62,6 @@ int32_t blockcounter(int32_t* lineNumbers, char** fileNames, char** functionName
     if (!isTaskValid()){
         PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print jbbinst files", getpid());
         return 1;
-    }
-#endif
-#ifdef COUNTER_DUMP_SIGNAL
-    clear_counter_buffer();
-    if (outp){
-        fclose(outp);
-    } else {
-        PRINT_INSTR(stderr, "This statement shouldn't be reached, but it seems to happen under some conditions?");
-    }
-    if (getTaskId() == 0){
-#ifdef FAKE_MEASURE
-        finalize_signaller();
-#else
-        finalize_pmeasure();
-#endif
     }
 #endif
 
@@ -348,3 +152,204 @@ int32_t loopcounter(int32_t* loopLineNumbers, char** loopFileNames, char** loopF
     return i;
 }
 
+
+#define FAKE_MEASURE
+//#define SIGNAL_ALL_RANKS
+#define COUNTER_DUMP_MAGIC (0x5ca1ab1e)
+
+uint64_t entriesWritten;
+uint64_t* counterDumpBuffer = NULL;
+#define COUNTER_BUFFER_ENTRIES 524288
+uint32_t bufferLoc = 0;
+FILE* outp = NULL;
+int* otherRanksPids;
+
+typedef struct {
+    uint32_t magic;
+    uint32_t counters;
+    uint8_t reserved[24];
+} CounterDumpHeader_t;
+
+uint64_t* rareCounters = NULL;
+uint32_t numberOfRareCounters = 0;
+
+int32_t initrare(int32_t* numBlocks, uint64_t* blockCounts){
+    rareCounters = blockCounts;
+    numberOfRareCounters = *numBlocks;
+    assert(numberOfRareCounters > 0);
+
+    define_user_sig_handlers();
+    //tool_mpi_init();
+
+    ptimer(&pebiltimers[0]);
+}
+
+int32_t finirare(){
+#ifdef MPI_INIT_REQUIRED
+    if (!isTaskValid()){
+        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print loopcnt files", getpid());
+        return 1;
+    }
+#endif
+
+    clear_counter_buffer();
+    if (outp){
+        fclose(outp);
+    } else {
+        PRINT_INSTR(stderr, "This statement shouldn't be reached, but it seems to happen under some conditions?");
+    }
+    if (getTaskId() == 0){
+#ifdef FAKE_MEASURE
+        finalize_signaller();
+#else
+        finalize_pmeasure();
+#endif
+    }
+}
+
+void clear_counter_state(){
+    bzero(rareCounters, sizeof(uint64_t) * numberOfRareCounters);
+}
+
+void clear_counter_buffer(){
+    uint32_t i = 0, j = 0;
+    if (!counterDumpBuffer || !outp){
+        bufferLoc = 0;
+        return;
+    }
+    PRINT_INSTR(stdout, "clearing dump buffer - %lld so far", entriesWritten);
+    while (i < bufferLoc){
+        fwrite((void*)&counterDumpBuffer[i], sizeof(uint64_t), numberOfRareCounters, outp);
+        i += numberOfRareCounters;
+    }
+    assert(i == bufferLoc);
+    entriesWritten += i;
+    bufferLoc = 0;
+}
+
+void dump_counter_state(int signum){
+    if (!rareCounters){
+        return;
+    }
+    //print_64b_buffer(rareCounters, numberOfRareCounters, stdout, 'f');
+    //fprintf(stdout, "\n");
+    //PRINT_INSTR(stdout, "dumping %d counters", numberOfRareCounters);
+
+#ifdef SIGNAL_ALL_RANKS
+    int i;
+    for (i = 0; i < getNTasks(); i++){
+        if (i != 0){
+            PRINT_INSTR(stdout, "signalling to %d", otherRanksPids[i]);
+            kill(otherRanksPids[i], signum);
+        }
+    }
+#endif
+
+    if (bufferLoc + numberOfRareCounters > COUNTER_BUFFER_ENTRIES){
+        clear_counter_buffer();
+    }
+    memcpy(&counterDumpBuffer[bufferLoc], rareCounters, numberOfRareCounters * sizeof(uint64_t));
+    bufferLoc += numberOfRareCounters;
+    //    clear_counter_state();
+}
+
+void define_user_sig_handlers(){
+    if (signal (SIGUSR1, dump_counter_state) == SIG_IGN){
+        signal (SIGUSR1, SIG_IGN);
+    }
+    PRINT_INSTR(stdout, "setup signal handler dump_counter_state");
+}
+
+#ifdef FAKE_MEASURE
+int continue_measuring = 0;
+pid_t other_pid = 0;
+#define SLEEP_INTERVAL 10000
+
+void kill_self(int signum){
+    PRINT_INSTR(stdout, "gracefully killing signaller %d", getpid());
+    exit(0);
+}
+
+void initialize_signaller(){
+    continue_measuring = 1;
+    other_pid = getpid();
+
+    PRINT_INSTR(stdout, "setup signal handler dump_counter_state");
+    PRINT_INSTR(stdout, "forking to signaller from %d", other_pid);
+    pid_t pid;
+    if((pid = fork()) > 0) {
+        other_pid = pid;
+        return; // parent returns
+    }
+
+#ifdef MPI_INIT_REQUIRED
+    // invalidate this task
+    setTaskValid(0);
+#endif
+
+    PRINT_INSTR(stdout, "starting signaler in pid %d -> %d", pid, other_pid);
+    if (signal (SIGUSR2, kill_self) == SIG_IGN){
+        signal (SIGUSR2, SIG_IGN);
+    }
+
+    while (1){
+        usleep(SLEEP_INTERVAL);
+        //PRINT_INSTR(stdout, "signal!");
+        kill(other_pid, SIGUSR1);
+    }
+    PRINT_INSTR(stdout, "killed signaler in pid %d -> %d", pid, other_pid);
+}
+
+void finalize_signaller(){
+    kill(other_pid, SIGUSR2);
+}
+
+#endif //FAKE_MEASURE
+
+void tool_mpi_init(){
+    if (!numberOfRareCounters){
+        return;
+    }
+
+    counterDumpBuffer = malloc(COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
+    bzero(counterDumpBuffer, COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
+    bufferLoc = 0;
+    if (getTaskId() == 0){
+#ifdef FAKE_MEASURE
+        initialize_signaller();
+#else
+        initialize_pmeasure(1);
+#endif
+    }
+    clear_counter_state();
+    entriesWritten = 0;
+
+#ifdef SIGNAL_ALL_RANKS
+    otherRanksPids = malloc(getNTasks() * sizeof(int));
+    otherRanksPids[0] = getpid();
+    MPI_Allgather(otherRanksPids, 1, MPI_INT, otherRanksPids, 1, MPI_INT, MPI_COMM_WORLD);
+    for (int i = 0; i < getNTasks(); i++){
+        PRINT_INSTR(stdout, "o[%d] = %d", i, otherRanksPids[i]);
+    }
+#endif
+
+    char fname[__MAX_STRING_SIZE];
+    sprintf(fname, "counter.dump.%04d", getTaskId());
+    outp = fopen(fname, "w");
+    CounterDumpHeader_t hdr;
+    bzero(&hdr, sizeof(CounterDumpHeader_t));
+    hdr.magic = COUNTER_DUMP_MAGIC;
+    hdr.counters = numberOfRareCounters;
+    PRINT_INSTR(stdout, "%x %d", hdr.magic, hdr.counters);
+
+    fwrite((void*)&hdr, 1, sizeof(CounterDumpHeader_t), outp);
+
+    ptimer(&pebiltimers[0]);
+}
+
+void print_64b_buffer(uint64_t* b, uint32_t l, FILE* o, char d){
+    uint32_t j;
+    for (j = 0; j < l; j++){
+        fprintf(o, "%c%lld\t", d, b[j]);
+    }
+}

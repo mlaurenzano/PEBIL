@@ -94,41 +94,30 @@ try:
     magic = read_unpack(f, uint32)
     print_debug(magic)
 
-    blocks = read_unpack(f, uint32)
-    print_debug(blocks)
+    counters = read_unpack(f, uint32)
+    print_debug(counters)
 
-    loops = read_unpack(f, uint32)
-    print_debug(loops)
-
-    for i in range(12,32):
+    for i in range(8,32):
         read_unpack(f, uint8)
 
-    prev_blocks = []
-    prev_loops = []
+    prev_counters = []
 
     while True:
-        block_counts = [read_unpack(f, uint64) for x in range(0,blocks,1)]
-        loop_counts = [read_unpack(f, uint64) for x in range(0,loops,1)]
+        counter_counts = [read_unpack(f, uint64) for x in range(0,counters,1)]
 
-        print_debug(block_counts)
-        print_debug(loop_counts)
+        print_debug(counter_counts)
 
-        block_diff = diff_counts(prev_blocks, block_counts)
-        loop_diff = diff_counts(prev_loops, loop_counts)
+        counter_diff = diff_counts(prev_counters, counter_counts)
 
-        if block_diff != 0:
-            print_debug(block_diff)
-        if loop_diff != 0:
-            print_debug(loop_diff)
+        if counter_diff != 0:
+            print_debug(counter_diff)
 
-        if block_diff != 0 or loop_diff != 0:
+        if counter_diff != 0:
             diffs += 1
         else:
             diff_list.append(slices)
 
-        prev_blocks = block_counts
-        prev_loops = loop_counts
-
+        prev_counters = counter_counts
         slices += 1
 
 except EOFError:

@@ -45,10 +45,13 @@ public:
 
 class RareEventCounter : public BasicBlockCounter {
 private:
+    InstrumentationFunction* entryRare;
+    InstrumentationFunction* exitRare;    
 public:
     RareEventCounter(ElfFile* elf);
     ~RareEventCounter() {}
 
+    void declare();
     void instrument();
 
     const char* briefName() { return "RareEventCounter"; }
