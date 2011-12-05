@@ -27,6 +27,7 @@
 class X86InstructionFactory : public X86Instruction {
 protected:
     static X86Instruction* emitInstructionBase(uint32_t sz, char* buf);
+    static X86Instruction* emitBranchGeneric(uint64_t off, uint8_t code);
 
 public:
     static X86Instruction* emitNop();
@@ -35,6 +36,8 @@ public:
     static X86Instruction* emitInterrupt(uint8_t idx);
 
     static X86Instruction* emitBranchJL(uint64_t offset);
+    static X86Instruction* emitBranchJE(uint64_t offset);
+    static X86Instruction* emitBranchJNE(uint64_t offset);
     static X86Instruction* emitJumpRelative(uint64_t addr, uint64_t tgt);
     static X86Instruction* emitCallRelative(uint64_t addr, uint64_t tgt);
     static X86Instruction* emitReturn();
@@ -146,6 +149,7 @@ public:
 
     static X86Instruction* emitRegAddImm(uint8_t idx, uint32_t imm);
     static X86Instruction* emitRegSubImm(uint8_t idx, uint32_t imm);
+    static X86Instruction* emitXorRegReg(uint8_t, uint8_t);
 
     static X86Instruction* emitMoveRegToMem(uint32_t idx, uint64_t addr);
     static X86Instruction* emitMoveMemToReg(uint64_t addr, uint32_t idx);

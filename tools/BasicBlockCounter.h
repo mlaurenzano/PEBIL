@@ -51,7 +51,7 @@ private:
     InstrumentationFunction* checkFunc;
     InstrumentationFunction* checkInit;
 
-    void insertPointCheck(BasicBlock* bb, uint32_t checkIdx, uint64_t counterArray);
+    void insertPointCheck(BasicBlock* bb, uint32_t checkIdx, uint64_t counterArray, uint64_t matchArray);
 
 public:
     RareEventCounter(ElfFile* elf);

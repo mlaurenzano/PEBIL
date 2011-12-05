@@ -542,8 +542,9 @@ void RareEventCounter::instrument()
         PRINT_ERROR("Cannot find an instrumentation point at the entry block");
     }
 
+    uint64_t matchArray;
     if (doIntro){
-        uint64_t matchArray = reserveDataOffset(numberOfPoints * sizeof(uint64_t));
+        matchArray = reserveDataOffset(numberOfPoints * sizeof(uint64_t));
         
         temp64 = 0;
         for (uint32_t i = 0; i < numberOfPoints; i++){
@@ -589,6 +590,7 @@ void RareEventCounter::instrument()
 
         //increment counter on each time we encounter the loop head
         InstrumentationTool::insertInlinedTripCounter(counterOffset, head);
+        insertPointCheck(head, i + rareBlocks.size(), counterArray, matchArray);
 
         // decrement counter each time we traverse a back edge
         for (uint32_t j = 0; j < tail->getNumberOfTargets(); j++){
@@ -611,11 +613,11 @@ void RareEventCounter::instrument()
                         prot = FlagsProtectionMethod_none;
                     }
                     InstrumentationPoint* p = addInstrumentationPoint(tail->getExitInstruction(), snip, InstrumentationMode_inline, prot, InstLocation_after);
-                    PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
+                    //PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
                 } else {
                     BasicBlock* interposed = initInterposeBlock(fg, tail->getIndex(), target->getIndex());
                     InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed);
-                    PRINT_INFOR("\tEXIT-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
+                    //PRINT_INFOR("\tEXIT-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
                 }
                 numCalls++;
             }
@@ -627,8 +629,56 @@ void RareEventCounter::instrument()
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }
 
-void RareEventCounter::insertPointCheck(BasicBlock* bb, uint32_t checkIdx, uint64_t counterArray){
+void RareEventCounter::insertPointCheck(BasicBlock* bb, uint32_t checkIdx, uint64_t counterArray, uint64_t matchArray){
+    if (!doIntro){
+        return;
+    }
+
     Vector<X86Instruction*> counterUpdate = Vector<X86Instruction*>();
-    InstrumentationPoint* checkp = addInstrumentationPoint(bb, checkFunc, InstrumentationMode_trampinline, FlagsProtectionMethod_full, InstLocation_prior);
+
+    uint64_t counterAddress = getInstDataAddress() + counterArray + (checkIdx * sizeof(uint64_t));
+    uint64_t matchAddress = getInstDataAddress() + matchArray + (checkIdx * sizeof(uint64_t));
+
+    FlagsProtectionMethods prot = FlagsProtectionMethod_full;
+#ifndef NO_REG_ANALYSIS
+    if (bb->getLeader()->allFlagsDeadIn()){
+        prot = FlagsProtectionMethod_none;
+    }
+#endif
+
+    InstrumentationPoint* checkp = addInstrumentationPoint(bb, checkFunc, InstrumentationMode_trampinline, prot, InstLocation_prior);
+
+    uint32_t tmpReg1 = X86_REG_CX;
+    uint32_t tmpReg2 = X86_REG_DX;
+    uint32_t tmpReg3 = X86_REG_AX;
+
+    if (is64Bit()){
+    } else {
+
+        // save scratch reg state
+        counterUpdate.append(X86InstructionFactory32::emitMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t))));
+        counterUpdate.append(X86InstructionFactory32::emitMoveRegToMem(tmpReg2, getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t))));
+
+        // load array values into regs
+        counterUpdate.append(X86InstructionFactory32::emitMoveMemToReg(counterAddress, tmpReg1));
+        counterUpdate.append(X86InstructionFactory32::emitMoveMemToReg(matchAddress, tmpReg2));
+
+        // compare the two values for equality
+        counterUpdate.append(X86InstructionFactory32::emitXorRegReg(tmpReg1, tmpReg2));
+        counterUpdate.append(X86InstructionFactory32::emitCompareImmReg(0, tmpReg2));
+
+        // restore scratch regs
+        counterUpdate.append(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t)), tmpReg2));
+        counterUpdate.append(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t)), tmpReg1));
+
+        // jump
+        counterUpdate.append(X86InstructionFactory::emitBranchJNE(Size__64_bit_inst_function_call_support));
+    }
+    PRINT_INFOR("Counter update size %d", counterUpdate.size());
+    
+    while (counterUpdate.size()){
+        PRINT_INFOR("Added counter check instruction for idx %d", checkIdx);        
+        checkp->addPrecursorInstruction(counterUpdate.remove(0));
+    }
 }
 

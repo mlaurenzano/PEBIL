@@ -170,6 +170,9 @@ typedef struct {
     uint8_t reserved[24];
 } CounterDumpHeader_t;
 
+uint64_t* dumpCounters = NULL;
+uint32_t numberOfDumpCounters = 0;
+
 uint64_t* rareCounters = NULL;
 uint32_t numberOfRareCounters = 0;
 
@@ -200,6 +203,9 @@ void check_counter_state(){
 
 void init_matches(uint64_t* blockMatches, uint32_t* numMatches){
     matchCounters = blockMatches;
+
+    dumpCounters = blockCounters;
+    numberOfDumpCounters = numberOfBasicBlocks;
 
     PRINT_INSTR(stdout, "init_matches opening counter file counter.dump.0000");
     matchesFile = fopen("counter.dump.0000", "rb");
@@ -247,6 +253,9 @@ int32_t initrare(int32_t* numBlocks, uint64_t* blockCounts){
     define_user_sig_handlers();
     //tool_mpi_init();
 
+    dumpCounters = rareCounters;
+    numberOfDumpCounters = numberOfRareCounters;
+
     ptimer(&pebiltimers[0]);
 }
 
@@ -273,8 +282,8 @@ int32_t finirare(){
     }
 }
 
-void clear_counter_state(){
-    bzero(rareCounters, sizeof(uint64_t) * numberOfRareCounters);
+void clear_counter_state(uint64_t* c, uint32_t n){
+    bzero(c, sizeof(uint64_t) * n);
 }
 
 void clear_counter_buffer(){
@@ -285,8 +294,8 @@ void clear_counter_buffer(){
     }
     PRINT_INSTR(stdout, "clearing dump buffer - %lld so far", entriesWritten);
     while (i < bufferLoc){
-        fwrite((void*)&counterDumpBuffer[i], sizeof(uint64_t), numberOfRareCounters, outp);
-        i += numberOfRareCounters;
+        fwrite((void*)&counterDumpBuffer[i], sizeof(uint64_t), numberOfDumpCounters, outp);
+        i += numberOfDumpCounters;
     }
     assert(i == bufferLoc);
     entriesWritten += i;
@@ -294,12 +303,12 @@ void clear_counter_buffer(){
 }
 
 void dump_counter_state(int signum){
-    if (!rareCounters){
+    if (!dumpCounters){
         return;
     }
-    //print_64b_buffer(rareCounters, numberOfRareCounters, stdout, 'f');
+    //print_64b_buffer(dumpCounters, numberOfDumpCounters, stdout, 'f');
     //fprintf(stdout, "\n");
-    //PRINT_INSTR(stdout, "dumping %d counters", numberOfRareCounters);
+    //PRINT_INSTR(stdout, "dumping %d counters", numberOfDumpCounters);
 
 #ifdef SIGNAL_ALL_RANKS
     int i;
@@ -311,12 +320,13 @@ void dump_counter_state(int signum){
     }
 #endif
 
-    if (bufferLoc + numberOfRareCounters > COUNTER_BUFFER_ENTRIES){
+    if (bufferLoc + numberOfDumpCounters > COUNTER_BUFFER_ENTRIES){
         clear_counter_buffer();
     }
-    memcpy(&counterDumpBuffer[bufferLoc], rareCounters, numberOfRareCounters * sizeof(uint64_t));
-    bufferLoc += numberOfRareCounters;
-    //    clear_counter_state();
+    memcpy(&counterDumpBuffer[bufferLoc], dumpCounters, numberOfDumpCounters * sizeof(uint64_t));
+    bufferLoc += numberOfDumpCounters;
+
+    //clear_counter_state(dumpCounters, numberOfDumpCounters);
 }
 
 void define_user_sig_handlers(){
@@ -387,7 +397,7 @@ void tool_mpi_init(){
         initialize_pmeasure(1);
 #endif
     }
-    clear_counter_state();
+    clear_counter_state(dumpCounters, numberOfDumpCounters);
     entriesWritten = 0;
 
 #ifdef SIGNAL_ALL_RANKS
@@ -405,7 +415,7 @@ void tool_mpi_init(){
     CounterDumpHeader_t hdr;
     bzero(&hdr, sizeof(CounterDumpHeader_t));
     hdr.magic = COUNTER_DUMP_MAGIC;
-    hdr.counters = numberOfRareCounters;
+    hdr.counters = numberOfDumpCounters;
     PRINT_INSTR(stdout, "%x %d", hdr.magic, hdr.counters);
 
     fwrite((void*)&hdr, 1, sizeof(CounterDumpHeader_t), outp);
