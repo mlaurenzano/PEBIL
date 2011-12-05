@@ -24,7 +24,7 @@
 #include <InstrumentationTool.h>
 
 class BasicBlockCounter : public InstrumentationTool {
-private:
+protected:
     InstrumentationFunction* entryFunc;
     InstrumentationFunction* exitFunc;
 
@@ -41,6 +41,19 @@ public:
     const char* defaultExtension() { return "jbbinst"; }
     uint32_t allowsArgs() { return PEBIL_OPT_LPI | PEBIL_OPT_DTL; }
     uint32_t requiresArgs() { return PEBIL_OPT_NON; }
+};
+
+class RareEventCounter : public BasicBlockCounter {
+private:
+public:
+    RareEventCounter(ElfFile* elf);
+    ~RareEventCounter() {}
+
+    void instrument();
+
+    const char* briefName() { return "RareEventCounter"; }
+    const char* defaultExtension() { return "recinst"; }
+    uint32_t allowsArgs() { return PEBIL_OPT_INP; }
 };
 
 #endif /* _BasicBlockCounter_h_ */

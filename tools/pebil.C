@@ -38,7 +38,8 @@ void printUsage(const char* msg = NULL){
     fprintf(stderr,"\t\t--app <executable/path> : executable to instrument\n");
     fprintf(stderr,"\t\t[--] <path/to/app1> <path/to/app2>\n");
     fprintf(stderr,"\t{pebil options} (affect all tools)\n");
-    fprintf(stderr,"\t\t[--inf [a-z]*] : print details about application binary\n");
+    fprintf(stderr,"\t\t[--tlib <tool_shlib_name>] : supply a name for tool library (overrides the name gleaned from --tool)\n");
+    fprintf(stderr,"\t\t[--inf <a-z*>] : print details about application binary\n");
     if (false){
         fprintf(stderr,"\t      : a : all parts of the application\n");
         fprintf(stderr,"\t      : b : <none>\n");
@@ -188,6 +189,7 @@ int main(int argc,char* argv[]){
     DEFINE_ARG(typ); // char* typ_arg = NULL;
     DEFINE_ARG(tool);
     DEFINE_ARG(inp);
+    DEFINE_ARG(tlib);
     DEFINE_ARG(trk);
     DEFINE_ARG(lnc);
     DEFINE_ARG(inf);
@@ -208,7 +210,7 @@ int main(int argc,char* argv[]){
 
         /* These options take an argument
            We distinguish them by their indices. */
-        ARG_OPTION(typ, 'y'), ARG_OPTION(tool, 't'), ARG_OPTION(inp, 'p'), ARG_OPTION(trk, 'k'), 
+        ARG_OPTION(typ, 'y'), ARG_OPTION(tool, 't'), ARG_OPTION(tlib, 'o'), ARG_OPTION(inp, 'p'), ARG_OPTION(trk, 'k'), 
         ARG_OPTION(lnc, 'n'), ARG_OPTION(inf, 'z'), ARG_OPTION(app, 'a'), ARG_OPTION(lib, 'l'), 
         ARG_OPTION(ext, 'x'), ARG_OPTION(fbl, 'b'), ARG_OPTION(dmp, 'm'), ARG_OPTION(phs, 'f'), 
         {0,              0,                 0,              0},
@@ -238,6 +240,7 @@ int main(int argc,char* argv[]){
 #define SET_ARGPTR(__name, __char) else if (c == __char) { __name ## _arg = optarg; }
         SET_ARGPTR(typ, 'y')
         SET_ARGPTR(tool, 't')
+        SET_ARGPTR(tlib, 'o')
         SET_ARGPTR(inp, 'p')
         SET_ARGPTR(trk, 'k')
         SET_ARGPTR(lnc, 'n')
@@ -411,7 +414,12 @@ int main(int argc,char* argv[]){
     void* maker = NULL;
     char toolLibName[__MAX_STRING_SIZE];
     char toolConstructor[__MAX_STRING_SIZE];
-    sprintf(toolLibName, "lib%sTool.so\0", tool_arg);
+    
+    if (tlib_arg){
+        sprintf(toolLibName, "lib%s.so\0", tlib_arg);
+    } else {
+        sprintf(toolLibName, "lib%sTool.so\0", tool_arg);
+    }
     sprintf(toolConstructor, "%sMaker", tool_arg);
 
     // if we are using a real tool (not --typ ide), set up dynamic class loading
