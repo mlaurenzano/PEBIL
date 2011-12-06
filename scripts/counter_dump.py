@@ -80,8 +80,11 @@ def merge_list_ranges(lst):
         sub.append(item)
         prev = item
 
-    if (len(sub) > 0):
+    if len(sub) == 1:
+        merged.append(str(sub[0]))
+    elif len(sub) > 0:
         merged.append(str(sub[0]) + '-' + str(sub[len(sub)-1]))
+
     return merged
 
 try:
