@@ -399,7 +399,7 @@ void define_user_sig_handlers(){
 #ifdef FAKE_MEASURE
 int continue_measuring = 0;
 pid_t other_pid = 0;
-#define SLEEP_INTERVAL 1000000
+#define SLEEP_INTERVAL 10000
 
 void kill_self(int signum){
     PRINT_INSTR(stdout, "gracefully killing signaller %d", getpid());
