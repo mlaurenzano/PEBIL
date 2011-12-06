@@ -154,8 +154,10 @@ int32_t loopcounter(int32_t* loopLineNumbers, char** loopFileNames, char** loopF
 
 
 #define FAKE_MEASURE
-//#define SIGNAL_ALL_RANKS
+#define SIGNAL_ALL_RANKS
+//#define TIME_SIGNAL_PATH
 #define COUNTER_DUMP_MAGIC (0x5ca1ab1e)
+int sliceIndex = 0;
 
 uint64_t entriesWritten;
 uint64_t* counterDumpBuffer = NULL;
@@ -201,6 +203,7 @@ void check_counter_state(){
     //PRINT_INSTR(stdout, "Checking counter state!");
     //print_64b_buffer(matchCounters, numberOfRareCounters, stdout, 'm');
     //print_64b_buffer(rareCounters, numberOfRareCounters, stdout, 'r');
+    sliceIndex++;
 
     int cnt_match = counters_match();
     if (cnt_match){
@@ -220,22 +223,11 @@ void check_counter_state(){
     dump_counter_state(0);
 }
 
-void init_matches(uint64_t* blockMatches, uint32_t* numMatches, uint64_t* rCounts, uint32_t* numRare, char* appName){
-    matchCounters = blockMatches;
-    currentMatchCount = numMatches;
-
-    dumpCounters = blockCounters;
-    numberOfDumpCounters = numberOfBasicBlocks;
-
-    rareCounters = rCounts;
-    numberOfRareCounters = *numRare;
-
-    applicationName = appName;
-
+void start_input_file(){
     char inpFile[__MAX_STRING_SIZE];
-    sprintf(inpFile, "%s_slices.%04d.step1", applicationName, getTaskId());
+    sprintf(inpFile, "%s.slices_%04d.step1", applicationName, getTaskId());
 
-    PRINT_INSTR(stdout, "init_matches opening counter file %s -- match %#x", inpFile, numMatches);
+    PRINT_INSTR(stdout, "opening counter file %s", inpFile);
     matchesFile = fopen(inpFile, "rb");
     if (matchesFile == NULL){
         PRINT_INSTR(stderr, "Cannot open input file %s", inpFile);
@@ -256,6 +248,19 @@ void init_matches(uint64_t* blockMatches, uint32_t* numMatches, uint64_t* rCount
 
     read_next_matches();
     reset_match_count();
+}
+
+void init_matches(uint64_t* blockMatches, uint32_t* numMatches, uint64_t* rCounts, uint32_t* numRare, char* appName){
+    matchCounters = blockMatches;
+    currentMatchCount = numMatches;
+
+    dumpCounters = blockCounters;
+    numberOfDumpCounters = numberOfBasicBlocks;
+
+    rareCounters = rCounts;
+    numberOfRareCounters = *numRare;
+
+    applicationName = appName;
 }
 
 int counters_match(){
@@ -330,6 +335,8 @@ int32_t finirare(){
 #endif
         }
     }
+    free(counterDumpBuffer);
+    free(otherRanksPids);
 }
 
 void clear_counter_state(uint64_t* c, uint32_t n){
@@ -352,22 +359,12 @@ void clear_counter_buffer(){
     bufferLoc = 0;
 }
 
-void dump_empty_counters(){
-    uint64_t empties[numberOfDumpCounters];
-    if (!dumpCounters){
-        return;
-    }
-    if (bufferLoc + numberOfDumpCounters > COUNTER_BUFFER_ENTRIES){
-        clear_counter_buffer();
-    }
-    bzero(empties, numberOfDumpCounters * sizeof(uint64_t));
-    memcpy(&counterDumpBuffer[bufferLoc], empties, numberOfDumpCounters * sizeof(uint64_t));
-    bufferLoc += numberOfDumpCounters;
-}
-
 void dump_counter_state(int signum){
-    //double d; ptimer(&d);
-    //PRINT_INSTR(stdout, "signal received @ %f", d);
+    sliceIndex++;
+#ifdef TIME_SIGNAL_PATH
+    double d; ptimer(&d);
+    PRINT_INSTR(stdout, "signal %d received @ %f", sliceIndex, d);
+#endif
     if (!dumpCounters){
         return;
     }
@@ -376,9 +373,8 @@ void dump_counter_state(int signum){
 
 #ifdef SIGNAL_ALL_RANKS
     int i;
-    for (i = 0; i < getNTasks(); i++){
-        if (i != 0){
-            PRINT_INSTR(stdout, "signalling to %d", otherRanksPids[i]);
+    if (getTaskId() == 0){
+        for (i = 1; i < getNTasks(); i++){
             kill(otherRanksPids[i], signum);
         }
     }
@@ -403,7 +399,7 @@ void define_user_sig_handlers(){
 #ifdef FAKE_MEASURE
 int continue_measuring = 0;
 pid_t other_pid = 0;
-#define SLEEP_INTERVAL 10000
+#define SLEEP_INTERVAL 1000000
 
 void kill_self(int signum){
     PRINT_INSTR(stdout, "gracefully killing signaller %d", getpid());
@@ -434,8 +430,11 @@ void initialize_signaller(){
 
     while (1){
         usleep(SLEEP_INTERVAL);
-        //double d; ptimer(&d);
-        //PRINT_INSTR(stdout, "signal sent @ %f", d);
+        sliceIndex++;
+#ifdef TIME_SIGNAL_PATH
+        double d; ptimer(&d);
+        PRINT_INSTR(stdout, "signal %d sent @ %f", sliceIndex, d);
+#endif
         kill(other_pid, SIGUSR1);
     }
     PRINT_INSTR(stdout, "killed signaler in pid %d -> %d", pid, other_pid);
@@ -448,6 +447,7 @@ void finalize_signaller(){
 #endif //FAKE_MEASURE
 
 void tool_mpi_init(){
+    int i;
     if (!numberOfRareCounters){
         return;
     }
@@ -470,11 +470,13 @@ void tool_mpi_init(){
 
 #ifdef SIGNAL_ALL_RANKS
     otherRanksPids = malloc(getNTasks() * sizeof(int));
-    otherRanksPids[0] = getpid();
-    MPI_Allgather(otherRanksPids, 1, MPI_INT, otherRanksPids, 1, MPI_INT, MPI_COMM_WORLD);
-    for (int i = 0; i < getNTasks(); i++){
+    i = getpid();
+    MPI_Allgather(&i, 1, MPI_INT, otherRanksPids, 1, MPI_INT, MPI_COMM_WORLD);
+    /*
+    for (i = 0; i < getNTasks(); i++){
         PRINT_INSTR(stdout, "o[%d] = %d", i, otherRanksPids[i]);
     }
+    */
 #endif
 
     char fname[__MAX_STRING_SIZE];
@@ -482,7 +484,7 @@ void tool_mpi_init(){
     if (matchCounters){
         step = 2;
     }
-    sprintf(fname, "%s_slices.%04d.step%d", applicationName, getTaskId(), step);
+    sprintf(fname, "%s.slices_%04d.step%d", applicationName, getTaskId(), step);
 
     outp = fopen(fname, "w");
     CounterDumpHeader_t hdr;
@@ -492,6 +494,10 @@ void tool_mpi_init(){
     PRINT_INSTR(stdout, "%x %d", hdr.magic, hdr.counters);
 
     fwrite((void*)&hdr, 1, sizeof(CounterDumpHeader_t), outp);
+
+    if (matchCounters){
+        start_input_file();
+    }
 
     ptimer(&pebiltimers[0]);
 }
