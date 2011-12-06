@@ -322,6 +322,7 @@ void BasicBlockCounter::instrument()
 #ifdef STATS_PER_INSTRUCTION
         HashCode* hc = head->getLeader()->generateHashCode(head);
         uint64_t hashValue = hc->getValue();
+        delete hc;
 #else 
         uint64_t hashValue = head->getHashCode().getValue();
 #endif
@@ -392,14 +393,9 @@ void BasicBlockCounter::instrument()
 #define COMPARE_COUNTERS "check_counter_state"
 #define COMPARE_INIT "init_matches"
 
-/*
 #define FUNCTION_ICOUNT_THRESHOLD 0
 #define LOOP_ICOUNT_THRESHOLD 20
 #define BB_ICOUNT_THRESHOLD 12
-*/
-#define FUNCTION_ICOUNT_THRESHOLD 0
-#define LOOP_ICOUNT_THRESHOLD 0
-#define BB_ICOUNT_THRESHOLD 0
 
 extern "C" {
     InstrumentationTool* RareEventCounterMaker(ElfFile* elf){
@@ -424,8 +420,6 @@ void RareEventCounter::declare(){
     checkFunc = declareFunction(COMPARE_COUNTERS);
     ASSERT(checkFunc);
 
-    checkFunc->assumeNoFunctionFP();
-
     checkInit = declareFunction(COMPARE_INIT);
     ASSERT(checkInit);
 }
@@ -435,6 +429,7 @@ void RareEventCounter::instrument()
     if (doIntro){
         loopCount = false;
         BasicBlockCounter::instrument();
+        //InstrumentationTool::instrument();
     } else {
         InstrumentationTool::instrument();
     }
@@ -611,6 +606,7 @@ void RareEventCounter::instrument()
                         insertPointCheck(tail->getExitInstruction(), i + rareBlocks.size(), InstLocation_after);
                     } else {
                         InstrumentationSnippet* snip = new InstrumentationSnippet();
+                        addInstrumentationSnippet(snip);
                         if (is64Bit()){
                             snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
                         } else {
@@ -684,7 +680,7 @@ void RareEventCounter::insertPointCheck(Base* point, uint32_t checkIdx, InstLoca
         counterUpdate.append(X86InstructionFactory64::emitRegAddImm(tmpReg1, 1));
         counterUpdate.append(X86InstructionFactory64::emitMoveRegToMem(tmpReg1, counterAddress));
 
-        PRINT_INFOR("CHECK counter update to %#llx ~/ match %#llx", counterAddress, matchAddress);
+        //PRINT_INFOR("CHECK counter update to %#llx ~/ match %#llx", counterAddress, matchAddress);
 
         // compare the two values for equality
         counterUpdate.append(X86InstructionFactory64::emitXorRegReg(tmpReg1, tmpReg2));
@@ -695,13 +691,16 @@ void RareEventCounter::insertPointCheck(Base* point, uint32_t checkIdx, InstLoca
         counterUpdate.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t)), tmpReg1, true));
 
         Vector<X86Instruction*> innerComp = Vector<X86Instruction*>();
+
         innerComp.append(X86InstructionFactory64::emitMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t))));
         innerComp.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + matchCountAddress, tmpReg1, true));
         innerComp.append(X86InstructionFactory64::emitRegSubImm(tmpReg1, 1));
         innerComp.append(X86InstructionFactory64::emitMoveRegToMem(tmpReg1, getInstDataAddress() + matchCountAddress));
+        //innerComp.append(X86InstructionFactory64::emitMoveImmToReg(1, tmpReg1));
         innerComp.append(X86InstructionFactory64::emitCompareImmReg(0, tmpReg1));
         innerComp.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t)), tmpReg1, true));
         innerComp.append(X86InstructionFactory::emitBranchJNE(Size__64_bit_inst_function_call_support));
+
         uint32_t innerCompSize = 0;
         for (int i = 0; i < innerComp.size(); i++){
             innerCompSize += innerComp[i]->getSizeInBytes();
@@ -712,7 +711,6 @@ void RareEventCounter::insertPointCheck(Base* point, uint32_t checkIdx, InstLoca
         while (innerComp.size()){
             counterUpdate.append(innerComp.remove(0));
         }
-
     } else {
         __FUNCTION_NOT_IMPLEMENTED;
     }

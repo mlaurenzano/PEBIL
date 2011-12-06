@@ -189,26 +189,31 @@ void reset_match_count(){
     int i;
     *currentMatchCount = numberOfRareCounters;
     for (i = 0; i < numberOfRareCounters; i++){
-        if (rareCounters[i] == matchCounters[i]){
+        if (rareCounters[i] >= matchCounters[i]){
             (*currentMatchCount)--;
         }
     }
-    PRINT_INSTR(stdout, "reset match count to %d", (*currentMatchCount));
+    //PRINT_INSTR(stdout, "reset match count to %d", (*currentMatchCount));
 }
 
 void check_counter_state(){
-    PRINT_INSTR(stdout, "Checking counter state!");
+    //PRINT_INSTR(stdout, "Checking counter state!");
+    //print_64b_buffer(matchCounters, numberOfRareCounters, stdout, 'm');
+    //print_64b_buffer(rareCounters, numberOfRareCounters, stdout, 'r');
 
-    print_64b_buffer(matchCounters, numberOfRareCounters, stdout, 'm');
-    print_64b_buffer(rareCounters, numberOfRareCounters, stdout, 'r');
-
-    if (!counters_match()){
-        PRINT_INSTR(stderr, "Counters do not match!");
+    int cnt_match = counters_match();
+    if (cnt_match){
+        PRINT_INSTR(stderr, "Counters do not match at index %d", cnt_match);
         exit(1);
     }
 
     read_next_matches();
     reset_match_count();
+    while (*currentMatchCount == 0){
+        PRINT_INSTR(stdout, "re-gathering match array");
+        read_next_matches();
+        reset_match_count();
+    }
 
     dump_counter_state(0);
 }
@@ -249,17 +254,29 @@ void init_matches(uint64_t* blockMatches, uint32_t* numMatches, uint64_t* rCount
 int counters_match(){
     int i;
     for (i = 0; i < numberOfRareCounters; i++){
-        if (matchCounters[i] != rareCounters[i]){
-            return 0;
+        if (matchCounters[i] > rareCounters[i]){
+            return i+1;
         }
     }
-    return 1;
+    return 0;
 }
 
 void read_next_matches(){
-    fread(matchCounters, sizeof(uint64_t), numberOfRareCounters, matchesFile);
-    PRINT_INSTR(stdout, "reading new match array");
-    print_64b_buffer(matchCounters, numberOfRareCounters, stdout, 'f');
+    int result = fread(matchCounters, sizeof(uint64_t), numberOfRareCounters, matchesFile);
+    if (result == 0){
+        for (result = 0; result < numberOfRareCounters; result++){
+            matchCounters[result] = -1;
+        }
+        PRINT_INSTR(stderr, "Nothing left in input file... zeroing match array");        
+        result = numberOfRareCounters;
+    }
+
+    if (result != numberOfRareCounters){
+        PRINT_INSTR(stderr, "Only read %d bytes from input file", result);
+        exit(1);
+    }
+    //PRINT_INSTR(stdout, "reading new match array");
+    //print_64b_buffer(matchCounters, numberOfRareCounters, stdout, 'f');
 }
 
 int32_t initrare(int32_t* numBlocks, uint64_t* blockCounts){
@@ -277,7 +294,7 @@ int32_t initrare(int32_t* numBlocks, uint64_t* blockCounts){
         numberOfDumpCounters = numberOfRareCounters;
     }
 
-    tool_mpi_init();
+    //tool_mpi_init();
 
     ptimer(&pebiltimers[0]);
 }
@@ -333,7 +350,7 @@ void dump_counter_state(int signum){
     }
     //print_64b_buffer(dumpCounters, numberOfDumpCounters, stdout, 'f');
     //fprintf(stdout, "\n");
-    //PRINT_INSTR(stdout, "dumping %d counters", numberOfDumpCounters);
+    //PRINT_INSTR(stdout, "dumping %d counters 1", numberOfDumpCounters);
 
 #ifdef SIGNAL_ALL_RANKS
     int i;
@@ -345,10 +362,13 @@ void dump_counter_state(int signum){
     }
 #endif
 
+    //PRINT_INSTR(stdout, "dumping %d counters 2", numberOfDumpCounters);
     if (bufferLoc + numberOfDumpCounters > COUNTER_BUFFER_ENTRIES){
         clear_counter_buffer();
     }
+    //PRINT_INSTR(stdout, "dumping %d counters 3", numberOfDumpCounters);
     memcpy(&counterDumpBuffer[bufferLoc], dumpCounters, numberOfDumpCounters * sizeof(uint64_t));
+    //PRINT_INSTR(stdout, "dumping %d counters 4", numberOfDumpCounters);
     bufferLoc += numberOfDumpCounters;
 
     //clear_counter_state(dumpCounters, numberOfDumpCounters);
