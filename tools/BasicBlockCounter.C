@@ -524,8 +524,12 @@ void RareEventCounter::instrument()
     temp64 = numberOfPoints;
     initializeReservedData(getInstDataAddress() + rareArrayEntries, sizeof(uint64_t), &temp64);
 
+    uint64_t appName = reserveDataOffset((strlen(getApplicationName()) + 1) * sizeof(char));
+    initializeReservedData(getInstDataAddress() + appName, strlen(getApplicationName()) + 1, getApplicationName());
+
     entryRare->addArgument(rareArrayEntries);
     entryRare->addArgument(rareArray);
+    entryRare->addArgument(appName);
 
     InstrumentationPoint* p;
     if (doIntro){
@@ -540,8 +544,9 @@ void RareEventCounter::instrument()
         checkInit->addArgument(matchCountAddress);
         checkInit->addArgument(rareArray);
         checkInit->addArgument(rareArrayEntries);
+        // sent to both since we need it in both
+        checkInit->addArgument(appName);
 
-        PRINT_INFOR("Adding init_matches!");
         p = addInstrumentationPoint(getProgramEntryBlock(), checkInit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
         p->setPriority(InstPriority_userinit);
         if (!p->getInstBaseAddress()){

@@ -175,6 +175,7 @@ uint32_t numberOfDumpCounters = 0;
 
 uint64_t* rareCounters = NULL;
 uint32_t numberOfRareCounters = 0;
+char* applicationName = NULL;
 
 uint64_t* matchCounters = NULL;
 FILE* matchesFile = NULL;
@@ -219,7 +220,7 @@ void check_counter_state(){
     dump_counter_state(0);
 }
 
-void init_matches(uint64_t* blockMatches, uint32_t* numMatches, uint64_t* rCounts, uint32_t* numRare){
+void init_matches(uint64_t* blockMatches, uint32_t* numMatches, uint64_t* rCounts, uint32_t* numRare, char* appName){
     matchCounters = blockMatches;
     currentMatchCount = numMatches;
 
@@ -229,8 +230,10 @@ void init_matches(uint64_t* blockMatches, uint32_t* numMatches, uint64_t* rCount
     rareCounters = rCounts;
     numberOfRareCounters = *numRare;
 
+    applicationName = appName;
+
     char inpFile[__MAX_STRING_SIZE];
-    sprintf(inpFile, "counter.dump.%04d.step1", getTaskId());
+    sprintf(inpFile, "%s_slices.%04d.step1", applicationName, getTaskId());
 
     PRINT_INSTR(stdout, "init_matches opening counter file %s -- match %#x", inpFile, numMatches);
     matchesFile = fopen(inpFile, "rb");
@@ -283,13 +286,14 @@ void read_next_matches(){
     //print_64b_buffer(matchCounters, numberOfRareCounters, stdout, 'f');
 }
 
-int32_t initrare(int32_t* numBlocks, uint64_t* blockCounts){
+int32_t initrare(int32_t* numBlocks, uint64_t* blockCounts, char* appName){
     numberOfRareCounters = *numBlocks;
     assert(numberOfRareCounters > 0);
 
     rareCounters = blockCounts;
 
-    PRINT_INSTR(stdout, "initrare");
+    applicationName = appName;
+    assert(applicationName);
 
     // do this stuff when init_matches wasn't called
     if (!matchCounters){
@@ -478,7 +482,7 @@ void tool_mpi_init(){
     if (matchCounters){
         step = 2;
     }
-    sprintf(fname, "counter.dump.%04d.step%d", getTaskId(), step);
+    sprintf(fname, "%s_slices.%04d.step%d", applicationName, getTaskId(), step);
 
     outp = fopen(fname, "w");
     CounterDumpHeader_t hdr;

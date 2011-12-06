@@ -61,6 +61,29 @@ def diff_counts(a, b):
             return i+1
     return 0
 
+def merge_list_ranges(lst):
+    prev = -1
+    sub = []
+    merged = []
+    for item in lst:
+        if item-prev == 1 or prev == -1:
+            #print 'match ' + str(item)
+            # does nothing
+            prev = item
+        else:
+            #print 'no match ' + str(item)
+            if len(sub) == 1:
+                merged.append(str(sub[0]))
+            else:
+                merged.append(str(sub[0]) + '-' + str(sub[len(sub)-1]))
+            sub = []
+        sub.append(item)
+        prev = item
+
+    if (len(sub) > 0):
+        merged.append(str(sub[0]) + '-' + str(sub[len(sub)-1]))
+    return merged
+
 try:
     optlist, args = getopt.getopt(sys.argv[1:], '', ['file=', 'verbose'])
 except getopt.GetoptError, err:
@@ -127,4 +150,4 @@ try:
 except EOFError:
     f.close()
     print 'found ' + str(slices) + ' slices, ' + str(diffs) + ' are different than prev'
-    print_debug(diff_list)
+    print merge_list_ranges(diff_list)

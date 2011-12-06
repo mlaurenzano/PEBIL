@@ -67,7 +67,7 @@ public:
     void instrument();
 
     const char* briefName() { return "RareEventCounter"; }
-    const char* defaultExtension() { return "recinst"; }
+    const char* defaultExtension() { if (doIntro) { return "step2"; } else { return "step1"; } }
     uint32_t allowsArgs() { return PEBIL_OPT_DOI; }
 };
 
