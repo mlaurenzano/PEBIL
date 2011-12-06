@@ -37,7 +37,7 @@ def print_error(err):
 
 def print_usage(err):
     print "usage : " + sys.argv[0]
-    print "        --file <counter_dump_file>"
+    print "        --file <counter_dump_file> [--verbose]"
     print_error(err)
 
 def file_exists(filename):
@@ -62,7 +62,7 @@ def diff_counts(a, b):
     return 0
 
 try:
-    optlist, args = getopt.getopt(sys.argv[1:], '', ['file='])
+    optlist, args = getopt.getopt(sys.argv[1:], '', ['file=', 'verbose'])
 except getopt.GetoptError, err:
     print_usage(err)
     sys.exit(-1)
@@ -75,6 +75,8 @@ inputfile = ''
 for i in range(0,len(optlist),1):
     if optlist[i][0] == '--file':
         inputfile = optlist[i][1]
+    if optlist[i][0] == '--verbose':
+        debug = True
 
 if inputfile == '':
     print_usage('missing switch --file')
@@ -111,6 +113,8 @@ try:
 
         if counter_diff != 0:
             print_debug(counter_diff)
+        else:
+            print_debug(-1)
 
         if counter_diff != 0:
             diffs += 1
@@ -123,4 +127,4 @@ try:
 except EOFError:
     f.close()
     print 'found ' + str(slices) + ' slices, ' + str(diffs) + ' are different than prev'
-    #print diff_list
+    print_debug(diff_list)

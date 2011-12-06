@@ -211,6 +211,7 @@ void check_counter_state(){
     reset_match_count();
     while (*currentMatchCount == 0){
         PRINT_INSTR(stdout, "re-gathering match array");
+        dump_counter_state(0);
         read_next_matches();
         reset_match_count();
     }
@@ -228,10 +229,13 @@ void init_matches(uint64_t* blockMatches, uint32_t* numMatches, uint64_t* rCount
     rareCounters = rCounts;
     numberOfRareCounters = *numRare;
 
-    PRINT_INSTR(stdout, "init_matches opening counter file counter.dump.cp.0000 -- match %#x", numMatches);
-    matchesFile = fopen("counter.dump.cp.0000", "rb");
+    char inpFile[__MAX_STRING_SIZE];
+    sprintf(inpFile, "counter.dump.%04d.step1", getTaskId());
+
+    PRINT_INSTR(stdout, "init_matches opening counter file %s -- match %#x", inpFile, numMatches);
+    matchesFile = fopen(inpFile, "rb");
     if (matchesFile == NULL){
-        PRINT_INSTR(stderr, "Cannot open input file");
+        PRINT_INSTR(stderr, "Cannot open input file %s", inpFile);
         exit(1);
     }
 
@@ -344,13 +348,27 @@ void clear_counter_buffer(){
     bufferLoc = 0;
 }
 
+void dump_empty_counters(){
+    uint64_t empties[numberOfDumpCounters];
+    if (!dumpCounters){
+        return;
+    }
+    if (bufferLoc + numberOfDumpCounters > COUNTER_BUFFER_ENTRIES){
+        clear_counter_buffer();
+    }
+    bzero(empties, numberOfDumpCounters * sizeof(uint64_t));
+    memcpy(&counterDumpBuffer[bufferLoc], empties, numberOfDumpCounters * sizeof(uint64_t));
+    bufferLoc += numberOfDumpCounters;
+}
+
 void dump_counter_state(int signum){
+    //double d; ptimer(&d);
+    //PRINT_INSTR(stdout, "signal received @ %f", d);
     if (!dumpCounters){
         return;
     }
     //print_64b_buffer(dumpCounters, numberOfDumpCounters, stdout, 'f');
     //fprintf(stdout, "\n");
-    //PRINT_INSTR(stdout, "dumping %d counters 1", numberOfDumpCounters);
 
 #ifdef SIGNAL_ALL_RANKS
     int i;
@@ -362,13 +380,10 @@ void dump_counter_state(int signum){
     }
 #endif
 
-    //PRINT_INSTR(stdout, "dumping %d counters 2", numberOfDumpCounters);
     if (bufferLoc + numberOfDumpCounters > COUNTER_BUFFER_ENTRIES){
         clear_counter_buffer();
     }
-    //PRINT_INSTR(stdout, "dumping %d counters 3", numberOfDumpCounters);
     memcpy(&counterDumpBuffer[bufferLoc], dumpCounters, numberOfDumpCounters * sizeof(uint64_t));
-    //PRINT_INSTR(stdout, "dumping %d counters 4", numberOfDumpCounters);
     bufferLoc += numberOfDumpCounters;
 
     //clear_counter_state(dumpCounters, numberOfDumpCounters);
@@ -415,7 +430,8 @@ void initialize_signaller(){
 
     while (1){
         usleep(SLEEP_INTERVAL);
-        //PRINT_INSTR(stdout, "signal!");
+        //double d; ptimer(&d);
+        //PRINT_INSTR(stdout, "signal sent @ %f", d);
         kill(other_pid, SIGUSR1);
     }
     PRINT_INSTR(stdout, "killed signaler in pid %d -> %d", pid, other_pid);
@@ -458,7 +474,12 @@ void tool_mpi_init(){
 #endif
 
     char fname[__MAX_STRING_SIZE];
-    sprintf(fname, "counter.dump.%04d", getTaskId());
+    int step = 1;
+    if (matchCounters){
+        step = 2;
+    }
+    sprintf(fname, "counter.dump.%04d.step%d", getTaskId(), step);
+
     outp = fopen(fname, "w");
     CounterDumpHeader_t hdr;
     bzero(&hdr, sizeof(CounterDumpHeader_t));
