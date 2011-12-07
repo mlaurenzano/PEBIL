@@ -187,6 +187,7 @@ void read_next_matches();
 void clear_counter_buffer();
 void finalize_signaller();
 void define_user_sig_handlers();
+void dump_counter_state(int);
 
 void reset_match_count(){
     int i;
