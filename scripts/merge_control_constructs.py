@@ -77,9 +77,9 @@ for k in inp_hash.keys():
         for j in inp_hash.keys():
             if int(inp_hash[j][10], 16) == function_head_addr:
                 function_entries[get_function_index(int(inp_hash[j][2]))] = int(inp_hash[j][2])
-                print 'adding function ' + block_data[31]
+                #print 'adding function ' + block_data[31]
 
-print function_entries
+#print function_entries
 
 func_totals = {}
 for k in inp_hash.keys():

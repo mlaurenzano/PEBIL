@@ -172,7 +172,7 @@ def main():
 
     except EOFError:
         f.close()
-        print 'found ' + str(numslices) + ' slices, ' + str(diffs) + ' are different than prev'
+        print 'found ' + str(numslices) + ' slices of size ' + str(len(slices[0])) + ', ' + str(diffs) + ' are different than prev'
         print merge_list_ranges(diff_list)
 
     if do_measure == False:
