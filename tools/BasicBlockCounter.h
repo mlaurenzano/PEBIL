@@ -30,6 +30,8 @@ protected:
 
     InstrumentationFunction* loopEntry;
     InstrumentationFunction* loopExit;
+
+    bool loopCount;
 public:
     BasicBlockCounter(ElfFile* elf);
     ~BasicBlockCounter() {}
@@ -47,6 +49,16 @@ class RareEventCounter : public BasicBlockCounter {
 private:
     InstrumentationFunction* entryRare;
     InstrumentationFunction* exitRare;    
+
+    InstrumentationFunction* checkFunc;
+    InstrumentationFunction* checkInit;
+
+    uint64_t matchArray;
+    uint64_t rareArray;
+    uint64_t matchCountAddress;
+
+    void insertPointCheck(Base* point, uint32_t checkIdx, InstLocations loc);
+
 public:
     RareEventCounter(ElfFile* elf);
     ~RareEventCounter() {}
@@ -55,8 +67,8 @@ public:
     void instrument();
 
     const char* briefName() { return "RareEventCounter"; }
-    const char* defaultExtension() { return "recinst"; }
-    uint32_t allowsArgs() { return PEBIL_OPT_INP; }
+    const char* defaultExtension() { if (doIntro) { return "step2"; } else { return "step1"; } }
+    uint32_t allowsArgs() { return PEBIL_OPT_DOI; }
 };
 
 #endif /* _BasicBlockCounter_h_ */

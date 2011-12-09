@@ -769,18 +769,30 @@ X86Instruction* X86InstructionFactory32::emitCompareImmReg(uint64_t imm, uint8_t
     return emitInstructionBase(len,buff);
 }
 
-X86Instruction* X86InstructionFactory::emitBranchJL(uint64_t off){
+X86Instruction* X86InstructionFactory::emitBranchGeneric(uint64_t off, uint8_t code){
     uint32_t len = 6;
     char* buff = new char[len];
 
     buff[0] = 0x0f;
-    buff[1] = 0x8c;
+    buff[1] = code;
 
     uint32_t off32 = (uint32_t)off;
     ASSERT(off32 == off && "Cannot use more than 32 bits for off");
     memcpy(buff+2, &off32, sizeof(uint32_t));
 
     return emitInstructionBase(len,buff);
+}
+
+X86Instruction* X86InstructionFactory::emitBranchJNE(uint64_t off){
+    return emitBranchGeneric(off, 0x85);
+}
+
+X86Instruction* X86InstructionFactory::emitBranchJE(uint64_t off){
+    return emitBranchGeneric(off, 0x84);
+}
+
+X86Instruction* X86InstructionFactory::emitBranchJL(uint64_t off){
+    return emitBranchGeneric(off, 0x8c);
 }
 
 X86Instruction* X86InstructionFactory64::emitMoveRegToReg(uint32_t srcreg, uint32_t destreg){
@@ -923,6 +935,17 @@ X86Instruction* X86InstructionFactory32::emitRegAddImm(uint8_t idx, uint32_t imm
     buff[1] = 0xc0 + (char)idx;
     memcpy(buff+2, &imm, sizeof(uint32_t));
 
+    return emitInstructionBase(len,buff);
+}
+
+X86Instruction* X86InstructionFactory32::emitXorRegReg(uint8_t src, uint8_t tgt){
+    ASSERT(src < X86_32BIT_GPRS && "Illegal register index given");
+    ASSERT(tgt < X86_32BIT_GPRS && "Illegal register index given");
+    
+    uint32_t len = 2;
+    char* buff = new char[len];
+    buff[0] = 0x31;
+    buff[1] = 0xc0 + tgt + 8*src;
     return emitInstructionBase(len,buff);
 }
 

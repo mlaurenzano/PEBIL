@@ -1051,7 +1051,7 @@ Vector<X86Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<X86In
     if (!tgtInstruction){
         PRINT_INFOR("looking for addr %#llx inside block with range [%#llx,%#llx)", addr, getBaseAddress(), getBaseAddress() + getNumberOfBytes());
         printInstructions();
-        flowGraph->getFunction()->printInstructions();
+        //flowGraph->getFunction()->printInstructions();
     }
     ASSERT(tgtInstruction && "This basic block should have an instruction at the given address");
 

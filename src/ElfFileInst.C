@@ -1138,14 +1138,8 @@ void ElfFileInst::computeInstrumentationOffsets(){
             priorpt[k]->setInstSourceOffset(currentOffset);
         }
 
-        currentOffset = (*instrumentationPoints)[i]->getSourceObject()->getSizeInBytes();
         for (uint32_t k = 0; k < afterpt.size(); k++){
-            uint32_t bytesreq = Size__uncond_jump;
-            if (afterpt[k]->getInstrumentationMode() == InstrumentationMode_inline){
-                bytesreq = afterpt[k]->getSourceObject()->getSizeInBytes();
-            }
-            afterpt[k]->setInstSourceOffset(bytesreq);
-            currentOffset += bytesreq;
+            afterpt[k]->setInstSourceOffset(afterpt[k]->getSourceObject()->getSizeInBytes());
         }
 
         currentOffset = 0;
