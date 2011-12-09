@@ -212,7 +212,7 @@ int main(int argc,char* argv[]){
            We distinguish them by their indices. */
         ARG_OPTION(typ, 'y'), ARG_OPTION(tool, 't'), ARG_OPTION(tlib, 'o'), ARG_OPTION(inp, 'p'), ARG_OPTION(trk, 'k'), 
         ARG_OPTION(lnc, 'n'), ARG_OPTION(inf, 'z'), ARG_OPTION(app, 'a'), ARG_OPTION(lib, 'l'), 
-        ARG_OPTION(ext, 'x'), ARG_OPTION(fbl, 'b'), ARG_OPTION(dmp, 'm'), ARG_OPTION(phs, 'f'), 
+        ARG_OPTION(ext, 'x'), ARG_OPTION(fbl, 'b'), ARG_OPTION(dmp, 'm'), ARG_OPTION(phs, 'f'), ARG_OPTION(dfp, 'g'),
         {0,              0,                 0,              0},
     };
 
