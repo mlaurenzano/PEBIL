@@ -145,3 +145,19 @@ int32_t function_exit(){
 #endif
     //    printFunctionInfo(currentRecord);
 }
+
+
+double* functionAccum = NULL;
+double* timers = NULL;
+
+int32_t ext_program_entry(int32_t* numFunctions, char** funcNames, uint32_t* idxAddr){
+}
+
+int32_t ext_program_exit(){
+}
+
+int32_t function_pre(){
+}
+
+int32_t function_post(){
+}

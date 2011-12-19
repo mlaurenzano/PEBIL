@@ -24,14 +24,12 @@
 #include <InstrumentationTool.h>
 
 class FunctionTimer : public InstrumentationTool {
-private:
+protected:
     InstrumentationFunction* programEntry;
     InstrumentationFunction* programExit;
 
     InstrumentationFunction* functionEntry;
     InstrumentationFunction* functionExit;
-    InstrumentationFunction* functionEntryFlagsSafe;
-    InstrumentationFunction* functionExitFlagsSafe;
 
 public:
     FunctionTimer(ElfFile* elf);
@@ -46,5 +44,17 @@ public:
     uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
 
+class ExternalFunctionTimer : public FunctionTimer {
+public:
+    ExternalFunctionTimer(ElfFile* elf);
+    ~ExternalFunctionTimer() {}
+
+    void declare();
+    void instrument();
+
+    const char* briefName() { return "ExternalFunctionTimer"; }
+    const char* defaultExtension() { return "eftinst"; }
+    uint32_t allowsArgs() { return PEBIL_OPT_INP; }
+};
 
 #endif /* _FunctionTimer_h_ */

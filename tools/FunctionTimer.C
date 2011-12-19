@@ -26,10 +26,6 @@
 #include <X86Instruction.h>
 #include <X86InstructionFactory.h>
 
-#define PROGRAM_ENTRY  "program_entry"
-#define PROGRAM_EXIT   "program_exit"
-#define FUNCTION_ENTRY "function_entry"
-#define FUNCTION_EXIT  "function_exit"
 #define INST_LIB_NAME "libtimer.so"
 
 extern "C" {
@@ -46,8 +42,6 @@ FunctionTimer::FunctionTimer(ElfFile* elf)
 
     functionEntry = NULL;
     functionExit = NULL;
-    functionEntryFlagsSafe = NULL;
-    functionExitFlagsSafe = NULL;
 }
 
 void FunctionTimer::declare(){
@@ -57,18 +51,17 @@ void FunctionTimer::declare(){
     declareLibrary(INST_LIB_NAME);
 
     // declare any instrumentation functions that will be used
-    programEntry = declareFunction(PROGRAM_ENTRY);
+    programEntry = declareFunction("program_entry");
     ASSERT(programEntry);
-    programExit = declareFunction(PROGRAM_EXIT);
+
+    programExit = declareFunction("program_exit");
     ASSERT(programExit);
-    functionEntry = declareFunction(FUNCTION_ENTRY);
-    functionEntryFlagsSafe = declareFunction(FUNCTION_ENTRY);
+
+    functionEntry = declareFunction("function_entry");
     ASSERT(functionEntry);
-    ASSERT(functionEntryFlagsSafe);
-    functionExit = declareFunction(FUNCTION_EXIT);
-    functionExitFlagsSafe = declareFunction(FUNCTION_EXIT);
+
+    functionExit = declareFunction("function_exit");
     ASSERT(functionExit);
-    ASSERT(functionExitFlagsSafe);
 }
 
 void FunctionTimer::instrument(){
@@ -100,14 +93,9 @@ void FunctionTimer::instrument(){
     uint64_t functionIndexAddr = reserveDataOffset(sizeof(uint64_t));
     programEntry->addArgument(functionIndexAddr);
 
-    functionEntry->assumeNoFunctionFP();
-    functionEntryFlagsSafe->assumeNoFunctionFP();
+    //functionEntry->assumeNoFunctionFP();
+    //functionExit->assumeNoFunctionFP();
 
-    functionExit->assumeNoFunctionFP();
-    functionExitFlagsSafe->assumeNoFunctionFP();
-
-    uint32_t noProtPoints = 0;
-    uint32_t totalPoints = 0;
     for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
         Function* f = getExposedFunction(i);
         
@@ -133,17 +121,11 @@ void FunctionTimer::instrument(){
         for (int32_t j = bb->getNumberOfInstructions() - 1; j >= 0; j--){
             if (bb->getInstruction(j)->allFlagsDeadIn()){
                 bestinst = bb->getInstruction(j);
-                noProtPoints++;
                 prot = FlagsProtectionMethod_none;
                 break;
             }
         }
-        if (prot == FlagsProtectionMethod_full){
-            p = addInstrumentationPoint(bestinst, functionEntry, InstrumentationMode_tramp, prot, loc);
-        } else {
-            p = addInstrumentationPoint(bestinst, functionEntryFlagsSafe, InstrumentationMode_tramp, prot, loc);
-        }
-        totalPoints++;
+        p = addInstrumentationPoint(bestinst, functionEntry, InstrumentationMode_tramp, prot, loc);
         for (uint32_t j = 0; j < fillEntry.size(); j++){
             p->addPrecursorInstruction(fillEntry[j]);
         }
@@ -163,17 +145,11 @@ void FunctionTimer::instrument(){
             for (int32_t k = (*exitBlocks)[j]->getNumberOfInstructions() - 1; k >= 0; k--){
                 if ((*exitBlocks)[j]->getInstruction(k)->allFlagsDeadIn()){
                     bestinst = (*exitBlocks)[j]->getInstruction(k);
-                    noProtPoints++;
                     prot = FlagsProtectionMethod_none;
                     break;
                 }
             }
-            if (prot == FlagsProtectionMethod_full){
-                p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, prot, loc);
-            } else {
-                p = addInstrumentationPoint(bestinst, functionExitFlagsSafe, InstrumentationMode_tramp, prot, loc);
-            }
-            totalPoints++;
+            p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, prot, loc);
             for (uint32_t k = 0; k < fillExit.size(); k++){
                 p->addPrecursorInstruction(fillExit[k]);
             }
@@ -181,16 +157,12 @@ void FunctionTimer::instrument(){
         if (!(*exitBlocks).size()){
             Vector<X86Instruction*> fillExit = Vector<X86Instruction*>();
 
+            PRINT_WARN(10, "No exit blocks could be found for function %s, instrumenting last (linear) block", f->getName());
+
             if (getElfFile()->is64Bit()){
-                fillExit.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                fillExit.append(X86InstructionFactory64::emitMoveImmToReg(i, X86_REG_CX));
-                fillExit.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-                fillExit.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
+                fillExit.append(X86InstructionFactory64::emitMoveImmToMem(i, getInstDataAddress() + functionIndexAddr));
             } else {
-                fillExit.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                fillExit.append(X86InstructionFactory32::emitMoveImmToReg(i, X86_REG_CX));
-                fillExit.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + functionIndexAddr));
-                fillExit.append(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
+                fillExit.append(X86InstructionFactory32::emitMoveImmToMem(i, getInstDataAddress() + functionIndexAddr));
             }
 
             BasicBlock* lastbb = f->getBasicBlock(f->getNumberOfBasicBlocks()-1);
@@ -202,17 +174,11 @@ void FunctionTimer::instrument(){
                 for (int32_t j = lastbb->getNumberOfInstructions() - 1; j >= 0; j--){
                     if (lastbb->getInstruction(j)->allFlagsDeadIn()){
                         bestinst = lastbb->getInstruction(j);
-                        noProtPoints++;
                         prot = FlagsProtectionMethod_none;
                         break;
                     }
                 }
-                if (prot == FlagsProtectionMethod_full){
-                    p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, prot, loc);
-                } else {
-                    p = addInstrumentationPoint(bestinst, functionExitFlagsSafe, InstrumentationMode_tramp, prot, loc);
-                }
-                totalPoints++;
+                p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, prot, loc);
                 for (uint32_t k = 0; k < fillExit.size(); k++){
                     p->addPrecursorInstruction(fillExit[k]);
                 }
@@ -223,6 +189,68 @@ void FunctionTimer::instrument(){
 
         delete exitBlocks;
     }
-    PRINT_INFOR("Excluding protection from %d/%d instrumentation points", noProtPoints, totalPoints);
+}
 
+extern "C" {
+    InstrumentationTool* ExternalFunctionTimerMaker(ElfFile* elf){
+        return new ExternalFunctionTimer(elf);
+    }
+}
+
+ExternalFunctionTimer::ExternalFunctionTimer(ElfFile* elf)
+    : FunctionTimer(elf)
+{
+}
+
+void ExternalFunctionTimer::declare(){
+    InstrumentationTool::declare();
+
+    // declare any shared library that will contain instrumentation functions
+    declareLibrary(INST_LIB_NAME);
+
+    // declare any instrumentation functions that will be used
+    programEntry = declareFunction("ext_program_entry");
+    ASSERT(programEntry);
+
+    programExit = declareFunction("ext_program_exit");
+    ASSERT(programExit);
+
+    functionEntry = declareFunction("function_pre");
+    ASSERT(functionEntry);
+
+    functionExit = declareFunction("function_post");
+    ASSERT(functionExit);
+}
+
+void ExternalFunctionTimer::instrument(){
+    InstrumentationTool::instrument();
+
+    uint32_t temp32;
+    uint64_t temp64;
+
+    InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp);
+    ASSERT(p);
+    if (!p->getInstBaseAddress()){
+        PRINT_ERROR("Cannot find an instrumentation point at the exit function");
+    }
+
+    p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp);
+    ASSERT(p);
+    if (!p->getInstBaseAddress()){
+        PRINT_ERROR("Cannot find an instrumentation point at the exit function");
+    }
+
+    uint64_t functionCountAddr = reserveDataOffset(sizeof(uint64_t));
+    programEntry->addArgument(functionCountAddr);
+    temp64 = getNumberOfExposedFunctions();
+    initializeReservedData(getInstDataAddress() + functionCountAddr, sizeof(uint64_t), &temp64);
+
+    uint64_t funcNameArray = reserveDataOffset(getNumberOfExposedFunctions() * sizeof(char*));
+    programEntry->addArgument(funcNameArray);
+
+    uint64_t functionIndexAddr = reserveDataOffset(sizeof(uint64_t));
+    programEntry->addArgument(functionIndexAddr);
+
+    //functionEntry->assumeNoFunctionFP();
+    //functionExit->assumeNoFunctionFP();
 }

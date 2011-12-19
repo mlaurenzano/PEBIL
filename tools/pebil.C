@@ -421,15 +421,28 @@ int main(int argc,char* argv[]){
         sprintf(toolLibName, "lib%sTool.so\0", tool_arg);
     }
     sprintf(toolConstructor, "%sMaker", tool_arg);
+    PRINT_INFOR("Using library %s and generator %s for dynamic class loading", toolLibName, toolConstructor);
 
     // if we are using a real tool (not --typ ide), set up dynamic class loading
     if (instType != identical_inst_type){
         libHandle = dlopen(toolLibName, RTLD_NOW);
+        char* dlErr = dlerror();
+        if (dlErr){
+            PRINT_ERROR("Error from dlopen: %s", dlErr);
+            return 1;
+        }
+        ASSERT(dlErr == NULL);
         if(libHandle == NULL){
             PRINT_ERROR("cannot open tool library %s, it needs to be in your LD_LIBRARY_PATH", toolLibName);
             return 1;
         }
         maker = dlsym(libHandle, toolConstructor);
+        dlErr = dlerror();
+        if (dlErr){
+            PRINT_ERROR("Error from dlsym: %s", dlErr);
+            return 1;
+        }
+        ASSERT(dlErr == NULL);
         if (maker == NULL){
             PRINT_ERROR("cannot find function %s in %s, see tools/Minimal.* for an intro to tool creation", toolConstructor, toolLibName);
             return 1;
