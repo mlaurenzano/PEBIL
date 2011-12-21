@@ -92,8 +92,16 @@ operand_dict = {
     "Ob"       : [    "OP_O"        , "SZ_B"     ],
     "Ow"       : [    "OP_O"        , "SZ_W"     ],
     "Ov"       : [    "OP_O"        , "SZ_V"     ],
+    "X"        : [    "OP_X"        , "SZ_NA"    ],
+    "x"        : [    "OP_x"        , "SZ_NA"    ],
     "V"        : [    "OP_V"        , "SZ_NA"    ],
+    "Vd"       : [    "OP_V"        , "SZ_D"     ],
+    "Vq"       : [    "OP_V"        , "SZ_Q"     ],
+    "Vx"       : [    "OP_V"        , "SZ_X"     ],
     "W"        : [    "OP_W"        , "SZ_NA"    ],
+    "Wd"       : [    "OP_W"        , "SZ_D"     ],
+    "Wq"       : [    "OP_W"        , "SZ_Q"     ],
+    "Wx"       : [    "OP_W"        , "SZ_X"     ],
     "P"        : [    "OP_P"        , "SZ_NA"    ],
     "Q"        : [    "OP_Q"        , "SZ_NA"    ],
     "VR"       : [    "OP_VR"       , "SZ_NA"    ],
@@ -193,7 +201,7 @@ siz_constants = []
 tables        = {}
 table_sizes   = {}
 mnm_list      = []
-default_opr   = 'O_NONE, O_NONE, O_NONE'
+default_opr   = 'O_NONE, O_NONE, O_NONE, O_NONE'
 
 
 #
@@ -262,6 +270,7 @@ for node in tlNode.childNodes:
     # check if this instruction was already defined.
     # else add it to the global list of mnemonics
     mnemonic = node.attributes['mnemonic'].value
+    avx_named = 0
     if mnemonic in mnm_list:
         print "error: multiple declarations of mnemonic='%s'" % mnemonic;
         sys.exit(-1)
@@ -364,33 +373,55 @@ for node in tlNode.childNodes:
         #
         # Convert operands
         #
-        opr_c = [ "O_NONE", "O_NONE", "O_NONE" ]
+        opr_c = [ "O_NONE", "O_NONE", "O_NONE", "O_NONE" ]
         for i in range(len(opr)): 
             if not (opr[i] in operand_dict.keys()):
                 print "error: invalid operand declaration: %s\n" % opr[i]
             opr_c[i] = "O_" + opr[i]
-        opr = "%-8s %-8s %s" % (opr_c[0] + ",", opr_c[1] + ",", opr_c[2])
+        opr = "%-8s %-8s %-8s %s" % (opr_c[0] + ",", opr_c[1] + ",", opr_c[2] + ",", opr_c[3])
 
         table_sse    = ''
-        table_0fdone = 0
+        table_ssedone = 0
+        table_avx    = ''
+        table_avxdone = 0
         table_name   = 'itab__1byte'
         table_size   = 256
         table_index  = ''
-
+        
         for op in opc:
             if op[0:3] == 'SSE':
                 table_sse = op
+            elif op[0:3] == 'AVX':
+                if avx_named == 0:
+                    mnemonic = "v" + mnemonic
+                    mnm_list.append(mnemonic)
+                    avx_named += 1
+                print "NEW0 " + op + " " + mnemonic
+                table_avx = op[3:]
+            elif op == '0F' and len(table_sse) and len(table_avx):
+                table_name = "itab__avx_" + table_avx + "__pfx_" + table_sse + "__0f"
+                print "table_name 1: " + table_name
+                table_size = 256
+                table_avx = ''
+                table_index = op
+                table_avxdone += 1
+            elif op == '0F' and len(table_avx):
+                table_name = "itab__avx_%s__0f" % table_avx
+                print "table_name 2: " + table_name
+                table_size = 256
+                table_avx  = ''
+                table_avxdone += 1
             elif op == '0F' and len(table_sse):
                 table_name = "itab__pfx_%s__0f" % table_sse
                 table_size = 256
                 table_sse  = ''
-                table_0fdone += 1
-            elif op == '0F' and table_0fdone:
+                table_ssedone += 1
+            elif op == '0F' and table_ssedone:
                 table_index = op
             elif op == '0F':
                 table_name = "itab__0f"
                 table_size = 256
-                table_0fdone += 1
+                table_ssedone += 1
             elif op[0:5] == '/X87=':
                 tables[table_name][table_index] = { \
                     'type' : 'grp_x87',  \

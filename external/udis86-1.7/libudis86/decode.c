@@ -14,12 +14,15 @@
 #include "input.h"
 #include "decode.h"
 
+#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
+//#define PEBIL_DEBUG(...)
+
 /* The max number of prefixes to an instruction */
 #define MAX_PREFIXES    15
 
-static struct ud_itab_entry ie_invalid = { UD_Iinvalid, O_NONE, O_NONE, O_NONE, P_none };
-static struct ud_itab_entry ie_pause   = { UD_Ipause,   O_NONE, O_NONE, O_NONE, P_none };
-static struct ud_itab_entry ie_nop     = { UD_Inop,     O_NONE, O_NONE, O_NONE, P_none };
+static struct ud_itab_entry ie_invalid = { UD_Iinvalid, O_NONE, O_NONE, O_NONE, O_NONE, P_none };
+static struct ud_itab_entry ie_pause   = { UD_Ipause,   O_NONE, O_NONE, O_NONE, O_NONE, P_none };
+static struct ud_itab_entry ie_nop     = { UD_Inop,     O_NONE, O_NONE, O_NONE, O_NONE, P_none };
 
 
 /* Looks up mnemonic code in the mnemonic string table
@@ -33,6 +36,8 @@ const char * ud_lookup_mnemonic( enum ud_mnemonic_code c )
 }
 
 
+static unsigned char decode_vex( struct ud* u);
+
 /* Extracts instruction prefixes.
  */
 static int get_prefixes( struct ud* u )
@@ -45,6 +50,7 @@ static int get_prefixes( struct ud* u )
     if ( u->error ) 
         return -1; 
 
+    PEBIL_DEBUG("getting prefix");
     /* keep going as long as there are prefixes available */
     for ( i = 0; have_pfx ; ++i ) {
 
@@ -53,11 +59,14 @@ static int get_prefixes( struct ud* u )
         if ( u->error ) 
             return -1;
         curr = inp_curr( u );
+        PEBIL_DEBUG("\tgetting prefix for curr %hhx", curr);
 
         /* rex prefixes in 64bit mode */
         if ( u->dis_mode == 64 && ( curr & 0xF0 ) == 0x40 ) {
+            PEBIL_DEBUG("\t\trex!");
             u->pfx_rex = curr;  
         } else {
+            PEBIL_DEBUG("\t\tnot rex");
             switch ( curr )  
             {
             case 0x2E : 
@@ -111,6 +120,30 @@ static int get_prefixes( struct ud* u )
                 u->pfx_repe = 0xF3; 
                 u->pfx_rex  = 0;
                 break;
+
+                /* PEBIL */
+                /* for AVX instructions */
+                /* 2-byte vex */
+            case 0xC4:
+                PEBIL_DEBUG("\t\tAVX prefix found %hhx", curr);
+
+                inp_next(u);
+                u->avx_vex[1]  = inp_curr(u);
+
+                /* 1-byte vex */
+            case 0xC5:
+                PEBIL_DEBUG("\t\tAVX prefix found %hhx", curr);
+
+                u->pfx_insn = curr;
+                inp_next(u);
+                u->avx_vex[0]  = inp_curr(u);
+
+                u->pfx_avx  = 0;
+                u->pfx_rex  = 0;
+
+                decode_vex(u);
+                break;
+                /* end PEBIL */
             default : 
                 /* No more prefixes */
                 have_pfx = 0;
@@ -215,11 +248,11 @@ static int search_itab( struct ud * u )
         }
 
         /* PEBIL */
-        /* 3byte opcodes */
+        /* 3byte SSE opcodes */
         if ( 0x38 == curr ) {
-            //printf("3byte opcode %hhx\n", curr);
+            PEBIL_DEBUG("3byte opcode %hhx", curr);
             curr  = inp_next(u);
-            //printf("\topcode %hhx\n", curr);
+            PEBIL_DEBUG("\topcode %hhx", curr);
             if ( ud_itab_list[ ITAB__0F__OP___3BYTE_38__REG ][ curr ].mnemonic != UD_Iinvalid ) {
                 table = ITAB__0F__OP___3BYTE_38__REG;
             }
@@ -229,9 +262,9 @@ static int search_itab( struct ud * u )
                 }
             }
         } else if ( 0x3A == curr ) {
-            //printf("3byte opcode %hhx\n", curr);
+            PEBIL_DEBUG("3byte opcode %hhx", curr);
             curr  = inp_next(u);
-            //printf("\topcode %hhx\n", curr);
+            PEBIL_DEBUG("\topcode %hhx", curr);
             if ( ud_itab_list[ ITAB__0F__OP___3BYTE_3A__REG ][ curr ].mnemonic != UD_Iinvalid ) {
                 table = ITAB__0F__OP___3BYTE_3A__REG;
             }
@@ -243,8 +276,44 @@ static int search_itab( struct ud * u )
         }
         /* end PEBIL */
 
+    } 
+
+    /* PEBIL */
+    /* AVX opcodes -- sort of structured on the sse code just above this*/
+    // WORKKKKKKKKKKKKKKKKK
+    else if ( u->pfx_insn == 0xC4 || u->pfx_insn == 0xC5){
+        PEBIL_DEBUG("found avx? curr %hhx, pfx_avx %hhx", curr, u->pfx_avx);
+        if ( u->error )
+            return -1;
+
+        int tableid;;
+        
+        switch (u->pfx_avx){
+            case 0x66:
+                tableid = ITAB__AVX_C4__PFX_SSE66__0F;
+            case 0xF2:
+                tableid = ITAB__AVX_C4__PFX_SSEF2__0F;
+            case 0xF3:
+                tableid = ITAB__AVX_C4__PFX_SSEF3__0F;
+            default:
+                ITAB__AVX_C4__0F;
+        }
+        if (u->pfx_insn == 0xC5){
+            tableid += (ITAB__AVX_C5__0F - ITAB__AVX_C4__0F);
+        }
+        tableid--;
+
+        PEBIL_DEBUG("itab %d %hhx", tableid, curr);
+        PEBIL_DEBUG("itab %s", ud_mnemonics_str[ud_itab_list[ tableid ][ curr ].mnemonic]);
+        if ( ud_itab_list[ tableid ][ curr ].mnemonic != UD_Iinvalid ) {
+            table = tableid;
+            u->pfx_opr = 0;
+        }
+    }
+    /* end PEBIL */
+
     /* pick an instruction from the 1byte table */
-    } else {
+    else {
         table = ITAB__1BYTE; 
     }
 
@@ -513,12 +582,76 @@ resolve_reg(struct ud* u, unsigned int type, unsigned char i)
   switch (type) {
     case T_MMX :    return UD_R_MM0  + (i & 7);
     case T_XMM :    return UD_R_XMM0 + i;
+    case T_YMM :    return UD_R_YMM0 + i;
     case T_CRG :    return UD_R_CR0  + i;
     case T_DBG :    return UD_R_DR0  + i;
     case T_SEG :    return UD_R_ES   + (i & 7);
     case T_NONE:
     default:    return UD_NONE;
   }
+}
+
+/* -----------------------------------------------------------------------------
+ * decode_vex() - Decodes a vex byte for AVX instructions
+ * -----------------------------------------------------------------------------
+ */
+static unsigned char decode_vex ( struct ud* u )
+{
+    uint8_t vex = u->avx_vex[0];
+    struct ud_operand* iop = u->operand;
+    struct ud_operand* op = &(iop[2]);
+
+    uint8_t ext = 0x00;
+    switch (VEX_PP(vex)){
+        case 0:
+            break;
+        case 1:
+            ext = 0x66;
+            break;
+        case 2:
+            ext = 0xF3;
+            break;
+        case 3:
+            ext = 0xF2;
+            break;
+    }
+    u->pfx_avx = ext;
+
+    unsigned char rtype = T_XMM;
+    if (VEX_L(vex)) rtype = T_YMM;
+
+    enum ud_type reg = resolve_reg(u, rtype, VEX_VVVV(vex));
+    PEBIL_DEBUG("decoding vex: raw %#hhx, pp %#hhx, L %#hhx, vvvv %#hhx", vex, VEX_PP(vex), VEX_L(vex), VEX_VVVV(vex));
+
+    op->type = UD_OP_REG;
+    op->base = reg;
+    if (rtype == T_YMM) op->size = 256;
+    PEBIL_DEBUG("vex size %hu, reg %d", op->size, reg);
+
+    /* 2-byte form */
+    if (u->pfx_insn == 0xC4){
+        uint8_t v2 = u->avx_vex[1];
+        op->position = 2;
+        u->pfx_rex = VEX_REX_DEF(VEX_REXB(v2), VEX_REXX(v2), VEX_REXR(v2), VEX_REXW(vex));
+        PEBIL_DEBUG("vex C5 rex prefix %#hhx(b), %#hhx(x), %#hhx(r), %#hhx(w), full %hhu", VEX_REXB(v2), VEX_REXX(v2), VEX_REXR(v2), VEX_REXW(vex), u->pfx_rex);
+
+        /* 1-byte form */
+    } else if (u->pfx_insn == 0xC5){
+        op->position = 1;
+        u->pfx_rex = VEX_REX_DEF(0, 0, VEX_REXR(vex), 0);
+        PEBIL_DEBUG("vex C5 rex prefix %#hhx(b), %#hhx(x), %#hhx(r), %#hhx(w), full %hhu", 0, 0, VEX_REXR(vex), 0, u->pfx_rex);
+    }
+
+    return rtype;
+}
+
+/* -----------------------------------------------------------------------------
+ * clear_operand() - clear operand pointer 
+ * -----------------------------------------------------------------------------
+ */
+static int clear_operand(register struct ud_operand* op){
+    memset( op, 0, sizeof( struct ud_operand ) );
+    return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -690,9 +823,11 @@ decode_modrm(struct ud* u, struct ud_operand *op, unsigned int s,
   if (opreg) {
     opreg->type = UD_OP_REG;
     opreg->size = resolve_operand_size(u, reg_size);
+    PEBIL_DEBUG("calling resolve_op: size %hd, reg %hhu", reg_type, reg);
     if (reg_type == T_GPR) 
         opreg->base = decode_gpr(u, opreg->size, reg);
     else opreg->base = resolve_reg(u, reg_type, reg);
+    PEBIL_DEBUG("decoded modrm base reg %d", opreg->base);
   }
 }
 
@@ -744,6 +879,43 @@ static int disasm_operands(register struct ud* u)
 
   /* iop = instruction operand */
   register struct ud_operand* iop = u->operand;
+
+  /* handle AVX */
+  if (mop3t == OP_X || mop3t == OP_x){
+      PEBIL_DEBUG("decoding avx modrm...");
+
+      // op[2] gets set during prefix decoding
+      unsigned char op_typ = T_YMM;
+      if (iop[2].base < UD_R_YMM0){
+          op_typ = T_XMM;
+      }
+      //PEBIL_DEBUG("op sizes: %hd %hhu", iop[2].size, iop[2].type);
+
+      /* V, W, X/x */
+      if (mop1t == OP_V){
+          decode_modrm(u, &(iop[1]), mop2s, op_typ, &(iop[0]), mop1s, op_typ);
+      /* W, V, X/x */
+      } else if (mop1t == OP_W) {
+          decode_modrm(u, &(iop[0]), mop1s, op_typ, &(iop[1]), mop2s, op_typ);
+      } else {
+          u->error = 1;
+          return -1;
+      }
+
+      if (op_typ == T_YMM){
+          iop[0].size = iop[2].size;
+          iop[1].size = iop[2].size;
+      } else {
+          iop[2].size = iop[0].size;
+      }
+
+      if (mop3t == OP_x){
+          clear_operand(&iop[2]);
+      }
+
+      PEBIL_DEBUG("op sizes: %hd %hd %hd", iop[0].size, iop[1].size, iop[2].size);
+      return 0;
+  }
     
   switch(mop1t) {
     
@@ -1073,6 +1245,7 @@ static int disasm_operands(register struct ud* u)
         iop[0].type = iop[1].type = iop[2].type = UD_NONE;
   }
 
+  PEBIL_DEBUG("op sizes: %hd %hd %hd", iop[0].size, iop[1].size, iop[2].size);
   return 0;
 }
 
@@ -1096,10 +1269,10 @@ static int clear_insn(register struct ud* u)
   u->mnemonic  = UD_Inone;
   u->itab_entry = NULL;
 
-  memset( &u->operand[ 0 ], 0, sizeof( struct ud_operand ) );
-  memset( &u->operand[ 1 ], 0, sizeof( struct ud_operand ) );
-  memset( &u->operand[ 2 ], 0, sizeof( struct ud_operand ) );
- 
+  clear_operand(&u->operand[ 0 ]);
+  clear_operand(&u->operand[ 1 ]);
+  clear_operand(&u->operand[ 2 ]);
+
   return 0;
 }
 

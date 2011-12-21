@@ -11,6 +11,7 @@
 #define T_DBG   4
 #define T_SEG   5
 #define T_XMM   6
+#define T_YMM   7
 
 /* itab prefix bits */
 #define P_none          ( 0 )
@@ -62,6 +63,19 @@
 #define MODRM_MOD(b)    ( ( ( b ) >> 6 ) & 3 )
 #define MODRM_RM(b)     ( ( b ) & 7 )
 
+/* vex bits (avx) */
+/* only for the 2-byte version */
+#define VEX_M5(b)       ( ( ( b ) >> 0 ) & 31 )
+#define VEX_REXB(b)     ( ( ( ~( b ) ) >> 5 ) & 1 )
+#define VEX_REXX(b)     ( ( ( ~( b ) ) >> 6 ) & 1 )
+#define VEX_REXW(b)     ( ( ( ~( b ) ) >> 7 ) & 1 )
+/* 1-byte and 2-byte versions */
+#define VEX_REXR(b)      ( ( ( ~( b ) ) >> 7 ) & 1 )
+#define VEX_L(b)         ( ( ( b ) >> 2 ) & 1 )
+#define VEX_PP(b)        ( ( ( b ) >> 0 ) & 3 )
+#define VEX_VVVV(b)      ( ( ( ~( b ) ) >> 3 ) & 15 )
+#define VEX_REX_DEF(b, x, r, w) (((b & 1) << 0) | ((x & 1) << 1) | ((r & 1) << 2) | ((w & 1) << 3))
+
 /* operand type constants -- order is important! */
 
 enum ud_operand_code {
@@ -99,7 +113,8 @@ enum ud_operand_code {
 
     OP_V,      OP_W,      OP_Q,       OP_P, 
 
-    OP_R,      OP_C,  OP_D,       OP_VR,  OP_PR
+    OP_R,      OP_C,  OP_D,       OP_VR,  OP_PR,
+    OP_X,      OP_x
 };
 
 
@@ -124,6 +139,8 @@ enum ud_operand_size {
     SZ_D   = 32,
     SZ_Q   = 64,
     SZ_T   = 80,
+    SZ_X   = 128,
+    SZ_Y   = 256
 };
 
 /* itab entry operand definitions */
@@ -172,7 +189,12 @@ enum ud_operand_size {
 #define O_Mt      { OP_M,        SZ_T     }
 #define O_S       { OP_S,        SZ_NA    }
 #define O_Mq      { OP_M,        SZ_Q     }
+#define O_X       { OP_X,        SZ_NA    }
+#define O_x       { OP_x,        SZ_NA    }
 #define O_W       { OP_W,        SZ_NA    }
+#define O_Wd      { OP_W,        SZ_D     }
+#define O_Wq      { OP_W,        SZ_Q     }
+#define O_Wx      { OP_W,        SZ_X     }
 #define O_ES      { OP_ES,       SZ_NA    }
 #define O_rBX     { OP_rBX,      SZ_NA    }
 #define O_Ed      { OP_E,        SZ_D     }
@@ -196,6 +218,9 @@ enum ud_operand_size {
 #define O_CL      { OP_CL,       SZ_NA    }
 #define O_R       { OP_R,        SZ_RDQ   }
 #define O_V       { OP_V,        SZ_NA    }
+#define O_Vd      { OP_V,        SZ_D     }
+#define O_Vq      { OP_V,        SZ_Q     }
+#define O_Vx      { OP_V,        SZ_X     }
 #define O_CS      { OP_CS,       SZ_NA    }
 #define O_CHr13b  { OP_CHr13b,   SZ_NA    }
 #define O_eCX     { OP_eCX,      SZ_NA    }
@@ -261,6 +286,7 @@ struct ud_itab_entry
   struct ud_itab_entry_operand  operand1;
   struct ud_itab_entry_operand  operand2;
   struct ud_itab_entry_operand  operand3;
+  struct ud_itab_entry_operand  operand4;
   uint32_t                      prefix;
 };
 

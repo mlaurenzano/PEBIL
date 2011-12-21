@@ -35,7 +35,7 @@ class ElfFileInst;
 class Function;
 class TextObject;
 
-#define MAX_OPERANDS 3
+#define MAX_OPERANDS 4
 #define JUMP_TARGET_OPERAND 0
 #define COMP_DEST_OPERAND 0
 #define COMP_SRC_OPERAND 1
@@ -219,7 +219,7 @@ struct ud_compact
     //uint8_t               vendor;
     //struct map_entry*     mapen;
     enum ud_mnemonic_code mnemonic;
-    struct ud_operand     operand[3];
+    struct ud_operand     operand[4];
     //uint8_t               error;
     //uint8_t               pfx_rex;
     uint8_t               pfx_seg;

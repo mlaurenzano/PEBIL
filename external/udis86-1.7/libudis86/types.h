@@ -100,6 +100,13 @@ enum ud_type
   UD_R_XMM8,	UD_R_XMM9,	UD_R_XMM10,	UD_R_XMM11,
   UD_R_XMM12,	UD_R_XMM13,	UD_R_XMM14,	UD_R_XMM15,
 
+  /* 256-bit AVX registers */
+  /* 139-154 */
+  UD_R_YMM0,	UD_R_YMM1,	UD_R_YMM2,	UD_R_YMM3,
+  UD_R_YMM4,	UD_R_YMM5,	UD_R_YMM6,	UD_R_YMM7,
+  UD_R_YMM8,	UD_R_YMM9,	UD_R_YMM10,	UD_R_YMM11,
+  UD_R_YMM12,	UD_R_YMM13,	UD_R_YMM14,	UD_R_YMM15,
+
   UD_R_RIP,
 
   /* Operand Types */
@@ -114,7 +121,7 @@ enum ud_type
 struct ud_operand 
 {
   enum ud_type		type;
-  uint8_t		size;
+  uint16_t		size;
   uint8_t               position; /* PEBIL */
   union {
 	int8_t		sbyte;
@@ -162,7 +169,7 @@ struct ud
   uint8_t		vendor;
   struct map_entry*	mapen;
   enum ud_mnemonic_code	mnemonic;
-  struct ud_operand	operand[3];
+  struct ud_operand	operand[4];
   uint8_t		error;
   uint8_t	 	pfx_rex;
   uint8_t 		pfx_seg;
@@ -173,6 +180,8 @@ struct ud
   uint8_t 		pfx_repe;
   uint8_t 		pfx_repne;
   uint8_t 		pfx_insn;
+  uint8_t               pfx_avx;
+  uint8_t               avx_vex[2];
   uint8_t		default64;
   uint8_t		opr_mode;
   uint8_t		adr_mode;

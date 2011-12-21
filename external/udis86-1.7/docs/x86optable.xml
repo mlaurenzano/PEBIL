@@ -7,8 +7,6 @@
   -->
 
   <!-- SSE 4+ added by Michael Laurenzano michaell@sdsc.edu -->
-  <!-- TODO: AVX? -->
-
   <!-- MAL SSE 4.1 -->
   <instruction mnemonic="mpsadbw">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 42; V W Ib </opcode>
@@ -43,6 +41,8 @@
   </instruction>
   <instruction mnemonic="blendpd">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0d; V W Ib </opcode>
+    <opcode> aso oso rexr rexx rexb ; avxc4 sse66 0f /3byte=3a 0d; Vx Wx X Ib </opcode>
+    <opcode> aso oso rexr rexx rexb ; avxc5 sse66 0f /3byte=3a 0d; Vx Wx X Ib </opcode>
   </instruction>
   <instruction mnemonic="blendps">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0c; V W Ib </opcode>
@@ -351,19 +351,27 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="addpd">
-    <opcode> aso rexr rexx rexb ; sse66 0f 58 ; V W </opcode>
+    <opcode> aso rexr rexx rexb ; sse66 0f 58 ; Vx Wx </opcode>
+    <opcode> aso rexr rexx rexb ; avxc4 sse66 0f 58 ; Vx Wx X </opcode>
+    <opcode> aso rexr rexx rexb ; avxc5 sse66 0f 58 ; Vx Wx X </opcode>
   </instruction>
 
   <instruction mnemonic="addps">
-    <opcode> aso rexr rexx rexb ; 0f 58 ; V W </opcode>
+    <opcode> aso rexr rexx rexb ; 0f 58 ; Vx Wx </opcode>
+    <opcode> aso rexr rexx rexb ; avxc4 0f 58 ; Vx Wx X </opcode>
+    <opcode> aso rexr rexx rexb ; avxc5 0f 58 ; Vx Wx X </opcode>
   </instruction>
 
   <instruction mnemonic="addsd">
-    <opcode> aso rexr rexx rexb ; ssef2 0f 58 ; V W </opcode>
+    <opcode> aso rexr rexx rexb ; ssef2 0f 58 ; Vx Wq </opcode>
+    <opcode> aso rexr rexx rexb ; avxc4 ssef2 0f 58 ; Vx Wq X </opcode>
+    <opcode> aso rexr rexx rexb ; avxc5 ssef2 0f 58 ; Vx Wq X </opcode>
   </instruction>
 
   <instruction mnemonic="addss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 58 ; V W </opcode>
+    <opcode> aso rexr rexx rexb ; avxc4 ssef3 0f 58 ; Vx Wd X </opcode>
+    <opcode> aso rexr rexx rexb ; avxc5 ssef3 0f 58 ; Vx Wd X </opcode>
   </instruction>
 
   <instruction mnemonic="addsubpd">
@@ -2057,7 +2065,11 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="movapd">
     <opcode> aso rexr rexx rexb ; sse66 0f 28 ; V W </opcode>
+    <opcode> aso rexr rexx rexb ; avxc4 sse66 0f 28 ; V W x </opcode>
+    <opcode> aso rexr rexx rexb ; avxc5 sse66 0f 28 ; V W x </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 29 ; W V </opcode>
+    <opcode> aso rexr rexx rexb ; avxc4 sse66 0f 29 ; W V x </opcode>
+    <opcode> aso rexr rexx rexb ; avxc5 sse66 0f 29 ; W V x </opcode>
   </instruction>
 
   <instruction mnemonic="movaps">
@@ -2214,6 +2226,8 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="mulpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 59 ; V W </opcode>
+    <opcode> aso rexr rexx rexb ; avxc4 sse66 0f 59 ; V W X </opcode>
+    <opcode> aso rexr rexx rexb ; avxc5 sse66 0f 59 ; V W X </opcode>
   </instruction>
 
   <instruction mnemonic="mulps">
@@ -2543,6 +2557,8 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="pshufd">
     <opcode> aso rexr rexx rexb ; sse66 0f 70 ; V W Ib </opcode>
+    <opcode> aso rexr rexx rexb ; avxc4 sse66 0f 70 ; V W Ib </opcode>
+    <opcode> aso rexr rexx rexb ; avxc5 sse66 0f 70 ; V W Ib </opcode>
   </instruction>
 
   <instruction mnemonic="pshufhw">
