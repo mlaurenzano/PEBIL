@@ -193,6 +193,8 @@ struct ud
   uint8_t		c3;
   uint8_t 		inp_cache[256];
   uint8_t		inp_sess[64];
+  uint32_t              flags_use;
+  uint32_t              flags_def;
   struct ud_itab_entry * itab_entry;
 };
 

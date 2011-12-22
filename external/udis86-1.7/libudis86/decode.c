@@ -871,11 +871,13 @@ static int disasm_operands(register struct ud* u)
   enum ud_operand_code mop1t = u->itab_entry->operand1.type;
   enum ud_operand_code mop2t = u->itab_entry->operand2.type;
   enum ud_operand_code mop3t = u->itab_entry->operand3.type;
+  enum ud_operand_code mop4t = u->itab_entry->operand4.type;
 
   /* mopXs = map entry, operand X, size */
   unsigned int mop1s = u->itab_entry->operand1.size;
   unsigned int mop2s = u->itab_entry->operand2.size;
   unsigned int mop3s = u->itab_entry->operand3.size;
+  unsigned int mop4s = u->itab_entry->operand4.size;
 
   /* iop = instruction operand */
   register struct ud_operand* iop = u->operand;
@@ -1354,6 +1356,17 @@ static int gen_hex( struct ud *u )
   return 0;
 }
 
+static int resolve_flags( struct ud *u )
+{
+    u->flags_use = u->itab_entry->flags_use;
+    u->flags_def = u->itab_entry->flags_def;
+    if (u->flags_def != 0 || u->flags_use != 0){
+        PEBIL_DEBUG("flags used: %#x, def: %#x", u->flags_use, u->flags_def);
+    }
+
+    return 0;
+}
+
 /* =============================================================================
  * ud_decode() - Instruction decoder. Returns the number of bytes decoded.
  * =============================================================================
@@ -1373,6 +1386,8 @@ unsigned int ud_decode( struct ud* u )
   } else if ( disasm_operands( u ) != 0 ) {
     ; /* error */
   } else if ( resolve_mnemonic( u ) != 0 ) {
+    ; /* error */
+  } else if ( resolve_flags( u ) != 0 ) {
     ; /* error */
   }
 

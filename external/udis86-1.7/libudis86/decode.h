@@ -3,6 +3,48 @@
 
 #define MAX_INSN_LENGTH 15
 
+/* flags definitions */
+#define F_none ( 0 )
+#define F_CF (1 << 0)
+#define F_01 (1 << 1)
+#define F_PF (1 << 2)
+#define F_03 (1 << 3)
+#define F_AF (1 << 4)
+#define F_05 (1 << 5)
+#define F_ZF (1 << 6)
+#define F_SF (1 << 7)
+#define F_TF (1 << 8)
+#define F_IF (1 << 9)
+#define F_DF (1 << 10)
+#define F_OF (1 << 11)
+#define F_IOPL1 (1 << 12)
+#define F_IOPL2 (1 << 13)
+#define F_NT (1 << 14)
+#define F_15 (1 << 15)
+#define F_RF (1 << 16)
+#define F_VF (1 << 17)
+#define F_AC (1 << 18)
+#define F_VI (1 << 19)
+#define F_VP (1 << 20)
+#define F_ID (1 << 21)
+#define F_22 (1 << 22)
+#define F_23 (1 << 23)
+#define F_24 (1 << 24)
+#define F_25 (1 << 25)
+#define F_26 (1 << 26)
+#define F_27 (1 << 27)
+#define F_28 (1 << 28)
+#define F_29 (1 << 29)
+#define F_30 (1 << 30)
+#define F_31 (1 << 31)
+#define F_ALU (F_CF | F_PF | F_AF | F_ZF | F_SF | F_OF)
+
+/* implied register definitions */
+#define R_none ( 0 )
+
+/* instruction classification definitions */
+#define C_none ( 0 )
+
 /* register classes */
 #define T_NONE  0
 #define T_GPR   1
@@ -287,6 +329,11 @@ struct ud_itab_entry
   struct ud_itab_entry_operand  operand2;
   struct ud_itab_entry_operand  operand3;
   struct ud_itab_entry_operand  operand4;
+  uint32_t                      flags_use;
+  uint32_t                      flags_def;
+  uint32_t                      impreg_use;
+  uint32_t                      impreg_def;
+  uint32_t                      class;
   uint32_t                      prefix;
 };
 

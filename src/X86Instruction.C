@@ -64,6 +64,8 @@ void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg){
     comp->pfx_seg = reg->pfx_seg;
     comp->pfx_rep = reg->pfx_rep;
     comp->adr_mode = reg->adr_mode;
+    comp->flags_use = reg->flags_use;
+    comp->flags_def = reg->flags_def;
 }
 
 uint32_t X86Instruction::countExplicitOperands(){
@@ -148,13 +150,11 @@ uint32_t X86Instruction::getNumberOfMemoryBytes(){
 }
 
 bool X86Instruction::usesFlag(uint32_t flg) { 
-    ASSERT(flags_usedef); 
-    return (flags_usedef[__reg_use] & (1 << flg)); 
+    return (GET(flags_use) & (1 << flg));
 }
 
 bool X86Instruction::defsFlag(uint32_t flg) { 
-    ASSERT(flags_usedef); 
-    return (flags_usedef[__reg_def] & (1 << flg)); 
+    return (GET(flags_def) & (1 << flg));
 }
 
 bool X86Instruction::usesAluReg(uint32_t alu){
@@ -2883,9 +2883,6 @@ X86Instruction::~X86Instruction(){
     if (liveOuts){
         delete liveOuts;
     }
-    if (flags_usedef){
-        delete[] flags_usedef;
-    }
     if (impreg_usedef){
         if (impreg_usedef[__reg_use]){
             delete impreg_usedef[__reg_use];
@@ -2953,7 +2950,6 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
 
     setInstructionType();
 
-    flags_usedef = NULL;
     setFlags();
     setImpliedRegs();
 
@@ -3005,7 +3001,6 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
 
     setInstructionType();
 
-    flags_usedef = NULL;
     setFlags();
     setImpliedRegs();
 
@@ -3472,7 +3467,7 @@ void X86Instruction::setImpliedRegs(){
 
 void X86Instruction::setFlags()
 {
-    flags_usedef = new uint32_t[2];
+    uint32_t flags_usedef[2];
     bzero(flags_usedef, sizeof(uint32_t) * 2);
 
     if (!flags_usedef) { __SHOULD_NOT_ARRIVE; }
@@ -3653,5 +3648,12 @@ void X86Instruction::setFlags()
         }
     }
 
+    if (GET(flags_use) != flags_usedef[__reg_use]){
+        print();
+        PRINT_ERROR("NEW USE FLAGS (%#x) DONT MATCH OLD (%#x)", GET(flags_use), flags_usedef[__reg_use]);
+    }
+    if (GET(flags_def) != flags_usedef[__reg_def]){
+        print();
+        PRINT_ERROR("NEW DEF FLAGS (%#x) DONT MATCH OLD (%#x)", GET(flags_def), flags_usedef[__reg_def]);
+    }
 }
-

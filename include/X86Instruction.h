@@ -100,6 +100,26 @@ class TextObject;
 #define X86_FLAG_ID 21
 #define X86_FLAG_BITS 32
 
+#define F_CF 0
+#define F_PF 2
+#define F_AF 4
+#define F_ZF 6
+#define F_SF 7
+#define F_TF 8
+#define F_IF 9
+#define F_DF 10
+#define F_OF 11
+#define F_IOPL1 12
+#define F_IOPL2 13
+#define F_NT 14
+#define F_RF 16
+#define F_VF 17
+#define F_AC 18
+#define F_VI 19
+#define F_VP 20
+#define F_ID 21
+#define F_BITS 32
+
 #define __flag_mask__protect_none  0x11111111
 #define __flag_mask__protect_light 0x11111100
 #define __flag_mask__protect_full  0x11110000
@@ -201,46 +221,50 @@ extern void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg);
 // keep a much smaller rep of the instruction to save memory
 struct ud_compact
 {
-    //int                   (*inp_hook) (struct ud*);
-    //uint8_t               inp_curr;
-    //uint8_t               inp_fill;
-    //FILE*                 inp_file;
-    //uint8_t               inp_ctr;
-    //uint8_t*              inp_buff;
-    //uint8_t*              inp_buff_end;
-    //uint8_t               inp_end;
-    //void                  (*translator)(struct ud*);
-    uint64_t              insn_offset;
-    char                  insn_hexcode[32];
-    char                  insn_buffer[INSTRUCTION_PRINT_SIZE];
-    //unsigned int          insn_fill;
-    //uint8_t               dis_mode;
-    //uint64_t              pc;
-    //uint8_t               vendor;
-    //struct map_entry*     mapen;
-    enum ud_mnemonic_code mnemonic;
-    struct ud_operand     operand[4];
-    //uint8_t               error;
-    //uint8_t               pfx_rex;
-    uint8_t               pfx_seg;
-    //uint8_t               pfx_opr;
-    //uint8_t               pfx_adr;
-    //uint8_t               pfx_lock;
-    uint8_t               pfx_rep;
-    //uint8_t               pfx_repe;
-    //uint8_t               pfx_repne;
-    //uint8_t               pfx_insn;
-    //uint8_t               default64;
-    //uint8_t               opr_mode;
-    uint8_t               adr_mode;
-    //uint8_t               br_far;
-    //uint8_t               br_near;
-    //uint8_t               implicit_addr;
-    //uint8_t               c1;
-    //uint8_t               c2;
-    //uint8_t               c3;
-    //uint8_t               inp_cache[256];
-    //uint8_t               inp_sess[64];
+    //int 			(*inp_hook) (struct ud*);
+    //uint8_t		inp_curr;
+    //uint8_t		inp_fill;
+    //FILE*			inp_file;
+    //uint8_t		inp_ctr;
+    //uint8_t*		inp_buff;
+    //uint8_t*		inp_buff_end;
+    //uint8_t		inp_end;
+    //void		(*translator)(struct ud*);
+    uint64_t		insn_offset;
+    char		insn_hexcode[32];
+    char		insn_buffer[INSTRUCTION_PRINT_SIZE];
+    //unsigned int	insn_fill;
+    //uint8_t		dis_mode;
+    //uint64_t		pc;
+    //uint8_t		vendor;
+    //struct map_entry*	mapen;
+    enum ud_mnemonic_code	mnemonic;
+    struct ud_operand	operand[4];
+    //uint8_t		error;
+    //uint8_t	 	pfx_rex;
+    uint8_t 		pfx_seg;
+    //uint8_t 		pfx_opr;
+    //uint8_t 		pfx_adr;
+    //uint8_t 		pfx_lock;
+    uint8_t 		pfx_rep;
+    //uint8_t 		pfx_repe;
+    //uint8_t 		pfx_repne;
+    //uint8_t 		pfx_insn;
+    //uint8_t             pfx_avx;
+    //uint8_t             avx_vex[2];
+    //uint8_t		default64;
+    //uint8_t		opr_mode;
+    uint8_t		adr_mode;
+    //uint8_t		br_far;
+    //uint8_t		br_near;
+    //uint8_t		implicit_addr;
+    //uint8_t		c1;
+    //uint8_t		c2;
+    //uint8_t		c3;
+    //uint8_t 		inp_cache[256];
+    //uint8_t		inp_sess[64];
+    uint32_t            flags_use;
+    uint32_t            flags_def;
     //struct ud_itab_entry * itab_entry;
 };
 

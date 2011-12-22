@@ -226,22 +226,40 @@ while tlNode and tlNode.localName != "x86optable": tlNode = tlNode.nextSibling
 #
 def centry(i, defmap):
     if defmap["type"][0:3] == "grp":
-        opr    = default_opr
         mnm    = 'UD_I' + defmap["type"].lower()
+        opr    = default_opr
+        flg_use = "F_none"
+        flg_def = "F_none"
+        imp_use = "R_none"
+        imp_def = "R_none"
+        clss   = "C_none"
         pfx    = defmap["name"].upper()
     elif defmap["type"] == "leaf":
         mnm    = "UD_I" + defmap["name"]
         opr    = defmap["opr"]
+        flg    = defmap["flags"]
+        flg_use = string.join(['F_' + f.upper() for f in flg['use']], ' | ')
+        flg_def = string.join(['F_' + f.upper() for f in flg['def']], ' | ')
+        imp_use = "R_none"
+        imp_def = "R_none"
+        clss   = "C_none"
         pfx    = defmap["pfx"]
         if len(mnm) == 0: mnm = "UD_Ina"
         if len(opr) == 0: opr = default_opr
+        if len(flg_use) == 0: flg_use = "F_none"
+        if len(flg_def) == 0: flg_def = "F_none"
         if len(pfx) == 0: pfx = "P_none"
     else:
-        opr    = default_opr
-        pfx    = "P_none"
         mnm    = "UD_Iinvalid"
+        opr    = default_opr
+        flg_use = "F_none"
+        flg_def = "F_none"
+        imp_use = "R_none"
+        imp_def = "R_none"
+        clss   = "C_none"
+        pfx    = "P_none"
 
-    return "  /* %s */  { %-16s %-26s %s },\n" % (i, mnm + ',', opr + ',', pfx)
+    return "  /* %s */  { %-16s %-26s %s %s %s %s %s %s },\n" % (i, mnm + ',', opr + ',', flg_use + ',', flg_def + ',', imp_use + ',', imp_def + ',', clss + ',', pfx)
 
 #
 # makes a new table and adds it to the global
@@ -297,8 +315,6 @@ for node in tlNode.childNodes:
         
         opcode = n.firstChild.data.strip();
         parts  = opcode.split(";"); 
-        flags  = []
-        opr    = []
         pfx    = []
         opr    = []
         pfx_c  = []
@@ -327,27 +343,42 @@ for node in tlNode.childNodes:
         #   1. prefixes (pfx)
         #   2. opcode bytes (opc)
         #   3. operands
+        #   4. flags use/defs
+        #   5. implicit registers use/defs
+        #   6. classifications
         #
-        if len(parts) == 1:
-            opc = parts[0].split()
-        elif len(parts) == 2:
-            opc = parts[0].split()
-            opr = parts[1].split()
-            for o in opc:
-                if o in pfx_dict:
-                    pfx = parts[0].split()
-                    opc = parts[1].split()
-                    break
-        elif len(parts) == 3:
+        if len(parts) == 6:
             pfx = parts[0].split()
             opc = parts[1].split()
             opr = parts[2].split()
+            flg = parts[3].split()
+            imp = parts[4].split()
+            cls = parts[5].split()
         else:
-            print "error: invalid opcode definition of %s\n" % mnemonic
+            print "error: invalid opcode definition of 3 %s\n" % mnemonic
             sys.exit(-1)
         # Convert opcodes to upper case
         for i in range(len(opc)):
             opc[i] = opc[i].upper()
+
+        # collect flags use/defs
+        flags = {}
+        flags['use'] = []
+        flags['def'] = []
+        for i in range(len(flg)):
+            tks = flg[i].split('_')
+            if len(tks) != 2 or (tks[0] != 'u' and tks[0] != 'd'):
+                print "error: invalid flags declaration %s" % flg[i]
+            [usedef, f] = tks
+            if usedef == 'u':
+                flags['use'].append(f.upper())
+                print "adding use %s" % f
+            else:
+                flags['def'].append(f.upper())
+                print "adding def %s" % f
+
+        implied = {}
+        clss = {}
 
         #
         # check for special cases of instruction translation
@@ -514,7 +545,9 @@ for node in tlNode.childNodes:
             'name'  : mnemonic, \
             'pfx'   : pfx,      \
             'opr'   : opr,      \
-            'flags' : flags     \
+            'flags' : flags,    \
+            'implied': implied, \
+            'class' : clss \
         }
 
 # ---------------------------------------------------------------------
