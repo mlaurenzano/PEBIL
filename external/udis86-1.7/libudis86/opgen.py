@@ -372,10 +372,8 @@ for node in tlNode.childNodes:
             [usedef, f] = tks
             if usedef == 'u':
                 flags['use'].append(f.upper())
-                print "adding use %s" % f
             else:
                 flags['def'].append(f.upper())
-                print "adding def %s" % f
 
         implied = {}
         clss = {}

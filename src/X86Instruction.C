@@ -57,10 +57,10 @@ void X86Instruction::initBlankUd(bool is64bit){
 
 
 void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg){
-    memcpy(comp->insn_hexcode, reg->insn_hexcode, sizeof(char)*32);
-    memcpy(comp->insn_buffer, reg->insn_buffer, sizeof(char)*INSTRUCTION_PRINT_SIZE);
+    memcpy(comp->insn_hexcode, reg->insn_hexcode, sizeof(char) * 32);
+    memcpy(comp->insn_buffer, reg->insn_buffer, sizeof(char) * INSTRUCTION_PRINT_SIZE);
     comp->mnemonic = reg->mnemonic;
-    memcpy(comp->operand, reg->operand, sizeof(struct ud_operand)*3);
+    memcpy(comp->operand, reg->operand, sizeof(struct ud_operand) * MAX_OPERANDS);
     comp->pfx_seg = reg->pfx_seg;
     comp->pfx_rep = reg->pfx_rep;
     comp->adr_mode = reg->adr_mode;
@@ -714,8 +714,14 @@ int64_t OperandX86::getValue(){
         value = (int64_t)GET_A(sdword, lval);
     } else if (getBytesUsed() == sizeof(uint64_t)){
         value = (int64_t)GET_A(sqword, lval);
+        // TODO: for now we just yield 0 for types larger than 64 (xmm/ymm)
+    } else if (getBytesUsed() == sizeof(uint64_t) + sizeof(uint64_t)){
+        value = 0;
+    } else if (getBytesUsed() == sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t)){
+        value = 0;
     } else { 
         print();
+        PRINT_INFOR("%s", instruction->GET(insn_buffer));
         PRINT_INFOR("size %d", getBytesUsed());
         __SHOULD_NOT_ARRIVE;
     }
@@ -2855,7 +2861,9 @@ bool OperandX86::verify(){
             GET(size) != 32 &&
             GET(size) != 48 &&
             GET(size) != 64 &&
-            GET(size) != 80){
+            GET(size) != 80 &&
+            GET(size) != 128 &&
+            GET(size) != 256){
             print();
             PRINT_ERROR("Illegal operand size %d", GET(size));
             return false;
@@ -3505,7 +3513,7 @@ void X86Instruction::setFlags()
     __reg_define(flags_usedef, UD_Icmovge, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
     __reg_define(flags_usedef, UD_Icmovle, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
     __reg_define(flags_usedef, UD_Icmovg, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
-    __reg_define(flags_usedef, UD_Icmp, 0, __x86_flagset_alustd); // ENDED HERE 
+    __reg_define(flags_usedef, UD_Icmp, 0, __x86_flagset_alustd);
     __reg_define(flags_usedef, UD_Icmpsb, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
     __reg_define(flags_usedef, UD_Icmpsd, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
     __reg_define(flags_usedef, UD_Icmpss, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);

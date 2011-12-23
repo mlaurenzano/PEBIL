@@ -23,7 +23,8 @@
 udis86 ud_operand
   Type	                Name
   enum ud_type          type;
-  uint8_t               size;
+  uint16_t              size;
+  uint8_t               position;
   union {
         int8_t          sbyte;
         uint8_t         ubyte;
@@ -49,7 +50,7 @@ udis86 ud_operand
 
 #define OPERAND_MACROS_CLASS(__str) /** __str **/ \
     GET_FIELD_CLASS(ud_type,type); \
-    GET_FIELD_CLASS(uint8_t,size); \
+    GET_FIELD_CLASS(uint16_t,size); \
     GET_FIELD_CLASS(uint8_t,position); \
     GET_FIELD_CLASS_A(int8_t,sbyte,lval); \
     GET_FIELD_CLASS_A(uint8_t,ubyte,lval); \

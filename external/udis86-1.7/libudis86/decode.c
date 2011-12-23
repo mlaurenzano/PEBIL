@@ -14,8 +14,8 @@
 #include "input.h"
 #include "decode.h"
 
-#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
-//#define PEBIL_DEBUG(...)
+//#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
+#define PEBIL_DEBUG(...)
 
 /* The max number of prefixes to an instruction */
 #define MAX_PREFIXES    15
@@ -915,7 +915,6 @@ static int disasm_operands(register struct ud* u)
           clear_operand(&iop[2]);
       }
 
-      PEBIL_DEBUG("op sizes: %hd %hd %hd", iop[0].size, iop[1].size, iop[2].size);
       return 0;
   }
     
@@ -1244,10 +1243,11 @@ static int disasm_operands(register struct ud* u)
 
     /* none */
     default :
-        iop[0].type = iop[1].type = iop[2].type = UD_NONE;
+        iop[0].type = iop[1].type = iop[2].type = iop[3].type = UD_NONE;
   }
 
-  PEBIL_DEBUG("op sizes: %hd %hd %hd", iop[0].size, iop[1].size, iop[2].size);
+  PEBIL_DEBUG("op sizes: %hd %hd %hd %hd", iop[0].size, iop[1].size, iop[2].size, iop[3].size);
+  PEBIL_DEBUG("op types: %d %d %d %d", iop[0].type, iop[1].type, iop[2].type, iop[3].type);
   return 0;
 }
 
