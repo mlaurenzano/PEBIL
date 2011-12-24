@@ -113,6 +113,8 @@ udis86 ud_compact
   uint8_t               inp_sess[64];
   uint32_t              flags_use;
   uint32_t              flags_def;
+  uint64_t              impreg_use;
+  uint64_t              impreg_def;
   struct ud_itab_entry * itab_entry;
 ##################################################################
 */
@@ -128,6 +130,8 @@ udis86 ud_compact
     GET_FIELD_CLASS(uint8_t,adr_mode); \
     GET_FIELD_CLASS(uint32_t,flags_use); \
     GET_FIELD_CLASS(uint32_t,flags_def); \
+    GET_FIELD_CLASS(uint64_t,impreg_use); \
+    GET_FIELD_CLASS(uint64_t,impreg_def); \
         \
     SET_FIELD_CLASS(uint64_t,insn_offset); 
 

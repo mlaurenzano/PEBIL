@@ -66,6 +66,8 @@ void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg){
     comp->adr_mode = reg->adr_mode;
     comp->flags_use = reg->flags_use;
     comp->flags_def = reg->flags_def;
+    comp->impreg_use = reg->impreg_use;
+    comp->impreg_def = reg->impreg_def;
 }
 
 uint32_t X86Instruction::countExplicitOperands(){
@@ -158,13 +160,11 @@ bool X86Instruction::defsFlag(uint32_t flg) {
 }
 
 bool X86Instruction::usesAluReg(uint32_t alu){
-    ASSERT(impreg_usedef);
-    return impreg_usedef[__reg_use]->contains(alu);
+    return (GET(impreg_use) & (1 << alu));
 }
 
 bool X86Instruction::defsAluReg(uint32_t alu){
-    ASSERT(impreg_usedef);
-    return impreg_usedef[__reg_def]->contains(alu);
+    return (GET(impreg_def) & (1 << alu));
 }
 
 void X86Instruction::setLiveIns(BitSet<uint32_t>* live){
@@ -2891,15 +2891,6 @@ X86Instruction::~X86Instruction(){
     if (liveOuts){
         delete liveOuts;
     }
-    if (impreg_usedef){
-        if (impreg_usedef[__reg_use]){
-            delete impreg_usedef[__reg_use];
-        }
-        if (impreg_usedef[__reg_def]){
-            delete impreg_usedef[__reg_def];
-        }
-        delete[] impreg_usedef;
-    }
     if (rawBytes){
         delete[] rawBytes;
     }
@@ -3236,9 +3227,9 @@ bool X86Instruction::verify(){
 }
 
 void X86Instruction::setImpliedRegs(){
-    impreg_usedef = new BitSet<uint32_t>*[2];
-    impreg_usedef[__reg_use] = new BitSet<uint32_t>(X86_ALU_REGS);
-    impreg_usedef[__reg_def] = new BitSet<uint32_t>(X86_ALU_REGS);
+    BitSet<uint64_t>** impreg_usedef = new BitSet<uint64_t>*[2];
+    impreg_usedef[__reg_use] = new BitSet<uint64_t>(X86_ALU_REGS);
+    impreg_usedef[__reg_def] = new BitSet<uint64_t>(X86_ALU_REGS);
 
 #define iuse(__r) impreg_usedef[__reg_use]->insert(__r);
 #define idef(__r) impreg_usedef[__reg_def]->insert(__r);
@@ -3303,7 +3294,9 @@ void X86Instruction::setImpliedRegs(){
     //fld* How to handle floating point stack pushes/pops?
 
     __set_impreg(UD_If2xm1, 0, iuse(X87_REG_ST0) idef(X87_REG_ST0))
+        // fxtract
 
+        // ENDED HERE
 
     // SSE instructions
     __set_impreg(UD_Ipblendvb,  2, iuse(X86_FPREG_XMM0))
@@ -3427,7 +3420,6 @@ void X86Instruction::setImpliedRegs(){
     __set_impreg(UD_Icmpxchg8b, 1, iuse(X86_REG_AX) iuse(X86_REG_BX) iuse(X86_REG_CX) iuse(X86_REG_DX)
                                    idef(X86_REG_AX) idef(X86_REG_DX))
 
-
     /*
       // 4 other types for all of these string ops -- *sb, *sw, *sd, *sq
     __reg_define(impreg_usedef, UD_Icmps, __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_DI), __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_EI));
@@ -3471,8 +3463,18 @@ void X86Instruction::setImpliedRegs(){
     }
     */
 
+        for (uint32_t i = 0; i < 16; i++){
+            if (impreg_usedef[__reg_use]->contains(i) ^ usesAluReg(i)){
+                PRINT_ERROR("impreg mismatch use old and new on gpr %d %s", i, GET(insn_buffer));
+            }
+            if (impreg_usedef[__reg_def]->contains(i) ^ defsAluReg(i)){
+                PRINT_ERROR("impreg mismatch def old and new on gpr %d %s", i, GET(insn_buffer));
+            }
+        }
 }
 
+// TODO: get rid of this function eventually since it remains only as a verification
+// that I baked these values into udis86 correctly
 void X86Instruction::setFlags()
 {
     uint32_t flags_usedef[2];

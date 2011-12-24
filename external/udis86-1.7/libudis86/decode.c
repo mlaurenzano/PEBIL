@@ -14,8 +14,8 @@
 #include "input.h"
 #include "decode.h"
 
-//#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
-#define PEBIL_DEBUG(...)
+#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
+//#define PEBIL_DEBUG(...)
 
 /* The max number of prefixes to an instruction */
 #define MAX_PREFIXES    15
@@ -904,6 +904,11 @@ static int disasm_operands(register struct ud* u)
           return -1;
       }
 
+      /* 4th operand is an immediate (I) */
+      if (mop4t == OP_I){
+          decode_imm(u, mop4s, &(iop[3]));
+      }
+
       if (op_typ == T_YMM){
           iop[0].size = iop[2].size;
           iop[1].size = iop[2].size;
@@ -1356,12 +1361,18 @@ static int gen_hex( struct ud *u )
   return 0;
 }
 
-static int resolve_flags( struct ud *u )
+static int resolve_implied_usedefs( struct ud *u )
 {
     u->flags_use = u->itab_entry->flags_use;
     u->flags_def = u->itab_entry->flags_def;
     if (u->flags_def != 0 || u->flags_use != 0){
         PEBIL_DEBUG("flags used: %#x, def: %#x", u->flags_use, u->flags_def);
+    }
+
+    u->impreg_use = u->itab_entry->impreg_use;
+    u->impreg_def = u->itab_entry->impreg_def;
+    if (u->impreg_def != 0 || u->impreg_use != 0){
+        PEBIL_DEBUG("implied regs used: %#llx, def: %#llx", u->impreg_use, u->impreg_def);
     }
 
     return 0;
@@ -1387,7 +1398,7 @@ unsigned int ud_decode( struct ud* u )
     ; /* error */
   } else if ( resolve_mnemonic( u ) != 0 ) {
     ; /* error */
-  } else if ( resolve_flags( u ) != 0 ) {
+  } else if ( resolve_implied_usedefs( u ) != 0 ) {
     ; /* error */
   }
 

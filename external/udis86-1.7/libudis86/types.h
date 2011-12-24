@@ -195,6 +195,9 @@ struct ud
   uint8_t		inp_sess[64];
   uint32_t              flags_use;
   uint32_t              flags_def;
+    // 16 GPR (l/h/x/e/r) + 6 SEG + 8 X87 + 16 MMX (mmx/xmm/ymm) + 1 RIP
+  uint64_t               impreg_use;
+  uint64_t               impreg_def;
   struct ud_itab_entry * itab_entry;
 };
 

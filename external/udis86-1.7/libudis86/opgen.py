@@ -240,14 +240,17 @@ def centry(i, defmap):
         flg    = defmap["flags"]
         flg_use = string.join(['F_' + f.upper() for f in flg['use']], ' | ')
         flg_def = string.join(['F_' + f.upper() for f in flg['def']], ' | ')
-        imp_use = "R_none"
-        imp_def = "R_none"
+        imp    = defmap["implied"]
+        imp_use = string.join(['R_' + j.upper() for j in imp['use']], ' | ')
+        imp_def = string.join(['R_' + j.upper() for j in imp['def']], ' | ')
         clss   = "C_none"
         pfx    = defmap["pfx"]
         if len(mnm) == 0: mnm = "UD_Ina"
         if len(opr) == 0: opr = default_opr
         if len(flg_use) == 0: flg_use = "F_none"
         if len(flg_def) == 0: flg_def = "F_none"
+        if len(imp_use) == 0: imp_use = "R_none"
+        if len(imp_def) == 0: imp_def = "R_none"
         if len(pfx) == 0: pfx = "P_none"
     else:
         mnm    = "UD_Iinvalid"
@@ -366,7 +369,7 @@ for node in tlNode.childNodes:
         flags['use'] = []
         flags['def'] = []
         for i in range(len(flg)):
-            tks = flg[i].split('_')
+            tks = flg[i].split(':')
             if len(tks) != 2 or (tks[0] != 'u' and tks[0] != 'd'):
                 print "error: invalid flags declaration %s" % flg[i]
             [usedef, f] = tks
@@ -376,6 +379,18 @@ for node in tlNode.childNodes:
                 flags['def'].append(f.upper())
 
         implied = {}
+        implied['use'] = []
+        implied['def'] = []
+        for i in range(len(imp)):
+            tks = imp[i].split(':')
+            if len(tks) != 2 or (tks[0] != 'u' and tks[0] != 'd'):
+                print "error: invalid implied reg declaration %s" % imp[i]
+            [usedef, f] = tks
+            if usedef == 'u':
+                implied['use'].append(f.upper())
+            else:
+                implied['def'].append(f.upper())
+
         clss = {}
 
         #

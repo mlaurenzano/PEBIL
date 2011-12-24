@@ -265,6 +265,8 @@ struct ud_compact
     //uint8_t		inp_sess[64];
     uint32_t            flags_use;
     uint32_t            flags_def;
+    uint64_t            impreg_use;
+    uint64_t            impreg_def;
     //struct ud_itab_entry * itab_entry;
 };
 
@@ -383,7 +385,6 @@ private:
     uint32_t defUseDist;
 
     uint32_t* flags_usedef;
-    BitSet<uint32_t>** impreg_usedef;
 
     OperandX86** operands;
     uint32_t instructionIndex;
