@@ -382,16 +382,6 @@ int main(int argc,char* argv[]){
     }
     PRINT_INFOR("The function blacklist is taken from %s", functionBlackList);
 
-    // --phs: convert arg/emmptiness into an integer value
-    uint32_t phaseNo = 0;
-    if (phs_arg){
-        char* endptr = NULL;
-        phaseNo = strtol(phs_arg, &endptr, 10);
-        if ((endptr == phs_arg) || !phaseNo){
-            printUsage("argument to --phs must be an int > 0");
-        }
-    }
-
     // --dmp: convert arg to dump code
     uint32_t dumpCode = dumpcode_off;
     if (dmp_arg){
@@ -497,6 +487,27 @@ int main(int argc,char* argv[]){
             InstrumentationTool* instTool = reinterpret_cast<InstrumentationTool*(*)(ElfFile*)>(maker)(&elfFile);
             ASSERT(!strcmp(tool_arg, instTool->briefName()) && "name yielded by briefName does not match tool name");
 
+            char ext[__MAX_STRING_SIZE];
+            if (ext_arg){
+                sprintf(ext, "%s\0", ext_arg);
+            } else {
+                sprintf(ext, "%s\0", instTool->defaultExtension());
+            }
+
+            // --phs: convert arg/emmptiness into an integer value
+            uint32_t phaseNo = 0;
+            if (phs_arg){
+                char* endptr = NULL;
+                phaseNo = strtol(phs_arg, &endptr, 10);
+                if ((endptr == phs_arg) || !phaseNo){
+                    printUsage("argument to --phs must be an int > 0");
+                }
+                // prepend phase string to extension
+                char tmp[__MAX_STRING_SIZE];
+                sprintf(tmp, "phase.%d.%s\0", phaseNo, ext);
+                sprintf(ext, "%s\0", tmp);
+            }
+
             if (lnc_arg){
                 instTool->setLibraryList(lnc_arg);
             }
@@ -508,7 +519,7 @@ int main(int argc,char* argv[]){
                 instTool->setAllowStatic();
             }
             
-            instTool->init(ext_arg);
+            instTool->init(ext);
             instTool->initToolArgs(lpi_flag == 0 ? false : true,
                                    dtl_flag == 0 ? false : true,
                                    doi_flag == 0 ? false : true,
