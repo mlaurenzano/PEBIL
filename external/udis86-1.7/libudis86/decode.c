@@ -14,8 +14,8 @@
 #include "input.h"
 #include "decode.h"
 
-#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
-//#define PEBIL_DEBUG(...)
+//#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
+#define PEBIL_DEBUG(...)
 
 /* The max number of prefixes to an instruction */
 #define MAX_PREFIXES    15
@@ -286,7 +286,7 @@ static int search_itab( struct ud * u )
         if ( u->error )
             return -1;
 
-        int tableid;;
+        int tableid;
         
         switch (u->pfx_avx){
             case 0x66:
@@ -296,7 +296,7 @@ static int search_itab( struct ud * u )
             case 0xF3:
                 tableid = ITAB__AVX_C4__PFX_SSEF3__0F;
             default:
-                ITAB__AVX_C4__0F;
+                tableid = ITAB__AVX_C4__0F;
         }
         if (u->pfx_insn == 0xC5){
             tableid += (ITAB__AVX_C5__0F - ITAB__AVX_C4__0F);
@@ -1373,6 +1373,12 @@ static int resolve_implied_usedefs( struct ud *u )
     u->impreg_def = u->itab_entry->impreg_def;
     if (u->impreg_def != 0 || u->impreg_use != 0){
         PEBIL_DEBUG("implied regs used: %#llx, def: %#llx", u->impreg_use, u->impreg_def);
+    }
+
+    /* set use/def of cx for rep prefixes here */
+    if (u->pfx_rep || u->pfx_repe || u->pfx_repne){
+        u->impreg_use |= R_CX;
+        u->impreg_def |= R_CX;
     }
 
     return 0;
