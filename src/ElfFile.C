@@ -32,6 +32,7 @@
 #include <GnuVersion.h>
 #include <HashTable.h>
 #include <X86Instruction.h>
+#include <X86InstructionFactory.h>
 #include <Instrumentation.h>
 #include <LineInformation.h>
 #include <NoteSection.h>
@@ -107,6 +108,11 @@ ElfFile::ElfFile(char* f, char* a) :
 
     addressAnchors = new Vector<AddressAnchor*>();
     anchorsAreSorted = false;
+
+    // perform a quick check of instruction storage tables
+    X86Instruction* x = X86InstructionFactory32::emitNop();
+    ASSERT(x->checkInstructionTables());
+    delete x;
 }
 
 

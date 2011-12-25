@@ -163,6 +163,7 @@ enum ud_itab_index {
 
 
 enum ud_mnemonic_code {
+  UD_I3dnow,
   UD_Impsadbw,
   UD_Iphminposuw,
   UD_Ipmuldq,
@@ -220,7 +221,6 @@ enum ud_mnemonic_code {
   UD_Ipalignr,
   UD_Ipshufb,
   UD_Iphaddd,
-  UD_I3dnow,
   UD_Iaaa,
   UD_Iaad,
   UD_Iaam,

@@ -98,9 +98,6 @@
 #define R_FS   SHFT_1L(44)
 #define R_GS   SHFT_1L(45)
 
-/* instruction classification definitions */
-#define C_none ( 0 )
-
 /* register classes */
 #define T_NONE  0
 #define T_GPR   1
@@ -389,7 +386,6 @@ struct ud_itab_entry
   uint32_t                      flags_def;
   uint64_t                      impreg_use;
   uint64_t                      impreg_def;
-  uint32_t                      class;
   uint32_t                      prefix;
 };
 

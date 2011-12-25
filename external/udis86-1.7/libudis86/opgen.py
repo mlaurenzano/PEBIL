@@ -232,7 +232,6 @@ def centry(i, defmap):
         flg_def = "F_none"
         imp_use = "R_none"
         imp_def = "R_none"
-        clss   = "C_none"
         pfx    = defmap["name"].upper()
     elif defmap["type"] == "leaf":
         mnm    = "UD_I" + defmap["name"]
@@ -243,7 +242,6 @@ def centry(i, defmap):
         imp    = defmap["implied"]
         imp_use = string.join(['R_' + j.upper() for j in imp['use']], ' | ')
         imp_def = string.join(['R_' + j.upper() for j in imp['def']], ' | ')
-        clss   = "C_none"
         pfx    = defmap["pfx"]
         if len(mnm) == 0: mnm = "UD_Ina"
         if len(opr) == 0: opr = default_opr
@@ -259,10 +257,9 @@ def centry(i, defmap):
         flg_def = "F_none"
         imp_use = "R_none"
         imp_def = "R_none"
-        clss   = "C_none"
         pfx    = "P_none"
 
-    return "  /* %s */  { %-16s %-26s %s %s %s %s %s %s },\n" % (i, mnm + ',', opr + ',', flg_use + ',', flg_def + ',', imp_use + ',', imp_def + ',', clss + ',', pfx)
+    return "  /* %s */  { %-16s %-26s %s %s %s %s %s },\n" % (i, mnm + ',', opr + ',', flg_use + ',', flg_def + ',', imp_use + ',', imp_def + ',', pfx)
 
 #
 # makes a new table and adds it to the global
@@ -350,13 +347,12 @@ for node in tlNode.childNodes:
         #   5. implicit registers use/defs
         #   6. classifications
         #
-        if len(parts) == 6:
+        if len(parts) == 5:
             pfx = parts[0].split()
             opc = parts[1].split()
             opr = parts[2].split()
             flg = parts[3].split()
             imp = parts[4].split()
-            cls = parts[5].split()
         else:
             print "error: invalid opcode definition of 3 %s\n" % mnemonic
             sys.exit(-1)
@@ -372,6 +368,7 @@ for node in tlNode.childNodes:
             tks = flg[i].split(':')
             if len(tks) != 2 or (tks[0] != 'u' and tks[0] != 'd'):
                 print "error: invalid flags declaration %s" % flg[i]
+                sys.exit(-1) 
             [usedef, f] = tks
             if usedef == 'u':
                 flags['use'].append(f.upper())
@@ -385,13 +382,12 @@ for node in tlNode.childNodes:
             tks = imp[i].split(':')
             if len(tks) != 2 or (tks[0] != 'u' and tks[0] != 'd'):
                 print "error: invalid implied reg declaration %s" % imp[i]
+                sys.exit(-1) 
             [usedef, f] = tks
             if usedef == 'u':
                 implied['use'].append(f.upper())
             else:
                 implied['def'].append(f.upper())
-
-        clss = {}
 
         #
         # check for special cases of instruction translation
@@ -409,6 +405,7 @@ for node in tlNode.childNodes:
         for p in pfx:
             if not ( p in pfx_dict.keys() ):
                 print "error: invalid prefix specification: %s \n" % pfx
+                sys.exit(-1) 
             pfx_c.append( pfx_dict[p] )
         if len(pfx) == 0:
             pfx_c.append( "P_none" )
@@ -421,6 +418,7 @@ for node in tlNode.childNodes:
         for i in range(len(opr)): 
             if not (opr[i] in operand_dict.keys()):
                 print "error: invalid operand declaration: %s\n" % opr[i]
+                sys.exit(-1)
             opr_c[i] = "O_" + opr[i]
         opr = "%-8s %-8s %-8s %s" % (opr_c[0] + ",", opr_c[1] + ",", opr_c[2] + ",", opr_c[3])
 
@@ -559,8 +557,7 @@ for node in tlNode.childNodes:
             'pfx'   : pfx,      \
             'opr'   : opr,      \
             'flags' : flags,    \
-            'implied': implied, \
-            'class' : clss \
+            'implied': implied  \
         }
 
 # ---------------------------------------------------------------------

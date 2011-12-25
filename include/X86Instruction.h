@@ -100,26 +100,6 @@ class TextObject;
 #define X86_FLAG_ID 21
 #define X86_FLAG_BITS 32
 
-#define F_CF 0
-#define F_PF 2
-#define F_AF 4
-#define F_ZF 6
-#define F_SF 7
-#define F_TF 8
-#define F_IF 9
-#define F_DF 10
-#define F_OF 11
-#define F_IOPL1 12
-#define F_IOPL2 13
-#define F_NT 14
-#define F_RF 16
-#define F_VF 17
-#define F_AC 18
-#define F_VI 19
-#define F_VP 20
-#define F_ID 21
-#define F_BITS 32
-
 #define __flag_mask__protect_none  0x11111111
 #define __flag_mask__protect_light 0x11111100
 #define __flag_mask__protect_full  0x11110000
@@ -405,6 +385,7 @@ public:
     void setDefXIter() { defXIter = true; }
     bool hasDefXIter() { return defXIter; }
 
+    bool checkInstructionTables();
     uint64_t cacheBaseAddress;
 
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
