@@ -15,7 +15,8 @@ from xml.dom import minidom
 #
 # special mnemonic types for internal purposes.
 #
-spl_mnm_types = [   'd3vil',      \
+spl_mnm_types = [   'totaltypes', \
+                    'd3vil',      \
                     'na',         \
                     'grp_reg',    \
                     'grp_rm',     \
@@ -614,7 +615,9 @@ f.write( "};\n\n" )
 # Generate mnemonics list
 #
 f.write("\nenum ud_mnemonic_code {\n")
-for m in mnm_list:
+smnm = mnm_list
+smnm.sort()
+for m in smnm:
     f.write("  UD_I%s,\n" % m)
 for m in spl_mnm_types:
     f.write("  UD_I%s,\n" % m)

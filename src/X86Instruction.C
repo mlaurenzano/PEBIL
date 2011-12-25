@@ -3516,7 +3516,6 @@ X86InstructionType_float,            /* cvttsd2si */
 X86InstructionType_float,            /* cvttss2si */
 X86InstructionType_special,          /* cwd */
 X86InstructionType_special,          /* cwde */
-X86InstructionType_invalid,          /* d3vil */
 X86InstructionType_int,              /* daa */
 X86InstructionType_int,              /* das */
 X86InstructionType_invalid,          /* db */
@@ -3629,14 +3628,6 @@ X86InstructionType_special,          /* fxrstor */
 X86InstructionType_special,          /* fxsave */
 X86InstructionType_float,            /* fyl2x */
 X86InstructionType_float,            /* fyl2xp1 */
-X86InstructionType_invalid,          /* grp_asize */
-X86InstructionType_invalid,          /* grp_mod */
-X86InstructionType_invalid,          /* grp_mode */
-X86InstructionType_invalid,          /* grp_osize */
-X86InstructionType_invalid,          /* grp_reg */
-X86InstructionType_invalid,          /* grp_rm */
-X86InstructionType_invalid,          /* grp_vendor */
-X86InstructionType_invalid,          /* grp_x87 */
 X86InstructionType_float,            /* haddpd */
 X86InstructionType_float,            /* haddps */
 X86InstructionType_halt,             /* hlt */
@@ -3762,9 +3753,7 @@ X86InstructionType_float,            /* mulps */
 X86InstructionType_float,            /* mulsd */
 X86InstructionType_float,            /* mulss */
 X86InstructionType_special,          /* mwait */
-X86InstructionType_invalid,          /* na */
 X86InstructionType_int,              /* neg */
-X86InstructionType_invalid,          /* none */
 X86InstructionType_nop,              /* nop */
 X86InstructionType_int,              /* not */
 X86InstructionType_int,              /* or */
@@ -4136,7 +4125,6 @@ const char* instructionNames[] = {
 "cvttss2si",
 "cwd",
 "cwde",
-"d3vil",
 "daa",
 "das",
 "db",
@@ -4249,14 +4237,6 @@ const char* instructionNames[] = {
 "fxsave",
 "fyl2x",
 "fyl2xp1",
-"grp_asize",
-"grp_mod",
-"grp_mode",
-"grp_osize",
-"grp_reg",
-"grp_rm",
-"grp_vendor",
-"grp_x87",
 "haddpd",
 "haddps",
 "hlt",
@@ -4382,9 +4362,7 @@ const char* instructionNames[] = {
 "mulsd",
 "mulss",
 "mwait",
-"na",
 "neg",
-"none",
 "nop",
 "not",
 "or",
@@ -4660,7 +4638,7 @@ const char* instructionNames[] = {
 };
 
 bool X86Instruction::checkInstructionTables(){
-    for (uint32_t i = 0; i < UD_Inone; i++){
+    for (uint32_t i = 0; i < UD_Itotaltypes; i++){
         if (strcmp(instructionNames[i], ud_mnemonics_str[i])){
             PRINT_ERROR("Instruction orderings don't match those in udis layer: index %d, udis %s, pebil %s", i, ud_mnemonics_str[i], instructionNames[i]);
             return false;
