@@ -14,8 +14,8 @@
 #include "input.h"
 #include "decode.h"
 
-//#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
-#define PEBIL_DEBUG(...)
+#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
+//#define PEBIL_DEBUG(...)
 
 /* The max number of prefixes to an instruction */
 #define MAX_PREFIXES    15

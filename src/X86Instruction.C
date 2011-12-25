@@ -4004,19 +4004,28 @@ X86InstructionType_float,            /* unpckhpd */
 X86InstructionType_float,            /* unpckhps */
 X86InstructionType_float,            /* unpcklpd */
 X86InstructionType_float,            /* unpcklps */
+X86InstructionType_simd,             /* vaddpd */
+X86InstructionType_simd,             /* vaddps */
+X86InstructionType_simd,             /* vaddps */
+X86InstructionType_simd,             /* vaddsd */
+X86InstructionType_simd,             /* vaddss */
+X86InstructionType_simd,             /* vblendpd */
 X86InstructionType_special,          /* verr */
 X86InstructionType_special,          /* verw */
 X86InstructionType_vmx,              /* vmcall */
 X86InstructionType_vmx,              /* vmclear */
 X86InstructionType_vmx,              /* vmload */
 X86InstructionType_vmx,              /* vmmcall */
+X86InstructionType_move,             /* vmovapd */
 X86InstructionType_vmx,              /* vmptrld */
 X86InstructionType_vmx,              /* vmptrst */
 X86InstructionType_vmx,              /* vmresume */
 X86InstructionType_vmx,              /* vmrun */
 X86InstructionType_vmx,              /* vmsave */
+X86InstructionType_simd,             /* vmulpd */
 X86InstructionType_vmx,              /* vmxoff */
 X86InstructionType_vmx,              /* vmxon */
+X86InstructionType_simd,             /* vpshufd */
 X86InstructionType_special,          /* wait */
 X86InstructionType_special,          /* wbinvd */
 X86InstructionType_special,          /* wrmsr */
@@ -4613,19 +4622,27 @@ const char* instructionNames[] = {
 "unpckhps",
 "unpcklpd",
 "unpcklps",
+"vaddpd",
+"vaddps",
+"vaddsd",
+"vaddss",
+"vblendpd",
 "verr",
 "verw",
 "vmcall",
 "vmclear",
 "vmload",
 "vmmcall",
+"vmovapd",
 "vmptrld",
 "vmptrst",
 "vmresume",
 "vmrun",
 "vmsave",
+"vmulpd",
 "vmxoff",
 "vmxon",
+"vpshufd",
 "wait",
 "wbinvd",
 "wrmsr",
