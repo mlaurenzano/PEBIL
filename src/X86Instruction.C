@@ -2505,15 +2505,24 @@ void X86Instruction::setFlags()
     }
 }
 
+X86InstructionType X86Instruction::getInstructionType(){
+    return X86InstructionClassifier::getClass(GET(mnemonic));
+}
+
 #include <map>
 using namespace std;
 static map<int, X86InstructionType> classMap;
 
-X86InstructionType X86InstructionClassifier::getClass(int mnemonic){
-    ASSERT(mnemonic >= 0 && mnemonic < UD_Itotaltypes && "invalid mnemonic");
+void X86InstructionClassifier::initialize(){
     if (classMap.size() == 0){
         fillClassDefinitions();
     }
+    ASSERT(classMap.size());
+}
+
+X86InstructionType X86InstructionClassifier::getClass(int mnemonic){
+    ASSERT(mnemonic >= 0 && mnemonic < UD_Itotaltypes && "invalid mnemonic");
+    initialize();
     ASSERT(classMap.count(mnemonic) == 1);
     return classMap[mnemonic];
 }
@@ -2538,10 +2547,6 @@ bool X86InstructionClassifier::verify(){
         return false;
     }
     return true;
-}
-
-X86InstructionType X86Instruction::getInstructionType(){
-    return X86InstructionClassifier::getClass(GET(mnemonic));
 }
 
 void X86InstructionClassifier::fillClassDefinitions(){
@@ -3162,4 +3167,3 @@ void X86InstructionClassifier::fillClassDefinitions(){
 
     verify();
 }
-

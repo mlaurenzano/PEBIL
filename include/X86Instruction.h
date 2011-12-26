@@ -594,8 +594,10 @@ public:
 
 class X86InstructionClassifier {
 private:
-    static void fillClassDefinitions();
+    static void initialize();
     static bool verify();
+
+    static void fillClassDefinitions();
 
     X86InstructionClassifier() {}
     ~X86InstructionClassifier() {}
