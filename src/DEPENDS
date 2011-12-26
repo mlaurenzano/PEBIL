@@ -68,11 +68,11 @@ ElfFile.o: ElfFile.C ../include/ElfFile.h ../include/Base.h \
  ../include/FileHeader.h ../include/defines/FileHeader.d \
  ../include/GlobalOffsetTable.h ../include/GnuVersion.h \
  ../include/defines/GnuVersion.d ../include/HashTable.h \
- ../include/Instrumentation.h ../include/LineInformation.h \
- ../include/NoteSection.h ../include/PriorityQueue.h \
- ../include/RelocationTable.h ../include/defines/RelocationTable.d \
- ../include/SectionHeader.h ../include/defines/SectionHeader.d \
- ../include/StringTable.h
+ ../include/X86InstructionFactory.h ../include/Instrumentation.h \
+ ../include/LineInformation.h ../include/NoteSection.h \
+ ../include/PriorityQueue.h ../include/RelocationTable.h \
+ ../include/defines/RelocationTable.d ../include/SectionHeader.h \
+ ../include/defines/SectionHeader.d ../include/StringTable.h
 ElfFileInst.o: ElfFileInst.C ../include/ElfFileInst.h ../include/Base.h \
  ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
  ../include/Debug.h ../include/Vector.h ../include/ElfFile.h \

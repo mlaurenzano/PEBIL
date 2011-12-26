@@ -108,9 +108,8 @@ FunctionTimer.o: FunctionTimer.C FunctionTimer.h \
  ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
  ../include/TextSection.h ../include/SymbolTable.h \
  ../include/defines/SymbolTable.d ../include/X86InstructionFactory.h
-RareEventCounter.o: RareEventCounter.C RareEventCounter.h \
- ../include/InstrumentationTool.h ../include/ElfFileInst.h \
- ../include/Base.h ../include/CStructuresElf.h \
+Minimal.o: Minimal.C Minimal.h ../include/InstrumentationTool.h \
+ ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
  ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
  ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
  ../include/defines/ProgramHeader.d ../include/X86Instruction.h \
@@ -121,12 +120,7 @@ RareEventCounter.o: RareEventCounter.C RareEventCounter.h \
  ../external/udis86-1.7/libudis86/types.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
- ../include/defines/X86Instruction.d ../include/Instrumentation.h \
- ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
- ../include/TextSection.h ../include/SymbolTable.h \
- ../include/defines/SymbolTable.d ../include/X86InstructionFactory.h \
- ../include/LineInformation.h ../include/defines/LineInformation.d \
- ../include/Loop.h
+ ../include/defines/X86Instruction.d ../include/Instrumentation.h
 ThrottleLoop.o: ThrottleLoop.C ThrottleLoop.h \
  ../include/InstrumentationTool.h ../include/ElfFileInst.h \
  ../include/Base.h ../include/CStructuresElf.h \

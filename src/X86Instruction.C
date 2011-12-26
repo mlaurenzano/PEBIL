@@ -112,7 +112,7 @@ bool X86Instruction::isStore(){
 }
 
 bool X86Instruction::isSpecialRegOp(){
-    return (instructionType == X86InstructionType_special);
+    return (getInstructionType() == X86InstructionType_special);
 }
 
 bool X86Instruction::isLogicOp(){
@@ -1927,914 +1927,6 @@ uint16_t X86Instruction::setInstructionBin(){
     return instructionBin;
 }
 
-uint32_t X86Instruction::getInstructionType(){
-    if (instructionType){
-        return instructionType;
-    }
-    return setInstructionType();
-}
-
-uint32_t X86Instruction::setInstructionType(){
-    uint32_t optype = X86InstructionType_unknown;
-    switch(GET(mnemonic)){
-        case UD_Impsadbw:
-        case UD_Iphminposuw:
-        case UD_Ipmuldq:
-        case UD_Idpps:
-        case UD_Idppd:
-            optype = X86InstructionType_simd;
-            break; 
-        case UD_Ipblendvb:
-        case UD_Ipblendw:
-        case UD_Iblendvpd:
-        case UD_Iblendvps:
-        case UD_Iblendpd:
-        case UD_Iblendps:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipminsb:
-        case UD_Ipminsd:
-        case UD_Ipminuw:
-        case UD_Ipminud:
-        case UD_Ipmaxsb:
-        case UD_Ipmaxsd:
-        case UD_Ipmaxuw:
-        case UD_Ipmaxud:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_Iroundps:
-        case UD_Iroundpd:
-        case UD_Iroundss:
-        case UD_Iroundsd:
-	    optype = X86InstructionType_simd;
-	    break;
-        case UD_Ipextrb:
-        case UD_Ipextrd:
-        case UD_Ipextrq:
-        case UD_Iextractps:
-        case UD_Ipinsrb:
-        case UD_Ipinsrd:
-        case UD_Ipinsrq:
-        case UD_Iinsertps:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_Ipmovsxbw:
-        case UD_Ipmovsxbd:
-        case UD_Ipmovsxbq:
-        case UD_Ipmovsxwd:
-        case UD_Ipmovsxwq:
-        case UD_Ipmovsxdq:
-        case UD_Ipmovzxbw:
-        case UD_Ipmovzxbd:
-        case UD_Ipmovzxbq:
-        case UD_Ipmovzxwd:
-        case UD_Ipmovzxwq:
-        case UD_Ipmovzxdq:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Iptest:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipcmpeqq:
-        case UD_Ipackusdw:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_Imovntdqa:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Ipcmpestrm:
-        case UD_Ipcmpestri:
-        case UD_Ipcmpistrm:
-        case UD_Ipcmpistri:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_Ipcmpgtq:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipclmulqdq:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_Ipalignr:
-        case UD_Ipshufb:
-        case UD_Iphaddd:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_I3dnow:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Iaaa:
-        case UD_Iaad:
-        case UD_Iaam:
-        case UD_Iaas:
-        case UD_Iadc:
-        case UD_Iadd:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iaddpd:
-        case UD_Iaddps:
-        case UD_Iaddsd:
-        case UD_Iaddss:
-        case UD_Iaddsubpd:
-        case UD_Iaddsubps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iand:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iandpd:
-        case UD_Iandps:
-        case UD_Iandnpd:
-        case UD_Iandnps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iarpl:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Imovsxd:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Ibound:
-        case UD_Ibsf:
-        case UD_Ibsr:
-        case UD_Ibswap:
-        case UD_Ibt:
-        case UD_Ibtc:
-        case UD_Ibtr:
-        case UD_Ibts:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Icall:
-            optype = X86InstructionType_call;
-            break;
-        case UD_Icbw:
-        case UD_Icwde:
-        case UD_Icdqe:
-        case UD_Iclc:
-        case UD_Icld:
-        case UD_Iclflush:
-        case UD_Iclgi:
-        case UD_Icli:
-        case UD_Iclts:
-        case UD_Icmc:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Icmovo:
-        case UD_Icmovno:
-        case UD_Icmovb:
-        case UD_Icmovae:
-        case UD_Icmovz:
-        case UD_Icmovnz:
-        case UD_Icmovbe:
-        case UD_Icmova:
-        case UD_Icmovs:
-        case UD_Icmovns:
-        case UD_Icmovp:
-        case UD_Icmovnp:
-        case UD_Icmovl:
-        case UD_Icmovge:
-        case UD_Icmovle:
-        case UD_Icmovg:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Icmp:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Icmppd:
-        case UD_Icmpps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Icmpsb:
-        case UD_Icmpsw:
-            optype = X86InstructionType_string;
-            break;
-        case UD_Icmpsd:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Icmpsq:
-            optype = X86InstructionType_string;
-            break;
-        case UD_Icmpss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Icmpxchg:
-        case UD_Icmpxchg8b:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Icomisd:
-        case UD_Icomiss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Icpuid:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Icvtdq2pd:
-        case UD_Icvtdq2ps:
-        case UD_Icvtpd2dq:
-        case UD_Icvtpd2pi:
-        case UD_Icvtpd2ps:
-        case UD_Icvtpi2ps:
-        case UD_Icvtpi2pd:
-        case UD_Icvtps2dq:
-        case UD_Icvtps2pi:
-        case UD_Icvtps2pd:
-        case UD_Icvtsd2si:
-        case UD_Icvtsd2ss:
-        case UD_Icvtsi2ss:
-        case UD_Icvtss2si:
-        case UD_Icvtss2sd:
-        case UD_Icvttpd2pi:
-        case UD_Icvttpd2dq:
-        case UD_Icvttps2dq:
-        case UD_Icvttps2pi:
-        case UD_Icvttsd2si:
-        case UD_Icvtsi2sd:
-        case UD_Icvttss2si:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Icwd:
-        case UD_Icdq:
-        case UD_Icqo:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Idaa:
-        case UD_Idas:
-        case UD_Idec:
-        case UD_Idiv:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Idivpd:
-        case UD_Idivps:
-        case UD_Idivsd:
-        case UD_Idivss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iemms:
-        case UD_Ienter:
-            optype = X86InstructionType_special;
-            break;
-        case UD_If2xm1:
-        case UD_Ifabs:
-        case UD_Ifadd:
-        case UD_Ifaddp:
-        case UD_Ifbld:
-        case UD_Ifbstp:
-        case UD_Ifchs:
-        case UD_Ifclex:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ifcmovb:
-        case UD_Ifcmove:
-        case UD_Ifcmovbe:
-        case UD_Ifcmovu:
-        case UD_Ifcmovnb:
-        case UD_Ifcmovne:
-        case UD_Ifcmovnbe:
-        case UD_Ifcmovnu:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Ifucomi:
-        case UD_Ifcom:
-        case UD_Ifcom2:
-        case UD_Ifcomp3:
-        case UD_Ifcomi:
-        case UD_Ifucomip:
-        case UD_Ifcomip:
-        case UD_Ifcomp:
-        case UD_Ifcomp5:
-        case UD_Ifcompp:
-        case UD_Ifcos:
-        case UD_Ifdecstp:
-        case UD_Ifdiv:
-        case UD_Ifdivp:
-        case UD_Ifdivr:
-        case UD_Ifdivrp:
-        case UD_Ifemms:
-        case UD_Iffree:
-        case UD_Iffreep:
-        case UD_Ificom:
-        case UD_Ificomp:
-        case UD_Ifild:
-        case UD_Ifncstp:
-        case UD_Ifninit:
-        case UD_Ifiadd:
-        case UD_Ifidivr:
-        case UD_Ifidiv:
-        case UD_Ifisub:
-        case UD_Ifisubr:
-        case UD_Ifist:
-        case UD_Ifistp:
-        case UD_Ifisttp:
-        case UD_Ifld:
-        case UD_Ifld1:
-        case UD_Ifldl2t:
-        case UD_Ifldl2e:
-        case UD_Ifldlpi:
-        case UD_Ifldlg2:
-        case UD_Ifldln2:
-        case UD_Ifldz:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ifldcw:
-        case UD_Ifldenv:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ifmul:
-        case UD_Ifmulp:
-        case UD_Ifimul:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ifnop:
-            optype = X86InstructionType_nop;
-            break;
-        case UD_Ifpatan:
-        case UD_Ifprem:
-        case UD_Ifprem1:
-        case UD_Ifptan:
-        case UD_Ifrndint:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ifrstor:
-        case UD_Ifnsave:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ifscale:
-        case UD_Ifsin:
-        case UD_Ifsincos:
-        case UD_Ifsqrt:
-        case UD_Ifstp:
-        case UD_Ifstp1:
-        case UD_Ifstp8:
-        case UD_Ifstp9:
-        case UD_Ifst:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ifnstcw:
-        case UD_Ifnstenv:
-        case UD_Ifnstsw:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ifsub:
-        case UD_Ifsubp:
-        case UD_Ifsubr:
-        case UD_Ifsubrp:
-        case UD_Iftst:
-        case UD_Ifucom:
-        case UD_Ifucomp:
-        case UD_Ifucompp:
-        case UD_Ifxam:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ifxch:
-        case UD_Ifxch4:
-        case UD_Ifxch7:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ifxrstor:
-        case UD_Ifxsave:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ifpxtract:
-        case UD_Ifyl2x:
-        case UD_Ifyl2xp1:
-        case UD_Ihaddpd:
-        case UD_Ihaddps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ihlt:
-            optype = X86InstructionType_halt;
-            break;
-        case UD_Ihsubpd:
-        case UD_Ihsubps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iidiv:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iin:
-            optype = X86InstructionType_io;
-            break;
-        case UD_Iimul:
-        case UD_Iinc:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iinsb:
-        case UD_Iinsw:
-        case UD_Iinsd:
-            optype = X86InstructionType_io;
-            break;
-        case UD_Iint1:
-        case UD_Iint3:
-        case UD_Iint:
-        case UD_Iinto:
-            optype = X86InstructionType_trap;
-            break;
-        case UD_Iinvd:
-        case UD_Iinvlpg:
-        case UD_Iinvlpga:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Iiretw:
-        case UD_Iiretd:
-        case UD_Iiretq:
-            optype = X86InstructionType_return;
-            break;
-        case UD_Ijo:
-        case UD_Ijno:
-        case UD_Ijb:
-        case UD_Ijae:
-        case UD_Ijz:
-        case UD_Ijnz:
-        case UD_Ijbe:
-        case UD_Ija:
-        case UD_Ijs:
-        case UD_Ijns:
-        case UD_Ijp:
-        case UD_Ijnp:
-        case UD_Ijl:
-        case UD_Ijge:
-        case UD_Ijle:
-        case UD_Ijg:
-        case UD_Ijcxz:
-        case UD_Ijecxz:
-        case UD_Ijrcxz:
-            optype = X86InstructionType_cond_branch;
-            break;
-        case UD_Ijmp:
-            optype = X86InstructionType_uncond_branch;
-            break;
-        case UD_Ilahf:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ilar:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ilddqu:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ildmxcsr:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ilds:
-        case UD_Ilea:
-            optype = X86InstructionType_move;
-            break;            
-        case UD_Iles:
-        case UD_Ilfs:
-        case UD_Ilgs:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ilidt:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ilss:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ileave:
-        case UD_Ilfence:
-        case UD_Ilgdt:
-        case UD_Illdt:
-        case UD_Ilmsw:
-        case UD_Ilock:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ilodsb:
-        case UD_Ilodsw:
-        case UD_Ilodsd:
-        case UD_Ilodsq:
-            optype = X86InstructionType_string;
-            break;
-        case UD_Iloopnz:
-        case UD_Iloope:
-        case UD_Iloop:
-        case UD_Ilsl:
-        case UD_Iltr:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Imaskmovq:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Imaxpd:
-        case UD_Imaxps:
-        case UD_Imaxsd:
-        case UD_Imaxss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Imfence:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Iminpd:
-        case UD_Iminps:
-        case UD_Iminsd:
-        case UD_Iminss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Imonitor:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Imov:
-        case UD_Imovapd:
-        case UD_Imovaps:
-        case UD_Imovd:
-        case UD_Imovddup:
-        case UD_Imovdqa:
-        case UD_Imovdqu:
-        case UD_Imovdq2q:
-        case UD_Imovhpd:
-        case UD_Imovhps:
-        case UD_Imovlhps:
-        case UD_Imovlpd:
-        case UD_Imovlps:
-        case UD_Imovhlps:
-        case UD_Imovmskpd:
-        case UD_Imovmskps:
-        case UD_Imovntdq:
-        case UD_Imovnti:
-        case UD_Imovntpd:
-        case UD_Imovntps:
-        case UD_Imovntq:
-        case UD_Imovq:
-        case UD_Imovqa:
-        case UD_Imovq2dq:
-        case UD_Imovsb:
-        case UD_Imovsw:
-        case UD_Imovsd:
-        case UD_Imovsq:
-        case UD_Imovsldup:
-        case UD_Imovshdup:
-        case UD_Imovss:
-        case UD_Imovsx:
-        case UD_Imovupd:
-        case UD_Imovups:
-        case UD_Imovzx:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Imul:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Imulpd:
-        case UD_Imulps:
-        case UD_Imulsd:
-        case UD_Imulss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Imwait:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ineg:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Inop:
-            optype = X86InstructionType_nop;
-            break;
-        case UD_Inot:
-        case UD_Ior:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iorpd:
-        case UD_Iorps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iout:
-        case UD_Ioutsb:
-        case UD_Ioutsw:
-        case UD_Ioutsd:
-        case UD_Ioutsq:
-            optype = X86InstructionType_io;
-            break;
-        case UD_Ipacksswb:
-        case UD_Ipackssdw:
-        case UD_Ipackuswb:
-        case UD_Ipaddb:
-        case UD_Ipaddw:
-        case UD_Ipaddd:
-        case UD_Ipaddq:
-        case UD_Ipaddsb:
-        case UD_Ipaddsw:
-        case UD_Ipaddusb:
-        case UD_Ipaddusw:
-        case UD_Ipand:
-        case UD_Ipandn:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipause:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ipavgb:
-        case UD_Ipavgw:
-        case UD_Ipcmpeqb:
-        case UD_Ipcmpeqw:
-        case UD_Ipcmpeqd:
-        case UD_Ipcmpgtb:
-        case UD_Ipcmpgtw:
-        case UD_Ipcmpgtd:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipextrw:
-        case UD_Ipinsrw:
-        case UD_Ipmaddwd:
-        case UD_Ipmaxsw:
-        case UD_Ipmaxub:
-        case UD_Ipminsw:
-        case UD_Ipminub:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_Ipmovmskb:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Ipmulhuw:
-        case UD_Ipmulhw:
-        case UD_Ipmullw:
-        case UD_Ipmuludq:
-        case UD_Ipop:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipopa:
-        case UD_Ipopad:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ipopfw:
-        case UD_Ipopfd:
-        case UD_Ipopfq:
-        case UD_Ipor:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iprefetch:
-        case UD_Iprefetchnta:
-        case UD_Iprefetcht0:
-        case UD_Iprefetcht1:
-        case UD_Iprefetcht2:
-            optype = X86InstructionType_prefetch;
-            break;
-        case UD_Ipsadbw:
-        case UD_Ipshufd:
-        case UD_Ipshufhw:
-        case UD_Ipshuflw:
-        case UD_Ipshufw:
-        case UD_Ipslldq:
-        case UD_Ipsllw:
-        case UD_Ipslld:
-        case UD_Ipsllq:
-        case UD_Ipsraw:
-        case UD_Ipsrad:
-        case UD_Ipsrlw:
-        case UD_Ipsrld:
-        case UD_Ipsrlq:
-        case UD_Ipsrldq:
-        case UD_Ipsubb:
-        case UD_Ipsubw:
-        case UD_Ipsubd:
-        case UD_Ipsubq:
-        case UD_Ipsubsb:
-        case UD_Ipsubsw:
-        case UD_Ipsubusb:
-        case UD_Ipsubusw:
-        case UD_Ipunpckhbw:
-        case UD_Ipunpckhwd:
-        case UD_Ipunpckhdq:
-        case UD_Ipunpckhqdq:
-        case UD_Ipunpcklbw:
-        case UD_Ipunpcklwd:
-        case UD_Ipunpckldq:
-        case UD_Ipunpcklqdq:
-        case UD_Ipi2fw:
-        case UD_Ipi2fd:
-        case UD_Ipf2iw:
-        case UD_Ipf2id:
-        case UD_Ipfnacc:
-        case UD_Ipfpnacc:
-        case UD_Ipfcmpge:
-        case UD_Ipfmin:
-        case UD_Ipfrcp:
-        case UD_Ipfrsqrt:
-        case UD_Ipfsub:
-        case UD_Ipfadd:
-        case UD_Ipfcmpgt:
-        case UD_Ipfmax:
-        case UD_Ipfrcpit1:
-        case UD_Ipfrspit1:
-        case UD_Ipfsubr:
-        case UD_Ipfacc:
-        case UD_Ipfcmpeq:
-        case UD_Ipfmul:
-        case UD_Ipfrcpit2:
-        case UD_Ipmulhrw:
-        case UD_Ipswapd:
-        case UD_Ipavgusb:
-        case UD_Ipush:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipusha:
-        case UD_Ipushad:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ipushfw:
-        case UD_Ipushfd:
-        case UD_Ipushfq:
-        case UD_Ipxor:
-        case UD_Ircl:
-        case UD_Ircr:
-        case UD_Irol:
-        case UD_Iror:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ircpps:
-        case UD_Ircpss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Irdmsr:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Irdpmc:
-        case UD_Irdtsc:
-        case UD_Irdtscp:
-            optype = X86InstructionType_hwcount;
-            break;
-        case UD_Irepne:
-        case UD_Irep:
-            optype = X86InstructionType_string;
-            break;
-        case UD_Iret:
-        case UD_Iretf:
-            optype = X86InstructionType_return;
-            break;
-        case UD_Irsm:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Irsqrtps:
-        case UD_Irsqrtss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Isahf:
-        case UD_Isal:
-        case UD_Isalc:
-        case UD_Isar:
-        case UD_Ishl:
-        case UD_Ishr:
-        case UD_Isbb:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iscasb:
-        case UD_Iscasw:
-        case UD_Iscasd:
-        case UD_Iscasq:
-            optype = X86InstructionType_string;
-            break;
-        case UD_Iseto:
-        case UD_Isetno:
-        case UD_Isetb:
-        case UD_Isetnb:
-        case UD_Isetz:
-        case UD_Isetnz:
-        case UD_Isetbe:
-        case UD_Iseta:
-        case UD_Isets:
-        case UD_Isetns:
-        case UD_Isetp:
-        case UD_Isetnp:
-        case UD_Isetl:
-        case UD_Isetge:
-        case UD_Isetle:
-        case UD_Isetg:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Isfence:
-        case UD_Isgdt:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ishld:
-        case UD_Ishrd:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ishufpd:
-        case UD_Ishufps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Isidt:
-        case UD_Isldt:
-        case UD_Ismsw:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Isqrtps:
-        case UD_Isqrtpd:
-        case UD_Isqrtsd:
-        case UD_Isqrtss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Istc:
-        case UD_Istd:
-        case UD_Istgi:
-        case UD_Isti:
-        case UD_Iskinit:
-        case UD_Istmxcsr:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Istosb:
-        case UD_Istosw:
-        case UD_Istosd:
-        case UD_Istosq:
-            optype = X86InstructionType_string;
-            break;
-        case UD_Istr:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Isub:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Isubpd:
-        case UD_Isubps:
-        case UD_Isubsd:
-        case UD_Isubss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iswapgs:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Isyscall:
-        case UD_Isysenter:
-        case UD_Isysexit:
-        case UD_Isysret:
-            optype = X86InstructionType_system_call;
-            break;
-        case UD_Itest:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iucomisd:
-        case UD_Iucomiss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iud2:
-            optype = X86InstructionType_invalid;
-            break;
-        case UD_Iunpckhpd:
-        case UD_Iunpckhps:
-        case UD_Iunpcklps:
-        case UD_Iunpcklpd:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iverr:
-        case UD_Iverw:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ivmcall:
-        case UD_Ivmclear:
-        case UD_Ivmxon:
-        case UD_Ivmptrld:
-        case UD_Ivmptrst:
-        case UD_Ivmresume:
-        case UD_Ivmxoff:
-        case UD_Ivmrun:
-        case UD_Ivmmcall:
-        case UD_Ivmload:
-        case UD_Ivmsave:
-            optype = X86InstructionType_vmx;
-            break;
-        case UD_Iwait:
-        case UD_Iwbinvd:
-        case UD_Iwrmsr:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ixadd:
-        case UD_Ixchg:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ixlatb:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ixor:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ixorpd:
-        case UD_Ixorps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Idb:
-        case UD_Iinvalid:
-        case UD_Id3vil:
-        case UD_Ina:
-        case UD_Igrp_reg:
-        case UD_Igrp_rm:
-        case UD_Igrp_vendor:
-        case UD_Igrp_x87:
-        case UD_Igrp_mode:
-        case UD_Igrp_osize:
-        case UD_Igrp_asize:
-        case UD_Igrp_mod:
-        case UD_Inone:
-            optype = X86InstructionType_invalid;
-            break;
-        default:
-            optype = X86InstructionType_unknown;
-            break;
-    };
-
-    if (optype == X86InstructionType_unknown){
-        PRINT_WARN(10, "Unknown instruction mnemonic `%s' found at address %#llx", ud_lookup_mnemonic(GET(mnemonic)), baseAddress);
-    }
-
-    instructionType = optype;
-    return instructionType;
-}
-
 bool X86Instruction::controlFallsThrough(){
     if (isHalt() ||
         isReturn() ||
@@ -2929,7 +2021,6 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     byteSource = src;
     container = cont;
     addressAnchor = NULL;
-    instructionType = X86InstructionType_unknown;
     instructionBin = X86InstructionBin_unknown;
     liveIns = NULL;
     liveOuts = NULL;
@@ -2946,8 +2037,6 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     }
 
     leader = false;
-
-    setInstructionType();
 
     setFlags();
 
@@ -2979,7 +2068,6 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     byteSource = src;
     container = cont;
     addressAnchor = NULL;
-    instructionType = X86InstructionType_unknown;
     instructionBin = X86InstructionBin_unknown;
     liveIns = NULL;
     liveOuts = NULL;
@@ -2996,8 +2084,6 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     }
 
     leader = false;
-
-    setInstructionType();
 
     setFlags();
 
@@ -3419,1248 +2505,661 @@ void X86Instruction::setFlags()
     }
 }
 
-enum X86InstructionType instructionClass[] = {
-X86InstructionType_special,          /* 3dnow */
-X86InstructionType_int,              /* aaa */
-X86InstructionType_int,              /* aad */
-X86InstructionType_int,              /* aam */
-X86InstructionType_int,              /* aas */
-X86InstructionType_int,              /* adc */
-X86InstructionType_int,              /* add */
-X86InstructionType_float,            /* addpd */
-X86InstructionType_float,            /* addps */
-X86InstructionType_float,            /* addsd */
-X86InstructionType_float,            /* addss */
-X86InstructionType_float,            /* addsubpd */
-X86InstructionType_float,            /* addsubps */
-X86InstructionType_int,              /* and */
-X86InstructionType_float,            /* andnpd */
-X86InstructionType_float,            /* andnps */
-X86InstructionType_float,            /* andpd */
-X86InstructionType_float,            /* andps */
-X86InstructionType_special,          /* arpl */
-X86InstructionType_int,              /* blendpd */
-X86InstructionType_int,              /* blendps */
-X86InstructionType_int,              /* blendvpd */
-X86InstructionType_int,              /* blendvps */
-X86InstructionType_int,              /* bound */
-X86InstructionType_int,              /* bsf */
-X86InstructionType_int,              /* bsr */
-X86InstructionType_int,              /* bswap */
-X86InstructionType_int,              /* bt */
-X86InstructionType_int,              /* btc */
-X86InstructionType_int,              /* btr */
-X86InstructionType_int,              /* bts */
-X86InstructionType_call,             /* call */
-X86InstructionType_special,          /* cbw */
-X86InstructionType_special,          /* cdq */
-X86InstructionType_special,          /* cdqe */
-X86InstructionType_special,          /* clc */
-X86InstructionType_special,          /* cld */
-X86InstructionType_special,          /* clflush */
-X86InstructionType_special,          /* clgi */
-X86InstructionType_special,          /* cli */
-X86InstructionType_special,          /* clts */
-X86InstructionType_special,          /* cmc */
-X86InstructionType_move,             /* cmova */
-X86InstructionType_move,             /* cmovae */
-X86InstructionType_move,             /* cmovb */
-X86InstructionType_move,             /* cmovbe */
-X86InstructionType_move,             /* cmovg */
-X86InstructionType_move,             /* cmovge */
-X86InstructionType_move,             /* cmovl */
-X86InstructionType_move,             /* cmovle */
-X86InstructionType_move,             /* cmovno */
-X86InstructionType_move,             /* cmovnp */
-X86InstructionType_move,             /* cmovns */
-X86InstructionType_move,             /* cmovnz */
-X86InstructionType_move,             /* cmovo */
-X86InstructionType_move,             /* cmovp */
-X86InstructionType_move,             /* cmovs */
-X86InstructionType_move,             /* cmovz */
-X86InstructionType_int,              /* cmp */
-X86InstructionType_float,            /* cmppd */
-X86InstructionType_float,            /* cmpps */
-X86InstructionType_string,           /* cmpsb */
-X86InstructionType_float,            /* cmpsd */
-X86InstructionType_string,           /* cmpsq */
-X86InstructionType_float,            /* cmpss */
-X86InstructionType_string,           /* cmpsw */
-X86InstructionType_int,              /* cmpxchg */
-X86InstructionType_int,              /* cmpxchg8b */
-X86InstructionType_float,            /* comisd */
-X86InstructionType_float,            /* comiss */
-X86InstructionType_special,          /* cpuid */
-X86InstructionType_special,          /* cqo */
-X86InstructionType_float,            /* cvtdq2pd */
-X86InstructionType_float,            /* cvtdq2ps */
-X86InstructionType_float,            /* cvtpd2dq */
-X86InstructionType_float,            /* cvtpd2pi */
-X86InstructionType_float,            /* cvtpd2ps */
-X86InstructionType_float,            /* cvtpi2pd */
-X86InstructionType_float,            /* cvtpi2ps */
-X86InstructionType_float,            /* cvtps2dq */
-X86InstructionType_float,            /* cvtps2pd */
-X86InstructionType_float,            /* cvtps2pi */
-X86InstructionType_float,            /* cvtsd2si */
-X86InstructionType_float,            /* cvtsd2ss */
-X86InstructionType_float,            /* cvtsi2sd */
-X86InstructionType_float,            /* cvtsi2ss */
-X86InstructionType_float,            /* cvtss2sd */
-X86InstructionType_float,            /* cvtss2si */
-X86InstructionType_float,            /* cvttpd2dq */
-X86InstructionType_float,            /* cvttpd2pi */
-X86InstructionType_float,            /* cvttps2dq */
-X86InstructionType_float,            /* cvttps2pi */
-X86InstructionType_float,            /* cvttsd2si */
-X86InstructionType_float,            /* cvttss2si */
-X86InstructionType_special,          /* cwd */
-X86InstructionType_special,          /* cwde */
-X86InstructionType_int,              /* daa */
-X86InstructionType_int,              /* das */
-X86InstructionType_invalid,          /* db */
-X86InstructionType_int,              /* dec */
-X86InstructionType_int,              /* div */
-X86InstructionType_float,            /* divpd */
-X86InstructionType_float,            /* divps */
-X86InstructionType_float,            /* divsd */
-X86InstructionType_float,            /* divss */
-X86InstructionType_simd,             /* dppd */
-X86InstructionType_simd,             /* dpps */
-X86InstructionType_special,          /* emms */
-X86InstructionType_special,          /* enter */
-X86InstructionType_simd,             /* extractps */
-X86InstructionType_float,            /* f2xm1 */
-X86InstructionType_float,            /* fabs */
-X86InstructionType_float,            /* fadd */
-X86InstructionType_float,            /* faddp */
-X86InstructionType_float,            /* fbld */
-X86InstructionType_float,            /* fbstp */
-X86InstructionType_float,            /* fchs */
-X86InstructionType_float,            /* fclex */
-X86InstructionType_move,             /* fcmovb */
-X86InstructionType_move,             /* fcmovbe */
-X86InstructionType_move,             /* fcmove */
-X86InstructionType_move,             /* fcmovnb */
-X86InstructionType_move,             /* fcmovnbe */
-X86InstructionType_move,             /* fcmovne */
-X86InstructionType_move,             /* fcmovnu */
-X86InstructionType_move,             /* fcmovu */
-X86InstructionType_float,            /* fcom */
-X86InstructionType_float,            /* fcom2 */
-X86InstructionType_float,            /* fcomi */
-X86InstructionType_float,            /* fcomip */
-X86InstructionType_float,            /* fcomp */
-X86InstructionType_float,            /* fcomp3 */
-X86InstructionType_float,            /* fcomp5 */
-X86InstructionType_float,            /* fcompp */
-X86InstructionType_float,            /* fcos */
-X86InstructionType_float,            /* fdecstp */
-X86InstructionType_float,            /* fdiv */
-X86InstructionType_float,            /* fdivp */
-X86InstructionType_float,            /* fdivr */
-X86InstructionType_float,            /* fdivrp */
-X86InstructionType_float,            /* femms */
-X86InstructionType_float,            /* ffree */
-X86InstructionType_float,            /* ffreep */
-X86InstructionType_float,            /* fiadd */
-X86InstructionType_float,            /* ficom */
-X86InstructionType_float,            /* ficomp */
-X86InstructionType_float,            /* fidiv */
-X86InstructionType_float,            /* fidivr */
-X86InstructionType_float,            /* fild */
-X86InstructionType_float,            /* fimul */
-X86InstructionType_float,            /* fist */
-X86InstructionType_float,            /* fistp */
-X86InstructionType_float,            /* fisttp */
-X86InstructionType_float,            /* fisub */
-X86InstructionType_float,            /* fisubr */
-X86InstructionType_float,            /* fld */
-X86InstructionType_float,            /* fld1 */
-X86InstructionType_special,          /* fldcw */
-X86InstructionType_special,          /* fldenv */
-X86InstructionType_float,            /* fldl2e */
-X86InstructionType_float,            /* fldl2t */
-X86InstructionType_float,            /* fldlg2 */
-X86InstructionType_float,            /* fldln2 */
-X86InstructionType_float,            /* fldlpi */
-X86InstructionType_float,            /* fldz */
-X86InstructionType_float,            /* fmul */
-X86InstructionType_float,            /* fmulp */
-X86InstructionType_float,            /* fncstp */
-X86InstructionType_float,            /* fninit */
-X86InstructionType_nop,              /* fnop */
-X86InstructionType_special,          /* fnsave */
-X86InstructionType_special,          /* fnstcw */
-X86InstructionType_special,          /* fnstenv */
-X86InstructionType_special,          /* fnstsw */
-X86InstructionType_float,            /* fpatan */
-X86InstructionType_float,            /* fprem */
-X86InstructionType_float,            /* fprem1 */
-X86InstructionType_float,            /* fptan */
-X86InstructionType_float,            /* fpxtract */
-X86InstructionType_float,            /* frndint */
-X86InstructionType_special,          /* frstor */
-X86InstructionType_float,            /* fscale */
-X86InstructionType_float,            /* fsin */
-X86InstructionType_float,            /* fsincos */
-X86InstructionType_float,            /* fsqrt */
-X86InstructionType_float,            /* fst */
-X86InstructionType_float,            /* fstp */
-X86InstructionType_float,            /* fstp1 */
-X86InstructionType_float,            /* fstp8 */
-X86InstructionType_float,            /* fstp9 */
-X86InstructionType_float,            /* fsub */
-X86InstructionType_float,            /* fsubp */
-X86InstructionType_float,            /* fsubr */
-X86InstructionType_float,            /* fsubrp */
-X86InstructionType_float,            /* ftst */
-X86InstructionType_float,            /* fucom */
-X86InstructionType_float,            /* fucomi */
-X86InstructionType_float,            /* fucomip */
-X86InstructionType_float,            /* fucomp */
-X86InstructionType_float,            /* fucompp */
-X86InstructionType_float,            /* fxam */
-X86InstructionType_int,              /* fxch */
-X86InstructionType_int,              /* fxch4 */
-X86InstructionType_int,              /* fxch7 */
-X86InstructionType_special,          /* fxrstor */
-X86InstructionType_special,          /* fxsave */
-X86InstructionType_float,            /* fyl2x */
-X86InstructionType_float,            /* fyl2xp1 */
-X86InstructionType_float,            /* haddpd */
-X86InstructionType_float,            /* haddps */
-X86InstructionType_halt,             /* hlt */
-X86InstructionType_float,            /* hsubpd */
-X86InstructionType_float,            /* hsubps */
-X86InstructionType_int,              /* idiv */
-X86InstructionType_int,              /* imul */
-X86InstructionType_io,               /* in */
-X86InstructionType_int,              /* inc */
-X86InstructionType_io,               /* insb */
-X86InstructionType_io,               /* insd */
-X86InstructionType_simd,             /* insertps */
-X86InstructionType_io,               /* insw */
-X86InstructionType_trap,             /* int */
-X86InstructionType_trap,             /* int1 */
-X86InstructionType_trap,             /* int3 */
-X86InstructionType_trap,             /* into */
-X86InstructionType_invalid,          /* invalid */
-X86InstructionType_special,          /* invd */
-X86InstructionType_special,          /* invlpg */
-X86InstructionType_special,          /* invlpga */
-X86InstructionType_return,           /* iretd */
-X86InstructionType_return,           /* iretq */
-X86InstructionType_return,           /* iretw */
-X86InstructionType_cond_branch,      /* ja */
-X86InstructionType_cond_branch,      /* jae */
-X86InstructionType_cond_branch,      /* jb */
-X86InstructionType_cond_branch,      /* jbe */
-X86InstructionType_cond_branch,      /* jcxz */
-X86InstructionType_cond_branch,      /* jecxz */
-X86InstructionType_cond_branch,      /* jg */
-X86InstructionType_cond_branch,      /* jge */
-X86InstructionType_cond_branch,      /* jl */
-X86InstructionType_cond_branch,      /* jle */
-X86InstructionType_uncond_branch,    /* jmp */
-X86InstructionType_cond_branch,      /* jno */
-X86InstructionType_cond_branch,      /* jnp */
-X86InstructionType_cond_branch,      /* jns */
-X86InstructionType_cond_branch,      /* jnz */
-X86InstructionType_cond_branch,      /* jo */
-X86InstructionType_cond_branch,      /* jp */
-X86InstructionType_cond_branch,      /* jrcxz */
-X86InstructionType_cond_branch,      /* js */
-X86InstructionType_cond_branch,      /* jz */
-X86InstructionType_int,              /* lahf */
-X86InstructionType_special,          /* lar */
-X86InstructionType_int,              /* lddqu */
-X86InstructionType_special,          /* ldmxcsr */
-X86InstructionType_move,             /* lds */
-X86InstructionType_move,             /* lea */
-X86InstructionType_special,          /* leave */
-X86InstructionType_int,              /* les */
-X86InstructionType_special,          /* lfence */
-X86InstructionType_int,              /* lfs */
-X86InstructionType_special,          /* lgdt */
-X86InstructionType_int,              /* lgs */
-X86InstructionType_special,          /* lidt */
-X86InstructionType_special,          /* lldt */
-X86InstructionType_special,          /* lmsw */
-X86InstructionType_special,          /* lock */
-X86InstructionType_string,           /* lodsb */
-X86InstructionType_string,           /* lodsd */
-X86InstructionType_string,           /* lodsq */
-X86InstructionType_string,           /* lodsw */
-X86InstructionType_special,          /* loop */
-X86InstructionType_special,          /* loope */
-X86InstructionType_special,          /* loopnz */
-X86InstructionType_special,          /* lsl */
-X86InstructionType_int,              /* lss */
-X86InstructionType_special,          /* ltr */
-X86InstructionType_move,             /* maskmovq */
-X86InstructionType_float,            /* maxpd */
-X86InstructionType_float,            /* maxps */
-X86InstructionType_float,            /* maxsd */
-X86InstructionType_float,            /* maxss */
-X86InstructionType_special,          /* mfence */
-X86InstructionType_float,            /* minpd */
-X86InstructionType_float,            /* minps */
-X86InstructionType_float,            /* minsd */
-X86InstructionType_float,            /* minss */
-X86InstructionType_special,          /* monitor */
-X86InstructionType_move,             /* mov */
-X86InstructionType_move,             /* movapd */
-X86InstructionType_move,             /* movaps */
-X86InstructionType_move,             /* movd */
-X86InstructionType_move,             /* movddup */
-X86InstructionType_move,             /* movdq2q */
-X86InstructionType_move,             /* movdqa */
-X86InstructionType_move,             /* movdqu */
-X86InstructionType_move,             /* movhlps */
-X86InstructionType_move,             /* movhpd */
-X86InstructionType_move,             /* movhps */
-X86InstructionType_move,             /* movlhps */
-X86InstructionType_move,             /* movlpd */
-X86InstructionType_move,             /* movlps */
-X86InstructionType_move,             /* movmskpd */
-X86InstructionType_move,             /* movmskps */
-X86InstructionType_move,             /* movntdq */
-X86InstructionType_move,             /* movntdqa */
-X86InstructionType_move,             /* movnti */
-X86InstructionType_move,             /* movntpd */
-X86InstructionType_move,             /* movntps */
-X86InstructionType_move,             /* movntq */
-X86InstructionType_move,             /* movq */
-X86InstructionType_move,             /* movq2dq */
-X86InstructionType_move,             /* movqa */
-X86InstructionType_move,             /* movsb */
-X86InstructionType_move,             /* movsd */
-X86InstructionType_move,             /* movshdup */
-X86InstructionType_move,             /* movsldup */
-X86InstructionType_move,             /* movsq */
-X86InstructionType_move,             /* movss */
-X86InstructionType_move,             /* movsw */
-X86InstructionType_move,             /* movsx */
-X86InstructionType_move,             /* movsxd */
-X86InstructionType_move,             /* movupd */
-X86InstructionType_move,             /* movups */
-X86InstructionType_move,             /* movzx */
-X86InstructionType_simd,             /* mpsadbw */
-X86InstructionType_int,              /* mul */
-X86InstructionType_float,            /* mulpd */
-X86InstructionType_float,            /* mulps */
-X86InstructionType_float,            /* mulsd */
-X86InstructionType_float,            /* mulss */
-X86InstructionType_special,          /* mwait */
-X86InstructionType_int,              /* neg */
-X86InstructionType_nop,              /* nop */
-X86InstructionType_int,              /* not */
-X86InstructionType_int,              /* or */
-X86InstructionType_float,            /* orpd */
-X86InstructionType_float,            /* orps */
-X86InstructionType_io,               /* out */
-X86InstructionType_io,               /* outsb */
-X86InstructionType_io,               /* outsd */
-X86InstructionType_io,               /* outsq */
-X86InstructionType_io,               /* outsw */
-X86InstructionType_int,              /* packssdw */
-X86InstructionType_int,              /* packsswb */
-X86InstructionType_simd,             /* packusdw */
-X86InstructionType_int,              /* packuswb */
-X86InstructionType_int,              /* paddb */
-X86InstructionType_int,              /* paddd */
-X86InstructionType_int,              /* paddq */
-X86InstructionType_int,              /* paddsb */
-X86InstructionType_int,              /* paddsw */
-X86InstructionType_int,              /* paddusb */
-X86InstructionType_int,              /* paddusw */
-X86InstructionType_int,              /* paddw */
-X86InstructionType_simd,             /* palignr */
-X86InstructionType_int,              /* pand */
-X86InstructionType_int,              /* pandn */
-X86InstructionType_special,          /* pause */
-X86InstructionType_int,              /* pavgb */
-X86InstructionType_int,              /* pavgusb */
-X86InstructionType_int,              /* pavgw */
-X86InstructionType_int,              /* pblendvb */
-X86InstructionType_int,              /* pblendw */
-X86InstructionType_simd,             /* pclmulqdq */
-X86InstructionType_int,              /* pcmpeqb */
-X86InstructionType_int,              /* pcmpeqd */
-X86InstructionType_simd,             /* pcmpeqq */
-X86InstructionType_int,              /* pcmpeqw */
-X86InstructionType_simd,             /* pcmpestri */
-X86InstructionType_simd,             /* pcmpestrm */
-X86InstructionType_int,              /* pcmpgtb */
-X86InstructionType_int,              /* pcmpgtd */
-X86InstructionType_int,              /* pcmpgtq */
-X86InstructionType_int,              /* pcmpgtw */
-X86InstructionType_simd,             /* pcmpistri */
-X86InstructionType_simd,             /* pcmpistrm */
-X86InstructionType_simd,             /* pextrb */
-X86InstructionType_simd,             /* pextrd */
-X86InstructionType_simd,             /* pextrq */
-X86InstructionType_simd,             /* pextrw */
-X86InstructionType_int,              /* pf2id */
-X86InstructionType_int,              /* pf2iw */
-X86InstructionType_int,              /* pfacc */
-X86InstructionType_int,              /* pfadd */
-X86InstructionType_int,              /* pfcmpeq */
-X86InstructionType_int,              /* pfcmpge */
-X86InstructionType_int,              /* pfcmpgt */
-X86InstructionType_int,              /* pfmax */
-X86InstructionType_int,              /* pfmin */
-X86InstructionType_int,              /* pfmul */
-X86InstructionType_int,              /* pfnacc */
-X86InstructionType_int,              /* pfpnacc */
-X86InstructionType_int,              /* pfrcp */
-X86InstructionType_int,              /* pfrcpit1 */
-X86InstructionType_int,              /* pfrcpit2 */
-X86InstructionType_int,              /* pfrspit1 */
-X86InstructionType_int,              /* pfrsqrt */
-X86InstructionType_int,              /* pfsub */
-X86InstructionType_int,              /* pfsubr */
-X86InstructionType_simd,             /* phaddd */
-X86InstructionType_simd,             /* phminposuw */
-X86InstructionType_int,              /* pi2fd */
-X86InstructionType_int,              /* pi2fw */
-X86InstructionType_simd,             /* pinsrb */
-X86InstructionType_simd,             /* pinsrd */
-X86InstructionType_simd,             /* pinsrq */
-X86InstructionType_simd,             /* pinsrw */
-X86InstructionType_simd,             /* pmaddwd */
-X86InstructionType_simd,             /* pmaxsb */
-X86InstructionType_simd,             /* pmaxsd */
-X86InstructionType_simd,             /* pmaxsw */
-X86InstructionType_simd,             /* pmaxub */
-X86InstructionType_simd,             /* pmaxud */
-X86InstructionType_simd,             /* pmaxuw */
-X86InstructionType_simd,             /* pminsb */
-X86InstructionType_simd,             /* pminsd */
-X86InstructionType_simd,             /* pminsw */
-X86InstructionType_simd,             /* pminub */
-X86InstructionType_simd,             /* pminud */
-X86InstructionType_simd,             /* pminuw */
-X86InstructionType_move,             /* pmovmskb */
-X86InstructionType_move,             /* pmovsxbd */
-X86InstructionType_move,             /* pmovsxbq */
-X86InstructionType_move,             /* pmovsxbw */
-X86InstructionType_move,             /* pmovsxdq */
-X86InstructionType_move,             /* pmovsxwd */
-X86InstructionType_move,             /* pmovsxwq */
-X86InstructionType_move,             /* pmovzxbd */
-X86InstructionType_move,             /* pmovzxbq */
-X86InstructionType_move,             /* pmovzxbw */
-X86InstructionType_move,             /* pmovzxdq */
-X86InstructionType_move,             /* pmovzxwd */
-X86InstructionType_move,             /* pmovzxwq */
-X86InstructionType_simd,             /* pmuldq */
-X86InstructionType_int,              /* pmulhrw */
-X86InstructionType_int,              /* pmulhuw */
-X86InstructionType_int,              /* pmulhw */
-X86InstructionType_int,              /* pmullw */
-X86InstructionType_int,              /* pmuludq */
-X86InstructionType_int,              /* pop */
-X86InstructionType_special,          /* popa */
-X86InstructionType_special,          /* popad */
-X86InstructionType_int,              /* popfd */
-X86InstructionType_int,              /* popfq */
-X86InstructionType_int,              /* popfw */
-X86InstructionType_int,              /* por */
-X86InstructionType_prefetch,         /* prefetch */
-X86InstructionType_prefetch,         /* prefetchnta */
-X86InstructionType_prefetch,         /* prefetcht0 */
-X86InstructionType_prefetch,         /* prefetcht1 */
-X86InstructionType_prefetch,         /* prefetcht2 */
-X86InstructionType_int,              /* psadbw */
-X86InstructionType_simd,             /* pshufb */
-X86InstructionType_int,              /* pshufd */
-X86InstructionType_int,              /* pshufhw */
-X86InstructionType_int,              /* pshuflw */
-X86InstructionType_int,              /* pshufw */
-X86InstructionType_int,              /* pslld */
-X86InstructionType_int,              /* pslldq */
-X86InstructionType_int,              /* psllq */
-X86InstructionType_int,              /* psllw */
-X86InstructionType_int,              /* psrad */
-X86InstructionType_int,              /* psraw */
-X86InstructionType_int,              /* psrld */
-X86InstructionType_int,              /* psrldq */
-X86InstructionType_int,              /* psrlq */
-X86InstructionType_int,              /* psrlw */
-X86InstructionType_int,              /* psubb */
-X86InstructionType_int,              /* psubd */
-X86InstructionType_int,              /* psubq */
-X86InstructionType_int,              /* psubsb */
-X86InstructionType_int,              /* psubsw */
-X86InstructionType_int,              /* psubusb */
-X86InstructionType_int,              /* psubusw */
-X86InstructionType_int,              /* psubw */
-X86InstructionType_int,              /* pswapd */
-X86InstructionType_int,              /* ptest */
-X86InstructionType_int,              /* punpckhbw */
-X86InstructionType_int,              /* punpckhdq */
-X86InstructionType_int,              /* punpckhqdq */
-X86InstructionType_int,              /* punpckhwd */
-X86InstructionType_int,              /* punpcklbw */
-X86InstructionType_int,              /* punpckldq */
-X86InstructionType_int,              /* punpcklqdq */
-X86InstructionType_int,              /* punpcklwd */
-X86InstructionType_int,              /* push */
-X86InstructionType_special,          /* pusha */
-X86InstructionType_special,          /* pushad */
-X86InstructionType_int,              /* pushfd */
-X86InstructionType_int,              /* pushfq */
-X86InstructionType_int,              /* pushfw */
-X86InstructionType_int,              /* pxor */
-X86InstructionType_int,              /* rcl */
-X86InstructionType_float,            /* rcpps */
-X86InstructionType_float,            /* rcpss */
-X86InstructionType_int,              /* rcr */
-X86InstructionType_int,              /* rdmsr */
-X86InstructionType_hwcount,          /* rdpmc */
-X86InstructionType_hwcount,          /* rdtsc */
-X86InstructionType_hwcount,          /* rdtscp */
-X86InstructionType_string,           /* rep */
-X86InstructionType_string,           /* repne */
-X86InstructionType_return,           /* ret */
-X86InstructionType_return,           /* retf */
-X86InstructionType_int,              /* rol */
-X86InstructionType_int,              /* ror */
-X86InstructionType_simd,             /* roundpd */
-X86InstructionType_simd,             /* roundps */
-X86InstructionType_simd,             /* roundsd */
-X86InstructionType_simd,             /* roundss */
-X86InstructionType_special,          /* rsm */
-X86InstructionType_float,            /* rsqrtps */
-X86InstructionType_float,            /* rsqrtss */
-X86InstructionType_int,              /* sahf */
-X86InstructionType_int,              /* sal */
-X86InstructionType_int,              /* salc */
-X86InstructionType_int,              /* sar */
-X86InstructionType_int,              /* sbb */
-X86InstructionType_string,           /* scasb */
-X86InstructionType_string,           /* scasd */
-X86InstructionType_string,           /* scasq */
-X86InstructionType_string,           /* scasw */
-X86InstructionType_int,              /* seta */
-X86InstructionType_int,              /* setb */
-X86InstructionType_int,              /* setbe */
-X86InstructionType_int,              /* setg */
-X86InstructionType_int,              /* setge */
-X86InstructionType_int,              /* setl */
-X86InstructionType_int,              /* setle */
-X86InstructionType_int,              /* setnb */
-X86InstructionType_int,              /* setno */
-X86InstructionType_int,              /* setnp */
-X86InstructionType_int,              /* setns */
-X86InstructionType_int,              /* setnz */
-X86InstructionType_int,              /* seto */
-X86InstructionType_int,              /* setp */
-X86InstructionType_int,              /* sets */
-X86InstructionType_int,              /* setz */
-X86InstructionType_special,          /* sfence */
-X86InstructionType_special,          /* sgdt */
-X86InstructionType_int,              /* shl */
-X86InstructionType_int,              /* shld */
-X86InstructionType_int,              /* shr */
-X86InstructionType_int,              /* shrd */
-X86InstructionType_float,            /* shufpd */
-X86InstructionType_float,            /* shufps */
-X86InstructionType_special,          /* sidt */
-X86InstructionType_special,          /* skinit */
-X86InstructionType_special,          /* sldt */
-X86InstructionType_special,          /* smsw */
-X86InstructionType_float,            /* sqrtpd */
-X86InstructionType_float,            /* sqrtps */
-X86InstructionType_float,            /* sqrtsd */
-X86InstructionType_float,            /* sqrtss */
-X86InstructionType_special,          /* stc */
-X86InstructionType_special,          /* std */
-X86InstructionType_special,          /* stgi */
-X86InstructionType_special,          /* sti */
-X86InstructionType_special,          /* stmxcsr */
-X86InstructionType_string,           /* stosb */
-X86InstructionType_string,           /* stosd */
-X86InstructionType_string,           /* stosq */
-X86InstructionType_string,           /* stosw */
-X86InstructionType_special,          /* str */
-X86InstructionType_int,              /* sub */
-X86InstructionType_float,            /* subpd */
-X86InstructionType_float,            /* subps */
-X86InstructionType_float,            /* subsd */
-X86InstructionType_float,            /* subss */
-X86InstructionType_special,          /* swapgs */
-X86InstructionType_system_call,      /* syscall */
-X86InstructionType_system_call,      /* sysenter */
-X86InstructionType_system_call,      /* sysexit */
-X86InstructionType_system_call,      /* sysret */
-X86InstructionType_int,              /* test */
-X86InstructionType_float,            /* ucomisd */
-X86InstructionType_float,            /* ucomiss */
-X86InstructionType_invalid,          /* ud2 */
-X86InstructionType_float,            /* unpckhpd */
-X86InstructionType_float,            /* unpckhps */
-X86InstructionType_float,            /* unpcklpd */
-X86InstructionType_float,            /* unpcklps */
-X86InstructionType_simd,             /* vaddpd */
-X86InstructionType_simd,             /* vaddps */
-X86InstructionType_simd,             /* vaddps */
-X86InstructionType_simd,             /* vaddsd */
-X86InstructionType_simd,             /* vaddss */
-X86InstructionType_simd,             /* vblendpd */
-X86InstructionType_special,          /* verr */
-X86InstructionType_special,          /* verw */
-X86InstructionType_vmx,              /* vmcall */
-X86InstructionType_vmx,              /* vmclear */
-X86InstructionType_vmx,              /* vmload */
-X86InstructionType_vmx,              /* vmmcall */
-X86InstructionType_move,             /* vmovapd */
-X86InstructionType_vmx,              /* vmptrld */
-X86InstructionType_vmx,              /* vmptrst */
-X86InstructionType_vmx,              /* vmresume */
-X86InstructionType_vmx,              /* vmrun */
-X86InstructionType_vmx,              /* vmsave */
-X86InstructionType_simd,             /* vmulpd */
-X86InstructionType_vmx,              /* vmxoff */
-X86InstructionType_vmx,              /* vmxon */
-X86InstructionType_simd,             /* vpshufd */
-X86InstructionType_special,          /* wait */
-X86InstructionType_special,          /* wbinvd */
-X86InstructionType_special,          /* wrmsr */
-X86InstructionType_int,              /* xadd */
-X86InstructionType_int,              /* xchg */
-X86InstructionType_special,          /* xlatb */
-X86InstructionType_int,              /* xor */
-X86InstructionType_float,            /* xorpd */
-X86InstructionType_float,            /* xorps */
-};
+#include <map>
+using namespace std;
+static map<int, X86InstructionType> classMap;
 
-const char* instructionNames[] = {
-"3dnow",
-"aaa",
-"aad",
-"aam",
-"aas",
-"adc",
-"add",
-"addpd",
-"addps",
-"addsd",
-"addss",
-"addsubpd",
-"addsubps",
-"and",
-"andnpd",
-"andnps",
-"andpd",
-"andps",
-"arpl",
-"blendpd",
-"blendps",
-"blendvpd",
-"blendvps",
-"bound",
-"bsf",
-"bsr",
-"bswap",
-"bt",
-"btc",
-"btr",
-"bts",
-"call",
-"cbw",
-"cdq",
-"cdqe",
-"clc",
-"cld",
-"clflush",
-"clgi",
-"cli",
-"clts",
-"cmc",
-"cmova",
-"cmovae",
-"cmovb",
-"cmovbe",
-"cmovg",
-"cmovge",
-"cmovl",
-"cmovle",
-"cmovno",
-"cmovnp",
-"cmovns",
-"cmovnz",
-"cmovo",
-"cmovp",
-"cmovs",
-"cmovz",
-"cmp",
-"cmppd",
-"cmpps",
-"cmpsb",
-"cmpsd",
-"cmpsq",
-"cmpss",
-"cmpsw",
-"cmpxchg",
-"cmpxchg8b",
-"comisd",
-"comiss",
-"cpuid",
-"cqo",
-"cvtdq2pd",
-"cvtdq2ps",
-"cvtpd2dq",
-"cvtpd2pi",
-"cvtpd2ps",
-"cvtpi2pd",
-"cvtpi2ps",
-"cvtps2dq",
-"cvtps2pd",
-"cvtps2pi",
-"cvtsd2si",
-"cvtsd2ss",
-"cvtsi2sd",
-"cvtsi2ss",
-"cvtss2sd",
-"cvtss2si",
-"cvttpd2dq",
-"cvttpd2pi",
-"cvttps2dq",
-"cvttps2pi",
-"cvttsd2si",
-"cvttss2si",
-"cwd",
-"cwde",
-"daa",
-"das",
-"db",
-"dec",
-"div",
-"divpd",
-"divps",
-"divsd",
-"divss",
-"dppd",
-"dpps",
-"emms",
-"enter",
-"extractps",
-"f2xm1",
-"fabs",
-"fadd",
-"faddp",
-"fbld",
-"fbstp",
-"fchs",
-"fclex",
-"fcmovb",
-"fcmovbe",
-"fcmove",
-"fcmovnb",
-"fcmovnbe",
-"fcmovne",
-"fcmovnu",
-"fcmovu",
-"fcom",
-"fcom2",
-"fcomi",
-"fcomip",
-"fcomp",
-"fcomp3",
-"fcomp5",
-"fcompp",
-"fcos",
-"fdecstp",
-"fdiv",
-"fdivp",
-"fdivr",
-"fdivrp",
-"femms",
-"ffree",
-"ffreep",
-"fiadd",
-"ficom",
-"ficomp",
-"fidiv",
-"fidivr",
-"fild",
-"fimul",
-"fist",
-"fistp",
-"fisttp",
-"fisub",
-"fisubr",
-"fld",
-"fld1",
-"fldcw",
-"fldenv",
-"fldl2e",
-"fldl2t",
-"fldlg2",
-"fldln2",
-"fldlpi",
-"fldz",
-"fmul",
-"fmulp",
-"fncstp",
-"fninit",
-"fnop",
-"fnsave",
-"fnstcw",
-"fnstenv",
-"fnstsw",
-"fpatan",
-"fprem",
-"fprem1",
-"fptan",
-"fpxtract",
-"frndint",
-"frstor",
-"fscale",
-"fsin",
-"fsincos",
-"fsqrt",
-"fst",
-"fstp",
-"fstp1",
-"fstp8",
-"fstp9",
-"fsub",
-"fsubp",
-"fsubr",
-"fsubrp",
-"ftst",
-"fucom",
-"fucomi",
-"fucomip",
-"fucomp",
-"fucompp",
-"fxam",
-"fxch",
-"fxch4",
-"fxch7",
-"fxrstor",
-"fxsave",
-"fyl2x",
-"fyl2xp1",
-"haddpd",
-"haddps",
-"hlt",
-"hsubpd",
-"hsubps",
-"idiv",
-"imul",
-"in",
-"inc",
-"insb",
-"insd",
-"insertps",
-"insw",
-"int",
-"int1",
-"int3",
-"into",
-"invalid",
-"invd",
-"invlpg",
-"invlpga",
-"iretd",
-"iretq",
-"iretw",
-"ja",
-"jae",
-"jb",
-"jbe",
-"jcxz",
-"jecxz",
-"jg",
-"jge",
-"jl",
-"jle",
-"jmp",
-"jno",
-"jnp",
-"jns",
-"jnz",
-"jo",
-"jp",
-"jrcxz",
-"js",
-"jz",
-"lahf",
-"lar",
-"lddqu",
-"ldmxcsr",
-"lds",
-"lea",
-"leave",
-"les",
-"lfence",
-"lfs",
-"lgdt",
-"lgs",
-"lidt",
-"lldt",
-"lmsw",
-"lock",
-"lodsb",
-"lodsd",
-"lodsq",
-"lodsw",
-"loop",
-"loope",
-"loopnz",
-"lsl",
-"lss",
-"ltr",
-"maskmovq",
-"maxpd",
-"maxps",
-"maxsd",
-"maxss",
-"mfence",
-"minpd",
-"minps",
-"minsd",
-"minss",
-"monitor",
-"mov",
-"movapd",
-"movaps",
-"movd",
-"movddup",
-"movdq2q",
-"movdqa",
-"movdqu",
-"movhlps",
-"movhpd",
-"movhps",
-"movlhps",
-"movlpd",
-"movlps",
-"movmskpd",
-"movmskps",
-"movntdq",
-"movntdqa",
-"movnti",
-"movntpd",
-"movntps",
-"movntq",
-"movq",
-"movq2dq",
-"movqa",
-"movsb",
-"movsd",
-"movshdup",
-"movsldup",
-"movsq",
-"movss",
-"movsw",
-"movsx",
-"movsxd",
-"movupd",
-"movups",
-"movzx",
-"mpsadbw",
-"mul",
-"mulpd",
-"mulps",
-"mulsd",
-"mulss",
-"mwait",
-"neg",
-"nop",
-"not",
-"or",
-"orpd",
-"orps",
-"out",
-"outsb",
-"outsd",
-"outsq",
-"outsw",
-"packssdw",
-"packsswb",
-"packusdw",
-"packuswb",
-"paddb",
-"paddd",
-"paddq",
-"paddsb",
-"paddsw",
-"paddusb",
-"paddusw",
-"paddw",
-"palignr",
-"pand",
-"pandn",
-"pause",
-"pavgb",
-"pavgusb",
-"pavgw",
-"pblendvb",
-"pblendw",
-"pclmulqdq",
-"pcmpeqb",
-"pcmpeqd",
-"pcmpeqq",
-"pcmpeqw",
-"pcmpestri",
-"pcmpestrm",
-"pcmpgtb",
-"pcmpgtd",
-"pcmpgtq",
-"pcmpgtw",
-"pcmpistri",
-"pcmpistrm",
-"pextrb",
-"pextrd",
-"pextrq",
-"pextrw",
-"pf2id",
-"pf2iw",
-"pfacc",
-"pfadd",
-"pfcmpeq",
-"pfcmpge",
-"pfcmpgt",
-"pfmax",
-"pfmin",
-"pfmul",
-"pfnacc",
-"pfpnacc",
-"pfrcp",
-"pfrcpit1",
-"pfrcpit2",
-"pfrspit1",
-"pfrsqrt",
-"pfsub",
-"pfsubr",
-"phaddd",
-"phminposuw",
-"pi2fd",
-"pi2fw",
-"pinsrb",
-"pinsrd",
-"pinsrq",
-"pinsrw",
-"pmaddwd",
-"pmaxsb",
-"pmaxsd",
-"pmaxsw",
-"pmaxub",
-"pmaxud",
-"pmaxuw",
-"pminsb",
-"pminsd",
-"pminsw",
-"pminub",
-"pminud",
-"pminuw",
-"pmovmskb",
-"pmovsxbd",
-"pmovsxbq",
-"pmovsxbw",
-"pmovsxdq",
-"pmovsxwd",
-"pmovsxwq",
-"pmovzxbd",
-"pmovzxbq",
-"pmovzxbw",
-"pmovzxdq",
-"pmovzxwd",
-"pmovzxwq",
-"pmuldq",
-"pmulhrw",
-"pmulhuw",
-"pmulhw",
-"pmullw",
-"pmuludq",
-"pop",
-"popa",
-"popad",
-"popfd",
-"popfq",
-"popfw",
-"por",
-"prefetch",
-"prefetchnta",
-"prefetcht0",
-"prefetcht1",
-"prefetcht2",
-"psadbw",
-"pshufb",
-"pshufd",
-"pshufhw",
-"pshuflw",
-"pshufw",
-"pslld",
-"pslldq",
-"psllq",
-"psllw",
-"psrad",
-"psraw",
-"psrld",
-"psrldq",
-"psrlq",
-"psrlw",
-"psubb",
-"psubd",
-"psubq",
-"psubsb",
-"psubsw",
-"psubusb",
-"psubusw",
-"psubw",
-"pswapd",
-"ptest",
-"punpckhbw",
-"punpckhdq",
-"punpckhqdq",
-"punpckhwd",
-"punpcklbw",
-"punpckldq",
-"punpcklqdq",
-"punpcklwd",
-"push",
-"pusha",
-"pushad",
-"pushfd",
-"pushfq",
-"pushfw",
-"pxor",
-"rcl",
-"rcpps",
-"rcpss",
-"rcr",
-"rdmsr",
-"rdpmc",
-"rdtsc",
-"rdtscp",
-"rep",
-"repne",
-"ret",
-"retf",
-"rol",
-"ror",
-"roundpd",
-"roundps",
-"roundsd",
-"roundss",
-"rsm",
-"rsqrtps",
-"rsqrtss",
-"sahf",
-"sal",
-"salc",
-"sar",
-"sbb",
-"scasb",
-"scasd",
-"scasq",
-"scasw",
-"seta",
-"setb",
-"setbe",
-"setg",
-"setge",
-"setl",
-"setle",
-"setnb",
-"setno",
-"setnp",
-"setns",
-"setnz",
-"seto",
-"setp",
-"sets",
-"setz",
-"sfence",
-"sgdt",
-"shl",
-"shld",
-"shr",
-"shrd",
-"shufpd",
-"shufps",
-"sidt",
-"skinit",
-"sldt",
-"smsw",
-"sqrtpd",
-"sqrtps",
-"sqrtsd",
-"sqrtss",
-"stc",
-"std",
-"stgi",
-"sti",
-"stmxcsr",
-"stosb",
-"stosd",
-"stosq",
-"stosw",
-"str",
-"sub",
-"subpd",
-"subps",
-"subsd",
-"subss",
-"swapgs",
-"syscall",
-"sysenter",
-"sysexit",
-"sysret",
-"test",
-"ucomisd",
-"ucomiss",
-"ud2",
-"unpckhpd",
-"unpckhps",
-"unpcklpd",
-"unpcklps",
-"vaddpd",
-"vaddps",
-"vaddsd",
-"vaddss",
-"vblendpd",
-"verr",
-"verw",
-"vmcall",
-"vmclear",
-"vmload",
-"vmmcall",
-"vmovapd",
-"vmptrld",
-"vmptrst",
-"vmresume",
-"vmrun",
-"vmsave",
-"vmulpd",
-"vmxoff",
-"vmxon",
-"vpshufd",
-"wait",
-"wbinvd",
-"wrmsr",
-"xadd",
-"xchg",
-"xlatb",
-"xor",
-"xorpd",
-"xorps",
-};
+X86InstructionType X86InstructionClassifier::getClass(int mnemonic){
+    ASSERT(mnemonic >= 0 && mnemonic < UD_Itotaltypes && "invalid mnemonic");
+    if (classMap.size() == 0){
+        fillClassDefinitions();
+    }
+    ASSERT(classMap.count(mnemonic) == 1);
+    return classMap[mnemonic];
+}
 
-bool X86Instruction::checkInstructionTables(){
+bool X86InstructionClassifier::verify(){
     for (uint32_t i = 0; i < UD_Itotaltypes; i++){
-        if (strcmp(instructionNames[i], ud_mnemonics_str[i])){
-            PRINT_ERROR("Instruction orderings don't match those in udis layer: index %d, udis %s, pebil %s", i, ud_mnemonics_str[i], instructionNames[i]);
+        if (classMap.count(i) != 1){
+            PRINT_ERROR("Instruction classification definition missing for %s", ud_mnemonics_str[i]);
             return false;
         }
     }
+    for (map<int, X86InstructionType>::iterator ii = classMap.begin(); ii != classMap.end(); ii++){
+        int mnemonic = (*ii).first;
+        X86InstructionType typ = (*ii).second;
+        if (mnemonic < 0 || mnemonic >= UD_Itotaltypes){
+            PRINT_ERROR("Invalid mnemonic found: %d", mnemonic);
+            return false;
+        }
+    }
+    if (classMap.size() != UD_Itotaltypes){
+        PRINT_ERROR("number of elements in classification table is incorrect");
+        return false;
+    }
     return true;
+}
+
+X86InstructionType X86Instruction::getInstructionType(){
+    return X86InstructionClassifier::getClass(GET(mnemonic));
+}
+
+void X86InstructionClassifier::fillClassDefinitions(){
+    classMap[UD_I3dnow] = X86InstructionType_special;
+    classMap[UD_Iaaa] = X86InstructionType_int;
+    classMap[UD_Iaad] = X86InstructionType_int;
+    classMap[UD_Iaam] = X86InstructionType_int;
+    classMap[UD_Iaas] = X86InstructionType_int;
+    classMap[UD_Iadc] = X86InstructionType_int;
+    classMap[UD_Iadd] = X86InstructionType_int;
+    classMap[UD_Iaddpd] = X86InstructionType_float;
+    classMap[UD_Iaddps] = X86InstructionType_float;
+    classMap[UD_Iaddsd] = X86InstructionType_float;
+    classMap[UD_Iaddss] = X86InstructionType_float;
+    classMap[UD_Iaddsubpd] = X86InstructionType_float;
+    classMap[UD_Iaddsubps] = X86InstructionType_float;
+    classMap[UD_Iand] = X86InstructionType_int;
+    classMap[UD_Iandnpd] = X86InstructionType_float;
+    classMap[UD_Iandnps] = X86InstructionType_float;
+    classMap[UD_Iandpd] = X86InstructionType_float;
+    classMap[UD_Iandps] = X86InstructionType_float;
+    classMap[UD_Iarpl] = X86InstructionType_special;
+    classMap[UD_Iblendpd] = X86InstructionType_int;
+    classMap[UD_Iblendps] = X86InstructionType_int;
+    classMap[UD_Iblendvpd] = X86InstructionType_int;
+    classMap[UD_Iblendvps] = X86InstructionType_int;
+    classMap[UD_Ibound] = X86InstructionType_int;
+    classMap[UD_Ibsf] = X86InstructionType_int;
+    classMap[UD_Ibsr] = X86InstructionType_int;
+    classMap[UD_Ibswap] = X86InstructionType_int;
+    classMap[UD_Ibt] = X86InstructionType_int;
+    classMap[UD_Ibtc] = X86InstructionType_int;
+    classMap[UD_Ibtr] = X86InstructionType_int;
+    classMap[UD_Ibts] = X86InstructionType_int;
+    classMap[UD_Icall] = X86InstructionType_call;
+    classMap[UD_Icbw] = X86InstructionType_special;
+    classMap[UD_Icdq] = X86InstructionType_special;
+    classMap[UD_Icdqe] = X86InstructionType_special;
+    classMap[UD_Iclc] = X86InstructionType_special;
+    classMap[UD_Icld] = X86InstructionType_special;
+    classMap[UD_Iclflush] = X86InstructionType_special;
+    classMap[UD_Iclgi] = X86InstructionType_special;
+    classMap[UD_Icli] = X86InstructionType_special;
+    classMap[UD_Iclts] = X86InstructionType_special;
+    classMap[UD_Icmc] = X86InstructionType_special;
+    classMap[UD_Icmova] = X86InstructionType_move;
+    classMap[UD_Icmovae] = X86InstructionType_move;
+    classMap[UD_Icmovb] = X86InstructionType_move;
+    classMap[UD_Icmovbe] = X86InstructionType_move;
+    classMap[UD_Icmovg] = X86InstructionType_move;
+    classMap[UD_Icmovge] = X86InstructionType_move;
+    classMap[UD_Icmovl] = X86InstructionType_move;
+    classMap[UD_Icmovle] = X86InstructionType_move;
+    classMap[UD_Icmovno] = X86InstructionType_move;
+    classMap[UD_Icmovnp] = X86InstructionType_move;
+    classMap[UD_Icmovns] = X86InstructionType_move;
+    classMap[UD_Icmovnz] = X86InstructionType_move;
+    classMap[UD_Icmovo] = X86InstructionType_move;
+    classMap[UD_Icmovp] = X86InstructionType_move;
+    classMap[UD_Icmovs] = X86InstructionType_move;
+    classMap[UD_Icmovz] = X86InstructionType_move;
+    classMap[UD_Icmp] = X86InstructionType_int;
+    classMap[UD_Icmppd] = X86InstructionType_float;
+    classMap[UD_Icmpps] = X86InstructionType_float;
+    classMap[UD_Icmpsb] = X86InstructionType_string;
+    classMap[UD_Icmpsd] = X86InstructionType_float;
+    classMap[UD_Icmpsq] = X86InstructionType_string;
+    classMap[UD_Icmpss] = X86InstructionType_float;
+    classMap[UD_Icmpsw] = X86InstructionType_string;
+    classMap[UD_Icmpxchg] = X86InstructionType_int;
+    classMap[UD_Icmpxchg8b] = X86InstructionType_int;
+    classMap[UD_Icomisd] = X86InstructionType_float;
+    classMap[UD_Icomiss] = X86InstructionType_float;
+    classMap[UD_Icpuid] = X86InstructionType_special;
+    classMap[UD_Icqo] = X86InstructionType_special;
+    classMap[UD_Icvtdq2pd] = X86InstructionType_float;
+    classMap[UD_Icvtdq2ps] = X86InstructionType_float;
+    classMap[UD_Icvtpd2dq] = X86InstructionType_float;
+    classMap[UD_Icvtpd2pi] = X86InstructionType_float;
+    classMap[UD_Icvtpd2ps] = X86InstructionType_float;
+    classMap[UD_Icvtpi2pd] = X86InstructionType_float;
+    classMap[UD_Icvtpi2ps] = X86InstructionType_float;
+    classMap[UD_Icvtps2dq] = X86InstructionType_float;
+    classMap[UD_Icvtps2pd] = X86InstructionType_float;
+    classMap[UD_Icvtps2pi] = X86InstructionType_float;
+    classMap[UD_Icvtsd2si] = X86InstructionType_float;
+    classMap[UD_Icvtsd2ss] = X86InstructionType_float;
+    classMap[UD_Icvtsi2sd] = X86InstructionType_float;
+    classMap[UD_Icvtsi2ss] = X86InstructionType_float;
+    classMap[UD_Icvtss2sd] = X86InstructionType_float;
+    classMap[UD_Icvtss2si] = X86InstructionType_float;
+    classMap[UD_Icvttpd2dq] = X86InstructionType_float;
+    classMap[UD_Icvttpd2pi] = X86InstructionType_float;
+    classMap[UD_Icvttps2dq] = X86InstructionType_float;
+    classMap[UD_Icvttps2pi] = X86InstructionType_float;
+    classMap[UD_Icvttsd2si] = X86InstructionType_float;
+    classMap[UD_Icvttss2si] = X86InstructionType_float;
+    classMap[UD_Icwd] = X86InstructionType_special;
+    classMap[UD_Icwde] = X86InstructionType_special;
+    classMap[UD_Idaa] = X86InstructionType_int;
+    classMap[UD_Idas] = X86InstructionType_int;
+    classMap[UD_Idb] = X86InstructionType_invalid;
+    classMap[UD_Idec] = X86InstructionType_int;
+    classMap[UD_Idiv] = X86InstructionType_int;
+    classMap[UD_Idivpd] = X86InstructionType_float;
+    classMap[UD_Idivps] = X86InstructionType_float;
+    classMap[UD_Idivsd] = X86InstructionType_float;
+    classMap[UD_Idivss] = X86InstructionType_float;
+    classMap[UD_Idppd] = X86InstructionType_simd;
+    classMap[UD_Idpps] = X86InstructionType_simd;
+    classMap[UD_Iemms] = X86InstructionType_special;
+    classMap[UD_Ienter] = X86InstructionType_special;
+    classMap[UD_Iextractps] = X86InstructionType_simd;
+    classMap[UD_If2xm1] = X86InstructionType_float;
+    classMap[UD_Ifabs] = X86InstructionType_float;
+    classMap[UD_Ifadd] = X86InstructionType_float;
+    classMap[UD_Ifaddp] = X86InstructionType_float;
+    classMap[UD_Ifbld] = X86InstructionType_float;
+    classMap[UD_Ifbstp] = X86InstructionType_float;
+    classMap[UD_Ifchs] = X86InstructionType_float;
+    classMap[UD_Ifclex] = X86InstructionType_float;
+    classMap[UD_Ifcmovb] = X86InstructionType_move;
+    classMap[UD_Ifcmovbe] = X86InstructionType_move;
+    classMap[UD_Ifcmove] = X86InstructionType_move;
+    classMap[UD_Ifcmovnb] = X86InstructionType_move;
+    classMap[UD_Ifcmovnbe] = X86InstructionType_move;
+    classMap[UD_Ifcmovne] = X86InstructionType_move;
+    classMap[UD_Ifcmovnu] = X86InstructionType_move;
+    classMap[UD_Ifcmovu] = X86InstructionType_move;
+    classMap[UD_Ifcom] = X86InstructionType_float;
+    classMap[UD_Ifcom2] = X86InstructionType_float;
+    classMap[UD_Ifcomi] = X86InstructionType_float;
+    classMap[UD_Ifcomip] = X86InstructionType_float;
+    classMap[UD_Ifcomp] = X86InstructionType_float;
+    classMap[UD_Ifcomp3] = X86InstructionType_float;
+    classMap[UD_Ifcomp5] = X86InstructionType_float;
+    classMap[UD_Ifcompp] = X86InstructionType_float;
+    classMap[UD_Ifcos] = X86InstructionType_float;
+    classMap[UD_Ifdecstp] = X86InstructionType_float;
+    classMap[UD_Ifdiv] = X86InstructionType_float;
+    classMap[UD_Ifdivp] = X86InstructionType_float;
+    classMap[UD_Ifdivr] = X86InstructionType_float;
+    classMap[UD_Ifdivrp] = X86InstructionType_float;
+    classMap[UD_Ifemms] = X86InstructionType_float;
+    classMap[UD_Iffree] = X86InstructionType_float;
+    classMap[UD_Iffreep] = X86InstructionType_float;
+    classMap[UD_Ifiadd] = X86InstructionType_float;
+    classMap[UD_Ificom] = X86InstructionType_float;
+    classMap[UD_Ificomp] = X86InstructionType_float;
+    classMap[UD_Ifidiv] = X86InstructionType_float;
+    classMap[UD_Ifidivr] = X86InstructionType_float;
+    classMap[UD_Ifild] = X86InstructionType_float;
+    classMap[UD_Ifimul] = X86InstructionType_float;
+    classMap[UD_Ifist] = X86InstructionType_float;
+    classMap[UD_Ifistp] = X86InstructionType_float;
+    classMap[UD_Ifisttp] = X86InstructionType_float;
+    classMap[UD_Ifisub] = X86InstructionType_float;
+    classMap[UD_Ifisubr] = X86InstructionType_float;
+    classMap[UD_Ifld] = X86InstructionType_float;
+    classMap[UD_Ifld1] = X86InstructionType_float;
+    classMap[UD_Ifldcw] = X86InstructionType_special;
+    classMap[UD_Ifldenv] = X86InstructionType_special;
+    classMap[UD_Ifldl2e] = X86InstructionType_float;
+    classMap[UD_Ifldl2t] = X86InstructionType_float;
+    classMap[UD_Ifldlg2] = X86InstructionType_float;
+    classMap[UD_Ifldln2] = X86InstructionType_float;
+    classMap[UD_Ifldlpi] = X86InstructionType_float;
+    classMap[UD_Ifldz] = X86InstructionType_float;
+    classMap[UD_Ifmul] = X86InstructionType_float;
+    classMap[UD_Ifmulp] = X86InstructionType_float;
+    classMap[UD_Ifncstp] = X86InstructionType_float;
+    classMap[UD_Ifninit] = X86InstructionType_float;
+    classMap[UD_Ifnop] = X86InstructionType_nop;
+    classMap[UD_Ifnsave] = X86InstructionType_special;
+    classMap[UD_Ifnstcw] = X86InstructionType_special;
+    classMap[UD_Ifnstenv] = X86InstructionType_special;
+    classMap[UD_Ifnstsw] = X86InstructionType_special;
+    classMap[UD_Ifpatan] = X86InstructionType_float;
+    classMap[UD_Ifprem] = X86InstructionType_float;
+    classMap[UD_Ifprem1] = X86InstructionType_float;
+    classMap[UD_Ifptan] = X86InstructionType_float;
+    classMap[UD_Ifpxtract] = X86InstructionType_float;
+    classMap[UD_Ifrndint] = X86InstructionType_float;
+    classMap[UD_Ifrstor] = X86InstructionType_special;
+    classMap[UD_Ifscale] = X86InstructionType_float;
+    classMap[UD_Ifsin] = X86InstructionType_float;
+    classMap[UD_Ifsincos] = X86InstructionType_float;
+    classMap[UD_Ifsqrt] = X86InstructionType_float;
+    classMap[UD_Ifst] = X86InstructionType_float;
+    classMap[UD_Ifstp] = X86InstructionType_float;
+    classMap[UD_Ifstp1] = X86InstructionType_float;
+    classMap[UD_Ifstp8] = X86InstructionType_float;
+    classMap[UD_Ifstp9] = X86InstructionType_float;
+    classMap[UD_Ifsub] = X86InstructionType_float;
+    classMap[UD_Ifsubp] = X86InstructionType_float;
+    classMap[UD_Ifsubr] = X86InstructionType_float;
+    classMap[UD_Ifsubrp] = X86InstructionType_float;
+    classMap[UD_Iftst] = X86InstructionType_float;
+    classMap[UD_Ifucom] = X86InstructionType_float;
+    classMap[UD_Ifucomi] = X86InstructionType_float;
+    classMap[UD_Ifucomip] = X86InstructionType_float;
+    classMap[UD_Ifucomp] = X86InstructionType_float;
+    classMap[UD_Ifucompp] = X86InstructionType_float;
+    classMap[UD_Ifxam] = X86InstructionType_float;
+    classMap[UD_Ifxch] = X86InstructionType_int;
+    classMap[UD_Ifxch4] = X86InstructionType_int;
+    classMap[UD_Ifxch7] = X86InstructionType_int;
+    classMap[UD_Ifxrstor] = X86InstructionType_special;
+    classMap[UD_Ifxsave] = X86InstructionType_special;
+    classMap[UD_Ifyl2x] = X86InstructionType_float;
+    classMap[UD_Ifyl2xp1] = X86InstructionType_float;
+    classMap[UD_Ihaddpd] = X86InstructionType_float;
+    classMap[UD_Ihaddps] = X86InstructionType_float;
+    classMap[UD_Ihlt] = X86InstructionType_halt;
+    classMap[UD_Ihsubpd] = X86InstructionType_float;
+    classMap[UD_Ihsubps] = X86InstructionType_float;
+    classMap[UD_Iidiv] = X86InstructionType_int;
+    classMap[UD_Iimul] = X86InstructionType_int;
+    classMap[UD_Iin] = X86InstructionType_io;
+    classMap[UD_Iinc] = X86InstructionType_int;
+    classMap[UD_Iinsb] = X86InstructionType_io;
+    classMap[UD_Iinsd] = X86InstructionType_io;
+    classMap[UD_Iinsertps] = X86InstructionType_simd;
+    classMap[UD_Iinsw] = X86InstructionType_io;
+    classMap[UD_Iint] = X86InstructionType_trap;
+    classMap[UD_Iint1] = X86InstructionType_trap;
+    classMap[UD_Iint3] = X86InstructionType_trap;
+    classMap[UD_Iinto] = X86InstructionType_trap;
+    classMap[UD_Iinvalid] = X86InstructionType_invalid;
+    classMap[UD_Iinvd] = X86InstructionType_special;
+    classMap[UD_Iinvlpg] = X86InstructionType_special;
+    classMap[UD_Iinvlpga] = X86InstructionType_special;
+    classMap[UD_Iiretd] = X86InstructionType_return;
+    classMap[UD_Iiretq] = X86InstructionType_return;
+    classMap[UD_Iiretw] = X86InstructionType_return;
+    classMap[UD_Ija] = X86InstructionType_cond_branch;
+    classMap[UD_Ijae] = X86InstructionType_cond_branch;
+    classMap[UD_Ijb] = X86InstructionType_cond_branch;
+    classMap[UD_Ijbe] = X86InstructionType_cond_branch;
+    classMap[UD_Ijcxz] = X86InstructionType_cond_branch;
+    classMap[UD_Ijecxz] = X86InstructionType_cond_branch;
+    classMap[UD_Ijg] = X86InstructionType_cond_branch;
+    classMap[UD_Ijge] = X86InstructionType_cond_branch;
+    classMap[UD_Ijl] = X86InstructionType_cond_branch;
+    classMap[UD_Ijle] = X86InstructionType_cond_branch;
+    classMap[UD_Ijmp] = X86InstructionType_uncond_branch;
+    classMap[UD_Ijno] = X86InstructionType_cond_branch;
+    classMap[UD_Ijnp] = X86InstructionType_cond_branch;
+    classMap[UD_Ijns] = X86InstructionType_cond_branch;
+    classMap[UD_Ijnz] = X86InstructionType_cond_branch;
+    classMap[UD_Ijo] = X86InstructionType_cond_branch;
+    classMap[UD_Ijp] = X86InstructionType_cond_branch;
+    classMap[UD_Ijrcxz] = X86InstructionType_cond_branch;
+    classMap[UD_Ijs] = X86InstructionType_cond_branch;
+    classMap[UD_Ijz] = X86InstructionType_cond_branch;
+    classMap[UD_Ilahf] = X86InstructionType_int;
+    classMap[UD_Ilar] = X86InstructionType_special;
+    classMap[UD_Ilddqu] = X86InstructionType_int;
+    classMap[UD_Ildmxcsr] = X86InstructionType_special;
+    classMap[UD_Ilds] = X86InstructionType_move;
+    classMap[UD_Ilea] = X86InstructionType_move;
+    classMap[UD_Ileave] = X86InstructionType_special;
+    classMap[UD_Iles] = X86InstructionType_int;
+    classMap[UD_Ilfence] = X86InstructionType_special;
+    classMap[UD_Ilfs] = X86InstructionType_int;
+    classMap[UD_Ilgdt] = X86InstructionType_special;
+    classMap[UD_Ilgs] = X86InstructionType_int;
+    classMap[UD_Ilidt] = X86InstructionType_special;
+    classMap[UD_Illdt] = X86InstructionType_special;
+    classMap[UD_Ilmsw] = X86InstructionType_special;
+    classMap[UD_Ilock] = X86InstructionType_special;
+    classMap[UD_Ilodsb] = X86InstructionType_string;
+    classMap[UD_Ilodsd] = X86InstructionType_string;
+    classMap[UD_Ilodsq] = X86InstructionType_string;
+    classMap[UD_Ilodsw] = X86InstructionType_string;
+    classMap[UD_Iloop] = X86InstructionType_special;
+    classMap[UD_Iloope] = X86InstructionType_special;
+    classMap[UD_Iloopnz] = X86InstructionType_special;
+    classMap[UD_Ilsl] = X86InstructionType_special;
+    classMap[UD_Ilss] = X86InstructionType_int;
+    classMap[UD_Iltr] = X86InstructionType_special;
+    classMap[UD_Imaskmovq] = X86InstructionType_move;
+    classMap[UD_Imaxpd] = X86InstructionType_float;
+    classMap[UD_Imaxps] = X86InstructionType_float;
+    classMap[UD_Imaxsd] = X86InstructionType_float;
+    classMap[UD_Imaxss] = X86InstructionType_float;
+    classMap[UD_Imfence] = X86InstructionType_special;
+    classMap[UD_Iminpd] = X86InstructionType_float;
+    classMap[UD_Iminps] = X86InstructionType_float;
+    classMap[UD_Iminsd] = X86InstructionType_float;
+    classMap[UD_Iminss] = X86InstructionType_float;
+    classMap[UD_Imonitor] = X86InstructionType_special;
+    classMap[UD_Imov] = X86InstructionType_move;
+    classMap[UD_Imovapd] = X86InstructionType_move;
+    classMap[UD_Imovaps] = X86InstructionType_move;
+    classMap[UD_Imovd] = X86InstructionType_move;
+    classMap[UD_Imovddup] = X86InstructionType_move;
+    classMap[UD_Imovdq2q] = X86InstructionType_move;
+    classMap[UD_Imovdqa] = X86InstructionType_move;
+    classMap[UD_Imovdqu] = X86InstructionType_move;
+    classMap[UD_Imovhlps] = X86InstructionType_move;
+    classMap[UD_Imovhpd] = X86InstructionType_move;
+    classMap[UD_Imovhps] = X86InstructionType_move;
+    classMap[UD_Imovlhps] = X86InstructionType_move;
+    classMap[UD_Imovlpd] = X86InstructionType_move;
+    classMap[UD_Imovlps] = X86InstructionType_move;
+    classMap[UD_Imovmskpd] = X86InstructionType_move;
+    classMap[UD_Imovmskps] = X86InstructionType_move;
+    classMap[UD_Imovntdq] = X86InstructionType_move;
+    classMap[UD_Imovntdqa] = X86InstructionType_move;
+    classMap[UD_Imovnti] = X86InstructionType_move;
+    classMap[UD_Imovntpd] = X86InstructionType_move;
+    classMap[UD_Imovntps] = X86InstructionType_move;
+    classMap[UD_Imovntq] = X86InstructionType_move;
+    classMap[UD_Imovq] = X86InstructionType_move;
+    classMap[UD_Imovq2dq] = X86InstructionType_move;
+    classMap[UD_Imovqa] = X86InstructionType_move;
+    classMap[UD_Imovsb] = X86InstructionType_move;
+    classMap[UD_Imovsd] = X86InstructionType_move;
+    classMap[UD_Imovshdup] = X86InstructionType_move;
+    classMap[UD_Imovsldup] = X86InstructionType_move;
+    classMap[UD_Imovsq] = X86InstructionType_move;
+    classMap[UD_Imovss] = X86InstructionType_move;
+    classMap[UD_Imovsw] = X86InstructionType_move;
+    classMap[UD_Imovsx] = X86InstructionType_move;
+    classMap[UD_Imovsxd] = X86InstructionType_move;
+    classMap[UD_Imovupd] = X86InstructionType_move;
+    classMap[UD_Imovups] = X86InstructionType_move;
+    classMap[UD_Imovzx] = X86InstructionType_move;
+    classMap[UD_Impsadbw] = X86InstructionType_simd;
+    classMap[UD_Imul] = X86InstructionType_int;
+    classMap[UD_Imulpd] = X86InstructionType_float;
+    classMap[UD_Imulps] = X86InstructionType_float;
+    classMap[UD_Imulsd] = X86InstructionType_float;
+    classMap[UD_Imulss] = X86InstructionType_float;
+    classMap[UD_Imwait] = X86InstructionType_special;
+    classMap[UD_Ineg] = X86InstructionType_int;
+    classMap[UD_Inop] = X86InstructionType_nop;
+    classMap[UD_Inot] = X86InstructionType_int;
+    classMap[UD_Ior] = X86InstructionType_int;
+    classMap[UD_Iorpd] = X86InstructionType_float;
+    classMap[UD_Iorps] = X86InstructionType_float;
+    classMap[UD_Iout] = X86InstructionType_io;
+    classMap[UD_Ioutsb] = X86InstructionType_io;
+    classMap[UD_Ioutsd] = X86InstructionType_io;
+    classMap[UD_Ioutsq] = X86InstructionType_io;
+    classMap[UD_Ioutsw] = X86InstructionType_io;
+    classMap[UD_Ipackssdw] = X86InstructionType_int;
+    classMap[UD_Ipacksswb] = X86InstructionType_int;
+    classMap[UD_Ipackusdw] = X86InstructionType_simd;
+    classMap[UD_Ipackuswb] = X86InstructionType_int;
+    classMap[UD_Ipaddb] = X86InstructionType_int;
+    classMap[UD_Ipaddd] = X86InstructionType_int;
+    classMap[UD_Ipaddq] = X86InstructionType_int;
+    classMap[UD_Ipaddsb] = X86InstructionType_int;
+    classMap[UD_Ipaddsw] = X86InstructionType_int;
+    classMap[UD_Ipaddusb] = X86InstructionType_int;
+    classMap[UD_Ipaddusw] = X86InstructionType_int;
+    classMap[UD_Ipaddw] = X86InstructionType_int;
+    classMap[UD_Ipalignr] = X86InstructionType_simd;
+    classMap[UD_Ipand] = X86InstructionType_int;
+    classMap[UD_Ipandn] = X86InstructionType_int;
+    classMap[UD_Ipause] = X86InstructionType_special;
+    classMap[UD_Ipavgb] = X86InstructionType_int;
+    classMap[UD_Ipavgusb] = X86InstructionType_int;
+    classMap[UD_Ipavgw] = X86InstructionType_int;
+    classMap[UD_Ipblendvb] = X86InstructionType_int;
+    classMap[UD_Ipblendw] = X86InstructionType_int;
+    classMap[UD_Ipclmulqdq] = X86InstructionType_simd;
+    classMap[UD_Ipcmpeqb] = X86InstructionType_int;
+    classMap[UD_Ipcmpeqd] = X86InstructionType_int;
+    classMap[UD_Ipcmpeqq] = X86InstructionType_simd;
+    classMap[UD_Ipcmpeqw] = X86InstructionType_int;
+    classMap[UD_Ipcmpestri] = X86InstructionType_simd;
+    classMap[UD_Ipcmpestrm] = X86InstructionType_simd;
+    classMap[UD_Ipcmpgtb] = X86InstructionType_int;
+    classMap[UD_Ipcmpgtd] = X86InstructionType_int;
+    classMap[UD_Ipcmpgtq] = X86InstructionType_int;
+    classMap[UD_Ipcmpgtw] = X86InstructionType_int;
+    classMap[UD_Ipcmpistri] = X86InstructionType_simd;
+    classMap[UD_Ipcmpistrm] = X86InstructionType_simd;
+    classMap[UD_Ipextrb] = X86InstructionType_simd;
+    classMap[UD_Ipextrd] = X86InstructionType_simd;
+    classMap[UD_Ipextrq] = X86InstructionType_simd;
+    classMap[UD_Ipextrw] = X86InstructionType_simd;
+    classMap[UD_Ipf2id] = X86InstructionType_int;
+    classMap[UD_Ipf2iw] = X86InstructionType_int;
+    classMap[UD_Ipfacc] = X86InstructionType_int;
+    classMap[UD_Ipfadd] = X86InstructionType_int;
+    classMap[UD_Ipfcmpeq] = X86InstructionType_int;
+    classMap[UD_Ipfcmpge] = X86InstructionType_int;
+    classMap[UD_Ipfcmpgt] = X86InstructionType_int;
+    classMap[UD_Ipfmax] = X86InstructionType_int;
+    classMap[UD_Ipfmin] = X86InstructionType_int;
+    classMap[UD_Ipfmul] = X86InstructionType_int;
+    classMap[UD_Ipfnacc] = X86InstructionType_int;
+    classMap[UD_Ipfpnacc] = X86InstructionType_int;
+    classMap[UD_Ipfrcp] = X86InstructionType_int;
+    classMap[UD_Ipfrcpit1] = X86InstructionType_int;
+    classMap[UD_Ipfrcpit2] = X86InstructionType_int;
+    classMap[UD_Ipfrspit1] = X86InstructionType_int;
+    classMap[UD_Ipfrsqrt] = X86InstructionType_int;
+    classMap[UD_Ipfsub] = X86InstructionType_int;
+    classMap[UD_Ipfsubr] = X86InstructionType_int;
+    classMap[UD_Iphaddd] = X86InstructionType_simd;
+    classMap[UD_Iphminposuw] = X86InstructionType_simd;
+    classMap[UD_Ipi2fd] = X86InstructionType_int;
+    classMap[UD_Ipi2fw] = X86InstructionType_int;
+    classMap[UD_Ipinsrb] = X86InstructionType_simd;
+    classMap[UD_Ipinsrd] = X86InstructionType_simd;
+    classMap[UD_Ipinsrq] = X86InstructionType_simd;
+    classMap[UD_Ipinsrw] = X86InstructionType_simd;
+    classMap[UD_Ipmaddwd] = X86InstructionType_simd;
+    classMap[UD_Ipmaxsb] = X86InstructionType_simd;
+    classMap[UD_Ipmaxsd] = X86InstructionType_simd;
+    classMap[UD_Ipmaxsw] = X86InstructionType_simd;
+    classMap[UD_Ipmaxub] = X86InstructionType_simd;
+    classMap[UD_Ipmaxud] = X86InstructionType_simd;
+    classMap[UD_Ipmaxuw] = X86InstructionType_simd;
+    classMap[UD_Ipminsb] = X86InstructionType_simd;
+    classMap[UD_Ipminsd] = X86InstructionType_simd;
+    classMap[UD_Ipminsw] = X86InstructionType_simd;
+    classMap[UD_Ipminub] = X86InstructionType_simd;
+    classMap[UD_Ipminud] = X86InstructionType_simd;
+    classMap[UD_Ipminuw] = X86InstructionType_simd;
+    classMap[UD_Ipmovmskb] = X86InstructionType_move;
+    classMap[UD_Ipmovsxbd] = X86InstructionType_move;
+    classMap[UD_Ipmovsxbq] = X86InstructionType_move;
+    classMap[UD_Ipmovsxbw] = X86InstructionType_move;
+    classMap[UD_Ipmovsxdq] = X86InstructionType_move;
+    classMap[UD_Ipmovsxwd] = X86InstructionType_move;
+    classMap[UD_Ipmovsxwq] = X86InstructionType_move;
+    classMap[UD_Ipmovzxbd] = X86InstructionType_move;
+    classMap[UD_Ipmovzxbq] = X86InstructionType_move;
+    classMap[UD_Ipmovzxbw] = X86InstructionType_move;
+    classMap[UD_Ipmovzxdq] = X86InstructionType_move;
+    classMap[UD_Ipmovzxwd] = X86InstructionType_move;
+    classMap[UD_Ipmovzxwq] = X86InstructionType_move;
+    classMap[UD_Ipmuldq] = X86InstructionType_simd;
+    classMap[UD_Ipmulhrw] = X86InstructionType_int;
+    classMap[UD_Ipmulhuw] = X86InstructionType_int;
+    classMap[UD_Ipmulhw] = X86InstructionType_int;
+    classMap[UD_Ipmullw] = X86InstructionType_int;
+    classMap[UD_Ipmuludq] = X86InstructionType_int;
+    classMap[UD_Ipop] = X86InstructionType_int;
+    classMap[UD_Ipopa] = X86InstructionType_special;
+    classMap[UD_Ipopad] = X86InstructionType_special;
+    classMap[UD_Ipopfd] = X86InstructionType_int;
+    classMap[UD_Ipopfq] = X86InstructionType_int;
+    classMap[UD_Ipopfw] = X86InstructionType_int;
+    classMap[UD_Ipor] = X86InstructionType_int;
+    classMap[UD_Iprefetch] = X86InstructionType_prefetch;
+    classMap[UD_Iprefetchnta] = X86InstructionType_prefetch;
+    classMap[UD_Iprefetcht0] = X86InstructionType_prefetch;
+    classMap[UD_Iprefetcht1] = X86InstructionType_prefetch;
+    classMap[UD_Iprefetcht2] = X86InstructionType_prefetch;
+    classMap[UD_Ipsadbw] = X86InstructionType_int;
+    classMap[UD_Ipshufb] = X86InstructionType_simd;
+    classMap[UD_Ipshufd] = X86InstructionType_int;
+    classMap[UD_Ipshufhw] = X86InstructionType_int;
+    classMap[UD_Ipshuflw] = X86InstructionType_int;
+    classMap[UD_Ipshufw] = X86InstructionType_int;
+    classMap[UD_Ipslld] = X86InstructionType_int;
+    classMap[UD_Ipslldq] = X86InstructionType_int;
+    classMap[UD_Ipsllq] = X86InstructionType_int;
+    classMap[UD_Ipsllw] = X86InstructionType_int;
+    classMap[UD_Ipsrad] = X86InstructionType_int;
+    classMap[UD_Ipsraw] = X86InstructionType_int;
+    classMap[UD_Ipsrld] = X86InstructionType_int;
+    classMap[UD_Ipsrldq] = X86InstructionType_int;
+    classMap[UD_Ipsrlq] = X86InstructionType_int;
+    classMap[UD_Ipsrlw] = X86InstructionType_int;
+    classMap[UD_Ipsubb] = X86InstructionType_int;
+    classMap[UD_Ipsubd] = X86InstructionType_int;
+    classMap[UD_Ipsubq] = X86InstructionType_int;
+    classMap[UD_Ipsubsb] = X86InstructionType_int;
+    classMap[UD_Ipsubsw] = X86InstructionType_int;
+    classMap[UD_Ipsubusb] = X86InstructionType_int;
+    classMap[UD_Ipsubusw] = X86InstructionType_int;
+    classMap[UD_Ipsubw] = X86InstructionType_int;
+    classMap[UD_Ipswapd] = X86InstructionType_int;
+    classMap[UD_Iptest] = X86InstructionType_int;
+    classMap[UD_Ipunpckhbw] = X86InstructionType_int;
+    classMap[UD_Ipunpckhdq] = X86InstructionType_int;
+    classMap[UD_Ipunpckhqdq] = X86InstructionType_int;
+    classMap[UD_Ipunpckhwd] = X86InstructionType_int;
+    classMap[UD_Ipunpcklbw] = X86InstructionType_int;
+    classMap[UD_Ipunpckldq] = X86InstructionType_int;
+    classMap[UD_Ipunpcklqdq] = X86InstructionType_int;
+    classMap[UD_Ipunpcklwd] = X86InstructionType_int;
+    classMap[UD_Ipush] = X86InstructionType_int;
+    classMap[UD_Ipusha] = X86InstructionType_special;
+    classMap[UD_Ipushad] = X86InstructionType_special;
+    classMap[UD_Ipushfd] = X86InstructionType_int;
+    classMap[UD_Ipushfq] = X86InstructionType_int;
+    classMap[UD_Ipushfw] = X86InstructionType_int;
+    classMap[UD_Ipxor] = X86InstructionType_int;
+    classMap[UD_Ircl] = X86InstructionType_int;
+    classMap[UD_Ircpps] = X86InstructionType_float;
+    classMap[UD_Ircpss] = X86InstructionType_float;
+    classMap[UD_Ircr] = X86InstructionType_int;
+    classMap[UD_Irdmsr] = X86InstructionType_int;
+    classMap[UD_Irdpmc] = X86InstructionType_hwcount;
+    classMap[UD_Irdtsc] = X86InstructionType_hwcount;
+    classMap[UD_Irdtscp] = X86InstructionType_hwcount;
+    classMap[UD_Irep] = X86InstructionType_string;
+    classMap[UD_Irepne] = X86InstructionType_string;
+    classMap[UD_Iret] = X86InstructionType_return;
+    classMap[UD_Iretf] = X86InstructionType_return;
+    classMap[UD_Irol] = X86InstructionType_int;
+    classMap[UD_Iror] = X86InstructionType_int;
+    classMap[UD_Iroundpd] = X86InstructionType_simd;
+    classMap[UD_Iroundps] = X86InstructionType_simd;
+    classMap[UD_Iroundsd] = X86InstructionType_simd;
+    classMap[UD_Iroundss] = X86InstructionType_simd;
+    classMap[UD_Irsm] = X86InstructionType_special;
+    classMap[UD_Irsqrtps] = X86InstructionType_float;
+    classMap[UD_Irsqrtss] = X86InstructionType_float;
+    classMap[UD_Isahf] = X86InstructionType_int;
+    classMap[UD_Isal] = X86InstructionType_int;
+    classMap[UD_Isalc] = X86InstructionType_int;
+    classMap[UD_Isar] = X86InstructionType_int;
+    classMap[UD_Isbb] = X86InstructionType_int;
+    classMap[UD_Iscasb] = X86InstructionType_string;
+    classMap[UD_Iscasd] = X86InstructionType_string;
+    classMap[UD_Iscasq] = X86InstructionType_string;
+    classMap[UD_Iscasw] = X86InstructionType_string;
+    classMap[UD_Iseta] = X86InstructionType_int;
+    classMap[UD_Isetb] = X86InstructionType_int;
+    classMap[UD_Isetbe] = X86InstructionType_int;
+    classMap[UD_Isetg] = X86InstructionType_int;
+    classMap[UD_Isetge] = X86InstructionType_int;
+    classMap[UD_Isetl] = X86InstructionType_int;
+    classMap[UD_Isetle] = X86InstructionType_int;
+    classMap[UD_Isetnb] = X86InstructionType_int;
+    classMap[UD_Isetno] = X86InstructionType_int;
+    classMap[UD_Isetnp] = X86InstructionType_int;
+    classMap[UD_Isetns] = X86InstructionType_int;
+    classMap[UD_Isetnz] = X86InstructionType_int;
+    classMap[UD_Iseto] = X86InstructionType_int;
+    classMap[UD_Isetp] = X86InstructionType_int;
+    classMap[UD_Isets] = X86InstructionType_int;
+    classMap[UD_Isetz] = X86InstructionType_int;
+    classMap[UD_Isfence] = X86InstructionType_special;
+    classMap[UD_Isgdt] = X86InstructionType_special;
+    classMap[UD_Ishl] = X86InstructionType_int;
+    classMap[UD_Ishld] = X86InstructionType_int;
+    classMap[UD_Ishr] = X86InstructionType_int;
+    classMap[UD_Ishrd] = X86InstructionType_int;
+    classMap[UD_Ishufpd] = X86InstructionType_float;
+    classMap[UD_Ishufps] = X86InstructionType_float;
+    classMap[UD_Isidt] = X86InstructionType_special;
+    classMap[UD_Iskinit] = X86InstructionType_special;
+    classMap[UD_Isldt] = X86InstructionType_special;
+    classMap[UD_Ismsw] = X86InstructionType_special;
+    classMap[UD_Isqrtpd] = X86InstructionType_float;
+    classMap[UD_Isqrtps] = X86InstructionType_float;
+    classMap[UD_Isqrtsd] = X86InstructionType_float;
+    classMap[UD_Isqrtss] = X86InstructionType_float;
+    classMap[UD_Istc] = X86InstructionType_special;
+    classMap[UD_Istd] = X86InstructionType_special;
+    classMap[UD_Istgi] = X86InstructionType_special;
+    classMap[UD_Isti] = X86InstructionType_special;
+    classMap[UD_Istmxcsr] = X86InstructionType_special;
+    classMap[UD_Istosb] = X86InstructionType_string;
+    classMap[UD_Istosd] = X86InstructionType_string;
+    classMap[UD_Istosq] = X86InstructionType_string;
+    classMap[UD_Istosw] = X86InstructionType_string;
+    classMap[UD_Istr] = X86InstructionType_special;
+    classMap[UD_Isub] = X86InstructionType_int;
+    classMap[UD_Isubpd] = X86InstructionType_float;
+    classMap[UD_Isubps] = X86InstructionType_float;
+    classMap[UD_Isubsd] = X86InstructionType_float;
+    classMap[UD_Isubss] = X86InstructionType_float;
+    classMap[UD_Iswapgs] = X86InstructionType_special;
+    classMap[UD_Isyscall] = X86InstructionType_system_call;
+    classMap[UD_Isysenter] = X86InstructionType_system_call;
+    classMap[UD_Isysexit] = X86InstructionType_system_call;
+    classMap[UD_Isysret] = X86InstructionType_system_call;
+    classMap[UD_Itest] = X86InstructionType_int;
+    classMap[UD_Iucomisd] = X86InstructionType_float;
+    classMap[UD_Iucomiss] = X86InstructionType_float;
+    classMap[UD_Iud2] = X86InstructionType_invalid;
+    classMap[UD_Iunpckhpd] = X86InstructionType_float;
+    classMap[UD_Iunpckhps] = X86InstructionType_float;
+    classMap[UD_Iunpcklpd] = X86InstructionType_float;
+    classMap[UD_Iunpcklps] = X86InstructionType_float;
+    classMap[UD_Ivaddpd] = X86InstructionType_avx;
+    classMap[UD_Ivaddps] = X86InstructionType_avx;
+    classMap[UD_Ivaddsd] = X86InstructionType_avx;
+    classMap[UD_Ivaddss] = X86InstructionType_avx;
+    classMap[UD_Ivblendpd] = X86InstructionType_avx;
+    classMap[UD_Iverr] = X86InstructionType_special;
+    classMap[UD_Iverw] = X86InstructionType_special;
+    classMap[UD_Ivmcall] = X86InstructionType_vmx;
+    classMap[UD_Ivmclear] = X86InstructionType_vmx;
+    classMap[UD_Ivmload] = X86InstructionType_vmx;
+    classMap[UD_Ivmmcall] = X86InstructionType_vmx;
+    classMap[UD_Ivmovapd] = X86InstructionType_move;
+    classMap[UD_Ivmptrld] = X86InstructionType_vmx;
+    classMap[UD_Ivmptrst] = X86InstructionType_vmx;
+    classMap[UD_Ivmresume] = X86InstructionType_vmx;
+    classMap[UD_Ivmrun] = X86InstructionType_vmx;
+    classMap[UD_Ivmsave] = X86InstructionType_vmx;
+    classMap[UD_Ivmulpd] = X86InstructionType_avx;
+    classMap[UD_Ivmxoff] = X86InstructionType_vmx;
+    classMap[UD_Ivmxon] = X86InstructionType_vmx;
+    classMap[UD_Ivpshufd] = X86InstructionType_avx;
+    classMap[UD_Iwait] = X86InstructionType_special;
+    classMap[UD_Iwbinvd] = X86InstructionType_special;
+    classMap[UD_Iwrmsr] = X86InstructionType_special;
+    classMap[UD_Ixadd] = X86InstructionType_int;
+    classMap[UD_Ixchg] = X86InstructionType_int;
+    classMap[UD_Ixlatb] = X86InstructionType_special;
+    classMap[UD_Ixor] = X86InstructionType_int;
+    classMap[UD_Ixorpd] = X86InstructionType_float;
+    classMap[UD_Ixorps] = X86InstructionType_float;
+
+    verify();
 }
 

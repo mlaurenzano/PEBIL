@@ -108,11 +108,6 @@ ElfFile::ElfFile(char* f, char* a) :
 
     addressAnchors = new Vector<AddressAnchor*>();
     anchorsAreSorted = false;
-
-    // perform a quick check of instruction storage tables
-    X86Instruction* x = X86InstructionFactory32::emitNop();
-    ASSERT(x->checkInstructionTables());
-    delete x;
 }
 
 

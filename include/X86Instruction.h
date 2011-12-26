@@ -262,6 +262,7 @@ enum X86InstructionType {
     X86InstructionType_float,
     X86InstructionType_string,
     X86InstructionType_simd,
+    X86InstructionType_avx,
     X86InstructionType_io,
     X86InstructionType_prefetch,
     X86InstructionType_system_call,
@@ -375,10 +376,8 @@ private:
     AddressAnchor* addressAnchor;
     bool leader;
     TextObject* container;
-    uint32_t instructionType;
     uint16_t instructionBin;
 
-    uint32_t setInstructionType();
     uint16_t setInstructionBin();
     bool defXIter;
 public:
@@ -400,10 +399,8 @@ public:
     TextObject* getContainer() { return container; }
     void setContainer(TextObject* cont) { container = cont; }
 
-    static void initializeInstructionAPIDecoder(bool is64bit);
     void setFlags();
     void setImpliedRegs();
-    static void destroyInstructionAPIDecoder();
     BitSet<uint32_t>* getUseRegs();
     BitSet<uint32_t>* getDefRegs();
     bool allFlagsDeadIn();
@@ -452,7 +449,7 @@ public:
     uint32_t getSizeInBytes() { return sizeInBytes; }
     uint32_t getIndex() { return instructionIndex; }
     void setIndex(uint32_t idx) { instructionIndex = idx; }
-    uint32_t getInstructionType();
+    X86InstructionType getInstructionType();
     uint16_t getInstructionBin();
     uint64_t getProgramAddress() { return programAddress; }
 
@@ -595,4 +592,16 @@ public:
     OperandX86* getMemoryOperand();
 };
 
+class X86InstructionClassifier {
+private:
+    static void fillClassDefinitions();
+    static bool verify();
+
+    X86InstructionClassifier() {}
+    ~X86InstructionClassifier() {}
+public:
+    static X86InstructionType getClass(int mnemonic);
+};
+
 #endif /* _X86Instruction_h_ */
+
