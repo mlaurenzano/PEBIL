@@ -663,7 +663,7 @@ static unsigned char decode_vex ( struct ud* u )
 {
     uint8_t vex = u->avx_vex[0];
     struct ud_operand* iop = u->operand;
-    struct ud_operand* op = &(iop[1]);
+    struct ud_operand* op = &(iop[3]);
 
     uint8_t ext = 0x00;
     switch (VEX_PP(vex)){
@@ -946,91 +946,52 @@ static int disasm_operands(register struct ud* u)
   /* iop = instruction operand */
   register struct ud_operand* iop = u->operand;
 
-  /* handle AVX -- if an AVX op is present we will fake out the rest of this method 
-   by setting op[1] <- op[2], op[2] <- op[3] and op[3] <- op[1], then swapping them back afterward */
+  /* handle AVX */
+  unsigned char avx_op_typ = T_YMM;
   if (P_AVX(u->pfx_insn)){
       PEBIL_DEBUG("decoding avx modrm...");
 
-      // op[1] gets set during decode_vex
-      unsigned char op_typ = T_YMM;
-      if (iop[1].base < UD_R_YMM0){
-          op_typ = T_XMM;
+      // op[3] gets set during decode_vex
+      if (iop[3].base < UD_R_YMM0){
+          avx_op_typ = T_XMM;
       }
 
-      unsigned int rs = mop3s;
-      struct ud_operand* ro = &(iop[2]);
-      enum ud_operand_code rt = mop3t;
-
-      /* no vex-based operand */
       if (mop2t != OP_X){
-          rs = mop2s;
-          ro = &(iop[1]);
-          rt = mop2t;
-
           /* vex.vvvv isn't used, so it _must_ be 1111 */
           if (VEX_VVVV(u->avx_vex[0]) != 0){
               PEBIL_DEBUG("VEX.VVVV is unused so it should be 0");
               u->error = 1;
           }
-
-          clear_operand(&(iop[1]));
+          clear_operand(&(iop[3]));
       }
 
-      PEBIL_DEBUG("avx modrm operand types: %d %d", mop1t, rt);
+      /* if an AVX op is present we will fake out the rest of this method by setting
+         op[1] <- op[2], op[2] <- op[3] and op[3] <- op[1], then swapping them back afterward */
+      if (mop2t == OP_X){
+          PEBIL_DEBUG("have avx operand: swapping fields");
+          PEBIL_DEBUG("\t\tmop?s: %u %u %u %u", mop1s, mop2s, mop3s, mop4s);
+          PEBIL_DEBUG("\t\tmop?t: %d %d %d %d", mop1t, mop2t, mop3t, mop4t);
+          // tmp = op[1]
+          enum ud_operand_code moptt = mop2t;
+          unsigned int mopts = mop2s;
 
-      /* V, [X,] W */
-      if (mop1t == OP_V && rt == OP_W){
-          decode_modrm(u, ro, rs, op_typ, &(iop[0]), mop1s, op_typ);
-      /* G, [X,] W */
-      } else if (mop1t == OP_G && rt == OP_W) {
-          decode_modrm(u, ro, rs, op_typ, &(iop[0]), mop1s, T_GPR);
-      /* W, [X,] V */
-      } else if (mop1t == OP_W && rt == OP_V) {
-          decode_modrm(u, &(iop[0]), mop1s, op_typ, ro, rs, op_typ);
-      /* V, [X,] E */
-      } else if (mop1t == OP_V && rt == OP_E) {
-          decode_modrm(u, ro, rs, T_GPR, &(iop[0]), mop1s, op_typ);
-      /* M */
-      } else if (mop1t == OP_M && rt == OP_NONE) {
-          decode_modrm(u, &(iop[0]), mop1s, T_GPR, NULL, 0, T_NONE);
-      } else {
-          PEBIL_DEBUG("AVX operand decoding found unknown combo");
-          u->error = 1;
-      }
+          // op[1] = op[2]
+          mop2t = mop3t;
+          mop2s = mop3s;
 
-      /* 3rd operand is an immediate (I) */
-      if (mop3t == OP_I){
-          decode_imm(u, mop3s, &(iop[2]));
-      }
+          // op[2] = op[3]
+          mop3t = mop4t;
+          mop3s = mop4s;
 
-      /* 4th operand is an immediate (I) */
-      if (mop4t == OP_I){
-          decode_imm(u, mop4s, &(iop[3]));
-          uint8_t immv = iop[3].lval.sbyte;
-          PEBIL_DEBUG("4th-byte immediate found: %hhx", immv);
-
-          /* immediate encodes a 4th x/ymm register */
-          if (P_VEXIX(u->itab_entry->prefix)){
-              clear_operand(&(iop[3]));
-              iop[3].type = UD_OP_REG;
-              iop[3].base = resolve_reg(u, op_typ, VEX_IX_REG(immv));
-              iop[3].size = iop[0].size;
-          }
-      }
-
-      /* if vex.l was found, instruction is 256 bits */
-      if (op_typ == T_YMM){
-          iop[0].size = iop[2].size;
-          iop[1].size = iop[2].size;
-      } else {
-          iop[2].size = iop[0].size;
-      }
-
-      PEBIL_DEBUG("op sizes: %hd %hd %hd %hd", iop[0].size, iop[1].size, iop[2].size, iop[3].size);
-      PEBIL_DEBUG("op types: %d %d %d %d", iop[0].type, iop[1].type, iop[2].type, iop[3].type);
-      return 0;
+          // op[3] = tmp
+          mop4t = moptt;
+          mop4s = mopts;
+      } 
   }
     
+  PEBIL_DEBUG("beginning operand decode");
+  PEBIL_DEBUG("\t\tmop?s: %u %u %u %u", mop1s, mop2s, mop3s, mop4s);
+  PEBIL_DEBUG("\t\tmop?t: %d %d %d %d", mop1t, mop2t, mop3t, mop4t);
   switch(mop1t) {
     
     case OP_A :
@@ -1357,6 +1318,48 @@ static int disasm_operands(register struct ud* u)
     /* none */
     default :
         iop[0].type = iop[1].type = iop[2].type = iop[3].type = UD_NONE;
+  }
+
+  if (P_AVX(u->pfx_insn)){
+
+      /* swap decoded values back to original places */
+      if (mop4t == OP_X){
+          PEBIL_DEBUG("swapping back operands for avx");
+          // tmp = op[3]
+          struct ud_operand optmp;
+          memcpy(&optmp, &(iop[3]), sizeof(struct ud_operand));
+
+          // op[3] = op[2]
+          mop4t = mop3t;
+          memcpy(&(iop[3]), &(iop[2]), sizeof(struct ud_operand));
+
+          // op[2] = op[1]
+          memcpy(&(iop[2]), &(iop[1]), sizeof(struct ud_operand));
+
+          // op[1] = tmp
+          memcpy(&(iop[1]), &optmp, sizeof(struct ud_operand));
+
+      } 
+
+      /* 4th operand requires VEXIX treatment */
+      if (mop4t == OP_I && P_VEXIX(u->itab_entry->prefix)){
+          uint8_t immv = iop[3].lval.sbyte;
+          PEBIL_DEBUG("4th-byte immediate vexix found: %hhx", immv);
+
+          clear_operand(&(iop[3]));
+          iop[3].type = UD_OP_REG;
+          iop[3].base = resolve_reg(u, avx_op_typ, VEX_IX_REG(immv));
+          iop[3].size = iop[0].size;
+      }
+      
+      /* if vex.l was found, operands are double-wide */
+      if (avx_op_typ == T_YMM){
+          iop[0].size = iop[2].size;
+          iop[1].size = iop[2].size;
+      } else {
+          iop[2].size = iop[0].size;
+      }
+
   }
 
   PEBIL_DEBUG("op sizes: %hd %hd %hd %hd", iop[0].size, iop[1].size, iop[2].size, iop[3].size);
