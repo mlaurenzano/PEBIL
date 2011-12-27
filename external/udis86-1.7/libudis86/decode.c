@@ -329,10 +329,13 @@ static int search_itab( struct ud * u )
                             tableid = ITAB__AVX_C4__PFX_SSE66__0F__OP_0F__3BYTE_38__REG;
                             break;
                         case 0xF2:
+                            //tableid = ITAB__AVX_C4__PFX_SSEF2__0F__OP_0F__3BYTE_38__REG;
                             break;
                         case 0xF3:
+                            //tableid = ITAB__AVX_C4__PFX_SSEF3__0F__OP_0F__3BYTE_38__REG;
                             break;
                         default:
+                            //tableid = ITAB__AVX_C4__0F__OP_0F__3BYTE_38__REG;
                             break;
                     }
                     break;
@@ -343,10 +346,13 @@ static int search_itab( struct ud * u )
                             tableid = ITAB__AVX_C4__PFX_SSE66__0F__OP_0F__3BYTE_3A__REG;
                             break;
                         case 0xF2:
+                            //tableid = ITAB__AVX_C4__PFX_SSEF2__0F__OP_0F__3BYTE_3A__REG;
                             break;
                         case 0xF3:
+                            //tableid = ITAB__AVX_C4__PFX_SSEF3__0F__OP_0F__3BYTE_3A__REG;
                             break;
                         default:
+                            //tableid = ITAB__AVX_C4__0F__OP_0F__3BYTE_3A__REG;
                             break;
                     }
                     break;
@@ -956,17 +962,9 @@ static int disasm_operands(register struct ud* u)
           avx_op_typ = T_XMM;
       }
 
-      if (mop2t != OP_X){
-          /* vex.vvvv isn't used, so it _must_ be 1111 */
-          if (VEX_VVVV(u->avx_vex[0]) != 0){
-              PEBIL_DEBUG("VEX.VVVV is unused so it should be 0");
-              u->error = 1;
-          }
-          clear_operand(&(iop[3]));
-      }
-
-      /* if an AVX op is present we will fake out the rest of this method by setting
-         op[1] <- op[2], op[2] <- op[3] and op[3] <- op[1], then swapping them back afterward */
+      /* if an AVX op is present we will fake out the rest of this method by making a swap:
+         op[1] <- op[2], op[2] <- op[3] and op[3] <- op[1], letting the general method decode
+         the operands, then swap them back afterward */
       if (mop2t == OP_X){
           PEBIL_DEBUG("have avx operand: swapping fields");
           PEBIL_DEBUG("\t\tmop?s: %u %u %u %u", mop1s, mop2s, mop3s, mop4s);
@@ -986,7 +984,14 @@ static int disasm_operands(register struct ud* u)
           // op[3] = tmp
           mop4t = moptt;
           mop4s = mopts;
-      } 
+      } else {
+          /* vex.vvvv isn't used, so it _must_ be 1111 */
+          if (VEX_VVVV(u->avx_vex[0]) != 0){
+              PEBIL_DEBUG("VEX.VVVV is unused so it should be 0");
+              u->error = 1;
+          }
+          clear_operand(&(iop[3]));
+      }
   }
     
   PEBIL_DEBUG("beginning operand decode");
@@ -1016,9 +1021,10 @@ static int disasm_operands(register struct ud* u)
         }
         else if (mop2t == OP_P)
             decode_modrm(u, &(iop[0]), mop1s, T_GPR, &(iop[1]), mop2s, T_MMX);
-        else if (mop2t == OP_V)
+        else if (mop2t == OP_V){
+            PEBIL_DEBUG("boom0");
             decode_modrm(u, &(iop[0]), mop1s, T_GPR, &(iop[1]), mop2s, T_XMM);
-        else if (mop2t == OP_S)
+        } else if (mop2t == OP_S)
             decode_modrm(u, &(iop[0]), mop1s, T_GPR, &(iop[1]), mop2s, T_SEG);
         else {
             decode_modrm(u, &(iop[0]), mop1s, T_GPR, NULL, 0, T_NONE);
@@ -1236,6 +1242,7 @@ static int disasm_operands(register struct ud* u)
                 u->error= 1;
             decode_modrm(u, &(iop[1]), mop2s, T_GPR, &(iop[0]), mop1s, T_XMM);
         } else if (mop2t == OP_E) {
+            PEBIL_DEBUG("boom1");
             decode_modrm(u, &(iop[1]), mop2s, T_GPR, &(iop[0]), mop1s, T_XMM);
         } else if (mop2t == OP_PR) {
             decode_modrm(u, &(iop[1]), mop2s, T_MMX, &(iop[0]), mop1s, T_XMM);
@@ -1341,7 +1348,7 @@ static int disasm_operands(register struct ud* u)
 
       } 
 
-      /* 4th operand requires VEXIX treatment */
+      /* 4th operand is vexix */
       if (mop4t == OP_I && P_VEXIX(u->itab_entry->prefix)){
           uint8_t immv = iop[3].lval.sbyte;
           PEBIL_DEBUG("4th-byte immediate vexix found: %hhx", immv);

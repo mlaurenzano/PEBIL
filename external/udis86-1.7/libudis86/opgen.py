@@ -291,7 +291,6 @@ for node in tlNode.childNodes:
     # check if this instruction was already defined.
     # else add it to the global list of mnemonics
     mnemonic = node.attributes['mnemonic'].value
-    avx_named = 0
     if mnemonic in mnm_list:
         print "error: multiple declarations of mnemonic='%s'" % mnemonic;
         sys.exit(-1)
@@ -437,10 +436,8 @@ for node in tlNode.childNodes:
             if op[0:3] == 'SSE':
                 table_sse = op
             elif op[0:3] == 'AVX':
-                if avx_named == 0:
-                    mnemonic = "v" + mnemonic
-                    mnm_list.append(mnemonic)
-                    avx_named += 1
+                if mnm_list.count('v' + mnemonic) == 0:
+                    mnm_list.append('v' + mnemonic)
                 table_avx = op[3:]
             elif op == '0F' and len(table_sse) and len(table_avx):
                 table_name = "itab__avx_" + table_avx + "__pfx_" + table_sse + "__0f"
@@ -551,9 +548,12 @@ for node in tlNode.childNodes:
             table_size = 2
             mktab(table_name, table_size)
 
+        m = mnemonic
+        if table_avxdone > 0:
+            m = 'v' + m
         tables[table_name][table_index] = { \
             'type'  : 'leaf',   \
-            'name'  : mnemonic, \
+            'name'  : m,        \
             'pfx'   : pfx,      \
             'opr'   : opr,      \
             'flags' : flags,    \

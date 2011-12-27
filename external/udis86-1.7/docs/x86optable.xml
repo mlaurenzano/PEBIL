@@ -180,10 +180,12 @@
 
   <instruction mnemonic="packusdw">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 2b ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 2b ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movntdqa">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 2a ; V M ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 2a ; V M ; ; </opcode>
   </instruction>
 
 <!-- MAL SSE 4.2 -->
@@ -2216,15 +2218,26 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="movddup">
     <opcode> aso rexr rexx rexb ; ssef2 0f 12 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 ssef2 0f 12 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 ssef2 0f 12 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movdqa">
+    <opcode> aso rexr rexx rexb ; sse66 0f 6f ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 6f ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 6f ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 7f ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 7f ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 7f ; W V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movdqu">
     <opcode> aso rexr rexx rexb ; ssef3 0f 6f ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 ssef3 0f 6f ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 ssef3 0f 6f ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; ssef3 0f 7f ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 ssef3 0f 7f ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 ssef3 0f 7f ; W V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movdq2q">
@@ -2233,38 +2246,62 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="movhpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 16 ; V M ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 16 ; V X M ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 16 ; V X M ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 17 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 17 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 17 ; M V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movhps">
     <opcode> aso rexr rexx rexb ; 0f 16 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f 16 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 0f 16 ; V X W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f 17 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f 17 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 0f 17 ; M V ; ; </opcode>
   </instruction>
 
+  <!-- TODO: in the intel docs, this is indistinguishable from movhps -->
   <instruction mnemonic="movlhps"></instruction>
 
   <instruction mnemonic="movlpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 12 ; V M ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 12 ; V X M ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 12 ; V X M ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 13 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 13 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 13 ; M V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movlps">
     <opcode> aso rexr rexx rexb ; 0f 12 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f 12 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 0f 12 ; V X W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f 13 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f 13 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 0f 13 ; M V ; ; </opcode>
   </instruction>
 
+  <!-- TODO: in the intel docs, this is indistinguishable from movlps -->
   <instruction mnemonic="movhlps"></instruction>
 
   <instruction mnemonic="movmskpd">
     <opcode> oso rexr rexb ; sse66 0f 50 ; Gd VR ; ; </opcode>
+    <opcode> oso rexr rexb ; avxC4 sse66 0f 50 ; Gd VR ; ; </opcode>
+    <opcode> oso rexr rexb ; avxC5 sse66 0f 50 ; Gd VR ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movmskps">
     <opcode> oso rexr rexb ; 0f 50 ; Gd VR ; ; </opcode>
+    <opcode> oso rexr rexb ; avxC4 0f 50 ; Gd VR ; ; </opcode>
+    <opcode> oso rexr rexb ; avxC5 0f 50 ; Gd VR ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movntdq">
     <opcode> aso rexr rexx rexb ; sse66 0f e7 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f e7 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f e7 ; M V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movnti">
@@ -2273,25 +2310,30 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="movntpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 2b ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 2b ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 2b ; M V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movntps">
     <opcode> aso rexr rexx rexb ; 0f 2b ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 2b ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 0f 2b ; M V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movntq">
     <opcode> ; 0f e7 ; M P ; ; </opcode>
   </instruction>
 
+    <!-- TODO: intel docs don't have these avx instructions, but they appear to exist -->
   <instruction mnemonic="movq">
     <opcode> aso rexr rexx rexb ; 0f 6f ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f d6 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f d6 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f d6 ; W V ; ; </opcode>
     <opcode> aso rexr rexx rexb ; ssef3 0f 7e ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 7e ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 7e ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f 7f ; Q P ; ; </opcode>
-  </instruction>
-
-  <instruction mnemonic="movqa">
-    <opcode> aso rexr rexx rexb ; sse66 0f 6f ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movq2dq">
@@ -2309,7 +2351,14 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="movsd">
     <opcode imp_addr="1"> oso rexw ; a5 /O32 ; ; u:df ; u:si u:di d:si d:di </opcode>
     <opcode> aso rexr rexx rexb ; ssef2 0f 10 ; V W ; ; </opcode>
+
+    <!-- TODO: the AVX instructions introduce another form that is seemingly 
+         indistinguishable from this one in the opcode (same with ss) -->
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 10 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 10 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; ssef2 0f 11 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 11 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 11 ; W V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movsq">
@@ -2318,15 +2367,23 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="movsldup">
     <opcode> aso rexr rexx rexb ; ssef3 0f 12 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 ssef3 0f 12 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 ssef3 0f 12 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movshdup">
     <opcode> aso rexr rexx rexb ; ssef3 0f 16 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 ssef3 0f 16 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 ssef3 0f 16 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 10 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 10 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 10 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; ssef3 0f 11 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 11 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 11 ; W V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movsx">
@@ -2336,12 +2393,20 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="movupd">
     <opcode> aso rexr rexx rexb ; sse66 0f 10 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 10 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 10 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 11 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 11 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 11 ; W V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movups">
     <opcode> aso rexr rexx rexb ; 0f 10 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 10 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 0f 10 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f 11 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 11 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 0f 11 ; W V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movzx">
@@ -2368,10 +2433,14 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="mulsd">
     <opcode> aso rexr rexx rexb ; ssef2 0f 59 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 59 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 59 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="mulss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 59 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 59 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 59 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="mwait">
@@ -2414,10 +2483,14 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="orpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 56 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 56 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 56 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="orps">
     <opcode> aso rexr rexx rexb ; 0f 56 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 56 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 0f 56 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="out">
@@ -2445,18 +2518,24 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="packsswb">
-    <opcode> aso rexr rexx rexb ; sse66 0f 63 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f 63 ; P Q ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; sse66 0f 63 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 63 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 63 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="packssdw">
-    <opcode> aso rexr rexx rexb ; sse66 0f 6b ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f 6b ; P Q ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; sse66 0f 6b ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 6b ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 6b ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="packuswb">
-    <opcode> aso rexr rexx rexb ; sse66 0f 67 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f 67 ; P Q ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; sse66 0f 67 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 67 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 67 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="paddb">
