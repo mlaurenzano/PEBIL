@@ -4,5 +4,5 @@ pebildir="@abs_top_builddir@"
 export PEBIL_ROOT=$pebildir
 echo "***** initializing environment using PEBIL_ROOT=$PEBIL_ROOT"
 export LD_LIBRARY_PATH=${PEBIL_ROOT}/lib:${LD_LIBRARY_PATH}
-export PATH=${PEBIL_ROOT}/bin:${PEBIL_ROOT}/scripts:${PATH}
+export PATH=${PEBIL_ROOT}/bin:${PEBIL_ROOT}/scripts:${PEBIL_ROOT}/external/udis86-1.7/udcli:${PATH}
 

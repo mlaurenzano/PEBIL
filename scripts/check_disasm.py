@@ -1,0 +1,183 @@
+#!/usr/bin/env python
+
+import getopt
+import os
+import string
+import shlex
+import subprocess
+import sys
+
+def file_exists(filename):
+    if os.path.isfile(filename):
+        return True
+    return False
+
+def print_error(err):
+    print 'Error: ' + str(err)
+    sys.exit(1)
+
+def print_usage(err):
+    print "usage : " + sys.argv[0]
+    print "        --file <app> [--mode (32|64)]"
+    print_error(err)
+
+def run_shell_cmd(textcmd):
+    cmd = shlex.split(textcmd)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+    p.wait()
+
+    if p.returncode != 0:
+        print_usage("objdump failed on " + filename + ", it is probably not a valid binary")
+    rawoutput = p.stdout.readlines()
+    return rawoutput
+
+def get_objd_symbol(line):
+    toks = line.split('\t')
+    if len(toks) != 1:
+        return False
+    if toks[0].find('File Offset:') < 0:
+        return False
+    l = toks[0].replace('(','').replace(')','').replace(':','')
+    tks = l.split()
+    if len(tks) != 5:
+        return False
+    if (not tks[1].startswith('<')) or (not tks[1].endswith('>')):
+        return False
+    s = {}
+    try:
+        s['addr'] = int(tks[0], 16)
+        s['offset'] = int(tks[4], 16)
+        s['name'] = tks[1][1:len(tks[1])-1]
+        s['content'] = []
+    except ValueError, e:
+        print e
+        sys.exit(1)
+    return s
+
+def get_objd_instruction(line):
+    toks = line.split('\t')
+    if len(toks) < 3:
+        return False
+    if not toks[0].endswith(':'):
+        return False
+    i = {}
+    try:
+        addr = int(toks[0][0:len(toks[0])-1], 16)
+        i['addr'] = addr
+    except ValueError, e:
+        print e
+        sys.exit(1)
+    i['outp'] = string.join(toks[2].strip().split(), ' ')
+    i['size'] = len(toks[1].split())
+    i['bytes'] = toks[1].strip().replace(' ', '')
+    i['source'] = 'objdump'
+    return i
+
+
+def get_exec_instructions(filename):
+    rawdump = run_shell_cmd('objdump -d -F --insn-width=24 ' + filename)
+
+    text = {}
+    insymbol = False
+    for line in rawdump:
+        line = line.strip()
+        sym = get_objd_symbol(line)
+        if sym != False:
+            text[sym['name']] = sym
+            insymbol = sym['name']
+            continue
+
+        ins = get_objd_instruction(line)
+        if ins != False:
+            text[insymbol]['content'].append(ins)
+
+    return text
+
+def get_udis_instruction(line):
+    toks = line.strip().split()
+    i = {}
+    try:
+        i['addr'] = int(toks[0], 16)
+        i['bytes'] = toks[1]
+        i['size'] = len(toks[1])/2
+        i['outp'] = string.join(toks[2:len(toks)],' ').replace(', ', ',')
+        i['source'] = 'udis86'
+    except ValueError, e:
+        print e
+        sys.exit(1)
+    return i
+
+def get_udis_disasm(mode, filename, offset, size, addr):
+    udis = run_shell_cmd('udcli -%d -att -o %x -s %d -c %d %s' % (mode, addr, offset, size, filename))
+    if len(udis) != 1:
+        print udis
+        print_error("error: udis command returned more output than expected")
+    return get_udis_instruction(udis[0])
+
+def compare_instructions(i1, i2):
+    errcnt = 0
+    if (i1['addr'] != i2['addr']) or (i1['size'] != i2['size']) or (i1['bytes'] != i2['bytes']):
+        print "BAD error in disassembly... see instruction output below"
+        print i1
+        print i2
+        print '-------------------------'
+        errcnt += 1
+
+    if (i1['outp'] != i2['outp']):
+        print "error in disassembly... see instruction output below"
+        print i1
+        print i2
+        print '-------------------------'
+        errcnt += 1
+        
+    if errcnt > 0:
+        return False
+    return True
+
+def main():
+    try:
+        optlist, args = getopt.getopt(sys.argv[1:], '', ['file=', 'mode='])
+    except getopt.GetoptError, err:
+        print_usage(err)
+        sys.exit(1)
+
+    if len(args) > 0:
+        print_usage('extra arguments are invalid: ' + str(args))
+        sys.exit(1)
+
+    testfile = ''
+    mode = 64
+    for i in range(0,len(optlist),1):
+        if optlist[i][0] == '--file':
+            testfile = optlist[i][1]
+        if optlist[i][0] == '--mode':
+            try:
+                mode = int(optlist[i][1])
+            except ValueError, e:
+                print_usage(e)
+
+    if testfile == '':
+        print_usage('missing option --file')
+    if not file_exists(testfile):
+        print_usage('must be a valid file: %s' % testfile)
+
+    objdump = get_exec_instructions(testfile)
+    errcnt = 0
+    icnt = 0
+    for o in objdump.keys():
+        sym = objdump[o]
+        c = 0
+        for i in range(len(sym['content'])):
+            l = sym['content'][i]
+            k = get_udis_disasm(mode, testfile, sym['offset'] + c, l['size'], l['addr'])
+            if compare_instructions(l, k) == False:
+                errcnt += 1
+            icnt += 1
+            c += l['size']
+
+    print 'checked %d instructions between disassembly and objdump' % (icnt)
+    print 'found %d errors' % (errcnt)
+
+
+if __name__ == '__main__':
+    main()
