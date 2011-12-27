@@ -136,6 +136,10 @@
 #define P_REXX(n)       ( ( n >> 11 ) & 1 )
 #define P_ImpAddr       ( 1 << 12 )
 #define P_IMPADDR(n)    ( ( n >> 12 ) & 1 )
+#define P_vexlz         ( 1 << 13 )
+#define P_VEXLZ(n)      ( ( n >> 13 ) & 1 )
+#define P_vexix         ( 1 << 14 )
+#define P_VEXIX(n)      ( ( n >> 14 ) & 1 )
 
 /* rex prefix bits */
 #define REX_W(r)        ( ( 0xF & ( r ) )  >> 3 )
@@ -159,11 +163,13 @@
 #define MODRM_RM(b)     ( ( b ) & 7 )
 
 /* vex bits (avx) */
+#define P_AVX(n)        ( ( n == 0xC5 ) || ( n == 0xC4 ) )
+#define VEX_IX_REG(b)   ( ( b >> 4 ) & 15 )
 /* only for the 2-byte version */
 #define VEX_M5(b)       ( ( ( b ) >> 0 ) & 31 )
 #define VEX_REXB(b)     ( ( ( ~( b ) ) >> 5 ) & 1 )
 #define VEX_REXX(b)     ( ( ( ~( b ) ) >> 6 ) & 1 )
-#define VEX_REXW(b)     ( ( ( ~( b ) ) >> 7 ) & 1 )
+#define VEX_REXW(b)     ( ( ( ( b ) ) >> 7 ) & 1 )
 /* 1-byte and 2-byte versions */
 #define VEX_REXR(b)      ( ( ( ~( b ) ) >> 7 ) & 1 )
 #define VEX_L(b)         ( ( ( b ) >> 2 ) & 1 )

@@ -14,8 +14,8 @@
 #include "input.h"
 #include "decode.h"
 
-//#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
-#define PEBIL_DEBUG(...)
+#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
+//#define PEBIL_DEBUG(...)
 
 /* The max number of prefixes to an instruction */
 #define MAX_PREFIXES    15
@@ -280,34 +280,98 @@ static int search_itab( struct ud * u )
 
     /* PEBIL */
     /* AVX opcodes -- sort of structured on the sse code just above this*/
-    // WORKKKKKKKKKKKKKKKKK
-    else if ( u->pfx_insn == 0xC4 || u->pfx_insn == 0xC5){
+    else if (P_AVX(u->pfx_insn)){
         PEBIL_DEBUG("found avx? curr %hhx, pfx_avx %hhx", curr, u->pfx_avx);
         if ( u->error )
             return -1;
 
         int tableid;
         
-        switch (u->pfx_avx){
-            case 0x66:
-                tableid = ITAB__AVX_C4__PFX_SSE66__0F;
-            case 0xF2:
-                tableid = ITAB__AVX_C4__PFX_SSEF2__0F;
-            case 0xF3:
-                tableid = ITAB__AVX_C4__PFX_SSEF3__0F;
-            default:
-                tableid = ITAB__AVX_C4__0F;
-        }
         if (u->pfx_insn == 0xC5){
-            tableid += (ITAB__AVX_C5__0F - ITAB__AVX_C4__0F);
+            switch (u->pfx_avx){
+                case 0x66:
+                    tableid = ITAB__AVX_C5__PFX_SSE66__0F;
+                    break;
+                case 0xF2:
+                    tableid = ITAB__AVX_C5__PFX_SSEF2__0F;
+                    break;
+                case 0xF3:
+                    tableid = ITAB__AVX_C5__PFX_SSEF3__0F;
+                    break;
+                default:
+                    tableid = ITAB__AVX_C5__0F;
+                    break;
+            }
+        } else {
+            PEBIL_DEBUG("VEX.MMMMM field is %hhx", VEX_M5(u->avx_vex[1]));
+            switch(VEX_M5(u->avx_vex[1])){
+                /* 0F */
+                case 0x01:
+                    switch (u->pfx_avx){
+                        case 0x66:
+                            tableid = ITAB__AVX_C4__PFX_SSE66__0F;
+                            break;
+                        case 0xF2:
+                            tableid = ITAB__AVX_C4__PFX_SSEF2__0F;
+                            break;
+                        case 0xF3:
+                            tableid = ITAB__AVX_C4__PFX_SSEF3__0F;
+                            break;
+                        default:
+                            tableid = ITAB__AVX_C4__0F;
+                            break;
+                    }
+                    break;
+                /* 0F 38 */
+                case 0x02:
+                    switch (u->pfx_avx){
+                        case 0x66:
+                            tableid = ITAB__AVX_C4__PFX_SSE66__0F__OP_0F__3BYTE_38__REG;
+                            break;
+                        case 0xF2:
+                            break;
+                        case 0xF3:
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                /* 0F 3A */
+                case 0x03:
+                    switch (u->pfx_avx){
+                        case 0x66:
+                            tableid = ITAB__AVX_C4__PFX_SSE66__0F__OP_0F__3BYTE_3A__REG;
+                            break;
+                        case 0xF2:
+                            break;
+                        case 0xF3:
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                /* all other values are undefined */
+                default:
+                    PEBIL_DEBUG("invalid VEX.MMMMM field found: %#hhx", VEX_M5(u->avx_vex[1]));
+                    u->error = 1;
+                    break;
+            }
         }
-        tableid--;
 
         PEBIL_DEBUG("itab %d %hhx", tableid, curr);
         PEBIL_DEBUG("itab %s", ud_mnemonics_str[ud_itab_list[ tableid ][ curr ].mnemonic]);
         if ( ud_itab_list[ tableid ][ curr ].mnemonic != UD_Iinvalid ) {
             table = tableid;
             u->pfx_opr = 0;
+        }
+
+        /* if vexlz is present, vex.L has to be zero */
+        /* otherwise, vex.L == 1 means a 256-bit instruction */
+        if (P_VEXLZ(ud_itab_list[ tableid ][ curr ].prefix)){
+            if (VEX_L(u->avx_vex[0])){
+                PEBIL_DEBUG("VEX.L must be zero");
+                u->error = 1;
+            }
         }
     }
     /* end PEBIL */
@@ -599,7 +663,7 @@ static unsigned char decode_vex ( struct ud* u )
 {
     uint8_t vex = u->avx_vex[0];
     struct ud_operand* iop = u->operand;
-    struct ud_operand* op = &(iop[2]);
+    struct ud_operand* op = &(iop[1]);
 
     uint8_t ext = 0x00;
     switch (VEX_PP(vex)){
@@ -633,7 +697,7 @@ static unsigned char decode_vex ( struct ud* u )
         uint8_t v2 = u->avx_vex[1];
         op->position = 2;
         u->pfx_rex = VEX_REX_DEF(VEX_REXB(v2), VEX_REXX(v2), VEX_REXR(v2), VEX_REXW(vex));
-        PEBIL_DEBUG("vex C5 rex prefix %#hhx(b), %#hhx(x), %#hhx(r), %#hhx(w), full %hhu", VEX_REXB(v2), VEX_REXX(v2), VEX_REXR(v2), VEX_REXW(vex), u->pfx_rex);
+        PEBIL_DEBUG("vex C4 rex prefix %#hhx(b), %#hhx(x), %#hhx(r), %#hhx(w), full %hhu", VEX_REXB(v2), VEX_REXX(v2), VEX_REXR(v2), VEX_REXW(vex), u->pfx_rex);
 
         /* 1-byte form */
     } else if (u->pfx_insn == 0xC5){
@@ -823,7 +887,7 @@ decode_modrm(struct ud* u, struct ud_operand *op, unsigned int s,
   if (opreg) {
     opreg->type = UD_OP_REG;
     opreg->size = resolve_operand_size(u, reg_size);
-    PEBIL_DEBUG("calling resolve_op: size %hd, reg %hhu", reg_type, reg);
+    PEBIL_DEBUG("calling resolve_op: type %hd, size %hd, reg %hhu", reg_type, opreg->size, reg);
     if (reg_type == T_GPR) 
         opreg->base = decode_gpr(u, opreg->size, reg);
     else opreg->base = resolve_reg(u, reg_type, reg);
@@ -882,33 +946,79 @@ static int disasm_operands(register struct ud* u)
   /* iop = instruction operand */
   register struct ud_operand* iop = u->operand;
 
-  /* handle AVX */
-  if (mop3t == OP_X || mop3t == OP_x){
+  /* handle AVX -- if an AVX op is present we will fake out the rest of this method 
+   by setting op[1] <- op[2], op[2] <- op[3] and op[3] <- op[1], then swapping them back afterward */
+  if (P_AVX(u->pfx_insn)){
       PEBIL_DEBUG("decoding avx modrm...");
 
-      // op[2] gets set during prefix decoding
+      // op[1] gets set during decode_vex
       unsigned char op_typ = T_YMM;
-      if (iop[2].base < UD_R_YMM0){
+      if (iop[1].base < UD_R_YMM0){
           op_typ = T_XMM;
       }
-      //PEBIL_DEBUG("op sizes: %hd %hhu", iop[2].size, iop[2].type);
 
-      /* V, W, X/x */
-      if (mop1t == OP_V){
-          decode_modrm(u, &(iop[1]), mop2s, op_typ, &(iop[0]), mop1s, op_typ);
-      /* W, V, X/x */
-      } else if (mop1t == OP_W) {
-          decode_modrm(u, &(iop[0]), mop1s, op_typ, &(iop[1]), mop2s, op_typ);
+      unsigned int rs = mop3s;
+      struct ud_operand* ro = &(iop[2]);
+      enum ud_operand_code rt = mop3t;
+
+      /* no vex-based operand */
+      if (mop2t != OP_X){
+          rs = mop2s;
+          ro = &(iop[1]);
+          rt = mop2t;
+
+          /* vex.vvvv isn't used, so it _must_ be 1111 */
+          if (VEX_VVVV(u->avx_vex[0]) != 0){
+              PEBIL_DEBUG("VEX.VVVV is unused so it should be 0");
+              u->error = 1;
+          }
+
+          clear_operand(&(iop[1]));
+      }
+
+      PEBIL_DEBUG("avx modrm operand types: %d %d", mop1t, rt);
+
+      /* V, [X,] W */
+      if (mop1t == OP_V && rt == OP_W){
+          decode_modrm(u, ro, rs, op_typ, &(iop[0]), mop1s, op_typ);
+      /* G, [X,] W */
+      } else if (mop1t == OP_G && rt == OP_W) {
+          decode_modrm(u, ro, rs, op_typ, &(iop[0]), mop1s, T_GPR);
+      /* W, [X,] V */
+      } else if (mop1t == OP_W && rt == OP_V) {
+          decode_modrm(u, &(iop[0]), mop1s, op_typ, ro, rs, op_typ);
+      /* V, [X,] E */
+      } else if (mop1t == OP_V && rt == OP_E) {
+          decode_modrm(u, ro, rs, T_GPR, &(iop[0]), mop1s, op_typ);
+      /* M */
+      } else if (mop1t == OP_M && rt == OP_NONE) {
+          decode_modrm(u, &(iop[0]), mop1s, T_GPR, NULL, 0, T_NONE);
       } else {
+          PEBIL_DEBUG("AVX operand decoding found unknown combo");
           u->error = 1;
-          return -1;
+      }
+
+      /* 3rd operand is an immediate (I) */
+      if (mop3t == OP_I){
+          decode_imm(u, mop3s, &(iop[2]));
       }
 
       /* 4th operand is an immediate (I) */
       if (mop4t == OP_I){
           decode_imm(u, mop4s, &(iop[3]));
+          uint8_t immv = iop[3].lval.sbyte;
+          PEBIL_DEBUG("4th-byte immediate found: %hhx", immv);
+
+          /* immediate encodes a 4th x/ymm register */
+          if (P_VEXIX(u->itab_entry->prefix)){
+              clear_operand(&(iop[3]));
+              iop[3].type = UD_OP_REG;
+              iop[3].base = resolve_reg(u, op_typ, VEX_IX_REG(immv));
+              iop[3].size = iop[0].size;
+          }
       }
 
+      /* if vex.l was found, instruction is 256 bits */
       if (op_typ == T_YMM){
           iop[0].size = iop[2].size;
           iop[1].size = iop[2].size;
@@ -916,10 +1026,8 @@ static int disasm_operands(register struct ud* u)
           iop[2].size = iop[0].size;
       }
 
-      if (mop3t == OP_x){
-          clear_operand(&iop[2]);
-      }
-
+      PEBIL_DEBUG("op sizes: %hd %hd %hd %hd", iop[0].size, iop[1].size, iop[2].size, iop[3].size);
+      PEBIL_DEBUG("op types: %d %d %d %d", iop[0].type, iop[1].type, iop[2].type, iop[3].type);
       return 0;
   }
     

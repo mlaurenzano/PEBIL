@@ -2528,11 +2528,16 @@ X86InstructionType X86InstructionClassifier::getClass(int mnemonic){
 }
 
 bool X86InstructionClassifier::verify(){
+    bool err = false;
     for (uint32_t i = 0; i < UD_Itotaltypes; i++){
         if (classMap.count(i) != 1){
-            PRINT_ERROR("Instruction classification definition missing for %s", ud_mnemonics_str[i]);
-            return false;
+            PRINT_WARN(20, "Instruction classification definition missing for %s", ud_mnemonics_str[i]);
+            err = true;
         }
+    }
+    if (err){
+        PRINT_ERROR("Missing instruction classiciation definition(s)");
+        return false;
     }
     for (map<int, X86InstructionType>::iterator ii = classMap.begin(); ii != classMap.end(); ii++){
         int mnemonic = (*ii).first;
@@ -3134,11 +3139,6 @@ void X86InstructionClassifier::fillClassDefinitions(){
     classMap[UD_Iunpckhps] = X86InstructionType_float;
     classMap[UD_Iunpcklpd] = X86InstructionType_float;
     classMap[UD_Iunpcklps] = X86InstructionType_float;
-    classMap[UD_Ivaddpd] = X86InstructionType_avx;
-    classMap[UD_Ivaddps] = X86InstructionType_avx;
-    classMap[UD_Ivaddsd] = X86InstructionType_avx;
-    classMap[UD_Ivaddss] = X86InstructionType_avx;
-    classMap[UD_Ivblendpd] = X86InstructionType_avx;
     classMap[UD_Iverr] = X86InstructionType_special;
     classMap[UD_Iverw] = X86InstructionType_special;
     classMap[UD_Ivmcall] = X86InstructionType_vmx;
@@ -3151,10 +3151,8 @@ void X86InstructionClassifier::fillClassDefinitions(){
     classMap[UD_Ivmresume] = X86InstructionType_vmx;
     classMap[UD_Ivmrun] = X86InstructionType_vmx;
     classMap[UD_Ivmsave] = X86InstructionType_vmx;
-    classMap[UD_Ivmulpd] = X86InstructionType_avx;
     classMap[UD_Ivmxoff] = X86InstructionType_vmx;
     classMap[UD_Ivmxon] = X86InstructionType_vmx;
-    classMap[UD_Ivpshufd] = X86InstructionType_avx;
     classMap[UD_Iwait] = X86InstructionType_special;
     classMap[UD_Iwbinvd] = X86InstructionType_special;
     classMap[UD_Iwrmsr] = X86InstructionType_special;
@@ -3164,6 +3162,23 @@ void X86InstructionClassifier::fillClassDefinitions(){
     classMap[UD_Ixor] = X86InstructionType_int;
     classMap[UD_Ixorpd] = X86InstructionType_float;
     classMap[UD_Ixorps] = X86InstructionType_float;
+
+    classMap[UD_Ivaddpd] = X86InstructionType_avx;
+    classMap[UD_Ivaddps] = X86InstructionType_avx;
+    classMap[UD_Ivaddsd] = X86InstructionType_avx;
+    classMap[UD_Ivaddss] = X86InstructionType_avx;
+    classMap[UD_Ivaddsubpd] = X86InstructionType_avx;
+    classMap[UD_Ivaddsubps] = X86InstructionType_avx;
+    classMap[UD_Ivandnpd] = X86InstructionType_avx;
+    classMap[UD_Ivandnps] = X86InstructionType_avx;
+    classMap[UD_Ivandpd] = X86InstructionType_avx;
+    classMap[UD_Ivandps] = X86InstructionType_avx;
+    classMap[UD_Ivblendpd] = X86InstructionType_avx;
+    classMap[UD_Ivmulpd] = X86InstructionType_avx;
+    classMap[UD_Ivmulps] = X86InstructionType_avx;
+    classMap[UD_Ivpshufd] = X86InstructionType_avx;
+    classMap[UD_Ivmpsadbw] = X86InstructionType_avx;
+    classMap[UD_Ivpsadbw] = X86InstructionType_avx;
 
     verify();
 }

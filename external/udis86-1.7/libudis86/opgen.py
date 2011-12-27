@@ -185,6 +185,8 @@ pfx_dict = {
     "rexb"     : "P_rexb",  
     "rexx"     : "P_rexx",  
     "rexr"     : "P_rexr",
+    "vexlz"    : "P_vexlz",
+    "vexix"    : "P_vexix",
     "inv64"    : "P_inv64", 
     "def64"    : "P_def64", 
     "depM"     : "P_depM",
@@ -439,18 +441,15 @@ for node in tlNode.childNodes:
                     mnemonic = "v" + mnemonic
                     mnm_list.append(mnemonic)
                     avx_named += 1
-                print "NEW0 " + op + " " + mnemonic
                 table_avx = op[3:]
             elif op == '0F' and len(table_sse) and len(table_avx):
                 table_name = "itab__avx_" + table_avx + "__pfx_" + table_sse + "__0f"
-                print "table_name 1: " + table_name
                 table_size = 256
                 table_avx = ''
                 table_index = op
                 table_avxdone += 1
             elif op == '0F' and len(table_avx):
                 table_name = "itab__avx_%s__0f" % table_avx
-                print "table_name 2: " + table_name
                 table_size = 256
                 table_avx  = ''
                 table_avxdone += 1
