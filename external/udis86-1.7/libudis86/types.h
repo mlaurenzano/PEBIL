@@ -138,7 +138,6 @@ struct ud_operand
 		uint32_t off;
 	} ptr;
   } lval;
-
   enum ud_type		base;
   enum ud_type		index;
   uint8_t		offset;

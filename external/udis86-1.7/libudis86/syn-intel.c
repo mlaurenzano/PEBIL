@@ -41,7 +41,7 @@ static void gen_operand(struct ud* u, struct ud_operand* op, int syn_cast)
 {
   switch(op->type) {
 	case UD_OP_REG:
-		mkasm(u, ud_reg_tab[op->base - UD_R_AL]);
+                mkasm(u, ud_reg_tab[op->base - UD_R_AL]);
 		break;
 
 	case UD_OP_MEM: {

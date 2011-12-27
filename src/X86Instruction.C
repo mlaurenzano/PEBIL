@@ -1661,7 +1661,6 @@ uint16_t X86Instruction::setInstructionBin(){
         case UD_Imaskmovq:
         case UD_Istosq:
         case UD_Imovq:
-        case UD_Imovqa:
         case UD_Imovq2dq:
         case UD_Imovdq2q:
             bin += X86InstructionBin_move;
@@ -2868,7 +2867,6 @@ void X86InstructionClassifier::fillClassDefinitions(){
     classMap[UD_Imovntq] = X86InstructionType_move;
     classMap[UD_Imovq] = X86InstructionType_move;
     classMap[UD_Imovq2dq] = X86InstructionType_move;
-    classMap[UD_Imovqa] = X86InstructionType_move;
     classMap[UD_Imovsb] = X86InstructionType_move;
     classMap[UD_Imovsd] = X86InstructionType_move;
     classMap[UD_Imovshdup] = X86InstructionType_move;

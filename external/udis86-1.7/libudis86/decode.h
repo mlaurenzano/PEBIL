@@ -138,8 +138,10 @@
 #define P_IMPADDR(n)    ( ( n >> 12 ) & 1 )
 #define P_vexlz         ( 1 << 13 )
 #define P_VEXLZ(n)      ( ( n >> 13 ) & 1 )
-#define P_vexix         ( 1 << 14 )
-#define P_VEXIX(n)      ( ( n >> 14 ) & 1 )
+#define P_vexl          ( 1 << 14 )
+#define P_VEXL(n)       ( ( n >> 14 ) & 1 )
+#define P_vexix         ( 1 << 15 )
+#define P_VEXIX(n)      ( ( n >> 15 ) & 1 )
 
 /* rex prefix bits */
 #define REX_W(r)        ( ( 0xF & ( r ) )  >> 3 )
@@ -299,6 +301,7 @@ enum ud_operand_size {
 #define O_ES      { OP_ES,       SZ_NA    }
 #define O_rBX     { OP_rBX,      SZ_NA    }
 #define O_Ed      { OP_E,        SZ_D     }
+#define O_Eq      { OP_E,        SZ_Q     }
 #define O_DLr10b  { OP_DLr10b,   SZ_NA    }
 #define O_Mw      { OP_M,        SZ_W     }
 #define O_Eb      { OP_E,        SZ_B     }
