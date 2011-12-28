@@ -114,23 +114,56 @@ def get_udis_disasm(mode, filename, offset, size, addr):
         print_error("error: udis command returned more output than expected")
     return get_udis_instruction(udis[0])
 
+def int_match(c1, c2):
+    try:
+        int(c1, 16)
+        int(c2, 16)
+    except ValueError, e:
+        return False
+
+    s1 = int(c1, 16)
+    s2 = int(c2, 16)
+    #print s1, s2
+    if s1 == s2:
+        return True
+
+    return False
+
 def compare_instructions(i1, i2):
     errcnt = 0
     if (i1['addr'] != i2['addr']) or (i1['size'] != i2['size']) or (i1['bytes'] != i2['bytes']):
-        print "BAD error in disassembly... see instruction output below"
-        print i1
-        print i2
-        print '-------------------------'
         errcnt += 1
 
-    if (i1['outp'] != i2['outp']):
+    t1 = i1['outp'].split(' ')
+    t2 = i2['outp'].split(' ')
+    #print t1, t2
+
+    m1 = t1[0]
+    m2 = t2[0]
+    if (m1 != m2):
+        errcnt += 1
+    
+    if (len(t1) > 1 and len(t2) > 1):
+        o1 = t1[1].replace('*','').replace('$','').replace('0x','').replace('(',',').replace(')',',').split(',')
+        o2 = t2[1].replace('*','').replace('$','').replace('0x','').replace('(',',').replace(')',',').split(',')
+        df = 0
+        if (len(o1) == len(o2)):
+            for i in range(len(o1)):
+                match = False
+                if (o1[i] == o2[i]):
+                    match = True
+                elif int_match(o1[i], o2[i]):
+                    match = True
+                if not match:
+                    errcnt += 1
+        else:
+            errcnt += 1
+        
+    if errcnt > 0:
         print "error in disassembly... see instruction output below"
         print i1
         print i2
-        print '-------------------------'
-        errcnt += 1
-        
-    if errcnt > 0:
+        print '-----------------------------------------------------'
         return False
     return True
 

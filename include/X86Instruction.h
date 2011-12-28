@@ -263,6 +263,7 @@ enum X86InstructionType {
     X86InstructionType_string,
     X86InstructionType_simd,
     X86InstructionType_avx,
+    X86InstructionType_aes,
     X86InstructionType_io,
     X86InstructionType_prefetch,
     X86InstructionType_system_call,
