@@ -2494,11 +2494,11 @@ void X86Instruction::setFlags()
         }
     }
 
-    if (GET(flags_use) != flags_usedef[__reg_use]){
+    if (flags_usedef[__reg_use] && GET(flags_use) != flags_usedef[__reg_use]){
         print();
         PRINT_ERROR("NEW USE FLAGS (%#x) DONT MATCH OLD (%#x)", GET(flags_use), flags_usedef[__reg_use]);
     }
-    if (GET(flags_def) != flags_usedef[__reg_def]){
+    if (flags_usedef[__reg_def] && GET(flags_def) != flags_usedef[__reg_def]){
         print();
         PRINT_ERROR("NEW DEF FLAGS (%#x) DONT MATCH OLD (%#x)", GET(flags_def), flags_usedef[__reg_def]);
     }

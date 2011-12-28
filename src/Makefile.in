@@ -22,7 +22,7 @@ TARGETS  = libpebilinst.so
 all: $(TARGETS)
 
 libpebilinst.so: $(OBJS)
-	$(CXX) $(SHARED_LIB) -o $@ $(OBJS)
+	$(CXX) $(CXXFLAGS) $(SHARED_LIB) -o $@ $(OBJS)
 
 %.o: %.C
 	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(SHARED_OPT) $(INCLUDE) -c -o $@ $<
