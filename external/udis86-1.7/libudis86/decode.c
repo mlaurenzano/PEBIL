@@ -1399,6 +1399,7 @@ static int disasm_operands(register struct ud* u)
       }
       
       /* TODO if vex.l was found, adjust operand sizes */
+      /* TODO also need to decode operands based on correct operand type if is YMM */
       /*
       if (avx_op_typ == T_YMM){
           iop[0].size = iop[2].size;

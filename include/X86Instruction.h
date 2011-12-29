@@ -48,6 +48,9 @@ class TextObject;
 #define ALU_SRC2_OPERAND 0
 #define MOV_DEST_OPERAND 0
 #define MOV_SRC_OPERAND 1
+#define AVX_SRC1_OPERAND 1
+#define AVX_SRC2_OPERAND 2
+#define AVX_SRC3_OPERAND 3
 
 #define UD_R_NAME_LOOKUP(__ud_reg) (ud_reg_tab[__ud_reg - 1])
 #define UD_OP_NAME_LOOKUP(__ud_type) (ud_optype_str[__ud_type - UD_OP_REG])
@@ -62,12 +65,13 @@ class TextObject;
 #define IS_MMX_REG(__reg) ((__reg >= UD_R_MM0) && (__reg <= UD_R_MM7))
 #define IS_X87_REG(__reg) ((__reg >= UD_R_ST0) && (__reg <= UD_R_ST7))
 #define IS_XMM_REG(__reg) ((__reg >= UD_R_XMM0) && (__reg <= UD_R_XMM15))
+#define IS_YMM_REG(__reg) ((__reg >= UD_R_YMM0) && (__reg <= UD_R_YMM15))
 #define IS_PC_REG(__reg) (__reg == UD_R_RIP)
 #define IS_OPERAND_TYPE(__opr) ((__opr >= UD_OP_REG) && (__opr <= UD_OP_CONST))
 
 #define IS_GPR(__reg) (IS_8BIT_GPR(__reg) || IS_16BIT_GPR(__reg) || IS_32BIT_GPR(__reg) || IS_64BIT_GPR(__reg))
 #define IS_REG(__reg) (IS_GPR(__reg) || IS_SEGMENT_REG(__reg) || IS_CONTROL_REG(__reg) || IS_DEBUG_REG(__reg) || \
-                       IS_MMX_REG(__reg) || IS_X87_REG(__reg) || IS_XMM_REG(__reg) || IS_PC_REG(__reg))
+                       IS_MMX_REG(__reg) || IS_X87_REG(__reg) || IS_XMM_REG(__reg) || IS_YMM_REG(__reg) || IS_PC_REG(__reg))
 #define IS_ALU_REG(__reg) (IS_GPR(__reg) || IS_XMM_REG(__reg))
 
 #define IS_LOADADDR(__mne) (__mne == UD_Ilea)
@@ -276,6 +280,17 @@ enum X86InstructionType {
     X86InstructionType_Total
 };
 
+enum X86OperandFormat {
+    X86OperandFormat_unknown = 0,   // Unknown
+    X86OperandFormat_1op_ctrl,
+    X86OperandFormat_2op_mov,
+    X86OperandFormat_3op_mov,
+    X86OperandFormat_2op_comp,
+    X86OperandFormat_3op_comp,
+    X86OperandFormat_4op_comp,
+    X86OperandFormat_Total
+};
+
 enum X86InstructionBin {
     X86InstructionBin_unknown = 0,   // Unknown
     X86InstructionBin_invalid,       // Invalid
@@ -297,7 +312,7 @@ enum X86InstructionBin {
     X86InstructionBin_total
 };
 
-#define INSTBIN_DATATYPE(bytesUsed) (bytesUsed<<BinSizeShift)
+#define INSTBIN_DATATYPE(u) ( u << BinSizeShift )
 
 const uint16_t BinMask = 0xFF;
 const uint16_t BinSizeShift = 12;
@@ -319,6 +334,7 @@ typedef enum {
     RegType_MMX,
     RegType_X87,
     RegType_XMM,
+    RegType_YMM,
     RegType_PC,
     RegType_Total_Types
 } RegTypes;
@@ -381,11 +397,11 @@ private:
 
     uint16_t setInstructionBin();
     bool defXIter;
+
 public:
     void setDefXIter() { defXIter = true; }
     bool hasDefXIter() { return defXIter; }
 
-    bool checkInstructionTables();
     uint64_t cacheBaseAddress;
 
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
@@ -474,6 +490,7 @@ public:
     bool isCall() { return isSystemCall() || isFunctionCall(); }
     bool isHalt() { return (getInstructionType() == X86InstructionType_halt); }
     bool isNop() { return (getInstructionType() == X86InstructionType_nop); }
+    bool isAvx() { return (getInstructionType() == X86InstructionType_avx); }
     bool isConditionCompare();
     bool isStackPush();
     bool isStackPop();
@@ -481,7 +498,6 @@ public:
     bool isStore();
     bool isSpecialRegOp();
     bool isLogicOp();
-
 
     uint8_t getByteSource() { return byteSource; }
     bool isRelocatable() { return true; }
@@ -602,8 +618,24 @@ private:
 
     X86InstructionClassifier() {}
     ~X86InstructionClassifier() {}
+    static uint32_t packFields(uint8_t bin, uint8_t location, uint8_t memsize, uint8_t type, uint8_t format);
+    static uint32_t rawClassBits(int mnemonic, int numbits, int offset){ 
+        uint32_t ret = getClass(mnemonic);
+        ret = (ret >> offset);
+        // shift off bits we don't want
+        ret = (ret << (32 - numbits));
+        ret = (ret >> (32 - numbits));
+    }
+
+    static uint32_t getClass(uint32_t mnemonic);
+
 public:
-    static X86InstructionType getClass(int mnemonic);
+    static X86InstructionBin getInstructionBin(X86Instruction* x);
+    static uint8_t getInstructionMemLocation(X86Instruction* x);
+    static uint8_t getInstructionMemSize(X86Instruction* x);
+    static X86InstructionType getInstructionType(X86Instruction* x);
+    static X86OperandFormat getInstructionFormat(X86Instruction* x);
+
 };
 
 #endif /* _X86Instruction_h_ */

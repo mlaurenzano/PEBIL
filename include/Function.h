@@ -48,15 +48,11 @@ protected:
     HashCode hashCode;
     uint64_t badInstruction;
     uint64_t flags;
-    uint32_t stackSize;
 
     Vector<X86Instruction*>* digestRecursive();
 public:
     Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz);
     ~Function();
-
-    uint32_t getStackSize() { return stackSize; }
-    uint32_t findStackSize();
 
     void interposeBlock(BasicBlock* bb);
     bool hasLeafOptimization();

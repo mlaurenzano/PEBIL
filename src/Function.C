@@ -38,29 +38,6 @@ void Function::interposeBlock(BasicBlock* bb){
     sizeInBytes += bb->getNumberOfBytes();
 }
 
-uint32_t Function::findStackSize(){
-    ASSERT(flowGraph);
-    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        BasicBlock* bb = flowGraph->getBasicBlock(i);
-        if (bb->isEntry()){
-            for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
-                X86Instruction* ins = bb->getInstruction(j);
-                OperandX86* srcop = ins->getOperand(COMP_DEST_OPERAND);
-                if (ins->GET(mnemonic) == UD_Isub && !srcop->getValue()){
-                    if (srcop->getBaseRegister() == X86_REG_SP){
-                        stackSize = ins->getOperand(COMP_SRC_OPERAND)->getValue();
-                        break;
-                    }
-                }
-            }
-            break;
-        }
-    }
-    if (!stackSize){
-        stackSize = Size__trampoline_autoinc;
-    }
-}
-
 bool Function::hasLeafOptimization(){
     uint32_t numberOfInstructions = getNumberOfInstructions();
     X86Instruction** allInstructions = new X86Instruction*[numberOfInstructions];
@@ -323,7 +300,6 @@ uint32_t Function::digest(Vector<AddressAnchor*>* addressAnchors){
 
     if (!isDisasmFail()){
         generateCFG(allInstructions, addressAnchors);        
-        findStackSize();
 #ifndef NO_REG_ANALYSIS
         flowGraph->computeLiveness();
 #endif
@@ -705,7 +681,6 @@ Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz)
 
     badInstruction = 0;
     flags = 0;
-    stackSize = 0;
 
     verify();
 }
