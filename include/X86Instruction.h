@@ -625,16 +625,18 @@ private:
         // shift off bits we don't want
         ret = (ret << (32 - numbits));
         ret = (ret >> (32 - numbits));
+        return ret;
     }
 
-    static uint32_t getClass(uint32_t mnemonic);
-
 public:
+    static uint32_t getClass(uint32_t mnemonic);
     static X86InstructionBin getInstructionBin(X86Instruction* x);
     static uint8_t getInstructionMemLocation(X86Instruction* x);
     static uint8_t getInstructionMemSize(X86Instruction* x);
     static X86InstructionType getInstructionType(X86Instruction* x);
     static X86OperandFormat getInstructionFormat(X86Instruction* x);
+
+    static void print(X86Instruction* x);
 
 };
 

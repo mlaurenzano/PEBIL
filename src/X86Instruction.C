@@ -2518,7 +2518,9 @@ void X86Instruction::setFlags()
 }
 
 X86InstructionType X86Instruction::getInstructionType(){
-    return X86InstructionClassifier::getInstructionType(this);
+    X86InstructionType x = X86InstructionClassifier::getInstructionType(this);
+    //X86InstructionClassifier::print(this);
+    return x;
 }
 
 #include <map>
@@ -2566,6 +2568,10 @@ uint32_t X86InstructionClassifier::packFields(uint8_t bin, uint8_t location, uin
             ( (memsize  & 0xf  ) << 12 ) | // S
             ( (type     & 0xff ) << 16 ) | // T
             ( (format   & 0xf  ) << 24 )); // F
+}
+
+void X86InstructionClassifier::print(X86Instruction* x){
+    PRINT_INFOR("Instruciton %s: %#08x %hhd %hhd %hhd %hhd %hhd", ud_mnemonics_str[x->GET(mnemonic)], getClass(x->GET(mnemonic)), getInstructionBin(x), getInstructionMemLocation(x), getInstructionMemSize(x), getInstructionType(x), getInstructionFormat(x));
 }
 
 bool X86InstructionClassifier::verify(){

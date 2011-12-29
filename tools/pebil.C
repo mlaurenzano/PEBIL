@@ -340,7 +340,7 @@ int main(int argc,char* argv[]){
             printUsage("invalid argument to --typ");
             __SHOULD_NOT_ARRIVE;
         }
-        PRINT_INFOR("Converting --typ %s to --tool %s", typ_arg, ToolNames[instType]);
+        PRINT_INFOR("Converting `--typ %s' to `--tool %s'", typ_arg, ToolNames[instType]);
         tool_arg = ToolNames[instType];
     }
 
