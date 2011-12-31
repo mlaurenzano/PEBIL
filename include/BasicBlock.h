@@ -186,8 +186,6 @@ public:
     uint32_t getNumberOfBinQwordv();
     uint32_t getNumberOfBinQword();
 
-    void setBins();
-
     bool isInLoop();
     bool controlFallsThrough();
     bool findExitInstruction();

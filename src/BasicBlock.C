@@ -618,16 +618,6 @@ uint32_t BasicBlock::getNumberOfBinUnknown(){
     return binCount;
 }
 
-void BasicBlock::setBins(){
-    
-    //printf("block starting at %X\n", getBaseAddress());
-    for (uint32_t i = 0; i < instructions.size(); i++) {
-        instructions[i]->getInstructionBin();
-        //printf("instruction at %X  ", instructions[i]->getBaseAddress());
-        //instructions[i]->printBin();
-    }
-}
-
 void RawBlock::printDisassembly(bool instructionDetail){
     uint32_t bytesPerWord = 1;
     uint32_t bytesPerLine = 8;

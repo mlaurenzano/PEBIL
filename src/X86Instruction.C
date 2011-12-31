@@ -775,8 +775,8 @@ int64_t X86Instruction::getRelativeValue(){
 
 uint64_t X86Instruction::getTargetAddress(){
     uint64_t tgtAddress;
-    if (getInstructionType() == X86InstructionType_uncond_branch ||
-        getInstructionType() == X86InstructionType_cond_branch){
+    if (getInstructionType() == X86InstructionType_uncondbr ||
+        getInstructionType() == X86InstructionType_condbr){
         if (addressAnchor){ 
            tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
         } else if (operands && operands[JUMP_TARGET_OPERAND]){
@@ -809,7 +809,7 @@ uint64_t X86Instruction::getTargetAddress(){
         }
 
     }
-    else if (getInstructionType() == X86InstructionType_system_call){
+    else if (getInstructionType() == X86InstructionType_syscall){
         tgtAddress = 0;
     } else {
         tgtAddress = getBaseAddress() + getSizeInBytes();
@@ -1198,744 +1198,72 @@ bool X86Instruction::isJumpTableBase(){
     return (isUnconditionalBranch() && usesIndirectAddress());
 }
 
-uint16_t X86Instruction::getInstructionBin(){
-    if (instructionBin){
-        return instructionBin;
-    }
-    return setInstructionBin();
-}
+bool X86Instruction::isBinUnknown() { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_unknown; }
+bool X86Instruction::isBinInvalid() { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_invalid; }
+bool X86Instruction::isBinCond()    { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_cond;    }
+bool X86Instruction::isBinUncond()  { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_uncond;  }
+bool X86Instruction::isBinBin()     { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_bin;     }
+bool X86Instruction::isBinBinv()    { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_binv;    }
+bool X86Instruction::isBinInt()     { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_int;     }
+bool X86Instruction::isBinIntv()    { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_intv;    }
+bool X86Instruction::isBinFloat()   { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_float;   }
+bool X86Instruction::isBinFloatv()  { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floatv;  }
+bool X86Instruction::isBinFloats()  { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floats;  }
+bool X86Instruction::isBinMove()    { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_move;    }
+bool X86Instruction::isBinSystem()  { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_system;  }
+bool X86Instruction::isBinStack()   { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_stack;   }
+bool X86Instruction::isBinOther()   { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_other;   }
+bool X86Instruction::isBinCache()   { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_cache;   }
+bool X86Instruction::isBinString()  { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_string;  }
+bool X86Instruction::isBinByte()    { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_int)    && (X86InstructionClassifier::getInstructionMemSize(this)) == 1; }
+bool X86Instruction::isBinBytev()   { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_intv)   && (X86InstructionClassifier::getInstructionMemSize(this)) == 1; }
+bool X86Instruction::isBinWord()    { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_int)    && (X86InstructionClassifier::getInstructionMemSize(this)) == 2; }
+bool X86Instruction::isBinWordv()   { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_intv)   && (X86InstructionClassifier::getInstructionMemSize(this)) == 2; }
+bool X86Instruction::isBinDword()   { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_int)    && (X86InstructionClassifier::getInstructionMemSize(this)) == 4; }
+bool X86Instruction::isBinDwordv()  { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_intv)   && (X86InstructionClassifier::getInstructionMemSize(this)) == 4; }
+bool X86Instruction::isBinQword()   { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_int)    && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
+bool X86Instruction::isBinQwordv()  { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_intv)   && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
+bool X86Instruction::isBinSingle()  { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_float)  && (X86InstructionClassifier::getInstructionMemSize(this)) == 4; }
+bool X86Instruction::isBinSinglev() { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floatv) && (X86InstructionClassifier::getInstructionMemSize(this)) == 4; }
+bool X86Instruction::isBinSingles() { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floats) && (X86InstructionClassifier::getInstructionMemSize(this)) == 4; }
+bool X86Instruction::isBinDouble()  { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_float)  && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
+bool X86Instruction::isBinDoublev() { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floatv) && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
+bool X86Instruction::isBinDoubles() { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floats) && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
+bool X86Instruction::isBinMem()     { return false; }
 
-uint16_t X86Instruction::setInstructionBin(){
-    uint16_t bin = X86InstructionBin_unknown;
-    if(isLoad()) bin += BinLoad;
-    if(isStore()) bin += BinStore;
-    switch(GET(mnemonic)){
-        case UD_Iseto:
-        case UD_Isetno:
-        case UD_Isetb:
-        case UD_Isetnb:
-        case UD_Isetz:
-        case UD_Isetnz:
-        case UD_Isetbe:
-        case UD_Iseta:
-        case UD_Isets:
-        case UD_Isetns:
-        case UD_Isetp:
-        case UD_Isetnp:
-        case UD_Isetl:
-        case UD_Isetge:
-        case UD_Isetle:
-        case UD_Isetg:
-            bin += X86InstructionBin_bin;
-            bin += INSTBIN_DATATYPE(sizeof(int8_t));
-            break;
-        case UD_Icbw:
-            bin += X86InstructionBin_bin;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Icwd:
-        case UD_Icwde:
-            bin += X86InstructionBin_bin;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Icdqe:
-        case UD_Icdq:
-        case UD_Icqo:
-            bin += X86InstructionBin_bin;
-            bin += INSTBIN_DATATYPE(sizeof(int64_t));
-            break;
-        case UD_Iand:
-        case UD_Ibound:
-        case UD_Ibsf:
-        case UD_Ibsr:
-        case UD_Ibt:
-        case UD_Ibtc:
-        case UD_Ibtr:
-        case UD_Ibts:
-        case UD_Ibswap:
-        case UD_Inot:
-        case UD_Ior:
-        case UD_Ircl:
-        case UD_Ircr:
-        case UD_Irol:
-        case UD_Iror:
-        case UD_Isal:
-        case UD_Isalc:
-        case UD_Isar:
-        case UD_Ishl:
-        case UD_Ishr:
-        case UD_Ishld:
-        case UD_Ishrd:
-        case UD_Itest:
-        case UD_Ixor:
-            bin += X86InstructionBin_bin;
-            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
-            break;
-        case UD_Ipshufb:
-        case UD_Ipminsb:
-        case UD_Ipmaxsb:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(sizeof(int8_t));
-            break;
-        case UD_Ipshufhw:
-        case UD_Ipshuflw:
-        case UD_Ipshufw:
-        case UD_Ipsllw:
-        case UD_Ipsraw:
-        case UD_Ipsrlw:
-        case UD_Ipunpckhbw:
-        case UD_Ipunpcklbw:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Ipshufd:
-        case UD_Ipslld:
-        case UD_Ipsrad:
-        case UD_Ipsrld:
-        case UD_Ipunpckhwd:
-        case UD_Ipunpcklwd:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Ipslldq:
-        case UD_Ipsllq:
-        case UD_Ipsrlq:
-        case UD_Ipsrldq:
-        case UD_Ipunpckhdq:
-        case UD_Ipunpckhqdq:
-        case UD_Ipunpckldq:
-        case UD_Ipunpcklqdq:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(sizeof(int64_t));
-            break;
-        case UD_Iandpd:
-        case UD_Iandnpd:
-        case UD_Iorpd:
-        case UD_Ishufpd:
-        case UD_Ixorpd:
-        case UD_Iunpckhpd:
-        case UD_Iunpcklpd:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(sizeof(double));
-            break;
-        case UD_Iandps:
-        case UD_Iandnps:
-        case UD_Iorps:
-        case UD_Ishufps:
-        case UD_Ixorps:
-        case UD_Iunpckhps:
-        case UD_Iunpcklps:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(sizeof(float));
-            break;
-        case UD_Ipalignr:
-        case UD_Ipand:
-        case UD_Ipandn:
-        case UD_Ipor:
-        case UD_Ipxor:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
-            break;
-        case UD_Iadc:
-        case UD_Iadd:
-        case UD_Icmp:
-        case UD_Icmpxchg:
-        case UD_Icmpxchg8b:
-        case UD_Idec:
-        case UD_Idiv:
-        case UD_Iidiv:
-        case UD_Iimul:
-        case UD_Iinc:
-        case UD_Imul:
-        case UD_Ineg:
-        case UD_Isbb:
-        case UD_Isub:
-        case UD_Ixadd:
-        case UD_Ixchg:
-            bin += X86InstructionBin_int;
-            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
-            break;
-        case UD_Ipacksswb:
-        case UD_Ipackuswb:
-        case UD_Ipaddb:
-        case UD_Ipaddsb:
-        case UD_Ipaddusb:
-        case UD_Ipavgb:
-        case UD_Ipcmpeqb:
-        case UD_Ipcmpgtb:
-        case UD_Ipmaxub:
-        case UD_Ipminub:
-            bin += X86InstructionBin_intv;
-            bin += INSTBIN_DATATYPE(sizeof(int8_t));
-            break;
-        case UD_Ipavgw:
-        case UD_Ipcmpeqw:
-        case UD_Ipcmpgtw:
-        case UD_Ipextrw:
-        case UD_Ipinsrw:
-        case UD_Ipmaxsw:
-        case UD_Ipminsw:
-        case UD_Ipmulhuw:
-        case UD_Ipmulhw:
-        case UD_Ipmullw:
-        case UD_Ipavgusb:
-        case UD_Ipsubb:
-        case UD_Ipsubsb:
-        case UD_Ipsubusb:
-        case UD_Ipsadbw:
-        case UD_Ipsubw:
-        case UD_Ipsubsw:
-        case UD_Ipsubusw:
-        case UD_Ipi2fw:
-        case UD_Ipf2iw:
-        case UD_Ipaddw:
-        case UD_Ipaddsw:
-        case UD_Ipaddusw:
-        case UD_Ipminuw:
-        case UD_Ipmaxuw:
-        case UD_Ipmulhrw:
-            bin += X86InstructionBin_intv;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Ipcmpeqd:
-        case UD_Ipcmpgtd:
-        case UD_Ipf2id:
-        case UD_Ipfacc:
-        case UD_Ipfadd:
-        case UD_Ipfcmpeq:
-        case UD_Ipfcmpge:
-        case UD_Ipfcmpgt:
-        case UD_Ipfmax:
-        case UD_Ipfmin:
-        case UD_Ipfmul:
-        case UD_Ipfnacc:
-        case UD_Ipfpnacc:
-        case UD_Ipfrcp:
-        case UD_Ipfrcpit1:
-        case UD_Ipfrcpit2:
-        case UD_Ipfrspit1:
-        case UD_Ipfrsqrt:
-        case UD_Ipfsub:
-        case UD_Ipfsubr:
-        case UD_Ipi2fd:
-        case UD_Ipaddd:
-        case UD_Ipackssdw:
-        case UD_Iphaddd:
-        case UD_Ipmaddwd:
-        case UD_Ipminsd:
-        case UD_Ipminud:
-        case UD_Ipmaxsd:
-        case UD_Ipmaxud:
-        case UD_Ipmuludq:
-        case UD_Ipsubd:
-        case UD_Ipswapd:
-            bin += X86InstructionBin_intv;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Ipaddq:
-        case UD_Ipsubq:
-            bin += X86InstructionBin_intv;
-            bin += INSTBIN_DATATYPE(sizeof(int64_t));
-            break;
-        case UD_Iaddpd:
-        case UD_Iaddsubpd:
-        case UD_Icmppd:
-        case UD_Icvtpd2dq:
-        case UD_Icvtpd2pi:
-        case UD_Icvttpd2pi:
-        case UD_Icvtdq2pd:
-        case UD_Icvtpi2pd:
-        case UD_Icvtps2pd:
-        case UD_Icvttpd2dq:
-        case UD_Idivpd:
-        case UD_Ihaddpd:
-        case UD_Ihsubpd:
-        case UD_Imaxpd:
-        case UD_Iminpd:
-        case UD_Imulpd:
-        case UD_Iroundpd:
-        case UD_Isqrtpd:
-        case UD_Isubpd:
-            bin += X86InstructionBin_floatv;
-            bin += INSTBIN_DATATYPE(sizeof(double));
-            break;
-        case UD_Iaddsd:
-        case UD_Icomisd:
-        case UD_Icvtsd2si:
-        case UD_Icvtsd2ss:
-        case UD_Icvtss2sd:
-        case UD_Icvtsi2sd:
-        case UD_Idivsd:
-        case UD_Imaxsd:
-        case UD_Iminsd:
-        case UD_Imulsd:
-        case UD_Iroundsd:
-        case UD_Isqrtsd:
-        case UD_Isubsd:
-        case UD_Iucomisd:
-            bin += X86InstructionBin_floats;
-            bin += INSTBIN_DATATYPE(sizeof(double));
-            break;
-        case UD_Iaddps:
-        case UD_Iaddsubps:
-        case UD_Icmpps:
-        case UD_Icvtps2dq:
-        case UD_Icvtps2pi:
-        case UD_Icvtdq2ps:
-        case UD_Icvtpd2ps:
-        case UD_Icvtpi2ps:
-        case UD_Icvttps2dq:
-        case UD_Icvttps2pi:
-        case UD_Idivps:
-        case UD_Ihaddps:
-        case UD_Ihsubps:
-        case UD_Imaxps:
-        case UD_Iminps:
-        case UD_Imulps:
-        case UD_Ircpps:
-        case UD_Iroundps:
-        case UD_Irsqrtps:
-        case UD_Isqrtps:
-        case UD_Isubps:
-            bin += X86InstructionBin_floatv;
-            bin += INSTBIN_DATATYPE(sizeof(float));
-            break;
-        case UD_Iaddss:
-        case UD_Icmpss:
-        case UD_Icomiss:
-        case UD_Icvtsi2ss:
-        case UD_Icvtss2si:
-        case UD_Icvttsd2si:
-        case UD_Icvttss2si:
-        case UD_Idivss:
-        case UD_Imaxss:
-        case UD_Iminss:
-        case UD_Imulss:
-        case UD_Ircpss:
-        case UD_Iroundss:
-        case UD_Irsqrtss:
-        case UD_Isqrtss:
-        case UD_Isubss:
-        case UD_Iucomiss:
-            bin += X86InstructionBin_floats;
-            bin += INSTBIN_DATATYPE(sizeof(float));
-            break;
-        case UD_If2xm1:
-        case UD_Ifabs:
-        case UD_Ifadd:
-        case UD_Ifaddp:
-        case UD_Ifbld:
-        case UD_Ifbstp:
-        case UD_Ifchs:
-        case UD_Ifclex:
-        case UD_Ifucomi:
-        case UD_Ifcomi:
-        case UD_Ifucomip:
-        case UD_Ifcomip:
-        case UD_Ifcom:
-        case UD_Ifcom2:
-        case UD_Ifcomp3:
-        case UD_Ifcomp:
-        case UD_Ifcomp5:
-        case UD_Ifcompp:
-        case UD_Ifcos:
-        case UD_Ifdecstp:
-        case UD_Ifdiv:
-        case UD_Ifdivp:
-        case UD_Ifdivr:
-        case UD_Ifdivrp:
-        case UD_Ifiadd:
-        case UD_Ifidivr:
-        case UD_Ifidiv:
-        case UD_Ifisub:
-        case UD_Ifisubr:
-        case UD_Ificom:
-        case UD_Ificomp:
-        case UD_Ifmul:
-        case UD_Ifmulp:
-        case UD_Ifimul:
-        case UD_Ifpatan:
-        case UD_Ifprem:
-        case UD_Ifprem1:
-        case UD_Ifptan:
-        case UD_Ifrndint:
-        case UD_Ifscale:
-        case UD_Ifsin:
-        case UD_Ifsincos:
-        case UD_Ifsqrt:
-        case UD_Ifsub:
-        case UD_Ifsubp:
-        case UD_Ifsubr:
-        case UD_Ifsubrp:
-        case UD_Iftst:
-        case UD_Ifucom:
-        case UD_Ifucomp:
-        case UD_Ifucompp:
-        case UD_Ifxam:
-        case UD_Ifpxtract:
-        case UD_Ifyl2x:
-        case UD_Ifyl2xp1:
-            bin += X86InstructionBin_float;
-            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
-            break;
-        case UD_Ifild:
-        case UD_Ifist:
-        case UD_Ifistp:
-        case UD_Ifisttp:
-        case UD_Ifld:
-        case UD_Ifld1:
-        case UD_Ifldl2t:
-        case UD_Ifldl2e:
-        case UD_Ifldlpi:
-        case UD_Ifldlg2:
-        case UD_Ifldln2:
-        case UD_Ifldz:
-        case UD_Icmovo:
-        case UD_Icmovno:
-        case UD_Icmovb:
-        case UD_Icmovae:
-        case UD_Icmovz:
-        case UD_Icmovnz:
-        case UD_Icmovbe:
-        case UD_Icmova:
-        case UD_Icmovs:
-        case UD_Icmovns:
-        case UD_Icmovp:
-        case UD_Icmovnp:
-        case UD_Icmovl:
-        case UD_Icmovge:
-        case UD_Icmovle:
-        case UD_Icmovg:
-        case UD_Ifcmovb:
-        case UD_Ifcmove:
-        case UD_Ifcmovbe:
-        case UD_Ifcmovu:
-        case UD_Ifcmovnb:
-        case UD_Ifcmovne:
-        case UD_Ifcmovnbe:
-        case UD_Ifcmovnu:
-        case UD_Ifxch:
-        case UD_Ifxch4:
-        case UD_Ifxch7:
-        case UD_Ifstp:
-        case UD_Ifstp1:
-        case UD_Ifstp8:
-        case UD_Ifstp9:
-        case UD_Ifst:
-        case UD_Ilddqu:
-        case UD_Ilds:
-        case UD_Ilea:
-        case UD_Iles:
-        case UD_Ilfs:
-        case UD_Ilgs:
-        case UD_Ilss:
-        case UD_Istr:
-        case UD_Imov:
-        case UD_Imovapd:
-        case UD_Imovaps:
-        case UD_Imovddup:
-        case UD_Imovdqa:
-        case UD_Imovdqu:
-        case UD_Imovmskpd:
-        case UD_Imovmskps:
-        case UD_Imovntdq:
-        case UD_Imovnti:
-        case UD_Imovntpd:
-        case UD_Imovntps:
-        case UD_Imovsldup:
-        case UD_Imovshdup:
-        case UD_Imovsx:
-        case UD_Imovupd:
-        case UD_Imovups:
-        case UD_Imovzx:
-        case UD_Imovsxd:
-        case UD_Ipmovmskb:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
-            break;
-        case UD_Ilodsb:
-        case UD_Istosb:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(sizeof(int8_t));
-            break;
-        case UD_Ilodsw:
-        case UD_Istosw:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Ildmxcsr:
-        case UD_Ilodsd:
-        case UD_Istosd:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Ilodsq:
-        case UD_Imaskmovq:
-        case UD_Istosq:
-        case UD_Imovq:
-        case UD_Imovq2dq:
-        case UD_Imovdq2q:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(sizeof(int64_t));
-            break;
-        case UD_Imovss:
-        case UD_Imovhps:
-        case UD_Imovlps:
-        case UD_Imovlhps:
-        case UD_Imovhlps:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(sizeof(float));
-            break;
-        case UD_Imovd:
-        case UD_Imovhpd:
-        case UD_Imovlpd:
-        case UD_Imovntq:
-        case UD_Imovsd:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(sizeof(double));
-            break;
-        case UD_Imovsb:
-        case UD_Icmpsb:
-        case UD_Iscasb:
-            bin += X86InstructionBin_string;
-            bin += INSTBIN_DATATYPE(sizeof(int8_t));
-            break;
-        case UD_Icmpsw:
-        case UD_Imovsw:
-        case UD_Iscasw:
-            bin += X86InstructionBin_string;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Icmpsd:
-        case UD_Iscasd:
-            bin += X86InstructionBin_string;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Icmpsq:
-        case UD_Imovsq:
-        case UD_Iscasq:
-            bin += X86InstructionBin_string;
-            bin += INSTBIN_DATATYPE(sizeof(int64_t));
-            break;
-        case UD_Irepne: //FIXME variable size
-        case UD_Irep: //FIXME variable size
-            bin += X86InstructionBin_string;
-            break;
-        case UD_Ija:
-        case UD_Ijae:
-        case UD_Ijb:
-        case UD_Ijbe:
-        case UD_Ijcxz:
-        case UD_Ijecxz:
-        case UD_Ijg:
-        case UD_Ijge:
-        case UD_Ijl:
-        case UD_Ijle:
-        case UD_Ijno:
-        case UD_Ijnp:
-        case UD_Ijns:
-        case UD_Ijne:
-        case UD_Ijo:
-        case UD_Ijp:
-        case UD_Ijrcxz:
-        case UD_Ijs:
-        case UD_Ije:
-            bin += X86InstructionBin_cond;
-            break;
-        case UD_Icall:
-        case UD_Iret:
-        case UD_Iretf:
-            bin += BinFrame;
-        case UD_Ijmp:
-            bin += X86InstructionBin_uncond;
-            break;
-        case UD_Ienter:
-        case UD_Ileave:
-            bin += X86InstructionBin_stack;
-            bin += BinFrame;
-            break;
-        case UD_Ifnsave:
-        case UD_Ifnstcw:
-        case UD_Ifnstenv:
-        case UD_Ifnstsw:
-        case UD_Ifrstor:
-        case UD_Ifxrstor:
-        case UD_Ifxsave:
-            bin += X86InstructionBin_stack;
-            bin += BinFrame;
-            break;
-        case UD_Ipop:
-        case UD_Ipush:
-            bin += X86InstructionBin_stack;
-            bin += BinStack;
-            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
-            break;
-        case UD_Ipopa:
-        case UD_Ipusha:
-            bin += X86InstructionBin_stack;
-            bin += BinFrame;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Ipopad:
-        case UD_Ipushad:
-            bin += X86InstructionBin_stack;
-            bin += BinFrame;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Ipopfw:
-        case UD_Ipushfw:
-            bin += X86InstructionBin_stack;
-            bin += BinStack;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Ipopfd:
-        case UD_Ipushfd:
-            bin += X86InstructionBin_stack;
-            bin += BinStack;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Ipopfq:
-        case UD_Ipushfq:
-            bin += X86InstructionBin_stack;
-            bin += BinStack;
-            bin += INSTBIN_DATATYPE(sizeof(int64_t));
-            break;
-        case UD_Iclflush:
-        case UD_Iinvd:
-        case UD_Iinvlpg:
-        case UD_Iinvlpga:
-        case UD_Iprefetch:
-        case UD_Iprefetchnta:
-        case UD_Iprefetcht0:
-        case UD_Iprefetcht1:
-        case UD_Iprefetcht2:
-            bin += X86InstructionBin_cache;
-            break;
-        case UD_Iint:
-        case UD_Iint1:
-        case UD_Iint3:
-        case UD_Iinto:
-        case UD_Iiretd:
-        case UD_Iiretq:
-        case UD_Iiretw:
-        case UD_Isyscall:
-        case UD_Isysenter:
-        case UD_Isysexit:
-        case UD_Isysret:
-            bin += X86InstructionBin_system;
-            bin += BinFrame;
-            break;
-        case UD_Id3vil:
-        case UD_Idb:
-        case UD_Igrp_asize:
-        case UD_Igrp_mod:
-        case UD_Igrp_mode:
-        case UD_Igrp_osize:
-        case UD_Igrp_reg:
-        case UD_Igrp_rm:
-        case UD_Igrp_vendor:
-        case UD_Igrp_x87:
-        case UD_Iinvalid:
-        case UD_Ina:
-        case UD_Inone:
-        case UD_Iud2:
-            bin += X86InstructionBin_invalid;
-            break;
-        case UD_I3dnow:
-        case UD_Iaaa:
-        case UD_Iaad:
-        case UD_Iaam:
-        case UD_Iaas:
-        case UD_Iarpl:
-        case UD_Iclc:
-        case UD_Icld:
-        case UD_Iclgi:
-        case UD_Icli:
-        case UD_Iclts:
-        case UD_Icmc:
-        case UD_Icpuid:
-        case UD_Idaa:
-        case UD_Idas:
-        case UD_Iemms:
-        case UD_Ifemms:
-        case UD_Iffree:
-        case UD_Iffreep:
-        case UD_Ifldcw:
-        case UD_Ifldenv:
-        case UD_Ifncstp:
-        case UD_Ifninit:
-        case UD_Ifnop:
-        case UD_Ihlt:
-        case UD_Iin:
-        case UD_Iinsb:
-        case UD_Iinsd:
-        case UD_Iinsw:
-        case UD_Ilahf:
-        case UD_Ilar:
-        case UD_Ilfence:
-        case UD_Ilgdt:
-        case UD_Ilidt:
-        case UD_Illdt:
-        case UD_Ilmsw:
-        case UD_Ilock:
-        case UD_Iloop:
-        case UD_Iloope:
-        case UD_Iloopnz:
-        case UD_Ilsl:
-        case UD_Iltr:
-        case UD_Imfence:
-        case UD_Imonitor:
-        case UD_Imwait:
-        case UD_Inop:
-        case UD_Iout:
-        case UD_Ioutsb:
-        case UD_Ioutsd:
-        case UD_Ioutsq:
-        case UD_Ioutsw:
-        case UD_Ipause:
-        case UD_Irdmsr:
-        case UD_Irdpmc:
-        case UD_Irdtsc:
-        case UD_Irdtscp:
-        case UD_Irsm:
-        case UD_Isahf:
-        case UD_Isfence:
-        case UD_Isgdt:
-        case UD_Isidt:
-        case UD_Iskinit:
-        case UD_Isldt:
-        case UD_Ismsw:
-        case UD_Istc:
-        case UD_Istd:
-        case UD_Istgi:
-        case UD_Isti:
-        case UD_Istmxcsr:
-        case UD_Iswapgs:
-        case UD_Iverr:
-        case UD_Iverw:
-        case UD_Ivmcall:
-        case UD_Ivmclear:
-        case UD_Ivmload:
-        case UD_Ivmmcall:
-        case UD_Ivmptrld:
-        case UD_Ivmptrst:
-        case UD_Ivmresume:
-        case UD_Ivmrun:
-        case UD_Ivmsave:
-        case UD_Ivmxoff:
-        case UD_Ivmxon:
-        case UD_Iwait:
-        case UD_Iwbinvd:
-        case UD_Iwrmsr:
-        case UD_Ixlatb:
-            bin += X86InstructionBin_other;
-            break;
-        default:
-            bin = X86InstructionBin_unknown;
-            break;
-    };
-    instructionBin = bin;
-    return instructionBin;
+void X86Instruction::printBin(){
+    if(isBinUnknown())      printf("Unknown");
+    else if(isBinInvalid()) printf("Invalid");
+    else if(isBinCond())    printf("Cond");
+    else if(isBinUncond())  printf("Uncond");
+    else if(isBinBin())     printf("Bin");
+    else if(isBinBinv())    printf("Binv");
+    else if(isBinInt())     printf("Int");
+    else if(isBinIntv())    printf("Intv");
+    else if(isBinFloat())   printf("Float");
+    else if(isBinFloatv())  printf("Floatv");
+    else if(isBinFloats())  printf("Floats");
+    else if(isBinMove())    printf("Move");
+    else if(isBinSystem())  printf("System");
+    else if(isBinStack())   printf("Stack");
+    else if(isBinOther())   printf("Other");
+    else if(isBinCache())   printf("Cache");
+    else if(isBinString())  printf("String");
+    else if(isBinByte())    printf("Byte");
+    else if(isBinBytev())   printf("Bytev");
+    else if(isBinWord())    printf("Word");
+    else if(isBinWordv())   printf("Wordv");
+    else if(isBinDword())   printf("Dword");
+    else if(isBinDwordv())  printf("Dwordv");
+    else if(isBinQword())   printf("Qword");
+    else if(isBinQwordv())  printf("Qwordv");
+    else if(isBinSingle())  printf("Single");
+    else if(isBinSinglev()) printf("Singlev");
+    else if(isBinSingles()) printf("Singles");
+    else if(isBinDouble())  printf("Double");
+    else if(isBinDoublev()) printf("Doublev");
+    else if(isBinDoubles()) printf("Doubles");
+    printf("\n");
 }
 
 bool X86Instruction::controlFallsThrough(){
@@ -2032,7 +1360,6 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     byteSource = src;
     container = cont;
     addressAnchor = NULL;
-    instructionBin = X86InstructionBin_unknown;
     liveIns = NULL;
     liveOuts = NULL;
     defUseDist = 0;
@@ -2048,11 +1375,9 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     }
 
     leader = false;
-
-    setFlags();
-
     defXIter = false;
 
+    setFlags();
     verify();
 }
 
@@ -2079,7 +1404,6 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     byteSource = src;
     container = cont;
     addressAnchor = NULL;
-    instructionBin = X86InstructionBin_unknown;
     liveIns = NULL;
     liveOuts = NULL;
     defUseDist = 0;
@@ -2095,11 +1419,9 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     }
 
     leader = false;
-
-    setFlags();
-
     defXIter = false;
 
+    setFlags();
     verify();
 }
 
@@ -2140,7 +1462,7 @@ void X86Instruction::print(){
 
     flags[8] = '\0';
 
-    PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%8s]\t-> %#llx %hx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress(), getInstructionBin());
+    PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%8s]\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
 
 #ifdef PRINT_INSTRUCTION_DETAIL
 #ifndef NO_REG_ANALYSIS
@@ -2542,32 +1864,43 @@ uint32_t X86InstructionClassifier::getClass(uint32_t mnemonic){
 }
 
 X86InstructionBin X86InstructionClassifier::getInstructionBin(X86Instruction* x){ 
-    return (X86InstructionBin)rawClassBits(x->GET(mnemonic), 8, 0);  
+    return (X86InstructionBin)rawClassBits(x->GET(mnemonic), 8, 8);  
 }
 
 uint8_t X86InstructionClassifier::getInstructionMemLocation(X86Instruction* x){
-    return (uint8_t)rawClassBits(x->GET(mnemonic), 4, 8);
+    uint8_t loc = (uint8_t)rawClassBits(x->GET(mnemonic), 4, 28);
+    if (x->isLoad()){
+        loc |= (BinLoad >> 8);
+    }
+    if (x->isStore()){
+        loc |= (BinStore >> 8);
+    }    
+    return loc;
 }
 
 uint8_t X86InstructionClassifier::getInstructionMemSize(X86Instruction* x){
-    return (uint8_t)rawClassBits(x->GET(mnemonic), 4, 12);
+    uint8_t mem = (uint8_t)rawClassBits(x->GET(mnemonic), 8, 20);
+    if (mem & MEM_SZ_VARIABLE){
+        mem = x->getDstSizeInBytes();
+    }
+    return mem;
 }
 
 X86InstructionType X86InstructionClassifier::getInstructionType(X86Instruction* x){
-    return (X86InstructionType)rawClassBits(x->GET(mnemonic), 8, 16);
+    return (X86InstructionType)rawClassBits(x->GET(mnemonic), 8, 0);
 }
 
 X86OperandFormat X86InstructionClassifier::getInstructionFormat(X86Instruction* x){ 
-    return (X86OperandFormat)rawClassBits(x->GET(mnemonic), 4, 24);
+    return (X86OperandFormat)rawClassBits(x->GET(mnemonic), 4, 16);
 }
 
-uint32_t X86InstructionClassifier::packFields(uint8_t bin, uint8_t location, uint8_t memsize, uint8_t type, uint8_t format){
+uint32_t X86InstructionClassifier::packFields(uint8_t type, uint8_t bin, uint8_t format, uint8_t memsize, uint8_t location){
     return (
-            ( (bin      & 0xff ) << 0  ) | // B
-            ( (location & 0xf  ) << 8  ) | // L
-            ( (memsize  & 0xf  ) << 12 ) | // S
-            ( (type     & 0xff ) << 16 ) | // T
-            ( (format   & 0xf  ) << 24 )); // F
+            ( (type     & 0xff ) << 0 )  |
+            ( (bin      & 0xff ) << 8  ) |
+            ( (format   & 0xf  ) << 16 ) |
+            ( (memsize  & 0xff ) << 20 ) |
+            ( (location & 0xf  ) << 28 ));
 }
 
 void X86InstructionClassifier::print(X86Instruction* x){
@@ -2602,900 +1935,918 @@ bool X86InstructionClassifier::verify(){
 }
 
 void X86InstructionClassifier::fillClassDefinitions(){
-    classMap[UD_I3dnow] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iaaa] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iaad] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iaam] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iaas] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iadc] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iadd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iaddpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iaddps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iaddsd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iaddss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iaddsubpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iaddsubps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iand] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iandnpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iandnps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iandpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iandps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iarpl] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iblendpd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iblendps] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iblendvpd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iblendvps] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ibound] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ibsf] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ibsr] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ibswap] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ibt] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ibtc] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ibtr] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ibts] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Icall] = packFields(0, 0, 0, X86InstructionType_call, 0);
-    classMap[UD_Icbw] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Icdq] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Icdqe] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iclc] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Icld] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iclflush] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iclgi] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Icli] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iclts] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Icmc] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Icmova] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovae] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovb] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovbe] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovg] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovge] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovl] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovle] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovno] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovnp] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovns] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovnz] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovo] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovp] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovs] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmovz] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Icmp] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Icmppd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icmpps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icmpsb] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Icmpsd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icmpsq] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Icmpss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icmpsw] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Icmpxchg] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Icmpxchg8b] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Icomisd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icomiss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icpuid] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Icqo] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Icvtdq2pd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtdq2ps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtpd2dq] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtpd2pi] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtpd2ps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtpi2pd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtpi2ps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtps2dq] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtps2pd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtps2pi] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtsd2si] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtsd2ss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtsi2sd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtsi2ss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtss2sd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvtss2si] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvttpd2dq] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvttpd2pi] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvttps2dq] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvttps2pi] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvttsd2si] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icvttss2si] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Icwd] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Icwde] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Idaa] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Idas] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Idb] = packFields(0, 0, 0, X86InstructionType_invalid, 0);
-    classMap[UD_Idec] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Idiv] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Idivpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Idivps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Idivsd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Idivss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Idppd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Idpps] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iemms] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ienter] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iextractps] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_If2xm1] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifabs] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifadd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifaddp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifbld] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifbstp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifchs] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifclex] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifcmovb] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ifcmovbe] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ifcmove] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ifcmovnb] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ifcmovnbe] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ifcmovne] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ifcmovnu] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ifcmovu] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ifcom] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifcom2] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifcomi] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifcomip] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifcomp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifcomp3] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifcomp5] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifcompp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifcos] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifdecstp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifdiv] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifdivp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifdivr] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifdivrp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifemms] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iffree] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iffreep] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifiadd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ificom] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ificomp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifidiv] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifidivr] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifild] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifimul] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifist] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifistp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifisttp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifisub] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifisubr] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifld] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifld1] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifldcw] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ifldenv] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ifldl2e] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifldl2t] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifldlg2] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifldln2] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifldlpi] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifldz] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifmul] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifmulp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifncstp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifninit] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifnop] = packFields(0, 0, 0, X86InstructionType_nop, 0);
-    classMap[UD_Ifnsave] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ifnstcw] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ifnstenv] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ifnstsw] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ifpatan] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifprem] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifprem1] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifptan] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifpxtract] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifrndint] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifrstor] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ifscale] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifsin] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifsincos] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifsqrt] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifst] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifstp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifstp1] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifstp8] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifstp9] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifsub] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifsubp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifsubr] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifsubrp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iftst] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifucom] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifucomi] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifucomip] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifucomp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifucompp] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifxam] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifxch] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ifxch4] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ifxch7] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ifxrstor] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ifxsave] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ifyl2x] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ifyl2xp1] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ihaddpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ihaddps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ihlt] = packFields(0, 0, 0, X86InstructionType_halt, 0);
-    classMap[UD_Ihsubpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ihsubps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iidiv] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iimul] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iin] = packFields(0, 0, 0, X86InstructionType_io, 0);
-    classMap[UD_Iinc] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iinsb] = packFields(0, 0, 0, X86InstructionType_io, 0);
-    classMap[UD_Iinsd] = packFields(0, 0, 0, X86InstructionType_io, 0);
-    classMap[UD_Iinsertps] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iinsw] = packFields(0, 0, 0, X86InstructionType_io, 0);
-    classMap[UD_Iint] = packFields(0, 0, 0, X86InstructionType_trap, 0);
-    classMap[UD_Iint1] = packFields(0, 0, 0, X86InstructionType_trap, 0);
-    classMap[UD_Iint3] = packFields(0, 0, 0, X86InstructionType_trap, 0);
-    classMap[UD_Iinto] = packFields(0, 0, 0, X86InstructionType_trap, 0);
-    classMap[UD_Iinvalid] = packFields(0, 0, 0, X86InstructionType_invalid, 0);
-    classMap[UD_Iinvd] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iinvlpg] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iinvlpga] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iiretd] = packFields(0, 0, 0, X86InstructionType_return, 0);
-    classMap[UD_Iiretq] = packFields(0, 0, 0, X86InstructionType_return, 0);
-    classMap[UD_Iiretw] = packFields(0, 0, 0, X86InstructionType_return, 0);
-    classMap[UD_Ija] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijae] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijb] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijbe] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijcxz] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijecxz] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijg] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijge] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijl] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijle] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijmp] = packFields(0, 0, 0, X86InstructionType_uncond_branch, 0);
-    classMap[UD_Ijno] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijnp] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijns] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijne] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijo] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijp] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijrcxz] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ijs] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ije] = packFields(0, 0, 0, X86InstructionType_cond_branch, 0);
-    classMap[UD_Ilahf] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ilar] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ilddqu] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ildmxcsr] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ilds] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ilea] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ileave] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iles] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ilfence] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ilfs] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ilgdt] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ilgs] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ilidt] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Illdt] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ilmsw] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ilock] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ilodsb] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Ilodsd] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Ilodsq] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Ilodsw] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Iloop] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iloope] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iloopnz] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ilsl] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ilss] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iltr] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Imaskmovq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imaxpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Imaxps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Imaxsd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Imaxss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Imfence] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iminpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iminps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iminsd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iminss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Imonitor] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Imov] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovapd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovaps] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovddup] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovdq2q] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovdqa] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovdqu] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovhlps] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovhpd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovhps] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovlhps] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovlpd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovlps] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovmskpd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovmskps] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovntdq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovntdqa] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovnti] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovntpd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovntps] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovntq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovq2dq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovsb] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovsd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovshdup] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovsldup] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovsq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovss] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovsw] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovsx] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovsxd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovupd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovups] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imovzx] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Impsadbw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Imul] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Imulpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Imulps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Imulsd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Imulss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Imwait] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ineg] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Inop] = packFields(0, 0, 0, X86InstructionType_nop, 0);
-    classMap[UD_Inot] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ior] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iorpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iorps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iout] = packFields(0, 0, 0, X86InstructionType_io, 0);
-    classMap[UD_Ioutsb] = packFields(0, 0, 0, X86InstructionType_io, 0);
-    classMap[UD_Ioutsd] = packFields(0, 0, 0, X86InstructionType_io, 0);
-    classMap[UD_Ioutsq] = packFields(0, 0, 0, X86InstructionType_io, 0);
-    classMap[UD_Ioutsw] = packFields(0, 0, 0, X86InstructionType_io, 0);
-    classMap[UD_Ipackssdw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipacksswb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipackusdw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipackuswb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipaddb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipaddd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipaddq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipaddsb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipaddsw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipaddusb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipaddusw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipaddw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipalignr] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipand] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipandn] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipause] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ipavgb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipavgusb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipavgw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipblendvb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipblendw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipclmulqdq] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipcmpeqb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipcmpeqd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipcmpeqq] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipcmpeqw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipcmpestri] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipcmpestrm] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipcmpgtb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipcmpgtd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipcmpgtq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipcmpgtw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipcmpistri] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipcmpistrm] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipextrb] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipextrd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipextrq] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipextrw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipf2id] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipf2iw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfacc] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfadd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfcmpeq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfcmpge] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfcmpgt] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfmax] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfmin] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfmul] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfnacc] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfpnacc] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfrcp] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfrcpit1] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfrcpit2] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfrspit1] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfrsqrt] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfsub] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipfsubr] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iphaddd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iphminposuw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipi2fd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipi2fw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipinsrb] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipinsrd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipinsrq] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipinsrw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipmaddwd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipmaxsb] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipmaxsd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipmaxsw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipmaxub] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipmaxud] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipmaxuw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipminsb] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipminsd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipminsw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipminub] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipminud] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipminuw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipmovmskb] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmovsxbd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmovsxbq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmovsxbw] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmovsxdq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmovsxwd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmovsxwq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmovzxbd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmovzxbq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmovzxbw] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmovzxdq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmovzxwd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmovzxwq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipmuldq] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipmulhrw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipmulhuw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipmulhw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipmullw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipmuludq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipop] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipopa] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ipopad] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ipopfd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipopfq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipopfw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipor] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iprefetch] = packFields(0, 0, 0, X86InstructionType_prefetch, 0);
-    classMap[UD_Iprefetchnta] = packFields(0, 0, 0, X86InstructionType_prefetch, 0);
-    classMap[UD_Iprefetcht0] = packFields(0, 0, 0, X86InstructionType_prefetch, 0);
-    classMap[UD_Iprefetcht1] = packFields(0, 0, 0, X86InstructionType_prefetch, 0);
-    classMap[UD_Iprefetcht2] = packFields(0, 0, 0, X86InstructionType_prefetch, 0);
-    classMap[UD_Ipsadbw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipshufb] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipshufd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipshufhw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipshuflw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipshufw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipslld] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipslldq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsllq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsllw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsrad] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsraw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsrld] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsrldq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsrlq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsrlw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsubb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsubd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsubq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsubsb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsubsw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsubusb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsubusw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipsubw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipswapd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iptest] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipunpckhbw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipunpckhdq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipunpckhqdq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipunpckhwd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipunpcklbw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipunpckldq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipunpcklqdq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipunpcklwd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipush] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipusha] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ipushad] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ipushfd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipushfq] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipushfw] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ipxor] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ircl] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ircpps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ircpss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ircr] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Irdmsr] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Irdpmc] = packFields(0, 0, 0, X86InstructionType_hwcount, 0);
-    classMap[UD_Irdtsc] = packFields(0, 0, 0, X86InstructionType_hwcount, 0);
-    classMap[UD_Irdtscp] = packFields(0, 0, 0, X86InstructionType_hwcount, 0);
-    classMap[UD_Irep] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Irepne] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Iret] = packFields(0, 0, 0, X86InstructionType_return, 0);
-    classMap[UD_Iretf] = packFields(0, 0, 0, X86InstructionType_return, 0);
-    classMap[UD_Irol] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iror] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iroundpd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iroundps] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iroundsd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iroundss] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Irsm] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Irsqrtps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Irsqrtss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Isahf] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isal] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isalc] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isar] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isbb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iscasb] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Iscasd] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Iscasq] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Iscasw] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Iseta] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetbe] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetg] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetge] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetl] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetle] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetnb] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetno] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetnp] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetns] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetnz] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iseto] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetp] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isets] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isetz] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isfence] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Isgdt] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ishl] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ishld] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ishr] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ishrd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ishufpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ishufps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Isidt] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iskinit] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Isldt] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ismsw] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Isqrtpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Isqrtps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Isqrtsd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Isqrtss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Istc] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Istd] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Istgi] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Isti] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Istmxcsr] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Istosb] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Istosd] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Istosq] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Istosw] = packFields(0, 0, 0, X86InstructionType_string, 0);
-    classMap[UD_Istr] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Isub] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Isubpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Isubps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Isubsd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Isubss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iswapgs] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Isyscall] = packFields(0, 0, 0, X86InstructionType_system_call, 0);
-    classMap[UD_Isysenter] = packFields(0, 0, 0, X86InstructionType_system_call, 0);
-    classMap[UD_Isysexit] = packFields(0, 0, 0, X86InstructionType_system_call, 0);
-    classMap[UD_Isysret] = packFields(0, 0, 0, X86InstructionType_system_call, 0);
-    classMap[UD_Itest] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Iucomisd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iucomiss] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iud2] = packFields(0, 0, 0, X86InstructionType_invalid, 0);
-    classMap[UD_Iunpckhpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iunpckhps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iunpcklpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iunpcklps] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Iverr] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iverw] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ivmcall] = packFields(0, 0, 0, X86InstructionType_vmx, 0);
-    classMap[UD_Ivmclear] = packFields(0, 0, 0, X86InstructionType_vmx, 0);
-    classMap[UD_Ivmload] = packFields(0, 0, 0, X86InstructionType_vmx, 0);
-    classMap[UD_Ivmmcall] = packFields(0, 0, 0, X86InstructionType_vmx, 0);
-    classMap[UD_Ivmovapd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmptrld] = packFields(0, 0, 0, X86InstructionType_vmx, 0);
-    classMap[UD_Ivmptrst] = packFields(0, 0, 0, X86InstructionType_vmx, 0);
-    classMap[UD_Ivmresume] = packFields(0, 0, 0, X86InstructionType_vmx, 0);
-    classMap[UD_Ivmrun] = packFields(0, 0, 0, X86InstructionType_vmx, 0);
-    classMap[UD_Ivmsave] = packFields(0, 0, 0, X86InstructionType_vmx, 0);
-    classMap[UD_Ivmxoff] = packFields(0, 0, 0, X86InstructionType_vmx, 0);
-    classMap[UD_Ivmxon] = packFields(0, 0, 0, X86InstructionType_vmx, 0);
-    classMap[UD_Iwait] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iwbinvd] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Iwrmsr] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ixadd] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ixchg] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ixlatb] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ixor] = packFields(0, 0, 0, X86InstructionType_int, 0);
-    classMap[UD_Ixorpd] = packFields(0, 0, 0, X86InstructionType_float, 0);
-    classMap[UD_Ixorps] = packFields(0, 0, 0, X86InstructionType_float, 0);
 
-    classMap[UD_Iaesdec] = packFields(0, 0, 0, X86InstructionType_aes, 0);
-    classMap[UD_Iaesdeclast] = packFields(0, 0, 0, X86InstructionType_aes, 0);
-    classMap[UD_Iaesenc] = packFields(0, 0, 0, X86InstructionType_aes, 0);
-    classMap[UD_Iaesenclast] = packFields(0, 0, 0, X86InstructionType_aes, 0);
-    classMap[UD_Iaesimc] = packFields(0, 0, 0, X86InstructionType_aes, 0);
-    classMap[UD_Iaeskeygenassist] = packFields(0, 0, 0, X86InstructionType_aes, 0);
-    classMap[UD_Ivaesdec] = packFields(0, 0, 0, X86InstructionType_aes, 0);
-    classMap[UD_Ivaesdeclast] = packFields(0, 0, 0, X86InstructionType_aes, 0);
-    classMap[UD_Ivaesenc] = packFields(0, 0, 0, X86InstructionType_aes, 0);
-    classMap[UD_Ivaesenclast] = packFields(0, 0, 0, X86InstructionType_aes, 0);
-    classMap[UD_Ivaesimc] = packFields(0, 0, 0, X86InstructionType_aes, 0);
-    classMap[UD_Ivaeskeygenassist] = packFields(0, 0, 0, X86InstructionType_aes, 0);
+    /* macros to make the table assignment statements easier to write + more concise */
+#define xbin(__bin) X86InstructionBin_ ## __bin
+#define xtyp(__typ) X86InstructionType_ ## __typ
+#define xfmt(__fmt) X86OperandFormat_ ## __fmt
+#define xsiz(__bits) (__bits >> 3)
+#define X86InstructionBin_0 0
+#define X86OperandFormat_0 0
+#define VRSZ (MEM_SZ_VARIABLE << 3)
+#define mkassign(__mne, __typ, __bin, __fmt, __mem, __loc) \
+    classMap[UD_I ## __mne] = packFields(xtyp(__typ), xbin(__bin), xfmt(__fmt), xsiz(__mem), __loc >> 8)
 
-    classMap[UD_Ivaddpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivaddps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivaddsd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivaddss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivaddsubpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivaddsubps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivandnpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivandnps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivandpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivandps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivblendpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivmulpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivmulps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpshufd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivmpsadbw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsadbw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
+    //               mnemonic,     type      bin  fmt msize  mloc
+    mkassign(           3dnow,  special,   other,   0,    0,    0);
+    mkassign(             aaa,      int,   other,   0,    0,    0);
+    mkassign(             aad,      int,   other,   0,    0,    0);
+    mkassign(             aam,      int,   other,   0,    0,    0);
+    mkassign(             aas,      int,   other,   0,    0,    0);
+    mkassign(             adc,      int,     int,   0, VRSZ,    0);
+    mkassign(             add,      int,     int,   0, VRSZ,    0);
+    mkassign(           addpd,    float,  floatv,   0,   64,    0);
+    mkassign(           addps,    float,  floatv,   0,   32,    0);
+    mkassign(           addsd,    float,  floats,   0,   64,    0);
+    mkassign(           addss,    float,  floats,   0,   32,    0);
+    mkassign(        addsubpd,    float,  floatv,   0,   64,    0);
+    mkassign(        addsubps,    float,  floatv,   0,   32,    0);
+    mkassign(      aesdeclast,      aes,       0,   0,    0,    0);
+    mkassign(          aesdec,      aes,       0,   0,    0,    0);
+    mkassign(      aesenclast,      aes,       0,   0,    0,    0);
+    mkassign(          aesenc,      aes,       0,   0,    0,    0);
+    mkassign(          aesimc,      aes,       0,   0,    0,    0);
+    mkassign( aeskeygenassist,      aes,       0,   0,    0,    0);
+    mkassign(          andnpd,    float,    binv,   0,   64,    0);
+    mkassign(          andnps,    float,    binv,   0,   32,    0);
+    mkassign(             and,      int,     bin,   0, VRSZ,    0);
+    mkassign(           andpd,    float,    binv,   0,   64,    0);
+    mkassign(           andps,    float,    binv,   0,   32,    0);
+    mkassign(            arpl,  special,   other,   0,    0,    0);
+    mkassign(         blendpd,      int,       0,   0,    0,    0);
+    mkassign(         blendps,      int,       0,   0,    0,    0);
+    mkassign(        blendvpd,      int,       0,   0,    0,    0);
+    mkassign(        blendvps,      int,       0,   0,    0,    0);
+    mkassign(           bound,      int,     bin,   0, VRSZ,    0);
+    mkassign(       broadcast,     simd,       0,   0,    0,    0);
+    mkassign(             bsf,      int,     bin,   0, VRSZ,    0);
+    mkassign(             bsr,      int,     bin,   0, VRSZ,    0);
+    mkassign(           bswap,      int,     bin,   0, VRSZ,    0);
+    mkassign(             btc,      int,     bin,   0, VRSZ,    0);
+    mkassign(              bt,      int,     bin,   0, VRSZ,    0);
+    mkassign(             btr,      int,     bin,   0, VRSZ,    0);
+    mkassign(             bts,      int,     bin,   0, VRSZ,    0);
+    mkassign(            call,     call,  uncond,   0,    0,    BinFrame);
+    mkassign(             cbw,  special,     bin,   0,   16,    0);
+    mkassign(            cdqe,  special,     bin,   0,   64,    0);
+    mkassign(             cdq,  special,     bin,   0,   64,    0);
+    mkassign(             clc,  special,   other,   0,    0,    0);
+    mkassign(             cld,  special,   other,   0,    0,    0);
+    mkassign(         clflush,  special,   cache,   0,    0,    0);
+    mkassign(            clgi,  special,   other,   0,    0,    0);
+    mkassign(             cli,  special,   other,   0,    0,    0);
+    mkassign(            clts,  special,   other,   0,    0,    0);
+    mkassign(             cmc,  special,   other,   0,    0,    0);
+    mkassign(          cmovae,     move,    move,   0, VRSZ,    0);
+    mkassign(           cmova,     move,    move,   0, VRSZ,    0);
+    mkassign(          cmovbe,     move,    move,   0, VRSZ,    0);
+    mkassign(           cmovb,     move,    move,   0, VRSZ,    0);
+    mkassign(          cmovge,     move,    move,   0, VRSZ,    0);
+    mkassign(           cmovg,     move,    move,   0, VRSZ,    0);
+    mkassign(          cmovle,     move,    move,   0, VRSZ,    0);
+    mkassign(           cmovl,     move,    move,   0, VRSZ,    0);
+    mkassign(          cmovno,     move,    move,   0, VRSZ,    0);
+    mkassign(          cmovnp,     move,    move,   0, VRSZ,    0);
+    mkassign(          cmovns,     move,    move,   0, VRSZ,    0);
+    mkassign(          cmovnz,     move,    move,   0, VRSZ,    0);
+    mkassign(           cmovo,     move,    move,   0, VRSZ,    0);
+    mkassign(           cmovp,     move,    move,   0, VRSZ,    0);
+    mkassign(           cmovs,     move,    move,   0, VRSZ,    0);
+    mkassign(           cmovz,     move,    move,   0, VRSZ,    0);
+    mkassign(             cmp,      int,     int,   0, VRSZ,    0);
+    mkassign(           cmppd,    float,  floatv,   0,   64,    0);
+    mkassign(           cmpps,    float,  floatv,   0,   32,    0);
+    mkassign(           cmpsb,   string,  string,   0,    8,    0);
+    // TODO: 2 instructions covered by this... need to handle special
+    mkassign(           cmpsd,    float,  string,   0,   32,    0);
+    mkassign(           cmpsq,   string,  string,   0,   64,    0);
+    mkassign(           cmpss,    float,  floats,   0,   32,    0);
+    mkassign(           cmpsw,   string,  string,   0,   16,    0);
+    mkassign(       cmpxchg8b,      int,     int,   0, VRSZ,    0);
+    mkassign(         cmpxchg,      int,     int,   0, VRSZ,    0);
+    mkassign(          comisd,    float,  floats,   0,   64,    0);
+    mkassign(          comiss,    float,  floats,   0,   32,    0);
+    mkassign(           cpuid,  special,   other,   0,    0,    0);
+    mkassign(             cqo,  special,     bin,   0,   64,    0);
+    mkassign(        cvtdq2pd,    float,  floatv,   0,   64,    0);
+    mkassign(        cvtdq2ps,    float,  floatv,   0,   32,    0);
+    mkassign(        cvtpd2dq,    float,  floatv,   0,   64,    0);
+    mkassign(        cvtpd2pi,    float,  floatv,   0,   64,    0);
+    mkassign(        cvtpd2ps,    float,  floatv,   0,   32,    0);
+    mkassign(        cvtph2ps,     simd,       0,   0,    0,    0);
+    mkassign(        cvtpi2pd,    float,  floatv,   0,   64,    0);
+    mkassign(        cvtpi2ps,    float,  floatv,   0,   32,    0);
+    mkassign(        cvtps2dq,    float,  floatv,   0,   32,    0);
+    mkassign(        cvtps2pd,    float,  floatv,   0,   64,    0);
+    mkassign(        cvtps2ph,     simd,       0,   0,    0,    0);
+    mkassign(        cvtps2pi,    float,  floatv,   0,   32,    0);
+    mkassign(        cvtsd2si,    float,  floats,   0,   64,    0);
+    mkassign(        cvtsd2ss,    float,  floats,   0,   64,    0);
+    mkassign(        cvtsi2sd,    float,  floats,   0,   64,    0);
+    mkassign(        cvtsi2ss,    float,  floats,   0,   32,    0);
+    mkassign(        cvtss2sd,    float,  floats,   0,   64,    0);
+    mkassign(        cvtss2si,    float,  floats,   0,   32,    0);
+    mkassign(       cvttpd2dq,    float,  floatv,   0,   64,    0);
+    mkassign(       cvttpd2pi,    float,  floatv,   0,   64,    0);
+    mkassign(       cvttps2dq,    float,  floatv,   0,   32,    0);
+    mkassign(       cvttps2pi,    float,  floatv,   0,   32,    0);
+    mkassign(       cvttsd2si,    float,  floats,   0,   32,    0);
+    mkassign(       cvttss2si,    float,  floats,   0,   32,    0);
+    mkassign(            cwde,  special,     bin,   0,   32,    0);
+    mkassign(             cwd,  special,     bin,   0,   32,    0);
+    mkassign(             daa,      int,   other,   0,    0,    0);
+    mkassign(             das,      int,   other,   0,    0,    0);
+    mkassign(              db,  invalid, invalid,   0,    0,    0);
+    mkassign(             dec,      int,     int,   0, VRSZ,    0);
+    mkassign(             div,      int,     int,   0, VRSZ,    0);
+    mkassign(           divpd,    float,  floatv,   0,   64,    0);
+    mkassign(           divps,    float,  floatv,   0,   32,    0);
+    mkassign(           divsd,    float,  floats,   0,   64,    0);
+    mkassign(           divss,    float,  floats,   0,   32,    0);
+    mkassign(            dppd,     simd,       0,   0,    0,    0);
+    mkassign(            dpps,     simd,       0,   0,    0,    0);
+    mkassign(            emms,  special,   other,   0,    0,    0);
+    mkassign(           enter,  special,   stack,   0,    0,    BinFrame);
+    mkassign(     extractf128,     simd,       0,   0,    0,    0);
+    mkassign(       extractps,     simd,       0,   0,    0,    0);
+    mkassign(           f2xm1,    float,   float,   0, VRSZ,    0);
+    mkassign(            fabs,    float,   float,   0, VRSZ,    0);
+    mkassign(            fadd,    float,   float,   0, VRSZ,    0);
+    mkassign(           faddp,    float,   float,   0, VRSZ,    0);
+    mkassign(            fbld,    float,   float,   0, VRSZ,    0);
+    mkassign(           fbstp,    float,   float,   0, VRSZ,    0);
+    mkassign(            fchs,    float,   float,   0, VRSZ,    0);
+    mkassign(           fclex,    float,   float,   0, VRSZ,    0);
+    mkassign(         fcmovbe,     move,    move,   0, VRSZ,    0);
+    mkassign(          fcmovb,     move,    move,   0, VRSZ,    0);
+    mkassign(          fcmove,     move,    move,   0, VRSZ,    0);
+    mkassign(        fcmovnbe,     move,    move,   0, VRSZ,    0);
+    mkassign(         fcmovnb,     move,    move,   0, VRSZ,    0);
+    mkassign(         fcmovne,     move,    move,   0, VRSZ,    0);
+    mkassign(         fcmovnu,     move,    move,   0, VRSZ,    0);
+    mkassign(          fcmovu,     move,    move,   0, VRSZ,    0);
+    mkassign(           fcom2,    float,   float,   0, VRSZ,    0);
+    mkassign(           fcomi,    float,   float,   0, VRSZ,    0);
+    mkassign(          fcomip,    float,   float,   0, VRSZ,    0);
+    mkassign(          fcomp3,    float,   float,   0, VRSZ,    0);
+    mkassign(          fcomp5,    float,   float,   0, VRSZ,    0);
+    mkassign(            fcom,    float,   float,   0, VRSZ,    0);
+    mkassign(           fcomp,    float,   float,   0, VRSZ,    0);
+    mkassign(          fcompp,    float,   float,   0, VRSZ,    0);
+    mkassign(            fcos,    float,   float,   0, VRSZ,    0);
+    mkassign(         fdecstp,    float,   float,   0, VRSZ,    0);
+    mkassign(            fdiv,    float,   float,   0, VRSZ,    0);
+    mkassign(           fdivp,    float,   float,   0, VRSZ,    0);
+    mkassign(           fdivr,    float,   float,   0, VRSZ,    0);
+    mkassign(          fdivrp,    float,   float,   0, VRSZ,    0);
+    mkassign(           femms,    float,   other,   0,    0,    0);
+    mkassign(           ffree,    float,   other,   0,    0,    0);
+    mkassign(          ffreep,    float,   other,   0,    0,    0);
+    mkassign(           fiadd,    float,   float,   0, VRSZ,    0);
+    mkassign(           ficom,    float,   float,   0, VRSZ,    0);
+    mkassign(          ficomp,    float,   float,   0, VRSZ,    0);
+    mkassign(           fidiv,    float,   float,   0, VRSZ,    0);
+    mkassign(          fidivr,    float,   float,   0, VRSZ,    0);
+    mkassign(            fild,    float,    move,   0, VRSZ,    0);
+    mkassign(           fimul,    float,   float,   0, VRSZ,    0);
+    mkassign(            fist,    float,    move,   0, VRSZ,    0);
+    mkassign(           fistp,    float,    move,   0, VRSZ,    0);
+    mkassign(          fisttp,    float,    move,   0, VRSZ,    0);
+    mkassign(           fisub,    float,   float,   0, VRSZ,    0);
+    mkassign(          fisubr,    float,   float,   0, VRSZ,    0);
+    mkassign(            fld1,    float,    move,   0, VRSZ,    0);
+    mkassign(           fldcw,  special,   other,   0,    0,    0);
+    mkassign(          fldenv,  special,   other,   0,    0,    0);
+    mkassign(          fldl2e,    float,    move,   0, VRSZ,    0);
+    mkassign(          fldl2t,    float,    move,   0, VRSZ,    0);
+    mkassign(          fldlg2,    float,    move,   0, VRSZ,    0);
+    mkassign(          fldln2,    float,    move,   0, VRSZ,    0);
+    mkassign(          fldlpi,    float,    move,   0, VRSZ,    0);
+    mkassign(             fld,    float,    move,   0, VRSZ,    0);
+    mkassign(            fldz,    float,    move,   0, VRSZ,    0);
+    mkassign(            fmul,    float,   float,   0, VRSZ,    0);
+    mkassign(           fmulp,    float,   float,   0, VRSZ,    0);
+    mkassign(          fncstp,    float,   other,   0,    0,    0);
+    mkassign(          fninit,    float,   other,   0,    0,    0);
+    mkassign(            fnop,      nop,   other,   0,    0,    0);
+    mkassign(          fnsave,  special,   stack,   0,    0,    BinFrame);
+    mkassign(          fnstcw,  special,   stack,   0,    0,    BinFrame);
+    mkassign(         fnstenv,  special,   stack,   0,    0,    BinFrame);
+    mkassign(          fnstsw,  special,   stack,   0,    0,    BinFrame);
+    mkassign(          fpatan,    float,   float,   0, VRSZ,    0);
+    mkassign(          fprem1,    float,   float,   0, VRSZ,    0);
+    mkassign(           fprem,    float,   float,   0, VRSZ,    0);
+    mkassign(           fptan,    float,   float,   0, VRSZ,    0);
+    mkassign(        fpxtract,    float,   float,   0, VRSZ,    0);
+    mkassign(         frndint,    float,   float,   0, VRSZ,    0);
+    mkassign(          frstor,  special,   stack,   0,    0,    BinFrame);
+    mkassign(          fscale,    float,   float,   0, VRSZ,    0);
+    mkassign(         fsincos,    float,   float,   0, VRSZ,    0);
+    mkassign(            fsin,    float,   float,   0, VRSZ,    0);
+    mkassign(           fsqrt,    float,   float,   0, VRSZ,    0);
+    mkassign(           fstp1,    float,    move,   0, VRSZ,    0);
+    mkassign(           fstp8,    float,    move,   0, VRSZ,    0);
+    mkassign(           fstp9,    float,    move,   0, VRSZ,    0);
+    mkassign(             fst,    float,    move,   0, VRSZ,    0);
+    mkassign(            fstp,    float,    move,   0, VRSZ,    0);
+    mkassign(            fsub,    float,   float,   0, VRSZ,    0);
+    mkassign(           fsubp,    float,   float,   0, VRSZ,    0);
+    mkassign(           fsubr,    float,   float,   0, VRSZ,    0);
+    mkassign(          fsubrp,    float,   float,   0, VRSZ,    0);
+    mkassign(            ftst,    float,   float,   0, VRSZ,    0);
+    mkassign(          fucomi,    float,   float,   0, VRSZ,    0);
+    mkassign(         fucomip,    float,   float,   0, VRSZ,    0);
+    mkassign(           fucom,    float,   float,   0, VRSZ,    0);
+    mkassign(          fucomp,    float,   float,   0, VRSZ,    0);
+    mkassign(         fucompp,    float,   float,   0, VRSZ,    0);
+    mkassign(            fxam,    float,   float,   0, VRSZ,    0);
+    mkassign(           fxch4,      int,    move,   0, VRSZ,    0);
+    mkassign(           fxch7,      int,    move,   0, VRSZ,    0);
+    mkassign(            fxch,      int,    move,   0, VRSZ,    0);
+    mkassign(         fxrstor,  special,   stack,   0,    0,    BinFrame);
+    mkassign(          fxsave,  special,   stack,   0,    0,    BinFrame);
+    mkassign(         fyl2xp1,    float,   float,   0, VRSZ,    0);
+    mkassign(           fyl2x,    float,   float,   0, VRSZ,    0);
+    mkassign(          haddpd,    float,  floatv,   0,   64,    0);
+    mkassign(          haddps,    float,  floatv,   0,   32,    0);
+    mkassign(             hlt,     halt,   other,   0,    0,    0);
+    mkassign(          hsubpd,    float,  floatv,   0,   64,    0);
+    mkassign(          hsubps,    float,  floatv,   0,   32,    0);
+    mkassign(            idiv,      int,     int,   0, VRSZ,    0);
+    mkassign(            imul,      int,     int,   0, VRSZ,    0);
+    mkassign(             inc,      int,     int,   0, VRSZ,    0);
+    mkassign(              in,       io,   other,   0,    0,    0);
+    mkassign(            insb,       io,   other,   0,    0,    0);
+    mkassign(            insd,       io,   other,   0,    0,    0);
+    mkassign(      insertf128,     simd,       0,   0,    0,    0);
+    mkassign(        insertps,     simd,       0,   0,    0,    0);
+    mkassign(            insw,       io,   other,   0,    0,    0);
+    mkassign(            int1,     trap,  system,   0,    0,    BinFrame);
+    mkassign(            int3,     trap,  system,   0,    0,    BinFrame);
+    mkassign(            into,     trap,  system,   0,    0,    BinFrame);
+    mkassign(             int,     trap,  system,   0,    0,    BinFrame);
+    mkassign(         invalid,  invalid, invalid,   0,    0,    0);
+    mkassign(            invd,  special,   cache,   0,    0,    0);
+    mkassign(         invlpga,  special,   cache,   0,    0,    0);
+    mkassign(          invlpg,  special,   cache,   0,    0,    0);
+    mkassign(           iretd,   return,  system,   0,    0,    BinFrame);
+    mkassign(           iretq,   return,  system,   0,    0,    BinFrame);
+    mkassign(           iretw,   return,  system,   0,    0,    BinFrame);
+    mkassign(             jae,   condbr,    cond,   0,    0,    0);
+    mkassign(              ja,   condbr,    cond,   0,    0,    0);
+    mkassign(             jbe,   condbr,    cond,   0,    0,    0);
+    mkassign(              jb,   condbr,    cond,   0,    0,    0);
+    mkassign(            jcxz,   condbr,    cond,   0,    0,    0);
+    mkassign(           jecxz,   condbr,    cond,   0,    0,    0);
+    mkassign(              je,   condbr,    cond,   0,    0,    0);
+    mkassign(             jge,   condbr,    cond,   0,    0,    0);
+    mkassign(              jg,   condbr,    cond,   0,    0,    0);
+    mkassign(             jle,   condbr,    cond,   0,    0,    0);
+    mkassign(              jl,   condbr,    cond,   0,    0,    0);
+    mkassign(             jmp, uncondbr,  uncond,   0,    0,    0);
+    mkassign(             jne,   condbr,    cond,   0,    0,    0);
+    mkassign(             jno,   condbr,    cond,   0,    0,    0);
+    mkassign(             jnp,   condbr,    cond,   0,    0,    0);
+    mkassign(             jns,   condbr,    cond,   0,    0,    0);
+    mkassign(              jo,   condbr,    cond,   0,    0,    0);
+    mkassign(              jp,   condbr,    cond,   0,    0,    0);
+    mkassign(           jrcxz,   condbr,    cond,   0,    0,    0);
+    mkassign(              js,   condbr,    cond,   0,    0,    0);
+    mkassign(            lahf,      int,   other,   0,    0,    0);
+    mkassign(             lar,  special,   other,   0,    0,    0);
+    mkassign(           lddqu,      int,    move,   0, VRSZ,    0);
+    mkassign(         ldmxcsr,  special,    move,   0,   32,    0);
+    mkassign(             lds,     move,    move,   0, VRSZ,    0);
+    mkassign(             lea,     move,    move,   0, VRSZ,    0);
+    mkassign(           leave,  special,   stack,   0,    0,    BinFrame);
+    mkassign(             les,      int,    move,   0, VRSZ,    0);
+    mkassign(          lfence,  special,   other,   0,    0,    0);
+    mkassign(             lfs,      int,    move,   0, VRSZ,    0);
+    mkassign(            lgdt,  special,   other,   0,    0,    0);
+    mkassign(             lgs,      int,    move,   0, VRSZ,    0);
+    mkassign(            lidt,  special,   other,   0,    0,    0);
+    mkassign(            lldt,  special,   other,   0,    0,    0);
+    mkassign(            lmsw,  special,   other,   0,    0,    0);
+    mkassign(            lock,  special,   other,   0,    0,    0);
+    mkassign(           lodsb,   string,    move,   0,    8,    0);
+    mkassign(           lodsd,   string,    move,   0,   32,    0);
+    mkassign(           lodsq,   string,    move,   0,   64,    0);
+    mkassign(           lodsw,   string,    move,   0,   16,    0);
+    mkassign(           loope,  special,   other,   0,    0,    0);
+    mkassign(          loopnz,  special,   other,   0,    0,    0);
+    mkassign(            loop,  special,   other,   0,    0,    0);
+    mkassign(             lsl,  special,   other,   0,    0,    0);
+    mkassign(             lss,      int,    move,   0, VRSZ,    0);
+    mkassign(             ltr,  special,   other,   0,    0,    0);
+    mkassign(      maskmovdqu,     move,       0,   0,    0,    0);
+    mkassign(         maskmov,     move,       0,   0,    0,    0);
+    mkassign(        maskmovq,     move,    move,   0,   64,    0);
+    mkassign(           maxpd,    float,  floatv,   0,   64,    0);
+    mkassign(           maxps,    float,  floatv,   0,   32,    0);
+    mkassign(           maxsd,    float,  floats,   0,   64,    0);
+    mkassign(           maxss,    float,  floats,   0,   32,    0);
+    mkassign(          mfence,  special,   other,   0,    0,    0);
+    mkassign(           minpd,    float,  floatv,   0,   64,    0);
+    mkassign(           minps,    float,  floatv,   0,   32,    0);
+    mkassign(           minsd,    float,  floats,   0,   64,    0);
+    mkassign(           minss,    float,  floats,   0,   32,    0);
+    mkassign(         monitor,  special,   other,   0,    0,    0);
+    mkassign(          movapd,     move,    move,   0, VRSZ,    0);
+    mkassign(          movaps,     move,    move,   0, VRSZ,    0);
+    mkassign(         movddup,     move,    move,   0, VRSZ,    0);
+    mkassign(            movd,     move,    move,   0,   64,    0);
+    mkassign(         movdq2q,     move,    move,   0,   64,    0);
+    mkassign(          movdqa,     move,    move,   0, VRSZ,    0);
+    mkassign(          movdqu,     move,    move,   0, VRSZ,    0);
+    mkassign(         movhlps,     move,    move,   0,   32,    0);
+    mkassign(          movhpd,     move,    move,   0,   64,    0);
+    mkassign(          movhps,     move,    move,   0,   32,    0);
+    mkassign(         movlhps,     move,    move,   0,   32,    0);
+    mkassign(          movlpd,     move,    move,   0,   64,    0);
+    mkassign(          movlps,     move,    move,   0,   32,    0);
+    mkassign(        movmskpd,     move,    move,   0, VRSZ,    0);
+    mkassign(        movmskps,     move,    move,   0, VRSZ,    0);
+    mkassign(        movntdqa,     move,       0,   0,    0,    0);
+    mkassign(         movntdq,     move,    move,   0, VRSZ,    0);
+    mkassign(          movnti,     move,    move,   0, VRSZ,    0);
+    mkassign(         movntpd,     move,    move,   0, VRSZ,    0);
+    mkassign(         movntps,     move,    move,   0, VRSZ,    0);
+    mkassign(          movntq,     move,    move,   0,   64,    0);
+    mkassign(             mov,     move,    move,   0, VRSZ,    0);
+    mkassign(         movq2dq,     move,    move,   0,   64,    0);
+    mkassign(            movq,     move,    move,   0,   64,    0);
+    mkassign(           movsb,     move,  string,   0,    8,    0);
+    // TODO: 2 instructions covered by this... need to handle special
+    mkassign(           movsd,     move,    move,   0,   64,    0);
+    mkassign(        movshdup,     move,    move,   0, VRSZ,    0);
+    mkassign(        movsldup,     move,    move,   0, VRSZ,    0);
+    mkassign(           movsq,     move,  string,   0,   64,    0);
+    mkassign(           movss,     move,    move,   0,   32,    0);
+    mkassign(           movsw,     move,  string,   0,   16,    0);
+    mkassign(          movsxd,     move,    move,   0, VRSZ,    0);
+    mkassign(           movsx,     move,    move,   0, VRSZ,    0);
+    mkassign(          movupd,     move,    move,   0, VRSZ,    0);
+    mkassign(          movups,     move,    move,   0, VRSZ,    0);
+    mkassign(           movzx,     move,    move,   0, VRSZ,    0);
+    mkassign(         mpsadbw,     simd,       0,   0,    0,    0);
+    mkassign(             mul,      int,     int,   0, VRSZ,    0);
+    mkassign(           mulpd,    float,  floatv,   0,   64,    0);
+    mkassign(           mulps,    float,  floatv,   0,   32,    0);
+    mkassign(           mulsd,    float,  floats,   0,   64,    0);
+    mkassign(           mulss,    float,  floats,   0,   32,    0);
+    mkassign(           mwait,  special,   other,   0,    0,    0);
+    mkassign(             neg,      int,     int,   0, VRSZ,    0);
+    mkassign(             nop,      nop,   other,   0,    0,    0);
+    mkassign(             not,      int,     bin,   0, VRSZ,    0);
+    mkassign(              or,      int,     bin,   0, VRSZ,    0);
+    mkassign(            orpd,    float,    binv,   0,   64,    0);
+    mkassign(            orps,    float,    binv,   0,   32,    0);
+    mkassign(             out,       io,   other,   0,    0,    0);
+    mkassign(           outsb,       io,   other,   0,    0,    0);
+    mkassign(           outsd,       io,   other,   0,    0,    0);
+    mkassign(           outsq,       io,   other,   0,    0,    0);
+    mkassign(           outsw,       io,   other,   0,    0,    0);
+    mkassign(           pabsb,     simd,       0,   0,    0,    0);
+    mkassign(           pabsd,     simd,       0,   0,    0,    0);
+    mkassign(           pabsw,     simd,       0,   0,    0,    0);
+    mkassign(        packssdw,      int,    intv,   0,   32,    0);
+    mkassign(        packsswb,      int,    intv,   0,    8,    0);
+    mkassign(        packusdw,     simd,       0,   0,    0,    0);
+    mkassign(        packuswb,      int,    intv,   0,    8,    0);
+    mkassign(           paddb,      int,    intv,   0,    8,    0);
+    mkassign(           paddd,      int,    intv,   0,   32,    0);
+    mkassign(           paddq,      int,    intv,   0,   64,    0);
+    mkassign(          paddsb,      int,    intv,   0,    8,    0);
+    mkassign(          paddsw,      int,    intv,   0,   16,    0);
+    mkassign(         paddusb,      int,    intv,   0,    8,    0);
+    mkassign(         paddusw,      int,    intv,   0,   16,    0);
+    mkassign(           paddw,      int,    intv,   0,   16,    0);
+    mkassign(         palignr,     simd,    binv,   0, VRSZ,    0);
+    mkassign(           pandn,      int,    binv,   0, VRSZ,    0);
+    mkassign(            pand,      int,    binv,   0, VRSZ,    0);
+    mkassign(           pause,  special,   other,   0,    0,    0);
+    mkassign(           pavgb,      int,    intv,   0,    8,    0);
+    mkassign(         pavgusb,      int,    intv,   0,   16,    0);
+    mkassign(           pavgw,      int,    intv,   0,   16,    0);
+    mkassign(        pblendvb,      int,       0,   0,    0,    0);
+    mkassign(         pblendw,      int,       0,   0,    0,    0);
+    mkassign(       pclmulqdq,     simd,       0,   0,    0,    0);
+    mkassign(         pcmpeqb,      int,    intv,   0,    8,    0);
+    mkassign(         pcmpeqd,      int,    intv,   0,   32,    0);
+    mkassign(         pcmpeqq,     simd,       0,   0,    0,    0);
+    mkassign(         pcmpeqw,      int,    intv,   0,   16,    0);
+    mkassign(       pcmpestri,     simd,       0,   0,    0,    0);
+    mkassign(       pcmpestrm,     simd,       0,   0,    0,    0);
+    mkassign(         pcmpgtb,      int,    intv,   0,    8,    0);
+    mkassign(         pcmpgtd,      int,    intv,   0,   32,    0);
+    mkassign(         pcmpgtq,      int,       0,   0,    0,    0);
+    mkassign(         pcmpgtw,      int,    intv,   0,   16,    0);
+    mkassign(       pcmpistri,     simd,       0,   0,    0,    0);
+    mkassign(       pcmpistrm,     simd,       0,   0,    0,    0);
+    mkassign(        permf128,     simd,       0,   0,    0,    0);
+    mkassign(        permilpd,     simd,       0,   0,    0,    0);
+    mkassign(        permilps,     simd,       0,   0,    0,    0);
+    mkassign(          pextrb,     simd,       0,   0,    0,    0);
+    mkassign(          pextrd,     simd,       0,   0,    0,    0);
+    mkassign(          pextrq,     simd,       0,   0,    0,    0);
+    mkassign(          pextrw,     simd,    intv,   0,   16,    0);
+    mkassign(           pf2id,      int,    intv,   0,   32,    0);
+    mkassign(           pf2iw,      int,    intv,   0,   16,    0);
+    mkassign(           pfacc,      int,    intv,   0,   32,    0);
+    mkassign(           pfadd,      int,    intv,   0,   32,    0);
+    mkassign(         pfcmpeq,      int,    intv,   0,   32,    0);
+    mkassign(         pfcmpge,      int,    intv,   0,   32,    0);
+    mkassign(         pfcmpgt,      int,    intv,   0,   32,    0);
+    mkassign(           pfmax,      int,    intv,   0,   32,    0);
+    mkassign(           pfmin,      int,    intv,   0,   32,    0);
+    mkassign(           pfmul,      int,    intv,   0,   32,    0);
+    mkassign(          pfnacc,      int,    intv,   0,   32,    0);
+    mkassign(         pfpnacc,      int,    intv,   0,   32,    0);
+    mkassign(        pfrcpit1,      int,    intv,   0,   32,    0);
+    mkassign(        pfrcpit2,      int,    intv,   0,   32,    0);
+    mkassign(           pfrcp,      int,    intv,   0,   32,    0);
+    mkassign(        pfrspit1,      int,    intv,   0,   32,    0);
+    mkassign(         pfrsqrt,      int,    intv,   0,   32,    0);
+    mkassign(           pfsub,      int,    intv,   0,   32,    0);
+    mkassign(          pfsubr,      int,    intv,   0,   32,    0);
+    mkassign(          phaddd,     simd,    intv,   0,   32,    0);
+    mkassign(         phaddsw,     simd,       0,   0,    0,    0);
+    mkassign(          phaddw,     simd,       0,   0,    0,    0);
+    mkassign(      phminposuw,     simd,       0,   0,    0,    0);
+    mkassign(          phsubd,     simd,       0,   0,    0,    0);
+    mkassign(         phsubsw,     simd,       0,   0,    0,    0);
+    mkassign(          phsubw,     simd,       0,   0,    0,    0);
+    mkassign(           pi2fd,      int,    intv,   0,   32,    0);
+    mkassign(           pi2fw,      int,    intv,   0,   16,    0);
+    mkassign(          pinsrb,     simd,       0,   0,    0,    0);
+    mkassign(          pinsrd,     simd,       0,   0,    0,    0);
+    mkassign(          pinsrq,     simd,       0,   0,    0,    0);
+    mkassign(          pinsrw,     simd,    intv,   0,   16,    0);
+    mkassign(       pmaddusbw,     simd,       0,   0,    0,    0);
+    mkassign(         pmaddwd,     simd,    intv,   0,   32,    0);
 
-    classMap[UD_Ibroadcast] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Icvtph2ps] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Icvtps2ph] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iextractf128] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iinsertf128] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Imaskmov] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Imaskmovdqu] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ipabsb] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipabsd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipabsw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipermf128] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipermilpd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipermilps] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iphaddsw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iphaddw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iphsubd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iphsubsw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Iphsubw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipmaddusbw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipmulhrsw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipmulld] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipsignb] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipsignd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ipsignw] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Itestpd] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Itestps] = packFields(0, 0, 0, X86InstructionType_simd, 0);
-    classMap[UD_Ivblendps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivblendvpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivblendvps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivbroadcast] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivcmppd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcmpps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcmpsd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcmpss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcomisd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcomiss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtdq2pd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtdq2ps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtpd2dq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtpd2ps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtph2ps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtps2dq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtps2pd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtps2ph] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtsd2si] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtsd2ss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtsi2sd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtsi2ss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtss2sd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvtss2si] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvttpd2dq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvttps2dq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvttsd2si] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivcvttss2si] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivdivpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivdivps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivdivsd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivdivss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivdppd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivdpps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivextractf128] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivextractps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivhaddpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivhaddps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivhsubpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivhsubps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivinsertf128] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivinsertps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivldmxcsr] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ivmaskmov] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmaskmovdqu] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmaxpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivmaxps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivmaxsd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivmaxss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivminpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivminps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivminsd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivminss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivmovaps] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovddup] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovdqa] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovdqu] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovhpd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovhps] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovlpd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovlps] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovmskpd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovmskps] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovntdq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovntdqa] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovntpd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovntps] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovsd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovshdup] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovsldup] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovss] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovupd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmovups] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivmulsd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivmulss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivorpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivorps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpabsb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpabsd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpabsw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpackssdw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpacksswb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpackusdw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpackuswb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpaddb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpaddd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpaddq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpaddsb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpaddsw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpaddusb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpaddusw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpaddw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpalignr] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpand] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpandn] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpavgb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpavgw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpblendvb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpblendw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpclmulqdq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpcmpeqb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpcmpeqd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpcmpeqq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpcmpeqw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpcmpestri] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpcmpestrm] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpcmpgtb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpcmpgtd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpcmpgtq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpcmpgtw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpcmpistri] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpcmpistrm] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpermf128] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpermilpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpermilps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpextrb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpextrd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpextrq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpextrw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivphaddd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivphaddsw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivphaddw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivphminposuw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivphsubd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivphsubsw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivphsubw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpinsrb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpinsrd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpinsrq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpinsrw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmaddusbw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmaddwd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmaxsb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmaxsd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmaxsw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmaxub] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmaxud] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmaxuw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpminsb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpminsd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpminsw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpminub] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpminud] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpminuw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmovmskb] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmovsxbd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmovsxbq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmovsxbw] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmovsxdq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmovsxwd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmovsxwq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmovzxbd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmovzxbq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmovzxbw] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmovzxdq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmovzxwd] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmovzxwq] = packFields(0, 0, 0, X86InstructionType_move, 0);
-    classMap[UD_Ivpmuldq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmulhrsw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmulhuw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmulhw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmulld] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmullw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpmuludq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpor] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpshufb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpshufhw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpshuflw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsignb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsignd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsignw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpslld] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpslldq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsllq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsllw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsrad] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsraw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsrld] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsrldq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsrlq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsrlw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsubb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsubd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsubq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsubsb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsubsw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsubusb] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsubusw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpsubw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpunpckhbw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpunpckhdq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpunpckhqdq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpunpckhwd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpunpcklbw] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpunpckldq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpunpcklqdq] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpunpcklwd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivpxor] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivrcpps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivrcpss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivroundpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivroundps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivroundsd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivroundss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivrsqrtps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivrsqrtss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivshufpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivshufps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivsqrtpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivsqrtps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivsqrtsd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivsqrtss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivstmxcsr] = packFields(0, 0, 0, X86InstructionType_special, 0);
-    classMap[UD_Ivsubpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivsubps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivsubsd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivsubss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivtestpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivtestps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivucomisd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivucomiss] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivunpckhpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivunpckhps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivunpcklpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivunpcklps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivxorpd] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivxorps] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Ivzeroall] = packFields(0, 0, 0, X86InstructionType_avx, 0);
-    classMap[UD_Izeroall] = packFields(0, 0, 0, X86InstructionType_avx, 0);
+    // should be all binv or all intv?
+    mkassign(          pmaxsb,     simd,    binv,   0,    8,    0);
+    mkassign(          pmaxsd,     simd,    intv,   0,   32,    0);
+    mkassign(          pmaxsw,     simd,    intv,   0,   16,    0);
+    mkassign(          pmaxub,     simd,    intv,   0,    8,    0);
+    mkassign(          pmaxud,     simd,    intv,   0,   32,    0);
+    mkassign(          pmaxuw,     simd,    intv,   0,   16,    0);
+    mkassign(          pminsb,     simd,    binv,   0,    8,    0);
+    mkassign(          pminsd,     simd,    intv,   0,   32,    0);
+    mkassign(          pminsw,     simd,    intv,   0,   16,    0);
+    mkassign(          pminub,     simd,    intv,   0,    8,    0);
+    mkassign(          pminud,     simd,    intv,   0,   32,    0);
+    mkassign(          pminuw,     simd,    intv,   0,   16,    0);
+
+    mkassign(        pmovmskb,     move,    move,   0, VRSZ,    0);
+    mkassign(        pmovsxbd,     move,       0,   0,    0,    0);
+    mkassign(        pmovsxbq,     move,       0,   0,    0,    0);
+    mkassign(        pmovsxbw,     move,       0,   0,    0,    0);
+    mkassign(        pmovsxdq,     move,       0,   0,    0,    0);
+    mkassign(        pmovsxwd,     move,       0,   0,    0,    0);
+    mkassign(        pmovsxwq,     move,       0,   0,    0,    0);
+    mkassign(        pmovzxbd,     move,       0,   0,    0,    0);
+    mkassign(        pmovzxbq,     move,       0,   0,    0,    0);
+    mkassign(        pmovzxbw,     move,       0,   0,    0,    0);
+    mkassign(        pmovzxdq,     move,       0,   0,    0,    0);
+    mkassign(        pmovzxwd,     move,       0,   0,    0,    0);
+    mkassign(        pmovzxwq,     move,       0,   0,    0,    0);
+    mkassign(          pmuldq,     simd,       0,   0,    0,    0);
+    mkassign(        pmulhrsw,     simd,       0,   0,    0,    0);
+    mkassign(         pmulhrw,      int,    intv,   0,   16,    0);
+    mkassign(         pmulhuw,      int,    intv,   0,   16,    0);
+    mkassign(          pmulhw,      int,    intv,   0,   16,    0);
+    mkassign(          pmulld,     simd,       0,   0,    0,    0);
+    mkassign(          pmullw,      int,    intv,   0,   16,    0);
+    mkassign(         pmuludq,      int,    intv,   0,   32,    0);
+    mkassign(           popad,  special,   stack,   0,   32,    BinFrame);
+    mkassign(            popa,  special,   stack,   0,   16,    BinFrame);
+    mkassign(           popfd,      int,   stack,   0,   32,    BinStack);
+    mkassign(           popfq,      int,   stack,   0,   64,    BinStack);
+    mkassign(           popfw,      int,   stack,   0,   16,    BinStack);
+    mkassign(             pop,      int,   stack,   0, VRSZ,    BinStack);
+    mkassign(             por,      int,    binv,   0, VRSZ,    0);
+    mkassign(     prefetchnta, prefetch,   cache,   0,    0,    0);
+    mkassign(        prefetch, prefetch,   cache,   0,    0,    0);
+    mkassign(      prefetcht0, prefetch,   cache,   0,    0,    0);
+    mkassign(      prefetcht1, prefetch,   cache,   0,    0,    0);
+    mkassign(      prefetcht2, prefetch,   cache,   0,    0,    0);
+    mkassign(          psadbw,      int,    intv,   0,   16,    0);
+    mkassign(          pshufb,     simd,    binv,   0,    8,    0);
+    mkassign(          pshufd,      int,    binv,   0,   32,    0);
+    mkassign(         pshufhw,      int,    binv,   0,   16,    0);
+    mkassign(         pshuflw,      int,    binv,   0,   16,    0);
+    mkassign(          pshufw,      int,    binv,   0,   16,    0);
+    mkassign(          psignb,     simd,       0,   0,    0,    0);
+    mkassign(          psignd,     simd,       0,   0,    0,    0);
+    mkassign(          psignw,     simd,       0,   0,    0,    0);
+    mkassign(           pslld,      int,    binv,   0,   32,    0);
+    mkassign(          pslldq,      int,    binv,   0,   64,    0);
+    mkassign(           psllq,      int,    binv,   0,   64,    0);
+    mkassign(           psllw,      int,    binv,   0,   16,    0);
+    mkassign(           psrad,      int,    binv,   0,   32,    0);
+    mkassign(           psraw,      int,    binv,   0,   16,    0);
+    mkassign(           psrld,      int,    binv,   0,   32,    0);
+    mkassign(          psrldq,      int,    binv,   0,   64,    0);
+    mkassign(           psrlq,      int,    binv,   0,   64,    0);
+    mkassign(           psrlw,      int,    binv,   0,   16,    0);
+    mkassign(           psubb,      int,    intv,   0,   16,    0);
+    mkassign(           psubd,      int,    intv,   0,   32,    0);
+    mkassign(           psubq,      int,    intv,   0,   64,    0);
+
+    // the byte forms of these are 16-bit?
+    mkassign(          psubsb,      int,    intv,   0,   16,    0);
+    mkassign(          psubsw,      int,    intv,   0,   16,    0);
+    mkassign(         psubusb,      int,    intv,   0,   16,    0);
+    mkassign(         psubusw,      int,    intv,   0,   16,    0);
+    mkassign(           psubw,      int,    intv,   0,   16,    0);
+
+    mkassign(          pswapd,      int,    intv,   0,   32,    0);
+    mkassign(           ptest,      int,       0,   0,    0,    0);
+    mkassign(       punpckhbw,      int,    binv,   0,   16,    0);
+    mkassign(       punpckhdq,      int,    binv,   0,   64,    0);
+    mkassign(      punpckhqdq,      int,    binv,   0,   64,    0);
+    mkassign(       punpckhwd,      int,    binv,   0,   32,    0);
+    mkassign(       punpcklbw,      int,    binv,   0,   16,    0);
+    mkassign(       punpckldq,      int,    binv,   0,   64,    0);
+    mkassign(      punpcklqdq,      int,    binv,   0,   64,    0);
+    mkassign(       punpcklwd,      int,    binv,   0,   32,    0);
+    mkassign(          pushad,  special,   stack,   0,   32,    BinFrame);
+    mkassign(           pusha,  special,   stack,   0,   16,    BinFrame);
+    mkassign(          pushfd,      int,   stack,   0,   32,    BinStack);
+    mkassign(          pushfq,      int,   stack,   0,   64,    BinStack);
+    mkassign(          pushfw,      int,   stack,   0,   16,    BinStack);
+    mkassign(            push,      int,   stack,   0, VRSZ,    BinStack);
+    mkassign(            pxor,      int,    binv,   0, VRSZ,    0);
+    mkassign(             rcl,      int,     bin,   0, VRSZ,    0);
+    mkassign(           rcpps,    float,  floatv,   0,   32,    0);
+    mkassign(           rcpss,    float,  floats,   0,   32,    0);
+    mkassign(             rcr,      int,     bin,   0, VRSZ,    0);
+    mkassign(           rdmsr,      int,   other,   0,    0,    0);
+    mkassign(           rdpmc,  hwcount,   other,   0,    0,    0);
+    mkassign(           rdtsc,  hwcount,   other,   0,    0,    0);
+    mkassign(          rdtscp,  hwcount,   other,   0,    0,    0);
+    mkassign(           repne,   string,  string,   0,    0,    0);
+    mkassign(             rep,   string,  string,   0,    0,    0);
+    mkassign(            retf,   return,  uncond,   0,    0,    BinFrame);
+    mkassign(             ret,   return,  uncond,   0,    0,    BinFrame);
+    mkassign(             rol,      int,     bin,   0, VRSZ,    0);
+    mkassign(             ror,      int,     bin,   0, VRSZ,    0);
+    mkassign(         roundpd,     simd,  floatv,   0,   64,    0);
+    mkassign(         roundps,     simd,  floatv,   0,   32,    0);
+    mkassign(         roundsd,     simd,  floats,   0,   64,    0);
+    mkassign(         roundss,     simd,  floats,   0,   32,    0);
+    mkassign(             rsm,  special,   other,   0,    0,    0);
+    mkassign(         rsqrtps,    float,  floatv,   0,   32,    0);
+    mkassign(         rsqrtss,    float,  floats,   0,   32,    0);
+    mkassign(            sahf,      int,   other,   0,    0,    0);
+    mkassign(            salc,      int,     bin,   0, VRSZ,    0);
+    mkassign(             sal,      int,     bin,   0, VRSZ,    0);
+    mkassign(             sar,      int,     bin,   0, VRSZ,    0);
+    mkassign(             sbb,      int,     int,   0, VRSZ,    0);
+    mkassign(           scasb,   string,  string,   0,    8,    0);
+    mkassign(           scasd,   string,  string,   0,   32,    0);
+    mkassign(           scasq,   string,  string,   0,   64,    0);
+    mkassign(           scasw,   string,  string,   0,   16,    0);
+    mkassign(            seta,      int,     bin,   0,    8,    0);
+    mkassign(           setbe,      int,     bin,   0,    8,    0);
+    mkassign(            setb,      int,     bin,   0,    8,    0);
+    mkassign(           setge,      int,     bin,   0,    8,    0);
+    mkassign(            setg,      int,     bin,   0,    8,    0);
+    mkassign(           setle,      int,     bin,   0,    8,    0);
+    mkassign(            setl,      int,     bin,   0,    8,    0);
+    mkassign(           setnb,      int,     bin,   0,    8,    0);
+    mkassign(           setno,      int,     bin,   0,    8,    0);
+    mkassign(           setnp,      int,     bin,   0,    8,    0);
+    mkassign(           setns,      int,     bin,   0,    8,    0);
+    mkassign(           setnz,      int,     bin,   0,    8,    0);
+    mkassign(            seto,      int,     bin,   0,    8,    0);
+    mkassign(            setp,      int,     bin,   0,    8,    0);
+    mkassign(            sets,      int,     bin,   0,    8,    0);
+    mkassign(            setz,      int,     bin,   0,    8,    0);
+    mkassign(          sfence,  special,   other,   0,    0,    0);
+    mkassign(            sgdt,  special,   other,   0,    0,    0);
+    mkassign(            shld,      int,     bin,   0, VRSZ,    0);
+    mkassign(             shl,      int,     bin,   0, VRSZ,    0);
+    mkassign(            shrd,      int,     bin,   0, VRSZ,    0);
+    mkassign(             shr,      int,     bin,   0, VRSZ,    0);
+    mkassign(          shufpd,    float,    binv,   0,   64,    0);
+    mkassign(          shufps,    float,    binv,   0,   32,    0);
+    mkassign(            sidt,  special,   other,   0,    0,    0);
+    mkassign(          skinit,  special,   other,   0,    0,    0);
+    mkassign(            sldt,  special,   other,   0,    0,    0);
+    mkassign(            smsw,  special,   other,   0,    0,    0);
+    mkassign(          sqrtpd,    float,  floatv,   0,   64,    0);
+    mkassign(          sqrtps,    float,  floatv,   0,   32,    0);
+    mkassign(          sqrtsd,    float,  floats,   0,   64,    0);
+    mkassign(          sqrtss,    float,  floats,   0,   32,    0);
+    mkassign(             stc,  special,   other,   0,    0,    0);
+    mkassign(             std,  special,   other,   0,    0,    0);
+    mkassign(            stgi,  special,   other,   0,    0,    0);
+    mkassign(             sti,  special,   other,   0,    0,    0);
+    mkassign(         stmxcsr,  special,   other,   0,    0,    0);
+    mkassign(           stosb,   string,    move,   0,    8,    0);
+    mkassign(           stosd,   string,    move,   0,   32,    0);
+    mkassign(           stosq,   string,    move,   0,   64,    0);
+    mkassign(           stosw,   string,    move,   0,   16,    0);
+    mkassign(             str,  special,    move,   0, VRSZ,    0);
+    mkassign(             sub,      int,     int,   0, VRSZ,    0);
+    mkassign(           subpd,    float,  floatv,   0,   64,    0);
+    mkassign(           subps,    float,  floatv,   0,   32,    0);
+    mkassign(           subsd,    float,  floats,   0,   64,    0);
+    mkassign(           subss,    float,  floats,   0,   32,    0);
+    mkassign(          swapgs,  special,   other,   0,    0,    0);
+    mkassign(         syscall,  syscall,  system,   0,    0,    BinFrame);
+    mkassign(        sysenter,  syscall,  system,   0,    0,    BinFrame);
+    mkassign(         sysexit,  syscall,  system,   0,    0,    BinFrame);
+    mkassign(          sysret,  syscall,  system,   0,    0,    BinFrame);
+    mkassign(            test,      int,     bin,   0, VRSZ,    0);
+    mkassign(          testpd,     simd,       0,   0,    0,    0);
+    mkassign(          testps,     simd,       0,   0,    0,    0);
+    mkassign(         ucomisd,    float,  floats,   0,   64,    0);
+    mkassign(         ucomiss,    float,  floats,   0,   32,    0);
+    mkassign(             ud2,  invalid, invalid,   0,    0,    0);
+    mkassign(        unpckhpd,    float,    binv,   0,   64,    0);
+    mkassign(        unpckhps,    float,    binv,   0,   32,    0);
+    mkassign(        unpcklpd,    float,    binv,   0,   64,    0);
+    mkassign(        unpcklps,    float,    binv,   0,   32,    0);
+    mkassign(          vaddpd,      avx,       0,   0,    0,    0);
+    mkassign(          vaddps,      avx,       0,   0,    0,    0);
+    mkassign(          vaddsd,      avx,       0,   0,    0,    0);
+    mkassign(          vaddss,      avx,       0,   0,    0,    0);
+    mkassign(       vaddsubpd,      avx,       0,   0,    0,    0);
+    mkassign(       vaddsubps,      avx,       0,   0,    0,    0);
+    mkassign(     vaesdeclast,      aes,       0,   0,    0,    0);
+    mkassign(         vaesdec,      aes,       0,   0,    0,    0);
+    mkassign(     vaesenclast,      aes,       0,   0,    0,    0);
+    mkassign(         vaesenc,      aes,       0,   0,    0,    0);
+    mkassign(         vaesimc,      aes,       0,   0,    0,    0);
+    mkassign(vaeskeygenassist,      aes,       0,   0,    0,    0);
+    mkassign(         vandnpd,      avx,       0,   0,    0,    0);
+    mkassign(         vandnps,      avx,       0,   0,    0,    0);
+    mkassign(          vandpd,      avx,       0,   0,    0,    0);
+    mkassign(          vandps,      avx,       0,   0,    0,    0);
+    mkassign(        vblendpd,      avx,       0,   0,    0,    0);
+    mkassign(        vblendps,      avx,       0,   0,    0,    0);
+    mkassign(       vblendvpd,      avx,       0,   0,    0,    0);
+    mkassign(       vblendvps,      avx,       0,   0,    0,    0);
+    mkassign(      vbroadcast,     move,       0,   0,    0,    0);
+    mkassign(          vcmppd,      avx,       0,   0,    0,    0);
+    mkassign(          vcmpps,      avx,       0,   0,    0,    0);
+    mkassign(          vcmpsd,      avx,       0,   0,    0,    0);
+    mkassign(          vcmpss,      avx,       0,   0,    0,    0);
+    mkassign(         vcomisd,      avx,       0,   0,    0,    0);
+    mkassign(         vcomiss,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtdq2pd,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtdq2ps,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtpd2dq,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtpd2ps,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtph2ps,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtps2dq,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtps2pd,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtps2ph,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtsd2si,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtsd2ss,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtsi2sd,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtsi2ss,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtss2sd,      avx,       0,   0,    0,    0);
+    mkassign(       vcvtss2si,      avx,       0,   0,    0,    0);
+    mkassign(      vcvttpd2dq,      avx,       0,   0,    0,    0);
+    mkassign(      vcvttps2dq,      avx,       0,   0,    0,    0);
+    mkassign(      vcvttsd2si,      avx,       0,   0,    0,    0);
+    mkassign(      vcvttss2si,      avx,       0,   0,    0,    0);
+    mkassign(          vdivpd,      avx,       0,   0,    0,    0);
+    mkassign(          vdivps,      avx,       0,   0,    0,    0);
+    mkassign(          vdivsd,      avx,       0,   0,    0,    0);
+    mkassign(          vdivss,      avx,       0,   0,    0,    0);
+    mkassign(           vdppd,      avx,       0,   0,    0,    0);
+    mkassign(           vdpps,      avx,       0,   0,    0,    0);
+    mkassign(            verr,  special,   other,   0,    0,    0);
+    mkassign(            verw,  special,   other,   0,    0,    0);
+    mkassign(    vextractf128,      avx,       0,   0,    0,    0);
+    mkassign(      vextractps,      avx,       0,   0,    0,    0);
+    mkassign(         vhaddpd,      avx,       0,   0,    0,    0);
+    mkassign(         vhaddps,      avx,       0,   0,    0,    0);
+    mkassign(         vhsubpd,      avx,       0,   0,    0,    0);
+    mkassign(         vhsubps,      avx,       0,   0,    0,    0);
+    mkassign(     vinsertf128,      avx,       0,   0,    0,    0);
+    mkassign(       vinsertps,      avx,       0,   0,    0,    0);
+    mkassign(        vldmxcsr,  special,       0,   0,    0,    0);
+    mkassign(     vmaskmovdqu,     move,       0,   0,    0,    0);
+    mkassign(        vmaskmov,     move,       0,   0,    0,    0);
+    mkassign(          vmaxpd,      avx,       0,   0,    0,    0);
+    mkassign(          vmaxps,      avx,       0,   0,    0,    0);
+    mkassign(          vmaxsd,      avx,       0,   0,    0,    0);
+    mkassign(          vmaxss,      avx,       0,   0,    0,    0);
+    mkassign(          vmcall,      vmx,   other,   0,    0,    0);
+    mkassign(         vmclear,      vmx,   other,   0,    0,    0);
+    mkassign(          vminpd,      avx,       0,   0,    0,    0);
+    mkassign(          vminps,      avx,       0,   0,    0,    0);
+    mkassign(          vminsd,      avx,       0,   0,    0,    0);
+    mkassign(          vminss,      avx,       0,   0,    0,    0);
+    mkassign(          vmload,      vmx,   other,   0,    0,    0);
+    mkassign(         vmmcall,      vmx,   other,   0,    0,    0);
+    mkassign(         vmovapd,     move,       0,   0,    0,    0);
+    mkassign(         vmovaps,     move,       0,   0,    0,    0);
+    mkassign(        vmovddup,     move,       0,   0,    0,    0);
+    mkassign(           vmovd,     move,       0,   0,    0,    0);
+    mkassign(         vmovdqa,     move,       0,   0,    0,    0);
+    mkassign(         vmovdqu,     move,       0,   0,    0,    0);
+    mkassign(         vmovhpd,     move,       0,   0,    0,    0);
+    mkassign(         vmovhps,     move,       0,   0,    0,    0);
+    mkassign(         vmovlpd,     move,       0,   0,    0,    0);
+    mkassign(         vmovlps,     move,       0,   0,    0,    0);
+    mkassign(       vmovmskpd,     move,       0,   0,    0,    0);
+    mkassign(       vmovmskps,     move,       0,   0,    0,    0);
+    mkassign(       vmovntdqa,     move,       0,   0,    0,    0);
+    mkassign(        vmovntdq,     move,       0,   0,    0,    0);
+    mkassign(        vmovntpd,     move,       0,   0,    0,    0);
+    mkassign(        vmovntps,     move,       0,   0,    0,    0);
+    mkassign(           vmovq,     move,       0,   0,    0,    0);
+    mkassign(          vmovsd,     move,       0,   0,    0,    0);
+    mkassign(       vmovshdup,     move,       0,   0,    0,    0);
+    mkassign(       vmovsldup,     move,       0,   0,    0,    0);
+    mkassign(          vmovss,     move,       0,   0,    0,    0);
+    mkassign(         vmovupd,     move,       0,   0,    0,    0);
+    mkassign(         vmovups,     move,       0,   0,    0,    0);
+    mkassign(        vmpsadbw,      avx,       0,   0,    0,    0);
+    mkassign(         vmptrld,      vmx,   other,   0,    0,    0);
+    mkassign(         vmptrst,      vmx,   other,   0,    0,    0);
+    mkassign(        vmresume,      vmx,   other,   0,    0,    0);
+    mkassign(           vmrun,      vmx,   other,   0,    0,    0);
+    mkassign(          vmsave,      vmx,   other,   0,    0,    0);
+    mkassign(          vmulpd,      avx,       0,   0,    0,    0);
+    mkassign(          vmulps,      avx,       0,   0,    0,    0);
+    mkassign(          vmulsd,      avx,       0,   0,    0,    0);
+    mkassign(          vmulss,      avx,       0,   0,    0,    0);
+    mkassign(          vmxoff,      vmx,   other,   0,    0,    0);
+    mkassign(           vmxon,      vmx,   other,   0,    0,    0);
+    mkassign(           vorpd,      avx,       0,   0,    0,    0);
+    mkassign(           vorps,      avx,       0,   0,    0,    0);
+    mkassign(          vpabsb,      avx,       0,   0,    0,    0);
+    mkassign(          vpabsd,      avx,       0,   0,    0,    0);
+    mkassign(          vpabsw,      avx,       0,   0,    0,    0);
+    mkassign(       vpackssdw,      avx,       0,   0,    0,    0);
+    mkassign(       vpacksswb,      avx,       0,   0,    0,    0);
+    mkassign(       vpackusdw,      avx,       0,   0,    0,    0);
+    mkassign(       vpackuswb,      avx,       0,   0,    0,    0);
+    mkassign(          vpaddb,      avx,       0,   0,    0,    0);
+    mkassign(          vpaddd,      avx,       0,   0,    0,    0);
+    mkassign(          vpaddq,      avx,       0,   0,    0,    0);
+    mkassign(         vpaddsb,      avx,       0,   0,    0,    0);
+    mkassign(         vpaddsw,      avx,       0,   0,    0,    0);
+    mkassign(        vpaddusb,      avx,       0,   0,    0,    0);
+    mkassign(        vpaddusw,      avx,       0,   0,    0,    0);
+    mkassign(          vpaddw,      avx,       0,   0,    0,    0);
+    mkassign(        vpalignr,      avx,       0,   0,    0,    0);
+    mkassign(          vpandn,      avx,       0,   0,    0,    0);
+    mkassign(           vpand,      avx,       0,   0,    0,    0);
+    mkassign(          vpavgb,      avx,       0,   0,    0,    0);
+    mkassign(          vpavgw,      avx,       0,   0,    0,    0);
+    mkassign(       vpblendvb,      avx,       0,   0,    0,    0);
+    mkassign(        vpblendw,      avx,       0,   0,    0,    0);
+    mkassign(      vpclmulqdq,      avx,       0,   0,    0,    0);
+    mkassign(        vpcmpeqb,      avx,       0,   0,    0,    0);
+    mkassign(        vpcmpeqd,      avx,       0,   0,    0,    0);
+    mkassign(        vpcmpeqq,      avx,       0,   0,    0,    0);
+    mkassign(        vpcmpeqw,      avx,       0,   0,    0,    0);
+    mkassign(      vpcmpestri,      avx,       0,   0,    0,    0);
+    mkassign(      vpcmpestrm,      avx,       0,   0,    0,    0);
+    mkassign(        vpcmpgtb,      avx,       0,   0,    0,    0);
+    mkassign(        vpcmpgtd,      avx,       0,   0,    0,    0);
+    mkassign(        vpcmpgtq,      avx,       0,   0,    0,    0);
+    mkassign(        vpcmpgtw,      avx,       0,   0,    0,    0);
+    mkassign(      vpcmpistri,      avx,       0,   0,    0,    0);
+    mkassign(      vpcmpistrm,      avx,       0,   0,    0,    0);
+    mkassign(       vpermf128,      avx,       0,   0,    0,    0);
+    mkassign(       vpermilpd,      avx,       0,   0,    0,    0);
+    mkassign(       vpermilps,      avx,       0,   0,    0,    0);
+    mkassign(         vpextrb,      avx,       0,   0,    0,    0);
+    mkassign(         vpextrd,      avx,       0,   0,    0,    0);
+    mkassign(         vpextrq,      avx,       0,   0,    0,    0);
+    mkassign(         vpextrw,      avx,       0,   0,    0,    0);
+    mkassign(         vphaddd,      avx,       0,   0,    0,    0);
+    mkassign(        vphaddsw,      avx,       0,   0,    0,    0);
+    mkassign(         vphaddw,      avx,       0,   0,    0,    0);
+    mkassign(     vphminposuw,      avx,       0,   0,    0,    0);
+    mkassign(         vphsubd,      avx,       0,   0,    0,    0);
+    mkassign(        vphsubsw,      avx,       0,   0,    0,    0);
+    mkassign(         vphsubw,      avx,       0,   0,    0,    0);
+    mkassign(         vpinsrb,      avx,       0,   0,    0,    0);
+    mkassign(         vpinsrd,      avx,       0,   0,    0,    0);
+    mkassign(         vpinsrq,      avx,       0,   0,    0,    0);
+    mkassign(         vpinsrw,      avx,       0,   0,    0,    0);
+    mkassign(      vpmaddusbw,      avx,       0,   0,    0,    0);
+    mkassign(        vpmaddwd,      avx,       0,   0,    0,    0);
+    mkassign(         vpmaxsb,      avx,       0,   0,    0,    0);
+    mkassign(         vpmaxsd,      avx,       0,   0,    0,    0);
+    mkassign(         vpmaxsw,      avx,       0,   0,    0,    0);
+    mkassign(         vpmaxub,      avx,       0,   0,    0,    0);
+    mkassign(         vpmaxud,      avx,       0,   0,    0,    0);
+    mkassign(         vpmaxuw,      avx,       0,   0,    0,    0);
+    mkassign(         vpminsb,      avx,       0,   0,    0,    0);
+    mkassign(         vpminsd,      avx,       0,   0,    0,    0);
+    mkassign(         vpminsw,      avx,       0,   0,    0,    0);
+    mkassign(         vpminub,      avx,       0,   0,    0,    0);
+    mkassign(         vpminud,      avx,       0,   0,    0,    0);
+    mkassign(         vpminuw,      avx,       0,   0,    0,    0);
+    mkassign(       vpmovmskb,     move,       0,   0,    0,    0);
+    mkassign(       vpmovsxbd,     move,       0,   0,    0,    0);
+    mkassign(       vpmovsxbq,     move,       0,   0,    0,    0);
+    mkassign(       vpmovsxbw,     move,       0,   0,    0,    0);
+    mkassign(       vpmovsxdq,     move,       0,   0,    0,    0);
+    mkassign(       vpmovsxwd,     move,       0,   0,    0,    0);
+    mkassign(       vpmovsxwq,     move,       0,   0,    0,    0);
+    mkassign(       vpmovzxbd,     move,       0,   0,    0,    0);
+    mkassign(       vpmovzxbq,     move,       0,   0,    0,    0);
+    mkassign(       vpmovzxbw,     move,       0,   0,    0,    0);
+    mkassign(       vpmovzxdq,     move,       0,   0,    0,    0);
+    mkassign(       vpmovzxwd,     move,       0,   0,    0,    0);
+    mkassign(       vpmovzxwq,     move,       0,   0,    0,    0);
+    mkassign(         vpmuldq,      avx,       0,   0,    0,    0);
+    mkassign(       vpmulhrsw,      avx,       0,   0,    0,    0);
+    mkassign(        vpmulhuw,      avx,       0,   0,    0,    0);
+    mkassign(         vpmulhw,      avx,       0,   0,    0,    0);
+    mkassign(         vpmulld,      avx,       0,   0,    0,    0);
+    mkassign(         vpmullw,      avx,       0,   0,    0,    0);
+    mkassign(        vpmuludq,      avx,       0,   0,    0,    0);
+    mkassign(            vpor,      avx,       0,   0,    0,    0);
+    mkassign(         vpsadbw,      avx,       0,   0,    0,    0);
+    mkassign(         vpshufb,      avx,       0,   0,    0,    0);
+    mkassign(         vpshufd,      avx,       0,   0,    0,    0);
+    mkassign(        vpshufhw,      avx,       0,   0,    0,    0);
+    mkassign(        vpshuflw,      avx,       0,   0,    0,    0);
+    mkassign(         vpsignb,      avx,       0,   0,    0,    0);
+    mkassign(         vpsignd,      avx,       0,   0,    0,    0);
+    mkassign(         vpsignw,      avx,       0,   0,    0,    0);
+    mkassign(          vpslld,      avx,       0,   0,    0,    0);
+    mkassign(         vpslldq,      avx,       0,   0,    0,    0);
+    mkassign(          vpsllq,      avx,       0,   0,    0,    0);
+    mkassign(          vpsllw,      avx,       0,   0,    0,    0);
+    mkassign(          vpsrad,      avx,       0,   0,    0,    0);
+    mkassign(          vpsraw,      avx,       0,   0,    0,    0);
+    mkassign(          vpsrld,      avx,       0,   0,    0,    0);
+    mkassign(         vpsrldq,      avx,       0,   0,    0,    0);
+    mkassign(          vpsrlq,      avx,       0,   0,    0,    0);
+    mkassign(          vpsrlw,      avx,       0,   0,    0,    0);
+    mkassign(          vpsubb,      avx,       0,   0,    0,    0);
+    mkassign(          vpsubd,      avx,       0,   0,    0,    0);
+    mkassign(          vpsubq,      avx,       0,   0,    0,    0);
+    mkassign(         vpsubsb,      avx,       0,   0,    0,    0);
+    mkassign(         vpsubsw,      avx,       0,   0,    0,    0);
+    mkassign(        vpsubusb,      avx,       0,   0,    0,    0);
+    mkassign(        vpsubusw,      avx,       0,   0,    0,    0);
+    mkassign(          vpsubw,      avx,       0,   0,    0,    0);
+    mkassign(      vpunpckhbw,      avx,       0,   0,    0,    0);
+    mkassign(      vpunpckhdq,      avx,       0,   0,    0,    0);
+    mkassign(     vpunpckhqdq,      avx,       0,   0,    0,    0);
+    mkassign(      vpunpckhwd,      avx,       0,   0,    0,    0);
+    mkassign(      vpunpcklbw,      avx,       0,   0,    0,    0);
+    mkassign(      vpunpckldq,      avx,       0,   0,    0,    0);
+    mkassign(     vpunpcklqdq,      avx,       0,   0,    0,    0);
+    mkassign(      vpunpcklwd,      avx,       0,   0,    0,    0);
+    mkassign(           vpxor,      avx,       0,   0,    0,    0);
+    mkassign(          vrcpps,      avx,       0,   0,    0,    0);
+    mkassign(          vrcpss,      avx,       0,   0,    0,    0);
+    mkassign(        vroundpd,      avx,       0,   0,    0,    0);
+    mkassign(        vroundps,      avx,       0,   0,    0,    0);
+    mkassign(        vroundsd,      avx,       0,   0,    0,    0);
+    mkassign(        vroundss,      avx,       0,   0,    0,    0);
+    mkassign(        vrsqrtps,      avx,       0,   0,    0,    0);
+    mkassign(        vrsqrtss,      avx,       0,   0,    0,    0);
+    mkassign(         vshufpd,      avx,       0,   0,    0,    0);
+    mkassign(         vshufps,      avx,       0,   0,    0,    0);
+    mkassign(         vsqrtpd,      avx,       0,   0,    0,    0);
+    mkassign(         vsqrtps,      avx,       0,   0,    0,    0);
+    mkassign(         vsqrtsd,      avx,       0,   0,    0,    0);
+    mkassign(         vsqrtss,      avx,       0,   0,    0,    0);
+    mkassign(        vstmxcsr,  special,       0,   0,    0,    0);
+    mkassign(          vsubpd,      avx,       0,   0,    0,    0);
+    mkassign(          vsubps,      avx,       0,   0,    0,    0);
+    mkassign(          vsubsd,      avx,       0,   0,    0,    0);
+    mkassign(          vsubss,      avx,       0,   0,    0,    0);
+    mkassign(         vtestpd,      avx,       0,   0,    0,    0);
+    mkassign(         vtestps,      avx,       0,   0,    0,    0);
+    mkassign(        vucomisd,      avx,       0,   0,    0,    0);
+    mkassign(        vucomiss,      avx,       0,   0,    0,    0);
+    mkassign(       vunpckhpd,      avx,       0,   0,    0,    0);
+    mkassign(       vunpckhps,      avx,       0,   0,    0,    0);
+    mkassign(       vunpcklpd,      avx,       0,   0,    0,    0);
+    mkassign(       vunpcklps,      avx,       0,   0,    0,    0);
+    mkassign(          vxorpd,      avx,       0,   0,    0,    0);
+    mkassign(          vxorps,      avx,       0,   0,    0,    0);
+    mkassign(        vzeroall,      avx,       0,   0,    0,    0);
+    mkassign(            wait,  special,   other,   0,    0,    0);
+    mkassign(          wbinvd,  special,   other,   0,    0,    0);
+    mkassign(           wrmsr,  special,   other,   0,    0,    0);
+    mkassign(            xadd,      int,     int,   0, VRSZ,    0);
+    mkassign(            xchg,      int,     int,   0, VRSZ,    0);
+    mkassign(           xlatb,  special,   other,   0,    0,    0);
+    mkassign(             xor,      int,     bin,   0, VRSZ,    0);
+    mkassign(           xorpd,    float,    binv,   0,   64,    0);
+    mkassign(           xorps,    float,    binv,   0,   32,    0);
+    mkassign(         zeroall,      avx,       0,   0,    0,    0);
 
     verify();
 }

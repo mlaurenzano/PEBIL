@@ -138,7 +138,6 @@ void Classification::instrument(){
         p->setPriority(InstPriority_low);
         Vector<X86Instruction*> bufferDumpInstructions;
 
-        bb->setBins();
         addInt_Store(bufferDumpInstructions, bb->getNumberOfInstructions(), instructionsCountStore);
         addInt_Store(bufferDumpInstructions, bb->getNumberOfBinUnknown(), tmpBufferStore); tmpBufferStore += sizeof(uint64_t);
         addInt_Store(bufferDumpInstructions, bb->getNumberOfBinInvalid(), tmpBufferStore); tmpBufferStore += sizeof(uint64_t);
