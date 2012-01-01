@@ -3815,7 +3815,7 @@ MAL MISSING PRE SSE?
     <opcode> aso rexr rexx rexb ; avxC4 0f 77 ; ; ; d:mm0 d:mm1 d:mm2 d:mm3 d:mm4 d:mm5 d:mm6 d:mm7 d:mm8 d:mm9 d:mm10 d:mm11 d:mm12 d:mm13 d:mm14 d:mm15 </opcode>
     <opcode> aso rexr rexx rexb ; avxC5 0f 77 ; ; ; d:mm0 d:mm1 d:mm2 d:mm3 d:mm4 d:mm5 d:mm6 d:mm7 d:mm8 d:mm9 d:mm10 d:mm11 d:mm12 d:mm13 d:mm14 d:mm15 </opcode>
   </instruction>
-  <!-- end pure AVX -->
+ <!-- end pure AVX -->
 
   <instruction mnemonic="verr">
     <opcode> aso rexr rexx rexb ; 0F 00 /4 ; Ew ; d:zf ; </opcode>
@@ -3914,6 +3914,10 @@ MAL MISSING PRE SSE?
     <opcode> oso rexw rexb ; 95 ; rBPr13 rAX ; ; </opcode>
     <opcode> oso rexw rexb ; 96 ; rSIr14 rAX ; ; </opcode>
     <opcode> oso rexw rexb ; 97 ; rDIr15 rAX ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="xgetbv">
+    <opcode> ; 0f 01 /2 /mod=11 /rm=0 ; ; ; u:cx d:ax d:dx </opcode>
   </instruction>
 
   <!-- TODO xlat -->

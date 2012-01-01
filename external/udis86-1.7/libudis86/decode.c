@@ -145,6 +145,8 @@ static int get_prefixes( struct ud* u )
                     u->pfx_rex  = 0;
                     
                     decode_vex(u);
+                    inp_next(u);
+                    have_pfx = 0;
                     break;
                 }
                 /* end PEBIL */
@@ -370,6 +372,7 @@ static int search_itab( struct ud * u )
 
         PEBIL_DEBUG("itab %d %hhx", tableid, curr);
         if ( ud_itab_list[ tableid ][ curr ].mnemonic != UD_Iinvalid ) {
+            PEBIL_DEBUG("avx mnemonic found %s", ud_mnemonics_str[ud_itab_list[ tableid ][ curr ].mnemonic]);
             table = tableid;
             u->pfx_opr = 0;
         }

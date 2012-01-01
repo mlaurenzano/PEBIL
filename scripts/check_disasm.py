@@ -6,6 +6,9 @@ import string
 import shlex
 import subprocess
 import sys
+import tempfile
+
+check_details = False
 
 def file_exists(filename):
     if os.path.isfile(filename):
@@ -23,12 +26,16 @@ def print_usage(err):
 
 def run_shell_cmd(textcmd):
     cmd = shlex.split(textcmd)
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+    sout = tempfile.TemporaryFile()
+    p = subprocess.Popen(cmd, stdout=sout, stderr=sout, close_fds=True)
     p.wait()
 
     if p.returncode != 0:
         print_usage("objdump failed on " + filename + ", it is probably not a valid binary")
-    rawoutput = p.stdout.readlines()
+
+    sout.seek(0)
+    rawoutput = sout.readlines()
+    sout.close()
     return rawoutput
 
 def get_objd_symbol(line):
@@ -114,6 +121,13 @@ def get_udis_disasm(mode, filename, offset, size, addr):
         print_error("error: udis command returned more output than expected")
     return get_udis_instruction(udis[0])
 
+#def get_udis_disasm(mode, filename, size, num):
+#    udis = run_shell_cmd('udcli -%d -att -o %x -s %d -c %d %s' % (mode, addr, offset, size, filename))
+#    if len(udis) != len(checks):
+#        print udis
+#        print_error("error: udis command returned more output than expected")
+#    return [get_udis_instruction(u) for u in udis]
+
 def int_match(c1, c2):
     try:
         int(c1, 16)
@@ -134,19 +148,20 @@ def compare_instructions(i1, i2):
     if (i1['addr'] != i2['addr']) or (i1['size'] != i2['size']) or (i1['bytes'] != i2['bytes']):
         errcnt += 1
 
-    t1 = i1['outp'].split(' ')
-    t2 = i2['outp'].split(' ')
+    if check_details:
+        t1 = i1['outp'].split(' ')
+        t2 = i2['outp'].split(' ')
     #print t1, t2
-
-    m1 = t1[0]
-    m2 = t2[0]
-    if (m1 != m2):
-        errcnt += 1
+        
+        m1 = t1[0]
+        m2 = t2[0]
+        if (m1 != m2):
+            errcnt += 1
     
-    if (len(t1) > 1 and len(t2) > 1):
-        o1 = t1[1].replace('*','').replace('$','').replace('0x','').replace('(',',').replace(')',',').split(',')
-        o2 = t2[1].replace('*','').replace('$','').replace('0x','').replace('(',',').replace(')',',').split(',')
-        df = 0
+        if (len(t1) > 1 and len(t2) > 1):
+            o1 = t1[1].replace('*','').replace('$','').replace('0x','').replace('(',',').replace(')',',').split(',')
+            o2 = t2[1].replace('*','').replace('$','').replace('0x','').replace('(',',').replace(')',',').split(',')
+            df = 0
         if (len(o1) == len(o2)):
             for i in range(len(o1)):
                 match = False
@@ -208,8 +223,11 @@ def main():
             icnt += 1
             c += l['size']
 
-    print 'checked %d instructions between disassembly and objdump' % (icnt)
-    print 'found %d errors' % (errcnt)
+    print 'found %d errors out of %d instructions between disassembly and objdump for %s' % (errcnt, icnt, testfile)
+
+    if errcnt > 0:
+        return 1
+    return 0
 
 
 if __name__ == '__main__':

@@ -881,6 +881,7 @@ const char * ud_mnemonics_str[] = {
   "wrmsr",
   "xadd",
   "xchg",
+  "xgetbv",
   "xlatb",
   "xor",
   "xorpd",
@@ -1219,7 +1220,18 @@ static struct ud_itab_entry itab__0f__op_01__reg__op_01__mod__op_01__rm[8] = {
 
 static struct ud_itab_entry itab__0f__op_01__reg__op_02__mod[2] = {
   /* 00 */  { UD_Ilgdt,        O_M,     O_NONE,  O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
+  /* 01 */  { UD_Igrp_rm,      O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, ITAB__0F__OP_01__REG__OP_02__MOD__OP_01__RM },
+};
+
+static struct ud_itab_entry itab__0f__op_01__reg__op_02__mod__op_01__rm[8] = {
+  /* 00 */  { UD_Ixgetbv,      O_NONE,  O_NONE,  O_NONE,  O_NONE, F_none, F_none, R_CX, R_AX | R_DX, P_none },
   /* 01 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
+  /* 02 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
+  /* 03 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
+  /* 04 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
+  /* 05 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
+  /* 06 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
+  /* 07 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
 };
 
 static struct ud_itab_entry itab__0f__op_01__reg__op_03__mod[2] = {
@@ -7601,6 +7613,7 @@ struct ud_itab_entry * ud_itab_list[] = {
   itab__0f__op_01__reg__op_01__mod,
   itab__0f__op_01__reg__op_01__mod__op_01__rm,
   itab__0f__op_01__reg__op_02__mod,
+  itab__0f__op_01__reg__op_02__mod__op_01__rm,
   itab__0f__op_01__reg__op_03__mod,
   itab__0f__op_01__reg__op_03__mod__op_01__rm,
   itab__0f__op_01__reg__op_03__mod__op_01__rm__op_00__vendor,
