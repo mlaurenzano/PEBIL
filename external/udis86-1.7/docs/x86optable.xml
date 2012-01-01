@@ -3948,6 +3948,4 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="db"></instruction>
 
-  <instruction mnemonic="invalid"></instruction>
-
 </x86optable>

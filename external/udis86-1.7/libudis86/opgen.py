@@ -205,9 +205,12 @@ opr_constants = []
 siz_constants = []
 tables        = {}
 table_sizes   = {}
-mnm_list      = []
+mnm_list      = ['invalid']
 default_opr   = 'O_NONE, O_NONE, O_NONE, O_NONE'
 
+def insert_mnm(m):
+    if mnm_list.count(m) == 0:
+        mnm_list.append(m)
 
 #
 # collect the operand/size constants
@@ -296,8 +299,9 @@ for node in tlNode.childNodes:
     if mnemonic in mnm_list:
         print "error: multiple declarations of mnemonic='%s'" % mnemonic;
         sys.exit(-1)
-    else:
-        mnm_list.append(mnemonic)
+
+    if len(node.childNodes) == 0:
+        insert_mnm(mnemonic)
 
     #
     # collect instruction 
@@ -401,6 +405,7 @@ for node in tlNode.childNodes:
            ( mnemonic == 'nop' and opc[0] == '90' ) or \
            mnemonic == 'invalid' or \
             mnemonic == 'db' :
+            insert_mnm(mnemonic)
             continue
 
         #
@@ -438,8 +443,6 @@ for node in tlNode.childNodes:
             if op[0:3] == 'SSE':
                 table_sse = op
             elif op[0:3] == 'AVX':
-                if mnm_list.count('v' + mnemonic) == 0:
-                    mnm_list.append('v' + mnemonic)
                 table_avx = op[3:]
             elif op == '0F' and len(table_sse) and len(table_avx):
                 table_name = "itab__avx_" + table_avx + "__pfx_" + table_sse + "__0f"
@@ -553,6 +556,8 @@ for node in tlNode.childNodes:
         m = mnemonic
         if table_avxdone > 0:
             m = 'v' + m
+        insert_mnm(m)
+
         tables[table_name][table_index] = { \
             'type'  : 'leaf',   \
             'name'  : m,        \
