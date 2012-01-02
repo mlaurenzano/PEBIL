@@ -283,8 +283,27 @@ void CacheSimulation::instrument(){
     uint64_t blockSizeStore = reserveDataOffset(sizeof(uint64_t));
 
     char* appName = getElfFile()->getAppName();
-    const char* ext = getExtension();
+    char ext[__MAX_STRING_SIZE];
+    sprintf(ext, "%s\0", getExtension());
+
     uint32_t phaseId = phaseNo;
+
+    // this sets ext to ext without the phase string
+    uint32_t ndots = 0;
+    if (phaseNo > 0){
+        int i = 0;
+        int l = strlen(ext);
+        while (i < l){
+            if (ext[i] == '.'){
+                ndots++;
+            }
+            if (ndots == 2){
+                break;
+            }
+        }
+        sprintf(ext, "%s", getExtension() + i + 1);
+    }
+
     uint32_t dumpCode = 0;
     uint32_t commentSize = strlen(appName) + sizeof(uint32_t) + strlen(getExtension()) + sizeof(uint32_t) + sizeof(uint32_t) + 4;
     uint64_t commentStore = reserveDataOffset(commentSize);
