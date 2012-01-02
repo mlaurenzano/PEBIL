@@ -300,18 +300,19 @@ void CacheSimulation::instrument(){
             if (ndots == 2){
                 break;
             }
-        }
+            i++;
+        }        
         sprintf(ext, "%s", getExtension() + i + 1);
     }
 
     uint32_t dumpCode = 0;
-    uint32_t commentSize = strlen(appName) + sizeof(uint32_t) + strlen(getExtension()) + sizeof(uint32_t) + sizeof(uint32_t) + 4;
+    uint32_t commentSize = strlen(appName) + sizeof(uint32_t) + strlen(ext) + sizeof(uint32_t) + sizeof(uint32_t) + 4;
     uint64_t commentStore = reserveDataOffset(commentSize);
     char* comment = new char[commentSize];
 #ifndef STATS_PER_INSTRUCTION
-    sprintf(comment, "%s %u %s %u %u", appName, phaseId, getExtension(), getNumberOfExposedBasicBlocks(), dumpCode);
+    sprintf(comment, "%s %u %s %u %u", appName, phaseId, ext, getNumberOfExposedBasicBlocks(), dumpCode);
 #else
-    sprintf(comment, "%s %u %s %u %u", appName, phaseId, getExtension(), getNumberOfExposedInstructions(), dumpCode);
+    sprintf(comment, "%s %u %s %u %u", appName, phaseId, ext, getNumberOfExposedInstructions(), dumpCode);
     uint32_t insnToBlock[getNumberOfExposedInstructions()];
 #endif
     initializeReservedData(getInstDataAddress() + commentStore, commentSize, comment);
