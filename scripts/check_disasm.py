@@ -25,6 +25,7 @@ def print_usage(err):
     print_error(err)
 
 def run_shell_cmd(textcmd):
+#    print 'shell command: ' + textcmd
     cmd = shlex.split(textcmd)
     sout = tempfile.TemporaryFile()
     p = subprocess.Popen(cmd, stdout=sout, stderr=sout, close_fds=True)
@@ -56,6 +57,7 @@ def get_objd_symbol(line):
         s['offset'] = int(tks[4], 16)
         s['name'] = tks[1][1:len(tks[1])-1]
         s['content'] = []
+        s['size'] = 0
     except ValueError, e:
         print e
         sys.exit(1)
@@ -84,6 +86,9 @@ def get_objd_instruction(line):
 def get_exec_instructions(filename):
     rawdump = run_shell_cmd('objdump -d -F --insn-width=24 ' + filename)
 
+    tbytes = 0
+    tins = 0
+
     text = {}
     insymbol = False
     for line in rawdump:
@@ -97,7 +102,12 @@ def get_exec_instructions(filename):
         ins = get_objd_instruction(line)
         if ins != False:
             text[insymbol]['content'].append(ins)
+            text[insymbol]['size'] += ins['size']
+            tbytes += ins['size']
+            tins += 1
+    
 
+    print 'found %d instructions in %d bytes for %s' % (tins, tbytes, filename)
     return text
 
 def get_udis_instruction(line):
@@ -114,19 +124,14 @@ def get_udis_instruction(line):
         sys.exit(1)
     return i
 
-def get_udis_disasm(mode, filename, offset, size, addr):
+def get_udis_disasm(name, mode, filename, offset, size, addr, num):
     udis = run_shell_cmd('udcli -%d -att -o %x -s %d -c %d %s' % (mode, addr, offset, size, filename))
-    if len(udis) != 1:
-        print udis
-        print_error("error: udis command returned more output than expected")
-    return get_udis_instruction(udis[0])
-
-#def get_udis_disasm(mode, filename, size, num):
-#    udis = run_shell_cmd('udcli -%d -att -o %x -s %d -c %d %s' % (mode, addr, offset, size, filename))
-#    if len(udis) != len(checks):
-#        print udis
-#        print_error("error: udis command returned more output than expected")
-#    return [get_udis_instruction(u) for u in udis]
+    if len(udis) > num:
+        print("error: udis command returned more output than expected in %s" % name)
+    elif len(udis) < num:
+        print("error: udis command returned less output than expected in %s" % name)
+#print udis
+    return [get_udis_instruction(u) for u in udis]
 
 def int_match(c1, c2):
     try:
@@ -143,7 +148,7 @@ def int_match(c1, c2):
 
     return False
 
-def compare_instructions(i1, i2):
+def compare_instructions(i1, i2, b):
     errcnt = 0
     if (i1['addr'] != i2['addr']) or (i1['size'] != i2['size']) or (i1['bytes'] != i2['bytes']):
         errcnt += 1
@@ -175,10 +180,11 @@ def compare_instructions(i1, i2):
             errcnt += 1
         
     if errcnt > 0:
-        print "error in disassembly... see instruction output below"
-        print i1
-        print i2
-        print '-----------------------------------------------------'
+        if b:
+            print "error in disassembly... see instruction output below"
+            print i1
+            print i2
+            print '-----------------------------------------------------'
         return False
     return True
 
@@ -212,16 +218,24 @@ def main():
     objdump = get_exec_instructions(testfile)
     errcnt = 0
     icnt = 0
+    c = 0
     for o in objdump.keys():
         sym = objdump[o]
-        c = 0
-        for i in range(len(sym['content'])):
-            l = sym['content'][i]
-            k = get_udis_disasm(mode, testfile, sym['offset'] + c, l['size'], l['addr'])
-            if compare_instructions(l, k) == False:
+        if (len(sym['content']) == 0):
+            continue
+
+        doPrnt = True
+        a = get_udis_disasm(sym['name'], mode, testfile, sym['offset'], sym['size'], sym['addr'], len(sym['content']))
+        m = len(sym['content'])
+        if len(a) < m:
+            m = len(a)
+        for x in range(m):
+            if compare_instructions(sym['content'][x], a[x], doPrnt) == False:
                 errcnt += 1
+                doPrnt = False
             icnt += 1
-            c += l['size']
+            c += a[x]['size']
+        #print 'handled symbol %s, done with %d instructions' % (sym['name'], icnt)
 
     print 'found %d errors out of %d instructions between disassembly and objdump for %s' % (errcnt, icnt, testfile)
 

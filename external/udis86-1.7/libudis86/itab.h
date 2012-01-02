@@ -837,6 +837,7 @@ enum ud_mnemonic_code {
   UD_Ivhsubps,
   UD_Ivinsertf128,
   UD_Ivinsertps,
+  UD_Ivlddqu,
   UD_Ivldmxcsr,
   UD_Ivmaskmov,
   UD_Ivmaskmovdqu,

@@ -1390,22 +1390,22 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="fist">
-    <opcode cast="1"> aso rexr rexx rexb ; DF /mod=!11 /2 ; Mw ; ; </opcode>
-    <opcode cast="1"> aso rexr rexx rexb ; DB /mod=!11 /2 ; Md ; ; </opcode>
+    <opcode cast="1"> aso rexr rexx rexb ; DF /mod=!11 /2 ; Mw ; ; u:st0 </opcode>
+    <opcode cast="1"> aso rexr rexx rexb ; DB /mod=!11 /2 ; Md ; ; u:st0 </opcode>
     <class> X87 </class>
   </instruction>
 
   <instruction mnemonic="fistp">
-    <opcode cast="1"> aso rexr rexx rexb ; DF /mod=!11 /3 ; Mw ; ; </opcode>
-    <opcode cast="1"> aso rexr rexx rexb ; DF /mod=!11 /7 ; Mq ; ; </opcode>
-    <opcode cast="1"> aso rexr rexx rexb ; DB /mod=!11 /3 ; Md ; ; </opcode>
+    <opcode cast="1"> aso rexr rexx rexb ; DF /mod=!11 /3 ; Mw ; ; u:st0 </opcode>
+    <opcode cast="1"> aso rexr rexx rexb ; DF /mod=!11 /7 ; Mq ; ; u:st0 </opcode>
+    <opcode cast="1"> aso rexr rexx rexb ; DB /mod=!11 /3 ; Md ; ; u:st0 </opcode>
     <class> X87 </class>
   </instruction>
 
   <instruction mnemonic="fisttp">
-    <opcode cast="1"> aso rexr rexx rexb ; DB /mod=!11 /1 ; Md ; ; </opcode>
-    <opcode cast="1"> aso rexr rexx rexb ; DD /mod=!11 /1 ; Mq ; ; </opcode>
-    <opcode cast="1"> aso rexr rexx rexb ; DF /mod=!11 /1 ; Mw ; ; </opcode>
+    <opcode cast="1"> aso rexr rexx rexb ; DB /mod=!11 /1 ; Md ; ; u:st0 </opcode>
+    <opcode cast="1"> aso rexr rexx rexb ; DD /mod=!11 /1 ; Mq ; ; u:st0 </opcode>
+    <opcode cast="1"> aso rexr rexx rexb ; DF /mod=!11 /1 ; Mw ; ; u:st0 </opcode>
     <class> X87 </class>
   </instruction>
 
@@ -2041,6 +2041,8 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="lddqu">
     <opcode> aso rexr rexx rexb ; ssef2 0f f0 ; V M ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 ssef2 0f f0 ; V M ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC5 ssef2 0f f0 ; V M ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="ldmxcsr">
