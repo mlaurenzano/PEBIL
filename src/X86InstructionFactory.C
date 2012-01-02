@@ -179,8 +179,8 @@ Vector<X86Instruction*>* X86InstructionFactory64::emitAddressComputation(X86Inst
             (*compInstructions).append(emitMoveImmToReg(addr, dest));
         } else {
             (*compInstructions).append(emitLoadEffectiveAddress(op, dest));
-            ASSERT((*compInstructions).back() && op && (*compInstructions).back()->getOperand(COMP_SRC_OPERAND));
-            ASSERT(op->isSameOperand((*compInstructions).back()->getOperand(COMP_SRC_OPERAND)) && "The emitd Address Computation operand does not match the operand given");
+            ASSERT((*compInstructions).back() && op && (*compInstructions).back()->getOperand(SRC1_OPERAND));
+            ASSERT(op->isSameOperand((*compInstructions).back()->getOperand(SRC1_OPERAND)) && "The emitd Address Computation operand does not match the operand given");
         }
 
     } else {
@@ -235,8 +235,8 @@ Vector<X86Instruction*>* X86InstructionFactory32::emitAddressComputation(X86Inst
             (*compInstructions).append(emitMoveImmToReg(addr, dest));
         } else {
             (*compInstructions).append(emitLoadEffectiveAddress(op, dest));
-            ASSERT((*compInstructions).back() && op && (*compInstructions).back()->getOperand(COMP_SRC_OPERAND));
-            ASSERT(op->isSameOperand((*compInstructions).back()->getOperand(COMP_SRC_OPERAND)) && "The emitd Address Computation operand does not match the operand given");
+            ASSERT((*compInstructions).back() && op && (*compInstructions).back()->getOperand(SRC1_OPERAND));
+            ASSERT(op->isSameOperand((*compInstructions).back()->getOperand(SRC1_OPERAND)) && "The emitd Address Computation operand does not match the operand given");
         }
 
     } else {
@@ -536,11 +536,11 @@ X86Instruction* X86InstructionFactory64::emitLoadEffectiveAddress(OperandX86* op
     }
 
     X86Instruction* lea = emitLoadEffectiveAddress(baseReg, indexReg, scale, value, dest, hasBase, hasIndex);
-    if (!lea || !op || !lea->getOperand(COMP_SRC_OPERAND)){
+    if (!lea || !op || !lea->getOperand(SRC1_OPERAND)){
         lea->print();
     }
-    ASSERT(lea && op && lea->getOperand(COMP_SRC_OPERAND));
-    ASSERT(op->isSameOperand(lea->getOperand(COMP_SRC_OPERAND)) && "The emitted LEA operand does not match the operand given");
+    ASSERT(lea && op && lea->getOperand(SRC1_OPERAND));
+    ASSERT(op->isSameOperand(lea->getOperand(SRC1_OPERAND)) && "The emitted LEA operand does not match the operand given");
 
     return lea;
 }
@@ -569,11 +569,11 @@ X86Instruction* X86InstructionFactory32::emitLoadEffectiveAddress(OperandX86* op
     }
 
     X86Instruction* lea = emitLoadEffectiveAddress(baseReg, indexReg, scale, value, dest, hasBase, hasIndex);
-    if (!lea || !op || !lea->getOperand(COMP_SRC_OPERAND)){
+    if (!lea || !op || !lea->getOperand(SRC1_OPERAND)){
         lea->print();
     }
-    ASSERT(lea && op && lea->getOperand(COMP_SRC_OPERAND));
-    ASSERT(op->isSameOperand(lea->getOperand(COMP_SRC_OPERAND)) && "The emitted LEA operand does not match the operand given");
+    ASSERT(lea && op && lea->getOperand(SRC1_OPERAND));
+    ASSERT(op->isSameOperand(lea->getOperand(SRC1_OPERAND)) && "The emitted LEA operand does not match the operand given");
 
     return lea;
 }

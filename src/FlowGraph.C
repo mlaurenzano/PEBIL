@@ -153,8 +153,7 @@ void FlowGraph::computeDefUseDist(){
                 X86Instruction* ins = bb->getInstruction(k);
 
                 // Skip the instruction if it can't define anything
-                if (!ins->isIntegerOperation() && !ins->isFloatPOperation() && !ins->isMoveOperation()
-                    || ins->isConditionCompare()) {
+                if (!ins->isIntegerOperation() && !ins->isFloatPOperation() && !ins->isMoveOperation()) {
                     continue;
                 }
                 ASSERT(!ins->usesControlTarget());

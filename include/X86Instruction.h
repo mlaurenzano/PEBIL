@@ -35,22 +35,27 @@ class ElfFileInst;
 class Function;
 class TextObject;
 
-#define MAX_OPERANDS 4
-#define JUMP_TARGET_OPERAND 0
-#define COMP_DEST_OPERAND 0
-#define COMP_SRC_OPERAND 1
+
 #define JUMP_TABLE_REACHES 0x1000
 #define DISASSEMBLY_MODE UD_SYN_ATT
 #define MAX_X86_INSTRUCTION_LENGTH 20
 #define MIN_CONST_MEMADDR 0x10000
-#define ALU_DEST_OPERAND 0
-#define ALU_SRC1_OPERAND 1
-#define ALU_SRC2_OPERAND 0
-#define MOV_DEST_OPERAND 0
-#define MOV_SRC_OPERAND 1
-#define AVX_SRC1_OPERAND 1
-#define AVX_SRC2_OPERAND 2
-#define AVX_SRC3_OPERAND 3
+
+#define MAX_OPERANDS 4
+
+/* branches */
+#define JUMP_TARGET_OPERAND 0
+
+/* comparisons */
+#define CMP_SRC1_OPERAND 0
+#define CMP_SRC2_OPERAND 1
+
+/* everything else */
+#define DEST_OPERAND 0
+#define SRC1_OPERAND 1
+#define SRC2_OPERAND 0
+#define SRC3_OPERAND 2
+#define SRC4_OPERAND 3
 
 #define UD_R_NAME_LOOKUP(__ud_reg) (ud_reg_tab[__ud_reg - 1])
 #define UD_OP_NAME_LOOKUP(__ud_type) (ud_optype_str[__ud_type - UD_OP_REG])
@@ -282,14 +287,13 @@ enum X86InstructionType {
 
 enum X86OperandFormat {
     X86OperandFormat_unknown = 0,   // Unknown
-    X86OperandFormat_1op_ctrl,
-    X86OperandFormat_2op_mov,
-    X86OperandFormat_3op_mov,
-    X86OperandFormat_2op_comp,
-    X86OperandFormat_3op_comp,
-    X86OperandFormat_4op_comp,
+    X86OperandFormat_di,            // no explicit dest operand (mem reference)
+    X86OperandFormat_si,            // no explicit source operand (mem reference)
+    X86OperandFormat_dsi,           // no explicit dest and source operands (mem references)
     X86OperandFormat_Total
 };
+#define CHECK_IMPLICIT_LOAD  ((X86InstructionClassifier::getInstructionFormat(this) == X86OperandFormat_si) || (X86InstructionClassifier::getInstructionFormat(this) == X86OperandFormat_dsi))
+#define CHECK_IMPLICIT_STORE ((X86InstructionClassifier::getInstructionFormat(this) == X86OperandFormat_di) || (X86InstructionClassifier::getInstructionFormat(this) == X86OperandFormat_dsi))
 
 enum X86InstructionBin {
     X86InstructionBin_unknown = 0,   // Unknown
@@ -397,11 +401,16 @@ private:
 
     bool defXIter;
 
+    uint32_t countValidNonimm();
+
 public:
     void setDefXIter() { defXIter = true; }
     bool hasDefXIter() { return defXIter; }
 
     uint64_t cacheBaseAddress;
+
+    OperandX86* getDestOperand();
+    Vector<OperandX86*>* getSourceOperands();
 
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
@@ -597,8 +606,8 @@ private:
     static uint32_t packFields(uint8_t type, uint8_t bin, uint8_t format, uint8_t memsize, uint8_t location);
 
 public:
-
     static uint32_t getClass(uint32_t mnemonic);
+
     static X86InstructionBin getInstructionBin(X86Instruction* x);
     static uint8_t getInstructionMemLocation(X86Instruction* x);
     static uint8_t getInstructionMemSize(X86Instruction* x);

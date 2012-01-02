@@ -84,15 +84,20 @@ bool X86Instruction::isLoad(){
     if (isStackPop()){
         return true;
     }
+    if (CHECK_IMPLICIT_LOAD){
+        return true;
+    }
     if (isExplicitMemoryOperation()){
-        OperandX86* op = getMemoryOperand();
-        ASSERT(op);
-        if (op->getOperandIndex() == COMP_SRC_OPERAND){
-            return true;
+        OperandX86* mem = getMemoryOperand();
+        ASSERT(mem);
+        Vector<OperandX86*>* uses = getSourceOperands();
+        for (uint32_t i = 0; i < uses->size(); i++){
+            if (mem->getOperandIndex() == (*uses)[i]->getOperandIndex()){
+                delete uses;
+                return true;
+            }
         }
-        if (!isMoveOperation() && op->getOperandIndex() == ALU_SRC2_OPERAND){
-            return true;
-        }
+        delete uses;
     }
     return false;
 }
@@ -101,10 +106,14 @@ bool X86Instruction::isStore(){
     if (isStackPush()){
         return true;
     }
+    if (CHECK_IMPLICIT_STORE){
+        return true;
+    }
     if (isExplicitMemoryOperation()){
-        OperandX86* op = getMemoryOperand();
-        ASSERT(op);
-        if (op->getOperandIndex() == COMP_DEST_OPERAND){
+        OperandX86* mem = getMemoryOperand();
+        ASSERT(mem);
+        OperandX86* dest = getDestOperand();
+        if (dest && mem->getOperandIndex() == dest->getOperandIndex()){
             return true;
         }
     }
@@ -282,13 +291,58 @@ bool OperandX86::isSameOperand(OperandX86* other){
     return false;
 }
 
+OperandX86* X86Instruction::getDestOperand(){
+    // compares and branches dont define anything
+    if (isConditionCompare() || isBranch() || CHECK_IMPLICIT_STORE){
+        return NULL;
+    }
+    return operands[DEST_OPERAND];
+}
+
+Vector<OperandX86*>* X86Instruction::getSourceOperands(){
+    Vector<OperandX86*>* ops = new Vector<OperandX86*>();
+    uint32_t numni = countValidNonimm();
+
+    /* S/D, S, [S] */
+    if (numni < 3 && !isMoveOperation()){
+        if (operands[0]){
+            ops->append(operands[0]);
+        }
+        if (operands[1]){
+            ops->append(operands[1]);
+        }
+        if (operands[2]){
+            ops->append(operands[2]);
+        }
+    /* D, S, [S, [S]] */
+    } else {
+        if (operands[1]){
+            ops->append(operands[1]);
+        }        
+        if (operands[2]){
+            ops->append(operands[2]);
+        }        
+        if (operands[3]){
+            ops->append(operands[3]);
+        }        
+    }
+    return ops;
+}
+
+uint32_t X86Instruction::countValidNonimm(){
+    uint32_t nimm = 0;
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i] && operands[i]->getType() != UD_OP_IMM){
+            nimm++;
+        }
+    }
+    return nimm;
+}
+
 bool X86Instruction::isConditionCompare(){
     int32_t m = GET(mnemonic);
 
-    if ((m == UD_Icmp) ||
-        (m == UD_Itest) ||
-        (m == UD_Iptest) ||
-        (m == UD_Iftst) ||
+    if (
         (m == UD_Ibt) ||
         (m == UD_Ibtc) ||
         (m == UD_Ibtr) ||
@@ -296,22 +350,49 @@ bool X86Instruction::isConditionCompare(){
         (m == UD_Icmppd) ||
         (m == UD_Icmpps) ||
         (m == UD_Icmpsb) ||
-        (m == UD_Icmpsw) ||
         (m == UD_Icmpsd) ||
         (m == UD_Icmpsq) ||
         (m == UD_Icmpss) ||
-        (m == UD_Icmpxchg) ||
+        (m == UD_Icmpsw) ||
         (m == UD_Icmpxchg8b) ||
+        (m == UD_Icmpxchg) ||
+        (m == UD_Icmp) ||
+        (m == UD_Iftst) ||
         (m == UD_Ipcmpeqb) ||
-        (m == UD_Ipcmpeqw) ||
         (m == UD_Ipcmpeqd) ||
+        (m == UD_Ipcmpeqq) ||
+        (m == UD_Ipcmpeqw) ||
+        (m == UD_Ipcmpestri) ||
+        (m == UD_Ipcmpestrm) ||
         (m == UD_Ipcmpgtb) ||
-        (m == UD_Ipcmpgtw) ||
         (m == UD_Ipcmpgtd) ||
         (m == UD_Ipcmpgtq) ||
+        (m == UD_Ipcmpgtw) ||
+        (m == UD_Ipcmpistri) ||
+        (m == UD_Ipcmpistrm) ||
+        (m == UD_Ipfcmpeq) ||
         (m == UD_Ipfcmpge) ||
         (m == UD_Ipfcmpgt) ||
-        (m == UD_Ipfcmpeq)){
+        (m == UD_Iptest) ||
+        (m == UD_Itest) ||
+        (m == UD_Ivcmppd) ||
+        (m == UD_Ivcmpps) ||
+        (m == UD_Ivcmpsd) ||
+        (m == UD_Ivcmpss) ||
+        (m == UD_Ivpcmpeqb) ||
+        (m == UD_Ivpcmpeqd) ||
+        (m == UD_Ivpcmpeqq) ||
+        (m == UD_Ivpcmpeqw) ||
+        (m == UD_Ivpcmpestri) ||
+        (m == UD_Ivpcmpestrm) ||
+        (m == UD_Ivpcmpgtb) ||
+        (m == UD_Ivpcmpgtd) ||
+        (m == UD_Ivpcmpgtq) ||
+        (m == UD_Ivpcmpgtw) ||
+        (m == UD_Ivpcmpistri) ||
+        (m == UD_Ivpcmpistrm) ||
+        (m == UD_Ivtestpd) ||
+        (m == UD_Ivtestps)){
         return true;
     }
     return false;
@@ -378,86 +459,23 @@ void X86Instruction::impliedDefs(BitSet<uint32_t>* regs){
     }
 }
 
-void X86Instruction::usesRegisters(BitSet<uint32_t>* regs){
-    if (isMoveOperation()){
-        if (operands[MOV_SRC_OPERAND]){
-            operands[MOV_SRC_OPERAND]->touchedRegisters(regs);
-        }
-        if (operands[MOV_DEST_OPERAND]){
-            if (operands[MOV_DEST_OPERAND]->getType() == UD_OP_MEM || 
-                operands[MOV_DEST_OPERAND]->getType() == UD_OP_PTR){
-                operands[MOV_DEST_OPERAND]->touchedRegisters(regs);
-            }
-        }
-    }
-    if (isIntegerOperation() || isFloatPOperation()){
-        if (countExplicitOperands() > 1){
-            if (operands[ALU_SRC1_OPERAND]){
-                operands[ALU_SRC1_OPERAND]->touchedRegisters(regs);
-            }
-        }
-        if (countExplicitOperands() > 0){
-            if (operands[ALU_SRC2_OPERAND]){
-                operands[ALU_SRC2_OPERAND]->touchedRegisters(regs);
-            }
-        }
-    }
-    impliedUses(regs);
-    // TODO: implement this for branches?
-}
-
-void X86Instruction::defsRegisters(BitSet<uint32_t>* regs){
-    if (isMoveOperation()){
-        if (operands[MOV_DEST_OPERAND] && operands[MOV_DEST_OPERAND]->getType() == UD_OP_REG){
-            operands[MOV_DEST_OPERAND]->touchedRegisters(regs);
-        }
-    }
-    if (isIntegerOperation() || isFloatPOperation()){
-        if (!isConditionCompare() && countExplicitOperands() > 1){
-            if (operands[ALU_DEST_OPERAND] && operands[ALU_DEST_OPERAND]->getType() == UD_OP_REG){
-                operands[ALU_DEST_OPERAND]->touchedRegisters(regs);
-            }
-        }
-    }
-    impliedDefs(regs);
-    // TODO: implement this for branches?
-}
-
-#define has(reg) (op->GET(reg) && IS_ALU_REG(op->GET(reg)))
-
+#define op_has(op, reg) (op->GET(reg) && IS_ALU_REG(op->GET(reg)))
 LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getDefs(){
 
-    LinkedList<ReachingDefinition*>* defs =
+    LinkedList<ReachingDefinition*>* defList =
         new LinkedList<ReachingDefinition*>();
 
-    OperandX86* op;
-
-    if (isMoveOperation()) {
-        op = operands[MOV_DEST_OPERAND];
-        if (op) {
-            DefLocation loc;
-            loc.value = op->getValue();
-            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
-            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
-            loc.offset = op->GET(offset);
-            loc.scale = op->GET(scale);
-            loc.type = op->GET(type);
-            defs->insert(new ReachingDefinition(this, loc));
-        } // else implied?
-
-
-    } else if ((isIntegerOperation() || isFloatPOperation()) && !isConditionCompare()) {
-        op = operands[ALU_DEST_OPERAND];
-        if (op) {
-            DefLocation loc;
-            loc.value = op->getValue();
-            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
-            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
-            loc.offset = op->GET(offset);
-            loc.scale = op->GET(scale);
-            loc.type = op->GET(type);
-            defs->insert(new ReachingDefinition(this, loc));
-        } // else implied?
+    // explicit defines
+    OperandX86* def = getDestOperand();
+    if (def){
+        DefLocation loc;
+        loc.value = def->getValue();
+        loc.base = op_has(def, base) ? def->getBaseRegister() : X86_ALU_REGS;
+        loc.index = op_has(def, index) ? def->getIndexRegister() : X86_ALU_REGS;
+        loc.offset = def->GET(offset);
+        loc.scale = def->GET(scale);
+        loc.type = def->GET(type);
+        defList->insert(new ReachingDefinition(this, loc));
     }
 
     // Get the implied register defines
@@ -470,59 +488,45 @@ LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getDefs(){
             bzero(&loc, sizeof(loc));
             loc.base = i;
             loc.type = UD_OP_REG;
-            defs->insert(new ReachingDefinition(this, loc));
+            defList->insert(new ReachingDefinition(this, loc));
         }
     } 
 
-    return defs;
+    return defList;
 }
 
 LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
 
-    LinkedList<ReachingDefinition*>* uses =
+    LinkedList<ReachingDefinition*>* useList =
         new LinkedList<ReachingDefinition*>();
 
-    OperandX86* op;
-
-    if (isMoveOperation()) {
-        op = operands[MOV_SRC_OPERAND];
-        if (op) {
+    OperandX86* def = getDestOperand();    
+    if (def){
+        if (def->getType() == UD_OP_MEM || def->getType() == UD_OP_PTR){
             DefLocation loc;
-            loc.value = op->getValue();
-            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
-            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
-            loc.offset = op->GET(offset);
-            loc.scale = op->GET(scale);
-            loc.type = op->GET(type);
-            uses->insert(new ReachingDefinition(this, loc));
-        } // else implied?
-
-
-    } else if ((isIntegerOperation() || isFloatPOperation())) {
-        op = operands[ALU_SRC1_OPERAND];
-        if (op) {
-            DefLocation loc;
-            loc.value = op->getValue();
-            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
-            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
-            loc.offset = op->GET(offset);
-            loc.scale = op->GET(scale);
-            loc.type = op->GET(type);
-            uses->insert(new ReachingDefinition(this, loc));
-        } // else implied?
-
-        op = operands[ALU_SRC2_OPERAND];
-        if (op) {
-            DefLocation loc;
-            loc.value = op->getValue();
-            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
-            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
-            loc.offset = op->GET(offset);
-            loc.scale = op->GET(scale);
-            loc.type = op->GET(type);
-            uses->insert(new ReachingDefinition(this, loc));
+            loc.value = def->getValue();
+            loc.base = op_has(def, base) ? def->getBaseRegister() : X86_ALU_REGS;
+            loc.index = op_has(def, index) ? def->getIndexRegister() : X86_ALU_REGS;
+            loc.offset = def->GET(offset);
+            loc.scale = def->GET(scale);
+            loc.type = def->GET(type);
+            useList->insert(new ReachingDefinition(this, loc));            
         }
     }
+
+    Vector<OperandX86*>* uses = getSourceOperands();
+    for (uint32_t i; i < uses->size(); i++){
+        OperandX86* use = (*uses)[i];
+        DefLocation loc;
+        loc.value = use->getValue();
+        loc.base = op_has(use, base) ? use->getBaseRegister() : X86_ALU_REGS;
+        loc.index = op_has(use, index) ? use->getIndexRegister() : X86_ALU_REGS;
+        loc.offset = use->GET(offset);
+        loc.scale = use->GET(scale);
+        loc.type = use->GET(type);
+        useList->insert(new ReachingDefinition(this, loc));
+    }
+    delete uses;
 
     // Get the implied register uses
     BitSet<uint32_t> imp_regs(X86_ALU_REGS);
@@ -534,11 +538,11 @@ LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
             bzero(&loc, sizeof(loc));
             loc.base = i;
             loc.type = UD_OP_REG;
-            uses->insert(new ReachingDefinition(this, loc));
+            useList->insert(new ReachingDefinition(this, loc));
         }
     } 
 
-    return uses;
+    return useList;
 }
 
 bool X86Instruction::ReachingDefinition::invalidatedBy(ReachingDefinition* other) {
@@ -1229,7 +1233,7 @@ bool X86Instruction::isBinSingles() { return (X86InstructionClassifier::getInstr
 bool X86Instruction::isBinDouble()  { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_float)  && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
 bool X86Instruction::isBinDoublev() { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floatv) && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
 bool X86Instruction::isBinDoubles() { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floats) && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
-bool X86Instruction::isBinMem()     { return false; }
+bool X86Instruction::isBinMem()     { return (X86InstructionClassifier::getInstructionMemLocation(this) != 0); }
 
 void X86Instruction::printBin(){
     if(isBinUnknown())      printf("Unknown");
@@ -1426,7 +1430,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
 }
 
 void X86Instruction::print(){
-    char flags[9];
+    char flags[11];
     flags[0] = 'r';
     if (usesRelativeAddress()){
         flags[0] = 'R';
@@ -1459,10 +1463,18 @@ void X86Instruction::print(){
     if (isFloatPOperation()){
         flags[7] = 'F';
     }
+    flags[8] = 'l';
+    if (isLoad()){
+        flags[8] = 'L';
+    }
+    flags[9] = 's';
+    if (isStore()){
+        flags[9] = 'S';
+    }
 
-    flags[8] = '\0';
+    flags[10] = '\0';
 
-    PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%8s]\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
+    PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%10s]\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
 
 #ifdef PRINT_INSTRUCTION_DETAIL
 #ifndef NO_REG_ANALYSIS
@@ -1824,7 +1836,7 @@ void X86Instruction::setFlags()
     // these instructions have 2 versions: 1 is a string instruction that implicitly uses DF, the other is an SSE instruction
     if (GET(mnemonic) == UD_Imovsb || GET(mnemonic) == UD_Imovsw || GET(mnemonic) == UD_Imovsd || GET(mnemonic) == UD_Imovsq){
         // has no operands -- they must be implicit
-        if (!getOperand(COMP_DEST_OPERAND) && !getOperand(COMP_SRC_OPERAND)){
+        if (!getOperand(CMP_SRC1_OPERAND) && !getOperand(CMP_SRC2_OPERAND)){
             flags_usedef[__reg_use] = __bit_shift(X86_FLAG_DF);
         }
     }
@@ -1978,7 +1990,6 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(        blendvpd,      int,       0,   0,    0,    0);
     mkassign(        blendvps,      int,       0,   0,    0,    0);
     mkassign(           bound,      int,     bin,   0, VRSZ,    0);
-    mkassign(       broadcast,     simd,       0,   0,    0,    0);
     mkassign(             bsf,      int,     bin,   0, VRSZ,    0);
     mkassign(             bsr,      int,     bin,   0, VRSZ,    0);
     mkassign(           bswap,      int,     bin,   0, VRSZ,    0);
@@ -2016,12 +2027,12 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(             cmp,      int,     int,   0, VRSZ,    0);
     mkassign(           cmppd,    float,  floatv,   0,   64,    0);
     mkassign(           cmpps,    float,  floatv,   0,   32,    0);
-    mkassign(           cmpsb,   string,  string,   0,    8,    0);
+    mkassign(           cmpsb,   string,  string,  si,    8,    0);
     // TODO: 2 instructions covered by this... need to handle special
-    mkassign(           cmpsd,    float,  string,   0,   32,    0);
-    mkassign(           cmpsq,   string,  string,   0,   64,    0);
+    mkassign(           cmpsd,    float,  string,  si,   32,    0);
+    mkassign(           cmpsq,   string,  string,  si,   64,    0);
     mkassign(           cmpss,    float,  floats,   0,   32,    0);
-    mkassign(           cmpsw,   string,  string,   0,   16,    0);
+    mkassign(           cmpsw,   string,  string,  si,   16,    0);
     mkassign(       cmpxchg8b,      int,     int,   0, VRSZ,    0);
     mkassign(         cmpxchg,      int,     int,   0, VRSZ,    0);
     mkassign(          comisd,    float,  floats,   0,   64,    0);
@@ -2033,12 +2044,10 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(        cvtpd2dq,    float,  floatv,   0,   64,    0);
     mkassign(        cvtpd2pi,    float,  floatv,   0,   64,    0);
     mkassign(        cvtpd2ps,    float,  floatv,   0,   32,    0);
-    mkassign(        cvtph2ps,     simd,       0,   0,    0,    0);
     mkassign(        cvtpi2pd,    float,  floatv,   0,   64,    0);
     mkassign(        cvtpi2ps,    float,  floatv,   0,   32,    0);
     mkassign(        cvtps2dq,    float,  floatv,   0,   32,    0);
     mkassign(        cvtps2pd,    float,  floatv,   0,   64,    0);
-    mkassign(        cvtps2ph,     simd,       0,   0,    0,    0);
     mkassign(        cvtps2pi,    float,  floatv,   0,   32,    0);
     mkassign(        cvtsd2si,    float,  floats,   0,   64,    0);
     mkassign(        cvtsd2ss,    float,  floats,   0,   64,    0);
@@ -2067,7 +2076,6 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(            dpps,     simd,       0,   0,    0,    0);
     mkassign(            emms,  special,   other,   0,    0,    0);
     mkassign(           enter,  special,   stack,   0,    0,    BinFrame);
-    mkassign(     extractf128,     simd,       0,   0,    0,    0);
     mkassign(       extractps,     simd,       0,   0,    0,    0);
     mkassign(           f2xm1,    float,   float,   0, VRSZ,    0);
     mkassign(            fabs,    float,   float,   0, VRSZ,    0);
@@ -2107,23 +2115,23 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(          ficomp,    float,   float,   0, VRSZ,    0);
     mkassign(           fidiv,    float,   float,   0, VRSZ,    0);
     mkassign(          fidivr,    float,   float,   0, VRSZ,    0);
-    mkassign(            fild,    float,    move,   0, VRSZ,    0);
+    mkassign(            fild,     move,    move,  di, VRSZ,    0);
     mkassign(           fimul,    float,   float,   0, VRSZ,    0);
-    mkassign(            fist,    float,    move,   0, VRSZ,    0);
-    mkassign(           fistp,    float,    move,   0, VRSZ,    0);
-    mkassign(          fisttp,    float,    move,   0, VRSZ,    0);
+    mkassign(            fist,     move,    move,   0, VRSZ,    0);
+    mkassign(           fistp,     move,    move,   0, VRSZ,    0);
+    mkassign(          fisttp,     move,    move,   0, VRSZ,    0);
     mkassign(           fisub,    float,   float,   0, VRSZ,    0);
     mkassign(          fisubr,    float,   float,   0, VRSZ,    0);
     mkassign(            fld1,    float,    move,   0, VRSZ,    0);
     mkassign(           fldcw,  special,   other,   0,    0,    0);
     mkassign(          fldenv,  special,   other,   0,    0,    0);
-    mkassign(          fldl2e,    float,    move,   0, VRSZ,    0);
-    mkassign(          fldl2t,    float,    move,   0, VRSZ,    0);
-    mkassign(          fldlg2,    float,    move,   0, VRSZ,    0);
-    mkassign(          fldln2,    float,    move,   0, VRSZ,    0);
-    mkassign(          fldlpi,    float,    move,   0, VRSZ,    0);
-    mkassign(             fld,    float,    move,   0, VRSZ,    0);
-    mkassign(            fldz,    float,    move,   0, VRSZ,    0);
+    mkassign(          fldl2e,     move,    move,  di, VRSZ,    0);
+    mkassign(          fldl2t,     move,    move,  di, VRSZ,    0);
+    mkassign(          fldlg2,     move,    move,  di, VRSZ,    0);
+    mkassign(          fldln2,     move,    move,  di, VRSZ,    0);
+    mkassign(          fldlpi,     move,    move,  di, VRSZ,    0);
+    mkassign(             fld,     move,    move,  di, VRSZ,    0);
+    mkassign(            fldz,    float,    move,  di, VRSZ,    0);
     mkassign(            fmul,    float,   float,   0, VRSZ,    0);
     mkassign(           fmulp,    float,   float,   0, VRSZ,    0);
     mkassign(          fncstp,    float,   other,   0,    0,    0);
@@ -2144,11 +2152,11 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(         fsincos,    float,   float,   0, VRSZ,    0);
     mkassign(            fsin,    float,   float,   0, VRSZ,    0);
     mkassign(           fsqrt,    float,   float,   0, VRSZ,    0);
-    mkassign(           fstp1,    float,    move,   0, VRSZ,    0);
-    mkassign(           fstp8,    float,    move,   0, VRSZ,    0);
-    mkassign(           fstp9,    float,    move,   0, VRSZ,    0);
-    mkassign(             fst,    float,    move,   0, VRSZ,    0);
-    mkassign(            fstp,    float,    move,   0, VRSZ,    0);
+    mkassign(           fstp1,     move,    move,   0, VRSZ,    0);
+    mkassign(           fstp8,     move,    move,   0, VRSZ,    0);
+    mkassign(           fstp9,     move,    move,   0, VRSZ,    0);
+    mkassign(             fst,     move,    move,   0, VRSZ,    0);
+    mkassign(            fstp,     move,    move,   0, VRSZ,    0);
     mkassign(            fsub,    float,   float,   0, VRSZ,    0);
     mkassign(           fsubp,    float,   float,   0, VRSZ,    0);
     mkassign(           fsubr,    float,   float,   0, VRSZ,    0);
@@ -2160,9 +2168,9 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(          fucomp,    float,   float,   0, VRSZ,    0);
     mkassign(         fucompp,    float,   float,   0, VRSZ,    0);
     mkassign(            fxam,    float,   float,   0, VRSZ,    0);
-    mkassign(           fxch4,      int,    move,   0, VRSZ,    0);
-    mkassign(           fxch7,      int,    move,   0, VRSZ,    0);
-    mkassign(            fxch,      int,    move,   0, VRSZ,    0);
+    mkassign(           fxch4,     move,    move,  di, VRSZ,    0);
+    mkassign(           fxch7,     move,    move,  di, VRSZ,    0);
+    mkassign(            fxch,     move,    move,  di, VRSZ,    0);
     mkassign(         fxrstor,  special,   stack,   0,    0,    BinFrame);
     mkassign(          fxsave,  special,   stack,   0,    0,    BinFrame);
     mkassign(         fyl2xp1,    float,   float,   0, VRSZ,    0);
@@ -2176,11 +2184,10 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(            imul,      int,     int,   0, VRSZ,    0);
     mkassign(             inc,      int,     int,   0, VRSZ,    0);
     mkassign(              in,       io,   other,   0,    0,    0);
-    mkassign(            insb,       io,   other,   0,    0,    0);
-    mkassign(            insd,       io,   other,   0,    0,    0);
-    mkassign(      insertf128,     simd,       0,   0,    0,    0);
+    mkassign(            insb,       io,   other,  di,    0,    0);
+    mkassign(            insd,       io,   other,  di,    0,    0);
     mkassign(        insertps,     simd,       0,   0,    0,    0);
-    mkassign(            insw,       io,   other,   0,    0,    0);
+    mkassign(            insw,       io,   other,  di,    0,    0);
     mkassign(            int1,     trap,  system,   0,    0,    BinFrame);
     mkassign(            int3,     trap,  system,   0,    0,    BinFrame);
     mkassign(            into,     trap,  system,   0,    0,    BinFrame);
@@ -2214,24 +2221,24 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(              js,   condbr,    cond,   0,    0,    0);
     mkassign(            lahf,      int,   other,   0,    0,    0);
     mkassign(             lar,  special,   other,   0,    0,    0);
-    mkassign(           lddqu,      int,    move,   0, VRSZ,    0);
-    mkassign(         ldmxcsr,  special,    move,   0,   32,    0);
+    mkassign(           lddqu,     move,    move,   0, VRSZ,    0);
+    mkassign(         ldmxcsr,     move,    move,  di,   32,    0);
     mkassign(             lds,     move,    move,   0, VRSZ,    0);
     mkassign(             lea,     move,    move,   0, VRSZ,    0);
     mkassign(           leave,  special,   stack,   0,    0,    BinFrame);
-    mkassign(             les,      int,    move,   0, VRSZ,    0);
+    mkassign(             les,     move,    move,   0, VRSZ,    0);
     mkassign(          lfence,  special,   other,   0,    0,    0);
-    mkassign(             lfs,      int,    move,   0, VRSZ,    0);
+    mkassign(             lfs,     move,    move,   0, VRSZ,    0);
     mkassign(            lgdt,  special,   other,   0,    0,    0);
-    mkassign(             lgs,      int,    move,   0, VRSZ,    0);
+    mkassign(             lgs,     move,    move,   0, VRSZ,    0);
     mkassign(            lidt,  special,   other,   0,    0,    0);
     mkassign(            lldt,  special,   other,   0,    0,    0);
     mkassign(            lmsw,  special,   other,   0,    0,    0);
     mkassign(            lock,  special,   other,   0,    0,    0);
-    mkassign(           lodsb,   string,    move,   0,    8,    0);
-    mkassign(           lodsd,   string,    move,   0,   32,    0);
-    mkassign(           lodsq,   string,    move,   0,   64,    0);
-    mkassign(           lodsw,   string,    move,   0,   16,    0);
+    mkassign(           lodsb,     move,    move,  di,    8,    0);
+    mkassign(           lodsd,     move,    move,  di,   32,    0);
+    mkassign(           lodsq,     move,    move,  di,   64,    0);
+    mkassign(           lodsw,     move,    move,  di,   16,    0);
     mkassign(           loope,  special,   other,   0,    0,    0);
     mkassign(          loopnz,  special,   other,   0,    0,    0);
     mkassign(            loop,  special,   other,   0,    0,    0);
@@ -2239,7 +2246,6 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(             lss,      int,    move,   0, VRSZ,    0);
     mkassign(             ltr,  special,   other,   0,    0,    0);
     mkassign(      maskmovdqu,     move,       0,   0,    0,    0);
-    mkassign(         maskmov,     move,       0,   0,    0,    0);
     mkassign(        maskmovq,     move,    move,   0,   64,    0);
     mkassign(           maxpd,    float,  floatv,   0,   64,    0);
     mkassign(           maxps,    float,  floatv,   0,   32,    0);
@@ -2275,14 +2281,14 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(             mov,     move,    move,   0, VRSZ,    0);
     mkassign(         movq2dq,     move,    move,   0,   64,    0);
     mkassign(            movq,     move,    move,   0,   64,    0);
-    mkassign(           movsb,     move,  string,   0,    8,    0);
+    mkassign(           movsb,   string,  string, dsi,    8,    0);
     // TODO: 2 instructions covered by this... need to handle special
-    mkassign(           movsd,     move,    move,   0,   64,    0);
+    mkassign(           movsd,   string,    move, dsi,   64,    0);
     mkassign(        movshdup,     move,    move,   0, VRSZ,    0);
     mkassign(        movsldup,     move,    move,   0, VRSZ,    0);
-    mkassign(           movsq,     move,  string,   0,   64,    0);
+    mkassign(           movsq,   string,  string, dsi,   64,    0);
     mkassign(           movss,     move,    move,   0,   32,    0);
-    mkassign(           movsw,     move,  string,   0,   16,    0);
+    mkassign(           movsw,   string,  string, dsi,   16,    0);
     mkassign(          movsxd,     move,    move,   0, VRSZ,    0);
     mkassign(           movsx,     move,    move,   0, VRSZ,    0);
     mkassign(          movupd,     move,    move,   0, VRSZ,    0);
@@ -2343,9 +2349,6 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(         pcmpgtw,      int,    intv,   0,   16,    0);
     mkassign(       pcmpistri,     simd,       0,   0,    0,    0);
     mkassign(       pcmpistrm,     simd,       0,   0,    0,    0);
-    mkassign(        permf128,     simd,       0,   0,    0,    0);
-    mkassign(        permilpd,     simd,       0,   0,    0,    0);
-    mkassign(        permilps,     simd,       0,   0,    0,    0);
     mkassign(          pextrb,     simd,       0,   0,    0,    0);
     mkassign(          pextrd,     simd,       0,   0,    0,    0);
     mkassign(          pextrq,     simd,       0,   0,    0,    0);
@@ -2505,10 +2508,10 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(             sal,      int,     bin,   0, VRSZ,    0);
     mkassign(             sar,      int,     bin,   0, VRSZ,    0);
     mkassign(             sbb,      int,     int,   0, VRSZ,    0);
-    mkassign(           scasb,   string,  string,   0,    8,    0);
-    mkassign(           scasd,   string,  string,   0,   32,    0);
-    mkassign(           scasq,   string,  string,   0,   64,    0);
-    mkassign(           scasw,   string,  string,   0,   16,    0);
+    mkassign(           scasb,   string,  string,  si,    8,    0);
+    mkassign(           scasd,   string,  string,  si,   32,    0);
+    mkassign(           scasq,   string,  string,  si,   64,    0);
+    mkassign(           scasw,   string,  string,  si,   16,    0);
     mkassign(            seta,      int,     bin,   0,    8,    0);
     mkassign(           setbe,      int,     bin,   0,    8,    0);
     mkassign(            setb,      int,     bin,   0,    8,    0);
@@ -2545,12 +2548,12 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(             std,  special,   other,   0,    0,    0);
     mkassign(            stgi,  special,   other,   0,    0,    0);
     mkassign(             sti,  special,   other,   0,    0,    0);
-    mkassign(         stmxcsr,  special,   other,   0,    0,    0);
-    mkassign(           stosb,   string,    move,   0,    8,    0);
-    mkassign(           stosd,   string,    move,   0,   32,    0);
-    mkassign(           stosq,   string,    move,   0,   64,    0);
-    mkassign(           stosw,   string,    move,   0,   16,    0);
-    mkassign(             str,  special,    move,   0, VRSZ,    0);
+    mkassign(         stmxcsr,     move,   other,   0,    0,    0);
+    mkassign(           stosb,   string,    move, dsi,    8,    0);
+    mkassign(           stosd,   string,    move, dsi,   32,    0);
+    mkassign(           stosq,   string,    move, dsi,   64,    0);
+    mkassign(           stosw,   string,    move, dsi,   16,    0);
+    mkassign(             str,     move,    move,   0, VRSZ,    0);
     mkassign(             sub,      int,     int,   0, VRSZ,    0);
     mkassign(           subpd,    float,  floatv,   0,   64,    0);
     mkassign(           subps,    float,  floatv,   0,   32,    0);
@@ -2562,8 +2565,6 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(         sysexit,  syscall,  system,   0,    0,    BinFrame);
     mkassign(          sysret,  syscall,  system,   0,    0,    BinFrame);
     mkassign(            test,      int,     bin,   0, VRSZ,    0);
-    mkassign(          testpd,     simd,       0,   0,    0,    0);
-    mkassign(          testps,     simd,       0,   0,    0,    0);
     mkassign(         ucomisd,    float,  floats,   0,   64,    0);
     mkassign(         ucomiss,    float,  floats,   0,   32,    0);
     mkassign(             ud2,  invalid, invalid,   0,    0,    0);
@@ -2632,7 +2633,8 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(         vhsubps,      avx,       0,   0,    0,    0);
     mkassign(     vinsertf128,      avx,       0,   0,    0,    0);
     mkassign(       vinsertps,      avx,       0,   0,    0,    0);
-    mkassign(        vldmxcsr,  special,       0,   0,    0,    0);
+    mkassign(          vlddqu,     move,       0,   0, VRSZ,    0);
+    mkassign(        vldmxcsr,     move,       0,   0,    0,    0);
     mkassign(     vmaskmovdqu,     move,       0,   0,    0,    0);
     mkassign(        vmaskmov,     move,       0,   0,    0,    0);
     mkassign(          vmaxpd,      avx,       0,   0,    0,    0);
@@ -2821,7 +2823,7 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(         vsqrtps,      avx,       0,   0,    0,    0);
     mkassign(         vsqrtsd,      avx,       0,   0,    0,    0);
     mkassign(         vsqrtss,      avx,       0,   0,    0,    0);
-    mkassign(        vstmxcsr,  special,       0,   0,    0,    0);
+    mkassign(        vstmxcsr,     move,       0,   0,    0,    0);
     mkassign(          vsubpd,      avx,       0,   0,    0,    0);
     mkassign(          vsubps,      avx,       0,   0,    0,    0);
     mkassign(          vsubsd,      avx,       0,   0,    0,    0);
@@ -2842,11 +2844,11 @@ void X86InstructionClassifier::fillClassDefinitions(){
     mkassign(           wrmsr,  special,   other,   0,    0,    0);
     mkassign(            xadd,      int,     int,   0, VRSZ,    0);
     mkassign(            xchg,      int,     int,   0, VRSZ,    0);
+    mkassign(           xgetbv, special,   other,   0,    0,    0);
     mkassign(           xlatb,  special,   other,   0,    0,    0);
     mkassign(             xor,      int,     bin,   0, VRSZ,    0);
     mkassign(           xorpd,    float,    binv,   0,   64,    0);
     mkassign(           xorps,    float,    binv,   0,   32,    0);
-    mkassign(         zeroall,      avx,       0,   0,    0,    0);
 
     verify();
 }

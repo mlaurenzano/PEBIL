@@ -68,7 +68,7 @@ uint32_t BasicBlock::searchForArgsPrep(bool is64Bit){
             //            instructions[i]->print();
             if (instructions[i]->getInstructionType() == X86InstructionType_int ||
                 instructions[i]->getInstructionType() == X86InstructionType_move){
-                OperandX86* destOp = instructions[i]->getOperand(COMP_DEST_OPERAND);
+                OperandX86* destOp = instructions[i]->getOperand(DEST_OPERAND);
 
                 if (!destOp->getValue()){
                     for (uint32_t j = 0; j < Num__64_bit_StackArgs; j++){
@@ -77,7 +77,7 @@ uint32_t BasicBlock::searchForArgsPrep(bool is64Bit){
                         }
                     }
                 }
-                //                instructions[i]->getOperand(COMP_DEST_OPERAND)->print();
+                //                instructions[i]->getOperand(DEST_OPERAND)->print();
             }
         }
     } else {
@@ -106,21 +106,6 @@ uint64_t CodeBlock::getProgramAddress(){
     }
     __SHOULD_NOT_ARRIVE;
     return 0;
-}
-
-void BasicBlock::findCompareAndCBranch(){
-    if (instructions.size() < 2){
-        ASSERT(instructions.size());
-        return;
-    }
-    if (instructions.back()->isConditionalBranch()){
-        if (!instructions[instructions.size()-2]->isConditionCompare()){
-            //PRINT_INFOR("found block with cond/br split");
-            //            printDisassembly(false);
-            //            setCmpCtrlSplit();
-        }
-    }
-    return;
 }
 
 uint32_t CodeBlock::addTailJump(X86Instruction* tgtInstruction){

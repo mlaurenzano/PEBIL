@@ -547,14 +547,6 @@ uint32_t Function::generateCFG(Vector<X86Instruction*>* instructions, Vector<Add
     flowGraph->connectGraph(entryBlock);
     flowGraph->setImmDominatorBlocks();
 
-    for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
-        if (flowGraph->getBlock(i)->getType() == PebilClassType_BasicBlock){
-            BasicBlock* bb = (BasicBlock*)flowGraph->getBlock(i);
-            bb->findCompareAndCBranch();
-        }
-    }
-
-
     DEBUG_CFG(print();)
 
     ASSERT(flowGraph->getNumberOfBlocks() == flowGraph->getNumberOfBasicBlocks());

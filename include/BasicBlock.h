@@ -198,8 +198,6 @@ public:
 
     uint64_t getTargetAddress();
 
-    void findCompareAndCBranch();
-
     X86Instruction* getLeader() { return instructions[0]; }
     X86Instruction* getExitInstruction() { return instructions.back(); }
 
