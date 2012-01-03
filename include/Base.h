@@ -38,7 +38,7 @@
 
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 extern FILE* pebilOutp;
-
+extern uint64_t warnCount;
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -96,6 +96,18 @@ extern FILE* pebilOutp;
 
 #define PRINT_OUT(...) fprintf(pebilOutp,## __VA_ARGS__); \
     fflush(pebilOutp);
+
+#ifdef WARNING_SEVERITY
+#define WARN_FILE stdout
+#define PRINT_WARN(__severity,...)  if (__severity >= WARNING_SEVERITY){ \
+    fprintf(WARN_FILE,"*** WARNING : ");                            \
+    fprintf(WARN_FILE,## __VA_ARGS__);                              \
+    fprintf(WARN_FILE,"\n");                                        \
+    fflush(WARN_FILE);                                              \
+    warnCount++; }
+#else
+#define PRINT_WARN(...)
+#endif
 
 #define PRINT_PROGRESS(__inc, __tot, __break) \
     if (__inc % ((__tot > __break) ? (__tot / __break) : 1) == 0){ fprintf(pebilOutp, "."); fflush(pebilOutp); }

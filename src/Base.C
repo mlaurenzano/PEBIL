@@ -21,6 +21,7 @@
 #include <Base.h>
 
 FILE* pebilOutp = stdout;
+uint64_t warnCount = 0;
 
 char* sha1sum(char* buffer, uint32_t size){
     unsigned char* allbytes = new unsigned char[size];

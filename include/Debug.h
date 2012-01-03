@@ -71,17 +71,6 @@
 #define OPTIMIZE_NONLEAF
 #define INSTRUCTION_PRINT_SIZE (64)
 
-#ifdef WARNING_SEVERITY
-#define WARN_FILE stdout
-#define PRINT_WARN(__severity,...)  if (__severity >= WARNING_SEVERITY){ \
-    fprintf(WARN_FILE,"*** WARNING : ");                            \
-    fprintf(WARN_FILE,## __VA_ARGS__);                              \
-    fprintf(WARN_FILE,"\n");                                        \
-    fflush(WARN_FILE); }
-#else
-#define PRINT_WARN(...)
-#endif
-
 #ifdef DEBUG_MEMTRACK
 #include <MemTrack.h>
 #define PRINT_DEBUG_MEMTRACK(...) fprintf(stdout,"MEMTRACK : "); \

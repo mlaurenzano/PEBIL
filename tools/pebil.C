@@ -87,7 +87,7 @@ void printUsage(const char* msg = NULL){
     fprintf(stderr,"\t\t[--dfp <pattern/file>] : path to pattern file\n");
     fprintf(stderr,"\t\t[--dmp <off|on|nosim>] : DEPRECATED, kept for compatibility\n");
     fprintf(stderr,"\n");
-    exit(-1);
+    exit(1);
 }
 
 void printSuccess(){
@@ -558,6 +558,9 @@ int main(int argc,char* argv[]){
 
     TIMER(t2 = timer();PRINT_INFOR("___timer: Total Execution Time          : %.2f seconds",t2-tt););
     printDone();
+    if (warnCount){
+        PRINT_WARN(10000000, "!!!!!!!!!!!!!!! Completed with %lld warnings", warnCount);
+    }
 
     if (!fbl_arg){
         delete[] functionBlackList;
