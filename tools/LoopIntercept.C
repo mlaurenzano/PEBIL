@@ -257,6 +257,7 @@ void LoopIntercept::instrument(){
 
     // pick out all the loops we want to instrument
     std::map<uint64_t, Loop*> loopsFound;
+    std::map<uint64_t, Loop*> loopsRejected;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
         uint64_t hash = bb->getHashCode().getValue();
@@ -274,24 +275,29 @@ void LoopIntercept::instrument(){
             ASSERT(hash == innerMost->getHead()->getHashCode().getValue());
             
             if (loopsFound.count(hash) == 0){
-                loopsFound[hash] = innerMost;
 
+                if (loopsRejected.count(hash) > 0){
+                    continue;
+                }
+
+                bool badLoop = false;
                 // see if the loop shares its head with another loop, throw a warning if so
                 for (uint32_t i = 0; i < fg->getNumberOfLoops(); i++){
                     Loop* other = fg->getLoop(i);
                     if (innerMost->hasSharedHeader(other) && !innerMost->isIdenticalLoop(other)){
-                        PRINT_ERROR("Block %lld in %s is the head of multiple loops. cannot be instrumented by this tool", hash, f->getName());
-                        break;
+                        PRINT_WARN(20, "Head of loop %lld in %s is shared with other loop(s). skipping!", hash, f->getName());
+                        badLoop = true;
+                        loopsRejected[hash] = innerMost;
                     }
                 }
 
                 // see if the loop has an exit point that exits a parent loop also. this is likely the result of a goto in an inner loop, which we cannot abide
                 BasicBlock** allLoopBlocks = new BasicBlock*[innerMost->getNumberOfBlocks()];
                 innerMost->getAllBlocks(allLoopBlocks);
-                for (uint32_t k = 0; k < innerMost->getNumberOfBlocks(); k++){
+                for (uint32_t k = 0; k < innerMost->getNumberOfBlocks() && !badLoop; k++){
                     Vector<BasicBlock*> exitInterpositions;
                     BasicBlock* bb = allLoopBlocks[k];
-                    for (uint32_t m = 0; m < bb->getNumberOfTargets(); m++){
+                    for (uint32_t m = 0; m < bb->getNumberOfTargets() && !badLoop; m++){
                         BasicBlock* target = bb->getTargetBlock(m);
                         
                         // target is outside the loop
@@ -299,23 +305,34 @@ void LoopIntercept::instrument(){
                             Loop* parent = innerMost;
                             while (parent != fg->getParentLoop(parent->getIndex())){
                                 parent = fg->getParentLoop(parent->getIndex());
+                                uint64_t phash = parent->getHead()->getHashCode().getValue();
                                 if (!parent->isBlockIn(target->getIndex())){
-                                    PRINT_INFOR("Printing debug info....");
-                                    PRINT_INFOR("inner loop:");
-                                    innerMost->print();
-                                    PRINT_INFOR("parent loop:");
-                                    parent->print();
-                                    PRINT_INFOR("offending block");
-                                    bb->print();
-                                    PRINT_INFOR("offending target");
-                                    target->print();
-                                    PRINT_ERROR("Block %lld in %s exits through several loop layers (eg. a goto statement). cannot be instrumented by this tool", hash, f->getName());
+                                    if (loops.count(hash) && loops.count(phash)){
+                                        /*
+                                          PRINT_INFOR("Printing debug info....");
+                                          PRINT_INFOR("inner loop:");
+                                          innerMost->print();
+                                          PRINT_INFOR("parent loop:");
+                                          parent->print();
+                                          PRINT_INFOR("offending block");
+                                          bb->print();
+                                          PRINT_INFOR("offending target");
+                                          target->print();
+                                        */
+                                        PRINT_WARN(20, "Loops %lld/%lld in %s have a shared exit point (eg. a goto/return statement). skipping!", hash, phash, f->getName());
+                                        badLoop = true;
+                                        loopsRejected[hash] = innerMost;
+                                        loopsRejected[phash] = parent;
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
+                if (!badLoop){
+                    loopsFound[hash] = innerMost;
+                }
             }
         }
     }
