@@ -29,6 +29,8 @@
 #include <SymbolTable.h>
 #include <map>
 
+#define UNUSED_PASSTHRU_VALUE 0xdeadbeef
+
 #define LOOP_NAMING_BASIS "pfreq_throttle"
 //#define LOOP_NAMING_BASIS "pwr_measure"
 #define PROGRAM_ENTRY LOOP_NAMING_BASIS "_init"
@@ -229,13 +231,20 @@ void LoopIntercept::instrument(){
 
     // fill an array with frequency values, which will be passed to the analysis library
     uint32_t loopFrequencies[numLoops][maxRank];
-    bzero(&loopFrequencies, sizeof(uint32_t) * numLoops * maxRank);
+    for (uint32_t i = 0; i < numLoops; i++){
+        for (uint32_t j = 0; j < maxRank; j++){
+            loopFrequencies[i][j] = UNUSED_PASSTHRU_VALUE;
+        }
+    }
 
     for (uint32_t i = 0; i < loopList->size(); i++){
         uint64_t hash = getLoopHash(i);
         uint32_t rank = getRank(i);
         uint32_t freq = getFrequency(i);
         loopFrequencies[loops[hash]][rank] = freq;
+
+        // this shouldn't happen, but just in case...
+        ASSERT(freq != UNUSED_PASSTHRU_VALUE);
     }
 
     // set up argument passing to program entry call

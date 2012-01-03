@@ -22,6 +22,8 @@
 #include <sched.h>
 #include <InstrumentationCommon.h>
 
+#define UNUSED_PASSTHRU_VALUE 0xdeadbeef
+
 // MUST DEFINE THIS!!!
 #define MAX_CPU_IN_SYSTEM 4
 
@@ -29,31 +31,51 @@ uint32_t* site = NULL;
 uint32_t numberOfLoops = 0;
 uint32_t numberOfRanks = 0;
 uint32_t* frequencies = NULL;
-#define freq_idx(__l, __r) ((numberOfLoops * __l) + (__r))
+#define freq_idx(__l, __r) ((numberOfRanks * __l) + (__r))
 
-unsigned long currentFreq = 0;
+uint32_t currentFreq = 0;
+uint32_t lastFreq = 0;
 uint64_t* entryCalled = NULL;
 uint64_t* exitCalled = NULL;
 
 // called at loop entry
 void pfreq_throttle_lpentry(){
     entryCalled[*site]++;
-    uint32_t cpu = getTaskId();
-    /*
+
     // return if mpi_init has not yet been called
     if (!isMpiValid()){
         return;
     }
-    */
-    pfreq_throttle_set(cpu, frequencies[freq_idx(*site, cpu)]);
+
+                              
+    uint32_t cpu = getTaskId();
+    uint32_t f = frequencies[freq_idx(*site, cpu)];
+
+    // return if no value was set up for this rank
+    if (f == UNUSED_PASSTHRU_VALUE){
+        return;
+    }
+
+    pfreq_throttle_set(cpu, f);
 }
 
 // called at loop exit
 void pfreq_throttle_lpexit(){
     exitCalled[*site]++;
+
     if (!isMpiValid()){
         return;
     }
+
+    uint32_t cpu = getTaskId();
+    uint32_t f = frequencies[freq_idx(*site, cpu)];
+
+    if (f == UNUSED_PASSTHRU_VALUE){
+        return;
+    }
+
+    // this is quite unsophisticated, and will do the wrong thing if you want frequency swaps stack on each other
+    pfreq_throttle_set(cpu, lastFreq);
 }
 
 // called at program start
@@ -69,6 +91,16 @@ void pfreq_throttle_init(uint32_t* siteIndex, uint32_t* numLoops, uint32_t* numR
     exitCalled = malloc(sizeof(uint64_t) * numberOfLoops);
 
     /*
+    for (i = 0; i < numberOfLoops; i++){
+        for (j = 0; j < numberOfRanks; j++){
+            if (frequencies[freq_idx(i,j)] != freq_idx(i,j)){
+                PRINT_INSTR(stdout, "freq[%d][%d] == %d", i, j, frequencies[freq_idx(i,j)]);
+                exit(1);
+            }
+        }
+    }
+    */
+    /*
     PRINT_INSTR(stdout, "initializing throttle lib with %d loops and %d ranks", numberOfLoops, numberOfRanks);
     for (i = 0; i < numberOfLoops; i++){
         for (j = 0; j < numberOfRanks; j++){
@@ -83,23 +115,14 @@ void pfreq_throttle_init(uint32_t* siteIndex, uint32_t* numLoops, uint32_t* numR
 // called at program finish
 void pfreq_throttle_fini(){
     int i;
-    /*
-    if (getTaskId() == 0){
-        for (i = 0; i < numberOfLoops; i++){
-            if (entryCalled[i] + exitCalled[i] > 0){
-                PRINT_INSTR(stdout, "site %d: entry called %lld times, exit %lld", i, entryCalled[i], exitCalled[i]);
-            }
-        }
-    }
-    */
     for (i = 0; i < numberOfLoops; i++){
         if (entryCalled[i] != exitCalled[i]){
             PRINT_INSTR(stderr, "site %d: entry called %lld times but exit %lld", i, entryCalled[i], exitCalled[i]);
             exit(1);
         }
     }
-    //free(entryCalled);
-    //free(exitCalled);
+    free(entryCalled);
+    free(exitCalled);
 }
 
 // called at mpi_init
@@ -110,6 +133,7 @@ void tool_mpi_init(){
 
 inline int32_t pfreq_throttle_set(uint32_t cpu, uint32_t freq){
     //PRINT_INSTR(stdout, "throttling task %d to frequency %dKHz", cpu, freq);
+    lastFreq = currentFreq;
     currentFreq = freq;
     return internal_set_currentfreq((unsigned int)cpu, (int)freq);
 }
