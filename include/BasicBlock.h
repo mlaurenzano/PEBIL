@@ -222,6 +222,7 @@ public:
     bool isUnreachable() { return isNoPath(); }
     bool isReachable() { return !isNoPath(); }
     bool endsWithCall();
+    bool endsWithReturn();
 
     HashCode getHashCode() { return hashCode; }
 

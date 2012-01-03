@@ -43,6 +43,10 @@ bool BasicBlock::endsWithCall(){
     return  instructions.back()->isCall();
 }
 
+bool BasicBlock::endsWithReturn(){
+    return instructions.back()->isReturn();
+}
+
 uint32_t BasicBlock::getNumberOfMemoryBytes(){
     uint32_t byteCount = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){

@@ -492,7 +492,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
     return;
 #else
 #ifdef MPI_INIT_REQUIRED
-    if (!isTaskValid()){
+    if (!isMpiValid()){
         PRINT_INSTR(stdout, "Process %d did not execute MPI_Init... dropping address buffer until it does", getpid());
         register BufferEntry* entries = (BufferEntry*)base;
         entries->lastFreeIdx = 1;
@@ -847,7 +847,7 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
     ptimer(&pebiltimers[1]);
 
 #ifdef MPI_INIT_REQUIRED
-    if (!isTaskValid()){
+    if (!isMpiValid()){
         PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print files", getpid());
         return -1;
     }

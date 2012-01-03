@@ -18,42 +18,41 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _ThrottleLoop_h_
-#define _ThrottleLoop_h_
+#ifndef _LoopIntercept_h_
+#define _LoopIntercept_h_
 
 #include <InstrumentationTool.h>
 
-class ThrottleLoop : public InstrumentationTool {
+class LoopIntercept : public InstrumentationTool {
 private:
     InstrumentationFunction* loopEntry;
     InstrumentationFunction* loopExit;
     InstrumentationFunction* programEntry;
     InstrumentationFunction* programExit;
 
-    Vector<InstrumentationFunction*> functionWrappers;
-
     Vector<char*>* loopList;    
-    Vector<char*>* functionList;
 
-    char* getFileName(uint32_t idx);
-    uint32_t getLineNumber(uint32_t idx);
+    uint64_t getLoopHash(uint32_t idx);
+    uint32_t getRank(uint32_t idx);
+    uint32_t getFrequency(uint32_t idx);
     uint32_t loopMatch(LineInfo* li);
-    uint32_t getThrottleLevel(uint32_t idx);
-    char* getWrappedFunction(uint32_t idx);
-    char* getWrapperFunction(uint32_t idx);    
+
+    bool discoveryMode;
+    void discoverAllLoops();
 
 public:
-    ThrottleLoop(ElfFile* elf);
-    ~ThrottleLoop();
+    LoopIntercept(ElfFile* elf);
+    ~LoopIntercept();
 
     void declare();
     void instrument();
 
-    const char* briefName() { return "ThrottleLoop"; }
-    const char* defaultExtension() { return "thrinst"; }
+    const char* briefName() { return "LoopIntercept"; }
+    const char* defaultExtension() { return "lpiinst"; }
+    const char* getExtension() { if (discoveryMode) return "loops"; return defaultExtension(); }
     uint32_t allowsArgs() { return PEBIL_OPT_NON; }
-    uint32_t requiresArgs() { return PEBIL_OPT_INP | PEBIL_OPT_TRK; }
+    uint32_t requiresArgs() { return PEBIL_OPT_INP; }
 };
 
 
-#endif /* _ThrottleLoop_h_ */
+#endif /* _LoopIntercept_h_ */

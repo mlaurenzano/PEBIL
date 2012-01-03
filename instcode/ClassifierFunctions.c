@@ -42,7 +42,7 @@ void bins_entry_function(uint64_t* bufferStore, uint64_t* instructionsCountStore
 
     int rank = 0;
 #ifdef MPI_INIT_REQUIRED
-    if (!isTaskValid()){
+    if (!isMpiValid()){
         PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print files", getpid());
         return -1;
     }

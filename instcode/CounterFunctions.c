@@ -59,7 +59,7 @@ int32_t blockcounter(int32_t* lineNumbers, char** fileNames, char** functionName
     ptimer(&pebiltimers[1]);
 
 #ifdef MPI_INIT_REQUIRED
-    if (!isTaskValid()){
+    if (!isMpiValid()){
         PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print jbbinst files", getpid());
         return 1;
     }
@@ -109,7 +109,7 @@ int32_t loopcounter(int32_t* loopLineNumbers, char** loopFileNames, char** loopF
     int32_t i;
 
 #ifdef MPI_INIT_REQUIRED
-    if (!isTaskValid()){
+    if (!isMpiValid()){
         PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print loopcnt files", getpid());
         return 1;
     }
@@ -315,7 +315,7 @@ int32_t initrare(int32_t* numBlocks, uint64_t* blockCounts, char* appName){
 
 int32_t finirare(){
 #ifdef MPI_INIT_REQUIRED
-    if (!isTaskValid()){
+    if (!isMpiValid()){
         PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print loopcnt files", getpid());
         return 1;
     }
@@ -421,7 +421,7 @@ void initialize_signaller(){
 
 #ifdef MPI_INIT_REQUIRED
     // invalidate this task
-    setTaskValid(0);
+    setMpiValid(0);
 #endif
 
     PRINT_INSTR(stdout, "starting signaler in pid %d -> %d", pid, other_pid);

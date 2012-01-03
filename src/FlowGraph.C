@@ -317,6 +317,7 @@ void FlowGraph::interposeBlock(BasicBlock* bb){
     }
 
     if (!linkFound){
+        function->print();
         print();
         sourceBlock->print();
         targetBlock->print();        
