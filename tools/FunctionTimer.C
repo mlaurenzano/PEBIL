@@ -25,6 +25,8 @@
 #include <Instrumentation.h>
 #include <X86Instruction.h>
 #include <X86InstructionFactory.h>
+#include <map>
+#include <string>
 
 #define INST_LIB_NAME "libtimer.so"
 
@@ -240,17 +242,68 @@ void ExternalFunctionTimer::instrument(){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
 
+    Vector<char*>* fileLines = new Vector<char*>();
+    initializeFileList(inputFile, fileLines);
+
+    uint64_t siteIndexAddr = reserveDataOffset(sizeof(uint32_t));
+
+    Vector<std::string> names;
+    for (uint32_t i = 0; i < getNumberOfExposedInstructions(); i++){
+        X86Instruction* x = getExposedInstruction(i);
+        ASSERT(x->getContainer()->isFunction());
+        Function* function = (Function*)x->getContainer();
+
+        if (x->isFunctionCall()){
+            Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol(x->getTargetAddress());
+            
+            if (functionSymbol){
+                //PRINT_INFOR("looking for function %s", functionSymbol->getSymbolName());
+                uint32_t funcIdx = searchFileList(fileLines, functionSymbol->getSymbolName());
+                if (funcIdx < (*fileLines).size()){
+                    BasicBlock* bb = function->getBasicBlockAtAddress(x->getBaseAddress());
+                    ASSERT(bb->containsCallToRange(0,-1));
+                    ASSERT(x->getSizeInBytes() == Size__uncond_jump);
+
+                    InstrumentationPoint* prior = addInstrumentationPoint(x, functionEntry, InstrumentationMode_tramp, x->allFlagsDeadIn() ? FlagsProtectionMethod_none : FlagsProtectionMethod_full, InstLocation_prior);
+                    InstrumentationPoint* after = addInstrumentationPoint(x, functionExit, InstrumentationMode_tramp, x->allFlagsDeadOut() ? FlagsProtectionMethod_none : FlagsProtectionMethod_full, InstLocation_after);
+
+                    assignStoragePrior(prior, names.size(), getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+                    assignStoragePrior(after, names.size(), getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+
+                    std::string c;
+                    c.append(functionSymbol->getSymbolName());
+                    char faddr[__MAX_STRING_SIZE];
+                    sprintf(faddr, "%#llx", x->getBaseAddress());
+                    c.append(faddr);
+                    c.append("@");
+                    c.append(function->getName());
+                    names.append(c);
+                }
+            }            
+        }
+    }
+
     uint64_t functionCountAddr = reserveDataOffset(sizeof(uint64_t));
     programEntry->addArgument(functionCountAddr);
-    temp64 = getNumberOfExposedFunctions();
+    temp64 = names.size();
     initializeReservedData(getInstDataAddress() + functionCountAddr, sizeof(uint64_t), &temp64);
 
-    uint64_t funcNameArray = reserveDataOffset(getNumberOfExposedFunctions() * sizeof(char*));
+    uint64_t funcNameArray = reserveDataOffset(names.size() * sizeof(char*));
     programEntry->addArgument(funcNameArray);
 
-    uint64_t functionIndexAddr = reserveDataOffset(sizeof(uint64_t));
-    programEntry->addArgument(functionIndexAddr);
+    programEntry->addArgument(siteIndexAddr);
 
-    //functionEntry->assumeNoFunctionFP();
-    //functionExit->assumeNoFunctionFP();
+    for (uint32_t i = 0; i < names.size(); i++){
+        uint64_t fname = reserveDataOffset(names[i].length() + 1);
+        uint64_t fnameAddr = getInstDataAddress() + fname;
+
+        initializeReservedData(getInstDataAddress() + funcNameArray + (i * sizeof(char*)), sizeof(char*), &fnameAddr);
+        initializeReservedData(getInstDataAddress() + fname, names[i].length() + 1, (void*)names[i].c_str());
+    }
+
+
+    for (uint32_t i = 0; i < fileLines->size(); i++){
+        delete[] (*fileLines)[i];
+    }
+    delete fileLines;
 }

@@ -52,6 +52,8 @@ protected:
     InstrumentationPoint* insertInlinedTripCounter(uint64_t, Base*);
     InstrumentationPoint* insertInlinedTripCounter(uint64_t, Base*, bool);
 
+    void assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak);
+
     InstrumentationFunction* initWrapperC;
     InstrumentationFunction* initWrapperF;
 

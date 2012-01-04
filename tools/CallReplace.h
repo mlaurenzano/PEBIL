@@ -31,11 +31,7 @@ private:
     InstrumentationFunction* programExit;
     Vector<InstrumentationFunction*> functionWrappers;
 
-    InstrumentationFunction* timerBegin;
-    InstrumentationFunction* timerEnd;
-
     Vector<char*>* functionList;
-    Vector<char*>* timerFunctions;
 
 public:
     CallReplace(ElfFile* elf);
@@ -50,7 +46,7 @@ public:
     const char* briefName() { return "CallReplace"; }
     const char* defaultExtension() { return "crpinst"; }
     uint32_t allowsArgs() { return PEBIL_OPT_NON; }
-    uint32_t requiresArgs() { return PEBIL_OPT_INP | PEBIL_OPT_TRK; }
+    uint32_t requiresArgs() { return PEBIL_OPT_TRK; }
 };
 
 
