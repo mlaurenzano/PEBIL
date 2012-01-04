@@ -37,6 +37,20 @@
 
 #define MAX_DEF_USE_DIST_PRINT 1024
 
+void InstrumentationTool::assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak){
+    if (getElfFile()->is64Bit()){
+        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(tmpreg, regbak));
+        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(value, tmpreg));
+        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(tmpreg, address));
+        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(regbak, tmpreg, true));
+    } else {
+        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(tmpreg, regbak));
+        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(value, tmpreg));
+        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(tmpreg, address));
+        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(regbak, tmpreg));
+    }
+}
+
 bool InstrumentationTool::singleArgCheck(void* arg, uint32_t mask, const char* name){
     if (arg == NULL &&
         (requiresArgs() & mask)){

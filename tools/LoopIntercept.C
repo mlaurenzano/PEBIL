@@ -274,12 +274,28 @@ void LoopIntercept::instrument(){
         if (bb->isInLoop() && loops.count(hash) > 0){
             Function* f = bb->getFunction();
             FlowGraph* fg = bb->getFlowGraph();
+            ASSERT(f && fg);
+
+            /*
+            PRINT_INFOR("Going for loop %llx", hash);
+            f->print();
+            for (uint32_t i = 0; i < f->getNumberOfBasicBlocks(); i++){
+                f->getBasicBlock(i)->print();
+            }
+            */
 
             Loop* innerMost = fg->getInnermostLoopForBlock(bb->getIndex());
+            ASSERT(innerMost);
+
+            //innerMost->print();
             while (hash != innerMost->getHead()->getHashCode().getValue() && 
                    innerMost->getIndex() != fg->getParentLoop(innerMost->getIndex())->getIndex()){
                 innerMost = fg->getParentLoop(innerMost->getIndex());
+                //innerMost->print();
                 ASSERT(innerMost);
+            }
+            if (hash != innerMost->getHead()->getHashCode().getValue()){
+                PRINT_INFOR("function %s/%s: %llx != %llx", f->getName(), innerMost->getHead()->getFunction()->getName(), hash, innerMost->getHead()->getHashCode().getValue());
             }
             ASSERT(hash == innerMost->getHead()->getHashCode().getValue());
             
@@ -339,6 +355,17 @@ void LoopIntercept::instrument(){
                     }
                 }
 
+                // see if loop contains an indirect branch. if so reject it
+                for (uint32_t k = 0; k < innerMost->getNumberOfBlocks() && !badLoop; k++){
+                    BasicBlock* bb = allLoopBlocks[k];
+                    if (bb->getExitInstruction()->isIndirectBranch()){
+                        PRINT_WARN(20, "Loop %lld is %s contains an indirect branch so we can't guarantee that all exits will be found. skipping!", hash, f->getName());
+                        badLoop = true;
+                        loopsRejected[hash] = innerMost;
+                    }
+                }
+                delete[] allLoopBlocks;
+
                 if (!badLoop){
                     loopsFound[hash] = innerMost;
                 }
@@ -369,7 +396,11 @@ void LoopIntercept::instrument(){
         allBlockIds->append(site);
         allLineInfos->append(li);
         
-        PRINT_INFOR("Loop %lld site %d @ %s:%d (function %s) tagged for interception has %d blocks", hash, site, li->getFileName(), li->GET(lr_line), fg->getFunction()->getName(), loop->getNumberOfBlocks());
+	if (li){
+	    PRINT_INFOR("Loop %lld site %d @ %s:%d (function %s) tagged for interception has %d blocks", hash, site, li->getFileName(), li->GET(lr_line), fg->getFunction()->getName(), loop->getNumberOfBlocks());
+	} else {
+	    PRINT_INFOR("Loop %lld site %d @ %s:%d (function %s) tagged for interception has %d blocks", hash, site, INFO_UNKNOWN, 0, fg->getFunction()->getName(), loop->getNumberOfBlocks());
+	}
 
         // it is important to perform all analysis on this loop before performing any interpositions because
         // inserting those interpositions changes the CFG
@@ -381,18 +412,7 @@ void LoopIntercept::instrument(){
                 // source block falls through into loop
                 if (source->getBaseAddress() + source->getNumberOfBytes() == head->getBaseAddress()){
                     InstrumentationPoint* pt = addInstrumentationPoint(source->getExitInstruction(), loopEntry, InstrumentationMode_trampinline, FLAGS_METHOD, InstLocation_after);
-
-                    if (getElfFile()->is64Bit()){
-                        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(site, X86_REG_CX));
-                        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
-                        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
-                    } else {
-                        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(site, X86_REG_CX));
-                        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
-                        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
-                    }
+                    assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
 
                     PRINT_INFOR("\tENTR-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx", site, source->getBaseAddress(), head->getBaseAddress());
 
@@ -410,18 +430,7 @@ void LoopIntercept::instrument(){
             BasicBlock* bb = allLoopBlocks[k];
             if (bb->endsWithReturn()){
                 InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, FLAGS_METHOD, InstLocation_prior);
-                
-                if (getElfFile()->is64Bit()){
-                    pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                    pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(site, X86_REG_CX));
-                    pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
-                    pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
-                } else {
-                    pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                    pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(site, X86_REG_CX));
-                    pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
-                    pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
-                }
+                assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
                 
                 PRINT_INFOR("\tEXIT-FNRETURN(%d)\tBLK:%#llx --> ?", site, bb->getBaseAddress());
 
@@ -437,18 +446,9 @@ void LoopIntercept::instrument(){
                     // target is adjacent to bb
                     if (target->getBaseAddress() == bb->getBaseAddress() + bb->getNumberOfBytes()){
                         InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, FLAGS_METHOD, InstLocation_after);
+                        assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
                         
-                        if (getElfFile()->is64Bit()){
-                            pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                            pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(site, X86_REG_CX));
-                            pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
-                            pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
-                        } else {
-                            pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                            pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(site, X86_REG_CX));
-                            pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
-                            pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
-                        }
+
                         
                         PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx", site, bb->getBaseAddress(), target->getBaseAddress());
 
@@ -481,18 +481,7 @@ void LoopIntercept::instrument(){
                 ASSERT(loopExit);
 
                 InstrumentationPoint* pt = addInstrumentationPoint(interposed, loopExit, InstrumentationMode_trampinline, prot);
-                
-                if (getElfFile()->is64Bit()){
-                    pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                    pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(site, X86_REG_CX));
-                    pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
-                    pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
-                } else {
-                    pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                    pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(site, X86_REG_CX));
-                    pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
-                    pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
-                }
+                assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
                 
                 PRINT_INFOR("\tEXIT-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx", site, bb->getBaseAddress(), interb->getBaseAddress());
             }
@@ -521,19 +510,7 @@ void LoopIntercept::instrument(){
 
             ASSERT(loopEntry);
             InstrumentationPoint* pt = addInstrumentationPoint(interposed, loopEntry, InstrumentationMode_trampinline, prot);
-
-            // update site for use in the analysis lib
-            if (getElfFile()->is64Bit()){
-                pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(site, X86_REG_CX));
-                pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
-                pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
-            } else {
-                pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(site, X86_REG_CX));
-                pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
-                pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));
-            }
+            assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
 
             PRINT_INFOR("\tENTR-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx", site, interb->getBaseAddress(), head->getBaseAddress());
         }

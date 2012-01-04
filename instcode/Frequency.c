@@ -41,6 +41,7 @@ uint64_t* exitCalled = NULL;
 // called at loop entry
 void pfreq_throttle_lpentry(){
     entryCalled[*site]++;
+    //PRINT_INSTR(stdout, "enter site %d", *site);
 
     // return if mpi_init has not yet been called
     if (!isMpiValid()){
@@ -62,6 +63,7 @@ void pfreq_throttle_lpentry(){
 // called at loop exit
 void pfreq_throttle_lpexit(){
     exitCalled[*site]++;
+    //PRINT_INSTR(stdout, "exit site %d", *site);
 
     if (!isMpiValid()){
         return;
@@ -115,11 +117,15 @@ void pfreq_throttle_init(uint32_t* siteIndex, uint32_t* numLoops, uint32_t* numR
 // called at program finish
 void pfreq_throttle_fini(){
     int i;
+    int e = 0;
     for (i = 0; i < numberOfLoops; i++){
         if (entryCalled[i] != exitCalled[i]){
             PRINT_INSTR(stderr, "site %d: entry called %lld times but exit %lld", i, entryCalled[i], exitCalled[i]);
-            exit(1);
+            e++;
         }
+    }
+    if (e){
+        exit(1);
     }
     free(entryCalled);
     free(exitCalled);
