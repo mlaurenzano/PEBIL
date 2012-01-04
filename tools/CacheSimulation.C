@@ -29,7 +29,6 @@
 #include <Loop.h>
 #include <TextSection.h>
 #include <DFPattern.h>
-//#include <SimpleHash.h>
 
 #define ENTRY_FUNCTION "entry_function"
 #define SIM_FUNCTION "MetaSim_simulFuncCall_Simu"
@@ -110,6 +109,21 @@ void CacheSimulation::filterBBs(){
         } else {
             //        ASSERT(bb && "cannot find basic block for hash code found in input file");
             blocksToInst.insert(bb->getHashCode().getValue(), bb);
+
+            // also include any block that is in this loop (including child loops)
+            if (loopIncl){
+                if (bb->isInLoop()){
+                    FlowGraph* fg = bb->getFlowGraph();
+                    Loop* lp = fg->getInnermostLoopForBlock(bb->getIndex());
+                    BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
+                    lp->getAllBlocks(allBlocks);
+                    for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
+                        uint64_t code = allBlocks[k]->getHashCode().getValue();
+                        blocksToInst.insert(code, allBlocks[k]);
+                    }
+                    delete[] allBlocks;
+                }
+            }
         }
     }
     for (uint32_t i = 0; i < (*fileLines).size(); i++){
@@ -121,32 +135,6 @@ void CacheSimulation::filterBBs(){
         for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
             BasicBlock* bb = getExposedBasicBlock(i);
             blocksToInst.insert(bb->getHashCode().getValue(), bb);
-        }
-    }
-
-    // if any loop contains blocks that are in our list, include all blocks from those loops
-    if (loopIncl){
-        for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
-            BasicBlock* bb = getExposedBasicBlock(i);
-            uint64_t hashValue = bb->getHashCode().getValue();
-
-            if (blocksToInst.get(hashValue)){
-                if (bb->isInLoop()){
-                    FlowGraph* fg = bb->getFlowGraph();
-                    for (uint32_t j = 0; j < fg->getNumberOfLoops(); j++){
-                        Loop* lp = fg->getLoop(j);
-                        if (lp->isBlockIn(bb->getIndex())){
-                            BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
-                            lp->getAllBlocks(allBlocks);
-                            for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
-                                uint64_t code = allBlocks[k]->getHashCode().getValue();
-                                blocksToInst.insert(code, allBlocks[k]);
-                            }
-                            delete[] allBlocks;
-                        }
-                    }
-                }
-            }
         }
     }
 

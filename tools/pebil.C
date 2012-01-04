@@ -68,7 +68,7 @@ void printUsage(const char* msg = NULL){
         fprintf(stderr,"\t      : y : dynamic table\n");
         fprintf(stderr,"\t      : z : <none>\n");   
     }
-    fprintf(stderr,"\t\t[--lib <shared_lib_dir>] : DEPRECATED, kept for compatibility\n");
+    fprintf(stderr,"\t\t[--lib <shared_lib_dir>] : DEPRECATED link to instrumentation libs from this directory\n");
     fprintf(stderr,"\t\t[--fbl <file/containing/function/list>] : list of functions to exclude from instrumentaiton (default is %s)\n", DEFAULT_FUNC_BLACKLIST);
     fprintf(stderr,"\t\t[--ext <output_suffix>] : override default file extension for instrumented executable\n");
     fprintf(stderr,"\t\t[--lnc <lib1.so,lib2.so>] : list of shared libraries to put in executable's dynamic table\n");
@@ -79,8 +79,8 @@ void printUsage(const char* msg = NULL){
     fprintf(stderr,"\t\t[--dry] : quit before processing any executables\n");
     fprintf(stderr,"\t{tool options} (each tool decides if/how to use these)\n");
     fprintf(stderr,"\t\t[--inp <input/file>] : path to an input file\n");
-    fprintf(stderr,"\t\t[--dtl] : DEPRECATED (always on), kepy for compatibility\n");
-    fprintf(stderr,"\t\t[--lpi] : include loop-level analysis\n");
+    fprintf(stderr,"\t\t[--dtl] : DEPRECATED (always on) print details in static files\n");
+    fprintf(stderr,"\t\t[--lpi] : DEPRECATED (always on) perform loop inclusion\n");
     fprintf(stderr,"\t\t[--doi] : do special initialization\n");
     fprintf(stderr,"\t\t[--phs <phase_no>] : phase number\n");
     fprintf(stderr,"\t\t[--trk <tracking/file>] : path to a tracking file\n");
