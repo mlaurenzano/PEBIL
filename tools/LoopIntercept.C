@@ -274,12 +274,28 @@ void LoopIntercept::instrument(){
         if (bb->isInLoop() && loops.count(hash) > 0){
             Function* f = bb->getFunction();
             FlowGraph* fg = bb->getFlowGraph();
+            ASSERT(f && fg);
+
+            /*
+            PRINT_INFOR("Going for loop %llx", hash);
+            f->print();
+            for (uint32_t i = 0; i < f->getNumberOfBasicBlocks(); i++){
+                f->getBasicBlock(i)->print();
+            }
+            */
 
             Loop* innerMost = fg->getInnermostLoopForBlock(bb->getIndex());
+            ASSERT(innerMost);
+
+            //innerMost->print();
             while (hash != innerMost->getHead()->getHashCode().getValue() && 
                    innerMost->getIndex() != fg->getParentLoop(innerMost->getIndex())->getIndex()){
                 innerMost = fg->getParentLoop(innerMost->getIndex());
+                //innerMost->print();
                 ASSERT(innerMost);
+            }
+            if (hash != innerMost->getHead()->getHashCode().getValue()){
+                PRINT_INFOR("function %s/%s: %llx != %llx", f->getName(), innerMost->getHead()->getFunction()->getName(), hash, innerMost->getHead()->getHashCode().getValue());
             }
             ASSERT(hash == innerMost->getHead()->getHashCode().getValue());
             
@@ -339,6 +355,17 @@ void LoopIntercept::instrument(){
                     }
                 }
 
+                // see if loop contains an indirect branch. if so reject it
+                for (uint32_t k = 0; k < innerMost->getNumberOfBlocks() && !badLoop; k++){
+                    BasicBlock* bb = allLoopBlocks[k];
+                    if (bb->getExitInstruction()->isIndirectBranch()){
+                        PRINT_WARN(20, "Loop %lld is %s contains an indirect branch so we can't guarantee that all exits will be found. skipping!", hash, f->getName());
+                        badLoop = true;
+                        loopsRejected[hash] = innerMost;
+                    }
+                }
+                delete[] allLoopBlocks;
+
                 if (!badLoop){
                     loopsFound[hash] = innerMost;
                 }
@@ -369,7 +396,11 @@ void LoopIntercept::instrument(){
         allBlockIds->append(site);
         allLineInfos->append(li);
         
-        PRINT_INFOR("Loop %lld site %d @ %s:%d (function %s) tagged for interception has %d blocks", hash, site, li->getFileName(), li->GET(lr_line), fg->getFunction()->getName(), loop->getNumberOfBlocks());
+	if (li){
+	    PRINT_INFOR("Loop %lld site %d @ %s:%d (function %s) tagged for interception has %d blocks", hash, site, li->getFileName(), li->GET(lr_line), fg->getFunction()->getName(), loop->getNumberOfBlocks());
+	} else {
+	    PRINT_INFOR("Loop %lld site %d @ %s:%d (function %s) tagged for interception has %d blocks", hash, site, INFO_UNKNOWN, 0, fg->getFunction()->getName(), loop->getNumberOfBlocks());
+	}
 
         // it is important to perform all analysis on this loop before performing any interpositions because
         // inserting those interpositions changes the CFG
