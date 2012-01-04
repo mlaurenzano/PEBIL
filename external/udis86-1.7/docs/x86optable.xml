@@ -130,32 +130,32 @@
 
   <!-- TODO: these + pextrw show a good example of specific operand sizing -->
   <instruction mnemonic="pextrb">
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 14 ; Eb W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 14 ; Eb W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 14 ; V W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 14 ; V W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="pextrd">
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 16 ; Ed W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 16 ; Ed W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 16 ; V W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 16 ; V W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="pextrq">
-    <opcode> aso oso rexw rexr rexx rexb ; sse66 0f /3byte=3a 16 ; Eq W Ib ; ; </opcode>
-    <opcode> aso oso rexw rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 16 ; Eq W Ib ; ; </opcode>
+    <opcode> aso oso rexw rexr rexx rexb ; sse66 0f /3byte=3a 16 ; V W Ib ; ; </opcode>
+    <opcode> aso oso rexw rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 16 ; V W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="extractps">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 17; V W Ib ; ; </opcode>
     <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 17; V W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="pinsrb">
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 20; V Ex Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 20; V X Ex Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 20; V W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 20; V X W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="pinsrd">
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 22; V Ex Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 22; V X Ex Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 22; V W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 22; V X W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="pinsrq">
-    <opcode> aso oso rexw rexr rexx rexb ; sse66 0f /3byte=3a 22; V Ex Ib ; ; </opcode>
-    <opcode> aso oso rexw rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 22; V X Ex Ib ; ; </opcode>
+    <opcode> aso oso rexw rexr rexx rexb ; sse66 0f /3byte=3a 22; V W Ib ; ; </opcode>
+    <opcode> aso oso rexw rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 22; V X W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="insertps">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 21; V W Ib ; ; </opcode>

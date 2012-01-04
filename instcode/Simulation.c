@@ -259,7 +259,7 @@ void initDfPatterns(DFPatternSpec* dfps,uint32_t n,BasicBlockInfo* bbs){
         PRINT_INSTR(stdout, "DFPatterns are activated with %u entries at address %#llx", n, dfps);
         uint32_t anyTagged = 0;
         for(i=1;i<=n;i++){
-            PRINT_INSTR(stdout, "\tdfpattern(%d): memop=%d, type=%s", i-1, dfps[i].memopCnt, DFPatternTypeNames[dfps[i].type]);
+            //PRINT_INSTR(stdout, "\tdfpattern(%d): memop=%d, type=%s", i-1, dfps[i].memopCnt, DFPatternTypeNames[dfps[i].type]);
             if(dfps[i].type == dfTypePattern_undefined){
                 PRINT_INSTR(stdout, "Error in dfpattern type %i %s",i,DFPatternTypeNames[dfps[i].type]);
                 assert (dfps[i].type != dfTypePattern_undefined);
