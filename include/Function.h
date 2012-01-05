@@ -43,6 +43,8 @@ private:
     const static uint32_t relocatedMask           = 0x10;
     const static uint32_t manipulatedMask         = 0x20;
 
+    bool defUse;
+
 protected:
     FlowGraph* flowGraph;
     HashCode hashCode;
@@ -56,6 +58,9 @@ public:
 
     void interposeBlock(BasicBlock* bb);
     bool hasLeafOptimization();
+
+    void computeDefUse();
+    bool doneDefUse() { return defUse; }
 
     bool isRecursiveDisasm()          { return (flags & recursivedisasmMask); }
     bool isInstrumentationFunction()  { return (flags & instrumentationfuncMask); }

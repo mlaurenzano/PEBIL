@@ -457,8 +457,8 @@ public:
     LinkedList<ReachingDefinition*>* getUses();
 
 
-    uint32_t getDefUseDist() { return defUseDist; }
-    void setDefUseDist(uint32_t dudist) { defUseDist = dudist; }
+    uint32_t getDefUseDist();
+    void setDefUseDist(uint32_t dudist);
 
     void print();
     bool verify();

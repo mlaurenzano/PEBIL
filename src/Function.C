@@ -33,6 +33,13 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+void Function::computeDefUse(){
+#ifndef NO_REG_ANALYSIS
+    defUse = true;
+    flowGraph->computeDefUseDist();
+#endif
+}
+
 void Function::interposeBlock(BasicBlock* bb){
     flowGraph->interposeBlock(bb);
     sizeInBytes += bb->getNumberOfBytes();
@@ -673,6 +680,7 @@ Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz)
 
     badInstruction = 0;
     flags = 0;
+    defUse = false;
 
     verify();
 }

@@ -32,6 +32,18 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
+uint32_t X86Instruction::getDefUseDist(){
+    if (container->isFunction() && !((Function*)container)->doneDefUse()){
+        ((Function*)container)->computeDefUse();
+    }
+    return defUseDist;
+}
+void X86Instruction::setDefUseDist(uint32_t dudist){ 
+    defUseDist = dudist;
+}
+
+
+
 HashCode* X86Instruction::generateHashCode(BasicBlock* bb){
     HashCode* hc = new HashCode(bb->getHashCode().getSection(),
                                 bb->getHashCode().getFunction(),
