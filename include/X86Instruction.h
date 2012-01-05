@@ -586,27 +586,13 @@ public:
 
 class X86InstructionClassifier {
 private:
-    static void initialize();
-    static bool verify();
-
-    static void fillClassDefinitions();
-
     X86InstructionClassifier() {}
     ~X86InstructionClassifier() {}
-    static uint32_t rawClassBits(int mnemonic, int numbits, int offset){ 
-        uint32_t ret = getClass(mnemonic);
-        ret = (ret >> offset);
-        // shift off bits we don't want
-        ret = (ret << (32 - numbits));
-        ret = (ret >> (32 - numbits));
-        return ret;
-    }
 
-#define MEM_SZ_VARIABLE (0xf)
-    static uint32_t packFields(uint8_t type, uint8_t bin, uint8_t format, uint8_t memsize, uint8_t location);
+    static uint32_t getMnemonic(X86Instruction* x);
 
 public:
-    static uint32_t getClass(uint32_t mnemonic);
+    static bool verify();
 
     static X86InstructionBin getInstructionBin(X86Instruction* x);
     static uint8_t getInstructionMemLocation(X86Instruction* x);
