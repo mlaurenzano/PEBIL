@@ -68,7 +68,7 @@ bool InstrumentationTool::singleArgCheck(void* arg, uint32_t mask, const char* n
 
 bool InstrumentationTool::verifyArgs(){
     singleArgCheck((void*)phaseNo, PEBIL_OPT_PHS, "--phs");
-    singleArgCheck((void*)loopIncl, PEBIL_OPT_LPI, "--lpi");
+    //singleArgCheck((void*)loopIncl, PEBIL_OPT_LPI, "--lpi");
     //singleArgCheck((void*)printDetail, PEBIL_OPT_DTL, "--dtl");
     singleArgCheck((void*)inputFile, PEBIL_OPT_INP, "--inp");
     singleArgCheck((void*)dfpFile, PEBIL_OPT_DFP, "--dfp");

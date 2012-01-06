@@ -76,7 +76,7 @@ NULL_FILE = /dev/null
 
 %.thrinst: %
 	$(CREATE_LOOPS_FILE)
-	$(PEBIL_COMMAND_T) ThrottleLoop --app $< --inp $(LOOPS_FILE) --lnc libpfreq.so --trk $(NULL_FILE)
+	$(PEBIL_COMMAND_T) LoopIntercept --app $< --inp $(LOOPS_FILE) --lnc libpfreq.so
 	rm -f $(LOOPS_FILE)
 	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
 	./$< > $<.$(OUT)
