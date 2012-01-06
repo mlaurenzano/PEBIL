@@ -329,6 +329,7 @@ static int _arrayBacktraceIterator;
         for (_arrayBacktraceIterator = 0; _arrayBacktraceIterator < _backtraceSize; _arrayBacktraceIterator++){ fprintf(stderr, "\t%s\n", _backtraceStrings[_arrayBacktraceIterator]); } \
         free(_backtraceStrings);\
         assert(__str); }
+//#define ASSERT(__str)
 
 #ifdef  DEVELOPMENT
 #define PRINT_DEBUG(...) fprintf(stdout,"----------- DEBUG : "); \
