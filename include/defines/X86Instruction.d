@@ -123,7 +123,6 @@ udis86 ud_compact
 #define INSTRUCTION_MACROS_CLASS(__str) /** __str **/ \
     GET_FIELD_CLASS(uint64_t,insn_offset); \
     GET_FIELD_CLASS(char*,insn_bytes); \
-    GET_FIELD_CLASS(char*,insn_hexcode); \
     GET_FIELD_CLASS(char*,insn_buffer); \
     GET_FIELD_CLASS(enum ud_mnemonic_code,mnemonic); \
     GET_FIELD_CLASS(struct ud_operand*,operand); \

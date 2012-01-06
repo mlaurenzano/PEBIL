@@ -90,9 +90,13 @@ public:
     }
 
     uint32_t insertSorted(T elt, int (*comparator) (const void*, const void*)){
-        append(elt);
-        qsort(elements, numberOfElements, sizeof(T), comparator);
-        return numberOfElements;
+        int i = 0;
+        while (i < numberOfElements && (*comparator)(&(elements[i]), &elt) < 0){
+            i++;
+        }
+        uint32_t x = insert(elt, i);
+        ASSERT(isSorted(comparator));
+        return x;
     }
 
     inline T* operator&(){ return elements; }
