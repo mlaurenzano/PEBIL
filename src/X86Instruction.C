@@ -69,6 +69,7 @@ void X86Instruction::initBlankUd(bool is64bit){
 
 
 void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg){
+    memcpy(comp->insn_bytes, reg->insn_bytes, sizeof(char) * 16);
     memcpy(comp->insn_hexcode, reg->insn_hexcode, sizeof(char) * 32);
     memcpy(comp->insn_buffer, reg->insn_buffer, sizeof(char) * INSTRUCTION_PRINT_SIZE);
     comp->mnemonic = reg->mnemonic;
@@ -172,19 +173,19 @@ uint32_t X86Instruction::getNumberOfMemoryBytes(){
     return 0;
 }
 
-bool X86Instruction::usesFlag(uint32_t flg) { 
+inline bool X86Instruction::usesFlag(uint32_t flg) { 
     return (GET(flags_use) & (1 << flg));
 }
 
-bool X86Instruction::defsFlag(uint32_t flg) { 
+inline bool X86Instruction::defsFlag(uint32_t flg) { 
     return (GET(flags_def) & (1 << flg));
 }
 
-bool X86Instruction::usesAluReg(uint32_t alu){
+inline bool X86Instruction::usesAluReg(uint32_t alu){
     return (GET(impreg_use) & (1 << alu));
 }
 
-bool X86Instruction::defsAluReg(uint32_t alu){
+inline bool X86Instruction::defsAluReg(uint32_t alu){
     return (GET(impreg_def) & (1 << alu));
 }
 
@@ -853,11 +854,7 @@ uint32_t X86Instruction::convertTo4ByteTargetOperand(){
 
     // extract raw bytes from hex representation
     char rawBytes[MAX_X86_INSTRUCTION_LENGTH];
-    uint32_t currByte = 0;
-    for (uint32_t i = 0; i < sizeInBytes; i++){
-        rawBytes[currByte++] = mapCharsToByte(GET(insn_hexcode)[2*i], GET(insn_hexcode)[2*i+1]);
-    }
-
+    memcpy(rawBytes, GET(insn_bytes), sizeInBytes);
 
     uint32_t additionalBytes = 0;
 
@@ -955,14 +952,12 @@ uint32_t X86Instruction::convertTo4ByteTargetOperand(){
 void X86Instruction::binutilsPrint(FILE* stream){
     fprintf(stream, "%llx: ", getBaseAddress());
 
-    ASSERT(strlen(GET(insn_hexcode)) % 2 == 0);
-
-    for (int32_t i = 0; i < strlen(GET(insn_hexcode)); i += 2){
-        fprintf(stream, "%c%c ", GET(insn_hexcode)[i], GET(insn_hexcode)[i+1]);
+    for (int32_t i = 0; i < sizeInBytes; i++){
+        fprintf(stream, "%02x ", GET(insn_bytes)[i]);
     }
 
-    if (strlen(GET(insn_hexcode)) < 16){
-        for (int32_t i = 16 - strlen(GET(insn_hexcode)); i > 0; i -= 2){
+    if (sizeInBytes < 8){
+        for (int32_t i = 8 - sizeInBytes; i > 0; i--){
             fprintf(stream, "   ");
         }
     }
@@ -1000,10 +995,7 @@ void X86Instruction::initializeAnchor(Base* link){
 void X86Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(sizeInBytes && "This instruction has no bytes thus it cannot be dumped");
 
-    for (uint32_t i = 0; i < sizeInBytes; i++){
-        char byt = mapCharsToByte(GET(insn_hexcode)[2*i], GET(insn_hexcode)[2*i+1]);
-        binaryOutputFile->copyBytes(&byt, 1, offset + i);
-    }
+    binaryOutputFile->copyBytes((char*)GET(insn_bytes), sizeInBytes, offset);
 
     // the anchor will now overwrite any original instruction bytes that relate to relative addresses
     if (addressAnchor){
@@ -1490,7 +1482,12 @@ void X86Instruction::print(){
 
     flags[10] = '\0';
 
-    PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%10s]\t-> %#llx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress());
+    char hexcode[32];
+    for (int32_t i = 0; i < sizeInBytes; i++){
+        sprintf(hexcode + (2*i), "%02x", GET(insn_bytes)[i]);
+    }
+
+    PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%10s]\t-> %#llx", getBaseAddress(), hexcode, GET(insn_buffer), flags, getTargetAddress());
 
 #ifdef PRINT_INSTRUCTION_DETAIL
 #ifndef NO_REG_ANALYSIS

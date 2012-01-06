@@ -160,7 +160,7 @@ struct ud
   uint8_t		inp_end;
   void			(*translator)(struct ud*);
   uint64_t		insn_offset;
-  uint8_t		insn_bytes[16];
+  char			insn_bytes[16];
   char			insn_hexcode[32];
   char			insn_buffer[64];
   unsigned int		insn_fill;
