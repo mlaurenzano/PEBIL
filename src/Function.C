@@ -46,6 +46,13 @@ void Function::interposeBlock(BasicBlock* bb){
 }
 
 bool Function::hasLeafOptimization(){
+    if (!computedLeafOpt){
+        computeLeafOptimization();
+    }
+    return leafOpt;
+}
+
+void Function::computeLeafOptimization(){
     uint32_t numberOfInstructions = getNumberOfInstructions();
     X86Instruction** allInstructions = new X86Instruction*[numberOfInstructions];
     getAllInstructions(allInstructions,0);
@@ -57,7 +64,9 @@ bool Function::hasLeafOptimization(){
         }
     }
     delete[] allInstructions;
-    return !callFound;
+
+    leafOpt = !callFound;
+    computedLeafOpt = true;
 }
 
 void Function::printDisassembly(bool instructionDetail){

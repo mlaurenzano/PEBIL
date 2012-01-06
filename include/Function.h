@@ -44,6 +44,8 @@ private:
     const static uint32_t manipulatedMask         = 0x20;
 
     bool defUse;
+    bool leafOpt;
+    bool computedLeafOpt;
 
 protected:
     FlowGraph* flowGraph;
@@ -58,6 +60,7 @@ public:
 
     void interposeBlock(BasicBlock* bb);
     bool hasLeafOptimization();
+    void computeLeafOptimization();
 
     void computeDefUse();
     bool doneDefUse() { return defUse; }
