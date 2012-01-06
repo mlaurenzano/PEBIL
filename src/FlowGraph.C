@@ -29,6 +29,7 @@
 #include <Loop.h>
 #include <PriorityQueue.h>
 #include <Stack.h>
+#include <map>
 #include <set>
 #include <X86Instruction.h>
 #include <X86InstructionFactory.h>
@@ -139,6 +140,21 @@ void FlowGraph::computeDefUseDist(){
     LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*> listdefs =
         LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*>();
 
+    uint32_t fcnt = function->getNumberOfInstructions();
+    std::map<uint64_t, X86Instruction*> imap;
+    std::map<uint64_t, BasicBlock*> bmap;
+
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        BasicBlock* bb = basicBlocks[i];
+        for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
+            X86Instruction* x = bb->getInstruction(j);
+            for (uint32_t k = 0; k < x->getSizeInBytes(); k++){
+                imap[x->getBaseAddress() + k] = x;
+                bmap[x->getBaseAddress() + k] = bb;
+            }
+        }
+    }
+
     // For each loop
     for (uint32_t i = 0; i < loops.size(); ++i) {
         BasicBlock** allLoopBlocks = new BasicBlock*[loops[i]->getNumberOfBlocks()];
@@ -209,13 +225,13 @@ void FlowGraph::computeDefUseDist(){
 
                         // Check if use is shortest
                         uint32_t duDist;
-                        duDist = trueDefUseDist(currDist, function->getNumberOfInstructions());
+                        duDist = trueDefUseDist(currDist, fcnt);
                         if (!ins->getDefUseDist() || ins->getDefUseDist() > duDist) {
                             ins->setDefUseDist(duDist);
                         }
 
                         // If dist has increased beyond size of function, we must be looping?
-                        if (currDist > function->getNumberOfInstructions()) {
+                        if (currDist > fcnt) {
                             ins->setDefXIter();
                             break;
                         }
@@ -240,11 +256,11 @@ void FlowGraph::computeDefUseDist(){
 
                     // end of block that is a branch
                     if (cand->usesControlTarget() && !cand->isCall()){
-                        BasicBlock* tgtBlock = function->getBasicBlockAtAddress(cand->getTargetAddress());
+                        BasicBlock* tgtBlock = bmap[cand->getTargetAddress()];
                         if (tgtBlock && loops[i]->isBlockIn(tgtBlock->getIndex()) && !blockTouched[tgtBlock->getIndex()]){
                             blockTouched[tgtBlock->getIndex()] = true;
                             if (tgtBlock->getBaseAddress() == loopLeader){
-                                paths.insert(new path(tgtBlock->getLeader(), newdefs), loopXDefUseDist(currDist + 1, function->getNumberOfInstructions()));
+                                paths.insert(new path(tgtBlock->getLeader(), newdefs), loopXDefUseDist(currDist + 1, fcnt));
                             } else {
                                 paths.insert(new path(tgtBlock->getLeader(), newdefs), currDist + 1);
                             }
@@ -253,15 +269,15 @@ void FlowGraph::computeDefUseDist(){
 
                     // non-branching control
                     if (cand->controlFallsThrough()){
-                        BasicBlock* tgtBlock = function->getBasicBlockAtAddress(cand->getBaseAddress() + cand->getSizeInBytes());
+                        BasicBlock* tgtBlock = bmap[cand->getBaseAddress() + cand->getSizeInBytes()];
                         if (tgtBlock && loops[i]->isBlockIn(tgtBlock->getIndex())){
-                            X86Instruction* ftTarget = function->getInstructionAtAddress(cand->getBaseAddress() + cand->getSizeInBytes());
+                            X86Instruction* ftTarget = imap[cand->getBaseAddress() + cand->getSizeInBytes()];
                             if (ftTarget){
                                 if (ftTarget->isLeader()){
                                     if (!blockTouched[tgtBlock->getIndex()]){
                                         blockTouched[tgtBlock->getIndex()] = true;
                                         if (ftTarget->getBaseAddress() == loopLeader){
-                                            paths.insert(new path(ftTarget, newdefs), loopXDefUseDist(currDist + 1, function->getNumberOfInstructions()));
+                                            paths.insert(new path(ftTarget, newdefs), loopXDefUseDist(currDist + 1, fcnt));
                                         } else {
                                             paths.insert(new path(ftTarget, newdefs), currDist + 1);
                                         }

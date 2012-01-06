@@ -840,8 +840,7 @@ uint32_t CodeBlock::getNumberOfBytes(){
 }
 
 bool BasicBlock::inRange(uint64_t addr){
-    if (addr >= getBaseAddress() &&
-        addr < getBaseAddress() + getNumberOfBytes()){
+    if (addr >= getBaseAddress() && addr < getBaseAddress() + getNumberOfBytes()){
         return true;
     }
     return false;

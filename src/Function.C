@@ -634,7 +634,8 @@ uint32_t Function::generateCFG(Vector<X86Instruction*>* instructions, Vector<Add
 
 X86Instruction* Function::getInstructionAtAddress(uint64_t addr){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        if (flowGraph->getBasicBlock(i)->inRange(addr)){
+        BasicBlock* bb = flowGraph->getBasicBlock(i);
+        if (addr >= bb->getBaseAddress() && bb->inRange(addr)){
             return flowGraph->getBasicBlock(i)->getInstructionAtAddress(addr); 
         }
     }
@@ -644,11 +645,11 @@ X86Instruction* Function::getInstructionAtAddress(uint64_t addr){
 
 BasicBlock* Function::getBasicBlockAtAddress(uint64_t addr){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        if (flowGraph->getBasicBlock(i)->inRange(addr)){
+        BasicBlock* bb = flowGraph->getBasicBlock(i);
+        if (addr >= bb->getBaseAddress() && bb->inRange(addr)){
             return flowGraph->getBasicBlock(i); 
         }
     }
-
     return NULL;
 }
 

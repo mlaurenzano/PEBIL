@@ -203,13 +203,9 @@ int compareHashCode(const void* arg1, const void* arg2){
 
 // this function needs to be fast; it gets called -->*A LOT*<--
 int compareBaseAddress(const void* arg1, const void* arg2){
-    uint64_t vl1 = (*((Base**)arg1))->baseAddress;
-    uint64_t vl2 = (*((Base**)arg2))->baseAddress;
-
-    if      (vl1 < vl2) return -1;
-    else if (vl1 > vl2) return  1;
-    else                return  0;
-    return 0;
+    register uint64_t vl1 = (*((Base**)arg1))->baseAddress;
+    register uint64_t vl2 = (*((Base**)arg2))->baseAddress;
+    return vl1 - vl2;
 }
 
 
