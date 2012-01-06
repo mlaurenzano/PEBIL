@@ -1508,7 +1508,7 @@ Vector<X86Instruction*>* X86InstructionFactory::emitNopSeries(uint32_t len){
 }
 
 X86Instruction* X86InstructionFactory::emitNop(uint32_t len){
-    ASSERT(len < 9);
+    ASSERT(len <= MAX_NOP_LENGTH);
     /* from the AMD k8 optimization manual
     NOP1_OVERRIDE_NOP TEXTEQU <DB 090h>
     NOP2_OVERRIDE_NOP TEXTEQU <DB 066h,090h>

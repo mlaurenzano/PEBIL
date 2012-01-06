@@ -106,7 +106,7 @@ public:
             m = (l + h) / 2;
         }
         uint32_t x = insert(elt, m);
-        ASSERT(isSorted(comparator));
+        //ASSERT(isSorted(comparator));
         return x;
     }
 

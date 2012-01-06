@@ -23,6 +23,7 @@
 
 #include <X86Instruction.h>
 
+#define MAX_NOP_LENGTH 8
 
 class X86InstructionFactory : public X86Instruction {
 protected:

@@ -156,9 +156,13 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
         uint32_t instructionIdx = expansionIndices[i];
         PRINT_DEBUG_BLOAT_FILTER("bloating point at instruction %#llx by %d bytes", instructions[instructionIdx]->getProgramAddress(), bloatAmount);
         if (instructionIdx < instructions.size() + 1){
-            for (uint32_t j = 0; j < bloatAmount; j++){
-                instructions.insert(X86InstructionFactory::emitNop(), instructionIdx);
+            for ( ; bloatAmount >= MAX_NOP_LENGTH; bloatAmount -= MAX_NOP_LENGTH){
+                instructions.insert(X86InstructionFactory::emitNop(MAX_NOP_LENGTH), instructionIdx);
                 byteCountUpdate = true;
+            }
+            if (bloatAmount){
+                instructions.insert(X86InstructionFactory::emitNop(bloatAmount), instructionIdx);
+                byteCountUpdate = true;                
             }
         }
     }

@@ -65,8 +65,7 @@ BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, ui
     jumpToTarget->initializeAnchor(fg->getBasicBlock(bbtgtidx)->getLeader());
 
     ASSERT(jumpToTarget->getAddressAnchor() != NULL && jumpToTarget->getAddressAnchor()->getLink()->getType() == PebilClassType_X86Instruction);
-    (*(elfFile->getAddressAnchors())).append(jumpToTarget->getAddressAnchor());
-    elfFile->setAnchorsSorted(false);
+    (*(elfFile->getAddressAnchors())).insertSorted(jumpToTarget->getAddressAnchor(), compareLinkBaseAddress);
 
     fg->getFunction()->setManipulated();
 
@@ -1238,9 +1237,6 @@ void ElfFileInst::phasedInstrumentation(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
 }
-
-
-
 
 void ElfFileInst::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
