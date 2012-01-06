@@ -1513,20 +1513,37 @@ static int do_mode( struct ud* u )
 
 static int gen_hex( struct ud *u )
 {
-  unsigned int i;
-  unsigned char *src_ptr = inp_sess( u );
-  char* src_hex;
+    unsigned int i;
+    unsigned char *src_ptr = inp_sess( u );
+    char* src_hex;
+    
+    /* bail out if in error stat. */
+    if ( u->error ) return -1; 
+    /* output buffer pointe */
+    src_hex = ( char* ) u->insn_hexcode;
+    /* for each byte used to decode instruction */
+    for ( i = 0; i < u->inp_ctr; ++i, ++src_ptr) {
+        sprintf( src_hex, "%02x", *src_ptr & 0xFF );
+        src_hex += 2;
+    }
+    return 0;
+}
 
-  /* bail out if in error stat. */
-  if ( u->error ) return -1; 
-  /* output buffer pointe */
-  src_hex = ( char* ) u->insn_hexcode;
-  /* for each byte used to decode instruction */
-  for ( i = 0; i < u->inp_ctr; ++i, ++src_ptr) {
-    sprintf( src_hex, "%02x", *src_ptr & 0xFF );
-    src_hex += 2;
-  }
-  return 0;
+static int gen_bytes( struct ud *u )
+{
+    unsigned int i;
+    unsigned char *src_ptr = inp_sess( u );
+    char* src_hex;
+    
+    /* bail out if in error stat. */
+    if ( u->error ) return -1; 
+    /* output buffer pointe */
+    src_hex = ( char* ) u->insn_bytes;
+    /* for each byte used to decode instruction */
+    for ( i = 0; i < u->inp_ctr; ++i, ++src_ptr) {
+        *src_hex = (*src_ptr & 0xFF);
+    }
+    return 0;    
 }
 
 static int resolve_implied_usedefs( struct ud *u )
@@ -1588,7 +1605,8 @@ unsigned int ud_decode( struct ud* u )
   u->insn_offset = u->pc; /* set offset of instruction */
   u->insn_fill = 0;   /* set translation buffer index to 0 */
   u->pc += u->inp_ctr;    /* move program counter by bytes decoded */
-  gen_hex( u );       /* generate hex code */
+  gen_hex( u );
+  gen_bytes(u);
 
   /* return number of bytes disassembled. */
   return u->inp_ctr;

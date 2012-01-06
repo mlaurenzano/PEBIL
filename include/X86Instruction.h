@@ -220,6 +220,7 @@ struct ud_compact
     //uint8_t		inp_end;
     //void		(*translator)(struct ud*);
     uint64_t		insn_offset;
+    uint8_t             insn_bytes[16];
     char		insn_hexcode[32];
     char		insn_buffer[INSTRUCTION_PRINT_SIZE];
     //unsigned int	insn_fill;
@@ -239,8 +240,8 @@ struct ud_compact
     //uint8_t 		pfx_repe;
     //uint8_t 		pfx_repne;
     //uint8_t 		pfx_insn;
-    //uint8_t             pfx_avx;
-    //uint8_t             avx_vex[2];
+    //uint8_t           pfx_avx;
+    //uint8_t           avx_vex[2];
     //uint8_t		default64;
     //uint8_t		opr_mode;
     uint8_t		adr_mode;

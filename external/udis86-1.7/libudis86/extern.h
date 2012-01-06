@@ -53,6 +53,8 @@ extern uint8_t* ud_insn_ptr(struct ud* u);
 
 extern uint64_t ud_insn_off(struct ud*);
 
+extern int gen_hex(struct ud*);
+
 extern char* ud_insn_hex(struct ud*);
 
 extern unsigned int ud_insn_len(struct ud* u);

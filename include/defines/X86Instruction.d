@@ -79,6 +79,7 @@ udis86 ud_compact
   uint8_t               inp_end;
   void                  (*translator)(struct ud*);
   uint64_t              insn_offset;
+  uint8_t               insn_bytes[16];
   char                  insn_hexcode[32];
   char                  insn_buffer[64];
   unsigned int          insn_fill;
@@ -121,6 +122,7 @@ udis86 ud_compact
 
 #define INSTRUCTION_MACROS_CLASS(__str) /** __str **/ \
     GET_FIELD_CLASS(uint64_t,insn_offset); \
+    GET_FIELD_CLASS(uint8_t*,insn_bytes); \
     GET_FIELD_CLASS(char*,insn_hexcode); \
     GET_FIELD_CLASS(char*,insn_buffer); \
     GET_FIELD_CLASS(enum ud_mnemonic_code,mnemonic); \
