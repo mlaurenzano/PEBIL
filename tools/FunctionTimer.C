@@ -260,6 +260,11 @@ void ExternalFunctionTimer::instrument(){
                 //PRINT_INFOR("looking for function %s", functionSymbol->getSymbolName());
                 uint32_t funcIdx = searchFileList(fileLines, functionSymbol->getSymbolName());
                 if (funcIdx < (*fileLines).size()){
+                    if (x->getTargetAddress() == function->getBaseAddress()){
+                        PRINT_WARN(20, "skipping recursive call of %s", function->getName());
+                        continue;
+                    }
+
                     BasicBlock* bb = function->getBasicBlockAtAddress(x->getBaseAddress());
                     ASSERT(bb->containsCallToRange(0,-1));
                     ASSERT(x->getSizeInBytes() == Size__uncond_jump);
