@@ -138,9 +138,6 @@ void CacheSimulation::filterBBs(){
         }
     }
 
-    BasicBlock** bbs = blocksToInst.values();
-    qsort(bbs, blocksToInst.size(), sizeof(BasicBlock*), compareBaseAddress);
-    
     if (dfpFile){
 
         Vector<char*>* dfpFileLines = new Vector<char*>();
@@ -194,9 +191,6 @@ void CacheSimulation::filterBBs(){
         PRINT_INFOR("**** Number of basic blocks tagged for DFPattern %d (out of %d) ******",
                     dfpSet.size(), blocksToInst.size());
     }
-
-    ASSERT(!dfpBlocks.size() || dfpBlocks.size() == blocksToInst.size());
-    delete[] bbs;
 }
 
 CacheSimulation::CacheSimulation(ElfFile* elf)
