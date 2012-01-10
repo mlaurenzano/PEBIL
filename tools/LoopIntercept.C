@@ -29,8 +29,6 @@
 #include <SymbolTable.h>
 #include <map>
 
-#define UNUSED_PASSTHRU_VALUE 0xdeadbeef
-
 #define LOOP_NAMING_BASIS "pfreq_throttle"
 //#define LOOP_NAMING_BASIS "pwr_measure"
 #define PROGRAM_ENTRY LOOP_NAMING_BASIS "_init"
@@ -72,49 +70,11 @@ uint64_t LoopIntercept::getLoopHash(uint32_t idx){
     return hash;
 }
 
-uint32_t LoopIntercept::getRank(uint32_t idx){
-    ASSERT(idx < (*loopList).size());
-    char* both = (*loopList)[idx];
-    both += strlen(both) + 1;
-
-    uint32_t lineNo = strtol(both, NULL, 0);
-    return lineNo;
-}
-
-uint32_t LoopIntercept::getFrequency(uint32_t idx){
-    ASSERT(idx < (*loopList).size());
-    char* both = (*loopList)[idx];
-    both += strlen(both) + 1;
-    both += strlen(both) + 1;
-
-    uint32_t level = strtol(both, NULL, 0);
-    return level;
-}
-
-uint32_t LoopIntercept::loopMatch(LineInfo* li){
-    return loopList->size();
-}
-
 void LoopIntercept::declare(){
     InstrumentationTool::declare();
 
-    ASSERT(inputFile && loopList);
-    initializeFileList(inputFile, loopList);
-
-    // replace any ':' character with a '\0'
-    for (uint32_t i = 0; i < (*loopList).size(); i++){
-        char* both = (*loopList)[i];
-        uint32_t numrepl = 0;
-        uint32_t bothsz = strlen(both);
-        for (uint32_t j = 0; j < bothsz; j++){
-            if (both[j] == ':'){
-                both[j] = '\0';
-                numrepl++;
-            }
-        }
-        if (numrepl != 2){
-            PRINT_ERROR("input file %s line %d should contain two ':' tokens", inputFile, i+1);
-        }
+    if (inputFile){
+        initializeFileList(inputFile, loopList);
     }
 
     // declare any instrumentation functions that will be used
@@ -212,39 +172,10 @@ void LoopIntercept::instrument(){
         lineInfoFinder = getLineInfoFinder();
     }
 
-    // find the number of loops/ranks passed via the input file
-    uint32_t maxRank = 0;
-    uint32_t numLoops = 0;
     std::map<uint64_t, uint32_t> loops;
+    uint32_t numLoops = 0;
     for (uint32_t i = 0; i < loopList->size(); i++){
-        uint64_t hash = getLoopHash(i);
-        if (loops.count(hash) == 0){
-            loops[hash] = numLoops++;
-        }
-
-        uint32_t rank = getRank(i);
-        if (rank > maxRank){
-            maxRank = rank;
-        }
-    }
-    maxRank++;
-
-    // fill an array with frequency values, which will be passed to the analysis library
-    uint32_t loopFrequencies[numLoops][maxRank];
-    for (uint32_t i = 0; i < numLoops; i++){
-        for (uint32_t j = 0; j < maxRank; j++){
-            loopFrequencies[i][j] = UNUSED_PASSTHRU_VALUE;
-        }
-    }
-
-    for (uint32_t i = 0; i < loopList->size(); i++){
-        uint64_t hash = getLoopHash(i);
-        uint32_t rank = getRank(i);
-        uint32_t freq = getFrequency(i);
-        loopFrequencies[loops[hash]][rank] = freq;
-
-        // this shouldn't happen, but just in case...
-        ASSERT(freq != UNUSED_PASSTHRU_VALUE);
+        loops[getLoopHash(i)] = numLoops++;
     }
 
     // set up argument passing to program entry call
@@ -255,14 +186,8 @@ void LoopIntercept::instrument(){
     initializeReservedData(getInstDataAddress() + loopCount, sizeof(uint32_t), &numLoops);
     programEntry->addArgument(loopCount);
 
-    uint64_t rankCount = reserveDataOffset(sizeof(uint32_t));
-    initializeReservedData(getInstDataAddress() + rankCount, sizeof(uint32_t), &maxRank);
-    programEntry->addArgument(rankCount);
-
-    uint64_t freqArray = reserveDataOffset(sizeof(uint32_t) * numLoops * maxRank);
-    initializeReservedData(getInstDataAddress() + freqArray, sizeof(uint32_t) * numLoops * maxRank, &loopFrequencies);
-    programEntry->addArgument(freqArray);
-
+    uint64_t hashArray = reserveDataOffset(sizeof(uint64_t) * numLoops);
+    programEntry->addArgument(hashArray);
 
     // pick out all the loops we want to instrument
     std::map<uint64_t, Loop*> loopsFound;
@@ -381,6 +306,7 @@ void LoopIntercept::instrument(){
     // instrument loops
     for (std::map<uint64_t, Loop*>::iterator ii = loopsFound.begin(); ii != loopsFound.end(); ii++){
         uint64_t hash = (*ii).first;
+
         Loop* loop = (*ii).second;
         BasicBlock* head = loop->getHead();
         ASSERT(head->getHashCode().getValue() == hash);
@@ -391,6 +317,7 @@ void LoopIntercept::instrument(){
         Function* f = head->getFunction();
         FlowGraph* fg = head->getFlowGraph();
         uint32_t site = loops[hash];
+        initializeReservedData(getInstDataAddress() + hashArray + (site * sizeof(uint64_t)), sizeof(uint64_t), &hash);
 
         allBlocks->append(head);
         allBlockIds->append(site);

@@ -33,9 +33,6 @@ private:
     Vector<char*>* loopList;    
 
     uint64_t getLoopHash(uint32_t idx);
-    uint32_t getRank(uint32_t idx);
-    uint32_t getFrequency(uint32_t idx);
-    uint32_t loopMatch(LineInfo* li);
 
     bool discoveryMode;
     void discoverAllLoops();
@@ -50,9 +47,7 @@ public:
     const char* briefName() { return "LoopIntercept"; }
     const char* defaultExtension() { return "lpiinst"; }
     const char* getExtension() { if (discoveryMode) return "loops"; return defaultExtension(); }
-    uint32_t allowsArgs() { return PEBIL_OPT_NON; }
-    uint32_t requiresArgs() { return PEBIL_OPT_INP; }
+    uint32_t allowsArgs() { return PEBIL_OPT_INP; }
 };
-
 
 #endif /* _LoopIntercept_h_ */
