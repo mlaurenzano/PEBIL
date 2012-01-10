@@ -21,26 +21,30 @@
 #define  _GNU_SOURCE
 #include <cpufreq.h>
 #include <sched.h>
+#include <errno.h>
 #include <InstrumentationCommon.h>
 
-// MUST DEFINE THESE CORRECTLY!!!
+// MUST DEFINE THIS CORRECTLY!!!
 #define MAX_CPU_IN_SYSTEM 8
-#define MAX_FREQ 2133000
 
 #define UNUSED_FREQ_VALUE 0xdeadbeef
 
 uint32_t* site = NULL;
 uint32_t numberOfLoops = 0;
 uint64_t* loopHashCodes = NULL;
-uint32_t* frequencyMap = NULL;
 uint32_t* loopStatus = NULL;
+
+uint32_t* frequencyMap = NULL;
 uint32_t currentFreq = 0;
 uint32_t lastFreq = 0;
+
 uint64_t* entryCalled = NULL;
 uint64_t* exitCalled = NULL;
 
+// for debugging
 double t1, t2;
 
+#define VERIFY_FREQ_CHANGE
 //#define DEBUG
 #ifdef DEBUG
 #define PRINT_DEBUG(...) PRINT_INSTR(__VA_ARGS__)
@@ -49,6 +53,7 @@ double t1, t2;
 #define PRINT_DEBUG(...) 
 #define DEBUG(...)
 #endif
+
 
 // called at loop entry
 void pfreq_throttle_lpentry(){
@@ -154,7 +159,6 @@ void initialize_frequency_map(){
             return;
         }
 
-        //PRINT_INSTR(stdout, "line %d: %lld %d %d", i, hash, rank, freq);
         if (rank == getTaskId()){
             j = findSiteIndex(hash);
             if (j < 0){
@@ -182,14 +186,14 @@ void pfreq_throttle_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes){
 
     loopStatus = malloc(sizeof(uint32_t) * numberOfLoops);
     bzero(loopStatus, sizeof(uint32_t) * numberOfLoops);
-
-    currentFreq = MAX_FREQ;
 }
 
 // called at program finish
 void pfreq_throttle_fini(){
     int i;
     int e = 0;
+
+    // verify that loop entry counts == exit counts
     for (i = 0; i < numberOfLoops; i++){
         if (entryCalled[i] != exitCalled[i]){
             PRINT_INSTR(stderr, "site %d: entry called %lld times but exit %lld", i, entryCalled[i], exitCalled[i]);
@@ -207,35 +211,48 @@ void pfreq_throttle_fini(){
     }
 }
 
-// called at mpi_init
+// called just after mpi_init
 void tool_mpi_init(){
     pfreq_affinity_get();
     pfreq_affinity_set(getTaskId());
 
     initialize_frequency_map();
-    DEBUG(
-        int i;
-        for (i = 0; i < numberOfLoops; i++){
-            if (frequencyMap[i] != UNUSED_FREQ_VALUE){
-                PRINT_DEBUG(stdout, "frequency plan found for loop %lld: %d", loopHashCodes[i], frequencyMap[i]);
-            }
+    int i;
+    for (i = 0; i < numberOfLoops; i++){
+        if (frequencyMap[i] != UNUSED_FREQ_VALUE){
+            PRINT_INSTR(stdout, "running with loop %lld @ %dKHz", loopHashCodes[i], frequencyMap[i]);
         }
-          )
+    }
+
+    currentFreq = cpufreq_get(getTaskId());
+    PRINT_INSTR(stdout, "Clock frequency at run start: %dKHz", currentFreq);
 }
 
 inline int32_t pfreq_throttle_set(uint32_t cpu, uint32_t freq){
-    PRINT_DEBUG(stdout, "throttling task %d to frequency %dKHz", cpu, freq);
     lastFreq = currentFreq;
     currentFreq = freq;
+
     return internal_set_currentfreq((unsigned int)cpu, (int)freq);
 }
 
-unsigned long pfreq_throttle_get(){
-    return currentFreq;
-}
-
 inline int32_t internal_set_currentfreq(unsigned int cpu, int freq){
-    return cpufreq_set_frequency((unsigned int)cpu, (int)freq);
+   int32_t ret = cpufreq_set_frequency((unsigned int)cpu, freq);
+
+#ifdef VERIFY_FREQ_CHANGE
+   PRINT_INSTR(stdout, "Throttling for caller task pid %d and cpu %u to %luKHz (retcode %d)", getpid(), cpu, freq, ret);
+   unsigned long freqIs = cpufreq_get(cpu);
+
+   if (freq != freqIs){
+       if (ret == -ENODEV){
+           PRINT_INSTR(stderr, "Frequency not correctly set - do you have write permissions to sysfs?");
+       } else {
+           PRINT_INSTR(stderr, "Frequency not correctly set - target frequency %lu, actual %lu", freq, freqIs);
+       }
+          exit(-1);
+   }
+   assert(freq == freqIs);
+#endif
+   return ret;
 }
 
 int32_t pfreq_affinity_get(){
@@ -256,6 +273,7 @@ int32_t pfreq_affinity_get(){
     return retCode;
 }
 
+// pin process to core
 int32_t pfreq_affinity_set(uint32_t cpu){
     int32_t retCode = 0;
     cpu_set_t cpuset;
