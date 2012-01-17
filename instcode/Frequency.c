@@ -19,137 +19,240 @@
  */
 
 #define  _GNU_SOURCE
+#include <cpufreq.h>
 #include <sched.h>
+#include <errno.h>
 #include <InstrumentationCommon.h>
 
-#define UNUSED_PASSTHRU_VALUE 0xdeadbeef
+// MUST DEFINE THIS CORRECTLY!!!
+#define MAX_CPU_IN_SYSTEM 8
 
-// MUST DEFINE THIS!!!
-#define MAX_CPU_IN_SYSTEM 4
+#define UNUSED_FREQ_VALUE 0xdeadbeef
 
 uint32_t* site = NULL;
 uint32_t numberOfLoops = 0;
-uint32_t numberOfRanks = 0;
-uint32_t* frequencies = NULL;
-#define freq_idx(__l, __r) ((numberOfRanks * __l) + (__r))
+uint64_t* loopHashCodes = NULL;
+uint32_t* loopStatus = NULL;
 
+uint32_t* frequencyMap = NULL;
 uint32_t currentFreq = 0;
 uint32_t lastFreq = 0;
+
 uint64_t* entryCalled = NULL;
 uint64_t* exitCalled = NULL;
 
+// for debugging
+double t1, t2;
+
+#define VERIFY_FREQ_CHANGE
+//#define DEBUG
+#ifdef DEBUG
+#define PRINT_DEBUG(...) PRINT_INSTR(__VA_ARGS__)
+#define DEBUG(...) __VA_ARGS__
+#else
+#define PRINT_DEBUG(...) 
+#define DEBUG(...)
+#endif
+
+
 // called at loop entry
 void pfreq_throttle_lpentry(){
+    PRINT_DEBUG(stdout, "enter site %d", *site);
+    DEBUG(ptimer(&t1));
     entryCalled[*site]++;
-    //PRINT_INSTR(stdout, "enter site %d", *site);
 
     // return if mpi_init has not yet been called
     if (!isMpiValid()){
         return;
     }
 
-                              
-    uint32_t cpu = getTaskId();
-    uint32_t f = frequencies[freq_idx(*site, cpu)];
-
-    // return if no value was set up for this rank
-    if (f == UNUSED_PASSTHRU_VALUE){
+    // return if no frequency scheme is set for this loop
+    int f = frequencyMap[*site];
+    if (f == UNUSED_FREQ_VALUE){
         return;
     }
 
+    if (loopStatus[*site] != 0){
+        PRINT_INSTR(stderr, "loop entry scaling call w/o exit for site %d", *site);
+    }
+    loopStatus[*site] = 1;
+
+    // set frequency
+    int cpu = getTaskId();
     pfreq_throttle_set(cpu, f);
 }
 
 // called at loop exit
 void pfreq_throttle_lpexit(){
+    DEBUG(ptimer(&t2));
+    PRINT_DEBUG(stdout, "exit site %d %f", *site, t2-t1);
     exitCalled[*site]++;
-    //PRINT_INSTR(stdout, "exit site %d", *site);
 
     if (!isMpiValid()){
         return;
     }
 
-    uint32_t cpu = getTaskId();
-    uint32_t f = frequencies[freq_idx(*site, cpu)];
-
-    if (f == UNUSED_PASSTHRU_VALUE){
+    // return if no frequency scheme is set for this loop
+    int f = frequencyMap[*site];
+    if (f == UNUSED_FREQ_VALUE){
         return;
     }
 
-    // this is quite unsophisticated, and will do the wrong thing if you want frequency swaps stack on each other
+    if (loopStatus[*site] != 1){
+        PRINT_INSTR(stderr, "loop exit scaling call w/o entry for site %d", *site);
+    }
+    loopStatus[*site] = 0;
+
+    // set frequency
+    int cpu = getTaskId();
     pfreq_throttle_set(cpu, lastFreq);
 }
 
+int findSiteIndex(uint64_t hash){
+    int i;
+    for (i = 0; i < numberOfLoops; i++){
+        if (loopHashCodes[i] == hash){
+            return i;
+        }
+    }
+    return -1;
+}
+
+void clearFrequencyMap(){
+    int i;
+    if (frequencyMap){
+        for (i = 0; i < numberOfLoops; i++){
+            frequencyMap[i] = UNUSED_FREQ_VALUE;
+        }
+    }
+}
+
+void initialize_frequency_map(){
+    int i, j;
+    frequencyMap = malloc(sizeof(uint32_t) * numberOfLoops);
+    clearFrequencyMap();
+
+    char * fPath = getenv("PFREQ_FREQUENCY_MAP");
+    if (fPath == NULL){
+        PRINT_INSTR(stderr, "environment variable PFREQ_FREQUENCY_MAP not set. proceeding without dvfs");
+        return;
+    }
+
+    FILE* freqFile = fopen(fPath, "r");
+    if (freqFile == NULL){
+        PRINT_INSTR(stderr, "PFREQ_FREQUENCY_MAP file %s cannot be opened. proceeding without dvfs", fPath);
+        return;
+    }
+
+    i = 0;
+    char line[__MAX_STRING_SIZE];
+    PRINT_INSTR(stdout, "Setting frequency map for dvfs from env variable PFREQ_FREQUENCY_MAP (%s)", fPath);
+    while (fgets(line, __MAX_STRING_SIZE, freqFile) != NULL){
+        i++;
+        uint64_t hash;
+        uint32_t rank;
+        uint32_t freq;
+        int res = sscanf(line, "%lld %d %d", &hash, &rank, &freq);
+        if (res != 3){
+            PRINT_INSTR(stderr, "line %d of %s cannot be understood as a frequency map. proceeding without dvfs", i, fPath);
+            clearFrequencyMap();
+            return;
+        }
+
+        if (rank == getTaskId()){
+            j = findSiteIndex(hash);
+            if (j < 0){
+                PRINT_INSTR(stderr, "not an instrumented loop (line %d of %s): %lld. ignoring", i, fPath, hash);
+            } else {
+                frequencyMap[j] = freq;
+            }
+        }
+    }
+}
+
 // called at program start
-void pfreq_throttle_init(uint32_t* siteIndex, uint32_t* numLoops, uint32_t* numRanks, uint32_t* freqArray){
+void pfreq_throttle_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes){
     int i, j;
 
-    site = siteIndex;
+    site = s;
     numberOfLoops = *numLoops;
-    numberOfRanks = *numRanks;
-    frequencies = freqArray;
+    loopHashCodes = loopHashes;
 
     entryCalled = malloc(sizeof(uint64_t) * numberOfLoops);
-    exitCalled = malloc(sizeof(uint64_t) * numberOfLoops);
+    bzero(entryCalled, sizeof(uint64_t) * numberOfLoops);
 
-    /*
-    for (i = 0; i < numberOfLoops; i++){
-        for (j = 0; j < numberOfRanks; j++){
-            if (frequencies[freq_idx(i,j)] != freq_idx(i,j)){
-                PRINT_INSTR(stdout, "freq[%d][%d] == %d", i, j, frequencies[freq_idx(i,j)]);
-                exit(1);
-            }
-        }
-    }
-    */
-    /*
-    PRINT_INSTR(stdout, "initializing throttle lib with %d loops and %d ranks", numberOfLoops, numberOfRanks);
-    for (i = 0; i < numberOfLoops; i++){
-        for (j = 0; j < numberOfRanks; j++){
-            if (frequencies[freq_idx(i, j)]){
-                PRINT_INSTR(stdout, "\tf[%d][%d] = %d", i, j, frequencies[freq_idx(i, j)]);
-            }
-        }
-    }
-    */
+    exitCalled = malloc(sizeof(uint64_t) * numberOfLoops);
+    bzero(exitCalled, sizeof(uint64_t) * numberOfLoops);
+
+    loopStatus = malloc(sizeof(uint32_t) * numberOfLoops);
+    bzero(loopStatus, sizeof(uint32_t) * numberOfLoops);
 }
 
 // called at program finish
 void pfreq_throttle_fini(){
     int i;
     int e = 0;
+
+    // verify that loop entry counts == exit counts
     for (i = 0; i < numberOfLoops; i++){
         if (entryCalled[i] != exitCalled[i]){
             PRINT_INSTR(stderr, "site %d: entry called %lld times but exit %lld", i, entryCalled[i], exitCalled[i]);
             e++;
         }
     }
+
+    free(entryCalled);
+    free(exitCalled);
+    free(loopStatus);
+    free(frequencyMap);
+
     if (e){
         exit(1);
     }
-    free(entryCalled);
-    free(exitCalled);
 }
 
-// called at mpi_init
+// called just after mpi_init
 void tool_mpi_init(){
     pfreq_affinity_get();
     pfreq_affinity_set(getTaskId());
+
+    initialize_frequency_map();
+    int i;
+    for (i = 0; i < numberOfLoops; i++){
+        if (frequencyMap[i] != UNUSED_FREQ_VALUE){
+            PRINT_INSTR(stdout, "running with loop %lld @ %dKHz", loopHashCodes[i], frequencyMap[i]);
+        }
+    }
+
+    currentFreq = cpufreq_get(getTaskId());
+    PRINT_INSTR(stdout, "Clock frequency at run start: %dKHz", currentFreq);
 }
 
 inline int32_t pfreq_throttle_set(uint32_t cpu, uint32_t freq){
-    //PRINT_INSTR(stdout, "throttling task %d to frequency %dKHz", cpu, freq);
     lastFreq = currentFreq;
     currentFreq = freq;
+
     return internal_set_currentfreq((unsigned int)cpu, (int)freq);
 }
 
-unsigned long pfreq_throttle_get(){
-    return currentFreq;
-}
-
 inline int32_t internal_set_currentfreq(unsigned int cpu, int freq){
-    //return cpufreq_set_frequency((unsigned int)cpu, (int)freq);
+   int32_t ret = cpufreq_set_frequency((unsigned int)cpu, freq);
+
+#ifdef VERIFY_FREQ_CHANGE
+   PRINT_INSTR(stdout, "Throttling for caller task pid %d and cpu %u to %luKHz (retcode %d)", getpid(), cpu, freq, ret);
+   unsigned long freqIs = cpufreq_get(cpu);
+
+   if (freq != freqIs){
+       if (ret == -ENODEV){
+           PRINT_INSTR(stderr, "Frequency not correctly set - do you have write permissions to sysfs?");
+       } else {
+           PRINT_INSTR(stderr, "Frequency not correctly set - target frequency %lu, actual %lu", freq, freqIs);
+       }
+          exit(-1);
+   }
+   assert(freq == freqIs);
+#endif
+   return ret;
 }
 
 int32_t pfreq_affinity_get(){
@@ -170,6 +273,7 @@ int32_t pfreq_affinity_get(){
     return retCode;
 }
 
+// pin process to core
 int32_t pfreq_affinity_set(uint32_t cpu){
     int32_t retCode = 0;
     cpu_set_t cpuset;
@@ -180,7 +284,7 @@ int32_t pfreq_affinity_set(uint32_t cpu){
     if(sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset) < 0) {
         retCode = -1;
     }
-    PRINT_INSTR(stdout, "Setting affitinity to cpu%u for caller task pid %d (retcode %d)", cpu, getpid(), retCode);
+    PRINT_INSTR(stdout, "Setting affinity to cpu%u for caller task pid %d (retcode %d)", cpu, getpid(), retCode);
     
     return retCode;
 }
