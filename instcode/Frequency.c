@@ -44,7 +44,7 @@ uint64_t* exitCalled = NULL;
 // for debugging
 double t1, t2;
 
-#define VERIFY_FREQ_CHANGE
+//#define VERIFY_FREQ_CHANGE
 //#define DEBUG
 #ifdef DEBUG
 #define PRINT_DEBUG(...) PRINT_INSTR(__VA_ARGS__)
@@ -54,6 +54,38 @@ double t1, t2;
 #define DEBUG(...)
 #endif
 
+#define ENABLE_INSTRUMENTATION_KILL
+void* instrumentationPoints;
+int32_t numberOfInstrumentationPoints;
+int32_t numberKilled;
+
+#ifdef ENABLE_INSTRUMENTATION_KILL
+void disableInstrumentationPointsInBlock(int32_t blockId){
+    instpoint_info* ip;
+    int i;
+
+    PRINT_INSTR(stdout, "disabling points for site %d (loop hash %#llx)", blockId, loopHashCodes[blockId]);
+
+    int32_t killedPoints = 0;
+    for (i = 0; i < numberOfInstrumentationPoints; i++){
+        ip = (instpoint_info*)(instrumentationPoints + (i * sizeof(instpoint_info)));
+        if (ip->pt_blockid == blockId){
+            int32_t size = ip->pt_size;
+            int64_t vaddr = ip->pt_vaddr;
+            char* program_point = (char*)vaddr;
+
+            PRINT_INSTR(stdout, "\tkilling instrumentation for point %d in block %d at %#llx", i, blockId, vaddr);
+
+            memcpy(ip->pt_content, program_point, size);
+            memcpy(program_point, ip->pt_disable, size);
+            killedPoints++;
+        }
+    }
+
+    numberKilled += killedPoints;
+    PRINT_INSTR(stdout, "Killing instrumentation points for block %d (%d points of %d total) -- %d killed so far", blockId, killedPoints, numberOfInstrumentationPoints, numberKilled);
+}
+#endif //ENABLE_INSTRUMENTATION_KILL
 
 // called at loop entry
 void pfreq_throttle_lpentry(){
@@ -171,12 +203,16 @@ void initialize_frequency_map(){
 }
 
 // called at program start
-void pfreq_throttle_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes){
+void pfreq_throttle_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes, void* instpoints, int32_t* numpoints){
     int i, j;
 
     site = s;
     numberOfLoops = *numLoops;
     loopHashCodes = loopHashes;
+
+    instrumentationPoints = instpoints;
+    numberOfInstrumentationPoints = *numpoints;
+    numberKilled = 0;
 
     entryCalled = malloc(sizeof(uint64_t) * numberOfLoops);
     bzero(entryCalled, sizeof(uint64_t) * numberOfLoops);
@@ -221,6 +257,10 @@ void tool_mpi_init(){
     for (i = 0; i < numberOfLoops; i++){
         if (frequencyMap[i] != UNUSED_FREQ_VALUE){
             PRINT_INSTR(stdout, "running with loop %lld @ %dKHz", loopHashCodes[i], frequencyMap[i]);
+#ifdef ENABLE_INSTRUMENTATION_KILL
+        } else {
+            disableInstrumentationPointsInBlock(i);
+#endif
         }
     }
 
