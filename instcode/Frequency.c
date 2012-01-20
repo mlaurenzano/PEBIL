@@ -24,6 +24,9 @@
 #include <errno.h>
 #include <InstrumentationCommon.h>
 
+#define STR(x) STR2(x)
+#define STR2(x) #x
+
 // MUST DEFINE THIS CORRECTLY!!!
 #define MAX_CPU_IN_SYSTEM 8
 
@@ -184,14 +187,28 @@ void initialize_frequency_map(){
         uint64_t hash;
         uint32_t rank;
         uint32_t freq;
-        int res = sscanf(line, "%lld %d %d", &hash, &rank, &freq);
+        char rankEx[__MAX_STRING_SIZE];
+
+        int res = sscanf(line, "%lld %" STR(__MAX_STRING_SIZE) "s %d", &hash, &rankEx, &freq);
+
         if (res != 3){
             PRINT_INSTR(stderr, "line %d of %s cannot be understood as a frequency map. proceeding without dvfs", i, fPath);
             clearFrequencyMap();
             return;
         }
 
-        if (rank == getTaskId()){
+        int allRanks = strcmp("*", rankEx) == 0;
+
+        if( !allRanks ) {
+            res = sscanf(rankEx, "%d", &rank);
+            if( res != 1 ) {
+                PRINT_INSTR(stderr, "Rank expression of line %d of %s cannot be read. processeding without dvfs", i, fPath);
+                clearFrequencyMap();
+                return;
+            }
+        }
+
+        if (allRanks || rank == getTaskId()){
             j = findSiteIndex(hash);
             if (j < 0){
                 PRINT_INSTR(stderr, "not an instrumented loop (line %d of %s): %lld. ignoring", i, fPath, hash);
