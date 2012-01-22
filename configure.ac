@@ -55,6 +55,9 @@ AC_SUBST(MPI_FLAGS)
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h strings.h unistd.h])
+AC_CHECK_HEADERS([cpufreq.h],
+        CPUFREQ_FLAGS="-DHAVE_CPUFREQ_H")
+AC_SUBST(CPUFREQ_FLAGS)
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL

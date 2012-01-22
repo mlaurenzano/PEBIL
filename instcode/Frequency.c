@@ -18,6 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_CPUFREQ_H
+
 #define  _GNU_SOURCE
 #include <cpufreq.h>
 #include <sched.h>
@@ -345,3 +347,5 @@ int32_t pfreq_affinity_set(uint32_t cpu){
     
     return retCode;
 }
+
+#endif //HAVE_CPUFREQ_H

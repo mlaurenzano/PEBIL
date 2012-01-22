@@ -598,6 +598,7 @@ enable_option_checking=no
 ac_subst_vars='LTLIBOBJS
 subdirs
 LIBOBJS
+CPUFREQ_FLAGS
 EGREP
 GREP
 MPI_FLAGS
@@ -4864,6 +4865,19 @@ _ACEOF
 fi
 
 done
+
+for ac_header in cpufreq.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "cpufreq.h" "ac_cv_header_cpufreq_h" "$ac_includes_default"
+if test "x$ac_cv_header_cpufreq_h" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_CPUFREQ_H 1
+_ACEOF
+ CPUFREQ_FLAGS="-DHAVE_CPUFREQ_H"
+fi
+
+done
+
 
 
 # Checks for typedefs, structures, and compiler characteristics.
