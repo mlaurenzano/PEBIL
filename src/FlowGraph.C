@@ -72,12 +72,6 @@ static bool anyDefsAreUsed(
             use = *it2;
 
             if (use->invalidatedBy(def)){
-                /*printf("Instruction:\n");
-                def->print();
-                printf("\nDefines:\n");
-                use->print();
-                printf("\n");
-                */
                 return true;
             }
         }
@@ -134,12 +128,145 @@ static LinkedList<X86Instruction::ReachingDefinition*>* removeInvalidated (
     return retval;
 }
 
-void FlowGraph::computeDefUseDist(){
-    LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*> fulldefs =
-        LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*>();
-    LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*> listdefs =
-        LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*>();
+bool flowsInDefUseScope(BasicBlock* tgt, Loop* loop){
+    // outside loops, scope includes the entire function
+    if (loop == NULL){
+        return true;
+    }
 
+    // inside loops, only look at loop contents
+    if (loop->isBlockIn(tgt->getIndex())){
+        return true;
+    }
+
+    return false;
+}
+
+inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loop* loop, std::map<uint64_t, X86Instruction*>* imap, std::map<uint64_t, BasicBlock*>* bmap,
+                  int k, uint64_t loopLeader, uint32_t fcnt){
+
+    // Get defintions for this instruction: ins
+    LinkedList<X86Instruction::ReachingDefinition*>* idefs;
+    idefs = ins->getDefs();
+
+    // Skip instruction if it doesn't define anything
+    if (idefs == NULL)
+        return;
+
+    if (idefs->empty()) {
+        delete idefs;
+        return;
+    }
+
+    PriorityQueue<struct path*, uint32_t> paths = PriorityQueue<struct path*, uint32_t>();
+    bool blockTouched[fg->getFunction()->getNumberOfBasicBlocks()];
+    bzero(&blockTouched, sizeof(bool) * fg->getFunction()->getNumberOfBasicBlocks());
+
+    // Initialize worklist with the path from this instruction
+    // FIXME why only add paths within current loop?
+    if (k == bb->getNumberOfInstructions() - 1){
+        ASSERT(ins->controlFallsThrough());
+        if (bb->getNumberOfTargets() > 0){
+            ASSERT(bb->getNumberOfTargets() == 1);
+            if (flowsInDefUseScope(bb->getTargetBlock(0), loop)){
+                paths.insert(new path(bb->getTargetBlock(0)->getLeader(), idefs), 1);
+            } 
+        }
+    } else {
+        paths.insert(new path(bb->getInstruction(k+1), idefs), 1);
+    }
+
+    // while there are paths in worklist
+    while (!paths.isEmpty()) {
+
+        // take the shortest path in list
+        uint32_t currDist;
+        struct path* p = paths.deleteMin(&currDist);
+        X86Instruction* cand = p->ins;
+        idefs = p->defs;
+        delete p;
+
+        LinkedList<X86Instruction::ReachingDefinition*>* i2uses, *i2defs, *newdefs;
+        i2uses = cand->getUses();
+
+        // Check if any of idefs is used
+        if(i2uses != NULL && anyDefsAreUsed(idefs, i2uses)){
+
+            while (!i2uses->empty()) { delete i2uses->shift(); } delete i2uses;
+
+            // Check if use is shortest
+            uint32_t duDist;
+            duDist = trueDefUseDist(currDist, fcnt);
+            if (!ins->getDefUseDist() || ins->getDefUseDist() > duDist) {
+                ins->setDefUseDist(duDist);
+            }
+
+            // If dist has increased beyond size of function, we must be looping?
+            if (currDist > fcnt) {
+                ins->setDefXIter();
+                break;
+            }
+
+            // Stop searching along this path
+            continue;
+        }
+
+        // Check if any defines are overwritten
+        i2defs = cand->getDefs();
+        newdefs = removeInvalidated(idefs, i2defs);
+
+        while (!i2uses->empty()) { delete i2uses->shift(); } delete i2uses;
+        while (!i2defs->empty()) { delete i2defs->shift(); } delete i2defs;
+
+        // If all definitions killed, stop searching along this path
+        if (newdefs == NULL)
+            continue;
+
+        // end of block that is a branch
+        if (cand->usesControlTarget() && !cand->isCall()){
+            BasicBlock* tgtBlock = (*bmap)[cand->getTargetAddress()];
+            if (tgtBlock && !blockTouched[tgtBlock->getIndex()] && flowsInDefUseScope(tgtBlock, loop)){
+                blockTouched[tgtBlock->getIndex()] = true;
+                if (tgtBlock->getBaseAddress() == loopLeader){
+                    paths.insert(new path(tgtBlock->getLeader(), newdefs), loopXDefUseDist(currDist + 1, fcnt));
+                } else {
+                    paths.insert(new path(tgtBlock->getLeader(), newdefs), currDist + 1);
+                }
+            }
+        }
+
+        // non-branching control
+        if (cand->controlFallsThrough()){
+            BasicBlock* tgtBlock = (*bmap)[cand->getBaseAddress() + cand->getSizeInBytes()];
+            if (tgtBlock && flowsInDefUseScope(tgtBlock, loop)){
+                X86Instruction* ftTarget = (*imap)[cand->getBaseAddress() + cand->getSizeInBytes()];
+                if (ftTarget){
+                    if (ftTarget->isLeader()){
+                        if (!blockTouched[tgtBlock->getIndex()]){
+                            blockTouched[tgtBlock->getIndex()] = true;
+                            if (ftTarget->getBaseAddress() == loopLeader){
+                                paths.insert(new path(ftTarget, newdefs), loopXDefUseDist(currDist + 1, fcnt));
+                            } else {
+                                paths.insert(new path(ftTarget, newdefs), currDist + 1);
+                            }
+                        }
+                    } else {
+                        paths.insert(new path(ftTarget, newdefs), currDist + 1);
+                    }
+                }
+            }
+        }
+        
+    }
+    if (!paths.isEmpty()){
+        ins->setDefUseDist(0);
+    }
+    while (!paths.isEmpty()){
+        delete paths.deleteMin(NULL);
+    }
+}
+
+void FlowGraph::computeDefUseDist(){
     uint32_t fcnt = function->getNumberOfInstructions();
     std::map<uint64_t, X86Instruction*> imap;
     std::map<uint64_t, BasicBlock*> bmap;
@@ -174,145 +301,27 @@ void FlowGraph::computeDefUseDist(){
                 }
                 ASSERT(!ins->usesControlTarget());
 
-                // Get defintions for this instruction: ins
-                LinkedList<X86Instruction::ReachingDefinition*>* idefs;
-                idefs = ins->getDefs();
-
-                // Skip instruction if it doesn't define anything
-                if (idefs == NULL)
-                    continue;
-                if (idefs->empty()) {
-                    delete idefs;
-                    continue;
-                }
-
-                // Otherwise, save the defs
-                fulldefs.insert(idefs);
-
-                PriorityQueue<struct path*, uint32_t> paths = PriorityQueue<struct path*, uint32_t>();
-                bool blockTouched[function->getNumberOfBasicBlocks()];
-                bzero(&blockTouched, sizeof(bool) * function->getNumberOfBasicBlocks());
-
-                // Initialize worklist with the path from this instruction
-                // FIXME why only add paths within current loop?
-                if (k == bb->getNumberOfInstructions() - 1){
-                    ASSERT(ins->controlFallsThrough());
-                    ASSERT(bb->getNumberOfTargets() == 1);
-                    if (loops[i]->isBlockIn(bb->getTargetBlock(0)->getIndex())){
-                        paths.insert(new path(bb->getTargetBlock(0)->getLeader(), idefs), 1);
-                    } 
-                } else {
-                    paths.insert(new path(bb->getInstruction(k+1), idefs), 1);
-                }
-
-                // while there are paths in worklist
-                while (!paths.isEmpty()) {
-
-                    // take the shortest path in list
-                    uint32_t currDist;
-                    struct path* p = paths.deleteMin(&currDist);
-                    X86Instruction* cand = p->ins;
-                    idefs = p->defs;
-                    delete p;
-
-                    LinkedList<X86Instruction::ReachingDefinition*>* i2uses, *i2defs, *newdefs;
-                    i2uses = cand->getUses();
-
-                    // Check if any of idefs is used
-                    if(i2uses != NULL && anyDefsAreUsed(idefs, i2uses)){
-
-                        while (!i2uses->empty()) { delete i2uses->shift(); } delete i2uses;
-
-                        // Check if use is shortest
-                        uint32_t duDist;
-                        duDist = trueDefUseDist(currDist, fcnt);
-                        if (!ins->getDefUseDist() || ins->getDefUseDist() > duDist) {
-                            ins->setDefUseDist(duDist);
-                        }
-
-                        // If dist has increased beyond size of function, we must be looping?
-                        if (currDist > fcnt) {
-                            ins->setDefXIter();
-                            break;
-                        }
-
-                        // Stop searching along this path
-                        continue;
-                    }
-
-                    // Check if any defines are overwritten
-                    i2defs = cand->getDefs();
-                    newdefs = removeInvalidated(idefs, i2defs);
-                    if (newdefs != idefs){
-                        listdefs.insert(newdefs);
-                    }
-
-                    while (!i2uses->empty()) { delete i2uses->shift(); } delete i2uses;
-                    while (!i2defs->empty()) { delete i2defs->shift(); } delete i2defs;
-
-                    // If all definitions killed, stop searching along this path
-                    if (newdefs == NULL)
-                        continue;
-
-                    // end of block that is a branch
-                    if (cand->usesControlTarget() && !cand->isCall()){
-                        BasicBlock* tgtBlock = bmap[cand->getTargetAddress()];
-                        if (tgtBlock && loops[i]->isBlockIn(tgtBlock->getIndex()) && !blockTouched[tgtBlock->getIndex()]){
-                            blockTouched[tgtBlock->getIndex()] = true;
-                            if (tgtBlock->getBaseAddress() == loopLeader){
-                                paths.insert(new path(tgtBlock->getLeader(), newdefs), loopXDefUseDist(currDist + 1, fcnt));
-                            } else {
-                                paths.insert(new path(tgtBlock->getLeader(), newdefs), currDist + 1);
-                            }
-                        }
-                    }
-
-                    // non-branching control
-                    if (cand->controlFallsThrough()){
-                        BasicBlock* tgtBlock = bmap[cand->getBaseAddress() + cand->getSizeInBytes()];
-                        if (tgtBlock && loops[i]->isBlockIn(tgtBlock->getIndex())){
-                            X86Instruction* ftTarget = imap[cand->getBaseAddress() + cand->getSizeInBytes()];
-                            if (ftTarget){
-                                if (ftTarget->isLeader()){
-                                    if (!blockTouched[tgtBlock->getIndex()]){
-                                        blockTouched[tgtBlock->getIndex()] = true;
-                                        if (ftTarget->getBaseAddress() == loopLeader){
-                                            paths.insert(new path(ftTarget, newdefs), loopXDefUseDist(currDist + 1, fcnt));
-                                        } else {
-                                            paths.insert(new path(ftTarget, newdefs), currDist + 1);
-                                        }
-                                    }
-                                } else {
-                                    paths.insert(new path(ftTarget, newdefs), currDist + 1);
-                                }
-                            }
-                        }
-                    }
-
-                }
-                if (!paths.isEmpty()){
-                    ins->setDefUseDist(0);
-                }
-                while (!paths.isEmpty()){
-                    delete paths.deleteMin(NULL);
-                }
+                singleDefUse(this, ins, bb, loops[i], &imap, &bmap, k, loopLeader, fcnt);
             }
         }
         delete[] allLoopBlocks;
     }
 
-    while (!fulldefs.empty()){
-        LinkedList<X86Instruction::ReachingDefinition*>* inner = fulldefs.shift();
-        while (!inner->empty()){
-            X86Instruction::ReachingDefinition* def = inner->shift();
-            if (def){
-                delete def;
+    // handle all non-loop blocks
+    for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
+        BasicBlock* bb = basicBlocks[i];
+        if (!isBlockInLoop(bb->getIndex())){
+            for (uint32_t k = 0; k < bb->getNumberOfInstructions(); ++k){
+                X86Instruction* ins = bb->getInstruction(k);
+                
+                if (!ins->isIntegerOperation() && !ins->isFloatPOperation() && !ins->isMoveOperation()) {
+                    continue;
+                }
+                ASSERT(!ins->usesControlTarget());
+                
+                singleDefUse(this, ins, bb, NULL, &imap, &bmap, k, 0, fcnt);
             }
         }
-        delete inner;
-    }
-    while (!listdefs.empty()){
-        delete listdefs.shift();
     }
 }
 
