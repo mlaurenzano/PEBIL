@@ -48,7 +48,7 @@ void clearBlockCounters(){
     bzero(blockCounters, sizeof(uint64_t) * numberOfBasicBlocks);
 }
 
-// should concider doing initialization here rather than checking
+// should consider doing initialization here rather than checking
 // for "first hit" on every buffer dump
 // PROBLEM^^ on some systems (cray XT) it is unsafe to call functions
 // from the entry function
@@ -66,9 +66,6 @@ int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uin
     blockIsKilled = killed;
 
     numberKilled = 0;
-
-    instpoint_info* ip;
-    int i;
 
     ptimer(&pebiltimers[0]);
 }

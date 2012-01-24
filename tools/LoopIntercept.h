@@ -30,7 +30,11 @@ private:
     InstrumentationFunction* programEntry;
     InstrumentationFunction* programExit;
 
-    Vector<char*>* loopList;    
+    Vector<char*>* loopList;
+
+    Vector<InstrumentationPoint*> loopInstPoints;
+    Vector<uint32_t> loopInstBlockIds;
+    uint64_t instPointInfo;
 
     uint64_t getLoopHash(uint32_t idx);
 
@@ -43,6 +47,7 @@ public:
 
     void declare();
     void instrument();
+    void usesModifiedProgram();
 
     const char* briefName() { return "LoopIntercept"; }
     const char* defaultExtension() { return "lpiinst"; }
