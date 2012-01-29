@@ -4,8 +4,12 @@ import getopt
 import sys
 import os
 import struct
+import string
 
+# set to 0 for unlimited
+sliceLimit = 0
 debug = False
+verbose = False
 
 uint64 = 'Q'
 uint32 = 'I'
@@ -26,9 +30,13 @@ data_sizes[int16] = 2
 data_sizes[uint8] = 1
 data_sizes[int8] = 1
 
+def print_verbose(s):
+    if verbose == True:
+        print s
+
 def print_debug(s):
     if debug == True:
-        print s
+        print 'debug: ' + s
 
 def print_error(err):
     print 'Error: ' + str(err)
@@ -37,6 +45,8 @@ def print_error(err):
 def print_usage(err):
     print "usage : " + sys.argv[0]
     print "        --counters <app_slices_file> [--verbose] [--measures <app_measurements_file> --static <static_file>]"
+    print ""
+    print "example: " + sys.argv[0] + " --counters cg.B.4.slices_0000.step2 --verbose --measures raw_pmon.master --static NPB3.3-MPI/bin/cg.B.4.step2.static"
     print_error(err)
 
 def file_exists(filename):
@@ -87,6 +97,7 @@ def merge_list_ranges(lst):
     return merged
 
 def main():
+    global verbose
 
     try:
         optlist, args = getopt.getopt(sys.argv[1:], '', ['counters=', 'verbose', 'measures=', 'static='])
@@ -105,7 +116,7 @@ def main():
         if optlist[i][0] == '--counters':
             counterfile = optlist[i][1]
         if optlist[i][0] == '--verbose':
-            debug = True
+            verbose = True
         if optlist[i][0] == '--measures':
             measurefile = optlist[i][1]
         if optlist[i][0] == '--static':
@@ -113,8 +124,6 @@ def main():
 
     if counterfile == '':
         print_usage('missing switch --ctrs')
-
-    print "using input file " + counterfile
 
     if file_exists(counterfile) == False:
         print_error('input file ' + counterfile + ' does not exist')
@@ -139,10 +148,10 @@ def main():
     try:
         # read header
         magic = read_unpack(f, uint32)
-        print_debug(magic)
+        print_debug('magic number: ' + str(magic))
 
         counters = read_unpack(f, uint32)
-        print_debug(counters)
+        print_debug('number of counters: ' + str(counters))
 
         for i in range(8,32):
             read_unpack(f, uint8)
@@ -152,28 +161,27 @@ def main():
         while True:
             counter_counts = [read_unpack(f, uint64) for x in range(0,counters,1)]
 
-            print_debug(counter_counts)
-
             counter_diff = diff_counts(prev_counters, counter_counts)
-
-            if counter_diff != 0:
-                print_debug(counter_diff)
-            else:
-                print_debug(-1)
 
             if counter_diff != 0:
                 diffs += 1
             else:
                 diff_list.append(numslices)
 
-            slices.append(counter_counts)
+            if len(prev_counters) == 0:
+                slices.append(counter_counts)
+            else:
+                slices.append([counter_counts[i] - prev_counters[i] for i in range(len(counter_counts))])
+            print_verbose('1 ' + string.join([str(x) for x in slices[len(slices)-1]],' '))
+
             prev_counters = counter_counts
             numslices += 1
 
+    # not really an error... this is kind of a sloppy way of breaking out of the file read loop
     except EOFError:
         f.close()
-        print 'found ' + str(numslices) + ' slices of size ' + str(len(slices[0])) + ', ' + str(diffs) + ' are different than prev'
-        print merge_list_ranges(diff_list)
+        print_debug('found ' + str(numslices) + ' slices of size ' + str(len(slices[0])) + ', ' + str(diffs) + ' are different than prev')
+        print_debug(merge_list_ranges(diff_list))
 
     if do_measure == False:
         return
@@ -202,20 +210,6 @@ def main():
 
     #print statics
     assert(len(statics) == len(slices[0]))
-
-    assumemin = 0.0
-    assumemax = 0.0
-    for m in measures:
-        try:
-            val = float(m[0])
-            if val > assumemax:
-                assumemax = val
-        except ValueError, e:
-            print_error('parser error in measurement file: ' + str(m))
-
-    assumemax = assumemax * 2.0
-    print 'min: ' + str(assumemin) + ', max: ' + str(assumemax)
-
 
 if __name__ == '__main__':
     main()
