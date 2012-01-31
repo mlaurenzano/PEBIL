@@ -153,7 +153,7 @@ int32_t loopcounter(int32_t* loopLineNumbers, char** loopFileNames, char** loopF
 }
 
 
-#define FAKE_MEASURE
+//#define FAKE_MEASURE
 #define SIGNAL_ALL_RANKS
 //#define TIME_SIGNAL_PATH
 #define COUNTER_DUMP_MAGIC (0x5ca1ab1e)
@@ -199,6 +199,8 @@ void reset_match_count(){
     }
     //PRINT_INSTR(stdout, "reset match count to %d", (*currentMatchCount));
 }
+
+void print_64b_buffer(uint64_t* b, uint32_t l, FILE* o, char d);
 
 void check_counter_state(){
     //PRINT_INSTR(stdout, "Checking counter state!");
@@ -268,7 +270,7 @@ int counters_match(){
     int i;
     for (i = 0; i < numberOfRareCounters; i++){
         if (matchCounters[i] > rareCounters[i]){
-            return i+1;
+            return i + 1;
         }
     }
     return 0;
@@ -337,7 +339,9 @@ int32_t finirare(){
         }
     }
     free(counterDumpBuffer);
+    counterDumpBuffer = NULL;
     free(otherRanksPids);
+    otherRanksPids = NULL;
 }
 
 void clear_counter_state(uint64_t* c, uint32_t n){
@@ -369,6 +373,9 @@ void dump_counter_state(int signum){
     if (!dumpCounters){
         return;
     }
+    if (!counterDumpBuffer){
+        return;
+    }
     //print_64b_buffer(dumpCounters, numberOfDumpCounters, stdout, 'f');
     //fprintf(stdout, "\n");
 
@@ -384,7 +391,12 @@ void dump_counter_state(int signum){
     if (bufferLoc + numberOfDumpCounters > COUNTER_BUFFER_ENTRIES){
         clear_counter_buffer();
     }
-    memcpy(&counterDumpBuffer[bufferLoc], dumpCounters, numberOfDumpCounters * sizeof(uint64_t));
+    //PRINT_INSTR(stderr, "%p + %d | %p", &counterDumpBuffer, bufferLoc, dumpCounters);
+
+    for (i = 0; i < numberOfDumpCounters; i++){
+        counterDumpBuffer[bufferLoc + i] = dumpCounters[i];
+    }
+    //memcpy(&counterDumpBuffer[bufferLoc], dumpCounters, numberOfDumpCounters * sizeof(uint64_t));
     bufferLoc += numberOfDumpCounters;
 
     //clear_counter_state(dumpCounters, numberOfDumpCounters);
@@ -454,6 +466,10 @@ void tool_mpi_init(){
     }
 
     counterDumpBuffer = malloc(COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
+    if (counterDumpBuffer == NULL){
+        PRINT_INSTR(stderr, "Cannot malloc dump buffer");
+        exit(1);
+    }
     bzero(counterDumpBuffer, COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
     bufferLoc = 0;
 
@@ -471,6 +487,11 @@ void tool_mpi_init(){
 
 #ifdef SIGNAL_ALL_RANKS
     otherRanksPids = malloc(getNTasks() * sizeof(int));
+    if (otherRanksPids == NULL){
+        PRINT_INSTR(stderr, "Cannot malloc rank array");
+        exit(1);
+    }
+
     i = getpid();
     MPI_Allgather(&i, 1, MPI_INT, otherRanksPids, 1, MPI_INT, MPI_COMM_WORLD);
     /*
@@ -488,6 +509,7 @@ void tool_mpi_init(){
     sprintf(fname, "%s.slices_%04d.step%d", applicationName, getTaskId(), step);
 
     outp = fopen(fname, "w");
+    assert(outp);
     CounterDumpHeader_t hdr;
     bzero(&hdr, sizeof(CounterDumpHeader_t));
     hdr.magic = COUNTER_DUMP_MAGIC;

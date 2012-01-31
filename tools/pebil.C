@@ -487,6 +487,11 @@ int main(int argc,char* argv[]){
             InstrumentationTool* instTool = reinterpret_cast<InstrumentationTool*(*)(ElfFile*)>(maker)(&elfFile);
             ASSERT(!strcmp(tool_arg, instTool->briefName()) && "name yielded by briefName does not match tool name");
 
+            instTool->initToolArgs(lpi_flag == 0 ? false : true,
+                                   dtl_flag == 0 ? false : true,
+                                   doi_flag == 0 ? false : true,
+                                   0, inp_arg, dfp_arg, trk_arg);
+
             char ext[__MAX_STRING_SIZE];
             if (ext_arg){
                 sprintf(ext, "%s\0", ext_arg);
