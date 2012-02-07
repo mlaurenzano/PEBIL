@@ -599,6 +599,7 @@ ac_subst_vars='LTLIBOBJS
 subdirs
 LIBOBJS
 CPUFREQ_FLAGS
+THROTTLER_FLAGS
 EGREP
 GREP
 MPI_FLAGS
@@ -667,6 +668,8 @@ enable_static
 enable_instruction_trace
 enable_mpiinit_check
 enable_pgi_lineinfo
+with_throttler_headers
+with_throttler_lib
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1308,6 +1311,14 @@ Optional Features:
                           unless mpi_init is executed [no]
   --enable-pgi-lineinfo   Handle line information in a way that is compatible
                           with PGI compilers [no]
+
+Optional Packages:
+  --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
+  --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-throttler-headers=<path>
+                          specify path to throttler headers
+  --with-throttler-lib=<path>
+                          specify path to throttler lib
 
 Some influential environment variables:
   CXX         C++ compiler command
@@ -4590,7 +4601,6 @@ if test "$pgi_lineinfo_ok" = "yes"; then
 fi
 
 
-# Checks for header files.
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for grep that handles long lines and -e" >&5
 $as_echo_n "checking for grep that handles long lines and -e... " >&6; }
@@ -4852,6 +4862,77 @@ fi
 done
 
 
+
+# Check whether --with-throttler_headers was given.
+if test "${with_throttler_headers+set}" = set; then :
+  withval=$with_throttler_headers; throttler_headers=$withval
+             as_ac_Header=`$as_echo "ac_cv_header_$throttler_headers/throttler.h" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$throttler_headers/throttler.h" "$as_ac_Header" "$ac_includes_default"
+eval as_val=\$$as_ac_Header
+   if test "x$as_val" = x""yes; then :
+  THROTTLER_FLAGS="-DHAVE_THROTTLER_H -I$throttler_headers"
+else
+  as_fn_error "throttler.h not found using $throttler_headers" "$LINENO" 5
+fi
+
+
+else
+  throttler_headers=no
+fi
+
+
+
+
+# Check whether --with-throttler_lib was given.
+if test "${with_throttler_lib+set}" = set; then :
+  withval=$with_throttler_lib; throttler_lib=$withval
+             { $as_echo "$as_me:${as_lineno-$LINENO}: checking for throttler_init in -lthrottler" >&5
+$as_echo_n "checking for throttler_init in -lthrottler... " >&6; }
+if test "${ac_cv_lib_throttler_throttler_init+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lthrottler  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char throttler_init ();
+int
+main ()
+{
+return throttler_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_throttler_throttler_init=yes
+else
+  ac_cv_lib_throttler_throttler_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_throttler_throttler_init" >&5
+$as_echo "$ac_cv_lib_throttler_throttler_init" >&6; }
+if test "x$ac_cv_lib_throttler_throttler_init" = x""yes; then :
+  THROTTLER_INC="$-L$throttler_lib -lthrottler"
+else
+  throttler_lib=no
+fi
+
+            throttler_lib=no
+fi
+
+
+# Checks for header files.
 for ac_header in stdint.h stdlib.h string.h strings.h unistd.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`

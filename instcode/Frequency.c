@@ -26,28 +26,40 @@
 #include <errno.h>
 #include <InstrumentationCommon.h>
 
-#define STR(x) STR2(x)
-#define STR2(x) #x
+#ifdef HAVE_THROTTLER_H
+
+#include <throttler.h>
+    #define THROTTLER_INIT() throttler_init()
+    #define SET_FREQ(cpu, freq) throttler_set_frequency(cpu, freq)
+#else
+    #define THROTTLER_INIT() 1
+    #define SET_FREQ(cpu, freq) cpufreq_set_frequency(cpu, freq)
+#endif
+
+#define GET_FREQ(cpu) cpufreq_get(cpu)
 
 // MUST DEFINE THIS CORRECTLY!!!
 #define MAX_CPU_IN_SYSTEM 8
 
 #define UNUSED_FREQ_VALUE 0xdeadbeef
 
-uint32_t* site = NULL;
-uint32_t numberOfLoops = 0;
-uint64_t* loopHashCodes = NULL;
-uint32_t* loopStatus = NULL;
+static uint32_t* site = NULL;
+static uint32_t numberOfLoops = 0;
+static uint64_t* loopHashCodes = NULL;
+static uint32_t* loopStatus = NULL;
 
-uint32_t* frequencyMap = NULL;
-uint32_t currentFreq = 0;
-uint32_t lastFreq = 0;
+static uint32_t* frequencyMap = NULL;
+static uint32_t rankMaxFreq = UNUSED_FREQ_VALUE;
 
-uint64_t* entryCalled = NULL;
-uint64_t* exitCalled = NULL;
+static uint32_t initialFreq = 0;
+static uint32_t currentFreq = 0;
+static uint32_t lastFreq = 0;
+
+static uint64_t* entryCalled = NULL;
+static uint64_t* exitCalled = NULL;
 
 // for debugging
-double t1, t2;
+static double t1, t2;
 
 //#define VERIFY_FREQ_CHANGE
 //#define DEBUG
@@ -60,9 +72,9 @@ double t1, t2;
 #endif
 
 #define ENABLE_INSTRUMENTATION_KILL
-void* instrumentationPoints;
-int32_t numberOfInstrumentationPoints;
-int32_t numberKilled;
+static void* instrumentationPoints;
+static int32_t numberOfInstrumentationPoints;
+static int32_t numberKilled;
 
 #ifdef ENABLE_INSTRUMENTATION_KILL
 void disableInstrumentationPointsInBlock(int32_t blockId){
@@ -145,7 +157,7 @@ void pfreq_throttle_lpexit(){
     pfreq_throttle_set(cpu, lastFreq);
 }
 
-int findSiteIndex(uint64_t hash){
+static int findSiteIndex(uint64_t hash){
     int i;
     for (i = 0; i < numberOfLoops; i++){
         if (loopHashCodes[i] == hash){
@@ -155,7 +167,7 @@ int findSiteIndex(uint64_t hash){
     return -1;
 }
 
-void clearFrequencyMap(){
+static void clearFrequencyMap(){
     int i;
     if (frequencyMap){
         for (i = 0; i < numberOfLoops; i++){
@@ -164,7 +176,7 @@ void clearFrequencyMap(){
     }
 }
 
-void initialize_frequency_map(){
+static void initialize_frequency_map(){
     int i, j;
     frequencyMap = malloc(sizeof(uint32_t) * numberOfLoops);
     clearFrequencyMap();
@@ -190,34 +202,47 @@ void initialize_frequency_map(){
         uint32_t rank;
         uint32_t freq;
         char rankEx[__MAX_STRING_SIZE];
+        int res;
 
-        int res = sscanf(line, "%lld %" STR(__MAX_STRING_SIZE) "s %d", &hash, &rankEx, &freq);
-
-        if (res != 3){
-            PRINT_INSTR(stderr, "line %d of %s cannot be understood as a frequency map. proceeding without dvfs", i, fPath);
-            clearFrequencyMap();
-            return;
-        }
-
-        int allRanks = strcmp("*", rankEx) == 0;
-
-        if( !allRanks ) {
-            res = sscanf(rankEx, "%d", &rank);
-            if( res != 1 ) {
-                PRINT_INSTR(stderr, "Rank expression of line %d of %s cannot be read. processeding without dvfs", i, fPath);
-                clearFrequencyMap();
-                return;
-            }
-        }
-
-        if (allRanks || rank == getTaskId()){
+        // frequency at a loop for all ranks
+        res = sscanf(line, "%lld * %d", &hash, &freq);
+        if( res == 2 ) {
             j = findSiteIndex(hash);
             if (j < 0){
                 PRINT_INSTR(stderr, "not an instrumented loop (line %d of %s): %lld. ignoring", i, fPath, hash);
             } else {
                 frequencyMap[j] = freq;
             }
+            continue;
         }
+
+        // frequency at a loop for one rank
+        res = sscanf(line, "%lld %d %d", &hash, &rank, &freq);
+        if( res == 3 ) {
+            if (rank == getTaskId()){
+                j = findSiteIndex(hash);
+                if (j < 0){
+                    PRINT_INSTR(stderr, "not an instrumented loop (line %d of %s): %lld. ignoring", i, fPath, hash);
+                } else {
+                    frequencyMap[j] = freq;
+                }
+            }
+            continue;
+        }
+
+        // max frequency for a rank
+        res = sscanf(line, "%d %d", &rank, &freq);
+        if( res == 2 ) {
+            if( rank == getTaskId() ) {
+                rankMaxFreq = freq;
+            }
+            continue;
+        }
+        
+        PRINT_INSTR(stderr, "line %d of %s cannot be understood as a frequency map. proceeding without dvfs", i, fPath);
+        clearFrequencyMap();
+        rankMaxFreq = UNUSED_FREQ_VALUE;
+        return;
     }
 }
 
@@ -241,12 +266,19 @@ void pfreq_throttle_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes, 
 
     loopStatus = malloc(sizeof(uint32_t) * numberOfLoops);
     bzero(loopStatus, sizeof(uint32_t) * numberOfLoops);
+
+    if( THROTTLER_INIT() < 0 ) {
+        PRINT_INSTR(stderr, "Unable to initialize throttler");
+    }
 }
 
 // called at program finish
 void pfreq_throttle_fini(){
     int i;
     int e = 0;
+
+    SET_FREQ(getTaskId(), initialFreq);
+    PRINT_INSTR(stdout, "Restored core %d frequency to %dKHz", getTaskId(), initialFreq);
 
     // verify that loop entry counts == exit counts
     for (i = 0; i < numberOfLoops; i++){
@@ -283,8 +315,15 @@ void tool_mpi_init(){
         }
     }
 
-    currentFreq = cpufreq_get(getTaskId());
+    initialFreq = GET_FREQ(getTaskId());
+    currentFreq = initialFreq;
     PRINT_INSTR(stdout, "Clock frequency at run start: %dKHz", currentFreq);
+
+    if( rankMaxFreq != UNUSED_FREQ_VALUE ) {
+        SET_FREQ(getTaskId(), rankMaxFreq);
+        PRINT_INSTR(stdout, "Scaling to rank %d max freq %dKHz", getTaskId(), rankMaxFreq);
+        currentFreq = rankMaxFreq;
+    }
 }
 
 inline int32_t pfreq_throttle_set(uint32_t cpu, uint32_t freq){
@@ -295,11 +334,13 @@ inline int32_t pfreq_throttle_set(uint32_t cpu, uint32_t freq){
 }
 
 inline int32_t internal_set_currentfreq(unsigned int cpu, int freq){
-   int32_t ret = cpufreq_set_frequency((unsigned int)cpu, freq);
+   int32_t ret = SET_FREQ(cpu, freq);
+   //int32_t ret = cpufreq_set_frequency((unsigned int)cpu, freq);
 
 #ifdef VERIFY_FREQ_CHANGE
    PRINT_INSTR(stdout, "Throttling for caller task pid %d and cpu %u to %luKHz (retcode %d)", getpid(), cpu, freq, ret);
-   unsigned long freqIs = cpufreq_get(cpu);
+   unsigned long freqIs = GET_FREQ(cpu);
+   //unsigned long freqIs = cpufreq_get(cpu);
 
    if (freq != freqIs){
        if (ret == -ENODEV){
