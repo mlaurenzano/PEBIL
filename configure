@@ -599,6 +599,7 @@ ac_subst_vars='LTLIBOBJS
 subdirs
 LIBOBJS
 CPUFREQ_FLAGS
+THROTTLER_LIBS
 THROTTLER_FLAGS
 EGREP
 GREP
@@ -4923,13 +4924,14 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_throttler_throttler_init" >&5
 $as_echo "$ac_cv_lib_throttler_throttler_init" >&6; }
 if test "x$ac_cv_lib_throttler_throttler_init" = x""yes; then :
-  THROTTLER_INC="$-L$throttler_lib -lthrottler"
+  THROTTLER_LIBS="$-L$throttler_lib -lthrottler"
 else
   throttler_lib=no
 fi
 
             throttler_lib=no
 fi
+
 
 
 # Checks for header files.
