@@ -199,10 +199,14 @@ extern void ud_translate_intel(struct ud* u)
 	mkasm(u, ", ");
 	gen_operand(u, &u->operand[1], u->c2);
   }
-
   /* operand 3 */
   if (u->operand[2].type != UD_NONE) {
 	mkasm(u, ", ");
 	gen_operand(u, &u->operand[2], u->c3);
+  }
+  /* operand 4 */
+  if (u->operand[3].type != UD_NONE) {
+	mkasm(u, ", ");
+	gen_operand(u, &u->operand[3], u->c4);
   }
 }

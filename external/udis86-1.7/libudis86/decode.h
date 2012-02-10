@@ -142,6 +142,8 @@
 #define P_VEXL(n)       ( ( n >> 14 ) & 1 )
 #define P_vexix         ( 1 << 15 )
 #define P_VEXIX(n)      ( ( n >> 15 ) & 1 )
+#define P_c4            ( 1 << 16 )
+#define P_C4(n)         ( ( n >> 16 ) & 1 )
 
 /* rex prefix bits */
 #define REX_W(r)        ( ( 0xF & ( r ) )  >> 3 )

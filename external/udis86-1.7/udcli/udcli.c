@@ -199,7 +199,6 @@ int main(int argc, char **argv)
 		hex2 = hex1 + LEN_BYTES_PRINT;
 		c = hex1[LEN_BYTES_PRINT];
 		hex1[LEN_BYTES_PRINT] = 0;
-		//printf("%-*s %-24s", LEN_BYTES_PRINT, hex1, ud_insn_asm(&ud_obj));
 		printf("%-*s %-24s", LEN_BYTES_PRINT, hex1, ud_insn_asm(&ud_obj));
 		hex1[LEN_BYTES_PRINT] = c;
 		if (strlen(hex1) > LEN_BYTES_PRINT) {
