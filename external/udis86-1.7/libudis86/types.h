@@ -191,6 +191,7 @@ struct ud
   uint8_t		c1;
   uint8_t		c2;
   uint8_t		c3;
+  uint8_t		c4;
   uint8_t 		inp_cache[256];
   uint8_t		inp_sess[64];
   uint32_t              flags_use;

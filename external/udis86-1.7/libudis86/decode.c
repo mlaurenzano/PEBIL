@@ -1392,13 +1392,15 @@ static int disasm_operands(register struct ud* u)
 
       /* 4th operand is vexix */
       if (mop4t == OP_I && P_VEXIX(u->itab_entry->prefix)){
-          uint8_t immv = iop[3].lval.sbyte;
-          PEBIL_DEBUG("4th-byte immediate vexix found: %hhx", immv);
+          if (mop4t == OP_I){
+              uint8_t immv = iop[3].lval.sbyte;
+              PEBIL_DEBUG("4th-byte immediate vexix found: %hhx", immv);
 
-          clear_operand(&(iop[3]));
-          iop[3].type = UD_OP_REG;
-          iop[3].base = resolve_reg(u, avx_op_typ, VEX_IX_REG(immv));
-          iop[3].size = iop[0].size;
+              clear_operand(&(iop[3]));
+              iop[3].type = UD_OP_REG;
+              iop[3].base = resolve_reg(u, avx_op_typ, VEX_IX_REG(immv));
+              iop[3].size = iop[0].size;
+          }
       }
       
       /* TODO if vex.l was found, adjust operand sizes */
@@ -1504,6 +1506,7 @@ static int do_mode( struct ud* u )
   u->c1 = ( P_C1( u->itab_entry->prefix ) ) ? 1 : 0;
   u->c2 = ( P_C2( u->itab_entry->prefix ) ) ? 1 : 0;
   u->c3 = ( P_C3( u->itab_entry->prefix ) ) ? 1 : 0;
+  u->c4 = ( P_C4( u->itab_entry->prefix ) ) ? 1 : 0;
 
   /* set flags for implicit addressing */
   u->implicit_addr = P_IMPADDR( u->itab_entry->prefix );
