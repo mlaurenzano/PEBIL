@@ -71,7 +71,7 @@ MemoryHierarchy systems[__SYSTEM_COUNT] = {
 	    }
 	},
 	{
-	  200, /* sysid200 */
+	  130, /* sysid130 */
 	    3, /* cache level count */
 	    {
 	    { {     64,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
