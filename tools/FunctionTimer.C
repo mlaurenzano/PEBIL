@@ -283,7 +283,6 @@ void ExternalFunctionTimer::instrument(){
                     c.append("@");
                     c.append(function->getName());
                     names.append(c);
-                    PRINT_INFOR("Creating instrmentation point: %s", c);
                 }
             }            
         }
