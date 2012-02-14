@@ -7,7 +7,7 @@
 
 #define __STRIDE_TARGET_SYSTEM 0
 
-#define __SYSTEM_COUNT 8
+#define __SYSTEM_COUNT 9
 uint8_t systemCount =  __SYSTEM_COUNT;
 MemoryHierarchy systems[__SYSTEM_COUNT] = {
 	{      /* <------ STRIDE SYSTEM */
@@ -68,6 +68,15 @@ MemoryHierarchy systems[__SYSTEM_COUNT] = {
 	    { {     64,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
 	    { {    512,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
 	    { {   2048,  16,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
+	    }
+	},
+	{
+	  200, /* sysid200 */
+	    3, /* cache level count */
+	    {
+	    { {     64,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 1 cache */
+	    { {    512,   8,   6, repl_lru }, {0, 0}, 0, NULL, NULL }, /* level 2 cache */
+	    { {   2048,  20,   6, repl_lru }, {0, 0}, 0, NULL, NULL }  /* level 3 cache */
 	    }
 	}
 };
