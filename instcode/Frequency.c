@@ -26,6 +26,29 @@
 #include <errno.h>
 #include <InstrumentationCommon.h>
 
+#ifdef HAVE_PAPI_H
+
+#include <papi.h>
+
+static const int NCOUNTERS = 2;
+static int counter_events[NCOUNTERS];
+static long long counter_values[NCOUNTERS] = {PAPI_L3_TCA, PAPI_L3_TCM};
+#define START_PAPI_COUNTERS PAPI_start_counters(counter_events, NCOUNTERS)
+#define READ_PAPI_COUNTERS  PAPI_read_counters(counter_values, NCOUNTERS)
+#define PRINT_PAPI_COUNTERS \
+    long long accesses = counter_values[0]; \
+    long long misses = counter_values[1]; \
+    long long hits = accesses - misses; \
+    PRINT_INSTR(stdout, "L3 hit rate after loop %d is %d/%d : %f\n", *site, hits, accesses, (float)hits / (float)misses);
+
+#else // no papi
+
+#define START_PAPI_COUNTERS
+#define READ_PAPI_COUNTERS
+#define PRINT_PAPI_COUNTERS
+
+#endif
+
 #ifdef HAVE_THROTTLER_H
 
 #include <throttler.h>
@@ -110,6 +133,8 @@ void pfreq_throttle_lpentry(){
     DEBUG(ptimer(&t1));
     entryCalled[*site]++;
 
+    READ_PAPI_COUNTERS;
+
     // return if mpi_init has not yet been called
     if (!isMpiValid()){
         return;
@@ -126,9 +151,14 @@ void pfreq_throttle_lpentry(){
     }
     loopStatus[*site] = 1;
 
+    if( f >= rankMaxFreq ) {
+        return;
+    }
+
     // set frequency
     int cpu = getTaskId();
     pfreq_throttle_set(cpu, f);
+
 }
 
 // called at loop exit
@@ -136,6 +166,10 @@ void pfreq_throttle_lpexit(){
     DEBUG(ptimer(&t2));
     PRINT_DEBUG(stdout, "exit site %d %f", *site, t2-t1);
     exitCalled[*site]++;
+
+    READ_PAPI_COUNTERS;
+    PRINT_PAPI_COUNTERS;
+
 
     if (!isMpiValid()){
         return;
@@ -152,9 +186,13 @@ void pfreq_throttle_lpexit(){
     }
     loopStatus[*site] = 0;
 
+    if( currentFreq == rankMaxFreq ) {
+        return;
+    }
+
     // set frequency
     int cpu = getTaskId();
-    pfreq_throttle_set(cpu, lastFreq);
+    pfreq_throttle_set(cpu, rankMaxFreq);
 }
 
 static int findSiteIndex(uint64_t hash){
@@ -270,6 +308,8 @@ void pfreq_throttle_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes, 
     if( THROTTLER_INIT() < 0 ) {
         PRINT_INSTR(stderr, "Unable to initialize throttler");
     }
+
+    START_PAPI_COUNTERS;
 }
 
 // called at program finish
@@ -335,12 +375,10 @@ inline int32_t pfreq_throttle_set(uint32_t cpu, uint32_t freq){
 
 inline int32_t internal_set_currentfreq(unsigned int cpu, int freq){
    int32_t ret = SET_FREQ(cpu, freq);
-   //int32_t ret = cpufreq_set_frequency((unsigned int)cpu, freq);
 
 #ifdef VERIFY_FREQ_CHANGE
    PRINT_INSTR(stdout, "Throttling for caller task pid %d and cpu %u to %luKHz (retcode %d)", getpid(), cpu, freq, ret);
    unsigned long freqIs = GET_FREQ(cpu);
-   //unsigned long freqIs = cpufreq_get(cpu);
 
    if (freq != freqIs){
        if (ret == -ENODEV){

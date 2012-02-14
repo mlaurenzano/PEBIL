@@ -62,14 +62,6 @@ AC_ARG_WITH(throttler_headers,
             [throttler_headers=no])
 AC_SUBST(THROTTLER_FLAGS)
 
-AC_ARG_WITH(throttler_lib,
-            [AS_HELP_STRING([--with-throttler-lib=<path>],[specify path to throttler lib])],
-            [throttler_lib=$withval
-             AC_CHECK_LIB([throttler], [throttler_init],
-                          [THROTTLER_INC="$-L$throttler_lib -lthrottler"],
-                          [throttler_lib=no])]
-            [throttler_lib=no])
-
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h strings.h unistd.h])
 AC_CHECK_HEADERS([cpufreq.h],
