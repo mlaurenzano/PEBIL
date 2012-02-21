@@ -76,7 +76,6 @@ static uint32_t rankMaxFreq = UNUSED_FREQ_VALUE;
 
 static uint32_t initialFreq = 0;
 static uint32_t currentFreq = 0;
-static uint32_t lastFreq = 0;
 
 static uint64_t* entryCalled = NULL;
 static uint64_t* exitCalled = NULL;
@@ -186,13 +185,7 @@ void pfreq_throttle_lpexit(){
     }
     loopStatus[*site] = 0;
 
-    if( currentFreq == rankMaxFreq ) {
-        return;
-    }
-
-    // set frequency
-    int cpu = getTaskId();
-    pfreq_throttle_set(cpu, rankMaxFreq);
+    return;
 }
 
 static int findSiteIndex(uint64_t hash){
@@ -221,13 +214,13 @@ static void initialize_frequency_map(){
 
     char * fPath = getenv("PFREQ_FREQUENCY_MAP");
     if (fPath == NULL){
-        PRINT_INSTR(stderr, "environment variable PFREQ_FREQUENCY_MAP not set. proceeding without dvfs");
+        PRINT_INSTR(stdout, "environment variable PFREQ_FREQUENCY_MAP not set. proceeding without dvfs");
         return;
     }
 
     FILE* freqFile = fopen(fPath, "r");
     if (freqFile == NULL){
-        PRINT_INSTR(stderr, "PFREQ_FREQUENCY_MAP file %s cannot be opened. proceeding without dvfs", fPath);
+        PRINT_INSTR(stdout, "PFREQ_FREQUENCY_MAP file %s cannot be opened. proceeding without dvfs", fPath);
         return;
     }
 
@@ -247,7 +240,7 @@ static void initialize_frequency_map(){
         if( res == 2 ) {
             j = findSiteIndex(hash);
             if (j < 0){
-                PRINT_INSTR(stderr, "not an instrumented loop (line %d of %s): %lld. ignoring", i, fPath, hash);
+                PRINT_INSTR(stdout, "not an instrumented loop (line %d of %s): %lld. ignoring", i, fPath, hash);
             } else {
                 frequencyMap[j] = freq;
             }
@@ -260,7 +253,7 @@ static void initialize_frequency_map(){
             if (rank == getTaskId()){
                 j = findSiteIndex(hash);
                 if (j < 0){
-                    PRINT_INSTR(stderr, "not an instrumented loop (line %d of %s): %lld. ignoring", i, fPath, hash);
+                    PRINT_INSTR(stdout, "not an instrumented loop (line %d of %s): %lld. ignoring", i, fPath, hash);
                 } else {
                     frequencyMap[j] = freq;
                 }
@@ -277,7 +270,7 @@ static void initialize_frequency_map(){
             continue;
         }
         
-        PRINT_INSTR(stderr, "line %d of %s cannot be understood as a frequency map. proceeding without dvfs", i, fPath);
+        PRINT_INSTR(stdout, "line %d of %s cannot be understood as a frequency map. proceeding without dvfs", i, fPath);
         clearFrequencyMap();
         rankMaxFreq = UNUSED_FREQ_VALUE;
         return;
@@ -367,7 +360,9 @@ void tool_mpi_init(){
 }
 
 inline int32_t pfreq_throttle_set(uint32_t cpu, uint32_t freq){
-    lastFreq = currentFreq;
+    if( currentFreq == freq ) {
+        return 0;
+    }
     currentFreq = freq;
 
     return internal_set_currentfreq((unsigned int)cpu, (int)freq);
