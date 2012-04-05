@@ -2,9 +2,9 @@ STATIC_INST_LIB  = @STATIC_INST_LIB@
 
 PEBIL_LIBS = 
 ifeq ($(STATIC_INST_LIB),yes)
-	PEBIL_LIBS = libcounter.a  libsimulator.a  libtimer.a  libclassifier.a  libpfreq.a
+	PEBIL_LIBS = libcounter.a  libsimulator.a  libtimer.a  libclassifier.a  libpfreq.a  libsample.a
 else
-	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so libclassifier.so libpfreq.so
+	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so libclassifier.so libpfreq.so libsample.so
 endif
 
 LIB_TARGETS = $(PEBIL_LIBS)
@@ -60,6 +60,11 @@ libpfreq.so : Frequency.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ Frequency.o $(COMMON_OBJS) $(EXTRA_LIBS)
 libpfreq.a : Frequency.o
 	$(AR) $@ Frequency.o
+
+libsample.so : sample.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ sample.o $(COMMON_OBJS) $(EXTRA_LIBS)
+libsample.a : sample.o
+	$(AR) $@ sample.o
 
 clean: 
 	rm -f *.o *.i *.s *.ii $(LIB_TARGETS)
