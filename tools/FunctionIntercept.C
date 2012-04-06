@@ -45,7 +45,7 @@ FunctionIntercept::FunctionIntercept(ElfFile* elf)
 }
 
 void FunctionIntercept::declare(){
-    InstrumentationTool::declare();
+    //InstrumentationTool::declare();
 
     // declare any shared library that will contain instrumentation functions
     declareLibrary(INST_LIB_NAME);
@@ -62,7 +62,7 @@ void FunctionIntercept::declare(){
 }
 
 void FunctionIntercept::instrument(){
-    InstrumentationTool::instrument();
+    //InstrumentationTool::instrument();
 
     InstrumentationPoint* p;
 
