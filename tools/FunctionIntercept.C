@@ -96,12 +96,17 @@ void FunctionIntercept::instrument(){
 
                 PRINT_INFOR("Instrumenting call to %s (idx %d)", c.c_str(), idx);
 
+                Base* exitpoint = (Base*)x;
+                if (c == "__libc_start_main"){
+                    PRINT_INFOR("Special case: instrumenting _fini for __libc_start_main");
+                    exitpoint = (Base*)getProgramExitBlock();
+                }
+
                 InstrumentationPoint* prior = addInstrumentationPoint(x, functionEntry, InstrumentationMode_tramp, x->allFlagsDeadIn() ? FlagsProtectionMethod_none : FlagsProtectionMethod_full, InstLocation_prior);
-                InstrumentationPoint* after = addInstrumentationPoint(x, functionExit, InstrumentationMode_tramp, x->allFlagsDeadOut() ? FlagsProtectionMethod_none : FlagsProtectionMethod_full, InstLocation_after);
+                InstrumentationPoint* after = addInstrumentationPoint(exitpoint, functionExit, InstrumentationMode_tramp, x->allFlagsDeadOut() ? FlagsProtectionMethod_none : FlagsProtectionMethod_full, InstLocation_after);
 
                 assignStoragePrior(prior, idx, getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
                 assignStoragePrior(after, idx, getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
-                
             }            
         }
     }
