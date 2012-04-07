@@ -692,6 +692,8 @@ Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz)
     flags = 0;
     defUse = false;
 
+    computedLeafOpt = false;
+
     verify();
 }
 

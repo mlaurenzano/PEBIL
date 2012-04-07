@@ -18,29 +18,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _FunctionIntercept_h_
-#define _FunctionIntercept_h_
+#ifndef _TauFunctionTrace_h_
+#define _TauFunctionTrace_h_
 
 #include <InstrumentationTool.h>
 
-class FunctionIntercept : public InstrumentationTool {
+class TauFunctionTrace : public InstrumentationTool {
 protected:
     InstrumentationFunction* functionRegister;
 
     InstrumentationFunction* functionEntry;
     InstrumentationFunction* functionExit;
 
+    FileList* functionList;
 public:
-    FunctionIntercept(ElfFile* elf);
-    ~FunctionIntercept() {}
+    TauFunctionTrace(ElfFile* elf);
+    ~TauFunctionTrace();
 
     void declare();
     void instrument();
 
-    const char* briefName() { return "FunctionIntercept"; }
-    const char* defaultExtension() { return "fintr"; }
-    uint32_t allowsArgs() { return PEBIL_OPT_NON; }
+    const char* briefName() { return "TauFunctionTrace"; }
+    const char* defaultExtension() { return "tautrc"; }
+    uint32_t allowsArgs() { return PEBIL_OPT_INP; }
     uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
 
-#endif /* _FunctionIntercept_h_ */
+#endif /* _TauFunctionTrace_h_ */

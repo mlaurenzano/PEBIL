@@ -28,6 +28,7 @@
 #include <strings.h>
 #include <string.h>
 #include <unistd.h>
+#include <regex.h>
 #include <sys/stat.h>
 #include <execinfo.h>
 #include <dlfcn.h>
@@ -354,6 +355,24 @@ public:
     virtual Vector<X86Instruction*>* swapInstructions(uint64_t addr, Vector<X86Instruction*>* replacements) { __SHOULD_NOT_ARRIVE; return NULL; }
     virtual uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc) { __SHOULD_NOT_ARRIVE; return 0; }
     virtual uint64_t getBaseAddress() { __SHOULD_NOT_ARRIVE; }
+};
+
+class FileList {
+private:
+    uint32_t width;
+    char sep;
+    Vector<Vector<char*>*> fileTokens;
+public:
+    FileList(const char* filename, uint32_t width, char sep);
+    FileList(const char* filename);
+    ~FileList();
+
+    void init(const char* filename, uint32_t width, char sep);
+    bool matches(char* str, uint32_t tok);
+    char* getToken(uint32_t idx, uint32_t tok);
+    void print();
+
+    bool verify();
 };
 
 class HashCode {

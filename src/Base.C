@@ -23,6 +23,164 @@
 FILE* pebilOutp = stdout;
 uint64_t warnCount = 0;
 
+void FileList::init(const char* filename, uint32_t w, char s){
+    ASSERT(filename);
+
+    width = w;
+    sep = s;
+
+    FILE* inFile = fopen(filename, "r");
+    if(!inFile){
+        PRINT_ERROR("File cannot be opened [%s]", filename);
+    }
+
+    Vector<char*> lines;
+
+    char* inBuffer = new char[__MAX_STRING_SIZE];
+    while (fgets(inBuffer, __MAX_STRING_SIZE, inFile) != NULL) {
+        char* line = new char[strlen(inBuffer)+1];
+        sprintf(line, "%s", inBuffer);
+        line[strlen(inBuffer)-1] = '\0';
+        if (strlen(line) && line[0] == '#'){
+            delete[] line;
+        } else {
+            lines.append(line);
+        }
+    }
+    delete[] inBuffer;
+    fclose(inFile);
+
+    for (uint32_t i = 0; i < lines.size(); i++){
+        uint32_t linelen = strlen(lines[i]);
+        uint32_t toks = 1;
+        for (uint32_t c = 0; c < linelen; c++){
+            if (lines[i][c] == sep){
+                toks++;
+            }
+        }
+
+        if (toks != width){
+            PRINT_ERROR("Input file line has incorrect number of '%c'-seperated tokens: %s", sep, lines[i]);
+        }
+
+        Vector<char*>* tokens = new Vector<char*>();
+
+        uint32_t beg = 0;
+        for (uint32_t c = 0; c < linelen; c++){
+            if (lines[i][c] == sep){
+                lines[i][c] = '\0';
+
+                char* tokbeg = &(lines[i])[beg];
+                char* newtok = new char[strlen(tokbeg) + 1];
+                bzero(newtok, strlen(tokbeg) + 1);
+                memcpy(newtok, tokbeg, strlen(tokbeg));
+
+                tokens->append(newtok);
+
+                beg = c + 1;
+            }
+        }
+
+        char* tokbeg = &(lines[i])[beg];
+        char* newtok = new char[strlen(tokbeg) + 1];
+        bzero(newtok, strlen(tokbeg) + 1);
+        memcpy(newtok, tokbeg, strlen(tokbeg));
+
+        tokens->append(newtok);
+
+        fileTokens.append(tokens);
+        delete[] lines[i];
+    }
+
+    verify();
+}
+
+bool FileList::verify(){
+    regex_t regex;
+    int err;
+    char err_msg[__MAX_STRING_SIZE];
+    
+    for (uint32_t i = 0; i < fileTokens.size(); i++){
+        for (uint32_t j = 0; j < width; j++){
+            if ((err = regcomp(&regex, getToken(i, j), REG_EXTENDED)) != 0){
+                regerror(err, &regex, err_msg, __MAX_STRING_SIZE);
+                PRINT_ERROR("Error analyzing regular expression '%s': %s.\n", getToken(i, j), err_msg);
+                return false;
+            }
+            regfree(&regex);
+        }
+    }
+
+    return true;
+}
+
+FileList::FileList(const char* filename, uint32_t w, char sep){
+    init(filename, w, sep);
+}
+
+FileList::FileList(const char* filename){
+    init(filename, 1, ' ');
+}
+
+FileList::~FileList(){
+    for (uint32_t i = 0; i < fileTokens.size(); i++){
+        for (uint32_t j = 0; j < width; j++){
+            delete[] getToken(i, j);
+        }
+        delete fileTokens[i];
+    }
+}
+
+bool regexMatch(char *string, char* reg){
+    regmatch_t match;
+    regex_t regex;
+    int err;
+    char err_msg[__MAX_STRING_SIZE];
+
+    if ((err = regcomp(&regex, reg, REG_EXTENDED)) != 0){
+        regerror(err, &regex, err_msg, __MAX_STRING_SIZE);
+        PRINT_ERROR("Error analyzing regular expression '%s': %s.\n", reg, err_msg);
+    }
+
+    if ((regexec(&regex, string, 0, NULL, 0)) == 0){
+        regfree(&regex);
+        return true;
+    }
+    regfree(&regex);
+    return false;
+}
+
+bool FileList::matches(char* str, uint32_t tok){
+    for (uint32_t i = 0; i < fileTokens.size(); i++){
+        if (regexMatch(str, getToken(i, tok))){
+            return true;
+        }
+    }
+    return false;
+}
+
+char* FileList::getToken(uint32_t idx, uint32_t tok){
+    ASSERT(idx < fileTokens.size());
+    ASSERT(tok < width);
+
+    return (*fileTokens[idx])[tok];
+}
+
+void FileList::print(){
+    PRINT_INFOR("File List:");
+    for (uint32_t i = 0; i < fileTokens.size(); i++){
+        PRINT_INFO();
+        PRINT_OUT("\t");
+        for (uint32_t j = 0; j < width; j++){
+            PRINT_OUT("%s", getToken(i, j));
+            if (j != width - 1){
+                PRINT_OUT("%c", sep);
+            }
+        }
+        PRINT_OUT("\n");
+    }
+}
+
 char* sha1sum(char* buffer, uint32_t size){
     unsigned char* allbytes = new unsigned char[size];
     int end = size;

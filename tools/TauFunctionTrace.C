@@ -18,61 +18,94 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <FunctionIntercept.h>
+#include <TauFunctionTrace.h>
 
 #include <BasicBlock.h>
 #include <Function.h>
 #include <Instrumentation.h>
+#include <LineInformation.h>
 #include <X86Instruction.h>
 #include <map>
 #include <string>
+#include <vector>
 
-#define INST_LIB_NAME "libsample.so"
+#define INST_LIB_NAME "libtautrace.so"
+#define REGISTER_FUNC "tau_register_func"
+#define ENTRY_FUNC_CALL "tau_trace_entry"
+#define EXIT_FUNC_CALL "tau_trace_exit"
 
 extern "C" {
-    InstrumentationTool* FunctionInterceptMaker(ElfFile* elf){
-        return new FunctionIntercept(elf);
+    InstrumentationTool* TauFunctionTraceMaker(ElfFile* elf){
+        return new TauFunctionTrace(elf);
     }
 }
 
-FunctionIntercept::FunctionIntercept(ElfFile* elf)
+TauFunctionTrace::~TauFunctionTrace(){
+    if (functionList){
+        delete functionList;
+    }
+}
+
+TauFunctionTrace::TauFunctionTrace(ElfFile* elf)
     : InstrumentationTool(elf)
 {
     functionRegister = NULL;
 
     functionEntry = NULL;
     functionExit = NULL;
+
+    functionList = NULL;
 }
 
-void FunctionIntercept::declare(){
+void TauFunctionTrace::declare(){
     //InstrumentationTool::declare();
+
+    if (inputFile){
+        functionList = new FileList(inputFile);
+        functionList->print();
+    }
 
     // declare any shared library that will contain instrumentation functions
     declareLibrary(INST_LIB_NAME);
 
     // declare any instrumentation functions that will be used
-    functionRegister = declareFunction("trace_register_func");
+    functionRegister = declareFunction(REGISTER_FUNC);
     ASSERT(functionRegister);
 
-    functionEntry = declareFunction("traceEntry");
+    functionEntry = declareFunction(ENTRY_FUNC_CALL);
     ASSERT(functionEntry);
 
-    functionExit = declareFunction("traceExit");
+    functionExit = declareFunction(EXIT_FUNC_CALL);
     ASSERT(functionExit);
 }
 
-void FunctionIntercept::instrument(){
+struct FuncInfo {
+    std::string name;
+    std::string file;
+    int line;
+    int index;
+};
+
+void TauFunctionTrace::instrument(){
     //InstrumentationTool::instrument();
+
+    LineInfoFinder* lineInfoFinder = NULL;
+    if (hasLineInformation()){
+        lineInfoFinder = getLineInfoFinder();
+    }
 
     InstrumentationPoint* p;
 
     uint64_t nameAddr = reserveDataOffset(sizeof(uint64_t));
+    uint64_t fileAddr = reserveDataOffset(sizeof(uint64_t));
+    uint64_t lineAddr = reserveDataOffset(sizeof(uint32_t));
     uint64_t siteIndexAddr = reserveDataOffset(sizeof(uint32_t));
 
     functionEntry->addArgument(siteIndexAddr);
     functionExit->addArgument(siteIndexAddr);
 
-    std::map<std::string, uint32_t> functions;
+    std::map<std::string, FuncInfo> functions;
+    std::vector<std::string> orderedfuncs;
     uint32_t funcIdx = 0;
 
     // go over all instructions. when we find a call, instrument it
@@ -85,14 +118,35 @@ void FunctionIntercept::instrument(){
             Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol(x->getTargetAddress());
             
             if (functionSymbol){
+
+                if (functionList->matches(functionSymbol->getSymbolName(), 0)){
+                    continue;
+                }
                 ASSERT(x->getSizeInBytes() == Size__uncond_jump);
                 
                 std::string c;
                 c.append(functionSymbol->getSymbolName());
                 if (functions.count(c) == 0){
-                    functions[c] = funcIdx++;
+                    FuncInfo f = FuncInfo();
+                    f.name = c;
+                    f.file = "";
+                    f.line = 0;
+                    f.index = funcIdx++;
+
+                    LineInfo* li = NULL;
+                    if (lineInfoFinder){
+                        li = lineInfoFinder->lookupLineInfo(x->getTargetAddress());
+                    }
+
+                    if (li){
+                        f.file.append(li->getFileName());
+                        f.line = li->GET(lr_line);
+                    }
+
+                    functions[c] = f;
+                    orderedfuncs.push_back(c);
                 }
-                uint32_t idx = functions[c];
+                uint32_t idx = functions[c].index;
 
                 PRINT_INFOR("Instrumenting call to %s (idx %d)", c.c_str(), idx);
 
@@ -112,23 +166,40 @@ void FunctionIntercept::instrument(){
     }
 
     functionRegister->addArgument(nameAddr);
+    functionRegister->addArgument(fileAddr);
+    functionRegister->addArgument(lineAddr);
     functionRegister->addArgument(siteIndexAddr);
 
     // go over every function that was found, insert a registration call at program start
-    for (std::map<std::string, uint32_t>::iterator it = functions.begin(); it != functions.end(); it++){
-        std::string name = it->first;
-        const char* cname = name.c_str();
-        uint32_t idx = it->second;
+    funcIdx = 0;
+    for (std::vector<std::string>::iterator it = orderedfuncs.begin(); it != orderedfuncs.end(); it++){
+        std::string name = *it;
+        FuncInfo f = functions[name];
+        PRINT_INFOR("Adding registration call for %s %d", f.name.c_str(), f.index);
+       
+        ASSERT(f.name == name);
+        ASSERT(f.index == funcIdx);
+        funcIdx++;
 
         InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), functionRegister, InstrumentationMode_tramp);
 
-        uint64_t nameStorage = reserveDataOffset(strlen(cname) + 1);
-        //PRINT_INFOR("Adding registration call for %s %d @ %#llx", cname, idx, getInstDataAddress() + nameStorage);
+        const char* cstring = f.name.c_str();
+        uint64_t storage = reserveDataOffset(strlen(cstring) + 1);
+        initializeReservedData(getInstDataAddress() + storage, strlen(cstring), (void*)cstring);
+        assignStoragePrior(p, getInstDataAddress() + storage, getInstDataAddress() + nameAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
 
-        initializeReservedData(getInstDataAddress() + nameStorage, strlen(cname), (void*)cname);
+        const char* cstring2 = f.file.c_str();
+        if (f.file == ""){
+            assignStoragePrior(p, NULL, getInstDataAddress() + fileAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());            
+        } else {
+            storage = reserveDataOffset(strlen(cstring2) + 1);
+            initializeReservedData(getInstDataAddress() + storage, strlen(cstring2), (void*)cstring2);
+            assignStoragePrior(p, getInstDataAddress() + storage, getInstDataAddress() + fileAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+            PRINT_INFOR("\t\thave line info: %s %d", cstring2, f.line);
+        }
 
-        assignStoragePrior(p, getInstDataAddress() + nameStorage, getInstDataAddress() + nameAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
-        assignStoragePrior(p, idx, getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+        assignStoragePrior(p, f.line, getInstDataAddress() + lineAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+        assignStoragePrior(p, f.index, getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
     }
 
 }
