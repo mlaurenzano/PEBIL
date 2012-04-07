@@ -119,7 +119,7 @@ void TauFunctionTrace::instrument(){
             
             if (functionSymbol){
 
-                if (functionList->matches(functionSymbol->getSymbolName(), 0)){
+                if (functionList && functionList->matches(functionSymbol->getSymbolName(), 0)){
                     continue;
                 }
                 ASSERT(x->getSizeInBytes() == Size__uncond_jump);
