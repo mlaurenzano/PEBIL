@@ -4,7 +4,7 @@ PEBIL_LIBS =
 ifeq ($(STATIC_INST_LIB),yes)
 	PEBIL_LIBS = libcounter.a  libsimulator.a  libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a
 else
-	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so libclassifier.so libpfreq.so libtautrace.so
+	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so libclassifier.so libpfreq.so libtautrace.so liblptimer.so
 endif
 
 LIB_TARGETS = $(PEBIL_LIBS)
@@ -60,6 +60,9 @@ libpfreq.so : Frequency.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ Frequency.o $(COMMON_OBJS) $(EXTRA_LIBS)
 libpfreq.a : Frequency.o
 	$(AR) $@ Frequency.o
+
+liblptimer.so : LoopTimer.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ LoopTimer.o $(COMMON_OBJS) $(EXTRA_LIBS)
 
 libtautrace.so : tautrace.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ tautrace.o $(COMMON_OBJS) $(EXTRA_LIBS)
