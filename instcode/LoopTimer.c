@@ -37,24 +37,15 @@ static uint32_t* site = NULL;
 static uint32_t numberOfLoops = 0;
 static uint64_t* loopHashCodes = NULL;
 static uint32_t* loopStatus = NULL;  // keeps track of whether we are in loop
-static uint32_t counting;
 
-static double * loopTimes;
+static uint64_t * loopTimes;
+static uint64_t * loopTimers;
 
 // number of times we enter or exit loops
 static uint64_t* entryCalled = NULL;
 static uint64_t* exitCalled = NULL;
 
-/*
-static uint64_t * counter_values;
-static char ** counter_names;
-static uint32_t ncounters;
-*/
-
 static long nprocessors;
-
-// for debugging
-static double t1, t2;
 
 //#define DEBUG
 #ifdef DEBUG
@@ -114,66 +105,17 @@ static int32_t pinto(uint32_t cpu){
     return retCode;
 }
 
-/*
-static void write_counters(FILE * outfp){
-    int l, c;
-
-    fprintf(outfp, "LoopHead");
-    for( c = 0; c < ncounters; ++c ) {
-        fprintf(outfp, "\t%s", counter_names[c]);
-    }
-    fprintf(outfp, "\n");
-
-    for( l = 0; l < numberOfInstrumentationPoints; ++l ) {
-        if( loopHashCodes[l] == 0 ) {
-            continue;
-        }
-        fprintf(outfp, "%llu", loopHashCodes[l]);
-        for( c = 0; c < ncounters; ++c ) {
-            fprintf(outfp, "\t%llu", counter_values[l * ncounters + c]);
-        }
-        fprintf(outfp, "\n");
-    }
-}
-*/
 // called at loop entry
 void inst_lptimer_lpentry(){
-    PRINT_DEBUG(stdout, "enter site %d", *site);
-    ptimer(&t1);
+    loopTimers[*site] = read_timestamp_counter();
     entryCalled[*site]++;
-
-/*
-    // return if mpi_init has not yet been called
-    if (!isMpiValid()){
-        return;
-    }
-    if( counting ) {
-        return;
-    }
-    hw_monitors_start();
-    counting = 1;
-*/
 }
 
 // called at loop exit
 void inst_lptimer_lpexit(){
-    ptimer(&t2);
-    loopTimes[*site] += t2 - t1;
+    double t2 = read_timestamp_counter();
+    loopTimes[*site] += t2 - loopTimers[*site];
     exitCalled[*site]++;
-
-/*
-    if (!isMpiValid()){
-        return;
-    }
-
-    if( !counting ) {
-        return;
-    }
-
-    hw_monitors_stop(counter_values + (*site) * ncounters, &ncounters);
-
-    counting = 0;
-*/
 }
 
 
@@ -199,23 +141,17 @@ void inst_lptimer_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes, vo
     loopStatus = malloc(sizeof(uint32_t) * numberOfLoops);
     bzero(loopStatus, sizeof(uint32_t) * numberOfLoops);
 
-    loopTimes = malloc(sizeof(double) * numberOfLoops);
-    bzero(loopTimes, sizeof(double) * numberOfLoops);
+    loopTimes = malloc(sizeof(uint64_t) * numberOfLoops);
+    bzero(loopTimes, sizeof(uint64_t) * numberOfLoops);
 
-/*
-    hw_monitors_init();
-    ncounters = hw_monitors_active();
-    counter_values = malloc(sizeof(uint64_t) * ncounters * numberOfLoops);
-    counter_names = malloc(sizeof(char*) * ncounters);
-    hw_monitors_getdata(counter_values, &ncounters, counter_names);
-*/
-
+    loopTimers = malloc(sizeof(uint64_t) * numberOfLoops);
+    bzero(loopTimers, sizeof(uint64_t) * numberOfLoops);
 }
 
 static void write_lptimes(FILE * outfp) {
     int i;
     for( i = 0; i < numberOfLoops; ++i ) {
-        fprintf(outfp, "%llu\t%f\n", loopHashCodes[i], loopTimes[i]);
+        fprintf(outfp, "%llu\t%llu\n", loopHashCodes[i], loopTimes[i]);
     }
 }
 
@@ -243,6 +179,7 @@ void inst_lptimer_fini(){
     free(exitCalled);
     free(loopStatus);
     free(loopTimes);
+    free(loopTimers);
 
 
     if (e){
@@ -255,12 +192,5 @@ void tool_mpi_init(){
     nprocessors = sysconf(_SC_NPROCESSORS_ONLN);
     pinto(getTaskId() % nprocessors);
 }
-
-
-
-
-
-
-
 
 

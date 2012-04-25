@@ -18,51 +18,51 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef HAVE_CPUFREQ_H
 
 #define  _GNU_SOURCE
-#include <cpufreq.h>
 #include <sched.h>
 #include <errno.h>
 #include <InstrumentationCommon.h>
-
-#ifdef HAVE_PAPI_H
-
-#include <papi.h>
-
-static const int NCOUNTERS = 2;
-static int counter_events[NCOUNTERS];
-static long long counter_values[NCOUNTERS] = {PAPI_L3_TCA, PAPI_L3_TCM};
-#define START_PAPI_COUNTERS PAPI_start_counters(counter_events, NCOUNTERS)
-#define READ_PAPI_COUNTERS  PAPI_read_counters(counter_values, NCOUNTERS)
-#define PRINT_PAPI_COUNTERS \
-    long long accesses = counter_values[0]; \
-    long long misses = counter_values[1]; \
-    long long hits = accesses - misses; \
-    PRINT_INSTR(stdout, "L3 hit rate after loop %d is %d/%d : %f\n", *site, hits, accesses, (float)hits / (float)misses);
-
-#else // no papi
-
-#define START_PAPI_COUNTERS
-#define READ_PAPI_COUNTERS
-#define PRINT_PAPI_COUNTERS
-
-#endif
+#include <assert.h>
 
 #ifdef HAVE_THROTTLER_H
-
-#include <throttler.h>
+    #include <throttler.h>
     #define THROTTLER_INIT() throttler_init()
     #define SET_FREQ(cpu, freq) throttler_set_frequency(cpu, freq)
+    #define GET_FREQ 2600000
+
+#elif defined HAVE_CPUFREQ_H
+    #include <cpufreq.h>
+    #define THROTTLER_INIT() 1
+    #define GET_FREQ(cpu) cpufreq_get(cpu)
+    #define SET_FREQ(cpu, freq) cpufreq_set_frequency(cpu, freq)
+
 #else
     #define THROTTLER_INIT() 1
-    #define SET_FREQ(cpu, freq) cpufreq_set_frequency(cpu, freq)
+    #define GET_FREQ(cpu) getfreq(cpu)
+    #define SET_FREQ(cpu, freq) setfreq(cpu, freq)
+
+static int setfreq(unsigned int cpu, int freq) {
+    char filename[1024];
+    sprintf(filename, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_setspeed", cpu);
+    FILE * file = fopen(filename, "w");
+    assert( file != NULL );
+    fprintf(file, "%d", freq);
+    fclose(file);
+    return 0;
+}
+
+static int getfreq(unsigned int cpu) {
+    char filename[1024];
+    sprintf(filename, "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", cpu);
+    FILE * file = fopen(filename, "r");
+    assert( file != NULL );
+    int freq;
+    fscanf(file, "%d", &freq);
+    fclose(file);
+    return freq;
+}
 #endif
-
-#define GET_FREQ(cpu) cpufreq_get(cpu)
-
-// MUST DEFINE THIS CORRECTLY!!!
-#define MAX_CPU_IN_SYSTEM 8
 
 #define UNUSED_FREQ_VALUE 0xdeadbeef
 
@@ -80,8 +80,12 @@ static uint32_t currentFreq = 0;
 static uint64_t* entryCalled = NULL;
 static uint64_t* exitCalled = NULL;
 
+static long nprocessors;
+
 // for debugging
 static double t1, t2;
+static uint64_t n_freq_requests;
+static uint64_t n_freq_changes;
 
 //#define VERIFY_FREQ_CHANGE
 //#define DEBUG
@@ -126,13 +130,27 @@ void disableInstrumentationPointsInBlock(int32_t blockId){
 }
 #endif //ENABLE_INSTRUMENTATION_KILL
 
+// pin process to core
+static int32_t pinto(uint32_t cpu){
+    int32_t retCode = 0;
+    cpu_set_t cpuset;
+    
+    CPU_ZERO(&cpuset);
+    CPU_SET(cpu, &cpuset);
+    
+    if(sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset) < 0) {
+        retCode = -1;
+    }
+    PRINT_INSTR(stdout, "Setting affinity to cpu%u for caller task pid %d (retcode %d)", cpu, getpid(), retCode);
+    
+    return retCode;
+}
+
 // called at loop entry
 void pfreq_throttle_lpentry(){
     PRINT_DEBUG(stdout, "enter site %d", *site);
     DEBUG(ptimer(&t1));
     entryCalled[*site]++;
-
-    READ_PAPI_COUNTERS;
 
     // return if mpi_init has not yet been called
     if (!isMpiValid()){
@@ -155,7 +173,7 @@ void pfreq_throttle_lpentry(){
     }
 
     // set frequency
-    int cpu = getTaskId();
+    int cpu = getTaskId() % nprocessors;
     pfreq_throttle_set(cpu, f);
 
 }
@@ -165,10 +183,6 @@ void pfreq_throttle_lpexit(){
     DEBUG(ptimer(&t2));
     PRINT_DEBUG(stdout, "exit site %d %f", *site, t2-t1);
     exitCalled[*site]++;
-
-    READ_PAPI_COUNTERS;
-    PRINT_PAPI_COUNTERS;
-
 
     if (!isMpiValid()){
         return;
@@ -302,7 +316,6 @@ void pfreq_throttle_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes, 
         PRINT_INSTR(stderr, "Unable to initialize throttler");
     }
 
-    START_PAPI_COUNTERS;
 }
 
 // called at program finish
@@ -310,8 +323,9 @@ void pfreq_throttle_fini(){
     int i;
     int e = 0;
 
-    SET_FREQ(getTaskId(), initialFreq);
-    PRINT_INSTR(stdout, "Restored core %d frequency to %dKHz", getTaskId(), initialFreq);
+    int core = getTaskId() % nprocessors;
+    SET_FREQ(core, initialFreq);
+    PRINT_INSTR(stdout, "Restored core %d frequency to %dKHz", core, initialFreq);
 
     // verify that loop entry counts == exit counts
     for (i = 0; i < numberOfLoops; i++){
@@ -320,6 +334,9 @@ void pfreq_throttle_fini(){
             e++;
         }
     }
+
+    PRINT_INSTR(stdout, "n_freq_requests %llu\n", n_freq_requests);
+    PRINT_INSTR(stdout, "n_freq_changes %llu\n",  n_freq_changes);
 
     free(entryCalled);
     free(exitCalled);
@@ -333,8 +350,9 @@ void pfreq_throttle_fini(){
 
 // called just after mpi_init
 void tool_mpi_init(){
-    pfreq_affinity_get();
-    pfreq_affinity_set(getTaskId());
+    nprocessors = sysconf(_SC_NPROCESSORS_ONLN);
+    int core = getTaskId() % nprocessors;
+    pinto(core);
 
     initialize_frequency_map();
     int i;
@@ -348,22 +366,25 @@ void tool_mpi_init(){
         }
     }
 
-    initialFreq = GET_FREQ(getTaskId());
+    initialFreq = GET_FREQ(core);
     currentFreq = initialFreq;
     PRINT_INSTR(stdout, "Clock frequency at run start: %dKHz", currentFreq);
 
     if( rankMaxFreq != UNUSED_FREQ_VALUE ) {
-        SET_FREQ(getTaskId(), rankMaxFreq);
-        PRINT_INSTR(stdout, "Scaling to rank %d max freq %dKHz", getTaskId(), rankMaxFreq);
+        
+        SET_FREQ(core, rankMaxFreq);
+        PRINT_INSTR(stdout, "Scaling to rank %d max freq %dKHz", core, rankMaxFreq);
         currentFreq = rankMaxFreq;
     }
 }
 
 inline int32_t pfreq_throttle_set(uint32_t cpu, uint32_t freq){
+    ++n_freq_requests;
     if( currentFreq == freq ) {
         return 0;
     }
     currentFreq = freq;
+    ++n_freq_changes;
 
     return internal_set_currentfreq((unsigned int)cpu, (int)freq);
 }
@@ -388,38 +409,3 @@ inline int32_t internal_set_currentfreq(unsigned int cpu, int freq){
    return ret;
 }
 
-int32_t pfreq_affinity_get(){
-    int32_t retCode = 0;
-    cpu_set_t cpuset;
-    int32_t i;
-    
-    if (sched_getaffinity(getpid(), sizeof(cpu_set_t), &cpuset) < 0) {
-        retCode = -1;
-    } else {
-        for(i = 0; i < MAX_CPU_IN_SYSTEM; i++){
-            if (CPU_ISSET(i, &cpuset)){
-                retCode = i;
-                break;
-            }
-        }
-    }
-    return retCode;
-}
-
-// pin process to core
-int32_t pfreq_affinity_set(uint32_t cpu){
-    int32_t retCode = 0;
-    cpu_set_t cpuset;
-    
-    CPU_ZERO(&cpuset);
-    CPU_SET(cpu, &cpuset);
-    
-    if(sched_setaffinity(getpid(), sizeof(cpu_set_t), &cpuset) < 0) {
-        retCode = -1;
-    }
-    PRINT_INSTR(stdout, "Setting affinity to cpu%u for caller task pid %d (retcode %d)", cpu, getpid(), retCode);
-    
-    return retCode;
-}
-
-#endif //HAVE_CPUFREQ_H
