@@ -29,7 +29,7 @@
     #include <throttler.h>
     #define THROTTLER_INIT() throttler_init()
     #define SET_FREQ(cpu, freq) throttler_set_frequency(cpu, freq)
-    #define GET_FREQ 2600000
+    #define GET_FREQ(cpu) 2600000
 
 #elif defined HAVE_CPUFREQ_H
     #include <cpufreq.h>
