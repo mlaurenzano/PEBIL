@@ -37,6 +37,10 @@ int32_t numberOfBasicBlocks = 0;
 uint64_t* loopCounters = NULL;
 int32_t numberOfLoops = 0;
 
+void tool_init_thread(pthread_t** thread){
+    PRINT_INSTR(stdout, "Hooked pthread_create for thread id %#llx", **thread);
+}
+
 int32_t initcounter(int32_t* numBlocks, uint64_t* blockCounts){
     numberOfBasicBlocks = *numBlocks;
     blockCounters = blockCounts;

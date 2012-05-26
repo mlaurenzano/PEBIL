@@ -207,7 +207,7 @@ public:
     bool hasLineInformation() { return (lineInfoFinder != NULL); }
     void setPathToInstLib(char* libPath);
     void setAllowStatic() { allowStatic = true; }
-    void setThreadedMode() { threadedMode = true; }
+    void setThreadedMode() { threadedMode = true; ASSERT(is64Bit() && "Threading support not available for IA32"); }
     bool isThreadedMode() { return threadedMode; }
 
     char* getApplicationName() { return elfFile->getAppName(); }

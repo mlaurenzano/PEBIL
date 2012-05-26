@@ -54,6 +54,8 @@ protected:
 
     void assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak);
 
+    InstrumentationFunction* threadInit;
+    InstrumentationFunction* imageInit;
     InstrumentationFunction* initWrapperC;
     InstrumentationFunction* initWrapperF;
 

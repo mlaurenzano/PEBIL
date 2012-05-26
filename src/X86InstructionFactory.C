@@ -1365,7 +1365,7 @@ X86Instruction* X86InstructionFactory64::emitMoveRegaddrToReg(uint32_t srcidx, u
     ASSERT(destidx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 3;
     char* buff = new char[len];
-    buff[0] = 0x67;
+    buff[0] = 0x48;
     buff[1] = 0x8b; 
     buff[2] = 0x00 + (char)(srcidx) + (char)(8*destidx);
     return emitInstructionBase(len,buff);

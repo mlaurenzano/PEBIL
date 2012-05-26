@@ -35,6 +35,14 @@
 #define MPI_INIT_LIST_FBIND_PREF "pmpi_init_"
 #define MPI_INIT_LIST_FBIND      "mpi_init_:MPI_INIT"
 
+#define PTHREAD_CREATE           "pthread_create"
+#define PTHREAD_CREATE_INIT      "tool_init_thread"
+#define PTHREAD_ID_ARG_INDEX     0
+
+// need to pass an image ID to this. probably should allocate space for a counter in the executable
+// that increments on every image load
+#define IMAGE_LOAD_INIT          "tool_init_image"
+
 #define MAX_DEF_USE_DIST_PRINT 1024
 
 void InstrumentationTool::assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak){
@@ -103,6 +111,11 @@ InstrumentationTool::InstrumentationTool(ElfFile* elf)
 {}
 
 void InstrumentationTool::declare(){
+    if (isThreadedMode()){
+        threadInit = declareFunction(PTHREAD_CREATE_INIT);
+        ASSERT(threadInit && "Cannot find pthread_create init function, are you sure it was declared?");
+    }
+
 #ifdef HAVE_MPI
     initWrapperC = declareFunction(MPI_INIT_WRAPPER_CBIND);
     initWrapperF = declareFunction(MPI_INIT_WRAPPER_FBIND);
@@ -112,6 +125,31 @@ void InstrumentationTool::declare(){
 }
 
 void InstrumentationTool::instrument(){
+    if (isThreadedMode()){
+        ASSERT(is64Bit());
+
+        Vector<X86Instruction*>* pthreadCreateCalls = findAllCalls(PTHREAD_CREATE);
+
+        uint64_t pthreadIdAddr = reserveDataOffset(sizeof(uint64_t));
+        threadInit->addArgument(pthreadIdAddr);
+
+        for (uint32_t i = 0; i < (*pthreadCreateCalls).size(); i++){
+            ASSERT((*pthreadCreateCalls)[i]->isFunctionCall());
+            ASSERT((*pthreadCreateCalls)[i]->getSizeInBytes() == Size__uncond_jump);
+            PRINT_INFOR("Instrumenting pthread_create @ %#llx", (*pthreadCreateCalls)[i]->getBaseAddress());
+
+            // just before the call, save the location of the pthread_t* passed into pthread_create as the 1st arg
+            InstrumentationSnippet* snip = new InstrumentationSnippet();
+            addInstrumentationSnippet(snip);
+            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToMem(map64BitArgToReg(PTHREAD_ID_ARG_INDEX), getInstDataAddress() + pthreadIdAddr));
+            InstrumentationPoint* pt = addInstrumentationPoint((*pthreadCreateCalls)[i], snip, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+
+            // just after the call, insert a call to our thread init function
+            pt = addInstrumentationPoint((*pthreadCreateCalls)[i], threadInit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_after);
+        }
+        delete pthreadCreateCalls;
+    }
+
 #ifdef HAVE_MPI
     int initFound = 0;
 

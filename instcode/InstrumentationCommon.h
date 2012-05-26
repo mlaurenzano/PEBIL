@@ -29,6 +29,7 @@
 #include <sys/time.h>
 #include <stdarg.h>
 #include <time.h>
+#include <pthread.h>
 
 #define __MAX_STRING_SIZE 1024
 
