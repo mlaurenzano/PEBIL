@@ -44,6 +44,7 @@ public:
     static X86Instruction* emitReturn();
 
     static X86Instruction* emitSetDirectionFlag(bool backward);
+    static X86Instruction* emitMoveRipImmToSegmentReg(uint64_t imm, uint32_t idx);
     static X86Instruction* emitMoveImmToSegmentReg(uint64_t imm, uint32_t idx);
     static X86Instruction* emitSTOSByte(bool repeat);
     static X86Instruction* emitSTOSWord(bool repeat);

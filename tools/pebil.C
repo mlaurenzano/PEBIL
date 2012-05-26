@@ -86,6 +86,7 @@ void printUsage(const char* msg = NULL){
     fprintf(stderr,"\t\t[--trk <tracking/file>] : path to a tracking file\n");
     fprintf(stderr,"\t\t[--dfp <pattern/file>] : path to pattern file\n");
     fprintf(stderr,"\t\t[--dmp <off|on|nosim>] : DEPRECATED, kept for compatibility\n");
+    fprintf(stderr,"\t\t[--threaded] : implement thread safety features and keep statistics per thread (DEV ONLY)\n");
     fprintf(stderr,"\n");
     exit(1);
 }
@@ -184,6 +185,7 @@ int main(int argc,char* argv[]){
     DEFINE_FLAG(lpi);
     DEFINE_FLAG(dtl);
     DEFINE_FLAG(doi);
+    DEFINE_FLAG(threaded);
 
 #define DEFINE_ARG(__name) char* __name ## _arg = NULL
     DEFINE_ARG(typ); // char* typ_arg = NULL;
@@ -206,7 +208,7 @@ int main(int argc,char* argv[]){
     static struct option pebil_options[] = {
         /* These options set a flag. */
         FLAG_OPTION(help, 'h'), FLAG_OPTION(allowstatic, 'w'), FLAG_OPTION(silent, 's'), FLAG_OPTION(dry, 'r'),
-        FLAG_OPTION(version, 'V'), FLAG_OPTION(lpi, 'p'), FLAG_OPTION(dtl, 'd'), FLAG_OPTION(doi, 'i'),
+        FLAG_OPTION(version, 'V'), FLAG_OPTION(lpi, 'p'), FLAG_OPTION(dtl, 'd'), FLAG_OPTION(doi, 'i'), FLAG_OPTION(threaded, 'P'),
 
         /* These options take an argument
            We distinguish them by their indices. */
@@ -258,37 +260,6 @@ int main(int argc,char* argv[]){
             printUsage("unexpected argument");
         }
     }
-
-    // keep this around for a little while in case we need to debug new option-handling code
-    /*
-#define VERIFY_FLAG(__name) if (__name ## _flag) { PRINT_INFOR("--%s is set", #__name); } else { PRINT_INFOR("--%s is not set", #__name); }
-    VERIFY_FLAG(help);
-    VERIFY_FLAG(allowstatic);
-    VERIFY_FLAG(silent);
-    VERIFY_FLAG(dry);
-    VERIFY_FLAG(version);
-    VERIFY_FLAG(lpi);
-    VERIFY_FLAG(dtl);
-    VERIFY_FLAG(doi);
-
-#define VERIFY_ARG(__name) if (__name ## _arg){ PRINT_INFOR("--%s is %s", #__name , __name ## _arg); } else { PRINT_INFOR("--%s is null", #__name); }
-    VERIFY_ARG(typ);
-    VERIFY_ARG(tool);
-    VERIFY_ARG(inp);
-    VERIFY_ARG(trk);
-    VERIFY_ARG(lnc);
-    VERIFY_ARG(inf);
-    VERIFY_ARG(app);
-    VERIFY_ARG(lib);
-    VERIFY_ARG(ext);
-    VERIFY_ARG(fbl);
-    VERIFY_ARG(dmp);
-    VERIFY_ARG(phs);
-    VERIFY_ARG(dfp);
-    */
-
-    /* now we can do stuff with options/args */
-
 
     // --version: print version number and exit
     if (version_flag){
@@ -522,6 +493,10 @@ int main(int argc,char* argv[]){
             
             if (allowstatic_flag){
                 instTool->setAllowStatic();
+            }
+
+            if (threaded_flag){
+                instTool->setThreadedMode();
             }
             
             instTool->init(ext);

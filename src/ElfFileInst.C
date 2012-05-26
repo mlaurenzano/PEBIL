@@ -1757,6 +1757,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
 
     flags = InstrumentorFlag_none;
     allowStatic = false;
+    threadedMode = false;
 
     libraryList = NULL;
 }

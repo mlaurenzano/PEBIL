@@ -92,6 +92,11 @@ void BasicBlockCounter::instrument()
         lineInfoFinder = getLineInfoFinder();
     }
 
+    if (isThreadedMode()){
+        PRINT_INFOR("Yes threaded mode");
+    } else {
+        PRINT_INFOR("Not threaded mode");
+    }
 
 #ifdef STATS_PER_INSTRUCTION
     PRINT_WARN(10, "Performing instrumentation to gather PER-INSTRUCTION statistics");
@@ -131,14 +136,13 @@ void BasicBlockCounter::instrument()
 
     entryFunc->addArgument(counterArrayEntries);
     entryFunc->addArgument(counterArray);
-    entryFunc->addArgument(hashCodeArray);
 
     exitFunc->addArgument(lineArray);
     exitFunc->addArgument(fileNameArray);
     exitFunc->addArgument(funcNameArray);
     exitFunc->addArgument(appName);
     exitFunc->addArgument(instExt);
-
+    exitFunc->addArgument(hashCodeArray);
 
     p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
     p->setPriority(InstPriority_userinit);
@@ -279,13 +283,13 @@ void BasicBlockCounter::instrument()
 
     loopEntry->addArgument(loopCounterEntries);
     loopEntry->addArgument(loopCounters);
-    loopEntry->addArgument(loopHashCodeArray);
 
     loopExit->addArgument(loopLineArray);
     loopExit->addArgument(loopFileNameArray);
     loopExit->addArgument(loopFuncNameArray);
     loopExit->addArgument(appName);
     loopExit->addArgument(loopExt);
+    loopExit->addArgument(loopHashCodeArray);
 
     uint32_t numCalls = 0;
     for (uint32_t i = 0; i < loopsFound.size(); i++){

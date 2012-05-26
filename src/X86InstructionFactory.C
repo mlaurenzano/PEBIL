@@ -1260,7 +1260,7 @@ X86Instruction* X86InstructionFactory::emitMoveString(bool repeat){
     return emitInstructionBase(len,buff);
 }
 
-X86Instruction* X86InstructionFactory::emitMoveImmToSegmentReg(uint64_t imm, uint32_t idx){
+X86Instruction* X86InstructionFactory::emitMoveRipImmToSegmentReg(uint64_t imm, uint32_t idx){
     ASSERT(idx < X86_SEGMENT_REGS && "Illegal segment register index given");
     ASSERT(idx != X86_SEGREG_CS && "Illegal segment register index given");
 
@@ -1272,6 +1272,23 @@ X86Instruction* X86InstructionFactory::emitMoveImmToSegmentReg(uint64_t imm, uin
     uint32_t imm32 = (uint32_t)imm;
     ASSERT(imm32 == imm && "Cannot use more than 32 bits for immediate");
     memcpy(buff+2,&imm32,sizeof(uint32_t));
+
+    return emitInstructionBase(len,buff);
+}
+
+X86Instruction* X86InstructionFactory::emitMoveImmToSegmentReg(uint64_t imm, uint32_t idx){
+    ASSERT(idx < X86_SEGMENT_REGS && "Illegal segment register index given");
+    ASSERT(idx != X86_SEGREG_CS && "Illegal segment register index given");
+
+    uint32_t len = 7;
+    char* buff = new char[len];
+    buff[0] = 0x8e;
+    buff[1] = 0x04 + (char)(8*idx);
+    buff[2] = 0x25;
+
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == imm && "Cannot use more than 32 bits for immediate");
+    memcpy(buff+3,&imm32,sizeof(uint32_t));
 
     return emitInstructionBase(len,buff);
 }

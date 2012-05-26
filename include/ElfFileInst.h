@@ -89,6 +89,7 @@ private:
     Vector<BasicBlock*> interposedBlocks;
 
     bool allowStatic;
+    bool threadedMode;
 
     ProgramHeader* instSegment;
 
@@ -206,6 +207,8 @@ public:
     bool hasLineInformation() { return (lineInfoFinder != NULL); }
     void setPathToInstLib(char* libPath);
     void setAllowStatic() { allowStatic = true; }
+    void setThreadedMode() { threadedMode = true; }
+    bool isThreadedMode() { return threadedMode; }
 
     char* getApplicationName() { return elfFile->getAppName(); }
     uint32_t getApplicationSize() { return elfFile->getFileSize(); }

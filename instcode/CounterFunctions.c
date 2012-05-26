@@ -33,27 +33,23 @@
 
 uint64_t* blockCounters = NULL;
 int32_t numberOfBasicBlocks = 0;
-int64_t* hashValues = NULL;
 
 uint64_t* loopCounters = NULL;
 int32_t numberOfLoops = 0;
-int64_t* loopHashValues = NULL;
 
-int32_t initcounter(int32_t* numBlocks, uint64_t* blockCounts, int64_t* hashVals){
+int32_t initcounter(int32_t* numBlocks, uint64_t* blockCounts){
     numberOfBasicBlocks = *numBlocks;
     blockCounters = blockCounts;
-    hashValues = hashVals;
 }
 
-int32_t initloop(int32_t* numLoops, uint64_t* loopCounts, int64_t* hashVals){
+int32_t initloop(int32_t* numLoops, uint64_t* loopCounts){
     numberOfLoops = *numLoops;
     loopCounters = loopCounts;
-    loopHashValues = hashVals;
 
     ptimer(&pebiltimers[0]);
 }
 
-int32_t blockcounter(int32_t* lineNumbers, char** fileNames, char** functionNames, char* appName, char* instExt){
+int32_t blockcounter(int32_t* lineNumbers, char** fileNames, char** functionNames, char* appName, char* instExt, int64_t* hashValues){
     int32_t i;
 
     ptimer(&pebiltimers[1]);
@@ -105,7 +101,7 @@ int32_t blockcounter(int32_t* lineNumbers, char** fileNames, char** functionName
     return i;
 }
 
-int32_t loopcounter(int32_t* loopLineNumbers, char** loopFileNames, char** loopFunctionNames, char* appName, char* instExt){
+int32_t loopcounter(int32_t* loopLineNumbers, char** loopFileNames, char** loopFunctionNames, char* appName, char* instExt, int64_t* loopHashValues){
     int32_t i;
 
 #ifdef MPI_INIT_REQUIRED
