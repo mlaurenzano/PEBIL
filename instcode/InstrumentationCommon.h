@@ -67,6 +67,14 @@ typedef struct
     __give_pebil_name(__fname)
 #endif // PRELOAD_WRAPPERS
 
+typedef struct
+{
+    void* (*start_function)(void*);
+    void* function_args;
+} tool_thread_args;
+extern int __give_pebil_name(pthread_create)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
+extern int pthread_create_pebil_nothread(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
+extern void tool_thread_init(void* threadargs);
 
 #ifdef HAVE_MPI
 #define __taskmarker "-[t%d]- "

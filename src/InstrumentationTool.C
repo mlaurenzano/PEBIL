@@ -36,8 +36,8 @@
 #define MPI_INIT_LIST_FBIND      "mpi_init_:MPI_INIT"
 
 #define PTHREAD_CREATE           "pthread_create"
-#define PTHREAD_CREATE_INIT      "tool_init_thread"
-#define PTHREAD_ID_ARG_INDEX     0
+#define PTHREAD_CREATE_CBIND     "pthread_create_pebil_wrapper"
+#define PTHREAD_CREATE_NONTHREAD "pthread_create_pebil_nothread"
 
 // need to pass an image ID to this. probably should allocate space for a counter in the executable
 // that increments on every image load
@@ -112,8 +112,11 @@ InstrumentationTool::InstrumentationTool(ElfFile* elf)
 
 void InstrumentationTool::declare(){
     if (isThreadedMode()){
-        threadInit = declareFunction(PTHREAD_CREATE_INIT);
-        ASSERT(threadInit && "Cannot find pthread_create init function, are you sure it was declared?");
+        threadInit = declareFunction(PTHREAD_CREATE_CBIND);
+        ASSERT(threadInit && "Cannot find pthread_create wrapper function, are you sure it was declared?");
+    } else {
+        threadInit = declareFunction(PTHREAD_CREATE_NONTHREAD);
+        ASSERT(threadInit && "Cannot find pthread_create wrapper function, are you sure it was declared?");
     }
 
 #ifdef HAVE_MPI
@@ -125,30 +128,20 @@ void InstrumentationTool::declare(){
 }
 
 void InstrumentationTool::instrument(){
-    if (isThreadedMode()){
-        ASSERT(is64Bit());
+    Vector<X86Instruction*>* pthreadCreateCalls = findAllCalls(PTHREAD_CREATE);
 
-        Vector<X86Instruction*>* pthreadCreateCalls = findAllCalls(PTHREAD_CREATE);
+    for (uint32_t i = 0; i < (*pthreadCreateCalls).size(); i++){
 
-        uint64_t pthreadIdAddr = reserveDataOffset(sizeof(uint64_t));
-        threadInit->addArgument(pthreadIdAddr);
-
-        for (uint32_t i = 0; i < (*pthreadCreateCalls).size(); i++){
-            ASSERT((*pthreadCreateCalls)[i]->isFunctionCall());
-            ASSERT((*pthreadCreateCalls)[i]->getSizeInBytes() == Size__uncond_jump);
+        ASSERT((*pthreadCreateCalls)[i]->isFunctionCall());
+        ASSERT((*pthreadCreateCalls)[i]->getSizeInBytes() == Size__uncond_jump);
+        if (isThreadedMode()){
             PRINT_INFOR("Instrumenting pthread_create @ %#llx", (*pthreadCreateCalls)[i]->getBaseAddress());
-
-            // just before the call, save the location of the pthread_t* passed into pthread_create as the 1st arg
-            InstrumentationSnippet* snip = new InstrumentationSnippet();
-            addInstrumentationSnippet(snip);
-            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToMem(map64BitArgToReg(PTHREAD_ID_ARG_INDEX), getInstDataAddress() + pthreadIdAddr));
-            InstrumentationPoint* pt = addInstrumentationPoint((*pthreadCreateCalls)[i], snip, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
-
-            // just after the call, insert a call to our thread init function
-            pt = addInstrumentationPoint((*pthreadCreateCalls)[i], threadInit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_after);
+        } else {
+            PRINT_WARN(20, "--threaded not given, but pthread_create is found @ %#llx. You will get a runtime warning if pthread_create is actually called.", (*pthreadCreateCalls)[i]->getBaseAddress());
         }
-        delete pthreadCreateCalls;
+        InstrumentationPoint* pt = addInstrumentationPoint((*pthreadCreateCalls)[i], threadInit, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
     }
+    delete pthreadCreateCalls;
 
 #ifdef HAVE_MPI
     int initFound = 0;

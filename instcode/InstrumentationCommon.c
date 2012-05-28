@@ -55,6 +55,22 @@ void ptimer(double *tmr) {
     *tmr=(double)timestr.tv_sec + 1.0E-06*(double)timestr.tv_usec;
 }
 
+// called when pthread_create is called for programs instrumented without the --threaded flag
+int pthread_create_pebil_nothread(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg){
+    PRINT_INSTR(stderr, "Application was not instrumented by PEBIL without thread support but pthread_create has been called.");
+    PRINT_INSTR(stderr, "Results should not be considered reliable.");
+    fflush(stderr);
+    return pthread_create(thread, attr, start_routine, arg);
+}
+
+// called when pthread_create is called for programs instrumented with the --threaded flag
+int __wrapper_name(pthread_create)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg){
+    tool_thread_args* x = (struct tool_thread_args*)malloc(sizeof(tool_thread_args));
+    x->start_function = start_routine;
+    x->function_args = arg;
+    int ret = pthread_create(thread, attr, tool_thread_init, x);
+    return ret;
+}
 
 #ifdef HAVE_MPI
 // C init wrapper
