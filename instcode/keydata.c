@@ -5,12 +5,10 @@
 #include <InstrumentationCommon.h>
 
 // public function declarations
-extern "C" {
-    void pebil_set_data(pthread_t thread_id, uint64_t image_id, void * data);
-    void * pebil_get_data(pthread_t thread_id, uint64_t image_id);
-    void * tool_init_thread(void *);
-    void tool_init_image(uint64_t image_id);
-}
+void pebil_set_data(pthread_t thread_id, uint64_t image_id, void * data);
+void * pebil_get_data(pthread_t thread_id, uint64_t image_id);
+void tool_image_init(uint64_t * image_id);
+
 
 
 //
