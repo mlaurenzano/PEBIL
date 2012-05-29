@@ -900,9 +900,11 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
                 localBlock = 0;
             }
             while (!exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->inRange((*instrumentationPoints)[k]->getInstBaseAddress())){
-                //PRINT_INFOR("local block %d -- %#llx", localBlock, exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->getBaseAddress());
+                //exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->print();
+                //PRINT_INFOR("local block %d -- %#llx ~~ %#llx", localBlock, exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->getBaseAddress(), (*instrumentationPoints)[k]->getInstBaseAddress());
                 localBlock++;
             }
+            //PRINT_INFOR("Using currentFunc %d localBlock %d", currentFunc, localBlock);
             (*((*instPointsPerBlock)[currentFunc]))[localBlock]->append((*instrumentationPoints)[k]);
             if ((*instrumentationPoints)[k]->getInstLocation() != InstLocation_replace){
                 needsRelocate[currentFunc] = true;
@@ -1104,6 +1106,19 @@ void ElfFileInst::functionSelect(){
     exposedBasicBlocks.sort(compareBaseAddress);
 
     PRINT_INFOR("Total hidden from instrumentation (bytes):\t%d/%d (%.2f%)", missingBytes, numberOfBytes, ((float)((float)missingBytes*100)/((float)numberOfBytes)));
+
+    bool entryIsExposed = false;
+    for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+        if (getExposedFunction(i)->inRange(programEntryBlock->getBaseAddress())){
+            entryIsExposed = true;
+            break;
+        }
+    }
+    if (!entryIsExposed){
+        PRINT_ERROR("The entry block is in function %s, which is hidden to PEBIL. Either something in this function counldn't be understood or it appears in the list passed to --fbl", 
+                    programEntryBlock->getLeader()->getContainer()->getName());
+    }
+    ASSERT(entryIsExposed);
 }
 
 void ElfFileInst::computeInstrumentationOffsets(){
@@ -1475,7 +1490,7 @@ void ElfFileInst::extendTextSection(uint64_t totalSize, uint64_t headerSize){
         ProgramHeader* subHeader = elfFile->getProgramHeader(i);
         if (textHeader->inRange(subHeader->GET(p_vaddr)) && i != elfFile->getTextSegmentIdx()){
             if (subHeader->GET(p_vaddr) < totalSize){
-                PRINT_WARN(5,"Unable to extend text section by 0x%llx bytes: the maximum size of a text extension for this binary is 0x%llx bytes", totalSize, subHeader->GET(p_vaddr));
+                PRINT_WARN(20,"Unable to extend text section by 0x%llx bytes: the maximum size of a text extension for this binary is 0x%llx bytes", totalSize, subHeader->GET(p_vaddr));
             }
             ASSERT(subHeader->GET(p_vaddr) >= totalSize && "The text extension size is too large");
             subHeader->SET(p_vaddr, subHeader->GET(p_vaddr) - totalSize);
