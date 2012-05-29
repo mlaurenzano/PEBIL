@@ -163,16 +163,18 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
     bzero(&blockTouched, sizeof(bool) * fg->getFunction()->getNumberOfBasicBlocks());
 
     // Initialize worklist with the path from this instruction
-    // FIXME why only add paths within current loop?
+    // Only take paths inside the loop. Since the definitions are in a loop, uses in the loop will be most relevant.
     if (k == bb->getNumberOfInstructions() - 1){
         ASSERT(ins->controlFallsThrough());
         if (bb->getNumberOfTargets() > 0){
             ASSERT(bb->getNumberOfTargets() == 1);
             if (flowsInDefUseScope(bb->getTargetBlock(0), loop)){
+                // Path flows to the first instruction of the next block
                 paths.insert(new path(bb->getTargetBlock(0)->getLeader(), idefs), 1);
             } 
         }
     } else {
+        // path flows to the next instruction in this block
         paths.insert(new path(bb->getInstruction(k+1), idefs), 1);
     }
 
@@ -452,12 +454,14 @@ uint32_t FlowGraph::getLoopDepth(uint32_t idx){
 
 void FlowGraph::computeLiveness(){
     DEBUG_LIVE_REGS(double t1 = timer();)
-    Vector<BitSet<uint32_t>*> uses;
-    Vector<BitSet<uint32_t>*> defs;
-    Vector<BitSet<uint32_t>*> ins;
-    Vector<BitSet<uint32_t>*> outs;
-    Vector<BitSet<uint32_t>*> ins_prime;
-    Vector<BitSet<uint32_t>*> outs_prime;
+
+    Vector<RegisterSet*> uses;
+    Vector<RegisterSet*> defs;
+    Vector<RegisterSet*> ins;
+    Vector<RegisterSet*> outs;
+    Vector<RegisterSet*> ins_prime;
+    Vector<RegisterSet*> outs_prime;
+
     Vector<std::set<uint32_t>*> succs;
     Vector<X86Instruction*> allInstructions;
     uint32_t maxElts = 32;
@@ -478,12 +482,12 @@ void FlowGraph::computeLiveness(){
         BasicBlock* bb = getBasicBlock(i);
         for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
             X86Instruction* instruction = bb->getInstruction(j);
-            uses.append(instruction->getUseRegs());
-            defs.append(instruction->getDefRegs());
-            ins.append(new BitSet<uint32_t>(maxElts));
-            outs.append(new BitSet<uint32_t>(maxElts));
-            ins_prime.append(new BitSet<uint32_t>(maxElts));
-            outs_prime.append(new BitSet<uint32_t>(maxElts));
+            uses.append(instruction->getRegistersUsed());
+            defs.append(instruction->getRegistersDefined());
+            ins.append(new RegisterSet());
+            outs.append(new RegisterSet());
+            ins_prime.append(new RegisterSet());
+            outs_prime.append(new RegisterSet());
 
             allInstructions.append(instruction);
 
@@ -515,8 +519,10 @@ void FlowGraph::computeLiveness(){
                             PRINT_OUT("%d ", (*it));
                         }
                         PRINT_OUT("\n");
-                        PRINT_REG_LIST(uses, maxElts, i);
-                        PRINT_REG_LIST(defs, maxElts, i);
+                        uses->print("uses");
+                        defs->print("defs");
+                        //PRINT_REG_LIST(uses, maxElts, i);
+                        //PRINT_REG_LIST(defs, maxElts, i);
                     }
                     )
 
@@ -531,10 +537,18 @@ void FlowGraph::computeLiveness(){
             *(outs_prime[i]) = *(outs[i]);
             
             PRINT_DEBUG_LIVE_REGS("before in[n] = use[n] U (out[n] - def[n])");
-            PRINT_REG_LIST(ins, maxElts, i);
-            PRINT_REG_LIST(uses, maxElts, i);
-            PRINT_REG_LIST(defs, maxElts, i);
-            PRINT_REG_LIST(outs, maxElts, i);
+            DEBUG_LIVE_REGS(
+                {
+                    ins->print("ins");
+                    uses->print("uses");
+                    defs->print("defs");
+                    outs->print("outs");
+                }
+            )
+            //PRINT_REG_LIST(ins, maxElts, i);
+            //PRINT_REG_LIST(uses, maxElts, i);
+            //PRINT_REG_LIST(defs, maxElts, i);
+            //PRINT_REG_LIST(outs, maxElts, i);
             
             // out[n] = U(s in succ[n]) in[s]
             //            (outs[i])->clear();
@@ -546,11 +560,12 @@ void FlowGraph::computeLiveness(){
             PRINT_DEBUG_LIVE_REGS("after out[n] = U(s in succ[n]) in[s]");
             PRINT_REG_LIST(outs, maxElts, i);
             // in[n] = use[n] U (out[n] - def[n])
-            BitSet<uint32_t>* tmpbt = new BitSet<uint32_t>(*(outs[i]));
-            *(tmpbt) -= *(defs[i]);
-            *(ins[i]) |= *(uses[i]);
-            *(ins[i]) |= *(tmpbt);
-            delete tmpbt;
+            //BitSet<uint32_t>* tmpbt = new BitSet<uint32_t>(*(outs[i]));
+            //*(tmpbt) -= *(defs[i]);
+            //*(ins[i]) |= *(uses[i]);
+            //*(ins[i]) |= *(tmpbt);
+            //delete tmpbt;
+            *(ins[i]) = *(uses[i]) | (*(outs[i]) - *(defs[i]));
             
             PRINT_DEBUG_LIVE_REGS("after in[n] = use[n] U (out[n] - def[n])");
             PRINT_REG_LIST(ins, maxElts, i);

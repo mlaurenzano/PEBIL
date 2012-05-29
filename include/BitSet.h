@@ -57,7 +57,7 @@ public:
 
     ~BitSet() { delete[] bits; }
 
-    BitSet& operator-=(BitSet& src){
+    BitSet& operator-=(const BitSet& src){
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are SUBed");
 
         uint32_t count = internalCount();
@@ -76,7 +76,7 @@ public:
         return *this;
     }
 
-    bool isSubsetOf(BitSet& src){
+    bool isSubsetOf(const BitSet& src){
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are subsetted");
         uint32_t count = internalCount();
         for (uint32_t i = 0; i < count; i++){
@@ -87,7 +87,7 @@ public:
         return true;
     }
 
-    BitSet& operator&=(BitSet& src){
+    BitSet& operator&=(const BitSet& src){
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are ANDed");
 
         uint32_t count = internalCount();
@@ -103,7 +103,7 @@ public:
         return *this;
     }
 
-    bool operator==(BitSet& src){
+    bool operator==(const BitSet& src){
         ASSERT(maximum == src.maximum && "FATAL: Two sets with different max numbers are EQed");
         
         uint32_t count = internalCount();
@@ -115,7 +115,7 @@ public:
         return true;
     }
 
-    BitSet& operator|=(BitSet& src){
+    BitSet& operator|=(const BitSet& src){
 
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are ORed");
 
@@ -132,7 +132,7 @@ public:
         return *this;
     }
 
-    BitSet& operator=(BitSet& src){
+    BitSet& operator=(const BitSet& src){
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are CPed");
 
         uint32_t count = internalCount();
@@ -198,7 +198,7 @@ public:
         bits[index] &= ~mask;
     }
 
-    inline bool contains(uint32_t n){
+    inline bool contains(uint32_t n) const {
         uint32_t index = n >> DivideLog;
         uint32_t mask = 1 << (n & ModMask);
         if(n >= maximum)

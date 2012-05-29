@@ -563,10 +563,10 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="call">
-    <opcode mode="def64" cast="1"> aso oso rexw rexr rexx rexb ; FF /2 ; Ev ; ; </opcode>
-    <opcode cast="1"> aso oso rexw rexr rexx rexb ; FF /3 ; Ep ; ; </opcode>
-    <opcode mode="def64"> oso ; e8 ; Jz ; ; </opcode>
-    <opcode mode="inv64"> oso ; 9a ; Ap ; ; </opcode>
+    <opcode mode="def64" cast="1"> aso oso rexw rexr rexx rexb ; FF /2 ; Ev ; ; u:ax u:sp u:di u:si u:dx u:cx u:8 u:9 u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7 d:ax d:dx d:mm0 d:st0 </opcode>
+    <opcode cast="1"> aso oso rexw rexr rexx rexb ; FF /3 ; Ep ; ; u:ax u:sp u:di u:si u:dx u:cx u:8 u:9 u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7 d:ax d:dx d:mm0 d:st0 </opcode>
+    <opcode mode="def64"> oso ; e8 ; Jz ; ; u:ax u:sp u:di u:si u:dx u:cx u:8 u:9 u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7 d:ax d:dx d:mm0 d:st0 </opcode>
+    <opcode mode="inv64"> oso ; 9a ; Ap ; ; u:ax u:sp u:di u:si u:dx u:cx u:8 u:9 u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7 d:ax d:dx d:mm0 d:st0 </opcode>
   </instruction>
 
   <instruction mnemonic="cbw">
@@ -3360,13 +3360,13 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="ret">
-    <opcode> ; c2 ; Iw ; ; </opcode>
-    <opcode> ; c3 ; ; ; </opcode> 
+    <opcode> ; c2 ; Iw ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15</opcode>
+    <opcode> ; c3 ; ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 </opcode> 
   </instruction>
 
   <instruction mnemonic="retf">
-    <opcode> ; ca ; Iw ; ; </opcode>
-    <opcode> ; cb ; ; ; </opcode>
+    <opcode> ; ca ; Iw ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 </opcode>
+    <opcode> ; cb ; ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 </opcode>
   </instruction>
 
   <instruction mnemonic="rsm">

@@ -178,6 +178,25 @@ const static char* alu_name_map[X86_ALU_REGS] = { "ax", "cx", "dx", "bx", "sp", 
                                                   "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
                                                   "st0", "st1", "st2", "st3", "st4", "st5", "st6", "st7" };
 
+class RegisterSet {
+public:
+    RegisterSet();
+    RegisterSet& operator=(const RegisterSet& rhs);
+    RegisterSet& operator|=(const RegisterSet& rhs);
+    const RegisterSet operator|(const RegisterSet& rhs);
+    RegisterSet& operator-=(const RegisterSet& rhs);
+    const RegisterSet operator-(const RegisterSet& rhs);
+    bool operator==(const RegisterSet& rhs);
+    void addRegister(uint32_t regNum);
+    void addFlag(uint32_t flagNum);
+    bool containsFlag(uint32_t flagNum);
+    bool containsRegister(uint32_t regNum);
+    void print(const char * const name);
+
+private:
+    BitSet<uint32_t> regs;
+};
+
 #define X86_SEGREG_ES 0
 #define X86_SEGREG_CS 1
 #define X86_SEGREG_SS 2
@@ -384,8 +403,8 @@ class X86Instruction : public Base {
 private:
     struct ud_compact entry;
 
-    BitSet<uint32_t>* liveIns;
-    BitSet<uint32_t>* liveOuts;
+    RegisterSet* liveIns;
+    RegisterSet* liveOuts;
     uint32_t defUseDist;
 
     uint32_t* flags_usedef;
@@ -427,16 +446,22 @@ public:
 
     void setFlags();
 
-    BitSet<uint32_t>* getUseRegs();
-    BitSet<uint32_t>* getDefRegs();
+    BitSet<uint32_t>* getFlagsUsed();
+    BitSet<uint32_t>* getFlagsDefined();
+    RegisterSet * getRegistersUsed();
+    RegisterSet * getRegistersDefined();
+
     bool allFlagsDeadIn();
     bool allFlagsDeadOut();
-    bool isGPRegDeadIn(uint32_t idx);
+    bool isRegDeadIn(uint32_t regNum);
+    bool isRegDeadOut(uint32_t regNum);
+    bool isFlagDeadIn(uint32_t flagNum);
+    bool isFlagDeadOut(uint32_t flagNum);
 
     bool usesFlag(uint32_t flg);
     bool defsFlag(uint32_t flg);
-    bool usesAluReg(uint32_t alu);
-    bool defsAluReg(uint32_t alu);
+    bool implicitlyUsesReg(uint32_t alu);
+    bool implicitlyDefinesReg(uint32_t alu);
 
     struct DefLocation {
         enum ud_type type;
@@ -468,8 +493,8 @@ public:
 
     HashCode* generateHashCode(BasicBlock* bb);
 
-    void setLiveIns(BitSet<uint32_t>* live);
-    void setLiveOuts(BitSet<uint32_t>* live);
+    void setLiveIns(RegisterSet* live);
+    void setLiveOuts(RegisterSet* live);
 
     void setBaseAddress(uint64_t addr) { baseAddress = addr; cacheBaseAddress = addr; }
     uint32_t getSizeInBytes() { return sizeInBytes; }

@@ -32,6 +32,69 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
+RegisterSet::RegisterSet()
+    : regs(X86_FLAG_BITS + X86_ALU_REGS) {
+
+}
+
+RegisterSet& RegisterSet::operator=(const RegisterSet& rhs){
+    regs = rhs.regs;
+    return *this;
+}
+
+RegisterSet& RegisterSet::operator|=(const RegisterSet& rhs){
+    regs |= rhs.regs;
+    return *this;
+}
+
+const RegisterSet RegisterSet::operator|(const RegisterSet& rhs){
+    return RegisterSet(*this) |= rhs;
+}
+
+RegisterSet& RegisterSet::operator-=(const RegisterSet& rhs){
+    regs -= rhs.regs;
+    return *this;
+}
+
+const RegisterSet RegisterSet::operator-(const RegisterSet& rhs){
+    return RegisterSet(*this) -= rhs;
+}
+
+bool RegisterSet::operator==(const RegisterSet& rhs){
+    return regs == rhs.regs;
+}
+
+bool RegisterSet::containsFlag(uint32_t flagNum){
+    return regs.contains(flagNum);
+}
+
+bool RegisterSet::containsRegister(uint32_t regNum){
+    return regs.contains(X86_FLAG_BITS + regNum);
+}
+
+void RegisterSet::addRegister(uint32_t regNum){
+    regs.insert(X86_FLAG_BITS + regNum);
+}
+
+void RegisterSet::addFlag(uint32_t flagNum){
+    regs.insert(flagNum);
+}
+
+void RegisterSet::print(const char * const name){
+    PRINT_OUT("RegisterSet %s:", name);
+    for(uint32_t i = 0; i < X86_FLAG_BITS; ++i){
+        if(containsFlag(i)){
+            PRINT_OUT("flag:%d ", i);
+        }
+    }
+    for(uint32_t i = 0; i < X86_ALU_REGS; ++i){
+        if(containsRegister(i)){
+            PRINT_OUT("reg:%d ", i);
+        }
+    }
+    PRINT_OUT("\n");
+}
+
 uint32_t X86Instruction::getDefUseDist(){
     if (container->isFunction() && !((Function*)container)->doneDefUse()){
         ((Function*)container)->computeDefUse();
@@ -41,7 +104,6 @@ uint32_t X86Instruction::getDefUseDist(){
 void X86Instruction::setDefUseDist(uint32_t dudist){ 
     defUseDist = dudist;
 }
-
 
 
 HashCode* X86Instruction::generateHashCode(BasicBlock* bb){
@@ -172,27 +234,14 @@ uint32_t X86Instruction::getNumberOfMemoryBytes(){
     return 0;
 }
 
-inline bool X86Instruction::usesFlag(uint32_t flg) { 
-    return (GET(flags_use) & (1 << flg));
-}
-
-inline bool X86Instruction::defsFlag(uint32_t flg) { 
-    return (GET(flags_def) & (1 << flg));
-}
-
-inline bool X86Instruction::usesAluReg(uint32_t alu){
-    return (GET(impreg_use) & (1 << alu));
-}
-
-inline bool X86Instruction::defsAluReg(uint32_t alu){
-    return (GET(impreg_def) & (1 << alu));
-}
-
-void X86Instruction::setLiveIns(BitSet<uint32_t>* live){
+// Liveness methods
+void X86Instruction::setLiveIns(RegisterSet* live){
     if (liveIns){
         print();
     }
     ASSERT(!liveIns);
+    liveIns = new RegisterSet(*live);
+    /*
     liveIns = new BitSet<uint32_t>(*(live));
 
     DEBUG_LIVE_REGS(
@@ -205,10 +254,14 @@ void X86Instruction::setLiveIns(BitSet<uint32_t>* live){
                     }    
                     PRINT_OUT("\n");    
                     )
+   */
 }
 
-void X86Instruction::setLiveOuts(BitSet<uint32_t>* live){
+void X86Instruction::setLiveOuts(RegisterSet* live){
     ASSERT(!liveOuts);
+
+    liveOuts = new RegisterSet(*live);
+    /*
     liveOuts = new BitSet<uint32_t>(*(live));
 
     DEBUG_LIVE_REGS(
@@ -221,12 +274,35 @@ void X86Instruction::setLiveOuts(BitSet<uint32_t>* live){
                     }    
                     PRINT_OUT("\n");
                     )
+    */
 }
 
-bool X86Instruction::isGPRegDeadIn(uint32_t idx){
-    ASSERT(idx < X86_64BIT_GPRS);
-    __FUNCTION_NOT_IMPLEMENTED;
-    return false;
+bool X86Instruction::isRegDeadIn(uint32_t regNum){
+    if( !liveIns ) { // FIXME better handling for this?
+        return false;
+    }
+    return !this->liveIns->containsRegister(regNum);
+}
+
+bool X86Instruction::isRegDeadOut(uint32_t regNum){
+    if( !liveOuts ) { // FIXME better handling for this?
+        return false;
+    }
+    return !this->liveOuts->containsRegister(regNum);
+}
+
+bool X86Instruction::isFlagDeadIn(uint32_t flagNum){
+    if(!liveIns ) {
+        return false; // FIXME
+    }
+    return !this->liveIns->containsFlag(flagNum);
+}
+
+bool X86Instruction::isFlagDeadOut(uint32_t flagNum){
+    if(!liveOuts){
+        return false; // FIXME
+    }
+    return !this->liveOuts->containsFlag(flagNum);
 }
 
 bool X86Instruction::allFlagsDeadIn(){
@@ -234,7 +310,7 @@ bool X86Instruction::allFlagsDeadIn(){
         return false;
     }
     for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
-        if (liveIns->contains(i)){
+        if (liveIns->containsFlag(i)){
             return false;
         }
     }
@@ -246,14 +322,32 @@ bool X86Instruction::allFlagsDeadOut(){
         return false;
     }
     for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
-        if (liveOuts->contains(i)){
+        if (liveOuts->containsFlag(i)){
             return false;
         }
     }
     return true;
 }
 
-BitSet<uint32_t>* X86Instruction::getUseRegs(){
+// Def-Use methods
+inline bool X86Instruction::usesFlag(uint32_t flg) { 
+    return (GET(flags_use) & (1 << flg));
+}
+
+inline bool X86Instruction::defsFlag(uint32_t flg) { 
+    return (GET(flags_def) & (1 << flg));
+}
+
+inline bool X86Instruction::implicitlyUsesReg(uint32_t alu){
+    return (GET(impreg_use) & (1 << alu));
+}
+
+inline bool X86Instruction::implicitlyDefinesReg(uint32_t alu){
+    return (GET(impreg_def) & (1 << alu));
+}
+
+// Get flag registers
+BitSet<uint32_t>* X86Instruction::getFlagsUsed(){
     BitSet<uint32_t>* regs = new BitSet<uint32_t>(X86_FLAG_BITS);
     for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
         if (usesFlag(i)){
@@ -263,7 +357,7 @@ BitSet<uint32_t>* X86Instruction::getUseRegs(){
     return regs;
 }
 
-BitSet<uint32_t>* X86Instruction::getDefRegs(){
+BitSet<uint32_t>* X86Instruction::getFlagsDefined(){
     BitSet<uint32_t>* regs = new BitSet<uint32_t>(X86_FLAG_BITS);
     for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
         if (defsFlag(i)){
@@ -272,6 +366,171 @@ BitSet<uint32_t>* X86Instruction::getDefRegs(){
     }
     return regs;
 }
+
+RegisterSet* X86Instruction::getRegistersDefined(){
+    RegisterSet * retval = new RegisterSet();
+
+    // flags
+    for(uint32_t i = 0; i < X86_FLAG_BITS; ++i){
+        if(defsFlag(i)){
+            retval->addFlag(i);
+        }
+    }
+
+    // Implicit defs
+    for(uint32_t i = 0; i < X86_ALU_REGS; ++i){
+        if(implicitlyDefinesReg(i)){
+            retval->addRegister(i);
+        }
+    }
+
+    // operand defs
+    OperandX86* def = getDestOperand();
+    if(def && def->getType() == UD_OP_REG ){
+        retval->addRegister(def->getBaseRegister());
+    }
+    
+    return retval;
+}
+
+//TODO
+RegisterSet* X86Instruction::getRegistersUsed(){
+    RegisterSet * retval = new RegisterSet();
+
+    // flags
+    for(uint32_t i = 0; i < X86_FLAG_BITS; ++i){
+        if(usesFlag(i)){
+            retval->addFlag(i);
+        }
+    }
+
+    // implicit uses
+    for(uint32_t i = 0; i < X86_ALU_REGS; ++i){
+        if(implicitlyUsesReg(i)){
+            retval->addRegister(i);
+        }
+    }
+
+    // operand uses
+    Vector<OperandX86*>* uses = getSourceOperands();
+    for(uint32_t i; i< uses->size(); ++i) {
+        OperandX86* use = (*uses)[i];
+
+        if(use->GET(base) && IS_ALU_REG(use->GET(base))){
+            retval->addRegister(use->getBaseRegister());
+        }
+
+        if(use->GET(index) && IS_ALU_REG(use->GET(index))){
+            retval->addRegister(use->getIndexRegister());
+        }
+    }
+
+    return retval;
+}
+
+void X86Instruction::impliedUses(BitSet<uint32_t>* regs){
+    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+        if (implicitlyUsesReg(i)){
+            regs->insert(i);
+        }
+    }
+}
+
+void X86Instruction::impliedDefs(BitSet<uint32_t>* regs){
+    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+        if (implicitlyDefinesReg(i)){
+            regs->insert(i);
+        }
+    }
+}
+
+#define op_has(op, reg) (op->GET(reg) && IS_ALU_REG(op->GET(reg)))
+LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getDefs(){
+
+    LinkedList<ReachingDefinition*>* defList =
+        new LinkedList<ReachingDefinition*>();
+
+    // explicit defines
+    OperandX86* def = getDestOperand();
+    if (def){
+        DefLocation loc;
+        loc.value = def->getValue();
+        loc.base = op_has(def, base) ? def->getBaseRegister() : X86_ALU_REGS;
+        loc.index = op_has(def, index) ? def->getIndexRegister() : X86_ALU_REGS;
+        loc.offset = def->GET(offset);
+        loc.scale = def->GET(scale);
+        loc.type = def->GET(type);
+        defList->insert(new ReachingDefinition(this, loc));
+    }
+
+    // Get the implied register defines
+    BitSet<uint32_t> imp_regs(X86_ALU_REGS);
+    impliedDefs(&imp_regs);
+
+    for (uint32_t i = 0; i < X86_ALU_REGS; ++i) {
+        if (imp_regs.contains(i)) {
+            struct DefLocation loc;
+            bzero(&loc, sizeof(loc));
+            loc.base = i;
+            loc.type = UD_OP_REG;
+            defList->insert(new ReachingDefinition(this, loc));
+        }
+    } 
+
+    return defList;
+}
+
+//FIXME
+LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
+
+    LinkedList<ReachingDefinition*>* useList =
+        new LinkedList<ReachingDefinition*>();
+
+    OperandX86* def = getDestOperand();    
+    if (def){
+        if (def->getType() == UD_OP_MEM || def->getType() == UD_OP_PTR){
+            DefLocation loc;
+            loc.value = def->getValue();
+            loc.base = op_has(def, base) ? def->getBaseRegister() : X86_ALU_REGS;
+            loc.index = op_has(def, index) ? def->getIndexRegister() : X86_ALU_REGS;
+            loc.offset = def->GET(offset);
+            loc.scale = def->GET(scale);
+            loc.type = def->GET(type);
+            useList->insert(new ReachingDefinition(this, loc));            
+        }
+    }
+
+    Vector<OperandX86*>* uses = getSourceOperands();
+    for (uint32_t i; i < uses->size(); i++){
+        OperandX86* use = (*uses)[i];
+        DefLocation loc;
+        loc.value = use->getValue();
+        loc.base = op_has(use, base) ? use->getBaseRegister() : X86_ALU_REGS;
+        loc.index = op_has(use, index) ? use->getIndexRegister() : X86_ALU_REGS;
+        loc.offset = use->GET(offset);
+        loc.scale = use->GET(scale);
+        loc.type = use->GET(type);
+        useList->insert(new ReachingDefinition(this, loc));
+    }
+    delete uses;
+
+    // Get the implied register uses
+    BitSet<uint32_t> imp_regs(X86_ALU_REGS);
+    impliedUses(&imp_regs);
+
+    for (uint32_t i = 0; i < X86_ALU_REGS; ++i) {
+        if (imp_regs.contains(i)) {
+            struct DefLocation loc;
+            bzero(&loc, sizeof(loc));
+            loc.base = i;
+            loc.type = UD_OP_REG;
+            useList->insert(new ReachingDefinition(this, loc));
+        }
+    } 
+
+    return useList;
+}
+
 
 uint32_t convertGPRegUd(uint32_t reg){
    return reg + UD_R_RAX; 
@@ -453,108 +712,6 @@ void OperandX86::touchedRegisters(BitSet<uint32_t>* regs){
     if (GET(index) && IS_ALU_REG(GET(index))){
         regs->insert(getIndexRegister());
     }
-}
-
-void X86Instruction::impliedUses(BitSet<uint32_t>* regs){
-    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
-        if (usesAluReg(i)){
-            regs->insert(i);
-        }
-    }
-}
-
-void X86Instruction::impliedDefs(BitSet<uint32_t>* regs){
-    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
-        if (defsAluReg(i)){
-            regs->insert(i);
-        }
-    }
-}
-
-#define op_has(op, reg) (op->GET(reg) && IS_ALU_REG(op->GET(reg)))
-LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getDefs(){
-
-    LinkedList<ReachingDefinition*>* defList =
-        new LinkedList<ReachingDefinition*>();
-
-    // explicit defines
-    OperandX86* def = getDestOperand();
-    if (def){
-        DefLocation loc;
-        loc.value = def->getValue();
-        loc.base = op_has(def, base) ? def->getBaseRegister() : X86_ALU_REGS;
-        loc.index = op_has(def, index) ? def->getIndexRegister() : X86_ALU_REGS;
-        loc.offset = def->GET(offset);
-        loc.scale = def->GET(scale);
-        loc.type = def->GET(type);
-        defList->insert(new ReachingDefinition(this, loc));
-    }
-
-    // Get the implied register defines
-    BitSet<uint32_t> imp_regs(X86_ALU_REGS);
-    impliedDefs(&imp_regs);
-
-    for (uint32_t i = 0; i < X86_ALU_REGS; ++i) {
-        if (imp_regs.contains(i)) {
-            struct DefLocation loc;
-            bzero(&loc, sizeof(loc));
-            loc.base = i;
-            loc.type = UD_OP_REG;
-            defList->insert(new ReachingDefinition(this, loc));
-        }
-    } 
-
-    return defList;
-}
-
-LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
-
-    LinkedList<ReachingDefinition*>* useList =
-        new LinkedList<ReachingDefinition*>();
-
-    OperandX86* def = getDestOperand();    
-    if (def){
-        if (def->getType() == UD_OP_MEM || def->getType() == UD_OP_PTR){
-            DefLocation loc;
-            loc.value = def->getValue();
-            loc.base = op_has(def, base) ? def->getBaseRegister() : X86_ALU_REGS;
-            loc.index = op_has(def, index) ? def->getIndexRegister() : X86_ALU_REGS;
-            loc.offset = def->GET(offset);
-            loc.scale = def->GET(scale);
-            loc.type = def->GET(type);
-            useList->insert(new ReachingDefinition(this, loc));            
-        }
-    }
-
-    Vector<OperandX86*>* uses = getSourceOperands();
-    for (uint32_t i; i < uses->size(); i++){
-        OperandX86* use = (*uses)[i];
-        DefLocation loc;
-        loc.value = use->getValue();
-        loc.base = op_has(use, base) ? use->getBaseRegister() : X86_ALU_REGS;
-        loc.index = op_has(use, index) ? use->getIndexRegister() : X86_ALU_REGS;
-        loc.offset = use->GET(offset);
-        loc.scale = use->GET(scale);
-        loc.type = use->GET(type);
-        useList->insert(new ReachingDefinition(this, loc));
-    }
-    delete uses;
-
-    // Get the implied register uses
-    BitSet<uint32_t> imp_regs(X86_ALU_REGS);
-    impliedUses(&imp_regs);
-
-    for (uint32_t i = 0; i < X86_ALU_REGS; ++i) {
-        if (imp_regs.contains(i)) {
-            struct DefLocation loc;
-            bzero(&loc, sizeof(loc));
-            loc.base = i;
-            loc.type = UD_OP_REG;
-            useList->insert(new ReachingDefinition(this, loc));
-        }
-    } 
-
-    return useList;
 }
 
 bool X86Instruction::ReachingDefinition::invalidatedBy(ReachingDefinition* other) {
