@@ -386,7 +386,7 @@ RegisterSet* X86Instruction::getRegistersDefined(){
 
     // operand defs
     OperandX86* def = getDestOperand();
-    if(def && def->getType() == UD_OP_REG ){
+    if(def && def->getType() == UD_OP_REG && def->GET(base) && IS_ALU_REG(def->GET(base))){
         retval->addRegister(def->getBaseRegister());
     }
     
