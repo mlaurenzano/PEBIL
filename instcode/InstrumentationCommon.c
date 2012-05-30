@@ -55,6 +55,107 @@ void ptimer(double *tmr) {
     *tmr=(double)timestr.tv_sec + 1.0E-06*(double)timestr.tv_usec;
 }
 
+
+// List of data entries keyed by image_ids
+struct data_list {
+    uint64_t image_id;
+    void * data;
+    struct data_list * next;
+};
+
+// List of thread entries keyed by thread_ids
+struct thread_list {
+    pthread_t thread_id;
+    struct data_list * datas;
+    struct thread_list * next;
+};
+
+static struct thread_list * threads;
+static pthread_mutex_t thread_creation_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Search list for thread info for thread_id
+static struct thread_list * get_thread_data(pthread_t thread_id){
+    struct thread_list * retval = threads;
+    while( retval != NULL ) {
+        if( pthread_equal(thread_id, retval->thread_id) ) {
+            return retval;
+        }
+        retval = retval->next;
+    }
+    return NULL;
+}
+
+// Inserts a new thread at head of threads list
+// does not check that thread does not already exist in list
+static struct thread_list * create_new_thread(pthread_t thread_id){
+    struct thread_list * retval;
+    retval = malloc(sizeof(struct thread_list));
+    retval->thread_id = thread_id;
+    retval->datas = NULL;
+
+    // Only one thread can modify the thread list at a time
+    pthread_mutex_lock(&thread_creation_mutex);
+    retval->next = threads;
+    threads = retval;
+    pthread_mutex_unlock(&thread_creation_mutex);
+
+    return retval;
+}
+
+// Sets data for calling thread
+void pebil_set_data(uint64_t image_id, void * data){
+    pthread_t thread_id = pthread_self();
+    int err = pthread_setspecific(image_id, data);
+    if( err ) {
+        perror("pthread_set_specific:");
+    }
+
+    struct thread_list * threadinfo = get_thread_data(thread_id);
+    if( threadinfo == NULL ) {
+        threadinfo = create_new_thread(thread_id);
+    }
+
+    struct data_list * curdata = threadinfo->datas;
+
+    while(curdata != NULL){
+        if(curdata->image_id == image_id){
+            curdata->data = data;
+            return;
+        }
+    }
+
+    curdata = threadinfo->datas;
+    threadinfo->datas = malloc(sizeof(struct data_list));
+    threadinfo->datas->image_id = image_id;
+    threadinfo->datas->data = data;
+    threadinfo->datas->next = curdata;
+}
+
+// May be called from any thread - totally reentrant
+void * pebil_get_data(pthread_t thread_id, uint64_t image_id){
+    if( pthread_self() == thread_id ) {
+        return pthread_get_specific(image_id);
+    } else {
+        struct thread_list * threadinfo = get_thread_data(thread_id);
+
+        struct data_list * curdata = threadinfo->datas;
+
+        while(curdata != NULL) {
+            if(curdata->image_id == image_id){
+                return curdata->data;
+            }
+        }
+
+        assert(0 && "Attempt to retrieve non-existent image data");
+        return NULL;
+    }
+}
+
+// Create a key for the image
+void pebil_image_init(uint64_t * image_id){
+    pthread_key_create((pthread_key_t*)image_id, NULL);
+}
+
 // called when pthread_create is called for programs instrumented without the --threaded flag
 int pthread_create_pebil_nothread(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg){
     PRINT_INSTR(stderr, "Application was not instrumented by PEBIL without thread support but pthread_create has been called.");
@@ -122,3 +223,6 @@ int getTaskId(){
 int getNTasks(){
     return __ntasks;
 }
+
+
+
