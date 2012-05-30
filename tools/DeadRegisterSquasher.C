@@ -70,6 +70,9 @@ void DeadRegisterSquasher::instrument()
     sprintf(nostring, "%s\0", NOSTRING);
     initializeReservedData(noDataAddr, strlen(NOSTRING) + 1, nostring);
 
+    uint32_t deadRegHist[X86_64BIT_GPRS + 1];
+    bzero(deadRegHist, sizeof(uint32_t) * (X86_64BIT_GPRS + 1));
+    uint32_t totalInsn = 0;
 
     // For each function
     uint32_t nFuncs = getNumberOfExposedFunctions();
@@ -86,6 +89,8 @@ void DeadRegisterSquasher::instrument()
            X86Instruction* instruction = instructions[j];
            InstrumentationSnippet* snip = new InstrumentationSnippet();
 
+           uint32_t deadThis = 0;
+
             // for each dead register
             for(uint32_t reg = 0; reg < X86_64BIT_GPRS; ++reg){
                 if( !instruction->isRegDeadIn(reg)){
@@ -97,7 +102,10 @@ void DeadRegisterSquasher::instrument()
                } else {
                    snip->addSnippetInstruction(X86InstructionFactory::emitMoveImmToReg(0x01234567, reg));
                }
+               deadThis++;
             }
+            deadRegHist[deadThis]++;
+            totalInsn++;
 
             addInstrumentationSnippet(snip);
             InstrumentationPoint* p = addInstrumentationPoint(instruction, snip, InstrumentationMode_trampinline, FlagsProtectionMethod_none, InstLocation_prior);
@@ -110,6 +118,12 @@ void DeadRegisterSquasher::instrument()
         delete[] instructions;
     }
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+    uint32_t cumul = 0;
+    for (int32_t i = X86_64BIT_GPRS; i >= 0; i--){
+        cumul += deadRegHist[i];
+        float p = (float)cumul / (float)totalInsn;
+        PRINT_INFOR("Instructions with at least %d dead GPRs: %d / %d = %.2f", i, cumul, totalInsn, p);
+    }
 
     delete[] nostring;
 
