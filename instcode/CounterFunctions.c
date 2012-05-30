@@ -39,9 +39,8 @@ int32_t numberOfLoops = 0;
 
 void * tool_thread_init(tool_thread_args* threadargs){
     PRINT_INSTR(stdout, "Hooked pthread_create for thread id %#llx", pthread_self());
-    tool_thread_args* x = (tool_thread_args*)threadargs;
-    x->start_function(x->function_args);
-    free(x);
+    threadargs->start_function(threadargs->function_args);
+    free(threadargs);
     return NULL;
 }
 

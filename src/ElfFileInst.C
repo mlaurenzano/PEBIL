@@ -900,9 +900,11 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
                 localBlock = 0;
             }
             while (!exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->inRange((*instrumentationPoints)[k]->getInstBaseAddress())){
-                //PRINT_INFOR("local block %d -- %#llx", localBlock, exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->getBaseAddress());
+                //exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->print();
+                //PRINT_INFOR("local block %d -- %#llx ~~ %#llx", localBlock, exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->getBaseAddress(), (*instrumentationPoints)[k]->getInstBaseAddress());
                 localBlock++;
             }
+            //PRINT_INFOR("Using currentFunc %d localBlock %d", currentFunc, localBlock);
             (*((*instPointsPerBlock)[currentFunc]))[localBlock]->append((*instrumentationPoints)[k]);
             if ((*instrumentationPoints)[k]->getInstLocation() != InstLocation_replace){
                 needsRelocate[currentFunc] = true;
@@ -1104,6 +1106,19 @@ void ElfFileInst::functionSelect(){
     exposedBasicBlocks.sort(compareBaseAddress);
 
     PRINT_INFOR("Total hidden from instrumentation (bytes):\t%d/%d (%.2f%)", missingBytes, numberOfBytes, ((float)((float)missingBytes*100)/((float)numberOfBytes)));
+
+    bool entryIsExposed = false;
+    for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+        if (getExposedFunction(i)->inRange(programEntryBlock->getBaseAddress())){
+            entryIsExposed = true;
+            break;
+        }
+    }
+    if (!entryIsExposed){
+        PRINT_ERROR("The entry block is in function %s, which is hidden to PEBIL. Either something in this function counldn't be understood or it appears in the list passed to --fbl", 
+                    programEntryBlock->getLeader()->getContainer()->getName());
+    }
+    ASSERT(entryIsExposed);
 }
 
 void ElfFileInst::computeInstrumentationOffsets(){
@@ -1475,7 +1490,7 @@ void ElfFileInst::extendTextSection(uint64_t totalSize, uint64_t headerSize){
         ProgramHeader* subHeader = elfFile->getProgramHeader(i);
         if (textHeader->inRange(subHeader->GET(p_vaddr)) && i != elfFile->getTextSegmentIdx()){
             if (subHeader->GET(p_vaddr) < totalSize){
-                PRINT_WARN(5,"Unable to extend text section by 0x%llx bytes: the maximum size of a text extension for this binary is 0x%llx bytes", totalSize, subHeader->GET(p_vaddr));
+                PRINT_WARN(20,"Unable to extend text section by 0x%llx bytes: the maximum size of a text extension for this binary is 0x%llx bytes", totalSize, subHeader->GET(p_vaddr));
             }
             ASSERT(subHeader->GET(p_vaddr) >= totalSize && "The text extension size is too large");
             subHeader->SET(p_vaddr, subHeader->GET(p_vaddr) - totalSize);
@@ -2034,27 +2049,50 @@ uint32_t ElfFileInst::addSharedLibraryPath(){
 uint32_t ElfFileInst::addSharedLibrary(const char* libname){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
-    PRINT_INFOR("Linking instrumented binary to shared library: %s", libname);
+    char libraryReal[__MAX_STRING_SIZE];
+    bool overwrite = false;
+    if (libname[0] == '+'){
+        sprintf(libraryReal, "%s.%s", libname + 1, getExtension());
+        overwrite = true;
+        PRINT_INFOR("Linking instrumented binary to shared library: %s -> %s", libname + 1, libraryReal);
+    } else {
+        sprintf(libraryReal, "%s", libname);
+        PRINT_INFOR("Linking instrumented binary to shared library: %s", libraryReal);
+    }
 
     // first make sure the lib isn't already linked
     DynamicTable* dynamicTable = elfFile->getDynamicTable();
     for (uint32_t i = 0; i < dynamicTable->countDynamics(DT_NEEDED); i++){
         Dynamic* dyn = dynamicTable->getDynamicByType(DT_NEEDED, i);
-        if (!strcmp(elfFile->getDynamicStringTable()->getString(dyn->GET_A(d_ptr,d_un)), libname)){
-            PRINT_WARN(10, "Library %s already exists in the executable, skipping", libname);
+        if (!strcmp(elfFile->getDynamicStringTable()->getString(dyn->GET_A(d_ptr,d_un)), libraryReal)){
+            PRINT_WARN(10, "Library %s already exists in the executable, skipping", libraryReal);
             return 0;
         }
     }
 
-    uint32_t strOffset = addStringToDynamicStringTable(libname);
+    uint32_t strOffset = addStringToDynamicStringTable(libraryReal);
 
     // add a DT_NEEDED entry to the dynamic table
-    uint32_t emptyDynamicIdx = dynamicTable->findEmptyDynamic();
-
-    ASSERT(emptyDynamicIdx < dynamicTable->getNumberOfDynamics() && "No free entries found in the dynamic table");
-
-    dynamicTable->getDynamic(emptyDynamicIdx)->SET(d_tag,DT_NEEDED);
-    dynamicTable->getDynamic(emptyDynamicIdx)->SET_A(d_ptr,d_un,strOffset);
+    uint32_t writeIdx;
+    if (overwrite){
+        writeIdx = dynamicTable->getNumberOfDynamics();
+        for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
+            Dynamic* dyn = dynamicTable->getDynamic(i);
+            const char* x = libname + 1;
+            if (dyn->GET(d_tag) == DT_NEEDED && !strcmp(elfFile->getDynamicStringTable()->getString(dyn->GET_A(d_ptr, d_un)), x)){
+                writeIdx = i;
+                break;
+            }
+        }        
+        if (writeIdx == dynamicTable->getNumberOfDynamics()){
+            PRINT_ERROR("Request to insert %s failed because library %s does not exist in the binary", libraryReal, libname);
+        }
+    } else {
+        writeIdx = dynamicTable->findEmptyDynamic();
+    }
+    ASSERT(writeIdx < dynamicTable->getNumberOfDynamics() && "No free entries found in the dynamic table");
+    dynamicTable->getDynamic(writeIdx)->SET(d_tag, DT_NEEDED);
+    dynamicTable->getDynamic(writeIdx)->SET_A(d_ptr, d_un, strOffset);
 
     verify();
 
