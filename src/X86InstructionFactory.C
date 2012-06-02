@@ -1779,6 +1779,41 @@ X86Instruction* X86InstructionFactory64::emitIndirectRelativeJump(uint64_t addr,
     return emitInstructionBase(len,buff);
 }
 
+// FIXME
+X86Instruction* X86InstructionFactory64::emitMoveMemToXMMReg(uint64_t addr, uint32_t idx){
+    ASSERT(idx >= X86_64BIT_GPRS && idx < X86_64BIT_GPRS + X86_XMM_REGS && "Illegal register index given");
+    char* buff;
+    uint32_t next;
+    uint32_t len;
+
+    if( idx < X86_64BIT_GPRS + 8 ) {
+        len = 9;
+        buff = new char[len];
+        buff[0] = 0xf2;
+        buff[1] = 0x0f;
+        buff[2] = 0x10;
+        next = 3;
+    } else {
+        len = 10;
+        buff = new char[len];
+        buff[0] = 0xf2;
+        buff[1] = 0x44;
+        buff[2] = 0x0f;
+        buff[3] = 0x10;
+        next = 4;
+    }
+    buff[next] = 0x04 + 0x08 * (idx % 8);
+    buff[next+1] = 0x25;
+
+    uint32_t addr32 = (uint32_t)addr;
+    ASSERT(addr == addr32 && "Cannot use more than 32 bits for the address");
+
+    memcpy(buff+next+2, &addr32, sizeof(uint32_t));
+
+    return emitInstructionBase(len, buff);
+    
+}
+
 X86Instruction* X86InstructionFactory64::emitMoveImmToReg(uint64_t imm, uint32_t idx){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
     uint32_t len = 7;

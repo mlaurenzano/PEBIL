@@ -385,9 +385,12 @@ RegisterSet* X86Instruction::getRegistersDefined(){
     }
 
     // operand defs
-    OperandX86* def = getDestOperand();
-    if(def && def->getType() == UD_OP_REG && def->GET(base) && IS_ALU_REG(def->GET(base))){
-        retval->addRegister(def->getBaseRegister());
+    // check operation type
+    if(!isConditionalMove()){
+        OperandX86* def = getDestOperand();
+        if(def && def->getType() == UD_OP_REG && def->GET(base) && IS_ALU_REG(def->GET(base))){
+            retval->addRegister(def->getBaseRegister());
+        }
     }
     
     return retval;
@@ -419,12 +422,22 @@ RegisterSet* X86Instruction::getRegistersUsed(){
         if(use->GET(base) && IS_ALU_REG(use->GET(base))){
             retval->addRegister(use->getBaseRegister());
         }
-
         if(use->GET(index) && IS_ALU_REG(use->GET(index))){
             retval->addRegister(use->getIndexRegister());
         }
     }
 
+    // uses by dest operand
+    OperandX86* dest = getDestOperand();
+    if(dest && (dest->getType() == UD_OP_MEM || dest->getType() == UD_OP_PTR)){
+        if(dest->GET(base) && IS_ALU_REG(dest->GET(base))){
+            retval->addRegister(dest->getBaseRegister());
+        }
+        if(dest->GET(index) && IS_ALU_REG(dest->GET(index))){
+            retval->addRegister(dest->getIndexRegister());
+        }
+    }
+    
     return retval;
 }
 
@@ -811,6 +824,27 @@ bool X86Instruction::isStackPop(){
     return false;
 }
 
+bool X86Instruction::isConditionalMove(){
+    int32_t m = GET(mnemonic);
+
+    return (m == UD_Icmovo ||
+            m == UD_Icmovno ||
+            m == UD_Icmovb ||
+            m == UD_Icmovae ||
+            m == UD_Icmovz ||
+            m == UD_Icmovnz ||
+            m == UD_Icmovbe ||
+            m == UD_Icmova ||
+            m == UD_Icmovs ||
+            m == UD_Icmovns ||
+            m == UD_Icmovp ||
+            m == UD_Icmovnp ||
+            m == UD_Icmovl ||
+            m == UD_Icmovge ||
+            m == UD_Icmovle ||
+            m == UD_Icmovg);
+}
+
 bool X86Instruction::isMemoryOperation(){
     return (isImplicitMemoryOperation() || isExplicitMemoryOperation());
 }
@@ -871,6 +905,7 @@ bool X86Instruction::isFloatPOperation(){
     }
     return false;
 }
+
 
 uint32_t OperandX86::getBytesUsed(){
     if (GET(type) == UD_OP_MEM){

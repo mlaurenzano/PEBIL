@@ -532,6 +532,7 @@ public:
     bool isStore();
     bool isSpecialRegOp();
     bool isLogicOp();
+    bool isConditionalMove();
  
     bool isBinUnknown();
     bool isBinInvalid();
@@ -605,7 +606,7 @@ public:
     uint32_t getNumberOfMemoryBytes();
     bool isMemoryOperation();
     bool isExplicitMemoryOperation();    
-    bool isImplicitMemoryOperation();    
+    bool isImplicitMemoryOperation();
 
     OperandX86* getMemoryOperand();
 };
