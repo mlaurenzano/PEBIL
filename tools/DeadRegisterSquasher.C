@@ -110,7 +110,6 @@ void DeadRegisterSquasher::instrument()
             totalInsn++;
 
             // squash dead xmm regs
-/*
             for(uint32_t reg = X86_64BIT_GPRS; reg < X86_64BIT_GPRS + X86_XMM_REGS; ++reg){
                 if(!instruction->isRegDeadIn(reg)){
                     continue;
@@ -121,7 +120,7 @@ void DeadRegisterSquasher::instrument()
                    // snip->addSnippetInstruction(X86InstructionFactory::emitMoveMemToXMMReg(deadValueOffset, reg));
                 }
             }
-*/
+
             addInstrumentationSnippet(snip);
             InstrumentationPoint* p = addInstrumentationPoint(instruction, snip, InstrumentationMode_trampinline, FlagsProtectionMethod_none, InstLocation_prior);
             if(!p->getInstBaseAddress()){
