@@ -429,12 +429,26 @@ RegisterSet* X86Instruction::getRegistersUsed(){
 
     // uses by dest operand
     OperandX86* dest = getDestOperand();
-    if(dest && (dest->getType() == UD_OP_MEM || dest->getType() == UD_OP_PTR)){
-        if(dest->GET(base) && IS_ALU_REG(dest->GET(base))){
-            retval->addRegister(dest->getBaseRegister());
+    if(dest){
+        // Registers used in computing addresses
+        if(dest->getType() == UD_OP_MEM || dest->getType() == UD_OP_PTR){
+            if(dest->GET(base) && IS_ALU_REG(dest->GET(base))){
+                retval->addRegister(dest->getBaseRegister());
+            }
+            if(dest->GET(index) && IS_ALU_REG(dest->GET(index))){
+                retval->addRegister(dest->getIndexRegister());
+            }
         }
-        if(dest->GET(index) && IS_ALU_REG(dest->GET(index))){
-            retval->addRegister(dest->getIndexRegister());
+        // Registers incompletely written to
+        if(dest->getType() == UD_OP_REG && dest->GET(base)){
+            uint32_t reg = dest->GET(base);
+            if( reg && IS_ALU_REG(reg) &&
+                !IS_64BIT_GPR(reg) &&
+                !IS_X87_REG(reg) &&
+                !IS_XMM_REG(reg) &&
+                !IS_YMM_REG(reg)){
+                retval->addRegister(dest->getBaseRegister());
+            }
         }
     }
     
