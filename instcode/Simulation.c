@@ -42,7 +42,7 @@ uint64_t* blockCounters;
 //#define DEBUG_INST_KILL
 //#define PRINT_ADDRESS_STREAM
 
-void tool_mpi_init(){}
+void* tool_mpi_init(){}
 
 void clearBlockCounters(){
     bzero(blockCounters, sizeof(uint64_t) * numberOfBasicBlocks);

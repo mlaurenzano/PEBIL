@@ -30,7 +30,7 @@ void inst_lptimer_lpentry();
 void inst_lptimer_lpexit();
 void inst_lptimer_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes, void* instpoints, int32_t* numpoints);
 void inst_lptimer_fini();
-void tool_mpi_init();
+void* tool_mpi_init();
 
 // Pointer to the current loop
 static uint32_t* site = NULL;
@@ -188,7 +188,7 @@ void inst_lptimer_fini(){
 }
 
 // called just after mpi_init
-void tool_mpi_init(){
+void* tool_mpi_init(){
     nprocessors = sysconf(_SC_NPROCESSORS_ONLN);
     pinto(getTaskId() % nprocessors);
 }

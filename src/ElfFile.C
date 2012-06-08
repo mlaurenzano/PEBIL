@@ -45,6 +45,14 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+bool ElfFile::isExecutable(){
+    return (fileHeader->GET(e_type) == ET_EXEC);
+}
+
+bool ElfFile::isSharedLib(){
+    return (fileHeader->GET(e_type) == ET_DYN);
+}
+
 char* ElfFile::getSHA1Sum(){
     char* allbytes = new char[getFileSize()];
 
@@ -110,6 +118,17 @@ ElfFile::ElfFile(char* f, char* a) :
     anchorsAreSorted = false;
 }
 
+void ElfFile::addAddressAnchor(AddressAnchor* adr){
+    addressAnchors->append(adr);
+    anchorsAreSorted = false;
+}
+
+DataReference* ElfFile::generateDataRef(uint64_t loc, RawSection* sec, uint64_t align, uint64_t off){
+    DataReference* ref = new DataReference(loc, sec, align, off);
+    specialDataRefs.append(ref);
+
+    return ref;
+}
 
 Symbol* ElfFile::lookupFunctionSymbol(uint64_t addr){
     GlobalOffsetTable* gotTable = getGlobalOffsetTable();
@@ -1145,15 +1164,26 @@ void ElfFile::parse(){
     }
 
     if(ISELF64BIT(e_ident[EI_CLASS])){
-        PRINT_INFOR("The executable is 64-bit");
+        PRINT_INFOR("The binary is 64-bit");
         is64BitFlag = true;
     } else if(ISELF32BIT(e_ident[EI_CLASS])){
-        PRINT_INFOR("The executable is 32-bit");
+        PRINT_INFOR("The binary is 32-bit");
     } else {
         PRINT_ERROR("The class identifier is not a valid one [%#x]",e_ident[EI_CLASS]);
     }
 
     readFileHeader();
+    if (isExecutable()){
+        PRINT_INFOR("The binary is an executable");
+    } else if (isSharedLib()){
+        PRINT_INFOR("The binary is a shared library");
+        if (ISELF32BIT(e_ident[EI_CLASS])){
+            PRINT_ERROR("Shared library instrumentation is not supported for IA32");
+        }
+    } else {
+        PRINT_ERROR("The file type is invalid %s", fileHeader->getTypeName());
+    }    
+
     readProgramHeaders();
     readSectionHeaders();
     readRawSections();

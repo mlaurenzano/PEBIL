@@ -456,7 +456,6 @@ uint32_t InstrumentationPoint32::generateTrampoline(Vector<X86Instruction*>* ins
                 }
             }
             (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
-            (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
             if (!(*insts)[i]->isNop()){
                 trampolineInstructions.append((*insts)[i]);
                 trampolineSize += trampolineInstructions.back()->getSizeInBytes();
@@ -525,10 +524,11 @@ uint32_t InstrumentationFunction::addArgument(uint64_t offset){
     return arguments.size();
 }
 
-void InstrumentationFunction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+void InstrumentationFunction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint64_t addr){
     uint32_t currentOffset = procedureLinkOffset;
     if (!isStaticLinked()){
         for (uint32_t i = 0; i < procedureLinkInstructions.size(); i++){
+            procedureLinkInstructions[i]->setBaseAddress(addr + currentOffset); 
             procedureLinkInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
             currentOffset += procedureLinkInstructions[i]->getSizeInBytes();
         }
@@ -536,11 +536,14 @@ void InstrumentationFunction::dump(BinaryOutputFile* binaryOutputFile, uint32_t 
 
     currentOffset = bootstrapOffset;
     for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
+        bootstrapInstructions[i]->setBaseAddress(addr + currentOffset);
         bootstrapInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
         currentOffset += bootstrapInstructions[i]->getSizeInBytes();
     }
+
     currentOffset = wrapperOffset;
     for (uint32_t i = 0; i < wrapperInstructions.size(); i++){
+        wrapperInstructions[i]->setBaseAddress(addr + currentOffset);
         wrapperInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
         currentOffset += wrapperInstructions[i]->getSizeInBytes();
     }
@@ -640,7 +643,7 @@ uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textB
     return bootstrapInstructions.size();
 }
 
-uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset){
+uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset, ElfFileInst* elfInst){
     ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
     if (assumeFlagsUnsafe){
@@ -650,10 +653,10 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
         wrapperInstructions.append(X86InstructionFactory64::emitStackPush(i));
     }
-    uint64_t fxStorage = nextAlignAddress(dataBaseAddress + fxStorageOffset + sizeof(uint64_t), 16);
+    uint64_t fxStor = nextAlignAddress(fxStorageOffset + sizeof(uint64_t), 16);
 
     if (assumeFunctionFP){
-        wrapperInstructions.append(X86InstructionFactory64::emitFxSave(fxStorage));
+        wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitFxSave(0), elfInst, fxStor, true));
     }
     ASSERT(arguments.size() <= Num__64_bit_StackArgs && "More arguments must be pushed onto stack, which is not yet implemented"); 
     
@@ -662,7 +665,8 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         
         if (i <= Num__64_bit_StackArgs){
             uint32_t argumentRegister = map64BitArgToReg(idx);            
-            wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
+            wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, argumentRegister), elfInst, arguments[idx].offset, true));
+            //wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
         } else {
             PRINT_ERROR("64Bit instrumentation supports only %d args currently", Num__64_bit_StackArgs);
         }
@@ -679,18 +683,19 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     }
     
     // align the stack
-    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_SP, dataBaseAddress + fxStorageOffset));
+    wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, X86_REG_CX), elfInst, fxStorageOffset, true));
+    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToRegaddr(X86_REG_SP, X86_REG_CX));
     wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_stackalign, X86_REG_SP));
     wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg((uint32_t)~(Size__trampoline_stackalign - 1), X86_REG_R15));
     wrapperInstructions.append(X86InstructionFactory64::emitRegAndReg(X86_REG_SP, X86_REG_R15));
-    //    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__near_call_stack_inc, X86_REG_SP));
 
     wrapperInstructions.append(X86InstructionFactory64::emitCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
 
-    wrapperInstructions.append(X86InstructionFactory64::emitMoveMemToReg(dataBaseAddress + fxStorageOffset, X86_REG_SP, true));
+    wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, X86_REG_CX), elfInst, fxStorageOffset, true));
+    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegaddrToReg(X86_REG_CX, X86_REG_SP));
 
     if (assumeFunctionFP){
-        wrapperInstructions.append(X86InstructionFactory64::emitFxRstor(fxStorage));
+        wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitFxRstor(0), elfInst, fxStor, true));
     }
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
         wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_64BIT_GPRS-1-i));
@@ -712,7 +717,7 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     return wrapperInstructions.size();
 }
 
-uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset){
+uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset, ElfFileInst* elfInst){
     ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
     if (!skipWrapper){
@@ -724,7 +729,7 @@ uint32_t InstrumentationFunction32::generateWrapperInstructions(uint64_t textBas
         }
         
         if (assumeFunctionFP){
-            wrapperInstructions.append(X86InstructionFactory32::emitFxSave(dataBaseAddress + fxStorageOffset));
+            wrapperInstructions.append(X86InstructionFactory32::emitFxSave(fxStorageOffset));
         }
         
         for (uint32_t i = 0; i < arguments.size(); i++){
@@ -856,14 +861,17 @@ uint32_t InstrumentationSnippet::generateSnippetControl(){
     return snippetInstructions.size();
 }
 
-void InstrumentationSnippet::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+void InstrumentationSnippet::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint64_t addr){
     uint32_t currentOffset = bootstrapOffset;
     for (uint32_t i = 0; i < bootstrapInstructions.size(); i++){
+        bootstrapInstructions[i]->setBaseAddress(addr + currentOffset);
         bootstrapInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
         currentOffset += bootstrapInstructions[i]->getSizeInBytes();
     }
+
     currentOffset = snippetOffset;
     for (uint32_t i = 0; i < snippetInstructions.size(); i++){
+        snippetInstructions[i]->setBaseAddress(addr + currentOffset);
         snippetInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
         currentOffset += snippetInstructions[i]->getSizeInBytes();
     }
@@ -948,9 +956,10 @@ Vector<X86Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(Vector<X8
     return func->swapInstructions(getInstSourceAddress(), replacements);
 }
 
-void InstrumentationPoint::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+void InstrumentationPoint::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint64_t addr){
     uint32_t currentOffset = trampolineOffset;
     for (uint32_t i = 0; i < trampolineInstructions.size(); i++){
+        trampolineInstructions[i]->setBaseAddress(addr + currentOffset);
         trampolineInstructions[i]->dump(binaryOutputFile,offset+currentOffset);
         currentOffset += trampolineInstructions[i]->getSizeInBytes();
     }

@@ -39,10 +39,6 @@
 #define PTHREAD_CREATE_CBIND     "pthread_create_pebil_wrapper"
 #define PTHREAD_CREATE_NONTHREAD "pthread_create_pebil_nothread"
 
-// need to pass an image ID to this. probably should allocate space for a counter in the executable
-// that increments on every image load
-#define IMAGE_LOAD_INIT          "tool_init_image"
-
 #define MAX_DEF_USE_DIST_PRINT 1024
 
 void InstrumentationTool::assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak){
@@ -118,7 +114,6 @@ void InstrumentationTool::declare(){
         threadInit = declareFunction(PTHREAD_CREATE_NONTHREAD);
         ASSERT(threadInit && "Cannot find pthread_create wrapper function, are you sure it was declared?");
     }
-
 #ifdef HAVE_MPI
     initWrapperC = declareFunction(MPI_INIT_WRAPPER_CBIND);
     initWrapperF = declareFunction(MPI_INIT_WRAPPER_FBIND);
@@ -222,21 +217,6 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
 
     InstrumentationSnippet* snip = new InstrumentationSnippet();
 
-    // snippet contents, in this case just increment a counter
-    if (is64Bit()){
-        if (add){
-            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
-        } else {
-            snip->addSnippetInstruction(X86InstructionFactory64::emitSubImmByteToMem64(1, getInstDataAddress() + counterOffset));
-        }
-    } else {
-        if (add){
-            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
-        } else {
-            snip->addSnippetInstruction(X86InstructionFactory32::emitSubImmByteToMem(1, getInstDataAddress() + counterOffset));
-        }
-    }
-
     // do not generate control instructions to get back to the application, this is done for
     // the snippet automatically during code generation
 
@@ -247,7 +227,8 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
     FlagsProtectionMethods prot = FlagsProtectionMethod_light;
     X86Instruction* bestinst = scope->getExitInstruction();
     InstLocations loc = InstLocation_prior;
-#ifndef NO_REG_ANALYSIS
+    InstrumentationModes mode = InstrumentationMode_inline;
+
     for (int32_t j = scope->getNumberOfInstructions() - 1; j >= 0; j--){
         if (scope->getInstruction(j)->allFlagsDeadIn()){
             bestinst = scope->getInstruction(j);
@@ -255,8 +236,95 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
             break;
         }
     }
-#endif
-    InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, loc);
+    uint32_t regLimit = X86_32BIT_GPRS;
+    if (is64Bit()){
+        regLimit = X86_64BIT_GPRS;
+    }
+    uint32_t scratchReg1 = regLimit;
+    uint32_t scratchReg2 = regLimit;
+    for (uint32_t i = 0; i < regLimit; i++){
+        if (i == X86_REG_SP){
+            continue;
+        }
+        if (bestinst->isRegDeadIn(i)){
+            if (scratchReg1 < regLimit){
+                scratchReg2 = i;
+                //PRINT_INFOR("sr2=%d", scratchReg2);
+                break;
+            } else {
+                scratchReg1 = i;
+                //PRINT_INFOR("sr1=%d", scratchReg1);
+            }
+        }
+    }
+
+    // snippet contents, in this case just increment a counter
+    if (is64Bit()){
+        if (getElfFile()->isExecutable()){
+            if (add){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
+            } else {
+                snip->addSnippetInstruction(X86InstructionFactory64::emitSubImmByteToMem64(1, getInstDataAddress() + counterOffset));
+            }
+        } else {
+            bool protect1 = false;
+            bool protect2 = false;
+            if (scratchReg1 == regLimit){
+                protect1 = true;
+                scratchReg1 = X86_REG_CX;
+            }
+            if (scratchReg2 == regLimit){
+                protect2 = true;
+                scratchReg2 = (scratchReg1 + 1) % regLimit;
+                if (scratchReg2 == X86_REG_SP){
+                    scratchReg2++;
+                }
+            }
+            ASSERT(scratchReg1 != X86_REG_SP);
+            ASSERT(scratchReg2 != X86_REG_SP);
+
+            // TODO: I think the above optimization is valid but that the isRegDeadIn call is giving bad values in some circumstances
+            protect1 = protect2 = true;
+
+            if (protect1 || protect2){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
+            }
+            if (protect2){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPush(scratchReg2));
+            }
+            if (protect1){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPush(scratchReg1));
+            }
+
+            snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, scratchReg1), this, getInstDataAddress() + counterOffset, false));
+            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrToReg(scratchReg1, scratchReg2));
+            if (add){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitRegAddImm(scratchReg2, 1));
+            } else {
+                snip->addSnippetInstruction(X86InstructionFactory64::emitRegSubImm(scratchReg2, 1));
+            }
+            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddr(scratchReg2, scratchReg1));
+
+            if (protect1){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPop(scratchReg1));
+            }
+            if (protect2){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPop(scratchReg2));
+            }
+            if (protect1 || protect2){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
+            }
+        }
+    } else {
+        ASSERT(getElfFile()->isExecutable());
+        if (add){
+            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+        } else {
+            snip->addSnippetInstruction(X86InstructionFactory32::emitSubImmByteToMem(1, getInstDataAddress() + counterOffset));
+        }
+    }
+
+    InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, mode, prot, loc);
 
     return p;
 }

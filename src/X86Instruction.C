@@ -424,6 +424,7 @@ RegisterSet* X86Instruction::getRegistersUsed(){
             retval->addRegister(use->getIndexRegister());
         }
     }
+    delete uses;
 
     return retval;
 }

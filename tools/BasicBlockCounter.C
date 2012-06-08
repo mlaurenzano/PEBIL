@@ -29,14 +29,23 @@
 #include <Loop.h>
 #include <TextSection.h>
 
+#include <CounterFunctions.hpp>
+
 #define LOOP_EXT "loopcnt"
 #define ENTRY_LOOP_COUNT "initloop"
 #define EXIT_LOOP_COUNT "loopcounter"
 
-#define ENTRY_FUNCTION "initcounter"
-#define EXIT_FUNCTION "blockcounter"
-#define INST_LIB_NAME "libcounter.so"
+#define ENTRY_FUNCTION "tool_image_init"
+#define EXIT_FUNCTION "tool_image_fini"
+#define INST_LIB_NAME "cxx_libcounter.so"
 #define NOSTRING "__pebil_no_string__"
+
+#define BLOCK_MOD 65536
+#define BLOCK_OFF 25104
+/*
+#define BLOCK_MOD 65536
+#define BLOCK_OFF 0
+*/
 
 extern "C" {
     InstrumentationTool* BasicBlockCounterMaker(ElfFile* elf){
@@ -75,7 +84,7 @@ void BasicBlockCounter::declare()
     ASSERT(loopExit && "Cannot find exit function, are you sure it was declared?");
 
     loopEntry = declareFunction(ENTRY_LOOP_COUNT);
-    ASSERT(entryFunc && "Cannot find entry function, are you sure it was declared?");
+    ASSERT(loopEntry && "Cannot find entry function, are you sure it was declared?");
 
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 }
@@ -92,11 +101,14 @@ void BasicBlockCounter::instrument()
         lineInfoFinder = getLineInfoFinder();
     }
 
+    /*
     if (isThreadedMode()){
         PRINT_INFOR("Yes threaded mode");
     } else {
         PRINT_INFOR("Not threaded mode");
     }
+    */
+
 
 #ifdef STATS_PER_INSTRUCTION
     PRINT_WARN(10, "Performing instrumentation to gather PER-INSTRUCTION statistics");
@@ -104,22 +116,41 @@ void BasicBlockCounter::instrument()
 #else //STATS_PER_INSTRUCTION
     uint32_t numberOfPoints = getNumberOfExposedBasicBlocks();
 #endif //STATS_PER_INSTRUCTION
-    uint64_t lineArray = reserveDataOffset(numberOfPoints * sizeof(uint32_t));
-    uint64_t fileNameArray = reserveDataOffset(numberOfPoints * sizeof(char*));
-    uint64_t funcNameArray = reserveDataOffset(numberOfPoints * sizeof(char*));
-    uint64_t hashCodeArray = reserveDataOffset(numberOfPoints * sizeof(uint64_t));
 
-    uint64_t appName = reserveDataOffset((strlen(getApplicationName()) + 1) * sizeof(char));
-    initializeReservedData(getInstDataAddress() + appName, strlen(getApplicationName()) + 1, getApplicationName());
-    uint64_t instExt = reserveDataOffset((strlen(getExtension()) + 1) * sizeof(char));
-    initializeReservedData(getInstDataAddress() + instExt, strlen(getExtension()) + 1, (void*)getExtension());
+    uint64_t imageKey = reserveDataOffset(sizeof(uint64_t));
 
-    // the number blocks in the code
-    uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint64_t));
+    uint64_t counterStruct = reserveDataOffset(sizeof(CounterArray));
 
-    // an array of counters. note that everything is passed by reference
-    uint64_t counterArray = reserveDataOffset(numberOfPoints * sizeof(uint64_t));
+    CounterArray ctrs;
+    ctrs.Type = CounterType_basicblock;
+    ctrs.Size = numberOfPoints;
 
+    ctrs.Initialized = true;
+
+#define INIT_CTR_ELEMENT(__typ, __nam)\
+    ctrs.__nam = (__typ*)reserveDataOffset(numberOfPoints * sizeof(__typ));\
+    initializeReservedPointer((uint64_t)ctrs.__nam, counterStruct + offsetof(CounterArray, __nam))
+
+    INIT_CTR_ELEMENT(uint64_t, Counters);
+    INIT_CTR_ELEMENT(uint64_t, Hashes);
+    INIT_CTR_ELEMENT(uint32_t, Lines);
+    INIT_CTR_ELEMENT(char*, Files);
+    INIT_CTR_ELEMENT(char*, Functions);
+
+    char* appName = getElfFile()->getAppName();
+    uint64_t app = reserveDataOffset(strlen(appName) + 1);
+    initializeReservedPointer(app, counterStruct + offsetof(CounterArray, Application));
+    initializeReservedData(getInstDataAddress() + app, strlen(appName) + 1, (void*)appName);
+
+    char extName[__MAX_STRING_SIZE];
+    sprintf(extName, "%s\0", getExtension());
+    uint64_t ext = reserveDataOffset(strlen(extName) + 1);
+    initializeReservedPointer(ext, counterStruct + offsetof(CounterArray, Extension));
+    initializeReservedData(getInstDataAddress() + ext, strlen(extName) + 1, (void*)extName);
+
+    initializeReservedData(getInstDataAddress() + counterStruct, sizeof(CounterArray), (void*)(&ctrs));
+
+    exitFunc->addArgument(imageKey);
     InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
@@ -127,22 +158,11 @@ void BasicBlockCounter::instrument()
 
     temp64 = 0;
     for (uint32_t i = 0; i < numberOfPoints; i++){
-        initializeReservedData(getInstDataAddress() + counterArray + i*sizeof(uint64_t), sizeof(uint64_t), &temp64);
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
     }
 
-    // the number of inst points
-    temp64 = numberOfPoints;
-    initializeReservedData(getInstDataAddress() + counterArrayEntries, sizeof(uint64_t), &temp64);
-
-    entryFunc->addArgument(counterArrayEntries);
-    entryFunc->addArgument(counterArray);
-
-    exitFunc->addArgument(lineArray);
-    exitFunc->addArgument(fileNameArray);
-    exitFunc->addArgument(funcNameArray);
-    exitFunc->addArgument(appName);
-    exitFunc->addArgument(instExt);
-    exitFunc->addArgument(hashCodeArray);
+    entryFunc->addArgument(counterStruct);
+    entryFunc->addArgument(imageKey);
 
     p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
     p->setPriority(InstPriority_userinit);
@@ -150,12 +170,11 @@ void BasicBlockCounter::instrument()
         PRINT_ERROR("Cannot find an instrumentation point at the entry block");
     }
 
-    uint64_t noDataAddr = getInstDataAddress() + reserveDataOffset(strlen(NOSTRING) + 1);
+    uint64_t noData = reserveDataOffset(strlen(NOSTRING) + 1);
     char* nostring = new char[strlen(NOSTRING) + 1];
     sprintf(nostring, "%s\0", NOSTRING);
-    initializeReservedData(noDataAddr, strlen(NOSTRING) + 1, nostring);
+    initializeReservedData(getInstDataAddress() + noData, strlen(NOSTRING) + 1, nostring);
 
-    PRINT_DEBUG_MEMTRACK("There are %d instrumentation points", numberOfPoints);
 #ifdef STATS_PER_INSTRUCTION
     Vector<X86Instruction*>* allInstructions = new Vector<X86Instruction*>();
     Vector<uint32_t>* allInstructionIds = new Vector<uint32_t>();
@@ -212,28 +231,20 @@ void BasicBlockCounter::instrument()
             }
         }
 
-        if (i % 1000 == 0){
-            PRINT_DEBUG_MEMTRACK("inst point %d", i);
-            PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);            
-        }
-
         if (li){
             uint32_t line = li->GET(lr_line);
-            initializeReservedData(getInstDataAddress() + lineArray + sizeof(uint32_t)*i, sizeof(uint32_t), &line);
+            initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Lines + sizeof(uint32_t)*i, sizeof(uint32_t), &line);
 
             uint64_t filename = reserveDataOffset(strlen(li->getFileName()) + 1);
-            uint64_t filenameAddr = getInstDataAddress() + filename;
-            initializeReservedData(getInstDataAddress() + fileNameArray + i*sizeof(char*), sizeof(char*), &filenameAddr);
+            initializeReservedPointer(filename, (uint64_t)ctrs.Files + i*sizeof(char*));
             initializeReservedData(getInstDataAddress() + filename, strlen(li->getFileName()) + 1, (void*)li->getFileName());
-
         } else {
             temp32 = 0;
-            initializeReservedData(getInstDataAddress() + lineArray + sizeof(uint32_t)*i, sizeof(uint32_t), &temp32);
-            initializeReservedData(getInstDataAddress() + fileNameArray + i*sizeof(char*), sizeof(char*), &noDataAddr);
+            initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Lines + sizeof(uint32_t)*i, sizeof(uint32_t), &temp32);
+            initializeReservedPointer(noData, (uint64_t)ctrs.Files + i*sizeof(char*));
         }
         uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
-        uint64_t funcnameAddr = getInstDataAddress() + funcname;
-        initializeReservedData(getInstDataAddress() + funcNameArray + i*sizeof(char*), sizeof(char*), &funcnameAddr);
+        initializeReservedPointer(funcname, (uint64_t)ctrs.Functions + i*sizeof(char*));
         initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
 
 #ifdef STATS_PER_INSTRUCTION
@@ -244,15 +255,31 @@ void BasicBlockCounter::instrument()
         uint64_t hashValue = bb->getHashCode().getValue();
 #endif //STATS_PER_INSTRUCTION
 
-        initializeReservedData(getInstDataAddress() + hashCodeArray + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Hashes + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
         
-        uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
+        uint64_t counterOffset = (uint64_t)ctrs.Counters + (i * sizeof(uint64_t));
+
+        /*
+        if (i % BLOCK_MOD == BLOCK_OFF){
+            PRINT_INFOR("counting for block %d -- %#llx", i, bb->getProgramAddress());
+            bb->print();
+            for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
+                bb->getInstruction(j)->print();
+                PRINT_INFOR("\t\tflags dead? %d", bb->getInstruction(j)->allFlagsDeadIn());
+                for (uint32_t k = 0; k < X86_64BIT_GPRS; k++){
+                    PRINT_INFOR("\t\treg %d dead? %d", k, bb->getInstruction(j)->isRegDeadIn(k));
+                }
+            }
+            InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
+        }
+        */
         InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
     }
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+
 #ifdef NO_REG_ANALYSIS
     PRINT_WARN(10, "Warning: register analysis disabled");
 #endif
+    /*
 
     PRINT_INFOR("Instrumenting %d loops for counting", loopsFound.size());
 
@@ -375,6 +402,7 @@ void BasicBlockCounter::instrument()
 #else //STATS_PER_INSTRUCTION
     printStaticFile(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
 #endif //STATS_PER_INSTRUCTION
+    */
 
     delete[] nostring;
 
@@ -390,342 +418,3 @@ void BasicBlockCounter::instrument()
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }
-
-
-#define ENTRY_RARE "initrare"
-#define EXIT_RARE "finirare"
-#define COMPARE_COUNTERS "check_counter_state"
-#define COMPARE_INIT "init_matches"
-
-#define FUNCTION_ICOUNT_THRESHOLD 0
-#define LOOP_ICOUNT_THRESHOLD 20
-#define BB_ICOUNT_THRESHOLD 12
-
-extern "C" {
-    InstrumentationTool* RareEventCounterMaker(ElfFile* elf){
-        return new RareEventCounter(elf);
-    }
-}
-
-RareEventCounter::RareEventCounter(ElfFile* elf)
-    : BasicBlockCounter(elf)
-{
-}
-
-void RareEventCounter::declare(){
-    BasicBlockCounter::declare();
-
-    exitRare = declareFunction(EXIT_RARE);
-    ASSERT(exitRare && "Cannot find exit function, are you sure it was declared?");
-
-    entryRare = declareFunction(ENTRY_RARE);
-    ASSERT(entryRare && "Cannot find entry function, are you sure it was declared?");
-
-    checkFunc = declareFunction(COMPARE_COUNTERS);
-    ASSERT(checkFunc);
-
-    checkInit = declareFunction(COMPARE_INIT);
-    ASSERT(checkInit);
-}
-
-void RareEventCounter::instrument() 
-{
-    if (doIntro){
-        loopCount = false;
-        BasicBlockCounter::instrument();
-        //InstrumentationTool::instrument();
-    } else {
-        InstrumentationTool::instrument();
-    }
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
-    uint32_t temp32;
-    uint64_t temp64;
-
-    LineInfoFinder* lineInfoFinder = NULL;
-    if (hasLineInformation()){
-        lineInfoFinder = getLineInfoFinder();
-    }
-
-    PRINT_INFOR("Identifying rare blocks/loops based on the following thresholds:");
-    PRINT_INFOR("\t\tLOOP_ICOUNT_THRESHOLD %d", LOOP_ICOUNT_THRESHOLD);
-    PRINT_INFOR("\t\tFUNCTION_ICOUNT_THRESHOLD %d", FUNCTION_ICOUNT_THRESHOLD);
-    PRINT_INFOR("\t\tBB_ICOUNT_THRESHOLD %d", BB_ICOUNT_THRESHOLD);
-
-    Vector<BasicBlock*> rareBlocks;
-    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
-        BasicBlock* bb = getExposedBasicBlock(i);
-        LineInfo* li = NULL;
-        if (lineInfoFinder){
-            li = lineInfoFinder->lookupLineInfo(bb);
-        }
-        Function* f = bb->getFunction();
-
-        bool blockIsRare = false;
-
-        if (bb->getNumberOfInstructions() > BB_ICOUNT_THRESHOLD){
-            blockIsRare = true;
-        } 
-        if (bb->getNumberOfFloatOps() > 2){
-            blockIsRare = true;
-        }
-        if (bb->endsWithCall()){
-            blockIsRare = true;
-        }
-        if (bb->getNumberOfMemoryOps() > 5){
-            blockIsRare = true;
-        }
-
-        if (bb->getExitInstruction()->isReturn() &&
-            f->getNumberOfInstructions() > FUNCTION_ICOUNT_THRESHOLD){
-            blockIsRare = true;
-        }
-
-        if (blockIsRare){
-            rareBlocks.append(bb);
-        }
-    }
-
-    Vector<Loop*> rareLoops;
-
-    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
-        BasicBlock* bb = getExposedBasicBlock(i);
-        LineInfo* li = NULL;
-        if (lineInfoFinder){
-            li = lineInfoFinder->lookupLineInfo(bb);
-        }
-        Function* f = bb->getFunction();
-        if (li && bb->isInLoop()){
-            FlowGraph* fg = bb->getFlowGraph();
-            //Loop* outerMost = fg->getOuterMostLoopForLoop(fg->getInnermostLoopForBlock(bb->getIndex())->getIndex());
-            Loop* outerMost = fg->getInnermostLoopForBlock(bb->getIndex());
-
-            if (outerMost->getNumberOfInstructions() <= LOOP_ICOUNT_THRESHOLD){
-                continue;
-            }
-
-            bool loopAlreadyInstrumented = false;
-            for (uint32_t i = 0; i < rareLoops.size(); i++){
-                if (outerMost->isIdenticalLoop(rareLoops[i])){
-                    loopAlreadyInstrumented = true;
-                }
-            }
-            if (!loopAlreadyInstrumented){
-                rareLoops.append(outerMost);
-            }
-        }
-    }
-
-    uint32_t numberOfPoints = rareBlocks.size() + rareLoops.size();
-
-    uint64_t rareArrayEntries = reserveDataOffset(sizeof(uint64_t));
-    rareArray = reserveDataOffset(numberOfPoints * sizeof(uint64_t));
-
-    temp64 = 0;
-    for (uint32_t i = 0; i < numberOfPoints; i++){
-        initializeReservedData(getInstDataAddress() + rareArray + i*sizeof(uint64_t), sizeof(uint64_t), &temp64);
-    }
-
-    temp64 = numberOfPoints;
-    initializeReservedData(getInstDataAddress() + rareArrayEntries, sizeof(uint64_t), &temp64);
-
-    uint64_t appName = reserveDataOffset((strlen(getApplicationName()) + 1) * sizeof(char));
-    initializeReservedData(getInstDataAddress() + appName, strlen(getApplicationName()) + 1, getApplicationName());
-
-    entryRare->addArgument(rareArrayEntries);
-    entryRare->addArgument(rareArray);
-    entryRare->addArgument(appName);
-
-    InstrumentationPoint* p;
-    if (doIntro){
-        matchArray = reserveDataOffset(numberOfPoints * sizeof(uint64_t));
-        matchCountAddress = reserveDataOffset(sizeof(uint64_t));
-        
-        temp64 = 0;
-        for (uint32_t i = 0; i < numberOfPoints; i++){
-            initializeReservedData(getInstDataAddress() + matchArray + i*sizeof(uint64_t), sizeof(uint64_t), &temp64);
-        }
-        checkInit->addArgument(matchArray);
-        checkInit->addArgument(matchCountAddress);
-        checkInit->addArgument(rareArray);
-        checkInit->addArgument(rareArrayEntries);
-        // sent to both since we need it in both
-        checkInit->addArgument(appName);
-
-        p = addInstrumentationPoint(getProgramEntryBlock(), checkInit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
-        p->setPriority(InstPriority_userinit);
-        if (!p->getInstBaseAddress()){
-            PRINT_ERROR("Cannot find an instrumentation point at the entry block");
-        }
-    }
-
-    p = addInstrumentationPoint(getProgramEntryBlock(), entryRare, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
-    p->setPriority(InstPriority_userinit);
-    if (!p->getInstBaseAddress()){
-        PRINT_ERROR("Cannot find an instrumentation point at the entry block");
-    }
-
-    p = addInstrumentationPoint(getProgramExitBlock(), exitRare, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
-    if (!p->getInstBaseAddress()){
-        PRINT_ERROR("Cannot find an instrumentation point at the exit function");
-    }
-
-    for (uint32_t i = 0; i < rareBlocks.size(); i++){
-        BasicBlock* bb = rareBlocks[i];
-        uint64_t counterOffset = rareArray + (i * sizeof(uint64_t));
-        if (doIntro){
-            insertPointCheck(bb, i, InstLocation_prior);
-        } else {
-            InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
-        }
-    }
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-#ifdef NO_REG_ANALYSIS
-    PRINT_WARN(10, "Warning: register analysis disabled");
-#endif
-
-    PRINT_INFOR("Instrumenting %d loops for counting", rareLoops.size());
-
-    uint32_t numCalls = 0;
-    for (uint32_t i = 0; i < rareLoops.size(); i++){
-        uint64_t counterOffset = rareArray + ((i + rareBlocks.size()) * sizeof(uint64_t));
-        Loop* loop = rareLoops[i];
-        BasicBlock* head = loop->getHead();
-        BasicBlock* tail = loop->getTail();
-        ASSERT(head && tail);
-
-        Function* f = head->getFunction();
-
-        //increment counter on each time we encounter the loop head
-        if (doIntro){
-            insertPointCheck(head, i + rareBlocks.size(), InstLocation_prior);
-        } else {
-            InstrumentationTool::insertInlinedTripCounter(counterOffset, head);
-        }
-
-        // decrement counter each time we traverse a back edge
-        for (uint32_t j = 0; j < tail->getNumberOfTargets(); j++){
-            BasicBlock* target = tail->getTargetBlock(j);
-            FlowGraph* fg = target->getFlowGraph();
-            if (head->getHashCode().getValue() == target->getHashCode().getValue()){
-                ASSERT(head->getHashCode().getValue() == target->getHashCode().getValue());
-
-                // if control falls from tail to head, stick a decrement at the very end of the block
-                if (tail->getBaseAddress() + tail->getNumberOfBytes() == target->getBaseAddress()){
-                    if (doIntro){
-                        insertPointCheck(tail->getExitInstruction(), i + rareBlocks.size(), InstLocation_after);
-                    } else {
-                        InstrumentationSnippet* snip = new InstrumentationSnippet();
-                        addInstrumentationSnippet(snip);
-                        if (is64Bit()){
-                            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
-                        } else {
-                            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
-                        }
-                        
-                        FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-                        if (tail->getExitInstruction()->allFlagsDeadOut()){
-                            prot = FlagsProtectionMethod_none;
-                        }
-                        InstrumentationPoint* p = addInstrumentationPoint(tail->getExitInstruction(), snip, InstrumentationMode_inline, prot, InstLocation_after);
-                    }
-                    PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
-                } else {
-                    BasicBlock* interposed = initInterposeBlock(fg, tail->getIndex(), target->getIndex());
-                    if (doIntro){
-                        insertPointCheck(interposed, i + rareBlocks.size(), InstLocation_prior);
-                    } else {
-                        InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed);
-                    }
-                    PRINT_INFOR("\tEXIT-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
-                }
-                numCalls++;
-            }
-        }
-    }
-    PRINT_INFOR("Loop-counter instrumentation adding %d points", numCalls);
-
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
-}
-
-void RareEventCounter::insertPointCheck(Base* point, uint32_t checkIdx, InstLocations loc){
-    if (!doIntro){
-        return;
-    }
-
-    Vector<X86Instruction*> counterUpdate = Vector<X86Instruction*>();
-
-    ASSERT(rareArray);
-    ASSERT(matchArray);
-    ASSERT(matchCountAddress);
-
-    uint64_t counterAddress = getInstDataAddress() + rareArray + (checkIdx * sizeof(uint64_t));
-    uint64_t matchAddress = getInstDataAddress() + matchArray + (checkIdx * sizeof(uint64_t));
-
-    FlagsProtectionMethods prot = FlagsProtectionMethod_full;
-#ifndef NO_REG_ANALYSIS
-    /*
-    if (bb->getLeader()->allFlagsDeadIn()){
-        prot = FlagsProtectionMethod_none;
-    }
-    */
-#endif
-
-    InstrumentationPoint* checkp = addInstrumentationPoint(point, checkFunc, InstrumentationMode_trampinline, prot, loc);
-
-    uint32_t tmpReg1 = X86_REG_CX;
-    uint32_t tmpReg2 = X86_REG_DX;
-    uint32_t tmpReg3 = X86_REG_AX;
-
-    if (is64Bit()){
-        // save scratch reg state
-        counterUpdate.append(X86InstructionFactory64::emitMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t))));
-        counterUpdate.append(X86InstructionFactory64::emitMoveRegToMem(tmpReg2, getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t))));
-
-        // load array values into regs
-        counterUpdate.append(X86InstructionFactory64::emitMoveMemToReg(counterAddress, tmpReg1, true));
-        counterUpdate.append(X86InstructionFactory64::emitMoveMemToReg(matchAddress, tmpReg2, true));
-
-        // update counter
-        counterUpdate.append(X86InstructionFactory64::emitRegAddImm(tmpReg1, 1));
-        counterUpdate.append(X86InstructionFactory64::emitMoveRegToMem(tmpReg1, counterAddress));
-
-        //PRINT_INFOR("CHECK counter update to %#llx ~/ match %#llx", counterAddress, matchAddress);
-
-        // compare the two values for equality
-        counterUpdate.append(X86InstructionFactory64::emitXorRegReg(tmpReg1, tmpReg2));
-        counterUpdate.append(X86InstructionFactory64::emitCompareImmReg(0, tmpReg2));
-
-        // restore scratch regs
-        counterUpdate.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t)), tmpReg2, true));
-        counterUpdate.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t)), tmpReg1, true));
-
-        Vector<X86Instruction*> innerComp = Vector<X86Instruction*>();
-
-        innerComp.append(X86InstructionFactory64::emitMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t))));
-        innerComp.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + matchCountAddress, tmpReg1, true));
-        innerComp.append(X86InstructionFactory64::emitRegSubImm(tmpReg1, 1));
-        innerComp.append(X86InstructionFactory64::emitMoveRegToMem(tmpReg1, getInstDataAddress() + matchCountAddress));
-        //innerComp.append(X86InstructionFactory64::emitMoveImmToReg(1, tmpReg1));
-        innerComp.append(X86InstructionFactory64::emitCompareImmReg(0, tmpReg1));
-        innerComp.append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t)), tmpReg1, true));
-        innerComp.append(X86InstructionFactory::emitBranchJNE(Size__64_bit_inst_function_call_support));
-
-        uint32_t innerCompSize = 0;
-        for (int i = 0; i < innerComp.size(); i++){
-            innerCompSize += innerComp[i]->getSizeInBytes();
-        }
-
-        counterUpdate.append(X86InstructionFactory::emitBranchJNE(innerCompSize + Size__64_bit_inst_function_call_support));
-
-        while (innerComp.size()){
-            counterUpdate.append(innerComp.remove(0));
-        }
-    } else {
-        __FUNCTION_NOT_IMPLEMENTED;
-    }
-    
-    while (counterUpdate.size()){
-        checkp->addPrecursorInstruction(counterUpdate.remove(0));
-    }
-}
-

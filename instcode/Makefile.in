@@ -2,14 +2,16 @@ STATIC_INST_LIB  = @STATIC_INST_LIB@
 
 PEBIL_LIBS = 
 ifeq ($(STATIC_INST_LIB),yes)
-	PEBIL_LIBS = libcounter.a  libsimulator.a  libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a liblptimer.a libkeydata.a
+	PEBIL_LIBS = libcounter.a  libsimulator.a  libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  liblptimer.a  cxx_libcounter.a
 else
-	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so libclassifier.so libpfreq.so libtautrace.so liblptimer.so libkeydata.so
+	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so libclassifier.so libpfreq.so libtautrace.so liblptimer.so cxx_libcounter.so
 endif
 
 LIB_TARGETS = $(PEBIL_LIBS)
 MPICC       = @MPICC@
+MPICXX      = @MPICXX@
 CFLAGS      = @CFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -DPER_SET_RECENT -DSHIFT_ADDRESS_BUFFER -w
+CXXFLAGS    = -std=c++0x @CXXFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -DPER_SET_RECENT -DSHIFT_ADDRESS_BUFFER -w
 
 SHARED_OPT  = -fPIC
 EXTRA_FLAGS = $(SHARED_OPT)
@@ -30,12 +32,17 @@ LIBDIR      = ../lib
 BINDIR      = ../bin
 
 COMMON_OBJS = InstrumentationCommon.o
+CXX_COMMON_OBJS = InstrumentationCommon.O
 
 all: $(LIB_TARGETS)
 
 %.o: %.c
 	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
+%.O: %.cpp
+	$(MPICXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
 
+cxx_libcounter.so : CounterFunctions.O $(CXX_COMMON_OBJS)
+	$(MPICXX) $(SHARED_LIB) -o $@ CounterFunctions.O $(CXX_COMMON_OBJS) $(EXTRA_LIBS)
 libcounter.so : CounterFunctions.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ CounterFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS)
 libcounter.a : CounterFunctions.o $(COMMON_OBJS)
@@ -69,13 +76,8 @@ libtautrace.so : tautrace.o $(COMMON_OBJS)
 libtautrace.a : tautrace.o
 	$(AR) $@ tautrace.o
 
-libkeydata.so : keydata.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ keydata.o $(COMMON_OBJS) $(EXTRA_LIBS)
-libkeydata.a : keydata.o
-	$(AR) $@ keydata.o
-
 clean: 
-	rm -f *.o *.i *.s *.ii $(LIB_TARGETS)
+	rm -f *.o *.O *.i *.s *.ii $(LIB_TARGETS)
 
 install:
 	cp $(LIB_TARGETS) $(LIBDIR)

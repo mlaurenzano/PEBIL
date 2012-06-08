@@ -39,10 +39,10 @@
 
 extern uint64_t read_timestamp_counter();
 extern double read_process_clock();
-extern void ptimer();
+extern void ptimer(double* tmr);
 
 #define MAX_TIMERS 1024
-double pebiltimers[MAX_TIMERS];
+static double pebiltimers[MAX_TIMERS];
 
 typedef struct
 {
@@ -67,18 +67,21 @@ typedef struct
     __give_pebil_name(__fname)
 #endif // PRELOAD_WRAPPERS
 
+extern int __give_pebil_name(pthread_create)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
+extern int pthread_create_pebil_nothread(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
+
 typedef struct
 {
     void* (*start_function)(void*);
     void* function_args;
 } tool_thread_args;
-extern int __give_pebil_name(pthread_create)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
-extern int pthread_create_pebil_nothread(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
+extern void pebil_image_init(pthread_key_t* image_id);
+extern void pebil_set_data(pthread_key_t image_id, void* data);
+extern void* pebil_get_data(pthread_t thread_id, pthread_key_t image_id);
+extern void* pebil_get_data_self(pthread_key_t image_id);
 
-extern void pebil_image_init(uint64_t * image_id);
-extern void pebil_set_data(uint64_t image_id, void * data);
-extern void * pebil_get_data(pthread_t thread_id, uint64_t image_id);
-extern void * tool_thread_init(tool_thread_args * args);
+extern void* tool_thread_init(void* args);
+extern void* tool_mpi_init();
 
 #ifdef HAVE_MPI
 #define __taskmarker "-[t%d]- "

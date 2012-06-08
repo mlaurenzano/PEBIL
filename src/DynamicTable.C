@@ -77,7 +77,9 @@ Dynamic* DynamicTable::getDynamicByType(uint32_t type, uint32_t idx){
 uint32_t DynamicTable::findEmptyDynamic(){
     for (uint32_t i = 0; i < dynamics.size(); i++){
         Dynamic* dyn = getDynamic(i);
-        if (dyn->GET(d_tag) == DT_NULL || dyn->GET(d_tag) == DT_INIT){
+        // DT_INIT is used for shared libraries!
+        //if (dyn->GET(d_tag) == DT_NULL || dyn->GET(d_tag) == DT_INIT){
+        if (dyn->GET(d_tag) == DT_NULL){
             return i;
         }
     }

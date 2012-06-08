@@ -330,7 +330,7 @@ uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, vo
 
     if (address + size > getInstDataAddress() + usableDataOffset ||
         address < getInstDataAddress()){
-        PRINT_INFOR("address range %#llx+%d out of range of data section [%#llx,%#llx)", address, size, getInstDataAddress(),
+        PRINT_INFOR("address range %#llx + %d out of range of data section [%#llx, %#llx)", address, size, getInstDataAddress(),
                     getInstDataAddress() + usableDataOffset);
     }
     ASSERT(address + size <= getInstDataAddress() + usableDataOffset && address >= getInstDataAddress() &&
@@ -339,6 +339,12 @@ uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, vo
     memcpy(instrumentationData + address - getInstDataAddress(), bytes, size);
 
     return size;
+}
+
+uint32_t ElfFileInst::initializeReservedPointer(uint64_t addr, uint64_t ptr){
+    pointerAddrs.append(addr);
+    pointerPtrs.append(ptr);
+    return 0;
 }
 
 bool ElfFileInst::isEligibleFunction(Function* func){
@@ -562,6 +568,15 @@ uint32_t ElfFileInst::generateInstrumentation(){
     snip->setRequiresDistinctTrampoline(true);
     snip->setCodeOffset(codeOffset);
 
+    for (uint32_t i = 0; i < pointerAddrs.size(); i++){
+        if (is64Bit()){
+            snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0,X86_REG_CX), this, pointerPtrs[i], true));
+            snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0,X86_REG_DX), this, pointerAddrs[i], true));
+            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddr(X86_REG_DX, X86_REG_CX));
+        } else {
+            PRINT_ERROR("Operation not supported on IA32");
+        }
+    }
     for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
         snip->addSnippetInstruction(X86InstructionFactory32::emitStackPop(X86_32BIT_GPRS-i-1));
     }
@@ -755,8 +770,13 @@ uint32_t ElfFileInst::generateInstrumentation(){
             DEBUG_INST(func->print();)
 
             func->generateGlobalData(textBaseAddress);
-            func->generateWrapperInstructions(textBaseAddress, getInstDataAddress(), fxStorageOffset);
-            func->generateBootstrapInstructions(textBaseAddress, getInstDataAddress());
+            func->generateWrapperInstructions(textBaseAddress, getInstDataAddress(), fxStorageOffset, this);
+
+            // effectively does the same thing as bootstrap instructions
+            uint64_t res = func->getGlobalData();
+            initializeReservedData(getInstDataAddress() + func->getGlobalDataOffset(), sizeof(uint64_t), (void*)(&res));
+
+            //func->generateBootstrapInstructions(textBaseAddress, getInstDataAddress());
 
             // plt section only exists in dynamic binary, and for static binary we don't use this value
             uint64_t realPLTaddr = 0;
@@ -803,6 +823,10 @@ uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
     uint64_t avail = usableDataOffset;
     usableDataOffset = nextOffset;
     return avail;
+}
+
+uint64_t ElfFileInst::reserveDataAddress(uint64_t size){
+    return getInstDataAddress() + reserveDataOffset(size);
 }
 
 uint32_t ElfFileInst::addInstrumentationSnippet(InstrumentationSnippet* snip){
@@ -1258,17 +1282,18 @@ void ElfFileInst::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(offset == ELF_FILE_HEADER_OFFSET && "Instrumentation must be dumped at the begining of the output file");
 
     uint32_t extraTextOffset = elfFile->getSectionHeader(extraTextIdx)->GET(sh_offset);
+    uint64_t extraTextAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
     for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
-        instrumentationFunctions[i]->dump(binaryOutputFile,extraTextOffset);
+        instrumentationFunctions[i]->dump(binaryOutputFile, extraTextOffset, extraTextAddress);
     }
     for (uint32_t i = 0; i < instrumentationSnippets.size(); i++){
-        instrumentationSnippets[i]->dump(binaryOutputFile,extraTextOffset);
+        instrumentationSnippets[i]->dump(binaryOutputFile, extraTextOffset, extraTextAddress);
     }
     for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
-        (*instrumentationPoints)[i]->dump(binaryOutputFile,extraTextOffset);
+        (*instrumentationPoints)[i]->dump(binaryOutputFile, extraTextOffset, extraTextAddress);
     }
     for (uint32_t i = 0; i < relocatedFunctions.size(); i++){
-        relocatedFunctions[i]->dump(binaryOutputFile,extraTextOffset+relocatedFunctionOffsets[i]);
+        relocatedFunctions[i]->dump(binaryOutputFile, extraTextOffset + relocatedFunctionOffsets[i]);
     }
 }
 
@@ -2000,13 +2025,14 @@ uint64_t ElfFileInst::addFunction(InstrumentationFunction* func){
     SymbolTable* dynamicSymbolTable = elfFile->getSymbolTable(symtabIdx);
     for (uint32_t i = 0; i < dynamicSymbolTable->getNumberOfSymbols(); i++){
         if (!strcmp(dynamicSymbolTable->getSymbolName(i),func->getFunctionName())){
+            return 0;
             PRINT_ERROR("A symbol named `%s' already exists in the dynamic symbol table", dynamicSymbolTable->getSymbolName(i));
             __SHOULD_NOT_ARRIVE;
         }
     }
 
     uint64_t relocationOffset = addPLTRelocationEntry(dynamicSymbolTable->getNumberOfSymbols(), func->getGlobalDataOffset());
-    uint32_t symbolIndex = addSymbolToDynamicSymbolTable(funcNameOffset, 0, 0, STB_GLOBAL, STT_FUNC, 0, 0);
+    uint32_t symbolIndex = addSymbolToDynamicSymbolTable(funcNameOffset, 0, 0, STB_GLOBAL, STT_NOTYPE, 0, 0);
 
     func->setRelocationOffset(relocationOffset);
     verify();

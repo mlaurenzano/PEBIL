@@ -40,6 +40,7 @@ public:
     virtual char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
+    const char* getTypeName();
 };
 
 class FileHeader32 : public FileHeader {

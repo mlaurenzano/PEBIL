@@ -27,7 +27,7 @@
 
 class X86InstructionFactory : public X86Instruction {
 protected:
-    static X86Instruction* emitInstructionBase(uint32_t sz, char* buf);
+    static X86Instruction* emitInstructionBase(uint32_t sz, char* buf) __attribute__ ((noinline));
     static X86Instruction* emitBranchGeneric(uint64_t off, uint8_t code);
 
 public:
@@ -73,7 +73,7 @@ public:
 
 class X86InstructionFactory64 : public X86InstructionFactory {
 private:
-    static X86Instruction* emitInstructionBase(uint32_t sz, char* buf);
+    static X86Instruction* emitInstructionBase(uint32_t sz, char* buf) __attribute__ ((noinline));
 
     static X86Instruction* emitMoveRegToRegaddrImm4Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm);
     static X86Instruction* emitMoveRegToRegaddrImm1Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm);
@@ -117,6 +117,7 @@ public:
     static X86Instruction* emitLoadRipImmToReg(uint32_t imm, uint32_t destreg);
     static X86Instruction* emitMoveRegToReg(uint32_t srcreg, uint32_t destreg);
     static X86Instruction* emitLoadRegImmReg(uint8_t src, uint64_t imm, uint8_t dest);
+    static X86Instruction* emitLoadRipImmReg(uint64_t imm, uint8_t dest);
 
     static Vector<X86Instruction*>* emitAddressComputation(X86Instruction* instruction, uint32_t dest);
     static X86Instruction* emitLoadEffectiveAddress(OperandX86* op, uint32_t dest);
@@ -128,7 +129,7 @@ public:
 
 class X86InstructionFactory32 : public X86InstructionFactory {
 private:
-    static X86Instruction* emitInstructionBase(uint32_t sz, char* buf);
+    static X86Instruction* emitInstructionBase(uint32_t sz, char* buf) __attribute__ ((noinline));
 
 public:
     static X86Instruction* emitFxSave(uint64_t addr);

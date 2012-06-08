@@ -33,8 +33,11 @@ class InstrumentationPoint;
 #define PLT_RETURN_OFFSET_32BIT 6
 #define PLT_RETURN_OFFSET_64BIT 6
 
-#define Size__32_bit_function_bootstrap 128
-#define Size__64_bit_function_bootstrap 128
+// we leave the bootstrap mechanisms in place, but this functionality is
+// acheived now using regular data initialization (ElfFileInst::initializeReservedData)
+#define Size__32_bit_function_bootstrap 0
+#define Size__64_bit_function_bootstrap 0
+
 #define Size__32_bit_procedure_link 16
 #define Size__64_bit_procedure_link 16
 #define Size__32_bit_function_wrapper 128
@@ -87,7 +90,7 @@ public:
     virtual uint32_t sizeNeeded() { __SHOULD_NOT_ARRIVE; }
     virtual uint64_t getEntryPoint() { __SHOULD_NOT_ARRIVE; }
     virtual bool verify() { return true; }
-    virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; } 
+    virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint64_t addr) { __SHOULD_NOT_ARRIVE; } 
 
     virtual X86Instruction* removeNextCoreInstruction() { __SHOULD_NOT_ARRIVE; }
     virtual bool hasMoreCoreInstructions() { __SHOULD_NOT_ARRIVE; }
@@ -122,7 +125,7 @@ public:
     uint32_t dataSize();
 
     void setCodeOffsets(uint64_t btOffset, uint64_t spOffset);
-    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint64_t addr);
 
     uint32_t reserveData(uint64_t offset, uint32_t size);
 
@@ -210,10 +213,10 @@ public:
 
     virtual uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress) { __SHOULD_NOT_ARRIVE; }
     virtual uint32_t generateBootstrapInstructions(uint64_t textbaseAddress, uint64_t dataBaseAddress) { __SHOULD_NOT_ARRIVE; }
-    virtual uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset) { __SHOULD_NOT_ARRIVE; }
+    virtual uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset, ElfFileInst* elfInst) { __SHOULD_NOT_ARRIVE; }
     virtual uint32_t generateGlobalData(uint64_t textBaseAddress) { __SHOULD_NOT_ARRIVE; }
 
-    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint64_t addr);
 
     uint32_t addArgument(uint64_t offset);
 
@@ -230,7 +233,7 @@ public:
 
     uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress);
     uint32_t generateBootstrapInstructions(uint64_t textbaseAddress, uint64_t dataBaseAddress);
-    virtual uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset);
+    virtual uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset, ElfFileInst* elfInst);
     uint32_t generateGlobalData(uint64_t textBaseAddress);
 
     uint32_t bootstrapReservedSize() { return Size__32_bit_function_bootstrap; }
@@ -245,7 +248,7 @@ public:
 
     uint32_t generateProcedureLinkInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t realPLTAddress);
     uint32_t generateBootstrapInstructions(uint64_t textbaseAddress, uint64_t dataBaseAddress);
-    virtual uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset);
+    virtual uint32_t generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset, ElfFileInst* elfInst);
     uint32_t generateGlobalData(uint64_t textBaseAddress);
 
     uint32_t bootstrapReservedSize() { return Size__64_bit_function_bootstrap; }
@@ -291,7 +294,7 @@ public:
     void setInstSourceOffset(int32_t off) { offsetFromPoint = off; }
     uint64_t getInstSourceAddress() { return getInstBaseAddress() + offsetFromPoint; }
     void print();
-    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint64_t addr);
 
     void setPriority(InstPriorities p) { ASSERT(p && p < InstPriority_Total_Types); priority = p; }
     InstPriorities getPriority() { return priority; }

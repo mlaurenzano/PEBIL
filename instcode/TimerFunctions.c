@@ -67,7 +67,7 @@ void printFunctionInfo(int i){
 #endif
 }
 
-void tool_mpi_init() {}
+void* tool_mpi_init() {}
 
 int compareFuncInfos(const void* f1, const void* f2){
     struct funcInfo* func1 = (struct funcInfo*)f1;

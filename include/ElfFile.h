@@ -113,6 +113,11 @@ private:
 public:
     bool verify();
 
+    bool isExecutable();
+    bool isSharedLib();
+    DataReference* generateDataRef(uint64_t loc, RawSection* sec, uint64_t align, uint64_t off);
+    void addAddressAnchor(AddressAnchor* adr);
+
     ElfFile(char* f, char* a);
     ~ElfFile();
 

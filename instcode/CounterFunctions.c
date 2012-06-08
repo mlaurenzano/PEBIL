@@ -37,13 +37,6 @@ int32_t numberOfBasicBlocks = 0;
 uint64_t* loopCounters = NULL;
 int32_t numberOfLoops = 0;
 
-void * tool_thread_init(tool_thread_args* threadargs){
-    PRINT_INSTR(stdout, "Hooked pthread_create for thread id %#llx", pthread_self());
-    threadargs->start_function(threadargs->function_args);
-    free(threadargs);
-    return NULL;
-}
-
 int32_t initcounter(int32_t* numBlocks, uint64_t* blockCounts){
     numberOfBasicBlocks = *numBlocks;
     blockCounters = blockCounts;
@@ -462,7 +455,7 @@ void finalize_signaller(){
 
 #endif //FAKE_MEASURE
 
-void tool_mpi_init(){
+void* tool_mpi_init(){
     int i;
     if (!numberOfRareCounters){
         return;

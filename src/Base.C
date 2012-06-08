@@ -19,9 +19,26 @@
  */
 
 #include <Base.h>
+#include <ElfFile.h>
+#include <ElfFileInst.h>
+#include <X86Instruction.h>
 
 FILE* pebilOutp = stdout;
 uint64_t warnCount = 0;
+
+X86Instruction* linkInstructionToData(X86Instruction* ins, ElfFileInst* elfInst, uint64_t addr, bool isOffset){
+    ElfFile* elf = elfInst->getElfFile();
+    DataReference* dataRef;
+    if (isOffset){
+        dataRef = elf->generateDataRef(0, elfInst->getInstDataSection(), sizeof(uint64_t), addr);
+    } else {
+        dataRef = elf->generateDataRef(0, NULL, sizeof(uint64_t), addr);
+    }
+    ins->initializeAnchor(dataRef);
+    elf->addAddressAnchor(ins->getAddressAnchor());
+    //elfInst->getInstDataSection()->addDataReference(dataRef);
+    return ins;
+}
 
 void FileList::init(const char* filename, uint32_t w, char s){
     ASSERT(filename);

@@ -349,7 +349,7 @@ void pfreq_throttle_fini(){
 }
 
 // called just after mpi_init
-void tool_mpi_init(){
+void* tool_mpi_init(){
     nprocessors = sysconf(_SC_NPROCESSORS_ONLN);
     int core = getTaskId() % nprocessors;
     pinto(core);
