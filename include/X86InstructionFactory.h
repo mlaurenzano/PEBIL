@@ -105,6 +105,8 @@ public:
     static X86Instruction* emitMoveMemToReg(uint64_t addr, uint32_t idx, bool is64bit);
     static X86Instruction* emitMoveImmToMem(uint64_t imm, uint64_t addr);
 
+    static X86Instruction* emitMoveMemToXMMReg(uint64_t addr, uint32_t idx);
+
     static X86Instruction* emitShiftLeftLogical(uint8_t imm, uint8_t reg);
     static X86Instruction* emitShiftRightLogical(uint8_t imm, uint8_t reg);
 

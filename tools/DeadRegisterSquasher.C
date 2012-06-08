@@ -70,6 +70,9 @@ void DeadRegisterSquasher::instrument()
     sprintf(nostring, "%s\0", NOSTRING);
     initializeReservedData(noDataAddr, strlen(NOSTRING) + 1, nostring);
 
+    uint64_t deadValue = 0xdeadbeef;
+    uint64_t deadValueOffset = reserveDataOffset(sizeof(uint64_t));
+    initializeReservedData(getInstDataAddress() + deadValueOffset, sizeof(uint64_t), &deadValue);
     uint32_t deadRegHist[X86_64BIT_GPRS + 1];
     bzero(deadRegHist, sizeof(uint32_t) * (X86_64BIT_GPRS + 1));
     uint32_t totalInsn = 0;
@@ -91,29 +94,38 @@ void DeadRegisterSquasher::instrument()
 
            uint32_t deadThis = 0;
 
-            // for each dead register
+            // squash dead gprs
             for(uint32_t reg = 0; reg < X86_64BIT_GPRS; ++reg){
                 if( !instruction->isRegDeadIn(reg)){
                     continue;
                 }
-               // squash
                if(is64Bit()){
-                   snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToReg(0x01234567, reg));
+                   snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToReg(0xdeadbeef, reg));
                } else {
-                   snip->addSnippetInstruction(X86InstructionFactory::emitMoveImmToReg(0x01234567, reg));
+                   snip->addSnippetInstruction(X86InstructionFactory::emitMoveImmToReg(0xdeadbeef, reg));
                }
                deadThis++;
             }
             deadRegHist[deadThis]++;
             totalInsn++;
 
+            // squash dead xmm regs
+            for(uint32_t reg = X86_64BIT_GPRS; reg < X86_64BIT_GPRS + X86_XMM_REGS; ++reg){
+                if(!instruction->isRegDeadIn(reg)){
+                    continue;
+                }
+                if(is64Bit()){
+                    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToXMMReg(getInstDataAddress() + deadValueOffset, reg));
+                } else {
+                   // snip->addSnippetInstruction(X86InstructionFactory::emitMoveMemToXMMReg(deadValueOffset, reg));
+                }
+            }
+
             addInstrumentationSnippet(snip);
             InstrumentationPoint* p = addInstrumentationPoint(instruction, snip, InstrumentationMode_trampinline, FlagsProtectionMethod_none, InstLocation_prior);
             if(!p->getInstBaseAddress()){
                 PRINT_ERROR("Cannot find an instrumentation point at instruction");
-            }
-
-           
+            }          
         }
         delete[] instructions;
     }
