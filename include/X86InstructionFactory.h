@@ -87,6 +87,8 @@ public:
     static X86Instruction* emitFxSave(uint64_t addr);
     static X86Instruction* emitFxRstor(uint64_t addr);
 
+    static X86Instruction* emitMoveTLSOffsetToReg(uint32_t imm, uint8_t dest);
+    static X86Instruction* emitMoveThreadIdToReg(uint8_t dest);
     static X86Instruction* emitCompareImmReg(uint64_t imm, uint8_t reg);
 
     static X86Instruction* emitMoveRegaddrToReg(uint32_t srcidx, uint32_t destidx);
@@ -127,6 +129,7 @@ public:
 
     static X86Instruction* emitMoveSegmentRegToReg(uint32_t src, uint32_t dest);
     static X86Instruction* emitRegAndReg(uint32_t, uint32_t);
+    static X86Instruction* emitImmAndReg(uint32_t, uint8_t);
 };
 
 class X86InstructionFactory32 : public X86InstructionFactory {

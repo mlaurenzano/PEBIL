@@ -46,6 +46,8 @@ private:
     bool singleArgCheck(void* arg, uint32_t mask, const char* name);
 
 protected:
+    uint64_t threadHash;
+
     void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize);
     void printStaticFilePerInstruction(Vector<X86Instruction*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize);
 

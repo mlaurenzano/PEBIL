@@ -22,6 +22,52 @@
 
 #include <X86InstructionFactory.h>
 
+X86Instruction* X86InstructionFactory64::emitImmAndReg(uint32_t imm, uint8_t dest){
+    ASSERT(dest < X86_64BIT_GPRS);
+    
+    uint32_t len = 7;
+    char* buff = new char[len];
+
+    buff[0] = 0x48;
+    if (dest >= X86_32BIT_GPRS){
+        buff[0] += 0x01;
+    }
+    buff[1] = 0x81;
+    buff[2] = 0xe0 + (0x01 * (dest % X86_32BIT_GPRS));
+        
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == (uint32_t)imm && "Cannot use more than 32 bits for the address");
+    memcpy(buff+3,&imm32,sizeof(uint32_t));
+
+    return emitInstructionBase(len,buff);    
+}
+
+X86Instruction* X86InstructionFactory64::emitMoveTLSOffsetToReg(uint32_t imm, uint8_t dest){
+    ASSERT(dest < X86_64BIT_GPRS);
+    
+    uint32_t len = 9;
+    char* buff = new char[len];
+
+    buff[0] = 0x64;
+    buff[1] = 0x48;
+    if (dest >= X86_32BIT_GPRS){
+        buff[1] += 0x04;
+    }
+    buff[2] = 0x8b;
+    buff[3] = 0x04 + (0x08 * (dest % X86_32BIT_GPRS));
+    buff[4] = 0x25;
+        
+    uint32_t imm32 = (uint32_t)imm;
+    ASSERT(imm32 == (uint32_t)imm && "Cannot use more than 32 bits for the address");
+    memcpy(buff+5,&imm32,sizeof(uint32_t));
+
+    return emitInstructionBase(len,buff);    
+}
+
+X86Instruction* X86InstructionFactory64::emitMoveThreadIdToReg(uint8_t dest){
+    return emitMoveTLSOffsetToReg(0x10, dest);
+}
+
 X86Instruction* X86InstructionFactory32::emitMoveImmToMem(uint64_t imm, uint64_t addr){
     uint32_t len = 10;
     char* buff = new char[len];
@@ -265,15 +311,19 @@ X86Instruction* X86InstructionFactory64::emitLoadEffectiveAddress(uint32_t baseR
     ASSERT(dest < X86_64BIT_GPRS && "Illegal register index given");
     ASSERT(baseReg < X86_64BIT_GPRS || baseReg + UD_R_RAX == UD_R_RIP);
     ASSERT(indexReg < X86_64BIT_GPRS && "Illegal register index given");
-    ASSERT(scale && isPowerOfTwo(scale) && scale <= 8);
-
+    if (scale){
+        ASSERT(isPowerOfTwo(scale) && scale <= 8);
+    }
     uint32_t len;
     char* buff;
     X86Instruction* lea = NULL;
 
     // scale/index/base
     if (hasIndex){
-        uint8_t sa = (logBase2(scale)) << 6;
+        uint8_t sa = 0;
+        if (scale){
+            sa = (logBase2(scale)) << 6;
+        }
 
         // base is a reg
         if (hasBase && !value){
@@ -1156,18 +1206,18 @@ X86Instruction* X86InstructionFactory64::emitMoveRegaddrImmToReg(uint32_t idxsrc
     char* buff = new char[len];
 
     // set opcode
-    if (idxsrc < X86_32BIT_GPRS){
+    if (idxdest < X86_32BIT_GPRS){
         buff[0] = 0x48;
     } else {
         buff[0] = 0x4c;
     }
-    if (idxdest < X86_32BIT_GPRS){
+    if (idxsrc < X86_32BIT_GPRS){
     } else {
         buff[0]++;
     }
 
     buff[1] = 0x8b;
-    buff[2] = 0x80 + (char)(idxdest*8) + (char)(idxsrc);
+    buff[2] = 0x80 + (char)((idxdest % X86_32BIT_GPRS) * 8) + (char)(idxsrc % X86_32BIT_GPRS);
     buff[3] = 0x24;
 
     uint32_t imm32 = (uint32_t)imm;

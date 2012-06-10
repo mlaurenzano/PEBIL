@@ -72,8 +72,10 @@ typedef struct
     __give_pebil_name(__fname)
 #endif // PRELOAD_WRAPPERS
 
-extern int __give_pebil_name(pthread_create)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
-extern int pthread_create_pebil_nothread(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
+extern "C" {
+    extern int __give_pebil_name(pthread_create)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
+    extern int pthread_create_pebil_nothread(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
+};
 
 typedef struct
 {
@@ -125,17 +127,81 @@ extern int getNTasks();
 #define USES_STATS_PER_INSTRUCTION "no"
 #endif
 
+typedef struct {
+    uint64_t id;
+    uint64_t data;
+} ThreadData;
+#define ThreadHashShift (12)
+#define ThreadHashAnd   (0xffff)
+
 #define DataMap unordered_map
 template <class T = void*> class DataManager {
 private:
     DataMap <pthread_key_t, DataMap<pthread_t, T> > datamap;
-    void* (*datagen)(void*);
-    set<pthread_t> allthreads;
-    set<pthread_key_t> allimages;
+    void* (*datagen)(void*, uint32_t, pthread_key_t, pthread_t);
+    void (*datadel)(void*);
+    uint64_t (*dataref)(void*);
+
+    DataMap <pthread_key_t, DataMap<uint32_t, double> > timers;
+
+    // stores data in a ThreadData[] which can be more easily accessed by tools.
+    DataMap <pthread_key_t, ThreadData*> threaddata;
+
+    uint32_t HashThread(pthread_t tid){
+        return (tid >> ThreadHashShift) & ThreadHashAnd;
+    }
+
+    uint64_t SetThreadData(pthread_key_t iid, pthread_t tid){
+        uint32_t h = HashThread(tid);
+
+        assert(threaddata.count(iid) == 1);
+        assert(datamap.count(iid) == 1);
+        assert(datamap[iid].count(tid) == 1);
+
+        ThreadData* td = threaddata[iid];
+
+        uint32_t actual = h;
+        while (td[actual].id != 0){
+            actual = (actual + 1) % (ThreadHashAnd + 1);
+        }
+        td[actual].id = tid;
+        T d = datamap[iid][tid];
+        td[actual].data = (uint64_t)dataref((void*)d);
+
+        PRINT_INSTR(stdout, "Setting up thread %#lx data at %#lx", td[actual].id, td[actual].data); 
+
+        // fail if there was a collision. it makes writing tools much easier so we see how well this works for now
+        assert(actual == h);
+    }
+    void RemoveThreadData(pthread_key_t iid, pthread_t tid){
+        uint32_t h = HashThread(tid);
+
+        assert(threaddata.count(iid) == 1);
+        assert(datamap.count(iid) == 1);
+        assert(datamap[iid].count(tid) == 1);
+
+        ThreadData* td = threaddata[iid];
+
+        uint32_t actual = h;
+        while (td[actual].id != tid){
+            actual = (actual + 1) % (ThreadHashAnd + 1);
+        }
+        td[actual].id = 0;
+        td[actual].data = 0;
+    }
+
 public:
 
-    DataManager(void* (*d)(void*)){
-        datagen = d;
+    set<pthread_t> allthreads;
+    set<pthread_key_t> allimages;
+
+    static const uint32_t ThreadType = 0;
+    static const uint32_t ImageType = 1;
+
+    DataManager(void* (*g)(void*, uint32_t, pthread_key_t, pthread_t), void (*d)(void*), uint64_t (*r)(void*)){
+        datagen = g;
+        datadel = d;
+        dataref = r;
     }
 
     ~DataManager(){
@@ -155,10 +221,64 @@ public:
     pthread_t GenerateThreadKey(){
         return pthread_self();
     }
-    void AddThread(T data){
+    void AddThread(){
+        pthread_t tid = pthread_self();
+        assert(allthreads.count(tid) == 0);
+
+        for (set<pthread_key_t>::iterator iit = allimages.begin(); iit != allimages.end(); iit++){
+            assert(datamap[(*iit)].size() > 0);
+            assert(datamap[(*iit)].count(tid) == 0);
+            
+            for (set<pthread_t>::iterator tit = allthreads.begin(); tit != allthreads.end(); tit++){
+	        datamap[(*iit)][tid] = (T)datagen((void*)datamap[(*iit)][(*tit)], ThreadType, (*iit), tid);
+                assert(datamap[(*iit)][tid]);
+                break;
+            }
+
+            assert(threaddata.count(*iit) == 1);
+            SetThreadData((*iit), tid);
+        }
+        allthreads.insert(tid);
     }
 
-    pthread_key_t AddImage(T data){
+    void RemoveData(pthread_key_t iid, pthread_t tid){
+        assert(datamap.count(iid) == 1);
+        assert(datamap[iid].count(tid) == 1);
+
+        T data = datamap[iid][tid];
+        datadel(data);
+        datamap[iid].erase(tid);
+    }
+
+    void RemoveThread(){
+        assert(false);
+        pthread_t tid = pthread_self();
+        assert(allthreads.count(tid) == 1);
+
+        for (set<pthread_key_t>::iterator iit = allimages.begin(); iit != allimages.end(); iit++){
+            assert(datamap[(*iit)].size() > 0);
+            assert(datamap[(*iit)].count(tid) == 1);
+            RemoveData((*iit), tid);
+            RemoveThreadData((*iit), tid);
+        }
+        allthreads.erase(tid);
+    }
+
+    void SetTimer(pthread_key_t iid, uint32_t idx){
+        double t;
+        ptimer(&t);
+
+        if (timers.count(iid) == 0){
+            timers[iid] = DataMap<uint32_t, double>();
+        }
+        timers[iid][idx] = t;
+    }
+
+    double GetTimer(pthread_key_t iid, uint32_t idx){
+        return timers[iid][idx];
+    }
+
+    pthread_key_t AddImage(T data, ThreadData* t){
         pthread_key_t iid = GenerateImageKey();
         pthread_t tid = pthread_self();
 
@@ -170,20 +290,41 @@ public:
         datamap[iid] = DataMap<pthread_t, T>();
         datamap[iid][tid] = data;
 
+        threaddata[iid] = t;
+        SetThreadData(iid, tid);
+
         // create/insert data every other thread
         for (set<pthread_t>::iterator it = allthreads.begin(); it != allthreads.end(); it++){
             if ((*it) != tid){
-                datamap[iid][(*it)] = (T)datagen((void*)data);
+                datamap[iid][(*it)] = (T)datagen((void*)data, ImageType, iid, (*it));
             }
         }
         return iid;
     }
 
-    T GetData(pthread_t tid, pthread_key_t iid){
-        if (datamap.count(iid) != 0 && datamap[iid].count(tid) != 0){
-            return datamap[iid][tid];
+    void RemoveImage(pthread_key_t iid){
+        assert(allimages.count(iid) == 1);
+        assert(datamap.count(iid) == 1);
+
+        for (set<pthread_t>::iterator it = allthreads.begin(); it != allthreads.end(); it++){
+            assert(datamap[iid].count((*it)) == 1);
+            RemoveData(iid, (*it));
         }
-        return NULL;
+        allimages.erase(iid);
+        threaddata.erase(iid);
+    }
+
+    T GetData(pthread_key_t iid, pthread_t tid){
+        assert(datamap.count(iid) == 1);
+        assert(datamap[iid].count(tid) == 1);
+        return datamap[iid][tid];
+    }
+
+    uint32_t CountThreads(){
+        return allthreads.size();
+    }
+    uint32_t CountImages(){
+        return allimages.size();
     }
 };
 

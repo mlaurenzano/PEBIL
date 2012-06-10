@@ -35,7 +35,7 @@
 
 static DataManager<CounterArray*>* alldata = NULL;
 
-void print_counter_array(FILE* stream, CounterArray* ctrs){
+void print_counter_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
     if (ctrs == NULL){
         return;
     }
@@ -47,25 +47,47 @@ void print_counter_array(FILE* stream, CounterArray* ctrs){
             fprintf(stream, "%s:", ctrs->Files[i]);
             fprintf(stream, "%d\t", ctrs->Lines[i]);
             fprintf(stream, "%s\t", ctrs->Functions[i]);
-            fprintf(stream, "%ld\n", ctrs->Hashes[i]);
+            fprintf(stream, "%ld\t", ctrs->Hashes[i]);
+            fprintf(stream, "%lx\n", tid);
         }
     }
     fflush(stream);
 }
 
-void* generate_counter_array(void* args){
+void* generate_counter_array(void* args, uint32_t typ, pthread_key_t iid, pthread_t tid){
     CounterArray* ctrs = (CounterArray*)args;
 
     CounterArray* c = (CounterArray*)malloc(sizeof(CounterArray));
+    assert(c);
     memcpy(c, ctrs, sizeof(CounterArray));
+    c->threadid = tid;
+    c->imageid = iid;
+    c->Initialized = false;
     c->Counters = (uint64_t*)malloc(sizeof(uint64_t) * c->Size);
+    bzero(c->Counters, sizeof(uint64_t) * c->Size);
 
     return (void*)c;
 }
 
+uint64_t ref_counter_array(void* args){
+    CounterArray* ctrs = (CounterArray*)args;
+    return (uint64_t)ctrs->Counters;
+}
+
+void delete_counter_array(void* args){
+    CounterArray* ctrs = (CounterArray*)args;
+    if (!ctrs->Initialized){
+        free(ctrs->Counters);
+        free(ctrs);
+    }
+}
+
 void* tool_thread_init(void* threadargs){
     tool_thread_args* x = (tool_thread_args*)threadargs;
-    PRINT_INSTR(stdout, "Hooked pthread_create for thread id %p", (void*)pthread_self());
+    
+    assert(alldata != NULL && "tool_image_init wasn't already called!?!");
+    alldata->AddThread();
+
     x->start_function(x->function_args);
     free(threadargs);
     return NULL;
@@ -73,22 +95,24 @@ void* tool_thread_init(void* threadargs){
 
 extern "C"
 {
-    void* tool_image_init(CounterArray* ctrs, uint64_t* key){
+    void* tool_image_init(CounterArray* ctrs, uint64_t* key, ThreadData* td){
         assert(ctrs->Initialized == true);
 
+        // on first visit create data manager
         if (alldata == NULL){
-            alldata = new DataManager<CounterArray*>(generate_counter_array);
+            alldata = new DataManager<CounterArray*>(generate_counter_array, delete_counter_array, ref_counter_array);
         }
 
-        *key = alldata->AddImage(ctrs);
+        *key = alldata->AddImage(ctrs, td);
+        ctrs->imageid = *key;
+        ctrs->threadid = pthread_self();
 
-        ptimer(&pebiltimers[0]);
+        alldata->SetTimer(*key, 0);
         return NULL;
     }
 
     void* tool_image_fini(uint64_t* key){
-        uint64_t i;
-        ptimer(&pebiltimers[1]);
+        alldata->SetTimer(*key, 1);
 
 #ifdef MPI_INIT_REQUIRED
         if (!isMpiValid()){
@@ -100,7 +124,7 @@ extern "C"
             PRINT_INSTR(stderr, "data manager does not exist. no images were initialized");
             return NULL;
         }
-        CounterArray* ctrs = (CounterArray*)alldata->GetData(pthread_self(), *key);
+        CounterArray* ctrs = (CounterArray*)alldata->GetData(*key, pthread_self());
         if (ctrs == NULL){
             PRINT_INSTR(stderr, "Cannot retreive image data using key %ld", *key);
             return NULL;
@@ -115,23 +139,33 @@ extern "C"
             exit(-1);
         }
         
+        PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
+        PRINT_INSTR(stdout, "%ld blocks; printing those with at least %d executions to file %s", ctrs->Size, PRINT_MINIMUM, outFileName);
+        
         fprintf(outFile, "# appname   = %s\n", ctrs->Application);
         fprintf(outFile, "# extension = %s\n", ctrs->Extension);
         fprintf(outFile, "# phase     = %d\n", 0);
         fprintf(outFile, "# rank      = %d\n", getTaskId());
         fprintf(outFile, "# perinsn   = %s\n", USES_STATS_PER_INSTRUCTION);
+        fprintf(outFile, "# imageid   = %ld\n", *key);
+        fprintf(outFile, "# cntimage  = %d\n", alldata->CountImages());
+        fprintf(outFile, "# mainthread= %lx\n", pthread_self());
+        fprintf(outFile, "# cntthread = %d\n", alldata->CountThreads());
         
-        fprintf(outFile, "#id\tcount\t#file:line\tfunc\thash\n");
+        fprintf(outFile, "#id\tcount\t#file:line\tfunc\thash\tthreadid\n");
         fflush(outFile);
 
-        PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
-        PRINT_INSTR(stdout, "%ld blocks; printing those with at least %d executions to file %s", ctrs->Size, PRINT_MINIMUM, outFileName);
-        
-        print_counter_array(outFile, ctrs);
+        // this wastes tons of space in the meta.jbbinst file, need to think of a better output format.
+        for (set<pthread_t>::iterator it = alldata->allthreads.begin(); it != alldata->allthreads.end(); it++){
+            ctrs = alldata->GetData(*key, (*it));
+            assert(ctrs);
+            print_counter_array(outFile, ctrs, (*it));
+        }
         fflush(outFile);
         fclose(outFile);
         
-        PRINT_INSTR(stdout, "cxxx Total Execution time: %f", pebiltimers[1] - pebiltimers[0]);
+        PRINT_INSTR(stdout, "cxxx Total Execution time for image: %f", alldata->GetTimer(*key, 1) - alldata->GetTimer(*key, 0));
+        alldata->RemoveImage(*key);
         return NULL;
     }
 };

@@ -4,13 +4,12 @@ CXXFLAGS    = @CXXFLAGS@ @MPI_FLAGS@ -w
 AR          = ar cru
 EXTRA_FLAGS =
 SHARED_OPT  = -fPIC
-SHARED_LIB  = -shared
+SHARED_LIB  = -shared -Wl,--script=../scripts/pebil_lib_inst.lds
 
 BINDIR      = ../bin
 LIBDIR      = ../lib
 EXTDIR      = ../external
 INCLUDE     = -I../include -I$(EXTDIR)/udis86-1.7/
-
 
 NAMES = AddressAnchor Base BasicBlock BinaryFile DynamicTable DwarfSection ElfFile ElfFileInst FileHeader FlowGraph Function GlobalOffsetTable GnuVersion HashTable Instrumentation InstrumentationTool LengauerTarjan LineInformation Loop MemTrack NoteSection ProgramHeader RawSection RelocationTable SectionHeader StringTable SymbolTable TextSection X86Instruction X86InstructionFactory
 

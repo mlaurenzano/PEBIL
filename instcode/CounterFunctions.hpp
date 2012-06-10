@@ -40,6 +40,8 @@ typedef struct {
     CounterTypes Type;
     bool Initialized;
     uint32_t Size;
+    pthread_t threadid;
+    pthread_key_t imageid;
     uint64_t* Counters;
     uint64_t* Hashes;
     uint32_t* Lines;

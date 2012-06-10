@@ -40,12 +40,12 @@
 #define INST_LIB_NAME "cxx_libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
-#define BLOCK_MOD 65536
-#define BLOCK_OFF 25104
-/*
-#define BLOCK_MOD 65536
-#define BLOCK_OFF 0
-*/
+typedef struct {
+    uint64_t id;
+    uint64_t data;
+} ThreadData;
+#define ThreadHashShift (12)
+#define ThreadHashMod   (0xffff)
 
 extern "C" {
     InstrumentationTool* BasicBlockCounterMaker(ElfFile* elf){
@@ -101,15 +101,6 @@ void BasicBlockCounter::instrument()
         lineInfoFinder = getLineInfoFinder();
     }
 
-    /*
-    if (isThreadedMode()){
-        PRINT_INFOR("Yes threaded mode");
-    } else {
-        PRINT_INFOR("Not threaded mode");
-    }
-    */
-
-
 #ifdef STATS_PER_INSTRUCTION
     PRINT_WARN(10, "Performing instrumentation to gather PER-INSTRUCTION statistics");
     uint32_t numberOfPoints = getNumberOfExposedInstructions();
@@ -117,8 +108,9 @@ void BasicBlockCounter::instrument()
     uint32_t numberOfPoints = getNumberOfExposedBasicBlocks();
 #endif //STATS_PER_INSTRUCTION
 
-    uint64_t imageKey = reserveDataOffset(sizeof(uint64_t));
+    threadHash = reserveDataOffset(sizeof(ThreadData) * (ThreadHashMod + 1));
 
+    uint64_t imageKey = reserveDataOffset(sizeof(uint64_t));
     uint64_t counterStruct = reserveDataOffset(sizeof(CounterArray));
 
     CounterArray ctrs;
@@ -163,6 +155,7 @@ void BasicBlockCounter::instrument()
 
     entryFunc->addArgument(counterStruct);
     entryFunc->addArgument(imageKey);
+    entryFunc->addArgument(threadHash);
 
     p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
     p->setPriority(InstPriority_userinit);
@@ -258,21 +251,10 @@ void BasicBlockCounter::instrument()
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Hashes + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
         
         uint64_t counterOffset = (uint64_t)ctrs.Counters + (i * sizeof(uint64_t));
-
-        /*
-        if (i % BLOCK_MOD == BLOCK_OFF){
-            PRINT_INFOR("counting for block %d -- %#llx", i, bb->getProgramAddress());
-            bb->print();
-            for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
-                bb->getInstruction(j)->print();
-                PRINT_INFOR("\t\tflags dead? %d", bb->getInstruction(j)->allFlagsDeadIn());
-                for (uint32_t k = 0; k < X86_64BIT_GPRS; k++){
-                    PRINT_INFOR("\t\treg %d dead? %d", k, bb->getInstruction(j)->isRegDeadIn(k));
-                }
-            }
-            InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
+        if (isThreadedMode()){
+            counterOffset -= (uint64_t)ctrs.Counters;
         }
-        */
+
         InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
     }
 
@@ -396,13 +378,13 @@ void BasicBlockCounter::instrument()
         }
     }
     PRINT_INFOR("Loop-counter instrumentation adding %d points", numCalls);
+    */
 
 #ifdef STATS_PER_INSTRUCTION
     printStaticFilePerInstruction(allInstructions, allInstructionIds, allInstructionLineInfos, allInstructions->size());
 #else //STATS_PER_INSTRUCTION
     printStaticFile(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
 #endif //STATS_PER_INSTRUCTION
-    */
 
     delete[] nostring;
 

@@ -249,40 +249,91 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
         if (bestinst->isRegDeadIn(i)){
             if (scratchReg1 < regLimit){
                 scratchReg2 = i;
-                //PRINT_INFOR("sr2=%d", scratchReg2);
                 break;
             } else {
                 scratchReg1 = i;
-                //PRINT_INFOR("sr1=%d", scratchReg1);
             }
         }
     }
 
+    bool protect1 = false;
+    bool protect2 = false;
+    if (scratchReg1 == regLimit){
+        protect1 = true;
+        scratchReg1 = X86_REG_CX;
+    }
+    if (scratchReg2 == regLimit){
+        protect2 = true;
+        scratchReg2 = (scratchReg1 + 1) % regLimit;
+        if (scratchReg2 == X86_REG_SP){
+            scratchReg2++;
+        }
+    }
+    ASSERT(scratchReg1 != X86_REG_SP);
+    ASSERT(scratchReg2 != X86_REG_SP);
+
     // snippet contents, in this case just increment a counter
     if (is64Bit()){
-        if (getElfFile()->isExecutable()){
+        // any threaded
+        if (isThreadedMode()){
+
+            // TODO: I think the above optimization is valid but that the isRegDeadIn call is giving bad values in some circumstances
+            protect1 = protect2 = true;
+
+            if (protect1 || protect2){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
+            }
+            if (protect2){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPush(scratchReg2));
+            }
+            if (protect1){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPush(scratchReg1));
+            }
+
+            // mov %fs:0x10,%sr1
+            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveTLSOffsetToReg(0x10, scratchReg1));
+            // srl $12,%sr1
+            snip->addSnippetInstruction(X86InstructionFactory64::emitShiftRightLogical(12, scratchReg1));
+            // and $0xffff,%sr1
+            snip->addSnippetInstruction(X86InstructionFactory64::emitImmAndReg(0xffff, scratchReg1));
+            // mov $TData,%sr2
+            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToReg(getInstDataAddress() + threadHash, scratchReg2));
+            // sll $4,%sr1
+            snip->addSnippetInstruction(X86InstructionFactory64::emitShiftLeftLogical(4, scratchReg1));
+            // lea [$0x08+$offset](0,%sr1,%sr2),%sr1
+            snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(scratchReg2, scratchReg1, 0, 0x08, scratchReg1, true, true));
+            // mov (%sr1),%sr1
+            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(scratchReg1, 0, scratchReg1));
+            // mov $offset(%sr1),%sr2
+            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(scratchReg1, counterOffset, scratchReg2));
+            // add $1,%sr2
+            if (add){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitRegAddImm(scratchReg2, 1));
+            } else {
+                snip->addSnippetInstruction(X86InstructionFactory64::emitRegSubImm(scratchReg2, 1));
+            }
+            // mov %sr2,$offset(%sr1)
+            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(scratchReg2, scratchReg1, counterOffset, true));
+            if (protect1){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPop(scratchReg1));
+            }
+            if (protect2){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPop(scratchReg2));
+            }
+            if (protect1 || protect2){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
+            }
+        }
+        // non-threaded executable
+        else if (getElfFile()->isExecutable()){
             if (add){
                 snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
             } else {
                 snip->addSnippetInstruction(X86InstructionFactory64::emitSubImmByteToMem64(1, getInstDataAddress() + counterOffset));
             }
-        } else {
-            bool protect1 = false;
-            bool protect2 = false;
-            if (scratchReg1 == regLimit){
-                protect1 = true;
-                scratchReg1 = X86_REG_CX;
-            }
-            if (scratchReg2 == regLimit){
-                protect2 = true;
-                scratchReg2 = (scratchReg1 + 1) % regLimit;
-                if (scratchReg2 == X86_REG_SP){
-                    scratchReg2++;
-                }
-            }
-            ASSERT(scratchReg1 != X86_REG_SP);
-            ASSERT(scratchReg2 != X86_REG_SP);
-
+        }
+        // non-threaded shared library
+        else {
             // TODO: I think the above optimization is valid but that the isRegDeadIn call is giving bad values in some circumstances
             protect1 = protect2 = true;
 

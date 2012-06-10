@@ -15,7 +15,7 @@ CXXFLAGS    = -std=c++0x @CXXFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS
 
 SHARED_OPT  = -fPIC
 EXTRA_FLAGS = $(SHARED_OPT)
-SHARED_LIB  = -shared
+SHARED_LIB  = -shared -ldl
 AR          = ar rcs
 
 #### -DNO_SAMPLING_MODE    : Add to disable sampling (note that MAX visit count is still on).

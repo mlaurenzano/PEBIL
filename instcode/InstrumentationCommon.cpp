@@ -19,7 +19,8 @@
  */
 
 #include <InstrumentationCommon.hpp>
-#include <map>
+#define _GNU_SOURCE
+#include <dlfcn.h>
 
 int taskid;
 #ifdef HAVE_MPI
@@ -70,101 +71,24 @@ struct thread_list {
     struct thread_list * next;
 };
 
-// Inserts a new thread at head of threads list
-// does not check that thread does not already exist in list
-/*
-static pthread_mutex_t thread_creation_mutex = PTHREAD_MUTEX_INITIALIZER;
-static struct thread_list* pebil_create_new_thread(pthread_t thread_id){
-    struct thread_list* retval;
-    retval = (struct thread_list*)malloc(sizeof(struct thread_list));
-    retval->thread_id = thread_id;
-    retval->datas = NULL;
-
-    // Only one thread can modify the thread list at a time
-    pthread_mutex_lock(&thread_creation_mutex);
-    retval->next = threads;
-    threads = retval;
-    pthread_mutex_unlock(&thread_creation_mutex);
-
-    return retval;
-}
-
-// Sets data for calling thread
-void pebil_set_data(pthread_key_t image_key, void* data){
-    pthread_t thread_id = pthread_self();
-    int err = pthread_setspecific(image_key, data);
-    if( err ) {
-        perror("pthread_setspecific:");
+extern "C" {
+    // called when pthread_create is called for programs instrumented without the --threaded flag
+    int pthread_create_pebil_nothread(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg){
+        PRINT_INSTR(stderr, "Application was not instrumented by PEBIL without thread support but pthread_create has been called.");
+        PRINT_INSTR(stderr, "Results should not be considered reliable.");
+        fflush(stderr);
+        return pthread_create(thread, attr, start_routine, arg);
     }
 
-    struct thread_list * threadinfo = get_thread_data(thread_id);
-    if( threadinfo == NULL ) {
-        threadinfo = pebil_create_new_thread(thread_id);
+    // called when pthread_create is called for programs instrumented with the --threaded flag
+    int __give_pebil_name(pthread_create)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg){
+        tool_thread_args* x = (tool_thread_args*)malloc(sizeof(tool_thread_args));
+        x->start_function = start_routine;
+        x->function_args = arg;
+        int ret = pthread_create(thread, attr, tool_thread_init, x);
+        return ret;
     }
-
-    struct data_list * curdata = threadinfo->datas;
-
-    while(curdata != NULL){
-        if(curdata->image_id == image_key){
-            curdata->data = data;
-            return;
-        }
-    }
-
-    curdata = threadinfo->datas;
-    threadinfo->datas = (struct data_list*)malloc(sizeof(struct data_list));
-    threadinfo->datas->image_id = image_key;
-    threadinfo->datas->data = data;
-    threadinfo->datas->next = curdata;
-}
-
-void* pebil_get_data_self(pthread_key_t image_key){
-    return pebil_get_data(pthread_self(), image_key);
-}
-
-// May be called from any thread - totally reentrant
-void* pebil_get_data(pthread_t thread_id, pthread_key_t image_key){
-    if( pthread_self() == thread_id ) {
-        return pthread_getspecific(image_key);
-    } else {
-        struct thread_list * threadinfo = get_thread_data(thread_id);
-
-        struct data_list * curdata = threadinfo->datas;
-
-        while(curdata != NULL) {
-            if(curdata->image_id == image_key){
-                return curdata->data;
-            }
-        }
-
-        assert(0 && "Attempt to retrieve non-existent image data");
-        return NULL;
-    }
-}
-
-// Create a key for the image
-void pebil_image_init(pthread_key_t* image_key){
-    pthread_key_create(image_key, NULL);
-}
-*/
-
-
-// called when pthread_create is called for programs instrumented without the --threaded flag
-int pthread_create_pebil_nothread(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg){
-    PRINT_INSTR(stderr, "Application was not instrumented by PEBIL without thread support but pthread_create has been called.");
-    PRINT_INSTR(stderr, "Results should not be considered reliable.");
-    fflush(stderr);
-    return pthread_create(thread, attr, start_routine, arg);
-}
-
-// called when pthread_create is called for programs instrumented with the --threaded flag
-int __wrapper_name(pthread_create)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg){
-    tool_thread_args* x = (tool_thread_args*)malloc(sizeof(tool_thread_args));
-    x->start_function = start_routine;
-    x->function_args = arg;
-    int ret = pthread_create(thread, attr, tool_thread_init, x);
-    return ret;
-}
+};
 
 #ifdef HAVE_MPI
 // C init wrapper
