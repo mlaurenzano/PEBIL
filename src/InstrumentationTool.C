@@ -123,6 +123,7 @@ void InstrumentationTool::declare(){
 }
 
 void InstrumentationTool::instrument(){
+    /*
     Vector<X86Instruction*>* pthreadCreateCalls = findAllCalls(PTHREAD_CREATE);
 
     for (uint32_t i = 0; i < (*pthreadCreateCalls).size(); i++){
@@ -137,7 +138,7 @@ void InstrumentationTool::instrument(){
         InstrumentationPoint* pt = addInstrumentationPoint((*pthreadCreateCalls)[i], threadInit, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
     }
     delete pthreadCreateCalls;
-
+    */
 #ifdef HAVE_MPI
     int initFound = 0;
 

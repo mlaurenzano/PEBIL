@@ -92,13 +92,13 @@ extern "C" {
     }
 
     int pebil_clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
-        printf("Hello from pebil_clone!\n");
         va_list ap;
         va_start(ap, arg);
         pid_t* ptid = va_arg(ap, pid_t*);
         struct user_desc* tls = va_arg(ap, struct user_desc*);
         pid_t* ctid = va_arg(ap, pid_t*);
-    
+        va_end(ap);
+        /*
         printf("Entry function: 0x%llx\n", fn);
         printf("Stack location: 0x%llx\n", child_stack);
         printf("Flags: %d\n", flags);
@@ -106,9 +106,13 @@ extern "C" {
         printf("ptid address: 0x%llx\n", ptid);
         printf("tls address: 0x%llx\n", tls);
         printf("ctid address: 0x%llx\n", ctid);
-        va_end(ap);
-    
-        return clone(fn, child_stack, flags, arg, ptid, tls, ctid);
+        */    
+        static int (*clone_ptr)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid)
+            = (int (*)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid))dlsym(RTLD_NEXT, "clone");
+
+        tool_thread_init2((uint64_t)tls);
+
+        return clone_ptr(fn, child_stack, flags, arg, ptid, tls, ctid);
     }
 
     int __clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){

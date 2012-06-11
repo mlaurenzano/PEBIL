@@ -88,6 +88,7 @@ extern void* pebil_get_data(pthread_t thread_id, pthread_key_t image_id);
 extern void* pebil_get_data_self(pthread_key_t image_id);
 
 extern void* tool_thread_init(void* args);
+extern void* tool_thread_init2(pthread_t tid);
 extern void* tool_mpi_init();
 
 #ifdef HAVE_MPI
@@ -221,8 +222,8 @@ public:
     pthread_t GenerateThreadKey(){
         return pthread_self();
     }
-    void AddThread(){
-        pthread_t tid = pthread_self();
+
+    void AddThread(pthread_t tid){
         assert(allthreads.count(tid) == 0);
 
         for (set<pthread_key_t>::iterator iit = allimages.begin(); iit != allimages.end(); iit++){
@@ -239,6 +240,9 @@ public:
             SetThreadData((*iit), tid);
         }
         allthreads.insert(tid);
+    }
+    void AddThread(){
+        AddThread(pthread_self());
     }
 
     void RemoveData(pthread_key_t iid, pthread_t tid){

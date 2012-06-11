@@ -82,6 +82,12 @@ void delete_counter_array(void* args){
     }
 }
 
+void* tool_thread_init2(pthread_t tid){
+    assert(alldata != NULL && "tool_image_init wasn't already called!?!");
+    alldata->AddThread(tid);
+    return NULL;
+}
+
 void* tool_thread_init(void* threadargs){
     tool_thread_args* x = (tool_thread_args*)threadargs;
     
