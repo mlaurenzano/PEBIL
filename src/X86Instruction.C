@@ -400,6 +400,18 @@ RegisterSet* X86Instruction::getRegistersDefined(){
 RegisterSet* X86Instruction::getRegistersUsed(){
     RegisterSet * retval = new RegisterSet();
 
+    // If the instruction is a branch to the unknown, mark everything
+    // as used
+    if(isBranch() && getTargetAddress() == 0){
+        for(uint32_t i = 0; i < X86_FLAG_BITS; ++i){
+            retval->addFlag(i);
+        }
+        for(uint32_t i = 0; i < X86_ALU_REGS; ++i){
+            retval->addRegister(i);
+        }
+        return retval;
+    }
+
     // flags
     for(uint32_t i = 0; i < X86_FLAG_BITS; ++i){
         if(usesFlag(i)){
@@ -1009,7 +1021,8 @@ uint64_t X86Instruction::getTargetAddress(){
                 tgtAddress += getSizeInBytes();
                 PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx + %d", tgtAddress, getBaseAddress(), operands[JUMP_TARGET_OPERAND]->getValue(), getSizeInBytes());
             } else {
-                tgtAddress = getBaseAddress() + getSizeInBytes();
+                //tgtAddress = getBaseAddress() + getSizeInBytes();
+                tgtAddress = 0;
             }
         } else {
             tgtAddress = 0;
