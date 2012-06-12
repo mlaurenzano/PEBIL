@@ -83,8 +83,11 @@ void delete_counter_array(void* args){
 }
 
 void* tool_thread_init2(pthread_t tid){
-    assert(alldata != NULL && "tool_image_init wasn't already called!?!");
-    alldata->AddThread(tid);
+    if (alldata){
+        alldata->AddThread(tid);
+    } else {
+        PRINT_INSTR(stderr, "Calling PEBIL thread initialization library for thread %lx but no images have been initialized.", tid);
+    }
     return NULL;
 }
 
