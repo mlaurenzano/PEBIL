@@ -123,6 +123,7 @@ void InstrumentationTool::declare(){
 }
 
 void InstrumentationTool::instrument(){
+    /*
     Vector<X86Instruction*>* pthreadCreateCalls = findAllCalls(PTHREAD_CREATE);
 
     for (uint32_t i = 0; i < (*pthreadCreateCalls).size(); i++){
@@ -137,7 +138,7 @@ void InstrumentationTool::instrument(){
         InstrumentationPoint* pt = addInstrumentationPoint((*pthreadCreateCalls)[i], threadInit, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
     }
     delete pthreadCreateCalls;
-
+    */
 #ifdef HAVE_MPI
     int initFound = 0;
 
@@ -304,16 +305,13 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
             snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(scratchReg2, scratchReg1, 0, 0x08, scratchReg1, true, true));
             // mov (%sr1),%sr1
             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(scratchReg1, 0, scratchReg1));
-            // mov $offset(%sr1),%sr2
-            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(scratchReg1, counterOffset, scratchReg2));
-            // add $1,%sr2
+            // add 0x1,$offset($r1)
             if (add){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitRegAddImm(scratchReg2, 1));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToRegaddrImm(1, scratchReg1, counterOffset));
             } else {
-                snip->addSnippetInstruction(X86InstructionFactory64::emitRegSubImm(scratchReg2, 1));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToRegaddrImm(-1, scratchReg1, counterOffset));
             }
-            // mov %sr2,$offset(%sr1)
-            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(scratchReg2, scratchReg1, counterOffset, true));
+
             if (protect1){
                 snip->addSnippetInstruction(X86InstructionFactory64::emitStackPop(scratchReg1));
             }

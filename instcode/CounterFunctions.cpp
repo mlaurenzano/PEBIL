@@ -82,6 +82,15 @@ void delete_counter_array(void* args){
     }
 }
 
+void* tool_thread_init2(pthread_t tid){
+    if (alldata){
+        alldata->AddThread(tid);
+    } else {
+        PRINT_INSTR(stderr, "Calling PEBIL thread initialization library for thread %lx but no images have been initialized.", tid);
+    }
+    return NULL;
+}
+
 void* tool_thread_init(void* threadargs){
     tool_thread_args* x = (tool_thread_args*)threadargs;
     
