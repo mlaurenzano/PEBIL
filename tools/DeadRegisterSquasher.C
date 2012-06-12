@@ -81,7 +81,8 @@ void DeadRegisterSquasher::instrument()
     uint32_t nFuncs = getNumberOfExposedFunctions();
     for(uint32_t i = 0; i < nFuncs; ++i){
         Function * func = getExposedFunction(i);
-        //func->digest(getElfFile()->getAddressAnchors());
+
+        //PRINT_INFOR("Squashing in function %d, %s", i, func->getFunctionSymbol()->getSymbolName());
 
         uint32_t nInstructions = func->getNumberOfInstructions();
         X86Instruction** instructions = new X86Instruction*[nInstructions];
@@ -90,6 +91,7 @@ void DeadRegisterSquasher::instrument()
         // for each instruction
         for(uint32_t j = 0; j < nInstructions; ++j){
            X86Instruction* instruction = instructions[j];
+           //instruction->print();
            InstrumentationSnippet* snip = new InstrumentationSnippet();
 
            uint32_t deadThis = 0;
