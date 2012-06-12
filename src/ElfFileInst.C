@@ -835,6 +835,13 @@ uint32_t ElfFileInst::addInstrumentationSnippet(InstrumentationSnippet* snip){
     return instrumentationSnippets.size();
 }
 
+InstrumentationSnippet* ElfFileInst::addInstrumentationSnippet(){
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
+    InstrumentationSnippet* snip = new InstrumentationSnippet();
+    instrumentationSnippets.append(snip);
+    return snip;
+}
+
 TextSection* ElfFileInst::getDotTextSection(){
     return elfFile->getDotTextSection();
 }

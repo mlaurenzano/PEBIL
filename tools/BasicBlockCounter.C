@@ -110,6 +110,22 @@ void BasicBlockCounter::instrument()
 
     threadHash = reserveDataOffset(sizeof(ThreadData) * (ThreadHashMod + 1));
 
+    if (isThreadedMode()){
+        for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+            Function* f = getExposedFunction(i);
+            FlowGraph* fg = f->getFlowGraph();
+            f->findDeadRegs();
+            uint32_t tr = f->getDeadGPR(0);
+            
+            if (tr == X86_64BIT_GPRS){
+                continue;
+            }
+            InstrumentationTool::threadAllEntryPoints(f, tr);
+        }
+    }
+
+    PRINT_INFOR("Thread hash at %lx", getInstDataAddress() + threadHash);
+
     uint64_t imageKey = reserveDataOffset(sizeof(uint64_t));
     uint64_t counterStruct = reserveDataOffset(sizeof(CounterArray));
 
@@ -251,11 +267,13 @@ void BasicBlockCounter::instrument()
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Hashes + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
         
         uint64_t counterOffset = (uint64_t)ctrs.Counters + (i * sizeof(uint64_t));
+        uint32_t threadReg = X86_64BIT_GPRS;
         if (isThreadedMode()){
             counterOffset -= (uint64_t)ctrs.Counters;
+            threadReg = ((Function*)bb->getLeader()->getContainer())->getDeadGPR(0);
         }
 
-        InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
+        InstrumentationTool::insertInlinedTripCounter(counterOffset, bb, true, threadReg);
     }
 
 #ifdef NO_REG_ANALYSIS

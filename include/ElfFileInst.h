@@ -238,6 +238,7 @@ public:
 
     InstrumentationFunction* getInstrumentationFunction(const char* funcName);
     uint32_t addInstrumentationSnippet(InstrumentationSnippet* snip);
+    InstrumentationSnippet* addInstrumentationSnippet();
 
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }

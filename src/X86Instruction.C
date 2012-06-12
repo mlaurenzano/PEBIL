@@ -1723,15 +1723,6 @@ void X86Instruction::print(){
     delete useRegs;
     delete defRegs;
 #endif
-    
-    /*
-    PRINT_INFOR("\t%s (%d,%d) (%d,%d) (%d,%d) %d", ud_lookup_mnemonic(GET(itab_entry)->mnemonic), GET(itab_entry)->operand1.type, GET(itab_entry)->operand1.size, GET(itab_entry)->operand2.type, GET(itab_entry)->operand2.size, GET(itab_entry)->operand3.type, GET(itab_entry)->operand3.size, GET(itab_entry)->prefix);
-
-    PRINT_INFOR("%d(%s)\t%hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd", GET(mnemonic), ud_lookup_mnemonic(GET(mnemonic)),
-                GET(error), GET(pfx_rex), GET(pfx_seg), GET(pfx_opr), GET(pfx_adr), GET(pfx_lock), GET(pfx_rep),
-                GET(pfx_repe), GET(pfx_repne), GET(pfx_insn), GET(default64), GET(opr_mode), GET(adr_mode),
-                GET(br_far), GET(br_near), GET(implicit_addr), GET(c1), GET(c2), GET(c3));
-    */
 
     BitSet<uint32_t>* usedRegs = new BitSet<uint32_t>(X86_ALU_REGS);
     touchedRegisters(usedRegs);
@@ -1755,6 +1746,22 @@ void X86Instruction::print(){
         }
     }
 #endif // PRINT_INSTRUCTION_DETAIL
+
+    BitSet<uint32_t>* deadIn  = new BitSet<uint32_t>(X86_ALU_REGS);
+    BitSet<uint32_t>* deadOut = new BitSet<uint32_t>(X86_ALU_REGS);
+    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+        if (isRegDeadIn(i)){
+            deadIn->insert(i);
+        }
+        if (isRegDeadOut(i)){
+            deadOut->insert(i);
+        }
+    }
+    deadIn->print();
+    deadOut->print();
+
+    delete deadIn;
+    delete deadOut;
 }
 
 const char* ud_optype_str[] = { "reg", "mem", "ptr", "imm", "jimm", "const" };

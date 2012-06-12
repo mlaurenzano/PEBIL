@@ -25,8 +25,6 @@
 X86Instruction* X86InstructionFactory64::emitAddImmByteToRegaddrImm(uint8_t byte, uint8_t reg, uint32_t imm){
     ASSERT(reg < X86_64BIT_GPRS);
 
-    PRINT_INFOR("X86InstructionFactory64::emitAddImmByteToRegaddrImm %hhx %hhd %x", byte, reg, imm);
-
     uint32_t len = 7;
     uint32_t immoff = 2;
     uint32_t st = 0;
@@ -39,7 +37,6 @@ X86Instruction* X86InstructionFactory64::emitAddImmByteToRegaddrImm(uint8_t byte
         len++;
         immoff++;
     }
-    PRINT_INFOR("%d %d %d", len, immoff, st);
     char* buff = new char[len];
 
     buff[0] = 0x41;
@@ -49,8 +46,6 @@ X86Instruction* X86InstructionFactory64::emitAddImmByteToRegaddrImm(uint8_t byte
 
     memcpy(buff+immoff,&imm,sizeof(uint32_t));
     memcpy(buff+immoff+sizeof(uint32_t),&byte,sizeof(uint8_t));
-
-    PRINT_INFOR("%#hhx %#hhx %#hhx %#hhx %#hhx %#hhx %#hhx", buff[0], buff[1], buff[2], buff[3], buff[4], buff[5], buff[6]);
 
     return emitInstructionBase(len,buff);    
 }
