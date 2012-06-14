@@ -109,9 +109,14 @@ class TextObject;
 #define X86_FLAG_ID 21
 #define X86_FLAG_BITS 32
 
-#define __flag_mask__protect_none  0x11111111
-#define __flag_mask__protect_light 0x11111100
-#define __flag_mask__protect_full  0x11110000
+// useful flags bit sets
+// doesn't require saving
+#define __flag_mask__protect_none  (0)
+// can be handled by lahf/sahf
+#define __flag_mask__protect_light (__bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_SF))
+// has to be handled by pushf/popf
+#define __flag_mask__protect_full  (__bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_IOPL1) | __bit_shift(X86_FLAG_IOPL2) | __bit_shift(X86_FLAG_NT))
+// a set of flags used by a ton of ALU instructions
 #define __x86_flagset_alustd       (__bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_OF))
 
 #define __flag_reserved "reserved"
@@ -123,6 +128,8 @@ const static char* flag_name_map[X86_FLAG_BITS] = { "carry", __flag_reserved, "p
                            "vint_pending", "ident", __flag_reserved, __flag_reserved,
                            __flag_reserved, __flag_reserved, __flag_reserved, __flag_reserved,
                            __flag_reserved, __flag_reserved, __flag_reserved, __flag_reserved };
+
+#define CONTAINS_FLAG(__val, __flg) (((__val >> __flg) & 0x1) == 1)
 
 // my non-gnu definitions for X86
 #define X86_REG_AX 0

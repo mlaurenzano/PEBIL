@@ -122,6 +122,7 @@ public:
     BasicBlock(uint32_t idx, FlowGraph* cfg);
     ~BasicBlock() {}
 
+    X86Instruction* findBestInstPoint(InstLocations* loc, BitSet<uint32_t>* unusableRegs, BitSet<uint32_t>* useRegs, bool attendFlags);
     uint32_t bloat(Vector<InstrumentationPoint*>* instPoints);
 
     uint32_t searchForArgsPrep(bool is64Bit);

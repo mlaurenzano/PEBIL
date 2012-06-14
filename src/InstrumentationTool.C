@@ -35,62 +35,15 @@
 #define MPI_INIT_LIST_FBIND_PREF "pmpi_init_"
 #define MPI_INIT_LIST_FBIND      "mpi_init_:MPI_INIT"
 
-#define PTHREAD_CREATE           "pthread_create"
-#define PTHREAD_CREATE_CBIND     "pthread_create_pebil_wrapper"
-#define PTHREAD_CREATE_NONTHREAD "pthread_create_pebil_nothread"
+typedef struct {
+    uint64_t id;
+    uint64_t data;
+} ThreadData;
+#define ThreadHashShift (12)
+#define ThreadHashMod   (0xffff)
+
 
 #define MAX_DEF_USE_DIST_PRINT 1024
-
-void InstrumentationTool::threadAllEntryPoints(Function* f, uint32_t threadReg){
-    uint32_t numberOfInstructions = f->getNumberOfInstructions();
-    X86Instruction** allInstructions = new X86Instruction*[numberOfInstructions];
-    f->getAllInstructions(allInstructions,0);
-
-    for (uint32_t j = 0; j < numberOfInstructions; j++){
-        bool doThread = false;
-        bool entry = false;
-        X86Instruction* ins = allInstructions[j];
-        if (ins->getBaseAddress() == f->getBaseAddress()){
-            doThread = true;
-            entry = true;
-        } else if (ins->isCall()){
-            doThread = true;
-        }
-        if (doThread){
-            uint32_t scr = (threadReg + 1) % X86_64BIT_GPRS;
-            if (scr == X86_REG_SP){
-                scr++;
-            }
-            bool protectScratch = true;
-            if (ins->isRegDeadOut(scr)){
-                protectScratch = false;
-            }
-            InstrumentationSnippet* snip = addInstrumentationSnippet();
-            Vector<X86Instruction*>* ti = InstrumentationTool::assignThreadDataToReg(scr, threadReg, protectScratch);
-            for (uint32_t i = 0; i < ti->size(); i++){
-                snip->addSnippetInstruction((*ti)[i]);
-            }
-            
-            FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-            
-            InstLocations loc = InstLocation_after;
-            if (entry){
-                loc = InstLocation_prior;
-                if (ins->allFlagsDeadIn()){
-                    prot = FlagsProtectionMethod_none;
-                }
-            } else {
-                if (ins->allFlagsDeadOut()){
-                    prot = FlagsProtectionMethod_none;
-                }
-            }
-            InstrumentationPoint* p = addInstrumentationPoint(ins, snip, InstrumentationMode_inline, prot, loc);
-            delete ti;
-        }
-    }
-
-    delete[] allInstructions;
-}
 
 void InstrumentationTool::assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak){
     if (getElfFile()->is64Bit()){
@@ -158,13 +111,6 @@ InstrumentationTool::InstrumentationTool(ElfFile* elf)
 {}
 
 void InstrumentationTool::declare(){
-    if (isThreadedMode()){
-        threadInit = declareFunction(PTHREAD_CREATE_CBIND);
-        ASSERT(threadInit && "Cannot find pthread_create wrapper function, are you sure it was declared?");
-    } else {
-        threadInit = declareFunction(PTHREAD_CREATE_NONTHREAD);
-        ASSERT(threadInit && "Cannot find pthread_create wrapper function, are you sure it was declared?");
-    }
 #ifdef HAVE_MPI
     initWrapperC = declareFunction(MPI_INIT_WRAPPER_CBIND);
     initWrapperF = declareFunction(MPI_INIT_WRAPPER_FBIND);
@@ -174,22 +120,8 @@ void InstrumentationTool::declare(){
 }
 
 void InstrumentationTool::instrument(){
-    /*
-    Vector<X86Instruction*>* pthreadCreateCalls = findAllCalls(PTHREAD_CREATE);
+    threadHash = reserveDataOffset(sizeof(ThreadData) * (ThreadHashMod + 1));
 
-    for (uint32_t i = 0; i < (*pthreadCreateCalls).size(); i++){
-
-        ASSERT((*pthreadCreateCalls)[i]->isFunctionCall());
-        ASSERT((*pthreadCreateCalls)[i]->getSizeInBytes() == Size__uncond_jump);
-        if (isThreadedMode()){
-            PRINT_INFOR("Instrumenting pthread_create @ %#llx", (*pthreadCreateCalls)[i]->getBaseAddress());
-        } else {
-            PRINT_WARN(20, "--threaded not given, but pthread_create is found @ %#llx. You will get a runtime warning if pthread_create is actually called.", (*pthreadCreateCalls)[i]->getBaseAddress());
-        }
-        InstrumentationPoint* pt = addInstrumentationPoint((*pthreadCreateCalls)[i], threadInit, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
-    }
-    delete pthreadCreateCalls;
-    */
 #ifdef HAVE_MPI
     int initFound = 0;
 
@@ -200,7 +132,7 @@ void InstrumentationTool::instrument(){
         ASSERT((*mpiInitCalls)[i]->isFunctionCall());
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
         PRINT_INFOR("Adding MPI_Init wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
-        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperC, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperC, InstrumentationMode_tramp, InstLocation_replace);
         initFound++;
     }
     delete mpiInitCalls;
@@ -211,7 +143,7 @@ void InstrumentationTool::instrument(){
         ASSERT((*mpiInitCalls)[i]->isFunctionCall());
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
         PRINT_INFOR("Adding mpi_init_ wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
-        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, InstLocation_replace);
         initFound++;
     }
     delete mpiInitCalls;
@@ -227,7 +159,7 @@ void InstrumentationTool::instrument(){
         ASSERT((*mpiInitCalls)[i]->isFunctionCall());
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
         PRINT_INFOR("Adding MPI_Init wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
-        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperC, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperC, InstrumentationMode_tramp, InstLocation_replace);
         initFound++;
     }
     delete mpiInitCalls;
@@ -238,7 +170,7 @@ void InstrumentationTool::instrument(){
         ASSERT((*mpiInitCalls)[i]->isFunctionCall());
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
         PRINT_INFOR("Adding mpi_init_ wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
-        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, InstLocation_replace);
         initFound++;
     }
     delete mpiInitCalls;
@@ -246,15 +178,10 @@ void InstrumentationTool::instrument(){
 #endif //HAVE_MPI
 }
 
-Vector<X86Instruction*>* InstrumentationTool::assignThreadDataToReg(uint32_t scratch, uint32_t dest, bool protectScratch){
+Vector<X86Instruction*>* InstrumentationTool::assignThreadDataToReg(uint32_t scratch, uint32_t dest){
     ASSERT(scratch < X86_64BIT_GPRS);
     ASSERT(dest < X86_64BIT_GPRS);
     Vector<X86Instruction*>* insns = new Vector<X86Instruction*>();
-
-    if (protectScratch){
-        insns->append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
-        insns->append(X86InstructionFactory64::emitStackPush(scratch));
-    }
 
     // mov %fs:0x10,%d
     insns->append(X86InstructionFactory64::emitMoveTLSOffsetToReg(0x10, dest));
@@ -270,11 +197,6 @@ Vector<X86Instruction*>* InstrumentationTool::assignThreadDataToReg(uint32_t scr
     insns->append(X86InstructionFactory64::emitLoadEffectiveAddress(scratch, dest, 0, 0x08, dest, true, true));
     // mov (%d),%d
     insns->append(X86InstructionFactory64::emitMoveRegaddrImmToReg(dest, 0, dest));
-
-    if (protectScratch){
-        insns->append(X86InstructionFactory64::emitStackPop(scratch));
-        insns->append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
-    }
 
     return insns;
 }
@@ -301,6 +223,7 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
     }
 
     InstrumentationSnippet* snip = new InstrumentationSnippet();
+    snip->setOverflowable(false);
 
     // do not generate control instructions to get back to the application, this is done for
     // the snippet automatically during code generation
@@ -309,109 +232,67 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
     addInstrumentationSnippet(snip);
 
     // register an instrumentation point at the function that uses this snippet
-    FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-    X86Instruction* bestinst = scope->getExitInstruction();
-    InstLocations loc = InstLocation_prior;
+    X86Instruction* bestinst;
+    InstLocations loc;
+    BitSet<uint32_t>* validRegs = new BitSet<uint32_t>(X86_ALU_REGS);
+    BitSet<uint32_t>* useRegs = new BitSet<uint32_t>(X86_ALU_REGS);
     InstrumentationModes mode = InstrumentationMode_inline;
 
-    for (int32_t j = scope->getNumberOfInstructions() - 1; j >= 0; j--){
-        if (scope->getInstruction(j)->allFlagsDeadIn()){
-            bestinst = scope->getInstruction(j);
-            prot = FlagsProtectionMethod_none;
-            break;
-        }
-    }
     uint32_t regLimit = X86_32BIT_GPRS;
-    if (is64Bit()){
+    if (getElfFile()->is64Bit()){
         regLimit = X86_64BIT_GPRS;
     }
-    uint32_t scratchReg1 = regLimit;
-    uint32_t scratchReg2 = regLimit;
+
+    
     for (uint32_t i = 0; i < regLimit; i++){
-        if (i == X86_REG_SP){
-            continue;
-        }
-        if (bestinst->isRegDeadIn(i)){
-            if (scratchReg1 < regLimit){
-                scratchReg2 = i;
+        validRegs->insert(i);
+    }
+    validRegs->remove(X86_REG_AX);
+    validRegs->remove(X86_REG_SP);
+    bestinst = scope->findBestInstPoint(&loc, validRegs, useRegs, true);
+
+    uint32_t sr1 = regLimit;
+    uint32_t sr2 = regLimit;
+    for (uint32_t i = 0; i < regLimit; i++){
+        if (useRegs->contains(i)){
+            if (sr1 == regLimit){
+                sr1 = i;
+            } else if (sr2 == regLimit){
+                sr2 = i;
                 break;
-            } else {
-                scratchReg1 = i;
             }
         }
     }
 
-    bool protect1 = false;
-    bool protect2 = false;
-    if (scratchReg1 == regLimit){
-        protect1 = true;
-        scratchReg1 = X86_REG_CX;
-    }
-    if (scratchReg2 == regLimit){
-        protect2 = true;
-        scratchReg2 = (scratchReg1 + 1) % regLimit;
-        if (scratchReg2 == X86_REG_SP){
-            scratchReg2++;
+    // best inst point didn't have enough dead regs...
+    if (sr1 == regLimit){
+        sr1 = X86_REG_CX;
+        sr2 = X86_REG_DX;
+    } else if (sr2 == regLimit){
+        sr2 = X86_REG_DX;
+        if (sr1 == sr2){
+            sr2 = X86_REG_CX;
         }
     }
-    ASSERT(scratchReg1 != X86_REG_SP);
-    ASSERT(scratchReg2 != X86_REG_SP);
+
+    ASSERT(sr1 != X86_REG_SP && sr2 != X86_REG_SP);
+    ASSERT(sr1 != X86_REG_AX && sr2 != X86_REG_AX);
 
     // snippet contents, in this case just increment a counter
     if (is64Bit()){
         // any threaded
         if (isThreadedMode()){
-
-            // TODO: I think the above optimization is valid but that the isRegDeadIn call is giving bad values in some circumstances
-            //protect1 = protect2 = true;
-
-            // replace scratch regs
-            uint32_t threadReg1 = threadReg;
-            if (threadReg == X86_64BIT_GPRS){
-                threadReg1 = scratchReg1;
-            } else {
-                protect1 = false;
+            // load thread data base addr into %sr1
+            Vector<X86Instruction*>* loadThreadData = assignThreadDataToReg(sr2, sr1);
+            for (uint32_t i = 0; i < loadThreadData->size(); i++){
+                snip->addSnippetInstruction((*loadThreadData)[i]);
             }
-
-            uint32_t threadReg2 = scratchReg2;
-            if (threadReg2 == threadReg1){
-                threadReg2 = scratchReg1;
-                protect2 = protect1;
-            }
-            ASSERT(threadReg1 != threadReg2);
-
-            if (protect1 || protect2){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
-            }
-            if (protect2){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPush(threadReg2));
-            }
-            if (protect1){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPush(threadReg1));
-            }
-
-            if (threadReg == X86_64BIT_GPRS){
-                Vector<X86Instruction*>* loadThreadData = assignThreadDataToReg(threadReg2, threadReg1, false);
-                for (uint32_t i = 0; i < loadThreadData->size(); i++){
-                    snip->addSnippetInstruction((*loadThreadData)[i]);
-                }
-                delete loadThreadData;
-            }
+            delete loadThreadData;
 
             if (add){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToRegaddrImm(1, threadReg1, counterOffset));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToRegaddrImm(1, sr1, counterOffset));
             } else {
-                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToRegaddrImm(-1, threadReg1, counterOffset));
-            }
-
-            if (protect1){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPop(threadReg1));
-            }
-            if (protect2){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPop(threadReg2));
-            }
-            if (protect1 || protect2){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToRegaddrImm(-1, sr1, counterOffset));
             }
         }
         // non-threaded executable
@@ -424,37 +305,14 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
         }
         // non-threaded shared library
         else {
-            // TODO: I think the above optimization is valid but that the isRegDeadIn call is giving bad values in some circumstances
-            protect1 = protect2 = true;
-
-            if (protect1 || protect2){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
-            }
-            if (protect2){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPush(scratchReg2));
-            }
-            if (protect1){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPush(scratchReg1));
-            }
-
-            snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, scratchReg1), this, getInstDataAddress() + counterOffset, false));
-            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrToReg(scratchReg1, scratchReg2));
+            snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, sr1), this, getInstDataAddress() + counterOffset, false));
+            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrToReg(sr1, sr2));
             if (add){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitRegAddImm(scratchReg2, 1));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitRegAddImm(sr2, 1));
             } else {
-                snip->addSnippetInstruction(X86InstructionFactory64::emitRegSubImm(scratchReg2, 1));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitRegSubImm(sr2, 1));
             }
-            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddr(scratchReg2, scratchReg1));
-
-            if (protect1){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPop(scratchReg1));
-            }
-            if (protect2){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitStackPop(scratchReg2));
-            }
-            if (protect1 || protect2){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
-            }
+            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddr(sr2, sr1));
         }
     } else {
         ASSERT(getElfFile()->isExecutable());
@@ -465,7 +323,7 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
         }
     }
 
-    InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, mode, prot, loc);
+    InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, mode, loc);
 
     return p;
 }

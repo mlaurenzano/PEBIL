@@ -114,13 +114,13 @@ void CallReplace::instrument(){
     uint64_t siteIndex = reserveDataOffset(sizeof(uint32_t));
 
     if (doIntro){
-        InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+        InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp, InstLocation_prior);
         ASSERT(p);
         if (!p->getInstBaseAddress()){
             PRINT_ERROR("Cannot find an instrumentation point at the exit function");
         }
 
-        p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+        p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp, InstLocation_prior);
         ASSERT(p);
         if (!p->getInstBaseAddress()){
             PRINT_ERROR("Cannot find an instrumentation point at the exit function");
@@ -183,7 +183,7 @@ void CallReplace::instrument(){
 
     for (uint32_t i = 0; i < myInstPoints.size(); i++){
         PRINT_INFOR("(site %d) %#llx: replacing call %s -> %s in function %s", i, myInstPoints[i]->getBaseAddress(), getFunctionName(myInstList[i]), getWrapperName(myInstList[i]), myInstPoints[i]->getContainer()->getName());
-        InstrumentationPoint* pt = addInstrumentationPoint(myInstPoints[i], functionWrappers[myInstList[i]], InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        InstrumentationPoint* pt = addInstrumentationPoint(myInstPoints[i], functionWrappers[myInstList[i]], InstrumentationMode_tramp, InstLocation_replace);
         assignStoragePrior(pt, i, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
     }
 

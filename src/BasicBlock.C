@@ -29,6 +29,82 @@
 
 static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
 
+X86Instruction* BasicBlock::findBestInstPoint(InstLocations* loc, BitSet<uint32_t>* validRegs, BitSet<uint32_t>* useRegs, bool attendFlags){
+    ASSERT(validRegs);
+
+    uint32_t best = 0;
+    InstLocations bestloc = InstLocation_prior;
+    BitSet<uint32_t>* flagsDead  = new BitSet<uint32_t>(getNumberOfInstructions() * 2);
+
+    bool hasFlags = false;
+    if (attendFlags){
+        for (int32_t i = 0; i < getNumberOfInstructions() * 2; i++){
+            ASSERT(i / 2 < getNumberOfInstructions()); 
+            X86Instruction* ins = getInstruction(i / 2);
+            if (i % 2 == 0 && ins->allFlagsDeadIn()){
+                flagsDead->insert(i);
+                hasFlags = true;
+                best = i / 2;
+                bestloc = InstLocation_prior;
+            }
+            if (i % 2 == 1 && ins->allFlagsDeadOut()){
+                flagsDead->insert(i);
+                hasFlags = true;
+                best = i / 2;
+                bestloc = InstLocation_after;
+            }
+        }
+    }
+
+    uint32_t maxDead = 0;
+    for (int32_t i = 0; i < getNumberOfInstructions() * 2; i++){
+        ASSERT(i / 2 < getNumberOfInstructions());
+        X86Instruction* ins = getInstruction(i / 2);
+        uint32_t dead = 0;
+        if (attendFlags && hasFlags){
+            if (!flagsDead->contains(i)){
+                continue;
+            }
+        }
+        for (uint32_t j = 0; j < X86_ALU_REGS; j++){
+            if (validRegs->contains(j)){
+                if (i % 2 == 0 && ins->isRegDeadIn(j)){
+                    dead++;
+                }
+                if (i % 2 == 1 && ins->isRegDeadOut(j)){
+                    dead++;
+                }
+            }
+        }
+        if (dead > maxDead){
+            maxDead = dead;
+            best = i / 2;
+            if (i % 2 == 0){
+                bestloc = InstLocation_prior;
+            } else {
+                bestloc = InstLocation_after;
+            }
+        }
+    }
+
+    delete flagsDead;
+
+    X86Instruction* bestinsn = getInstruction(best);
+    if (useRegs){
+        for (uint32_t j = 0; j < X86_ALU_REGS; j++){
+            if (bestloc == InstLocation_prior && bestinsn->isRegDeadIn(j) && validRegs->contains(j)){
+                useRegs->insert(j);
+            }
+            if (bestloc == InstLocation_after && bestinsn->isRegDeadOut(j) && validRegs->contains(j)){
+                useRegs->insert(j);
+            }
+        }
+    }
+
+    *loc = bestloc;
+    return bestinsn;
+}
+
 uint32_t BasicBlock::getDefXIter(){
     uint32_t defcnt = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){

@@ -1172,7 +1172,7 @@ void X86Instruction::binutilsPrint(FILE* stream){
     fprintf(stream, "%llx: ", getBaseAddress());
 
     for (int32_t i = 0; i < sizeInBytes; i++){
-        fprintf(stream, "%02x ", GET(insn_bytes)[i]);
+        fprintf(stream, "%02hhx ", GET(insn_bytes)[i]);
     }
 
     if (sizeInBytes < 8){
@@ -1703,7 +1703,7 @@ void X86Instruction::print(){
 
     char hexcode[32];
     for (int32_t i = 0; i < sizeInBytes; i++){
-        sprintf(hexcode + (2*i), "%02x", GET(insn_bytes)[i]);
+        sprintf(hexcode + (2*i), "%02hhx", GET(insn_bytes)[i]);
     }
 
     PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%10s]\t-> %#llx", getBaseAddress(), hexcode, GET(insn_buffer), flags, getTargetAddress());
@@ -1759,22 +1759,6 @@ void X86Instruction::print(){
         }
     }
 #endif // PRINT_INSTRUCTION_DETAIL
-
-    BitSet<uint32_t>* deadIn  = new BitSet<uint32_t>(X86_ALU_REGS);
-    BitSet<uint32_t>* deadOut = new BitSet<uint32_t>(X86_ALU_REGS);
-    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
-        if (isRegDeadIn(i)){
-            deadIn->insert(i);
-        }
-        if (isRegDeadOut(i)){
-            deadOut->insert(i);
-        }
-    }
-    deadIn->print();
-    deadOut->print();
-
-    delete deadIn;
-    delete deadOut;
 }
 
 const char* ud_optype_str[] = { "reg", "mem", "ptr", "imm", "jimm", "const" };

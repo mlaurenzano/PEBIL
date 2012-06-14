@@ -380,7 +380,7 @@ void CacheSimulation::instrument(){
                             uint32_t tmpReg2 = X86_REG_DX;
                             uint32_t tmpReg3 = X86_REG_AX;
                             
-                            InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline, prot, InstLocation_prior);
+                            InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline, InstLocation_prior);
                             pt->setPriority(InstPriority_low);
                             Vector<X86Instruction*>* bufferDumpInstructions = new Vector<X86Instruction*>();
                             
@@ -481,7 +481,7 @@ void CacheSimulation::instrument(){
                             }
                             
                             // generateAddressComputation doesn't def any flags, so no protection is necessary
-                            InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, FlagsProtectionMethod_none, InstLocation_prior);
+                            InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, InstLocation_prior);
                             memInstPoints.append(pt);
                         } 
                     } else {
@@ -498,7 +498,7 @@ void CacheSimulation::instrument(){
                             uint32_t tmpReg2 = X86_REG_DX;
                             uint32_t tmpReg3 = X86_REG_AX;
                             
-                            InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline, prot, InstLocation_prior);
+                            InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline, InstLocation_prior);
                             pt->setPriority(InstPriority_low);
                             Vector<X86Instruction*>* bufferDumpInstructions = new Vector<X86Instruction*>();
                             
@@ -597,7 +597,7 @@ void CacheSimulation::instrument(){
                             }
                             
                             // generateAddressComputation doesn't def any flags, so no protection is necessary
-                            InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, FlagsProtectionMethod_none, InstLocation_prior);
+                            InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, InstLocation_prior);
                             memInstPoints.append(pt);
                         }
                     }

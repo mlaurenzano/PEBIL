@@ -40,13 +40,6 @@
 #define INST_LIB_NAME "cxx_libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
-typedef struct {
-    uint64_t id;
-    uint64_t data;
-} ThreadData;
-#define ThreadHashShift (12)
-#define ThreadHashMod   (0xffff)
-
 extern "C" {
     InstrumentationTool* BasicBlockCounterMaker(ElfFile* elf){
         return new BasicBlockCounter(elf);
@@ -108,24 +101,6 @@ void BasicBlockCounter::instrument()
     uint32_t numberOfPoints = getNumberOfExposedBasicBlocks();
 #endif //STATS_PER_INSTRUCTION
 
-    threadHash = reserveDataOffset(sizeof(ThreadData) * (ThreadHashMod + 1));
-
-    if (isThreadedMode()){
-        for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
-            Function* f = getExposedFunction(i);
-            FlowGraph* fg = f->getFlowGraph();
-            f->findDeadRegs();
-            uint32_t tr = f->getDeadGPR(0);
-            
-            if (tr == X86_64BIT_GPRS){
-                continue;
-            }
-            InstrumentationTool::threadAllEntryPoints(f, tr);
-        }
-    }
-
-    PRINT_INFOR("Thread hash at %lx", getInstDataAddress() + threadHash);
-
     uint64_t imageKey = reserveDataOffset(sizeof(uint64_t));
     uint64_t counterStruct = reserveDataOffset(sizeof(CounterArray));
 
@@ -140,6 +115,7 @@ void BasicBlockCounter::instrument()
     initializeReservedPointer((uint64_t)ctrs.__nam, counterStruct + offsetof(CounterArray, __nam))
 
     INIT_CTR_ELEMENT(uint64_t, Counters);
+    INIT_CTR_ELEMENT(uint64_t, Addresses);
     INIT_CTR_ELEMENT(uint64_t, Hashes);
     INIT_CTR_ELEMENT(uint32_t, Lines);
     INIT_CTR_ELEMENT(char*, Files);
@@ -159,7 +135,7 @@ void BasicBlockCounter::instrument()
     initializeReservedData(getInstDataAddress() + counterStruct, sizeof(CounterArray), (void*)(&ctrs));
 
     exitFunc->addArgument(imageKey);
-    InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+    InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp, InstLocation_prior);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
@@ -173,7 +149,7 @@ void BasicBlockCounter::instrument()
     entryFunc->addArgument(imageKey);
     entryFunc->addArgument(threadHash);
 
-    p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+    p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, InstLocation_prior);
     p->setPriority(InstPriority_userinit);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the entry block");
@@ -265,12 +241,15 @@ void BasicBlockCounter::instrument()
 #endif //STATS_PER_INSTRUCTION
 
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Hashes + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
+
+        uint64_t addr = bb->getProgramAddress();
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Addresses + i*sizeof(uint64_t), sizeof(uint64_t), &addr);
         
         uint64_t counterOffset = (uint64_t)ctrs.Counters + (i * sizeof(uint64_t));
         uint32_t threadReg = X86_64BIT_GPRS;
+
         if (isThreadedMode()){
             counterOffset -= (uint64_t)ctrs.Counters;
-            threadReg = ((Function*)bb->getLeader()->getContainer())->getDeadGPR(0);
         }
 
         InstrumentationTool::insertInlinedTripCounter(counterOffset, bb, true, threadReg);
@@ -283,7 +262,7 @@ void BasicBlockCounter::instrument()
 
     PRINT_INFOR("Instrumenting %d loops for counting", loopsFound.size());
 
-    p = addInstrumentationPoint(getProgramExitBlock(), loopExit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+    p = addInstrumentationPoint(getProgramExitBlock(), loopExit, InstrumentationMode_tramp, InstLocation_prior);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
@@ -297,7 +276,7 @@ void BasicBlockCounter::instrument()
     temp64 = loopsFound.size();
     initializeReservedData(getInstDataAddress() + loopCounterEntries, sizeof(uint64_t), &temp64);
 
-    p = addInstrumentationPoint(getProgramEntryBlock(), loopEntry, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+    p = addInstrumentationPoint(getProgramEntryBlock(), loopEntry, InstrumentationMode_tramp, InstLocation_prior);
     p->setPriority(InstPriority_userinit);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the entry block");
@@ -379,12 +358,8 @@ void BasicBlockCounter::instrument()
                         snip->addSnippetInstruction(X86InstructionFactory32::emitSubImmByteToMem(1, getInstDataAddress() + counterOffset));
                     }
 
-                    FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-                    if (tail->getExitInstruction()->allFlagsDeadOut()){
-                        prot = FlagsProtectionMethod_none;
-                    }
                     addInstrumentationSnippet(snip);
-                    InstrumentationPoint* p = addInstrumentationPoint(tail->getExitInstruction(), snip, InstrumentationMode_inline, prot, InstLocation_after);
+                    InstrumentationPoint* p = addInstrumentationPoint(tail->getExitInstruction(), snip, InstrumentationMode_inline, InstLocation_after);
                     //PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
                 } else {
                     BasicBlock* interposed = initInterposeBlock(fg, tail->getIndex(), target->getIndex());

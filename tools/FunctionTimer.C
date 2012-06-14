@@ -127,7 +127,7 @@ void FunctionTimer::instrument(){
                 break;
             }
         }
-        p = addInstrumentationPoint(bestinst, functionEntry, InstrumentationMode_tramp, prot, loc);
+        p = addInstrumentationPoint(bestinst, functionEntry, InstrumentationMode_tramp, loc);
         for (uint32_t j = 0; j < fillEntry.size(); j++){
             p->addPrecursorInstruction(fillEntry[j]);
         }
@@ -151,7 +151,7 @@ void FunctionTimer::instrument(){
                     break;
                 }
             }
-            p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, prot, loc);
+            p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, loc);
             for (uint32_t k = 0; k < fillExit.size(); k++){
                 p->addPrecursorInstruction(fillExit[k]);
             }
@@ -180,7 +180,7 @@ void FunctionTimer::instrument(){
                         break;
                     }
                 }
-                p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, prot, loc);
+                p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, loc);
                 for (uint32_t k = 0; k < fillExit.size(); k++){
                     p->addPrecursorInstruction(fillExit[k]);
                 }
@@ -269,8 +269,8 @@ void ExternalFunctionTimer::instrument(){
                     ASSERT(bb->containsCallToRange(0,-1));
                     ASSERT(x->getSizeInBytes() == Size__uncond_jump);
 
-                    InstrumentationPoint* prior = addInstrumentationPoint(x, functionEntry, InstrumentationMode_tramp, x->allFlagsDeadIn() ? FlagsProtectionMethod_none : FlagsProtectionMethod_full, InstLocation_prior);
-                    InstrumentationPoint* after = addInstrumentationPoint(x, functionExit, InstrumentationMode_tramp, x->allFlagsDeadOut() ? FlagsProtectionMethod_none : FlagsProtectionMethod_full, InstLocation_after);
+                    InstrumentationPoint* prior = addInstrumentationPoint(x, functionEntry, InstrumentationMode_tramp, InstLocation_prior);
+                    InstrumentationPoint* after = addInstrumentationPoint(x, functionExit, InstrumentationMode_tramp, InstLocation_after);
 
                     assignStoragePrior(prior, names.size(), getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
                     assignStoragePrior(after, names.size(), getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());

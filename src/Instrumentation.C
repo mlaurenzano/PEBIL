@@ -59,7 +59,7 @@ uint32_t map64BitArgToReg(uint32_t idx){
 }
 
 void InstrumentationPoint::print(){
-    PRINT_INFOR("Instrumentation point at %#llx -> %#llx: size %d, priority %d, protection %d, mode %d, loc %d, offset %d, function %s", getInstBaseAddress(), getInstSourceAddress(), numberOfBytes, priority, protectionMethod, instrumentationMode, instLocation, offsetFromPoint, point->getContainer()->getName());
+    PRINT_INFOR("Instrumentation point at %#llx -> %#llx: size %d, priority %d, protection %d, mode %d, loc %d, offset %d, function %s", getInstBaseAddress(), getInstSourceAddress(), numberOfBytes, priority, getFlagsProtectionMethod(), instrumentationMode, instLocation, offsetFromPoint, point->getContainer()->getName());
 }
 
 int searchInstPoint(const void* arg1,const void* arg2){
@@ -214,46 +214,42 @@ int compareInstSourceAddress(const void* arg1,const void* arg2){
 }
 
 uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, 
-                                                    uint64_t returnOffset, bool doReloc, uint64_t regStorageBase, bool stackIsSafe,
-                                                    uint64_t currentOffset){
+                                                    uint64_t returnOffset, bool doReloc, uint64_t regStorageBase, uint64_t currentOffset){
     ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
 
     trampolineOffset = offset;
 
     uint32_t trampolineSize = 0;
 
-#ifndef OPTIMIZE_NONLEAF
-    stackIsSafe = false;
-#endif
+    FlagsProtectionMethods protectionMethod = getFlagsProtectionMethod();
 
-    BitSet<uint32_t>* usedRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
-    usedRegs->insert(X86_REG_SP);
-    ~(*usedRegs);
-
-    uint32_t tempReg1 = X86_64BIT_GPRS;
-
-    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        if (usedRegs->contains(i)){
-            if (tempReg1 == X86_64BIT_GPRS){
-                tempReg1 = i;
-            }
-        }
+    bool stackIsSafe = true;
+    TextObject* to = point->getContainer();
+    ASSERT(to->getType() == PebilClassType_Function);
+    Function* f = (Function*)to;
+    BasicBlock* bb = f->getBasicBlockAtAddress(point->getBaseAddress());
+    if (f->hasLeafOptimization() || bb->isEntry()){
+        stackIsSafe = false;
     }
-    delete usedRegs;
-    if (tempReg1 == X86_64BIT_GPRS){
-        PRINT_INFOR("Unable to alocate registers");
-        for (uint32_t i = 0; i < (*insts).size(); i++){
-            (*insts)[i]->print();
-        }
-    }
-    
-    ASSERT(tempReg1 < X86_64BIT_GPRS && "Could not find free registers for this instrumentation point");
+    if (instrumentation->getType() == PebilClassType_InstrumentationFunction &&
+        ((InstrumentationFunction*)instrumentation)->hasSkipWrapper()){
+        stackIsSafe = true;
+    } 
 
-    if (!stackIsSafe){
+    bool protectStack = false;
+    if (protectionMethod != FlagsProtectionMethod_none && !stackIsSafe){
+        protectStack = true;
+    }
+
+    BitSet<uint32_t>* protectRegs = instrumentation->getProtectedRegisters();
+    if (protectRegs->contains(X86_REG_SP)){
+        protectStack = true;
+    }
+
+    if (protectStack){
         trampolineInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
-
 
     if (protectionMethod == FlagsProtectionMethod_full){
         trampolineInstructions.append(X86InstructionFactory::emitPushEflags());
@@ -306,7 +302,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
-    if (!stackIsSafe){
+    if (protectStack){
         trampolineInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
@@ -346,130 +342,9 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
 }
 
 uint32_t InstrumentationPoint32::generateTrampoline(Vector<X86Instruction*>* insts, uint64_t textBaseAddress, uint64_t offset, 
-                                                    uint64_t returnOffset, bool doReloc, uint64_t regStorageBase, bool stackIsSafe,
-                                                    uint64_t currentOffset){
-    ASSERT(!trampolineInstructions.size() && "Cannot generate trampoline instructions more than once");
-
-    trampolineOffset = offset;
-
+                                                    uint64_t returnOffset, bool doReloc, uint64_t regStorageBase, uint64_t currentOffset){
+    __FUNCTION_NOT_IMPLEMENTED;
     uint32_t trampolineSize = 0;
-
-#ifndef OPTIMIZE_NONLEAF
-    stackIsSafe = false;
-#endif
-
-    BitSet<uint32_t>* usedRegs = new BitSet<uint32_t>(X86_32BIT_GPRS);
-    usedRegs->insert(X86_REG_SP);
-    ~(*usedRegs);
-
-    uint32_t tempReg1 = X86_32BIT_GPRS;
-
-    for (uint32_t i = 0; i < X86_32BIT_GPRS; i++){
-        if (usedRegs->contains(i)){
-            if (tempReg1 == X86_32BIT_GPRS){
-                tempReg1 = i;
-            }
-        }
-    }
-    delete usedRegs;
-    if (tempReg1 == X86_32BIT_GPRS){
-        PRINT_INFOR("Unable to alocate registers");
-        for (uint32_t i = 0; i < (*insts).size(); i++){
-            (*insts)[i]->print();
-        }
-    }
-    
-    ASSERT(tempReg1 < X86_32BIT_GPRS && "Could not find free registers for this instrumentation point");
-
-    if (!stackIsSafe){
-        trampolineInstructions.append(X86InstructionFactory32::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    }
-
-    if (protectionMethod == FlagsProtectionMethod_full){
-        trampolineInstructions.append(X86InstructionFactory::emitPushEflags());
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    } else if (protectionMethod == FlagsProtectionMethod_light){
-        trampolineInstructions.append(X86InstructionFactory32::emitMoveRegToMem(X86_REG_AX, regStorageBase));
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-        trampolineInstructions.append(X86InstructionFactory32::emitLoadAHFromFlags());
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    }
-
-    while (hasMorePrecursorInstructions()){
-        trampolineInstructions.append(removeNextPrecursorInstruction());
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    }
-
-    if (!instrumentation->requiresDistinctTrampoline()){
-        PRINT_DEBUG_INST("Generating inlined instructions for trampoline %#llx + %d, %#llx", textBaseAddress+offset, trampolineSize, textBaseAddress+getTargetOffset());
-        while (instrumentation->hasMoreCoreInstructions()){
-            trampolineInstructions.append(instrumentation->removeNextCoreInstruction());
-            trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-        }
-    } else {
-        PRINT_DEBUG_INST("Generating relative call for trampoline %#llx + %d, %#llx", textBaseAddress + offset, trampolineSize, textBaseAddress+getTargetOffset());
-        trampolineInstructions.append(X86InstructionFactory::emitCallRelative(offset + trampolineSize, getTargetOffset()));
-        trampolineInstructions.back()->setBaseAddress(textBaseAddress + currentOffset + trampolineSize);
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-
-        if (instrumentation->getType() == PebilClassType_InstrumentationFunction && ((InstrumentationFunction*)instrumentation)->hasSkipWrapper()){
-            ((InstrumentationFunction*)instrumentation)->addPLTHook(trampolineInstructions.back());            
-        }
-    }
-
-    while (hasMorePostcursorInstructions()){
-        trampolineInstructions.append(removeNextPostcursorInstruction());
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    }
-
-    if (protectionMethod == FlagsProtectionMethod_full){
-        trampolineInstructions.append(X86InstructionFactory::emitPopEflags());
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    } else if (protectionMethod== FlagsProtectionMethod_light){
-        trampolineInstructions.append(X86InstructionFactory32::emitStoreAHToFlags());
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-        trampolineInstructions.append(X86InstructionFactory32::emitMoveMemToReg(regStorageBase, X86_REG_AX));
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    }
-
-    if (!stackIsSafe){
-        trampolineInstructions.append(X86InstructionFactory32::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    }
-
-    uint64_t displacementDist = returnOffset - (offset + trampolineSize + numberOfBytes);
-
-    if (doReloc){
-        ASSERT(insts);
-        if ((*insts).size()){
-            PRINT_DEBUG_FUNC_RELOC("Moving instructions from %#llx to %#llx for relocation", (*insts)[0]->getProgramAddress(), (*insts)[0]->getBaseAddress());
-        }
-
-        int32_t numberOfBranches = 0;
-        for (uint32_t i = 0; i < (*insts).size(); i++){
-            if ((*insts)[i]->isControl() && !(*insts)[i]->isReturn()){
-                numberOfBranches++;
-                if ((*insts)[i]->bytesUsedForTarget() < sizeof(uint32_t)){
-                    PRINT_DEBUG_FUNC_RELOC("This instruction uses %d bytes for target calculation", (*insts)[i]->bytesUsedForTarget());
-                    (*insts)[i]->convertTo4ByteTargetOperand();
-                }
-            }
-            (*insts)[i]->setBaseAddress(textBaseAddress+offset+trampolineSize);
-            if (!(*insts)[i]->isNop()){
-                trampolineInstructions.append((*insts)[i]);
-                trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-            } else {
-                delete (*insts)[i];
-            }
-        }
-        
-        ASSERT(numberOfBranches < 2 && "Cannot have multiple branches in a basic block");
-
-        trampolineInstructions.append(X86InstructionFactory::emitJumpRelative(offset + trampolineSize, returnOffset));
-        trampolineSize += trampolineInstructions.back()->getSizeInBytes();
-    }
-
     return trampolineSize;
 }
 
@@ -940,6 +815,7 @@ InstrumentationSnippet::InstrumentationSnippet()
     dataEntryOffsets = NULL;
 
     distinctTrampoline = SNIPPET_TRAMPOLINE_DEFAULT;
+    canOverflow = true;
 }
 
 InstrumentationSnippet::~InstrumentationSnippet(){
@@ -954,6 +830,167 @@ Vector<X86Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(Vector<X8
     Function* func = (Function*)instruction->getContainer();
 
     return func->swapInstructions(getInstSourceAddress(), replacements);
+}
+
+BitSet<uint32_t>* Instrumentation::getProtectedRegisters(){
+    BitSet<uint32_t>* n = new BitSet<uint32_t>(X86_ALU_REGS);
+    InstLocations loc = point->getInstLocation();
+    X86Instruction* src = point->getSourceObject();
+
+    for (uint32_t i = 0; i < getNumberOfCoreInstructions(); i++){
+        X86Instruction* ins = getCoreInstruction(i);
+        RegisterSet* defs = ins->getRegistersDefined();
+        for (uint32_t j = 0; j < X86_ALU_REGS; j++){
+            if (loc == InstLocation_prior && !src->isRegDeadIn(j) && defs->containsRegister(j)){
+                n->insert(j);
+            }
+            if (loc == InstLocation_after && !src->isRegDeadOut(j) && defs->containsRegister(j)){
+                n->insert(j);
+            }
+        }
+        delete defs;
+    }
+    //n->print();
+
+    return n;
+}
+
+FlagsProtectionMethods InstrumentationPoint::getFlagsProtectionMethod(){
+    if (protectionMethod == FlagsProtectionMethod_undefined){
+        protectionMethod = instrumentation->getFlagsProtectionMethod();
+        //print();
+    }
+    ASSERT(protectionMethod != FlagsProtectionMethod_undefined);
+
+    return protectionMethod;
+}
+
+FlagsProtectionMethods InstrumentationSnippet::getFlagsProtectionMethod(){
+
+    InstrumentationPoint* pt = getInstrumentationPoint();
+    X86Instruction* xins = pt->getSourceObject();
+    BitSet<uint32_t>* liveSet = new BitSet<uint32_t>(X86_FLAG_BITS);
+
+    // figure out which flags are live at the instrumentation point
+    for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
+        if (pt->getInstLocation() == InstLocation_prior){
+            if (!xins->isFlagDeadIn(i)){
+                liveSet->insert(i);
+            }
+        } else if (pt->getInstLocation() == InstLocation_after){
+            if (!xins->isFlagDeadOut(i)){
+                liveSet->insert(i);
+            }
+        } else {
+            ASSERT(false);
+        }
+    }
+
+    if (liveSet->empty()){
+        delete liveSet;
+        return FlagsProtectionMethod_none;
+    }
+
+    // figure out which flags are defined by the snippet
+    BitSet<uint32_t>* flagsSquashed = new BitSet<uint32_t>(X86_FLAG_BITS);
+    for (uint32_t i = 0; i < snippetInstructions.size(); i++){
+        X86Instruction* s = snippetInstructions[i];
+        BitSet<uint32_t>* def = s->getFlagsDefined();
+        for (uint32_t j = 0; j < X86_FLAG_BITS; j++){
+            if (def->contains(j)){
+                flagsSquashed->insert(j);
+            }
+        }
+
+        delete def;
+    }
+
+    // unset overflow bit if instructed to ignore it
+    if (canOverflow == false){
+        flagsSquashed->remove(X86_FLAG_OF);
+    }
+
+    // figure out where live and squashed bits intersect
+    BitSet<uint32_t>* protectBits = new BitSet<uint32_t>(X86_FLAG_BITS);
+    for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
+        if (liveSet->contains(i) && flagsSquashed->contains(i)){
+            protectBits->insert(i);
+        }
+    }    
+
+    // use the weakest allowable protection method based on previous analysis
+    FlagsProtectionMethods prot = FlagsProtectionMethod_none;
+    for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
+        if (protectBits->contains(i)){
+            if (CONTAINS_FLAG(__flag_mask__protect_light, i)){
+                prot = FlagsProtectionMethod_light;
+            } else if (CONTAINS_FLAG(__flag_mask__protect_full, i)){
+                prot = FlagsProtectionMethod_full;
+                break;
+            }
+        }
+    }
+
+    /*
+    xins->print();
+    liveSet->print();
+    flagsSquashed->print();
+    protectBits->print();
+    */
+
+    delete flagsSquashed;
+    delete liveSet;
+    delete protectBits;
+
+    return prot;
+}
+
+FlagsProtectionMethods InstrumentationFunction::getFlagsProtectionMethod(){
+
+    InstrumentationPoint* pt = getInstrumentationPoint();
+    X86Instruction* xins = pt->getSourceObject();
+    BitSet<uint32_t>* liveSet = new BitSet<uint32_t>(X86_FLAG_BITS);
+
+    if (pt->getInstLocation() == InstLocation_replace){
+        delete liveSet;
+        return FlagsProtectionMethod_none;
+    }
+
+    // figure out which flags are live at the instrumentation point
+    for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
+        if (pt->getInstLocation() == InstLocation_prior){
+            if (!xins->isFlagDeadIn(i)){
+                liveSet->insert(i);
+            }
+        } else if (pt->getInstLocation() == InstLocation_after){
+            if (!xins->isFlagDeadOut(i)){
+                liveSet->insert(i);
+            }
+        } else {
+            ASSERT(false);
+        }
+    }
+    if (liveSet->empty()){
+        delete liveSet;
+        return FlagsProtectionMethod_none;
+    }
+
+    // use the weakest allowable protection method based on previous analysis
+    FlagsProtectionMethods prot = FlagsProtectionMethod_none;
+    for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
+        if (liveSet->contains(i)){
+            if (CONTAINS_FLAG(__flag_mask__protect_light, i)){
+                prot = FlagsProtectionMethod_light;
+            } else if (CONTAINS_FLAG(__flag_mask__protect_full, i)){
+                prot = FlagsProtectionMethod_full;
+                break;
+            }
+        }
+    }
+
+    delete liveSet;
+
+    return prot;
 }
 
 void InstrumentationPoint::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint64_t addr){
@@ -973,7 +1010,7 @@ uint32_t InstrumentationPoint::sizeNeeded(){
     return totalSize;
 }
 
-InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc)
+InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, InstrumentationModes instMode, InstLocations loc)
     : Base(PebilClassType_InstrumentationPoint)
 {
 
@@ -998,7 +1035,8 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, Inst
     instrumentation->setInstrumentationPoint(this);
 
     instrumentationMode = instMode;
-    protectionMethod = flagsMethod;
+    protectionMethod = FlagsProtectionMethod_undefined;
+    deadRegs = new BitSet<uint32_t>(X86_ALU_REGS);
 
     instLocation = loc;
     trampolineOffset = 0;
@@ -1008,12 +1046,67 @@ InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, Inst
     verify();
 }
 
-InstrumentationPoint32::InstrumentationPoint32(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc) :
-    InstrumentationPoint(pt, inst, instMode, flagsMethod, loc)
+void InstrumentationPoint32::insertStateProtection(){
+    __FUNCTION_NOT_IMPLEMENTED;
+}
+
+InstrumentationPoint32::InstrumentationPoint32(Base* pt, Instrumentation* inst, InstrumentationModes instMode, InstLocations loc) :
+    InstrumentationPoint(pt, inst, instMode, loc)
 {
     numberOfBytes = 0;
-    if (instMode == InstrumentationMode_inline){
+}
+
+void InstrumentationPoint64::insertStateProtection(){
+    // state protection added to the actual contents of the instrumentation
+    if (instrumentationMode == InstrumentationMode_inline){
         ASSERT(instrumentation->getType() == PebilClassType_InstrumentationSnippet);
+
+        FlagsProtectionMethods protectionMethod = getFlagsProtectionMethod();
+        BitSet<uint32_t>* protectedRegs = instrumentation->getProtectedRegisters();
+
+        uint32_t countProt = 0;
+        for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+            if (i == X86_REG_SP){
+                continue;
+            }
+            if (protectedRegs->contains(i)){
+                instrumentation->prependCoreInstruction(X86InstructionFactory64::emitStackPush(i));
+                instrumentation->appendCoreInstruction(X86InstructionFactory64::emitStackPop(i));
+                countProt++;
+            }
+        }
+        delete protectedRegs;
+
+        // then add the number of bytes needed for state protection
+        if (protectionMethod == FlagsProtectionMethod_full){
+            instrumentation->prependCoreInstruction(X86InstructionFactory::emitPushEflags());
+            instrumentation->appendCoreInstruction(X86InstructionFactory::emitPopEflags());
+            countProt++;
+        } else if (protectionMethod == FlagsProtectionMethod_light){
+            instrumentation->prependCoreInstruction(X86InstructionFactory64::emitLoadAHFromFlags());
+            instrumentation->prependCoreInstruction(X86InstructionFactory64::emitStackPush(X86_REG_AX));
+
+            instrumentation->appendCoreInstruction(X86InstructionFactory64::emitStoreAHToFlags());
+            instrumentation->appendCoreInstruction(X86InstructionFactory64::emitStackPop(X86_REG_AX));
+
+            countProt++;
+        } else if (protectionMethod == FlagsProtectionMethod_none){
+        } else {
+            PRINT_ERROR("Protection method is invalid");
+        }
+
+        bool protectStack = false;
+        TextObject* to = point->getContainer();
+        ASSERT(to->getType() == PebilClassType_Function);
+        Function* f = (Function*)to;
+        BasicBlock* bb = f->getBasicBlockAtAddress(point->getBaseAddress());
+        if (f->hasLeafOptimization() || bb->isEntry()){
+            protectStack = true;
+        }
+        if (protectStack && countProt > 0){
+            instrumentation->prependCoreInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
+            instrumentation->appendCoreInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
+        }
 
         // count the number of bytes the tool wants
         if (instrumentation->getType() == PebilClassType_InstrumentationSnippet){
@@ -1025,53 +1118,18 @@ InstrumentationPoint32::InstrumentationPoint32(Base* pt, Instrumentation* inst, 
             __SHOULD_NOT_ARRIVE;
         }
 
-        // then add the number of bytes needed for state protection
-        if (protectionMethod == FlagsProtectionMethod_full){
-            numberOfBytes += Size__flag_protect_full;
-        } else if (protectionMethod == FlagsProtectionMethod_light){
-            numberOfBytes += Size__32_bit_flag_protect_light;
-        } else if (protectionMethod == FlagsProtectionMethod_none){
-            numberOfBytes += 0;
-        } else {
-            PRINT_ERROR("Protection method is invalid");
-        }
-    } else {
+    }
+    // state protection put in the wrapper during generateWrapper
+    else {
         numberOfBytes = Size__uncond_jump;
     }
     ASSERT(numberOfBytes);
 }
 
-InstrumentationPoint64::InstrumentationPoint64(Base* pt, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc) :
-    InstrumentationPoint(pt, inst, instMode, flagsMethod, loc)
+InstrumentationPoint64::InstrumentationPoint64(Base* pt, Instrumentation* inst, InstrumentationModes instMode, InstLocations loc) :
+    InstrumentationPoint(pt, inst, instMode, loc)
 {
     numberOfBytes = 0;
-    if (instMode == InstrumentationMode_inline){
-        ASSERT(instrumentation->getType() == PebilClassType_InstrumentationSnippet);
-
-        // count the number of bytes the tool wants
-        if (instrumentation->getType() == PebilClassType_InstrumentationSnippet){
-            InstrumentationSnippet* snippet = (InstrumentationSnippet*)instrumentation;
-            for (uint32_t i = 0; i < snippet->getNumberOfCoreInstructions(); i++){
-                numberOfBytes += snippet->getCoreInstruction(i)->getSizeInBytes();
-            }
-        } else {
-            __SHOULD_NOT_ARRIVE;
-        }
-
-        // then add the number of bytes needed for state protection
-        if (protectionMethod == FlagsProtectionMethod_full){
-            numberOfBytes += Size__flag_protect_full;
-        } else if (protectionMethod == FlagsProtectionMethod_light){
-            numberOfBytes += Size__64_bit_flag_protect_light;
-        } else if (protectionMethod == FlagsProtectionMethod_none){
-            numberOfBytes += 0;
-        } else {
-            PRINT_ERROR("Protection method is invalid");
-        }
-    } else {
-        numberOfBytes = Size__uncond_jump;
-    }
-    ASSERT(numberOfBytes);
 }
 
 

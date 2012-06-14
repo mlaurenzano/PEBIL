@@ -134,7 +134,7 @@ void Classification::instrument(){
         }
         
         uint32_t tmpReg = X86_REG_AX;
-        p = addInstrumentationPoint(bestinst, binFunc, InstrumentationMode_trampinline, prot, InstLocation_prior);
+        p = addInstrumentationPoint(bestinst, binFunc, InstrumentationMode_trampinline, InstLocation_prior);
         p->setPriority(InstPriority_low);
         Vector<X86Instruction*> bufferDumpInstructions;
 
