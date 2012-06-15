@@ -144,9 +144,8 @@ protected:
     BasicBlock* findExposedBasicBlock(HashCode hashCode);
 
     // instrumentation functions
-    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode) { return addInstrumentationPoint(instpoint, inst, instMode, FlagsProtectionMethod_full); }
-    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod);
-    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc);
+    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode);
+    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, InstLocations loc);
     uint32_t addSharedLibrary(const char* libname);
     uint32_t addSharedLibraryPath();
     uint64_t addFunction(InstrumentationFunction* func);
@@ -238,6 +237,7 @@ public:
 
     InstrumentationFunction* getInstrumentationFunction(const char* funcName);
     uint32_t addInstrumentationSnippet(InstrumentationSnippet* snip);
+    InstrumentationSnippet* addInstrumentationSnippet();
 
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }

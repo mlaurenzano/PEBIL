@@ -75,6 +75,7 @@ typedef struct
 extern "C" {
     extern int __give_pebil_name(pthread_create)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
     extern int pthread_create_pebil_nothread(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
+    extern void* tool_mpi_init();
 };
 
 typedef struct
@@ -89,24 +90,31 @@ extern void* pebil_get_data_self(pthread_key_t image_id);
 
 extern void* tool_thread_init(void* args);
 extern void* tool_thread_init2(pthread_t tid);
-extern void* tool_mpi_init();
 
 #ifdef HAVE_MPI
 #define __taskmarker "-[t%d]- "
 #include <mpi.h>
 
-// C init wrapper
+extern "C" {
+    // C init wrapper
 #ifdef USES_PSINSTRACER
-extern int __give_pebil_name(MPI_Init)(int* argc, char*** argv);
+    extern int __give_pebil_name(MPI_Init)(int* argc, char*** argv);
 #else
-extern int __wrapper_name(MPI_Init)(int* argc, char*** argv);
+    extern int __wrapper_name(MPI_Init)(int* argc, char*** argv);
 #endif // USES_PSINSTRACER
-
+    
 #ifdef USES_PSINSTRACER
-extern void __give_pebil_name(mpi_init_)(int* ierr);
+    extern void __give_pebil_name(mpi_init_)(int* ierr);
 #else
-extern void __wrapper_name(mpi_init_)(int* ierr);
+    extern void __wrapper_name(mpi_init_)(int* ierr);
 #endif
+// fortran init wrapper
+extern void pmpi_init_(int* ierr);
+extern void pmpi_comm_rank_(int* comm, int* rank, int* ierr);
+extern void pmpi_comm_size_(int* comm, int* rank, int* ierr);
+
+
+}
 
 #else // HAVE_MPI
 #define __taskmarker "-[p%d]- "
@@ -169,7 +177,7 @@ private:
         T d = datamap[iid][tid];
         td[actual].data = (uint64_t)dataref((void*)d);
 
-        //PRINT_INSTR(stdout, "Setting up thread %#lx data at %#lx", td[actual].id, td[actual].data); 
+        //PRINT_INSTR(stdout, "Setting up thread %#lx data at %#lx -> %#lx", td[actual].id, (uint64_t)(td), td[actual].data); 
 
         // fail if there was a collision. it makes writing tools much easier so we see how well this works for now
         assert(actual == h);

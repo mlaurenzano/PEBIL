@@ -46,6 +46,7 @@ void print_counter_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
             fprintf(stream, "%lu\t#", ctrs->Counters[i]);
             fprintf(stream, "%s:", ctrs->Files[i]);
             fprintf(stream, "%d\t", ctrs->Lines[i]);
+            fprintf(stream, "%#lx\t", ctrs->Addresses[i]);
             fprintf(stream, "%s\t", ctrs->Functions[i]);
             fprintf(stream, "%ld\t", ctrs->Hashes[i]);
             fprintf(stream, "%lx\n", tid);
@@ -104,6 +105,9 @@ void* tool_thread_init(void* threadargs){
 
 extern "C"
 {
+    void* tool_mpi_init(){
+    }
+
     void* tool_image_init(CounterArray* ctrs, uint64_t* key, ThreadData* td){
         assert(ctrs->Initialized == true);
 
@@ -161,7 +165,7 @@ extern "C"
         fprintf(outFile, "# mainthread= %lx\n", pthread_self());
         fprintf(outFile, "# cntthread = %d\n", alldata->CountThreads());
         
-        fprintf(outFile, "#id\tcount\t#file:line\tfunc\thash\tthreadid\n");
+        fprintf(outFile, "#id\tcount\t#file:line\taddr\tfunc\thash\tthreadid\n");
         fflush(outFile);
 
         // this wastes tons of space in the meta.jbbinst file, need to think of a better output format.

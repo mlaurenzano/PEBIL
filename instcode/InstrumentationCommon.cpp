@@ -169,11 +169,6 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     return retval;
 }
 
-// fortran init wrapper
-extern void pmpi_init_(int* ierr);
-extern void pmpi_comm_rank_(int* comm, int* rank, int* ierr);
-extern void pmpi_comm_size_(int* comm, int* rank, int* ierr);
-
 #ifdef USES_PSINSTRACER
 void__give_pebil_name(mpi_init_)(int* ierr){
 #else

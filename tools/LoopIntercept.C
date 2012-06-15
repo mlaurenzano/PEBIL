@@ -357,7 +357,7 @@ void LoopIntercept::instrument(){
 
                 // source block falls through into loop
                 if (source->getBaseAddress() + source->getNumberOfBytes() == head->getBaseAddress()){
-                    InstrumentationPoint* pt = addInstrumentationPoint(source->getExitInstruction(), loopEntry, InstrumentationMode_trampinline, FLAGS_METHOD, InstLocation_after);
+                    InstrumentationPoint* pt = addInstrumentationPoint(source->getExitInstruction(), loopEntry, InstrumentationMode_trampinline, InstLocation_after);
                     loopInstPoints.append(pt);
                     loopInstBlockIds.append(site);
                     assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
@@ -377,7 +377,7 @@ void LoopIntercept::instrument(){
             Vector<BasicBlock*> exitInterpositions;
             BasicBlock* bb = allLoopBlocks[k];
             if (bb->endsWithReturn()){
-                InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, FLAGS_METHOD, InstLocation_prior);
+                InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, InstLocation_prior);
                 loopInstPoints.append(pt);
                 loopInstBlockIds.append(site);
                 assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
@@ -395,7 +395,7 @@ void LoopIntercept::instrument(){
 
                     // target is adjacent to bb
                     if (target->getBaseAddress() == bb->getBaseAddress() + bb->getNumberOfBytes()){
-                        InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, FLAGS_METHOD, InstLocation_after);
+                        InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, InstLocation_after);
                         loopInstPoints.append(pt);
                         loopInstBlockIds.append(site);
                         assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
@@ -430,7 +430,7 @@ void LoopIntercept::instrument(){
                 BasicBlock* interposed = initInterposeBlock(fg, bb->getIndex(), interb->getIndex());
                 ASSERT(loopExit);
 
-                InstrumentationPoint* pt = addInstrumentationPoint(interposed, loopExit, InstrumentationMode_trampinline, prot);
+                InstrumentationPoint* pt = addInstrumentationPoint(interposed, loopExit, InstrumentationMode_trampinline);
                 loopInstPoints.append(pt);
                 loopInstBlockIds.append(site);
                 assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
@@ -461,7 +461,7 @@ void LoopIntercept::instrument(){
             BasicBlock* interposed = initInterposeBlock(fg, interb->getIndex(), head->getIndex());
 
             ASSERT(loopEntry);
-            InstrumentationPoint* pt = addInstrumentationPoint(interposed, loopEntry, InstrumentationMode_trampinline, prot);
+            InstrumentationPoint* pt = addInstrumentationPoint(interposed, loopEntry, InstrumentationMode_trampinline);
             loopInstPoints.append(pt);
             loopInstBlockIds.append(site);
             assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());

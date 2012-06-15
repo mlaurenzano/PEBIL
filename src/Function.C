@@ -33,6 +33,40 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+uint32_t Function::getDeadGPR(uint32_t idx){
+    uint32_t n = 0;
+    for (uint32_t j = 0; j < X86_64BIT_GPRS; j++){
+        if (deadRegs->contains(j)){
+            if (n == idx){
+                return j;
+            }
+            n++;
+        }
+    }
+    return X86_64BIT_GPRS;
+}
+
+void Function::findDeadRegs(){
+    uint32_t numberOfInstructions = getNumberOfInstructions();
+    X86Instruction** allInstructions = new X86Instruction*[numberOfInstructions];
+    getAllInstructions(allInstructions,0);
+
+    deadRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
+    deadRegs->setall();
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        X86Instruction* ins = allInstructions[i];
+        for (uint32_t j = 0; j < X86_64BIT_GPRS; j++){
+            if (!ins->isRegDeadIn(j) || !ins->isRegDeadOut(j)){
+                deadRegs->remove(j);
+            }
+        }
+        if (deadRegs->empty()){
+            break;
+        }
+    }
+    delete[] allInstructions;
+}
+
 void Function::computeDefUse(){
 #ifndef NO_REG_ANALYSIS
     defUse = true;
@@ -676,6 +710,9 @@ Function::~Function(){
     if (flowGraph){
         delete flowGraph;
     }
+    if (deadRegs){
+        delete deadRegs;
+    }
 }
 
 
@@ -693,6 +730,7 @@ Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz)
     defUse = false;
 
     computedLeafOpt = false;
+    deadRegs = NULL;
 
     verify();
 }

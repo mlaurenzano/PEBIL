@@ -156,8 +156,8 @@ void TauFunctionTrace::instrument(){
                     exitpoint = (Base*)getProgramExitBlock();
                 }
 
-                InstrumentationPoint* prior = addInstrumentationPoint(x, functionEntry, InstrumentationMode_tramp, x->allFlagsDeadIn() ? FlagsProtectionMethod_none : FlagsProtectionMethod_full, InstLocation_prior);
-                InstrumentationPoint* after = addInstrumentationPoint(exitpoint, functionExit, InstrumentationMode_tramp, x->allFlagsDeadOut() ? FlagsProtectionMethod_none : FlagsProtectionMethod_full, InstLocation_after);
+                InstrumentationPoint* prior = addInstrumentationPoint(x, functionEntry, InstrumentationMode_tramp, InstLocation_prior);
+                InstrumentationPoint* after = addInstrumentationPoint(exitpoint, functionExit, InstrumentationMode_tramp, InstLocation_after);
 
                 assignStoragePrior(prior, idx, getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
                 assignStoragePrior(after, idx, getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());

@@ -1172,7 +1172,7 @@ void X86Instruction::binutilsPrint(FILE* stream){
     fprintf(stream, "%llx: ", getBaseAddress());
 
     for (int32_t i = 0; i < sizeInBytes; i++){
-        fprintf(stream, "%02x ", GET(insn_bytes)[i]);
+        fprintf(stream, "%02hhx ", GET(insn_bytes)[i]);
     }
 
     if (sizeInBytes < 8){
@@ -1703,7 +1703,7 @@ void X86Instruction::print(){
 
     char hexcode[32];
     for (int32_t i = 0; i < sizeInBytes; i++){
-        sprintf(hexcode + (2*i), "%02x", GET(insn_bytes)[i]);
+        sprintf(hexcode + (2*i), "%02hhx", GET(insn_bytes)[i]);
     }
 
     PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%10s]\t-> %#llx", getBaseAddress(), hexcode, GET(insn_buffer), flags, getTargetAddress());
@@ -1736,15 +1736,6 @@ void X86Instruction::print(){
     delete useRegs;
     delete defRegs;
 #endif
-    
-    /*
-    PRINT_INFOR("\t%s (%d,%d) (%d,%d) (%d,%d) %d", ud_lookup_mnemonic(GET(itab_entry)->mnemonic), GET(itab_entry)->operand1.type, GET(itab_entry)->operand1.size, GET(itab_entry)->operand2.type, GET(itab_entry)->operand2.size, GET(itab_entry)->operand3.type, GET(itab_entry)->operand3.size, GET(itab_entry)->prefix);
-
-    PRINT_INFOR("%d(%s)\t%hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd", GET(mnemonic), ud_lookup_mnemonic(GET(mnemonic)),
-                GET(error), GET(pfx_rex), GET(pfx_seg), GET(pfx_opr), GET(pfx_adr), GET(pfx_lock), GET(pfx_rep),
-                GET(pfx_repe), GET(pfx_repne), GET(pfx_insn), GET(default64), GET(opr_mode), GET(adr_mode),
-                GET(br_far), GET(br_near), GET(implicit_addr), GET(c1), GET(c2), GET(c3));
-    */
 
     BitSet<uint32_t>* usedRegs = new BitSet<uint32_t>(X86_ALU_REGS);
     touchedRegisters(usedRegs);

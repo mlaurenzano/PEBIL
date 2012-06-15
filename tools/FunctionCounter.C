@@ -119,7 +119,7 @@ void FunctionCounter::instrument(){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
 
-    p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+    p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, InstLocation_prior);
     ASSERT(p);
     p->setPriority(InstPriority_userinit);
     if (!p->getInstBaseAddress()){

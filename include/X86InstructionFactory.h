@@ -84,6 +84,8 @@ private:
     static X86Instruction* emitRegAddImm4Byte(uint8_t idx, uint32_t imm);
 
 public:
+    static X86Instruction* emitExchangeAdd(uint8_t src, uint8_t dest, bool lock);
+
     static X86Instruction* emitFxSave(uint64_t addr);
     static X86Instruction* emitFxRstor(uint64_t addr);
 

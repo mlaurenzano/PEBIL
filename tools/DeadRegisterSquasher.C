@@ -124,7 +124,7 @@ void DeadRegisterSquasher::instrument()
             }
 
             addInstrumentationSnippet(snip);
-            InstrumentationPoint* p = addInstrumentationPoint(instruction, snip, InstrumentationMode_trampinline, FlagsProtectionMethod_none, InstLocation_prior);
+            InstrumentationPoint* p = addInstrumentationPoint(instruction, snip, InstrumentationMode_trampinline, InstLocation_prior);
             if(!p->getInstBaseAddress()){
                 PRINT_ERROR("Cannot find an instrumentation point at instruction");
             }          

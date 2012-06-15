@@ -52,11 +52,12 @@ protected:
     void printStaticFilePerInstruction(Vector<X86Instruction*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize);
 
     InstrumentationPoint* insertInlinedTripCounter(uint64_t, Base*);
-    InstrumentationPoint* insertInlinedTripCounter(uint64_t, Base*, bool);
+    InstrumentationPoint* insertInlinedTripCounter(uint64_t, Base*, bool, uint32_t);
 
     void assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak);
+    Vector<X86Instruction*>* assignThreadDataToReg(uint32_t scratch, uint32_t dest);
+    void threadAllEntryPoints(Function* f, uint32_t threadReg);
 
-    InstrumentationFunction* threadInit;
     InstrumentationFunction* imageInit;
     InstrumentationFunction* initWrapperC;
     InstrumentationFunction* initWrapperF;
