@@ -145,8 +145,8 @@ extern uint64_t warnCount;
 #define Size__64_bit_Gnu_Vernaux            sizeof(Elf64_Vernaux)
 #define Size__32_bit_Gnu_Versym             sizeof(uint16_t)
 #define Size__64_bit_Gnu_Versym             sizeof(uint16_t)
-#define Size__Dwarf_LineInfo_Header         sizeof(DWARF2_Internal_LineInfo)
-#define Size__Dwarf_LineInfo                sizeof(DWARF2_LineInfo_Registers)
+#define Size__Dwarf_LineInfo_Header         sizeof(DWARF4_Internal_LineInfo)
+#define Size__Dwarf_LineInfo                sizeof(DWARF4_LineInfo_Registers)
 
 
 #define Print_Code_All                      0x00000001
@@ -204,8 +204,8 @@ typedef enum {
 
 typedef enum {
     DebugFormat_undefined = 0,
-    DebugFormat_DWARF2_32bit,
-    DebugFormat_DWARF2_64bit,
+    DebugFormat_DWARF4_32bit,
+    DebugFormat_DWARF4_64bit,
     DebugFormat_Total_Types
 } DebugFormats;
 

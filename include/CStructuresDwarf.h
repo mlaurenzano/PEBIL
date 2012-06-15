@@ -38,16 +38,16 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 /* This file is shared between GCC and GDB, and should not contain
    prototypes.  */
 
-#ifndef _ELF_DWARF2_H
-#define _ELF_DWARF2_H
+#ifndef _ELF_DWARF4_H
+#define _ELF_DWARF4_H
 
 /* not part of the original gnu header file, created by MAL */
 /************************************************************/
 
-#define DWARF2_FIRSTBYTE_LO             0xfffffff0
-#define DWARF2_FIRSTBYTE_64BIT_FORMAT   0xffffffff
+#define DWARF4_FIRSTBYTE_LO             0xfffffff0
+#define DWARF4_FIRSTBYTE_64BIT_FORMAT   0xffffffff
 
-static uint64_t dwarf2_get_leb128_unsigned(char* ptr, uint32_t* len){
+static uint64_t dwarf4_get_leb128_unsigned(char* ptr, uint32_t* len){
     uint64_t ret = 0;
     uint8_t byte;
     uint32_t shift = 0;
@@ -63,7 +63,7 @@ static uint64_t dwarf2_get_leb128_unsigned(char* ptr, uint32_t* len){
     return ret;
 }
 
-static int64_t dwarf2_get_leb128_signed(char* ptr, uint32_t* len){
+static int64_t dwarf4_get_leb128_signed(char* ptr, uint32_t* len){
     int64_t ret = 0;
     uint8_t byte;
     uint32_t shift = 0;
@@ -93,22 +93,24 @@ typedef struct
     uint64_t fn_mod_time;
     uint64_t fn_size;
 } 
-DWARF2_FileName;
+DWARF4_FileName;
 
 typedef struct
 {
     uint64_t lr_address;
+    uint32_t lr_op_index;
     uint32_t lr_file;
     uint32_t lr_line;
     uint32_t lr_column;
     uint32_t lr_isa;
+    uint32_t lr_discriminator;
     uint8_t lr_is_stmt;
     uint8_t lr_basic_block;
     uint8_t lr_end_sequence;
     uint8_t lr_prologue_end;
     uint8_t lr_epilogue_begin;
 }
-DWARF2_LineInfo_Registers;
+DWARF4_LineInfo_Registers;
 /************************************************************/
 
 
@@ -117,29 +119,32 @@ typedef struct
 {
     uint8_t li_length          [4];
     uint8_t li_version         [2];
-    uint8_t li_prologue_length [4];
+    uint8_t li_header_length   [8];
     uint8_t li_min_insn_length [1];
+    uint8_t li_max_ops_per_insn[1];
     uint8_t li_default_is_stmt [1];
-    uint8_t li_line_base       [1];
+    int8_t  li_line_base       [1];
     uint8_t li_line_range      [1];
     uint8_t li_opcode_base     [1];
 }
-DWARF2_External_LineInfo;
+DWARF4_External_LineInfo;
 
 typedef struct
 {
     uint32_t li_length;
     uint16_t li_version;
-    uint32_t li_prologue_length;
+    uint64_t li_header_length;
     uint8_t  li_min_insn_length;
+    uint8_t  li_max_ops_per_insn;
     uint8_t  li_default_is_stmt;
-    uint8_t  li_line_base;
+    int8_t   li_line_base;
     uint8_t  li_line_range;
     uint8_t  li_opcode_base;
 }
-DWARF2_Internal_LineInfo;
+DWARF4_Internal_LineInfo;
 
 /* Structure found in .debug_pubnames section.  */
+/*
 typedef struct
 {
     uint8_t pn_length  [4];
@@ -157,8 +162,9 @@ typedef struct
     uint32_t  pn_size;
 }
 DWARF2_Internal_PubNames;
-
+*/
 /* Strcuture found in .debug_info section.  */
+/*
 typedef struct
 {
     uint8_t  cu_length        [4];
@@ -176,7 +182,8 @@ typedef struct
     uint8_t  cu_pointer_size;
 }
 DWARF2_Internal_CompUnit;
-
+*/
+/*
 typedef struct
 {
     uint8_t  ar_length       [4];
@@ -196,7 +203,7 @@ typedef struct
     uint8_t  ar_segment_size;
 }
 DWARF2_Internal_ARange;
-
+*/
 
 /* Tag names and codes.  */
 enum dwarf_tag
@@ -258,6 +265,13 @@ enum dwarf_tag
     DW_TAG_unspecified_type = 0x3b,
     DW_TAG_partial_unit = 0x3c,
     DW_TAG_imported_unit = 0x3d,
+    DW_TAG_mutable_type = 0x3e, // Withdrawn from DWARF3 by DWARF3f
+    DW_TAG_condition = 0x3f,
+    DW_TAG_shared_type = 0x40,
+    DW_TAG_type_unit = 0x41,
+    DW_TAG_rvalue_reference_type = 0x42,
+    DW_TAG_template_alias = 0x43,
+
     /* SGI/MIPS Extensions.  */
     DW_TAG_MIPS_loop = 0x4081,
     /* GNU extensions.  */
@@ -298,7 +312,11 @@ enum dwarf_form
     DW_FORM_ref4 = 0x13,
     DW_FORM_ref8 = 0x14,
     DW_FORM_ref_udata = 0x15,
-    DW_FORM_indirect = 0x16
+    DW_FORM_indirect = 0x16,
+    DW_FORM_sec_offset = 0x17,
+    DW_FORM_exprloc = 0x18,
+    DW_FORM_flag_present = 0x19,
+    DW_FORM_ref_sig8 = 0x20
 };
 
 /* Attribute names and codes.  */
@@ -336,7 +354,7 @@ enum dwarf_attribute
     DW_AT_prototyped = 0x27,
     DW_AT_return_addr = 0x2a,
     DW_AT_start_scope = 0x2c,
-    DW_AT_stride_size = 0x2e,
+    DW_AT_bit_stride = 0x2e,
     DW_AT_upper_bound = 0x2f,
     DW_AT_abstract_origin = 0x31,
     DW_AT_accessibility = 0x32,
@@ -371,7 +389,7 @@ enum dwarf_attribute
     DW_AT_allocated     = 0x4e,
     DW_AT_associated    = 0x4f,
     DW_AT_data_location = 0x50,
-    DW_AT_stride        = 0x51,
+    DW_AT_byte_stride   = 0x51,
     DW_AT_entry_pc      = 0x52,
     DW_AT_use_UTF8      = 0x53,
     DW_AT_extension     = 0x54,
@@ -380,6 +398,28 @@ enum dwarf_attribute
     DW_AT_call_column   = 0x57,
     DW_AT_call_file     = 0x58,
     DW_AT_call_line     = 0x59,
+    DW_AT_description   = 0x5a,
+    DW_AT_binary_scale  = 0x5b,
+    DW_AT_decimal_scale = 0x5c,
+    DW_AT_small         = 0x5d,
+    DW_AT_decimal_sign  = 0x5e,
+    DW_AT_digit_count   = 0x5f,
+    DW_AT_picture_string = 0x60,
+    DW_AT_mutable        = 0x61,
+    DW_AT_threads_scaled = 0x62,
+    DW_AT_explicit       = 0x63,
+    DW_AT_object_pointer = 0x64,
+    DW_AT_endianity      = 0x65,
+    DW_AT_elemental      = 0x66,
+    DW_AT_pure           = 0x67,
+    DW_AT_recursive      = 0x68,
+    DW_AT_signature      = 0x69,
+    DW_AT_main_subprogram = 0x6a,
+    DW_AT_data_bit_offset = 0x6b,
+    DW_AT_const_expr      = 0x6c,
+    DW_AT_enum_class      = 0x6d,
+    DW_AT_linkage_name    = 0x6e,
+
     /* SGI/MIPS Extensions.  */
     DW_AT_MIPS_fde = 0x2001,
     DW_AT_MIPS_loop_begin = 0x2002,
@@ -392,6 +432,13 @@ enum dwarf_attribute
     DW_AT_MIPS_abstract_name = 0x2009,
     DW_AT_MIPS_clone_origin = 0x200a,
     DW_AT_MIPS_has_inlines = 0x200b,
+    DW_AT_MIPS_stride_bytes = 0x200c,
+    DW_AT_MIPS_stride_elem  = 0x200d,
+    DW_AT_MIPS_ptr_dopetype = 0x200e,
+    DW_AT_MIPS_allocatable_dopetype = 0x200f,
+    DW_AT_MIPS_assumed_shape_dopetype = 0x2010,
+    DW_AT_MIPS_assumed_size = 0x2011,
+
     /* GNU extensions.  */
     DW_AT_sf_names   = 0x2101,
     DW_AT_src_info   = 0x2102,
@@ -559,7 +606,12 @@ enum dwarf_location_atom
     DW_OP_push_object_address = 0x97,
     DW_OP_call2 = 0x98,
     DW_OP_call4 = 0x99,
-    DW_OP_calli = 0x9a
+    DW_OP_call_ref = 0x9a,
+    DW_OP_form_tls_address = 0x9b,
+    DW_OP_call_frame_cfa = 0x9c,
+    DW_OP_bit_piece = 0x9d,
+    DW_OP_implicit_value = 0x9e,
+    DW_OP_stack_value = 0x9f
 };
 
 #define DW_OP_lo_user	0x80	/* Implementation-defined range start.  */
@@ -578,11 +630,36 @@ enum dwarf_type
     DW_ATE_unsigned = 0x7,
     DW_ATE_unsigned_char = 0x8,
     /* DWARF 3.  */
-    DW_ATE_imaginary_float = 0x9
+    DW_ATE_imaginary_float = 0x9,
+    /* DWARF 3f. */
+    DW_ATE_packed_decimal = 0xa,
+    DW_ATE_numeric_string = 0xb,
+    DW_ATE_edited = 0xc,
+    DW_ATE_signed_fixed = 0xd,
+    DW_ATE_unsigned_fixed = 0xe,
+    DW_ATE_decimal_float = 0xf
 };
 
 #define	DW_ATE_lo_user 0x80
 #define	DW_ATE_hi_user 0xff
+
+enum dwarf_decimal_sign
+{
+    DW_DS_unsigned = 0x01,
+    DW_DS_leading_overpunch = 0x02,
+    DW_DS_trailing_overpunch = 0x03,
+    DW_DS_leading_separate = 0x04,
+    DW_DS_trailing_separate = 0x05
+};
+
+enum dwarf_endianess
+{
+    DW_END_default = 0x00,
+    DW_END_big = 0x01,
+    DW_END_little = 0x02,
+    DW_END_lo_user = 0x40,
+    DW_END_hi_user = 0xff
+};
 
 /* Array ordering names and codes.  */
 enum dwarf_array_dim_ordering
@@ -629,7 +706,7 @@ enum dwarf_calling_convention
 {
     DW_CC_normal = 0x1,
     DW_CC_program = 0x2,
-    DW_CC_nocall = 0x3
+    DW_CC_nocall = 0x3,
 };
 
 #define DW_CC_lo_user 0x40
@@ -708,6 +785,11 @@ enum dwarf_call_frame_info
     DW_CFA_def_cfa_sf = 0x12,
     DW_CFA_def_cfa_offset_sf = 0x13,
 
+    /* DWARF 3f. */
+    DW_CFA_val_offset = 0x14,
+    DW_CFA_val_offset_sf = 0x15,
+    DW_CFA_val_expression = 0x16,
+
     /* SGI/MIPS specific.  */
     DW_CFA_MIPS_advance_loc8 = 0x1d,
 
@@ -747,6 +829,14 @@ enum dwarf_source_language
     DW_LANG_C99 = 0x000c,
     DW_LANG_Ada95 = 0x000d,
     DW_LANG_Fortran95 = 0x000e,
+    DW_LANG_PLI = 0x000f,
+    /* DWARF 3f. */
+    DW_LANG_ObjC = 0x0010,
+    DW_LANG_ObjC_plus_plus = 0x0011,
+    DW_LANG_UPC = 0x0012,
+    DW_LANG_D = 0x0013,
+    /* DWARF 4. */
+    DW_LANG_Python = 0x0014,
     /* MIPS.  */
     DW_LANG_Mips_Assembler = 0x8001
 };

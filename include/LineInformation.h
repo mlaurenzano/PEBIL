@@ -45,7 +45,7 @@ private:
 
 protected:
     uint32_t index;
-    DWARF2_LineInfo_Registers entry;
+    DWARF4_LineInfo_Registers entry;
 
     Vector<uint8_t> instructionBytes;
     LineInfoTable* header;
@@ -70,7 +70,7 @@ public:
     void setAddressSpan(uint64_t spn) { addressSpan = spn; }
 
     uint32_t getIndex() { return index; }
-    const char* breifName() { return "LineInfo"; }
+    const char* briefName() { return "LineInfo"; }
 };
 
 class LineInfoTable : public Base {
@@ -78,12 +78,12 @@ protected:
     uint32_t index;
     char* rawDataPtr;
 
-    DWARF2_Internal_LineInfo entry;
+    DWARF4_Internal_LineInfo entry;
 
     Vector<LineInfo*> lineInformations;
     Vector<uint8_t> opcodes;
     Vector<char*> includePaths;
-    Vector<DWARF2_FileName> fileNames;
+    Vector<DWARF4_FileName> fileNames;
 
     DebugFormats format;
     
@@ -109,6 +109,8 @@ public:
     uint32_t getNumberOfLineInfos() { return lineInformations.size(); }
     LineInfo* getLineInfo(uint32_t idx) { return lineInformations[idx]; }
 
+
+    void addFileName(DWARF4_FileName file);
     char* getFileName(uint32_t idx);
     char* getIncludePath(uint32_t idx);
 

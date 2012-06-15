@@ -128,7 +128,6 @@ typedef struct
 {
     uint32_t li_length;
     uint16_t li_version;
-    uint32_t li
     uint32_t li_prologue_length;
     uint8_t  li_min_insn_length;
     uint8_t  li_default_is_stmt;
