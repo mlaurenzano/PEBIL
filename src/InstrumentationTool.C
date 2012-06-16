@@ -42,8 +42,153 @@ typedef struct {
 #define ThreadHashShift (12)
 #define ThreadHashMod   (0xffff)
 
-
 #define MAX_DEF_USE_DIST_PRINT 1024
+
+uint32_t InstrumentationTool::instrumentForThreading(Function* func){
+    uint32_t d = func->getDeadGPR(0);
+
+    uint32_t numberOfInstructions = func->getNumberOfInstructions();
+    X86Instruction** allInstructions = new X86Instruction*[numberOfInstructions];
+    func->getAllInstructions(allInstructions,0);
+
+    // has a dead register throughout, so at function entry only compute the thread data addr and put
+    // into that dead reg
+    if (d < X86_64BIT_GPRS){
+        //PRINT_INFOR("Function %s has dead reg %d", func->getName(), d);
+        for (uint32_t i = 0; i < numberOfInstructions; i++){
+            X86Instruction* entry = allInstructions[i];
+            if (i == 0 || entry->isCall()){
+                InstLocations loc = InstLocation_after;
+                if (i == 0 && !entry->isCall()){
+                    loc = InstLocation_prior;
+                }
+                
+                BitSet<uint32_t>* inv = new BitSet<uint32_t>(X86_ALU_REGS);
+                for (uint32_t j = X86_64BIT_GPRS; j < X86_ALU_REGS; j++){
+                    inv->insert(j);
+                }
+                inv->insert(X86_REG_SP);
+                inv->insert(d);
+                BitSet<uint32_t>* deadRegs = entry->getDeadRegIn(inv);
+                
+                uint32_t s;
+                if (deadRegs->empty()){
+                    s = X86_REG_CX;
+                    if (d == s){
+                        s = X86_REG_DX;
+                    }
+                } else {
+                    for (uint32_t j = 0; j < X86_64BIT_GPRS; j++){
+                        if (deadRegs->contains(j)){
+                            s = j;
+                            break;
+                        }
+                    }
+                }
+                //PRINT_INFOR("\t\tassigning data at %#lx to reg %d via scratch %d", entry->getBaseAddress(), d, s);
+                InstrumentationSnippet* snip = addInstrumentationSnippet();
+                Vector<X86Instruction*>* insns;
+
+                insns = storeThreadData(s, d);
+                for (uint32_t i = 0; i < insns->size(); i++){
+                    snip->addSnippetInstruction((*insns)[i]);
+                }
+                delete insns;
+                InstrumentationPoint* p = addInstrumentationPoint(entry, snip, InstrumentationMode_inline, loc);
+                p->setPriority(InstPriority_userinit);
+            }
+        }
+    }
+    // no dead register in the function. store the thread data addr on the stack
+    else {
+        d = -1;
+
+        // figuring out the size of the stack frame is REALLY HARD
+        return d;
+
+        /*
+        PRINT_INFOR("Function %s has no dead reg", func->getName());
+
+        for (uint32_t i = 0; i < numberOfInstructions; i++){
+            X86Instruction* entry = allInstructions[i];
+            if (i == 0 || entry->isCall()){
+                BasicBlock* bb;
+
+                InstLocations loc;
+                if (i == 0 && !entry->isCall()){
+                    bb = func->getBasicBlockAtAddress(entry->getBaseAddress());
+                    ASSERT(bb);
+                    loc = InstLocation_prior;
+                } else {
+                    bb = func->getBasicBlockAtAddress(entry->getBaseAddress() + entry->getSizeInBytes());
+                    loc = InstLocation_after;
+                }
+                if (bb == NULL){
+                    continue;
+                }
+
+                uint32_t stackPatch = 0;
+                BitSet<uint32_t>* inv = new BitSet<uint32_t>(X86_ALU_REGS);
+                for (uint32_t j = X86_64BIT_GPRS; j < X86_ALU_REGS; j++){
+                    inv->insert(j);
+                }
+                inv->insert(X86_REG_SP);
+                BitSet<uint32_t>* deadRegs = entry->getDeadRegIn(inv);
+                
+                uint32_t s1 = -1;
+                uint32_t s2 = -1;
+                for (uint32_t j = 0; j < X86_64BIT_GPRS; j++){
+                    if (deadRegs->contains(j)){
+                        if (s1 == -1){
+                            s1 = j;
+                        } else {
+                            s2 = j;
+                            break;
+                        }
+                    }
+                }
+
+                if (s1 == -1){
+                    s1 = X86_REG_CX;
+                    s2 = X86_REG_DX;
+                    stackPatch += sizeof(uint64_t);
+                    stackPatch += sizeof(uint64_t);
+                } else if (s2 == -1){
+                    s2 = X86_REG_CX;
+                    if (s1 == s2){
+                        s2 = X86_REG_DX;
+                    }
+                    stackPatch += sizeof(uint64_t);
+                }
+
+                if (func->hasLeafOptimization() || bb->isEntry()){
+                    if (stackPatch > 0){
+                        stackPatch += Size__trampoline_autoinc;
+                    }
+                }
+                if (bb->isEntry()){
+                    stackPatch += func->getStackSize();
+                }
+
+                PRINT_INFOR("\t\tassigning data at %#lx to stack via scratches %d %d with patch %#x", entry->getBaseAddress(), s1, s2, stackPatch);
+                InstrumentationSnippet* snip = addInstrumentationSnippet();
+                Vector<X86Instruction*>* insns;
+
+                insns = storeThreadData(s1, s2, true, stackPatch);
+                for (uint32_t i = 0; i < insns->size(); i++){
+                    snip->addSnippetInstruction((*insns)[i]);
+                }
+                delete insns;
+                InstrumentationPoint* p = addInstrumentationPoint(entry, snip, InstrumentationMode_inline, loc);
+                p->setPriority(InstPriority_userinit);
+            }
+        }
+        */
+    }
+
+    delete[] allInstructions;
+    return d;
+}
 
 void InstrumentationTool::assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak){
     if (getElfFile()->is64Bit()){
@@ -178,9 +323,14 @@ void InstrumentationTool::instrument(){
 #endif //HAVE_MPI
 }
 
-Vector<X86Instruction*>* InstrumentationTool::assignThreadDataToReg(uint32_t scratch, uint32_t dest){
+Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, uint32_t dest){
+    return storeThreadData(scratch, dest, false, 0);
+}
+
+Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, uint32_t dest, bool storeToStack, uint32_t stackPatch){
     ASSERT(scratch < X86_64BIT_GPRS);
     ASSERT(dest < X86_64BIT_GPRS);
+    ASSERT(scratch != dest);
     Vector<X86Instruction*>* insns = new Vector<X86Instruction*>();
 
     // mov %fs:0x10,%d
@@ -195,14 +345,22 @@ Vector<X86Instruction*>* InstrumentationTool::assignThreadDataToReg(uint32_t scr
     insns->append(X86InstructionFactory64::emitShiftLeftLogical(4, dest));
     // lea [$0x08+$offset](0,%d,%sr),%d
     insns->append(X86InstructionFactory64::emitLoadEffectiveAddress(scratch, dest, 0, 0x08, dest, true, true));
-    // mov (%d),%d
-    insns->append(X86InstructionFactory64::emitMoveRegaddrImmToReg(dest, 0, dest));
+
+    if (storeToStack){
+        // mov (%d),%sr
+        insns->append(X86InstructionFactory64::emitMoveRegaddrImmToReg(dest, 0, scratch));
+        // mov %sr,0x200(%sp)
+        insns->append(X86InstructionFactory64::emitMoveRegToRegaddrImm(scratch, X86_REG_SP, (-1)*(0x400 + stackPatch), true));
+    } else {
+        // mov (%d),%d
+        insns->append(X86InstructionFactory64::emitMoveRegaddrImmToReg(dest, 0, dest));
+    }
 
     return insns;
 }
 
 InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, Base* within){
-    return insertInlinedTripCounter(counterOffset, within, true, X86_64BIT_GPRS);
+    return insertInlinedTripCounter(counterOffset, within, true, -1);
 }
 
 InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, Base* within, bool add, uint32_t threadReg){
@@ -283,12 +441,27 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
         // any threaded
         if (isThreadedMode()){
             // load thread data base addr into %sr1
-            Vector<X86Instruction*>* loadThreadData = assignThreadDataToReg(sr2, sr1);
-            for (uint32_t i = 0; i < loadThreadData->size(); i++){
-                snip->addSnippetInstruction((*loadThreadData)[i]);
-            }
-            delete loadThreadData;
+            if (threadReg == -1){
+                /*
+                uint32_t stackPatch = 0;
+                if (loc == InstLocation_prior && !bestinst->isRegDeadIn(sr1)){
+                    stackPatch += sizeof(uint64_t);
+                }
+                if (loc == InstLocation_after && !bestinst->isRegDeadOut(sr1)){
+                    stackPatch += sizeof(uint64_t);
+                }
 
+                snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(X86_REG_SP, (-1) * (0x400 - stackPatch), sr1));
+                */
+                //PRINT_INFOR("Full thread data computation for offset %lx", counterOffset);
+                Vector<X86Instruction*>* loadThreadData = storeThreadData(sr2, sr1);
+                for (uint32_t i = 0; i < loadThreadData->size(); i++){
+                    snip->addSnippetInstruction((*loadThreadData)[i]);
+                }
+                delete loadThreadData;
+            } else {
+                sr1 = threadReg;
+            }
             if (add){
                 snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToRegaddrImm(1, sr1, counterOffset));
             } else {

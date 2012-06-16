@@ -46,7 +46,9 @@ private:
     bool defUse;
     bool leafOpt;
     bool computedLeafOpt;
+
     BitSet<uint32_t>* deadRegs;
+    void findDeadRegs();
 
 protected:
     FlowGraph* flowGraph;
@@ -63,8 +65,9 @@ public:
     bool hasLeafOptimization();
     void computeLeafOptimization();
 
-    void findDeadRegs();
     uint32_t getDeadGPR(uint32_t idx);
+
+    uint32_t getStackSize();
 
     void computeDefUse();
     bool doneDefUse() { return defUse; }

@@ -28,6 +28,7 @@
 #include <LineInformation.h>
 #include <Loop.h>
 #include <TextSection.h>
+#include <map>
 
 #include <CounterFunctions.hpp>
 
@@ -170,9 +171,16 @@ void BasicBlockCounter::instrument()
     Vector<LineInfo*>* allBlockLineInfos = new Vector<LineInfo*>();
 #endif //STATS_PER_INSTRUCTION
 
+    std::map<uint64_t, uint32_t> functionThreading;
+    if (isThreadedMode()){
+        for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+            Function* f = getExposedFunction(i);
+            functionThreading[f->getBaseAddress()] = instrumentForThreading(f);
+        }
+    }
+
     Vector<Loop*> loopsFound;
     for (uint32_t i = 0; i < numberOfPoints; i++){
-
 #ifdef STATS_PER_INSTRUCTION
         X86Instruction* ins = getExposedInstruction(i);
 
@@ -246,10 +254,11 @@ void BasicBlockCounter::instrument()
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Addresses + i*sizeof(uint64_t), sizeof(uint64_t), &addr);
         
         uint64_t counterOffset = (uint64_t)ctrs.Counters + (i * sizeof(uint64_t));
-        uint32_t threadReg = X86_64BIT_GPRS;
+        uint32_t threadReg = -1;
 
         if (isThreadedMode()){
             counterOffset -= (uint64_t)ctrs.Counters;
+            threadReg = functionThreading[f->getBaseAddress()];
         }
 
         InstrumentationTool::insertInlinedTripCounter(counterOffset, bb, true, threadReg);

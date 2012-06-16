@@ -32,6 +32,32 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
+BitSet<uint32_t>* X86Instruction::getDeadRegIn(BitSet<uint32_t>* invalidRegs){
+    BitSet<uint32_t>* dead = new BitSet<uint32_t>(X86_ALU_REGS);
+    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+        if (invalidRegs && invalidRegs->contains(i)){
+            continue;
+        }
+        if (isRegDeadIn(i)){
+            dead->insert(i);
+        }
+    }
+    return dead;
+}
+
+BitSet<uint32_t>* X86Instruction::getDeadRegOut(BitSet<uint32_t>* invalidRegs){
+    BitSet<uint32_t>* dead = new BitSet<uint32_t>(X86_ALU_REGS);
+    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+        if (invalidRegs && invalidRegs->contains(i)){
+            continue;
+        }
+        if (isRegDeadOut(i)){
+            dead->insert(i);
+        }
+    }
+    return dead;
+}
+
 RegisterSet::RegisterSet()
     : regs(X86_FLAG_BITS + X86_ALU_REGS) {
 

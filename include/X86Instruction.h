@@ -464,6 +464,8 @@ public:
     bool isRegDeadOut(uint32_t regNum);
     bool isFlagDeadIn(uint32_t flagNum);
     bool isFlagDeadOut(uint32_t flagNum);
+    BitSet<uint32_t>* getDeadRegIn(BitSet<uint32_t>* invalidRegs);
+    BitSet<uint32_t>* getDeadRegOut(BitSet<uint32_t>* invalidRegs);
 
     bool usesFlag(uint32_t flg);
     bool defsFlag(uint32_t flg);

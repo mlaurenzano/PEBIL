@@ -55,8 +55,11 @@ protected:
     InstrumentationPoint* insertInlinedTripCounter(uint64_t, Base*, bool, uint32_t);
 
     void assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak);
-    Vector<X86Instruction*>* assignThreadDataToReg(uint32_t scratch, uint32_t dest);
+    Vector<X86Instruction*>* storeThreadData(uint32_t scratch, uint32_t dest);
+    Vector<X86Instruction*>* storeThreadData(uint32_t scratch, uint32_t dest, bool storeToStack, uint32_t stackPatch);
     void threadAllEntryPoints(Function* f, uint32_t threadReg);
+
+    uint32_t instrumentForThreading(Function* func);
 
     InstrumentationFunction* imageInit;
     InstrumentationFunction* initWrapperC;

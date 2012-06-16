@@ -33,7 +33,43 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+uint32_t Function::getStackSize(){
+    ASSERT(flowGraph);
+    uint32_t stackSize = 0;
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+        BasicBlock* bb = flowGraph->getBasicBlock(i);
+        if (bb->isEntry()){
+            for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
+                X86Instruction* ins = bb->getInstruction(j);
+                OperandX86* srcop = ins->getOperand(DEST_OPERAND);
+                if (ins->GET(mnemonic) == UD_Ipush){
+                    PRINT_INFOR("Bytes in %s now %#x", getName(), stackSize);
+                    stackSize += sizeof(uint64_t);
+                } else if (ins->GET(mnemonic) == UD_Ipusha ||
+                           ins->GET(mnemonic) == UD_Ipushad ||
+                           ins->GET(mnemonic) == UD_Ipushfd ||
+                           ins->GET(mnemonic) == UD_Ipushfq ||
+                           ins->GET(mnemonic) == UD_Ipushfw){
+                    PRINT_ERROR("cannot abide strange push instructions in frame setup");
+                }
+                if (ins->GET(mnemonic) == UD_Isub && !srcop->getValue()){
+                    if (srcop->getBaseRegister() == X86_REG_SP){
+                        stackSize += ins->getOperand(SRC1_OPERAND)->getValue();
+                    }
+                }
+            }
+            break;
+        }
+    }
+    return stackSize;
+}
+
 uint32_t Function::getDeadGPR(uint32_t idx){
+    if (deadRegs == NULL){
+        findDeadRegs();
+    }
+    ASSERT(deadRegs);
+
     uint32_t n = 0;
     for (uint32_t j = 0; j < X86_64BIT_GPRS; j++){
         if (deadRegs->contains(j)){
