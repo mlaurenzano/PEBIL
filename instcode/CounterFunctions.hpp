@@ -26,6 +26,7 @@ typedef enum {
     CounterType_instruction,
     CounterType_basicblock,
     CounterType_loop,
+    CounterType_function,
     CounterType_total
 } CounterTypes;
 
@@ -37,12 +38,12 @@ static const char* CounterTypeNames[CounterType_total] = {
 };
 
 typedef struct {
-    CounterTypes Type;
     bool Initialized;
     uint32_t Size;
     pthread_t threadid;
     pthread_key_t imageid;
     uint64_t* Counters;
+    CounterTypes* Types;
     uint64_t* Addresses;
     uint64_t* Hashes;
     uint32_t* Lines;

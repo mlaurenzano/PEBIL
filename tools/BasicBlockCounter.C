@@ -106,7 +106,6 @@ void BasicBlockCounter::instrument()
     uint64_t counterStruct = reserveDataOffset(sizeof(CounterArray));
 
     CounterArray ctrs;
-    ctrs.Type = CounterType_basicblock;
     ctrs.Size = numberOfPoints;
 
     ctrs.Initialized = true;
@@ -116,6 +115,7 @@ void BasicBlockCounter::instrument()
     initializeReservedPointer((uint64_t)ctrs.__nam, counterStruct + offsetof(CounterArray, __nam))
 
     INIT_CTR_ELEMENT(uint64_t, Counters);
+    INIT_CTR_ELEMENT(CounterTypes, Types);
     INIT_CTR_ELEMENT(uint64_t, Addresses);
     INIT_CTR_ELEMENT(uint64_t, Hashes);
     INIT_CTR_ELEMENT(uint32_t, Lines);
@@ -139,11 +139,6 @@ void BasicBlockCounter::instrument()
     InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp, InstLocation_prior);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
-    }
-
-    temp64 = 0;
-    for (uint32_t i = 0; i < numberOfPoints; i++){
-        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
     }
 
     entryFunc->addArgument(counterStruct);
@@ -180,6 +175,7 @@ void BasicBlockCounter::instrument()
     }
 
     Vector<Loop*> loopsFound;
+    uint64_t currentLeader = 0;
     for (uint32_t i = 0; i < numberOfPoints; i++){
 #ifdef STATS_PER_INSTRUCTION
         X86Instruction* ins = getExposedInstruction(i);
@@ -244,15 +240,38 @@ void BasicBlockCounter::instrument()
         HashCode* hc = ins->generateHashCode(bb);
         uint64_t hashValue = hc->getValue();
         delete hc;
+        uint64_t addr = ins->getProgramAddress();
 #else //STATS_PER_INSTRUCTION
         uint64_t hashValue = bb->getHashCode().getValue();
+        uint64_t addr = bb->getProgramAddress();        
 #endif //STATS_PER_INSTRUCTION
 
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Hashes + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
-
-        uint64_t addr = bb->getProgramAddress();
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Addresses + i*sizeof(uint64_t), sizeof(uint64_t), &addr);
         
+        CounterTypes tmpct;
+#ifdef STATS_PER_INSTRUCTION
+
+        // only keep a bb counter for one instruction in the block (the leader). all other instructions' counters hold the ID of the active counter
+        // in their block
+        if (bb->getLeader()->getBaseAddress() != ins->getBaseAddress()){
+            tmpct = CounterType_instruction;
+            initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Types + i*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);        
+
+            temp64 = currentLeader;
+            initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
+
+            continue;
+        }
+#endif //STATS_PER_INSTRUCTION
+        currentLeader = i;
+
+        tmpct = CounterType_basicblock;
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Types + i*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);        
+
+        temp64 = 0;
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
+
         uint64_t counterOffset = (uint64_t)ctrs.Counters + (i * sizeof(uint64_t));
         uint32_t threadReg = -1;
 

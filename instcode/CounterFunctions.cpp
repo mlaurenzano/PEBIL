@@ -41,9 +41,17 @@ void print_counter_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
     }
 
     for (uint32_t i = 0; i < ctrs->Size; i++){
-        if (ctrs->Counters[i] >= PRINT_MINIMUM){
-            fprintf(stream, "%ld\t", i);
-            fprintf(stream, "%lu\t#", ctrs->Counters[i]);
+        uint32_t idx;
+        if (ctrs->Types[i] == CounterType_basicblock){
+            idx = i;
+        } else if (ctrs->Types[i] == CounterType_instruction){
+            idx = ctrs->Counters[i];
+        } else {
+            assert(false && "unsupported counter type");
+        }
+        if (ctrs->Counters[idx] >= PRINT_MINIMUM){
+            fprintf(stream, "%d\t", i);
+            fprintf(stream, "%lu\t#", ctrs->Counters[idx]);
             fprintf(stream, "%s:", ctrs->Files[i]);
             fprintf(stream, "%d\t", ctrs->Lines[i]);
             fprintf(stream, "%#lx\t", ctrs->Addresses[i]);
@@ -65,7 +73,14 @@ void* generate_counter_array(void* args, uint32_t typ, pthread_key_t iid, pthrea
     c->imageid = iid;
     c->Initialized = false;
     c->Counters = (uint64_t*)malloc(sizeof(uint64_t) * c->Size);
-    bzero(c->Counters, sizeof(uint64_t) * c->Size);
+
+    // keep all instruction CounterTypes in place
+    memcpy(c->Counters, ctrs->Counters, sizeof(uint64_t) * c->Size);
+    for (uint32_t i = 0; i < c->Size; i++){
+        if (c->Types[i] != CounterType_instruction){
+            c->Counters[i] = 0;
+        }
+    }
 
     return (void*)c;
 }
