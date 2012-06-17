@@ -35,6 +35,36 @@
 
 static DataManager<CounterArray*>* alldata = NULL;
 
+void print_loop_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
+    if (ctrs == NULL){
+        return;
+    }
+
+    for (uint32_t i = 0; i < ctrs->Size; i++){
+        uint32_t idx;
+        if (ctrs->Types[i] == CounterType_basicblock){
+            continue;
+        } else if (ctrs->Types[i] == CounterType_instruction){
+            continue;
+        } else if (ctrs->Types[i] == CounterType_loop){
+            idx = i;
+        } else {
+            assert(false && "unsupported counter type");
+        }
+        if (ctrs->Counters[idx] >= PRINT_MINIMUM){
+            fprintf(stream, "%ld\t", ctrs->Hashes[i]);
+            fprintf(stream, "%lu\t#", ctrs->Counters[idx]);
+            fprintf(stream, "%s:", ctrs->Files[i]);
+            fprintf(stream, "%d\t", ctrs->Lines[i]);
+            fprintf(stream, "%s\t", ctrs->Functions[i]);
+            fprintf(stream, "%ld\t", ctrs->Hashes[i]);
+            fprintf(stream, "%#lx\t", ctrs->Addresses[i]);
+            fprintf(stream, "%lx\n", tid);
+        }
+    }
+    fflush(stream);
+}
+
 void print_counter_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
     if (ctrs == NULL){
         return;
@@ -46,6 +76,8 @@ void print_counter_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
             idx = i;
         } else if (ctrs->Types[i] == CounterType_instruction){
             idx = ctrs->Counters[i];
+        } else if (ctrs->Types[i] == CounterType_loop){
+            continue;
         } else {
             assert(false && "unsupported counter type");
         }
@@ -157,7 +189,8 @@ extern "C"
             PRINT_INSTR(stderr, "Cannot retreive image data using key %ld", *key);
             return NULL;
         }
-        
+
+        // PRINT BLOCK/INSTRUCTION COUNTERS
         char outFileName[__MAX_STRING_SIZE];
         sprintf(outFileName, "%s.meta_%04d.%s", ctrs->Application, getTaskId(), ctrs->Extension);
         FILE* outFile = fopen(outFileName, "w");
@@ -168,7 +201,17 @@ extern "C"
         }
         
         PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
-        PRINT_INSTR(stdout, "%ld blocks; printing those with at least %d executions to file %s", ctrs->Size, PRINT_MINIMUM, outFileName);
+        uint32_t countBlocks = 0;
+        uint32_t countLoops = 0;
+        for (uint32_t i = 0; i < ctrs->Size; i++){
+            if (ctrs->Types[i] == CounterType_basicblock){
+                countBlocks++;
+            } else if (ctrs->Types[i] == CounterType_loop){
+                countLoops++;
+            }
+        }
+
+        PRINT_INSTR(stdout, "%ld blocks; printing those with at least %d executions to file %s", countBlocks, PRINT_MINIMUM, outFileName);
         
         fprintf(outFile, "# appname   = %s\n", ctrs->Application);
         fprintf(outFile, "# extension = %s\n", ctrs->Extension);
@@ -191,7 +234,38 @@ extern "C"
         }
         fflush(outFile);
         fclose(outFile);
+
+        // print loop counters
+        sprintf(outFileName, "%s.meta_%04d.%s", ctrs->Application, getTaskId(), "loopcnt");
+        outFile = fopen(outFileName, "w");
+        if (!outFile){
+            fprintf(stderr, "Cannot open output file %s, exiting...\n", outFileName);
+            fflush(stderr);
+            exit(-1);
+        }
         
+        PRINT_INSTR(stdout, "%ld loops; printing those with at least %d executions to file %s", countLoops, PRINT_MINIMUM, outFileName);
+
+        fprintf(outFile, "# appname   = %s\n", ctrs->Application);
+        fprintf(outFile, "# extension = %s\n", ctrs->Extension);
+        fprintf(outFile, "# phase     = %d\n", 0);
+        fprintf(outFile, "# rank      = %d\n", getTaskId());
+        fprintf(outFile, "# perinsn   = %s\n", USES_STATS_PER_INSTRUCTION);
+        fprintf(outFile, "# imageid   = %ld\n", *key);
+        fprintf(outFile, "# cntimage  = %d\n", alldata->CountImages());
+        fprintf(outFile, "# mainthread= %lx\n", pthread_self());
+        fprintf(outFile, "# cntthread = %d\n", alldata->CountThreads());
+        
+        fprintf(outFile, "#hash\tcount\t#file:line\tfunc\thash\taddr\tthreadid\n");
+        fflush(outFile);
+        for (set<pthread_t>::iterator it = alldata->allthreads.begin(); it != alldata->allthreads.end(); it++){
+            ctrs = alldata->GetData(*key, (*it));
+            assert(ctrs);
+            print_loop_array(outFile, ctrs, (*it));
+        }
+        fflush(outFile);
+        fclose(outFile);
+
         PRINT_INSTR(stdout, "cxxx Total Execution time for image: %f", alldata->GetTimer(*key, 1) - alldata->GetTimer(*key, 0));
         alldata->RemoveImage(*key);
         return NULL;

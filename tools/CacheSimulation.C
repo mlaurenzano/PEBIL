@@ -620,7 +620,7 @@ void CacheSimulation::instrument(){
 
 #ifndef DISABLE_BLOCK_COUNT
             uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
-            InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
+            InstrumentationTool::insertBlockCounter(counterOffset, bb);
 #endif
         } else {
             memopId += bb->getNumberOfInstructions();

@@ -1100,8 +1100,13 @@ void InstrumentationPoint64::insertStateProtection(){
         ASSERT(to->getType() == PebilClassType_Function);
         Function* f = (Function*)to;
         BasicBlock* bb = f->getBasicBlockAtAddress(point->getBaseAddress());
-        if (f->hasLeafOptimization() || bb->isEntry()){
+
+        if (!f || !bb){
             protectStack = true;
+        } else {
+            if (f->hasLeafOptimization() || bb->isEntry()){
+                protectStack = true;
+            }
         }
         if (protectStack && countProt > 0){
             instrumentation->prependCoreInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));

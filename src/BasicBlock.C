@@ -35,7 +35,7 @@ X86Instruction* BasicBlock::findBestInstPoint(InstLocations* loc, BitSet<uint32_
     uint32_t best = 0;
     InstLocations bestloc = InstLocation_prior;
     uint32_t ninsn = getNumberOfInstructions();
-    if (endsWithCall() || endsWithReturn()){
+    if (endsWithControl()){
         ninsn--;
     }
     BitSet<uint32_t>* flagsDead  = new BitSet<uint32_t>(ninsn * 2);
@@ -129,8 +129,12 @@ uint32_t BasicBlock::getDefXIter(){
     return defcnt;
 }
 
+bool BasicBlock::endsWithControl(){
+    return instructions.back()->isControl();
+}
+
 bool BasicBlock::endsWithCall(){
-    return  instructions.back()->isCall();
+    return instructions.back()->isCall();
 }
 
 bool BasicBlock::endsWithReturn(){

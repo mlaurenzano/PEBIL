@@ -224,6 +224,7 @@ public:
     bool isReachable() { return !isNoPath(); }
     bool endsWithCall();
     bool endsWithReturn();
+    bool endsWithControl();
 
     HashCode getHashCode() { return hashCode; }
 

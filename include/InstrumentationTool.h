@@ -51,8 +51,9 @@ protected:
     void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize);
     void printStaticFilePerInstruction(Vector<X86Instruction*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize);
 
-    InstrumentationPoint* insertInlinedTripCounter(uint64_t, Base*);
-    InstrumentationPoint* insertInlinedTripCounter(uint64_t, Base*, bool, uint32_t);
+    InstrumentationPoint* insertBlockCounter(uint64_t, Base*);
+    InstrumentationPoint* insertBlockCounter(uint64_t, Base*, bool, uint32_t);
+    InstrumentationPoint* insertInlinedTripCounter(uint64_t, X86Instruction*, bool, uint32_t, InstLocations, BitSet<uint32_t>*);
 
     void assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak);
     Vector<X86Instruction*>* storeThreadData(uint32_t scratch, uint32_t dest);

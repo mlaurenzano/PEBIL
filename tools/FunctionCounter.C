@@ -156,7 +156,7 @@ void FunctionCounter::instrument(){
         initializeReservedData(getInstDataAddress() + hashCodeArray + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
 
         uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
-        InstrumentationTool::insertInlinedTripCounter(counterOffset, f);
+        InstrumentationTool::insertBlockCounter(counterOffset, f);
     }
 
     Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();

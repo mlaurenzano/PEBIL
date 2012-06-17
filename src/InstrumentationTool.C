@@ -359,65 +359,44 @@ Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, 
     return insns;
 }
 
-InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, Base* within){
-    return insertInlinedTripCounter(counterOffset, within, true, -1);
-}
-
-InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, Base* within, bool add, uint32_t threadReg){
-    BasicBlock* scope = NULL;
-
-    if (within->getType() == PebilClassType_BasicBlock){
-        scope = (BasicBlock*)within;
-    } else if (within->getType() == PebilClassType_X86Instruction){
-        X86Instruction* ins = (X86Instruction*)within;
-        Function* f = (Function*)(ins->getContainer());
-        scope = f->getBasicBlockAtAddress(ins->getBaseAddress());
-    } else if (within->getType() == PebilClassType_Function){
-        Function* f = (Function*)(within);
-        scope = f->getBasicBlockAtAddress(f->getBaseAddress());
-        ASSERT(scope->getNumberOfSources() == 0 && "Function entry block should not be a target of another block");
-    } else {
-        PRINT_ERROR("Cannot call InstrumentationTool::insertTripCounter for an object of type %s", within->getTypeName());
-    }
-
-    InstrumentationSnippet* snip = new InstrumentationSnippet();
-    snip->setOverflowable(false);
-
-    // do not generate control instructions to get back to the application, this is done for
-    // the snippet automatically during code generation
-
-    // register the snippet we just created
-    addInstrumentationSnippet(snip);
-
-    // register an instrumentation point at the function that uses this snippet
-    X86Instruction* bestinst;
-    InstLocations loc;
-    BitSet<uint32_t>* validRegs = new BitSet<uint32_t>(X86_ALU_REGS);
-    BitSet<uint32_t>* useRegs = new BitSet<uint32_t>(X86_ALU_REGS);
-    InstrumentationModes mode = InstrumentationMode_inline;
+InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, X86Instruction* bestinst, bool add, uint32_t threadReg, InstLocations loc, BitSet<uint32_t>* useRegs){
 
     uint32_t regLimit = X86_32BIT_GPRS;
     if (getElfFile()->is64Bit()){
         regLimit = X86_64BIT_GPRS;
     }
 
-    
-    for (uint32_t i = 0; i < regLimit; i++){
-        validRegs->insert(i);
-    }
-    validRegs->remove(X86_REG_AX);
-    validRegs->remove(X86_REG_SP);
-    bestinst = scope->findBestInstPoint(&loc, validRegs, useRegs, true);
-
     uint32_t sr1 = regLimit;
     uint32_t sr2 = regLimit;
-    for (uint32_t i = 0; i < regLimit; i++){
-        if (useRegs->contains(i)){
-            if (sr1 == regLimit){
-                sr1 = i;
-            } else if (sr2 == regLimit){
-                sr2 = i;
-                break;
+
+    if (useRegs){
+        for (uint32_t i = 0; i < regLimit; i++){
+            if (useRegs->contains(i)){
+                if (sr1 == regLimit){
+                    sr1 = i;
+                } else if (sr2 == regLimit){
+                    sr2 = i;
+                    break;
+                }
+            }
+        }
+    } else {
+        for (uint32_t i = 0; i < regLimit; i++){
+            bool useit = false;
+            if (loc == InstLocation_prior && bestinst->isRegDeadIn(i)){
+                useit = true;
+            }
+            if (loc == InstLocation_after && bestinst->isRegDeadOut(i)){
+                useit = true;
+            }
+
+            if (useit){
+                if (sr1 == regLimit){
+                    sr1 = i;
+                } else if (sr2 == regLimit){
+                    sr2 = i;
+                    break;
+                }
             }
         }
     }
@@ -435,6 +414,9 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
 
     ASSERT(sr1 != X86_REG_SP && sr2 != X86_REG_SP);
     ASSERT(sr1 != X86_REG_AX && sr2 != X86_REG_AX);
+
+    InstrumentationSnippet* snip = addInstrumentationSnippet();
+    snip->setOverflowable(false);
 
     // snippet contents, in this case just increment a counter
     if (is64Bit()){
@@ -496,7 +478,55 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
         }
     }
 
-    InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, mode, loc);
+    InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, loc);
+
+    return p;
+}
+
+InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOffset, Base* within){
+    return insertBlockCounter(counterOffset, within, true, -1);
+}
+
+InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOffset, Base* within, bool add, uint32_t threadReg){
+    BasicBlock* scope = NULL;
+
+    if (within->getType() == PebilClassType_BasicBlock){
+        scope = (BasicBlock*)within;
+    } else if (within->getType() == PebilClassType_X86Instruction){
+        X86Instruction* ins = (X86Instruction*)within;
+        Function* f = (Function*)(ins->getContainer());
+        scope = f->getBasicBlockAtAddress(ins->getBaseAddress());
+    } else if (within->getType() == PebilClassType_Function){
+        Function* f = (Function*)(within);
+        scope = f->getBasicBlockAtAddress(f->getBaseAddress());
+        ASSERT(scope->getNumberOfSources() == 0 && "Function entry block should not be a target of another block");
+    } else {
+        PRINT_ERROR("Cannot call InstrumentationTool::insertTripCounter for an object of type %s", within->getTypeName());
+    }
+
+    // register an instrumentation point at the function that uses this snippet
+    X86Instruction* bestinst;
+    InstLocations loc;
+    BitSet<uint32_t>* validRegs = new BitSet<uint32_t>(X86_ALU_REGS);
+    BitSet<uint32_t>* useRegs = new BitSet<uint32_t>(X86_ALU_REGS);
+
+    uint32_t regLimit = X86_32BIT_GPRS;
+    if (getElfFile()->is64Bit()){
+        regLimit = X86_64BIT_GPRS;
+    }
+    
+    for (uint32_t i = 0; i < regLimit; i++){
+        validRegs->insert(i);
+    }
+    validRegs->remove(X86_REG_AX);
+    validRegs->remove(X86_REG_SP);
+
+    bestinst = scope->findBestInstPoint(&loc, validRegs, useRegs, true);
+
+    InstrumentationPoint* p = insertInlinedTripCounter(counterOffset, bestinst, add, threadReg, loc, useRegs);
+
+    delete validRegs;
+    delete useRegs;
 
     return p;
 }
