@@ -313,6 +313,7 @@ public:
     Vector<X86Instruction*>* swapInstructionsAtPoint(Vector<X86Instruction*>* replacements);
 
     void setInstSourceOffset(int32_t off) { offsetFromPoint = off; }
+    uint32_t getInstSourceOffset() { return offsetFromPoint; }
     uint64_t getInstSourceAddress() { return getInstBaseAddress() + offsetFromPoint; }
     void print();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint64_t addr);

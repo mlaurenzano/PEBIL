@@ -878,4 +878,4 @@ enum dwarf_macinfo_record_type
 
 #define DW_EH_PE_indirect	0x80
 
-#endif /* _ELF_DWARF2_H */
+#endif /* _ELF_DWARF4_H */

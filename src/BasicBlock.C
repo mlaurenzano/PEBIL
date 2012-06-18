@@ -34,12 +34,16 @@ X86Instruction* BasicBlock::findBestInstPoint(InstLocations* loc, BitSet<uint32_
 
     uint32_t best = 0;
     InstLocations bestloc = InstLocation_prior;
-    BitSet<uint32_t>* flagsDead  = new BitSet<uint32_t>(getNumberOfInstructions() * 2);
+    uint32_t ninsn = getNumberOfInstructions();
+    if (endsWithControl()){
+        ninsn--;
+    }
+    BitSet<uint32_t>* flagsDead  = new BitSet<uint32_t>(ninsn * 2);
 
     bool hasFlags = false;
     if (attendFlags){
-        for (int32_t i = 0; i < getNumberOfInstructions() * 2; i++){
-            ASSERT(i / 2 < getNumberOfInstructions()); 
+        for (int32_t i = 0; i < ninsn * 2; i++){
+            ASSERT(i / 2 < ninsn); 
             X86Instruction* ins = getInstruction(i / 2);
             if (i % 2 == 0 && ins->allFlagsDeadIn()){
                 flagsDead->insert(i);
@@ -57,8 +61,8 @@ X86Instruction* BasicBlock::findBestInstPoint(InstLocations* loc, BitSet<uint32_
     }
 
     uint32_t maxDead = 0;
-    for (int32_t i = 0; i < getNumberOfInstructions() * 2; i++){
-        ASSERT(i / 2 < getNumberOfInstructions());
+    for (int32_t i = 0; i < ninsn * 2; i++){
+        ASSERT(i / 2 < ninsn);
         X86Instruction* ins = getInstruction(i / 2);
         uint32_t dead = 0;
         if (attendFlags && hasFlags){
@@ -89,6 +93,16 @@ X86Instruction* BasicBlock::findBestInstPoint(InstLocations* loc, BitSet<uint32_
 
     delete flagsDead;
 
+    // frame setup messes up lots of stuff, so for all function entries we use the very end of the block
+    if (isEntry()){
+        best = getNumberOfInstructions() - 1;
+        X86Instruction* e = getExitInstruction();
+        bestloc = InstLocation_after;
+        if (e->isReturn() || e->isCall()){
+            bestloc = InstLocation_prior;
+        }
+    }
+
     X86Instruction* bestinsn = getInstruction(best);
     if (useRegs){
         for (uint32_t j = 0; j < X86_ALU_REGS; j++){
@@ -115,8 +129,12 @@ uint32_t BasicBlock::getDefXIter(){
     return defcnt;
 }
 
+bool BasicBlock::endsWithControl(){
+    return instructions.back()->isControl();
+}
+
 bool BasicBlock::endsWithCall(){
-    return  instructions.back()->isCall();
+    return instructions.back()->isCall();
 }
 
 bool BasicBlock::endsWithReturn(){
@@ -227,6 +245,7 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
     for (uint32_t i = 0; i < expansions.size(); i++){
         DEBUG_BLOAT_FILTER(expansions[i]->getSourceObject()->print();)
     }
+
     for (int32_t i = expansions.size()-1; i >= 0; i--){
         uint32_t bloatAmount = expansions[i]->getNumberOfBytes();
         uint32_t instructionIdx = expansionIndices[i];

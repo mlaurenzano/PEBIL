@@ -177,7 +177,7 @@ private:
         T d = datamap[iid][tid];
         td[actual].data = (uint64_t)dataref((void*)d);
 
-        //PRINT_INSTR(stdout, "Setting up thread %#lx data at %#lx -> %#lx", td[actual].id, (uint64_t)(td), td[actual].data); 
+        PRINT_INSTR(stdout, "Image %#lx setting up thread %#lx data at %#lx -> %#lx", (uint64_t)iid, td[actual].id, (uint64_t)(td), td[actual].data); 
 
         // fail if there was a collision. it makes writing tools much easier so we see how well this works for now
         assert(actual == h);
