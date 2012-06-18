@@ -56,13 +56,6 @@ typedef enum {
     prediction_cache
 } CacheType;
 
-/*
-#define IS_REPL_POLICY_LRU(__policy) (__policy == repl_lru)
-#define IS_REPL_POLICY_RAN(__policy) (__policy == repl_ran)
-#define IS_REPL_POLICY_DIR(__policy) (__policy == repl_dir)
-*/
-
-
 #define IS_REPL_POLICY_VC(__policy)  (__policy == repl_lru_vc)
 #define IS_REPL_POLICY_LRU(__policy) ((__policy == repl_lru) || (__policy == repl_lru_vc))
 #define IS_REPL_POLICY_RAN(__policy) (__policy == repl_ran)

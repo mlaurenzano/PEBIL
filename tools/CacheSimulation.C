@@ -219,7 +219,7 @@ void CacheSimulation::declare(){
     entryFunc = declareFunction(ENTRY_FUNCTION);
     ASSERT(entryFunc && "Cannot find entry function, are you sure it was declared?");
 }
-
+ 
 void CacheSimulation::instrument(){
     InstrumentationTool::instrument();
     filterBBs();
@@ -368,25 +368,17 @@ void CacheSimulation::instrument(){
 #endif //STATS_PER_INSTRUCTION
                     
                     if (getElfFile()->is64Bit()){
-                        // check the buffer at the last memop
-                        if (memopIdInBlock == bb->getNumberOfMemoryOps() - 1){
-                            FlagsProtectionMethods prot = FlagsProtectionMethod_full;
-#ifndef NO_REG_ANALYSIS
-                            if (memop->allFlagsDeadIn()){
-                                prot = FlagsProtectionMethod_none;
-                            }
-#endif
+
+                        // at the first memop in each block, check for a full buffer
+                        if (memopIdInBlock == 0){
                             uint32_t tmpReg1 = X86_REG_CX;
                             uint32_t tmpReg2 = X86_REG_DX;
-                            uint32_t tmpReg3 = X86_REG_AX;
-                            
+
                             InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline, InstLocation_prior);
                             pt->setPriority(InstPriority_low);
                             Vector<X86Instruction*>* bufferDumpInstructions = new Vector<X86Instruction*>();
-                            
-                            // save temp regs
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t))));
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveRegToMem(tmpReg2, getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t))));
+                            // update the buffer counter
+                            atomicIncrement(tmpReg2, tmpReg1, bb->getNumberOfMemoryOps(), getInstDataAddress() + bufferStore, bufferDumpInstructions);
                             
                             // put the memory address in tmp1
                             Vector<X86Instruction*>* addrStore = X86InstructionFactory64::emitAddressComputation(memop, tmpReg1);
@@ -396,9 +388,7 @@ void CacheSimulation::instrument(){
                             }
                             
                             delete addrStore;
-                            
-                            // put the current buffer address in tmp2
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg2, false));
+
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, 0, tmpReg2, false, true));
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
                             
@@ -412,22 +402,9 @@ void CacheSimulation::instrument(){
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
                             (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
 #endif //STATS_PER_INSTRUCTION
-                            // update the buffer counter
-                            uint32_t maxMemopsInSuccessor = MAX_MEMOPS_PER_BLOCK;
-                            ASSERT(bb->getNumberOfMemoryOps() < MAX_MEMOPS_PER_BLOCK);
-                            uint32_t memcnt = bb->getNumberOfMemoryOps();
-                            while (memcnt > 0x7f){
-                                (*bufferDumpInstructions).append(X86InstructionFactory64::emitAddImmByteToMem64(0x7f, getInstDataAddress() + bufferStore));
-                                memcnt -= 0x7f;
-                            }
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitAddImmByteToMem64(memcnt, getInstDataAddress() + bufferStore));
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg1, false));
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitCompareImmReg(BUFFER_ENTRIES - maxMemopsInSuccessor, tmpReg1));
-                            
-                            // restore regs
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t)), tmpReg2, true));
-                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t)), tmpReg1, true));
-                            
+
+                            (*bufferDumpInstructions).append(X86InstructionFactory64::emitCompareImmReg(BUFFER_ENTRIES, tmpReg1));
+
                             // jump to non-buffer-jump code
                             (*bufferDumpInstructions).append(X86InstructionFactory::emitBranchJL(Size__64_bit_inst_function_call_support));
                             
@@ -436,170 +413,54 @@ void CacheSimulation::instrument(){
                                 pt->addPrecursorInstruction((*bufferDumpInstructions).remove(0));
                             }
                             delete bufferDumpInstructions;
-                            memInstPoints.append(pt);
-                        } else {
-                            // TODO: get which gprs are dead at this point and use one of those 
-                            InstrumentationSnippet* snip = new InstrumentationSnippet();
-                            addInstrumentationSnippet(snip);
-                            
-                            uint32_t tmpReg1 = X86_REG_CX;
-                            uint32_t tmpReg2 = X86_REG_DX;
-                            bool usesLiveReg = true;
-                            ASSERT(tmpReg1 < X86_64BIT_GPRS);
-                            
-                            // save 2 temp regs
-                            if (usesLiveReg){
-                                snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t)));
-                                snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToMem(tmpReg2, getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t)));
-                            }
-                            
-                            // put the memory address in tmp1
-                            Vector<X86Instruction*>* addrStore = X86InstructionFactory64::emitAddressComputation(memop, tmpReg1);
-                            while (!(*addrStore).empty()){
-                                snip->addSnippetInstruction((*addrStore).remove(0));
-                            }
-                            delete addrStore;
-                            
-                            // put the current buffer address in tmp2
-                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg2, false));
-                            snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, 0, tmpReg2, false, true));
-                            snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
-                            
-                            // fill the buffer entry with this block's info
-#ifdef STATS_PER_INSTRUCTION
-                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
-                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-#else //STATS_PER_INSTRUCTION
-                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
-                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-#endif //STATS_PER_INSTRUCTION
-                            if (usesLiveReg){
-                                snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t), tmpReg2, true));
-                                snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t), tmpReg1, true));
-                            }
-                            
-                            // generateAddressComputation doesn't def any flags, so no protection is necessary
-                            InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, InstLocation_prior);
-                            memInstPoints.append(pt);
-                        } 
-                    } else {
-                        
-                        // check the buffer at the last memop
-                        if (memopIdInBlock == bb->getNumberOfMemoryOps() - 1){
-                            FlagsProtectionMethods prot = FlagsProtectionMethod_full;
-#ifndef NO_REG_ANALYSIS
-                            if (memop->allFlagsDeadIn()){
-                                prot = FlagsProtectionMethod_none;
-                            }
-#endif
-                            uint32_t tmpReg1 = X86_REG_CX;
-                            uint32_t tmpReg2 = X86_REG_DX;
-                            uint32_t tmpReg3 = X86_REG_AX;
-                            
-                            InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_trampinline, InstLocation_prior);
-                            pt->setPriority(InstPriority_low);
-                            Vector<X86Instruction*>* bufferDumpInstructions = new Vector<X86Instruction*>();
-                            
-                            // save temp regs
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t))));
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveRegToMem(tmpReg2, getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t))));
-                            
-                            // put the memory address in tmp1
-                            Vector<X86Instruction*>* addrStore = X86InstructionFactory32::emitAddressComputation(memop, tmpReg1);
-                            while (!(*addrStore).empty()){
-                                (*bufferDumpInstructions).append((*addrStore).remove(0));
-                            }
-                            delete addrStore;
-                            
-                            // put the current buffer address in tmp2
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg2));
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitLoadEffectiveAddress(0, tmpReg2, 4, 0, tmpReg2, false, true));
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
-                            
-                            // fill the buffer entry with this block's info
-#ifdef STATS_PER_INSTRUCTION
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-#else //STATS_PER_INSTRUCTION
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-#endif //STATS_PER_INSTRUCTION
-                            // update the buffer counter
-                            uint32_t maxMemopsInSuccessor = MAX_MEMOPS_PER_BLOCK;
-                            ASSERT(bb->getNumberOfMemoryOps() < MAX_MEMOPS_PER_BLOCK);
-                            uint32_t memcnt = bb->getNumberOfMemoryOps();
-                            while (memcnt > 0x7f){
-                                (*bufferDumpInstructions).append(X86InstructionFactory32::emitAddImmByteToMem(0x7f, getInstDataAddress() + bufferStore));
-                                memcnt -= 0x7f;
-                            }
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitAddImmByteToMem(memcnt, getInstDataAddress() + bufferStore));
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg1));
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitCompareImmReg(BUFFER_ENTRIES - maxMemopsInSuccessor, tmpReg1));
-                            
-                            // restore regs
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*(sizeof(uint64_t)), tmpReg2));
-                            (*bufferDumpInstructions).append(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*(sizeof(uint64_t)), tmpReg1));
-                            
-                            // jump to non-buffer-jump code
-                            (*bufferDumpInstructions).append(X86InstructionFactory::emitBranchJL(Size__64_bit_inst_function_call_support));
-                            
-                            ASSERT(bufferDumpInstructions);
-                            while ((*bufferDumpInstructions).size()){
-                                pt->addPrecursorInstruction((*bufferDumpInstructions).remove(0));
-                            }
-                            delete bufferDumpInstructions;
-                            memInstPoints.append(pt);
-                        } else {
-                            // TODO: get which gprs are dead at this point and use one of those 
-                            InstrumentationSnippet* snip = new InstrumentationSnippet();
-                            addInstrumentationSnippet(snip);
-                            
-                            uint32_t tmpReg1 = X86_REG_CX;
-                            uint32_t tmpReg2 = X86_REG_DX;
-                            bool usesLiveReg = true;
-                            ASSERT(tmpReg1 < X86_64BIT_GPRS);
-                            
-                            // save 2 temp regs
-                            if (usesLiveReg){
-                                snip->addSnippetInstruction(X86InstructionFactory32::emitMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t)));
-                                snip->addSnippetInstruction(X86InstructionFactory32::emitMoveRegToMem(tmpReg2, getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t)));
-                            }
-                            
-                            // put the memory address in tmp1
-                            Vector<X86Instruction*>* addrStore = X86InstructionFactory32::emitAddressComputation(memop, tmpReg1);
-                            while (!(*addrStore).empty()){
-                                snip->addSnippetInstruction((*addrStore).remove(0));
-                            }
-                            delete addrStore;
-                            
-                            // put the current buffer address in tmp2
-                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg2));
-                            snip->addSnippetInstruction(X86InstructionFactory32::emitLoadEffectiveAddress(0, tmpReg2, 4, 0, tmpReg2, false, true));
-                            snip->addSnippetInstruction(X86InstructionFactory32::emitLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
-                            
-                            // fill the buffer entry with this block's info
-#ifdef STATS_PER_INSTRUCTION
-                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
-                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-#else //STATS_PER_INSTRUCTION
-                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8));
-                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
-                            snip->addSnippetInstruction(X86InstructionFactory32::emitMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
-#endif //STATS_PER_INSTRUCTION
-                            if (usesLiveReg){
-                                snip->addSnippetInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t), tmpReg2));
-                                snip->addSnippetInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t), tmpReg1));
-                            }
-                            
-                            // generateAddressComputation doesn't def any flags, so no protection is necessary
-                            InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, InstLocation_prior);
                             memInstPoints.append(pt);
                         }
+
+                        // TODO: get which gprs are dead at this point and use one of those 
+                        InstrumentationSnippet* snip = new InstrumentationSnippet();
+                        addInstrumentationSnippet(snip);
+                        
+                        uint32_t tmpReg1 = X86_REG_CX;
+                        uint32_t tmpReg2 = X86_REG_DX;
+                        bool usesLiveReg = true;
+                        ASSERT(tmpReg1 < X86_64BIT_GPRS);
+                        
+                        // save 2 temp regs
+                        if (usesLiveReg){
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToMem(tmpReg1, getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t)));
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToMem(tmpReg2, getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t)));
+                        }
+                        
+                        // put the memory address in tmp1
+                        Vector<X86Instruction*>* addrStore = X86InstructionFactory64::emitAddressComputation(memop, tmpReg1);
+                        while (!(*addrStore).empty()){
+                            snip->addSnippetInstruction((*addrStore).remove(0));
+                        }
+                        delete addrStore;
+                        
+                        // put the current buffer address in tmp2
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + bufferStore, tmpReg2, false));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, 0, tmpReg2, false, true));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(0, tmpReg2, 4, getInstDataAddress() + bufferStore, tmpReg2, false, true));
+                        
+                        // fill the buffer entry with this block's info
+#ifdef STATS_PER_INSTRUCTION
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(0, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
+#else //STATS_PER_INSTRUCTION
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(tmpReg1, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 8, true));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(memopIdInBlock, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 4));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(blockId, tmpReg2, (memopIdInBlock * Size__BufferEntry) + 0));
+#endif //STATS_PER_INSTRUCTION
+                        if (usesLiveReg){
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 2*sizeof(uint64_t), tmpReg2, true));
+                            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset() + 1*sizeof(uint64_t), tmpReg1, true));
+                        }
+                        
+                        // generateAddressComputation doesn't def any flags, so no protection is necessary
+                        InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, InstLocation_prior);
+                        memInstPoints.append(pt);
                     }
 #ifdef STATS_PER_INSTRUCTION
                     memInstBlockIds.append(memopId);

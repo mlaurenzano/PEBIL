@@ -44,6 +44,22 @@ typedef struct {
 
 #define MAX_DEF_USE_DIST_PRINT 1024
 
+Vector<X86Instruction*>* InstrumentationTool::atomicIncrement(uint32_t dest, uint32_t scratch, uint32_t count, uint64_t memaddr, Vector<X86Instruction*>* insns){
+    Vector<X86Instruction*>* fill = insns;
+    if (fill == NULL){
+        fill = new Vector<X86Instruction*>();
+    }
+
+    // mov $memops,%sr2
+    fill->append(X86InstructionFactory64::emitMoveImmToReg(count, dest));
+    // mov $bufstr,%sr1
+    fill->append(X86InstructionFactory64::emitMoveImmToReg(memaddr, scratch));
+    // [lock] xadd %sr2,%sr1
+    fill->append(X86InstructionFactory64::emitExchangeAdd(dest, scratch, isThreadedMode()));
+
+    return fill;
+}
+
 uint32_t InstrumentationTool::instrumentForThreading(Function* func){
     uint32_t d = func->getDeadGPR(0);
 
