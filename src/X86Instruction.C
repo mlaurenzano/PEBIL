@@ -33,7 +33,13 @@
 #include <TextSection.h>
 
 BitSet<uint32_t>* X86Instruction::getDeadRegIn(BitSet<uint32_t>* invalidRegs){
+    return getDeadRegIn(invalidRegs, 0);
+}
+
+BitSet<uint32_t>* X86Instruction::getDeadRegIn(BitSet<uint32_t>* invalidRegs, uint32_t cnt){
     BitSet<uint32_t>* dead = new BitSet<uint32_t>(X86_ALU_REGS);
+
+    // first go for dead registers
     for (uint32_t i = 0; i < X86_ALU_REGS; i++){
         if (invalidRegs && invalidRegs->contains(i)){
             continue;
@@ -42,11 +48,32 @@ BitSet<uint32_t>* X86Instruction::getDeadRegIn(BitSet<uint32_t>* invalidRegs){
             dead->insert(i);
         }
     }
+
+    // if we don't have enough registers yet, grab any registers which are valid
+    if (cnt > 0){
+        for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+            if (dead->size() >= cnt){
+                break;
+            }
+            if (invalidRegs && invalidRegs->contains(i)){
+                continue;
+            }
+            dead->insert(i);
+        }
+
+        ASSERT(dead->size() >= cnt && "You requested more dead registers than there were valid registers");
+    }
     return dead;
 }
 
 BitSet<uint32_t>* X86Instruction::getDeadRegOut(BitSet<uint32_t>* invalidRegs){
+    return getDeadRegOut(invalidRegs, 0);
+}
+
+BitSet<uint32_t>* X86Instruction::getDeadRegOut(BitSet<uint32_t>* invalidRegs, uint32_t cnt){
     BitSet<uint32_t>* dead = new BitSet<uint32_t>(X86_ALU_REGS);
+
+    // first go for dead registers
     for (uint32_t i = 0; i < X86_ALU_REGS; i++){
         if (invalidRegs && invalidRegs->contains(i)){
             continue;
@@ -54,6 +81,21 @@ BitSet<uint32_t>* X86Instruction::getDeadRegOut(BitSet<uint32_t>* invalidRegs){
         if (isRegDeadOut(i)){
             dead->insert(i);
         }
+    }
+
+    // if we don't have enough registers yet, grab any registers which are valid
+    if (cnt > 0){
+        for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+            if (dead->size() >= cnt){
+                break;
+            }
+            if (invalidRegs && invalidRegs->contains(i)){
+                continue;
+            }
+            dead->insert(i);
+        }
+
+        ASSERT(dead->size() >= cnt && "You requested more dead registers than there were valid registers");
     }
     return dead;
 }

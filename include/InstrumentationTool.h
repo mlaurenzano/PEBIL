@@ -24,6 +24,7 @@
 #include <ElfFileInst.h>
 #include <Instrumentation.h>
 #include <X86Instruction.h>
+#include <map>
 
 class InstrumentationPoint;
 
@@ -46,6 +47,7 @@ private:
     bool singleArgCheck(void* arg, uint32_t mask, const char* name);
 
 protected:
+    uint64_t imageKey;
     uint64_t threadHash;
 
     Vector<X86Instruction*>* atomicIncrement(uint32_t dest, uint32_t scratch, uint32_t count, uint64_t memaddr, Vector<X86Instruction*>* insns);
@@ -55,13 +57,15 @@ protected:
 
     InstrumentationPoint* insertBlockCounter(uint64_t, Base*);
     InstrumentationPoint* insertBlockCounter(uint64_t, Base*, bool, uint32_t);
-    InstrumentationPoint* insertInlinedTripCounter(uint64_t, X86Instruction*, bool, uint32_t, InstLocations, BitSet<uint32_t>*);
+    InstrumentationPoint* insertBlockCounter(uint64_t, Base*, bool, uint32_t, uint32_t);
+    InstrumentationPoint* insertInlinedTripCounter(uint64_t, X86Instruction*, bool, uint32_t, InstLocations, BitSet<uint32_t>*, uint32_t val);
 
     void assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak);
     Vector<X86Instruction*>* storeThreadData(uint32_t scratch, uint32_t dest);
     Vector<X86Instruction*>* storeThreadData(uint32_t scratch, uint32_t dest, bool storeToStack, uint32_t stackPatch);
     void threadAllEntryPoints(Function* f, uint32_t threadReg);
 
+    std::map<uint64_t, uint32_t>* threadReadyCode();
     uint32_t instrumentForThreading(Function* func);
 
     InstrumentationFunction* imageInit;

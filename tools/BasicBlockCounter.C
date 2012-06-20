@@ -128,7 +128,6 @@ void BasicBlockCounter::instrument()
 #endif //STATS_PER_INSTRUCTION
     uint32_t numberOfPoints = numberOfBlocks + loopsFound.size();
 
-    uint64_t imageKey = reserveDataOffset(sizeof(uint64_t));
     uint64_t counterStruct = reserveDataOffset(sizeof(CounterArray));
 
     CounterArray ctrs;
@@ -192,12 +191,9 @@ void BasicBlockCounter::instrument()
     Vector<LineInfo*>* allBlockLineInfos = new Vector<LineInfo*>();
 #endif //STATS_PER_INSTRUCTION
 
-    std::map<uint64_t, uint32_t> functionThreading;
+    std::map<uint64_t, uint32_t>* functionThreading;
     if (isThreadedMode()){
-        for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
-            Function* f = getExposedFunction(i);
-            functionThreading[f->getBaseAddress()] = instrumentForThreading(f);
-        }
+        functionThreading = threadReadyCode();
     }
 
     uint64_t currentLeader = 0;
@@ -282,11 +278,11 @@ void BasicBlockCounter::instrument()
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
 
         uint64_t counterOffset = (uint64_t)ctrs.Counters + (i * sizeof(uint64_t));
-        uint32_t threadReg = -1;
+        uint32_t threadReg = X86_REG_INVALID;
 
         if (isThreadedMode()){
             counterOffset -= (uint64_t)ctrs.Counters;
-            threadReg = functionThreading[f->getBaseAddress()];
+            threadReg = (*functionThreading)[f->getBaseAddress()];
         }
 
         InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
@@ -327,11 +323,11 @@ void BasicBlockCounter::instrument()
         initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
 
         uint64_t counterOffset =  (uint64_t)ctrs.Counters + (i * sizeof(uint64_t));
-        uint32_t threadReg = -1;
+        uint32_t threadReg = X86_REG_INVALID;
 
         if (isThreadedMode()){
             counterOffset -= (uint64_t)ctrs.Counters;
-            threadReg = functionThreading[f->getBaseAddress()];            
+            threadReg = (*functionThreading)[f->getBaseAddress()];            
         }
 
 #ifdef STATS_PER_INSTRUCTION
@@ -366,11 +362,11 @@ void BasicBlockCounter::instrument()
 
                 // if control falls from tail to head, stick a decrement at the very end of the block
                 if (tail->getBaseAddress() + tail->getNumberOfBytes() == target->getBaseAddress()){
-                    InstrumentationTool::insertInlinedTripCounter(counterOffset, tail->getExitInstruction(), false, threadReg, InstLocation_after, NULL);
+                    InstrumentationTool::insertInlinedTripCounter(counterOffset, tail->getExitInstruction(), false, threadReg, InstLocation_after, NULL, 1);
                     //PRINT_INFOR("\t\tEXIT-FALLTHRU\tBLK:%#llx --> BLK:%#llx HASH %lld", tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
                 } else {
                     BasicBlock* interposed = initInterposeBlock(fg, tail->getIndex(), target->getIndex());
-                    InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed->getLeader(), false, threadReg, InstLocation_prior, NULL);
+                    InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed->getLeader(), false, threadReg, InstLocation_prior, NULL, 1);
                     //PRINT_INFOR("\t\tEXIT-INTERPOS\tBLK:%#llx --> BLK:%#llx HASH %lld", tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
                 }
             }

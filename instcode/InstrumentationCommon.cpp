@@ -74,23 +74,6 @@ struct thread_list {
 };
 
 extern "C" {
-    // called when pthread_create is called for programs instrumented without the --threaded flag
-    int pthread_create_pebil_nothread(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg){
-        PRINT_INSTR(stderr, "Application was not instrumented by PEBIL without thread support but pthread_create has been called.");
-        PRINT_INSTR(stderr, "Results should not be considered reliable.");
-        fflush(stderr);
-        return pthread_create(thread, attr, start_routine, arg);
-    }
-
-    // called when pthread_create is called for programs instrumented with the --threaded flag
-    int __give_pebil_name(pthread_create)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg){
-        tool_thread_args* x = (tool_thread_args*)malloc(sizeof(tool_thread_args));
-        x->start_function = start_routine;
-        x->function_args = arg;
-        int ret = pthread_create(thread, attr, tool_thread_init, x);
-        return ret;
-    }
-
     int pebil_clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
         va_list ap;
         va_start(ap, arg);
@@ -110,7 +93,7 @@ extern "C" {
         static int (*clone_ptr)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid)
             = (int (*)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid))dlsym(RTLD_NEXT, "clone");
 
-        tool_thread_init2((uint64_t)tls);
+        tool_thread_init((uint64_t)tls);
 
         return clone_ptr(fn, child_stack, flags, arg, ptid, tls, ctid);
     }

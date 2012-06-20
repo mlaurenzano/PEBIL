@@ -132,6 +132,7 @@ const static char* flag_name_map[X86_FLAG_BITS] = { "carry", __flag_reserved, "p
 #define CONTAINS_FLAG(__val, __flg) (((__val >> __flg) & 0x1) == 1)
 
 // my non-gnu definitions for X86
+#define X86_REG_INVALID (-1)
 #define X86_REG_AX 0
 #define X86_REG_CX 1
 #define X86_REG_DX 2
@@ -466,6 +467,8 @@ public:
     bool isFlagDeadOut(uint32_t flagNum);
     BitSet<uint32_t>* getDeadRegIn(BitSet<uint32_t>* invalidRegs);
     BitSet<uint32_t>* getDeadRegOut(BitSet<uint32_t>* invalidRegs);
+    BitSet<uint32_t>* getDeadRegIn(BitSet<uint32_t>* invalidRegs, uint32_t cnt);
+    BitSet<uint32_t>* getDeadRegOut(BitSet<uint32_t>* invalidRegs, uint32_t cnt);
 
     bool usesFlag(uint32_t flg);
     bool defsFlag(uint32_t flg);

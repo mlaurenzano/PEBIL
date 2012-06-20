@@ -266,6 +266,7 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
     while (!paths.isEmpty()){
         delete paths.deleteMin(NULL);
     }
+    while (!idefs->empty()) { delete idefs->shift(); } delete idefs;
 }
 
 void FlowGraph::computeDefUseDist(){

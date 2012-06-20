@@ -1,4 +1,4 @@
-/* 
+/*
  * This file is part of the pebil project.
  * 
  * Copyright (c) 2010, University of California Regents
@@ -44,6 +44,17 @@ typedef struct {
 
 #define MAX_DEF_USE_DIST_PRINT 1024
 
+// returns a map of function addresses and the scratch register used to hold the thread data address
+// (X86_REG_INVALID if no such register is available)
+std::map<uint64_t, uint32_t>* InstrumentationTool::threadReadyCode(){
+    std::map<uint64_t, uint32_t>* functionThreading = new std::map<uint64_t, uint32_t>();
+    for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+        Function* f = getExposedFunction(i);
+        (*functionThreading)[f->getBaseAddress()] = instrumentForThreading(f);
+    }
+    return functionThreading;
+}
+
 Vector<X86Instruction*>* InstrumentationTool::atomicIncrement(uint32_t dest, uint32_t scratch, uint32_t count, uint64_t memaddr, Vector<X86Instruction*>* insns){
     Vector<X86Instruction*>* fill = insns;
     if (fill == NULL){
@@ -83,22 +94,16 @@ uint32_t InstrumentationTool::instrumentForThreading(Function* func){
                 for (uint32_t j = X86_64BIT_GPRS; j < X86_ALU_REGS; j++){
                     inv->insert(j);
                 }
+                inv->insert(X86_REG_AX);
                 inv->insert(X86_REG_SP);
                 inv->insert(d);
-                BitSet<uint32_t>* deadRegs = entry->getDeadRegIn(inv);
+                BitSet<uint32_t>* deadRegs = entry->getDeadRegIn(inv, 1);
                 
                 uint32_t s;
-                if (deadRegs->empty()){
-                    s = X86_REG_CX;
-                    if (d == s){
-                        s = X86_REG_DX;
-                    }
-                } else {
-                    for (uint32_t j = 0; j < X86_64BIT_GPRS; j++){
-                        if (deadRegs->contains(j)){
-                            s = j;
-                            break;
-                        }
+                for (uint32_t j = 0; j < X86_64BIT_GPRS; j++){
+                    if (deadRegs->contains(j)){
+                        s = j;
+                        break;
                     }
                 }
                 //PRINT_INFOR("\t\tassigning data at %#lx to reg %d via scratch %d", entry->getBaseAddress(), d, s);
@@ -117,7 +122,7 @@ uint32_t InstrumentationTool::instrumentForThreading(Function* func){
     }
     // no dead register in the function. store the thread data addr on the stack
     else {
-        d = -1;
+        d = X86_REG_INVALID;
 
         // figuring out the size of the stack frame is REALLY HARD
         return d;
@@ -281,6 +286,7 @@ void InstrumentationTool::declare(){
 }
 
 void InstrumentationTool::instrument(){
+    imageKey = reserveDataOffset(sizeof(uint64_t));
     threadHash = reserveDataOffset(sizeof(ThreadData) * (ThreadHashMod + 1));
 
 #ifdef HAVE_MPI
@@ -356,13 +362,15 @@ Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, 
     // and $0xffff,%d
     insns->append(X86InstructionFactory64::emitImmAndReg(0xffff, dest));
     // mov $TData,%sr
-    insns->append(X86InstructionFactory64::emitMoveImmToReg(getInstDataAddress() + threadHash, scratch));
+    insns->append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, scratch), this, getInstDataAddress() + threadHash, false));
     // sll $4,%d
     insns->append(X86InstructionFactory64::emitShiftLeftLogical(4, dest));
     // lea [$0x08+$offset](0,%d,%sr),%d
     insns->append(X86InstructionFactory64::emitLoadEffectiveAddress(scratch, dest, 0, 0x08, dest, true, true));
 
     if (storeToStack){
+        // knowing where this info is relative to %sp is HARD
+        __FUNCTION_NOT_IMPLEMENTED;
         // mov (%d),%sr
         insns->append(X86InstructionFactory64::emitMoveRegaddrImmToReg(dest, 0, scratch));
         // mov %sr,0x200(%sp)
@@ -375,7 +383,7 @@ Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, 
     return insns;
 }
 
-InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, X86Instruction* bestinst, bool add, uint32_t threadReg, InstLocations loc, BitSet<uint32_t>* useRegs){
+InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, X86Instruction* bestinst, bool add, uint32_t threadReg, InstLocations loc, BitSet<uint32_t>* useRegs, uint32_t val){
 
     uint32_t regLimit = X86_32BIT_GPRS;
     if (getElfFile()->is64Bit()){
@@ -406,6 +414,9 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
                 useit = true;
             }
 
+            if (i == X86_REG_SP || i == X86_REG_AX){
+                continue;
+            }
             if (useit){
                 if (sr1 == regLimit){
                     sr1 = i;
@@ -439,7 +450,7 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
         // any threaded
         if (isThreadedMode()){
             // load thread data base addr into %sr1
-            if (threadReg == -1){
+            if (threadReg == X86_REG_INVALID){
                 /*
                 uint32_t stackPatch = 0;
                 if (loc == InstLocation_prior && !bestinst->isRegDeadIn(sr1)){
@@ -461,17 +472,17 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
                 sr1 = threadReg;
             }
             if (add){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToRegaddrImm(1, sr1, counterOffset));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToRegaddrImm(val, sr1, counterOffset));
             } else {
-                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToRegaddrImm(-1, sr1, counterOffset));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToRegaddrImm(-1 * val, sr1, counterOffset));
             }
         }
         // non-threaded executable
         else if (getElfFile()->isExecutable()){
             if (add){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToMem(val, getInstDataAddress() + counterOffset));
             } else {
-                snip->addSnippetInstruction(X86InstructionFactory64::emitSubImmByteToMem64(1, getInstDataAddress() + counterOffset));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToMem(-1 * val, getInstDataAddress() + counterOffset));
             }
         }
         // non-threaded shared library
@@ -479,18 +490,28 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
             snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, sr1), this, getInstDataAddress() + counterOffset, false));
             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrToReg(sr1, sr2));
             if (add){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitRegAddImm(sr2, 1));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitRegAddImm(sr2, val));
             } else {
-                snip->addSnippetInstruction(X86InstructionFactory64::emitRegSubImm(sr2, 1));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitRegSubImm(sr2, val));
             }
             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddr(sr2, sr1));
         }
     } else {
         ASSERT(getElfFile()->isExecutable());
+        ASSERT(!isThreadedMode());
+        uint32_t v = val;
+        while (v > 0x7f){
+            if (add){
+                snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(0x7f, getInstDataAddress() + counterOffset));
+            } else {
+                snip->addSnippetInstruction(X86InstructionFactory32::emitSubImmByteToMem(0x7f, getInstDataAddress() + counterOffset));
+            }
+            v -= 0x7f;
+        }
         if (add){
-            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
+            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(v, getInstDataAddress() + counterOffset));
         } else {
-            snip->addSnippetInstruction(X86InstructionFactory32::emitSubImmByteToMem(1, getInstDataAddress() + counterOffset));
+            snip->addSnippetInstruction(X86InstructionFactory32::emitSubImmByteToMem(v, getInstDataAddress() + counterOffset));
         }
     }
 
@@ -504,6 +525,10 @@ InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOf
 }
 
 InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOffset, Base* within, bool add, uint32_t threadReg){
+    return insertBlockCounter(counterOffset, within, add, threadReg, 1);
+}
+
+InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOffset, Base* within, bool add, uint32_t threadReg, uint32_t inc){
     BasicBlock* scope = NULL;
 
     if (within->getType() == PebilClassType_BasicBlock){
@@ -539,7 +564,7 @@ InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOf
 
     bestinst = scope->findBestInstPoint(&loc, validRegs, useRegs, true);
 
-    InstrumentationPoint* p = insertInlinedTripCounter(counterOffset, bestinst, add, threadReg, loc, useRegs);
+    InstrumentationPoint* p = insertInlinedTripCounter(counterOffset, bestinst, add, threadReg, loc, useRegs, inc);
 
     delete validRegs;
     delete useRegs;

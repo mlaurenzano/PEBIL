@@ -130,7 +130,7 @@ void delete_counter_array(void* args){
     }
 }
 
-void* tool_thread_init2(pthread_t tid){
+void* tool_thread_init(pthread_t tid){
     if (alldata){
         alldata->AddThread(tid);
     } else {
@@ -139,20 +139,10 @@ void* tool_thread_init2(pthread_t tid){
     return NULL;
 }
 
-void* tool_thread_init(void* threadargs){
-    tool_thread_args* x = (tool_thread_args*)threadargs;
-    
-    assert(alldata != NULL && "tool_image_init wasn't already called!?!");
-    alldata->AddThread();
-
-    x->start_function(x->function_args);
-    free(threadargs);
-    return NULL;
-}
-
 extern "C"
 {
     void* tool_mpi_init(){
+        return NULL;
     }
 
     void* tool_image_init(CounterArray* ctrs, uint64_t* key, ThreadData* td){
@@ -180,6 +170,7 @@ extern "C"
             return NULL;
         }
 #endif
+
         if (alldata == NULL){
             PRINT_INSTR(stderr, "data manager does not exist. no images were initialized");
             return NULL;

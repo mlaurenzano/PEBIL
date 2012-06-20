@@ -2,9 +2,9 @@ STATIC_INST_LIB  = @STATIC_INST_LIB@
 
 PEBIL_LIBS = 
 ifeq ($(STATIC_INST_LIB),yes)
-	PEBIL_LIBS = libcounter.a  libsimulator.a  libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  liblptimer.a  cxx_libcounter.a
+	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  liblptimer.a  cxx_libcounter.a  cxx_libsimulator.a
 else
-	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so libclassifier.so libpfreq.so libtautrace.so liblptimer.so cxx_libcounter.so
+	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblptimer.so cxx_libcounter.so cxx_libsimulator.so
 endif
 
 LIB_TARGETS = $(PEBIL_LIBS)
@@ -42,12 +42,14 @@ all: $(LIB_TARGETS)
 	$(MPICXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
 
 cxx_libcounter.so : CounterFunctions.O $(CXX_COMMON_OBJS)
-	$(MPICXX) $(SHARED_LIB) -o $@ CounterFunctions.O $(CXX_COMMON_OBJS) $(EXTRA_LIBS)
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
 libcounter.so : CounterFunctions.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ CounterFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS)
 libcounter.a : CounterFunctions.o $(COMMON_OBJS)
 	$(AR) $@ CounterFunctions.o $(COMMON_OBJS)
 
+cxx_libsimulator.so : Simulation.O CacheSimulationCommon.O $(CXX_COMMON_OBJS)
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
 libsimulator.so : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS) $(EXTRA_LIBS)
 libsimulator.a : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)

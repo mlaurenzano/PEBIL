@@ -66,14 +66,14 @@ void Classification::declare(){
 void Classification::addInt_Store(Vector<X86Instruction*>& instructions, int x, uint64_t store){
     while(x >= 127) {
         if (is64Bit())
-            instructions.append(X86InstructionFactory64::emitAddImmByteToMem64(127, getInstDataAddress()+store));
+            instructions.append(X86InstructionFactory64::emitAddImmByteToMem(127, getInstDataAddress()+store));
         else
             instructions.append(X86InstructionFactory32::emitAddImmByteToMem(127, getInstDataAddress()+store));
         x -= 127;
     }
     if (x > 0) {
         if (is64Bit())
-            instructions.append(X86InstructionFactory64::emitAddImmByteToMem64(x, getInstDataAddress()+store));
+            instructions.append(X86InstructionFactory64::emitAddImmByteToMem(x, getInstDataAddress()+store));
         else
             instructions.append(X86InstructionFactory32::emitAddImmByteToMem(x, getInstDataAddress()+store));
     }

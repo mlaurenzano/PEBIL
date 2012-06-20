@@ -88,8 +88,7 @@ extern void pebil_set_data(pthread_key_t image_id, void* data);
 extern void* pebil_get_data(pthread_t thread_id, pthread_key_t image_id);
 extern void* pebil_get_data_self(pthread_key_t image_id);
 
-extern void* tool_thread_init(void* args);
-extern void* tool_thread_init2(pthread_t tid);
+extern void* tool_thread_init(pthread_t args);
 
 #ifdef HAVE_MPI
 #define __taskmarker "-[t%d]- "

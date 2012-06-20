@@ -245,6 +245,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
     if (protectRegs->contains(X86_REG_SP)){
         protectStack = true;
     }
+    delete protectRegs;
 
     if (protectStack){
         trampolineInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
@@ -558,16 +559,16 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     }
     
     // align the stack
-    wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, X86_REG_CX), elfInst, fxStorageOffset, true));
-    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToRegaddr(X86_REG_SP, X86_REG_CX));
+    wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, X86_REG_R14), elfInst, fxStorageOffset, true));
+    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToRegaddr(X86_REG_SP, X86_REG_R14));
     wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_stackalign, X86_REG_SP));
     wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg((uint32_t)~(Size__trampoline_stackalign - 1), X86_REG_R15));
     wrapperInstructions.append(X86InstructionFactory64::emitRegAndReg(X86_REG_SP, X86_REG_R15));
 
     wrapperInstructions.append(X86InstructionFactory64::emitCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
 
-    wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, X86_REG_CX), elfInst, fxStorageOffset, true));
-    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegaddrToReg(X86_REG_CX, X86_REG_SP));
+    wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, X86_REG_R14), elfInst, fxStorageOffset, true));
+    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegaddrToReg(X86_REG_R14, X86_REG_SP));
 
     if (assumeFunctionFP){
         wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitFxRstor(0), elfInst, fxStor, true));
@@ -1160,6 +1161,9 @@ bool InstrumentationPoint::verify(){
 InstrumentationPoint::~InstrumentationPoint(){
     for (uint32_t i = 0; i < trampolineInstructions.size(); i++){
         delete trampolineInstructions[i];
+    }
+    if (deadRegs){
+        delete deadRegs;
     }
 }
 

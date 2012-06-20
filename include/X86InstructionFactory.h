@@ -105,6 +105,8 @@ public:
     static X86Instruction* emitMoveImmToReg(uint64_t imm, uint32_t idx);
     static X86Instruction* emitMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest);
     static X86Instruction* emitAddImmByteToRegaddrImm(uint8_t byte, uint8_t reg, uint32_t imm);
+    static X86Instruction* emitAddImmToRegaddrImm(uint32_t b, uint8_t reg, uint32_t imm);
+    static X86Instruction* emitMoveImmToRegaddrImm(uint64_t, uint32_t, uint64_t);
 
     static X86Instruction* emitMoveRegToMem(uint32_t idx, uint64_t addr);
     static X86Instruction* emitMoveMemToReg(uint64_t addr, uint32_t idx, bool is64bit);
@@ -116,8 +118,8 @@ public:
     static X86Instruction* emitShiftRightLogical(uint8_t imm, uint8_t reg);
 
     static X86Instruction* emitAddImmByteToMem(uint8_t, uint64_t);
-    static X86Instruction* emitAddImmByteToMem64(uint8_t, uint64_t);
-    static X86Instruction* emitSubImmByteToMem64(uint8_t, uint64_t);
+    static X86Instruction* emitAddImmToMem(uint32_t, uint64_t);
+    static X86Instruction* emitSubImmByteToMem(uint8_t, uint64_t);
     static X86Instruction* emitXorRegReg(uint8_t, uint8_t);
     static X86Instruction* emitRegAddReg2OpForm(uint32_t srcdestreg, uint32_t srcreg);
     static X86Instruction* emitRegImmMultReg(uint32_t src, uint32_t imm, uint32_t dest);
@@ -133,6 +135,8 @@ public:
     static X86Instruction* emitMoveSegmentRegToReg(uint32_t src, uint32_t dest);
     static X86Instruction* emitRegAndReg(uint32_t, uint32_t);
     static X86Instruction* emitImmAndReg(uint32_t, uint8_t);
+    static X86Instruction* emitRegOrReg(uint32_t, uint32_t);
+    static X86Instruction* emitImmOrReg(uint32_t, uint8_t);
 };
 
 class X86InstructionFactory32 : public X86InstructionFactory {

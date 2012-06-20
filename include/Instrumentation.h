@@ -275,6 +275,7 @@ public:
     uint32_t wrapperReservedSize() { return Size__64_bit_function_wrapper; }
 };
 
+// instrumentation points at the same place are executed in ascending order here (low executed last)
 typedef enum {
     InstPriority_undefined = 0,
     InstPriority_sysinit,

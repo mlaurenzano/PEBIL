@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <strings.h>
-#include <CacheSimulationCommon.h>
+#include <CacheSimulationCommon.hpp>
 
 
 #ifndef PRINT_INSTR

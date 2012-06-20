@@ -110,6 +110,25 @@ typedef struct {
     uint8_t   isVictimCacheHierarchy;
 } MemoryHierarchy;
 
+typedef struct {
+    uint64_t    address;
+    uint32_t    blockid;
+    uint32_t    memopid;
+} BufferEntry;
+#define __buf_current  address
+#define __buf_capacity blockid
+#define __buf_reserved memopid
+
+typedef struct {
+    bool Initialized;
+    uint32_t Size;
+    pthread_t threadid;
+    pthread_key_t imageid;
+    BufferEntry* Buffer;
+    char* Application;
+    char* Extension;
+} CacheStats;
+
 extern void initCaches(MemoryHierarchy* systems, uint32_t systemCount);
 extern void processVictimCache(Address_t toFind, Address_t* victim, uint8_t* nVictims, AccessStatus* status, Cache* cache);
 extern void processInclusiveCache(Address_t toFind, Address_t* victim, uint8_t* nvictims, AccessStatus* status, Cache* cache);
