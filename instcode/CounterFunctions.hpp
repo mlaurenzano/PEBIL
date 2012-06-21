@@ -39,6 +39,7 @@ static const char* CounterTypeNames[CounterType_total] = {
 
 typedef struct {
     bool Initialized;
+    bool PerInstruction;
     uint32_t Size;
     pthread_t threadid;
     pthread_key_t imageid;

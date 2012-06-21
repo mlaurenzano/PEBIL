@@ -93,6 +93,7 @@ private:
 
     bool allowStatic;
     bool threadedMode;
+    bool perInstruction;
 
     ProgramHeader* instSegment;
 
@@ -211,6 +212,8 @@ public:
     void setAllowStatic() { allowStatic = true; }
     void setThreadedMode() { threadedMode = true; ASSERT(is64Bit() && "Threading support not available for IA32"); }
     bool isThreadedMode() { return threadedMode; }
+    void setPerInstruction() { perInstruction = true; }
+    bool isPerInstruction() { return perInstruction; }
 
     char* getApplicationName() { return elfFile->getAppName(); }
     uint32_t getApplicationSize() { return elfFile->getFileSize(); }

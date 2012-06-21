@@ -159,7 +159,7 @@ void FunctionCounter::instrument(){
         InstrumentationTool::insertBlockCounter(counterOffset, f);
     }
 
-    Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
+    Vector<Base*>* allBlocks = new Vector<Base*>();
     Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allBlockLineInfos = new Vector<LineInfo*>();
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){

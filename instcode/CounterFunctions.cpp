@@ -208,7 +208,7 @@ extern "C"
         fprintf(outFile, "# extension = %s\n", ctrs->Extension);
         fprintf(outFile, "# phase     = %d\n", 0);
         fprintf(outFile, "# rank      = %d\n", getTaskId());
-        fprintf(outFile, "# perinsn   = %s\n", USES_STATS_PER_INSTRUCTION);
+        fprintf(outFile, "# perinsn   = %s\n", ctrs->PerInstruction? "yes" : "no");
         fprintf(outFile, "# imageid   = %ld\n", *key);
         fprintf(outFile, "# cntimage  = %d\n", alldata->CountImages());
         fprintf(outFile, "# mainthread= %lx\n", pthread_self());
@@ -241,7 +241,7 @@ extern "C"
         fprintf(outFile, "# extension = %s\n", ctrs->Extension);
         fprintf(outFile, "# phase     = %d\n", 0);
         fprintf(outFile, "# rank      = %d\n", getTaskId());
-        fprintf(outFile, "# perinsn   = %s\n", USES_STATS_PER_INSTRUCTION);
+        fprintf(outFile, "# perinsn   = %s\n", ctrs->PerInstruction? "yes" : "no");
         fprintf(outFile, "# imageid   = %ld\n", *key);
         fprintf(outFile, "# cntimage  = %d\n", alldata->CountImages());
         fprintf(outFile, "# mainthread= %lx\n", pthread_self());

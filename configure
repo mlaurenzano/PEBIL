@@ -665,7 +665,6 @@ ac_user_opts='
 enable_option_checking
 enable_mpi
 enable_static
-enable_instruction_trace
 enable_mpiinit_check
 with_throttler_headers
 '
@@ -1303,9 +1302,6 @@ Optional Features:
   --enable-static         Use static archives for instrumentation libraries;
                           it is extremely unlikely that you want to use this
                           [no]
-  --enable-instruction-trace
-                          Collect simulation stats per instruction, affects
-                          jbb and sim only. [no]
   --enable-mpiinit-check  Disable output file printing in inst libraries
                           unless mpi_init is executed [no]
 
@@ -4563,15 +4559,6 @@ if test "$static_ok" = "yes"; then
    STATIC_INST_LIB="yes"
 fi
 
-
-# Check whether --enable-instruction_trace was given.
-if test "${enable_instruction_trace+set}" = set; then :
-  enableval=$enable_instruction_trace; perinsn_ok=$enableval
-fi
-
-if test "$perinsn_ok" = "yes"; then
-   MPI_FLAGS="$MPI_FLAGS -DSTATS_PER_INSTRUCTION"
-fi
 
 # Check whether --enable-mpiinit_check was given.
 if test "${enable_mpiinit_check+set}" = set; then :

@@ -572,7 +572,7 @@ InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOf
     return p;
 }
 
-void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize){
+void InstrumentationTool::printStaticFile(Vector<Base*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 
     ASSERT(!(*allBlockLineInfos).size() || (*allBlocks).size() == (*allBlockLineInfos).size());
@@ -603,7 +603,10 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     uint32_t fltopcnt = 0;
     uint32_t insncnt = 0;
     for (uint32_t i = 0; i < allBlocks->size(); i++){
-        BasicBlock* bb = (*allBlocks)[i];
+        Base* b = (*allBlocks)[i];
+        ASSERT(b->getType() == PebilClassType_BasicBlock);
+        BasicBlock* bb = (BasicBlock*)b;
+
         memopcnt += bb->getNumberOfMemoryOps();
         membytcnt += bb->getNumberOfMemoryBytes();
         fltopcnt += bb->getNumberOfFloatOps();
@@ -644,8 +647,9 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     uint32_t jumpCount = 0;
 
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
-
-        BasicBlock* bb = (*allBlocks)[i];
+        Base* b = (*allBlocks)[i];
+        ASSERT(b->getType() == PebilClassType_BasicBlock);
+        BasicBlock* bb = (BasicBlock*)b;
         LineInfo* li = (*allBlockLineInfos)[i];
         Function* f = bb->getFunction();
 
@@ -757,7 +761,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }
 
-void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize){
+void InstrumentationTool::printStaticFilePerInstruction(Vector<Base*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 
     ASSERT(!(*allInstructionLineInfos).size() || (*allInstructions).size() == (*allInstructionLineInfos).size());
@@ -788,7 +792,10 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
     uint32_t fltopcnt = 0;
     uint32_t insncnt = 0;
     for (uint32_t i = 0; i < allInstructions->size(); i++){
-        X86Instruction* ins = (*allInstructions)[i];
+        Base* b = (*allInstructions)[i];
+        ASSERT(b->getType() == PebilClassType_X86Instruction);
+        X86Instruction* ins = (X86Instruction*)b;
+
         if (ins->isMemoryOperation()){
             memopcnt++;
         }
@@ -832,8 +839,10 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
     uint32_t jumpCount = 0;
 
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
+        Base* b = (*allInstructions)[i];
+        ASSERT(b->getType() == PebilClassType_X86Instruction);
+        X86Instruction* ins = (X86Instruction*)b;
 
-        X86Instruction* ins = (*allInstructions)[i];
         Function* f = (Function*)ins->getContainer();
         BasicBlock* bb = f->getBasicBlockAtAddress(ins->getBaseAddress());
         LineInfo* li = (*allInstructionLineInfos)[i];

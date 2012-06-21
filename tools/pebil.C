@@ -87,6 +87,7 @@ void printUsage(const char* msg = NULL){
     fprintf(stderr,"\t\t[--dfp <pattern/file>] : path to pattern file\n");
     fprintf(stderr,"\t\t[--dmp <off|on|nosim>] : DEPRECATED, kept for compatibility\n");
     fprintf(stderr,"\t\t[--threaded] : implement thread safety features and keep statistics per thread (DEV ONLY)\n");
+    fprintf(stderr,"\t\t[--perinsn] : gather statistics per instruction if a tool supports it\n");
     fprintf(stderr,"\n");
     exit(1);
 }
@@ -186,6 +187,7 @@ int main(int argc,char* argv[]){
     DEFINE_FLAG(dtl);
     DEFINE_FLAG(doi);
     DEFINE_FLAG(threaded);
+    DEFINE_FLAG(perinsn);
 
 #define DEFINE_ARG(__name) char* __name ## _arg = NULL
     DEFINE_ARG(typ); // char* typ_arg = NULL;
@@ -209,6 +211,7 @@ int main(int argc,char* argv[]){
         /* These options set a flag. */
         FLAG_OPTION(help, 'h'), FLAG_OPTION(allowstatic, 'w'), FLAG_OPTION(silent, 's'), FLAG_OPTION(dry, 'r'),
         FLAG_OPTION(version, 'V'), FLAG_OPTION(lpi, 'p'), FLAG_OPTION(dtl, 'd'), FLAG_OPTION(doi, 'i'), FLAG_OPTION(threaded, 'P'),
+        FLAG_OPTION(perinsn, 'I'),
 
         /* These options take an argument
            We distinguish them by their indices. */
@@ -497,6 +500,10 @@ int main(int argc,char* argv[]){
 
             if (threaded_flag){
                 instTool->setThreadedMode();
+            }
+
+            if (perinsn_flag){
+                instTool->setPerInstruction();
             }
             
             instTool->init(ext);

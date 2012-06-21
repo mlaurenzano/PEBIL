@@ -105,7 +105,7 @@ void Classification::instrument(){
     p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp);
     ASSERT(p);
 
-    Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
+    Vector<Base*>* allBlocks = new Vector<Base*>();
     Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
     LineInfoFinder* lineInfoFinder = NULL;

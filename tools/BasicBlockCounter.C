@@ -120,12 +120,12 @@ void BasicBlockCounter::instrument()
         }
     }
 
-#ifdef STATS_PER_INSTRUCTION
-    PRINT_WARN(10, "Performing instrumentation to gather PER-INSTRUCTION statistics");
-    uint32_t numberOfBlocks = getNumberOfExposedInstructions();
-#else //STATS_PER_INSTRUCTION
     uint32_t numberOfBlocks = getNumberOfExposedBasicBlocks();
-#endif //STATS_PER_INSTRUCTION
+    if (isPerInstruction()){
+        PRINT_WARN(10, "Performing instrumentation to gather PER-INSTRUCTION statistics");
+        numberOfBlocks = getNumberOfExposedInstructions();
+    }
+
     uint32_t numberOfPoints = numberOfBlocks + loopsFound.size();
 
     uint64_t counterStruct = reserveDataOffset(sizeof(CounterArray));
@@ -134,6 +134,7 @@ void BasicBlockCounter::instrument()
     ctrs.Size = numberOfPoints;
 
     ctrs.Initialized = true;
+    ctrs.PerInstruction = isPerInstruction();
 
 #define INIT_CTR_ELEMENT(__typ, __nam)\
     ctrs.__nam = (__typ*)reserveDataOffset(numberOfPoints * sizeof(__typ));\
@@ -181,15 +182,9 @@ void BasicBlockCounter::instrument()
     sprintf(nostring, "%s\0", NOSTRING);
     initializeReservedData(getInstDataAddress() + noData, strlen(NOSTRING) + 1, nostring);
 
-#ifdef STATS_PER_INSTRUCTION
-    Vector<X86Instruction*>* allInstructions = new Vector<X86Instruction*>();
-    Vector<uint32_t>* allInstructionIds = new Vector<uint32_t>();
-    Vector<LineInfo*>* allInstructionLineInfos = new Vector<LineInfo*>();
-#else //STATS_PER_INSTRUCTION
-    Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
+    Vector<Base*>* allBlocks = new Vector<Base*>();
     Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allBlockLineInfos = new Vector<LineInfo*>();
-#endif //STATS_PER_INSTRUCTION
 
     std::map<uint64_t, uint32_t>* functionThreading;
     if (isThreadedMode()){
@@ -198,32 +193,42 @@ void BasicBlockCounter::instrument()
 
     uint64_t currentLeader = 0;
     for (uint32_t i = 0; i < numberOfBlocks; i++){
-#ifdef STATS_PER_INSTRUCTION
-        X86Instruction* ins = getExposedInstruction(i);
 
         LineInfo* li = NULL;
-        if (lineInfoFinder){
-            li = lineInfoFinder->lookupLineInfo(ins);
-        }
-        Function* f = (Function*)ins->getContainer();
-        BasicBlock* bb = f->getBasicBlockAtAddress(ins->getBaseAddress());
-        ASSERT(bb && "exposed instruction should be in a basic block");
+        X86Instruction* ins = NULL;
+        Function* f = NULL;
+        BasicBlock* bb = NULL;
 
-        (*allInstructions).append(ins);
-        (*allInstructionIds).append(i);
-        (*allInstructionLineInfos).append(li);
-#else //STATS_PER_INSTRUCTION
-        BasicBlock* bb = getExposedBasicBlock(i);
-        LineInfo* li = NULL;
-        if (lineInfoFinder){
-            li = lineInfoFinder->lookupLineInfo(bb);
-        }
-        Function* f = bb->getFunction();
+        if (isPerInstruction()){
+            ins = getExposedInstruction(i);
 
-        (*allBlocks).append(bb);
-        (*allBlockIds).append(i);
-        (*allBlockLineInfos).append(li);
-#endif //STATS_PER_INSTRUCTION
+            if (lineInfoFinder){
+                li = lineInfoFinder->lookupLineInfo(ins);
+            }
+            f = (Function*)ins->getContainer();
+            bb = f->getBasicBlockAtAddress(ins->getBaseAddress());
+            ASSERT(bb && "exposed instruction should be in a basic block");
+
+            (*allBlocks).append(ins);
+            (*allBlockIds).append(i);
+            (*allBlockLineInfos).append(li);
+
+        } else {
+            bb = getExposedBasicBlock(i);
+            if (lineInfoFinder){
+                li = lineInfoFinder->lookupLineInfo(bb);
+            }
+            f = bb->getFunction();
+            
+            (*allBlocks).append(bb);
+            (*allBlockIds).append(i);
+            (*allBlockLineInfos).append(li);
+        }
+
+        ASSERT(f && bb);
+        if (isPerInstruction()){
+            ASSERT(ins);
+        }
 
         if (li){
             uint32_t line = li->GET(lr_line);
@@ -241,34 +246,36 @@ void BasicBlockCounter::instrument()
         initializeReservedPointer(funcname, (uint64_t)ctrs.Functions + i*sizeof(char*));
         initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
 
-#ifdef STATS_PER_INSTRUCTION
-        HashCode* hc = ins->generateHashCode(bb);
-        uint64_t hashValue = hc->getValue();
-        delete hc;
-        uint64_t addr = ins->getProgramAddress();
-#else //STATS_PER_INSTRUCTION
-        uint64_t hashValue = bb->getHashCode().getValue();
-        uint64_t addr = bb->getProgramAddress();        
-#endif //STATS_PER_INSTRUCTION
+        uint64_t hashValue;
+        uint64_t addr;
+        if (isPerInstruction()){
+            HashCode* hc = ins->generateHashCode(bb);
+            hashValue = hc->getValue();
+            addr = ins->getProgramAddress();
+            delete hc;
+        } else {
+            hashValue = bb->getHashCode().getValue();
+            addr = bb->getProgramAddress();        
+        }
 
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Hashes + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Addresses + i*sizeof(uint64_t), sizeof(uint64_t), &addr);
         
         CounterTypes tmpct;
-#ifdef STATS_PER_INSTRUCTION
-
-        // only keep a bb counter for one instruction in the block (the leader). all other instructions' counters hold the ID of the active counter
-        // in their block
-        if (bb->getLeader()->getBaseAddress() != ins->getBaseAddress()){
-            tmpct = CounterType_instruction;
-            initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Types + i*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);        
-
-            temp64 = currentLeader;
-            initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
-
-            continue;
+        if (isPerInstruction()){
+            // only keep a bb counter for one instruction in the block (the leader). all other instructions' counters hold the ID of the active counter
+            // in their block
+            if (bb->getLeader()->getBaseAddress() != ins->getBaseAddress()){
+                tmpct = CounterType_instruction;
+                initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Types + i*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);        
+                
+                temp64 = currentLeader;
+                initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
+                
+                continue;
+            }
         }
-#endif //STATS_PER_INSTRUCTION
+
         currentLeader = i;
 
         tmpct = CounterType_basicblock;
@@ -287,10 +294,6 @@ void BasicBlockCounter::instrument()
 
         InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
     }
-
-#ifdef NO_REG_ANALYSIS
-    PRINT_WARN(10, "Warning: register analysis disabled");
-#endif
 
     PRINT_INFOR("Instrumenting %d loops for counting", loopsFound.size());
 
@@ -330,16 +333,20 @@ void BasicBlockCounter::instrument()
             threadReg = (*functionThreading)[f->getBaseAddress()];            
         }
 
-#ifdef STATS_PER_INSTRUCTION
-        X86Instruction* ins = head->getLeader();
-        HashCode* hc = ins->generateHashCode(head);
-        uint64_t hashValue = hc->getValue();
-        delete hc;
-        uint64_t addr = ins->getProgramAddress();
-#else 
         uint64_t hashValue = head->getHashCode().getValue();
         uint64_t addr = head->getProgramAddress();
-#endif
+
+        if (isPerInstruction()){
+            X86Instruction* ins = head->getLeader();
+            HashCode* hc = ins->generateHashCode(head);
+            hashValue = hc->getValue();
+            addr = ins->getProgramAddress();
+            delete hc;
+        } else {
+            hashValue = head->getHashCode().getValue();
+            addr = head->getProgramAddress();
+        }
+
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Hashes + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Addresses + i*sizeof(uint64_t), sizeof(uint64_t), &addr);
 
@@ -373,23 +380,17 @@ void BasicBlockCounter::instrument()
         }
     }
 
-#ifdef STATS_PER_INSTRUCTION
-    printStaticFilePerInstruction(allInstructions, allInstructionIds, allInstructionLineInfos, allInstructions->size());
-#else //STATS_PER_INSTRUCTION
-    printStaticFile(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
-#endif //STATS_PER_INSTRUCTION
+    if (isPerInstruction()){
+        printStaticFilePerInstruction(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
+    } else {
+        printStaticFile(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
+    }
 
     delete[] nostring;
 
-#ifdef STATS_PER_INSTRUCTION
-    delete allInstructions;
-    delete allInstructionIds;
-    delete allInstructionLineInfos;
-#else //STATS_PER_INSTRUCTION
     delete allBlocks;
     delete allBlockIds;
     delete allBlockLineInfos;
-#endif //STATS_PER_INSTRUCTION
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }

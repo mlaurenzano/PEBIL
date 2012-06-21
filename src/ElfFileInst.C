@@ -1806,6 +1806,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     flags = InstrumentorFlag_none;
     allowStatic = false;
     threadedMode = false;
+    perInstruction = false;
 
     libraryList = NULL;
 }
