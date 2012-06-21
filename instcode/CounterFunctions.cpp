@@ -29,6 +29,7 @@
 #include <map>
 
 #include <InstrumentationCommon.hpp>
+#include <CacheSimulationCommon.hpp>
 #include <CounterFunctions.hpp>
 
 #define PRINT_MINIMUM 1

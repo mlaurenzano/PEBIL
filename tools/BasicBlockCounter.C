@@ -30,6 +30,7 @@
 #include <TextSection.h>
 #include <map>
 
+#include <CacheSimulationCommon.hpp>
 #include <CounterFunctions.hpp>
 
 #define LOOP_EXT "loopcnt"

@@ -48,7 +48,7 @@ libcounter.so : CounterFunctions.o $(COMMON_OBJS)
 libcounter.a : CounterFunctions.o $(COMMON_OBJS)
 	$(AR) $@ CounterFunctions.o $(COMMON_OBJS)
 
-cxx_libsimulator.so : Simulation.O CacheSimulationCommon.O $(CXX_COMMON_OBJS)
+cxx_libsimulator.so : Simulation.O $(CXX_COMMON_OBJS)
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
 libsimulator.so : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS) $(EXTRA_LIBS)

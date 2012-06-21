@@ -21,22 +21,6 @@
 #ifndef _CounterFunctions_hpp_
 #define _CounterFunctions_hpp_
 
-typedef enum {
-    CounterType_undefined = 0,
-    CounterType_instruction,
-    CounterType_basicblock,
-    CounterType_loop,
-    CounterType_function,
-    CounterType_total
-} CounterTypes;
-
-static const char* CounterTypeNames[CounterType_total] = {
-    "undefined",
-    "instruction",
-    "basicblock",
-    "loop"
-};
-
 typedef struct {
     bool Initialized;
     bool PerInstruction;
