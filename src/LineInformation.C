@@ -324,6 +324,7 @@ uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
     ASSERT(currByte == sizeInBytes);
 
     verify();
+    this->print();
     return sizeInBytes;
 }
 
@@ -633,8 +634,12 @@ void LineInfo::updateRegsSpecialOpcode(char* instruction){
 
     ASSERT(header->GET(li_line_range) && "A divide by zero error is about to occur");
 
-    int16_t addr_inc = (adjusted_opcode /  header->GET(li_line_range)) *  header->GET(li_min_insn_length);
-    int16_t line_inc = header->GET(li_line_base) + (adjusted_opcode % header->GET(li_line_range));
+    int8_t line_base = header->GET(li_line_base);
+    uint8_t line_range = header->GET(li_line_range);
+    uint8_t min_ins_len = header->GET(li_min_insn_length);
+
+    int16_t addr_inc = (adjusted_opcode / line_range) * min_ins_len;
+    int16_t line_inc = line_base + (adjusted_opcode % line_range);
 
     LineInfo* regs = header->getRegisters();
 
@@ -653,7 +658,7 @@ void LineInfo::initializeWithInstruction(char* instruction){
     instructionBytes.append(instruction[0]);
 
     uint8_t opcode = instruction[0];
-    PRINT_DEBUG_LINEINFO("Opcode %hhd, base %hhd", opcode, header->GET(li_opcode_base));
+    PRINT_DEBUG_LINEINFO("Opcode %hhu, base %hhu", opcode, header->GET(li_opcode_base));
     if (opcode < header->GET(li_opcode_base)-1){
         if (opcode == DW_LNS_extended_op){
             updateRegsExtendedOpcode(instruction);

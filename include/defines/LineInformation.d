@@ -95,7 +95,7 @@ Offset	Length  Name
     GET_FIELD_CLASS(uint64_t,li_header_length); \
     GET_FIELD_CLASS(uint8_t,li_min_insn_length); \
     GET_FIELD_CLASS(uint8_t,li_default_is_stmt); \
-    GET_FIELD_CLASS(uint8_t,li_line_base); \
+    GET_FIELD_CLASS(int8_t,li_line_base); \
     GET_FIELD_CLASS(uint8_t,li_line_range); \
     GET_FIELD_CLASS(uint8_t,li_opcode_base); \
         \
@@ -104,7 +104,7 @@ Offset	Length  Name
     SET_FIELD_CLASS(uint64_t,li_header_length); \
     SET_FIELD_CLASS(uint8_t,li_min_insn_length); \
     SET_FIELD_CLASS(uint8_t,li_default_is_stmt); \
-    SET_FIELD_CLASS(uint8_t,li_line_base); \
+    SET_FIELD_CLASS(int8_t,li_line_base); \
     SET_FIELD_CLASS(uint8_t,li_line_range); \
     SET_FIELD_CLASS(uint8_t,li_opcode_base); \
         \
@@ -113,7 +113,7 @@ Offset	Length  Name
     INCREMENT_FIELD_CLASS(uint64_t,li_header_length); \
     INCREMENT_FIELD_CLASS(uint8_t,li_min_insn_length); \
     INCREMENT_FIELD_CLASS(uint8_t,li_default_is_stmt); \
-    INCREMENT_FIELD_CLASS(uint8_t,li_line_base); \
+    INCREMENT_FIELD_CLASS(int8_t,li_line_base); \
     INCREMENT_FIELD_CLASS(uint8_t,li_line_range); \
     INCREMENT_FIELD_CLASS(uint8_t,li_opcode_base); \
 
