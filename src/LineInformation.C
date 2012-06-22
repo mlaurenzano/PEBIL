@@ -324,7 +324,6 @@ uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
     ASSERT(currByte == sizeInBytes);
 
     verify();
-    this->print();
     return sizeInBytes;
 }
 

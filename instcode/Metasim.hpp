@@ -31,6 +31,7 @@
 #define warn cerr << "[" << METASIM_ID << "-r" << getTaskId() << "] " << "Warning: "
 #define ErrorExit(__msg, __errno) DISPLAY_ERROR << __msg << endl << flush; exit(__errno);
 #define inform cout << "[" << METASIM_ID << "-r" << getTaskId() << "] "
+
 //#define debug(...) __VA_ARGS__
 #define debug(...)
 

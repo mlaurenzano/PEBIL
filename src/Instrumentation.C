@@ -243,13 +243,20 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
 
     BitSet<uint32_t>* protectRegs = instrumentation->getProtectedRegisters();
     if (protectRegs->contains(X86_REG_SP)){
+    //if (protectRegs->size() > 0){
         protectStack = true;
     }
-    delete protectRegs;
 
     if (protectStack){
         trampolineInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+    }
+
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+        if (protectRegs->contains(i)){
+            trampolineInstructions.append(X86InstructionFactory64::emitStackPush(i));
+            trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        }
     }
 
     if (protectionMethod == FlagsProtectionMethod_full){
@@ -302,6 +309,14 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
         trampolineInstructions.append(X86InstructionFactory64::emitMoveMemToReg(regStorageBase, X86_REG_AX, true));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
+
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+        if (protectRegs->contains(i)){
+            trampolineInstructions.append(X86InstructionFactory64::emitStackPop(X86_64BIT_GPRS - i - 1));
+            trampolineSize += trampolineInstructions.back()->getSizeInBytes();
+        }
+    }
+    delete protectRegs;
 
     if (protectStack){
         trampolineInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
@@ -522,6 +537,8 @@ uint32_t InstrumentationFunction32::generateBootstrapInstructions(uint64_t textB
 uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBaseAddress, uint64_t dataBaseAddress, uint64_t fxStorageOffset, ElfFileInst* elfInst){
     ASSERT(!wrapperInstructions.size() && "This array should be empty");
 
+    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
+
     if (assumeFlagsUnsafe){
         wrapperInstructions.append(X86InstructionFactory64::emitPushEflags());
     }
@@ -580,6 +597,7 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         wrapperInstructions.append(X86InstructionFactory64::emitPopEflags());
     }
     
+    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
     wrapperInstructions.append(X86InstructionFactory64::emitReturn());
     
     uint32_t nopBytes = wrapperReservedSize() - wrapperSize();

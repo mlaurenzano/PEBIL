@@ -21,9 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
 #include <strings.h>
-#include <DFPattern.h>
 
 #include <vector>
 #include <iostream>
@@ -33,13 +31,238 @@
 #include <unordered_map>
 #include <string.h>
 #include <assert.h>
-#include <InstrumentationCommon.hpp>
 
+#include <DFPattern.h>
+#include <InstrumentationCommon.hpp>
 #include <Simulation.hpp>
 
-using namespace std;
+static uint32_t MemCapacity = 0;
+static uint32_t CountCacheStructures = 0;
 
-DataManager<SimulationStats*>* alldata = NULL;
+static CacheStructure** CacheStructures_ = NULL;
+static SamplingMethod* SamplingMethod_ = NULL;
+static DataManager<SimulationStats*>* AllData = NULL;
+
+extern "C" {
+    void* tool_mpi_init(){
+        return NULL;
+    }
+
+    void* tool_thread_init(pthread_t tid){
+        if (AllData){
+            AllData->AddThread(tid);
+        } else {
+            PRINT_INSTR(stderr, "Calling PEBIL thread initialization library for thread %lx but no images have been initialized.", tid);
+        }
+        return NULL;
+    }
+
+    void* tool_image_init(void* s, uint64_t* key, ThreadData* td){
+        SimulationStats* stats = (SimulationStats*)s;
+
+        PRINT_INSTR(stdout, "raw args %#lx, %#lx, %#lx", (uint64_t)stats, (uint64_t)key, (uint64_t)td);
+
+        ReadKnobs();
+
+        assert(stats->Stats == NULL);
+        stats->Stats = new CacheStats*[CountCacheStructures];
+        for (uint32_t i = 0; i < CountCacheStructures; i++){
+            stats->Stats[i] = new CacheStats(CacheStructures_[i]->levelCount, CacheStructures_[i]->sysId, stats->InstructionCount);
+        }
+
+        assert(stats->Initialized == true);
+        if (AllData == NULL){
+            AllData = new DataManager<SimulationStats*>(GenerateCacheStats, DeleteCacheStats, ReferenceCacheStats);
+        }
+
+        PRINT_INSTR(stdout, "Buffer features: capacity=%ld, current=%ld", BUFFER_CAPACITY(stats), BUFFER_CURRENT(stats));
+
+        *key = AllData->AddImage(stats, td);
+        stats->imageid = *key;
+        stats->threadid = pthread_self();
+
+        AllData->SetTimer(*key, 0);
+        
+        return NULL;
+    }
+
+    void* process_buffer(uint64_t* key){
+        AllData->SetTimer(*key, 2);
+        if (AllData == NULL){
+            PRINT_INSTR(stderr, "data manager does not exist. no images were initialized");
+            return NULL;
+        }
+
+        SimulationStats* stats = (SimulationStats*)AllData->GetData(*key, pthread_self());
+        if (stats == NULL){
+            PRINT_INSTR(stderr, "Cannot retreive image data using key %ld", *key);
+            return NULL;
+        }
+        register uint64_t numElements = BUFFER_CURRENT(stats);
+        uint64_t capacity = BUFFER_CAPACITY(stats);
+
+        //PRINT_INSTR(stdout, "counter %ld\tcapacity %d", numElements, capacity);
+        if (SamplingMethod_->CurrentlySampling()){
+
+            /*
+            for (uint32_t i = 0; i < BUFFER_CURRENT(stats); i++){
+                PRINT_INSTR(stdout, "\t\tbuf[%d] addr %#lx\tseq %ld", i, buf[i].address, buf[i].memseq);
+            }
+            */
+            BufferEntry* buffer = &(stats->Buffer[1]);
+
+            set<uint64_t> MemsRemoved;
+
+            // loop over address buffer
+            for (uint32_t i = 0; i < CountCacheStructures; i++){
+                CacheStructure* c = CacheStructures_[i];
+                for (uint32_t j = 0; j < numElements; j++){
+                    BufferEntry* reference = &(stats->Buffer[j + 1]);
+                    c->Process((void*)stats->Stats[i], reference);
+                }
+            }
+
+            for (uint32_t j = 0; j < numElements; j++){
+                BufferEntry* reference = &(stats->Buffer[j + 1]);
+                stats->Counters[reference->memseq]++;
+                if (SamplingMethod_->ExceedsAccessLimit(stats->Counters[reference->memseq])){
+                    MemsRemoved.insert(reference->memseq);
+                }
+            }
+
+            // TODO: remove all points found in MemsRemoved
+        }
+
+        SamplingMethod_->IncrementAccessCount(numElements);
+
+        BUFFER_CURRENT(stats) = 0;
+        debug(inform << "resetting buffer " << BUFFER_CURRENT(stats) << ENDL);
+
+        AllData->SetTimer(*key, 3);
+        return NULL;
+    }
+
+    void* tool_image_fini(uint64_t* key){
+        inform << "HELLO" << ENDL;
+
+        AllData->SetTimer(*key, 1);
+
+#ifdef MPI_INIT_REQUIRED
+        if (!isMpiValid()){
+            PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print jbbinst files", getpid());
+            return NULL;
+        }
+#endif
+
+        if (AllData == NULL){
+            PRINT_INSTR(stderr, "data manager does not exist. no images were initialized");
+            return NULL;
+        }
+        SimulationStats* stats = (SimulationStats*)AllData->GetData(*key, pthread_self());
+        if (stats == NULL){
+            PRINT_INSTR(stderr, "Cannot retreive image data using key %ld", *key);
+            return NULL;
+        }        
+
+        process_buffer(key);
+
+        inform
+            << "Instruction count: " << stats->InstructionCount << ENDL
+            << "Block count: " << stats->BlockCount << ENDL
+            << "Per Instruction: " << (stats->PerInstruction ? "yes":"no") << ENDL;
+
+        (inform << "#seq"
+              << TAB << "addr"
+              << TAB << "hash"
+              << TAB << "bbid"
+              << TAB << "memid"
+              << TAB << "lineno"
+              << TAB << "func"
+              << ENDL);
+
+        for (uint32_t i = 0; i < stats->BlockCount; i++){
+            (inform << dec << i 
+                  << TAB << hex << stats->Addresses[i]
+                  << TAB << hex << stats->Hashes[i]
+                  << TAB << hex << stats->BlockIds[i]
+                  << TAB << dec << stats->MemopIds[i]
+                  << TAB << stats->Files[i]
+                  << TAB << dec << stats->Lines[i]
+                  << TAB << stats->Functions[i]
+             << ENDL);
+        }
+
+        ofstream MemFile;
+        const char* fileName = SimulationFileName(stats);
+        TryOpen(MemFile, fileName);
+
+        CacheStats* c = stats->Stats[0];
+        assert(c);
+        uint64_t sampledCount = 0;
+        for (uint32_t i = 0; i < c->Capacity; i++){
+            sampledCount += c->GetAccessCount(i);
+        }
+
+        MemFile
+            << "# appname     = " << stats->Application << ENDL
+            << "# extension   = " << stats->Extension << ENDL
+            << "# rank        = " << dec << getTaskId() << ENDL
+            << "# buffer      = " << BUFFER_CAPACITY(stats) << ENDL
+            << "# total       = " << dec << SamplingMethod_->AccessCount << ENDL
+            << "# sampled     = " << dec << sampledCount << ENDL
+            << "# processed   = " << dec << sampledCount << ENDL
+            << "# samplemax   = " << SamplingMethod_->AccessLimit << ENDL
+            << "# sampleon    = " << SamplingMethod_->SampleOn << ENDL
+            << "# sampleoff   = " << SamplingMethod_->SampleOff << ENDL
+            << "# perinsn     = " << (stats->PerInstruction? "yes" : "no") << ENDL
+            << "#" << ENDL;
+
+        for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+            stats = AllData->GetData(*key, (*it));
+            assert(stats);
+            PrintSimulationStats(MemFile, stats, (*it));
+        }
+    }
+
+};
+
+void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid){
+    for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
+        CacheStats* c = stats->Stats[sys];
+        assert(c->Capacity == stats->InstructionCount);
+
+        inform << "sysid" << dec << c->SysId << " = ";
+        for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
+            uint64_t h = c->GetHits(lvl);
+            uint64_t m = c->GetMisses(lvl);
+            uint64_t t = h + m;
+            cout << "l" << dec << lvl << "[" << h << "," << t << "(" << CacheStats::GetHitRate(h, m) << ")] ";
+        }
+        cout << ENDL;
+    }
+
+}
+
+void TryOpen(ofstream& f, const char* name){
+    f.open(name);
+    f.setf(ios::showbase);
+    if (f.fail()){
+        ErrorExit("cannot open output file: " << name, MetasimError_FileOp);
+    }
+}
+
+
+const char* SimulationFileName(SimulationStats* stats){
+    string oFile;
+
+    oFile.append(stats->Application);
+    oFile.append(".meta_");
+    AppendRankString(oFile);
+    oFile.append(".");
+    oFile.append(stats->Extension);
+
+    return oFile.c_str();
+}
 
 uint32_t RandomInt(uint32_t max){
     return rand() % max;
@@ -115,10 +338,14 @@ CacheStats::~CacheStats(){
 }
 
 float CacheStats::GetHitRate(LevelStats* stats){
-    if (stats->hitCount + stats->missCount == 0){
+    return GetHitRate(stats->hitCount, stats->missCount);
+}
+
+float CacheStats::GetHitRate(uint64_t hits, uint64_t misses){
+    if (hits + misses == 0){
         return 0.0;
     }
-    return ((float)stats->hitCount) / ((float)stats->hitCount + (float)stats->missCount);
+    return ((float)hits) / ((float)hits + (float)misses);
 }
 
 void CacheStats::ExtendCapacity(uint32_t newSize){
@@ -152,8 +379,24 @@ uint64_t CacheStats::GetHits(uint32_t memid, uint32_t lvl){
     return Stats[memid][lvl].hitCount;
 }
 
+uint64_t CacheStats::GetHits(uint32_t lvl){
+    uint64_t hits = 0;
+    for (uint32_t i = 0; i < Capacity; i++){
+        hits += Stats[i][lvl].hitCount;
+    }
+    return hits;
+}
+
 uint64_t CacheStats::GetMisses(uint32_t memid, uint32_t lvl){
     return Stats[memid][lvl].missCount;
+}
+
+uint64_t CacheStats::GetMisses(uint32_t lvl){
+    uint64_t hits = 0;
+    for (uint32_t i = 0; i < Capacity; i++){
+        hits += Stats[i][lvl].missCount;
+    }
+    return hits;
 }
 
 bool CacheStats::HasMemId(uint32_t memid){
@@ -195,8 +438,12 @@ float CacheStats::GetCumulativeHitRate(uint32_t memid, uint32_t lvl){
     return ((float)hits / (float)GetAccessCount(memid));
 }
 
-// returns true on success... allows things to continue on failure if desired
 bool ParsePositiveInt32(string token, uint32_t* value){
+    return ParseInt32(token, value, 1);
+}
+                
+// returns true on success... allows things to continue on failure if desired
+bool ParseInt32(string token, uint32_t* value, uint32_t min){
     int32_t val;
     uint32_t mult = 1;
     bool ErrorFree = true;
@@ -230,7 +477,7 @@ bool ParsePositiveInt32(string token, uint32_t* value){
         }
     }
 
-    if (val <= 0){
+    if (val < min){
         ErrorFree = false;
     }
 
@@ -290,10 +537,12 @@ bool ReadEnvUint32(string name, uint32_t* var){
     char* e = getenv(name.c_str());
     if (e == NULL){
         return false;
+        inform << "unable to find " << name << " in environment" << ENDL;
     }
     string s = (string)e;
-    if (!ParsePositiveInt32(s, var)){
+    if (!ParseInt32(s, var, 0)){
         return false;
+        inform << "unable to find " << name << " in environment" << ENDL;
     }
 
     return true;
@@ -333,141 +582,6 @@ bool SamplingMethod::ExceedsAccessLimit(uint64_t count){
     }
     return false;
 }
-static SamplingMethod* SamplingMethod_ = NULL;
-
-extern "C" {
-    void* tool_mpi_init(){
-        return NULL;
-    }
-
-    void* tool_thread_init(pthread_t tid){
-        if (alldata){
-            alldata->AddThread(tid);
-        } else {
-            PRINT_INSTR(stderr, "Calling PEBIL thread initialization library for thread %lx but no images have been initialized.", tid);
-        }
-        return NULL;
-    }
-
-    void* tool_image_init(void* s, uint64_t* key, ThreadData* td){
-        SimulationStats* stats = (SimulationStats*)s;
-
-        PRINT_INSTR(stdout, "raw args %#lx, %#lx, %#lx", (uint64_t)stats, (uint64_t)key, (uint64_t)td);
-
-        ReadKnobs();
-        assert(stats->Stats == NULL);
-        stats->Stats = new CacheStats*[CountCacheStructures];
-        for (uint32_t i = 0; i < CountCacheStructures; i++){
-            stats->Stats[i] = new CacheStats(CacheStructures_[i]->levelCount, CacheStructures_[i]->sysId, stats->Size);
-        }
-
-        assert(stats->Initialized == true);
-        if (alldata == NULL){
-            alldata = new DataManager<SimulationStats*>(GenerateCacheStats, DeleteCacheStats, ReferenceCacheStats);
-        }
-
-        BufferEntry* intro = &(stats->Buffer[0]);
-        BufferEntry* buf = &(stats->Buffer[1]);
-
-        PRINT_INSTR(stdout, "Buffer features: capacity=%ld, current=%ld", intro->__buf_capacity, intro->__buf_current);
-
-        *key = alldata->AddImage(stats, td);
-        stats->imageid = *key;
-        stats->threadid = pthread_self();
-
-        alldata->SetTimer(*key, 0);
-        
-        return NULL;
-    }
-
-    void* process_buffer(uint64_t* key){
-        alldata->SetTimer(*key, 2);
-        if (alldata == NULL){
-            PRINT_INSTR(stderr, "data manager does not exist. no images were initialized");
-            return NULL;
-        }
-
-        SimulationStats* stats = (SimulationStats*)alldata->GetData(*key, pthread_self());
-        if (stats == NULL){
-            PRINT_INSTR(stderr, "Cannot retreive image data using key %ld", *key);
-            return NULL;
-        }
-        register uint64_t numElements = stats->Buffer[0].__buf_current;
-        if (SamplingMethod_->CurrentlySampling()){
-
-            /*
-            PRINT_INSTR(stdout, "counter %ld\tcapacity %d", stats->Buffer[0].__buf_current, stats->Buffer[0].__buf_capacity);
-            for (uint32_t i = 0; i < stats->Buffer[0].__buf_current; i++){
-                PRINT_INSTR(stdout, "\t\tbuf[%d] addr %#lx\tseq %ld", i, buf[i].address, buf[i].memseq);
-            }
-            */
-            BufferEntry* buffer = &(stats->Buffer[1]);
-
-            set<uint64_t> MemsRemoved;
-
-            // loop over address buffer
-            for (uint32_t i = 0; i < CountCacheStructures; i++){
-                CacheStructure* c = CacheStructures_[i];
-                for (uint32_t j = 0; j < numElements; j++){
-                    BufferEntry* reference = &(stats->Buffer[j + 1]);
-                    c->Process((void*)stats->Stats[i], reference);
-                }
-            }
-
-            for (uint32_t j = 0; j < numElements; j++){
-                BufferEntry* reference = &(stats->Buffer[j + 1]);
-                stats->Counters[reference->memseq]++;
-                if (SamplingMethod_->ExceedsAccessLimit(stats->Counters[reference->memseq])){
-                    MemsRemoved.insert(reference->memseq);
-                }
-            }
-        }
-
-        SamplingMethod_->IncrementAccessCount(numElements);
-
-        stats->Buffer[0].__buf_current = 0;
-
-        alldata->SetTimer(*key, 3);
-        return NULL;
-    }
-
-    void* tool_image_fini(uint64_t* key){
-        alldata->SetTimer(*key, 1);
-
-#ifdef MPI_INIT_REQUIRED
-        if (!isMpiValid()){
-            PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print jbbinst files", getpid());
-            return NULL;
-        }
-#endif
-
-        if (alldata == NULL){
-            PRINT_INSTR(stderr, "data manager does not exist. no images were initialized");
-            return NULL;
-        }
-        SimulationStats* stats = (SimulationStats*)alldata->GetData(*key, pthread_self());
-        if (stats == NULL){
-            PRINT_INSTR(stderr, "Cannot retreive image data using key %ld", *key);
-            return NULL;
-        }        
-
-        PRINT_INSTR(stdout, "total blocks: %ld", stats->Size);
-        PRINT_INSTR(stdout, "#seq\taddr\thash\tbbid\tmemid\tlineno\tfunc");
-        for (uint32_t i = 0; i < stats->Size; i++){
-            PRINT_INSTR(stdout, "%d\t%#lx\t%#lx\t%d\t%d\t%s:%d\t%s", i,
-                        stats->Addresses[i],
-                        stats->Hashes[i],
-                        stats->BlockIds[i],
-                        stats->MemopIds[i],
-                        stats->Files[i],
-                        stats->Lines[i],
-                        stats->Functions[i])
-        }
-
-        process_buffer(key);
-    }
-
-};
 
 CacheLevel::CacheLevel(){
 }
@@ -892,15 +1006,19 @@ void* GenerateCacheStats(void* args, uint32_t typ, pthread_key_t iid, pthread_t 
     SimulationStats* s = (SimulationStats*)malloc(sizeof(SimulationStats));
     assert(s);
 
-    // create or copy parts of existing struct as necessary
     memcpy(s, stats, sizeof(SimulationStats));
+
     s->threadid = tid;
     s->imageid = iid;
     s->Initialized = false;
-    s->Counters = new uint64_t[s->Size];
+
+    // each thread gets its own counters and simulation stats
+    s->Counters = new uint64_t[s->BlockCount];
+    bzero(s->Counters, s->BlockCount * sizeof(uint64_t));
+
     s->Stats = new CacheStats*[CountCacheStructures];
     for (uint32_t i = 0; i < CountCacheStructures; i++){
-        s->Stats[i] = new CacheStats(CacheStructures_[i]->levelCount, CacheStructures_[i]->sysId, s->Size);
+        s->Stats[i] = new CacheStats(CacheStructures_[i]->levelCount, CacheStructures_[i]->sysId, s->InstructionCount);
     }
 
     return (void*)s;
@@ -928,13 +1046,13 @@ void ReadKnobs(){
         caches.push_back(c);
         c->Print();
     }
-    CountCacheStructures = caches.size();
-    CacheStructures_ = new CacheStructure*[CountCacheStructures];
 
+    CountCacheStructures = caches.size();
+    assert(CountCacheStructures > 0 && "No cache structures found for simulation");
+    CacheStructures_ = new CacheStructure*[CountCacheStructures];
     for (uint32_t i = 0; i < CountCacheStructures; i++){
         CacheStructures_[i] = caches[i];
     }
-
 
     uint32_t SampleMax;
     uint32_t SampleOn;

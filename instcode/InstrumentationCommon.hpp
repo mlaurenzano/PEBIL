@@ -33,6 +33,7 @@
 #include <unordered_map>
 #include <map>
 #include <set>
+#include <string>
 
 using namespace std;
 
@@ -120,6 +121,31 @@ extern int getNTasks();
     fflush(__file);
 #define PRINT_DEBUG(...) 
 //#define PRINT_DEBUG(...) PRINT_INSTR(__VA_ARGS__)
+
+static void AppendPidString(string& str){
+    char buf[6];
+    sprintf(buf, "%05d", getpid());
+    buf[5] = '\0';
+
+    str.append(buf);
+}
+
+static void AppendRankString(string& str){
+    char buf[5];
+    sprintf(buf, "%04d", getTaskId());
+    buf[4] = '\0';
+
+    str.append(buf);
+}
+
+
+static void AppendTasksString(string& str){
+    char buf[5];
+    sprintf(buf, "%04d", getNTasks());
+    buf[4] = '\0';
+
+    str.append(buf);
+}
 
 
 typedef struct {
@@ -330,6 +356,7 @@ extern "C" {
     extern void* tool_mpi_init();
     extern void* tool_thread_init(pthread_t args);
     extern void* tool_image_init(void* s, uint64_t* key, ThreadData* td);
+    extern void* tool_image_fini(uint64_t* key);
 };
 
 #endif //_InstrumentationCommon_hpp_

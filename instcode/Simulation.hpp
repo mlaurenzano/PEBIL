@@ -38,11 +38,6 @@ using namespace std;
 
 #define INVALID_CACHE_LEVEL (0xffffffff)
 
-static uint32_t MemCapacity = 0;
-static uint32_t CountCacheStructures = 0;
-class CacheStructure;
-static CacheStructure** CacheStructures_ = NULL;
-
 typedef struct {
     uint64_t    address;
     uint64_t    memseq;
@@ -52,26 +47,36 @@ typedef struct {
 
 class CacheStats;
 typedef struct {
-    bool Initialized;
-    bool PerInstruction;
-    uint32_t Size;
+    // metadata
     pthread_t threadid;
     pthread_key_t imageid;
-    BufferEntry* Buffer;
+    bool Initialized;
+    bool PerInstruction;
+    uint32_t InstructionCount;
+    uint32_t BlockCount;
     char* Application;
     char* Extension;
+
+    // memory buffer
+    BufferEntry* Buffer;
+
+    // per-memop data
     uint32_t* BlockIds;
     uint32_t* MemopIds;
+
+    // per-block data
+    CounterTypes* Types;
+    uint64_t* Counters;
     char** Files;
     uint32_t* Lines;
     char** Functions;
     uint64_t* Hashes;
     uint64_t* Addresses;
     CacheStats** Stats;
-
-    CounterTypes* Types;
-    uint64_t* Counters;
 } SimulationStats;
+#define BUFFER_CAPACITY(__stats) (__stats->Buffer[0].__buf_capacity)
+#define BUFFER_CURRENT(__stats) (__stats->Buffer[0].__buf_current)
+
 
 enum CacheLevelType {
     CacheLevelType_Undefined,
@@ -121,19 +126,23 @@ struct LevelStats {
     uint64_t missCount;
 };
 
-uint32_t RandomInt();
+static uint32_t RandomInt();
 static uint32_t Low32(uint64_t f);
 static uint32_t High32(uint64_t f);
-char ToLowerCase(char c);
-bool IsEmptyComment(string str);
-string GetCacheDescriptionFile();
-bool ParsePositiveInt32(string token, uint32_t* value);
-bool ParsePositiveInt32Hex(string token, uint32_t* value);
-void ReadKnobs();
-void* GenerateCacheStats(void* args, uint32_t typ, pthread_key_t iid, pthread_t tid);
-uint64_t ReferenceCacheStats(void* args);
-void DeleteCacheStats(void* args);
-bool ReadEnvUint32(string name, uint32_t* var);
+static char ToLowerCase(char c);
+static bool IsEmptyComment(string str);
+static string GetCacheDescriptionFile();
+static bool ParsePositiveInt32(string token, uint32_t* value);
+static bool ParseInt32(string token, uint32_t* value, uint32_t min);
+static bool ParsePositiveInt32Hex(string token, uint32_t* value);
+static void ReadKnobs();
+static void* GenerateCacheStats(void* args, uint32_t typ, pthread_key_t iid, pthread_t tid);
+static uint64_t ReferenceCacheStats(void* args);
+static void DeleteCacheStats(void* args);
+static bool ReadEnvUint32(string name, uint32_t* var);
+static void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid);
+static const char* SimulationFileName(SimulationStats* stats);
+static void TryOpen(ofstream& f, const char* name);
 
 extern "C" {
     void* tool_mpi_init();
@@ -160,8 +169,11 @@ public:
     void Miss(uint32_t memid, uint32_t lvl);
 
     static float GetHitRate(LevelStats* stats);
+    static float GetHitRate(uint64_t hits, uint64_t misses);
     uint64_t GetHits(uint32_t memid, uint32_t lvl);
     uint64_t GetMisses(uint32_t memid, uint32_t lvl);
+    uint64_t GetHits(uint32_t lvl);
+    uint64_t GetMisses(uint32_t lvl);
     LevelStats* GetLevelStats(uint32_t memid, uint32_t lvl);
     uint64_t GetAccessCount(uint32_t memid);
     float GetHitRate(uint32_t memid, uint32_t lvl);
