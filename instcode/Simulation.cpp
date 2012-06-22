@@ -26,6 +26,7 @@
 #include <DFPattern.h>
 
 
+#include <vector>
 #include <iostream>
 #include <fstream>
 #include <sstream>
