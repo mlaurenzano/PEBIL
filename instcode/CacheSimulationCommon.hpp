@@ -23,49 +23,4 @@
 
 #include <stdint.h>
 
-typedef enum {
-    CounterType_undefined = 0,
-    CounterType_instruction,
-    CounterType_basicblock,
-    CounterType_loop,
-    CounterType_function,
-    CounterType_total
-} CounterTypes;
-
-static const char* CounterTypeNames[CounterType_total] = {
-    "undefined",
-    "instruction",
-    "basicblock",
-    "loop"
-    "function"
-};
-
-typedef struct {
-    uint64_t    address;
-    uint64_t    memseq;
-} BufferEntry;
-#define __buf_current  address
-#define __buf_capacity memseq
-
-typedef struct {
-    bool Initialized;
-    bool PerInstruction;
-    uint32_t Size;
-    pthread_t threadid;
-    pthread_key_t imageid;
-    BufferEntry* Buffer;
-    char* Application;
-    char* Extension;
-    uint32_t* BlockIds;
-    uint32_t* MemopIds;
-    char** Files;
-    uint32_t* Lines;
-    char** Functions;
-    uint64_t* Hashes;
-    uint64_t* Addresses;
-
-    CounterTypes* Types;
-    uint64_t* Counters;
-} SimulationStats;
-
 #endif //_CacheSimulationCommon_hpp_

@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __INSTRUMENTATION_COMMON_H__
-#define __INSTRUMENTATION_COMMON_H__
+#ifndef _InstrumentationCommon_hpp_
+#define _InstrumentationCommon_hpp_
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -72,12 +72,6 @@ typedef struct
     __give_pebil_name(__fname)
 #endif // PRELOAD_WRAPPERS
 
-extern "C" {
-    extern int __give_pebil_name(pthread_create)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
-    extern int pthread_create_pebil_nothread(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void *arg);
-    extern void* tool_mpi_init();
-};
-
 typedef struct
 {
     void* (*start_function)(void*);
@@ -87,8 +81,6 @@ extern void pebil_image_init(pthread_key_t* image_id);
 extern void pebil_set_data(pthread_key_t image_id, void* data);
 extern void* pebil_get_data(pthread_t thread_id, pthread_key_t image_id);
 extern void* pebil_get_data_self(pthread_key_t image_id);
-
-extern void* tool_thread_init(pthread_t args);
 
 #ifdef HAVE_MPI
 #define __taskmarker "-[t%d]- "
@@ -129,11 +121,6 @@ extern int getNTasks();
 #define PRINT_DEBUG(...) 
 //#define PRINT_DEBUG(...) PRINT_INSTR(__VA_ARGS__)
 
-#ifdef STATS_PER_INSTRUCTION
-#define USES_STATS_PER_INSTRUCTION "yes"
-#else
-#define USES_STATS_PER_INSTRUCTION "no"
-#endif
 
 typedef struct {
     uint64_t id;
@@ -339,5 +326,11 @@ public:
     }
 };
 
-#endif // __INSTRUMENTATION_COMMON_H__
+extern "C" {
+    extern void* tool_mpi_init();
+    extern void* tool_thread_init(pthread_t args);
+    extern void* tool_image_init(void* s, uint64_t* key, ThreadData* td);
+};
+
+#endif //_InstrumentationCommon_hpp_
 

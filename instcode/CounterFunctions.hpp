@@ -21,6 +21,8 @@
 #ifndef _CounterFunctions_hpp_
 #define _CounterFunctions_hpp_
 
+#include <Metasim.hpp>
+
 typedef struct {
     bool Initialized;
     bool PerInstruction;
@@ -38,4 +40,4 @@ typedef struct {
     char* Extension;
 } CounterArray;
 
-#endif
+#endif //_CounterFunctions_hpp_

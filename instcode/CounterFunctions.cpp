@@ -29,7 +29,7 @@
 #include <map>
 
 #include <InstrumentationCommon.hpp>
-#include <CacheSimulationCommon.hpp>
+#include <Simulation.hpp>
 #include <CounterFunctions.hpp>
 
 #define PRINT_MINIMUM 1
@@ -146,7 +146,8 @@ extern "C"
         return NULL;
     }
 
-    void* tool_image_init(CounterArray* ctrs, uint64_t* key, ThreadData* td){
+    void* tool_image_init(void* s, uint64_t* key, ThreadData* td){
+        CounterArray* ctrs = (CounterArray*)s;
         assert(ctrs->Initialized == true);
 
         // on first visit create data manager

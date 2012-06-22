@@ -30,7 +30,7 @@
 #include <TextSection.h>
 #include <DFPattern.h>
 
-#include <CacheSimulationCommon.hpp>
+#include <Simulation.hpp>
 
 #define ENTRY_FUNCTION "tool_image_init"
 #define SIM_FUNCTION "process_buffer"
@@ -277,6 +277,7 @@ void CacheSimulation::instrument(){
 
     stats.Initialized = true;
     stats.Size = memopSeq;
+    stats.Stats = NULL;
 
     temp32 = BUFFER_ENTRIES + 1;
     stats.Buffer = (BufferEntry*)reserveDataOffset(temp32 * sizeof(BufferEntry));
