@@ -276,7 +276,7 @@ void CacheSimulation::instrument(){
     SimulationStats stats;
 
     stats.Initialized = true;
-    stats.Size = 0x100;
+    stats.Size = memopSeq;
 
     temp32 = BUFFER_ENTRIES + 1;
     stats.Buffer = (BufferEntry*)reserveDataOffset(temp32 * sizeof(BufferEntry));
@@ -295,6 +295,8 @@ void CacheSimulation::instrument(){
     INIT_CTR_ELEMENT(uint32_t, Lines);
     INIT_CTR_ELEMENT(char*, Files);
     INIT_CTR_ELEMENT(char*, Functions);
+    INIT_CTR_ELEMENT(uint32_t, BlockIds);
+    INIT_CTR_ELEMENT(uint32_t, MemopIds);
 
 
 
@@ -540,8 +542,8 @@ void CacheSimulation::instrument(){
                     initializeReservedData(getInstDataAddress() + (uint64_t)stats.Hashes + memopSeq*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
                     initializeReservedData(getInstDataAddress() + (uint64_t)stats.Addresses + memopSeq*sizeof(uint64_t), sizeof(uint64_t), &addr);
 
-                    initializeReservedData(getInstDataAddress() + (uint64_t)stats.BlockId + memopSeq*sizeof(uint32_t), sizeof(uint32_t), &i);
-                    initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopId + memopSeq*sizeof(uint32_t), sizeof(uint32_t), &memopIdInBlock);
+                    initializeReservedData(getInstDataAddress() + (uint64_t)stats.BlockIds + memopSeq*sizeof(uint32_t), sizeof(uint32_t), &i);
+                    initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopIds + memopSeq*sizeof(uint32_t), sizeof(uint32_t), &memopIdInBlock);
         
                     memopIdInBlock++;
                     memopSeq++;

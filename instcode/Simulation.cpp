@@ -40,6 +40,7 @@
 
 using namespace std;
 
+void read_knobs();
 
 #define METASIM_ID "Metasim"
 #define METASIM_VERSION "3.0.0"
@@ -53,6 +54,8 @@ uint32_t MemCapacity = 0x1000;
 #define DISPLAY_ERROR cerr << "[" << METASIM_ID << "-r" << getTaskId() << "] " << "Error: "
 #define warn cerr << "[" << METASIM_ID << "-r" << getTaskId() << "] " << "Warning: "
 #define ErrorExit(__msg, __errno) DISPLAY_ERROR << __msg << endl << flush; exit(__errno);
+#define inform cout << "[" << METASIM_ID << "-r" << getTaskId() << "] "
+
 enum MetasimErrors {
     MetasimError_None = 0,
     MetasimError_MemoryAlloc,
@@ -250,6 +253,11 @@ public:
     ~SamplingMethod(){
     }
 
+    void Print(){
+        inform << "SamplingMethod instance:" << ENDL;
+        inform << TAB << TAB << "AccessLimit " << AccessLimit << " SampleOn " << SampleOn << " SampleOff " << SampleOff << ENDL;
+    }
+
     void IncrementAccessCount(uint64_t count){
         AccessCount += count;
     }
@@ -285,6 +293,8 @@ extern "C" {
 
         PRINT_INSTR(stdout, "raw args %#lx, %#lx, %#lx", (uint64_t)stats, (uint64_t)key, (uint64_t)td);
 
+        read_knobs();
+
         assert(stats->Initialized == true);
         if (alldata == NULL){
             alldata = new DataManager<SimulationStats*>(gen_cache_stats, del_cache_stats, ref_cache_stats);
@@ -316,10 +326,10 @@ extern "C" {
             return NULL;
         }        
 
-        //PRINT_INSTR(stdout, "counter %ld\tcapacity %d", stats->Buffer[0].__buf_current, stats->Buffer[0].__buf_capacity);
+        PRINT_INSTR(stdout, "counter %ld\tcapacity %d", stats->Buffer[0].__buf_current, stats->Buffer[0].__buf_capacity);
         for (uint32_t i = 0; i < stats->Buffer[0].__buf_current; i++){
             BufferEntry* buf = &(stats->Buffer[1]);
-            //PRINT_INSTR(stdout, "\t\tbuf[%d] addr %#lx\tbb %d\tmem %d", i, buf[i].address, buf[i].blockid, buf[i].memopid);
+            PRINT_INSTR(stdout, "\t\tbuf[%d] addr %#lx\tseq %ld", i, buf[i].address, buf[i].memseq);
         }
 
         stats->Buffer[0].__buf_current = 0;
@@ -347,6 +357,19 @@ extern "C" {
             PRINT_INSTR(stderr, "Cannot retreive image data using key %ld", *key);
             return NULL;
         }        
+
+        PRINT_INSTR(stdout, "total blocks: %ld", stats->Size);
+        PRINT_INSTR(stdout, "#seq\taddr\thash\tbbid\tmemid\tlineno\tfunc");
+        for (uint32_t i = 0; i < stats->Size; i++){
+            PRINT_INSTR(stdout, "%d\t%#lx\t%#lx\t%d\t%d\t%s:%d\t%s", i,
+                        stats->Addresses[i],
+                        stats->Hashes[i],
+                        stats->BlockIds[i],
+                        stats->MemopIds[i],
+                        stats->Files[i],
+                        stats->Lines[i],
+                        stats->Functions[i])
+        }
 
         process_buffer(key);
     }
@@ -566,8 +589,8 @@ public:
         return (countsets * associativity);
     }
 
-    void Print(ofstream& s, uint32_t sysid){
-        s   << dec << sysid
+    void Print(uint32_t sysid){
+        cout   << dec << sysid
             << TAB << dec << level
             << TAB << dec << size
             << TAB << dec << associativity
@@ -784,13 +807,13 @@ public:
     CacheStructure(){
     }
 
-    void Print(ofstream& s){
-        s   << "#" << dec << sysId
+    void Print(){
+        cout << "#" << dec << sysId
             << TAB << dec << levelCount
             << ENDL;
 
         for (uint32_t i = 0; i < levelCount; i++){
-            levels[i]->Print(s, sysId);
+            levels[i]->Print(sysId);
         }
 
     }
@@ -954,7 +977,7 @@ static inline uint32_t High32(uint64_t f){
     return (uint32_t)((f & 0xffffffff00000000) >> 32);
 }
 
-void read_knobs(uint32_t* sample_max, uint32_t* sample_on, uint32_t* sample_off){
+void read_knobs(){
 
     // read caches to simulate
     string cachedf = GetCacheDescriptionFile();
@@ -974,6 +997,7 @@ void read_knobs(uint32_t* sample_max, uint32_t* sample_on, uint32_t* sample_off)
             ErrorExit("cannot parse cache description line: " << line, MetasimError_StringParse);
         }
         caches.push_back(c);
+        c->Print();
     }
     CountCacheStructures = caches.size();
 
@@ -986,6 +1010,6 @@ void read_knobs(uint32_t* sample_max, uint32_t* sample_on, uint32_t* sample_off)
     read_env_uint32("METASIM_SAMPLE_OFF", &SampleOff);
     
     SamplingMethod_ = new SamplingMethod(SampleMax, SampleOn, SampleOff);
-
+    SamplingMethod_->Print();
 }
 

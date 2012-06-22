@@ -56,8 +56,8 @@ typedef struct {
     BufferEntry* Buffer;
     char* Application;
     char* Extension;
-    uint32_t* BlockId;
-    uint32_t* MemopId;
+    uint32_t* BlockIds;
+    uint32_t* MemopIds;
     char** Files;
     uint32_t* Lines;
     char** Functions;
