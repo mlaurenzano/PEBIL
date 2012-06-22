@@ -45,7 +45,11 @@ void read_knobs();
 #define METASIM_ID "Metasim"
 #define METASIM_VERSION "3.0.0"
 #define METASIM_ENV "PEBIL_ROOT"
+
 #define DEFAULT_CACHE_FILE "instcode/CacheDescriptions.txt"
+#define DEFAULT_SAMPLE_ON  1000000
+#define DEFAULT_SAMPLE_OFF 10000000
+#define DEFAULT_SAMPLE_MAX 0
 
 #define TAB "\t"
 #define ENDL "\n"
@@ -590,7 +594,7 @@ public:
     }
 
     void Print(uint32_t sysid){
-        cout   << dec << sysid
+        inform << dec << sysid
             << TAB << dec << level
             << TAB << dec << size
             << TAB << dec << associativity
@@ -808,7 +812,7 @@ public:
     }
 
     void Print(){
-        cout << "#" << dec << sysId
+        inform << "#" << dec << sysId
             << TAB << dec << levelCount
             << ENDL;
 
@@ -1005,9 +1009,15 @@ void read_knobs(){
     uint32_t SampleOn;
     uint32_t SampleOff;
 
-    read_env_uint32("METASIM_SAMPLE_MAX", &SampleMax);
-    read_env_uint32("METASIM_SAMPLE_ON", &SampleOn);
-    read_env_uint32("METASIM_SAMPLE_OFF", &SampleOff);
+    if (!read_env_uint32("METASIM_SAMPLE_MAX", &SampleMax)){
+        SampleMax = DEFAULT_SAMPLE_MAX;
+    }
+    if (!read_env_uint32("METASIM_SAMPLE_OFF", &SampleOff)){
+        SampleOff = DEFAULT_SAMPLE_OFF;
+    }
+    if (!read_env_uint32("METASIM_SAMPLE_ON", &SampleOn)){
+        SampleOn = DEFAULT_SAMPLE_ON;
+    }
     
     SamplingMethod_ = new SamplingMethod(SampleMax, SampleOn, SampleOff);
     SamplingMethod_->Print();
