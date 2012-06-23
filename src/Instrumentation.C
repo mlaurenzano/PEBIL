@@ -311,8 +311,9 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
     }
 
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
-        if (protectRegs->contains(i)){
-            trampolineInstructions.append(X86InstructionFactory64::emitStackPop(X86_64BIT_GPRS - i - 1));
+        uint32_t idx = X86_64BIT_GPRS - i - 1;
+        if (protectRegs->contains(idx)){
+            trampolineInstructions.append(X86InstructionFactory64::emitStackPop(idx));
             trampolineSize += trampolineInstructions.back()->getSizeInBytes();
         }
     }

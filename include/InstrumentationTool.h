@@ -30,16 +30,16 @@ class InstrumentationPoint;
 
 #define INFO_UNKNOWN "__info_unknown__"
 
-typedef struct 
-{
-    int64_t pt_vaddr;
-    int64_t pt_target;
-    int64_t pt_flags;
-    int32_t pt_size;
-    int32_t pt_blockid;
-    unsigned char pt_content[16];
-    unsigned char pt_disable[16];
-} instpoint_info;
+/* support for removing instrumentation points */
+#define DYNAMIC_POINT_SIZE_LIMIT 8
+typedef struct {
+    uint64_t VirtualAddress;
+    uint64_t ProgramAddress;
+    uint64_t Key;
+    uint32_t Size;
+    uint8_t  OppContent[DYNAMIC_POINT_SIZE_LIMIT];
+    bool IsEnabled;
+} DynamicInst;
 
 class InstrumentationTool : public ElfFileInst {
 private:
@@ -90,6 +90,12 @@ protected:
 #define PEBIL_OPT_TRK 0x00000020
 #define PEBIL_OPT_DOI 0x00000040
 
+    InstrumentationFunction* dynamicInit;
+    Vector<InstrumentationPoint*> dynamicPoints;
+    Vector<uint64_t> dynamicKeys;
+    uint64_t dynamicPointArray;
+    uint64_t dynamicSize;
+
 public:
     InstrumentationTool(ElfFile* elf);
     virtual ~InstrumentationTool() { }
@@ -99,7 +105,9 @@ public:
 
     virtual void declare();
     virtual void instrument();
-    virtual void usesModifiedProgram() { }
+
+    void dynamicPoint(InstrumentationPoint* pt, uint64_t key);
+    void applyDynamicPoints();
 
     virtual const char* briefName() { __SHOULD_NOT_ARRIVE; }
     virtual const char* defaultExtension() { __SHOULD_NOT_ARRIVE; }

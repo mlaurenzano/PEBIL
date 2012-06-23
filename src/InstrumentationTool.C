@@ -35,6 +35,8 @@
 #define MPI_INIT_LIST_FBIND_PREF "pmpi_init_"
 #define MPI_INIT_LIST_FBIND      "mpi_init_:MPI_INIT"
 
+#define DYNAMIC_INST_INIT "tool_dynamic_init"
+
 typedef struct {
     uint64_t id;
     uint64_t data;
@@ -43,6 +45,41 @@ typedef struct {
 #define ThreadHashMod   (0xffff)
 
 #define MAX_DEF_USE_DIST_PRINT 1024
+
+void InstrumentationTool::applyDynamicPoints(){
+    ASSERT(dynamicPoints.size() == dynamicKeys.size());
+    if (dynamicPoints.size() == 0){
+        return;
+    }
+
+    uint64_t dynArray = reserveDataOffset(sizeof(DynamicInst) * dynamicPoints.size());
+    X86Instruction* nop5Byte = X86InstructionFactory::emitNop(Size__uncond_jump);
+
+    for (uint32_t i = 0; i < dynamicPoints.size(); i++){
+        DynamicInst d;
+        d.VirtualAddress = dynamicPoints[i]->getInstSourceAddress();
+        d.ProgramAddress = dynamicPoints[i]->getSourceObject()->getProgramAddress();
+        d.Key =dynamicKeys[i];
+        d.Size = Size__uncond_jump;
+        d.IsEnabled = true;
+        memcpy(d.OppContent, nop5Byte->charStream(), Size__uncond_jump);
+
+        initializeReservedData(getInstDataAddress() + dynArray + (i * sizeof(DynamicInst)), sizeof(DynamicInst), &d);
+    }
+    delete nop5Byte;
+
+    uint64_t temp64 = dynamicPoints.size();
+    initializeReservedData(getInstDataAddress() + dynamicSize, sizeof(uint64_t), (void*)&temp64);
+    initializeReservedPointer(dynArray, dynamicPointArray);
+    PRINT_INFOR("%d dyn points @ %#lx -> %#lx", dynamicPoints.size(), getInstDataAddress() + dynamicPointArray, getInstDataAddress() + dynArray);
+}
+
+void InstrumentationTool::dynamicPoint(InstrumentationPoint* pt, uint64_t key){
+    ASSERT(pt->getInstrumentationMode() != InstrumentationMode_inline && "Use a non-inlined instrumentation mode to support dynamic instrumentation activity");
+
+    dynamicPoints.append(pt);
+    dynamicKeys.append(key);
+}
 
 // returns a map of function addresses and the scratch register used to hold the thread data address
 // (X86_REG_INVALID if no such register is available)
@@ -98,6 +135,7 @@ uint32_t InstrumentationTool::instrumentForThreading(Function* func){
                 inv->insert(X86_REG_SP);
                 inv->insert(d);
                 BitSet<uint32_t>* deadRegs = entry->getDeadRegIn(inv, 1);
+                delete inv;
                 
                 uint32_t s;
                 for (uint32_t j = 0; j < X86_64BIT_GPRS; j++){
@@ -106,6 +144,8 @@ uint32_t InstrumentationTool::instrumentForThreading(Function* func){
                         break;
                     }
                 }
+                delete deadRegs;
+
                 //PRINT_INFOR("\t\tassigning data at %#lx to reg %d via scratch %d", entry->getBaseAddress(), d, s);
                 InstrumentationSnippet* snip = addInstrumentationSnippet();
                 Vector<X86Instruction*>* insns;
@@ -125,6 +165,7 @@ uint32_t InstrumentationTool::instrumentForThreading(Function* func){
         d = X86_REG_INVALID;
 
         // figuring out the size of the stack frame is REALLY HARD
+        delete[] allInstructions;
         return d;
 
         /*
@@ -283,11 +324,24 @@ void InstrumentationTool::declare(){
     ASSERT(initWrapperC && "Cannot find MPI_Init function, are you sure it was declared?");
     ASSERT(initWrapperF && "Cannot find MPI_Init function, are you sure it was declared?");
 #endif //HAVE_MPI
+    dynamicInit = declareFunction(DYNAMIC_INST_INIT);
 }
 
 void InstrumentationTool::instrument(){
     imageKey = reserveDataOffset(sizeof(uint64_t));
     threadHash = reserveDataOffset(sizeof(ThreadData) * (ThreadHashMod + 1));
+    
+    dynamicSize = reserveDataOffset(sizeof(uint64_t));
+    dynamicPointArray = reserveDataOffset(sizeof(DynamicInst*));
+    dynamicInit->addArgument(dynamicSize);
+    dynamicInit->addArgument(dynamicPointArray);
+
+    InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), dynamicInit, InstrumentationMode_tramp);
+    ASSERT(p);
+    p->setPriority(InstPriority_userinit);
+    if (!p->getInstBaseAddress()){
+        PRINT_ERROR("Cannot find an instrumentation point at the entry function");
+    }
 
 #ifdef HAVE_MPI
     int initFound = 0;

@@ -43,6 +43,71 @@ static CacheStructure** CacheStructures_ = NULL;
 static SamplingMethod* SamplingMethod_ = NULL;
 static DataManager<SimulationStats*>* AllData = NULL;
 
+
+#define DYNAMIC_POINT_SIZE_LIMIT 8
+typedef struct {
+    uint64_t VirtualAddress;
+    uint64_t ProgramAddress;
+    uint64_t Key;
+    uint32_t Size;
+    uint8_t  OppContent[DYNAMIC_POINT_SIZE_LIMIT];
+    bool IsEnabled;
+} DynamicInst;
+static uint64_t CountDynamicInst = 0;
+static DynamicInst* DynamicInst_ = NULL;
+
+static void PrintDynamicPoint(DynamicInst* d){
+    inform
+        << TAB
+        << TAB << "Key " << hex << d->Key
+        << TAB << "Vaddr " << hex << d->VirtualAddress
+        << TAB << "Oaddr " << hex << d->ProgramAddress
+        << TAB << "Size " << dec << d->Size
+        << TAB << "Enabled " << (d->IsEnabled? "yes":"no")
+        << ENDL;
+}
+
+static void PrintDynamicPoints(){
+    inform << "Printing " << dec << CountDynamicInst << " dynamic inst points" << ENDL;
+    for (uint32_t i = 0; i < CountDynamicInst; i++){
+        PrintDynamicPoint(&DynamicInst_[i]);
+    }
+}
+
+static void SetDynamicPoints(set<uint64_t>& keys, bool state){
+    debug(inform << "CHECKING " << dec << CountDynamicInst << ENDL);
+    for (uint32_t i = 0; i < CountDynamicInst; i++){
+        DynamicInst d = DynamicInst_[i];
+        debug(inform << TAB TAB << "KEY COUNT " << dec << d.Key << " = " << keys.count(d.Key) << ENDL);
+        if (keys.count(d.Key) > 0){
+            // point is already in the desired state
+            if (state == d.IsEnabled){
+                continue;
+            }
+
+            // swap the text at the point with the saved content
+            uint8_t t[DYNAMIC_POINT_SIZE_LIMIT];
+            memcpy(t, (uint8_t*)d.VirtualAddress, d.Size);
+            memcpy((uint8_t*)d.VirtualAddress, d.OppContent, d.Size);
+            memcpy(d.OppContent, t, d.Size);
+
+            d.IsEnabled = state;
+
+            inform << "Removing instrumentation point..." << ENDL;
+            PrintDynamicPoint(&d);
+        }
+    }
+}
+
+extern "C" {
+    void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
+        inform << "raw dynamic init " << hex << count << TAB << dyn << TAB << *dyn << ENDL;
+        CountDynamicInst = *count;
+        DynamicInst_ = *dyn;
+        PrintDynamicPoints();
+    }
+};
+
 extern "C" {
     void* tool_mpi_init(){
         return NULL;
@@ -101,7 +166,7 @@ extern "C" {
         register uint64_t numElements = BUFFER_CURRENT(stats);
         uint64_t capacity = BUFFER_CAPACITY(stats);
 
-        //PRINT_INSTR(stdout, "counter %ld\tcapacity %d", numElements, capacity);
+        PRINT_INSTR(stdout, "counter %ld\tcapacity %ld\ttotal %ld", numElements, capacity, SamplingMethod_->AccessCount);
         if (SamplingMethod_->CurrentlySampling()){
 
             /*
@@ -124,13 +189,17 @@ extern "C" {
 
             for (uint32_t j = 0; j < numElements; j++){
                 BufferEntry* reference = &(stats->Buffer[j + 1]);
-                stats->Counters[reference->memseq]++;
-                if (SamplingMethod_->ExceedsAccessLimit(stats->Counters[reference->memseq])){
-                    MemsRemoved.insert(reference->memseq);
+                debug(inform << "Memseq " << dec << reference->memseq << " has " << stats->Stats[0]->GetAccessCount(reference->memseq) << ENDL);
+                if (SamplingMethod_->ExceedsAccessLimit(stats->Stats[0]->GetAccessCount(reference->memseq))){
+                    MemsRemoved.insert(stats->BlockIds[reference->memseq]);
                 }
             }
 
             // TODO: remove all points found in MemsRemoved
+            debug(inform << "REMOVING " << dec << MemsRemoved.size() << ENDL);
+            if (MemsRemoved.size()){
+                SetDynamicPoints(MemsRemoved, false);
+            }
         }
 
         SamplingMethod_->IncrementAccessCount(numElements);
@@ -143,8 +212,6 @@ extern "C" {
     }
 
     void* tool_image_fini(uint64_t* key){
-        inform << "HELLO" << ENDL;
-
         AllData->SetTimer(*key, 1);
 
 #ifdef MPI_INIT_REQUIRED
@@ -552,6 +619,8 @@ SamplingMethod::SamplingMethod(uint32_t limit, uint32_t on, uint32_t off){
     AccessLimit = limit;
     SampleOn = on;
     SampleOff = off;
+
+    AccessCount = 0;
 }
 
 SamplingMethod::~SamplingMethod(){

@@ -392,6 +392,7 @@ void BasicBlockCounter::instrument()
     delete allBlocks;
     delete allBlockIds;
     delete allBlockLineInfos;
+    delete functionThreading;
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }

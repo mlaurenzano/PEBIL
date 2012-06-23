@@ -45,25 +45,6 @@ extern "C" {
     }
 }
 
-void LoopIntercept::usesModifiedProgram(){
-    return;
-    X86Instruction* nop5Byte = X86InstructionFactory::emitNop(Size__uncond_jump);
-    instpoint_info iinf;
-    bzero(&iinf, sizeof(instpoint_info));
-    iinf.pt_size = Size__uncond_jump;
-    memcpy(iinf.pt_disable, nop5Byte->charStream(), iinf.pt_size);
-
-    for (uint32_t i = 0; i < loopInstPoints.size(); i++){
-        ASSERT(loopInstPoints[i]->getInstrumentationMode() != InstrumentationMode_inline);
-        iinf.pt_vaddr = loopInstPoints[i]->getInstSourceAddress();
-        iinf.pt_blockid = loopInstBlockIds[i];
-        //PRINT_INFOR("mem point %d (block %d) initialized at addr %#llx", i, iinf.pt_blockid, getInstDataAddress() + instPointInfo + (i * sizeof(instpoint_info)));
-        initializeReservedData(getInstDataAddress() + instPointInfo + (i * sizeof(instpoint_info)), sizeof(instpoint_info), &iinf);
-    }    
-
-    delete nop5Byte;
-}
-
 LoopIntercept::~LoopIntercept(){
     for (uint32_t i = 0; i < (*loopList).size(); i++){
         delete[] (*loopList)[i];
@@ -358,8 +339,6 @@ void LoopIntercept::instrument(){
                 // source block falls through into loop
                 if (source->getBaseAddress() + source->getNumberOfBytes() == head->getBaseAddress()){
                     InstrumentationPoint* pt = addInstrumentationPoint(source->getExitInstruction(), loopEntry, InstrumentationMode_trampinline, InstLocation_after);
-                    loopInstPoints.append(pt);
-                    loopInstBlockIds.append(site);
                     assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
 
                     PRINT_INFOR("\tENTR-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx", site, source->getBaseAddress(), head->getBaseAddress());
@@ -378,8 +357,6 @@ void LoopIntercept::instrument(){
             BasicBlock* bb = allLoopBlocks[k];
             if (bb->endsWithReturn()){
                 InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, InstLocation_prior);
-                loopInstPoints.append(pt);
-                loopInstBlockIds.append(site);
                 assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
                 
                 PRINT_INFOR("\tEXIT-FNRETURN(%d)\tBLK:%#llx --> ?", site, bb->getBaseAddress());
@@ -396,8 +373,6 @@ void LoopIntercept::instrument(){
                     // target is adjacent to bb
                     if (target->getBaseAddress() == bb->getBaseAddress() + bb->getNumberOfBytes()){
                         InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, InstLocation_after);
-                        loopInstPoints.append(pt);
-                        loopInstBlockIds.append(site);
                         assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
 
                         PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx", site, bb->getBaseAddress(), target->getBaseAddress());
@@ -431,8 +406,6 @@ void LoopIntercept::instrument(){
                 ASSERT(loopExit);
 
                 InstrumentationPoint* pt = addInstrumentationPoint(interposed, loopExit, InstrumentationMode_trampinline);
-                loopInstPoints.append(pt);
-                loopInstBlockIds.append(site);
                 assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
                 
                 PRINT_INFOR("\tEXIT-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx", site, bb->getBaseAddress(), interb->getBaseAddress());
@@ -462,22 +435,12 @@ void LoopIntercept::instrument(){
 
             ASSERT(loopEntry);
             InstrumentationPoint* pt = addInstrumentationPoint(interposed, loopEntry, InstrumentationMode_trampinline);
-            loopInstPoints.append(pt);
-            loopInstBlockIds.append(site);
             assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
 
             PRINT_INFOR("\tENTR-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx", site, interb->getBaseAddress(), head->getBaseAddress());
         }
 
     }
-
-    instPointInfo = reserveDataOffset(sizeof(instpoint_info) * loopInstPoints.size());
-    programEntry->addArgument(instPointInfo);
-
-    uint64_t instPointCount = reserveDataOffset(sizeof(uint32_t));
-    uint32_t temp32 = loopInstPoints.size();
-    initializeReservedData(getInstDataAddress() + instPointCount, sizeof(uint32_t), &temp32);
-    programEntry->addArgument(instPointCount);
 
     printStaticFile(allBlocks, allBlockIds, allLineInfos, allBlocks->size());
 

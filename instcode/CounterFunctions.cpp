@@ -142,6 +142,10 @@ void* tool_thread_init(pthread_t tid){
 
 extern "C"
 {
+    void* tool_dynamic_init(){
+        return NULL;
+    }
+
     void* tool_mpi_init(){
         return NULL;
     }

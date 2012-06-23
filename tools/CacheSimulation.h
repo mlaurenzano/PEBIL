@@ -37,10 +37,6 @@ private:
     Vector<DFPatternSpec> dfpBlocks;
     uint32_t dfpTaggedBlockCnt;
 
-    Vector<InstrumentationPoint*> memInstPoints;
-    Vector<uint32_t> memInstBlockIds;
-    uint64_t instPointInfo;
-
     void filterBBs();
     void printDFPStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos);
 
@@ -50,7 +46,6 @@ public:
 
     void declare();
     void instrument();
-    void usesModifiedProgram();
 
     const char* briefName() { return "CacheSimulation"; }
     const char* defaultExtension() { return "siminst"; }

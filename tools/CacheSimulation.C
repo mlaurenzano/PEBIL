@@ -38,34 +38,12 @@
 #define INST_LIB_NAME "cxx_libsimulator.so"
 
 #define NOSTRING "__pebil_no_string__"
-#define BUFFER_ENTRIES 0x10000
-
-//#define DISABLE_BLOCK_COUNT
+#define BUFFER_ENTRIES 0x100000
 
 extern "C" {
     InstrumentationTool* CacheSimulationMaker(ElfFile* elf){
         return new CacheSimulation(elf);
     }
-}
-
-void CacheSimulation::usesModifiedProgram(){
-    /*
-    X86Instruction* nop5Byte = X86InstructionFactory::emitNop(Size__uncond_jump);
-    instpoint_info iinf;
-    bzero(&iinf, sizeof(instpoint_info));
-    iinf.pt_size = Size__uncond_jump;
-    memcpy(iinf.pt_disable, nop5Byte->charStream(), iinf.pt_size);
-
-    for (uint32_t i = 0; i < memInstPoints.size(); i++){
-        ASSERT(memInstPoints[i]->getInstrumentationMode() != InstrumentationMode_inline);
-        iinf.pt_vaddr = memInstPoints[i]->getInstSourceAddress();
-        iinf.pt_blockid = memInstBlockIds[i];
-        //PRINT_INFOR("mem point %d (block %d) initialized at addr %#llx", i, iinf.pt_blockid, getInstDataAddress() + instPointInfo + (i * sizeof(instpoint_info)));
-        initializeReservedData(getInstDataAddress() + instPointInfo + (i * sizeof(instpoint_info)), sizeof(instpoint_info), &iinf);
-    }    
-
-    delete nop5Byte;
-    */
 }
 
 DFPatternType convertDFPatternType(char* patternString){
@@ -345,6 +323,7 @@ void CacheSimulation::instrument(){
     }
 
     simFunc->addArgument(imageKey);
+    simFunc->assumeNoFunctionFP();
     exitFunc->addArgument(imageKey);
 
     p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp);
@@ -358,6 +337,9 @@ void CacheSimulation::instrument(){
     memopSeq = 0;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
+        if (bb->getNumberOfMemoryOps() == 0){
+            continue;
+        }
 
         if (blocksToInst.get(bb->getHashCode().getValue())){
             Function* f = (Function*)bb->getLeader()->getContainer();
@@ -375,7 +357,6 @@ void CacheSimulation::instrument(){
             temp64 = 0;
             initializeReservedData(getInstDataAddress() + (uint64_t)stats.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
 
-
             uint32_t memopIdInBlock = 0;
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
                 X86Instruction* memop = bb->getInstruction(j);
@@ -386,7 +367,7 @@ void CacheSimulation::instrument(){
                     currentOffset -= (uint64_t)stats.Buffer;
                 }
 
-                if (memop->isMemoryOperation()){            
+                if (memop->isMemoryOperation()){
                     // at the first memop in each block, check for a full buffer, clear if full
                     if (memopIdInBlock == 0){
                         // grab 2 scratch registers
@@ -421,6 +402,7 @@ void CacheSimulation::instrument(){
 
                         InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_tramp, InstLocation_prior);
                         pt->setPriority(InstPriority_userinit);
+                        dynamicPoint(pt, (uint64_t)blockSeq);
                         Vector<X86Instruction*>* bufferDumpInstructions = new Vector<X86Instruction*>();
 
                         // put current buffer into sr2
@@ -451,13 +433,13 @@ void CacheSimulation::instrument(){
                         pt->addPostcursorInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr2, sr1, offsetof(BufferEntry, __buf_current), true));
 
                         delete bufferDumpInstructions;
-                        memInstPoints.append(pt);
                     }
 
                     // at every memop, fill a buffer entry
                     InstrumentationSnippet* snip = addInstrumentationSnippet();
                     InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, InstLocation_prior);
                     pt->setPriority(InstPriority_low);
+                    dynamicPoint(pt, blockSeq);
 
                     // grab 3 scratch registers
                     uint32_t sr1 = X86_REG_INVALID, sr2 = X86_REG_INVALID, sr3 = X86_REG_INVALID;
@@ -626,6 +608,10 @@ void CacheSimulation::instrument(){
             }
         }
     }
+
+    delete functionThreading;
+
+
     /*
 
 #ifdef STATS_PER_INSTRUCTION

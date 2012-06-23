@@ -192,20 +192,26 @@ BasicBlock* ElfFileInst::getProgramExitBlock(){
     return ((Function*)fini->getTextObject(0))->getFlowGraph()->getBasicBlock(0);
 }
 
-void ElfFileInst::extendDataSection(){
+void ElfFileInst::extendDataSection(uint32_t amt){
+    uint32_t ext = DATA_EXTENSION_INC;
+    if (amt > DATA_EXTENSION_INC){
+        ext = nextAlignAddress(amt, DATA_EXTENSION_INC);
+    }
+
     if (instrumentationDataSize){
-        char* tmpData = new char[instrumentationDataSize + DATA_EXTENSION_INC];
+        char* tmpData = new char[instrumentationDataSize + ext];
+        PRINT_INFOR("Memcpying %d bytes", instrumentationDataSize);
         memcpy(tmpData, instrumentationData, instrumentationDataSize);
-        bzero(tmpData + instrumentationDataSize, DATA_EXTENSION_INC);
+        bzero(tmpData + instrumentationDataSize, ext);
         delete[] instrumentationData;
         instrumentationData = tmpData;
     } else {
         ASSERT(!instrumentationData);
-        instrumentationData = new char[DATA_EXTENSION_INC];
-        bzero(instrumentationData, DATA_EXTENSION_INC);
+        instrumentationData = new char[ext];
+        bzero(instrumentationData, ext);
     }
 
-    instrumentationDataSize += DATA_EXTENSION_INC;
+    instrumentationDataSize += ext;
     verify();
 }
 
@@ -804,8 +810,8 @@ uint64_t ElfFileInst::reserveDataOffset(uint64_t size){
     ASSERT(currentPhase <= ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
     uint64_t nextOffset = nextAlignAddress(usableDataOffset + size, sizeof(uint64_t));
-    while (nextOffset  >= instrumentationDataSize){
-        extendDataSection();
+    while (nextOffset >= instrumentationDataSize){
+        extendDataSection(nextOffset - instrumentationDataSize);
     }
     ASSERT(nextOffset < instrumentationDataSize && "Not enough space for the requested data");
 
@@ -1265,18 +1271,21 @@ void ElfFileInst::phasedInstrumentation(){
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c FncReloc : %.2f seconds",stepNumber++,t2-t1);t1=t2);
+
+    applyDynamicPoints();
+
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c Control  : %.2f seconds",stepNumber++,t2-t1);t1=t2);
+
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");
 
     uint32_t textSize = generateInstrumentation();
     compressInstrumentation(textSize);
     
-    usesModifiedProgram();
     applyInstrumentationDataToRaw();
 
     ASSERT(currentPhase == ElfInstPhase_generate_instrumentation && "Instrumentation phase order must be observed");

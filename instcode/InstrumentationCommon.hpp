@@ -352,6 +352,7 @@ public:
     }
 };
 
+
 extern "C" {
     extern void* tool_mpi_init();
     extern void* tool_thread_init(pthread_t args);

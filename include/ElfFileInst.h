@@ -55,8 +55,8 @@ class TextSection;
 #define InstrumentorFlag_norelocate 0x1
 
 #define INSTHDR_RESERVE_AMT 0x1000
-#define TEXT_EXTENSION_INC  0x4000
-#define DATA_EXTENSION_INC  0x4000
+#define TEXT_EXTENSION_INC  0x40000
+#define DATA_EXTENSION_INC  0x40000
 #define DEFAULT_INST_SEGMENT_IDX 4
 #define TEMP_SEGMENT_SIZE 0x10000000
 
@@ -155,7 +155,7 @@ protected:
     uint64_t getProgramBaseAddress();
     void extendTextSection(uint64_t totalSize, uint64_t headerSize);
     void allocateInstrumentationText(uint64_t totalSize, uint64_t headerSize);
-    void extendDataSection();
+    void extendDataSection(uint32_t amt);
     void extendDynamicTable();
     void buildInstrumentationSections();
     uint32_t generateInstrumentation();
@@ -242,9 +242,9 @@ public:
     uint32_t addInstrumentationSnippet(InstrumentationSnippet* snip);
     InstrumentationSnippet* addInstrumentationSnippet();
 
+    virtual void applyDynamicPoints() { __SHOULD_NOT_ARRIVE; }
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }
-    virtual void usesModifiedProgram() { __SHOULD_NOT_ARRIVE; }
     virtual const char* getExtension() { __SHOULD_NOT_ARRIVE; }
     virtual bool canRelocateFunction(Function* func) { return true; }
 };

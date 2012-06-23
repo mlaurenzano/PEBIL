@@ -28,7 +28,7 @@
 /* Public functions */
 void inst_lptimer_lpentry();
 void inst_lptimer_lpexit();
-void inst_lptimer_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes, void* instpoints, int32_t* numpoints);
+void inst_lptimer_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes);
 void inst_lptimer_fini();
 void* tool_mpi_init();
 
@@ -55,39 +55,6 @@ static long nprocessors;
 #define PRINT_DEBUG(...) 
 #define DEBUG(...)
 #endif
-
-#define ENABLE_INSTRUMENTATION_KILL
-static void* instrumentationPoints;
-static int32_t numberOfInstrumentationPoints;
-static int32_t numberKilled;
-
-#ifdef ENABLE_INSTRUMENTATION_KILL
-static void disableInstrumentationPointsInBlock(int32_t blockId){
-    instpoint_info* ip;
-    int i;
-
-    PRINT_INSTR(stdout, "disabling points for site %d (loop hash %#llx)", blockId, loopHashCodes[blockId]);
-
-    int32_t killedPoints = 0;
-    for (i = 0; i < numberOfInstrumentationPoints; i++){
-        ip = (instpoint_info*)(instrumentationPoints + (i * sizeof(instpoint_info)));
-        if (ip->pt_blockid == blockId){
-            int32_t size = ip->pt_size;
-            int64_t vaddr = ip->pt_vaddr;
-            char* program_point = (char*)vaddr;
-
-            PRINT_INSTR(stdout, "\tkilling instrumentation for point %d in block %d at %#llx", i, blockId, vaddr);
-
-            memcpy(ip->pt_content, program_point, size);
-            memcpy(program_point, ip->pt_disable, size);
-            killedPoints++;
-        }
-    }
-
-    numberKilled += killedPoints;
-    PRINT_INSTR(stdout, "Killing instrumentation points for block %d (%d points of %d total) -- %d killed so far", blockId, killedPoints, numberOfInstrumentationPoints, numberKilled);
-}
-#endif //ENABLE_INSTRUMENTATION_KILL
 
 // pin process to core
 static int32_t pinto(uint32_t cpu){
@@ -120,17 +87,13 @@ void inst_lptimer_lpexit(){
 
 
 // called at program start
-void inst_lptimer_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes, void* instpoints, int32_t* numpoints){
+void inst_lptimer_init(uint32_t* s, uint32_t* numLoops, uint64_t* loopHashes){
     int i, j;
 
 
     site = s;
     numberOfLoops = *numLoops;
     loopHashCodes = loopHashes;
-
-    instrumentationPoints = instpoints;
-    numberOfInstrumentationPoints = *numpoints;
-    numberKilled = 0;
 
     entryCalled = malloc(sizeof(uint64_t) * numberOfLoops);
     bzero(entryCalled, sizeof(uint64_t) * numberOfLoops);
