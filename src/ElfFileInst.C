@@ -200,7 +200,6 @@ void ElfFileInst::extendDataSection(uint32_t amt){
 
     if (instrumentationDataSize){
         char* tmpData = new char[instrumentationDataSize + ext];
-        PRINT_INFOR("Memcpying %d bytes", instrumentationDataSize);
         memcpy(tmpData, instrumentationData, instrumentationDataSize);
         bzero(tmpData + instrumentationDataSize, ext);
         delete[] instrumentationData;

@@ -309,7 +309,6 @@ void CacheSimulation::instrument(){
 
     initializeReservedData(getInstDataAddress() + simulationStruct, sizeof(SimulationStats), (void*)(&stats));
 
-    PRINT_INFOR("entry args: %#lx %#lx %#lx", getInstDataAddress() + simulationStruct, getInstDataAddress() + imageKey, getInstDataAddress() + threadHash);
     entryFunc->addArgument(simulationStruct);
     entryFunc->addArgument(imageKey);
     entryFunc->addArgument(threadHash);
@@ -610,7 +609,11 @@ void CacheSimulation::instrument(){
     }
 
     delete functionThreading;
+    delete[] nostring;
 
+    delete allBlocks;
+    delete allBlockIds;
+    delete allBlockLineInfos;
 
     /*
 

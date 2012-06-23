@@ -146,8 +146,7 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
                   int k, uint64_t loopLeader, uint32_t fcnt){
 
     // Get defintions for this instruction: ins
-    LinkedList<X86Instruction::ReachingDefinition*>* idefs;
-    idefs = ins->getDefs();
+    LinkedList<X86Instruction::ReachingDefinition*>* idefs = ins->getDefs();
 
     // Skip instruction if it doesn't define anything
     if (idefs == NULL)
@@ -185,6 +184,9 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
         uint32_t currDist;
         struct path* p = paths.deleteMin(&currDist);
         X86Instruction* cand = p->ins;
+        while (idefs->size()){
+            delete idefs->shift();
+        }
         idefs = p->defs;
         delete p;
 
@@ -266,7 +268,11 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
     while (!paths.isEmpty()){
         delete paths.deleteMin(NULL);
     }
-    while (!idefs->empty()) { delete idefs->shift(); } delete idefs;
+
+    while (!idefs->empty()){
+        delete idefs->shift();
+    } 
+    delete idefs;
 }
 
 void FlowGraph::computeDefUseDist(){

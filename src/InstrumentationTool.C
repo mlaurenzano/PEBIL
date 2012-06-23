@@ -71,7 +71,6 @@ void InstrumentationTool::applyDynamicPoints(){
     uint64_t temp64 = dynamicPoints.size();
     initializeReservedData(getInstDataAddress() + dynamicSize, sizeof(uint64_t), (void*)&temp64);
     initializeReservedPointer(dynArray, dynamicPointArray);
-    PRINT_INFOR("%d dyn points @ %#lx -> %#lx", dynamicPoints.size(), getInstDataAddress() + dynamicPointArray, getInstDataAddress() + dynArray);
 }
 
 void InstrumentationTool::dynamicPoint(InstrumentationPoint* pt, uint64_t key){
