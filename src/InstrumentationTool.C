@@ -47,7 +47,6 @@ typedef struct {
 #define MAX_DEF_USE_DIST_PRINT 1024
 
 void InstrumentationTool::applyDynamicPoints(){
-    ASSERT(dynamicPoints.size() == dynamicKeys.size());
     if (dynamicPoints.size() == 0){
         return;
     }
@@ -55,29 +54,38 @@ void InstrumentationTool::applyDynamicPoints(){
     uint64_t dynArray = reserveDataOffset(sizeof(DynamicInst) * dynamicPoints.size());
     X86Instruction* nop5Byte = X86InstructionFactory::emitNop(Size__uncond_jump);
 
-    for (uint32_t i = 0; i < dynamicPoints.size(); i++){
+    uint64_t temp64 = dynamicPoints.size();
+    initializeReservedData(getInstDataAddress() + dynamicSize, sizeof(uint64_t), (void*)&temp64);
+    initializeReservedPointer(dynArray, dynamicPointArray);
+
+    uint32_t i = 0;
+    while (dynamicPoints.size()){
         DynamicInst d;
-        d.VirtualAddress = dynamicPoints[i]->getInstSourceAddress();
-        d.ProgramAddress = dynamicPoints[i]->getSourceObject()->getProgramAddress();
-        d.Key =dynamicKeys[i];
+        DynamicInstInternal* di = dynamicPoints.remove(0);
+        d.VirtualAddress = di->Point->getInstSourceAddress();
+        d.ProgramAddress = di->Point->getSourceObject()->getProgramAddress();
+        d.Key = di->Key;
+        d.Flags = di->Flags;
         d.Size = Size__uncond_jump;
         d.IsEnabled = true;
         memcpy(d.OppContent, nop5Byte->charStream(), Size__uncond_jump);
 
         initializeReservedData(getInstDataAddress() + dynArray + (i * sizeof(DynamicInst)), sizeof(DynamicInst), &d);
+        delete di;
+        i++;
     }
     delete nop5Byte;
 
-    uint64_t temp64 = dynamicPoints.size();
-    initializeReservedData(getInstDataAddress() + dynamicSize, sizeof(uint64_t), (void*)&temp64);
-    initializeReservedPointer(dynArray, dynamicPointArray);
 }
 
-void InstrumentationTool::dynamicPoint(InstrumentationPoint* pt, uint64_t key){
+void InstrumentationTool::dynamicPoint(InstrumentationPoint* pt, uint64_t key, uint64_t flags){
     ASSERT(pt->getInstrumentationMode() != InstrumentationMode_inline && "Use a non-inlined instrumentation mode to support dynamic instrumentation activity");
 
-    dynamicPoints.append(pt);
-    dynamicKeys.append(key);
+    DynamicInstInternal* di = new DynamicInstInternal();
+    di->Point = pt;
+    di->Key = key;
+    di->Flags = flags;
+    dynamicPoints.append(di);
 }
 
 // returns a map of function addresses and the scratch register used to hold the thread data address

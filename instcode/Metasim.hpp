@@ -63,5 +63,13 @@ static const char* CounterTypeNames[CounterType_total] = {
     "function"
 };
 
+typedef enum {
+    PointType_undefined = 0,
+    PointType_blockcount,
+    PointType_bufferfill,
+    PointType_buffercheck,
+    PointType_total
+} PointTypes;
+
 #endif //_Metasim_hpp_
 

@@ -40,6 +40,10 @@
 #define NOSTRING "__pebil_no_string__"
 #define BUFFER_ENTRIES 0x100000
 
+#define GENERATE_KEY(__bid, __typ) ((__typ & 0xf) | (__bid << 4))
+#define GET_BLOCKID(__key) ((__key >> 4))
+#define GET_TYPE(__key) ((__key& 0xf))
+
 extern "C" {
     InstrumentationTool* CacheSimulationMaker(ElfFile* elf){
         return new CacheSimulation(elf);
@@ -401,7 +405,7 @@ void CacheSimulation::instrument(){
 
                         InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_tramp, InstLocation_prior);
                         pt->setPriority(InstPriority_userinit);
-                        dynamicPoint(pt, (uint64_t)blockSeq);
+                        dynamicPoint(pt, GENERATE_KEY(blockSeq, PointType_buffercheck), 0);
                         Vector<X86Instruction*>* bufferDumpInstructions = new Vector<X86Instruction*>();
 
                         // put current buffer into sr2
@@ -438,7 +442,7 @@ void CacheSimulation::instrument(){
                     InstrumentationSnippet* snip = addInstrumentationSnippet();
                     InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, InstLocation_prior);
                     pt->setPriority(InstPriority_low);
-                    dynamicPoint(pt, blockSeq);
+                    dynamicPoint(pt, GENERATE_KEY(blockSeq, PointType_bufferfill), 0);
 
                     // grab 3 scratch registers
                     uint32_t sr1 = X86_REG_INVALID, sr2 = X86_REG_INVALID, sr3 = X86_REG_INVALID;

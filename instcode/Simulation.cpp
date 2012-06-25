@@ -49,12 +49,19 @@ typedef struct {
     uint64_t VirtualAddress;
     uint64_t ProgramAddress;
     uint64_t Key;
+    uint64_t Flags;
     uint32_t Size;
     uint8_t  OppContent[DYNAMIC_POINT_SIZE_LIMIT];
     bool IsEnabled;
 } DynamicInst;
 static uint64_t CountDynamicInst = 0;
 static DynamicInst* DynamicInst_ = NULL;
+static set<uint64_t>* NonmaxKeys = NULL;
+static bool FillPointsDead = false;
+
+#define GENERATE_KEY(__bid, __typ) ((__typ & 0xf) | (__bid << 4))
+#define GET_BLOCKID(__key) ((__key >> 4))
+#define GET_TYPE(__key) ((__key & 0xf))
 
 static void PrintDynamicPoint(DynamicInst* d){
     inform
@@ -74,12 +81,12 @@ static void PrintDynamicPoints(){
     }
 }
 
-static void SetDynamicPoints(set<uint64_t>& keys, bool state){
+static void SetDynamicPoints(set<uint64_t>* keys, bool state){
     debug(inform << "CHECKING " << dec << CountDynamicInst << ENDL);
     for (uint32_t i = 0; i < CountDynamicInst; i++){
         DynamicInst d = DynamicInst_[i];
-        debug(inform << TAB TAB << "KEY COUNT " << dec << d.Key << " = " << keys.count(d.Key) << ENDL);
-        if (keys.count(d.Key) > 0){
+        debug(inform << TAB TAB << "KEY COUNT " << dec << d.Key << " = " << keys->count(d.Key) << ENDL);
+        if (keys->count(d.Key) > 0){
             // point is already in the desired state
             if (state == d.IsEnabled){
                 continue;
@@ -93,8 +100,8 @@ static void SetDynamicPoints(set<uint64_t>& keys, bool state){
 
             d.IsEnabled = state;
 
-            inform << "Removing instrumentation point..." << ENDL;
-            PrintDynamicPoint(&d);
+            debug(inform << "Removing instrumentation point..." << ENDL);
+            debug(PrintDynamicPoint(&d));
         }
     }
 }
@@ -104,11 +111,20 @@ extern "C" {
         inform << "raw dynamic init " << hex << count << TAB << dyn << TAB << *dyn << ENDL;
         CountDynamicInst = *count;
         DynamicInst_ = *dyn;
+
+        NonmaxKeys = new set<uint64_t>();
+        for (uint32_t i = 0; i < CountDynamicInst; i++){
+            uint64_t k = DynamicInst_[i].Key;
+            if (GET_TYPE(k) == PointType_bufferfill){
+                if (NonmaxKeys->count(k) == 0){
+                    NonmaxKeys->insert(k);
+                }
+            }
+        }
+        
         PrintDynamicPoints();
     }
-};
 
-extern "C" {
     void* tool_mpi_init(){
         return NULL;
     }
@@ -151,6 +167,7 @@ extern "C" {
         return NULL;
     }
 
+    // TODO: thread safety here
     void* process_buffer(uint64_t* key){
         AllData->SetTimer(*key, 2);
         if (AllData == NULL){
@@ -166,8 +183,20 @@ extern "C" {
         register uint64_t numElements = BUFFER_CURRENT(stats);
         uint64_t capacity = BUFFER_CAPACITY(stats);
 
-        PRINT_INSTR(stdout, "counter %ld\tcapacity %ld\ttotal %ld", numElements, capacity, SamplingMethod_->AccessCount);
+        debug(PRINT_INSTR(stdout, "counter %ld\tcapacity %ld\ttotal %ld", numElements, capacity, SamplingMethod_->AccessCount));
+
+        if (NonmaxKeys->empty()){
+            BUFFER_CURRENT(stats) = 0;
+            return NULL;
+        }
+
+        bool DidSimulation = false;
         if (SamplingMethod_->CurrentlySampling()){
+            DidSimulation = true;
+            if (FillPointsDead == false){
+                SetDynamicPoints(NonmaxKeys, true);
+                FillPointsDead = true;
+            }
 
             /*
             for (uint32_t i = 0; i < BUFFER_CURRENT(stats); i++){
@@ -191,14 +220,37 @@ extern "C" {
                 BufferEntry* reference = &(stats->Buffer[j + 1]);
                 debug(inform << "Memseq " << dec << reference->memseq << " has " << stats->Stats[0]->GetAccessCount(reference->memseq) << ENDL);
                 if (SamplingMethod_->ExceedsAccessLimit(stats->Stats[0]->GetAccessCount(reference->memseq))){
-                    MemsRemoved.insert(stats->BlockIds[reference->memseq]);
+                    uint32_t bbid = stats->BlockIds[reference->memseq];
+
+                    uint64_t k1 = GENERATE_KEY(bbid, PointType_buffercheck);
+                    if (MemsRemoved.count(k1) == 0){
+                        MemsRemoved.insert(k1);
+                    }
+                    assert(MemsRemoved.count(k1) == 1);
+
+                    uint64_t k2 = GENERATE_KEY(bbid, PointType_bufferfill);
+                    if (MemsRemoved.count(k2) == 0){
+                        MemsRemoved.insert(k2);
+                    }
+                    assert(MemsRemoved.count(k2) == 1);
+
+                    if (NonmaxKeys->count(k2) > 0){
+                        NonmaxKeys->erase(k2);
+                        assert(NonmaxKeys->count(k2) == 0);
+                    }
                 }
             }
 
             // TODO: remove all points found in MemsRemoved
             debug(inform << "REMOVING " << dec << MemsRemoved.size() << ENDL);
             if (MemsRemoved.size()){
-                SetDynamicPoints(MemsRemoved, false);
+                SetDynamicPoints(&MemsRemoved, false);
+            }
+        } else {
+
+            if (FillPointsDead == true){
+                SetDynamicPoints(NonmaxKeys, false);
+                FillPointsDead = false;
             }
         }
 
@@ -208,6 +260,10 @@ extern "C" {
         debug(inform << "resetting buffer " << BUFFER_CURRENT(stats) << ENDL);
 
         AllData->SetTimer(*key, 3);
+
+        if (DidSimulation){
+            inform << "Simulated " << dec << numElements << " elements through " << CountCacheStructures << " caches in " << AllData->GetTimer(*key, 3) - AllData->GetTimer(*key, 2) << " seconds " << ENDL;
+        }
         return NULL;
     }
 
@@ -289,6 +345,8 @@ extern "C" {
             assert(stats);
             PrintSimulationStats(MemFile, stats, (*it));
         }
+
+        delete NonmaxKeys;
     }
 
 };

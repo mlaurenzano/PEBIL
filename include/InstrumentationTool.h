@@ -36,10 +36,23 @@ typedef struct {
     uint64_t VirtualAddress;
     uint64_t ProgramAddress;
     uint64_t Key;
+    uint64_t Flags;
     uint32_t Size;
     uint8_t  OppContent[DYNAMIC_POINT_SIZE_LIMIT];
     bool IsEnabled;
 } DynamicInst;
+
+struct DynamicInstInternal {
+    InstrumentationPoint* Point;
+    uint64_t Key;
+    uint64_t Flags;
+
+    DynamicInstInternal(){
+        Point = NULL;
+        Key = 0;
+        Flags = 0;
+    }
+};
 
 class InstrumentationTool : public ElfFileInst {
 private:
@@ -90,9 +103,9 @@ protected:
 #define PEBIL_OPT_TRK 0x00000020
 #define PEBIL_OPT_DOI 0x00000040
 
+    Vector<DynamicInstInternal*> dynamicPoints;
     InstrumentationFunction* dynamicInit;
-    Vector<InstrumentationPoint*> dynamicPoints;
-    Vector<uint64_t> dynamicKeys;
+
     uint64_t dynamicPointArray;
     uint64_t dynamicSize;
 
@@ -106,7 +119,7 @@ public:
     virtual void declare();
     virtual void instrument();
 
-    void dynamicPoint(InstrumentationPoint* pt, uint64_t key);
+    void dynamicPoint(InstrumentationPoint* pt, uint64_t key, uint64_t flags);
     void applyDynamicPoints();
 
     virtual const char* briefName() { __SHOULD_NOT_ARRIVE; }
