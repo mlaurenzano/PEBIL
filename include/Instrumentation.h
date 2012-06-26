@@ -285,6 +285,14 @@ typedef enum {
     InstPriority_Total_Types
 } InstPriorities;
 
+static const char* InstPriorityNames[InstPriority_Total_Types] = {
+    "undefined",
+    "sysinit",
+    "userinit",
+    "regular",
+    "low"
+};
+
 class InstrumentationPoint : public Base {
 protected:
     X86Instruction* point;

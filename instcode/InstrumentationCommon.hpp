@@ -158,6 +158,9 @@ typedef struct {
 #define DataMap unordered_map
 template <class T = void*> class DataManager {
 private:
+
+    pthread_mutex_t mutex;
+
     DataMap <pthread_key_t, DataMap<pthread_t, T> > datamap;
     void* (*datagen)(void*, uint32_t, pthread_key_t, pthread_t);
     void (*datadel)(void*);
@@ -223,9 +226,19 @@ public:
         datagen = g;
         datadel = d;
         dataref = r;
+
+        mutex = PTHREAD_MUTEX_INITIALIZER;
     }
 
     ~DataManager(){
+    }
+
+    void TakeMutex(){
+        pthread_mutex_unlock(&mutex);
+    }
+
+    void ReleaseMutex(){
+        pthread_mutex_unlock(&mutex);
     }
 
     pthread_key_t GenerateImageKey(){
@@ -299,6 +312,8 @@ public:
     }
 
     double GetTimer(pthread_key_t iid, uint32_t idx){
+        assert(timers.count(iid) == 1);
+        assert(timers[iid].count(idx) == 1);
         return timers[iid][idx];
     }
 

@@ -179,6 +179,13 @@ typedef enum {
     FlagsProtectionMethod_Total_Types
 } FlagsProtectionMethods;
 
+static const char* FlagsProtectionMethodNames[FlagsProtectionMethod_Total_Types] = {
+    "undefined",
+    "none",
+    "light",
+    "full"
+};
+
 typedef enum {
     InstrumentationMode_undefined = 0,
     InstrumentationMode_inline,
@@ -186,6 +193,13 @@ typedef enum {
     InstrumentationMode_tramp,
     InstrumentationMode_Total_Types
 } InstrumentationModes;
+
+static const char* InstrumentationModeNames[InstrumentationMode_Total_Types] = {
+    "undefined",
+    "inline",
+    "trampinline",
+    "tramp"
+};
 
 typedef enum {
     TableMode_undefined = 0,
@@ -196,11 +210,19 @@ typedef enum {
 } TableModes;
 
 typedef enum {
+    InstLocation_undefined = 0,
     InstLocation_prior,
     InstLocation_after,
     InstLocation_replace,
     InstLocation_Total_Types
 } InstLocations;
+
+static const char* InstLocationNames[InstLocation_Total_Types] = {
+    "undefined",
+    "prior",
+    "after",
+    "replace"
+};
 
 typedef enum {
     DebugFormat_undefined = 0,

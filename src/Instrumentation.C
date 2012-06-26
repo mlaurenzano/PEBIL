@@ -63,7 +63,7 @@ uint32_t map64BitArgToReg(uint32_t idx){
 }
 
 void InstrumentationPoint::print(){
-    PRINT_INFOR("Instrumentation point at %#llx -> %#llx: size %d, priority %d, protection %d, mode %d, loc %d, offset %d, function %s", getInstBaseAddress(), getInstSourceAddress(), numberOfBytes, priority, getFlagsProtectionMethod(), instrumentationMode, instLocation, offsetFromPoint, point->getContainer()->getName());
+    PRINT_INFOR("Instrumentation point at %#llx -> %#llx: size %d, priority %s(%d), protection %s, mode %s, loc %s, offset %d, function %s", getInstBaseAddress(), getInstSourceAddress(), numberOfBytes, InstPriorityNames[priority], priority, FlagsProtectionMethodNames[getFlagsProtectionMethod()], InstrumentationModeNames[instrumentationMode], InstLocationNames[instLocation], offsetFromPoint, point->getContainer()->getName());
 }
 
 int searchInstPoint(const void* arg1,const void* arg2){
@@ -226,7 +226,6 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
     uint32_t trampolineSize = 0;
 
     FlagsProtectionMethods protectionMethod = getFlagsProtectionMethod();
-    protectionMethod = FlagsProtectionMethod_full;
 
     bool stackIsSafe = true;
     TextObject* to = point->getContainer();
@@ -242,7 +241,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
     } 
 
     bool protectStack = false;
-    if (protectionMethod != FlagsProtectionMethod_none && !stackIsSafe){
+    if (protectionMethod != FlagsProtectionMethod_none || !stackIsSafe){
         protectStack = true;
     }
 
@@ -987,7 +986,6 @@ FlagsProtectionMethods InstrumentationPoint::getFlagsProtectionMethod(){
         }
     }
     ASSERT(protectionMethod != FlagsProtectionMethod_undefined);
-    protectionMethod = FlagsProtectionMethod_full;
 
     return protectionMethod;
 }

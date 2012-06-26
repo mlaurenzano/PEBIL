@@ -38,7 +38,7 @@
 #define INST_LIB_NAME "cxx_libsimulator.so"
 
 #define NOSTRING "__pebil_no_string__"
-#define BUFFER_ENTRIES 0x10000
+#define BUFFER_ENTRIES 0x1000
 
 #define GENERATE_KEY(__bid, __typ) ((__typ & 0xf) | (__bid << 4))
 #define GET_BLOCKID(__key) ((__key >> 4))
@@ -291,6 +291,7 @@ void CacheSimulation::instrument(){
 
     INIT_BLOCK_ELEMENT(uint64_t, Counters);
     INIT_BLOCK_ELEMENT(CounterTypes, Types);
+    INIT_BLOCK_ELEMENT(uint32_t, MemopsPerBlock);
     INIT_BLOCK_ELEMENT(uint64_t, Addresses);
     INIT_BLOCK_ELEMENT(uint64_t, Hashes);
     INIT_BLOCK_ELEMENT(uint32_t, Lines);
@@ -389,8 +390,12 @@ void CacheSimulation::instrument(){
 
             CounterTypes tmpct = CounterType_basicblock;
             initializeReservedData(getInstDataAddress() + (uint64_t)stats.Types + blockSeq*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);
+
             temp64 = 0;
             initializeReservedData(getInstDataAddress() + (uint64_t)stats.Counters + blockSeq*sizeof(uint64_t), sizeof(uint64_t), &temp64);
+
+            temp32 = bb->getNumberOfMemoryOps();
+            initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopsPerBlock + blockSeq*sizeof(uint32_t), sizeof(uint32_t), &temp32);
         }
 
         if (blocksToInst.get(bb->getHashCode().getValue())){
@@ -398,7 +403,6 @@ void CacheSimulation::instrument(){
             uint32_t memopIdInBlock = 0;
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
                 X86Instruction* memop = bb->getInstruction(j);
-
                 uint64_t currentOffset = (uint64_t)stats.Buffer + offsetof(BufferEntry, __buf_current);
 
                 if (isThreadedMode()){
@@ -440,7 +444,6 @@ void CacheSimulation::instrument(){
 
                         InstrumentationPoint* pt = addInstrumentationPoint(memop, simFunc, InstrumentationMode_tramp, InstLocation_prior);
                         pt->setPriority(InstPriority_userinit);
-                        pt->setFlagsProtectionMethod(FlagsProtectionMethod_full);
                         dynamicPoint(pt, GENERATE_KEY(blockSeq, PointType_buffercheck), true);
                         Vector<X86Instruction*>* bufferDumpInstructions = new Vector<X86Instruction*>();
 
@@ -471,11 +474,10 @@ void CacheSimulation::instrument(){
                         delete bufferDumpInstructions;
 
                         InstrumentationSnippet* snip = addInstrumentationSnippet();
-                        pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, InstLocation_prior);
+                        pt = addInstrumentationPoint(memop, snip, InstrumentationMode_inline, InstLocation_prior);
                         pt->setPriority(InstPriority_regular);
-                        pt->setFlagsProtectionMethod(FlagsProtectionMethod_full);
+                        dynamicPoint(pt, GENERATE_KEY(blockSeq, PointType_bufferinc), true);
 
-                        snip->addSnippetInstruction(X86InstructionFactory64::emitNop());
                         if (threadReg == X86_REG_INVALID){
                             Vector<X86Instruction*>* tdata = storeThreadData(sr2, sr1);
                             for (uint32_t k = 0; k < tdata->size(); k++){
@@ -485,7 +487,6 @@ void CacheSimulation::instrument(){
                         }
 
                         snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr1, offsetof(BufferEntry, __buf_current), sr2));
-                        //snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(sr2, 0, 1, bb->getNumberOfMemoryOps(), sr2, true, false));
                         snip->addSnippetInstruction(X86InstructionFactory64::emitRegAddImm(sr2, bb->getNumberOfMemoryOps()));
                         snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr2, sr1, offsetof(BufferEntry, __buf_current), true));
                     }
@@ -493,7 +494,6 @@ void CacheSimulation::instrument(){
                     // at every memop, fill a buffer entry
                     InstrumentationSnippet* snip = addInstrumentationSnippet();
                     InstrumentationPoint* pt = addInstrumentationPoint(memop, snip, InstrumentationMode_trampinline, InstLocation_prior);
-                    pt->setFlagsProtectionMethod(FlagsProtectionMethod_full);
                     pt->setPriority(InstPriority_low);
                     dynamicPoint(pt, GENERATE_KEY(blockSeq, PointType_bufferfill), true);
 
@@ -606,11 +606,13 @@ void CacheSimulation::instrument(){
                         }
                         initializeReservedData(getInstDataAddress() + (uint64_t)stats.Types + memopSeq*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);
                         initializeReservedData(getInstDataAddress() + (uint64_t)stats.Counters + (memopSeq * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
+
+                        temp32 = 1;
+                        initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopsPerBlock + memopSeq*sizeof(uint32_t), sizeof(uint32_t), &temp32);
                     }
         
                     initializeReservedData(getInstDataAddress() + (uint64_t)stats.BlockIds + memopSeq*sizeof(uint32_t), sizeof(uint32_t), &blockSeq);
                     initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopIds + memopSeq*sizeof(uint32_t), sizeof(uint32_t), &memopIdInBlock);
-                    PRINT_INFOR("Memop sequence %d", memopSeq);
 
                     memopIdInBlock++;
                     memopSeq++;
@@ -620,12 +622,21 @@ void CacheSimulation::instrument(){
         blockSeq++;
     }
 
-    delete functionThreading;
+    if (isPerInstruction()){
+        printStaticFilePerInstruction(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
+    } else {
+        printStaticFile(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
+    }
+
     delete[] nostring;
 
     delete allBlocks;
     delete allBlockIds;
     delete allBlockLineInfos;
+
+    if (isThreadedMode()){
+        delete functionThreading;
+    }
 
     /*
 

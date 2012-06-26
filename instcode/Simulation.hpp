@@ -67,6 +67,7 @@ typedef struct {
     // per-block data
     CounterTypes* Types;
     uint64_t* Counters;
+    uint32_t* MemopsPerBlock;
     char** Files;
     uint32_t* Lines;
     char** Functions;
@@ -266,9 +267,6 @@ private:
 public:
     MemoryStreamHandler();
     ~MemoryStreamHandler();
-
-    void Lock();
-    void Unlock();
 
     virtual void Print() = 0;
     virtual void Process(void* stats, BufferEntry* access) = 0;
