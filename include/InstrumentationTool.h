@@ -31,7 +31,7 @@ class InstrumentationPoint;
 #define INFO_UNKNOWN "__info_unknown__"
 
 /* support for removing instrumentation points */
-#define DYNAMIC_POINT_SIZE_LIMIT 8
+#define DYNAMIC_POINT_SIZE_LIMIT 128
 typedef struct {
     uint64_t VirtualAddress;
     uint64_t ProgramAddress;
@@ -45,12 +45,12 @@ typedef struct {
 struct DynamicInstInternal {
     InstrumentationPoint* Point;
     uint64_t Key;
-    uint64_t Flags;
+    bool IsEnabled;
 
     DynamicInstInternal(){
         Point = NULL;
         Key = 0;
-        Flags = 0;
+        IsEnabled = true;
     }
 };
 
@@ -119,7 +119,7 @@ public:
     virtual void declare();
     virtual void instrument();
 
-    void dynamicPoint(InstrumentationPoint* pt, uint64_t key, uint64_t flags);
+    void dynamicPoint(InstrumentationPoint* pt, uint64_t key, bool enable);
     void applyDynamicPoints();
 
     virtual const char* briefName() { __SHOULD_NOT_ARRIVE; }

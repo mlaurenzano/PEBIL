@@ -66,8 +66,9 @@ static const char* CounterTypeNames[CounterType_total] = {
 typedef enum {
     PointType_undefined = 0,
     PointType_blockcount,
-    PointType_bufferfill,
     PointType_buffercheck,
+    PointType_bufferinc,
+    PointType_bufferfill,
     PointType_total
 } PointTypes;
 

@@ -35,9 +35,11 @@ X86Instruction* BasicBlock::findBestInstPoint(InstLocations* loc, BitSet<uint32_
     uint32_t best = 0;
     InstLocations bestloc = InstLocation_prior;
     uint32_t ninsn = getNumberOfInstructions();
+
     if (endsWithControl()){
         ninsn--;
     }
+
     BitSet<uint32_t>* flagsDead  = new BitSet<uint32_t>(ninsn * 2);
 
     bool hasFlags = false;
@@ -93,10 +95,10 @@ X86Instruction* BasicBlock::findBestInstPoint(InstLocations* loc, BitSet<uint32_
 
     delete flagsDead;
 
-    // frame setup messes up lots of stuff, so for all function entries we use the very end of the block
+    // frame setup messes up lots of stuff, so for all function entries we use the end of the block
     if (isEntry()){
-        best = getNumberOfInstructions() - 1;
-        X86Instruction* e = getExitInstruction();
+        best = ninsn - 1;
+        X86Instruction* e = getInstruction(best);
         bestloc = InstLocation_after;
         if (e->isReturn() || e->isCall()){
             bestloc = InstLocation_prior;

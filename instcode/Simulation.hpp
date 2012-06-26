@@ -167,6 +167,8 @@ public:
 
     void Hit(uint32_t memid, uint32_t lvl);
     void Miss(uint32_t memid, uint32_t lvl);
+    void Hit(uint32_t memid, uint32_t lvl, uint32_t cnt);
+    void Miss(uint32_t memid, uint32_t lvl, uint32_t cnt);
 
     static float GetHitRate(LevelStats* stats);
     static float GetHitRate(uint64_t hits, uint64_t misses);

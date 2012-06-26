@@ -27,6 +27,10 @@
 #include <X86InstructionFactory.h>
 #include <TextSection.h>
 
+void InstrumentationPoint::setFlagsProtectionMethod(FlagsProtectionMethods p){
+    protectionMethod = p;
+}
+
 uint32_t map64BitArgToReg(uint32_t idx){
     uint32_t argumentRegister;
     ASSERT(idx <= Num__64_bit_StackArgs);
@@ -222,6 +226,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
     uint32_t trampolineSize = 0;
 
     FlagsProtectionMethods protectionMethod = getFlagsProtectionMethod();
+    protectionMethod = FlagsProtectionMethod_full;
 
     bool stackIsSafe = true;
     TextObject* to = point->getContainer();
@@ -242,8 +247,16 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
     }
 
     BitSet<uint32_t>* protectRegs = instrumentation->getProtectedRegisters();
-    if (protectRegs->contains(X86_REG_SP)){
-    //if (protectRegs->size() > 0){
+    uint32_t countProt = 0;
+    for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
+        if (i == X86_REG_SP){
+            continue;
+        }
+        if (protectRegs->contains(i)){
+            countProt++;
+        }
+    }
+    if (countProt > 0){
         protectStack = true;
     }
 
@@ -263,7 +276,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
         trampolineInstructions.append(X86InstructionFactory::emitPushEflags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes(); 
     } else if (protectionMethod == FlagsProtectionMethod_light){
-        trampolineInstructions.append(X86InstructionFactory64::emitMoveRegToMem(X86_REG_AX, regStorageBase));
+        trampolineInstructions.append(X86InstructionFactory64::emitStackPush(X86_REG_AX));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();        
 
         trampolineInstructions.append(X86InstructionFactory64::emitLoadAHFromFlags());
@@ -306,7 +319,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
         trampolineInstructions.append(X86InstructionFactory64::emitStoreAHToFlags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
 
-        trampolineInstructions.append(X86InstructionFactory64::emitMoveMemToReg(regStorageBase, X86_REG_AX, true));
+        trampolineInstructions.append(X86InstructionFactory64::emitStackPop(X86_REG_AX));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
@@ -870,34 +883,20 @@ BitSet<uint32_t>* Instrumentation::getProtectedRegisters(){
         }
         delete defs;
     }
-    //n->print();
 
     return n;
 }
 
-FlagsProtectionMethods InstrumentationPoint::getFlagsProtectionMethod(){
-    if (protectionMethod == FlagsProtectionMethod_undefined){
-        protectionMethod = instrumentation->getFlagsProtectionMethod();
-        //print();
-    }
-    ASSERT(protectionMethod != FlagsProtectionMethod_undefined);
-
-    return protectionMethod;
-}
-
-FlagsProtectionMethods InstrumentationSnippet::getFlagsProtectionMethod(){
-
-    InstrumentationPoint* pt = getInstrumentationPoint();
-    X86Instruction* xins = pt->getSourceObject();
+FlagsProtectionMethods getFlagsMethod(InstLocations loc, X86Instruction* xins, Vector<X86Instruction*>* insert, bool canOverflow){
     BitSet<uint32_t>* liveSet = new BitSet<uint32_t>(X86_FLAG_BITS);
 
     // figure out which flags are live at the instrumentation point
     for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
-        if (pt->getInstLocation() == InstLocation_prior){
+        if (loc == InstLocation_prior){
             if (!xins->isFlagDeadIn(i)){
                 liveSet->insert(i);
             }
-        } else if (pt->getInstLocation() == InstLocation_after){
+        } else if (loc == InstLocation_after){
             if (!xins->isFlagDeadOut(i)){
                 liveSet->insert(i);
             }
@@ -913,8 +912,8 @@ FlagsProtectionMethods InstrumentationSnippet::getFlagsProtectionMethod(){
 
     // figure out which flags are defined by the snippet
     BitSet<uint32_t>* flagsSquashed = new BitSet<uint32_t>(X86_FLAG_BITS);
-    for (uint32_t i = 0; i < snippetInstructions.size(); i++){
-        X86Instruction* s = snippetInstructions[i];
+    for (uint32_t i = 0; i < insert->size(); i++){
+        X86Instruction* s = (*insert)[i];
         BitSet<uint32_t>* def = s->getFlagsDefined();
         for (uint32_t j = 0; j < X86_FLAG_BITS; j++){
             if (def->contains(j)){
@@ -965,12 +964,55 @@ FlagsProtectionMethods InstrumentationSnippet::getFlagsProtectionMethod(){
     return prot;
 }
 
-FlagsProtectionMethods InstrumentationFunction::getFlagsProtectionMethod(){
+FlagsProtectionMethods InstrumentationPoint::getFlagsProtectionMethod(){
+    if (protectionMethod == FlagsProtectionMethod_undefined){
+        if (instrumentation->getType() == PebilClassType_InstrumentationSnippet){
 
+            protectionMethod = instrumentation->getFlagsProtectionMethod();
+
+        } else if (instrumentation->getType() == PebilClassType_InstrumentationFunction){
+            Vector<X86Instruction*>* funcInsns = new Vector<X86Instruction*>();
+
+            for (uint32_t i = 0; i < precursorInstructions.size(); i++){
+                funcInsns->append(precursorInstructions[i]);
+            }
+            for (uint32_t i = 0; i < postcursorInstructions.size(); i++){
+                funcInsns->append(postcursorInstructions[i]);
+            }
+
+            protectionMethod = getFlagsMethod(getInstLocation(), point, funcInsns, instrumentation->canOverflow);
+            delete funcInsns;
+        } else {
+            __SHOULD_NOT_ARRIVE;
+        }
+    }
+    ASSERT(protectionMethod != FlagsProtectionMethod_undefined);
+    protectionMethod = FlagsProtectionMethod_full;
+
+    return protectionMethod;
+}
+
+FlagsProtectionMethods InstrumentationSnippet::getFlagsProtectionMethod(){
+    InstrumentationPoint* pt = getInstrumentationPoint();
+    X86Instruction* xins = pt->getSourceObject();
+
+    Vector<X86Instruction*>* insns = new Vector<X86Instruction*>();
+    for (uint32_t i = 0; i < snippetInstructions.size(); i++){
+        insns->append(snippetInstructions[i]);
+    }
+
+    FlagsProtectionMethods p = getFlagsMethod(pt->getInstLocation(), xins, insns, canOverflow);
+
+    delete insns;
+    return p;
+}
+
+FlagsProtectionMethods InstrumentationFunction::getFlagsProtectionMethod(){
     InstrumentationPoint* pt = getInstrumentationPoint();
     X86Instruction* xins = pt->getSourceObject();
     BitSet<uint32_t>* liveSet = new BitSet<uint32_t>(X86_FLAG_BITS);
 
+    xins->print();
     if (pt->getInstLocation() == InstLocation_replace){
         delete liveSet;
         return FlagsProtectionMethod_none;

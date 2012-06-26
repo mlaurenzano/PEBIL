@@ -52,39 +52,50 @@ void InstrumentationTool::applyDynamicPoints(){
     }
 
     uint64_t dynArray = reserveDataOffset(sizeof(DynamicInst) * dynamicPoints.size());
-    X86Instruction* nop5Byte = X86InstructionFactory::emitNop(Size__uncond_jump);
 
     uint64_t temp64 = dynamicPoints.size();
     initializeReservedData(getInstDataAddress() + dynamicSize, sizeof(uint64_t), (void*)&temp64);
     initializeReservedPointer(dynArray, dynamicPointArray);
 
-    uint32_t i = 0;
+    uint32_t dindex = 0;
     while (dynamicPoints.size()){
         DynamicInst d;
         DynamicInstInternal* di = dynamicPoints.remove(0);
         d.VirtualAddress = di->Point->getInstSourceAddress();
         d.ProgramAddress = di->Point->getSourceObject()->getProgramAddress();
         d.Key = di->Key;
-        d.Flags = di->Flags;
-        d.Size = Size__uncond_jump;
-        d.IsEnabled = true;
-        memcpy(d.OppContent, nop5Byte->charStream(), Size__uncond_jump);
+        d.Flags = 0;
+        if (di->Point->getInstrumentationMode() == InstrumentationMode_inline){
+            d.Size = di->Point->getNumberOfBytes();
+        } else {
+            d.Size = Size__uncond_jump;
+        }
+        ASSERT(d.Size);
+        d.IsEnabled = di->IsEnabled;
 
-        initializeReservedData(getInstDataAddress() + dynArray + (i * sizeof(DynamicInst)), sizeof(DynamicInst), &d);
+        ASSERT(d.Size <= DYNAMIC_POINT_SIZE_LIMIT);
+        Vector<X86Instruction*>* nops = X86InstructionFactory::emitNopSeries(d.Size);
+        uint32_t b = 0;
+        for (uint32_t i = 0; i < nops->size(); i++){
+            memcpy(&(d.OppContent[b]), (*nops)[i]->charStream(), (*nops)[i]->getSizeInBytes());
+            b += (*nops)[i]->getSizeInBytes();
+            delete (*nops)[i];
+        }
+        ASSERT(b == d.Size);
+        delete nops;
+
+        initializeReservedData(getInstDataAddress() + dynArray + (dindex * sizeof(DynamicInst)), sizeof(DynamicInst), &d);
         delete di;
-        i++;
+        dindex++;
     }
-    delete nop5Byte;
-
 }
 
-void InstrumentationTool::dynamicPoint(InstrumentationPoint* pt, uint64_t key, uint64_t flags){
-    ASSERT(pt->getInstrumentationMode() != InstrumentationMode_inline && "Use a non-inlined instrumentation mode to support dynamic instrumentation activity");
-
+void InstrumentationTool::dynamicPoint(InstrumentationPoint* pt, uint64_t key, bool enable){
     DynamicInstInternal* di = new DynamicInstInternal();
+    //ASSERT(pt->getInstrumentationMode() == InstrumentationMode_inline);
     di->Point = pt;
     di->Key = key;
-    di->Flags = flags;
+    di->IsEnabled = enable;
     dynamicPoints.append(di);
 }
 

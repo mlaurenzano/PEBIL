@@ -44,13 +44,13 @@ DeadRegisterSquasher::DeadRegisterSquasher(ElfFile* elf)
 
 void DeadRegisterSquasher::declare()
 {
-    InstrumentationTool::declare();
+    //InstrumentationTool::declare();
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 }
 
 void DeadRegisterSquasher::instrument() 
 {
-    InstrumentationTool::instrument();
+    //InstrumentationTool::instrument();
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
     uint32_t temp32;
     uint64_t temp64;

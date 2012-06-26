@@ -346,31 +346,31 @@ void X86Instruction::setLiveOuts(RegisterSet* live){
 }
 
 bool X86Instruction::isRegDeadIn(uint32_t regNum){
-    if( !liveIns ) { // FIXME better handling for this?
+    if (!liveIns){ // FIXME better handling for this?
         return false;
     }
-    return !this->liveIns->containsRegister(regNum);
+    return !liveIns->containsRegister(regNum);
 }
 
 bool X86Instruction::isRegDeadOut(uint32_t regNum){
-    if( !liveOuts ) { // FIXME better handling for this?
+    if (!liveOuts){ // FIXME better handling for this?
         return false;
     }
-    return !this->liveOuts->containsRegister(regNum);
+    return !liveOuts->containsRegister(regNum);
 }
 
 bool X86Instruction::isFlagDeadIn(uint32_t flagNum){
-    if(!liveIns ) {
+    if (!liveIns){
         return false; // FIXME
     }
-    return !this->liveIns->containsFlag(flagNum);
+    return !liveIns->containsFlag(flagNum);
 }
 
 bool X86Instruction::isFlagDeadOut(uint32_t flagNum){
-    if(!liveOuts){
+    if (!liveOuts){
         return false; // FIXME
     }
-    return !this->liveOuts->containsFlag(flagNum);
+    return !liveOuts->containsFlag(flagNum);
 }
 
 bool X86Instruction::allFlagsDeadIn(){

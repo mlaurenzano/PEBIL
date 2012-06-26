@@ -84,6 +84,8 @@ protected:
     InstrumentationPoint* point;
 
 public:
+    bool canOverflow;
+
     Instrumentation(PebilClassTypes typ);
     ~Instrumentation();
 
@@ -105,6 +107,7 @@ public:
 
     void setRequiresDistinctTrampoline(bool rdt) { distinctTrampoline = rdt; }
     bool requiresDistinctTrampoline() { return distinctTrampoline; }
+    void setOverflowable(bool v) { canOverflow = v; }
 
     uint32_t bootstrapSize();
     void setBootstrapOffset(uint64_t off) { bootstrapOffset = off; }
@@ -123,8 +126,6 @@ private:
     uint32_t* dataEntrySizes;
     uint64_t* dataEntryOffsets;
 
-    bool canOverflow;
-
 public:
     InstrumentationSnippet();
     ~InstrumentationSnippet();    
@@ -142,7 +143,6 @@ public:
     uint32_t generateSnippetControl();
 
     uint64_t getEntryPoint();
-    void setOverflowable(bool v) { canOverflow = v; }
 
     FlagsProtectionMethods getFlagsProtectionMethod();
 
@@ -322,6 +322,7 @@ public:
     void setPriority(InstPriorities p) { ASSERT(p && p < InstPriority_Total_Types); priority = p; }
     InstPriorities getPriority() { return priority; }
     FlagsProtectionMethods getFlagsProtectionMethod();
+    void setFlagsProtectionMethod(FlagsProtectionMethods p);
 
     uint64_t getTargetOffset() { ASSERT(instrumentation); return instrumentation->getEntryPoint(); }
     Instrumentation* getInstrumentation() { return instrumentation; }
