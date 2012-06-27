@@ -116,7 +116,6 @@ static void SetDynamicPoints(set<uint64_t>* keys, bool state){
 
 extern "C" {
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
-        inform << "raw dynamic init " << hex << count << TAB << dyn << TAB << *dyn << ENDL;
         CountDynamicInst = *count;
         DynamicInst_ = *dyn;
 
@@ -154,8 +153,6 @@ extern "C" {
     void* tool_image_init(void* s, uint64_t* key, ThreadData* td){
         SimulationStats* stats = (SimulationStats*)s;
 
-        PRINT_INSTR(stdout, "raw args %#lx, %#lx, %#lx", (uint64_t)stats, (uint64_t)key, (uint64_t)td);
-
         ReadKnobs();
 
         assert(stats->Stats == NULL);
@@ -168,9 +165,6 @@ extern "C" {
         if (AllData == NULL){
             AllData = new DataManager<SimulationStats*>(GenerateCacheStats, DeleteCacheStats, ReferenceCacheStats);
         }
-
-        PRINT_INSTR(stdout, "Buffer features: capacity=%ld, current=%ld", BUFFER_CAPACITY(stats), BUFFER_CURRENT(stats));
-        inform << dec << stats->InstructionCount << " memops" << ENDL;
 
         *key = AllData->AddImage(stats, td);
         stats->imageid = *key;
@@ -203,12 +197,12 @@ extern "C" {
         uint64_t capacity = BUFFER_CAPACITY(stats);
 
 
-        inform 
-            << hex << tid
-            << TAB << "Counter " << dec << numElements
-            << TAB << "Capacity " << dec << capacity
-            << TAB << "Total " << dec << SamplingMethod_->AccessCount
-            << ENDL;
+        debug(inform 
+              << hex << tid
+              << TAB << "Counter " << dec << numElements
+              << TAB << "Capacity " << dec << capacity
+              << TAB << "Total " << dec << SamplingMethod_->AccessCount
+              << ENDL);
 
         if (NonmaxKeys->empty()){
             BUFFER_CURRENT(stats) = 0;
@@ -364,6 +358,8 @@ extern "C" {
         const char* fileName = SimulationFileName(stats);
         TryOpen(MemFile, fileName);
 
+        inform << "Printing cache simulation results to " << fileName << ENDL;
+
         uint64_t sampledCount = 0;
         uint64_t totalMemop = 0;
         for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
@@ -378,7 +374,7 @@ extern "C" {
             for (uint32_t i = 0; i < s->BlockCount; i++){
                 totalMemop += (s->Counters[i] * s->MemopsPerBlock[i]);
             }
-            inform << "Total memop: " << dec << totalMemop << ENDL;
+            debug(inform << "Total memop: " << dec << totalMemop << ENDL);
         }
 
         MemFile
@@ -426,6 +422,10 @@ extern "C" {
         }
         MemFile << ENDL;
 
+        MemFile << "#block <seqid> <visitcount> <samplecount> <threadid>" << ENDL
+                << "#       sys <sysid> lvl <cachelvl> <hitcount> <miscount> <hitpercent>" << ENDL
+                << ENDL;
+
         for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
             stats = AllData->GetData(iid, (*it));
             assert(stats);
@@ -433,15 +433,13 @@ extern "C" {
         }
 
         delete NonmaxKeys;
+
+        inform << "CXXX Total Execution time for image: " << (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)) << ENDL;
     }
 
 };
 
 void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid){
-    f << "#block <seqid> <visitcount> <samplecount> <threadid>" << ENDL
-      << "#       sys <sysid> lvl <cachelvl> <hitcount> <miscount> <hitpercent>" << ENDL
-      << ENDL;
-
     debug(
     for (uint32_t bbid = 0; bbid < stats->BlockCount; bbid++){
         if (stats->Counters[bbid] == 0){
@@ -793,7 +791,7 @@ bool ParsePositiveInt32Hex(string token, uint32_t* value){
 
 uint64_t ReferenceCacheStats(void* args){
     SimulationStats* stats = (SimulationStats*)args;
-    return (uint64_t)stats->Buffer;
+    return (uint64_t)stats;
 }
 
 void DeleteCacheStats(void* args){
@@ -1274,7 +1272,10 @@ void CacheStructure::Process(void* stats, BufferEntry* access){
 
 void* GenerateCacheStats(void* args, uint32_t typ, pthread_key_t iid, pthread_t tid){
     SimulationStats* stats = (SimulationStats*)args;
-    SimulationStats* s = (SimulationStats*)malloc(sizeof(SimulationStats));
+
+    // allocate Counters contiguously with SimulationStats. Since the address of SimulationStats is the
+    // address of the thread data, this allows us to avoid an extra memory ref on Counter updates
+    SimulationStats* s = (SimulationStats*)malloc(sizeof(SimulationStats) + (sizeof(uint64_t) * stats->BlockCount));
     assert(s);
 
     memcpy(s, stats, sizeof(SimulationStats));
@@ -1283,8 +1284,7 @@ void* GenerateCacheStats(void* args, uint32_t typ, pthread_key_t iid, pthread_t 
     s->imageid = iid;
     s->Initialized = false;
 
-    // each thread gets its own buffer, all images share a buffer
-    // TODO: Counter and Buffer need to be contiguous so we only need to keep 1 address associated to threadid?
+    // each thread gets its own buffer, all images for a thread share a buffer
     if (typ == AllData->ThreadType){
         s->Buffer = new BufferEntry[BUFFER_CAPACITY(stats) + 1];
         memcpy(s->Buffer, stats->Buffer, sizeof(BufferEntry) * (BUFFER_CAPACITY(stats) + 1));
@@ -1292,9 +1292,8 @@ void* GenerateCacheStats(void* args, uint32_t typ, pthread_key_t iid, pthread_t 
     }
 
     // each thread/image gets its own counters and stats
-    inform << "Old Counter array " << hex << s->Counters << ENDL;
-    s->Counters = new uint64_t[s->BlockCount]; 
-    inform << "New Counter array " << hex << s->Counters << ENDL;
+    uint64_t tmp64 = (uint64_t)(s) + (uint64_t)(sizeof(SimulationStats));
+    s->Counters = (uint64_t*)(tmp64);
     bzero(s->Counters, s->BlockCount * sizeof(uint64_t));
 
     s->Stats = new CacheStats*[CountCacheStructures];

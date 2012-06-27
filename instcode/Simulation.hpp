@@ -47,6 +47,9 @@ typedef struct {
 
 class CacheStats;
 typedef struct {
+    // memory buffer
+    BufferEntry* Buffer;
+
     // metadata
     pthread_t threadid;
     pthread_key_t imageid;
@@ -56,9 +59,6 @@ typedef struct {
     uint32_t BlockCount;
     char* Application;
     char* Extension;
-
-    // memory buffer
-    BufferEntry* Buffer;
 
     // per-memop data
     uint32_t* BlockIds;

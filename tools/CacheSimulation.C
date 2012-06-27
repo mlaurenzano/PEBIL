@@ -256,7 +256,6 @@ void CacheSimulation::instrument(){
     intro.__buf_current = 0;
     intro.__buf_capacity = BUFFER_ENTRIES;
 
-    uint64_t simulationStruct = reserveDataOffset(sizeof(SimulationStats));
     SimulationStats stats;
 
     stats.Initialized = true;
@@ -270,6 +269,10 @@ void CacheSimulation::instrument(){
         stats.BlockCount = blockSeq;
     }
 
+    // allocate Counters and SimulationStats contiguously to avoid an extra memory ref in counter updates
+    uint64_t simulationStruct = reserveDataOffset(sizeof(SimulationStats) + (sizeof(uint64_t) * stats.BlockCount));
+    stats.Counters = (uint64_t*)(simulationStruct + sizeof(SimulationStats));
+    initializeReservedPointer((uint64_t)stats.Counters, simulationStruct + offsetof(SimulationStats, Counters));
 
     temp32 = BUFFER_ENTRIES + 1;
     stats.Buffer = (BufferEntry*)reserveDataOffset(temp32 * sizeof(BufferEntry));
@@ -289,7 +292,6 @@ void CacheSimulation::instrument(){
     stats.__nam = (__typ*)reserveDataOffset(stats.BlockCount * sizeof(__typ));  \
     initializeReservedPointer((uint64_t)stats.__nam, simulationStruct + offsetof(SimulationStats, __nam))
 
-    INIT_BLOCK_ELEMENT(uint64_t, Counters);
     INIT_BLOCK_ELEMENT(CounterTypes, Types);
     INIT_BLOCK_ELEMENT(uint32_t, MemopsPerBlock);
     INIT_BLOCK_ELEMENT(uint64_t, Addresses);
@@ -347,7 +349,7 @@ void CacheSimulation::instrument(){
         uint32_t threadReg = X86_REG_INVALID;
 
         if (isThreadedMode()){
-            counterOffset -= (uint64_t)stats.Buffer;
+            counterOffset -= simulationStruct;
             threadReg = (*functionThreading)[f->getBaseAddress()];
         }
         InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
@@ -457,7 +459,10 @@ void CacheSimulation::instrument(){
                             delete tdata;
                         }
                         
-                        bufferDumpInstructions->append(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr1, offsetof(BufferEntry, __buf_current), sr2));
+                        bufferDumpInstructions->append(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr1, offsetof(SimulationStats, Buffer), sr2));
+                        bufferDumpInstructions->append(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr2, offsetof(BufferEntry, __buf_current), sr2));
+
+                        //bufferDumpInstructions->append(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr1, offsetof(BufferEntry, __buf_current), sr2));
 
                         // compare current buffer to buffer max
                         bufferDumpInstructions->append(X86InstructionFactory64::emitCompareImmReg(BUFFER_ENTRIES - bb->getNumberOfMemoryOps(), sr2));
@@ -486,9 +491,8 @@ void CacheSimulation::instrument(){
                             delete tdata;
                         }
 
-                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr1, offsetof(BufferEntry, __buf_current), sr2));
-                        snip->addSnippetInstruction(X86InstructionFactory64::emitRegAddImm(sr2, bb->getNumberOfMemoryOps()));
-                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr2, sr1, offsetof(BufferEntry, __buf_current), true));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr1, offsetof(SimulationStats, Buffer), sr2));
+                        snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToRegaddrImm(bb->getNumberOfMemoryOps(), sr2, offsetof(BufferEntry, __buf_current)));
                     }
 
                     // at every memop, fill a buffer entry
@@ -538,24 +542,27 @@ void CacheSimulation::instrument(){
                         delete tdata;
                     }
 
-                    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr1, offsetof(BufferEntry, __buf_current), sr2));                    
-                    snip->addSnippetInstruction(X86InstructionFactory64::emitShiftLeftLogical(logBase2(sizeof(BufferEntry)), sr2));
+                    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr1, offsetof(SimulationStats, Buffer), sr2));
+                    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr2, offsetof(BufferEntry, __buf_current), sr3));
+                    //snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr1, offsetof(BufferEntry, __buf_current), sr2));                    
+                    snip->addSnippetInstruction(X86InstructionFactory64::emitShiftLeftLogical(logBase2(sizeof(BufferEntry)), sr3));
+
+                    // sr1 holds the thread data addr (which points to SimulationStats)
+                    // sr2 holds the base address of the buffer 
+                    // sr3 holds the offset (in bytes) of the access
+
+                    uint32_t bufferIdx = 1 + memopIdInBlock - bb->getNumberOfMemoryOps();
+                    snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(sr2, sr3, 1, sizeof(BufferEntry) * bufferIdx, sr2, true, true));
+                    // sr2 now holds the base of this memop's buffer entry
 
                     Vector<X86Instruction*>* addrStore = X86InstructionFactory64::emitAddressComputation(memop, sr3);
                     while (!(*addrStore).empty()){
                         snip->addSnippetInstruction((*addrStore).remove(0));
                     }
                     delete addrStore;
-
-                    
-                    // sr1 now holds the thread data addr (which points to info + buffer)
-                    // sr2 holds the offset in bytes into the buffer that this memop will use
                     // sr3 holds the memory address being used by memop
-                    
-                    uint32_t bufferIdx = 1 + memopIdInBlock - bb->getNumberOfMemoryOps();
-                    snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(sr1, sr2, 1, sizeof(BufferEntry) * bufferIdx, sr2, true, true));
-                    // sr2 now holds the base of this memop's buffer entry
 
+                    
                     // put the 3 elements of a BufferEntry into place
                     snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr3, sr2, 0, true));
                     snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToReg(memopSeq, sr3));
