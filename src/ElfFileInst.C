@@ -1235,8 +1235,8 @@ void ElfFileInst::phasedInstrumentation(){
     if (!elfFile->isStaticLinked()){
         addSharedLibraryPath();
 
-        for (uint32_t i = 0; i < instrumentationLibraries.size(); i++){
-            addSharedLibrary(instrumentationLibraries[i]);
+        for (uint32_t i = instrumentationLibraries.size(); i > 0; i--){
+            addSharedLibrary(instrumentationLibraries[i-1]);
         }
 
         for (uint32_t i = 0; i < instrumentationFunctions.size(); i++){
@@ -2070,9 +2070,7 @@ uint32_t ElfFileInst::addSharedLibraryPath(){
     uint32_t strOffset = addStringToDynamicStringTable(sharedLibraryPath);
     verify();
 
-    // add a DT_NEEDED entry to the dynamic table
     uint32_t emptyDynamicIdx = dynamicTable->findEmptyDynamic();
-
     ASSERT(emptyDynamicIdx < dynamicTable->getNumberOfDynamics() && "No free entries found in the dynamic table");
 
     // if any DT_RUNPATH entries are present we must use DT_RUNPATH since DT_RPATH entries will be overrun by DT_RUNPATH entries
@@ -2115,10 +2113,9 @@ uint32_t ElfFileInst::addSharedLibrary(const char* libname){
 
     uint32_t strOffset = addStringToDynamicStringTable(libraryReal);
 
-    // add a DT_NEEDED entry to the dynamic table
-    uint32_t writeIdx;
+    // overwrite the original library with this one
     if (overwrite){
-        writeIdx = dynamicTable->getNumberOfDynamics();
+        uint32_t writeIdx = dynamicTable->getNumberOfDynamics();
         for (uint32_t i = 0; i < dynamicTable->getNumberOfDynamics(); i++){
             Dynamic* dyn = dynamicTable->getDynamic(i);
             const char* x = libname + 1;
@@ -2130,12 +2127,15 @@ uint32_t ElfFileInst::addSharedLibrary(const char* libname){
         if (writeIdx == dynamicTable->getNumberOfDynamics()){
             PRINT_ERROR("Request to insert %s failed because library %s does not exist in the binary", libraryReal, libname);
         }
-    } else {
-        writeIdx = dynamicTable->findEmptyDynamic();
+
+        ASSERT(writeIdx < dynamicTable->getNumberOfDynamics() && "No free entries found in the dynamic table");
+        dynamicTable->getDynamic(writeIdx)->SET(d_tag, DT_NEEDED);
+        dynamicTable->getDynamic(writeIdx)->SET_A(d_ptr, d_un, strOffset);
     }
-    ASSERT(writeIdx < dynamicTable->getNumberOfDynamics() && "No free entries found in the dynamic table");
-    dynamicTable->getDynamic(writeIdx)->SET(d_tag, DT_NEEDED);
-    dynamicTable->getDynamic(writeIdx)->SET_A(d_ptr, d_un, strOffset);
+    // preserve DT_NEEDED order but prepend new library
+    else {
+        dynamicTable->prependEntry(DT_NEEDED, strOffset);
+    }
 
     verify();
 

@@ -107,6 +107,7 @@ public:
     uint32_t extendTable(uint32_t num);
 
     void relocateStringTable(uint64_t newAddr);
+    uint32_t prependEntry(uint32_t type, uint32_t strOffset);
 
     virtual bool verify();
 };

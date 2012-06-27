@@ -27,6 +27,41 @@
 #include <SectionHeader.h>
 #include <StringTable.h>
 
+uint32_t DynamicTable::prependEntry(uint32_t type, uint32_t strOffset){
+
+    // find empty table slot
+    uint32_t emptyDynamicIdx = findEmptyDynamic();
+    ASSERT(emptyDynamicIdx < getNumberOfDynamics() && "No free entries found in the dynamic table");
+
+    // if any DT_RUNPATH entries are present we must use DT_RUNPATH since DT_RPATH entries will be overrun by DT_RUNPATH entries
+    // if no DT_RUNPATH are present, we must not use DT_RPATH since using DT_RUNPATH would overrun the DT_RPATH entries
+    if (type == DT_RPATH && countDynamics(DT_RUNPATH)){
+        type = DT_RUNPATH;
+    }
+
+    dynamics[emptyDynamicIdx]->SET(d_tag, type);
+
+    // shuffle all other DT_R[UN]PATH entries down 1 slot
+    int32_t prev = -1;
+    for (int32_t i = emptyDynamicIdx; i >= 0; i--){
+        if (dynamics[i]->GET(d_tag) == type){
+            if (prev >= 0){
+                dynamics[prev]->SET(d_tag, dynamics[i]->GET(d_tag));
+                dynamics[prev]->SET_A(d_ptr, d_un, dynamics[i]->GET_A(d_ptr, d_un));
+            }
+            prev = i;
+        }
+    }
+    ASSERT(prev >= 0);
+
+    // insert new entry into first slot
+    dynamics[prev]->SET(d_tag, type);
+    dynamics[prev]->SET_A(d_ptr, d_un, strOffset);
+
+    return prev;
+}
+
+
 uint32_t DynamicTable::extendTable(uint32_t num){
     uint32_t extraSize = 0;
     char* emptyDyn = new char[dynamicSize];
