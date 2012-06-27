@@ -24,6 +24,14 @@
 #include <SectionHeader.h>
 #include <SymbolTable.h>
 
+void GnuHashTable::wedge(uint32_t shamt){
+    // don't need to do anything here
+}
+
+void SysvHashTable::wedge(uint32_t shamt){
+    // don't need to do anything here
+}
+
 void GnuHashTable::buildTable(uint32_t numEntries, uint32_t numBuckets){
     if (!numberOfEntries){
         return;

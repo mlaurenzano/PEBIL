@@ -152,7 +152,6 @@ protected:
     uint64_t addFunction(InstrumentationFunction* func);
     uint64_t addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOffset);
     uint64_t relocateDynamicSection();
-    uint64_t getProgramBaseAddress();
     void extendTextSection(uint64_t totalSize, uint64_t headerSize);
     void allocateInstrumentationText(uint64_t totalSize, uint64_t headerSize);
     void extendDataSection(uint32_t amt);

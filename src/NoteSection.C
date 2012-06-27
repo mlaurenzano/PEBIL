@@ -23,6 +23,10 @@
 #include <BinaryFile.h>
 #include <ElfFile.h>
 
+void NoteSection::wedge(uint32_t shamt){
+    // do nothing since PEBIL doesn't use this section
+}
+
 Note::Note(uint32_t idx, uint32_t namsz, uint32_t dessz, uint32_t typ, char* nam, char* des)
     : Base(PebilClassType_Note)
 {

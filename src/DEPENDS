@@ -259,7 +259,8 @@ NoteSection.o: NoteSection.C ../include/NoteSection.h ../include/Base.h \
 ProgramHeader.o: ProgramHeader.C ../include/ProgramHeader.h \
  ../include/Base.h ../include/CStructuresElf.h \
  ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
- ../include/defines/ProgramHeader.d ../include/BinaryFile.h
+ ../include/defines/ProgramHeader.d ../include/BinaryFile.h \
+ ../include/ElfFile.h
 RawSection.o: RawSection.C ../include/RawSection.h ../include/Base.h \
  ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
  ../include/Debug.h ../include/Vector.h ../include/AddressAnchor.h \
@@ -287,7 +288,8 @@ SectionHeader.o: SectionHeader.C ../include/SectionHeader.h \
  ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
  ../include/defines/SectionHeader.d ../include/BinaryFile.h \
  ../include/DwarfSection.h ../include/RawSection.h \
- ../include/defines/LineInformation.d
+ ../include/defines/LineInformation.d ../include/ElfFile.h \
+ ../include/ProgramHeader.h ../include/defines/ProgramHeader.d
 StringTable.o: StringTable.C ../include/StringTable.h \
  ../include/RawSection.h ../include/Base.h ../include/CStructuresElf.h \
  ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \

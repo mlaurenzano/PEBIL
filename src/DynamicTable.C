@@ -27,6 +27,14 @@
 #include <SectionHeader.h>
 #include <StringTable.h>
 
+void DynamicTable::wedge(uint32_t shamt){
+    for (uint32_t i = 0; i < dynamics.size(); i++){
+        if (dynamics[i]->getValueType() == DynamicValueType_pointer && elfFile->isWedgeAddress(dynamics[i]->GET_A(d_ptr, d_un))){
+            dynamics[i]->INCREMENT_A(d_ptr, d_un, shamt);
+        }
+    }
+}
+
 uint32_t DynamicTable::prependEntry(uint32_t type, uint32_t strOffset){
 
     // find empty table slot
@@ -323,10 +331,12 @@ bool DynamicTable::verify(){
         PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
         return false;
     }
+    /* libpthread.so fails this
     if (sysvHashTableAddress >= symbolTableAddress){
         PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
         return false;
     }
+    */
     if (symbolTableAddress >= stringTableAddress){
         PRINT_ERROR("The dynamic table indicates that sections are in a different order than we expect");
         return false;
@@ -618,9 +628,62 @@ const char* DTagNames[] = { "NULL", "NEEDED", "PLTRELSZ", "PLTGOT", "HASH", "STR
                             "JMPREL", "BIND_NOW", "INIT_ARRAY", "FINI_ARRAY", "INIT_ARRAYSZ", "FINI_ARRAYSZ", 
                             "RUNPATH", "FLAGS", "UNK31", "ENCODING", "PREINIT_ARRAYSZ", "NUM" };
 
+uint8_t Dynamic::getValueType(){
+    uint8_t treatDun = DynamicValueType_pointer;
+
+#define MAP_TAG_TO_TYPE(__tag, __typ)            \
+    else if (GET(d_tag) == __tag) { treatDun = __typ; }
+
+    // check if d_un is to be interpreted as d_val or d_ptr
+    if (false){}
+
+    MAP_TAG_TO_TYPE(DT_NULL, DynamicValueType_ignored)
+    MAP_TAG_TO_TYPE(DT_TEXTREL, DynamicValueType_ignored)
+    MAP_TAG_TO_TYPE(DT_SYMBOLIC, DynamicValueType_ignored)
+
+    MAP_TAG_TO_TYPE(DT_RELASZ, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_RELAENT, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_STRSZ, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_SYMENT, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_NEEDED, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_PLTRELSZ, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_SONAME, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_RPATH, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_RELSZ, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_RELENT, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_PLTREL, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_VERDEFNUM, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_VERNEEDNUM, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_RELACOUNT, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_RELCOUNT, DynamicValueType_value)
+
+    MAP_TAG_TO_TYPE(DT_PLTGOT, DynamicValueType_pointer)
+    MAP_TAG_TO_TYPE(DT_HASH, DynamicValueType_pointer)
+    MAP_TAG_TO_TYPE(DT_STRTAB, DynamicValueType_pointer)
+    MAP_TAG_TO_TYPE(DT_SYMTAB, DynamicValueType_pointer)
+    MAP_TAG_TO_TYPE(DT_RELA, DynamicValueType_pointer)
+    MAP_TAG_TO_TYPE(DT_INIT, DynamicValueType_pointer)
+    MAP_TAG_TO_TYPE(DT_FINI, DynamicValueType_pointer)
+    MAP_TAG_TO_TYPE(DT_REL, DynamicValueType_pointer)
+    MAP_TAG_TO_TYPE(DT_DEBUG, DynamicValueType_pointer)
+    MAP_TAG_TO_TYPE(DT_JMPREL, DynamicValueType_pointer)
+    MAP_TAG_TO_TYPE(DT_VERDEF, DynamicValueType_pointer)
+    MAP_TAG_TO_TYPE(DT_VERNEED, DynamicValueType_pointer)
+    MAP_TAG_TO_TYPE(DT_VERSYM, DynamicValueType_pointer)
+
+    else if (GET(d_tag) > DT_VALRNGLO && GET(d_tag) < DT_VALRNGHI){
+        treatDun = DynamicValueType_value;
+    } else if (GET(d_tag) > DT_ADDRRNGLO && GET(d_tag) < DT_ADDRRNGHI){
+        treatDun = DynamicValueType_pointer;
+    }
+    else { PRINT_ERROR("Unknown dynamic entry type: %#x", GET(d_tag)); }
+
+    return treatDun;
+}
+
 void Dynamic::print(char* str){
     uint64_t tag = GET(d_tag);
-    uint8_t treatDun = DYNAMIC_ENT_D_UN_IS_D_PTR;
+    uint8_t treatDun = getValueType();
 
     char tmpstr[__MAX_STRING_SIZE];
     sprintf(tmpstr,"Th%llx",tag);
@@ -628,48 +691,11 @@ void Dynamic::print(char* str){
         sprintf(tmpstr,"%s",DTagNames[tag]);
     }
 
-    // check if d_un is to be interpreted as d_val or d_ptr
-    switch(GET(d_tag)){
-    case DT_NULL:
-    case DT_TEXTREL:
-    case DT_SYMBOLIC:
-        treatDun = DYNAMIC_ENT_D_UN_IGNORED;
-        break;
-    case DT_RELASZ:
-    case DT_RELAENT:
-    case DT_STRSZ:
-    case DT_SYMENT:
-    case DT_NEEDED:
-    case DT_PLTRELSZ:
-    case DT_SONAME:
-    case DT_RPATH:
-    case DT_RELSZ:
-    case DT_RELENT:
-    case DT_PLTREL:
-        treatDun = DYNAMIC_ENT_D_UN_IS_D_VAL;
-        break;
-    case DT_PLTGOT:
-    case DT_HASH:
-    case DT_STRTAB:
-    case DT_SYMTAB:
-    case DT_RELA:
-    case DT_INIT:
-    case DT_FINI:
-    case DT_REL:
-    case DT_DEBUG:
-    case DT_JMPREL:
-        treatDun = DYNAMIC_ENT_D_UN_IS_D_PTR;
-        break;
-    default:
-        break;
-    }
-
-
-    if (treatDun == DYNAMIC_ENT_D_UN_IGNORED){
+    if (treatDun == DynamicValueType_ignored){
         PRINT_INFOR("\tdyn%5d -- typ:%11s",index,tmpstr);
-    } else if (treatDun == DYNAMIC_ENT_D_UN_IS_D_VAL){
+    } else if (treatDun == DynamicValueType_value){
         PRINT_INFOR("\tdyn%5d -- typ:%11s val:%lld",index,tmpstr,GET_A(d_val,d_un));        
-    } else if (treatDun == DYNAMIC_ENT_D_UN_IS_D_PTR){
+    } else if (treatDun == DynamicValueType_pointer){
         PRINT_INFOR("\tdyn%5d -- typ:%11s ptr:%#llx -- %s",index,tmpstr,GET_A(d_ptr,d_un),str);        
     } else {
         PRINT_INFOR("\tdyn%5d -- typ:%#llx v?p:%#llx -- %s",index,GET(d_tag),GET_A(d_ptr,d_un),str);        

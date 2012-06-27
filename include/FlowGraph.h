@@ -98,6 +98,7 @@ public:
     void interposeBlock(BasicBlock* bb);
 
     bool verify();
+    void wedge(uint32_t shamt);
 };
 
 #endif /* _FlowGraph_h_ */

@@ -24,6 +24,8 @@
 #include <Base.h>
 #include <defines/ProgramHeader.d>
 
+class ElfFile;
+
 class ProgramHeader : public Base {
 protected:
     ProgramHeader() : Base(PebilClassType_ProgramHeader),index(0) {}
@@ -45,6 +47,7 @@ public:
     void setIndex(uint16_t idx) { index = idx; }
 
     bool verify();
+    void wedge(ElfFile* elfFile, uint32_t shamt);
 };
 
 class ProgramHeader32 : public ProgramHeader {

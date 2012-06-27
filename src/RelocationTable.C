@@ -26,6 +26,51 @@
 #include <SectionHeader.h>
 #include <SymbolTable.h>
 
+void RelocationTable::wedge(uint32_t shamt){
+    for (uint32_t i = 0; i < relocations.size(); i++){
+        if (elfFile->isWedgeAddress(relocations[i]->GET(r_offset))){
+            relocations[i]->INCREMENT(r_offset, shamt);
+        }
+        // never modify r_info
+        /*
+        if (elfFile->isWedgeAddress(relocations[i]->GET(r_info))){
+        }
+        */
+        if (type == ElfRelType_rela){
+            // R_X86_64_RELATIVE offset, addend
+            // R_X86_64_64 offset
+            // R_X86_64_GLOB_DAT offset, addend
+            // R_X86_64_JUMP_SLO offset, addend
+
+            if (ELF32_R_TYPE(relocations[i]->GET(r_info)) == R_X86_64_64){
+                continue;
+            }
+
+            if (elfFile->is64Bit()){
+                RelocationAddend64* r = (RelocationAddend64*)relocations[i];
+
+                uint64_t addr;
+                uint32_t typ = ELF64_R_TYPE(relocations[i]->GET(r_info));
+                if (typ == R_X86_64_64){
+                    addr = 0;
+                } else if (typ == R_X86_64_RELATIVE){
+                    addr = r->GET(r_addend) + elfFile->getProgramBaseAddress();
+                } else {
+                    addr = r->GET(r_addend);
+                }
+                if (elfFile->isWedgeAddress(r->GET(r_addend))){
+                    r->INCREMENT(r_addend, shamt);
+                }
+            } else {
+                RelocationAddend32* r = (RelocationAddend32*)relocations[i];
+                if (elfFile->isWedgeAddress(r->GET(r_addend))){
+                    r->INCREMENT(r_addend, shamt);
+                }
+            }
+        }
+    }
+}
+
 void Relocation64::setSymbolInfo(uint32_t sym){
     entry.r_info = ELF64_R_INFO(sym, getType());
 }

@@ -33,6 +33,11 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+void Function::wedge(uint32_t shamt){
+    flowGraph->wedge(shamt);
+    setBaseAddress(getBaseAddress() + shamt);
+}
+
 uint32_t Function::getStackSize(){
     ASSERT(flowGraph);
     uint32_t stackSize = 0;

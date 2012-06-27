@@ -24,6 +24,10 @@
 #include <ElfFile.h>
 #include <SectionHeader.h>
 
+void StringTable::wedge(uint32_t shamt){
+    // don't need to do anything
+}
+
 char* StringTable::getString(uint32_t offset){
     ASSERT(offset >= 0 && offset < sizeInBytes && "Cannot look up a string outside the string table"); 
     return strings + offset; 

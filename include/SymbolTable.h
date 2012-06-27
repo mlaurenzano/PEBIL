@@ -134,6 +134,7 @@ public:
 
     uint32_t findSymbol4Addr(uint64_t addr, Symbol** buffer, uint32_t bufCnt, char** namestr=NULL);
     void sortForGnuHash(uint32_t firstSymIndex, uint32_t numberOfBuckets);
+    void wedge(uint32_t shamt);
 };
 
 #endif /* _SymbolTable_h_ */

@@ -41,6 +41,7 @@ public:
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
     const char* getTypeName();
+    void wedge(uint32_t shamt);
 };
 
 class FileHeader32 : public FileHeader {

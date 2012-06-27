@@ -36,6 +36,12 @@
 
 using namespace std;
 
+void FlowGraph::wedge(uint32_t shamt){
+    for (uint32_t i = 0; i < blocks.size(); i++){
+        blocks[i]->setBaseAddress(blocks[i]->getBaseAddress() + shamt);
+    }
+}
+
 uint32_t loopXDefUseDist(uint32_t currDist, uint32_t funcSize){
     return currDist + funcSize;
 }

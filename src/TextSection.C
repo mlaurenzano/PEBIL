@@ -29,6 +29,19 @@
 
 //#define GENERATE_BLACKLIST
 
+void TextSection::wedge(uint32_t shamt){
+    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+        sortedTextObjects[i]->wedge(shamt);
+    }
+}
+
+void FreeText::wedge(uint32_t shamt){
+    for (uint32_t i = 0; i < blocks.size(); i++){
+        blocks[i]->setBaseAddress(blocks[i]->getBaseAddress() + shamt);
+    }
+    setBaseAddress(getBaseAddress() + shamt);
+}
+
 uint32_t FreeText::getNumberOfInstructions(){
     uint32_t numberOfInstructions = 0;
     for (uint32_t i = 0; i < blocks.size(); i++){

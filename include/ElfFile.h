@@ -112,6 +112,7 @@ private:
 
 public:
     bool verify();
+    void wedge();
 
     bool isExecutable();
     bool isSharedLib();
@@ -122,6 +123,7 @@ public:
     ~ElfFile();
 
     char* getSHA1Sum();
+    uint64_t getProgramBaseAddress();
 
     bool is64Bit() { return is64BitFlag; }
     bool isStaticLinked() { return staticLinked; }
@@ -198,6 +200,8 @@ public:
     uint16_t getTextSegmentIdx() { return textSegmentIdx; }
     uint16_t getDataSegmentIdx() { return dataSegmentIdx; }
     uint32_t getDynamicSymtabIdx() { return dynamicSymtabIdx; }
+
+    bool isWedgeAddress(uint64_t addr);
 
     uint32_t getFileSize();
     char* getFileName() { return elfFileName; }

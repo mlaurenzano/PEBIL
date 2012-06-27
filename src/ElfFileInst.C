@@ -2148,20 +2148,3 @@ uint64_t ElfFileInst::relocateDynamicSection(){
     verify();
     return 0;
 }
-
-
-// get the smallest virtual address of all loadable segments (ie, the base address for the program)
-uint64_t ElfFileInst::getProgramBaseAddress(){
-    uint64_t segmentBase = -1;
-
-    for (uint32_t i = 0; i < elfFile->getNumberOfPrograms(); i++){
-        if (elfFile->getProgramHeader(i)->GET(p_type) == PT_LOAD){
-            if (elfFile->getProgramHeader(i)->GET(p_vaddr) < segmentBase){
-                segmentBase = elfFile->getProgramHeader(i)->GET(p_vaddr);
-            }
-        }
-    }
-
-    ASSERT(segmentBase != -1 && "No loadable segments found (or their p_vaddr fields are incorrect)");
-    return segmentBase;
-}

@@ -44,6 +44,7 @@ public:
     char* getString(uint32_t offset);
     uint32_t addString(const char* name);
     uint32_t getIndex() { return index; }
+    void wedge(uint32_t shamt);
 };
 
 #endif /* _StringTable_h_ */

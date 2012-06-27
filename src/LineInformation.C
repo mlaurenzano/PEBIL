@@ -26,6 +26,14 @@
 #include <DwarfSection.h>
 #include <ElfFile.h>
 
+void LineInfoTable::wedge(uint32_t shamt){
+    /* don't do this... we want original line information i think 
+    for (uint32_t i = 0; i < lineInformations.size(); i++){
+        lineInformations[i]->INCREMENT(lr_address, shamt);
+    }
+    */
+}
+
 void LineInfoTable::addFileName(DWARF4_FileName file){
     fileNames.append(file);
 }

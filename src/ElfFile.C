@@ -45,6 +45,48 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+// get the smallest virtual address of all loadable segments (ie, the base address for the program)
+uint64_t ElfFile::getProgramBaseAddress(){
+    uint64_t segmentBase = -1;
+
+    for (uint32_t i = 0; i < getNumberOfPrograms(); i++){
+        if (getProgramHeader(i)->GET(p_type) == PT_LOAD){
+            if (getProgramHeader(i)->GET(p_vaddr) < segmentBase){
+                segmentBase = getProgramHeader(i)->GET(p_vaddr);
+            }
+        }
+    }
+
+    ASSERT(segmentBase != -1 && "No loadable segments found (or their p_vaddr fields are incorrect)");
+    return segmentBase;
+}
+
+bool ElfFile::isWedgeAddress(uint64_t addr){
+    if (addr > 0){
+        return true;
+    }
+    return false;
+}
+
+void ElfFile::wedge(){
+    if (!isSharedLib()){
+        return;
+    }
+
+    uint32_t shamt = 0x400000;
+    PRINT_INFOR("Attemping to shift all program contents by %#lx", shamt);
+
+    fileHeader->wedge(shamt);
+    for (uint32_t i = 0; i < programHeaders.size(); i++){
+        programHeaders[i]->wedge(this, shamt);
+    }
+
+    for (uint32_t i = 1; i < sectionHeaders.size(); i++){
+        sectionHeaders[i]->wedge(this, shamt);
+        rawSections[i]->wedge(shamt);
+    }
+}
+
 bool ElfFile::isExecutable(){
     return (fileHeader->GET(e_type) == ET_EXEC);
 }

@@ -62,6 +62,7 @@ public:
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
 
     virtual bool passedThreshold() { __SHOULD_NOT_ARRIVE; }
+    virtual void wedge(uint32_t shamt) { __SHOULD_NOT_ARRIVE; }
 };
 
 class GnuHashTable : public HashTable {
@@ -86,6 +87,7 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     bool passedThreshold();
+    void wedge(uint32_t shamt);
 };
 
 class SysvHashTable : public HashTable {
@@ -105,6 +107,7 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     bool passedThreshold();
+    void wedge(uint32_t shamt);
 };
 
 #endif /* _HashTable_h_ */

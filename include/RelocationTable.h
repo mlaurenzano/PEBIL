@@ -147,6 +147,7 @@ public:
     void setRelocationSection();
 
     uint32_t addRelocation(uint64_t offset, uint64_t info);
+    void wedge(uint32_t shamt);
 };
 
 #endif

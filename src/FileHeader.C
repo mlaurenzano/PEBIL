@@ -51,6 +51,10 @@ const char* FileHeader::getTypeName(){
     return ETypeNames[GET(e_type)];
 }
 
+void FileHeader::wedge(uint32_t shamt){
+    INCREMENT(e_entry, shamt);
+}
+
 bool FileHeader::verify(){
     if (!ISELFMAGIC(GET(e_ident)[EI_MAG0],GET(e_ident)[EI_MAG1],GET(e_ident)[EI_MAG2],GET(e_ident)[EI_MAG3])){
         PRINT_ERROR("Magic number incorrect");
@@ -167,12 +171,12 @@ void FileHeader::print() {
     PRINT_INFOR("\tvers : %d",GET(e_version));
     PRINT_INFOR("\tentr : %#llx",GET(e_entry));
     if(GET(e_phoff)){
-        PRINT_INFOR("\tPhdr : @%llu (%ux%uB)",GET(e_phoff),GET(e_phnum),GET(e_phentsize));
+        PRINT_INFOR("\tPhdr : @%#llx (%ux%uB)",GET(e_phoff),GET(e_phnum),GET(e_phentsize));
     } else {
         PRINT_INFOR("\tPhdr : none");
     }
     if(GET(e_shoff)){
-        PRINT_INFOR("\tShdr : @%llu (%ux%uB)",GET(e_shoff),GET(e_shnum),GET(e_shentsize));
+        PRINT_INFOR("\tShdr : @%#llx (%ux%uB)",GET(e_shoff),GET(e_shnum),GET(e_shentsize));
     } else {
         PRINT_INFOR("\tShdr : none");
     }

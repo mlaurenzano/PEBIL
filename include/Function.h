@@ -61,6 +61,8 @@ public:
     Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz);
     ~Function();
 
+    void wedge(uint32_t shamt);
+
     void interposeBlock(BasicBlock* bb);
     bool hasLeafOptimization();
     void computeLeafOptimization();

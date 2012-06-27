@@ -16,7 +16,8 @@ BasicBlockCounter.o: BasicBlockCounter.C BasicBlockCounter.h \
  ../include/TextSection.h ../include/SymbolTable.h \
  ../include/defines/SymbolTable.d ../include/X86InstructionFactory.h \
  ../include/LineInformation.h ../include/defines/LineInformation.d \
- ../include/Loop.h ../instcode/CounterFunctions.hpp
+ ../include/Loop.h ../instcode/CacheSimulationCommon.hpp \
+ ../instcode/CounterFunctions.hpp ../instcode/Metasim.hpp
 CacheSimulation.o: CacheSimulation.C CacheSimulation.h \
  ../include/InstrumentationTool.h ../include/ElfFileInst.h \
  ../include/Base.h ../include/CStructuresElf.h \
@@ -35,7 +36,8 @@ CacheSimulation.o: CacheSimulation.C CacheSimulation.h \
  ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
  ../include/X86InstructionFactory.h ../include/LineInformation.h \
- ../include/defines/LineInformation.d ../include/Loop.h
+ ../include/defines/LineInformation.d ../include/Loop.h \
+ ../instcode/Simulation.hpp ../instcode/Metasim.hpp
 CallReplace.o: CallReplace.C CallReplace.h \
  ../include/InstrumentationTool.h ../include/ElfFileInst.h \
  ../include/Base.h ../include/CStructuresElf.h \

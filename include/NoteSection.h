@@ -72,6 +72,7 @@ public:
     Note* getNote(uint32_t idx) { return notes[idx]; }
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    void wedge(uint32_t shamt);
 };
 
 #endif /* _NoteSection_h_ */

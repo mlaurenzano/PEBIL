@@ -27,6 +27,12 @@
 #include <X86Instruction.h>
 #include <SectionHeader.h>
 
+void DataSection::wedge(uint32_t shamt){
+}
+
+void RawSection::wedge(uint32_t shamt){
+}
+
 void DataSection::printBytes(uint64_t offset, uint32_t bytesPerWord, uint32_t bytesPerLine){
     fprintf(stdout, "\n");
     PRINT_INFOR("Raw bytes for DATA section %d:", sectionIndex);

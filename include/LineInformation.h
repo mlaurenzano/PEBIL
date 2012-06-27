@@ -115,6 +115,7 @@ public:
     char* getIncludePath(uint32_t idx);
 
     uint32_t getAddressSize();
+    void wedge(uint32_t shamt);
 };
 
 class LineInfoFinder {
