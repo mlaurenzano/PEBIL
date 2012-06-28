@@ -24,10 +24,6 @@
 #include <LineInformation.h>
 #include <SectionHeader.h>
 
-void DwarfSection::wedge(uint32_t shamt){
-    // do nothing since PEBIL doesn't use any of these sections for anything useful
-}
-
 void DwarfLineInfoSection::wedge(uint32_t shamt){
     for (uint32_t i = 0; i < lineInfoTables.size(); i++){
         lineInfoTables[i]->wedge(shamt);

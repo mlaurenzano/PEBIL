@@ -27,10 +27,40 @@
 #include <X86Instruction.h>
 #include <SectionHeader.h>
 
-void DataSection::wedge(uint32_t shamt){
+uint32_t RawSection::containsIntroString(){
+    char* str = charStream();
+
+    if (str[0] == 'G' &&
+        str[1] == 'C' &&
+        str[2] == 'C'){
+        return strlen(str) + 1;
+    }
+    return 0;
 }
 
 void RawSection::wedge(uint32_t shamt){
+    //PRINT_INFOR("Original raw/data section %d", getSectionIndex());
+
+    uint32_t intro = containsIntroString();
+    if (intro){
+        //PRINT_INFOR("INTRO STRING (%d) %s", intro, charStream());
+    }
+    //printBufferPretty(charStream(), getSizeInBytes(), getSectionHeader()->GET(sh_offset), 0, 0);
+
+    if (elfFile->is64Bit()){
+        uint32_t inc = sizeof(uint64_t);
+        for (uint32_t current = intro; current < getSizeInBytes(); current += inc){
+            uint64_t data;
+            memcpy(&data, charStream() + current, sizeof(uint64_t));
+            if (elfFile->isDataWedgeAddress(data)){
+                data += shamt;
+                memcpy(charStream() + current, &data, sizeof(uint64_t));
+            }
+        }
+    }
+
+    //PRINT_INFOR("Patched raw/data section %d", getSectionIndex());
+    //printBufferPretty(charStream(), getSizeInBytes(), getSectionHeader()->GET(sh_offset), 0, 0);
 }
 
 void DataSection::printBytes(uint64_t offset, uint32_t bytesPerWord, uint32_t bytesPerLine){
@@ -235,7 +265,7 @@ void RawSection::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 
 void RawSection::printBytes(uint64_t offset, uint32_t bytesPerWord, uint32_t bytesPerLine){
     fprintf(stdout, "\n");
-    PRINT_INFOR("Raw bytes for section %d:", sectionIndex);
+    PRINT_INFOR("Raw bytes for RAW section %d:", sectionIndex);
     printBufferPretty(charStream() + offset, getSizeInBytes(), getSectionHeader()->GET(sh_offset) + offset, bytesPerWord, bytesPerLine);
 }
 

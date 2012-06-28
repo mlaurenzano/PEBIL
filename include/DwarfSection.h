@@ -44,7 +44,7 @@ public:
     ~DwarfSection() {}
 
     uint32_t getIndex() { return index; }
-    virtual void wedge(uint32_t shamt);
+    virtual void wedge(uint32_t shamt) { __SHOULD_NOT_ARRIVE; }
 };
 
 class DwarfLineInfoSection : public DwarfSection {

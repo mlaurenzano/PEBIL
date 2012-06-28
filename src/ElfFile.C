@@ -45,6 +45,8 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+#define WEDGE_SHAMT 0x400000
+
 // get the smallest virtual address of all loadable segments (ie, the base address for the program)
 uint64_t ElfFile::getProgramBaseAddress(){
     uint64_t segmentBase = -1;
@@ -68,12 +70,78 @@ bool ElfFile::isWedgeAddress(uint64_t addr){
     return false;
 }
 
+bool ElfFile::isDataWedgeAddress(uint64_t addr){
+
+#define IN_RANGE(__l, __h, __a) (((__a) >= (__l)) && ((__a) < (__h)))
+
+    // if addr falls either in the TEXT segment outside of actual text, or
+    // falls in the DATA segment
+    ProgramHeader* p = programHeaders[dataSegmentIdx];
+    if (IN_RANGE(p->GET(p_vaddr), p->GET(p_vaddr) + p->GET(p_memsz), addr)){
+        return true;
+    }
+
+    p = programHeaders[textSegmentIdx];
+    SectionHeader* s = getDotFiniSection()->getSectionHeader();
+    if (IN_RANGE(s->GET(sh_addr), p->GET(p_vaddr) + p->GET(p_memsz), addr)){
+        return true;
+    }
+    //addr >= 0x000f72a0 && addr < 0x0045a278){
+
+    // if addr is the 1st instruction in a function
+    uint64_t searchAddr = addr + WEDGE_SHAMT;
+    void* link = bsearch(&searchAddr, wedgeInstructions, wedgeInstructionCount, sizeof(X86Instruction*), searchBaseAddressExact);
+    if (link != NULL){
+        X86Instruction* x = *(X86Instruction**)link;
+        TextObject* container = x->getContainer();
+        //PRINT_INFOR("Container %s",container->getName());
+        if (container->getType() == PebilClassType_FreeText){
+            return true;
+        } else if (container->isFunction()){
+            Function* f = (Function*)x->getContainer();
+            //PRINT_INFOR("\t\tComparing function %#lx to instruction %#lx", f->getBaseAddress(), x->getBaseAddress());
+            if (f->getBaseAddress() == x->getBaseAddress()){
+                return true;
+            }
+        } else {
+            PRINT_ERROR("Cannot have container type %s", PebilClassTypeNames[container->getType()]);
+        }
+    }
+
+    return false;
+}
+
+void ElfFile::prepareWedge(){
+    ASSERT(wedgeInstructions == NULL);
+    wedgeInstructionCount = 0;
+    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
+        wedgeInstructionCount += getTextSection(i)->getNumberOfInstructions();
+    }
+
+    wedgeInstructions = new X86Instruction*[wedgeInstructionCount];
+    wedgeInstructionCount = 0;
+
+    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
+        wedgeInstructionCount += getTextSection(i)->getAllInstructions(wedgeInstructions, wedgeInstructionCount);
+    }
+    qsort(wedgeInstructions, wedgeInstructionCount, sizeof(X86Instruction*), compareBaseAddress);
+
+    ASSERT(wedgeInstructions);
+}
+void ElfFile::destroyWedge(){
+    if (wedgeInstructions){
+        delete[] wedgeInstructions;
+    }
+}
+
 void ElfFile::wedge(){
     if (!isSharedLib()){
         return;
     }
 
-    uint32_t shamt = 0x400000;
+    prepareWedge();
+
+    uint32_t shamt = WEDGE_SHAMT;
     PRINT_INFOR("Attemping to shift all program contents by %#lx", shamt);
 
     fileHeader->wedge(shamt);
@@ -85,6 +153,8 @@ void ElfFile::wedge(){
         sectionHeaders[i]->wedge(this, shamt);
         rawSections[i]->wedge(shamt);
     }
+
+    destroyWedge();
 }
 
 bool ElfFile::isExecutable(){
@@ -710,8 +780,8 @@ void ElfFile::initSectionFilePointers(){
         char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[lineInfoIdx]->GET(sh_offset));
         uint64_t sectionSize = (uint64_t)sectionHeaders[lineInfoIdx]->GET(sh_size);
 
-        ASSERT(sectionHeaders[lineInfoIdx]->getSectionType() == PebilClassType_DwarfSection);
-        uint32_t dwarfIdx = ((DwarfSection*)rawSections[lineInfoIdx])->getIndex();
+        ASSERT(sectionHeaders[lineInfoIdx]->getSectionType() == PebilClassType_RawSection);
+        uint32_t dwarfIdx = rawSections[lineInfoIdx]->getSectionIndex();
         delete rawSections[lineInfoIdx];
 
         lineInfoSection = new DwarfLineInfoSection(sectionFilePtr,sectionSize,lineInfoIdx,dwarfIdx,this);

@@ -57,7 +57,7 @@ void SectionHeader::setSectionType(){
         break;
     case SHT_PROGBITS:
         sectionType = PebilClassType_RawSection;
-        if (!hasWriteBit() && !hasAllocBit() && !hasExecInstrBit()){
+        if (!hasWriteBit() && !hasAllocBit() && !hasExecInstrBit() && false){
             sectionType = PebilClassType_DwarfSection;
         } else if (hasExecInstrBit()){
             sectionType = PebilClassType_TextSection;

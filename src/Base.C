@@ -383,8 +383,6 @@ int compareBaseAddress(const void* arg1, const void* arg2){
     return vl1 - vl2;
 }
 
-
-
 int searchBaseAddressExact(const void* arg1, const void* arg2){
     uint64_t key = *((uint64_t*)arg1);
     Base* b = *((Base**)arg2);
@@ -399,8 +397,6 @@ int searchBaseAddressExact(const void* arg1, const void* arg2){
         return 1;
     return 0;
 }
-
-
 
 int searchHashCode(const void* arg1, const void* arg2){
     uint64_t key = *((uint64_t*)arg1);

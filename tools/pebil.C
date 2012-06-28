@@ -452,6 +452,7 @@ int main(int argc,char* argv[]){
         elfFile.verify();
         TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Verify  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
+        elfFile.anchorProgramElements();
         if (elfFile.isSharedLib()){
             elfFile.wedge();
             TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Wedge   : %.2f seconds",++stepNumber,t2-t1);t1=t2);

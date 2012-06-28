@@ -110,6 +110,11 @@ private:
     bool verifyDynamic();
     void initDynamicFilePointers();
 
+    X86Instruction** wedgeInstructions;
+    uint32_t wedgeInstructionCount;
+    void prepareWedge();
+    void destroyWedge();
+
 public:
     bool verify();
     void wedge();
@@ -202,6 +207,7 @@ public:
     uint32_t getDynamicSymtabIdx() { return dynamicSymtabIdx; }
 
     bool isWedgeAddress(uint64_t addr);
+    bool isDataWedgeAddress(uint64_t addr);
 
     uint32_t getFileSize();
     char* getFileName() { return elfFileName; }

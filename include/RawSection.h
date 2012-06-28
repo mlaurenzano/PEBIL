@@ -91,6 +91,7 @@ public:
     virtual void wedge(uint32_t shamt);
 
     HashCode getHashCode() { return hashCode; }
+    uint32_t containsIntroString();
 };
 
 class DataSection : public RawSection {
@@ -108,7 +109,6 @@ public:
     uint32_t extendSize(uint32_t sz);
     void setBytesAtAddress(uint64_t addr, uint32_t size, char* buff);
     void setBytesAtOffset(uint64_t offset, uint32_t size, char* buff);
-    void wedge(uint32_t shamt);
 
     uint32_t read(BinaryInputFile* b);
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);

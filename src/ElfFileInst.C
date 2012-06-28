@@ -1216,7 +1216,6 @@ void ElfFileInst::phasedInstrumentation(){
         getDotTextSection()->getNumberOfBasicBlocks() + getDotFiniSection()->getNumberOfBasicBlocks();
 
     extendTextSection(TEXT_EXTENSION_INC, INSTHDR_RESERVE_AMT); // creates space for extra elf control info (symbols, dynamic table entries, hash entries, etc)
-    elfFile->anchorProgramElements();
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     currentPhase++;
