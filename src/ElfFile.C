@@ -72,24 +72,27 @@ bool ElfFile::isWedgeAddress(uint64_t addr){
 
 bool ElfFile::isDataWedgeAddress(uint64_t addr){
 
+    //PRINT_INFOR("Checking %lx", addr);
+
 #define IN_RANGE(__l, __h, __a) (((__a) >= (__l)) && ((__a) < (__h)))
 
     // if addr falls either in the TEXT segment outside of actual text, or
     // falls in the DATA segment
     ProgramHeader* p = programHeaders[dataSegmentIdx];
+    //PRINT_INFOR("Valid data range: [%#lx, %#lx]", p->GET(p_vaddr), p->GET(p_vaddr) + p->GET(p_memsz));
     if (IN_RANGE(p->GET(p_vaddr), p->GET(p_vaddr) + p->GET(p_memsz), addr)){
         return true;
     }
 
     p = programHeaders[textSegmentIdx];
     SectionHeader* s = getDotFiniSection()->getSectionHeader();
+    //PRINT_INFOR("Valid text range: [%#lx, %#lx]", s->GET(sh_addr), p->GET(p_vaddr) + p->GET(p_memsz));
     if (IN_RANGE(s->GET(sh_addr), p->GET(p_vaddr) + p->GET(p_memsz), addr)){
         return true;
     }
-    //addr >= 0x000f72a0 && addr < 0x0045a278){
 
     // if addr is the 1st instruction in a function
-    uint64_t searchAddr = addr + WEDGE_SHAMT;
+    uint64_t searchAddr = addr;
     void* link = bsearch(&searchAddr, wedgeInstructions, wedgeInstructionCount, sizeof(X86Instruction*), searchBaseAddressExact);
     if (link != NULL){
         X86Instruction* x = *(X86Instruction**)link;
@@ -153,6 +156,8 @@ void ElfFile::wedge(){
         sectionHeaders[i]->wedge(this, shamt);
         rawSections[i]->wedge(shamt);
     }
+
+
 
     destroyWedge();
 }

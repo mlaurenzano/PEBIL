@@ -39,6 +39,17 @@ uint32_t RawSection::containsIntroString(){
 }
 
 void RawSection::wedge(uint32_t shamt){
+
+    ProgramHeader* dataSeg = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
+    ASSERT(dataSeg);
+
+    SectionHeader* sec = elfFile->getSectionHeader(sectionIndex);
+
+    // only wedge raw/data sections from the data segment
+    if (!dataSeg->inRange(sec->GET(sh_addr))){
+        return;
+    }
+
     //PRINT_INFOR("Original raw/data section %d", getSectionIndex());
 
     uint32_t intro = containsIntroString();
@@ -52,9 +63,10 @@ void RawSection::wedge(uint32_t shamt){
         for (uint32_t current = intro; current < getSizeInBytes(); current += inc){
             uint64_t data;
             memcpy(&data, charStream() + current, sizeof(uint64_t));
-            if (elfFile->isDataWedgeAddress(data)){
+            if (data && elfFile->isDataWedgeAddress(data + shamt)){
                 data += shamt;
                 memcpy(charStream() + current, &data, sizeof(uint64_t));
+                //PRINT_INFOR("\t\tpatching @ %#lx: %#lx -> %#lx", getSectionHeader()->GET(sh_addr) + current, data - shamt, data);
             }
         }
     }

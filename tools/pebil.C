@@ -88,6 +88,7 @@ void printUsage(const char* msg = NULL){
     fprintf(stderr,"\t\t[--dmp <off|on|nosim>] : DEPRECATED, kept for compatibility\n");
     fprintf(stderr,"\t\t[--threaded] : implement thread safety features and keep statistics per thread (DEV ONLY)\n");
     fprintf(stderr,"\t\t[--perinsn] : gather statistics per instruction if a tool supports it\n");
+    fprintf(stderr,"\t\t[--wedge] : shift the virtual address of all image contents by some fixed amount. valid only for `--typ ide'\n");
     fprintf(stderr,"\n");
     exit(1);
 }
@@ -188,6 +189,7 @@ int main(int argc,char* argv[]){
     DEFINE_FLAG(doi);
     DEFINE_FLAG(threaded);
     DEFINE_FLAG(perinsn);
+    DEFINE_FLAG(wedge);
 
 #define DEFINE_ARG(__name) char* __name ## _arg = NULL
     DEFINE_ARG(typ); // char* typ_arg = NULL;
@@ -211,7 +213,7 @@ int main(int argc,char* argv[]){
         /* These options set a flag. */
         FLAG_OPTION(help, 'h'), FLAG_OPTION(allowstatic, 'w'), FLAG_OPTION(silent, 's'), FLAG_OPTION(dry, 'r'),
         FLAG_OPTION(version, 'V'), FLAG_OPTION(lpi, 'p'), FLAG_OPTION(dtl, 'd'), FLAG_OPTION(doi, 'i'), FLAG_OPTION(threaded, 'P'),
-        FLAG_OPTION(perinsn, 'I'),
+        FLAG_OPTION(perinsn, 'I'), FLAG_OPTION(wedge, 'W'),
 
         /* These options take an argument
            We distinguish them by their indices. */
@@ -453,12 +455,12 @@ int main(int argc,char* argv[]){
         TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Verify  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
         elfFile.anchorProgramElements();
-        if (elfFile.isSharedLib()){
-            elfFile.wedge();
-            TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Wedge   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
-        }
 
         if (instType == identical_inst_type){
+            if (wedge_flag){
+                elfFile.wedge();
+                TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Wedge   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+            }
             elfFile.dump(ext_arg);
             PRINT_INFOR("Dumping identical binary from stored executable information");
             printSuccess();
