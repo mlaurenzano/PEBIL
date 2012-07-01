@@ -468,9 +468,10 @@ RegisterSet* X86Instruction::getRegistersDefined(){
 RegisterSet* X86Instruction::getRegistersUsed(){
     RegisterSet * retval = new RegisterSet();
 
-    // If the instruction is a branch to the unknown, mark everything
+    // If the instruction is a branch to the unknown or to
+    // something outside the function (making it behave as a call), mark everything
     // as used
-    if(isBranch() && getTargetAddress() == 0){
+    if(isBranch() && !container->inRange(getTargetAddress())){
         for(uint32_t i = 0; i < X86_FLAG_BITS; ++i){
             retval->addFlag(i);
         }

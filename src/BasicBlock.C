@@ -98,11 +98,11 @@ X86Instruction* BasicBlock::findBestInstPoint(InstLocations* loc, BitSet<uint32_
     // frame setup messes up lots of stuff, so for all function entries we use the end of the block
     if (isEntry()){
         best = getNumberOfInstructions() - 1;
-        X86Instruction* e = getInstruction(best);
         bestloc = InstLocation_after;
-        if (e->isReturn() || e->isCall()){
+        if (endsWithControl()){
             bestloc = InstLocation_prior;
         }
+        X86Instruction* e = getInstruction(best);
     }
 
     X86Instruction* bestinsn = getInstruction(best);
