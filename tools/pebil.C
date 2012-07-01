@@ -88,7 +88,7 @@ void printUsage(const char* msg = NULL){
     fprintf(stderr,"\t\t[--dmp <off|on|nosim>] : DEPRECATED, kept for compatibility\n");
     fprintf(stderr,"\t\t[--threaded] : implement thread safety features and keep statistics per thread (DEV ONLY)\n");
     fprintf(stderr,"\t\t[--perinsn] : gather statistics per instruction if a tool supports it\n");
-    fprintf(stderr,"\t\t[--wedge] : shift the virtual address of all image contents by some fixed amount. valid only for `--typ ide'\n");
+    fprintf(stderr,"\t\t[--wedge] : shift the virtual address of all image contents by some fixed amount. valid only for shared libs\n");
     fprintf(stderr,"\n");
     exit(1);
 }
@@ -456,11 +456,20 @@ int main(int argc,char* argv[]){
 
         elfFile.anchorProgramElements();
 
-        if (instType == identical_inst_type){
-            if (wedge_flag){
-                elfFile.wedge();
-                TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Wedge   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+        if (wedge_flag){
+            if (!elfFile.isSharedLib()){
+                PRINT_ERROR("--wedge is valid only for shared libraries");
             }
+            if (elfFile.getProgramBaseAddress() < WEDGE_SHAMT){
+                PRINT_INFOR("Shifting virtual address of all program contents by %#lx", WEDGE_SHAMT);
+                elfFile.wedge(WEDGE_SHAMT);
+            } else {
+                PRINT_WARN(20, "Wedge requested but program probably doesn't need it since it has base address %#lx", elfFile.getProgramBaseAddress());
+            }
+
+            TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Wedge   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
+        }
+        if (instType == identical_inst_type){
             elfFile.dump(ext_arg);
             PRINT_INFOR("Dumping identical binary from stored executable information");
             printSuccess();

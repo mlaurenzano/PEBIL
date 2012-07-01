@@ -494,4 +494,7 @@ void toHexString(const unsigned char *hash, char *hexstring);
 char* sha1sum(char* buffer, uint32_t size);
 
 extern double timer();
+
+#define WEDGE_SHAMT 0x400000
+
 #endif

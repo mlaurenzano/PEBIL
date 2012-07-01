@@ -45,8 +45,6 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
-#define WEDGE_SHAMT 0x400000
-
 // get the smallest virtual address of all loadable segments (ie, the base address for the program)
 uint64_t ElfFile::getProgramBaseAddress(){
     uint64_t segmentBase = -1;
@@ -137,15 +135,7 @@ void ElfFile::destroyWedge(){
     }
 }
 
-void ElfFile::wedge(){
-    if (!isSharedLib()){
-        return;
-    }
-
-    prepareWedge();
-
-    uint32_t shamt = WEDGE_SHAMT;
-    PRINT_INFOR("Attemping to shift all program contents by %#lx", shamt);
+void ElfFile::wedge(uint32_t shamt){
 
     fileHeader->wedge(shamt);
     for (uint32_t i = 0; i < programHeaders.size(); i++){

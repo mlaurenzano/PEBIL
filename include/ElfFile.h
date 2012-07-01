@@ -117,7 +117,7 @@ private:
 
 public:
     bool verify();
-    void wedge();
+    void wedge(uint32_t shamt);
 
     bool isExecutable();
     bool isSharedLib();
