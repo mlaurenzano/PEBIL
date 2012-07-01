@@ -560,13 +560,12 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
         // non-threaded shared library
         else {
             snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, sr1), this, getInstDataAddress() + counterOffset, false));
-            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrToReg(sr1, sr2));
+
             if (add){
-                snip->addSnippetInstruction(X86InstructionFactory64::emitRegAddImm(sr2, val));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToRegaddrImm(val, sr1, 0));
             } else {
-                snip->addSnippetInstruction(X86InstructionFactory64::emitRegSubImm(sr2, val));
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToRegaddrImm(-1 * val, sr1, 0));
             }
-            snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddr(sr2, sr1));
         }
     } else {
         ASSERT(getElfFile()->isExecutable());
