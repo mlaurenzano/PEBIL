@@ -99,12 +99,8 @@ void BasicBlockCounter::instrument()
     Vector<Loop*> loopsFound;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
-        LineInfo* li = NULL;
-        if (lineInfoFinder){
-            li = lineInfoFinder->lookupLineInfo(bb);
-        }
 
-        if (li && bb->isInLoop()){
+        if (bb->isInLoop()){
             FlowGraph* fg = bb->getFlowGraph();
             //Loop* outerMost = fg->getOuterMostLoopForLoop(fg->getInnermostLoopForBlock(bb->getIndex())->getIndex());
             Loop* outerMost = fg->getInnermostLoopForBlock(bb->getIndex());
