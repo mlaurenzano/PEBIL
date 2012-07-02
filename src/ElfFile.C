@@ -137,6 +137,8 @@ void ElfFile::destroyWedge(){
 
 void ElfFile::wedge(uint32_t shamt){
 
+    prepareWedge();
+
     fileHeader->wedge(shamt);
     for (uint32_t i = 0; i < programHeaders.size(); i++){
         programHeaders[i]->wedge(this, shamt);
@@ -146,9 +148,6 @@ void ElfFile::wedge(uint32_t shamt){
         sectionHeaders[i]->wedge(this, shamt);
         rawSections[i]->wedge(shamt);
     }
-
-
-
     destroyWedge();
 }
 
@@ -223,6 +222,7 @@ ElfFile::ElfFile(char* f, char* a) :
 
     addressAnchors = new Vector<AddressAnchor*>();
     anchorsAreSorted = false;
+    wedgeInstructions = NULL;
 }
 
 void ElfFile::addAddressAnchor(AddressAnchor* adr){
