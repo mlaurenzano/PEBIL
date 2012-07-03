@@ -26,6 +26,7 @@
 typedef struct {
     bool Initialized;
     bool PerInstruction;
+    bool Master;
     uint32_t Size;
     pthread_t threadid;
     pthread_key_t imageid;

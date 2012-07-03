@@ -146,7 +146,7 @@ extern "C" {
         if (AllData){
             AllData->AddThread(tid);
         } else {
-            PRINT_INSTR(stderr, "Calling PEBIL thread initialization library for thread %lx but no images have been initialized.", tid);
+            ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
         }
         return NULL;
     }
@@ -184,14 +184,14 @@ extern "C" {
         AllData->SetTimer(iid, 2);
 
         if (AllData == NULL){
-            PRINT_INSTR(stderr, "data manager does not exist. no images were initialized");
+            ErrorExit("data manager does not exist. no images were initialized", MetasimError_NoImage);
             AllData->ReleaseMutex();
             return NULL;
         }
 
         SimulationStats* stats = (SimulationStats*)AllData->GetData(iid, tid);
         if (stats == NULL){
-            PRINT_INSTR(stderr, "Cannot retreive image data using key %ld", iid);
+            ErrorExit("Cannot retreive image data using key " << dec << iid, MetasimError_NoImage);
             AllData->ReleaseMutex();
             return NULL;
         }
@@ -222,11 +222,6 @@ extern "C" {
                 FillPointsDead = false;
             }
 
-            /*
-            for (uint32_t i = 0; i < BUFFER_CURRENT(stats); i++){
-                PRINT_INSTR(stdout, "\t\tbuf[%d] addr %#lx\tseq %ld", i, buf[i].address, buf[i].memseq);
-            }
-            */
             BufferEntry* buffer = &(stats->Buffer[1]);
 
             // loop over address buffer
@@ -311,19 +306,19 @@ extern "C" {
         AllData->SetTimer(iid, 1);
 
 #ifdef MPI_INIT_REQUIRED
-        if (!isMpiValid()){
-            PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print jbbinst files", getpid());
+        if (!IsMpiValid()){
+            warn << "Process " << dec << getpid() << " did not execute MPI_Init, will not print execution count files" << ENDL;
             return NULL;
         }
 #endif
 
         if (AllData == NULL){
-            PRINT_INSTR(stderr, "data manager does not exist. no images were initialized");
+            ErrorExit("data manager does not exist. no images were initialized", MetasimError_NoImage);
             return NULL;
         }
         SimulationStats* stats = (SimulationStats*)AllData->GetData(iid, pthread_self());
         if (stats == NULL){
-            PRINT_INSTR(stderr, "Cannot retreive image data using key %ld", iid);
+            ErrorExit("Cannot retreive image data using key " << dec << (*key), MetasimError_NoImage);
             return NULL;
         }
 
@@ -384,7 +379,7 @@ extern "C" {
         MemFile
             << "# appname     = " << stats->Application << ENDL
             << "# extension   = " << stats->Extension << ENDL
-            << "# rank        = " << dec << getTaskId() << ENDL
+            << "# rank        = " << dec << GetTaskId() << ENDL
             << "# buffer      = " << BUFFER_CAPACITY(stats) << ENDL
             << "# total       = " << dec << totalMemop << ENDL
             << "# sampled     = " << dec << Sampler->AccessCount << ENDL
@@ -527,15 +522,6 @@ void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid){
     }
     delete[] aggstats;
 }
-
-void TryOpen(ofstream& f, const char* name){
-    f.open(name);
-    f.setf(ios::showbase);
-    if (f.fail()){
-        ErrorExit("cannot open output file: " << name, MetasimError_FileOp);
-    }
-}
-
 
 const char* SimulationFileName(SimulationStats* stats){
     string oFile;

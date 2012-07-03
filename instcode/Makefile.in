@@ -1,29 +1,22 @@
 STATIC_INST_LIB  = @STATIC_INST_LIB@
-
 PEBIL_LIBS = 
 ifeq ($(STATIC_INST_LIB),yes)
-	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  liblptimer.a  cxx_libcounter.a  cxx_libsimulator.a
+	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  liblptimer.a  libcounter.a  libsimulator.a
 else
-	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblptimer.so cxx_libcounter.so cxx_libsimulator.so
+	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblptimer.so libcounter.so libsimulator.so
 endif
 
 LIB_TARGETS = $(PEBIL_LIBS)
 MPICC       = @MPICC@
 MPICXX      = @MPICXX@
-CFLAGS      = @CFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -DPER_SET_RECENT -DSHIFT_ADDRESS_BUFFER -w
-CXXFLAGS    = -std=c++0x @CXXFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -DPER_SET_RECENT -DSHIFT_ADDRESS_BUFFER -w
+CFLAGS      = @CFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -w
+CXX0X       = -std=c++0x
+CXXFLAGS    = @CXXFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -w $(CXX0X)
 
 SHARED_OPT  = -fPIC
 EXTRA_FLAGS = $(SHARED_OPT)
 SHARED_LIB  = -shared -ldl
 AR          = ar rcs
-
-#### -DNO_SAMPLING_MODE    : Add to disable sampling (note that MAX visit count is still on).
-#### -DEXTENDED_SAMPLING   : Add to vary the ignore and sampling intervals during sampling
-#### -DFINE_GRAIN_SAMPLING : Add to increase the granularity of sampling. Smaller intervals.
-#EXTRA_DEF = -DNO_SAMPLING_MODE # default for MultiMAPS tracing
-EXTRA_DEF = -DEXTENDED_SAMPLING # default for application tracing
-#EXTRA_DEF = -DIGNORE_ACTUAL_SIMULATION -DNO_SAMPLING_MODE # no simulation
 
 EXTRA_LIBS  =
 EXTRA_INC   = -I../instcode
@@ -32,7 +25,6 @@ LIBDIR      = ../lib
 BINDIR      = ../bin
 
 COMMON_OBJS = InstrumentationCommon.o
-CXX_COMMON_OBJS = InstrumentationCommon.O
 
 all: $(LIB_TARGETS)
 
@@ -41,17 +33,13 @@ all: $(LIB_TARGETS)
 %.O: %.cpp
 	$(MPICXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
 
-cxx_libcounter.so : CounterFunctions.O $(CXX_COMMON_OBJS)
+libcounter.so : CounterFunctions.O
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
-libcounter.so : CounterFunctions.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ CounterFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS)
 libcounter.a : CounterFunctions.o $(COMMON_OBJS)
 	$(AR) $@ CounterFunctions.o $(COMMON_OBJS)
 
-cxx_libsimulator.so : Simulation.O $(CXX_COMMON_OBJS)
+libsimulator.so : Simulation.O
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
-libsimulator.so : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS) $(EXTRA_LIBS)
 libsimulator.a : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 	$(AR) $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 
@@ -83,3 +71,4 @@ clean:
 
 install:
 	cp $(LIB_TARGETS) $(LIBDIR)
+

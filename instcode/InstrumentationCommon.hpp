@@ -20,6 +20,9 @@
 
 #ifndef _InstrumentationCommon_hpp_
 #define _InstrumentationCommon_hpp_
+#define _GNU_SOURCE
+#include <dlfcn.h>
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -34,22 +37,36 @@
 #include <map>
 #include <set>
 #include <string>
+#include <iostream>
+#include <fstream>
+
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif
 
 using namespace std;
 
-#define __MAX_STRING_SIZE 1024
 
-#define CLOCK_RATE_HZ 2800000000
-#define NANOS_PER_SECOND 1000000000
-//#define EXCLUDE_TIMER
+// thread id support
+typedef struct {
+    uint64_t id;
+    uint64_t data;
+} ThreadData;
+#define ThreadHashShift (12)
+#define ThreadHashAnd   (0xffff)
 
-extern uint64_t read_timestamp_counter();
-extern double read_process_clock();
-extern void ptimer(double* tmr);
 
-#define MAX_TIMERS 1024
-static double pebiltimers[MAX_TIMERS];
+// handling of different initialization/finalization events
+// analysis libraries define these differently
+extern "C" {
+    extern void* tool_mpi_init();
+    extern void* tool_thread_init(pthread_t args);
+    extern void* tool_image_init(void* s, uint64_t* key, ThreadData* td);
+    extern void* tool_image_fini(uint64_t* key);
+};
 
+
+// information about instrumentation points
 typedef struct
 {
     int64_t pt_vaddr;
@@ -62,6 +79,7 @@ typedef struct
 } instpoint_info;
 
 
+// some function re-naming support
 #define __give_pebil_name(__fname) \
     __fname ## _pebil_wrapper
 
@@ -73,55 +91,129 @@ typedef struct
     __give_pebil_name(__fname)
 #endif // PRELOAD_WRAPPERS
 
-typedef struct
-{
-    void* (*start_function)(void*);
-    void* function_args;
-} tool_thread_args;
-extern void pebil_image_init(pthread_key_t* image_id);
-extern void pebil_set_data(pthread_key_t image_id, void* data);
-extern void* pebil_get_data(pthread_t thread_id, pthread_key_t image_id);
-extern void* pebil_get_data_self(pthread_key_t image_id);
 
+
+// handle rank/process identification with/without MPI
+static int taskid;
 #ifdef HAVE_MPI
-#define __taskmarker "-[t%d]- "
-#include <mpi.h>
+#define __taskid taskid
+#define __ntasks ntasks
+static int __ntasks = 1;
+#else //HAVE_MPI
+#define __taskid getpid()
+#define __ntasks 1
+#endif //HAVE_MPI
 
-extern "C" {
-    // C init wrapper
-#ifdef USES_PSINSTRACER
-    extern int __give_pebil_name(MPI_Init)(int* argc, char*** argv);
-#else
-    extern int __wrapper_name(MPI_Init)(int* argc, char*** argv);
-#endif // USES_PSINSTRACER
-    
-#ifdef USES_PSINSTRACER
-    extern void __give_pebil_name(mpi_init_)(int* ierr);
-#else
-    extern void __wrapper_name(mpi_init_)(int* ierr);
-#endif
-// fortran init wrapper
-extern void pmpi_init_(int* ierr);
-extern void pmpi_comm_rank_(int* comm, int* rank, int* ierr);
-extern void pmpi_comm_size_(int* comm, int* rank, int* ierr);
-
-
+static int GetTaskId(){
+    return __taskid;
+}
+static int GetNTasks(){
+    return __ntasks;
 }
 
-#else // HAVE_MPI
-#define __taskmarker "-[p%d]- "
-#endif // HAVE_MPI
 
-extern int getTaskId();
-extern int getNTasks();
+// a timer
+static void ptimer(double *tmr) {
+    struct timeval timestr;
+    void *tzp=0;
 
-#define PRINT_INSTR(__file, ...) fprintf(__file, __taskmarker, getTaskId()); \
-    fprintf(__file, __VA_ARGS__); \
-    fprintf(__file, "\n"); \
-    fflush(__file);
-#define PRINT_DEBUG(...) 
-//#define PRINT_DEBUG(...) PRINT_INSTR(__VA_ARGS__)
+    gettimeofday(&timestr, (struct timezone*)tzp);
+    *tmr=(double)timestr.tv_sec + 1.0E-06*(double)timestr.tv_usec;
+}
 
+// thread handling
+
+extern "C" {
+    static int __give_pebil_name(clone)(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
+        va_list ap;
+        va_start(ap, arg);
+        pid_t* ptid = va_arg(ap, pid_t*);
+        struct user_desc* tls = va_arg(ap, struct user_desc*);
+        pid_t* ctid = va_arg(ap, pid_t*);
+        va_end(ap);
+        /*
+        printf("Entry function: 0x%llx\n", fn);
+        printf("Stack location: 0x%llx\n", child_stack);
+        printf("Flags: %d\n", flags);
+        printf("Function args: 0x%llx\n", arg);
+        printf("ptid address: 0x%llx\n", ptid);
+        printf("tls address: 0x%llx\n", tls);
+        printf("ctid address: 0x%llx\n", ctid);
+        */    
+        static int (*clone_ptr)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid)
+            = (int (*)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid))dlsym(RTLD_NEXT, "clone");
+
+        tool_thread_init((uint64_t)tls);
+
+        return clone_ptr(fn, child_stack, flags, arg, ptid, tls, ctid);
+    }
+
+    int __clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
+        va_list ap;
+        va_start(ap, arg);
+        pid_t* ptid = va_arg(ap, pid_t*);
+        struct user_desc* tls = va_arg(ap, struct user_desc*);
+        pid_t* ctid = va_arg(ap, pid_t*);
+        va_end(ap);
+        return __give_pebil_name(clone)(fn, child_stack, flags, arg, ptid, tls, ctid);
+    }
+
+    int clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
+        va_list ap;
+        va_start(ap, arg);
+        pid_t* ptid = va_arg(ap, pid_t*);
+        struct user_desc* tls = va_arg(ap, struct user_desc*);
+        pid_t* ctid = va_arg(ap, pid_t*);
+        va_end(ap);
+        return __give_pebil_name(clone)(fn, child_stack, flags, arg, ptid, tls, ctid);
+    }
+
+    int __clone2(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
+        va_list ap;
+        va_start(ap, arg);
+        pid_t* ptid = va_arg(ap, pid_t*);
+        struct user_desc* tls = va_arg(ap, struct user_desc*);
+        pid_t* ctid = va_arg(ap, pid_t*);
+        va_end(ap);
+        return __give_pebil_name(clone)(fn, child_stack, flags, arg, ptid, tls, ctid);
+    }
+};
+
+
+// support for output/warnings/errors
+#define METASIM_ID "Metasim"
+#define METASIM_VERSION "3.0.0"
+#define METASIM_ENV "PEBIL_ROOT"
+
+#define TAB "\t"
+#define ENDL "\n"
+#define DISPLAY_ERROR cerr << "[" << METASIM_ID << "-r" << GetTaskId() << "] " << "Error: "
+#define warn cerr << "[" << METASIM_ID << "-r" << GetTaskId() << "] " << "Warning: "
+#define ErrorExit(__msg, __errno) DISPLAY_ERROR << __msg << endl << flush; exit(__errno);
+#define inform cout << "[" << METASIM_ID << "-r" << GetTaskId() << "] "
+
+enum MetasimErrors {
+    MetasimError_None = 0,
+    MetasimError_MemoryAlloc,
+    MetasimError_NoThread,
+    MetasimError_TooManyInsnReads,
+    MetasimError_StringParse,
+    MetasimError_FileOp,
+    MetasimError_Env,
+    MetasimError_NoImage,
+    MetasimError_Total,
+};
+
+static void TryOpen(ofstream& f, const char* name){
+    f.open(name);
+    f.setf(ios::showbase);
+    if (f.fail()){
+        ErrorExit("cannot open output file: " << name, MetasimError_FileOp);
+    }
+}
+
+
+// some help geting task/process information into strings
 static void AppendPidString(string& str){
     char buf[6];
     sprintf(buf, "%05d", getpid());
@@ -131,30 +223,25 @@ static void AppendPidString(string& str){
 }
 
 static void AppendRankString(string& str){
-    char buf[5];
-    sprintf(buf, "%04d", getTaskId());
-    buf[4] = '\0';
+    char buf[9];
+    sprintf(buf, "%08d", GetTaskId());
+    buf[8] = '\0';
 
     str.append(buf);
 }
 
 
 static void AppendTasksString(string& str){
-    char buf[5];
-    sprintf(buf, "%04d", getNTasks());
-    buf[4] = '\0';
+    char buf[9];
+    sprintf(buf, "%08d", GetNTasks());
+    buf[8] = '\0';
 
     str.append(buf);
 }
 
 
-typedef struct {
-    uint64_t id;
-    uint64_t data;
-} ThreadData;
-#define ThreadHashShift (12)
-#define ThreadHashAnd   (0xffff)
 
+// data management support
 #define DataMap unordered_map
 template <class T = void*> class DataManager {
 private:
@@ -167,6 +254,9 @@ private:
     uint64_t (*dataref)(void*);
 
     DataMap <pthread_key_t, DataMap<uint32_t, double> > timers;
+
+    uint32_t currentthreadseq;
+    DataMap <pthread_t, uint32_t> threadseq;
 
     // stores data in a ThreadData[] which can be more easily accessed by tools.
     DataMap <pthread_key_t, ThreadData*> threaddata;
@@ -192,7 +282,12 @@ private:
         T d = datamap[iid][tid];
         td[actual].data = (uint64_t)dataref((void*)d);
 
-        PRINT_INSTR(stdout, "Image %#lx setting up thread %#lx data at %#lx -> %#lx", (uint64_t)iid, td[actual].id, (uint64_t)(td), td[actual].data); 
+        inform
+            << "Image " << hex << (uint64_t)iid
+            << " setting up thread " << td[actual].id
+            << " data at " << (uint64_t)td
+            << "-> " << td[actual].data
+            << endl;
 
         // fail if there was a collision. it makes writing tools much easier so we see how well this works for now
         assert(actual == h);
@@ -228,6 +323,8 @@ public:
         dataref = r;
 
         mutex = PTHREAD_MUTEX_INITIALIZER;
+        currentthreadseq = 0;
+        threadseq[GenerateThreadKey()] = currentthreadseq++;
     }
 
     ~DataManager(){
@@ -256,8 +353,16 @@ public:
         return pthread_self();
     }
 
+    uint32_t GetThreadSequence(pthread_t tid){
+        assert(threadseq.count(tid) == 1);
+        return threadseq[tid];
+    }
+
     void AddThread(pthread_t tid){
         assert(allthreads.count(tid) == 0);
+        assert(threadseq.count(tid) == 0);
+
+        threadseq[tid] = currentthreadseq++;
 
         for (set<pthread_key_t>::iterator iit = allimages.begin(); iit != allimages.end(); iit++){
             assert(datamap[(*iit)].size() > 0);
@@ -368,12 +473,51 @@ public:
 };
 
 
+// support for MPI wrapping
+static bool MpiValid = false;
+static bool IsMpiValid() { return MpiValid; }
+
 extern "C" {
-    extern void* tool_mpi_init();
-    extern void* tool_thread_init(pthread_t args);
-    extern void* tool_image_init(void* s, uint64_t* key, ThreadData* td);
-    extern void* tool_image_fini(uint64_t* key);
+#ifdef HAVE_MPI
+// C init wrapper
+#ifdef USES_PSINSTRACER
+static int __give_pebil_name(MPI_Init)(int* argc, char*** argv){
+    int retval = 0;
+#else
+static int __wrapper_name(MPI_Init)(int* argc, char*** argv){
+    int retval = PMPI_Init(argc, argv);
+#endif // USES_PSINSTRACER
+
+    PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
+    PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
+
+    MpiValid = true;
+
+    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in MPI_Init wrapper\n", getpid(), __taskid, __ntasks, gethostid());
+    tool_mpi_init();
+
+    return retval;
+}
+
+extern void pmpi_init_(int*);
+
+#ifdef USES_PSINSTRACER
+static void__give_pebil_name(mpi_init_)(int* ierr){
+#else
+static void __wrapper_name(mpi_init_)(int* ierr){
+    pmpi_init_(ierr);
+#endif // USES_PSINSTRACER
+
+    PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
+    PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
+
+    MpiValid = true;
+
+    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
+    tool_mpi_init();
+}
 };
+#endif // HAVE_MPI
 
 #endif //_InstrumentationCommon_hpp_
 

@@ -39,7 +39,7 @@
 
 #define ENTRY_FUNCTION "tool_image_init"
 #define EXIT_FUNCTION "tool_image_fini"
-#define INST_LIB_NAME "cxx_libcounter.so"
+#define INST_LIB_NAME "libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
 extern "C" {
@@ -132,6 +132,7 @@ void BasicBlockCounter::instrument()
 
     ctrs.Initialized = true;
     ctrs.PerInstruction = isPerInstruction();
+    ctrs.Master = getElfFile()->isExecutable();
 
 #define INIT_CTR_ELEMENT(__typ, __nam)\
     ctrs.__nam = (__typ*)reserveDataOffset(numberOfPoints * sizeof(__typ));\

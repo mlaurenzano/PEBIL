@@ -143,7 +143,6 @@ static void DeleteCacheStats(void* args);
 static bool ReadEnvUint32(string name, uint32_t* var);
 static void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid);
 static const char* SimulationFileName(SimulationStats* stats);
-static void TryOpen(ofstream& f, const char* name);
 
 extern "C" {
     void* tool_mpi_init();

@@ -35,7 +35,7 @@
 #define ENTRY_FUNCTION "tool_image_init"
 #define SIM_FUNCTION "process_buffer"
 #define EXIT_FUNCTION "tool_image_fini"
-#define INST_LIB_NAME "cxx_libsimulator.so"
+#define INST_LIB_NAME "libsimulator.so"
 
 #define NOSTRING "__pebil_no_string__"
 #define BUFFER_ENTRIES 0x1000

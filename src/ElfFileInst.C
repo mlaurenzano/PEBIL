@@ -1532,7 +1532,8 @@ void ElfFileInst::extendTextSection(uint64_t totalSize, uint64_t headerSize){
         ProgramHeader* subHeader = elfFile->getProgramHeader(i);
         if (textHeader->inRange(subHeader->GET(p_vaddr)) && i != elfFile->getTextSegmentIdx()){
             if (subHeader->GET(p_vaddr) < totalSize){
-                PRINT_WARN(20,"Unable to extend text section by 0x%llx bytes: the maximum size of a text extension for this binary is 0x%llx bytes", totalSize, subHeader->GET(p_vaddr));
+                PRINT_WARN(20, "Unable to extend text section by 0x%llx bytes: the maximum size of a text extension for this binary is 0x%llx bytes", totalSize, subHeader->GET(p_vaddr));
+                PRINT_WARN(20, "Try using the --wedge flag");
             }
             ASSERT(subHeader->GET(p_vaddr) >= totalSize && "The text extension size is too large");
             subHeader->SET(p_vaddr, subHeader->GET(p_vaddr) - totalSize);

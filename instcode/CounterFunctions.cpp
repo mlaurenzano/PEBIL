@@ -34,7 +34,7 @@
 
 #define PRINT_MINIMUM 1
 
-static DataManager<CounterArray*>* alldata = NULL;
+static DataManager<CounterArray*>* AllData = NULL;
 
 void print_loop_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
     if (ctrs == NULL){
@@ -52,6 +52,7 @@ void print_loop_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
         } else {
             assert(false && "unsupported counter type");
         }
+
         if (ctrs->Counters[idx] >= PRINT_MINIMUM){
             fprintf(stream, "%ld\t", ctrs->Hashes[i]);
             fprintf(stream, "%lu\t#", ctrs->Counters[idx]);
@@ -96,7 +97,7 @@ void print_counter_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
     fflush(stream);
 }
 
-void* generate_counter_array(void* args, uint32_t typ, pthread_key_t iid, pthread_t tid){
+void* GenerateCounterArray(void* args, uint32_t typ, pthread_key_t iid, pthread_t tid){
     CounterArray* ctrs = (CounterArray*)args;
 
     CounterArray* c = (CounterArray*)malloc(sizeof(CounterArray));
@@ -105,6 +106,7 @@ void* generate_counter_array(void* args, uint32_t typ, pthread_key_t iid, pthrea
     c->threadid = tid;
     c->imageid = iid;
     c->Initialized = false;
+    c->Master = false;
     c->Counters = (uint64_t*)malloc(sizeof(uint64_t) * c->Size);
 
     // keep all instruction CounterTypes in place
@@ -118,12 +120,12 @@ void* generate_counter_array(void* args, uint32_t typ, pthread_key_t iid, pthrea
     return (void*)c;
 }
 
-uint64_t ref_counter_array(void* args){
+uint64_t RefCounterArray(void* args){
     CounterArray* ctrs = (CounterArray*)args;
     return (uint64_t)ctrs->Counters;
 }
 
-void delete_counter_array(void* args){
+void DeleteCounterArray(void* args){
     CounterArray* ctrs = (CounterArray*)args;
     if (!ctrs->Initialized){
         free(ctrs->Counters);
@@ -132,10 +134,10 @@ void delete_counter_array(void* args){
 }
 
 void* tool_thread_init(pthread_t tid){
-    if (alldata){
-        alldata->AddThread(tid);
+    if (AllData){
+        AllData->AddThread(tid);
     } else {
-        PRINT_INSTR(stderr, "Calling PEBIL thread initialization library for thread %lx but no images have been initialized.", tid);
+        ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
     }
     return NULL;
 }
@@ -155,116 +157,258 @@ extern "C"
         assert(ctrs->Initialized == true);
 
         // on first visit create data manager
-        if (alldata == NULL){
-            alldata = new DataManager<CounterArray*>(generate_counter_array, delete_counter_array, ref_counter_array);
+        if (AllData == NULL){
+            AllData = new DataManager<CounterArray*>(GenerateCounterArray, DeleteCounterArray, RefCounterArray);
         }
 
-        *key = alldata->AddImage(ctrs, td);
+        *key = AllData->AddImage(ctrs, td);
         ctrs->imageid = *key;
         ctrs->threadid = pthread_self();
 
-        alldata->SetTimer(*key, 0);
+        AllData->SetTimer(*key, 0);
         return NULL;
     }
 
     void* tool_image_fini(uint64_t* key){
-        alldata->SetTimer(*key, 1);
+        AllData->SetTimer(*key, 1);
 
 #ifdef MPI_INIT_REQUIRED
-        if (!isMpiValid()){
-            PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print jbbinst files", getpid());
+        if (!IsMpiValid()){
+            warn << "Process " << dec << getpid() << " did not execute MPI_Init, will not print execution count files" << ENDL;
             return NULL;
         }
 #endif
 
-        if (alldata == NULL){
-            PRINT_INSTR(stderr, "data manager does not exist. no images were initialized");
+        if (AllData == NULL){
+            ErrorExit("data manager does not exist. no images were initialized", MetasimError_NoImage);
             return NULL;
         }
-        CounterArray* ctrs = (CounterArray*)alldata->GetData(*key, pthread_self());
+        CounterArray* ctrs = (CounterArray*)AllData->GetData(*key, pthread_self());
         if (ctrs == NULL){
-            PRINT_INSTR(stderr, "Cannot retreive image data using key %ld", *key);
+            ErrorExit("Cannot retreive image data using key " << dec << (*key), MetasimError_NoImage);
             return NULL;
         }
 
-        // PRINT BLOCK/INSTRUCTION COUNTERS
-        char outFileName[__MAX_STRING_SIZE];
-        sprintf(outFileName, "%s.meta_%04d.%s", ctrs->Application, getTaskId(), ctrs->Extension);
-        FILE* outFile = fopen(outFileName, "w");
-        if (!outFile){
-            fprintf(stderr, "Cannot open output file %s, exiting...\n", outFileName);
-            fflush(stderr);
-            exit(-1);
-        }
-        
-        PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
-        uint32_t countBlocks = 0;
-        uint32_t countLoops = 0;
-        for (uint32_t i = 0; i < ctrs->Size; i++){
-            if (ctrs->Types[i] == CounterType_basicblock){
-                countBlocks++;
-            } else if (ctrs->Types[i] == CounterType_loop){
-                countLoops++;
+        // print counters when the application exits (do nothing on other images)
+        if (ctrs->Master){
+            string bfile;
+            bfile.append(ctrs->Application);
+            bfile.append(".r");
+            AppendRankString(bfile);
+            bfile.append(".t");
+            AppendTasksString(bfile);
+            bfile.append(".");
+
+            string lfile(bfile);
+            bfile.append(ctrs->Extension);
+            lfile.append("loopcnt");
+
+            inform << "Files: " << bfile << TAB << lfile << ENDL;
+
+            ofstream BlockFile;
+            const char* b = bfile.c_str();
+            TryOpen(BlockFile, b);
+
+            ofstream LoopFile;
+            const char* l = lfile.c_str();
+            TryOpen(LoopFile, l);
+
+
+            // tally up counter types
+            uint32_t blockCount = 0;
+            uint32_t instructionCount = 0;
+            uint32_t loopCount = 0;                
+            for (set<pthread_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+                CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
+                for (uint32_t i = 0; i < c->Size; i++){
+                    if (c->Types[i] == CounterType_loop){
+                        loopCount++;
+                    } else if (c->Types[i] == CounterType_basicblock){
+                        blockCount++;
+                    } else if (c->Types[i] == CounterType_instruction){
+                        blockCount++;
+                    }
+                }
+            }
+
+
+            // print file headers
+            BlockFile
+                << "# appname         = " << ctrs->Application << ENDL
+                << "# extension       = " << ctrs->Extension << ENDL
+                << "# rank            = " << dec << GetTaskId() << ENDL
+                << "# ntasks          = " << dec << GetNTasks() << ENDL
+                << "# perinsn         = " << (ctrs->PerInstruction ? "yes" : "no") << ENDL
+                << "# countimage      = " << dec << AllData->CountImages() << ENDL
+                << "# countthread     = " << dec << AllData->CountThreads() << ENDL
+                << "# masterthread    = " << dec << AllData->GetThreadSequence(pthread_self()) << ENDL;
+
+            if (ctrs->PerInstruction){
+                BlockFile << "# insncount       = " << dec << blockCount << ENDL;
+            } else {
+                BlockFile << "# blockcount      = " << dec << blockCount << ENDL;
+            }
+                
+
+            // print image summaries
+            for (set<pthread_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+                CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
+                BlockFile 
+                    << "# imagesumm       = "
+                    << "(id)" << dec << (*iit)
+                    << TAB << "(name)" << c->Application;
+
+                blockCount = 0;
+                loopCount = 0;
+                for (uint32_t i = 0; i < c->Size; i++){
+                    if (c->Types[i] == CounterType_loop){
+                        loopCount++;
+                    } else if (c->Types[i] == CounterType_basicblock){
+                        blockCount++;
+                    } else if (c->Types[i] == CounterType_instruction){
+                        blockCount++;
+                    }
+                }
+                if (ctrs->PerInstruction){
+                    BlockFile << TAB << "(insncount)" << dec << blockCount << ENDL;
+                } else {
+                    BlockFile << TAB << "(blockcount)" << dec << blockCount << ENDL;
+                }
+            }
+
+            // print information per-block
+            BlockFile 
+                << ENDL
+                << "#" << "Block" << TAB << "Hashcode" << TAB << "ImageId" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
+                << "#" << TAB << "ThreadId" << TAB << "Counter" << ENDL 
+                << ENDL;
+            for (set<pthread_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+                CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
+                for (uint32_t i = 0; i < c->Size; i++){
+                    if (c->Types[i] == CounterType_basicblock){
+                        uint32_t counter = 0;
+                        for (set<pthread_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
+                            CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));
+                            counter += tc->Counters[i];
+                        }
+
+                        if (counter >= PRINT_MINIMUM){
+                            BlockFile
+                                << "Block"
+                                << TAB << hex << c->Hashes[i]
+                                << TAB << dec << (*iit)
+                                << TAB << dec << counter
+                                << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
+                                << TAB << c->Functions[i]
+                                << TAB << hex << c->Addresses[i]
+                                << ENDL;
+
+                            for (set<pthread_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
+                                CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));
+                                if (tc->Counters[i] >= PRINT_MINIMUM){
+                                    BlockFile
+                                        << TAB << dec << AllData->GetThreadSequence((*tit))
+                                        << TAB << dec << tc->Counters[i]
+                                        << ENDL;
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        PRINT_INSTR(stdout, "%ld blocks; printing those with at least %d executions to file %s", countBlocks, PRINT_MINIMUM, outFileName);
-        
-        fprintf(outFile, "# appname   = %s\n", ctrs->Application);
-        fprintf(outFile, "# extension = %s\n", ctrs->Extension);
-        fprintf(outFile, "# phase     = %d\n", 0);
-        fprintf(outFile, "# rank      = %d\n", getTaskId());
-        fprintf(outFile, "# perinsn   = %s\n", ctrs->PerInstruction? "yes" : "no");
-        fprintf(outFile, "# imageid   = %ld\n", *key);
-        fprintf(outFile, "# cntimage  = %d\n", alldata->CountImages());
-        fprintf(outFile, "# mainthread= %lx\n", pthread_self());
-        fprintf(outFile, "# cntthread = %d\n", alldata->CountThreads());
-        
-        fprintf(outFile, "#id\tcount\t#file:line\taddr\tfunc\thash\tthreadid\n");
-        fflush(outFile);
+        /*
+          fprintf(outFile, "# appname   = %s\n", ctrs->Application);
+          fprintf(outFile, "# extension = %s\n", ctrs->Extension);
+          fprintf(outFile, "# phase     = %d\n", 0);
+          fprintf(outFile, "# rank      = %d\n", GetTaskId());
+          fprintf(outFile, "# perinsn   = %s\n", ctrs->PerInstruction? "yes" : "no");
+          fprintf(outFile, "# imageid   = %ld\n", *key);
+          fprintf(outFile, "# cntimage  = %d\n", AllData->CountImages());
+          fprintf(outFile, "# mainthread= %lx\n", pthread_self());
+          fprintf(outFile, "# cntthread = %d\n", AllData->CountThreads());
+        */
 
-        // this wastes tons of space in the meta.jbbinst file, need to think of a better output format.
-        for (set<pthread_t>::iterator it = alldata->allthreads.begin(); it != alldata->allthreads.end(); it++){
-            ctrs = alldata->GetData(*key, (*it));
-            assert(ctrs);
-            print_counter_array(outFile, ctrs, (*it));
+        // also print in old format if only 1 thread and 1 image
+        if (AllData->CountThreads() == 1 && AllData->CountImages() == 1){
+
+            char outFileName[1024];
+            sprintf(outFileName, "%s.meta_%04d.%s", ctrs->Application, GetTaskId(), ctrs->Extension);
+            FILE* outFile = fopen(outFileName, "w");
+            if (!outFile){
+                cerr << "error: cannot open output file %s" << outFileName << ENDL;
+                exit(-1);
+            }
+        
+            inform << "*** Instrumentation Summary ****" << ENDL;
+            uint32_t countBlocks = 0;
+            uint32_t countLoops = 0;
+            for (uint32_t i = 0; i < ctrs->Size; i++){
+                if (ctrs->Types[i] == CounterType_basicblock){
+                    countBlocks++;
+                } else if (ctrs->Types[i] == CounterType_loop){
+                    countLoops++;
+                }
+            }
+
+            inform << dec << countBlocks << " blocks; printing those with at least " << PRINT_MINIMUM << " executions to file " << outFileName << ENDL;
+        
+            fprintf(outFile, "# appname   = %s\n", ctrs->Application);
+            fprintf(outFile, "# extension = %s\n", ctrs->Extension);
+            fprintf(outFile, "# phase     = %d\n", 0);
+            fprintf(outFile, "# rank      = %d\n", GetTaskId());
+            fprintf(outFile, "# perinsn   = %s\n", ctrs->PerInstruction? "yes" : "no");
+            fprintf(outFile, "# imageid   = %ld\n", *key);
+            fprintf(outFile, "# cntimage  = %d\n", AllData->CountImages());
+            fprintf(outFile, "# mainthread= %lx\n", pthread_self());
+            fprintf(outFile, "# cntthread = %d\n", AllData->CountThreads());
+        
+            fprintf(outFile, "#id\tcount\t#file:line\taddr\tfunc\thash\tthreadid\n");
+            fflush(outFile);
+
+            // this wastes tons of space in the meta.jbbinst file, need to think of a better output format.
+            for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+                ctrs = AllData->GetData(*key, (*it));
+                assert(ctrs);
+                print_counter_array(outFile, ctrs, (*it));
+            }
+            fflush(outFile);
+            fclose(outFile);
+
+            // print loop counters
+            sprintf(outFileName, "%s.meta_%04d.%s", ctrs->Application, GetTaskId(), "loopcnt");
+            outFile = fopen(outFileName, "w");
+            if (!outFile){
+                fprintf(stderr, "Cannot open output file %s, exiting...\n", outFileName);
+                fflush(stderr);
+                exit(-1);
+            }
+        
+            inform << dec << countLoops << " loops; printing those with at least " << PRINT_MINIMUM << " executions to file " << outFileName << ENDL;
+
+            fprintf(outFile, "# appname   = %s\n", ctrs->Application);
+            fprintf(outFile, "# extension = %s\n", ctrs->Extension);
+            fprintf(outFile, "# phase     = %d\n", 0);
+            fprintf(outFile, "# rank      = %d\n", GetTaskId());
+            fprintf(outFile, "# perinsn   = %s\n", ctrs->PerInstruction? "yes" : "no");
+            fprintf(outFile, "# imageid   = %ld\n", *key);
+            fprintf(outFile, "# cntimage  = %d\n", AllData->CountImages());
+            fprintf(outFile, "# mainthread= %lx\n", pthread_self());
+            fprintf(outFile, "# cntthread = %d\n", AllData->CountThreads());
+        
+            fprintf(outFile, "#hash\tcount\t#file:line\tfunc\thash\taddr\tthreadid\n");
+            fflush(outFile);
+            for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+                ctrs = AllData->GetData(*key, (*it));
+                assert(ctrs);
+                print_loop_array(outFile, ctrs, (*it));
+            }
+            fflush(outFile);
+            fclose(outFile);
         }
-        fflush(outFile);
-        fclose(outFile);
 
-        // print loop counters
-        sprintf(outFileName, "%s.meta_%04d.%s", ctrs->Application, getTaskId(), "loopcnt");
-        outFile = fopen(outFileName, "w");
-        if (!outFile){
-            fprintf(stderr, "Cannot open output file %s, exiting...\n", outFileName);
-            fflush(stderr);
-            exit(-1);
-        }
-        
-        PRINT_INSTR(stdout, "%ld loops; printing those with at least %d executions to file %s", countLoops, PRINT_MINIMUM, outFileName);
-
-        fprintf(outFile, "# appname   = %s\n", ctrs->Application);
-        fprintf(outFile, "# extension = %s\n", ctrs->Extension);
-        fprintf(outFile, "# phase     = %d\n", 0);
-        fprintf(outFile, "# rank      = %d\n", getTaskId());
-        fprintf(outFile, "# perinsn   = %s\n", ctrs->PerInstruction? "yes" : "no");
-        fprintf(outFile, "# imageid   = %ld\n", *key);
-        fprintf(outFile, "# cntimage  = %d\n", alldata->CountImages());
-        fprintf(outFile, "# mainthread= %lx\n", pthread_self());
-        fprintf(outFile, "# cntthread = %d\n", alldata->CountThreads());
-        
-        fprintf(outFile, "#hash\tcount\t#file:line\tfunc\thash\taddr\tthreadid\n");
-        fflush(outFile);
-        for (set<pthread_t>::iterator it = alldata->allthreads.begin(); it != alldata->allthreads.end(); it++){
-            ctrs = alldata->GetData(*key, (*it));
-            assert(ctrs);
-            print_loop_array(outFile, ctrs, (*it));
-        }
-        fflush(outFile);
-        fclose(outFile);
-
-        PRINT_INSTR(stdout, "cxxx Total Execution time for image: %f", alldata->GetTimer(*key, 1) - alldata->GetTimer(*key, 0));
-        alldata->RemoveImage(*key);
+        inform << "cxxx Total Execution time for image " << ctrs->Application << ": " << (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)) << ENDL;
         return NULL;
     }
 };

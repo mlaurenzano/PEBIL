@@ -21,30 +21,8 @@
 #ifndef _Metasim_hpp_
 #define _Metasim_hpp_
 
-#define METASIM_ID "Metasim"
-#define METASIM_VERSION "3.0.0"
-#define METASIM_ENV "PEBIL_ROOT"
-
-#define TAB "\t"
-#define ENDL "\n"
-#define DISPLAY_ERROR cerr << "[" << METASIM_ID << "-r" << getTaskId() << "] " << "Error: "
-#define warn cerr << "[" << METASIM_ID << "-r" << getTaskId() << "] " << "Warning: "
-#define ErrorExit(__msg, __errno) DISPLAY_ERROR << __msg << endl << flush; exit(__errno);
-#define inform cout << "[" << METASIM_ID << "-r" << getTaskId() << "] "
-
 //#define debug(...) __VA_ARGS__
 #define debug(...)
-
-enum MetasimErrors {
-    MetasimError_None = 0,
-    MetasimError_MemoryAlloc,
-    MetasimError_NoThread,
-    MetasimError_TooManyInsnReads,
-    MetasimError_StringParse,
-    MetasimError_FileOp,
-    MetasimError_Env,
-    MetasimError_Total,
-};
 
 typedef enum {
     CounterType_undefined = 0,
