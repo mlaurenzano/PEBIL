@@ -3360,13 +3360,13 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="ret">
-    <opcode> ; c2 ; Iw ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15</opcode>
-    <opcode> ; c3 ; ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 </opcode> 
+    <opcode> ; c2 ; Iw ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 u:8 u:9 u:di u:si u:dx u:cx </opcode>
+    <opcode> ; c3 ; ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 u:8 u:9 u:di u:si u:dx u:cx </opcode> 
   </instruction>
 
   <instruction mnemonic="retf">
-    <opcode> ; ca ; Iw ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 </opcode>
-    <opcode> ; cb ; ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 </opcode>
+    <opcode> ; ca ; Iw ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 u:8 u:9 u:di u:si u:dx u:cx </opcode>
+    <opcode> ; cb ; ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 u:8 u:9 u:di u:si u:dx u:cx </opcode>
   </instruction>
 
   <instruction mnemonic="rsm">

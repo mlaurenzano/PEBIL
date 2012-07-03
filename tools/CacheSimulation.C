@@ -344,6 +344,7 @@ void CacheSimulation::instrument(){
         Function* f = (Function*)bb->getLeader()->getContainer();
 
         ASSERT(blockSeq == i);
+
         // set up a block counter that is distinct from all other inst points in the block
         uint64_t counterOffset = (uint64_t)stats.Counters + (i * sizeof(uint64_t));
         uint32_t threadReg = X86_REG_INVALID;
@@ -352,8 +353,8 @@ void CacheSimulation::instrument(){
             counterOffset -= simulationStruct;
             threadReg = (*functionThreading)[f->getBaseAddress()];
         }
-        InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
-
+        //InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
+        
         temp64 = 0;
         initializeReservedData(getInstDataAddress() + (uint64_t)stats.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
 

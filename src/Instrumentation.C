@@ -245,7 +245,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
         protectStack = true;
     }
 
-    BitSet<uint32_t>* protectRegs = instrumentation->getProtectedRegisters();
+    BitSet<uint32_t>* protectRegs = getProtectedRegisters();
     uint32_t countProt = 0;
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
         if (i == X86_REG_SP){
@@ -864,26 +864,47 @@ Vector<X86Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(Vector<X8
     return func->swapInstructions(getInstSourceAddress(), replacements);
 }
 
-BitSet<uint32_t>* Instrumentation::getProtectedRegisters(){
+BitSet<uint32_t>* getProtectedRegs(InstLocations loc, X86Instruction* xins, Vector<X86Instruction*>* insert){
     BitSet<uint32_t>* n = new BitSet<uint32_t>(X86_ALU_REGS);
-    InstLocations loc = point->getInstLocation();
-    X86Instruction* src = point->getSourceObject();
 
-    for (uint32_t i = 0; i < getNumberOfCoreInstructions(); i++){
-        X86Instruction* ins = getCoreInstruction(i);
+    //xins->print();
+    for (uint32_t i = 0; i < insert->size(); i++){
+        X86Instruction* ins = (*insert)[i];
+        //ins->print();
         RegisterSet* defs = ins->getRegistersDefined();
         for (uint32_t j = 0; j < X86_ALU_REGS; j++){
-            if (loc == InstLocation_prior && !src->isRegDeadIn(j) && defs->containsRegister(j)){
+            if (loc == InstLocation_prior && !xins->isRegDeadIn(j) && defs->containsRegister(j)){
                 n->insert(j);
             }
-            if (loc == InstLocation_after && !src->isRegDeadOut(j) && defs->containsRegister(j)){
+            if (loc == InstLocation_after && !xins->isRegDeadOut(j) && defs->containsRegister(j)){
                 n->insert(j);
             }
         }
         delete defs;
     }
+    //n->print();
 
     return n;
+}
+
+BitSet<uint32_t>* InstrumentationPoint::getProtectedRegisters(){
+    Vector<X86Instruction*>* insns = new Vector<X86Instruction*>();
+    for (uint32_t i = 0; i < countPrecursorInstructions(); i++){
+        insns->append(getPrecursorInstruction(i));
+    }
+    if (instrumentation->getType() == PebilClassType_InstrumentationSnippet){
+        for (uint32_t i = 0; i < instrumentation->getNumberOfCoreInstructions(); i++){
+            insns->append(instrumentation->getCoreInstruction(i));
+        }
+    }
+    for (uint32_t i = 0; i < countPostcursorInstructions(); i++){
+        insns->append(getPostcursorInstruction(i));
+    }
+
+    BitSet<uint32_t>* p = getProtectedRegs(getInstLocation(), point, insns);
+    delete insns;
+
+    return p;
 }
 
 FlagsProtectionMethods getFlagsMethod(InstLocations loc, X86Instruction* xins, Vector<X86Instruction*>* insert, bool canOverflow){
@@ -964,93 +985,27 @@ FlagsProtectionMethods getFlagsMethod(InstLocations loc, X86Instruction* xins, V
 }
 
 FlagsProtectionMethods InstrumentationPoint::getFlagsProtectionMethod(){
-    if (protectionMethod == FlagsProtectionMethod_undefined){
-        if (instrumentation->getType() == PebilClassType_InstrumentationSnippet){
-
-            protectionMethod = instrumentation->getFlagsProtectionMethod();
-
-        } else if (instrumentation->getType() == PebilClassType_InstrumentationFunction){
-            Vector<X86Instruction*>* funcInsns = new Vector<X86Instruction*>();
-
-            for (uint32_t i = 0; i < precursorInstructions.size(); i++){
-                funcInsns->append(precursorInstructions[i]);
-            }
-            for (uint32_t i = 0; i < postcursorInstructions.size(); i++){
-                funcInsns->append(postcursorInstructions[i]);
-            }
-
-            protectionMethod = getFlagsMethod(getInstLocation(), point, funcInsns, instrumentation->canOverflow);
-            delete funcInsns;
-        } else {
-            __SHOULD_NOT_ARRIVE;
-        }
+    if (protectionMethod != FlagsProtectionMethod_undefined){
+        return protectionMethod;
     }
-    ASSERT(protectionMethod != FlagsProtectionMethod_undefined);
-
-    return protectionMethod;
-}
-
-FlagsProtectionMethods InstrumentationSnippet::getFlagsProtectionMethod(){
-    InstrumentationPoint* pt = getInstrumentationPoint();
-    X86Instruction* xins = pt->getSourceObject();
 
     Vector<X86Instruction*>* insns = new Vector<X86Instruction*>();
-    for (uint32_t i = 0; i < snippetInstructions.size(); i++){
-        insns->append(snippetInstructions[i]);
+    for (uint32_t i = 0; i < countPrecursorInstructions(); i++){
+        insns->append(getPrecursorInstruction(i));
+    }
+    if (instrumentation->getType() == PebilClassType_InstrumentationSnippet){
+        for (uint32_t i = 0; i < instrumentation->getNumberOfCoreInstructions(); i++){
+            insns->append(instrumentation->getCoreInstruction(i));
+        }
+    }
+    for (uint32_t i = 0; i < countPostcursorInstructions(); i++){
+        insns->append(getPostcursorInstruction(i));
     }
 
-    FlagsProtectionMethods p = getFlagsMethod(pt->getInstLocation(), xins, insns, canOverflow);
-
+    protectionMethod = getFlagsMethod(getInstLocation(), point, insns, instrumentation->canOverflow);
     delete insns;
-    return p;
-}
 
-FlagsProtectionMethods InstrumentationFunction::getFlagsProtectionMethod(){
-    InstrumentationPoint* pt = getInstrumentationPoint();
-    X86Instruction* xins = pt->getSourceObject();
-    BitSet<uint32_t>* liveSet = new BitSet<uint32_t>(X86_FLAG_BITS);
-
-    xins->print();
-    if (pt->getInstLocation() == InstLocation_replace){
-        delete liveSet;
-        return FlagsProtectionMethod_none;
-    }
-
-    // figure out which flags are live at the instrumentation point
-    for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
-        if (pt->getInstLocation() == InstLocation_prior){
-            if (!xins->isFlagDeadIn(i)){
-                liveSet->insert(i);
-            }
-        } else if (pt->getInstLocation() == InstLocation_after){
-            if (!xins->isFlagDeadOut(i)){
-                liveSet->insert(i);
-            }
-        } else {
-            ASSERT(false);
-        }
-    }
-    if (liveSet->empty()){
-        delete liveSet;
-        return FlagsProtectionMethod_none;
-    }
-
-    // use the weakest allowable protection method based on previous analysis
-    FlagsProtectionMethods prot = FlagsProtectionMethod_none;
-    for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
-        if (liveSet->contains(i)){
-            if (CONTAINS_FLAG(__flag_mask__protect_light, i)){
-                prot = FlagsProtectionMethod_light;
-            } else if (CONTAINS_FLAG(__flag_mask__protect_full, i)){
-                prot = FlagsProtectionMethod_full;
-                break;
-            }
-        }
-    }
-
-    delete liveSet;
-
-    return prot;
+    return protectionMethod;
 }
 
 void InstrumentationPoint::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint64_t addr){
@@ -1122,7 +1077,7 @@ void InstrumentationPoint64::insertStateProtection(){
         ASSERT(instrumentation->getType() == PebilClassType_InstrumentationSnippet);
 
         FlagsProtectionMethods protectionMethod = getFlagsProtectionMethod();
-        BitSet<uint32_t>* protectedRegs = instrumentation->getProtectedRegisters();
+        BitSet<uint32_t>* protectedRegs = getProtectedRegisters();
 
         uint32_t countProt = 0;
         for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){

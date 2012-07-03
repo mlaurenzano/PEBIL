@@ -110,6 +110,9 @@ void DataSection::setBytesAtAddress(uint64_t addr, uint32_t size, char* content)
 }
 
 void DataSection::setBytesAtOffset(uint64_t offset, uint32_t size, char* content){
+    if (offset + size > getSizeInBytes()){
+        PRINT_INFOR("offset %ld size %d GetSize %ld", offset, size, getSizeInBytes());
+    }
     ASSERT(offset + size <= getSizeInBytes());
     ASSERT(rawBytes);
 

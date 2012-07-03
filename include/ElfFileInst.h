@@ -241,7 +241,8 @@ public:
     uint32_t addInstrumentationSnippet(InstrumentationSnippet* snip);
     InstrumentationSnippet* addInstrumentationSnippet();
 
-    virtual void applyDynamicPoints() { __SHOULD_NOT_ARRIVE; }
+    virtual uint64_t reserveDynamicPoints() { __SHOULD_NOT_ARRIVE; }
+    virtual void applyDynamicPoints(uint64_t dynArray) { __SHOULD_NOT_ARRIVE; }
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }
     virtual const char* getExtension() { __SHOULD_NOT_ARRIVE; }

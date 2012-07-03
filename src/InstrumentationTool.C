@@ -46,12 +46,15 @@ typedef struct {
 
 #define MAX_DEF_USE_DIST_PRINT 1024
 
-void InstrumentationTool::applyDynamicPoints(){
+uint64_t InstrumentationTool::reserveDynamicPoints(){
+    return reserveDataOffset(sizeof(DynamicInst) * dynamicPoints.size());
+}
+
+void InstrumentationTool::applyDynamicPoints(uint64_t dynArray){
     if (dynamicPoints.size() == 0){
         return;
     }
 
-    uint64_t dynArray = reserveDataOffset(sizeof(DynamicInst) * dynamicPoints.size());
 
     uint64_t temp64 = dynamicPoints.size();
     initializeReservedData(getInstDataAddress() + dynamicSize, sizeof(uint64_t), (void*)&temp64);

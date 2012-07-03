@@ -1261,6 +1261,8 @@ void ElfFileInst::phasedInstrumentation(){
     }    
     verify();
 
+    uint64_t dynArray = reserveDynamicPoints();
+
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     buildInstrumentationSections();
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c UsrResrv : %.2f seconds",stepNumber++,t2-t1);t1=t2);
@@ -1270,7 +1272,7 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c FncReloc : %.2f seconds",stepNumber++,t2-t1);t1=t2);
 
-    applyDynamicPoints();
+    applyDynamicPoints(dynArray);
 
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");

@@ -102,9 +102,6 @@ public:
     virtual void appendCoreInstruction(X86Instruction* ins) { __SHOULD_NOT_ARRIVE; }
     virtual void prependCoreInstruction(X86Instruction* ins) { __SHOULD_NOT_ARRIVE; }
 
-    BitSet<uint32_t>* getProtectedRegisters();
-    virtual FlagsProtectionMethods getFlagsProtectionMethod() { __SHOULD_NOT_ARRIVE; }
-
     void setRequiresDistinctTrampoline(bool rdt) { distinctTrampoline = rdt; }
     bool requiresDistinctTrampoline() { return distinctTrampoline; }
     void setOverflowable(bool v) { canOverflow = v; }
@@ -143,8 +140,6 @@ public:
     uint32_t generateSnippetControl();
 
     uint64_t getEntryPoint();
-
-    FlagsProtectionMethods getFlagsProtectionMethod();
 
     uint32_t getNumberOfCoreInstructions() { return snippetInstructions.size(); }
     X86Instruction* getCoreInstruction(uint32_t idx) { ASSERT(snippetInstructions[idx]); return snippetInstructions[idx]; }
@@ -241,8 +236,6 @@ public:
 
     void setWrapperOffset(uint64_t off) { wrapperOffset = off; }
     void setProcedureLinkOffset(uint64_t off) { procedureLinkOffset = off; }
-
-    FlagsProtectionMethods getFlagsProtectionMethod();
 };
 
 class InstrumentationFunction32 : public InstrumentationFunction {
@@ -329,7 +322,9 @@ public:
 
     void setPriority(InstPriorities p) { ASSERT(p && p < InstPriority_Total_Types); priority = p; }
     InstPriorities getPriority() { return priority; }
+
     FlagsProtectionMethods getFlagsProtectionMethod();
+    BitSet<uint32_t>* getProtectedRegisters();
     void setFlagsProtectionMethod(FlagsProtectionMethods p);
 
     uint64_t getTargetOffset() { ASSERT(instrumentation); return instrumentation->getEntryPoint(); }
@@ -354,6 +349,11 @@ public:
     X86Instruction* removeNextPostcursorInstruction() { ASSERT(hasMorePostcursorInstructions()); return postcursorInstructions.remove(0); }
     bool hasMorePostcursorInstructions() { return (postcursorInstructions.size() != 0); }
     uint32_t addPostcursorInstruction(X86Instruction* inst);
+
+    uint32_t countPrecursorInstructions() { return precursorInstructions.size(); }
+    uint32_t countPostcursorInstructions() { return postcursorInstructions.size(); }
+    X86Instruction* getPrecursorInstruction(uint32_t i) { return precursorInstructions[i]; }
+    X86Instruction* getPostcursorInstruction(uint32_t i) { return postcursorInstructions[i]; }
 
     bool verify();
     virtual void insertStateProtection() { __SHOULD_NOT_ARRIVE; }

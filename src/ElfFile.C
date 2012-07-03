@@ -675,7 +675,7 @@ uint64_t ElfFile::addSection(uint16_t idx, PebilClassTypes classtype, char* byte
     } else {
         sectionHeaders.insert(new SectionHeader32(idx), idx);
     }
-
+    
     sectionHeaders[idx]->SET(sh_name, name);
     sectionHeaders[idx]->SET(sh_type, type);
     sectionHeaders[idx]->SET(sh_flags, flags);

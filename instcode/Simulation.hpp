@@ -45,7 +45,7 @@ typedef struct {
 #define __buf_current  address
 #define __buf_capacity memseq
 
-class CacheStats;
+class StreamStats;
 typedef struct {
     // memory buffer
     BufferEntry* Buffer;
@@ -73,7 +73,7 @@ typedef struct {
     char** Functions;
     uint64_t* Hashes;
     uint64_t* Addresses;
-    CacheStats** Stats;
+    StreamStats** Stats;
 } SimulationStats;
 #define BUFFER_CAPACITY(__stats) (__stats->Buffer[0].__buf_capacity)
 #define BUFFER_CURRENT(__stats) (__stats->Buffer[0].__buf_current)
@@ -152,7 +152,11 @@ extern "C" {
     void* tool_image_fini(uint64_t* key);
 };
 
-class CacheStats {
+class StreamStats {
+public:
+};
+
+class CacheStats : public StreamStats {
 public:
     uint32_t LevelCount;
     uint32_t SysId;
@@ -181,6 +185,29 @@ public:
     uint64_t GetAccessCount(uint32_t memid);
     float GetHitRate(uint32_t memid, uint32_t lvl);
     float GetCumulativeHitRate(uint32_t memid, uint32_t lvl);
+};
+
+struct AddressRange {
+    uint64_t Minimum;
+    uint64_t Maximum;
+};
+
+class RangeStats : public StreamStats {
+private:
+    static const uint64_t MAX_64BIT_VALUE = 0xffffffffffffffff;
+public:
+    uint32_t Capacity;
+    AddressRange** Ranges;
+    uint64_t* Counts;
+
+    RangeStats(uint32_t capacity);
+    ~RangeStats();
+
+    bool HasMemId(uint32_t memid);
+    uint64_t GetMinimum(uint32_t memid);
+    uint64_t GetMaximum(uint32_t memid);
+
+    void Update(uint32_t memid, uint64_t addr);
 };
 
 class SamplingMethod {
@@ -270,13 +297,27 @@ public:
 
     virtual void Print() = 0;
     virtual void Process(void* stats, BufferEntry* access) = 0;
+    virtual bool Verify() = 0;
 };
 
-class PatternExtraction : public MemoryStreamHandler{
+typedef enum {
+    StreamHandlerType_undefined = 0,
+    StreamHandlerType_CacheStructure,
+    StreamHandlerType_AddressRange,
+    StreamHandlerType_Total
+} StreamHandlerTypes;
+
+class AddressRangeHandler : public MemoryStreamHandler {
 public:
+    AddressRangeHandler();
+    ~AddressRangeHandler();
+
+    void Print();
+    void Process(void* stats, BufferEntry* access);
+    bool Verify();
 };
 
-class CacheStructure : public MemoryStreamHandler {
+class CacheStructureHandler : public MemoryStreamHandler {
 public:
     uint32_t sysId;
     uint32_t levelCount;
@@ -288,14 +329,13 @@ public:
     // note that this doesn't contain any stats gathering code. that is done at the
     // thread level and is therefore done in ThreadData
 
-    CacheStructure();
-    ~CacheStructure();
+    CacheStructureHandler();
+    ~CacheStructureHandler();
     bool Init(string desc);
 
     void Print();
-    bool Verify();
-
     void Process(void* stats, BufferEntry* access);
+    bool Verify();
 };
 
 

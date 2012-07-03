@@ -39,11 +39,12 @@
 #include <InstrumentationCommon.hpp>
 #include <Simulation.hpp>
 
-static uint32_t MemCapacity = 0;
-static uint32_t CountCacheStructures = 0;
+static uint32_t CountMemoryHandlers = 0;
+#define CountCacheStructures (CountMemoryHandlers - 1)
+#define RangeHandlerIndex (CountMemoryHandlers - 1)
 
-static CacheStructure** CacheStructures_ = NULL;
-static SamplingMethod* SamplingMethod_ = NULL;
+static MemoryStreamHandler** MemoryHandlers = NULL;
+static SamplingMethod* Sampler = NULL;
 static DataManager<SimulationStats*>* AllData = NULL;
 
 // TODO: share this with include/InstrumentationTool.h?
@@ -156,10 +157,12 @@ extern "C" {
         ReadKnobs();
 
         assert(stats->Stats == NULL);
-        stats->Stats = new CacheStats*[CountCacheStructures];
+        stats->Stats = new StreamStats*[CountMemoryHandlers];
         for (uint32_t i = 0; i < CountCacheStructures; i++){
-            stats->Stats[i] = new CacheStats(CacheStructures_[i]->levelCount, CacheStructures_[i]->sysId, stats->InstructionCount);
+            CacheStructureHandler* c = (CacheStructureHandler*)MemoryHandlers[i];
+            stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->InstructionCount);
         }
+        stats->Stats[RangeHandlerIndex] = new RangeStats(stats->InstructionCount);
 
         assert(stats->Initialized == true);
         if (AllData == NULL){
@@ -201,7 +204,7 @@ extern "C" {
               << hex << tid
               << TAB << "Counter " << dec << numElements
               << TAB << "Capacity " << dec << capacity
-              << TAB << "Total " << dec << SamplingMethod_->AccessCount
+              << TAB << "Total " << dec << Sampler->AccessCount
               << ENDL);
 
         if (NonmaxKeys->empty()){
@@ -212,7 +215,7 @@ extern "C" {
         }
 
         bool DidSimulation = false;
-        if (SamplingMethod_->CurrentlySampling()){
+        if (Sampler->CurrentlySampling()){
             DidSimulation = true;
             if (FillPointsDead == true){
                 SetDynamicPoints(NonmaxKeys, true);
@@ -227,11 +230,12 @@ extern "C" {
             BufferEntry* buffer = &(stats->Buffer[1]);
 
             // loop over address buffer
-            for (uint32_t i = 0; i < CountCacheStructures; i++){
-                CacheStructure* c = CacheStructures_[i];
+            for (uint32_t i = 0; i < CountMemoryHandlers; i++){
+                register MemoryStreamHandler* m = MemoryHandlers[i];
+                register StreamStats* s = stats->Stats[i];
                 for (uint32_t j = 0; j < numElements; j++){
-                    BufferEntry* reference = &(stats->Buffer[j + 1]);
-                    c->Process((void*)stats->Stats[i], reference);
+                    register BufferEntry* reference = &(stats->Buffer[j + 1]);
+                    m->Process((void*)s, reference);
                 }
             }
 
@@ -242,7 +246,7 @@ extern "C" {
                 uint32_t bbid = stats->BlockIds[reference->memseq];
 
                 // if max block count is reached, disable all buffer-related points related to this block
-                if (SamplingMethod_->ExceedsAccessLimit(stats->Counters[bbid])){
+                if (Sampler->ExceedsAccessLimit(stats->Counters[bbid])){
 
                     uint64_t k1 = GENERATE_KEY(bbid, PointType_buffercheck);
                     if (MemsRemoved.count(k1) == 0){
@@ -281,7 +285,7 @@ extern "C" {
             }
         }
 
-        SamplingMethod_->IncrementAccessCount(numElements);
+        Sampler->IncrementAccessCount(numElements);
 
         BUFFER_CURRENT(stats) = 0;
         debug(inform << "2resetting buffer " << BUFFER_CURRENT(stats) << ENDL);
@@ -364,11 +368,11 @@ extern "C" {
         uint64_t totalMemop = 0;
         for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
             SimulationStats* s = (SimulationStats*)AllData->GetData(iid, (*it));
-            CacheStats* c = s->Stats[0];
-            assert(c);
+            RangeStats* r = (RangeStats*)s->Stats[RangeHandlerIndex];
+            assert(r);
 
-            for (uint32_t i = 0; i < c->Capacity; i++){
-                sampledCount += c->GetAccessCount(i);
+            for (uint32_t i = 0; i < r->Capacity; i++){
+                sampledCount = r->Counts[i];
             }
 
             for (uint32_t i = 0; i < s->BlockCount; i++){
@@ -383,11 +387,11 @@ extern "C" {
             << "# rank        = " << dec << getTaskId() << ENDL
             << "# buffer      = " << BUFFER_CAPACITY(stats) << ENDL
             << "# total       = " << dec << totalMemop << ENDL
-            << "# sampled     = " << dec << SamplingMethod_->AccessCount << ENDL
+            << "# sampled     = " << dec << Sampler->AccessCount << ENDL
             << "# processed   = " << dec << sampledCount << ENDL
-            << "# samplemax   = " << SamplingMethod_->AccessLimit << ENDL
-            << "# sampleon    = " << SamplingMethod_->SampleOn << ENDL
-            << "# sampleoff   = " << SamplingMethod_->SampleOff << ENDL
+            << "# samplemax   = " << Sampler->AccessLimit << ENDL
+            << "# sampleon    = " << Sampler->SampleOn << ENDL
+            << "# sampleoff   = " << Sampler->SampleOff << ENDL
             << "# numcache    = " << CountCacheStructures << ENDL
             << "# perinsn     = " << (stats->PerInstruction? "yes" : "no") << ENDL
             << "# imageid     = " << dec << *key << ENDL
@@ -402,7 +406,7 @@ extern "C" {
                 SimulationStats* s = AllData->GetData(iid, (*it));
                 assert(s);
 
-                CacheStats* c = s->Stats[sys];
+                CacheStats* c = (CacheStats*)s->Stats[sys];
                 assert(c->Capacity == s->InstructionCount);
 
                 if (first){
@@ -434,6 +438,22 @@ extern "C" {
 
         delete NonmaxKeys;
 
+        for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+            SimulationStats* s = (SimulationStats*)AllData->GetData(iid, (*it));
+            RangeStats* r = (RangeStats*)s->Stats[RangeHandlerIndex];
+            assert(r);
+
+            for (uint32_t i = 0; i < s->InstructionCount; i++){
+                if (r->Counts[i]){
+                    inform 
+                        << "Instruction " << dec << i
+                        << TAB << "Count " << dec << r->Counts[i]
+                        << TAB << "[" << hex << r->GetMinimum(i) << "," << hex << r->GetMaximum(i) << "]"
+                        << ENDL;
+                }
+            }
+        }
+
         inform << "CXXX Total Execution time for image: " << (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)) << ENDL;
     }
 
@@ -457,7 +477,7 @@ void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid){
     CacheStats** aggstats = new CacheStats*[CountCacheStructures];
     for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
 
-        CacheStats* s = stats->Stats[sys];
+        CacheStats* s = (CacheStats*)stats->Stats[sys];
         assert(s);
         CacheStats* c = new CacheStats(s->LevelCount, s->SysId, stats->BlockCount);
         aggstats[sys] = c;
@@ -578,6 +598,69 @@ string GetCacheDescriptionFile(){
         return str;
     }
     return knobvalue;
+}
+
+RangeStats::RangeStats(uint32_t capacity){
+    Capacity = capacity;
+    Counts = new uint64_t[Capacity];
+    Ranges = new AddressRange*[Capacity];
+    for (uint32_t i = 0; i < Capacity; i++){
+        Ranges[i] = new AddressRange();
+        Ranges[i]->Minimum = MAX_64BIT_VALUE;
+        Ranges[i]->Maximum = 0;
+    }
+}
+
+RangeStats::~RangeStats(){
+    if (Ranges){
+        delete[] Ranges;
+    }
+    if (Counts){
+        delete[] Counts;
+    }
+}
+
+bool RangeStats::HasMemId(uint32_t memid){
+    return (memid < Capacity);
+}
+
+uint64_t RangeStats::GetMinimum(uint32_t memid){
+    assert(HasMemId(memid));
+    return Ranges[memid]->Minimum;
+}
+
+uint64_t RangeStats::GetMaximum(uint32_t memid){
+    assert(HasMemId(memid));
+    return Ranges[memid]->Maximum;
+}
+
+void RangeStats::Update(uint32_t memid, uint64_t addr){
+    AddressRange* r = Ranges[memid];
+    if (addr < r->Minimum){
+        r->Minimum = addr;
+    }
+    if (addr > r->Maximum){
+        r->Maximum = addr;
+    }
+    Counts[memid]++;
+}
+
+AddressRangeHandler::AddressRangeHandler(){
+}
+AddressRangeHandler::~AddressRangeHandler(){
+}
+void AddressRangeHandler::Print(){
+    inform << "AddressRangeHandler" << ENDL;
+}
+void AddressRangeHandler::Process(void* stats, BufferEntry* access){
+    uint32_t memid = (uint32_t)access->memseq;
+    uint64_t addr = access->address;
+    RangeStats* rs = (RangeStats*)stats;
+
+    rs->Update(memid, addr);
+}
+bool AddressRangeHandler::Verify(){
+    return true;
 }
 
 CacheStats::CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity){
@@ -801,7 +884,7 @@ void DeleteCacheStats(void* args){
 
         delete[] stats->Counters;
 
-        for (uint32_t i = 0; i < CountCacheStructures; i++){
+        for (uint32_t i = 0; i < CountMemoryHandlers; i++){
             delete stats->Stats[i];
         }
         delete[] stats->Stats;
@@ -1105,11 +1188,11 @@ MemoryStreamHandler::MemoryStreamHandler(){
 MemoryStreamHandler::~MemoryStreamHandler(){
 }
 
-CacheStructure::CacheStructure(){
+CacheStructureHandler::CacheStructureHandler(){
 }
 
-void CacheStructure::Print(){
-    inform << "CacheStructure: "
+void CacheStructureHandler::Print(){
+    inform << "CacheStructureHandler: "
            << "SysId " << dec << sysId
            << TAB << "Levels " << dec << levelCount
            << ENDL;
@@ -1120,7 +1203,7 @@ void CacheStructure::Print(){
 
 }
 
-bool CacheStructure::Verify(){
+bool CacheStructureHandler::Verify(){
     bool passes = true;
     if (levelCount < 1 || levelCount > 3){
         warn << "Sysid " << dec << sysId
@@ -1158,7 +1241,7 @@ bool CacheStructure::Verify(){
     return passes;
 }
 
-bool CacheStructure::Init(string desc){
+bool CacheStructureHandler::Init(string desc){
     description = desc;
 
     stringstream tokenizer(description);
@@ -1247,7 +1330,7 @@ bool CacheStructure::Init(string desc){
     return Verify();
 }
 
-CacheStructure::~CacheStructure(){
+CacheStructureHandler::~CacheStructureHandler(){
     if (levels){
         for (uint32_t i = 0; i < levelCount; i++){
             if (levels[i]){
@@ -1258,7 +1341,7 @@ CacheStructure::~CacheStructure(){
     }
 }
 
-void CacheStructure::Process(void* stats, BufferEntry* access){
+void CacheStructureHandler::Process(void* stats, BufferEntry* access){
     uint32_t next = 0;
     uint64_t victim = access->address;
 
@@ -1296,10 +1379,12 @@ void* GenerateCacheStats(void* args, uint32_t typ, pthread_key_t iid, pthread_t 
     s->Counters = (uint64_t*)(tmp64);
     bzero(s->Counters, s->BlockCount * sizeof(uint64_t));
 
-    s->Stats = new CacheStats*[CountCacheStructures];
+    s->Stats = new StreamStats*[CountMemoryHandlers];
     for (uint32_t i = 0; i < CountCacheStructures; i++){
-        s->Stats[i] = new CacheStats(CacheStructures_[i]->levelCount, CacheStructures_[i]->sysId, s->InstructionCount);
+        CacheStructureHandler* c = (CacheStructureHandler*)MemoryHandlers[i];
+        s->Stats[i] = new CacheStats(c->levelCount, c->sysId, s->InstructionCount);
     }
+    s->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
 
     return (void*)s;
 }
@@ -1314,12 +1399,12 @@ void ReadKnobs(){
     }
     
     string line;
-    vector<CacheStructure*> caches;
+    vector<CacheStructureHandler*> caches;
     while (getline(CacheFile, line)){
         if (IsEmptyComment(line)){
             continue;
         }
-        CacheStructure* c = new CacheStructure();
+        CacheStructureHandler* c = new CacheStructureHandler();
         if (!c->Init(line)){
             ErrorExit("cannot parse cache description line: " << line, MetasimError_StringParse);
         }
@@ -1327,12 +1412,14 @@ void ReadKnobs(){
         c->Print();
     }
 
-    CountCacheStructures = caches.size();
-    assert(CountCacheStructures > 0 && "No cache structures found for simulation");
-    CacheStructures_ = new CacheStructure*[CountCacheStructures];
+    CountMemoryHandlers = caches.size() + 1;
+    assert(CountMemoryHandlers > 0 && "No cache structures found for simulation");
+    assert(CountMemoryHandlers - 1 == RangeHandlerIndex);
+    MemoryHandlers = new MemoryStreamHandler*[CountMemoryHandlers];
     for (uint32_t i = 0; i < CountCacheStructures; i++){
-        CacheStructures_[i] = caches[i];
+        MemoryHandlers[i] = caches[i];
     }
+    MemoryHandlers[RangeHandlerIndex] = new AddressRangeHandler();
 
     uint32_t SampleMax;
     uint32_t SampleOn;
@@ -1348,6 +1435,6 @@ void ReadKnobs(){
         SampleOn = DEFAULT_SAMPLE_ON;
     }
     
-    SamplingMethod_ = new SamplingMethod(SampleMax, SampleOn, SampleOff);
-    SamplingMethod_->Print();
+    Sampler = new SamplingMethod(SampleMax, SampleOn, SampleOff);
+    Sampler->Print();
 }

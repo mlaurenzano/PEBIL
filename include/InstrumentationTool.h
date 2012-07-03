@@ -120,7 +120,8 @@ public:
     virtual void instrument();
 
     void dynamicPoint(InstrumentationPoint* pt, uint64_t key, bool enable);
-    void applyDynamicPoints();
+    uint64_t reserveDynamicPoints();
+    void applyDynamicPoints(uint64_t dynArray);
 
     virtual const char* briefName() { __SHOULD_NOT_ARRIVE; }
     virtual const char* defaultExtension() { __SHOULD_NOT_ARRIVE; }
