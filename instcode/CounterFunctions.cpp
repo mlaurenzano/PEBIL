@@ -280,37 +280,44 @@ extern "C"
             BlockFile 
                 << ENDL
                 << "#" << "Block" << TAB << "Hashcode" << TAB << "ImageId" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
-                << "#" << TAB << "ThreadId" << TAB << "Counter" << ENDL 
+                << "#" << TAB << "ThreadId" << TAB << "ThreadCounter" << ENDL 
                 << ENDL;
             for (set<pthread_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
                 CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
                 for (uint32_t i = 0; i < c->Size; i++){
+                    uint32_t idx;
                     if (c->Types[i] == CounterType_basicblock){
-                        uint32_t counter = 0;
+                        idx = i;
+                    } else if (c->Types[i] == CounterType_instruction){
+                        idx = c->Counters[i];
+                    } else {
+                        continue;
+                    }
+
+                    uint32_t counter = 0;
+                    for (set<pthread_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
+                        CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));
+                        counter += tc->Counters[idx];
+                    }
+
+                    if (counter >= PRINT_MINIMUM){
+                        BlockFile
+                            << "Block"
+                            << TAB << dec << c->Hashes[i]
+                            << TAB << dec << (*iit)
+                            << TAB << dec << counter
+                            << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
+                            << TAB << c->Functions[i]
+                            << TAB << hex << c->Addresses[i]
+                            << ENDL;
+
                         for (set<pthread_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
                             CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));
-                            counter += tc->Counters[i];
-                        }
-
-                        if (counter >= PRINT_MINIMUM){
-                            BlockFile
-                                << "Block"
-                                << TAB << hex << c->Hashes[i]
-                                << TAB << dec << (*iit)
-                                << TAB << dec << counter
-                                << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
-                                << TAB << c->Functions[i]
-                                << TAB << hex << c->Addresses[i]
-                                << ENDL;
-
-                            for (set<pthread_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
-                                CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));
-                                if (tc->Counters[i] >= PRINT_MINIMUM){
-                                    BlockFile
-                                        << TAB << dec << AllData->GetThreadSequence((*tit))
-                                        << TAB << dec << tc->Counters[i]
-                                        << ENDL;
-                                }
+                            if (tc->Counters[idx] >= PRINT_MINIMUM){
+                                BlockFile
+                                    << TAB << dec << AllData->GetThreadSequence((*tit))
+                                    << TAB << dec << tc->Counters[idx]
+                                    << ENDL;
                             }
                         }
                     }
