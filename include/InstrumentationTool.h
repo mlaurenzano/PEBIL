@@ -65,8 +65,8 @@ protected:
 
     Vector<X86Instruction*>* atomicIncrement(uint32_t dest, uint32_t scratch, uint32_t count, uint64_t memaddr, Vector<X86Instruction*>* insns);
 
-    void printStaticFile(Vector<Base*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize);
-    void printStaticFilePerInstruction(Vector<Base*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize);
+    void printStaticFile(const char* extension, Vector<Base*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize);
+    void printStaticFilePerInstruction(const char* extension, Vector<Base*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize);
 
     InstrumentationPoint* insertBlockCounter(uint64_t, Base*);
     InstrumentationPoint* insertBlockCounter(uint64_t, Base*, bool, uint32_t);

@@ -189,6 +189,7 @@ extern "C" {
             return NULL;
         }
 
+        // Buffer is shared between all images
         SimulationStats* stats = (SimulationStats*)AllData->GetData(iid, tid);
         if (stats == NULL){
             ErrorExit("Cannot retreive image data using key " << dec << iid, MetasimError_NoImage);
@@ -198,7 +199,6 @@ extern "C" {
 
         register uint64_t numElements = BUFFER_CURRENT(stats);
         uint64_t capacity = BUFFER_CAPACITY(stats);
-
 
         debug(inform 
               << hex << tid
@@ -227,9 +227,13 @@ extern "C" {
             // loop over address buffer
             for (uint32_t i = 0; i < CountMemoryHandlers; i++){
                 register MemoryStreamHandler* m = MemoryHandlers[i];
-                register StreamStats* s = stats->Stats[i];
                 for (uint32_t j = 0; j < numElements; j++){
-                    register BufferEntry* reference = &(stats->Buffer[j + 1]);
+                    register BufferEntry* reference = BUFFER_ENTRY(stats, j + 1);
+
+                    // TODO: this is super slow. could cache it in an array?
+                    register StreamStats* s = AllData->GetData(reference->imageid, reference->threadid)->Stats[i];
+                    debug(inform << "Stats at " << hex << (uint64_t)s << ENDL;)
+
                     m->Process((void*)s, reference);
                 }
             }
@@ -322,37 +326,18 @@ extern "C" {
             return NULL;
         }
 
+        // only print stats when the executable exits
+        if (!stats->Master){
+            return NULL;
+        }
+
         // clear all threads' buffers
         for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
             process_thread_buffer(iid, (*it));
         }
 
-        debug(inform
-              << "Instruction count: " << stats->InstructionCount << ENDL
-              << "Block count: " << stats->BlockCount << ENDL
-              << "Per Instruction: " << (stats->PerInstruction ? "yes":"no") << ENDL);
 
-        debug(inform << "#seq"
-              << TAB << "addr"
-              << TAB << "hash"
-              << TAB << "bbid"
-              << TAB << "memid"
-              << TAB << "lineno"
-              << TAB << "func"
-              << ENDL);
-
-        for (uint32_t i = 0; i < stats->BlockCount; i++){
-            debug(inform << dec << i 
-                  << TAB << hex << stats->Addresses[i]
-                  << TAB << hex << stats->Hashes[i]
-                  << TAB << dec << stats->BlockIds[i]
-                  << TAB << dec << stats->MemopIds[i]
-                  << TAB << stats->Files[i]
-                  << TAB << dec << stats->Lines[i]
-                  << TAB << stats->Functions[i]
-             << ENDL);
-        }
-
+        // dump cache simulation results
         ofstream MemFile;
         const char* fileName = SimulationFileName(stats);
         TryOpen(MemFile, fileName);
@@ -361,38 +346,40 @@ extern "C" {
 
         uint64_t sampledCount = 0;
         uint64_t totalMemop = 0;
-        for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
-            SimulationStats* s = (SimulationStats*)AllData->GetData(iid, (*it));
-            RangeStats* r = (RangeStats*)s->Stats[RangeHandlerIndex];
-            assert(r);
+        for (set<pthread_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+            for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+                SimulationStats* s = (SimulationStats*)AllData->GetData(iid, (*it));
+                RangeStats* r = (RangeStats*)s->Stats[RangeHandlerIndex];
+                assert(r);
 
-            for (uint32_t i = 0; i < r->Capacity; i++){
-                sampledCount = r->Counts[i];
-            }
+                for (uint32_t i = 0; i < r->Capacity; i++){
+                    sampledCount += r->Counts[i];
+                }
 
-            for (uint32_t i = 0; i < s->BlockCount; i++){
-                totalMemop += (s->Counters[i] * s->MemopsPerBlock[i]);
+                for (uint32_t i = 0; i < s->BlockCount; i++){
+                    totalMemop += (s->Counters[i] * s->MemopsPerBlock[i]);
+                }
+                debug(inform << "Total memop: " << dec << totalMemop << ENDL);
             }
-            debug(inform << "Total memop: " << dec << totalMemop << ENDL);
         }
 
         MemFile
-            << "# appname     = " << stats->Application << ENDL
-            << "# extension   = " << stats->Extension << ENDL
-            << "# rank        = " << dec << GetTaskId() << ENDL
-            << "# buffer      = " << BUFFER_CAPACITY(stats) << ENDL
-            << "# total       = " << dec << totalMemop << ENDL
-            << "# sampled     = " << dec << Sampler->AccessCount << ENDL
-            << "# processed   = " << dec << sampledCount << ENDL
-            << "# samplemax   = " << Sampler->AccessLimit << ENDL
-            << "# sampleon    = " << Sampler->SampleOn << ENDL
-            << "# sampleoff   = " << Sampler->SampleOff << ENDL
-            << "# numcache    = " << CountCacheStructures << ENDL
-            << "# perinsn     = " << (stats->PerInstruction? "yes" : "no") << ENDL
-            << "# imageid     = " << dec << *key << ENDL
-            << "# cntimage    = " << dec << AllData->CountImages() << ENDL
-            << "# mainthread  = " << hex << pthread_self() << ENDL
-            << "# cntthread   = " << dec << AllData->CountThreads() << ENDL
+            << "# appname       = " << stats->Application << ENDL
+            << "# extension     = " << stats->Extension << ENDL
+            << "# rank          = " << dec << GetTaskId() << ENDL
+            << "# buffer        = " << BUFFER_CAPACITY(stats) << ENDL
+            << "# total         = " << dec << totalMemop << ENDL
+            << "# sampled       = " << dec << Sampler->AccessCount << ENDL
+            << "# processed     = " << dec << sampledCount << ENDL
+            << "# samplemax     = " << Sampler->AccessLimit << ENDL
+            << "# sampleon      = " << Sampler->SampleOn << ENDL
+            << "# sampleoff     = " << Sampler->SampleOff << ENDL
+            << "# numcache      = " << CountCacheStructures << ENDL
+            << "# perinsn       = " << (stats->PerInstruction? "yes" : "no") << ENDL
+            << "# imageid       = " << dec << *key << ENDL
+            << "# cntimage      = " << dec << AllData->CountImages() << ENDL
+            << "# masterthread  = " << hex << AllData->GetThreadSequence(pthread_self()) << ENDL
+            << "# cntthread     = " << dec << AllData->CountThreads() << ENDL
             << "#" << ENDL;
 
         for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
@@ -409,7 +396,7 @@ extern "C" {
                     first = false;
                 }
 
-                MemFile << "#" << TAB << hex << (*it) << " ";
+                MemFile << "#" << TAB << dec << AllData->GetThreadSequence((*it)) << " ";
                 for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
                     uint64_t h = c->GetHits(lvl);
                     uint64_t m = c->GetMisses(lvl);
@@ -421,18 +408,139 @@ extern "C" {
         }
         MemFile << ENDL;
 
-        MemFile << "#block <seqid> <visitcount> <samplecount> <threadid>" << ENDL
-                << "#       sys <sysid> lvl <cachelvl> <hitcount> <miscount> <hitpercent>" << ENDL
-                << ENDL;
+        MemFile 
+            << "# " << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageId" << TAB << "Threadid"
+            << TAB << "BlockCounter" << TAB << "BlockSimulated" << TAB << "InstructionSimulated"
+            << ENDL;
+        MemFile
+            << "# " << TAB << "SIM" << TAB << "SysId" << TAB << "Level" << TAB << "HitCount" << TAB << "MissCount" << ENDL;
 
-        for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
-            stats = AllData->GetData(iid, (*it));
-            assert(stats);
-            PrintSimulationStats(MemFile, stats, (*it));
+        for (set<pthread_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+            for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+                SimulationStats* st = AllData->GetData((*iit), (*it));
+                assert(st);
+
+                // compile per-instruction stats into blocks
+                CacheStats** aggstats = new CacheStats*[CountCacheStructures];
+                for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
+
+                    CacheStats* s = (CacheStats*)st->Stats[sys];
+                    assert(s);
+                    CacheStats* c = new CacheStats(s->LevelCount, s->SysId, st->BlockCount);
+                    aggstats[sys] = c;
+
+                    for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
+
+                        for (uint32_t memid = 0; memid < st->InstructionCount; memid++){
+                            uint32_t bbid = st->BlockIds[memid];
+                            c->Hit(bbid, lvl, s->GetHits(memid, lvl));
+                            c->Miss(bbid, lvl, s->GetMisses(memid, lvl));
+                        }
+                    }
+                }
+
+                CacheStats* root = aggstats[0];
+                for (uint32_t bbid = 0; bbid < root->Capacity; bbid++){
+
+                    if (root->GetAccessCount(bbid) == 0){
+                        continue;
+                    }
+
+                    assert(root->GetAccessCount(bbid) % st->MemopsPerBlock[bbid] == 0);
+                    uint64_t bsampled = root->GetAccessCount(bbid) / st->MemopsPerBlock[bbid];
+
+                    MemFile << "BLK" 
+                            << TAB << dec << bbid
+                            << TAB << dec << stats->Hashes[bbid]
+                            << TAB << dec << (*iit)
+                            << TAB << dec << AllData->GetThreadSequence(st->threadid)
+                            << TAB << dec << st->Counters[bbid]
+                            << TAB << dec << bsampled
+                            << TAB << dec << root->GetAccessCount(bbid)
+                            << ENDL;
+
+                    for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
+                        CacheStats* c = aggstats[sys];
+                        for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
+
+                            MemFile << TAB << "SIM"
+                              << TAB << dec << c->SysId
+                              << TAB << dec << (lvl+1)
+                              << TAB << dec << c->GetHits(bbid, lvl)
+                              << TAB << dec << c->GetMisses(bbid, lvl)
+                              << ENDL;
+                        }
+                    }
+                }
+
+                for (uint32_t i = 0; i < CountCacheStructures; i++){
+                    delete aggstats[i];
+                }
+                delete[] aggstats;
+            }
         }
 
-        delete NonmaxKeys;
+        MemFile.close();
 
+        // if single-thread and single-image, also print in old format
+        if (AllData->CountThreads() == 1 && AllData->CountImages() == 1){
+            const char* fileName = LegacySimulationFileName(stats);
+            TryOpen(MemFile, fileName);
+
+            inform << "Printing cache simulation results to " << fileName << ENDL;
+
+            MemFile
+                << "# appname       = " << stats->Application << ENDL
+                << "# extension     = " << stats->Extension << ENDL
+                << "# rank          = " << dec << GetTaskId() << ENDL
+                << "# buffer        = " << BUFFER_CAPACITY(stats) << ENDL
+                << "# total         = " << dec << totalMemop << ENDL
+                << "# sampled       = " << dec << Sampler->AccessCount << ENDL
+                << "# processed     = " << dec << sampledCount << ENDL
+                << "# samplemax     = " << Sampler->AccessLimit << ENDL
+                << "# sampleon      = " << Sampler->SampleOn << ENDL
+                << "# sampleoff     = " << Sampler->SampleOff << ENDL
+                << "# numcache      = " << CountCacheStructures << ENDL
+                << "# perinsn       = " << (stats->PerInstruction? "yes" : "no") << ENDL
+                << "# imageid       = " << dec << *key << ENDL
+                << "# cntimage      = " << dec << AllData->CountImages() << ENDL
+                << "# masterthread  = " << hex << AllData->GetThreadSequence(pthread_self()) << ENDL
+                << "# cntthread     = " << dec << AllData->CountThreads() << ENDL
+                << "#" << ENDL;
+
+            for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
+
+                CacheStats* c = (CacheStats*)stats->Stats[sys];
+                assert(c->Capacity == stats->InstructionCount);
+
+                MemFile << "# sysid" << dec << c->SysId << TAB;
+
+                for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
+                    uint64_t h = c->GetHits(lvl);
+                    uint64_t m = c->GetMisses(lvl);
+                    uint64_t t = h + m;
+                    MemFile << "l" << dec << lvl << "[" << h << "," << t << "(" << CacheStats::GetHitRate(h, m) << ")] ";
+                }
+                MemFile << ENDL;
+            }
+            MemFile << ENDL;
+
+            MemFile << "#block <seqid> <blockcount> <blocksimulated> <insnsimulated>" << ENDL
+                    << "#       sys <sysid> lvl <cachelvl> <hitcount> <miscount> <hitpercent>" << ENDL
+                    << ENDL;
+
+            for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+                stats = AllData->GetData(iid, (*it));
+                assert(stats);
+                PrintSimulationStats(MemFile, stats, (*it), false);
+            }
+
+            MemFile.close();
+
+        }
+
+
+        // dump address range (dfp) file
         for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
             SimulationStats* s = (SimulationStats*)AllData->GetData(iid, (*it));
             RangeStats* r = (RangeStats*)s->Stats[RangeHandlerIndex];
@@ -442,6 +550,7 @@ extern "C" {
                 if (r->Counts[i]){
                     inform 
                         << "Instruction " << dec << i
+                        << TAB << "Thread " << dec << AllData->GetThreadSequence((*it))
                         << TAB << "Count " << dec << r->Counts[i]
                         << TAB << "[" << hex << r->GetMinimum(i) << "," << hex << r->GetMaximum(i) << "]"
                         << ENDL;
@@ -450,11 +559,15 @@ extern "C" {
         }
 
         inform << "CXXX Total Execution time for image: " << (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)) << ENDL;
+
+        if (NonmaxKeys){
+            delete NonmaxKeys;
+        }
     }
 
 };
 
-void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid){
+void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid, bool perThread){
     debug(
     for (uint32_t bbid = 0; bbid < stats->BlockCount; bbid++){
         if (stats->Counters[bbid] == 0){
@@ -495,10 +608,17 @@ void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid){
             continue;
         }
 
-        f << "block" << TAB << dec << bbid
-          << TAB << dec << stats->Counters[bbid]
+        assert(root->GetAccessCount(bbid) % stats->MemopsPerBlock[bbid] == 0);
+        uint64_t bsampled = root->GetAccessCount(bbid) / stats->MemopsPerBlock[bbid];
+
+        f << "block" 
+          << TAB << dec << bbid;
+        if (perThread){
+            f << TAB << dec << AllData->GetThreadSequence(tid);
+        }
+        f << TAB << dec << stats->Counters[bbid]
+          << TAB << dec << bsampled
           << TAB << dec << root->GetAccessCount(bbid)
-          << TAB << hex << tid
           << ENDL;
 
         for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
@@ -527,10 +647,58 @@ const char* SimulationFileName(SimulationStats* stats){
     string oFile;
 
     oFile.append(stats->Application);
-    oFile.append(".meta_");
+    oFile.append(".r");
     AppendRankString(oFile);
+    oFile.append(".t");
+    AppendTasksString(oFile);
     oFile.append(".");
     oFile.append(stats->Extension);
+
+    return oFile.c_str();
+}
+
+const char* RangeFileName(SimulationStats* stats){
+    string oFile;
+
+    oFile.append(stats->Application);
+    oFile.append(".r");
+    AppendRankString(oFile);
+    oFile.append(".t");
+    AppendTasksString(oFile);
+    oFile.append(".");
+    oFile.append("dfp");
+
+    return oFile.c_str();
+}
+
+const char* LegacySimulationFileName(SimulationStats* stats){
+    string oFile;
+
+    oFile.append(stats->Application);
+    if (stats->Phase > 0){
+        assert(stats->Phase == 1 && "phase number must be 1");
+        oFile.append(".phase.1");
+    }
+    oFile.append(".meta_");
+    AppendLegacyRankString(oFile);
+    oFile.append(".");
+    oFile.append(stats->Extension);
+
+    return oFile.c_str();
+}
+
+const char* LegacyRangeFileName(SimulationStats* stats){
+    string oFile;
+
+    oFile.append(stats->Application);
+    if (stats->Phase > 0){
+        assert(stats->Phase == 1 && "phase number must be 1");
+        oFile.append(".phase.1");
+    }
+    oFile.append(".meta_");
+    AppendLegacyRankString(oFile);
+    oFile.append(".");
+    oFile.append("dfp");
 
     return oFile.c_str();
 }
@@ -1366,11 +1534,11 @@ void* GenerateCacheStats(void* args, uint32_t typ, pthread_key_t iid, pthread_t 
     bzero(s->Counters, s->BlockCount * sizeof(uint64_t));
 
     s->Stats = new StreamStats*[CountMemoryHandlers];
+    s->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
     for (uint32_t i = 0; i < CountCacheStructures; i++){
         CacheStructureHandler* c = (CacheStructureHandler*)MemoryHandlers[i];
         s->Stats[i] = new CacheStats(c->levelCount, c->sysId, s->InstructionCount);
     }
-    s->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
 
     return (void*)s;
 }

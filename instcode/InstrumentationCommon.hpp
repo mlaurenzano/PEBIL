@@ -230,11 +230,26 @@ static void AppendRankString(string& str){
     str.append(buf);
 }
 
+static void AppendLegacyRankString(string& str){
+    char buf[5];
+    sprintf(buf, "%04d", GetTaskId());
+    buf[4] = '\0';
+
+    str.append(buf);
+}
 
 static void AppendTasksString(string& str){
     char buf[9];
     sprintf(buf, "%08d", GetNTasks());
     buf[8] = '\0';
+
+    str.append(buf);
+}
+
+static void AppendLegacyTasksString(string& str){
+    char buf[5];
+    sprintf(buf, "%04d", GetNTasks());
+    buf[4] = '\0';
 
     str.append(buf);
 }
@@ -286,7 +301,7 @@ private:
             << "Image " << hex << (uint64_t)iid
             << " setting up thread " << td[actual].id
             << " data at " << (uint64_t)td
-            << "-> " << td[actual].data
+            << " -> " << td[actual].data
             << endl;
 
         // fail if there was a collision. it makes writing tools much easier so we see how well this works for now

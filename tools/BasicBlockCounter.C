@@ -379,9 +379,9 @@ void BasicBlockCounter::instrument()
     }
 
     if (isPerInstruction()){
-        printStaticFilePerInstruction(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
+        printStaticFilePerInstruction(getExtension(), allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
     } else {
-        printStaticFile(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
+        printStaticFile(getExtension(), allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
     }
 
     delete[] nostring;

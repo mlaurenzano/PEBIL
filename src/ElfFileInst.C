@@ -1688,11 +1688,11 @@ ElfFileInst::~ElfFileInst(){
     }
 }
 
-void ElfFileInst::dump(){
+void ElfFileInst::dump(char* extension){
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
 
     char fileName[__MAX_STRING_SIZE] = "";
-    sprintf(fileName,"%s.%s", elfFile->getFileName(), getExtension());
+    sprintf(fileName,"%s.%s", elfFile->getFileName(), extension);
     PRINT_INFOR("Instrumented binary is %s", fileName);
 
     BinaryOutputFile binaryOutputFile;

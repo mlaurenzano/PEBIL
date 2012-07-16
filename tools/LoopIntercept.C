@@ -145,7 +145,7 @@ void LoopIntercept::discoverAllLoops(){
         }
         allLineInfos->append(li);
     }
-    printStaticFile(allBlocks, allBlockIds, allLineInfos, allBlocks->size());
+    printStaticFile(getExtension(), allBlocks, allBlockIds, allLineInfos, allBlocks->size());
     
     delete allBlocks;
     delete allBlockIds;
@@ -442,7 +442,7 @@ void LoopIntercept::instrument(){
 
     }
 
-    printStaticFile(allBlocks, allBlockIds, allLineInfos, allBlocks->size());
+    printStaticFile(getExtension(), allBlocks, allBlockIds, allLineInfos, allBlocks->size());
 
     delete allBlocks;
     delete allBlockIds;

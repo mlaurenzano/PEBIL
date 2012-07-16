@@ -41,6 +41,8 @@ using namespace std;
 typedef struct {
     uint64_t    address;
     uint64_t    memseq;
+    uint64_t    imageid;
+    uint64_t    threadid;
 } BufferEntry;
 #define __buf_current  address
 #define __buf_capacity memseq
@@ -55,6 +57,8 @@ typedef struct {
     pthread_key_t imageid;
     bool Initialized;
     bool PerInstruction;
+    bool Master;
+    uint32_t Phase;
     uint32_t InstructionCount;
     uint32_t BlockCount;
     char* Application;
@@ -75,9 +79,9 @@ typedef struct {
     uint64_t* Addresses;
     StreamStats** Stats;
 } SimulationStats;
+#define BUFFER_ENTRY(__stats, __n) (&(__stats->Buffer[__n]))
 #define BUFFER_CAPACITY(__stats) (__stats->Buffer[0].__buf_capacity)
 #define BUFFER_CURRENT(__stats) (__stats->Buffer[0].__buf_current)
-
 
 enum CacheLevelType {
     CacheLevelType_Undefined,
@@ -141,8 +145,11 @@ static void* GenerateCacheStats(void* args, uint32_t typ, pthread_key_t iid, pth
 static uint64_t ReferenceCacheStats(void* args);
 static void DeleteCacheStats(void* args);
 static bool ReadEnvUint32(string name, uint32_t* var);
-static void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid);
+static void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid, bool perThread);
 static const char* SimulationFileName(SimulationStats* stats);
+static const char* LegacySimulationFileName(SimulationStats* stats);
+static const char* RangeFileName(SimulationStats* stats);
+static const char* LegacyRangeFileName(SimulationStats* stats);
 
 extern "C" {
     void* tool_mpi_init();

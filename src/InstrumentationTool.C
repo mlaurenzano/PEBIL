@@ -431,7 +431,7 @@ Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, 
     Vector<X86Instruction*>* insns = new Vector<X86Instruction*>();
 
     // mov %fs:0x10,%d
-    insns->append(X86InstructionFactory64::emitMoveTLSOffsetToReg(0x10, dest));
+    insns->append(X86InstructionFactory64::emitMoveThreadIdToReg(dest));
     // srl $12,%d
     insns->append(X86InstructionFactory64::emitShiftRightLogical(12, dest));
     // and $0xffff,%d
@@ -646,7 +646,7 @@ InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOf
     return p;
 }
 
-void InstrumentationTool::printStaticFile(Vector<Base*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize){
+void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 
     ASSERT(!(*allBlockLineInfos).size() || (*allBlocks).size() == (*allBlockLineInfos).size());
@@ -655,7 +655,7 @@ void InstrumentationTool::printStaticFile(Vector<Base*>* allBlocks, Vector<uint3
     uint32_t numberOfInstPoints = (*allBlocks).size();
 
     char* staticFile = new char[__MAX_STRING_SIZE];
-    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getExtension(), "static");
+    sprintf(staticFile,"%s.%s.%s", getFullFileName(), extension, "static");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 
@@ -835,7 +835,7 @@ void InstrumentationTool::printStaticFile(Vector<Base*>* allBlocks, Vector<uint3
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }
 
-void InstrumentationTool::printStaticFilePerInstruction(Vector<Base*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize){
+void InstrumentationTool::printStaticFilePerInstruction(const char* extension, Vector<Base*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 
     ASSERT(!(*allInstructionLineInfos).size() || (*allInstructions).size() == (*allInstructionLineInfos).size());
@@ -844,7 +844,7 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<Base*>* allInstru
     uint32_t numberOfInstPoints = (*allInstructions).size();
 
     char* staticFile = new char[__MAX_STRING_SIZE];
-    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getExtension(), "static");
+    sprintf(staticFile,"%s.%s.%s", getFullFileName(), extension, "static");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 

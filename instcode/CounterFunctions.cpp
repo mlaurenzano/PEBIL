@@ -36,7 +36,7 @@
 
 static DataManager<CounterArray*>* AllData = NULL;
 
-void print_loop_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
+void print_loop_array(FILE* stream, CounterArray* ctrs){
     if (ctrs == NULL){
         return;
     }
@@ -60,14 +60,13 @@ void print_loop_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
             fprintf(stream, "%d\t", ctrs->Lines[i]);
             fprintf(stream, "%s\t", ctrs->Functions[i]);
             fprintf(stream, "%ld\t", ctrs->Hashes[i]);
-            fprintf(stream, "%#lx\t", ctrs->Addresses[i]);
-            fprintf(stream, "%lx\n", tid);
+            fprintf(stream, "%#lx\n", ctrs->Addresses[i]);
         }
     }
     fflush(stream);
 }
 
-void print_counter_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
+void print_counter_array(FILE* stream, CounterArray* ctrs){
     if (ctrs == NULL){
         return;
     }
@@ -90,8 +89,7 @@ void print_counter_array(FILE* stream, CounterArray* ctrs, pthread_t tid){
             fprintf(stream, "%d\t", ctrs->Lines[i]);
             fprintf(stream, "%#lx\t", ctrs->Addresses[i]);
             fprintf(stream, "%s\t", ctrs->Functions[i]);
-            fprintf(stream, "%ld\t", ctrs->Hashes[i]);
-            fprintf(stream, "%lx\n", tid);
+            fprintf(stream, "%ld\n", ctrs->Hashes[i]);
         }
     }
     fflush(stream);
@@ -404,15 +402,11 @@ extern "C"
             fprintf(outFile, "# mainthread= %lx\n", pthread_self());
             fprintf(outFile, "# cntthread = %d\n", AllData->CountThreads());
         
-            fprintf(outFile, "#id\tcount\t#file:line\taddr\tfunc\thash\tthreadid\n");
+            fprintf(outFile, "#id\tcount\t#file:line\taddr\tfunc\thash\n");
             fflush(outFile);
 
-            // this wastes tons of space in the meta.jbbinst file, need to think of a better output format.
-            for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
-                ctrs = AllData->GetData(*key, (*it));
-                assert(ctrs);
-                print_counter_array(outFile, ctrs, (*it));
-            }
+            print_counter_array(outFile, ctrs);
+
             fflush(outFile);
             fclose(outFile);
 
@@ -437,18 +431,16 @@ extern "C"
             fprintf(outFile, "# mainthread= %lx\n", pthread_self());
             fprintf(outFile, "# cntthread = %d\n", AllData->CountThreads());
         
-            fprintf(outFile, "#hash\tcount\t#file:line\tfunc\thash\taddr\tthreadid\n");
+            fprintf(outFile, "#hash\tcount\t#file:line\tfunc\thash\taddr\n");
             fflush(outFile);
-            for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
-                ctrs = AllData->GetData(*key, (*it));
-                assert(ctrs);
-                print_loop_array(outFile, ctrs, (*it));
-            }
+
+            print_loop_array(outFile, ctrs);
+
             fflush(outFile);
             fclose(outFile);
         }
 
-        inform << "cxxx Total Execution time for image " << ctrs->Application << ": " << (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)) << ENDL;
+        inform << "cxxx Total Execution time for image " << ctrs->Application << ": " << (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)) << " seconds" << ENDL;
         return NULL;
     }
 };

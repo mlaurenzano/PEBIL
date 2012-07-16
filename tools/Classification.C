@@ -187,7 +187,7 @@ void Classification::instrument(){
     }
     
     if(allLineInfos->size())
-        printStaticFile(allBlocks, allBlockIds, allLineInfos, allBlocks->size());
+        printStaticFile(getExtension(), allBlocks, allBlockIds, allLineInfos, allBlocks->size());
     delete allBlocks;
     delete allBlockIds;
     delete allLineInfos;
