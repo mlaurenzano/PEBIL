@@ -140,7 +140,7 @@ static string GetCacheDescriptionFile();
 static bool ParsePositiveInt32(string token, uint32_t* value);
 static bool ParseInt32(string token, uint32_t* value, uint32_t min);
 static bool ParsePositiveInt32Hex(string token, uint32_t* value);
-static void ReadKnobs();
+static void ReadSettings();
 static void* GenerateCacheStats(void* args, uint32_t typ, image_key_t iid, thread_key_t tid);
 static uint64_t ReferenceCacheStats(void* args);
 static void DeleteCacheStats(void* args);

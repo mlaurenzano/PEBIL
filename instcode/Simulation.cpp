@@ -47,19 +47,6 @@ static MemoryStreamHandler** MemoryHandlers = NULL;
 static SamplingMethod* Sampler = NULL;
 static DataManager<SimulationStats*>* AllData = NULL;
 
-// TODO: share this with include/InstrumentationTool.h?
-#define DYNAMIC_POINT_SIZE_LIMIT 128
-typedef struct {
-    uint64_t VirtualAddress;
-    uint64_t ProgramAddress;
-    uint64_t Key;
-    uint64_t Flags;
-    uint32_t Size;
-    uint8_t  OppContent[DYNAMIC_POINT_SIZE_LIMIT];
-    bool IsEnabled;
-} DynamicInst;
-static uint64_t CountDynamicInst = 0;
-static DynamicInst* DynamicInst_ = NULL;
 static set<uint64_t>* NonmaxKeys = NULL;
 static bool FillPointsDead = false;
 
@@ -67,74 +54,25 @@ static bool FillPointsDead = false;
 #define GET_BLOCKID(__key) ((__key >> 4))
 #define GET_TYPE(__key) ((__key & 0xf))
 
-static void PrintDynamicPoint(DynamicInst* d){
-    inform
-        << TAB
-        << TAB << "Key 0x" << hex << d->Key
-        << TAB << "Vaddr 0x" << hex << d->VirtualAddress
-        << TAB << "Oaddr 0x" << hex << d->ProgramAddress
-        << TAB << "Size " << dec << d->Size
-        << TAB << "Enabled " << (d->IsEnabled? "yes":"no")
-        << ENDL;
-}
-
-static void PrintDynamicPoints(){
-    inform << "Printing " << dec << CountDynamicInst << " dynamic inst points" << ENDL;
-    for (uint32_t i = 0; i < CountDynamicInst; i++){
-        PrintDynamicPoint(&DynamicInst_[i]);
-    }
-}
-
-static void SetDynamicPointStatus(DynamicInst* d, bool state){
-
-    uint8_t t[DYNAMIC_POINT_SIZE_LIMIT];
-    memcpy(t, (uint8_t*)d->VirtualAddress, d->Size);
-    memcpy((uint8_t*)d->VirtualAddress, d->OppContent, d->Size);
-    memcpy(d->OppContent, t, d->Size);
-
-    d->IsEnabled = state;
-
-    debug(inform << "Removing instrumentation point..." << ENDL);
-    debug(PrintDynamicPoint(d));
-}
-
-static void SetDynamicPoints(set<uint64_t>* keys, bool state){
-    debug(inform << "CHECKING " << dec << CountDynamicInst << ENDL);
-    for (uint32_t i = 0; i < CountDynamicInst; i++){
-
-        debug(inform << TAB TAB << "KEY COUNT " << dec << DynamicInst_[i].Key << " = " << keys->count(DynamicInst_[i].Key) << ENDL);
-        if (keys->count(DynamicInst_[i].Key) > 0){
-
-            debug(inform << "Removing instrumentation point... " << hex << DynamicInst_[i].Key << ENDL);
-
-            if (state != DynamicInst_[i].IsEnabled){
-                SetDynamicPointStatus(&DynamicInst_[i], state);
-            }
-        }
-    }
-    debug(PrintDynamicPoints());
-}
-
 extern "C" {
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
-        CountDynamicInst = *count;
-        DynamicInst_ = *dyn;
+        InitializeDynamicInstrumentation(count, dyn);
 
         NonmaxKeys = new set<uint64_t>();
 
         for (uint32_t i = 0; i < CountDynamicInst; i++){
-            uint64_t k = DynamicInst_[i].Key;
+            DynamicInst* d = GetDynamicInstPoint(i);
+            uint64_t k = d->Key;
             if (GET_TYPE(k) == PointType_bufferfill){
                 if (NonmaxKeys->count(k) == 0){
                     NonmaxKeys->insert(k);
                 }
             }
 
-            if (DynamicInst_[i].IsEnabled == false){
-                SetDynamicPointStatus(&DynamicInst_[i], false);
+            if (d->IsEnabled == false){
+                SetDynamicPointStatus(d, false);
             }
         }
-        
         debug(PrintDynamicPoints());
     }
 
@@ -154,7 +92,7 @@ extern "C" {
     void* tool_image_init(void* s, image_key_t* key, ThreadData* td){
         SimulationStats* stats = (SimulationStats*)s;
 
-        ReadKnobs();
+        ReadSettings();
 
         assert(stats->Stats == NULL);
         stats->Stats = new StreamStats*[CountMemoryHandlers];
@@ -1543,7 +1481,7 @@ void* GenerateCacheStats(void* args, uint32_t typ, image_key_t iid, thread_key_t
     return (void*)s;
 }
 
-void ReadKnobs(){
+void ReadSettings(){
 
     // read caches to simulate
     string cachedf = GetCacheDescriptionFile();

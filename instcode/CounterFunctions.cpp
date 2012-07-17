@@ -245,6 +245,7 @@ extern "C"
             } else {
                 BlockFile << "# blockcount      = " << dec << blockCount << ENDL;
             }
+            BlockFile << ENDL;
                 
             LoopFile
                 << "# appname         = " << ctrs->Application << ENDL
@@ -255,9 +256,28 @@ extern "C"
                 << "# countimage      = " << dec << AllData->CountImages() << ENDL
                 << "# countthread     = " << dec << AllData->CountThreads() << ENDL
                 << "# masterthread    = " << dec << AllData->GetThreadSequence(pthread_self()) << ENDL
-                << "# loopcount       = " << dec << loopCount << ENDL;
+                << "# loopcount       = " << dec << loopCount << ENDL
+                << ENDL;
+            
 
             // print image summaries
+            BlockFile
+                << "# IMG"
+                << TAB << "ImageHash"
+                << TAB << "ImageSequence"
+                << TAB << "ImageType"
+                << TAB << "Name"
+                << TAB << "BlockCount"
+                << ENDL;
+            LoopFile
+                << "# IMG"
+                << TAB << "ImageHash"
+                << TAB << "ImageSequence"
+                << TAB << "ImageType"
+                << TAB << "Name"
+                << TAB << "LoopCount"
+                << ENDL;
+
             for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
                 CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
 
@@ -274,34 +294,33 @@ extern "C"
                 }
 
                 BlockFile 
-                    << "# imagesummary    = "
-                    << "(id)" << hex << (*iit)
-                    << TAB << "(name)" << c->Application;
-
-                if (ctrs->PerInstruction){
-                    BlockFile << TAB << "(insncount)" << dec << blockCount << ENDL;
-                } else {
-                    BlockFile << TAB << "(blockcount)" << dec << blockCount << ENDL;
-                }
-
-                LoopFile
-                    << "# imagesummary    = "
-                    << "(id)" << hex << (*iit)
-                    << TAB << "(name)" << c->Application
-                    << TAB << "(loopcount)" << dec << loopCount << ENDL;
-
+                    << "IMG"
+                    << TAB << hex << (*iit)
+                    << TAB << dec << AllData->GetImageSequence((*iit))
+                    << TAB << (c->Master ? "Executable" : "SharedLib")
+                    << TAB << c->Application
+                    << TAB << dec << blockCount
+                    << ENDL;
+                LoopFile 
+                    << "IMG"
+                    << TAB << hex << (*iit)
+                    << TAB << dec << AllData->GetImageSequence((*iit))
+                    << TAB << (c->Master ? "Executable" : "SharedLib")
+                    << TAB << c->Application
+                    << TAB << dec << loopCount
+                    << ENDL;
             }
 
             // print information per-block/loop
             BlockFile 
                 << ENDL
-                << "#" << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageId" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
+                << "#" << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
                 << "#" << TAB << "ThreadId" << TAB << "ThreadCounter" << ENDL 
                 << ENDL;
 
             LoopFile
                 << ENDL
-                << "#" << "LPP" << TAB << "Hashcode" << TAB << "ImageId" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
+                << "#" << "LPP" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
                 << "#" << TAB << "ThreadId" << TAB << "ThreadCounter" << ENDL 
                 << ENDL;
 
@@ -328,7 +347,7 @@ extern "C"
                             LoopFile
                                 << "LPP"
                                 << TAB << hex << c->Hashes[i]
-                                << TAB << hex << (*iit)
+                                << TAB << dec << AllData->GetImageSequence((*iit))
                                 << TAB << dec << counter
                                 << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
                                 << TAB << c->Functions[i]
@@ -339,7 +358,7 @@ extern "C"
                                 << "BLK"
                                 << TAB << dec << i
                                 << TAB << hex << c->Hashes[i]
-                                << TAB << hex << (*iit)
+                                << TAB << dec << AllData->GetImageSequence((*iit))
                                 << TAB << dec << counter
                                 << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
                                 << TAB << c->Functions[i]

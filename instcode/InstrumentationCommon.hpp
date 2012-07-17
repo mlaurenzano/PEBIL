@@ -274,6 +274,9 @@ private:
     uint32_t currentthreadseq;
     DataMap <thread_key_t, uint32_t> threadseq;
 
+    uint32_t currentimageseq;
+    DataMap <image_key_t, uint32_t> imageseq;
+
     // stores data in a ThreadData[] which can be more easily accessed by tools.
     DataMap <image_key_t, ThreadData*> threaddata;
 
@@ -341,6 +344,8 @@ public:
         mutex = PTHREAD_MUTEX_INITIALIZER;
         currentthreadseq = 0;
         threadseq[GenerateThreadKey()] = currentthreadseq++;
+
+        currentimageseq = 0;
     }
 
     ~DataManager(){
@@ -360,8 +365,13 @@ public:
     }
 
     uint32_t GetThreadSequence(thread_key_t tid){
-        assert(threadseq.count(tid) == 1);
+        assert(threadseq.count(tid) == 1 && "thread must be added with AddThread method");
         return threadseq[tid];
+    }
+
+    uint32_t GetImageSequence(image_key_t iid){
+        assert(imageseq.count(iid) == 1 && "image must be added with AddImage method");
+        return imageseq[iid];
     }
 
     void AddThread(thread_key_t tid){
@@ -385,6 +395,7 @@ public:
         }
         allthreads.insert(tid);
     }
+
     void AddThread(){
         AddThread(pthread_self());
     }
@@ -431,6 +442,7 @@ public:
     image_key_t AddImage(T data, ThreadData* t, image_key_t iid){
         thread_key_t tid = pthread_self();
 
+        imageseq[iid] = currentimageseq++;
         assert(allimages.count(iid) == 0);
 
         // insert data for this thread
@@ -449,18 +461,6 @@ public:
             }
         }
         return iid;
-    }
-
-    void RemoveImage(image_key_t iid){
-        assert(allimages.count(iid) == 1);
-        assert(datamap.count(iid) == 1);
-
-        for (set<thread_key_t>::iterator it = allthreads.begin(); it != allthreads.end(); it++){
-            assert(datamap[iid].count((*it)) == 1);
-            RemoveData(iid, (*it));
-        }
-        allimages.erase(iid);
-        threaddata.erase(iid);
     }
 
     T GetData(image_key_t iid, thread_key_t tid){

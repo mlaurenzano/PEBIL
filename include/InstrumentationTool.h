@@ -26,21 +26,11 @@
 #include <X86Instruction.h>
 #include <map>
 
+#include <Metasim.hpp>
+
 class InstrumentationPoint;
 
 #define INFO_UNKNOWN "__info_unknown__"
-
-/* support for removing instrumentation points */
-#define DYNAMIC_POINT_SIZE_LIMIT 128
-typedef struct {
-    uint64_t VirtualAddress;
-    uint64_t ProgramAddress;
-    uint64_t Key;
-    uint64_t Flags;
-    uint32_t Size;
-    uint8_t  OppContent[DYNAMIC_POINT_SIZE_LIMIT];
-    bool IsEnabled;
-} DynamicInst;
 
 struct DynamicInstInternal {
     InstrumentationPoint* Point;

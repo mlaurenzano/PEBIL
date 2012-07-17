@@ -1313,6 +1313,10 @@ void ElfFile::parse(){
         setStaticLinked(true);
         PRINT_INFOR("The executable is statically linked");
     }
+
+    char* sha1sum = getSHA1Sum();
+    PRINT_INFOR("The sha1sum for this binary is %s", sha1sum);
+    delete[] sha1sum;
 }
 
 void ElfFile::readFileHeader() {

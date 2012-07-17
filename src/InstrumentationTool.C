@@ -28,8 +28,6 @@
 #include <TextSection.h>
 #include <X86InstructionFactory.h>
 
-#include <Metasim.hpp>
-
 #define MPI_INIT_WRAPPER_CBIND   "MPI_Init_pebil_wrapper"
 #define MPI_INIT_LIST_CBIND_PREF "PMPI_Init"
 #define MPI_INIT_LIST_CBIND      "MPI_Init"
