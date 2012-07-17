@@ -119,7 +119,7 @@ void BasicBlockCounter::instrument()
 
     uint32_t numberOfBlocks = getNumberOfExposedBasicBlocks();
     if (isPerInstruction()){
-        PRINT_WARN(10, "Performing instrumentation to gather PER-INSTRUCTION statistics");
+        PRINT_INFOR("Performing instrumentation to gather PER-INSTRUCTION statistics");
         numberOfBlocks = getNumberOfExposedInstructions();
     }
 

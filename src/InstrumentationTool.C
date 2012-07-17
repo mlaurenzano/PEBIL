@@ -265,8 +265,10 @@ bool InstrumentationTool::hasThreadEvidence(){
             Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol((*threadCalls)[i]->getTargetAddress());
             PRINT_WARN(20, "Found call to an apparent thread-related function (%s) at address %#lx", functionSymbol->getSymbolName(), (*threadCalls)[i]->getBaseAddress());
         }
+        delete threadCalls;
         return true;
     }
+    delete threadCalls;
     return false;
 }
 

@@ -295,9 +295,16 @@ extern "C" {
                 }
 
                 for (uint32_t i = 0; i < s->BlockCount; i++){
-                    totalMemop += (s->Counters[i] * s->MemopsPerBlock[i]);
+                    uint32_t idx;
+                    if (s->Types[i] == CounterType_basicblock){
+                        idx = i;
+                    } else if (s->Types[i] == CounterType_instruction){
+                        idx = s->Counters[i];
+                    }
+                    inform << dec << i << TAB << s->Counters[idx] << TAB << s->MemopsPerBlock[idx] << TAB << CounterTypeNames[s->Types[i]] << ENDL;
+                    totalMemop += (s->Counters[idx] * s->MemopsPerBlock[idx]);
                 }
-                debug(inform << "Total memop: " << dec << totalMemop << ENDL);
+                inform << "Total memop: " << dec << totalMemop << ENDL;
             }
         }
 
@@ -305,6 +312,7 @@ extern "C" {
             << "# appname       = " << stats->Application << ENDL
             << "# extension     = " << stats->Extension << ENDL
             << "# rank          = " << dec << GetTaskId() << ENDL
+            << "# ntasks        = " << dec << GetNTasks() << ENDL
             << "# buffer        = " << BUFFER_CAPACITY(stats) << ENDL
             << "# total         = " << dec << totalMemop << ENDL
             << "# sampled       = " << dec << Sampler->AccessCount << ENDL
@@ -314,11 +322,29 @@ extern "C" {
             << "# sampleoff     = " << Sampler->SampleOff << ENDL
             << "# numcache      = " << CountCacheStructures << ENDL
             << "# perinsn       = " << (stats->PerInstruction? "yes" : "no") << ENDL
-            << "# imageid       = " << dec << *key << ENDL
-            << "# cntimage      = " << dec << AllData->CountImages() << ENDL
+            << "# countimage    = " << dec << AllData->CountImages() << ENDL
+            << "# countthread   = " << dec << AllData->CountThreads() << ENDL
             << "# masterthread  = " << hex << AllData->GetThreadSequence(pthread_self()) << ENDL
-            << "# cntthread     = " << dec << AllData->CountThreads() << ENDL
-            << "#" << ENDL;
+            << ENDL;
+
+        MemFile
+            << "# IMG"
+            << TAB << "ImageHash"
+            << TAB << "ImageSequence"
+            << TAB << "ImageType"
+            << TAB << "Name"
+            << ENDL;
+        for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+            SimulationStats* s = (SimulationStats*)AllData->GetData((*iit), pthread_self());
+            MemFile 
+                << "IMG"
+                << TAB << hex << (*iit)
+                << TAB << dec << AllData->GetImageSequence((*iit))
+                << TAB << (s->Master ? "Executable" : "SharedLib")
+                << TAB << s->Application
+                << ENDL;
+        }
+        MemFile << ENDL;
 
         for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
             bool first = true;
@@ -347,7 +373,7 @@ extern "C" {
         MemFile << ENDL;
 
         MemFile 
-            << "# " << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageId" << TAB << "Threadid"
+            << "# " << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "Threadid"
             << TAB << "BlockCounter" << TAB << "BlockSimulated" << TAB << "InstructionSimulated"
             << ENDL;
         MemFile
@@ -389,8 +415,8 @@ extern "C" {
 
                     MemFile << "BLK" 
                             << TAB << dec << bbid
-                            << TAB << dec << stats->Hashes[bbid]
-                            << TAB << dec << (*iit)
+                            << TAB << hex << stats->Hashes[bbid]
+                            << TAB << dec << AllData->GetImageSequence((*iit))
                             << TAB << dec << AllData->GetThreadSequence(st->threadid)
                             << TAB << dec << st->Counters[bbid]
                             << TAB << dec << bsampled
@@ -440,10 +466,6 @@ extern "C" {
                 << "# sampleoff     = " << Sampler->SampleOff << ENDL
                 << "# numcache      = " << CountCacheStructures << ENDL
                 << "# perinsn       = " << (stats->PerInstruction? "yes" : "no") << ENDL
-                << "# imageid       = " << dec << *key << ENDL
-                << "# cntimage      = " << dec << AllData->CountImages() << ENDL
-                << "# masterthread  = " << hex << AllData->GetThreadSequence(pthread_self()) << ENDL
-                << "# cntthread     = " << dec << AllData->CountThreads() << ENDL
                 << "#" << ENDL;
 
             for (uint32_t sys = 0; sys < CountCacheStructures; sys++){

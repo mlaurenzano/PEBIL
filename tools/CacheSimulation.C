@@ -224,8 +224,8 @@ void CacheSimulation::instrument(){
     uint32_t blockSeq = 0;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
-        blockSeq++;
         if (blocksToInst.get(bb->getHashCode().getValue())){
+            blockSeq++;
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
                 X86Instruction* memop = bb->getInstruction(j);
                 if (memop->isMemoryOperation()){
@@ -259,7 +259,6 @@ void CacheSimulation::instrument(){
     stats.Initialized = true;
     stats.InstructionCount = memopSeq;
     stats.Master = getElfFile()->isExecutable();
-    PRINT_INFOR("Setting phase to %d", phaseNo);
     stats.Phase = phaseNo;
     stats.Stats = NULL;
     if (isPerInstruction()){
@@ -340,69 +339,60 @@ void CacheSimulation::instrument(){
 
     blockSeq = 0;
     memopSeq = 0;
+    uint32_t currentLeader = 0;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
         Function* f = (Function*)bb->getLeader()->getContainer();
 
-        ASSERT(blockSeq == i);
-
-        // set up a block counter that is distinct from all other inst points in the block
-        uint64_t counterOffset = (uint64_t)stats.Counters + (i * sizeof(uint64_t));
         uint32_t threadReg = X86_REG_INVALID;
-
         if (isThreadedMode()){
-            counterOffset -= simulationStruct;
             threadReg = (*functionThreading)[f->getBaseAddress()];
-        }
-        InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
-        
-        temp64 = 0;
-        initializeReservedData(getInstDataAddress() + (uint64_t)stats.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
-
-        if (!isPerInstruction()){
-            LineInfo* li = NULL;
-            if (lineInfoFinder){
-                li = lineInfoFinder->lookupLineInfo(bb);
-            }
-            
-            (*allBlocks).append(bb);
-            (*allBlockIds).append(i);
-            (*allBlockLineInfos).append(li);
-
-            if (li){
-                uint32_t line = li->GET(lr_line);
-                initializeReservedData(getInstDataAddress() + (uint64_t)stats.Lines + sizeof(uint32_t)*blockSeq, sizeof(uint32_t), &line);
-
-                uint64_t filename = reserveDataOffset(strlen(li->getFileName()) + 1);
-                initializeReservedPointer(filename, (uint64_t)stats.Files + blockSeq*sizeof(char*));
-                initializeReservedData(getInstDataAddress() + filename, strlen(li->getFileName()) + 1, (void*)li->getFileName());
-            } else {
-                temp32 = 0;
-                initializeReservedData(getInstDataAddress() + (uint64_t)stats.Lines + sizeof(uint32_t)*blockSeq, sizeof(uint32_t), &temp32);
-                initializeReservedPointer(noData, (uint64_t)stats.Files + blockSeq*sizeof(char*));
-            }
-
-            uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
-            initializeReservedPointer(funcname, (uint64_t)stats.Functions + blockSeq*sizeof(char*));
-            initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
-
-            uint64_t hashValue = bb->getHashCode().getValue();
-            uint64_t addr = bb->getProgramAddress();        
-
-            initializeReservedData(getInstDataAddress() + (uint64_t)stats.Hashes + blockSeq*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
-            initializeReservedData(getInstDataAddress() + (uint64_t)stats.Addresses + blockSeq*sizeof(uint64_t), sizeof(uint64_t), &addr);
-
-            CounterTypes tmpct = CounterType_basicblock;
-            initializeReservedData(getInstDataAddress() + (uint64_t)stats.Types + blockSeq*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);
-
-            temp64 = 0;
-            initializeReservedData(getInstDataAddress() + (uint64_t)stats.Counters + blockSeq*sizeof(uint64_t), sizeof(uint64_t), &temp64);
-
-            temp32 = bb->getNumberOfMemoryOps();
-            initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopsPerBlock + blockSeq*sizeof(uint32_t), sizeof(uint32_t), &temp32);
         }
 
         if (blocksToInst.get(bb->getHashCode().getValue())){
+
+            if (!isPerInstruction()){
+                LineInfo* li = NULL;
+                if (lineInfoFinder){
+                    li = lineInfoFinder->lookupLineInfo(bb);
+                }
+            
+                (*allBlocks).append(bb);
+                (*allBlockIds).append(i);
+                (*allBlockLineInfos).append(li);
+
+                if (li){
+                    uint32_t line = li->GET(lr_line);
+                    initializeReservedData(getInstDataAddress() + (uint64_t)stats.Lines + sizeof(uint32_t)*blockSeq, sizeof(uint32_t), &line);
+
+                    uint64_t filename = reserveDataOffset(strlen(li->getFileName()) + 1);
+                    initializeReservedPointer(filename, (uint64_t)stats.Files + blockSeq*sizeof(char*));
+                    initializeReservedData(getInstDataAddress() + filename, strlen(li->getFileName()) + 1, (void*)li->getFileName());
+                } else {
+                    temp32 = 0;
+                    initializeReservedData(getInstDataAddress() + (uint64_t)stats.Lines + sizeof(uint32_t)*blockSeq, sizeof(uint32_t), &temp32);
+                    initializeReservedPointer(noData, (uint64_t)stats.Files + blockSeq*sizeof(char*));
+                }
+
+                uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
+                initializeReservedPointer(funcname, (uint64_t)stats.Functions + blockSeq*sizeof(char*));
+                initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
+
+                uint64_t hashValue = bb->getHashCode().getValue();
+                uint64_t addr = bb->getProgramAddress();        
+
+                initializeReservedData(getInstDataAddress() + (uint64_t)stats.Hashes + blockSeq*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
+                initializeReservedData(getInstDataAddress() + (uint64_t)stats.Addresses + blockSeq*sizeof(uint64_t), sizeof(uint64_t), &addr);
+
+                CounterTypes tmpct = CounterType_basicblock;
+                initializeReservedData(getInstDataAddress() + (uint64_t)stats.Types + blockSeq*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);
+
+                temp64 = 0;
+                initializeReservedData(getInstDataAddress() + (uint64_t)stats.Counters + blockSeq*sizeof(uint64_t), sizeof(uint64_t), &temp64);
+
+                temp32 = bb->getNumberOfMemoryOps();
+                initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopsPerBlock + blockSeq*sizeof(uint32_t), sizeof(uint32_t), &temp32);
+            }
 
             uint32_t memopIdInBlock = 0;
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
@@ -416,6 +406,17 @@ void CacheSimulation::instrument(){
                 if (memop->isMemoryOperation()){
                     // at the first memop in each block, check for a full buffer, clear if full
                     if (memopIdInBlock == 0){
+
+                        // set up a block counter that is distinct from all other inst points in the block
+                        if (!isPerInstruction()){
+                            uint64_t counterOffset = (uint64_t)stats.Counters + (blockSeq * sizeof(uint64_t));
+
+                            if (isThreadedMode()){
+                                counterOffset -= simulationStruct;
+                            }
+                            InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
+                        }
+
                         // grab 2 scratch registers
                         uint32_t sr1 = X86_REG_INVALID, sr2 = X86_REG_INVALID;
                         
@@ -623,9 +624,17 @@ void CacheSimulation::instrument(){
                         if (memopIdInBlock == 0){
                             tmpct = CounterType_basicblock;
                             temp64 = 0;
+                            currentLeader = memopSeq;
+
+                            uint64_t counterOffset = (uint64_t)stats.Counters + (memopSeq * sizeof(uint64_t));
+                            if (isThreadedMode()){
+                                counterOffset -= simulationStruct;
+                            }
+                            InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
+
                         } else {
                             tmpct = CounterType_instruction;
-                            temp64 = blockSeq;
+                            temp64 = currentLeader;
                         }
                         initializeReservedData(getInstDataAddress() + (uint64_t)stats.Types + memopSeq*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);
                         initializeReservedData(getInstDataAddress() + (uint64_t)stats.Counters + (memopSeq * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
