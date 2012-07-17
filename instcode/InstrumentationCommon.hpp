@@ -486,10 +486,10 @@ extern "C" {
 #ifdef HAVE_MPI
 // C init wrapper
 #ifdef USES_PSINSTRACER
-static int __give_pebil_name(MPI_Init)(int* argc, char*** argv){
+int __give_pebil_name(MPI_Init)(int* argc, char*** argv){
     int retval = 0;
 #else
-static int __wrapper_name(MPI_Init)(int* argc, char*** argv){
+int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     int retval = PMPI_Init(argc, argv);
 #endif // USES_PSINSTRACER
 
@@ -498,7 +498,7 @@ static int __wrapper_name(MPI_Init)(int* argc, char*** argv){
 
     MpiValid = true;
 
-    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in MPI_Init wrapper\n", getpid(), __taskid, __ntasks, gethostid());
+    fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d on host %u in MPI_Init wrapper\n", getpid(), __taskid, __ntasks, gethostid());
     tool_mpi_init();
 
     return retval;
@@ -507,9 +507,9 @@ static int __wrapper_name(MPI_Init)(int* argc, char*** argv){
 extern void pmpi_init_(int*);
 
 #ifdef USES_PSINSTRACER
-static void__give_pebil_name(mpi_init_)(int* ierr){
+void __give_pebil_name(mpi_init_)(int* ierr){
 #else
-static void __wrapper_name(mpi_init_)(int* ierr){
+void __wrapper_name(mpi_init_)(int* ierr){
     pmpi_init_(ierr);
 #endif // USES_PSINSTRACER
 
@@ -518,7 +518,7 @@ static void __wrapper_name(mpi_init_)(int* ierr){
 
     MpiValid = true;
 
-    fprintf(stdout, "-[p%d]- remapping to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
+    fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
     tool_mpi_init();
 }
 };

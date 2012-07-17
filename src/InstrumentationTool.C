@@ -28,6 +28,8 @@
 #include <TextSection.h>
 #include <X86InstructionFactory.h>
 
+#define THREAD_EVIDENCE "clone:__clone:__clone2:pthread_.*:omp_.*:omp_get_num_threads"
+
 #define MPI_INIT_WRAPPER_CBIND   "MPI_Init_pebil_wrapper"
 #define MPI_INIT_LIST_CBIND_PREF "PMPI_Init"
 #define MPI_INIT_LIST_CBIND      "MPI_Init"
@@ -186,87 +188,9 @@ uint32_t InstrumentationTool::instrumentForThreading(Function* func){
         d = X86_REG_INVALID;
 
         // figuring out the size of the stack frame is REALLY HARD
+        // for now we just bail
         delete[] allInstructions;
         return d;
-
-        /*
-        PRINT_INFOR("Function %s has no dead reg", func->getName());
-
-        for (uint32_t i = 0; i < numberOfInstructions; i++){
-            X86Instruction* entry = allInstructions[i];
-            if (i == 0 || entry->isCall()){
-                BasicBlock* bb;
-
-                InstLocations loc;
-                if (i == 0 && !entry->isCall()){
-                    bb = func->getBasicBlockAtAddress(entry->getBaseAddress());
-                    ASSERT(bb);
-                    loc = InstLocation_prior;
-                } else {
-                    bb = func->getBasicBlockAtAddress(entry->getBaseAddress() + entry->getSizeInBytes());
-                    loc = InstLocation_after;
-                }
-                if (bb == NULL){
-                    continue;
-                }
-
-                uint32_t stackPatch = 0;
-                BitSet<uint32_t>* inv = new BitSet<uint32_t>(X86_ALU_REGS);
-                for (uint32_t j = X86_64BIT_GPRS; j < X86_ALU_REGS; j++){
-                    inv->insert(j);
-                }
-                inv->insert(X86_REG_SP);
-                BitSet<uint32_t>* deadRegs = entry->getDeadRegIn(inv);
-                
-                uint32_t s1 = -1;
-                uint32_t s2 = -1;
-                for (uint32_t j = 0; j < X86_64BIT_GPRS; j++){
-                    if (deadRegs->contains(j)){
-                        if (s1 == -1){
-                            s1 = j;
-                        } else {
-                            s2 = j;
-                            break;
-                        }
-                    }
-                }
-
-                if (s1 == -1){
-                    s1 = X86_REG_CX;
-                    s2 = X86_REG_DX;
-                    stackPatch += sizeof(uint64_t);
-                    stackPatch += sizeof(uint64_t);
-                } else if (s2 == -1){
-                    s2 = X86_REG_CX;
-                    if (s1 == s2){
-                        s2 = X86_REG_DX;
-                    }
-                    stackPatch += sizeof(uint64_t);
-                }
-
-                if (func->hasLeafOptimization() || bb->isEntry()){
-                    if (stackPatch > 0){
-                        stackPatch += Size__trampoline_autoinc;
-                    }
-                }
-                if (bb->isEntry()){
-                    stackPatch += func->getStackSize();
-                }
-
-                PRINT_INFOR("\t\tassigning data at %#lx to stack via scratches %d %d with patch %#x", entry->getBaseAddress(), s1, s2, stackPatch);
-                InstrumentationSnippet* snip = addInstrumentationSnippet();
-                Vector<X86Instruction*>* insns;
-
-                insns = storeThreadData(s1, s2, true, stackPatch);
-                for (uint32_t i = 0; i < insns->size(); i++){
-                    snip->addSnippetInstruction((*insns)[i]);
-                }
-                delete insns;
-                InstrumentationPoint* p = addInstrumentationPoint(entry, snip, InstrumentationMode_inline, loc);
-                p->setPriority(InstPriority_userinit);
-            }
-        }
-        */
     }
 
     delete[] allInstructions;
@@ -334,9 +258,22 @@ void InstrumentationTool::initToolArgs(bool lpi, bool dtl, bool doi, uint32_t ph
     trackFile = trk;
 }
 
+bool InstrumentationTool::hasThreadEvidence(){
+    Vector<X86Instruction*>* threadCalls = findAllCalls(THREAD_EVIDENCE);
+    if (threadCalls->size() > 0){
+        for (uint32_t i = 0; i < threadCalls->size(); i++){
+            Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol((*threadCalls)[i]->getTargetAddress());
+            PRINT_WARN(20, "Found call to an apparent thread-related function (%s) at address %#lx", functionSymbol->getSymbolName(), (*threadCalls)[i]->getBaseAddress());
+        }
+        return true;
+    }
+    return false;
+}
+
 InstrumentationTool::InstrumentationTool(ElfFile* elf)
     : ElfFileInst(elf)
-{}
+{
+}
 
 void InstrumentationTool::declare(){
 #ifdef HAVE_MPI
@@ -349,6 +286,12 @@ void InstrumentationTool::declare(){
 }
 
 void InstrumentationTool::instrument(){
+    if (!isThreadedMode()){
+        if (hasThreadEvidence()){
+            PRINT_ERROR("This image shows evidence of being threaded, but you ran pebil without --threaded.");
+        }
+    }
+
     ASSERT(sizeof(uint64_t) == sizeof(image_key_t));
     image_key_t tmpi = (image_key_t)getElfFile()->getSHA1SumFirst64();
     imageKey = reserveDataOffset(sizeof(image_key_t));

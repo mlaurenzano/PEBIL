@@ -479,6 +479,7 @@ extern X86Instruction* linkInstructionToData(X86Instruction* ins, ElfFileInst* e
 
 extern uint32_t searchFileList(Vector<char*>* list, char* name);
 extern uint32_t initializeFileList(char* fileName, Vector<char*>* list);
+extern bool regexMatch(char* string, char* reg);
 
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)

@@ -112,7 +112,7 @@ Vector<X86Instruction*>* ElfFileInst::findAllCalls(char* names){
 
             if (functionSymbol){
                 for (uint32_t j = 0; j < fstart.size(); j++){
-                    if (!strcmp(fnames + fstart[j], functionSymbol->getSymbolName())){
+                    if (regexMatch(functionSymbol->getSymbolName(), fnames + fstart[j])){
                         (*calls).append(instruction);
                         break;
                     }

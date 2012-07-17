@@ -48,6 +48,7 @@ class InstrumentationTool : public ElfFileInst {
 private:
     char* extension;
     bool singleArgCheck(void* arg, uint32_t mask, const char* name);
+    bool hasThreadEvidence();
 
 protected:
     uint64_t imageKey;

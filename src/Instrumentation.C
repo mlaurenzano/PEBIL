@@ -867,22 +867,24 @@ Vector<X86Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(Vector<X8
 BitSet<uint32_t>* getProtectedRegs(InstLocations loc, X86Instruction* xins, Vector<X86Instruction*>* insert){
     BitSet<uint32_t>* n = new BitSet<uint32_t>(X86_ALU_REGS);
 
-    //xins->print();
+    InstLocations proxyLoc = InstLocation_prior;
+    if (loc == InstLocation_after){
+        proxyLoc = InstLocation_after;
+    }
+
     for (uint32_t i = 0; i < insert->size(); i++){
         X86Instruction* ins = (*insert)[i];
-        //ins->print();
         RegisterSet* defs = ins->getRegistersDefined();
         for (uint32_t j = 0; j < X86_ALU_REGS; j++){
-            if (loc == InstLocation_prior && !xins->isRegDeadIn(j) && defs->containsRegister(j)){
+            if (proxyLoc == InstLocation_prior && !xins->isRegDeadIn(j) && defs->containsRegister(j)){
                 n->insert(j);
             }
-            if (loc == InstLocation_after && !xins->isRegDeadOut(j) && defs->containsRegister(j)){
+            if (proxyLoc == InstLocation_after && !xins->isRegDeadOut(j) && defs->containsRegister(j)){
                 n->insert(j);
             }
         }
         delete defs;
     }
-    //n->print();
 
     return n;
 }
@@ -908,6 +910,10 @@ BitSet<uint32_t>* InstrumentationPoint::getProtectedRegisters(){
 }
 
 FlagsProtectionMethods getFlagsMethod(InstLocations loc, X86Instruction* xins, Vector<X86Instruction*>* insert, bool canOverflow){
+    if (loc == InstLocation_replace){
+        return FlagsProtectionMethod_none;
+    }
+
     BitSet<uint32_t>* liveSet = new BitSet<uint32_t>(X86_FLAG_BITS);
 
     // figure out which flags are live at the instrumentation point
