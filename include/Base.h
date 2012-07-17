@@ -491,6 +491,7 @@ extern void SHA1(unsigned char * str1);
 //sha1 functions                                                                                                                                             
 void calc(const void *src, const int bytelength, unsigned char *hash);
 void toHexString(const unsigned char *hash, char *hexstring);
+uint64_t sha1sum_first64(char* buffer, uint32_t size);
 char* sha1sum(char* buffer, uint32_t size);
 
 extern double timer();

@@ -24,6 +24,9 @@
 //#define debug(...) __VA_ARGS__
 #define debug(...)
 
+typedef uint64_t image_key_t;
+typedef pthread_t thread_key_t;
+
 typedef enum {
     CounterType_undefined = 0,
     CounterType_instruction,

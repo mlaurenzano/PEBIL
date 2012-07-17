@@ -141,11 +141,11 @@ static bool ParsePositiveInt32(string token, uint32_t* value);
 static bool ParseInt32(string token, uint32_t* value, uint32_t min);
 static bool ParsePositiveInt32Hex(string token, uint32_t* value);
 static void ReadKnobs();
-static void* GenerateCacheStats(void* args, uint32_t typ, pthread_key_t iid, pthread_t tid);
+static void* GenerateCacheStats(void* args, uint32_t typ, image_key_t iid, thread_key_t tid);
 static uint64_t ReferenceCacheStats(void* args);
 static void DeleteCacheStats(void* args);
 static bool ReadEnvUint32(string name, uint32_t* var);
-static void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid, bool perThread);
+static void PrintSimulationStats(ofstream& f, SimulationStats* stats, thread_key_t tid, bool perThread);
 static const char* SimulationFileName(SimulationStats* stats);
 static const char* LegacySimulationFileName(SimulationStats* stats);
 static const char* RangeFileName(SimulationStats* stats);
@@ -154,8 +154,8 @@ static const char* LegacyRangeFileName(SimulationStats* stats);
 extern "C" {
     void* tool_mpi_init();
     void* tool_thread_init(pthread_t tid);
-    void* process_buffer(uint64_t* key);
-    void* tool_image_fini(uint64_t* key);
+    void* process_buffer(image_key_t* key);
+    void* tool_image_fini(image_key_t* key);
 };
 
 class StreamStats {

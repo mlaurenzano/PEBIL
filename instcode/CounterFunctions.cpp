@@ -95,7 +95,7 @@ void print_counter_array(FILE* stream, CounterArray* ctrs){
     fflush(stream);
 }
 
-void* GenerateCounterArray(void* args, uint32_t typ, pthread_key_t iid, pthread_t tid){
+void* GenerateCounterArray(void* args, uint32_t typ, image_key_t iid, thread_key_t tid){
     CounterArray* ctrs = (CounterArray*)args;
 
     CounterArray* c = (CounterArray*)malloc(sizeof(CounterArray));
@@ -131,7 +131,7 @@ void DeleteCounterArray(void* args){
     }
 }
 
-void* tool_thread_init(pthread_t tid){
+void* tool_thread_init(thread_key_t tid){
     if (AllData){
         AllData->AddThread(tid);
     } else {
@@ -159,7 +159,7 @@ extern "C"
             AllData = new DataManager<CounterArray*>(GenerateCounterArray, DeleteCounterArray, RefCounterArray);
         }
 
-        *key = AllData->AddImage(ctrs, td);
+        *key = AllData->AddImage(ctrs, td, *key);
         ctrs->imageid = *key;
         ctrs->threadid = pthread_self();
 
@@ -213,7 +213,7 @@ extern "C"
             // tally up counter types
             uint32_t blockCount = 0;
             uint32_t loopCount = 0;                
-            for (set<pthread_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+            for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
                 CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
                 for (uint32_t i = 0; i < c->Size; i++){
                     if (c->Types[i] == CounterType_loop){
@@ -258,7 +258,7 @@ extern "C"
                 << "# loopcount       = " << dec << loopCount << ENDL;
 
             // print image summaries
-            for (set<pthread_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+            for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
                 CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
 
                 blockCount = 0;
@@ -274,8 +274,8 @@ extern "C"
                 }
 
                 BlockFile 
-                    << "# imagesumm       = "
-                    << "(id)" << dec << (*iit)
+                    << "# imagesummary    = "
+                    << "(id)" << hex << (*iit)
                     << TAB << "(name)" << c->Application;
 
                 if (ctrs->PerInstruction){
@@ -285,8 +285,8 @@ extern "C"
                 }
 
                 LoopFile
-                    << "# imagesumm       = "
-                    << "(id)" << dec << (*iit)
+                    << "# imagesummary    = "
+                    << "(id)" << hex << (*iit)
                     << TAB << "(name)" << c->Application
                     << TAB << "(loopcount)" << dec << loopCount << ENDL;
 
@@ -295,17 +295,17 @@ extern "C"
             // print information per-block/loop
             BlockFile 
                 << ENDL
-                << "#" << "Block" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageId" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
+                << "#" << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageId" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
                 << "#" << TAB << "ThreadId" << TAB << "ThreadCounter" << ENDL 
                 << ENDL;
 
             LoopFile
                 << ENDL
-                << "#" << "Loop" << TAB << "Hashcode" << TAB << "ImageId" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
+                << "#" << "LPP" << TAB << "Hashcode" << TAB << "ImageId" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
                 << "#" << TAB << "ThreadId" << TAB << "ThreadCounter" << ENDL 
                 << ENDL;
 
-            for (set<pthread_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+            for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
                 CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
                 for (uint32_t i = 0; i < c->Size; i++){
                     uint32_t idx;
@@ -318,7 +318,7 @@ extern "C"
                     }
 
                     uint32_t counter = 0;
-                    for (set<pthread_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
+                    for (set<thread_key_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
                         CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));
                         counter += tc->Counters[idx];
                     }
@@ -326,9 +326,9 @@ extern "C"
                     if (counter >= PRINT_MINIMUM){
                         if (c->Types[i] == CounterType_loop){
                             LoopFile
-                                << "Loop"
-                                << TAB << dec << c->Hashes[i]
-                                << TAB << dec << (*iit)
+                                << "LPP"
+                                << TAB << hex << c->Hashes[i]
+                                << TAB << hex << (*iit)
                                 << TAB << dec << counter
                                 << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
                                 << TAB << c->Functions[i]
@@ -336,10 +336,10 @@ extern "C"
                                 << ENDL;
                         } else {
                             BlockFile
-                                << "Block"
+                                << "BLK"
                                 << TAB << dec << i
-                                << TAB << dec << c->Hashes[i]
-                                << TAB << dec << (*iit)
+                                << TAB << hex << c->Hashes[i]
+                                << TAB << hex << (*iit)
                                 << TAB << dec << counter
                                 << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
                                 << TAB << c->Functions[i]
@@ -347,7 +347,7 @@ extern "C"
                                 << ENDL;
                         }
 
-                        for (set<pthread_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
+                        for (set<thread_key_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
                             CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));
                             if (tc->Counters[idx] >= PRINT_MINIMUM){
                                 if (c->Types[i] == CounterType_loop){
@@ -397,10 +397,7 @@ extern "C"
             fprintf(outFile, "# phase     = %d\n", 0);
             fprintf(outFile, "# rank      = %d\n", GetTaskId());
             fprintf(outFile, "# perinsn   = %s\n", ctrs->PerInstruction? "yes" : "no");
-            fprintf(outFile, "# imageid   = %ld\n", *key);
-            fprintf(outFile, "# cntimage  = %d\n", AllData->CountImages());
-            fprintf(outFile, "# mainthread= %lx\n", pthread_self());
-            fprintf(outFile, "# cntthread = %d\n", AllData->CountThreads());
+            fprintf(outFile, "# imageid   = %#lx\n", *key);
         
             fprintf(outFile, "#id\tcount\t#file:line\taddr\tfunc\thash\n");
             fflush(outFile);
@@ -426,10 +423,7 @@ extern "C"
             fprintf(outFile, "# phase     = %d\n", 0);
             fprintf(outFile, "# rank      = %d\n", GetTaskId());
             fprintf(outFile, "# perinsn   = %s\n", ctrs->PerInstruction? "yes" : "no");
-            fprintf(outFile, "# imageid   = %ld\n", *key);
-            fprintf(outFile, "# cntimage  = %d\n", AllData->CountImages());
-            fprintf(outFile, "# mainthread= %lx\n", pthread_self());
-            fprintf(outFile, "# cntthread = %d\n", AllData->CountThreads());
+            fprintf(outFile, "# imageid   = %#lx\n", *key);
         
             fprintf(outFile, "#hash\tcount\t#file:line\tfunc\thash\taddr\n");
             fflush(outFile);

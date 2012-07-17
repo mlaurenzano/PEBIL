@@ -142,7 +142,7 @@ extern "C" {
         return NULL;
     }
 
-    void* tool_thread_init(pthread_t tid){
+    void* tool_thread_init(thread_key_t tid){
         if (AllData){
             AllData->AddThread(tid);
         } else {
@@ -151,7 +151,7 @@ extern "C" {
         return NULL;
     }
 
-    void* tool_image_init(void* s, uint64_t* key, ThreadData* td){
+    void* tool_image_init(void* s, image_key_t* key, ThreadData* td){
         SimulationStats* stats = (SimulationStats*)s;
 
         ReadKnobs();
@@ -169,7 +169,7 @@ extern "C" {
             AllData = new DataManager<SimulationStats*>(GenerateCacheStats, DeleteCacheStats, ReferenceCacheStats);
         }
 
-        *key = AllData->AddImage(stats, td);
+        AllData->AddImage(stats, td, *key);
         stats->imageid = *key;
         stats->threadid = pthread_self();
 
@@ -178,7 +178,7 @@ extern "C" {
         return NULL;
     }
 
-    void* process_thread_buffer(pthread_key_t iid, pthread_t tid){
+    void* process_thread_buffer(image_key_t iid, thread_key_t tid){
 
         AllData->TakeMutex();
         AllData->SetTimer(iid, 2);
@@ -299,13 +299,13 @@ extern "C" {
         return NULL;
     }
 
-    void* process_buffer(uint64_t* key){
-        pthread_key_t iid = *key;
+    void* process_buffer(image_key_t* key){
+        image_key_t iid = *key;
         process_thread_buffer(iid, pthread_self());
     }
 
-    void* tool_image_fini(uint64_t* key){
-        pthread_key_t iid = *key;
+    void* tool_image_fini(image_key_t* key){
+        image_key_t iid = *key;
 
         AllData->SetTimer(iid, 1);
 
@@ -332,7 +332,7 @@ extern "C" {
         }
 
         // clear all threads' buffers
-        for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+        for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
             process_thread_buffer(iid, (*it));
         }
 
@@ -346,8 +346,8 @@ extern "C" {
 
         uint64_t sampledCount = 0;
         uint64_t totalMemop = 0;
-        for (set<pthread_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
-            for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+        for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+            for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
                 SimulationStats* s = (SimulationStats*)AllData->GetData(iid, (*it));
                 RangeStats* r = (RangeStats*)s->Stats[RangeHandlerIndex];
                 assert(r);
@@ -384,7 +384,7 @@ extern "C" {
 
         for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
             bool first = true;
-            for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+            for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
                 SimulationStats* s = AllData->GetData(iid, (*it));
                 assert(s);
 
@@ -413,10 +413,10 @@ extern "C" {
             << TAB << "BlockCounter" << TAB << "BlockSimulated" << TAB << "InstructionSimulated"
             << ENDL;
         MemFile
-            << "# " << TAB << "SIM" << TAB << "SysId" << TAB << "Level" << TAB << "HitCount" << TAB << "MissCount" << ENDL;
+            << "# " << TAB << "SysId" << TAB << "Level" << TAB << "HitCount" << TAB << "MissCount" << ENDL;
 
-        for (set<pthread_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
-            for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+        for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+            for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
                 SimulationStats* st = AllData->GetData((*iit), (*it));
                 assert(st);
 
@@ -463,7 +463,7 @@ extern "C" {
                         CacheStats* c = aggstats[sys];
                         for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
 
-                            MemFile << TAB << "SIM"
+                            MemFile
                               << TAB << dec << c->SysId
                               << TAB << dec << (lvl+1)
                               << TAB << dec << c->GetHits(bbid, lvl)
@@ -529,7 +529,7 @@ extern "C" {
                     << "#       sys <sysid> lvl <cachelvl> <hitcount> <miscount> <hitpercent>" << ENDL
                     << ENDL;
 
-            for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+            for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
                 stats = AllData->GetData(iid, (*it));
                 assert(stats);
                 PrintSimulationStats(MemFile, stats, (*it), false);
@@ -541,7 +541,7 @@ extern "C" {
 
 
         // dump address range (dfp) file
-        for (set<pthread_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+        for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
             SimulationStats* s = (SimulationStats*)AllData->GetData(iid, (*it));
             RangeStats* r = (RangeStats*)s->Stats[RangeHandlerIndex];
             assert(r);
@@ -567,7 +567,7 @@ extern "C" {
 
 };
 
-void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid, bool perThread){
+void PrintSimulationStats(ofstream& f, SimulationStats* stats, thread_key_t tid, bool perThread){
     debug(
     for (uint32_t bbid = 0; bbid < stats->BlockCount; bbid++){
         if (stats->Counters[bbid] == 0){
@@ -1507,7 +1507,7 @@ void CacheStructureHandler::Process(void* stats, BufferEntry* access){
     }
 }
 
-void* GenerateCacheStats(void* args, uint32_t typ, pthread_key_t iid, pthread_t tid){
+void* GenerateCacheStats(void* args, uint32_t typ, image_key_t iid, thread_key_t tid){
     SimulationStats* stats = (SimulationStats*)args;
 
     // allocate Counters contiguously with SimulationStats. Since the address of SimulationStats is the

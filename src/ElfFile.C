@@ -159,6 +159,17 @@ bool ElfFile::isSharedLib(){
     return (fileHeader->GET(e_type) == ET_DYN);
 }
 
+uint64_t ElfFile::getSHA1SumFirst64(){
+    char* allbytes = new char[getFileSize()];
+
+    binaryInputFile.setInBufferPointer(0);
+    binaryInputFile.copyBytes(allbytes, getFileSize());
+
+    uint64_t first64 = sha1sum_first64(allbytes, getFileSize());
+    delete[] allbytes;
+    return first64;
+}
+
 char* ElfFile::getSHA1Sum(){
     char* allbytes = new char[getFileSize()];
 
@@ -166,7 +177,7 @@ char* ElfFile::getSHA1Sum(){
     binaryInputFile.copyBytes(allbytes, getFileSize());
 
     char* hexstring = sha1sum(allbytes, getFileSize());
-    delete[] allbytes;                                                                                               
+    delete[] allbytes;
     return hexstring;
 }
 

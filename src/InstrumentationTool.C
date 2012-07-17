@@ -28,6 +28,8 @@
 #include <TextSection.h>
 #include <X86InstructionFactory.h>
 
+#include <Metasim.hpp>
+
 #define MPI_INIT_WRAPPER_CBIND   "MPI_Init_pebil_wrapper"
 #define MPI_INIT_LIST_CBIND_PREF "PMPI_Init"
 #define MPI_INIT_LIST_CBIND      "MPI_Init"
@@ -349,7 +351,11 @@ void InstrumentationTool::declare(){
 }
 
 void InstrumentationTool::instrument(){
-    imageKey = reserveDataOffset(sizeof(uint64_t));
+    ASSERT(sizeof(uint64_t) == sizeof(image_key_t));
+    image_key_t tmpi = (image_key_t)getElfFile()->getSHA1SumFirst64();
+    imageKey = reserveDataOffset(sizeof(image_key_t));
+    initializeReservedData(getInstDataAddress() + imageKey, sizeof(image_key_t), &tmpi);
+
     threadHash = reserveDataOffset(sizeof(ThreadData) * (ThreadHashMod + 1));
     
     dynamicSize = reserveDataOffset(sizeof(uint64_t));
