@@ -28,7 +28,7 @@
 #include <TextSection.h>
 #include <X86InstructionFactory.h>
 
-#define THREAD_EVIDENCE "clone:__clone:__clone2:pthread_.*:omp_.*:omp_get_num_threads"
+#define THREAD_EVIDENCE "clone:__clone:__clone2:pthread_.*:omp_.*"
 
 #define MPI_INIT_WRAPPER_CBIND   "MPI_Init_pebil_wrapper"
 #define MPI_INIT_LIST_CBIND_PREF "PMPI_Init"
