@@ -589,16 +589,35 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     }
     
     // align the stack
-    wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, X86_REG_R14), elfInst, fxStorageOffset, true));
-    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToRegaddr(X86_REG_SP, X86_REG_R14));
+    // mov %rsp, %r14
+    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToReg(X86_REG_SP, X86_REG_R14));
+    // lea -0x1000(%rsp), %rsp
     wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_stackalign, X86_REG_SP));
+    // mov $0xfffffffffffff000, %r15
     wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg((uint32_t)~(Size__trampoline_stackalign - 1), X86_REG_R15));
+    // and %r15, %rsp
     wrapperInstructions.append(X86InstructionFactory64::emitRegAndReg(X86_REG_SP, X86_REG_R15));
 
-    wrapperInstructions.append(X86InstructionFactory64::emitCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
+    // stack is now aligned as we want it
 
-    wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, X86_REG_R14), elfInst, fxStorageOffset, true));
-    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegaddrToReg(X86_REG_R14, X86_REG_SP));
+    // keep the saved stack pointer on the very top of the stack
+    // pop %r15
+    wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_REG_R15));
+    // push %r14
+    wrapperInstructions.append(X86InstructionFactory64::emitStackPush(X86_REG_R14));
+
+    // lea -0x1000(%rsp), %rsp
+    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_stackalign, X86_REG_SP));
+    // callq <instfunction>
+    wrapperInstructions.append(X86InstructionFactory64::emitCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
+    // lea 0x1000(%rsp), %rsp
+    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_stackalign, X86_REG_SP));
+
+    // restore the saved stack pointer from the top of the stack
+    // pop %r14
+    wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_REG_R14));
+    // mov %r14, %rsp
+    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToReg(X86_REG_R14, X86_REG_SP));
 
     if (assumeFunctionFP){
         wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitFxRstor(0), elfInst, fxStor, true));

@@ -330,7 +330,6 @@ public:
 
     CacheLevel** levels;
     string description;
-    EvictionInfo evictInfo;
 
     // note that this doesn't contain any stats gathering code. that is done at the
     // thread level and is therefore done in ThreadData

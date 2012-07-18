@@ -54,6 +54,18 @@ static bool FillPointsDead = false;
 #define GET_BLOCKID(__key) ((__key >> 4))
 #define GET_TYPE(__key) ((__key & 0xf))
 
+void PrintReference(uint32_t id, BufferEntry* ref){
+    inform 
+        << "Thread " << hex << pthread_self()
+        << TAB << " buffer slot " << dec << id
+        << TAB << hex << ref->address
+        << TAB << dec << ref->memseq
+        << TAB << hex << ref->imageid
+        << TAB << hex << ref->threadid
+        << ENDL;
+    cout.flush();
+}
+
 extern "C" {
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
         InitializeDynamicInstrumentation(count, dyn);
@@ -112,15 +124,13 @@ extern "C" {
         stats->threadid = pthread_self();
 
         AllData->SetTimer(*key, 0);
-        
         return NULL;
     }
 
     void* process_thread_buffer(image_key_t iid, thread_key_t tid){
-
         AllData->TakeMutex();
-        AllData->SetTimer(iid, 2);
 
+        assert(iid);
         if (AllData == NULL){
             ErrorExit("data manager does not exist. no images were initialized", MetasimError_NoImage);
             AllData->ReleaseMutex();
@@ -128,6 +138,7 @@ extern "C" {
         }
 
         // Buffer is shared between all images
+        debug(inform << "Getting data for image " << hex << iid << " thread " << tid << ENDL);
         SimulationStats* stats = (SimulationStats*)AllData->GetData(iid, tid);
         if (stats == NULL){
             ErrorExit("Cannot retreive image data using key " << dec << iid, MetasimError_NoImage);
@@ -170,7 +181,9 @@ extern "C" {
 
                     // TODO: this is super slow. could cache it in an array?
                     register StreamStats* s = AllData->GetData(reference->imageid, reference->threadid)->Stats[i];
-                    debug(inform << "Stats at " << hex << (uint64_t)s << ENDL;)
+                    //register StreamStats* s = AllData->GetData(iid, pthread_self())->Stats[i];
+                    debug(inform << "Stats at " << hex << (uint64_t)s << ENDL);
+                    debug(PrintReference(j + 1, reference));
 
                     m->Process((void*)s, reference);
                 }
@@ -226,8 +239,6 @@ extern "C" {
 
         BUFFER_CURRENT(stats) = 0;
         debug(inform << "2resetting buffer " << BUFFER_CURRENT(stats) << ENDL);
-
-        AllData->SetTimer(iid, 3);
 
         if (DidSimulation){
             debug(inform << "Simulated " << dec << numElements << " elements through " << CountCacheStructures << " caches in " << AllData->GetTimer(iid, 3) - AllData->GetTimer(iid, 2) << " seconds " << ENDL);
@@ -396,7 +407,12 @@ extern "C" {
                     for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
 
                         for (uint32_t memid = 0; memid < st->InstructionCount; memid++){
-                            uint32_t bbid = st->BlockIds[memid];
+                            uint32_t bbid;
+                            if (stats->PerInstruction){
+                                bbid = memid;
+                            } else {
+                                bbid = st->BlockIds[memid];
+                            }
                             c->Hit(bbid, lvl, s->GetHits(memid, lvl));
                             c->Miss(bbid, lvl, s->GetMisses(memid, lvl));
                         }
@@ -406,6 +422,7 @@ extern "C" {
                 CacheStats* root = aggstats[0];
                 for (uint32_t bbid = 0; bbid < root->Capacity; bbid++){
 
+                    // dont print blocks which weren't touched
                     if (root->GetAccessCount(bbid) == 0){
                         continue;
                     }
@@ -413,18 +430,26 @@ extern "C" {
                     assert(root->GetAccessCount(bbid) % st->MemopsPerBlock[bbid] == 0);
                     uint64_t bsampled = root->GetAccessCount(bbid) / st->MemopsPerBlock[bbid];
 
+                    uint32_t idx;
+                    if (stats->Types[bbid] == CounterType_basicblock){
+                        idx = bbid;
+                    } else if (stats->Types[bbid] == CounterType_instruction){
+                        idx = stats->Counters[bbid];
+                    }
+
                     MemFile << "BLK" 
                             << TAB << dec << bbid
                             << TAB << hex << stats->Hashes[bbid]
                             << TAB << dec << AllData->GetImageSequence((*iit))
                             << TAB << dec << AllData->GetThreadSequence(st->threadid)
-                            << TAB << dec << st->Counters[bbid]
+                            << TAB << dec << st->Counters[idx]
                             << TAB << dec << bsampled
                             << TAB << dec << root->GetAccessCount(bbid)
                             << ENDL;
 
                     for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
                         CacheStats* c = aggstats[sys];
+                        assert(root->GetAccessCount(bbid) == c->GetHits(bbid, 0) + c->GetMisses(bbid, 0));
                         for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
 
                             MemFile
@@ -505,6 +530,7 @@ extern "C" {
             SimulationStats* s = (SimulationStats*)AllData->GetData(iid, (*it));
             RangeStats* r = (RangeStats*)s->Stats[RangeHandlerIndex];
             assert(r);
+            assert(s->InstructionCount == r->Capacity);
 
             for (uint32_t i = 0; i < s->InstructionCount; i++){
                 if (r->Counts[i]){
@@ -717,6 +743,7 @@ string GetCacheDescriptionFile(){
 RangeStats::RangeStats(uint32_t capacity){
     Capacity = capacity;
     Counts = new uint64_t[Capacity];
+    bzero(Counts, sizeof(uint64_t) * Capacity);
     Ranges = new AddressRange*[Capacity];
     for (uint32_t i = 0; i < Capacity; i++){
         Ranges[i] = new AddressRange();
@@ -1066,6 +1093,7 @@ CacheLevel::CacheLevel(uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint3
     associativity = assoc;
     linesize = lineSz;
     replpolicy = pol;
+    //assert(associativity > 0);
 
     countsets = size / (linesize * associativity);
 
@@ -1459,6 +1487,7 @@ void CacheStructureHandler::Process(void* stats, BufferEntry* access){
     uint32_t next = 0;
     uint64_t victim = access->address;
 
+    EvictionInfo evictInfo;
     evictInfo.level = INVALID_CACHE_LEVEL;
     debug(inform << "Processing sysid " << dec << sysId << " memory id " << dec << access->memseq << " addr " << hex << access->address << endl << flush);
     while (next < levelCount){

@@ -222,10 +222,13 @@ void CacheSimulation::instrument(){
     // count number of memory ops
     uint32_t memopSeq = 0;
     uint32_t blockSeq = 0;
+    std::set<Base*> functionsToInst;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
         if (blocksToInst.get(bb->getHashCode().getValue())){
             blockSeq++;
+            Function* f = (Function*)bb->getLeader()->getContainer();
+            functionsToInst.insert(f);
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
                 X86Instruction* memop = bb->getInstruction(j);
                 if (memop->isMemoryOperation()){
@@ -246,7 +249,7 @@ void CacheSimulation::instrument(){
 
     std::map<uint64_t, uint32_t>* functionThreading;
     if (isThreadedMode()){
-        functionThreading = threadReadyCode();
+        functionThreading = threadReadyCode(functionsToInst);
     }
 
     // first entry in buffer is treated specially
@@ -502,7 +505,6 @@ void CacheSimulation::instrument(){
                         } else {
                             snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToMem(bb->getNumberOfMemoryOps(), getInstDataAddress() + currentOffset));
                         }
-
                     }
 
                     // at every memop, fill a buffer entry
@@ -564,6 +566,7 @@ void CacheSimulation::instrument(){
                     // sr2 holds the base address of the buffer 
                     // sr3 holds the offset (in bytes) of the access
 
+                    ASSERT(memopIdInBlock < bb->getNumberOfMemoryOps());
                     uint32_t bufferIdx = 1 + memopIdInBlock - bb->getNumberOfMemoryOps();
                     snip->addSnippetInstruction(X86InstructionFactory64::emitLoadEffectiveAddress(sr2, sr3, 1, sizeof(BufferEntry) * bufferIdx, sr2, true, true));
                     // sr2 now holds the base of this memop's buffer entry
@@ -650,8 +653,8 @@ void CacheSimulation::instrument(){
                     memopSeq++;
                 }
             }
+            blockSeq++;
         }
-        blockSeq++;
     }
 
     char* extension = new char[__MAX_STRING_SIZE];

@@ -69,7 +69,7 @@ protected:
     Vector<X86Instruction*>* storeThreadData(uint32_t scratch, uint32_t dest, bool storeToStack, uint32_t stackPatch);
     void threadAllEntryPoints(Function* f, uint32_t threadReg);
 
-    std::map<uint64_t, uint32_t>* threadReadyCode();
+    std::map<uint64_t, uint32_t>* threadReadyCode(std::set<Base*>& objectsToInst);
     uint32_t instrumentForThreading(Function* func);
 
     InstrumentationFunction* imageInit;

@@ -383,7 +383,7 @@ public:
         for (set<image_key_t>::iterator iit = allimages.begin(); iit != allimages.end(); iit++){
             assert(datamap[(*iit)].size() > 0);
             assert(datamap[(*iit)].count(tid) == 0);
-            
+
             for (set<thread_key_t>::iterator tit = allthreads.begin(); tit != allthreads.end(); tit++){
 	        datamap[(*iit)][tid] = (T)datagen((void*)datamap[(*iit)][(*tit)], ThreadType, (*iit), tid);
                 assert(datamap[(*iit)][tid]);
@@ -430,13 +430,15 @@ public:
         if (timers.count(iid) == 0){
             timers[iid] = DataMap<uint32_t, double>();
         }
+        assert(timers.count(iid) == 1);
         timers[iid][idx] = t;
     }
 
     double GetTimer(image_key_t iid, uint32_t idx){
         assert(timers.count(iid) == 1);
         assert(timers[iid].count(idx) == 1);
-        return timers[iid][idx];
+        double t = timers[iid][idx];
+        return t;
     }
 
     image_key_t AddImage(T data, ThreadData* t, image_key_t iid){
@@ -449,6 +451,7 @@ public:
         allthreads.insert(tid);
         allimages.insert(iid);
         datamap[iid] = DataMap<thread_key_t, T>();
+        assert(datamap.count(iid) == 1);
         datamap[iid][tid] = data;
 
         threaddata[iid] = t;
@@ -466,7 +469,8 @@ public:
     T GetData(image_key_t iid, thread_key_t tid){
         assert(datamap.count(iid) == 1);
         assert(datamap[iid].count(tid) == 1);
-        return datamap[iid][tid];
+        T t = datamap[iid][tid];
+        return t;
     }
 
     uint32_t CountThreads(){

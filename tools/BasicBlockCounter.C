@@ -42,6 +42,8 @@
 #define INST_LIB_NAME "libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
+static bool countLoops = true;
+
 extern "C" {
     InstrumentationTool* BasicBlockCounterMaker(ElfFile* elf){
         return new BasicBlockCounter(elf);
@@ -184,9 +186,14 @@ void BasicBlockCounter::instrument()
     Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allBlockLineInfos = new Vector<LineInfo*>();
 
+    std::set<Base*> functionsToInst;
+    for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+        functionsToInst.insert(getExposedFunction(i));
+    }
+
     std::map<uint64_t, uint32_t>* functionThreading;
     if (isThreadedMode()){
-        functionThreading = threadReadyCode();
+        functionThreading = threadReadyCode(functionsToInst);
     }
 
     uint64_t currentLeader = 0;
@@ -355,24 +362,27 @@ void BasicBlockCounter::instrument()
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
 
         //increment counter on each time we encounter the loop head
-        InstrumentationTool::insertBlockCounter(counterOffset, head, true, threadReg);
-        //PRINT_INFOR("Loop head at %#lx", head->getBaseAddress());
+        if (countLoops){
+            InstrumentationTool::insertBlockCounter(counterOffset, head, true, threadReg);
 
-        // decrement counter each time we traverse a back edge
-        for (uint32_t j = 0; j < tail->getNumberOfTargets(); j++){
-            BasicBlock* target = tail->getTargetBlock(j);
-            FlowGraph* fg = target->getFlowGraph();
-            if (head->getHashCode().getValue() == target->getHashCode().getValue()){
-                ASSERT(head->getHashCode().getValue() == target->getHashCode().getValue());
+            //PRINT_INFOR("Loop head at %#lx", head->getBaseAddress());
 
-                // if control falls from tail to head, stick a decrement at the very end of the block
-                if (tail->getBaseAddress() + tail->getNumberOfBytes() == target->getBaseAddress()){
-                    InstrumentationTool::insertInlinedTripCounter(counterOffset, tail->getExitInstruction(), false, threadReg, InstLocation_after, NULL, 1);
-                    //PRINT_INFOR("\t\tEXIT-FALLTHRU\tBLK:%#llx --> BLK:%#llx HASH %lld", tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
-                } else {
-                    BasicBlock* interposed = initInterposeBlock(fg, tail->getIndex(), target->getIndex());
-                    InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed->getLeader(), false, threadReg, InstLocation_prior, NULL, 1);
-                    //PRINT_INFOR("\t\tEXIT-INTERPOS\tBLK:%#llx --> BLK:%#llx HASH %lld", tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
+            // decrement counter each time we traverse a back edge
+            for (uint32_t j = 0; j < tail->getNumberOfTargets(); j++){
+                BasicBlock* target = tail->getTargetBlock(j);
+                FlowGraph* fg = target->getFlowGraph();
+                if (head->getHashCode().getValue() == target->getHashCode().getValue()){
+                    ASSERT(head->getHashCode().getValue() == target->getHashCode().getValue());
+
+                    // if control falls from tail to head, stick a decrement at the very end of the block
+                    if (tail->getBaseAddress() + tail->getNumberOfBytes() == target->getBaseAddress()){
+                        InstrumentationTool::insertInlinedTripCounter(counterOffset, tail->getExitInstruction(), false, threadReg, InstLocation_after, NULL, 1);
+                        //PRINT_INFOR("\t\tEXIT-FALLTHRU\tBLK:%#llx --> BLK:%#llx HASH %lld", tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
+                    } else {
+                        BasicBlock* interposed = initInterposeBlock(fg, tail->getIndex(), target->getIndex());
+                        InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed->getLeader(), false, threadReg, InstLocation_prior, NULL, 1);
+                        //PRINT_INFOR("\t\tEXIT-INTERPOS\tBLK:%#llx --> BLK:%#llx HASH %lld", tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
+                    }
                 }
             }
         }

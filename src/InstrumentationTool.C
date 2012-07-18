@@ -106,12 +106,32 @@ void InstrumentationTool::dynamicPoint(InstrumentationPoint* pt, uint64_t key, b
 
 // returns a map of function addresses and the scratch register used to hold the thread data address
 // (X86_REG_INVALID if no such register is available)
-std::map<uint64_t, uint32_t>* InstrumentationTool::threadReadyCode(){
+std::map<uint64_t, uint32_t>* InstrumentationTool::threadReadyCode(std::set<Base*>& objectsToInst){
     std::map<uint64_t, uint32_t>* functionThreading = new std::map<uint64_t, uint32_t>();
-    for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
-        Function* f = getExposedFunction(i);
-        (*functionThreading)[f->getBaseAddress()] = instrumentForThreading(f);
+
+    for (std::set<Base*>::iterator it = objectsToInst.begin(); it != objectsToInst.end(); it++){
+        Function* f;
+        if ((*it)->getType() == PebilClassType_Function){
+            f = (Function*)(*it);
+        } else if ((*it)->getType() == PebilClassType_X86Instruction){
+            TextObject* t = (TextObject*)(((X86Instruction*)(*it))->getContainer());
+            ASSERT(t->isFunction());
+            f = (Function*)t;
+        } else if ((*it)->getType() == PebilClassType_BasicBlock){
+            X86Instruction* l = ((BasicBlock*)(*it))->getLeader();
+            TextObject* t = l->getContainer();
+            ASSERT(t->isFunction());
+            f = (Function*)t;
+        } else {
+            __SHOULD_NOT_ARRIVE;
+        }
+
+        if (functionThreading->count(f->getBaseAddress()) == 0){
+            PRINT_INFOR("Inserting threading support for function %s", f->getName());
+            (*functionThreading)[f->getBaseAddress()] = instrumentForThreading(f);
+        }
     }
+
     return functionThreading;
 }
 
