@@ -230,7 +230,9 @@ public:
 
     void IncrementAccessCount(uint64_t count);
 
+    bool SwitchesMode(uint64_t count);
     bool CurrentlySampling();
+    bool CurrentlySampling(uint64_t count);
     bool ExceedsAccessLimit(uint64_t count);
 };
 

@@ -71,6 +71,11 @@ typedef struct {
 static uint64_t CountDynamicInst = 0;
 static DynamicInst* DynamicInst_ = NULL;
 
+
+#define GENERATE_KEY(__bid, __typ) ((__typ & 0xf) | (__bid << 4))
+#define GET_BLOCKID(__key) ((__key >> 4))
+#define GET_TYPE(__key) ((__key & 0xf))
+
 static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn){
     CountDynamicInst = *count;
     DynamicInst_ = *dyn;

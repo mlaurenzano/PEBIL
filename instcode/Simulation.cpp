@@ -48,11 +48,6 @@ static SamplingMethod* Sampler = NULL;
 static DataManager<SimulationStats*>* AllData = NULL;
 
 static set<uint64_t>* NonmaxKeys = NULL;
-static bool FillPointsDead = false;
-
-#define GENERATE_KEY(__bid, __typ) ((__typ & 0xf) | (__bid << 4))
-#define GET_BLOCKID(__key) ((__key >> 4))
-#define GET_TYPE(__key) ((__key & 0xf))
 
 void PrintReference(uint32_t id, BufferEntry* ref){
     inform 
@@ -131,6 +126,12 @@ extern "C" {
     void* process_thread_buffer(image_key_t iid, thread_key_t tid){
         AllData->TakeMutex();
 
+#define DONE_WITH_BUFFER(...)\
+        BUFFER_CURRENT(stats) = 0;\
+        bzero(BUFFER_ENTRY(stats, 2), sizeof(BufferEntry) * BUFFER_CAPACITY(stats)); \
+        AllData->ReleaseMutex();\
+        return NULL;
+
         assert(iid);
         if (AllData == NULL){
             ErrorExit("data manager does not exist. no images were initialized", MetasimError_NoImage);
@@ -148,9 +149,7 @@ extern "C" {
         }
 
         if (false){
-            BUFFER_CURRENT(stats) = 0;
-            AllData->ReleaseMutex();
-            return NULL;
+            DONE_WITH_BUFFER();
         }
 
         register uint64_t numElements = BUFFER_CURRENT(stats);
@@ -164,21 +163,12 @@ extern "C" {
               << ENDL);
 
         if (NonmaxKeys->empty()){
-            BUFFER_CURRENT(stats) = 0;
-            debug(inform << "1resetting buffer " << BUFFER_CURRENT(stats) << ENDL);
-            AllData->ReleaseMutex();
-            return NULL;
+            DONE_WITH_BUFFER();
         }
 
         bool DidSimulation = false;
         if (Sampler->CurrentlySampling()){
             DidSimulation = true;
-            if (FillPointsDead == true){
-                SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
-                SetDynamicPoints(NonmaxKeys, true);
-                ResumeAllThreads();
-                FillPointsDead = false;
-            }
 
             BufferEntry* buffer = &(stats->Buffer[1]);
 
@@ -187,6 +177,10 @@ extern "C" {
                 register MemoryStreamHandler* m = MemoryHandlers[i];
                 for (uint32_t j = 0; j < numElements; j++){
                     register BufferEntry* reference = BUFFER_ENTRY(stats, j + 1);
+                    
+                    if (reference->imageid == 0){
+                        continue;
+                    }
 
                     // TODO: this is super slow. could cache it in an array?
                     register StreamStats* s = AllData->GetData(reference->imageid, reference->threadid)->Stats[i];
@@ -207,56 +201,59 @@ extern "C" {
                 if (Sampler->ExceedsAccessLimit(stats->Counters[bbid])){
 
                     uint64_t k1 = GENERATE_KEY(bbid, PointType_buffercheck);
+                    uint64_t k2 = GENERATE_KEY(bbid, PointType_bufferinc);
+                    uint64_t k3 = GENERATE_KEY(bbid, PointType_bufferfill);
+
                     if (MemsRemoved.count(k1) == 0){
                         MemsRemoved.insert(k1);
                     }
                     assert(MemsRemoved.count(k1) == 1);
 
-                    uint64_t k2 = GENERATE_KEY(bbid, PointType_bufferinc);
                     if (MemsRemoved.count(k2) == 0){
                         MemsRemoved.insert(k2);
                     }
                     assert(MemsRemoved.count(k2) == 1);
 
-                    uint64_t k3 = GENERATE_KEY(bbid, PointType_bufferfill);
                     if (MemsRemoved.count(k3) == 0){
                         MemsRemoved.insert(k3);
                     }
                     assert(MemsRemoved.count(k3) == 1);
 
-                    if (NonmaxKeys->count(k2) > 0){
-                        NonmaxKeys->erase(k2);
-                        assert(NonmaxKeys->count(k2) == 0);
+                    if (NonmaxKeys->count(k3) > 0){
+                        NonmaxKeys->erase(k3);
+                        assert(NonmaxKeys->count(k3) == 0);
                     }
                 }
             }
 
             if (MemsRemoved.size()){
-                inform << "REMOVING " << dec << MemsRemoved.size() << ENDL;
+                inform << "REMOVING " << dec << MemsRemoved.size() << " blocks" << ENDL;
                 SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
                 SetDynamicPoints(&MemsRemoved, false);
                 ResumeAllThreads();
             }
-        } else {
-            if (FillPointsDead == false){
+
+            if (Sampler->SwitchesMode(numElements)){
                 SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
                 SetDynamicPoints(NonmaxKeys, false);
                 ResumeAllThreads();
-                FillPointsDead = true;
+            }
+
+        } else {
+            if (Sampler->SwitchesMode(numElements)){
+                SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
+                SetDynamicPoints(NonmaxKeys, true);
+                ResumeAllThreads();
             }
         }
 
         Sampler->IncrementAccessCount(numElements);
 
-        BUFFER_CURRENT(stats) = 0;
-        debug(inform << "2resetting buffer " << BUFFER_CURRENT(stats) << ENDL);
-
         if (DidSimulation){
             debug(inform << "Simulated " << dec << numElements << " elements through " << CountCacheStructures << " caches in " << AllData->GetTimer(iid, 3) - AllData->GetTimer(iid, 2) << " seconds " << ENDL);
         }
 
-        AllData->ReleaseMutex();
-        return NULL;
+        DONE_WITH_BUFFER();
     }
 
     void* process_buffer(image_key_t* key){
@@ -1079,12 +1076,20 @@ void SamplingMethod::IncrementAccessCount(uint64_t count){
     AccessCount += count;
 }
 
+bool SamplingMethod::SwitchesMode(uint64_t count){
+    return (CurrentlySampling(0) != CurrentlySampling(count));
+}
+
 bool SamplingMethod::CurrentlySampling(){
+    return CurrentlySampling(0);
+}
+
+bool SamplingMethod::CurrentlySampling(uint64_t count){
     uint32_t PeriodLength = SampleOn + SampleOff;
     if (PeriodLength == 0){
         return true;
     }
-    if (AccessCount % PeriodLength < SampleOn){
+    if ((AccessCount + count) % PeriodLength < SampleOn){
         return true;
     }
     return false;

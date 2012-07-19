@@ -520,6 +520,7 @@ public:
         // insert data for this thread
         allthreads.insert(tid);
         allimages.insert(iid);
+        inform << "Adding image... " << hex << iid << ENDL;
         datamap[iid] = DataMap<thread_key_t, T>();
         assert(datamap.count(iid) == 1);
         datamap[iid][tid] = data;
@@ -533,10 +534,14 @@ public:
                 datamap[iid][(*it)] = (T)datagen((void*)data, ImageType, iid, (*it));
             }
         }
+        assert(datamap.count(iid) == 1);
         return iid;
     }
 
     T GetData(image_key_t iid, thread_key_t tid){
+        if (datamap.count(iid) != 1){
+            inform << "About to fail iid check with " << dec << datamap.count(iid) << ENDL;
+        }
         assert(datamap.count(iid) == 1);
         assert(datamap[iid].count(tid) == 1);
         T t = datamap[iid][tid];

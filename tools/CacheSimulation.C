@@ -40,10 +40,6 @@
 #define NOSTRING "__pebil_no_string__"
 #define BUFFER_ENTRIES 0x1000
 
-#define GENERATE_KEY(__bid, __typ) ((__typ & 0xf) | (__bid << 4))
-#define GET_BLOCKID(__key) ((__key >> 4))
-#define GET_TYPE(__key) ((__key& 0xf))
-
 extern "C" {
     InstrumentationTool* CacheSimulationMaker(ElfFile* elf){
         return new CacheSimulation(elf);
