@@ -128,7 +128,7 @@ extern "C" {
 
 #define DONE_WITH_BUFFER(...)\
         BUFFER_CURRENT(stats) = 0;\
-        bzero(BUFFER_ENTRY(stats, 2), sizeof(BufferEntry) * BUFFER_CAPACITY(stats)); \
+        bzero(BUFFER_ENTRY(stats, 1), sizeof(BufferEntry) * BUFFER_CAPACITY(stats)); \
         AllData->ReleaseMutex();\
         return NULL;
 
@@ -413,7 +413,6 @@ extern "C" {
                     aggstats[sys] = c;
 
                     for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
-
                         for (uint32_t memid = 0; memid < st->InstructionCount; memid++){
                             uint32_t bbid;
                             if (stats->PerInstruction){

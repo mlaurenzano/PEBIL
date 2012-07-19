@@ -65,8 +65,8 @@ typedef struct {
     char* Extension;
 
     // per-memop data
-    uint32_t* BlockIds;
-    uint32_t* MemopIds;
+    uint64_t* BlockIds;
+    uint64_t* MemopIds;
 
     // per-block data
     CounterTypes* Types;

@@ -283,8 +283,8 @@ void CacheSimulation::instrument(){
     stats.__nam = (__typ*)reserveDataOffset(stats.InstructionCount * sizeof(__typ));  \
     initializeReservedPointer((uint64_t)stats.__nam, simulationStruct + offsetof(SimulationStats, __nam))
 
-    INIT_INSN_ELEMENT(uint32_t, BlockIds);
-    INIT_INSN_ELEMENT(uint32_t, MemopIds);
+    INIT_INSN_ELEMENT(uint64_t, BlockIds);
+    INIT_INSN_ELEMENT(uint64_t, MemopIds);
 
 
 #define INIT_BLOCK_ELEMENT(__typ, __nam)\
@@ -644,8 +644,10 @@ void CacheSimulation::instrument(){
                         initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopsPerBlock + memopSeq*sizeof(uint32_t), sizeof(uint32_t), &temp32);
                     }
         
-                    initializeReservedData(getInstDataAddress() + (uint64_t)stats.BlockIds + memopSeq*sizeof(uint32_t), sizeof(uint32_t), &blockSeq);
-                    initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopIds + memopSeq*sizeof(uint32_t), sizeof(uint32_t), &memopIdInBlock);
+                    temp64 = blockSeq;
+                    initializeReservedData(getInstDataAddress() + (uint64_t)stats.BlockIds + memopSeq*sizeof(uint64_t), sizeof(uint64_t), &temp64);
+                    temp64 = memopIdInBlock;
+                    initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopIds + memopSeq*sizeof(uint64_t), sizeof(uint64_t), &temp64);
 
                     memopIdInBlock++;
                     memopSeq++;
