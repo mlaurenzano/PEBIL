@@ -330,7 +330,9 @@ void CacheSimulation::instrument(){
     }
 
     simFunc->addArgument(imageKey);
-    simFunc->assumeNoFunctionFP();
+
+    // TODO: wipe all FP stuff from process_buffer and things it calls, then enable this
+    //simFunc->assumeNoFunctionFP();
     exitFunc->addArgument(imageKey);
 
     p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp);

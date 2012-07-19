@@ -561,9 +561,6 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     }
     uint64_t fxStor = nextAlignAddress(fxStorageOffset + sizeof(uint64_t), 16);
 
-    if (assumeFunctionFP){
-        wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitFxSave(0), elfInst, fxStor, true));
-    }
     ASSERT(arguments.size() <= Num__64_bit_StackArgs && "More arguments must be pushed onto stack, which is not yet implemented"); 
     
     for (uint32_t i = 0; i < arguments.size(); i++){
@@ -599,12 +596,17 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     wrapperInstructions.append(X86InstructionFactory64::emitRegAndReg(X86_REG_SP, X86_REG_R15));
 
     // stack is now aligned as we want it
-
     // keep the saved stack pointer on the very top of the stack
     // pop %r15
     wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_REG_R15));
     // push %r14
     wrapperInstructions.append(X86InstructionFactory64::emitStackPush(X86_REG_R14));
+
+    if (assumeFunctionFP){
+        wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_stackalign, X86_REG_SP));
+        //wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitFxSave(0), elfInst, fxStor, true));
+        wrapperInstructions.append(X86InstructionFactory64::emitFxSaveReg(X86_REG_SP));
+    }
 
     // lea -0x1000(%rsp), %rsp
     wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_stackalign, X86_REG_SP));
@@ -613,15 +615,18 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     // lea 0x1000(%rsp), %rsp
     wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_stackalign, X86_REG_SP));
 
+    if (assumeFunctionFP){
+        wrapperInstructions.append(X86InstructionFactory64::emitFxRstorReg(X86_REG_SP));
+        //wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitFxRstor(0), elfInst, fxStor, true));
+        wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_stackalign, X86_REG_SP));
+    }
+
     // restore the saved stack pointer from the top of the stack
     // pop %r14
     wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_REG_R14));
     // mov %r14, %rsp
     wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToReg(X86_REG_R14, X86_REG_SP));
 
-    if (assumeFunctionFP){
-        wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitFxRstor(0), elfInst, fxStor, true));
-    }
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
         wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_64BIT_GPRS-1-i));
     }

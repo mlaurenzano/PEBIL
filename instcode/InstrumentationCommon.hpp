@@ -32,6 +32,7 @@
 #include <sys/time.h>
 #include <stdarg.h>
 #include <time.h>
+#include <signal.h>
 #include <pthread.h>
 #include <unordered_map>
 #include <map>
@@ -65,19 +66,6 @@ extern "C" {
     extern void* tool_image_init(void* s, image_key_t* key, ThreadData* td);
     extern void* tool_image_fini(image_key_t* key);
 };
-
-
-// information about instrumentation points
-typedef struct
-{
-    int64_t pt_vaddr;
-    int64_t pt_target;
-    int64_t pt_flags;
-    int32_t pt_size;
-    int32_t pt_blockid;
-    unsigned char pt_content[16];
-    unsigned char pt_disable[16];
-} instpoint_info;
 
 
 // some function re-naming support
@@ -122,8 +110,124 @@ static void ptimer(double *tmr) {
     *tmr=(double)timestr.tv_sec + 1.0E-06*(double)timestr.tv_usec;
 }
 
+// support for output/warnings/errors
+#define METASIM_ID "Metasim"
+#define METASIM_VERSION "3.0.0"
+#define METASIM_ENV "PEBIL_ROOT"
+
+#define TAB "\t"
+#define ENDL "\n"
+#define DISPLAY_ERROR cerr << "[" << METASIM_ID << "-r" << GetTaskId() << "] " << "Error: "
+#define warn cerr << "[" << METASIM_ID << "-r" << GetTaskId() << "] " << "Warning: "
+#define ErrorExit(__msg, __errno) DISPLAY_ERROR << __msg << endl << flush; exit(__errno);
+#define inform cout << "[" << METASIM_ID << "-r" << GetTaskId() << "] "
+
+enum MetasimErrors {
+    MetasimError_None = 0,
+    MetasimError_MemoryAlloc,
+    MetasimError_NoThread,
+    MetasimError_TooManyInsnReads,
+    MetasimError_StringParse,
+    MetasimError_FileOp,
+    MetasimError_Env,
+    MetasimError_NoImage,
+    MetasimError_Total,
+};
+
+static void TryOpen(ofstream& f, const char* name){
+    f.open(name);
+    f.setf(ios::showbase);
+    if (f.fail()){
+        ErrorExit("cannot open output file: " << name, MetasimError_FileOp);
+    }
+}
+
+
 // thread handling
 extern "C" {
+    const int SuspendSignal = SIGUSR2;
+    uint32_t CountSuspended = 0;
+    pthread_mutex_t countlock;
+    pthread_mutex_t pauser;
+    bool CanSuspend = false;
+
+    void SuspendHandler(int signum){
+        // increment pause counter
+        pthread_mutex_lock(&countlock);
+        CountSuspended++;
+        pthread_mutex_unlock(&countlock);
+
+        // the thread doing the pausing will lock this prior to asking for the pause
+        pthread_mutex_lock(&pauser);
+        pthread_mutex_unlock(&pauser);
+
+        // decrement pause counter
+        pthread_mutex_lock(&countlock);
+        CountSuspended--;
+        pthread_mutex_unlock(&countlock);
+    }
+
+    void InitializeSuspendHandler(){
+        if (CanSuspend){
+            return;
+        }
+        inform << "Thread " << hex << pthread_self() << " initializing Suspension handling" << ENDL;
+
+        CountSuspended = 0;
+        pauser = PTHREAD_MUTEX_INITIALIZER;
+        countlock = PTHREAD_MUTEX_INITIALIZER;
+
+        CanSuspend = true;
+
+        struct sigaction NewAction, OldAction;
+        NewAction.sa_handler = SuspendHandler;
+        sigemptyset(&NewAction.sa_mask);
+        NewAction.sa_flags = 0;
+     
+        sigaction(SuspendSignal, NULL, &OldAction);
+        //assert(OldAction.sa_handler == SIG_IGN);
+        sigaction(SuspendSignal, &NewAction, NULL);
+    }
+
+    void SuspendAllThreads(uint32_t size, set<thread_key_t>::iterator b, set<thread_key_t>::iterator e){
+        if (!CanSuspend){
+            return;
+        }
+
+        inform << "Thread " << hex << pthread_self() << " suspending " << dec << (size - 1) << " other threads" << ENDL;
+
+        pthread_mutex_lock(&pauser);
+        assert(CountSuspended == 0);
+
+        for (set<thread_key_t>::iterator tit = b; tit != e; tit++){
+            if ((*tit) != pthread_self()){
+                pthread_kill((*tit), SuspendSignal);
+            }
+        }
+
+        // wait for all other threads to reach paused state
+        while (CountSuspended < size - 1){
+            pthread_yield();
+        }
+        assert(CountSuspended == size - 1);
+    }
+
+    void ResumeAllThreads(){
+        if (!CanSuspend){
+            return;
+        }
+
+        inform << "Thread " << hex << pthread_self() << " resuming " << dec << CountSuspended << " other threads" << ENDL;
+
+        pthread_mutex_unlock(&pauser);
+
+        // wait for all other threads to exit paused state
+        while (CountSuspended > 0){
+            pthread_yield();
+        }
+        assert(CountSuspended == 0);
+    }
+
     static int __give_pebil_name(clone)(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
         va_list ap;
         va_start(ap, arg);
@@ -180,39 +284,6 @@ extern "C" {
 };
 
 
-// support for output/warnings/errors
-#define METASIM_ID "Metasim"
-#define METASIM_VERSION "3.0.0"
-#define METASIM_ENV "PEBIL_ROOT"
-
-#define TAB "\t"
-#define ENDL "\n"
-#define DISPLAY_ERROR cerr << "[" << METASIM_ID << "-r" << GetTaskId() << "] " << "Error: "
-#define warn cerr << "[" << METASIM_ID << "-r" << GetTaskId() << "] " << "Warning: "
-#define ErrorExit(__msg, __errno) DISPLAY_ERROR << __msg << endl << flush; exit(__errno);
-#define inform cout << "[" << METASIM_ID << "-r" << GetTaskId() << "] "
-
-enum MetasimErrors {
-    MetasimError_None = 0,
-    MetasimError_MemoryAlloc,
-    MetasimError_NoThread,
-    MetasimError_TooManyInsnReads,
-    MetasimError_StringParse,
-    MetasimError_FileOp,
-    MetasimError_Env,
-    MetasimError_NoImage,
-    MetasimError_Total,
-};
-
-static void TryOpen(ofstream& f, const char* name){
-    f.open(name);
-    f.setf(ios::showbase);
-    if (f.fail()){
-        ErrorExit("cannot open output file: " << name, MetasimError_FileOp);
-    }
-}
-
-
 // some help geting task/process information into strings
 static void AppendPidString(string& str){
     char buf[6];
@@ -261,7 +332,6 @@ static void AppendLegacyTasksString(string& str){
 
 template <class T = void*> class DataManager {
 private:
-
     pthread_mutex_t mutex;
 
     DataMap <image_key_t, DataMap<thread_key_t, T> > datamap;
@@ -352,7 +422,7 @@ public:
     }
 
     void TakeMutex(){
-        pthread_mutex_unlock(&mutex);
+        pthread_mutex_lock(&mutex);
     }
 
     void ReleaseMutex(){

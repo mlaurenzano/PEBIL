@@ -95,6 +95,7 @@ extern "C" {
     void* tool_thread_init(thread_key_t tid){
         if (AllData){
             AllData->AddThread(tid);
+            InitializeSuspendHandler();
         } else {
             ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
         }
@@ -146,6 +147,12 @@ extern "C" {
             return NULL;
         }
 
+        if (false){
+            BUFFER_CURRENT(stats) = 0;
+            AllData->ReleaseMutex();
+            return NULL;
+        }
+
         register uint64_t numElements = BUFFER_CURRENT(stats);
         uint64_t capacity = BUFFER_CAPACITY(stats);
 
@@ -167,7 +174,9 @@ extern "C" {
         if (Sampler->CurrentlySampling()){
             DidSimulation = true;
             if (FillPointsDead == true){
+                SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
                 SetDynamicPoints(NonmaxKeys, true);
+                ResumeAllThreads();
                 FillPointsDead = false;
             }
 
@@ -181,7 +190,6 @@ extern "C" {
 
                     // TODO: this is super slow. could cache it in an array?
                     register StreamStats* s = AllData->GetData(reference->imageid, reference->threadid)->Stats[i];
-                    //register StreamStats* s = AllData->GetData(iid, pthread_self())->Stats[i];
                     debug(inform << "Stats at " << hex << (uint64_t)s << ENDL);
                     debug(PrintReference(j + 1, reference));
 
@@ -224,13 +232,16 @@ extern "C" {
             }
 
             if (MemsRemoved.size()){
-                debug(inform << "REMOVING " << dec << MemsRemoved.size() << ENDL); 
+                inform << "REMOVING " << dec << MemsRemoved.size() << ENDL;
+                SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
                 SetDynamicPoints(&MemsRemoved, false);
+                ResumeAllThreads();
             }
         } else {
-
             if (FillPointsDead == false){
+                SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
                 SetDynamicPoints(NonmaxKeys, false);
+                ResumeAllThreads();
                 FillPointsDead = true;
             }
         }
@@ -312,10 +323,10 @@ extern "C" {
                     } else if (s->Types[i] == CounterType_instruction){
                         idx = s->Counters[i];
                     }
-                    inform << dec << i << TAB << s->Counters[idx] << TAB << s->MemopsPerBlock[idx] << TAB << CounterTypeNames[s->Types[i]] << ENDL;
+                    //inform << dec << i << TAB << s->Counters[idx] << TAB << s->MemopsPerBlock[idx] << TAB << CounterTypeNames[s->Types[i]] << ENDL;
                     totalMemop += (s->Counters[idx] * s->MemopsPerBlock[idx]);
                 }
-                inform << "Total memop: " << dec << totalMemop << ENDL;
+                //inform << "Total memop: " << dec << totalMemop << ENDL;
             }
         }
 
@@ -385,7 +396,7 @@ extern "C" {
 
         MemFile 
             << "# " << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "Threadid"
-            << TAB << "BlockCounter" << TAB << "BlockSimulated" << TAB << "InstructionSimulated"
+            << TAB << "BlockCounter" << TAB << "InstructionSimulated"
             << ENDL;
         MemFile
             << "# " << TAB << "SysId" << TAB << "Level" << TAB << "HitCount" << TAB << "MissCount" << ENDL;
@@ -427,8 +438,11 @@ extern "C" {
                         continue;
                     }
 
-                    assert(root->GetAccessCount(bbid) % st->MemopsPerBlock[bbid] == 0);
-                    uint64_t bsampled = root->GetAccessCount(bbid) / st->MemopsPerBlock[bbid];
+                    // this isn't necessarily true since this tool can suspend threads at any point,
+                    // potentially shutting off instrumention in a block while a thread is midway through
+                    if (AllData->CountThreads() == 1){
+                        assert(root->GetAccessCount(bbid) % st->MemopsPerBlock[bbid] == 0);
+                    }
 
                     uint32_t idx;
                     if (stats->Types[bbid] == CounterType_basicblock){
@@ -443,7 +457,6 @@ extern "C" {
                             << TAB << dec << AllData->GetImageSequence((*iit))
                             << TAB << dec << AllData->GetThreadSequence(st->threadid)
                             << TAB << dec << st->Counters[idx]
-                            << TAB << dec << bsampled
                             << TAB << dec << root->GetAccessCount(bbid)
                             << ENDL;
 

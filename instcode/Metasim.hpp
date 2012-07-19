@@ -113,15 +113,16 @@ static void SetDynamicPointStatus(DynamicInst* d, bool state){
 }
 
 static void SetDynamicPoints(std::set<uint64_t>* keys, bool state){
+    uint32_t count = 0;
     for (uint32_t i = 0; i < CountDynamicInst; i++){
-
         if (keys->count(DynamicInst_[i].Key) > 0){
-
             if (state != DynamicInst_[i].IsEnabled){
+                count++;
                 SetDynamicPointStatus(&DynamicInst_[i], state);
             }
         }
     }
+    std::cout << "Thread " << std::hex << pthread_self() << " switched " << std::dec << count << " to " << (state? "on" : "off") << std::endl;
     debug(PrintDynamicPoints());
 }
 

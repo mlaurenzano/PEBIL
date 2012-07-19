@@ -243,6 +243,64 @@ X86Instruction* X86InstructionFactory64::emitFxRstor(uint64_t addr){
     return emitInstructionBase(len,buff);    
 }
 
+X86Instruction* X86InstructionFactory64::emitFxSaveReg(uint8_t reg){
+    ASSERT(reg < X86_64BIT_GPRS);
+    uint32_t len = 3;
+    uint32_t off = 0;
+
+    if (reg >= X86_32BIT_GPRS){
+        len++;
+        off++;
+    }
+    if (reg % X86_32BIT_GPRS == X86_REG_SP){
+        len++;
+    }
+
+    char* buff = new char[len];
+
+    if (reg >= X86_32BIT_GPRS){
+        buff[0] = 0x41;
+    }
+    buff[off] = 0x0f;
+    buff[off+1] = 0xae;
+    buff[off+2] = 0x00 + (reg % X86_32BIT_GPRS);
+
+    if (reg % X86_32BIT_GPRS == X86_REG_SP){
+        buff[off+3] = 0x24;
+    }
+
+    return emitInstructionBase(len,buff);    
+}
+
+X86Instruction* X86InstructionFactory64::emitFxRstorReg(uint8_t reg){
+    ASSERT(reg < X86_64BIT_GPRS);
+    uint32_t len = 3;
+    uint32_t off = 0;
+
+    if (reg >= X86_32BIT_GPRS){
+        len++;
+        off++;
+    }
+    if (reg % X86_32BIT_GPRS == X86_REG_SP){
+        len++;
+    }
+
+    char* buff = new char[len];
+
+    if (reg >= X86_32BIT_GPRS){
+        buff[0] = 0x41;
+    }
+    buff[off] = 0x0f;
+    buff[off+1] = 0xae;
+    buff[off+2] = 0x08 + (reg % X86_32BIT_GPRS);
+
+    if (reg % X86_32BIT_GPRS == X86_REG_SP){
+        buff[off+3] = 0x24;
+    }
+
+    return emitInstructionBase(len,buff);    
+}
+
 X86Instruction* X86InstructionFactory32::emitFxSave(uint64_t addr){
     uint32_t len = 7;
     char* buff = new char[len];
