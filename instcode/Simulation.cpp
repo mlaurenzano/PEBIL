@@ -102,6 +102,18 @@ extern "C" {
                 }
             }
             debug(PrintDynamicPoints());
+
+            if (Sampler->SampleOn == 0){
+                inform << "Disabling all simulation related instrumentation because METASIM_SAMPLE_ON is set to 0" << ENDL;
+                set<uint64_t> AllSimPoints;
+                for (set<uint64_t>::iterator it = NonmaxKeys->begin(); it != NonmaxKeys->end(); it++){
+                    AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_buffercheck));
+                    AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_bufferinc));
+                    AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_bufferfill));
+                }
+                SetDynamicPoints(&AllSimPoints, false);
+                NonmaxKeys->clear();
+            }
         }
     }
 
@@ -150,7 +162,7 @@ extern "C" {
         return NULL;
     }
 
-    bool ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, uint32_t numElements, SimulationStats* stats, bool force, image_key_t iid, thread_key_t tid){
+    bool TryProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, uint32_t numElements, SimulationStats* stats, bool force, image_key_t iid, thread_key_t tid){
         AllData->SetTimer(iid, tid+3);
 
         // wait for the lock if force == true, otherwise just see if it is unlocked
@@ -164,6 +176,7 @@ extern "C" {
         // we have the lock now!
 
         uint32_t numProcessed = 0;
+
         for (uint32_t j = 0; j < numElements; j++){
             register BufferEntry* reference = BUFFER_ENTRY(stats, j + 1);
                         
@@ -171,7 +184,7 @@ extern "C" {
                 continue;
             }
 
-            // TODO: this is super slow. could cache it in an array?
+            // TODO: this is super slow. need to speed it up somehow?
             register StreamStats* s = AllData->GetData(reference->imageid, reference->threadid)->Stats[HandlerIdx];
             debug(inform << "Stats at " << hex << (uint64_t)s << ENDL);
             debug(PrintReference(j + 1, reference));
@@ -182,7 +195,6 @@ extern "C" {
 
         AllData->SetTimer(iid, tid+4);
         __dtimer[HandlerIdx] += (AllData->GetTimer(iid, tid+4) - AllData->GetTimer(iid, tid+3));
-        register StreamStats* s = AllData->GetData(iid, tid)->Stats[HandlerIdx];
 
         m->UnLock();
         return true;
@@ -225,6 +237,7 @@ extern "C" {
             AllData->SetTimer(iid, tid);
             isSampling = Sampler->CurrentlySampling();
             if (NonmaxKeys->empty()){
+                AllData->UnLock();
                 DONE_WITH_BUFFER();
             }
             AllData->SetTimer(iid, tid+1);
@@ -252,7 +265,7 @@ extern "C" {
                     register MemoryStreamHandler* m = MemoryHandlers[i];
                     bool force = (Attempts[i] >= PROCESS_UNFORCED_ATTEMPTS);
 
-                    bool res = ProcessBuffer(i, m, numElements, stats, force, iid, tid);
+                    bool res = TryProcessBuffer(i, m, numElements, stats, force, iid, tid);
                     if (res){
                         Attempts[i] = PROCESS_DONE;
                     } else {
@@ -372,7 +385,6 @@ extern "C" {
 
     void* tool_image_fini(image_key_t* key){
         image_key_t iid = *key;
-
 
         for (uint32_t i = 0; i < CountDebugTimers; i++){
             inform << "Debug timer " << dec << i << TAB << __dtimer[i] << ENDL;
@@ -1208,6 +1220,10 @@ bool SamplingMethod::CurrentlySampling(){
 bool SamplingMethod::CurrentlySampling(uint64_t count){
     uint32_t PeriodLength = SampleOn + SampleOff;
     bool res = false;
+    if (SampleOn == 0){
+        return res;
+    }
+
     pthread_mutex_lock(&mlock);
     if (PeriodLength == 0){
         res = true;

@@ -422,11 +422,13 @@ public:
     }
 
     bool Lock(){
-        return (pthread_mutex_lock(&mutex) == 0);
+        bool res = (pthread_mutex_lock(&mutex) == 0);
+        return res;
     }
 
     bool UnLock(){
-        return (pthread_mutex_unlock(&mutex) == 0);
+        bool res = (pthread_mutex_unlock(&mutex) == 0);
+        return res;
     }
 
     // these can only be called correctly by the current thread
