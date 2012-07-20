@@ -421,11 +421,11 @@ public:
     ~DataManager(){
     }
 
-    void TakeMutex(){
+    void Lock(){
         pthread_mutex_lock(&mutex);
     }
 
-    void ReleaseMutex(){
+    void UnLock(){
         pthread_mutex_unlock(&mutex);
     }
 

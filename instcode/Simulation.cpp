@@ -49,6 +49,8 @@ static DataManager<SimulationStats*>* AllData = NULL;
 
 static set<uint64_t>* NonmaxKeys = NULL;
 
+#define synchronize(__locker) __locker->Lock(); for (bool syncbool = true; syncbool == true; __locker->UnLock(), syncbool=false) 
+
 void PrintReference(uint32_t id, BufferEntry* ref){
     inform 
         << "Thread " << hex << pthread_self()
@@ -74,26 +76,33 @@ void PrintBlockData(uint32_t id, SimulationStats* s){
         << ENDL;
 }
 
+static double* __dtimer;
+#define CountDebugTimers (CountMemoryHandlers + 3)
+
 extern "C" {
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
         InitializeDynamicInstrumentation(count, dyn);
 
-        NonmaxKeys = new set<uint64_t>();
+        assert(AllData);
 
-        for (uint32_t i = 0; i < CountDynamicInst; i++){
-            DynamicInst* d = GetDynamicInstPoint(i);
-            uint64_t k = d->Key;
-            if (GET_TYPE(k) == PointType_bufferfill){
-                if (NonmaxKeys->count(k) == 0){
-                    NonmaxKeys->insert(k);
+        synchronize(AllData){
+            NonmaxKeys = new set<uint64_t>();
+
+            for (uint32_t i = 0; i < CountDynamicInst; i++){
+                DynamicInst* d = GetDynamicInstPoint(i);
+                uint64_t k = d->Key;
+                if (GET_TYPE(k) == PointType_bufferfill){
+                    if (NonmaxKeys->count(k) == 0){
+                        NonmaxKeys->insert(k);
+                    }
+                }
+
+                if (d->IsEnabled == false){
+                    SetDynamicPointStatus(d, false);
                 }
             }
-
-            if (d->IsEnabled == false){
-                SetDynamicPointStatus(d, false);
-            }
+            debug(PrintDynamicPoints());
         }
-        debug(PrintDynamicPoints());
     }
 
     void* tool_mpi_init(){
@@ -114,6 +123,11 @@ extern "C" {
         SimulationStats* stats = (SimulationStats*)s;
 
         ReadSettings();
+
+        __dtimer = new double[CountDebugTimers];
+        for (uint32_t i = 0; i < CountDebugTimers; i++){
+            __dtimer[i] = 0.0;
+        }
 
         assert(stats->Stats == NULL);
         stats->Stats = new StreamStats*[CountMemoryHandlers];
@@ -137,18 +151,15 @@ extern "C" {
     }
 
     void* process_thread_buffer(image_key_t iid, thread_key_t tid){
-        AllData->TakeMutex();
 
 #define DONE_WITH_BUFFER(...)                   \
         BUFFER_CURRENT(stats) = 0;                                      \
         bzero(BUFFER_ENTRY(stats, 1), sizeof(BufferEntry) * BUFFER_CAPACITY(stats)); \
-        AllData->ReleaseMutex();                                        \
         return NULL;
 
         assert(iid);
         if (AllData == NULL){
             ErrorExit("data manager does not exist. no images were initialized", MetasimError_NoImage);
-            AllData->ReleaseMutex();
             return NULL;
         }
 
@@ -157,12 +168,7 @@ extern "C" {
         SimulationStats* stats = (SimulationStats*)AllData->GetData(iid, tid);
         if (stats == NULL){
             ErrorExit("Cannot retreive image data using key " << dec << iid, MetasimError_NoImage);
-            AllData->ReleaseMutex();
             return NULL;
-        }
-
-        if (false){
-            DONE_WITH_BUFFER();
         }
 
         register uint64_t numElements = BUFFER_CURRENT(stats);
@@ -175,122 +181,144 @@ extern "C" {
             << TAB << "Total " << dec << Sampler->AccessCount
               << ENDL);
 
-        if (NonmaxKeys->empty()){
-            DONE_WITH_BUFFER();
+
+        bool isSampling;
+        synchronize(AllData){
+            AllData->SetTimer(iid, tid);
+            isSampling = Sampler->CurrentlySampling();
+            if (NonmaxKeys->empty()){
+                DONE_WITH_BUFFER();
+            }
+            AllData->SetTimer(iid, tid+1);
+            __dtimer[CountMemoryHandlers] += (AllData->GetTimer(iid, tid+1) - AllData->GetTimer(iid, tid));
         }
 
-        bool DidSimulation = false;
-        if (Sampler->CurrentlySampling()){
-            DidSimulation = true;
-
+        if (isSampling){
             BufferEntry* buffer = &(stats->Buffer[1]);
 
             // loop over address buffer
             for (uint32_t i = 0; i < CountMemoryHandlers; i++){
                 register MemoryStreamHandler* m = MemoryHandlers[i];
+
+                AllData->SetTimer(iid, tid+2);
+                synchronize(m){
+                    AllData->SetTimer(iid, tid+3);
+                    for (uint32_t j = 0; j < numElements; j++){
+                        register BufferEntry* reference = BUFFER_ENTRY(stats, j + 1);
+                        
+                        if (reference->imageid == 0){
+                            continue;
+                        }
+
+                        // TODO: this is super slow. could cache it in an array?
+                        register StreamStats* s = AllData->GetData(reference->imageid, reference->threadid)->Stats[i];
+                        debug(inform << "Stats at " << hex << (uint64_t)s << ENDL);
+                        debug(PrintReference(j + 1, reference));
+
+                        m->Process((void*)s, reference);
+                    }
+                    AllData->SetTimer(iid, tid+4);
+                    __dtimer[i] += (AllData->GetTimer(iid, tid+4) - AllData->GetTimer(iid, tid+3));
+                }
+                AllData->SetTimer(iid, tid+5);
+
+                synchronize(AllData){
+                    __dtimer[CountMemoryHandlers+1] += (AllData->GetTimer(iid, tid+5) - AllData->GetTimer(iid, tid+2));
+                }
+            }
+        }
+
+        AllData->SetTimer(iid, tid+6);
+        synchronize(AllData){
+            if (isSampling){
+                set<uint64_t> MemsRemoved;
                 for (uint32_t j = 0; j < numElements; j++){
-                    register BufferEntry* reference = BUFFER_ENTRY(stats, j + 1);
+                    BufferEntry* reference = BUFFER_ENTRY(stats, j + 1);
+                    debug(inform << "Memseq " << dec << reference->memseq << " has " << stats->Stats[0]->GetAccessCount(reference->memseq) << ENDL);
+                    uint32_t bbid = stats->BlockIds[reference->memseq];
 
-                    if (reference->imageid == 0){
-                        continue;
+                    // if max block count is reached, disable all buffer-related points related to this block
+                    uint32_t idx = bbid;
+                    uint32_t midx = bbid;
+                    if (stats->Types[bbid] == CounterType_instruction){
+                        idx = stats->Counters[bbid];
+                    }
+                    if (stats->PerInstruction){
+                        midx = stats->MemopIds[bbid];
                     }
 
-                    // TODO: this is super slow. could cache it in an array?
-                    register StreamStats* s = AllData->GetData(reference->imageid, reference->threadid)->Stats[i];
-                    debug(inform << "Stats at " << hex << (uint64_t)s << ENDL);
-                    debug(PrintReference(j + 1, reference));
+                    debug(inform << "Slot " << dec << j
+                          << TAB << "Thread " << dec << AllData->GetThreadSequence(pthread_self())
+                          << TAB << "BLock " << bbid
+                          << TAB << "Counter " << stats->Counters[bbid]
+                          << TAB << "Real " << stats->Counters[idx]
+                          << ENDL);
 
-                    m->Process((void*)s, reference);
-                }
-            }
+                    if (Sampler->ExceedsAccessLimit(stats->Counters[idx])){
 
-            set<uint64_t> MemsRemoved;
-            for (uint32_t j = 0; j < numElements; j++){
-                BufferEntry* reference = BUFFER_ENTRY(stats, j + 1);
-                debug(inform << "Memseq " << dec << reference->memseq << " has " << stats->Stats[0]->GetAccessCount(reference->memseq) << ENDL);
-                uint32_t bbid = stats->BlockIds[reference->memseq];
+                        uint64_t k1 = GENERATE_KEY(midx, PointType_buffercheck);
+                        uint64_t k2 = GENERATE_KEY(midx, PointType_bufferinc);
+                        uint64_t k3 = GENERATE_KEY(midx, PointType_bufferfill);
 
-                // if max block count is reached, disable all buffer-related points related to this block
-                uint32_t idx = bbid;
-                uint32_t midx = bbid;
-                if (stats->Types[bbid] == CounterType_instruction){
-                    idx = stats->Counters[bbid];
-                }
-                if (stats->PerInstruction){
-                    midx = stats->MemopIds[bbid];
-                }
+                        if (NonmaxKeys->count(k3) > 0){
 
-                debug(inform << "Slot " << dec << j
-                      << TAB << "Thread " << dec << AllData->GetThreadSequence(pthread_self())
-                      << TAB << "BLock " << bbid
-                      << TAB << "Counter " << stats->Counters[bbid]
-                      << TAB << "Real " << stats->Counters[idx]
-                      << ENDL);
+                            PrintBlockData(idx, stats);
+                            PrintBlockData(bbid, stats);
+                            inform << "Slot " << dec << j
+                                   << TAB << "BLock " << bbid
+                                   << TAB << "Counter " << stats->Counters[bbid]
+                                   << TAB << "Real " << stats->Counters[idx]
+                                   << ENDL;
 
-                if (Sampler->ExceedsAccessLimit(stats->Counters[idx])){
+                            if (MemsRemoved.count(k1) == 0){
+                                MemsRemoved.insert(k1);
+                            }
+                            assert(MemsRemoved.count(k1) == 1);
 
-                    uint64_t k1 = GENERATE_KEY(midx, PointType_buffercheck);
-                    uint64_t k2 = GENERATE_KEY(midx, PointType_bufferinc);
-                    uint64_t k3 = GENERATE_KEY(midx, PointType_bufferfill);
+                            if (MemsRemoved.count(k2) == 0){
+                                MemsRemoved.insert(k2);
+                            }
+                            assert(MemsRemoved.count(k2) == 1);
 
-                    if (NonmaxKeys->count(k3) > 0){
+                            if (MemsRemoved.count(k3) == 0){
+                                MemsRemoved.insert(k3);
+                            }
+                            assert(MemsRemoved.count(k3) == 1);
 
-                        PrintBlockData(idx, stats);
-                        PrintBlockData(bbid, stats);
-                        inform << "Slot " << dec << j
-                               << TAB << "BLock " << bbid
-                               << TAB << "Counter " << stats->Counters[bbid]
-                               << TAB << "Real " << stats->Counters[idx]
-                               << ENDL;
-
-                        if (MemsRemoved.count(k1) == 0){
-                            MemsRemoved.insert(k1);
+                            NonmaxKeys->erase(k3);
+                            assert(NonmaxKeys->count(k3) == 0);
                         }
-                        assert(MemsRemoved.count(k1) == 1);
-
-                        if (MemsRemoved.count(k2) == 0){
-                            MemsRemoved.insert(k2);
-                        }
-                        assert(MemsRemoved.count(k2) == 1);
-
-                        if (MemsRemoved.count(k3) == 0){
-                            MemsRemoved.insert(k3);
-                        }
-                        assert(MemsRemoved.count(k3) == 1);
-
-                        NonmaxKeys->erase(k3);
-                        assert(NonmaxKeys->count(k3) == 0);
                     }
                 }
+
+                if (MemsRemoved.size()){
+                    assert(MemsRemoved.size() % 3 == 0);
+                    inform << "REMOVING " << dec << (MemsRemoved.size() / 3) << " blocks" << ENDL;
+                    SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
+                    SetDynamicPoints(&MemsRemoved, false);
+                    ResumeAllThreads();
+                }
+
+                if (Sampler->SwitchesMode(numElements)){
+                    SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
+                    SetDynamicPoints(NonmaxKeys, false);
+                    ResumeAllThreads();
+                }
+
+            } else {
+                if (Sampler->SwitchesMode(numElements)){
+                    SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
+                    SetDynamicPoints(NonmaxKeys, true);
+                    ResumeAllThreads();
+                }
             }
 
-            if (MemsRemoved.size()){
-                assert(MemsRemoved.size() % 3 == 0);
-                inform << "REMOVING " << dec << (MemsRemoved.size() / 3) << " blocks" << ENDL;
-                SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
-                SetDynamicPoints(&MemsRemoved, false);
-                ResumeAllThreads();
-            }
+            Sampler->IncrementAccessCount(numElements);
 
-            if (Sampler->SwitchesMode(numElements)){
-                SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
-                SetDynamicPoints(NonmaxKeys, false);
-                ResumeAllThreads();
-            }
-
-        } else {
-            if (Sampler->SwitchesMode(numElements)){
-                SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
-                SetDynamicPoints(NonmaxKeys, true);
-                ResumeAllThreads();
-            }
+            AllData->SetTimer(iid, tid+7);
+            __dtimer[CountMemoryHandlers+2] += (AllData->GetTimer(iid, tid+7) - AllData->GetTimer(iid, tid+6));
         }
 
-        Sampler->IncrementAccessCount(numElements);
-
-        if (DidSimulation){
-            debug(inform << "Simulated " << dec << numElements << " elements through " << CountCacheStructures << " caches in " << AllData->GetTimer(iid, 3) - AllData->GetTimer(iid, 2) << " seconds " << ENDL);
-        }
         DONE_WITH_BUFFER();
     }
 
@@ -301,6 +329,11 @@ extern "C" {
 
     void* tool_image_fini(image_key_t* key){
         image_key_t iid = *key;
+
+
+        for (uint32_t i = 0; i < CountDebugTimers; i++){
+            inform << "Debug timer " << dec << i << TAB << __dtimer[i] << ENDL;
+        }
 
         AllData->SetTimer(iid, 1);
 
@@ -596,7 +629,7 @@ extern "C" {
         double t = (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0));
         inform << "CXXX Total Execution time for instrumented application: " << t << ENDL;
         double m = (double)(CountCacheStructures * Sampler->AccessCount);
-        inform << "CXXX Memops simulated (excludes sampled memops) per second: " << (m/t) << ENDL;
+        inform << "CXXX Memops simulated (excludes unsampled memops) per second: " << (m/t) << ENDL;
 
         if (NonmaxKeys){
             delete NonmaxKeys;
@@ -1105,6 +1138,7 @@ SamplingMethod::SamplingMethod(uint32_t limit, uint32_t on, uint32_t off){
     SampleOff = off;
 
     AccessCount = 0;
+    lock = PTHREAD_MUTEX_INITIALIZER;
 }
 
 SamplingMethod::~SamplingMethod(){
@@ -1115,7 +1149,9 @@ void SamplingMethod::Print(){
 }
 
 void SamplingMethod::IncrementAccessCount(uint64_t count){
+    pthread_mutex_lock(&lock);
     AccessCount += count;
+    pthread_mutex_unlock(&lock);
 }
 
 bool SamplingMethod::SwitchesMode(uint64_t count){
@@ -1128,20 +1164,26 @@ bool SamplingMethod::CurrentlySampling(){
 
 bool SamplingMethod::CurrentlySampling(uint64_t count){
     uint32_t PeriodLength = SampleOn + SampleOff;
+    bool res = false;
+    pthread_mutex_lock(&lock);
     if (PeriodLength == 0){
-        return true;
+        res = true;
     }
     if ((AccessCount + count) % PeriodLength < SampleOn){
-        return true;
+        res = true;
     }
-    return false;
+    pthread_mutex_unlock(&lock);
+    return res;
 }
 
 bool SamplingMethod::ExceedsAccessLimit(uint64_t count){
+    pthread_mutex_lock(&lock);
+    bool res = false;
     if (AccessLimit > 0 && count > AccessLimit){
-        return true;
+        res = true;
     }
-    return false;
+    pthread_mutex_unlock(&lock);
+    return res;
 }
 
 CacheLevel::CacheLevel(){
@@ -1305,10 +1347,6 @@ uint32_t InclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
     return level + 1;
 }
 
-const char* InclusiveCacheLevel::TypeString(){
-    return "inclusive";
-}
-
 ExclusiveCacheLevel::ExclusiveCacheLevel(uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol, uint32_t firstExcl, uint32_t lastExcl)
     : CacheLevel(lvl, sizeInBytes, assoc, lineSz, pol)
 {
@@ -1380,14 +1418,18 @@ uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
     return level + 1;
 }
 
-const char* ExclusiveCacheLevel::TypeString(){
-    return "exclusive";
-}
-
 MemoryStreamHandler::MemoryStreamHandler(){
     lock = PTHREAD_MUTEX_INITIALIZER;
 }
 MemoryStreamHandler::~MemoryStreamHandler(){
+}
+
+void MemoryStreamHandler::Lock(){
+    pthread_mutex_lock(&lock);
+}
+
+void MemoryStreamHandler::UnLock(){
+    pthread_mutex_unlock(&lock);
 }
 
 CacheStructureHandler::CacheStructureHandler(){
