@@ -218,7 +218,7 @@ public:
 
 class SamplingMethod {
 protected:
-    pthread_mutex_t lock;
+    pthread_mutex_t mlock;
 public:
     uint32_t AccessLimit;
     uint32_t SampleOn;
@@ -300,7 +300,7 @@ public:
 // DFP and other interesting memory things extend this class.
 class MemoryStreamHandler {
 private:
-    pthread_mutex_t lock;
+    pthread_mutex_t mlock;
 public:
     MemoryStreamHandler();
     ~MemoryStreamHandler();
@@ -308,8 +308,9 @@ public:
     virtual void Print() = 0;
     virtual void Process(void* stats, BufferEntry* access) = 0;
     virtual bool Verify() = 0;
-    void Lock();
-    void UnLock();
+    bool Lock();
+    bool UnLock();
+    bool TryLock();
 };
 
 typedef enum {

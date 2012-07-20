@@ -150,6 +150,44 @@ extern "C" {
         return NULL;
     }
 
+    bool ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, uint32_t numElements, SimulationStats* stats, bool force, image_key_t iid, thread_key_t tid){
+        AllData->SetTimer(iid, tid+3);
+
+        // wait for the lock if force == true, otherwise just see if it is unlocked
+        if (force){
+            m->Lock();
+        } else {
+            if (m->TryLock() == false){
+                return false;
+            }
+        }
+        // we have the lock now!
+
+        uint32_t numProcessed = 0;
+        for (uint32_t j = 0; j < numElements; j++){
+            register BufferEntry* reference = BUFFER_ENTRY(stats, j + 1);
+                        
+            if (reference->imageid == 0){
+                continue;
+            }
+
+            // TODO: this is super slow. could cache it in an array?
+            register StreamStats* s = AllData->GetData(reference->imageid, reference->threadid)->Stats[HandlerIdx];
+            debug(inform << "Stats at " << hex << (uint64_t)s << ENDL);
+            debug(PrintReference(j + 1, reference));
+
+            m->Process((void*)s, reference);
+            numProcessed++;
+        }
+
+        AllData->SetTimer(iid, tid+4);
+        __dtimer[HandlerIdx] += (AllData->GetTimer(iid, tid+4) - AllData->GetTimer(iid, tid+3));
+        register StreamStats* s = AllData->GetData(iid, tid)->Stats[HandlerIdx];
+
+        m->UnLock();
+        return true;
+    }
+
     void* process_thread_buffer(image_key_t iid, thread_key_t tid){
 
 #define DONE_WITH_BUFFER(...)                   \
@@ -196,35 +234,40 @@ extern "C" {
         if (isSampling){
             BufferEntry* buffer = &(stats->Buffer[1]);
 
-            // loop over address buffer
+            int Attempts[CountMemoryHandlers];
             for (uint32_t i = 0; i < CountMemoryHandlers; i++){
-                register MemoryStreamHandler* m = MemoryHandlers[i];
+                Attempts[i] = 0;
+            }
 
-                AllData->SetTimer(iid, tid+2);
-                synchronize(m){
-                    AllData->SetTimer(iid, tid+3);
-                    for (uint32_t j = 0; j < numElements; j++){
-                        register BufferEntry* reference = BUFFER_ENTRY(stats, j + 1);
-                        
-                        if (reference->imageid == 0){
-                            continue;
-                        }
-
-                        // TODO: this is super slow. could cache it in an array?
-                        register StreamStats* s = AllData->GetData(reference->imageid, reference->threadid)->Stats[i];
-                        debug(inform << "Stats at " << hex << (uint64_t)s << ENDL);
-                        debug(PrintReference(j + 1, reference));
-
-                        m->Process((void*)s, reference);
+#define PROCESS_DONE (-1)
+#define PROCESS_UNFORCED_ATTEMPTS (8)
+            bool Processing = true;
+            while (Processing){
+                Processing = false;
+                for (uint32_t i = 0; i < CountMemoryHandlers; i++){
+                    if (Attempts[i] == PROCESS_DONE){
+                        continue;
                     }
-                    AllData->SetTimer(iid, tid+4);
-                    __dtimer[i] += (AllData->GetTimer(iid, tid+4) - AllData->GetTimer(iid, tid+3));
-                }
-                AllData->SetTimer(iid, tid+5);
 
-                synchronize(AllData){
-                    __dtimer[CountMemoryHandlers+1] += (AllData->GetTimer(iid, tid+5) - AllData->GetTimer(iid, tid+2));
+                    register MemoryStreamHandler* m = MemoryHandlers[i];
+                    bool force = (Attempts[i] >= PROCESS_UNFORCED_ATTEMPTS);
+
+                    bool res = ProcessBuffer(i, m, numElements, stats, force, iid, tid);
+                    if (res){
+                        Attempts[i] = PROCESS_DONE;
+                    } else {
+                        Attempts[i]++;
+                        Processing = true;
+                    }
+
+                    if (force){
+                        assert(Attempts[i] == PROCESS_DONE);
+                    }
                 }
+            }
+
+            for (uint32_t i = 0; i < CountMemoryHandlers; i++){
+                assert(Attempts[i] == PROCESS_DONE);
             }
         }
 
@@ -1138,7 +1181,7 @@ SamplingMethod::SamplingMethod(uint32_t limit, uint32_t on, uint32_t off){
     SampleOff = off;
 
     AccessCount = 0;
-    lock = PTHREAD_MUTEX_INITIALIZER;
+    mlock = PTHREAD_MUTEX_INITIALIZER;
 }
 
 SamplingMethod::~SamplingMethod(){
@@ -1149,9 +1192,9 @@ void SamplingMethod::Print(){
 }
 
 void SamplingMethod::IncrementAccessCount(uint64_t count){
-    pthread_mutex_lock(&lock);
+    pthread_mutex_lock(&mlock);
     AccessCount += count;
-    pthread_mutex_unlock(&lock);
+    pthread_mutex_unlock(&mlock);
 }
 
 bool SamplingMethod::SwitchesMode(uint64_t count){
@@ -1165,24 +1208,24 @@ bool SamplingMethod::CurrentlySampling(){
 bool SamplingMethod::CurrentlySampling(uint64_t count){
     uint32_t PeriodLength = SampleOn + SampleOff;
     bool res = false;
-    pthread_mutex_lock(&lock);
+    pthread_mutex_lock(&mlock);
     if (PeriodLength == 0){
         res = true;
     }
     if ((AccessCount + count) % PeriodLength < SampleOn){
         res = true;
     }
-    pthread_mutex_unlock(&lock);
+    pthread_mutex_unlock(&mlock);
     return res;
 }
 
 bool SamplingMethod::ExceedsAccessLimit(uint64_t count){
-    pthread_mutex_lock(&lock);
+    pthread_mutex_lock(&mlock);
     bool res = false;
     if (AccessLimit > 0 && count > AccessLimit){
         res = true;
     }
-    pthread_mutex_unlock(&lock);
+    pthread_mutex_unlock(&mlock);
     return res;
 }
 
@@ -1419,17 +1462,21 @@ uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
 }
 
 MemoryStreamHandler::MemoryStreamHandler(){
-    lock = PTHREAD_MUTEX_INITIALIZER;
+    mlock = PTHREAD_MUTEX_INITIALIZER;
 }
 MemoryStreamHandler::~MemoryStreamHandler(){
 }
 
-void MemoryStreamHandler::Lock(){
-    pthread_mutex_lock(&lock);
+bool MemoryStreamHandler::TryLock(){
+    return (pthread_mutex_trylock(&mlock) == 0);
 }
 
-void MemoryStreamHandler::UnLock(){
-    pthread_mutex_unlock(&lock);
+bool MemoryStreamHandler::Lock(){
+    return (pthread_mutex_lock(&mlock) == 0);
+}
+
+bool MemoryStreamHandler::UnLock(){
+    return (pthread_mutex_unlock(&mlock) == 0);
 }
 
 CacheStructureHandler::CacheStructureHandler(){

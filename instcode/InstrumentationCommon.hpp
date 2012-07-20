@@ -421,12 +421,12 @@ public:
     ~DataManager(){
     }
 
-    void Lock(){
-        pthread_mutex_lock(&mutex);
+    bool Lock(){
+        return (pthread_mutex_lock(&mutex) == 0);
     }
 
-    void UnLock(){
-        pthread_mutex_unlock(&mutex);
+    bool UnLock(){
+        return (pthread_mutex_unlock(&mutex) == 0);
     }
 
     // these can only be called correctly by the current thread
