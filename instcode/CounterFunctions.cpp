@@ -107,7 +107,7 @@ void* GenerateCounterArray(void* args, uint32_t typ, image_key_t iid, thread_key
     c->Master = false;
     c->Counters = (uint64_t*)malloc(sizeof(uint64_t) * c->Size);
 
-    // keep all instruction CounterTypes in place
+    // keep all CounterType_instruction in place
     memcpy(c->Counters, ctrs->Counters, sizeof(uint64_t) * c->Size);
     for (uint32_t i = 0; i < c->Size; i++){
         if (c->Types[i] != CounterType_instruction){

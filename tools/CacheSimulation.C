@@ -637,17 +637,23 @@ void CacheSimulation::instrument(){
                             tmpct = CounterType_instruction;
                             temp64 = currentLeader;
                         }
+
                         initializeReservedData(getInstDataAddress() + (uint64_t)stats.Types + memopSeq*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);
                         initializeReservedData(getInstDataAddress() + (uint64_t)stats.Counters + (memopSeq * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
 
                         temp32 = 1;
                         initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopsPerBlock + memopSeq*sizeof(uint32_t), sizeof(uint32_t), &temp32);
+
+                        temp64 = memopSeq;
+                        initializeReservedData(getInstDataAddress() + (uint64_t)stats.BlockIds + memopSeq*sizeof(uint64_t), sizeof(uint64_t), &temp64);
+                        temp64 = blockSeq;
+                        initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopIds + memopSeq*sizeof(uint64_t), sizeof(uint64_t), &temp64);
+                    } else {
+                        temp64 = blockSeq;
+                        initializeReservedData(getInstDataAddress() + (uint64_t)stats.BlockIds + memopSeq*sizeof(uint64_t), sizeof(uint64_t), &temp64);
+                        temp64 = memopIdInBlock;
+                        initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopIds + memopSeq*sizeof(uint64_t), sizeof(uint64_t), &temp64);
                     }
-        
-                    temp64 = blockSeq;
-                    initializeReservedData(getInstDataAddress() + (uint64_t)stats.BlockIds + memopSeq*sizeof(uint64_t), sizeof(uint64_t), &temp64);
-                    temp64 = memopIdInBlock;
-                    initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopIds + memopSeq*sizeof(uint64_t), sizeof(uint64_t), &temp64);
 
                     memopIdInBlock++;
                     memopSeq++;

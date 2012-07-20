@@ -127,7 +127,6 @@ std::map<uint64_t, uint32_t>* InstrumentationTool::threadReadyCode(std::set<Base
         }
 
         if (functionThreading->count(f->getBaseAddress()) == 0){
-            PRINT_INFOR("Inserting threading support for function %s", f->getName());
             (*functionThreading)[f->getBaseAddress()] = instrumentForThreading(f);
         }
     }
