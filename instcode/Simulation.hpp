@@ -217,6 +217,8 @@ public:
 };
 
 class SamplingMethod {
+protected:
+    pthread_mutex_t lock;
 public:
     uint32_t AccessLimit;
     uint32_t SampleOn;
@@ -282,7 +284,7 @@ class InclusiveCacheLevel : public CacheLevel {
 public:
     InclusiveCacheLevel(uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol);
     uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info);
-    const char* TypeString();
+    const char* TypeString() { return "inclusive"; }
 };
 
 class ExclusiveCacheLevel : public CacheLevel {
@@ -292,7 +294,7 @@ public:
 
     ExclusiveCacheLevel(uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol, uint32_t firstExcl, uint32_t lastExcl);
     uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info);
-    const char* TypeString();
+    const char* TypeString() { return "exclusive"; }
 };
 
 // DFP and other interesting memory things extend this class.
@@ -306,6 +308,8 @@ public:
     virtual void Print() = 0;
     virtual void Process(void* stats, BufferEntry* access) = 0;
     virtual bool Verify() = 0;
+    void Lock();
+    void UnLock();
 };
 
 typedef enum {
