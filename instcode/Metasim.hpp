@@ -49,6 +49,51 @@ static const char* CounterTypeNames[CounterType_total] = {
     "function"
 };
 
+typedef struct {
+    uint64_t    address;
+    uint64_t    memseq;
+    uint64_t    imageid;
+    uint64_t    threadid;
+} BufferEntry;
+#define __buf_current  address
+#define __buf_capacity memseq
+
+class StreamStats;
+typedef struct {
+    // memory buffer
+    BufferEntry* Buffer;
+
+    // metadata
+    pthread_t threadid;
+    pthread_key_t imageid;
+    bool Initialized;
+    bool PerInstruction;
+    bool Master;
+    uint32_t Phase;
+    uint32_t InstructionCount;
+    uint32_t BlockCount;
+    char* Application;
+    char* Extension;
+
+    // per-memop data
+    uint64_t* BlockIds;
+    uint64_t* MemopIds;
+
+    // per-block data
+    CounterTypes* Types;
+    uint64_t* Counters;
+    uint32_t* MemopsPerBlock;
+    char** Files;
+    uint32_t* Lines;
+    char** Functions;
+    uint64_t* Hashes;
+    uint64_t* Addresses;
+    StreamStats** Stats;
+} SimulationStats;
+#define BUFFER_ENTRY(__stats, __n) (&(__stats->Buffer[__n]))
+#define BUFFER_CAPACITY(__stats) (__stats->Buffer[0].__buf_capacity)
+#define BUFFER_CURRENT(__stats) (__stats->Buffer[0].__buf_current)
+
 typedef enum {
     PointType_undefined = 0,
     PointType_blockcount,

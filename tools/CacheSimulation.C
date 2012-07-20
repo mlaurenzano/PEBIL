@@ -30,8 +30,6 @@
 #include <TextSection.h>
 #include <DFPattern.h>
 
-#include <Simulation.hpp>
-
 #define ENTRY_FUNCTION "tool_image_init"
 #define SIM_FUNCTION "process_buffer"
 #define EXIT_FUNCTION "tool_image_fini"

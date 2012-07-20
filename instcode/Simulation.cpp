@@ -39,6 +39,8 @@
 #include <InstrumentationCommon.hpp>
 #include <Simulation.hpp>
 
+static uint32_t MinimumHighAssociativity = 256;
+
 static uint32_t CountMemoryHandlers = 0;
 #define CountCacheStructures (CountMemoryHandlers - 1)
 #define RangeHandlerIndex (CountMemoryHandlers - 1)
@@ -1248,7 +1250,7 @@ bool SamplingMethod::ExceedsAccessLimit(uint64_t count){
 CacheLevel::CacheLevel(){
 }
 
-CacheLevel::CacheLevel(uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol){
+void CacheLevel::Init(CacheLevel_Constructor_Interface){
     level = lvl;
     size = sizeInBytes;
     associativity = assoc;
@@ -1275,6 +1277,27 @@ CacheLevel::CacheLevel(uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint3
     if (replpolicy == ReplacementPolicy_nmru){
         recentlyUsed = new uint32_t[countsets];
         memset(recentlyUsed, 0, sizeof(uint32_t) * countsets);
+    }
+}
+
+void HighlyAssociativeCacheLevel::Init(CacheLevel_Constructor_Interface)
+{
+    assert(associativity >= MinimumHighAssociativity);
+    fastcontents = new unordered_map<uint64_t, uint32_t>*[countsets];
+    for (uint32_t i = 0; i < countsets; i++){
+        fastcontents[i] = new unordered_map<uint64_t, uint32_t>();
+        fastcontents[i]->clear();
+    }
+}
+
+HighlyAssociativeCacheLevel::~HighlyAssociativeCacheLevel(){
+    if (fastcontents){
+        for (uint32_t i = 0; i < countsets; i++){
+            if (fastcontents[i]){
+                delete fastcontents[i];
+            }
+        }
+        delete[] fastcontents;
     }
 }
 
@@ -1340,6 +1363,21 @@ uint32_t CacheLevel::LineToReplace(uint32_t setid){
     return 0;
 }
 
+uint64_t HighlyAssociativeCacheLevel::Replace(uint64_t addr, uint32_t setid, uint32_t lineid){
+    uint64_t prev = contents[setid][lineid];
+    contents[setid][lineid] = addr;
+
+    unordered_map<uint64_t, uint32_t>* fastset = fastcontents[setid];
+    if (fastset->count(prev) > 0){
+        //assert((*fastset)[prev] == lineid);
+        fastset->erase(prev);
+    }
+    (*fastset)[addr] = lineid;
+
+    MarkUsed(setid, lineid);
+    return prev;
+}
+
 uint64_t CacheLevel::Replace(uint64_t addr, uint32_t setid, uint32_t lineid){
     uint64_t prev = contents[setid][lineid];
     contents[setid][lineid] = addr;
@@ -1352,6 +1390,24 @@ inline void CacheLevel::MarkUsed(uint32_t setid, uint32_t lineid){
         debug(inform << "level " << dec << level << " USING set " << dec << setid << " line " << lineid << ENDL << flush);
         recentlyUsed[setid] = lineid;
     }
+}
+
+bool HighlyAssociativeCacheLevel::Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet){
+    uint32_t setId = GetSet(addr);
+    debug(inform << TAB << TAB << "stored " << hex << addr << " set " << dec << setId << endl << flush);
+    if (set){
+        (*set) = setId;
+    }
+
+    unordered_map<uint64_t, uint32_t>* fastset = fastcontents[setId];
+    if (fastset->count(addr) > 0){
+        if (lineInSet){
+            (*lineInSet) = (*fastset)[addr];
+        }
+        return true;
+    }
+
+    return false;
 }
 
 bool CacheLevel::Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet){
@@ -1371,6 +1427,7 @@ bool CacheLevel::Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet){
             return true;
         }
     }
+
     return false;
 }
 
@@ -1379,13 +1436,7 @@ bool CacheLevel::MultipleLines(uint64_t addr, uint32_t width){
     return false;
 }
 
-InclusiveCacheLevel::InclusiveCacheLevel(uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol)
-    : CacheLevel(lvl, sizeInBytes, assoc, lineSz, pol)
-{
-    type = CacheLevelType_Inclusive;
-}
-
-uint32_t InclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info){
+uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info){
     uint32_t set = 0, lineInSet = 0;
     uint64_t store = GetStorage(addr);
     debug(inform << TAB << "level " << dec << level << endl << flush);
@@ -1404,14 +1455,6 @@ uint32_t InclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
     stats->Stats[memid][level].missCount++;
     Replace(store, set, LineToReplace(set));
     return level + 1;
-}
-
-ExclusiveCacheLevel::ExclusiveCacheLevel(uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol, uint32_t firstExcl, uint32_t lastExcl)
-    : CacheLevel(lvl, sizeInBytes, assoc, lineSz, pol)
-{
-    type = CacheLevelType_Exclusive;
-    FirstExclusive = firstExcl;
-    LastExclusive = lastExcl;
 }
 
 uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info){
@@ -1522,7 +1565,7 @@ bool CacheStructureHandler::Verify(){
     ExclusiveCacheLevel* firstvc = NULL;
     for (uint32_t i = 0; i < levelCount; i++){
         if (levels[i]->GetType() == CacheLevelType_Exclusive){
-            firstvc = (ExclusiveCacheLevel*)levels[i];
+            firstvc = dynamic_cast<ExclusiveCacheLevel*>(levels[i]);
             break;
         }
     }
@@ -1544,7 +1587,6 @@ bool CacheStructureHandler::Verify(){
             }
         }
     }
-
     return passes;
 }
 
@@ -1621,13 +1663,31 @@ bool CacheStructureHandler::Init(string desc){
             }
 
             // create cache
-            if (firstExcl != INVALID_CACHE_LEVEL){
-                levels[levelId] = new ExclusiveCacheLevel(levelId, cacheValues[0], cacheValues[1], cacheValues[2], repl, firstExcl, levelCount - 1);
+            uint32_t sizeInBytes = cacheValues[0];
+            uint32_t assoc = cacheValues[1];
+            uint32_t lineSize = cacheValues[2];
+            if (assoc >= MinimumHighAssociativity){
+                if (firstExcl != INVALID_CACHE_LEVEL){
+                    HighlyAssociativeExclusiveCacheLevel* l = new HighlyAssociativeExclusiveCacheLevel();
+                    l->Init(levelId, sizeInBytes, assoc, lineSize, repl, firstExcl, levelCount - 1);
+                    levels[levelId] = (CacheLevel*)l;
+                } else {
+                    HighlyAssociativeInclusiveCacheLevel* l = new HighlyAssociativeInclusiveCacheLevel();
+                    l->Init(levelId, sizeInBytes, assoc, lineSize, repl);
+                    levels[levelId] = (CacheLevel*)l;
+                }
             } else {
-                levels[levelId] = new InclusiveCacheLevel(levelId, cacheValues[0], cacheValues[1], cacheValues[2], repl);
+                if (firstExcl != INVALID_CACHE_LEVEL){
+                    ExclusiveCacheLevel* l = new ExclusiveCacheLevel();
+                    l->Init(levelId, sizeInBytes, assoc, lineSize, repl, firstExcl, levelCount - 1);
+                    levels[levelId] = l;
+                } else {
+                    InclusiveCacheLevel* l = new InclusiveCacheLevel();
+                    l->Init(levelId, sizeInBytes, assoc, lineSize, repl);
+                    levels[levelId] = l;
+                }
             }
         }
-
     }
 
     if (whichTok != levelCount * 4 + 2){
