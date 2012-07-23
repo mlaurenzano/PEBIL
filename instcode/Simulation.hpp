@@ -23,7 +23,6 @@
 
 #include <string>
 #include <unordered_map>
-#include <DFPattern.h>
 #include <Metasim.hpp>
 
 using namespace std;
@@ -71,18 +70,6 @@ struct EvictionInfo {
     uint32_t setid;
     uint32_t lineid;
 };
-
-typedef struct {
-    uint64_t       minAddress;
-    uint64_t       maxAddress;
-} DFPatternRange;
-
-typedef struct {
-    void*           basicBlock; // points to BB info?
-    DFPatternType   type;
-    uint64_t        rangeCnt;
-    DFPatternRange* ranges;
-} DFPatternInfo;
 
 struct LevelStats {
     uint64_t hitCount;
@@ -170,8 +157,10 @@ public:
     bool HasMemId(uint32_t memid);
     uint64_t GetMinimum(uint32_t memid);
     uint64_t GetMaximum(uint32_t memid);
+    uint64_t GetAccessCount(uint32_t memid) { return Counts[memid]; }
 
     void Update(uint32_t memid, uint64_t addr);
+    void Update(uint32_t memid, uint64_t addr, uint32_t count);
 };
 
 class SamplingMethod {

@@ -28,7 +28,6 @@
 #include <LineInformation.h>
 #include <Loop.h>
 #include <TextSection.h>
-#include <DFPattern.h>
 
 #define ENTRY_FUNCTION "tool_image_init"
 #define SIM_FUNCTION "process_buffer"
@@ -42,17 +41,6 @@ extern "C" {
     InstrumentationTool* CacheSimulationMaker(ElfFile* elf){
         return new CacheSimulation(elf);
     }
-}
-
-DFPatternType convertDFPatternType(char* patternString){
-    if(!strcmp(patternString,"dfTypePattern_Gather")){
-        return dfTypePattern_Gather;
-    } else if(!strcmp(patternString,"dfTypePattern_Scatter")){
-        return dfTypePattern_Scatter;
-    } else if(!strcmp(patternString,"dfTypePattern_FunctionCallGS")){
-        return dfTypePattern_FunctionCallGS;
-    }
-    return dfTypePattern_undefined;
 }
 
 void CacheSimulation::filterBBs(){
@@ -78,7 +66,19 @@ void CacheSimulation::filterBBs(){
 #else //STATS_PER_INSTRUCTION
         if(!hashCode->isBlock()){
 #endif //STATS_PER_INSTRUCTION
-            PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, inputFile);
+
+            err = sscanf((*fileLines)[i], "%llx", &inputHash);
+            if(err <= 0){
+                PRINT_ERROR("Line %d of %s has a wrong format", i+1, inputFile);
+            }
+            hashCode = new HashCode(inputHash);
+#ifdef STATS_PER_INSTRUCTION
+            if(!hashCode->isBlock() && !hashCode->isInstruction()){
+#else //STATS_PER_INSTRUCTION
+            if(!hashCode->isBlock()){
+#endif //STATS_PER_INSTRUCTION
+                PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, inputFile);
+            }
         }
         BasicBlock* bb = findExposedBasicBlock(*hashCode);
         delete hashCode;
@@ -116,60 +116,6 @@ void CacheSimulation::filterBBs(){
             blocksToInst.insert(bb->getHashCode().getValue(), bb);
         }
     }
-
-    if (dfpFile){
-
-        Vector<char*>* dfpFileLines = new Vector<char*>();
-        initializeFileList(dfpFile, dfpFileLines);
-
-        ASSERT(!dfpSet.size());
-
-        for (uint32_t i = 0; i < dfpFileLines->size(); i++){
-            PRINT_INFOR("dfp line %d: %s", i, (*dfpFileLines)[i]);
-
-            uint64_t id = 0;
-            char patternString[__MAX_STRING_SIZE];
-            int32_t err = sscanf((*dfpFileLines)[i], "%lld %s", &id, patternString);
-            if(err <= 0){
-                PRINT_ERROR("Line %d of %s has a wrong format", i+1, dfpFile);
-            }
-            DFPatternType dfpType = convertDFPatternType(patternString);
-            if(dfpType == dfTypePattern_undefined){
-                PRINT_ERROR("Line %d of %s is a wrong pattern type [%s]", i+1, dfpFile, patternString);
-            } else {
-                PRINT_INFOR("found valid pattern %s -> %d", patternString, dfpType);
-            }
-            HashCode hashCode(id);
-#ifdef STATS_PER_INSTRUCTION
-            if(!hashCode.isInstruction()){
-#else //STATS_PER_INSTRUCTION
-            if(!hashCode.isBlock()){
-#endif //STATS_PER_INSTRUCTION
-                PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, dfpFile);
-            }
-
-            // if the bb is not in the list already but is a valid block, include it!
-            BasicBlock* bb = findExposedBasicBlock(hashCode);
-            if(!bb){
-                PRINT_ERROR("Line %d of %s is not a valid basic block id", i+1, dfpFile);
-                continue;
-            }
-            blocksToInst.insert(bb->getHashCode().getValue(), bb);
-
-            if (dfpType != dfTypePattern_None){
-                dfpSet.insert(bb->getHashCode().getValue(), dfpType);
-            }
-        }
-
-        for (uint32_t i = 0; i < dfpFileLines->size(); i++){
-            delete[] (*dfpFileLines)[i];
-        }
-
-        delete dfpFileLines;
-
-        PRINT_INFOR("**** Number of basic blocks tagged for DFPattern %d (out of %d) ******",
-                    dfpSet.size(), blocksToInst.size());
-    }
 }
 
 CacheSimulation::CacheSimulation(ElfFile* elf)
@@ -204,6 +150,10 @@ void CacheSimulation::declare(){
 void CacheSimulation::instrument(){
     InstrumentationTool::instrument();
     filterBBs();
+
+    if (dfpFile){
+        PRINT_WARN(20, "--dfp is an accepted argument but it does nothing. range finding is done for every block included in the simulation by default");
+    }
 
     uint32_t temp32;
     uint64_t temp64;
@@ -325,7 +275,6 @@ void CacheSimulation::instrument(){
 
     simFunc->addArgument(imageKey);
 
-    // TODO: wipe all FP stuff from process_buffer and things it calls, then enable this
     //simFunc->assumeNoFunctionFP();
     exitFunc->addArgument(imageKey);
 

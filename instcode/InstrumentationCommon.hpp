@@ -49,6 +49,9 @@
 
 using namespace std;
 
+// planning on disabling this around summer/fall 2013.
+#define LEGACY_METASIM_SUPPORT
+
 // thread id support
 typedef struct {
     uint64_t id;
@@ -194,8 +197,6 @@ extern "C" {
             return;
         }
 
-        inform << "Thread " << hex << pthread_self() << " suspending " << dec << (size - 1) << " other threads" << ENDL;
-
         pthread_mutex_lock(&pauser);
         assert(CountSuspended == 0);
 
@@ -216,8 +217,6 @@ extern "C" {
         if (!CanSuspend){
             return;
         }
-
-        inform << "Thread " << hex << pthread_self() << " resuming " << dec << CountSuspended << " other threads" << ENDL;
 
         pthread_mutex_unlock(&pauser);
 
@@ -330,7 +329,7 @@ static void AppendLegacyTasksString(string& str){
 // data management support
 #define DataMap std::unordered_map
 
-template <class T = void*> class DataManager {
+template <class T> class DataManager {
 private:
     pthread_mutex_t mutex;
 
@@ -565,6 +564,106 @@ public:
     }
 };
 
+template <class T, class V> class FastData {
+private:
+    uint32_t threadcount;
+    uint32_t imagecount;
+    uint32_t capacity;
+    DataManager<T>* alldata;
+    void (*dataid)(V, image_key_t*, thread_key_t*);
+
+    // [i][j]
+    // i == thread id
+    // j == buffer index
+    T** stats;
+
+public:
+    FastData(void (*di)(V, image_key_t*, thread_key_t*), DataManager<T>* all, uint32_t cap){
+        dataid = di;
+
+        threadcount = 1;
+        imagecount = 1;
+
+        capacity = cap;
+
+        alldata = all;
+        assert(alldata->CountThreads() == 1);
+        assert(alldata->CountImages() == 1);
+
+        stats = new T*[threadcount];
+        stats[0] = new T[capacity];
+        for (uint32_t i = 0; i < capacity; i++){
+            stats[0][i] = alldata->GetData();
+        }
+    }
+
+    ~FastData(){
+        if (stats){
+            for (uint32_t i = 0; i < threadcount; i++){
+                delete[] stats[i];
+            }
+            delete[] stats;
+        }
+    }
+
+    void AddThread(thread_key_t tid){
+        T** tmp = new T*[threadcount + 1];
+        for (uint32_t i = 0; i < threadcount + 1; i++){
+            tmp[i] = new T[capacity];
+
+            if (imagecount == 1){
+                if (i == threadcount){
+                    T s = alldata->GetData();
+                    image_key_t iid = s->imageid;
+                    for (uint32_t j = 0; j < capacity; j++){
+                        tmp[i][j] = alldata->GetData(iid, tid);
+                    }
+                } else {
+                    memcpy(tmp[i], stats[i], sizeof(T) * capacity);
+                    delete[] stats[i];
+                }
+            }
+        }
+
+        delete[] stats;
+        stats = tmp;
+
+        threadcount++;
+    }
+
+    void AddImage(){
+        imagecount++;
+    }
+
+    void Refresh(V buffer, thread_key_t tid){
+        assert(imagecount > 0);
+        assert(threadcount > 0);
+
+        uint32_t threadseq = alldata->GetThreadSequence(tid);
+        assert(threadseq < threadcount);
+
+        image_key_t i;
+        thread_key_t t;
+        for (uint32_t j = 0; j < capacity; j++, buffer++){
+            dataid(buffer, &i, &t);
+            if (alldata->allimages.count(i) == 0){
+                continue;
+            }
+            assert(tid == t);
+            stats[threadseq][j] = alldata->GetData(i, t);
+        }
+    };
+
+    T* GetBufferStats(thread_key_t tid){
+        assert(imagecount > 0);
+        assert(threadcount > 0);
+
+        uint32_t threadseq = alldata->GetThreadSequence(tid);
+        assert(threadseq < threadcount);
+
+        return stats[threadseq];
+    }
+};
 
 // support for MPI wrapping
 static bool MpiValid = false;

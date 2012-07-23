@@ -387,6 +387,7 @@ extern "C"
             }
         }
 
+#ifdef LEGACY_METASIM_SUPPORT
         // also print in old format if only 1 thread and 1 image
         if (AllData->CountThreads() == 1 && AllData->CountImages() == 1){
 
@@ -409,7 +410,10 @@ extern "C"
                 }
             }
 
-            inform << dec << countBlocks << " blocks; printing those with at least " << PRINT_MINIMUM << " executions to file " << outFileName << ENDL;
+            if (ctrs->PerInstruction){
+                warn << "You are using per-instruction mode. LEGACY files in this mode are unreliable" << ENDL;
+            }
+            inform << "[LEGACY]" << dec << countBlocks << " blocks; printing those with at least " << PRINT_MINIMUM << " executions to file " << outFileName << ENDL;
         
             fprintf(outFile, "# appname   = %s\n", ctrs->Application);
             fprintf(outFile, "# extension = %s\n", ctrs->Extension);
@@ -435,7 +439,7 @@ extern "C"
                 exit(-1);
             }
         
-            inform << dec << countLoops << " loops; printing those with at least " << PRINT_MINIMUM << " executions to file " << outFileName << ENDL;
+            inform << "[LEGACY]" << dec << countLoops << " loops; printing those with at least " << PRINT_MINIMUM << " executions to file " << outFileName << ENDL;
 
             fprintf(outFile, "# appname   = %s\n", ctrs->Application);
             fprintf(outFile, "# extension = %s\n", ctrs->Extension);
@@ -452,6 +456,7 @@ extern "C"
             fflush(outFile);
             fclose(outFile);
         }
+#endif // LEGACY_METASIM_SUPPORT
 
         inform << "cxxx Total Execution time for image " << ctrs->Application << ": " << (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)) << " seconds" << ENDL;
         return NULL;

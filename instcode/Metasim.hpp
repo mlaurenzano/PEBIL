@@ -174,7 +174,7 @@ static void SetDynamicPoints(std::set<uint64_t>* keys, bool state){
             }
         }
     }
-    std::cout << "Thread " << std::hex << pthread_self() << " switched " << std::dec << count << " to " << (state? "on" : "off") << std::endl;
+    debug(std::cout << "Thread " << std::hex << pthread_self() << " switched " << std::dec << count << " to " << (state? "on" : "off") << std::endl);
     debug(PrintDynamicPoints());
 }
 
