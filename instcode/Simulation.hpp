@@ -41,8 +41,10 @@ using namespace std;
 
 enum CacheLevelType {
     CacheLevelType_Undefined,
-    CacheLevelType_Inclusive,
-    CacheLevelType_Exclusive,
+    CacheLevelType_InclusiveLowassoc,
+    CacheLevelType_ExclusiveLowassoc,
+    CacheLevelType_InclusiveHighassoc,
+    CacheLevelType_ExclusiveHighassoc,
     CacheLevelType_Total
 };
 
@@ -195,8 +197,8 @@ public:
 };
 
 #define USES_MARKERS(__pol) (__pol == ReplacementPolicy_nmru)
-#define CacheLevel_Constructor_Interface uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol
-#define CacheLevel_Constructor_Arguments lvl, sizeInBytes, assoc, lineSz, pol
+#define CacheLevel_Init_Interface uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol
+#define CacheLevel_Init_Arguments lvl, sizeInBytes, assoc, lineSz, pol
 
 class CacheLevel {
 protected:
@@ -219,9 +221,15 @@ public:
     CacheLevel();
     ~CacheLevel();
 
-    CacheLevelType GetType();
-    uint32_t GetLevel();
-    uint32_t GetSetCount();
+    bool IsExclusive() { return (type == CacheLevelType_ExclusiveLowassoc || type == CacheLevelType_ExclusiveHighassoc); }
+
+    CacheLevelType GetType() { return type; }
+    ReplacementPolicy GetReplacementPolicy() { return replpolicy; }
+    uint32_t GetLevel() { return level; }
+    uint32_t GetSizeInBytes() { return size; }
+    uint32_t GetAssociativity() { return associativity; }
+    uint32_t GetSetCount() { return countsets; }
+    uint32_t GetLineSize() { return linesize; }
     uint64_t CountColdMisses();
 
     uint64_t GetStorage(uint64_t addr);
@@ -239,16 +247,16 @@ public:
     // re-implemented by Exclusive/InclusiveCacheLevel
     virtual uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info);
     virtual const char* TypeString() = 0;
-    virtual void Init (CacheLevel_Constructor_Interface);
+    virtual void Init (CacheLevel_Init_Interface);
 };
 
 class InclusiveCacheLevel : public virtual CacheLevel {
 public:
     InclusiveCacheLevel() {}
 
-    virtual void Init (CacheLevel_Constructor_Interface){
-        CacheLevel::Init(CacheLevel_Constructor_Arguments);
-        type = CacheLevelType_Inclusive;
+    virtual void Init (CacheLevel_Init_Interface){
+        CacheLevel::Init(CacheLevel_Init_Arguments);
+        type = CacheLevelType_InclusiveLowassoc;
     }
     virtual const char* TypeString() { return "inclusive"; }
 };
@@ -260,9 +268,9 @@ public:
 
     ExclusiveCacheLevel() {}
     uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info);
-    virtual void Init (CacheLevel_Constructor_Interface, uint32_t firstExcl, uint32_t lastExcl){
-        CacheLevel::Init(CacheLevel_Constructor_Arguments);
-        type = CacheLevelType_Exclusive;
+    virtual void Init (CacheLevel_Init_Interface, uint32_t firstExcl, uint32_t lastExcl){
+        CacheLevel::Init(CacheLevel_Init_Arguments);
+        type = CacheLevelType_ExclusiveLowassoc;
         FirstExclusive = firstExcl;
         LastExclusive = lastExcl;
     }
@@ -279,15 +287,16 @@ public:
 
     bool Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet);
     uint64_t Replace(uint64_t addr, uint32_t setid, uint32_t lineid);
-    virtual void Init (CacheLevel_Constructor_Interface);
+    virtual void Init (CacheLevel_Init_Interface);
 };
 
 class HighlyAssociativeInclusiveCacheLevel : public InclusiveCacheLevel, public HighlyAssociativeCacheLevel {
 public:
     HighlyAssociativeInclusiveCacheLevel() {}
-    virtual void Init (CacheLevel_Constructor_Interface){
-        InclusiveCacheLevel::Init(CacheLevel_Constructor_Arguments);
-        HighlyAssociativeCacheLevel::Init(CacheLevel_Constructor_Arguments);
+    virtual void Init (CacheLevel_Init_Interface){
+        InclusiveCacheLevel::Init(CacheLevel_Init_Arguments);
+        HighlyAssociativeCacheLevel::Init(CacheLevel_Init_Arguments);
+        type = CacheLevelType_InclusiveHighassoc;
     }
     const char* TypeString() { return "inclusive_H"; }
 };
@@ -295,16 +304,17 @@ public:
 class HighlyAssociativeExclusiveCacheLevel : public ExclusiveCacheLevel, public HighlyAssociativeCacheLevel {
 public:
     HighlyAssociativeExclusiveCacheLevel() {}
-    virtual void Init (CacheLevel_Constructor_Interface, uint32_t firstExcl, uint32_t lastExcl){
-        ExclusiveCacheLevel::Init(CacheLevel_Constructor_Arguments, firstExcl, lastExcl);
-        HighlyAssociativeCacheLevel::Init(CacheLevel_Constructor_Arguments);
+    virtual void Init (CacheLevel_Init_Interface, uint32_t firstExcl, uint32_t lastExcl){
+        ExclusiveCacheLevel::Init(CacheLevel_Init_Arguments, firstExcl, lastExcl);
+        HighlyAssociativeCacheLevel::Init(CacheLevel_Init_Arguments);
+        type = CacheLevelType_ExclusiveHighassoc;
     }
     const char* TypeString() { return "exclusive_H"; }
 };
 
 // DFP and other interesting memory things extend this class.
 class MemoryStreamHandler {
-private:
+protected:
     pthread_mutex_t mlock;
 public:
     MemoryStreamHandler();
@@ -328,6 +338,7 @@ typedef enum {
 class AddressRangeHandler : public MemoryStreamHandler {
 public:
     AddressRangeHandler();
+    AddressRangeHandler(AddressRangeHandler& h);
     ~AddressRangeHandler();
 
     void Print();
@@ -347,6 +358,7 @@ public:
     // thread level and is therefore done in ThreadData
 
     CacheStructureHandler();
+    CacheStructureHandler(CacheStructureHandler& h);
     ~CacheStructureHandler();
     bool Init(string desc);
 

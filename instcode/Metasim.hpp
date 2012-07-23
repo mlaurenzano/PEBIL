@@ -59,13 +59,14 @@ typedef struct {
 #define __buf_capacity memseq
 
 class StreamStats;
+class MemoryStreamHandler;
 typedef struct {
     // memory buffer
     BufferEntry* Buffer;
 
     // metadata
-    pthread_t threadid;
-    pthread_key_t imageid;
+    thread_key_t threadid;
+    image_key_t imageid;
     bool Initialized;
     bool PerInstruction;
     bool Master;
@@ -89,6 +90,7 @@ typedef struct {
     uint64_t* Hashes;
     uint64_t* Addresses;
     StreamStats** Stats;
+    MemoryStreamHandler** Handlers;
 } SimulationStats;
 #define BUFFER_ENTRY(__stats, __n) (&(__stats->Buffer[__n]))
 #define BUFFER_CAPACITY(__stats) (__stats->Buffer[0].__buf_capacity)

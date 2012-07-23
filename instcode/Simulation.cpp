@@ -40,18 +40,17 @@
 #include <Simulation.hpp>
 
 static uint32_t MinimumHighAssociativity = 256;
-
 static uint32_t CountMemoryHandlers = 0;
 #define CountCacheStructures (CountMemoryHandlers - 1)
 #define RangeHandlerIndex (CountMemoryHandlers - 1)
 
-static MemoryStreamHandler** MemoryHandlers = NULL;
 static SamplingMethod* Sampler = NULL;
+static MemoryStreamHandler** MemoryHandlers = NULL;
 static DataManager<SimulationStats*>* AllData = NULL;
 
 static set<uint64_t>* NonmaxKeys = NULL;
 
-#define synchronize(__locker) __locker->Lock(); for (bool syncbool = true; syncbool == true; __locker->UnLock(), syncbool=false) 
+#define synchronize(__locker) __locker->Lock(); for (bool __s = true; __s == true; __locker->UnLock(), __s = false) 
 
 void PrintReference(uint32_t id, BufferEntry* ref){
     inform 
@@ -77,9 +76,6 @@ void PrintBlockData(uint32_t id, SimulationStats* s){
         << TAB << hex << s->Addresses[id]
         << ENDL;
 }
-
-static double* __dtimer;
-#define CountDebugTimers (CountMemoryHandlers + 3)
 
 extern "C" {
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
@@ -138,17 +134,18 @@ extern "C" {
 
         ReadSettings();
 
-        __dtimer = new double[CountDebugTimers];
-        for (uint32_t i = 0; i < CountDebugTimers; i++){
-            __dtimer[i] = 0.0;
-        }
-
         assert(stats->Stats == NULL);
         stats->Stats = new StreamStats*[CountMemoryHandlers];
+        stats->Handlers = new MemoryStreamHandler*[CountMemoryHandlers];
         for (uint32_t i = 0; i < CountCacheStructures; i++){
-            CacheStructureHandler* c = (CacheStructureHandler*)MemoryHandlers[i];
+            CacheStructureHandler* p = (CacheStructureHandler*)MemoryHandlers[i];
+            CacheStructureHandler* c = new CacheStructureHandler(*p);
+            stats->Handlers[i] = c;
             stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->InstructionCount);
         }
+        AddressRangeHandler* p = (AddressRangeHandler*)MemoryHandlers[RangeHandlerIndex];
+        AddressRangeHandler* r = new AddressRangeHandler(*p);
+        stats->Handlers[RangeHandlerIndex] = r;
         stats->Stats[RangeHandlerIndex] = new RangeStats(stats->InstructionCount);
 
         assert(stats->Initialized == true);
@@ -164,42 +161,21 @@ extern "C" {
         return NULL;
     }
 
-    bool TryProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, uint32_t numElements, SimulationStats* stats, bool force, image_key_t iid, thread_key_t tid){
-        AllData->SetTimer(iid, tid+3);
-
-        // wait for the lock if force == true, otherwise just see if it is unlocked
-        if (force){
-            m->Lock();
-        } else {
-            if (m->TryLock() == false){
-                return false;
-            }
-        }
-        // we have the lock now!
-
+    void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, uint32_t numElements, SimulationStats* stats, image_key_t iid, thread_key_t tid){
+        uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
 
         for (uint32_t j = 0; j < numElements; j++){
             register BufferEntry* reference = BUFFER_ENTRY(stats, j + 1);
-                        
             if (reference->imageid == 0){
                 continue;
             }
 
-            // TODO: this is super slow. need to speed it up somehow?
-            register StreamStats* s = AllData->GetData(reference->imageid, reference->threadid)->Stats[HandlerIdx];
-            debug(inform << "Stats at " << hex << (uint64_t)s << ENDL);
-            debug(PrintReference(j + 1, reference));
-
+            SimulationStats* stats = AllData->GetData(reference->imageid, reference->threadid);
+            StreamStats* s = stats->Stats[HandlerIdx];
             m->Process((void*)s, reference);
             numProcessed++;
         }
-
-        AllData->SetTimer(iid, tid+4);
-        __dtimer[HandlerIdx] += (AllData->GetTimer(iid, tid+4) - AllData->GetTimer(iid, tid+3));
-
-        m->UnLock();
-        return true;
     }
 
     void* process_thread_buffer(image_key_t iid, thread_key_t tid){
@@ -225,6 +201,7 @@ extern "C" {
 
         register uint64_t numElements = BUFFER_CURRENT(stats);
         uint64_t capacity = BUFFER_CAPACITY(stats);
+        uint32_t threadSeq = AllData->GetThreadSequence(tid);
 
         debug(inform 
             << "Thread " << dec << AllData->GetThreadSequence(tid)
@@ -236,57 +213,21 @@ extern "C" {
 
         bool isSampling;
         synchronize(AllData){
-            AllData->SetTimer(iid, tid);
             isSampling = Sampler->CurrentlySampling();
             if (NonmaxKeys->empty()){
                 AllData->UnLock();
                 DONE_WITH_BUFFER();
             }
-            AllData->SetTimer(iid, tid+1);
-            __dtimer[CountMemoryHandlers] += (AllData->GetTimer(iid, tid+1) - AllData->GetTimer(iid, tid));
         }
 
         if (isSampling){
             BufferEntry* buffer = &(stats->Buffer[1]);
-
-            int Attempts[CountMemoryHandlers];
             for (uint32_t i = 0; i < CountMemoryHandlers; i++){
-                Attempts[i] = 0;
-            }
-
-#define PROCESS_DONE (-1)
-#define PROCESS_UNFORCED_ATTEMPTS (8)
-            bool Processing = true;
-            while (Processing){
-                Processing = false;
-                for (uint32_t i = 0; i < CountMemoryHandlers; i++){
-                    if (Attempts[i] == PROCESS_DONE){
-                        continue;
-                    }
-
-                    register MemoryStreamHandler* m = MemoryHandlers[i];
-                    bool force = (Attempts[i] >= PROCESS_UNFORCED_ATTEMPTS);
-
-                    bool res = TryProcessBuffer(i, m, numElements, stats, force, iid, tid);
-                    if (res){
-                        Attempts[i] = PROCESS_DONE;
-                    } else {
-                        Attempts[i]++;
-                        Processing = true;
-                    }
-
-                    if (force){
-                        assert(Attempts[i] == PROCESS_DONE);
-                    }
-                }
-            }
-
-            for (uint32_t i = 0; i < CountMemoryHandlers; i++){
-                assert(Attempts[i] == PROCESS_DONE);
+                MemoryStreamHandler* m = stats->Handlers[i];
+                ProcessBuffer(i, m, numElements, stats, iid, tid);
             }
         }
 
-        AllData->SetTimer(iid, tid+6);
         synchronize(AllData){
             if (isSampling){
                 set<uint64_t> MemsRemoved;
@@ -372,9 +313,6 @@ extern "C" {
             }
 
             Sampler->IncrementAccessCount(numElements);
-
-            AllData->SetTimer(iid, tid+7);
-            __dtimer[CountMemoryHandlers+2] += (AllData->GetTimer(iid, tid+7) - AllData->GetTimer(iid, tid+6));
         }
 
         DONE_WITH_BUFFER();
@@ -387,10 +325,6 @@ extern "C" {
 
     void* tool_image_fini(image_key_t* key){
         image_key_t iid = *key;
-
-        for (uint32_t i = 0; i < CountDebugTimers; i++){
-            inform << "Debug timer " << dec << i << TAB << __dtimer[i] << ENDL;
-        }
 
         AllData->SetTimer(iid, 1);
 
@@ -463,7 +397,7 @@ extern "C" {
             << "# buffer        = " << BUFFER_CAPACITY(stats) << ENDL
             << "# total         = " << dec << totalMemop << ENDL
             << "# sampled       = " << dec << Sampler->AccessCount << ENDL
-            << "# processed     = " << dec << sampledCount << ENDL
+            << "# processed     = " << dec << sampledCount << " (" << ((double)sampledCount / (double)totalMemop * 100.0) << "%)" << ENDL
             << "# samplemax     = " << Sampler->AccessLimit << ENDL
             << "# sampleon      = " << Sampler->SampleOn << ENDL
             << "# sampleoff     = " << Sampler->SampleOff << ENDL
@@ -930,8 +864,12 @@ void RangeStats::Update(uint32_t memid, uint64_t addr){
 
 AddressRangeHandler::AddressRangeHandler(){
 }
+AddressRangeHandler::AddressRangeHandler(AddressRangeHandler& h){
+    mlock = PTHREAD_MUTEX_INITIALIZER;
+}
 AddressRangeHandler::~AddressRangeHandler(){
 }
+
 void AddressRangeHandler::Print(){
     inform << "AddressRangeHandler" << ENDL;
 }
@@ -1169,6 +1107,7 @@ void DeleteCacheStats(void* args){
 
         for (uint32_t i = 0; i < CountMemoryHandlers; i++){
             delete stats->Stats[i];
+            delete stats->Handlers[i];
         }
         delete[] stats->Stats;
     }
@@ -1250,7 +1189,7 @@ bool SamplingMethod::ExceedsAccessLimit(uint64_t count){
 CacheLevel::CacheLevel(){
 }
 
-void CacheLevel::Init(CacheLevel_Constructor_Interface){
+void CacheLevel::Init(CacheLevel_Init_Interface){
     level = lvl;
     size = sizeInBytes;
     associativity = assoc;
@@ -1280,7 +1219,7 @@ void CacheLevel::Init(CacheLevel_Constructor_Interface){
     }
 }
 
-void HighlyAssociativeCacheLevel::Init(CacheLevel_Constructor_Interface)
+void HighlyAssociativeCacheLevel::Init(CacheLevel_Init_Interface)
 {
     assert(associativity >= MinimumHighAssociativity);
     fastcontents = new unordered_map<uint64_t, uint32_t>*[countsets];
@@ -1313,18 +1252,6 @@ CacheLevel::~CacheLevel(){
     if (recentlyUsed){
         delete[] recentlyUsed;
     }
-}
-
-CacheLevelType CacheLevel::GetType(){
-    return type;
-}
-
-uint32_t CacheLevel::GetLevel(){
-    return level;
-}
-
-uint32_t CacheLevel::GetSetCount(){
-    return countsets;
 }
 
 uint64_t CacheLevel::CountColdMisses(){
@@ -1541,6 +1468,41 @@ bool MemoryStreamHandler::UnLock(){
 CacheStructureHandler::CacheStructureHandler(){
 }
 
+CacheStructureHandler::CacheStructureHandler(CacheStructureHandler& h){
+    sysId = h.sysId;
+    levelCount = h.levelCount;
+    description.assign(h.description);
+
+#define LVLF(__i, __feature) (h.levels[__i])->Get ## __feature
+#define Extract_Level_Args(__i) LVLF(__i, Level()), LVLF(__i, SizeInBytes()), LVLF(__i, Associativity()), LVLF(__i, LineSize()), LVLF(__i, ReplacementPolicy())
+    levels = new CacheLevel*[levelCount];
+    for (uint32_t i = 0; i < levelCount; i++){
+        if (LVLF(i, Type()) == CacheLevelType_InclusiveLowassoc){
+            InclusiveCacheLevel* l = new InclusiveCacheLevel();
+            l->Init(Extract_Level_Args(i));
+            levels[i] = l;
+        } else if (LVLF(i, Type()) == CacheLevelType_InclusiveHighassoc){
+            HighlyAssociativeInclusiveCacheLevel* l = new HighlyAssociativeInclusiveCacheLevel();
+            l->Init(Extract_Level_Args(i));
+            levels[i] = l;
+        } else if (LVLF(i, Type()) == CacheLevelType_ExclusiveLowassoc){
+            ExclusiveCacheLevel* l = new ExclusiveCacheLevel();
+            ExclusiveCacheLevel* p = dynamic_cast<ExclusiveCacheLevel*>(h.levels[i]);
+            assert(p->GetType() == CacheLevelType_ExclusiveLowassoc);
+            l->Init(Extract_Level_Args(i), p->FirstExclusive, p->LastExclusive);
+            levels[i] = l;
+        } else if (LVLF(i, Type()) == CacheLevelType_ExclusiveHighassoc){
+            HighlyAssociativeExclusiveCacheLevel* l = new HighlyAssociativeExclusiveCacheLevel();
+            ExclusiveCacheLevel* p = dynamic_cast<ExclusiveCacheLevel*>(h.levels[i]);
+            assert(p->GetType() == CacheLevelType_ExclusiveHighassoc);
+            l->Init(Extract_Level_Args(i), p->FirstExclusive, p->LastExclusive);
+            levels[i] = l;
+        } else {
+            assert(false);
+        }
+    }
+}
+
 void CacheStructureHandler::Print(){
     inform << "CacheStructureHandler: "
            << "SysId " << dec << sysId
@@ -1564,7 +1526,7 @@ bool CacheStructureHandler::Verify(){
 
     ExclusiveCacheLevel* firstvc = NULL;
     for (uint32_t i = 0; i < levelCount; i++){
-        if (levels[i]->GetType() == CacheLevelType_Exclusive){
+        if (levels[i]->IsExclusive()){
             firstvc = dynamic_cast<ExclusiveCacheLevel*>(levels[i]);
             break;
         }
@@ -1572,7 +1534,7 @@ bool CacheStructureHandler::Verify(){
 
     if (firstvc){
         for (uint32_t i = firstvc->GetLevel(); i <= firstvc->LastExclusive; i++){
-            if (levels[i]->GetType() != CacheLevelType_Exclusive){
+            if (!levels[i]->IsExclusive()){
                 warn << "Sysid " << dec << sysId
                      << " level " << dec << i
                      << " should be exclusive."
@@ -1735,14 +1697,24 @@ void* GenerateCacheStats(void* args, uint32_t typ, image_key_t iid, thread_key_t
     s->imageid = iid;
     s->Initialized = false;
 
-    // each thread gets its own buffer, all images for a thread share a buffer
+    // each thread gets its own buffer and cache structure, all images for a thread share a buffer
     if (typ == AllData->ThreadType){
         s->Buffer = new BufferEntry[BUFFER_CAPACITY(stats) + 1];
         memcpy(s->Buffer, stats->Buffer, sizeof(BufferEntry) * (BUFFER_CAPACITY(stats) + 1));
         BUFFER_CURRENT(s) = 0;           
+
+        s->Handlers = new MemoryStreamHandler*[CountMemoryHandlers];
+        for (uint32_t i = 0; i < CountCacheStructures; i++){
+            CacheStructureHandler* p = (CacheStructureHandler*)MemoryHandlers[i];
+            CacheStructureHandler* c = new CacheStructureHandler(*p);
+            s->Handlers[i] = c;
+        }
+        AddressRangeHandler* p = (AddressRangeHandler*)MemoryHandlers[RangeHandlerIndex];
+        AddressRangeHandler* r = new AddressRangeHandler(*p);
+        s->Handlers[RangeHandlerIndex] = r;
     }
 
-    // each thread/image gets its own counters and stats
+    // each thread/image gets its own counters
     uint64_t tmp64 = (uint64_t)(s) + (uint64_t)(sizeof(SimulationStats));
     s->Counters = (uint64_t*)(tmp64);
 
@@ -1754,7 +1726,7 @@ void* GenerateCacheStats(void* args, uint32_t typ, image_key_t iid, thread_key_t
         }
     }
 
-
+    // each thread/image gets its own stats
     s->Stats = new StreamStats*[CountMemoryHandlers];
     s->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
     for (uint32_t i = 0; i < CountCacheStructures; i++){
@@ -1766,6 +1738,13 @@ void* GenerateCacheStats(void* args, uint32_t typ, image_key_t iid, thread_key_t
 }
 
 void ReadSettings(){
+
+    uint32_t SaveHashMin = MinimumHighAssociativity;
+    if (!ReadEnvUint32("METASIM_LIMIT_HIGH_ASSOC", &MinimumHighAssociativity)){
+        MinimumHighAssociativity = SaveHashMin;
+    }
+
+    inform << "Maximum associativity for linear search: " << dec << MinimumHighAssociativity << ENDL;
 
     // read caches to simulate
     string cachedf = GetCacheDescriptionFile();
@@ -1800,7 +1779,6 @@ void ReadSettings(){
     uint32_t SampleMax;
     uint32_t SampleOn;
     uint32_t SampleOff;
-
     if (!ReadEnvUint32("METASIM_SAMPLE_MAX", &SampleMax)){
         SampleMax = DEFAULT_SAMPLE_MAX;
     }
@@ -1810,7 +1788,7 @@ void ReadSettings(){
     if (!ReadEnvUint32("METASIM_SAMPLE_ON", &SampleOn)){
         SampleOn = DEFAULT_SAMPLE_ON;
     }
-    
+
     Sampler = new SamplingMethod(SampleMax, SampleOn, SampleOff);
     Sampler->Print();
 }

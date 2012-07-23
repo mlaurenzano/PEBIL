@@ -540,6 +540,13 @@ public:
         return iid;
     }
 
+    T GetData(){
+        for (set<image_key_t>::iterator iit = allimages.begin(); iit != allimages.end(); iit++){
+            return GetData((*iit), pthread_self());
+        }
+        assert(false);
+    }
+
     T GetData(image_key_t iid, thread_key_t tid){
         if (datamap.count(iid) != 1){
             inform << "About to fail iid check with " << dec << datamap.count(iid) << ENDL;
