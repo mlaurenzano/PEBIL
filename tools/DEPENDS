@@ -12,12 +12,12 @@ BasicBlockCounter.o: BasicBlockCounter.C BasicBlockCounter.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
  ../include/defines/X86Instruction.d ../include/Instrumentation.h \
- ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
- ../include/TextSection.h ../include/SymbolTable.h \
+ ../instcode/Metasim.hpp ../include/BasicBlock.h ../include/FlowGraph.h \
+ ../include/Function.h ../include/TextSection.h ../include/SymbolTable.h \
  ../include/defines/SymbolTable.d ../include/X86InstructionFactory.h \
  ../include/LineInformation.h ../include/defines/LineInformation.d \
  ../include/Loop.h ../instcode/CacheSimulationCommon.hpp \
- ../instcode/CounterFunctions.hpp ../instcode/Metasim.hpp
+ ../instcode/CounterFunctions.hpp
 CacheSimulation.o: CacheSimulation.C CacheSimulation.h \
  ../include/InstrumentationTool.h ../include/ElfFileInst.h \
  ../include/Base.h ../include/CStructuresElf.h \
@@ -32,12 +32,11 @@ CacheSimulation.o: CacheSimulation.C CacheSimulation.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
  ../include/defines/X86Instruction.d ../include/Instrumentation.h \
- ../include/SimpleHash.h ../instcode/DFPattern.h ../include/BasicBlock.h \
+ ../instcode/Metasim.hpp ../include/SimpleHash.h ../include/BasicBlock.h \
  ../include/FlowGraph.h ../include/Function.h ../include/TextSection.h \
  ../include/SymbolTable.h ../include/defines/SymbolTable.d \
  ../include/X86InstructionFactory.h ../include/LineInformation.h \
- ../include/defines/LineInformation.d ../include/Loop.h \
- ../instcode/Simulation.hpp ../instcode/Metasim.hpp
+ ../include/defines/LineInformation.d ../include/Loop.h
 CallReplace.o: CallReplace.C CallReplace.h \
  ../include/InstrumentationTool.h ../include/ElfFileInst.h \
  ../include/Base.h ../include/CStructuresElf.h \
@@ -52,8 +51,8 @@ CallReplace.o: CallReplace.C CallReplace.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
  ../include/defines/X86Instruction.d ../include/Instrumentation.h \
- ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
- ../include/TextSection.h ../include/SymbolTable.h \
+ ../instcode/Metasim.hpp ../include/BasicBlock.h ../include/FlowGraph.h \
+ ../include/Function.h ../include/TextSection.h ../include/SymbolTable.h \
  ../include/defines/SymbolTable.d ../include/LineInformation.h \
  ../include/defines/LineInformation.d ../include/X86InstructionFactory.h
 Classification.o: Classification.C Classification.h \
@@ -70,8 +69,8 @@ Classification.o: Classification.C Classification.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
  ../include/defines/X86Instruction.d ../include/Instrumentation.h \
- ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
- ../include/TextSection.h ../include/SymbolTable.h \
+ ../instcode/Metasim.hpp ../include/BasicBlock.h ../include/FlowGraph.h \
+ ../include/Function.h ../include/TextSection.h ../include/SymbolTable.h \
  ../include/defines/SymbolTable.d ../include/X86InstructionFactory.h \
  ../include/LineInformation.h ../include/defines/LineInformation.d
 FunctionCounter.o: FunctionCounter.C FunctionCounter.h \
@@ -88,8 +87,8 @@ FunctionCounter.o: FunctionCounter.C FunctionCounter.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
  ../include/defines/X86Instruction.d ../include/Instrumentation.h \
- ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
- ../include/TextSection.h ../include/SymbolTable.h \
+ ../instcode/Metasim.hpp ../include/BasicBlock.h ../include/FlowGraph.h \
+ ../include/Function.h ../include/TextSection.h ../include/SymbolTable.h \
  ../include/defines/SymbolTable.d ../include/LineInformation.h \
  ../include/defines/LineInformation.d ../include/Loop.h \
  ../include/X86InstructionFactory.h
@@ -107,8 +106,8 @@ FunctionTimer.o: FunctionTimer.C FunctionTimer.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
  ../include/defines/X86Instruction.d ../include/Instrumentation.h \
- ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
- ../include/TextSection.h ../include/SymbolTable.h \
+ ../instcode/Metasim.hpp ../include/BasicBlock.h ../include/FlowGraph.h \
+ ../include/Function.h ../include/TextSection.h ../include/SymbolTable.h \
  ../include/defines/SymbolTable.d ../include/X86InstructionFactory.h
 Minimal.o: Minimal.C Minimal.h ../include/InstrumentationTool.h \
  ../include/ElfFileInst.h ../include/Base.h ../include/CStructuresElf.h \
@@ -122,7 +121,8 @@ Minimal.o: Minimal.C Minimal.h ../include/InstrumentationTool.h \
  ../external/udis86-1.7/libudis86/types.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
- ../include/defines/X86Instruction.d ../include/Instrumentation.h
+ ../include/defines/X86Instruction.d ../include/Instrumentation.h \
+ ../instcode/Metasim.hpp
 LoopIntercept.o: LoopIntercept.C LoopIntercept.h \
  ../include/InstrumentationTool.h ../include/ElfFileInst.h \
  ../include/Base.h ../include/CStructuresElf.h \
@@ -137,8 +137,8 @@ LoopIntercept.o: LoopIntercept.C LoopIntercept.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
  ../include/defines/X86Instruction.d ../include/Instrumentation.h \
- ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
- ../include/TextSection.h ../include/SymbolTable.h \
+ ../instcode/Metasim.hpp ../include/BasicBlock.h ../include/FlowGraph.h \
+ ../include/Function.h ../include/TextSection.h ../include/SymbolTable.h \
  ../include/defines/SymbolTable.d ../include/LineInformation.h \
  ../include/defines/LineInformation.d ../include/Loop.h \
  ../include/X86InstructionFactory.h
@@ -156,8 +156,8 @@ TauFunctionTrace.o: TauFunctionTrace.C TauFunctionTrace.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
  ../include/defines/X86Instruction.d ../include/Instrumentation.h \
- ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
- ../include/TextSection.h ../include/SymbolTable.h \
+ ../instcode/Metasim.hpp ../include/BasicBlock.h ../include/FlowGraph.h \
+ ../include/Function.h ../include/TextSection.h ../include/SymbolTable.h \
  ../include/defines/SymbolTable.d ../include/LineInformation.h \
  ../include/defines/LineInformation.d
 DeadRegisterSquasher.o: DeadRegisterSquasher.C DeadRegisterSquasher.h \
@@ -174,8 +174,8 @@ DeadRegisterSquasher.o: DeadRegisterSquasher.C DeadRegisterSquasher.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
  ../include/defines/X86Instruction.d ../include/Instrumentation.h \
- ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
- ../include/TextSection.h ../include/SymbolTable.h \
+ ../instcode/Metasim.hpp ../include/BasicBlock.h ../include/FlowGraph.h \
+ ../include/Function.h ../include/TextSection.h ../include/SymbolTable.h \
  ../include/defines/SymbolTable.d ../include/X86InstructionFactory.h \
  ../include/LineInformation.h ../include/defines/LineInformation.d \
  ../include/Loop.h
@@ -191,4 +191,5 @@ pebil.o: pebil.C ../include/Base.h ../include/CStructuresElf.h \
  ../external/udis86-1.7/libudis86/types.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
- ../include/defines/X86Instruction.d ../include/Instrumentation.h
+ ../include/defines/X86Instruction.d ../include/Instrumentation.h \
+ ../instcode/Metasim.hpp

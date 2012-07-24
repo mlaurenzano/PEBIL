@@ -88,6 +88,8 @@ public:
 
     static X86Instruction* emitFxSave(uint64_t addr);
     static X86Instruction* emitFxRstor(uint64_t addr);
+    static X86Instruction* emitFxSaveReg(uint8_t reg);
+    static X86Instruction* emitFxRstorReg(uint8_t reg);
 
     static X86Instruction* emitMoveTLSOffsetToReg(uint32_t imm, uint8_t dest);
     static X86Instruction* emitMoveThreadIdToReg(uint8_t dest);

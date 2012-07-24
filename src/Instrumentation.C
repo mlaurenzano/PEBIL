@@ -561,9 +561,6 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     }
     uint64_t fxStor = nextAlignAddress(fxStorageOffset + sizeof(uint64_t), 16);
 
-    if (assumeFunctionFP){
-        wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitFxSave(0), elfInst, fxStor, true));
-    }
     ASSERT(arguments.size() <= Num__64_bit_StackArgs && "More arguments must be pushed onto stack, which is not yet implemented"); 
     
     for (uint32_t i = 0; i < arguments.size(); i++){
@@ -589,20 +586,47 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     }
     
     // align the stack
-    wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, X86_REG_R14), elfInst, fxStorageOffset, true));
-    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToRegaddr(X86_REG_SP, X86_REG_R14));
+    // mov %rsp, %r14
+    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToReg(X86_REG_SP, X86_REG_R14));
+    // lea -0x1000(%rsp), %rsp
     wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_stackalign, X86_REG_SP));
+    // mov $0xfffffffffffff000, %r15
     wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg((uint32_t)~(Size__trampoline_stackalign - 1), X86_REG_R15));
+    // and %r15, %rsp
     wrapperInstructions.append(X86InstructionFactory64::emitRegAndReg(X86_REG_SP, X86_REG_R15));
 
-    wrapperInstructions.append(X86InstructionFactory64::emitCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
-
-    wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, X86_REG_R14), elfInst, fxStorageOffset, true));
-    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegaddrToReg(X86_REG_R14, X86_REG_SP));
+    // stack is now aligned as we want it
+    // keep the saved stack pointer on the very top of the stack
+    // pop %r15
+    wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_REG_R15));
+    // push %r14
+    wrapperInstructions.append(X86InstructionFactory64::emitStackPush(X86_REG_R14));
 
     if (assumeFunctionFP){
-        wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitFxRstor(0), elfInst, fxStor, true));
+        wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_stackalign, X86_REG_SP));
+        //wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitFxSave(0), elfInst, fxStor, true));
+        wrapperInstructions.append(X86InstructionFactory64::emitFxSaveReg(X86_REG_SP));
     }
+
+    // lea -0x1000(%rsp), %rsp
+    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_stackalign, X86_REG_SP));
+    // callq <instfunction>
+    wrapperInstructions.append(X86InstructionFactory64::emitCallRelative(wrapperOffset + wrapperSize(), wrapperTargetOffset));
+    // lea 0x1000(%rsp), %rsp
+    wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_stackalign, X86_REG_SP));
+
+    if (assumeFunctionFP){
+        wrapperInstructions.append(X86InstructionFactory64::emitFxRstorReg(X86_REG_SP));
+        //wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitFxRstor(0), elfInst, fxStor, true));
+        wrapperInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_stackalign, X86_REG_SP));
+    }
+
+    // restore the saved stack pointer from the top of the stack
+    // pop %r14
+    wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_REG_R14));
+    // mov %r14, %rsp
+    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToReg(X86_REG_R14, X86_REG_SP));
+
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
         wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_64BIT_GPRS-1-i));
     }
@@ -867,22 +891,24 @@ Vector<X86Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(Vector<X8
 BitSet<uint32_t>* getProtectedRegs(InstLocations loc, X86Instruction* xins, Vector<X86Instruction*>* insert){
     BitSet<uint32_t>* n = new BitSet<uint32_t>(X86_ALU_REGS);
 
-    //xins->print();
+    InstLocations proxyLoc = InstLocation_prior;
+    if (loc == InstLocation_after){
+        proxyLoc = InstLocation_after;
+    }
+
     for (uint32_t i = 0; i < insert->size(); i++){
         X86Instruction* ins = (*insert)[i];
-        //ins->print();
         RegisterSet* defs = ins->getRegistersDefined();
         for (uint32_t j = 0; j < X86_ALU_REGS; j++){
-            if (loc == InstLocation_prior && !xins->isRegDeadIn(j) && defs->containsRegister(j)){
+            if (proxyLoc == InstLocation_prior && !xins->isRegDeadIn(j) && defs->containsRegister(j)){
                 n->insert(j);
             }
-            if (loc == InstLocation_after && !xins->isRegDeadOut(j) && defs->containsRegister(j)){
+            if (proxyLoc == InstLocation_after && !xins->isRegDeadOut(j) && defs->containsRegister(j)){
                 n->insert(j);
             }
         }
         delete defs;
     }
-    //n->print();
 
     return n;
 }
@@ -908,6 +934,10 @@ BitSet<uint32_t>* InstrumentationPoint::getProtectedRegisters(){
 }
 
 FlagsProtectionMethods getFlagsMethod(InstLocations loc, X86Instruction* xins, Vector<X86Instruction*>* insert, bool canOverflow){
+    if (loc == InstLocation_replace){
+        return FlagsProtectionMethod_none;
+    }
+
     BitSet<uint32_t>* liveSet = new BitSet<uint32_t>(X86_FLAG_BITS);
 
     // figure out which flags are live at the instrumentation point

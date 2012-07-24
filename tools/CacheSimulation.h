@@ -23,7 +23,6 @@
 
 #include <InstrumentationTool.h>
 #include <SimpleHash.h>
-#include <DFPattern.h>
 
 class CacheSimulation : public InstrumentationTool {
 private:
@@ -32,13 +31,8 @@ private:
     InstrumentationFunction* entryFunc;
 
     SimpleHash<BasicBlock*> blocksToInst;
-    SimpleHash<DFPatternType> dfpSet;
-
-    Vector<DFPatternSpec> dfpBlocks;
-    uint32_t dfpTaggedBlockCnt;
 
     void filterBBs();
-    void printDFPStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos);
 
 public:
     CacheSimulation(ElfFile* elf);

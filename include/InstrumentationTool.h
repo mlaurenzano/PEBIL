@@ -26,21 +26,11 @@
 #include <X86Instruction.h>
 #include <map>
 
+#include <Metasim.hpp>
+
 class InstrumentationPoint;
 
 #define INFO_UNKNOWN "__info_unknown__"
-
-/* support for removing instrumentation points */
-#define DYNAMIC_POINT_SIZE_LIMIT 128
-typedef struct {
-    uint64_t VirtualAddress;
-    uint64_t ProgramAddress;
-    uint64_t Key;
-    uint64_t Flags;
-    uint32_t Size;
-    uint8_t  OppContent[DYNAMIC_POINT_SIZE_LIMIT];
-    bool IsEnabled;
-} DynamicInst;
 
 struct DynamicInstInternal {
     InstrumentationPoint* Point;
@@ -58,6 +48,7 @@ class InstrumentationTool : public ElfFileInst {
 private:
     char* extension;
     bool singleArgCheck(void* arg, uint32_t mask, const char* name);
+    bool hasThreadEvidence();
 
 protected:
     uint64_t imageKey;
@@ -65,8 +56,8 @@ protected:
 
     Vector<X86Instruction*>* atomicIncrement(uint32_t dest, uint32_t scratch, uint32_t count, uint64_t memaddr, Vector<X86Instruction*>* insns);
 
-    void printStaticFile(Vector<Base*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize);
-    void printStaticFilePerInstruction(Vector<Base*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize);
+    void printStaticFile(const char* extension, Vector<Base*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize);
+    void printStaticFilePerInstruction(const char* extension, Vector<Base*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize);
 
     InstrumentationPoint* insertBlockCounter(uint64_t, Base*);
     InstrumentationPoint* insertBlockCounter(uint64_t, Base*, bool, uint32_t);
@@ -78,7 +69,7 @@ protected:
     Vector<X86Instruction*>* storeThreadData(uint32_t scratch, uint32_t dest, bool storeToStack, uint32_t stackPatch);
     void threadAllEntryPoints(Function* f, uint32_t threadReg);
 
-    std::map<uint64_t, uint32_t>* threadReadyCode();
+    std::map<uint64_t, uint32_t>* threadReadyCode(std::set<Base*>& objectsToInst);
     uint32_t instrumentForThreading(Function* func);
 
     InstrumentationFunction* imageInit;

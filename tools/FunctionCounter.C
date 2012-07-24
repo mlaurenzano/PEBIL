@@ -174,7 +174,7 @@ void FunctionCounter::instrument(){
         (*allBlockIds).append(i);
         (*allBlockLineInfos).append(li);
     }
-    printStaticFile(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
+    printStaticFile(getExtension(), allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
 
     delete allBlocks;
     delete allBlockIds;

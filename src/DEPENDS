@@ -198,8 +198,8 @@ InstrumentationTool.o: InstrumentationTool.C \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
  ../include/defines/X86Instruction.d ../include/Instrumentation.h \
- ../include/BasicBlock.h ../include/FlowGraph.h ../include/Function.h \
- ../include/TextSection.h ../include/SymbolTable.h \
+ ../instcode/Metasim.hpp ../include/BasicBlock.h ../include/FlowGraph.h \
+ ../include/Function.h ../include/TextSection.h ../include/SymbolTable.h \
  ../include/defines/SymbolTable.d ../include/LineInformation.h \
  ../include/defines/LineInformation.d ../include/Loop.h \
  ../include/X86InstructionFactory.h

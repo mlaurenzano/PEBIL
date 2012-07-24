@@ -82,7 +82,7 @@ void printUsage(const char* msg = NULL){
     fprintf(stderr,"\t\t[--dtl] : DEPRECATED (always on) print details in static files\n");
     fprintf(stderr,"\t\t[--lpi] : DEPRECATED (always on) perform loop inclusion\n");
     fprintf(stderr,"\t\t[--doi] : do special initialization\n");
-    fprintf(stderr,"\t\t[--phs <phase_no>] : phase number\n");
+    fprintf(stderr,"\t\t[--phs <phase_no>] : phase number. Supported for backward compatibility. If given, must be 1.\n");
     fprintf(stderr,"\t\t[--trk <tracking/file>] : path to a tracking file\n");
     fprintf(stderr,"\t\t[--dfp <pattern/file>] : path to pattern file\n");
     fprintf(stderr,"\t\t[--dmp <off|on|nosim>] : DEPRECATED, kept for compatibility\n");
@@ -496,13 +496,14 @@ int main(int argc,char* argv[]){
                 char* endptr = NULL;
                 phaseNo = strtol(phs_arg, &endptr, 10);
                 if ((endptr == phs_arg) || !phaseNo){
-                    printUsage("argument to --phs must be an int > 0");
+                    printUsage("argument to --phs must be 1");
                 }
                 // prepend phase string to extension
                 char tmp[__MAX_STRING_SIZE];
                 sprintf(tmp, "phase.%d.%s\0", phaseNo, ext);
                 sprintf(ext, "%s\0", tmp);
             }
+            ASSERT(phaseNo == 0 || phaseNo == 1);
 
             if (lnc_arg){
                 instTool->setLibraryList(lnc_arg);
@@ -523,7 +524,7 @@ int main(int argc,char* argv[]){
                 instTool->setPerInstruction();
             }
             
-            instTool->init(ext);
+            instTool->init(ext_arg);
             instTool->initToolArgs(lpi_flag == 0 ? false : true,
                                    dtl_flag == 0 ? false : true,
                                    doi_flag == 0 ? false : true,
@@ -544,7 +545,8 @@ int main(int argc,char* argv[]){
                 TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
             }
             
-            instTool->dump();
+            // the ludicrous way extensions are handled is to keep faith with the way pmacinst treated them
+            instTool->dump(ext);
             TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Dump    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
             if (inf_arg){
                 instTool->print(printCodes);

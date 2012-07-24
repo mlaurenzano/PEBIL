@@ -23,7 +23,7 @@
 #include <assert.h>
 #include <strings.h>
 #include <string.h>
-#include <DFPattern.h>
+#include <stdint.h>
 #include <math.h>
 
 #define STACK_ARRAY_SIZE 0x1000
@@ -84,6 +84,24 @@ void initialize_index_array(uint32_t* idxs,uint32_t n){
 
 /*************** initialization ends here ***********/
 
+typedef uint8_t DFPatternType;
+typedef enum {
+    dfTypePattern_undefined = 0,
+    dfTypePattern_Other,
+    dfTypePattern_Stream,
+    dfTypePattern_Transpose,
+    dfTypePattern_Random,
+    dfTypePattern_Reduction,
+    dfTypePattern_Stencil,
+    dfTypePattern_Gather,
+    dfTypePattern_Scatter,
+    dfTypePattern_FunctionCallGS,
+    dfTypePattern_Init,
+    dfTypePattern_Default,
+    dfTypePattern_Scalar,
+    dfTypePattern_None,
+    dfTypePattern_Total_Types
+} DFPatternValues;
 
 DFPatternType convertDFPattenType(char* patternString){
     if(!strcmp(patternString,"dfTypePattern_Gather")){

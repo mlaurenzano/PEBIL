@@ -112,7 +112,7 @@ Vector<X86Instruction*>* ElfFileInst::findAllCalls(char* names){
 
             if (functionSymbol){
                 for (uint32_t j = 0; j < fstart.size(); j++){
-                    if (!strcmp(fnames + fstart[j], functionSymbol->getSymbolName())){
+                    if (regexMatch(functionSymbol->getSymbolName(), fnames + fstart[j])){
                         (*calls).append(instruction);
                         break;
                     }
@@ -1688,11 +1688,11 @@ ElfFileInst::~ElfFileInst(){
     }
 }
 
-void ElfFileInst::dump(){
+void ElfFileInst::dump(char* extension){
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
 
     char fileName[__MAX_STRING_SIZE] = "";
-    sprintf(fileName,"%s.%s", elfFile->getFileName(), getExtension());
+    sprintf(fileName,"%s.%s", elfFile->getFileName(), extension);
     PRINT_INFOR("Instrumented binary is %s", fileName);
 
     BinaryOutputFile binaryOutputFile;

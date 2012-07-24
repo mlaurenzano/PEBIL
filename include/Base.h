@@ -479,6 +479,7 @@ extern X86Instruction* linkInstructionToData(X86Instruction* ins, ElfFileInst* e
 
 extern uint32_t searchFileList(Vector<char*>* list, char* name);
 extern uint32_t initializeFileList(char* fileName, Vector<char*>* list);
+extern bool regexMatch(char* string, char* reg);
 
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)
@@ -491,6 +492,7 @@ extern void SHA1(unsigned char * str1);
 //sha1 functions                                                                                                                                             
 void calc(const void *src, const int bytelength, unsigned char *hash);
 void toHexString(const unsigned char *hash, char *hexstring);
+uint64_t sha1sum_first64(char* buffer, uint32_t size);
 char* sha1sum(char* buffer, uint32_t size);
 
 extern double timer();

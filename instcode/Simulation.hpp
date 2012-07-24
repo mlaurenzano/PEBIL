@@ -22,7 +22,7 @@
 #define _Simulation_hpp_
 
 #include <string>
-#include <DFPattern.h>
+#include <unordered_map>
 #include <Metasim.hpp>
 
 using namespace std;
@@ -38,51 +38,12 @@ using namespace std;
 
 #define INVALID_CACHE_LEVEL (0xffffffff)
 
-typedef struct {
-    uint64_t    address;
-    uint64_t    memseq;
-} BufferEntry;
-#define __buf_current  address
-#define __buf_capacity memseq
-
-class StreamStats;
-typedef struct {
-    // memory buffer
-    BufferEntry* Buffer;
-
-    // metadata
-    pthread_t threadid;
-    pthread_key_t imageid;
-    bool Initialized;
-    bool PerInstruction;
-    uint32_t InstructionCount;
-    uint32_t BlockCount;
-    char* Application;
-    char* Extension;
-
-    // per-memop data
-    uint32_t* BlockIds;
-    uint32_t* MemopIds;
-
-    // per-block data
-    CounterTypes* Types;
-    uint64_t* Counters;
-    uint32_t* MemopsPerBlock;
-    char** Files;
-    uint32_t* Lines;
-    char** Functions;
-    uint64_t* Hashes;
-    uint64_t* Addresses;
-    StreamStats** Stats;
-} SimulationStats;
-#define BUFFER_CAPACITY(__stats) (__stats->Buffer[0].__buf_capacity)
-#define BUFFER_CURRENT(__stats) (__stats->Buffer[0].__buf_current)
-
-
 enum CacheLevelType {
     CacheLevelType_Undefined,
-    CacheLevelType_Inclusive,
-    CacheLevelType_Exclusive,
+    CacheLevelType_InclusiveLowassoc,
+    CacheLevelType_ExclusiveLowassoc,
+    CacheLevelType_InclusiveHighassoc,
+    CacheLevelType_ExclusiveHighassoc,
     CacheLevelType_Total
 };
 
@@ -110,18 +71,6 @@ struct EvictionInfo {
     uint32_t lineid;
 };
 
-typedef struct {
-    uint64_t       minAddress;
-    uint64_t       maxAddress;
-} DFPatternRange;
-
-typedef struct {
-    void*           basicBlock; // points to BB info?
-    DFPatternType   type;
-    uint64_t        rangeCnt;
-    DFPatternRange* ranges;
-} DFPatternInfo;
-
 struct LevelStats {
     uint64_t hitCount;
     uint64_t missCount;
@@ -136,19 +85,22 @@ static string GetCacheDescriptionFile();
 static bool ParsePositiveInt32(string token, uint32_t* value);
 static bool ParseInt32(string token, uint32_t* value, uint32_t min);
 static bool ParsePositiveInt32Hex(string token, uint32_t* value);
-static void ReadKnobs();
-static void* GenerateCacheStats(void* args, uint32_t typ, pthread_key_t iid, pthread_t tid);
+static void ReadSettings();
+static void* GenerateCacheStats(void* args, uint32_t typ, image_key_t iid, thread_key_t tid);
 static uint64_t ReferenceCacheStats(void* args);
 static void DeleteCacheStats(void* args);
 static bool ReadEnvUint32(string name, uint32_t* var);
-static void PrintSimulationStats(ofstream& f, SimulationStats* stats, pthread_t tid);
+static void PrintSimulationStats(ofstream& f, SimulationStats* stats, thread_key_t tid, bool perThread);
 static const char* SimulationFileName(SimulationStats* stats);
+static const char* LegacySimulationFileName(SimulationStats* stats);
+static const char* RangeFileName(SimulationStats* stats);
+static const char* LegacyRangeFileName(SimulationStats* stats);
 
 extern "C" {
     void* tool_mpi_init();
     void* tool_thread_init(pthread_t tid);
-    void* process_buffer(uint64_t* key);
-    void* tool_image_fini(uint64_t* key);
+    void* process_buffer(image_key_t* key);
+    void* tool_image_fini(image_key_t* key);
 };
 
 class StreamStats {
@@ -205,11 +157,15 @@ public:
     bool HasMemId(uint32_t memid);
     uint64_t GetMinimum(uint32_t memid);
     uint64_t GetMaximum(uint32_t memid);
+    uint64_t GetAccessCount(uint32_t memid) { return Counts[memid]; }
 
     void Update(uint32_t memid, uint64_t addr);
+    void Update(uint32_t memid, uint64_t addr, uint32_t count);
 };
 
 class SamplingMethod {
+protected:
+    pthread_mutex_t mlock;
 public:
     uint32_t AccessLimit;
     uint32_t SampleOn;
@@ -223,13 +179,18 @@ public:
 
     void IncrementAccessCount(uint64_t count);
 
+    bool SwitchesMode(uint64_t count);
     bool CurrentlySampling();
+    bool CurrentlySampling(uint64_t count);
     bool ExceedsAccessLimit(uint64_t count);
 };
 
 #define USES_MARKERS(__pol) (__pol == ReplacementPolicy_nmru)
+#define CacheLevel_Init_Interface uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol
+#define CacheLevel_Init_Arguments lvl, sizeInBytes, assoc, lineSz, pol
+
 class CacheLevel {
-public:
+protected:
 
     CacheLevelType type;
 
@@ -245,51 +206,105 @@ public:
     uint64_t** contents;
     uint32_t* recentlyUsed;
 
+public:
     CacheLevel();
-    CacheLevel(uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol);
     ~CacheLevel();
 
-    CacheLevelType GetType();
-    uint32_t GetLevel();
-    uint32_t GetSetCount();
+    bool IsExclusive() { return (type == CacheLevelType_ExclusiveLowassoc || type == CacheLevelType_ExclusiveHighassoc); }
+
+    CacheLevelType GetType() { return type; }
+    ReplacementPolicy GetReplacementPolicy() { return replpolicy; }
+    uint32_t GetLevel() { return level; }
+    uint32_t GetSizeInBytes() { return size; }
+    uint32_t GetAssociativity() { return associativity; }
+    uint32_t GetSetCount() { return countsets; }
+    uint32_t GetLineSize() { return linesize; }
     uint64_t CountColdMisses();
 
     uint64_t GetStorage(uint64_t addr);
     uint32_t GetSet(uint64_t addr);
     uint32_t LineToReplace(uint32_t setid);
-    bool Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet);
     bool MultipleLines(uint64_t addr, uint32_t width);
 
-    uint64_t Replace(uint64_t addr, uint32_t setid, uint32_t lineid);
     void MarkUsed(uint32_t setid, uint32_t lineid);
-
     void Print(uint32_t sysid);
 
-    virtual uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info) = 0;
+    // re-implemented by HighlyAssociativeCacheLevel
+    virtual bool Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet);
+    virtual uint64_t Replace(uint64_t addr, uint32_t setid, uint32_t lineid);
+
+    // re-implemented by Exclusive/InclusiveCacheLevel
+    virtual uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info);
     virtual const char* TypeString() = 0;
+    virtual void Init (CacheLevel_Init_Interface);
 };
 
-class InclusiveCacheLevel : public CacheLevel {
+class InclusiveCacheLevel : public virtual CacheLevel {
 public:
-    InclusiveCacheLevel(uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol);
-    uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info);
-    const char* TypeString();
+    InclusiveCacheLevel() {}
+
+    virtual void Init (CacheLevel_Init_Interface){
+        CacheLevel::Init(CacheLevel_Init_Arguments);
+        type = CacheLevelType_InclusiveLowassoc;
+    }
+    virtual const char* TypeString() { return "inclusive"; }
 };
 
-class ExclusiveCacheLevel : public CacheLevel {
+class ExclusiveCacheLevel : public virtual CacheLevel {
 public:
     uint32_t FirstExclusive;
     uint32_t LastExclusive;
 
-    ExclusiveCacheLevel(uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol, uint32_t firstExcl, uint32_t lastExcl);
+    ExclusiveCacheLevel() {}
     uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info);
-    const char* TypeString();
+    virtual void Init (CacheLevel_Init_Interface, uint32_t firstExcl, uint32_t lastExcl){
+        CacheLevel::Init(CacheLevel_Init_Arguments);
+        type = CacheLevelType_ExclusiveLowassoc;
+        FirstExclusive = firstExcl;
+        LastExclusive = lastExcl;
+    }
+    virtual const char* TypeString() { return "exclusive"; }
+};
+
+class HighlyAssociativeCacheLevel : public virtual CacheLevel {
+protected:
+    unordered_map <uint64_t, uint32_t>** fastcontents;
+
+public:
+    HighlyAssociativeCacheLevel() {}
+    ~HighlyAssociativeCacheLevel();
+
+    bool Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet);
+    uint64_t Replace(uint64_t addr, uint32_t setid, uint32_t lineid);
+    virtual void Init (CacheLevel_Init_Interface);
+};
+
+class HighlyAssociativeInclusiveCacheLevel : public InclusiveCacheLevel, public HighlyAssociativeCacheLevel {
+public:
+    HighlyAssociativeInclusiveCacheLevel() {}
+    virtual void Init (CacheLevel_Init_Interface){
+        InclusiveCacheLevel::Init(CacheLevel_Init_Arguments);
+        HighlyAssociativeCacheLevel::Init(CacheLevel_Init_Arguments);
+        type = CacheLevelType_InclusiveHighassoc;
+    }
+    const char* TypeString() { return "inclusive_H"; }
+};
+
+class HighlyAssociativeExclusiveCacheLevel : public ExclusiveCacheLevel, public HighlyAssociativeCacheLevel {
+public:
+    HighlyAssociativeExclusiveCacheLevel() {}
+    virtual void Init (CacheLevel_Init_Interface, uint32_t firstExcl, uint32_t lastExcl){
+        ExclusiveCacheLevel::Init(CacheLevel_Init_Arguments, firstExcl, lastExcl);
+        HighlyAssociativeCacheLevel::Init(CacheLevel_Init_Arguments);
+        type = CacheLevelType_ExclusiveHighassoc;
+    }
+    const char* TypeString() { return "exclusive_H"; }
 };
 
 // DFP and other interesting memory things extend this class.
 class MemoryStreamHandler {
-private:
-    pthread_mutex_t lock;
+protected:
+    pthread_mutex_t mlock;
 public:
     MemoryStreamHandler();
     ~MemoryStreamHandler();
@@ -297,6 +312,9 @@ public:
     virtual void Print() = 0;
     virtual void Process(void* stats, BufferEntry* access) = 0;
     virtual bool Verify() = 0;
+    bool Lock();
+    bool UnLock();
+    bool TryLock();
 };
 
 typedef enum {
@@ -309,6 +327,7 @@ typedef enum {
 class AddressRangeHandler : public MemoryStreamHandler {
 public:
     AddressRangeHandler();
+    AddressRangeHandler(AddressRangeHandler& h);
     ~AddressRangeHandler();
 
     void Print();
@@ -323,12 +342,12 @@ public:
 
     CacheLevel** levels;
     string description;
-    EvictionInfo evictInfo;
 
     // note that this doesn't contain any stats gathering code. that is done at the
     // thread level and is therefore done in ThreadData
 
     CacheStructureHandler();
+    CacheStructureHandler(CacheStructureHandler& h);
     ~CacheStructureHandler();
     bool Init(string desc);
 
