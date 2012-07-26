@@ -2109,7 +2109,8 @@ uint32_t ElfFileInst::addSharedLibrary(const char* libname){
             }
         }        
         if (writeIdx == dynamicTable->getNumberOfDynamics()){
-            PRINT_ERROR("Request to insert %s failed because library %s does not exist in the binary", libraryReal, libname);
+            PRINT_WARN(20, "Request to insert %s failed because library %s does not exist in the binary", libraryReal, libname);
+            return 0;
         }
 
         ASSERT(writeIdx < dynamicTable->getNumberOfDynamics() && "No free entries found in the dynamic table");
