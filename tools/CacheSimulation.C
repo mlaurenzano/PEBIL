@@ -469,6 +469,13 @@ void CacheSimulation::instrument(){
                         inv->insert(threadReg);
                         sr1 = threadReg;
                     }
+                    
+                    RegisterSet* regused = memop->getRegistersUsed();
+                    for (uint32_t k = 0; k < X86_64BIT_GPRS; k++){
+                        if (regused->containsRegister(k)){
+                            inv->insert(k);
+                        }
+                    }
                     for (uint32_t k = X86_64BIT_GPRS; k < X86_ALU_REGS; k++){
                         inv->insert(k);
                     }

@@ -368,9 +368,9 @@ extern "C" {
         // dump cache simulation results
         ofstream MemFile;
         const char* fileName = SimulationFileName(stats);
+        inform << "Printing cache simulation results to " << fileName << ENDL;
         TryOpen(MemFile, fileName);
 
-        inform << "Printing cache simulation results to " << fileName << ENDL;
 
         uint64_t sampledCount = 0;
         uint64_t totalMemop = 0;
@@ -455,7 +455,7 @@ extern "C" {
                         uint64_t h = c->GetHits(lvl);
                         uint64_t m = c->GetMisses(lvl);
                         uint64_t t = h + m;
-                        MemFile << "l" << dec << lvl << "[" << h << "," << t << "(" << CacheStats::GetHitRate(h, m) << ")] ";
+                        MemFile << "l" << dec << lvl << "[" << h << "/" << t << "(" << CacheStats::GetHitRate(h, m) << ")] ";
                     }
                     MemFile << ENDL;
                 }
@@ -576,12 +576,12 @@ extern "C" {
         // if single-thread and single-image, also print in old format
         if (AllData->CountThreads() == 1 && AllData->CountImages() == 1){
             const char* fileName = LegacySimulationFileName(stats);
+            inform << LegacyToken << "printing cache simulation results to " << fileName << ENDL;
             TryOpen(MemFile, fileName);
 
             if (stats->PerInstruction){
                 warn << "You are using per-instruction mode. " << LegacyToken << " files in this mode are unreliable" << ENDL;
             }
-            inform << LegacyToken << "printing cache simulation results to " << fileName << ENDL;
 
             MemFile
                 << "# appname       = " << stats->Application << ENDL
@@ -1344,8 +1344,8 @@ uint64_t CacheLevel::GetStorage(uint64_t addr){
     return (addr >> linesizeBits);
 }
 
-uint32_t CacheLevel::GetSet(uint64_t addr){
-    return (addr % countsets);
+uint32_t CacheLevel::GetSet(uint64_t store){
+    return (store % countsets);
 }
 
 uint32_t CacheLevel::LineToReplace(uint32_t setid){
@@ -1361,24 +1361,24 @@ uint32_t CacheLevel::LineToReplace(uint32_t setid){
     return 0;
 }
 
-uint64_t HighlyAssociativeCacheLevel::Replace(uint64_t addr, uint32_t setid, uint32_t lineid){
+uint64_t HighlyAssociativeCacheLevel::Replace(uint64_t store, uint32_t setid, uint32_t lineid){
     uint64_t prev = contents[setid][lineid];
-    contents[setid][lineid] = addr;
+    contents[setid][lineid] = store;
 
     unordered_map<uint64_t, uint32_t>* fastset = fastcontents[setid];
     if (fastset->count(prev) > 0){
         //assert((*fastset)[prev] == lineid);
         fastset->erase(prev);
     }
-    (*fastset)[addr] = lineid;
+    (*fastset)[store] = lineid;
 
     MarkUsed(setid, lineid);
     return prev;
 }
 
-uint64_t CacheLevel::Replace(uint64_t addr, uint32_t setid, uint32_t lineid){
+uint64_t CacheLevel::Replace(uint64_t store, uint32_t setid, uint32_t lineid){
     uint64_t prev = contents[setid][lineid];
-    contents[setid][lineid] = addr;
+    contents[setid][lineid] = store;
     MarkUsed(setid, lineid);
     return prev;
 }
@@ -1390,17 +1390,17 @@ inline void CacheLevel::MarkUsed(uint32_t setid, uint32_t lineid){
     }
 }
 
-bool HighlyAssociativeCacheLevel::Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet){
-    uint32_t setId = GetSet(addr);
-    debug(inform << TAB << TAB << "stored " << hex << addr << " set " << dec << setId << endl << flush);
+bool HighlyAssociativeCacheLevel::Search(uint64_t store, uint32_t* set, uint32_t* lineInSet){
+    uint32_t setId = GetSet(store);
+    debug(inform << TAB << TAB << "stored " << hex << store << " set " << dec << setId << endl << flush);
     if (set){
         (*set) = setId;
     }
 
     unordered_map<uint64_t, uint32_t>* fastset = fastcontents[setId];
-    if (fastset->count(addr) > 0){
+    if (fastset->count(store) > 0){
         if (lineInSet){
-            (*lineInSet) = (*fastset)[addr];
+            (*lineInSet) = (*fastset)[store];
         }
         return true;
     }
@@ -1408,9 +1408,9 @@ bool HighlyAssociativeCacheLevel::Search(uint64_t addr, uint32_t* set, uint32_t*
     return false;
 }
 
-bool CacheLevel::Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet){
-    uint32_t setId = GetSet(addr);
-    debug(inform << TAB << TAB << "stored " << hex << addr << " set " << dec << setId << endl << flush);
+bool CacheLevel::Search(uint64_t store, uint32_t* set, uint32_t* lineInSet){
+    uint32_t setId = GetSet(store);
+    debug(inform << TAB << TAB << "stored " << hex << store << " set " << dec << setId << endl << flush);
     if (set){
         (*set) = setId;
     }
@@ -1418,7 +1418,7 @@ bool CacheLevel::Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet){
     uint64_t* thisset = contents[setId];
     for (uint32_t i = 0; i < associativity; i++){
         //debug(inform << TAB << TAB << TAB << "checking assoc=" << dec << i << " contains " << hex << thisset[i] << endl << flush);
-        if (thisset[i] == addr){
+        if (thisset[i] == store){
             if (lineInSet){
                 (*lineInSet) = i;
             }
@@ -1446,12 +1446,10 @@ uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, v
     // hit
     if (Search(store, &set, &lineInSet)){
         stats->Stats[memid][level].hitCount++;
-        debug(inform << TAB << TAB << "hit" << endl << flush);
         MarkUsed(set, lineInSet);
 
         return INVALID_CACHE_LEVEL;
     }
-    debug(inform << TAB << TAB << "missed" << endl << flush);
 
     // miss
     stats->Stats[memid][level].missCount++;
