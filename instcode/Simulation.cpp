@@ -159,8 +159,6 @@ extern "C" {
         stats->threadid = AllData->GenerateThreadKey();
         stats->imageid = *key;
 
-        inform << "Counters at " << (uint64_t)stats->Counters << ENDL;
-
         AllData->SetTimer(*key, 0);
         return NULL;
     }
@@ -944,15 +942,10 @@ AddressRangeHandler::AddressRangeHandler(AddressRangeHandler& h){
 AddressRangeHandler::~AddressRangeHandler(){
 }
 
-void AddressRangeHandler::Print(){
-    inform << "AddressRangeHandler" << ENDL;
+void AddressRangeHandler::Print(ofstream& f){
+    f << "AddressRangeHandler" << ENDL;
 }
 
-void VOIDFUNCTION(void){
-    inform << "HELLOOOOOOOOOOOO" << ENDL;
-}
-
-bool onemore = false;
 void AddressRangeHandler::Process(void* stats, BufferEntry* access){
     uint32_t memid = (uint32_t)access->memseq;
     uint64_t addr = access->address;
@@ -1336,15 +1329,15 @@ uint64_t CacheLevel::CountColdMisses(){
     return (countsets * associativity);
 }
 
-void CacheLevel::Print(uint32_t sysid){
-    inform << TAB << dec << sysid
-           << TAB << dec << level
-           << TAB << dec << size
-           << TAB << dec << associativity
-           << TAB << dec << linesize
-           << TAB << ReplacementPolicyNames[replpolicy]
-           << TAB << TypeString()
-           << ENDL;
+void CacheLevel::Print(ofstream& f, uint32_t sysid){
+    f << TAB << dec << sysid
+      << TAB << dec << level
+      << TAB << dec << size
+      << TAB << dec << associativity
+      << TAB << dec << linesize
+      << TAB << ReplacementPolicyNames[replpolicy]
+      << TAB << TypeString()
+      << ENDL;
 }
 
 uint64_t CacheLevel::GetStorage(uint64_t addr){
@@ -1585,14 +1578,14 @@ CacheStructureHandler::CacheStructureHandler(CacheStructureHandler& h){
     }
 }
 
-void CacheStructureHandler::Print(){
-    inform << "CacheStructureHandler: "
+void CacheStructureHandler::Print(ofstream& f){
+    f << "CacheStructureHandler: "
            << "SysId " << dec << sysId
            << TAB << "Levels " << dec << levelCount
            << ENDL;
 
     for (uint32_t i = 0; i < levelCount; i++){
-        levels[i]->Print(sysId);
+        levels[i]->Print(f, sysId);
     }
 
 }
@@ -1844,8 +1837,6 @@ void ReadSettings(){
         MinimumHighAssociativity = SaveHashMin;
     }
 
-    inform << "Maximum associativity for linear search: " << dec << MinimumHighAssociativity << ENDL;
-
     // read caches to simulate
     string cachedf = GetCacheDescriptionFile();
     ifstream CacheFile(cachedf);
@@ -1864,7 +1855,6 @@ void ReadSettings(){
             ErrorExit("cannot parse cache description line: " << line, MetasimError_StringParse);
         }
         caches.push_back(c);
-        c->Print();
     }
 
     CountMemoryHandlers = caches.size() + 1;

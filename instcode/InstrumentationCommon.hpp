@@ -532,7 +532,7 @@ public:
         // insert data for this thread
         allthreads.insert(tid);
         allimages.insert(iid);
-        inform << "Adding image... " << hex << iid << ENDL;
+
         datamap[iid] = DataMap<thread_key_t, T>();
         assert(datamap.count(iid) == 1);
         datamap[iid][tid] = data;
@@ -547,7 +547,7 @@ public:
         // create/insert data every thread
         assert(datamap.count(iid) == 1);
         for (set<thread_key_t>::iterator it = allthreads.begin(); it != allthreads.end(); it++){
-            datagen(data, ImageType, iid, (*it), firstimage);
+            datamap[iid][(*it)] = datagen(data, ImageType, iid, (*it), firstimage);
             assert(datamap[iid].count((*it)) == 1);
         }
         return iid;

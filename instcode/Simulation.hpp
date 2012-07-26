@@ -227,7 +227,7 @@ public:
     bool MultipleLines(uint64_t addr, uint32_t width);
 
     void MarkUsed(uint32_t setid, uint32_t lineid);
-    void Print(uint32_t sysid);
+    void Print(ofstream& f, uint32_t sysid);
 
     // re-implemented by HighlyAssociativeCacheLevel
     virtual bool Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet);
@@ -309,7 +309,7 @@ public:
     MemoryStreamHandler();
     ~MemoryStreamHandler();
 
-    virtual void Print() = 0;
+    virtual void Print(ofstream& f) = 0;
     virtual void Process(void* stats, BufferEntry* access) = 0;
     virtual bool Verify() = 0;
     bool Lock();
@@ -330,7 +330,7 @@ public:
     AddressRangeHandler(AddressRangeHandler& h);
     ~AddressRangeHandler();
 
-    void Print();
+    void Print(ofstream& f);
     void Process(void* stats, BufferEntry* access);
     bool Verify();
 };
@@ -351,7 +351,7 @@ public:
     ~CacheStructureHandler();
     bool Init(string desc);
 
-    void Print();
+    void Print(ofstream& f);
     void Process(void* stats, BufferEntry* access);
     bool Verify();
 };
