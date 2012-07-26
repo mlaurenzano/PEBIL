@@ -51,6 +51,9 @@ using namespace std;
 
 // planning on disabling this around summer/fall 2013.
 #define LEGACY_METASIM_SUPPORT
+#ifdef LEGACY_METASIM_SUPPORT
+#define LegacyToken "[LEGACY] "
+#endif
 
 // thread id support
 typedef struct {
@@ -160,7 +163,8 @@ extern "C" {
         CountSuspended++;
         pthread_mutex_unlock(&countlock);
 
-        // the thread doing the pausing will lock this prior to asking for the pause
+        // the thread doing the pausing will lock this prior to asking for the pause, therefore every
+        // other thread that hits this will wait on the the thread asking for the pause
         pthread_mutex_lock(&pauser);
         pthread_mutex_unlock(&pauser);
 
@@ -174,7 +178,7 @@ extern "C" {
         if (CanSuspend){
             return;
         }
-        inform << "Thread " << hex << pthread_self() << " initializing Suspension handling" << ENDL;
+        debug(inform << "Thread " << hex << pthread_self() << " initializing Suspension handling" << ENDL);
 
         CountSuspended = 0;
         pauser = PTHREAD_MUTEX_INITIALIZER;
@@ -188,7 +192,6 @@ extern "C" {
         NewAction.sa_flags = 0;
      
         sigaction(SuspendSignal, NULL, &OldAction);
-        //assert(OldAction.sa_handler == SIG_IGN);
         sigaction(SuspendSignal, &NewAction, NULL);
     }
 
@@ -334,9 +337,9 @@ private:
     pthread_mutex_t mutex;
 
     DataMap <image_key_t, DataMap<thread_key_t, T> > datamap;
-    void* (*datagen)(void*, uint32_t, image_key_t, thread_key_t);
-    void (*datadel)(void*);
-    uint64_t (*dataref)(void*);
+    T (*datagen)(T, uint32_t, image_key_t, thread_key_t, image_key_t);
+    void (*datadel)(T);
+    uint64_t (*dataref)(T);
 
     DataMap <image_key_t, DataMap<uint32_t, double> > timers;
 
@@ -345,6 +348,8 @@ private:
 
     uint32_t currentimageseq;
     DataMap <image_key_t, uint32_t> imageseq;
+
+    image_key_t firstimage;
 
     // stores data in a ThreadData[] which can be more easily accessed by tools.
     DataMap <image_key_t, ThreadData*> threaddata;
@@ -363,12 +368,13 @@ private:
         ThreadData* td = threaddata[iid];
 
         uint32_t actual = h;
+        
         while (td[actual].id != 0){
             actual = (actual + 1) % (ThreadHashAnd + 1);
         }
-        td[actual].id = tid;
         T d = datamap[iid][tid];
-        td[actual].data = (uint64_t)dataref((void*)d);
+        td[actual].id = (uint64_t)tid;
+        td[actual].data = (uint64_t)dataref(d);
 
         inform
             << "Image " << hex << (uint64_t)iid
@@ -405,7 +411,7 @@ public:
     static const uint32_t ThreadType = 0;
     static const uint32_t ImageType = 1;
 
-    DataManager(void* (*g)(void*, uint32_t, image_key_t, thread_key_t), void (*d)(void*), uint64_t (*r)(void*)){
+    DataManager(T (*g)(T, uint32_t, image_key_t, thread_key_t, image_key_t), void (*d)(T), uint64_t (*r)(T)){
         datagen = g;
         datadel = d;
         dataref = r;
@@ -415,6 +421,7 @@ public:
         threadseq[GenerateThreadKey()] = currentthreadseq++;
 
         currentimageseq = 0;
+        firstimage = 0;
     }
 
     ~DataManager(){
@@ -436,6 +443,9 @@ public:
     }
 
     uint32_t GetThreadSequence(thread_key_t tid){
+        if (threadseq.count(tid) != 1){
+            inform << "Thread not available!?! " << hex << tid << ENDL;
+        }
         assert(threadseq.count(tid) == 1 && "thread must be added with AddThread method");
         return threadseq[tid];
     }
@@ -448,6 +458,7 @@ public:
     void AddThread(thread_key_t tid){
         assert(allthreads.count(tid) == 0);
         assert(threadseq.count(tid) == 0);
+        assert(firstimage != 0);
 
         threadseq[tid] = currentthreadseq++;
 
@@ -456,7 +467,7 @@ public:
             assert(datamap[(*iit)].count(tid) == 0);
 
             for (set<thread_key_t>::iterator tit = allthreads.begin(); tit != allthreads.end(); tit++){
-	        datamap[(*iit)][tid] = (T)datagen((void*)datamap[(*iit)][(*tit)], ThreadType, (*iit), tid);
+	        datamap[(*iit)][tid] = datagen(datamap[(*iit)][(*tit)], ThreadType, (*iit), tid, firstimage);
                 assert(datamap[(*iit)][tid]);
                 break;
             }
@@ -529,13 +540,16 @@ public:
         threaddata[iid] = t;
         SetThreadData(iid, tid);
 
-        // create/insert data every other thread
-        for (set<thread_key_t>::iterator it = allthreads.begin(); it != allthreads.end(); it++){
-            if ((*it) != tid){
-                datamap[iid][(*it)] = (T)datagen((void*)data, ImageType, iid, (*it));
-            }
+        if (firstimage == 0){
+            firstimage = iid;
         }
+
+        // create/insert data every thread
         assert(datamap.count(iid) == 1);
+        for (set<thread_key_t>::iterator it = allthreads.begin(); it != allthreads.end(); it++){
+            datagen(data, ImageType, iid, (*it), firstimage);
+            assert(datamap[iid].count((*it)) == 1);
+        }
         return iid;
     }
 
@@ -582,7 +596,7 @@ public:
         dataid = di;
 
         threadcount = 1;
-        imagecount = 1;
+        imagecount = 0;
 
         capacity = cap;
 
@@ -605,7 +619,6 @@ public:
             delete[] stats;
         }
     }
-
     void AddThread(thread_key_t tid){
         T** tmp = new T*[threadcount + 1];
         for (uint32_t i = 0; i < threadcount + 1; i++){
@@ -635,22 +648,29 @@ public:
         imagecount++;
     }
 
-    void Refresh(V buffer, thread_key_t tid){
+    void Refresh(V buffer, uint32_t num, thread_key_t tid){
         assert(imagecount > 0);
         assert(threadcount > 0);
+        assert(num <= capacity);
 
         uint32_t threadseq = alldata->GetThreadSequence(tid);
         assert(threadseq < threadcount);
 
         image_key_t i;
         thread_key_t t;
-        for (uint32_t j = 0; j < capacity; j++, buffer++){
+        //inform << "Refreshing " << dec << capacity << " buffer stats for thread " << dec << threadseq << ENDL;
+        for (uint32_t j = 0; j < num; j++, buffer++){
             dataid(buffer, &i, &t);
             if (alldata->allimages.count(i) == 0){
-                continue;
+                if (alldata->CountThreads() > 1){
+                    continue;
+                }
+                assert(false && "the only way blank buffer entries should exist is when threads get signal-interrupted mid-block");
             }
+            //inform << TAB << TAB << "index " << j << ENDL;
             assert(tid == t);
             stats[threadseq][j] = alldata->GetData(i, t);
+            assert(stats[threadseq][j]);
         }
     };
 
@@ -660,6 +680,7 @@ public:
 
         uint32_t threadseq = alldata->GetThreadSequence(tid);
         assert(threadseq < threadcount);
+        //inform << "Getting buffer stats for thread " << dec << threadseq << ENDL;
 
         return stats[threadseq];
     }

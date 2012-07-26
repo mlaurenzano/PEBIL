@@ -790,16 +790,6 @@ uint32_t ElfFileInst::generateInstrumentation(){
 
 }
 
-
-void ElfFileInst::setPathToInstLib(char* libPath){
-    if (sharedLibraryPath){
-        PRINT_WARN(4,"Overwriting shared library path");
-        delete[] sharedLibraryPath;
-    }
-    sharedLibraryPath = new char[__MAX_STRING_SIZE];
-    sprintf(sharedLibraryPath, "%s\0", libPath);
-}
-
 TextSection* ElfFileInst::getInstTextSection() { return (TextSection*)(elfFile->getRawSection(extraTextIdx)); }
 RawSection* ElfFileInst::getInstDataSection() { return elfFile->getRawSection(extraDataIdx); }
 uint64_t ElfFileInst::getInstDataAddress() { return instrumentationDataAddress; }
@@ -1232,8 +1222,6 @@ void ElfFileInst::phasedInstrumentation(){
     functionSelect();
 
     if (!elfFile->isStaticLinked()){
-        addSharedLibraryPath();
-
         for (uint32_t i = instrumentationLibraries.size(); i > 0; i--){
             addSharedLibrary(instrumentationLibraries[i-1]);
         }
@@ -1662,10 +1650,6 @@ ElfFileInst::~ElfFileInst(){
         delete lineInfoFinder;
     }
 
-    if (sharedLibraryPath){
-        delete[] sharedLibraryPath;
-    }
-
     for (uint32_t i = 0; i < relocatedFunctions.size(); i++){
         delete relocatedFunctions[i];
     }
@@ -1755,8 +1739,6 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     extraTextIdx = 0;
     extraDataIdx = elfFile->getDotDataSection()->getSectionIndex();
     dataIdx = 0;
-
-    sharedLibraryPath = NULL;
 
     lineInfoFinder = NULL;
     if (elfFile->getLineInfoSection()){
@@ -2060,16 +2042,16 @@ uint64_t ElfFileInst::addFunction(InstrumentationFunction* func){
 }
 
 
-uint32_t ElfFileInst::addSharedLibraryPath(){
+uint32_t ElfFileInst::addSharedLibraryPath(char* path){
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
 
-    if (!sharedLibraryPath){
+    if (!path){
         return 0;
     }
 
     DynamicTable* dynamicTable = elfFile->getDynamicTable();
     verify();
-    uint32_t strOffset = addStringToDynamicStringTable(sharedLibraryPath);
+    uint32_t strOffset = addStringToDynamicStringTable(path);
     verify();
 
     uint32_t emptyDynamicIdx = dynamicTable->findEmptyDynamic();

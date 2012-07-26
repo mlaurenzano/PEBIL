@@ -114,7 +114,6 @@ private:
 
     LineInfoFinder* lineInfoFinder;
 
-
     uint32_t addStringToDynamicStringTable(const char* str);
     uint32_t addSymbolToDynamicSymbolTable(uint32_t name, uint64_t value, uint64_t size, uint8_t bind, uint8_t type, uint32_t other, uint16_t scnidx);
     uint32_t expandHashTable(uint32_t idx);
@@ -138,7 +137,6 @@ protected:
 
     uint32_t currentPhase;
 
-    char* sharedLibraryPath;
     uint64_t flags;
     char* libraryList;
     
@@ -148,7 +146,7 @@ protected:
     InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode);
     InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, InstLocations loc);
     uint32_t addSharedLibrary(const char* libname);
-    uint32_t addSharedLibraryPath();
+    uint32_t addSharedLibraryPath(char* path);
     uint64_t addFunction(InstrumentationFunction* func);
     uint64_t addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOffset);
     uint64_t relocateDynamicSection();
@@ -207,7 +205,6 @@ public:
 
     LineInfoFinder* getLineInfoFinder() { return lineInfoFinder; }
     bool hasLineInformation() { return (lineInfoFinder != NULL); }
-    void setPathToInstLib(char* libPath);
     void setAllowStatic() { allowStatic = true; }
     void setThreadedMode() { threadedMode = true; ASSERT(is64Bit() && "Threading support not available for IA32"); }
     bool isThreadedMode() { return threadedMode; }
