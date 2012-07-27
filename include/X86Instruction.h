@@ -456,6 +456,7 @@ public:
 
     BitSet<uint32_t>* getFlagsUsed();
     BitSet<uint32_t>* getFlagsDefined();
+    RegisterSet * getUnusableRegisters();
     RegisterSet * getRegistersUsed();
     RegisterSet * getRegistersDefined();
 

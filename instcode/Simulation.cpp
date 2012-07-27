@@ -691,9 +691,9 @@ extern "C" {
 
             // dump address range (dfp) file
             fileName = LegacyRangeFileName(stats);
-            TryOpen(MemFile, fileName);
-
             inform << LegacyToken << "printing address range results to " << fileName << ENDL;
+
+            TryOpen(MemFile, fileName);
 
             MemFile
                 << "# appname       = " << stats->Application << ENDL

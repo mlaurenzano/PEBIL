@@ -465,13 +465,13 @@ void CacheSimulation::instrument(){
                     BitSet<uint32_t>* inv = new BitSet<uint32_t>(X86_ALU_REGS);
                     inv->insert(X86_REG_AX);
                     inv->insert(X86_REG_SP);
-                    inv->insert(X86_REG_BP);
+                    //inv->insert(X86_REG_BP);
                     if (threadReg != X86_REG_INVALID){
                         inv->insert(threadReg);
                         sr1 = threadReg;
                     }
                     
-                    RegisterSet* regused = memop->getRegistersUsed();
+                    RegisterSet* regused = memop->getUnusableRegisters();
                     for (uint32_t k = 0; k < X86_64BIT_GPRS; k++){
                         if (regused->containsRegister(k)){
                             inv->insert(k);
