@@ -412,6 +412,7 @@ Instrumentation::Instrumentation(PebilClassTypes typ)
     : Base(typ)
 {
     bootstrapOffset = 0;
+    canOverflow = true;
 }
 
 Instrumentation::~Instrumentation(){
@@ -871,7 +872,6 @@ InstrumentationSnippet::InstrumentationSnippet()
     dataEntryOffsets = NULL;
 
     distinctTrampoline = SNIPPET_TRAMPOLINE_DEFAULT;
-    canOverflow = true;
 }
 
 InstrumentationSnippet::~InstrumentationSnippet(){

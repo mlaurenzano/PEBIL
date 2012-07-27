@@ -477,6 +477,7 @@ void CacheSimulation::instrument(){
                             inv->insert(k);
                         }
                     }
+                    delete regused;
                     for (uint32_t k = X86_64BIT_GPRS; k < X86_ALU_REGS; k++){
                         inv->insert(k);
                     }
