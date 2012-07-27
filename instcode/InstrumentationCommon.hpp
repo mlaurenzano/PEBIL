@@ -728,7 +728,7 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
 
     MpiValid = true;
 
-    fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d on host %u in MPI_Init wrapper\n", getpid(), __taskid, __ntasks, gethostid());
+    fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
     tool_mpi_init();
 
     return retval;
@@ -748,7 +748,7 @@ void __wrapper_name(mpi_init_)(int* ierr){
 
     MpiValid = true;
 
-    fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d on host %u in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks, gethostid());
+    fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks);
     tool_mpi_init();
 }
 };
