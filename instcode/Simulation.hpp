@@ -163,9 +163,18 @@ public:
     void Update(uint32_t memid, uint64_t addr, uint32_t count);
 };
 
+#define INVALID_REUSE_DISTANCE (-1)
+class ReuseStats : public StreamStats {
+public:
+    unordered_map<int32_t, uint64_t> DistanceCounts;
+
+    ReuseStats() {}
+    ~ReuseStats() {}
+
+    void Update(uint64_t dist);
+};
+
 class SamplingMethod {
-protected:
-    pthread_mutex_t mlock;
 public:
     uint32_t AccessLimit;
     uint32_t SampleOn;
@@ -301,6 +310,14 @@ public:
     const char* TypeString() { return "exclusive_H"; }
 };
 
+typedef enum {
+    StreamHandlerType_undefined = 0,
+    StreamHandlerType_CacheStructure,
+    StreamHandlerType_AddressRange,
+    StreamHandlerType_ReuseDistance,
+    StreamHandlerType_Total
+} StreamHandlerTypes;
+
 // DFP and other interesting memory things extend this class.
 class MemoryStreamHandler {
 protected:
@@ -315,14 +332,9 @@ public:
     bool Lock();
     bool UnLock();
     bool TryLock();
-};
 
-typedef enum {
-    StreamHandlerType_undefined = 0,
-    StreamHandlerType_CacheStructure,
-    StreamHandlerType_AddressRange,
-    StreamHandlerType_Total
-} StreamHandlerTypes;
+    static StreamHandlerTypes FindType(string desc) { return StreamHandlerType_CacheStructure; }
+};
 
 class AddressRangeHandler : public MemoryStreamHandler {
 public:
@@ -332,7 +344,27 @@ public:
 
     void Print(ofstream& f);
     void Process(void* stats, BufferEntry* access);
-    bool Verify();
+    bool Verify() { return true; }
+};
+
+class ReuseDistanceHandler : public MemoryStreamHandler {
+private:
+    unordered_map<uint64_t, uint64_t> window;
+    void Clean();
+    uint64_t sequence;
+    uint64_t lastcleanup;
+
+public:
+    uint64_t cleanup;
+
+    ReuseDistanceHandler(uint32_t clean);
+    ReuseDistanceHandler(ReuseDistanceHandler& h);
+    ~ReuseDistanceHandler() {}
+
+    void Print(ofstream& f);
+    void Process(void* stats, BufferEntry* access);
+    bool Verify() { return true; }
+    void AddSequence(uint64_t count) { sequence += count; }
 };
 
 class CacheStructureHandler : public MemoryStreamHandler {

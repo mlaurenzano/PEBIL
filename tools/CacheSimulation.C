@@ -35,7 +35,7 @@
 #define INST_LIB_NAME "libsimulator.so"
 
 #define NOSTRING "__pebil_no_string__"
-#define BUFFER_ENTRIES 0x1000
+#define BUFFER_ENTRIES 0x10000
 
 extern "C" {
     InstrumentationTool* CacheSimulationMaker(ElfFile* elf){

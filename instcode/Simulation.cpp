@@ -40,9 +40,17 @@
 // can tinker with this at runtime using the environment variable METASIM_LIMIT_HIGH_ASSOC
 static uint32_t MinimumHighAssociativity = 256;
 
+// these control reuse distance calculations. activate this feature by setting METASIM_REUSE_WINDOW to something other than 0
+// the design of the reuse distance tool is such that tracking a large window size isn't a lot more expensive than a small size
+static uint32_t ReuseWindow = 0;
+static const uint64_t ReuseCleanupMin = 10000000;
+static const double ReusePrintScale = 1.5;
+static const uint32_t ReuseIndivPrint = 32;
+
 static uint32_t CountMemoryHandlers = 0;
-#define CountCacheStructures (CountMemoryHandlers - 1)
-#define RangeHandlerIndex (CountMemoryHandlers - 1)
+static uint32_t CountCacheStructures = 0;
+static uint32_t RangeHandlerIndex = 0;
+static uint32_t ReuseHandlerIndex = 0;
 
 static SamplingMethod* Sampler = NULL;
 static MemoryStreamHandler** MemoryHandlers = NULL;
@@ -52,6 +60,11 @@ static FastData<SimulationStats*, BufferEntry*>* FastStats = NULL;
 static set<uint64_t>* NonmaxKeys = NULL;
 
 #define synchronize(__locker) __locker->Lock(); for (bool __s = true; __s == true; __locker->UnLock(), __s = false) 
+
+bool IsPower2(int32_t x)
+{
+    return ( (x > 0) && ((x & (x - 1)) == 0) );
+}
 
 void PrintReference(uint32_t id, BufferEntry* ref){
     inform 
@@ -239,9 +252,7 @@ extern "C" {
                 MemoryStreamHandler* m = stats->Handlers[i];
                 ProcessBuffer(i, m, numElements, iid, tid);
             }
-        }
-
-        DONE_WITH_BUFFER();
+        } 
 
         synchronize(AllData){
             if (isSampling){
@@ -319,6 +330,12 @@ extern "C" {
                     SetDynamicPoints(NonmaxKeys, true);
                     ResumeAllThreads();
                 }
+
+                // reuse distance handler needs to know that we passed over some addresses
+                if (ReuseWindow){
+                    ReuseDistanceHandler* r = (ReuseDistanceHandler*)stats->Handlers[ReuseHandlerIndex];
+                    r->AddSequence(numElements);
+                }
             }
 
             Sampler->IncrementAccessCount(numElements);
@@ -371,6 +388,46 @@ extern "C" {
         inform << "Printing cache simulation results to " << fileName << ENDL;
         TryOpen(MemFile, fileName);
 
+
+        if (ReuseWindow){
+            for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+                for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+                    SimulationStats* s = (SimulationStats*)AllData->GetData((*iit), (*it));
+                    ReuseStats* r = (ReuseStats*)s->Stats[ReuseHandlerIndex];
+                    assert(r);
+
+                    vector<int32_t> dkeys;
+                    for (unordered_map<int32_t, uint64_t>::iterator dit = r->DistanceCounts.begin(); dit != r->DistanceCounts.end(); dit++){
+                        int32_t dist = (*dit).first;
+                        if (dist != INVALID_REUSE_DISTANCE){
+                            dkeys.push_back(dist);
+                        }
+                    }
+                    sort(dkeys.begin(), dkeys.end());
+
+                    inform << "Reuse distance bins for " << hex << s->Application << " Thread " << AllData->GetThreadSequence((*it)) << ENDL;
+
+                    uint64_t currenttot = 0;
+                    int32_t prevbin = 0;
+                    for (vector<int32_t>::iterator dit = dkeys.begin(); dit != dkeys.end(); dit++){
+                        int32_t dist = (*dit);
+                        uint64_t count = r->DistanceCounts[dist];
+
+                        currenttot += count;
+
+                        if (dist <= ReuseIndivPrint || (int32_t)((double)prevbin * ReusePrintScale) <= dist || IsPower2(dist) || dist == dkeys.back() || prevbin == 0){
+                            inform << TAB << dec << "(" << prevbin << "," << dist << "]" << TAB << currenttot << ENDL;
+
+                            currenttot = 0;
+                            prevbin = dist;
+                        }
+                    }
+
+                    dkeys.clear();
+                    inform << TAB << dec << ReuseWindow << "+" << TAB << r->DistanceCounts[INVALID_REUSE_DISTANCE] << ENDL;
+                }
+            }
+        }
 
         uint64_t sampledCount = 0;
         uint64_t totalMemop = 0;
@@ -637,7 +694,6 @@ extern "C" {
                 << "# rank          = " << dec << GetTaskId() << ENDL
                 << "# buffer        = " << BUFFER_CAPACITY(stats) << ENDL
                 << "# total         = " << dec << totalMemop << ENDL
-                << "# sampled       = " << dec << Sampler->AccessCount << ENDL
                 << "# processed     = " << dec << sampledCount << ENDL
                 << "# samplemax     = " << Sampler->AccessLimit << ENDL
                 << "# sampleon      = " << Sampler->SampleOn << ENDL
@@ -684,7 +740,7 @@ extern "C" {
         double t = (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0));
         inform << "CXXX Total Execution time for instrumented application: " << t << ENDL;
         double m = (double)(CountCacheStructures * Sampler->AccessCount);
-        inform << "CXXX Memops simulated (excludes unsampled memops) per second: " << (m/t) << ENDL;
+        inform << "CXXX Memops simulated (includes only sampled memops in cache structures) per second: " << (m/t) << ENDL;
 
         if (NonmaxKeys){
             delete NonmaxKeys;
@@ -882,6 +938,80 @@ string GetCacheDescriptionFile(){
     return knobvalue;
 }
 
+ReuseDistanceHandler::ReuseDistanceHandler(uint32_t clean){
+    cleanup = clean;
+    if (cleanup < ReuseCleanupMin){
+        cleanup = ReuseCleanupMin;
+    }
+    lastcleanup = 0;
+    sequence = 0;
+}
+
+ReuseDistanceHandler::ReuseDistanceHandler(ReuseDistanceHandler& h){
+    cleanup = h.cleanup;
+    if (cleanup < ReuseCleanupMin){
+        cleanup = ReuseCleanupMin;
+    }
+    lastcleanup = 0;
+    sequence = 0;
+}
+
+void ReuseDistanceHandler::Print(ofstream& f){
+    f << "Reuse Distance Handler" << ENDL;
+}
+
+void ReuseDistanceHandler::Clean(){
+    if (sequence - lastcleanup < cleanup){
+        return;
+    }
+
+    set<uint64_t> erase;
+    for (unordered_map<uint64_t, uint64_t>::iterator it = window.begin(); it != window.end(); it++){
+        uint64_t addr = (*it).first;
+        uint64_t seq = (*it).second;
+
+        if (sequence - seq >= cleanup){
+            erase.insert(addr);
+        }
+    }
+
+    //inform << "cleaning up reuse: " << dec << erase.size() << TAB <<sequence << TAB << lastcleanup << TAB << cleanup << ENDL;
+    for (set<uint64_t>::iterator it = erase.begin(); it != erase.end(); it++){
+        window.erase((*it));
+    }
+
+    lastcleanup = sequence;
+}
+
+void ReuseDistanceHandler::Process(void* stats, BufferEntry* access){
+    uint64_t addr = access->address;
+    ReuseStats* r = (ReuseStats*)stats;
+
+    Clean();
+
+    if (window.count(addr) == 0){
+        r->Update(INVALID_REUSE_DISTANCE);
+    } else {
+        assert(window.count(addr) == 1);
+        uint64_t d = sequence - window[addr];
+        if (d >= ReuseWindow){
+            r->Update(INVALID_REUSE_DISTANCE);            
+        } else {
+            r->Update(d);
+        }
+    }
+
+    window[addr] = sequence++;
+}
+
+void ReuseStats::Update(uint64_t dist){
+    assert(dist == INVALID_REUSE_DISTANCE || dist < ReuseWindow);
+    if (DistanceCounts.count(dist) == 0){
+        DistanceCounts[dist] = 0;
+    }
+    DistanceCounts[dist] = DistanceCounts[dist] + 1;
+}
+
 RangeStats::RangeStats(uint32_t capacity){
     Capacity = capacity;
     Counts = new uint64_t[Capacity];
@@ -950,9 +1080,6 @@ void AddressRangeHandler::Process(void* stats, BufferEntry* access){
     RangeStats* rs = (RangeStats*)stats;
 
     rs->Update(memid, addr);
-}
-bool AddressRangeHandler::Verify(){
-    return true;
 }
 
 CacheStats::CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity){
@@ -1203,7 +1330,6 @@ SamplingMethod::SamplingMethod(uint32_t limit, uint32_t on, uint32_t off){
     SampleOff = off;
 
     AccessCount = 0;
-    mlock = PTHREAD_MUTEX_INITIALIZER;
 }
 
 SamplingMethod::~SamplingMethod(){
@@ -1214,9 +1340,7 @@ void SamplingMethod::Print(){
 }
 
 void SamplingMethod::IncrementAccessCount(uint64_t count){
-    pthread_mutex_lock(&mlock);
     AccessCount += count;
-    pthread_mutex_unlock(&mlock);
 }
 
 bool SamplingMethod::SwitchesMode(uint64_t count){
@@ -1234,24 +1358,20 @@ bool SamplingMethod::CurrentlySampling(uint64_t count){
         return res;
     }
 
-    pthread_mutex_lock(&mlock);
     if (PeriodLength == 0){
         res = true;
     }
     if ((AccessCount + count) % PeriodLength < SampleOn){
         res = true;
     }
-    pthread_mutex_unlock(&mlock);
     return res;
 }
 
 bool SamplingMethod::ExceedsAccessLimit(uint64_t count){
-    pthread_mutex_lock(&mlock);
     bool res = false;
     if (AccessLimit > 0 && count > AccessLimit){
         res = true;
     }
-    pthread_mutex_unlock(&mlock);
     return res;
 }
 
@@ -1773,6 +1893,9 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
         stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->InstructionCount);
     }
     stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
+    if (ReuseWindow){
+        stats->Stats[ReuseHandlerIndex] = new ReuseStats();
+    }
 
     // all images within a thread share a set of memory handlers, but they don't exist for any image
     if (typ == AllData->ThreadType || (iid == firstimage)){
@@ -1782,10 +1905,16 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
             CacheStructureHandler* c = new CacheStructureHandler(*p);
             stats->Handlers[i] = c;
         }
+
         AddressRangeHandler* p = (AddressRangeHandler*)MemoryHandlers[RangeHandlerIndex];
         AddressRangeHandler* r = new AddressRangeHandler(*p);
         stats->Handlers[RangeHandlerIndex] = r;
 
+        if (ReuseWindow){
+            ReuseDistanceHandler* d = (ReuseDistanceHandler*)MemoryHandlers[ReuseHandlerIndex];
+            ReuseDistanceHandler* h = new ReuseDistanceHandler(*d);
+            stats->Handlers[ReuseHandlerIndex] = h;
+        }
     } else {
         inform << "first image " << hex << firstimage << TAB << "iid " << iid << ENDL;
         SimulationStats * fs = AllData->GetData(firstimage, tid);
@@ -1827,6 +1956,10 @@ void ReadSettings(){
         MinimumHighAssociativity = SaveHashMin;
     }
 
+    if (!ReadEnvUint32("METASIM_REUSE_WINDOW", &ReuseWindow)){
+        ReuseWindow = 0;
+    }
+
     // read caches to simulate
     string cachedf = GetCacheDescriptionFile();
     ifstream CacheFile(cachedf);
@@ -1847,14 +1980,27 @@ void ReadSettings(){
         caches.push_back(c);
     }
 
-    CountMemoryHandlers = caches.size() + 1;
-    assert(CountMemoryHandlers > 0 && "No cache structures found for simulation");
-    assert(CountMemoryHandlers - 1 == RangeHandlerIndex);
+    CountCacheStructures = caches.size();
+    CountMemoryHandlers = CountCacheStructures;
+
+    RangeHandlerIndex = CountMemoryHandlers;
+    CountMemoryHandlers++;
+
+    if (ReuseWindow){
+        ReuseHandlerIndex = CountMemoryHandlers;
+        CountMemoryHandlers++;
+    }
+
+    assert(CountCacheStructures > 0 && "No cache structures found for simulation");
+
     MemoryHandlers = new MemoryStreamHandler*[CountMemoryHandlers];
     for (uint32_t i = 0; i < CountCacheStructures; i++){
         MemoryHandlers[i] = caches[i];
     }
     MemoryHandlers[RangeHandlerIndex] = new AddressRangeHandler();
+    if (ReuseWindow){
+        MemoryHandlers[ReuseHandlerIndex] = new ReuseDistanceHandler(ReuseWindow);
+    }
 
     uint32_t SampleMax;
     uint32_t SampleOn;
