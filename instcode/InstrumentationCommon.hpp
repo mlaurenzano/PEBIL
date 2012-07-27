@@ -358,7 +358,7 @@ private:
         return (tid >> ThreadHashShift) & ThreadHashAnd;
     }
 
-    uint64_t SetThreadData(image_key_t iid, thread_key_t tid){
+    uint64_t SetThreadData(image_key_t iid, thread_key_t tid, uint32_t typ){
         uint32_t h = HashThread(tid);
 
         assert(threaddata.count(iid) == 1);
@@ -376,14 +376,17 @@ private:
         td[actual].id = (uint64_t)tid;
         td[actual].data = (uint64_t)dataref(d);
 
-        inform
-            << "Image " << hex << (uint64_t)iid
-            << " setting up thread " << td[actual].id
-            << " data at " << (uint64_t)td
+        if (typ == ImageType){
+            inform << "Image " << hex << iid << " thread " << tid;
+        } else {
+            inform << "Thread " << hex << tid << " image " << iid;
+        }
+        cout
+            << " setting up thread data at " << (uint64_t)td
             << " -> " << td[actual].data
             << endl;
 
-        // fail if there was a collision. it makes writing tools much easier so we see how well this works for now
+        // just fail if there was a collision. it makes writing tools much easier so we see how well this works for now
         assert(actual == h);
     }
     void RemoveThreadData(image_key_t iid, thread_key_t tid){
@@ -473,7 +476,7 @@ public:
             }
 
             assert(threaddata.count(*iit) == 1);
-            SetThreadData((*iit), tid);
+            SetThreadData((*iit), tid, ThreadType);
         }
         allthreads.insert(tid);
     }
@@ -538,7 +541,7 @@ public:
         datamap[iid][tid] = data;
 
         threaddata[iid] = t;
-        SetThreadData(iid, tid);
+        SetThreadData(iid, tid, ImageType);
 
         if (firstimage == 0){
             firstimage = iid;

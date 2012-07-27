@@ -33,37 +33,44 @@
 #include <assert.h>
 
 // TODO: test per-insn
-// TODO: test multithread + multiimage runs
 #include <InstrumentationCommon.hpp>
 #include <Simulation.hpp>
 
-// can tinker with this at runtime using the environment variable METASIM_LIMIT_HIGH_ASSOC
+// Can tinker with this at runtime using the environment variable
+// METASIM_LIMIT_HIGH_ASSOC if desired.
 static uint32_t MinimumHighAssociativity = 256;
 
-// these control reuse distance calculations. activate this feature by setting METASIM_REUSE_WINDOW to something other than 0
-// the design of the reuse distance tool is such that tracking a large window size isn't a lot more expensive than a small size
+// These control reuse distance calculations. Activate this feature by setting 
+// METASIM_REUSE_WINDOW to something other than 0. The design of the reuse 
+// distance tool is such that tracking a large window size isn't a lot more 
+// expensive than a small size. Also this will be rendered relatively useless
+// unless the sampling period (METASIM_SAMPLE_ON) is somewhat large relative 
+// to METASIM_REUSE_WINDOW.
 static uint32_t ReuseWindow = 0;
 static const uint64_t ReuseCleanupMin = 10000000;
 static const double ReusePrintScale = 1.5;
 static const uint32_t ReuseIndivPrint = 32;
 
+// global data
 static uint32_t CountMemoryHandlers = 0;
 static uint32_t CountCacheStructures = 0;
 static uint32_t RangeHandlerIndex = 0;
 static uint32_t ReuseHandlerIndex = 0;
 
 static SamplingMethod* Sampler = NULL;
-static MemoryStreamHandler** MemoryHandlers = NULL;
 static DataManager<SimulationStats*>* AllData = NULL;
 static FastData<SimulationStats*, BufferEntry*>* FastStats = NULL;
-
 static set<uint64_t>* NonmaxKeys = NULL;
+
+// should not be used directly. kept here to be cloned by anyone who needs it
+static MemoryStreamHandler** MemoryHandlers = NULL;
+
 
 #define synchronize(__locker) __locker->Lock(); for (bool __s = true; __s == true; __locker->UnLock(), __s = false) 
 
 bool IsPower2(int32_t x)
 {
-    return ( (x > 0) && ((x & (x - 1)) == 0) );
+    return ((x > 0) && ((x & (x - 1)) == 0));
 }
 
 void PrintReference(uint32_t id, BufferEntry* ref){
