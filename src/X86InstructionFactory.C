@@ -2166,6 +2166,25 @@ X86Instruction* X86InstructionFactory64::emitMoveImmToReg(uint64_t imm, uint32_t
     return emitInstructionBase(len,buff);
 }
 
+X86Instruction* X86InstructionFactory64::emitMoveImm64ToReg(uint64_t imm, uint32_t idx){
+    ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
+    uint32_t len = 10;
+    char* buff = new char[len];
+
+    // set opcode
+    if (idx < X86_32BIT_GPRS){
+        buff[0] = 0x48;
+    } else {
+        buff[0] = 0x49;
+    }
+    buff[1] = 0xb8 + (char)(idx % X86_32BIT_GPRS);    
+
+    // set target address
+    memcpy(buff+2,&imm,sizeof(uint64_t));
+
+    return emitInstructionBase(len,buff);
+}
+
 X86Instruction* X86InstructionFactory::emitMoveImmToReg(uint64_t imm, uint32_t idx){
     ASSERT(idx < X86_32BIT_GPRS && "Illegal register index given");
     uint32_t len = 5;

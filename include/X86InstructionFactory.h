@@ -105,6 +105,7 @@ public:
     static X86Instruction* emitMoveRegToRegaddrImm(uint32_t, uint32_t, uint64_t, bool);
     static X86Instruction* emitMoveRegaddrImmToReg(uint32_t, uint64_t, uint32_t);
     static X86Instruction* emitMoveImmToReg(uint64_t imm, uint32_t idx);
+    static X86Instruction* emitMoveImm64ToReg(uint64_t imm, uint32_t idx);
     static X86Instruction* emitMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest);
     static X86Instruction* emitAddImmByteToRegaddrImm(uint8_t byte, uint8_t reg, uint32_t imm);
     static X86Instruction* emitAddImmToRegaddrImm(uint32_t b, uint8_t reg, uint32_t imm);

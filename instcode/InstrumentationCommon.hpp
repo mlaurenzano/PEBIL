@@ -584,7 +584,7 @@ private:
     uint32_t imagecount;
     uint32_t capacity;
     DataManager<T>* alldata;
-    void (*dataid)(V, image_key_t*, thread_key_t*);
+    void (*dataid)(V, image_key_t*);
 
     // [i][j]
     // i == thread id
@@ -592,7 +592,7 @@ private:
     T** stats;
 
 public:
-    FastData(void (*di)(V, image_key_t*, thread_key_t*), DataManager<T>* all, uint32_t cap){
+    FastData(void (*di)(V, image_key_t*), DataManager<T>* all, uint32_t cap){
         dataid = di;
 
         threadcount = 1;
@@ -646,31 +646,50 @@ public:
 
     void AddImage(){
         imagecount++;
+        if (imagecount == 1){
+            assert(threadcount == 1);
+            assert(imagecount == alldata->CountImages());
+            assert(threadcount == alldata->CountThreads());
+            for (uint32_t j = 0; j < capacity; j++){
+                stats[0][j] = alldata->GetData();
+            }
+        }
     }
 
     void Refresh(V buffer, uint32_t num, thread_key_t tid){
-        assert(imagecount > 0);
-        assert(threadcount > 0);
-        assert(num <= capacity);
+        debug(assert(imagecount > 0));
+        debug(assert(threadcount > 0));
+        debug(assert(num <= capacity));
+
+        if (imagecount == 1){
+            return;
+        }
 
         uint32_t threadseq = alldata->GetThreadSequence(tid);
         assert(threadseq < threadcount);
 
         image_key_t i;
-        thread_key_t t;
-        //inform << "Refreshing " << dec << capacity << " buffer stats for thread " << dec << threadseq << ENDL;
+        image_key_t ci = 0;
+        T di = NULL;
+
         for (uint32_t j = 0; j < num; j++, buffer++){
-            dataid(buffer, &i, &t);
-            if (alldata->allimages.count(i) == 0){
+
+            dataid(buffer, &i);
+
+            if (i == 0){
                 if (alldata->CountThreads() > 1){
                     continue;
                 }
                 assert(false && "the only way blank buffer entries should exist is when threads get signal-interrupted mid-block");
             }
-            //inform << TAB << TAB << "index " << j << ENDL;
-            assert(tid == t);
-            stats[threadseq][j] = alldata->GetData(i, t);
-            assert(stats[threadseq][j]);
+
+            if (i != ci){
+                ci = i;
+                di = alldata->GetData(i, tid);
+            }
+            stats[threadseq][j] = di;
+
+            debug(assert(stats[threadseq][j]));
         }
     };
 

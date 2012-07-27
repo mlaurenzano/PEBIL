@@ -78,9 +78,8 @@ void PrintBlockData(uint32_t id, SimulationStats* s){
         << ENDL;
 }
 
-void GetBufferIds(BufferEntry* b, image_key_t* i, thread_key_t* t){
+void GetBufferIds(BufferEntry* b, image_key_t* i){
     *i = b->imageid;
-    *t = b->threadid;
 }
 
 extern "C" {
@@ -167,20 +166,18 @@ extern "C" {
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
 
-        assert(m);
-
         SimulationStats** faststats = FastStats->GetBufferStats(tid);
         uint32_t bufcur = 0;
         for (bufcur = 0; bufcur < numElements; bufcur++){
-            assert(faststats[bufcur]);
-            assert(faststats[bufcur]->Stats);
+            debug(assert(faststats[bufcur]));
+            debug(assert(faststats[bufcur]->Stats));
+
             SimulationStats* stats = faststats[bufcur];
             StreamStats* ss = stats->Stats[HandlerIdx];
-
             BufferEntry* reference = BUFFER_ENTRY(stats, bufcur + 1);
+
             if (reference->imageid == 0){
-                // TODO: remove this for optimization
-                assert(AllData->CountThreads() > 1);
+                debug(assert(AllData->CountThreads() > 1));
                 continue;
             }
 
@@ -209,6 +206,7 @@ extern "C" {
             ErrorExit("Cannot retreive image data using key " << dec << iid, MetasimError_NoImage);
             return NULL;
         }
+
 
         uint64_t numElements = BUFFER_CURRENT(stats);
         uint64_t capacity = BUFFER_CAPACITY(stats);
@@ -242,6 +240,8 @@ extern "C" {
                 ProcessBuffer(i, m, numElements, iid, tid);
             }
         }
+
+        DONE_WITH_BUFFER();
 
         synchronize(AllData){
             if (isSampling){
@@ -404,7 +404,6 @@ extern "C" {
             << "# ntasks        = " << dec << GetNTasks() << ENDL
             << "# buffer        = " << BUFFER_CAPACITY(stats) << ENDL
             << "# total         = " << dec << totalMemop << ENDL
-            << "# sampled       = " << dec << Sampler->AccessCount << ENDL
             << "# processed     = " << dec << sampledCount << " (" << ((double)sampledCount / (double)totalMemop * 100.0) << "% of total)" << ENDL
             << "# samplemax     = " << Sampler->AccessLimit << ENDL
             << "# sampleon      = " << Sampler->SampleOn << ENDL
@@ -464,7 +463,7 @@ extern "C" {
         }
 
         MemFile 
-            << "# " << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "Threadid"
+            << "# " << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "ThreadId"
             << TAB << "BlockCounter" << TAB << "InstructionSimulated" << TAB << "MinAddress" << TAB << "MaxAddress" << TAB << "AddrRange"
             << ENDL;
         MemFile
@@ -589,7 +588,6 @@ extern "C" {
                 << "# rank          = " << dec << GetTaskId() << ENDL
                 << "# buffer        = " << BUFFER_CAPACITY(stats) << ENDL
                 << "# total         = " << dec << totalMemop << ENDL
-                << "# sampled       = " << dec << Sampler->AccessCount << ENDL
                 << "# processed     = " << dec << sampledCount << ENDL
                 << "# samplemax     = " << Sampler->AccessLimit << ENDL
                 << "# sampleon      = " << Sampler->SampleOn << ENDL
@@ -609,7 +607,7 @@ extern "C" {
                     uint64_t h = c->GetHits(lvl);
                     uint64_t m = c->GetMisses(lvl);
                     uint64_t t = h + m;
-                    MemFile << "l" << dec << lvl << "[" << h << "," << t << "(" << CacheStats::GetHitRate(h, m) << ")] ";
+                    MemFile << "l" << dec << lvl << "[" << t << "," << h << "(" << CacheStats::GetHitRate(h, m) << ")] ";
                 }
                 MemFile << ENDL;
             }
@@ -1266,7 +1264,6 @@ void CacheLevel::Init(CacheLevel_Init_Interface){
     associativity = assoc;
     linesize = lineSz;
     replpolicy = pol;
-    //assert(associativity > 0);
 
     countsets = size / (linesize * associativity);
 
@@ -1417,7 +1414,6 @@ bool CacheLevel::Search(uint64_t store, uint32_t* set, uint32_t* lineInSet){
 
     uint64_t* thisset = contents[setId];
     for (uint32_t i = 0; i < associativity; i++){
-        //debug(inform << TAB << TAB << TAB << "checking assoc=" << dec << i << " contains " << hex << thisset[i] << endl << flush);
         if (thisset[i] == store){
             if (lineInSet){
                 (*lineInSet) = i;
@@ -1437,11 +1433,10 @@ bool CacheLevel::MultipleLines(uint64_t addr, uint32_t width){
 uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info){
     uint32_t set = 0, lineInSet = 0;
     uint64_t store = GetStorage(addr);
-    debug(inform << TAB << "level " << dec << level << endl << flush);
 
-    assert(stats);
-    assert(stats->Stats);
-    assert(stats->Stats[memid]);
+    debug(assert(stats));
+    debug(assert(stats->Stats));
+    debug(assert(stats->Stats[memid]));
 
     // hit
     if (Search(store, &set, &lineInSet)){
@@ -1462,7 +1457,6 @@ uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
     uint32_t lineInSet = 0;
 
     uint64_t store = GetStorage(addr);
-    debug(inform << TAB << "level " << dec << level << " store " << hex << store << endl << flush);
 
     // handle victimizing
     EvictionInfo* e = (EvictionInfo*)info; 
@@ -1478,7 +1472,6 @@ uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
             }
         }
 
-        debug(inform << TAB << "up-evicting " << hex << e->addr << " into level " << dec << level << " set " << dec << set << " line " << dec << lineInSet << ENDL << flush);
         e->addr = Replace(e->addr, set, lineInSet);
 
         if (level == e->level){
@@ -1493,7 +1486,6 @@ uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
         stats->Stats[memid][level].hitCount++;
         MarkUsed(set, lineInSet);
 
-        debug(inform << TAB << TAB << "hit" << endl << flush);
         e->level = level;
         e->addr = store;
         e->setid = set;
@@ -1505,15 +1497,12 @@ uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
         return FirstExclusive;
     }
 
-    debug(inform << TAB << TAB << "missed" << endl << flush);
-
     // miss
     stats->Stats[memid][level].missCount++;
 
     if (level == LastExclusive){
         e->level = LastExclusive + 1;
         e->addr = store;
-        debug(inform << "airball!" << ENDL << flush);
 
         return FirstExclusive;
     }
@@ -1647,7 +1636,7 @@ bool CacheStructureHandler::Init(string desc){
 
         // 2 special tokens appear first
         if (whichTok == 0){
-            if (!ParsePositiveInt32(token, &sysId)){
+            if (!ParseInt32(token, &sysId, 0)){
                 return false;
             }
             continue;
@@ -1701,6 +1690,11 @@ bool CacheStructureHandler::Init(string desc){
             uint32_t sizeInBytes = cacheValues[0];
             uint32_t assoc = cacheValues[1];
             uint32_t lineSize = cacheValues[2];
+
+            if (sizeInBytes < lineSize){
+                return false;
+            }
+
             if (assoc >= MinimumHighAssociativity){
                 if (firstExcl != INVALID_CACHE_LEVEL){
                     HighlyAssociativeExclusiveCacheLevel* l = new HighlyAssociativeExclusiveCacheLevel();
@@ -1749,9 +1743,7 @@ void CacheStructureHandler::Process(void* stats, BufferEntry* access){
 
     EvictionInfo evictInfo;
     evictInfo.level = INVALID_CACHE_LEVEL;
-    debug(inform << "Processing sysid " << dec << sysId << " memory id " << dec << access->memseq << " addr " << hex << access->address << endl << flush);
     while (next < levelCount){
-        debug(inform << TAB << "next=" << dec << next << ENDL << flush);
         next = levels[next]->Process((CacheStats*)stats, access->memseq, victim, (void*)(&evictInfo));
     }
 }
