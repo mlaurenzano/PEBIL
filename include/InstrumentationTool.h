@@ -32,6 +32,13 @@ class InstrumentationPoint;
 
 #define INFO_UNKNOWN "__info_unknown__"
 
+typedef struct {
+    uint64_t id;
+    uint64_t data;
+} ThreadData;
+#define ThreadHashShift (12)
+#define ThreadHashMod   (0xffff)
+
 struct DynamicInstInternal {
     InstrumentationPoint* Point;
     uint64_t Key;

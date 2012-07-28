@@ -29,6 +29,7 @@ void GlobalOffsetTable::wedge(uint32_t shamt){
             entries[i] += shamt;
         }
     }
+    baseAddress += shamt;
 }
 
 void GlobalOffsetTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){

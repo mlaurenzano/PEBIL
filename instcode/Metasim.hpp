@@ -115,68 +115,10 @@ typedef struct {
     uint8_t  OppContent[DYNAMIC_POINT_SIZE_LIMIT];
     bool IsEnabled;
 } DynamicInst;
-static uint64_t CountDynamicInst = 0;
-static DynamicInst* DynamicInst_ = NULL;
-
 
 #define GENERATE_KEY(__bid, __typ) ((__typ & 0xf) | (__bid << 4))
 #define GET_BLOCKID(__key) ((__key >> 4))
 #define GET_TYPE(__key) ((__key & 0xf))
-
-static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn){
-    CountDynamicInst = *count;
-    DynamicInst_ = *dyn;
-}
-
-static DynamicInst* GetDynamicInstPoint(uint32_t idx){
-    assert(idx < CountDynamicInst);
-    assert(DynamicInst_ != NULL);
-    return &(DynamicInst_[idx]);
-}
-
-static void PrintDynamicPoint(DynamicInst* d){
-    std::cout
-        << "\t"
-        << "\t" << "Key 0x" << std::hex << d->Key
-        << "\t" << "Vaddr 0x" << std::hex << d->VirtualAddress
-        << "\t" << "Oaddr 0x" << std::hex << d->ProgramAddress
-        << "\t" << "Size " << std::dec << d->Size
-        << "\t" << "Enabled " << (d->IsEnabled? "yes":"no")
-        << "\n";
-}
-
-static void PrintDynamicPoints(){
-    std::cout << "Printing " << std::dec << CountDynamicInst << " dynamic inst points" << "\n";
-    for (uint32_t i = 0; i < CountDynamicInst; i++){
-        PrintDynamicPoint(&DynamicInst_[i]);
-    }
-}
-
-static void SetDynamicPointStatus(DynamicInst* d, bool state){
-
-    uint8_t t[DYNAMIC_POINT_SIZE_LIMIT];
-    memcpy(t, (uint8_t*)d->VirtualAddress, d->Size);
-    memcpy((uint8_t*)d->VirtualAddress, d->OppContent, d->Size);
-    memcpy(d->OppContent, t, d->Size);
-
-    d->IsEnabled = state;
-
-    //PrintDynamicPoint(d);
-}
-
-static void SetDynamicPoints(std::set<uint64_t>* keys, bool state){
-    uint32_t count = 0;
-    for (uint32_t i = 0; i < CountDynamicInst; i++){
-        if (keys->count(DynamicInst_[i].Key) > 0){
-            if (state != DynamicInst_[i].IsEnabled){
-                count++;
-                SetDynamicPointStatus(&DynamicInst_[i], state);
-            }
-        }
-    }
-    debug(std::cout << "Thread " << std::hex << pthread_self() << " switched " << std::dec << count << " to " << (state? "on" : "off") << std::endl);
-    debug(PrintDynamicPoints());
-}
 
 #endif //_Metasim_hpp_
 

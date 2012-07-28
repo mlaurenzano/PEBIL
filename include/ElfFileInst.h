@@ -238,6 +238,7 @@ public:
     uint32_t addInstrumentationSnippet(InstrumentationSnippet* snip);
     InstrumentationSnippet* addInstrumentationSnippet();
 
+    virtual void dynamicPoint(InstrumentationPoint* pt, uint64_t key, bool enable) { __SHOULD_NOT_ARRIVE; }
     virtual uint64_t reserveDynamicPoints() { __SHOULD_NOT_ARRIVE; }
     virtual void applyDynamicPoints(uint64_t dynArray) { __SHOULD_NOT_ARRIVE; }
     virtual void declare() { __SHOULD_NOT_ARRIVE; }

@@ -127,7 +127,9 @@ public:
     ElfFile(char* f, char* a);
     ~ElfFile();
 
-    uint64_t getSHA1SumFirst64();
+   
+    uint64_t imageUniqueId;
+    uint64_t getUniqueId();
     char* getSHA1Sum();
     uint64_t getProgramBaseAddress();
 

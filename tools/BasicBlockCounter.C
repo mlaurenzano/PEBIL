@@ -171,10 +171,25 @@ void BasicBlockCounter::instrument()
     entryFunc->addArgument(imageKey);
     entryFunc->addArgument(threadHash);
 
-    p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, InstLocation_prior);
-    p->setPriority(InstPriority_userinit);
-    if (!p->getInstBaseAddress()){
-        PRINT_ERROR("Cannot find an instrumentation point at the entry block");
+    // ALL_FUNC_ENTER
+    if (true){
+        for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+            Function* f = getExposedFunction(i);
+
+            p = addInstrumentationPoint(f, entryFunc, InstrumentationMode_tramp, InstLocation_prior);
+            p->setPriority(InstPriority_userinit);
+            if (!p->getInstBaseAddress()){
+                PRINT_ERROR("Cannot find an instrumentation point at the entry block");
+            }
+
+            dynamicPoint(p, getElfFile()->getUniqueId(), true);
+        }
+    } else {
+        p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, InstLocation_prior);
+        p->setPriority(InstPriority_userinit);
+        if (!p->getInstBaseAddress()){
+            PRINT_ERROR("Cannot find an instrumentation point at the entry block");
+        }
     }
 
     uint64_t noData = reserveDataOffset(strlen(NOSTRING) + 1);

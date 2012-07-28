@@ -266,15 +266,33 @@ void CacheSimulation::instrument(){
     entryFunc->addArgument(threadHash);
 
 
-    InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp);
-    ASSERT(p);
-    p->setPriority(InstPriority_sysinit);
-    if (!p->getInstBaseAddress()){
-        PRINT_ERROR("Cannot find an instrumentation point at the entry function");
+    InstrumentationPoint* p;
+
+    // ALL_FUNC_ENTER
+    if (true){
+        for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+            Function* f = getExposedFunction(i);
+
+            p = addInstrumentationPoint(f, entryFunc, InstrumentationMode_tramp, InstLocation_prior);
+            ASSERT(p);
+            p->setPriority(InstPriority_sysinit);
+            if (!p->getInstBaseAddress()){
+                PRINT_ERROR("Cannot find an instrumentation point at the entry function");
+            }            
+
+            dynamicPoint(p, getElfFile()->getUniqueId(), true);
+        }
+    } else {
+        p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp);
+        ASSERT(p);
+        p->setPriority(InstPriority_sysinit);
+        if (!p->getInstBaseAddress()){
+            PRINT_ERROR("Cannot find an instrumentation point at the entry function");
+        }
     }
 
     simFunc->addArgument(imageKey);
-    uint64_t imageHash = getElfFile()->getSHA1SumFirst64();
+    uint64_t imageHash = getElfFile()->getUniqueId();
 
     //simFunc->assumeNoFunctionFP();
     exitFunc->addArgument(imageKey);

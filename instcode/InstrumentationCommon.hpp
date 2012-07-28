@@ -40,6 +40,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 #ifdef HAVE_MPI
 #include <mpi.h>
@@ -48,6 +49,72 @@
 #include <Metasim.hpp>
 
 using namespace std;
+
+static unordered_map < uint64_t, vector < DynamicInst* > > * Dynamics = NULL;
+
+static void PrintDynamicPoint(DynamicInst* d){
+    std::cout
+        << "\t"
+        << "\t" << "Key 0x" << std::hex << d->Key
+        << "\t" << "Vaddr 0x" << std::hex << d->VirtualAddress
+        << "\t" << "Oaddr 0x" << std::hex << d->ProgramAddress
+        << "\t" << "Size " << std::dec << d->Size
+        << "\t" << "Enabled " << (d->IsEnabled? "yes":"no")
+        << "\n";
+}
+
+static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn){
+    if (Dynamics == NULL){
+        Dynamics = new unordered_map < uint64_t, vector < DynamicInst* > > ();
+    }
+
+    DynamicInst* dd = *dyn;
+    for (uint32_t i = 0; i < *count; i++){
+        assert(dd[i].IsEnabled);
+        uint64_t k = dd[i].Key;
+        if (Dynamics->count(k) == 0){
+            (*Dynamics)[k] = vector<DynamicInst*>();
+        }
+        (*Dynamics)[k].push_back(&dd[i]);
+    }
+}
+
+static void GetAllDynamicKeys(set<uint64_t>& keys){
+    assert(keys.size() == 0);
+    for (unordered_map<uint64_t, vector<DynamicInst*>>::iterator it = Dynamics->begin(); it != Dynamics->end(); it++){
+        uint64_t k = (*it).first;
+        keys.insert(k);
+    }
+}
+
+static void SetDynamicPointStatus(DynamicInst* d, bool state){
+
+    uint8_t t[DYNAMIC_POINT_SIZE_LIMIT];
+    memcpy(t, (uint8_t*)d->VirtualAddress, d->Size);
+    memcpy((uint8_t*)d->VirtualAddress, d->OppContent, d->Size);
+    memcpy(d->OppContent, t, d->Size);
+
+    d->IsEnabled = state;
+    //PrintDynamicPoint(d);
+}
+
+static void SetDynamicPoints(std::set<uint64_t>& keys, bool state){
+    uint32_t count = 0;
+    for (unordered_map<uint64_t, vector<DynamicInst*>>::iterator it = Dynamics->begin(); it != Dynamics->end(); it++){
+        uint64_t k = (*it).first;
+        if (keys.count(k) > 0){
+            vector<DynamicInst*> dyns = (*it).second;
+            for (vector<DynamicInst*>::iterator dit = dyns.begin(); dit != dyns.end(); dit++){
+                DynamicInst* d = (*dit);
+                if (state != d->IsEnabled){
+                    count++;
+                    SetDynamicPointStatus(d, state);
+                }
+            }
+        }
+    }
+    debug(std::cout << "Thread " << std::hex << pthread_self() << " switched " << std::dec << count << " to " << (state? "on" : "off") << std::endl);
+}
 
 // planning on disabling this around summer/fall 2013.
 #define LEGACY_METASIM_SUPPORT
@@ -61,7 +128,7 @@ typedef struct {
     uint64_t data;
 } ThreadData;
 #define ThreadHashShift (12)
-#define ThreadHashAnd   (0xffff)
+#define ThreadHashMod   (0xffff)
 
 
 // handling of different initialization/finalization events
@@ -355,7 +422,7 @@ private:
     DataMap <image_key_t, ThreadData*> threaddata;
 
     uint32_t HashThread(thread_key_t tid){
-        return (tid >> ThreadHashShift) & ThreadHashAnd;
+        return (tid >> ThreadHashShift) & ThreadHashMod;
     }
 
     uint64_t SetThreadData(image_key_t iid, thread_key_t tid, uint32_t typ){
@@ -370,7 +437,7 @@ private:
         uint32_t actual = h;
         
         while (td[actual].id != 0){
-            actual = (actual + 1) % (ThreadHashAnd + 1);
+            actual = (actual + 1) % (ThreadHashMod + 1);
         }
         T d = datamap[iid][tid];
         td[actual].id = (uint64_t)tid;
@@ -388,6 +455,7 @@ private:
 
         // just fail if there was a collision. it makes writing tools much easier so we see how well this works for now
         assert(actual == h);
+        return td[actual].data;
     }
     void RemoveThreadData(image_key_t iid, thread_key_t tid){
         uint32_t h = HashThread(tid);
@@ -400,7 +468,7 @@ private:
 
         uint32_t actual = h;
         while (td[actual].id != tid){
-            actual = (actual + 1) % (ThreadHashAnd + 1);
+            actual = (actual + 1) % (ThreadHashMod + 1);
         }
         td[actual].id = 0;
         td[actual].data = 0;
@@ -529,8 +597,8 @@ public:
     image_key_t AddImage(T data, ThreadData* t, image_key_t iid){
         thread_key_t tid = pthread_self();
 
-        imageseq[iid] = currentimageseq++;
         assert(allimages.count(iid) == 0);
+        imageseq[iid] = currentimageseq++;
 
         // insert data for this thread
         allthreads.insert(tid);
@@ -541,7 +609,13 @@ public:
         datamap[iid][tid] = data;
 
         threaddata[iid] = t;
-        SetThreadData(iid, tid, ImageType);
+        uint64_t dataloc = SetThreadData(iid, tid, ImageType);
+        if (allthreads.size() == 1){
+            inform << "Setting up all data locations to point to " << hex << dataloc << ENDL;
+            for (uint32_t i = 0; i < ThreadHashMod + 1; i++){
+                t[i].data = dataloc;
+            }
+        }
 
         if (firstimage == 0){
             firstimage = iid;

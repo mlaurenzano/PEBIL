@@ -148,7 +148,9 @@ void* tool_thread_init(thread_key_t tid){
 
 extern "C"
 {
-    void* tool_dynamic_init(){
+    void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
+        InitializeDynamicInstrumentation(count, dyn);
+
         return NULL;
     }
 
@@ -160,10 +162,20 @@ extern "C"
         CounterArray* ctrs = (CounterArray*)s;
         assert(ctrs->Initialized == true);
 
+        set<uint64_t> inits;
+        inits.insert(*key);
+        SetDynamicPoints(inits, false);
+
         // on first visit create data manager
         if (AllData == NULL){
             AllData = new DataManager<CounterArray*>(GenerateCounterArray, DeleteCounterArray, RefCounterArray);
         }
+
+        assert(AllData);
+        if (AllData->allimages.count(*key) > 0){
+            return NULL;
+        }
+
         AllData->AddImage(ctrs, td, *key);
         ctrs->threadid = AllData->GenerateThreadKey();
         ctrs->imageid = *key;

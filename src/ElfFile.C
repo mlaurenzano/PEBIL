@@ -159,15 +159,18 @@ bool ElfFile::isSharedLib(){
     return (fileHeader->GET(e_type) == ET_DYN);
 }
 
-uint64_t ElfFile::getSHA1SumFirst64(){
-    char* allbytes = new char[getFileSize()];
+uint64_t ElfFile::getUniqueId(){
+    if (imageUniqueId == 0){
+        char* allbytes = new char[getFileSize()];
 
-    binaryInputFile.setInBufferPointer(0);
-    binaryInputFile.copyBytes(allbytes, getFileSize());
+        binaryInputFile.setInBufferPointer(0);
+        binaryInputFile.copyBytes(allbytes, getFileSize());
 
-    uint64_t first64 = sha1sum_first64(allbytes, getFileSize());
-    delete[] allbytes;
-    return first64;
+        imageUniqueId = sha1sum_first64(allbytes, getFileSize());
+        delete[] allbytes;
+    }
+
+    return imageUniqueId;
 }
 
 char* ElfFile::getSHA1Sum(){
@@ -234,6 +237,8 @@ ElfFile::ElfFile(char* f, char* a) :
     addressAnchors = new Vector<AddressAnchor*>();
     anchorsAreSorted = false;
     wedgeInstructions = NULL;
+
+    imageUniqueId = 0;
 }
 
 void ElfFile::addAddressAnchor(AddressAnchor* adr){

@@ -39,13 +39,6 @@
 
 #define DYNAMIC_INST_INIT "tool_dynamic_init"
 
-typedef struct {
-    uint64_t id;
-    uint64_t data;
-} ThreadData;
-#define ThreadHashShift (12)
-#define ThreadHashMod   (0xffff)
-
 #define MAX_DEF_USE_DIST_PRINT 1024
 
 uint64_t InstrumentationTool::reserveDynamicPoints(){
@@ -61,6 +54,7 @@ void InstrumentationTool::applyDynamicPoints(uint64_t dynArray){
     uint64_t temp64 = dynamicPoints.size();
     initializeReservedData(getInstDataAddress() + dynamicSize, sizeof(uint64_t), (void*)&temp64);
     initializeReservedPointer(dynArray, dynamicPointArray);
+    PRINT_INFOR("Initializing %d dynamic points", dynamicPoints.size());
 
     uint32_t dindex = 0;
     while (dynamicPoints.size()){
@@ -314,22 +308,38 @@ void InstrumentationTool::instrument(){
     }
 
     ASSERT(sizeof(uint64_t) == sizeof(image_key_t));
-    image_key_t tmpi = (image_key_t)getElfFile()->getSHA1SumFirst64();
+    image_key_t tmpi = (image_key_t)getElfFile()->getUniqueId();
     imageKey = reserveDataOffset(sizeof(image_key_t));
     initializeReservedData(getInstDataAddress() + imageKey, sizeof(image_key_t), &tmpi);
 
     threadHash = reserveDataOffset(sizeof(ThreadData) * (ThreadHashMod + 1));
-    
+
     dynamicSize = reserveDataOffset(sizeof(uint64_t));
     dynamicPointArray = reserveDataOffset(sizeof(DynamicInst*));
     dynamicInit->addArgument(dynamicSize);
     dynamicInit->addArgument(dynamicPointArray);
 
-    InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), dynamicInit, InstrumentationMode_tramp);
-    ASSERT(p);
-    p->setPriority(InstPriority_userinit);
-    if (!p->getInstBaseAddress()){
-        PRINT_ERROR("Cannot find an instrumentation point at the entry function");
+    // ALL_FUNC_ENTER
+    if (true){
+        for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+            Function* f = getExposedFunction(i);
+
+            InstrumentationPoint* p = addInstrumentationPoint(f, dynamicInit, InstrumentationMode_tramp, InstLocation_prior);
+            ASSERT(p);
+            p->setPriority(InstPriority_sysinit);
+            if (!p->getInstBaseAddress()){
+                PRINT_ERROR("Cannot find an instrumentation point at the entry function");
+            }            
+
+            dynamicPoint(p, getElfFile()->getUniqueId(), true);
+        }
+    } else {
+        InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), dynamicInit, InstrumentationMode_tramp);
+        ASSERT(p);
+        p->setPriority(InstPriority_sysinit);
+        if (!p->getInstBaseAddress()){
+            PRINT_ERROR("Cannot find an instrumentation point at the entry function");
+        }
     }
 
 #ifdef HAVE_MPI

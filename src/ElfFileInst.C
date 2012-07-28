@@ -1221,6 +1221,26 @@ void ElfFileInst::phasedInstrumentation(){
 
     functionSelect();
 
+    // ALL_FUNC_ENTER
+    if (true){
+        for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+            Function* f = getExposedFunction(i);
+
+            // program entry already has this
+            if (f->getBaseAddress() == getProgramEntryBlock()->getBaseAddress()){
+                continue;
+            }
+
+            InstrumentationPoint* p = addInstrumentationPoint(f, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], InstrumentationMode_tramp, InstLocation_prior);
+            p->setPriority(InstPriority_sysinit);
+
+            dynamicPoint(p, getElfFile()->getUniqueId(), true);
+        }
+
+        // get the program entry also
+        dynamicPoint((*instrumentationPoints)[0], getElfFile()->getUniqueId(), true);
+    }
+
     if (!elfFile->isStaticLinked()){
         for (uint32_t i = instrumentationLibraries.size(); i > 0; i--){
             addSharedLibrary(instrumentationLibraries[i-1]);
@@ -1315,11 +1335,9 @@ bool ElfFileInst::verify(){
 }
 
 InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode){
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");    
     return addInstrumentationPoint(instpoint, inst, instMode, InstLocation_prior);
 }
 InstrumentationPoint* ElfFileInst::addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, InstLocations loc){
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");    
 
     InstrumentationPoint* newpoint;
     if (elfFile->is64Bit()){
@@ -1746,6 +1764,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     }
 
     programEntryBlock = getDotTextSection()->getBasicBlockAtAddress(elfFile->getFileHeader()->GET(e_entry));
+    //programEntryBlock = getDotTextSection()->getBasicBlockAtAddress(0x41a620);
 
     relocatedTextSize = 0;
     instrumentationData = NULL;
@@ -1769,21 +1788,16 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     }
 
     instrumentationPoints = new Vector<InstrumentationPoint*>();
-    // automatically set the 1st instrumentation point to go to the bootstrap code
+
     ASSERT(instrumentationPoints);
-    (*instrumentationPoints).append(NULL);
+
     // find the entry point of the program and put an instrumentation point for our initialization there
-    ASSERT(!(*instrumentationPoints)[INST_POINT_BOOTSTRAP1] && "instrumentationPoint[INST_POINT_BOOTSTRAP1] is reserved");
     BasicBlock* entryBlock = getProgramEntryBlock();
     ASSERT(entryBlock && "Cannot find instruction at the program's entry point");
-    if (elfFile->is64Bit()){
-        (*instrumentationPoints)[INST_POINT_BOOTSTRAP1] = 
-            new InstrumentationPoint64((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], InstrumentationMode_tramp, InstLocation_prior);
-    } else {
-        (*instrumentationPoints)[INST_POINT_BOOTSTRAP1] = 
-            new InstrumentationPoint32((Base*)entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], InstrumentationMode_tramp, InstLocation_prior);
-    }
-    (*instrumentationPoints)[INST_POINT_BOOTSTRAP1]->setPriority(InstPriority_sysinit);
+
+    // automatically set the 1st instrumentation point to go to the bootstrap code
+    InstrumentationPoint* p = addInstrumentationPoint(entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], InstrumentationMode_tramp, InstLocation_prior);
+    p->setPriority(InstPriority_sysinit);
 
     regStorageOffset = 0;
     fxStorageOffset = sizeof(uint64_t) * X86_64BIT_GPRS;

@@ -109,19 +109,17 @@ extern "C" {
         assert(AllData);
 
         synchronize(AllData){
-            NonmaxKeys = new set<uint64_t>();
 
-            for (uint32_t i = 0; i < CountDynamicInst; i++){
-                DynamicInst* d = GetDynamicInstPoint(i);
-                uint64_t k = d->Key;
+            if (NonmaxKeys == NULL){
+                NonmaxKeys = new set<uint64_t>();
+            }
+
+            set<uint64_t> keys;
+            GetAllDynamicKeys(keys);
+            for (set<uint64_t>::iterator it = keys.begin(); it != keys.end(); it++){
+                uint64_t k = (*it);
                 if (GET_TYPE(k) == PointType_bufferfill){
-                    if (NonmaxKeys->count(k) == 0){
-                        NonmaxKeys->insert(k);
-                    }
-                }
-
-                if (d->IsEnabled == false){
-                    SetDynamicPointStatus(d, false);
+                    NonmaxKeys->insert(k);
                 }
             }
             debug(PrintDynamicPoints());
@@ -134,7 +132,7 @@ extern "C" {
                     AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_bufferinc));
                     AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_bufferfill));
                 }
-                SetDynamicPoints(&AllSimPoints, false);
+                SetDynamicPoints(AllSimPoints, false);
                 NonmaxKeys->clear();
             }
         }
@@ -159,6 +157,10 @@ extern "C" {
 
     void* tool_image_init(void* s, image_key_t* key, ThreadData* td){
         SimulationStats* stats = (SimulationStats*)s;
+
+        set<uint64_t> inits;
+        inits.insert(*key);
+        SetDynamicPoints(inits, false);        
 
         assert(stats->Initialized == true);
 
@@ -321,20 +323,20 @@ extern "C" {
                     assert(MemsRemoved.size() % 3 == 0);
                     debug(inform << "REMOVING " << dec << (MemsRemoved.size() / 3) << " blocks" << ENDL);
                     SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
-                    SetDynamicPoints(&MemsRemoved, false);
+                    SetDynamicPoints(MemsRemoved, false);
                     ResumeAllThreads();
                 }
 
                 if (Sampler->SwitchesMode(numElements)){
                     SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
-                    SetDynamicPoints(NonmaxKeys, false);
+                    SetDynamicPoints(*NonmaxKeys, false);
                     ResumeAllThreads();
                 }
 
             } else {
                 if (Sampler->SwitchesMode(numElements)){
                     SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
-                    SetDynamicPoints(NonmaxKeys, true);
+                    SetDynamicPoints(*NonmaxKeys, true);
                     ResumeAllThreads();
                 }
 
