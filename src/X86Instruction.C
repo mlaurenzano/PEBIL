@@ -102,7 +102,7 @@ BitSet<uint32_t>* X86Instruction::getDeadRegOut(BitSet<uint32_t>* invalidRegs, u
 
 RegisterSet::RegisterSet()
     : regs(X86_FLAG_BITS + X86_ALU_REGS) {
-
+    regs.clear();
 }
 
 RegisterSet& RegisterSet::operator=(const RegisterSet& rhs){
@@ -464,7 +464,6 @@ RegisterSet* X86Instruction::getRegistersDefined(){
     return retval;
 }
 
-//TODO
 RegisterSet* X86Instruction::getRegistersUsed(){
     RegisterSet * retval = new RegisterSet();
 
@@ -534,6 +533,67 @@ RegisterSet* X86Instruction::getRegistersUsed(){
         }
     }
     
+    return retval;
+}
+
+RegisterSet* X86Instruction::getUnusableRegisters(){
+    RegisterSet * retval = new RegisterSet();
+
+    // flags
+    for(uint32_t i = 0; i < X86_FLAG_BITS; ++i){
+        if(usesFlag(i)){
+            retval->addFlag(i);
+        }
+    }
+
+    // implicit uses
+    if (!isCall()){
+        for(uint32_t i = 0; i < X86_ALU_REGS; ++i){
+            if(implicitlyUsesReg(i)){
+                retval->addRegister(i);
+            }
+        }
+    }
+
+    // operand uses
+    Vector<OperandX86*>* uses = getSourceOperands();
+    for(uint32_t i; i< uses->size(); ++i) {
+        OperandX86* use = (*uses)[i];
+
+        if(use->GET(base) && IS_ALU_REG(use->GET(base))){
+            retval->addRegister(use->getBaseRegister());
+        }
+        if(use->GET(index) && IS_ALU_REG(use->GET(index))){
+            retval->addRegister(use->getIndexRegister());
+        }
+    }
+    delete uses;
+
+    // uses by dest operand
+    OperandX86* dest = getDestOperand();
+    if(dest){
+        // Registers used in computing addresses
+        if(dest->getType() == UD_OP_MEM || dest->getType() == UD_OP_PTR){
+            if(dest->GET(base) && IS_ALU_REG(dest->GET(base))){
+                retval->addRegister(dest->getBaseRegister());
+            }
+            if(dest->GET(index) && IS_ALU_REG(dest->GET(index))){
+                retval->addRegister(dest->getIndexRegister());
+            }
+        }
+        // Registers incompletely written to
+        if(dest->getType() == UD_OP_REG && dest->GET(base)){
+            uint32_t reg = dest->GET(base);
+            if( reg && IS_ALU_REG(reg) &&
+                !IS_64BIT_GPR(reg) &&
+                !IS_X87_REG(reg) &&
+                !IS_XMM_REG(reg) &&
+                !IS_YMM_REG(reg)){
+                retval->addRegister(dest->getBaseRegister());
+            }
+        }
+    }
+
     return retval;
 }
 
