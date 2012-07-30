@@ -61,6 +61,7 @@ void InstrumentationTool::applyDynamicPoints(uint64_t dynArray){
         DynamicInst d;
         DynamicInstInternal* di = dynamicPoints.remove(0);
         d.VirtualAddress = di->Point->getInstSourceAddress();
+        initializeReservedPointer(d.VirtualAddress - getInstDataAddress(), dynArray + (dindex * sizeof(DynamicInst)) + offsetof(DynamicInst, VirtualAddress));
         d.ProgramAddress = di->Point->getSourceObject()->getProgramAddress();
         d.Key = di->Key;
         d.Flags = 0;
@@ -320,7 +321,7 @@ void InstrumentationTool::instrument(){
     dynamicInit->addArgument(dynamicPointArray);
 
     // ALL_FUNC_ENTER
-    if (true){
+    if (isThreadedMode()){
         for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
             Function* f = getExposedFunction(i);
 

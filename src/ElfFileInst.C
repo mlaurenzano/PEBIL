@@ -1222,7 +1222,7 @@ void ElfFileInst::phasedInstrumentation(){
     functionSelect();
 
     // ALL_FUNC_ENTER
-    if (true){
+    if (isThreadedMode()){
         for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
             Function* f = getExposedFunction(i);
 

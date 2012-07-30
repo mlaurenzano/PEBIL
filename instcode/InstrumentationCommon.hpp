@@ -70,12 +70,14 @@ static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn)
 
     DynamicInst* dd = *dyn;
     for (uint32_t i = 0; i < *count; i++){
-        assert(dd[i].IsEnabled);
-        uint64_t k = dd[i].Key;
-        if (Dynamics->count(k) == 0){
-            (*Dynamics)[k] = vector<DynamicInst*>();
+        if (dd[i].IsEnabled){
+            assert(dd[i].IsEnabled);
+            uint64_t k = dd[i].Key;
+            if (Dynamics->count(k) == 0){
+                (*Dynamics)[k] = vector<DynamicInst*>();
+            }
+            (*Dynamics)[k].push_back(&dd[i]);
         }
-        (*Dynamics)[k].push_back(&dd[i]);
     }
 }
 
@@ -611,7 +613,6 @@ public:
         threaddata[iid] = t;
         uint64_t dataloc = SetThreadData(iid, tid, ImageType);
         if (allthreads.size() == 1){
-            inform << "Setting up all data locations to point to " << hex << dataloc << ENDL;
             for (uint32_t i = 0; i < ThreadHashMod + 1; i++){
                 t[i].data = dataloc;
             }

@@ -164,6 +164,7 @@ extern "C"
 
         set<uint64_t> inits;
         inits.insert(*key);
+        inform << "Removing init points for image " << hex << (*key) << ENDL;
         SetDynamicPoints(inits, false);
 
         // on first visit create data manager
