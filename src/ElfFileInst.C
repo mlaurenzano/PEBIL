@@ -1006,9 +1006,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
         }
         delete instPointsPerBlock;
     }
-    if (skippedRelocation){
-        PRINT_INFOR("Skipped relocation on %d/%d functions", skippedRelocation, numberOfFunctions);
-    }
+    PRINT_INFOR("Skipped relocation on %d/%d functions", skippedRelocation, numberOfFunctions);
 
     TIMER(t2 = timer();PRINT_INFOR("___timer: \t\tFncReloc Step %c Reloc : %.2f seconds",stepNumber++,t2-t1);t1=t2);
 

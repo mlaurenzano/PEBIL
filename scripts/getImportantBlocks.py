@@ -11,8 +11,8 @@ DEFAULT_BLOCK_MIN = 10
 BLOCK_IDENTIFIER = 'BLK'
 IMAGE_IDENTIFIER = 'IMG'
 LOOP_IDENTIFIER = 'LPP'
-INPUT_JBB_NAME_REGEX = '(\S+).r(\d\d\d\d\d\d\d\d).t(\d\d\d\d\d\d\d\d).jbbinst'
-OUTPUT_LBB_NAME = '%(application)s.%(image)s.%(rank)08d.lbb'
+INPUT_JBB_NAME_REGEX = '[[\S]+/]*(\S+).r(\d\d\d\d\d\d\d\d).t(\d\d\d\d\d\d\d\d).jbbinst'
+OUTPUT_LBB_NAME = '%(application)s.%(image)s.t%(tasks)08d.lbb'
 
 
 # util functions
@@ -244,6 +244,7 @@ def main():
     ntasks = 0
     appname = ''
     index = 0
+    blockfiles = {}
     for f in args:
         index += 1
         print 'Processing input file ' + str(index) + ' of ' + str(len(args)) + ': ' + f
@@ -294,8 +295,10 @@ def main():
         for kb in imagecounts[k].keys():
             if imagecounts[k][kb] >= blockmin:
                 if not imagefiles.has_key(k):
-                    f = open(OUTPUT_LBB_NAME % {'application': appname, 'image': k, 'rank': ntasks }, 'w')
+                    fname = OUTPUT_LBB_NAME % {'application': appname, 'image': k, 'tasks': ntasks }
+                    f = open(fname, 'w')
                     imagefiles[k] = f
+                    print 'Writing output file ' + fname
                     f.write('# BlockHash # TotalBlockCount\n')
                 imagefiles[k].write(('0x%x' % kb) + ' # ' + str(imagecounts[k][kb]) + '\n')
 

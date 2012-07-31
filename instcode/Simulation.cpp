@@ -105,37 +105,6 @@ void GetBufferIds(BufferEntry* b, image_key_t* i){
 extern "C" {
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
         InitializeDynamicInstrumentation(count, dyn);
-
-        assert(AllData);
-
-        synchronize(AllData){
-
-            if (NonmaxKeys == NULL){
-                NonmaxKeys = new set<uint64_t>();
-            }
-
-            set<uint64_t> keys;
-            GetAllDynamicKeys(keys);
-            for (set<uint64_t>::iterator it = keys.begin(); it != keys.end(); it++){
-                uint64_t k = (*it);
-                if (GET_TYPE(k) == PointType_bufferfill){
-                    NonmaxKeys->insert(k);
-                }
-            }
-            debug(PrintDynamicPoints());
-
-            if (Sampler->SampleOn == 0){
-                inform << "Disabling all simulation related instrumentation because METASIM_SAMPLE_ON is set to 0" << ENDL;
-                set<uint64_t> AllSimPoints;
-                for (set<uint64_t>::iterator it = NonmaxKeys->begin(); it != NonmaxKeys->end(); it++){
-                    AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_buffercheck));
-                    AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_bufferinc));
-                    AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_bufferfill));
-                }
-                SetDynamicPoints(AllSimPoints, false);
-                NonmaxKeys->clear();
-            }
-        }
     }
 
     void* tool_mpi_init(){
@@ -160,6 +129,7 @@ extern "C" {
 
         set<uint64_t> inits;
         inits.insert(*key);
+        inform << "Removing init points for image " << hex << (*key) << ENDL;
         SetDynamicPoints(inits, false);        
 
         assert(stats->Initialized == true);
@@ -180,7 +150,36 @@ extern "C" {
         stats->threadid = AllData->GenerateThreadKey();
         stats->imageid = *key;
 
-        AllData->SetTimer(*key, 0);
+        synchronize(AllData){
+            if (NonmaxKeys == NULL){
+                NonmaxKeys = new set<uint64_t>();
+            }
+
+            set<uint64_t> keys;
+            GetAllDynamicKeys(keys);
+            for (set<uint64_t>::iterator it = keys.begin(); it != keys.end(); it++){
+                uint64_t k = (*it);
+                if (GET_TYPE(k) == PointType_bufferfill && AllData->allimages.count(k) == 0){
+                    NonmaxKeys->insert(k);
+                }
+            }
+
+            debug(PrintDynamicPoints());
+
+            if (Sampler->SampleOn == 0){
+                inform << "Disabling all simulation-related instrumentation because METASIM_SAMPLE_ON is set to 0" << ENDL;
+                set<uint64_t> AllSimPoints;
+                for (set<uint64_t>::iterator it = NonmaxKeys->begin(); it != NonmaxKeys->end(); it++){
+                    AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_buffercheck));
+                    AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_bufferinc));
+                    AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_bufferfill));
+                }
+                SetDynamicPoints(AllSimPoints, false);
+                NonmaxKeys->clear();
+            }
+
+            AllData->SetTimer(*key, 0);
+        }
         return NULL;
     }
 
@@ -1925,7 +1924,6 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
             stats->Handlers[ReuseHandlerIndex] = h;
         }
     } else {
-        inform << "first image " << hex << firstimage << TAB << "iid " << iid << ENDL;
         SimulationStats * fs = AllData->GetData(firstimage, tid);
         stats->Handlers = fs->Handlers;
     }
