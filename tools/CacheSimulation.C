@@ -111,8 +111,16 @@ void CacheSimulation::filterBBs(){
     delete fileLines;
 
     if (!blocksToInst.size()){
-        for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
-            BasicBlock* bb = getExposedBasicBlock(i);
+        // for executables, instrument everything
+        if (getElfFile()->isExecutable()){
+            for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+                BasicBlock* bb = getExposedBasicBlock(i);
+                blocksToInst.insert(bb->getHashCode().getValue(), bb);
+            }
+        }
+        // for shared libraries, just instrument the entry block
+        else {
+            BasicBlock* bb = getProgramEntryBlock();
             blocksToInst.insert(bb->getHashCode().getValue(), bb);
         }
     }
