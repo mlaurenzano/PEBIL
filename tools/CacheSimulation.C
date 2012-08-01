@@ -45,70 +45,78 @@ extern "C" {
 
 void CacheSimulation::filterBBs(){
     Vector<char*>* fileLines = new Vector<char*>();
-    initializeFileList(inputFile, fileLines);
-
-    int32_t err;
-    uint64_t inputHash;
-    for (uint32_t i = 0; i < (*fileLines).size(); i++){
-        char* ptr = strchr((*fileLines)[i],'#');
-        if(ptr) *ptr = '\0';
-
-        if(!strlen((*fileLines)[i]) || allSpace((*fileLines)[i]))
-            continue;
-
-        err = sscanf((*fileLines)[i], "%lld", &inputHash);
-        if(err <= 0){
-            PRINT_ERROR("Line %d of %s has a wrong format", i+1, inputFile);
+    if (!strcmp("+", inputFile)){
+        for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+            BasicBlock* bb = getExposedBasicBlock(i);
+            blocksToInst.insert(bb->getHashCode().getValue(), bb);
         }
-        HashCode* hashCode = new HashCode(inputHash);
-#ifdef STATS_PER_INSTRUCTION
-        if(!hashCode->isBlock() && !hashCode->isInstruction()){
-#else //STATS_PER_INSTRUCTION
-        if(!hashCode->isBlock()){
-#endif //STATS_PER_INSTRUCTION
+    } else {
 
-            err = sscanf((*fileLines)[i], "%llx", &inputHash);
+        initializeFileList(inputFile, fileLines);
+
+        int32_t err;
+        uint64_t inputHash;
+        for (uint32_t i = 0; i < (*fileLines).size(); i++){
+            char* ptr = strchr((*fileLines)[i],'#');
+            if(ptr) *ptr = '\0';
+
+            if(!strlen((*fileLines)[i]) || allSpace((*fileLines)[i]))
+                continue;
+
+            err = sscanf((*fileLines)[i], "%lld", &inputHash);
             if(err <= 0){
                 PRINT_ERROR("Line %d of %s has a wrong format", i+1, inputFile);
             }
-            hashCode = new HashCode(inputHash);
+            HashCode* hashCode = new HashCode(inputHash);
 #ifdef STATS_PER_INSTRUCTION
             if(!hashCode->isBlock() && !hashCode->isInstruction()){
 #else //STATS_PER_INSTRUCTION
             if(!hashCode->isBlock()){
 #endif //STATS_PER_INSTRUCTION
-                PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, inputFile);
+                    
+                err = sscanf((*fileLines)[i], "%llx", &inputHash);
+                if(err <= 0){
+                    PRINT_ERROR("Line %d of %s has a wrong format", i+1, inputFile);
+                }
+                hashCode = new HashCode(inputHash);
+#ifdef STATS_PER_INSTRUCTION
+                if(!hashCode->isBlock() && !hashCode->isInstruction()){
+#else //STATS_PER_INSTRUCTION
+                if(!hashCode->isBlock()){
+#endif //STATS_PER_INSTRUCTION
+                    PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, inputFile);
+                }
             }
-        }
-        BasicBlock* bb = findExposedBasicBlock(*hashCode);
-        delete hashCode;
+            BasicBlock* bb = findExposedBasicBlock(*hashCode);
+            delete hashCode;
 
-        if (!bb){
-            PRINT_WARN(10, "cannot find basic block for hash code %#llx found in input file", inputHash);
-        } else {
-            //        ASSERT(bb && "cannot find basic block for hash code found in input file");
-            blocksToInst.insert(bb->getHashCode().getValue(), bb);
+            if (!bb){
+                PRINT_WARN(10, "cannot find basic block for hash code %#llx found in input file", inputHash);
+            } else {
+                //        ASSERT(bb && "cannot find basic block for hash code found in input file");
+                blocksToInst.insert(bb->getHashCode().getValue(), bb);
 
-            // also include any block that is in this loop (including child loops)
-            if (loopIncl){
-                if (bb->isInLoop()){
-                    FlowGraph* fg = bb->getFlowGraph();
-                    Loop* lp = fg->getInnermostLoopForBlock(bb->getIndex());
-                    BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
-                    lp->getAllBlocks(allBlocks);
-                    for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
-                        uint64_t code = allBlocks[k]->getHashCode().getValue();
-                        blocksToInst.insert(code, allBlocks[k]);
+                // also include any block that is in this loop (including child loops)
+                if (loopIncl){
+                    if (bb->isInLoop()){
+                        FlowGraph* fg = bb->getFlowGraph();
+                        Loop* lp = fg->getInnermostLoopForBlock(bb->getIndex());
+                        BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
+                        lp->getAllBlocks(allBlocks);
+                        for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
+                            uint64_t code = allBlocks[k]->getHashCode().getValue();
+                            blocksToInst.insert(code, allBlocks[k]);
+                        }
+                        delete[] allBlocks;
                     }
-                    delete[] allBlocks;
                 }
             }
         }
+        for (uint32_t i = 0; i < (*fileLines).size(); i++){
+            delete[] (*fileLines)[i];
+        }
+        delete fileLines;
     }
-    for (uint32_t i = 0; i < (*fileLines).size(); i++){
-        delete[] (*fileLines)[i];
-    }
-    delete fileLines;
 
     if (!blocksToInst.size()){
         // for executables, instrument everything
@@ -171,6 +179,11 @@ void CacheSimulation::instrument(){
         lineInfoFinder = getLineInfoFinder();
     }
 
+    bool usePIC = false;
+    if (isThreadedMode() || isMultiImage()){
+        usePIC = true;
+    }
+
     // count number of memory ops
     uint32_t memopSeq = 0;
     uint32_t blockSeq = 0;
@@ -200,7 +213,7 @@ void CacheSimulation::instrument(){
     Vector<LineInfo*>* allBlockLineInfos = new Vector<LineInfo*>();
 
     std::map<uint64_t, uint32_t>* functionThreading;
-    if (isThreadedMode()){
+    if (usePIC){
         functionThreading = threadReadyCode(functionsToInst);
     }
 
@@ -277,7 +290,7 @@ void CacheSimulation::instrument(){
     InstrumentationPoint* p;
 
     // ALL_FUNC_ENTER
-    if (isThreadedMode()){
+    if (isMultiImage()){
         for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
             Function* f = getExposedFunction(i);
 
@@ -302,6 +315,7 @@ void CacheSimulation::instrument(){
     simFunc->addArgument(imageKey);
     uint64_t imageHash = getElfFile()->getUniqueId();
 
+    // TODO: remove all FP work from cache simulation?
     //simFunc->assumeNoFunctionFP();
     exitFunc->addArgument(imageKey);
 
@@ -320,7 +334,7 @@ void CacheSimulation::instrument(){
         Function* f = (Function*)bb->getLeader()->getContainer();
 
         uint32_t threadReg = X86_REG_INVALID;
-        if (isThreadedMode()){
+        if (usePIC){
             threadReg = (*functionThreading)[f->getBaseAddress()];
         }
 
@@ -374,7 +388,7 @@ void CacheSimulation::instrument(){
                 X86Instruction* memop = bb->getInstruction(j);
                 uint64_t currentOffset = (uint64_t)stats.Buffer + offsetof(BufferEntry, __buf_current);
 
-                if (isThreadedMode()){
+                if (usePIC){
                     currentOffset -= (uint64_t)stats.Buffer;
                 }
 
@@ -386,7 +400,7 @@ void CacheSimulation::instrument(){
                         if (!isPerInstruction()){
                             uint64_t counterOffset = (uint64_t)stats.Counters + (blockSeq * sizeof(uint64_t));
 
-                            if (isThreadedMode()){
+                            if (usePIC){
                                 counterOffset -= simulationStruct;
                             }
                             InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
@@ -429,7 +443,7 @@ void CacheSimulation::instrument(){
 
                         // put current buffer into sr2
                         // if thread data addr is not in sr1 already, load it
-                        if (threadReg == X86_REG_INVALID && isThreadedMode()){
+                        if (threadReg == X86_REG_INVALID && usePIC){
                             Vector<X86Instruction*>* tdata = storeThreadData(sr2, sr1);
                             for (uint32_t k = 0; k < tdata->size(); k++){
                                 bufferDumpInstructions->append((*tdata)[k]);
@@ -437,7 +451,7 @@ void CacheSimulation::instrument(){
                             delete tdata;
                         }
                         
-                        if (isThreadedMode()){
+                        if (usePIC){
                             bufferDumpInstructions->append(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr1, offsetof(SimulationStats, Buffer), sr2));
                         } else {
                             bufferDumpInstructions->append(X86InstructionFactory64::emitMoveImmToReg(getInstDataAddress() + (uint64_t)stats.Buffer + offsetof(BufferEntry, __buf_current), sr2));
@@ -463,7 +477,7 @@ void CacheSimulation::instrument(){
                         pt->setPriority(InstPriority_regular);
                         dynamicPoint(pt, GENERATE_KEY(blockSeq, PointType_bufferinc), true);
 
-                        if (threadReg == X86_REG_INVALID && isThreadedMode()){
+                        if (threadReg == X86_REG_INVALID && usePIC){
                             Vector<X86Instruction*>* tdata = storeThreadData(sr2, sr1);
                             for (uint32_t k = 0; k < tdata->size(); k++){
                                 snip->addSnippetInstruction((*tdata)[k]);
@@ -471,7 +485,7 @@ void CacheSimulation::instrument(){
                             delete tdata;
                         }
 
-                        if (isThreadedMode()){
+                        if (usePIC){
                             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr1, offsetof(SimulationStats, Buffer), sr2));
                             snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToRegaddrImm(bb->getNumberOfMemoryOps(), sr2, offsetof(BufferEntry, __buf_current)));
                         } else {
@@ -526,7 +540,7 @@ void CacheSimulation::instrument(){
                     delete dead;
 
                     // if thread data addr is not in sr1 already, load it
-                    if (threadReg == X86_REG_INVALID && isThreadedMode()){
+                    if (threadReg == X86_REG_INVALID && usePIC){
                         Vector<X86Instruction*>* tdata = storeThreadData(sr2, sr1);
                         for (uint32_t k = 0; k < tdata->size(); k++){
                             snip->addSnippetInstruction((*tdata)[k]);
@@ -534,7 +548,7 @@ void CacheSimulation::instrument(){
                         delete tdata;
                     }
 
-                    if (isThreadedMode()){
+                    if (usePIC){
                         snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr1, offsetof(SimulationStats, Buffer), sr2));
                     } else {
                         snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToReg(getInstDataAddress() + (uint64_t)stats.Buffer + offsetof(BufferEntry, __buf_current), sr2));
@@ -614,7 +628,7 @@ void CacheSimulation::instrument(){
                             currentLeader = memopSeq;
 
                             uint64_t counterOffset = (uint64_t)stats.Counters + (memopSeq * sizeof(uint64_t));
-                            if (isThreadedMode()){
+                            if (usePIC){
                                 counterOffset -= simulationStruct;
                             }
                             InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
@@ -670,7 +684,7 @@ void CacheSimulation::instrument(){
     delete allBlockIds;
     delete allBlockLineInfos;
 
-    if (isThreadedMode()){
+    if (usePIC){
         delete functionThreading;
     }
 

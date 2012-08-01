@@ -1220,7 +1220,7 @@ void ElfFileInst::phasedInstrumentation(){
     functionSelect();
 
     // ALL_FUNC_ENTER
-    if (isThreadedMode()){
+    if (isMultiImage()){
         for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
             Function* f = getExposedFunction(i);
 
@@ -1810,6 +1810,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     flags = InstrumentorFlag_none;
     allowStatic = false;
     threadedMode = false;
+    multipleImages = false;
     perInstruction = false;
 
     libraryList = NULL;

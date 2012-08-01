@@ -707,14 +707,16 @@ uint32_t convertGPRegUd(uint32_t reg){
 
 uint32_t convertUdGPReg(uint32_t reg){
     ASSERT(reg && IS_GPR(reg));
-    if (IS_8BIT_GPR(reg)){
-        return reg - UD_R_AL;
-    } else if (IS_16BIT_GPR(reg)){
-        return reg - UD_R_AX;
+    if (IS_64BIT_GPR(reg)){
+        return reg - UD_R_RAX;
     } else if (IS_32BIT_GPR(reg)){
         return reg - UD_R_EAX;
-    } else if (IS_64BIT_GPR(reg)){
-        return reg - UD_R_RAX;
+    } else if (IS_16BIT_GPR(reg)){
+        return reg - UD_R_AX;
+    } else if (IS_H8BIT_GPR(reg)){
+        return reg - UD_R_AH;
+    } else if (IS_L8BIT_GPR(reg)){
+        return reg - UD_R_AL;
     }
     __SHOULD_NOT_ARRIVE;
     return 0;

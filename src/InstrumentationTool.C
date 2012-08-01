@@ -321,7 +321,7 @@ void InstrumentationTool::instrument(){
     dynamicInit->addArgument(dynamicPointArray);
 
     // ALL_FUNC_ENTER
-    if (isThreadedMode()){
+    if (isMultiImage()){
         for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
             Function* f = getExposedFunction(i);
 
@@ -502,7 +502,7 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
     // snippet contents, in this case just increment a counter
     if (is64Bit()){
         // any threaded
-        if (isThreadedMode()){
+        if (isThreadedMode() || isMultiImage()){
             // load thread data base addr into %sr1
             if (threadReg == X86_REG_INVALID){
                 /*

@@ -60,7 +60,9 @@ class TextObject;
 #define UD_R_NAME_LOOKUP(__ud_reg) (ud_reg_tab[__ud_reg - 1])
 #define UD_OP_NAME_LOOKUP(__ud_type) (ud_optype_str[__ud_type - UD_OP_REG])
 
-#define IS_8BIT_GPR(__reg) ((__reg >= UD_R_AL) && (__reg <= UD_R_R15B))
+#define IS_8BIT_GPR(__reg) (IS_L8BIT_GPR(__reg) || IS_H8BIT_GPR(__reg))
+#define IS_L8BIT_GPR(__reg) ((__reg >= UD_R_AL) && (__reg <= UD_R_BL))
+#define IS_H8BIT_GPR(__reg) ((__reg >= UD_R_AH) && (__reg <= UD_R_R15B))
 #define IS_16BIT_GPR(__reg) ((__reg >= UD_R_AX) && (__reg <= UD_R_R15W))
 #define IS_32BIT_GPR(__reg) ((__reg >= UD_R_EAX) && (__reg <= UD_R_R15D))
 #define IS_64BIT_GPR(__reg) ((__reg >= UD_R_RAX) && (__reg <= UD_R_R15))

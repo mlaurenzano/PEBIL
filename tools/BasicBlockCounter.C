@@ -172,7 +172,7 @@ void BasicBlockCounter::instrument()
     entryFunc->addArgument(threadHash);
 
     // ALL_FUNC_ENTER
-    if (isThreadedMode()){
+    if (isMultiImage()){
         for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
             Function* f = getExposedFunction(i);
 
@@ -206,8 +206,13 @@ void BasicBlockCounter::instrument()
         functionsToInst.insert(getExposedFunction(i));
     }
 
+    bool usePIC = false;
+    if (isThreadedMode() || isMultiImage()){
+        usePIC = true;
+    }
+
     std::map<uint64_t, uint32_t>* functionThreading;
-    if (isThreadedMode()){
+    if (usePIC){
         functionThreading = threadReadyCode(functionsToInst);
     }
 
@@ -307,7 +312,7 @@ void BasicBlockCounter::instrument()
         uint64_t counterOffset = (uint64_t)ctrs.Counters + (i * sizeof(uint64_t));
         uint32_t threadReg = X86_REG_INVALID;
 
-        if (isThreadedMode()){
+        if (usePIC){
             counterOffset -= (uint64_t)ctrs.Counters;
             threadReg = (*functionThreading)[f->getBaseAddress()];
         }
@@ -348,7 +353,7 @@ void BasicBlockCounter::instrument()
         uint64_t counterOffset =  (uint64_t)ctrs.Counters + (i * sizeof(uint64_t));
         uint32_t threadReg = X86_REG_INVALID;
 
-        if (isThreadedMode()){
+        if (usePIC){
             counterOffset -= (uint64_t)ctrs.Counters;
             threadReg = (*functionThreading)[f->getBaseAddress()];            
         }
@@ -415,7 +420,7 @@ void BasicBlockCounter::instrument()
     delete allBlockIds;
     delete allBlockLineInfos;
 
-    if (isThreadedMode()){
+    if (usePIC){
         delete functionThreading;
     }
 

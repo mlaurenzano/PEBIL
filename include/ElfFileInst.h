@@ -93,6 +93,7 @@ private:
 
     bool allowStatic;
     bool threadedMode;
+    bool multipleImages;
     bool perInstruction;
 
     ProgramHeader* instSegment;
@@ -208,6 +209,8 @@ public:
     void setAllowStatic() { allowStatic = true; }
     void setThreadedMode() { threadedMode = true; ASSERT(is64Bit() && "Threading support not available for IA32"); }
     bool isThreadedMode() { return threadedMode; }
+    void setMultipleImages() { multipleImages = true; ASSERT(is64Bit() && "Multi-image support not available for IA32"); }
+    bool isMultiImage() { return multipleImages; }
     void setPerInstruction() { perInstruction = true; }
     bool isPerInstruction() { return perInstruction; }
 

@@ -1939,6 +1939,7 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
         stats->Buffer = fs->Buffer;
     }
 
+
     // each thread/image gets its own counters
     if (typ == AllData->ThreadType){
         uint64_t tmp64 = (uint64_t)(stats) + (uint64_t)(sizeof(SimulationStats));

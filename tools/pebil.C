@@ -81,13 +81,14 @@ void printUsage(const char* msg = NULL){
     fprintf(stderr,"\t\t[--version] : print version number and exit\n");
     fprintf(stderr,"\t\t[--silent] : print nothing to stdout\n");
     fprintf(stderr,"\t\t[--dry] : quit before processing any executables\n");
+    fprintf(stderr,"\t\t[--threaded] : implement thread safety features and keep statistics per thread\n");
+    fprintf(stderr,"\t\t[--images] : prepare for multiple images\n");
     fprintf(stderr,"\t\t[--allowstatic] : try to instrument a static-linked executable " DEVELOPER_MESSAGE "\n");
     fprintf(stderr,"\t\t[--lib <shared_lib_dir>] : " DEPRECATED_MESSAGE "\n");
     fprintf(stderr,"\t{tool options} (each tool decides if/how to use these)\n");
     fprintf(stderr,"\t\t[--inp <input/file>] : path to an input file\n");
     fprintf(stderr,"\t\t[--doi] : do special initialization\n");
     fprintf(stderr,"\t\t[--trk <tracking/file>] : path to a tracking file\n");
-    fprintf(stderr,"\t\t[--threaded] : implement thread safety features and keep statistics per thread\n");
     fprintf(stderr,"\t\t[--perinsn] : gather statistics per instruction if a tool supports it\n");
     fprintf(stderr,"\t\t[--dtl] : " DEPRECATED_MESSAGE "\n");
     fprintf(stderr,"\t\t[--lpi] : " DEPRECATED_MESSAGE "\n");
@@ -192,6 +193,7 @@ int main(int argc,char* argv[]){
     DEFINE_FLAG(dtl);
     DEFINE_FLAG(doi);
     DEFINE_FLAG(threaded);
+    DEFINE_FLAG(images);
     DEFINE_FLAG(perinsn);
 
 #define DEFINE_ARG(__name) char* __name ## _arg = NULL
@@ -216,7 +218,7 @@ int main(int argc,char* argv[]){
         /* These options set a flag. */
         FLAG_OPTION(help, 'h'), FLAG_OPTION(allowstatic, 'w'), FLAG_OPTION(silent, 's'), FLAG_OPTION(dry, 'r'),
         FLAG_OPTION(version, 'V'), FLAG_OPTION(lpi, 'p'), FLAG_OPTION(dtl, 'd'), FLAG_OPTION(doi, 'i'), FLAG_OPTION(threaded, 'P'),
-        FLAG_OPTION(perinsn, 'I'),
+        FLAG_OPTION(images, 'M'), FLAG_OPTION(perinsn, 'I'),
 
         /* These options take an argument
            We distinguish them by their indices. */
@@ -522,6 +524,10 @@ int main(int argc,char* argv[]){
 
             if (threaded_flag){
                 instTool->setThreadedMode();
+            }
+
+            if (images_flag){
+                instTool->setMultipleImages();
             }
 
             if (perinsn_flag){
