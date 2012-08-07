@@ -644,7 +644,7 @@ extern "C" {
             TryOpen(MemFile, fileName);
 
             if (stats->PerInstruction){
-                warn << "You are using per-instruction mode. " << LegacyToken << " files in this mode are unreliable" << ENDL;
+                warn << "You are using per-instruction mode. " << LegacyToken << "files in this mode are unreliable" << ENDL;
             }
 
             MemFile
