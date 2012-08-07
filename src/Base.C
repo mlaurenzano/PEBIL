@@ -19,6 +19,7 @@
  */
 
 #include <Base.h>
+#include <BasicBlock.h>
 #include <ElfFile.h>
 #include <ElfFileInst.h>
 #include <X86Instruction.h>
@@ -404,6 +405,22 @@ int searchHashCode(const void* arg1, const void* arg2){
     if (key < val)
         return -1;
     if (key > val)
+        return 1;
+    return 0;
+}
+
+int searchBasicBlockAddress(const void* arg1, const void* arg2){
+    uint64_t key = *((uint64_t*)arg1);
+    BasicBlock* bb = *((BasicBlock**)arg2);
+
+    ASSERT(bb && "BB should exist");
+
+    uint64_t val_low = bb->baseAddress;
+    uint64_t val_high = val_low + bb->getNumberOfBytes();
+
+    if (key < val_low)
+        return -1;
+    if (key >= val_high)
         return 1;
     return 0;
 }

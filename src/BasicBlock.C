@@ -941,10 +941,13 @@ uint32_t CodeBlock::getNumberOfBytes(){
 }
 
 bool BasicBlock::inRange(uint64_t addr){
-    if (addr >= getBaseAddress() && addr < getBaseAddress() + getNumberOfBytes()){
-        return true;
+    uint64_t b = getBaseAddress();
+    if (addr < b){
+        return false;
+    } else if (addr >= b + getNumberOfBytes()){
+        return false;
     }
-    return false;
+    return true;
 }
 
 CodeBlock::CodeBlock(uint32_t idx, FlowGraph* cfg)

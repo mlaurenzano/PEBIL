@@ -29,7 +29,7 @@
 #include <Loop.h>
 #include <PriorityQueue.h>
 #include <Stack.h>
-#include <map>
+#include <unordered_map>
 #include <set>
 #include <X86Instruction.h>
 #include <X86InstructionFactory.h>
@@ -148,8 +148,8 @@ bool flowsInDefUseScope(BasicBlock* tgt, Loop* loop){
     return false;
 }
 
-inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loop* loop, std::map<uint64_t, X86Instruction*>& imap, std::map<uint64_t, BasicBlock*>& bmap,
-                         std::map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& alliuses, std::map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& allidefs,
+inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loop* loop, std::unordered_map<uint64_t, X86Instruction*>& iunordered_map, std::unordered_map<uint64_t, BasicBlock*>& bunordered_map,
+                         std::unordered_map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& alliuses, std::unordered_map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& allidefs,
                          int k, uint64_t loopLeader, uint32_t fcnt){
 
     // Get defintions for this instruction: ins
@@ -230,7 +230,7 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
         // end of block that is a branch
         if (cand->usesControlTarget() && !cand->isCall()){
-            BasicBlock* tgtBlock = bmap[cand->getTargetAddress()];
+            BasicBlock* tgtBlock = bunordered_map[cand->getTargetAddress()];
             if (tgtBlock && !blockTouched[tgtBlock->getIndex()] && flowsInDefUseScope(tgtBlock, loop)){
                 blockTouched[tgtBlock->getIndex()] = true;
                 if (tgtBlock->getBaseAddress() == loopLeader){
@@ -243,9 +243,9 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
         // non-branching control
         if (cand->controlFallsThrough()){
-            BasicBlock* tgtBlock = bmap[cand->getBaseAddress() + cand->getSizeInBytes()];
+            BasicBlock* tgtBlock = bunordered_map[cand->getBaseAddress() + cand->getSizeInBytes()];
             if (tgtBlock && flowsInDefUseScope(tgtBlock, loop)){
-                X86Instruction* ftTarget = imap[cand->getBaseAddress() + cand->getSizeInBytes()];
+                X86Instruction* ftTarget = iunordered_map[cand->getBaseAddress() + cand->getSizeInBytes()];
                 if (ftTarget){
                     if (ftTarget->isLeader()){
                         if (!blockTouched[tgtBlock->getIndex()]){
@@ -279,18 +279,18 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
 void FlowGraph::computeDefUseDist(){
     uint32_t fcnt = function->getNumberOfInstructions();
-    std::map<uint64_t, X86Instruction*> imap;
-    std::map<uint64_t, BasicBlock*> bmap;
-    std::map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> alliuses;
-    std::map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> allidefs;
+    std::unordered_map<uint64_t, X86Instruction*> iunordered_map;
+    std::unordered_map<uint64_t, BasicBlock*> bunordered_map;
+    std::unordered_map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> alliuses;
+    std::unordered_map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> allidefs;
 
     for (uint32_t i = 0; i < basicBlocks.size(); i++){
         BasicBlock* bb = basicBlocks[i];
         for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
             X86Instruction* x = bb->getInstruction(j);
             for (uint32_t k = 0; k < x->getSizeInBytes(); k++){
-                imap[x->getBaseAddress() + k] = x;
-                bmap[x->getBaseAddress() + k] = bb;
+                iunordered_map[x->getBaseAddress() + k] = x;
+                bunordered_map[x->getBaseAddress() + k] = bb;
             }
 
             alliuses[x->getBaseAddress()] = x->getUses();
@@ -317,7 +317,7 @@ void FlowGraph::computeDefUseDist(){
                 }
                 ASSERT(!ins->usesControlTarget());
 
-                singleDefUse(this, ins, bb, loops[i], imap, bmap, alliuses, allidefs, k, loopLeader, fcnt);
+                singleDefUse(this, ins, bb, loops[i], iunordered_map, bunordered_map, alliuses, allidefs, k, loopLeader, fcnt);
             }
         }
         delete[] allLoopBlocks;
@@ -335,12 +335,12 @@ void FlowGraph::computeDefUseDist(){
                 }
                 ASSERT(!ins->usesControlTarget());
                 
-                singleDefUse(this, ins, bb, NULL, imap, bmap, alliuses, allidefs, k, 0, fcnt);
+                singleDefUse(this, ins, bb, NULL, iunordered_map, bunordered_map, alliuses, allidefs, k, 0, fcnt);
             }
         }
     }
 
-    for (std::map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>::iterator it = alliuses.begin(); it != alliuses.end(); it++){
+    for (std::unordered_map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>::iterator it = alliuses.begin(); it != alliuses.end(); it++){
         uint64_t addr = (*it).first;
         delete alliuses[addr];
         delete allidefs[addr];
@@ -480,16 +480,9 @@ uint32_t FlowGraph::getLoopDepth(uint32_t idx){
 void FlowGraph::computeLiveness(){
     DEBUG_LIVE_REGS(double t1 = timer();)
 
-    Vector<RegisterSet*> uses;
-    Vector<RegisterSet*> defs;
-    Vector<RegisterSet*> ins;
-    Vector<RegisterSet*> outs;
-    Vector<RegisterSet*> ins_prime;
-    Vector<RegisterSet*> outs_prime;
-
     Vector<std::set<uint32_t>*> succs;
-    Vector<X86Instruction*> allInstructions;
     uint32_t maxElts = 32;
+    uint32_t icount = 0;
 
     // re-index instructions
     uint32_t currIdx = 0;
@@ -500,21 +493,31 @@ void FlowGraph::computeLiveness(){
             instruction->setIndex(currIdx++);
         }
     }
+    icount = currIdx;
     PRINT_DEBUG_LIVE_REGS("Flow analysis on function %s (%d instructions)", function->getName(), currIdx);
 
+    RegisterSet** uses = new RegisterSet*[icount];
+    RegisterSet** defs = new RegisterSet*[icount];
+    RegisterSet* ins = new RegisterSet[icount];
+    RegisterSet* outs = new RegisterSet[icount];
+    RegisterSet* ins_prime = new RegisterSet[icount];
+    RegisterSet* outs_prime = new RegisterSet[icount];
+    X86Instruction** allInstructions = new X86Instruction*[icount];
+
     // initialize data structures
+    currIdx = 0;
     for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
         BasicBlock* bb = getBasicBlock(i);
         for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
             X86Instruction* instruction = bb->getInstruction(j);
-            uses.append(instruction->getRegistersUsed());
-            defs.append(instruction->getRegistersDefined());
-            ins.append(new RegisterSet());
-            outs.append(new RegisterSet());
-            ins_prime.append(new RegisterSet());
-            outs_prime.append(new RegisterSet());
+            allInstructions[currIdx] = instruction;
 
-            allInstructions.append(instruction);
+            uses[currIdx] = instruction->getRegistersUsed();
+            defs[currIdx] = instruction->getRegistersDefined();
+            ins[currIdx] = RegisterSet();
+            outs[currIdx] = RegisterSet();
+            ins_prime[currIdx] = RegisterSet();
+            outs_prime[currIdx] = RegisterSet();
 
             succs.append(new std::set<uint32_t>());
             if (j == bb->getNumberOfInstructions() - 1){
@@ -524,19 +527,13 @@ void FlowGraph::computeLiveness(){
             } else {
                 succs.back()->insert(bb->getInstruction(j+1)->getIndex());
             }
+            currIdx++;
         }
     }
-    ASSERT(allInstructions.size() == currIdx);
-    ASSERT(uses.size() == currIdx);
-    ASSERT(defs.size() == currIdx);
-    ASSERT(ins.size() == currIdx);
-    ASSERT(outs.size() == currIdx);
-    ASSERT(ins_prime.size() == currIdx);
-    ASSERT(outs_prime.size() == currIdx);
     ASSERT(succs.size() == currIdx);
 
     DEBUG_LIVE_REGS(
-                    for (uint32_t i = 0; i < allInstructions.size(); i++){
+                    for (uint32_t i = 0; i < icount; i++){
                         allInstructions[i]->print();
                         PRINT_INFO();
                         PRINT_OUT("instruction %d succ list: ", i);
@@ -554,20 +551,20 @@ void FlowGraph::computeLiveness(){
     bool setsSame = false;
     uint32_t iterCount = 0;
     while (!setsSame){
-        for (int32_t i = allInstructions.size()-1; i >= 0; i--){
+        for (int32_t i = icount-1; i >= 0; i--){
             // ins'[n] = ins[n]
-            *(ins_prime[i]) = *(ins[i]);
+            ins_prime[i] = ins[i];
             
             // outs'[n] = outs[n]
-            *(outs_prime[i]) = *(outs[i]);
+            outs_prime[i] = outs[i];
             
             PRINT_DEBUG_LIVE_REGS("before in[n] = use[n] U (out[n] - def[n])");
             DEBUG_LIVE_REGS(
-                {
-                    ins->print("ins");
+                            {
+                    ins.print("ins");
                     uses->print("uses");
                     defs->print("defs");
-                    outs->print("outs");
+                    outs.print("outs");
                 }
             )
             //PRINT_REG_LIST(ins, maxElts, i);
@@ -578,7 +575,7 @@ void FlowGraph::computeLiveness(){
             // out[n] = U(s in succ[n]) in[s]
             //            (outs[i])->clear();
             for (std::set<uint32_t>::const_iterator it = succs[i]->begin(); it != succs[i]->end(); it++){
-                *(outs[i]) |= *(ins[(*it)]);
+                outs[i] |= ins[(*it)];
                 PRINT_REG_LIST(ins, maxElts, (*it));
             }
             
@@ -590,7 +587,7 @@ void FlowGraph::computeLiveness(){
             //*(ins[i]) |= *(uses[i]);
             //*(ins[i]) |= *(tmpbt);
             //delete tmpbt;
-            *(ins[i]) = *(uses[i]) | (*(outs[i]) - *(defs[i]));
+            ins[i] = *(uses[i]) | (outs[i] - *(defs[i]));
             
             PRINT_DEBUG_LIVE_REGS("after in[n] = use[n] U (out[n] - def[n])");
             PRINT_REG_LIST(ins, maxElts, i);
@@ -600,20 +597,20 @@ void FlowGraph::computeLiveness(){
 
         // check if in/out have changed this iteration for any n
         setsSame = true;
-        for (uint32_t i = 0; i < allInstructions.size() && setsSame; i++){
-            if (!(*(ins[i]) == *(ins_prime[i]))){
+        for (uint32_t i = 0; i < icount && setsSame; i++){
+            if (!(ins[i] == ins_prime[i])){
                 PRINT_DEBUG_LIVE_REGS("ins %d different", i);
                 setsSame = false;
                 break;
             }
-            if (!(*(outs[i]) == *(outs_prime[i]))){
+            if (!(outs[i] == outs_prime[i])){
                 PRINT_DEBUG_LIVE_REGS("outs %d different", i);
                 setsSame = false;
                 break;
             }
         }
 
-        for (uint32_t i = 0; i < allInstructions.size(); i++){
+        for (uint32_t i = 0; i < icount; i++){
             PRINT_REG_LIST(ins, maxElts, i);
             PRINT_REG_LIST(ins_prime, maxElts, i);
             PRINT_REG_LIST(outs, maxElts, i);
@@ -622,20 +619,23 @@ void FlowGraph::computeLiveness(){
         iterCount++;
     }
 
-    for (uint32_t i = 0; i < allInstructions.size(); i++){
-        allInstructions[i]->setLiveIns(ins[i]);
-        allInstructions[i]->setLiveOuts(outs[i]);
+    for (uint32_t i = 0; i < icount; i++){
+        allInstructions[i]->setLiveIns(&ins[i]);
+        allInstructions[i]->setLiveOuts(&outs[i]);
     }
 
-    for (uint32_t i = 0; i < allInstructions.size(); i++){
+    for (uint32_t i = 0; i < icount; i++){
         delete uses[i];
         delete defs[i];
-        delete ins[i];
-        delete outs[i];
-        delete ins_prime[i];
-        delete outs_prime[i];
         delete succs[i];
     }
+    delete[] uses;
+    delete[] defs;
+    delete[] ins;
+    delete[] outs;
+    delete[] ins_prime;
+    delete[] outs_prime;
+
 
     DEBUG_LIVE_REGS(
                     double t2 = timer();
@@ -809,11 +809,7 @@ int compareLoopHeaderVaddr(const void* arg1,const void* arg2){
 }
 
 BasicBlock** FlowGraph::getAllBlocks(){
-    BasicBlock** allBlocks = new BasicBlock*[basicBlocks.size()];
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        allBlocks[i] = basicBlocks[i];
-    }
-    return allBlocks;
+    return &basicBlocks;
 }
 
 uint32_t FlowGraph::buildLoops(){
@@ -983,7 +979,7 @@ void FlowGraph::print(){
 BitSet<BasicBlock*>* FlowGraph::newBitSet() { 
 
     BasicBlock** blocks = getAllBlocks();
-    blockCopies.append(blocks);
+    //blockCopies.append(blocks);
 
     if(basicBlocks.size())
         return new BitSet<BasicBlock*>(basicBlocks.size(),blocks); 
@@ -1018,7 +1014,7 @@ void FlowGraph::setImmDominatorBlocks(BasicBlock* root){
     BasicBlock** allBlocks = getAllBlocks();
     LengauerTarjan dominatorAlg(getNumberOfBasicBlocks(),root,allBlocks);
     dominatorAlg.immediateDominators();
-    delete[] allBlocks;
+    //delete[] allBlocks;
 }
 
 void FlowGraph::depthFirstSearch(BasicBlock* root, BitSet<BasicBlock*>* visitedSet, bool visitedMarkOnSet,

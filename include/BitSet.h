@@ -25,8 +25,15 @@
 
 typedef uint32_t BitStorage;
 
-template <class T=uint32_t>
-class BitSet {
+static inline uint32_t count_bits(uint32_t n) {     
+    uint32_t c; // c accumulates the total bits set in v
+    for (c = 0; n; c++){
+        n &= n - 1; // clear the least significant bit set
+    }
+    return c;
+}
+
+template <class T=uint32_t> class BitSet {
 private:
     const static uint8_t DivideLog = 5;
     const static uint32_t ModMask = ~((uint32_t)0xffffffff << DivideLog);
@@ -41,6 +48,19 @@ private:
     }
 
 public:
+
+    inline void cardinalize(){
+        cardinality = 0;
+        uint32_t count = internalCount();
+        for(uint32_t i = 0; i < count; i++){
+            BitStorage n = bits[i];
+            while (n){
+                cardinality++;
+                n &= (n - 1);
+            }
+        }
+    }
+
     BitSet(uint32_t maxVal,T* arr=NULL) : maximum(maxVal),cardinality(0),elements(arr) {
         uint32_t count = internalCount();
         bits = new BitStorage[count];
@@ -65,16 +85,15 @@ public:
         uint32_t count = internalCount();
         for(uint32_t i=0;i<count;i++){
             bits[i] = bits[i] & ~(src.bits[i]);
-            if (src.contains(i)){
-                remove(i);
-                cardinality--;
-            }
         }        
+        cardinalize();
+        /*
         for(uint32_t i=0;i<count;i++){
             if (src.bits[i] & bits[i]){
                 PRINT_ERROR("bits dont match");
             }
         }
+        */
         return *this;
     }
 
@@ -96,12 +115,7 @@ public:
         for(uint32_t i=0;i<count;i++){
             bits[i] &= src.bits[i];
         }
-        cardinality = 0;
-        for(uint32_t i=0;i<maximum;i++){
-            if(contains(i)){
-                cardinality++;
-            }
-        }
+        cardinalize();
         return *this;
     }
 
@@ -125,12 +139,8 @@ public:
         for(uint32_t i=0;i<count;i++){
             bits[i] |= src.bits[i];
         }
-        cardinality = 0;
-        for(uint32_t i=0;i<maximum;i++){
-            if(contains(i)){
-                cardinality++;
-            }
-        }
+        cardinalize();
+
         return *this;
     }
 

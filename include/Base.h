@@ -460,6 +460,7 @@ extern uint64_t nextAlignAddressDouble(uint64_t addr);
 extern int compareHashCode(const void* arg1,const void* arg2);
 extern int searchHashCode(const void* arg1, const void* arg2);
 extern int compareBaseAddress(const void* arg1,const void* arg2);
+extern int searchBasicBlockAddress(const void* arg1, const void* arg2);
 extern int searchBaseAddressExact(const void* arg1, const void* arg2);
 extern int searchBaseAddress(const void* arg1, const void* arg2);
 

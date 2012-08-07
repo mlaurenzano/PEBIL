@@ -312,6 +312,7 @@ Vector<X86Instruction*>* Function::swapInstructions(uint64_t addr, Vector<X86Ins
     for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
         if (getBasicBlock(i)->inRange(addr)){
             cantidate = getBasicBlock(i);
+            break;
         }
     }
     if (cantidate){
@@ -728,12 +729,24 @@ X86Instruction* Function::getInstructionAtAddress(uint64_t addr){
 }
 
 BasicBlock* Function::getBasicBlockAtAddress(uint64_t addr){
+    if (addr < getBaseAddress()){
+        return NULL;
+    }
+
+    BasicBlock** bbs = flowGraph->getAllBlocks();
+    void* found = bsearch(&addr, bbs, flowGraph->getNumberOfBasicBlocks(), sizeof(BasicBlock*), searchBasicBlockAddress);
+    if (found != NULL){
+        return *(BasicBlock**)found;
+    }
+    return NULL;
+    /*
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         BasicBlock* bb = flowGraph->getBasicBlock(i);
-        if (addr >= bb->getBaseAddress() && bb->inRange(addr)){
+        if (bb->inRange(addr)){
             return flowGraph->getBasicBlock(i); 
         }
     }
+    */
     return NULL;
 }
 
@@ -799,10 +812,11 @@ bool Function::verify(){
         if (getNumberOfBytes() > sizeInBytes){
             PRINT_ERROR("Function %s has more bytes in BBs (%d) than in its size (%d)", getName(), getNumberOfBytes(), sizeInBytes);
         }
-        X86Instruction** allInstructions = new X86Instruction*[getNumberOfInstructions()];
-        getAllInstructions(allInstructions,0);
-        qsort(allInstructions,getNumberOfInstructions(),sizeof(X86Instruction*),compareBaseAddress);
-        for (uint32_t i = 0; i < getNumberOfInstructions()-1; i++){
+        uint32_t icount = getNumberOfInstructions();
+        X86Instruction** allInstructions = new X86Instruction*[icount];
+        getAllInstructions(allInstructions, 0);
+        qsort(allInstructions, icount, sizeof(X86Instruction*), compareBaseAddress);
+        for (uint32_t i = 0; i < icount - 1; i++){
             if (allInstructions[i+1]->getBaseAddress() && allInstructions[i]->getBaseAddress() == allInstructions[i+1]->getBaseAddress()){
                 allInstructions[i]->print();
                 allInstructions[i+1]->print();

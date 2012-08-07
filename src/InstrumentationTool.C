@@ -28,6 +28,10 @@
 #include <TextSection.h>
 #include <X86InstructionFactory.h>
 
+#include <algorithm>
+#include <vector>
+#include <unordered_map>
+
 #define THREAD_EVIDENCE "clone:__clone:__clone2:pthread_.*:omp_.*"
 
 #define MPI_INIT_WRAPPER_CBIND   "MPI_Init_pebil_wrapper"
@@ -38,8 +42,6 @@
 #define MPI_INIT_LIST_FBIND      "mpi_init_:MPI_INIT"
 
 #define DYNAMIC_INST_INIT "tool_dynamic_init"
-
-#define MAX_DEF_USE_DIST_PRINT 1024
 
 uint64_t InstrumentationTool::reserveDynamicPoints(){
     return reserveDataOffset(sizeof(DynamicInst) * dynamicPoints.size());
@@ -763,28 +765,35 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
             uint32_t currDist = 1;
 
             fprintf(staticFD, "\t+dud");
-            uint32_t distances[bb->getNumberOfInstructions()];
+
+            std::unordered_map<uint32_t, uint32_t> idist;
+            std::unordered_map<uint32_t, uint32_t> fdist;
+            std::vector<uint32_t> dlist;
             for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
-                distances[k] = bb->getInstruction(k)->getDefUseDist();
+                X86Instruction* x = bb->getInstruction(k);
+                uint32_t d = x->getDefUseDist();
+                if (d == 0){
+                    continue;
+                }
+
+                if (idist.count(d) == 0){
+                    idist[d] = 0;
+                    fdist[d] = 0;
+                    dlist.push_back(d);
+                }
+                if (x->isFloatPOperation()){
+                    fdist[d] = fdist[d] + 1;
+                } else {
+                    idist[d] = idist[d] + 1;
+                }
             }
 
-            while (currDist < MAX_DEF_USE_DIST_PRINT){
-                for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
-                    if (distances[k] == currDist){
-                        if (bb->getInstruction(k)->isFloatPOperation()){
-                            currFP++;
-                        } else {
-                            currINT++;
-                        }
-                    }
-                }
-                if (currFP > 0 || currINT > 0){
-                    fprintf(staticFD, "\t%d:%d:%d", currDist, currINT, currFP);
-                }
-                currDist++;
-                currINT = 0;
-                currFP = 0;
+            std::sort(dlist.begin(), dlist.end());
+            for (std::vector<uint32_t>::iterator it = dlist.begin(); it != dlist.end(); it++){
+                uint32_t d = (*it);
+                fprintf(staticFD, "\t%d:%d:%d", d, idist[d], fdist[d]);
             }
+
             fprintf(staticFD, " # %#llx\n", bb->getHashCode().getValue());
 
             fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", bb->getDefXIter(), bb->endsWithCall(), bb->getHashCode().getValue());
@@ -967,25 +976,15 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
             }
             fprintf(staticFD, "\t+lpc\t%lld\t%lld # %#llx\n", loopHead, parentHead, hashValue);
 
-            uint32_t currINT = 0;
-            uint32_t currFP = 0;
-            uint32_t currDist = 1;
 
             fprintf(staticFD, "\t+dud");
-            while (currDist < MAX_DEF_USE_DIST_PRINT){
-                if (ins->getDefUseDist() == currDist){
-                    if (ins->isFloatPOperation()){
-                        currFP++;
-                    } else {
-                        currINT++;
-                    }
+            uint32_t currDist = ins->getDefUseDist();
+            if (currDist){
+                if (ins->isFloatPOperation()){
+                    fprintf(staticFD, "\t%d:%d:%d", currDist, 0, 1);
+                } else {
+                    fprintf(staticFD, "\t%d:%d:%d", currDist, 1, 0);
                 }
-                if (currFP > 0 || currINT > 0){
-                    fprintf(staticFD, "\t%d:%d:%d", currDist, currINT, currFP);
-                }
-                currDist++;
-                currINT = 0;
-                currFP = 0;
             }
             fprintf(staticFD, " # %#llx\n", hashValue);
 

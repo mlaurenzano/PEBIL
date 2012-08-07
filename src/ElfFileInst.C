@@ -18,6 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <set>
 #include <ElfFileInst.h>
 
 #include <AddressAnchor.h>
@@ -589,7 +590,12 @@ uint32_t ElfFileInst::generateInstrumentation(){
     snip->setRequiresDistinctTrampoline(true);
     snip->setCodeOffset(codeOffset);
 
+    std::set<uint64_t> usedPtrs;
     for (uint32_t i = 0; i < pointerAddrs.size(); i++){
+        if (usedPtrs.count(pointerPtrs[i]) > 0){
+            __SHOULD_NOT_ARRIVE;
+            continue;
+        }
         if (is64Bit()){
             snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0,X86_REG_CX), pointerPtrs[i], true));
             snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0,X86_REG_DX), pointerAddrs[i], true));
