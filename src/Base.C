@@ -26,20 +26,6 @@
 FILE* pebilOutp = stdout;
 uint64_t warnCount = 0;
 
-X86Instruction* linkInstructionToData(X86Instruction* ins, ElfFileInst* elfInst, uint64_t addr, bool isOffset){
-    ElfFile* elf = elfInst->getElfFile();
-    DataReference* dataRef;
-    if (isOffset){
-        dataRef = elf->generateDataRef(0, elfInst->getInstDataSection(), sizeof(uint64_t), addr);
-    } else {
-        dataRef = elf->generateDataRef(0, NULL, sizeof(uint64_t), addr);
-    }
-    ins->initializeAnchor(dataRef);
-    elf->addAddressAnchor(ins->getAddressAnchor());
-    //elfInst->getInstDataSection()->addDataReference(dataRef);
-    return ins;
-}
-
 void FileList::init(const char* filename, uint32_t w, char s){
     ASSERT(filename);
 
@@ -199,24 +185,11 @@ void FileList::print(){
 }
 
 #define SHA1SUM_BYTES 20
-uint64_t sha1sum_first64(char* buffer, uint32_t size){
-    unsigned char* allbytes = new unsigned char[size];
-    int end = size;
-    char *line;
-    unsigned char hash[SHA1SUM_BYTES];
-    uint64_t ret;
-
-    bzero(hash, SHA1SUM_BYTES);
-    memcpy(allbytes, buffer, size);
-
-    calc(allbytes, end, hash);
-
+uint64_t sha1sum_first64(char* sha1string){
+    uint64_t ret = 0;
     for (uint32_t i = 0; i < sizeof(uint64_t); i++){
-        memcpy(&((char*)(&ret))[i], &(hash[sizeof(uint64_t) - 1 - i]), 1);
+        memcpy(&((char*)(&ret))[i], &(sha1string[sizeof(uint64_t) - 1 - i]), 1);
     }
-    //memcpy(&ret, &hash, sizeof(uint64_t));
-
-    delete[] allbytes;                                                                                                                                 
     return ret;
 }
 

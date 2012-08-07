@@ -25,6 +25,7 @@
 #include <BinaryFile.h>
 #include <ProgramHeader.h>
 #include <Vector.h>
+#include <map>
 
 class AddressAnchor;
 class BasicBlock;
@@ -80,7 +81,7 @@ private:
 
     Vector<AddressAnchor*>* addressAnchors;
     bool anchorsAreSorted;
-    Vector<DataReference*> specialDataRefs;
+    std::map<uint64_t, DataReference*> specialDataRefs;
 
     uint16_t sectionNameStrTabIdx;
     uint16_t dynamicSymtabIdx;
@@ -115,6 +116,9 @@ private:
     void prepareWedge();
     void destroyWedge();
 
+    uint64_t fileUniqueId;
+    char* fileSha1sum;
+
 public:
     bool verify();
     void wedge(uint32_t shamt);
@@ -128,7 +132,6 @@ public:
     ~ElfFile();
 
    
-    uint64_t imageUniqueId;
     uint64_t getUniqueId();
     char* getSHA1Sum();
     uint64_t getProgramBaseAddress();

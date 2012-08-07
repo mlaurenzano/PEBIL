@@ -48,6 +48,22 @@ uint32_t bloatCount = 0;
 
 #define Reserve__Instrumentation_DynamicTable 0x8000
 
+X86Instruction* ElfFileInst::linkInstructionToData(X86Instruction* ins, uint64_t addr, bool isOffset){
+    ElfFile* elf = getElfFile();
+    DataReference* dataRef;
+    if (isOffset){
+        dataRef = elf->generateDataRef(0, getInstDataSection(), sizeof(uint64_t), addr);
+    } else {
+        dataRef = elf->generateDataRef(0, NULL, sizeof(uint64_t), addr);
+    }
+    ins->initializeAnchor(dataRef);
+    elf->addAddressAnchor(ins->getAddressAnchor());
+    //elfInst->getInstDataSection()->addDataReference(dataRef);
+    return ins;
+}
+
+
+
 // only make modifications to the new/interposed block, the modifications to the source/target block will be made later
 BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, uint32_t bbtgtidx){
     BasicBlock* bb = new BasicBlock(fg->getNumberOfBasicBlocks(), fg);
@@ -112,7 +128,7 @@ Vector<X86Instruction*>* ElfFileInst::findAllCalls(char* names){
 
             if (functionSymbol){
                 for (uint32_t j = 0; j < fstart.size(); j++){
-                    if (regexMatch(functionSymbol->getSymbolName(), fnames + fstart[j])){
+                    if (!strcmp(functionSymbol->getSymbolName(), fnames + fstart[j])){
                         (*calls).append(instruction);
                         break;
                     }
@@ -575,8 +591,8 @@ uint32_t ElfFileInst::generateInstrumentation(){
 
     for (uint32_t i = 0; i < pointerAddrs.size(); i++){
         if (is64Bit()){
-            snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0,X86_REG_CX), this, pointerPtrs[i], true));
-            snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0,X86_REG_DX), this, pointerAddrs[i], true));
+            snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0,X86_REG_CX), pointerPtrs[i], true));
+            snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0,X86_REG_DX), pointerAddrs[i], true));
             snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddr(X86_REG_DX, X86_REG_CX));
         } else {
             PRINT_ERROR("Operation not supported on IA32");

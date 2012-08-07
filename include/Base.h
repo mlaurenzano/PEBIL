@@ -475,7 +475,6 @@ extern void printBufferPretty(char* buff, uint32_t sizeInBytes, uint64_t baseAdd
 
 class X86Instruction;
 class ElfFileInst;
-extern X86Instruction* linkInstructionToData(X86Instruction* ins, ElfFileInst* elfInst, uint64_t addr, bool isOffset);
 
 extern uint32_t searchFileList(Vector<char*>* list, char* name);
 extern uint32_t initializeFileList(char* fileName, Vector<char*>* list);
@@ -492,7 +491,7 @@ extern void SHA1(unsigned char * str1);
 //sha1 functions                                                                                                                                             
 void calc(const void *src, const int bytelength, unsigned char *hash);
 void toHexString(const unsigned char *hash, char *hexstring);
-uint64_t sha1sum_first64(char* buffer, uint32_t size);
+uint64_t sha1sum_first64(char* sha1string);
 char* sha1sum(char* buffer, uint32_t size);
 
 extern double timer();

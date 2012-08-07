@@ -569,7 +569,7 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         
         if (i <= Num__64_bit_StackArgs){
             uint32_t argumentRegister = map64BitArgToReg(idx);            
-            wrapperInstructions.append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, argumentRegister), elfInst, arguments[idx].offset, true));
+            wrapperInstructions.append(elfInst->linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, argumentRegister), arguments[idx].offset, true));
             //wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
         } else {
             PRINT_ERROR("64Bit instrumentation supports only %d args currently", Num__64_bit_StackArgs);

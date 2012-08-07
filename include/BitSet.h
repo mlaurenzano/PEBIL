@@ -23,14 +23,16 @@
 
 #include <Base.h>
 
+typedef uint32_t BitStorage;
+
 template <class T=uint32_t>
 class BitSet {
 private:
-    const static uint8_t DivideLog = 3;
+    const static uint8_t DivideLog = 5;
     const static uint32_t ModMask = ~((uint32_t)0xffffffff << DivideLog);
 
     uint32_t maximum;
-    uint8_t* bits;
+    BitStorage* bits;
     uint32_t cardinality;
     T* elements;
 
@@ -41,16 +43,16 @@ private:
 public:
     BitSet(uint32_t maxVal,T* arr=NULL) : maximum(maxVal),cardinality(0),elements(arr) {
         uint32_t count = internalCount();
-        bits = new uint8_t[count];
-        bzero(bits,count);
+        bits = new BitStorage[count];
+        bzero(bits, count * sizeof(BitStorage));
     }
 
     //! copy constructor
     BitSet(BitSet& src){
         maximum = src.maximum;
         uint32_t count = src.internalCount();
-        bits = new uint8_t[count];
-        memcpy(bits,src.bits,count);
+        bits = new BitStorage[count];
+        memcpy(bits, src.bits, count * sizeof(BitStorage));
         cardinality = src.cardinality;
         elements = src.elements;
     }
@@ -159,21 +161,25 @@ public:
 
     inline void clear() {
         uint32_t count = internalCount();
-        bzero(bits,count);
+        bzero(bits, count * sizeof(BitStorage));
         cardinality = 0;
     }
 
     inline void setall() {
         uint32_t count = internalCount();
-        memset(bits,0xff,count);
+        memset(bits, 0xff, count * sizeof(BitStorage));
         cardinality = maximum;
     }
 
     void print() {
         uint32_t count = internalCount();
         fprintf(stdout, "[BitSet] %d bits: ", maximum);
-        for (uint32_t i = 0; i < count; i++){
-            fprintf(stdout, "%02x", bits[i]);
+        for (uint32_t i = 0; i < maximum; i++){
+            if (contains(i)){
+                fprintf(stdout, "1");
+            } else {
+                fprintf(stdout, "0");
+            }
         }
         fprintf(stdout, "\n");
     }
@@ -222,10 +228,10 @@ public:
         
         uint32_t arrIdx = 0;
         uint32_t idx = 0;
-        for(uint32_t i=0;idx<maximum;i++){
-            uint8_t value = bits[i];
-            for(uint32_t j=0;(j<(1 << DivideLog)) && (idx<maximum);j++,idx++){
-                uint8_t mask = 1 << j;
+        for (uint32_t i = 0; idx < maximum; i++){
+            BitStorage value = bits[i];
+            for (uint32_t j = 0; (j < (1 << DivideLog)) && (idx < maximum); j++, idx++){
+                BitStorage mask = 1 << j;
                 if(value & mask){
                     ret[arrIdx++] = elements[idx];
                 }

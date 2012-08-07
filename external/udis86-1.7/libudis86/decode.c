@@ -1523,12 +1523,13 @@ static int gen_hex( struct ud *u )
     /* bail out if in error stat. */
     if ( u->error ) return -1; 
 
-    /* output buffer pointe */
+    /* output buffer pointer */
     src_hex = ( char* ) u->insn_hexcode;
 
     /* for each byte used to decode instruction */
     for ( i = 0; i < u->inp_ctr; ++i, ++src_ptr) {
-        sprintf( src_hex, "%02x", *src_ptr & 0xFF );
+        // PEBIL doesn't use this field and this is an expensive op, so skip it
+        //sprintf( src_hex, "%02x", *src_ptr & 0xFF );
         src_hex += 2;
         u->insn_bytes[i] = (*src_ptr & 0xFF);
     }
@@ -1594,6 +1595,7 @@ unsigned int ud_decode( struct ud* u )
   u->insn_offset = u->pc; /* set offset of instruction */
   u->insn_fill = 0;   /* set translation buffer index to 0 */
   u->pc += u->inp_ctr;    /* move program counter by bytes decoded */
+
   gen_hex( u );
 
   /* return number of bytes disassembled. */

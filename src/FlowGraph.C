@@ -148,8 +148,9 @@ bool flowsInDefUseScope(BasicBlock* tgt, Loop* loop){
     return false;
 }
 
-inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loop* loop, std::map<uint64_t, X86Instruction*>* imap, std::map<uint64_t, BasicBlock*>* bmap,
-                  int k, uint64_t loopLeader, uint32_t fcnt){
+inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loop* loop, std::map<uint64_t, X86Instruction*>& imap, std::map<uint64_t, BasicBlock*>& bmap,
+                         std::map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& alliuses, std::map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& allidefs,
+                         int k, uint64_t loopLeader, uint32_t fcnt){
 
     // Get defintions for this instruction: ins
     LinkedList<X86Instruction::ReachingDefinition*>* idefs = ins->getDefs();
@@ -197,12 +198,10 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
         delete p;
 
         LinkedList<X86Instruction::ReachingDefinition*>* i2uses, *i2defs, *newdefs;
-        i2uses = cand->getUses();
+        i2uses = alliuses[cand->getBaseAddress()];
 
         // Check if any of idefs is used
         if(i2uses != NULL && anyDefsAreUsed(idefs, i2uses)){
-
-            while (!i2uses->empty()) { delete i2uses->shift(); } delete i2uses;
 
             // Check if use is shortest
             uint32_t duDist;
@@ -222,11 +221,8 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
         }
 
         // Check if any defines are overwritten
-        i2defs = cand->getDefs();
+        i2defs = allidefs[cand->getBaseAddress()];
         newdefs = removeInvalidated(idefs, i2defs);
-
-        while (!i2uses->empty()) { delete i2uses->shift(); } delete i2uses;
-        while (!i2defs->empty()) { delete i2defs->shift(); } delete i2defs;
 
         // If all definitions killed, stop searching along this path
         if (newdefs == NULL)
@@ -234,7 +230,7 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
         // end of block that is a branch
         if (cand->usesControlTarget() && !cand->isCall()){
-            BasicBlock* tgtBlock = (*bmap)[cand->getTargetAddress()];
+            BasicBlock* tgtBlock = bmap[cand->getTargetAddress()];
             if (tgtBlock && !blockTouched[tgtBlock->getIndex()] && flowsInDefUseScope(tgtBlock, loop)){
                 blockTouched[tgtBlock->getIndex()] = true;
                 if (tgtBlock->getBaseAddress() == loopLeader){
@@ -247,9 +243,9 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
         // non-branching control
         if (cand->controlFallsThrough()){
-            BasicBlock* tgtBlock = (*bmap)[cand->getBaseAddress() + cand->getSizeInBytes()];
+            BasicBlock* tgtBlock = bmap[cand->getBaseAddress() + cand->getSizeInBytes()];
             if (tgtBlock && flowsInDefUseScope(tgtBlock, loop)){
-                X86Instruction* ftTarget = (*imap)[cand->getBaseAddress() + cand->getSizeInBytes()];
+                X86Instruction* ftTarget = imap[cand->getBaseAddress() + cand->getSizeInBytes()];
                 if (ftTarget){
                     if (ftTarget->isLeader()){
                         if (!blockTouched[tgtBlock->getIndex()]){
@@ -285,6 +281,8 @@ void FlowGraph::computeDefUseDist(){
     uint32_t fcnt = function->getNumberOfInstructions();
     std::map<uint64_t, X86Instruction*> imap;
     std::map<uint64_t, BasicBlock*> bmap;
+    std::map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> alliuses;
+    std::map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> allidefs;
 
     for (uint32_t i = 0; i < basicBlocks.size(); i++){
         BasicBlock* bb = basicBlocks[i];
@@ -294,6 +292,9 @@ void FlowGraph::computeDefUseDist(){
                 imap[x->getBaseAddress() + k] = x;
                 bmap[x->getBaseAddress() + k] = bb;
             }
+
+            alliuses[x->getBaseAddress()] = x->getUses();
+            allidefs[x->getBaseAddress()] = x->getDefs();
         }
     }
 
@@ -316,7 +317,7 @@ void FlowGraph::computeDefUseDist(){
                 }
                 ASSERT(!ins->usesControlTarget());
 
-                singleDefUse(this, ins, bb, loops[i], &imap, &bmap, k, loopLeader, fcnt);
+                singleDefUse(this, ins, bb, loops[i], imap, bmap, alliuses, allidefs, k, loopLeader, fcnt);
             }
         }
         delete[] allLoopBlocks;
@@ -334,9 +335,15 @@ void FlowGraph::computeDefUseDist(){
                 }
                 ASSERT(!ins->usesControlTarget());
                 
-                singleDefUse(this, ins, bb, NULL, &imap, &bmap, k, 0, fcnt);
+                singleDefUse(this, ins, bb, NULL, imap, bmap, alliuses, allidefs, k, 0, fcnt);
             }
         }
+    }
+
+    for (std::map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>::iterator it = alliuses.begin(); it != alliuses.end(); it++){
+        uint64_t addr = (*it).first;
+        delete alliuses[addr];
+        delete allidefs[addr];
     }
 }
 
@@ -450,9 +457,13 @@ Loop* FlowGraph::getParentLoop(uint32_t idx){
 
 uint32_t FlowGraph::getLoopDepth(uint32_t idx){
     Loop* loop = getInnermostLoopForBlock(idx);
-    uint32_t depth = 0;
 
+    uint32_t depth = 0;
     if (loop){
+        if (loop->getDepth()){
+            return loop->getDepth();
+        }
+
         depth++;
         for (uint32_t i = 0; i < loops.size(); i++){
             if (loop->getIndex() != i){
@@ -461,6 +472,7 @@ uint32_t FlowGraph::getLoopDepth(uint32_t idx){
                 }
             }
         }
+        loop->setDepth(depth);
     }
     return depth;
 }

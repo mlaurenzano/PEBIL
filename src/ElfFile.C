@@ -160,28 +160,12 @@ bool ElfFile::isSharedLib(){
 }
 
 uint64_t ElfFile::getUniqueId(){
-    if (imageUniqueId == 0){
-        char* allbytes = new char[getFileSize()];
-
-        binaryInputFile.setInBufferPointer(0);
-        binaryInputFile.copyBytes(allbytes, getFileSize());
-
-        imageUniqueId = sha1sum_first64(allbytes, getFileSize());
-        delete[] allbytes;
-    }
-
-    return imageUniqueId;
+    return fileUniqueId;
 }
 
 char* ElfFile::getSHA1Sum(){
-    char* allbytes = new char[getFileSize()];
-
-    binaryInputFile.setInBufferPointer(0);
-    binaryInputFile.copyBytes(allbytes, getFileSize());
-
-    char* hexstring = sha1sum(allbytes, getFileSize());
-    delete[] allbytes;
-    return hexstring;
+    ASSERT(sha1sum);
+    return fileSha1sum;
 }
 
 void ElfFile::swapSections(uint32_t idx1, uint32_t idx2){
@@ -232,13 +216,22 @@ ElfFile::ElfFile(char* f, char* a) :
     }
 
     DataReference* zeroAddrRef = new DataReference(0, NULL, addrAlign, 0);
-    specialDataRefs.append(zeroAddrRef);
+    specialDataRefs[0] = zeroAddrRef;
 
     addressAnchors = new Vector<AddressAnchor*>();
     anchorsAreSorted = false;
     wedgeInstructions = NULL;
 
-    imageUniqueId = 0;
+    fileUniqueId = 0;
+    fileSha1sum = NULL;
+
+    char* allbytes = new char[getFileSize()];
+    binaryInputFile.setInBufferPointer(0);
+    binaryInputFile.copyBytes(allbytes, getFileSize());
+
+    fileSha1sum = sha1sum(allbytes, getFileSize());
+    delete[] allbytes;
+    fileUniqueId = sha1sum_first64(fileSha1sum);
 }
 
 void ElfFile::addAddressAnchor(AddressAnchor* adr){
@@ -247,8 +240,14 @@ void ElfFile::addAddressAnchor(AddressAnchor* adr){
 }
 
 DataReference* ElfFile::generateDataRef(uint64_t loc, RawSection* sec, uint64_t align, uint64_t off){
-    DataReference* ref = new DataReference(loc, sec, align, off);
-    specialDataRefs.append(ref);
+
+    DataReference* ref;
+    if (specialDataRefs.count(off) == 0){
+        ref = new DataReference(loc, sec, align, off);
+        specialDataRefs[off] = ref;
+    } else {
+        ref = specialDataRefs[off];
+    }
 
     return ref;
 }
@@ -1466,8 +1465,8 @@ ElfFile::~ElfFile(){
             delete rawSections[i];
         }
     }
-    for (uint32_t i = 0; i < specialDataRefs.size(); i++){
-        delete specialDataRefs[i];
+    for (std::map<uint64_t, DataReference*>::iterator it = specialDataRefs.begin(); it != specialDataRefs.end(); it++){
+        delete specialDataRefs[(*it).first];
     }
     if (addressAnchors){
         delete addressAnchors;
@@ -1665,13 +1664,11 @@ uint32_t ElfFile::anchorProgramElements(){
 
             // search special data references
             if (!currentInstruction->getAddressAnchor()){
-                for (uint32_t i = 0; i < specialDataRefs.size(); i++){
-                    if (specialDataRefs[i]->getBaseAddress() == relativeAddress){
-                        PRINT_DEBUG_ANCHOR("Found inst -> sdata link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
-                        currentInstruction->initializeAnchor(specialDataRefs[i]);
-                        (*addressAnchors).append(currentInstruction->getAddressAnchor());
-                        currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
-                    }
+                uint64_t myaddr = currentInstruction->getBaseAddress();
+                if (specialDataRefs.count(myaddr) > 0){
+                    currentInstruction->initializeAnchor(specialDataRefs[myaddr]);
+                    (*addressAnchors).append(currentInstruction->getAddressAnchor());
+                    currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
                 }
             }
 
@@ -1720,8 +1717,7 @@ uint32_t ElfFile::anchorProgramElements(){
             if (!currentInstruction->getAddressAnchor()){
                 PRINT_WARN(4, "Creating special AddressRelocation for %#llx at the behest of the instruction at %#llx since it wasn't an instruction or part of a data section",
                            relativeAddress, currentInstruction->getBaseAddress());
-                DataReference* dataRef = new DataReference(0, NULL, addrAlign, relativeAddress);
-                specialDataRefs.append(dataRef);
+                DataReference* dataRef = generateDataRef(0, NULL, addrAlign, relativeAddress);
                 currentInstruction->initializeAnchor(dataRef);
                 (*addressAnchors).append(currentInstruction->getAddressAnchor());
                 currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);

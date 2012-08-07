@@ -416,7 +416,7 @@ Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, 
     // and $0xffff,%d
     insns->append(X86InstructionFactory64::emitImmAndReg(0xffff, dest));
     // mov $TData,%sr
-    insns->append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, scratch), this, getInstDataAddress() + threadHash, false));
+    insns->append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, scratch), getInstDataAddress() + threadHash, false));
     // sll $4,%d
     insns->append(X86InstructionFactory64::emitShiftLeftLogical(4, dest));
     // lea [$0x08+$offset](0,%d,%sr),%d
@@ -541,7 +541,7 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
         }
         // non-threaded shared library
         else {
-            snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, sr1), this, getInstDataAddress() + counterOffset, false));
+            snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, sr1), getInstDataAddress() + counterOffset, false));
 
             if (add){
                 snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToRegaddrImm(val, sr1, 0));
@@ -646,10 +646,8 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
     fprintf(staticFD, "# phase     = %d\n", 0);
     fprintf(staticFD, "# type      = %s\n", briefName());
     fprintf(staticFD, "# cantidate = %d\n", getNumberOfExposedBasicBlocks());
-    char* sha1sum = getElfFile()->getSHA1Sum();
-    fprintf(staticFD, "# sha1sum   = %s\n", sha1sum);
+    fprintf(staticFD, "# sha1sum   = %s\n", getElfFile()->getSHA1Sum());
     fprintf(staticFD, "# perinsn   = no\n");
-    delete[] sha1sum;
 
     uint32_t memopcnt = 0;
     uint32_t membytcnt = 0;
@@ -765,9 +763,14 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
             uint32_t currDist = 1;
 
             fprintf(staticFD, "\t+dud");
+            uint32_t distances[bb->getNumberOfInstructions()];
+            for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
+                distances[k] = bb->getInstruction(k)->getDefUseDist();
+            }
+
             while (currDist < MAX_DEF_USE_DIST_PRINT){
                 for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
-                    if (bb->getInstruction(k)->getDefUseDist() == currDist){
+                    if (distances[k] == currDist){
                         if (bb->getInstruction(k)->isFloatPOperation()){
                             currFP++;
                         } else {
@@ -835,10 +838,8 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
     fprintf(staticFD, "# phase     = %d\n", 0);
     fprintf(staticFD, "# type      = %s\n", briefName());
     fprintf(staticFD, "# cantidate = %d\n", getNumberOfExposedInstructions());
-    char* sha1sum = getElfFile()->getSHA1Sum();
-    fprintf(staticFD, "# sha1sum   = %s\n", sha1sum);
+    fprintf(staticFD, "# sha1sum   = %s\n", getElfFile()->getSHA1Sum());
     fprintf(staticFD, "# perinsn   = yes\n");
-    delete[] sha1sum;
 
     uint32_t memopcnt = 0;
     uint32_t membytcnt = 0;

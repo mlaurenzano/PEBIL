@@ -95,6 +95,7 @@ Loop::Loop(BasicBlock* h, BasicBlock* t, FlowGraph* cfg, BitSet<BasicBlock*>* ne
             blocks->insert(i);
         }
     }
+    depth = 0;
 }
 
 void Loop::print(){

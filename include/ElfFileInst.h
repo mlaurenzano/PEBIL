@@ -203,6 +203,7 @@ public:
     BasicBlock* getProgramEntryBlock();
 
     void setInputFunctions(char* inputFuncList);
+    X86Instruction* linkInstructionToData(X86Instruction* ins, uint64_t addr, bool isOffset);
 
     LineInfoFinder* getLineInfoFinder() { return lineInfoFinder; }
     bool hasLineInformation() { return (lineInfoFinder != NULL); }
