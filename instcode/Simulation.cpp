@@ -125,6 +125,9 @@ extern "C" {
         return NULL;
     }
 
+    void* tool_thread_fini(thread_key_t tid){
+    }
+
     void* tool_image_init(void* s, image_key_t* key, ThreadData* td){
         SimulationStats* stats = (SimulationStats*)s;
 

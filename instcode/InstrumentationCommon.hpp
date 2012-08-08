@@ -139,6 +139,7 @@ typedef struct {
 extern "C" {
     extern void* tool_mpi_init();
     extern void* tool_thread_init(pthread_t args);
+    extern void* tool_thread_fini(pthread_t args);
     extern void* tool_image_init(void* s, image_key_t* key, ThreadData* td);
     extern void* tool_image_fini(image_key_t* key);
 };
@@ -352,6 +353,13 @@ extern "C" {
         pid_t* ctid = va_arg(ap, pid_t*);
         va_end(ap);
         return __give_pebil_name(clone)(fn, child_stack, flags, arg, ptid, tls, ctid);
+    }
+
+    int pthread_join(pthread_t thread, void **value_ptr){
+        tool_thread_fini(thread);
+
+        int (*join_ptr)(pthread_t, void**) = (int (*)(pthread_t, void**))dlsym(RTLD_NEXT, "pthread_join");
+        join_ptr(thread, value_ptr);
     }
 };
 

@@ -1,4 +1,17 @@
+#define _GNU_SOURCE
+#include <dlfcn.h>
+
+#include <pthread.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <assert.h>
+#include <string.h>
+#include <sys/time.h>
+#include <stdarg.h>
+#include <time.h>
+#include <signal.h>
 
 // (file == NULL) implies that lineno is also invalid
 void tau_register_func(char **func, char** file, int* lineno, int* id) {
@@ -10,9 +23,72 @@ void tau_register_func(char **func, char** file, int* lineno, int* id) {
 }
 
 void tau_trace_entry(int* id) {
-    printf("tau_trace_entry: id = %d\n", *id);
+    printf("%#lx: tau_trace_entry: id = %d\n", pthread_self(), *id);
 }
 
 void tau_trace_exit(int* id) {
-    printf("tau_trace_exit: id = %d\n", *id);
+    printf("%#lx: tau_trace_exit: id = %d\n", pthread_self(), *id);
+}
+
+void* tool_thread_init(pthread_t args){
+    printf("initializing thread %#lx\n", args);
+}
+
+void* tool_thread_fini(pthread_t args){
+    printf("finalizing thread %#lx\n", args);
+}
+
+
+// wrappers for intercepting thread create/destroy
+static int __tau_wrapping_clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
+    va_list ap;
+    va_start(ap, arg);
+    pid_t* ptid = va_arg(ap, pid_t*);
+    struct user_desc* tls = va_arg(ap, struct user_desc*);
+    pid_t* ctid = va_arg(ap, pid_t*);
+    va_end(ap);
+
+    int (*clone_ptr)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid)
+        = (int (*)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid))dlsym(RTLD_NEXT, "clone");
+
+    tool_thread_init((uint64_t)tls);
+
+    return clone_ptr(fn, child_stack, flags, arg, ptid, tls, ctid);
+}
+
+int __clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
+    va_list ap;
+    va_start(ap, arg);
+    pid_t* ptid = va_arg(ap, pid_t*);
+    struct user_desc* tls = va_arg(ap, struct user_desc*);
+    pid_t* ctid = va_arg(ap, pid_t*);
+    va_end(ap);
+    return __tau_wrapping_clone(fn, child_stack, flags, arg, ptid, tls, ctid);
+}
+
+int clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
+    va_list ap;
+    va_start(ap, arg);
+    pid_t* ptid = va_arg(ap, pid_t*);
+    struct user_desc* tls = va_arg(ap, struct user_desc*);
+    pid_t* ctid = va_arg(ap, pid_t*);
+    va_end(ap);
+    return __tau_wrapping_clone(fn, child_stack, flags, arg, ptid, tls, ctid);
+}
+
+int __clone2(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
+    va_list ap;
+    va_start(ap, arg);
+    pid_t* ptid = va_arg(ap, pid_t*);
+    struct user_desc* tls = va_arg(ap, struct user_desc*);
+    pid_t* ctid = va_arg(ap, pid_t*);
+    va_end(ap);
+    return __tau_wrapping_clone(fn, child_stack, flags, arg, ptid, tls, ctid);
+}
+
+int pthread_join(pthread_t thread, void **value_ptr){
+    tool_thread_fini(thread);
+
+    int (*join_ptr)(pthread_t, void**) = (int (*)(pthread_t, void**))dlsym(RTLD_NEXT, "pthread_join");
+    join_ptr(thread, value_ptr);
 }

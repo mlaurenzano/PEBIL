@@ -146,6 +146,9 @@ void* tool_thread_init(thread_key_t tid){
     return NULL;
 }
 
+void* tool_thread_fini(thread_key_t tid){
+}
+
 extern "C"
 {
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
