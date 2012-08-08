@@ -18,6 +18,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <InstrumentationCommon.hpp>
+#include <Simulation.hpp>
+#include <CounterFunctions.hpp>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -27,10 +31,6 @@
 #include <dlfcn.h>
 #include <signal.h>
 #include <map>
-
-#include <InstrumentationCommon.hpp>
-#include <Simulation.hpp>
-#include <CounterFunctions.hpp>
 
 #define PRINT_MINIMUM 1
 

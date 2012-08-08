@@ -18,6 +18,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+// TODO: test per-insn
+#include <InstrumentationCommon.hpp>
+#include <Simulation.hpp>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -32,10 +36,6 @@
 #include <string.h>
 #include <assert.h>
 
-
-// TODO: test per-insn
-#include <InstrumentationCommon.hpp>
-#include <Simulation.hpp>
 
 // Can tinker with this at runtime using the environment variable
 // METASIM_LIMIT_HIGH_ASSOC if desired.
@@ -1074,7 +1074,7 @@ void RangeStats::Update(uint32_t memid, uint64_t addr, uint32_t count){
 AddressRangeHandler::AddressRangeHandler(){
 }
 AddressRangeHandler::AddressRangeHandler(AddressRangeHandler& h){
-    mlock = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_init(&mlock, NULL);
 }
 AddressRangeHandler::~AddressRangeHandler(){
 }
@@ -1639,7 +1639,7 @@ uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
 }
 
 MemoryStreamHandler::MemoryStreamHandler(){
-    mlock = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_init(&mlock, NULL);
 }
 MemoryStreamHandler::~MemoryStreamHandler(){
 }
@@ -1971,7 +1971,8 @@ void ReadSettings(){
 
     // read caches to simulate
     string cachedf = GetCacheDescriptionFile();
-    ifstream CacheFile(cachedf);
+    const char* cs = cachedf.c_str();
+    ifstream CacheFile(cs);
     if (CacheFile.fail()){
         ErrorExit("cannot open cache descriptions file: " << cachedf, MetasimError_FileOp);
     }

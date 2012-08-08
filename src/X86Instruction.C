@@ -496,13 +496,13 @@ RegisterSet* X86Instruction::getRegistersUsed(){
 
     // operand uses
     Vector<OperandX86*>* uses = getSourceOperands();
-    for(uint32_t i; i< uses->size(); ++i) {
+    for(uint32_t i; i < uses->size(); i++) {
         OperandX86* use = (*uses)[i];
 
-        if(use->GET(base) && IS_ALU_REG(use->GET(base))){
+        if(use && use->GET(base) && IS_ALU_REG(use->GET(base))){
             retval->addRegister(use->getBaseRegister());
         }
-        if(use->GET(index) && IS_ALU_REG(use->GET(index))){
+        if(use && use->GET(index) && IS_ALU_REG(use->GET(index))){
             retval->addRegister(use->getIndexRegister());
         }
     }

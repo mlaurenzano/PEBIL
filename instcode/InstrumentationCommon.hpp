@@ -23,6 +23,10 @@
 #define _GNU_SOURCE
 #include <dlfcn.h>
 
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -42,9 +46,6 @@
 #include <fstream>
 #include <vector>
 
-#ifdef HAVE_MPI
-#include <mpi.h>
-#endif
 
 #include <Metasim.hpp>
 
@@ -250,8 +251,8 @@ extern "C" {
         debug(inform << "Thread " << hex << pthread_self() << " initializing Suspension handling" << ENDL);
 
         CountSuspended = 0;
-        pauser = PTHREAD_MUTEX_INITIALIZER;
-        countlock = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_init(&pauser, NULL);
+        pthread_mutex_init(&countlock, NULL);
 
         CanSuspend = true;
 
@@ -489,7 +490,7 @@ public:
         datadel = d;
         dataref = r;
 
-        mutex = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_init(&mutex, NULL);
         currentthreadseq = 0;
         threadseq[GenerateThreadKey()] = currentthreadseq++;
 

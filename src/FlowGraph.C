@@ -29,10 +29,11 @@
 #include <Loop.h>
 #include <PriorityQueue.h>
 #include <Stack.h>
-#include <unordered_map>
-#include <set>
 #include <X86Instruction.h>
 #include <X86InstructionFactory.h>
+
+#include <unordered_map>
+#include <set>
 
 using namespace std;
 
