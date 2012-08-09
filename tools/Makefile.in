@@ -21,7 +21,7 @@ LIBS = $(foreach var,$(TOOLS),lib$(var)Tool.so)
 
 all: $(LIBS) $(TARGETS)
 
-pebil :	pebil.o
+pebil :	pebil.o ../src/libpebilinst.so
 	$(CXX) $(CXXFLAGS) -o $@ pebil.o $(EXTRA_INC) $(EXTRA_LIBS)
 
 %.o: %.C

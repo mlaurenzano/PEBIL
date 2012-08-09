@@ -9,6 +9,10 @@ DISTDIR = PEBIL-$(PEBIL_FULL_VER)
 
 .PHONY: subdirs $(SUBDIRS)
 
+# specify some dependencies in case of parallel make
+tools: src external/udis86-1.7
+install: tools
+
 all: subdirs blacklist
 
 subdirs: $(SUBDIRS)
