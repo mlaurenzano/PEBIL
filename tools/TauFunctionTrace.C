@@ -29,7 +29,6 @@
 #include <string>
 #include <vector>
 
-#define INST_LIB_NAME "libtautrace.so"
 #define REGISTER_FUNC "tau_register_func"
 #define ENTRY_FUNC_CALL "tau_trace_entry"
 #define EXIT_FUNC_CALL "tau_trace_exit"
@@ -64,9 +63,6 @@ void TauFunctionTrace::declare(){
         functionList = new FileList(inputFile);
         functionList->print();
     }
-
-    // declare any shared library that will contain instrumentation functions
-    declareLibrary(INST_LIB_NAME);
 
     // declare any instrumentation functions that will be used
     functionRegister = declareFunction(REGISTER_FUNC);
