@@ -30,7 +30,6 @@
 
 #include <algorithm>
 #include <vector>
-#include <unordered_map>
 
 #define THREAD_EVIDENCE "clone:__clone:__clone2:pthread_.*:omp_.*"
 
@@ -766,8 +765,8 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
 
             fprintf(staticFD, "\t+dud");
 
-            std::unordered_map<uint32_t, uint32_t> idist;
-            std::unordered_map<uint32_t, uint32_t> fdist;
+            std::pebil_map_type<uint32_t, uint32_t> idist;
+            std::pebil_map_type<uint32_t, uint32_t> fdist;
             std::vector<uint32_t> dlist;
             for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
                 X86Instruction* x = bb->getInstruction(k);

@@ -32,7 +32,6 @@
 #include <X86Instruction.h>
 #include <X86InstructionFactory.h>
 
-#include <unordered_map>
 #include <set>
 
 using namespace std;
@@ -149,8 +148,8 @@ bool flowsInDefUseScope(BasicBlock* tgt, Loop* loop){
     return false;
 }
 
-inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loop* loop, std::unordered_map<uint64_t, X86Instruction*>& iunordered_map, std::unordered_map<uint64_t, BasicBlock*>& bunordered_map,
-                         std::unordered_map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& alliuses, std::unordered_map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& allidefs,
+inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loop* loop, std::pebil_map_type<uint64_t, X86Instruction*>& ipebil_map_type, std::pebil_map_type<uint64_t, BasicBlock*>& bpebil_map_type,
+                         std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& alliuses, std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& allidefs,
                          int k, uint64_t loopLeader, uint32_t fcnt){
 
     // Get defintions for this instruction: ins
@@ -231,7 +230,7 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
         // end of block that is a branch
         if (cand->usesControlTarget() && !cand->isCall()){
-            BasicBlock* tgtBlock = bunordered_map[cand->getTargetAddress()];
+            BasicBlock* tgtBlock = bpebil_map_type[cand->getTargetAddress()];
             if (tgtBlock && !blockTouched[tgtBlock->getIndex()] && flowsInDefUseScope(tgtBlock, loop)){
                 blockTouched[tgtBlock->getIndex()] = true;
                 if (tgtBlock->getBaseAddress() == loopLeader){
@@ -244,9 +243,9 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
         // non-branching control
         if (cand->controlFallsThrough()){
-            BasicBlock* tgtBlock = bunordered_map[cand->getBaseAddress() + cand->getSizeInBytes()];
+            BasicBlock* tgtBlock = bpebil_map_type[cand->getBaseAddress() + cand->getSizeInBytes()];
             if (tgtBlock && flowsInDefUseScope(tgtBlock, loop)){
-                X86Instruction* ftTarget = iunordered_map[cand->getBaseAddress() + cand->getSizeInBytes()];
+                X86Instruction* ftTarget = ipebil_map_type[cand->getBaseAddress() + cand->getSizeInBytes()];
                 if (ftTarget){
                     if (ftTarget->isLeader()){
                         if (!blockTouched[tgtBlock->getIndex()]){
@@ -280,18 +279,18 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
 void FlowGraph::computeDefUseDist(){
     uint32_t fcnt = function->getNumberOfInstructions();
-    std::unordered_map<uint64_t, X86Instruction*> iunordered_map;
-    std::unordered_map<uint64_t, BasicBlock*> bunordered_map;
-    std::unordered_map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> alliuses;
-    std::unordered_map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> allidefs;
+    std::pebil_map_type<uint64_t, X86Instruction*> ipebil_map_type;
+    std::pebil_map_type<uint64_t, BasicBlock*> bpebil_map_type;
+    std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> alliuses;
+    std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> allidefs;
 
     for (uint32_t i = 0; i < basicBlocks.size(); i++){
         BasicBlock* bb = basicBlocks[i];
         for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
             X86Instruction* x = bb->getInstruction(j);
             for (uint32_t k = 0; k < x->getSizeInBytes(); k++){
-                iunordered_map[x->getBaseAddress() + k] = x;
-                bunordered_map[x->getBaseAddress() + k] = bb;
+                ipebil_map_type[x->getBaseAddress() + k] = x;
+                bpebil_map_type[x->getBaseAddress() + k] = bb;
             }
 
             alliuses[x->getBaseAddress()] = x->getUses();
@@ -318,7 +317,7 @@ void FlowGraph::computeDefUseDist(){
                 }
                 ASSERT(!ins->usesControlTarget());
 
-                singleDefUse(this, ins, bb, loops[i], iunordered_map, bunordered_map, alliuses, allidefs, k, loopLeader, fcnt);
+                singleDefUse(this, ins, bb, loops[i], ipebil_map_type, bpebil_map_type, alliuses, allidefs, k, loopLeader, fcnt);
             }
         }
         delete[] allLoopBlocks;
@@ -336,12 +335,12 @@ void FlowGraph::computeDefUseDist(){
                 }
                 ASSERT(!ins->usesControlTarget());
                 
-                singleDefUse(this, ins, bb, NULL, iunordered_map, bunordered_map, alliuses, allidefs, k, 0, fcnt);
+                singleDefUse(this, ins, bb, NULL, ipebil_map_type, bpebil_map_type, alliuses, allidefs, k, 0, fcnt);
             }
         }
     }
 
-    for (std::unordered_map<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>::iterator it = alliuses.begin(); it != alliuses.end(); it++){
+    for (std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>::iterator it = alliuses.begin(); it != alliuses.end(); it++){
         uint64_t addr = (*it).first;
         delete alliuses[addr];
         delete allidefs[addr];

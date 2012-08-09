@@ -22,7 +22,6 @@
 #define _Simulation_hpp_
 
 #include <string>
-#include <unordered_map>
 #include <Metasim.hpp>
 
 using namespace std;
@@ -166,7 +165,7 @@ public:
 #define INVALID_REUSE_DISTANCE (-1)
 class ReuseStats : public StreamStats {
 public:
-    unordered_map<int32_t, uint64_t> DistanceCounts;
+    pebil_map_type<int32_t, uint64_t> DistanceCounts;
 
     ReuseStats() {}
     ~ReuseStats() {}
@@ -277,7 +276,7 @@ public:
 
 class HighlyAssociativeCacheLevel : public virtual CacheLevel {
 protected:
-    unordered_map <uint64_t, uint32_t>** fastcontents;
+    pebil_map_type <uint64_t, uint32_t>** fastcontents;
 
 public:
     HighlyAssociativeCacheLevel() {}
@@ -349,7 +348,7 @@ public:
 
 class ReuseDistanceHandler : public MemoryStreamHandler {
 private:
-    unordered_map<uint64_t, uint64_t> window;
+    pebil_map_type<uint64_t, uint64_t> window;
     void Clean();
     uint64_t sequence;
     uint64_t lastcleanup;

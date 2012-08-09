@@ -6,6 +6,8 @@ AC_INIT([FULL-PACKAGE-NAME], [VERSION], [BUG-REPORT-ADDRESS])
 AC_CONFIG_SRCDIR([src/ElfFileInst.C])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/acx_mpi.m4])
+m4_include([m4/ax_cxx_header_unordered_map.m4])
+m4_include([m4/ax_compile_stdcxx_0x.m4])
 
 # Checks for programs.
 AC_PROG_CXX
@@ -29,6 +31,20 @@ else
    ACX_MPI
    AC_LANG_POP()
    MPI_FLAGS="-DHAVE_MPI"
+fi
+
+# set correct map type depending on whether unordered_map is present
+AC_COMPILE_STDCXX_0X
+AX_CXX_HEADER_UNORDERED_MAP
+if test "$ax_cv_cxx_unordered_map" = "yes"; then
+   if test "$ac_cv_cxx_compile_cxx0x_gxx" = "yes"; then
+      CXXFLAGS="$CXXFLAGS -std=gnu++0x";
+   elif test "$ac_cv_cxx_compile_cxx0x_cxx" = "yes"; then
+      CXXFLAGS="$CXXFLAGS -std=c++0x";
+   else
+      AC_MSG_ERROR([configure detected that unordered_map is present but neither -std=c++0x nor -std=gnu++0x is accepted])   
+  fi
+   CXXFLAGS="$CXXFLAGS -DHAVE_UNORDERED_MAP"
 fi
 
 AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Use static archives for instrumentation libraries; it is extremely unlikely that you want to use this [no]]), static_ok=$enableval)

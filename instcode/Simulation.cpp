@@ -32,7 +32,6 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
-#include <unordered_map>
 #include <string.h>
 #include <assert.h>
 
@@ -409,7 +408,7 @@ extern "C" {
                     assert(r);
 
                     vector<int32_t> dkeys;
-                    for (unordered_map<int32_t, uint64_t>::iterator dit = r->DistanceCounts.begin(); dit != r->DistanceCounts.end(); dit++){
+                    for (pebil_map_type<int32_t, uint64_t>::iterator dit = r->DistanceCounts.begin(); dit != r->DistanceCounts.end(); dit++){
                         int32_t dist = (*dit).first;
                         if (dist != INVALID_REUSE_DISTANCE){
                             dkeys.push_back(dist);
@@ -978,7 +977,7 @@ void ReuseDistanceHandler::Clean(){
     }
 
     set<uint64_t> erase;
-    for (unordered_map<uint64_t, uint64_t>::iterator it = window.begin(); it != window.end(); it++){
+    for (pebil_map_type<uint64_t, uint64_t>::iterator it = window.begin(); it != window.end(); it++){
         uint64_t addr = (*it).first;
         uint64_t seq = (*it).second;
 
@@ -1422,9 +1421,9 @@ void CacheLevel::Init(CacheLevel_Init_Interface){
 void HighlyAssociativeCacheLevel::Init(CacheLevel_Init_Interface)
 {
     assert(associativity >= MinimumHighAssociativity);
-    fastcontents = new unordered_map<uint64_t, uint32_t>*[countsets];
+    fastcontents = new pebil_map_type<uint64_t, uint32_t>*[countsets];
     for (uint32_t i = 0; i < countsets; i++){
-        fastcontents[i] = new unordered_map<uint64_t, uint32_t>();
+        fastcontents[i] = new pebil_map_type<uint64_t, uint32_t>();
         fastcontents[i]->clear();
     }
 }
@@ -1494,7 +1493,7 @@ uint64_t HighlyAssociativeCacheLevel::Replace(uint64_t store, uint32_t setid, ui
     uint64_t prev = contents[setid][lineid];
     contents[setid][lineid] = store;
 
-    unordered_map<uint64_t, uint32_t>* fastset = fastcontents[setid];
+    pebil_map_type<uint64_t, uint32_t>* fastset = fastcontents[setid];
     if (fastset->count(prev) > 0){
         //assert((*fastset)[prev] == lineid);
         fastset->erase(prev);
@@ -1526,7 +1525,7 @@ bool HighlyAssociativeCacheLevel::Search(uint64_t store, uint32_t* set, uint32_t
         (*set) = setId;
     }
 
-    unordered_map<uint64_t, uint32_t>* fastset = fastcontents[setId];
+    pebil_map_type<uint64_t, uint32_t>* fastset = fastcontents[setId];
     if (fastset->count(store) > 0){
         if (lineInSet){
             (*lineInSet) = (*fastset)[store];

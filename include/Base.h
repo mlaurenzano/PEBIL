@@ -37,6 +37,14 @@
 #include <Debug.h>
 #include <Vector.h>
 
+#ifdef HAVE_UNORDERED_MAP
+#define pebil_map_type unordered_map
+#include <unordered_map>
+#else
+#define pebil_map_type map
+#include <map>
+#endif
+
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 extern FILE* pebilOutp;
 extern uint64_t warnCount;

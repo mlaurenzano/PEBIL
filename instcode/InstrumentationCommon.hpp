@@ -38,20 +38,25 @@
 #include <time.h>
 #include <signal.h>
 #include <pthread.h>
-#include <unordered_map>
-#include <map>
 #include <set>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <vector>
 
+#ifdef HAVE_UNORDERED_MAP
+#include <unordered_map>
+#define pebil_map_type unordered_map
+#else
+#include <map>
+#define pebil_map_type map
+#endif
 
 #include <Metasim.hpp>
 
 using namespace std;
 
-static unordered_map < uint64_t, vector < DynamicInst* > > * Dynamics = NULL;
+static pebil_map_type < uint64_t, vector < DynamicInst* > > * Dynamics = NULL;
 
 static void PrintDynamicPoint(DynamicInst* d){
     std::cout
@@ -66,7 +71,7 @@ static void PrintDynamicPoint(DynamicInst* d){
 
 static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn){
     if (Dynamics == NULL){
-        Dynamics = new unordered_map < uint64_t, vector < DynamicInst* > > ();
+        Dynamics = new pebil_map_type < uint64_t, vector < DynamicInst* > > ();
     }
 
     DynamicInst* dd = *dyn;
@@ -84,7 +89,7 @@ static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn)
 
 static void GetAllDynamicKeys(set<uint64_t>& keys){
     assert(keys.size() == 0);
-    for (unordered_map<uint64_t, vector<DynamicInst*>>::iterator it = Dynamics->begin(); it != Dynamics->end(); it++){
+    for (pebil_map_type<uint64_t, vector<DynamicInst*>>::iterator it = Dynamics->begin(); it != Dynamics->end(); it++){
         uint64_t k = (*it).first;
         keys.insert(k);
     }
@@ -103,7 +108,7 @@ static void SetDynamicPointStatus(DynamicInst* d, bool state){
 
 static void SetDynamicPoints(std::set<uint64_t>& keys, bool state){
     uint32_t count = 0;
-    for (unordered_map<uint64_t, vector<DynamicInst*>>::iterator it = Dynamics->begin(); it != Dynamics->end(); it++){
+    for (pebil_map_type<uint64_t, vector<DynamicInst*>>::iterator it = Dynamics->begin(); it != Dynamics->end(); it++){
         uint64_t k = (*it).first;
         if (keys.count(k) > 0){
             vector<DynamicInst*> dyns = (*it).second;
@@ -408,7 +413,7 @@ static void AppendLegacyTasksString(string& str){
 
 
 // data management support
-#define DataMap std::unordered_map
+#define DataMap std::pebil_map_type
 
 template <class T> class DataManager {
 private:
