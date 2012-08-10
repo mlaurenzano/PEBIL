@@ -12,17 +12,20 @@ AddressAnchor.o: AddressAnchor.C ../include/AddressAnchor.h \
  ../include/defines/X86Instruction.d
 Base.o: Base.C ../include/Base.h ../include/CStructuresElf.h \
  ../include/CStructuresDwarf.h ../include/Debug.h ../include/Vector.h \
- ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
- ../include/defines/ProgramHeader.d ../include/ElfFileInst.h \
- ../include/X86Instruction.h ../include/AddressAnchor.h \
- ../include/BitSet.h ../include/LinkedList.h ../include/RawSection.h \
- ../external/udis86-1.7/libudis86/syn.h \
+ ../include/BasicBlock.h ../include/BitSet.h ../include/FlowGraph.h \
+ ../include/Function.h ../include/X86Instruction.h \
+ ../include/AddressAnchor.h ../include/LinkedList.h \
+ ../include/RawSection.h ../external/udis86-1.7/libudis86/syn.h \
  ../external/udis86-1.7/libudis86/types.h \
  ../external/udis86-1.7/libudis86/itab.h ../external/udis86-1.7/udis86.h \
  ../external/udis86-1.7/libudis86/types.h \
  ../external/udis86-1.7/libudis86/extern.h \
  ../external/udis86-1.7/libudis86/itab.h \
- ../include/defines/X86Instruction.d ../include/CheckSum.h
+ ../include/defines/X86Instruction.d ../include/TextSection.h \
+ ../include/SymbolTable.h ../include/defines/SymbolTable.d \
+ ../include/ElfFile.h ../include/BinaryFile.h ../include/ProgramHeader.h \
+ ../include/defines/ProgramHeader.d ../include/ElfFileInst.h \
+ ../include/CheckSum.h
 BasicBlock.o: BasicBlock.C ../include/BasicBlock.h ../include/Base.h \
  ../include/CStructuresElf.h ../include/CStructuresDwarf.h \
  ../include/Debug.h ../include/Vector.h ../include/BitSet.h \

@@ -7,18 +7,26 @@ BLACKLIST = scripts/inputlist/autogen-system.func
 include VERSION
 DISTDIR = PEBIL-$(PEBIL_FULL_VER)
 
-.PHONY: subdirs $(SUBDIRS)
+.PHONY: subdirs $(SUBDIRS) clean all install blacklist depend check docs
 
-# specify some dependencies in case of parallel make
+# order here matters
+PREREQ = .CLEAN .DEPEND
+
+# specify some explicit dependencies to order operations
 tools: src external/udis86-1.7
-install: tools
+install: instcode tools blacklist
+check: install
 
-all: subdirs blacklist
-
-subdirs: $(SUBDIRS)
-
-$(SUBDIRS): 
-	$(MAKE) -C $@ 
+ifneq (,$(findstring clean,$(MAKECMDGOALS)))
+.CLEAN: clean
+else
+.CLEAN:
+endif
+ifneq (,$(findstring depend,$(MAKECMDGOALS)))
+.DEPEND: depend
+else
+.DEPEND:
+endif
 
 clean:
 	$(MAKE) -C external/udis86-1.7 clean
@@ -28,21 +36,27 @@ clean:
 	$(MAKE) -C tools clean
 	rm -rf $(BLACKLIST)
 
-install:
+depend: .CLEAN
+	$(MAKE) -C src depend
+	$(MAKE) -C tools depend
+
+all: $(PREREQ) subdirs blacklist
+subdirs: $(SUBDIRS)
+
+$(SUBDIRS): $(PREREQ)
+	$(MAKE) -C $@ 
+
+install: $(PREREQ)
 	$(MAKE) -C src install
 	$(MAKE) -C tools install
 	$(MAKE) -C instcode install
 
-depend:
-	$(MAKE) -C src depend
-	$(MAKE) -C tools depend
-
-check:
+check: $(PREREQ)
 	$(MAKE) -C testapps check
 
-docs:
+docs: $(PREREQ)
 	doxygen
 
-blacklist: $(BLACKLIST)
-$(BLACKLIST):
+blacklist: $(PREREQ) $(BLACKLIST)
+$(BLACKLIST): $(PREREQ)
 	scripts/blacklist.sh > $(BLACKLIST)
