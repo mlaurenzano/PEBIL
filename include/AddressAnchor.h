@@ -27,17 +27,26 @@ extern int searchLinkBaseAddressExact(const void* arg1, const void* arg2);
 extern int searchLinkBaseAddress(const void* arg1, const void* arg2);
 extern int compareLinkBaseAddress(const void* arg1,const void* arg2);
 
+typedef enum {
+    LinkClass_Undefined = 0,
+    LinkClass_DataReference,
+    LinkClass_InstructionImmediate,
+    LinkClass_InstructionRelative,
+    LinkClass_TotalTypes
+} LinkClasses;
+
 class AddressAnchor {
 private:
     Base* link;
     Base* linkedParent;
 
     uint32_t index;
+    LinkClasses linkClass;
 
-    void dump8(BinaryOutputFile* b, uint32_t offset);
-    void dump16(BinaryOutputFile* b, uint32_t offset);
-    void dump32(BinaryOutputFile* b, uint32_t offset);
-    void dump64(BinaryOutputFile* b, uint32_t offset);
+    void dump8(BinaryOutputFile* b, uint32_t offset, uint8_t value);
+    void dump16(BinaryOutputFile* b, uint32_t offset, uint16_t value);
+    void dump32(BinaryOutputFile* b, uint32_t offset, uint32_t value);
+    void dump64(BinaryOutputFile* b, uint32_t offset, uint64_t value);
 
     void dumpInstruction(BinaryOutputFile* b, uint32_t offset);
     void dumpDataReference(BinaryOutputFile* b, uint32_t offset);
@@ -47,6 +56,7 @@ public:
     // require a function access to get to it.
     uint64_t linkBaseAddress;
 
+    AddressAnchor(Base* lnk, Base* par, bool imm);
     AddressAnchor(Base* lnk, Base* par);
     ~AddressAnchor();
 

@@ -1627,15 +1627,55 @@ uint32_t ElfFile::anchorProgramElements(){
 
     uint32_t addrAlign;
     if (is64Bit()){
-        //        addrAlign = sizeof(uint64_t);
+        //addrAlign = sizeof(uint64_t);
         addrAlign = sizeof(uint32_t);
     } else {
         addrAlign = sizeof(uint32_t);
     }
 
+    SectionHeader* textHeader = getDotTextSection()->getSectionHeader();
     for (uint32_t i = 0; i < instructionCount; i++){
         X86Instruction* currentInstruction = allInstructions[i];
         ASSERT(!currentInstruction->getAddressAnchor());
+
+        for (uint32_t j = 0; j < MAX_OPERANDS; j++){
+            OperandX86* op = currentInstruction->getOperand(j);
+
+            if (op != NULL &&
+                op->GET(type) == UD_OP_IMM &&
+                op->GET(base) == UD_NONE &&
+                op->GET(index) == UD_NONE &&
+                op->GET(scale) == 0 &&
+                op->GET(offset) == 0 &&
+                textHeader->inRange(op->GET_A(uqword, lval))
+                ){
+                uint64_t immAddress = op->GET_A(uqword, lval);
+
+                // search other instructions
+                void* link = bsearch(&immAddress, allInstructions, instructionCount, sizeof(X86Instruction*), searchBaseAddressExact);
+                if (link != NULL){
+                    X86Instruction* linkedInstruction = *(X86Instruction**)link;
+                    if (!linkedInstruction->getContainer()->isFunction()){
+                        continue;
+                    }
+
+                    Function* f = (Function*)linkedInstruction->getContainer();
+                    if (linkedInstruction->getBaseAddress() == f->getBaseAddress()){
+                        continue;
+                    }
+
+                    PRINT_DEBUG_ANCHOR("Found inst -> inst link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
+
+                    PRINT_INFOR("instruction at %#lx uses instruction address as imm value %#lx", currentInstruction->getProgramAddress(), immAddress);
+                    currentInstruction->initializeAnchor(linkedInstruction, true);
+
+                    ASSERT(currentInstruction->getAddressAnchor());
+                    (*addressAnchors).append(currentInstruction->getAddressAnchor());
+                    currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
+                }
+            }
+        }
+        
         if (currentInstruction->usesRelativeAddress()){
             uint64_t relativeAddress = currentInstruction->getRelativeValue() + currentInstruction->getBaseAddress() + currentInstruction->getSizeInBytes();
 

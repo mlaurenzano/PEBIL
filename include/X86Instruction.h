@@ -478,6 +478,7 @@ public:
     bool implicitlyUsesReg(uint32_t alu);
     bool implicitlyDefinesReg(uint32_t alu);
 
+
     struct DefLocation {
         enum ud_type type;
         int64_t value;
@@ -589,6 +590,7 @@ public:
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     AddressAnchor* getAddressAnchor() { return addressAnchor; }
+    void initializeAnchor(Base*, bool imm);
     void initializeAnchor(Base*);
 
     bool isJumpTableBase();

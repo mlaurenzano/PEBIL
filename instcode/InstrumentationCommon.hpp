@@ -325,7 +325,7 @@ extern "C" {
         static int (*clone_ptr)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid)
             = (int (*)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid))dlsym(RTLD_NEXT, "clone");
 
-        tool_thread_init((uint64_t)tls);
+        tool_thread_init((pthread_t)tls);
 
         return clone_ptr(fn, child_stack, flags, arg, ptid, tls, ctid);
     }
