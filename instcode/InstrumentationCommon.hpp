@@ -840,8 +840,8 @@ void __wrapper_name(mpi_init_)(int* ierr){
     fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks);
     tool_mpi_init();
 }
-};
 #endif // HAVE_MPI
+};
 
 #endif //_InstrumentationCommon_hpp_
 

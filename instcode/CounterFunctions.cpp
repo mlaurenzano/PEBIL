@@ -30,7 +30,6 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <signal.h>
-#include <map>
 
 #define PRINT_MINIMUM 1
 
@@ -441,4 +440,3 @@ extern "C"
         return NULL;
     }
 };
-
