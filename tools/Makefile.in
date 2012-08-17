@@ -1,37 +1,52 @@
 include ../VERSION
 
+AR            = ar cru
 CXX           = @CXX@
 CXXFLAGS      = @CXXFLAGS@ @MPI_FLAGS@ -DPEBIL_VER="\"$(PEBIL_FULL_VER)\"" -w
 SHARED_OPT    = -fPIC
 SHARED_LIB    = -shared
-EXTRA_FLAGS   = $(SHARED_OPT)
+STATIC_OPT    = -DSTATIC_BUILD
+STATIC_LIB    = -static
 
 SRCDIR        = ../src
 BINDIR        = ../bin
 LIBDIR        = ../lib
 EXTDIR        = ../external
 EXTRA_INC     = -I. -I../include -I$(EXTDIR)/udis86-1.7/ -I../instcode
-EXTRA_LIBS    = -L$(SRCDIR) -lpebilinst -L$(EXTDIR)/udis86-1.7/libudis86/.libs -ludis86 -ldl
+SHARED_LIBS   = -L$(SRCDIR) -lpebilinst -L$(EXTDIR)/udis86-1.7/libudis86/.libs -ludis86 -ldl
+STATIC_LIBS   = $(SRCDIR)/libpebilinst.a -L$(EXTDIR)/udis86-1.7/libudis86/.libs -ludis86
 
-TARGETS  = pebil
+TARGETS  = pebil pebil.static
 TOOLS = BasicBlockCounter CacheSimulation CallReplace Classification FunctionCounter FunctionTimer Minimal LoopIntercept TauFunctionTrace DeadRegisterSquasher
 SRCS = $(foreach var,$(TOOLS),$(var).C)
 OBJS = $(foreach var,$(TOOLS),$(var).o)
 LIBS = $(foreach var,$(TOOLS),lib$(var)Tool.so)
+SLIBS = $(foreach var,$(TOOLS),lib$(var)Tool.a)
 
-all: $(LIBS) $(TARGETS)
+.PHONY: all clean depend
 
-pebil :	pebil.o ../src/libpebilinst.so
-	$(CXX) $(CXXFLAGS) -o $@ pebil.o $(EXTRA_INC) $(EXTRA_LIBS)
+all: $(LIBS) $(SLIBS) $(TARGETS)
+
+pebil :	pebil.o $(SRCDIR)/libpebilinst.so
+	$(CXX) $(CXXFLAGS) -o $@ pebil.o $(EXTRA_INC) $(SHARED_LIBS)
+
+pebil.static : pebil.O $(SRCDIR)/libpebilinst.a $(SLIBS)
+	$(CXX) $(STATIC_LIB) $(CXXFLAGS) -o $@ pebil.O $(EXTRA_INC) $(STATIC_LIBS) $(SLIBS) $(STATIC_LIBS)
 
 %.o: %.C
-	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_INC) -c -o $@ $<
+	$(CXX) $(SHARED_OPT) $(CXXFLAGS) $(EXTRA_INC) -c -o $@ $<
+
+%.O: %.C
+	$(CXX) $(STATIC_OPT) $(CXXFLAGS) $(EXTRA_INC) -c -o $@ $<
 
 lib%Tool.so: %.o
 	$(CXX) $(SHARED_LIB) -o $@ $<
 
+lib%Tool.a: %.O
+	$(AR) $@ $<
+
 clean: 
-	rm -f *inst *.static core *.o *.ii *.s *.so $(TARGETS)
+	rm -f *inst *.static core *.o *.O *.ii *.s *.so *.a $(TARGETS)
 
 depend:
 	g++ -E -MM $(EXTRA_INC) $(SRCS) pebil.C > DEPENDS

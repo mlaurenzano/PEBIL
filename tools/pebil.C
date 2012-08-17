@@ -23,6 +23,23 @@
 #include <Vector.h>
 #include <getopt.h>
 
+#ifdef STATIC_BUILD
+#define DECLARE_INST_CLASS(__class) extern InstrumentationTool* __class ## Maker(ElfFile*)
+extern "C" {
+    DECLARE_INST_CLASS(TauFunctionTrace);
+    DECLARE_INST_CLASS(BasicBlockCounter);
+    DECLARE_INST_CLASS(CacheSimulation);
+    DECLARE_INST_CLASS(CallReplace);
+    DECLARE_INST_CLASS(Classification);
+    DECLARE_INST_CLASS(FunctionCounter);
+    DECLARE_INST_CLASS(FunctionTimer);
+    DECLARE_INST_CLASS(Minimal);
+    DECLARE_INST_CLASS(LoopIntercept);
+    DECLARE_INST_CLASS(TauFunctionTrace);
+    DECLARE_INST_CLASS(DeadRegisterSquasher);
+};
+#endif
+
 #include <set>
 
 using namespace std;
@@ -382,8 +399,6 @@ int main(int argc,char* argv[]){
 
     TIMER(double tt = timer(), t1 = tt, t2, tapp);
 
-    void* libHandle = NULL;
-    void* maker = NULL;
     char toolLibName[__MAX_STRING_SIZE];
     char toolConstructor[__MAX_STRING_SIZE];
     
@@ -393,6 +408,30 @@ int main(int argc,char* argv[]){
         sprintf(toolLibName, "lib%sTool.so\0", tool_arg);
     }
     sprintf(toolConstructor, "%sMaker", tool_arg);
+
+#ifdef STATIC_BUILD
+    InstrumentationTool* (*maker)(ElfFile*);
+
+#define GENERATE_MAKER(__class) if (!strcmp(#__class, tool_arg)){ maker = __class ## Maker; }
+    GENERATE_MAKER(TauFunctionTrace);
+    GENERATE_MAKER(BasicBlockCounter);
+    GENERATE_MAKER(CacheSimulation);
+    GENERATE_MAKER(CallReplace);
+    GENERATE_MAKER(Classification);
+    GENERATE_MAKER(FunctionCounter);
+    GENERATE_MAKER(FunctionTimer);
+    GENERATE_MAKER(Minimal);
+    GENERATE_MAKER(LoopIntercept);
+    GENERATE_MAKER(TauFunctionTrace);
+    GENERATE_MAKER(DeadRegisterSquasher);
+
+    if (maker == NULL){
+        PRINT_ERROR("In static build, you must use an instrumentation tool that was built into pebil at compile-time");
+    }
+
+#else // STATIC_BUILD
+    void* maker = NULL;
+    void* libHandle = NULL;    
     PRINT_INFOR("Using library %s and generator %s for dynamic class loading", toolLibName, toolConstructor);
 
     // if we are using a real tool (not --typ ide), set up dynamic class loading
@@ -420,6 +459,7 @@ int main(int argc,char* argv[]){
             return 1;
         }
     }
+#endif // STATIC_BUILD
 
     // go over every given application
     for (uint32_t i = 0; i < applications.size(); i++){
@@ -480,8 +520,14 @@ int main(int argc,char* argv[]){
             PRINT_INFOR("Dumping identical binary from stored executable information");
             printSuccess();
         } else {
-            ASSERT(libHandle && maker);
+            ASSERT(maker);
+
+#ifdef STATIC_BUILD
+            InstrumentationTool* instTool = maker(&elfFile);
+#else 
             InstrumentationTool* instTool = reinterpret_cast<InstrumentationTool*(*)(ElfFile*)>(maker)(&elfFile);
+#endif
+
             ASSERT(!strcmp(tool_arg, instTool->briefName()) && "name yielded by briefName does not match tool name");
 
             instTool->initToolArgs(lpi_flag == 0 ? false : true,
@@ -590,6 +636,9 @@ int main(int argc,char* argv[]){
         return 0;
     }
 
+#ifndef STATIC_BUILD
     dlclose(libHandle);
+#endif
+
     return 0;
 }

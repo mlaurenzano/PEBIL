@@ -16,12 +16,15 @@ NAMES = AddressAnchor Base BasicBlock BinaryFile DynamicTable DwarfSection ElfFi
 SRCS = $(foreach var,$(NAMES),$(var).C)
 OBJS = $(foreach var,$(NAMES),$(var).o)
 
-TARGETS  = libpebilinst.so 
+TARGETS  = libpebilinst.so libpebilinst.a
 
 all: $(TARGETS)
 
 libpebilinst.so: $(OBJS)
 	$(CXX) $(CXXFLAGS) $(SHARED_LIB) -o $@ $(OBJS)
+
+libpebilinst.a: $(OBJS)
+	$(AR) $@ $(OBJS)
 
 %.o: %.C
 	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(SHARED_OPT) $(INCLUDE) -c -o $@ $<
