@@ -105,7 +105,8 @@ int pthread_join(pthread_t thread, void **value_ptr){
     pthread_t jthread = thread;
 
     int (*join_ptr)(pthread_t, void**) = (int (*)(pthread_t, void**))dlsym(RTLD_NEXT, "pthread_join");
-    join_ptr(thread, value_ptr);
+    int ret = join_ptr(thread, value_ptr);
 
     tool_thread_fini(jthread);
+    return ret;
 }
