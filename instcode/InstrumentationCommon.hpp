@@ -306,6 +306,18 @@ extern "C" {
         assert(CountSuspended == 0);
     }
 
+    typedef struct {
+        void* args;
+        int (*fcn)(void*);
+    } thread_passthrough_args;
+
+    int thread_started(void* args){
+        thread_passthrough_args* pt_args = (thread_passthrough_args*)args;
+        tool_thread_init(pthread_self());
+        
+        return pt_args->fcn(pt_args->args);
+    }
+
     static int __give_pebil_name(clone)(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
         va_list ap;
         va_start(ap, arg);
@@ -325,9 +337,12 @@ extern "C" {
         static int (*clone_ptr)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid)
             = (int (*)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid))dlsym(RTLD_NEXT, "clone");
 
-        tool_thread_init((pthread_t)tls);
+        // TODO: keep this somewhere and destroy it. it currently is a mem leak
+        thread_passthrough_args* pt_args = (thread_passthrough_args*)malloc(sizeof(thread_passthrough_args));
+        pt_args->fcn = fn;
+        pt_args->args = arg;
 
-        return clone_ptr(fn, child_stack, flags, arg, ptid, tls, ctid);
+        return clone_ptr(thread_started, child_stack, flags, (void*)pt_args, ptid, tls, ctid);
     }
 
     int __clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){

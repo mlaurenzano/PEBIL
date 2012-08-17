@@ -64,7 +64,7 @@ static int __tau_wrapping_clone(int (*fn)(void*), void* child_stack, int flags, 
         = (int (*)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid))dlsym(RTLD_NEXT, "clone");
 
     // TODO: keep this somewhere and destroy it. it currently is a mem leak
-    thread_passthrough_args* pt_args = malloc(sizeof(thread_passthrough_args));
+    thread_passthrough_args* pt_args = (thread_passthrough_args*)malloc(sizeof(thread_passthrough_args));
     pt_args->fcn = fn;
     pt_args->args = arg;
 
