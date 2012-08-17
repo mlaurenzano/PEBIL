@@ -14,11 +14,11 @@
 #include <signal.h>
 
 // (file == NULL) implies that lineno is also invalid
-void tau_register_func(char** func, char** file, int* lineno, int* id) {
+void tau_register_func(char** func, char** file, int* lineno, int id) {
     if (*file == NULL){
-        printf("tau_register_func: name = %s, id = %d\n", *func, *id);
+        printf("tau_register_func: name = %s, id = %d\n", *func, id);
     } else {
-        printf("tau_register_func: name = %s, file = %s, lineno = %d, id = %d\n", *func, *file, *lineno, *id);
+        printf("tau_register_func: name = %s, file = %s, lineno = %d, id = %d\n", *func, *file, *lineno, id);
     }
 }
 
@@ -102,8 +102,10 @@ int __clone2(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
 }
 
 int pthread_join(pthread_t thread, void **value_ptr){
-    tool_thread_fini(thread);
+    pthread_t jthread = thread;
 
     int (*join_ptr)(pthread_t, void**) = (int (*)(pthread_t, void**))dlsym(RTLD_NEXT, "pthread_join");
     join_ptr(thread, value_ptr);
+
+    tool_thread_fini(jthread);
 }

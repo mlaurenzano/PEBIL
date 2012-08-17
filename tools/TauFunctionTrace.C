@@ -164,7 +164,7 @@ void TauFunctionTrace::instrument(){
     functionRegister->addArgument(nameAddr);
     functionRegister->addArgument(fileAddr);
     functionRegister->addArgument(lineAddr);
-    functionRegister->addArgument(siteIndexAddr);
+    siteReg = functionRegister->addConstantArgument();
 
     // go over every function that was found, insert a registration call at program start
     funcIdx = 0;
@@ -195,7 +195,7 @@ void TauFunctionTrace::instrument(){
         }
 
         assignStoragePrior(p, f.line, getInstDataAddress() + lineAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
-        assignStoragePrior(p, f.index, getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+        assignStoragePrior(p, f.index, siteReg);
     }
 
 }
