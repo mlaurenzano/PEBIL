@@ -279,8 +279,8 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
 void FlowGraph::computeDefUseDist(){
     uint32_t fcnt = function->getNumberOfInstructions();
-    std::pebil_map_type<uint64_t, X86Instruction*> ipebil_map_type;
-    std::pebil_map_type<uint64_t, BasicBlock*> bpebil_map_type;
+    std::pebil_map_type<uint64_t, X86Instruction*> imap;
+    std::pebil_map_type<uint64_t, BasicBlock*> bmap;
     std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> alliuses;
     std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> allidefs;
 
@@ -289,10 +289,14 @@ void FlowGraph::computeDefUseDist(){
         for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
             X86Instruction* x = bb->getInstruction(j);
             for (uint32_t k = 0; k < x->getSizeInBytes(); k++){
-                ipebil_map_type[x->getBaseAddress() + k] = x;
-                bpebil_map_type[x->getBaseAddress() + k] = bb;
+                ASSERT(imap.count(x->getBaseAddress() + k) == 0);
+                ASSERT(bmap.count(x->getBaseAddress() + k) == 0);
+                imap[x->getBaseAddress() + k] = x;
+                bmap[x->getBaseAddress() + k] = bb;
             }
 
+            ASSERT(alliuses.count(x->getBaseAddress()) == 0);
+            ASSERT(allidefs.count(x->getBaseAddress()) == 0);
             alliuses[x->getBaseAddress()] = x->getUses();
             allidefs[x->getBaseAddress()] = x->getDefs();
         }
@@ -317,7 +321,7 @@ void FlowGraph::computeDefUseDist(){
                 }
                 ASSERT(!ins->usesControlTarget());
 
-                singleDefUse(this, ins, bb, loops[i], ipebil_map_type, bpebil_map_type, alliuses, allidefs, k, loopLeader, fcnt);
+                singleDefUse(this, ins, bb, loops[i], imap, bmap, alliuses, allidefs, k, loopLeader, fcnt);
             }
         }
         delete[] allLoopBlocks;
@@ -335,16 +339,39 @@ void FlowGraph::computeDefUseDist(){
                 }
                 ASSERT(!ins->usesControlTarget());
                 
-                singleDefUse(this, ins, bb, NULL, ipebil_map_type, bpebil_map_type, alliuses, allidefs, k, 0, fcnt);
+                singleDefUse(this, ins, bb, NULL, imap, bmap, alliuses, allidefs, k, 0, fcnt);
             }
         }
     }
 
-    for (std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>::iterator it = alliuses.begin(); it != alliuses.end(); it++){
-        uint64_t addr = (*it).first;
-        delete alliuses[addr];
-        delete allidefs[addr];
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+
+        BasicBlock* bb = basicBlocks[i];
+        for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
+
+            X86Instruction* x = bb->getInstruction(j);
+            uint64_t addr = x->getBaseAddress();
+
+            ASSERT(alliuses.count(addr) == 1);
+            LinkedList<X86Instruction::ReachingDefinition*>* l = alliuses[addr];
+            alliuses.erase(addr);
+            while (!l->empty()){
+                delete l->shift();
+            }
+            delete l;
+
+            ASSERT(allidefs.count(addr) == 1);
+            l = allidefs[addr];
+            allidefs.erase(addr);
+            while (!l->empty()){
+                delete l->shift();
+            }
+            delete l;
+        }
     }
+
+    ASSERT(alliuses.size() == 0);
+    ASSERT(allidefs.size() == 0);
 }
 
 void FlowGraph::interposeBlock(BasicBlock* bb){
@@ -635,7 +662,7 @@ void FlowGraph::computeLiveness(){
     delete[] outs;
     delete[] ins_prime;
     delete[] outs_prime;
-
+    delete[] allInstructions;
 
     DEBUG_LIVE_REGS(
                     double t2 = timer();

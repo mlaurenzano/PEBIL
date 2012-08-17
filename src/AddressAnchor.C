@@ -158,7 +158,15 @@ void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         OperandX86* op = linkedInstruction->getOperand(i);
         if (op){
-            if (op->isRelative() || op->GET(type) == UD_OP_IMM){
+            bool overwrite = false;
+            if (op->isRelative() && linkClass == LinkClass_InstructionRelative){
+                overwrite = true;
+            }
+            if (op->GET(type) == UD_OP_IMM && linkClass == LinkClass_InstructionImmediate){
+                overwrite = true;
+            }
+
+            if (overwrite){
                 if (op->getBytesUsed() == sizeof(uint8_t)){
                     uint8_t value = (uint8_t)getLinkValue();
                     dump8(binaryOutputFile, offset + op->getBytePosition(), value);

@@ -164,7 +164,7 @@ uint64_t ElfFile::getUniqueId(){
 }
 
 char* ElfFile::getSHA1Sum(){
-    ASSERT(sha1sum);
+    ASSERT(fileSha1sum);
     return fileSha1sum;
 }
 
@@ -1318,9 +1318,8 @@ void ElfFile::parse(){
         PRINT_INFOR("The executable is statically linked");
     }
 
-    char* sha1sum = getSHA1Sum();
-    PRINT_INFOR("The sha1sum for this binary is %s", sha1sum);
-    delete[] sha1sum;
+    ASSERT(fileSha1sum);
+    PRINT_INFOR("The sha1sum for this binary is %s", fileSha1sum);
 }
 
 void ElfFile::readFileHeader() {
@@ -1471,6 +1470,7 @@ ElfFile::~ElfFile(){
     if (addressAnchors){
         delete addressAnchors;
     }
+    delete[] fileSha1sum;
 }
 
 void ElfFile::briefPrint(){
@@ -1666,7 +1666,7 @@ uint32_t ElfFile::anchorProgramElements(){
 
                     PRINT_DEBUG_ANCHOR("Found inst -> inst link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
 
-                    PRINT_INFOR("instruction at %#lx uses instruction address as imm value %#lx", currentInstruction->getProgramAddress(), immAddress);
+                    PRINT_DEBUG_ANCHOR("instruction at %#lx uses instruction address as imm value %#lx", currentInstruction->getProgramAddress(), immAddress);
                     currentInstruction->initializeAnchor(linkedInstruction, true);
 
                     ASSERT(currentInstruction->getAddressAnchor());
