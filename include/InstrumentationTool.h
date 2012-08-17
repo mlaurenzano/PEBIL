@@ -72,6 +72,8 @@ protected:
     InstrumentationPoint* insertInlinedTripCounter(uint64_t, X86Instruction*, bool, uint32_t, InstLocations, BitSet<uint32_t>*, uint32_t val);
 
     void assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak);
+    void assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint8_t reg);
+
     Vector<X86Instruction*>* storeThreadData(uint32_t scratch, uint32_t dest);
     Vector<X86Instruction*>* storeThreadData(uint32_t scratch, uint32_t dest, bool storeToStack, uint32_t stackPatch);
     void threadAllEntryPoints(Function* f, uint32_t threadReg);

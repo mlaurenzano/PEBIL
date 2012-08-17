@@ -154,7 +154,16 @@ public:
 
 };
 
+typedef enum {
+    ArgumentType_Undefined = 0,
+    ArgumentType_Address,
+    ArgumentType_Constant,
+    ArgumentType_TotalTypes
+} ArgumentTypes;
+
 typedef struct {
+    uint32_t type;
+    uint32_t reg;
     uint64_t offset;
 } Argument;
 
@@ -230,6 +239,7 @@ public:
 
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint64_t addr);
 
+    uint32_t addConstantArgument();
     uint32_t addArgument(uint64_t offset);
 
     uint64_t getEntryPoint();

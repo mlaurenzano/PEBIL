@@ -421,9 +421,21 @@ Instrumentation::~Instrumentation(){
     }
 }
 
+uint32_t InstrumentationFunction::addConstantArgument(){
+    Argument arg;
+
+    uint32_t reg = map64BitArgToReg(arguments.size());
+    arg.type = ArgumentType_Constant;
+    arg.reg = reg;
+    arguments.append(arg);
+
+    return reg;
+}
+
 uint32_t InstrumentationFunction::addArgument(uint64_t offset){
     Argument arg;
 
+    arg.type = ArgumentType_Address;
     arg.offset = offset;
     arguments.append(arg);
     return arguments.size();
@@ -568,9 +580,17 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         uint32_t idx = arguments.size() - i - 1;
         
         if (i <= Num__64_bit_StackArgs){
-            uint32_t argumentRegister = map64BitArgToReg(idx);            
-            wrapperInstructions.append(elfInst->linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, argumentRegister), arguments[idx].offset, true));
-            //wrapperInstructions.append(X86InstructionFactory64::emitMoveImmToReg(dataBaseAddress + arguments[idx].offset, argumentRegister));
+            uint32_t argumentRegister = map64BitArgToReg(idx);
+            Argument a = arguments[idx];
+            if (a.type == ArgumentType_Address){
+                wrapperInstructions.append(elfInst->linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, argumentRegister), a.offset, true));
+            } else if (a.type == ArgumentType_Constant){
+                if (a.reg != argumentRegister || true){
+                    wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToReg(a.reg, argumentRegister));
+                }
+            } else {
+                __SHOULD_NOT_ARRIVE;
+            }
         } else {
             PRINT_ERROR("64Bit instrumentation supports only %d args currently", Num__64_bit_StackArgs);
         }

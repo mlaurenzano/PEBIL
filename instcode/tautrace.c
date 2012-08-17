@@ -14,7 +14,7 @@
 #include <signal.h>
 
 // (file == NULL) implies that lineno is also invalid
-void tau_register_func(char **func, char** file, int* lineno, int* id) {
+void tau_register_func(char** func, char** file, int* lineno, int* id) {
     if (*file == NULL){
         printf("tau_register_func: name = %s, id = %d\n", *func, *id);
     } else {
@@ -22,12 +22,12 @@ void tau_register_func(char **func, char** file, int* lineno, int* id) {
     }
 }
 
-void tau_trace_entry(int* id) {
-    printf("%#lx: tau_trace_entry: id = %d\n", pthread_self(), *id);
+void tau_trace_entry(int id) {
+    printf("%#lx: tau_trace_entry: id = %d\n", pthread_self(), id);
 }
 
-void tau_trace_exit(int* id) {
-    printf("%#lx: tau_trace_exit: id = %d\n", pthread_self(), *id);
+void tau_trace_exit(int id) {
+    printf("%#lx: tau_trace_exit: id = %d\n", pthread_self(), id);
 }
 
 void* tool_thread_init(pthread_t args){
@@ -40,6 +40,18 @@ void* tool_thread_fini(pthread_t args){
 
 
 // wrappers for intercepting thread create/destroy
+typedef struct {
+    void* args;
+    int (*fcn)(void*);
+} thread_passthrough_args;
+
+int thread_started(void* args){
+    thread_passthrough_args* pt_args = (thread_passthrough_args*)args;
+    tool_thread_init(pthread_self());
+
+    return pt_args->fcn(pt_args->args);
+}
+
 static int __tau_wrapping_clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
     va_list ap;
     va_start(ap, arg);
@@ -51,9 +63,12 @@ static int __tau_wrapping_clone(int (*fn)(void*), void* child_stack, int flags, 
     int (*clone_ptr)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid)
         = (int (*)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid))dlsym(RTLD_NEXT, "clone");
 
-    tool_thread_init((uint64_t)tls);
+    // TODO: keep this somewhere and destroy it. it currently is a mem leak
+    thread_passthrough_args* pt_args = malloc(sizeof(thread_passthrough_args));
+    pt_args->fcn = fn;
+    pt_args->args = arg;
 
-    return clone_ptr(fn, child_stack, flags, arg, ptid, tls, ctid);
+    return clone_ptr(thread_started, child_stack, flags, (void*)pt_args, ptid, tls, ctid);
 }
 
 int __clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){

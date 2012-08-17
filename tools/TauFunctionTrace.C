@@ -97,8 +97,8 @@ void TauFunctionTrace::instrument(){
     uint64_t lineAddr = reserveDataOffset(sizeof(uint32_t));
     uint64_t siteIndexAddr = reserveDataOffset(sizeof(uint32_t));
 
-    functionEntry->addArgument(siteIndexAddr);
-    functionExit->addArgument(siteIndexAddr);
+    uint32_t siteReg = functionEntry->addConstantArgument();
+    ASSERT(siteReg == functionExit->addConstantArgument());
 
     std::map<std::string, FuncInfo> functions;
     std::vector<std::string> orderedfuncs;
@@ -155,8 +155,8 @@ void TauFunctionTrace::instrument(){
                 InstrumentationPoint* prior = addInstrumentationPoint(x, functionEntry, InstrumentationMode_tramp, InstLocation_prior);
                 InstrumentationPoint* after = addInstrumentationPoint(exitpoint, functionExit, InstrumentationMode_tramp, InstLocation_after);
 
-                assignStoragePrior(prior, idx, getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
-                assignStoragePrior(after, idx, getInstDataAddress() + siteIndexAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+                assignStoragePrior(prior, idx, siteReg);
+                assignStoragePrior(after, idx, siteReg);
             }            
         }
     }

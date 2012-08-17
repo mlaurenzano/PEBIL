@@ -226,6 +226,14 @@ void InstrumentationTool::assignStoragePrior(InstrumentationPoint* pt, uint32_t 
     }
 }
 
+void InstrumentationTool::assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint8_t reg){
+    if (getElfFile()->is64Bit()){
+        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(value, reg));
+    } else {
+        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(value, reg));
+    }
+}
+
 bool InstrumentationTool::singleArgCheck(void* arg, uint32_t mask, const char* name){
     if (arg == NULL &&
         (requiresArgs() & mask)){
