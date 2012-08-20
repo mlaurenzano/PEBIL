@@ -21,6 +21,13 @@ void tau_register_func(char** func, char** file, int* lineno, int id) {
         printf("tau_register_func: name = %s, file = %s, lineno = %d, id = %d\n", *func, *file, *lineno, id);
     }
 }
+void tau_register_loop(char** func, char** file, int* lineno, int id) {
+    if (*file == NULL){
+        printf("tau_register_loop: name = %s, id = %d\n", *func, id);
+    } else {
+        printf("tau_register_loop: name = %s, file = %s, lineno = %d, id = %d\n", *func, *file, *lineno, id);
+    }
+}
 
 void tau_trace_entry(int id) {
     printf("%#lx: tau_trace_entry: id = %d\n", pthread_self(), id);

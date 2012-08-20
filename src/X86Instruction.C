@@ -1353,10 +1353,6 @@ void X86Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
 
     // the anchor will now overwrite any original instruction bytes that relate to relative addresses
     if (addressAnchor){
-        if (getProgramAddress() == 0x400e1c){
-            PRINT_INFOR("has anchor");
-            addressAnchor->print();
-        }
         addressAnchor->dump(binaryOutputFile,offset);
     }
 }

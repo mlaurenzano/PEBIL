@@ -26,11 +26,13 @@
 class TauFunctionTrace : public InstrumentationTool {
 protected:
     InstrumentationFunction* functionRegister;
+    InstrumentationFunction* loopRegister;
 
     InstrumentationFunction* functionEntry;
     InstrumentationFunction* functionExit;
 
     FileList* functionList;
+    FileList* loopList;
 public:
     TauFunctionTrace(ElfFile* elf);
     ~TauFunctionTrace();
@@ -40,8 +42,13 @@ public:
 
     const char* briefName() { return "TauFunctionTrace"; }
     const char* defaultExtension() { return "tautrc"; }
-    uint32_t allowsArgs() { return PEBIL_OPT_INP; }
+    uint32_t allowsArgs() { return PEBIL_OPT_INP | PEBIL_OPT_DOI | PEBIL_OPT_TRK; }
     uint32_t requiresArgs() { return PEBIL_OPT_NON; }
+};
+
+class TauLoopList : public FileList {
+public:
+    TauLoopList(const char* filename, const char* beginInstr, const char* endInstr);
 };
 
 #endif /* _TauFunctionTrace_h_ */

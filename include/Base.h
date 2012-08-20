@@ -391,13 +391,18 @@ class FileList {
 private:
     uint32_t width;
     char sep;
+    const char* fname;
+
+protected:
     Vector<Vector<char*>*> fileTokens;
+    void init(const char* filename, uint32_t width, char sep, char comm);
+
 public:
     FileList(const char* filename, uint32_t width, char sep);
     FileList(const char* filename);
+    FileList() {}
     ~FileList();
 
-    void init(const char* filename, uint32_t width, char sep);
     bool matches(char* str, uint32_t tok);
     char* getToken(uint32_t idx, uint32_t tok);
     void print();

@@ -370,9 +370,9 @@ void LoopIntercept::instrument(){
                 // target is outside the loop
                 if (!loop->isBlockIn(target->getIndex())){
 
-                    // target is adjacent to bb
+                    // target is adjacent to bb 
                     if (target->getBaseAddress() == bb->getBaseAddress() + bb->getNumberOfBytes()){
-                        InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, InstLocation_after);
+                       InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, InstLocation_after);
                         assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
 
                         PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx", site, bb->getBaseAddress(), target->getBaseAddress());

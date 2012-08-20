@@ -27,9 +27,10 @@
 FILE* pebilOutp = stdout;
 uint64_t warnCount = 0;
 
-void FileList::init(const char* filename, uint32_t w, char s){
+void FileList::init(const char* filename, uint32_t w, char s, char comm){
     ASSERT(filename);
 
+    fname = filename;
     width = w;
     sep = s;
 
@@ -45,7 +46,7 @@ void FileList::init(const char* filename, uint32_t w, char s){
         char* line = new char[strlen(inBuffer)+1];
         sprintf(line, "%s", inBuffer);
         line[strlen(inBuffer)-1] = '\0';
-        if (strlen(line) && line[0] == '#'){
+        if (strlen(line) && line[0] == comm){
             delete[] line;
         } else {
             lines.append(line);
@@ -63,7 +64,7 @@ void FileList::init(const char* filename, uint32_t w, char s){
             }
         }
 
-        if (toks != width){
+        if (width && toks != width){
             PRINT_ERROR("Input file line has incorrect number of '%c'-seperated tokens: %s", sep, lines[i]);
         }
 
@@ -105,7 +106,7 @@ bool FileList::verify(){
     char err_msg[__MAX_STRING_SIZE];
     
     for (uint32_t i = 0; i < fileTokens.size(); i++){
-        for (uint32_t j = 0; j < width; j++){
+        for (uint32_t j = 0; j < fileTokens[i]->size(); j++){
             if ((err = regcomp(&regex, getToken(i, j), REG_EXTENDED)) != 0){
                 regerror(err, &regex, err_msg, __MAX_STRING_SIZE);
                 PRINT_ERROR("Error analyzing regular expression '%s': %s.\n", getToken(i, j), err_msg);
@@ -119,16 +120,16 @@ bool FileList::verify(){
 }
 
 FileList::FileList(const char* filename, uint32_t w, char sep){
-    init(filename, w, sep);
+    init(filename, w, sep, '#');
 }
 
 FileList::FileList(const char* filename){
-    init(filename, 1, ' ');
+    init(filename, 1, ' ', '#');
 }
 
 FileList::~FileList(){
     for (uint32_t i = 0; i < fileTokens.size(); i++){
-        for (uint32_t j = 0; j < width; j++){
+        for (uint32_t j = 0; j < fileTokens[i]->size(); j++){
             delete[] getToken(i, j);
         }
         delete fileTokens[i];
@@ -165,19 +166,20 @@ bool FileList::matches(char* str, uint32_t tok){
 
 char* FileList::getToken(uint32_t idx, uint32_t tok){
     ASSERT(idx < fileTokens.size());
-    ASSERT(tok < width);
+    ASSERT(!width || tok < width);
 
     return (*fileTokens[idx])[tok];
 }
 
 void FileList::print(){
-    PRINT_INFOR("File List:");
+    PRINT_INFOR("Processed contents of file %s:", fname);
     for (uint32_t i = 0; i < fileTokens.size(); i++){
         PRINT_INFO();
         PRINT_OUT("\t");
-        for (uint32_t j = 0; j < width; j++){
+        uint32_t s = fileTokens[i]->size();
+        for (uint32_t j = 0; j < s; j++){
             PRINT_OUT("%s", getToken(i, j));
-            if (j != width - 1){
+            if (j != s - 1){
                 PRINT_OUT("%c", sep);
             }
         }

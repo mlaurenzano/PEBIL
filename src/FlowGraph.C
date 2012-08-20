@@ -482,26 +482,32 @@ Loop* FlowGraph::getParentLoop(uint32_t idx){
     return input;
 }
 
-uint32_t FlowGraph::getLoopDepth(uint32_t idx){
-    Loop* loop = getInnermostLoopForBlock(idx);
+uint32_t FlowGraph::getLoopDepth(Loop* loop){
+    ASSERT(loop);
 
-    uint32_t depth = 0;
-    if (loop){
-        if (loop->getDepth()){
-            return loop->getDepth();
-        }
+    if (loop->getDepth()){
+        return loop->getDepth();
+    }
 
-        depth++;
-        for (uint32_t i = 0; i < loops.size(); i++){
-            if (loop->getIndex() != i){
-                if (loop->isInnerLoopOf(loops[i])){
-                    depth++;
-                }
+    uint32_t depth = 1;
+    for (uint32_t i = 0; i < loops.size(); i++){
+        if (loop->getIndex() != i){
+            if (loop->isInnerLoopOf(loops[i])){
+                depth++;
             }
         }
-        loop->setDepth(depth);
     }
+    loop->setDepth(depth);
+
     return depth;
+}
+
+uint32_t FlowGraph::getLoopDepth(uint32_t idx){
+    Loop* loop = getInnermostLoopForBlock(idx);
+    if (loop == NULL){
+        return 0;
+    }
+    return getLoopDepth(loop);
 }
 
 void FlowGraph::computeLiveness(){
@@ -878,6 +884,9 @@ uint32_t FlowGraph::buildLoops(){
         if(from->isDominatedBy(to)){
             /* for each back edge found, perform natural loop finding algorithm 
                from pg. 604 of the Aho/Sethi/Ullman (Dragon) compiler book */
+            /* note that this algorithm gives us each loop as loop with a single
+               head and tail. if we wanted natural loops, we would merge the loops
+               which share a head */
 
             numberOfLoops++;
 
