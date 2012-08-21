@@ -49,6 +49,9 @@ TauFunctionTrace::~TauFunctionTrace(){
     if (functionList){
         delete functionList;
     }
+    if (loopList){
+        delete loopList;
+    }
 }
 
 TauFunctionTrace::TauFunctionTrace(ElfFile* elf)
@@ -502,6 +505,8 @@ void TauFunctionTrace::instrument(){
 
                 InstrumentationPoint* p = addInstrumentationPoint(pt, inf, InstrumentationMode_tramp, loc);
                 assignStoragePrior(p, f.index, site);
+
+                delete lp;
             }
             delete v;
         }

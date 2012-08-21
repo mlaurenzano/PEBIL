@@ -496,7 +496,7 @@ RegisterSet* X86Instruction::getRegistersUsed(){
 
     // operand uses
     Vector<OperandX86*>* uses = getSourceOperands();
-    for(uint32_t i; i < uses->size(); i++) {
+    for(uint32_t i = 0; i < uses->size(); i++) {
         OperandX86* use = (*uses)[i];
 
         if(use && use->GET(base) && IS_ALU_REG(use->GET(base))){
