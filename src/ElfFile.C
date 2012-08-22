@@ -225,13 +225,6 @@ ElfFile::ElfFile(char* f, char* a) :
     fileUniqueId = 0;
     fileSha1sum = NULL;
 
-    char* allbytes = new char[getFileSize()];
-    binaryInputFile.setInBufferPointer(0);
-    binaryInputFile.copyBytes(allbytes, getFileSize());
-
-    fileSha1sum = sha1sum(allbytes, getFileSize());
-    delete[] allbytes;
-    fileUniqueId = sha1sum_first64(fileSha1sum);
 }
 
 void ElfFile::addAddressAnchor(AddressAnchor* adr){
@@ -1317,6 +1310,18 @@ void ElfFile::parse(){
         setStaticLinked(true);
         PRINT_INFOR("The executable is statically linked");
     }
+
+    char* allbytes = new char[getFileSize()];
+    binaryInputFile.setInBufferPointer(0);
+    binaryInputFile.copyBytes(allbytes, getFileSize());
+
+    fileSha1sum = sha1sum(allbytes, getFileSize());
+    if (!strcmp("da39a3ee5e6b4b0d3255bfef95601890afd80709", fileSha1sum)){
+        PRINT_ERROR("File sha1sum is the same as the sha1sum for an empty file.");
+    }
+
+    delete[] allbytes;
+    fileUniqueId = sha1sum_first64(fileSha1sum);
 
     ASSERT(fileSha1sum);
     PRINT_INFOR("The sha1sum for this binary is %s", fileSha1sum);
