@@ -33,6 +33,7 @@
 #include <X86InstructionFactory.h>
 
 #include <set>
+#include <vector>
 
 using namespace std;
 
@@ -76,7 +77,6 @@ static bool anyDefsAreUsed(
         def = *it;
         for (it2 = useList->begin(); it2 != useList->end(); it2 = it2.next()) {
             use = *it2;
-
             if (use->invalidatedBy(def)){
                 return true;
             }
@@ -148,21 +148,29 @@ bool flowsInDefUseScope(BasicBlock* tgt, Loop* loop){
     return false;
 }
 
-inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loop* loop, std::pebil_map_type<uint64_t, X86Instruction*>& ipebil_map_type, std::pebil_map_type<uint64_t, BasicBlock*>& bpebil_map_type,
-                         std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& alliuses, std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& allidefs,
+inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loop* loop,
+                         std::pebil_map_type<uint64_t, X86Instruction*>& ipebil_map_type,
+                         std::pebil_map_type<uint64_t, BasicBlock*>& bpebil_map_type,
+                         std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& alliuses,
+                         std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& allidefs,
                          int k, uint64_t loopLeader, uint32_t fcnt){
 
     // Get defintions for this instruction: ins
     LinkedList<X86Instruction::ReachingDefinition*>* idefs = ins->getDefs();
+    LinkedList<X86Instruction::ReachingDefinition*>* allDefs = idefs;
 
     // Skip instruction if it doesn't define anything
-    if (idefs == NULL)
+    if (idefs == NULL) {
         return;
+    }
 
     if (idefs->empty()) {
         delete idefs;
         return;
     }
+
+    set<LinkedList<X86Instruction::ReachingDefinition*>*> allDefLists;
+    allDefLists.insert(idefs);
 
     PriorityQueue<struct path*, uint32_t> paths = PriorityQueue<struct path*, uint32_t>();
     bool blockTouched[fg->getFunction()->getNumberOfBasicBlocks()];
@@ -191,9 +199,6 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
         uint32_t currDist;
         struct path* p = paths.deleteMin(&currDist);
         X86Instruction* cand = p->ins;
-        while (idefs->size()){
-            delete idefs->shift();
-        }
         idefs = p->defs;
         delete p;
 
@@ -227,6 +232,8 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
         // If all definitions killed, stop searching along this path
         if (newdefs == NULL)
             continue;
+
+        allDefLists.insert(newdefs);
 
         // end of block that is a branch
         if (cand->usesControlTarget() && !cand->isCall()){
@@ -271,10 +278,12 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
         delete paths.deleteMin(NULL);
     }
 
-    while (!idefs->empty()){
-        delete idefs->shift();
-    } 
-    delete idefs;
+    while (!allDefs->empty()){
+        delete allDefs->shift();
+    }
+    for(set<LinkedList<X86Instruction::ReachingDefinition*>*>::iterator it = allDefLists.begin(); it != allDefLists.end(); ++it){
+        delete *it;
+    }
 }
 
 void FlowGraph::computeDefUseDist(){
