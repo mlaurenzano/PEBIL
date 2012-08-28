@@ -180,7 +180,7 @@ int compareInstBaseAddress(const void* arg1,const void* arg2){
             return 1;
         } else {
             PRINT_DEBUG_POINT_CHAIN("Comparing priority of 2 points at %#llx: %d %d", ip1->getInstBaseAddress(), ip1->getPriority(), ip2->getPriority());
-            // then compare by where the inst is happening relcative to the instruction
+            // then compare by where the inst is happening relative to the instruction
             if (ip1->getInstLocation() < ip2->getInstLocation()){
                 return -1;
             } else if (ip1->getInstLocation() > ip2->getInstLocation()){

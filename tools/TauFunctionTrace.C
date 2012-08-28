@@ -152,12 +152,19 @@ void TauFunctionTrace::instrument(){
             if (functionList && functionList->matches(function->getName(), 0)){
                 continue;
             }
+            if (!strcmp(function->getName(), "_fini")){
+                continue;
+            }
 
             BasicBlock* entryBlock = function->getFlowGraph()->getEntryBlock();
-            Vector<BasicBlock*>* exitBlocks = function->getFlowGraph()->getExitBlocks();
+            Vector<BasicBlock*>* exitPoints = function->getFlowGraph()->getExitBlocks();
 
             std::string c;
             c.append(function->getName());
+            if (c == "_start"){
+                exitPoints->append(getProgramExitBlock());
+                PRINT_INFOR("Special case: inserting exit for _start inside _fini since control generally doesn't reach its exit");
+            }
 
             ASSERT(functions.count(addr) == 0 && "Multiple functions have the same base address?");
 
@@ -184,15 +191,21 @@ void TauFunctionTrace::instrument(){
             functions[addr] = f;
             orderedfuncs.push_back(addr);
 
-            InstrumentationPoint* prior = addInstrumentationPoint(entryBlock, functionEntry, InstrumentationMode_tramp, InstLocation_after);
+            InstrumentationPoint* prior = addInstrumentationPoint(entryBlock->getLeader(), functionEntry, InstrumentationMode_tramp, InstLocation_prior);
+            prior->setPriority(InstPriority_custom3);
             assignStoragePrior(prior, f.index, site);
 
-            for (uint32_t j = 0; j < exitBlocks->size(); j++){
-                InstrumentationPoint* after = addInstrumentationPoint((*exitBlocks)[j], functionExit, InstrumentationMode_tramp, InstLocation_after);
+            for (uint32_t j = 0; j < exitPoints->size(); j++){
+                InstrumentationPoint* after = addInstrumentationPoint((*exitPoints)[j]->getExitInstruction(), functionExit, InstrumentationMode_tramp, InstLocation_prior);
+                after->setPriority(InstPriority_custom5);
+
+                if (c == "_start" && j == exitPoints->size() - 1){
+                    after->setPriority(InstPriority_custom6);
+                }
                 assignStoragePrior(after, f.index, site);
             }
 
-            delete exitBlocks;
+            delete exitPoints;
         }
 
     } else {
@@ -257,11 +270,13 @@ void TauFunctionTrace::instrument(){
         }
     }
 
+
     // set up argument passing for function registration
     functionRegister->addArgument(nameAddr);
     functionRegister->addArgument(fileAddr);
     functionRegister->addArgument(lineAddr);
     uint32_t siteReg = functionRegister->addConstantArgument();
+
 
     // go over every function that was found, insert a registration call at program start
     for (std::vector<uint64_t>::iterator it = orderedfuncs.begin(); it != orderedfuncs.end(); it++){
@@ -271,6 +286,7 @@ void TauFunctionTrace::instrument(){
         ASSERT(f.baseaddr == addr);
 
         InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), functionRegister, InstrumentationMode_tramp);
+        p->setPriority(InstPriority_custom1);
 
         const char* cstring = f.name.c_str();
         uint64_t storage = reserveDataOffset(strlen(cstring) + 1);
@@ -289,6 +305,7 @@ void TauFunctionTrace::instrument(){
         assignStoragePrior(p, f.line, getInstDataAddress() + lineAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
         assignStoragePrior(p, f.index, siteReg);
     }
+
 
     // instrument loops
     if (loopList){
@@ -314,6 +331,7 @@ void TauFunctionTrace::instrument(){
                 BasicBlock* head = loop->getHead();
                 uint64_t addr = head->getBaseAddress();
 
+                // only want outer-most (depth == 1) loops
                 if (depth != 1){
                     continue;
                 }
@@ -357,9 +375,6 @@ void TauFunctionTrace::instrument(){
                     points = new Vector<LoopPoint*>();
                     f.info = points;
 
-                    loops[addr] = f;
-                    orderedloops.push_back(addr);
-
                     LineInfo* li = NULL;
                     if (lineInfoFinder){
                         li = lineInfoFinder->lookupLineInfo(addr);
@@ -368,6 +383,9 @@ void TauFunctionTrace::instrument(){
                         f.file.append(li->getFileName());
                         f.line = li->GET(lr_line);
                     }
+
+                    loops[addr] = f;
+                    orderedloops.push_back(addr);
 
                     // find entries into this loop
                     for (uint32_t k = 0; k < head->getNumberOfSources(); k++){
@@ -448,6 +466,7 @@ void TauFunctionTrace::instrument(){
             ASSERT(f.baseaddr == addr);
 
             InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), loopRegister, InstrumentationMode_tramp);
+            p->setPriority(InstPriority_custom2);
 
             const char* cstring = f.name.c_str();
             uint64_t storage = reserveDataOffset(strlen(cstring) + 1);
@@ -492,10 +511,12 @@ void TauFunctionTrace::instrument(){
                 Base* pt = (Base*)bb;
                 InstLocations loc = InstLocation_prior;
 
-                // if exit block is falls through, we must place the instrumentation point at the very end of the block
+                // if exit block falls through, we must place the instrumentation point at the very end of the block
                 if (!lp->entry && !lp->interpose){
                     pt = (Base*)bb->getExitInstruction();
-                    loc = InstLocation_after;
+                    if (!bb->getExitInstruction()->isReturn()){
+                        loc = InstLocation_after;
+                    }
                 }
 
                 InstrumentationFunction* inf = functionExit;
@@ -504,6 +525,7 @@ void TauFunctionTrace::instrument(){
                 }
 
                 InstrumentationPoint* p = addInstrumentationPoint(pt, inf, InstrumentationMode_tramp, loc);
+                p->setPriority(InstPriority_custom4);
                 assignStoragePrior(p, f.index, site);
 
                 delete lp;
