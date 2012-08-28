@@ -188,15 +188,7 @@ void FileList::print(){
 }
 
 #define SHA1SUM_BYTES 20
-uint64_t sha1sum_first64(char* sha1string){
-    uint64_t ret = 0;
-    for (uint32_t i = 0; i < sizeof(uint64_t); i++){
-        memcpy(&((char*)(&ret))[i], &(sha1string[sizeof(uint64_t) - 1 - i]), 1);
-    }
-    return ret;
-}
-
-char* sha1sum(char* buffer, uint32_t size){
+char* sha1sum(char* buffer, uint32_t size, uint64_t* first64){
     unsigned char* allbytes = new unsigned char[size];
     int end = size;
     char *line;
@@ -210,7 +202,25 @@ char* sha1sum(char* buffer, uint32_t size){
     calc(allbytes, end, hash);
     toHexString(hash, hexstring);
 
-    delete[] allbytes;                                                                                                                                 
+    delete[] allbytes;                                                                                               
+
+    // pick out the first 64 bits for use as a unique id
+    if (first64 != NULL){
+        uint64_t tmp = 0;
+
+        uint32_t s = sizeof(uint64_t) * 2;
+        for (uint32_t i = 0; i < s; i += 2){
+            ASSERT(i < SHA1SUM_BYTES);
+
+            char v1 = getHexValue(hexstring[i + 1]);
+            char v2 = getHexValue(hexstring[i]);
+            char v = v1 | (v2 << 4);
+
+            memcpy(&((char*)(&tmp))[(s-i-2)/2], &v, 1);
+        }
+        *first64 = tmp;
+    }
+                                  
     return hexstring;
 }
 
