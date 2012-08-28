@@ -11,7 +11,7 @@ DEFAULT_BLOCK_MIN = 10
 BLOCK_IDENTIFIER = 'BLK'
 IMAGE_IDENTIFIER = 'IMG'
 LOOP_IDENTIFIER = 'LPP'
-INPUT_JBB_NAME_REGEX = '[[\S]+/]*(\S+).r(\d\d\d\d\d\d\d\d).t(\d\d\d\d\d\d\d\d).jbbinst'
+INPUT_JBB_NAME_REGEX = '(\S+).r(\d\d\d\d\d\d\d\d).t(\d\d\d\d\d\d\d\d).jbbinst'
 OUTPUT_LBB_NAME = '%(application)s.%(image)s.t%(tasks)08d.lbb'
 
 
