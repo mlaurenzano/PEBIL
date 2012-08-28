@@ -1315,13 +1315,11 @@ void ElfFile::parse(){
     binaryInputFile.setInBufferPointer(0);
     binaryInputFile.copyBytes(allbytes, getFileSize());
 
-    fileSha1sum = sha1sum(allbytes, getFileSize());
+    fileSha1sum = sha1sum(allbytes, getFileSize(), &fileUniqueId);
     if (!strcmp("da39a3ee5e6b4b0d3255bfef95601890afd80709", fileSha1sum)){
         PRINT_ERROR("File sha1sum is the same as the sha1sum for an empty file.");
     }
-
     delete[] allbytes;
-    fileUniqueId = sha1sum_first64(fileSha1sum);
 
     ASSERT(fileSha1sum);
     PRINT_INFOR("The sha1sum for this binary is %s", fileSha1sum);

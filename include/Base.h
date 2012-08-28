@@ -487,6 +487,8 @@ extern int32_t scmp(const void *a, const void *b);
 extern char mapCharsToByte(char c1, char c2);
 extern void printBufferPretty(char* buff, uint32_t sizeInBytes, uint64_t baseAddress, uint32_t bytesPerWord, uint32_t bytesPerLine);
 
+extern char getHexValue(char c1);
+
 class X86Instruction;
 class ElfFileInst;
 
@@ -505,8 +507,7 @@ extern void SHA1(unsigned char * str1);
 //sha1 functions                                                                                                                                             
 void calc(const void *src, const int bytelength, unsigned char *hash);
 void toHexString(const unsigned char *hash, char *hexstring);
-uint64_t sha1sum_first64(char* sha1string);
-char* sha1sum(char* buffer, uint32_t size);
+char* sha1sum(char* buffer, uint32_t size, uint64_t* first64);
 
 extern double timer();
 
