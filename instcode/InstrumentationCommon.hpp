@@ -720,6 +720,10 @@ private:
     // i == thread id
     // j == buffer index
     T** stats;
+    pthread_mutex_t lock;
+
+    void Lock(){ pthread_mutex_lock(&lock); }
+    void UnLock(){ pthread_mutex_unlock(&lock); }
 
 public:
     FastData(void (*di)(V, image_key_t*), DataManager<T>* all, uint32_t cap){
@@ -739,6 +743,8 @@ public:
         for (uint32_t i = 0; i < capacity; i++){
             stats[0][i] = alldata->GetData();
         }
+
+        pthread_mutex_init(&countlock, NULL);
     }
 
     ~FastData(){
@@ -750,6 +756,7 @@ public:
         }
     }
     void AddThread(thread_key_t tid){
+        Lock();
         T** tmp = new T*[threadcount + 1];
         for (uint32_t i = 0; i < threadcount + 1; i++){
             tmp[i] = new T[capacity];
@@ -772,9 +779,11 @@ public:
         stats = tmp;
 
         threadcount++;
+        UnLock();
     }
 
     void AddImage(){
+        Lock();
         imagecount++;
         if (imagecount == 1){
             assert(threadcount == 1);
@@ -784,6 +793,7 @@ public:
                 stats[0][j] = alldata->GetData();
             }
         }
+        UnLock();
     }
 
     void Refresh(V buffer, uint32_t num, thread_key_t tid){
