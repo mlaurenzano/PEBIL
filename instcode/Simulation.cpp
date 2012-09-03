@@ -104,7 +104,10 @@ void GetBufferIds(BufferEntry* b, image_key_t* i){
 
 extern "C" {
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
+        SAVE_STREAM_FLAGS(cout);
         InitializeDynamicInstrumentation(count, dyn);
+        RESTORE_STREAM_FLAGS(cout);
+        return NULL;
     }
 
     void* tool_mpi_init(){
@@ -112,6 +115,7 @@ extern "C" {
     }
 
     void* tool_thread_init(thread_key_t tid){
+        SAVE_STREAM_FLAGS(cout);
         if (AllData){
             AllData->AddThread(tid);
             InitializeSuspendHandler();
@@ -121,18 +125,26 @@ extern "C" {
         } else {
             ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
         }
+        RESTORE_STREAM_FLAGS(cout);
         return NULL;
     }
 
     void* tool_thread_fini(thread_key_t tid){
+        SAVE_STREAM_FLAGS(cout);
+        debug(inform << "Destroying thread " << hex << tid << ENDL);
+        synchronize(AllData){
+            AllData->FinishThread(tid);
+        }
+        RESTORE_STREAM_FLAGS(cout);
     }
 
     void* tool_image_init(void* s, image_key_t* key, ThreadData* td){
+        SAVE_STREAM_FLAGS(cout);
         SimulationStats* stats = (SimulationStats*)s;
 
         set<uint64_t> inits;
         inits.insert(*key);
-        inform << "Removing init points for image " << hex << (*key) << ENDL;
+        debug(inform << "Removing init points for image " << hex << (*key) << ENDL);
         SetDynamicPoints(inits, false);        
 
         assert(stats->Initialized == true);
@@ -183,6 +195,7 @@ extern "C" {
 
             AllData->SetTimer(*key, 0);
         }
+        RESTORE_STREAM_FLAGS(cout);
         return NULL;
     }
 
@@ -266,86 +279,88 @@ extern "C" {
         } 
 
         synchronize(AllData){
-            if (isSampling){
-                set<uint64_t> MemsRemoved;
-                SimulationStats** faststats = FastStats->GetBufferStats(tid);
-                for (uint32_t j = 0; j < numElements; j++){
-                    SimulationStats* s = faststats[j];
-                    BufferEntry* reference = BUFFER_ENTRY(s, j + 1);
-                    debug(inform << "Memseq " << dec << reference->memseq << " has " << s->Stats[0]->GetAccessCount(reference->memseq) << ENDL);
-                    uint32_t bbid = s->BlockIds[reference->memseq];
+            if (AllData->ThreadLives(tid)){
+                if (isSampling){
+                    set<uint64_t> MemsRemoved;
+                    SimulationStats** faststats = FastStats->GetBufferStats(tid);
+                    for (uint32_t j = 0; j < numElements; j++){
+                        SimulationStats* s = faststats[j];
+                        BufferEntry* reference = BUFFER_ENTRY(s, j + 1);
+                        debug(inform << "Memseq " << dec << reference->memseq << " has " << s->Stats[0]->GetAccessCount(reference->memseq) << ENDL);
+                        uint32_t bbid = s->BlockIds[reference->memseq];
 
-                    // if max block count is reached, disable all buffer-related points related to this block
-                    uint32_t idx = bbid;
-                    uint32_t midx = bbid;
-                    if (s->Types[bbid] == CounterType_instruction){
-                        idx = s->Counters[bbid];
-                    }
-                    if (s->PerInstruction){
-                        midx = s->MemopIds[bbid];
-                    }
+                        // if max block count is reached, disable all buffer-related points related to this block
+                        uint32_t idx = bbid;
+                        uint32_t midx = bbid;
+                        if (s->Types[bbid] == CounterType_instruction){
+                            idx = s->Counters[bbid];
+                        }
+                        if (s->PerInstruction){
+                            midx = s->MemopIds[bbid];
+                        }
 
-                    debug(inform << "Slot " << dec << j
-                          << TAB << "Thread " << dec << AllData->GetThreadSequence(pthread_self())
-                          << TAB << "BLock " << bbid
-                          << TAB << "Counter " << s->Counters[bbid]
-                          << TAB << "Real " << s->Counters[idx]
-                          << ENDL);
+                        debug(inform << "Slot " << dec << j
+                              << TAB << "Thread " << dec << AllData->GetThreadSequence(pthread_self())
+                              << TAB << "BLock " << bbid
+                              << TAB << "Counter " << s->Counters[bbid]
+                              << TAB << "Real " << s->Counters[idx]
+                              << ENDL);
 
-                    if (Sampler->ExceedsAccessLimit(s->Counters[idx])){
+                        if (Sampler->ExceedsAccessLimit(s->Counters[idx])){
 
-                        uint64_t k1 = GENERATE_KEY(midx, PointType_buffercheck);
-                        uint64_t k2 = GENERATE_KEY(midx, PointType_bufferinc);
-                        uint64_t k3 = GENERATE_KEY(midx, PointType_bufferfill);
+                            uint64_t k1 = GENERATE_KEY(midx, PointType_buffercheck);
+                            uint64_t k2 = GENERATE_KEY(midx, PointType_bufferinc);
+                            uint64_t k3 = GENERATE_KEY(midx, PointType_bufferfill);
 
-                        if (NonmaxKeys->count(k3) > 0){
+                            if (NonmaxKeys->count(k3) > 0){
 
-                            if (MemsRemoved.count(k1) == 0){
-                                MemsRemoved.insert(k1);
+                                if (MemsRemoved.count(k1) == 0){
+                                    MemsRemoved.insert(k1);
+                                }
+                                assert(MemsRemoved.count(k1) == 1);
+
+                                if (MemsRemoved.count(k2) == 0){
+                                    MemsRemoved.insert(k2);
+                                }
+                                assert(MemsRemoved.count(k2) == 1);
+
+                                if (MemsRemoved.count(k3) == 0){
+                                    MemsRemoved.insert(k3);
+                                }
+                                assert(MemsRemoved.count(k3) == 1);
+
+                                NonmaxKeys->erase(k3);
+                                assert(NonmaxKeys->count(k3) == 0);
                             }
-                            assert(MemsRemoved.count(k1) == 1);
-
-                            if (MemsRemoved.count(k2) == 0){
-                                MemsRemoved.insert(k2);
-                            }
-                            assert(MemsRemoved.count(k2) == 1);
-
-                            if (MemsRemoved.count(k3) == 0){
-                                MemsRemoved.insert(k3);
-                            }
-                            assert(MemsRemoved.count(k3) == 1);
-
-                            NonmaxKeys->erase(k3);
-                            assert(NonmaxKeys->count(k3) == 0);
                         }
                     }
-                }
 
-                if (MemsRemoved.size()){
-                    assert(MemsRemoved.size() % 3 == 0);
-                    debug(inform << "REMOVING " << dec << (MemsRemoved.size() / 3) << " blocks" << ENDL);
-                    SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
-                    SetDynamicPoints(MemsRemoved, false);
-                    ResumeAllThreads();
-                }
+                    if (MemsRemoved.size()){
+                        assert(MemsRemoved.size() % 3 == 0);
+                        debug(inform << "REMOVING " << dec << (MemsRemoved.size() / 3) << " blocks" << ENDL);
+                        SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end(), AllData->donethreads);
+                        SetDynamicPoints(MemsRemoved, false);
+                        ResumeAllThreads();
+                    }
 
-                if (Sampler->SwitchesMode(numElements)){
-                    SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
-                    SetDynamicPoints(*NonmaxKeys, false);
-                    ResumeAllThreads();
-                }
+                    if (Sampler->SwitchesMode(numElements)){
+                        SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end(), AllData->donethreads);
+                        SetDynamicPoints(*NonmaxKeys, false);
+                        ResumeAllThreads();
+                    }
 
-            } else {
-                if (Sampler->SwitchesMode(numElements)){
-                    SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
-                    SetDynamicPoints(*NonmaxKeys, true);
-                    ResumeAllThreads();
-                }
+                } else {
+                    if (Sampler->SwitchesMode(numElements)){
+                        SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end(), AllData->donethreads);
+                        SetDynamicPoints(*NonmaxKeys, true);
+                        ResumeAllThreads();
+                    }
 
-                // reuse distance handler needs to know that we passed over some addresses
-                if (ReuseWindow){
-                    ReuseDistanceHandler* r = (ReuseDistanceHandler*)stats->Handlers[ReuseHandlerIndex];
-                    r->AddSequence(numElements);
+                    // reuse distance handler needs to know that we passed over some addresses
+                    if (ReuseWindow){
+                        ReuseDistanceHandler* r = (ReuseDistanceHandler*)stats->Handlers[ReuseHandlerIndex];
+                        r->AddSequence(numElements);
+                    }
                 }
             }
 
@@ -356,18 +371,25 @@ extern "C" {
     }
 
     void* process_buffer(image_key_t* key){
+        // forgo this since we shouldn't be printing anything during production
+        SAVE_STREAM_FLAGS(cout);
+
         image_key_t iid = *key;
         process_thread_buffer(iid, pthread_self());
+
+        RESTORE_STREAM_FLAGS(cout);
     }
 
     void* tool_image_fini(image_key_t* key){
         image_key_t iid = *key;
 
         AllData->SetTimer(iid, 1);
+        SAVE_STREAM_FLAGS(cout);
 
 #ifdef MPI_INIT_REQUIRED
         if (!IsMpiValid()){
             warn << "Process " << dec << getpid() << " did not execute MPI_Init, will not print execution count files" << ENDL;
+            RESTORE_STREAM_FLAGS(cout);
             return NULL;
         }
 #endif
@@ -384,6 +406,7 @@ extern "C" {
 
         // only print stats when the executable exits
         if (!stats->Master){
+            RESTORE_STREAM_FLAGS(cout);
             return NULL;
         }
 
@@ -756,6 +779,8 @@ extern "C" {
         if (NonmaxKeys){
             delete NonmaxKeys;
         }
+
+        RESTORE_STREAM_FLAGS(cout);
     }
 
 };

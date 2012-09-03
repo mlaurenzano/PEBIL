@@ -137,22 +137,27 @@ void DeleteCounterArray(CounterArray* ctrs){
 }
 
 void* tool_thread_init(thread_key_t tid){
+    SAVE_STREAM_FLAGS(cout);
     if (AllData){
         AllData->AddThread(tid);
     } else {
         ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
     }
+    RESTORE_STREAM_FLAGS(cout);
     return NULL;
 }
 
 void* tool_thread_fini(thread_key_t tid){
+    return NULL;
 }
 
 extern "C"
 {
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
+        SAVE_STREAM_FLAGS(cout);
         InitializeDynamicInstrumentation(count, dyn);
 
+        RESTORE_STREAM_FLAGS(cout);
         return NULL;
     }
 
@@ -161,6 +166,8 @@ extern "C"
     }
 
     void* tool_image_init(void* s, uint64_t* key, ThreadData* td){
+        SAVE_STREAM_FLAGS(cout);
+
         CounterArray* ctrs = (CounterArray*)s;
         assert(ctrs->Initialized == true);
 
@@ -176,6 +183,7 @@ extern "C"
 
         assert(AllData);
         if (AllData->allimages.count(*key) > 0){
+            RESTORE_STREAM_FLAGS(cout);
             return NULL;
         }
 
@@ -184,15 +192,19 @@ extern "C"
         ctrs->imageid = *key;
 
         AllData->SetTimer(*key, 0);
+
+        RESTORE_STREAM_FLAGS(cout);
         return NULL;
     }
 
     void* tool_image_fini(uint64_t* key){
         AllData->SetTimer(*key, 1);
+        SAVE_STREAM_FLAGS(cout);
 
 #ifdef MPI_INIT_REQUIRED
         if (!IsMpiValid()){
             warn << "Process " << dec << getpid() << " did not execute MPI_Init, will not print execution count files" << ENDL;
+            RESTORE_STREAM_FLAGS(cout);
             return NULL;
         }
 #endif
@@ -437,6 +449,8 @@ extern "C"
 #endif // LEGACY_METASIM_SUPPORT
 
         inform << "cxxx Total Execution time for " << ctrs->Extension << "-instrumented image " << ctrs->Application << ": " << (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)) << " seconds" << ENDL;
+
+        RESTORE_STREAM_FLAGS(cout);
         return NULL;
     }
 };

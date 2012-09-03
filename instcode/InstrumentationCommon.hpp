@@ -202,7 +202,10 @@ static void ptimer(double *tmr) {
 #define DISPLAY_ERROR cerr << "[" << METASIM_ID << "-r" << GetTaskId() << "] " << "Error: "
 #define warn cerr << "[" << METASIM_ID << "-r" << GetTaskId() << "] " << "Warning: "
 #define ErrorExit(__msg, __errno) DISPLAY_ERROR << __msg << endl << flush; exit(__errno);
-#define inform cout << "[" << METASIM_ID << "-r" << GetTaskId() << "] "
+#define inform cout << "[" << METASIM_ID << "-r" << dec << GetTaskId() << "] "
+#define SAVE_STREAM_FLAGS(__s) ios_base::fmtflags ff ## __s = __s.flags()
+#define RESTORE_STREAM_FLAGS(__s) __s.flags(ff ## __s)
+
 
 enum MetasimErrors {
     MetasimError_None = 0,
@@ -271,7 +274,7 @@ extern "C" {
         sigaction(SuspendSignal, &NewAction, NULL);
     }
 
-    void SuspendAllThreads(uint32_t size, set<thread_key_t>::iterator b, set<thread_key_t>::iterator e){
+    void SuspendAllThreads(uint32_t size, set<thread_key_t>::iterator b, set<thread_key_t>::iterator e, set<thread_key_t> done){
         if (!CanSuspend){
             return;
         }
@@ -280,16 +283,17 @@ extern "C" {
         assert(CountSuspended == 0);
 
         for (set<thread_key_t>::iterator tit = b; tit != e; tit++){
-            if ((*tit) != pthread_self()){
+            if ((*tit) != pthread_self() && done.count((*tit)) == 0){
                 pthread_kill((*tit), SuspendSignal);
             }
         }
 
         // wait for all other threads to reach paused state
-        while (CountSuspended < size - 1){
+        uint32_t ksize = size - 1 - done.size();
+        while (CountSuspended < ksize){
             pthread_yield();
         }
-        assert(CountSuspended == size - 1);
+        assert(CountSuspended == ksize);
     }
 
     void ResumeAllThreads(){
@@ -511,6 +515,7 @@ private:
 public:
 
     set<thread_key_t> allthreads;
+    set<thread_key_t> donethreads;
     set<image_key_t> allimages;
 
     static const uint32_t ThreadType = 0;
@@ -558,6 +563,21 @@ public:
     uint32_t GetImageSequence(image_key_t iid){
         assert(imageseq.count(iid) == 1 && "image must be added with AddImage method");
         return imageseq[iid];
+    }
+
+    void FinishThread(thread_key_t tid){
+        assert(donethreads.count(tid) == 0);
+        donethreads.insert(tid);
+    }
+
+    bool ThreadLives(thread_key_t tid){
+        if (allthreads.count(tid) == 0){
+            return false;
+        }
+        if (donethreads.count(tid) > 0){
+            return false;
+        }
+        return true;
     }
 
     void AddThread(thread_key_t tid){
