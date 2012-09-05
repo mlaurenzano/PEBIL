@@ -131,10 +131,14 @@ extern "C" {
 
     void* tool_thread_fini(thread_key_t tid){
         SAVE_STREAM_FLAGS(cout);
-        debug(inform << "Destroying thread " << hex << tid << ENDL);
+        inform << "Destroying thread " << hex << tid << ENDL;
+
+        // utilizing finished threads is *buggy*
+        /*
         synchronize(AllData){
             AllData->FinishThread(tid);
         }
+        */
         RESTORE_STREAM_FLAGS(cout);
     }
 
@@ -279,88 +283,86 @@ extern "C" {
         } 
 
         synchronize(AllData){
-            if (AllData->ThreadLives(tid)){
-                if (isSampling){
-                    set<uint64_t> MemsRemoved;
-                    SimulationStats** faststats = FastStats->GetBufferStats(tid);
-                    for (uint32_t j = 0; j < numElements; j++){
-                        SimulationStats* s = faststats[j];
-                        BufferEntry* reference = BUFFER_ENTRY(s, j + 1);
-                        debug(inform << "Memseq " << dec << reference->memseq << " has " << s->Stats[0]->GetAccessCount(reference->memseq) << ENDL);
-                        uint32_t bbid = s->BlockIds[reference->memseq];
+            if (isSampling){
+                set<uint64_t> MemsRemoved;
+                SimulationStats** faststats = FastStats->GetBufferStats(tid);
+                for (uint32_t j = 0; j < numElements; j++){
+                    SimulationStats* s = faststats[j];
+                    BufferEntry* reference = BUFFER_ENTRY(s, j + 1);
+                    debug(inform << "Memseq " << dec << reference->memseq << " has " << s->Stats[0]->GetAccessCount(reference->memseq) << ENDL);
+                    uint32_t bbid = s->BlockIds[reference->memseq];
 
-                        // if max block count is reached, disable all buffer-related points related to this block
-                        uint32_t idx = bbid;
-                        uint32_t midx = bbid;
-                        if (s->Types[bbid] == CounterType_instruction){
-                            idx = s->Counters[bbid];
-                        }
-                        if (s->PerInstruction){
-                            midx = s->MemopIds[bbid];
-                        }
+                    // if max block count is reached, disable all buffer-related points related to this block
+                    uint32_t idx = bbid;
+                    uint32_t midx = bbid;
+                    if (s->Types[bbid] == CounterType_instruction){
+                        idx = s->Counters[bbid];
+                    }
+                    if (s->PerInstruction){
+                        midx = s->MemopIds[bbid];
+                    }
 
-                        debug(inform << "Slot " << dec << j
-                              << TAB << "Thread " << dec << AllData->GetThreadSequence(pthread_self())
-                              << TAB << "BLock " << bbid
-                              << TAB << "Counter " << s->Counters[bbid]
-                              << TAB << "Real " << s->Counters[idx]
-                              << ENDL);
+                    debug(inform << "Slot " << dec << j
+                          << TAB << "Thread " << dec << AllData->GetThreadSequence(pthread_self())
+                          << TAB << "BLock " << bbid
+                          << TAB << "Counter " << s->Counters[bbid]
+                          << TAB << "Real " << s->Counters[idx]
+                          << ENDL);
 
-                        if (Sampler->ExceedsAccessLimit(s->Counters[idx])){
+                    if (Sampler->ExceedsAccessLimit(s->Counters[idx])){
 
-                            uint64_t k1 = GENERATE_KEY(midx, PointType_buffercheck);
-                            uint64_t k2 = GENERATE_KEY(midx, PointType_bufferinc);
-                            uint64_t k3 = GENERATE_KEY(midx, PointType_bufferfill);
+                        uint64_t k1 = GENERATE_KEY(midx, PointType_buffercheck);
+                        uint64_t k2 = GENERATE_KEY(midx, PointType_bufferinc);
+                        uint64_t k3 = GENERATE_KEY(midx, PointType_bufferfill);
 
-                            if (NonmaxKeys->count(k3) > 0){
+                        if (NonmaxKeys->count(k3) > 0){
 
-                                if (MemsRemoved.count(k1) == 0){
-                                    MemsRemoved.insert(k1);
-                                }
-                                assert(MemsRemoved.count(k1) == 1);
-
-                                if (MemsRemoved.count(k2) == 0){
-                                    MemsRemoved.insert(k2);
-                                }
-                                assert(MemsRemoved.count(k2) == 1);
-
-                                if (MemsRemoved.count(k3) == 0){
-                                    MemsRemoved.insert(k3);
-                                }
-                                assert(MemsRemoved.count(k3) == 1);
-
-                                NonmaxKeys->erase(k3);
-                                assert(NonmaxKeys->count(k3) == 0);
+                            if (MemsRemoved.count(k1) == 0){
+                                MemsRemoved.insert(k1);
                             }
+                            assert(MemsRemoved.count(k1) == 1);
+
+                            if (MemsRemoved.count(k2) == 0){
+                                MemsRemoved.insert(k2);
+                            }
+                            assert(MemsRemoved.count(k2) == 1);
+
+                            if (MemsRemoved.count(k3) == 0){
+                                MemsRemoved.insert(k3);
+                            }
+                            assert(MemsRemoved.count(k3) == 1);
+
+                            NonmaxKeys->erase(k3);
+                            assert(NonmaxKeys->count(k3) == 0);
                         }
                     }
+                }
 
-                    if (MemsRemoved.size()){
-                        assert(MemsRemoved.size() % 3 == 0);
-                        debug(inform << "REMOVING " << dec << (MemsRemoved.size() / 3) << " blocks" << ENDL);
-                        SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end(), AllData->donethreads);
-                        SetDynamicPoints(MemsRemoved, false);
-                        ResumeAllThreads();
-                    }
+                if (MemsRemoved.size()){
+                    assert(MemsRemoved.size() % 3 == 0);
+                    debug(inform << "REMOVING " << dec << (MemsRemoved.size() / 3) << " blocks" << ENDL);
+                    SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
+                    SetDynamicPoints(MemsRemoved, false);
+                    ResumeAllThreads();
+                }
 
-                    if (Sampler->SwitchesMode(numElements)){
-                        SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end(), AllData->donethreads);
-                        SetDynamicPoints(*NonmaxKeys, false);
-                        ResumeAllThreads();
-                    }
+                if (Sampler->SwitchesMode(numElements)){
+                    SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
+                    SetDynamicPoints(*NonmaxKeys, false);
+                    ResumeAllThreads();
+                }
 
-                } else {
-                    if (Sampler->SwitchesMode(numElements)){
-                        SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end(), AllData->donethreads);
-                        SetDynamicPoints(*NonmaxKeys, true);
-                        ResumeAllThreads();
-                    }
+            } else {
+                if (Sampler->SwitchesMode(numElements)){
+                    SuspendAllThreads(AllData->CountThreads(), AllData->allthreads.begin(), AllData->allthreads.end());
+                    SetDynamicPoints(*NonmaxKeys, true);
+                    ResumeAllThreads();
+                }
 
-                    // reuse distance handler needs to know that we passed over some addresses
-                    if (ReuseWindow){
-                        ReuseDistanceHandler* r = (ReuseDistanceHandler*)stats->Handlers[ReuseHandlerIndex];
-                        r->AddSequence(numElements);
-                    }
+                // reuse distance handler needs to know that we passed over some addresses
+                if (ReuseWindow){
+                    ReuseDistanceHandler* r = (ReuseDistanceHandler*)stats->Handlers[ReuseHandlerIndex];
+                    r->AddSequence(numElements);
                 }
             }
 
@@ -640,7 +642,10 @@ extern "C" {
 
                     for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
                         CacheStats* c = aggstats[sys];
-                        assert(root->GetAccessCount(bbid) == c->GetHits(bbid, 0) + c->GetMisses(bbid, 0));
+                        if (AllData->CountThreads() == 1){
+                            assert(root->GetAccessCount(bbid) == c->GetHits(bbid, 0) + c->GetMisses(bbid, 0));
+                        }
+
                         for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
 
                             MemFile

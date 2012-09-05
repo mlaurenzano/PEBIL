@@ -274,7 +274,7 @@ extern "C" {
         sigaction(SuspendSignal, &NewAction, NULL);
     }
 
-    void SuspendAllThreads(uint32_t size, set<thread_key_t>::iterator b, set<thread_key_t>::iterator e, set<thread_key_t> done){
+    void SuspendAllThreads(uint32_t size, set<thread_key_t>::iterator b, set<thread_key_t>::iterator e){
         if (!CanSuspend){
             return;
         }
@@ -283,13 +283,13 @@ extern "C" {
         assert(CountSuspended == 0);
 
         for (set<thread_key_t>::iterator tit = b; tit != e; tit++){
-            if ((*tit) != pthread_self() && done.count((*tit)) == 0){
+            if ((*tit) != pthread_self()){
                 pthread_kill((*tit), SuspendSignal);
             }
         }
 
         // wait for all other threads to reach paused state
-        uint32_t ksize = size - 1 - done.size();
+        uint32_t ksize = size - 1;
         while (CountSuspended < ksize){
             pthread_yield();
         }
@@ -487,7 +487,8 @@ private:
             inform << "Thread " << hex << tid << " image " << iid;
         }
         cout
-            << " setting up thread data at " << (uint64_t)td
+            << " setting up thread data at index "
+            << dec << actual << TAB << (uint64_t)td
             << " -> " << td[actual].data
             << endl;
 
