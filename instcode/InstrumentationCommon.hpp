@@ -489,10 +489,13 @@ private:
         cout
             << " setting up thread data at index "
             << dec << actual << TAB << (uint64_t)td
-            << " -> " << td[actual].data
+            << " -> " << hex << td[actual].data
             << endl;
 
         // just fail if there was a collision. it makes writing tools much easier so we see how well this works for now
+        if (actual != h){
+            warn << "Collision placing thread-specific data: slot " << dec << h << " already taken" << ENDL;
+        }
         assert(actual == h);
         return td[actual].data;
     }

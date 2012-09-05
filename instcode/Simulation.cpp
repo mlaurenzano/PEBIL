@@ -1912,6 +1912,7 @@ void CacheStructureHandler::Process(void* stats, BufferEntry* access){
 // called for every new image and thread
 SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_key_t iid, thread_key_t tid, image_key_t firstimage){
 
+    assert(stats);
     SimulationStats* s = stats;
 
     // allocate Counters contiguously with SimulationStats. Since the address of SimulationStats is the
@@ -1923,6 +1924,7 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
         memcpy(stats, s, sizeof(SimulationStats));
         stats->Initialized = false;
     }
+    assert(stats);
     stats->threadid = tid;
     stats->imageid = iid;
 
