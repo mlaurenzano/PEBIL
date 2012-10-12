@@ -1,7 +1,7 @@
 #
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.65])
+AC_PREREQ([2.63])
 AC_INIT([FULL-PACKAGE-NAME], [VERSION], [BUG-REPORT-ADDRESS])
 AC_CONFIG_SRCDIR([src/ElfFileInst.C])
 AC_CONFIG_MACRO_DIR([m4])
@@ -47,11 +47,13 @@ if test "$ax_cv_cxx_unordered_map" = "yes"; then
    CXXFLAGS="$CXXFLAGS -DHAVE_UNORDERED_MAP"
 fi
 
-AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Use static archives for instrumentation libraries; it is extremely unlikely that you want to use this [no]]), static_ok=$enableval)
-if test "$static_ok" = "yes"; then
-   STATIC_INST_LIB="yes"
+AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Build a statically-linked pebil executable in addition to a dynamically-linked executable [yes]]), static_ok=$enableval)
+if test "$static_ok" != "no"; then
+   PEBIL_STATIC_BUILD="yes"
+else
+   PEBIL_STATIC_BUILD="no"
 fi
-AC_SUBST(STATIC_INST_LIB)
+AC_SUBST(PEBIL_STATIC_BUILD)
 
 AC_ARG_ENABLE(mpiinit_check, AC_HELP_STRING([--enable-mpiinit-check], [Disable output file printing in inst libraries unless mpi_init is executed [no]]), mpiinit_check_ok=$enableval)
 if test "$mpiinit_check_ok" = "yes"; then

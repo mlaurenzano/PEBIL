@@ -89,7 +89,7 @@ static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn)
 
 static void GetAllDynamicKeys(set<uint64_t>& keys){
     assert(keys.size() == 0);
-    for (pebil_map_type<uint64_t, vector<DynamicInst*>>::iterator it = Dynamics->begin(); it != Dynamics->end(); it++){
+    for (pebil_map_type<uint64_t, vector<DynamicInst*> >::iterator it = Dynamics->begin(); it != Dynamics->end(); it++){
         uint64_t k = (*it).first;
         keys.insert(k);
     }
@@ -108,7 +108,7 @@ static void SetDynamicPointStatus(DynamicInst* d, bool state){
 
 static void SetDynamicPoints(std::set<uint64_t>& keys, bool state){
     uint32_t count = 0;
-    for (pebil_map_type<uint64_t, vector<DynamicInst*>>::iterator it = Dynamics->begin(); it != Dynamics->end(); it++){
+    for (pebil_map_type<uint64_t, vector<DynamicInst*> >::iterator it = Dynamics->begin(); it != Dynamics->end(); it++){
         uint64_t k = (*it).first;
         if (keys.count(k) > 0){
             vector<DynamicInst*> dyns = (*it).second;
