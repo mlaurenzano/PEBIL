@@ -17,7 +17,8 @@ EXTRA_FLAGS = $(SHARED_OPT)
 SHARED_LIB  = -shared -ldl
 AR          = ar rcs
 
-EXTRA_LIBS  = -L../external/ReuseDistance -lReuseDistance
+REUSE_LIBS  = -L../external/ReuseDistance -lReuseDistance
+EXTRA_LIBS  =
 EXTRA_INC   = -I../instcode -I../external/ReuseDistance
 
 LIBDIR      = ../lib
@@ -38,7 +39,7 @@ libcounter.a : CounterFunctions.o $(COMMON_OBJS)
 	$(AR) $@ CounterFunctions.o $(COMMON_OBJS)
 
 libsimulator.so : Simulation.O
-	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(REUSE_LIBS)
 libsimulator.a : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 	$(AR) $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 
