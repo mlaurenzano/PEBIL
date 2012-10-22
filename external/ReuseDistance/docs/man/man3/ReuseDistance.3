@@ -1,0 +1,330 @@
+.TH "ReuseDistance" 3 "21 Oct 2012" "Version 0.01" "ReuseDistance" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+ReuseDistance \- 
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fC#include <ReuseDistance.hpp>\fP
+.PP
+Inherited by \fBSpatialLocality\fP.
+.SS "Public Member Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBReuseDistance\fP (uint64_t w, uint64_t b)"
+.br
+.ti -1c
+.RI "\fBReuseDistance\fP (uint64_t w)"
+.br
+.ti -1c
+.RI "virtual \fB~ReuseDistance\fP ()"
+.br
+.ti -1c
+.RI "virtual void \fBPrint\fP (std::ostream &f, bool annotate=false)"
+.br
+.ti -1c
+.RI "virtual void \fBPrint\fP (bool annotate=false)"
+.br
+.ti -1c
+.RI "void \fBPrintFormat\fP (std::ostream &f)"
+.br
+.ti -1c
+.RI "virtual void \fBProcess\fP (\fBReuseEntry\fP &addr)"
+.br
+.ti -1c
+.RI "void \fBProcess\fP (\fBReuseEntry\fP *addrs, uint64_t count)"
+.br
+.ti -1c
+.RI "void \fBProcess\fP (std::vector< \fBReuseEntry\fP > rs)"
+.br
+.ti -1c
+.RI "void \fBProcess\fP (std::vector< \fBReuseEntry\fP * > addrs)"
+.br
+.ti -1c
+.RI "\fBReuseStats\fP * \fBGetStats\fP (uint64_t id)"
+.br
+.ti -1c
+.RI "void \fBGetIndices\fP (std::vector< uint64_t > &ids)"
+.br
+.ti -1c
+.RI "virtual void \fBGetActiveAddresses\fP (std::vector< uint64_t > &addrs)"
+.br
+.ti -1c
+.RI "virtual void \fBSkipAddresses\fP (uint64_t amount)"
+.br
+.in -1c
+.SS "Static Public Attributes"
+
+.in +1c
+.ti -1c
+.RI "static const uint64_t \fBDefaultBinIndividual\fP = 32"
+.br
+.ti -1c
+.RI "static const uint64_t \fBInfinity\fP = INFINITY_REUSE"
+.br
+.in -1c
+.SS "Protected Member Functions"
+
+.in +1c
+.ti -1c
+.RI "void \fBInit\fP (uint64_t w, uint64_t b)"
+.br
+.ti -1c
+.RI "virtual \fBReuseStats\fP * \fBGetStats\fP (uint64_t id, bool gen)"
+.br
+.ti -1c
+.RI "virtual const std::string \fBDescribe\fP ()"
+.br
+.in -1c
+.SS "Protected Attributes"
+
+.in +1c
+.ti -1c
+.RI "reuse_map_type< uint64_t, \fBReuseStats\fP * > \fBstats\fP"
+.br
+.ti -1c
+.RI "uint64_t \fBcapacity\fP"
+.br
+.ti -1c
+.RI "uint64_t \fBsequence\fP"
+.br
+.ti -1c
+.RI "uint64_t \fBbinindividual\fP"
+.br
+.ti -1c
+.RI "uint64_t \fBmaxtracking\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+Tracks reuse distances for a memory address stream. Keep track of the addresses within a specific window of history, whose size can be finite or infinite. For basic usage, see the documentation at http://bit.ly/ScqZVj for the constructors, the Process methods and the Print methods. Also see the simple test file test/test.cpp included in this source package. 
+.PP
+Definition at line 86 of file ReuseDistance.hpp.
+.SH "Constructor & Destructor Documentation"
+.PP 
+.SS "ReuseDistance::ReuseDistance (uint64_t w, uint64_t b)"Contructs a \fBReuseDistance\fP object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIw\fP The maximum window size, or alternatively the maximum possible reuse distance that this tool will find. No window/distance limit is imposed if \fBReuseDistance::Infinity\fP is used, though you could easily run of of memory. 
+.br
+\fIb\fP All distances not greater than b will be tracked individually. All distances are tracked individually if b == \fBReuseDistance::Infinity\fP. Beyond individual tracking, distances are tracked in bins whose boundaries are the powers of two greater than b (and not exeeding w, of course). 
+.RE
+.PP
+
+.PP
+Definition at line 56 of file ReuseDistance.cpp.
+.SS "ReuseDistance::ReuseDistance (uint64_t w)"Contructs a \fBReuseDistance\fP object. Equivalent to calling the other constructor with b == \fBReuseDistance::DefaultBinIndividual\fP 
+.PP
+Definition at line 60 of file ReuseDistance.cpp.
+.SS "ReuseDistance::~ReuseDistance ()\fC [virtual]\fP"Destroys a \fBReuseDistance\fP object. 
+.PP
+Definition at line 64 of file ReuseDistance.cpp.
+.SH "Member Function Documentation"
+.PP 
+.SS "virtual const std::string ReuseDistance::Describe ()\fC [inline, protected, virtual]\fP"
+.PP
+Definition at line 108 of file ReuseDistance.hpp.
+.SS "void ReuseDistance::GetActiveAddresses (std::vector< uint64_t > & addrs)\fC [virtual]\fP"Get a std::vector containing all of the addresses currently in this \fBReuseDistance\fP object's active window.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIaddrs\fP A std::vector which will contain the addresses. It is an error to pass this vector non-empty (that is addrs.size() == 0 is enforced at runtime).
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.PP
+Reimplemented in \fBSpatialLocality\fP.
+.PP
+Definition at line 90 of file ReuseDistance.cpp.
+.SS "void ReuseDistance::GetIndices (std::vector< uint64_t > & ids)"Get a std::vector containing all of the unique indices processed by this \fBReuseDistance\fP object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIids\fP A std::vector which will contain the ids. It is an error to pass this vector non-empty (that is addrs.size() == 0 is enforced at runtime).
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.PP
+Definition at line 82 of file ReuseDistance.cpp.
+.SS "\fBReuseStats\fP * ReuseDistance::GetStats (uint64_t id)"Get the \fBReuseStats\fP object associated with some unique id.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIid\fP The unique id.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+The \fBReuseStats\fP object associated with parameter id, or NULL if no \fBReuseStats\fP is associate with id. 
+.RE
+.PP
+
+.PP
+Definition at line 300 of file ReuseDistance.cpp.
+.SS "\fBReuseStats\fP * ReuseDistance::GetStats (uint64_t id, bool gen)\fC [protected, virtual]\fP"
+.PP
+Definition at line 259 of file ReuseDistance.cpp.
+.SS "void ReuseDistance::Init (uint64_t w, uint64_t b)\fC [protected]\fP"
+.PP
+Definition at line 40 of file ReuseDistance.cpp.
+.SS "void ReuseDistance::Print (bool annotate = \fCfalse\fP)\fC [virtual]\fP"Print statistics for this \fBReuseDistance\fP to std::cout. See the other version of \fBReuseDistance::Print\fP for information about output format.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIannotate\fP Also print annotations describing the meaning of output fields, preceded by a '#'.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.PP
+Definition at line 100 of file ReuseDistance.cpp.
+.SS "virtual void ReuseDistance::Print (std::ostream & f, bool annotate = \fCfalse\fP)\fC [virtual]\fP"Print statistics for this \fBReuseDistance\fP to an output stream. The first line of the output is 7 tokens: [1] a string identifier for the class (REUSESTATS or SPATIALSTATS), [2] the capacity or window size (0 == unlimited), [3] the maximum individual value being tracked, above which values are tracked by bins whose boundaries are powers of 2, [4] the maximum value to track, above which any value is considered a miss. For \fBReuseDistance\fP, this is equal to the capacity, for subclasses this can be different. [6] the number of ids that will be printed, [6] the total number of accesses made (the number of \fBReuseEntry\fP elements that were Process'ed) and [7] the number of accesses that cold-misses or were outside the window range. The stats for individual ids are printed on subsequent lines. The printing of each id begins with a line which is comprised of 4 tokens: [1] a string identifier (REUSEID or SPATIALID), [2] the id, [3] the number of accesses to that id and [4] the number of accesses for that id that were cold-misses or were outside the window range. Each subsequent line contains information about a single bin for that id. These lines have 3 tokens: [1] and [2] the lower and upper boundaries (both inclusive) of the bin and [3] the number of accesses falling into that bin. See also \fBReuseDistance::PrintFormat\fP
+.PP
+\fBParameters:\fP
+.RS 4
+\fIf\fP The output stream to print results to. 
+.br
+\fIannotate\fP Also print annotations describing the meaning of output fields, preceded by a '#'.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.SS "void ReuseDistance::PrintFormat (std::ostream & f)"Print information about the output format of \fBReuseDistance\fP or one of its subclasses
+.PP
+\fBParameters:\fP
+.RS 4
+\fIf\fP The stream to receive the output.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.SS "void ReuseDistance::Process (std::vector< \fBReuseEntry\fP * > addrs)"Process multiple memory addresses. Equivalent to calling Process on each element of the input vector.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIaddrs\fP A std::vector of memory addresses to process.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.SS "void ReuseDistance::Process (std::vector< \fBReuseEntry\fP > rs)"Process multiple memory addresses. Equivalent to calling Process on each element of the input vector.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIaddrs\fP A std::vector of memory addresses to process.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.SS "void ReuseDistance::Process (\fBReuseEntry\fP * addrs, uint64_t count)"Process multiple memory addresses. Equivalent to calling Process on each element of the input array.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIaddrs\fP An array of structures describing memory addresses to process. 
+.br
+\fIcount\fP The number of elements in addrs.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.PP
+Definition at line 104 of file ReuseDistance.cpp.
+.SS "void ReuseDistance::Process (\fBReuseEntry\fP & addr)\fC [virtual]\fP"Process a single memory address.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIaddr\fP The structure describing the memory address to process.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.PP
+Reimplemented in \fBSpatialLocality\fP.
+.PP
+Definition at line 138 of file ReuseDistance.cpp.
+.SS "void ReuseDistance::SkipAddresses (uint64_t amount)\fC [virtual]\fP"Pretend that some number of addresses in the stream were skipped. Useful for intervel-based sampling. This has the effect of flushing the entire window.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIamount\fP The number of addresses to skip.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.PP
+Reimplemented in \fBSpatialLocality\fP.
+.PP
+Definition at line 124 of file ReuseDistance.cpp.
+.SH "Member Data Documentation"
+.PP 
+.SS "uint64_t \fBReuseDistance::binindividual\fP\fC [protected]\fP"
+.PP
+Definition at line 103 of file ReuseDistance.hpp.
+.SS "uint64_t \fBReuseDistance::capacity\fP\fC [protected]\fP"
+.PP
+Definition at line 101 of file ReuseDistance.hpp.
+.SS "const uint64_t \fBReuseDistance::DefaultBinIndividual\fP = 32\fC [static]\fP"
+.PP
+Definition at line 112 of file ReuseDistance.hpp.
+.SS "const uint64_t \fBReuseDistance::Infinity\fP = INFINITY_REUSE\fC [static]\fP"
+.PP
+Definition at line 113 of file ReuseDistance.hpp.
+.SS "uint64_t \fBReuseDistance::maxtracking\fP\fC [protected]\fP"
+.PP
+Definition at line 104 of file ReuseDistance.hpp.
+.SS "uint64_t \fBReuseDistance::sequence\fP\fC [protected]\fP"
+.PP
+Definition at line 102 of file ReuseDistance.hpp.
+.SS "reuse_map_type<uint64_t, \fBReuseStats\fP*> \fBReuseDistance::stats\fP\fC [protected]\fP"
+.PP
+Definition at line 99 of file ReuseDistance.hpp.
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for ReuseDistance from the source code.

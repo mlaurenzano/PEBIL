@@ -1,0 +1,126 @@
+.TH "/home/michaell/software/ReuseDistance/ReuseDistance.hpp" 3 "21 Oct 2012" "Version 0.01" "ReuseDistance" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+/home/michaell/software/ReuseDistance/ReuseDistance.hpp \- 
+.SH SYNOPSIS
+.br
+.PP
+\fC#include <assert.h>\fP
+.br
+\fC#include <stdlib.h>\fP
+.br
+\fC#include <tree234.h>\fP
+.br
+\fC#include <algorithm>\fP
+.br
+\fC#include <iostream>\fP
+.br
+\fC#include <ostream>\fP
+.br
+\fC#include <list>\fP
+.br
+\fC#include <map>\fP
+.br
+\fC#include <vector>\fP
+.br
+
+.SS "Classes"
+
+.in +1c
+.ti -1c
+.RI "struct \fBReuseEntry\fP"
+.br
+.ti -1c
+.RI "class \fBReuseDistance\fP"
+.br
+.ti -1c
+.RI "class \fBReuseStats\fP"
+.br
+.ti -1c
+.RI "class \fBSpatialLocality\fP"
+.br
+.in -1c
+.SS "Defines"
+
+.in +1c
+.ti -1c
+.RI "#define \fBreuse_map_type\fP   std::map"
+.br
+.ti -1c
+.RI "#define \fBTAB\fP   '\\t'"
+.br
+.ti -1c
+.RI "#define \fBENDL\fP   '\\n'"
+.br
+.ti -1c
+.RI "#define \fB__seq\fP   id"
+.br
+.ti -1c
+.RI "#define \fBINFINITY_REUSE\fP   (0)"
+.br
+.ti -1c
+.RI "#define \fBINVALID_SPATIAL\fP   (0xFFFFFFFFFFFFFFFFL)"
+.br
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBreusecmp\fP (void *va, void *vb)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+\fBAuthor:\fP
+.RS 4
+Michael Laurenzano <michaell@sdsc.edu> 
+.RE
+.PP
+\fBVersion:\fP
+.RS 4
+0.01
+.RE
+.PP
+.SH "LICENSE"
+.PP
+This file is part of the \fBReuseDistance\fP tool.
+.PP
+Copyright (c) 2012, University of California Regents All rights reserved.
+.PP
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+.PP
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
+.SH "DESCRIPTION"
+.PP
+The ReuseDistanceHandler class allows for calculation and statistic tracking for finding memory reuse distances given a stream of memory addresses and ids. 
+.PP
+Definition in file \fBReuseDistance.hpp\fP.
+.SH "Define Documentation"
+.PP 
+.SS "#define __seq   id"
+.PP
+Definition at line 54 of file ReuseDistance.hpp.
+.SS "#define ENDL   '\\n'"
+.PP
+Definition at line 52 of file ReuseDistance.hpp.
+.SS "#define INFINITY_REUSE   (0)"
+.PP
+Definition at line 57 of file ReuseDistance.hpp.
+.SS "#define INVALID_SPATIAL   (0xFFFFFFFFFFFFFFFFL)"
+.PP
+Definition at line 58 of file ReuseDistance.hpp.
+.SS "#define reuse_map_type   std::map"
+.PP
+Definition at line 48 of file ReuseDistance.hpp.
+.SS "#define TAB   '\\t'"
+.PP
+Definition at line 51 of file ReuseDistance.hpp.
+.SH "Function Documentation"
+.PP 
+.SS "int reusecmp (void * va, void * vb)"
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for ReuseDistance from the source code.

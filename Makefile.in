@@ -1,7 +1,7 @@
 ## change the following variables to fit your system:
 DOXYGEN = doxygen
 
-SUBDIRS = external/udis86-1.7 instcode testapps src tools
+SUBDIRS = external/udis86-1.7 external/ReuseDistance instcode testapps src tools
 BLACKLIST = scripts/inputlist/autogen-system.func
 
 include VERSION
@@ -13,7 +13,7 @@ DISTDIR = PEBIL-$(PEBIL_FULL_VER)
 PREREQ = .CLEAN .DEPEND
 
 # specify some explicit dependencies to order operations
-tools: src external/udis86-1.7
+tools: src external/udis86-1.7 external/ReuseDistance
 install: instcode tools blacklist
 check: install
 
@@ -30,6 +30,7 @@ endif
 
 clean:
 	$(MAKE) -C external/udis86-1.7 clean
+	$(MAKE) -C external/ReuseDistance clean
 	$(MAKE) -C src clean
 	$(MAKE) -C testapps clean
 	$(MAKE) -C instcode clean

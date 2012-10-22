@@ -60,6 +60,9 @@ typedef struct {
 
 class StreamStats;
 class MemoryStreamHandler;
+//MITESH EDITS:  additions for Reuse distance 
+class ReuseDistance;
+
 typedef struct {
     // memory buffer
     BufferEntry* Buffer;
@@ -91,6 +94,8 @@ typedef struct {
     uint64_t* Addresses;
     StreamStats** Stats;
     MemoryStreamHandler** Handlers;
+    //MITESH EDITS:  additions for Reuse distance 
+    ReuseDistance** RHandlers;
 } SimulationStats;
 #define BUFFER_ENTRY(__stats, __n) (&(__stats->Buffer[__n]))
 #define BUFFER_CAPACITY(__stats) (__stats->Buffer[0].__buf_capacity)

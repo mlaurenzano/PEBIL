@@ -18,9 +18,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// TODO: test per-insn
 #include <InstrumentationCommon.hpp>
 #include <Simulation.hpp>
+#include <ReuseDistance.hpp>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,6 +64,8 @@ static set<uint64_t>* NonmaxKeys = NULL;
 
 // should not be used directly. kept here to be cloned by anyone who needs it
 static MemoryStreamHandler** MemoryHandlers = NULL;
+
+static ReuseDistance** ReuseDistanceHandlers = NULL;
 
 
 #define synchronize(__locker) __locker->Lock(); for (bool __s = true; __s == true; __locker->UnLock(), __s = false) 
@@ -203,7 +205,7 @@ extern "C" {
         return NULL;
     }
 
-    void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, uint32_t numElements, image_key_t iid, thread_key_t tid){
+    void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, ReuseDistance* rd, uint32_t numElements, image_key_t iid, thread_key_t tid){
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
 
@@ -215,6 +217,8 @@ extern "C" {
 
             SimulationStats* stats = faststats[bufcur];
             StreamStats* ss = stats->Stats[HandlerIdx];
+
+
             BufferEntry* reference = BUFFER_ENTRY(stats, bufcur + 1);
 
             if (reference->imageid == 0){
@@ -223,6 +227,12 @@ extern "C" {
             }
 
             m->Process((void*)ss, reference);
+
+	    ReuseEntry entry = ReuseEntry();
+	    entry.id = stats->Hashes[stats->BlockIds[reference->memseq]]; // This is to track by BBID 
+	    entry.address=reference->address ;
+	    rd->Process(entry);
+
             numProcessed++;
         }
     }
@@ -278,7 +288,8 @@ extern "C" {
             FastStats->Refresh(buffer, numElements, tid);
             for (uint32_t i = 0; i < CountMemoryHandlers; i++){
                 MemoryStreamHandler* m = stats->Handlers[i];
-                ProcessBuffer(i, m, numElements, iid, tid);
+                ReuseDistance* rd = stats->RHandlers[0];
+                ProcessBuffer(i, m, rd, numElements, iid, tid);
             }
         } 
 
@@ -361,8 +372,8 @@ extern "C" {
 
                 // reuse distance handler needs to know that we passed over some addresses
                 if (ReuseWindow){
-                    ReuseDistanceHandler* r = (ReuseDistanceHandler*)stats->Handlers[ReuseHandlerIndex];
-                    r->AddSequence(numElements);
+                    ReuseDistance* r = stats->RHandlers[0];
+                    r->SkipAddresses(numElements);
                 }
             }
 
@@ -426,41 +437,20 @@ extern "C" {
 
 
         if (ReuseWindow){
+            ofstream ReuseDistFile;
+            const char* fileName = ReuseDistFileName(stats);
+            inform << "Printing reuse distance results to " << fileName << ENDL;
+            TryOpen(ReuseDistFile, fileName);
+
             for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
                 for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
                     SimulationStats* s = (SimulationStats*)AllData->GetData((*iit), (*it));
-                    ReuseStats* r = (ReuseStats*)s->Stats[ReuseHandlerIndex];
-                    assert(r);
-
-                    vector<int32_t> dkeys;
-                    for (pebil_map_type<int32_t, uint64_t>::iterator dit = r->DistanceCounts.begin(); dit != r->DistanceCounts.end(); dit++){
-                        int32_t dist = (*dit).first;
-                        if (dist != INVALID_REUSE_DISTANCE){
-                            dkeys.push_back(dist);
-                        }
-                    }
-                    sort(dkeys.begin(), dkeys.end());
-
+		    ReuseDistance* rd = s->RHandlers[0];
+		    assert(rd);
+		  
                     inform << "Reuse distance bins for " << hex << s->Application << " Thread " << AllData->GetThreadSequence((*it)) << ENDL;
-
-                    uint64_t currenttot = 0;
-                    int32_t prevbin = 0;
-                    for (vector<int32_t>::iterator dit = dkeys.begin(); dit != dkeys.end(); dit++){
-                        int32_t dist = (*dit);
-                        uint64_t count = r->DistanceCounts[dist];
-
-                        currenttot += count;
-
-                        if (dist <= ReuseIndivPrint || (int32_t)((double)prevbin * ReusePrintScale) <= dist || IsPower2(dist) || dist == dkeys.back() || prevbin == 0){
-                            inform << TAB << dec << "(" << prevbin << "," << dist << "]" << TAB << currenttot << ENDL;
-
-                            currenttot = 0;
-                            prevbin = dist;
-                        }
-                    }
-
-                    dkeys.clear();
-                    inform << TAB << dec << ReuseWindow << "+" << TAB << r->DistanceCounts[INVALID_REUSE_DISTANCE] << ENDL;
+  		    rd->Print();
+  		    rd->Print(ReuseDistFile);
                 }
             }
         }
@@ -880,6 +870,21 @@ const char* SimulationFileName(SimulationStats* stats){
     return oFile.c_str();
 }
 
+
+const char* ReuseDistFileName(SimulationStats* stats){
+    string oFile;
+
+    oFile.append(stats->Application);
+    oFile.append(".r");
+    AppendRankString(oFile);
+    oFile.append(".t");
+    AppendTasksString(oFile);
+    oFile.append(".dist");
+    //oFile.append(stats->Extension);
+
+    return oFile.c_str();
+}
+
 const char* RangeFileName(SimulationStats* stats){
     string oFile;
 
@@ -977,80 +982,6 @@ string GetCacheDescriptionFile(){
         return str;
     }
     return knobvalue;
-}
-
-ReuseDistanceHandler::ReuseDistanceHandler(uint32_t clean){
-    cleanup = clean;
-    if (cleanup < ReuseCleanupMin){
-        cleanup = ReuseCleanupMin;
-    }
-    lastcleanup = 0;
-    sequence = 0;
-}
-
-ReuseDistanceHandler::ReuseDistanceHandler(ReuseDistanceHandler& h){
-    cleanup = h.cleanup;
-    if (cleanup < ReuseCleanupMin){
-        cleanup = ReuseCleanupMin;
-    }
-    lastcleanup = 0;
-    sequence = 0;
-}
-
-void ReuseDistanceHandler::Print(ofstream& f){
-    f << "Reuse Distance Handler" << ENDL;
-}
-
-void ReuseDistanceHandler::Clean(){
-    if (sequence - lastcleanup < cleanup){
-        return;
-    }
-
-    set<uint64_t> erase;
-    for (pebil_map_type<uint64_t, uint64_t>::iterator it = window.begin(); it != window.end(); it++){
-        uint64_t addr = (*it).first;
-        uint64_t seq = (*it).second;
-
-        if (sequence - seq >= cleanup){
-            erase.insert(addr);
-        }
-    }
-
-    //inform << "cleaning up reuse: " << dec << erase.size() << TAB <<sequence << TAB << lastcleanup << TAB << cleanup << ENDL;
-    for (set<uint64_t>::iterator it = erase.begin(); it != erase.end(); it++){
-        window.erase((*it));
-    }
-
-    lastcleanup = sequence;
-}
-
-void ReuseDistanceHandler::Process(void* stats, BufferEntry* access){
-    uint64_t addr = access->address;
-    ReuseStats* r = (ReuseStats*)stats;
-
-    Clean();
-
-    if (window.count(addr) == 0){
-        r->Update(INVALID_REUSE_DISTANCE);
-    } else {
-        assert(window.count(addr) == 1);
-        uint64_t d = sequence - window[addr];
-        if (d >= ReuseWindow){
-            r->Update(INVALID_REUSE_DISTANCE);            
-        } else {
-            r->Update(d);
-        }
-    }
-
-    window[addr] = sequence++;
-}
-
-void ReuseStats::Update(uint64_t dist){
-    assert(dist == INVALID_REUSE_DISTANCE || dist < ReuseWindow);
-    if (DistanceCounts.count(dist) == 0){
-        DistanceCounts[dist] = 0;
-    }
-    DistanceCounts[dist] = DistanceCounts[dist] + 1;
 }
 
 RangeStats::RangeStats(uint32_t capacity){
@@ -1936,9 +1867,6 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
         stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->InstructionCount);
     }
     stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
-    if (ReuseWindow){
-        stats->Stats[ReuseHandlerIndex] = new ReuseStats();
-    }
 
     // all images within a thread share a set of memory handlers, but they don't exist for any image
     if (typ == AllData->ThreadType || (iid == firstimage)){
@@ -1954,9 +1882,8 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
         stats->Handlers[RangeHandlerIndex] = r;
 
         if (ReuseWindow){
-            ReuseDistanceHandler* d = (ReuseDistanceHandler*)MemoryHandlers[ReuseHandlerIndex];
-            ReuseDistanceHandler* h = new ReuseDistanceHandler(*d);
-            stats->Handlers[ReuseHandlerIndex] = h;
+	    stats->RHandlers = new ReuseDistance*[0]; // We have one reuse handler per thread
+	    stats->RHandlers[0] = new ReuseDistance(ReuseWindow);
         }
     } else {
         SimulationStats * fs = AllData->GetData(firstimage, tid);
@@ -2031,8 +1958,7 @@ void ReadSettings(){
     CountMemoryHandlers++;
 
     if (ReuseWindow){
-        ReuseHandlerIndex = CountMemoryHandlers;
-        CountMemoryHandlers++;
+        ReuseHandlerIndex = 0;
     }
 
     assert(CountCacheStructures > 0 && "No cache structures found for simulation");
@@ -2043,7 +1969,8 @@ void ReadSettings(){
     }
     MemoryHandlers[RangeHandlerIndex] = new AddressRangeHandler();
     if (ReuseWindow){
-        MemoryHandlers[ReuseHandlerIndex] = new ReuseDistanceHandler(ReuseWindow);
+    	ReuseDistanceHandlers = new ReuseDistance*[0];
+	ReuseDistanceHandlers[0] = new ReuseDistance(ReuseWindow);      
     }
 
     uint32_t SampleMax;

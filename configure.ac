@@ -101,6 +101,7 @@ AC_CONFIG_FILES([Makefile
                  cshrc
                  bashrc])
 AC_CONFIG_SUBDIRS([external/udis86-1.7])
+AC_CONFIG_SUBDIRS([external/ReuseDistance])
 AC_OUTPUT
 chmod +x scripts/blacklist.sh
 

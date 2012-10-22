@@ -17,8 +17,8 @@ EXTRA_FLAGS = $(SHARED_OPT)
 SHARED_LIB  = -shared -ldl
 AR          = ar rcs
 
-EXTRA_LIBS  =
-EXTRA_INC   = -I../instcode
+EXTRA_LIBS  = -L../external/ReuseDistance -lReuseDistance
+EXTRA_INC   = -I../instcode -I../external/ReuseDistance
 
 LIBDIR      = ../lib
 BINDIR      = ../bin

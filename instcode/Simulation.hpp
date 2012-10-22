@@ -91,6 +91,7 @@ static void DeleteCacheStats(SimulationStats* stats);
 static bool ReadEnvUint32(string name, uint32_t* var);
 static void PrintSimulationStats(ofstream& f, SimulationStats* stats, thread_key_t tid, bool perThread);
 static const char* SimulationFileName(SimulationStats* stats);
+static const char* ReuseDistFileName(SimulationStats* stats);
 static const char* LegacySimulationFileName(SimulationStats* stats);
 static const char* RangeFileName(SimulationStats* stats);
 static const char* LegacyRangeFileName(SimulationStats* stats);
@@ -163,15 +164,6 @@ public:
 };
 
 #define INVALID_REUSE_DISTANCE (-1)
-class ReuseStats : public StreamStats {
-public:
-    pebil_map_type<int32_t, uint64_t> DistanceCounts;
-
-    ReuseStats() {}
-    ~ReuseStats() {}
-
-    void Update(uint64_t dist);
-};
 
 class SamplingMethod {
 public:
@@ -313,7 +305,6 @@ typedef enum {
     StreamHandlerType_undefined = 0,
     StreamHandlerType_CacheStructure,
     StreamHandlerType_AddressRange,
-    StreamHandlerType_ReuseDistance,
     StreamHandlerType_Total
 } StreamHandlerTypes;
 
@@ -344,26 +335,6 @@ public:
     void Print(ofstream& f);
     void Process(void* stats, BufferEntry* access);
     bool Verify() { return true; }
-};
-
-class ReuseDistanceHandler : public MemoryStreamHandler {
-private:
-    pebil_map_type<uint64_t, uint64_t> window;
-    void Clean();
-    uint64_t sequence;
-    uint64_t lastcleanup;
-
-public:
-    uint64_t cleanup;
-
-    ReuseDistanceHandler(uint32_t clean);
-    ReuseDistanceHandler(ReuseDistanceHandler& h);
-    ~ReuseDistanceHandler() {}
-
-    void Print(ofstream& f);
-    void Process(void* stats, BufferEntry* access);
-    bool Verify() { return true; }
-    void AddSequence(uint64_t count) { sequence += count; }
 };
 
 class CacheStructureHandler : public MemoryStreamHandler {
