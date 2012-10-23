@@ -225,6 +225,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
 
     uint32_t trampolineSize = 0;
 
+#ifdef PROTECT_RAW_SNIPPETS
     FlagsProtectionMethods protectionMethod = getFlagsProtectionMethod();
 
     bool stackIsSafe = true;
@@ -281,6 +282,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
         trampolineInstructions.append(X86InstructionFactory64::emitLoadAHFromFlags());
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
+#endif // PROTECT_RAW_SNIPPETS
 
     while (hasMorePrecursorInstructions()){
         trampolineInstructions.append(removeNextPrecursorInstruction());
@@ -310,6 +312,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
 
+#ifdef PROTECT_RAW_SNIPPETS
     // restore eflags
     if (protectionMethod == FlagsProtectionMethod_full){
         trampolineInstructions.append(X86InstructionFactory::emitPopEflags());
@@ -335,6 +338,7 @@ uint32_t InstrumentationPoint64::generateTrampoline(Vector<X86Instruction*>* ins
         trampolineInstructions.append(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
         trampolineSize += trampolineInstructions.back()->getSizeInBytes();
     }
+#endif // PROTECT_RAW_SNIPPETS
 
     uint64_t displacementDist = returnOffset - (offset + trampolineSize + numberOfBytes);
 
@@ -1126,6 +1130,7 @@ void InstrumentationPoint64::insertStateProtection(){
     if (instrumentationMode == InstrumentationMode_inline){
         ASSERT(instrumentation->getType() == PebilClassType_InstrumentationSnippet);
 
+#ifdef PROTECT_RAW_SNIPPETS
         FlagsProtectionMethods protectionMethod = getFlagsProtectionMethod();
         BitSet<uint32_t>* protectedRegs = getProtectedRegisters();
 
@@ -1177,6 +1182,7 @@ void InstrumentationPoint64::insertStateProtection(){
             instrumentation->prependCoreInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, -1*Size__trampoline_autoinc, X86_REG_SP));
             instrumentation->appendCoreInstruction(X86InstructionFactory64::emitLoadRegImmReg(X86_REG_SP, Size__trampoline_autoinc, X86_REG_SP));
         }
+#endif // PROTECT_RAW_SNIPPETS
 
         // count the number of bytes the tool wants
         if (instrumentation->getType() == PebilClassType_InstrumentationSnippet){
