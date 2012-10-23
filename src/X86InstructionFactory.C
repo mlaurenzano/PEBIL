@@ -20,7 +20,66 @@
 
 #include <Base.h>
 
+#include <BinaryFile.h>
+#include <FileHeader.h>
 #include <X86InstructionFactory.h>
+
+X86Instruction* X86InstructionFactory::assemble(const char* buf, bool is64){
+    char* name = NULL;
+    char ascmd[__MAX_STRING_SIZE];
+    FILE* o = GetTempFile(&name);
+    fclose(o);
+
+    ASSERT(name);
+
+    // build an assembler command to run
+    sprintf(ascmd, "/usr/bin/as --%d -o %s -- << EOF\n%s\nEOF\n", (is64? 64:32), name, buf);
+    //PRINT_INFOR("%s", ascmd);
+
+    // run disassembly command
+    if (system(ascmd)){
+        PRINT_ERROR("Assembler command failed attempting to disassemble the following: %s", buf);
+    }
+
+    // read disassembled results into a file
+    BinaryInputFile* b = new BinaryInputFile();
+    b->readFileInMemory(name, false);
+
+    // get to the instruction bytes
+    FileHeader* f;
+    if (is64){
+        f = new FileHeader64();
+    } else {
+        f = new FileHeader32();
+    }
+    ASSERT(f);
+
+    f->read(b);
+    uint64_t toffset = f->GetTextEntryOffset();
+
+    // create X86Instructions from assembled machine code
+    b->setInBufferPointer(toffset);
+    X86Instruction* x = X86Instruction::disassemble(b->moreBytes());
+    if (x == NULL){
+        PRINT_ERROR("Error disassembling bytes for assembled instruction: %s", buf);
+    }
+
+    delete b;
+    delete f;
+
+    unlink(name);
+    delete[] name;
+
+    return x;
+}
+
+X86Instruction* X86InstructionFactory32::assemble(const char* buf){
+    return X86InstructionFactory::assemble(buf, false);
+}
+
+X86Instruction* X86InstructionFactory64::assemble(const char* buf){
+    return X86InstructionFactory::assemble(buf, true);    
+}
 
 X86Instruction* X86InstructionFactory64::emitExchangeAdd(uint8_t src, uint8_t dest, bool lock){
     ASSERT(src < X86_64BIT_GPRS);

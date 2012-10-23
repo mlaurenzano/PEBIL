@@ -47,6 +47,11 @@ const char* EMachNames[] = { "NONE", "M32", "SPARC", "386", "68K",              
 const char* EKlazNames[] = { "NONE","32-Bit","64-Bit" };
 const char* EDataNames[] = { "NONE","LeastSB","MostSB" };
 
+uint64_t FileHeader::GetTextEntryOffset(){
+    uint64_t offset = GET(e_ehsize);
+    return offset;
+}
+
 const char* FileHeader::getTypeName(){
     return ETypeNames[GET(e_type)];
 }
@@ -116,7 +121,7 @@ bool FileHeader::verify(){
             PRINT_ERROR("File header size is wrong: %d != %d", GET(e_ehsize), Size__64_bit_File_Header);
             return false;
         }
-        if (GET(e_phentsize) != Size__64_bit_Program_Header){
+        if (GET(e_phentsize) && GET(e_phentsize) != Size__64_bit_Program_Header){
             PRINT_ERROR("Program header size is wrong: %d != %d", GET(e_phentsize), Size__64_bit_Program_Header);
             return false;           
         }
@@ -134,7 +139,7 @@ bool FileHeader::verify(){
             PRINT_ERROR("File header size is wrong");
             return false;
         }
-        if (GET(e_phentsize) != Size__32_bit_Program_Header){
+        if (GET(e_phentsize) && GET(e_phentsize) != Size__32_bit_Program_Header){
             PRINT_ERROR("Program header size is wrong; %d != %d", GET(e_phentsize), Size__32_bit_Program_Header);
             return false;           
         }

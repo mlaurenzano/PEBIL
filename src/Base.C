@@ -27,6 +27,21 @@
 FILE* pebilOutp = stdout;
 uint64_t warnCount = 0;
 
+FILE* GetTempFile(char** sfn){
+    FILE *sfp;
+    int fd = -1;
+
+    ASSERT(*sfn == NULL);
+    *sfn = new char[__MAX_STRING_SIZE];
+    strncpy(*sfn, "/tmp/tmp.XXXXXX\0", __MAX_STRING_SIZE);
+    if ((fd = mkstemp(*sfn)) == -1 ||
+        (sfp = fdopen(fd, "rw+")) == NULL) {
+        PRINT_ERROR("%s: %s", sfn, strerror(errno));
+        return (NULL);
+    }
+    return (sfp);
+}
+
 void FileList::appendLine(Vector<char*>* v){
     fileTokens.append(v);
 }

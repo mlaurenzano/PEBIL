@@ -434,6 +434,9 @@ private:
     uint32_t countValidNonimm();
 
 public:
+
+    static X86Instruction* disassemble(char* buff);
+
     void setDefXIter() { defXIter = true; }
     bool hasDefXIter() { return defXIter; }
 

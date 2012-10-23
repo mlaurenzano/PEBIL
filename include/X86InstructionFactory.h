@@ -31,6 +31,9 @@ protected:
     static X86Instruction* emitBranchGeneric(uint64_t off, uint8_t code);
 
 public:
+
+    static X86Instruction* assemble(const char* buf, bool is64);
+
     static X86Instruction* emitNop();
     static X86Instruction* emitNop(uint32_t len);
     static Vector<X86Instruction*>* emitNopSeries(uint32_t len);
@@ -84,6 +87,8 @@ private:
     static X86Instruction* emitRegAddImm4Byte(uint8_t idx, uint32_t imm);
 
 public:
+    static X86Instruction* assemble(const char* buf);
+
     static X86Instruction* emitExchangeAdd(uint8_t src, uint8_t dest, bool lock);
 
     static X86Instruction* emitFxSave(uint64_t addr);
@@ -147,6 +152,8 @@ private:
     static X86Instruction* emitInstructionBase(uint32_t sz, char* buf) __attribute__ ((noinline));
 
 public:
+    static X86Instruction* assemble(const char* buf);
+
     static X86Instruction* emitFxSave(uint64_t addr);
     static X86Instruction* emitFxRstor(uint64_t addr);
 

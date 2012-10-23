@@ -17,7 +17,6 @@ extern const char* ud_reg_tab[];
 static inline void mkasm(struct ud* u, const char* fmt, ...)
 {
     // PEBIL doesn't use this, so just return.
-    return;
     va_list ap;
     va_start(ap, fmt);
     u->insn_fill += vsprintf((char*) u->insn_buffer + u->insn_fill, fmt, ap);

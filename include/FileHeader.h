@@ -32,6 +32,8 @@ public:
     FileHeader() : Base(PebilClassType_FileHeader){}
     bool verify();
 
+    uint64_t GetTextEntryOffset();
+
     virtual ~FileHeader() {}
     FILEHEADER_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 

@@ -1529,7 +1529,7 @@ static int gen_hex( struct ud *u )
     /* for each byte used to decode instruction */
     for ( i = 0; i < u->inp_ctr; ++i, ++src_ptr) {
         // PEBIL doesn't use this field and this is an expensive op, so skip it
-        //sprintf( src_hex, "%02x", *src_ptr & 0xFF );
+        sprintf( src_hex, "%02x", *src_ptr & 0xFF );
         src_hex += 2;
         u->insn_bytes[i] = (*src_ptr & 0xFF);
     }

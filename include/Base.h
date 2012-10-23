@@ -507,6 +507,8 @@ extern bool regexMatch(char* string, char* reg);
 #define rotateleft(x,n) ((x<<n) | (x>>(32-n)))
 #define rotateright(x,n) ((x>>n) | (x<<(32-n)))
 
+extern FILE* GetTempFile(char** sfn);
+
 extern void SHA1(unsigned char * str1);
 
 //sha1 functions                                                                                                                                             

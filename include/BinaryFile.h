@@ -32,7 +32,7 @@ public:
     BinaryInputFile() : inBufferPointer(NULL),inBufferSize(0),inBuffer(NULL) {}
     ~BinaryInputFile();
 
-    void     readFileInMemory(char* f);
+    void     readFileInMemory(char* f, bool inform=true);
 
     char*    copyBytes(void* buff,uint32_t bytes);
     char*    copyBytesIterate(void* buff,uint32_t bytes);

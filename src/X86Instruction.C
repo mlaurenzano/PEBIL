@@ -1747,6 +1747,19 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     verify();
 }
 
+X86Instruction* X86Instruction::disassemble(char* buff){
+    ud_t ud_obj;
+    memcpy(&ud_obj, &ud_blank, sizeof(ud_t));
+    ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
+
+    uint32_t s = ud_disassemble(&ud_obj);
+    if (s) {
+        X86Instruction* x = new X86Instruction(NULL, 0, buff, ByteSource_Instrumentation, 0);
+        return x;
+    }
+    return NULL;
+}
+
 X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx)
     : Base(PebilClassType_X86Instruction)
 {
