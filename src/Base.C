@@ -27,6 +27,18 @@
 FILE* pebilOutp = stdout;
 uint64_t warnCount = 0;
 
+void FileList::appendLine(Vector<char*>* v){
+    fileTokens.append(v);
+}
+
+void FileList::setSeparator(char c){
+    sep = c;
+}
+
+void FileList::setFileName(const char* name){
+    fname = name;
+}
+
 void FileList::init(const char* filename, uint32_t w, char s, char comm){
     ASSERT(filename);
 

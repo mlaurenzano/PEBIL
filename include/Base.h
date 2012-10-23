@@ -400,12 +400,16 @@ protected:
 public:
     FileList(const char* filename, uint32_t width, char sep);
     FileList(const char* filename);
-    FileList() {}
+    FileList() { width = 0; }
     ~FileList();
 
-    bool matches(char* str, uint32_t tok);
+    virtual bool matches(char* str, uint32_t tok);
     char* getToken(uint32_t idx, uint32_t tok);
     void print();
+
+    void appendLine(Vector<char*>*);
+    void setSeparator(char);
+    void setFileName(const char*);
 
     bool verify();
 };

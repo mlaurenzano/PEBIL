@@ -39,6 +39,8 @@
 #define ENTRY_FUNC_CALL "tau_trace_entry"
 #define EXIT_FUNC_CALL "tau_trace_exit"
 
+#define TAU_INST_LOOPS_TOKEN "loops routine"
+
 extern "C" {
     InstrumentationTool* TauFunctionTraceMaker(ElfFile* elf){
         return new TauFunctionTrace(elf);
@@ -46,11 +48,8 @@ extern "C" {
 }
 
 TauFunctionTrace::~TauFunctionTrace(){
-    if (functionList){
-        delete functionList;
-    }
-    if (loopList){
-        delete loopList;
+    if (instrumentList){
+        delete instrumentList;
     }
 }
 
@@ -63,31 +62,22 @@ TauFunctionTrace::TauFunctionTrace(ElfFile* elf)
     functionEntry = NULL;
     functionExit = NULL;
 
-    functionList = NULL;
-    loopList = NULL;
+    instrumentList = NULL;
 }
 
 void TauFunctionTrace::declare(){
     //InstrumentationTool::declare();
 
     if (inputFile){
-        functionList = new FileList(inputFile);
-        functionList->print();
-    }
-
-    if (trackFile){
-        loopList = new TauLoopList(trackFile, "BEGIN_INSTRUMENT_SECTION", "END_INSTRUMENT_SECTION");
-        loopList->print();
+        instrumentList = new TauInstrumentList(inputFile, "BEGIN_INSTRUMENT_SECTION", "END_INSTRUMENT_SECTION", "BEGIN_EXCLUDE_LIST", "END_EXCLUDE_LIST");
     }
 
     // declare any instrumentation functions that will be used
     functionRegister = declareFunction(REGISTER_FUNC);
     ASSERT(functionRegister);
 
-    if (loopList){
-        loopRegister = declareFunction(REGISTER_LOOP);
-        ASSERT(loopRegister);
-    }
+    loopRegister = declareFunction(REGISTER_LOOP);
+    ASSERT(loopRegister);
 
     functionEntry = declareFunction(ENTRY_FUNC_CALL);
     ASSERT(functionEntry);
@@ -149,7 +139,7 @@ void TauFunctionTrace::instrument(){
         for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
             Function* function = getExposedFunction(i);
             uint64_t addr = function->getBaseAddress();
-            if (functionList && functionList->matches(function->getName(), 0)){
+            if (instrumentList && !instrumentList->functionMatches(function->getName())){
                 continue;
             }
             if (!strcmp(function->getName(), "_fini")){
@@ -221,7 +211,7 @@ void TauFunctionTrace::instrument(){
             
                 if (functionSymbol){
 
-                    if (functionList && functionList->matches(functionSymbol->getSymbolName(), 0)){
+                    if (instrumentList && !instrumentList->functionMatches(functionSymbol->getSymbolName())){
                         continue;
                     }
                     ASSERT(x->getSizeInBytes() == Size__uncond_jump);
@@ -307,117 +297,134 @@ void TauFunctionTrace::instrument(){
     }
 
 
+    if (!instrumentList){
+        return;
+    }
+
     // instrument loops
-    if (loopList){
-        std::pebil_map_type<uint64_t, ControlInfo> loops;
-        std::vector<uint64_t> orderedloops;
+    std::pebil_map_type<uint64_t, ControlInfo> loops;
+    std::vector<uint64_t> orderedloops;
 
-        loopRegister->addArgument(nameAddr);
-        loopRegister->addArgument(fileAddr);
-        loopRegister->addArgument(lineAddr);
-        ASSERT(siteReg == loopRegister->addConstantArgument());
+    loopRegister->addArgument(nameAddr);
+    loopRegister->addArgument(fileAddr);
+    loopRegister->addArgument(lineAddr);
+    ASSERT(siteReg == loopRegister->addConstantArgument());
 
-        for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
-            Function* function = getExposedFunction(i);
-            FlowGraph* flowgraph = function->getFlowGraph();
+    for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+        Function* function = getExposedFunction(i);
+        FlowGraph* flowgraph = function->getFlowGraph();
 
-            if (!loopList->matches(function->getName(), 0)){
+        if (!instrumentList->loopMatches(function->getName())){
+            continue;
+        }
+
+        for (uint32_t j = 0; j < flowgraph->getNumberOfLoops(); j++){
+            Loop* loop = flowgraph->getLoop(j);
+            uint32_t depth = flowgraph->getLoopDepth(loop);
+            BasicBlock* head = loop->getHead();
+            uint64_t addr = head->getBaseAddress();
+
+            // only want outer-most (depth == 1) loops
+            if (depth != 1){
                 continue;
             }
 
-            for (uint32_t j = 0; j < flowgraph->getNumberOfLoops(); j++){
-                Loop* loop = flowgraph->getLoop(j);
-                uint32_t depth = flowgraph->getLoopDepth(loop);
-                BasicBlock* head = loop->getHead();
-                uint64_t addr = head->getBaseAddress();
+            BasicBlock** allLoopBlocks = new BasicBlock*[loop->getNumberOfBlocks()];
+            loop->getAllBlocks(allLoopBlocks);
 
-                // only want outer-most (depth == 1) loops
-                if (depth != 1){
-                    continue;
+            // reject any loop that contains an indirect branch since it is difficult to guarantee that we will find all exits
+            bool badLoop = false;
+            for (uint32_t k = 0; k < loop->getNumberOfBlocks() && !badLoop; k++){
+                BasicBlock* bb = allLoopBlocks[k];
+                if (bb->getExitInstruction()->isIndirectBranch()){
+                    badLoop = true;
+                }
+            }
+
+            if (badLoop){
+                PRINT_WARN(20, "Loop at %#lx in %s contains an indirect branch so we can't guarantee that all exits will be found. skipping!", addr, function->getName());
+                delete[] allLoopBlocks;
+                continue;
+            }
+
+            std::string c;
+            c.append(function->getName());
+
+            uint32_t entryc = 0;
+
+            Vector<LoopPoint*>* points = NULL;
+
+            // if addr already exists, it means that two loops share a head and we are going to merge them logically here
+            if (loops.count(addr) == 0){
+
+                ControlInfo f = ControlInfo();
+                f.name = c;
+                f.file = "";
+                f.line = 0;
+                f.index = sequenceId++;
+                f.baseaddr = addr;
+                f.type = ControlType_Loop;
+
+                points = new Vector<LoopPoint*>();
+                f.info = points;
+
+                LineInfo* li = NULL;
+                if (lineInfoFinder){
+                    li = lineInfoFinder->lookupLineInfo(addr);
+                }
+                if (li){
+                    f.file.append(li->getFileName());
+                    f.line = li->GET(lr_line);
                 }
 
-                BasicBlock** allLoopBlocks = new BasicBlock*[loop->getNumberOfBlocks()];
-                loop->getAllBlocks(allLoopBlocks);
+                loops[addr] = f;
+                orderedloops.push_back(addr);
 
-                // reject any loop that contains an indirect branch since it is difficult to guarantee that we will find all exits
-                bool badLoop = false;
-                for (uint32_t k = 0; k < loop->getNumberOfBlocks() && !badLoop; k++){
-                    BasicBlock* bb = allLoopBlocks[k];
-                    if (bb->getExitInstruction()->isIndirectBranch()){
-                        badLoop = true;
-                    }
-                }
+                // find entries into this loop
+                for (uint32_t k = 0; k < head->getNumberOfSources(); k++){
+                    BasicBlock* source = head->getSourceBlock(k);
 
-                if (badLoop){
-                    PRINT_WARN(20, "Loop at %#lx in %s contains an indirect branch so we can't guarantee that all exits will be found. skipping!", addr, function->getName());
-                    delete[] allLoopBlocks;
-                    continue;
-                }
+                    if (!loop->isBlockIn(source->getIndex())){
+                        LoopPoint* lp = new LoopPoint();
+                        points->append(lp);
 
-                std::string c;
-                c.append(function->getName());
+                        lp->flowgraph = flowgraph;
+                        lp->source = source;
+                        lp->target = NULL;
+                        lp->entry = true;
+                        lp->interpose = false;
 
-                uint32_t entryc = 0;
-
-                Vector<LoopPoint*>* points = NULL;
-
-                // if addr already exists, it means that two loops share a head and we are going to merge them logically here
-                if (loops.count(addr) == 0){
-
-                    ControlInfo f = ControlInfo();
-                    f.name = c;
-                    f.file = "";
-                    f.line = 0;
-                    f.index = sequenceId++;
-                    f.baseaddr = addr;
-                    f.type = ControlType_Loop;
-
-                    points = new Vector<LoopPoint*>();
-                    f.info = points;
-
-                    LineInfo* li = NULL;
-                    if (lineInfoFinder){
-                        li = lineInfoFinder->lookupLineInfo(addr);
-                    }
-                    if (li){
-                        f.file.append(li->getFileName());
-                        f.line = li->GET(lr_line);
-                    }
-
-                    loops[addr] = f;
-                    orderedloops.push_back(addr);
-
-                    // find entries into this loop
-                    for (uint32_t k = 0; k < head->getNumberOfSources(); k++){
-                        BasicBlock* source = head->getSourceBlock(k);
-
-                        if (!loop->isBlockIn(source->getIndex())){
-                            LoopPoint* lp = new LoopPoint();
-                            points->append(lp);
-
-                            lp->flowgraph = flowgraph;
-                            lp->source = source;
-                            lp->target = NULL;
-                            lp->entry = true;
-                            lp->interpose = false;
-
-                            if (source->getBaseAddress() + source->getNumberOfBytes() != head->getBaseAddress()){
-                                lp->interpose = true;
-                                lp->target = head;
-                            }
-                            entryc++;
+                        if (source->getBaseAddress() + source->getNumberOfBytes() != head->getBaseAddress()){
+                            lp->interpose = true;
+                            lp->target = head;
                         }
+                        entryc++;
                     }
                 }
+            }
 
-                ControlInfo f = loops[addr];
-                points = f.info;
+            ControlInfo f = loops[addr];
+            points = f.info;
 
-                // find exits from this loop
-                uint32_t exitc = 0;
-                for (uint32_t k = 0; k < loop->getNumberOfBlocks(); k++){
-                    BasicBlock* bb = allLoopBlocks[k];
-                    if (bb->endsWithReturn()){
+            // find exits from this loop
+            uint32_t exitc = 0;
+            for (uint32_t k = 0; k < loop->getNumberOfBlocks(); k++){
+                BasicBlock* bb = allLoopBlocks[k];
+                if (bb->endsWithReturn()){
+                    LoopPoint* lp = new LoopPoint();
+                    points->append(lp);
+
+                    lp->flowgraph = flowgraph;
+                    lp->source = bb;
+                    lp->target = NULL;
+                    lp->entry = false;
+                    lp->interpose = false;
+                    exitc++;
+                }
+
+                for (uint32_t m = 0; m < bb->getNumberOfTargets(); m++){
+                    BasicBlock* target = bb->getTargetBlock(m);
+                    if (!loop->isBlockIn(target->getIndex())){
                         LoopPoint* lp = new LoopPoint();
                         points->append(lp);
 
@@ -426,122 +433,156 @@ void TauFunctionTrace::instrument(){
                         lp->target = NULL;
                         lp->entry = false;
                         lp->interpose = false;
+
+                        if (target->getBaseAddress() != bb->getBaseAddress() + bb->getNumberOfBytes()){
+                            lp->interpose = true;
+                            lp->target = target;
+                        }
                         exitc++;
                     }
-
-                    for (uint32_t m = 0; m < bb->getNumberOfTargets(); m++){
-                        BasicBlock* target = bb->getTargetBlock(m);
-                        if (!loop->isBlockIn(target->getIndex())){
-                            LoopPoint* lp = new LoopPoint();
-                            points->append(lp);
-
-                            lp->flowgraph = flowgraph;
-                            lp->source = bb;
-                            lp->target = NULL;
-                            lp->entry = false;
-                            lp->interpose = false;
-
-                            if (target->getBaseAddress() != bb->getBaseAddress() + bb->getNumberOfBytes()){
-                                lp->interpose = true;
-                                lp->target = target;
-                            }
-                            exitc++;
-                        }
-                    }
                 }
-
-                PRINT_INFOR("[LOOP index=%d] loop instrumentation %#lx(%s) has %d entries and %d exits", sequenceId, addr, function->getName(), entryc, exitc);
-
-                delete[] allLoopBlocks;
             }
+
+            PRINT_INFOR("[LOOP index=%d] loop instrumentation %#lx(%s) has %d entries and %d exits", sequenceId-1, addr, function->getName(), entryc, exitc);
+
+            delete[] allLoopBlocks;
         }
-
-        // go over every loop that was found, insert a registration call at program start
-        // [source_addr -> [target_addr -> interposed]]
-        std::pebil_map_type<uint64_t, std::pebil_map_type<uint64_t, BasicBlock*> > idone;
-        for (std::vector<uint64_t>::iterator it = orderedloops.begin(); it != orderedloops.end(); it++){
-            uint64_t addr = *it;
-            ControlInfo f = loops[addr];
-       
-            ASSERT(f.baseaddr == addr);
-
-            InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), loopRegister, InstrumentationMode_tramp);
-            p->setPriority(InstPriority_custom2);
-
-            const char* cstring = f.name.c_str();
-            uint64_t storage = reserveDataOffset(strlen(cstring) + 1);
-            initializeReservedData(getInstDataAddress() + storage, strlen(cstring), (void*)cstring);
-            assignStoragePrior(p, getInstDataAddress() + storage, getInstDataAddress() + nameAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
-
-            const char* cstring2 = f.file.c_str();
-            if (f.file == ""){
-                assignStoragePrior(p, NULL, getInstDataAddress() + fileAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());            
-            } else {
-                storage = reserveDataOffset(strlen(cstring2) + 1);
-                initializeReservedData(getInstDataAddress() + storage, strlen(cstring2), (void*)cstring2);
-                assignStoragePrior(p, getInstDataAddress() + storage, getInstDataAddress() + fileAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
-            }
-
-            assignStoragePrior(p, f.line, getInstDataAddress() + lineAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
-            assignStoragePrior(p, f.index, siteReg);
-
-
-            // now add instrumentation for each loop entry/exit
-            Vector<LoopPoint*>* v = (Vector<LoopPoint*>*)f.info;
-            for (uint32_t i = 0; i < v->size(); i++){
-                LoopPoint* lp = (*v)[i];
-                ASSERT(lp->flowgraph && lp->source);
-
-                BasicBlock* bb = lp->source;
-                if (lp->interpose){
-                    ASSERT(lp->target);
-                    if (idone.count(lp->source->getBaseAddress()) == 0){
-                        idone[lp->source->getBaseAddress()] = std::pebil_map_type<uint64_t, BasicBlock*>();
-                    }
-                    if (idone[lp->source->getBaseAddress()].count(lp->target->getBaseAddress()) == 0){
-                        idone[lp->source->getBaseAddress()][lp->target->getBaseAddress()] = initInterposeBlock(lp->flowgraph, lp->source->getIndex(), lp->target->getIndex());
-                    }
-
-                    bb = idone[lp->source->getBaseAddress()][lp->target->getBaseAddress()];
-
-                } else {
-                    ASSERT(lp->target == NULL);
-                }
-
-                Base* pt = (Base*)bb;
-                InstLocations loc = InstLocation_prior;
-
-                // if exit block falls through, we must place the instrumentation point at the very end of the block
-                if (!lp->entry && !lp->interpose){
-                    pt = (Base*)bb->getExitInstruction();
-                    if (!bb->getExitInstruction()->isReturn()){
-                        loc = InstLocation_after;
-                    }
-                }
-
-                InstrumentationFunction* inf = functionExit;
-                if (lp->entry){
-                    inf = functionEntry;
-                }
-
-                InstrumentationPoint* p = addInstrumentationPoint(pt, inf, InstrumentationMode_tramp, loc);
-                p->setPriority(InstPriority_custom4);
-                assignStoragePrior(p, f.index, site);
-
-                delete lp;
-            }
-            delete v;
-        }
-
     }
+
+    // go over every loop that was found, insert a registration call at program start
+    // [source_addr -> [target_addr -> interposed]]
+    std::pebil_map_type<uint64_t, std::pebil_map_type<uint64_t, BasicBlock*> > idone;
+    for (std::vector<uint64_t>::iterator it = orderedloops.begin(); it != orderedloops.end(); it++){
+        uint64_t addr = *it;
+        ControlInfo f = loops[addr];
+       
+        ASSERT(f.baseaddr == addr);
+
+        InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), loopRegister, InstrumentationMode_tramp);
+        p->setPriority(InstPriority_custom2);
+
+        const char* cstring = f.name.c_str();
+        uint64_t storage = reserveDataOffset(strlen(cstring) + 1);
+        initializeReservedData(getInstDataAddress() + storage, strlen(cstring), (void*)cstring);
+        assignStoragePrior(p, getInstDataAddress() + storage, getInstDataAddress() + nameAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+
+        const char* cstring2 = f.file.c_str();
+        if (f.file == ""){
+            assignStoragePrior(p, NULL, getInstDataAddress() + fileAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());            
+        } else {
+            storage = reserveDataOffset(strlen(cstring2) + 1);
+            initializeReservedData(getInstDataAddress() + storage, strlen(cstring2), (void*)cstring2);
+            assignStoragePrior(p, getInstDataAddress() + storage, getInstDataAddress() + fileAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+        }
+
+        assignStoragePrior(p, f.line, getInstDataAddress() + lineAddr, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+        assignStoragePrior(p, f.index, siteReg);
+
+        // now add instrumentation for each loop entry/exit
+        Vector<LoopPoint*>* v = (Vector<LoopPoint*>*)f.info;
+        for (uint32_t i = 0; i < v->size(); i++){
+            LoopPoint* lp = (*v)[i];
+            ASSERT(lp->flowgraph && lp->source);
+
+            BasicBlock* bb = lp->source;
+            if (lp->interpose){
+                ASSERT(lp->target);
+                if (idone.count(lp->source->getBaseAddress()) == 0){
+                    idone[lp->source->getBaseAddress()] = std::pebil_map_type<uint64_t, BasicBlock*>();
+                }
+                if (idone[lp->source->getBaseAddress()].count(lp->target->getBaseAddress()) == 0){
+                    idone[lp->source->getBaseAddress()][lp->target->getBaseAddress()] = initInterposeBlock(lp->flowgraph, lp->source->getIndex(), lp->target->getIndex());
+                }
+
+                bb = idone[lp->source->getBaseAddress()][lp->target->getBaseAddress()];
+
+            } else {
+                ASSERT(lp->target == NULL);
+            }
+
+            Base* pt = (Base*)bb;
+            InstLocations loc = InstLocation_prior;
+
+            // if exit block falls through, we must place the instrumentation point at the very end of the block
+            if (!lp->entry && !lp->interpose){
+                pt = (Base*)bb->getExitInstruction();
+                if (!bb->getExitInstruction()->isReturn()){
+                    loc = InstLocation_after;
+                }
+            }
+
+            InstrumentationFunction* inf = functionExit;
+            if (lp->entry){
+                inf = functionEntry;
+            }
+
+            InstrumentationPoint* p = addInstrumentationPoint(pt, inf, InstrumentationMode_tramp, loc);
+            p->setPriority(InstPriority_custom4);
+            assignStoragePrior(p, f.index, site);
+
+            delete lp;
+        }
+        delete v;
+    }
+
 }
 
 
-TauLoopList::TauLoopList(const char* filename, const char* beginInstr, const char* endInstr){
+Vector<char*>* TauRegexToC(const char* t, bool isQuoted){
+    uint32_t len = strlen(t);
+    if (isQuoted){
+        if (t[0] != '"' || t[len-1] != '"'){
+            PRINT_ERROR("Format of instrumentation directive is '%s=\"<tau_instr_regex>\"', malformed RHS found: %s", TAU_INST_LOOPS_TOKEN, t);
+        }
+    }
+
+    uint32_t counthash = 0;
+    for (uint32_t j = 0; j < len; j++){
+        if (t[j] == '#'){
+            counthash++;
+        }
+    }
+
+    int extra = 0;
+    if (!isQuoted){
+        extra = 2;
+    }
+
+    char* loopregex = new char[len + 1 + counthash + extra];
+    counthash = 0;
+    for (uint32_t j = 0; j < len; j++){
+        if (t[j] == '#'){
+            loopregex[j + counthash + (extra/2)] = '.';
+            loopregex[j + counthash + 1 + (extra/2)] = '*';
+            counthash++;
+        } else {
+            loopregex[j + counthash + (extra/2)] = t[j];
+        }
+    }
+    loopregex[0] = '^';
+    loopregex[len + counthash - 1 + extra] = '$';
+    loopregex[len + counthash + extra] = '\0';
+
+    Vector<char*>* v = new Vector<char*>();
+    v->append(loopregex);
+
+    return v;
+}
+
+TauInstrumentList::TauInstrumentList(const char* filename, const char* beginInstr, const char* endInstr, const char* beginExcl, const char* endExcl){
     init(filename, 0, '=', '/');
 
-    Vector<Vector<char*>*> onlyLoops;
+    functions = new FileList();
+    loops = new FileList();
+
+    functions->setFileName(filename);
+    loops->setFileName(filename);
+
+    functions->setSeparator('?');
+    loops->setSeparator('=');
+
     bool instrState = false;
+    bool exclState = false;
 
     for (uint32_t i = 0; i < fileTokens.size(); i++){
         Vector<char*>* toks = fileTokens[i];
@@ -551,66 +592,61 @@ TauLoopList::TauLoopList(const char* filename, const char* beginInstr, const cha
         char* t = toks->front();
 
         if (!strcmp(t, beginInstr)){
-            if (instrState){
+            if (instrState || exclState){
                 PRINT_ERROR("Error parsing TAU loop tracking file: unexpected token %s", beginInstr);
             }
 
             instrState = true;
             continue;
         } else if (!strcmp(t, endInstr)){
-            if (!instrState){
+            if (!instrState || exclState){
                 PRINT_ERROR("Error parsing TAU loop tracking file: unexpected token %s", endInstr);
             }
 
             instrState = false;
             continue;
+        } else if (!strcmp(t, beginExcl)){
+            if (exclState || instrState){
+                PRINT_ERROR("Error parsing TAU loop tracking file: unexpected token %s", beginExcl);
+            }
+
+            exclState = true;
+            continue;
+        } else if (!strcmp(t, endExcl)){
+            if (!exclState || instrState){
+                PRINT_ERROR("Error parsing TAU loop tracking file: unexpected token %s", endExcl);
+            }
+
+            exclState = false;
+            continue;
         }
 
         if (instrState){
-            if (strcmp("loops routine", t)){
-                PRINT_ERROR("Format of instrumentation directive is 'loops routine=\"<tau_instr_regex>\"', invalid LHS found: %s", t);
+            if (strcmp(TAU_INST_LOOPS_TOKEN, t)){
+                PRINT_ERROR("Format of instrumentation directive is '%s=\"<tau_instr_regex>\"', invalid LHS found: %s", TAU_INST_LOOPS_TOKEN, t);
             }
             if (toks->size() == 1){
-                PRINT_ERROR("Format of instrumentation directive is 'loops routine=\"<tau_instr_regex>\"', no RHS found: %s", t);
+                PRINT_ERROR("Format of instrumentation directive is '%s=\"<tau_instr_regex>\"', no RHS found: %s", TAU_INST_LOOPS_TOKEN, t);
             }
             if (toks->size() > 2){
-                PRINT_ERROR("Format of instrumentation directive is 'loops routine=\"<tau_instr_regex>\"', too many '=' found");
+                PRINT_ERROR("Format of instrumentation directive is '%s=\"<tau_instr_regex>\"', too many '=' found", TAU_INST_LOOPS_TOKEN);
             }
 
-            t = toks->back();            
-            uint32_t len = strlen(t);
-            if (t[0] != '"' || t[len-1] != '"'){
-                PRINT_ERROR("Format of instrumentation directive is 'loops routine=\"<tau_instr_regex>\"', malformed RHS found: %s", t);
+            loops->appendLine(TauRegexToC(toks->back(), true));
+            continue;
+        }
+
+        if (exclState){
+            if (toks->size() != 1){
+                PRINT_ERROR("Format of exclusion directive is '\"<tau_instr_regex>\"', found: %s", t);
             }
 
-            uint32_t counthash = 0;
-            for (uint32_t j = 0; j < len; j++){
-                if (t[j] == '#'){
-                    counthash++;
-                }
-            }
-
-            char* loopregex = new char[len + 1 + counthash];
-            counthash = 0;
-            for (uint32_t j = 0; j < len; j++){
-                if (t[j] == '#'){
-                    loopregex[j + counthash] = '.';
-                    loopregex[j + counthash + 1] = '*';
-                    counthash++;
-                } else {
-                    loopregex[j + counthash] = t[j];
-                }
-            }
-            loopregex[0] = '^';
-            loopregex[len + counthash - 1] = '$';
-            loopregex[len + counthash] = '\0';
-
-            Vector<char*>* v = new Vector<char*>();
-            v->append(loopregex);
-            onlyLoops.append(v);
+            functions->appendLine(TauRegexToC(toks->back(), false));
+            continue;
         }
     }
-    ASSERT(instrState == false && "Cannot leave unclosed INSTRUMENT section in TAU loop file");
+    ASSERT(instrState == false && "Cannot leave unclosed INSTRUMENT section in TAU instrument file");
+    ASSERT(exclState == false && "Cannot leave unclosed EXCLUDE section in TAU instrument file");
 
     while (fileTokens.size()){
         Vector<char*>* v = fileTokens.remove(0);
@@ -623,11 +659,30 @@ TauLoopList::TauLoopList(const char* filename, const char* beginInstr, const cha
     }
     ASSERT(fileTokens.size() == 0);
 
-    while (onlyLoops.size()){
-        Vector<char*>* v = onlyLoops.remove(0);
-        ASSERT(v->size() == 1);
-        fileTokens.append(v);
-    }
-    ASSERT(onlyLoops.size() == 0);
+    functions->print();
+    loops->print();
 }
 
+bool TauInstrumentList::loopMatches(char* str){
+    if (loops->matches(str, 0) && !functions->matches(str, 0)){
+        return true;
+    }
+    return false;
+}
+
+bool TauInstrumentList::functionMatches(char* str){
+    if (functions->matches(str, 0)){
+        return false;
+    }
+    return true;
+}
+
+TauInstrumentList::~TauInstrumentList(){
+    if (functions){
+        delete functions;
+    }
+
+    if (loops){
+        delete loops;
+    }
+}

@@ -23,6 +23,8 @@
 
 #include <InstrumentationTool.h>
 
+class TauInstrumentList;
+
 class TauFunctionTrace : public InstrumentationTool {
 protected:
     InstrumentationFunction* functionRegister;
@@ -31,8 +33,7 @@ protected:
     InstrumentationFunction* functionEntry;
     InstrumentationFunction* functionExit;
 
-    FileList* functionList;
-    FileList* loopList;
+    TauInstrumentList* instrumentList;
 public:
     TauFunctionTrace(ElfFile* elf);
     ~TauFunctionTrace();
@@ -42,13 +43,21 @@ public:
 
     const char* briefName() { return "TauFunctionTrace"; }
     const char* defaultExtension() { return "tautrc"; }
-    uint32_t allowsArgs() { return PEBIL_OPT_INP | PEBIL_OPT_DOI | PEBIL_OPT_TRK; }
+    uint32_t allowsArgs() { return PEBIL_OPT_INP | PEBIL_OPT_DOI; }
     uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
 
-class TauLoopList : public FileList {
+class TauInstrumentList : public FileList {
+private:
+    FileList* functions;
+    FileList* loops;
+
 public:
-    TauLoopList(const char* filename, const char* beginInstr, const char* endInstr);
+    TauInstrumentList(const char* filename, const char* beginInstr, const char* endInstr, const char* beginExcl, const char* endExcl);
+    ~TauInstrumentList();
+
+    bool loopMatches(char* str);
+    bool functionMatches(char* str);
 };
 
 #endif /* _TauFunctionTrace_h_ */

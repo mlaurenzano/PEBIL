@@ -45,6 +45,13 @@ void* tool_thread_fini(pthread_t args){
     printf("finalizing thread %#lx\n", args);
 }
 
+int MPI_Init(int* argc, char*** argv){
+  printf("%#lx: MPI_Init entry\n", pthread_self());
+  int ret = PMPI_Init(argc, argv);
+  printf("%#lx: MPI_Init exit\n", pthread_self());
+  return ret;
+}
+
 
 // wrappers for intercepting thread create/destroy
 typedef struct {
