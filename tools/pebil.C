@@ -93,6 +93,7 @@ void printUsage(const char* msg = NULL){
     }
     fprintf(stderr,"\t\t[--fbl <file/containing/function/list>] : list of functions to exclude from instrumentation (default is %s)\n", DEFAULT_FUNC_BLACKLIST);
     fprintf(stderr,"\t\t[--ext <output_suffix>] : override default file extension for instrumented executable\n");
+    fprintf(stderr,"\t\t[--out <output_file_name>] : the full name of the instrumented executable. overrides tool defaults and the --ext option\n");
     fprintf(stderr,"\t\t[--lnc <lib1.so,lib2.so>] : list of shared libraries to put in executable's dynamic table\n");
     fprintf(stderr,"\t\t[--help] : print help message and exit\n");
     fprintf(stderr,"\t\t[--version] : print version number and exit\n");
@@ -228,6 +229,7 @@ int main(int argc,char* argv[]){
     DEFINE_ARG(dmp);
     DEFINE_ARG(phs);
     DEFINE_ARG(dfp);
+    DEFINE_ARG(out);
 
 #define FLAG_OPTION(__name, __char) {#__name, no_argument, &__name ## _flag, __char}
 #define ARG_OPTION(__name, __char) {#__name, required_argument, 0, __char}
@@ -239,9 +241,10 @@ int main(int argc,char* argv[]){
 
         /* These options take an argument
            We distinguish them by their indices. */
-        ARG_OPTION(typ, 'y'), ARG_OPTION(tool, 't'), ARG_OPTION(tlib, 'o'), ARG_OPTION(inp, 'p'), ARG_OPTION(trk, 'k'), 
-        ARG_OPTION(lnc, 'n'), ARG_OPTION(inf, 'z'), ARG_OPTION(app, 'a'), ARG_OPTION(lib, 'l'), 
+        ARG_OPTION(typ, 'y'), ARG_OPTION(tool, 't'), ARG_OPTION(tlib, 'O'), ARG_OPTION(inp, 'p'), ARG_OPTION(trk, 'k'), 
+        ARG_OPTION(lnc, 'n'), ARG_OPTION(inf, 'z'), ARG_OPTION(app, 'a'), ARG_OPTION(lib, 'l'),
         ARG_OPTION(ext, 'x'), ARG_OPTION(fbl, 'b'), ARG_OPTION(dmp, 'm'), ARG_OPTION(phs, 'f'), ARG_OPTION(dfp, 'g'),
+        ARG_OPTION(out, 'o'),
         {0,              0,                 0,              0},
     };
 
@@ -269,7 +272,7 @@ int main(int argc,char* argv[]){
 #define SET_ARGPTR(__name, __char) else if (c == __char) { __name ## _arg = optarg; }
         SET_ARGPTR(typ, 'y')
         SET_ARGPTR(tool, 't')
-        SET_ARGPTR(tlib, 'o')
+        SET_ARGPTR(tlib, 'O')
         SET_ARGPTR(inp, 'p')
         SET_ARGPTR(trk, 'k')
         SET_ARGPTR(lnc, 'n')
@@ -281,6 +284,7 @@ int main(int argc,char* argv[]){
         SET_ARGPTR(dmp, 'm')
         SET_ARGPTR(phs, 'f')
         SET_ARGPTR(dfp, 'g')
+        SET_ARGPTR(out, 'o')
 
         /* this shouldn't happen, but handle it anyway */
         else {
@@ -516,7 +520,11 @@ int main(int argc,char* argv[]){
         }
 
         if (instType == identical_inst_type){
-            elfFile.dump(ext_arg);
+            if (out_arg){
+                elfFile.dump(out_arg, false);
+            } else {
+                elfFile.dump(ext_arg);
+            }
             PRINT_INFOR("Dumping identical binary from stored executable information");
             printSuccess();
         } else {
@@ -602,7 +610,11 @@ int main(int argc,char* argv[]){
             }
             
             // the ludicrous way extensions are handled is to keep faith with the way pmacinst treated them
-            instTool->dump(ext);
+            if (out_arg){
+                instTool->dump(out_arg, false);
+            } else {
+                instTool->dump(ext);
+            }
             TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Dump    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
             if (inf_arg){
                 instTool->print(printCodes);

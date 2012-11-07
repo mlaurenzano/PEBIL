@@ -189,7 +189,7 @@ public:
 
     void print();
     void print(uint32_t printCodes);
-    void dump(char* extension);
+    void dump(char* extension, bool isext=true);
 
     bool verify();
 

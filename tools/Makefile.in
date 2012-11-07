@@ -6,7 +6,7 @@ CXXFLAGS      = @CXXFLAGS@ @MPI_FLAGS@ -DPEBIL_VER="\"$(PEBIL_FULL_VER)\"" -w
 SHARED_OPT    = -fPIC
 SHARED_LIB    = -shared
 STATIC_OPT    = -DSTATIC_BUILD
-STATIC_LIB    = -Bstatic
+STATIC_LIB    = -static
 
 SRCDIR        = ../src
 BINDIR        = ../bin

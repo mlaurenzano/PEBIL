@@ -1210,9 +1210,14 @@ uint32_t ElfFile::printDisassembly(bool instructionDetail){
     return numInstrs;
 }
 
-void ElfFile::dump(char* extension){
+void ElfFile::dump(char* extension, bool isext){
     char fileName[__MAX_STRING_SIZE] = "";
-    sprintf(fileName,"%s.%s", elfFileName, extension);
+
+    if (isext){
+        sprintf(fileName,"%s.%s", elfFileName, extension);
+    } else {
+        sprintf(fileName,"%s", extension);
+    }
 
     PRINT_INFOR("Output file is %s", fileName);
 
