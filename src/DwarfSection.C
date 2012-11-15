@@ -24,6 +24,11 @@
 #include <LineInformation.h>
 #include <SectionHeader.h>
 
+void DwarfLineInfoSection::wedge(uint32_t shamt){
+    for (uint32_t i = 0; i < lineInfoTables.size(); i++){
+        lineInfoTables[i]->wedge(shamt);
+    }
+}
 
 uint32_t DwarfLineInfoSection::read(BinaryInputFile* binaryInputFile){
     binaryInputFile->setInPointer(rawDataPtr);

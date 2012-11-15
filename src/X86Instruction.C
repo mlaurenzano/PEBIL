@@ -32,6 +32,148 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
+BitSet<uint32_t>* X86Instruction::getDeadRegIn(BitSet<uint32_t>* invalidRegs){
+    return getDeadRegIn(invalidRegs, 0);
+}
+
+BitSet<uint32_t>* X86Instruction::getDeadRegIn(BitSet<uint32_t>* invalidRegs, uint32_t cnt){
+    BitSet<uint32_t>* dead = new BitSet<uint32_t>(X86_ALU_REGS);
+
+    // first go for dead registers
+    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+        if (invalidRegs && invalidRegs->contains(i)){
+            continue;
+        }
+        if (isRegDeadIn(i)){
+            dead->insert(i);
+        }
+    }
+
+    // if we don't have enough registers yet, grab any registers which are valid
+    if (cnt > 0){
+        for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+            if (dead->size() >= cnt){
+                break;
+            }
+            if (invalidRegs && invalidRegs->contains(i)){
+                continue;
+            }
+            dead->insert(i);
+        }
+
+        ASSERT(dead->size() >= cnt && "You requested more dead registers than there were valid registers");
+    }
+    return dead;
+}
+
+BitSet<uint32_t>* X86Instruction::getDeadRegOut(BitSet<uint32_t>* invalidRegs){
+    return getDeadRegOut(invalidRegs, 0);
+}
+
+BitSet<uint32_t>* X86Instruction::getDeadRegOut(BitSet<uint32_t>* invalidRegs, uint32_t cnt){
+    BitSet<uint32_t>* dead = new BitSet<uint32_t>(X86_ALU_REGS);
+
+    // first go for dead registers
+    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+        if (invalidRegs && invalidRegs->contains(i)){
+            continue;
+        }
+        if (isRegDeadOut(i)){
+            dead->insert(i);
+        }
+    }
+
+    // if we don't have enough registers yet, grab any registers which are valid
+    if (cnt > 0){
+        for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+            if (dead->size() >= cnt){
+                break;
+            }
+            if (invalidRegs && invalidRegs->contains(i)){
+                continue;
+            }
+            dead->insert(i);
+        }
+
+        ASSERT(dead->size() >= cnt && "You requested more dead registers than there were valid registers");
+    }
+    return dead;
+}
+
+RegisterSet::RegisterSet()
+    : regs(X86_FLAG_BITS + X86_ALU_REGS) {
+    regs.clear();
+}
+
+RegisterSet& RegisterSet::operator=(const RegisterSet& rhs){
+    regs = rhs.regs;
+    return *this;
+}
+
+RegisterSet& RegisterSet::operator|=(const RegisterSet& rhs){
+    regs |= rhs.regs;
+    return *this;
+}
+
+const RegisterSet RegisterSet::operator|(const RegisterSet& rhs){
+    return RegisterSet(*this) |= rhs;
+}
+
+RegisterSet& RegisterSet::operator-=(const RegisterSet& rhs){
+    regs -= rhs.regs;
+    return *this;
+}
+
+const RegisterSet RegisterSet::operator-(const RegisterSet& rhs){
+    return RegisterSet(*this) -= rhs;
+}
+
+bool RegisterSet::operator==(const RegisterSet& rhs){
+    return regs == rhs.regs;
+}
+
+bool RegisterSet::containsFlag(uint32_t flagNum){
+    return regs.contains(flagNum);
+}
+
+bool RegisterSet::containsRegister(uint32_t regNum){
+    return regs.contains(X86_FLAG_BITS + regNum);
+}
+
+void RegisterSet::addRegister(uint32_t regNum){
+    regs.insert(X86_FLAG_BITS + regNum);
+}
+
+void RegisterSet::addFlag(uint32_t flagNum){
+    regs.insert(flagNum);
+}
+
+void RegisterSet::print(const char * const name){
+    PRINT_OUT("RegisterSet %s:", name);
+    for(uint32_t i = 0; i < X86_FLAG_BITS; ++i){
+        if(containsFlag(i)){
+            PRINT_OUT("flag:%d ", i);
+        }
+    }
+    for(uint32_t i = 0; i < X86_ALU_REGS; ++i){
+        if(containsRegister(i)){
+            PRINT_OUT("reg:%d ", i);
+        }
+    }
+    PRINT_OUT("\n");
+}
+
+uint32_t X86Instruction::getDefUseDist(){
+    if (container->isFunction() && !((Function*)container)->doneDefUse()){
+        ((Function*)container)->computeDefUse();
+    }
+    return defUseDist;
+}
+void X86Instruction::setDefUseDist(uint32_t dudist){ 
+    defUseDist = dudist;
+}
+
+
 HashCode* X86Instruction::generateHashCode(BasicBlock* bb){
     HashCode* hc = new HashCode(bb->getHashCode().getSection(),
                                 bb->getHashCode().getFunction(),
@@ -57,13 +199,17 @@ void X86Instruction::initBlankUd(bool is64bit){
 
 
 void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg){
-    memcpy(comp->insn_hexcode, reg->insn_hexcode, sizeof(char)*32);
-    memcpy(comp->insn_buffer, reg->insn_buffer, sizeof(char)*64);
+    memcpy(comp->insn_bytes, reg->insn_bytes, sizeof(char) * 16);
+    memcpy(comp->insn_buffer, reg->insn_buffer, sizeof(char) * INSTRUCTION_PRINT_SIZE);
     comp->mnemonic = reg->mnemonic;
-    memcpy(comp->operand, reg->operand, sizeof(struct ud_operand)*3);
+    memcpy(comp->operand, reg->operand, sizeof(struct ud_operand) * MAX_OPERANDS);
     comp->pfx_seg = reg->pfx_seg;
     comp->pfx_rep = reg->pfx_rep;
     comp->adr_mode = reg->adr_mode;
+    comp->flags_use = reg->flags_use;
+    comp->flags_def = reg->flags_def;
+    comp->impreg_use = reg->impreg_use;
+    comp->impreg_def = reg->impreg_def;
 }
 
 uint32_t X86Instruction::countExplicitOperands(){
@@ -80,15 +226,20 @@ bool X86Instruction::isLoad(){
     if (isStackPop()){
         return true;
     }
+    if (CHECK_IMPLICIT_LOAD){
+        return true;
+    }
     if (isExplicitMemoryOperation()){
-        OperandX86* op = getMemoryOperand();
-        ASSERT(op);
-        if (op->getOperandIndex() == COMP_SRC_OPERAND){
-            return true;
+        OperandX86* mem = getMemoryOperand();
+        ASSERT(mem);
+        Vector<OperandX86*>* uses = getSourceOperands();
+        for (uint32_t i = 0; i < uses->size(); i++){
+            if (mem->getOperandIndex() == (*uses)[i]->getOperandIndex()){
+                delete uses;
+                return true;
+            }
         }
-        if (!isMoveOperation() && op->getOperandIndex() == ALU_SRC2_OPERAND){
-            return true;
-        }
+        delete uses;
     }
     return false;
 }
@@ -97,10 +248,14 @@ bool X86Instruction::isStore(){
     if (isStackPush()){
         return true;
     }
+    if (CHECK_IMPLICIT_STORE){
+        return true;
+    }
     if (isExplicitMemoryOperation()){
-        OperandX86* op = getMemoryOperand();
-        ASSERT(op);
-        if (op->getOperandIndex() == COMP_DEST_OPERAND){
+        OperandX86* mem = getMemoryOperand();
+        ASSERT(mem);
+        OperandX86* dest = getDestOperand();
+        if (dest && mem->getOperandIndex() == dest->getOperandIndex()){
             return true;
         }
     }
@@ -108,7 +263,7 @@ bool X86Instruction::isStore(){
 }
 
 bool X86Instruction::isSpecialRegOp(){
-    return (instructionType == X86InstructionType_special);
+    return (getInstructionType() == X86InstructionType_special);
 }
 
 bool X86Instruction::isLogicOp(){
@@ -147,31 +302,14 @@ uint32_t X86Instruction::getNumberOfMemoryBytes(){
     return 0;
 }
 
-bool X86Instruction::usesFlag(uint32_t flg) { 
-    ASSERT(flags_usedef); 
-    return (flags_usedef[__reg_use] & (1 << flg)); 
-}
-
-bool X86Instruction::defsFlag(uint32_t flg) { 
-    ASSERT(flags_usedef); 
-    return (flags_usedef[__reg_def] & (1 << flg)); 
-}
-
-bool X86Instruction::usesAluReg(uint32_t alu){
-    ASSERT(impreg_usedef);
-    return impreg_usedef[__reg_use]->contains(alu);
-}
-
-bool X86Instruction::defsAluReg(uint32_t alu){
-    ASSERT(impreg_usedef);
-    return impreg_usedef[__reg_def]->contains(alu);
-}
-
-void X86Instruction::setLiveIns(BitSet<uint32_t>* live){
+// Liveness methods
+void X86Instruction::setLiveIns(RegisterSet* live){
     if (liveIns){
         print();
     }
     ASSERT(!liveIns);
+    liveIns = new RegisterSet(*live);
+    /*
     liveIns = new BitSet<uint32_t>(*(live));
 
     DEBUG_LIVE_REGS(
@@ -184,10 +322,14 @@ void X86Instruction::setLiveIns(BitSet<uint32_t>* live){
                     }    
                     PRINT_OUT("\n");    
                     )
+   */
 }
 
-void X86Instruction::setLiveOuts(BitSet<uint32_t>* live){
+void X86Instruction::setLiveOuts(RegisterSet* live){
     ASSERT(!liveOuts);
+
+    liveOuts = new RegisterSet(*live);
+    /*
     liveOuts = new BitSet<uint32_t>(*(live));
 
     DEBUG_LIVE_REGS(
@@ -200,12 +342,35 @@ void X86Instruction::setLiveOuts(BitSet<uint32_t>* live){
                     }    
                     PRINT_OUT("\n");
                     )
+    */
 }
 
-bool X86Instruction::isGPRegDeadIn(uint32_t idx){
-    ASSERT(idx < X86_64BIT_GPRS);
-    __FUNCTION_NOT_IMPLEMENTED;
-    return false;
+bool X86Instruction::isRegDeadIn(uint32_t regNum){
+    if (!liveIns){ // FIXME better handling for this?
+        return false;
+    }
+    return !liveIns->containsRegister(regNum);
+}
+
+bool X86Instruction::isRegDeadOut(uint32_t regNum){
+    if (!liveOuts){ // FIXME better handling for this?
+        return false;
+    }
+    return !liveOuts->containsRegister(regNum);
+}
+
+bool X86Instruction::isFlagDeadIn(uint32_t flagNum){
+    if (!liveIns){
+        return false; // FIXME
+    }
+    return !liveIns->containsFlag(flagNum);
+}
+
+bool X86Instruction::isFlagDeadOut(uint32_t flagNum){
+    if (!liveOuts){
+        return false; // FIXME
+    }
+    return !liveOuts->containsFlag(flagNum);
 }
 
 bool X86Instruction::allFlagsDeadIn(){
@@ -213,7 +378,7 @@ bool X86Instruction::allFlagsDeadIn(){
         return false;
     }
     for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
-        if (liveIns->contains(i)){
+        if (liveIns->containsFlag(i)){
             return false;
         }
     }
@@ -225,14 +390,32 @@ bool X86Instruction::allFlagsDeadOut(){
         return false;
     }
     for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
-        if (liveOuts->contains(i)){
+        if (liveOuts->containsFlag(i)){
             return false;
         }
     }
     return true;
 }
 
-BitSet<uint32_t>* X86Instruction::getUseRegs(){
+// Def-Use methods
+inline bool X86Instruction::usesFlag(uint32_t flg) { 
+    return (GET(flags_use) & (1 << flg));
+}
+
+inline bool X86Instruction::defsFlag(uint32_t flg) { 
+    return (GET(flags_def) & (1 << flg));
+}
+
+inline bool X86Instruction::implicitlyUsesReg(uint32_t alu){
+    return (GET(impreg_use) & (1 << alu));
+}
+
+inline bool X86Instruction::implicitlyDefinesReg(uint32_t alu){
+    return (GET(impreg_def) & (1 << alu));
+}
+
+// Get flag registers
+BitSet<uint32_t>* X86Instruction::getFlagsUsed(){
     BitSet<uint32_t>* regs = new BitSet<uint32_t>(X86_FLAG_BITS);
     for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
         if (usesFlag(i)){
@@ -242,7 +425,7 @@ BitSet<uint32_t>* X86Instruction::getUseRegs(){
     return regs;
 }
 
-BitSet<uint32_t>* X86Instruction::getDefRegs(){
+BitSet<uint32_t>* X86Instruction::getFlagsDefined(){
     BitSet<uint32_t>* regs = new BitSet<uint32_t>(X86_FLAG_BITS);
     for (uint32_t i = 0; i < X86_FLAG_BITS; i++){
         if (defsFlag(i)){
@@ -252,20 +435,288 @@ BitSet<uint32_t>* X86Instruction::getDefRegs(){
     return regs;
 }
 
+RegisterSet* X86Instruction::getRegistersDefined(){
+    RegisterSet * retval = new RegisterSet();
+
+    // flags
+    for(uint32_t i = 0; i < X86_FLAG_BITS; ++i){
+        if(defsFlag(i)){
+            retval->addFlag(i);
+        }
+    }
+
+    // Implicit defs
+    for(uint32_t i = 0; i < X86_ALU_REGS; ++i){
+        if(implicitlyDefinesReg(i)){
+            retval->addRegister(i);
+        }
+    }
+
+    // operand defs
+    // check operation type
+    if(!isConditionalMove()){
+        OperandX86* def = getDestOperand();
+        if(def && def->getType() == UD_OP_REG && def->GET(base) && IS_ALU_REG(def->GET(base))){
+            retval->addRegister(def->getBaseRegister());
+        }
+    }
+    
+    return retval;
+}
+
+RegisterSet* X86Instruction::getRegistersUsed(){
+    RegisterSet * retval = new RegisterSet();
+
+    // If the instruction is a branch to the unknown or to
+    // something outside the function (making it behave as a call), mark everything
+    // as used
+    if(isBranch() && !container->inRange(getTargetAddress())){
+        for(uint32_t i = 0; i < X86_FLAG_BITS; ++i){
+            retval->addFlag(i);
+        }
+        for(uint32_t i = 0; i < X86_ALU_REGS; ++i){
+            retval->addRegister(i);
+        }
+        return retval;
+    }
+
+    // flags
+    for(uint32_t i = 0; i < X86_FLAG_BITS; ++i){
+        if(usesFlag(i)){
+            retval->addFlag(i);
+        }
+    }
+
+    // implicit uses
+    for(uint32_t i = 0; i < X86_ALU_REGS; ++i){
+        if(implicitlyUsesReg(i)){
+            retval->addRegister(i);
+        }
+    }
+
+    // operand uses
+    Vector<OperandX86*>* uses = getSourceOperands();
+    for(uint32_t i = 0; i < uses->size(); i++) {
+        OperandX86* use = (*uses)[i];
+
+        if(use && use->GET(base) && IS_ALU_REG(use->GET(base))){
+            retval->addRegister(use->getBaseRegister());
+        }
+        if(use && use->GET(index) && IS_ALU_REG(use->GET(index))){
+            retval->addRegister(use->getIndexRegister());
+        }
+    }
+    delete uses;
+
+    // uses by dest operand
+    OperandX86* dest = getDestOperand();
+    if(dest){
+        // Registers used in computing addresses
+        if(dest->getType() == UD_OP_MEM || dest->getType() == UD_OP_PTR){
+            if(dest->GET(base) && IS_ALU_REG(dest->GET(base))){
+                retval->addRegister(dest->getBaseRegister());
+            }
+            if(dest->GET(index) && IS_ALU_REG(dest->GET(index))){
+                retval->addRegister(dest->getIndexRegister());
+            }
+        }
+        // Registers incompletely written to
+        if(dest->getType() == UD_OP_REG && dest->GET(base)){
+            uint32_t reg = dest->GET(base);
+            if( reg && IS_ALU_REG(reg) &&
+                !IS_64BIT_GPR(reg) &&
+                !IS_X87_REG(reg) &&
+                !IS_XMM_REG(reg) &&
+                !IS_YMM_REG(reg)){
+                retval->addRegister(dest->getBaseRegister());
+            }
+        }
+    }
+    
+    return retval;
+}
+
+RegisterSet* X86Instruction::getUnusableRegisters(){
+    RegisterSet * retval = new RegisterSet();
+
+    // flags
+    for(uint32_t i = 0; i < X86_FLAG_BITS; ++i){
+        if(usesFlag(i)){
+            retval->addFlag(i);
+        }
+    }
+
+    // implicit uses
+    if (!isCall()){
+        for(uint32_t i = 0; i < X86_ALU_REGS; ++i){
+            if(implicitlyUsesReg(i)){
+                retval->addRegister(i);
+            }
+        }
+    }
+
+    // operand uses
+    Vector<OperandX86*>* uses = getSourceOperands();
+    for(uint32_t i; i< uses->size(); ++i) {
+        OperandX86* use = (*uses)[i];
+
+        if(use->GET(base) && IS_ALU_REG(use->GET(base))){
+            retval->addRegister(use->getBaseRegister());
+        }
+        if(use->GET(index) && IS_ALU_REG(use->GET(index))){
+            retval->addRegister(use->getIndexRegister());
+        }
+    }
+    delete uses;
+
+    // uses by dest operand
+    OperandX86* dest = getDestOperand();
+    if(dest){
+        // Registers used in computing addresses
+        if(dest->getType() == UD_OP_MEM || dest->getType() == UD_OP_PTR){
+            if(dest->GET(base) && IS_ALU_REG(dest->GET(base))){
+                retval->addRegister(dest->getBaseRegister());
+            }
+            if(dest->GET(index) && IS_ALU_REG(dest->GET(index))){
+                retval->addRegister(dest->getIndexRegister());
+            }
+        }
+        // Registers incompletely written to
+        if(dest->getType() == UD_OP_REG && dest->GET(base)){
+            uint32_t reg = dest->GET(base);
+            if( reg && IS_ALU_REG(reg) &&
+                !IS_64BIT_GPR(reg) &&
+                !IS_X87_REG(reg) &&
+                !IS_XMM_REG(reg) &&
+                !IS_YMM_REG(reg)){
+                retval->addRegister(dest->getBaseRegister());
+            }
+        }
+    }
+
+    return retval;
+}
+
+void X86Instruction::impliedUses(BitSet<uint32_t>* regs){
+    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+        if (implicitlyUsesReg(i)){
+            regs->insert(i);
+        }
+    }
+}
+
+void X86Instruction::impliedDefs(BitSet<uint32_t>* regs){
+    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
+        if (implicitlyDefinesReg(i)){
+            regs->insert(i);
+        }
+    }
+}
+
+#define op_has(op, reg) (op->GET(reg) && IS_ALU_REG(op->GET(reg)))
+LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getDefs(){
+
+    LinkedList<ReachingDefinition*>* defList =
+        new LinkedList<ReachingDefinition*>();
+
+    // explicit defines
+    OperandX86* def = getDestOperand();
+    if (def){
+        DefLocation loc;
+        loc.value = def->getValue();
+        loc.base = op_has(def, base) ? def->getBaseRegister() : X86_ALU_REGS;
+        loc.index = op_has(def, index) ? def->getIndexRegister() : X86_ALU_REGS;
+        loc.offset = def->GET(offset);
+        loc.scale = def->GET(scale);
+        loc.type = def->GET(type);
+        defList->insert(new ReachingDefinition(this, loc));
+    }
+
+    // Get the implied register defines
+    BitSet<uint32_t> imp_regs(X86_ALU_REGS);
+    impliedDefs(&imp_regs);
+
+    for (uint32_t i = 0; i < X86_ALU_REGS; ++i) {
+        if (imp_regs.contains(i)) {
+            struct DefLocation loc;
+            bzero(&loc, sizeof(loc));
+            loc.base = i;
+            loc.type = UD_OP_REG;
+            defList->insert(new ReachingDefinition(this, loc));
+        }
+    } 
+
+    return defList;
+}
+
+//FIXME
+LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
+
+    LinkedList<ReachingDefinition*>* useList =
+        new LinkedList<ReachingDefinition*>();
+
+    OperandX86* def = getDestOperand();    
+    if (def){
+        if (def->getType() == UD_OP_MEM || def->getType() == UD_OP_PTR){
+            DefLocation loc;
+            loc.value = def->getValue();
+            loc.base = op_has(def, base) ? def->getBaseRegister() : X86_ALU_REGS;
+            loc.index = op_has(def, index) ? def->getIndexRegister() : X86_ALU_REGS;
+            loc.offset = def->GET(offset);
+            loc.scale = def->GET(scale);
+            loc.type = def->GET(type);
+            useList->insert(new ReachingDefinition(this, loc));            
+        }
+    }
+
+    Vector<OperandX86*>* uses = getSourceOperands();
+    for (uint32_t i; i < uses->size(); i++){
+        OperandX86* use = (*uses)[i];
+        DefLocation loc;
+        loc.value = use->getValue();
+        loc.base = op_has(use, base) ? use->getBaseRegister() : X86_ALU_REGS;
+        loc.index = op_has(use, index) ? use->getIndexRegister() : X86_ALU_REGS;
+        loc.offset = use->GET(offset);
+        loc.scale = use->GET(scale);
+        loc.type = use->GET(type);
+        useList->insert(new ReachingDefinition(this, loc));
+    }
+    delete uses;
+
+    // Get the implied register uses
+    BitSet<uint32_t> imp_regs(X86_ALU_REGS);
+    impliedUses(&imp_regs);
+
+    for (uint32_t i = 0; i < X86_ALU_REGS; ++i) {
+        if (imp_regs.contains(i)) {
+            struct DefLocation loc;
+            bzero(&loc, sizeof(loc));
+            loc.base = i;
+            loc.type = UD_OP_REG;
+            useList->insert(new ReachingDefinition(this, loc));
+        }
+    } 
+
+    return useList;
+}
+
+
 uint32_t convertGPRegUd(uint32_t reg){
    return reg + UD_R_RAX; 
 }
 
 uint32_t convertUdGPReg(uint32_t reg){
     ASSERT(reg && IS_GPR(reg));
-    if (IS_8BIT_GPR(reg)){
-        return reg - UD_R_AL;
-    } else if (IS_16BIT_GPR(reg)){
-        return reg - UD_R_AX;
+    if (IS_64BIT_GPR(reg)){
+        return reg - UD_R_RAX;
     } else if (IS_32BIT_GPR(reg)){
         return reg - UD_R_EAX;
-    } else if (IS_64BIT_GPR(reg)){
-        return reg - UD_R_RAX;
+    } else if (IS_16BIT_GPR(reg)){
+        return reg - UD_R_AX;
+    } else if (IS_H8BIT_GPR(reg)){
+        return reg - UD_R_AH;
+    } else if (IS_L8BIT_GPR(reg)){
+        return reg - UD_R_AL;
     }
     __SHOULD_NOT_ARRIVE;
     return 0;
@@ -282,13 +733,58 @@ bool OperandX86::isSameOperand(OperandX86* other){
     return false;
 }
 
+OperandX86* X86Instruction::getDestOperand(){
+    // compares and branches dont define anything
+    if (isConditionCompare() || isBranch() || CHECK_IMPLICIT_STORE){
+        return NULL;
+    }
+    return operands[DEST_OPERAND];
+}
+
+Vector<OperandX86*>* X86Instruction::getSourceOperands(){
+    Vector<OperandX86*>* ops = new Vector<OperandX86*>();
+    uint32_t numni = countValidNonimm();
+
+    /* S/D, S, [S] */
+    if (numni < 3 && !isMoveOperation()){
+        if (operands[0]){
+            ops->append(operands[0]);
+        }
+        if (operands[1]){
+            ops->append(operands[1]);
+        }
+        if (operands[2]){
+            ops->append(operands[2]);
+        }
+    /* D, S, [S, [S]] */
+    } else {
+        if (operands[1]){
+            ops->append(operands[1]);
+        }        
+        if (operands[2]){
+            ops->append(operands[2]);
+        }        
+        if (operands[3]){
+            ops->append(operands[3]);
+        }        
+    }
+    return ops;
+}
+
+uint32_t X86Instruction::countValidNonimm(){
+    uint32_t nimm = 0;
+    for (uint32_t i = 0; i < MAX_OPERANDS; i++){
+        if (operands[i] && operands[i]->getType() != UD_OP_IMM){
+            nimm++;
+        }
+    }
+    return nimm;
+}
+
 bool X86Instruction::isConditionCompare(){
     int32_t m = GET(mnemonic);
 
-    if ((m == UD_Icmp) ||
-        (m == UD_Itest) ||
-        (m == UD_Iptest) ||
-        (m == UD_Iftst) ||
+    if (
         (m == UD_Ibt) ||
         (m == UD_Ibtc) ||
         (m == UD_Ibtr) ||
@@ -296,22 +792,49 @@ bool X86Instruction::isConditionCompare(){
         (m == UD_Icmppd) ||
         (m == UD_Icmpps) ||
         (m == UD_Icmpsb) ||
-        (m == UD_Icmpsw) ||
         (m == UD_Icmpsd) ||
         (m == UD_Icmpsq) ||
         (m == UD_Icmpss) ||
-        (m == UD_Icmpxchg) ||
+        (m == UD_Icmpsw) ||
         (m == UD_Icmpxchg8b) ||
+        (m == UD_Icmpxchg) ||
+        (m == UD_Icmp) ||
+        (m == UD_Iftst) ||
         (m == UD_Ipcmpeqb) ||
-        (m == UD_Ipcmpeqw) ||
         (m == UD_Ipcmpeqd) ||
+        (m == UD_Ipcmpeqq) ||
+        (m == UD_Ipcmpeqw) ||
+        (m == UD_Ipcmpestri) ||
+        (m == UD_Ipcmpestrm) ||
         (m == UD_Ipcmpgtb) ||
-        (m == UD_Ipcmpgtw) ||
         (m == UD_Ipcmpgtd) ||
         (m == UD_Ipcmpgtq) ||
+        (m == UD_Ipcmpgtw) ||
+        (m == UD_Ipcmpistri) ||
+        (m == UD_Ipcmpistrm) ||
+        (m == UD_Ipfcmpeq) ||
         (m == UD_Ipfcmpge) ||
         (m == UD_Ipfcmpgt) ||
-        (m == UD_Ipfcmpeq)){
+        (m == UD_Iptest) ||
+        (m == UD_Itest) ||
+        (m == UD_Ivcmppd) ||
+        (m == UD_Ivcmpps) ||
+        (m == UD_Ivcmpsd) ||
+        (m == UD_Ivcmpss) ||
+        (m == UD_Ivpcmpeqb) ||
+        (m == UD_Ivpcmpeqd) ||
+        (m == UD_Ivpcmpeqq) ||
+        (m == UD_Ivpcmpeqw) ||
+        (m == UD_Ivpcmpestri) ||
+        (m == UD_Ivpcmpestrm) ||
+        (m == UD_Ivpcmpgtb) ||
+        (m == UD_Ivpcmpgtd) ||
+        (m == UD_Ivpcmpgtq) ||
+        (m == UD_Ivpcmpgtw) ||
+        (m == UD_Ivpcmpistri) ||
+        (m == UD_Ivpcmpistrm) ||
+        (m == UD_Ivtestpd) ||
+        (m == UD_Ivtestps)){
         return true;
     }
     return false;
@@ -323,12 +846,19 @@ uint32_t convertUdXMMReg(uint32_t reg){
     return reg - UD_R_XMM0 + X86_FPREG_XMM0;
 }
 
+uint32_t convertUdYMMReg(uint32_t reg){
+    ASSERT(reg && IS_YMM_REG(reg));
+    return reg - UD_R_YMM0 + X86_FPREG_XMM0;
+}
+
 uint32_t OperandX86::getBaseRegister(){
     ASSERT(GET(base) && IS_ALU_REG(GET(base)));
     if (IS_GPR(GET(base))){
         return convertUdGPReg(GET(base));
     } else if (IS_XMM_REG(GET(base))){
         return convertUdXMMReg(GET(base));
+    } else if (IS_YMM_REG(GET(base))){
+        return convertUdYMMReg(GET(base));
     } 
     __SHOULD_NOT_ARRIVE;
     return 0;
@@ -339,6 +869,8 @@ uint32_t OperandX86::getIndexRegister(){
         return convertUdGPReg(GET(index));
     } else if (IS_XMM_REG(GET(index))){
         return convertUdXMMReg(GET(index));
+    } else if (IS_YMM_REG(GET(index))){
+        return convertUdYMMReg(GET(index));
     } 
     __SHOULD_NOT_ARRIVE;
     return 0;
@@ -351,185 +883,6 @@ void OperandX86::touchedRegisters(BitSet<uint32_t>* regs){
     if (GET(index) && IS_ALU_REG(GET(index))){
         regs->insert(getIndexRegister());
     }
-}
-
-void X86Instruction::impliedUses(BitSet<uint32_t>* regs){
-    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
-        if (usesAluReg(i)){
-            regs->insert(i);
-        }
-    }
-}
-
-void X86Instruction::impliedDefs(BitSet<uint32_t>* regs){
-    for (uint32_t i = 0; i < X86_ALU_REGS; i++){
-        if (defsAluReg(i)){
-            regs->insert(i);
-        }
-    }
-}
-
-void X86Instruction::usesRegisters(BitSet<uint32_t>* regs){
-    if (isMoveOperation()){
-        if (operands[MOV_SRC_OPERAND]){
-            operands[MOV_SRC_OPERAND]->touchedRegisters(regs);
-        }
-        if (operands[MOV_DEST_OPERAND]){
-            if (operands[MOV_DEST_OPERAND]->getType() == UD_OP_MEM || 
-                operands[MOV_DEST_OPERAND]->getType() == UD_OP_PTR){
-                operands[MOV_DEST_OPERAND]->touchedRegisters(regs);
-            }
-        }
-    }
-    if (isIntegerOperation() || isFloatPOperation()){
-        if (countExplicitOperands() > 1){
-            if (operands[ALU_SRC1_OPERAND]){
-                operands[ALU_SRC1_OPERAND]->touchedRegisters(regs);
-            }
-        }
-        if (countExplicitOperands() > 0){
-            if (operands[ALU_SRC2_OPERAND]){
-                operands[ALU_SRC2_OPERAND]->touchedRegisters(regs);
-            }
-        }
-    }
-    impliedUses(regs);
-    // TODO: implement this for branches?
-}
-
-void X86Instruction::defsRegisters(BitSet<uint32_t>* regs){
-    if (isMoveOperation()){
-        if (operands[MOV_DEST_OPERAND] && operands[MOV_DEST_OPERAND]->getType() == UD_OP_REG){
-            operands[MOV_DEST_OPERAND]->touchedRegisters(regs);
-        }
-    }
-    if (isIntegerOperation() || isFloatPOperation()){
-        if (!isConditionCompare() && countExplicitOperands() > 1){
-            if (operands[ALU_DEST_OPERAND] && operands[ALU_DEST_OPERAND]->getType() == UD_OP_REG){
-                operands[ALU_DEST_OPERAND]->touchedRegisters(regs);
-            }
-        }
-    }
-    impliedDefs(regs);
-    // TODO: implement this for branches?
-}
-
-#define has(reg) (op->GET(reg) && IS_ALU_REG(op->GET(reg)))
-
-LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getDefs(){
-
-    LinkedList<ReachingDefinition*>* defs =
-        new LinkedList<ReachingDefinition*>();
-
-    OperandX86* op;
-
-    if (isMoveOperation()) {
-        op = operands[MOV_DEST_OPERAND];
-        if (op) {
-            DefLocation loc;
-            loc.value = op->getValue();
-            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
-            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
-            loc.offset = op->GET(offset);
-            loc.scale = op->GET(scale);
-            loc.type = op->GET(type);
-            defs->insert(new ReachingDefinition(this, loc));
-        } // else implied?
-
-
-    } else if ((isIntegerOperation() || isFloatPOperation()) && !isConditionCompare()) {
-        op = operands[ALU_DEST_OPERAND];
-        if (op) {
-            DefLocation loc;
-            loc.value = op->getValue();
-            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
-            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
-            loc.offset = op->GET(offset);
-            loc.scale = op->GET(scale);
-            loc.type = op->GET(type);
-            defs->insert(new ReachingDefinition(this, loc));
-        } // else implied?
-    }
-
-    // Get the implied register defines
-    BitSet<uint32_t> imp_regs(X86_ALU_REGS);
-    impliedDefs(&imp_regs);
-
-    for (uint32_t i = 0; i < X86_ALU_REGS; ++i) {
-        if (imp_regs.contains(i)) {
-            struct DefLocation loc;
-            bzero(&loc, sizeof(loc));
-            loc.base = i;
-            loc.type = UD_OP_REG;
-            defs->insert(new ReachingDefinition(this, loc));
-        }
-    } 
-
-    return defs;
-}
-
-LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
-
-    LinkedList<ReachingDefinition*>* uses =
-        new LinkedList<ReachingDefinition*>();
-
-    OperandX86* op;
-
-    if (isMoveOperation()) {
-        op = operands[MOV_SRC_OPERAND];
-        if (op) {
-            DefLocation loc;
-            loc.value = op->getValue();
-            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
-            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
-            loc.offset = op->GET(offset);
-            loc.scale = op->GET(scale);
-            loc.type = op->GET(type);
-            uses->insert(new ReachingDefinition(this, loc));
-        } // else implied?
-
-
-    } else if ((isIntegerOperation() || isFloatPOperation())) {
-        op = operands[ALU_SRC1_OPERAND];
-        if (op) {
-            DefLocation loc;
-            loc.value = op->getValue();
-            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
-            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
-            loc.offset = op->GET(offset);
-            loc.scale = op->GET(scale);
-            loc.type = op->GET(type);
-            uses->insert(new ReachingDefinition(this, loc));
-        } // else implied?
-
-        op = operands[ALU_SRC2_OPERAND];
-        if (op) {
-            DefLocation loc;
-            loc.value = op->getValue();
-            loc.base = has(base) ? op->getBaseRegister() : X86_ALU_REGS;
-            loc.index = has(index) ? op->getIndexRegister() : X86_ALU_REGS;
-            loc.offset = op->GET(offset);
-            loc.scale = op->GET(scale);
-            loc.type = op->GET(type);
-            uses->insert(new ReachingDefinition(this, loc));
-        }
-    }
-
-    // Get the implied register uses
-    BitSet<uint32_t> imp_regs(X86_ALU_REGS);
-    impliedUses(&imp_regs);
-
-    for (uint32_t i = 0; i < X86_ALU_REGS; ++i) {
-        if (imp_regs.contains(i)) {
-            struct DefLocation loc;
-            bzero(&loc, sizeof(loc));
-            loc.base = i;
-            loc.type = UD_OP_REG;
-            uses->insert(new ReachingDefinition(this, loc));
-        }
-    } 
-
-    return uses;
 }
 
 bool X86Instruction::ReachingDefinition::invalidatedBy(ReachingDefinition* other) {
@@ -629,6 +982,27 @@ bool X86Instruction::isStackPop(){
     return false;
 }
 
+bool X86Instruction::isConditionalMove(){
+    int32_t m = GET(mnemonic);
+
+    return (m == UD_Icmovo ||
+            m == UD_Icmovno ||
+            m == UD_Icmovb ||
+            m == UD_Icmovae ||
+            m == UD_Icmovz ||
+            m == UD_Icmovnz ||
+            m == UD_Icmovbe ||
+            m == UD_Icmova ||
+            m == UD_Icmovs ||
+            m == UD_Icmovns ||
+            m == UD_Icmovp ||
+            m == UD_Icmovnp ||
+            m == UD_Icmovl ||
+            m == UD_Icmovge ||
+            m == UD_Icmovle ||
+            m == UD_Icmovg);
+}
+
 bool X86Instruction::isMemoryOperation(){
     return (isImplicitMemoryOperation() || isExplicitMemoryOperation());
 }
@@ -681,11 +1055,15 @@ bool X86Instruction::isFloatPOperation(){
     if (getInstructionType() == X86InstructionType_float){
         return true;
     }
-    if (getInstructionType() == X86InstructionType_simd){
+    else if (getInstructionType() == X86InstructionType_simd){
+        return true;
+    }
+    else if (getInstructionType() == X86InstructionType_avx){
         return true;
     }
     return false;
 }
+
 
 uint32_t OperandX86::getBytesUsed(){
     if (GET(type) == UD_OP_MEM){
@@ -714,8 +1092,14 @@ int64_t OperandX86::getValue(){
         value = (int64_t)GET_A(sdword, lval);
     } else if (getBytesUsed() == sizeof(uint64_t)){
         value = (int64_t)GET_A(sqword, lval);
+        // TODO: for now we just yield 0 for types larger than 64 (xmm/ymm)
+    } else if (getBytesUsed() == sizeof(uint64_t) + sizeof(uint64_t)){
+        value = 0;
+    } else if (getBytesUsed() == sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t)){
+        value = 0;
     } else { 
         print();
+        PRINT_INFOR("%s", instruction->GET(insn_buffer));
         PRINT_INFOR("size %d", getBytesUsed());
         __SHOULD_NOT_ARRIVE;
     }
@@ -757,8 +1141,8 @@ int64_t X86Instruction::getRelativeValue(){
 
 uint64_t X86Instruction::getTargetAddress(){
     uint64_t tgtAddress;
-    if (getInstructionType() == X86InstructionType_uncond_branch ||
-        getInstructionType() == X86InstructionType_cond_branch){
+    if (getInstructionType() == X86InstructionType_uncondbr ||
+        getInstructionType() == X86InstructionType_condbr){
         if (addressAnchor){ 
            tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
         } else if (operands && operands[JUMP_TARGET_OPERAND]){
@@ -768,7 +1152,8 @@ uint64_t X86Instruction::getTargetAddress(){
                 tgtAddress += getSizeInBytes();
                 PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx + %d", tgtAddress, getBaseAddress(), operands[JUMP_TARGET_OPERAND]->getValue(), getSizeInBytes());
             } else {
-                tgtAddress = getBaseAddress() + getSizeInBytes();
+                //tgtAddress = getBaseAddress() + getSizeInBytes();
+                tgtAddress = 0;
             }
         } else {
             tgtAddress = 0;
@@ -791,7 +1176,7 @@ uint64_t X86Instruction::getTargetAddress(){
         }
 
     }
-    else if (getInstructionType() == X86InstructionType_system_call){
+    else if (getInstructionType() == X86InstructionType_syscall){
         tgtAddress = 0;
     } else {
         tgtAddress = getBaseAddress() + getSizeInBytes();
@@ -819,11 +1204,7 @@ uint32_t X86Instruction::convertTo4ByteTargetOperand(){
 
     // extract raw bytes from hex representation
     char rawBytes[MAX_X86_INSTRUCTION_LENGTH];
-    uint32_t currByte = 0;
-    for (uint32_t i = 0; i < sizeInBytes; i++){
-        rawBytes[currByte++] = mapCharsToByte(GET(insn_hexcode)[2*i], GET(insn_hexcode)[2*i+1]);
-    }
-
+    memcpy(rawBytes, GET(insn_bytes), sizeInBytes);
 
     uint32_t additionalBytes = 0;
 
@@ -921,14 +1302,12 @@ uint32_t X86Instruction::convertTo4ByteTargetOperand(){
 void X86Instruction::binutilsPrint(FILE* stream){
     fprintf(stream, "%llx: ", getBaseAddress());
 
-    ASSERT(strlen(GET(insn_hexcode)) % 2 == 0);
-
-    for (int32_t i = 0; i < strlen(GET(insn_hexcode)); i += 2){
-        fprintf(stream, "%c%c ", GET(insn_hexcode)[i], GET(insn_hexcode)[i+1]);
+    for (int32_t i = 0; i < sizeInBytes; i++){
+        fprintf(stream, "%02hhx ", GET(insn_bytes)[i]);
     }
 
-    if (strlen(GET(insn_hexcode)) < 16){
-        for (int32_t i = 16 - strlen(GET(insn_hexcode)); i > 0; i -= 2){
+    if (sizeInBytes < 8){
+        for (int32_t i = 8 - sizeInBytes; i > 0; i--){
             fprintf(stream, "   ");
         }
     }
@@ -954,22 +1333,23 @@ bool X86Instruction::usesControlTarget(){
     return false;
 }
 
-void X86Instruction::initializeAnchor(Base* link){
+void X86Instruction::initializeAnchor(Base* link, bool imm){
     if (addressAnchor){
         print();
     }
     ASSERT(!addressAnchor);
     ASSERT(link->containsProgramBits());
-    addressAnchor = new AddressAnchor(link,this);
+    addressAnchor = new AddressAnchor(link, this, imm);
+}
+
+void X86Instruction::initializeAnchor(Base* link){
+    initializeAnchor(link, false);
 }
 
 void X86Instruction::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(sizeInBytes && "This instruction has no bytes thus it cannot be dumped");
 
-    for (uint32_t i = 0; i < sizeInBytes; i++){
-        char byt = mapCharsToByte(GET(insn_hexcode)[2*i], GET(insn_hexcode)[2*i+1]);
-        binaryOutputFile->copyBytes(&byt, 1, offset + i);
-    }
+    binaryOutputFile->copyBytes((char*)GET(insn_bytes), sizeInBytes, offset);
 
     // the anchor will now overwrite any original instruction bytes that relate to relative addresses
     if (addressAnchor){
@@ -1180,1653 +1560,76 @@ bool X86Instruction::isJumpTableBase(){
     return (isUnconditionalBranch() && usesIndirectAddress());
 }
 
-uint16_t X86Instruction::getInstructionBin(){
-    if (instructionBin){
-        return instructionBin;
-    }
-    return setInstructionBin();
+bool X86Instruction::isIndirectBranch(){
+    return (isBranch() && usesIndirectAddress());
 }
 
-uint16_t X86Instruction::setInstructionBin(){
-    uint16_t bin = X86InstructionBin_unknown;
-    if(isLoad()) bin += BinLoad;
-    if(isStore()) bin += BinStore;
-    switch(GET(mnemonic)){
-        case UD_Iseto:
-        case UD_Isetno:
-        case UD_Isetb:
-        case UD_Isetnb:
-        case UD_Isetz:
-        case UD_Isetnz:
-        case UD_Isetbe:
-        case UD_Iseta:
-        case UD_Isets:
-        case UD_Isetns:
-        case UD_Isetp:
-        case UD_Isetnp:
-        case UD_Isetl:
-        case UD_Isetge:
-        case UD_Isetle:
-        case UD_Isetg:
-            bin += X86InstructionBin_bin;
-            bin += INSTBIN_DATATYPE(sizeof(int8_t));
-            break;
-        case UD_Icbw:
-            bin += X86InstructionBin_bin;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Icwd:
-        case UD_Icwde:
-            bin += X86InstructionBin_bin;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Icdqe:
-        case UD_Icdq:
-        case UD_Icqo:
-            bin += X86InstructionBin_bin;
-            bin += INSTBIN_DATATYPE(sizeof(int64_t));
-            break;
-        case UD_Iand:
-        case UD_Ibound:
-        case UD_Ibsf:
-        case UD_Ibsr:
-        case UD_Ibt:
-        case UD_Ibtc:
-        case UD_Ibtr:
-        case UD_Ibts:
-        case UD_Ibswap:
-        case UD_Inot:
-        case UD_Ior:
-        case UD_Ircl:
-        case UD_Ircr:
-        case UD_Irol:
-        case UD_Iror:
-        case UD_Isal:
-        case UD_Isalc:
-        case UD_Isar:
-        case UD_Ishl:
-        case UD_Ishr:
-        case UD_Ishld:
-        case UD_Ishrd:
-        case UD_Itest:
-        case UD_Ixor:
-            bin += X86InstructionBin_bin;
-            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
-            break;
-        case UD_Ipshufb:
-        case UD_Ipminsb:
-        case UD_Ipmaxsb:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(sizeof(int8_t));
-            break;
-        case UD_Ipshufhw:
-        case UD_Ipshuflw:
-        case UD_Ipshufw:
-        case UD_Ipsllw:
-        case UD_Ipsraw:
-        case UD_Ipsrlw:
-        case UD_Ipunpckhbw:
-        case UD_Ipunpcklbw:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Ipshufd:
-        case UD_Ipslld:
-        case UD_Ipsrad:
-        case UD_Ipsrld:
-        case UD_Ipunpckhwd:
-        case UD_Ipunpcklwd:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Ipslldq:
-        case UD_Ipsllq:
-        case UD_Ipsrlq:
-        case UD_Ipsrldq:
-        case UD_Ipunpckhdq:
-        case UD_Ipunpckhqdq:
-        case UD_Ipunpckldq:
-        case UD_Ipunpcklqdq:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(sizeof(int64_t));
-            break;
-        case UD_Iandpd:
-        case UD_Iandnpd:
-        case UD_Iorpd:
-        case UD_Ishufpd:
-        case UD_Ixorpd:
-        case UD_Iunpckhpd:
-        case UD_Iunpcklpd:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(sizeof(double));
-            break;
-        case UD_Iandps:
-        case UD_Iandnps:
-        case UD_Iorps:
-        case UD_Ishufps:
-        case UD_Ixorps:
-        case UD_Iunpckhps:
-        case UD_Iunpcklps:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(sizeof(float));
-            break;
-        case UD_Ipalignr:
-        case UD_Ipand:
-        case UD_Ipandn:
-        case UD_Ipor:
-        case UD_Ipxor:
-            bin += X86InstructionBin_binv;
-            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
-            break;
-        case UD_Iadc:
-        case UD_Iadd:
-        case UD_Icmp:
-        case UD_Icmpxchg:
-        case UD_Icmpxchg8b:
-        case UD_Idec:
-        case UD_Idiv:
-        case UD_Iidiv:
-        case UD_Iimul:
-        case UD_Iinc:
-        case UD_Imul:
-        case UD_Ineg:
-        case UD_Isbb:
-        case UD_Isub:
-        case UD_Ixadd:
-        case UD_Ixchg:
-            bin += X86InstructionBin_int;
-            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
-            break;
-        case UD_Ipacksswb:
-        case UD_Ipackuswb:
-        case UD_Ipaddb:
-        case UD_Ipaddsb:
-        case UD_Ipaddusb:
-        case UD_Ipavgb:
-        case UD_Ipcmpeqb:
-        case UD_Ipcmpgtb:
-        case UD_Ipmaxub:
-        case UD_Ipminub:
-            bin += X86InstructionBin_intv;
-            bin += INSTBIN_DATATYPE(sizeof(int8_t));
-            break;
-        case UD_Ipavgw:
-        case UD_Ipcmpeqw:
-        case UD_Ipcmpgtw:
-        case UD_Ipextrw:
-        case UD_Ipinsrw:
-        case UD_Ipmaxsw:
-        case UD_Ipminsw:
-        case UD_Ipmulhuw:
-        case UD_Ipmulhw:
-        case UD_Ipmullw:
-        case UD_Ipavgusb:
-        case UD_Ipsubb:
-        case UD_Ipsubsb:
-        case UD_Ipsubusb:
-        case UD_Ipsadbw:
-        case UD_Ipsubw:
-        case UD_Ipsubsw:
-        case UD_Ipsubusw:
-        case UD_Ipi2fw:
-        case UD_Ipf2iw:
-        case UD_Ipaddw:
-        case UD_Ipaddsw:
-        case UD_Ipaddusw:
-        case UD_Ipminuw:
-        case UD_Ipmaxuw:
-        case UD_Ipmulhrw:
-            bin += X86InstructionBin_intv;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Ipcmpeqd:
-        case UD_Ipcmpgtd:
-        case UD_Ipf2id:
-        case UD_Ipfacc:
-        case UD_Ipfadd:
-        case UD_Ipfcmpeq:
-        case UD_Ipfcmpge:
-        case UD_Ipfcmpgt:
-        case UD_Ipfmax:
-        case UD_Ipfmin:
-        case UD_Ipfmul:
-        case UD_Ipfnacc:
-        case UD_Ipfpnacc:
-        case UD_Ipfrcp:
-        case UD_Ipfrcpit1:
-        case UD_Ipfrcpit2:
-        case UD_Ipfrspit1:
-        case UD_Ipfrsqrt:
-        case UD_Ipfsub:
-        case UD_Ipfsubr:
-        case UD_Ipi2fd:
-        case UD_Ipaddd:
-        case UD_Ipackssdw:
-        case UD_Iphaddd:
-        case UD_Ipmaddwd:
-        case UD_Ipminsd:
-        case UD_Ipminud:
-        case UD_Ipmaxsd:
-        case UD_Ipmaxud:
-        case UD_Ipmuludq:
-        case UD_Ipsubd:
-        case UD_Ipswapd:
-            bin += X86InstructionBin_intv;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Ipaddq:
-        case UD_Ipsubq:
-            bin += X86InstructionBin_intv;
-            bin += INSTBIN_DATATYPE(sizeof(int64_t));
-            break;
-        case UD_Iaddpd:
-        case UD_Iaddsubpd:
-        case UD_Icmppd:
-        case UD_Icvtpd2dq:
-        case UD_Icvtpd2pi:
-        case UD_Icvttpd2pi:
-        case UD_Icvtdq2pd:
-        case UD_Icvtpi2pd:
-        case UD_Icvtps2pd:
-        case UD_Icvttpd2dq:
-        case UD_Idivpd:
-        case UD_Ihaddpd:
-        case UD_Ihsubpd:
-        case UD_Imaxpd:
-        case UD_Iminpd:
-        case UD_Imulpd:
-        case UD_Iroundpd:
-        case UD_Isqrtpd:
-        case UD_Isubpd:
-            bin += X86InstructionBin_floatv;
-            bin += INSTBIN_DATATYPE(sizeof(double));
-            break;
-        case UD_Iaddsd:
-        case UD_Icomisd:
-        case UD_Icvtsd2si:
-        case UD_Icvtsd2ss:
-        case UD_Icvtss2sd:
-        case UD_Icvtsi2sd:
-        case UD_Idivsd:
-        case UD_Imaxsd:
-        case UD_Iminsd:
-        case UD_Imulsd:
-        case UD_Iroundsd:
-        case UD_Isqrtsd:
-        case UD_Isubsd:
-        case UD_Iucomisd:
-            bin += X86InstructionBin_floats;
-            bin += INSTBIN_DATATYPE(sizeof(double));
-            break;
-        case UD_Iaddps:
-        case UD_Iaddsubps:
-        case UD_Icmpps:
-        case UD_Icvtps2dq:
-        case UD_Icvtps2pi:
-        case UD_Icvtdq2ps:
-        case UD_Icvtpd2ps:
-        case UD_Icvtpi2ps:
-        case UD_Icvttps2dq:
-        case UD_Icvttps2pi:
-        case UD_Idivps:
-        case UD_Ihaddps:
-        case UD_Ihsubps:
-        case UD_Imaxps:
-        case UD_Iminps:
-        case UD_Imulps:
-        case UD_Ircpps:
-        case UD_Iroundps:
-        case UD_Irsqrtps:
-        case UD_Isqrtps:
-        case UD_Isubps:
-            bin += X86InstructionBin_floatv;
-            bin += INSTBIN_DATATYPE(sizeof(float));
-            break;
-        case UD_Iaddss:
-        case UD_Icmpss:
-        case UD_Icomiss:
-        case UD_Icvtsi2ss:
-        case UD_Icvtss2si:
-        case UD_Icvttsd2si:
-        case UD_Icvttss2si:
-        case UD_Idivss:
-        case UD_Imaxss:
-        case UD_Iminss:
-        case UD_Imulss:
-        case UD_Ircpss:
-        case UD_Iroundss:
-        case UD_Irsqrtss:
-        case UD_Isqrtss:
-        case UD_Isubss:
-        case UD_Iucomiss:
-            bin += X86InstructionBin_floats;
-            bin += INSTBIN_DATATYPE(sizeof(float));
-            break;
-        case UD_If2xm1:
-        case UD_Ifabs:
-        case UD_Ifadd:
-        case UD_Ifaddp:
-        case UD_Ifbld:
-        case UD_Ifbstp:
-        case UD_Ifchs:
-        case UD_Ifclex:
-        case UD_Ifucomi:
-        case UD_Ifcomi:
-        case UD_Ifucomip:
-        case UD_Ifcomip:
-        case UD_Ifcom:
-        case UD_Ifcom2:
-        case UD_Ifcomp3:
-        case UD_Ifcomp:
-        case UD_Ifcomp5:
-        case UD_Ifcompp:
-        case UD_Ifcos:
-        case UD_Ifdecstp:
-        case UD_Ifdiv:
-        case UD_Ifdivp:
-        case UD_Ifdivr:
-        case UD_Ifdivrp:
-        case UD_Ifiadd:
-        case UD_Ifidivr:
-        case UD_Ifidiv:
-        case UD_Ifisub:
-        case UD_Ifisubr:
-        case UD_Ificom:
-        case UD_Ificomp:
-        case UD_Ifmul:
-        case UD_Ifmulp:
-        case UD_Ifimul:
-        case UD_Ifpatan:
-        case UD_Ifprem:
-        case UD_Ifprem1:
-        case UD_Ifptan:
-        case UD_Ifrndint:
-        case UD_Ifscale:
-        case UD_Ifsin:
-        case UD_Ifsincos:
-        case UD_Ifsqrt:
-        case UD_Ifsub:
-        case UD_Ifsubp:
-        case UD_Ifsubr:
-        case UD_Ifsubrp:
-        case UD_Iftst:
-        case UD_Ifucom:
-        case UD_Ifucomp:
-        case UD_Ifucompp:
-        case UD_Ifxam:
-        case UD_Ifpxtract:
-        case UD_Ifyl2x:
-        case UD_Ifyl2xp1:
-            bin += X86InstructionBin_float;
-            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
-            break;
-        case UD_Ifild:
-        case UD_Ifist:
-        case UD_Ifistp:
-        case UD_Ifisttp:
-        case UD_Ifld:
-        case UD_Ifld1:
-        case UD_Ifldl2t:
-        case UD_Ifldl2e:
-        case UD_Ifldlpi:
-        case UD_Ifldlg2:
-        case UD_Ifldln2:
-        case UD_Ifldz:
-        case UD_Icmovo:
-        case UD_Icmovno:
-        case UD_Icmovb:
-        case UD_Icmovae:
-        case UD_Icmovz:
-        case UD_Icmovnz:
-        case UD_Icmovbe:
-        case UD_Icmova:
-        case UD_Icmovs:
-        case UD_Icmovns:
-        case UD_Icmovp:
-        case UD_Icmovnp:
-        case UD_Icmovl:
-        case UD_Icmovge:
-        case UD_Icmovle:
-        case UD_Icmovg:
-        case UD_Ifcmovb:
-        case UD_Ifcmove:
-        case UD_Ifcmovbe:
-        case UD_Ifcmovu:
-        case UD_Ifcmovnb:
-        case UD_Ifcmovne:
-        case UD_Ifcmovnbe:
-        case UD_Ifcmovnu:
-        case UD_Ifxch:
-        case UD_Ifxch4:
-        case UD_Ifxch7:
-        case UD_Ifstp:
-        case UD_Ifstp1:
-        case UD_Ifstp8:
-        case UD_Ifstp9:
-        case UD_Ifst:
-        case UD_Ilddqu:
-        case UD_Ilds:
-        case UD_Ilea:
-        case UD_Iles:
-        case UD_Ilfs:
-        case UD_Ilgs:
-        case UD_Ilss:
-        case UD_Istr:
-        case UD_Imov:
-        case UD_Imovapd:
-        case UD_Imovaps:
-        case UD_Imovddup:
-        case UD_Imovdqa:
-        case UD_Imovdqu:
-        case UD_Imovmskpd:
-        case UD_Imovmskps:
-        case UD_Imovntdq:
-        case UD_Imovnti:
-        case UD_Imovntpd:
-        case UD_Imovntps:
-        case UD_Imovsldup:
-        case UD_Imovshdup:
-        case UD_Imovsx:
-        case UD_Imovupd:
-        case UD_Imovups:
-        case UD_Imovzx:
-        case UD_Imovsxd:
-        case UD_Ipmovmskb:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
-            break;
-        case UD_Ilodsb:
-        case UD_Istosb:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(sizeof(int8_t));
-            break;
-        case UD_Ilodsw:
-        case UD_Istosw:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Ildmxcsr:
-        case UD_Ilodsd:
-        case UD_Istosd:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Ilodsq:
-        case UD_Imaskmovq:
-        case UD_Istosq:
-        case UD_Imovq:
-        case UD_Imovqa:
-        case UD_Imovq2dq:
-        case UD_Imovdq2q:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(sizeof(int64_t));
-            break;
-        case UD_Imovss:
-        case UD_Imovhps:
-        case UD_Imovlps:
-        case UD_Imovlhps:
-        case UD_Imovhlps:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(sizeof(float));
-            break;
-        case UD_Imovd:
-        case UD_Imovhpd:
-        case UD_Imovlpd:
-        case UD_Imovntq:
-        case UD_Imovsd:
-            bin += X86InstructionBin_move;
-            bin += INSTBIN_DATATYPE(sizeof(double));
-            break;
-        case UD_Imovsb:
-        case UD_Icmpsb:
-        case UD_Iscasb:
-            bin += X86InstructionBin_string;
-            bin += INSTBIN_DATATYPE(sizeof(int8_t));
-            break;
-        case UD_Icmpsw:
-        case UD_Imovsw:
-        case UD_Iscasw:
-            bin += X86InstructionBin_string;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Icmpsd:
-        case UD_Iscasd:
-            bin += X86InstructionBin_string;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Icmpsq:
-        case UD_Imovsq:
-        case UD_Iscasq:
-            bin += X86InstructionBin_string;
-            bin += INSTBIN_DATATYPE(sizeof(int64_t));
-            break;
-        case UD_Irepne: //FIXME variable size
-        case UD_Irep: //FIXME variable size
-            bin += X86InstructionBin_string;
-            break;
-        case UD_Ija:
-        case UD_Ijae:
-        case UD_Ijb:
-        case UD_Ijbe:
-        case UD_Ijcxz:
-        case UD_Ijecxz:
-        case UD_Ijg:
-        case UD_Ijge:
-        case UD_Ijl:
-        case UD_Ijle:
-        case UD_Ijno:
-        case UD_Ijnp:
-        case UD_Ijns:
-        case UD_Ijnz:
-        case UD_Ijo:
-        case UD_Ijp:
-        case UD_Ijrcxz:
-        case UD_Ijs:
-        case UD_Ijz:
-            bin += X86InstructionBin_cond;
-            break;
-        case UD_Icall:
-        case UD_Iret:
-        case UD_Iretf:
-            bin += BinFrame;
-        case UD_Ijmp:
-            bin += X86InstructionBin_uncond;
-            break;
-        case UD_Ienter:
-        case UD_Ileave:
-            bin += X86InstructionBin_stack;
-            bin += BinFrame;
-            break;
-        case UD_Ifnsave:
-        case UD_Ifnstcw:
-        case UD_Ifnstenv:
-        case UD_Ifnstsw:
-        case UD_Ifrstor:
-        case UD_Ifxrstor:
-        case UD_Ifxsave:
-            bin += X86InstructionBin_stack;
-            bin += BinFrame;
-            break;
-        case UD_Ipop:
-        case UD_Ipush:
-            bin += X86InstructionBin_stack;
-            bin += BinStack;
-            bin += INSTBIN_DATATYPE(getDstSizeInBytes());
-            break;
-        case UD_Ipopa:
-        case UD_Ipusha:
-            bin += X86InstructionBin_stack;
-            bin += BinFrame;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Ipopad:
-        case UD_Ipushad:
-            bin += X86InstructionBin_stack;
-            bin += BinFrame;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Ipopfw:
-        case UD_Ipushfw:
-            bin += X86InstructionBin_stack;
-            bin += BinStack;
-            bin += INSTBIN_DATATYPE(sizeof(int16_t));
-            break;
-        case UD_Ipopfd:
-        case UD_Ipushfd:
-            bin += X86InstructionBin_stack;
-            bin += BinStack;
-            bin += INSTBIN_DATATYPE(sizeof(int32_t));
-            break;
-        case UD_Ipopfq:
-        case UD_Ipushfq:
-            bin += X86InstructionBin_stack;
-            bin += BinStack;
-            bin += INSTBIN_DATATYPE(sizeof(int64_t));
-            break;
-        case UD_Iclflush:
-        case UD_Iinvd:
-        case UD_Iinvlpg:
-        case UD_Iinvlpga:
-        case UD_Iprefetch:
-        case UD_Iprefetchnta:
-        case UD_Iprefetcht0:
-        case UD_Iprefetcht1:
-        case UD_Iprefetcht2:
-            bin += X86InstructionBin_cache;
-            break;
-        case UD_Iint:
-        case UD_Iint1:
-        case UD_Iint3:
-        case UD_Iinto:
-        case UD_Iiretd:
-        case UD_Iiretq:
-        case UD_Iiretw:
-        case UD_Isyscall:
-        case UD_Isysenter:
-        case UD_Isysexit:
-        case UD_Isysret:
-            bin += X86InstructionBin_system;
-            bin += BinFrame;
-            break;
-        case UD_Id3vil:
-        case UD_Idb:
-        case UD_Igrp_asize:
-        case UD_Igrp_mod:
-        case UD_Igrp_mode:
-        case UD_Igrp_osize:
-        case UD_Igrp_reg:
-        case UD_Igrp_rm:
-        case UD_Igrp_vendor:
-        case UD_Igrp_x87:
-        case UD_Iinvalid:
-        case UD_Ina:
-        case UD_Inone:
-        case UD_Iud2:
-            bin += X86InstructionBin_invalid;
-            break;
-        case UD_I3dnow:
-        case UD_Iaaa:
-        case UD_Iaad:
-        case UD_Iaam:
-        case UD_Iaas:
-        case UD_Iarpl:
-        case UD_Iclc:
-        case UD_Icld:
-        case UD_Iclgi:
-        case UD_Icli:
-        case UD_Iclts:
-        case UD_Icmc:
-        case UD_Icpuid:
-        case UD_Idaa:
-        case UD_Idas:
-        case UD_Iemms:
-        case UD_Ifemms:
-        case UD_Iffree:
-        case UD_Iffreep:
-        case UD_Ifldcw:
-        case UD_Ifldenv:
-        case UD_Ifncstp:
-        case UD_Ifninit:
-        case UD_Ifnop:
-        case UD_Ihlt:
-        case UD_Iin:
-        case UD_Iinsb:
-        case UD_Iinsd:
-        case UD_Iinsw:
-        case UD_Ilahf:
-        case UD_Ilar:
-        case UD_Ilfence:
-        case UD_Ilgdt:
-        case UD_Ilidt:
-        case UD_Illdt:
-        case UD_Ilmsw:
-        case UD_Ilock:
-        case UD_Iloop:
-        case UD_Iloope:
-        case UD_Iloopnz:
-        case UD_Ilsl:
-        case UD_Iltr:
-        case UD_Imfence:
-        case UD_Imonitor:
-        case UD_Imwait:
-        case UD_Inop:
-        case UD_Iout:
-        case UD_Ioutsb:
-        case UD_Ioutsd:
-        case UD_Ioutsq:
-        case UD_Ioutsw:
-        case UD_Ipause:
-        case UD_Irdmsr:
-        case UD_Irdpmc:
-        case UD_Irdtsc:
-        case UD_Irdtscp:
-        case UD_Irsm:
-        case UD_Isahf:
-        case UD_Isfence:
-        case UD_Isgdt:
-        case UD_Isidt:
-        case UD_Iskinit:
-        case UD_Isldt:
-        case UD_Ismsw:
-        case UD_Istc:
-        case UD_Istd:
-        case UD_Istgi:
-        case UD_Isti:
-        case UD_Istmxcsr:
-        case UD_Iswapgs:
-        case UD_Iverr:
-        case UD_Iverw:
-        case UD_Ivmcall:
-        case UD_Ivmclear:
-        case UD_Ivmload:
-        case UD_Ivmmcall:
-        case UD_Ivmptrld:
-        case UD_Ivmptrst:
-        case UD_Ivmresume:
-        case UD_Ivmrun:
-        case UD_Ivmsave:
-        case UD_Ivmxoff:
-        case UD_Ivmxon:
-        case UD_Iwait:
-        case UD_Iwbinvd:
-        case UD_Iwrmsr:
-        case UD_Ixlatb:
-            bin += X86InstructionBin_other;
-            break;
-        default:
-            bin = X86InstructionBin_unknown;
-            break;
-    };
-    instructionBin = bin;
-    return instructionBin;
-}
+bool X86Instruction::isBinUnknown() { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_unknown; }
+bool X86Instruction::isBinInvalid() { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_invalid; }
+bool X86Instruction::isBinCond()    { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_cond;    }
+bool X86Instruction::isBinUncond()  { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_uncond;  }
+bool X86Instruction::isBinBin()     { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_bin;     }
+bool X86Instruction::isBinBinv()    { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_binv;    }
+bool X86Instruction::isBinInt()     { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_int;     }
+bool X86Instruction::isBinIntv()    { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_intv;    }
+bool X86Instruction::isBinFloat()   { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_float;   }
+bool X86Instruction::isBinFloatv()  { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floatv;  }
+bool X86Instruction::isBinFloats()  { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floats;  }
+bool X86Instruction::isBinMove()    { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_move;    }
+bool X86Instruction::isBinSystem()  { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_system;  }
+bool X86Instruction::isBinStack()   { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_stack;   }
+bool X86Instruction::isBinOther()   { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_other;   }
+bool X86Instruction::isBinCache()   { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_cache;   }
+bool X86Instruction::isBinString()  { return  X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_string;  }
+bool X86Instruction::isBinByte()    { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_int)    && (X86InstructionClassifier::getInstructionMemSize(this)) == 1; }
+bool X86Instruction::isBinBytev()   { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_intv)   && (X86InstructionClassifier::getInstructionMemSize(this)) == 1; }
+bool X86Instruction::isBinWord()    { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_int)    && (X86InstructionClassifier::getInstructionMemSize(this)) == 2; }
+bool X86Instruction::isBinWordv()   { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_intv)   && (X86InstructionClassifier::getInstructionMemSize(this)) == 2; }
+bool X86Instruction::isBinDword()   { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_int)    && (X86InstructionClassifier::getInstructionMemSize(this)) == 4; }
+bool X86Instruction::isBinDwordv()  { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_intv)   && (X86InstructionClassifier::getInstructionMemSize(this)) == 4; }
+bool X86Instruction::isBinQword()   { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_int)    && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
+bool X86Instruction::isBinQwordv()  { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_intv)   && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
+bool X86Instruction::isBinSingle()  { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_float)  && (X86InstructionClassifier::getInstructionMemSize(this)) == 4; }
+bool X86Instruction::isBinSinglev() { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floatv) && (X86InstructionClassifier::getInstructionMemSize(this)) == 4; }
+bool X86Instruction::isBinSingles() { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floats) && (X86InstructionClassifier::getInstructionMemSize(this)) == 4; }
+bool X86Instruction::isBinDouble()  { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_float)  && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
+bool X86Instruction::isBinDoublev() { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floatv) && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
+bool X86Instruction::isBinDoubles() { return (X86InstructionClassifier::getInstructionBin(this) == X86InstructionBin_floats) && (X86InstructionClassifier::getInstructionMemSize(this)) == 8; }
+bool X86Instruction::isBinMem()     { return (X86InstructionClassifier::getInstructionMemLocation(this) != 0); }
 
-uint32_t X86Instruction::getInstructionType(){
-    if (instructionType){
-        return instructionType;
-    }
-    return setInstructionType();
-}
-
-uint32_t X86Instruction::setInstructionType(){
-    uint32_t optype = X86InstructionType_unknown;
-    switch(GET(mnemonic)){
-        case UD_Impsadbw:
-        case UD_Iphminposuw:
-        case UD_Ipmuldq:
-        case UD_Idpps:
-        case UD_Idppd:
-            optype = X86InstructionType_simd;
-            break; 
-        case UD_Ipblendvb:
-        case UD_Ipblendw:
-        case UD_Iblendvpd:
-        case UD_Iblendvps:
-        case UD_Iblendpd:
-        case UD_Iblendps:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipminsb:
-        case UD_Ipminsd:
-        case UD_Ipminuw:
-        case UD_Ipminud:
-        case UD_Ipmaxsb:
-        case UD_Ipmaxsd:
-        case UD_Ipmaxuw:
-        case UD_Ipmaxud:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_Iroundps:
-        case UD_Iroundpd:
-        case UD_Iroundss:
-        case UD_Iroundsd:
-	    optype = X86InstructionType_simd;
-	    break;
-        case UD_Ipextrb:
-        case UD_Ipextrd:
-        case UD_Ipextrq:
-        case UD_Iextractps:
-        case UD_Ipinsrb:
-        case UD_Ipinsrd:
-        case UD_Ipinsrq:
-        case UD_Iinsertps:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_Ipmovsxbw:
-        case UD_Ipmovsxbd:
-        case UD_Ipmovsxbq:
-        case UD_Ipmovsxwd:
-        case UD_Ipmovsxwq:
-        case UD_Ipmovsxdq:
-        case UD_Ipmovzxbw:
-        case UD_Ipmovzxbd:
-        case UD_Ipmovzxbq:
-        case UD_Ipmovzxwd:
-        case UD_Ipmovzxwq:
-        case UD_Ipmovzxdq:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Iptest:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipcmpeqq:
-        case UD_Ipackusdw:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_Imovntdqa:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Ipcmpestrm:
-        case UD_Ipcmpestri:
-        case UD_Ipcmpistrm:
-        case UD_Ipcmpistri:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_Ipcmpgtq:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipclmulqdq:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_Ipalignr:
-        case UD_Ipshufb:
-        case UD_Iphaddd:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_I3dnow:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Iaaa:
-        case UD_Iaad:
-        case UD_Iaam:
-        case UD_Iaas:
-        case UD_Iadc:
-        case UD_Iadd:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iaddpd:
-        case UD_Iaddps:
-        case UD_Iaddsd:
-        case UD_Iaddss:
-        case UD_Iaddsubpd:
-        case UD_Iaddsubps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iand:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iandpd:
-        case UD_Iandps:
-        case UD_Iandnpd:
-        case UD_Iandnps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iarpl:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Imovsxd:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Ibound:
-        case UD_Ibsf:
-        case UD_Ibsr:
-        case UD_Ibswap:
-        case UD_Ibt:
-        case UD_Ibtc:
-        case UD_Ibtr:
-        case UD_Ibts:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Icall:
-            optype = X86InstructionType_call;
-            break;
-        case UD_Icbw:
-        case UD_Icwde:
-        case UD_Icdqe:
-        case UD_Iclc:
-        case UD_Icld:
-        case UD_Iclflush:
-        case UD_Iclgi:
-        case UD_Icli:
-        case UD_Iclts:
-        case UD_Icmc:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Icmovo:
-        case UD_Icmovno:
-        case UD_Icmovb:
-        case UD_Icmovae:
-        case UD_Icmovz:
-        case UD_Icmovnz:
-        case UD_Icmovbe:
-        case UD_Icmova:
-        case UD_Icmovs:
-        case UD_Icmovns:
-        case UD_Icmovp:
-        case UD_Icmovnp:
-        case UD_Icmovl:
-        case UD_Icmovge:
-        case UD_Icmovle:
-        case UD_Icmovg:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Icmp:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Icmppd:
-        case UD_Icmpps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Icmpsb:
-        case UD_Icmpsw:
-            optype = X86InstructionType_string;
-            break;
-        case UD_Icmpsd:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Icmpsq:
-            optype = X86InstructionType_string;
-            break;
-        case UD_Icmpss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Icmpxchg:
-        case UD_Icmpxchg8b:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Icomisd:
-        case UD_Icomiss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Icpuid:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Icvtdq2pd:
-        case UD_Icvtdq2ps:
-        case UD_Icvtpd2dq:
-        case UD_Icvtpd2pi:
-        case UD_Icvtpd2ps:
-        case UD_Icvtpi2ps:
-        case UD_Icvtpi2pd:
-        case UD_Icvtps2dq:
-        case UD_Icvtps2pi:
-        case UD_Icvtps2pd:
-        case UD_Icvtsd2si:
-        case UD_Icvtsd2ss:
-        case UD_Icvtsi2ss:
-        case UD_Icvtss2si:
-        case UD_Icvtss2sd:
-        case UD_Icvttpd2pi:
-        case UD_Icvttpd2dq:
-        case UD_Icvttps2dq:
-        case UD_Icvttps2pi:
-        case UD_Icvttsd2si:
-        case UD_Icvtsi2sd:
-        case UD_Icvttss2si:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Icwd:
-        case UD_Icdq:
-        case UD_Icqo:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Idaa:
-        case UD_Idas:
-        case UD_Idec:
-        case UD_Idiv:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Idivpd:
-        case UD_Idivps:
-        case UD_Idivsd:
-        case UD_Idivss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iemms:
-        case UD_Ienter:
-            optype = X86InstructionType_special;
-            break;
-        case UD_If2xm1:
-        case UD_Ifabs:
-        case UD_Ifadd:
-        case UD_Ifaddp:
-        case UD_Ifbld:
-        case UD_Ifbstp:
-        case UD_Ifchs:
-        case UD_Ifclex:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ifcmovb:
-        case UD_Ifcmove:
-        case UD_Ifcmovbe:
-        case UD_Ifcmovu:
-        case UD_Ifcmovnb:
-        case UD_Ifcmovne:
-        case UD_Ifcmovnbe:
-        case UD_Ifcmovnu:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Ifucomi:
-        case UD_Ifcom:
-        case UD_Ifcom2:
-        case UD_Ifcomp3:
-        case UD_Ifcomi:
-        case UD_Ifucomip:
-        case UD_Ifcomip:
-        case UD_Ifcomp:
-        case UD_Ifcomp5:
-        case UD_Ifcompp:
-        case UD_Ifcos:
-        case UD_Ifdecstp:
-        case UD_Ifdiv:
-        case UD_Ifdivp:
-        case UD_Ifdivr:
-        case UD_Ifdivrp:
-        case UD_Ifemms:
-        case UD_Iffree:
-        case UD_Iffreep:
-        case UD_Ificom:
-        case UD_Ificomp:
-        case UD_Ifild:
-        case UD_Ifncstp:
-        case UD_Ifninit:
-        case UD_Ifiadd:
-        case UD_Ifidivr:
-        case UD_Ifidiv:
-        case UD_Ifisub:
-        case UD_Ifisubr:
-        case UD_Ifist:
-        case UD_Ifistp:
-        case UD_Ifisttp:
-        case UD_Ifld:
-        case UD_Ifld1:
-        case UD_Ifldl2t:
-        case UD_Ifldl2e:
-        case UD_Ifldlpi:
-        case UD_Ifldlg2:
-        case UD_Ifldln2:
-        case UD_Ifldz:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ifldcw:
-        case UD_Ifldenv:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ifmul:
-        case UD_Ifmulp:
-        case UD_Ifimul:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ifnop:
-            optype = X86InstructionType_nop;
-            break;
-        case UD_Ifpatan:
-        case UD_Ifprem:
-        case UD_Ifprem1:
-        case UD_Ifptan:
-        case UD_Ifrndint:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ifrstor:
-        case UD_Ifnsave:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ifscale:
-        case UD_Ifsin:
-        case UD_Ifsincos:
-        case UD_Ifsqrt:
-        case UD_Ifstp:
-        case UD_Ifstp1:
-        case UD_Ifstp8:
-        case UD_Ifstp9:
-        case UD_Ifst:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ifnstcw:
-        case UD_Ifnstenv:
-        case UD_Ifnstsw:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ifsub:
-        case UD_Ifsubp:
-        case UD_Ifsubr:
-        case UD_Ifsubrp:
-        case UD_Iftst:
-        case UD_Ifucom:
-        case UD_Ifucomp:
-        case UD_Ifucompp:
-        case UD_Ifxam:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ifxch:
-        case UD_Ifxch4:
-        case UD_Ifxch7:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ifxrstor:
-        case UD_Ifxsave:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ifpxtract:
-        case UD_Ifyl2x:
-        case UD_Ifyl2xp1:
-        case UD_Ihaddpd:
-        case UD_Ihaddps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Ihlt:
-            optype = X86InstructionType_halt;
-            break;
-        case UD_Ihsubpd:
-        case UD_Ihsubps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iidiv:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iin:
-            optype = X86InstructionType_io;
-            break;
-        case UD_Iimul:
-        case UD_Iinc:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iinsb:
-        case UD_Iinsw:
-        case UD_Iinsd:
-            optype = X86InstructionType_io;
-            break;
-        case UD_Iint1:
-        case UD_Iint3:
-        case UD_Iint:
-        case UD_Iinto:
-            optype = X86InstructionType_trap;
-            break;
-        case UD_Iinvd:
-        case UD_Iinvlpg:
-        case UD_Iinvlpga:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Iiretw:
-        case UD_Iiretd:
-        case UD_Iiretq:
-            optype = X86InstructionType_return;
-            break;
-        case UD_Ijo:
-        case UD_Ijno:
-        case UD_Ijb:
-        case UD_Ijae:
-        case UD_Ijz:
-        case UD_Ijnz:
-        case UD_Ijbe:
-        case UD_Ija:
-        case UD_Ijs:
-        case UD_Ijns:
-        case UD_Ijp:
-        case UD_Ijnp:
-        case UD_Ijl:
-        case UD_Ijge:
-        case UD_Ijle:
-        case UD_Ijg:
-        case UD_Ijcxz:
-        case UD_Ijecxz:
-        case UD_Ijrcxz:
-            optype = X86InstructionType_cond_branch;
-            break;
-        case UD_Ijmp:
-            optype = X86InstructionType_uncond_branch;
-            break;
-        case UD_Ilahf:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ilar:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ilddqu:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ildmxcsr:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ilds:
-        case UD_Ilea:
-            optype = X86InstructionType_move;
-            break;            
-        case UD_Iles:
-        case UD_Ilfs:
-        case UD_Ilgs:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ilidt:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ilss:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ileave:
-        case UD_Ilfence:
-        case UD_Ilgdt:
-        case UD_Illdt:
-        case UD_Ilmsw:
-        case UD_Ilock:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ilodsb:
-        case UD_Ilodsw:
-        case UD_Ilodsd:
-        case UD_Ilodsq:
-            optype = X86InstructionType_string;
-            break;
-        case UD_Iloopnz:
-        case UD_Iloope:
-        case UD_Iloop:
-        case UD_Ilsl:
-        case UD_Iltr:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Imaskmovq:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Imaxpd:
-        case UD_Imaxps:
-        case UD_Imaxsd:
-        case UD_Imaxss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Imfence:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Iminpd:
-        case UD_Iminps:
-        case UD_Iminsd:
-        case UD_Iminss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Imonitor:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Imov:
-        case UD_Imovapd:
-        case UD_Imovaps:
-        case UD_Imovd:
-        case UD_Imovddup:
-        case UD_Imovdqa:
-        case UD_Imovdqu:
-        case UD_Imovdq2q:
-        case UD_Imovhpd:
-        case UD_Imovhps:
-        case UD_Imovlhps:
-        case UD_Imovlpd:
-        case UD_Imovlps:
-        case UD_Imovhlps:
-        case UD_Imovmskpd:
-        case UD_Imovmskps:
-        case UD_Imovntdq:
-        case UD_Imovnti:
-        case UD_Imovntpd:
-        case UD_Imovntps:
-        case UD_Imovntq:
-        case UD_Imovq:
-        case UD_Imovqa:
-        case UD_Imovq2dq:
-        case UD_Imovsb:
-        case UD_Imovsw:
-        case UD_Imovsd:
-        case UD_Imovsq:
-        case UD_Imovsldup:
-        case UD_Imovshdup:
-        case UD_Imovss:
-        case UD_Imovsx:
-        case UD_Imovupd:
-        case UD_Imovups:
-        case UD_Imovzx:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Imul:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Imulpd:
-        case UD_Imulps:
-        case UD_Imulsd:
-        case UD_Imulss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Imwait:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ineg:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Inop:
-            optype = X86InstructionType_nop;
-            break;
-        case UD_Inot:
-        case UD_Ior:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iorpd:
-        case UD_Iorps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iout:
-        case UD_Ioutsb:
-        case UD_Ioutsw:
-        case UD_Ioutsd:
-        case UD_Ioutsq:
-            optype = X86InstructionType_io;
-            break;
-        case UD_Ipacksswb:
-        case UD_Ipackssdw:
-        case UD_Ipackuswb:
-        case UD_Ipaddb:
-        case UD_Ipaddw:
-        case UD_Ipaddd:
-        case UD_Ipaddq:
-        case UD_Ipaddsb:
-        case UD_Ipaddsw:
-        case UD_Ipaddusb:
-        case UD_Ipaddusw:
-        case UD_Ipand:
-        case UD_Ipandn:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipause:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ipavgb:
-        case UD_Ipavgw:
-        case UD_Ipcmpeqb:
-        case UD_Ipcmpeqw:
-        case UD_Ipcmpeqd:
-        case UD_Ipcmpgtb:
-        case UD_Ipcmpgtw:
-        case UD_Ipcmpgtd:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipextrw:
-        case UD_Ipinsrw:
-        case UD_Ipmaddwd:
-        case UD_Ipmaxsw:
-        case UD_Ipmaxub:
-        case UD_Ipminsw:
-        case UD_Ipminub:
-            optype = X86InstructionType_simd;
-            break;
-        case UD_Ipmovmskb:
-            optype = X86InstructionType_move;
-            break;
-        case UD_Ipmulhuw:
-        case UD_Ipmulhw:
-        case UD_Ipmullw:
-        case UD_Ipmuludq:
-        case UD_Ipop:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipopa:
-        case UD_Ipopad:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ipopfw:
-        case UD_Ipopfd:
-        case UD_Ipopfq:
-        case UD_Ipor:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iprefetch:
-        case UD_Iprefetchnta:
-        case UD_Iprefetcht0:
-        case UD_Iprefetcht1:
-        case UD_Iprefetcht2:
-            optype = X86InstructionType_prefetch;
-            break;
-        case UD_Ipsadbw:
-        case UD_Ipshufd:
-        case UD_Ipshufhw:
-        case UD_Ipshuflw:
-        case UD_Ipshufw:
-        case UD_Ipslldq:
-        case UD_Ipsllw:
-        case UD_Ipslld:
-        case UD_Ipsllq:
-        case UD_Ipsraw:
-        case UD_Ipsrad:
-        case UD_Ipsrlw:
-        case UD_Ipsrld:
-        case UD_Ipsrlq:
-        case UD_Ipsrldq:
-        case UD_Ipsubb:
-        case UD_Ipsubw:
-        case UD_Ipsubd:
-        case UD_Ipsubq:
-        case UD_Ipsubsb:
-        case UD_Ipsubsw:
-        case UD_Ipsubusb:
-        case UD_Ipsubusw:
-        case UD_Ipunpckhbw:
-        case UD_Ipunpckhwd:
-        case UD_Ipunpckhdq:
-        case UD_Ipunpckhqdq:
-        case UD_Ipunpcklbw:
-        case UD_Ipunpcklwd:
-        case UD_Ipunpckldq:
-        case UD_Ipunpcklqdq:
-        case UD_Ipi2fw:
-        case UD_Ipi2fd:
-        case UD_Ipf2iw:
-        case UD_Ipf2id:
-        case UD_Ipfnacc:
-        case UD_Ipfpnacc:
-        case UD_Ipfcmpge:
-        case UD_Ipfmin:
-        case UD_Ipfrcp:
-        case UD_Ipfrsqrt:
-        case UD_Ipfsub:
-        case UD_Ipfadd:
-        case UD_Ipfcmpgt:
-        case UD_Ipfmax:
-        case UD_Ipfrcpit1:
-        case UD_Ipfrspit1:
-        case UD_Ipfsubr:
-        case UD_Ipfacc:
-        case UD_Ipfcmpeq:
-        case UD_Ipfmul:
-        case UD_Ipfrcpit2:
-        case UD_Ipmulhrw:
-        case UD_Ipswapd:
-        case UD_Ipavgusb:
-        case UD_Ipush:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ipusha:
-        case UD_Ipushad:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ipushfw:
-        case UD_Ipushfd:
-        case UD_Ipushfq:
-        case UD_Ipxor:
-        case UD_Ircl:
-        case UD_Ircr:
-        case UD_Irol:
-        case UD_Iror:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ircpps:
-        case UD_Ircpss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Irdmsr:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Irdpmc:
-        case UD_Irdtsc:
-        case UD_Irdtscp:
-            optype = X86InstructionType_hwcount;
-            break;
-        case UD_Irepne:
-        case UD_Irep:
-            optype = X86InstructionType_string;
-            break;
-        case UD_Iret:
-        case UD_Iretf:
-            optype = X86InstructionType_return;
-            break;
-        case UD_Irsm:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Irsqrtps:
-        case UD_Irsqrtss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Isahf:
-        case UD_Isal:
-        case UD_Isalc:
-        case UD_Isar:
-        case UD_Ishl:
-        case UD_Ishr:
-        case UD_Isbb:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iscasb:
-        case UD_Iscasw:
-        case UD_Iscasd:
-        case UD_Iscasq:
-            optype = X86InstructionType_string;
-            break;
-        case UD_Iseto:
-        case UD_Isetno:
-        case UD_Isetb:
-        case UD_Isetnb:
-        case UD_Isetz:
-        case UD_Isetnz:
-        case UD_Isetbe:
-        case UD_Iseta:
-        case UD_Isets:
-        case UD_Isetns:
-        case UD_Isetp:
-        case UD_Isetnp:
-        case UD_Isetl:
-        case UD_Isetge:
-        case UD_Isetle:
-        case UD_Isetg:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Isfence:
-        case UD_Isgdt:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ishld:
-        case UD_Ishrd:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ishufpd:
-        case UD_Ishufps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Isidt:
-        case UD_Isldt:
-        case UD_Ismsw:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Isqrtps:
-        case UD_Isqrtpd:
-        case UD_Isqrtsd:
-        case UD_Isqrtss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Istc:
-        case UD_Istd:
-        case UD_Istgi:
-        case UD_Isti:
-        case UD_Iskinit:
-        case UD_Istmxcsr:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Istosb:
-        case UD_Istosw:
-        case UD_Istosd:
-        case UD_Istosq:
-            optype = X86InstructionType_string;
-            break;
-        case UD_Istr:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Isub:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Isubpd:
-        case UD_Isubps:
-        case UD_Isubsd:
-        case UD_Isubss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iswapgs:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Isyscall:
-        case UD_Isysenter:
-        case UD_Isysexit:
-        case UD_Isysret:
-            optype = X86InstructionType_system_call;
-            break;
-        case UD_Itest:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Iucomisd:
-        case UD_Iucomiss:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iud2:
-            optype = X86InstructionType_invalid;
-            break;
-        case UD_Iunpckhpd:
-        case UD_Iunpckhps:
-        case UD_Iunpcklps:
-        case UD_Iunpcklpd:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Iverr:
-        case UD_Iverw:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ivmcall:
-        case UD_Ivmclear:
-        case UD_Ivmxon:
-        case UD_Ivmptrld:
-        case UD_Ivmptrst:
-        case UD_Ivmresume:
-        case UD_Ivmxoff:
-        case UD_Ivmrun:
-        case UD_Ivmmcall:
-        case UD_Ivmload:
-        case UD_Ivmsave:
-            optype = X86InstructionType_vmx;
-            break;
-        case UD_Iwait:
-        case UD_Iwbinvd:
-        case UD_Iwrmsr:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ixadd:
-        case UD_Ixchg:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ixlatb:
-            optype = X86InstructionType_special;
-            break;
-        case UD_Ixor:
-            optype = X86InstructionType_int;
-            break;
-        case UD_Ixorpd:
-        case UD_Ixorps:
-            optype = X86InstructionType_float;
-            break;
-        case UD_Idb:
-        case UD_Iinvalid:
-        case UD_Id3vil:
-        case UD_Ina:
-        case UD_Igrp_reg:
-        case UD_Igrp_rm:
-        case UD_Igrp_vendor:
-        case UD_Igrp_x87:
-        case UD_Igrp_mode:
-        case UD_Igrp_osize:
-        case UD_Igrp_asize:
-        case UD_Igrp_mod:
-        case UD_Inone:
-            optype = X86InstructionType_invalid;
-            break;
-        default:
-            optype = X86InstructionType_unknown;
-            break;
-    };
-
-    if (optype == X86InstructionType_unknown){
-        PRINT_WARN(10, "Unknown instruction mnemonic `%s' found at address %#llx", ud_lookup_mnemonic(GET(mnemonic)), baseAddress);
-    }
-
-    instructionType = optype;
-    return instructionType;
+void X86Instruction::printBin(){
+    if(isBinUnknown())      printf("Unknown");
+    else if(isBinInvalid()) printf("Invalid");
+    else if(isBinCond())    printf("Cond");
+    else if(isBinUncond())  printf("Uncond");
+    else if(isBinBin())     printf("Bin");
+    else if(isBinBinv())    printf("Binv");
+    else if(isBinInt())     printf("Int");
+    else if(isBinIntv())    printf("Intv");
+    else if(isBinFloat())   printf("Float");
+    else if(isBinFloatv())  printf("Floatv");
+    else if(isBinFloats())  printf("Floats");
+    else if(isBinMove())    printf("Move");
+    else if(isBinSystem())  printf("System");
+    else if(isBinStack())   printf("Stack");
+    else if(isBinOther())   printf("Other");
+    else if(isBinCache())   printf("Cache");
+    else if(isBinString())  printf("String");
+    else if(isBinByte())    printf("Byte");
+    else if(isBinBytev())   printf("Bytev");
+    else if(isBinWord())    printf("Word");
+    else if(isBinWordv())   printf("Wordv");
+    else if(isBinDword())   printf("Dword");
+    else if(isBinDwordv())  printf("Dwordv");
+    else if(isBinQword())   printf("Qword");
+    else if(isBinQwordv())  printf("Qwordv");
+    else if(isBinSingle())  printf("Single");
+    else if(isBinSinglev()) printf("Singlev");
+    else if(isBinSingles()) printf("Singles");
+    else if(isBinDouble())  printf("Double");
+    else if(isBinDoublev()) printf("Doublev");
+    else if(isBinDoubles()) printf("Doubles");
+    printf("\n");
 }
 
 bool X86Instruction::controlFallsThrough(){
@@ -2855,7 +1658,9 @@ bool OperandX86::verify(){
             GET(size) != 32 &&
             GET(size) != 48 &&
             GET(size) != 64 &&
-            GET(size) != 80){
+            GET(size) != 80 &&
+            GET(size) != 128 &&
+            GET(size) != 256){
             print();
             PRINT_ERROR("Illegal operand size %d", GET(size));
             return false;
@@ -2882,18 +1687,6 @@ X86Instruction::~X86Instruction(){
     }
     if (liveOuts){
         delete liveOuts;
-    }
-    if (flags_usedef){
-        delete[] flags_usedef;
-    }
-    if (impreg_usedef){
-        if (impreg_usedef[__reg_use]){
-            delete impreg_usedef[__reg_use];
-        }
-        if (impreg_usedef[__reg_def]){
-            delete impreg_usedef[__reg_def];
-        }
-        delete[] impreg_usedef;
     }
     if (rawBytes){
         delete[] rawBytes;
@@ -2933,8 +1726,6 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     byteSource = src;
     container = cont;
     addressAnchor = NULL;
-    instructionType = X86InstructionType_unknown;
-    instructionBin = X86InstructionBin_unknown;
     liveIns = NULL;
     liveOuts = NULL;
     defUseDist = 0;
@@ -2950,14 +1741,23 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     }
 
     leader = false;
+    defXIter = false;
 
-    setInstructionType();
-
-    flags_usedef = NULL;
     setFlags();
-    setImpliedRegs();
-
     verify();
+}
+
+X86Instruction* X86Instruction::disassemble(char* buff){
+    ud_t ud_obj;
+    memcpy(&ud_obj, &ud_blank, sizeof(ud_t));
+    ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
+
+    uint32_t s = ud_disassemble(&ud_obj);
+    if (s) {
+        X86Instruction* x = new X86Instruction(NULL, 0, buff, ByteSource_Instrumentation, 0);
+        return x;
+    }
+    return NULL;
 }
 
 X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, uint8_t src, uint32_t idx)
@@ -2983,8 +1783,6 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     byteSource = src;
     container = cont;
     addressAnchor = NULL;
-    instructionType = X86InstructionType_unknown;
-    instructionBin = X86InstructionBin_unknown;
     liveIns = NULL;
     liveOuts = NULL;
     defUseDist = 0;
@@ -3000,18 +1798,14 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     }
 
     leader = false;
+    defXIter = false;
 
-    setInstructionType();
-
-    flags_usedef = NULL;
     setFlags();
-    setImpliedRegs();
-
     verify();
 }
 
 void X86Instruction::print(){
-    char flags[9];
+    char flags[11];
     flags[0] = 'r';
     if (usesRelativeAddress()){
         flags[0] = 'R';
@@ -3044,10 +1838,23 @@ void X86Instruction::print(){
     if (isFloatPOperation()){
         flags[7] = 'F';
     }
+    flags[8] = 'l';
+    if (isLoad()){
+        flags[8] = 'L';
+    }
+    flags[9] = 's';
+    if (isStore()){
+        flags[9] = 'S';
+    }
 
-    flags[8] = '\0';
+    flags[10] = '\0';
 
-    PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%8s]\t-> %#llx %hx", getBaseAddress(), GET(insn_hexcode), GET(insn_buffer), flags, getTargetAddress(), getInstructionBin());
+    char hexcode[32];
+    for (int32_t i = 0; i < sizeInBytes; i++){
+        sprintf(hexcode + (2*i), "%02hhx", GET(insn_bytes)[i]);
+    }
+
+    PRINT_INFOR("%#llx:\t%16s\t%s\tflgs:[%10s]\t-> %#llx", getBaseAddress(), hexcode, GET(insn_buffer), flags, getTargetAddress());
 
 #ifdef PRINT_INSTRUCTION_DETAIL
 #ifndef NO_REG_ANALYSIS
@@ -3077,15 +1884,6 @@ void X86Instruction::print(){
     delete useRegs;
     delete defRegs;
 #endif
-    
-    /*
-    PRINT_INFOR("\t%s (%d,%d) (%d,%d) (%d,%d) %d", ud_lookup_mnemonic(GET(itab_entry)->mnemonic), GET(itab_entry)->operand1.type, GET(itab_entry)->operand1.size, GET(itab_entry)->operand2.type, GET(itab_entry)->operand2.size, GET(itab_entry)->operand3.type, GET(itab_entry)->operand3.size, GET(itab_entry)->prefix);
-
-    PRINT_INFOR("%d(%s)\t%hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd %hhd", GET(mnemonic), ud_lookup_mnemonic(GET(mnemonic)),
-                GET(error), GET(pfx_rex), GET(pfx_seg), GET(pfx_opr), GET(pfx_adr), GET(pfx_lock), GET(pfx_rep),
-                GET(pfx_repe), GET(pfx_repne), GET(pfx_insn), GET(default64), GET(opr_mode), GET(adr_mode),
-                GET(br_far), GET(br_near), GET(implicit_addr), GET(c1), GET(c2), GET(c3));
-    */
 
     BitSet<uint32_t>* usedRegs = new BitSet<uint32_t>(X86_ALU_REGS);
     touchedRegisters(usedRegs);
@@ -3126,6 +1924,7 @@ uint32_t regbase_to_type(uint32_t base){
     else if (IS_MMX_REG(base))     return RegType_MMX;
     else if (IS_X87_REG(base))     return RegType_X87;
     else if (IS_XMM_REG(base))     return RegType_XMM;
+    else if (IS_YMM_REG(base))     return RegType_YMM;
     else if (IS_PC_REG(base))      return RegType_PC;
     __SHOULD_NOT_ARRIVE;
     return 0;
@@ -3228,247 +2027,11 @@ bool X86Instruction::verify(){
     return true;
 }
 
-void X86Instruction::setImpliedRegs(){
-    impreg_usedef = new BitSet<uint32_t>*[2];
-    impreg_usedef[__reg_use] = new BitSet<uint32_t>(X86_ALU_REGS);
-    impreg_usedef[__reg_def] = new BitSet<uint32_t>(X86_ALU_REGS);
-
-#define iuse(__r) impreg_usedef[__reg_use]->insert(__r);
-#define idef(__r) impreg_usedef[__reg_def]->insert(__r);
-#define check_mnemonic(__mnemonic) (GET(mnemonic) == __mnemonic)
-#define has_2op (operands[ALU_SRC1_OPERAND] && operands[ALU_SRC2_OPERAND])
-#define has_0op (!operands[ALU_SRC1_OPERAND] && !operands[ALU_SRC2_OPERAND])
-#define has_1op (!has_0op && !has_2op)
-#define __set_impreg(__mnemonic, __numop, __stmts) else if (check_mnemonic(__mnemonic) && has_##__numop##op) { __stmts; }
-#define check_operand(__op, __type, __stmts) if (operands[__op]->GET(type) == __type) { __stmts; }
-
-    if (!impreg_usedef) { __SHOULD_NOT_ARRIVE; }
-    /* TODO: need to add info for lots of other instructions */
-
-    // FPU Instructions
-    __set_impreg(UD_Ifadd,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifadd,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-    __set_impreg(UD_Ifaddp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifiadd, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-
-    __set_impreg(UD_Ifsub,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifsub,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-    __set_impreg(UD_Ifsubp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifisub, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-
-    __set_impreg(UD_Ifsubr,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifsubr,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-    __set_impreg(UD_Ifsubrp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifisubr, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-
-    __set_impreg(UD_Ifmul,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifmul,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-    __set_impreg(UD_Ifmulp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifimul, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-
-    __set_impreg(UD_Ifdiv,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifdiv,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-    __set_impreg(UD_Ifdivp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifidiv, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-
-    __set_impreg(UD_Ifdivr,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifdivr,  1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-    __set_impreg(UD_Ifdivrp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifidivr, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-
-    __set_impreg(UD_Ifcom,   0, iuse(X87_REG_ST0) iuse(X87_REG_ST1))
-    __set_impreg(UD_Ifcom,   1, iuse(X87_REG_ST0))
-    __set_impreg(UD_Ifcomp,  0, iuse(X87_REG_ST0) iuse(X87_REG_ST1))
-    __set_impreg(UD_Ifcompp, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1))
-
-    __set_impreg(UD_Ifxch, 0, iuse(X87_REG_ST0) iuse(X87_REG_ST1) idef(X87_REG_ST0) idef(X87_REG_ST1))
-    __set_impreg(UD_Ifxch, 1, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-
-    __set_impreg(UD_Ifst, 0, iuse(X87_REG_ST0))
-    __set_impreg(UD_Ifstp, 0, iuse(X87_REG_ST0))
-
-    __set_impreg(UD_Ifchs, 0, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-    __set_impreg(UD_Ifabs, 0, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-
-    __set_impreg(UD_Iftst, 0, iuse(X87_REG_ST0))
-    __set_impreg(UD_Ifxam, 0, iuse(X87_REG_ST0))
-
-    //fld* How to handle floating point stack pushes/pops?
-
-    __set_impreg(UD_If2xm1, 0, iuse(X87_REG_ST0) idef(X87_REG_ST0))
-
-
-    // SSE instructions
-    __set_impreg(UD_Ipblendvb,  2, iuse(X86_FPREG_XMM0))
-    __set_impreg(UD_Iblendvpd,  2, iuse(X86_FPREG_XMM0))
-    __set_impreg(UD_Iblendvps,  2, iuse(X86_FPREG_XMM0))
-
-    __set_impreg(UD_Ipcmpestrm, 2, iuse(X86_FPREG_XMM0))
-    __set_impreg(UD_Ipcmpestri, 2, iuse(X86_FPREG_XMM0))
-    __set_impreg(UD_Ipcmpistrm, 2, iuse(X86_FPREG_XMM0))
-    __set_impreg(UD_Ipcmpistri, 2, iuse(X86_FPREG_XMM0))
-
-
-    // General instructions
-
-    // Mem(DI) = Mem(SI)
-    __set_impreg(UD_Imovsb, 0, iuse(X86_REG_SI) iuse(X86_REG_DI))
-    __set_impreg(UD_Imovsw, 0, iuse(X86_REG_SI) iuse(X86_REG_DI))
-    __set_impreg(UD_Imovsd, 0, iuse(X86_REG_SI) iuse(X86_REG_DI))
-    __set_impreg(UD_Imovsq, 0, iuse(X86_REG_SI) iuse(X86_REG_DI))
-
-    __set_impreg(UD_Iaaa,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
-    __set_impreg(UD_Iaad,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
-    __set_impreg(UD_Iaam,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
-    __set_impreg(UD_Iaas,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
-    __set_impreg(UD_Idaa,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
-    __set_impreg(UD_Idas,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
-    __set_impreg(UD_Icbw,  0, iuse(X86_REG_AX) idef(X86_REG_AX))
-    __set_impreg(UD_Icwde, 0, iuse(X86_REG_AX) idef(X86_REG_AX))
-    __set_impreg(UD_Icwd,  0, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_DX))
-    __set_impreg(UD_Icdq,  0, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_DX))
-
-    __set_impreg(UD_Iloop,   1, iuse(X86_REG_CX) idef(X86_REG_CX))
-    __set_impreg(UD_Iloope,  1, iuse(X86_REG_CX) idef(X86_REG_CX))
-    __set_impreg(UD_Iloopnz, 1, iuse(X86_REG_CX) idef(X86_REG_CX))
-
-    __set_impreg(UD_Imul,  1, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_DX))
-    __set_impreg(UD_Iimul, 1, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_DX))
-    __set_impreg(UD_Idiv,  1, iuse(X86_REG_AX) iuse(X86_REG_DX) idef(X86_REG_AX) idef(X86_REG_DX))
-    __set_impreg(UD_Iidiv, 1, iuse(X86_REG_AX) iuse(X86_REG_DX) idef(X86_REG_AX) idef(X86_REG_DX))
-
-    __set_impreg(UD_Ijcxz,  1, iuse(X86_REG_CX))
-    __set_impreg(UD_Ijecxz, 1, iuse(X86_REG_CX))
-
-    __set_impreg(UD_Imonitor, 0, iuse(X86_REG_AX) iuse(X86_REG_CX) iuse(X86_REG_DX))
-    __set_impreg(UD_Imwait,   0, iuse(X86_REG_AX) iuse(X86_REG_CX))
-
-    // Only when the operand is an immediate
-    __set_impreg(UD_Iadc, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
-    __set_impreg(UD_Iadd, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
-    __set_impreg(UD_Iand, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
-    __set_impreg(UD_Icmp, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
-    __set_impreg(UD_Ior,  1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
-    __set_impreg(UD_Isbb, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
-    __set_impreg(UD_Isub, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
-    __set_impreg(UD_Ixor, 1, check_operand(ALU_SRC1_OPERAND, UD_OP_IMM, iuse(X86_REG_AX) idef(X86_REG_AX)))
-
-    // Mem(DI) = IO(DX)
-    __set_impreg(UD_Iinsb,  0, iuse(X86_REG_DX) iuse(X86_REG_DI))
-    __set_impreg(UD_Iinsw,  0, iuse(X86_REG_DX) iuse(X86_REG_DI))
-    __set_impreg(UD_Iinsd,  0, iuse(X86_REG_DX) iuse(X86_REG_DI))
-
-    // IO(DX) = Mem(SI)
-    __set_impreg(UD_Ioutsb, 0, iuse(X86_REG_DX) iuse(X86_REG_SI))
-    __set_impreg(UD_Ioutsw, 0, iuse(X86_REG_DX) iuse(X86_REG_SI))
-    __set_impreg(UD_Ioutsd, 0, iuse(X86_REG_DX) iuse(X86_REG_SI))
-
-    // Mem(DI) = AX
-    __set_impreg(UD_Istosb, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
-    __set_impreg(UD_Istosw, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
-    __set_impreg(UD_Istosd, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
-
-    // AX = MEM(SI) 
-    __set_impreg(UD_Ilodsb, 0, iuse(X86_REG_SI) idef(X86_REG_AX))
-    __set_impreg(UD_Ilodsw, 0, iuse(X86_REG_SI) idef(X86_REG_AX))
-    __set_impreg(UD_Ilodsd, 0, iuse(X86_REG_SI) idef(X86_REG_AX))
-
-    // CMP(AX, MEM(DI))
-    __set_impreg(UD_Iscasb, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
-    __set_impreg(UD_Iscasw, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
-    __set_impreg(UD_Iscasd, 0, iuse(X86_REG_AX) iuse(X86_REG_DI))
-
-    // Read/write flags
-    __set_impreg(UD_Isahf, 0, iuse(X86_REG_AX))
-    __set_impreg(UD_Ilahf, 0, idef(X86_REG_AX))
-    __set_impreg(UD_Isalc, 1, idef(X86_REG_AX))
-
-    // Read system values
-    __set_impreg(UD_Irdtsc, 0, idef(X86_REG_AX) idef(X86_REG_DX))
-    __set_impreg(UD_Irdmsr, 0, iuse(X86_REG_CX) idef(X86_REG_AX) idef(X86_REG_DX))
-    __set_impreg(UD_Irdpmc, 0, iuse(X86_REG_CX) idef(X86_REG_AX) idef(X86_REG_DX))
-    __set_impreg(UD_Icpuid, 0, iuse(X86_REG_AX) idef(X86_REG_AX) idef(X86_REG_BX)
-                                                idef(X86_REG_CX) idef(X86_REG_DX))
-
-    // Reading/writing stack
-    __set_impreg(UD_Ipush,   0, iuse(X86_REG_SP) idef(X86_REG_SP))
-    __set_impreg(UD_Ipusha,  0, iuse(X86_REG_AX) iuse(X86_REG_BX) iuse(X86_REG_CX) iuse(X86_REG_DX)
-                                iuse(X86_REG_SP) iuse(X86_REG_BP) iuse(X86_REG_SI) iuse(X86_REG_DI))
-    __set_impreg(UD_Ipushad, 0, iuse(X86_REG_AX) iuse(X86_REG_BX) iuse(X86_REG_CX) iuse(X86_REG_DX)
-                                iuse(X86_REG_SP) iuse(X86_REG_BP) iuse(X86_REG_SI) iuse(X86_REG_DI))
-    __set_impreg(UD_Ipushfw, 0, iuse(X86_REG_SP) idef(X86_REG_SP))
-    __set_impreg(UD_Ipushfd, 0, iuse(X86_REG_SP) idef(X86_REG_SP))
-    __set_impreg(UD_Ipushfq, 0, iuse(X86_REG_SP) idef(X86_REG_SP))
-
-    __set_impreg(UD_Ipop,    0, iuse(X86_REG_SP) idef(X86_REG_SP))
-    __set_impreg(UD_Ipopa,   0, idef(X86_REG_AX) idef(X86_REG_BX) idef(X86_REG_CX) idef(X86_REG_DX)
-                                idef(X86_REG_SP) idef(X86_REG_BP) idef(X86_REG_SI) idef(X86_REG_DI))
-    __set_impreg(UD_Ipopad,  0, idef(X86_REG_AX) idef(X86_REG_BX) idef(X86_REG_CX) idef(X86_REG_DX)
-                                idef(X86_REG_SP) idef(X86_REG_BP) idef(X86_REG_SI) idef(X86_REG_DI))
-    __set_impreg(UD_Ipopfw,  0, iuse(X86_REG_SP) idef(X86_REG_SP))
-    __set_impreg(UD_Ipopfd,  0, iuse(X86_REG_SP) idef(X86_REG_SP))
-    __set_impreg(UD_Ipopfq,  0, iuse(X86_REG_SP) idef(X86_REG_SP))
-
-    __set_impreg(UD_Ienter,  2, iuse(X86_REG_BP) iuse(X86_REG_SP) idef(X86_REG_BP) idef(X86_REG_SP))
-    __set_impreg(UD_Ileave,  0, iuse(X86_REG_BP) idef(X86_REG_SP) idef(X86_REG_BP))
-
-    // Read from memory
-    __set_impreg(UD_Ixlatb, 0, iuse(X86_REG_AX) iuse(X86_REG_BX) idef(X86_REG_AX))
-
-    // Conditionally defines registers
-    __set_impreg(UD_Icmpxchg,   2, iuse(X86_REG_AX) idef(X86_REG_AX))
-    __set_impreg(UD_Icmpxchg8b, 1, iuse(X86_REG_AX) iuse(X86_REG_BX) iuse(X86_REG_CX) iuse(X86_REG_DX)
-                                   idef(X86_REG_AX) idef(X86_REG_DX))
-
-
-    /*
-      // 4 other types for all of these string ops -- *sb, *sw, *sd, *sq
-    __reg_define(impreg_usedef, UD_Icmps, __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_DI), __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_EI));
-    __reg_define(impreg_usedef, UD_Ilods, __bit_shift(X86_REG_SI) , __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_AX));
-    __reg_define(impreg_usedef, UD_Imovs, __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_DI), __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_DI)); 
-    __reg_define(impreg_usedef, UD_Iouts, __bit_shift(X86_REG_SI) | __bit_shift(X86_REG_DX), __bit_shift(X86_REG_SI)); 
-    __reg_define(impreg_usedef, UD_Istos, __bit_shift(X86_REG_AX) | __bit_shift(X86_REG_DI), __bit_shift(X86_REG_DI));
-    __reg_define(impreg_usedef, UD_Iscas, __bit_shift(X86_REG_AX | __bit_shift(X86_REG_DI)), __bit_shift(X86_REG_DI));
-    __reg_define(impreg_usedef, UD_Iins, __bit_shift(X86_REG_DI) | __bit_shift(X86_REG_DX), __bit_shift(X86_REG_DI));
-
-    // other random instructions with implicit operands
-    __reg_define(impreg_usedef, UD_Ixlat, __bit_shift(X86_REG_AX) | __bit_shift(X86_REG_BX), __bit_shift(X86_REG_AX));
-    __reg_define(impreg_usedef, UD_Ixlatb, __bit_shift(X86_REG_AX) | __bit_shift(X86_REG_BX), __bit_shift(X86_REG_AX));
-    // xrstor
-    // xsave
-    // fadd
-    // fdiv
-    // fdivr
-    // fmul
-    // fsub
-    // fsubr
-
-    // stack ops
-    if (isStackPush() || isStackPop() || isFunctionCall() || isReturn()){
-        impreg_usedef[__reg_use] |= __bit_shift(X86_REG_SP);
-        impreg_usedef[__reg_use] |= __bit_shift(X86_REG_SP);
-    }
-
-    // check for rep prefix, if so add cx as both source and dest
-    if (GET(pfx_rep)){
-        impreg[__reg_use] |= __bit_shift(X86_REG_CX);
-        impreg[__reg_def] |= __bit_shift(X86_REG_CX);
-    }
-    */
-
-    /*
-    if (GET(mnemonic) == UD_Ifadd){
-        print();
-        impreg_usedef[0]->print();
-        impreg_usedef[1]->print();
-    }
-    */
-
-}
-
+// TODO: get rid of this function eventually since it remains only as a verification
+// that I baked these values into udis86 correctly
 void X86Instruction::setFlags()
 {
-    flags_usedef = new uint32_t[2];
+    uint32_t flags_usedef[2];
     bzero(flags_usedef, sizeof(uint32_t) * 2);
 
     if (!flags_usedef) { __SHOULD_NOT_ARRIVE; }
@@ -3508,8 +2071,8 @@ void X86Instruction::setFlags()
     __reg_define(flags_usedef, UD_Icmovg, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
     __reg_define(flags_usedef, UD_Icmp, 0, __x86_flagset_alustd);
     __reg_define(flags_usedef, UD_Icmpsb, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
-    __reg_define(flags_usedef, UD_Icmpsd, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
-    __reg_define(flags_usedef, UD_Icmpss, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
+    //__reg_define(flags_usedef, UD_Icmpsd, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
+    //__reg_define(flags_usedef, UD_Icmpss, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
     __reg_define(flags_usedef, UD_Icmpsw, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
     __reg_define(flags_usedef, UD_Icmpsq, __bit_shift(X86_FLAG_DF), __x86_flagset_alustd);
     __reg_define(flags_usedef, UD_Icmpxchg, 0, __x86_flagset_alustd);
@@ -3551,8 +2114,8 @@ void X86Instruction::setFlags()
     __reg_define(flags_usedef, UD_Ijno, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
     __reg_define(flags_usedef, UD_Ijb, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
     __reg_define(flags_usedef, UD_Ijae, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
-    __reg_define(flags_usedef, UD_Ijz, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
-    __reg_define(flags_usedef, UD_Ijnz, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __reg_define(flags_usedef, UD_Ije, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
+    __reg_define(flags_usedef, UD_Ijne, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
     __reg_define(flags_usedef, UD_Ijbe, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
     __reg_define(flags_usedef, UD_Ija, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
     __reg_define(flags_usedef, UD_Ijs, __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_CF), 0);
@@ -3644,10 +2207,1001 @@ void X86Instruction::setFlags()
     // these instructions have 2 versions: 1 is a string instruction that implicitly uses DF, the other is an SSE instruction
     if (GET(mnemonic) == UD_Imovsb || GET(mnemonic) == UD_Imovsw || GET(mnemonic) == UD_Imovsd || GET(mnemonic) == UD_Imovsq){
         // has no operands -- they must be implicit
-        if (!getOperand(COMP_DEST_OPERAND) && !getOperand(COMP_SRC_OPERAND)){
+        if (!getOperand(CMP_SRC1_OPERAND) && !getOperand(CMP_SRC2_OPERAND)){
             flags_usedef[__reg_use] = __bit_shift(X86_FLAG_DF);
         }
     }
 
+    if (flags_usedef[__reg_use] && GET(flags_use) != flags_usedef[__reg_use]){
+        print();
+        PRINT_ERROR("NEW USE FLAGS (%#x) DONT MATCH OLD (%#x)", GET(flags_use), flags_usedef[__reg_use]);
+    }
+    if (flags_usedef[__reg_def] && GET(flags_def) != flags_usedef[__reg_def]){
+        print();
+        PRINT_ERROR("NEW DEF FLAGS (%#x) DONT MATCH OLD (%#x)", GET(flags_def), flags_usedef[__reg_def]);
+    }
 }
 
+X86InstructionType X86Instruction::getInstructionType(){
+    X86InstructionType x = X86InstructionClassifier::getInstructionType(this);
+    //X86InstructionClassifier::print(this);
+    return x;
+}
+
+
+struct x86class {
+    ud_mnemonic_code mnemonic;
+    X86InstructionType type;
+    X86InstructionBin bin;
+    X86OperandFormat format;
+    uint8_t memsize;
+    uint8_t location;
+};
+
+    /* macros to make the table assignment statements easier to write + more concise */
+#define xbin(__bin) X86InstructionBin_ ## __bin
+#define xtyp(__typ) X86InstructionType_ ## __typ
+#define xfmt(__fmt) X86OperandFormat_ ## __fmt
+#define xsiz(__bits) (__bits >> 3)
+#define X86InstructionBin_0 X86InstructionBin_unknown
+#define X86OperandFormat_0 X86OperandFormat_unknown
+#define MEM_SZ_VARIABLE (0xf)
+#define VRSZ (MEM_SZ_VARIABLE << 3)
+#define mkclass(__mne, __typ, __bin, __fmt, __mem, __loc) \
+    { UD_I ## __mne, xtyp(__typ), xbin(__bin), xfmt(__fmt), xsiz(__mem), __loc >> 8 },
+
+static struct x86class classifications[UD_Itotaltypes] = {
+    //               mnemonic,     type      bin  fmt msize  mloc
+    mkclass(           3dnow,  special,   other,   0,    0,    0)
+    mkclass(             aaa,      int,   other,   0,    0,    0)
+    mkclass(             aad,      int,   other,   0,    0,    0)
+    mkclass(             aam,      int,   other,   0,    0,    0)
+    mkclass(             aas,      int,   other,   0,    0,    0)
+    mkclass(             adc,      int,     int,   0, VRSZ,    0)
+    mkclass(             add,      int,     int,   0, VRSZ,    0)
+    mkclass(           addpd,    float,  floatv,   0,   64,    0)
+    mkclass(           addps,    float,  floatv,   0,   32,    0)
+    mkclass(           addsd,    float,  floats,   0,   64,    0)
+    mkclass(           addss,    float,  floats,   0,   32,    0)
+    mkclass(        addsubpd,    float,  floatv,   0,   64,    0)
+    mkclass(        addsubps,    float,  floatv,   0,   32,    0)
+    mkclass(          aesdec,      aes,       0,   0,    0,    0)
+    mkclass(      aesdeclast,      aes,       0,   0,    0,    0)
+    mkclass(          aesenc,      aes,       0,   0,    0,    0)
+    mkclass(      aesenclast,      aes,       0,   0,    0,    0)
+    mkclass(          aesimc,      aes,       0,   0,    0,    0)
+    mkclass( aeskeygenassist,      aes,       0,   0,    0,    0)
+    mkclass(             and,      int,     bin,   0, VRSZ,    0)
+    mkclass(          andnpd,    float,    binv,   0,   64,    0)
+    mkclass(          andnps,    float,    binv,   0,   32,    0)
+    mkclass(           andpd,    float,    binv,   0,   64,    0)
+    mkclass(           andps,    float,    binv,   0,   32,    0)
+    mkclass(            arpl,  special,   other,   0,    0,    0)
+    mkclass(         blendpd,      int,       0,   0,    0,    0)
+    mkclass(         blendps,      int,       0,   0,    0,    0)
+    mkclass(        blendvpd,      int,       0,   0,    0,    0)
+    mkclass(        blendvps,      int,       0,   0,    0,    0)
+    mkclass(           bound,      int,     bin,   0, VRSZ,    0)
+    mkclass(             bsf,      int,     bin,   0, VRSZ,    0)
+    mkclass(             bsr,      int,     bin,   0, VRSZ,    0)
+    mkclass(           bswap,      int,     bin,   0, VRSZ,    0)
+    mkclass(              bt,      int,     bin,   0, VRSZ,    0)
+    mkclass(             btc,      int,     bin,   0, VRSZ,    0)
+    mkclass(             btr,      int,     bin,   0, VRSZ,    0)
+    mkclass(             bts,      int,     bin,   0, VRSZ,    0)
+    mkclass(            call,     call,  uncond,   0,    0,    BinFrame)
+    mkclass(             cbw,  special,     bin,   0,   16,    0)
+    mkclass(             cdq,  special,     bin,   0,   64,    0)
+    mkclass(            cdqe,  special,     bin,   0,   64,    0)
+    mkclass(             clc,  special,   other,   0,    0,    0)
+    mkclass(             cld,  special,   other,   0,    0,    0)
+    mkclass(         clflush,  special,   cache,   0,    0,    0)
+    mkclass(            clgi,  special,   other,   0,    0,    0)
+    mkclass(             cli,  special,   other,   0,    0,    0)
+    mkclass(            clts,  special,   other,   0,    0,    0)
+    mkclass(             cmc,  special,   other,   0,    0,    0)
+    mkclass(           cmova,     move,    move,   0, VRSZ,    0)
+    mkclass(          cmovae,     move,    move,   0, VRSZ,    0)
+    mkclass(           cmovb,     move,    move,   0, VRSZ,    0)
+    mkclass(          cmovbe,     move,    move,   0, VRSZ,    0)
+    mkclass(           cmovg,     move,    move,   0, VRSZ,    0)
+    mkclass(          cmovge,     move,    move,   0, VRSZ,    0)
+    mkclass(           cmovl,     move,    move,   0, VRSZ,    0)
+    mkclass(          cmovle,     move,    move,   0, VRSZ,    0)
+    mkclass(          cmovno,     move,    move,   0, VRSZ,    0)
+    mkclass(          cmovnp,     move,    move,   0, VRSZ,    0)
+    mkclass(          cmovns,     move,    move,   0, VRSZ,    0)
+    mkclass(          cmovnz,     move,    move,   0, VRSZ,    0)
+    mkclass(           cmovo,     move,    move,   0, VRSZ,    0)
+    mkclass(           cmovp,     move,    move,   0, VRSZ,    0)
+    mkclass(           cmovs,     move,    move,   0, VRSZ,    0)
+    mkclass(           cmovz,     move,    move,   0, VRSZ,    0)
+    mkclass(             cmp,      int,     int,   0, VRSZ,    0)
+    mkclass(           cmppd,    float,  floatv,   0,   64,    0)
+    mkclass(           cmpps,    float,  floatv,   0,   32,    0)
+    mkclass(           cmpsb,   string,  string,  si,    8,    0)
+    // TODO: 2 instructions covered by this... need to handle special
+    mkclass(           cmpsd,    float,  string,  si,   32,    0)
+    mkclass(           cmpsq,   string,  string,  si,   64,    0)
+    mkclass(           cmpss,    float,  floats,   0,   32,    0)
+    mkclass(           cmpsw,   string,  string,  si,   16,    0)
+    mkclass(         cmpxchg,      int,     int,   0, VRSZ,    0)
+    mkclass(       cmpxchg8b,      int,     int,   0, VRSZ,    0)
+    mkclass(          comisd,    float,  floats,   0,   64,    0)
+    mkclass(          comiss,    float,  floats,   0,   32,    0)
+    mkclass(           cpuid,  special,   other,   0,    0,    0)
+    mkclass(             cqo,  special,     bin,   0,   64,    0)
+    mkclass(        cvtdq2pd,    float,  floatv,   0,   64,    0)
+    mkclass(        cvtdq2ps,    float,  floatv,   0,   32,    0)
+    mkclass(        cvtpd2dq,    float,  floatv,   0,   64,    0)
+    mkclass(        cvtpd2pi,    float,  floatv,   0,   64,    0)
+    mkclass(        cvtpd2ps,    float,  floatv,   0,   32,    0)
+    mkclass(        cvtpi2pd,    float,  floatv,   0,   64,    0)
+    mkclass(        cvtpi2ps,    float,  floatv,   0,   32,    0)
+    mkclass(        cvtps2dq,    float,  floatv,   0,   32,    0)
+    mkclass(        cvtps2pd,    float,  floatv,   0,   64,    0)
+    mkclass(        cvtps2pi,    float,  floatv,   0,   32,    0)
+    mkclass(        cvtsd2si,    float,  floats,   0,   64,    0)
+    mkclass(        cvtsd2ss,    float,  floats,   0,   64,    0)
+    mkclass(        cvtsi2sd,    float,  floats,   0,   64,    0)
+    mkclass(        cvtsi2ss,    float,  floats,   0,   32,    0)
+    mkclass(        cvtss2sd,    float,  floats,   0,   64,    0)
+    mkclass(        cvtss2si,    float,  floats,   0,   32,    0)
+    mkclass(       cvttpd2dq,    float,  floatv,   0,   64,    0)
+    mkclass(       cvttpd2pi,    float,  floatv,   0,   64,    0)
+    mkclass(       cvttps2dq,    float,  floatv,   0,   32,    0)
+    mkclass(       cvttps2pi,    float,  floatv,   0,   32,    0)
+    mkclass(       cvttsd2si,    float,  floats,   0,   32,    0)
+    mkclass(       cvttss2si,    float,  floats,   0,   32,    0)
+    mkclass(             cwd,  special,     bin,   0,   32,    0)
+    mkclass(            cwde,  special,     bin,   0,   32,    0)
+    mkclass(             daa,      int,   other,   0,    0,    0)
+    mkclass(             das,      int,   other,   0,    0,    0)
+    mkclass(              db,  invalid, invalid,   0,    0,    0)
+    mkclass(             dec,      int,     int,   0, VRSZ,    0)
+    mkclass(             div,      int,     int,   0, VRSZ,    0)
+    mkclass(           divpd,    float,  floatv,   0,   64,    0)
+    mkclass(           divps,    float,  floatv,   0,   32,    0)
+    mkclass(           divsd,    float,  floats,   0,   64,    0)
+    mkclass(           divss,    float,  floats,   0,   32,    0)
+    mkclass(            dppd,     simd,       0,   0,    0,    0)
+    mkclass(            dpps,     simd,       0,   0,    0,    0)
+    mkclass(            emms,  special,   other,   0,    0,    0)
+    mkclass(           enter,  special,   stack,   0,    0,    BinFrame)
+    mkclass(       extractps,     simd,       0,   0,    0,    0)
+    mkclass(           f2xm1,    float,   float,   0, VRSZ,    0)
+    mkclass(            fabs,    float,   float,   0, VRSZ,    0)
+    mkclass(            fadd,    float,   float,   0, VRSZ,    0)
+    mkclass(           faddp,    float,   float,   0, VRSZ,    0)
+    mkclass(            fbld,    float,   float,   0, VRSZ,    0)
+    mkclass(           fbstp,    float,   float,   0, VRSZ,    0)
+    mkclass(            fchs,    float,   float,   0, VRSZ,    0)
+    mkclass(           fclex,    float,   float,   0, VRSZ,    0)
+    mkclass(          fcmovb,     move,    move,   0, VRSZ,    0)
+    mkclass(         fcmovbe,     move,    move,   0, VRSZ,    0)
+    mkclass(          fcmove,     move,    move,   0, VRSZ,    0)
+    mkclass(         fcmovnb,     move,    move,   0, VRSZ,    0)
+    mkclass(        fcmovnbe,     move,    move,   0, VRSZ,    0)
+    mkclass(         fcmovne,     move,    move,   0, VRSZ,    0)
+    mkclass(         fcmovnu,     move,    move,   0, VRSZ,    0)
+    mkclass(          fcmovu,     move,    move,   0, VRSZ,    0)
+    mkclass(            fcom,    float,   float,   0, VRSZ,    0)
+    mkclass(           fcom2,    float,   float,   0, VRSZ,    0)
+    mkclass(           fcomi,    float,   float,   0, VRSZ,    0)
+    mkclass(          fcomip,    float,   float,   0, VRSZ,    0)
+    mkclass(           fcomp,    float,   float,   0, VRSZ,    0)
+    mkclass(          fcomp3,    float,   float,   0, VRSZ,    0)
+    mkclass(          fcomp5,    float,   float,   0, VRSZ,    0)
+    mkclass(          fcompp,    float,   float,   0, VRSZ,    0)
+    mkclass(            fcos,    float,   float,   0, VRSZ,    0)
+    mkclass(         fdecstp,    float,   float,   0, VRSZ,    0)
+    mkclass(            fdiv,    float,   float,   0, VRSZ,    0)
+    mkclass(           fdivp,    float,   float,   0, VRSZ,    0)
+    mkclass(           fdivr,    float,   float,   0, VRSZ,    0)
+    mkclass(          fdivrp,    float,   float,   0, VRSZ,    0)
+    mkclass(           femms,    float,   other,   0,    0,    0)
+    mkclass(           ffree,    float,   other,   0,    0,    0)
+    mkclass(          ffreep,    float,   other,   0,    0,    0)
+    mkclass(           fiadd,    float,   float,   0, VRSZ,    0)
+    mkclass(           ficom,    float,   float,   0, VRSZ,    0)
+    mkclass(          ficomp,    float,   float,   0, VRSZ,    0)
+    mkclass(           fidiv,    float,   float,   0, VRSZ,    0)
+    mkclass(          fidivr,    float,   float,   0, VRSZ,    0)
+    mkclass(            fild,     move,    move,  di, VRSZ,    0)
+    mkclass(           fimul,    float,   float,   0, VRSZ,    0)
+    mkclass(            fist,     move,    move,   0, VRSZ,    0)
+    mkclass(           fistp,     move,    move,   0, VRSZ,    0)
+    mkclass(          fisttp,     move,    move,   0, VRSZ,    0)
+    mkclass(           fisub,    float,   float,   0, VRSZ,    0)
+    mkclass(          fisubr,    float,   float,   0, VRSZ,    0)
+    mkclass(             fld,     move,    move,  di, VRSZ,    0)
+    mkclass(            fld1,    float,    move,   0, VRSZ,    0)
+    mkclass(           fldcw,  special,   other,   0,    0,    0)
+    mkclass(          fldenv,  special,   other,   0,    0,    0)
+    mkclass(          fldl2e,     move,    move,  di, VRSZ,    0)
+    mkclass(          fldl2t,     move,    move,  di, VRSZ,    0)
+    mkclass(          fldlg2,     move,    move,  di, VRSZ,    0)
+    mkclass(          fldln2,     move,    move,  di, VRSZ,    0)
+    mkclass(          fldlpi,     move,    move,  di, VRSZ,    0)
+    mkclass(            fldz,    float,    move,  di, VRSZ,    0)
+    mkclass(            fmul,    float,   float,   0, VRSZ,    0)
+    mkclass(           fmulp,    float,   float,   0, VRSZ,    0)
+    mkclass(          fncstp,    float,   other,   0,    0,    0)
+    mkclass(          fninit,    float,   other,   0,    0,    0)
+    mkclass(            fnop,      nop,   other,   0,    0,    0)
+    mkclass(          fnsave,  special,   stack,   0,    0,    BinFrame)
+    mkclass(          fnstcw,  special,   stack,   0,    0,    BinFrame)
+    mkclass(         fnstenv,  special,   stack,   0,    0,    BinFrame)
+    mkclass(          fnstsw,  special,   stack,   0,    0,    BinFrame)
+    mkclass(          fpatan,    float,   float,   0, VRSZ,    0)
+    mkclass(           fprem,    float,   float,   0, VRSZ,    0)
+    mkclass(          fprem1,    float,   float,   0, VRSZ,    0)
+    mkclass(           fptan,    float,   float,   0, VRSZ,    0)
+    mkclass(        fpxtract,    float,   float,   0, VRSZ,    0)
+    mkclass(         frndint,    float,   float,   0, VRSZ,    0)
+    mkclass(          frstor,  special,   stack,   0,    0,    BinFrame)
+    mkclass(          fscale,    float,   float,   0, VRSZ,    0)
+    mkclass(            fsin,    float,   float,   0, VRSZ,    0)
+    mkclass(         fsincos,    float,   float,   0, VRSZ,    0)
+    mkclass(           fsqrt,    float,   float,   0, VRSZ,    0)
+    mkclass(             fst,     move,    move,   0, VRSZ,    0)
+    mkclass(            fstp,     move,    move,   0, VRSZ,    0)
+    mkclass(           fstp1,     move,    move,   0, VRSZ,    0)
+    mkclass(           fstp8,     move,    move,   0, VRSZ,    0)
+    mkclass(           fstp9,     move,    move,   0, VRSZ,    0)
+    mkclass(            fsub,    float,   float,   0, VRSZ,    0)
+    mkclass(           fsubp,    float,   float,   0, VRSZ,    0)
+    mkclass(           fsubr,    float,   float,   0, VRSZ,    0)
+    mkclass(          fsubrp,    float,   float,   0, VRSZ,    0)
+    mkclass(            ftst,    float,   float,   0, VRSZ,    0)
+    mkclass(           fucom,    float,   float,   0, VRSZ,    0)
+    mkclass(          fucomi,    float,   float,   0, VRSZ,    0)
+    mkclass(         fucomip,    float,   float,   0, VRSZ,    0)
+    mkclass(          fucomp,    float,   float,   0, VRSZ,    0)
+    mkclass(         fucompp,    float,   float,   0, VRSZ,    0)
+    mkclass(            fxam,    float,   float,   0, VRSZ,    0)
+    mkclass(            fxch,     move,    move,  di, VRSZ,    0)
+    mkclass(           fxch4,     move,    move,  di, VRSZ,    0)
+    mkclass(           fxch7,     move,    move,  di, VRSZ,    0)
+    mkclass(         fxrstor,  special,   stack,   0,    0,    BinFrame)
+    mkclass(          fxsave,  special,   stack,   0,    0,    BinFrame)
+    mkclass(           fyl2x,    float,   float,   0, VRSZ,    0)
+    mkclass(         fyl2xp1,    float,   float,   0, VRSZ,    0)
+    mkclass(          haddpd,    float,  floatv,   0,   64,    0)
+    mkclass(          haddps,    float,  floatv,   0,   32,    0)
+    mkclass(             hlt,     halt,   other,   0,    0,    0)
+    mkclass(          hsubpd,    float,  floatv,   0,   64,    0)
+    mkclass(          hsubps,    float,  floatv,   0,   32,    0)
+    mkclass(            idiv,      int,     int,   0, VRSZ,    0)
+    mkclass(            imul,      int,     int,   0, VRSZ,    0)
+    mkclass(              in,       io,   other,   0,    0,    0)
+    mkclass(             inc,      int,     int,   0, VRSZ,    0)
+    mkclass(            insb,       io,   other,  di,    0,    0)
+    mkclass(            insd,       io,   other,  di,    0,    0)
+    mkclass(        insertps,     simd,       0,   0,    0,    0)
+    mkclass(            insw,       io,   other,  di,    0,    0)
+    mkclass(             int,     trap,  system,   0,    0,    BinFrame)
+    mkclass(            int1,     trap,  system,   0,    0,    BinFrame)
+    mkclass(            int3,     trap,  system,   0,    0,    BinFrame)
+    mkclass(            into,     trap,  system,   0,    0,    BinFrame)
+    mkclass(         invalid,  invalid, invalid,   0,    0,    0)
+    mkclass(            invd,  special,   cache,   0,    0,    0)
+    mkclass(          invlpg,  special,   cache,   0,    0,    0)
+    mkclass(         invlpga,  special,   cache,   0,    0,    0)
+    mkclass(           iretd,   return,  system,   0,    0,    BinFrame)
+    mkclass(           iretq,   return,  system,   0,    0,    BinFrame)
+    mkclass(           iretw,   return,  system,   0,    0,    BinFrame)
+    mkclass(              ja,   condbr,    cond,   0,    0,    0)
+    mkclass(             jae,   condbr,    cond,   0,    0,    0)
+    mkclass(              jb,   condbr,    cond,   0,    0,    0)
+    mkclass(             jbe,   condbr,    cond,   0,    0,    0)
+    mkclass(            jcxz,   condbr,    cond,   0,    0,    0)
+    mkclass(              je,   condbr,    cond,   0,    0,    0)
+    mkclass(           jecxz,   condbr,    cond,   0,    0,    0)
+    mkclass(              jg,   condbr,    cond,   0,    0,    0)
+    mkclass(             jge,   condbr,    cond,   0,    0,    0)
+    mkclass(              jl,   condbr,    cond,   0,    0,    0)
+    mkclass(             jle,   condbr,    cond,   0,    0,    0)
+    mkclass(             jmp, uncondbr,  uncond,   0,    0,    0)
+    mkclass(             jne,   condbr,    cond,   0,    0,    0)
+    mkclass(             jno,   condbr,    cond,   0,    0,    0)
+    mkclass(             jnp,   condbr,    cond,   0,    0,    0)
+    mkclass(             jns,   condbr,    cond,   0,    0,    0)
+    mkclass(              jo,   condbr,    cond,   0,    0,    0)
+    mkclass(              jp,   condbr,    cond,   0,    0,    0)
+    mkclass(           jrcxz,   condbr,    cond,   0,    0,    0)
+    mkclass(              js,   condbr,    cond,   0,    0,    0)
+    mkclass(            lahf,      int,   other,   0,    0,    0)
+    mkclass(             lar,  special,   other,   0,    0,    0)
+    mkclass(           lddqu,     move,    move,   0, VRSZ,    0)
+    mkclass(         ldmxcsr,     move,    move,  di,   32,    0)
+    mkclass(             lds,     move,    move,   0, VRSZ,    0)
+    mkclass(             lea,     move,    move,   0, VRSZ,    0)
+    mkclass(           leave,  special,   stack,   0,    0,    BinFrame)
+    mkclass(             les,     move,    move,   0, VRSZ,    0)
+    mkclass(          lfence,  special,   other,   0,    0,    0)
+    mkclass(             lfs,     move,    move,   0, VRSZ,    0)
+    mkclass(            lgdt,  special,   other,   0,    0,    0)
+    mkclass(             lgs,     move,    move,   0, VRSZ,    0)
+    mkclass(            lidt,  special,   other,   0,    0,    0)
+    mkclass(            lldt,  special,   other,   0,    0,    0)
+    mkclass(            lmsw,  special,   other,   0,    0,    0)
+    mkclass(            lock,  special,   other,   0,    0,    0)
+    mkclass(           lodsb,     move,    move,  di,    8,    0)
+    mkclass(           lodsd,     move,    move,  di,   32,    0)
+    mkclass(           lodsq,     move,    move,  di,   64,    0)
+    mkclass(           lodsw,     move,    move,  di,   16,    0)
+    mkclass(            loop,  special,   other,   0,    0,    0)
+    mkclass(           loope,  special,   other,   0,    0,    0)
+    mkclass(          loopnz,  special,   other,   0,    0,    0)
+    mkclass(             lsl,  special,   other,   0,    0,    0)
+    mkclass(             lss,      int,    move,   0, VRSZ,    0)
+    mkclass(             ltr,  special,   other,   0,    0,    0)
+    mkclass(      maskmovdqu,     move,       0,   0,    0,    0)
+    mkclass(        maskmovq,     move,    move,   0,   64,    0)
+    mkclass(           maxpd,    float,  floatv,   0,   64,    0)
+    mkclass(           maxps,    float,  floatv,   0,   32,    0)
+    mkclass(           maxsd,    float,  floats,   0,   64,    0)
+    mkclass(           maxss,    float,  floats,   0,   32,    0)
+    mkclass(          mfence,  special,   other,   0,    0,    0)
+    mkclass(           minpd,    float,  floatv,   0,   64,    0)
+    mkclass(           minps,    float,  floatv,   0,   32,    0)
+    mkclass(           minsd,    float,  floats,   0,   64,    0)
+    mkclass(           minss,    float,  floats,   0,   32,    0)
+    mkclass(         monitor,  special,   other,   0,    0,    0)
+    mkclass(             mov,     move,    move,   0, VRSZ,    0)
+    mkclass(          movapd,     move,    move,   0, VRSZ,    0)
+    mkclass(          movaps,     move,    move,   0, VRSZ,    0)
+    mkclass(            movd,     move,    move,   0,   64,    0)
+    mkclass(         movddup,     move,    move,   0, VRSZ,    0)
+    mkclass(         movdq2q,     move,    move,   0,   64,    0)
+    mkclass(          movdqa,     move,    move,   0, VRSZ,    0)
+    mkclass(          movdqu,     move,    move,   0, VRSZ,    0)
+    mkclass(         movhlps,     move,    move,   0,   32,    0)
+    mkclass(          movhpd,     move,    move,   0,   64,    0)
+    mkclass(          movhps,     move,    move,   0,   32,    0)
+    mkclass(         movlhps,     move,    move,   0,   32,    0)
+    mkclass(          movlpd,     move,    move,   0,   64,    0)
+    mkclass(          movlps,     move,    move,   0,   32,    0)
+    mkclass(        movmskpd,     move,    move,   0, VRSZ,    0)
+    mkclass(        movmskps,     move,    move,   0, VRSZ,    0)
+    mkclass(         movntdq,     move,    move,   0, VRSZ,    0)
+    mkclass(        movntdqa,     move,       0,   0,    0,    0)
+    mkclass(          movnti,     move,    move,   0, VRSZ,    0)
+    mkclass(         movntpd,     move,    move,   0, VRSZ,    0)
+    mkclass(         movntps,     move,    move,   0, VRSZ,    0)
+    mkclass(          movntq,     move,    move,   0,   64,    0)
+    mkclass(            movq,     move,    move,   0,   64,    0)
+    mkclass(         movq2dq,     move,    move,   0,   64,    0)
+    mkclass(           movsb,   string,  string, dsi,    8,    0)
+    // TODO: 2 instructions covered by this... need to handle special
+    mkclass(           movsd,   string,    move, dsi,   64,    0)
+    mkclass(        movshdup,     move,    move,   0, VRSZ,    0)
+    mkclass(        movsldup,     move,    move,   0, VRSZ,    0)
+    mkclass(           movsq,   string,  string, dsi,   64,    0)
+    mkclass(           movss,     move,    move,   0,   32,    0)
+    mkclass(           movsw,   string,  string, dsi,   16,    0)
+    mkclass(           movsx,     move,    move,   0, VRSZ,    0)
+    mkclass(          movsxd,     move,    move,   0, VRSZ,    0)
+    mkclass(          movupd,     move,    move,   0, VRSZ,    0)
+    mkclass(          movups,     move,    move,   0, VRSZ,    0)
+    mkclass(           movzx,     move,    move,   0, VRSZ,    0)
+    mkclass(         mpsadbw,     simd,       0,   0,    0,    0)
+    mkclass(             mul,      int,     int,   0, VRSZ,    0)
+    mkclass(           mulpd,    float,  floatv,   0,   64,    0)
+    mkclass(           mulps,    float,  floatv,   0,   32,    0)
+    mkclass(           mulsd,    float,  floats,   0,   64,    0)
+    mkclass(           mulss,    float,  floats,   0,   32,    0)
+    mkclass(           mwait,  special,   other,   0,    0,    0)
+    mkclass(             neg,      int,     int,   0, VRSZ,    0)
+    mkclass(             nop,      nop,   other,   0,    0,    0)
+    mkclass(             not,      int,     bin,   0, VRSZ,    0)
+    mkclass(              or,      int,     bin,   0, VRSZ,    0)
+    mkclass(            orpd,    float,    binv,   0,   64,    0)
+    mkclass(            orps,    float,    binv,   0,   32,    0)
+    mkclass(             out,       io,   other,   0,    0,    0)
+    mkclass(           outsb,       io,   other,   0,    0,    0)
+    mkclass(           outsd,       io,   other,   0,    0,    0)
+    mkclass(           outsq,       io,   other,   0,    0,    0)
+    mkclass(           outsw,       io,   other,   0,    0,    0)
+    mkclass(           pabsb,     simd,       0,   0,    0,    0)
+    mkclass(           pabsd,     simd,       0,   0,    0,    0)
+    mkclass(           pabsw,     simd,       0,   0,    0,    0)
+    mkclass(        packssdw,      int,    intv,   0,   32,    0)
+    mkclass(        packsswb,      int,    intv,   0,    8,    0)
+    mkclass(        packusdw,     simd,       0,   0,    0,    0)
+    mkclass(        packuswb,      int,    intv,   0,    8,    0)
+    mkclass(           paddb,      int,    intv,   0,    8,    0)
+    mkclass(           paddd,      int,    intv,   0,   32,    0)
+    mkclass(           paddq,      int,    intv,   0,   64,    0)
+    mkclass(          paddsb,      int,    intv,   0,    8,    0)
+    mkclass(          paddsw,      int,    intv,   0,   16,    0)
+    mkclass(         paddusb,      int,    intv,   0,    8,    0)
+    mkclass(         paddusw,      int,    intv,   0,   16,    0)
+    mkclass(           paddw,      int,    intv,   0,   16,    0)
+    mkclass(         palignr,     simd,    binv,   0, VRSZ,    0)
+    mkclass(            pand,      int,    binv,   0, VRSZ,    0)
+    mkclass(           pandn,      int,    binv,   0, VRSZ,    0)
+    mkclass(           pause,  special,   other,   0,    0,    0)
+    mkclass(           pavgb,      int,    intv,   0,    8,    0)
+    mkclass(         pavgusb,      int,    intv,   0,   16,    0)
+    mkclass(           pavgw,      int,    intv,   0,   16,    0)
+    mkclass(        pblendvb,      int,       0,   0,    0,    0)
+    mkclass(         pblendw,      int,       0,   0,    0,    0)
+    mkclass(       pclmulqdq,     simd,       0,   0,    0,    0)
+    mkclass(         pcmpeqb,      int,    intv,   0,    8,    0)
+    mkclass(         pcmpeqd,      int,    intv,   0,   32,    0)
+    mkclass(         pcmpeqq,     simd,       0,   0,    0,    0)
+    mkclass(         pcmpeqw,      int,    intv,   0,   16,    0)
+    mkclass(       pcmpestri,     simd,       0,   0,    0,    0)
+    mkclass(       pcmpestrm,     simd,       0,   0,    0,    0)
+    mkclass(         pcmpgtb,      int,    intv,   0,    8,    0)
+    mkclass(         pcmpgtd,      int,    intv,   0,   32,    0)
+    mkclass(         pcmpgtq,      int,       0,   0,    0,    0)
+    mkclass(         pcmpgtw,      int,    intv,   0,   16,    0)
+    mkclass(       pcmpistri,     simd,       0,   0,    0,    0)
+    mkclass(       pcmpistrm,     simd,       0,   0,    0,    0)
+    mkclass(          pextrb,     simd,       0,   0,    0,    0)
+    mkclass(          pextrd,     simd,       0,   0,    0,    0)
+    mkclass(          pextrq,     simd,       0,   0,    0,    0)
+    mkclass(          pextrw,     simd,    intv,   0,   16,    0)
+    mkclass(           pf2id,      int,    intv,   0,   32,    0)
+    mkclass(           pf2iw,      int,    intv,   0,   16,    0)
+    mkclass(           pfacc,      int,    intv,   0,   32,    0)
+    mkclass(           pfadd,      int,    intv,   0,   32,    0)
+    mkclass(         pfcmpeq,      int,    intv,   0,   32,    0)
+    mkclass(         pfcmpge,      int,    intv,   0,   32,    0)
+    mkclass(         pfcmpgt,      int,    intv,   0,   32,    0)
+    mkclass(           pfmax,      int,    intv,   0,   32,    0)
+    mkclass(           pfmin,      int,    intv,   0,   32,    0)
+    mkclass(           pfmul,      int,    intv,   0,   32,    0)
+    mkclass(          pfnacc,      int,    intv,   0,   32,    0)
+    mkclass(         pfpnacc,      int,    intv,   0,   32,    0)
+    mkclass(           pfrcp,      int,    intv,   0,   32,    0)
+    mkclass(        pfrcpit1,      int,    intv,   0,   32,    0)
+    mkclass(        pfrcpit2,      int,    intv,   0,   32,    0)
+    mkclass(        pfrspit1,      int,    intv,   0,   32,    0)
+    mkclass(         pfrsqrt,      int,    intv,   0,   32,    0)
+    mkclass(           pfsub,      int,    intv,   0,   32,    0)
+    mkclass(          pfsubr,      int,    intv,   0,   32,    0)
+    mkclass(          phaddd,     simd,    intv,   0,   32,    0)
+    mkclass(         phaddsw,     simd,       0,   0,    0,    0)
+    mkclass(          phaddw,     simd,       0,   0,    0,    0)
+    mkclass(      phminposuw,     simd,       0,   0,    0,    0)
+    mkclass(          phsubd,     simd,       0,   0,    0,    0)
+    mkclass(         phsubsw,     simd,       0,   0,    0,    0)
+    mkclass(          phsubw,     simd,       0,   0,    0,    0)
+    mkclass(           pi2fd,      int,    intv,   0,   32,    0)
+    mkclass(           pi2fw,      int,    intv,   0,   16,    0)
+    mkclass(          pinsrb,     simd,       0,   0,    0,    0)
+    mkclass(          pinsrd,     simd,       0,   0,    0,    0)
+    mkclass(          pinsrq,     simd,       0,   0,    0,    0)
+    mkclass(          pinsrw,     simd,    intv,   0,   16,    0)
+    mkclass(       pmaddusbw,     simd,       0,   0,    0,    0)
+    mkclass(         pmaddwd,     simd,    intv,   0,   32,    0)
+
+    // should be all binv or all intv?
+    mkclass(          pmaxsb,     simd,    binv,   0,    8,    0)
+    mkclass(          pmaxsd,     simd,    intv,   0,   32,    0)
+    mkclass(          pmaxsw,     simd,    intv,   0,   16,    0)
+    mkclass(          pmaxub,     simd,    intv,   0,    8,    0)
+    mkclass(          pmaxud,     simd,    intv,   0,   32,    0)
+    mkclass(          pmaxuw,     simd,    intv,   0,   16,    0)
+    mkclass(          pminsb,     simd,    binv,   0,    8,    0)
+    mkclass(          pminsd,     simd,    intv,   0,   32,    0)
+    mkclass(          pminsw,     simd,    intv,   0,   16,    0)
+    mkclass(          pminub,     simd,    intv,   0,    8,    0)
+    mkclass(          pminud,     simd,    intv,   0,   32,    0)
+    mkclass(          pminuw,     simd,    intv,   0,   16,    0)
+
+    mkclass(        pmovmskb,     move,    move,   0, VRSZ,    0)
+    mkclass(        pmovsxbd,     move,       0,   0,    0,    0)
+    mkclass(        pmovsxbq,     move,       0,   0,    0,    0)
+    mkclass(        pmovsxbw,     move,       0,   0,    0,    0)
+    mkclass(        pmovsxdq,     move,       0,   0,    0,    0)
+    mkclass(        pmovsxwd,     move,       0,   0,    0,    0)
+    mkclass(        pmovsxwq,     move,       0,   0,    0,    0)
+    mkclass(        pmovzxbd,     move,       0,   0,    0,    0)
+    mkclass(        pmovzxbq,     move,       0,   0,    0,    0)
+    mkclass(        pmovzxbw,     move,       0,   0,    0,    0)
+    mkclass(        pmovzxdq,     move,       0,   0,    0,    0)
+    mkclass(        pmovzxwd,     move,       0,   0,    0,    0)
+    mkclass(        pmovzxwq,     move,       0,   0,    0,    0)
+    mkclass(          pmuldq,     simd,       0,   0,    0,    0)
+    mkclass(        pmulhrsw,     simd,       0,   0,    0,    0)
+    mkclass(         pmulhrw,      int,    intv,   0,   16,    0)
+    mkclass(         pmulhuw,      int,    intv,   0,   16,    0)
+    mkclass(          pmulhw,      int,    intv,   0,   16,    0)
+    mkclass(          pmulld,     simd,       0,   0,    0,    0)
+    mkclass(          pmullw,      int,    intv,   0,   16,    0)
+    mkclass(         pmuludq,      int,    intv,   0,   32,    0)
+    mkclass(             pop,      int,   stack,   0, VRSZ,    BinStack)
+    mkclass(            popa,  special,   stack,   0,   16,    BinFrame)
+    mkclass(           popad,  special,   stack,   0,   32,    BinFrame)
+    mkclass(           popfd,      int,   stack,   0,   32,    BinStack)
+    mkclass(           popfq,      int,   stack,   0,   64,    BinStack)
+    mkclass(           popfw,      int,   stack,   0,   16,    BinStack)
+    mkclass(             por,      int,    binv,   0, VRSZ,    0)
+    mkclass(        prefetch, prefetch,   cache,   0,    0,    0)
+    mkclass(     prefetchnta, prefetch,   cache,   0,    0,    0)
+    mkclass(      prefetcht0, prefetch,   cache,   0,    0,    0)
+    mkclass(      prefetcht1, prefetch,   cache,   0,    0,    0)
+    mkclass(      prefetcht2, prefetch,   cache,   0,    0,    0)
+    mkclass(          psadbw,      int,    intv,   0,   16,    0)
+    mkclass(          pshufb,     simd,    binv,   0,    8,    0)
+    mkclass(          pshufd,      int,    binv,   0,   32,    0)
+    mkclass(         pshufhw,      int,    binv,   0,   16,    0)
+    mkclass(         pshuflw,      int,    binv,   0,   16,    0)
+    mkclass(          pshufw,      int,    binv,   0,   16,    0)
+    mkclass(          psignb,     simd,       0,   0,    0,    0)
+    mkclass(          psignd,     simd,       0,   0,    0,    0)
+    mkclass(          psignw,     simd,       0,   0,    0,    0)
+    mkclass(           pslld,      int,    binv,   0,   32,    0)
+    mkclass(          pslldq,      int,    binv,   0,   64,    0)
+    mkclass(           psllq,      int,    binv,   0,   64,    0)
+    mkclass(           psllw,      int,    binv,   0,   16,    0)
+    mkclass(           psrad,      int,    binv,   0,   32,    0)
+    mkclass(           psraw,      int,    binv,   0,   16,    0)
+    mkclass(           psrld,      int,    binv,   0,   32,    0)
+    mkclass(          psrldq,      int,    binv,   0,   64,    0)
+    mkclass(           psrlq,      int,    binv,   0,   64,    0)
+    mkclass(           psrlw,      int,    binv,   0,   16,    0)
+    mkclass(           psubb,      int,    intv,   0,   16,    0)
+    mkclass(           psubd,      int,    intv,   0,   32,    0)
+    mkclass(           psubq,      int,    intv,   0,   64,    0)
+
+    // the byte forms of these are 16-bit?
+    mkclass(          psubsb,      int,    intv,   0,   16,    0)
+    mkclass(          psubsw,      int,    intv,   0,   16,    0)
+    mkclass(         psubusb,      int,    intv,   0,   16,    0)
+    mkclass(         psubusw,      int,    intv,   0,   16,    0)
+    mkclass(           psubw,      int,    intv,   0,   16,    0)
+
+    mkclass(          pswapd,      int,    intv,   0,   32,    0)
+    mkclass(           ptest,      int,       0,   0,    0,    0)
+    mkclass(       punpckhbw,      int,    binv,   0,   16,    0)
+    mkclass(       punpckhdq,      int,    binv,   0,   64,    0)
+    mkclass(      punpckhqdq,      int,    binv,   0,   64,    0)
+    mkclass(       punpckhwd,      int,    binv,   0,   32,    0)
+    mkclass(       punpcklbw,      int,    binv,   0,   16,    0)
+    mkclass(       punpckldq,      int,    binv,   0,   64,    0)
+    mkclass(      punpcklqdq,      int,    binv,   0,   64,    0)
+    mkclass(       punpcklwd,      int,    binv,   0,   32,    0)
+    mkclass(            push,      int,   stack,   0, VRSZ,    BinStack)
+    mkclass(           pusha,  special,   stack,   0,   16,    BinFrame)
+    mkclass(          pushad,  special,   stack,   0,   32,    BinFrame)
+    mkclass(          pushfd,      int,   stack,   0,   32,    BinStack)
+    mkclass(          pushfq,      int,   stack,   0,   64,    BinStack)
+    mkclass(          pushfw,      int,   stack,   0,   16,    BinStack)
+    mkclass(            pxor,      int,    binv,   0, VRSZ,    0)
+    mkclass(             rcl,      int,     bin,   0, VRSZ,    0)
+    mkclass(           rcpps,    float,  floatv,   0,   32,    0)
+    mkclass(           rcpss,    float,  floats,   0,   32,    0)
+    mkclass(             rcr,      int,     bin,   0, VRSZ,    0)
+    mkclass(           rdmsr,      int,   other,   0,    0,    0)
+    mkclass(           rdpmc,  hwcount,   other,   0,    0,    0)
+    mkclass(           rdtsc,  hwcount,   other,   0,    0,    0)
+    mkclass(          rdtscp,  hwcount,   other,   0,    0,    0)
+    mkclass(             rep,   string,  string,   0,    0,    0)
+    mkclass(           repne,   string,  string,   0,    0,    0)
+    mkclass(             ret,   return,  uncond,   0,    0,    BinFrame)
+    mkclass(            retf,   return,  uncond,   0,    0,    BinFrame)
+    mkclass(             rol,      int,     bin,   0, VRSZ,    0)
+    mkclass(             ror,      int,     bin,   0, VRSZ,    0)
+    mkclass(         roundpd,     simd,  floatv,   0,   64,    0)
+    mkclass(         roundps,     simd,  floatv,   0,   32,    0)
+    mkclass(         roundsd,     simd,  floats,   0,   64,    0)
+    mkclass(         roundss,     simd,  floats,   0,   32,    0)
+    mkclass(             rsm,  special,   other,   0,    0,    0)
+    mkclass(         rsqrtps,    float,  floatv,   0,   32,    0)
+    mkclass(         rsqrtss,    float,  floats,   0,   32,    0)
+    mkclass(            sahf,      int,   other,   0,    0,    0)
+    mkclass(             sal,      int,     bin,   0, VRSZ,    0)
+    mkclass(            salc,      int,     bin,   0, VRSZ,    0)
+    mkclass(             sar,      int,     bin,   0, VRSZ,    0)
+    mkclass(             sbb,      int,     int,   0, VRSZ,    0)
+    mkclass(           scasb,   string,  string,  si,    8,    0)
+    mkclass(           scasd,   string,  string,  si,   32,    0)
+    mkclass(           scasq,   string,  string,  si,   64,    0)
+    mkclass(           scasw,   string,  string,  si,   16,    0)
+    mkclass(            seta,      int,     bin,   0,    8,    0)
+    mkclass(            setb,      int,     bin,   0,    8,    0)
+    mkclass(           setbe,      int,     bin,   0,    8,    0)
+    mkclass(            setg,      int,     bin,   0,    8,    0)
+    mkclass(           setge,      int,     bin,   0,    8,    0)
+    mkclass(            setl,      int,     bin,   0,    8,    0)
+    mkclass(           setle,      int,     bin,   0,    8,    0)
+    mkclass(           setnb,      int,     bin,   0,    8,    0)
+    mkclass(           setno,      int,     bin,   0,    8,    0)
+    mkclass(           setnp,      int,     bin,   0,    8,    0)
+    mkclass(           setns,      int,     bin,   0,    8,    0)
+    mkclass(           setnz,      int,     bin,   0,    8,    0)
+    mkclass(            seto,      int,     bin,   0,    8,    0)
+    mkclass(            setp,      int,     bin,   0,    8,    0)
+    mkclass(            sets,      int,     bin,   0,    8,    0)
+    mkclass(            setz,      int,     bin,   0,    8,    0)
+    mkclass(          sfence,  special,   other,   0,    0,    0)
+    mkclass(            sgdt,  special,   other,   0,    0,    0)
+    mkclass(             shl,      int,     bin,   0, VRSZ,    0)
+    mkclass(            shld,      int,     bin,   0, VRSZ,    0)
+    mkclass(             shr,      int,     bin,   0, VRSZ,    0)
+    mkclass(            shrd,      int,     bin,   0, VRSZ,    0)
+    mkclass(          shufpd,    float,    binv,   0,   64,    0)
+    mkclass(          shufps,    float,    binv,   0,   32,    0)
+    mkclass(            sidt,  special,   other,   0,    0,    0)
+    mkclass(          skinit,  special,   other,   0,    0,    0)
+    mkclass(            sldt,  special,   other,   0,    0,    0)
+    mkclass(            smsw,  special,   other,   0,    0,    0)
+    mkclass(          sqrtpd,    float,  floatv,   0,   64,    0)
+    mkclass(          sqrtps,    float,  floatv,   0,   32,    0)
+    mkclass(          sqrtsd,    float,  floats,   0,   64,    0)
+    mkclass(          sqrtss,    float,  floats,   0,   32,    0)
+    mkclass(             stc,  special,   other,   0,    0,    0)
+    mkclass(             std,  special,   other,   0,    0,    0)
+    mkclass(            stgi,  special,   other,   0,    0,    0)
+    mkclass(             sti,  special,   other,   0,    0,    0)
+    mkclass(         stmxcsr,     move,   other,   0,    0,    0)
+    mkclass(           stosb,   string,    move, dsi,    8,    0)
+    mkclass(           stosd,   string,    move, dsi,   32,    0)
+    mkclass(           stosq,   string,    move, dsi,   64,    0)
+    mkclass(           stosw,   string,    move, dsi,   16,    0)
+    mkclass(             str,     move,    move,   0, VRSZ,    0)
+    mkclass(             sub,      int,     int,   0, VRSZ,    0)
+    mkclass(           subpd,    float,  floatv,   0,   64,    0)
+    mkclass(           subps,    float,  floatv,   0,   32,    0)
+    mkclass(           subsd,    float,  floats,   0,   64,    0)
+    mkclass(           subss,    float,  floats,   0,   32,    0)
+    mkclass(          swapgs,  special,   other,   0,    0,    0)
+    mkclass(         syscall,  syscall,  system,   0,    0,    BinFrame)
+    mkclass(        sysenter,  syscall,  system,   0,    0,    BinFrame)
+    mkclass(         sysexit,  syscall,  system,   0,    0,    BinFrame)
+    mkclass(          sysret,  syscall,  system,   0,    0,    BinFrame)
+    mkclass(            test,      int,     bin,   0, VRSZ,    0)
+    mkclass(         ucomisd,    float,  floats,   0,   64,    0)
+    mkclass(         ucomiss,    float,  floats,   0,   32,    0)
+    mkclass(             ud2,  invalid, invalid,   0,    0,    0)
+    mkclass(        unpckhpd,    float,    binv,   0,   64,    0)
+    mkclass(        unpckhps,    float,    binv,   0,   32,    0)
+    mkclass(        unpcklpd,    float,    binv,   0,   64,    0)
+    mkclass(        unpcklps,    float,    binv,   0,   32,    0)
+    mkclass(          vaddpd,      avx,       0,   0,    0,    0)
+    mkclass(          vaddps,      avx,       0,   0,    0,    0)
+    mkclass(          vaddsd,      avx,       0,   0,    0,    0)
+    mkclass(          vaddss,      avx,       0,   0,    0,    0)
+    mkclass(       vaddsubpd,      avx,       0,   0,    0,    0)
+    mkclass(       vaddsubps,      avx,       0,   0,    0,    0)
+    mkclass(         vaesdec,      aes,       0,   0,    0,    0)
+    mkclass(     vaesdeclast,      aes,       0,   0,    0,    0)
+    mkclass(         vaesenc,      aes,       0,   0,    0,    0)
+    mkclass(     vaesenclast,      aes,       0,   0,    0,    0)
+    mkclass(         vaesimc,      aes,       0,   0,    0,    0)
+    mkclass(vaeskeygenassist,      aes,       0,   0,    0,    0)
+    mkclass(         vandnpd,      avx,       0,   0,    0,    0)
+    mkclass(         vandnps,      avx,       0,   0,    0,    0)
+    mkclass(          vandpd,      avx,       0,   0,    0,    0)
+    mkclass(          vandps,      avx,       0,   0,    0,    0)
+    mkclass(        vblendpd,      avx,       0,   0,    0,    0)
+    mkclass(        vblendps,      avx,       0,   0,    0,    0)
+    mkclass(       vblendvpd,      avx,       0,   0,    0,    0)
+    mkclass(       vblendvps,      avx,       0,   0,    0,    0)
+    mkclass(      vbroadcast,     move,       0,   0,    0,    0)
+    mkclass(          vcmppd,      avx,       0,   0,    0,    0)
+    mkclass(          vcmpps,      avx,       0,   0,    0,    0)
+    mkclass(          vcmpsd,      avx,       0,   0,    0,    0)
+    mkclass(          vcmpss,      avx,       0,   0,    0,    0)
+    mkclass(         vcomisd,      avx,       0,   0,    0,    0)
+    mkclass(         vcomiss,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtdq2pd,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtdq2ps,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtpd2dq,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtpd2ps,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtph2ps,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtps2dq,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtps2pd,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtps2ph,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtsd2si,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtsd2ss,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtsi2sd,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtsi2ss,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtss2sd,      avx,       0,   0,    0,    0)
+    mkclass(       vcvtss2si,      avx,       0,   0,    0,    0)
+    mkclass(      vcvttpd2dq,      avx,       0,   0,    0,    0)
+    mkclass(      vcvttps2dq,      avx,       0,   0,    0,    0)
+    mkclass(      vcvttsd2si,      avx,       0,   0,    0,    0)
+    mkclass(      vcvttss2si,      avx,       0,   0,    0,    0)
+    mkclass(          vdivpd,      avx,       0,   0,    0,    0)
+    mkclass(          vdivps,      avx,       0,   0,    0,    0)
+    mkclass(          vdivsd,      avx,       0,   0,    0,    0)
+    mkclass(          vdivss,      avx,       0,   0,    0,    0)
+    mkclass(           vdppd,      avx,       0,   0,    0,    0)
+    mkclass(           vdpps,      avx,       0,   0,    0,    0)
+    mkclass(            verr,  special,   other,   0,    0,    0)
+    mkclass(            verw,  special,   other,   0,    0,    0)
+    mkclass(    vextractf128,      avx,       0,   0,    0,    0)
+    mkclass(      vextractps,      avx,       0,   0,    0,    0)
+    mkclass(         vfmaddp,      avx,       0,   0,    0,    0)
+    mkclass(         vfmadds,      avx,       0,   0,    0,    0)
+    mkclass(      vfmaddsubp,      avx,       0,   0,    0,    0)
+    mkclass(      vfmsubaddp,      avx,       0,   0,    0,    0)
+    mkclass(         vfmsubp,      avx,       0,   0,    0,    0)
+    mkclass(         vfmsubs,      avx,       0,   0,    0,    0)
+    mkclass(        vfnmaddp,      avx,       0,   0,    0,    0)
+    mkclass(        vfnmadds,      avx,       0,   0,    0,    0)
+    mkclass(        vfnmsubp,      avx,       0,   0,    0,    0)
+    mkclass(        vfnmsubs,      avx,       0,   0,    0,    0)
+    mkclass(         vhaddpd,      avx,       0,   0,    0,    0)
+    mkclass(         vhaddps,      avx,       0,   0,    0,    0)
+    mkclass(         vhsubpd,      avx,       0,   0,    0,    0)
+    mkclass(         vhsubps,      avx,       0,   0,    0,    0)
+    mkclass(     vinsertf128,      avx,       0,   0,    0,    0)
+    mkclass(       vinsertps,      avx,       0,   0,    0,    0)
+    mkclass(          vlddqu,     move,       0,   0, VRSZ,    0)
+    mkclass(        vldmxcsr,     move,       0,   0,    0,    0)
+    mkclass(        vmaskmov,     move,       0,   0,    0,    0)
+    mkclass(     vmaskmovdqu,     move,       0,   0,    0,    0)
+    mkclass(          vmaxpd,      avx,       0,   0,    0,    0)
+    mkclass(          vmaxps,      avx,       0,   0,    0,    0)
+    mkclass(          vmaxsd,      avx,       0,   0,    0,    0)
+    mkclass(          vmaxss,      avx,       0,   0,    0,    0)
+    mkclass(          vmcall,      vmx,   other,   0,    0,    0)
+    mkclass(         vmclear,      vmx,   other,   0,    0,    0)
+    mkclass(          vminpd,      avx,       0,   0,    0,    0)
+    mkclass(          vminps,      avx,       0,   0,    0,    0)
+    mkclass(          vminsd,      avx,       0,   0,    0,    0)
+    mkclass(          vminss,      avx,       0,   0,    0,    0)
+    mkclass(          vmload,      vmx,   other,   0,    0,    0)
+    mkclass(         vmmcall,      vmx,   other,   0,    0,    0)
+    mkclass(         vmovapd,     move,       0,   0,    0,    0)
+    mkclass(         vmovaps,     move,       0,   0,    0,    0)
+    mkclass(           vmovd,     move,       0,   0,    0,    0)
+    mkclass(        vmovddup,     move,       0,   0,    0,    0)
+    mkclass(         vmovdqa,     move,       0,   0,    0,    0)
+    mkclass(         vmovdqu,     move,       0,   0,    0,    0)
+    mkclass(         vmovhpd,     move,       0,   0,    0,    0)
+    mkclass(         vmovhps,     move,       0,   0,    0,    0)
+    mkclass(         vmovlpd,     move,       0,   0,    0,    0)
+    mkclass(         vmovlps,     move,       0,   0,    0,    0)
+    mkclass(       vmovmskpd,     move,       0,   0,    0,    0)
+    mkclass(       vmovmskps,     move,       0,   0,    0,    0)
+    mkclass(        vmovntdq,     move,       0,   0,    0,    0)
+    mkclass(       vmovntdqa,     move,       0,   0,    0,    0)
+    mkclass(        vmovntpd,     move,       0,   0,    0,    0)
+    mkclass(        vmovntps,     move,       0,   0,    0,    0)
+    mkclass(           vmovq,     move,       0,   0,    0,    0)
+    mkclass(          vmovsd,     move,       0,   0,    0,    0)
+    mkclass(       vmovshdup,     move,       0,   0,    0,    0)
+    mkclass(       vmovsldup,     move,       0,   0,    0,    0)
+    mkclass(          vmovss,     move,       0,   0,    0,    0)
+    mkclass(         vmovupd,     move,       0,   0,    0,    0)
+    mkclass(         vmovups,     move,       0,   0,    0,    0)
+    mkclass(        vmpsadbw,      avx,       0,   0,    0,    0)
+    mkclass(         vmptrld,      vmx,   other,   0,    0,    0)
+    mkclass(         vmptrst,      vmx,   other,   0,    0,    0)
+    mkclass(        vmresume,      vmx,   other,   0,    0,    0)
+    mkclass(           vmrun,      vmx,   other,   0,    0,    0)
+    mkclass(          vmsave,      vmx,   other,   0,    0,    0)
+    mkclass(          vmulpd,      avx,       0,   0,    0,    0)
+    mkclass(          vmulps,      avx,       0,   0,    0,    0)
+    mkclass(          vmulsd,      avx,       0,   0,    0,    0)
+    mkclass(          vmulss,      avx,       0,   0,    0,    0)
+    mkclass(          vmxoff,      vmx,   other,   0,    0,    0)
+    mkclass(           vmxon,      vmx,   other,   0,    0,    0)
+    mkclass(           vorpd,      avx,       0,   0,    0,    0)
+    mkclass(           vorps,      avx,       0,   0,    0,    0)
+    mkclass(          vpabsb,      avx,       0,   0,    0,    0)
+    mkclass(          vpabsd,      avx,       0,   0,    0,    0)
+    mkclass(          vpabsw,      avx,       0,   0,    0,    0)
+    mkclass(       vpackssdw,      avx,       0,   0,    0,    0)
+    mkclass(       vpacksswb,      avx,       0,   0,    0,    0)
+    mkclass(       vpackusdw,      avx,       0,   0,    0,    0)
+    mkclass(       vpackuswb,      avx,       0,   0,    0,    0)
+    mkclass(          vpaddb,      avx,       0,   0,    0,    0)
+    mkclass(          vpaddd,      avx,       0,   0,    0,    0)
+    mkclass(          vpaddq,      avx,       0,   0,    0,    0)
+    mkclass(         vpaddsb,      avx,       0,   0,    0,    0)
+    mkclass(         vpaddsw,      avx,       0,   0,    0,    0)
+    mkclass(        vpaddusb,      avx,       0,   0,    0,    0)
+    mkclass(        vpaddusw,      avx,       0,   0,    0,    0)
+    mkclass(          vpaddw,      avx,       0,   0,    0,    0)
+    mkclass(        vpalignr,      avx,       0,   0,    0,    0)
+    mkclass(           vpand,      avx,       0,   0,    0,    0)
+    mkclass(          vpandn,      avx,       0,   0,    0,    0)
+    mkclass(          vpavgb,      avx,       0,   0,    0,    0)
+    mkclass(          vpavgw,      avx,       0,   0,    0,    0)
+    mkclass(       vpblendvb,      avx,       0,   0,    0,    0)
+    mkclass(        vpblendw,      avx,       0,   0,    0,    0)
+    mkclass(      vpclmulqdq,      avx,       0,   0,    0,    0)
+    mkclass(        vpcmpeqb,      avx,       0,   0,    0,    0)
+    mkclass(        vpcmpeqd,      avx,       0,   0,    0,    0)
+    mkclass(        vpcmpeqq,      avx,       0,   0,    0,    0)
+    mkclass(        vpcmpeqw,      avx,       0,   0,    0,    0)
+    mkclass(      vpcmpestri,      avx,       0,   0,    0,    0)
+    mkclass(      vpcmpestrm,      avx,       0,   0,    0,    0)
+    mkclass(        vpcmpgtb,      avx,       0,   0,    0,    0)
+    mkclass(        vpcmpgtd,      avx,       0,   0,    0,    0)
+    mkclass(        vpcmpgtq,      avx,       0,   0,    0,    0)
+    mkclass(        vpcmpgtw,      avx,       0,   0,    0,    0)
+    mkclass(      vpcmpistri,      avx,       0,   0,    0,    0)
+    mkclass(      vpcmpistrm,      avx,       0,   0,    0,    0)
+    mkclass(       vpermf128,      avx,       0,   0,    0,    0)
+    mkclass(       vpermilpd,      avx,       0,   0,    0,    0)
+    mkclass(       vpermilps,      avx,       0,   0,    0,    0)
+    mkclass(         vpextrb,      avx,       0,   0,    0,    0)
+    mkclass(         vpextrd,      avx,       0,   0,    0,    0)
+    mkclass(         vpextrq,      avx,       0,   0,    0,    0)
+    mkclass(         vpextrw,      avx,       0,   0,    0,    0)
+    mkclass(         vphaddd,      avx,       0,   0,    0,    0)
+    mkclass(        vphaddsw,      avx,       0,   0,    0,    0)
+    mkclass(         vphaddw,      avx,       0,   0,    0,    0)
+    mkclass(     vphminposuw,      avx,       0,   0,    0,    0)
+    mkclass(         vphsubd,      avx,       0,   0,    0,    0)
+    mkclass(        vphsubsw,      avx,       0,   0,    0,    0)
+    mkclass(         vphsubw,      avx,       0,   0,    0,    0)
+    mkclass(         vpinsrb,      avx,       0,   0,    0,    0)
+    mkclass(         vpinsrd,      avx,       0,   0,    0,    0)
+    mkclass(         vpinsrq,      avx,       0,   0,    0,    0)
+    mkclass(         vpinsrw,      avx,       0,   0,    0,    0)
+    mkclass(      vpmaddusbw,      avx,       0,   0,    0,    0)
+    mkclass(        vpmaddwd,      avx,       0,   0,    0,    0)
+    mkclass(         vpmaxsb,      avx,       0,   0,    0,    0)
+    mkclass(         vpmaxsd,      avx,       0,   0,    0,    0)
+    mkclass(         vpmaxsw,      avx,       0,   0,    0,    0)
+    mkclass(         vpmaxub,      avx,       0,   0,    0,    0)
+    mkclass(         vpmaxud,      avx,       0,   0,    0,    0)
+    mkclass(         vpmaxuw,      avx,       0,   0,    0,    0)
+    mkclass(         vpminsb,      avx,       0,   0,    0,    0)
+    mkclass(         vpminsd,      avx,       0,   0,    0,    0)
+    mkclass(         vpminsw,      avx,       0,   0,    0,    0)
+    mkclass(         vpminub,      avx,       0,   0,    0,    0)
+    mkclass(         vpminud,      avx,       0,   0,    0,    0)
+    mkclass(         vpminuw,      avx,       0,   0,    0,    0)
+    mkclass(       vpmovmskb,     move,       0,   0,    0,    0)
+    mkclass(       vpmovsxbd,     move,       0,   0,    0,    0)
+    mkclass(       vpmovsxbq,     move,       0,   0,    0,    0)
+    mkclass(       vpmovsxbw,     move,       0,   0,    0,    0)
+    mkclass(       vpmovsxdq,     move,       0,   0,    0,    0)
+    mkclass(       vpmovsxwd,     move,       0,   0,    0,    0)
+    mkclass(       vpmovsxwq,     move,       0,   0,    0,    0)
+    mkclass(       vpmovzxbd,     move,       0,   0,    0,    0)
+    mkclass(       vpmovzxbq,     move,       0,   0,    0,    0)
+    mkclass(       vpmovzxbw,     move,       0,   0,    0,    0)
+    mkclass(       vpmovzxdq,     move,       0,   0,    0,    0)
+    mkclass(       vpmovzxwd,     move,       0,   0,    0,    0)
+    mkclass(       vpmovzxwq,     move,       0,   0,    0,    0)
+    mkclass(         vpmuldq,      avx,       0,   0,    0,    0)
+    mkclass(       vpmulhrsw,      avx,       0,   0,    0,    0)
+    mkclass(        vpmulhuw,      avx,       0,   0,    0,    0)
+    mkclass(         vpmulhw,      avx,       0,   0,    0,    0)
+    mkclass(         vpmulld,      avx,       0,   0,    0,    0)
+    mkclass(         vpmullw,      avx,       0,   0,    0,    0)
+    mkclass(        vpmuludq,      avx,       0,   0,    0,    0)
+    mkclass(            vpor,      avx,       0,   0,    0,    0)
+    mkclass(         vpsadbw,      avx,       0,   0,    0,    0)
+    mkclass(         vpshufb,      avx,       0,   0,    0,    0)
+    mkclass(         vpshufd,      avx,       0,   0,    0,    0)
+    mkclass(        vpshufhw,      avx,       0,   0,    0,    0)
+    mkclass(        vpshuflw,      avx,       0,   0,    0,    0)
+    mkclass(         vpsignb,      avx,       0,   0,    0,    0)
+    mkclass(         vpsignd,      avx,       0,   0,    0,    0)
+    mkclass(         vpsignw,      avx,       0,   0,    0,    0)
+    mkclass(          vpslld,      avx,       0,   0,    0,    0)
+    mkclass(         vpslldq,      avx,       0,   0,    0,    0)
+    mkclass(          vpsllq,      avx,       0,   0,    0,    0)
+    mkclass(          vpsllw,      avx,       0,   0,    0,    0)
+    mkclass(          vpsrad,      avx,       0,   0,    0,    0)
+    mkclass(          vpsraw,      avx,       0,   0,    0,    0)
+    mkclass(          vpsrld,      avx,       0,   0,    0,    0)
+    mkclass(         vpsrldq,      avx,       0,   0,    0,    0)
+    mkclass(          vpsrlq,      avx,       0,   0,    0,    0)
+    mkclass(          vpsrlw,      avx,       0,   0,    0,    0)
+    mkclass(          vpsubb,      avx,       0,   0,    0,    0)
+    mkclass(          vpsubd,      avx,       0,   0,    0,    0)
+    mkclass(          vpsubq,      avx,       0,   0,    0,    0)
+    mkclass(         vpsubsb,      avx,       0,   0,    0,    0)
+    mkclass(         vpsubsw,      avx,       0,   0,    0,    0)
+    mkclass(        vpsubusb,      avx,       0,   0,    0,    0)
+    mkclass(        vpsubusw,      avx,       0,   0,    0,    0)
+    mkclass(          vpsubw,      avx,       0,   0,    0,    0)
+    mkclass(      vpunpckhbw,      avx,       0,   0,    0,    0)
+    mkclass(      vpunpckhdq,      avx,       0,   0,    0,    0)
+    mkclass(     vpunpckhqdq,      avx,       0,   0,    0,    0)
+    mkclass(      vpunpckhwd,      avx,       0,   0,    0,    0)
+    mkclass(      vpunpcklbw,      avx,       0,   0,    0,    0)
+    mkclass(      vpunpckldq,      avx,       0,   0,    0,    0)
+    mkclass(     vpunpcklqdq,      avx,       0,   0,    0,    0)
+    mkclass(      vpunpcklwd,      avx,       0,   0,    0,    0)
+    mkclass(           vpxor,      avx,       0,   0,    0,    0)
+    mkclass(          vrcpps,      avx,       0,   0,    0,    0)
+    mkclass(          vrcpss,      avx,       0,   0,    0,    0)
+    mkclass(        vroundpd,      avx,       0,   0,    0,    0)
+    mkclass(        vroundps,      avx,       0,   0,    0,    0)
+    mkclass(        vroundsd,      avx,       0,   0,    0,    0)
+    mkclass(        vroundss,      avx,       0,   0,    0,    0)
+    mkclass(        vrsqrtps,      avx,       0,   0,    0,    0)
+    mkclass(        vrsqrtss,      avx,       0,   0,    0,    0)
+    mkclass(         vshufpd,      avx,       0,   0,    0,    0)
+    mkclass(         vshufps,      avx,       0,   0,    0,    0)
+    mkclass(         vsqrtpd,      avx,       0,   0,    0,    0)
+    mkclass(         vsqrtps,      avx,       0,   0,    0,    0)
+    mkclass(         vsqrtsd,      avx,       0,   0,    0,    0)
+    mkclass(         vsqrtss,      avx,       0,   0,    0,    0)
+    mkclass(        vstmxcsr,     move,       0,   0,    0,    0)
+    mkclass(          vsubpd,      avx,       0,   0,    0,    0)
+    mkclass(          vsubps,      avx,       0,   0,    0,    0)
+    mkclass(          vsubsd,      avx,       0,   0,    0,    0)
+    mkclass(          vsubss,      avx,       0,   0,    0,    0)
+    mkclass(         vtestpd,      avx,       0,   0,    0,    0)
+    mkclass(         vtestps,      avx,       0,   0,    0,    0)
+    mkclass(        vucomisd,      avx,       0,   0,    0,    0)
+    mkclass(        vucomiss,      avx,       0,   0,    0,    0)
+    mkclass(       vunpckhpd,      avx,       0,   0,    0,    0)
+    mkclass(       vunpckhps,      avx,       0,   0,    0,    0)
+    mkclass(       vunpcklpd,      avx,       0,   0,    0,    0)
+    mkclass(       vunpcklps,      avx,       0,   0,    0,    0)
+    mkclass(          vxorpd,      avx,       0,   0,    0,    0)
+    mkclass(          vxorps,      avx,       0,   0,    0,    0)
+    mkclass(        vzeroall,      avx,       0,   0,    0,    0)
+    mkclass(            wait,  special,   other,   0,    0,    0)
+    mkclass(          wbinvd,  special,   other,   0,    0,    0)
+    mkclass(           wrmsr,  special,   other,   0,    0,    0)
+    mkclass(            xadd,      int,     int,   0, VRSZ,    0)
+    mkclass(            xchg,      int,     int,   0, VRSZ,    0)
+    mkclass(           xgetbv, special,   other,   0,    0,    0)
+    mkclass(           xlatb,  special,   other,   0,    0,    0)
+    mkclass(             xor,      int,     bin,   0, VRSZ,    0)
+    mkclass(           xorpd,    float,    binv,   0,   64,    0)
+    mkclass(           xorps,    float,    binv,   0,   32,    0)    
+};
+
+
+
+X86InstructionBin X86InstructionClassifier::getInstructionBin(X86Instruction* x){ 
+    return classifications[x->GET(mnemonic)].bin;
+}
+
+uint8_t X86InstructionClassifier::getInstructionMemLocation(X86Instruction* x){
+    uint8_t loc = classifications[x->GET(mnemonic)].location;
+    if (x->isLoad()){
+        loc |= (BinLoad >> 8);
+    }
+    if (x->isStore()){
+        loc |= (BinStore >> 8);
+    }    
+    return loc;
+}
+
+uint8_t X86InstructionClassifier::getInstructionMemSize(X86Instruction* x){
+    uint8_t mem = classifications[x->GET(mnemonic)].memsize;
+    if (mem & MEM_SZ_VARIABLE){
+        mem = x->getDstSizeInBytes();
+    }
+    return mem;
+}
+
+X86InstructionType X86InstructionClassifier::getInstructionType(X86Instruction* x){
+    return classifications[x->GET(mnemonic)].type;
+}
+
+X86OperandFormat X86InstructionClassifier::getInstructionFormat(X86Instruction* x){ 
+    return classifications[x->GET(mnemonic)].format;
+}
+
+void X86InstructionClassifier::print(X86Instruction* x){
+    PRINT_INFOR("Instruciton %s: %hhd %hhd %hhd %hhd %hhd", ud_mnemonics_str[x->GET(mnemonic)], getInstructionBin(x), getInstructionMemLocation(x), getInstructionMemSize(x), getInstructionType(x), getInstructionFormat(x));
+}
+
+bool X86InstructionClassifier::verify(){
+    bool err = false;
+    for (uint32_t i = 0; i < UD_Itotaltypes; i++){
+        if (classifications[i].mnemonic < UD_Itotaltypes){
+            if (classifications[i].mnemonic != i){
+                err = true;
+                PRINT_WARN(20, "Instruction classification definition slot %s contains info for %s", ud_mnemonics_str[i], ud_mnemonics_str[classifications[i].mnemonic]);
+            }
+        } else {
+            PRINT_WARN(20, "Invalid mnemonic %d in slot (%d) %s", classifications[i].mnemonic, i, ud_mnemonics_str[i]);
+            err = true;
+        }
+    }
+    return !err;
+}

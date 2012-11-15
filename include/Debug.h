@@ -61,25 +61,16 @@
 //#define SWAP_MOD     2
 //#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
-//#define ANCHOR_SEARCH_BINARY
+#define ANCHOR_SEARCH_BINARY
 //#define PRINT_INSTRUCTION_DETAIL 
 //#define VALIDATE_ANCHOR_SEARCH
 //#define FILL_RELOCATED_WITH_INTERRUPTS
 //#define JUMPTABLE_USE_REGISTER_OPS
 //#define THREAD_SAFE
 //#define NO_REG_ANALYSIS
+#define PROTECT_RAW_SNIPPETS
 #define OPTIMIZE_NONLEAF
-
-#ifdef WARNING_SEVERITY
-#define WARN_FILE stdout
-#define PRINT_WARN(__severity,...)  if (__severity >= WARNING_SEVERITY){ \
-    fprintf(WARN_FILE,"*** WARNING : ");                            \
-    fprintf(WARN_FILE,## __VA_ARGS__);                              \
-    fprintf(WARN_FILE,"\n");                                        \
-    fflush(WARN_FILE); }
-#else
-#define PRINT_WARN(...)
-#endif
+#define INSTRUCTION_PRINT_SIZE (64)
 
 #ifdef DEBUG_MEMTRACK
 #include <MemTrack.h>
@@ -339,6 +330,7 @@ static int _arrayBacktraceIterator;
         for (_arrayBacktraceIterator = 0; _arrayBacktraceIterator < _backtraceSize; _arrayBacktraceIterator++){ fprintf(stderr, "\t%s\n", _backtraceStrings[_arrayBacktraceIterator]); } \
         free(_backtraceStrings);\
         assert(__str); }
+//#define ASSERT(__str)
 
 #ifdef  DEVELOPMENT
 #define PRINT_DEBUG(...) fprintf(stdout,"----------- DEBUG : "); \

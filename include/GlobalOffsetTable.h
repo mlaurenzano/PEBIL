@@ -48,7 +48,7 @@ public:
     uint32_t minIndex() { return -1*tableBaseIdx; }
     uint32_t maxIndex() { return numberOfEntries-tableBaseIdx; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
-
+    void wedge(uint32_t shamt);
 };
 
 #endif /* _GlobalOffsetTable_h_ */

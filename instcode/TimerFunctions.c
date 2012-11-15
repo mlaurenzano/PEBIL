@@ -67,7 +67,7 @@ void printFunctionInfo(int i){
 #endif
 }
 
-void tool_mpi_init() {}
+void* tool_mpi_init() {}
 
 int compareFuncInfos(const void* f1, const void* f2){
     struct funcInfo* func1 = (struct funcInfo*)f1;
@@ -144,4 +144,70 @@ int32_t function_exit(){
     funcInfos[currentRecord].timer_total += tadd;
 #endif
     //    printFunctionInfo(currentRecord);
+}
+
+
+struct ftimer {
+    double accum;
+    double start;
+    uint64_t count;
+    uint64_t touched;
+    uint64_t active;
+};
+struct ftimer* timers;
+uint32_t* site = NULL;
+
+int32_t ext_program_entry(int32_t* numFunctions, char** funcNames, uint32_t* idxAddr){
+    int i;
+
+    numberOfFunctions = *numFunctions;
+    functionNames = funcNames;
+    site = idxAddr;
+
+    timers = malloc(sizeof(struct ftimer) * numberOfFunctions);
+
+    PRINT_INSTR(stdout, "Timing %d functions:", numberOfFunctions);
+    for (i = 0; i < numberOfFunctions; i++){
+        timers[i].accum = 0.0;
+        timers[i].start = 0.0;
+        timers[i].count = 0;
+        timers[i].active = 0;
+    }
+
+}
+
+int32_t ext_program_exit(){
+    int i;
+    for (i = 0; i < numberOfFunctions; i++){
+        if (timers[i].accum > 0.0){
+            PRINT_INSTR(stdout, "site %s has %d visits for %f seconds", functionNames[i], timers[i].count, timers[i].accum);
+        }
+    }
+
+    free(timers);
+}
+
+int32_t function_pre(){
+    register int s = *site;
+    //PRINT_INSTR(stdout, "start timer %d", s);
+
+    if (timers[s].active == 0){
+        ptimer(&(timers[s].start));
+        timers[s].count++;
+    }
+    timers[s].active++;
+    timers[s].touched++;
+}
+
+int32_t function_post(){
+    double t2;
+    register int s = *site;
+    ptimer(&t2);
+
+    timers[s].active--;
+    //PRINT_INSTR(stdout, "end timer %d", s);
+    if (timers[s].active == 0){
+        ptimer(&t2);
+        timers[s].accum += (t2 - timers[s].start);
+    }
 }

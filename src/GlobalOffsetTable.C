@@ -23,6 +23,15 @@
 #include <ElfFile.h>
 #include <SectionHeader.h>
 
+void GlobalOffsetTable::wedge(uint32_t shamt){
+    for (uint32_t i = 0; i < numberOfEntries; i++){
+        if (elfFile->isWedgeAddress(entries[i])){
+            entries[i] += shamt;
+        }
+    }
+    baseAddress += shamt;
+}
+
 void GlobalOffsetTable::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     uint32_t currByte = 0;
 

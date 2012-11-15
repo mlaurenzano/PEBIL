@@ -30,10 +30,12 @@
 #define PROGRAM_ENTRY  "_pebil_init"
 #define PROGRAM_EXIT   "_pebil_fini"
 #define NOSTRING "__pebil_no_string__"
-#define TIMER_BEGIN "PMaC_exported_timer_beginp"
-#define TIMER_END "PMaC_exported_timer_endp"
 
-#define MAX_TIMER_COUNT 128
+extern "C" {
+    InstrumentationTool* CallReplaceMaker(ElfFile* elf){
+        return new CallReplace(elf);
+    }
+}
 
 CallReplace::~CallReplace(){
     for (uint32_t i = 0; i < (*functionList).size(); i++){
@@ -54,16 +56,19 @@ char* CallReplace::getWrapperName(uint32_t idx){
     return both;
 }
 
-CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* libList, char* inpFile, char* ext, bool lpi, bool dtl, bool doI)
-    : InstrumentationTool(elf, ext, 0, lpi, dtl)
+CallReplace::CallReplace(ElfFile* elf)
+    : InstrumentationTool(elf)
 {
     programEntry = NULL;
     programExit = NULL;
 
-    doIntro = doI;
+}
+
+void CallReplace::declare(){
+    //    InstrumentationTool::declare();
 
     functionList = new Vector<char*>();
-    initializeFileList(traceFile, functionList);
+    initializeFileList(trackFile, functionList);
 
     // replace any ':' character with a '\0'
     for (uint32_t i = 0; i < (*functionList).size(); i++){
@@ -76,45 +81,8 @@ CallReplace::CallReplace(ElfFile* elf, char* traceFile, char* libList, char* inp
             }
         }
         if (numrepl != 1){
-            PRINT_ERROR("input file %s line %d should contain a ':'", traceFile, i+1);
+            PRINT_ERROR("input file %s line %d should contain a ':'", trackFile, i+1);
         }
-    }
-
-    Vector<uint32_t> libIdx;
-    libIdx.append(0);
-    uint32_t listSize = strlen(libList);
-    for (uint32_t i = 0; i < listSize; i++){
-        if (libList[i] == ','){
-            libList[i] = '\0';
-            libIdx.append(i+1);
-        }
-    }
-    for (uint32_t i = 0; i < libIdx.size(); i++){
-        if (libIdx[i] < listSize){
-            libraries.append(libList + libIdx[i]);
-        } else {
-            PRINT_ERROR("improperly formatted library list given to call replacement tool");
-            __SHOULD_NOT_ARRIVE;
-        }
-    }
-
-    if (inpFile){
-        timerFunctions = new Vector<char*>();
-        initializeFileList(inpFile, timerFunctions);
-        ASSERT((*timerFunctions).size() <= MAX_TIMER_COUNT);
-    } else {
-        timerFunctions = NULL;
-    }
-
-
-}
-
-void CallReplace::declare(){
-    //    InstrumentationTool::declare();
-
-    // declare any shared library that will contain instrumentation functions
-    for (uint32_t i = 0; i < libraries.size(); i++){
-        declareLibrary(libraries[i]);
     }
 
     // declare any instrumentation functions that will be used
@@ -128,11 +96,6 @@ void CallReplace::declare(){
     for (uint32_t i = 0; i < (*functionList).size(); i++){
         functionWrappers.append(declareFunction(getWrapperName(i)));
         functionWrappers.back()->setSkipWrapper();
-    }
-
-    if (timerFunctions){
-        timerBegin = declareFunction(TIMER_BEGIN);
-        timerEnd = declareFunction(TIMER_END);
     }
 }
 
@@ -151,13 +114,13 @@ void CallReplace::instrument(){
     uint64_t siteIndex = reserveDataOffset(sizeof(uint32_t));
 
     if (doIntro){
-        InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+        InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp, InstLocation_prior);
         ASSERT(p);
         if (!p->getInstBaseAddress()){
             PRINT_ERROR("Cannot find an instrumentation point at the exit function");
         }
 
-        p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+        p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp, InstLocation_prior);
         ASSERT(p);
         if (!p->getInstBaseAddress()){
             PRINT_ERROR("Cannot find an instrumentation point at the exit function");
@@ -220,87 +183,8 @@ void CallReplace::instrument(){
 
     for (uint32_t i = 0; i < myInstPoints.size(); i++){
         PRINT_INFOR("(site %d) %#llx: replacing call %s -> %s in function %s", i, myInstPoints[i]->getBaseAddress(), getFunctionName(myInstList[i]), getWrapperName(myInstList[i]), myInstPoints[i]->getContainer()->getName());
-        InstrumentationPoint* pt = addInstrumentationPoint(myInstPoints[i], functionWrappers[myInstList[i]], InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
-        if (getElfFile()->is64Bit()){
-            pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-            pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(i, X86_REG_CX));
-            pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
-            pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
-        } else {
-            pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-            pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(i, X86_REG_CX));
-            pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + siteIndex));
-            pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));            
-        }
-    }
-
-
-
-    if (timerFunctions){
-        uint64_t timerIdxAddr = reserveDataOffset(sizeof(int32_t));
-        timerBegin->addArgument(timerIdxAddr);
-        timerEnd->addArgument(timerIdxAddr);
-        
-        Vector<X86Instruction*> timerInstPoints;
-        Vector<uint32_t> timerInstList;
-        Vector<LineInfo*> timerLineInfos;
-        for (uint32_t i = 0; i < getNumberOfExposedInstructions(); i++){
-            X86Instruction* instruction = getExposedInstruction(i);
-            ASSERT(instruction->getContainer()->isFunction());
-            Function* function = (Function*)instruction->getContainer();
-            
-            if (instruction->isFunctionCall()){
-                Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol(instruction->getTargetAddress());
-                
-                if (functionSymbol){
-                    uint32_t funcIdx = searchFileList(timerFunctions, functionSymbol->getSymbolName());
-                    if (funcIdx < (*timerFunctions).size()){
-                        BasicBlock* bb = function->getBasicBlockAtAddress(instruction->getBaseAddress());
-                        ASSERT(bb->containsCallToRange(0,-1));
-                        ASSERT(instruction->getSizeInBytes() == Size__uncond_jump);
-                        
-                        timerInstPoints.append(instruction);
-                        timerInstList.append(funcIdx);
-                        LineInfo* li = NULL;
-                        if (lineInfoFinder){
-                            li = lineInfoFinder->lookupLineInfo(bb);
-                        }
-                        timerLineInfos.append(li);
-                    }
-                } 
-            }
-        }
-        ASSERT(timerInstPoints.size() == timerInstList.size());
-        ASSERT(timerLineInfos.size() == timerInstList.size());
-        
-        for (uint32_t i = 0; i < timerInstPoints.size(); i++){
-            PRINT_INFOR("(accumulator %d) %#llx: inserting timers around call to %s in function %s", timerInstList[i], timerInstPoints[i]->getBaseAddress(), (*timerFunctions)[timerInstList[i]], timerInstPoints[i]->getContainer()->getName());
-            InstrumentationPoint* pt = addInstrumentationPoint(timerInstPoints[i], timerBegin, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
-            if (getElfFile()->is64Bit()){
-                pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(timerInstList[i], X86_REG_CX));
-                pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + timerIdxAddr));
-                pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
-            } else {
-                pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(timerInstList[i], X86_REG_CX));
-                pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + timerIdxAddr));
-                pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));            
-            }
-            
-            pt = addInstrumentationPoint(timerInstPoints[i], timerEnd, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_after);
-            if (getElfFile()->is64Bit()){
-                pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(timerInstList[i], X86_REG_CX));
-                pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + timerIdxAddr));
-                pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX, true));
-            } else {
-                pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + getRegStorageOffset()));
-                pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(timerInstList[i], X86_REG_CX));
-                pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(X86_REG_CX, getInstDataAddress() + timerIdxAddr));
-                pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(getInstDataAddress() + getRegStorageOffset(), X86_REG_CX));            
-            }
-        }
+        InstrumentationPoint* pt = addInstrumentationPoint(myInstPoints[i], functionWrappers[myInstList[i]], InstrumentationMode_tramp, InstLocation_replace);
+        assignStoragePrior(pt, i, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
     }
 
 }

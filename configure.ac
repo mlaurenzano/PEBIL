@@ -1,11 +1,13 @@
 #
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.65])
+AC_PREREQ([2.63])
 AC_INIT([FULL-PACKAGE-NAME], [VERSION], [BUG-REPORT-ADDRESS])
 AC_CONFIG_SRCDIR([src/ElfFileInst.C])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/acx_mpi.m4])
+m4_include([m4/ax_cxx_header_unordered_map.m4])
+m4_include([m4/ax_compile_stdcxx_0x.m4])
 
 # Checks for programs.
 AC_PROG_CXX
@@ -31,25 +33,49 @@ else
    MPI_FLAGS="-DHAVE_MPI"
 fi
 
-AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Use static archives for instrumentation libraries; it is extremely unlikely that you want to use this [no]]), static_ok=$enableval)
-if test "$static_ok" = "yes"; then
-   STATIC_INST_LIB="yes"
+# set correct map type depending on whether unordered_map is present
+AC_COMPILE_STDCXX_0X
+AX_CXX_HEADER_UNORDERED_MAP
+if test "$ax_cv_cxx_unordered_map" = "yes"; then
+   if test "$ac_cv_cxx_compile_cxx0x_gxx" = "yes"; then
+      CXXFLAGS="$CXXFLAGS -std=gnu++0x";
+   elif test "$ac_cv_cxx_compile_cxx0x_cxx" = "yes"; then
+      CXXFLAGS="$CXXFLAGS -std=c++0x";
+   else
+      AC_MSG_ERROR([configure detected that unordered_map is present but neither -std=c++0x nor -std=gnu++0x is accepted])   
+  fi
+   CXXFLAGS="$CXXFLAGS -DHAVE_UNORDERED_MAP"
 fi
-AC_SUBST(STATIC_INST_LIB)
 
-AC_ARG_ENABLE(instruction_trace, AC_HELP_STRING([--enable-instruction-trace], [Collect simulation stats per instruction, affects jbb and sim only. [no]]), perinsn_ok=$enableval)
-if test "$perinsn_ok" = "yes"; then
-   MPI_FLAGS="$MPI_FLAGS -DSTATS_PER_INSTRUCTION"
+AC_ARG_ENABLE(static, AC_HELP_STRING([--enable-static], [Build a statically-linked pebil executable in addition to a dynamically-linked executable [yes]]), static_ok=$enableval)
+if test "$static_ok" != "no"; then
+   PEBIL_STATIC_BUILD="yes"
+else
+   PEBIL_STATIC_BUILD="no"
 fi
+AC_SUBST(PEBIL_STATIC_BUILD)
 
 AC_ARG_ENABLE(mpiinit_check, AC_HELP_STRING([--enable-mpiinit-check], [Disable output file printing in inst libraries unless mpi_init is executed [no]]), mpiinit_check_ok=$enableval)
 if test "$mpiinit_check_ok" = "yes"; then
    MPI_FLAGS="$MPI_FLAGS -DMPI_INIT_REQUIRED"
 fi
+
 AC_SUBST(MPI_FLAGS)
+
+AC_ARG_WITH(throttler_headers,
+            [AS_HELP_STRING([--with-throttler-headers=<path>],[specify path to throttler headers])],
+            [throttler_headers=$withval
+             AC_CHECK_HEADER([$throttler_headers/throttler.h],
+                             [THROTTLER_FLAGS="-DHAVE_THROTTLER_H -I$throttler_headers"],
+                             [AC_MSG_ERROR(throttler.h not found using $throttler_headers)])],
+            [throttler_headers=no])
+AC_SUBST(THROTTLER_FLAGS)
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h strings.h unistd.h])
+AC_CHECK_HEADERS([cpufreq.h],
+        CPUFREQ_FLAGS="-DHAVE_CPUFREQ_H")
+AC_SUBST(CPUFREQ_FLAGS)
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
@@ -72,8 +98,10 @@ AC_CONFIG_FILES([Makefile
                  testapps/Makefile
                  instcode/Makefile
                  scripts/blacklist.sh
+                 cshrc
                  bashrc])
 AC_CONFIG_SUBDIRS([external/udis86-1.7])
+AC_CONFIG_SUBDIRS([external/ReuseDistance])
 AC_OUTPUT
 chmod +x scripts/blacklist.sh
 

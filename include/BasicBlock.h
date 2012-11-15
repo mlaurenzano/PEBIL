@@ -122,6 +122,7 @@ public:
     BasicBlock(uint32_t idx, FlowGraph* cfg);
     ~BasicBlock() {}
 
+    X86Instruction* findBestInstPoint(InstLocations* loc, BitSet<uint32_t>* unusableRegs, BitSet<uint32_t>* useRegs, bool attendFlags);
     uint32_t bloat(Vector<InstrumentationPoint*>* instPoints);
 
     uint32_t searchForArgsPrep(bool is64Bit);
@@ -186,8 +187,6 @@ public:
     uint32_t getNumberOfBinQwordv();
     uint32_t getNumberOfBinQword();
 
-    void setBins();
-
     bool isInLoop();
     bool controlFallsThrough();
     bool findExitInstruction();
@@ -199,8 +198,6 @@ public:
     Function* getFunction() { ASSERT(flowGraph); return flowGraph->getFunction(); }
 
     uint64_t getTargetAddress();
-
-    void findCompareAndCBranch();
 
     X86Instruction* getLeader() { return instructions[0]; }
     X86Instruction* getExitInstruction() { return instructions.back(); }
@@ -219,14 +216,15 @@ public:
     void setNoPath()   { flags |= NoPathMask; }
     void setCmpCtrlSplit() { flags |= CmpCtrlSplitMask; }
 
-    void setDefXIter(uint32_t defcnt) { defXIterCount = defcnt; }
-    uint32_t getDefXIter() { return defXIterCount; }
+    uint32_t getDefXIter();
 
     void setIndex(uint32_t idx);
 
     bool isUnreachable() { return isNoPath(); }
     bool isReachable() { return !isNoPath(); }
     bool endsWithCall();
+    bool endsWithReturn();
+    bool endsWithControl();
 
     HashCode getHashCode() { return hashCode; }
 

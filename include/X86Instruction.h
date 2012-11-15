@@ -35,24 +35,34 @@ class ElfFileInst;
 class Function;
 class TextObject;
 
-#define MAX_OPERANDS 3
-#define JUMP_TARGET_OPERAND 0
-#define COMP_DEST_OPERAND 0
-#define COMP_SRC_OPERAND 1
+
 #define JUMP_TABLE_REACHES 0x1000
 #define DISASSEMBLY_MODE UD_SYN_ATT
 #define MAX_X86_INSTRUCTION_LENGTH 20
 #define MIN_CONST_MEMADDR 0x10000
-#define ALU_DEST_OPERAND 0
-#define ALU_SRC1_OPERAND 1
-#define ALU_SRC2_OPERAND 0
-#define MOV_DEST_OPERAND 0
-#define MOV_SRC_OPERAND 1
+
+#define MAX_OPERANDS 4
+
+/* branches */
+#define JUMP_TARGET_OPERAND 0
+
+/* comparisons */
+#define CMP_SRC1_OPERAND 0
+#define CMP_SRC2_OPERAND 1
+
+/* everything else */
+#define DEST_OPERAND 0
+#define SRC1_OPERAND 1
+#define SRC2_OPERAND 0
+#define SRC3_OPERAND 2
+#define SRC4_OPERAND 3
 
 #define UD_R_NAME_LOOKUP(__ud_reg) (ud_reg_tab[__ud_reg - 1])
 #define UD_OP_NAME_LOOKUP(__ud_type) (ud_optype_str[__ud_type - UD_OP_REG])
 
-#define IS_8BIT_GPR(__reg) ((__reg >= UD_R_AL) && (__reg <= UD_R_R15B))
+#define IS_8BIT_GPR(__reg) (IS_L8BIT_GPR(__reg) || IS_H8BIT_GPR(__reg))
+#define IS_L8BIT_GPR(__reg) ((__reg >= UD_R_AL) && (__reg <= UD_R_BL))
+#define IS_H8BIT_GPR(__reg) ((__reg >= UD_R_AH) && (__reg <= UD_R_R15B))
 #define IS_16BIT_GPR(__reg) ((__reg >= UD_R_AX) && (__reg <= UD_R_R15W))
 #define IS_32BIT_GPR(__reg) ((__reg >= UD_R_EAX) && (__reg <= UD_R_R15D))
 #define IS_64BIT_GPR(__reg) ((__reg >= UD_R_RAX) && (__reg <= UD_R_R15))
@@ -62,12 +72,13 @@ class TextObject;
 #define IS_MMX_REG(__reg) ((__reg >= UD_R_MM0) && (__reg <= UD_R_MM7))
 #define IS_X87_REG(__reg) ((__reg >= UD_R_ST0) && (__reg <= UD_R_ST7))
 #define IS_XMM_REG(__reg) ((__reg >= UD_R_XMM0) && (__reg <= UD_R_XMM15))
+#define IS_YMM_REG(__reg) ((__reg >= UD_R_YMM0) && (__reg <= UD_R_YMM15))
 #define IS_PC_REG(__reg) (__reg == UD_R_RIP)
 #define IS_OPERAND_TYPE(__opr) ((__opr >= UD_OP_REG) && (__opr <= UD_OP_CONST))
 
 #define IS_GPR(__reg) (IS_8BIT_GPR(__reg) || IS_16BIT_GPR(__reg) || IS_32BIT_GPR(__reg) || IS_64BIT_GPR(__reg))
 #define IS_REG(__reg) (IS_GPR(__reg) || IS_SEGMENT_REG(__reg) || IS_CONTROL_REG(__reg) || IS_DEBUG_REG(__reg) || \
-                       IS_MMX_REG(__reg) || IS_X87_REG(__reg) || IS_XMM_REG(__reg) || IS_PC_REG(__reg))
+                       IS_MMX_REG(__reg) || IS_X87_REG(__reg) || IS_XMM_REG(__reg) || IS_YMM_REG(__reg) || IS_PC_REG(__reg))
 #define IS_ALU_REG(__reg) (IS_GPR(__reg) || IS_XMM_REG(__reg))
 
 #define IS_LOADADDR(__mne) (__mne == UD_Ilea)
@@ -100,9 +111,14 @@ class TextObject;
 #define X86_FLAG_ID 21
 #define X86_FLAG_BITS 32
 
-#define __flag_mask__protect_none  0x11111111
-#define __flag_mask__protect_light 0x11111100
-#define __flag_mask__protect_full  0x11110000
+// useful flags bit sets
+// doesn't require saving
+#define __flag_mask__protect_none  (0)
+// can be handled by lahf/sahf
+#define __flag_mask__protect_light (__bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_SF))
+// has to be handled by pushf/popf
+#define __flag_mask__protect_full  (__bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_TF) | __bit_shift(X86_FLAG_IF) | __bit_shift(X86_FLAG_DF) | __bit_shift(X86_FLAG_OF) | __bit_shift(X86_FLAG_IOPL1) | __bit_shift(X86_FLAG_IOPL2) | __bit_shift(X86_FLAG_NT))
+// a set of flags used by a ton of ALU instructions
 #define __x86_flagset_alustd       (__bit_shift(X86_FLAG_CF) | __bit_shift(X86_FLAG_PF) | __bit_shift(X86_FLAG_AF) | __bit_shift(X86_FLAG_ZF) | __bit_shift(X86_FLAG_SF) | __bit_shift(X86_FLAG_OF))
 
 #define __flag_reserved "reserved"
@@ -115,7 +131,10 @@ const static char* flag_name_map[X86_FLAG_BITS] = { "carry", __flag_reserved, "p
                            __flag_reserved, __flag_reserved, __flag_reserved, __flag_reserved,
                            __flag_reserved, __flag_reserved, __flag_reserved, __flag_reserved };
 
+#define CONTAINS_FLAG(__val, __flg) (((__val >> __flg) & 0x1) == 1)
+
 // my non-gnu definitions for X86
+#define X86_REG_INVALID (-1)
 #define X86_REG_AX 0
 #define X86_REG_CX 1
 #define X86_REG_DX 2
@@ -169,6 +188,25 @@ const static char* alu_name_map[X86_ALU_REGS] = { "ax", "cx", "dx", "bx", "sp", 
                                                   "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
                                                   "st0", "st1", "st2", "st3", "st4", "st5", "st6", "st7" };
 
+class RegisterSet {
+public:
+    RegisterSet();
+    RegisterSet& operator=(const RegisterSet& rhs);
+    RegisterSet& operator|=(const RegisterSet& rhs);
+    const RegisterSet operator|(const RegisterSet& rhs);
+    RegisterSet& operator-=(const RegisterSet& rhs);
+    const RegisterSet operator-(const RegisterSet& rhs);
+    bool operator==(const RegisterSet& rhs);
+    void addRegister(uint32_t regNum);
+    void addFlag(uint32_t flagNum);
+    bool containsFlag(uint32_t flagNum);
+    bool containsRegister(uint32_t regNum);
+    void print(const char * const name);
+
+private:
+    BitSet<uint32_t> regs;
+};
+
 #define X86_SEGREG_ES 0
 #define X86_SEGREG_CS 1
 #define X86_SEGREG_SS 2
@@ -201,54 +239,61 @@ extern void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg);
 // keep a much smaller rep of the instruction to save memory
 struct ud_compact
 {
-    //int                   (*inp_hook) (struct ud*);
-    //uint8_t               inp_curr;
-    //uint8_t               inp_fill;
-    //FILE*                 inp_file;
-    //uint8_t               inp_ctr;
-    //uint8_t*              inp_buff;
-    //uint8_t*              inp_buff_end;
-    //uint8_t               inp_end;
-    //void                  (*translator)(struct ud*);
-    uint64_t              insn_offset;
-    char                  insn_hexcode[32];
-    char                  insn_buffer[64];
-    //unsigned int          insn_fill;
-    //uint8_t               dis_mode;
-    //uint64_t              pc;
-    //uint8_t               vendor;
-    //struct map_entry*     mapen;
-    enum ud_mnemonic_code mnemonic;
-    struct ud_operand     operand[3];
-    //uint8_t               error;
-    //uint8_t               pfx_rex;
-    uint8_t               pfx_seg;
-    //uint8_t               pfx_opr;
-    //uint8_t               pfx_adr;
-    //uint8_t               pfx_lock;
-    uint8_t               pfx_rep;
-    //uint8_t               pfx_repe;
-    //uint8_t               pfx_repne;
-    //uint8_t               pfx_insn;
-    //uint8_t               default64;
-    //uint8_t               opr_mode;
-    uint8_t               adr_mode;
-    //uint8_t               br_far;
-    //uint8_t               br_near;
-    //uint8_t               implicit_addr;
-    //uint8_t               c1;
-    //uint8_t               c2;
-    //uint8_t               c3;
-    //uint8_t               inp_cache[256];
-    //uint8_t               inp_sess[64];
+    //int 			(*inp_hook) (struct ud*);
+    //uint8_t		inp_curr;
+    //uint8_t		inp_fill;
+    //FILE*			inp_file;
+    //uint8_t		inp_ctr;
+    //uint8_t*		inp_buff;
+    //uint8_t*		inp_buff_end;
+    //uint8_t		inp_end;
+    //void		(*translator)(struct ud*);
+    uint64_t		insn_offset;
+    char		insn_bytes[16];
+    //char		insn_hexcode[32];
+    char		insn_buffer[INSTRUCTION_PRINT_SIZE];
+    //unsigned int	insn_fill;
+    //uint8_t		dis_mode;
+    //uint64_t		pc;
+    //uint8_t		vendor;
+    //struct map_entry*	mapen;
+    enum ud_mnemonic_code	mnemonic;
+    struct ud_operand	operand[4];
+    //uint8_t		error;
+    //uint8_t	 	pfx_rex;
+    uint8_t 		pfx_seg;
+    //uint8_t 		pfx_opr;
+    //uint8_t 		pfx_adr;
+    //uint8_t 		pfx_lock;
+    uint8_t 		pfx_rep;
+    //uint8_t 		pfx_repe;
+    //uint8_t 		pfx_repne;
+    //uint8_t 		pfx_insn;
+    //uint8_t           pfx_avx;
+    //uint8_t           avx_vex[2];
+    //uint8_t		default64;
+    //uint8_t		opr_mode;
+    uint8_t		adr_mode;
+    //uint8_t		br_far;
+    //uint8_t		br_near;
+    //uint8_t		implicit_addr;
+    //uint8_t		c1;
+    //uint8_t		c2;
+    //uint8_t		c3;
+    //uint8_t 		inp_cache[256];
+    //uint8_t		inp_sess[64];
+    uint32_t            flags_use;
+    uint32_t            flags_def;
+    uint64_t            impreg_use;
+    uint64_t            impreg_def;
     //struct ud_itab_entry * itab_entry;
 };
 
 enum X86InstructionType {
     X86InstructionType_unknown = 0,
     X86InstructionType_invalid,
-    X86InstructionType_cond_branch,
-    X86InstructionType_uncond_branch,
+    X86InstructionType_condbr,
+    X86InstructionType_uncondbr,
     X86InstructionType_call,
     X86InstructionType_return,
     X86InstructionType_int,
@@ -256,9 +301,11 @@ enum X86InstructionType {
     X86InstructionType_float,
     X86InstructionType_string,
     X86InstructionType_simd,
+    X86InstructionType_avx,
+    X86InstructionType_aes,
     X86InstructionType_io,
     X86InstructionType_prefetch,
-    X86InstructionType_system_call,
+    X86InstructionType_syscall,
     X86InstructionType_halt,
     X86InstructionType_hwcount,
     X86InstructionType_nop,
@@ -267,6 +314,16 @@ enum X86InstructionType {
     X86InstructionType_special,
     X86InstructionType_Total
 };
+
+enum X86OperandFormat {
+    X86OperandFormat_unknown = 0,   // Unknown
+    X86OperandFormat_di,            // no explicit dest operand (mem reference)
+    X86OperandFormat_si,            // no explicit source operand (mem reference)
+    X86OperandFormat_dsi,           // no explicit dest and source operands (mem references)
+    X86OperandFormat_Total
+};
+#define CHECK_IMPLICIT_LOAD  ((X86InstructionClassifier::getInstructionFormat(this) == X86OperandFormat_si) || (X86InstructionClassifier::getInstructionFormat(this) == X86OperandFormat_dsi))
+#define CHECK_IMPLICIT_STORE ((X86InstructionClassifier::getInstructionFormat(this) == X86OperandFormat_di) || (X86InstructionClassifier::getInstructionFormat(this) == X86OperandFormat_dsi))
 
 enum X86InstructionBin {
     X86InstructionBin_unknown = 0,   // Unknown
@@ -289,7 +346,7 @@ enum X86InstructionBin {
     X86InstructionBin_total
 };
 
-#define INSTBIN_DATATYPE(bytesUsed) (bytesUsed<<BinSizeShift)
+#define INSTBIN_DATATYPE(u) ( u << BinSizeShift )
 
 const uint16_t BinMask = 0xFF;
 const uint16_t BinSizeShift = 12;
@@ -297,7 +354,6 @@ const uint16_t BinLoad = 0x800;
 const uint16_t BinStore = 0x400;
 const uint16_t BinStack = 0x200;
 const uint16_t BinFrame = 0x100;
-const uint16_t BinMem = 0xF00;
 
 typedef enum {
     RegType_undefined = 0,
@@ -311,11 +367,14 @@ typedef enum {
     RegType_MMX,
     RegType_X87,
     RegType_XMM,
+    RegType_YMM,
     RegType_PC,
     RegType_Total_Types
 } RegTypes;
 
 extern uint32_t regbase_to_type(uint32_t base);
+
+class X86InstructionClassifier;
 
 class OperandX86 {
 private:
@@ -354,12 +413,11 @@ class X86Instruction : public Base {
 private:
     struct ud_compact entry;
 
-    BitSet<uint32_t>* liveIns;
-    BitSet<uint32_t>* liveOuts;
+    RegisterSet* liveIns;
+    RegisterSet* liveOuts;
     uint32_t defUseDist;
 
     uint32_t* flags_usedef;
-    BitSet<uint32_t>** impreg_usedef;
 
     OperandX86** operands;
     uint32_t instructionIndex;
@@ -370,14 +428,22 @@ private:
     AddressAnchor* addressAnchor;
     bool leader;
     TextObject* container;
-    uint32_t instructionType;
-    uint16_t instructionBin;
 
-    uint32_t setInstructionType();
-    uint16_t setInstructionBin();
+    bool defXIter;
+
+    uint32_t countValidNonimm();
 
 public:
+
+    static X86Instruction* disassemble(char* buff);
+
+    void setDefXIter() { defXIter = true; }
+    bool hasDefXIter() { return defXIter; }
+
     uint64_t cacheBaseAddress;
+
+    OperandX86* getDestOperand();
+    Vector<OperandX86*>* getSourceOperands();
 
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
@@ -391,20 +457,30 @@ public:
     TextObject* getContainer() { return container; }
     void setContainer(TextObject* cont) { container = cont; }
 
-    static void initializeInstructionAPIDecoder(bool is64bit);
     void setFlags();
-    void setImpliedRegs();
-    static void destroyInstructionAPIDecoder();
-    BitSet<uint32_t>* getUseRegs();
-    BitSet<uint32_t>* getDefRegs();
+
+    BitSet<uint32_t>* getFlagsUsed();
+    BitSet<uint32_t>* getFlagsDefined();
+    RegisterSet * getUnusableRegisters();
+    RegisterSet * getRegistersUsed();
+    RegisterSet * getRegistersDefined();
+
     bool allFlagsDeadIn();
     bool allFlagsDeadOut();
-    bool isGPRegDeadIn(uint32_t idx);
+    bool isRegDeadIn(uint32_t regNum);
+    bool isRegDeadOut(uint32_t regNum);
+    bool isFlagDeadIn(uint32_t flagNum);
+    bool isFlagDeadOut(uint32_t flagNum);
+    BitSet<uint32_t>* getDeadRegIn(BitSet<uint32_t>* invalidRegs);
+    BitSet<uint32_t>* getDeadRegOut(BitSet<uint32_t>* invalidRegs);
+    BitSet<uint32_t>* getDeadRegIn(BitSet<uint32_t>* invalidRegs, uint32_t cnt);
+    BitSet<uint32_t>* getDeadRegOut(BitSet<uint32_t>* invalidRegs, uint32_t cnt);
 
     bool usesFlag(uint32_t flg);
     bool defsFlag(uint32_t flg);
-    bool usesAluReg(uint32_t alu);
-    bool defsAluReg(uint32_t alu);
+    bool implicitlyUsesReg(uint32_t alu);
+    bool implicitlyDefinesReg(uint32_t alu);
+
 
     struct DefLocation {
         enum ud_type type;
@@ -426,8 +502,8 @@ public:
     LinkedList<ReachingDefinition*>* getUses();
 
 
-    uint32_t getDefUseDist() { return defUseDist; }
-    void setDefUseDist(uint32_t dudist) { defUseDist = dudist; }
+    uint32_t getDefUseDist();
+    void setDefUseDist(uint32_t dudist);
 
     void print();
     bool verify();
@@ -436,15 +512,15 @@ public:
 
     HashCode* generateHashCode(BasicBlock* bb);
 
-    void setLiveIns(BitSet<uint32_t>* live);
-    void setLiveOuts(BitSet<uint32_t>* live);
+    void setLiveIns(RegisterSet* live);
+    void setLiveOuts(RegisterSet* live);
 
     void setBaseAddress(uint64_t addr) { baseAddress = addr; cacheBaseAddress = addr; }
     uint32_t getSizeInBytes() { return sizeInBytes; }
     uint32_t getIndex() { return instructionIndex; }
     void setIndex(uint32_t idx) { instructionIndex = idx; }
-    uint32_t getInstructionType();
-    uint16_t getInstructionBin();
+    X86InstructionType getInstructionType();
+
     uint64_t getProgramAddress() { return programAddress; }
 
     uint32_t getDstSizeInBytes();
@@ -459,14 +535,15 @@ public:
     // control instruction id
     bool isControl();
     bool isBranch() { return isUnconditionalBranch() || isConditionalBranch(); }
-    bool isUnconditionalBranch() { return (getInstructionType() == X86InstructionType_uncond_branch); }
-    bool isConditionalBranch() { return (getInstructionType() == X86InstructionType_cond_branch); }
+    bool isUnconditionalBranch() { return (getInstructionType() == X86InstructionType_uncondbr); }
+    bool isConditionalBranch() { return (getInstructionType() == X86InstructionType_condbr); }
     bool isReturn() { return (getInstructionType() == X86InstructionType_return); }
     bool isFunctionCall() { return (getInstructionType() == X86InstructionType_call); }
-    bool isSystemCall() { return (getInstructionType() == X86InstructionType_system_call); }
+    bool isSystemCall() { return (getInstructionType() == X86InstructionType_syscall); }
     bool isCall() { return isSystemCall() || isFunctionCall(); }
     bool isHalt() { return (getInstructionType() == X86InstructionType_halt); }
     bool isNop() { return (getInstructionType() == X86InstructionType_nop); }
+    bool isAvx() { return (getInstructionType() == X86InstructionType_avx); }
     bool isConditionCompare();
     bool isStackPush();
     bool isStackPop();
@@ -474,13 +551,49 @@ public:
     bool isStore();
     bool isSpecialRegOp();
     bool isLogicOp();
+    bool isConditionalMove();
+ 
+    bool isBinUnknown();
+    bool isBinInvalid();
+    bool isBinCond();
+    bool isBinUncond();
+    bool isBinBin();
+    bool isBinBinv();
+    bool isBinInt();
+    bool isBinIntv();
+    bool isBinFloat();
+    bool isBinFloatv();
+    bool isBinFloats();
+    bool isBinMove();
+    bool isBinSystem();
+    bool isBinStack();
+    bool isBinOther();
+    bool isBinCache();
+    bool isBinString();
+    bool isBinByte();
+    bool isBinBytev();
+    bool isBinWord();
+    bool isBinWordv();
+    bool isBinDword();
+    bool isBinDwordv();
+    bool isBinQword();
+    bool isBinQwordv();
+    bool isBinSingle();
+    bool isBinSinglev();
+    bool isBinSingles();
+    bool isBinDouble();
+    bool isBinDoublev();
+    bool isBinDoubles();
+    bool isBinMem();
 
+    void printBin();
 
     uint8_t getByteSource() { return byteSource; }
     bool isRelocatable() { return true; }
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     AddressAnchor* getAddressAnchor() { return addressAnchor; }
+    void initializeAnchor(Base*, bool imm);
     void initializeAnchor(Base*);
 
     bool isJumpTableBase();
@@ -513,77 +626,30 @@ public:
     uint32_t getNumberOfMemoryBytes();
     bool isMemoryOperation();
     bool isExplicitMemoryOperation();    
-    bool isImplicitMemoryOperation();    
-
-    bool isBinUnknown() { return  (instructionBin & BinMask) == X86InstructionBin_unknown; }
-    bool isBinInvalid() { return  (instructionBin & BinMask) == X86InstructionBin_invalid; }
-    bool isBinCond()    { return  (instructionBin & BinMask) == X86InstructionBin_cond;    }
-    bool isBinUncond()  { return  (instructionBin & BinMask) == X86InstructionBin_uncond;  }
-    bool isBinBin()     { return  (instructionBin & BinMask) == X86InstructionBin_bin;     }
-    bool isBinBinv()    { return  (instructionBin & BinMask) == X86InstructionBin_binv;    }
-    bool isBinInt()     { return  (instructionBin & BinMask) == X86InstructionBin_int;     }
-    bool isBinIntv()    { return  (instructionBin & BinMask) == X86InstructionBin_intv;    }
-    bool isBinFloat()   { return  (instructionBin & BinMask) == X86InstructionBin_float;   }
-    bool isBinFloatv()  { return  (instructionBin & BinMask) == X86InstructionBin_floatv;  }
-    bool isBinFloats()  { return  (instructionBin & BinMask) == X86InstructionBin_floats;  }
-    bool isBinMove()    { return  (instructionBin & BinMask) == X86InstructionBin_move;    }
-    bool isBinSystem()  { return  (instructionBin & BinMask) == X86InstructionBin_system;  }
-    bool isBinStack()   { return  (instructionBin & BinMask) == X86InstructionBin_stack;   }
-    bool isBinOther()   { return  (instructionBin & BinMask) == X86InstructionBin_other;   }
-    bool isBinCache()   { return  (instructionBin & BinMask) == X86InstructionBin_cache;   }
-    bool isBinString()  { return  (instructionBin & BinMask) == X86InstructionBin_string;  }
-    bool isBinByte()    { return ((instructionBin & BinMask) == X86InstructionBin_int)    && (instructionBin >> BinSizeShift) == 1; }
-    bool isBinBytev()   { return ((instructionBin & BinMask) == X86InstructionBin_intv)   && (instructionBin >> BinSizeShift) == 1; }
-    bool isBinWord()    { return ((instructionBin & BinMask) == X86InstructionBin_int)    && (instructionBin >> BinSizeShift) == 2; }
-    bool isBinWordv()   { return ((instructionBin & BinMask) == X86InstructionBin_intv)   && (instructionBin >> BinSizeShift) == 2; }
-    bool isBinDword()   { return ((instructionBin & BinMask) == X86InstructionBin_int)    && (instructionBin >> BinSizeShift) == 4; }
-    bool isBinDwordv()  { return ((instructionBin & BinMask) == X86InstructionBin_intv)   && (instructionBin >> BinSizeShift) == 4; }
-    bool isBinQword()   { return ((instructionBin & BinMask) == X86InstructionBin_int)    && (instructionBin >> BinSizeShift) == 8; }
-    bool isBinQwordv()  { return ((instructionBin & BinMask) == X86InstructionBin_intv)   && (instructionBin >> BinSizeShift) == 8; }
-    bool isBinSingle()  { return ((instructionBin & BinMask) == X86InstructionBin_float)  && (instructionBin >> BinSizeShift) == 4; }
-    bool isBinSinglev() { return ((instructionBin & BinMask) == X86InstructionBin_floatv) && (instructionBin >> BinSizeShift) == 4; }
-    bool isBinSingles() { return ((instructionBin & BinMask) == X86InstructionBin_floats) && (instructionBin >> BinSizeShift) == 4; }
-    bool isBinDouble()  { return ((instructionBin & BinMask) == X86InstructionBin_float)  && (instructionBin >> BinSizeShift) == 8; }
-    bool isBinDoublev() { return ((instructionBin & BinMask) == X86InstructionBin_floatv) && (instructionBin >> BinSizeShift) == 8; }
-    bool isBinDoubles() { return ((instructionBin & BinMask) == X86InstructionBin_floats) && (instructionBin >> BinSizeShift) == 8; }
-    bool isBinMem()     { return   instructionBin & BinMem; }
-
-    void printBin()     {
-        if(isBinUnknown())      printf("Unknown");
-        else if(isBinInvalid()) printf("Invalid");
-        else if(isBinCond())    printf("Cond");
-        else if(isBinUncond())  printf("Uncond");
-        else if(isBinBin())     printf("Bin");
-        else if(isBinBinv())    printf("Binv");
-        //else if(isBinInt())     printf("Int");
-        //else if(isBinIntv())    printf("Intv");
-        //else if(isBinFloat())   printf("Float");
-        //else if(isBinFloatv())  printf("Floatv");
-        //else if(isBinFloats())  printf("Floats");
-        else if(isBinMove())    printf("Move");
-        else if(isBinSystem())  printf("System");
-        else if(isBinStack())   printf("Stack");
-        else if(isBinOther())   printf("Other");
-        else if(isBinCache())   printf("Cache");
-        else if(isBinString())  printf("String");
-        else if(isBinByte())    printf("Byte");
-        else if(isBinBytev())   printf("Bytev");
-        else if(isBinWord())    printf("Word");
-        else if(isBinWordv())   printf("Wordv");
-        else if(isBinDword())   printf("Dword");
-        else if(isBinDwordv())  printf("Dwordv");
-        else if(isBinQword())   printf("Qword");
-        else if(isBinQwordv())  printf("Qwordv");
-        else if(isBinSingle())  printf("Single");
-        else if(isBinSinglev()) printf("Singlev");
-        else if(isBinSingles()) printf("Singles");
-        else if(isBinDouble())  printf("Double");
-        else if(isBinDoublev()) printf("Doublev");
-        else if(isBinDoubles()) printf("Doubles");
-        printf("\n");
-    }
+    bool isImplicitMemoryOperation();
 
     OperandX86* getMemoryOperand();
 };
 
+class X86InstructionClassifier {
+private:
+    X86InstructionClassifier() {}
+    ~X86InstructionClassifier() {}
+
+    static uint32_t getMnemonic(X86Instruction* x);
+
+public:
+    static bool verify();
+
+    static X86InstructionBin getInstructionBin(X86Instruction* x);
+    static uint8_t getInstructionMemLocation(X86Instruction* x);
+    static uint8_t getInstructionMemSize(X86Instruction* x);
+    static X86InstructionType getInstructionType(X86Instruction* x);
+    static X86OperandFormat getInstructionFormat(X86Instruction* x);
+
+    static void print(X86Instruction* x);
+
+};
+
 #endif /* _X86Instruction_h_ */
+

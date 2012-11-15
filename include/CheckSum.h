@@ -50,11 +50,13 @@ void innerHash(unsigned int *result, unsigned int *w){
     #define e result[4]
 
     int j=0;
+
 #define sha1macro(func,val) \
     {const unsigned int t = rol(a, 5)+(func)+e+val+w[j]; \
     e = d; d = c; \
     c = rol(b, 30); \
     b = a; a = t;}
+
     while(j<16){
         sha1macro((b&c)|(~b&d),0x5A827999)
             j++;

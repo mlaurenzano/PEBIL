@@ -34,12 +34,18 @@ protected:
     BitSet<BasicBlock*>* blocks;
     BasicBlock* head;
     BasicBlock* tail;
+
+    uint32_t depth;
 public:
     Loop(BasicBlock* h, BasicBlock* t, FlowGraph* cfg, BitSet<BasicBlock*>* newBlocks);
     ~Loop();
+
+    uint32_t getDepth() { return depth; }
+    void setDepth(uint32_t d) { depth = d; }
     BasicBlock* getHead() { return head; }
     BasicBlock* getTail() { return tail; }
     uint32_t getNumberOfBlocks() { return blocks->size(); }
+    uint32_t getNumberOfInstructions();
     uint32_t getAllBlocks(BasicBlock** arr);
     bool isBlockIn(uint32_t idx) { return blocks->contains(idx); }
     bool hasSharedHeader(Loop* loop);

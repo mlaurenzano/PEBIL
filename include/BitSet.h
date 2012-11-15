@@ -23,14 +23,23 @@
 
 #include <Base.h>
 
-template <class T=uint32_t>
-class BitSet {
+typedef uint32_t BitStorage;
+
+static inline uint32_t count_bits(uint32_t n) {     
+    uint32_t c; // c accumulates the total bits set in v
+    for (c = 0; n; c++){
+        n &= n - 1; // clear the least significant bit set
+    }
+    return c;
+}
+
+template <class T=uint32_t> class BitSet {
 private:
-    const static uint8_t DivideLog = 3;
+    const static uint8_t DivideLog = 5;
     const static uint32_t ModMask = ~((uint32_t)0xffffffff << DivideLog);
 
     uint32_t maximum;
-    uint8_t* bits;
+    BitStorage* bits;
     uint32_t cardinality;
     T* elements;
 
@@ -39,44 +48,56 @@ private:
     }
 
 public:
+
+    inline void cardinalize(){
+        cardinality = 0;
+        uint32_t count = internalCount();
+        for(uint32_t i = 0; i < count; i++){
+            BitStorage n = bits[i];
+            while (n){
+                cardinality++;
+                n &= (n - 1);
+            }
+        }
+    }
+
     BitSet(uint32_t maxVal,T* arr=NULL) : maximum(maxVal),cardinality(0),elements(arr) {
         uint32_t count = internalCount();
-        bits = new uint8_t[count];
-        bzero(bits,count);
+        bits = new BitStorage[count];
+        bzero(bits, count * sizeof(BitStorage));
     }
 
     //! copy constructor
     BitSet(BitSet& src){
         maximum = src.maximum;
         uint32_t count = src.internalCount();
-        bits = new uint8_t[count];
-        memcpy(bits,src.bits,count);
+        bits = new BitStorage[count];
+        memcpy(bits, src.bits, count * sizeof(BitStorage));
         cardinality = src.cardinality;
         elements = src.elements;
     }
 
     ~BitSet() { delete[] bits; }
 
-    BitSet& operator-=(BitSet& src){
+    BitSet& operator-=(const BitSet& src){
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are SUBed");
 
         uint32_t count = internalCount();
         for(uint32_t i=0;i<count;i++){
             bits[i] = bits[i] & ~(src.bits[i]);
-            if (src.contains(i)){
-                remove(i);
-                cardinality--;
-            }
         }        
+        cardinalize();
+        /*
         for(uint32_t i=0;i<count;i++){
             if (src.bits[i] & bits[i]){
                 PRINT_ERROR("bits dont match");
             }
         }
+        */
         return *this;
     }
 
-    bool isSubsetOf(BitSet& src){
+    bool isSubsetOf(const BitSet& src){
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are subsetted");
         uint32_t count = internalCount();
         for (uint32_t i = 0; i < count; i++){
@@ -87,23 +108,18 @@ public:
         return true;
     }
 
-    BitSet& operator&=(BitSet& src){
+    BitSet& operator&=(const BitSet& src){
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are ANDed");
 
         uint32_t count = internalCount();
         for(uint32_t i=0;i<count;i++){
             bits[i] &= src.bits[i];
         }
-        cardinality = 0;
-        for(uint32_t i=0;i<maximum;i++){
-            if(contains(i)){
-                cardinality++;
-            }
-        }
+        cardinalize();
         return *this;
     }
 
-    bool operator==(BitSet& src){
+    bool operator==(const BitSet& src){
         ASSERT(maximum == src.maximum && "FATAL: Two sets with different max numbers are EQed");
         
         uint32_t count = internalCount();
@@ -115,7 +131,7 @@ public:
         return true;
     }
 
-    BitSet& operator|=(BitSet& src){
+    BitSet& operator|=(const BitSet& src){
 
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are ORed");
 
@@ -123,16 +139,12 @@ public:
         for(uint32_t i=0;i<count;i++){
             bits[i] |= src.bits[i];
         }
-        cardinality = 0;
-        for(uint32_t i=0;i<maximum;i++){
-            if(contains(i)){
-                cardinality++;
-            }
-        }
+        cardinalize();
+
         return *this;
     }
 
-    BitSet& operator=(BitSet& src){
+    BitSet& operator=(const BitSet& src){
         ASSERT((maximum == src.maximum) && "FATAL: Two sets with different max numbers are CPed");
 
         uint32_t count = internalCount();
@@ -159,21 +171,25 @@ public:
 
     inline void clear() {
         uint32_t count = internalCount();
-        bzero(bits,count);
+        bzero(bits, count * sizeof(BitStorage));
         cardinality = 0;
     }
 
     inline void setall() {
         uint32_t count = internalCount();
-        memset(bits,0xff,count);
+        memset(bits, 0xff, count * sizeof(BitStorage));
         cardinality = maximum;
     }
 
     void print() {
         uint32_t count = internalCount();
         fprintf(stdout, "[BitSet] %d bits: ", maximum);
-        for (uint32_t i = 0; i < count; i++){
-            fprintf(stdout, "%02x", bits[i]);
+        for (uint32_t i = 0; i < maximum; i++){
+            if (contains(i)){
+                fprintf(stdout, "1");
+            } else {
+                fprintf(stdout, "0");
+            }
         }
         fprintf(stdout, "\n");
     }
@@ -198,7 +214,7 @@ public:
         bits[index] &= ~mask;
     }
 
-    inline bool contains(uint32_t n){
+    inline bool contains(uint32_t n) const {
         uint32_t index = n >> DivideLog;
         uint32_t mask = 1 << (n & ModMask);
         if(n >= maximum)
@@ -222,10 +238,10 @@ public:
         
         uint32_t arrIdx = 0;
         uint32_t idx = 0;
-        for(uint32_t i=0;idx<maximum;i++){
-            uint8_t value = bits[i];
-            for(uint32_t j=0;(j<(1 << DivideLog)) && (idx<maximum);j++,idx++){
-                uint8_t mask = 1 << j;
+        for (uint32_t i = 0; idx < maximum; i++){
+            BitStorage value = bits[i];
+            for (uint32_t j = 0; (j < (1 << DivideLog)) && (idx < maximum); j++, idx++){
+                BitStorage mask = 1 << j;
                 if(value & mask){
                     ret[arrIdx++] = elements[idx];
                 }

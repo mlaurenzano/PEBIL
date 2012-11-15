@@ -24,21 +24,51 @@
 #include <InstrumentationTool.h>
 
 class BasicBlockCounter : public InstrumentationTool {
-private:
+protected:
     InstrumentationFunction* entryFunc;
     InstrumentationFunction* exitFunc;
 
     InstrumentationFunction* loopEntry;
     InstrumentationFunction* loopExit;
+
+    bool loopCount;
 public:
-    BasicBlockCounter(ElfFile* elf, char* ext, bool lpi, bool dtl);
+    BasicBlockCounter(ElfFile* elf);
     ~BasicBlockCounter() {}
 
     void declare();
     void instrument();
 
     const char* briefName() { return "BasicBlockCounter"; }
+    const char* defaultExtension() { return "jbbinst"; }
+    uint32_t allowsArgs() { return PEBIL_OPT_LPI | PEBIL_OPT_DTL; }
+    uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
 
+class RareEventCounter : public BasicBlockCounter {
+private:
+    InstrumentationFunction* entryRare;
+    InstrumentationFunction* exitRare;    
+
+    InstrumentationFunction* checkFunc;
+    InstrumentationFunction* checkInit;
+
+    uint64_t matchArray;
+    uint64_t rareArray;
+    uint64_t matchCountAddress;
+
+    void insertPointCheck(Base* point, uint32_t checkIdx, InstLocations loc);
+
+public:
+    RareEventCounter(ElfFile* elf);
+    ~RareEventCounter() {}
+
+    void declare();
+    void instrument();
+
+    const char* briefName() { return "RareEventCounter"; }
+    const char* defaultExtension() { if (doIntro) { return "step2"; } else { return "step1"; } }
+    uint32_t allowsArgs() { return PEBIL_OPT_DOI; }
+};
 
 #endif /* _BasicBlockCounter_h_ */

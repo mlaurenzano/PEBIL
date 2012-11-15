@@ -44,6 +44,7 @@ public:
     ~DwarfSection() {}
 
     uint32_t getIndex() { return index; }
+    virtual void wedge(uint32_t shamt) { __SHOULD_NOT_ARRIVE; }
 };
 
 class DwarfLineInfoSection : public DwarfSection {
@@ -61,6 +62,7 @@ public:
 
     uint32_t getNumberOfLineInfoTables() { return lineInfoTables.size(); }
     LineInfoTable* getLineInfoTable(uint32_t idx) { return lineInfoTables[idx]; }
+    void wedge(uint32_t shamt);
 };
 
 #endif /* _DwarfSection_h_ */

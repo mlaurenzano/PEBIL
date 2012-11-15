@@ -1,48 +1,66 @@
 include ../VERSION
 
+AR            = ar cru
 CXX           = @CXX@
-CXXFLAGS      = @CXXFLAGS@ @MPI_FLAGS@ -DPEBIL_VER="\"$(PEBIL_FULL_VER)\""
-EXTRA_FLAGS   =
+CXXFLAGS      = @CXXFLAGS@ @MPI_FLAGS@ -DPEBIL_VER="\"$(PEBIL_FULL_VER)\"" -w
+SHARED_OPT    = -fPIC
+SHARED_LIB    = -shared
+STATIC_OPT    = -DSTATIC_BUILD
+STATIC_LIB    = -static
 
 SRCDIR        = ../src
 BINDIR        = ../bin
+LIBDIR        = ../lib
 EXTDIR        = ../external
 EXTRA_INC     = -I. -I../include -I$(EXTDIR)/udis86-1.7/ -I../instcode
-EXTRA_LIBS    = -L$(SRCDIR) -lpebilinst -L$(EXTDIR)/udis86-1.7/libudis86/.libs -ludis86
+SHARED_LIBS   = -L$(SRCDIR) -lpebilinst -L$(EXTDIR)/udis86-1.7/libudis86/.libs -ludis86 -ldl
+STATIC_LIBS   = $(SRCDIR)/libpebilinst.a -L$(EXTDIR)/udis86-1.7/libudis86/.libs -ludis86
 
-TARGETS  = pebil
+TOOLS = BasicBlockCounter CacheSimulation CallReplace Classification FunctionCounter FunctionTimer Minimal LoopIntercept TauFunctionTrace DeadRegisterSquasher
+SRCS = $(foreach var,$(TOOLS),$(var).C)
+OBJS = $(foreach var,$(TOOLS),$(var).o)
+DLIBS = $(foreach var,$(TOOLS),lib$(var)Tool.so)
+SLIBS = $(foreach var,$(TOOLS),lib$(var)Tool.a)
 
-SRCS  = BasicBlockCounter.C \
-	CacheSimulation.C \
-	CallReplace.C \
-	Classsification.C \
-	FunctionCounter.C \
-	FunctionTimer.C \
-	ThrottleLoop.C
+PEBIL_STATIC_BUILD = @PEBIL_STATIC_BUILD@
+ifeq ($(PEBIL_STATIC_BUILD),yes)
+	TARGETS  = pebil pebil.static
+	LIBS     = $(DLIBS) $(SLIBS)
+else
+	TARGETS  = pebil
+	LIBS     = $(DLIBS)
+endif
 
-OBJS  =	BasicBlockCounter.o \
-	CacheSimulation.o \
-	CallReplace.o \
-	Classification.o \
-	FunctionCounter.o \
-	FunctionTimer.o \
-	ThrottleLoop.o
+.PHONY: all clean depend
 
-all: $(TARGETS)
+all: $(LIBS) $(TARGETS)
 
-pebil :	$(OBJS) pebil.o
-	$(CXX) $(CXXFLAGS) -o $@ pebil.o $(OBJS) $(EXTRA_INC) $(EXTRA_LIBS)
+pebil :	pebil.o $(SRCDIR)/libpebilinst.so $(DLIBS)
+	$(CXX) $(CXXFLAGS) -o $@ pebil.o $(EXTRA_INC) $(SHARED_LIBS)
+
+pebil.static : S_pebil.o $(SRCDIR)/libpebilinst.a $(SLIBS)
+	$(CXX) $(STATIC_LIB) $(CXXFLAGS) -o $@ S_pebil.o $(EXTRA_INC) $(STATIC_LIBS) $(SLIBS) $(STATIC_LIBS)
 
 %.o: %.C
-	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) -c -o $@ $< $(EXTRA_INC)
+	$(CXX) $(SHARED_OPT) $(CXXFLAGS) $(EXTRA_INC) -c -o $@ $<
+
+S_%.o: %.C
+	$(CXX) $(STATIC_OPT) $(CXXFLAGS) $(EXTRA_INC) -c -o $@ $<
+
+lib%Tool.so: %.o
+	$(CXX) $(SHARED_LIB) -o $@ $<
+
+lib%Tool.a: S_%.o
+	$(AR) $@ $<
 
 clean: 
-	rm -f *inst *.static core *.o *.ii *.s $(TARGETS)
+	rm -f *inst *.static core *.o *.ii *.s *.so *.a $(TARGETS)
 
 depend:
-	g++ -E -MM $(INCLUDE) $(SRCS) > DEPENDS
+	g++ -E -MM $(EXTRA_INC) $(SRCS) pebil.C > DEPENDS
 
-install: $(TARGETS)
+install: $(TARGETS) $(LIBS)
 	cp $(TARGETS) $(BINDIR)
+	cp $(LIBS) $(LIBDIR)
 
 include DEPENDS

@@ -63,8 +63,10 @@ public:
     virtual char* getName();
     virtual uint32_t digest(Vector<AddressAnchor*>* addressAnchors) { __SHOULD_NOT_ARRIVE; }
     virtual void printDisassembly(bool instructionDetail) { __SHOULD_NOT_ARRIVE; }
+    virtual void wedge(uint32_t shamt) { __SHOULD_NOT_ARRIVE; }
 
     virtual void print() { __SHOULD_NOT_ARRIVE; }
+    virtual void setBaseAddress(uint64_t n) { __SHOULD_NOT_ARRIVE; }
 };
 
 class FreeText : public TextObject {
@@ -84,8 +86,10 @@ public:
     Block* getBlock(uint32_t idx) { return blocks[idx]; }
     uint32_t getNumberOfInstructions();
     void printDisassembly(bool instructionDetail);
+    void wedge(uint32_t shamt);
 
     void print();
+    void setBaseAddress(uint64_t n) { baseAddress = n; }
 };
 
 class TextSection : public RawSection {
@@ -117,6 +121,7 @@ public:
     uint64_t findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc);
 
     bool verify();
+    void wedge(uint32_t shamt);
 
     void dump (BinaryOutputFile* binaryOutputFile, uint32_t offset);
 

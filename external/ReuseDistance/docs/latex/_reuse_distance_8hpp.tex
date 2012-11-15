@@ -1,0 +1,132 @@
+\hypertarget{_reuse_distance_8hpp}{
+\section{/home/michaell/software/ReuseDistance/ReuseDistance.hpp File Reference}
+\label{_reuse_distance_8hpp}\index{/home/michaell/software/ReuseDistance/ReuseDistance.hpp@{/home/michaell/software/ReuseDistance/ReuseDistance.hpp}}
+}
+{\ttfamily \#include $<$assert.h$>$}\par
+{\ttfamily \#include $<$stdlib.h$>$}\par
+{\ttfamily \#include $<$tree234.h$>$}\par
+{\ttfamily \#include $<$algorithm$>$}\par
+{\ttfamily \#include $<$iostream$>$}\par
+{\ttfamily \#include $<$ostream$>$}\par
+{\ttfamily \#include $<$list$>$}\par
+{\ttfamily \#include $<$map$>$}\par
+{\ttfamily \#include $<$vector$>$}\par
+\subsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \hyperlink{struct_reuse_entry}{ReuseEntry}
+\item 
+class \hyperlink{class_reuse_distance}{ReuseDistance}
+\item 
+class \hyperlink{class_reuse_stats}{ReuseStats}
+\item 
+class \hyperlink{class_spatial_locality}{SpatialLocality}
+\end{DoxyCompactItemize}
+\subsection*{Defines}
+\begin{DoxyCompactItemize}
+\item 
+\#define \hyperlink{_reuse_distance_8hpp_ae458bf0a7bac23a65b544ba5000f1417}{reuse\_\-map\_\-type}~std::map
+\item 
+\#define \hyperlink{_reuse_distance_8hpp_ad58a1fbfc85c7e4790fc55e654f50221}{TAB}~\char`\"{}$\backslash$t\char`\"{}
+\item 
+\#define \hyperlink{_reuse_distance_8hpp_a90dc3f3ee970394e0080300526390a84}{ENDL}~\char`\"{}$\backslash$n\char`\"{}
+\item 
+\#define \hyperlink{_reuse_distance_8hpp_aebf444a7be286ab578986a907fdb0c02}{\_\-\_\-seq}~id
+\item 
+\#define \hyperlink{_reuse_distance_8hpp_a3bb9d1622c7f1c40306b84e0016af365}{INFINITY\_\-REUSE}~(0)
+\item 
+\#define \hyperlink{_reuse_distance_8hpp_ab5fb19d7ada3431a22245b01c341584e}{INVALID\_\-SPATIAL}~(0xFFFFFFFFFFFFFFFFL)
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+int \hyperlink{_reuse_distance_8hpp_abd5d231354fc09eb8b735eccdc1f2408}{reusecmp} (void $\ast$va, void $\ast$vb)
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+\begin{DoxyAuthor}{Author}
+Michael Laurenzano $<$\href{mailto:michaell@sdsc.edu}{\tt michaell@sdsc.edu}$>$ 
+\end{DoxyAuthor}
+\begin{DoxyVersion}{Version}
+0.01
+\end{DoxyVersion}
+\hypertarget{_reuse_distance_8hpp_LICENSE}{}\subsection{LICENSE}\label{_reuse_distance_8hpp_LICENSE}
+This file is part of the \hyperlink{class_reuse_distance}{ReuseDistance} tool.
+
+Copyright (c) 2012, University of California Regents All rights reserved.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see $<$\href{http://www.gnu.org/licenses/}{\tt http://www.gnu.org/licenses/}$>$.\hypertarget{_reuse_distance_8hpp_DESCRIPTION}{}\subsection{DESCRIPTION}\label{_reuse_distance_8hpp_DESCRIPTION}
+The ReuseDistanceHandler class allows for calculation and statistic tracking for finding memory reuse distances given a stream of memory addresses and ids. 
+
+Definition in file \hyperlink{_reuse_distance_8hpp_source}{ReuseDistance.hpp}.
+
+
+
+\subsection{Define Documentation}
+\hypertarget{_reuse_distance_8hpp_aebf444a7be286ab578986a907fdb0c02}{
+\index{ReuseDistance.hpp@{ReuseDistance.hpp}!\_\-\_\-seq@{\_\-\_\-seq}}
+\index{\_\-\_\-seq@{\_\-\_\-seq}!ReuseDistance.hpp@{ReuseDistance.hpp}}
+\subsubsection[{\_\-\_\-seq}]{\setlength{\rightskip}{0pt plus 5cm}\#define \_\-\_\-seq~id}}
+\label{_reuse_distance_8hpp_aebf444a7be286ab578986a907fdb0c02}
+
+
+Definition at line 54 of file ReuseDistance.hpp.
+
+\hypertarget{_reuse_distance_8hpp_a90dc3f3ee970394e0080300526390a84}{
+\index{ReuseDistance.hpp@{ReuseDistance.hpp}!ENDL@{ENDL}}
+\index{ENDL@{ENDL}!ReuseDistance.hpp@{ReuseDistance.hpp}}
+\subsubsection[{ENDL}]{\setlength{\rightskip}{0pt plus 5cm}\#define ENDL~\char`\"{}$\backslash$n\char`\"{}}}
+\label{_reuse_distance_8hpp_a90dc3f3ee970394e0080300526390a84}
+
+
+Definition at line 52 of file ReuseDistance.hpp.
+
+\hypertarget{_reuse_distance_8hpp_a3bb9d1622c7f1c40306b84e0016af365}{
+\index{ReuseDistance.hpp@{ReuseDistance.hpp}!INFINITY\_\-REUSE@{INFINITY\_\-REUSE}}
+\index{INFINITY\_\-REUSE@{INFINITY\_\-REUSE}!ReuseDistance.hpp@{ReuseDistance.hpp}}
+\subsubsection[{INFINITY\_\-REUSE}]{\setlength{\rightskip}{0pt plus 5cm}\#define INFINITY\_\-REUSE~(0)}}
+\label{_reuse_distance_8hpp_a3bb9d1622c7f1c40306b84e0016af365}
+
+
+Definition at line 57 of file ReuseDistance.hpp.
+
+\hypertarget{_reuse_distance_8hpp_ab5fb19d7ada3431a22245b01c341584e}{
+\index{ReuseDistance.hpp@{ReuseDistance.hpp}!INVALID\_\-SPATIAL@{INVALID\_\-SPATIAL}}
+\index{INVALID\_\-SPATIAL@{INVALID\_\-SPATIAL}!ReuseDistance.hpp@{ReuseDistance.hpp}}
+\subsubsection[{INVALID\_\-SPATIAL}]{\setlength{\rightskip}{0pt plus 5cm}\#define INVALID\_\-SPATIAL~(0xFFFFFFFFFFFFFFFFL)}}
+\label{_reuse_distance_8hpp_ab5fb19d7ada3431a22245b01c341584e}
+
+
+Definition at line 58 of file ReuseDistance.hpp.
+
+\hypertarget{_reuse_distance_8hpp_ae458bf0a7bac23a65b544ba5000f1417}{
+\index{ReuseDistance.hpp@{ReuseDistance.hpp}!reuse\_\-map\_\-type@{reuse\_\-map\_\-type}}
+\index{reuse\_\-map\_\-type@{reuse\_\-map\_\-type}!ReuseDistance.hpp@{ReuseDistance.hpp}}
+\subsubsection[{reuse\_\-map\_\-type}]{\setlength{\rightskip}{0pt plus 5cm}\#define reuse\_\-map\_\-type~std::map}}
+\label{_reuse_distance_8hpp_ae458bf0a7bac23a65b544ba5000f1417}
+
+
+Definition at line 48 of file ReuseDistance.hpp.
+
+\hypertarget{_reuse_distance_8hpp_ad58a1fbfc85c7e4790fc55e654f50221}{
+\index{ReuseDistance.hpp@{ReuseDistance.hpp}!TAB@{TAB}}
+\index{TAB@{TAB}!ReuseDistance.hpp@{ReuseDistance.hpp}}
+\subsubsection[{TAB}]{\setlength{\rightskip}{0pt plus 5cm}\#define TAB~\char`\"{}$\backslash$t\char`\"{}}}
+\label{_reuse_distance_8hpp_ad58a1fbfc85c7e4790fc55e654f50221}
+
+
+Definition at line 51 of file ReuseDistance.hpp.
+
+
+
+\subsection{Function Documentation}
+\hypertarget{_reuse_distance_8hpp_abd5d231354fc09eb8b735eccdc1f2408}{
+\index{ReuseDistance.hpp@{ReuseDistance.hpp}!reusecmp@{reusecmp}}
+\index{reusecmp@{reusecmp}!ReuseDistance.hpp@{ReuseDistance.hpp}}
+\subsubsection[{reusecmp}]{\setlength{\rightskip}{0pt plus 5cm}int reusecmp (void $\ast$ {\em va}, \/  void $\ast$ {\em vb})}}
+\label{_reuse_distance_8hpp_abd5d231354fc09eb8b735eccdc1f2408}

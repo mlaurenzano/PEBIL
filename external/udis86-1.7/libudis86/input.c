@@ -130,6 +130,7 @@ extern uint8_t inp_next(struct ud* u)
   /* record bytes input per decode-session. */
   u->inp_sess[ u->inp_ctr++ ] = c;
   /* return byte */
+  //fprintf(stdout, "PEBIL_DEBUG: input byte %hhx\n", c);
   return ( uint8_t ) c;
 }
 

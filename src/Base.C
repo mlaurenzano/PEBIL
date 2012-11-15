@@ -19,24 +19,235 @@
  */
 
 #include <Base.h>
+#include <BasicBlock.h>
+#include <ElfFile.h>
+#include <ElfFileInst.h>
+#include <X86Instruction.h>
 
 FILE* pebilOutp = stdout;
+uint64_t warnCount = 0;
 
-char* sha1sum(char* buffer, uint32_t size){
+FILE* GetTempFile(char** sfn){
+    FILE *sfp;
+    int fd = -1;
+
+    ASSERT(*sfn == NULL);
+    *sfn = new char[__MAX_STRING_SIZE];
+    strncpy(*sfn, "/tmp/tmp.XXXXXX\0", __MAX_STRING_SIZE);
+    if ((fd = mkstemp(*sfn)) == -1 ||
+        (sfp = fdopen(fd, "rw+")) == NULL) {
+        PRINT_ERROR("%s: %s", sfn, strerror(errno));
+        return (NULL);
+    }
+    return (sfp);
+}
+
+void FileList::appendLine(Vector<char*>* v){
+    fileTokens.append(v);
+}
+
+void FileList::setSeparator(char c){
+    sep = c;
+}
+
+void FileList::setFileName(const char* name){
+    fname = name;
+}
+
+void FileList::init(const char* filename, uint32_t w, char s, char comm){
+    ASSERT(filename);
+
+    fname = filename;
+    width = w;
+    sep = s;
+
+    FILE* inFile = fopen(filename, "r");
+    if(!inFile){
+        PRINT_ERROR("File cannot be opened [%s]", filename);
+    }
+
+    Vector<char*> lines;
+
+    char* inBuffer = new char[__MAX_STRING_SIZE];
+    while (fgets(inBuffer, __MAX_STRING_SIZE, inFile) != NULL) {
+        char* line = new char[strlen(inBuffer)+1];
+        sprintf(line, "%s", inBuffer);
+        line[strlen(inBuffer)-1] = '\0';
+        if (strlen(line) && line[0] == comm){
+            delete[] line;
+        } else {
+            lines.append(line);
+        }
+    }
+    delete[] inBuffer;
+    fclose(inFile);
+
+    for (uint32_t i = 0; i < lines.size(); i++){
+        uint32_t linelen = strlen(lines[i]);
+        uint32_t toks = 1;
+        for (uint32_t c = 0; c < linelen; c++){
+            if (lines[i][c] == sep){
+                toks++;
+            }
+        }
+
+        if (width && toks != width){
+            PRINT_ERROR("Input file line has incorrect number of '%c'-seperated tokens: %s", sep, lines[i]);
+        }
+
+        Vector<char*>* tokens = new Vector<char*>();
+
+        uint32_t beg = 0;
+        for (uint32_t c = 0; c < linelen; c++){
+            if (lines[i][c] == sep){
+                lines[i][c] = '\0';
+
+                char* tokbeg = &(lines[i])[beg];
+                char* newtok = new char[strlen(tokbeg) + 1];
+                bzero(newtok, strlen(tokbeg) + 1);
+                memcpy(newtok, tokbeg, strlen(tokbeg));
+
+                tokens->append(newtok);
+
+                beg = c + 1;
+            }
+        }
+
+        char* tokbeg = &(lines[i])[beg];
+        char* newtok = new char[strlen(tokbeg) + 1];
+        bzero(newtok, strlen(tokbeg) + 1);
+        memcpy(newtok, tokbeg, strlen(tokbeg));
+
+        tokens->append(newtok);
+
+        fileTokens.append(tokens);
+        delete[] lines[i];
+    }
+
+    verify();
+}
+
+bool FileList::verify(){
+    regex_t regex;
+    int err;
+    char err_msg[__MAX_STRING_SIZE];
+    
+    for (uint32_t i = 0; i < fileTokens.size(); i++){
+        for (uint32_t j = 0; j < fileTokens[i]->size(); j++){
+            if ((err = regcomp(&regex, getToken(i, j), REG_EXTENDED)) != 0){
+                regerror(err, &regex, err_msg, __MAX_STRING_SIZE);
+                PRINT_ERROR("Error analyzing regular expression '%s': %s.\n", getToken(i, j), err_msg);
+                return false;
+            }
+            regfree(&regex);
+        }
+    }
+
+    return true;
+}
+
+FileList::FileList(const char* filename, uint32_t w, char sep){
+    init(filename, w, sep, '#');
+}
+
+FileList::FileList(const char* filename){
+    init(filename, 1, ' ', '#');
+}
+
+FileList::~FileList(){
+    for (uint32_t i = 0; i < fileTokens.size(); i++){
+        for (uint32_t j = 0; j < fileTokens[i]->size(); j++){
+            delete[] getToken(i, j);
+        }
+        delete fileTokens[i];
+    }
+}
+
+bool regexMatch(char *string, char* reg){
+    regmatch_t match;
+    regex_t regex;
+    int err;
+    char err_msg[__MAX_STRING_SIZE];
+
+    if ((err = regcomp(&regex, reg, REG_EXTENDED)) != 0){
+        regerror(err, &regex, err_msg, __MAX_STRING_SIZE);
+        PRINT_ERROR("Error analyzing regular expression '%s': %s.\n", reg, err_msg);
+    }
+
+    if ((regexec(&regex, string, 0, NULL, 0)) == 0){
+        regfree(&regex);
+        return true;
+    }
+    regfree(&regex);
+    return false;
+}
+
+bool FileList::matches(char* str, uint32_t tok){
+    for (uint32_t i = 0; i < fileTokens.size(); i++){
+        if (regexMatch(str, getToken(i, tok))){
+            return true;
+        }
+    }
+    return false;
+}
+
+char* FileList::getToken(uint32_t idx, uint32_t tok){
+    ASSERT(idx < fileTokens.size());
+    ASSERT(!width || tok < width);
+
+    return (*fileTokens[idx])[tok];
+}
+
+void FileList::print(){
+    PRINT_INFOR("Processed contents of file %s:", fname);
+    for (uint32_t i = 0; i < fileTokens.size(); i++){
+        PRINT_INFO();
+        PRINT_OUT("\t");
+        uint32_t s = fileTokens[i]->size();
+        for (uint32_t j = 0; j < s; j++){
+            PRINT_OUT("%s", getToken(i, j));
+            if (j != s - 1){
+                PRINT_OUT("%c", sep);
+            }
+        }
+        PRINT_OUT("\n");
+    }
+}
+
+#define SHA1SUM_BYTES 20
+char* sha1sum(char* buffer, uint32_t size, uint64_t* first64){
     unsigned char* allbytes = new unsigned char[size];
     int end = size;
     char *line;
-    char* hexstring = new char[41];
-    unsigned char hash[20];
+    char* hexstring = new char[2*SHA1SUM_BYTES + 1];
+    unsigned char hash[SHA1SUM_BYTES];
 
-    bzero(hexstring, 41);
-    bzero(hash, 20);
+    bzero(hexstring, 2*SHA1SUM_BYTES + 1);
+    bzero(hash, SHA1SUM_BYTES);
     memcpy(allbytes, buffer, size);
 
     calc(allbytes, end, hash);
     toHexString(hash, hexstring);
 
-    delete[] allbytes;                                                                                                                                 
+    delete[] allbytes;                                                                                               
+
+    // pick out the first 64 bits for use as a unique id
+    if (first64 != NULL){
+        uint64_t tmp = 0;
+
+        uint32_t s = sizeof(uint64_t) * 2;
+        for (uint32_t i = 0; i < s; i += 2){
+            ASSERT(i < SHA1SUM_BYTES);
+
+            char v1 = getHexValue(hexstring[i + 1]);
+            char v2 = getHexValue(hexstring[i]);
+            char v = v1 | (v2 << 4);
+
+            memcpy(&((char*)(&tmp))[(s-i-2)/2], &v, 1);
+        }
+        *first64 = tmp;
+    }
+                                  
     return hexstring;
 }
 
@@ -202,16 +413,10 @@ int compareHashCode(const void* arg1, const void* arg2){
 
 // this function needs to be fast; it gets called -->*A LOT*<--
 int compareBaseAddress(const void* arg1, const void* arg2){
-    uint64_t vl1 = (*((Base**)arg1))->baseAddress;
-    uint64_t vl2 = (*((Base**)arg2))->baseAddress;
-
-    if      (vl1 < vl2) return -1;
-    else if (vl1 > vl2) return  1;
-    else                return  0;
-    return 0;
+    register uint64_t vl1 = (*((Base**)arg1))->baseAddress;
+    register uint64_t vl2 = (*((Base**)arg2))->baseAddress;
+    return vl1 - vl2;
 }
-
-
 
 int searchBaseAddressExact(const void* arg1, const void* arg2){
     uint64_t key = *((uint64_t*)arg1);
@@ -228,8 +433,6 @@ int searchBaseAddressExact(const void* arg1, const void* arg2){
     return 0;
 }
 
-
-
 int searchHashCode(const void* arg1, const void* arg2){
     uint64_t key = *((uint64_t*)arg1);
     HashCode* h = *((HashCode**)arg2);
@@ -241,6 +444,22 @@ int searchHashCode(const void* arg1, const void* arg2){
     if (key < val)
         return -1;
     if (key > val)
+        return 1;
+    return 0;
+}
+
+int searchBasicBlockAddress(const void* arg1, const void* arg2){
+    uint64_t key = *((uint64_t*)arg1);
+    BasicBlock* bb = *((BasicBlock**)arg2);
+
+    ASSERT(bb && "BB should exist");
+
+    uint64_t val_low = bb->baseAddress;
+    uint64_t val_high = val_low + bb->getNumberOfBytes();
+
+    if (key < val_low)
+        return -1;
+    if (key >= val_high)
         return 1;
     return 0;
 }

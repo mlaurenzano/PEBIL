@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+thisdir="@abs_top_builddir@"
+export REUSEDISTANCE_ROOT=${thisdir}
+export REUSEDISTANCE_INCLUDE="-I${REUSEDISTANCE_ROOT}"
+export REUSEDISTANCE_LINK="-L${REUSEDISTANCE_ROOT} -l@PACKAGE@"
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${REUSEDISTANCE_ROOT}
+export MANPATH=${MANPATH}:${REUSEDISTANCE_ROOT}/docs/man

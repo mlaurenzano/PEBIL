@@ -31,16 +31,10 @@ private:
     InstrumentationFunction* programExit;
     Vector<InstrumentationFunction*> functionWrappers;
 
-    InstrumentationFunction* timerBegin;
-    InstrumentationFunction* timerEnd;
-
     Vector<char*>* functionList;
-    Vector<char*> libraries;
-    Vector<char*>* timerFunctions;
 
-    bool doIntro;
 public:
-    CallReplace(ElfFile* elf, char* traceFile, char* libList, char*inpFile, char* ext, bool lpi, bool dtl, bool doI);
+    CallReplace(ElfFile* elf);
     ~CallReplace();
 
     void declare();
@@ -48,6 +42,11 @@ public:
 
     char* getWrapperName(uint32_t idx);
     char* getFunctionName(uint32_t idx);
+
+    const char* briefName() { return "CallReplace"; }
+    const char* defaultExtension() { return "crpinst"; }
+    uint32_t allowsArgs() { return PEBIL_OPT_NON; }
+    uint32_t requiresArgs() { return PEBIL_OPT_TRK; }
 };
 
 

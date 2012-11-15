@@ -32,6 +32,7 @@
 #include <GnuVersion.h>
 #include <HashTable.h>
 #include <X86Instruction.h>
+#include <X86InstructionFactory.h>
 #include <Instrumentation.h>
 #include <LineInformation.h>
 #include <NoteSection.h>
@@ -44,15 +45,127 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
+// get the smallest virtual address of all loadable segments (ie, the base address for the program)
+uint64_t ElfFile::getProgramBaseAddress(){
+    uint64_t segmentBase = -1;
+
+    for (uint32_t i = 0; i < getNumberOfPrograms(); i++){
+        if (getProgramHeader(i)->GET(p_type) == PT_LOAD){
+            if (getProgramHeader(i)->GET(p_vaddr) < segmentBase){
+                segmentBase = getProgramHeader(i)->GET(p_vaddr);
+            }
+        }
+    }
+
+    ASSERT(segmentBase != -1 && "No loadable segments found (or their p_vaddr fields are incorrect)");
+    return segmentBase;
+}
+
+bool ElfFile::isWedgeAddress(uint64_t addr){
+    if (addr > 0){
+        return true;
+    }
+    return false;
+}
+
+bool ElfFile::isDataWedgeAddress(uint64_t addr){
+
+    //PRINT_INFOR("Checking %lx", addr);
+
+#define IN_RANGE(__l, __h, __a) (((__a) >= (__l)) && ((__a) < (__h)))
+
+    // if addr falls either in the TEXT segment outside of actual text, or
+    // falls in the DATA segment
+    ProgramHeader* p = programHeaders[dataSegmentIdx];
+    //PRINT_INFOR("Valid data range: [%#lx, %#lx]", p->GET(p_vaddr), p->GET(p_vaddr) + p->GET(p_memsz));
+    if (IN_RANGE(p->GET(p_vaddr), p->GET(p_vaddr) + p->GET(p_memsz), addr)){
+        return true;
+    }
+
+    p = programHeaders[textSegmentIdx];
+    SectionHeader* s = getDotFiniSection()->getSectionHeader();
+    //PRINT_INFOR("Valid text range: [%#lx, %#lx]", s->GET(sh_addr), p->GET(p_vaddr) + p->GET(p_memsz));
+    if (IN_RANGE(s->GET(sh_addr), p->GET(p_vaddr) + p->GET(p_memsz), addr)){
+        return true;
+    }
+
+    // if addr is the 1st instruction in a function
+    uint64_t searchAddr = addr;
+    void* link = bsearch(&searchAddr, wedgeInstructions, wedgeInstructionCount, sizeof(X86Instruction*), searchBaseAddressExact);
+    if (link != NULL){
+        X86Instruction* x = *(X86Instruction**)link;
+        TextObject* container = x->getContainer();
+        //PRINT_INFOR("Container %s",container->getName());
+        if (container->getType() == PebilClassType_FreeText){
+            return true;
+        } else if (container->isFunction()){
+            Function* f = (Function*)x->getContainer();
+            //PRINT_INFOR("\t\tComparing function %#lx to instruction %#lx", f->getBaseAddress(), x->getBaseAddress());
+            if (f->getBaseAddress() == x->getBaseAddress()){
+                return true;
+            }
+        } else {
+            PRINT_ERROR("Cannot have container type %s", PebilClassTypeNames[container->getType()]);
+        }
+    }
+
+    return false;
+}
+
+void ElfFile::prepareWedge(){
+    ASSERT(wedgeInstructions == NULL);
+    wedgeInstructionCount = 0;
+    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
+        wedgeInstructionCount += getTextSection(i)->getNumberOfInstructions();
+    }
+
+    wedgeInstructions = new X86Instruction*[wedgeInstructionCount];
+    wedgeInstructionCount = 0;
+
+    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
+        wedgeInstructionCount += getTextSection(i)->getAllInstructions(wedgeInstructions, wedgeInstructionCount);
+    }
+    qsort(wedgeInstructions, wedgeInstructionCount, sizeof(X86Instruction*), compareBaseAddress);
+
+    ASSERT(wedgeInstructions);
+}
+void ElfFile::destroyWedge(){
+    if (wedgeInstructions){
+        delete[] wedgeInstructions;
+    }
+}
+
+void ElfFile::wedge(uint32_t shamt){
+
+    prepareWedge();
+
+    fileHeader->wedge(shamt);
+    for (uint32_t i = 0; i < programHeaders.size(); i++){
+        programHeaders[i]->wedge(this, shamt);
+    }
+
+    for (uint32_t i = 1; i < sectionHeaders.size(); i++){
+        sectionHeaders[i]->wedge(this, shamt);
+        rawSections[i]->wedge(shamt);
+    }
+    destroyWedge();
+}
+
+bool ElfFile::isExecutable(){
+    return (fileHeader->GET(e_type) == ET_EXEC);
+}
+
+bool ElfFile::isSharedLib(){
+    return (fileHeader->GET(e_type) == ET_DYN);
+}
+
+uint64_t ElfFile::getUniqueId(){
+    return fileUniqueId;
+}
+
 char* ElfFile::getSHA1Sum(){
-    char* allbytes = new char[getFileSize()];
-
-    binaryInputFile.setInBufferPointer(0);
-    binaryInputFile.copyBytes(allbytes, getFileSize());
-
-    char* hexstring = sha1sum(allbytes, getFileSize());
-    delete[] allbytes;                                                                                               
-    return hexstring;
+    ASSERT(fileSha1sum);
+    return fileSha1sum;
 }
 
 void ElfFile::swapSections(uint32_t idx1, uint32_t idx2){
@@ -103,12 +216,34 @@ ElfFile::ElfFile(char* f, char* a) :
     }
 
     DataReference* zeroAddrRef = new DataReference(0, NULL, addrAlign, 0);
-    specialDataRefs.append(zeroAddrRef);
+    specialDataRefs[0] = zeroAddrRef;
 
     addressAnchors = new Vector<AddressAnchor*>();
     anchorsAreSorted = false;
+    wedgeInstructions = NULL;
+
+    fileUniqueId = 0;
+    fileSha1sum = NULL;
+
 }
 
+void ElfFile::addAddressAnchor(AddressAnchor* adr){
+    addressAnchors->append(adr);
+    anchorsAreSorted = false;
+}
+
+DataReference* ElfFile::generateDataRef(uint64_t loc, RawSection* sec, uint64_t align, uint64_t off){
+
+    DataReference* ref;
+    if (specialDataRefs.count(off) == 0){
+        ref = new DataReference(loc, sec, align, off);
+        specialDataRefs[off] = ref;
+    } else {
+        ref = specialDataRefs[off];
+    }
+
+    return ref;
+}
 
 Symbol* ElfFile::lookupFunctionSymbol(uint64_t addr){
     GlobalOffsetTable* gotTable = getGlobalOffsetTable();
@@ -548,7 +683,7 @@ uint64_t ElfFile::addSection(uint16_t idx, PebilClassTypes classtype, char* byte
     } else {
         sectionHeaders.insert(new SectionHeader32(idx), idx);
     }
-
+    
     sectionHeaders[idx]->SET(sh_name, name);
     sectionHeaders[idx]->SET(sh_type, type);
     sectionHeaders[idx]->SET(sh_flags, flags);
@@ -648,8 +783,8 @@ void ElfFile::initSectionFilePointers(){
         char* sectionFilePtr = binaryInputFile.fileOffsetToPointer(sectionHeaders[lineInfoIdx]->GET(sh_offset));
         uint64_t sectionSize = (uint64_t)sectionHeaders[lineInfoIdx]->GET(sh_size);
 
-        ASSERT(sectionHeaders[lineInfoIdx]->getSectionType() == PebilClassType_DwarfSection);
-        uint32_t dwarfIdx = ((DwarfSection*)rawSections[lineInfoIdx])->getIndex();
+        ASSERT(sectionHeaders[lineInfoIdx]->getSectionType() == PebilClassType_RawSection);
+        uint32_t dwarfIdx = rawSections[lineInfoIdx]->getSectionIndex();
         delete rawSections[lineInfoIdx];
 
         lineInfoSection = new DwarfLineInfoSection(sectionFilePtr,sectionSize,lineInfoIdx,dwarfIdx,this);
@@ -674,53 +809,13 @@ void ElfFile::initSectionFilePointers(){
         initDynamicFilePointers();
     }
 
+    if (!X86InstructionClassifier::verify()){
+        PRINT_ERROR("Instruction classification self-test failed");
+    }
     X86Instruction::initBlankUd(is64Bit());
     for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
         textSections[i]->disassemble(&binaryInputFile);
     }
-
-    /*
-    uint32_t* instBins;
-    instBins = new uint32_t[MAX_X86_INSTRUCTION_LENGTH+1];
-    bzero(instBins, sizeof(uint32_t) * (MAX_X86_INSTRUCTION_LENGTH+1));
-    for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
-        for (uint32_t j = 0; j < textSections[i]->getNumberOfTextObjects(); j++){
-            if (textSections[i]->getTextObject(j)->isFunction()){
-                Function* f = (Function*)textSections[i]->getTextObject(j) ;
-                for (uint32_t k = 0; k < f->getNumberOfBasicBlocks(); k++){
-                    for (uint32_t l = 0; l < f->getBasicBlock(k)->getNumberOfInstructions(); l++){
-                        instBins[f->getBasicBlock(k)->getInstruction(l)->getSizeInBytes()]++;
-                    }
-                }
-            }
-        }
-    }
-    for (uint32_t i = 0; i < MAX_X86_INSTRUCTION_LENGTH+1; i++){
-
-        PRINT_INFOR("Instruction bins %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
-                    instBins[0],
-                    instBins[1],
-                    instBins[2],
-                    instBins[3],
-                    instBins[4],
-                    instBins[5],
-                    instBins[6],
-                    instBins[7],
-                    instBins[8],
-                    instBins[9],
-                    instBins[10],
-                    instBins[11],
-                    instBins[12],
-                    instBins[13],
-                    instBins[14],
-                    instBins[15],
-                    instBins[16],
-                    instBins[17],
-                    instBins[18],
-                    instBins[19],
-                    instBins[20]);
-    }
-    */
 
 }
 
@@ -1115,9 +1210,14 @@ uint32_t ElfFile::printDisassembly(bool instructionDetail){
     return numInstrs;
 }
 
-void ElfFile::dump(char* extension){
+void ElfFile::dump(char* extension, bool isext){
     char fileName[__MAX_STRING_SIZE] = "";
-    sprintf(fileName,"%s.%s", elfFileName, extension);
+
+    if (isext){
+        sprintf(fileName,"%s.%s", elfFileName, extension);
+    } else {
+        sprintf(fileName,"%s", extension);
+    }
 
     PRINT_INFOR("Output file is %s", fileName);
 
@@ -1184,15 +1284,26 @@ void ElfFile::parse(){
     }
 
     if(ISELF64BIT(e_ident[EI_CLASS])){
-        PRINT_INFOR("The executable is 64-bit");
+        PRINT_INFOR("The binary is 64-bit");
         is64BitFlag = true;
     } else if(ISELF32BIT(e_ident[EI_CLASS])){
-        PRINT_INFOR("The executable is 32-bit");
+        PRINT_INFOR("The binary is 32-bit");
     } else {
         PRINT_ERROR("The class identifier is not a valid one [%#x]",e_ident[EI_CLASS]);
     }
 
     readFileHeader();
+    if (isExecutable()){
+        PRINT_INFOR("The binary is an executable");
+    } else if (isSharedLib()){
+        PRINT_INFOR("The binary is a shared library");
+        if (ISELF32BIT(e_ident[EI_CLASS])){
+            PRINT_ERROR("Shared library instrumentation is not supported for IA32");
+        }
+    } else {
+        PRINT_ERROR("The file type is invalid %s", fileHeader->getTypeName());
+    }    
+
     readProgramHeaders();
     readSectionHeaders();
     readRawSections();
@@ -1204,6 +1315,19 @@ void ElfFile::parse(){
         setStaticLinked(true);
         PRINT_INFOR("The executable is statically linked");
     }
+
+    char* allbytes = new char[getFileSize()];
+    binaryInputFile.setInBufferPointer(0);
+    binaryInputFile.copyBytes(allbytes, getFileSize());
+
+    fileSha1sum = sha1sum(allbytes, getFileSize(), &fileUniqueId);
+    if (!strcmp("da39a3ee5e6b4b0d3255bfef95601890afd80709", fileSha1sum)){
+        PRINT_ERROR("File sha1sum is the same as the sha1sum for an empty file.");
+    }
+    delete[] allbytes;
+
+    ASSERT(fileSha1sum);
+    PRINT_INFOR("The sha1sum for this binary is %s", fileSha1sum);
 }
 
 void ElfFile::readFileHeader() {
@@ -1348,12 +1472,13 @@ ElfFile::~ElfFile(){
             delete rawSections[i];
         }
     }
-    for (uint32_t i = 0; i < specialDataRefs.size(); i++){
-        delete specialDataRefs[i];
+    for (std::map<uint64_t, DataReference*>::iterator it = specialDataRefs.begin(); it != specialDataRefs.end(); it++){
+        delete specialDataRefs[(*it).first];
     }
     if (addressAnchors){
         delete addressAnchors;
     }
+    delete[] fileSha1sum;
 }
 
 void ElfFile::briefPrint(){
@@ -1510,15 +1635,55 @@ uint32_t ElfFile::anchorProgramElements(){
 
     uint32_t addrAlign;
     if (is64Bit()){
-        //        addrAlign = sizeof(uint64_t);
+        //addrAlign = sizeof(uint64_t);
         addrAlign = sizeof(uint32_t);
     } else {
         addrAlign = sizeof(uint32_t);
     }
 
+    SectionHeader* textHeader = getDotTextSection()->getSectionHeader();
     for (uint32_t i = 0; i < instructionCount; i++){
         X86Instruction* currentInstruction = allInstructions[i];
         ASSERT(!currentInstruction->getAddressAnchor());
+
+        for (uint32_t j = 0; j < MAX_OPERANDS; j++){
+            OperandX86* op = currentInstruction->getOperand(j);
+
+            if (op != NULL &&
+                op->GET(type) == UD_OP_IMM &&
+                op->GET(base) == UD_NONE &&
+                op->GET(index) == UD_NONE &&
+                op->GET(scale) == 0 &&
+                op->GET(offset) == 0 &&
+                textHeader->inRange(op->GET_A(uqword, lval))
+                ){
+                uint64_t immAddress = op->GET_A(uqword, lval);
+
+                // search other instructions
+                void* link = bsearch(&immAddress, allInstructions, instructionCount, sizeof(X86Instruction*), searchBaseAddressExact);
+                if (link != NULL){
+                    X86Instruction* linkedInstruction = *(X86Instruction**)link;
+                    if (!linkedInstruction->getContainer()->isFunction()){
+                        continue;
+                    }
+
+                    Function* f = (Function*)linkedInstruction->getContainer();
+                    if (linkedInstruction->getBaseAddress() == f->getBaseAddress()){
+                        continue;
+                    }
+
+                    PRINT_DEBUG_ANCHOR("Found inst -> inst link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
+
+                    PRINT_DEBUG_ANCHOR("instruction at %#lx uses instruction address as imm value %#lx", currentInstruction->getProgramAddress(), immAddress);
+                    currentInstruction->initializeAnchor(linkedInstruction, true);
+
+                    ASSERT(currentInstruction->getAddressAnchor());
+                    (*addressAnchors).append(currentInstruction->getAddressAnchor());
+                    currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
+                }
+            }
+        }
+        
         if (currentInstruction->usesRelativeAddress()){
             uint64_t relativeAddress = currentInstruction->getRelativeValue() + currentInstruction->getBaseAddress() + currentInstruction->getSizeInBytes();
 
@@ -1547,13 +1712,11 @@ uint32_t ElfFile::anchorProgramElements(){
 
             // search special data references
             if (!currentInstruction->getAddressAnchor()){
-                for (uint32_t i = 0; i < specialDataRefs.size(); i++){
-                    if (specialDataRefs[i]->getBaseAddress() == relativeAddress){
-                        PRINT_DEBUG_ANCHOR("Found inst -> sdata link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
-                        currentInstruction->initializeAnchor(specialDataRefs[i]);
-                        (*addressAnchors).append(currentInstruction->getAddressAnchor());
-                        currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
-                    }
+                uint64_t myaddr = currentInstruction->getBaseAddress();
+                if (specialDataRefs.count(myaddr) > 0){
+                    currentInstruction->initializeAnchor(specialDataRefs[myaddr]);
+                    (*addressAnchors).append(currentInstruction->getAddressAnchor());
+                    currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
                 }
             }
 
@@ -1602,8 +1765,7 @@ uint32_t ElfFile::anchorProgramElements(){
             if (!currentInstruction->getAddressAnchor()){
                 PRINT_WARN(4, "Creating special AddressRelocation for %#llx at the behest of the instruction at %#llx since it wasn't an instruction or part of a data section",
                            relativeAddress, currentInstruction->getBaseAddress());
-                DataReference* dataRef = new DataReference(0, NULL, addrAlign, relativeAddress);
-                specialDataRefs.append(dataRef);
+                DataReference* dataRef = generateDataRef(0, NULL, addrAlign, relativeAddress);
                 currentInstruction->initializeAnchor(dataRef);
                 (*addressAnchors).append(currentInstruction->getAddressAnchor());
                 currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);

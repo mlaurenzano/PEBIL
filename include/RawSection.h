@@ -88,8 +88,10 @@ public:
     uint16_t getSectionIndex() { return sectionIndex; }
     void setSectionIndex(uint16_t newidx) { sectionIndex = newidx; }
     ElfFile* getElfFile() { return elfFile; }
+    virtual void wedge(uint32_t shamt);
 
     HashCode getHashCode() { return hashCode; }
+    uint32_t containsIntroString();
 };
 
 class DataSection : public RawSection {

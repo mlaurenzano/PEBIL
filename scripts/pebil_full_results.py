@@ -108,14 +108,14 @@ lsraw = lsf.readlines()
 lsf.close()
 
 
-#<block_unqid> <sequence> <memop> <fpop> <insn> <flname> <line> <fncame> <vaddr> <loopcnt> <loopid> <ldepth> <lploc> <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op> <total_mem_op> <total_mem_bytes> <bytes/op> <loop_head> <parent_loop_head> <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...
+#<block_unqid> <sequence> <memop> <fpop> <insn> <flname> <line> <fncame> <vaddr> <loopcnt> <loopid> <ldepth> <lploc> <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op> <total_mem_op> <total_mem_bytes> <bytes/op> <loop_head> <parent_loop_head> <call_target_addr> <call_target_name> <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...
 bbid_map = {}
 block_static = {}
 for i in range(0,len(lsraw),1):
     line = lsraw[i].strip()
     if not line.startswith('#'):
         toks = line.split()
-        if len(toks) < 28:
+        if len(toks) < 30:
             print_error('malformed line in loop static file line ' + str(i))
         current_block = int(toks[0])
         block_static[current_block] = toks
@@ -208,7 +208,7 @@ for bb in bbids:
     for i in range(0,cpu_count,1):
         ## static block info, minus def-use data
         print str(i) + ' ' + str(system_id) + ' ',
-        print stringify(block_static[current_block][:28]) + ' ',
+        print stringify(block_static[current_block][:30]) + ' ',
 
         ## dynamic jbbinfo info
         jbb_data = ''
@@ -274,4 +274,4 @@ for bb in bbids:
         print stringify(sys_data) + ' ',
 
         ## def-use info
-        print stringify(block_static[current_block][28:]) + ' '
+        print stringify(block_static[current_block][30:]) + ' '

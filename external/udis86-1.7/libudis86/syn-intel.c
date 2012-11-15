@@ -41,7 +41,7 @@ static void gen_operand(struct ud* u, struct ud_operand* op, int syn_cast)
 {
   switch(op->type) {
 	case UD_OP_REG:
-		mkasm(u, ud_reg_tab[op->base - UD_R_AL]);
+                mkasm(u, ud_reg_tab[op->base - UD_R_AL]);
 		break;
 
 	case UD_OP_MEM: {
@@ -199,10 +199,14 @@ extern void ud_translate_intel(struct ud* u)
 	mkasm(u, ", ");
 	gen_operand(u, &u->operand[1], u->c2);
   }
-
   /* operand 3 */
   if (u->operand[2].type != UD_NONE) {
 	mkasm(u, ", ");
 	gen_operand(u, &u->operand[2], u->c3);
+  }
+  /* operand 4 */
+  if (u->operand[3].type != UD_NONE) {
+	mkasm(u, ", ");
+	gen_operand(u, &u->operand[3], u->c4);
   }
 }

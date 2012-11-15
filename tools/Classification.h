@@ -31,7 +31,7 @@ private:
     InstrumentationFunction* entryFunc;
 
 public:
-    Classification(ElfFile* elf, char* ext, bool lpi, bool dtl);
+    Classification(ElfFile* elf);
     ~Classification();
 
     void declare();
@@ -39,8 +39,10 @@ public:
 
     void addInt_Store(Vector<X86Instruction*>& instructions, int x, uint64_t store);
 
-    const char* briefName() { return "Classifier"; }
+    const char* briefName() { return "Classification"; }
+    const char* defaultExtension() { return "bininst"; }
+    uint32_t allowsArgs() { return PEBIL_OPT_NON; }
+    uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
-
 
 #endif /* _Classification_h_ */

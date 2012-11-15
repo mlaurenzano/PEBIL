@@ -29,11 +29,19 @@
 #include <Loop.h>
 #include <PriorityQueue.h>
 #include <Stack.h>
-#include <set>
 #include <X86Instruction.h>
 #include <X86InstructionFactory.h>
 
+#include <set>
+#include <vector>
+
 using namespace std;
+
+void FlowGraph::wedge(uint32_t shamt){
+    for (uint32_t i = 0; i < blocks.size(); i++){
+        blocks[i]->setBaseAddress(blocks[i]->getBaseAddress() + shamt);
+    }
+}
 
 uint32_t loopXDefUseDist(uint32_t currDist, uint32_t funcSize){
     return currDist + funcSize;
@@ -69,14 +77,7 @@ static bool anyDefsAreUsed(
         def = *it;
         for (it2 = useList->begin(); it2 != useList->end(); it2 = it2.next()) {
             use = *it2;
-
             if (use->invalidatedBy(def)){
-                /*printf("Instruction:\n");
-                def->print();
-                printf("\nDefines:\n");
-                use->print();
-                printf("\n");
-                */
                 return true;
             }
         }
@@ -133,11 +134,182 @@ static LinkedList<X86Instruction::ReachingDefinition*>* removeInvalidated (
     return retval;
 }
 
+bool flowsInDefUseScope(BasicBlock* tgt, Loop* loop){
+    // outside loops, scope includes the entire function
+    if (loop == NULL){
+        return true;
+    }
+
+    // inside loops, only look at loop contents
+    if (loop->isBlockIn(tgt->getIndex())){
+        return true;
+    }
+
+    return false;
+}
+
+inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loop* loop,
+                         std::pebil_map_type<uint64_t, X86Instruction*>& ipebil_map_type,
+                         std::pebil_map_type<uint64_t, BasicBlock*>& bpebil_map_type,
+                         std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& alliuses,
+                         std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& allidefs,
+                         int k, uint64_t loopLeader, uint32_t fcnt){
+
+    // Get defintions for this instruction: ins
+    LinkedList<X86Instruction::ReachingDefinition*>* idefs = ins->getDefs();
+    LinkedList<X86Instruction::ReachingDefinition*>* allDefs = idefs;
+
+    // Skip instruction if it doesn't define anything
+    if (idefs == NULL) {
+        return;
+    }
+
+    if (idefs->empty()) {
+        delete idefs;
+        return;
+    }
+
+    set<LinkedList<X86Instruction::ReachingDefinition*>*> allDefLists;
+    allDefLists.insert(idefs);
+
+    PriorityQueue<struct path*, uint32_t> paths = PriorityQueue<struct path*, uint32_t>();
+    bool blockTouched[fg->getFunction()->getNumberOfBasicBlocks()];
+    bzero(&blockTouched, sizeof(bool) * fg->getFunction()->getNumberOfBasicBlocks());
+
+    // Initialize worklist with the path from this instruction
+    // Only take paths inside the loop. Since the definitions are in a loop, uses in the loop will be most relevant.
+    if (k == bb->getNumberOfInstructions() - 1){
+        ASSERT(ins->controlFallsThrough());
+        if (bb->getNumberOfTargets() > 0){
+            ASSERT(bb->getNumberOfTargets() == 1);
+            if (flowsInDefUseScope(bb->getTargetBlock(0), loop)){
+                // Path flows to the first instruction of the next block
+                paths.insert(new path(bb->getTargetBlock(0)->getLeader(), idefs), 1);
+            } 
+        }
+    } else {
+        // path flows to the next instruction in this block
+        paths.insert(new path(bb->getInstruction(k+1), idefs), 1);
+    }
+
+    // while there are paths in worklist
+    while (!paths.isEmpty()) {
+
+        // take the shortest path in list
+        uint32_t currDist;
+        struct path* p = paths.deleteMin(&currDist);
+        X86Instruction* cand = p->ins;
+        idefs = p->defs;
+        delete p;
+
+        LinkedList<X86Instruction::ReachingDefinition*>* i2uses, *i2defs, *newdefs;
+        i2uses = alliuses[cand->getBaseAddress()];
+
+        // Check if any of idefs is used
+        if(i2uses != NULL && anyDefsAreUsed(idefs, i2uses)){
+
+            // Check if use is shortest
+            uint32_t duDist;
+            duDist = trueDefUseDist(currDist, fcnt);
+            if (!ins->getDefUseDist() || ins->getDefUseDist() > duDist) {
+                ins->setDefUseDist(duDist);
+            }
+
+            // If dist has increased beyond size of function, we must be looping?
+            if (currDist > fcnt) {
+                ins->setDefXIter();
+                break;
+            }
+
+            // Stop searching along this path
+            continue;
+        }
+
+        // Check if any defines are overwritten
+        i2defs = allidefs[cand->getBaseAddress()];
+        newdefs = removeInvalidated(idefs, i2defs);
+
+        // If all definitions killed, stop searching along this path
+        if (newdefs == NULL)
+            continue;
+
+        allDefLists.insert(newdefs);
+
+        // end of block that is a branch
+        if (cand->usesControlTarget() && !cand->isCall()){
+            BasicBlock* tgtBlock = bpebil_map_type[cand->getTargetAddress()];
+            if (tgtBlock && !blockTouched[tgtBlock->getIndex()] && flowsInDefUseScope(tgtBlock, loop)){
+                blockTouched[tgtBlock->getIndex()] = true;
+                if (tgtBlock->getBaseAddress() == loopLeader){
+                    paths.insert(new path(tgtBlock->getLeader(), newdefs), loopXDefUseDist(currDist + 1, fcnt));
+                } else {
+                    paths.insert(new path(tgtBlock->getLeader(), newdefs), currDist + 1);
+                }
+            }
+        }
+
+        // non-branching control
+        if (cand->controlFallsThrough()){
+            BasicBlock* tgtBlock = bpebil_map_type[cand->getBaseAddress() + cand->getSizeInBytes()];
+            if (tgtBlock && flowsInDefUseScope(tgtBlock, loop)){
+                X86Instruction* ftTarget = ipebil_map_type[cand->getBaseAddress() + cand->getSizeInBytes()];
+                if (ftTarget){
+                    if (ftTarget->isLeader()){
+                        if (!blockTouched[tgtBlock->getIndex()]){
+                            blockTouched[tgtBlock->getIndex()] = true;
+                            if (ftTarget->getBaseAddress() == loopLeader){
+                                paths.insert(new path(ftTarget, newdefs), loopXDefUseDist(currDist + 1, fcnt));
+                            } else {
+                                paths.insert(new path(ftTarget, newdefs), currDist + 1);
+                            }
+                        }
+                    } else {
+                        paths.insert(new path(ftTarget, newdefs), currDist + 1);
+                    }
+                }
+            }
+        }
+        
+    }
+    if (!paths.isEmpty()){
+        ins->setDefUseDist(0);
+    }
+    while (!paths.isEmpty()){
+        delete paths.deleteMin(NULL);
+    }
+
+    while (!allDefs->empty()){
+        delete allDefs->shift();
+    }
+    for(set<LinkedList<X86Instruction::ReachingDefinition*>*>::iterator it = allDefLists.begin(); it != allDefLists.end(); ++it){
+        delete *it;
+    }
+}
+
 void FlowGraph::computeDefUseDist(){
-    LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*> fulldefs =
-        LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*>();
-    LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*> listdefs =
-        LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*>();
+    uint32_t fcnt = function->getNumberOfInstructions();
+    std::pebil_map_type<uint64_t, X86Instruction*> imap;
+    std::pebil_map_type<uint64_t, BasicBlock*> bmap;
+    std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> alliuses;
+    std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*> allidefs;
+
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        BasicBlock* bb = basicBlocks[i];
+        for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
+            X86Instruction* x = bb->getInstruction(j);
+            for (uint32_t k = 0; k < x->getSizeInBytes(); k++){
+                ASSERT(imap.count(x->getBaseAddress() + k) == 0);
+                ASSERT(bmap.count(x->getBaseAddress() + k) == 0);
+                imap[x->getBaseAddress() + k] = x;
+                bmap[x->getBaseAddress() + k] = bb;
+            }
+
+            ASSERT(alliuses.count(x->getBaseAddress()) == 0);
+            ASSERT(allidefs.count(x->getBaseAddress()) == 0);
+            alliuses[x->getBaseAddress()] = x->getUses();
+            allidefs[x->getBaseAddress()] = x->getDefs();
+        }
+    }
 
     // For each loop
     for (uint32_t i = 0; i < loops.size(); ++i) {
@@ -147,176 +319,77 @@ void FlowGraph::computeDefUseDist(){
         // For each block
         for (uint32_t j = 0; j < loops[i]->getNumberOfBlocks(); ++j){
             BasicBlock* bb = allLoopBlocks[j];
-            bb->setDefXIter(0);
+
             // For each instruction
             for (uint32_t k = 0; k < bb->getNumberOfInstructions(); ++k){
                 X86Instruction* ins = bb->getInstruction(k);
 
                 // Skip the instruction if it can't define anything
-                if (!ins->isIntegerOperation() && !ins->isFloatPOperation() && !ins->isMoveOperation()
-                    || ins->isConditionCompare()) {
+                if (!ins->isIntegerOperation() && !ins->isFloatPOperation() && !ins->isMoveOperation()) {
                     continue;
                 }
                 ASSERT(!ins->usesControlTarget());
 
-                // Get defintions for this instruction: ins
-                LinkedList<X86Instruction::ReachingDefinition*>* idefs;
-                idefs = ins->getDefs();
-
-                // Skip instruction if it doesn't define anything
-                if (idefs == NULL)
-                    continue;
-                if (idefs->empty()) {
-                    delete idefs;
-                    continue;
-                }
-
-                // Otherwise, save the defs
-                fulldefs.insert(idefs);
-
-                PriorityQueue<struct path*, uint32_t> paths = PriorityQueue<struct path*, uint32_t>();
-                bool blockTouched[function->getNumberOfBasicBlocks()];
-                bzero(&blockTouched, sizeof(bool) * function->getNumberOfBasicBlocks());
-
-                // Initialize worklist with the path from this instruction
-                // FIXME why only add paths within current loop?
-                if (k == bb->getNumberOfInstructions() - 1){
-                    ASSERT(ins->controlFallsThrough());
-                    ASSERT(bb->getNumberOfTargets() == 1);
-                    if (loops[i]->isBlockIn(bb->getTargetBlock(0)->getIndex())){
-                        paths.insert(new path(bb->getTargetBlock(0)->getLeader(), idefs), 1);
-                    } 
-                } else {
-                    paths.insert(new path(bb->getInstruction(k+1), idefs), 1);
-                }
-
-                // while there are paths in worklist
-                while (!paths.isEmpty()) {
-
-                    // take the shortest path in list
-                    uint32_t currDist;
-                    struct path* p = paths.deleteMin(&currDist);
-                    X86Instruction* cand = p->ins;
-                    idefs = p->defs;
-                    delete p;
-
-                    LinkedList<X86Instruction::ReachingDefinition*>* i2uses, *i2defs, *newdefs;
-                    i2uses = cand->getUses();
-
-                    // Check if any of idefs is used
-                    if(i2uses != NULL && anyDefsAreUsed(idefs, i2uses)){
-
-                        while (!i2uses->empty()) { delete i2uses->shift(); } delete i2uses;
-
-                        // Check if use is shortest
-                        uint32_t duDist;
-                        duDist = trueDefUseDist(currDist, function->getNumberOfInstructions());
-                        if (!ins->getDefUseDist() || ins->getDefUseDist() > duDist) {
-                            ins->setDefUseDist(duDist);
-                        }
-
-                        // If dist has increased beyond size of function, we must be looping?
-                        if (currDist > function->getNumberOfInstructions()) {
-                            bb->setDefXIter(bb->getDefXIter()+1);
-                            break;
-                        }
-
-                        // Stop searching along this path
-                        continue;
-                    }
-
-                    // Check if any defines are overwritten
-                    i2defs = cand->getDefs();
-                    newdefs = removeInvalidated(idefs, i2defs);
-                    if (newdefs != idefs){
-                        listdefs.insert(newdefs);
-                    }
-
-                    while (!i2uses->empty()) { delete i2uses->shift(); } delete i2uses;
-                    while (!i2defs->empty()) { delete i2defs->shift(); } delete i2defs;
-
-                    // If all definitions killed, stop searching along this path
-                    if (newdefs == NULL)
-                        continue;
-
-                    // end of block that is a branch
-                    if (cand->usesControlTarget() && !cand->isCall()){
-                        BasicBlock* tgtBlock = function->getBasicBlockAtAddress(cand->getTargetAddress());
-                        if (tgtBlock && loops[i]->isBlockIn(tgtBlock->getIndex()) && !blockTouched[tgtBlock->getIndex()]){
-                            blockTouched[tgtBlock->getIndex()] = true;
-                            if (tgtBlock->getBaseAddress() == loopLeader){
-                                paths.insert(new path(tgtBlock->getLeader(), newdefs), loopXDefUseDist(currDist + 1, function->getNumberOfInstructions()));
-                            } else {
-                                paths.insert(new path(tgtBlock->getLeader(), newdefs), currDist + 1);
-                            }
-                        }
-                    }
-
-                    // non-branching control
-                    if (cand->controlFallsThrough()){
-                        BasicBlock* tgtBlock = function->getBasicBlockAtAddress(cand->getBaseAddress() + cand->getSizeInBytes());
-                        if (tgtBlock && loops[i]->isBlockIn(tgtBlock->getIndex())){
-                            X86Instruction* ftTarget = function->getInstructionAtAddress(cand->getBaseAddress() + cand->getSizeInBytes());
-                            if (ftTarget){
-                                if (ftTarget->isLeader()){
-                                    if (!blockTouched[tgtBlock->getIndex()]){
-                                        blockTouched[tgtBlock->getIndex()] = true;
-                                        if (ftTarget->getBaseAddress() == loopLeader){
-                                            paths.insert(new path(ftTarget, newdefs), loopXDefUseDist(currDist + 1, function->getNumberOfInstructions()));
-                                        } else {
-                                            paths.insert(new path(ftTarget, newdefs), currDist + 1);
-                                        }
-                                    }
-                                } else {
-                                    paths.insert(new path(ftTarget, newdefs), currDist + 1);
-                                }
-                            }
-                        }
-                    }
-
-                }
-                if (!paths.isEmpty()){
-                    ins->setDefUseDist(0);
-                }
-                while (!paths.isEmpty()){
-                    delete paths.deleteMin(NULL);
-                }
+                singleDefUse(this, ins, bb, loops[i], imap, bmap, alliuses, allidefs, k, loopLeader, fcnt);
             }
         }
         delete[] allLoopBlocks;
     }
 
-    while (!fulldefs.empty()){
-        LinkedList<X86Instruction::ReachingDefinition*>* inner = fulldefs.shift();
-        while (!inner->empty()){
-            X86Instruction::ReachingDefinition* def = inner->shift();
-            if (def){
-                delete def;
+    // handle all non-loop blocks
+    for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
+        BasicBlock* bb = basicBlocks[i];
+        if (!isBlockInLoop(bb->getIndex())){
+            for (uint32_t k = 0; k < bb->getNumberOfInstructions(); ++k){
+                X86Instruction* ins = bb->getInstruction(k);
+                
+                if (!ins->isIntegerOperation() && !ins->isFloatPOperation() && !ins->isMoveOperation()) {
+                    continue;
+                }
+                ASSERT(!ins->usesControlTarget());
+                
+                singleDefUse(this, ins, bb, NULL, imap, bmap, alliuses, allidefs, k, 0, fcnt);
             }
         }
-        delete inner;
-    }
-    while (!listdefs.empty()){
-        delete listdefs.shift();
     }
 
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
 
-    /*
-    LinkedList<LinkedList<X86Instruction::ReachingDefinition*>*>::Iterator it1;
-    for( it1 = defines.begin(); it1 != defines.end(); it1 = it1.next() ) {
-        LinkedList<X86Instruction::ReachingDefinition*>::Iterator it2;
-        for( it2 = (*it1)->begin();  it2 != (*it1)->end(); it2 = it2.next() ) {
-            delete *it2;
+        BasicBlock* bb = basicBlocks[i];
+        for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
+
+            X86Instruction* x = bb->getInstruction(j);
+            uint64_t addr = x->getBaseAddress();
+
+            ASSERT(alliuses.count(addr) == 1);
+            LinkedList<X86Instruction::ReachingDefinition*>* l = alliuses[addr];
+            alliuses.erase(addr);
+            while (!l->empty()){
+                delete l->shift();
+            }
+            delete l;
+
+            ASSERT(allidefs.count(addr) == 1);
+            l = allidefs[addr];
+            allidefs.erase(addr);
+            while (!l->empty()){
+                delete l->shift();
+            }
+            delete l;
         }
-        delete *it1;
     }
-    */
+
+    ASSERT(alliuses.size() == 0);
+    ASSERT(allidefs.size() == 0);
 }
 
 void FlowGraph::interposeBlock(BasicBlock* bb){
     ASSERT(bb->getNumberOfSources() == 1 && bb->getNumberOfTargets() == 1);
     BasicBlock* sourceBlock = bb->getSourceBlock(0);
     BasicBlock* targetBlock = bb->getTargetBlock(0);
+
+    //sourceBlock->print();
+    //targetBlock->print();
 
     bool linkFound = false;
     for (uint32_t i = 0; i < sourceBlock->getNumberOfTargets(); i++){
@@ -327,6 +400,7 @@ void FlowGraph::interposeBlock(BasicBlock* bb){
     }
 
     if (!linkFound){
+        function->print();
         print();
         sourceBlock->print();
         targetBlock->print();        
@@ -339,10 +413,9 @@ void FlowGraph::interposeBlock(BasicBlock* bb){
     bb->setBaseAddress(blocks.back()->getBaseAddress() + blocks.back()->getNumberOfBytes());
     bb->setIndex(basicBlocks.size());
     basicBlocks.append(bb);
-    /*
-    PRINT_INFOR("now there are %d bbs in function %s", basicBlocks.size(), function->getName());
-    PRINT_INFOR("new block has base addres %#llx", bb->getBaseAddress());
-    */
+
+    //PRINT_INFOR("now there are %d bbs in function %s", basicBlocks.size(), function->getName());
+    //PRINT_INFOR("new block has base addres %#llx", bb->getBaseAddress());
     blocks.append(bb);
 
     sourceBlock->removeTargetBlock(targetBlock);
@@ -353,13 +426,14 @@ void FlowGraph::interposeBlock(BasicBlock* bb){
     X86Instruction* jumpToTarget = bb->getLeader();
     jumpToTarget->setBaseAddress(blocks.back()->getBaseAddress() + blocks.back()->getSizeInBytes());
     jumpToTarget->setIndex(0);
-    ASSERT(sourceBlock->getExitInstruction() && sourceBlock->getExitInstruction()->getAddressAnchor());
+
+    ASSERT(sourceBlock->getExitInstruction());
+    ASSERT(sourceBlock->getExitInstruction()->getAddressAnchor());
+    ASSERT(sourceBlock->getExitInstruction()->getTargetAddress() == targetBlock->getBaseAddress());
     sourceBlock->getExitInstruction()->getAddressAnchor()->updateLink(jumpToTarget);
 
-    /*
-    bb->print();
-    bb->printInstructions();
-    */
+    //bb->print();
+    //bb->printInstructions();
 }
 
 bool FlowGraph::isBlockInLoop(uint32_t idx){
@@ -417,34 +491,40 @@ Loop* FlowGraph::getParentLoop(uint32_t idx){
     return input;
 }
 
-uint32_t FlowGraph::getLoopDepth(uint32_t idx){
-    Loop* loop = getInnermostLoopForBlock(idx);
-    uint32_t depth = 0;
+uint32_t FlowGraph::getLoopDepth(Loop* loop){
+    ASSERT(loop);
 
-    if (loop){
-        depth++;
-        for (uint32_t i = 0; i < loops.size(); i++){
-            if (loop->getIndex() != i){
-                if (loop->isInnerLoopOf(loops[i])){
-                    depth++;
-                }
+    if (loop->getDepth()){
+        return loop->getDepth();
+    }
+
+    uint32_t depth = 1;
+    for (uint32_t i = 0; i < loops.size(); i++){
+        if (loop->getIndex() != i){
+            if (loop->isInnerLoopOf(loops[i])){
+                depth++;
             }
         }
     }
+    loop->setDepth(depth);
+
     return depth;
+}
+
+uint32_t FlowGraph::getLoopDepth(uint32_t idx){
+    Loop* loop = getInnermostLoopForBlock(idx);
+    if (loop == NULL){
+        return 0;
+    }
+    return getLoopDepth(loop);
 }
 
 void FlowGraph::computeLiveness(){
     DEBUG_LIVE_REGS(double t1 = timer();)
-    Vector<BitSet<uint32_t>*> uses;
-    Vector<BitSet<uint32_t>*> defs;
-    Vector<BitSet<uint32_t>*> ins;
-    Vector<BitSet<uint32_t>*> outs;
-    Vector<BitSet<uint32_t>*> ins_prime;
-    Vector<BitSet<uint32_t>*> outs_prime;
+
     Vector<std::set<uint32_t>*> succs;
-    Vector<X86Instruction*> allInstructions;
     uint32_t maxElts = 32;
+    uint32_t icount = 0;
 
     // re-index instructions
     uint32_t currIdx = 0;
@@ -455,21 +535,31 @@ void FlowGraph::computeLiveness(){
             instruction->setIndex(currIdx++);
         }
     }
+    icount = currIdx;
     PRINT_DEBUG_LIVE_REGS("Flow analysis on function %s (%d instructions)", function->getName(), currIdx);
 
+    RegisterSet** uses = new RegisterSet*[icount];
+    RegisterSet** defs = new RegisterSet*[icount];
+    RegisterSet* ins = new RegisterSet[icount];
+    RegisterSet* outs = new RegisterSet[icount];
+    RegisterSet* ins_prime = new RegisterSet[icount];
+    RegisterSet* outs_prime = new RegisterSet[icount];
+    X86Instruction** allInstructions = new X86Instruction*[icount];
+
     // initialize data structures
+    currIdx = 0;
     for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
         BasicBlock* bb = getBasicBlock(i);
         for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
             X86Instruction* instruction = bb->getInstruction(j);
-            uses.append(instruction->getUseRegs());
-            defs.append(instruction->getDefRegs());
-            ins.append(new BitSet<uint32_t>(maxElts));
-            outs.append(new BitSet<uint32_t>(maxElts));
-            ins_prime.append(new BitSet<uint32_t>(maxElts));
-            outs_prime.append(new BitSet<uint32_t>(maxElts));
+            allInstructions[currIdx] = instruction;
 
-            allInstructions.append(instruction);
+            uses[currIdx] = instruction->getRegistersUsed();
+            defs[currIdx] = instruction->getRegistersDefined();
+            ins[currIdx] = RegisterSet();
+            outs[currIdx] = RegisterSet();
+            ins_prime[currIdx] = RegisterSet();
+            outs_prime[currIdx] = RegisterSet();
 
             succs.append(new std::set<uint32_t>());
             if (j == bb->getNumberOfInstructions() - 1){
@@ -479,19 +569,13 @@ void FlowGraph::computeLiveness(){
             } else {
                 succs.back()->insert(bb->getInstruction(j+1)->getIndex());
             }
+            currIdx++;
         }
     }
-    ASSERT(allInstructions.size() == currIdx);
-    ASSERT(uses.size() == currIdx);
-    ASSERT(defs.size() == currIdx);
-    ASSERT(ins.size() == currIdx);
-    ASSERT(outs.size() == currIdx);
-    ASSERT(ins_prime.size() == currIdx);
-    ASSERT(outs_prime.size() == currIdx);
     ASSERT(succs.size() == currIdx);
 
     DEBUG_LIVE_REGS(
-                    for (uint32_t i = 0; i < allInstructions.size(); i++){
+                    for (uint32_t i = 0; i < icount; i++){
                         allInstructions[i]->print();
                         PRINT_INFO();
                         PRINT_OUT("instruction %d succ list: ", i);
@@ -499,42 +583,53 @@ void FlowGraph::computeLiveness(){
                             PRINT_OUT("%d ", (*it));
                         }
                         PRINT_OUT("\n");
-                        PRINT_REG_LIST(uses, maxElts, i);
-                        PRINT_REG_LIST(defs, maxElts, i);
+                        uses->print("uses");
+                        defs->print("defs");
+                        //PRINT_REG_LIST(uses, maxElts, i);
+                        //PRINT_REG_LIST(defs, maxElts, i);
                     }
                     )
 
     bool setsSame = false;
     uint32_t iterCount = 0;
     while (!setsSame){
-        for (int32_t i = allInstructions.size()-1; i >= 0; i--){
+        for (int32_t i = icount-1; i >= 0; i--){
             // ins'[n] = ins[n]
-            *(ins_prime[i]) = *(ins[i]);
+            ins_prime[i] = ins[i];
             
             // outs'[n] = outs[n]
-            *(outs_prime[i]) = *(outs[i]);
+            outs_prime[i] = outs[i];
             
             PRINT_DEBUG_LIVE_REGS("before in[n] = use[n] U (out[n] - def[n])");
-            PRINT_REG_LIST(ins, maxElts, i);
-            PRINT_REG_LIST(uses, maxElts, i);
-            PRINT_REG_LIST(defs, maxElts, i);
-            PRINT_REG_LIST(outs, maxElts, i);
+            DEBUG_LIVE_REGS(
+                            {
+                    ins.print("ins");
+                    uses->print("uses");
+                    defs->print("defs");
+                    outs.print("outs");
+                }
+            )
+            //PRINT_REG_LIST(ins, maxElts, i);
+            //PRINT_REG_LIST(uses, maxElts, i);
+            //PRINT_REG_LIST(defs, maxElts, i);
+            //PRINT_REG_LIST(outs, maxElts, i);
             
             // out[n] = U(s in succ[n]) in[s]
             //            (outs[i])->clear();
             for (std::set<uint32_t>::const_iterator it = succs[i]->begin(); it != succs[i]->end(); it++){
-                *(outs[i]) |= *(ins[(*it)]);
+                outs[i] |= ins[(*it)];
                 PRINT_REG_LIST(ins, maxElts, (*it));
             }
             
             PRINT_DEBUG_LIVE_REGS("after out[n] = U(s in succ[n]) in[s]");
             PRINT_REG_LIST(outs, maxElts, i);
             // in[n] = use[n] U (out[n] - def[n])
-            BitSet<uint32_t>* tmpbt = new BitSet<uint32_t>(*(outs[i]));
-            *(tmpbt) -= *(defs[i]);
-            *(ins[i]) |= *(uses[i]);
-            *(ins[i]) |= *(tmpbt);
-            delete tmpbt;
+            //BitSet<uint32_t>* tmpbt = new BitSet<uint32_t>(*(outs[i]));
+            //*(tmpbt) -= *(defs[i]);
+            //*(ins[i]) |= *(uses[i]);
+            //*(ins[i]) |= *(tmpbt);
+            //delete tmpbt;
+            ins[i] = *(uses[i]) | (outs[i] - *(defs[i]));
             
             PRINT_DEBUG_LIVE_REGS("after in[n] = use[n] U (out[n] - def[n])");
             PRINT_REG_LIST(ins, maxElts, i);
@@ -544,20 +639,20 @@ void FlowGraph::computeLiveness(){
 
         // check if in/out have changed this iteration for any n
         setsSame = true;
-        for (uint32_t i = 0; i < allInstructions.size() && setsSame; i++){
-            if (!(*(ins[i]) == *(ins_prime[i]))){
+        for (uint32_t i = 0; i < icount && setsSame; i++){
+            if (!(ins[i] == ins_prime[i])){
                 PRINT_DEBUG_LIVE_REGS("ins %d different", i);
                 setsSame = false;
                 break;
             }
-            if (!(*(outs[i]) == *(outs_prime[i]))){
+            if (!(outs[i] == outs_prime[i])){
                 PRINT_DEBUG_LIVE_REGS("outs %d different", i);
                 setsSame = false;
                 break;
             }
         }
 
-        for (uint32_t i = 0; i < allInstructions.size(); i++){
+        for (uint32_t i = 0; i < icount; i++){
             PRINT_REG_LIST(ins, maxElts, i);
             PRINT_REG_LIST(ins_prime, maxElts, i);
             PRINT_REG_LIST(outs, maxElts, i);
@@ -566,20 +661,23 @@ void FlowGraph::computeLiveness(){
         iterCount++;
     }
 
-    for (uint32_t i = 0; i < allInstructions.size(); i++){
-        allInstructions[i]->setLiveIns(ins[i]);
-        allInstructions[i]->setLiveOuts(outs[i]);
+    for (uint32_t i = 0; i < icount; i++){
+        allInstructions[i]->setLiveIns(&ins[i]);
+        allInstructions[i]->setLiveOuts(&outs[i]);
     }
 
-    for (uint32_t i = 0; i < allInstructions.size(); i++){
+    for (uint32_t i = 0; i < icount; i++){
         delete uses[i];
         delete defs[i];
-        delete ins[i];
-        delete outs[i];
-        delete ins_prime[i];
-        delete outs_prime[i];
         delete succs[i];
     }
+    delete[] uses;
+    delete[] defs;
+    delete[] ins;
+    delete[] outs;
+    delete[] ins_prime;
+    delete[] outs_prime;
+    delete[] allInstructions;
 
     DEBUG_LIVE_REGS(
                     double t2 = timer();
@@ -753,11 +851,7 @@ int compareLoopHeaderVaddr(const void* arg1,const void* arg2){
 }
 
 BasicBlock** FlowGraph::getAllBlocks(){
-    BasicBlock** allBlocks = new BasicBlock*[basicBlocks.size()];
-    for (uint32_t i = 0; i < basicBlocks.size(); i++){
-        allBlocks[i] = basicBlocks[i];
-    }
-    return allBlocks;
+    return &basicBlocks;
 }
 
 uint32_t FlowGraph::buildLoops(){
@@ -789,6 +883,7 @@ uint32_t FlowGraph::buildLoops(){
     LinkedList<Loop*> loopList;
 
     uint32_t numberOfLoops = 0;
+    uint32_t excluded = 0;
     while(!backEdges.empty()){
 
         BasicBlock* from = backEdges.shift();
@@ -798,6 +893,9 @@ uint32_t FlowGraph::buildLoops(){
         if(from->isDominatedBy(to)){
             /* for each back edge found, perform natural loop finding algorithm 
                from pg. 604 of the Aho/Sethi/Ullman (Dragon) compiler book */
+            /* note that this algorithm gives us each loop as loop with a single
+               head and tail. if we wanted natural loops, we would merge the loops
+               which share a head */
 
             numberOfLoops++;
 
@@ -821,14 +919,18 @@ uint32_t FlowGraph::buildLoops(){
                 }
             }
 
-            Loop* newLoop = new Loop(to, from, this, inLoop);
-            loopList.insert(newLoop);
-
-            DEBUG_LOOP(newLoop->print();)
+            if (from->endsWithCall()){
+                excluded++;
+            } else {
+                Loop* newLoop = new Loop(to, from, this, inLoop);
+                loopList.insert(newLoop);
+                
+                DEBUG_LOOP(newLoop->print();)
+            }
         }
     }
 
-    ASSERT((loopList.size() == numberOfLoops) && 
+    ASSERT((loopList.size() == numberOfLoops - excluded) && 
         "Fatal: Number of loops should match backedges defining them");
 
     delete inLoop;
@@ -845,7 +947,7 @@ uint32_t FlowGraph::buildLoops(){
             loops[i]->setIndex(i);
         }
     }
-    ASSERT(loops.size() == numberOfLoops);
+    ASSERT(loops.size() == numberOfLoops - excluded);
 
     DEBUG_LOOP(printInnerLoops());
 }
@@ -922,7 +1024,7 @@ void FlowGraph::print(){
 BitSet<BasicBlock*>* FlowGraph::newBitSet() { 
 
     BasicBlock** blocks = getAllBlocks();
-    blockCopies.append(blocks);
+    //blockCopies.append(blocks);
 
     if(basicBlocks.size())
         return new BitSet<BasicBlock*>(basicBlocks.size(),blocks); 
@@ -957,7 +1059,7 @@ void FlowGraph::setImmDominatorBlocks(BasicBlock* root){
     BasicBlock** allBlocks = getAllBlocks();
     LengauerTarjan dominatorAlg(getNumberOfBasicBlocks(),root,allBlocks);
     dominatorAlg.immediateDominators();
-    delete[] allBlocks;
+    //delete[] allBlocks;
 }
 
 void FlowGraph::depthFirstSearch(BasicBlock* root, BitSet<BasicBlock*>* visitedSet, bool visitedMarkOnSet,

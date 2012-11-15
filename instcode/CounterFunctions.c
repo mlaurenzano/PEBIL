@@ -25,69 +25,39 @@
 #include <assert.h>
 #include <string.h>
 #include <dlfcn.h>
+#include <signal.h>
 
 #include <InstrumentationCommon.h>
 
 #define PRINT_MINIMUM 1
 
-int32_t numberOfBasicBlocks;
-int32_t* lineNumbers;
-char** fileNames;
-char** functionNames;
-int64_t* hashValues;
+uint64_t* blockCounters = NULL;
+int32_t numberOfBasicBlocks = 0;
 
-int32_t numberOfLoops;
-int32_t* loopLineNumbers;
-char** loopFileNames;
-char** loopFunctionNames;
-int64_t* loopHashValues;
+uint64_t* loopCounters = NULL;
+int32_t numberOfLoops = 0;
 
-void tool_mpi_init(){}
-
-int32_t functioncounter(int32_t* numFunctions, int32_t* functionCounts, char** functionNames){
-    int32_t i;
-
-    PRINT_INSTR(stdout, "*** Instrumentation Summary ****");
-    PRINT_INSTR(stdout, "raw args: %x %x %x", numFunctions, functionCounts, functionNames);
-    PRINT_INSTR(stdout, "There are %d functions in the code:", *numFunctions);
-    PRINT_INSTR(stdout, "Printing functions with at least %d executions", PRINT_MINIMUM);
-
-    for (i = 0; i < *numFunctions; i++){
-        if (functionCounts[i] >= PRINT_MINIMUM){
-            PRINT_INSTR(stdout, "\tFunction(%d) %.80s executed %d times", i, functionNames[i], functionCounts[i]);
-        }
-    }
-
-    return i;
+int32_t initcounter(int32_t* numBlocks, uint64_t* blockCounts){
+    numberOfBasicBlocks = *numBlocks;
+    blockCounters = blockCounts;
 }
 
-int32_t initcounter(int32_t* numBlocks, int32_t* lineNums, char** fileNms, char** functionNms, int64_t* hashVals){
-    numberOfBasicBlocks = *numBlocks;
-    lineNumbers = lineNums;
-    fileNames = fileNms;
-    functionNames = functionNms;
-    hashValues = hashVals;
+int32_t initloop(int32_t* numLoops, uint64_t* loopCounts){
+    numberOfLoops = *numLoops;
+    loopCounters = loopCounts;
 
     ptimer(&pebiltimers[0]);
 }
 
-int32_t initloop(int32_t* numLoops, int32_t* lineNums, char** fileNms, char** functionNms, int64_t* hashVals){
-    numberOfLoops = *numLoops;
-    loopLineNumbers = lineNums;
-    loopFileNames = fileNms;
-    loopFunctionNames = functionNms;
-    loopHashValues = hashVals;
-}
-
-int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
+int32_t blockcounter(int32_t* lineNumbers, char** fileNames, char** functionNames, char* appName, char* instExt, int64_t* hashValues){
     int32_t i;
 
     ptimer(&pebiltimers[1]);
 
 #ifdef MPI_INIT_REQUIRED
-    if (!isTaskValid()){
-        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print files", getpid());
-        return -1;
+    if (!isMpiValid()){
+        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print jbbinst files", getpid());
+        return 1;
     }
 #endif
 
@@ -113,9 +83,9 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     fprintf(outFile, "#id\tcount\t#file:line\tfunc\thash\n");
     fflush(outFile);
     for (i = 0; i < numberOfBasicBlocks; i++){
-        if (blockCounts[i] >= PRINT_MINIMUM){
+        if (blockCounters[i] >= PRINT_MINIMUM){
             fprintf(outFile, "%#d\t", i);
-            fprintf(outFile, "%llu\t#", blockCounts[i]);
+            fprintf(outFile, "%llu\t#", blockCounters[i]);
             fprintf(outFile, "%s:", fileNames[i]);
             fprintf(outFile, "%d\t", lineNumbers[i]);
             fprintf(outFile, "%s\t", functionNames[i]);
@@ -131,13 +101,13 @@ int32_t blockcounter(uint64_t* blockCounts, char* appName, char* instExt){
     return i;
 }
 
-int32_t loopcounter(uint64_t* loopCounters, char* appName, char* instExt){
+int32_t loopcounter(int32_t* loopLineNumbers, char** loopFileNames, char** loopFunctionNames, char* appName, char* instExt, int64_t* loopHashValues){
     int32_t i;
 
 #ifdef MPI_INIT_REQUIRED
-    if (!isTaskValid()){
-        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print files", getpid());
-        return -1;
+    if (!isMpiValid()){
+        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print loopcnt files", getpid());
+        return 1;
     }
 #endif
 
@@ -178,3 +148,384 @@ int32_t loopcounter(uint64_t* loopCounters, char* appName, char* instExt){
     return i;
 }
 
+
+//#define FAKE_MEASURE
+#define SIGNAL_ALL_RANKS
+//#define TIME_SIGNAL_PATH
+#define COUNTER_DUMP_MAGIC (0x5ca1ab1e)
+int sliceIndex = 0;
+
+uint64_t entriesWritten;
+uint64_t* counterDumpBuffer = NULL;
+#define COUNTER_BUFFER_ENTRIES 524288
+uint32_t bufferLoc = 0;
+FILE* outp = NULL;
+int* otherRanksPids;
+
+typedef struct {
+    uint32_t magic;
+    uint32_t counters;
+    uint8_t reserved[24];
+} CounterDumpHeader_t;
+
+uint64_t* dumpCounters = NULL;
+uint32_t numberOfDumpCounters = 0;
+
+uint64_t* rareCounters = NULL;
+uint32_t numberOfRareCounters = 0;
+char* applicationName = NULL;
+
+uint64_t* matchCounters = NULL;
+FILE* matchesFile = NULL;
+uint32_t* currentMatchCount = NULL;
+
+void read_next_matches();
+void clear_counter_buffer();
+void finalize_signaller();
+void define_user_sig_handlers();
+void dump_counter_state(int);
+
+void reset_match_count(){
+    int i;
+    *currentMatchCount = numberOfRareCounters;
+    for (i = 0; i < numberOfRareCounters; i++){
+        if (rareCounters[i] >= matchCounters[i]){
+            (*currentMatchCount)--;
+        }
+    }
+    //PRINT_INSTR(stdout, "reset match count to %d", (*currentMatchCount));
+}
+
+void print_64b_buffer(uint64_t* b, uint32_t l, FILE* o, char d);
+
+void check_counter_state(){
+    //PRINT_INSTR(stdout, "Checking counter state!");
+    //print_64b_buffer(matchCounters, numberOfRareCounters, stdout, 'm');
+    //print_64b_buffer(rareCounters, numberOfRareCounters, stdout, 'r');
+    sliceIndex++;
+
+    int cnt_match = counters_match();
+    if (cnt_match){
+        PRINT_INSTR(stderr, "Counters do not match at index %d", cnt_match);
+        exit(1);
+    }
+
+    read_next_matches();
+    reset_match_count();
+    while (*currentMatchCount == 0){
+        PRINT_INSTR(stdout, "re-gathering match array");
+        dump_counter_state(0);
+        read_next_matches();
+        reset_match_count();
+    }
+
+    dump_counter_state(0);
+}
+
+void start_input_file(){
+    char inpFile[__MAX_STRING_SIZE];
+    sprintf(inpFile, "%s.slices_%04d.step1", applicationName, getTaskId());
+
+    PRINT_INSTR(stdout, "opening counter file %s", inpFile);
+    matchesFile = fopen(inpFile, "rb");
+    if (matchesFile == NULL){
+        PRINT_INSTR(stderr, "Cannot open input file %s", inpFile);
+        exit(1);
+    }
+
+    CounterDumpHeader_t header;
+    fread(&header, sizeof(CounterDumpHeader_t), 1, matchesFile);
+    //fread(&header, 1, sizeof(CounterDumpHeader_t), matchesFile);
+    if (header.magic != COUNTER_DUMP_MAGIC){
+        PRINT_INSTR(stderr, "Counter input file magic number incorrect: %x", header.magic);
+        exit(1);
+    }
+    if (header.counters != numberOfRareCounters){
+        PRINT_INSTR(stderr, "Counter input file counters (%d) should match tool (%d)", header.counters, numberOfRareCounters);
+        exit(1);
+    }
+
+    read_next_matches();
+    reset_match_count();
+}
+
+void init_matches(uint64_t* blockMatches, uint32_t* numMatches, uint64_t* rCounts, uint32_t* numRare, char* appName){
+    matchCounters = blockMatches;
+    currentMatchCount = numMatches;
+
+    dumpCounters = blockCounters;
+    numberOfDumpCounters = numberOfBasicBlocks;
+
+    rareCounters = rCounts;
+    numberOfRareCounters = *numRare;
+
+    applicationName = appName;
+}
+
+int counters_match(){
+    int i;
+    for (i = 0; i < numberOfRareCounters; i++){
+        if (matchCounters[i] > rareCounters[i]){
+            return i + 1;
+        }
+    }
+    return 0;
+}
+
+void read_next_matches(){
+    int result = fread(matchCounters, sizeof(uint64_t), numberOfRareCounters, matchesFile);
+    if (result == 0){
+        for (result = 0; result < numberOfRareCounters; result++){
+            matchCounters[result] = -1;
+        }
+        PRINT_INSTR(stderr, "Nothing left in input file... zeroing match array");        
+        result = numberOfRareCounters;
+    }
+
+    if (result != numberOfRareCounters){
+        PRINT_INSTR(stderr, "Only read %d bytes from input file", result);
+        exit(1);
+    }
+    //PRINT_INSTR(stdout, "reading new match array");
+    //print_64b_buffer(matchCounters, numberOfRareCounters, stdout, 'f');
+}
+
+int32_t initrare(int32_t* numBlocks, uint64_t* blockCounts, char* appName){
+    numberOfRareCounters = *numBlocks;
+    assert(numberOfRareCounters > 0);
+
+    rareCounters = blockCounts;
+
+    applicationName = appName;
+    assert(applicationName);
+
+    // do this stuff when init_matches wasn't called
+    if (!matchCounters){
+        define_user_sig_handlers();
+        dumpCounters = rareCounters;
+        numberOfDumpCounters = numberOfRareCounters;
+    }
+
+    //tool_mpi_init();
+
+    ptimer(&pebiltimers[0]);
+}
+
+int32_t finirare(){
+#ifdef MPI_INIT_REQUIRED
+    if (!isMpiValid()){
+        PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print loopcnt files", getpid());
+        return 1;
+    }
+#endif
+
+    clear_counter_buffer();
+    if (outp){
+        fclose(outp);
+    } else {
+        PRINT_INSTR(stderr, "This statement shouldn't be reached, but it seems to happen under some conditions?");
+    }
+    if (!matchCounters){
+        if (getTaskId() == 0){
+#ifdef FAKE_MEASURE
+            finalize_signaller();
+#else
+            finalize_pmeasure();
+#endif
+        }
+    }
+    free(counterDumpBuffer);
+    counterDumpBuffer = NULL;
+    free(otherRanksPids);
+    otherRanksPids = NULL;
+}
+
+void clear_counter_state(uint64_t* c, uint32_t n){
+    bzero(c, sizeof(uint64_t) * n);
+}
+
+void clear_counter_buffer(){
+    uint32_t i = 0, j = 0;
+    if (!counterDumpBuffer || !outp){
+        bufferLoc = 0;
+        return;
+    }
+    PRINT_INSTR(stdout, "clearing dump buffer - %lld so far", entriesWritten);
+    while (i < bufferLoc){
+        fwrite((void*)&counterDumpBuffer[i], sizeof(uint64_t), numberOfDumpCounters, outp);
+        i += numberOfDumpCounters;
+    }
+    assert(i == bufferLoc);
+    entriesWritten += i;
+    bufferLoc = 0;
+}
+
+void dump_counter_state(int signum){
+    sliceIndex++;
+#ifdef TIME_SIGNAL_PATH
+    double d; ptimer(&d);
+    PRINT_INSTR(stdout, "signal %d received @ %f", sliceIndex, d);
+#endif
+    if (!dumpCounters){
+        return;
+    }
+    if (!counterDumpBuffer){
+        return;
+    }
+    //print_64b_buffer(dumpCounters, numberOfDumpCounters, stdout, 'f');
+    //fprintf(stdout, "\n");
+
+#ifdef SIGNAL_ALL_RANKS
+    int i;
+    if (getTaskId() == 0){
+        for (i = 1; i < getNTasks(); i++){
+            kill(otherRanksPids[i], signum);
+        }
+    }
+#endif
+
+    if (bufferLoc + numberOfDumpCounters > COUNTER_BUFFER_ENTRIES){
+        clear_counter_buffer();
+    }
+    //PRINT_INSTR(stderr, "%p + %d | %p", &counterDumpBuffer, bufferLoc, dumpCounters);
+
+    for (i = 0; i < numberOfDumpCounters; i++){
+        counterDumpBuffer[bufferLoc + i] = dumpCounters[i];
+    }
+    //memcpy(&counterDumpBuffer[bufferLoc], dumpCounters, numberOfDumpCounters * sizeof(uint64_t));
+    bufferLoc += numberOfDumpCounters;
+
+    //clear_counter_state(dumpCounters, numberOfDumpCounters);
+}
+
+void define_user_sig_handlers(){
+    if (signal (SIGUSR1, dump_counter_state) == SIG_IGN){
+        signal (SIGUSR1, SIG_IGN);
+    }
+    PRINT_INSTR(stdout, "setup signal handler dump_counter_state");
+}
+
+#ifdef FAKE_MEASURE
+int continue_measuring = 0;
+pid_t other_pid = 0;
+#define SLEEP_INTERVAL 10000
+
+void kill_self(int signum){
+    PRINT_INSTR(stdout, "gracefully killing signaller %d", getpid());
+    exit(0);
+}
+
+void initialize_signaller(){
+    continue_measuring = 1;
+    other_pid = getpid();
+
+    PRINT_INSTR(stdout, "setup signal handler dump_counter_state");
+    PRINT_INSTR(stdout, "forking to signaller from %d", other_pid);
+    pid_t pid;
+    if((pid = fork()) > 0) {
+        other_pid = pid;
+        return; // parent returns
+    }
+
+#ifdef MPI_INIT_REQUIRED
+    // invalidate this task
+    setMpiValid(0);
+#endif
+
+    PRINT_INSTR(stdout, "starting signaler in pid %d -> %d", pid, other_pid);
+    if (signal (SIGUSR2, kill_self) == SIG_IGN){
+        signal (SIGUSR2, SIG_IGN);
+    }
+
+    while (1){
+        usleep(SLEEP_INTERVAL);
+        sliceIndex++;
+#ifdef TIME_SIGNAL_PATH
+        double d; ptimer(&d);
+        PRINT_INSTR(stdout, "signal %d sent @ %f", sliceIndex, d);
+#endif
+        kill(other_pid, SIGUSR1);
+    }
+    PRINT_INSTR(stdout, "killed signaler in pid %d -> %d", pid, other_pid);
+}
+
+void finalize_signaller(){
+    kill(other_pid, SIGUSR2);
+}
+
+#endif //FAKE_MEASURE
+
+void* tool_mpi_init(){
+    int i;
+    if (!numberOfRareCounters){
+        return;
+    }
+
+    counterDumpBuffer = malloc(COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
+    if (counterDumpBuffer == NULL){
+        PRINT_INSTR(stderr, "Cannot malloc dump buffer");
+        exit(1);
+    }
+    bzero(counterDumpBuffer, COUNTER_BUFFER_ENTRIES * sizeof(uint64_t));
+    bufferLoc = 0;
+
+    if (!matchCounters){
+        if (getTaskId() == 0){
+#ifdef FAKE_MEASURE
+            initialize_signaller();
+#else
+            initialize_pmeasure(1);
+#endif
+        }
+    }
+    clear_counter_state(dumpCounters, numberOfDumpCounters);
+    entriesWritten = 0;
+
+#ifdef SIGNAL_ALL_RANKS
+    otherRanksPids = malloc(getNTasks() * sizeof(int));
+    if (otherRanksPids == NULL){
+        PRINT_INSTR(stderr, "Cannot malloc rank array");
+        exit(1);
+    }
+
+    i = getpid();
+    MPI_Allgather(&i, 1, MPI_INT, otherRanksPids, 1, MPI_INT, MPI_COMM_WORLD);
+    /*
+    for (i = 0; i < getNTasks(); i++){
+        PRINT_INSTR(stdout, "o[%d] = %d", i, otherRanksPids[i]);
+    }
+    */
+#endif
+
+    char fname[__MAX_STRING_SIZE];
+    int step = 1;
+    if (matchCounters){
+        step = 2;
+    }
+    sprintf(fname, "%s.slices_%04d.step%d", applicationName, getTaskId(), step);
+
+    outp = fopen(fname, "w");
+    assert(outp);
+    CounterDumpHeader_t hdr;
+    bzero(&hdr, sizeof(CounterDumpHeader_t));
+    hdr.magic = COUNTER_DUMP_MAGIC;
+    hdr.counters = numberOfDumpCounters;
+    PRINT_INSTR(stdout, "%x %d", hdr.magic, hdr.counters);
+
+    fwrite((void*)&hdr, 1, sizeof(CounterDumpHeader_t), outp);
+
+    if (matchCounters){
+        start_input_file();
+    }
+
+    ptimer(&pebiltimers[0]);
+}
+
+void print_64b_buffer(uint64_t* b, uint32_t l, FILE* o, char d){
+    uint32_t j;
+    for (j = 0; j < l; j++){
+        fprintf(o, "%c%lld\t", d, b[j]);
+    }
+    fprintf(stdout, "\n");
+    fflush(stdout);
+}

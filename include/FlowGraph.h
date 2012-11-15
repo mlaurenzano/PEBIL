@@ -75,6 +75,7 @@ public:
     Vector<BasicBlock*>* getExitBlocks();
 
     Loop* getLoop(uint32_t idx) { return loops[idx]; }
+    uint32_t getLoopDepth(Loop* loop);
     uint32_t getLoopDepth(uint32_t idx);
     uint32_t getNumberOfLoops() { return loops.size(); }
     uint32_t buildLoops();
@@ -98,6 +99,7 @@ public:
     void interposeBlock(BasicBlock* bb);
 
     bool verify();
+    void wedge(uint32_t shamt);
 };
 
 #endif /* _FlowGraph_h_ */

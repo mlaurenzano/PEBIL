@@ -42,13 +42,13 @@ uint64_t* blockCounters;
 //#define DEBUG_INST_KILL
 //#define PRINT_ADDRESS_STREAM
 
-void tool_mpi_init(){}
+void* tool_mpi_init(){}
 
 void clearBlockCounters(){
     bzero(blockCounters, sizeof(uint64_t) * numberOfBasicBlocks);
 }
 
-// should concider doing initialization here rather than checking
+// should consider doing initialization here rather than checking
 // for "first hit" on every buffer dump
 // PROBLEM^^ on some systems (cray XT) it is unsafe to call functions
 // from the entry function
@@ -67,9 +67,6 @@ int entry_function(void* instpoints, int32_t* numpoints, int32_t* numblocks, uin
 
     numberKilled = 0;
 
-    instpoint_info* ip;
-    int i;
-
     ptimer(&pebiltimers[0]);
 }
 
@@ -79,14 +76,20 @@ void disableInstrumentationPointsInBlock(BufferEntry* currentEntry){
     instpoint_info* ip;
     int i;
 
+#ifdef DEBUG_INST_KILL
+    PRINT_INSTR(stdout, "disabling for entry %d %d %#llx", currentEntry->blockId, currentEntry->memOpId, currentEntry->address);
+#endif
+
     int32_t killedPoints = 0;
     for (i = 0; i < numberOfInstrumentationPoints; i++){
         ip = (instpoint_info*)(instrumentationPoints + (i * sizeof(instpoint_info)));
+#ifdef DEBUG_INST_KILL
+        PRINT_INSTR(stdout, "\t\tchecking ipid %d vs. blockid %d", ip->pt_blockid, blockId);
+#endif
         if (ip->pt_blockid == blockId){
             int32_t size = ip->pt_size;
             int64_t vaddr = ip->pt_vaddr;
             char* program_point = (char*)vaddr;
-            
 #ifdef DEBUG_INST_KILL
             PRINT_INSTR(stdout, "\tkilling instrumentation for memop %d in block %d at %#llx", i, currentEntry->blockId, vaddr);
 #endif
@@ -253,7 +256,7 @@ void initDfPatterns(DFPatternSpec* dfps,uint32_t n,BasicBlockInfo* bbs){
         PRINT_INSTR(stdout, "DFPatterns are activated with %u entries at address %#llx", n, dfps);
         uint32_t anyTagged = 0;
         for(i=1;i<=n;i++){
-            PRINT_INSTR(stdout, "\tdfpattern(%d): memop=%d, type=%s", i-1, dfps[i].memopCnt, DFPatternTypeNames[dfps[i].type]);
+            //PRINT_INSTR(stdout, "\tdfpattern(%d): memop=%d, type=%s", i-1, dfps[i].memopCnt, DFPatternTypeNames[dfps[i].type]);
             if(dfps[i].type == dfTypePattern_undefined){
                 PRINT_INSTR(stdout, "Error in dfpattern type %i %s",i,DFPatternTypeNames[dfps[i].type]);
                 assert (dfps[i].type != dfTypePattern_undefined);
@@ -486,7 +489,7 @@ void MetaSim_simulFuncCall_Simu(char* base,int32_t* entryCountPtr,const char* co
     return;
 #else
 #ifdef MPI_INIT_REQUIRED
-    if (!isTaskValid()){
+    if (!isMpiValid()){
         PRINT_INSTR(stdout, "Process %d did not execute MPI_Init... dropping address buffer until it does", getpid());
         register BufferEntry* entries = (BufferEntry*)base;
         entries->lastFreeIdx = 1;
@@ -841,13 +844,13 @@ void MetaSim_endFuncCall_Simu(char* base, int32_t* entryCountPtr, const char* co
     ptimer(&pebiltimers[1]);
 
 #ifdef MPI_INIT_REQUIRED
-    if (!isTaskValid()){
+    if (!isMpiValid()){
         PRINT_INSTR(stderr, "Process %d did not execute MPI_Init, will not print files", getpid());
         return -1;
     }
 #endif
 
-    PRINT_INSTR(stdout,"MetaSim_endFuncCall(0x%p,%d,%s,%d)",base,*entryCountPtr,comment,entries->lastFreeIdx);
+    PRINT_INSTR(stdout,"MetaSim_endFuncCall(%p,%d,%s,%d)",base,*entryCountPtr,comment,entries->lastFreeIdx);
 
 #ifdef ENABLE_INSTRUMENTATION_KILL
     PRINT_INSTR(stdout, "Killed instrumentation in %d memory ops", numberKilled);

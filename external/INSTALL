@@ -1,5 +1,0 @@
-to install for use by pebil:
-$ cd udis86-1.7
-$ ./configure
-$ make
-

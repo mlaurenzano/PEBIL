@@ -23,7 +23,7 @@
 #include <Base.h>
 #include <ElfFile.h>
 
-void BinaryInputFile::readFileInMemory(char* fileName) {
+void BinaryInputFile::readFileInMemory(char* fileName, bool inform) {
 
     if(inBuffer){
         PRINT_INFOR("This object has already read an executable file\n");
@@ -53,7 +53,9 @@ void BinaryInputFile::readFileInMemory(char* fileName) {
 
     fclose(inFile);
 
-    PRINT_INFOR("Input file is read with success [%s] with %d bytes",fileName,length);
+    if (inform){
+        PRINT_INFOR("Input file is read with success [%s] with %d bytes",fileName,length);
+    }
 
     inBufferPointer = inBuffer;
     inBufferSize = length;

@@ -24,20 +24,31 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <assert.h>
 #include <strings.h>
 #include <string.h>
 #include <unistd.h>
+#include <regex.h>
 #include <sys/stat.h>
 #include <execinfo.h>
+#include <dlfcn.h>
 #include <CStructuresElf.h>
 #include <CStructuresDwarf.h>
 #include <Debug.h>
 #include <Vector.h>
 
+#ifdef HAVE_UNORDERED_MAP
+#define pebil_map_type unordered_map
+#include <unordered_map>
+#else
+#define pebil_map_type map
+#include <map>
+#endif
+
 typedef void (*fprintf_ftype)(FILE*, const char*, ...);
 extern FILE* pebilOutp;
-
+extern uint64_t warnCount;
 
 #define __MAX_STRING_SIZE 1024
 #define __SHOULD_NOT_ARRIVE ASSERT(0 && "Control should not reach this point")
@@ -96,6 +107,18 @@ extern FILE* pebilOutp;
 #define PRINT_OUT(...) fprintf(pebilOutp,## __VA_ARGS__); \
     fflush(pebilOutp);
 
+#ifdef WARNING_SEVERITY
+#define WARN_FILE stdout
+#define PRINT_WARN(__severity,...)  if (__severity >= WARNING_SEVERITY){ \
+    fprintf(WARN_FILE,"*** WARNING : ");                            \
+    fprintf(WARN_FILE,## __VA_ARGS__);                              \
+    fprintf(WARN_FILE,"\n");                                        \
+    fflush(WARN_FILE);                                              \
+    warnCount++; }
+#else
+#define PRINT_WARN(...)
+#endif
+
 #define PRINT_PROGRESS(__inc, __tot, __break) \
     if (__inc % ((__tot > __break) ? (__tot / __break) : 1) == 0){ fprintf(pebilOutp, "."); fflush(pebilOutp); }
 
@@ -131,8 +154,8 @@ extern FILE* pebilOutp;
 #define Size__64_bit_Gnu_Vernaux            sizeof(Elf64_Vernaux)
 #define Size__32_bit_Gnu_Versym             sizeof(uint16_t)
 #define Size__64_bit_Gnu_Versym             sizeof(uint16_t)
-#define Size__Dwarf_LineInfo_Header         sizeof(DWARF2_Internal_LineInfo)
-#define Size__Dwarf_LineInfo                sizeof(DWARF2_LineInfo_Registers)
+#define Size__Dwarf_LineInfo_Header         sizeof(DWARF4_Internal_LineInfo)
+#define Size__Dwarf_LineInfo                sizeof(DWARF4_LineInfo_Registers)
 
 
 #define Print_Code_All                      0x00000001
@@ -165,6 +188,13 @@ typedef enum {
     FlagsProtectionMethod_Total_Types
 } FlagsProtectionMethods;
 
+static const char* FlagsProtectionMethodNames[FlagsProtectionMethod_Total_Types] = {
+    "undefined",
+    "none",
+    "light",
+    "full"
+};
+
 typedef enum {
     InstrumentationMode_undefined = 0,
     InstrumentationMode_inline,
@@ -172,6 +202,13 @@ typedef enum {
     InstrumentationMode_tramp,
     InstrumentationMode_Total_Types
 } InstrumentationModes;
+
+static const char* InstrumentationModeNames[InstrumentationMode_Total_Types] = {
+    "undefined",
+    "inline",
+    "trampinline",
+    "tramp"
+};
 
 typedef enum {
     TableMode_undefined = 0,
@@ -182,16 +219,24 @@ typedef enum {
 } TableModes;
 
 typedef enum {
+    InstLocation_undefined = 0,
     InstLocation_prior,
     InstLocation_after,
     InstLocation_replace,
     InstLocation_Total_Types
 } InstLocations;
 
+static const char* InstLocationNames[InstLocation_Total_Types] = {
+    "undefined",
+    "prior",
+    "after",
+    "replace"
+};
+
 typedef enum {
     DebugFormat_undefined = 0,
-    DebugFormat_DWARF2_32bit,
-    DebugFormat_DWARF2_64bit,
+    DebugFormat_DWARF4_32bit,
+    DebugFormat_DWARF4_64bit,
     DebugFormat_Total_Types
 } DebugFormats;
 
@@ -330,7 +375,7 @@ public:
     bool includesFileOffset(uint32_t offset);
 
 
-    bool containsProgramBits() { return (type == PebilClassType_X86Instruction             || 
+    bool containsProgramBits() { return (type == PebilClassType_X86Instruction          || 
                                          type == PebilClassType_BasicBlock              || 
                                          type == PebilClassType_Function                || 
                                          type == PebilClassType_TextSection             ||
@@ -341,6 +386,33 @@ public:
     virtual Vector<X86Instruction*>* swapInstructions(uint64_t addr, Vector<X86Instruction*>* replacements) { __SHOULD_NOT_ARRIVE; return NULL; }
     virtual uint64_t findInstrumentationPoint(uint32_t size, InstLocations loc) { __SHOULD_NOT_ARRIVE; return 0; }
     virtual uint64_t getBaseAddress() { __SHOULD_NOT_ARRIVE; }
+};
+
+class FileList {
+private:
+    uint32_t width;
+    char sep;
+    const char* fname;
+
+protected:
+    Vector<Vector<char*>*> fileTokens;
+    void init(const char* filename, uint32_t width, char sep, char comm);
+
+public:
+    FileList(const char* filename, uint32_t width, char sep);
+    FileList(const char* filename);
+    FileList() { width = 0; }
+    ~FileList();
+
+    virtual bool matches(char* str, uint32_t tok);
+    char* getToken(uint32_t idx, uint32_t tok);
+    void print();
+
+    void appendLine(Vector<char*>*);
+    void setSeparator(char);
+    void setFileName(const char*);
+
+    bool verify();
 };
 
 class HashCode {
@@ -406,6 +478,7 @@ extern uint64_t nextAlignAddressDouble(uint64_t addr);
 extern int compareHashCode(const void* arg1,const void* arg2);
 extern int searchHashCode(const void* arg1, const void* arg2);
 extern int compareBaseAddress(const void* arg1,const void* arg2);
+extern int searchBasicBlockAddress(const void* arg1, const void* arg2);
 extern int searchBaseAddressExact(const void* arg1, const void* arg2);
 extern int searchBaseAddress(const void* arg1, const void* arg2);
 
@@ -419,8 +492,14 @@ extern int32_t scmp(const void *a, const void *b);
 extern char mapCharsToByte(char c1, char c2);
 extern void printBufferPretty(char* buff, uint32_t sizeInBytes, uint64_t baseAddress, uint32_t bytesPerWord, uint32_t bytesPerLine);
 
+extern char getHexValue(char c1);
+
+class X86Instruction;
+class ElfFileInst;
+
 extern uint32_t searchFileList(Vector<char*>* list, char* name);
 extern uint32_t initializeFileList(char* fileName, Vector<char*>* list);
+extern bool regexMatch(char* string, char* reg);
 
 #define FIRST_HALFWORD(__n) ((__n) & 0xffff)
 #define SECOND_HALFWORD(__n) (((__n) >> 16) & 0xffff)
@@ -428,12 +507,17 @@ extern uint32_t initializeFileList(char* fileName, Vector<char*>* list);
 #define rotateleft(x,n) ((x<<n) | (x>>(32-n)))
 #define rotateright(x,n) ((x>>n) | (x<<(32-n)))
 
+extern FILE* GetTempFile(char** sfn);
+
 extern void SHA1(unsigned char * str1);
 
 //sha1 functions                                                                                                                                             
 void calc(const void *src, const int bytelength, unsigned char *hash);
 void toHexString(const unsigned char *hash, char *hexstring);
-char* sha1sum(char* buffer, uint32_t size);
+char* sha1sum(char* buffer, uint32_t size, uint64_t* first64);
 
 extern double timer();
+
+#define WEDGE_SHAMT 0x400000
+
 #endif

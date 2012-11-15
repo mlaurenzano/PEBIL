@@ -25,6 +25,7 @@
 #include <BinaryFile.h>
 #include <ProgramHeader.h>
 #include <Vector.h>
+#include <map>
 
 class AddressAnchor;
 class BasicBlock;
@@ -80,7 +81,7 @@ private:
 
     Vector<AddressAnchor*>* addressAnchors;
     bool anchorsAreSorted;
-    Vector<DataReference*> specialDataRefs;
+    std::map<uint64_t, DataReference*> specialDataRefs;
 
     uint16_t sectionNameStrTabIdx;
     uint16_t dynamicSymtabIdx;
@@ -110,13 +111,30 @@ private:
     bool verifyDynamic();
     void initDynamicFilePointers();
 
+    X86Instruction** wedgeInstructions;
+    uint32_t wedgeInstructionCount;
+    void prepareWedge();
+    void destroyWedge();
+
+    uint64_t fileUniqueId;
+    char* fileSha1sum;
+
 public:
     bool verify();
+    void wedge(uint32_t shamt);
+
+    bool isExecutable();
+    bool isSharedLib();
+    DataReference* generateDataRef(uint64_t loc, RawSection* sec, uint64_t align, uint64_t off);
+    void addAddressAnchor(AddressAnchor* adr);
 
     ElfFile(char* f, char* a);
     ~ElfFile();
 
+   
+    uint64_t getUniqueId();
     char* getSHA1Sum();
+    uint64_t getProgramBaseAddress();
 
     bool is64Bit() { return is64BitFlag; }
     bool isStaticLinked() { return staticLinked; }
@@ -139,7 +157,7 @@ public:
 
     void parse();
     void initSectionFilePointers();
-    void dump(char* extension);
+    void dump(char* extension, bool isext=true);
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
     void generateCFGs();
 
@@ -193,6 +211,9 @@ public:
     uint16_t getTextSegmentIdx() { return textSegmentIdx; }
     uint16_t getDataSegmentIdx() { return dataSegmentIdx; }
     uint32_t getDynamicSymtabIdx() { return dynamicSymtabIdx; }
+
+    bool isWedgeAddress(uint64_t addr);
+    bool isDataWedgeAddress(uint64_t addr);
 
     uint32_t getFileSize();
     char* getFileName() { return elfFileName; }

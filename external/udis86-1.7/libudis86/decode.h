@@ -3,6 +3,101 @@
 
 #define MAX_INSN_LENGTH 15
 
+#define SHFT_1(__n) (1 << __n)
+#define SHFT_1L(__n) (((uint64_t)(1 << 30)) << (__n - 30))
+
+/* flags definitions */
+#define F_none ( 0 )
+#define F_CF SHFT_1(0)
+#define F_01 SHFT_1(1)
+#define F_PF SHFT_1(2)
+#define F_03 SHFT_1(3)
+#define F_AF SHFT_1(4)
+#define F_05 SHFT_1(5)
+#define F_ZF SHFT_1(6)
+#define F_SF SHFT_1(7)
+#define F_TF SHFT_1(8)
+#define F_IF SHFT_1(9)
+#define F_DF SHFT_1(10)
+#define F_OF SHFT_1(11)
+#define F_IOPL1 SHFT_1(12)
+#define F_IOPL2 SHFT_1(13)
+#define F_NT SHFT_1(14)
+#define F_15 SHFT_1(15)
+#define F_RF SHFT_1(16)
+#define F_VF SHFT_1(17)
+#define F_AC SHFT_1(18)
+#define F_VI SHFT_1(19)
+#define F_VP SHFT_1(20)
+#define F_ID SHFT_1(21)
+#define F_22 SHFT_1(22)
+#define F_23 SHFT_1(23)
+#define F_24 SHFT_1(24)
+#define F_25 SHFT_1(25)
+#define F_26 SHFT_1(26)
+#define F_27 SHFT_1(27)
+#define F_28 SHFT_1(28)
+#define F_29 SHFT_1(29)
+#define F_30 SHFT_1(30)
+#define F_31 SHFT_1(31)
+#define F_ALU (F_CF | F_PF | F_AF | F_ZF | F_SF | F_OF)
+
+/* implied register definitions */
+#define R_none ( 0 )
+/* general purpose */
+#define R_AX   SHFT_1(0)
+#define R_CX   SHFT_1(1)
+#define R_DX   SHFT_1(2)
+#define R_BX   SHFT_1(3)
+#define R_SP   SHFT_1(4)
+#define R_BP   SHFT_1(5)
+#define R_SI   SHFT_1(6)
+#define R_DI   SHFT_1(7)
+#define R_8    SHFT_1(8)
+#define R_9    SHFT_1(9)
+#define R_10   SHFT_1(10)
+#define R_11   SHFT_1(11)
+#define R_12   SHFT_1(12)
+#define R_13   SHFT_1(13)
+#define R_14   SHFT_1(14)
+#define R_15   SHFT_1(15)
+/* multimedia */
+#define R_MM0  SHFT_1(16)
+#define R_MM1  SHFT_1(17)
+#define R_MM2  SHFT_1(18)
+#define R_MM3  SHFT_1(19)
+#define R_MM4  SHFT_1(20)
+#define R_MM5  SHFT_1(21)
+#define R_MM6  SHFT_1(22)
+#define R_MM7  SHFT_1(23)
+#define R_MM8  SHFT_1(24)
+#define R_MM9  SHFT_1(25)
+#define R_MM10 SHFT_1(26)
+#define R_MM11 SHFT_1(27)
+#define R_MM12 SHFT_1(28)
+#define R_MM13 SHFT_1(29)
+#define R_MM14 SHFT_1(30)
+#define R_MM15 SHFT_1L(31)
+#define R_MMA  (R_MM0 | R_MM1 | R_MM2 | R_MM3 | R_MM4 | R_MM5 | R_MM6 | R_MM7 \
+                | R_MM8 | R_MM9 | R_MM10 | R_MM11 | R_MM12 | R_MM13 | R_MM14 | R_MM15)
+/* x87 */
+#define R_ST0  SHFT_1L(32)
+#define R_ST1  SHFT_1L(33)
+#define R_ST2  SHFT_1L(34)
+#define R_ST3  SHFT_1L(35)
+#define R_ST4  SHFT_1L(36)
+#define R_ST5  SHFT_1L(37)
+#define R_ST6  SHFT_1L(38)
+#define R_ST7  SHFT_1L(39)
+#define R_STA  (R_ST0 | R_ST1 | R_ST2 | R_ST3 | R_ST4 | R_ST5 | R_ST6 | R_ST7)
+/* segment */
+#define R_ES   SHFT_1L(40)
+#define R_CS   SHFT_1L(41)
+#define R_SS   SHFT_1L(42)
+#define R_DS   SHFT_1L(43)
+#define R_FS   SHFT_1L(44)
+#define R_GS   SHFT_1L(45)
+
 /* register classes */
 #define T_NONE  0
 #define T_GPR   1
@@ -11,6 +106,7 @@
 #define T_DBG   4
 #define T_SEG   5
 #define T_XMM   6
+#define T_YMM   7
 
 /* itab prefix bits */
 #define P_none          ( 0 )
@@ -40,6 +136,14 @@
 #define P_REXX(n)       ( ( n >> 11 ) & 1 )
 #define P_ImpAddr       ( 1 << 12 )
 #define P_IMPADDR(n)    ( ( n >> 12 ) & 1 )
+#define P_vexlz         ( 1 << 13 )
+#define P_VEXLZ(n)      ( ( n >> 13 ) & 1 )
+#define P_vexl          ( 1 << 14 )
+#define P_VEXL(n)       ( ( n >> 14 ) & 1 )
+#define P_vexix         ( 1 << 15 )
+#define P_VEXIX(n)      ( ( n >> 15 ) & 1 )
+#define P_c4            ( 1 << 16 )
+#define P_C4(n)         ( ( n >> 16 ) & 1 )
 
 /* rex prefix bits */
 #define REX_W(r)        ( ( 0xF & ( r ) )  >> 3 )
@@ -61,6 +165,21 @@
 #define MODRM_NNN(b)    ( ( ( b ) >> 3 ) & 7 )
 #define MODRM_MOD(b)    ( ( ( b ) >> 6 ) & 3 )
 #define MODRM_RM(b)     ( ( b ) & 7 )
+
+/* vex bits (avx) */
+#define P_AVX(n)        ( ( n == 0xC5 ) || ( n == 0xC4 ) )
+#define VEX_IX_REG(b)   ( ( b >> 4 ) & 15 )
+/* only for the 2-byte version */
+#define VEX_M5(b)       ( ( ( b ) >> 0 ) & 31 )
+#define VEX_REXB(b)     ( ( ( ~( b ) ) >> 5 ) & 1 )
+#define VEX_REXX(b)     ( ( ( ~( b ) ) >> 6 ) & 1 )
+#define VEX_REXW(b)     ( ( ( ( b ) ) >> 7 ) & 1 )
+/* 1-byte and 2-byte versions */
+#define VEX_REXR(b)      ( ( ( ~( b ) ) >> 7 ) & 1 )
+#define VEX_L(b)         ( ( ( b ) >> 2 ) & 1 )
+#define VEX_PP(b)        ( ( ( b ) >> 0 ) & 3 )
+#define VEX_VVVV(b)      ( ( ( ~( b ) ) >> 3 ) & 15 )
+#define VEX_REX_DEF(b, x, r, w) (((b & 1) << 0) | ((x & 1) << 1) | ((r & 1) << 2) | ((w & 1) << 3))
 
 /* operand type constants -- order is important! */
 
@@ -99,7 +218,8 @@ enum ud_operand_code {
 
     OP_V,      OP_W,      OP_Q,       OP_P, 
 
-    OP_R,      OP_C,  OP_D,       OP_VR,  OP_PR
+    OP_R,      OP_C,  OP_D,       OP_VR,  OP_PR,
+    OP_X,      OP_x
 };
 
 
@@ -124,6 +244,8 @@ enum ud_operand_size {
     SZ_D   = 32,
     SZ_Q   = 64,
     SZ_T   = 80,
+    SZ_X   = 128,
+    SZ_Y   = 256
 };
 
 /* itab entry operand definitions */
@@ -172,10 +294,16 @@ enum ud_operand_size {
 #define O_Mt      { OP_M,        SZ_T     }
 #define O_S       { OP_S,        SZ_NA    }
 #define O_Mq      { OP_M,        SZ_Q     }
+#define O_X       { OP_X,        SZ_NA    }
+#define O_x       { OP_x,        SZ_NA    }
 #define O_W       { OP_W,        SZ_NA    }
+#define O_Wd      { OP_W,        SZ_D     }
+#define O_Wq      { OP_W,        SZ_Q     }
+#define O_Wx      { OP_W,        SZ_X     }
 #define O_ES      { OP_ES,       SZ_NA    }
 #define O_rBX     { OP_rBX,      SZ_NA    }
 #define O_Ed      { OP_E,        SZ_D     }
+#define O_Eq      { OP_E,        SZ_Q     }
 #define O_DLr10b  { OP_DLr10b,   SZ_NA    }
 #define O_Mw      { OP_M,        SZ_W     }
 #define O_Eb      { OP_E,        SZ_B     }
@@ -196,6 +324,9 @@ enum ud_operand_size {
 #define O_CL      { OP_CL,       SZ_NA    }
 #define O_R       { OP_R,        SZ_RDQ   }
 #define O_V       { OP_V,        SZ_NA    }
+#define O_Vd      { OP_V,        SZ_D     }
+#define O_Vq      { OP_V,        SZ_Q     }
+#define O_Vx      { OP_V,        SZ_X     }
 #define O_CS      { OP_CS,       SZ_NA    }
 #define O_CHr13b  { OP_CHr13b,   SZ_NA    }
 #define O_eCX     { OP_eCX,      SZ_NA    }
@@ -261,6 +392,11 @@ struct ud_itab_entry
   struct ud_itab_entry_operand  operand1;
   struct ud_itab_entry_operand  operand2;
   struct ud_itab_entry_operand  operand3;
+  struct ud_itab_entry_operand  operand4;
+  uint32_t                      flags_use;
+  uint32_t                      flags_def;
+  uint64_t                      impreg_use;
+  uint64_t                      impreg_def;
   uint32_t                      prefix;
 };
 

@@ -43,23 +43,36 @@ private:
     const static uint32_t relocatedMask           = 0x10;
     const static uint32_t manipulatedMask         = 0x20;
 
+    bool defUse;
+    bool leafOpt;
+    bool computedLeafOpt;
+
+    BitSet<uint32_t>* deadRegs;
+    void findDeadRegs();
+
 protected:
     FlowGraph* flowGraph;
     HashCode hashCode;
     uint64_t badInstruction;
     uint64_t flags;
-    uint32_t stackSize;
 
     Vector<X86Instruction*>* digestRecursive();
 public:
     Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz);
     ~Function();
 
-    uint32_t getStackSize() { return stackSize; }
-    uint32_t findStackSize();
+    void wedge(uint32_t shamt);
 
     void interposeBlock(BasicBlock* bb);
     bool hasLeafOptimization();
+    void computeLeafOptimization();
+
+    uint32_t getDeadGPR(uint32_t idx);
+
+    uint32_t getStackSize();
+
+    void computeDefUse();
+    bool doneDefUse() { return defUse; }
 
     bool isRecursiveDisasm()          { return (flags & recursivedisasmMask); }
     bool isInstrumentationFunction()  { return (flags & instrumentationfuncMask); }

@@ -32,6 +32,8 @@ public:
     FileHeader() : Base(PebilClassType_FileHeader){}
     bool verify();
 
+    uint64_t GetTextEntryOffset();
+
     virtual ~FileHeader() {}
     FILEHEADER_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 
@@ -40,6 +42,8 @@ public:
     virtual char* charStream() { __SHOULD_NOT_ARRIVE; return NULL; }
 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
+    const char* getTypeName();
+    void wedge(uint32_t shamt);
 };
 
 class FileHeader32 : public FileHeader {

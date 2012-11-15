@@ -23,7 +23,8 @@
 udis86 ud_operand
   Type	                Name
   enum ud_type          type;
-  uint8_t               size;
+  uint16_t              size;
+  uint8_t               position;
   union {
         int8_t          sbyte;
         uint8_t         ubyte;
@@ -49,7 +50,7 @@ udis86 ud_operand
 
 #define OPERAND_MACROS_CLASS(__str) /** __str **/ \
     GET_FIELD_CLASS(ud_type,type); \
-    GET_FIELD_CLASS(uint8_t,size); \
+    GET_FIELD_CLASS(uint16_t,size); \
     GET_FIELD_CLASS(uint8_t,position); \
     GET_FIELD_CLASS_A(int8_t,sbyte,lval); \
     GET_FIELD_CLASS_A(uint8_t,ubyte,lval); \
@@ -68,7 +69,6 @@ udis86 ud_operand
 /* we don't give all fields macro access
 ##################################################################
 udis86 ud_compact
-  Type	                Name
   int                   (*inp_hook) (struct ud*);
   uint8_t               inp_curr;
   uint8_t               inp_fill;
@@ -79,6 +79,7 @@ udis86 ud_compact
   uint8_t               inp_end;
   void                  (*translator)(struct ud*);
   uint64_t              insn_offset;
+  char                  insn_bytes[16];
   char                  insn_hexcode[32];
   char                  insn_buffer[64];
   unsigned int          insn_fill;
@@ -87,7 +88,7 @@ udis86 ud_compact
   uint8_t               vendor;
   struct map_entry*     mapen;
   enum ud_mnemonic_code mnemonic;
-  struct ud_operand     operand[3];
+  struct ud_operand     operand[4];
   uint8_t               error;
   uint8_t               pfx_rex;
   uint8_t               pfx_seg;
@@ -98,6 +99,8 @@ udis86 ud_compact
   uint8_t               pfx_repe;
   uint8_t               pfx_repne;
   uint8_t               pfx_insn;
+  uint8_t               pfx_avx;
+  uint8_t               avx_vex[2];
   uint8_t               default64;
   uint8_t               opr_mode;
   uint8_t               adr_mode;
@@ -109,19 +112,27 @@ udis86 ud_compact
   uint8_t               c3;
   uint8_t               inp_cache[256];
   uint8_t               inp_sess[64];
+  uint32_t              flags_use;
+  uint32_t              flags_def;
+  uint64_t              impreg_use;
+  uint64_t              impreg_def;
   struct ud_itab_entry * itab_entry;
 ##################################################################
 */
 
 #define INSTRUCTION_MACROS_CLASS(__str) /** __str **/ \
     GET_FIELD_CLASS(uint64_t,insn_offset); \
-    GET_FIELD_CLASS(char*,insn_hexcode); \
+    GET_FIELD_CLASS(char*,insn_bytes); \
     GET_FIELD_CLASS(char*,insn_buffer); \
     GET_FIELD_CLASS(enum ud_mnemonic_code,mnemonic); \
     GET_FIELD_CLASS(struct ud_operand*,operand); \
     GET_FIELD_CLASS(uint8_t,pfx_seg); \
     GET_FIELD_CLASS(uint8_t,pfx_rep); \
     GET_FIELD_CLASS(uint8_t,adr_mode); \
+    GET_FIELD_CLASS(uint32_t,flags_use); \
+    GET_FIELD_CLASS(uint32_t,flags_def); \
+    GET_FIELD_CLASS(uint64_t,impreg_use); \
+    GET_FIELD_CLASS(uint64_t,impreg_def); \
         \
     SET_FIELD_CLASS(uint64_t,insn_offset); 
 

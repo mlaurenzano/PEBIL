@@ -75,6 +75,7 @@ public:
     bool inRange(uint64_t addr);
 
     void setIndex(uint16_t newidx) { index = newidx; }
+    void wedge(ElfFile* elfFile, uint32_t shamt);
 };
 
 class SectionHeader32 : public SectionHeader {

@@ -1,30 +1,25 @@
 STATIC_INST_LIB  = @STATIC_INST_LIB@
-
 PEBIL_LIBS = 
 ifeq ($(STATIC_INST_LIB),yes)
-	PEBIL_LIBS = libcounter.a  libsimulator.a  libtimer.a  libclassifier.a
+	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  liblptimer.a  libcounter.a  libsimulator.a
 else
-	PEBIL_LIBS = libcounter.so libsimulator.so libtimer.so libclassifier.so
+	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblptimer.so libcounter.so libsimulator.so
 endif
 
 LIB_TARGETS = $(PEBIL_LIBS)
 MPICC       = @MPICC@
-CFLAGS      = @CFLAGS@ @MPI_FLAGS@ -DPER_SET_RECENT -DSHIFT_ADDRESS_BUFFER
+MPICXX      = @MPICXX@
+CFLAGS      = @CFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -w
+CXXFLAGS    = @CXXFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -w
 
 SHARED_OPT  = -fPIC
 EXTRA_FLAGS = $(SHARED_OPT)
-SHARED_LIB  = -shared
+SHARED_LIB  = -shared -ldl
 AR          = ar rcs
 
-#### -DNO_SAMPLING_MODE    : Add to disable sampling (note that MAX visit count is still on).
-#### -DEXTENDED_SAMPLING   : Add to vary the ignore and sampling intervals during sampling
-#### -DFINE_GRAIN_SAMPLING : Add to increase the granularity of sampling. Smaller intervals.
-#EXTRA_DEF = -DNO_SAMPLING_MODE # default for MultiMAPS tracing
-EXTRA_DEF = -DEXTENDED_SAMPLING # default for application tracing
-#EXTRA_DEF = -DIGNORE_ACTUAL_SIMULATION -DNO_SAMPLING_MODE # no simulation
-
+REUSE_LIBS  = -L../external/ReuseDistance -lReuseDistance
 EXTRA_LIBS  =
-EXTRA_INC   = -I../instcode
+EXTRA_INC   = -I../instcode -I../external/ReuseDistance
 
 LIBDIR      = ../lib
 BINDIR      = ../bin
@@ -35,14 +30,16 @@ all: $(LIB_TARGETS)
 
 %.o: %.c
 	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
+%.O: %.cpp
+	$(MPICXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
 
-libcounter.so : CounterFunctions.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ CounterFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS)
+libcounter.so : CounterFunctions.O
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
 libcounter.a : CounterFunctions.o $(COMMON_OBJS)
 	$(AR) $@ CounterFunctions.o $(COMMON_OBJS)
 
-libsimulator.so : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS) $(EXTRA_LIBS)
+libsimulator.so : Simulation.O
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(REUSE_LIBS)
 libsimulator.a : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 	$(AR) $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 
@@ -56,8 +53,22 @@ libclassifier.so : ClassifierFunctions.o $(COMMON_OBJS)
 libclassifier.a : ClassifierFunctions.o
 	$(AR) $@ ClassifierFunctions.o
 
+libpfreq.so : Frequency.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ Frequency.o $(COMMON_OBJS) $(EXTRA_LIBS)
+libpfreq.a : Frequency.o
+	$(AR) $@ Frequency.o
+
+liblptimer.so : LoopTimer.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ LoopTimer.o $(COMMON_OBJS) $(EXTRA_LIBS)
+
+libtautrace.so : tautrace.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ tautrace.o $(COMMON_OBJS) $(EXTRA_LIBS)
+libtautrace.a : tautrace.o
+	$(AR) $@ tautrace.o
+
 clean: 
-	rm -f *.o *.i *.s *.ii $(LIB_TARGETS)
+	rm -f *.o *.O *.i *.s *.ii $(LIB_TARGETS)
 
 install:
 	cp $(LIB_TARGETS) $(LIBDIR)
+

@@ -1,4 +1,4 @@
-/* 
+/*
  * This file is part of the pebil project.
  * 
  * Copyright (c) 2010, University of California Regents
@@ -28,6 +28,11 @@
 #include <TextSection.h>
 #include <X86InstructionFactory.h>
 
+#include <algorithm>
+#include <vector>
+
+#define THREAD_EVIDENCE "clone:__clone:__clone2:pthread_.*:omp_.*"
+
 #define MPI_INIT_WRAPPER_CBIND   "MPI_Init_pebil_wrapper"
 #define MPI_INIT_LIST_CBIND_PREF "PMPI_Init"
 #define MPI_INIT_LIST_CBIND      "MPI_Init"
@@ -35,15 +40,264 @@
 #define MPI_INIT_LIST_FBIND_PREF "pmpi_init_"
 #define MPI_INIT_LIST_FBIND      "mpi_init_:MPI_INIT"
 
-#define MAX_DEF_USE_DIST_PRINT 1024
+#define DYNAMIC_INST_INIT "tool_dynamic_init"
 
-InstrumentationTool::InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase, bool lpi, bool dtl)
+uint64_t InstrumentationTool::reserveDynamicPoints(){
+    return reserveDataOffset(sizeof(DynamicInst) * dynamicPoints.size());
+}
+
+void InstrumentationTool::applyDynamicPoints(uint64_t dynArray){
+    if (dynamicPoints.size() == 0){
+        return;
+    }
+
+
+    uint64_t temp64 = dynamicPoints.size();
+    initializeReservedData(getInstDataAddress() + dynamicSize, sizeof(uint64_t), (void*)&temp64);
+    initializeReservedPointer(dynArray, dynamicPointArray);
+    PRINT_INFOR("Initializing %d dynamic points", dynamicPoints.size());
+
+    uint32_t dindex = 0;
+    while (dynamicPoints.size()){
+        DynamicInst d;
+        DynamicInstInternal* di = dynamicPoints.remove(0);
+        d.VirtualAddress = di->Point->getInstSourceAddress();
+        initializeReservedPointer(d.VirtualAddress - getInstDataAddress(), dynArray + (dindex * sizeof(DynamicInst)) + offsetof(DynamicInst, VirtualAddress));
+        d.ProgramAddress = di->Point->getSourceObject()->getProgramAddress();
+        d.Key = di->Key;
+        d.Flags = 0;
+        if (di->Point->getInstrumentationMode() == InstrumentationMode_inline){
+            d.Size = di->Point->getNumberOfBytes();
+        } else {
+            d.Size = Size__uncond_jump;
+        }
+        ASSERT(d.Size);
+        d.IsEnabled = di->IsEnabled;
+
+        ASSERT(d.Size <= DYNAMIC_POINT_SIZE_LIMIT);
+        Vector<X86Instruction*>* nops = X86InstructionFactory::emitNopSeries(d.Size);
+        uint32_t b = 0;
+        for (uint32_t i = 0; i < nops->size(); i++){
+            memcpy(&(d.OppContent[b]), (*nops)[i]->charStream(), (*nops)[i]->getSizeInBytes());
+            b += (*nops)[i]->getSizeInBytes();
+            delete (*nops)[i];
+        }
+        ASSERT(b == d.Size);
+        delete nops;
+
+        initializeReservedData(getInstDataAddress() + dynArray + (dindex * sizeof(DynamicInst)), sizeof(DynamicInst), &d);
+        delete di;
+        dindex++;
+    }
+}
+
+void InstrumentationTool::dynamicPoint(InstrumentationPoint* pt, uint64_t key, bool enable){
+    DynamicInstInternal* di = new DynamicInstInternal();
+    //ASSERT(pt->getInstrumentationMode() == InstrumentationMode_inline);
+    di->Point = pt;
+    di->Key = key;
+    di->IsEnabled = enable;
+    dynamicPoints.append(di);
+}
+
+// returns a map of function addresses and the scratch register used to hold the thread data address
+// (X86_REG_INVALID if no such register is available)
+std::map<uint64_t, uint32_t>* InstrumentationTool::threadReadyCode(std::set<Base*>& objectsToInst){
+    std::map<uint64_t, uint32_t>* functionThreading = new std::map<uint64_t, uint32_t>();
+
+    for (std::set<Base*>::iterator it = objectsToInst.begin(); it != objectsToInst.end(); it++){
+        Function* f;
+        if ((*it)->getType() == PebilClassType_Function){
+            f = (Function*)(*it);
+        } else if ((*it)->getType() == PebilClassType_X86Instruction){
+            TextObject* t = (TextObject*)(((X86Instruction*)(*it))->getContainer());
+            ASSERT(t->isFunction());
+            f = (Function*)t;
+        } else if ((*it)->getType() == PebilClassType_BasicBlock){
+            X86Instruction* l = ((BasicBlock*)(*it))->getLeader();
+            TextObject* t = l->getContainer();
+            ASSERT(t->isFunction());
+            f = (Function*)t;
+        } else {
+            __SHOULD_NOT_ARRIVE;
+        }
+
+        if (functionThreading->count(f->getBaseAddress()) == 0){
+            (*functionThreading)[f->getBaseAddress()] = instrumentForThreading(f);
+        }
+    }
+
+    return functionThreading;
+}
+
+Vector<X86Instruction*>* InstrumentationTool::atomicIncrement(uint32_t dest, uint32_t scratch, uint32_t count, uint64_t memaddr, Vector<X86Instruction*>* insns){
+    Vector<X86Instruction*>* fill = insns;
+    if (fill == NULL){
+        fill = new Vector<X86Instruction*>();
+    }
+
+    // mov $memops,%sr2
+    fill->append(X86InstructionFactory64::emitMoveImmToReg(count, dest));
+    // mov $bufstr,%sr1
+    fill->append(X86InstructionFactory64::emitMoveImmToReg(memaddr, scratch));
+    // [lock] xadd %sr2,%sr1
+    fill->append(X86InstructionFactory64::emitExchangeAdd(dest, scratch, isThreadedMode()));
+
+    return fill;
+}
+
+uint32_t InstrumentationTool::instrumentForThreading(Function* func){
+    uint32_t d = func->getDeadGPR(0);
+
+    uint32_t numberOfInstructions = func->getNumberOfInstructions();
+    X86Instruction** allInstructions = new X86Instruction*[numberOfInstructions];
+    func->getAllInstructions(allInstructions,0);
+
+    // has a dead register throughout, so at function entry only compute the thread data addr and put
+    // into that dead reg
+    if (d < X86_64BIT_GPRS){
+        //PRINT_INFOR("Function %s has dead reg %d", func->getName(), d);
+        for (uint32_t i = 0; i < numberOfInstructions; i++){
+            X86Instruction* entry = allInstructions[i];
+            if (i == 0 || entry->isCall()){
+                InstLocations loc = InstLocation_after;
+                if (i == 0 && !entry->isCall()){
+                    loc = InstLocation_prior;
+                }
+                
+                BitSet<uint32_t>* inv = new BitSet<uint32_t>(X86_ALU_REGS);
+                for (uint32_t j = X86_64BIT_GPRS; j < X86_ALU_REGS; j++){
+                    inv->insert(j);
+                }
+                inv->insert(X86_REG_AX);
+                inv->insert(X86_REG_SP);
+                inv->insert(d);
+                BitSet<uint32_t>* deadRegs = entry->getDeadRegIn(inv, 1);
+                delete inv;
+                
+                uint32_t s;
+                for (uint32_t j = 0; j < X86_64BIT_GPRS; j++){
+                    if (deadRegs->contains(j)){
+                        s = j;
+                        break;
+                    }
+                }
+                delete deadRegs;
+
+                //PRINT_INFOR("\t\tassigning data at %#lx to reg %d via scratch %d", entry->getBaseAddress(), d, s);
+                InstrumentationSnippet* snip = addInstrumentationSnippet();
+                Vector<X86Instruction*>* insns;
+
+                insns = storeThreadData(s, d);
+                for (uint32_t i = 0; i < insns->size(); i++){
+                    snip->addSnippetInstruction((*insns)[i]);
+                }
+                delete insns;
+                InstrumentationPoint* p = addInstrumentationPoint(entry, snip, InstrumentationMode_inline, loc);
+                p->setPriority(InstPriority_userinit);
+            }
+        }
+    }
+    // no dead register in the function. store the thread data addr on the stack
+    else {
+        d = X86_REG_INVALID;
+
+        // figuring out the size of the stack frame is REALLY HARD
+        // for now we just bail
+        delete[] allInstructions;
+        return d;
+    }
+
+    delete[] allInstructions;
+    return d;
+}
+
+void InstrumentationTool::assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak){
+    if (getElfFile()->is64Bit()){
+        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(tmpreg, regbak));
+        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(value, tmpreg));
+        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveRegToMem(tmpreg, address));
+        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveMemToReg(regbak, tmpreg, true));
+    } else {
+        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(tmpreg, regbak));
+        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(value, tmpreg));
+        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveRegToMem(tmpreg, address));
+        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveMemToReg(regbak, tmpreg));
+    }
+}
+
+void InstrumentationTool::assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint8_t reg){
+    if (getElfFile()->is64Bit()){
+        pt->addPrecursorInstruction(X86InstructionFactory64::emitMoveImmToReg(value, reg));
+    } else {
+        pt->addPrecursorInstruction(X86InstructionFactory32::emitMoveImmToReg(value, reg));
+    }
+}
+
+bool InstrumentationTool::singleArgCheck(void* arg, uint32_t mask, const char* name){
+    if (arg == NULL &&
+        (requiresArgs() & mask)){
+        PRINT_ERROR("Argument required by %s: %s", briefName(), name);
+        return false;
+    }
+    uint32_t allowed = requiresArgs() | allowsArgs();
+    if (arg != NULL &&
+        !(allowed & mask)){
+        PRINT_ERROR("Argument not allowed by %s: %s", briefName(), name);
+        return false;
+    }
+    return true;
+}
+
+bool InstrumentationTool::verifyArgs(){
+    singleArgCheck((void*)phaseNo, PEBIL_OPT_PHS, "--phs");
+    //singleArgCheck((void*)loopIncl, PEBIL_OPT_LPI, "--lpi");
+    //singleArgCheck((void*)printDetail, PEBIL_OPT_DTL, "--dtl");
+    singleArgCheck((void*)inputFile, PEBIL_OPT_INP, "--inp");
+    singleArgCheck((void*)dfpFile, PEBIL_OPT_DFP, "--dfp");
+    singleArgCheck((void*)trackFile, PEBIL_OPT_TRK, "--trk");
+    singleArgCheck((void*)doIntro, PEBIL_OPT_DOI, "--doi");
+    return true;
+}
+
+const char* InstrumentationTool::getExtension(){
+    if (extension){
+        return extension;
+    }
+    return defaultExtension();
+}
+
+void InstrumentationTool::init(char* ext){
+    extension = ext;
+}
+
+void InstrumentationTool::initToolArgs(bool lpi, bool dtl, bool doi, uint32_t phase, char* inp, char* dfp, char* trk){
+    loopIncl = true;
+    printDetail = true;
+    doIntro = doi;
+    phaseNo = phase;
+    inputFile = inp;
+    dfpFile = dfp;
+    trackFile = trk;
+}
+
+bool InstrumentationTool::hasThreadEvidence(){
+    Vector<X86Instruction*>* threadCalls = findAllCalls(THREAD_EVIDENCE);
+    if (threadCalls->size() > 0){
+        for (uint32_t i = 0; i < threadCalls->size(); i++){
+            Symbol* functionSymbol = getElfFile()->lookupFunctionSymbol((*threadCalls)[i]->getTargetAddress());
+            PRINT_WARN(20, "Found call to an apparent thread-related function (%s) at address %#lx", functionSymbol->getSymbolName(), (*threadCalls)[i]->getBaseAddress());
+        }
+        delete threadCalls;
+        return true;
+    }
+    delete threadCalls;
+    return false;
+}
+
+InstrumentationTool::InstrumentationTool(ElfFile* elf)
     : ElfFileInst(elf)
 {
-    extension = ext;
-    phaseNo = phase;
-    loopIncl = lpi;
-    printDetail = dtl;
 }
 
 void InstrumentationTool::declare(){
@@ -53,9 +307,51 @@ void InstrumentationTool::declare(){
     ASSERT(initWrapperC && "Cannot find MPI_Init function, are you sure it was declared?");
     ASSERT(initWrapperF && "Cannot find MPI_Init function, are you sure it was declared?");
 #endif //HAVE_MPI
+    dynamicInit = declareFunction(DYNAMIC_INST_INIT);
 }
 
 void InstrumentationTool::instrument(){
+    if (!isThreadedMode()){
+        if (hasThreadEvidence()){
+            PRINT_ERROR("This image shows evidence of being threaded, but you ran pebil without --threaded.");
+        }
+    }
+
+    ASSERT(sizeof(uint64_t) == sizeof(image_key_t));
+    image_key_t tmpi = (image_key_t)getElfFile()->getUniqueId();
+    imageKey = reserveDataOffset(sizeof(image_key_t));
+    initializeReservedData(getInstDataAddress() + imageKey, sizeof(image_key_t), &tmpi);
+
+    threadHash = reserveDataOffset(sizeof(ThreadData) * (ThreadHashMod + 1));
+
+    dynamicSize = reserveDataOffset(sizeof(uint64_t));
+    dynamicPointArray = reserveDataOffset(sizeof(DynamicInst*));
+    dynamicInit->addArgument(dynamicSize);
+    dynamicInit->addArgument(dynamicPointArray);
+
+    // ALL_FUNC_ENTER
+    if (isMultiImage()){
+        for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+            Function* f = getExposedFunction(i);
+
+            InstrumentationPoint* p = addInstrumentationPoint(f, dynamicInit, InstrumentationMode_tramp, InstLocation_prior);
+            ASSERT(p);
+            p->setPriority(InstPriority_sysinit);
+            if (!p->getInstBaseAddress()){
+                PRINT_ERROR("Cannot find an instrumentation point at the entry function");
+            }            
+
+            dynamicPoint(p, getElfFile()->getUniqueId(), true);
+        }
+    } else {
+        InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), dynamicInit, InstrumentationMode_tramp);
+        ASSERT(p);
+        p->setPriority(InstPriority_sysinit);
+        if (!p->getInstBaseAddress()){
+            PRINT_ERROR("Cannot find an instrumentation point at the entry function");
+        }
+    }
+
 #ifdef HAVE_MPI
     int initFound = 0;
 
@@ -66,7 +362,7 @@ void InstrumentationTool::instrument(){
         ASSERT((*mpiInitCalls)[i]->isFunctionCall());
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
         PRINT_INFOR("Adding MPI_Init wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
-        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperC, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperC, InstrumentationMode_tramp, InstLocation_replace);
         initFound++;
     }
     delete mpiInitCalls;
@@ -77,7 +373,7 @@ void InstrumentationTool::instrument(){
         ASSERT((*mpiInitCalls)[i]->isFunctionCall());
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
         PRINT_INFOR("Adding mpi_init_ wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
-        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, InstLocation_replace);
         initFound++;
     }
     delete mpiInitCalls;
@@ -93,7 +389,7 @@ void InstrumentationTool::instrument(){
         ASSERT((*mpiInitCalls)[i]->isFunctionCall());
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
         PRINT_INFOR("Adding MPI_Init wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
-        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperC, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperC, InstrumentationMode_tramp, InstLocation_replace);
         initFound++;
     }
     delete mpiInitCalls;
@@ -104,7 +400,7 @@ void InstrumentationTool::instrument(){
         ASSERT((*mpiInitCalls)[i]->isFunctionCall());
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
         PRINT_INFOR("Adding mpi_init_ wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
-        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, FlagsProtectionMethod_none, InstLocation_replace);
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, InstLocation_replace);
         initFound++;
     }
     delete mpiInitCalls;
@@ -112,7 +408,189 @@ void InstrumentationTool::instrument(){
 #endif //HAVE_MPI
 }
 
-InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, Base* within){
+Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, uint32_t dest){
+    return storeThreadData(scratch, dest, false, 0);
+}
+
+Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, uint32_t dest, bool storeToStack, uint32_t stackPatch){
+    ASSERT(scratch < X86_64BIT_GPRS);
+    ASSERT(dest < X86_64BIT_GPRS);
+    ASSERT(scratch != dest);
+    Vector<X86Instruction*>* insns = new Vector<X86Instruction*>();
+
+    // mov %fs:0x10,%d
+    insns->append(X86InstructionFactory64::emitMoveThreadIdToReg(dest));
+    // srl $12,%d
+    insns->append(X86InstructionFactory64::emitShiftRightLogical(12, dest));
+    // and $0xffff,%d
+    insns->append(X86InstructionFactory64::emitImmAndReg(0xffff, dest));
+    // mov $TData,%sr
+    insns->append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, scratch), getInstDataAddress() + threadHash, false));
+    // sll $4,%d
+    insns->append(X86InstructionFactory64::emitShiftLeftLogical(4, dest));
+    // lea [$0x08+$offset](0,%d,%sr),%d
+    insns->append(X86InstructionFactory64::emitLoadEffectiveAddress(scratch, dest, 0, 0x08, dest, true, true));
+
+    if (storeToStack){
+        // knowing where this info is relative to %sp is HARD
+        __FUNCTION_NOT_IMPLEMENTED;
+        // mov (%d),%sr
+        insns->append(X86InstructionFactory64::emitMoveRegaddrImmToReg(dest, 0, scratch));
+        // mov %sr,0x200(%sp)
+        insns->append(X86InstructionFactory64::emitMoveRegToRegaddrImm(scratch, X86_REG_SP, (-1)*(0x400 + stackPatch), true));
+    } else {
+        // mov (%d),%d
+        insns->append(X86InstructionFactory64::emitMoveRegaddrImmToReg(dest, 0, dest));
+    }
+
+    return insns;
+}
+
+InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t counterOffset, X86Instruction* bestinst, bool add, uint32_t threadReg, InstLocations loc, BitSet<uint32_t>* useRegs, uint32_t val){
+
+    uint32_t regLimit = X86_32BIT_GPRS;
+    if (getElfFile()->is64Bit()){
+        regLimit = X86_64BIT_GPRS;
+    }
+
+    uint32_t sr1 = regLimit;
+    uint32_t sr2 = regLimit;
+
+    if (useRegs){
+        for (uint32_t i = 0; i < regLimit; i++){
+            if (useRegs->contains(i)){
+                if (sr1 == regLimit){
+                    sr1 = i;
+                } else if (sr2 == regLimit){
+                    sr2 = i;
+                    break;
+                }
+            }
+        }
+    } else {
+        for (uint32_t i = 0; i < regLimit; i++){
+            bool useit = false;
+            if (loc == InstLocation_prior && bestinst->isRegDeadIn(i)){
+                useit = true;
+            }
+            if (loc == InstLocation_after && bestinst->isRegDeadOut(i)){
+                useit = true;
+            }
+
+            if (i == X86_REG_SP || i == X86_REG_AX){
+                continue;
+            }
+            if (useit){
+                if (sr1 == regLimit){
+                    sr1 = i;
+                } else if (sr2 == regLimit){
+                    sr2 = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    // best inst point didn't have enough dead regs...
+    if (sr1 == regLimit){
+        sr1 = X86_REG_CX;
+        sr2 = X86_REG_DX;
+    } else if (sr2 == regLimit){
+        sr2 = X86_REG_DX;
+        if (sr1 == sr2){
+            sr2 = X86_REG_CX;
+        }
+    }
+
+    ASSERT(sr1 != X86_REG_SP && sr2 != X86_REG_SP);
+    ASSERT(sr1 != X86_REG_AX && sr2 != X86_REG_AX);
+
+    InstrumentationSnippet* snip = addInstrumentationSnippet();
+    snip->setOverflowable(false);
+
+    // snippet contents, in this case just increment a counter
+    if (is64Bit()){
+        // any threaded
+        if (isThreadedMode() || isMultiImage()){
+            // load thread data base addr into %sr1
+            if (threadReg == X86_REG_INVALID){
+                /*
+                uint32_t stackPatch = 0;
+                if (loc == InstLocation_prior && !bestinst->isRegDeadIn(sr1)){
+                    stackPatch += sizeof(uint64_t);
+                }
+                if (loc == InstLocation_after && !bestinst->isRegDeadOut(sr1)){
+                    stackPatch += sizeof(uint64_t);
+                }
+
+                snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(X86_REG_SP, (-1) * (0x400 - stackPatch), sr1));
+                */
+                //PRINT_INFOR("Full thread data computation for offset %lx", counterOffset);
+                Vector<X86Instruction*>* loadThreadData = storeThreadData(sr2, sr1);
+                for (uint32_t i = 0; i < loadThreadData->size(); i++){
+                    snip->addSnippetInstruction((*loadThreadData)[i]);
+                }
+                delete loadThreadData;
+            } else {
+                sr1 = threadReg;
+            }
+            if (add){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToRegaddrImm(val, sr1, counterOffset));
+            } else {
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToRegaddrImm(-1 * val, sr1, counterOffset));
+            }
+        }
+        // non-threaded executable
+        else if (getElfFile()->isExecutable()){
+            if (add){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToMem(val, getInstDataAddress() + counterOffset));
+            } else {
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToMem(-1 * val, getInstDataAddress() + counterOffset));
+            }
+        }
+        // non-threaded shared library
+        else {
+            snip->addSnippetInstruction(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, sr1), getInstDataAddress() + counterOffset, false));
+
+            if (add){
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToRegaddrImm(val, sr1, 0));
+            } else {
+                snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToRegaddrImm(-1 * val, sr1, 0));
+            }
+        }
+    } else {
+        ASSERT(getElfFile()->isExecutable());
+        ASSERT(!isThreadedMode());
+        uint32_t v = val;
+        while (v > 0x7f){
+            if (add){
+                snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(0x7f, getInstDataAddress() + counterOffset));
+            } else {
+                snip->addSnippetInstruction(X86InstructionFactory32::emitSubImmByteToMem(0x7f, getInstDataAddress() + counterOffset));
+            }
+            v -= 0x7f;
+        }
+        if (add){
+            snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(v, getInstDataAddress() + counterOffset));
+        } else {
+            snip->addSnippetInstruction(X86InstructionFactory32::emitSubImmByteToMem(v, getInstDataAddress() + counterOffset));
+        }
+    }
+
+    InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, loc);
+
+    return p;
+}
+
+InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOffset, Base* within){
+    return insertBlockCounter(counterOffset, within, true, -1);
+}
+
+InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOffset, Base* within, bool add, uint32_t threadReg){
+    return insertBlockCounter(counterOffset, within, add, threadReg, 1);
+}
+
+InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOffset, Base* within, bool add, uint32_t threadReg, uint32_t inc){
     BasicBlock* scope = NULL;
 
     if (within->getType() == PebilClassType_BasicBlock){
@@ -121,44 +599,42 @@ InstrumentationPoint* InstrumentationTool::insertInlinedTripCounter(uint64_t cou
         X86Instruction* ins = (X86Instruction*)within;
         Function* f = (Function*)(ins->getContainer());
         scope = f->getBasicBlockAtAddress(ins->getBaseAddress());
+    } else if (within->getType() == PebilClassType_Function){
+        Function* f = (Function*)(within);
+        scope = f->getBasicBlockAtAddress(f->getBaseAddress());
+        ASSERT(scope->getNumberOfSources() == 0 && "Function entry block should not be a target of another block");
     } else {
         PRINT_ERROR("Cannot call InstrumentationTool::insertTripCounter for an object of type %s", within->getTypeName());
     }
 
-    InstrumentationSnippet* snip = new InstrumentationSnippet();
-
-    // snippet contents, in this case just increment a counter
-    if (is64Bit()){
-        snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmByteToMem64(1, getInstDataAddress() + counterOffset));
-    } else {
-        snip->addSnippetInstruction(X86InstructionFactory32::emitAddImmByteToMem(1, getInstDataAddress() + counterOffset));
-    }
-
-    // do not generate control instructions to get back to the application, this is done for
-    // the snippet automatically during code generation
-
-    // register the snippet we just created
-    addInstrumentationSnippet(snip);
-
     // register an instrumentation point at the function that uses this snippet
-    FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-    X86Instruction* bestinst = scope->getExitInstruction();
-    InstLocations loc = InstLocation_prior;
-#ifndef NO_REG_ANALYSIS
-    for (int32_t j = scope->getNumberOfInstructions() - 1; j >= 0; j--){
-        if (scope->getInstruction(j)->allFlagsDeadIn()){
-            bestinst = scope->getInstruction(j);
-            prot = FlagsProtectionMethod_none;
-            break;
-        }
+    X86Instruction* bestinst;
+    InstLocations loc;
+    BitSet<uint32_t>* validRegs = new BitSet<uint32_t>(X86_ALU_REGS);
+    BitSet<uint32_t>* useRegs = new BitSet<uint32_t>(X86_ALU_REGS);
+
+    uint32_t regLimit = X86_32BIT_GPRS;
+    if (getElfFile()->is64Bit()){
+        regLimit = X86_64BIT_GPRS;
     }
-#endif
-    InstrumentationPoint* p = addInstrumentationPoint(bestinst, snip, InstrumentationMode_inline, prot, loc);
+    
+    for (uint32_t i = 0; i < regLimit; i++){
+        validRegs->insert(i);
+    }
+    validRegs->remove(X86_REG_AX);
+    validRegs->remove(X86_REG_SP);
+
+    bestinst = scope->findBestInstPoint(&loc, validRegs, useRegs, true);
+
+    InstrumentationPoint* p = insertInlinedTripCounter(counterOffset, bestinst, add, threadReg, loc, useRegs, inc);
+
+    delete validRegs;
+    delete useRegs;
 
     return p;
 }
 
-void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize){
+void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 
     ASSERT(!(*allBlockLineInfos).size() || (*allBlocks).size() == (*allBlockLineInfos).size());
@@ -167,7 +643,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     uint32_t numberOfInstPoints = (*allBlocks).size();
 
     char* staticFile = new char[__MAX_STRING_SIZE];
-    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getInstSuffix(), "static");
+    sprintf(staticFile,"%s.%s.%s", getFullFileName(), extension, "static");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 
@@ -175,21 +651,22 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
 
     fprintf(staticFD, "# appname   = %s\n", getApplicationName());
     fprintf(staticFD, "# appsize   = %d\n", getApplicationSize());
-    fprintf(staticFD, "# extension = %s\n", getInstSuffix());
+    fprintf(staticFD, "# extension = %s\n", getExtension());
     fprintf(staticFD, "# phase     = %d\n", 0);
     fprintf(staticFD, "# type      = %s\n", briefName());
     fprintf(staticFD, "# cantidate = %d\n", getNumberOfExposedBasicBlocks());
-    char* sha1sum = getElfFile()->getSHA1Sum();
-    fprintf(staticFD, "# sha1sum   = %s\n", sha1sum);
+    fprintf(staticFD, "# sha1sum   = %s\n", getElfFile()->getSHA1Sum());
     fprintf(staticFD, "# perinsn   = no\n");
-    delete[] sha1sum;
 
     uint32_t memopcnt = 0;
     uint32_t membytcnt = 0;
     uint32_t fltopcnt = 0;
     uint32_t insncnt = 0;
     for (uint32_t i = 0; i < allBlocks->size(); i++){
-        BasicBlock* bb = (*allBlocks)[i];
+        Base* b = (*allBlocks)[i];
+        ASSERT(b->getType() == PebilClassType_BasicBlock);
+        BasicBlock* bb = (BasicBlock*)b;
+
         memopcnt += bb->getNumberOfMemoryOps();
         membytcnt += bb->getNumberOfMemoryBytes();
         fltopcnt += bb->getNumberOfFloatOps();
@@ -230,8 +707,9 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     uint32_t jumpCount = 0;
 
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
-
-        BasicBlock* bb = (*allBlocks)[i];
+        Base* b = (*allBlocks)[i];
+        ASSERT(b->getType() == PebilClassType_BasicBlock);
+        BasicBlock* bb = (BasicBlock*)b;
         LineInfo* li = (*allBlockLineInfos)[i];
         Function* f = bb->getFunction();
 
@@ -294,23 +772,35 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
             uint32_t currDist = 1;
 
             fprintf(staticFD, "\t+dud");
-            while (currDist < MAX_DEF_USE_DIST_PRINT){
-                for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
-                    if (bb->getInstruction(k)->getDefUseDist() == currDist){
-                        if (bb->getInstruction(k)->isFloatPOperation()){
-                            currFP++;
-                        } else {
-                            currINT++;
-                        }
-                    }
+
+            std::pebil_map_type<uint32_t, uint32_t> idist;
+            std::pebil_map_type<uint32_t, uint32_t> fdist;
+            std::vector<uint32_t> dlist;
+            for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
+                X86Instruction* x = bb->getInstruction(k);
+                uint32_t d = x->getDefUseDist();
+                if (d == 0){
+                    continue;
                 }
-                if (currFP > 0 || currINT > 0){
-                    fprintf(staticFD, "\t%d:%d:%d", currDist, currINT, currFP);
+
+                if (idist.count(d) == 0){
+                    idist[d] = 0;
+                    fdist[d] = 0;
+                    dlist.push_back(d);
                 }
-                currDist++;
-                currINT = 0;
-                currFP = 0;
+                if (x->isFloatPOperation()){
+                    fdist[d] = fdist[d] + 1;
+                } else {
+                    idist[d] = idist[d] + 1;
+                }
             }
+
+            std::sort(dlist.begin(), dlist.end());
+            for (std::vector<uint32_t>::iterator it = dlist.begin(); it != dlist.end(); it++){
+                uint32_t d = (*it);
+                fprintf(staticFD, "\t%d:%d:%d", d, idist[d], fdist[d]);
+            }
+
             fprintf(staticFD, " # %#llx\n", bb->getHashCode().getValue());
 
             fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", bb->getDefXIter(), bb->endsWithCall(), bb->getHashCode().getValue());
@@ -326,7 +816,6 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
             }
             fprintf(staticFD, "\t+ipa\t%#llx\t%s # %#llx\n", callTgtAddr, callTgtName, bb->getHashCode().getValue());
 
-            bb->setBins();
             fprintf(staticFD, "\t+bin\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", 
                     bb->getNumberOfBinUnknown(), bb->getNumberOfBinInvalid(), bb->getNumberOfBinCond(), bb->getNumberOfBinUncond(), 
                     bb->getNumberOfBinBin(), bb->getNumberOfBinBinv(), bb->getNumberOfBinByte(), bb->getNumberOfBinBytev(),
@@ -344,7 +833,7 @@ void InstrumentationTool::printStaticFile(Vector<BasicBlock*>* allBlocks, Vector
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }
 
-void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize){
+void InstrumentationTool::printStaticFilePerInstruction(const char* extension, Vector<Base*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 
     ASSERT(!(*allInstructionLineInfos).size() || (*allInstructions).size() == (*allInstructionLineInfos).size());
@@ -353,7 +842,7 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
     uint32_t numberOfInstPoints = (*allInstructions).size();
 
     char* staticFile = new char[__MAX_STRING_SIZE];
-    sprintf(staticFile,"%s.%s.%s", getFullFileName(), getInstSuffix(), "static");
+    sprintf(staticFile,"%s.%s.%s", getFullFileName(), extension, "static");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 
@@ -361,21 +850,22 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
 
     fprintf(staticFD, "# appname   = %s\n", getApplicationName());
     fprintf(staticFD, "# appsize   = %d\n", getApplicationSize());
-    fprintf(staticFD, "# extension = %s\n", getInstSuffix());
+    fprintf(staticFD, "# extension = %s\n", getExtension());
     fprintf(staticFD, "# phase     = %d\n", 0);
     fprintf(staticFD, "# type      = %s\n", briefName());
     fprintf(staticFD, "# cantidate = %d\n", getNumberOfExposedInstructions());
-    char* sha1sum = getElfFile()->getSHA1Sum();
-    fprintf(staticFD, "# sha1sum   = %s\n", sha1sum);
+    fprintf(staticFD, "# sha1sum   = %s\n", getElfFile()->getSHA1Sum());
     fprintf(staticFD, "# perinsn   = yes\n");
-    delete[] sha1sum;
 
     uint32_t memopcnt = 0;
     uint32_t membytcnt = 0;
     uint32_t fltopcnt = 0;
     uint32_t insncnt = 0;
     for (uint32_t i = 0; i < allInstructions->size(); i++){
-        X86Instruction* ins = (*allInstructions)[i];
+        Base* b = (*allInstructions)[i];
+        ASSERT(b->getType() == PebilClassType_X86Instruction);
+        X86Instruction* ins = (X86Instruction*)b;
+
         if (ins->isMemoryOperation()){
             memopcnt++;
         }
@@ -419,8 +909,10 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
     uint32_t jumpCount = 0;
 
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
+        Base* b = (*allInstructions)[i];
+        ASSERT(b->getType() == PebilClassType_X86Instruction);
+        X86Instruction* ins = (X86Instruction*)b;
 
-        X86Instruction* ins = (*allInstructions)[i];
         Function* f = (Function*)ins->getContainer();
         BasicBlock* bb = f->getBasicBlockAtAddress(ins->getBaseAddress());
         LineInfo* li = (*allInstructionLineInfos)[i];
@@ -452,13 +944,16 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
 
         if (printDetail){
 
-            // TODO +lpi info is per-block still
             uint32_t loopLoc = 0;
             if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())){
                 if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())->getHead()->getHashCode().getValue() == bb->getHashCode().getValue()){
-                    loopLoc = 1;
+                    if (bb->getLeader()->getBaseAddress() == ins->getBaseAddress()){
+                        loopLoc = 1;
+                    }
                 } else if (bb->getFlowGraph()->getInnermostLoopForBlock(bb->getIndex())->getTail()->getHashCode().getValue() == bb->getHashCode().getValue()){
-                    loopLoc = 2;
+                    if (bb->getExitInstruction()->getBaseAddress() == ins->getBaseAddress()){
+                        loopLoc = 2;
+                    }
                 }
             }
             fprintf(staticFD, "\t+lpi\t%d\t%d\t%d\t%d # %#llx\n", loopCount, loopId, loopDepth, loopLoc, hashValue);
@@ -478,35 +973,29 @@ void InstrumentationTool::printStaticFilePerInstruction(Vector<X86Instruction*>*
             uint64_t loopHead = 0;
             uint64_t parentHead = 0;
             if (loop){
-                loopHead = loop->getHead()->getHashCode().getValue();
-                parentHead = f->getFlowGraph()->getParentLoop(loop->getIndex())->getHead()->getHashCode().getValue();
+                HashCode* headHash = loop->getHead()->getLeader()->generateHashCode(loop->getHead());
+                HashCode* parentHash = f->getFlowGraph()->getParentLoop(loop->getIndex())->getHead()->getLeader()->generateHashCode(f->getFlowGraph()->getParentLoop(loop->getIndex())->getHead());
+                loopHead = headHash->getValue();
+                parentHead = parentHash->getValue();
+
+                delete headHash;
+                delete parentHash;
             }
             fprintf(staticFD, "\t+lpc\t%lld\t%lld # %#llx\n", loopHead, parentHead, hashValue);
 
-            uint32_t currINT = 0;
-            uint32_t currFP = 0;
-            uint32_t currDist = 1;
 
             fprintf(staticFD, "\t+dud");
-            while (currDist < MAX_DEF_USE_DIST_PRINT){
-                if (ins->getDefUseDist() == currDist){
-                    if (ins->isFloatPOperation()){
-                        currFP++;
-                    } else {
-                        currINT++;
-                    }
+            uint32_t currDist = ins->getDefUseDist();
+            if (currDist){
+                if (ins->isFloatPOperation()){
+                    fprintf(staticFD, "\t%d:%d:%d", currDist, 0, 1);
+                } else {
+                    fprintf(staticFD, "\t%d:%d:%d", currDist, 1, 0);
                 }
-                if (currFP > 0 || currINT > 0){
-                    fprintf(staticFD, "\t%d:%d:%d", currDist, currINT, currFP);
-                }
-                currDist++;
-                currINT = 0;
-                currFP = 0;
             }
             fprintf(staticFD, " # %#llx\n", hashValue);
 
-            // TODO +dxi info is per-block still
-            fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", bb->getDefXIter(), bb->endsWithCall(), hashValue);
+            fprintf(staticFD, "\t+dxi\t%d\t%d # %#llx\n", (uint32_t)ins->hasDefXIter(), ins->isCall(), hashValue);
 
             uint64_t callTgtAddr = 0;
             char* callTgtName = INFO_UNKNOWN;

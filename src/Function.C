@@ -33,35 +33,101 @@
 #include <SymbolTable.h>
 #include <TextSection.h>
 
-void Function::interposeBlock(BasicBlock* bb){
-    flowGraph->interposeBlock(bb);
-    sizeInBytes += bb->getNumberOfBytes();
+void Function::wedge(uint32_t shamt){
+    flowGraph->wedge(shamt);
+    setBaseAddress(getBaseAddress() + shamt);
 }
 
-uint32_t Function::findStackSize(){
+uint32_t Function::getStackSize(){
     ASSERT(flowGraph);
+    uint32_t stackSize = 0;
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
         BasicBlock* bb = flowGraph->getBasicBlock(i);
         if (bb->isEntry()){
             for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
                 X86Instruction* ins = bb->getInstruction(j);
-                OperandX86* srcop = ins->getOperand(COMP_DEST_OPERAND);
+                OperandX86* srcop = ins->getOperand(DEST_OPERAND);
+                if (ins->GET(mnemonic) == UD_Ipush){
+                    PRINT_INFOR("Bytes in %s now %#x", getName(), stackSize);
+                    stackSize += sizeof(uint64_t);
+                } else if (ins->GET(mnemonic) == UD_Ipusha ||
+                           ins->GET(mnemonic) == UD_Ipushad ||
+                           ins->GET(mnemonic) == UD_Ipushfd ||
+                           ins->GET(mnemonic) == UD_Ipushfq ||
+                           ins->GET(mnemonic) == UD_Ipushfw){
+                    PRINT_ERROR("cannot abide strange push instructions in frame setup");
+                }
                 if (ins->GET(mnemonic) == UD_Isub && !srcop->getValue()){
                     if (srcop->getBaseRegister() == X86_REG_SP){
-                        stackSize = ins->getOperand(COMP_SRC_OPERAND)->getValue();
-                        break;
+                        stackSize += ins->getOperand(SRC1_OPERAND)->getValue();
                     }
                 }
             }
             break;
         }
     }
-    if (!stackSize){
-        stackSize = Size__trampoline_autoinc;
+    return stackSize;
+}
+
+uint32_t Function::getDeadGPR(uint32_t idx){
+    if (deadRegs == NULL){
+        findDeadRegs();
     }
+    ASSERT(deadRegs);
+
+    uint32_t n = 0;
+    for (uint32_t j = 0; j < X86_64BIT_GPRS; j++){
+        if (deadRegs->contains(j)){
+            if (n == idx){
+                return j;
+            }
+            n++;
+        }
+    }
+    return X86_64BIT_GPRS;
+}
+
+void Function::findDeadRegs(){
+    uint32_t numberOfInstructions = getNumberOfInstructions();
+    X86Instruction** allInstructions = new X86Instruction*[numberOfInstructions];
+    getAllInstructions(allInstructions,0);
+
+    deadRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
+    deadRegs->setall();
+    for (uint32_t i = 0; i < numberOfInstructions; i++){
+        X86Instruction* ins = allInstructions[i];
+        for (uint32_t j = 0; j < X86_64BIT_GPRS; j++){
+            if (!ins->isRegDeadIn(j) || !ins->isRegDeadOut(j)){
+                deadRegs->remove(j);
+            }
+        }
+        if (deadRegs->empty()){
+            break;
+        }
+    }
+    delete[] allInstructions;
+}
+
+void Function::computeDefUse(){
+#ifndef NO_REG_ANALYSIS
+    defUse = true;
+    flowGraph->computeDefUseDist();
+#endif
+}
+
+void Function::interposeBlock(BasicBlock* bb){
+    flowGraph->interposeBlock(bb);
+    sizeInBytes += bb->getNumberOfBytes();
 }
 
 bool Function::hasLeafOptimization(){
+    if (!computedLeafOpt){
+        computeLeafOptimization();
+    }
+    return leafOpt;
+}
+
+void Function::computeLeafOptimization(){
     uint32_t numberOfInstructions = getNumberOfInstructions();
     X86Instruction** allInstructions = new X86Instruction*[numberOfInstructions];
     getAllInstructions(allInstructions,0);
@@ -73,7 +139,9 @@ bool Function::hasLeafOptimization(){
         }
     }
     delete[] allInstructions;
-    return !callFound;
+
+    leafOpt = !callFound;
+    computedLeafOpt = true;
 }
 
 void Function::printDisassembly(bool instructionDetail){
@@ -244,6 +312,7 @@ Vector<X86Instruction*>* Function::swapInstructions(uint64_t addr, Vector<X86Ins
     for (uint32_t i = 0; i < getNumberOfBasicBlocks(); i++){
         if (getBasicBlock(i)->inRange(addr)){
             cantidate = getBasicBlock(i);
+            break;
         }
     }
     if (cantidate){
@@ -323,7 +392,6 @@ uint32_t Function::digest(Vector<AddressAnchor*>* addressAnchors){
 
     if (!isDisasmFail()){
         generateCFG(allInstructions, addressAnchors);        
-        findStackSize();
 #ifndef NO_REG_ANALYSIS
         flowGraph->computeLiveness();
 #endif
@@ -571,14 +639,6 @@ uint32_t Function::generateCFG(Vector<X86Instruction*>* instructions, Vector<Add
     flowGraph->connectGraph(entryBlock);
     flowGraph->setImmDominatorBlocks();
 
-    for (uint32_t i = 0; i < flowGraph->getNumberOfBlocks(); i++){
-        if (flowGraph->getBlock(i)->getType() == PebilClassType_BasicBlock){
-            BasicBlock* bb = (BasicBlock*)flowGraph->getBlock(i);
-            bb->findCompareAndCBranch();
-        }
-    }
-
-
     DEBUG_CFG(print();)
 
     ASSERT(flowGraph->getNumberOfBlocks() == flowGraph->getNumberOfBasicBlocks());
@@ -659,7 +719,8 @@ uint32_t Function::generateCFG(Vector<X86Instruction*>* instructions, Vector<Add
 
 X86Instruction* Function::getInstructionAtAddress(uint64_t addr){
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        if (flowGraph->getBasicBlock(i)->inRange(addr)){
+        BasicBlock* bb = flowGraph->getBasicBlock(i);
+        if (addr >= bb->getBaseAddress() && bb->inRange(addr)){
             return flowGraph->getBasicBlock(i)->getInstructionAtAddress(addr); 
         }
     }
@@ -668,12 +729,24 @@ X86Instruction* Function::getInstructionAtAddress(uint64_t addr){
 }
 
 BasicBlock* Function::getBasicBlockAtAddress(uint64_t addr){
+    if (addr < getBaseAddress()){
+        return NULL;
+    }
+
+    BasicBlock** bbs = flowGraph->getAllBlocks();
+    void* found = bsearch(&addr, bbs, flowGraph->getNumberOfBasicBlocks(), sizeof(BasicBlock*), searchBasicBlockAddress);
+    if (found != NULL){
+        return *(BasicBlock**)found;
+    }
+    return NULL;
+    /*
     for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
-        if (flowGraph->getBasicBlock(i)->inRange(addr)){
+        BasicBlock* bb = flowGraph->getBasicBlock(i);
+        if (bb->inRange(addr)){
             return flowGraph->getBasicBlock(i); 
         }
     }
-
+    */
     return NULL;
 }
 
@@ -691,6 +764,9 @@ Function::~Function(){
     if (flowGraph){
         delete flowGraph;
     }
+    if (deadRegs){
+        delete deadRegs;
+    }
 }
 
 
@@ -705,7 +781,10 @@ Function::Function(TextSection* text, uint32_t idx, Symbol* sym, uint32_t sz)
 
     badInstruction = 0;
     flags = 0;
-    stackSize = 0;
+    defUse = false;
+
+    computedLeafOpt = false;
+    deadRegs = NULL;
 
     verify();
 }
@@ -733,10 +812,11 @@ bool Function::verify(){
         if (getNumberOfBytes() > sizeInBytes){
             PRINT_ERROR("Function %s has more bytes in BBs (%d) than in its size (%d)", getName(), getNumberOfBytes(), sizeInBytes);
         }
-        X86Instruction** allInstructions = new X86Instruction*[getNumberOfInstructions()];
-        getAllInstructions(allInstructions,0);
-        qsort(allInstructions,getNumberOfInstructions(),sizeof(X86Instruction*),compareBaseAddress);
-        for (uint32_t i = 0; i < getNumberOfInstructions()-1; i++){
+        uint32_t icount = getNumberOfInstructions();
+        X86Instruction** allInstructions = new X86Instruction*[icount];
+        getAllInstructions(allInstructions, 0);
+        qsort(allInstructions, icount, sizeof(X86Instruction*), compareBaseAddress);
+        for (uint32_t i = 0; i < icount - 1; i++){
             if (allInstructions[i+1]->getBaseAddress() && allInstructions[i]->getBaseAddress() == allInstructions[i+1]->getBaseAddress()){
                 allInstructions[i]->print();
                 allInstructions[i+1]->print();

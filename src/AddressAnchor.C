@@ -27,10 +27,16 @@
 uint64_t AddressAnchor::getLinkOffset(){
     ASSERT(linkedParent);
     ASSERT(link);
-    if (linkedParent->getType() == PebilClassType_X86Instruction){ 
+    switch (linkClass){
+    case LinkClass_InstructionRelative:
         return link->getBaseAddress() - linkedParent->getBaseAddress() - linkedParent->getSizeInBytes();
-    } else if (linkedParent->getType() == PebilClassType_DataReference){
+        break;
+    case LinkClass_InstructionImmediate:
+    case LinkClass_DataReference:
         return link->getBaseAddress();
+        break;
+    default:
+        __SHOULD_NOT_ARRIVE;
     }
     __SHOULD_NOT_ARRIVE;
     return 0;
@@ -98,70 +104,81 @@ Base* AddressAnchor::updateLink(Base* newLink){
 }
 
 void AddressAnchor::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    if (linkedParent->getType() == PebilClassType_X86Instruction){
-        dumpInstruction(binaryOutputFile, offset);
-    } else if (linkedParent->getType() == PebilClassType_DataReference){
+    if (linkClass == LinkClass_DataReference){
         dumpDataReference(binaryOutputFile, offset);
     } else {
-        __FUNCTION_NOT_IMPLEMENTED;
+        dumpInstruction(binaryOutputFile, offset);
     }
 }
 
 uint64_t AddressAnchor::getLinkValue(){
-    return getLinkOffset();// + getLinkedParent()->getSizeInBytes();
+    return getLinkOffset();
 }
 
-void AddressAnchor::dump8(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    uint8_t value = (uint8_t)getLinkValue();
+void AddressAnchor::dump8(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint8_t value){
     ASSERT((uint8_t)(getLinkValue() - value) == 0 && "Need more than 8 bits for relative immediate");
     binaryOutputFile->copyBytes((char*)&value,sizeof(uint8_t),offset);
 }
 
-void AddressAnchor::dump16(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    uint16_t value = (uint16_t)getLinkValue();
+void AddressAnchor::dump16(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint16_t value){
     ASSERT((uint16_t)(getLinkValue() - value) == 0 && "Need more than 16 bits for relative immediate");
     binaryOutputFile->copyBytes((char*)&value,sizeof(uint16_t),offset);
 }
 
-void AddressAnchor::dump32(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    uint32_t value = (uint32_t)getLinkValue();
+void AddressAnchor::dump32(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint32_t value){
     ASSERT((uint32_t)(getLinkValue() - value) == 0 && "Need more than 32 bits for relative immediate");
     binaryOutputFile->copyBytes((char*)&value,sizeof(uint32_t),offset);
 }
 
-void AddressAnchor::dump64(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    uint64_t value = (uint64_t)getLinkValue();
+void AddressAnchor::dump64(BinaryOutputFile* binaryOutputFile, uint32_t offset, uint64_t value){
     ASSERT((uint64_t)(getLinkValue() - value) == 0 && "Need more than 64 bits for relative immediate");
     binaryOutputFile->copyBytes((char*)&value,sizeof(uint64_t),offset);
 }
 
 void AddressAnchor::dumpDataReference(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+    ASSERT(linkClass == LinkClass_DataReference);
     ASSERT(linkedParent->getType() == PebilClassType_DataReference);
     DataReference* dataReference = (DataReference*)linkedParent;
     if (dataReference->is64Bit()){
-        dump64(binaryOutputFile, offset + dataReference->getSectionOffset());
+        uint64_t value = getLinkValue();
+        dump64(binaryOutputFile, offset + dataReference->getSectionOffset(), value);
     } else {
-        dump32(binaryOutputFile, offset + dataReference->getSectionOffset());
+        uint32_t value = (uint32_t)getLinkValue();
+        dump32(binaryOutputFile, offset + dataReference->getSectionOffset(), value);
     }
 }
 
 void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t offset){
     ASSERT(linkedParent);
     ASSERT(linkedParent->getType() == PebilClassType_X86Instruction);
+    ASSERT(linkClass == LinkClass_InstructionRelative || linkClass == LinkClass_InstructionImmediate);
+
     X86Instruction* linkedInstruction = (X86Instruction*)linkedParent;
 
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
         OperandX86* op = linkedInstruction->getOperand(i);
         if (op){
-            if (op->isRelative()){
+            bool overwrite = false;
+            if (op->isRelative() && linkClass == LinkClass_InstructionRelative){
+                overwrite = true;
+            }
+            if (op->GET(type) == UD_OP_IMM && linkClass == LinkClass_InstructionImmediate){
+                overwrite = true;
+            }
+
+            if (overwrite){
                 if (op->getBytesUsed() == sizeof(uint8_t)){
-                    dump8(binaryOutputFile, offset + op->getBytePosition());
+                    uint8_t value = (uint8_t)getLinkValue();
+                    dump8(binaryOutputFile, offset + op->getBytePosition(), value);
                 } else if (op->getBytesUsed() == sizeof(uint16_t)){
-                    dump16(binaryOutputFile, offset + op->getBytePosition());
+                    uint16_t value = (uint16_t)getLinkValue();
+                    dump16(binaryOutputFile, offset + op->getBytePosition(), value);
                 } else if (op->getBytesUsed() == sizeof(uint32_t)){
-                    dump32(binaryOutputFile, offset + op->getBytePosition());
+                    uint32_t value = (uint32_t)getLinkValue();
+                    dump32(binaryOutputFile, offset + op->getBytePosition(), value);
                 } else if (op->getBytesUsed() == sizeof(uint64_t)){
-                    dump64(binaryOutputFile, offset + op->getBytePosition());
+                    uint64_t value = (uint64_t)getLinkValue();
+                    dump64(binaryOutputFile, offset + op->getBytePosition(), value);
                 } else {
                     print();
                     PRINT_ERROR("an operand cannot use %d bytes", op->getBytesUsed());
@@ -172,11 +189,36 @@ void AddressAnchor::dumpInstruction(BinaryOutputFile* binaryOutputFile, uint32_t
     }
 }
 
+AddressAnchor::AddressAnchor(Base* lnk, Base* par, bool imm){
+    link = lnk;
+    linkedParent = par;
+    
+    linkBaseAddress = link->getBaseAddress();
+    if (linkedParent->getType() == PebilClassType_DataReference){
+        linkClass = LinkClass_DataReference;
+    } else {
+        ASSERT(linkedParent->getType() == PebilClassType_X86Instruction);
+        if (imm){
+            linkClass = LinkClass_InstructionImmediate;
+        } else {
+            linkClass = LinkClass_InstructionRelative;
+        }
+    }
+
+    verify();    
+}
+
 AddressAnchor::AddressAnchor(Base* lnk, Base* par){
     link = lnk;
     linkedParent = par;
     
     linkBaseAddress = link->getBaseAddress();
+    if (linkedParent->getType() == PebilClassType_DataReference){
+        linkClass = LinkClass_DataReference;
+    } else {
+        ASSERT(linkedParent->getType() == PebilClassType_X86Instruction);
+        linkClass = LinkClass_InstructionRelative;
+    }
 
     verify();
 }
@@ -203,6 +245,11 @@ bool AddressAnchor::verify(){
 
     if (linkBaseAddress != link->getBaseAddress()){
         PRINT_ERROR("Link base address %#lx cached does not match actual value %#llx", linkBaseAddress, link->getBaseAddress());
+        return false;
+    }
+
+    if (linkClass <= LinkClass_Undefined || linkClass >= LinkClass_TotalTypes){
+        PRINT_ERROR("Invalid link class");
         return false;
     }
 

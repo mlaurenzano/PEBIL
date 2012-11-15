@@ -55,8 +55,8 @@ class TextSection;
 #define InstrumentorFlag_norelocate 0x1
 
 #define INSTHDR_RESERVE_AMT 0x1000
-#define TEXT_EXTENSION_INC  0x4000
-#define DATA_EXTENSION_INC  0x4000
+#define TEXT_EXTENSION_INC  0x40000
+#define DATA_EXTENSION_INC  0x40000
 #define DEFAULT_INST_SEGMENT_IDX 4
 #define TEMP_SEGMENT_SIZE 0x10000000
 
@@ -78,6 +78,9 @@ private:
     BasicBlock* programEntryBlock;
     Vector<Function*> hiddenFunctions;
 
+    Vector<uint64_t> pointerAddrs;
+    Vector<uint64_t> pointerPtrs;
+
     Vector<InstrumentationSnippet*> instrumentationSnippets;
     Vector<InstrumentationFunction*> instrumentationFunctions;
     Vector<InstrumentationPoint*>* instrumentationPoints;
@@ -89,6 +92,9 @@ private:
     Vector<BasicBlock*> interposedBlocks;
 
     bool allowStatic;
+    bool threadedMode;
+    bool multipleImages;
+    bool perInstruction;
 
     ProgramHeader* instSegment;
 
@@ -117,6 +123,8 @@ private:
 
     void applyInstrumentationDataToRaw();
     void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+
+    void declareLibraryList();
 protected:
     Vector<Function*> allFunctions;
     Vector<Function*> exposedFunctions;
@@ -130,28 +138,26 @@ protected:
 
     uint32_t currentPhase;
 
-    char* instSuffix;
-    char* sharedLibraryPath;
     uint64_t flags;
+    char* libraryList;
     
     BasicBlock* findExposedBasicBlock(HashCode hashCode);
 
     // instrumentation functions
-    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode) { return addInstrumentationPoint(instpoint, inst, instMode, FlagsProtectionMethod_full); }
-    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod);
-    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, FlagsProtectionMethods flagsMethod, InstLocations loc);
+    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode);
+    InstrumentationPoint* addInstrumentationPoint(Base* instpoint, Instrumentation* inst, InstrumentationModes instMode, InstLocations loc);
     uint32_t addSharedLibrary(const char* libname);
-    uint32_t addSharedLibraryPath();
+    uint32_t addSharedLibraryPath(char* path);
     uint64_t addFunction(InstrumentationFunction* func);
     uint64_t addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOffset);
     uint64_t relocateDynamicSection();
-    uint64_t getProgramBaseAddress();
     void extendTextSection(uint64_t totalSize, uint64_t headerSize);
     void allocateInstrumentationText(uint64_t totalSize, uint64_t headerSize);
-    void extendDataSection();
+    void extendDataSection(uint32_t amt);
     void extendDynamicTable();
     void buildInstrumentationSections();
     uint32_t generateInstrumentation();
+    void computeInstrumentationOffsets();
     void compressInstrumentation(uint32_t textSize);
     uint32_t relocateAndBloatFunction(Function* functionToRelocate, uint64_t offsetToRelocation, Vector<Vector<InstrumentationPoint*>*>* functionInstPoints);
     bool isEligibleFunction(Function* func);
@@ -183,7 +189,7 @@ public:
 
     void print();
     void print(uint32_t printCodes);
-    void dump();
+    void dump(char* extension, bool isext=true);
 
     bool verify();
 
@@ -197,17 +203,21 @@ public:
     BasicBlock* getProgramEntryBlock();
 
     void setInputFunctions(char* inputFuncList);
+    X86Instruction* linkInstructionToData(X86Instruction* ins, uint64_t addr, bool isOffset);
 
     LineInfoFinder* getLineInfoFinder() { return lineInfoFinder; }
     bool hasLineInformation() { return (lineInfoFinder != NULL); }
-    void setPathToInstLib(char* libPath);
-    void setInstExtension(char* extension);
     void setAllowStatic() { allowStatic = true; }
+    void setThreadedMode() { threadedMode = true; ASSERT(is64Bit() && "Threading support not available for IA32"); }
+    bool isThreadedMode() { return threadedMode; }
+    void setMultipleImages() { multipleImages = true; ASSERT(is64Bit() && "Multi-image support not available for IA32"); }
+    bool isMultiImage() { return multipleImages; }
+    void setPerInstruction() { perInstruction = true; }
+    bool isPerInstruction() { return perInstruction; }
 
     char* getApplicationName() { return elfFile->getAppName(); }
     uint32_t getApplicationSize() { return elfFile->getFileSize(); }
     char* getFullFileName() { return elfFile->getFileName(); }
-    char* getInstSuffix() { return instSuffix; }
 
     char* getInstrumentationLibrary(uint32_t idx) { return instrumentationLibraries[idx]; }
     uint32_t getNumberOfInstrumentationLibraries() { return instrumentationLibraries.size(); }
@@ -217,20 +227,27 @@ public:
     uint64_t getInstDataAddress();
 
     uint64_t reserveDataOffset(uint64_t size);
+    uint64_t reserveDataAddress(uint64_t size);
     uint32_t initializeReservedData(uint64_t address, uint32_t size, void* data);
+    uint32_t initializeReservedPointer(uint64_t addr, uint64_t ptr);
 
     void functionSelect();
     uint64_t functionRelocateAndTransform(uint32_t offset);
 
     InstrumentationFunction* declareFunction(char* funcName);
-    uint32_t declareLibrary(char* libName);
+    uint32_t declareLibrary(const char* libName);
+    void setLibraryList(char* libList) { libraryList = libList; }
 
     InstrumentationFunction* getInstrumentationFunction(const char* funcName);
     uint32_t addInstrumentationSnippet(InstrumentationSnippet* snip);
+    InstrumentationSnippet* addInstrumentationSnippet();
 
+    virtual void dynamicPoint(InstrumentationPoint* pt, uint64_t key, bool enable) { __SHOULD_NOT_ARRIVE; }
+    virtual uint64_t reserveDynamicPoints() { __SHOULD_NOT_ARRIVE; }
+    virtual void applyDynamicPoints(uint64_t dynArray) { __SHOULD_NOT_ARRIVE; }
     virtual void declare() { __SHOULD_NOT_ARRIVE; }
     virtual void instrument() { __SHOULD_NOT_ARRIVE; }
-    virtual void usesModifiedProgram() { __SHOULD_NOT_ARRIVE; }
+    virtual const char* getExtension() { __SHOULD_NOT_ARRIVE; }
     virtual bool canRelocateFunction(Function* func) { return true; }
 };
 

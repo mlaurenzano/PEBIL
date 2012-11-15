@@ -24,45 +24,111 @@
 #include <ElfFileInst.h>
 #include <Instrumentation.h>
 #include <X86Instruction.h>
+#include <map>
+
+#include <Metasim.hpp>
 
 class InstrumentationPoint;
 
 #define INFO_UNKNOWN "__info_unknown__"
 
-typedef struct 
-{
-    int64_t pt_vaddr;
-    int64_t pt_target;
-    int64_t pt_flags;
-    int32_t pt_size;
-    int32_t pt_blockid;
-    unsigned char pt_content[16];
-    unsigned char pt_disable[16];
-} instpoint_info;
+typedef struct {
+    uint64_t id;
+    uint64_t data;
+} ThreadData;
+#define ThreadHashShift (12)
+#define ThreadHashMod   (0xffff)
+
+struct DynamicInstInternal {
+    InstrumentationPoint* Point;
+    uint64_t Key;
+    bool IsEnabled;
+
+    DynamicInstInternal(){
+        Point = NULL;
+        Key = 0;
+        IsEnabled = true;
+    }
+};
 
 class InstrumentationTool : public ElfFileInst {
+private:
+    char* extension;
+    bool singleArgCheck(void* arg, uint32_t mask, const char* name);
+    bool hasThreadEvidence();
+
 protected:
-    void printStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize);
-    void printStaticFilePerInstruction(Vector<X86Instruction*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize);
+    uint64_t imageKey;
+    uint64_t threadHash;
 
-    InstrumentationPoint* insertInlinedTripCounter(uint64_t, Base*);
+    Vector<X86Instruction*>* atomicIncrement(uint32_t dest, uint32_t scratch, uint32_t count, uint64_t memaddr, Vector<X86Instruction*>* insns);
 
+    void printStaticFile(const char* extension, Vector<Base*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize);
+    void printStaticFilePerInstruction(const char* extension, Vector<Base*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize);
+
+    InstrumentationPoint* insertBlockCounter(uint64_t, Base*);
+    InstrumentationPoint* insertBlockCounter(uint64_t, Base*, bool, uint32_t);
+    InstrumentationPoint* insertBlockCounter(uint64_t, Base*, bool, uint32_t, uint32_t);
+    InstrumentationPoint* insertInlinedTripCounter(uint64_t, X86Instruction*, bool, uint32_t, InstLocations, BitSet<uint32_t>*, uint32_t val);
+
+    void assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint64_t address, uint8_t tmpreg, uint64_t regbak);
+    void assignStoragePrior(InstrumentationPoint* pt, uint32_t value, uint8_t reg);
+
+    Vector<X86Instruction*>* storeThreadData(uint32_t scratch, uint32_t dest);
+    Vector<X86Instruction*>* storeThreadData(uint32_t scratch, uint32_t dest, bool storeToStack, uint32_t stackPatch);
+    void threadAllEntryPoints(Function* f, uint32_t threadReg);
+
+    std::map<uint64_t, uint32_t>* threadReadyCode(std::set<Base*>& objectsToInst);
+    uint32_t instrumentForThreading(Function* func);
+
+    InstrumentationFunction* imageInit;
     InstrumentationFunction* initWrapperC;
     InstrumentationFunction* initWrapperF;
 
     uint32_t phaseNo;
-    char* extension;
     bool loopIncl;
     bool printDetail;
+    char* inputFile;
+    char* dfpFile;
+    char* trackFile;
+    bool doIntro;
+
+#define PEBIL_OPT_ALL 0xffffffff
+#define PEBIL_OPT_NON 0x00000000
+#define PEBIL_OPT_PHS 0x00000001
+#define PEBIL_OPT_LPI 0x00000002
+#define PEBIL_OPT_DTL 0x00000004
+#define PEBIL_OPT_INP 0x00000008
+#define PEBIL_OPT_DFP 0x00000010
+#define PEBIL_OPT_TRK 0x00000020
+#define PEBIL_OPT_DOI 0x00000040
+
+    Vector<DynamicInstInternal*> dynamicPoints;
+    InstrumentationFunction* dynamicInit;
+
+    uint64_t dynamicPointArray;
+    uint64_t dynamicSize;
+
 public:
-    InstrumentationTool(ElfFile* elf, char* ext, uint32_t phase, bool lpi, bool dtl);
-    ~InstrumentationTool() { }
+    InstrumentationTool(ElfFile* elf);
+    virtual ~InstrumentationTool() { }
+
+    void init(char* ext);
+    void initToolArgs(bool lpi, bool dtl, bool doi, uint32_t phase, char* inp, char* dfp, char* trk);
 
     virtual void declare();
     virtual void instrument();
-    virtual void usesModifiedProgram() { }
+
+    void dynamicPoint(InstrumentationPoint* pt, uint64_t key, bool enable);
+    uint64_t reserveDynamicPoints();
+    void applyDynamicPoints(uint64_t dynArray);
 
     virtual const char* briefName() { __SHOULD_NOT_ARRIVE; }
+    virtual const char* defaultExtension() { __SHOULD_NOT_ARRIVE; }
+    const char* getExtension();
+    bool verifyArgs();
+    virtual uint32_t allowsArgs() { return PEBIL_OPT_ALL; }
+    virtual uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
 
 

@@ -22,7 +22,16 @@
 
 #include <Base.h>
 #include <BinaryFile.h>
+#include <ElfFile.h>
 #include <CStructuresElf.h>
+
+void ProgramHeader::wedge(ElfFile* elfFile, uint32_t shamt){
+    if (GET(p_type) == PT_GNU_STACK){
+        return;
+    }
+    INCREMENT(p_vaddr, shamt);
+    INCREMENT(p_paddr, shamt);
+}
 
 bool ProgramHeader::inRange(uint64_t addr){
     uint64_t minAddr = GET(p_vaddr);

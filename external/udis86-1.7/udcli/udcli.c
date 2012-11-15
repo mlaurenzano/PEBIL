@@ -192,19 +192,20 @@ int main(int argc, char **argv)
 	if (o_do_off)
 		printf("%016" FMT "x ", ud_insn_off(&ud_obj));
 	if (o_do_hex) {
+#define LEN_BYTES_PRINT (31) // do not set above 31
 		char* hex1, *hex2;
 		char c;
 		hex1 = ud_insn_hex(&ud_obj);
-		hex2 = hex1 + 16;
-		c = hex1[16];
-		hex1[16] = 0;
-		printf("%-16s %-24s", hex1, ud_insn_asm(&ud_obj));
-		hex1[16] = c;
-		if (strlen(hex1) > 16) {
+		hex2 = hex1 + LEN_BYTES_PRINT;
+		c = hex1[LEN_BYTES_PRINT];
+		hex1[LEN_BYTES_PRINT] = 0;
+		printf("%-*s %-24s", LEN_BYTES_PRINT, hex1, ud_insn_asm(&ud_obj));
+		hex1[LEN_BYTES_PRINT] = c;
+		if (strlen(hex1) > LEN_BYTES_PRINT) {
 			printf("\n");
 			if (o_do_off)
 				printf("%15s -", "");
-			printf("%-16s", hex2);
+			printf("%-*s", (32 - LEN_BYTES_PRINT), hex2);
 		}
 	} 
 	else printf(" %-24s", ud_insn_asm(&ud_obj));

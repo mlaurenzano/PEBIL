@@ -15,7 +15,8 @@ from xml.dom import minidom
 #
 # special mnemonic types for internal purposes.
 #
-spl_mnm_types = [   'd3vil',      \
+spl_mnm_types = [   'totaltypes', \
+                    'd3vil',      \
                     'na',         \
                     'grp_reg',    \
                     'grp_rm',     \
@@ -57,6 +58,7 @@ operand_dict = {
     "Ew"       : [    "OP_E"        , "SZ_W"     ],
     "Ev"       : [    "OP_E"        , "SZ_V"     ],
     "Ed"       : [    "OP_E"        , "SZ_D"     ],
+    "Eq"       : [    "OP_E"        , "SZ_Q"     ],
     "Ez"       : [    "OP_E"        , "SZ_Z"     ],
     "Ex"       : [    "OP_E"        , "SZ_MDQ"   ],
     "Ep"       : [    "OP_E"        , "SZ_P"     ],
@@ -92,8 +94,16 @@ operand_dict = {
     "Ob"       : [    "OP_O"        , "SZ_B"     ],
     "Ow"       : [    "OP_O"        , "SZ_W"     ],
     "Ov"       : [    "OP_O"        , "SZ_V"     ],
+    "X"        : [    "OP_X"        , "SZ_NA"    ],
+    "x"        : [    "OP_x"        , "SZ_NA"    ],
     "V"        : [    "OP_V"        , "SZ_NA"    ],
+    "Vd"       : [    "OP_V"        , "SZ_D"     ],
+    "Vq"       : [    "OP_V"        , "SZ_Q"     ],
+    "Vx"       : [    "OP_V"        , "SZ_X"     ],
     "W"        : [    "OP_W"        , "SZ_NA"    ],
+    "Wd"       : [    "OP_W"        , "SZ_D"     ],
+    "Wq"       : [    "OP_W"        , "SZ_Q"     ],
+    "Wx"       : [    "OP_W"        , "SZ_X"     ],
     "P"        : [    "OP_P"        , "SZ_NA"    ],
     "Q"        : [    "OP_Q"        , "SZ_NA"    ],
     "VR"       : [    "OP_VR"       , "SZ_NA"    ],
@@ -176,6 +186,9 @@ pfx_dict = {
     "rexb"     : "P_rexb",  
     "rexx"     : "P_rexx",  
     "rexr"     : "P_rexr",
+    "vexlz"    : "P_vexlz",
+    "vexl"     : "P_vexl",
+    "vexix"    : "P_vexix",
     "inv64"    : "P_inv64", 
     "def64"    : "P_def64", 
     "depM"     : "P_depM",
@@ -192,9 +205,12 @@ opr_constants = []
 siz_constants = []
 tables        = {}
 table_sizes   = {}
-mnm_list      = []
-default_opr   = 'O_NONE, O_NONE, O_NONE'
+mnm_list      = ['invalid']
+default_opr   = 'O_NONE, O_NONE, O_NONE, O_NONE'
 
+def insert_mnm(m):
+    if mnm_list.count(m) == 0:
+        mnm_list.append(m)
 
 #
 # collect the operand/size constants
@@ -218,22 +234,40 @@ while tlNode and tlNode.localName != "x86optable": tlNode = tlNode.nextSibling
 #
 def centry(i, defmap):
     if defmap["type"][0:3] == "grp":
-        opr    = default_opr
         mnm    = 'UD_I' + defmap["type"].lower()
+        opr    = default_opr
+        flg_use = "F_none"
+        flg_def = "F_none"
+        imp_use = "R_none"
+        imp_def = "R_none"
         pfx    = defmap["name"].upper()
     elif defmap["type"] == "leaf":
         mnm    = "UD_I" + defmap["name"]
         opr    = defmap["opr"]
+        flg    = defmap["flags"]
+        flg_use = string.join(['F_' + f.upper() for f in flg['use']], ' | ')
+        flg_def = string.join(['F_' + f.upper() for f in flg['def']], ' | ')
+        imp    = defmap["implied"]
+        imp_use = string.join(['R_' + j.upper() for j in imp['use']], ' | ')
+        imp_def = string.join(['R_' + j.upper() for j in imp['def']], ' | ')
         pfx    = defmap["pfx"]
         if len(mnm) == 0: mnm = "UD_Ina"
         if len(opr) == 0: opr = default_opr
+        if len(flg_use) == 0: flg_use = "F_none"
+        if len(flg_def) == 0: flg_def = "F_none"
+        if len(imp_use) == 0: imp_use = "R_none"
+        if len(imp_def) == 0: imp_def = "R_none"
         if len(pfx) == 0: pfx = "P_none"
     else:
-        opr    = default_opr
-        pfx    = "P_none"
         mnm    = "UD_Iinvalid"
+        opr    = default_opr
+        flg_use = "F_none"
+        flg_def = "F_none"
+        imp_use = "R_none"
+        imp_def = "R_none"
+        pfx    = "P_none"
 
-    return "  /* %s */  { %-16s %-26s %s },\n" % (i, mnm + ',', opr + ',', pfx)
+    return "  /* %s */  { %-16s %-26s %s %s %s %s %s },\n" % (i, mnm + ',', opr + ',', flg_use + ',', flg_def + ',', imp_use + ',', imp_def + ',', pfx)
 
 #
 # makes a new table and adds it to the global
@@ -265,8 +299,9 @@ for node in tlNode.childNodes:
     if mnemonic in mnm_list:
         print "error: multiple declarations of mnemonic='%s'" % mnemonic;
         sys.exit(-1)
-    else:
-        mnm_list.append(mnemonic)
+
+    if len(node.childNodes) == 0:
+        insert_mnm(mnemonic)
 
     #
     # collect instruction 
@@ -288,8 +323,6 @@ for node in tlNode.childNodes:
         
         opcode = n.firstChild.data.strip();
         parts  = opcode.split(";"); 
-        flags  = []
-        opr    = []
         pfx    = []
         opr    = []
         pfx_c  = []
@@ -318,27 +351,51 @@ for node in tlNode.childNodes:
         #   1. prefixes (pfx)
         #   2. opcode bytes (opc)
         #   3. operands
+        #   4. flags use/defs
+        #   5. implicit registers use/defs
+        #   6. classifications
         #
-        if len(parts) == 1:
-            opc = parts[0].split()
-        elif len(parts) == 2:
-            opc = parts[0].split()
-            opr = parts[1].split()
-            for o in opc:
-                if o in pfx_dict:
-                    pfx = parts[0].split()
-                    opc = parts[1].split()
-                    break
-        elif len(parts) == 3:
+        if len(parts) == 5:
             pfx = parts[0].split()
             opc = parts[1].split()
             opr = parts[2].split()
+            flg = parts[3].split()
+            imp = parts[4].split()
         else:
-            print "error: invalid opcode definition of %s\n" % mnemonic
+            print "error: invalid opcode definition of 3 %s\n" % mnemonic
             sys.exit(-1)
         # Convert opcodes to upper case
         for i in range(len(opc)):
             opc[i] = opc[i].upper()
+
+        # collect flags use/defs
+        flags = {}
+        flags['use'] = []
+        flags['def'] = []
+        for i in range(len(flg)):
+            tks = flg[i].split(':')
+            if len(tks) != 2 or (tks[0] != 'u' and tks[0] != 'd'):
+                print "error: invalid flags declaration %s" % flg[i]
+                sys.exit(-1) 
+            [usedef, f] = tks
+            if usedef == 'u':
+                flags['use'].append(f.upper())
+            else:
+                flags['def'].append(f.upper())
+
+        implied = {}
+        implied['use'] = []
+        implied['def'] = []
+        for i in range(len(imp)):
+            tks = imp[i].split(':')
+            if len(tks) != 2 or (tks[0] != 'u' and tks[0] != 'd'):
+                print "error: invalid implied reg declaration %s" % imp[i]
+                sys.exit(-1) 
+            [usedef, f] = tks
+            if usedef == 'u':
+                implied['use'].append(f.upper())
+            else:
+                implied['def'].append(f.upper())
 
         #
         # check for special cases of instruction translation
@@ -348,6 +405,7 @@ for node in tlNode.childNodes:
            ( mnemonic == 'nop' and opc[0] == '90' ) or \
            mnemonic == 'invalid' or \
             mnemonic == 'db' :
+            insert_mnm(mnemonic)
             continue
 
         #
@@ -356,6 +414,7 @@ for node in tlNode.childNodes:
         for p in pfx:
             if not ( p in pfx_dict.keys() ):
                 print "error: invalid prefix specification: %s \n" % pfx
+                sys.exit(-1) 
             pfx_c.append( pfx_dict[p] )
         if len(pfx) == 0:
             pfx_c.append( "P_none" )
@@ -364,33 +423,49 @@ for node in tlNode.childNodes:
         #
         # Convert operands
         #
-        opr_c = [ "O_NONE", "O_NONE", "O_NONE" ]
+        opr_c = [ "O_NONE", "O_NONE", "O_NONE", "O_NONE" ]
         for i in range(len(opr)): 
             if not (opr[i] in operand_dict.keys()):
                 print "error: invalid operand declaration: %s\n" % opr[i]
+                sys.exit(-1)
             opr_c[i] = "O_" + opr[i]
-        opr = "%-8s %-8s %s" % (opr_c[0] + ",", opr_c[1] + ",", opr_c[2])
+        opr = "%-8s %-8s %-8s %s" % (opr_c[0] + ",", opr_c[1] + ",", opr_c[2] + ",", opr_c[3])
 
         table_sse    = ''
-        table_0fdone = 0
+        table_ssedone = 0
+        table_avx    = ''
+        table_avxdone = 0
         table_name   = 'itab__1byte'
         table_size   = 256
         table_index  = ''
-
+        
         for op in opc:
             if op[0:3] == 'SSE':
                 table_sse = op
+            elif op[0:3] == 'AVX':
+                table_avx = op[3:]
+            elif op == '0F' and len(table_sse) and len(table_avx):
+                table_name = "itab__avx_" + table_avx + "__pfx_" + table_sse + "__0f"
+                table_size = 256
+                table_avx = ''
+                table_index = op
+                table_avxdone += 1
+            elif op == '0F' and len(table_avx):
+                table_name = "itab__avx_%s__0f" % table_avx
+                table_size = 256
+                table_avx  = ''
+                table_avxdone += 1
             elif op == '0F' and len(table_sse):
                 table_name = "itab__pfx_%s__0f" % table_sse
                 table_size = 256
                 table_sse  = ''
-                table_0fdone += 1
-            elif op == '0F' and table_0fdone:
+                table_ssedone += 1
+            elif op == '0F' and table_ssedone:
                 table_index = op
             elif op == '0F':
                 table_name = "itab__0f"
                 table_size = 256
-                table_0fdone += 1
+                table_ssedone += 1
             elif op[0:5] == '/X87=':
                 tables[table_name][table_index] = { \
                     'type' : 'grp_x87',  \
@@ -478,12 +553,18 @@ for node in tlNode.childNodes:
             table_size = 2
             mktab(table_name, table_size)
 
+        m = mnemonic
+        if table_avxdone > 0:
+            m = 'v' + m
+        insert_mnm(m)
+
         tables[table_name][table_index] = { \
             'type'  : 'leaf',   \
-            'name'  : mnemonic, \
+            'name'  : m,        \
             'pfx'   : pfx,      \
             'opr'   : opr,      \
-            'flags' : flags     \
+            'flags' : flags,    \
+            'implied': implied  \
         }
 
 # ---------------------------------------------------------------------
@@ -540,7 +621,9 @@ f.write( "};\n\n" )
 # Generate mnemonics list
 #
 f.write("\nenum ud_mnemonic_code {\n")
-for m in mnm_list:
+smnm = mnm_list
+smnm.sort()
+for m in smnm:
     f.write("  UD_I%s,\n" % m)
 for m in spl_mnm_types:
     f.write("  UD_I%s,\n" % m)

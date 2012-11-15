@@ -35,14 +35,19 @@
 #define BINS_NUMBER (27)
 #define INSTRUCTIONS_THRESHOLD (1000000)
 
-Classification::Classification(ElfFile* elf, char* ext, bool lpi, bool dtl)
-    : InstrumentationTool(elf, ext, 0, lpi, dtl)
+extern "C" {
+    InstrumentationTool* ClassificationMaker(ElfFile* elf){
+        return new Classification(elf);
+    }
+}
+
+Classification::Classification(ElfFile* elf)
+    : InstrumentationTool(elf)
 {
     binFunc = NULL;
     exitFunc = NULL;
     entryFunc = NULL;
 }
-
 
 Classification::~Classification(){
 }
@@ -61,14 +66,14 @@ void Classification::declare(){
 void Classification::addInt_Store(Vector<X86Instruction*>& instructions, int x, uint64_t store){
     while(x >= 127) {
         if (is64Bit())
-            instructions.append(X86InstructionFactory64::emitAddImmByteToMem64(127, getInstDataAddress()+store));
+            instructions.append(X86InstructionFactory64::emitAddImmByteToMem(127, getInstDataAddress()+store));
         else
             instructions.append(X86InstructionFactory32::emitAddImmByteToMem(127, getInstDataAddress()+store));
         x -= 127;
     }
     if (x > 0) {
         if (is64Bit())
-            instructions.append(X86InstructionFactory64::emitAddImmByteToMem64(x, getInstDataAddress()+store));
+            instructions.append(X86InstructionFactory64::emitAddImmByteToMem(x, getInstDataAddress()+store));
         else
             instructions.append(X86InstructionFactory32::emitAddImmByteToMem(x, getInstDataAddress()+store));
     }
@@ -80,10 +85,10 @@ void Classification::instrument(){
     uint64_t bufferStore = reserveDataOffset(BINS_NUMBER*sizeof(uint64_t));
     uint64_t instructionsCountStore = reserveDataOffset(sizeof(uint64_t));
 
-    uint32_t traceNameSize = strlen(getElfFile()->getAppName())+7+strlen(extension);
+    uint32_t traceNameSize = strlen(getElfFile()->getAppName())+7+strlen(getExtension());
     uint64_t traceNameStore = reserveDataOffset(traceNameSize);
     char* traceName = new char[traceNameSize];
-    sprintf(traceName,"%s.0000.%s", getElfFile()->getAppName(), extension);
+    sprintf(traceName,"%s.0000.%s", getElfFile()->getAppName(), getExtension());
     initializeReservedData(getInstDataAddress()+traceNameStore, traceNameSize, traceName);
     delete[] traceName;
 
@@ -100,7 +105,7 @@ void Classification::instrument(){
     p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp);
     ASSERT(p);
 
-    Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
+    Vector<Base*>* allBlocks = new Vector<Base*>();
     Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
     LineInfoFinder* lineInfoFinder = NULL;
@@ -129,11 +134,10 @@ void Classification::instrument(){
         }
         
         uint32_t tmpReg = X86_REG_AX;
-        p = addInstrumentationPoint(bestinst, binFunc, InstrumentationMode_trampinline, prot, InstLocation_prior);
+        p = addInstrumentationPoint(bestinst, binFunc, InstrumentationMode_trampinline, InstLocation_prior);
         p->setPriority(InstPriority_low);
         Vector<X86Instruction*> bufferDumpInstructions;
 
-        bb->setBins();
         addInt_Store(bufferDumpInstructions, bb->getNumberOfInstructions(), instructionsCountStore);
         addInt_Store(bufferDumpInstructions, bb->getNumberOfBinUnknown(), tmpBufferStore); tmpBufferStore += sizeof(uint64_t);
         addInt_Store(bufferDumpInstructions, bb->getNumberOfBinInvalid(), tmpBufferStore); tmpBufferStore += sizeof(uint64_t);
@@ -183,7 +187,7 @@ void Classification::instrument(){
     }
     
     if(allLineInfos->size())
-        printStaticFile(allBlocks, allBlockIds, allLineInfos, allBlocks->size());
+        printStaticFile(getExtension(), allBlocks, allBlockIds, allLineInfos, allBlocks->size());
     delete allBlocks;
     delete allBlockIds;
     delete allLineInfos;

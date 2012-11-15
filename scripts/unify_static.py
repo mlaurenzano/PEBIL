@@ -63,6 +63,7 @@ block_lpi = {}
 block_cnt = {}
 block_mem = {}
 block_lpc = {}
+block_ipa = {}
 block_dud = {}
 block_dxi = {}
 block_bin = {}
@@ -117,6 +118,14 @@ for i in range(0,len(lsraw),1):
             bbhash = int(toks[29], 16)
             if bbhash != current_block:
                 print_error('block hashcode mismatch on (+bin) line ' + str(i+1))
+        elif line.startswith('+ipa'):
+            toks = line.split()
+            if len(toks) != 5:
+                print_error('malformed line in loop static file line ' + str(i+1))
+            block_ipa[current_block] = [toks[1], toks[2]]
+            bbhash = int(toks[4], 16)
+            if bbhash != current_block:
+                print_error('block hashcode mismatch on (+ipa) line ' + str(i+1))
         elif line.startswith('+dud'):
             toks = line.split()
             rawt = []
@@ -148,13 +157,13 @@ for i in range(0,len(lsraw),1):
 # block_mem     [bbhash]            = []
 # block_lpc     [bbhash]            = [loop_head, parent_loop_head]
 # block_dud     [bbhash]            = [ def_use_dist:num_int:num_fp ... ]
-line_info = '#<block_unqid> <sequence> <memop> <fpop> <insn> <flname> <line> <fncame> <vaddr> <loopcnt> <loopid> <ldepth> <lploc> <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op> <total_mem_op> <total_mem_bytes> <bytes/op> <loop_head> <parent_loop_head> <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...'
+line_info = '#<block_unqid> <sequence> <memop> <fpop> <insn> <flname> <line> <fncame> <vaddr> <loopcnt> <loopid> <ldepth> <lploc> <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op> <total_mem_op> <total_mem_bytes> <bytes/op> <loop_head> <parent_loop_head> <call_target_addr> <call_target_name> <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...'
 print line_info
 
 bbs = bbid_map.keys()
 bbs.sort()
 for bbid in bbs:
     current_block = bbid_map[bbid]
-    print str(current_block) + " " + stringify(block_static[current_block]) + " " + stringify(block_lpi[current_block]) + " " + stringify(block_cnt[current_block]) + " " + stringify(block_mem[current_block]) + " " + stringify(block_lpc[current_block]) + " " + stringify(block_dud[current_block])
+    print str(current_block) + " " + stringify(block_static[current_block]) + " " + stringify(block_lpi[current_block]) + " " + stringify(block_cnt[current_block]) + " " + stringify(block_mem[current_block]) + " " + stringify(block_lpc[current_block]) + " " + stringify(block_ipa[current_block]) + " " + stringify(block_dud[current_block])
 
 print line_info

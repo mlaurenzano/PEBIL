@@ -22,6 +22,44 @@
 
 #include <BinaryFile.h>
 
+const char* ETypeNames[] = { "NONE","REL","EXEC","DYN","CORE" };
+
+#define Undef_Mach "UNDEF"
+const char* EMachNames[] = { "NONE", "M32", "SPARC", "386", "68K",                                // 0
+                             "88K", Undef_Mach, "860", "MIPS", "S370",                            // 5
+                             "MIPS_RS3_LE", Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach,       // 10
+                             "PARISC", Undef_Mach, "VPP500", "SPARC32PLUS", "960",                // 15
+                             "PPC", "PPC64", "S390", Undef_Mach, Undef_Mach,                      // 20
+                             Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach,          // 25
+                             Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach,          // 30
+                             Undef_Mach, "V800", "FR20", "RH32", "RCE",                           // 35
+                             "ARM", "FAKE_ALPHA", "SH", "SPARCV9", "TRICORE",                     // 40
+                             "ARC", "H8_300", "H8_300H", "H8S", "H8_500",                         // 45
+                             "IA_64", "MIPS_X", "COLDFIRE", "68HC12", "MMA",                      // 50
+                             "PCP", "NCPU", "NDR1", "STARCORE", "ME16",                           // 55
+                             "ST100", "TINYJ", "X86_64", "PDSP", Undef_Mach,                      // 60
+                             Undef_Mach, "FX66", "ST9PLUS", "ST7", "68HC16",                      // 65
+                             "68HC11", "68HC08", "68HC05", "SVX", "ST19",                         // 70
+                             "VAX", "CRIS", "JAVELIN", "FIREPATH", "ZSP",                         // 75
+                             "MMIX", "HUANY", "PRISM", "AVR", "FR30",                             // 80
+                             "D10V", "D30V", "V850", "M32R", "MN10300",                           // 85
+                             "MN10200", "PJ", "OPENRISC", "ARC_A5", "XTENSA"};                    // 90
+const char* EKlazNames[] = { "NONE","32-Bit","64-Bit" };
+const char* EDataNames[] = { "NONE","LeastSB","MostSB" };
+
+uint64_t FileHeader::GetTextEntryOffset(){
+    uint64_t offset = GET(e_ehsize);
+    return offset;
+}
+
+const char* FileHeader::getTypeName(){
+    return ETypeNames[GET(e_type)];
+}
+
+void FileHeader::wedge(uint32_t shamt){
+    INCREMENT(e_entry, shamt);
+}
+
 bool FileHeader::verify(){
     if (!ISELFMAGIC(GET(e_ident)[EI_MAG0],GET(e_ident)[EI_MAG1],GET(e_ident)[EI_MAG2],GET(e_ident)[EI_MAG3])){
         PRINT_ERROR("Magic number incorrect");
@@ -83,7 +121,7 @@ bool FileHeader::verify(){
             PRINT_ERROR("File header size is wrong: %d != %d", GET(e_ehsize), Size__64_bit_File_Header);
             return false;
         }
-        if (GET(e_phentsize) != Size__64_bit_Program_Header){
+        if (GET(e_phentsize) && GET(e_phentsize) != Size__64_bit_Program_Header){
             PRINT_ERROR("Program header size is wrong: %d != %d", GET(e_phentsize), Size__64_bit_Program_Header);
             return false;           
         }
@@ -101,7 +139,7 @@ bool FileHeader::verify(){
             PRINT_ERROR("File header size is wrong");
             return false;
         }
-        if (GET(e_phentsize) != Size__32_bit_Program_Header){
+        if (GET(e_phentsize) && GET(e_phentsize) != Size__32_bit_Program_Header){
             PRINT_ERROR("Program header size is wrong; %d != %d", GET(e_phentsize), Size__32_bit_Program_Header);
             return false;           
         }
@@ -119,32 +157,6 @@ bool FileHeader::verify(){
 
     return true;
 }
-
-
-const char* ETypeNames[] = { "NONE","REL","EXEC","DYN","CORE" };
-
-#define Undef_Mach "UNDEF"
-const char* EMachNames[] = { "NONE", "M32", "SPARC", "386", "68K",                                // 0
-                             "88K", Undef_Mach, "860", "MIPS", "S370",                            // 5
-                             "MIPS_RS3_LE", Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach,       // 10
-                             "PARISC", Undef_Mach, "VPP500", "SPARC32PLUS", "960",                // 15
-                             "PPC", "PPC64", "S390", Undef_Mach, Undef_Mach,                      // 20
-                             Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach,          // 25
-                             Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach, Undef_Mach,          // 30
-                             Undef_Mach, "V800", "FR20", "RH32", "RCE",                           // 35
-                             "ARM", "FAKE_ALPHA", "SH", "SPARCV9", "TRICORE",                     // 40
-                             "ARC", "H8_300", "H8_300H", "H8S", "H8_500",                         // 45
-                             "IA_64", "MIPS_X", "COLDFIRE", "68HC12", "MMA",                      // 50
-                             "PCP", "NCPU", "NDR1", "STARCORE", "ME16",                           // 55
-                             "ST100", "TINYJ", "X86_64", "PDSP", Undef_Mach,                      // 60
-                             Undef_Mach, "FX66", "ST9PLUS", "ST7", "68HC16",                      // 65
-                             "68HC11", "68HC08", "68HC05", "SVX", "ST19",                         // 70
-                             "VAX", "CRIS", "JAVELIN", "FIREPATH", "ZSP",                         // 75
-                             "MMIX", "HUANY", "PRISM", "AVR", "FR30",                             // 80
-                             "D10V", "D30V", "V850", "M32R", "MN10300",                           // 85
-                             "MN10200", "PJ", "OPENRISC", "ARC_A5", "XTENSA"};                    // 90
-const char* EKlazNames[] = { "NONE","32-Bit","64-Bit" };
-const char* EDataNames[] = { "NONE","LeastSB","MostSB" };
 
 void FileHeader::print() { 
     PRINT_INFOR("FileHeader:");
@@ -164,12 +176,12 @@ void FileHeader::print() {
     PRINT_INFOR("\tvers : %d",GET(e_version));
     PRINT_INFOR("\tentr : %#llx",GET(e_entry));
     if(GET(e_phoff)){
-        PRINT_INFOR("\tPhdr : @%llu (%ux%uB)",GET(e_phoff),GET(e_phnum),GET(e_phentsize));
+        PRINT_INFOR("\tPhdr : @%#llx (%ux%uB)",GET(e_phoff),GET(e_phnum),GET(e_phentsize));
     } else {
         PRINT_INFOR("\tPhdr : none");
     }
     if(GET(e_shoff)){
-        PRINT_INFOR("\tShdr : @%llu (%ux%uB)",GET(e_shoff),GET(e_shnum),GET(e_shentsize));
+        PRINT_INFOR("\tShdr : @%#llx (%ux%uB)",GET(e_shoff),GET(e_shnum),GET(e_shentsize));
     } else {
         PRINT_INFOR("\tShdr : none");
     }

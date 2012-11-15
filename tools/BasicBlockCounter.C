@@ -28,29 +28,38 @@
 #include <LineInformation.h>
 #include <Loop.h>
 #include <TextSection.h>
+#include <map>
 
-#define COUNT_LOOP_ENTRY
+#include <CacheSimulationCommon.hpp>
+#include <CounterFunctions.hpp>
 
-#ifdef COUNT_LOOP_ENTRY
 #define LOOP_EXT "loopcnt"
 #define ENTRY_LOOP_COUNT "initloop"
 #define EXIT_LOOP_COUNT "loopcounter"
-#endif
 
-#define ENTRY_FUNCTION "initcounter"
-#define EXIT_FUNCTION "blockcounter"
+#define ENTRY_FUNCTION "tool_image_init"
+#define EXIT_FUNCTION "tool_image_fini"
 #define INST_LIB_NAME "libcounter.so"
 #define NOSTRING "__pebil_no_string__"
 
-BasicBlockCounter::BasicBlockCounter(ElfFile* elf, char* ext, bool lpi, bool dtl)
-    : InstrumentationTool(elf, ext, 0, lpi, dtl)
+static bool countLoops = true;
+
+extern "C" {
+    InstrumentationTool* BasicBlockCounterMaker(ElfFile* elf){
+        return new BasicBlockCounter(elf);
+    }
+}
+
+BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
+    : InstrumentationTool(elf)
 {
     entryFunc = NULL;
     exitFunc = NULL;
-#ifdef COUNT_LOOP_ENTRY
+
     loopEntry = NULL;
     loopExit = NULL;
-#endif
+
+    loopCount = true;
 }
 
 void BasicBlockCounter::declare()
@@ -68,13 +77,11 @@ void BasicBlockCounter::declare()
     entryFunc = declareFunction(ENTRY_FUNCTION);
     ASSERT(entryFunc && "Cannot find entry function, are you sure it was declared?");
 
-#ifdef COUNT_LOOP_ENTRY
     loopExit = declareFunction(EXIT_LOOP_COUNT);
     ASSERT(loopExit && "Cannot find exit function, are you sure it was declared?");
 
     loopEntry = declareFunction(ENTRY_LOOP_COUNT);
-    ASSERT(entryFunc && "Cannot find entry function, are you sure it was declared?");
-#endif
+    ASSERT(loopEntry && "Cannot find entry function, are you sure it was declared?");
 
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 }
@@ -84,301 +91,338 @@ void BasicBlockCounter::instrument()
     InstrumentationTool::instrument();
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
     uint32_t temp32;
+    uint64_t temp64;
 
     LineInfoFinder* lineInfoFinder = NULL;
     if (hasLineInformation()){
         lineInfoFinder = getLineInfoFinder();
     }
 
-
-#ifdef STATS_PER_INSTRUCTION
-    PRINT_WARN(10, "Performing instrumentation to gather PER-INSTRUCTION statistics");
-    uint32_t numberOfPoints = getNumberOfExposedInstructions();
-#else //STATS_PER_INSTRUCTION
-    uint32_t numberOfPoints = getNumberOfExposedBasicBlocks();
-#endif //STATS_PER_INSTRUCTION
-    uint64_t lineArray = reserveDataOffset(numberOfPoints * sizeof(uint32_t));
-    uint64_t fileNameArray = reserveDataOffset(numberOfPoints * sizeof(char*));
-    uint64_t funcNameArray = reserveDataOffset(numberOfPoints * sizeof(char*));
-    uint64_t hashCodeArray = reserveDataOffset(numberOfPoints * sizeof(uint64_t));
-
-    uint64_t appName = reserveDataOffset((strlen(getApplicationName()) + 1) * sizeof(char));
-    initializeReservedData(getInstDataAddress() + appName, strlen(getApplicationName()) + 1, getApplicationName());
-    uint64_t instExt = reserveDataOffset((strlen(getInstSuffix()) + 1) * sizeof(char));
-    initializeReservedData(getInstDataAddress() + instExt, strlen(getInstSuffix()) + 1, getInstSuffix());
-
-    // the number blocks in the code
-    uint64_t counterArrayEntries = reserveDataOffset(sizeof(uint64_t));
-
-    // an array of counters. note that everything is passed by reference
-    uint64_t counterArray = reserveDataOffset(numberOfPoints * sizeof(uint64_t));
-
-    exitFunc->addArgument(counterArray);
-    exitFunc->addArgument(appName);
-    exitFunc->addArgument(instExt);
-
-    InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
-    if (!p->getInstBaseAddress()){
-        PRINT_ERROR("Cannot find an instrumentation point at the exit function");
-    }
-
-    temp32 = 0;
-    for (uint32_t i = 0; i < numberOfPoints; i++){
-        initializeReservedData(getInstDataAddress() + counterArray + i*sizeof(uint32_t), sizeof(uint32_t), &temp32);
-    }
-
-    // the number of inst points
-    entryFunc->addArgument(counterArrayEntries);
-    temp32 = numberOfPoints;
-    initializeReservedData(getInstDataAddress() + counterArrayEntries, sizeof(uint32_t), &temp32);
-
-    // an array for line numbers
-    entryFunc->addArgument(lineArray);
-    // an array for file name pointers
-    entryFunc->addArgument(fileNameArray);
-    // an array for function name pointers
-    entryFunc->addArgument(funcNameArray);
-    // an array for hashcodes
-    entryFunc->addArgument(hashCodeArray);
-
-    p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
-    p->setPriority(InstPriority_userinit);
-    if (!p->getInstBaseAddress()){
-        PRINT_ERROR("Cannot find an instrumentation point at the entry block");
-    }
-
-    uint64_t noDataAddr = getInstDataAddress() + reserveDataOffset(strlen(NOSTRING) + 1);
-    char* nostring = new char[strlen(NOSTRING) + 1];
-    sprintf(nostring, "%s\0", NOSTRING);
-    initializeReservedData(noDataAddr, strlen(NOSTRING) + 1, nostring);
-
-    PRINT_DEBUG_MEMTRACK("There are %d instrumentation points", numberOfPoints);
-#ifdef STATS_PER_INSTRUCTION
-    Vector<X86Instruction*>* allInstructions = new Vector<X86Instruction*>();
-    Vector<uint32_t>* allInstructionIds = new Vector<uint32_t>();
-    Vector<LineInfo*>* allInstructionLineInfos = new Vector<LineInfo*>();
-#else //STATS_PER_INSTRUCTION
-    Vector<BasicBlock*>* allBlocks = new Vector<BasicBlock*>();
-    Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
-    Vector<LineInfo*>* allBlockLineInfos = new Vector<LineInfo*>();
-#endif //STATS_PER_INSTRUCTION
-
-#ifdef COUNT_LOOP_ENTRY
     Vector<Loop*> loopsFound;
-#endif
-    for (uint32_t i = 0; i < numberOfPoints; i++){
-
-#ifdef STATS_PER_INSTRUCTION
-        X86Instruction* ins = getExposedInstruction(i);
-
-        LineInfo* li = NULL;
-        if (lineInfoFinder){
-            li = lineInfoFinder->lookupLineInfo(ins);
-        }
-        Function* f = (Function*)ins->getContainer();
-        BasicBlock* bb = f->getBasicBlockAtAddress(ins->getBaseAddress());
-        ASSERT(bb && "exposed instruction should be in a basic block");
-
-        (*allInstructions).append(ins);
-        (*allInstructionIds).append(i);
-        (*allInstructionLineInfos).append(li);
-#else //STATS_PER_INSTRUCTION
+    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
-        LineInfo* li = NULL;
-        if (lineInfoFinder){
-            li = lineInfoFinder->lookupLineInfo(bb);
-        }
-        Function* f = bb->getFunction();
 
-        (*allBlocks).append(bb);
-        (*allBlockIds).append(i);
-        (*allBlockLineInfos).append(li);
-#endif //STATS_PER_INSTRUCTION
-
-#ifdef COUNT_LOOP_ENTRY
-        if (li && bb->isInLoop()){
+        if (bb->isInLoop()){
             FlowGraph* fg = bb->getFlowGraph();
-            Loop* outerMost = fg->getOuterMostLoopForLoop(fg->getInnermostLoopForBlock(bb->getIndex())->getIndex());
-            //            Loop* outerMost = fg->getInnermostLoopForBlock(bb->getIndex());
+            //Loop* outerMost = fg->getOuterMostLoopForLoop(fg->getInnermostLoopForBlock(bb->getIndex())->getIndex());
+            Loop* outerMost = fg->getInnermostLoopForBlock(bb->getIndex());
 
             bool loopAlreadyInstrumented = false;
             for (uint32_t i = 0; i < loopsFound.size(); i++){
-                if (outerMost->isIdenticalLoop(loopsFound[i]) || outerMost->hasSharedHeader(loopsFound[i])){
+                if (outerMost->isIdenticalLoop(loopsFound[i])){
                     loopAlreadyInstrumented = true;
                 }
             }
-            if (!loopAlreadyInstrumented){
+            if (!loopAlreadyInstrumented && loopCount){
                 loopsFound.append(outerMost);
             }
         }
-#endif
-
-        if (i % 1000 == 0){
-            PRINT_DEBUG_MEMTRACK("inst point %d", i);
-            PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);            
-        }
-
-        if (li){
-            uint32_t line = li->GET(lr_line);
-            initializeReservedData(getInstDataAddress() + lineArray + sizeof(uint32_t)*i, sizeof(uint32_t), &line);
-
-            uint64_t filename = reserveDataOffset(strlen(li->getFileName()) + 1);
-            uint64_t filenameAddr = getInstDataAddress() + filename;
-            initializeReservedData(getInstDataAddress() + fileNameArray + i*sizeof(char*), sizeof(char*), &filenameAddr);
-            initializeReservedData(getInstDataAddress() + filename, strlen(li->getFileName()) + 1, (void*)li->getFileName());
-
-        } else {
-            temp32 = 0;
-            initializeReservedData(getInstDataAddress() + lineArray + sizeof(uint32_t)*i, sizeof(uint32_t), &temp32);
-            initializeReservedData(getInstDataAddress() + fileNameArray + i*sizeof(char*), sizeof(char*), &noDataAddr);
-        }
-        uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
-        uint64_t funcnameAddr = getInstDataAddress() + funcname;
-        initializeReservedData(getInstDataAddress() + funcNameArray + i*sizeof(char*), sizeof(char*), &funcnameAddr);
-        initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
-
-#ifdef STATS_PER_INSTRUCTION
-        HashCode* hc = ins->generateHashCode(bb);
-        uint64_t hashValue = hc->getValue();
-        delete hc;
-#else //STATS_PER_INSTRUCTION
-        uint64_t hashValue = bb->getHashCode().getValue();
-#endif //STATS_PER_INSTRUCTION
-
-        initializeReservedData(getInstDataAddress() + hashCodeArray + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
-        
-        uint64_t counterOffset = counterArray + (i * sizeof(uint64_t));
-
-        InstrumentationTool::insertInlinedTripCounter(counterOffset, bb);
     }
-    PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
-#ifdef NO_REG_ANALYSIS
-    PRINT_WARN(10, "Warning: register analysis disabled");
-#endif
 
-#ifdef COUNT_LOOP_ENTRY
-    PRINT_INFOR("Instrumenting %d loops for counting", loopsFound.size());
+    uint32_t numberOfBlocks = getNumberOfExposedBasicBlocks();
+    if (isPerInstruction()){
+        PRINT_INFOR("Performing instrumentation to gather PER-INSTRUCTION statistics");
+        numberOfBlocks = getNumberOfExposedInstructions();
+    }
 
-    p = addInstrumentationPoint(getProgramExitBlock(), loopExit, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
+    uint32_t numberOfPoints = numberOfBlocks + loopsFound.size();
+
+    uint64_t counterStruct = reserveDataOffset(sizeof(CounterArray));
+
+    CounterArray ctrs;
+    ctrs.Size = numberOfPoints;
+
+    ctrs.Initialized = true;
+    ctrs.PerInstruction = isPerInstruction();
+    ctrs.Master = getElfFile()->isExecutable();
+
+#define INIT_CTR_ELEMENT(__typ, __nam)\
+    ctrs.__nam = (__typ*)reserveDataOffset(numberOfPoints * sizeof(__typ));\
+    initializeReservedPointer((uint64_t)ctrs.__nam, counterStruct + offsetof(CounterArray, __nam))
+
+    INIT_CTR_ELEMENT(uint64_t, Counters);
+    INIT_CTR_ELEMENT(CounterTypes, Types);
+    INIT_CTR_ELEMENT(uint64_t, Addresses);
+    INIT_CTR_ELEMENT(uint64_t, Hashes);
+    INIT_CTR_ELEMENT(uint32_t, Lines);
+    INIT_CTR_ELEMENT(char*, Files);
+    INIT_CTR_ELEMENT(char*, Functions);
+
+    char* appName = getElfFile()->getAppName();
+    uint64_t app = reserveDataOffset(strlen(appName) + 1);
+    initializeReservedPointer(app, counterStruct + offsetof(CounterArray, Application));
+    initializeReservedData(getInstDataAddress() + app, strlen(appName) + 1, (void*)appName);
+
+    char extName[__MAX_STRING_SIZE];
+    sprintf(extName, "%s\0", getExtension());
+    uint64_t ext = reserveDataOffset(strlen(extName) + 1);
+    initializeReservedPointer(ext, counterStruct + offsetof(CounterArray, Extension));
+    initializeReservedData(getInstDataAddress() + ext, strlen(extName) + 1, (void*)extName);
+
+    initializeReservedData(getInstDataAddress() + counterStruct, sizeof(CounterArray), (void*)(&ctrs));
+
+    exitFunc->addArgument(imageKey);
+    InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp, InstLocation_prior);
     if (!p->getInstBaseAddress()){
         PRINT_ERROR("Cannot find an instrumentation point at the exit function");
     }
 
-    uint64_t loopCounterEntries = reserveDataOffset(sizeof(uint64_t));
-    uint64_t loopLineArray = reserveDataOffset(loopsFound.size() * sizeof(uint32_t));
-    uint64_t loopFileNameArray = reserveDataOffset(loopsFound.size() * sizeof(char*));
-    uint64_t loopFuncNameArray = reserveDataOffset(loopsFound.size() * sizeof(char*));
-    uint64_t loopHashCodeArray = reserveDataOffset(loopsFound.size() * sizeof(uint64_t));
+    entryFunc->addArgument(counterStruct);
+    entryFunc->addArgument(imageKey);
+    entryFunc->addArgument(threadHash);
 
-    temp32 = loopsFound.size();
-    initializeReservedData(getInstDataAddress() + loopCounterEntries, sizeof(uint32_t), &temp32);
+    // ALL_FUNC_ENTER
+    if (isMultiImage()){
+        for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+            Function* f = getExposedFunction(i);
 
-    loopEntry->addArgument(loopCounterEntries);
-    loopEntry->addArgument(loopLineArray);
-    loopEntry->addArgument(loopFileNameArray);
-    loopEntry->addArgument(loopFuncNameArray);
-    loopEntry->addArgument(loopHashCodeArray);
+            p = addInstrumentationPoint(f, entryFunc, InstrumentationMode_tramp, InstLocation_prior);
+            p->setPriority(InstPriority_userinit);
+            if (!p->getInstBaseAddress()){
+                PRINT_ERROR("Cannot find an instrumentation point at the entry block");
+            }
 
-    p = addInstrumentationPoint(getProgramEntryBlock(), loopEntry, InstrumentationMode_tramp, FlagsProtectionMethod_full, InstLocation_prior);
-    p->setPriority(InstPriority_userinit);
-    if (!p->getInstBaseAddress()){
-        PRINT_ERROR("Cannot find an instrumentation point at the entry block");
+            dynamicPoint(p, getElfFile()->getUniqueId(), true);
+        }
+    } else {
+        p = addInstrumentationPoint(getProgramEntryBlock(), entryFunc, InstrumentationMode_tramp, InstLocation_prior);
+        p->setPriority(InstPriority_userinit);
+        if (!p->getInstBaseAddress()){
+            PRINT_ERROR("Cannot find an instrumentation point at the entry block");
+        }
     }
 
-    // an array of counters. note that everything is passed by reference
-    uint64_t loopCounters = reserveDataOffset(loopsFound.size() * sizeof(uint64_t));
-    loopExit->addArgument(loopCounters);
-    loopExit->addArgument(appName);
+    uint64_t noData = reserveDataOffset(strlen(NOSTRING) + 1);
+    char* nostring = new char[strlen(NOSTRING) + 1];
+    sprintf(nostring, "%s\0", NOSTRING);
+    initializeReservedData(getInstDataAddress() + noData, strlen(NOSTRING) + 1, nostring);
 
-    uint64_t loopExt = reserveDataOffset((strlen(LOOP_EXT) + 1) * sizeof(char));
-    initializeReservedData(getInstDataAddress() + loopExt, strlen(LOOP_EXT) + 1, (void*)LOOP_EXT);
-    loopExit->addArgument(loopExt);
+    Vector<Base*>* allBlocks = new Vector<Base*>();
+    Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
+    Vector<LineInfo*>* allBlockLineInfos = new Vector<LineInfo*>();
 
-    uint32_t numCalls = 0;
-    for (uint32_t i = 0; i < loopsFound.size(); i++){
-        uint64_t counterOffset = loopCounters + (i * sizeof(uint64_t));
+    std::set<Base*> functionsToInst;
+    for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+        functionsToInst.insert(getExposedFunction(i));
+    }
 
-        Function* f = loopsFound[i]->getHead()->getFunction();
+    bool usePIC = false;
+    if (isThreadedMode() || isMultiImage()){
+        usePIC = true;
+    }
+
+    std::map<uint64_t, uint32_t>* functionThreading;
+    if (usePIC){
+        functionThreading = threadReadyCode(functionsToInst);
+    }
+
+    uint64_t currentLeader = 0;
+    for (uint32_t i = 0; i < numberOfBlocks; i++){
+
         LineInfo* li = NULL;
-        if (lineInfoFinder){
-            li = lineInfoFinder->lookupLineInfo(loopsFound[i]->getHead());
-        }
-        if (li){
-            uint32_t line = li->GET(lr_line);
-            initializeReservedData(getInstDataAddress() + loopLineArray + sizeof(uint32_t)*i, sizeof(uint32_t), &line);
+        X86Instruction* ins = NULL;
+        Function* f = NULL;
+        BasicBlock* bb = NULL;
 
-            uint64_t filename = reserveDataOffset(strlen(li->getFileName()) + 1);
-            uint64_t filenameAddr = getInstDataAddress() + filename;
-            initializeReservedData(getInstDataAddress() + loopFileNameArray + i*sizeof(char*), sizeof(char*), &filenameAddr);
-            initializeReservedData(getInstDataAddress() + filename, strlen(li->getFileName()) + 1, (void*)li->getFileName());
+        if (isPerInstruction()){
+            ins = getExposedInstruction(i);
+
+            if (lineInfoFinder){
+                li = lineInfoFinder->lookupLineInfo(ins);
+            }
+            f = (Function*)ins->getContainer();
+            bb = f->getBasicBlockAtAddress(ins->getBaseAddress());
+            ASSERT(bb && "exposed instruction should be in a basic block");
+
+            (*allBlocks).append(ins);
+            (*allBlockIds).append(i);
+            (*allBlockLineInfos).append(li);
 
         } else {
+            bb = getExposedBasicBlock(i);
+            if (lineInfoFinder){
+                li = lineInfoFinder->lookupLineInfo(bb);
+            }
+            f = bb->getFunction();
+            
+            (*allBlocks).append(bb);
+            (*allBlockIds).append(i);
+            (*allBlockLineInfos).append(li);
+        }
+
+        ASSERT(f && bb);
+        if (isPerInstruction()){
+            ASSERT(ins);
+        }
+
+        if (li){
+            uint32_t line = li->GET(lr_line);
+            initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Lines + sizeof(uint32_t)*i, sizeof(uint32_t), &line);
+
+            uint64_t filename = reserveDataOffset(strlen(li->getFileName()) + 1);
+            initializeReservedPointer(filename, (uint64_t)ctrs.Files + i*sizeof(char*));
+            initializeReservedData(getInstDataAddress() + filename, strlen(li->getFileName()) + 1, (void*)li->getFileName());
+        } else {
             temp32 = 0;
-            initializeReservedData(getInstDataAddress() + loopLineArray + sizeof(uint32_t)*i, sizeof(uint32_t), &temp32);
-            initializeReservedData(getInstDataAddress() + loopFileNameArray + i*sizeof(char*), sizeof(char*), &noDataAddr);
+            initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Lines + sizeof(uint32_t)*i, sizeof(uint32_t), &temp32);
+            initializeReservedPointer(noData, (uint64_t)ctrs.Files + i*sizeof(char*));
         }
         uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
-        uint64_t funcnameAddr = getInstDataAddress() + funcname;
-        initializeReservedData(getInstDataAddress() + loopFuncNameArray + i*sizeof(char*), sizeof(char*), &funcnameAddr);
+        initializeReservedPointer(funcname, (uint64_t)ctrs.Functions + i*sizeof(char*));
         initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
 
-        uint64_t hashValue = loopsFound[i]->getHead()->getHashCode().getValue();
-        initializeReservedData(getInstDataAddress() + loopHashCodeArray + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
+        uint64_t hashValue;
+        uint64_t addr;
+        if (isPerInstruction()){
+            HashCode* hc = ins->generateHashCode(bb);
+            hashValue = hc->getValue();
+            addr = ins->getProgramAddress();
+            delete hc;
+        } else {
+            hashValue = bb->getHashCode().getValue();
+            addr = bb->getProgramAddress();        
+        }
+
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Hashes + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Addresses + i*sizeof(uint64_t), sizeof(uint64_t), &addr);
         
-        for (uint32_t j = 0; j < loopsFound[i]->getHead()->getNumberOfSources(); j++){
-            BasicBlock* source = loopsFound[i]->getHead()->getSourceBlock(j);
-            FlowGraph* fg = source->getFlowGraph();
-            if (!loopsFound[i]->isBlockIn(source->getIndex())){
-                Vector<BasicBlock*> entryInterpositions;
-                if (source->getBaseAddress() + source->getNumberOfBytes() == loopsFound[i]->getHead()->getBaseAddress()){
-                    // instrument somewhere in the source block
-                    InstrumentationTool::insertInlinedTripCounter(counterOffset, source);
-
-                    //                    PRINT_INFOR("\tENTR-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, source->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
-                    numCalls++;
-                } else {
-                    // interpose a block between head of loop and source and instrument the interposed block
-                    entryInterpositions.append(source);
-                }
-
-                FlagsProtectionMethods prot = FlagsProtectionMethod_light;
-                InstLocations loc = InstLocation_prior;
-                if (loopsFound[i]->getHead()->getLeader()->allFlagsDeadIn()){
-                    prot = FlagsProtectionMethod_none;
-                }
+        CounterTypes tmpct;
+        if (isPerInstruction()){
+            // only keep a bb counter for one instruction in the block (the leader). all other instructions' counters hold the ID of the active counter
+            // in their block
+            if (bb->getLeader()->getBaseAddress() != ins->getBaseAddress()){
+                tmpct = CounterType_instruction;
+                initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Types + i*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);        
                 
-                for (uint32_t k = 0; k < entryInterpositions.size(); k++){
-                    BasicBlock* interposed = initInterposeBlock(fg, entryInterpositions[k]->getIndex(), loopsFound[i]->getHead()->getIndex());
+                temp64 = currentLeader;
+                initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
+                
+                continue;
+            }
+        }
 
-                    InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed);
+        currentLeader = i;
 
-                    //                    PRINT_INFOR("\tENTR-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx HASH %lld", numCalls, entryInterpositions[k]->getBaseAddress(), loopsFound[i]->getHead()->getBaseAddress(), loopsFound[i]->getHead()->getHashCode().getValue());
-                    numCalls++;
+        tmpct = CounterType_basicblock;
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Types + i*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);        
+
+        temp64 = 0;
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
+
+        uint64_t counterOffset = (uint64_t)ctrs.Counters + (i * sizeof(uint64_t));
+        uint32_t threadReg = X86_REG_INVALID;
+
+        if (usePIC){
+            counterOffset -= (uint64_t)ctrs.Counters;
+            threadReg = (*functionThreading)[f->getBaseAddress()];
+        }
+
+        InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
+    }
+
+    PRINT_INFOR("Instrumenting %d loops for counting", loopsFound.size());
+
+    for (uint32_t i = numberOfBlocks; i < numberOfPoints; i++){
+        Loop* loop = loopsFound[i - numberOfBlocks];
+        BasicBlock* head = loop->getHead();
+        BasicBlock* tail = loop->getTail();
+        ASSERT(head && tail);
+
+        Function* f = head->getFunction();
+        LineInfo* li = NULL;
+        if (lineInfoFinder){
+            li = lineInfoFinder->lookupLineInfo(head);
+        }
+
+        if (li){
+            uint32_t line = li->GET(lr_line);
+            initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Lines + sizeof(uint32_t)*i, sizeof(uint32_t), &line);
+
+            uint64_t filename = reserveDataOffset(strlen(li->getFileName()) + 1);
+            initializeReservedPointer(filename, (uint64_t)ctrs.Files + i*sizeof(char*));
+            initializeReservedData(getInstDataAddress() + filename, strlen(li->getFileName()) + 1, (void*)li->getFileName());
+        } else {
+            temp32 = 0;
+            initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Lines + sizeof(uint32_t)*i, sizeof(uint32_t), &temp32);
+            initializeReservedPointer(noData, (uint64_t)ctrs.Files + i*sizeof(char*));
+        }
+        uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
+        initializeReservedPointer(funcname, (uint64_t)ctrs.Functions + i*sizeof(char*));
+        initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
+
+        uint64_t counterOffset =  (uint64_t)ctrs.Counters + (i * sizeof(uint64_t));
+        uint32_t threadReg = X86_REG_INVALID;
+
+        if (usePIC){
+            counterOffset -= (uint64_t)ctrs.Counters;
+            threadReg = (*functionThreading)[f->getBaseAddress()];            
+        }
+
+        uint64_t hashValue = head->getHashCode().getValue();
+        uint64_t addr = head->getProgramAddress();
+
+        if (isPerInstruction()){
+            X86Instruction* ins = head->getLeader();
+            HashCode* hc = ins->generateHashCode(head);
+            hashValue = hc->getValue();
+            addr = ins->getProgramAddress();
+            delete hc;
+        } else {
+            hashValue = head->getHashCode().getValue();
+            addr = head->getProgramAddress();
+        }
+
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Hashes + i*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Addresses + i*sizeof(uint64_t), sizeof(uint64_t), &addr);
+
+        CounterTypes tmpct = CounterType_loop;
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Types + i*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);
+
+        temp64 = 0;
+        initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Counters + (i * sizeof(uint64_t)), sizeof(uint64_t), &temp64);
+
+        //increment counter on each time we encounter the loop head
+        if (countLoops){
+            InstrumentationTool::insertBlockCounter(counterOffset, head, true, threadReg);
+
+            //PRINT_INFOR("Loop head at %#lx", head->getBaseAddress());
+
+            // decrement counter each time we traverse a back edge
+            for (uint32_t j = 0; j < tail->getNumberOfTargets(); j++){
+                BasicBlock* target = tail->getTargetBlock(j);
+                FlowGraph* fg = target->getFlowGraph();
+                if (head->getHashCode().getValue() == target->getHashCode().getValue()){
+                    ASSERT(head->getHashCode().getValue() == target->getHashCode().getValue());
+
+                    // if control falls from tail to head, stick a decrement at the very end of the block
+                    if (tail->getBaseAddress() + tail->getNumberOfBytes() == target->getBaseAddress()){
+                        InstrumentationTool::insertInlinedTripCounter(counterOffset, tail->getExitInstruction(), false, threadReg, InstLocation_after, NULL, 1);
+                        //PRINT_INFOR("\t\tEXIT-FALLTHRU\tBLK:%#llx --> BLK:%#llx HASH %lld", tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
+                    } else {
+                        BasicBlock* interposed = initInterposeBlock(fg, tail->getIndex(), target->getIndex());
+                        InstrumentationTool::insertInlinedTripCounter(counterOffset, interposed->getLeader(), false, threadReg, InstLocation_prior, NULL, 1);
+                        //PRINT_INFOR("\t\tEXIT-INTERPOS\tBLK:%#llx --> BLK:%#llx HASH %lld", tail->getBaseAddress(), target->getBaseAddress(), tail->getHashCode().getValue());
+                    }
                 }
-
             }
         }
     }
-    PRINT_INFOR("Loop-counter instrumentation adding %d points", numCalls);
-#endif
 
-#ifdef STATS_PER_INSTRUCTION
-    printStaticFilePerInstruction(allInstructions, allInstructionIds, allInstructionLineInfos, allInstructions->size());
-#else //STATS_PER_INSTRUCTION
-    printStaticFile(allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
-#endif //STATS_PER_INSTRUCTION
+    if (isPerInstruction()){
+        printStaticFilePerInstruction(getExtension(), allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
+    } else {
+        printStaticFile(getExtension(), allBlocks, allBlockIds, allBlockLineInfos, allBlocks->size());
+    }
 
     delete[] nostring;
 
-#ifdef STATS_PER_INSTRUCTION
-    delete allInstructions;
-    delete allInstructionIds;
-    delete allInstructionLineInfos;
-#else //STATS_PER_INSTRUCTION
     delete allBlocks;
     delete allBlockIds;
     delete allBlockLineInfos;
-#endif //STATS_PER_INSTRUCTION
+
+    if (usePIC){
+        delete functionThreading;
+    }
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }

@@ -28,9 +28,13 @@
 
 class BinaryInputFile;
 
-#define DYNAMIC_ENT_D_UN_IGNORED  0
-#define DYNAMIC_ENT_D_UN_IS_D_VAL 1
-#define DYNAMIC_ENT_D_UN_IS_D_PTR 2
+typedef enum {
+    DynamicValueType_undefined = 0,
+    DynamicValueType_ignored,
+    DynamicValueType_value,
+    DynamicValueType_pointer,
+    DynamicValueType_Total_Types,
+} DynamicValueTypes;
 
 class Dynamic : public Base {
 public:
@@ -45,6 +49,7 @@ public:
     ~Dynamic() {}
     void print(char* s);
     virtual void clear() { __SHOULD_NOT_ARRIVE; }
+    uint8_t getValueType();
 
     DYNAMIC_MACROS_BASIS("For the get_X/set_X field macros check the defines directory");
 };
@@ -107,8 +112,10 @@ public:
     uint32_t extendTable(uint32_t num);
 
     void relocateStringTable(uint64_t newAddr);
+    uint32_t prependEntry(uint32_t type, uint32_t strOffset);
 
-    virtual bool verify();
+    bool verify();
+    void wedge(uint32_t shamt);
 };
 
 

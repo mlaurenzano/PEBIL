@@ -22,6 +22,13 @@
 
 #include <BinaryFile.h>
 #include <DwarfSection.h>
+#include <ElfFile.h>
+
+void SectionHeader::wedge(ElfFile* elfFile, uint32_t shamt){
+    if (elfFile->isWedgeAddress(GET(sh_addr))){
+        INCREMENT(sh_addr, shamt);
+    }
+}
 
 SectionHeader32::SectionHeader32(uint16_t idx)
     : SectionHeader()
@@ -50,7 +57,7 @@ void SectionHeader::setSectionType(){
         break;
     case SHT_PROGBITS:
         sectionType = PebilClassType_RawSection;
-        if (!hasWriteBit() && !hasAllocBit() && !hasExecInstrBit()){
+        if (!hasWriteBit() && !hasAllocBit() && !hasExecInstrBit() && false){
             sectionType = PebilClassType_DwarfSection;
         } else if (hasExecInstrBit()){
             sectionType = PebilClassType_TextSection;

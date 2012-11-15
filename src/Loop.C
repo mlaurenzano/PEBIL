@@ -25,6 +25,18 @@
 #include <FlowGraph.h>
 #include <Function.h>
 
+uint32_t Loop::getNumberOfInstructions(){
+    BasicBlock** allBlocks = new BasicBlock*[getNumberOfBlocks()];
+    getAllBlocks(allBlocks);
+    
+    uint32_t icount = 0;
+    for (uint32_t i = 0; i < getNumberOfBlocks(); i++){
+        icount += allBlocks[i]->getNumberOfInstructions();
+    }
+    delete[] allBlocks;
+    return icount;
+}
+
 bool Loop::containsCall(){
     BasicBlock** allBlocks = new BasicBlock*[getNumberOfBlocks()];
     getAllBlocks(allBlocks);
@@ -83,6 +95,7 @@ Loop::Loop(BasicBlock* h, BasicBlock* t, FlowGraph* cfg, BitSet<BasicBlock*>* ne
             blocks->insert(i);
         }
     }
+    depth = 0;
 }
 
 void Loop::print(){

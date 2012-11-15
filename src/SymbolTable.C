@@ -28,6 +28,14 @@
 #include <StringTable.h>
 #include <TextSection.h>
 
+void SymbolTable::wedge(uint32_t shamt){
+    for (uint32_t i = 0; i < symbols.size(); i++){
+        if (elfFile->isWedgeAddress(symbols[i]->GET(st_value))){
+            symbols[i]->INCREMENT(st_value, shamt);
+        }
+    }
+}
+
 void SymbolTable::sortForGnuHash(uint32_t firstSymIndex, uint32_t numberOfBuckets){
     ASSERT(stringTable);
     ASSERT(dynamic);

@@ -24,6 +24,14 @@
 #include <SectionHeader.h>
 #include <SymbolTable.h>
 
+void GnuHashTable::wedge(uint32_t shamt){
+    // don't need to do anything here
+}
+
+void SysvHashTable::wedge(uint32_t shamt){
+    // don't need to do anything here
+}
+
 void GnuHashTable::buildTable(uint32_t numEntries, uint32_t numBuckets){
     if (!numberOfEntries){
         return;
@@ -467,10 +475,12 @@ bool SysvHashTable::verify(){
     }
     
     for (uint32_t i = 1; i < numberOfEntries; i++){
-        if (findSymbol(symTab->getSymbolName(i)) != i){
-            print();
-            PRINT_ERROR("Hash Table search for %s is erroneous", symTab->getSymbolName(i));
-            return false;
+        if (symTab->getSymbol(i)->GET(st_name) > 0){
+            if (findSymbol(symTab->getSymbolName(i)) != i){
+                print();
+                PRINT_ERROR("Hash Table search for %s is erroneous", symTab->getSymbolName(i));
+                return false;
+            }
         }
     }
     
@@ -486,9 +496,11 @@ bool SysvHashTable::verify(){
     }
     
     for (uint32_t i = 0; i < symTab->getNumberOfSymbols(); i++){
-        if (findSymbol(symTab->getSymbolName(i)) != i){
-            PRINT_ERROR("Hash Table search failed for symbol %s (idx %d)", symTab->getSymbolName(i), i);
-            return false;
+        if (symTab->getSymbol(i)->GET(st_name) > 0){
+            if (findSymbol(symTab->getSymbolName(i)) != i){
+                PRINT_ERROR("Hash Table search failed for symbol %s (idx %d)", symTab->getSymbolName(i), i);
+                return false;
+            }
         }
     }
 

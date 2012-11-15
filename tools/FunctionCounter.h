@@ -28,12 +28,19 @@ private:
     InstrumentationFunction* entryFunc;
     InstrumentationFunction* exitFunc;
 
+    InstrumentationFunction* loopEntry;
+    InstrumentationFunction* loopExit;
 public:
-    FunctionCounter(ElfFile* elf, char* ext, bool lpi, bool dtl);
+    FunctionCounter(ElfFile* elf);
     ~FunctionCounter() {}
 
     void declare();
     void instrument();
+
+    const char* briefName() { return "FunctionCounter"; }
+    const char* defaultExtension() { return "fncinst"; }
+    uint32_t allowsArgs() { return PEBIL_OPT_NON; }
+    uint32_t requiresArgs() { return PEBIL_OPT_NON; }
 };
 
 

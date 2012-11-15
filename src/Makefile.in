@@ -1,5 +1,5 @@
 CXX         = @CXX@
-CXXFLAGS    = @CXXFLAGS@ @MPI_FLAGS@
+CXXFLAGS    = @CXXFLAGS@ @MPI_FLAGS@ -w
 
 AR          = ar cru
 EXTRA_FLAGS =
@@ -9,79 +9,25 @@ SHARED_LIB  = -shared
 BINDIR      = ../bin
 LIBDIR      = ../lib
 EXTDIR      = ../external
-INCLUDE     = -I../include -I$(EXTDIR)/udis86-1.7/
+INCLUDE     = -I../include -I$(EXTDIR)/udis86-1.7/ -I../instcode
 
-SRCS  = AddressAnchor.C \
-	Base.C \
-	BasicBlock.C \
-	BinaryFile.C \
-	DynamicTable.C \
-	DwarfSection.C \
-	ElfFile.C \
-	ElfFileInst.C \
-	FileHeader.C \
-	FlowGraph.C \
-	Function.C \
-	GlobalOffsetTable.C \
-	GnuVersion.C \
-	HashTable.C \
-	Instrumentation.C \
-	InstrumentationTool.C \
-	LengauerTarjan.C \
-	LineInformation.C \
-	Loop.C \
-	MemTrack.C \
-	NoteSection.C \
-	ProgramHeader.C \
-	RawSection.C \
-	RelocationTable.C \
-	SectionHeader.C \
-	StringTable.C \
-	SymbolTable.C \
-	TextSection.C \
-	X86Instruction.C \
-	X86InstructionFactory.C
+NAMES = AddressAnchor Base BasicBlock BinaryFile DynamicTable DwarfSection ElfFile ElfFileInst FileHeader FlowGraph Function GlobalOffsetTable GnuVersion HashTable Instrumentation InstrumentationTool LengauerTarjan LineInformation Loop MemTrack NoteSection ProgramHeader RawSection RelocationTable SectionHeader StringTable SymbolTable TextSection X86Instruction X86InstructionFactory
 
-OBJS  = AddressAnchor.o \
-	Base.o \
-	BasicBlock.o \
-	BinaryFile.o \
-	DynamicTable.o \
-	DwarfSection.o \
-	ElfFile.o \
-	ElfFileInst.o \
-	FileHeader.o \
-	FlowGraph.o \
-	Function.o \
-	GlobalOffsetTable.o \
-	GnuVersion.o \
-	HashTable.o \
-	Instrumentation.o \
-	InstrumentationTool.o \
-	LengauerTarjan.o \
-	LineInformation.o \
-	Loop.o \
-	MemTrack.o \
-	NoteSection.o \
-	ProgramHeader.o \
-	RawSection.o \
-	RelocationTable.o \
-	SectionHeader.o \
-	StringTable.o \
-	SymbolTable.o \
-	TextSection.o \
-	X86Instruction.o \
-	X86InstructionFactory.o
+SRCS = $(foreach var,$(NAMES),$(var).C)
+OBJS = $(foreach var,$(NAMES),$(var).o)
 
-TARGETS  = libpebilinst.so 
+TARGETS  = libpebilinst.so libpebilinst.a
 
 all: $(TARGETS)
 
 libpebilinst.so: $(OBJS)
-	$(CXX) $(SHARED_LIB) -o $@ $(OBJS)
+	$(CXX) $(CXXFLAGS) $(SHARED_LIB) -o $@ $(OBJS)
+
+libpebilinst.a: $(OBJS)
+	$(AR) $@ $(OBJS)
 
 %.o: %.C
-	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(SHARED_OPT) -c -o $@ $< $(INCLUDE)
+	$(CXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(SHARED_OPT) $(INCLUDE) -c -o $@ $<
 
 clean: 
 	rm -f *inst core *.o *.ii *.s $(TARGETS)

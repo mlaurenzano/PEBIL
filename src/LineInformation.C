@@ -26,6 +26,18 @@
 #include <DwarfSection.h>
 #include <ElfFile.h>
 
+void LineInfoTable::wedge(uint32_t shamt){
+    /* don't do this... we want original line information i think 
+    for (uint32_t i = 0; i < lineInformations.size(); i++){
+        lineInformations[i]->INCREMENT(lr_address, shamt);
+    }
+    */
+}
+
+void LineInfoTable::addFileName(DWARF4_FileName file){
+    fileNames.append(file);
+}
+
 char* LineInfoTable::getFileName(uint32_t idx){
     return fileNames[idx].fn_name;
 }
@@ -90,6 +102,9 @@ int compareLineInfoAddress(const void* arg1,const void* arg2){
 
 
 LineInfo* LineInfoFinder::lookupLineInfo(uint64_t addr){
+    if (!sortedLineInfos.size()){
+        return NULL;
+    }
     void* res = bsearch(&addr,&sortedLineInfos,sortedLineInfos.size(),sizeof(LineInfo*),searchLineInfoAddress);
     if (res){
         uint32_t ridx = (((char*)res)-((char*)&sortedLineInfos))/sizeof(LineInfo*);
@@ -98,17 +113,15 @@ LineInfo* LineInfoFinder::lookupLineInfo(uint64_t addr){
     return NULL;
 }
 
+LineInfo* LineInfoFinder::lookupLineInfo(Function* f){
+    return lookupLineInfo(f->getBasicBlockAtAddress(f->getBaseAddress())->getProgramAddress());
+}
+
 LineInfo* LineInfoFinder::lookupLineInfo(BasicBlock* bb){
-    if (!sortedLineInfos.size()){
-        return NULL;
-    }
     return lookupLineInfo(bb->getProgramAddress());
 }
 
 LineInfo* LineInfoFinder::lookupLineInfo(X86Instruction* ins){
-    if (!sortedLineInfos.size()){
-        return NULL;
-    }
     return lookupLineInfo(ins->getProgramAddress());
 }
 
@@ -171,45 +184,47 @@ void LineInfoTable::dump(BinaryOutputFile* b, uint32_t offset){
     __FUNCTION_NOT_IMPLEMENTED;
 }
 
+/*
+ * Line Number Program Header:
+ *
+ */
 uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
     binaryInputFile->setInPointer(rawDataPtr);
     setFileOffset(binaryInputFile->currentOffset());
 
     uint32_t currByte = 0;
 
+    // Detect format
     uint32_t firstWord = 0;
     if (!binaryInputFile->copyBytesIterate(&firstWord,sizeof(uint32_t))){
         PRINT_ERROR("Line info section header cannot be read");
     }
     currByte += sizeof(uint32_t);
-    if (firstWord >= DWARF2_FIRSTBYTE_LO){
-        if (firstWord == DWARF2_FIRSTBYTE_64BIT_FORMAT){
-            format = DebugFormat_DWARF2_64bit;
-        } else {
-            PRINT_ERROR("The first word %d of this debug section is not an understood DWARF2 format", firstWord);
-        }
+    if (firstWord < DWARF4_FIRSTBYTE_LO){
+        format = DebugFormat_DWARF4_32bit;
+    } else if(firstWord == DWARF4_FIRSTBYTE_64BIT_FORMAT){
+        format = DebugFormat_DWARF4_64bit;
     } else {
-        format = DebugFormat_DWARF2_32bit;
+        PRINT_ERROR("The first word %d of this debug section is not an understood DWARF4 format", firstWord);
+        ASSERT(0 && "The format of this debug section is unknown");
     }
 
-    ASSERT(format && "The format of this debug section is unknown");
     PRINT_DEBUG_LINEINFO("The format of the debug section is %d", format);
 
-    // get the line info header
-    if (format == DebugFormat_DWARF2_64bit){
+    if(format == DebugFormat_DWARF4_32bit){
+        entry.li_length = firstWord;
+    } else {
         if(!binaryInputFile->copyBytesIterate(&entry.li_length,sizeof(uint64_t))){
             PRINT_ERROR("Line info section header cannot be read");
         }
         currByte += sizeof(uint64_t);
-    } else {
-        entry.li_length = firstWord;
     }
     if(!binaryInputFile->copyBytesIterate(&entry.li_version,sizeof(uint16_t))){
         PRINT_ERROR("Line info section header cannot be read");
     }
     currByte += sizeof(uint16_t);
-    if (format == DebugFormat_DWARF2_64bit){
-        if(!binaryInputFile->copyBytesIterate(&entry.li_prologue_length,sizeof(uint64_t))){
+    if (format == DebugFormat_DWARF4_64bit){
+        if(!binaryInputFile->copyBytesIterate(&entry.li_header_length,sizeof(uint64_t))){
             PRINT_ERROR("Line info section header cannot be read");
         }
         currByte += sizeof(uint64_t);
@@ -218,20 +233,28 @@ uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
             PRINT_ERROR("Line info section header cannot be read");
         }
         currByte += sizeof(uint32_t);
-        entry.li_prologue_length = firstWord;
+        entry.li_header_length = firstWord;
     }
     if(!binaryInputFile->copyBytesIterate(&entry.li_min_insn_length,sizeof(uint8_t))){
         PRINT_ERROR("Line info section header cannot be read");
     }
     currByte += sizeof(uint8_t);
+
+    if(entry.li_version == 4){
+        if(!binaryInputFile->copyBytesIterate(&entry.li_max_ops_per_insn,sizeof(uint8_t))){
+            PRINT_ERROR("Line info section header cannot be read");
+        }
+        currByte += sizeof(uint8_t);
+    }
+
     if(!binaryInputFile->copyBytesIterate(&entry.li_default_is_stmt,sizeof(uint8_t))){
         PRINT_ERROR("Line info section header cannot be read");
     }
     currByte += sizeof(uint8_t);
-    if(!binaryInputFile->copyBytesIterate(&entry.li_line_base,sizeof(uint8_t))){
+    if(!binaryInputFile->copyBytesIterate(&entry.li_line_base,sizeof(int8_t))){
         PRINT_ERROR("Line info section header cannot be read");
     }
-    currByte += sizeof(uint8_t);
+    currByte += sizeof(int8_t);
     if(!binaryInputFile->copyBytesIterate(&entry.li_line_range,sizeof(uint8_t))){
         PRINT_ERROR("Line info section header cannot be read");
     }
@@ -242,7 +265,7 @@ uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
     currByte += sizeof(uint8_t);
 
     sizeInBytes = GET(li_length) + sizeof(uint32_t);
-    if (format == DebugFormat_DWARF2_64bit){
+    if (format == DebugFormat_DWARF4_64bit){
         sizeInBytes += 8;
     }
 
@@ -276,16 +299,16 @@ uint32_t LineInfoTable::read(BinaryInputFile* binaryInputFile){
 
     // get the file names table
     PRINT_DEBUG_LINEINFO("Looking for file name table at byte %d", currByte);
-    DWARF2_FileName currentFile;
+    DWARF4_FileName currentFile;
     uint32_t len = 0;
     while (rawDataPtr[currByte]){
         currentFile.fn_name = rawDataPtr+currByte;
         currByte += strlen(currentFile.fn_name)+1;
-        currentFile.fn_dir_index = dwarf2_get_leb128_unsigned(rawDataPtr+currByte,&len);
+        currentFile.fn_dir_index = dwarf4_get_leb128_unsigned(rawDataPtr+currByte,&len);
         currByte += len;
-        currentFile.fn_mod_time = dwarf2_get_leb128_unsigned(rawDataPtr+currByte,&len);
+        currentFile.fn_mod_time = dwarf4_get_leb128_unsigned(rawDataPtr+currByte,&len);
         currByte += len;
-        currentFile.fn_size = dwarf2_get_leb128_unsigned(rawDataPtr+currByte,&len);
+        currentFile.fn_size = dwarf4_get_leb128_unsigned(rawDataPtr+currByte,&len);
         currByte += len;
         fileNames.append(currentFile);
     }
@@ -344,7 +367,7 @@ void LineInfoTable::print(){
     PRINT_INFOR("Header:");
     PRINT_INFOR("\tLength                 : %lld",   GET(li_length));
     PRINT_INFOR("\tVersion                : %d",  GET(li_version));
-    PRINT_INFOR("\tPrologue Length        : %lld",   GET(li_prologue_length));
+    PRINT_INFOR("\tHeader Length        : %lld",   GET(li_header_length));
     PRINT_INFOR("\tMin Instruction Length : %hhd", GET(li_min_insn_length));
     PRINT_INFOR("\tDefault is_stmt        : %hhd", GET(li_default_is_stmt));
     PRINT_INFOR("\tLine Base              : %hhd", GET(li_line_base));
@@ -397,6 +420,7 @@ void LineInfo::initializeWithDefaults(){
     ASSERT(!index && "This constructor should be used only for the first line info instruction");
 
     SET(lr_address,0);
+    SET(lr_op_index,0);
     SET(lr_file,1);
     SET(lr_line,1);
     SET(lr_column,0);
@@ -406,6 +430,7 @@ void LineInfo::initializeWithDefaults(){
     SET(lr_end_sequence,0);
     SET(lr_prologue_end,0);
     SET(lr_epilogue_begin,0);
+    SET(lr_discriminator,0);
 }
 
 uint32_t LineInfoTable::getAddressSize(){
@@ -415,6 +440,10 @@ uint32_t LineInfoTable::getAddressSize(){
     return sizeof(uint32_t);
 }
 
+// first byte is zero
+// followed by a leb128 specifying instruction size starting at opcode
+// followed by a ubyte opcode
+// followed by operands
 void LineInfo::updateRegsExtendedOpcode(char* instruction){
     ASSERT(instruction[0] == DW_LNS_extended_op && "This function should only be called on instructions with extended opcodes");
 
@@ -424,9 +453,13 @@ void LineInfo::updateRegsExtendedOpcode(char* instruction){
     uint8_t opcode = instruction[2];
 
     PRINT_DEBUG_LINEINFO("Extended opcode %hhx, size %hhd", opcode, size);
+    ASSERT( ((size & 0x80) == 0) && "Instruction is larger than expected");
 
     instructionBytes.append(instruction[1]);
-    instructionBytes.append(instruction[2]);
+    for(uint8_t b = 0; b < size; ++b){
+        instructionBytes.append(instruction[2+b]);
+    }
+    uint32_t nextOperand = 3;
 
     LineInfo* regs = header->getRegisters();
 
@@ -437,24 +470,56 @@ void LineInfo::updateRegsExtendedOpcode(char* instruction){
         regs->initializeWithDefaults();
         break;
     case DW_LNE_set_address:
+
         addressSize = header->getAddressSize();
-        for (uint32_t i = 0; i < addressSize; i++){
-            instructionBytes.append(instruction[3+i]);
-        }
-        ASSERT(instructionBytes.size() == 3+addressSize && "This instruction has an unexpected size");
+//        for (uint32_t i = 0; i < addressSize; i++){
+//            instructionBytes.append(instruction[nextOperand+i]);
+//        }
+        PRINT_DEBUG_LINEINFO("%d bytes added %d bytes used\n", instructionBytes.size(), nextOperand+addressSize);
+        ASSERT(instructionBytes.size() == nextOperand+addressSize && "This instruction has an unexpected size");
 
         if (addressSize == sizeof(uint32_t)){
-            uint32_t addr = getUInt32(instruction+3);
+            uint32_t addr = getUInt32(instruction+nextOperand);
             regs->SET(lr_address,addr);
         } else {
             ASSERT(addressSize == sizeof(uint64_t) && "addressSize has an unexpected value");   
-            uint64_t addr = getUInt64(instruction+3);
+            uint64_t addr = getUInt64(instruction+nextOperand);
             regs->SET(lr_address,addr);
         }
         break;
     case DW_LNE_define_file:
-        __FUNCTION_NOT_IMPLEMENTED;
+    {
+        // 4 Operands
+        DWARF4_FileName file;
+        uint32_t len;
+
+        // 1 null terminated string
+        file.fn_name = instruction + nextOperand;
+        nextOperand += strlen(file.fn_name) + 1;
+
+        // 2 unsinged LEB128 directory
+        file.fn_dir_index = dwarf4_get_leb128_unsigned(instruction+nextOperand, &len);
+        nextOperand += len;
+
+        // 3 unsigned LEB128 timestamp
+        file.fn_mod_time = dwarf4_get_leb128_unsigned(instruction+nextOperand, &len);
+        nextOperand += len;
+
+        // 4 unsigned LEB128 file length
+        file.fn_size = dwarf4_get_leb128_unsigned(instruction+nextOperand, &len);
+        nextOperand += len;
+
+        header->addFileName(file);
         break;
+    }
+
+    case DW_LNE_set_discriminator:
+    {
+        uint32_t len;
+        uint64_t disc = dwarf4_get_leb128_unsigned(instruction+nextOperand, &len);
+        regs->SET(lr_discriminator,disc);
+        break;
+    }
     default:
         PRINT_ERROR("This extended opcode %02hhx is not defined in the dwarf standard", opcode);
         break;
@@ -462,6 +527,7 @@ void LineInfo::updateRegsExtendedOpcode(char* instruction){
 }
 
 
+// ubyte opcode followed by zero or more leb128 operands
 void LineInfo::updateRegsStandardOpcode(char* instruction){
 
     PRINT_DEBUG_LINEINFO("Standard opcode %hhx found", instruction[0]);
@@ -481,10 +547,11 @@ void LineInfo::updateRegsStandardOpcode(char* instruction){
         regs->SET(lr_basic_block,0);
         regs->SET(lr_prologue_end,0);
         regs->SET(lr_epilogue_begin,0);
+        regs->SET(lr_discriminator,0);
         break;
     case DW_LNS_advance_pc:
         ASSERT(numberOfOperands == 1);
-        uop0 = dwarf2_get_leb128_unsigned(instruction+1,&len);
+        uop0 = dwarf4_get_leb128_unsigned(instruction+1,&len);
         for (uint32_t i = 0; i < len; i++){
             instructionBytes.append(instruction[1+i]);
         }
@@ -492,7 +559,7 @@ void LineInfo::updateRegsStandardOpcode(char* instruction){
         break;
     case DW_LNS_advance_line:
         ASSERT(numberOfOperands == 1);
-        sop0 = dwarf2_get_leb128_signed(instruction+1,&len);
+        sop0 = dwarf4_get_leb128_signed(instruction+1,&len);
         ASSERT(sop0 == (int32_t)sop0 && "Cannot use more than 32 bits for line value");
         for (uint32_t i = 0; i < len; i++){
             instructionBytes.append(instruction[1+i]);
@@ -501,7 +568,7 @@ void LineInfo::updateRegsStandardOpcode(char* instruction){
         break;
     case DW_LNS_set_file:
         ASSERT(numberOfOperands == 1);
-        uop0 = dwarf2_get_leb128_unsigned(instruction+1,&len);
+        uop0 = dwarf4_get_leb128_unsigned(instruction+1,&len);
         ASSERT(uop0 == (uint32_t)uop0 && "Cannot use more than 32 bits for file value");
         for (uint32_t i = 0; i < len; i++){
             instructionBytes.append(instruction[1+i]);
@@ -510,7 +577,7 @@ void LineInfo::updateRegsStandardOpcode(char* instruction){
         break;
     case DW_LNS_set_column:
         ASSERT(numberOfOperands == 1);
-        uop0 = dwarf2_get_leb128_unsigned(instruction+1,&len);
+        uop0 = dwarf4_get_leb128_unsigned(instruction+1,&len);
         ASSERT(uop0 == (uint32_t)uop0 && "Cannot use more than 32 bits for file value");
         for (uint32_t i = 0; i < len; i++){
             instructionBytes.append(instruction[1+i]);
@@ -552,7 +619,7 @@ void LineInfo::updateRegsStandardOpcode(char* instruction){
         break;
     case DW_LNS_set_isa:
         ASSERT(numberOfOperands == 1);
-        uop0 = dwarf2_get_leb128_unsigned(instruction+1,&len);
+        uop0 = dwarf4_get_leb128_unsigned(instruction+1,&len);
         ASSERT(uop0 == (uint32_t)uop0 && "Cannot use more than 32 bits for isa value");
         for (uint32_t i = 0; i < len; i++){
             instructionBytes.append(instruction[1+i]);
@@ -566,6 +633,7 @@ void LineInfo::updateRegsStandardOpcode(char* instruction){
 }
 
 
+// ubyte opcode and no operands
 void LineInfo::updateRegsSpecialOpcode(char* instruction){
     PRINT_DEBUG_LINEINFO("Special opcode %hhx found", instruction[0]);
 
@@ -573,15 +641,12 @@ void LineInfo::updateRegsSpecialOpcode(char* instruction){
 
     ASSERT(header->GET(li_line_range) && "A divide by zero error is about to occur");
 
-    // NOTE: sometimes it seems that we want int8_t for these, sometimes we don't (pgi multimaps)
-    //#define PGI_LINEINFO_PATCH
-#ifdef PGI_LINEINFO_PATCH
-    uint8_t addr_inc = (adjusted_opcode /  header->GET(li_line_range)) *  header->GET(li_min_insn_length);
-    uint8_t line_inc = header->GET(li_line_base) + (adjusted_opcode % header->GET(li_line_range));
-#else
-    int8_t addr_inc = (adjusted_opcode /  header->GET(li_line_range)) *  header->GET(li_min_insn_length);
-    int8_t line_inc = header->GET(li_line_base) + (adjusted_opcode % header->GET(li_line_range));
-#endif
+    int8_t line_base = header->GET(li_line_base);
+    uint8_t line_range = header->GET(li_line_range);
+    uint8_t min_ins_len = header->GET(li_min_insn_length);
+
+    int16_t addr_inc = (adjusted_opcode / line_range) * min_ins_len;
+    int16_t line_inc = line_base + (adjusted_opcode % line_range);
 
     LineInfo* regs = header->getRegisters();
 
@@ -590,6 +655,7 @@ void LineInfo::updateRegsSpecialOpcode(char* instruction){
     regs->SET(lr_basic_block,0);
     regs->SET(lr_prologue_end,0);
     regs->SET(lr_epilogue_begin,0);
+    regs->SET(lr_discriminator,0);
 }
 
 void LineInfo::initializeWithInstruction(char* instruction){
@@ -599,7 +665,7 @@ void LineInfo::initializeWithInstruction(char* instruction){
     instructionBytes.append(instruction[0]);
 
     uint8_t opcode = instruction[0];
-    PRINT_DEBUG_LINEINFO("Opcode %hhd, base %hhd", opcode, header->GET(li_opcode_base));
+    PRINT_DEBUG_LINEINFO("Opcode %hhu, base %hhu", opcode, header->GET(li_opcode_base));
     if (opcode < header->GET(li_opcode_base)-1){
         if (opcode == DW_LNS_extended_op){
             updateRegsExtendedOpcode(instruction);
@@ -646,8 +712,8 @@ void LineInfo::print(){
         PRINT_OUT("... ");
     }
 
-    char* typestr = "UNKNOWN";
-    char* opstr = "UNKNOWN";
+    const char* typestr = "UNKNOWN";
+    const char* opstr = "UNKNOWN";
     switch(instructionBytes[0]){
     case DW_LNS_extended_op: typestr = "EXTENDED"; 
         switch (instructionBytes[2]){

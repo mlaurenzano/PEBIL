@@ -23,7 +23,6 @@
 
 #include <InstrumentationTool.h>
 #include <SimpleHash.h>
-#include <DFPattern.h>
 
 class CacheSimulation : public InstrumentationTool {
 private:
@@ -31,31 +30,21 @@ private:
     InstrumentationFunction* exitFunc;
     InstrumentationFunction* entryFunc;
 
-    char* bbFile;
-    char* dfPatternFile;
-
     SimpleHash<BasicBlock*> blocksToInst;
-    SimpleHash<DFPatternType> dfpSet;
-
-    Vector<DFPatternSpec> dfpBlocks;
-    uint32_t dfpTaggedBlockCnt;
-
-    Vector<InstrumentationPoint*> memInstPoints;
-    Vector<uint32_t> memInstBlockIds;
-    uint64_t instPointInfo;
 
     void filterBBs();
-    void printDFPStaticFile(Vector<BasicBlock*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allLineInfos);
 
 public:
-    CacheSimulation(ElfFile* elf, char* inputName, char* ext, uint32_t phase, bool lpi, bool dtl, char* dfpFile);
+    CacheSimulation(ElfFile* elf);
     ~CacheSimulation();
 
     void declare();
     void instrument();
-    void usesModifiedProgram();
 
     const char* briefName() { return "CacheSimulation"; }
+    const char* defaultExtension() { return "siminst"; }
+    uint32_t allowsArgs() { return PEBIL_OPT_LPI | PEBIL_OPT_DTL | PEBIL_OPT_PHS | PEBIL_OPT_DFP; }
+    uint32_t requiresArgs() { return PEBIL_OPT_INP; }
 };
 
 

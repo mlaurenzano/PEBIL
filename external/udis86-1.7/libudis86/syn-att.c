@@ -206,6 +206,11 @@ ud_translate_att(struct ud *u)
 	mkasm(u, ", ");
   }
 
+  if (u->operand[3].type != UD_NONE) {
+	gen_operand(u, &u->operand[3]);
+	mkasm(u, ", ");
+  }
+
   if (u->operand[0].type != UD_NONE)
 	gen_operand(u, &u->operand[0]);
 }

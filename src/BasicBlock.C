@@ -29,8 +29,118 @@
 
 static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
 
+X86Instruction* BasicBlock::findBestInstPoint(InstLocations* loc, BitSet<uint32_t>* validRegs, BitSet<uint32_t>* useRegs, bool attendFlags){
+    ASSERT(validRegs);
+
+    uint32_t best = 0;
+    InstLocations bestloc = InstLocation_prior;
+    uint32_t ninsn = getNumberOfInstructions();
+
+    if (endsWithControl()){
+        ninsn--;
+    }
+
+    BitSet<uint32_t>* flagsDead  = new BitSet<uint32_t>(ninsn * 2);
+
+    bool hasFlags = false;
+    if (attendFlags){
+        for (int32_t i = 0; i < ninsn * 2; i++){
+            ASSERT(i / 2 < ninsn); 
+            X86Instruction* ins = getInstruction(i / 2);
+            if (i % 2 == 0 && ins->allFlagsDeadIn()){
+                flagsDead->insert(i);
+                hasFlags = true;
+                best = i / 2;
+                bestloc = InstLocation_prior;
+            }
+            if (i % 2 == 1 && ins->allFlagsDeadOut()){
+                flagsDead->insert(i);
+                hasFlags = true;
+                best = i / 2;
+                bestloc = InstLocation_after;
+            }
+        }
+    }
+
+    uint32_t maxDead = 0;
+    for (int32_t i = 0; i < ninsn * 2; i++){
+        ASSERT(i / 2 < ninsn);
+        X86Instruction* ins = getInstruction(i / 2);
+        uint32_t dead = 0;
+        if (attendFlags && hasFlags){
+            if (!flagsDead->contains(i)){
+                continue;
+            }
+        }
+        for (uint32_t j = 0; j < X86_ALU_REGS; j++){
+            if (validRegs->contains(j)){
+                if (i % 2 == 0 && ins->isRegDeadIn(j)){
+                    dead++;
+                }
+                if (i % 2 == 1 && ins->isRegDeadOut(j)){
+                    dead++;
+                }
+            }
+        }
+        if (dead > maxDead){
+            maxDead = dead;
+            best = i / 2;
+            if (i % 2 == 0){
+                bestloc = InstLocation_prior;
+            } else {
+                bestloc = InstLocation_after;
+            }
+        }
+    }
+
+    delete flagsDead;
+
+    // frame setup messes up lots of stuff, so for all function entries we use the end of the block
+    if (isEntry()){
+        best = getNumberOfInstructions() - 1;
+        bestloc = InstLocation_after;
+        if (endsWithControl()){
+            bestloc = InstLocation_prior;
+        }
+        X86Instruction* e = getInstruction(best);
+    }
+
+    X86Instruction* bestinsn = getInstruction(best);
+    if (useRegs){
+        for (uint32_t j = 0; j < X86_ALU_REGS; j++){
+            if (bestloc == InstLocation_prior && bestinsn->isRegDeadIn(j) && validRegs->contains(j)){
+                useRegs->insert(j);
+            }
+            if (bestloc == InstLocation_after && bestinsn->isRegDeadOut(j) && validRegs->contains(j)){
+                useRegs->insert(j);
+            }
+        }
+    }
+
+    *loc = bestloc;
+    return bestinsn;
+}
+
+uint32_t BasicBlock::getDefXIter(){
+    uint32_t defcnt = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->hasDefXIter()){
+            defcnt++;
+        }
+    }
+    return defcnt;
+}
+
+bool BasicBlock::endsWithControl(){
+    return instructions.back()->isControl();
+}
+
 bool BasicBlock::endsWithCall(){
-    return  instructions.back()->isCall();
+    return instructions.back()->isCall();
+}
+
+bool BasicBlock::endsWithReturn(){
+    return instructions.back()->isReturn();
 }
 
 uint32_t BasicBlock::getNumberOfMemoryBytes(){
@@ -58,7 +168,7 @@ uint32_t BasicBlock::searchForArgsPrep(bool is64Bit){
             //            instructions[i]->print();
             if (instructions[i]->getInstructionType() == X86InstructionType_int ||
                 instructions[i]->getInstructionType() == X86InstructionType_move){
-                OperandX86* destOp = instructions[i]->getOperand(COMP_DEST_OPERAND);
+                OperandX86* destOp = instructions[i]->getOperand(DEST_OPERAND);
 
                 if (!destOp->getValue()){
                     for (uint32_t j = 0; j < Num__64_bit_StackArgs; j++){
@@ -67,7 +177,7 @@ uint32_t BasicBlock::searchForArgsPrep(bool is64Bit){
                         }
                     }
                 }
-                //                instructions[i]->getOperand(COMP_DEST_OPERAND)->print();
+                //                instructions[i]->getOperand(DEST_OPERAND)->print();
             }
         }
     } else {
@@ -96,21 +206,6 @@ uint64_t CodeBlock::getProgramAddress(){
     }
     __SHOULD_NOT_ARRIVE;
     return 0;
-}
-
-void BasicBlock::findCompareAndCBranch(){
-    if (instructions.size() < 2){
-        ASSERT(instructions.size());
-        return;
-    }
-    if (instructions.back()->isConditionalBranch()){
-        if (!instructions[instructions.size()-2]->isConditionCompare()){
-            //PRINT_INFOR("found block with cond/br split");
-            //            printDisassembly(false);
-            //            setCmpCtrlSplit();
-        }
-    }
-    return;
 }
 
 uint32_t CodeBlock::addTailJump(X86Instruction* tgtInstruction){
@@ -152,14 +247,19 @@ uint32_t BasicBlock::bloat(Vector<InstrumentationPoint*>* instPoints){
     for (uint32_t i = 0; i < expansions.size(); i++){
         DEBUG_BLOAT_FILTER(expansions[i]->getSourceObject()->print();)
     }
+
     for (int32_t i = expansions.size()-1; i >= 0; i--){
         uint32_t bloatAmount = expansions[i]->getNumberOfBytes();
         uint32_t instructionIdx = expansionIndices[i];
         PRINT_DEBUG_BLOAT_FILTER("bloating point at instruction %#llx by %d bytes", instructions[instructionIdx]->getProgramAddress(), bloatAmount);
         if (instructionIdx < instructions.size() + 1){
-            for (uint32_t j = 0; j < bloatAmount; j++){
-                instructions.insert(X86InstructionFactory::emitNop(), instructionIdx);
+            for ( ; bloatAmount >= MAX_NOP_LENGTH; bloatAmount -= MAX_NOP_LENGTH){
+                instructions.insert(X86InstructionFactory::emitNop(MAX_NOP_LENGTH), instructionIdx);
                 byteCountUpdate = true;
+            }
+            if (bloatAmount){
+                instructions.insert(X86InstructionFactory::emitNop(bloatAmount), instructionIdx);
+                byteCountUpdate = true;                
             }
         }
     }
@@ -608,16 +708,6 @@ uint32_t BasicBlock::getNumberOfBinUnknown(){
     return binCount;
 }
 
-void BasicBlock::setBins(){
-    
-    //printf("block starting at %X\n", getBaseAddress());
-    for (uint32_t i = 0; i < instructions.size(); i++) {
-        instructions[i]->getInstructionBin();
-        //printf("instruction at %X  ", instructions[i]->getBaseAddress());
-        //instructions[i]->printBin();
-    }
-}
-
 void RawBlock::printDisassembly(bool instructionDetail){
     uint32_t bytesPerWord = 1;
     uint32_t bytesPerLine = 8;
@@ -706,7 +796,7 @@ bool BasicBlock::containsCallToRange(uint64_t lowAddr, uint64_t highAddr){
 uint32_t CodeBlock::getAllInstructions(X86Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
-        allinsts[i+nexti] = instructions[i];
+        allinsts[i + nexti] = instructions[i];
         instructionCount++;
     }
     return instructionCount;
@@ -851,11 +941,13 @@ uint32_t CodeBlock::getNumberOfBytes(){
 }
 
 bool BasicBlock::inRange(uint64_t addr){
-    if (addr >= getBaseAddress() &&
-        addr < getBaseAddress() + getNumberOfBytes()){
-        return true;
+    uint64_t b = getBaseAddress();
+    if (addr < b){
+        return false;
+    } else if (addr >= b + getNumberOfBytes()){
+        return false;
     }
-    return false;
+    return true;
 }
 
 CodeBlock::CodeBlock(uint32_t idx, FlowGraph* cfg)
@@ -1041,7 +1133,7 @@ Vector<X86Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<X86In
     if (!tgtInstruction){
         PRINT_INFOR("looking for addr %#llx inside block with range [%#llx,%#llx)", addr, getBaseAddress(), getBaseAddress() + getNumberOfBytes());
         printInstructions();
-        flowGraph->getFunction()->printInstructions();
+        //flowGraph->getFunction()->printInstructions();
     }
     ASSERT(tgtInstruction && "This basic block should have an instruction at the given address");
 
@@ -1061,7 +1153,7 @@ Vector<X86Instruction*>* CodeBlock::swapInstructions(uint64_t addr, Vector<X86In
     uint32_t idx = tgtInstruction->getIndex();
 
     while (replacedBytes < bytesToReplace){
-        ASSERT(instructions.size() >= idx && "You ran out of instructions in this block");
+        ASSERT(instructions.size() > idx && "You ran out of instructions in this block");
         (*replaced).append(instructions.remove(idx));
         replacedBytes += (*replaced).back()->getSizeInBytes();
     }
