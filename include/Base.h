@@ -30,6 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <regex.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <execinfo.h>
 #include <dlfcn.h>
