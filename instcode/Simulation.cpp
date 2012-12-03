@@ -615,8 +615,9 @@ extern "C" {
                     } else {
                         bbid = st->BlockIds[memid];
                     }
-                    aggrange->Update(bbid, r->GetMinimum(bbid), 0);
-                    aggrange->Update(bbid, r->GetMaximum(bbid), r->GetAccessCount(bbid));
+
+                    aggrange->Update(bbid, r->GetMinimum(memid), 0);
+                    aggrange->Update(bbid, r->GetMaximum(memid), r->GetAccessCount(memid));
                 }
 
                 CacheStats** aggstats = new CacheStats*[CountCacheStructures];
