@@ -9,6 +9,7 @@ import string
 import sys
 
 inform = '******  ' 
+defaultsep = ',\t'
 
 def file_exists(filename):
     if os.path.isfile(filename):
@@ -28,6 +29,9 @@ def print_usage(err):
     print "        --tracedir <trace_dir> [defaults to .]"
     print_error(err)
 
+def fltstr(x):
+    return "%.2f" % x
+
 class BBTrace:
     def __init__(self, toks):
         if len(toks) != 10:
@@ -46,6 +50,8 @@ class BBTrace:
             print_error('malformed value in static file: ' + str(toks))
 
         self.data = {}
+        self.simbbcount = {}
+        self.countinsnsim = {}
 
     def getbbhash(self):
         return self.bbhash
@@ -94,7 +100,7 @@ class BBTrace:
     def addjbbinst(self, lines):
         return
 
-    def addsimdata(self, rank, thread, toks):
+    def addsimdata(self, rank, toks):
         if not self.data.has_key(rank):
             self.data[rank] = {}
 
@@ -126,15 +132,16 @@ class BBTrace:
         try:
             seqid = int(toks[1])
             bbhash = long(toks[2][2:], 16)
-            thread = int(toks[4])
-            self.simbbcount = long(toks[5])
-            self.countinsnsim = long(toks[6])
+
+            self.simbbcount[rank] = long(toks[5])
+            self.countinsnsim[rank] = int(toks[6])
+
         except ValueError, e:
             print_error('cannot parse simulation data 5')
 
         for i in range(1,len(lines),1):
             toks = lines[i].strip().split()
-            self.addsimdata(rank, thread, toks)
+            self.addsimdata(rank, toks)
 
     def sysidappears(self, rank, sysid):
         try:
@@ -146,23 +153,29 @@ class BBTrace:
     def __str__(self):
         return str(self.seqid) + '\t' + str(self.bbhash)
 
-    def getsimscale(self):
-        return float(float(self.simbbcount) * float(self.memops)) / float(self.countinsnsim)
+    def getsimscale(self, rank):
+        return float(float(self.simbbcount[rank]) * float(self.memops)) / float(self.countinsnsim[rank])
 
-    def getvisitcount(self):
-        return self.simbbcount
+    def getvisitcount(self, rank):
+        return self.simbbcount[rank]
 
-    def vectorstr(self, rank, sysid, sep=',\t'):
+    @staticmethod
+    def formatstr(sep=defaultsep):
+        s = '# '
+        s += 'bbid' + sep + 'dint' + sep + 'dfp' + sep + 'l1m' + sep + 'l2m' + sep + 'l3m' + sep + 'instr' + sep + 'mops' + sep + 'fops'
+        return s
+
+    def vectorstr(self, rank, sysid, sep=defaultsep):
         s = ''
         s += str(self.bbhash) + sep
-        s += str(self.intdud) + sep
-        s += str(self.fppdud) + sep
-        s += str(self.getsimscale() * self.data[rank][sysid][0][1]) + sep
-        s += str(self.getsimscale() * self.data[rank][sysid][1][1]) + sep
-        s += str(self.getsimscale() * self.data[rank][sysid][2][1]) + sep
-        s += str(self.getvisitcount() * self.insns) + sep
-        s += str(self.getvisitcount() * self.memops) + sep
-        s += str(self.getvisitcount() * self.fpops)
+        s += fltstr(self.intdud) + sep
+        s += fltstr(self.fppdud) + sep
+        s += fltstr(self.getsimscale(rank) * self.data[rank][sysid][0][1]) + sep
+        s += fltstr(self.getsimscale(rank) * self.data[rank][sysid][1][1]) + sep
+        s += fltstr(self.getsimscale(rank) * self.data[rank][sysid][2][1]) + sep
+        s += str(self.getvisitcount(rank) * self.insns) + sep
+        s += str(self.getvisitcount(rank) * self.memops) + sep
+        s += str(self.getvisitcount(rank) * self.fpops)
         return s
 
 class ApplicationTrace:
@@ -302,9 +315,10 @@ def main():
 
     apptrace = ApplicationTrace(appdir, tracedir, app, cput)
     for rank in range(0,cput,1):
-        outname = "%(tracedir)s/%(app)s.rank%(rank)d.sysid%(sysid)d.bbv" % {'tracedir': tracedir, 'app': app, 'rank': rank, 'sysid': sysid}
+        outname = "%(tracedir)s/%(app)s.rank%(rank)08d.sysid%(sysid)d.bbv" % {'tracedir': tracedir, 'app': app, 'rank': rank, 'sysid': sysid}
         print inform + 'Writing BB Vectors for rank ' + str(rank) + ' sysid ' + str(sysid) + ' to ' + outname
         f = open(outname, 'w')
+        f.write(BBTrace.formatstr() + '\n')
 
         for bbid in apptrace.getallblocks():
             bb = apptrace.getBB(bbid)
