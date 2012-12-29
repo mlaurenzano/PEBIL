@@ -335,13 +335,13 @@ static int search_itab( struct ud * u )
                             tableid = ITAB__AVX_C4__PFX_SSE66__0F__OP_0F__3BYTE_38__REG;
                             break;
                         case 0xF2:
-                            //tableid = ITAB__AVX_C4__PFX_SSEF2__0F__OP_0F__3BYTE_38__REG;
+                            assert(0);//tableid = ITAB__AVX_C4__PFX_SSEF2__0F__OP_0F__3BYTE_38__REG;
                             break;
                         case 0xF3:
-                            //tableid = ITAB__AVX_C4__PFX_SSEF3__0F__OP_0F__3BYTE_38__REG;
+                            assert(0);//tableid = ITAB__AVX_C4__PFX_SSEF3__0F__OP_0F__3BYTE_38__REG;
                             break;
                         default:
-                            //tableid = ITAB__AVX_C4__0F__OP_0F__3BYTE_38__REG;
+                            assert(0);//tableid = ITAB__AVX_C4__0F__OP_0F__3BYTE_38__REG;
                             break;
                     }
                     break;
@@ -352,23 +352,27 @@ static int search_itab( struct ud * u )
                             tableid = ITAB__AVX_C4__PFX_SSE66__0F__OP_0F__3BYTE_3A__REG;
                             break;
                         case 0xF2:
-                            //tableid = ITAB__AVX_C4__PFX_SSEF2__0F__OP_0F__3BYTE_3A__REG;
+                            assert(0);//tableid = ITAB__AVX_C4__PFX_SSEF2__0F__OP_0F__3BYTE_3A__REG;
                             break;
                         case 0xF3:
-                            //tableid = ITAB__AVX_C4__PFX_SSEF3__0F__OP_0F__3BYTE_3A__REG;
+                            assert(0);//tableid = ITAB__AVX_C4__PFX_SSEF3__0F__OP_0F__3BYTE_3A__REG;
                             break;
                         default:
-                            //tableid = ITAB__AVX_C4__0F__OP_0F__3BYTE_3A__REG;
+                            assert(0);//tableid = ITAB__AVX_C4__0F__OP_0F__3BYTE_3A__REG;
                             break;
                     }
                     break;
                 /* all other values are undefined */
                 default:
+                    fprintf(stdout, "PEBIL_DEBUG: %#hhx\n", VEX_M5(u->avx_vex[1]));
                     PEBIL_DEBUG("invalid VEX.MMMMM field found: %#hhx", VEX_M5(u->avx_vex[1]));
                     u->error = 1;
                     break;
             }
         }
+
+        if(u->error)
+            return -1;
 
         PEBIL_DEBUG("itab %d %hhx", tableid, curr);
         if ( ud_itab_list[ tableid ][ curr ].mnemonic != UD_Iinvalid ) {
