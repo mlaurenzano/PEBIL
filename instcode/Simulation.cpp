@@ -294,6 +294,7 @@ extern "C" {
             }
         }
 
+        synchronize(AllData){
         if (isSampling){
             BufferEntry* buffer = &(stats->Buffer[1]);
 
@@ -311,6 +312,7 @@ extern "C" {
                 ProcessBuffer(i, m, rd, sd, numElements, iid, tid);
             }
         } 
+        }
 
         synchronize(AllData){
             if (isSampling){
