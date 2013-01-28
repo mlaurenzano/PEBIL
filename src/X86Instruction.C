@@ -670,7 +670,7 @@ LinkedList<X86Instruction::ReachingDefinition*>* X86Instruction::getUses(){
     }
 
     Vector<OperandX86*>* uses = getSourceOperands();
-    for (uint32_t i; i < uses->size(); i++){
+    for (uint32_t i = 0; i < uses->size(); i++){
         OperandX86* use = (*uses)[i];
         DefLocation loc;
         loc.value = use->getValue();

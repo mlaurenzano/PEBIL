@@ -106,6 +106,7 @@ extern "C" {
 
 class StreamStats {
 public:
+    virtual uint64_t GetAccessCount(uint32_t memid) = 0;
 };
 
 class CacheStats : public StreamStats {
