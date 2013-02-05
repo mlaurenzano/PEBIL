@@ -36,15 +36,8 @@ static char* currentDirectory = ".";
 
 class LineInfo : public Base {
 private:
-    void initializeWithDefaults();
-    void initializeWithInstruction(char* instruction);
-
-    void updateRegsExtendedOpcode(char* instruction);
-    void updateRegsStandardOpcode(char* instruction);
-    void updateRegsSpecialOpcode(char* instruction);
 
 protected:
-    uint32_t index;
     DWARF4_LineInfo_Registers entry;
 
     Vector<uint8_t> instructionBytes;
@@ -52,14 +45,19 @@ protected:
 
     uint64_t addressSpan;
 public:
-    LineInfo(uint32_t idx, char* instruction, LineInfoTable* hdr);
+    LineInfo(LineInfoTable* header);
+    LineInfo(const LineInfo& other);
+
+    //LineInfo(uint32_t idx, char* instruction, LineInfoTable* hdr);
     ~LineInfo();
+
+    void initializeWithDefaults();
 
     LINEINFO_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");    
 
     void print();
-    char* charStream() { return (char*)&entry; }
-    uint32_t getInstructionSize() { return instructionBytes.size(); }
+    char* charStream() const { return (char*)&entry; }
+    //uint32_t getInstructionSize() { return instructionBytes.size(); }
 
     char* getFileName();
     char* getFilePath();
@@ -69,11 +67,18 @@ public:
     uint64_t getAddressSpan() { return addressSpan; }
     void setAddressSpan(uint64_t spn) { addressSpan = spn; }
 
-    uint32_t getIndex() { return index; }
+    //uint32_t getIndex() { return index; }
     const char* briefName() { return "LineInfo"; }
 };
 
 class LineInfoTable : public Base {
+private:
+    uint32_t executeInstruction(char* instruction);
+    uint32_t executeSpecialOpcode(char* instruction);
+    uint32_t executeStandardOpcode(char* instruction);
+    uint32_t executeExtendedOpcode(char* instruction);
+    void appendRowToMatrix();
+
 protected:
     uint32_t index;
     char* rawDataPtr;
