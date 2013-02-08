@@ -244,6 +244,8 @@ def main():
     ntasks = 0
     appname = ''
     index = 0
+    imagecounts = {}
+    total = 0
     blockfiles = {}
     for f in args:
         index += 1
@@ -252,7 +254,7 @@ def main():
         b = JbbTraceFile(f)
         if blockfiles.has_key(b.mpirank):
             print_usage('duplicate mpi rank found in input files: ' + str(b.mpirank))
-        blockfiles[b.mpirank] = b
+        blockfiles[b.mpirank] = 1
 
         for ki in b.images.keys():
             imagelist[ki] = 1
@@ -269,13 +271,7 @@ def main():
         if appname != b.application:
             print_usage('all files should be from a run with the same number application name: ' + appname)
 
-
-    # add up block counts across all ranks
-    imagecounts = {}
-    total = 0
-    for k in blockfiles.keys():
-        b = blockfiles[k]
-
+        # add up block counts from this rank
         for kb in b.blocks.keys():
             bb = b.blocks[kb]
             iid = b.rimage[bb.image]
@@ -288,6 +284,7 @@ def main():
 
             imagecounts[iid][bb.hashcode] += bb.count
             total += bb.count
+
 
     # write to file if block count exceeds minimum
     imagefiles = {}
