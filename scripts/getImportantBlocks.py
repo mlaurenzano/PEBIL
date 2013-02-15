@@ -12,6 +12,7 @@ BLOCK_IDENTIFIER = 'BLK'
 IMAGE_IDENTIFIER = 'IMG'
 LOOP_IDENTIFIER = 'LPP'
 INPUT_JBB_NAME_REGEX = '(\S+).r(\d\d\d\d\d\d\d\d).t(\d\d\d\d\d\d\d\d).jbbinst'
+INPUT_STATIC_NAME_REGEX = '.*.static'
 OUTPUT_LBB_NAME = '%(application)s.%(image)s.t%(tasks)08d.lbb'
 
 
@@ -159,11 +160,59 @@ class LoopLine(CounterLine):
     def id(self):
         return str(self.image) + str(self.hashcode)
 
+class StaticBlockLine:
+    def __init__(self, toks, image):
+        self.hashcode = toks[1]
+        self.memOps = int(toks[2])
+        self.fpOps = int(toks[3])
+        self.insns = int(toks[4])
+        self.image = image
+
+    def id(self):
+        return str(self.image) + str(self.hashcode)
+
+class StaticFile:
+    @staticmethod
+    def isStaticFile(f):
+        r = re.compile(INPUT_STATIC_NAME_REGEX)
+        p = r.match(f)
+        if p == None:
+            return False
+        return True
+
+    def __init__(self, sfile):
+        self.sfile = sfile
+        if not file_exists(self.sfile):
+            print_usage(str(sfile) + ' is not a valid file')
+
+        if not StaticFile.isStaticFile(sfile):
+            print_usage('expecting a specific format for file name (' + INPUT_STATIC_NAME_REGEX + '): ' + sfile)
+
+        print 'Reading static file ' + sfile
+        self.image = 0
+        self.blocks = {}
+        f = open(sfile)
+        for line in f:
+            toks = line.strip().split()
+            if len(toks) == 0:
+                continue;
+
+#            if toks[1] == "sha1sum":
+#                pat = "(................).*"
+#                r = re.compile(pat)
+#                m = r.match(toks[3])
+#                self.image = m.group(1)
+
+            if toks[0].isdigit():
+                b = StaticBlockLine(toks, self.image)
+                self.blocks[b.id()] = b
+                
+
 class JbbTraceFile:
     def __init__(self, tfile):
         self.tfile = tfile
         if not file_exists(self.tfile):
-            print_usage(str(f) + ' is not a valid file')
+            print_usage(str(f) + ' is not a valid file') # FIXME f? not tfile?
 
         r = re.compile(INPUT_JBB_NAME_REGEX)
         p = r.match(self.tfile)
@@ -203,6 +252,7 @@ class JbbTraceFile:
                     if self.blocks.has_key(i):
                         print_usage('duplicate block: ' + str(i))
                     self.blocks[i] = c
+                    print "adding block "  + i
 
                 elif toks[0] == LOOP_IDENTIFIER:
                     c = LoopLine(toks)
@@ -234,6 +284,13 @@ def main():
                     raise ValueError
             except ValueError:
                 print_usage('argument to --blockmin should be a positive int')
+
+    staticFile = args[0]
+    if StaticFile.isStaticFile(staticFile):
+        staticFile = StaticFile(staticFile)
+        args = args[1:]
+    else:
+        staticFile = None
 
     if len(args) == 0:
         print_usage('requires a list of jbbinst trace files as positional arguments')
@@ -268,6 +325,28 @@ def main():
             appname = b.application
         if appname != b.application:
             print_usage('all files should be from a run with the same number application name: ' + appname)
+
+
+    # Output summary of insns, memops, and fpops per rank
+    if staticFile != None:
+        outfile = open("OpCountSummary", 'w')
+        outfile.write("# Rank\ttotInsns\ttotMemops\ttotFpops\n")
+        for rank in blockfiles.keys():
+            blockFile = blockfiles[rank]
+            totInsns = 0
+            totMemops = 0
+            totFpops = 0
+            for block in staticFile.blocks.values():
+                try:
+                    dynBlock = blockFile.blocks[block.id()]
+                except KeyError:
+                    continue
+                totInsns = totInsns + block.insns * dynBlock.count
+                totMemops = totMemops + block.memOps * dynBlock.count
+                totFpops = totFpops + block.fpOps * dynBlock.count
+            outfile.write(str(rank) + "\t" + str(totInsns) + "\t" + str(totMemops) + "\t" + str(totFpops) + "\n")
+        outfile.close()
+
 
 
     # add up block counts across all ranks
