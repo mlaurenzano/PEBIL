@@ -14,7 +14,7 @@ LOOP_IDENTIFIER = 'LPP'
 INPUT_JBB_NAME_REGEX = '(\S+).r(\d\d\d\d\d\d\d\d).t(\d\d\d\d\d\d\d\d).jbbinst'
 INPUT_STATIC_NAME_REGEX = '.*.static'
 OUTPUT_LBB_NAME = '%(application)s.%(image)s.t%(tasks)08d.lbb'
-
+OUTPUT_OPCOUNT_NAME
 
 # util functions
 def print_error(err):
@@ -252,7 +252,6 @@ class JbbTraceFile:
                     if self.blocks.has_key(i):
                         print_usage('duplicate block: ' + str(i))
                     self.blocks[i] = c
-                    print "adding block "  + i
 
                 elif toks[0] == LOOP_IDENTIFIER:
                     c = LoopLine(toks)
@@ -296,6 +295,12 @@ def main():
         print_usage('requires a list of jbbinst trace files as positional arguments')
 
 
+    if staticFile != None:
+        outfile = open(OUTPUT_OPCOUNT_NAME, 'w')
+        outfile.write("# Rank\ttotInsns\ttotMemops\ttotFpops\n")
+    else:
+        outfile = None
+
     # parse input files (all remaining positional args)
     imagelist = {}
     ntasks = 0
@@ -311,7 +316,23 @@ def main():
         b = JbbTraceFile(f)
         if blockfiles.has_key(b.mpirank):
             print_usage('duplicate mpi rank found in input files: ' + str(b.mpirank))
-        blockfiles[b.mpirank] = b
+        blockfiles[b.mpirank] = 1
+
+        if outfile != None:
+            blockFile = b
+            totInsns = 0
+            totMemops = 0
+            totFpops = 0
+            for block in staticFile.blocks.values():
+                try:
+                    dynBlock = blockFile.blocks[block.id()]
+                except KeyError:
+                    continue
+                totInsns = totInsns + block.insns * dynBlock.count
+                totMemops = totMemops + block.memOps * dynBlock.count
+                totFpops = totFpops + block.fpOps * dynBlock.count
+            outfile.write(str(blockFile.mpirank) + "\t" + str(totInsns) + "\t" + str(totMemops) + "\t" + str(totFpops) + "\n")
+           
 
         for ki in b.images.keys():
             imagelist[ki] = 1
@@ -329,27 +350,8 @@ def main():
             print_usage('all files should be from a run with the same number application name: ' + appname)
 
 
-    # Output summary of insns, memops, and fpops per rank
-    if staticFile != None:
-        outfile = open("OpCountSummary", 'w')
-        outfile.write("# Rank\ttotInsns\ttotMemops\ttotFpops\n")
-        for rank in blockfiles.keys():
-            blockFile = blockfiles[rank]
-            totInsns = 0
-            totMemops = 0
-            totFpops = 0
-            for block in staticFile.blocks.values():
-                try:
-                    dynBlock = blockFile.blocks[block.id()]
-                except KeyError:
-                    continue
-                totInsns = totInsns + block.insns * dynBlock.count
-                totMemops = totMemops + block.memOps * dynBlock.count
-                totFpops = totFpops + block.fpOps * dynBlock.count
-            outfile.write(str(rank) + "\t" + str(totInsns) + "\t" + str(totMemops) + "\t" + str(totFpops) + "\n")
+    if outfile != None:
         outfile.close()
-
-
 
     # add up block counts across all ranks
     imagecounts = {}
