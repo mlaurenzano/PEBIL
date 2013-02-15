@@ -43,8 +43,8 @@ libsimulator.so : Simulation.O
 libsimulator.a : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 	$(AR) $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 
-libtimer.so : TimerFunctions.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ TimerFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS)
+libtimer.so : TimerFunctions.O
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
 libtimer.a : TimerFunctions.o $(COMMON_OBJS) 
 	$(AR) $@ TimerFunctions.o $(COMMON_OBJS)
 
