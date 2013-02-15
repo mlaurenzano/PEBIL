@@ -31,6 +31,23 @@ else
    ACX_MPI
    AC_LANG_POP()
    MPI_FLAGS="-DHAVE_MPI"
+
+   SAVECXX="$CXX"
+   CXX="$MPICXX"
+   MPI_CXXFLAGS="$CXXFLAGS"
+   AC_COMPILE_STDCXX_0X
+   AX_CXX_HEADER_UNORDERED_MAP
+   if test "$ax_cv_cxx_unordered_map" = "yes"; then
+      if test "$ac_cv_cxx_compile_cxx0x_gxx" = "yes"; then
+         MPI_CXXFLAGS="-std=gnu++0x";
+      elif test "$ac_cv_cxx_compile_cxx0x_cxx" = "yes"; then
+         MPI_CXXFLAGS="-std=c++0x";
+      else
+         AC_MSG_ERROR([configure detected that unordered_map is present for $CXX but neither -std=c++0x nor -std=gnu++0x is accepted])   
+      fi
+      MPI_CXXFLAGS="$MPI_CXXFLAGS -DHAVE_UNORDERED_MAP"
+   fi
+   CXX="$SAVECXX"
 fi
 
 # set correct map type depending on whether unordered_map is present
@@ -42,8 +59,8 @@ if test "$ax_cv_cxx_unordered_map" = "yes"; then
    elif test "$ac_cv_cxx_compile_cxx0x_cxx" = "yes"; then
       CXXFLAGS="$CXXFLAGS -std=c++0x";
    else
-      AC_MSG_ERROR([configure detected that unordered_map is present but neither -std=c++0x nor -std=gnu++0x is accepted])   
-  fi
+      AC_MSG_ERROR([configure detected that unordered_map is present for $CXX but neither -std=c++0x nor -std=gnu++0x is accepted])   
+   fi
    CXXFLAGS="$CXXFLAGS -DHAVE_UNORDERED_MAP"
 fi
 
@@ -61,6 +78,7 @@ if test "$mpiinit_check_ok" = "yes"; then
 fi
 
 AC_SUBST(MPI_FLAGS)
+AC_SUBST(MPI_CXXFLAGS)
 
 AC_ARG_WITH(throttler_headers,
             [AS_HELP_STRING([--with-throttler-headers=<path>],[specify path to throttler headers])],
