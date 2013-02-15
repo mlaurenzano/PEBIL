@@ -595,11 +595,22 @@ public:
             assert(datamap[(*iit)].size() > 0);
             assert(datamap[(*iit)].count(tid) == 0);
 
+            if(allthreads.size() > 0) {
+                set<thread_key_t>::iterator tit = allthreads.begin();
+                assert(tit != allthreads.end());
+                datamap[*iit][tid] = datagen(datamap[*iit][*tit], ThreadType, *iit, tid, firstimage);
+                assert(NULL != datamap[*iit][tid]);
+            }
+            /*
+             * tit = allthreads.begin()
+             * datamap[image][new_thread] = datagen(datamap[image][old_thread], ThreadType, image, new_thread, firstimage)
+             * assert(wasn't null);
             for (set<thread_key_t>::iterator tit = allthreads.begin(); tit != allthreads.end(); tit++){
 	        datamap[(*iit)][tid] = datagen(datamap[(*iit)][(*tit)], ThreadType, (*iit), tid, firstimage);
                 assert(datamap[(*iit)][tid]);
                 break;
             }
+            */
 
             assert(threaddata.count(*iit) == 1);
             SetThreadData((*iit), tid, ThreadType);

@@ -98,7 +98,9 @@ CounterArray* GenerateCounterArray(CounterArray* ctrs, uint32_t typ, image_key_t
     CounterArray* c = ctrs;
     c->threadid = tid;
     c->imageid = iid;
-
+    // FIXME is this right?
+    // seems correct if there is only a single thread when image is loaded
+    // if there are multiple threads, then each will get this same ctrs
     if (typ == AllData->ImageType){
         return c;
     }
