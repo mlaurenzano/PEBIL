@@ -14,7 +14,7 @@ LOOP_IDENTIFIER = 'LPP'
 INPUT_JBB_NAME_REGEX = '(\S+).r(\d\d\d\d\d\d\d\d).t(\d\d\d\d\d\d\d\d).jbbinst'
 INPUT_STATIC_NAME_REGEX = '.*.static'
 OUTPUT_LBB_NAME = '%(application)s.%(image)s.t%(tasks)08d.lbb'
-OUTPUT_OPCOUNT_NAME
+OUTPUT_OPCOUNT_NAME = 'opcounts.dat'
 
 # util functions
 def print_error(err):
@@ -350,15 +350,6 @@ def main():
             print_usage('all files should be from a run with the same number application name: ' + appname)
 
 
-    if outfile != None:
-        outfile.close()
-
-    # add up block counts across all ranks
-    imagecounts = {}
-    total = 0
-    for k in blockfiles.keys():
-        b = blockfiles[k]
-
         # add up block counts from this rank
         for kb in b.blocks.keys():
             bb = b.blocks[kb]
@@ -373,6 +364,9 @@ def main():
             imagecounts[iid][bb.hashcode] += bb.count
             total += bb.count
 
+
+    if outfile != None:
+        outfile.close()
 
     # write to file if block count exceeds minimum
     imagefiles = {}
