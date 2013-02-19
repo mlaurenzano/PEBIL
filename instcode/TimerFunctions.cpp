@@ -21,6 +21,13 @@
 
 DataManager<FunctionTimers*>* AllData = NULL;
 
+#define CLOCK_RATE_HZ 2800000000
+inline uint64_t read_timestamp_counter(){
+    unsigned low, high;
+    __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));
+    return ((unsigned long long)low | (((unsigned long long)high) << 32));
+}
+
 /*
  * When a new image is added, called once per existing thread
  * When a new thread is added, called once per loaded image
@@ -37,14 +44,17 @@ FunctionTimers* GenerateFunctionTimers(FunctionTimers* timers, uint32_t typ, ima
 
     FunctionTimers* retval;
     retval = new FunctionTimers();
-    retval->master = firstimage == iid && typ == AllData->ImageType;
+
+    retval->master = timers->master && typ == AllData->ImageType;
+    retval->application = timers->application;
+    retval->extension = timers->extension;
     retval->functionCount = timers->functionCount;
     retval->functionNames = timers->functionNames;
-    retval->functionTimerAccum = new double[retval->functionCount];
-    retval->functionTimerLast = new double[retval->functionCount];
+    retval->functionTimerAccum = new uint64_t[retval->functionCount];
+    retval->functionTimerLast = new uint64_t[retval->functionCount];
 
-    memset(retval->functionTimerAccum, 0, sizeof(double) * retval->functionCount);
-    memset(retval->functionTimerLast, 0, sizeof(double) * retval->functionCount);
+    memset(retval->functionTimerAccum, 0, sizeof(uint64_t) * retval->functionCount);
+    memset(retval->functionTimerLast, 0, sizeof(uint64_t) * retval->functionCount);
     return retval;
 }
 
@@ -61,24 +71,25 @@ extern "C"
 {
 
     // start timer
-    int32_t function_entry(image_key_t* key, uint32_t funcIndex) {
-        inform << "function_entry" << ENDL;
+    int32_t function_entry(uint32_t funcIndex, image_key_t* key) {
         thread_key_t tid = pthread_self();
 
         FunctionTimers* timers = AllData->GetData(*key, pthread_self());
+        assert(timers != NULL);
+        assert(timers->functionTimerLast != NULL);
+        
         timers->functionTimerLast[funcIndex] = read_timestamp_counter();
         return 0;
     }
 
     // end timer
-    int32_t function_exit(image_key_t* key, uint32_t funcIndex) {
-        inform << "function_exit" << ENDL;
+    int32_t function_exit(uint32_t funcIndex, image_key_t* key) {
         thread_key_t tid = pthread_self();
 
         FunctionTimers* timers = AllData->GetData(*key, pthread_self());
-        double last = timers->functionTimerLast[funcIndex];
-        double now = read_timestamp_counter();
-        timers->functionTimerAccum = now - last;
+        uint64_t last = timers->functionTimerLast[funcIndex];
+        uint64_t now = read_timestamp_counter();
+        timers->functionTimerAccum[funcIndex] += now - last;
         //timers->functionTimerLast = now;
 
         return 0;
@@ -86,40 +97,38 @@ extern "C"
 
     // initialize dynamic instrumentation
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn) {
-        inform << "tool_dynamic_init" << ENDL;
         InitializeDynamicInstrumentation(count, dyn);
         return NULL;
     }
 
     // Just after MPI_Init is called
     void* tool_mpi_init() {
-        inform << "tool_mpi_init" << ENDL;
         return NULL;
     }
 
     // Entry function for threads
     void* tool_thread_init(thread_key_t tid) {
-        inform << "tool_thread_init" << ENDL;
+        if (AllData){
+            AllData->AddThread(tid);
+        } else {
+        ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
+        }
         return NULL;
     }
 
     // Optionally? called on thread join/exit?
     void* tool_thread_fini(thread_key_t tid) {
-        inform << "tool_thread_fini" << ENDL;
         return NULL;
     }
 
     // Called when new image is loaded
     void* tool_image_init(void* args, image_key_t* key, ThreadData* td) {
-        inform << "tool_image_init " << *key << ENDL;
 
         FunctionTimers* timers = (FunctionTimers*)args;
-        inform << "There are " << timers->functionCount << " functions" << ENDL;
 
         // Remove this instrumentation
         set<uint64_t> inits;
         inits.insert(*key);
-        inform << "Removing init points for image " << hex << (*key) << ENDL;
         SetDynamicPoints(inits, false);
 
         // If this is the first image, set up a data manager
@@ -129,13 +138,11 @@ extern "C"
 
         // Add this image
         AllData->AddImage(timers, td, *key);
-        inform << "image added" << ENDL;
         return NULL;
     }
 
     // 
     void* tool_image_fini(image_key_t* key) {
-        inform << "tool_image_fini " << *key << ENDL;
 
         image_key_t iid = *key;
 
@@ -151,10 +158,18 @@ extern "C"
         }
 
         if (!timers->master){
+            printf("Image is not master, skipping\n");
             return NULL;
         }
 
-        inform << "Printing counters here!" << ENDL;
+        char outFileName[1024];
+        sprintf(outFileName, "%s.meta_%0d.%s", timers->application, GetTaskId(), timers->extension);
+        FILE* outFile = fopen(outFileName, "w");
+        if (!outFile){
+            cerr << "error: cannot open output file %s" << outFileName << ENDL;
+            exit(-1);
+        }
+
         FunctionTimers* masterData = AllData->GetData(*key, pthread_self());
 
         // for each image
@@ -167,9 +182,15 @@ extern "C"
             uint64_t functionCount = masterData->functionCount;
             for (uint64_t funcIndex = 0; funcIndex < functionCount; ++funcIndex){
                 char* fname = functionNames[funcIndex];
-               // FIXME 
+                fprintf(outFile, "%s:\n", fname);
+                for (set<thread_key_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); ++tit) {
+                    FunctionTimers* timers = AllData->GetData(*iit, *tit);
+                    fprintf(outFile, "\tThread: 0x%llx\tTime: %f\n", *tit, (double)(timers->functionTimerAccum[funcIndex]) / CLOCK_RATE_HZ);
+                }
             }
         }
+        fflush(outFile);
+        fclose(outFile);
         return NULL;
     }
 };

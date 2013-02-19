@@ -4,10 +4,12 @@
 
 typedef struct {
     bool master;
+    char* application;
+    char* extension;
     uint64_t functionCount;
     char** functionNames;
-    double* functionTimerAccum;
-    double* functionTimerLast;
+    uint64_t* functionTimerAccum;
+    uint64_t* functionTimerLast;
 } FunctionTimers;
 
 #endif

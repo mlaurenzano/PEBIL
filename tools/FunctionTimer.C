@@ -77,38 +77,54 @@ void FunctionTimer::instrument(){
     /*
      * Create input for function timer instrumentation
      */
-    uint64_t funcNameArray = reserveDataOffset(getNumberOfExposedFunctions() * sizeof(char*));
-    //uint64_t functionIndexAddr = reserveDataOffset(sizeof(uint64_t));
 
     FunctionTimers funcInfo;
-    funcInfo.master = true;
+    uint64_t functionInfoStruct = reserveDataOffset(sizeof(FunctionTimers));
+
+    funcInfo.master = getElfFile()->isExecutable();
+
+    char* appName = getElfFile()->getAppName();
+    uint64_t app = reserveDataOffset(strlen(appName) + 1);
+    initializeReservedPointer(app, functionInfoStruct + offsetof(FunctionTimers, application));
+    initializeReservedData(getInstDataAddress() + app, strlen(appName) + 1, (void*)appName);
+
+    char extName[__MAX_STRING_SIZE];
+    sprintf(extName, "%s\0", getExtension());
+    uint64_t ext = reserveDataOffset(strlen(extName) + 1);
+    initializeReservedPointer(ext, functionInfoStruct + offsetof(FunctionTimers, extension));
+    initializeReservedData(getInstDataAddress() + ext, strlen(extName) + 1, (void*)extName);
+
     funcInfo.functionCount = getNumberOfExposedFunctions();
-    funcInfo.functionNames = (char**)(getInstDataAddress() + funcNameArray);
+
+    uint64_t funcNameArray = reserveDataOffset(getNumberOfExposedFunctions() * sizeof(char*));
+    initializeReservedPointer(funcNameArray, functionInfoStruct + offsetof(FunctionTimers, functionNames));
+
+    for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
+        Function* f = getExposedFunction(i);
+        
+        uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
+        initializeReservedPointer(funcname, funcNameArray + sizeof(char*) * i);
+        initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
+    }
+
     funcInfo.functionTimerAccum = NULL;
     funcInfo.functionTimerLast = NULL;
 
-    uint64_t functionInfoStruct = reserveDataOffset(sizeof(FunctionTimers));
     initializeReservedData(getInstDataAddress() + functionInfoStruct, sizeof(FunctionTimers), (void*)&funcInfo);
-    
+   
+    // Add arguments to instrumentation functions
     programEntry->addArgument(functionInfoStruct);
     programEntry->addArgument(imageKey);
     programEntry->addArgument(threadHash);
 
     programExit->addArgument(imageKey);
 
-    /*
-     * Initialize each function name
-     */
-    for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
-        Function* f = getExposedFunction(i);
-        
-        uint64_t funcname = reserveDataOffset(strlen(f->getName()) + 1);
-        uint64_t funcnameAddr = getInstDataAddress() + funcname;
-        initializeReservedData(getInstDataAddress() + funcNameArray + i*sizeof(char*), sizeof(char*), &funcnameAddr);
-        initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
+    uint32_t functionEntryIndexRegister = functionEntry->addConstantArgument();
+    functionEntry->addArgument(imageKey);
 
-    }
-
+    uint32_t functionExitIndexRegister = functionExit->addConstantArgument();
+    functionExit->addArgument(imageKey);
+    
     // Add program-entry instrumentation
     if (isMultiImage()){
         for (uint32_t i = 0; i < getNumberOfExposedFunctions(); ++i){
@@ -139,16 +155,6 @@ void FunctionTimer::instrument(){
         BasicBlock* bb = f->getFlowGraph()->getEntryBlock();
         Vector<BasicBlock*>* exitBlocks = f->getFlowGraph()->getExitBlocks();
 
-        /*
-        Vector<X86Instruction*> fillEntry = Vector<X86Instruction*>();
-
-        if (getElfFile()->is64Bit()){
-            fillEntry.append(X86InstructionFactory64::emitMoveImmToMem(i, getInstDataAddress() + functionIndexAddr));
-        } else {
-            fillEntry.append(X86InstructionFactory32::emitMoveImmToMem(i, getInstDataAddress() + functionIndexAddr));
-        }
-        */
-
         // Instrument the entry block
         FlagsProtectionMethods prot = FlagsProtectionMethod_full;
         X86Instruction* bestinst = bb->getExitInstruction();
@@ -161,24 +167,10 @@ void FunctionTimer::instrument(){
             }
         }
         InstrumentationPoint* p = addInstrumentationPoint(bestinst, functionEntry, InstrumentationMode_tramp, loc);
-
-        /*
-        for (uint32_t j = 0; j < fillEntry.size(); j++){
-            p->addPrecursorInstruction(fillEntry[j]);
-        }
-        */
+        assignStoragePrior(p, i, functionEntryIndexRegister);
 
         // Instrument each exit block
         for (uint32_t j = 0; j < (*exitBlocks).size(); j++){
-            /*
-            Vector<X86Instruction*> fillExit = Vector<X86Instruction*>();
- 
-            if (getElfFile()->is64Bit()){
-                fillExit.append(X86InstructionFactory64::emitMoveImmToMem(i, getInstDataAddress() + functionIndexAddr));
-            } else {
-                fillExit.append(X86InstructionFactory32::emitMoveImmToMem(i, getInstDataAddress() + functionIndexAddr));
-            }
-            */
 
             FlagsProtectionMethods prot = FlagsProtectionMethod_full;
             X86Instruction* bestinst = (*exitBlocks)[j]->getExitInstruction();
@@ -191,24 +183,11 @@ void FunctionTimer::instrument(){
                 }
             }
             p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, loc);
-            /*
-            for (uint32_t k = 0; k < fillExit.size(); k++){
-                p->addPrecursorInstruction(fillExit[k]);
-            }
-            */
+            assignStoragePrior(p, i, functionExitIndexRegister);
         }
         if (!(*exitBlocks).size()){
-            //Vector<X86Instruction*> fillExit = Vector<X86Instruction*>();
 
             PRINT_WARN(10, "No exit blocks could be found for function %s, instrumenting last (linear) block", f->getName());
-
-            /*
-            if (getElfFile()->is64Bit()){
-                fillExit.append(X86InstructionFactory64::emitMoveImmToMem(i, getInstDataAddress() + functionIndexAddr));
-            } else {
-                fillExit.append(X86InstructionFactory32::emitMoveImmToMem(i, getInstDataAddress() + functionIndexAddr));
-            }
-            */
 
             BasicBlock* lastbb = f->getBasicBlock(f->getNumberOfBasicBlocks()-1);
             X86Instruction* lastin = lastbb->getInstruction(lastbb->getNumberOfInstructions()-1);
@@ -224,11 +203,8 @@ void FunctionTimer::instrument(){
                     }
                 }
                 p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, loc);
-                /*
-                for (uint32_t k = 0; k < fillExit.size(); k++){
-                    p->addPrecursorInstruction(fillExit[k]);
-                }
-                */
+                assignStoragePrior(p, i, functionExitIndexRegister);
+
             } else {
                 PRINT_WARN(10, "No exit from function %s", f->getName());
             }
