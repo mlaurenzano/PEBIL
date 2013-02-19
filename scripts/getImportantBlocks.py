@@ -284,6 +284,9 @@ def main():
             except ValueError:
                 print_usage('argument to --blockmin should be a positive int')
 
+    if len(args) == 0:
+        print_usage('requires a list of jbbinst trace files as positional arguments')
+
     staticFile = args[0]
     if StaticFile.isStaticFile(staticFile):
         staticFile = StaticFile(staticFile)
