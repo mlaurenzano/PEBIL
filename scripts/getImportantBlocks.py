@@ -27,7 +27,8 @@ def print_usage(err=''):
     print "[Optional Arguments]:"
     print "        --blockmin <block_minimum_to_include> [default = " + str(DEFAULT_BLOCK_MIN) + "]"
     print "[Positional Arguments]:"
-    print "        list of .jbbinst trace files"
+    print "        (optional) a .jbbinst.static file, followed by..."
+    print "        a list of .jbbinst trace files"
     print ""
     print "Example: " + sys.argv[0] + " --blockmin 1000 dynTest.r*.jbbinst"
     print_error(err)
