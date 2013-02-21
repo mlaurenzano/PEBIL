@@ -1,9 +1,9 @@
 STATIC_INST_LIB  = @STATIC_INST_LIB@
 PEBIL_LIBS = 
 ifeq ($(STATIC_INST_LIB),yes)
-	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  liblptimer.a  libcounter.a  libsimulator.a
+	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  libcounter.a  libsimulator.a
 else
-	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblptimer.so libcounter.so libsimulator.so
+	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblooptimer.so libcounter.so libsimulator.so
 endif
 
 LIB_TARGETS = $(PEBIL_LIBS)
@@ -43,6 +43,9 @@ libsimulator.so : Simulation.O
 libsimulator.a : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 	$(AR) $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 
+liblooptimer.so : LoopTimer.O
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
+
 libtimer.so : TimerFunctions.O
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
 libtimer.a : TimerFunctions.o $(COMMON_OBJS) 
@@ -57,9 +60,6 @@ libpfreq.so : Frequency.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ Frequency.o $(COMMON_OBJS) $(EXTRA_LIBS)
 libpfreq.a : Frequency.o
 	$(AR) $@ Frequency.o
-
-liblptimer.so : LoopTimer.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ LoopTimer.o $(COMMON_OBJS) $(EXTRA_LIBS)
 
 libtautrace.so : tautrace.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ tautrace.o $(COMMON_OBJS) $(EXTRA_LIBS)

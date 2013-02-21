@@ -297,7 +297,7 @@ extern "C" {
         synchronize(AllData){
         if (isSampling){
             BufferEntry* buffer = &(stats->Buffer[1]);
-
+// FIXME
             //inform << "Processing buffer for thread " << hex << tid << " image " << iid << ENDL;
             FastStats->Refresh(buffer, numElements, tid);
             for (uint32_t i = 0; i < CountMemoryHandlers; i++){
@@ -1611,6 +1611,7 @@ uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, v
 uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info){
     uint32_t set = 0;
     uint32_t lineInSet = 0;
+    assert(0); // FIXME
 
     uint64_t store = GetStorage(addr);
 
@@ -1893,14 +1894,16 @@ CacheStructureHandler::~CacheStructureHandler(){
     }
 }
 
-void CacheStructureHandler::Process(void* stats, BufferEntry* access){
+void CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
     uint32_t next = 0;
     uint64_t victim = access->address;
+
+    CacheStats* stats = (CacheStats*)stats_in;
 
     EvictionInfo evictInfo;
     evictInfo.level = INVALID_CACHE_LEVEL;
     while (next < levelCount){
-        next = levels[next]->Process((CacheStats*)stats, access->memseq, victim, (void*)(&evictInfo));
+        next = levels[next]->Process(stats, access->memseq, victim, (void*)(&evictInfo));
     }
 }
 
