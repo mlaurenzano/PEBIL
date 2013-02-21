@@ -981,9 +981,8 @@ const char* LegacySimulationFileName(SimulationStats* stats){
 }
 
 const char* LegacyRangeFileName(SimulationStats* stats){
-    string oFile;
+    string oFile(stats->Application);
 
-    oFile.append(stats->Application);
     if (stats->Phase > 0){
         assert(stats->Phase == 1 && "phase number must be 1");
         oFile.append(".phase.1");
@@ -1437,9 +1436,24 @@ void CacheLevel::Init(CacheLevel_Init_Interface){
     }
 
     recentlyUsed = NULL;
+    historyUsed = NULL;
     if (replpolicy == ReplacementPolicy_nmru){
         recentlyUsed = new uint32_t[countsets];
         memset(recentlyUsed, 0, sizeof(uint32_t) * countsets);
+    }
+    else if (replpolicy == ReplacementPolicy_trulru){
+        recentlyUsed = new uint32_t[countsets];
+        memset(recentlyUsed, 0, sizeof(uint32_t) * countsets);
+        historyUsed = new history*[countsets];
+        for(int s = 0; s < countsets; ++s) {
+            historyUsed[s] = new history[assoc];
+            historyUsed[s][0].prev = assoc-1;
+            historyUsed[s][0].next = 1;
+            for(int a = 1; a < assoc; ++a) {
+                historyUsed[s][a].prev = a-1;
+                historyUsed[s][a].next = (a+1)%assoc;
+            }
+        }
     }
 }
 
@@ -1476,6 +1490,11 @@ CacheLevel::~CacheLevel(){
     if (recentlyUsed){
         delete[] recentlyUsed;
     }
+    if (historyUsed){
+        for(int s = 0; s < countsets; ++s)
+            delete[] historyUsed[s];
+        delete[] historyUsed;
+    }
 }
 
 uint64_t CacheLevel::CountColdMisses(){
@@ -1504,6 +1523,8 @@ uint32_t CacheLevel::GetSet(uint64_t store){
 uint32_t CacheLevel::LineToReplace(uint32_t setid){
     if (replpolicy == ReplacementPolicy_nmru){
         return (recentlyUsed[setid] + 1) % associativity;
+    } else if (replpolicy == ReplacementPolicy_trulru){
+        return recentlyUsed[setid];
     } else if (replpolicy == ReplacementPolicy_random){
         return RandomInt(associativity);
     } else if (replpolicy == ReplacementPolicy_direct){
@@ -1540,6 +1561,19 @@ inline void CacheLevel::MarkUsed(uint32_t setid, uint32_t lineid){
     if (USES_MARKERS(replpolicy)){
         debug(inform << "level " << dec << level << " USING set " << dec << setid << " line " << lineid << ENDL << flush);
         recentlyUsed[setid] = lineid;
+    }
+    else if(replpolicy == ReplacementPolicy_trulru) {
+        debug(inform << "level " << dec << level << " USING set " << dec << setid << " line " << lineid << ENDL << flush);
+        if(recentlyUsed[setid] == lineid)
+            recentlyUsed[setid] = historyUsed[setid][lineid].next;
+        else {
+            historyUsed[setid][historyUsed[setid][lineid].next].prev = historyUsed[setid][lineid].prev;
+            historyUsed[setid][historyUsed[setid][lineid].prev].next = historyUsed[setid][lineid].next;
+            historyUsed[setid][lineid].prev = historyUsed[setid][recentlyUsed[setid]].prev;
+            historyUsed[setid][recentlyUsed[setid]].prev = lineid;
+            historyUsed[setid][lineid].next = recentlyUsed[setid];
+            historyUsed[setid][historyUsed[setid][lineid].prev].next = lineid;
+        }
     }
 }
 
@@ -1821,8 +1855,7 @@ bool CacheStructureHandler::Init(string desc){
             } else if (token.compare(0, 4, "rand") == 0){
                 repl = ReplacementPolicy_random;
             } else if (token.compare(0, 6, "trulru") == 0){
-                warn << "True lru is not implemented... using nmru" << ENDL << flush;
-                repl = ReplacementPolicy_nmru;
+                repl = ReplacementPolicy_trulru;
             } else if (token.compare(0, 3, "dir") == 0){
                 repl = ReplacementPolicy_direct;
             } else {

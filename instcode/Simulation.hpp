@@ -48,7 +48,7 @@ enum CacheLevelType {
 
 enum ReplacementPolicy {
     ReplacementPolicy_Undefined,
-    ReplacementPolicy_truelru,
+    ReplacementPolicy_trulru,
     ReplacementPolicy_nmru,
     ReplacementPolicy_random,
     ReplacementPolicy_direct,
@@ -191,6 +191,11 @@ public:
 #define CacheLevel_Init_Interface uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol
 #define CacheLevel_Init_Arguments lvl, sizeInBytes, assoc, lineSz, pol
 
+struct history {
+    uint32_t prev;
+    uint32_t next;
+};
+
 class CacheLevel {
 protected:
 
@@ -207,6 +212,7 @@ protected:
 
     uint64_t** contents;
     uint32_t* recentlyUsed;
+    history** historyUsed;
 
 public:
     CacheLevel();
