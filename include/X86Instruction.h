@@ -193,9 +193,9 @@ public:
     RegisterSet();
     RegisterSet& operator=(const RegisterSet& rhs);
     RegisterSet& operator|=(const RegisterSet& rhs);
-    const RegisterSet operator|(const RegisterSet& rhs);
+    const RegisterSet& operator|(const RegisterSet& rhs);
     RegisterSet& operator-=(const RegisterSet& rhs);
-    const RegisterSet operator-(const RegisterSet& rhs);
+    const RegisterSet& operator-(const RegisterSet& rhs);
     bool operator==(const RegisterSet& rhs);
     void addRegister(uint32_t regNum);
     void addFlag(uint32_t flagNum);
