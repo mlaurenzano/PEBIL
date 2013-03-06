@@ -35,7 +35,6 @@ class ElfFileInst;
 class Function;
 class TextObject;
 
-
 #define JUMP_TABLE_REACHES 0x1000
 #define DISASSEMBLY_MODE UD_SYN_ATT
 #define MAX_X86_INSTRUCTION_LENGTH 20
