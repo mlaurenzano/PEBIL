@@ -458,7 +458,11 @@ extern "C" {
 
         // dump cache simulation results
         ofstream MemFile;
-        const char* fileName = SimulationFileName(stats);
+        string oFile;
+        const char* fileName;
+        SimulationFileName(stats, oFile);
+        fileName = oFile.c_str();
+
         inform << "Printing cache simulation results to " << fileName << ENDL;
         TryOpen(MemFile, fileName);
 
@@ -466,10 +470,11 @@ extern "C" {
         if (ReuseWindow){
    
 	    ofstream ReuseDistFile;
-            const char* ReusefileName = ReuseDistFileName(stats);
+            ReuseDistFileName(stats, oFile);
+            fileName = oFile.c_str();
 	   
-       	    inform << "Printing reuse distance results to " << ReusefileName << ENDL;
-            TryOpen(ReuseDistFile, ReusefileName);
+       	    inform << "Printing reuse distance results to " << fileName << ENDL;
+            TryOpen(ReuseDistFile, fileName);
 
             for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
                 for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
@@ -482,14 +487,16 @@ extern "C" {
   		    	rd->Print(ReuseDistFile);
                 }
             }
+            ReuseDistFile.close();
         }
         if (SpatialWindow){
    
 	    ofstream SpatialDistFile;
-	    const char* SpatialfileName = SpatialDistFileName(stats);
+	    SpatialDistFileName(stats, oFile);
+            fileName = oFile.c_str();
 
-            inform << "Printing spatial locality results to " << SpatialfileName << ENDL;
-            TryOpen(SpatialDistFile, SpatialfileName);
+            inform << "Printing spatial locality results to " << fileName << ENDL;
+            TryOpen(SpatialDistFile, fileName);
 
             for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
                 for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
@@ -502,6 +509,7 @@ extern "C" {
   		    	sd->Print(SpatialDistFile);
                 }
             }
+            SpatialDistFile.close();
         }
 
         uint64_t sampledCount = 0;
@@ -710,7 +718,8 @@ extern "C" {
 #ifdef LEGACY_METASIM_SUPPORT
         // if single-thread and single-image, also print in old format
         if (AllData->CountThreads() == 1 && AllData->CountImages() == 1){
-            const char* fileName = LegacySimulationFileName(stats);
+            LegacySimulationFileName(stats, oFile);
+            fileName = oFile.c_str();
             inform << LegacyToken << "printing cache simulation results to " << fileName << ENDL;
             TryOpen(MemFile, fileName);
 
@@ -762,7 +771,8 @@ extern "C" {
 
 
             // dump address range (dfp) file
-            fileName = LegacyRangeFileName(stats);
+            LegacyRangeFileName(stats, oFile);
+            fileName = oFile.c_str();
             inform << LegacyToken << "printing address range results to " << fileName << ENDL;
 
             TryOpen(MemFile, fileName);
@@ -906,9 +916,8 @@ void PrintSimulationStats(ofstream& f, SimulationStats* stats, thread_key_t tid,
     delete[] aggstats;
 }
 
-const char* SimulationFileName(SimulationStats* stats){
-    string oFile;
-
+void SimulationFileName(SimulationStats* stats, string& oFile){
+    oFile.clear();
     oFile.append(stats->Application);
     oFile.append(".r");
     AppendRankString(oFile);
@@ -916,14 +925,11 @@ const char* SimulationFileName(SimulationStats* stats){
     AppendTasksString(oFile);
     oFile.append(".");
     oFile.append(stats->Extension);
-
-    return oFile.c_str();
 }
 
 
-const char* ReuseDistFileName(SimulationStats* stats){
-    string oFile;
-
+void ReuseDistFileName(SimulationStats* stats, string& oFile){
+    oFile.clear();
     oFile.append(stats->Application);
     oFile.append(".r");
     AppendRankString(oFile);
@@ -931,13 +937,10 @@ const char* ReuseDistFileName(SimulationStats* stats){
     AppendTasksString(oFile);
     oFile.append(".dist");
     //oFile.append(stats->Extension);
-
-    return oFile.c_str();
 }
 
-const char* SpatialDistFileName(SimulationStats* stats){
-    string oFile;
-
+void SpatialDistFileName(SimulationStats* stats, string& oFile){
+    oFile.clear();
     oFile.append(stats->Application);
     oFile.append(".r");
     AppendRankString(oFile);
@@ -945,13 +948,10 @@ const char* SpatialDistFileName(SimulationStats* stats){
     AppendTasksString(oFile);
     oFile.append(".spatial");
     //oFile.append(stats->Extension);
-
-    return oFile.c_str();
 }
 
-const char* RangeFileName(SimulationStats* stats){
-    string oFile;
-
+void RangeFileName(SimulationStats* stats, string& oFile){
+    oFile.clear();
     oFile.append(stats->Application);
     oFile.append(".r");
     AppendRankString(oFile);
@@ -959,14 +959,11 @@ const char* RangeFileName(SimulationStats* stats){
     AppendTasksString(oFile);
     oFile.append(".");
     oFile.append("dfp");
-
-    return oFile.c_str();
 }
 
 #ifdef LEGACY_METASIM_SUPPORT
-const char* LegacySimulationFileName(SimulationStats* stats){
-    string oFile;
-
+void LegacySimulationFileName(SimulationStats* stats, string& oFile){
+    oFile.clear();
     oFile.append(stats->Application);
     if (stats->Phase > 0){
         assert(stats->Phase == 1 && "phase number must be 1");
@@ -976,13 +973,11 @@ const char* LegacySimulationFileName(SimulationStats* stats){
     AppendLegacyRankString(oFile);
     oFile.append(".");
     oFile.append(stats->Extension);
-
-    return oFile.c_str();
 }
 
-const char* LegacyRangeFileName(SimulationStats* stats){
-    string oFile(stats->Application);
-
+void LegacyRangeFileName(SimulationStats* stats, string& oFile){
+    oFile.clear();
+    oFile.append(stats->Application);
     if (stats->Phase > 0){
         assert(stats->Phase == 1 && "phase number must be 1");
         oFile.append(".phase.1");
@@ -991,8 +986,6 @@ const char* LegacyRangeFileName(SimulationStats* stats){
     AppendLegacyRankString(oFile);
     oFile.append(".");
     oFile.append("dfp");
-
-    return oFile.c_str();
 }
 #endif
 
@@ -1032,7 +1025,7 @@ string GetCacheDescriptionFile(){
     if (e != NULL){
         knobvalue = (string)e;
     }
-
+    
     if (e == NULL || knobvalue.compare(0, 1, "$") == 0){
         string str;
         const char* freeenv = getenv(METASIM_ENV);

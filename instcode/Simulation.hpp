@@ -90,12 +90,12 @@ static uint64_t ReferenceCacheStats(SimulationStats* stats);
 static void DeleteCacheStats(SimulationStats* stats);
 static bool ReadEnvUint32(string name, uint32_t* var);
 static void PrintSimulationStats(ofstream& f, SimulationStats* stats, thread_key_t tid, bool perThread);
-static const char* SimulationFileName(SimulationStats* stats);
-static const char* ReuseDistFileName(SimulationStats* stats);
-static const char* SpatialDistFileName(SimulationStats* stats);
-static const char* LegacySimulationFileName(SimulationStats* stats);
-static const char* RangeFileName(SimulationStats* stats);
-static const char* LegacyRangeFileName(SimulationStats* stats);
+static void SimulationFileName(SimulationStats* stats, string& oFile);
+static void ReuseDistFileName(SimulationStats* stats, string& oFle);
+static void SpatialDistFileName(SimulationStats* stats, string& oFile);
+static void LegacySimulationFileName(SimulationStats* stats, string& oFile);
+static void RangeFileName(SimulationStats* stats, string& oFile);
+static void LegacyRangeFileName(SimulationStats* stats, string& oFile);
 
 extern "C" {
     void* tool_mpi_init();
