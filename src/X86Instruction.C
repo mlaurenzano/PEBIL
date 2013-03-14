@@ -115,7 +115,7 @@ RegisterSet& RegisterSet::operator|=(const RegisterSet& rhs){
     return *this;
 }
 
-const RegisterSet& RegisterSet::operator|(const RegisterSet& rhs){
+const RegisterSet RegisterSet::operator|(const RegisterSet& rhs){
     return RegisterSet(*this) |= rhs;
 }
 
@@ -124,7 +124,7 @@ RegisterSet& RegisterSet::operator-=(const RegisterSet& rhs){
     return *this;
 }
 
-const RegisterSet& RegisterSet::operator-(const RegisterSet& rhs){
+const RegisterSet RegisterSet::operator-(const RegisterSet& rhs){
     return RegisterSet(*this) -= rhs;
 }
 
