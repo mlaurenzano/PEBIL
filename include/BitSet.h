@@ -43,7 +43,7 @@ private:
     uint32_t cardinality;
     T* elements;
 
-    uint32_t internalCount(){
+    uint32_t internalCount() const {
         return (maximum >> DivideLog) + (maximum & ModMask ? 1 : 0);
     }
 
@@ -68,7 +68,7 @@ public:
     }
 
     //! copy constructor
-    BitSet(BitSet& src){
+    BitSet(const BitSet& src){
         maximum = src.maximum;
         uint32_t count = src.internalCount();
         bits = new BitStorage[count];
