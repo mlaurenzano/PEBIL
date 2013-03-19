@@ -21,7 +21,8 @@
 
 DataManager<FunctionTimers*>* AllData = NULL;
 
-#define CLOCK_RATE_HZ 2800000000
+//#define CLOCK_RATE_HZ 2800000000
+#define CLOCK_RATE_HZ 3326000000
 inline uint64_t read_timestamp_counter(){
     unsigned low, high;
     __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));
@@ -52,15 +53,19 @@ FunctionTimers* GenerateFunctionTimers(FunctionTimers* timers, uint32_t typ, ima
     retval->functionNames = timers->functionNames;
     retval->functionTimerAccum = new uint64_t[retval->functionCount];
     retval->functionTimerLast = new uint64_t[retval->functionCount];
+    retval->inFunction = new uint32_t[retval->functionCount];
 
-    memset(retval->functionTimerAccum, 0, sizeof(uint64_t) * retval->functionCount);
-    memset(retval->functionTimerLast, 0, sizeof(uint64_t) * retval->functionCount);
+    memset(retval->functionTimerAccum, 0, sizeof(*retval->functionTimerAccum) * retval->functionCount);
+    memset(retval->functionTimerLast, 0, sizeof(*retval->functionTimerLast) * retval->functionCount);
+    memset(retval->inFunction, 0, sizeof(*retval->inFunction) * retval->functionCount);
+
     return retval;
 }
 
 void DeleteFunctionTimers(FunctionTimers* timers){
     delete timers->functionTimerAccum;
     delete timers->functionTimerLast;
+    delete timers->inFunction;
 }
 
 uint64_t ReferenceFunctionTimers(FunctionTimers* timers){
@@ -77,20 +82,29 @@ extern "C"
         FunctionTimers* timers = AllData->GetData(*key, pthread_self());
         assert(timers != NULL);
         assert(timers->functionTimerLast != NULL);
-        
-        timers->functionTimerLast[funcIndex] = read_timestamp_counter();
+        if(timers->inFunction[funcIndex] == 0){
+            timers->functionTimerLast[funcIndex] = read_timestamp_counter();
+        }
+        ++timers->inFunction[funcIndex];
         return 0;
     }
 
     // end timer
     int32_t function_exit(uint32_t funcIndex, image_key_t* key) {
         thread_key_t tid = pthread_self();
-
         FunctionTimers* timers = AllData->GetData(*key, pthread_self());
-        uint64_t last = timers->functionTimerLast[funcIndex];
-        uint64_t now = read_timestamp_counter();
-        timers->functionTimerAccum[funcIndex] += now - last;
-        //timers->functionTimerLast = now;
+
+        uint32_t recDepth = timers->inFunction[funcIndex];
+        --recDepth;
+        if(recDepth == 0) {
+            uint64_t last = timers->functionTimerLast[funcIndex];
+            uint64_t now = read_timestamp_counter();
+            timers->functionTimerAccum[funcIndex] += now - last;
+            timers->functionTimerLast[funcIndex] = now;
+        } else if(recDepth < 0) {
+            recDepth = 0;
+        }
+        timers->inFunction[funcIndex] = recDepth;
 
         return 0;
     }
@@ -183,10 +197,10 @@ extern "C"
 
             for (uint64_t funcIndex = 0; funcIndex < functionCount; ++funcIndex){
                 char* fname = functionNames[funcIndex];
-                fprintf(outFile, "%s:\n", fname);
+                fprintf(outFile, "\n%s:\t", fname);
                 for (set<thread_key_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); ++tit) {
                     FunctionTimers* timers = AllData->GetData(*iit, *tit);
-                    fprintf(outFile, "\tThread: 0x%llx\tTime: %f\n", *tit, (double)(timers->functionTimerAccum[funcIndex]) / CLOCK_RATE_HZ);
+                    fprintf(outFile, "\tThread: 0x%llx\tTime: %f\t", *tit, (double)(timers->functionTimerAccum[funcIndex]) / CLOCK_RATE_HZ);
                 }
             }
         }

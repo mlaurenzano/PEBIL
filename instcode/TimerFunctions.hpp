@@ -10,6 +10,7 @@ typedef struct {
     char** functionNames;
     uint64_t* functionTimerAccum;
     uint64_t* functionTimerLast;
+    uint32_t* inFunction;
 } FunctionTimers;
 
 #endif
