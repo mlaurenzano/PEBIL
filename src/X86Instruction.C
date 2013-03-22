@@ -2320,8 +2320,8 @@ static struct x86class classifications[UD_Itotaltypes] = {
     mkclass(           cmppd,    float,  floatv,   0,   64,    0)
     mkclass(           cmpps,    float,  floatv,   0,   32,    0)
     mkclass(           cmpsb,   string,  string,  si,    8,    0)
-    // TODO: 2 instructions covered by this... need to handle special
-    mkclass(           cmpsd,    float,  string,  si,   32,    0)
+    // TODO: 2 instruction mnemonics == cmpsd. this is broken for the compare double case
+    mkclass(           cmpsd,    float,  floatv,   0,   64,    0)
     mkclass(           cmpsq,   string,  string,  si,   64,    0)
     mkclass(           cmpss,    float,  floats,   0,   32,    0)
     mkclass(           cmpsw,   string,  string,  si,   16,    0)
@@ -2574,8 +2574,8 @@ static struct x86class classifications[UD_Itotaltypes] = {
     mkclass(            movq,     move,    move,   0,   64,    0)
     mkclass(         movq2dq,     move,    move,   0,   64,    0)
     mkclass(           movsb,   string,  string, dsi,    8,    0)
-    // TODO: 2 instructions covered by this... need to handle special
-    mkclass(           movsd,   string,    move, dsi,   64,    0)
+    // TODO: 2 instruction mnemonics == movsd. this is broken for the string move case
+    mkclass(           movsd,     move,    move,   0,   64,    0)
     mkclass(        movshdup,     move,    move,   0, VRSZ,    0)
     mkclass(        movsldup,     move,    move,   0, VRSZ,    0)
     mkclass(           movsq,   string,  string, dsi,   64,    0)
