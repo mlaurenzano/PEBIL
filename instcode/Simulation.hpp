@@ -107,13 +107,14 @@ extern "C" {
 class StreamStats {
 public:
     virtual uint64_t GetAccessCount(uint32_t memid) = 0;
+    virtual bool Verify() = 0;
 };
 
 class CacheStats : public StreamStats {
 public:
     uint32_t LevelCount;
     uint32_t SysId;
-    LevelStats** Stats;
+    LevelStats** Stats; // indexed by [memid][level]
     uint32_t Capacity;
 
     CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity);
@@ -138,6 +139,8 @@ public:
     uint64_t GetAccessCount(uint32_t memid);
     float GetHitRate(uint32_t memid, uint32_t lvl);
     float GetCumulativeHitRate(uint32_t memid, uint32_t lvl);
+
+    bool Verify();
 };
 
 struct AddressRange {
@@ -163,6 +166,8 @@ public:
 
     void Update(uint32_t memid, uint64_t addr);
     void Update(uint32_t memid, uint64_t addr, uint32_t count);
+
+    bool Verify();
 };
 
 #define INVALID_REUSE_DISTANCE (-1)

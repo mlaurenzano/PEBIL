@@ -585,6 +585,7 @@ public:
     }
 
     void AddThread(thread_key_t tid){
+        Lock(); // FIXME necessary?
         assert(allthreads.count(tid) == 0);
         assert(threadseq.count(tid) == 0);
         assert(firstimage != 0);
@@ -616,6 +617,7 @@ public:
             SetThreadData((*iit), tid, ThreadType);
         }
         allthreads.insert(tid);
+        UnLock();
     }
 
     void AddThread(){
@@ -664,6 +666,7 @@ public:
     }
 
     image_key_t AddImage(T data, ThreadData* t, image_key_t iid){
+        Lock(); // FIXME necessary?
         thread_key_t tid = pthread_self();
 
         assert(allimages.count(iid) == 0);
@@ -695,14 +698,20 @@ public:
             datamap[iid][(*it)] = datagen(data, ImageType, iid, (*it), firstimage);
             assert(datamap[iid].count((*it)) == 1);
         }
+        UnLock();
         return iid;
     }
 
+    // Return data for any image and this thread.
+    // Probably best used when only one image exists.
     T GetData(){
-        for (set<image_key_t>::iterator iit = allimages.begin(); iit != allimages.end(); iit++){
-            return GetData((*iit), pthread_self());
-        }
-        assert(false);
+        return GetData(pthread_self());
+    }
+
+    T GetData(thread_key_t tid){
+        set<image_key_t>::iterator iit = allimages.begin();
+        assert(iit != allimages.end());
+        return GetData(*iit, tid);
     }
 
     T GetData(image_key_t iid, thread_key_t tid){
@@ -752,11 +761,13 @@ public:
         alldata = all;
         assert(alldata->CountThreads() == 1);
         assert(alldata->CountImages() == 1);
+        assert(alldata->GetThreadSequence(pthread_self()) == 0);
 
         stats = new T*[threadcount];
         stats[0] = new T[capacity];
+        T dat = alldata->GetData();
         for (uint32_t i = 0; i < capacity; i++){
-            stats[0][i] = alldata->GetData();
+            stats[0][i] = dat;
         }
 
         pthread_mutex_init(&countlock, NULL);
@@ -770,30 +781,46 @@ public:
             delete[] stats;
         }
     }
+
+    // tid must have already been added to alldata
+    // copy data from old stats and initialize new thread data
     void AddThread(thread_key_t tid){
         Lock();
-        T** tmp = new T*[threadcount + 1];
-        for (uint32_t i = 0; i < threadcount + 1; i++){
-            tmp[i] = new T[capacity];
+        uint32_t tid_index = alldata->GetThreadSequence(tid);
+        uint32_t newsize = tid_index+1 > threadcount ? tid_index+1 : threadcount;
 
-            if (imagecount == 1){
-                if (i == threadcount){
-                    T s = alldata->GetData();
-                    image_key_t iid = s->imageid;
-                    for (uint32_t j = 0; j < capacity; j++){
-                        tmp[i][j] = alldata->GetData(iid, tid);
-                    }
-                } else {
-                    memcpy(tmp[i], stats[i], sizeof(T) * capacity);
-                    delete[] stats[i];
-                }
+//        inform << "Adding new thread with index " << tid_index << " and new size will be " << newsize << ENDL;
+//        inform << "Old size was " << threadcount << ENDL;
+
+        // copy old data
+        T** tmp = new T*[newsize];
+        for (uint32_t i = 0; i < threadcount; ++i){
+            tmp[i] = stats[i];
+        }
+//        inform << "Copied old data" << ENDL;
+
+        // initialize new data
+        for(uint32_t i = threadcount; i < newsize; ++i){
+            tmp[i] = new T[capacity];
+            if(i != tid_index)
+                memset(tmp[i], 0, sizeof(T) * capacity);
+        }
+//        inform << "Initialized new data" << ENDL;
+
+        // if only one image, can't count on it being refreshed later
+        if(imagecount == 1) {
+            T dat = alldata->GetData(tid);
+            for(uint32_t j = 0; j < capacity; ++j){
+                tmp[tid_index][j] = dat;
             }
         }
+//        inform << "Initialized this threads data" << ENDL;
 
         delete[] stats;
         stats = tmp;
+        threadcount = newsize;
 
-        threadcount++;
+//        inform << "Finished adding new thread" << ENDL;
         UnLock();
     }
 
@@ -811,6 +838,8 @@ public:
         UnLock();
     }
 
+    // updates stats to hold the correct image data for the
+    // entries in buffer
     void Refresh(V buffer, uint32_t num, thread_key_t tid){
         debug(assert(imagecount > 0));
         debug(assert(threadcount > 0));

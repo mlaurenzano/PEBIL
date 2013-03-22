@@ -215,6 +215,21 @@ extern "C" {
         return NULL;
     }
 
+/*
+    void printBuffer(SimulationStats* stats){
+        uint32_t numElements = BUFFER_CURRENT(stats);
+
+        for(uint32_t bufcur = 0; bufcur < numElements; ++bufcur){
+            BufferEntry* reference = BUFFER_ENTRY(stats, bufcur);
+            inform << "Buffer entry " << bufcur << ":" <<
+                      " Address " << (void*)reference->address <<
+                      " Memseq " << reference->memseq <<
+                      " Imageid " << reference->imageid <<
+                      " Threadid " << reference->threadid << ENDL;
+
+        }
+    }
+*/
     void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, ReuseDistance* rd, ReuseDistance* sd, uint32_t numElements, image_key_t iid, thread_key_t tid){
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
@@ -228,8 +243,7 @@ extern "C" {
             SimulationStats* stats = faststats[bufcur];
             StreamStats* ss = stats->Stats[HandlerIdx];
 
-
-            BufferEntry* reference = BUFFER_ENTRY(stats, bufcur + 1);
+            BufferEntry* reference = BUFFER_ENTRY(stats, bufcur);
 
             if (reference->imageid == 0){
                 debug(assert(AllData->CountThreads() > 1));
@@ -237,6 +251,7 @@ extern "C" {
             }
 
             m->Process((void*)ss, reference);
+            debug(assert(reference->threadid == tid));
 
 	    ReuseEntry entry = ReuseEntry();
 	    entry.id = stats->Hashes[stats->BlockIds[reference->memseq]]; // This is to track by BBID to track by memseq change to entry.id=reference->memseq;
@@ -254,7 +269,7 @@ extern "C" {
 
 #define DONE_WITH_BUFFER(...)                   \
         BUFFER_CURRENT(stats) = 0;                                      \
-        bzero(BUFFER_ENTRY(stats, 1), sizeof(BufferEntry) * BUFFER_CAPACITY(stats)); \
+        bzero(BUFFER_ENTRY(stats, 0), sizeof(BufferEntry) * BUFFER_CAPACITY(stats)); \
         return NULL;
 
         assert(iid);
@@ -297,8 +312,7 @@ extern "C" {
         synchronize(AllData){
         if (isSampling){
             BufferEntry* buffer = &(stats->Buffer[1]);
-// FIXME
-            //inform << "Processing buffer for thread " << hex << tid << " image " << iid << ENDL;
+
             FastStats->Refresh(buffer, numElements, tid);
             for (uint32_t i = 0; i < CountMemoryHandlers; i++){
                 MemoryStreamHandler* m = stats->Handlers[i];
@@ -320,7 +334,7 @@ extern "C" {
                 SimulationStats** faststats = FastStats->GetBufferStats(tid);
                 for (uint32_t j = 0; j < numElements; j++){
                     SimulationStats* s = faststats[j];
-                    BufferEntry* reference = BUFFER_ENTRY(s, j + 1);
+                    BufferEntry* reference = BUFFER_ENTRY(s, j);
                     debug(inform << "Memseq " << dec << reference->memseq << " has " << s->Stats[0]->GetAccessCount(reference->memseq) << ENDL);
                     uint32_t bbid = s->BlockIds[reference->memseq];
 
@@ -583,6 +597,7 @@ extern "C" {
 
                     CacheStats* c = (CacheStats*)s->Stats[sys];
                     assert(c->Capacity == s->InstructionCount);
+                    debug(assert(c->Verify()));
 
                     if (first){
                         MemFile << "# sysid" << dec << c->SysId << " in image " << hex << (*iit) << ENDL;
@@ -635,6 +650,7 @@ extern "C" {
 
                     CacheStats* s = (CacheStats*)st->Stats[sys];
                     assert(s);
+                    debug(s->Verify());
                     CacheStats* c = new CacheStats(s->LevelCount, s->SysId, st->BlockCount);
                     aggstats[sys] = c;
 
@@ -650,6 +666,7 @@ extern "C" {
                             c->Miss(bbid, lvl, s->GetMisses(memid, lvl));
                         }
                     }
+                    debug(assert(c->Verify()));
                 }
 
                 CacheStats* root = aggstats[0];
@@ -693,6 +710,7 @@ extern "C" {
                         if (AllData->CountThreads() == 1){
                             assert(root->GetAccessCount(bbid) == c->GetHits(bbid, 0) + c->GetMisses(bbid, 0));
                         }
+                        assert(c->Verify());
 
                         for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
 
@@ -1090,6 +1108,10 @@ void RangeStats::Update(uint32_t memid, uint64_t addr, uint32_t count){
     Counts[memid] += count;
 }
 
+bool RangeStats::Verify(){
+    return true;
+}
+
 AddressRangeHandler::AddressRangeHandler(){
 }
 AddressRangeHandler::AddressRangeHandler(AddressRangeHandler& h){
@@ -1119,6 +1141,7 @@ CacheStats::CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity){
     for (uint32_t i = 0; i < Capacity; i++){
         NewMem(i);
     }
+    debug(assert(Verify()));
 }
 
 CacheStats::~CacheStats(){
@@ -1239,6 +1262,23 @@ float CacheStats::GetCumulativeHitRate(uint32_t memid, uint32_t lvl){
         hits += GetLevelStats(memid, i)->hitCount;
     }
     return ((float)hits / (float)GetAccessCount(memid));
+}
+
+bool CacheStats::Verify(){
+    for(uint32_t memid = 0; memid < Capacity; ++memid){
+
+        uint64_t prevMisses = Stats[memid][0].missCount;
+
+        for(uint32_t level = 1; level < LevelCount; ++level){
+            uint64_t hits = Stats[memid][level].hitCount;
+            uint64_t misses = Stats[memid][level].missCount;
+            if(hits + misses != prevMisses){
+                warn << "Inconsistent hits/misses for memid " << memid << " level " << level << " " << hits << " + " << misses << " != " << prevMisses << ENDL;
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 bool ParsePositiveInt32(string token, uint32_t* value){
@@ -1625,7 +1665,6 @@ uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, v
     if (Search(store, &set, &lineInSet)){
         stats->Stats[memid][level].hitCount++;
         MarkUsed(set, lineInSet);
-
         return INVALID_CACHE_LEVEL;
     }
 
@@ -1989,7 +2028,7 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
     // each thread gets its own buffer
     if (typ == AllData->ThreadType){
         stats->Buffer = new BufferEntry[BUFFER_CAPACITY(stats) + 1];
-        bzero(BUFFER_ENTRY(stats, 1), (BUFFER_CAPACITY(stats) + 1) * sizeof(BufferEntry));
+        bzero(BUFFER_ENTRY(stats, 0), (BUFFER_CAPACITY(stats) + 1) * sizeof(BufferEntry));
         BUFFER_CAPACITY(stats) = BUFFER_CAPACITY(s);
         BUFFER_CURRENT(stats) = 0;
     } else if (iid != firstimage){
