@@ -36,7 +36,6 @@ BitSet<uint32_t>* X86Instruction::getDeadRegIn(BitSet<uint32_t>* invalidRegs){
     return getDeadRegIn(invalidRegs, 0);
 }
 
-
 BitSet<uint32_t>* X86Instruction::getDeadRegIn(BitSet<uint32_t>* invalidRegs, uint32_t cnt){
     BitSet<uint32_t>* dead = new BitSet<uint32_t>(X86_ALU_REGS);
 
