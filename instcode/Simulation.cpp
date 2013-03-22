@@ -1677,7 +1677,6 @@ uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, v
 uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info){
     uint32_t set = 0;
     uint32_t lineInSet = 0;
-    assert(0); // FIXME
 
     uint64_t store = GetStorage(addr);
 
