@@ -195,7 +195,7 @@ extern "C" {
                 }
             }
 
-            debug(PrintDynamicPoints());
+            //debug(PrintDynamicPoints());
 
             if (Sampler->SampleOn == 0){
                 inform << "Disabling all simulation-related instrumentation because METASIM_SAMPLE_ON is set to 0" << ENDL;
@@ -235,6 +235,7 @@ extern "C" {
         uint32_t numProcessed = 0;
 
         SimulationStats** faststats = FastStats->GetBufferStats(tid);
+        //assert(faststats[0]->Stats[HandlerIdx]->Verify());
         uint32_t bufcur = 0;
         for (bufcur = 0; bufcur < numElements; bufcur++){
             debug(assert(faststats[bufcur]));
@@ -251,7 +252,7 @@ extern "C" {
             }
 
             m->Process((void*)ss, reference);
-            debug(assert(reference->threadid == tid));
+            assert(reference->threadid == tid);
 
 	    ReuseEntry entry = ReuseEntry();
 	    entry.id = stats->Hashes[stats->BlockIds[reference->memseq]]; // This is to track by BBID to track by memseq change to entry.id=reference->memseq;
@@ -263,6 +264,7 @@ extern "C" {
 
             numProcessed++;
         }
+        //assert(faststats[0]->Stats[HandlerIdx]->Verify());
     }
 
     void* process_thread_buffer(image_key_t iid, thread_key_t tid){
@@ -597,7 +599,9 @@ extern "C" {
 
                     CacheStats* c = (CacheStats*)s->Stats[sys];
                     assert(c->Capacity == s->InstructionCount);
-                    debug(assert(c->Verify()));
+                    if(!c->Verify()) {
+                        warn << "Cache structure failed verification for  system " << c->SysId << ", image " << hex << *iit << ", thread " << hex << *it << ENDL;
+                    }
 
                     if (first){
                         MemFile << "# sysid" << dec << c->SysId << " in image " << hex << (*iit) << ENDL;
@@ -650,7 +654,7 @@ extern "C" {
 
                     CacheStats* s = (CacheStats*)st->Stats[sys];
                     assert(s);
-                    debug(s->Verify());
+                    s->Verify();
                     CacheStats* c = new CacheStats(s->LevelCount, s->SysId, st->BlockCount);
                     aggstats[sys] = c;
 
@@ -666,7 +670,9 @@ extern "C" {
                             c->Miss(bbid, lvl, s->GetMisses(memid, lvl));
                         }
                     }
-                    debug(assert(c->Verify()));
+                    if(!c->Verify()) {
+                        warn << "Failed check on aggregated cache stats" << ENDL;
+                    }
                 }
 
                 CacheStats* root = aggstats[0];
@@ -710,7 +716,6 @@ extern "C" {
                         if (AllData->CountThreads() == 1){
                             assert(root->GetAccessCount(bbid) == c->GetHits(bbid, 0) + c->GetMisses(bbid, 0));
                         }
-                        assert(c->Verify());
 
                         for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
 
@@ -1141,7 +1146,7 @@ CacheStats::CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity){
     for (uint32_t i = 0; i < Capacity; i++){
         NewMem(i);
     }
-    debug(assert(Verify()));
+    assert(Verify());
 }
 
 CacheStats::~CacheStats(){
@@ -1276,6 +1281,7 @@ bool CacheStats::Verify(){
                 warn << "Inconsistent hits/misses for memid " << memid << " level " << level << " " << hits << " + " << misses << " != " << prevMisses << ENDL;
                 return false;
             }
+            prevMisses = misses;
         }
     }
     return true;
@@ -1660,7 +1666,6 @@ uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, v
     debug(assert(stats));
     debug(assert(stats->Stats));
     debug(assert(stats->Stats[memid]));
-
     // hit
     if (Search(store, &set, &lineInSet)){
         stats->Stats[memid][level].hitCount++;
