@@ -45,8 +45,8 @@
 #include <vector>
 
 #ifdef HAVE_UNORDERED_MAP
-#include <unordered_map>
-#define pebil_map_type unordered_map
+#include <tr1/unordered_map>
+#define pebil_map_type tr1::unordered_map
 #else
 #include <map>
 #define pebil_map_type map
