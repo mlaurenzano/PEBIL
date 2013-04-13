@@ -241,11 +241,12 @@ extern "C" {
 	    ReuseEntry entry = ReuseEntry();
 	    entry.id = stats->Hashes[stats->BlockIds[reference->memseq]]; // This is to track by BBID to track by memseq change to entry.id=reference->memseq;
 	    entry.address=reference->address ;
-            if(ReuseWindow)
+            if(ReuseWindow && HandlerIdx == ReuseHandlerIndex){
 	    	rd->Process(entry);
-	    if(SpatialWindow)
+            }
+	    if(SpatialWindow && HandlerIdx == SpatialHandlerIndex){
 	    	sd->Process(entry);
-
+            }
             numProcessed++;
         }
     }
@@ -1994,7 +1995,7 @@ void ReadSettings(){
         ReuseWindow = 0;
     }
     if(ReuseWindow) {
-	if (!ReadEnvUint32("METASIM_REUSE_BIN", &SpatialBin)){
+	if (!ReadEnvUint32("METASIM_REUSE_BIN", &ReuseBin)){
         	ReuseBin = 1;
     	}
     }

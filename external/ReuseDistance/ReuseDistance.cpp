@@ -421,7 +421,7 @@ void SpatialLocality::Process(ReuseEntry& r){
     stats->Update(bestdiff);
 
     // remove the oldest address in the window
-    if (swindow.size() > capacity){
+    if (swindow.size() >= capacity){
         uint64_t a = swindow.front();
         swindow.pop_front();
 
