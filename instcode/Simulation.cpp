@@ -494,6 +494,7 @@ extern "C" {
 
             for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
                 for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+                        ReuseDistFile << "IMAGE" << TAB << hex << (*iit) << TAB << "THREAD" << TAB << dec << AllData->GetThreadSequence((*it)) << ENDL;
             
 		        SimulationStats* s = (SimulationStats*)AllData->GetData((*iit), (*it));
 		    	ReuseDistance* rd = s->RHandlers[ReuseHandlerIndex];
@@ -516,6 +517,7 @@ extern "C" {
 
             for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
                 for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+                        SpatialDistFile << "IMAGE" << TAB << hex << (*iit) << TAB << "THREAD" << TAB << dec << AllData->GetThreadSequence(*it) << ENDL;
 
                     	SimulationStats* s = (SimulationStats*)AllData->GetData((*iit), (*it));
 		    	ReuseDistance* sd = s->RHandlers[SpatialHandlerIndex];

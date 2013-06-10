@@ -31,12 +31,6 @@
 
 #include <LoopTimer.hpp>
 
-#define LOOP_NAMING_BASIS "pfreq_throttle"
-//#define LOOP_NAMING_BASIS "pwr_measure"
-#define PROGRAM_ENTRY LOOP_NAMING_BASIS "_init"
-#define PROGRAM_EXIT LOOP_NAMING_BASIS "_fini"
-#define LOOP_ENTRY LOOP_NAMING_BASIS "_lpentry"
-#define LOOP_EXIT LOOP_NAMING_BASIS "_lpexit"
 
 //#define DEBUG_INTERPOSE
 #define FLAGS_METHOD FlagsProtectionMethod_full
