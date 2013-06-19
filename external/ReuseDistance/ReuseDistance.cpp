@@ -408,7 +408,7 @@ void SpatialLocality::Process(ReuseEntry& r){
             uint64_t seq = it->second;
             uint64_t diff = uint64abs(cur - addr);
 
-            if (diff < bestdiff){
+            if (diff > 0 && diff < bestdiff){
                 bestdiff = diff;
             }
 
