@@ -29,6 +29,7 @@
 #include <libudis86/syn.h>
 #include <udis86.h>
 #include <defines/X86Instruction.d>
+#include <map>
 
 class BasicBlock;
 class ElfFileInst;
@@ -395,7 +396,8 @@ public:
     bool verify();
 
     uint32_t getOperandIndex() { return operandIndex; }
-    
+   
+    uint32_t getBitsUsed(); 
     uint32_t getBytesUsed();
     uint32_t getBytePosition();
     uint32_t getBaseRegister();
@@ -443,6 +445,8 @@ public:
 
     OperandX86* getDestOperand();
     Vector<OperandX86*>* getSourceOperands();
+    Vector<OperandX86*>* getOperands();
+    std::map<uint32_t, uint32_t>* getOperandLengthCounts();
 
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 

@@ -514,6 +514,12 @@ static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
 {
     switch ( s ) 
     {
+    case SZ_NA:
+        if(u->mnemonic != UD_Ifnop &&
+           u->mnemonic != UD_Inop) {
+            fprintf(stderr, "Unknown operand size of instruction %s\n", ud_lookup_mnemonic(u->mnemonic));
+        }
+        return s;
     case SZ_V:
         return ( u->opr_mode );
     case SZ_Z:  

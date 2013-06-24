@@ -699,6 +699,7 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
         fprintf(staticFD, "# +dxi <count_def_use_cross> <count_call>\n");
         fprintf(staticFD, "# +ipa <call_target_addr> <call_target_name>\n");
         fprintf(staticFD, "# +bin <unknown> <invalid> <cond> <uncond> <bin> <binv> <intb> <intbv> <intw> <intwv> <intd> <intdv> <intq> <intqv> <floats> <floatsv> <floatss> <floatd> <floatdv> <floatds> <move> <stack> <string> <system> <cache> <mem> <other>\n");
+        fprintf(staticFD, "# +vec <8bit> <16bit> <32bit> <64bit> <128bit> <256bit> <512bit>\n");
     }
 
     uint32_t noInst = 0;
@@ -826,6 +827,12 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
                     bb->getNumberOfBinStack(), bb->getNumberOfBinString(), bb->getNumberOfBinSystem(), bb->getNumberOfBinCache(),
                     bb->getNumberOfBinMem(), bb->getNumberOfBinOther(), bb->getHashCode().getValue());
 
+
+            std::map<uint32_t, uint32_t>* lencnts = bb->getOperandLengthCounts();
+
+            fprintf(staticFD, "\t+vec\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", (*lencnts)[8], (*lencnts)[16], (*lencnts)[32], (*lencnts)[64], (*lencnts)[128], (*lencnts)[256], (*lencnts)[512], bb->getHashCode().getValue());
+            delete lencnts;
+
         }
     }
     fclose(staticFD);
@@ -901,6 +908,7 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
         fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...\n");
         fprintf(staticFD, "# +dxi <count_def_use_cross> <count_call>\n");
         fprintf(staticFD, "# +ipa <call_target_addr> <call_target_name>\n");
+        fprintf(staticFD, "# +vec <8bit> <16bit> <32bit> <64bit> <128bit> <256bit> <512bit>\n");
     }
 
     uint32_t noInst = 0;
@@ -1007,6 +1015,11 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
                 }
             }
             fprintf(staticFD, "\t+ipa\t%#llx\t%s # %#llx\n", callTgtAddr, callTgtName, hashValue);
+
+            std::map<uint32_t, uint32_t>* lencnts = ins->getOperandLengthCounts();
+            fprintf(staticFD, "\t+vec\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", (*lencnts)[8], (*lencnts)[16], (*lencnts)[32], (*lencnts)[64], (*lencnts)[128], (*lencnts)[256], (*lencnts)[512], hashValue);
+            delete lencnts;
+
         }
 
         delete hc;

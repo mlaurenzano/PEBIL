@@ -771,6 +771,40 @@ Vector<OperandX86*>* X86Instruction::getSourceOperands(){
     return ops;
 }
 
+Vector<OperandX86*>* X86Instruction::getOperands(){
+    Vector<OperandX86*>* ops = new Vector<OperandX86*>();
+    for(uint32_t i = 0; i < MAX_OPERANDS; ++i){
+        if (operands[i]){
+            ops->append(operands[i]);
+        }
+    }
+    return ops;
+}
+
+std::map<uint32_t, uint32_t>* X86Instruction::getOperandLengthCounts(){
+    std::map<uint32_t, uint32_t>* retval = new std::map<uint32_t, uint32_t>();
+
+    (*retval)[8] = 0;
+    (*retval)[16] = 0;
+    (*retval)[32] = 0;
+    (*retval)[64] = 0;
+    (*retval)[128] = 0;
+    (*retval)[256] = 0;
+    (*retval)[512] = 0;
+
+    for(int i = 0; i < MAX_OPERANDS; ++i){
+        if(operands[i]){
+            uint32_t bits = operands[i]->getBitsUsed();
+            if(retval->count(bits) == 0) {
+                PRINT_WARN(20, "Found untracked operand size %d\n", bits);
+            } else {
+                (*retval)[bits] = (*retval)[bits] + 1;
+            }
+        }
+    }
+    return retval;
+}
+
 uint32_t X86Instruction::countValidNonimm(){
     uint32_t nimm = 0;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
@@ -1064,12 +1098,16 @@ bool X86Instruction::isFloatPOperation(){
     return false;
 }
 
+uint32_t OperandX86::getBitsUsed(){
+    if (GET(type) == UD_OP_MEM){
+        return GET(offset);
+    } else {
+        return GET(size);
+    }
+}
 
 uint32_t OperandX86::getBytesUsed(){
-    if (GET(type) == UD_OP_MEM){
-        return (GET(offset) >> 3);
-    }
-    return (GET(size) >> 3);
+    return getBitsUsed() >> 3;
 }
 
 uint32_t X86Instruction::getDstSizeInBytes(){

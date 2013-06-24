@@ -438,13 +438,13 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="addpd">
-    <opcode> aso rexr rexx rexb ; sse66 0f 58 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; sse66 0f 58 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 58 ; V X W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 58 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="addps">
-    <opcode> aso rexr rexx rexb ; 0f 58 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; 0f 58 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 58 ; V X W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC5 0f 58 ; V X W ; ; </opcode>
   </instruction>
@@ -2426,13 +2426,13 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="movsd">
     <opcode imp_addr="1"> oso rexw ; a5 /O32 ; ; u:df ; u:si u:di d:si d:di </opcode>
-    <opcode> aso rexr rexx rexb ; ssef2 0f 10 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb       ;       ssef2 0f 10 ; Vq Wq ; ; </opcode>
 
     <!-- TODO: the AVX instructions introduce another form that is seemingly 
          indistinguishable from this one in the opcode (same with ss) -->
     <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 10 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 10 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; ssef2 0f 11 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb       ;       ssef2 0f 11 ; Wq Vq ; ; </opcode>
     <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 11 ; W V ; ; </opcode>
     <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 11 ; W V ; ; </opcode>
   </instruction>
