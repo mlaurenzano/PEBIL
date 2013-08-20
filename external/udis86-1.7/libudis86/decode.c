@@ -37,6 +37,7 @@ const char * ud_lookup_mnemonic( enum ud_mnemonic_code c )
 
 
 static unsigned char decode_vex( struct ud* u);
+static int gen_hex( struct ud *u );
 
 /* Extracts instruction prefixes.
  */
@@ -203,6 +204,8 @@ static int search_itab( struct ud * u )
     uint8_t did_peek = 0;
     uint8_t curr; 
     uint8_t index;
+
+    table = 0xdeadbeef;
 
     /* if in state of error, return */
     if ( u->error ) 
@@ -379,6 +382,11 @@ static int search_itab( struct ud * u )
             PEBIL_DEBUG("avx mnemonic found %s", ud_mnemonics_str[ud_itab_list[ tableid ][ curr ].mnemonic]);
             table = tableid;
             u->pfx_opr = 0;
+        } else {
+            fprintf(stderr, "PEBIL_DEBUG: found UD_Iinvalid: %d, %d\n", tableid, curr);
+            gen_hex(u);
+            fprintf(stderr, "PEBIL_DEBUG: hex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[4]);
+            assert(0);
         }
 
         /* check and emit error if vexl constraint is violated */
@@ -515,9 +523,17 @@ static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
     switch ( s ) 
     {
     case SZ_NA:
+        if(u->mnemonic == UD_Ilea){ // instructions that use O_M and get operand from adr_mode -- move this elsewhere when instructions are complete
+            return u->adr_mode; // FIXME
+        }
+
+        if(u->mnemonic == UD_Imov) {
+            return u->opr_mode;
+        }
+
         if(u->mnemonic != UD_Ifnop &&
            u->mnemonic != UD_Inop) {
-            fprintf(stderr, "Unknown operand size of instruction %s\n", ud_lookup_mnemonic(u->mnemonic));
+            //fprintf(stderr, "Unknown operand size of instruction %s\n", ud_lookup_mnemonic(u->mnemonic));
         }
         return s;
     case SZ_V:
@@ -709,11 +725,13 @@ static unsigned char decode_vex ( struct ud* u )
 
     enum ud_type reg = resolve_reg(u, rtype, VEX_VVVV(vex));
     PEBIL_DEBUG("decoding vex: raw %#hhx, pp %#hhx, L %#hhx, vvvv %#hhx", vex, VEX_PP(vex), VEX_L(vex), VEX_VVVV(vex));
+    //printf("decoding vex: raw %#hhx, pp %#hhx, L %#hhx, vvvv %#hhx", vex, VEX_PP(vex), VEX_L(vex), VEX_VVVV(vex));
 
     op->type = UD_OP_REG;
     op->base = reg;
-    if (rtype == T_YMM) op->size = 256;
+    if (rtype == T_YMM) op->size = 256; else op->size = 128;
     PEBIL_DEBUG("vex size %hu, reg %d", op->size, reg);
+    //printf("vex size %hu, reg %d", op->size, reg);
 
     /* 2-byte form */
     if (u->pfx_insn == 0xC4){
@@ -758,7 +776,10 @@ decode_imm(struct ud* u, unsigned int s, struct ud_operand *op)
     case 16: op->lval.uword = inp_uint16(u);  break;
     case 32: op->lval.udword = inp_uint32(u); break;
     case 64: op->lval.uqword = inp_uint64(u); break;
-    default: return;
+    default:
+        fprintf(stderr, "Could not determine size for immediate operand for %s with size %d\n", ud_lookup_mnemonic(u->mnemonic), s);
+        assert(0);
+        return;
   }
 }
 
@@ -984,6 +1005,7 @@ static int disasm_operands(register struct ud* u)
           PEBIL_DEBUG("have avx operand: swapping fields");
           PEBIL_DEBUG("\t\tmop?s: %u %u %u %u", mop1s, mop2s, mop3s, mop4s);
           PEBIL_DEBUG("\t\tmop?t: %d %d %d %d", mop1t, mop2t, mop3t, mop4t);
+
       }
 
       /* if an AVX op is present we will fake out the rest of this method by shifting all other ops
@@ -1363,9 +1385,22 @@ static int disasm_operands(register struct ud* u)
         break;
 
     /* none */
+    case OP_NONE:
+         iop[0].type = iop[1].type = iop[2].type = iop[3].type = UD_NONE; 
+         break;
+
     default :
+        fprintf(stderr, "Could not determine type of operand 1: %s:%d\n", ud_lookup_mnemonic(u->mnemonic), mop1t);
         iop[0].type = iop[1].type = iop[2].type = iop[3].type = UD_NONE;
   }
+  //if(mop1t != OP_NONE && iop[0].size == 0) {
+  //    fprintf(stderr, "Zero size of operand 1: %s:%d\n", ud_lookup_mnemonic(u->mnemonic), mop1t);
+  //}
+
+  //if(mop2t != UD_NONE) assert(mop2s);
+  //if(mop3t != UD_NONE) assert(mop3s);
+  //if(mop4t != UD_NONE) assert(mop4s);
+  //;
 
   if (P_AVX(u->pfx_insn)){
 
@@ -1415,6 +1450,15 @@ static int disasm_operands(register struct ud* u)
       
       /* TODO if vex.l was found, adjust operand sizes */
       /* TODO also need to decode operands based on correct operand type if is YMM */
+      if(avx_op_typ == T_YMM){ // FIXME don't think this is correct but will have to do for now
+          iop[0].size = 256;
+          iop[1].size = 256;
+          iop[2].size = 256;
+      } else {
+          iop[0].size = 128;
+          iop[1].size = 128;
+          iop[2].size = 128;
+      }
       /*
       if (avx_op_typ == T_YMM){
           iop[0].size = iop[2].size;

@@ -1794,6 +1794,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     }
 
     programEntryBlock = getDotTextSection()->getBasicBlockAtAddress(elfFile->getFileHeader()->GET(e_entry));
+    assert(programEntryBlock);
     //programEntryBlock = getDotTextSection()->getBasicBlockAtAddress(0x41a620);
 
     relocatedTextSize = 0;

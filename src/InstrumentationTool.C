@@ -634,6 +634,177 @@ InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOf
     return p;
 }
 
+static bool isVectorInstruction(X86Instruction* ins) {
+
+    X86InstructionType typ = ins->getInstructionType();
+
+    switch(typ) {
+        case X86InstructionType_unknown: // skip instruction classes that don't have vector ops
+        case X86InstructionType_invalid:
+        case X86InstructionType_condbr:
+        case X86InstructionType_uncondbr:
+        case X86InstructionType_call:
+        case X86InstructionType_return:
+        case X86InstructionType_string:
+        case X86InstructionType_io:
+        case X86InstructionType_prefetch:
+        case X86InstructionType_syscall:
+        case X86InstructionType_halt:
+        case X86InstructionType_hwcount:
+        case X86InstructionType_nop:
+        case X86InstructionType_trap:
+        case X86InstructionType_vmx:
+        case X86InstructionType_special:
+
+        case X86InstructionType_move: // FIXME eventually move to vec
+            return false;
+
+        case X86InstructionType_int:  // these do have vector ops
+        case X86InstructionType_float:
+        case X86InstructionType_simd:
+        case X86InstructionType_avx:
+        case X86InstructionType_aes:
+            break;
+        default:
+            assert(0);
+            return false;
+    }
+
+    switch(ins->GET(mnemonic)) { // FIXME do this better. Skip these instructions, either non-vector, or not sure how to handle
+        case UD_Ipinsrw:  
+        case UD_Ivpinsrw:
+        case UD_Ixchg:
+        case UD_Ibswap:
+        case UD_Ivextractf128:
+        case UD_Ivinsertf128:
+        case UD_Ivpextrq:
+        case UD_Ivptest:
+
+        case UD_Iadd:  // arithmetic
+        case UD_Iimul:
+        case UD_Isub:
+        case UD_Ineg:
+        case UD_Iidiv:
+        case UD_Isbb:
+        case UD_Imul:
+        case UD_Idiv:
+        case UD_Iinc:
+        case UD_Idec:
+        case UD_Ifcomip:
+        case UD_Ifcomi:
+        case UD_Ifmul:
+        case UD_Ifdivrp:
+        case UD_Ifadd:
+
+        case UD_Ipop:  // stack
+        case UD_Ipush:
+
+        case UD_Isetge:  // flags
+        case UD_Isetbe:
+        case UD_Isetle:
+        case UD_Isetg:
+        case UD_Isetp:
+        case UD_Iseta:
+        case UD_Isetz:
+        case UD_Isetnz:
+        case UD_Isetnb:
+
+        case UD_Ipxor: // op size == reg size
+        case UD_Ipor:
+        case UD_Ipand:
+        case UD_Ipandn:
+        case UD_Ivpand:
+        case UD_Ivpor:
+        case UD_Ivpxor:
+        case UD_Ivpandn:
+
+        case UD_Ixor:
+        case UD_Ishl:
+        case UD_Ishr:
+        case UD_Ior:
+        case UD_Isar:
+        case UD_Iand:
+        case UD_Inot:
+        case UD_Iadc:
+        case UD_Ibsf:
+        case UD_Ibsr:
+        case UD_Irol:
+
+        case UD_Icvtsi2sd: // conversions?
+        case UD_Icvttsd2si:
+        case UD_Icvttpd2dq:
+        case UD_Icvtss2sd:
+        case UD_Icvtpd2ps:
+        case UD_Icvtps2pd:
+        case UD_Icvtdq2pd:
+        case UD_Icvtsi2ss:
+        case UD_Icvtdq2ps:
+        case UD_Icvttps2dq:
+        case UD_Icvtps2dq:
+        case UD_Ivcvttpd2dq:
+        case UD_Ivcvtps2pd:
+        case UD_Ivcvtpd2ps:
+        case UD_Ivcvtps2dq:
+        case UD_Ivcvtdq2ps:
+        case UD_Ivcvtsd2ss:
+        case UD_Ivcvtsi2sd:
+        case UD_Ivcvtsd2si:
+
+        case UD_Ipunpcklwd: // what do we want to say about packing ops
+        case UD_Ipunpcklqdq:
+        case UD_Ipunpckldq:
+        case UD_Ipunpcklbw:
+        case UD_Ipunpckhwd:
+        case UD_Ipunpckhqdq:
+        case UD_Ipunpckhdq:
+        case UD_Ipunpckhbw:
+        case UD_Iunpcklpd:
+        case UD_Iunpcklps:
+        case UD_Iunpckhps:
+        case UD_Iunpckhpd:
+        case UD_Ivunpcklpd:
+        case UD_Ivunpckhpd:
+        case UD_Ipacksswb:
+        case UD_Ipackuswb:
+        case UD_Ipackssdw:
+        case UD_Ivpunpckhdq:
+        case UD_Ivpunpckldq:
+
+        case UD_Ishufps:  // shuffles?
+        case UD_Ipshufd:
+        case UD_Ipshuflw:
+        case UD_Ivpshufd:
+        case UD_Ivshufps:
+        case UD_Ishufpd:
+        case UD_Ivshufpd:
+
+        case UD_Ivmulsd: // scalar instructions with register length encoded
+        case UD_Ivaddsd:
+        case UD_Ivucomiss:
+        case UD_Ivcomiss:
+        case UD_Ivpextrw:
+        case UD_Ivsubsd:
+        case UD_Ivsubss:
+        case UD_Ivdivss:
+        case UD_Ivaddss:
+        case UD_Ivdivsd:
+        case UD_Ircpss:
+        case UD_Ivcomisd:
+        case UD_Ivsqrtsd:
+        case UD_Ivucomisd:
+        case UD_Ivmaxsd:
+        
+        case UD_Ivgatherdpd: // I don't even know
+        case UD_Ivbextr:
+
+            return false;
+        default:
+            break;
+    }
+    return true;
+
+}
+
 void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 
@@ -646,6 +817,15 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
     sprintf(staticFile,"%s.%s.%s", getFullFileName(), extension, "static");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
+
+    char* debugFile = "problemInstructions";
+    FILE* debugFD = fopen(debugFile, "w");
+
+    char* vectorInstructions = "vectorInstructions";
+    FILE* vectorFD = fopen(vectorInstructions, "w");
+
+    FILE* skippedFD = fopen("nonVecInstructions", "w");
+
 
     TextSection* text = getDotTextSection();
 
@@ -699,7 +879,7 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
         fprintf(staticFD, "# +dxi <count_def_use_cross> <count_call>\n");
         fprintf(staticFD, "# +ipa <call_target_addr> <call_target_name>\n");
         fprintf(staticFD, "# +bin <unknown> <invalid> <cond> <uncond> <bin> <binv> <intb> <intbv> <intw> <intwv> <intd> <intdv> <intq> <intqv> <floats> <floatsv> <floatss> <floatd> <floatdv> <floatds> <move> <stack> <string> <system> <cache> <mem> <other>\n");
-        fprintf(staticFD, "# +vec <8bit> <16bit> <32bit> <64bit> <128bit> <256bit> <512bit>\n");
+        fprintf(staticFD, "# +vec <#elem>x<elemSize>:<#fp>:<#int> ...\n");
     }
 
     uint32_t noInst = 0;
@@ -707,6 +887,7 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
     uint32_t trapCount = 0;
     uint32_t jumpCount = 0;
 
+    
     for (uint32_t i = 0; i < numberOfInstPoints; i++){
         Base* b = (*allBlocks)[i];
         ASSERT(b->getType() == PebilClassType_BasicBlock);
@@ -828,17 +1009,73 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
                     bb->getNumberOfBinMem(), bb->getNumberOfBinOther(), bb->getHashCode().getValue());
 
 
-            std::map<uint32_t, uint32_t>* lencnts = bb->getOperandLengthCounts();
 
-            fprintf(staticFD, "\t+vec\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", (*lencnts)[8], (*lencnts)[16], (*lencnts)[32], (*lencnts)[64], (*lencnts)[128], (*lencnts)[256], (*lencnts)[512], bb->getHashCode().getValue());
-            delete lencnts;
+            // matrix to store counts elemsInVec X bytesInElem
+            uint32_t fpvecs[64][16];
+            uint32_t intvecs[64][16];
+            bzero(fpvecs, sizeof(fpvecs));
+            bzero(intvecs, sizeof(intvecs));
+            for(uint32_t k = 0; k < bb->getNumberOfInstructions(); ++k){
+                X86Instruction* ins = bb->getInstruction(k);
+
+                if(!isVectorInstruction(ins)) {
+                    fprintf(skippedFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
+                    continue;
+                }
+
+                OperandX86* dest = ins->getDestOperand();
+                if(dest == NULL)
+                    continue;
+                uint32_t bytesInReg = dest->getBytesUsed();
+                uint32_t bytesInElem = X86InstructionClassifier::getInstructionElemSize(ins);
+                if(bytesInElem == 0) {
+                    fprintf(debugFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
+                    continue;
+                }
+
+                if(bytesInReg == 0) {
+                    fprintf(debugFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
+                    continue;
+                }
+                uint32_t elemsInReg = bytesInReg / bytesInElem;
+
+                if(elemsInReg > 64 || bytesInElem > 16) {
+                    printf("%d elemsInReg, %d bytesInElem, %d bytesInReg, %d bytesInElem, %s\n", elemsInReg, bytesInElem, bytesInReg, bytesInElem, ud_mnemonics_str[ins->GET(mnemonic)]);
+                    assert(0);
+                }
+
+
+                fprintf(vectorFD, "%s\t%d\t%d\n", ud_mnemonics_str[ins->GET(mnemonic)], bytesInElem, bytesInReg);
+
+                if(ins->isFloatPOperation()) {
+                    ++fpvecs[elemsInReg-1][bytesInElem-1];
+                } else if(ins->isIntegerOperation()) {
+                    ++intvecs[elemsInReg-1][bytesInElem-1];
+                }
+            }
+            fprintf(staticFD, "\t+vec");
+            for(uint32_t nElem = 0; nElem < 64; ++nElem) {
+                for(uint32_t elemSize = 0; elemSize < 16; ++elemSize) {
+                    uint32_t fpcnt = fpvecs[nElem][elemSize];
+                    uint32_t intcnt = intvecs[nElem][elemSize];
+                    if(fpcnt > 0 || intcnt > 0) {
+                        fprintf(staticFD, "\t%dx%d:%d:%d", nElem+1, (elemSize+1)*8, fpcnt, intcnt);
+                    }
+                }
+            }
+            fprintf(staticFD, " # %#llx\n", bb->getHashCode().getValue());
+
 
         }
     }
+    fclose(skippedFD);
+    fclose(vectorFD);
+    fclose(debugFD);
     fclose(staticFD);
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }
+
 
 void InstrumentationTool::printStaticFilePerInstruction(const char* extension, Vector<Base*>* allInstructions, Vector<uint32_t>* allInstructionIds, Vector<LineInfo*>* allInstructionLineInfos, uint32_t bufferSize){
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
@@ -852,6 +1089,14 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
     sprintf(staticFile,"%s.%s.%s", getFullFileName(), extension, "static");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
+
+    char* debugFile = "problemInstructions";
+    FILE* debugFD = fopen(debugFile, "w");
+
+    char* vectorInstructions = "vectorInstructions";
+    FILE* vectorFD = fopen(vectorInstructions, "w");
+
+    FILE* skippedFD = fopen("nonVecInstructions", "w");
 
     TextSection* text = getDotTextSection();
 
@@ -908,7 +1153,7 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
         fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...\n");
         fprintf(staticFD, "# +dxi <count_def_use_cross> <count_call>\n");
         fprintf(staticFD, "# +ipa <call_target_addr> <call_target_name>\n");
-        fprintf(staticFD, "# +vec <8bit> <16bit> <32bit> <64bit> <128bit> <256bit> <512bit>\n");
+        fprintf(staticFD, "# +vec <#elem>x<elemSize>:<#fp>:<#int> ...\n");
     }
 
     uint32_t noInst = 0;
@@ -1016,14 +1261,54 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
             }
             fprintf(staticFD, "\t+ipa\t%#llx\t%s # %#llx\n", callTgtAddr, callTgtName, hashValue);
 
-            std::map<uint32_t, uint32_t>* lencnts = ins->getOperandLengthCounts();
-            fprintf(staticFD, "\t+vec\t%d\t%d\t%d\t%d\t%d\t%d\t%d # %#llx\n", (*lencnts)[8], (*lencnts)[16], (*lencnts)[32], (*lencnts)[64], (*lencnts)[128], (*lencnts)[256], (*lencnts)[512], hashValue);
-            delete lencnts;
 
+            // <elemsXelemLen>:fp:int
+            // get destination operand
+            // get operand length
+            // get element length
+            // get element type
+
+            if(isVectorInstruction(ins) && ins->getDestOperand() != NULL) {
+                OperandX86* dest = ins->getDestOperand();
+                assert(dest != NULL);
+                uint32_t bytesInReg = dest->getBytesUsed();
+                uint32_t bytesInElem = X86InstructionClassifier::getInstructionElemSize(ins);
+
+                if(bytesInElem != 0 && bytesInReg != 0) {
+                    uint32_t elemsInReg = bytesInReg / bytesInElem;
+                    if(elemsInReg > 64 || bytesInElem > 16) {
+                        printf("%d elemsInReg, %d bytesInElem, %d bytesInReg, %d bytesInElem, %s\n", elemsInReg, bytesInElem, bytesInReg, bytesInElem, ud_mnemonics_str[ins->GET(mnemonic)]);
+                        assert(0);
+                    }
+
+                    fprintf(vectorFD, "%s\t%d\t%d\n", ud_mnemonics_str[ins->GET(mnemonic)], bytesInElem, bytesInReg);
+
+                    int fpcnt, intcnt;
+                    fpcnt = intcnt = 0;
+
+                    if(ins->isFloatPOperation()) {
+                        fpcnt = 1;
+                    } else if(ins->isIntegerOperation()) {
+                        intcnt = 1;
+                    }
+
+                    fprintf(staticFD, "\t+vec\t%dx%d:%d:%d # %#llx\n", elemsInReg, bytesInElem << 3, fpcnt, intcnt, hashValue);
+
+                } else {
+                    fprintf(debugFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
+                }
+
+            } else {
+                fprintf(staticFD, "\t+vec # %#llx\n", hashValue);
+                fprintf(skippedFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
+            }
         }
 
         delete hc;
     }
+    fclose(skippedFD);
+    fclose(vectorFD);
+    fclose(debugFD);
     fclose(staticFD);
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 

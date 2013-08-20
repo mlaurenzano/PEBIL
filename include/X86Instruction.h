@@ -647,6 +647,7 @@ public:
     static X86InstructionBin getInstructionBin(X86Instruction* x);
     static uint8_t getInstructionMemLocation(X86Instruction* x);
     static uint8_t getInstructionMemSize(X86Instruction* x);
+    static uint8_t getInstructionElemSize(X86Instruction* x);
     static X86InstructionType getInstructionType(X86Instruction* x);
     static X86OperandFormat getInstructionFormat(X86Instruction* x);
 
