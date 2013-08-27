@@ -124,12 +124,6 @@ static void SetDynamicPoints(std::set<uint64_t>& keys, bool state){
     debug(std::cout << "Thread " << std::hex << pthread_self() << " switched " << std::dec << count << " to " << (state? "on" : "off") << std::endl);
 }
 
-// planning on disabling this around summer/fall 2013.
-#define LEGACY_METASIM_SUPPORT
-#ifdef LEGACY_METASIM_SUPPORT
-#define LegacyToken "[LEGACY] "
-#endif
-
 // thread id support
 typedef struct {
     uint64_t id;
@@ -408,14 +402,6 @@ static void AppendRankString(string& str){
     str.append(buf);
 }
 
-static void AppendLegacyRankString(string& str){
-    char buf[5];
-    sprintf(buf, "%04d", GetTaskId());
-    buf[4] = '\0';
-
-    str.append(buf);
-}
-
 static void AppendTasksString(string& str){
     char buf[9];
     sprintf(buf, "%08d", GetNTasks());
@@ -423,15 +409,6 @@ static void AppendTasksString(string& str){
 
     str.append(buf);
 }
-
-static void AppendLegacyTasksString(string& str){
-    char buf[5];
-    sprintf(buf, "%04d", GetNTasks());
-    buf[4] = '\0';
-
-    str.append(buf);
-}
-
 
 
 // data management support

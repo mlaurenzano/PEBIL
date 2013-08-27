@@ -93,9 +93,7 @@ static void PrintSimulationStats(ofstream& f, SimulationStats* stats, thread_key
 static void SimulationFileName(SimulationStats* stats, string& oFile);
 static void ReuseDistFileName(SimulationStats* stats, string& oFle);
 static void SpatialDistFileName(SimulationStats* stats, string& oFile);
-static void LegacySimulationFileName(SimulationStats* stats, string& oFile);
 static void RangeFileName(SimulationStats* stats, string& oFile);
-static void LegacyRangeFileName(SimulationStats* stats, string& oFile);
 
 extern "C" {
     void* tool_mpi_init();
