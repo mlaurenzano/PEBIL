@@ -328,8 +328,8 @@ MAL MISSING PRE SSE?
     <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 1c ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pabsd">
-    <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 1e ; P Q ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 1e ; V W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 1e ; Pq Qq ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 1e ; Vx Wx ; ; </opcode>
     <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 1e ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pabsw">
@@ -2819,7 +2819,7 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="pmulld">
-    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 40 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 40 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 40 ; V X W ; ; </opcode>
   </instruction>
 
@@ -3387,7 +3387,7 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="rsqrtps">
-    <opcode> aso rexr rexx rexb ; 0f 52 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; 0f 52 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 52 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC5 0f 52 ; V W ; ; </opcode>
   </instruction>

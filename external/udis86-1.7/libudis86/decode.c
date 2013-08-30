@@ -386,7 +386,8 @@ static int search_itab( struct ud * u )
             fprintf(stderr, "PEBIL_DEBUG: found UD_Iinvalid: %d, %d\n", tableid, curr);
             gen_hex(u);
             fprintf(stderr, "PEBIL_DEBUG: hex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[4]);
-            assert(0);
+            u->error = 1;
+            return -1;
         }
 
         /* check and emit error if vexl constraint is violated */

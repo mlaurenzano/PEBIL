@@ -679,6 +679,9 @@ static bool isVectorInstruction(X86Instruction* ins) {
         case UD_Ivinsertf128:
         case UD_Ivpextrq:
         case UD_Ivptest:
+        case UD_Iinsertps:
+        case UD_Iextractps:
+        case UD_Ipextrq:
 
         case UD_Iadd:  // arithmetic
         case UD_Iimul:
@@ -793,6 +796,7 @@ static bool isVectorInstruction(X86Instruction* ins) {
         case UD_Ivsqrtsd:
         case UD_Ivucomisd:
         case UD_Ivmaxsd:
+        case UD_Irsqrtss:
         
         case UD_Ivgatherdpd: // I don't even know
         case UD_Ivbextr:
