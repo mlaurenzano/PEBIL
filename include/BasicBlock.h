@@ -139,6 +139,8 @@ public:
     uint32_t removeSourceBlock(BasicBlock* srcBlock);
     uint32_t removeTargetBlock(BasicBlock* tgtBlock);
 
+    std::map<uint32_t, uint32_t>* getOperandLengthCounts();
+
     uint32_t getNumberOfSources() { return sourceBlocks.size(); }
     uint32_t getNumberOfTargets() { return targetBlocks.size(); }
     uint32_t getNumberOfMemoryOps();

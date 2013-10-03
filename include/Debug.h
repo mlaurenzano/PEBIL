@@ -59,6 +59,7 @@
 //#define TURNOFF_FUNCTION_BLOAT
 //#define SWAP_MOD_OFF 0
 //#define SWAP_MOD     2
+#define SWAP_VERBOSE
 //#define SWAP_FUNCTION_ONLY "raise"
 //#define TURNOFF_INSTRUCTION_SWAP
 #define ANCHOR_SEARCH_BINARY

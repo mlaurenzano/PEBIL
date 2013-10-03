@@ -633,18 +633,24 @@ uint32_t ElfFileInst::generateInstrumentation(){
         bool performSwap = true;
 
 #ifdef SWAP_MOD
+#ifdef SWAP_MOD_OFF
         performSwap = false;
         if (i % SWAP_MOD == SWAP_MOD_OFF || pt->getPriority() < InstPriority_regular){
             X86Instruction* ins = pt->getSourceObject();
 #ifdef SWAP_FUNCTION_ONLY
             if (strstr(ins->getContainer()->getName(), SWAP_FUNCTION_ONLY)){
 #endif
-                PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx in %s", i, (*instrumentationPoints).size(), pt->getSourceObject()->getProgramAddress(), ins->getContainer()->getName());
                 performSwap = true;
 #ifdef SWAP_FUNCTION_ONLY
             }
 #endif
+#ifdef SWAP_VERBOSE
+            if (performSwap){
+                PRINT_INFOR("Performing instruction swap at for point (%d/%d) %#llx in %s", i, (*instrumentationPoints).size(), pt->getSourceObject()->getProgramAddress(), ins->getContainer()->getName());
+            }
+#endif
         }
+#endif
 #endif
 
         uint64_t textBaseAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
@@ -1788,6 +1794,7 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     }
 
     programEntryBlock = getDotTextSection()->getBasicBlockAtAddress(elfFile->getFileHeader()->GET(e_entry));
+    assert(programEntryBlock);
     //programEntryBlock = getDotTextSection()->getBasicBlockAtAddress(0x41a620);
 
     relocatedTextSize = 0;

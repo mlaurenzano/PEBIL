@@ -195,7 +195,7 @@ extern "C" {
                 }
             }
 
-            debug(PrintDynamicPoints());
+            //debug(PrintDynamicPoints());
 
             if (Sampler->SampleOn == 0){
                 inform << "Disabling all simulation-related instrumentation because METASIM_SAMPLE_ON is set to 0" << ENDL;
@@ -215,11 +215,27 @@ extern "C" {
         return NULL;
     }
 
+/*
+    void printBuffer(SimulationStats* stats){
+        uint32_t numElements = BUFFER_CURRENT(stats);
+
+        for(uint32_t bufcur = 0; bufcur < numElements; ++bufcur){
+            BufferEntry* reference = BUFFER_ENTRY(stats, bufcur);
+            inform << "Buffer entry " << bufcur << ":" <<
+                      " Address " << (void*)reference->address <<
+                      " Memseq " << reference->memseq <<
+                      " Imageid " << reference->imageid <<
+                      " Threadid " << reference->threadid << ENDL;
+
+        }
+    }
+*/
     void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, ReuseDistance* rd, ReuseDistance* sd, uint32_t numElements, image_key_t iid, thread_key_t tid){
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
 
         SimulationStats** faststats = FastStats->GetBufferStats(tid);
+        //assert(faststats[0]->Stats[HandlerIdx]->Verify());
         uint32_t bufcur = 0;
         for (bufcur = 0; bufcur < numElements; bufcur++){
             debug(assert(faststats[bufcur]));
@@ -228,8 +244,7 @@ extern "C" {
             SimulationStats* stats = faststats[bufcur];
             StreamStats* ss = stats->Stats[HandlerIdx];
 
-
-            BufferEntry* reference = BUFFER_ENTRY(stats, bufcur + 1);
+            BufferEntry* reference = BUFFER_ENTRY(stats, bufcur);
 
             if (reference->imageid == 0){
                 debug(assert(AllData->CountThreads() > 1));
@@ -237,6 +252,7 @@ extern "C" {
             }
 
             m->Process((void*)ss, reference);
+            assert(reference->threadid == tid);
 
 	    ReuseEntry entry = ReuseEntry();
 	    entry.id = stats->Hashes[stats->BlockIds[reference->memseq]]; // This is to track by BBID to track by memseq change to entry.id=reference->memseq;
@@ -249,13 +265,14 @@ extern "C" {
             }
             numProcessed++;
         }
+        //assert(faststats[0]->Stats[HandlerIdx]->Verify());
     }
 
     void* process_thread_buffer(image_key_t iid, thread_key_t tid){
 
 #define DONE_WITH_BUFFER(...)                   \
         BUFFER_CURRENT(stats) = 0;                                      \
-        bzero(BUFFER_ENTRY(stats, 1), sizeof(BufferEntry) * BUFFER_CAPACITY(stats)); \
+        bzero(BUFFER_ENTRY(stats, 0), sizeof(BufferEntry) * BUFFER_CAPACITY(stats)); \
         return NULL;
 
         assert(iid);
@@ -295,10 +312,10 @@ extern "C" {
             }
         }
 
+        synchronize(AllData){
         if (isSampling){
             BufferEntry* buffer = &(stats->Buffer[1]);
 
-            //inform << "Processing buffer for thread " << hex << tid << " image " << iid << ENDL;
             FastStats->Refresh(buffer, numElements, tid);
             for (uint32_t i = 0; i < CountMemoryHandlers; i++){
                 MemoryStreamHandler* m = stats->Handlers[i];
@@ -312,6 +329,7 @@ extern "C" {
                 ProcessBuffer(i, m, rd, sd, numElements, iid, tid);
             }
         } 
+        }
 
         synchronize(AllData){
             if (isSampling){
@@ -319,7 +337,7 @@ extern "C" {
                 SimulationStats** faststats = FastStats->GetBufferStats(tid);
                 for (uint32_t j = 0; j < numElements; j++){
                     SimulationStats* s = faststats[j];
-                    BufferEntry* reference = BUFFER_ENTRY(s, j + 1);
+                    BufferEntry* reference = BUFFER_ENTRY(s, j);
                     debug(inform << "Memseq " << dec << reference->memseq << " has " << s->Stats[0]->GetAccessCount(reference->memseq) << ENDL);
                     uint32_t bbid = s->BlockIds[reference->memseq];
 
@@ -457,7 +475,11 @@ extern "C" {
 
         // dump cache simulation results
         ofstream MemFile;
-        const char* fileName = SimulationFileName(stats);
+        string oFile;
+        const char* fileName;
+        SimulationFileName(stats, oFile);
+        fileName = oFile.c_str();
+
         inform << "Printing cache simulation results to " << fileName << ENDL;
         TryOpen(MemFile, fileName);
 
@@ -465,13 +487,15 @@ extern "C" {
         if (ReuseWindow){
    
 	    ofstream ReuseDistFile;
-            const char* ReusefileName = ReuseDistFileName(stats);
+            ReuseDistFileName(stats, oFile);
+            fileName = oFile.c_str();
 	   
-       	    inform << "Printing reuse distance results to " << ReusefileName << ENDL;
-            TryOpen(ReuseDistFile, ReusefileName);
+       	    inform << "Printing reuse distance results to " << fileName << ENDL;
+            TryOpen(ReuseDistFile, fileName);
 
             for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
                 for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+                        ReuseDistFile << "IMAGE" << TAB << hex << (*iit) << TAB << "THREAD" << TAB << dec << AllData->GetThreadSequence((*it)) << ENDL;
             
 		        SimulationStats* s = (SimulationStats*)AllData->GetData((*iit), (*it));
 		    	ReuseDistance* rd = s->RHandlers[ReuseHandlerIndex];
@@ -481,17 +505,20 @@ extern "C" {
   		    	rd->Print(ReuseDistFile);
                 }
             }
+            ReuseDistFile.close();
         }
         if (SpatialWindow){
    
 	    ofstream SpatialDistFile;
-	    const char* SpatialfileName = SpatialDistFileName(stats);
+	    SpatialDistFileName(stats, oFile);
+            fileName = oFile.c_str();
 
-            inform << "Printing spatial locality results to " << SpatialfileName << ENDL;
-            TryOpen(SpatialDistFile, SpatialfileName);
+            inform << "Printing spatial locality results to " << fileName << ENDL;
+            TryOpen(SpatialDistFile, fileName);
 
             for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
                 for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+                        SpatialDistFile << "IMAGE" << TAB << hex << (*iit) << TAB << "THREAD" << TAB << dec << AllData->GetThreadSequence(*it) << ENDL;
 
                     	SimulationStats* s = (SimulationStats*)AllData->GetData((*iit), (*it));
 		    	ReuseDistance* sd = s->RHandlers[SpatialHandlerIndex];
@@ -501,6 +528,7 @@ extern "C" {
   		    	sd->Print(SpatialDistFile);
                 }
             }
+            SpatialDistFile.close();
         }
 
         uint64_t sampledCount = 0;
@@ -574,6 +602,9 @@ extern "C" {
 
                     CacheStats* c = (CacheStats*)s->Stats[sys];
                     assert(c->Capacity == s->InstructionCount);
+                    if(!c->Verify()) {
+                        warn << "Cache structure failed verification for  system " << c->SysId << ", image " << hex << *iit << ", thread " << hex << *it << ENDL;
+                    }
 
                     if (first){
                         MemFile << "# sysid" << dec << c->SysId << " in image " << hex << (*iit) << ENDL;
@@ -616,8 +647,9 @@ extern "C" {
                     } else {
                         bbid = st->BlockIds[memid];
                     }
-                    aggrange->Update(bbid, r->GetMinimum(bbid), 0);
-                    aggrange->Update(bbid, r->GetMaximum(bbid), r->GetAccessCount(bbid));
+
+                    aggrange->Update(bbid, r->GetMinimum(memid), 0);
+                    aggrange->Update(bbid, r->GetMaximum(memid), r->GetAccessCount(memid));
                 }
 
                 CacheStats** aggstats = new CacheStats*[CountCacheStructures];
@@ -625,6 +657,7 @@ extern "C" {
 
                     CacheStats* s = (CacheStats*)st->Stats[sys];
                     assert(s);
+                    s->Verify();
                     CacheStats* c = new CacheStats(s->LevelCount, s->SysId, st->BlockCount);
                     aggstats[sys] = c;
 
@@ -639,6 +672,9 @@ extern "C" {
                             c->Hit(bbid, lvl, s->GetHits(memid, lvl));
                             c->Miss(bbid, lvl, s->GetMisses(memid, lvl));
                         }
+                    }
+                    if(!c->Verify()) {
+                        warn << "Failed check on aggregated cache stats" << ENDL;
                     }
                 }
 
@@ -704,115 +740,6 @@ extern "C" {
         }
 
         MemFile.close();
-
-#ifdef LEGACY_METASIM_SUPPORT
-        // if single-thread and single-image, also print in old format
-        if (AllData->CountThreads() == 1 && AllData->CountImages() == 1){
-            const char* fileName = LegacySimulationFileName(stats);
-            inform << LegacyToken << "printing cache simulation results to " << fileName << ENDL;
-            TryOpen(MemFile, fileName);
-
-            if (stats->PerInstruction){
-                warn << "You are using per-instruction mode. " << LegacyToken << "files in this mode are unreliable" << ENDL;
-            }
-
-            MemFile
-                << "# appname       = " << stats->Application << ENDL
-                << "# extension     = " << stats->Extension << ENDL
-                << "# rank          = " << dec << GetTaskId() << ENDL
-                << "# buffer        = " << BUFFER_CAPACITY(stats) << ENDL
-                << "# total         = " << dec << totalMemop << ENDL
-                << "# processed     = " << dec << sampledCount << ENDL
-                << "# samplemax     = " << Sampler->AccessLimit << ENDL
-                << "# sampleon      = " << Sampler->SampleOn << ENDL
-                << "# sampleoff     = " << Sampler->SampleOff << ENDL
-                << "# numcache      = " << CountCacheStructures << ENDL
-                << "# perinsn       = " << (stats->PerInstruction? "yes" : "no") << ENDL
-                << "#" << ENDL;
-
-            for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
-
-                CacheStats* c = (CacheStats*)stats->Stats[sys];
-                assert(c->Capacity == stats->InstructionCount);
-
-                MemFile << "# sysid" << dec << c->SysId << TAB;
-
-                for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
-                    uint64_t h = c->GetHits(lvl);
-                    uint64_t m = c->GetMisses(lvl);
-                    uint64_t t = h + m;
-                    MemFile << "l" << dec << lvl << "[" << t << "," << h << "(" << CacheStats::GetHitRate(h, m) << ")] ";
-                }
-                MemFile << ENDL;
-            }
-            MemFile << ENDL;
-
-            MemFile << "#block <seqid> <blockcount> <blocksimulated> <insnsimulated>" << ENDL
-                    << "#       sys <sysid> lvl <cachelvl> <hitcount> <miscount> <hitpercent>" << ENDL
-                    << ENDL;
-
-            for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
-                stats = AllData->GetData(iid, (*it));
-                assert(stats);
-                PrintSimulationStats(MemFile, stats, (*it), false);
-            }
-            MemFile.close();
-
-
-            // dump address range (dfp) file
-            fileName = LegacyRangeFileName(stats);
-            inform << LegacyToken << "printing address range results to " << fileName << ENDL;
-
-            TryOpen(MemFile, fileName);
-
-            MemFile
-                << "# appname       = " << stats->Application << ENDL
-                << "# extension     = " << "dfp" << ENDL
-                << "# rank          = " << dec << GetTaskId() << ENDL
-                << "# buffer        = " << BUFFER_CAPACITY(stats) << ENDL
-                << "# total         = " << dec << totalMemop << ENDL
-                << "# processed     = " << dec << sampledCount << ENDL
-                << "# samplemax     = " << Sampler->AccessLimit << ENDL
-                << "# sampleon      = " << Sampler->SampleOn << ENDL
-                << "# sampleoff     = " << Sampler->SampleOff << ENDL
-                << "# perinsn       = " << (stats->PerInstruction? "yes" : "no") << ENDL
-                << "#" << ENDL;
-
-            MemFile
-                << "#block" << TAB << "<seqid>" << TAB << "<idiom>" << TAB << "<rangecnt>" << ENDL
-                << "#range" << TAB << "<ranid>" << TAB << "<minaddress>" << TAB "<maxaddress>" << ENDL
-                << ENDL;
-
-
-            RangeStats* r = (RangeStats*)stats->Stats[RangeHandlerIndex];
-            assert(r);
-            assert(stats->InstructionCount == r->Capacity);
-
-            uint32_t currentBlock = 0;
-            bool doneCurrent = false;
-            for (uint32_t i = 0; i < stats->InstructionCount; i++){
-                if (r->Counts[i]){
-                    if (stats->BlockIds[i] != currentBlock){
-                        currentBlock = stats->BlockIds[i];
-                        doneCurrent = false;
-                    }
-                    if (!doneCurrent){
-                        MemFile
-                            << "block" << TAB << dec << currentBlock << TAB << "dfTypePattern_Gather" << TAB << stats->MemopsPerBlock[i] << ENDL;
-                    }
-
-                    MemFile
-                        << TAB << "range"
-                        << TAB << hex << r->GetMinimum(i)
-                        << TAB << hex << r->GetMaximum(i)
-                        << ENDL;
-                }
-            }
-
-            MemFile.close();
-        }
-#endif // LEGACY_MEATSIM_SUPPORT
-
 
         double t = (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0));
         inform << "CXXX Total Execution time for instrumented application: " << t << ENDL;
@@ -904,9 +831,8 @@ void PrintSimulationStats(ofstream& f, SimulationStats* stats, thread_key_t tid,
     delete[] aggstats;
 }
 
-const char* SimulationFileName(SimulationStats* stats){
-    string oFile;
-
+void SimulationFileName(SimulationStats* stats, string& oFile){
+    oFile.clear();
     oFile.append(stats->Application);
     oFile.append(".r");
     AppendRankString(oFile);
@@ -914,14 +840,11 @@ const char* SimulationFileName(SimulationStats* stats){
     AppendTasksString(oFile);
     oFile.append(".");
     oFile.append(stats->Extension);
-
-    return oFile.c_str();
 }
 
 
-const char* ReuseDistFileName(SimulationStats* stats){
-    string oFile;
-
+void ReuseDistFileName(SimulationStats* stats, string& oFile){
+    oFile.clear();
     oFile.append(stats->Application);
     oFile.append(".r");
     AppendRankString(oFile);
@@ -929,13 +852,10 @@ const char* ReuseDistFileName(SimulationStats* stats){
     AppendTasksString(oFile);
     oFile.append(".dist");
     //oFile.append(stats->Extension);
-
-    return oFile.c_str();
 }
 
-const char* SpatialDistFileName(SimulationStats* stats){
-    string oFile;
-
+void SpatialDistFileName(SimulationStats* stats, string& oFile){
+    oFile.clear();
     oFile.append(stats->Application);
     oFile.append(".r");
     AppendRankString(oFile);
@@ -943,13 +863,10 @@ const char* SpatialDistFileName(SimulationStats* stats){
     AppendTasksString(oFile);
     oFile.append(".spatial");
     //oFile.append(stats->Extension);
-
-    return oFile.c_str();
 }
 
-const char* RangeFileName(SimulationStats* stats){
-    string oFile;
-
+void RangeFileName(SimulationStats* stats, string& oFile){
+    oFile.clear();
     oFile.append(stats->Application);
     oFile.append(".r");
     AppendRankString(oFile);
@@ -957,43 +874,7 @@ const char* RangeFileName(SimulationStats* stats){
     AppendTasksString(oFile);
     oFile.append(".");
     oFile.append("dfp");
-
-    return oFile.c_str();
 }
-
-#ifdef LEGACY_METASIM_SUPPORT
-const char* LegacySimulationFileName(SimulationStats* stats){
-    string oFile;
-
-    oFile.append(stats->Application);
-    if (stats->Phase > 0){
-        assert(stats->Phase == 1 && "phase number must be 1");
-        oFile.append(".phase.1");
-    }
-    oFile.append(".meta_");
-    AppendLegacyRankString(oFile);
-    oFile.append(".");
-    oFile.append(stats->Extension);
-
-    return oFile.c_str();
-}
-
-const char* LegacyRangeFileName(SimulationStats* stats){
-    string oFile;
-
-    oFile.append(stats->Application);
-    if (stats->Phase > 0){
-        assert(stats->Phase == 1 && "phase number must be 1");
-        oFile.append(".phase.1");
-    }
-    oFile.append(".meta_");
-    AppendLegacyRankString(oFile);
-    oFile.append(".");
-    oFile.append("dfp");
-
-    return oFile.c_str();
-}
-#endif
 
 uint32_t RandomInt(uint32_t max){
     return rand() % max;
@@ -1031,7 +912,7 @@ string GetCacheDescriptionFile(){
     if (e != NULL){
         knobvalue = (string)e;
     }
-
+    
     if (e == NULL || knobvalue.compare(0, 1, "$") == 0){
         string str;
         const char* freeenv = getenv(METASIM_ENV);
@@ -1096,6 +977,10 @@ void RangeStats::Update(uint32_t memid, uint64_t addr, uint32_t count){
     Counts[memid] += count;
 }
 
+bool RangeStats::Verify(){
+    return true;
+}
+
 AddressRangeHandler::AddressRangeHandler(){
 }
 AddressRangeHandler::AddressRangeHandler(AddressRangeHandler& h){
@@ -1125,6 +1010,7 @@ CacheStats::CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity){
     for (uint32_t i = 0; i < Capacity; i++){
         NewMem(i);
     }
+    assert(Verify());
 }
 
 CacheStats::~CacheStats(){
@@ -1245,6 +1131,24 @@ float CacheStats::GetCumulativeHitRate(uint32_t memid, uint32_t lvl){
         hits += GetLevelStats(memid, i)->hitCount;
     }
     return ((float)hits / (float)GetAccessCount(memid));
+}
+
+bool CacheStats::Verify(){
+    for(uint32_t memid = 0; memid < Capacity; ++memid){
+
+        uint64_t prevMisses = Stats[memid][0].missCount;
+
+        for(uint32_t level = 1; level < LevelCount; ++level){
+            uint64_t hits = Stats[memid][level].hitCount;
+            uint64_t misses = Stats[memid][level].missCount;
+            if(hits + misses != prevMisses){
+                warn << "Inconsistent hits/misses for memid " << memid << " level " << level << " " << hits << " + " << misses << " != " << prevMisses << ENDL;
+                return false;
+            }
+            prevMisses = misses;
+        }
+    }
+    return true;
 }
 
 bool ParsePositiveInt32(string token, uint32_t* value){
@@ -1435,9 +1339,24 @@ void CacheLevel::Init(CacheLevel_Init_Interface){
     }
 
     recentlyUsed = NULL;
+    historyUsed = NULL;
     if (replpolicy == ReplacementPolicy_nmru){
         recentlyUsed = new uint32_t[countsets];
         memset(recentlyUsed, 0, sizeof(uint32_t) * countsets);
+    }
+    else if (replpolicy == ReplacementPolicy_trulru){
+        recentlyUsed = new uint32_t[countsets];
+        memset(recentlyUsed, 0, sizeof(uint32_t) * countsets);
+        historyUsed = new history*[countsets];
+        for(int s = 0; s < countsets; ++s) {
+            historyUsed[s] = new history[assoc];
+            historyUsed[s][0].prev = assoc-1;
+            historyUsed[s][0].next = 1;
+            for(int a = 1; a < assoc; ++a) {
+                historyUsed[s][a].prev = a-1;
+                historyUsed[s][a].next = (a+1)%assoc;
+            }
+        }
     }
 }
 
@@ -1474,6 +1393,11 @@ CacheLevel::~CacheLevel(){
     if (recentlyUsed){
         delete[] recentlyUsed;
     }
+    if (historyUsed){
+        for(int s = 0; s < countsets; ++s)
+            delete[] historyUsed[s];
+        delete[] historyUsed;
+    }
 }
 
 uint64_t CacheLevel::CountColdMisses(){
@@ -1502,6 +1426,8 @@ uint32_t CacheLevel::GetSet(uint64_t store){
 uint32_t CacheLevel::LineToReplace(uint32_t setid){
     if (replpolicy == ReplacementPolicy_nmru){
         return (recentlyUsed[setid] + 1) % associativity;
+    } else if (replpolicy == ReplacementPolicy_trulru){
+        return recentlyUsed[setid];
     } else if (replpolicy == ReplacementPolicy_random){
         return RandomInt(associativity);
     } else if (replpolicy == ReplacementPolicy_direct){
@@ -1538,6 +1464,19 @@ inline void CacheLevel::MarkUsed(uint32_t setid, uint32_t lineid){
     if (USES_MARKERS(replpolicy)){
         debug(inform << "level " << dec << level << " USING set " << dec << setid << " line " << lineid << ENDL << flush);
         recentlyUsed[setid] = lineid;
+    }
+    else if(replpolicy == ReplacementPolicy_trulru) {
+        debug(inform << "level " << dec << level << " USING set " << dec << setid << " line " << lineid << ENDL << flush);
+        if(recentlyUsed[setid] == lineid)
+            recentlyUsed[setid] = historyUsed[setid][lineid].next;
+        else {
+            historyUsed[setid][historyUsed[setid][lineid].next].prev = historyUsed[setid][lineid].prev;
+            historyUsed[setid][historyUsed[setid][lineid].prev].next = historyUsed[setid][lineid].next;
+            historyUsed[setid][lineid].prev = historyUsed[setid][recentlyUsed[setid]].prev;
+            historyUsed[setid][recentlyUsed[setid]].prev = lineid;
+            historyUsed[setid][lineid].next = recentlyUsed[setid];
+            historyUsed[setid][historyUsed[setid][lineid].prev].next = lineid;
+        }
     }
 }
 
@@ -1591,12 +1530,10 @@ uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, v
     debug(assert(stats));
     debug(assert(stats->Stats));
     debug(assert(stats->Stats[memid]));
-
     // hit
     if (Search(store, &set, &lineInSet)){
         stats->Stats[memid][level].hitCount++;
         MarkUsed(set, lineInSet);
-
         return INVALID_CACHE_LEVEL;
     }
 
@@ -1819,8 +1756,7 @@ bool CacheStructureHandler::Init(string desc){
             } else if (token.compare(0, 4, "rand") == 0){
                 repl = ReplacementPolicy_random;
             } else if (token.compare(0, 6, "trulru") == 0){
-                warn << "True lru is not implemented... using nmru" << ENDL << flush;
-                repl = ReplacementPolicy_nmru;
+                repl = ReplacementPolicy_trulru;
             } else if (token.compare(0, 3, "dir") == 0){
                 repl = ReplacementPolicy_direct;
             } else {
@@ -1891,14 +1827,16 @@ CacheStructureHandler::~CacheStructureHandler(){
     }
 }
 
-void CacheStructureHandler::Process(void* stats, BufferEntry* access){
+void CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
     uint32_t next = 0;
     uint64_t victim = access->address;
+
+    CacheStats* stats = (CacheStats*)stats_in;
 
     EvictionInfo evictInfo;
     evictInfo.level = INVALID_CACHE_LEVEL;
     while (next < levelCount){
-        next = levels[next]->Process((CacheStats*)stats, access->memseq, victim, (void*)(&evictInfo));
+        next = levels[next]->Process(stats, access->memseq, victim, (void*)(&evictInfo));
     }
 }
 
@@ -1958,7 +1896,7 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
     // each thread gets its own buffer
     if (typ == AllData->ThreadType){
         stats->Buffer = new BufferEntry[BUFFER_CAPACITY(stats) + 1];
-        bzero(BUFFER_ENTRY(stats, 1), (BUFFER_CAPACITY(stats) + 1) * sizeof(BufferEntry));
+        bzero(BUFFER_ENTRY(stats, 0), (BUFFER_CAPACITY(stats) + 1) * sizeof(BufferEntry));
         BUFFER_CAPACITY(stats) = BUFFER_CAPACITY(s);
         BUFFER_CURRENT(stats) = 0;
     } else if (iid != firstimage){

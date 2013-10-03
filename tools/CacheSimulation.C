@@ -68,22 +68,16 @@ void CacheSimulation::filterBBs(){
                 PRINT_ERROR("Line %d of %s has a wrong format", i+1, inputFile);
             }
             HashCode* hashCode = new HashCode(inputHash);
-#ifdef STATS_PER_INSTRUCTION
-            if(!hashCode->isBlock() && !hashCode->isInstruction()){
-#else //STATS_PER_INSTRUCTION
-            if(!hashCode->isBlock()){
-#endif //STATS_PER_INSTRUCTION
+            if(isPerInstruction() && !hashCode->isBlock() && !hashCode->isInstruction() ||
+              !isPerInstruction() && !hashCode->isBlock()){
                     
                 err = sscanf((*fileLines)[i], "%llx", &inputHash);
                 if(err <= 0){
                     PRINT_ERROR("Line %d of %s has a wrong format", i+1, inputFile);
                 }
                 hashCode = new HashCode(inputHash);
-#ifdef STATS_PER_INSTRUCTION
-                if(!hashCode->isBlock() && !hashCode->isInstruction()){
-#else //STATS_PER_INSTRUCTION
-                if(!hashCode->isBlock()){
-#endif //STATS_PER_INSTRUCTION
+                if(isPerInstruction() && !hashCode->isBlock() && !hashCode->isInstruction() ||
+                  !isPerInstruction() && !hashCode->isBlock()){
                     PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, inputFile);
                 }
             }

@@ -556,10 +556,10 @@ void FlowGraph::computeLiveness(){
 
             uses[currIdx] = instruction->getRegistersUsed();
             defs[currIdx] = instruction->getRegistersDefined();
-            ins[currIdx] = RegisterSet();
-            outs[currIdx] = RegisterSet();
-            ins_prime[currIdx] = RegisterSet();
-            outs_prime[currIdx] = RegisterSet();
+            new(&ins[currIdx]) RegisterSet();
+            new(&outs[currIdx]) RegisterSet();
+            new(&ins_prime[currIdx]) RegisterSet();
+            new(&outs_prime[currIdx]) RegisterSet();
 
             succs.append(new std::set<uint32_t>());
             if (j == bb->getNumberOfInstructions() - 1){

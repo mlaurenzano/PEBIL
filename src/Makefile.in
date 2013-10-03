@@ -1,5 +1,11 @@
-CXX         = @CXX@
-CXXFLAGS    = @CXXFLAGS@ @MPI_FLAGS@ -w
+ifneq ($(PEBIL_SWAP_MOD),)
+ifneq ($(PEBIL_SWAP_OFF),)
+DEBUGFLAGS    = -D SWAP_MOD=$(PEBIL_SWAP_MOD) -D SWAP_MOD_OFF=$(PEBIL_SWAP_OFF)
+endif
+endif
+
+CXX         = g++
+CXXFLAGS    = -g -O2 -std=gnu++0x -DHAVE_UNORDERED_MAP -DHAVE_MPI -w $(DEBUGFLAGS)
 
 AR          = ar cru
 EXTRA_FLAGS =
@@ -31,6 +37,9 @@ libpebilinst.a: $(OBJS)
 
 clean: 
 	rm -f *inst core *.o *.ii *.s $(TARGETS)
+
+cleandebug:
+	rm -f ElfFileInst.o $(TARGETS)
 
 depend:
 	g++ -E -MM $(INCLUDE) $(SRCS) > DEPENDS

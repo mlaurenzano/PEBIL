@@ -1,16 +1,16 @@
 STATIC_INST_LIB  = @STATIC_INST_LIB@
 PEBIL_LIBS = 
 ifeq ($(STATIC_INST_LIB),yes)
-	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  liblptimer.a  libcounter.a  libsimulator.a
+	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  libcounter.a  libsimulator.a
 else
-	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblptimer.so libcounter.so libsimulator.so
+	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblooptimer.so libcounter.so libsimulator.so libfrequencyconfig.so
 endif
 
 LIB_TARGETS = $(PEBIL_LIBS)
 MPICC       = @MPICC@
 MPICXX      = @MPICXX@
 CFLAGS      = @CFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -w
-CXXFLAGS    = @CXXFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -w
+CXXFLAGS    = @MPI_CXXFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -w
 
 SHARED_OPT  = -fPIC
 EXTRA_FLAGS = $(SHARED_OPT)
@@ -43,8 +43,14 @@ libsimulator.so : Simulation.O
 libsimulator.a : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 	$(AR) $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 
-libtimer.so : TimerFunctions.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ TimerFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS)
+liblooptimer.so : LoopTimer.O
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
+
+libfrequencyconfig.so : FrequencyConfig.O
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
+
+libtimer.so : TimerFunctions.O
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
 libtimer.a : TimerFunctions.o $(COMMON_OBJS) 
 	$(AR) $@ TimerFunctions.o $(COMMON_OBJS)
 
@@ -57,9 +63,6 @@ libpfreq.so : Frequency.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ Frequency.o $(COMMON_OBJS) $(EXTRA_LIBS)
 libpfreq.a : Frequency.o
 	$(AR) $@ Frequency.o
-
-liblptimer.so : LoopTimer.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ LoopTimer.o $(COMMON_OBJS) $(EXTRA_LIBS)
 
 libtautrace.so : tautrace.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ tautrace.o $(COMMON_OBJS) $(EXTRA_LIBS)

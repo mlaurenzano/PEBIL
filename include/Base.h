@@ -30,6 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <regex.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <execinfo.h>
 #include <dlfcn.h>
@@ -39,8 +40,8 @@
 #include <Vector.h>
 
 #ifdef HAVE_UNORDERED_MAP
-#define pebil_map_type unordered_map
-#include <unordered_map>
+#define pebil_map_type tr1::unordered_map
+#include <tr1/unordered_map>
 #else
 #define pebil_map_type map
 #include <map>

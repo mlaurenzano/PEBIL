@@ -143,6 +143,33 @@ bool BasicBlock::endsWithReturn(){
     return instructions.back()->isReturn();
 }
 
+std::map<uint32_t, uint32_t>* BasicBlock::getOperandLengthCounts(){
+    std::map<uint32_t, uint32_t>* retval = new std::map<uint32_t, uint32_t>();
+
+    (*retval)[8] = 0;
+    (*retval)[16] = 0;
+    (*retval)[32] = 0;
+    (*retval)[64] = 0;
+    (*retval)[128] = 0;
+    (*retval)[256] = 0;
+    (*retval)[512] = 0;
+
+    for(uint32_t i = 0; i < instructions.size(); ++i){
+        std::map<uint32_t, uint32_t>* incnts = instructions[i]->getOperandLengthCounts();
+        (*retval)[8] = (*retval)[8] + (*incnts)[8];
+        (*retval)[16] = (*retval)[16] + (*incnts)[16];
+        (*retval)[32] = (*retval)[32] + (*incnts)[32];
+        (*retval)[64] = (*retval)[64] + (*incnts)[64];
+        (*retval)[128] = (*retval)[128] + (*incnts)[128];
+        (*retval)[256] = (*retval)[256] + (*incnts)[256];
+        (*retval)[512] = (*retval)[512] + (*incnts)[512];
+
+        delete incnts;
+    }
+
+    return retval;
+}
+
 uint32_t BasicBlock::getNumberOfMemoryBytes(){
     uint32_t byteCount = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){

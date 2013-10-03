@@ -29,12 +29,8 @@
 #include <SymbolTable.h>
 #include <map>
 
-#define LOOP_NAMING_BASIS "pfreq_throttle"
-//#define LOOP_NAMING_BASIS "pwr_measure"
-#define PROGRAM_ENTRY LOOP_NAMING_BASIS "_init"
-#define PROGRAM_EXIT LOOP_NAMING_BASIS "_fini"
-#define LOOP_ENTRY LOOP_NAMING_BASIS "_lpentry"
-#define LOOP_EXIT LOOP_NAMING_BASIS "_lpexit"
+#include <LoopTimer.hpp>
+
 
 //#define DEBUG_INTERPOSE
 #define FLAGS_METHOD FlagsProtectionMethod_full
@@ -78,17 +74,17 @@ void LoopIntercept::declare(){
     }
 
     // declare any instrumentation functions that will be used
-    loopEntry = declareFunction(LOOP_ENTRY);
+    loopEntry = declareFunction("loop_entry");
     ASSERT(loopEntry);
     /*
     loopEntry->assumeNoFunctionFP();
     loopEntry->setSkipWrapper();
     */
-    loopExit = declareFunction(LOOP_EXIT);
+    loopExit = declareFunction("loop_exit");
     ASSERT(loopExit);    
-    programEntry = declareFunction(PROGRAM_ENTRY);
+    programEntry = declareFunction("tool_image_init");
     ASSERT(programEntry);
-    programExit = declareFunction(PROGRAM_EXIT);
+    programExit = declareFunction("tool_image_fini");
     ASSERT(programExit);    
 }
 
@@ -161,12 +157,6 @@ void LoopIntercept::instrument(){
         exit(0);
     }
 
-    // insert calls at program entry/exit
-    InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp);
-    ASSERT(p);
-    p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp);
-    ASSERT(p);
-
     LineInfoFinder* lineInfoFinder = NULL;
     if (hasLineInformation()){
         lineInfoFinder = getLineInfoFinder();
@@ -177,17 +167,6 @@ void LoopIntercept::instrument(){
     for (uint32_t i = 0; i < loopList->size(); i++){
         loops[getLoopHash(i)] = numLoops++;
     }
-
-    // set up argument passing to program entry call
-    uint64_t siteIndex = reserveDataOffset(sizeof(uint32_t));
-    programEntry->addArgument(siteIndex);
-
-    uint64_t loopCount = reserveDataOffset(sizeof(uint32_t));
-    initializeReservedData(getInstDataAddress() + loopCount, sizeof(uint32_t), &numLoops);
-    programEntry->addArgument(loopCount);
-
-    uint64_t hashArray = reserveDataOffset(sizeof(uint64_t) * numLoops);
-    programEntry->addArgument(hashArray);
 
     // pick out all the loops we want to instrument
     std::map<uint64_t, Loop*> loopsFound;
@@ -298,7 +277,65 @@ void LoopIntercept::instrument(){
         }
     }
 
+    // Create input struct
+    LoopTimers loopInfo;
+    uint64_t loopInfoStruct = reserveDataOffset(sizeof(LoopTimers));
 
+    loopInfo.master = getElfFile()->isExecutable();
+
+    char* appName = getElfFile()->getAppName();
+    uint64_t app = reserveDataOffset(strlen(appName)+1);
+    initializeReservedPointer(app, loopInfoStruct + offsetof(LoopTimers, application));
+    initializeReservedData(getInstDataAddress() + app, strlen(appName)+1, (void*)appName);
+
+    char extName[__MAX_STRING_SIZE];
+    sprintf(extName, "%s\0", getExtension());
+    uint64_t ext = reserveDataOffset(strlen(extName)+1);
+    initializeReservedPointer(ext, loopInfoStruct + offsetof(LoopTimers, extension));
+    initializeReservedData(getInstDataAddress() + ext, strlen(extName) + 1, (void*)extName);
+
+    loopInfo.loopCount = loopsFound.size();
+
+    uint64_t loopHashes = reserveDataOffset(loopsFound.size() * sizeof(uint64_t));
+    initializeReservedPointer(loopHashes, loopInfoStruct + offsetof(LoopTimers, loopHashes));
+
+    loopInfo.loopTimerAccum = NULL;
+    loopInfo.loopTimerLast = NULL;
+
+    initializeReservedData(getInstDataAddress() + loopInfoStruct, sizeof(LoopTimers), (void*)&loopInfo);
+
+    // Add arguments to instrumentation functions
+    programEntry->addArgument(loopInfoStruct);
+    programEntry->addArgument(imageKey);
+    programEntry->addArgument(threadHash);
+
+    programExit->addArgument(imageKey);
+
+    uint32_t loopEntryIndexRegister = loopEntry->addConstantArgument();
+    loopEntry->addArgument(imageKey);
+
+    uint32_t loopExitIndexRegister = loopExit->addConstantArgument();
+    loopExit->addArgument(imageKey);
+
+    // Add program-entry instrumentation
+    if (isMultiImage()){
+        for (uint32_t i = 0; i < getNumberOfExposedFunctions(); ++i){
+            Function* f = getExposedFunction(i);
+            InstrumentationPoint* p = addInstrumentationPoint(f, programEntry, InstrumentationMode_tramp, InstLocation_prior);
+            ASSERT(p);
+
+            dynamicPoint(p, getElfFile()->getUniqueId(), true);
+        }
+    } else {
+        InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), programEntry, InstrumentationMode_tramp);
+        ASSERT(p);
+    }
+
+    // Add program-exit instrumentation
+    {
+        InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp);
+        ASSERT(p);
+    }
     Vector<Base*>* allBlocks = new Vector<Base*>();
     Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
@@ -317,7 +354,7 @@ void LoopIntercept::instrument(){
         Function* f = head->getFunction();
         FlowGraph* fg = head->getFlowGraph();
         uint32_t site = loops[hash];
-        initializeReservedData(getInstDataAddress() + hashArray + (site * sizeof(uint64_t)), sizeof(uint64_t), &hash);
+        initializeReservedData(getInstDataAddress() + loopHashes + (site * sizeof(uint64_t)), sizeof(uint64_t), &hash);
 
         allBlocks->append(head);
         allBlockIds->append(site);
@@ -339,7 +376,7 @@ void LoopIntercept::instrument(){
                 // source block falls through into loop
                 if (source->getBaseAddress() + source->getNumberOfBytes() == head->getBaseAddress()){
                     InstrumentationPoint* pt = addInstrumentationPoint(source->getExitInstruction(), loopEntry, InstrumentationMode_trampinline, InstLocation_after);
-                    assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+                    assignStoragePrior(pt, site, loopEntryIndexRegister);
 
                     PRINT_INFOR("\tENTR-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx", site, source->getBaseAddress(), head->getBaseAddress());
 
@@ -357,7 +394,7 @@ void LoopIntercept::instrument(){
             BasicBlock* bb = allLoopBlocks[k];
             if (bb->endsWithReturn()){
                 InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, InstLocation_prior);
-                assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+                assignStoragePrior(pt, site, loopExitIndexRegister);
                 
                 PRINT_INFOR("\tEXIT-FNRETURN(%d)\tBLK:%#llx --> ?", site, bb->getBaseAddress());
 
@@ -373,7 +410,7 @@ void LoopIntercept::instrument(){
                     // target is adjacent to bb 
                     if (target->getBaseAddress() == bb->getBaseAddress() + bb->getNumberOfBytes()){
                        InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, InstLocation_after);
-                        assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+                       assignStoragePrior(pt, site, loopExitIndexRegister);
 
                         PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx", site, bb->getBaseAddress(), target->getBaseAddress());
 
@@ -406,7 +443,7 @@ void LoopIntercept::instrument(){
                 ASSERT(loopExit);
 
                 InstrumentationPoint* pt = addInstrumentationPoint(interposed, loopExit, InstrumentationMode_trampinline);
-                assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+                assignStoragePrior(pt, site, loopExitIndexRegister);
                 
                 PRINT_INFOR("\tEXIT-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx", site, bb->getBaseAddress(), interb->getBaseAddress());
             }
@@ -435,7 +472,7 @@ void LoopIntercept::instrument(){
 
             ASSERT(loopEntry);
             InstrumentationPoint* pt = addInstrumentationPoint(interposed, loopEntry, InstrumentationMode_trampinline);
-            assignStoragePrior(pt, site, getInstDataAddress() + siteIndex, X86_REG_CX, getInstDataAddress() + getRegStorageOffset());
+            assignStoragePrior(pt, site, loopEntryIndexRegister);
 
             PRINT_INFOR("\tENTR-INTERPOS(%d)\tBLK:%#llx --> BLK:%#llx", site, interb->getBaseAddress(), head->getBaseAddress());
         }

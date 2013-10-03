@@ -38,7 +38,7 @@ check: all test
 	$(MAKE) -C test/ check
 
 clean:
-	rm -rf $(TGT).o $(DYNTGT) $(STATGT) *.ii *.s
+	rm -rf $(TGT).o $(DYNTGT) $(STATGT) $(EXTOBJ) *.ii *.s
 	$(MAKE) -C test/ clean
 
 install: all

@@ -12,8 +12,9 @@ BLOCK_IDENTIFIER = 'BLK'
 IMAGE_IDENTIFIER = 'IMG'
 LOOP_IDENTIFIER = 'LPP'
 INPUT_JBB_NAME_REGEX = '(\S+).r(\d\d\d\d\d\d\d\d).t(\d\d\d\d\d\d\d\d).jbbinst'
+INPUT_STATIC_NAME_REGEX = '.*.static'
 OUTPUT_LBB_NAME = '%(application)s.%(image)s.t%(tasks)08d.lbb'
-
+OUTPUT_OPCOUNT_NAME = 'opcounts.dat'
 
 # util functions
 def print_error(err):
@@ -26,7 +27,8 @@ def print_usage(err=''):
     print "[Optional Arguments]:"
     print "        --blockmin <block_minimum_to_include> [default = " + str(DEFAULT_BLOCK_MIN) + "]"
     print "[Positional Arguments]:"
-    print "        list of .jbbinst trace files"
+    print "        (optional) a .jbbinst.static file, followed by..."
+    print "        a list of .jbbinst trace files"
     print ""
     print "Example: " + sys.argv[0] + " --blockmin 1000 dynTest.r*.jbbinst"
     print_error(err)
@@ -159,11 +161,59 @@ class LoopLine(CounterLine):
     def id(self):
         return str(self.image) + str(self.hashcode)
 
+class StaticBlockLine:
+    def __init__(self, toks, image):
+        self.hashcode = toks[1]
+        self.memOps = int(toks[2])
+        self.fpOps = int(toks[3])
+        self.insns = int(toks[4])
+        self.image = image
+
+    def id(self):
+        return str(self.image) + str(self.hashcode)
+
+class StaticFile:
+    @staticmethod
+    def isStaticFile(f):
+        r = re.compile(INPUT_STATIC_NAME_REGEX)
+        p = r.match(f)
+        if p == None:
+            return False
+        return True
+
+    def __init__(self, sfile):
+        self.sfile = sfile
+        if not file_exists(self.sfile):
+            print_usage(str(sfile) + ' is not a valid file')
+
+        if not StaticFile.isStaticFile(sfile):
+            print_usage('expecting a specific format for file name (' + INPUT_STATIC_NAME_REGEX + '): ' + sfile)
+
+        print 'Reading static file ' + sfile
+        self.image = 0
+        self.blocks = {}
+        f = open(sfile)
+        for line in f:
+            toks = line.strip().split()
+            if len(toks) == 0:
+                continue;
+
+#            if toks[1] == "sha1sum":
+#                pat = "(................).*"
+#                r = re.compile(pat)
+#                m = r.match(toks[3])
+#                self.image = m.group(1)
+
+            if toks[0].isdigit():
+                b = StaticBlockLine(toks, self.image)
+                self.blocks[b.id()] = b
+                
+
 class JbbTraceFile:
     def __init__(self, tfile):
         self.tfile = tfile
         if not file_exists(self.tfile):
-            print_usage(str(f) + ' is not a valid file')
+            print_usage(str(f) + ' is not a valid file') # FIXME f? not tfile?
 
         r = re.compile(INPUT_JBB_NAME_REGEX)
         p = r.match(self.tfile)
@@ -238,12 +288,30 @@ def main():
     if len(args) == 0:
         print_usage('requires a list of jbbinst trace files as positional arguments')
 
+    staticFile = args[0]
+    if StaticFile.isStaticFile(staticFile):
+        staticFile = StaticFile(staticFile)
+        args = args[1:]
+    else:
+        staticFile = None
+
+    if len(args) == 0:
+        print_usage('requires a list of jbbinst trace files as positional arguments')
+
+
+    if staticFile != None:
+        outfile = open(OUTPUT_OPCOUNT_NAME, 'w')
+        outfile.write("# Rank\ttotInsns\ttotMemops\ttotFpops\n")
+    else:
+        outfile = None
 
     # parse input files (all remaining positional args)
     imagelist = {}
     ntasks = 0
     appname = ''
     index = 0
+    imagecounts = {}
+    total = 0
     blockfiles = {}
     for f in args:
         index += 1
@@ -252,7 +320,23 @@ def main():
         b = JbbTraceFile(f)
         if blockfiles.has_key(b.mpirank):
             print_usage('duplicate mpi rank found in input files: ' + str(b.mpirank))
-        blockfiles[b.mpirank] = b
+        blockfiles[b.mpirank] = 1
+
+        if outfile != None:
+            blockFile = b
+            totInsns = 0
+            totMemops = 0
+            totFpops = 0
+            for block in staticFile.blocks.values():
+                try:
+                    dynBlock = blockFile.blocks[block.id()]
+                except KeyError:
+                    continue
+                totInsns = totInsns + block.insns * dynBlock.count
+                totMemops = totMemops + block.memOps * dynBlock.count
+                totFpops = totFpops + block.fpOps * dynBlock.count
+            outfile.write(str(blockFile.mpirank) + "\t" + str(totInsns) + "\t" + str(totMemops) + "\t" + str(totFpops) + "\n")
+           
 
         for ki in b.images.keys():
             imagelist[ki] = 1
@@ -270,12 +354,7 @@ def main():
             print_usage('all files should be from a run with the same number application name: ' + appname)
 
 
-    # add up block counts across all ranks
-    imagecounts = {}
-    total = 0
-    for k in blockfiles.keys():
-        b = blockfiles[k]
-
+        # add up block counts from this rank
         for kb in b.blocks.keys():
             bb = b.blocks[kb]
             iid = b.rimage[bb.image]
@@ -288,6 +367,10 @@ def main():
 
             imagecounts[iid][bb.hashcode] += bb.count
             total += bb.count
+
+
+    if outfile != None:
+        outfile.close()
 
     # write to file if block count exceeds minimum
     imagefiles = {}

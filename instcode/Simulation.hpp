@@ -48,7 +48,7 @@ enum CacheLevelType {
 
 enum ReplacementPolicy {
     ReplacementPolicy_Undefined,
-    ReplacementPolicy_truelru,
+    ReplacementPolicy_trulru,
     ReplacementPolicy_nmru,
     ReplacementPolicy_random,
     ReplacementPolicy_direct,
@@ -90,12 +90,10 @@ static uint64_t ReferenceCacheStats(SimulationStats* stats);
 static void DeleteCacheStats(SimulationStats* stats);
 static bool ReadEnvUint32(string name, uint32_t* var);
 static void PrintSimulationStats(ofstream& f, SimulationStats* stats, thread_key_t tid, bool perThread);
-static const char* SimulationFileName(SimulationStats* stats);
-static const char* ReuseDistFileName(SimulationStats* stats);
-static const char* SpatialDistFileName(SimulationStats* stats);
-static const char* LegacySimulationFileName(SimulationStats* stats);
-static const char* RangeFileName(SimulationStats* stats);
-static const char* LegacyRangeFileName(SimulationStats* stats);
+static void SimulationFileName(SimulationStats* stats, string& oFile);
+static void ReuseDistFileName(SimulationStats* stats, string& oFle);
+static void SpatialDistFileName(SimulationStats* stats, string& oFile);
+static void RangeFileName(SimulationStats* stats, string& oFile);
 
 extern "C" {
     void* tool_mpi_init();
@@ -106,13 +104,15 @@ extern "C" {
 
 class StreamStats {
 public:
+    virtual uint64_t GetAccessCount(uint32_t memid) = 0;
+    virtual bool Verify() = 0;
 };
 
 class CacheStats : public StreamStats {
 public:
     uint32_t LevelCount;
     uint32_t SysId;
-    LevelStats** Stats;
+    LevelStats** Stats; // indexed by [memid][level]
     uint32_t Capacity;
 
     CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity);
@@ -137,6 +137,8 @@ public:
     uint64_t GetAccessCount(uint32_t memid);
     float GetHitRate(uint32_t memid, uint32_t lvl);
     float GetCumulativeHitRate(uint32_t memid, uint32_t lvl);
+
+    bool Verify();
 };
 
 struct AddressRange {
@@ -162,6 +164,8 @@ public:
 
     void Update(uint32_t memid, uint64_t addr);
     void Update(uint32_t memid, uint64_t addr, uint32_t count);
+
+    bool Verify();
 };
 
 #define INVALID_REUSE_DISTANCE (-1)
@@ -190,6 +194,11 @@ public:
 #define CacheLevel_Init_Interface uint32_t lvl, uint32_t sizeInBytes, uint32_t assoc, uint32_t lineSz, ReplacementPolicy pol
 #define CacheLevel_Init_Arguments lvl, sizeInBytes, assoc, lineSz, pol
 
+struct history {
+    uint32_t prev;
+    uint32_t next;
+};
+
 class CacheLevel {
 protected:
 
@@ -206,6 +215,7 @@ protected:
 
     uint64_t** contents;
     uint32_t* recentlyUsed;
+    history** historyUsed;
 
 public:
     CacheLevel();

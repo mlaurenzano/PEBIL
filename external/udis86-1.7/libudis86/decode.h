@@ -265,6 +265,7 @@ enum ud_operand_size {
 #define O_rBPr13  { OP_rBPr13,   SZ_NA    }
 #define O_Ob      { OP_O,        SZ_B     }
 #define O_P       { OP_P,        SZ_NA    }
+#define O_Pq      { OP_P,        SZ_Q     }
 #define O_Ow      { OP_O,        SZ_W     }
 #define O_Ov      { OP_O,        SZ_V     }
 #define O_Gw      { OP_G,        SZ_W     }
@@ -283,6 +284,7 @@ enum ud_operand_size {
 #define O_DHr14b  { OP_DHr14b,   SZ_NA    }
 #define O_rSP     { OP_rSP,      SZ_NA    }
 #define O_PR      { OP_PR,       SZ_NA    }
+#define O_PRq     { OP_PR,       SZ_Q     }
 #define O_NONE    { OP_NONE,     SZ_NA    }
 #define O_rCX     { OP_rCX,      SZ_NA    }
 #define O_jWP     { OP_J,        SZ_WP    }
@@ -359,8 +361,10 @@ enum ud_operand_size {
 #define O_AL      { OP_AL,       SZ_NA    }
 #define O_CLr9b   { OP_CLr9b,    SZ_NA    }
 #define O_Q       { OP_Q,        SZ_NA    }
+#define O_Qq      { OP_Q,        SZ_Q     }
 #define O_eAX     { OP_eAX,      SZ_NA    }
 #define O_VR      { OP_VR,       SZ_NA    }
+#define O_VRx     { OP_VR,       SZ_X     }
 #define O_AX      { OP_AX,       SZ_NA    }
 #define O_rAX     { OP_rAX,      SZ_NA    }
 #define O_Iz      { OP_I,        SZ_Z     }
