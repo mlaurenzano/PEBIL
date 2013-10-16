@@ -1,6 +1,19 @@
 /*
  * PAPI Loop Instrumentation
+ * The instrumentation reads the env var HWC0, HWC1, ... up to HWC31, in the order,
+ * but stops at the first that is not defined (no gaps allowed).
+ * The env variables should be set to PAPI present events, e.g. PAPI_TOT_CYC.
+ * Then, for each loop instrumented, the value of the counters specified is accumulated
+ * and reported on at the end of execution. The values are printed in a meta_%.lpiinst file.
+ * There is no check that events are compatible, please use the papi_event_chooser to verify
+ * events compatibility.
  *
+ * Usage example:
+ * pebil --tool LoopIntercept --app bench --inp outer.loops --lnc libpapiinst.so,libpapi.so
+ * export HWC0=PAPI_TOT_INS
+ * export HWC1=PAPI_TOT_CYC
+ * ./bench.lpiinst
+ * grep Thread bench.meta_0.lpiinst | awk '{print $3/$4}' # compute IPC of loops
  */
 
 #include <InstrumentationCommon.hpp>
@@ -19,18 +32,6 @@
 
 DataManager<PAPIInst*>* AllData = NULL;
 
-/*
- * When a new image is added, called once per existing thread
- * When a new thread is added, called once per loaded image
- *
- * timers: some pre-existing data
- * typ: ThreadTyp when called via AddThread
- *      ImageTyp when called via AddImage
- * iid: image the new data will be for
- * tid: thread the new data will be for
- * firstimage: key of first image created
- * 
- */
 PAPIInst* GeneratePAPIInst(PAPIInst* counters, uint32_t typ, image_key_t iid, thread_key_t tid, image_key_t firstimage) {
 
     PAPIInst* retval;
@@ -54,8 +55,6 @@ uint64_t ReferencePAPIInst(PAPIInst* counters){
 
 extern "C"
 {
-
-    // start timer
     int32_t loop_entry(uint32_t loopIndex, image_key_t* key) {
         thread_key_t tid = pthread_self();
 
@@ -67,7 +66,6 @@ extern "C"
         return 0;
     }
 
-    // end timer
     int32_t loop_exit(uint32_t loopIndex, image_key_t* key) {
         thread_key_t tid = pthread_self();
 
@@ -79,18 +77,15 @@ extern "C"
         return 0;
     }
 
-    // initialize dynamic instrumentation
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn) {
         InitializeDynamicInstrumentation(count, dyn);
         return NULL;
     }
 
-    // Just after MPI_Init is called
     void* tool_mpi_init() {
         return NULL;
     }
 
-    // Entry function for threads
     void* tool_thread_init(thread_key_t tid) {
         if (AllData){
             AllData->AddThread(tid);
@@ -100,27 +95,22 @@ extern "C"
         return NULL;
     }
 
-    // Optionally? called on thread join/exit?
     void* tool_thread_fini(thread_key_t tid) {
         return NULL;
     }
 
-    // Called when new image is loaded
     void* tool_image_init(void* args, image_key_t* key, ThreadData* td) {
 
         PAPIInst* counters = (PAPIInst*)args;
 
-        // Remove this instrumentation
         set<uint64_t> inits;
         inits.insert(*key);
         SetDynamicPoints(inits, false);
 
-        // If this is the first image, set up a data manager
         if (AllData == NULL){
             AllData = new DataManager<PAPIInst*>(GeneratePAPIInst, DeletePAPIInst, ReferencePAPIInst);
         }
 
-        // Add this image
         AllData->AddImage(counters, td, *key);
 
         counters = AllData->GetData(*key, pthread_self());
@@ -144,7 +134,6 @@ extern "C"
         return NULL;
     }
 
-    // Nothing to do here
     void* tool_image_fini(image_key_t* key) {
         image_key_t iid = *key;
 
