@@ -14,8 +14,7 @@ typedef struct {
     int throttler;
     unsigned int cpu;
     uint32_t* frequencyMap;
-    float* ipcMap;
-    unsigned long maxFreq;
+    float* ipsMap;
 } FrequencyConfig;
 
 #endif
