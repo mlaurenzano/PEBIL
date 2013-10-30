@@ -12,9 +12,11 @@ typedef struct {
     uint64_t loopCount;
     uint64_t* loopHashes;
     int throttler;
-    unsigned int cpu;
     uint32_t* frequencyMap;
+    uint32_t* frequencyTable;
+    uint32_t frequencies;
     float* ipsMap;
+    unsigned char extMod;
 } FrequencyConfig;
 
 #endif

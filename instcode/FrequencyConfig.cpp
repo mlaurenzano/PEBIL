@@ -20,6 +20,7 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <sys/un.h>
+#include <string.h>
 
 #define _GNU_SOURCE
 #include <sched.h>
@@ -32,6 +33,8 @@
 
 #define MAXMOD (32.0)
 #define MAXIPC (8)
+//#define MYCPU (GetTaskId()%sysconf(_SC_NPROCESSORS_ONLN))
+#define MYCPU (0)
 
 DataManager<FrequencyConfig*>* AllData = NULL;
 
@@ -59,9 +62,12 @@ FrequencyConfig* GenerateFrequencyConfig(FrequencyConfig* fconfig, uint32_t typ,
     retval->loopHashes = fconfig->loopHashes;
     retval->frequencyMap = new uint32_t[retval->loopCount];
     retval->ipsMap = new float[retval->loopCount];
+    retval->frequencies = fconfig->frequencies;
+    retval->frequencyTable = new uint32_t[retval->frequencies];
 
-    memset(retval->frequencyMap, 0, sizeof(uint32_t) * retval->loopCount);
-    memset(retval->ipsMap, 0, sizeof(float) * retval->loopCount);
+    bzero(retval->frequencyMap, sizeof(uint32_t) * retval->loopCount);
+    bzero(retval->ipsMap, sizeof(float) * retval->loopCount);
+    bzero(retval->frequencyTable, sizeof(uint32_t) * retval->frequencies);
     return retval;
 }
 
@@ -76,6 +82,30 @@ uint64_t ReferenceFrequencyConfig(FrequencyConfig* fconfig){
 
 extern "C"
 {
+
+    static void init_freq(FrequencyConfig* fconfig) {
+        struct cpufreq_available_frequencies *freqs, *curfreq;
+        freqs = cpufreq_get_available_frequencies(MYCPU);
+        fconfig->frequencies = 0;
+        for(curfreq = freqs; curfreq != NULL; curfreq = curfreq->next)
+            ++fconfig->frequencies;
+        fconfig->frequencyTable = (uint32_t*)malloc(sizeof(unsigned long)*fconfig->frequencies);
+        unsigned int i = fconfig->frequencies;
+        for(curfreq = freqs; curfreq != NULL; curfreq = curfreq->next)
+            fconfig->frequencyTable[--i] = curfreq->frequency;
+        cpufreq_put_available_frequencies(freqs);
+    }
+
+    static void init_mod(FrequencyConfig* fconfig) {
+        unsigned int eax,ebx,ecx,edx; eax=6;
+        asm volatile("cpuid"
+            : "=a" (eax),
+              "=b" (ebx),
+              "=c" (ecx),
+              "=d" (edx)
+            : "0" (eax), "2" (ecx));
+        fconfig->extMod = (eax>>4)&1;
+    }
 
     static unsigned long get_mod(int cpu) {
         char msrfile[16];
@@ -125,19 +155,20 @@ extern "C"
 
         if(fconfig->frequencyMap[loopIndex]) {
           if(fconfig->frequencyMap[loopIndex]>32) {
-            cur = cpufreq_get_freq_kernel(fconfig->cpu);
+            cur = cpufreq_get_freq_kernel(MYCPU);
             if(cur!=fconfig->frequencyMap[loopIndex]) {
               fprintf(stderr,"Changing frequency entering loop %u to %u\n", loopIndex, fconfig->frequencyMap[loopIndex]);
-              cpufreq_set_frequency(fconfig->cpu, fconfig->frequencyMap[loopIndex]);
+              int set = cpufreq_set_frequency(MYCPU, fconfig->frequencyMap[loopIndex]);
+              if(set) printf("set frequency returned %d\n", set);
             }
             else
               fprintf(stderr,"Frequency for loop %u equal to current frequency\n", loopIndex);
           }
           else {
-            cur = get_mod(fconfig->cpu);
+            cur = get_mod(MYCPU);
             if(((cur&0x10) && cur!=fconfig->frequencyMap[loopIndex]) || ((cur&0x10)==0 && fconfig->frequencyMap[loopIndex]!=32)) {
               fprintf(stderr,"Changing modulation entering loop %u to %u\n", loopIndex, fconfig->frequencyMap[loopIndex]&0x1F);
-              set_mod(fconfig->cpu,fconfig->frequencyMap[loopIndex]&0x1F);
+              set_mod(MYCPU,fconfig->frequencyMap[loopIndex]&0x1F);
             }
             else
               fprintf(stderr,"Modulation for loop %u equal to current modulation\n", loopIndex);
@@ -162,19 +193,33 @@ extern "C"
             float mips = fconfig->ipsMap[loopIndex];
             fprintf(stderr,"Comparing measured ips %.2f with expected ips %.2f: diff=%.2f%%\n", ips, mips, (mips-ips)/mips*100);
             if(ips<mips) {
-                fprintf(stderr,"Disabled throttling for loop %d\n", loopIndex);
-                fconfig->frequencyMap[loopIndex] = 0;
+                if(fconfig->frequencyMap[loopIndex]>=fconfig->frequencyTable[fconfig->frequencies-2]) {
+                  fprintf(stderr,"Disabled scaling for loop %d\n", loopIndex);
+                  fconfig->frequencyMap[loopIndex] = 0;
+                }
+                else {
+                  fprintf(stderr,"Increased frequency for loop %d\n", loopIndex);
+                  //fconfig->frequencyMap[loopIndex] = (fconfig->frequencyTable[fconfig->frequencies-1]-fconfig->frequencyMap[loopIndex])*(1-(mips-ips)/ips)+fconfig->frequencyMap[loopIndex];
+                  fconfig->frequencyMap[loopIndex] = 0;
+                }
             }
             else
                 fprintf(stderr,"No slowdown detected\n");
           }
           else {
-            ips *= fconfig->frequencyMap[loopIndex];
+            ips *= fconfig->frequencyTable[fconfig->frequencies-1]*((float)fconfig->frequencyMap[loopIndex])/(float)MAXMOD;
             float mips = fconfig->ipsMap[loopIndex];
             fprintf(stderr,"Comparing measured ips %.2f with expected ips %.2f: diff=%.2f%%\n", ips, mips, (mips-ips)/mips*100);
             if(ips<mips) {
-                fprintf(stderr,"Disabled modulation for loop %d\n", loopIndex);
-                fconfig->frequencyMap[loopIndex] = 0;
+                if(fconfig->frequencyMap[loopIndex]>=(MAXMOD+fconfig->extMod-2)) {
+                  fprintf(stderr,"Disabled modulation for loop %d\n", loopIndex);
+                  fconfig->frequencyMap[loopIndex] = 0;
+                }
+                else {
+                  fprintf(stderr,"Reduced modulation for loop %d\n", loopIndex);
+                  //fconfig->frequencyMap[loopIndex] = (MAXMOD+fconfig->frequencyMap[loopIndex])/2;
+                  fconfig->frequencyMap[loopIndex] = 0;
+                }
             }
             else
                 fprintf(stderr,"No slowdown detected\n");
@@ -192,6 +237,9 @@ extern "C"
 
     // Just after MPI_Init is called
     void* tool_mpi_init() {
+        cpu_set_t mask;
+        CPU_ZERO(&mask); CPU_SET(MYCPU,&mask);
+        sched_setaffinity(0,sizeof(mask),&mask);
         return NULL;
     }
 
@@ -231,8 +279,10 @@ extern "C"
         fconfig = AllData->GetData(*key, pthread_self());
 
         unsigned long min,max;
-        unsigned int mycpu = GetTaskId()%sysconf(_SC_NPROCESSORS_ONLN);
-        cpufreq_get_hardware_limits(mycpu, &min, &max);
+        //TODO I am assuming cores are all the same
+        cpufreq_get_hardware_limits(0, &min, &max);
+        init_freq(fconfig);
+        init_mod(fconfig);
 
         const char* filename = getenv("PMAC_FREQ_FILE") ? getenv("PMAC_FREQ_FILE") : "loops.freq";
         FILE* freq_file = fopen(filename,"r");
@@ -249,16 +299,12 @@ extern "C"
               if(freq>MAXMOD)
                   fconfig->ipsMap[lid] = ipc*max;
               else
-                  fconfig->ipsMap[lid] = ipc*MAXMOD;
+                  fconfig->ipsMap[lid] = ipc*max;
             }
             ++lid;
           }while(ret==2 && lid<fconfig->loopCount);
           fclose(freq_file);
         }
-        fconfig->cpu = mycpu;
-        cpu_set_t mask;
-        CPU_ZERO(&mask); CPU_SET(mycpu,&mask);
-        sched_setaffinity(0,sizeof(mask),&mask);
 
         return NULL;
     }
