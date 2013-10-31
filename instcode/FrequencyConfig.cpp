@@ -33,8 +33,7 @@
 
 #define MAXMOD (32.0)
 #define MAXIPC (8)
-//#define MYCPU (GetTaskId()%sysconf(_SC_NPROCESSORS_ONLN))
-#define MYCPU (0)
+#define MYCPU (GetTaskId()%sysconf(_SC_NPROCESSORS_ONLN))
 
 DataManager<FrequencyConfig*>* AllData = NULL;
 
