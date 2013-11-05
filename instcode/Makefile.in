@@ -17,9 +17,9 @@ EXTRA_FLAGS = $(SHARED_OPT)
 SHARED_LIB  = -shared -ldl
 AR          = ar rcs
 
-REUSE_LIBS  = -L../external/ReuseDistance -lReuseDistance
+REUSE_LIBS  = -L../external/ReuseDistance -lReuseDistance -L$(PAPI_HOME)/lib -lpapi
 EXTRA_LIBS  =
-EXTRA_INC   = -I../instcode -I../external/ReuseDistance
+EXTRA_INC   = -I../instcode -I../external/ReuseDistance -I$(PAPI_HOME)/include
 
 LIBDIR      = ../lib
 BINDIR      = ../bin
