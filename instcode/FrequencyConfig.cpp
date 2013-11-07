@@ -61,12 +61,9 @@ FrequencyConfig* GenerateFrequencyConfig(FrequencyConfig* fconfig, uint32_t typ,
     retval->loopHashes = fconfig->loopHashes;
     retval->frequencyMap = new uint32_t[retval->loopCount];
     retval->ipsMap = new float[retval->loopCount];
-    retval->frequencies = fconfig->frequencies;
-    retval->frequencyTable = new uint32_t[retval->frequencies];
 
     bzero(retval->frequencyMap, sizeof(uint32_t) * retval->loopCount);
     bzero(retval->ipsMap, sizeof(float) * retval->loopCount);
-    bzero(retval->frequencyTable, sizeof(uint32_t) * retval->frequencies);
     return retval;
 }
 
