@@ -191,12 +191,12 @@ extern "C"
             if(ips<mips) {
                 if(fconfig->frequencyMap[loopIndex]>=fconfig->frequencyTable[fconfig->frequencies-2]) {
                   fprintf(stderr,"Disabled scaling for loop %d\n", loopIndex);
-                  fconfig->frequencyMap[loopIndex] = 0;
+                  fconfig->frequencyMap[loopIndex] = fconfig->frequencyTable[fconfig->frequencies-1];
                 }
                 else {
                   fprintf(stderr,"Increased frequency for loop %d\n", loopIndex);
                   //fconfig->frequencyMap[loopIndex] = (fconfig->frequencyTable[fconfig->frequencies-1]-fconfig->frequencyMap[loopIndex])*(1-(mips-ips)/ips)+fconfig->frequencyMap[loopIndex];
-                  fconfig->frequencyMap[loopIndex] = 0;
+                  fconfig->frequencyMap[loopIndex] = fconfig->frequencyTable[fconfig->frequencies-1];
                 }
             }
             else
@@ -209,12 +209,12 @@ extern "C"
             if(ips<mips) {
                 if(fconfig->frequencyMap[loopIndex]>=(MAXMOD+fconfig->extMod-2)) {
                   fprintf(stderr,"Disabled modulation for loop %d\n", loopIndex);
-                  fconfig->frequencyMap[loopIndex] = 0;
+                  fconfig->frequencyMap[loopIndex] = MAXMOD;
                 }
                 else {
                   fprintf(stderr,"Reduced modulation for loop %d\n", loopIndex);
                   //fconfig->frequencyMap[loopIndex] = (MAXMOD+fconfig->frequencyMap[loopIndex])/2;
-                  fconfig->frequencyMap[loopIndex] = 0;
+                  fconfig->frequencyMap[loopIndex] = MAXMOD;
                 }
             }
             else
