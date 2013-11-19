@@ -75,7 +75,7 @@ static set<uint64_t>* NonmaxKeys = NULL;
 // should not be used directly. kept here to be cloned by anyone who needs it
 static MemoryStreamHandler** MemoryHandlers = NULL;
 
-// static ReuseDistance** ReuseDistanceHandlers = NULL;
+static ReuseDistance** ReuseDistanceHandlers = NULL;
 
 
 #define synchronize(__locker) __locker->Lock(); for (bool __s = true; __s == true; __locker->UnLock(), __s = false) 
@@ -304,7 +304,6 @@ extern "C" {
             << TAB << "Total " << dec << Sampler->AccessCount
               << ENDL);
 
-
         bool isSampling;
         synchronize(AllData){
             isSampling = Sampler->CurrentlySampling();
@@ -314,26 +313,50 @@ extern "C" {
             }
         }
 
-        synchronize(AllData){
-        if (isSampling){
-            BufferEntry* buffer = &(stats->Buffer[1]);
+        synchronize(AllData)
+        {
+      
+		if (isSampling){
+		    BufferEntry* buffer = &(stats->Buffer[1]);
 
-            FastStats->Refresh(buffer, numElements, tid);
-            for (uint32_t i = 0; i < CountMemoryHandlers; i++){
-                MemoryStreamHandler* m = stats->Handlers[i];
-//		ReuseDistance* rd=NULL;
-//		ReuseDistance* sd;
-//		if(ReuseWindow)
-//	               rd = stats->RHandlers[ReuseHandlerIndex];
-//		if(SpatialWindow)
-//	               sd = stats->RHandlers[SpatialHandlerIndex];
+		    FastStats->Refresh(buffer, numElements, tid);
+		 //   for (uint32_t i = 0; i < CountMemoryHandlers; i++){
+		   //     MemoryStreamHandler* m = stats->Handlers[i];
+			ReuseDistance* rd=NULL;
+			if(ReuseWindow)
+			       rd = stats->RHandlers[ReuseHandlerIndex];
+		uint32_t bufcur = 0;
+	        SimulationStats** faststats = FastStats->GetBufferStats(tid);		
+	    // CAUTION: In a standalone ReuseWindow tool this check is not needed.	        
+		if(ReuseWindow)
+		for (bufcur = 0; bufcur < numElements; bufcur++)
+		{
+			    debug(assert(faststats[bufcur]));
+			    debug(assert(faststats[bufcur]->Stats));
 
-//              ProcessBuffer(i, m, rd, sd, numElements, iid, tid);
-		ProcessBuffer(i, m, numElements, iid, tid);
-            }
-        } 
+			    SimulationStats* stats = faststats[bufcur];
+
+			    BufferEntry* reference = BUFFER_ENTRY(stats, bufcur);
+
+			    if (reference->imageid == 0){
+				debug(assert(AllData->CountThreads() > 1));
+				continue;
+			    }
+
+
+			    ReuseEntry entry = ReuseEntry();
+			    entry.id = stats->Hashes[stats->BlockIds[reference->memseq]]; // This is to track by BBID to track by memseq change to entry.id=reference->memseq;
+			    entry.address=reference->address ;
+			    // CAUTION: In a standalone ReuseWindow tool this check is not needed. 
+			    if(ReuseWindow)
+			    {
+			    	rd->Process(entry);
+			    }
+	       
+		}
+
         }
-
+      }
         synchronize(AllData){
             if (isSampling){
                 set<uint64_t> MemsRemoved;
@@ -412,16 +435,12 @@ extern "C" {
                 }
 
                 // reuse distance handler needs to know that we passed over some addresses
-//                if (ReuseWindow || SpatialWindow){
-//		    if(ReuseWindow) {	
-//                    	ReuseDistance* r = stats->RHandlers[ReuseHandlerIndex];
-//                    	r->SkipAddresses(numElements);
-//		    }
-//		    if(SpatialWindow) {
-//                    	ReuseDistance* s = stats->RHandlers[SpatialHandlerIndex];
-//                    	s->SkipAddresses(numElements);
-//		    }
-//                }
+                if (ReuseWindow ){
+		    if(ReuseWindow) {	
+                    	ReuseDistance* r = stats->RHandlers[ReuseHandlerIndex];
+                    	r->SkipAddresses(numElements);
+		    }
+                }
             }
 
             Sampler->IncrementAccessCount(numElements);
@@ -487,7 +506,7 @@ extern "C" {
         TryOpen(MemFile, fileName);
 
 
-/*        if (ReuseWindow){
+        if (ReuseWindow){
    
 	    ofstream ReuseDistFile;
             ReuseDistFileName(stats, oFile);
@@ -510,30 +529,8 @@ extern "C" {
             }
             ReuseDistFile.close();
         }
-        if (SpatialWindow){
-   
-	    ofstream SpatialDistFile;
-	    SpatialDistFileName(stats, oFile);
-            fileName = oFile.c_str();
+ 
 
-            inform << "Printing spatial locality results to " << fileName << ENDL;
-            TryOpen(SpatialDistFile, fileName);
-
-            for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
-                for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
-                        SpatialDistFile << "IMAGE" << TAB << hex << (*iit) << TAB << "THREAD" << TAB << dec << AllData->GetThreadSequence(*it) << ENDL;
-
-                    	SimulationStats* s = (SimulationStats*)AllData->GetData((*iit), (*it));
-		    	ReuseDistance* sd = s->RHandlers[SpatialHandlerIndex];
-		    	assert(sd);
-                    	inform << "Spatial locality bins for " << hex << s->Application << " Thread " << AllData->GetThreadSequence((*it)) << ENDL;
-  		    	sd->Print();
-  		    	sd->Print(SpatialDistFile);
-                }
-            }
-            SpatialDistFile.close();
-        }
-*/
         uint64_t sampledCount = 0;
         uint64_t totalMemop = 0;
         for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
@@ -1884,13 +1881,12 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
         AddressRangeHandler* r = new AddressRangeHandler(*p);
         stats->Handlers[RangeHandlerIndex] = r;
 
-      /*  if (ReuseWindow || SpatialWindow){
+        if (ReuseWindow){
 	    stats->RHandlers = new ReuseDistance*[CountReuseHandlers]; // We have a set of reuse handlers (reuse, spatial) per thread
 	    if(ReuseWindow)
 		    stats->RHandlers[ReuseHandlerIndex] = new ReuseDistance(ReuseWindow, ReuseBin);
-	    if(SpatialWindow)
-	    	stats->RHandlers[SpatialHandlerIndex] = new SpatialLocality(SpatialWindow, SpatialBin, SpatialNMAX);
-        } */
+
+        } 
     } else 
     {
         SimulationStats * fs = AllData->GetData(firstimage, tid);
@@ -2004,13 +2000,11 @@ void ReadSettings(){
         MemoryHandlers[i] = caches[i];
     }
     MemoryHandlers[RangeHandlerIndex] = new AddressRangeHandler();
-//    if (ReuseWindow || SpatialWindow){
-//    	ReuseDistanceHandlers = new ReuseDistance*[CountReuseHandlers];
-//	if(ReuseWindow)
-//		ReuseDistanceHandlers[ReuseHandlerIndex] = new ReuseDistance(ReuseWindow, ReuseBin);      
-//	if(SpatialWindow)
-//		ReuseDistanceHandlers[SpatialHandlerIndex] = new SpatialLocality(SpatialWindow, SpatialBin, SpatialNMAX);
-//    }
+    if (ReuseWindow || SpatialWindow){
+    	ReuseDistanceHandlers = new ReuseDistance*[CountReuseHandlers];
+	if(ReuseWindow)
+		ReuseDistanceHandlers[ReuseHandlerIndex] = new ReuseDistance(ReuseWindow, ReuseBin);      
+    }
     cout<<"\n\t Stats \n\t\t CountMemoryHandlers "<<CountMemoryHandlers<<"\n\t\t CountReuseHandlers: "<<CountReuseHandlers<<"\n\t\t RangeHandlerIndex: "<<RangeHandlerIndex<<"\n\n";
     uint32_t SampleMax;
     uint32_t SampleOn;
