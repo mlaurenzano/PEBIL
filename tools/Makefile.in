@@ -16,7 +16,7 @@ EXTRA_INC     = -I. -I../include -I$(EXTDIR)/udis86-1.7/ -I../instcode
 SHARED_LIBS   = -L$(SRCDIR) -lpebilinst -L$(EXTDIR)/udis86-1.7/libudis86/.libs -ludis86 -ldl
 STATIC_LIBS   = $(SRCDIR)/libpebilinst.a -L$(EXTDIR)/udis86-1.7/libudis86/.libs -ludis86
 
-TOOLS = BasicBlockCounter CacheSimulation CallReplace Classification FunctionCounter FunctionTimer Minimal LoopIntercept TauFunctionTrace DeadRegisterSquasher
+TOOLS = BasicBlockCounter CacheSimulation CallReplace Classification FunctionCounter FunctionTimer Minimal LoopIntercept TauFunctionTrace DeadRegisterSquasher ReuseDistance
 SRCS = $(foreach var,$(TOOLS),$(var).C)
 OBJS = $(foreach var,$(TOOLS),$(var).o)
 DLIBS = $(foreach var,$(TOOLS),lib$(var)Tool.so)

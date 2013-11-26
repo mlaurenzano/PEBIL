@@ -1,9 +1,9 @@
 STATIC_INST_LIB  = @STATIC_INST_LIB@
 PEBIL_LIBS = 
 ifeq ($(STATIC_INST_LIB),yes)
-	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  libcounter.a  libsimulator.a
+	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  libcounter.a  libsimulator.a libreusedistance.a
 else
-	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblooptimer.so libcounter.so libsimulator.so libfrequencyconfig.so libpapiinst.so
+	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblooptimer.so libcounter.so libsimulator.so libfrequencyconfig.so libpapiinst.so libreusedistance.so
 endif
 
 LIB_TARGETS = $(PEBIL_LIBS)
@@ -40,8 +40,15 @@ libcounter.a : CounterFunctions.o $(COMMON_OBJS)
 
 libsimulator.so : Simulation.O
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(REUSE_LIBS)
+	
 libsimulator.a : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 	$(AR) $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
+	
+libreusedistance.so : ReuseDistance.O
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(REUSE_LIBS)
+	
+libreusedistance.a : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
+	$(AR) $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)	
 
 liblooptimer.so : LoopTimer.O
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
