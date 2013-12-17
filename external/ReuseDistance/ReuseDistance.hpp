@@ -32,7 +32,6 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <tree234.h>
-#include <stdint.h>
 
 #include <algorithm>
 #include <iostream>
@@ -40,6 +39,7 @@
 #include <list>
 #include <map>
 #include <vector>
+#include<LRUDistanceAnalyzer.hpp>
 
 // unordered_map is faster for many things, use it where sorted map isn't needed
 #ifdef HAVE_UNORDERED_MAP
@@ -90,7 +90,7 @@ private:
     tree234* window;
 
     // [address -> sequence]
-    reuse_map_type<uint64_t, uint64_t> mwindow;
+  //  reuse_map_type<uint64_t, uint64_t> mwindow;
 
     uint64_t current;
 
@@ -98,7 +98,8 @@ protected:
     // store all stats
     // [id -> stats for this id]
     reuse_map_type<uint64_t, ReuseStats*> stats;
-
+    reuse_map_type<uint64_t,uint64_t*> PINReuseStats;
+    
     uint64_t capacity;
     uint64_t sequence;
     uint64_t binindividual;
@@ -106,6 +107,7 @@ protected:
 
     void Init(uint64_t w, uint64_t b);
     virtual ReuseStats* GetStats(uint64_t id, bool gen);
+    virtual uint64_t* GetPINStats(uint64_t id, bool gen);      
     virtual const std::string Describe() { return "REUSE"; }
 
 public:
@@ -331,7 +333,7 @@ public:
      *
      * @return none
      */
-    virtual void Print(std::ostream& f, bool annotate=false);
+    virtual void Print(std::ostream& f,reuse_map_type<uint64_t,uint64_t>& BinTotal, bool annotate=false);
 
     /**
      * Print information about the output format of ReuseStats
@@ -472,4 +474,5 @@ public:
      * @return none
      */
     virtual void SkipAddresses(uint64_t amount);
+    virtual void Print(std::ostream& f, bool annotate=false);    
 };
