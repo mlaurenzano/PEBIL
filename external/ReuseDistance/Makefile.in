@@ -4,7 +4,7 @@ LINKSHARED = -lpthread -shared
 BUILDSHARED = -fPIC
 INCLUDE = -I.
 INSTALLTO = @prefix@
-EXTOBJ = tree234.o
+EXTOBJ = tree234.o LRUDistanceAnalyzer.o
 
 CXX = @CXX@
 CXXFLAGS = @CXXFLAGS@ -g $(INCLUDE)
