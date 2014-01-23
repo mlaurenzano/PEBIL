@@ -40,7 +40,7 @@
 #include <map>
 #include <vector>
 #include<LRUDistanceAnalyzer.hpp>
-
+#include<math.h>
 // unordered_map is faster for many things, use it where sorted map isn't needed
 #ifdef HAVE_UNORDERED_MAP
 #include <unordered_map>

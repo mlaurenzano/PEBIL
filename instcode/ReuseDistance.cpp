@@ -1824,7 +1824,6 @@ void ReadSettings(){
 	if(SpatialWindow)
 		ReuseDistanceHandlers[SpatialHandlerIndex] = new SpatialLocality(SpatialWindow, SpatialBin, SpatialNMAX);
     }
-    cout<<"\n\t Stats \n\t\t CountMemoryHandlers "<<CountMemoryHandlers<<"\n\t\t CountReuseHandlers: "<<CountReuseHandlers<<"\n\t\t RangeHandlerIndex: "<<RangeHandlerIndex<<"\n\n";
     uint32_t SampleMax;
     uint32_t SampleOn;
     uint32_t SampleOff;
