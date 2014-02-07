@@ -51,7 +51,7 @@ install: $(PREREQ)
 	$(MAKE) -C src install
 	$(MAKE) -C tools install
 	$(MAKE) -C instcode install
-
+	cp external/ReuseDistance/libReuseDistance.so lib
 check: $(PREREQ)
 	$(MAKE) -C testapps check
 

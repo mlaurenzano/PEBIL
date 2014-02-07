@@ -50,7 +50,7 @@ void ReuseDistance::Init(uint64_t w, uint64_t b){
    // mwindow.clear(); //CAUTION: Dangerous practice!! :(
     LRUDistanceAnalyzer::Init(); // Does this need a protection mechanism?
     assert(ReuseDistance::Infinity == NULL && "NULL is non-zero!?");
-    cout<<"\n\t Reuse Distance's Init!! \n";
+   // cout<<"\n\t Reuse Distance's Init!! \n";
 }
 
 ReuseDistance::ReuseDistance(uint64_t w, uint64_t b){
@@ -294,7 +294,7 @@ cout<<"\n\t Spatial Locality's Print!! \n";
 
 
 void ReuseDistance::Print(ostream& f, bool annotate){
-    cout<<"\n\t Calling OutputResults!--! \n";
+   // cout<<"\n\t Calling OutputResults!--! \n";
     LRUDistanceAnalyzer::OutputResults();
     uint64_t total=0;
     uint64_t BinStats[BIN_SIZE];

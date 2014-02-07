@@ -32,7 +32,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <tree234.h>
-
+#include <math.h>
 #include <algorithm>
 #include <iostream>
 #include <ostream>

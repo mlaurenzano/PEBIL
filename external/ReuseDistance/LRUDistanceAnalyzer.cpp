@@ -363,14 +363,14 @@ unsigned range_tree::inspect(FILE *result_file) {
 
   ULONG i;
 
-  fprintf(result_file, "==>unit name: %s\taddr: [%p, %p]\nnum. of elements: %lu (element size is %lu)\nnum. of ranges: %lu\n", unit_name, starting_addr, ending_addr, ((ULONG)ending_addr-(ULONG)starting_addr)/element_size, element_size, (unsigned long)range_counter);
+//  fprintf(result_file, "==>unit name: %s\taddr: [%p, %p]\nnum. of elements: %lu (element size is %lu)\nnum. of ranges: %lu\n", unit_name, starting_addr, ending_addr, ((ULONG)ending_addr-(ULONG)starting_addr)/element_size, element_size, (unsigned long)range_counter);
 
   mem_range_t *ranges;
   ULONG num;
   to_array(&ranges, &num);
 
   for(i = 0; i < num; ++i)
-    fprintf(result_file, "\t(array index: %lu - %lu, addr: %p - %p, page %lu, size %lu)\n", (ranges[i].base - (ULONG)starting_addr)/element_size, (ranges[i].base + ranges[i].size - (ULONG)starting_addr)/element_size, (void *)ranges[i].base, (void *)(ranges[i].base + ranges[i].size), (unsigned long)ranges[i].base >> PAGESIZEX, (unsigned long)ranges[i].size);
+    //fprintf(result_file, "\t(array index: %lu - %lu, addr: %p - %p, page %lu, size %lu)\n", (ranges[i].base - (ULONG)starting_addr)/element_size, (ranges[i].base + ranges[i].size - (ULONG)starting_addr)/element_size, (void *)ranges[i].base, (void *)(ranges[i].base + ranges[i].size), (unsigned long)ranges[i].base >> PAGESIZEX, (unsigned long)ranges[i].size);
 
   return range_counter;
 }
@@ -1110,7 +1110,7 @@ mem_unit *mem_unit_list;
 #define SHORT_DISTANCE_THRESHOLD 10 //64K
 
 void get_exclusive_MRU_data(ULONG bin_num_for_csz) {
-  fprintf(result_file, "******cache size: %s******\n", upper_boundary_strings[bin_num_for_csz].c_str());
+  //fprintf(result_file, "******cache size: %s******\n", upper_boundary_strings[bin_num_for_csz].c_str());
   ULONG i, MRU_start, LRU_start;
   rtree_node *iter, *iter2, *last;
   rtree_node *MRU_rtree_list, *LRU_rtree_list;
@@ -1179,40 +1179,27 @@ void get_exclusive_MRU_data(ULONG bin_num_for_csz) {
   /* output the exclusive MRU data set */
   iter = MRU_rtree_list;
   while (iter != NULL) {
-    iter->rtree->inspect(result_file);
+   // iter->rtree->inspect(result_file);
     iter = iter->next;
   }
 }
  
 void OutputResults() {
 
-printf("\n\t In OutputResults() \n --- \n\n");
+//printf("\n\t In OutputResults() \n --- \n\n");
   ULONG i;
   comp_lru_reuse_dis();
   for (i=0;i<BIN_SIZE;i++) {
-    fprintf(result_file, "**BIN %lu at %s ** => %llu\n", i+1, upper_boundary_strings[i].c_str(), hist[i]);
-    fprintf(output_file, "%lu\t%llu\n", i+1, hist[i]);
+    // fprintf(result_file, "**BIN %lu at %s ** => %llu\n", i+1, upper_boundary_strings[i].c_str(), hist[i]);
     rtree_node *node = rtree_node_list[i];
     while (node != NULL) {
-      node->rtree->inspect(result_file);
+      // node->rtree->inspect(result_file);
       node = node->next;
     }
   }
-  fprintf(result_file, "=================================\n");
+
   total_time = gethrcycle_x86() - total_time;
-  fprintf(result_file, "total memeory accesses: %llu\n", counter);
-  fprintf(result_file, "hash table size: %llu\n", data_num);
-  fprintf(result_file, "scale tree size: %llu\n", trace_size);
-  fprintf(result_file, "total buffer processing times: %llu\n", processing_times);
-  fprintf(result_file, "total time: %f sec\n", total_time*1.0/(getMHZ_x86()*1000000));
-  fprintf(result_file, "analysis time: %f sec\n", analysis_time*1.0/(getMHZ_x86()*1000000));
-  fprintf(result_file, "=================================\n");
   mem_unit *unit = mem_unit_list;
-  while (unit != NULL) {
-    fprintf(result_file, "%s [%p,%p] with an element size %lu\n", unit->name, unit->starting_addr, unit->ending_addr, unit->element_size);
-    unit = unit->next;
-  }
-  fprintf(result_file, "=================================\n");
   
     //14=>1M 15=>2M 16=>4M 17=>8M 18=>16M 19=>32M
   get_exclusive_MRU_data(14);
@@ -1227,14 +1214,7 @@ printf("\n\t In OutputResults() \n --- \n\n");
 
 
 void Init() {
-	if(init_notcalled)
-	{
-		std::cout<<"\n\t Init is being called! \n";
-		init_notcalled=1;
-	}
-	else
-		std::cout<<"\n\t Init is being called while init_notcalled=0 !! \n";
-  ULONG i;
+   ULONG i;
 
   total_time = gethrcycle_x86();
   analysis_time = 0;
@@ -1253,8 +1233,6 @@ void Init() {
     hash_table[i] = NULL;
   allocate_hash_nodes();
 
-  output_file = fopen("LRU_dis.dat", "w");
-  result_file = fopen("LRU_results.txt", "w");
 
   current_state = PLAIN;
   mem_unit_list = NULL;
