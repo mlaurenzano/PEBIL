@@ -1770,25 +1770,25 @@ void ReadSettings(){
 
 
     // read caches to simulate
-    string cachedf = GetCacheDescriptionFile();
-    const char* cs = cachedf.c_str();
-    ifstream CacheFile(cs);
-    if (CacheFile.fail()){
-        ErrorExit("cannot open cache descriptions file: " << cachedf, MetasimError_FileOp);
-    }
+ //   string cachedf = GetCacheDescriptionFile();
+ //   const char* cs = cachedf.c_str();
+ //   ifstream CacheFile(cs);
+ //   if (CacheFile.fail()){
+  //      ErrorExit("cannot open cache descriptions file: " << cachedf, MetasimError_FileOp);
+  //  }
     
     string line;
     vector<CacheStructureHandler*> caches;
-    while (getline(CacheFile, line)){
-        if (IsEmptyComment(line)){
-            continue;
-        }
-        CacheStructureHandler* c = new CacheStructureHandler();
-        if (!c->Init(line)){
-            ErrorExit("cannot parse cache description line: " << line, MetasimError_StringParse);
-        }
-        caches.push_back(c);
-    }
+   // while (getline(CacheFile, line)){
+   //     if (IsEmptyComment(line)){
+    //        continue;
+    //    }
+     //   CacheStructureHandler* c = new CacheStructureHandler();
+     //   if (!c->Init(line)){
+      //      ErrorExit("cannot parse cache description line: " << line, MetasimError_StringParse);
+      //  }
+       // caches.push_back(c);
+   // }
 
     CountCacheStructures = caches.size();
     CountMemoryHandlers = CountCacheStructures;
@@ -1810,7 +1810,7 @@ void ReadSettings(){
 	SpatialHandlerIndex=-1;
 
 
-    assert(CountCacheStructures > 0 && "No cache structures found for simulation");
+ //   assert(CountCacheStructures > 0 && "No cache structures found for simulation");
 
     MemoryHandlers = new MemoryStreamHandler*[CountMemoryHandlers];
     for (uint32_t i = 0; i < CountCacheStructures; i++){
