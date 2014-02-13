@@ -3,7 +3,7 @@ PEBIL_LIBS =
 ifeq ($(STATIC_INST_LIB),yes)
 	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  libcounter.a  libsimulator.a
 else
-	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblooptimer.so libcounter.so libsimulator.so libfrequencyconfig.so libpapiinst.so
+	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblooptimer.so libcounter.so libsimulator.so
 endif
 
 LIB_TARGETS = $(PEBIL_LIBS)
