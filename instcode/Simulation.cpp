@@ -57,7 +57,9 @@ static uint32_t SpatialWindow = 0;
 static uint32_t SpatialBin = 0;
 static uint32_t SpatialNMAX = 0;
 
-//
+//These control Cache Simulation. Activate this feature by setting 
+// METASIM_CACHE_SIMULATION to something other than 0.
+static uint32_t CacheSimulation=0;
 
 // global data
 static uint32_t CountMemoryHandlers = 0;
@@ -379,12 +381,14 @@ extern "C" {
 
             FastStats->Refresh(buffer, numElements, tid);
           //  cout<<"\n\t ProcessThreadBuffer iid: "<<iid<<" tid "<<tid;            
-            for (uint32_t i = 0; i < CountMemoryHandlers; i++)
+            if(CacheSimulation)
             {
-                MemoryStreamHandler* m = stats->Handlers[i];
-                ProcessBuffer(i, m, numElements, iid, tid);
-            }
-	         	    
+		    for (uint32_t i = 0; i < CountMemoryHandlers; i++)
+		    {
+		        MemoryStreamHandler* m = stats->Handlers[i];
+		        ProcessBuffer(i, m, numElements, iid, tid);
+		    }
+	    }    	    
 	    if(ReuseWindow)
 	    {
 	        ReuseDistance* rd=NULL;
@@ -541,19 +545,11 @@ extern "C" {
             process_thread_buffer(iid, (*it));
         }
 
-
-        // dump cache simulation results
         ofstream MemFile;
         string oFile;
         const char* fileName;
-        SimulationFileName(stats, oFile);
-        fileName = oFile.c_str();
-
-        inform << "Printing cache simulation results to " << fileName << ENDL;
-        TryOpen(MemFile, fileName);
-
-
-        if (ReuseWindow){
+  
+          if (ReuseWindow){
    
 	    ofstream ReuseDistFile;
             ReuseDistFileName(stats, oFile);
@@ -599,7 +595,17 @@ extern "C" {
             }
             SpatialDistFile.close();
         }
+	inform<<"CacheSimulation Status: "<<CacheSimulation<<endl;
+        if(CacheSimulation)
+        {
+                // dump cache simulation results
 
+        SimulationFileName(stats, oFile);
+        fileName = oFile.c_str();
+
+        inform << "Printing cache simulation results to " << fileName << ENDL;
+        TryOpen(MemFile, fileName);
+         
         uint64_t sampledCount = 0;
         uint64_t totalMemop = 0;
         for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
@@ -814,7 +820,7 @@ extern "C" {
         inform << "CXXX Total Execution time for instrumented application: " << t << ENDL;
         double m = (double)(CountCacheStructures * Sampler->AccessCount);
         inform << "CXXX Memops simulated (includes only sampled memops in cache structures) per second: " << (m/t) << ENDL;
-
+	}
         if (NonmaxKeys){
             delete NonmaxKeys;
         }
@@ -1929,27 +1935,30 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
     stats->imageid = iid;
     // cout<<"\n\t GenerateCacheStats -- tid "<<tid<<" stats->threadid "<<(stats->threadid)<<" iid "<<iid;
     // every thread and image gets its own statistics
-    stats->Stats = new StreamStats*[CountMemoryHandlers];
-    bzero(stats->Stats, sizeof(StreamStats*) * CountMemoryHandlers);
-    for (uint32_t i = 0; i < CountCacheStructures; i++){
-        CacheStructureHandler* c = (CacheStructureHandler*)MemoryHandlers[i];
-        stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->InstructionCount);
+    if(CacheSimulation)
+    {
+	    stats->Stats = new StreamStats*[CountMemoryHandlers];
+	    bzero(stats->Stats, sizeof(StreamStats*) * CountMemoryHandlers);
+	    for (uint32_t i = 0; i < CountCacheStructures; i++){
+		CacheStructureHandler* c = (CacheStructureHandler*)MemoryHandlers[i];
+		stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->InstructionCount);
+	    }
+	    stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
+
+	    // all images within a thread share a set of memory handlers, but they don't exist for any image
+	    if (typ == AllData->ThreadType || (iid == firstimage)){
+		stats->Handlers = new MemoryStreamHandler*[CountMemoryHandlers];
+		for (uint32_t i = 0; i < CountCacheStructures; i++){
+		    CacheStructureHandler* p = (CacheStructureHandler*)MemoryHandlers[i];
+		    CacheStructureHandler* c = new CacheStructureHandler(*p);
+		    stats->Handlers[i] = c;
+		}
+
+		AddressRangeHandler* p = (AddressRangeHandler*)MemoryHandlers[RangeHandlerIndex];
+		AddressRangeHandler* r = new AddressRangeHandler(*p);
+		stats->Handlers[RangeHandlerIndex] = r;
+		}
     }
-    stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
-
-    // all images within a thread share a set of memory handlers, but they don't exist for any image
-    if (typ == AllData->ThreadType || (iid == firstimage)){
-        stats->Handlers = new MemoryStreamHandler*[CountMemoryHandlers];
-        for (uint32_t i = 0; i < CountCacheStructures; i++){
-            CacheStructureHandler* p = (CacheStructureHandler*)MemoryHandlers[i];
-            CacheStructureHandler* c = new CacheStructureHandler(*p);
-            stats->Handlers[i] = c;
-        }
-
-        AddressRangeHandler* p = (AddressRangeHandler*)MemoryHandlers[RangeHandlerIndex];
-        AddressRangeHandler* r = new AddressRangeHandler(*p);
-        stats->Handlers[RangeHandlerIndex] = r;
-
         if (ReuseWindow || SpatialWindow){
 	    stats->RHandlers = new ReuseDistance*[CountReuseHandlers]; // We have a set of reuse handlers (reuse, spatial) per thread
 	    if(ReuseWindow)
@@ -1957,7 +1966,7 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
 	    if(SpatialWindow)
 	    	stats->RHandlers[SpatialHandlerIndex] = new SpatialLocality(SpatialWindow, SpatialBin, SpatialNMAX);
         } 
-    } else 
+    else 
     {
         SimulationStats * fs = AllData->GetData(firstimage, tid);
         stats->Handlers = fs->Handlers;
@@ -2020,8 +2029,11 @@ void ReadSettings(){
     	    SpatialNMAX = ReuseDistance::Infinity;
     	}
     }
+    if (!ReadEnvUint32("METASIM_CACHE_SIMULATION", &CacheSimulation)){
+       CacheSimulation = 0;
+    }
 
-
+	cout<<"\n\t Cache Simulation "<<CacheSimulation<<endl;
     // read caches to simulate
     string cachedf = GetCacheDescriptionFile();
     const char* cs = cachedf.c_str();
@@ -2030,46 +2042,50 @@ void ReadSettings(){
         ErrorExit("cannot open cache descriptions file: " << cachedf, MetasimError_FileOp);
     }
     
-    string line;
-    vector<CacheStructureHandler*> caches;
-    while (getline(CacheFile, line)){
-        if (IsEmptyComment(line)){
-            continue;
-        }
-        CacheStructureHandler* c = new CacheStructureHandler();
-        if (!c->Init(line)){
-            ErrorExit("cannot parse cache description line: " << line, MetasimError_StringParse);
-        }
-        caches.push_back(c);
+    if(CacheSimulation)
+    {
+	    string line;
+	    vector<CacheStructureHandler*> caches;
+	    while (getline(CacheFile, line)){
+		if (IsEmptyComment(line)){
+		    continue;
+		}
+		CacheStructureHandler* c = new CacheStructureHandler();
+		if (!c->Init(line)){
+		    ErrorExit("cannot parse cache description line: " << line, MetasimError_StringParse);
+		}
+		caches.push_back(c);
+	    }
+
+	    CountCacheStructures = caches.size();
+	    CountMemoryHandlers = CountCacheStructures;
+
+	    RangeHandlerIndex = CountMemoryHandlers;
+	    CountMemoryHandlers++;
+
+	    if(ReuseWindow){
+		ReuseHandlerIndex=0;
+		CountReuseHandlers++;
+	    }
+	    else
+		ReuseHandlerIndex=-1;
+	    if(SpatialWindow) {
+		SpatialHandlerIndex=ReuseHandlerIndex+1;
+		CountReuseHandlers++;
+	    }
+	    else
+		SpatialHandlerIndex=-1;
+
+
+	    assert(CountCacheStructures > 0 && "No cache structures found for simulation");
+
+	    MemoryHandlers = new MemoryStreamHandler*[CountMemoryHandlers];
+	    for (uint32_t i = 0; i < CountCacheStructures; i++){
+		MemoryHandlers[i] = caches[i];
+	    }
+	    
+	    MemoryHandlers[RangeHandlerIndex] = new AddressRangeHandler();
     }
-
-    CountCacheStructures = caches.size();
-    CountMemoryHandlers = CountCacheStructures;
-
-    RangeHandlerIndex = CountMemoryHandlers;
-    CountMemoryHandlers++;
-
-    if(ReuseWindow){
-	ReuseHandlerIndex=0;
-	CountReuseHandlers++;
-    }
-    else
-	ReuseHandlerIndex=-1;
-    if(SpatialWindow) {
-	SpatialHandlerIndex=ReuseHandlerIndex+1;
-	CountReuseHandlers++;
-    }
-    else
-	SpatialHandlerIndex=-1;
-
-
-    assert(CountCacheStructures > 0 && "No cache structures found for simulation");
-
-    MemoryHandlers = new MemoryStreamHandler*[CountMemoryHandlers];
-    for (uint32_t i = 0; i < CountCacheStructures; i++){
-        MemoryHandlers[i] = caches[i];
-    }
-    MemoryHandlers[RangeHandlerIndex] = new AddressRangeHandler();
     cout<<"\n\t ReuseHandlerIndex: "<<ReuseHandlerIndex<<" SpatialHandlerIndex "<<SpatialHandlerIndex; 
     if (ReuseWindow || SpatialWindow){
     	ReuseDistanceHandlers = new ReuseDistance*[CountReuseHandlers];
