@@ -61,6 +61,11 @@ static uint32_t SpatialNMAX = 0;
 // METASIM_CACHE_SIMULATION to something other than 0.
 static uint32_t CacheSimulation=0;
 
+//These control Address Range Calculation. Activate this feature by setting 
+// METASIM_ADDRESS_RANGE to something other than 0.
+static uint32_t AddressRangeEnable=0;
+
+
 // global data
 static uint32_t CountMemoryHandlers = 0;
 static uint32_t CountReuseHandlers = 0;
@@ -381,12 +386,13 @@ extern "C" {
 
             FastStats->Refresh(buffer, numElements, tid);
           //  cout<<"\n\t ProcessThreadBuffer iid: "<<iid<<" tid "<<tid;            
-            if(CacheSimulation)
+            if((CacheSimulation||AddressRangeEnable))
             {
 		    for (uint32_t i = 0; i < CountMemoryHandlers; i++)
 		    {
 		        MemoryStreamHandler* m = stats->Handlers[i];
 		        ProcessBuffer(i, m, numElements, iid, tid);
+		        cout<<"\n\t Done with Cache MemoryHandler: "<<i;
 		    }
 	    }    	    
 	    if(ReuseWindow)
@@ -1072,7 +1078,7 @@ void AddressRangeHandler::Process(void* stats, BufferEntry* access){
     uint32_t memid = (uint32_t)access->memseq;
     uint64_t addr = access->address;
     RangeStats* rs = (RangeStats*)stats;
-
+    cout<<"\n\t AddressRangeHandler::Process of memid "<<memid<<" address "<<addr;
     rs->Update(memid, addr);
 }
 
@@ -1935,29 +1941,43 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
     stats->imageid = iid;
     // cout<<"\n\t GenerateCacheStats -- tid "<<tid<<" stats->threadid "<<(stats->threadid)<<" iid "<<iid;
     // every thread and image gets its own statistics
-    if(CacheSimulation)
+    if(CacheSimulation||AddressRangeEnable)
     {
 	    stats->Stats = new StreamStats*[CountMemoryHandlers];
-	    bzero(stats->Stats, sizeof(StreamStats*) * CountMemoryHandlers);
+	    bzero(stats->Stats, sizeof(StreamStats*) * CountMemoryHandlers);    
+	    if (typ == AllData->ThreadType || (iid == firstimage))
+		stats->Handlers = new MemoryStreamHandler*[CountMemoryHandlers];   
+    }
+    
+    if(CacheSimulation)
+    {
+
 	    for (uint32_t i = 0; i < CountCacheStructures; i++){
 		CacheStructureHandler* c = (CacheStructureHandler*)MemoryHandlers[i];
 		stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->InstructionCount);
 	    }
-	    stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
-
 	    // all images within a thread share a set of memory handlers, but they don't exist for any image
 	    if (typ == AllData->ThreadType || (iid == firstimage)){
-		stats->Handlers = new MemoryStreamHandler*[CountMemoryHandlers];
 		for (uint32_t i = 0; i < CountCacheStructures; i++){
 		    CacheStructureHandler* p = (CacheStructureHandler*)MemoryHandlers[i];
 		    CacheStructureHandler* c = new CacheStructureHandler(*p);
 		    stats->Handlers[i] = c;
 		}
 
+		}
+    }
+    if(AddressRangeEnable)
+    {
+	    
+	    stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
+
+	    // all images within a thread share a set of memory handlers, but they don't exist for any image
+	    if (typ == AllData->ThreadType || (iid == firstimage)){
 		AddressRangeHandler* p = (AddressRangeHandler*)MemoryHandlers[RangeHandlerIndex];
 		AddressRangeHandler* r = new AddressRangeHandler(*p);
 		stats->Handlers[RangeHandlerIndex] = r;
-		}
+		}   
+    
     }
         if (ReuseWindow || SpatialWindow){
 	    stats->RHandlers = new ReuseDistance*[CountReuseHandlers]; // We have a set of reuse handlers (reuse, spatial) per thread
@@ -2032,8 +2052,11 @@ void ReadSettings(){
     if (!ReadEnvUint32("METASIM_CACHE_SIMULATION", &CacheSimulation)){
        CacheSimulation = 0;
     }
+    if (!ReadEnvUint32("METASIM_ADDRESS_RANGE", &AddressRangeEnable)){
+       AddressRangeEnable = 0;
+    }    
 
-	cout<<"\n\t Cache Simulation "<<CacheSimulation<<endl;
+	cout<<"\n\t Cache Simulation "<<CacheSimulation<<" AddressRangeEnable "<<AddressRangeEnable<<endl;
     // read caches to simulate
     string cachedf = GetCacheDescriptionFile();
     const char* cs = cachedf.c_str();
@@ -2059,34 +2082,41 @@ void ReadSettings(){
 
 	    CountCacheStructures = caches.size();
 	    CountMemoryHandlers = CountCacheStructures;
+  	    assert(CountCacheStructures > 0 && "No cache structures found for simulation");
+	     MemoryHandlers = new MemoryStreamHandler*[CountMemoryHandlers];
+	     for (uint32_t i = 0; i < CountCacheStructures; i++){
+			MemoryHandlers[i] = caches[i];
+	     }  	    
+     }
+     
 
-	    RangeHandlerIndex = CountMemoryHandlers;
-	    CountMemoryHandlers++;
-
-	    if(ReuseWindow){
-		ReuseHandlerIndex=0;
-		CountReuseHandlers++;
-	    }
-	    else
-		ReuseHandlerIndex=-1;
-	    if(SpatialWindow) {
-		SpatialHandlerIndex=ReuseHandlerIndex+1;
-		CountReuseHandlers++;
-	    }
-	    else
-		SpatialHandlerIndex=-1;
-
-
-	    assert(CountCacheStructures > 0 && "No cache structures found for simulation");
-
-	    MemoryHandlers = new MemoryStreamHandler*[CountMemoryHandlers];
-	    for (uint32_t i = 0; i < CountCacheStructures; i++){
-		MemoryHandlers[i] = caches[i];
-	    }
-	    
-	    MemoryHandlers[RangeHandlerIndex] = new AddressRangeHandler();
-    }
     cout<<"\n\t ReuseHandlerIndex: "<<ReuseHandlerIndex<<" SpatialHandlerIndex "<<SpatialHandlerIndex; 
+
+    if(AddressRangeEnable)
+    {
+	    RangeHandlerIndex = CountMemoryHandlers;
+	    CountMemoryHandlers++;  
+    	    if(!CacheSimulation)
+    	    {
+    	    	MemoryHandlers = new MemoryStreamHandler*[CountMemoryHandlers];
+    	    }
+   	    
+	    MemoryHandlers[RangeHandlerIndex] = new AddressRangeHandler();   
+    }
+
+    if(ReuseWindow){
+	ReuseHandlerIndex=0;
+	CountReuseHandlers++;
+    }
+    else
+	ReuseHandlerIndex=-1;
+    if(SpatialWindow) {
+	SpatialHandlerIndex=ReuseHandlerIndex+1;
+	CountReuseHandlers++;
+    }
+    else
+	SpatialHandlerIndex=-1;    
+    
     if (ReuseWindow || SpatialWindow){
     	ReuseDistanceHandlers = new ReuseDistance*[CountReuseHandlers];
 	if(ReuseWindow)
