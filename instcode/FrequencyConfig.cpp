@@ -61,12 +61,9 @@ FrequencyConfig* GenerateFrequencyConfig(FrequencyConfig* fconfig, uint32_t typ,
     retval->loopHashes = fconfig->loopHashes;
     retval->frequencyMap = new uint32_t[retval->loopCount];
     retval->ipsMap = new float[retval->loopCount];
-    retval->frequencies = fconfig->frequencies;
-    retval->frequencyTable = new uint32_t[retval->frequencies];
 
     bzero(retval->frequencyMap, sizeof(uint32_t) * retval->loopCount);
     bzero(retval->ipsMap, sizeof(float) * retval->loopCount);
-    bzero(retval->frequencyTable, sizeof(uint32_t) * retval->frequencies);
     return retval;
 }
 
@@ -194,12 +191,12 @@ extern "C"
             if(ips<mips) {
                 if(fconfig->frequencyMap[loopIndex]>=fconfig->frequencyTable[fconfig->frequencies-2]) {
                   fprintf(stderr,"Disabled scaling for loop %d\n", loopIndex);
-                  fconfig->frequencyMap[loopIndex] = 0;
+                  fconfig->frequencyMap[loopIndex] = fconfig->frequencyTable[fconfig->frequencies-1];
                 }
                 else {
                   fprintf(stderr,"Increased frequency for loop %d\n", loopIndex);
                   //fconfig->frequencyMap[loopIndex] = (fconfig->frequencyTable[fconfig->frequencies-1]-fconfig->frequencyMap[loopIndex])*(1-(mips-ips)/ips)+fconfig->frequencyMap[loopIndex];
-                  fconfig->frequencyMap[loopIndex] = 0;
+                  fconfig->frequencyMap[loopIndex] = fconfig->frequencyTable[fconfig->frequencies-1];
                 }
             }
             else
@@ -212,12 +209,12 @@ extern "C"
             if(ips<mips) {
                 if(fconfig->frequencyMap[loopIndex]>=(MAXMOD+fconfig->extMod-2)) {
                   fprintf(stderr,"Disabled modulation for loop %d\n", loopIndex);
-                  fconfig->frequencyMap[loopIndex] = 0;
+                  fconfig->frequencyMap[loopIndex] = MAXMOD;
                 }
                 else {
                   fprintf(stderr,"Reduced modulation for loop %d\n", loopIndex);
                   //fconfig->frequencyMap[loopIndex] = (MAXMOD+fconfig->frequencyMap[loopIndex])/2;
-                  fconfig->frequencyMap[loopIndex] = 0;
+                  fconfig->frequencyMap[loopIndex] = MAXMOD;
                 }
             }
             else

@@ -637,7 +637,12 @@ extern "C" {
                 assert(st);
 
                 // compile per-instruction stats into blocks
-                RangeStats* aggrange = new RangeStats(st->InstructionCount);
+                RangeStats* aggrange;
+                if(st->PerInstruction) {
+                    aggrange = new RangeStats(st->InstructionCount);
+                } else {
+                    aggrange = new RangeStats(st->BlockCount);
+                }
                 for (uint32_t memid = 0; memid < st->InstructionCount; memid++){
                     uint32_t bbid;
                     RangeStats* r = (RangeStats*)st->Stats[RangeHandlerIndex];
