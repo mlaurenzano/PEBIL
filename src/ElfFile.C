@@ -240,6 +240,10 @@ DataReference* ElfFile::generateDataRef(uint64_t loc, RawSection* sec, uint64_t 
         specialDataRefs[off] = ref;
     } else {
         ref = specialDataRefs[off];
+        RawSection* oldSection = ref->getSection();
+        if(oldSection != sec) {
+            PRINT_WARN(7, "ElfFile::generateDataRef: creating data ref with conflicting section for offset 0x%llx", off);
+        }
     }
 
     return ref;
@@ -1719,7 +1723,7 @@ uint32_t ElfFile::anchorProgramElements(){
                     currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
                 }
             }
-
+            
             // search non-text sections
             if (!currentInstruction->getAddressAnchor()){
                 for (uint32_t i = 0; i < getNumberOfSections(); i++){
@@ -1762,8 +1766,19 @@ uint32_t ElfFile::anchorProgramElements(){
                 }
             }
 
+            if(!currentInstruction->getAddressAnchor()){
+                // Warn if address was found in a text section that didn't generate instructions
+                for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
+                    TextSection* textSect = getTextSection(i);
+                    if(textSect->inRange(relativeAddress)) {
+                        TextObject* textObj = textSect->getObjectWithAddress(relativeAddress);
+                        PRINT_WARN(7, "Relative Address 0x%llx found in object %s", relativeAddress, textObj->getName());
+                    }
+                }
+            }
+
             if (!currentInstruction->getAddressAnchor()){
-                PRINT_WARN(4, "Creating special AddressRelocation for %#llx at the behest of the instruction at %#llx since it wasn't an instruction or part of a data section",
+                PRINT_WARN(7, "Creating special AddressRelocation for %#llx at the behest of the instruction at %#llx since it wasn't an instruction or part of a data section",
                            relativeAddress, currentInstruction->getBaseAddress());
                 DataReference* dataRef = generateDataRef(0, NULL, addrAlign, relativeAddress);
                 currentInstruction->initializeAnchor(dataRef);

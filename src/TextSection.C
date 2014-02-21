@@ -96,6 +96,15 @@ uint32_t FreeText::getAllInstructions(X86Instruction** allinsts, uint32_t nexti)
     return instructionCount;
 }
 
+TextObject* TextSection::getObjectWithAddress(uint64_t addr){
+    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+        if(sortedTextObjects[i]->inRange(addr)) {
+            return sortedTextObjects[i];
+        }
+    }
+    return NULL;
+}
+
 uint32_t TextSection::getAllInstructions(X86Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
     for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
@@ -375,7 +384,16 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
                 fprintf(stdout, "pebil_function_list %s\n", ((Function*)sortedTextObjects.back())->getName());
 #endif
             } else if (textSymbols[i]->isTextObjectSymbol(this)){
-                sortedTextObjects.append(new FreeText(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size, false));
+                bool hasInstructions;
+                // FIXME is this always true?
+                if(textSymbols[i]->getSymbolType() == STT_NOTYPE &&
+                   (textSymbols[i]->getSymbolBinding() == STB_LOCAL || textSymbols[i]->getSymbolBinding() == STB_GLOBAL)) {
+                    hasInstructions = true;
+                } else {
+                    hasInstructions = false;
+                }
+                   
+                sortedTextObjects.append(new FreeText(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size, hasInstructions));
                 ASSERT(!sortedTextObjects.back()->isFunction());
             } else {
                 PRINT_ERROR("Unknown symbol type found to be associated with text section");
