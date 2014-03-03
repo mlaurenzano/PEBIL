@@ -276,18 +276,18 @@ cout<<"\n\t Spatial Locality's Print!! \n";
         BinTotalKeys.push_back(it->first);
     }
     sort(BinTotalKeys.begin(), BinTotalKeys.end());
-    uint64_t Total=0;
-    for (vector<uint64_t>::const_iterator it = BinTotalKeys.begin(); it != BinTotalKeys.end(); it++)
-    {
-        uint64_t id = (*it);
-        uint64_t range=( (2*(id-1)) - id  );
-        if(id==0)
-        	range=0;
-	f<<"\n\t Bin: "<<id<<" Range: "<<range<<" Count: "<<BinTotal[id];
-	Total+=BinTotal[id];
-    }
-    f<<"\n\t Total Accesses: "<<Total;
-    f<<endl;
+//    uint64_t Total=0;
+//    for (vector<uint64_t>::const_iterator it = BinTotalKeys.begin(); it != BinTotalKeys.end(); it++)
+//    {
+//        uint64_t id = (*it);
+//        uint64_t range=( (2*(id-1)) - id  );
+//        if(id==0)
+//        	range=0;
+//	f<<"\n\t Bin: "<<id<<" Range: "<<range<<" Count: "<<BinTotal[id];
+//	Total+=BinTotal[id];
+//    }
+    //f<<"\n\t Total Accesses: "<<Total;
+    //f<<endl;
       
     
 }
@@ -307,7 +307,7 @@ for(reuse_map_type<uint64_t,uint64_t*>::const_iterator it=PINReuseStats.begin();
 	{
 		if(it->second[i])
 		{
-		   f<<"\n\t I: "<<i<<" "<<((int)(pow(2,(i-1))+1))<<" : "<<((int)(pow(2,i)))<<" Hits: "<<it->second[i];
+		   f<<"\n\t  "<<((int)(pow(2,(i-1))+1))<<" : "<<((int)(pow(2,i)))<<" "<<it->second[i];
 		   total+=it->second[i];
 		   BinStats[i]+=it->second[i];
 		}
