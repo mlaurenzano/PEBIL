@@ -315,13 +315,13 @@ for(reuse_map_type<uint64_t,uint64_t*>::const_iterator it=PINReuseStats.begin();
 	}
 
 }
-	f<<"\n\n";
-	for(int i=0;i<BIN_SIZE;i++)
-	{
-	    if(BinStats[i])
-	    f<<"\n\t Bin: "<<i<<dec<<" Hits: "<<BinStats[i];
-	}
-	f<<"\n\n\n\t Total hits: "<<total<<"\n\n";
+//	f<<"\n\n";
+//	for(int i=0;i<BIN_SIZE;i++)
+//	{
+//	    if(BinStats[i])
+//	    f<<"\n\t Bin: "<<i<<dec<<" Hits: "<<BinStats[i];
+//	}
+//	f<<"\n\n\n\t Total hits: "<<total<<"\n\n";
     
     return;
  /*   vector<uint64_t> keys;
