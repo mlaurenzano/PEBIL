@@ -2080,47 +2080,44 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
     {
 	    stats->Stats = new StreamStats*[CountMemoryHandlers];
 	    bzero(stats->Stats, sizeof(StreamStats*) * CountMemoryHandlers);    
-	    if (typ == AllData->ThreadType || (iid == firstimage))
-		stats->Handlers = new MemoryStreamHandler*[CountMemoryHandlers];   
     }
-    
-    if(CacheSimulation)
+    if (typ == AllData->ThreadType || (iid == firstimage))
     {
+    		stats->Handlers = new MemoryStreamHandler*[CountMemoryHandlers];   
+    
+	    if(CacheSimulation)
+	    {
 
-	    for (uint32_t i = 0; i < CountCacheStructures; i++){
-		CacheStructureHandler* c = (CacheStructureHandler*)MemoryHandlers[i];
-		stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->InstructionCount);
+		    for (uint32_t i = 0; i < CountCacheStructures; i++){
+			CacheStructureHandler* c = (CacheStructureHandler*)MemoryHandlers[i];
+			stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->InstructionCount);
+		    }
+		    // all images within a thread share a set of memory handlers, but they don't exist for any image
+			for (uint32_t i = 0; i < CountCacheStructures; i++){
+			    CacheStructureHandler* p = (CacheStructureHandler*)MemoryHandlers[i];
+			    CacheStructureHandler* c = new CacheStructureHandler(*p);
+			    stats->Handlers[i] = c;
+			}
 	    }
-	    // all images within a thread share a set of memory handlers, but they don't exist for any image
-	    if (typ == AllData->ThreadType || (iid == firstimage)){
-		for (uint32_t i = 0; i < CountCacheStructures; i++){
-		    CacheStructureHandler* p = (CacheStructureHandler*)MemoryHandlers[i];
-		    CacheStructureHandler* c = new CacheStructureHandler(*p);
-		    stats->Handlers[i] = c;
-		}
+	    if(AddressRangeEnable)
+	    {
+		    
+		    stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
 
-		}
-    }
-    if(AddressRangeEnable)
-    {
+		    // all images within a thread share a set of memory handlers, but they don't exist for any image
+			AddressRangeHandler* p = (AddressRangeHandler*)MemoryHandlers[RangeHandlerIndex];
+			AddressRangeHandler* r = new AddressRangeHandler(*p);
+			stats->Handlers[RangeHandlerIndex] = r;
 	    
-	    stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
-
-	    // all images within a thread share a set of memory handlers, but they don't exist for any image
-	    if (typ == AllData->ThreadType || (iid == firstimage)){
-		AddressRangeHandler* p = (AddressRangeHandler*)MemoryHandlers[RangeHandlerIndex];
-		AddressRangeHandler* r = new AddressRangeHandler(*p);
-		stats->Handlers[RangeHandlerIndex] = r;
-		}   
-    
+	    }
+		if (ReuseWindow || SpatialWindow){
+		    stats->RHandlers = new ReuseDistance*[CountReuseHandlers]; // We have a set of reuse handlers (reuse, spatial) per thread
+		    if(ReuseWindow)
+			    stats->RHandlers[ReuseHandlerIndex] = new ReuseDistance(ReuseWindow, ReuseBin);
+		    if(SpatialWindow)
+		    	stats->RHandlers[SpatialHandlerIndex] = new SpatialLocality(SpatialWindow, SpatialBin, SpatialNMAX);
+		} 
     }
-        if (ReuseWindow || SpatialWindow){
-	    stats->RHandlers = new ReuseDistance*[CountReuseHandlers]; // We have a set of reuse handlers (reuse, spatial) per thread
-	    if(ReuseWindow)
-		    stats->RHandlers[ReuseHandlerIndex] = new ReuseDistance(ReuseWindow, ReuseBin);
-	    if(SpatialWindow)
-	    	stats->RHandlers[SpatialHandlerIndex] = new SpatialLocality(SpatialWindow, SpatialBin, SpatialNMAX);
-        } 
     else 
     {
         SimulationStats * fs = AllData->GetData(firstimage, tid);
