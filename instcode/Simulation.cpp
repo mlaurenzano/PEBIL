@@ -600,8 +600,14 @@ extern "C" {
             }
             SpatialDistFile.close();
         }
-	inform<<"CacheSimulation switch: "<<CacheSimulation<<" address range switch: "<<AddressRangeEnable<<endl;
-        if(CacheSimulation||AddressRangeEnable)
+//	inform<<"CacheSimulation switch: "<<CacheSimulation<<" address range switch: "<<AddressRangeEnable<<endl;
+       if(!(CacheSimulation || AddressRangeEnable))
+        {    
+                double t = (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)); 
+                inform<<"CXXX Total Execution time for instrumented application: " << t << END
+        }    
+
+        else if(CacheSimulation||AddressRangeEnable)
         {
                 // dump cache simulation results
 	bool BothRangeAndSimulation = (AddressRangeEnable&&CacheSimulation); 
