@@ -2058,6 +2058,7 @@ void CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
 
 // called for every new image and thread
 SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_key_t iid, thread_key_t tid, image_key_t firstimage){
+ 
     assert(stats);
     SimulationStats* s = stats;
 
