@@ -24,6 +24,26 @@ static struct ud_itab_entry ie_invalid = { UD_Iinvalid, O_NONE, O_NONE, O_NONE, 
 static struct ud_itab_entry ie_pause   = { UD_Ipause,   O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none };
 static struct ud_itab_entry ie_nop     = { UD_Inop,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none };
 
+struct modrm {
+  unsigned char modrm;
+  int position;
+  char set;
+};
+
+static inline unsigned char get_modrm(struct ud* u, struct modrm* modrm)
+{
+  if(!modrm->set) {
+    modrm->modrm = inp_next(u);
+    modrm->position = ud_insn_len(u);
+    modrm->set = 1;
+  }
+  return modrm->modrm;
+}
+
+static inline void clear_modrm(struct modrm* modrm)
+{
+  modrm->set = 0;
+}
 
 /* Looks up mnemonic code in the mnemonic string table
  * Returns NULL if the mnemonic code is invalid
@@ -395,10 +415,12 @@ static int search_itab( struct ud * u )
             PEBIL_DEBUG("VEX.L must be zero");
             u->error = 1;
         } 
+/*
         if (P_VEXL(ud_itab_list[ tableid ][ curr ].prefix) && !VEX_L(u->avx_vex[0])){
             PEBIL_DEBUG("VEX.L must be non-zero");
             u->error = 1;
         }
+*/
     }
     /* end PEBIL */
 
@@ -547,6 +569,8 @@ static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
         return ( u->opr_mode == 16 ) ? 32 : u->opr_mode;
     case SZ_RDQ:
         return ( u->dis_mode == 64 ) ? 64 : 32;
+    case SZ_X:
+        return (P_VEXL(u->itab_entry->prefix)) && VEX_L(u->avx_vex[0]) ? SZ_Y : SZ_X;
     default:
         return s;
     }
@@ -695,6 +719,29 @@ resolve_reg(struct ud* u, unsigned int type, unsigned char i)
   }
 }
 
+static void decode_vex_pp(struct ud* u)
+{
+    uint8_t vex = u->avx_vex[0];
+    uint8_t ext;
+    switch(VEX_PP(vex)){
+        case 0:
+          ext = 0x00;
+          break;
+        case 1:
+          ext = 0x66;
+          break;
+        case 2:
+          ext = 0xF3;
+          break;
+        case 3:
+          ext = 0xF2;
+          break;
+        default:
+          assert(0);
+    }
+    u->pfx_avx = ext;
+}
+
 /* -----------------------------------------------------------------------------
  * decode_vex() - Decodes a vex byte for AVX instructions
  * -----------------------------------------------------------------------------
@@ -751,6 +798,21 @@ static unsigned char decode_vex ( struct ud* u )
     return rtype;
 }
 
+static void decode_vex_vvvv(struct ud* u,
+        struct ud_operand* op,
+        unsigned int size)
+{
+    uint8_t vex = u->avx_vex[0];
+    unsigned char rtype = VEX_L(vex) ? T_YMM : T_XMM;
+    enum ud_type reg = resolve_reg(u, rtype, VEX_VVVV(vex));
+
+    op->type = UD_OP_REG;
+    op->base = reg;
+    op->size = rtype == T_YMM ? 256 : 128;
+    op->position = u->pfx_insn == 0xC4 ? 2 : 1;
+}
+
+
 /* -----------------------------------------------------------------------------
  * clear_operand() - clear operand pointer 
  * -----------------------------------------------------------------------------
@@ -783,6 +845,184 @@ decode_imm(struct ud* u, unsigned int s, struct ud_operand *op)
         return;
   }
 }
+
+/* -----------------------------------------------------------------------------
+ * decode_modrm_rm() - Decodes ModRM.r/m
+ * -----------------------------------------------------------------------------
+ */
+static void 
+decode_modrm_rm(struct ud* u,
+        struct modrm* modrm,
+        struct ud_operand *op,
+        unsigned int size, 
+        unsigned char type)
+{
+  unsigned char modrm_byte = get_modrm(u, modrm);
+  op->position = modrm->position;
+
+  unsigned char mod, rm;
+
+
+  /* get mod, r/m and reg fields */
+  mod = MODRM_MOD(modrm_byte);
+  rm  = (REX_B(u->pfx_rex) << 3) | MODRM_RM(modrm_byte);
+
+  op->size = resolve_operand_size(u, size);
+
+  /* if mod is 11b, then the UD_R_m specifies a gpr/mmx/sse/control/debug */
+  if (mod == 3) {
+    op->type = UD_OP_REG;
+    if (type ==  T_GPR)
+        op->base = decode_gpr(u, op->size, rm);
+    else    op->base = resolve_reg(u, type, (REX_B(u->pfx_rex) << 3) | (rm&7));
+  } 
+  /* else its memory addressing */  
+  else {
+    op->type = UD_OP_MEM;
+
+    /* 64bit addressing */
+    if (u->adr_mode == 64) {
+
+        op->base = UD_R_RAX + rm;
+
+        /* get offset type */
+        if (mod == 1)
+            op->offset = 8;
+        else if (mod == 2)
+            op->offset = 32;
+        else if (mod == 0 && (rm & 7) == 5) {           
+            op->base = UD_R_RIP;
+            op->offset = 32;
+        } else  op->offset = 0;
+
+        /* Scale-Index-Base (SIB) */
+        if ((rm & 7) == 4) {
+            inp_next(u);
+            
+            op->scale = (1 << SIB_S(inp_curr(u))) & ~1;
+            op->index = UD_R_RAX + (SIB_I(inp_curr(u)) | (REX_X(u->pfx_rex) << 3));
+            op->base  = UD_R_RAX + (SIB_B(inp_curr(u)) | (REX_B(u->pfx_rex) << 3));
+
+            /* special conditions for base reference */
+            if (op->index == UD_R_RSP) {
+                op->index = UD_NONE;
+                op->scale = UD_NONE;
+            }
+
+            if (op->base == UD_R_RBP || op->base == UD_R_R13) {
+                if (mod == 0) 
+                    op->base = UD_NONE;
+                if (mod == 1)
+                    op->offset = 8;
+                else op->offset = 32;
+            }
+        }
+    } 
+
+    /* 32-Bit addressing mode */
+    else if (u->adr_mode == 32) {
+
+        /* get base */
+        op->base = UD_R_EAX + rm;
+
+        /* get offset type */
+        if (mod == 1)
+            op->offset = 8;
+        else if (mod == 2)
+            op->offset = 32;
+        else if (mod == 0 && rm == 5) {
+            op->base = UD_NONE;
+            op->offset = 32;
+        } else  op->offset = 0;
+
+        /* Scale-Index-Base (SIB) */
+        if ((rm & 7) == 4) {
+            inp_next(u);
+
+            op->scale = (1 << SIB_S(inp_curr(u))) & ~1;
+            op->index = UD_R_EAX + (SIB_I(inp_curr(u)) | (REX_X(u->pfx_rex) << 3));
+            op->base  = UD_R_EAX + (SIB_B(inp_curr(u)) | (REX_B(u->pfx_rex) << 3));
+
+            if (op->index == UD_R_ESP) {
+                op->index = UD_NONE;
+                op->scale = UD_NONE;
+            }
+
+            /* special condition for base reference */
+            if (op->base == UD_R_EBP) {
+                if (mod == 0)
+                    op->base = UD_NONE;
+                if (mod == 1)
+                    op->offset = 8;
+                else op->offset = 32;
+            }
+        }
+    } 
+
+    /* 16bit addressing mode */
+    else  {
+        switch (rm) {
+            case 0: op->base = UD_R_BX; op->index = UD_R_SI; break;
+            case 1: op->base = UD_R_BX; op->index = UD_R_DI; break;
+            case 2: op->base = UD_R_BP; op->index = UD_R_SI; break;
+            case 3: op->base = UD_R_BP; op->index = UD_R_DI; break;
+            case 4: op->base = UD_R_SI; break;
+            case 5: op->base = UD_R_DI; break;
+            case 6: op->base = UD_R_BP; break;
+            case 7: op->base = UD_R_BX; break;
+        }
+
+        if (mod == 0 && rm == 6) {
+            op->offset= 16;
+            op->base = UD_NONE;
+        }
+        else if (mod == 1)
+            op->offset = 8;
+        else if (mod == 2) 
+            op->offset = 16;
+    }
+  }  
+
+  /* extract offset, if any */
+  switch(op->offset) {
+    case 8 : op->lval.ubyte  = inp_uint8(u);  break;
+    case 16: op->lval.uword  = inp_uint16(u);  break;
+    case 32: op->lval.udword = inp_uint32(u); break;
+    case 64: op->lval.uqword = inp_uint64(u); break;
+    default: break;
+  }
+
+
+}
+
+/* -----------------------------------------------------------------------------
+ * decode_modrm_reg() - Decodes ModRM.reg as register
+ * -----------------------------------------------------------------------------
+ */
+static void 
+decode_modrm_reg(struct ud* u,
+         struct modrm* modrm,
+         struct ud_operand *op,
+         unsigned char reg_size,
+         unsigned char reg_type)
+{
+  unsigned char modrm_byte = get_modrm(u, modrm);
+  op->position = modrm->position;
+
+  unsigned char reg;
+
+  reg = (REX_R(u->pfx_rex) << 3) | MODRM_REG(modrm_byte);
+
+  op->type = UD_OP_REG;
+  op->size = resolve_operand_size(u, reg_size);
+
+  if (reg_type == T_GPR) 
+      op->base = decode_gpr(u, op->size, reg);
+  else op->base = resolve_reg(u, reg_type, reg);
+}
+
+
+
 
 /* -----------------------------------------------------------------------------
  * decode_modrm() - Decodes ModRM Byte
@@ -968,6 +1208,198 @@ decode_o(struct ud* u, unsigned int s, struct ud_operand *op)
   op->type = UD_OP_MEM;
   op->size = resolve_operand_size(u, s);
 }
+
+
+static int disasm_operand1(register struct ud* u,
+        struct modrm* modrm,
+        struct ud_operand* operand,
+        enum ud_operand_code type,
+        unsigned int size)
+{
+  switch(type) {
+    case OP_A:
+      decode_a(u, operand);
+      break;
+
+    case OP_M:
+      if(MODRM_MOD(get_modrm(u, modrm))==3) u->error=1;
+      // fallthrough
+    case OP_E:
+      decode_modrm_rm(u, modrm, operand, size, T_GPR);
+      break;
+
+    case OP_G:
+      decode_modrm_reg(u, modrm, operand, size, T_GPR); 
+      break;
+
+    case OP_I:
+      decode_imm(u, size, operand);
+      break;
+
+    case OP_AL: case OP_CL: case OP_DL: case OP_BL:
+    case OP_AH: case OP_CH: case OP_DH: case OP_BH:
+      operand->type = UD_OP_REG;
+      operand->base = UD_R_AL + (type - OP_AL);
+      operand->size = 8;
+      break;
+
+    case OP_ALr8b:  case OP_CLr9b:  case OP_DLr10b:  case OP_BLr11b:
+    case OP_AHr12b: case OP_CHr13b: case OP_DHr14b:  case OP_BHr15b:
+    {
+      ud_type_t gpr = (type - OP_ALr8b) + UD_R_AL +
+                      (REX_B(u->pfx_rex) << 3);
+      if(UD_R_AH <= gpr && u->pfx_rex)
+          gpr = gpr + 4;
+      operand->type = UD_OP_REG;
+      operand->base = gpr;
+      break;
+    }
+
+    case OP_AX:
+      operand->type = UD_OP_REG;
+      operand->base = UD_R_AX;
+      operand->size = 16;
+      break;
+
+    //case OP_CX:
+    case OP_DX:
+      operand->type = UD_OP_REG;
+      operand->base = UD_R_DX;
+      operand->size = 16;
+      break;
+
+    //case OP_BX:
+    //case OP_SI:     case OP_DI:     case OP_SP:      case OP_BP:
+
+    case OP_rAX:    case OP_rCX:    case OP_rDX:     case OP_rBX:
+    case OP_rSP:    case OP_rBP:    case OP_rSI:     case OP_rDI:
+    case OP_rAXr8:  case OP_rCXr9:  case OP_rDXr10:  case OP_rBXr11:  
+    case OP_rSPr12: case OP_rBPr13: case OP_rSIr14:  case OP_rDIr15:
+      operand->type = UD_OP_REG;
+      operand->base = resolve_gpr64(u, type);
+      operand->size = size;
+      break;
+
+    case OP_eAX:    case OP_eCX:    case OP_eDX:     case OP_eBX:
+    case OP_eSP:    case OP_eBP:    case OP_eSI:     case OP_eDI:
+      operand->type = UD_OP_REG;
+      operand->base = resolve_gpr32(u, type);
+      operand->size = size;
+      break;
+
+    case OP_ES:     case OP_CS:     case OP_SS:      case OP_DS:  
+    case OP_FS:     case OP_GS:
+      operand->type = UD_OP_REG;
+      operand->base = type - OP_ES + UD_R_ES;
+      operand->size = 16;
+      break;
+
+    case OP_ST0:    case OP_ST1:    case OP_ST2:     case OP_ST3:
+    case OP_ST4:    case OP_ST5:    case OP_ST6:     case OP_ST7:
+      operand->type = UD_OP_REG;
+      operand->base = type-OP_ST0 + UD_R_ST0;
+      operand->size = 0;
+      break;
+
+    case OP_J:
+      decode_imm(u, size, operand);
+      operand->type = UD_OP_JIMM;
+      break;
+
+    case OP_S:
+      decode_modrm_reg(u, modrm, operand, size, T_SEG);
+      break;
+
+    case OP_O:
+      decode_o(u, size, operand);
+      break;
+
+    case OP_I1:
+      operand->type = UD_OP_CONST;
+      operand->lval.udword = 1;
+      break;
+
+    case OP_I3: 
+      operand->type = UD_OP_CONST;
+      operand->lval.sbyte = 3;
+      break;
+
+    case OP_V:
+      decode_modrm_reg(u, modrm, operand, size, T_XMM);
+      break;
+
+    case OP_W:
+      decode_modrm_rm(u, modrm, operand, size, T_XMM);
+      break;
+
+    case OP_Q:
+      decode_modrm_rm(u, modrm, operand, size, T_MMX);
+      break;
+
+    case OP_P:
+      decode_modrm_reg(u, modrm, operand, size, T_MMX);
+      break;
+
+    case OP_R:
+      decode_modrm_rm(u, modrm, operand, size, T_GPR);
+      break;
+
+    case OP_C:
+      decode_modrm_reg(u, modrm, operand, size, T_CRG);
+      break;
+
+    case OP_D:
+      decode_modrm_reg(u, modrm, operand, size, T_DBG);
+      break;
+
+    case OP_VR:
+      if(MODRM_MOD(get_modrm(u, modrm)) != 3) u->error = 1;
+      decode_modrm_rm(u, modrm, operand, size, T_XMM);
+      break;
+
+    case OP_PR:
+      if(MODRM_MOD(get_modrm(u, modrm)) != 3) u->error = 1;
+      decode_modrm_rm(u, modrm, operand, size, T_MMX);
+      break;
+
+    case OP_X:
+      decode_vex_vvvv(u, operand, size);
+      break;
+
+    default:
+      assert(0);
+
+  }
+  return 0;
+}
+
+static int disasm_operands1(register struct ud* u)
+{
+  struct modrm modrm;
+  clear_modrm(&modrm);
+
+  u->operand[0].type = UD_NONE;
+  u->operand[1].type = UD_NONE;
+  u->operand[2].type = UD_NONE;
+  u->operand[3].type = UD_NONE;
+
+  int retval = 0;
+
+  if (u->itab_entry->operand1.type == UD_NONE) return retval;
+  retval |= disasm_operand1(u, &modrm, &u->operand[0], u->itab_entry->operand1.type, u->itab_entry->operand1.size);
+
+  if( u->itab_entry->operand2.type == UD_NONE) return retval;
+  retval |= disasm_operand1(u, &modrm, &u->operand[1], u->itab_entry->operand2.type, u->itab_entry->operand2.size);
+
+  if( u->itab_entry->operand3.type == UD_NONE) return retval;
+  retval |= disasm_operand1(u, &modrm, &u->operand[2], u->itab_entry->operand3.type, u->itab_entry->operand3.size);
+
+  if( u->itab_entry->operand4.type == UD_NONE) return retval;;
+  retval |= disasm_operand1(u, &modrm, &u->operand[3], u->itab_entry->operand4.type, u->itab_entry->operand4.size);
+
+  return retval;
+}
+
 
 /* -----------------------------------------------------------------------------
  * disasm_operands() - Disassembles Operands.
@@ -1630,7 +2062,7 @@ unsigned int ud_decode( struct ud* u )
     ; /* error */
   } else if ( do_mode( u ) != 0 ) {
     ; /* error */
-  } else if ( disasm_operands( u ) != 0 ) {
+  } else if ( disasm_operands1( u ) != 0 ) {
     ; /* error */
   } else if ( resolve_mnemonic( u ) != 0 ) {
     ; /* error */
