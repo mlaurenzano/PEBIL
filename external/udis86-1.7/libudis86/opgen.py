@@ -191,7 +191,7 @@ pfx_dict = {
     "rexx"     : "P_rexx",  
     "rexr"     : "P_rexr",
     "vexlz"    : "P_vexlz",
-    "vexl"     : "P_vexl",
+    "vexlig"   : "P_vexlig",
     "vexix"    : "P_vexix",
     "inv64"    : "P_inv64", 
     "def64"    : "P_def64", 
@@ -449,13 +449,13 @@ for node in tlNode.childNodes:
             elif op[0:3] == 'AVX':
                 table_avx = op[3:]
             elif op == '0F' and len(table_sse) and len(table_avx):
-                table_name = "itab__avx_" + table_avx + "__pfx_" + table_sse + "__0f"
+                table_name = "itab__avx__pfx_" + table_sse + "__0f"
                 table_size = 256
                 table_avx = ''
                 table_index = op
                 table_avxdone += 1
             elif op == '0F' and len(table_avx):
-                table_name = "itab__avx_%s__0f" % table_avx
+                table_name = "itab__avx__0f"
                 table_size = 256
                 table_avx  = ''
                 table_avxdone += 1
