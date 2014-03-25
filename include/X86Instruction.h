@@ -73,12 +73,15 @@ class TextObject;
 #define IS_X87_REG(__reg) ((__reg >= UD_R_ST0) && (__reg <= UD_R_ST7))
 #define IS_XMM_REG(__reg) ((__reg >= UD_R_XMM0) && (__reg <= UD_R_XMM15))
 #define IS_YMM_REG(__reg) ((__reg >= UD_R_YMM0) && (__reg <= UD_R_YMM15))
+#define IS_ZMM_REG(__reg) ((__reg >= UD_R_ZMM0) && (__reg <= UD_R_ZMM31))
+#define IS_K_REG(__reg) ((__reg >= UD_R_K0) && (__reg <= UD_R_K7))
 #define IS_PC_REG(__reg) (__reg == UD_R_RIP)
 #define IS_OPERAND_TYPE(__opr) ((__opr >= UD_OP_REG) && (__opr <= UD_OP_CONST))
 
 #define IS_GPR(__reg) (IS_8BIT_GPR(__reg) || IS_16BIT_GPR(__reg) || IS_32BIT_GPR(__reg) || IS_64BIT_GPR(__reg))
 #define IS_REG(__reg) (IS_GPR(__reg) || IS_SEGMENT_REG(__reg) || IS_CONTROL_REG(__reg) || IS_DEBUG_REG(__reg) || \
-                       IS_MMX_REG(__reg) || IS_X87_REG(__reg) || IS_XMM_REG(__reg) || IS_YMM_REG(__reg) || IS_PC_REG(__reg))
+                       IS_MMX_REG(__reg) || IS_X87_REG(__reg) || IS_XMM_REG(__reg) || IS_YMM_REG(__reg) || \
+                       IS_ZMM_REG(__reg) || IS_K_REG(__reg) || IS_PC_REG(__reg))
 #define IS_ALU_REG(__reg) (IS_GPR(__reg) || IS_XMM_REG(__reg))
 
 #define IS_LOADADDR(__mne) (__mne == UD_Ilea)
@@ -368,6 +371,8 @@ typedef enum {
     RegType_X87,
     RegType_XMM,
     RegType_YMM,
+    RegType_ZMM,
+    RegType_K,
     RegType_PC,
     RegType_Total_Types
 } RegTypes;
@@ -643,6 +648,7 @@ private:
 
 public:
     static bool verify();
+    static void generateTable();
 
     static X86InstructionBin getInstructionBin(X86Instruction* x);
     static uint8_t getInstructionMemLocation(X86Instruction* x);

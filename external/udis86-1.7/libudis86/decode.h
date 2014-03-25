@@ -107,6 +107,8 @@
 #define T_SEG   5
 #define T_XMM   6
 #define T_YMM   7
+#define T_ZMM   8
+#define T_K     9
 
 /* itab prefix bits */
 #define P_none          ( 0 )
@@ -181,6 +183,29 @@
 #define VEX_VVVV(b)      ( ( ( ~( b ) ) >> 3 ) & 15 )
 #define VEX_REX_DEF(b, x, r, w) (((b & 1) << 0) | ((x & 1) << 1) | ((r & 1) << 2) | ((w & 1) << 3))
 
+// MVEX byte 0
+#define P_MVEX(n)        ( n == 0x62 )
+
+// MVEX byte 1
+#define MVEX_R(b)        ( ( ~( b ) >> 7 ) & 1 )
+#define MVEX_X(b)        ( ( ~( b ) >> 6 ) & 1 )
+#define MVEX_B(b)        ( ( ~( b ) >> 5 ) & 1 )
+#define MVEX_RP(b)       ( ( ~( b ) >> 4 ) & 1 )
+#define MVEX_M4(b)       ( ( ( b ) >> 0 ) & 15 )
+
+// MVEX byte 2
+#define MVEX_W(b)        ( ( ( b ) >> 7 ) & 1 )
+#define MVEX_VVVV(b)     ( ( ( ~b ) >> 3 ) & 15 )
+#define MVEX_PP(b)       ( ( ( b ) >> 0 ) & 3 )
+
+// MVEX byte 3
+#define MVEX_E(b)        ( ( ( b ) >> 7 ) & 1 )
+#define MVEX_SSS(b)      ( ( ( b ) >> 4 ) & 7 )
+#define MVEX_VP(b)       ( ( ( ~b ) >> 3 ) & 1 )
+#define MVEX_KKK(b)      ( ( ( b ) >> 0 ) & 7 )
+
+#define MVEX_REX_DEF(b,x,r,w) VEX_REX_DEF(b,x,r,w)
+
 /* operand type constants -- order is important! */
 
 enum ud_operand_code {
@@ -219,7 +244,9 @@ enum ud_operand_code {
     OP_V,      OP_W,      OP_Q,       OP_P, 
 
     OP_R,      OP_C,  OP_D,       OP_VR,  OP_PR,
-    OP_X,      OP_x
+    OP_X,
+    OP_ZR,     OP_ZM, OP_ZRM, OP_ZV, OP_ZVM,
+    OP_KR, OP_KRM, OP_KV
 };
 
 
@@ -245,7 +272,8 @@ enum ud_operand_size {
     SZ_Q   = 64,
     SZ_T   = 80,
     SZ_X   = 128,
-    SZ_Y   = 256
+    SZ_Y   = 256,
+    SZ_XZ   = 512
 };
 
 /* itab entry operand definitions */
@@ -270,6 +298,7 @@ enum ud_operand_size {
 #define O_Ov      { OP_O,        SZ_V     }
 #define O_Gw      { OP_G,        SZ_W     }
 #define O_Gv      { OP_G,        SZ_V     }
+#define O_Gq      { OP_G,        SZ_Q     }
 #define O_rDX     { OP_rDX,      SZ_NA    }
 #define O_Gx      { OP_G,        SZ_MDQ   }
 #define O_Gd      { OP_G,        SZ_D     }
@@ -296,7 +325,7 @@ enum ud_operand_size {
 #define O_Mt      { OP_M,        SZ_T     }
 #define O_S       { OP_S,        SZ_NA    }
 #define O_Mq      { OP_M,        SZ_Q     }
-#define O_X       { OP_X,        SZ_NA    }
+#define O_X       { OP_X,        SZ_X     }
 #define O_x       { OP_x,        SZ_NA    }
 #define O_W       { OP_W,        SZ_NA    }
 #define O_Wd      { OP_W,        SZ_D     }
@@ -376,6 +405,15 @@ enum ud_operand_size {
 #define O_Ib      { OP_I,        SZ_B     }
 #define O_BHr15b  { OP_BHr15b,   SZ_NA    }
 
+#define O_ZR      { OP_ZR,       SZ_XZ    }
+#define O_ZM      { OP_ZM,       SZ_XZ    }
+#define O_ZRM     { OP_ZRM,      SZ_XZ    }
+#define O_ZV      { OP_ZV,       SZ_XZ    }
+#define O_ZVM     { OP_ZVM,      SZ_XZ    }
+
+#define O_KR      { OP_KR,       SZ_W     }
+#define O_KRM     { OP_KRM,      SZ_W     }
+#define O_KV      { OP_KV,       SZ_W     }
 
 /* A single operand of an entry in the instruction table. 
  * (internal use only)

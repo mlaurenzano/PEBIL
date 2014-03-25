@@ -1299,7 +1299,7 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
                     fprintf(staticFD, "\t+vec\t%dx%d:%d:%d # %#llx\n", elemsInReg, bytesInElem << 3, fpcnt, intcnt, hashValue);
 
                 } else {
-                    fprintf(debugFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
+                    fprintf(debugFD, "%s, %d, %d\n", ud_mnemonics_str[ins->GET(mnemonic)], bytesInElem, bytesInReg);
                 }
 
             } else {

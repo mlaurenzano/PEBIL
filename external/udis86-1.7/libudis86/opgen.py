@@ -26,6 +26,7 @@ spl_mnm_types = [   'totaltypes', \
                     'grp_osize',  \
                     'grp_asize',  \
                     'grp_mod',    \
+                    'grp_w',      \
                     'none'        \
                 ]
 
@@ -52,8 +53,8 @@ mode_dict   = {
 # opcode-operand dictionary
 #
 operand_dict = {
-    "Ap"       : [    "OP_A"        , "SZ_P"     ],
-    "E"        : [    "OP_E"        , "SZ_NA"    ],
+    "Ap"       : [    "OP_A"        , "SZ_P"     ], # seg:offset
+    "E"        : [    "OP_E"        , "SZ_NA"    ], # GPR/m stored in ModRm.rm
     "Eb"       : [    "OP_E"        , "SZ_B"     ],
     "Ew"       : [    "OP_E"        , "SZ_W"     ],
     "Ev"       : [    "OP_E"        , "SZ_V"     ],
@@ -62,7 +63,7 @@ operand_dict = {
     "Ez"       : [    "OP_E"        , "SZ_Z"     ],
     "Ex"       : [    "OP_E"        , "SZ_MDQ"   ],
     "Ep"       : [    "OP_E"        , "SZ_P"     ],
-    "G"        : [    "OP_G"        , "SZ_NA"    ],
+    "G"        : [    "OP_G"        , "SZ_NA"    ], # GPR stored in ModRm.reg
     "Gb"       : [    "OP_G"        , "SZ_B"     ],
     "Gw"       : [    "OP_G"        , "SZ_W"     ],
     "Gv"       : [    "OP_G"        , "SZ_V"     ],
@@ -70,49 +71,49 @@ operand_dict = {
     "Gd"       : [    "OP_G"        , "SZ_D"     ],
     "Gx"       : [    "OP_G"        , "SZ_MDQ"   ],
     "Gz"       : [    "OP_G"        , "SZ_Z"     ],
-    "M"        : [    "OP_M"        , "SZ_NA"    ],
+    "Gq"       : [    "OP_G"        , "SZ_Q"     ],
+    "M"        : [    "OP_M"        , "SZ_NA"    ], # m in ModRm.rm
     "Mb"       : [    "OP_M"        , "SZ_B"     ],
     "Mw"       : [    "OP_M"        , "SZ_W"     ],
     "Ms"       : [    "OP_M"        , "SZ_W"     ],
     "Md"       : [    "OP_M"        , "SZ_D"     ],
     "Mq"       : [    "OP_M"        , "SZ_Q"     ],
     "Mt"       : [    "OP_M"        , "SZ_T"     ],
-    "I1"       : [    "OP_I1"       , "SZ_NA"    ],
-    "I3"       : [    "OP_I3"       , "SZ_NA"    ],
-    "Ib"       : [    "OP_I"        , "SZ_B"     ],
+    "I1"       : [    "OP_I1"       , "SZ_NA"    ], # Implied constant 1
+    "I3"       : [    "OP_I3"       , "SZ_NA"    ], # Implied constant 3
+    "Ib"       : [    "OP_I"        , "SZ_B"     ], # Immediate
     "Isb"      : [    "OP_I"        , "SZ_SB"    ],
     "Iw"       : [    "OP_I"        , "SZ_W"     ],
     "Iv"       : [    "OP_I"        , "SZ_V"     ],
     "Iz"       : [    "OP_I"        , "SZ_Z"     ],
-    "Jv"       : [    "OP_J"        , "SZ_V"     ],
+    "Jv"       : [    "OP_J"        , "SZ_V"     ], # Immediate for a jump
     "Jz"       : [    "OP_J"        , "SZ_Z"     ],
     "Jb"       : [    "OP_J"        , "SZ_B"     ],
-    "R"        : [    "OP_R"        , "SZ_RDQ"   ], 
-    "C"        : [    "OP_C"        , "SZ_NA"    ],
-    "D"        : [    "OP_D"        , "SZ_NA"    ],
-    "S"        : [    "OP_S"        , "SZ_NA"    ],
-    "Ob"       : [    "OP_O"        , "SZ_B"     ],
+    "R"        : [    "OP_R"        , "SZ_RDQ"   ], # GPR/m in ModRm.rm, same as E but implies size RDQ
+    "C"        : [    "OP_C"        , "SZ_NA"    ], # CRG in ModRm.reg
+    "D"        : [    "OP_D"        , "SZ_NA"    ], # DBG in ModRm.reg
+    "S"        : [    "OP_S"        , "SZ_NA"    ], # SEG in ModRm.reg
+    "Ob"       : [    "OP_O"        , "SZ_B"     ], # An offset
     "Ow"       : [    "OP_O"        , "SZ_W"     ],
     "Ov"       : [    "OP_O"        , "SZ_V"     ],
-    "X"        : [    "OP_X"        , "SZ_NA"    ],
-    "x"        : [    "OP_x"        , "SZ_NA"    ],
-    "V"        : [    "OP_V"        , "SZ_NA"    ],
+    "X"        : [    "OP_X"        , "SZ_X"     ], # xmm/ymm reg in VEX.vvvv
+    "V"        : [    "OP_V"        , "SZ_NA"    ], # xmm/ymm reg in ModRm.reg
     "Vd"       : [    "OP_V"        , "SZ_D"     ],
     "Vq"       : [    "OP_V"        , "SZ_Q"     ],
     "Vx"       : [    "OP_V"        , "SZ_X"     ],
-    "W"        : [    "OP_W"        , "SZ_NA"    ],
+    "W"        : [    "OP_W"        , "SZ_NA"    ], # xmm/ymm/m in ModRm.rm
     "Wd"       : [    "OP_W"        , "SZ_D"     ],
     "Wq"       : [    "OP_W"        , "SZ_Q"     ],
     "Wx"       : [    "OP_W"        , "SZ_X"     ],
-    "P"        : [    "OP_P"        , "SZ_NA"    ],
+    "P"        : [    "OP_P"        , "SZ_NA"    ], # mmx in ModRm.reg
     "Pq"       : [    "OP_P"        , "SZ_Q"     ],
     "Q"        : [    "OP_Q"        , "SZ_NA"    ],
-    "Qq"       : [    "OP_Q"        , "SZ_Q"     ],
-    "VR"       : [    "OP_VR"       , "SZ_NA"    ],
+    "Qq"       : [    "OP_Q"        , "SZ_Q"     ], # mmx/m in ModRm.rm
+    "VR"       : [    "OP_VR"       , "SZ_NA"    ], # xmm reg in ModRm.rm
     "VRx"      : [    "OP_VR"       , "SZ_X"     ],
-    "PR"       : [    "OP_PR"       , "SZ_NA"    ],
+    "PR"       : [    "OP_PR"       , "SZ_NA"    ], # mmx reg in ModRm.rm
     "PRq"      : [    "OP_PR"       , "SZ_Q"     ],
-    "AL"       : [    "OP_AL"       , "SZ_NA"    ],
+    "AL"       : [    "OP_AL"       , "SZ_NA"    ], # specific 8 bit GPR
     "CL"       : [    "OP_CL"       , "SZ_NA"    ],
     "DL"       : [    "OP_DL"       , "SZ_NA"    ],
     "BL"       : [    "OP_BL"       , "SZ_NA"    ],
@@ -120,7 +121,7 @@ operand_dict = {
     "CH"       : [    "OP_CH"       , "SZ_NA"    ],
     "DH"       : [    "OP_DH"       , "SZ_NA"    ],
     "BH"       : [    "OP_BH"       , "SZ_NA"    ],
-    "AX"       : [    "OP_AX"       , "SZ_NA"    ],
+    "AX"       : [    "OP_AX"       , "SZ_NA"    ], # specific 16 bit GPR
     "CX"       : [    "OP_CX"       , "SZ_NA"    ],
     "DX"       : [    "OP_DX"       , "SZ_NA"    ],
     "BX"       : [    "OP_BX"       , "SZ_NA"    ],
@@ -128,7 +129,7 @@ operand_dict = {
     "DI"       : [    "OP_DI"       , "SZ_NA"    ],
     "SP"       : [    "OP_SP"       , "SZ_NA"    ],
     "BP"       : [    "OP_BP"       , "SZ_NA"    ],
-    "eAX"      : [    "OP_eAX"      , "SZ_NA"    ],
+    "eAX"      : [    "OP_eAX"      , "SZ_NA"    ], # specific 32 bit GPR
     "eCX"      : [    "OP_eCX"      , "SZ_NA"    ],
     "eDX"      : [    "OP_eDX"      , "SZ_NA"    ],
     "eBX"      : [    "OP_eBX"      , "SZ_NA"    ],
@@ -136,7 +137,7 @@ operand_dict = {
     "eDI"      : [    "OP_eDI"      , "SZ_NA"    ],
     "eSP"      : [    "OP_eSP"      , "SZ_NA"    ],
     "eBP"      : [    "OP_eBP"      , "SZ_NA"    ],
-    "rAX"      : [    "OP_rAX"      , "SZ_NA"    ],
+    "rAX"      : [    "OP_rAX"      , "SZ_NA"    ], # specific 64 bit GPR
     "rCX"      : [    "OP_rCX"      , "SZ_NA"    ],
     "rBX"      : [    "OP_rBX"      , "SZ_NA"    ],
     "rDX"      : [    "OP_rDX"      , "SZ_NA"    ],
@@ -144,13 +145,13 @@ operand_dict = {
     "rDI"      : [    "OP_rDI"      , "SZ_NA"    ],
     "rSP"      : [    "OP_rSP"      , "SZ_NA"    ],
     "rBP"      : [    "OP_rBP"      , "SZ_NA"    ],
-    "ES"       : [    "OP_ES"       , "SZ_NA"    ],
+    "ES"       : [    "OP_ES"       , "SZ_NA"    ], # specific segment register
     "CS"       : [    "OP_CS"       , "SZ_NA"    ],
     "DS"       : [    "OP_DS"       , "SZ_NA"    ],
     "SS"       : [    "OP_SS"       , "SZ_NA"    ],
     "GS"       : [    "OP_GS"       , "SZ_NA"    ],
     "FS"       : [    "OP_FS"       , "SZ_NA"    ],
-    "ST0"      : [    "OP_ST0"      , "SZ_NA"    ],
+    "ST0"      : [    "OP_ST0"      , "SZ_NA"    ], # specific FP register
     "ST1"      : [    "OP_ST1"      , "SZ_NA"    ],
     "ST2"      : [    "OP_ST2"      , "SZ_NA"    ],
     "ST3"      : [    "OP_ST3"      , "SZ_NA"    ],
@@ -158,8 +159,7 @@ operand_dict = {
     "ST5"      : [    "OP_ST5"      , "SZ_NA"    ],
     "ST6"      : [    "OP_ST6"      , "SZ_NA"    ],
     "ST7"      : [    "OP_ST7"      , "SZ_NA"    ],
-    "NONE"     : [    "OP_NONE"     , "SZ_NA"    ],
-    "ALr8b"    : [    "OP_ALr8b"    , "SZ_NA"    ],
+    "ALr8b"    : [    "OP_ALr8b"    , "SZ_NA"    ], # specific GPR
     "CLr9b"    : [    "OP_CLr9b"    , "SZ_NA"    ],
     "DLr10b"   : [    "OP_DLr10b"   , "SZ_NA"    ],
     "BLr11b"   : [    "OP_BLr11b"   , "SZ_NA"    ],
@@ -175,8 +175,18 @@ operand_dict = {
     "rBPr13"   : [    "OP_rBPr13"   , "SZ_NA"    ],
     "rSIr14"   : [    "OP_rSIr14"   , "SZ_NA"    ],
     "rDIr15"   : [    "OP_rDIr15"   , "SZ_NA"    ],
-    "jWP"      : [    "OP_J"        , "SZ_WP"    ],
+    "jWP"      : [    "OP_J"        , "SZ_WP"    ], # jump immediate
     "jDP"      : [    "OP_J"        , "SZ_DP"    ],
+
+    "ZR"       : [    "OP_ZR"       , "SZ_XZ"     ], # zmm in R':R:reg
+    "ZM"       : [    "OP_ZM"       , "SZ_XZ"     ], # Mem in ModRm.rm
+    "ZRM"      : [    "OP_ZRM"      , "SZ_XZ"     ], # zmm/m in X:B:ModRm.rm
+    "ZV"       : [    "OP_ZV"       , "SZ_XZ"     ], # zmm in V'vvvv
+    "ZVM"      : [    "OP_ZVM"      , "SZ_XZ"     ], # Vector memory addresses
+
+    "KR"       : [    "OP_KR"       , "SZ_W"      ], # K register in ModRm.reg
+    "KRM"      : [    "OP_KRM"      , "SZ_W"      ], # K register in ModRm.rm
+    "KV"       : [    "OP_KV"       , "SZ_W"      ], # K register in MVEX.vvvv
 
 }
 
@@ -300,9 +310,9 @@ for node in tlNode.childNodes:
     # check if this instruction was already defined.
     # else add it to the global list of mnemonics
     mnemonic = node.attributes['mnemonic'].value
-    if mnemonic in mnm_list:
-        print "error: multiple declarations of mnemonic='%s'" % mnemonic;
-        sys.exit(-1)
+    #if mnemonic in mnm_list:
+    #    print "error: multiple declarations of mnemonic='%s'" % mnemonic;
+    #    sys.exit(-1)
 
     if len(node.childNodes) == 0:
         insert_mnm(mnemonic)
@@ -444,21 +454,25 @@ for node in tlNode.childNodes:
         table_index  = ''
         
         for op in opc:
-            if op[0:3] == 'SSE':
+            if op[0:4] == 'MVEX':
+                table_avx = op[0:4]
+            elif op[0:3] == 'SSE':
                 table_sse = op
             elif op[0:3] == 'AVX':
-                table_avx = op[3:]
+                table_avx = op[0:3]
+                table_avxdone = 1
+            elif op[0:3] == 'VEX':
+                table_avx = 'AVX'
+                table_name = "itab__avx"
             elif op == '0F' and len(table_sse) and len(table_avx):
-                table_name = "itab__avx__pfx_" + table_sse + "__0f"
+                table_name = "itab__" + table_avx + "__pfx_" + table_sse + "__0f"
                 table_size = 256
                 table_avx = ''
                 table_index = op
-                table_avxdone += 1
             elif op == '0F' and len(table_avx):
-                table_name = "itab__avx__0f"
+                table_name = "itab__" + table_avx + "__0f"
                 table_size = 256
                 table_avx  = ''
-                table_avxdone += 1
             elif op == '0F' and len(table_sse):
                 table_name = "itab__pfx_%s__0f" % table_sse
                 table_size = 256
@@ -534,6 +548,14 @@ for node in tlNode.childNodes:
             elif op[0:6] == '/3DNOW':
                 table_name  = "itab__3dnow"
                 table_size  = 256
+            elif op[0:3] == "/W=":
+                tables[table_name][table_index] = { \
+                    'type' : 'grp_w', \
+                    'name' : "%s__op_%s__w" % (table_name, table_index) \
+                }
+                table_name = tables[table_name][table_index]['name']
+                table_index = "%02X" % int(op[3:4])
+                table_size = 2
             elif op[0:1] == '/':
                 tables[table_name][table_index] = { \
                     'type' : 'grp_reg',  \
@@ -625,11 +647,9 @@ f.write( "};\n\n" )
 # Generate mnemonics list
 #
 f.write("\nenum ud_mnemonic_code {\n")
-smnm = mnm_list
-smnm.sort()
-for m in smnm:
-    f.write("  UD_I%s,\n" % m)
-for m in spl_mnm_types:
+mnm_list.sort()
+mnm_list = mnm_list + spl_mnm_types
+for m in mnm_list:
     f.write("  UD_I%s,\n" % m)
 f.write("};\n\n")
 

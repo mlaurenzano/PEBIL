@@ -1134,10 +1134,11 @@ int64_t OperandX86::getValue(){
     } else if (getBytesUsed() == sizeof(uint64_t)){
         value = (int64_t)GET_A(sqword, lval);
         // TODO: for now we just yield 0 for types larger than 64 (xmm/ymm)
-    } else if (getBytesUsed() == sizeof(uint64_t) + sizeof(uint64_t)){
+    } else if (getBytesUsed() == sizeof(uint64_t) * 2){
         value = 0;
-    } else if (getBytesUsed() == sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint64_t)){
+    } else if (getBytesUsed() == sizeof(uint64_t) * 4){
         value = 0;
+    } else if (getBytesUsed() == sizeof(uint64_t) * 8) {
     } else { 
         print();
         PRINT_INFOR("%s", instruction->GET(insn_buffer));
@@ -1701,7 +1702,8 @@ bool OperandX86::verify(){
             GET(size) != 64 &&
             GET(size) != 80 &&
             GET(size) != 128 &&
-            GET(size) != 256){
+            GET(size) != 256 &&
+            GET(size) != 512){
             print();
             PRINT_ERROR("Illegal operand size %d", GET(size));
             return false;
@@ -1749,6 +1751,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     memcpy(&ud_obj, &ud_blank, sizeof(ud_t));
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
 
+    //fprintf(stderr, "Disassembling at address 0x%llx\n", baseAddr);
     sizeInBytes = ud_disassemble(&ud_obj);
     if (sizeInBytes) {
         copy_ud_to_compact(&entry, &ud_obj);
@@ -1808,6 +1811,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     memcpy(&ud_obj, &ud_blank, sizeof(ud_t));
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
 
+    //fprintf(stderr, "Disassembling at address 0x%llx\n", baseAddr);
     sizeInBytes = ud_disassemble(&ud_obj);
     if (sizeInBytes) {
         copy_ud_to_compact(&entry, &ud_obj);
@@ -1952,7 +1956,7 @@ void X86Instruction::print(){
 
 const char* ud_optype_str[] = { "reg", "mem", "ptr", "imm", "jimm", "const" };
 const char* ud_regtype_str[] = { "undefined", "8bit gpr", "16bit gpr", "32bit gpr", "64bit gpr", "seg reg", 
-                                 "ctrl reg", "dbg reg", "mmx reg", "x87 reg", "xmm reg", "pc reg" };
+                                 "ctrl reg", "dbg reg", "mmx reg", "x87 reg", "xmm reg", "zmm reg", "k reg", "pc reg" };
 
 uint32_t regbase_to_type(uint32_t base){
     if (IS_8BIT_GPR(base))         return RegType_8Bit;
@@ -1966,6 +1970,8 @@ uint32_t regbase_to_type(uint32_t base){
     else if (IS_X87_REG(base))     return RegType_X87;
     else if (IS_XMM_REG(base))     return RegType_XMM;
     else if (IS_YMM_REG(base))     return RegType_YMM;
+    else if (IS_ZMM_REG(base))     return RegType_ZMM;
+    else if (IS_K_REG(base))       return RegType_K;
     else if (IS_PC_REG(base))      return RegType_PC;
     __SHOULD_NOT_ARRIVE;
     return 0;
@@ -2048,7 +2054,7 @@ bool X86Instruction::verify(){
         }
         if (op.base){
             if (!IS_REG(op.base)){
-                PRINT_ERROR("Found operand with nonsensical base %d", op.base);
+                PRINT_ERROR("Found operand %d with nonsensical base %d", i, op.base);
                 return false;
             }
         }
@@ -2289,10 +2295,24 @@ struct x86class {
 #define X86OperandFormat_0 X86OperandFormat_unknown
 #define MEM_SZ_VARIABLE (0xf)
 #define VRSZ (MEM_SZ_VARIABLE << 3)
-#define mkclass(__mne, __typ, __bin, __fmt, __mem, __loc, __elem) \
+//#define mkclass(__mne, __typ, __bin, __fmt, __mem, __loc, __elem) \
     { UD_I ## __mne, xtyp(__typ), xbin(__bin), xfmt(__fmt), xsiz(__mem), __loc >> 8, xsiz(__elem) },
 
-static struct x86class classifications[UD_Itotaltypes] = {
+#define mkclass(__mne, __typ, __bin, __fmt, __mem, __loc, __elem) \
+    classifications[UD_I ## __mne] = (struct x86class) { UD_I ## __mne, xtyp(__typ), xbin(__bin), xfmt(__fmt), xsiz(__mem), (__loc >> 8), xsiz(__elem)};
+
+static struct x86class classifications[UD_Itotaltypes];
+
+bool X86InstructionClassifier::verify(){
+    return true;
+}
+
+void X86InstructionClassifier::generateTable(){
+
+    for(uint32_t i=0; i < UD_Itotaltypes; ++i) {
+        classifications[i].mnemonic = UD_Iinvalid;
+    }
+
     //               mnemonic,     type      bin  fmt msize  mloc        eSize
     mkclass(           3dnow,  special,   other,   0,    0,    0,          0)
     mkclass(             aaa,      int,   other,   0,    0,    0,          0)
@@ -3198,7 +3218,7 @@ static struct x86class classifications[UD_Itotaltypes] = {
     mkclass(             xor,      int,     bin,   0, VRSZ,    0,          0)
     mkclass(           xorpd,    float,    binv,   0,   64,    0,          64)
     mkclass(           xorps,    float,    binv,   0,   32,    0,          32)    
-};
+}
 
 
 
@@ -3242,18 +3262,3 @@ void X86InstructionClassifier::print(X86Instruction* x){
     PRINT_INFOR("Instruciton %s: %hhd %hhd %hhd %hhd %hhd", ud_mnemonics_str[x->GET(mnemonic)], getInstructionBin(x), getInstructionMemLocation(x), getInstructionMemSize(x), getInstructionType(x), getInstructionFormat(x));
 }
 
-bool X86InstructionClassifier::verify(){
-    bool err = false;
-    for (uint32_t i = 0; i < UD_Itotaltypes; i++){
-        if (classifications[i].mnemonic < UD_Itotaltypes){
-            if (classifications[i].mnemonic != i){
-                err = true;
-                PRINT_WARN(20, "Instruction classification definition slot %s contains info for %s", ud_mnemonics_str[i], ud_mnemonics_str[classifications[i].mnemonic]);
-            }
-        } else {
-            PRINT_WARN(20, "Invalid mnemonic %d in slot (%d) %s", classifications[i].mnemonic, i, ud_mnemonics_str[i]);
-            err = true;
-        }
-    }
-    return !err;
-}

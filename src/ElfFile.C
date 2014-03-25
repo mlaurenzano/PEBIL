@@ -813,6 +813,7 @@ void ElfFile::initSectionFilePointers(){
         initDynamicFilePointers();
     }
 
+    X86InstructionClassifier::generateTable();
     if (!X86InstructionClassifier::verify()){
         PRINT_ERROR("Instruction classification self-test failed");
     }
