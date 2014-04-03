@@ -125,8 +125,6 @@ public:
     X86Instruction* findBestInstPoint(InstLocations* loc, BitSet<uint32_t>* unusableRegs, BitSet<uint32_t>* useRegs, bool attendFlags);
     uint32_t bloat(Vector<InstrumentationPoint*>* instPoints);
 
-    uint32_t searchForArgsPrep(bool is64Bit);
-
     bool containsOnlyControl();
     bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);
 
@@ -163,6 +161,7 @@ public:
     uint32_t getNumberOfBinFloat();
     uint32_t getNumberOfBinIntv();
     uint32_t getNumberOfBinInt();
+    uint32_t getNumberOfBinInts();
     uint32_t getNumberOfBinBin();
     uint32_t getNumberOfBinBinv();
     uint32_t getNumberOfBinUncond();

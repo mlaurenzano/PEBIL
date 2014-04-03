@@ -303,8 +303,8 @@ enum X86InstructionType {
     X86InstructionType_move,
     X86InstructionType_float,
     X86InstructionType_string,
-    X86InstructionType_simd,
-    X86InstructionType_avx,
+    X86InstructionType_simdFloat,
+    X86InstructionType_simdInt,
     X86InstructionType_aes,
     X86InstructionType_io,
     X86InstructionType_prefetch,
@@ -337,6 +337,7 @@ enum X86InstructionBin {
     X86InstructionBin_binv,          // Binary
     X86InstructionBin_int,           // Integer
     X86InstructionBin_intv,          // Integer
+    X86InstructionBin_ints,
     X86InstructionBin_float,         // Floating
     X86InstructionBin_floatv,        // Floating
     X86InstructionBin_floats,        // Floating
@@ -449,6 +450,7 @@ public:
     uint64_t cacheBaseAddress;
 
     OperandX86* getDestOperand();
+    OperandX86* getFirstSourceOperand();
     Vector<OperandX86*>* getSourceOperands();
     Vector<OperandX86*>* getOperands();
     std::map<uint32_t, uint32_t>* getOperandLengthCounts();
@@ -551,7 +553,6 @@ public:
     bool isCall() { return isSystemCall() || isFunctionCall(); }
     bool isHalt() { return (getInstructionType() == X86InstructionType_halt); }
     bool isNop() { return (getInstructionType() == X86InstructionType_nop); }
-    bool isAvx() { return (getInstructionType() == X86InstructionType_avx); }
     bool isConditionCompare();
     bool isStackPush();
     bool isStackPop();
@@ -569,6 +570,7 @@ public:
     bool isBinBinv();
     bool isBinInt();
     bool isBinIntv();
+    bool isBinInts();
     bool isBinFloat();
     bool isBinFloatv();
     bool isBinFloats();

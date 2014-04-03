@@ -635,178 +635,16 @@ InstrumentationPoint* InstrumentationTool::insertBlockCounter(uint64_t counterOf
 }
 
 static bool isVectorInstruction(X86Instruction* ins) {
-
     X86InstructionType typ = ins->getInstructionType();
-
     switch(typ) {
-        case X86InstructionType_unknown: // skip instruction classes that don't have vector ops
-        case X86InstructionType_invalid:
-        case X86InstructionType_condbr:
-        case X86InstructionType_uncondbr:
-        case X86InstructionType_call:
-        case X86InstructionType_return:
-        case X86InstructionType_string:
-        case X86InstructionType_io:
-        case X86InstructionType_prefetch:
-        case X86InstructionType_syscall:
-        case X86InstructionType_halt:
-        case X86InstructionType_hwcount:
-        case X86InstructionType_nop:
-        case X86InstructionType_trap:
-        case X86InstructionType_vmx:
-        case X86InstructionType_special:
-
-        case X86InstructionType_move: // FIXME eventually move to vec
-            return false;
-
-        case X86InstructionType_int:  // these do have vector ops
-        case X86InstructionType_float:
-        case X86InstructionType_simd:
-        case X86InstructionType_avx:
+        case X86InstructionType_simdFloat:
+        case X86InstructionType_simdInt:
         case X86InstructionType_aes:
             break;
         default:
-            assert(0);
             return false;
-    }
-
-    switch(ins->GET(mnemonic)) { // FIXME do this better. Skip these instructions, either non-vector, or not sure how to handle
-        case UD_Ipinsrw:  
-        case UD_Ivpinsrw:
-        case UD_Ixchg:
-        case UD_Ibswap:
-        case UD_Ivextractf128:
-        case UD_Ivinsertf128:
-        case UD_Ivpextrq:
-        case UD_Ivptest:
-        case UD_Iinsertps:
-        case UD_Iextractps:
-        case UD_Ipextrq:
-
-        case UD_Iadd:  // arithmetic
-        case UD_Iimul:
-        case UD_Isub:
-        case UD_Ineg:
-        case UD_Iidiv:
-        case UD_Isbb:
-        case UD_Imul:
-        case UD_Idiv:
-        case UD_Iinc:
-        case UD_Idec:
-        case UD_Ifcomip:
-        case UD_Ifcomi:
-        case UD_Ifmul:
-        case UD_Ifdivrp:
-        case UD_Ifadd:
-
-        case UD_Ipop:  // stack
-        case UD_Ipush:
-
-        case UD_Isetge:  // flags
-        case UD_Isetbe:
-        case UD_Isetle:
-        case UD_Isetg:
-        case UD_Isetp:
-        case UD_Iseta:
-        case UD_Isetz:
-        case UD_Isetnz:
-        case UD_Isetnb:
-
-        case UD_Ipxor: // op size == reg size
-        case UD_Ipor:
-        case UD_Ipand:
-        case UD_Ipandn:
-        case UD_Ivpand:
-        case UD_Ivpor:
-        case UD_Ivpxor:
-        case UD_Ivpandn:
-
-        case UD_Ixor:
-        case UD_Ishl:
-        case UD_Ishr:
-        case UD_Ior:
-        case UD_Isar:
-        case UD_Iand:
-        case UD_Inot:
-        case UD_Iadc:
-        case UD_Ibsf:
-        case UD_Ibsr:
-        case UD_Irol:
-
-        case UD_Icvtsi2sd: // conversions?
-        case UD_Icvttsd2si:
-        case UD_Icvttpd2dq:
-        case UD_Icvtss2sd:
-        case UD_Icvtpd2ps:
-        case UD_Icvtps2pd:
-        case UD_Icvtdq2pd:
-        case UD_Icvtsi2ss:
-        case UD_Icvtdq2ps:
-        case UD_Icvttps2dq:
-        case UD_Icvtps2dq:
-        case UD_Ivcvttpd2dq:
-        case UD_Ivcvtps2pd:
-        case UD_Ivcvtpd2ps:
-        case UD_Ivcvtps2dq:
-        case UD_Ivcvtdq2ps:
-        case UD_Ivcvtsd2ss:
-        case UD_Ivcvtsi2sd:
-        case UD_Ivcvtsd2si:
-
-        case UD_Ipunpcklwd: // what do we want to say about packing ops
-        case UD_Ipunpcklqdq:
-        case UD_Ipunpckldq:
-        case UD_Ipunpcklbw:
-        case UD_Ipunpckhwd:
-        case UD_Ipunpckhqdq:
-        case UD_Ipunpckhdq:
-        case UD_Ipunpckhbw:
-        case UD_Iunpcklpd:
-        case UD_Iunpcklps:
-        case UD_Iunpckhps:
-        case UD_Iunpckhpd:
-        case UD_Ivunpcklpd:
-        case UD_Ivunpckhpd:
-        case UD_Ipacksswb:
-        case UD_Ipackuswb:
-        case UD_Ipackssdw:
-        case UD_Ivpunpckhdq:
-        case UD_Ivpunpckldq:
-
-        case UD_Ishufps:  // shuffles?
-        case UD_Ipshufd:
-        case UD_Ipshuflw:
-        case UD_Ivpshufd:
-        case UD_Ivshufps:
-        case UD_Ishufpd:
-        case UD_Ivshufpd:
-
-        case UD_Ivmulsd: // scalar instructions with register length encoded
-        case UD_Ivaddsd:
-        case UD_Ivucomiss:
-        case UD_Ivcomiss:
-        case UD_Ivpextrw:
-        case UD_Ivsubsd:
-        case UD_Ivsubss:
-        case UD_Ivdivss:
-        case UD_Ivaddss:
-        case UD_Ivdivsd:
-        case UD_Ircpss:
-        case UD_Ivcomisd:
-        case UD_Ivsqrtsd:
-        case UD_Ivucomisd:
-        case UD_Ivmaxsd:
-        case UD_Irsqrtss:
-        
-        case UD_Ivgatherdpd: // I don't even know
-        case UD_Ivbextr:
-
-            return false;
-        default:
-            break;
     }
     return true;
-
 }
 
 void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* allBlocks, Vector<uint32_t>* allBlockIds, Vector<LineInfo*>* allBlockLineInfos, uint32_t bufferSize){
@@ -1027,18 +865,18 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
                     continue;
                 }
 
-                OperandX86* dest = ins->getDestOperand();
-                if(dest == NULL)
+                OperandX86* src = ins->getFirstSourceOperand();
+                if(src == NULL)
                     continue;
-                uint32_t bytesInReg = dest->getBytesUsed();
+                uint32_t bytesInReg = src->getBytesUsed();
                 uint32_t bytesInElem = X86InstructionClassifier::getInstructionElemSize(ins);
                 if(bytesInElem == 0) {
-                    fprintf(debugFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
+                    fprintf(debugFD, "%s 0 bytes In Elem\n", ud_mnemonics_str[ins->GET(mnemonic)]);
                     continue;
                 }
 
                 if(bytesInReg == 0) {
-                    fprintf(debugFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
+                    fprintf(debugFD, "%s 0 bytes in reg\n", ud_mnemonics_str[ins->GET(mnemonic)]);
                     continue;
                 }
                 uint32_t elemsInReg = bytesInReg / bytesInElem;
@@ -1267,15 +1105,14 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
 
 
             // <elemsXelemLen>:fp:int
-            // get destination operand
+            // get source operand
             // get operand length
             // get element length
             // get element type
 
-            if(isVectorInstruction(ins) && ins->getDestOperand() != NULL) {
-                OperandX86* dest = ins->getDestOperand();
-                assert(dest != NULL);
-                uint32_t bytesInReg = dest->getBytesUsed();
+            if(isVectorInstruction(ins) && ins->getFirstSourceOperand() != NULL) {
+                OperandX86* src = ins->getFirstSourceOperand();
+                uint32_t bytesInReg = src->getBytesUsed();
                 uint32_t bytesInElem = X86InstructionClassifier::getInstructionElemSize(ins);
 
                 if(bytesInElem != 0 && bytesInReg != 0) {

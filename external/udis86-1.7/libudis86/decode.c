@@ -16,6 +16,7 @@
 
 //#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
 #define PEBIL_DEBUG(...)
+#define PEBIL_WARN(...) fprintf(stderr, __VA_ARGS__)
 
 /* The max number of prefixes to an instruction */
 #define MAX_PREFIXES    15
@@ -472,7 +473,6 @@ static int search_itab( struct ud * u )
 
     // VEX tables
     else if (P_AVX(u->pfx_insn)){
-        PEBIL_DEBUG("found avx? curr %hhx, pfx_avx %hhx", curr, u->pfx_avx);
         if ( u->error )
             return -1;
 
@@ -514,29 +514,29 @@ static int search_itab( struct ud * u )
 
                 /* all other values are undefined */
                 default:
-                    fprintf(stderr, "invalid VEX.MMMMM/sse field found: %#hhx/%#hhx", VEX_M5(u->avx_vex[1]), u->pfx_avx);
-                    fprintf(stderr, "combined: %x\n", (VEX_M5(u->avx_vex[1]) << 8) | (u->pfx_avx));
+                    PEBIL_WARN("invalid VEX.MMMMM/sse field found: %#hhx/%#hhx\n", VEX_M5(u->avx_vex[1]), u->pfx_avx);
+                    PEBIL_WARN("combined: %x\n", (VEX_M5(u->avx_vex[1]) << 8) | (u->pfx_avx));
                     gen_hex(u);
-                    fprintf(stderr, "PEBIL_DEBUG: hex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3]);
-                    fprintf(stderr, "PEBIL_DEBUG: should be located in table %x\n", (VEX_M5(u->avx_vex[1]) << 8) | (u->pfx_avx));
+                    PEBIL_WARN(" hex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3]);
+                    PEBIL_WARN(" should be located in table %x\n", (VEX_M5(u->avx_vex[1]) << 8) | (u->pfx_avx));
                     u->error = 1;
-                    break;
+                    return -1;
             }
         }
 
         if(u->error)
             return -1;
 
-        PEBIL_DEBUG("itab %d %hhx", tableid, curr);
+        //PEBIL_DEBUG("itab %d %hhx", tableid, curr);
         if ( ud_itab_list[ tableid ][ curr ].mnemonic != UD_Iinvalid ) {
             PEBIL_DEBUG("avx mnemonic found %s", ud_mnemonics_str[ud_itab_list[ tableid ][ curr ].mnemonic]);
             table = tableid;
             u->pfx_opr = 0;
         } else {
-            fprintf(stderr, "PEBIL_DEBUG: found invalid avx: %d, %d\n", tableid, curr);
+            PEBIL_WARN("found invalid avx: %d, %d\n", tableid, curr);
             gen_hex(u);
-            fprintf(stderr, "PEBIL_DEBUG: hex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3]);
-            fprintf(stderr, "PEBIL_DEBUG: should be located in table %x\n", (VEX_M5(u->avx_vex[1]) << 8) | (u->pfx_avx));
+            PEBIL_WARN(" hex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3]);
+            PEBIL_WARN(" should be located in table %x\n", (VEX_M5(u->avx_vex[1]) << 8) | (u->pfx_avx));
             u->error = 1;
             return -1;
         }
@@ -574,20 +574,13 @@ static int search_itab( struct ud * u )
             case 0x0300: tableid = ITAB__MVEX__0F__OP___3BYTE_3A__REG;              break;
 
             default:
-                assert(0);
+                PEBIL_WARN("Unkown mvex table 0x%hhx\n", (MVEX_M4(u->mvex[0]) << 8) | (u->pfx_avx));
+                u->error = 1;
+                return -1;
         }
 
         table = tableid;
         u->pfx_opr = 0;
-
-        if(ud_itab_list[tableid][curr].mnemonic == UD_Iinvalid) {
-            gen_hex(u);
-            fprintf(stderr, "Found invalid mvex instruction\n");
-            fprintf(stderr, "  hex: %hhx %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3], u->insn_bytes[4]);
-            fprintf(stderr, "  opcode: %hhx\n", curr);
-            fprintf(stderr, "  table prefix: 0x%x\n", (MVEX_M4(u->mvex[0]) << 8) | (u->pfx_avx));
-            assert(0);
-        }
     }
 
     /* pick an instruction from the 1byte table */
@@ -601,10 +594,10 @@ search:
 
     if(ud_itab_list[table][index].mnemonic == UD_Iinvalid) {
         gen_hex(u);
-        fprintf(stderr, "Found invalid instruction\n");
-        fprintf(stderr, "  hex: %hhx %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3], u->insn_bytes[4]);
-        fprintf(stderr, "  opcode: %hhx\n", curr);
-        fprintf(stderr, "  table prefix: 0x%x\n", (MVEX_M4(u->mvex[0]) << 8) | (u->pfx_avx));
+        PEBIL_WARN("Found invalid instruction\n");
+        PEBIL_WARN("  hex: %hhx %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3], u->insn_bytes[4]);
+        PEBIL_WARN("  opcode: %hhx\n", curr);
+        PEBIL_WARN("  table prefix: 0x%x\n", (MVEX_M4(u->mvex[0]) << 8) | (u->pfx_avx));
     }
 
     e = & ud_itab_list[ table ][ index ];

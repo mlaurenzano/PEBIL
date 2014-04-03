@@ -50,6 +50,7 @@ const char * ud_mnemonics_str[] = {
   "clc",
   "cld",
   "clevict0",
+  "clevict1",
   "clflush",
   "clgi",
   "cli",
@@ -275,7 +276,7 @@ const char * ud_mnemonics_str[] = {
   "kconcatl",
   "kextract",
   "kmerge2l1h",
-  "kmerge2lnl",
+  "kmerge2l1l",
   "kmov",
   "knot",
   "kor",
@@ -705,7 +706,8 @@ const char * ud_mnemonics_str[] = {
   "vextractf128",
   "vextracti128",
   "vextractps",
-  "vfixupnanp",
+  "vfixupnanpd",
+  "vfixupnanps",
   "vfmadd132pd",
   "vfmadd132ps",
   "vfmadd213pd",
@@ -763,7 +765,6 @@ const char * ud_mnemonics_str[] = {
   "vinsertf128",
   "vinserti128",
   "vinsertps",
-  "vixupnanps",
   "vlddqu",
   "vldmxcsr",
   "vloadunpackhd",
@@ -4062,7 +4063,7 @@ static struct ud_itab_entry itab__avx__0f__op_48__w[2] = {
 };
 
 static struct ud_itab_entry itab__avx__0f__op_49__w[2] = {
-  /* 00 */  { UD_Ikmerge2lnl,  O_KR,    O_KRM,   O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 00 */  { UD_Ikmerge2l1l,  O_KR,    O_KRM,   O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
   /* 01 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
 };
 
@@ -4102,7 +4103,7 @@ static struct ud_itab_entry itab__avx__0f__op_97__w[2] = {
 };
 
 static struct ud_itab_entry itab__avx__0f__op_98__w[2] = {
-  /* 00 */  { UD_Ikortest,     O_KR,    O_KRM,   O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 00 */  { UD_Ikortest,     O_KR,    O_KRM,   O_NONE,  O_NONE, F_none, F_ALU, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
   /* 01 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
 };
 
@@ -4217,15 +4218,15 @@ static struct ud_itab_entry itab__avx__pfx_sse66__0f[256] = {
   /* 60 */  { UD_Ivpunpcklbw,  O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
   /* 61 */  { UD_Ivpunpcklwd,  O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
   /* 62 */  { UD_Ivpunpckldq,  O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
-  /* 63 */  { UD_Ivpacksswb,   O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
+  /* 63 */  { UD_Ivpacksswb,   O_Vx,    O_X,     O_Wx,    O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
   /* 64 */  { UD_Ivpcmpgtb,    O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
   /* 65 */  { UD_Ivpcmpgtw,    O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
   /* 66 */  { UD_Ivpcmpgtd,    O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
-  /* 67 */  { UD_Ivpackuswb,   O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
+  /* 67 */  { UD_Ivpackuswb,   O_Vx,    O_X,     O_Wx,    O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
   /* 68 */  { UD_Ivpunpckhbw,  O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
   /* 69 */  { UD_Ivpunpckhwd,  O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
   /* 6A */  { UD_Ivpunpckhdq,  O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
-  /* 6B */  { UD_Ivpackssdw,   O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
+  /* 6B */  { UD_Ivpackssdw,   O_Vx,    O_X,     O_Wx,    O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
   /* 6C */  { UD_Ivpunpcklqdq, O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
   /* 6D */  { UD_Ivpunpckhqdq, O_V,     O_X,     O_W,     O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb|P_vexlig },
   /* 6E */  { UD_Ivmovd,       O_V,     O_Ex,    O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_c2|P_aso|P_rexw|P_rexr|P_rexx|P_rexb|P_vexlig },
@@ -6943,8 +6944,8 @@ static struct ud_itab_entry itab__mvex__pfx_sse66__0f__op_0f__3byte_38__reg__op_
 };
 
 static struct ud_itab_entry itab__mvex__pfx_sse66__0f__op_0f__3byte_38__reg__op_55__w[2] = {
-  /* 00 */  { UD_Ivixupnanps,  O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
-  /* 01 */  { UD_Ivfixupnanp,  O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 00 */  { UD_Ivfixupnanps, O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 01 */  { UD_Ivfixupnanpd, O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
 };
 
 static struct ud_itab_entry itab__mvex__pfx_sse66__0f__op_0f__3byte_38__reg__op_58__w[2] = {
@@ -8430,7 +8431,7 @@ static struct ud_itab_entry itab__mvex__pfx_ssef3__0f__op_ae__reg[8] = {
   /* 04 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
   /* 05 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
   /* 06 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
-  /* 07 */  { UD_Iclevict0,    O_M,     O_NONE,  O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 07 */  { UD_Iclevict1,    O_M,     O_NONE,  O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
 };
 
 static struct ud_itab_entry itab__mvex__pfx_ssef3__0f__op_e6__w[2] = {
@@ -8807,15 +8808,15 @@ static struct ud_itab_entry itab__pfx_sse66__0f[256] = {
   /* 60 */  { UD_Ipunpcklbw,   O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* 61 */  { UD_Ipunpcklwd,   O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* 62 */  { UD_Ipunpckldq,   O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
-  /* 63 */  { UD_Ipacksswb,    O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
+  /* 63 */  { UD_Ipacksswb,    O_Vx,    O_Wx,    O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* 64 */  { UD_Ipcmpgtb,     O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* 65 */  { UD_Ipcmpgtw,     O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* 66 */  { UD_Ipcmpgtd,     O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
-  /* 67 */  { UD_Ipackuswb,    O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
+  /* 67 */  { UD_Ipackuswb,    O_Vx,    O_Wx,    O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* 68 */  { UD_Ipunpckhbw,   O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* 69 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
   /* 6A */  { UD_Ipunpckhdq,   O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
-  /* 6B */  { UD_Ipackssdw,    O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
+  /* 6B */  { UD_Ipackssdw,    O_Vx,    O_Wx,    O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* 6C */  { UD_Ipunpcklqdq,  O_Vx,    O_Wx,    O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* 6D */  { UD_Ipunpckhqdq,  O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* 6E */  { UD_Imovd,        O_V,     O_Ex,    O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_c2|P_aso|P_rexw|P_rexr|P_rexx|P_rexb },
