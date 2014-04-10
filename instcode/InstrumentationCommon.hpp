@@ -306,71 +306,28 @@ extern "C" {
 
     typedef struct {
         void* args;
-        int (*fcn)(void*);
+        void* (*fcn)(void*);
     } thread_passthrough_args;
 
-    int thread_started(void* args){
+    void* thread_started(void* args){
         thread_passthrough_args* pt_args = (thread_passthrough_args*)args;
         tool_thread_init(pthread_self());
         
         return pt_args->fcn(pt_args->args);
     }
 
-    static int __give_pebil_name(clone)(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
-        va_list ap;
-        va_start(ap, arg);
-        pid_t* ptid = va_arg(ap, pid_t*);
-        struct user_desc* tls = va_arg(ap, struct user_desc*);
-        pid_t* ctid = va_arg(ap, pid_t*);
-        va_end(ap);
-        /*
-        printf("Entry function: 0x%llx\n", fn);
-        printf("Stack location: 0x%llx\n", child_stack);
-        printf("Flags: %d\n", flags);
-        printf("Function args: 0x%llx\n", arg);
-        printf("ptid address: 0x%llx\n", ptid);
-        printf("tls address: 0x%llx\n", tls);
-        printf("ctid address: 0x%llx\n", ctid);
-        */    
-        static int (*clone_ptr)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid)
-            = (int (*)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid))dlsym(RTLD_NEXT, "clone");
+    int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+        void *(*start_routine) (void*), void *arg){
+
+        static int (*pthread_create_ptr)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void*arg)
+          = (int (*)(pthread_t *thread, const pthread_attr_t* attr, void *(*start_routine)(void*), void*))dlsym(RTLD_NEXT, "pthread_create");
 
         // TODO: keep this somewhere and destroy it. it currently is a mem leak
         thread_passthrough_args* pt_args = (thread_passthrough_args*)malloc(sizeof(thread_passthrough_args));
-        pt_args->fcn = fn;
+        pt_args->fcn = start_routine;
         pt_args->args = arg;
 
-        return clone_ptr(thread_started, child_stack, flags, (void*)pt_args, ptid, tls, ctid);
-    }
-
-    int __clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
-        va_list ap;
-        va_start(ap, arg);
-        pid_t* ptid = va_arg(ap, pid_t*);
-        struct user_desc* tls = va_arg(ap, struct user_desc*);
-        pid_t* ctid = va_arg(ap, pid_t*);
-        va_end(ap);
-        return __give_pebil_name(clone)(fn, child_stack, flags, arg, ptid, tls, ctid);
-    }
-
-    int clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
-        va_list ap;
-        va_start(ap, arg);
-        pid_t* ptid = va_arg(ap, pid_t*);
-        struct user_desc* tls = va_arg(ap, struct user_desc*);
-        pid_t* ctid = va_arg(ap, pid_t*);
-        va_end(ap);
-        return __give_pebil_name(clone)(fn, child_stack, flags, arg, ptid, tls, ctid);
-    }
-
-    int __clone2(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
-        va_list ap;
-        va_start(ap, arg);
-        pid_t* ptid = va_arg(ap, pid_t*);
-        struct user_desc* tls = va_arg(ap, struct user_desc*);
-        pid_t* ctid = va_arg(ap, pid_t*);
-        va_end(ap);
-        return __give_pebil_name(clone)(fn, child_stack, flags, arg, ptid, tls, ctid);
+        return pthread_create_ptr(thread, attr, thread_started, pt_args);
     }
 
     int pthread_join(pthread_t thread, void **value_ptr){
