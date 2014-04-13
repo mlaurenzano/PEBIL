@@ -23,14 +23,17 @@
 #include <unistd.h>
 #include <assert.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <papi.h>
 #include <iostream>
 
 #include <PAPIInst.hpp>
 
+//#define DEBUG_PAPI_THREADING
+
 DataManager<PAPIInst*>* AllData = NULL;
+static int PAPI_events[MAX_HWC];
+static int PAPI_event_count = 0;
+static long long* PAPI_tmp_stopper = NULL;
 
 PAPIInst* GeneratePAPIInst(PAPIInst* counters, uint32_t typ, image_key_t iid, thread_key_t tid, image_key_t firstimage) {
 
@@ -42,11 +45,11 @@ PAPIInst* GeneratePAPIInst(PAPIInst* counters, uint32_t typ, image_key_t iid, th
     retval->loopCount = counters->loopCount;
     retval->loopHashes = counters->loopHashes;
     retval->values = new values_t[retval->loopCount];
-    retval->num = 0;
     return retval;
 }
 
 void DeletePAPIInst(PAPIInst* counters){
+    delete counters;
 }
 
 uint64_t ReferencePAPIInst(PAPIInst* counters){
@@ -61,7 +64,18 @@ extern "C"
         PAPIInst* counters = AllData->GetData(*key, pthread_self());
         assert(counters != NULL);
        
-        PAPI_start_counters(counters->events, counters->num);
+#ifdef DEBUG_PAPI_THREADING
+        fprintf(stdout, "Thread %lx starting %d counters for loop %ld\n", pthread_self(), PAPI_event_count, counters->loopHashes[loopIndex]);
+        fflush(stdout);
+#endif
+
+        // this will fail every time but the first
+        int ret = PAPI_start_counters(PAPI_events, PAPI_event_count);
+#ifdef DEBUG_PAPI_THREADING
+        if (ret != PAPI_OK){
+            warn << "PAPI_start_counters failed: " << PAPI_strerror(ret) << ENDL;
+        }
+#endif
 
         return 0;
     }
@@ -71,8 +85,27 @@ extern "C"
 
         PAPIInst* counters = AllData->GetData(*key, pthread_self());
 
-        PAPI_accum_counters(counters->values[loopIndex], counters->num);
-        PAPI_stop_counters(NULL, 0);
+#ifdef DEBUG_PAPI_THREADING
+        fprintf(stdout, "Thread %lx stopping counters for loop %ld\n", pthread_self(), counters->loopHashes[loopIndex]);
+        fflush(stdout);
+#endif
+
+        // this will fail only if it is hit before the first call to PAPI_start_counters
+        int ret = PAPI_accum_counters(counters->values[loopIndex], PAPI_event_count);
+        if (ret != PAPI_OK){
+            warn << "PAPI_accum_counters failed: " << PAPI_strerror(ret) << ENDL;
+        }
+
+
+        // this call will fail 100% of the time
+        ret = PAPI_stop_counters(NULL, 0);
+
+#ifdef DEBUG_PAPI_THREADING
+        //ret = PAPI_stop_counters(PAPI_tmp_stopper, PAPI_event_count);
+        if (ret != PAPI_OK){
+            warn << "PAPI_stop_counters failed: " << PAPI_strerror(ret) << ENDL;
+        }
+#endif
 
         return 0;
     }
@@ -89,8 +122,9 @@ extern "C"
     void* tool_thread_init(thread_key_t tid) {
         if (AllData){
             AllData->AddThread(tid);
+            PAPI_register_thread();
         } else {
-        ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
+            ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
         }
         return NULL;
     }
@@ -114,22 +148,38 @@ extern "C"
         AllData->AddImage(counters, td, *key);
 
         counters = AllData->GetData(*key, pthread_self());
-	
-        if(PAPI_num_counters() < PAPI_OK) {
-          fprintf(stderr,"PAPI initialization failed");
-          return NULL;
+
+        int ret = PAPI_library_init(PAPI_VER_CURRENT);
+        if (ret != PAPI_VER_CURRENT && ret > 0){
+            ErrorExit("PAPI_library_init failed: " << PAPI_strerror(ret), MetaSimError_ExternalLib);
+            return NULL;
         }
 
-        while(counters->num<MAX_HWC) {
-          char hwc_var[32];
-          sprintf(hwc_var,"HWC%d",counters->num);
-          char* hwc_name = getenv(hwc_var);
-          if(hwc_name) {
-            PAPI_event_name_to_code(hwc_name,counters->events+counters->num);
-            ++counters->num;
-          } else
-            break;
+        ret = PAPI_thread_init(pthread_self);
+        if (ret != PAPI_OK){
+            ErrorExit("PAPI_thread_init failed: " << PAPI_strerror(ret), MetaSimError_ExternalLib);
+            return NULL;
         }
+	
+        ret = PAPI_num_counters();
+        if (ret <= 0){
+            ErrorExit("PAPI_num_counters gave an answer we don't like: " << PAPI_strerror(ret), MetaSimError_ExternalLib);
+            return NULL;
+        }
+
+        while(PAPI_event_count < MAX_HWC){
+            char hwc_var[32];
+            sprintf(hwc_var, "HWC%d", PAPI_event_count);
+            char* hwc_name = getenv(hwc_var);
+            if(hwc_name) {
+                PAPI_event_name_to_code(hwc_name, PAPI_events+PAPI_event_count);
+                ++PAPI_event_count;
+            } else {
+                break;
+            }
+        }
+
+        PAPI_tmp_stopper = new long long[PAPI_event_count];
 
         return NULL;
     }
@@ -149,8 +199,13 @@ extern "C"
         }
 
         if (!counters->master){
-            printf("Image is not master, skipping\n");
+            printf("Image %lx is not master, skipping\n", iid);
             return NULL;
+        }
+
+        if (PAPI_tmp_stopper){
+            delete[] PAPI_tmp_stopper;
+            PAPI_tmp_stopper = NULL;
         }
 
         char outFileName[1024];
@@ -174,7 +229,7 @@ extern "C"
                     counters = AllData->GetData(*iit, *tit);
                     fprintf(outFile, "\tThread: 0x%llx");
                     int hwc;
-                    for(hwc = 0; hwc < counters->num; ++hwc)
+                    for(hwc = 0; hwc < PAPI_event_count; ++hwc)
                       fprintf(outFile,"\t%lld",counters->values[loopIndex][hwc]);
                     fprintf(outFile, "\n");
                 }
