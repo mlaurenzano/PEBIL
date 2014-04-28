@@ -210,6 +210,7 @@ enum MetasimErrors {
     MetasimError_FileOp,
     MetasimError_Env,
     MetasimError_NoImage,
+    MetaSimError_ExternalLib,
     MetasimError_Total,
 };
 
