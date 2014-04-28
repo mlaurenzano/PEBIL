@@ -90,12 +90,7 @@ private:
     uint16_t textSegmentIdx;
     uint16_t dataSegmentIdx;
 
-    uint32_t numberOfFunctions;
-    uint32_t numberOfBlocks;
-    uint32_t numberOfMemoryOps;
-    uint32_t numberOfFloatPOps;
-
-    BinaryInputFile   binaryInputFile;
+    BinaryInputFile*   binaryInputFile;
 
     void readFileHeader();
 
@@ -129,6 +124,7 @@ public:
     void addAddressAnchor(AddressAnchor* adr);
 
     ElfFile(char* f, char* a);
+    ElfFile(void* buffer, uint64_t size);
     ~ElfFile();
 
    

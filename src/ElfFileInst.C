@@ -1219,8 +1219,6 @@ void ElfFileInst::computeInstrumentationOffsets(){
 // the order of the operations in this function matters
 void ElfFileInst::phasedInstrumentation(){
     TIMER(double t1 = timer(), t2; char stepNumber = 'A');
-    ASSERT(currentPhase == ElfInstPhase_no_phase && "Instrumentation phase order must be observed");
-
     ASSERT(elfFile->getFileHeader()->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
     elfFile->getFileHeader()->SET(e_flags, EFINSTSTATUS_MOD);
 
@@ -1228,10 +1226,8 @@ void ElfFileInst::phasedInstrumentation(){
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
 
-    uint32_t numberOfBasicBlocks = getDotInitSection()->getNumberOfBasicBlocks() + 
-        getDotTextSection()->getNumberOfBasicBlocks() + getDotFiniSection()->getNumberOfBasicBlocks();
-
-    extendTextSection(TEXT_EXTENSION_INC, INSTHDR_RESERVE_AMT); // creates space for extra elf control info (symbols, dynamic table entries, hash entries, etc)
+    // creates space for extra elf control info (symbols, dynamic table entries, hash entries, etc)
+    extendTextSection(TEXT_EXTENSION_INC, INSTHDR_RESERVE_AMT);
 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     currentPhase++;
@@ -1243,11 +1239,15 @@ void ElfFileInst::phasedInstrumentation(){
         extendDynamicTable();
     }
 
-    ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
-
+    // Hide or expose functions from instrumentation
     functionSelect();
 
-    // ALL_FUNC_ENTER
+    // Setup bootstrap instrumentation
+    // automatically set the 1st instrumentation point to go to the bootstrap code
+    InstrumentationPoint* p = addInstrumentationPoint(getProgramEntryBlock(), instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], InstrumentationMode_tramp, InstLocation_prior);
+    p->setPriority(InstPriority_sysinit);
+
+    // Add bootstrap instrumentation to every function for multi-image
     if (isMultiImage()){
         for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
             Function* f = getExposedFunction(i);
@@ -1267,6 +1267,7 @@ void ElfFileInst::phasedInstrumentation(){
         dynamicPoint((*instrumentationPoints)[0], getElfFile()->getUniqueId(), true);
     }
 
+    // Link instrumenation functions and libraries
     if (!elfFile->isStaticLinked()){
         for (uint32_t i = instrumentationLibraries.size(); i > 0; i--){
             addSharedLibrary(instrumentationLibraries[i-1]);
@@ -1280,13 +1281,12 @@ void ElfFileInst::phasedInstrumentation(){
     verify();
 
     PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
+
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");
     currentPhase++;
-
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
+
     instrument();
-
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
 
     (*instrumentationPoints).sort(compareInstBaseAddress);
     for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
@@ -1297,21 +1297,20 @@ void ElfFileInst::phasedInstrumentation(){
 
     uint64_t dynArray = reserveDynamicPoints();
 
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     buildInstrumentationSections();
+
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c UsrResrv : %.2f seconds",stepNumber++,t2-t1);t1=t2);
     relocatedTextSize += functionRelocateAndTransform(relocatedTextSize);
     computeInstrumentationOffsets();
 
-    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c FncReloc : %.2f seconds",stepNumber++,t2-t1);t1=t2);
 
     applyDynamicPoints(dynArray);
 
+    ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed");
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
 
-    ASSERT(currentPhase == ElfInstPhase_modify_control && "Instrumentation phase order must be observed");
     TIMER(t2 = timer();PRINT_INFOR("___timer: \tInstr Step %c Control  : %.2f seconds",stepNumber++,t2-t1);t1=t2);
 
     currentPhase++;
@@ -1328,9 +1327,10 @@ void ElfFileInst::phasedInstrumentation(){
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
 }
 
-void ElfFileInst::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
+void ElfFileInst::dump(BinaryOutputFile* binaryOutputFile){
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
-    ASSERT(offset == ELF_FILE_HEADER_OFFSET && "Instrumentation must be dumped at the begining of the output file");
+
+    elfFile->dump(binaryOutputFile, ELF_FILE_HEADER_OFFSET);
 
     uint32_t extraTextOffset = elfFile->getSectionHeader(extraTextIdx)->GET(sh_offset);
     uint64_t extraTextAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);
@@ -1478,7 +1478,7 @@ uint64_t ElfFileInst::addPLTRelocationEntry(uint32_t symbolIndex, uint64_t gotOf
     RelocationTable* relocTable = (RelocationTable*)elfFile->getRawSection(elfFile->findSectionIdx(relocTableAddr));
     ASSERT(relocTable->getType() == PebilClassType_RelocationTable && "Found wrong section type when searching for relocation table");
 
-    uint64_t gotAddress = instrumentationDataAddress + gotOffset;    
+    uint64_t gotAddress = getInstDataAddress() + gotOffset;    
     uint64_t relocOffset;
     if (elfFile->is64Bit()){
         relocOffset = relocTable->addRelocation(gotAddress, ELF64_R_INFO(symbolIndex, R_X86_64_JUMP_SLOT));
@@ -1733,8 +1733,7 @@ void ElfFileInst::dump(char* extension, bool isext){
         PRINT_ERROR("The output file can not be opened %s",fileName);
     }
 
-    elfFile->dump(&binaryOutputFile,ELF_FILE_HEADER_OFFSET);
-    dump(&binaryOutputFile,ELF_FILE_HEADER_OFFSET);
+    dump(&binaryOutputFile);
 
     binaryOutputFile.close();
 }
@@ -1785,23 +1784,19 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     instrumentationSnippets.append(new InstrumentationSnippet());
 
     extraTextIdx = 0;
-    extraDataIdx = elfFile->getDotDataSection()->getSectionIndex();
-    dataIdx = 0;
+    //extraDataIdx = elfFile->getDotDataSection()->getSectionIndex();
+    extraDataIdx = 0;
 
     lineInfoFinder = NULL;
     if (elfFile->getLineInfoSection()){
         lineInfoFinder = new LineInfoFinder(elfFile->getLineInfoSection());
     }
-
-    programEntryBlock = getDotTextSection()->getBasicBlockAtAddress(elfFile->getFileHeader()->GET(e_entry));
-    assert(programEntryBlock);
-    //programEntryBlock = getDotTextSection()->getBasicBlockAtAddress(0x41a620);
-
     relocatedTextSize = 0;
+
+    // Setup instrumentation data after highest section address in elf file
     instrumentationData = NULL;
     instrumentationDataSize = 0;
     instrumentationDataAddress = 0;
-
     for (uint32_t i = 0; i < elfFile->getNumberOfSections(); i++){
         SectionHeader* sec = elfFile->getSectionHeader(i);
         if (sec->GET(sh_addr)){
@@ -1810,7 +1805,6 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
             }
         }
     }
-
     ProgramHeader* dHdr = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
     instrumentationDataAddress = nextAlignAddress(instrumentationDataAddress, dHdr->GET(p_align));
     dynamicTableReserved = instrumentationDataAddress;
@@ -1818,17 +1812,13 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
       instrumentationDataAddress += Reserve__Instrumentation_DynamicTable;
     }
 
-    instrumentationPoints = new Vector<InstrumentationPoint*>();
 
+    instrumentationPoints = new Vector<InstrumentationPoint*>();
     ASSERT(instrumentationPoints);
 
-    // find the entry point of the program and put an instrumentation point for our initialization there
-    BasicBlock* entryBlock = getProgramEntryBlock();
-    ASSERT(entryBlock && "Cannot find instruction at the program's entry point");
-
-    // automatically set the 1st instrumentation point to go to the bootstrap code
-    InstrumentationPoint* p = addInstrumentationPoint(entryBlock, instrumentationSnippets[INST_SNIPPET_BOOTSTRAP_BEGIN], InstrumentationMode_tramp, InstLocation_prior);
-    p->setPriority(InstPriority_sysinit);
+    // find the entry point of the program
+    programEntryBlock = getDotTextSection()->getBasicBlockAtAddress(elfFile->getFileHeader()->GET(e_entry));
+    assert(programEntryBlock);
 
     regStorageOffset = 0;
     fxStorageOffset = sizeof(uint64_t) * X86_64BIT_GPRS;
@@ -1837,15 +1827,13 @@ ElfFileInst::ElfFileInst(ElfFile* elf){
     usableDataOffset = regStorageOffset + regStorageReserved;
 
     instSegment = NULL;
-
     disabledFunctions = new Vector<char*>();
-
     flags = InstrumentorFlag_none;
     allowStatic = false;
     threadedMode = false;
+    hybridOffloadMode = false;
     multipleImages = false;
     perInstruction = false;
-
     libraryList = NULL;
 }
 

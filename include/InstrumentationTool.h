@@ -57,6 +57,10 @@ private:
     bool singleArgCheck(void* arg, uint32_t mask, const char* name);
     bool hasThreadEvidence();
 
+    InstrumentationTool* (*maker)(ElfFile*);
+
+    void instrumentEmbeddedElf();
+
 protected:
     uint64_t imageKey;
     uint64_t threadHash;
@@ -115,6 +119,7 @@ public:
 
     void init(char* ext);
     void initToolArgs(bool lpi, bool dtl, bool doi, uint32_t phase, char* inp, char* dfp, char* trk);
+    void setMaker(InstrumentationTool* (*maker)(ElfFile*)) { this->maker = maker; };
 
     virtual void declare();
     virtual void instrument();

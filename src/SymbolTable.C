@@ -502,6 +502,18 @@ uint32_t SymbolTable::read(BinaryInputFile* binaryInputFile){
     return sizeInBytes;
 }
 
+Symbol* SymbolTable::getSymbol(char* name){
+    ASSERT(stringTable && "String table should be initialized");
+
+    for(uint32_t i = 0; i < symbols.size(); ++i){
+        uint32_t str_idx = symbols[i]->GET(st_name);
+        if(strcmp(name, stringTable->getString(str_idx)) == 0) {
+            return symbols[i];
+        }
+    }
+    return NULL;
+}
+
 char* SymbolTable::getSymbolName(uint32_t idx){
     ASSERT(stringTable && "String Table should be initialized");
 

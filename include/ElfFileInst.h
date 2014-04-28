@@ -73,7 +73,6 @@ typedef enum {
 
 class ElfFileInst {
 private:
-    ElfFile* elfFile;
 
     BasicBlock* programEntryBlock;
     Vector<Function*> hiddenFunctions;
@@ -93,6 +92,7 @@ private:
 
     bool allowStatic;
     bool threadedMode;
+    bool hybridOffloadMode;
     bool multipleImages;
     bool perInstruction;
 
@@ -100,7 +100,6 @@ private:
 
     uint16_t extraTextIdx;
     uint16_t extraDataIdx;
-    uint16_t dataIdx;
 
     uint64_t usableDataOffset;
     uint64_t regStorageOffset;
@@ -122,10 +121,11 @@ private:
     void initializeDisabledFunctions(char* inputFuncList);
 
     void applyInstrumentationDataToRaw();
-    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
 
     void declareLibraryList();
 protected:
+    ElfFile* elfFile;
+
     Vector<Function*> allFunctions;
     Vector<Function*> exposedFunctions;
     Vector<BasicBlock*> exposedBasicBlocks;
@@ -179,6 +179,8 @@ protected:
 
     BasicBlock* initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, uint32_t bbtgtidx);
 
+    void dump(BinaryOutputFile* binaryOutputFile);
+
 public:
     ElfFileInst(ElfFile* elf);
     ~ElfFileInst();
@@ -210,6 +212,8 @@ public:
     void setAllowStatic() { allowStatic = true; }
     void setThreadedMode() { threadedMode = true; ASSERT(is64Bit() && "Threading support not available for IA32"); }
     bool isThreadedMode() { return threadedMode; }
+    void setHybridOffloadMode() { hybridOffloadMode = true; }
+    bool isHybridOffloadMode() { return hybridOffloadMode; }
     void setMultipleImages() { multipleImages = true; ASSERT(is64Bit() && "Multi-image support not available for IA32"); }
     bool isMultiImage() { return multipleImages; }
     void setPerInstruction() { perInstruction = true; }

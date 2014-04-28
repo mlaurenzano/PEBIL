@@ -432,7 +432,6 @@ Vector<X86Instruction*>* Function::digestRecursive(){
         currentInstruction = new X86Instruction(this, currentAddress, textSection->getStreamAtAddress(currentAddress), ByteSource_Application_Function, 0);
 
         PRINT_DEBUG_CFG("recursive cfg: address %#llx with %d bytes", currentAddress, currentInstruction->getSizeInBytes());
-        uint64_t checkAddr = currentInstruction->getBaseAddress();
 
         if (currentInstruction->getInstructionType() == UD_Iinvalid){
             setBadInstruction(currentInstruction->getBaseAddress());

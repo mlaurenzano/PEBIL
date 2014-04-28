@@ -17,7 +17,7 @@ LIBDIR      = ../lib
 EXTDIR      = ../external
 INCLUDE     = -I../include -I$(EXTDIR)/udis86-1.7/ -I../instcode
 
-NAMES = AddressAnchor Base BasicBlock BinaryFile DynamicTable DwarfSection ElfFile ElfFileInst FileHeader FlowGraph Function GlobalOffsetTable GnuVersion HashTable Instrumentation InstrumentationTool LengauerTarjan LineInformation Loop MemTrack NoteSection ProgramHeader RawSection RelocationTable SectionHeader StringTable SymbolTable TextSection X86Instruction X86InstructionFactory
+NAMES = AddressAnchor Base BasicBlock BinaryFile DynamicTable DwarfSection ElfFile ElfFileInst FileHeader FlowGraph Function GlobalOffsetTable GnuVersion HashTable Instrumentation InstrumentationTool LengauerTarjan LineInformation Loop MemTrack NoteSection ProgramHeader RawSection RelocationTable SectionHeader StringTable SymbolTable TextSection X86Instruction X86InstructionFactory HybridPhiElfFile
 
 SRCS = $(foreach var,$(NAMES),$(var).C)
 OBJS = $(foreach var,$(NAMES),$(var).o)

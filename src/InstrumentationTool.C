@@ -27,6 +27,7 @@
 #include <Loop.h>
 #include <TextSection.h>
 #include <X86InstructionFactory.h>
+#include <HybridPhiElfFile.h>
 
 #include <algorithm>
 #include <vector>
@@ -310,11 +311,110 @@ void InstrumentationTool::declare(){
     dynamicInit = declareFunction(DYNAMIC_INST_INIT);
 }
 
+
+/*
+* Instrumenting an embedded elf file
+*
+* Rewrite binary and rembed in a new section
+* Find all references to __offload_target_image+xxx and point towards new image
+*
+*/
+void InstrumentationTool::instrumentEmbeddedElf(){
+    ASSERT(isHybridOffloadMode());
+    PRINT_INFOR("Instrumenting an embedded elf object");
+
+    HybridPhiElfFile* hybridElf = (HybridPhiElfFile*)elfFile;
+    ElfFile* embeddedElf = hybridElf->getEmbeddedElf();
+    if(embeddedElf == NULL) {
+        PRINT_WARN(20, "Asked to instrument hybrid offload file, but no embedded elf image was found");
+        return;
+    }
+
+    embeddedElf->dump("embedded_file", false);
+
+    // Prepare for instrumentation
+    if(embeddedElf->getProgramBaseAddress() < WEDGE_SHAMT) {
+        if(!embeddedElf->isSharedLib()) {
+            PRINT_WARN(20, "The base address of this binary is too small, but the binary is an executable.");
+            PRINT_WARN(20, "Will attempt to shift all program addresses, which will probably fail because executables usually contain position-dependent code/data.");
+        }
+        PRINT_INFOR("Shifting virtual address of all program contents by %#lx", WEDGE_SHAMT);
+        embeddedElf->wedge(WEDGE_SHAMT);
+    }
+
+    // Create instrumentor
+    assert(maker);
+    InstrumentationTool* instTool = maker(embeddedElf);
+
+    char* inp_arg = NULL;
+    instTool->init(NULL);
+    instTool->initToolArgs(false, false, false, 0, inp_arg, NULL, NULL);
+    ASSERT(instTool->verifyArgs());
+
+    char* functionBlackList = NULL;
+    instTool->setInputFunctions(functionBlackList);
+
+    // TODO
+    // instTool->setLibraryList(lnc_arg);
+    // instTool->setAllowStatic();
+    instTool->setThreadedMode();
+    instTool->setMultipleImages();
+    instTool->setPerInstruction();
+    instTool->phasedInstrumentation();
+
+    //instTool->print();
+    //instTool->dump();
+
+    // dump file to buffered output
+    EmbeddedBinaryOutputFile outfile;
+    instTool->dump(&outfile);
+
+    delete instTool;
+
+    IntelOffloadHeader* head = hybridElf->getIntelOffloadHeader();
+
+    // get elf file size
+    uint32_t outsize = outfile.size();
+    uint32_t headsize = IntelOffloadHeader::INTEL_OFFLOAD_HEADER_SIZE;
+    PRINT_INFOR("instrumented embedded elf size is 0x%llx\n", outsize);
+    head->setElfSize(outsize);
+
+    // reserve data
+    uint32_t offset = reserveDataOffset(outsize + headsize);
+
+    // initialize header
+    initializeReservedData(getInstDataAddress() + offset, headsize, head->charStream());
+
+    // initialize data
+    initializeReservedData(getInstDataAddress() + offset + headsize, outsize, outfile.charStream());
+
+    // create a dataref to the header
+    DataReference* dataref = elfFile->generateDataRef(0, NULL, sizeof(uint64_t), getInstDataAddress() + offset);
+
+    // Redirect all references to the original header to point to the new header
+    Vector<AddressAnchor*>* imgAnchors = elfFile->searchAddressAnchors(head->getBaseAddress());
+    for(int i = 0; i < imgAnchors->size(); ++i){
+        AddressAnchor* anchor = (*imgAnchors)[i];
+        anchor->updateLink(dataref);
+    }
+    delete imgAnchors;
+
+    // Search for reference to the elf object itself
+    imgAnchors = elfFile->searchAddressAnchors(head->getBaseAddress() + IntelOffloadHeader::INTEL_OFFLOAD_HEADER_SIZE);
+    assert(imgAnchors->size() == 0);
+    delete imgAnchors;
+    
+}
+
 void InstrumentationTool::instrument(){
     if (!isThreadedMode()){
         if (hasThreadEvidence()){
             PRINT_ERROR("This image shows evidence of being threaded, but you ran pebil without --threaded.");
         }
+    }
+
+    if (isHybridOffloadMode()) {
+        instrumentEmbeddedElf();
     }
 
     ASSERT(sizeof(uint64_t) == sizeof(image_key_t));
