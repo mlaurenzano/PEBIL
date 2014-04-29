@@ -1330,7 +1330,7 @@ void ElfFileInst::phasedInstrumentation(){
 void ElfFileInst::dump(BinaryOutputFile* binaryOutputFile){
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
 
-    elfFile->dump(binaryOutputFile, ELF_FILE_HEADER_OFFSET);
+    elfFile->dump(binaryOutputFile);
 
     uint32_t extraTextOffset = elfFile->getSectionHeader(extraTextIdx)->GET(sh_offset);
     uint64_t extraTextAddress = elfFile->getSectionHeader(extraTextIdx)->GET(sh_addr);

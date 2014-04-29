@@ -154,7 +154,7 @@ public:
     void parse();
     void initSectionFilePointers();
     void dump(char* extension, bool isext=true);
-    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    void dump(BinaryOutputFile* binaryOutputFile);
     void generateCFGs();
 
     void briefPrint();

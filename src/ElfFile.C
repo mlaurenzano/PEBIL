@@ -1261,14 +1261,13 @@ void ElfFile::dump(char* extension, bool isext){
         PRINT_ERROR("The output file can not be opened %s",fileName);
     }
 
-    dump(&binaryOutputFile,ELF_FILE_HEADER_OFFSET);
+    dump(&binaryOutputFile);
 
     binaryOutputFile.close();
 }
 
-void ElfFile::dump(BinaryOutputFile* binaryOutputFile, uint32_t offset){
-    ASSERT(offset == ELF_FILE_HEADER_OFFSET && "Instrumentation must be dumped at the begining of the output file");
-    uint32_t currentOffset = offset;
+void ElfFile::dump(BinaryOutputFile* binaryOutputFile){
+    uint32_t currentOffset = ELF_FILE_HEADER_OFFSET;
 
     fileHeader->dump(binaryOutputFile,currentOffset);
 
