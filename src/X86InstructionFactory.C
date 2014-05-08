@@ -810,6 +810,7 @@ X86Instruction* X86InstructionFactory64::emitLoadEffectiveAddress(OperandX86* op
 
     X86Instruction* lea = emitLoadEffectiveAddress(baseReg, indexReg, scale, value, dest, hasBase, hasIndex);
     if (!lea || !op || !lea->getOperand(SRC1_OPERAND)){
+        fprintf(stderr, "emitLoadEffectiveAddress:\n");
         lea->print();
     }
     ASSERT(lea && op && lea->getOperand(SRC1_OPERAND));
@@ -843,6 +844,7 @@ X86Instruction* X86InstructionFactory32::emitLoadEffectiveAddress(OperandX86* op
 
     X86Instruction* lea = emitLoadEffectiveAddress(baseReg, indexReg, scale, value, dest, hasBase, hasIndex);
     if (!lea || !op || !lea->getOperand(SRC1_OPERAND)){
+        fprintf(stderr, "emitLoadEffectiveAddress:\n");
         lea->print();
     }
     ASSERT(lea && op && lea->getOperand(SRC1_OPERAND));
@@ -967,6 +969,7 @@ X86Instruction* X86InstructionFactory64::emitLoadRipImmReg(uint64_t imm, uint8_t
 X86Instruction* X86InstructionFactory64::emitInstructionBase(uint32_t sz, char* buff){
     X86Instruction* ret = new X86Instruction(NULL, 0, buff, ByteSource_Instrumentation, 0, true, sz);
     if (ret->getSizeInBytes() != sz){
+        fprintf(stderr, "emitInstructionBase:\n");
         ret->print();
     }
     ASSERT(ret->getSizeInBytes() == sz);

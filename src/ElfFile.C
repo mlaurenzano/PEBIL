@@ -1372,7 +1372,7 @@ void ElfFile::readFileHeader() {
     ASSERT(fileHeader);
     fileHeader->read(binaryInputFile);
 
-    ASSERT(fileHeader->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
+    //ASSERT(fileHeader->GET(e_flags) == EFINSTSTATUS_NON && "This executable appears to already be instrumented");
 }
 
 void ElfFile::readProgramHeaders(){

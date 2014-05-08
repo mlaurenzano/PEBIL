@@ -1187,23 +1187,23 @@ int64_t X86Instruction::getRelativeValue(){
 }
 
 uint64_t X86Instruction::getTargetAddress(){
-    uint64_t tgtAddress;
+    uint64_t tgtAddress = 0;
     if (getInstructionType() == X86InstructionType_uncondbr ||
         getInstructionType() == X86InstructionType_condbr){
         if (addressAnchor){ 
            tgtAddress = getBaseAddress() + addressAnchor->getLinkValue() + getSizeInBytes();
-        } else if (operands && operands[JUMP_TARGET_OPERAND]){
-            if (operands[JUMP_TARGET_OPERAND]->getType() == UD_OP_JIMM){
-                tgtAddress = getBaseAddress();
-                tgtAddress += operands[JUMP_TARGET_OPERAND]->getValue();
-                tgtAddress += getSizeInBytes();
-                PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx + %d", tgtAddress, getBaseAddress(), operands[JUMP_TARGET_OPERAND]->getValue(), getSizeInBytes());
-            } else {
-                //tgtAddress = getBaseAddress() + getSizeInBytes();
-                tgtAddress = 0;
+
+
+        } else if (operands) {
+            for(uint32_t idx = 0; idx < MAX_OPERANDS; ++idx){
+                if(operands[idx] && operands[idx]->getType() == UD_OP_JIMM){
+                    tgtAddress = getBaseAddress();
+                    tgtAddress += operands[idx]->getValue();
+                    tgtAddress += getSizeInBytes();
+                    PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx + %d", tgtAddress, getBaseAddress(), operands[idx]->getValue(), getSizeInBytes());
+                    break;
+                }
             }
-        } else {
-            tgtAddress = 0;
         }
     }
     else if (getInstructionType() == X86InstructionType_call){
@@ -1215,13 +1215,8 @@ uint64_t X86Instruction::getTargetAddress(){
                 tgtAddress += operands[JUMP_TARGET_OPERAND]->getValue();
                 tgtAddress += getSizeInBytes();
                 PRINT_DEBUG_OPTARGET("Set next address to 0x%llx = 0x%llx + 0x%llx + %d", tgtAddress, getBaseAddress(), operands[JUMP_TARGET_OPERAND]->getValue(), getSizeInBytes());
-            } else {
-                tgtAddress = 0;
-            }
-        } else {
-            tgtAddress = 0;
+            } 
         }
-
     }
     else if (getInstructionType() == X86InstructionType_syscall){
         tgtAddress = 0;
@@ -1243,6 +1238,10 @@ uint32_t X86Instruction::bytesUsedForTarget(){
     return 0;
 }
 
+/*
+ * Fixup branches to be able to point to possibly farther away targets
+ * Return sizeInBytes of the new instruction
+ */
 uint32_t X86Instruction::convertTo4ByteTargetOperand(){
     ASSERT(isControl());
 
@@ -1274,10 +1273,6 @@ uint32_t X86Instruction::convertTo4ByteTargetOperand(){
             memcpy(rawBytes + 1, &operandValue, sizeof(uint32_t));
 
         } else if (isConditionalBranch()){
-            if (sizeInBytes != 2){
-                PRINT_WARN(4,"Conditional Branch with 3 bytes encountered");
-                print();
-            }
 
             if (!addressAnchor){
                 print();
@@ -1285,11 +1280,61 @@ uint32_t X86Instruction::convertTo4ByteTargetOperand(){
             }
             ASSERT(addressAnchor);
 
-            additionalBytes = 4;
-            uint32_t operandValue = getOperand(JUMP_TARGET_OPERAND)->getValue();
-            memcpy(rawBytes + 2, &operandValue, sizeof(uint32_t));
-            rawBytes[1] = rawBytes[0] + 0x10;
-            rawBytes[0] = 0x0f;
+            // 1 bytes opcode jumps
+            if(sizeInBytes == 2) {
+                additionalBytes = 4;
+                uint32_t operandValue = getOperand(JUMP_TARGET_OPERAND)->getValue();
+                memcpy(rawBytes + 2, &operandValue, sizeof(uint32_t));
+                rawBytes[1] = rawBytes[0] + 0x10;
+                rawBytes[0] = 0x0f;
+
+            // jkzd/jknzd
+            // | C4 |R X B m-mmmm|W vvvv L  pp | opcode
+            // | C5 |R vvvv L  pp| opcode
+            //
+            } else if(GET(mnemonic) == UD_Ijkzd || GET(mnemonic) == UD_Ijknzd) {
+                // increase 1 byte immediates to 4 bytes
+                if(rawBytes[0] == (char)0xC5) {
+                    if(sizeInBytes == 4) {
+                        uint8_t opcode = rawBytes[2];
+                        rawBytes[2] = opcode + 0x10;
+                        uint32_t operandValue = getOperand(1)->getValue();
+                        memcpy(rawBytes+3, &operandValue, sizeof(uint32_t));
+                        additionalBytes = 3;
+                    }
+
+                // Re-encode 0xC4 using 0xC5
+                } else if(rawBytes[0] == (char)0xC4) {
+                    if(sizeInBytes != 8) {
+                        uint8_t R = rawBytes[1] & 0x80;
+                        uint8_t X = rawBytes[1] & 0x40;
+                        uint8_t B = rawBytes[1] & 0x20;
+                        uint8_t m = rawBytes[1] & 0x1F;
+                        uint8_t W = rawBytes[2] & 0x80;
+                        uint8_t vlp = rawBytes[2] & 0x7F;
+                        uint8_t opcode = rawBytes[3];
+
+                        // These shouldn't be used
+                        ASSERT(X && B);
+                        ASSERT(m == 0);
+                        ASSERT(W == 0);
+                        
+                        rawBytes[0] = 0xC5;
+                        rawBytes[1] = R | vlp;
+                        rawBytes[2] = opcode + 0x10;
+
+                        uint32_t operandValue = getOperand(1)->getValue();
+                        memcpy(rawBytes+3, &operandValue, sizeof(uint32_t));
+                        additionalBytes = 2;
+                    }
+                } else {
+                    PRINT_WARN(7, "Unknown prefix byte 0x%hhx\n", rawBytes[0]);
+                    print();
+                    ASSERT(0);
+                }
+            } else {
+                ASSERT(0);
+            }
 
         } else if (isFunctionCall()){
             //            PRINT_WARN(8, "Unhandled short call at address %#llx", getProgramAddress());
@@ -1360,10 +1405,10 @@ void X86Instruction::binutilsPrint(FILE* stream){
     }
     fprintf(stream, "\t%s", GET(insn_buffer));
 
-    if (usesRelativeAddress()){
-        if (addressAnchor){
-            fprintf(stream, "\t#x@ %llx", addressAnchor->getLink()->getBaseAddress());
-        } 
+    if (usesRelativeAddress() && addressAnchor){
+        fprintf(stream, "\t# x@ %llx", addressAnchor->getLink()->getBaseAddress());
+    } else {
+        fprintf(stream, "\t# -> 0x%llx", getTargetAddress());
     }
 
     fprintf(stream, "\n");

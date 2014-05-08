@@ -54,6 +54,8 @@
 
 #include <Metasim.hpp>
 
+#define ENV_OUTPUT_PREFIX "PEBIL_OUTPUT_PREFIX"
+
 using namespace std;
 
 static pebil_map_type < uint64_t, vector < DynamicInst* > > * Dynamics = NULL;
@@ -521,7 +523,12 @@ public:
 
     void AddThread(thread_key_t tid){
         Lock(); // FIXME necessary?
-        assert(allthreads.count(tid) == 0);
+        //assert(allthreads.count(tid) == 0);
+        if(allthreads.count(tid) > 0) {
+            UnLock();
+            return;
+        }
+
         assert(threadseq.count(tid) == 0);
         assert(firstimage != 0);
 
@@ -654,7 +661,12 @@ public:
             inform << "About to fail iid check with " << dec << datamap.count(iid) << ENDL;
         }
         assert(datamap.count(iid) == 1);
-        assert(datamap[iid].count(tid) == 1);
+        //assert(datamap[iid].count(tid) == 1);
+        if(datamap[iid].count(tid) != 1) {
+            assert(datamap[iid].count(tid) == 0);
+            AddThread(tid);
+            assert(datamap[iid].count(tid) == 1);
+        }
         T t = datamap[iid][tid];
         return t;
     }

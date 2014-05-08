@@ -54,13 +54,14 @@ struct DynamicInstInternal {
 class InstrumentationTool : public ElfFileInst {
 private:
     char* extension;
+    bool isMaster;
+
     bool singleArgCheck(void* arg, uint32_t mask, const char* name);
     bool hasThreadEvidence();
 
     InstrumentationTool* (*maker)(ElfFile*);
 
     void instrumentEmbeddedElf();
-
 protected:
     uint64_t imageKey;
     uint64_t threadHash;
@@ -134,6 +135,8 @@ public:
     bool verifyArgs();
     virtual uint32_t allowsArgs() { return PEBIL_OPT_ALL; }
     virtual uint32_t requiresArgs() { return PEBIL_OPT_NON; }
+    bool isMasterImage();
+    void setMasterImage(bool isMaster);
 };
 
 

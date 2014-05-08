@@ -43,6 +43,14 @@
 
 #define DYNAMIC_INST_INIT "tool_dynamic_init"
 
+void InstrumentationTool::setMasterImage(bool isMaster){
+    this->isMaster = isMaster;
+}
+
+bool InstrumentationTool::isMasterImage(){
+    return isMaster;
+}
+
 uint64_t InstrumentationTool::reserveDynamicPoints(){
     return reserveDataOffset(sizeof(DynamicInst) * dynamicPoints.size());
 }
@@ -299,6 +307,7 @@ bool InstrumentationTool::hasThreadEvidence(){
 InstrumentationTool::InstrumentationTool(ElfFile* elf)
     : ElfFileInst(elf)
 {
+    this->isMaster = elf->isExecutable();
 }
 
 void InstrumentationTool::declare(){
@@ -346,11 +355,12 @@ void InstrumentationTool::instrumentEmbeddedElf(){
     assert(maker);
     InstrumentationTool* instTool = maker(embeddedElf);
 
-    char* inp_arg = NULL;
+    char* inp_arg = this->inputFile;
     instTool->init(NULL);
     instTool->initToolArgs(false, false, false, 0, inp_arg, NULL, NULL);
     ASSERT(instTool->verifyArgs());
 
+    instTool->setMasterImage(true);
     char* functionBlackList = NULL;
     instTool->setInputFunctions(functionBlackList);
 
@@ -365,11 +375,15 @@ void InstrumentationTool::instrumentEmbeddedElf(){
     //instTool->print();
     //instTool->dump();
 
+    instTool->dump("embedded_file.jbbinst", false);
+
     // dump file to buffered output
     EmbeddedBinaryOutputFile outfile;
     instTool->dump(&outfile);
 
     delete instTool;
+    //EmbeddedBinaryOutputFile outfile;
+    //embeddedElf->dump(&outfile);
 
     IntelOffloadHeader* head = hybridElf->getIntelOffloadHeader();
 
@@ -403,7 +417,6 @@ void InstrumentationTool::instrumentEmbeddedElf(){
     imgAnchors = elfFile->searchAddressAnchors(head->getBaseAddress() + IntelOffloadHeader::INTEL_OFFLOAD_HEADER_SIZE);
     assert(imgAnchors->size() == 0);
     delete imgAnchors;
-    
 }
 
 void InstrumentationTool::instrument(){
@@ -760,13 +773,13 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 
-    char* debugFile = "problemInstructions";
-    FILE* debugFD = fopen(debugFile, "w");
+    //char* debugFile = "problemInstructions";
+    //FILE* debugFD = fopen(debugFile, "w");
 
-    char* vectorInstructions = "vectorInstructions";
-    FILE* vectorFD = fopen(vectorInstructions, "w");
+    //char* vectorInstructions = "vectorInstructions";
+    //FILE* vectorFD = fopen(vectorInstructions, "w");
 
-    FILE* skippedFD = fopen("nonVecInstructions", "w");
+    //FILE* skippedFD = fopen("nonVecInstructions", "w");
 
 
     TextSection* text = getDotTextSection();
@@ -961,7 +974,7 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
                 X86Instruction* ins = bb->getInstruction(k);
 
                 if(!isVectorInstruction(ins)) {
-                    fprintf(skippedFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
+                    //fprintf(skippedFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
                     continue;
                 }
 
@@ -971,12 +984,12 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
                 uint32_t bytesInReg = src->getBytesUsed();
                 uint32_t bytesInElem = X86InstructionClassifier::getInstructionElemSize(ins);
                 if(bytesInElem == 0) {
-                    fprintf(debugFD, "%s 0 bytes In Elem\n", ud_mnemonics_str[ins->GET(mnemonic)]);
+                    //fprintf(debugFD, "%s 0 bytes In Elem\n", ud_mnemonics_str[ins->GET(mnemonic)]);
                     continue;
                 }
 
                 if(bytesInReg == 0) {
-                    fprintf(debugFD, "%s 0 bytes in reg\n", ud_mnemonics_str[ins->GET(mnemonic)]);
+                    //fprintf(debugFD, "%s 0 bytes in reg\n", ud_mnemonics_str[ins->GET(mnemonic)]);
                     continue;
                 }
                 uint32_t elemsInReg = bytesInReg / bytesInElem;
@@ -987,7 +1000,7 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
                 }
 
 
-                fprintf(vectorFD, "%s\t%d\t%d\n", ud_mnemonics_str[ins->GET(mnemonic)], bytesInElem, bytesInReg);
+                //fprintf(vectorFD, "%s\t%d\t%d\n", ud_mnemonics_str[ins->GET(mnemonic)], bytesInElem, bytesInReg);
 
                 if(ins->isFloatPOperation()) {
                     ++fpvecs[elemsInReg-1][bytesInElem-1];
@@ -1010,9 +1023,9 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
 
         }
     }
-    fclose(skippedFD);
-    fclose(vectorFD);
-    fclose(debugFD);
+    //fclose(skippedFD);
+    //fclose(vectorFD);
+    //fclose(debugFD);
     fclose(staticFD);
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
@@ -1032,13 +1045,13 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
 
-    char* debugFile = "problemInstructions";
-    FILE* debugFD = fopen(debugFile, "w");
+    //char* debugFile = "problemInstructions";
+    //FILE* debugFD = fopen(debugFile, "w");
 
-    char* vectorInstructions = "vectorInstructions";
-    FILE* vectorFD = fopen(vectorInstructions, "w");
+    //char* vectorInstructions = "vectorInstructions";
+    //FILE* vectorFD = fopen(vectorInstructions, "w");
 
-    FILE* skippedFD = fopen("nonVecInstructions", "w");
+    //FILE* skippedFD = fopen("nonVecInstructions", "w");
 
     TextSection* text = getDotTextSection();
 
@@ -1222,7 +1235,7 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
                         assert(0);
                     }
 
-                    fprintf(vectorFD, "%s\t%d\t%d\n", ud_mnemonics_str[ins->GET(mnemonic)], bytesInElem, bytesInReg);
+                    //fprintf(vectorFD, "%s\t%d\t%d\n", ud_mnemonics_str[ins->GET(mnemonic)], bytesInElem, bytesInReg);
 
                     int fpcnt, intcnt;
                     fpcnt = intcnt = 0;
@@ -1236,20 +1249,20 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
                     fprintf(staticFD, "\t+vec\t%dx%d:%d:%d # %#llx\n", elemsInReg, bytesInElem << 3, fpcnt, intcnt, hashValue);
 
                 } else {
-                    fprintf(debugFD, "%s, %d, %d\n", ud_mnemonics_str[ins->GET(mnemonic)], bytesInElem, bytesInReg);
+                    //fprintf(debugFD, "%s, %d, %d\n", ud_mnemonics_str[ins->GET(mnemonic)], bytesInElem, bytesInReg);
                 }
 
             } else {
                 fprintf(staticFD, "\t+vec # %#llx\n", hashValue);
-                fprintf(skippedFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
+                //fprintf(skippedFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
             }
         }
 
         delete hc;
     }
-    fclose(skippedFD);
-    fclose(vectorFD);
-    fclose(debugFD);
+    //fclose(skippedFD);
+    //fclose(vectorFD);
+    //fclose(debugFD);
     fclose(staticFD);
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
