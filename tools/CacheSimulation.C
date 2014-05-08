@@ -54,8 +54,6 @@ void CacheSimulation::filterBBs(){
 
         initializeFileList(inputFile, fileLines);
 
-        int32_t err;
-        uint64_t inputHash;
         for (uint32_t i = 0; i < (*fileLines).size(); i++){
             char* ptr = strchr((*fileLines)[i],'#');
             if(ptr) *ptr = '\0';
@@ -63,24 +61,22 @@ void CacheSimulation::filterBBs(){
             if(!strlen((*fileLines)[i]) || allSpace((*fileLines)[i]))
                 continue;
 
-            err = sscanf((*fileLines)[i], "%lld", &inputHash);
+            int32_t err;
+            uint64_t inputHash = 0;
+            uint64_t imgHash = 0;
+
+            err = sscanf((*fileLines)[i], "%llx %llx", &inputHash, &imgHash);
             if(err <= 0){
                 PRINT_ERROR("Line %d of %s has a wrong format", i+1, inputFile);
             }
+
+            // First number is a blockhash
             HashCode* hashCode = new HashCode(inputHash);
-            if(isPerInstruction() && !hashCode->isBlock() && !hashCode->isInstruction() ||
-              !isPerInstruction() && !hashCode->isBlock()){
-                    
-                err = sscanf((*fileLines)[i], "%llx", &inputHash);
-                if(err <= 0){
-                    PRINT_ERROR("Line %d of %s has a wrong format", i+1, inputFile);
-                }
-                hashCode = new HashCode(inputHash);
-                if(isPerInstruction() && !hashCode->isBlock() && !hashCode->isInstruction() ||
-                  !isPerInstruction() && !hashCode->isBlock()){
-                    PRINT_ERROR("Line %d of %s is a wrong unique id for a basic block/instruction", i+1, inputFile);
-                }
-            }
+
+            // Second number, if present, is image id
+            if(err == 2 && getElfFile()->getUniqueId() != imgHash)
+                continue;
+
             BasicBlock* bb = findExposedBasicBlock(*hashCode);
             delete hashCode;
 
