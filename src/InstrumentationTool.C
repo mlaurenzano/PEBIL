@@ -525,6 +525,7 @@ Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, 
     return storeThreadData(scratch, dest, false, 0);
 }
 
+// Looks up thread data in thread data table
 Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, uint32_t dest, bool storeToStack, uint32_t stackPatch){
     ASSERT(scratch < X86_64BIT_GPRS);
     ASSERT(dest < X86_64BIT_GPRS);
@@ -535,8 +536,8 @@ Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, 
     insns->append(X86InstructionFactory64::emitMoveThreadIdToReg(dest));
     // srl $12,%d
     insns->append(X86InstructionFactory64::emitShiftRightLogical(12, dest));
-    // and $0xffff,%d
-    insns->append(X86InstructionFactory64::emitImmAndReg(0xffff, dest));
+    // and ThreadHashMod,%d
+    insns->append(X86InstructionFactory64::emitImmAndReg(ThreadHashMod, dest));
     // mov $TData,%sr
     insns->append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, scratch), getInstDataAddress() + threadHash, false));
     // sll $4,%d

@@ -122,6 +122,7 @@ void GetBufferIds(BufferEntry* b, image_key_t* i){
 }
 
 extern "C" {
+    // Called at just before image initialization
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
         SAVE_STREAM_FLAGS(cout);
         InitializeDynamicInstrumentation(count, dyn);
@@ -161,63 +162,83 @@ extern "C" {
         RESTORE_STREAM_FLAGS(cout);
     }
 
+    // initializes an image
+    // The mutex assures that the image is initialized exactly once, especially in the
+    // case that multiple threads exist before this image is initialized
+    // It should be unnecessary if only a single thread exists because
+    // this function kills initialization points
+    static pthread_mutex_t image_init_mutex = PTHREAD_MUTEX_INITIALIZER;
     void* tool_image_init(void* s, image_key_t* key, ThreadData* td){
         SAVE_STREAM_FLAGS(cout);
         SimulationStats* stats = (SimulationStats*)s;
 
-        set<uint64_t> inits;
-        inits.insert(*key);
-        debug(inform << "Removing init points for image " << hex << (*key) << ENDL);
-        SetDynamicPoints(inits, false);        
-
         assert(stats->Initialized == true);
 
+        pthread_mutex_lock(&image_init_mutex);
+
+        // initialize AllData once per address space
         if (AllData == NULL){
             ReadSettings();
             AllData = new DataManager<SimulationStats*>(GenerateCacheStats, DeleteCacheStats, ReferenceCacheStats);
         }
         assert(AllData);
-        AllData->AddImage(stats, td, *key);
 
-        if (FastStats == NULL){
-            FastStats = new FastData<SimulationStats*, BufferEntry*>(GetBufferIds, AllData, BUFFER_CAPACITY(stats));
-        }
-        assert(FastStats);
-        FastStats->AddImage();
+        // Once per image
+        if(AllData->allimages.count(*key) == 0){
 
-        stats->threadid = AllData->GenerateThreadKey();
-        stats->imageid = *key;
+            // Kill initialization points for this image
+            set<uint64_t> inits;
+            inits.insert(*key);
+            debug(inform << "Removing init points for image " << hex << (*key) << ENDL);
+            SetDynamicPoints(inits, false); 
 
-        synchronize(AllData){
-            if (NonmaxKeys == NULL){
-                NonmaxKeys = new set<uint64_t>();
+            // Initialize image with AllData
+            AllData->AddImage(stats, td, *key);
+
+            // Once per address space, initialize FastStats
+            // This must be done after AllData has exactly one image, thread initialized
+            if (FastStats == NULL){
+                FastStats = new FastData<SimulationStats*, BufferEntry*>(GetBufferIds, AllData, BUFFER_CAPACITY(stats));
             }
+            assert(FastStats);
 
-            set<uint64_t> keys;
-            GetAllDynamicKeys(keys);
-            for (set<uint64_t>::iterator it = keys.begin(); it != keys.end(); it++){
-                uint64_t k = (*it);
-                if (GET_TYPE(k) == PointType_bufferfill && AllData->allimages.count(k) == 0){
-                    NonmaxKeys->insert(k);
+            FastStats->AddImage();
+            stats->threadid = AllData->GenerateThreadKey();
+            stats->imageid = *key;
+    
+            // Get all dynamic point keys and possibly disable them
+            synchronize(AllData){
+                if (NonmaxKeys == NULL){
+                    NonmaxKeys = new set<uint64_t>();
                 }
-            }
-
-            //debug(PrintDynamicPoints());
-
-            if (Sampler->SampleOn == 0){
-                inform << "Disabling all simulation-related instrumentation because METASIM_SAMPLE_ON is set to 0" << ENDL;
-                set<uint64_t> AllSimPoints;
-                for (set<uint64_t>::iterator it = NonmaxKeys->begin(); it != NonmaxKeys->end(); it++){
-                    AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_buffercheck));
-                    AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_bufferinc));
-                    AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_bufferfill));
+    
+                set<uint64_t> keys;
+                GetAllDynamicKeys(keys);
+                for (set<uint64_t>::iterator it = keys.begin(); it != keys.end(); it++){
+                    uint64_t k = (*it);
+                    if (GET_TYPE(k) == PointType_bufferfill && AllData->allimages.count(k) == 0){
+                        NonmaxKeys->insert(k);
+                    }
                 }
-                SetDynamicPoints(AllSimPoints, false);
-                NonmaxKeys->clear();
+    
+                if (Sampler->SampleOn == 0){
+                    inform << "Disabling all simulation-related instrumentation because METASIM_SAMPLE_ON is set to 0" << ENDL;
+                    set<uint64_t> AllSimPoints;
+                    for (set<uint64_t>::iterator it = NonmaxKeys->begin(); it != NonmaxKeys->end(); it++){
+                        AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_buffercheck));
+                        AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_bufferinc));
+                        AllSimPoints.insert(GENERATE_KEY(GET_BLOCKID((*it)), PointType_bufferfill));
+                    }
+                    SetDynamicPoints(AllSimPoints, false);
+                    NonmaxKeys->clear();
+                }
+    
+                AllData->SetTimer(*key, 0);
             }
-
-            AllData->SetTimer(*key, 0);
         }
+
+        pthread_mutex_unlock(&image_init_mutex);
+
         RESTORE_STREAM_FLAGS(cout);
         return NULL;
     }
@@ -335,8 +356,7 @@ extern "C" {
     }
 
 
-
-    void* process_thread_buffer(image_key_t iid, thread_key_t tid){
+    static void* process_thread_buffer(image_key_t iid, thread_key_t tid){
 
 #define DONE_WITH_BUFFER(...)                   \
         BUFFER_CURRENT(stats) = 0;                                      \
@@ -505,6 +525,7 @@ extern "C" {
         DONE_WITH_BUFFER();
     }
 
+    // conditionally called at first memop in each block
     void* process_buffer(image_key_t* key){
         // forgo this since we shouldn't be printing anything during production
         SAVE_STREAM_FLAGS(cout);
