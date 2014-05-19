@@ -94,6 +94,10 @@ void print_counter_array(FILE* stream, CounterArray* ctrs){
     fflush(stream);
 }
 
+/*
+ * Given a template ctrs, create  a new one for this thread
+ * if typ == image, then this will be the master thread and it gets the template as its own counter array
+ */
 CounterArray* GenerateCounterArray(CounterArray* ctrs, uint32_t typ, image_key_t iid, thread_key_t tid, image_key_t firstimage){
     CounterArray* c = ctrs;
     c->threadid = tid;
@@ -102,6 +106,7 @@ CounterArray* GenerateCounterArray(CounterArray* ctrs, uint32_t typ, image_key_t
     // seems correct if there is only a single thread when image is loaded
     // if there are multiple threads, then each will get this same ctrs
     if (typ == AllData->ImageType){
+        assert(c->Master == true);
         return c;
     }
 
@@ -175,6 +180,9 @@ extern "C"
      * AllData should be initialized iff it doesn't exist
      * Initialization points for this image should be disabled
      *
+     * s is the initial statically allocated counter struct
+     * *key is the image hashcode
+     * td is the thread hash table
      */
     static pthread_mutex_t image_init_mutex = PTHREAD_MUTEX_INITIALIZER;
     void* tool_image_init(void* s, uint64_t* key, ThreadData* td){
@@ -182,17 +190,18 @@ extern "C"
 
         CounterArray* ctrs = (CounterArray*)s;
         assert(ctrs->Initialized == true);
+        assert(ctrs->Master == true);
 
 
         pthread_mutex_lock(&image_init_mutex);
         // on first visit create data manager - once per address space
         if (AllData == NULL){
+            init_signal_handlers();
             AllData = new DataManager<CounterArray*>(GenerateCounterArray, DeleteCounterArray, RefCounterArray);
         }
 
         assert(AllData);
         if (AllData->allimages.count(*key) == 0){
-        
             // Remove initialization points -- once per image
             set<uint64_t> inits;
             inits.insert(*key);
@@ -206,6 +215,8 @@ extern "C"
 
             AllData->SetTimer(*key, 0);
         }
+        assert(AllData->allimages.count(*key) == 1);
+
         pthread_mutex_unlock(&image_init_mutex);
 
         RESTORE_STREAM_FLAGS(cout);
@@ -215,11 +226,11 @@ extern "C"
     /**
      * tool_image_fini
      *
-     * if Master, print counters to files
-     * else do nothing
+     * This should be called exactly once
+     * The caller won't necessarily be the master thread
+     * That thread may not even exist anymore
      *
      */
-    static pthread_once_t image_fini_once = PTHREAD_ONCE_INIT;
     void  image_fini_master();
     void* tool_image_fini(uint64_t* key){
         AllData->SetTimer(*key, 1);
@@ -243,169 +254,177 @@ extern "C"
             return NULL;
         }
 
-        if(ctrs->Master) {
-            string bfile;
+        static bool finalized;
+        assert(!finalized);
+        finalized = true;
 
-            const char* prefix = getenv(ENV_OUTPUT_PREFIX);
-            if(prefix != NULL) {
-                bfile.append(prefix);
-                bfile.append("/");
+        if(!ctrs->Master) {
+            inform << getpid() << "/" << getppid() << " Non master thread " << hex << pthread_self() << " finalizing image " << *key << ENDL;
+        } else {
+            inform << getpid() << "/" << getppid() << " Master thread " << hex << pthread_self() << " finalizing image " << *key << ENDL;
+        }
+
+        string bfile;
+
+        const char* prefix = getenv(ENV_OUTPUT_PREFIX);
+        if(prefix != NULL) {
+            bfile.append(prefix);
+            bfile.append("/");
+        }
+        bfile.append(ctrs->Application);
+        bfile.append(".r");
+        AppendRankString(bfile);
+        bfile.append(".t");
+        AppendTasksString(bfile);
+        bfile.append(".");
+    
+        bfile.append(ctrs->Extension);
+
+        ofstream BlockFile;
+        const char* b = bfile.c_str();
+        TryOpen(BlockFile, b);
+    
+        // tally up counter types
+        uint32_t blockCount = 0;
+        uint32_t loopCount = 0;                
+        for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+            CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
+            for (uint32_t i = 0; i < c->Size; i++){
+                if (c->Types[i] == CounterType_loop){
+                    loopCount++;
+                } else if (c->Types[i] == CounterType_basicblock){
+                    blockCount++;
+                } else if (c->Types[i] == CounterType_instruction){
+                    blockCount++;
+                }
             }
-            bfile.append(ctrs->Application);
-            bfile.append(".r");
-            AppendRankString(bfile);
-            bfile.append(".t");
-            AppendTasksString(bfile);
-            bfile.append(".");
+        }
     
-            bfile.append(ctrs->Extension);
+        inform << dec << blockCount << " blocks and " << loopCount << " loops. print those with counts of at least " << dec << PRINT_MINIMUM << " to " << bfile << ENDL;
     
-            ofstream BlockFile;
-            const char* b = bfile.c_str();
-            TryOpen(BlockFile, b);
+        // print file headers
+        BlockFile
+            << "# appname         = " << ctrs->Application << ENDL
+            << "# extension       = " << ctrs->Extension << ENDL
+            << "# rank            = " << dec << GetTaskId() << ENDL
+            << "# ntasks          = " << dec << GetNTasks() << ENDL
+            << "# perinsn         = " << (ctrs->PerInstruction ? "yes" : "no") << ENDL
+            << "# countimage      = " << dec << AllData->CountImages() << ENDL
+            << "# countthread     = " << dec << AllData->CountThreads() << ENDL
+            << "# masterthread    = " << dec << AllData->GetThreadSequence(pthread_self()) << ENDL;
     
-            // tally up counter types
-            uint32_t blockCount = 0;
-            uint32_t loopCount = 0;                
-            for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
-                CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
-                for (uint32_t i = 0; i < c->Size; i++){
-                    if (c->Types[i] == CounterType_loop){
-                        loopCount++;
-                    } else if (c->Types[i] == CounterType_basicblock){
-                        blockCount++;
-                    } else if (c->Types[i] == CounterType_instruction){
-                        blockCount++;
-                    }
+        if (ctrs->PerInstruction){
+            BlockFile << "# insncount       = " << dec << blockCount << ENDL;
+        } else {
+            BlockFile << "# blockcount      = " << dec << blockCount << ENDL;
+        }
+        BlockFile
+            << "# loopcount       = " << dec << loopCount << ENDL
+            << ENDL;
+            
+        // print image summaries
+        BlockFile
+            << "# IMG"
+            << TAB << "ImageHash"
+            << TAB << "ImageSequence"
+            << TAB << "ImageType"
+            << TAB << "Name"
+            << TAB << "BlockCount"
+            << TAB << "LoopCount"
+            << ENDL;
+    
+        for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+            CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
+    
+            blockCount = 0;
+            loopCount = 0;
+            for (uint32_t i = 0; i < c->Size; i++){
+                if (c->Types[i] == CounterType_loop){
+                    loopCount++;
+                } else if (c->Types[i] == CounterType_basicblock){
+                    blockCount++;
+                } else if (c->Types[i] == CounterType_instruction){
+                    blockCount++;
                 }
             }
     
-            inform << dec << blockCount << " blocks and " << loopCount << " loops. print those with counts of at least " << dec << PRINT_MINIMUM << " to " << bfile << ENDL;
-    
-            // print file headers
-            BlockFile
-                << "# appname         = " << ctrs->Application << ENDL
-                << "# extension       = " << ctrs->Extension << ENDL
-                << "# rank            = " << dec << GetTaskId() << ENDL
-                << "# ntasks          = " << dec << GetNTasks() << ENDL
-                << "# perinsn         = " << (ctrs->PerInstruction ? "yes" : "no") << ENDL
-                << "# countimage      = " << dec << AllData->CountImages() << ENDL
-                << "# countthread     = " << dec << AllData->CountThreads() << ENDL
-                << "# masterthread    = " << dec << AllData->GetThreadSequence(pthread_self()) << ENDL;
-    
-            if (ctrs->PerInstruction){
-                BlockFile << "# insncount       = " << dec << blockCount << ENDL;
-            } else {
-                BlockFile << "# blockcount      = " << dec << blockCount << ENDL;
-            }
-            BlockFile
-                << "# loopcount       = " << dec << loopCount << ENDL
-                << ENDL;
-                
-            // print image summaries
-            BlockFile
-                << "# IMG"
-                << TAB << "ImageHash"
-                << TAB << "ImageSequence"
-                << TAB << "ImageType"
-                << TAB << "Name"
-                << TAB << "BlockCount"
-                << TAB << "LoopCount"
-                << ENDL;
-    
-            for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
-                CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
-    
-                blockCount = 0;
-                loopCount = 0;
-                for (uint32_t i = 0; i < c->Size; i++){
-                    if (c->Types[i] == CounterType_loop){
-                        loopCount++;
-                    } else if (c->Types[i] == CounterType_basicblock){
-                        blockCount++;
-                    } else if (c->Types[i] == CounterType_instruction){
-                        blockCount++;
-                    }
-                }
-    
-                BlockFile 
-                    << "IMG"
-                    << TAB << hex << (*iit)
-                    << TAB << dec << AllData->GetImageSequence((*iit))
-                    << TAB << (c->Master ? "Executable" : "SharedLib")
-                    << TAB << c->Application
-                    << TAB << dec << blockCount
-                    << TAB << dec << loopCount
-                    << ENDL;
-            }
-    
-            // print information per-block/loop
             BlockFile 
-                << ENDL
-                << "# BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
-                << "#" << TAB << "ThreadId" << TAB << "ThreadCounter" << ENDL 
+                << "IMG"
+                << TAB << hex << (*iit)
+                << TAB << dec << AllData->GetImageSequence((*iit))
+                << TAB << (c->Master ? "Executable" : "SharedLib")
+                << TAB << c->Application
+                << TAB << dec << blockCount
+                << TAB << dec << loopCount
                 << ENDL;
+        }
     
-            BlockFile
-                << "# LPP" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
-                << "#" << TAB << "ThreadId" << TAB << "ThreadCounter" << ENDL 
-                << ENDL;
+        // print information per-block/loop
+        BlockFile 
+            << ENDL
+            << "# BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
+            << "#" << TAB << "ThreadId" << TAB << "ThreadCounter" << ENDL 
+            << ENDL;
     
-            for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
-                CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
-                for (uint32_t i = 0; i < c->Size; i++){
-                    uint32_t idx;
-                    if (c->Types[i] == CounterType_basicblock){
-                        idx = i;
-                    } else if (c->Types[i] == CounterType_instruction){
-                        idx = c->Counters[i];
+        BlockFile
+            << "# LPP" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
+            << "#" << TAB << "ThreadId" << TAB << "ThreadCounter" << ENDL 
+            << ENDL;
+    
+        for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+            CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
+            for (uint32_t i = 0; i < c->Size; i++){
+                uint32_t idx;
+                if (c->Types[i] == CounterType_basicblock){
+                    idx = i;
+                } else if (c->Types[i] == CounterType_instruction){
+                    idx = c->Counters[i];
+                } else {
+                    idx = i;
+                }
+    
+                uint32_t counter = 0;
+                for (set<thread_key_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
+                    CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));
+                    counter += tc->Counters[idx];
+                }
+    
+                if (counter >= PRINT_MINIMUM){
+                    if (c->Types[i] == CounterType_loop){
+                        BlockFile
+                            << "LPP"
+                            << TAB << hex << c->Hashes[i]
+                            << TAB << dec << AllData->GetImageSequence((*iit))
+                            << TAB << dec << counter
+                            << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
+                            << TAB << c->Functions[i]
+                            << TAB << hex << c->Addresses[i]
+                            << ENDL;
                     } else {
-                        idx = i;
+                        BlockFile
+                            << "BLK"
+                            << TAB << dec << i
+                            << TAB << hex << c->Hashes[i]
+                            << TAB << dec << AllData->GetImageSequence((*iit))
+                            << TAB << dec << counter
+                            << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
+                            << TAB << c->Functions[i]
+                            << TAB << hex << c->Addresses[i]
+                            << ENDL;
                     }
     
-                    uint32_t counter = 0;
                     for (set<thread_key_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
                         CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));
-                        counter += tc->Counters[idx];
-                    }
-    
-                    if (counter >= PRINT_MINIMUM){
-                        if (c->Types[i] == CounterType_loop){
+                        if (tc->Counters[idx] >= PRINT_MINIMUM){
                             BlockFile
-                                << "LPP"
-                                << TAB << hex << c->Hashes[i]
-                                << TAB << dec << AllData->GetImageSequence((*iit))
-                                << TAB << dec << counter
-                                << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
-                                << TAB << c->Functions[i]
-                                << TAB << hex << c->Addresses[i]
+                                << TAB << dec << AllData->GetThreadSequence((*tit))
+                                << TAB << dec << tc->Counters[idx]
                                 << ENDL;
-                        } else {
-                            BlockFile
-                                << "BLK"
-                                << TAB << dec << i
-                                << TAB << hex << c->Hashes[i]
-                                << TAB << dec << AllData->GetImageSequence((*iit))
-                                << TAB << dec << counter
-                                << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
-                                << TAB << c->Functions[i]
-                                << TAB << hex << c->Addresses[i]
-                                << ENDL;
-                        }
-    
-                        for (set<thread_key_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
-                            CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));
-                            if (tc->Counters[idx] >= PRINT_MINIMUM){
-                                BlockFile
-                                    << TAB << dec << AllData->GetThreadSequence((*tit))
-                                    << TAB << dec << tc->Counters[idx]
-                                    << ENDL;
-                            }
                         }
                     }
                 }
-    
             }
+    
         }
 
         inform << "cxxx Total Execution time for " << ctrs->Extension << "-instrumented image " << ctrs->Application << ": " << (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)) << " seconds" << ENDL;

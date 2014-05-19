@@ -534,8 +534,8 @@ Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, 
 
     // mov %fs:0x10,%d
     insns->append(X86InstructionFactory64::emitMoveThreadIdToReg(dest));
-    // srl $12,%d
-    insns->append(X86InstructionFactory64::emitShiftRightLogical(12, dest));
+    // srl ThreadHashShift,%d
+    insns->append(X86InstructionFactory64::emitShiftRightLogical(ThreadHashShift, dest));
     // and ThreadHashMod,%d
     insns->append(X86InstructionFactory64::emitImmAndReg(ThreadHashMod, dest));
     // mov $TData,%sr

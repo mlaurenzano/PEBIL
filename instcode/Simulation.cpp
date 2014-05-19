@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <strings.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <vector>
 #include <iostream>
@@ -178,6 +180,7 @@ extern "C" {
 
         // initialize AllData once per address space
         if (AllData == NULL){
+            init_signal_handlers();
             ReadSettings();
             AllData = new DataManager<SimulationStats*>(GenerateCacheStats, DeleteCacheStats, ReferenceCacheStats);
         }
@@ -185,13 +188,6 @@ extern "C" {
 
         // Once per image
         if(AllData->allimages.count(*key) == 0){
-
-            // Kill initialization points for this image
-            set<uint64_t> inits;
-            inits.insert(*key);
-            debug(inform << "Removing init points for image " << hex << (*key) << ENDL);
-            SetDynamicPoints(inits, false); 
-
             // Initialize image with AllData
             AllData->AddImage(stats, td, *key);
 
@@ -235,6 +231,14 @@ extern "C" {
     
                 AllData->SetTimer(*key, 0);
             }
+
+            // Kill initialization points for this image
+            set<uint64_t> inits;
+            inits.insert(*key);
+            debug(inform << "Removing init points for image " << hex << (*key) << ENDL);
+            SetDynamicPoints(inits, false); 
+
+
         }
 
         pthread_mutex_unlock(&image_init_mutex);
