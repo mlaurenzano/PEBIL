@@ -604,7 +604,7 @@ extern "C" {
        if(!(CacheSimulation || AddressRangeEnable))
         {    
                 double t = (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)); 
-                inform<<"CXXX Total Execution time for instrumented application: " << t << END
+                inform<<"CXXX Total Execution time for instrumented application: " << t << ENDL;
         }    
 
         else if(CacheSimulation||AddressRangeEnable)
