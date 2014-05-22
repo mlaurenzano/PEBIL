@@ -102,11 +102,8 @@ CounterArray* GenerateCounterArray(CounterArray* ctrs, uint32_t typ, image_key_t
     CounterArray* c = ctrs;
     c->threadid = tid;
     c->imageid = iid;
-    // FIXME is this right?
-    // seems correct if there is only a single thread when image is loaded
-    // if there are multiple threads, then each will get this same ctrs
+
     if (typ == AllData->ImageType){
-        assert(c->Master == true);
         return c;
     }
 
@@ -119,7 +116,6 @@ CounterArray* GenerateCounterArray(CounterArray* ctrs, uint32_t typ, image_key_t
     c->Counters = (uint64_t*)malloc(sizeof(uint64_t) * c->Size);
 
     c->Initialized = false;
-    c->Master = false;
 
     // keep all CounterType_instruction in place
     memcpy(c->Counters, ctrs->Counters, sizeof(uint64_t) * c->Size);
@@ -190,7 +186,6 @@ extern "C"
 
         CounterArray* ctrs = (CounterArray*)s;
         assert(ctrs->Initialized == true);
-        assert(ctrs->Master == true);
 
 
         pthread_mutex_lock(&image_init_mutex);
@@ -257,12 +252,6 @@ extern "C"
         static bool finalized;
         assert(!finalized);
         finalized = true;
-
-        if(!ctrs->Master) {
-            inform << getpid() << "/" << getppid() << " Non master thread " << hex << pthread_self() << " finalizing image " << *key << ENDL;
-        } else {
-            inform << getpid() << "/" << getppid() << " Master thread " << hex << pthread_self() << " finalizing image " << *key << ENDL;
-        }
 
         string bfile;
 
@@ -352,7 +341,7 @@ extern "C"
                 << "IMG"
                 << TAB << hex << (*iit)
                 << TAB << dec << AllData->GetImageSequence((*iit))
-                << TAB << (c->Master ? "Executable" : "SharedLib")
+                << TAB << (c->Master ? "Executable" : "SharedLib") // FIXME Master is not necessarily the executable
                 << TAB << c->Application
                 << TAB << dec << blockCount
                 << TAB << dec << loopCount

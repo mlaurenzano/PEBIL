@@ -263,7 +263,7 @@ extern "C" {
     }
 */
   //  void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, ReuseDistance* rd, ReuseDistance* sd, uint32_t numElements, image_key_t iid, thread_key_t tid)
-    void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m,uint32_t numElements, image_key_t iid, thread_key_t tid)
+    static void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m,uint32_t numElements, image_key_t iid, thread_key_t tid)
     {
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
@@ -293,7 +293,7 @@ extern "C" {
         //assert(faststats[0]->Stats[HandlerIdx]->Verify());
     }
 
-    void ProcessReuseBuffer(ReuseDistance* rd,uint32_t numElements, image_key_t iid, thread_key_t tid)
+    static void ProcessReuseBuffer(ReuseDistance* rd,uint32_t numElements, image_key_t iid, thread_key_t tid)
     {
 
 	uint32_t threadSeq = AllData->GetThreadSequence(tid);
@@ -326,7 +326,7 @@ extern "C" {
 	// assert(faststats[0]->Stats[HandlerIdx]->Verify());
     }
 
-    void ProcessSpatialBuffer( ReuseDistance* sd,uint32_t numElements, image_key_t iid, thread_key_t tid)
+    static void ProcessSpatialBuffer( ReuseDistance* sd,uint32_t numElements, image_key_t iid, thread_key_t tid)
     {
 
 	uint32_t threadSeq = AllData->GetThreadSequence(tid);
@@ -564,7 +564,7 @@ extern "C" {
             return NULL;
         }
 
-        // only print stats when the executable exits
+        // only print stats when the master image exits
         if (!stats->Master){
             RESTORE_STREAM_FLAGS(cout);
             return NULL;
@@ -715,7 +715,7 @@ extern "C" {
 		        << "IMG"
 		        << TAB << hex << (*iit)
 		        << TAB << dec << AllData->GetImageSequence((*iit))
-		        << TAB << (s->Master ? "Executable" : "SharedLib")
+		        << TAB << (s->Master ? "Executable" : "SharedLib") // FIXME master is not necessarily the executable
 		        << TAB << s->Application
 		        << ENDL;
 		}

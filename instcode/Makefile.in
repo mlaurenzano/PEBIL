@@ -34,41 +34,41 @@ all: $(LIB_TARGETS)
 	$(MPICXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
 
 libcounter.so : CounterFunctions.O
-	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS)
 libcounter.a : CounterFunctions.o $(COMMON_OBJS)
 	$(AR) $@ CounterFunctions.o $(COMMON_OBJS)
 
 libsimulator.so : Simulation.O
-	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(REUSE_LIBS)
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(REUSE_LIBS) $(CXXFLAGS)
 libsimulator.a : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 	$(AR) $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
 
 liblooptimer.so : LoopTimer.O
-	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS)
 
 libfrequencyconfig.so : FrequencyConfig.O
-	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS)
 
 libpapiinst.so : PAPIInst.O
-	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS)
 
 libtimer.so : TimerFunctions.O
-	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS)
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS)
 libtimer.a : TimerFunctions.o $(COMMON_OBJS) 
 	$(AR) $@ TimerFunctions.o $(COMMON_OBJS)
 
 libclassifier.so : ClassifierFunctions.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ ClassifierFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS)
+	$(MPICC) $(SHARED_LIB) -o $@ ClassifierFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS) $(CFLAGS)
 libclassifier.a : ClassifierFunctions.o
 	$(AR) $@ ClassifierFunctions.o
 
 libpfreq.so : Frequency.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ Frequency.o $(COMMON_OBJS) $(EXTRA_LIBS)
+	$(MPICC) $(SHARED_LIB) -o $@ Frequency.o $(COMMON_OBJS) $(EXTRA_LIBS) $(CFLAGS)
 libpfreq.a : Frequency.o
 	$(AR) $@ Frequency.o
 
 libtautrace.so : tautrace.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ tautrace.o $(COMMON_OBJS) $(EXTRA_LIBS)
+	$(MPICC) $(SHARED_LIB) -o $@ tautrace.o $(COMMON_OBJS) $(EXTRA_LIBS) $(CFLAGS)
 libtautrace.a : tautrace.o
 	$(AR) $@ tautrace.o
 

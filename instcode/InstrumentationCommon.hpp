@@ -773,27 +773,32 @@ public:
     }
 };
 
-// This class provides fast access for data stored in an DataManager alldata
-// allData have any relevant data before it is accessed/enterred into a FastData
+// Premise: There is a buffer V and data T
+//   T is managed by a DataManager
+//   Each element in buffer V is associated with a T
+//   Client code might want to access T for all elements in a buffer, e.g.
+//   for item in Buffer:
+//     DataManager->GetData(image_key(item), tid)
+//   which involves many map lookups via GetData
 //
-// The important data structure is
-//   stats: a 2d array of T
-//     first index is thread sequence (externally seen as nonlinear threadid)
-//     second index is an image_key_t set by dataid
+// This class attempts to access all the data that will be needed for a filled
+// buffer in the most efficient way possible by recognizing that many of the
+// image_keys for sequential items will be the same, collecting all the items
+// at once and storing them in an array.
+//    T stats[tid][buffer index]
 //
-// V must be incrementable
-// T is data, but probably a pointer to something
+// AddThread: increases size of stats to hold new threads data
+// AddImage: increments image count... not really important
+// Refresh: updates stats[tid] with data for input buffer
+// GetBufferStats: returns current stats[tid]
+//
 template <class T, class V> class FastData {
 private:
-    uint32_t threadcount;
-    uint32_t imagecount;
-    uint32_t capacity;
     DataManager<T>* alldata;
     void (*dataid)(V, image_key_t*);
-
-    // [i][j]
-    // i == thread id
-    // j == buffer index
+    uint32_t capacity;
+    uint32_t threadcount;
+    uint32_t imagecount;
     T** stats;
     pthread_mutex_t lock;
 
@@ -802,16 +807,11 @@ private:
 
 public:
     // Must be called while allData has been initialized with only a single image and thread
-    // capacity is the number of different image_key_t's that are allowed
-    FastData(void (*di)(V, image_key_t*), DataManager<T>* all, uint32_t cap){
-        dataid = di;
+    // @param di(buffer, id): sets id appropriately for the current dereference of buffer
+    // @param cap: maximum size of a V
+    FastData(void (*di)(V, image_key_t*), DataManager<T>* all, uint32_t cap)
+        : alldata(all), dataid(di), capacity(cap), threadcount(1), imagecount(0) {
 
-        threadcount = 1;
-        imagecount = 0;
-
-        capacity = cap;
-
-        alldata = all;
         assert(alldata->CountThreads() == 1);
         assert(alldata->CountImages() == 1);
         assert(alldata->GetThreadSequence(pthread_self()) == 0);
@@ -843,10 +843,8 @@ public:
         uint32_t tid_index = alldata->GetThreadSequence(tid);
         uint32_t newsize = tid_index+1 > threadcount ? tid_index+1 : threadcount;
 
-        //inform << "Adding new thread with index " << tid_index << " and new size will be " << newsize << ENDL;
-        //inform << "Old size was " << threadcount << ENDL;
-
-        // copy old data
+        // Grow stats and copy old data if necessary
+        // Also initialize stats for any other threads which are implied to exist
         if(newsize > threadcount) {
             T** tmp = new T*[newsize];
             for (uint32_t i = 0; i < threadcount; ++i){
@@ -854,7 +852,6 @@ public:
             }
             delete[] stats;
             stats = tmp;
-            //inform << "Copied old data" << ENDL;
 
             // initialize any new data, zeroing out any new data not for this thread
             for(uint32_t i = threadcount; i < newsize; ++i){
@@ -862,7 +859,6 @@ public:
                 if(i != tid_index)
                     memset(stats[i], 0, sizeof(T) * capacity);
             }
-            //inform << "Initialized new data" << ENDL;
 
             threadcount = newsize;
         }
@@ -875,22 +871,21 @@ public:
                 stats[tid_index][j] = dat;
             }
         }
-        //inform << "Initialized this threads data" << ENDL;
 
-        //inform << "Finished adding new thread" << ENDL;
         UnLock();
     }
 
     // image must have already been added to allData
     // Increments image count
     // If first image, initializes stats
+    // FIXME, this method can probably be gotten rid of
     void AddImage(){
         Lock();
         imagecount++;
         if (imagecount == 1){
             assert(threadcount == 1);
             assert(imagecount == alldata->CountImages());
-            assert(threadcount == alldata->CountThreads()); // FIXME race condition when image starts with multiple threads?
+            assert(threadcount == alldata->CountThreads());
             for (uint32_t j = 0; j < capacity; j++){
                 stats[0][j] = alldata->GetData();
             }
@@ -898,22 +893,22 @@ public:
         UnLock();
     }
 
-    // updates stats to hold the correct image data for the
-    // entries in buffer
-    // buffer is used by dataid to generate keys with which to pull data from alldata
-    // buffer must be able to be incremented num times
+    // synchronize this threads entry in stats with first num ids taken from buffer using dataid
     void Refresh(V buffer, uint32_t num, thread_key_t tid){
         debug(assert(imagecount > 0));
         debug(assert(threadcount > 0));
         debug(assert(num <= capacity));
 
+        uint32_t threadseq = alldata->GetThreadSequence(tid);
+        if(threadseq >= threadcount) {
+            AddThread(tid);
+        }
+        assert(threadseq < threadcount);
+
         // If there's only one image, stats must already hold correct data
         if (imagecount == 1){
             return;
         }
-
-        uint32_t threadseq = alldata->GetThreadSequence(tid);
-        assert(threadseq < threadcount);
 
         image_key_t i;
         image_key_t ci = 0;
@@ -951,7 +946,6 @@ public:
 
         uint32_t threadseq = alldata->GetThreadSequence(tid);
         assert(threadseq < threadcount);
-        //inform << "Getting buffer stats for thread " << dec << threadseq << ENDL;
 
         return stats[threadseq];
     }
