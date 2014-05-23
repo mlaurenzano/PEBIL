@@ -284,10 +284,14 @@ extern "C" {
                 debug(assert(AllData->CountThreads() > 1));
                 continue;
             }
+            // This happens when uninitialized threads make their way into instrumented code.
+            // See the FIXME in DataManager::AddImage
+            // skip processing the reference for now
+            if (reference->threadid != tid){
+                continue;
+            }
 
             m->Process((void*)ss, reference);
-          //  cout<<"\n\t Reference->threadid "<<(reference->threadid)<<" tid: "<<tid;
-            assert(reference->threadid == tid);
             numProcessed++;
         }
         //assert(faststats[0]->Stats[HandlerIdx]->Verify());
@@ -1075,6 +1079,11 @@ void PrintSimulationStats(ofstream& f, SimulationStats* stats, thread_key_t tid,
 
 void SimulationFileName(SimulationStats* stats, string& oFile){
     oFile.clear();
+    const char* prefix = getenv(ENV_OUTPUT_PREFIX);
+    if(prefix != NULL) {
+        oFile.append(prefix);
+        oFile.append("/");
+    }
     oFile.append(stats->Application);
     oFile.append(".r");
     AppendRankString(oFile);
