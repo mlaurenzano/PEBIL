@@ -201,6 +201,7 @@ struct ud
   uint8_t               pfx_avx;
   uint8_t               avx_vex[2];
   uint8_t               mvex[3];
+  enum ud_type          vector_mask_register;
   uint8_t		default64;
   uint8_t		opr_mode;
   uint8_t		adr_mode;

@@ -191,6 +191,22 @@ const static char* alu_name_map[X86_ALU_REGS] = { "ax", "cx", "dx", "bx", "sp", 
                                                   "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
                                                   "st0", "st1", "st2", "st3", "st4", "st5", "st6", "st7" };
 
+    
+enum Confidence {
+  Unknown, Maybe, Definitely
+};
+
+struct RuntimeValue {
+    Confidence confidence;
+    uint64_t value;
+};
+
+struct VectorInfo {
+    uint8_t nElements;
+    uint8_t elementSize;
+    struct RuntimeValue kval;
+};
+
 class RegisterSet {
 public:
     RegisterSet();
@@ -274,6 +290,7 @@ struct ud_compact
     //uint8_t 		pfx_insn;
     //uint8_t           pfx_avx;
     //uint8_t           avx_vex[2];
+    enum ud_type        vector_mask_register;
     //uint8_t		default64;
     //uint8_t		opr_mode;
     uint8_t		adr_mode;
@@ -440,6 +457,8 @@ private:
 
     uint32_t countValidNonimm();
 
+    struct VectorInfo vectorInfo;
+
 public:
 
     static X86Instruction* disassemble(char* buff);
@@ -491,6 +510,10 @@ public:
     bool implicitlyUsesReg(uint32_t alu);
     bool implicitlyDefinesReg(uint32_t alu);
 
+
+    struct VectorInfo getVectorInfo();
+    struct RuntimeValue getRegisterValue(enum ud_type reg);
+    void setKRegister(RuntimeValue val);
 
     struct DefLocation {
         enum ud_type type;

@@ -63,7 +63,16 @@ X86Instruction* ElfFileInst::linkInstructionToData(X86Instruction* ins, uint64_t
     return ins;
 }
 
+void ElfFileInst::computeVectorMasks()
+{
+    if(elfFile->getFileHeader()->GET(e_machine) != EM_K10M)
+        return;
 
+    for(uint32_t i = 0; i < getNumberOfExposedFunctions(); ++i) {
+        Function* f = getExposedFunction(i);
+        f->computeVectorMasks();
+    }
+}
 
 // only make modifications to the new/interposed block, the modifications to the source/target block will be made later
 BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, uint32_t bbtgtidx){

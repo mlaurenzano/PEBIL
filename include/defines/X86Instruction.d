@@ -128,6 +128,7 @@ udis86 ud_compact
     GET_FIELD_CLASS(struct ud_operand*,operand); \
     GET_FIELD_CLASS(uint8_t,pfx_seg); \
     GET_FIELD_CLASS(uint8_t,pfx_rep); \
+    GET_FIELD_CLASS(enum ud_type,vector_mask_register); \
     GET_FIELD_CLASS(uint8_t,adr_mode); \
     GET_FIELD_CLASS(uint32_t,flags_use); \
     GET_FIELD_CLASS(uint32_t,flags_def); \

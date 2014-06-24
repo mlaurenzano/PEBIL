@@ -179,6 +179,8 @@ protected:
 
     BasicBlock* initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, uint32_t bbtgtidx);
 
+    void computeVectorMasks();
+
     void dump(BinaryOutputFile* binaryOutputFile);
 
 public:

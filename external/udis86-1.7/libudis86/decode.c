@@ -56,6 +56,28 @@ const char * ud_lookup_mnemonic( enum ud_mnemonic_code c )
     return NULL;
 }
 
+
+/* -----------------------------------------------------------------------------
+ * resolve_reg() - Resolves the register type 
+ * -----------------------------------------------------------------------------
+ */
+static enum ud_type 
+resolve_reg(struct ud* u, unsigned int type, unsigned char i)
+{
+  switch (type) {
+    case T_MMX :    return UD_R_MM0  + (i & 7);
+    case T_XMM :    return UD_R_XMM0 + i;
+    case T_YMM :    return UD_R_YMM0 + i;
+    case T_ZMM :    return UD_R_ZMM0 + i;
+    case T_K   :    return UD_R_K0   + i;
+    case T_CRG :    return UD_R_CR0  + i;
+    case T_DBG :    return UD_R_DR0  + i;
+    case T_SEG :    return UD_R_ES   + (i & 7);
+    case T_NONE:
+    default:    return UD_NONE;
+  }
+}
+
 /******************************************************************************
  *  Prefix decoding
  *****************************************************************************/
@@ -182,8 +204,8 @@ static void decode_mvex(struct ud* u)
           assert(0);
     }
     u->pfx_avx = ext;
-
     u->pfx_rex = MVEX_REX_DEF(MVEX_B(u->mvex[0]), MVEX_X(u->mvex[0]), MVEX_R(u->mvex[0]), MVEX_W(u->mvex[1]));
+    u->vector_mask_register = resolve_reg(u, T_K, MVEX_KKK(u->mvex[2]));
 }
 
 static int gen_hex( struct ud *u )
@@ -883,26 +905,6 @@ resolve_gpr32(struct ud* u, enum ud_operand_code gpr_op)
   return gpr_op +  UD_R_EAX;
 }
 
-/* -----------------------------------------------------------------------------
- * resolve_reg() - Resolves the register type 
- * -----------------------------------------------------------------------------
- */
-static enum ud_type 
-resolve_reg(struct ud* u, unsigned int type, unsigned char i)
-{
-  switch (type) {
-    case T_MMX :    return UD_R_MM0  + (i & 7);
-    case T_XMM :    return UD_R_XMM0 + i;
-    case T_YMM :    return UD_R_YMM0 + i;
-    case T_ZMM :    return UD_R_ZMM0 + i;
-    case T_K   :    return UD_R_K0   + i;
-    case T_CRG :    return UD_R_CR0  + i;
-    case T_DBG :    return UD_R_DR0  + i;
-    case T_SEG :    return UD_R_ES   + (i & 7);
-    case T_NONE:
-    default:    return UD_NONE;
-  }
-}
 
 
 static void decode_vex_vvvv(struct ud* u,
@@ -937,17 +939,6 @@ static void decode_mvex_vvvv(struct ud* u,
     op->position = 2;
 }
 
-static void decode_mvex_kkk(struct ud* u,
-        struct ud_operand* op,
-        unsigned int size)
-{
-    enum ud_type reg = resolve_reg(u, T_K, MVEX_KKK(u->mvex[2]));
-
-    op->type = UD_OP_REG;
-    op->base = reg;
-    op->size = size;
-    op->position = 3;
-}
 
 /* -----------------------------------------------------------------------------
  * clear_operand() - clear operand pointer 

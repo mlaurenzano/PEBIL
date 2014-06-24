@@ -32,6 +32,44 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
+// FIXME this can be done better
+static uint8_t countBitsSet(uint16_t v)
+{
+    uint8_t count = 0;
+    for(int i = 0; i < 16; ++i) {
+        if(v & 1) ++count;
+        v = v >> 1;
+    }
+    return count;
+}
+
+void X86Instruction::setKRegister(RuntimeValue val)
+{
+    vectorInfo.kval = val;
+}
+
+struct VectorInfo X86Instruction::getVectorInfo()
+{
+    // elementSize is collected from the instruction classifier
+    vectorInfo.elementSize = X86InstructionClassifier::getInstructionElemSize(this);
+
+    OperandX86* src = getFirstSourceOperand();
+    uint32_t bytesInReg = src->getBytesUsed();
+
+    // FIXME -- currently all 512 bit operations use vector masks
+    if(bytesInReg == 64) {
+        if(vectorInfo.kval.confidence == Unknown) {
+            vectorInfo.nElements = 0;
+        } else {
+            vectorInfo.nElements = countBitsSet(vectorInfo.kval.value);
+        }
+    } else if(vectorInfo.elementSize > 0) {
+        vectorInfo.nElements = bytesInReg / vectorInfo.elementSize;
+    }
+
+    return vectorInfo;
+}
+
 BitSet<uint32_t>* X86Instruction::getDeadRegIn(BitSet<uint32_t>* invalidRegs){
     return getDeadRegIn(invalidRegs, 0);
 }
@@ -205,6 +243,7 @@ void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg){
     memcpy(comp->operand, reg->operand, sizeof(struct ud_operand) * MAX_OPERANDS);
     comp->pfx_seg = reg->pfx_seg;
     comp->pfx_rep = reg->pfx_rep;
+    comp->vector_mask_register = reg->vector_mask_register;
     comp->adr_mode = reg->adr_mode;
     comp->flags_use = reg->flags_use;
     comp->flags_def = reg->flags_def;
@@ -1824,6 +1863,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     liveIns = NULL;
     liveOuts = NULL;
     defUseDist = 0;
+    bzero(&vectorInfo, sizeof(vectorInfo));
 
     operands = new OperandX86*[MAX_OPERANDS];
 
@@ -1882,6 +1922,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     liveIns = NULL;
     liveOuts = NULL;
     defUseDist = 0;
+    bzero(&vectorInfo, sizeof(vectorInfo));
     
     operands = new OperandX86*[MAX_OPERANDS];
 

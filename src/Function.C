@@ -115,6 +115,10 @@ void Function::computeDefUse(){
 #endif
 }
 
+void Function::computeVectorMasks(){
+    flowGraph->computeVectorMasks();
+}
+
 void Function::interposeBlock(BasicBlock* bb){
     flowGraph->interposeBlock(bb);
     sizeInBytes += bb->getNumberOfBytes();

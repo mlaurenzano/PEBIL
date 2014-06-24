@@ -43,6 +43,178 @@ void FlowGraph::wedge(uint32_t shamt){
     }
 }
 
+// Limited Value Prediction
+
+//   if i sets r from an imm: return imm
+//   elif i sets r from a reg: return Predict(src(i), reg)
+//   elif i sets r from someting else: return Unknown
+//   else: return Predict(src(i), r)
+//   
+// Return the outvalue for reg at ins
+static RuntimeValue vpBackward(X86Instruction* ins, enum ud_type reg,
+    BasicBlock* bb, uint32_t bIdx)
+{
+    assert(IS_REG(reg));
+
+    OperandX86* dest = ins->getDestOperand();
+
+    // if this instruction writes to this register
+    if(dest && dest->getType() == UD_OP_REG && dest->GET(base) == reg) {
+        // Try to solve move operations
+        if(ins->isMoveOperation()) {
+            OperandX86* src = ins->getFirstSourceOperand();
+
+            switch(src->getType()) {
+                case UD_OP_IMM:
+                    return {Definitely, src->getValue()};
+                case UD_OP_REG:
+                    reg = src->GET(base);
+                    break;
+                default:
+                    return {Unknown, 0};
+            }
+
+        // Don't try to solve anything else yet
+        } else {
+            return {Unknown, 0};
+        }
+
+    // if this instruction doesn't write to this register
+    }
+
+    // get src instruction
+    uint32_t srcBIdx;
+    BasicBlock* srcBB;
+    X86Instruction* srcIns;
+
+    if(bIdx > 0) {
+        srcBIdx = bIdx - 1;
+        srcBB = bb;
+    } else {
+        if(bb->getNumberOfSources() == 0) {
+            return {Unknown, 0};
+        }
+
+        srcBB = bb->getSourceBlock(0);
+        srcBIdx = srcBB->getNumberOfInstructions() - 1;
+    }
+    srcIns = srcBB->getInstruction(srcBIdx);
+
+    assert(srcIns != NULL);
+
+    return vpBackward(srcIns, reg, srcBB, srcBIdx);
+}
+
+// FIXME this is mostly unused
+// it should be used to track all k regsiter values
+// currently a recursive backward algorithm is used which is horribly inefficient
+struct k1Prediction {
+    X86Instruction* ins;
+    uint32_t idx;
+    RuntimeValue value;
+    k1Prediction(X86Instruction* _ins, uint32_t _idx) : ins(_ins), idx(_idx)  {value.confidence = Unknown;}
+    k1Prediction(X86Instruction* _ins, uint32_t _idx, RuntimeValue v) : ins(_ins), idx(_idx), value(v) {}
+};
+
+// Compute the in-value of k1 for each instruction
+void FlowGraph::computeVectorMasks(){
+
+    // build maps of addresses -> instructions/blocks
+    std::pebil_map_type<uint64_t, X86Instruction*> imap;
+    std::pebil_map_type<uint64_t, BasicBlock*> bmap;
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        BasicBlock* bb = basicBlocks[i];
+        for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
+            X86Instruction* x = bb->getInstruction(j);
+            for (uint32_t k = 0; k < x->getSizeInBytes(); k++){
+                ASSERT(imap.count(x->getBaseAddress() + k) == 0);
+                ASSERT(bmap.count(x->getBaseAddress() + k) == 0);
+                imap[x->getBaseAddress() + k] = x;
+                bmap[x->getBaseAddress() + k] = bb;
+            }
+        }
+    }
+
+    // The worklist is a queue
+    // priorities are unused, should be all 0
+    PriorityQueue<struct k1Prediction*, int> worklist = PriorityQueue<struct k1Prediction*, int>();
+
+    // keep track of blocks already visited
+    bool blockTouched[getFunction()->getNumberOfBasicBlocks()];
+    bzero(&blockTouched, sizeof(bool) * getFunction()->getNumberOfBasicBlocks());
+
+    // get first instruction
+    X86Instruction* firstIns = basicBlocks[0]->getInstruction(0);
+    assert(firstIns != NULL);
+
+    struct k1Prediction* first = new k1Prediction(firstIns, 0);
+    worklist.insert(first, 0);
+
+    // Initialize worklist with first instruction
+    // while worklist has items:
+    //   remove i from worklist
+    //   i.vectorInfo.k1val = Predict(i, k1)
+    //   add targets of i to worklist
+
+    while(!worklist.isEmpty()) {
+        int unused;
+
+        struct k1Prediction* item = worklist.deleteMin(&unused);
+        X86Instruction* ins = item->ins;
+
+        if(ins->GET(vector_mask_register) == UD_R_K0) {
+            ins->setKRegister({Definitely, 0xffff});
+        } else if(ins->GET(vector_mask_register) != 0) {
+            RuntimeValue kval = vpBackward(ins, ins->GET(vector_mask_register), bmap[ins->getBaseAddress()], item->idx);
+            ins->setKRegister(kval);
+        }
+
+        // if this instruction writes to k1, update the outvalue
+        RuntimeValue outval;
+        //OperandX86* dest = ins->getDestOperand();
+        //if(dest && dest->getType() == UD_OP_REG && dest->GET(base) == UD_R_K1) {
+       //     outval = vpBackward(ins, UD_R_K1, bmap[ins->getBaseAddress()], item->idx);
+        //} else {
+         //   outval = item->value;
+       // }
+
+        // add targets of i to worklist
+
+        // targets of branches
+        if(ins->usesControlTarget() && !ins->isCall()) {
+            BasicBlock* tgtBlock = bmap[ins->getTargetAddress()];
+            if(tgtBlock && !blockTouched[tgtBlock->getIndex()]) {
+                blockTouched[tgtBlock->getIndex()] = true;
+                struct k1Prediction* nextItem = new k1Prediction(tgtBlock->getLeader(), 0, outval);
+                worklist.insert(nextItem, 0);
+            }
+        }
+
+        // fallthrough targets
+        if(ins->controlFallsThrough()) {
+            BasicBlock* tgtBlock = bmap[ins->getBaseAddress() + ins->getSizeInBytes()];
+            if(tgtBlock) {
+                X86Instruction* ftTarget = imap[ins->getBaseAddress() + ins->getSizeInBytes()];
+                if(ftTarget) {
+                    // fall through to new block
+                    if(ftTarget->isLeader()) {
+                        if(!blockTouched[tgtBlock->getIndex()]) {
+                            blockTouched[tgtBlock->getIndex()] = true;
+                            worklist.insert(new k1Prediction(ftTarget, 0, outval), 0);
+                        }
+                    // fall through to next instruction
+                    } else {
+                        worklist.insert(new k1Prediction(ftTarget, item->idx+1, outval), 0);
+                    }
+                }
+            }
+        }
+
+        delete item;
+    }
+}
+
+
 uint32_t loopXDefUseDist(uint32_t currDist, uint32_t funcSize){
     return currDist + funcSize;
 }
@@ -149,8 +321,8 @@ bool flowsInDefUseScope(BasicBlock* tgt, Loop* loop){
 }
 
 inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loop* loop,
-                         std::pebil_map_type<uint64_t, X86Instruction*>& ipebil_map_type,
-                         std::pebil_map_type<uint64_t, BasicBlock*>& bpebil_map_type,
+                         std::pebil_map_type<uint64_t, X86Instruction*>& imap,
+                         std::pebil_map_type<uint64_t, BasicBlock*>& bmap,
                          std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& alliuses,
                          std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& allidefs,
                          int k, uint64_t loopLeader, uint32_t fcnt){
@@ -237,7 +409,7 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
         // end of block that is a branch
         if (cand->usesControlTarget() && !cand->isCall()){
-            BasicBlock* tgtBlock = bpebil_map_type[cand->getTargetAddress()];
+            BasicBlock* tgtBlock = bmap[cand->getTargetAddress()];
             if (tgtBlock && !blockTouched[tgtBlock->getIndex()] && flowsInDefUseScope(tgtBlock, loop)){
                 blockTouched[tgtBlock->getIndex()] = true;
                 if (tgtBlock->getBaseAddress() == loopLeader){
@@ -250,9 +422,9 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
         // non-branching control
         if (cand->controlFallsThrough()){
-            BasicBlock* tgtBlock = bpebil_map_type[cand->getBaseAddress() + cand->getSizeInBytes()];
+            BasicBlock* tgtBlock = bmap[cand->getBaseAddress() + cand->getSizeInBytes()];
             if (tgtBlock && flowsInDefUseScope(tgtBlock, loop)){
-                X86Instruction* ftTarget = ipebil_map_type[cand->getBaseAddress() + cand->getSizeInBytes()];
+                X86Instruction* ftTarget = imap[cand->getBaseAddress() + cand->getSizeInBytes()];
                 if (ftTarget){
                     if (ftTarget->isLeader()){
                         if (!blockTouched[tgtBlock->getIndex()]){
@@ -285,6 +457,7 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
         delete *it;
     }
 }
+
 
 void FlowGraph::computeDefUseDist(){
     uint32_t fcnt = function->getNumberOfInstructions();

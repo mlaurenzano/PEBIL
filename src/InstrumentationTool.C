@@ -767,21 +767,14 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
     ASSERT(!(*allBlockLineInfos).size() || (*allBlocks).size() == (*allBlockLineInfos).size());
     ASSERT((*allBlocks).size() == (*allBlockIds).size());
 
+    computeVectorMasks();
+
     uint32_t numberOfInstPoints = (*allBlocks).size();
 
     char* staticFile = new char[__MAX_STRING_SIZE];
     sprintf(staticFile,"%s.%s.%s", getFullFileName(), extension, "static");
     FILE* staticFD = fopen(staticFile, "w");
     delete[] staticFile;
-
-    //char* debugFile = "problemInstructions";
-    //FILE* debugFD = fopen(debugFile, "w");
-
-    //char* vectorInstructions = "vectorInstructions";
-    //FILE* vectorFD = fopen(vectorInstructions, "w");
-
-    //FILE* skippedFD = fopen("nonVecInstructions", "w");
-
 
     TextSection* text = getDotTextSection();
 
@@ -975,38 +968,21 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
                 X86Instruction* ins = bb->getInstruction(k);
 
                 if(!isVectorInstruction(ins)) {
-                    //fprintf(skippedFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
                     continue;
                 }
 
-                OperandX86* src = ins->getFirstSourceOperand();
-                if(src == NULL)
+                VectorInfo vecinf = ins->getVectorInfo();
+
+                uint32_t bytesInElem = vecinf.elementSize;
+                uint32_t nElements = vecinf.nElements;
+
+                if(bytesInElem == 0 || nElements == 0)
                     continue;
-                uint32_t bytesInReg = src->getBytesUsed();
-                uint32_t bytesInElem = X86InstructionClassifier::getInstructionElemSize(ins);
-                if(bytesInElem == 0) {
-                    //fprintf(debugFD, "%s 0 bytes In Elem\n", ud_mnemonics_str[ins->GET(mnemonic)]);
-                    continue;
-                }
-
-                if(bytesInReg == 0) {
-                    //fprintf(debugFD, "%s 0 bytes in reg\n", ud_mnemonics_str[ins->GET(mnemonic)]);
-                    continue;
-                }
-                uint32_t elemsInReg = bytesInReg / bytesInElem;
-
-                if(elemsInReg > 64 || bytesInElem > 16) {
-                    printf("%d elemsInReg, %d bytesInElem, %d bytesInReg, %d bytesInElem, %s\n", elemsInReg, bytesInElem, bytesInReg, bytesInElem, ud_mnemonics_str[ins->GET(mnemonic)]);
-                    assert(0);
-                }
-
-
-                //fprintf(vectorFD, "%s\t%d\t%d\n", ud_mnemonics_str[ins->GET(mnemonic)], bytesInElem, bytesInReg);
 
                 if(ins->isFloatPOperation()) {
-                    ++fpvecs[elemsInReg-1][bytesInElem-1];
+                    ++fpvecs[nElements-1][bytesInElem-1];
                 } else if(ins->isIntegerOperation()) {
-                    ++intvecs[elemsInReg-1][bytesInElem-1];
+                    ++intvecs[nElements-1][bytesInElem-1];
                 }
             }
             fprintf(staticFD, "\t+vec");
@@ -1024,9 +1000,6 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
 
         }
     }
-    //fclose(skippedFD);
-    //fclose(vectorFD);
-    //fclose(debugFD);
     fclose(staticFD);
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
@@ -1038,6 +1011,8 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
 
     ASSERT(!(*allInstructionLineInfos).size() || (*allInstructions).size() == (*allInstructionLineInfos).size());
     ASSERT((*allInstructions).size() == (*allInstructionIds).size());
+
+    computeVectorMasks();
 
     uint32_t numberOfInstPoints = (*allInstructions).size();
 
@@ -1217,53 +1192,33 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
             }
             fprintf(staticFD, "\t+ipa\t%#llx\t%s # %#llx\n", callTgtAddr, callTgtName, hashValue);
 
+            if(isVectorInstruction(ins)) {
+                VectorInfo vecinf = ins->getVectorInfo();
 
-            // <elemsXelemLen>:fp:int
-            // get source operand
-            // get operand length
-            // get element length
-            // get element type
+                uint32_t bytesInElem = vecinf.elementSize;
+                uint32_t nElements = vecinf.nElements;
 
-            if(isVectorInstruction(ins) && ins->getFirstSourceOperand() != NULL) {
-                OperandX86* src = ins->getFirstSourceOperand();
-                uint32_t bytesInReg = src->getBytesUsed();
-                uint32_t bytesInElem = X86InstructionClassifier::getInstructionElemSize(ins);
+                int fpcnt, intcnt;
+                fpcnt = intcnt = 0;
 
-                if(bytesInElem != 0 && bytesInReg != 0) {
-                    uint32_t elemsInReg = bytesInReg / bytesInElem;
-                    if(elemsInReg > 64 || bytesInElem > 16) {
-                        printf("%d elemsInReg, %d bytesInElem, %d bytesInReg, %d bytesInElem, %s\n", elemsInReg, bytesInElem, bytesInReg, bytesInElem, ud_mnemonics_str[ins->GET(mnemonic)]);
-                        assert(0);
-                    }
-
-                    //fprintf(vectorFD, "%s\t%d\t%d\n", ud_mnemonics_str[ins->GET(mnemonic)], bytesInElem, bytesInReg);
-
-                    int fpcnt, intcnt;
-                    fpcnt = intcnt = 0;
-
-                    if(ins->isFloatPOperation()) {
-                        fpcnt = 1;
-                    } else if(ins->isIntegerOperation()) {
-                        intcnt = 1;
-                    }
-
-                    fprintf(staticFD, "\t+vec\t%dx%d:%d:%d # %#llx\n", elemsInReg, bytesInElem << 3, fpcnt, intcnt, hashValue);
-
-                } else {
-                    //fprintf(debugFD, "%s, %d, %d\n", ud_mnemonics_str[ins->GET(mnemonic)], bytesInElem, bytesInReg);
+                if(ins->isFloatPOperation()) {
+                    fpcnt = 1;
+                } else if(ins->isIntegerOperation()) {
+                    intcnt = 1;
+                }
+                if(bytesInElem != 0 && nElements != 0) {
+                    fprintf(staticFD, "\t+vec\t%dx%d:%d:%d # %#llx\n", nElements, bytesInElem << 3, fpcnt, intcnt, hashValue);
+                } else if (bytesInElem != 0) {
+                    fprintf(staticFD, "\t+vec\t???x%d:%d:%d # %#llx\n", bytesInElem << 3, fpcnt, intcnt, hashValue);
                 }
 
             } else {
                 fprintf(staticFD, "\t+vec # %#llx\n", hashValue);
-                //fprintf(skippedFD, "%s\n", ud_mnemonics_str[ins->GET(mnemonic)]);
             }
         }
 
         delete hc;
     }
-    //fclose(skippedFD);
-    //fclose(vectorFD);
-    //fclose(debugFD);
     fclose(staticFD);
 
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
