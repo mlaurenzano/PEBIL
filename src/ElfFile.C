@@ -201,8 +201,8 @@ TextSection* ElfFile::getDotPltSection(){
 }
 
 // Creates an elf object from an in memory buffer
-ElfFile::ElfFile(void* buffer, uint64_t size) :
-    is64BitFlag(false), staticLinked(false), elfFileName("embedded_file"), applicationName("embedded_app"), fileHeader(NULL), globalOffsetTable(NULL), dynamicTable(NULL),
+ElfFile::ElfFile(void* buffer, uint64_t size, char* name) :
+    is64BitFlag(false), staticLinked(false), elfFileName(name), applicationName(name), fileHeader(NULL), globalOffsetTable(NULL), dynamicTable(NULL),
     gnuVerneedTable(NULL), gnuVersymTable(NULL), dynamicStringTable(NULL), dynamicSymbolTable(NULL),
     pltRelocationTable(NULL), dynamicRelocationTable(NULL), lineInfoSection(NULL), dynamicSymtabIdx(0),
     dynamicSectionAddress(0), dynamicTableSectionIdx(0), textSegmentIdx(0), dataSegmentIdx(0)

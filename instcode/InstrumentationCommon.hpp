@@ -956,20 +956,26 @@ static bool MpiValid = false;
 static bool IsMpiValid() { return MpiValid; }
 
 extern "C" {
-#ifdef HAVE_MPI
 // C init wrapper
 #ifdef USES_PSINSTRACER
 int __give_pebil_name(MPI_Init)(int* argc, char*** argv){
     int retval = 0;
 #else
 int __wrapper_name(MPI_Init)(int* argc, char*** argv){
+
+#ifdef HAVE_MPI
     int retval = PMPI_Init(argc, argv);
+#else
+    int retval = 0;
+#endif
 #endif // USES_PSINSTRACER
 
+#ifdef HAVE_MPI
     PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
     PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
 
     MpiValid = true;
+#endif
 
     fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
     tool_mpi_init();
@@ -977,24 +983,29 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     return retval;
 }
 
+#ifdef HAVE_MPI
 extern void pmpi_init_(int*);
+#endif
 
 #ifdef USES_PSINSTRACER
 void __give_pebil_name(mpi_init_)(int* ierr){
 #else
 void __wrapper_name(mpi_init_)(int* ierr){
+#ifdef HAVE_MPI
     pmpi_init_(ierr);
+#endif
 #endif // USES_PSINSTRACER
 
+#ifdef HAVE_MPI
     PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
     PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
 
     MpiValid = true;
+#endif
 
     fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks);
     tool_mpi_init();
 }
-#endif // HAVE_MPI
 };
 
 #endif //_InstrumentationCommon_hpp_

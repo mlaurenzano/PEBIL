@@ -339,7 +339,7 @@ void InstrumentationTool::instrumentEmbeddedElf(){
         return;
     }
 
-    embeddedElf->dump("embedded_file", false);
+    embeddedElf->dump(embeddedElf->getFileName(), false);
 
     // Prepare for instrumentation
     if(embeddedElf->getProgramBaseAddress() < WEDGE_SHAMT) {
@@ -375,7 +375,7 @@ void InstrumentationTool::instrumentEmbeddedElf(){
     //instTool->print();
     //instTool->dump();
 
-    instTool->dump("embedded_file.jbbinst", false);
+    instTool->dump(instTool->defaultExtension());
 
     // dump file to buffered output
     EmbeddedBinaryOutputFile outfile;

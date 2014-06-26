@@ -1725,7 +1725,7 @@ ElfFileInst::~ElfFileInst(){
     }
 }
 
-void ElfFileInst::dump(char* extension, bool isext){
+void ElfFileInst::dump(const char* extension, bool isext){
     ASSERT(currentPhase == ElfInstPhase_dump_file && "Instrumentation phase order must be observed");
 
     char fileName[__MAX_STRING_SIZE] = "";

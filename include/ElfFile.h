@@ -124,7 +124,7 @@ public:
     void addAddressAnchor(AddressAnchor* adr);
 
     ElfFile(char* f, char* a);
-    ElfFile(void* buffer, uint64_t size);
+    ElfFile(void* buffer, uint64_t size, char* name);
     ~ElfFile();
 
    

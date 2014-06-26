@@ -193,7 +193,7 @@ public:
 
     void print();
     void print(uint32_t printCodes);
-    void dump(char* extension, bool isext=true);
+    void dump(const char* extension, bool isext=true);
 
     bool verify();
 
