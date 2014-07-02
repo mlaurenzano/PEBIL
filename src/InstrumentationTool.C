@@ -824,7 +824,7 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
         fprintf(staticFD, "# +cnt <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op>\n");
         fprintf(staticFD, "# +mem <total_mem_op> <total_mem_bytes> <bytes/op>\n");
         fprintf(staticFD, "# +lpc <loop_head> <parent_loop_head>\n");
-        fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...\n");
+        fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1>:<dumem1> <dudist2>:<ducnt2>:<dufp2>:<dumem2>...\n");
         fprintf(staticFD, "# +dxi <count_def_use_cross> <count_call>\n");
         fprintf(staticFD, "# +ipa <call_target_addr> <call_target_name>\n");
         fprintf(staticFD, "# +bin <unknown> <invalid> <cond> <uncond> <bin> <binv> <intb> <intbv> <intw> <intwv> <intd> <intdv> <intq> <intqv> <floats> <floatsv> <floatss> <floatd> <floatdv> <floatds> <move> <stack> <string> <system> <cache> <mem> <other>\n");
@@ -906,6 +906,7 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
 
             std::pebil_map_type<uint32_t, uint32_t> idist;
             std::pebil_map_type<uint32_t, uint32_t> fdist;
+            std::pebil_map_type<uint32_t, uint32_t> mdist;
             std::vector<uint32_t> dlist;
             for (uint32_t k = 0; k < bb->getNumberOfInstructions(); k++){
                 X86Instruction* x = bb->getInstruction(k);
@@ -917,11 +918,16 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
                 if (idist.count(d) == 0){
                     idist[d] = 0;
                     fdist[d] = 0;
+                    mdist[d] = 0;
                     dlist.push_back(d);
                 }
-                if (x->isFloatPOperation()){
+                if(x->isMemoryOperation()){
+                    mdist[d] = mdist[d] + 1;
+                }
+                if(x->isFloatPOperation()){
                     fdist[d] = fdist[d] + 1;
-                } else {
+                }
+                if(x->isIntegerOperation()){
                     idist[d] = idist[d] + 1;
                 }
             }
@@ -929,7 +935,7 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
             std::sort(dlist.begin(), dlist.end());
             for (std::vector<uint32_t>::iterator it = dlist.begin(); it != dlist.end(); it++){
                 uint32_t d = (*it);
-                fprintf(staticFD, "\t%d:%d:%d", d, idist[d], fdist[d]);
+                fprintf(staticFD, "\t%d:%d:%d:%d", d, idist[d], fdist[d], mdist[d]);
             }
 
             fprintf(staticFD, " # %#llx\n", bb->getHashCode().getValue());
@@ -1081,7 +1087,7 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
         fprintf(staticFD, "# +cnt <branch_op> <int_op> <logic_op> <shiftrotate_op> <trapsyscall_op> <specialreg_op> <other_op> <load_op> <store_op> <total_mem_op>\n");
         fprintf(staticFD, "# +mem <total_mem_op> <total_mem_bytes> <bytes/op>\n");
         fprintf(staticFD, "# +lpc <loop_head> <parent_loop_head>\n");
-        fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1> <dudist2>:<ducnt2>:<dufp2>...\n");
+        fprintf(staticFD, "# +dud <dudist1>:<duint1>:<dufp1>:<dumem1> <dudist2>:<ducnt2>:<dufp2>:<dumem2>...\n");
         fprintf(staticFD, "# +dxi <count_def_use_cross> <count_call>\n");
         fprintf(staticFD, "# +ipa <call_target_addr> <call_target_name>\n");
         fprintf(staticFD, "# +vec <#elem>x<elemSize>:<#fp>:<#int> ...\n");
@@ -1171,11 +1177,12 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
             fprintf(staticFD, "\t+dud");
             uint32_t currDist = ins->getDefUseDist();
             if (currDist){
-                if (ins->isFloatPOperation()){
-                    fprintf(staticFD, "\t%d:%d:%d", currDist, 0, 1);
-                } else {
-                    fprintf(staticFD, "\t%d:%d:%d", currDist, 1, 0);
-                }
+
+                int intOp, fpOp, memOp;
+                intOp = ins->isIntegerOperation();
+                fpOp = ins->isFloatPOperation();
+                memOp = ins->isMemoryOperation();
+                fprintf(staticFD, "\t%d:%d:%d:%d", currDist, intOp, fpOp, memOp);
             }
             fprintf(staticFD, " # %#llx\n", hashValue);
 

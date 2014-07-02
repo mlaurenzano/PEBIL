@@ -78,7 +78,7 @@ ReuseDistance::~ReuseDistance(){
         current--;
     }
     freetree234(window); //CAUTION: Dangerous practice!! :( 
- 	    
+         
     cout<<"\n\t Illi!! \n";
 }
 
@@ -119,7 +119,7 @@ void ReuseDistance::Process(vector<ReuseEntry> rs){
     for (vector<ReuseEntry>::const_iterator it = rs.begin(); it != rs.end(); it++){
         ReuseEntry r = *it;
         Process(r);
-	//LRUDistanceAnalyzer::RecordMemAccess((void *)r.address);       
+    //LRUDistanceAnalyzer::RecordMemAccess((void *)r.address);       
     }
 }
 
@@ -282,9 +282,9 @@ cout<<"\n\t Spatial Locality's Print!! \n";
 //        uint64_t id = (*it);
 //        uint64_t range=( (2*(id-1)) - id  );
 //        if(id==0)
-//        	range=0;
-//	f<<"\n\t Bin: "<<id<<" Range: "<<range<<" Count: "<<BinTotal[id];
-//	Total+=BinTotal[id];
+//            range=0;
+//    f<<"\n\t Bin: "<<id<<" Range: "<<range<<" Count: "<<BinTotal[id];
+//    Total+=BinTotal[id];
 //    }
     //f<<"\n\t Total Accesses: "<<Total;
     //f<<endl;
@@ -300,28 +300,28 @@ void ReuseDistance::Print(ostream& f, bool annotate){
     uint64_t BinStats[BIN_SIZE];
     for(int i=0;i<BIN_SIZE;i++)
        BinStats[i]=0;
-for(reuse_map_type<uint64_t,uint64_t*>::const_iterator it=PINReuseStats.begin(); it!=PINReuseStats.end();it++)    
-{
-	f<<"\n\n\t BB: "<<dec<<it->first<<"\n";
-	for(int i=0;i<BIN_SIZE;i++)
-	{
-		if(it->second[i])
-		{
-		   f<<"\n\t  "<<((int)(pow(2,(i-1))+1))<<" : "<<((int)(pow(2,i)))<<" "<<it->second[i];
-		   total+=it->second[i];
-		   BinStats[i]+=it->second[i];
-		}
-	
-	}
 
-}
-//	f<<"\n\n";
-//	for(int i=0;i<BIN_SIZE;i++)
-//	{
-//	    if(BinStats[i])
-//	    f<<"\n\t Bin: "<<i<<dec<<" Hits: "<<BinStats[i];
-//	}
-//	f<<"\n\n\n\t Total hits: "<<total<<"\n\n";
+    for(reuse_map_type<uint64_t,uint64_t*>::const_iterator it=PINReuseStats.begin(); it!=PINReuseStats.end();it++)    
+    {
+        f << "\tBB\t" << dec << it->first << "\n";
+        for(int i=0;i<BIN_SIZE;i++)
+        {
+            if(it->second[i])
+            {
+               f << "\t\t" << ((int)(pow(2,(i-1))+1)) << "\t" << ((int)(pow(2,i))) << "\t" << it->second[i] << "\n";
+               total+=it->second[i];
+               BinStats[i]+=it->second[i];
+            }
+        
+        }
+    }
+//    f<<"\n\n";
+//    for(int i=0;i<BIN_SIZE;i++)
+//    {
+//        if(BinStats[i])
+//        f<<"\n\t Bin: "<<i<<dec<<" Hits: "<<BinStats[i];
+//    }
+//    f<<"\n\n\n\t Total hits: "<<total<<"\n\n";
     
     return;
  /*   vector<uint64_t> keys;
@@ -478,7 +478,7 @@ void ReuseStats::Print(ostream& f, reuse_map_type<uint64_t,uint64_t>& BinTotal,b
 
         uint64_t d = *it;
         if (d == invalid) 
-		continue;
+        continue;
 
         debug_assert(distcounts.count(d) > 0);
         uint32_t cnt = distcounts[d];
@@ -499,7 +499,7 @@ void ReuseStats::Print(ostream& f, reuse_map_type<uint64_t,uint64_t>& BinTotal,b
               if(BinTotal.count(p))
                    BinTotal[p]+=cnt;
                else
-	            BinTotal[p]=cnt;
+                BinTotal[p]=cnt;
           
         }
     }
