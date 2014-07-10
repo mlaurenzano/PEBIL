@@ -211,7 +211,7 @@
 enum ud_operand_code {
     OP_NONE,
 
-    OP_A,      OP_E,      OP_M,       OP_G,       
+    OP_A,      OP_E,      OP_M,       OP_G,       OP_GV,
     OP_I,
 
     OP_AL,     OP_CL,     OP_DL,      OP_BL,
@@ -299,6 +299,8 @@ enum ud_operand_size {
 #define O_Gw      { OP_G,        SZ_W     }
 #define O_Gv      { OP_G,        SZ_V     }
 #define O_Gq      { OP_G,        SZ_Q     }
+#define O_GVd     { OP_GV,       SZ_D     }
+#define O_GVq     { OP_GV,       SZ_Q     }
 #define O_rDX     { OP_rDX,      SZ_NA    }
 #define O_Gx      { OP_G,        SZ_MDQ   }
 #define O_Gd      { OP_G,        SZ_D     }

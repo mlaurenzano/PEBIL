@@ -521,9 +521,9 @@ static int search_itab( struct ud * u )
                 case 0x0100: tableid = ITAB__AVX__0F;            break;
 
                 /* 0F 38 */
-                case 0x0266: tableid = ITAB__AVX__PFX_SSE66__0F__OP_0F__3BYTE_38__REG;  break;
-                case 0x02F2: assert(0);//tableid = ITAB__AVX_C4__PFX_SSEF2__0F__OP_0F__3BYTE_38__REG;
-                case 0x02F3: assert(0);//tableid = ITAB__AVX_C4__PFX_SSEF3__0F__OP_0F__3BYTE_38__REG;
+                case 0x0266: tableid = ITAB__AVX__PFX_SSE66__0F__OP_0F__3BYTE_38__REG; break;
+                case 0x02F2: tableid = ITAB__AVX__PFX_SSEF2__0F__OP_0F__3BYTE_38__REG; break;
+                case 0x02F3: tableid = ITAB__AVX__PFX_SSEF3__0F__OP_0F__3BYTE_38__REG; break;
                 case 0x0200: assert(0);//tableid = ITAB__AVX_C4__0F__OP_0F__3BYTE_38__REG;
                     break;
 
@@ -540,7 +540,7 @@ static int search_itab( struct ud * u )
                     PEBIL_WARN("combined: %x\n", (VEX_M5(u->avx_vex[1]) << 8) | (u->pfx_avx));
                     gen_hex(u);
                     PEBIL_WARN(" hex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3]);
-                    PEBIL_WARN(" should be located in table %x\n", (VEX_M5(u->avx_vex[1]) << 8) | (u->pfx_avx));
+                    PEBIL_WARN(" should be located in table 0x0%x\n", (VEX_M5(u->avx_vex[1]) << 8) | (u->pfx_avx));
                     u->error = 1;
                     return -1;
             }
@@ -558,7 +558,7 @@ static int search_itab( struct ud * u )
             PEBIL_WARN("found invalid avx: %d, %d\n", tableid, curr);
             gen_hex(u);
             PEBIL_WARN(" hex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3]);
-            PEBIL_WARN(" should be located in table %x\n", (VEX_M5(u->avx_vex[1]) << 8) | (u->pfx_avx));
+            PEBIL_WARN(" should be located in table 0x0%x\n", (VEX_M5(u->avx_vex[1]) << 8) | (u->pfx_avx));
             u->error = 1;
             return -1;
         }
@@ -918,7 +918,12 @@ static void decode_vex_vvvv(struct ud* u,
         type = T_YMM;
         size = 256;
     }
-    enum ud_type reg = resolve_reg(u, type, VEX_VVVV(vex));
+    enum ud_type reg;
+    if(type == T_GPR) {
+        reg = decode_gpr(u, size, VEX_VVVV(vex));
+    } else {
+        reg = resolve_reg(u, type, VEX_VVVV(vex));
+    }
 
     op->type = UD_OP_REG;
     op->base = reg;
@@ -1206,6 +1211,10 @@ static int disasm_operand(register struct ud* u,
 
     case OP_G:
       decode_modrm_reg(u, modrm, operand, size, T_GPR); 
+      break;
+
+    case OP_GV:
+      decode_vex_vvvv(u, operand, size, T_GPR);
       break;
 
     case OP_I:

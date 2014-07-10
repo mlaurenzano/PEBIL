@@ -72,6 +72,8 @@ operand_dict = {
     "Gx"       : [    "OP_G"        , "SZ_MDQ"   ],
     "Gz"       : [    "OP_G"        , "SZ_Z"     ],
     "Gq"       : [    "OP_G"        , "SZ_Q"     ],
+    "GVd"      : [    "OP_GV"       , "SZ_D"     ], # GPR stored in VEX.vvvv
+    "GVq"      : [    "OP_GV"       , "SZ_Q"     ],
     "M"        : [    "OP_M"        , "SZ_NA"    ], # m in ModRm.rm
     "Mb"       : [    "OP_M"        , "SZ_B"     ],
     "Mw"       : [    "OP_M"        , "SZ_W"     ],

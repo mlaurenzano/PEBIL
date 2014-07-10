@@ -77,6 +77,7 @@ static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn)
     if (Dynamics == NULL){
         Dynamics = new pebil_map_type < uint64_t, vector < DynamicInst* > > ();
     }
+    assert(Dynamics != NULL);
 
     DynamicInst* dd = *dyn;
     for (uint32_t i = 0; i < *count; i++){
