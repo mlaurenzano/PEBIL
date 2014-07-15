@@ -336,7 +336,12 @@ void ElfFileInst::applyInstrumentationDataToRaw(){
 }
 
 void ElfFileInst::compressInstrumentation(uint32_t textSize){
-    ASSERT(textSize < TEMP_SEGMENT_SIZE && "TEMP_SEGMENT_SIZE was not set large enough");
+    if(textSize >= TEMP_SEGMENT_SIZE) {
+        PRINT_ERROR("TEMP_SEGMENT_SIZE (%d) not set large enough. %d\n", TEMP_SEGMENT_SIZE, textSize);
+        assert(0);
+    } else {
+        PRINT_INFOR("text size is %d\n", textSize);
+    }
 
     elfFile->getSectionHeader(extraTextIdx)->SET(sh_size, textSize);
     ((TextSection*)elfFile->getRawSection(extraTextIdx))->setSizeInBytes(textSize);
@@ -893,6 +898,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     uint64_t codeOffset = offset;
     uint32_t numberOfFunctions = exposedFunctions.size();
 
+    // What is block interposition?
     for (uint32_t i = 0; i < interposedBlocks.size(); i++){
         BasicBlock* bb = interposedBlocks[i];
         bb->getFlowGraph()->getFunction()->interposeBlock(bb);
@@ -936,91 +942,48 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
 
         bool* needsRelocate = new bool[exposedFunctions.size()];
         for (uint32_t i = 0; i < exposedFunctions.size(); i++){
-            needsRelocate[i] = false;
             if (exposedFunctions[i]->isManipulated()){
                 needsRelocate[i] = true;
+            } else {
+                needsRelocate[i] = false;
             }
         }
 
+        // Collect instrumentation points by block and put them in instPointsPerBlock
         uint32_t currentFunc = 0;
         uint32_t localBlock = 0;
         for (uint32_t k = 0; k < (*instrumentationPoints).size(); k++){
             ASSERT((*instrumentationPoints)[k]->getSourceObject()->getContainer()->getType() == PebilClassType_Function);
+
+            // Find function for this instrumentation point
             Function* pointsFunction = (Function*)(*instrumentationPoints)[k]->getSourceObject()->getContainer();
             while (exposedFunctions[currentFunc]->getBaseAddress() < pointsFunction->getBaseAddress()){
                 currentFunc++;
                 localBlock = 0;
             }
+            // Find block for this instrumentation point
             while (!exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->inRange((*instrumentationPoints)[k]->getInstBaseAddress())){
-                //exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->print();
-                //PRINT_INFOR("local block %d -- %#llx ~~ %#llx", localBlock, exposedFunctions[currentFunc]->getFlowGraph()->getBasicBlock(localBlock)->getBaseAddress(), (*instrumentationPoints)[k]->getInstBaseAddress());
                 localBlock++;
             }
-            //PRINT_INFOR("Using currentFunc %d localBlock %d", currentFunc, localBlock);
+
+            // Collect instrumentation points
             (*((*instPointsPerBlock)[currentFunc]))[localBlock]->append((*instrumentationPoints)[k]);
             if ((*instrumentationPoints)[k]->getInstLocation() != InstLocation_replace){
                 needsRelocate[currentFunc] = true;
             }
         }
 
+        // FIXME neccessary?
         (*instrumentationPoints).sort(compareInstBaseAddress);
-        /*
-        uint32_t currentFunction = 0;
-        for (uint32_t i = 0; i < exposedBasicBlocks.size(); i++){
-            while (exposedFunctions[currentFunction]->getBaseAddress() + exposedFunctions[currentFunction]->getSizeInBytes() - 1
-                   < exposedBasicBlocks[i]->getBaseAddress()){
-                currentFunction++;
-                ASSERT(currentFunction < exposedFunctions.size());
-            }
-            if (exposedFunctions[currentFunction]->getBaseAddress() == exposedBasicBlocks[i]->getFunction()->getBaseAddress()){
-            }
-        }
-        ASSERT(currentFunction == exposedFunctions.size()-1);
 
-        currentFunction = 0;
-        uint32_t currentBlock = 0;
-        uint32_t localBlock = 0;
-
-        for (uint32_t i = 0; i < (*instrumentationPoints).size(); i++){
-            while (exposedBasicBlocks[currentBlock]->getBaseAddress() + exposedBasicBlocks[currentBlock]->getNumberOfBytes() - 1
-                   < pt->getInstBaseAddress()){
-                currentBlock++;
-                ASSERT(currentBlock < exposedBasicBlocks.size());
-                localBlock++;
-            }
-            while (exposedFunctions[currentFunction]->getBaseAddress() + exposedFunctions[currentFunction]->getNumberOfBytes() - 1
-                   < pt->getInstBaseAddress()){
-                currentFunction++;
-                ASSERT(currentFunction < exposedFunctions.size());
-                localBlock = 0;
-            }
-            ASSERT(exposedFunctions[currentFunction]->inRange(exposedBasicBlocks[currentBlock]->getBaseAddress()));
-            ASSERT(exposedBasicBlocks[currentBlock]->inRange(pt->getInstBaseAddress()));
-            pt->print();
-            if (pt->getInstLocation() != InstLocation_replace){
-                needsRelocate[currentFunction] = true;
-            }
-        }
-        */
-
+        // Do function relocation
         for (uint32_t i = 0; i < numberOfFunctions; i++){
             Function* func = exposedFunctions[i];
-            /*
-            if (!isEligibleFunction(func)){
-                func->print();
-                __SHOULD_NOT_ARRIVE;
-            }
-            if (!func->hasCompleteDisassembly()){
-                func->print();
-                __SHOULD_NOT_ARRIVE;
-            }
-            */
 
 #ifdef RELOC_MOD
             if (i % RELOC_MOD == RELOC_MOD_OFF){
                 PRINT_INFOR("relocating function (%d) %s", i, func->getName());
 #endif
-                //                ASSERT(isEligibleFunction(func) && func->hasCompleteDisassembly());
                 if (needsRelocate[i]){
                     codeOffset += relocateAndBloatFunction(func, codeOffset, (*instPointsPerBlock)[i]);
                     func->setRelocated();
@@ -1034,6 +997,7 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
         }
         delete[] needsRelocate;
 
+        // Deleting instPointsPerBlock
         while (instPointsPerBlock->size()){
             Vector<Vector<InstrumentationPoint*>*>* tmp = (*instPointsPerBlock).remove(0);
             while (tmp->size()){
