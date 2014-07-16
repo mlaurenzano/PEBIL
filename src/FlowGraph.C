@@ -43,80 +43,24 @@ void FlowGraph::wedge(uint32_t shamt){
     }
 }
 
-// Limited Value Prediction
-
-//   if i sets r from an imm: return imm
-//   elif i sets r from a reg: return Predict(src(i), reg)
-//   elif i sets r from someting else: return Unknown
-//   else: return Predict(src(i), r)
-//   
-// Return the outvalue for reg at ins
-static RuntimeValue vpBackward(X86Instruction* ins, enum ud_type reg,
-    BasicBlock* bb, uint32_t bIdx)
-{
-    assert(IS_REG(reg));
-
-    OperandX86* dest = ins->getDestOperand();
-
-    // if this instruction writes to this register
-    if(dest && dest->getType() == UD_OP_REG && dest->GET(base) == reg) {
-        // Try to solve move operations
-        if(ins->isMoveOperation()) {
-            OperandX86* src = ins->getFirstSourceOperand();
-
-            switch(src->getType()) {
-                case UD_OP_IMM:
-                    return {Definitely, src->getValue()};
-                case UD_OP_REG:
-                    reg = src->GET(base);
-                    break;
-                default:
-                    return {Unknown, 0};
-            }
-
-        // Don't try to solve anything else yet
-        } else {
-            return {Unknown, 0};
-        }
-
-    // if this instruction doesn't write to this register
-    }
-
-    // get src instruction
-    uint32_t srcBIdx;
-    BasicBlock* srcBB;
-    X86Instruction* srcIns;
-
-    if(bIdx > 0) {
-        srcBIdx = bIdx - 1;
-        srcBB = bb;
-    } else {
-        if(bb->getNumberOfSources() == 0) {
-            return {Unknown, 0};
-        }
-
-        srcBB = bb->getSourceBlock(0);
-        srcBIdx = srcBB->getNumberOfInstructions() - 1;
-    }
-    srcIns = srcBB->getInstruction(srcBIdx);
-
-    assert(srcIns != NULL);
-
-    return vpBackward(srcIns, reg, srcBB, srcBIdx);
-}
-
-// FIXME this is mostly unused
-// it should be used to track all k regsiter values
-// currently a recursive backward algorithm is used which is horribly inefficient
-struct k1Prediction {
+struct RegisterStatePrediction {
+    // current instruction and index in block
     X86Instruction* ins;
     uint32_t idx;
-    RuntimeValue value;
-    k1Prediction(X86Instruction* _ins, uint32_t _idx) : ins(_ins), idx(_idx)  {value.confidence = Unknown;}
-    k1Prediction(X86Instruction* _ins, uint32_t _idx, RuntimeValue v) : ins(_ins), idx(_idx), value(v) {}
+
+    // Register state
+    std::pebil_map_type<uint32_t, RuntimeValue> state;
+
+    // copy constructor
+    RegisterStatePrediction(RegisterStatePrediction& other) {
+        // copy register state
+        state = other.state;
+    }
+
+    RegisterStatePrediction() {}
 };
 
-// Compute the in-value of k1 for each instruction
+// Determine the values of vector mask registers for all instructions
 void FlowGraph::computeVectorMasks(){
 
     // build maps of addresses -> instructions/blocks
@@ -137,7 +81,7 @@ void FlowGraph::computeVectorMasks(){
 
     // The worklist is a queue
     // priorities are unused, should be all 0
-    PriorityQueue<struct k1Prediction*, int> worklist = PriorityQueue<struct k1Prediction*, int>();
+    PriorityQueue<RegisterStatePrediction*, int> worklist = PriorityQueue<struct RegisterStatePrediction*, int>();
 
     // keep track of blocks already visited
     bool blockTouched[getFunction()->getNumberOfBasicBlocks()];
@@ -147,7 +91,10 @@ void FlowGraph::computeVectorMasks(){
     X86Instruction* firstIns = basicBlocks[0]->getInstruction(0);
     assert(firstIns != NULL);
 
-    struct k1Prediction* first = new k1Prediction(firstIns, 0);
+    // make an initial register state
+    struct RegisterStatePrediction* first = new RegisterStatePrediction();
+    first->ins = firstIns;
+    first->idx = 0;
     worklist.insert(first, 0);
 
     // Initialize worklist with first instruction
@@ -159,36 +106,46 @@ void FlowGraph::computeVectorMasks(){
     while(!worklist.isEmpty()) {
         int unused;
 
-        struct k1Prediction* item = worklist.deleteMin(&unused);
+        // Get input register state
+        struct RegisterStatePrediction* item = worklist.deleteMin(&unused);
         X86Instruction* ins = item->ins;
 
+        // if mask register is k0, hardwired to 0xffff
         if(ins->GET(vector_mask_register) == UD_R_K0) {
             ins->setKRegister({Definitely, 0xffff});
+
+        // otherwise search in input state
         } else if(ins->GET(vector_mask_register) != 0) {
-            RuntimeValue kval = vpBackward(ins, ins->GET(vector_mask_register), bmap[ins->getBaseAddress()], item->idx);
-            ins->setKRegister(kval);
+            ins->setKRegister(item->state[ins->GET(vector_mask_register)]);
         }
 
-        // if this instruction writes to k1, update the outvalue
+        // update any registers written
         RuntimeValue outval;
-        //OperandX86* dest = ins->getDestOperand();
-        //if(dest && dest->getType() == UD_OP_REG && dest->GET(base) == UD_R_K1) {
-       //     outval = vpBackward(ins, UD_R_K1, bmap[ins->getBaseAddress()], item->idx);
-        //} else {
-         //   outval = item->value;
-       // }
+        OperandX86* dest = ins->getDestOperand();
+        if(dest && dest->getType() == UD_OP_REG) {
+            RuntimeValue value;
+
+            if(ins->isMoveOperation()) {
+                OperandX86* src = ins->getFirstSourceOperand();
+                if(src->getType() == UD_OP_IMM)
+                    value = {Definitely, src->getValue()};
+                else if(src->getType() == UD_OP_REG) {
+                    if(item->state.find(src->GET(base)) != item->state.end()) {
+                        value = item->state[src->GET(base)];
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                }
+            } else {
+                value = {Unknown, 0};
+            }
+
+            item->state[dest->GET(base)] = value;
+        }
 
         // add targets of i to worklist
-
-        // targets of branches
-        if(ins->usesControlTarget() && !ins->isCall()) {
-            BasicBlock* tgtBlock = bmap[ins->getTargetAddress()];
-            if(tgtBlock && !blockTouched[tgtBlock->getIndex()]) {
-                blockTouched[tgtBlock->getIndex()] = true;
-                struct k1Prediction* nextItem = new k1Prediction(tgtBlock->getLeader(), 0, outval);
-                worklist.insert(nextItem, 0);
-            }
-        }
+        bool passed = false;
+        RegisterStatePrediction* nextItem = NULL;
 
         // fallthrough targets
         if(ins->controlFallsThrough()) {
@@ -200,17 +157,52 @@ void FlowGraph::computeVectorMasks(){
                     if(ftTarget->isLeader()) {
                         if(!blockTouched[tgtBlock->getIndex()]) {
                             blockTouched[tgtBlock->getIndex()] = true;
-                            worklist.insert(new k1Prediction(ftTarget, 0, outval), 0);
+
+                            nextItem = item;
+                            nextItem->ins = ftTarget;
+                            nextItem->idx = 0;
+                            worklist.insert(nextItem, 0);
+                            passed = true;
                         }
                     // fall through to next instruction
                     } else {
-                        worklist.insert(new k1Prediction(ftTarget, item->idx+1, outval), 0);
+                        nextItem = item;
+                        nextItem->ins = ftTarget;
+                        nextItem->idx = 0;
+                        worklist.insert(nextItem, 0);
+                        passed = true;
                     }
                 }
             }
         }
 
-        delete item;
+        // targets of branches
+        if(ins->usesControlTarget() && !ins->isCall()) {
+            BasicBlock* tgtBlock = bmap[ins->getTargetAddress()];
+            if(tgtBlock && !blockTouched[tgtBlock->getIndex()]) {
+                blockTouched[tgtBlock->getIndex()] = true;
+
+                if(!passed) {
+                    // pass this item and avoid copying state
+                    nextItem = item;
+                    nextItem->ins = tgtBlock->getLeader();
+                    nextItem->idx = 0;
+                    worklist.insert(nextItem, 0);
+                    passed = true;
+                } else {
+                    // copy state
+                    nextItem = new RegisterStatePrediction(*item);
+                    nextItem->ins = tgtBlock->getLeader();
+                    nextItem->idx = 0;
+                    worklist.insert(nextItem, 0);
+                    passed = true;
+                }
+            }
+        }
+
+        if(!passed) {
+            delete item;
+        }
     }
 }
 
