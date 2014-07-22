@@ -270,7 +270,11 @@ DataReference* ElfFile::generateDataRef(uint64_t loc, RawSection* sec, uint64_t 
     } else {
         ref = specialDataRefs[off];
         RawSection* oldSection = ref->getSection();
-        if(oldSection != sec) {
+        if(oldSection == NULL && sec != NULL) {
+            PRINT_WARN(7, "ElfFile::generateDataRef: replacing old data ref with null section for offset 0x%llx", off);
+            ref = new DataReference(loc, sec, align, off);
+            specialDataRefs[off] = ref;
+        } else if(oldSection != sec) {
             PRINT_WARN(7, "ElfFile::generateDataRef: creating data ref with conflicting section for offset 0x%llx", off);
         }
     }
@@ -1717,6 +1721,11 @@ uint32_t ElfFile::anchorProgramElements(){
                     ASSERT(currentInstruction->getAddressAnchor());
                     (*addressAnchors).append(currentInstruction->getAddressAnchor());
                     currentInstruction->getAddressAnchor()->setIndex((*addressAnchors).size()-1);
+
+                    if(currentInstruction->usesRelativeAddress()) {
+                         currentInstruction->print();
+                         PRINT_WARN(20, "Instruction may need multiple anchors!\n");
+                    }
                 }
             }
         }
@@ -1806,14 +1815,14 @@ uint32_t ElfFile::anchorProgramElements(){
                     TextSection* textSect = getTextSection(i);
                     if(textSect->inRange(relativeAddress)) {
                         TextObject* textObj = textSect->getObjectWithAddress(relativeAddress);
-                        PRINT_WARN(4, "Relative Address 0x%llx found in object %s", relativeAddress, textObj->getName());
+                        PRINT_WARN(7, "Relative Address 0x%llx found in object %s", relativeAddress, textObj->getName());
                     }
                 }
             }
 
             // We can't figure out what this points to so link it to nothing
             if (!currentInstruction->getAddressAnchor()){
-                PRINT_WARN(4, "Creating special AddressRelocation for %#llx at the behest of the instruction at %#llx since it wasn't an instruction or part of a data section", relativeAddress, currentInstruction->getBaseAddress());
+                PRINT_WARN(7, "Creating special AddressRelocation for %#llx at the behest of the instruction at %#llx since it wasn't an instruction or part of a data section", relativeAddress, currentInstruction->getBaseAddress());
                 DataReference* dataRef = generateDataRef(0, NULL, addrAlign, relativeAddress);
                 currentInstruction->initializeAnchor(dataRef);
                 (*addressAnchors).append(currentInstruction->getAddressAnchor());

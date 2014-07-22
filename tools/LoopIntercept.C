@@ -264,6 +264,8 @@ void LoopIntercept::instrument(){
                     BasicBlock* bb = allLoopBlocks[k];
                     if (bb->getExitInstruction()->isIndirectBranch()){
                         PRINT_WARN(20, "Loop %lld is %s contains an indirect branch so we can't guarantee that all exits will be found. skipping!", hash, f->getName());
+                        PRINT_WARN(20, "Exit instruction:");
+                        bb->getExitInstruction()->print();
                         badLoop = true;
                         loopsRejected[hash] = innerMost;
                     }

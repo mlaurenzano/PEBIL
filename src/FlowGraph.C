@@ -125,7 +125,8 @@ void FlowGraph::computeVectorMasks(){
         if(dest && dest->getType() == UD_OP_REG) {
             RuntimeValue value;
 
-            if(ins->isMoveOperation()) {
+            // TODO figure out more ways registers are written
+            if(ins->isMoveOperation() && ins->getFirstSourceOperand() != NULL) {
                 OperandX86* src = ins->getFirstSourceOperand();
                 if(src->getType() == UD_OP_IMM)
                     value = {Definitely, src->getValue()};
