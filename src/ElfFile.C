@@ -1543,13 +1543,17 @@ void ElfFile::findLoops(){
     }
 }
 
-
+// FIXME make this faster
+// Search addressAnchors for all anchors with anchor->linkBaseAddress == addr
+// and put them in a vector to be returned
 Vector<AddressAnchor*>* ElfFile::searchAddressAnchors(uint64_t addr){
     Vector<AddressAnchor*>* linearUpdate = new Vector<AddressAnchor*>();
     Vector<AddressAnchor*>* binaryUpdate = new Vector<AddressAnchor*>();
     uint64_t binIdx = 0, linIdx = 0;
 
+// Binary Search
 #if defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
+    // sort anchors by link base address
     if (!anchorsAreSorted){
         (*addressAnchors).sort(compareLinkBaseAddress);
         anchorsAreSorted = true;
@@ -1561,7 +1565,9 @@ Vector<AddressAnchor*>* ElfFile::searchAddressAnchors(uint64_t addr){
         PRINT_DEBUG_ANCHOR("%#llx", allAnchors[i]->linkBaseAddress);
     }
 
+    // do a binary search on the anchors for the target base address
     void* anchor = bsearch(&addr, allAnchors, (*addressAnchors).size(), sizeof(AddressAnchor*), searchLinkBaseAddressExact);
+
     if (anchor){
         // get the FIRST occurrence of addr in the anchor array
         uint64_t idx = ((uint64_t)anchor-(uint64_t)allAnchors)/sizeof(AddressAnchor*);
@@ -1569,6 +1575,8 @@ Vector<AddressAnchor*>* ElfFile::searchAddressAnchors(uint64_t addr){
             idx--;
         }
         binIdx = idx;
+
+        // add each matching anchor
         while (idx < (*addressAnchors).size() &&
                 (*addressAnchors)[idx]->linkBaseAddress <= addr &&
                addr < (*addressAnchors)[idx]->linkBaseAddress + (*addressAnchors)[idx]->getLink()->getSizeInBytes()){
@@ -1578,6 +1586,7 @@ Vector<AddressAnchor*>* ElfFile::searchAddressAnchors(uint64_t addr){
     }
 #endif //defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
 
+// Linear search
 #if !defined(ANCHOR_SEARCH_BINARY) || defined(VALIDATE_ANCHOR_SEARCH)
     for (uint32_t i = 0; i < (*addressAnchors).size(); i++){
         if (addr == (*addressAnchors)[i]->linkBaseAddress){
