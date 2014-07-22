@@ -140,6 +140,7 @@ void DeleteCounterArray(CounterArray* ctrs){
 }
 
 void* tool_thread_init(thread_key_t tid){
+    //inform << "Entering tool_thread_init" << ENDL;
     SAVE_STREAM_FLAGS(cout);
     if (AllData){
         AllData->AddThread(tid);
@@ -147,6 +148,7 @@ void* tool_thread_init(thread_key_t tid){
         ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
     }
     RESTORE_STREAM_FLAGS(cout);
+    //inform << "Leaving tool_thread_init" << ENDL;
     return NULL;
 }
 
@@ -157,10 +159,12 @@ void* tool_thread_fini(thread_key_t tid){
 extern "C"
 {
     void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
+        //inform << "Entered tool_dynamic_init" << ENDL;
         SAVE_STREAM_FLAGS(cout);
         InitializeDynamicInstrumentation(count, dyn);
 
         RESTORE_STREAM_FLAGS(cout);
+        //inform << "Leaving tool_dynamic_init" << ENDL;
         return NULL;
     }
 
@@ -182,6 +186,7 @@ extern "C"
      */
     static pthread_mutex_t image_init_mutex = PTHREAD_MUTEX_INITIALIZER;
     void* tool_image_init(void* s, uint64_t* key, ThreadData* td){
+        //inform << "Entered tool_image_init" << ENDL;
         SAVE_STREAM_FLAGS(cout);
 
         CounterArray* ctrs = (CounterArray*)s;
@@ -215,6 +220,7 @@ extern "C"
         pthread_mutex_unlock(&image_init_mutex);
 
         RESTORE_STREAM_FLAGS(cout);
+        //inform << "Leaving tool_image_init" << ENDL;
         return NULL;
     }
 
@@ -228,6 +234,7 @@ extern "C"
      */
     void  image_fini_master();
     void* tool_image_fini(uint64_t* key){
+        //inform << "Entering tool_image_fini" << ENDL;
         AllData->SetTimer(*key, 1);
         SAVE_STREAM_FLAGS(cout);
 
@@ -419,6 +426,7 @@ extern "C"
         inform << "cxxx Total Execution time for " << ctrs->Extension << "-instrumented image " << ctrs->Application << ": " << (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)) << " seconds" << ENDL;
 
         RESTORE_STREAM_FLAGS(cout);
+        //inform << "Leaving tool_image_fini" << ENDL;
         return NULL;
     }
 };

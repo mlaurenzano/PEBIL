@@ -1692,6 +1692,9 @@ bool X86Instruction::isJumpTableBase(){
 }
 
 bool X86Instruction::isIndirectBranch(){
+    if(GET(mnemonic) == UD_Ijkzd || GET(mnemonic) == UD_Ijknzd)
+        return false;
+
     return (isBranch() && usesIndirectAddress());
 }
 
@@ -1841,12 +1844,15 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     memcpy(&ud_obj, &ud_blank, sizeof(ud_t));
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
 
-    //fprintf(stderr, "Disassembling at address 0x%llx\n", baseAddr);
     sizeInBytes = ud_disassemble(&ud_obj);
     if (sizeInBytes) {
         copy_ud_to_compact(&entry, &ud_obj);
     } else {
         PRINT_ERROR("Problem doing instruction disassembly");
+    }
+    if(ud_obj.error) {
+        fprintf(stderr, "Unable to disassemble %d bytes at address 0x%llx\n", sizeInBytes, baseAddr);
+        //fprintf(stderr, "0x%llx\n", *buff);
     }
 
     ASSERT(sz == sizeInBytes);
@@ -1902,13 +1908,18 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
     memcpy(&ud_obj, &ud_blank, sizeof(ud_t));
     ud_set_input_buffer(&ud_obj, (uint8_t*)buff, MAX_X86_INSTRUCTION_LENGTH);
 
-    //fprintf(stderr, "Disassembling at address 0x%llx\n", baseAddr);
     sizeInBytes = ud_disassemble(&ud_obj);
     if (sizeInBytes) {
         copy_ud_to_compact(&entry, &ud_obj);
     } else {
         PRINT_ERROR("Problem doing instruction disassembly");
     }
+    if(ud_obj.error) {
+        fprintf(stderr, "Unable to disassemble %d bytes at address 0x%llx\n", sizeInBytes, baseAddr);
+        //fprintf(stderr, "0x%llx\n", *buff);
+    }
+
+
     rawBytes = new char[sizeInBytes];
     memcpy(rawBytes, buff, sizeInBytes);
 

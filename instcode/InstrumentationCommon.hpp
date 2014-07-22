@@ -43,6 +43,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <execinfo.h>
 
 #ifdef HAVE_UNORDERED_MAP
 #include <tr1/unordered_map>
@@ -387,17 +388,42 @@ extern "C" {
         char* ops = (char*)siginf->si_addr;
         fprintf(stderr, "%hhx %hhx %hhx %hhx\n", ops[0], ops[1], ops[2], ops[3]);
     }
+
+    static void print_backtrace() {
+        int BT_SIZE = 10;
+
+        void* bt[BT_SIZE];
+
+        int n = backtrace(bt, BT_SIZE);
+        for(int i = 0; i < n; ++i) {
+            fprintf(stderr, "0x%llx\n", bt[i]);
+        }
+
+        char** symbols = backtrace_symbols(bt, n);
+        for(int i = 0; i < n; ++i) {
+            fprintf(stderr, "%s\n", symbols[i]);
+        }
+        
+    }
     
     static void segfault_handler(int signo, siginfo_t* siginf, void* context)
     {
+        fprintf(stderr, "Received signal %d SIGSEGV\n", signo);
+        fprintf(stderr, "At address 0x%llx\n", siginf->si_addr);
+
+        print_backtrace();
+
         char err[8] = "deadbee";
         switch(siginf->si_code){
             case SEGV_MAPERR: strcpy(err, "MAPERR"); break;
             case SEGV_ACCERR: strcpy(err, "ACCERR"); break;
         }
-        fprintf(stderr, "Received signal %d SIGSEGV code %d %s at address 0x%llx\n", signo, err, siginf->si_code, siginf->si_addr);
-        char* ops = (char*)siginf->si_addr;
-        fprintf(stderr, "%hhx %hhx %hhx %hhx\n", ops[0], ops[1], ops[2], ops[3]);
+        fprintf(stderr, "Code %d: %s\n", siginf->si_code, err);
+
+        exit(1);
+        //char* ops = (char*)siginf->si_addr;
+        //fprintf(stderr, "%hhx %hhx %hhx %hhx\n", ops[0], ops[1], ops[2], ops[3]);
+
     }
     
     void init_signal_handlers()
@@ -412,6 +438,7 @@ extern "C" {
         segAction.sa_sigaction = segfault_handler;
         segAction.sa_flags = SA_SIGINFO | SA_NODEFER;
         sigaction(SIGSEGV, &segAction, NULL);
+        //fprintf(stderr, "Initialized signal handlers\n");
     }
 
 

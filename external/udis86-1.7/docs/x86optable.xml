@@ -4479,7 +4479,7 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vpcmpd">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 1F /W=0 ; KR ZV ZM Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 1F /W=0 ; KR ZV ZRM Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpcmpeqd">

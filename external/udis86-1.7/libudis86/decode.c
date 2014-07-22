@@ -215,7 +215,7 @@ static int gen_hex( struct ud *u )
     char* src_hex;
     
     /* bail out if in error stat. */
-    if ( u->error ) return -1; 
+    //if ( u->error ) return -1; 
 
     /* output buffer pointer */
     src_hex = ( char* ) u->insn_hexcode;
@@ -1196,6 +1196,7 @@ static int disasm_operand(register struct ud* u,
         enum ud_operand_code type,
         unsigned int size)
 {
+  assert(!u->error);
 
   switch(type) {
     case OP_A:
@@ -1203,7 +1204,10 @@ static int disasm_operand(register struct ud* u,
       break;
 
     case OP_M:
-      if(MODRM_MOD(get_modrm(u, modrm))==3) u->error=1;
+      if(MODRM_MOD(get_modrm(u, modrm))==3) {
+          fprintf(stderr, "WARNING: Error in operand type OP_M?\n");
+          u->error=1;
+      }
       // fallthrough
     case OP_E:
       decode_modrm_rm(u, modrm, operand, size, T_GPR);
@@ -1356,7 +1360,10 @@ static int disasm_operand(register struct ud* u,
       break;
 
     case OP_ZM:
-      if(MODRM_MOD(get_modrm(u, modrm)) == 3) u->error = 1;
+      if(MODRM_MOD(get_modrm(u, modrm)) == 3) {
+          u->error = 1;
+          fprintf(stderr, "WARNING: POSSIBLE INCORRECT DECODING of ZM operand\n");
+      }
       decode_modrm_rm(u, modrm, operand, size, T_ZMM);
       break;
 
@@ -1400,6 +1407,7 @@ static int disasm_operand(register struct ud* u,
 
 static int disasm_operands(register struct ud* u)
 {
+  assert(!u->error);
   struct modrm modrm;
   clear_modrm(&modrm);
 
@@ -1462,6 +1470,7 @@ static int clear_insn(register struct ud* u)
 
 static int do_mode( struct ud* u )
 {
+  assert(!u->error);
   /* if in error state, bail out */
   if ( u->error ) return -1; 
 
@@ -1573,8 +1582,9 @@ unsigned int ud_decode( struct ud* u )
   /* Handle decode error. */
   if ( u->error ) {
     /* clear out the decode data. */
-    clear_insn( u );
+    //clear_insn( u );
     /* mark the sequence of bytes as invalid. */
+    u->error = 1;
     u->itab_entry = & ie_invalid;
     u->mnemonic = u->itab_entry->mnemonic;
   } 
@@ -1585,7 +1595,8 @@ unsigned int ud_decode( struct ud* u )
 
   gen_hex( u );
   //fprintf(stderr, "Decoded instruction %s\n", ud_lookup_mnemonic(u->mnemonic));
-  //fprintf(stderr, "  hex: %hhx %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3], u->insn_bytes[4]);
+  //if(u->error)
+  //  fprintf(stderr, "  Error: hex: %hhx %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3], u->insn_bytes[4]);
  
   /* return number of bytes disassembled. */
   return u->inp_ctr;

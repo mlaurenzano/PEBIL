@@ -8094,7 +8094,7 @@ static struct ud_itab_entry itab__mvex__pfx_sse66__0f__op_0f__3byte_3a__reg__op_
 };
 
 static struct ud_itab_entry itab__mvex__pfx_sse66__0f__op_0f__3byte_3a__reg__op_1f__w[2] = {
-  /* 00 */  { UD_Ivpcmpd,      O_KR,    O_ZV,    O_ZM,    O_Ib, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 00 */  { UD_Ivpcmpd,      O_KR,    O_ZV,    O_ZRM,   O_Ib, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
   /* 01 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
 };
 
