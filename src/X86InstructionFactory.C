@@ -272,6 +272,87 @@ X86Instruction* X86InstructionFactory64::emitMoveImmToMem(uint64_t imm, uint64_t
     return emitInstructionBase(len,buff);    
 }
 
+/*
+ * vmovapd (rsp+disp), zmmx
+ */
+X86Instruction* X86InstructionFactory64::emitMoveAlignedStackToZmmx(uint8_t zmm, uint8_t disp)
+{
+    uint32_t len = 8;
+    char* buff = new char[len];
+
+    uint8_t R = (~zmm & 0x10) << 3;
+    uint8_t XB = 0x60;
+    uint8_t r = (~zmm & 0x08) << 1;
+    uint8_t mmmm = 1;
+    uint8_t RXBrmmmm =  R | XB | r | mmmm;
+
+    uint8_t mod = 1 << 6;
+    uint8_t reg = (zmm & 0x07) << 3;
+    uint8_t rm = 1 << 2;
+    uint8_t modrm = mod | reg | rm;
+
+    buff[0] = 0x62;
+    buff[1] = RXBrmmmm;
+    buff[2] = 0xf9;
+    buff[3] = 0x08;
+    buff[4] = 0x28;
+    buff[5] = modrm;
+    buff[6] = 0x24;
+    buff[7] = disp;
+
+    if(disp == 0 && zmm == 0) {
+        buff[1] = 0xf1;
+        buff[5] = 0x04;
+        len = 7;
+    }
+    return emitInstructionBase(len, buff);
+}
+
+/*
+ * vmovnrngoapd zmmx, (rsp+disp)
+ */
+// | 62 |R X B R' mmmm|W vvvv 0  pp |E SSS  v' aaa |
+X86Instruction* X86InstructionFactory64::emitMoveZmmxToAlignedStack(uint8_t zmm, uint8_t disp)
+{
+    uint32_t len = 8;
+    char* buff = new char[len];
+
+    // mmmm = 0001
+    // reg is encoded in R:r:reg
+    //
+    //
+    // For (rsp+disp)
+    // mod = 01
+    // ~X:~B:rm  = 00100
+    //
+    uint8_t R = (~zmm & 0x10) << 3;
+    uint8_t XB = 0x60;
+    uint8_t r = (~zmm & 0x08) << 1;
+    uint8_t mmmm = 1;
+    uint8_t RXBrmmmm =  R | XB | r | mmmm;
+
+    uint8_t mod = 1 << 6;
+    uint8_t reg = (zmm & 0x07) << 3;
+    uint8_t rm = 1 << 2;
+    uint8_t modrm = mod | reg | rm;
+
+    buff[0] = 0x62;
+    buff[1] = RXBrmmmm;
+    buff[2] = 0xfa;
+    buff[3] = 0x88;
+    buff[4] = 0x29;
+    buff[5] = modrm;
+    buff[6] = 0x24;
+    buff[7] = disp;
+
+    if(disp == 0 && zmm == 0) {
+        buff[1] = 0xf1;
+        buff[5] = 0x04;
+        len = 7;
+    }
+    return emitInstructionBase(len, buff);
+}
+
 X86Instruction* X86InstructionFactory64::emitFxSave(uint64_t addr){
     uint32_t len = 7;
     char* buff = new char[len];

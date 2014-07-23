@@ -21,7 +21,11 @@
 
 DataManager<LoopTimers*>* AllData = NULL;
 
-#define CLOCK_RATE_HZ 2800000000
+// Clark
+#define CLOCK_RATE_HZ 2600079000
+
+// Xeon Phi Max Rate
+//#define CLOCK_RATE_HZ 1333332000
 inline uint64_t read_timestamp_counter(){
     unsigned low, high;
     __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));
@@ -123,7 +127,6 @@ extern "C"
 
     // Called when new image is loaded
     void* tool_image_init(void* args, image_key_t* key, ThreadData* td) {
-
         LoopTimers* timers = (LoopTimers*)args;
 
         // Remove this instrumentation
@@ -133,6 +136,7 @@ extern "C"
 
         // If this is the first image, set up a data manager
         if (AllData == NULL){
+            init_signal_handlers();
             AllData = new DataManager<LoopTimers*>(GenerateLoopTimers, DeleteLoopTimers, ReferenceLoopTimers);
         }
 
@@ -143,7 +147,6 @@ extern "C"
 
     // 
     void* tool_image_fini(image_key_t* key) {
-
         image_key_t iid = *key;
 
         if (AllData == NULL){
@@ -191,6 +194,7 @@ extern "C"
         }
         fflush(outFile);
         fclose(outFile);
+
         return NULL;
     }
 };

@@ -1386,7 +1386,9 @@ InstrumentationFunction* ElfFileInst::declareFunction(char* funcName){
         instrumentationFunctions.append(new InstrumentationFunction32(instrumentationFunctions.size(), funcName, 
                                                                       reserveDataOffset(Size__32_bit_Global_Offset_Table_Entry), functionEntry));
     }
-    
+    if(elfFile->isMicBinary()) {
+        instrumentationFunctions.back()->doSaveZmmRegisters();
+    }
     return instrumentationFunctions.back();
 }
 
