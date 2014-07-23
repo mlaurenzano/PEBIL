@@ -272,6 +272,43 @@ X86Instruction* X86InstructionFactory64::emitMoveImmToMem(uint64_t imm, uint64_t
     return emitInstructionBase(len,buff);    
 }
 
+// kmov %kreg, %gpr
+X86Instruction* X86InstructionFactory64::emitMoveKToReg(uint8_t kreg, uint8_t gpr)
+{
+    uint8_t len = 4;
+    char* buff = new char[len];
+
+    uint8_t mod = 0xc0;
+    uint8_t reg = gpr << 3;
+    uint8_t rm = kreg;
+    uint8_t modrm = mod | reg | rm;
+
+    buff[0] = 0xc5;
+    buff[1] = 0xf8;
+    buff[2] = 0x93;
+    buff[3] = modrm;
+
+    return emitInstructionBase(len, buff);
+}
+
+X86Instruction* X86InstructionFactory64::emitMoveRegToK(uint8_t gpr, uint8_t kreg)
+{
+    uint8_t len = 4;
+    char* buff = new char[len];
+
+    uint8_t mod = 0xc0;
+    uint8_t reg = kreg << 3;
+    uint8_t rm = gpr;
+    uint8_t modrm = mod | reg | rm;
+
+    buff[0] = 0xc5;
+    buff[1] = 0xf8;
+    buff[2] = 0x92;
+    buff[3] = modrm;
+
+    return emitInstructionBase(len, buff);
+}
+
 /*
  * vmovapd (rsp+disp), zmmx
  */

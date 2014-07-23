@@ -616,6 +616,14 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
         wrapperTargetOffset = procedureLinkOffset;
     }
     
+    // Save k registers
+    if(saveZmmRegisters) {
+        for(int i = 1; i < 8; ++i) {
+            wrapperInstructions.append(X86InstructionFactory64::emitMoveKToReg(i, X86_REG_AX));
+            wrapperInstructions.append(X86InstructionFactory64::emitStackPush(X86_REG_AX));
+        }
+    }
+
     // align the stack
     // mov %rsp, %r14
     wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToReg(X86_REG_SP, X86_REG_R14));
@@ -679,6 +687,14 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     // mov %r14, %rsp
     wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToReg(X86_REG_R14, X86_REG_SP));
 
+    // Restore k registers
+    if(saveZmmRegisters) {
+        for(int i = 1; i < 8; ++i) {
+            wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_REG_AX));
+            wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToK(X86_REG_AX, i));
+        }
+    }
+
     // Restore GPRs
     for (uint32_t i = 0; i < X86_64BIT_GPRS; i++){
         wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_64BIT_GPRS-1-i));
@@ -697,6 +713,7 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
     
 
     // Pad with nops
+    assert(wrapperSize() < wrapperReservedSize());
     uint32_t nopBytes = wrapperReservedSize() - wrapperSize();
     Vector<X86Instruction*>* nops = X86InstructionFactory64::emitNopSeries(nopBytes);
     while ((*nops).size()){
