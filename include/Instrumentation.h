@@ -41,7 +41,7 @@ class InstrumentationPoint;
 #define Size__32_bit_procedure_link 16
 #define Size__64_bit_procedure_link 16
 #define Size__32_bit_function_wrapper 128
-#define Size__64_bit_function_wrapper 256
+#define Size__64_bit_function_wrapper 768
 
 #define FXSTORAGE_RESERVED 0x1000
 #define Size__trampoline_stackalign 0x1000
@@ -176,6 +176,7 @@ protected:
     uint64_t functionEntry;
     bool assumeFunctionFP;
     bool assumeFlagsUnsafe;
+    bool saveZmmRegisters;
 
     Vector<X86Instruction*> procedureLinkInstructions;
     uint64_t procedureLinkOffset;
@@ -202,6 +203,7 @@ public:
     uint64_t getFunctionEntry() { return functionEntry; }
     void assumeNoFunctionFP();
     void assumeNoFlagsUnsafe();
+    void doSaveZmmRegisters();
 
     uint32_t sizeNeeded();
     uint32_t wrapperSize();

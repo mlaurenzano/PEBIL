@@ -1855,6 +1855,10 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
         //fprintf(stderr, "0x%llx\n", *buff);
     }
 
+    if(sz != sizeInBytes) {
+        fprintf(stderr, "Disassebmly didn't match expected size %d, %d\n", sz, sizeInBytes);
+        binutilsPrint(stderr);
+    }
     ASSERT(sz == sizeInBytes);
     rawBytes = new char[sizeInBytes];
     memcpy(rawBytes, buff, sizeInBytes);

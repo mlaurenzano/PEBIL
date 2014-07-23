@@ -132,6 +132,7 @@ public:
     char* getSHA1Sum();
     uint64_t getProgramBaseAddress();
 
+    bool isMicBinary();
     bool is64Bit() { return is64BitFlag; }
     bool isStaticLinked() { return staticLinked; }
     void setStaticLinked(bool val) { staticLinked = val; }
