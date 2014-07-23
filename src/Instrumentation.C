@@ -689,7 +689,7 @@ uint32_t InstrumentationFunction64::generateWrapperInstructions(uint64_t textBas
 
     // Restore k registers
     if(saveZmmRegisters) {
-        for(int i = 1; i < 8; ++i) {
+        for(int i = 7; i >= 1; --i) {
             wrapperInstructions.append(X86InstructionFactory64::emitStackPop(X86_REG_AX));
             wrapperInstructions.append(X86InstructionFactory64::emitMoveRegToK(X86_REG_AX, i));
         }
