@@ -38,6 +38,7 @@ uint32_t RawSection::containsIntroString(){
     return 0;
 }
 
+// Find pointers to data in the data sections and advance them by shamt
 void RawSection::wedge(uint32_t shamt){
 
     ProgramHeader* dataSeg = elfFile->getProgramHeader(elfFile->getDataSegmentIdx());
@@ -58,8 +59,7 @@ void RawSection::wedge(uint32_t shamt){
 
     if (elfFile->is64Bit()){
         uint32_t inc = sizeof(uint64_t);
-        assert(getSizeInBytes() % sizeof(uint64_t) == 0);
-        for (uint32_t current = intro; current < getSizeInBytes(); current += inc){
+        for (uint32_t current = intro; current+sizeof(uint64_t) <= getSizeInBytes(); current += inc){
             uint64_t data;
             memcpy(&data, charStream() + current, sizeof(uint64_t));
             if (data && elfFile->isDataWedgeAddress(data + shamt)){
