@@ -987,7 +987,7 @@ void InstrumentationTool::printStaticFile(const char* extension, Vector<Base*>* 
 
                 if(ins->isFloatPOperation()) {
                     ++fpvecs[nElements-1][bytesInElem-1];
-                } else if(ins->isIntegerOperation()) {
+                } else {
                     ++intvecs[nElements-1][bytesInElem-1];
                 }
             }
@@ -1210,7 +1210,7 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
 
                 if(ins->isFloatPOperation()) {
                     fpcnt = 1;
-                } else if(ins->isIntegerOperation()) {
+                } else {
                     intcnt = 1;
                 }
                 if(bytesInElem != 0 && nElements != 0) {

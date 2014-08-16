@@ -61,7 +61,12 @@ struct VectorInfo X86Instruction::getVectorInfo()
         if(vectorInfo.kval.confidence == Unknown) {
             vectorInfo.nElements = 0;
         } else {
-            vectorInfo.nElements = countBitsSet(vectorInfo.kval.value);
+            // doubles use only lower half of mask
+            if(vectorInfo.elementSize == 8) {
+                vectorInfo.nElements = countBitsSet(0x00FF & vectorInfo.kval.value);
+            } else {
+                vectorInfo.nElements = countBitsSet(vectorInfo.kval.value);
+            }
         }
     } else if(vectorInfo.elementSize > 0) {
         vectorInfo.nElements = bytesInReg / vectorInfo.elementSize;
@@ -2063,7 +2068,7 @@ void X86Instruction::print(){
 
 const char* ud_optype_str[] = { "reg", "mem", "ptr", "imm", "jimm", "const" };
 const char* ud_regtype_str[] = { "undefined", "8bit gpr", "16bit gpr", "32bit gpr", "64bit gpr", "seg reg", 
-                                 "ctrl reg", "dbg reg", "mmx reg", "x87 reg", "xmm reg", "zmm reg", "k reg", "pc reg" };
+                                 "ctrl reg", "dbg reg", "mmx reg", "x87 reg", "xmm reg", "ymm reg", "zmm reg", "k reg", "pc reg" };
 
 uint32_t regbase_to_type(uint32_t base){
     if (IS_8BIT_GPR(base))         return RegType_8Bit;
@@ -2142,7 +2147,7 @@ void OperandX86::print(){
         __SHOULD_NOT_ARRIVE;
     }
     
-    PRINT_INFOR("\t[op%d] %s: %s", operandIndex, typstr, valstr, GET(index));
+    PRINT_INFOR("\t[op%d] %s: %s", operandIndex, typstr, valstr);
 }
 
 bool X86Instruction::verify(){

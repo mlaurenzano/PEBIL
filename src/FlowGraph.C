@@ -34,6 +34,7 @@
 
 #include <set>
 #include <vector>
+#include <stack>
 
 using namespace std;
 
@@ -41,6 +42,16 @@ void FlowGraph::wedge(uint32_t shamt){
     for (uint32_t i = 0; i < blocks.size(); i++){
         blocks[i]->setBaseAddress(blocks[i]->getBaseAddress() + shamt);
     }
+}
+
+static uint32_t getRegId(enum ud_type reg) {
+    if(IS_16BIT_GPR(reg)) {
+        return reg + 32;
+    } else if(IS_32BIT_GPR(reg)) {
+        return reg + 16;
+    }
+
+    return reg;
 }
 
 struct RegisterStatePrediction {
@@ -51,14 +62,30 @@ struct RegisterStatePrediction {
     // Register state
     std::pebil_map_type<uint32_t, RuntimeValue> state;
 
+    std::stack<RuntimeValue> stack;
+
     // copy constructor
     RegisterStatePrediction(RegisterStatePrediction& other) {
         // copy register state
         state = other.state;
+        stack = other.stack;
     }
 
     RegisterStatePrediction() {}
 };
+
+static RuntimeValue getValueOfOperand(OperandX86* src, RegisterStatePrediction* item) {
+    if(src->getType() == UD_OP_IMM)
+        return {Definitely, src->getValue()};
+    else if(src->getType() == UD_OP_REG) {
+        if(item->state.find(getRegId(src->GET(base))) != item->state.end()) {
+            RuntimeValue val = item->state[getRegId(src->GET(base))];
+            return val;
+        }
+    }
+
+    return {Unknown, 0};
+}
 
 // Determine the values of vector mask registers for all instructions
 void FlowGraph::computeVectorMasks(){
@@ -119,29 +146,52 @@ void FlowGraph::computeVectorMasks(){
             ins->setKRegister(item->state[ins->GET(vector_mask_register)]);
         }
 
-        // update any registers written
-        RuntimeValue outval;
+        // Update state
+
+        // update to registers
         OperandX86* dest = ins->getDestOperand();
         if(dest && dest->getType() == UD_OP_REG) {
             RuntimeValue value;
 
             // TODO figure out more ways registers are written
+            // Moves
             if(ins->isMoveOperation() && ins->getFirstSourceOperand() != NULL) {
                 OperandX86* src = ins->getFirstSourceOperand();
-                if(src->getType() == UD_OP_IMM)
-                    value = {Definitely, src->getValue()};
-                else if(src->getType() == UD_OP_REG) {
-                    if(item->state.find(src->GET(base)) != item->state.end()) {
-                        value = item->state[src->GET(base)];
-                    } else {
-                        value = {Unknown, 0};
-                    }
+                value = getValueOfOperand(src, item);
+
+            // Stack pops
+            } else if(ins->isStackPop()) {
+                ins->print();
+                if(!item->stack.empty()) {
+                    value = item->stack.top();
+                    item->stack.pop();
+                    //fprintf(stderr, "Popped value off stack: %d, %d\n", value.confidence, value.value);
+                } else {
+                    value = {Unknown, 0};
+                    //fprintf(stderr, "unknown value\n");
                 }
-            } else {
+            }
+
+            // vcmppd
+            else {
                 value = {Unknown, 0};
             }
 
-            item->state[dest->GET(base)] = value;
+            //fprintf(stderr, "Writing %d, %d to register: %d\n", value.confidence, value.value, getRegId(dest->GET(base)));
+            item->state[getRegId(dest->GET(base))] = value;
+
+        // Updates to stack
+        } else if(ins->isStackPush()) {
+            ins->print();
+            RuntimeValue value;
+            OperandX86* src = ins->getFirstSourceOperand();
+            if(src == NULL) {
+                value = {Unknown, 0};
+                //fprintf(stderr, "Pushing unknown onto stack\n");
+            } else {
+                value = getValueOfOperand(src, item);
+            }
+            item->stack.push(value);
         }
 
         // add targets of i to worklist

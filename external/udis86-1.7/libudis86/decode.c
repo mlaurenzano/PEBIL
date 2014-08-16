@@ -1136,7 +1136,7 @@ static void
 decode_modrm_reg(struct ud* u,
          struct modrm* modrm,
          struct ud_operand *op,
-         unsigned char reg_size,
+         unsigned int reg_size,
          unsigned char reg_type)
 {
   unsigned char modrm_byte = get_modrm(u, modrm);
@@ -1357,18 +1357,22 @@ static int disasm_operand(register struct ud* u,
 
     case OP_ZR:
       decode_modrm_reg(u, modrm, operand, size, T_ZMM);
+      assert(operand->size == SZ_XZ);
       break;
 
     case OP_ZM:
+      assert(size == SZ_XZ);
       if(MODRM_MOD(get_modrm(u, modrm)) == 3) {
           u->error = 1;
           fprintf(stderr, "WARNING: POSSIBLE INCORRECT DECODING of ZM operand\n");
       }
       decode_modrm_rm(u, modrm, operand, size, T_ZMM);
+      assert(operand->size == SZ_XZ);
       break;
 
     case OP_ZRM:
       decode_modrm_rm(u, modrm, operand, size, T_ZMM);
+      assert(operand->size == SZ_XZ);
       break;
 
     case OP_ZV:
