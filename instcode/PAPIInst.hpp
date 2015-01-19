@@ -14,7 +14,10 @@ typedef struct {
     char* extension;
     uint64_t loopCount;
     uint64_t* loopHashes;
-    values_t* values;
+    int events[MAX_HWC];
+    values_t* tmpValues;
+    values_t* accumValues;
+    int num;
 } PAPIInst;
 
 #endif
