@@ -322,6 +322,7 @@ enum X86InstructionType {
     X86InstructionType_string,
     X86InstructionType_simdFloat,
     X86InstructionType_simdInt,
+    X86InstructionType_simdMove,
     X86InstructionType_aes,
     X86InstructionType_io,
     X86InstructionType_prefetch,

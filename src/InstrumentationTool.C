@@ -753,6 +753,7 @@ static bool isVectorInstruction(X86Instruction* ins) {
     switch(typ) {
         case X86InstructionType_simdFloat:
         case X86InstructionType_simdInt:
+        case X86InstructionType_simdMove:
         case X86InstructionType_aes:
             break;
         default:
@@ -1217,6 +1218,9 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
                     fprintf(staticFD, "\t+vec\t%dx%d:%d:%d # %#llx\n", nElements, bytesInElem << 3, fpcnt, intcnt, hashValue);
                 } else if (bytesInElem != 0) {
                     fprintf(staticFD, "\t+vec\t???x%d:%d:%d # %#llx\n", bytesInElem << 3, fpcnt, intcnt, hashValue);
+                } else {
+                    ins->print();
+                    assert(0);
                 }
 
             } else {
