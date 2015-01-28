@@ -201,6 +201,7 @@ extern "C"
         }
 
         assert(AllData);
+        // Initialize this image if we need to
         if (AllData->allimages.count(*key) == 0){
             // Remove initialization points -- once per image
             set<uint64_t> inits;
@@ -214,6 +215,7 @@ extern "C"
             ctrs->imageid = *key;
 
             AllData->SetTimer(*key, 0);
+
         }
         assert(AllData->allimages.count(*key) == 1);
 
@@ -378,7 +380,8 @@ extern "C"
                 } else {
                     idx = i;
                 }
-    
+
+                // Sum Counts from each thread
                 uint32_t counter = 0;
                 for (set<thread_key_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
                     CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));

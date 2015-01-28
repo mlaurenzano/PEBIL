@@ -386,8 +386,9 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
             } else if (textSymbols[i]->isTextObjectSymbol(this)){
                 bool hasInstructions;
                 // FIXME is this always true?
-                if(textSymbols[i]->getSymbolType() == STT_NOTYPE &&
-                   (textSymbols[i]->getSymbolBinding() == STB_LOCAL || textSymbols[i]->getSymbolBinding() == STB_GLOBAL)) {
+                //if(textSymbols[i]->getSymbolType() == STT_NOTYPE &&
+                   //(textSymbols[i]->getSymbolBinding() == STB_LOCAL || textSymbols[i]->getSymbolBinding() == STB_GLOBAL)) {
+                if(textSymbols[i]->getSymbolType() == STT_FUNC) {
                     hasInstructions = true;
                 } else {
                     hasInstructions = false;
@@ -552,7 +553,7 @@ bool TextSection::verify(){
                 sortedTextObjects[i]->print();
                 sectionHeader->print();
                 PRINT_INFOR("Section range [0x%016llx,0x%016llx]", sectionHeader->GET(sh_addr), sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size));
-                PRINT_ERROR("The function exit address 0x%016llx is not in the range of section %d", exitAddr, sectionHeader->getIndex());
+                PRINT_INFOR("The function exit address 0x%016llx is not in the range of section %d", exitAddr, sectionHeader->getIndex());
                 return false;
             }
         }

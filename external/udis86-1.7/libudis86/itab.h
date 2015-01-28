@@ -1084,6 +1084,7 @@ enum ud_mnemonic_code {
   UD_Ivgatherpf0hintdpd,
   UD_Ivgatherpf0hintdps,
   UD_Ivgatherpf1dps,
+  UD_Ivgatherqpd,
   UD_Ivgetexppd,
   UD_Ivgetexpps,
   UD_Ivgetmantpd,

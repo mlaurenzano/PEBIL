@@ -161,7 +161,7 @@ void FlowGraph::computeVectorMasks(){
 
             // Stack pops
             } else if(ins->isStackPop()) {
-                ins->print();
+                //ins->print();
                 if(!item->stack.empty()) {
                     value = item->stack.top();
                     item->stack.pop();
@@ -182,7 +182,7 @@ void FlowGraph::computeVectorMasks(){
 
         // Updates to stack
         } else if(ins->isStackPush()) {
-            ins->print();
+            //ins->print();
             RuntimeValue value;
             OperandX86* src = ins->getFirstSourceOperand();
             if(src == NULL) {
