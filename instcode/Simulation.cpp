@@ -1170,6 +1170,7 @@ string GetCacheDescriptionFile(){
         if (freeenv == NULL){
             ErrorExit("default cache descriptions file requires that " METASIM_ENV " be set", MetasimError_Env);
         }
+
         str.append(freeenv);
         str.append("/" DEFAULT_CACHE_FILE);
 
@@ -1410,10 +1411,9 @@ bool ParseInt32(string token, uint32_t* value, uint32_t min){
     int32_t val;
     uint32_t mult = 1;
     bool ErrorFree = true;
-   
+  
     istringstream stream(token);
     if (stream >> val){
-
         if (!stream.eof()){
             char c;
             stream.get(c);
@@ -1503,12 +1503,11 @@ bool ReadEnvUint32(string name, uint32_t* var){
         return false;
         inform << "unable to find " << name << " in environment" << ENDL;
     }
-    string s = (string)e;
+    string s (e);
     if (!ParseInt32(s, var, 0)){
         return false;
-        inform << "unable to find " << name << " in environment" << ENDL;
+        inform << "unable to parse " << name << " in environment" << ENDL;
     }
-
     return true;
 }
 
@@ -2228,6 +2227,7 @@ void ReadSettings(){
     }    
     inform<<" Cache Simulation "<<CacheSimulation<<" AddressRangeEnable "<<AddressRangeEnable<<endl;
 
+
     // read caches to simulate
     string cachedf = GetCacheDescriptionFile();
     const char* cs = cachedf.c_str();
@@ -2250,25 +2250,28 @@ void ReadSettings(){
 		}
 		caches.push_back(c);
 	    }
-
 	    CountCacheStructures = caches.size();
 	    CountMemoryHandlers = CountCacheStructures;
   	    assert(CountCacheStructures > 0 && "No cache structures found for simulation");
-	     MemoryHandlers = new MemoryStreamHandler*[CountMemoryHandlers];
-	     for (uint32_t i = 0; i < CountCacheStructures; i++){
-			MemoryHandlers[i] = caches[i];
-	     }  	    
+	    MemoryHandlers = new MemoryStreamHandler*[CountMemoryHandlers];
+	    for (uint32_t i = 0; i < CountCacheStructures; i++){
+	        MemoryHandlers[i] = caches[i];
+	    }
      }
-     
+    
     if(AddressRangeEnable)
     {
 	    RangeHandlerIndex = CountMemoryHandlers;
-	    CountMemoryHandlers++;  
-    	    if(!CacheSimulation)
-    	    {
-    	    	MemoryHandlers = new MemoryStreamHandler*[CountMemoryHandlers];
-    	    }
-   	    
+	    CountMemoryHandlers++;
+
+            MemoryStreamHandler** tmp = new MemoryStreamHandler*[CountMemoryHandlers];
+            for(uint32_t i = 0; i < RangeHandlerIndex; ++i) {
+                tmp[i] = MemoryHandlers[i];
+            }
+            if(MemoryHandlers != NULL) {
+                delete[] MemoryHandlers;
+            }
+            MemoryHandlers = tmp;
 	    MemoryHandlers[RangeHandlerIndex] = new AddressRangeHandler();   
     }
 
@@ -2292,6 +2295,7 @@ void ReadSettings(){
 	if(SpatialWindow)
 		ReuseDistanceHandlers[SpatialHandlerIndex] = new SpatialLocality(SpatialWindow, SpatialBin, SpatialNMAX);
     }
+
     uint32_t SampleMax;
     uint32_t SampleOn;
     uint32_t SampleOff;

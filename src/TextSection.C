@@ -384,16 +384,14 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
                 fprintf(stdout, "pebil_function_list %s\n", ((Function*)sortedTextObjects.back())->getName());
 #endif
             } else if (textSymbols[i]->isTextObjectSymbol(this)){
-                bool hasInstructions;
-                // FIXME is this always true?
+                bool hasInstructions = false;
+                // FIXME How can we reliably discern between code and data in non-typed sections?
                 //if(textSymbols[i]->getSymbolType() == STT_NOTYPE &&
-                   //(textSymbols[i]->getSymbolBinding() == STB_LOCAL || textSymbols[i]->getSymbolBinding() == STB_GLOBAL)) {
-                if(textSymbols[i]->getSymbolType() == STT_FUNC) {
-                    hasInstructions = true;
-                } else {
-                    hasInstructions = false;
-                }
-                   
+                //  (textSymbols[i]->getSymbolBinding() == STB_LOCAL || textSymbols[i]->getSymbolBinding() == STB_GLOBAL)) {
+                //    hasInstructions = true;
+                //} else {
+                //    hasInstructions = false;
+                //}
                 sortedTextObjects.append(new FreeText(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size, hasInstructions));
                 ASSERT(!sortedTextObjects.back()->isFunction());
             } else {
