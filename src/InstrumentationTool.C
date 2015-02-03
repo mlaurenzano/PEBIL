@@ -1214,7 +1214,7 @@ void InstrumentationTool::printStaticFilePerInstruction(const char* extension, V
                 } else {
                     intcnt = 1;
                 }
-                if(bytesInElem != 0 && nElements != 0) {
+                if(bytesInElem != 0 && nElements != 0 && vecinf.kval.confidence == Definitely) {
                     fprintf(staticFD, "\t+vec\t%dx%d:%d:%d # %#llx\n", nElements, bytesInElem << 3, fpcnt, intcnt, hashValue);
                 } else if (bytesInElem != 0) {
                     fprintf(staticFD, "\t+vec\t???x%d:%d:%d # %#llx\n", bytesInElem << 3, fpcnt, intcnt, hashValue);
