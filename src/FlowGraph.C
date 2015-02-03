@@ -74,6 +74,68 @@ struct RegisterStatePrediction {
     RegisterStatePrediction() {}
 };
 
+// Merge possible value states from newState into oldState
+// Return true if changes were made
+static bool mergeStates(struct RegisterStatePrediction* oldState, struct RegisterStatePrediction* newState) {
+    if(oldState->ins != newState->ins) {
+        printf("ERROR? Trying to merge states for different instructions! 0x%llx 0x%llx\n", newState->ins, oldState->ins);
+        newState->ins->print();
+        oldState->ins->print();
+    }
+    assert(oldState->ins == newState->ins);
+    assert(oldState->idx == newState->idx);
+
+    bool changesMade = false;
+
+    // Update old register states
+    for(std::pebil_map_type<uint32_t, RuntimeValue>::iterator it = oldState->state.begin(); it != oldState->state.end(); ++it) {
+        uint32_t reg = it->first;
+        RuntimeValue v = it->second;
+
+        // If the confidence is already Maybe, it will always be Maybe
+        if(v.confidence == Maybe) {
+            newState->state.erase(reg);
+            continue;
+        }
+
+        // Since, it must be Definitely, check against value in new state
+        // Drop the confidence if newState has a different value or lower/missing confidence
+        std::pebil_map_type<uint32_t, RuntimeValue>::iterator newVit = newState->state.find(reg);
+        if(newVit != newState->state.end()) {
+            RuntimeValue newV = newVit->second;
+            if(newV.confidence == Definitely && v.value == newV.value) {
+                // Do nothing
+            } else {
+                v.confidence = Maybe;
+            }
+            newState->state.erase(newVit);
+        } else {
+            v.confidence = Maybe;
+        }
+
+        // If the confidence changed, update it
+        if(v.confidence == Maybe) {
+            changesMade = true;
+            oldState->state[reg] = v;
+        }
+    }
+
+    // Merge any new register states
+    for(std::pebil_map_type<uint32_t, RuntimeValue>::iterator it = newState->state.begin(); it != newState->state.end(); ++it) {
+        uint32_t reg = it->first;
+        RuntimeValue v = it->second;
+
+        // since this value wasn't removed, it must be new to old state and confidence must be Maybe
+        assert(oldState->state.count(reg) == 0);
+        changesMade = true;
+        v.confidence = Maybe;
+        oldState->state[reg] = v;
+    }
+
+    // Merge stack states FIXME assume no change for now
+    return changesMade;
+}
+
 static RuntimeValue getValueOfOperand(OperandX86* src, RegisterStatePrediction* item) {
     if(src->getType() == UD_OP_IMM)
         return {Definitely, src->getValue()};
@@ -88,7 +150,11 @@ static RuntimeValue getValueOfOperand(OperandX86* src, RegisterStatePrediction* 
 }
 
 // Determine the values of vector mask registers for all instructions
+// This is a forward moving worklist algorithm using constant value propogation
+// to statically predict the values of registers
 void FlowGraph::computeVectorMasks(){
+
+    std::pebil_map_type<X86Instruction*, struct RegisterStatePrediction*> instruction_states;
 
     // build maps of addresses -> instructions/blocks
     std::pebil_map_type<uint64_t, X86Instruction*> imap;
@@ -110,10 +176,6 @@ void FlowGraph::computeVectorMasks(){
     // priorities are unused, should be all 0
     PriorityQueue<RegisterStatePrediction*, int> worklist = PriorityQueue<struct RegisterStatePrediction*, int>();
 
-    // keep track of blocks already visited
-    bool blockTouched[getFunction()->getNumberOfBasicBlocks()];
-    bzero(&blockTouched, sizeof(bool) * getFunction()->getNumberOfBasicBlocks());
-
     // get first instruction
     X86Instruction* firstIns = basicBlocks[0]->getInstruction(0);
     assert(firstIns != NULL);
@@ -129,7 +191,6 @@ void FlowGraph::computeVectorMasks(){
     //   remove i from worklist
     //   i.vectorInfo.k1val = Predict(i, k1)
     //   add targets of i to worklist
-
     while(!worklist.isEmpty()) {
         int unused;
 
@@ -137,6 +198,21 @@ void FlowGraph::computeVectorMasks(){
         struct RegisterStatePrediction* item = worklist.deleteMin(&unused);
         X86Instruction* ins = item->ins;
 
+        // Check if there is an existing state and end this path if states are the same
+        if(instruction_states.count(ins) > 0) {
+            struct RegisterStatePrediction* oldState = instruction_states[ins];
+            assert(ins == oldState->ins);
+            bool different = mergeStates(oldState, item);
+            delete item;
+            if(!different) {
+                continue;
+            }
+            item = oldState;
+        }
+        instruction_states[ins] = item;
+        assert(item->ins == ins);
+
+        // Set the mask register value
         // if mask register is k0, hardwired to 0xffff
         if(ins->GET(vector_mask_register) == UD_R_K0) {
             ins->setKRegister({Definitely, 0xffff});
@@ -147,6 +223,7 @@ void FlowGraph::computeVectorMasks(){
         }
 
         // Update state
+        RegisterStatePrediction* nextItem = new RegisterStatePrediction(*item);
 
         // update to registers
         OperandX86* dest = ins->getDestOperand();
@@ -157,14 +234,14 @@ void FlowGraph::computeVectorMasks(){
             // Moves
             if(ins->isMoveOperation() && ins->getFirstSourceOperand() != NULL) {
                 OperandX86* src = ins->getFirstSourceOperand();
-                value = getValueOfOperand(src, item);
+                value = getValueOfOperand(src, nextItem);
 
             // Stack pops
             } else if(ins->isStackPop()) {
-                ins->print();
-                if(!item->stack.empty()) {
-                    value = item->stack.top();
-                    item->stack.pop();
+                //ins->print();
+                if(!nextItem->stack.empty()) {
+                    value = nextItem->stack.top();
+                    nextItem->stack.pop();
                     //fprintf(stderr, "Popped value off stack: %d, %d\n", value.confidence, value.value);
                 } else {
                     value = {Unknown, 0};
@@ -178,25 +255,31 @@ void FlowGraph::computeVectorMasks(){
             }
 
             //fprintf(stderr, "Writing %d, %d to register: %d\n", value.confidence, value.value, getRegId(dest->GET(base)));
-            item->state[getRegId(dest->GET(base))] = value;
+            nextItem->state[getRegId(dest->GET(base))] = value;
 
         // Updates to stack
         } else if(ins->isStackPush()) {
-            ins->print();
+            //ins->print();
             RuntimeValue value;
             OperandX86* src = ins->getFirstSourceOperand();
             if(src == NULL) {
                 value = {Unknown, 0};
                 //fprintf(stderr, "Pushing unknown onto stack\n");
             } else {
-                value = getValueOfOperand(src, item);
+                value = getValueOfOperand(src, nextItem);
             }
-            item->stack.push(value);
+            nextItem->stack.push(value);
+
+        }
+
+        // Implicit writes to mask register
+        if(ins->GET(mnemonic) >= UD_Ivgatherdpd && ins->GET(mnemonic) <= UD_Ivgatherpf1dps ||
+           ins->GET(mnemonic) >= UD_Ivscatterdpd && ins->GET(mnemonic) <= UD_Ivscatterpf1dps) {
+            nextItem->state[ins->GET(vector_mask_register)].confidence = Maybe;
         }
 
         // add targets of i to worklist
         bool passed = false;
-        RegisterStatePrediction* nextItem = NULL;
 
         // fallthrough targets
         if(ins->controlFallsThrough()) {
@@ -206,18 +289,12 @@ void FlowGraph::computeVectorMasks(){
                 if(ftTarget) {
                     // fall through to new block
                     if(ftTarget->isLeader()) {
-                        if(!blockTouched[tgtBlock->getIndex()]) {
-                            blockTouched[tgtBlock->getIndex()] = true;
-
-                            nextItem = item;
                             nextItem->ins = ftTarget;
                             nextItem->idx = 0;
                             worklist.insert(nextItem, 0);
                             passed = true;
-                        }
                     // fall through to next instruction
                     } else {
-                        nextItem = item;
                         nextItem->ins = ftTarget;
                         nextItem->idx = 0;
                         worklist.insert(nextItem, 0);
@@ -227,22 +304,19 @@ void FlowGraph::computeVectorMasks(){
             }
         }
 
-        // targets of branches
-        if(ins->usesControlTarget() && !ins->isCall()) {
+        // targets of branches/calls within this function
+        if(ins->usesControlTarget() && bmap.count(ins->getTargetAddress()) > 0) {
             BasicBlock* tgtBlock = bmap[ins->getTargetAddress()];
-            if(tgtBlock && !blockTouched[tgtBlock->getIndex()]) {
-                blockTouched[tgtBlock->getIndex()] = true;
-
+            if(tgtBlock) {
                 if(!passed) {
                     // pass this item and avoid copying state
-                    nextItem = item;
                     nextItem->ins = tgtBlock->getLeader();
                     nextItem->idx = 0;
                     worklist.insert(nextItem, 0);
                     passed = true;
                 } else {
                     // copy state
-                    nextItem = new RegisterStatePrediction(*item);
+                    nextItem = new RegisterStatePrediction(*nextItem);
                     nextItem->ins = tgtBlock->getLeader();
                     nextItem->idx = 0;
                     worklist.insert(nextItem, 0);
@@ -252,8 +326,12 @@ void FlowGraph::computeVectorMasks(){
         }
 
         if(!passed) {
-            delete item;
+            delete nextItem;
         }
+    }
+
+    for(std::pebil_map_type<X86Instruction*, struct RegisterStatePrediction*>::iterator it = instruction_states.begin(); it != instruction_states.end(); ++it) {
+        delete it->second;
     }
 }
 

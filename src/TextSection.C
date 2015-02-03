@@ -392,7 +392,6 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
                 //} else {
                 //    hasInstructions = false;
                 //}
-                   
                 sortedTextObjects.append(new FreeText(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size, hasInstructions));
                 ASSERT(!sortedTextObjects.back()->isFunction());
             } else {
@@ -552,7 +551,7 @@ bool TextSection::verify(){
                 sortedTextObjects[i]->print();
                 sectionHeader->print();
                 PRINT_INFOR("Section range [0x%016llx,0x%016llx]", sectionHeader->GET(sh_addr), sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size));
-                PRINT_ERROR("The function exit address 0x%016llx is not in the range of section %d", exitAddr, sectionHeader->getIndex());
+                PRINT_INFOR("The function exit address 0x%016llx is not in the range of section %d", exitAddr, sectionHeader->getIndex());
                 return false;
             }
         }

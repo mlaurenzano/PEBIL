@@ -3830,6 +3830,10 @@ MAL MISSING PRE SSE?
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 92 ; V W X; ; </opcode> <!--FIXME operands incorrect -->
   </instruction>
 
+  <instruction mnemonic="gatherqpd">
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 93 ; V W X ; ; </opcode>
+  </instruction>
+
   <!-- TODO: also is zeroupper -->
   <instruction mnemonic="zeroall">
     <opcode> aso rexr rexx rexb ; avxC4 0f 77 ; ; ; d:mm0 d:mm1 d:mm2 d:mm3 d:mm4 d:mm5 d:mm6 d:mm7 d:mm8 d:mm9 d:mm10 d:mm11 d:mm12 d:mm13 d:mm14 d:mm15 </opcode>
