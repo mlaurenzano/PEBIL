@@ -70,7 +70,7 @@ struct VectorInfo X86Instruction::getVectorInfo()
         }
     } else if(vectorInfo.elementSize > 0) {
         vectorInfo.nElements = bytesInReg / vectorInfo.elementSize;
-        vectorInfo.kval.confidence == Definitely;
+        vectorInfo.kval.confidence = Definitely;
     }
 
     return vectorInfo;
