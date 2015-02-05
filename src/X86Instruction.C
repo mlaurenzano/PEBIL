@@ -70,6 +70,7 @@ struct VectorInfo X86Instruction::getVectorInfo()
         }
     } else if(vectorInfo.elementSize > 0) {
         vectorInfo.nElements = bytesInReg / vectorInfo.elementSize;
+        vectorInfo.kval.confidence = Definitely;
     }
 
     return vectorInfo;
@@ -3402,7 +3403,7 @@ void X86InstructionClassifier::generateTable(){
     mkclass(         vpmulld,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(         vpmullw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(        vpmuludq,    simdInt,    intv,    0,    VRSZ,    0,    32)
-    mkclass(            vpor,    simdInt,    binv,    0,    VRSZ,    0,    0)
+    mkclass(            vpor,    simdInt,    binv,    0,    VRSZ,    0,    32) // FIXME
     mkclass(           vpord,    simdInt,    binv,    0,    VRSZ,    0,    32)
     mkclass(           vporq,    simdInt,    binv,    0,    VRSZ,    0,    64)
     mkclass(      vprefetch0,   prefetch,    0,       0,       0,    0,    0)
@@ -3459,7 +3460,7 @@ void X86InstructionClassifier::generateTable(){
     mkclass(      vpunpckldq,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(     vpunpcklqdq,    simdInt,    intv,    0,    VRSZ,    0,    64)
     mkclass(      vpunpcklwd,    simdInt,    intv,    0,    VRSZ,    0,    16)
-    mkclass(           vpxor,    simdInt,    binv,    0,    VRSZ,    0,    0)
+    mkclass(           vpxor,    simdInt,    binv,    0,    VRSZ,    0,    32) // FIXME element size isn't actually known
     mkclass(          vpxord,    simdInt,    binv,    0,    VRSZ,    0,    32)
     mkclass(          vpxorq,    simdInt,    binv,    0,    VRSZ,    0,    64)
     mkclass(        vrcp23ps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
