@@ -249,7 +249,7 @@ void FlowGraph::computeVectorMasks(){
                 }
             }
 
-            // vcmppd
+            // vcmppd, kandn
             else {
                 value = {Unknown, 0};
             }
@@ -274,7 +274,9 @@ void FlowGraph::computeVectorMasks(){
 
         // Implicit writes to mask register
         if(ins->GET(mnemonic) >= UD_Ivgatherdpd && ins->GET(mnemonic) <= UD_Ivgatherpf1dps ||
-           ins->GET(mnemonic) >= UD_Ivscatterdpd && ins->GET(mnemonic) <= UD_Ivscatterpf1dps) {
+           ins->GET(mnemonic) >= UD_Ivscatterdpd && ins->GET(mnemonic) <= UD_Ivscatterpf1dps ||
+           ins->GET(mnemonic) == UD_Ivpscatterdd || ins->GET(mnemonic) == UD_Ivpscatterdq ||
+           ins->GET(mnemonic) == UD_Ivpgatherdd || ins->GET(mnemonic) == UD_Ivpgatherdq) {
             nextItem->state[ins->GET(vector_mask_register)].confidence = Maybe;
         }
 

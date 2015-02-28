@@ -153,6 +153,8 @@ public:
     uint32_t getNumberOfSyscalls();
     uint32_t getNumberOfSpecialRegOps();
     uint32_t getNumberOfLogicOps();
+    uint32_t getNumberOfScatterGatherOps();
+    uint32_t getNumberOfVectorMaskOps();
 
     uint32_t getNumberOfBinMem();
     uint32_t getNumberOfBinSystem();
