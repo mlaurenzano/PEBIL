@@ -363,6 +363,26 @@ uint32_t BasicBlock::getNumberOfLogicOps(){
     return logicOpCount;
 }
 
+uint32_t BasicBlock::getNumberOfScatterGatherOps(){
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isScatterGatherOp()){
+            count++;
+        }
+    }
+    return count;
+}
+
+uint32_t BasicBlock::getNumberOfVectorMaskOps(){
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if (instructions[i]->isVectorMaskOp()){
+            count++;
+        }
+    }
+    return count;
+}
+
 uint32_t BasicBlock::getNumberOfBranches(){
     uint32_t branchCount = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){

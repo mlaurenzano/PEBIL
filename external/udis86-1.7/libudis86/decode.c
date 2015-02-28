@@ -614,6 +614,7 @@ static int search_itab( struct ud * u )
 
 search:
 
+    /*
     if(ud_itab_list[table][index].mnemonic == UD_Iinvalid) {
         gen_hex(u);
         PEBIL_WARN("Found invalid instruction\n");
@@ -621,7 +622,7 @@ search:
         PEBIL_WARN("  opcode: %hhx\n", curr);
         PEBIL_WARN("  table prefix: 0x%x\n", (MVEX_M4(u->mvex[0]) << 8) | (u->pfx_avx));
     }
-
+*/
     e = & ud_itab_list[ table ][ index ];
 
     /* if mnemonic constant is a standard instruction constant
@@ -1598,7 +1599,6 @@ unsigned int ud_decode( struct ud* u )
   u->pc += u->inp_ctr;    /* move program counter by bytes decoded */
 
   gen_hex( u );
-  //fprintf(stderr, "Decoded instruction %s\n", ud_lookup_mnemonic(u->mnemonic));
   //if(u->error)
   //  fprintf(stderr, "  Error: hex: %hhx %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3], u->insn_bytes[4]);
  

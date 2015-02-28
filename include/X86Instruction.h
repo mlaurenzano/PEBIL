@@ -460,6 +460,7 @@ private:
 
     struct VectorInfo vectorInfo;
 
+    uint32_t countElementsUnalignedLoadStore(bool, bool, bool);
 public:
 
     static X86Instruction* disassemble(char* buff);
@@ -510,7 +511,6 @@ public:
     bool defsFlag(uint32_t flg);
     bool implicitlyUsesReg(uint32_t alu);
     bool implicitlyDefinesReg(uint32_t alu);
-
 
     struct VectorInfo getVectorInfo();
     struct RuntimeValue getRegisterValue(enum ud_type reg);
@@ -585,7 +585,9 @@ public:
     bool isSpecialRegOp();
     bool isLogicOp();
     bool isConditionalMove();
- 
+    bool isScatterGatherOp();
+    bool isVectorMaskOp();
+
     bool isBinUnknown();
     bool isBinInvalid();
     bool isBinCond();

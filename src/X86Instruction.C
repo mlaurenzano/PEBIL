@@ -48,25 +48,95 @@ void X86Instruction::setKRegister(RuntimeValue val)
     vectorInfo.kval = val;
 }
 
+uint32_t X86Instruction::countElementsUnalignedLoadStore(bool low, bool is64b, bool load)
+{
+    OperandX86* memLoc;
+    uint64_t addr;
+    uint16_t newMask;
+    uint8_t size;
+
+    if(load) {
+        memLoc = getFirstSourceOperand();
+    } else {
+        memLoc = getDestOperand();
+    }
+    if(is64b) {
+        size = 8;
+    } else {
+        size = 4;
+    }
+    addr = memLoc->getValue();
+
+    if(low) {
+        uint32_t removedElements = (addr % 64) / size;
+        newMask = (vectorInfo.kval.value >> removedElements) << removedElements;
+    } else {
+        uint32_t maxElements = (addr % 64) / size;
+        newMask = vectorInfo.kval.value & ((1 << maxElements) - 1);
+    }
+    if(is64b) {
+        return countBitsSet(0x00FF & newMask);
+    } else {
+        return countBitsSet(newMask);
+    }
+}
+
 struct VectorInfo X86Instruction::getVectorInfo()
 {
-    // elementSize is collected from the instruction classifier
     vectorInfo.elementSize = X86InstructionClassifier::getInstructionElemSize(this);
 
     OperandX86* src = getFirstSourceOperand();
+    OperandX86* dest = getDestOperand();
+
     uint32_t bytesInReg = src->getBytesUsed();
+    if(dest != NULL && dest->getBytesUsed() > bytesInReg){
+        bytesInReg = dest->getBytesUsed();
+    }
 
     // FIXME -- currently all 512 bit operations use vector masks
     if(bytesInReg == 64) {
         if(vectorInfo.kval.confidence == Unknown) {
             vectorInfo.nElements = 0;
         } else {
-            // doubles use only lower half of mask
-            if(vectorInfo.elementSize == 8) {
-                vectorInfo.nElements = countBitsSet(0x00FF & vectorInfo.kval.value);
-            } else {
-                vectorInfo.nElements = countBitsSet(vectorInfo.kval.value);
+
+            #define nelems(a,b,c) countElementsUnalignedLoadStore(a,b,c)
+            switch(GET(mnemonic)){
+                // Low load/stores
+                // low, 64bit, load
+                case UD_Ivloadunpacklpd:
+                case UD_Ivloadunpacklq: vectorInfo.nElements = nelems(true, true, true); break;
+
+                case UD_Ivpackstorelpd:
+                case UD_Ivpackstorelq: vectorInfo.nElements = nelems(true, true, false); break;
+
+                case UD_Ivloadunpacklps:
+                case UD_Ivloadunpackld: vectorInfo.nElements = nelems(true, false, true); break;
+
+                case UD_Ivpackstorelps:
+                case UD_Ivpackstoreld: vectorInfo.nElements = nelems(true, false, false); break;
+
+                // High load/stores
+                case UD_Ivloadunpackhpd:
+                case UD_Ivloadunpackhq: vectorInfo.nElements = nelems(false, true, true); break;
+
+                case UD_Ivpackstorehpd:
+                case UD_Ivpackstorehq: vectorInfo.nElements = nelems(false, true, false); break;
+
+                case UD_Ivloadunpackhps:
+                case UD_Ivloadunpackhd: vectorInfo.nElements = nelems(false, false, true); break;
+
+                case UD_Ivpackstorehd:
+                case UD_Ivpackstorehps: vectorInfo.nElements = nelems(false, false, false); break;
+
+                default:
+                    // doubles use only lower half of mask
+                    if(vectorInfo.elementSize == 8) {
+                        vectorInfo.nElements = countBitsSet(0x00FF & vectorInfo.kval.value);
+                    } else {
+                        vectorInfo.nElements = countBitsSet(vectorInfo.kval.value);
+                    }
             }
+            #undef nelems
         }
     } else if(vectorInfo.elementSize > 0) {
         vectorInfo.nElements = bytesInReg / vectorInfo.elementSize;
@@ -309,6 +379,52 @@ bool X86Instruction::isStore(){
 
 bool X86Instruction::isSpecialRegOp(){
     return (getInstructionType() == X86InstructionType_special);
+}
+
+bool X86Instruction::isScatterGatherOp(){
+    switch(GET(mnemonic)){
+        case UD_Ivgatherdpd:
+        case UD_Ivgatherdps:
+        case UD_Ivgatherpf0dps:
+        case UD_Ivgatherpf0hintdpd:
+        case UD_Ivgatherpf0hintdps:
+        case UD_Ivgatherpf1dps:
+        case UD_Ivpgatherdd:
+        case UD_Ivpgatherdq:
+
+        case UD_Ivscatterdpd:
+        case UD_Ivscatterpf0dps:
+        case UD_Ivscatterpf0hintdpd:
+        case UD_Ivscatterpf0hintdps:
+        case UD_Ivscatterpf1dps:
+        case UD_Ivpscatterdd:
+        case UD_Ivpscatterdq:
+            return true;
+     }
+     return false;
+}
+
+bool X86Instruction::isVectorMaskOp(){
+    switch(GET(mnemonic)){
+        case UD_Ijknzd:
+        case UD_Ijkzd:
+        case UD_Ikand:
+        case UD_Ikandn:
+        case UD_Ikandnr:
+        case UD_Ikconcath:
+        case UD_Ikconcatl:
+        case UD_Ikextract:
+        case UD_Ikmerge2l1h:
+        case UD_Ikmerge2l1l:
+        case UD_Ikmov:
+        case UD_Iknot:
+        case UD_Ikor:
+        case UD_Ikortest:
+        case UD_Ikxnor:
+        case UD_Ikxor:
+            return true;
+    }
+    return false;
 }
 
 bool X86Instruction::isLogicOp(){
@@ -1127,7 +1243,8 @@ bool X86Instruction::isStringOperation(){
 }
 
 bool X86Instruction::isMoveOperation(){
-    if (getInstructionType() == X86InstructionType_move){
+    if (getInstructionType() == X86InstructionType_move ||
+        getInstructionType() == X86InstructionType_simdMove){
         return true;
     }
     return false;
@@ -1857,7 +1974,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
         PRINT_ERROR("Problem doing instruction disassembly");
     }
     if(ud_obj.error) {
-        fprintf(stderr, "Unable to disassemble %d bytes at address 0x%llx\n", sizeInBytes, baseAddr);
+        //fprintf(stderr, "Unable to disassemble %d bytes at address 0x%llx\n", sizeInBytes, baseAddr);
         //fprintf(stderr, "0x%llx\n", *buff);
     }
 
@@ -1925,7 +2042,7 @@ X86Instruction::X86Instruction(TextObject* cont, uint64_t baseAddr, char* buff, 
         PRINT_ERROR("Problem doing instruction disassembly");
     }
     if(ud_obj.error) {
-        fprintf(stderr, "Unable to disassemble %d bytes at address 0x%llx\n", sizeInBytes, baseAddr);
+        //fprintf(stderr, "Unable to disassemble %d bytes at address 0x%llx\n", sizeInBytes, baseAddr);
         //fprintf(stderr, "0x%llx\n", *buff);
     }
 
@@ -3352,8 +3469,8 @@ void X86InstructionClassifier::generateTable(){
     mkclass(         vpextrd,       int,        0,    0,    VRSZ,    0,    32)
     mkclass(         vpextrq,       int,        0,    0,    VRSZ,    0,    64)
     mkclass(         vpextrw,       int,        0,    0,    VRSZ,    0,    16)
-    mkclass(      vpgatherdd,      move,        0,    0,    VRSZ,    0,    32)
-    mkclass(      vpgatherdq,      move,        0,    0,    VRSZ,    0,    64)
+    mkclass(      vpgatherdd,   simdMove,    intv,    0,    VRSZ,    0,    32)
+    mkclass(      vpgatherdq,   simdMove,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vphaddd,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(        vphaddsw,    simdInt,    intv,    0,    VRSZ,    0,    16)
     mkclass(         vphaddw,    simdInt,    intv,    0,    VRSZ,    0,    16)
@@ -3417,8 +3534,8 @@ void X86InstructionClassifier::generateTable(){
     mkclass(         vpsadbw,    simdInt,    intv,    0,    VRSZ,    0,    0)
     mkclass(          vpsbbd,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(         vpsbbrd,    simdInt,    intv,    0,    VRSZ,    0,    32)
-    mkclass(     vpscatterdd,       move,    0,       0,    VRSZ,    0,    32)
-    mkclass(     vpscatterdq,       move,    0,       0,    VRSZ,    0,    64)
+    mkclass(     vpscatterdd,   simdMove,    intv,    0,    VRSZ,    0,    32)
+    mkclass(     vpscatterdq,   simdMove,    intv,    0,    VRSZ,    0,    64)
     mkclass(         vpshufb,    simdInt,    intv,    0,    VRSZ,    0,    8)
     mkclass(         vpshufd,    simdInt,    intv,    0,    VRSZ,    0,    32)
     mkclass(        vpshufhw,    simdInt,    intv,    0,    VRSZ,    0,    16)
