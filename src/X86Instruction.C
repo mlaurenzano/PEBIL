@@ -88,7 +88,10 @@ struct VectorInfo X86Instruction::getVectorInfo()
     OperandX86* src = getFirstSourceOperand();
     OperandX86* dest = getDestOperand();
 
-    uint32_t bytesInReg = src->getBytesUsed();
+    uint32_t bytesInReg = 0;
+    if(src != NULL ) {
+        bytesInReg = src->getBytesUsed();
+    }
     if(dest != NULL && dest->getBytesUsed() > bytesInReg){
         bytesInReg = dest->getBytesUsed();
     }
