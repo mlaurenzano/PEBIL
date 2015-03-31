@@ -17,6 +17,8 @@ typedef struct {
     int events[MAX_HWC];
     values_t* tmpValues;
     values_t* accumValues;
+  uint64_t* loopTimerAccum;
+    uint64_t* loopTimerLast;
     int num;
 } PAPIInst;
 
