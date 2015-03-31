@@ -979,6 +979,64 @@ decode_imm(struct ud* u, unsigned int s, struct ud_operand *op)
   }
 }
 
+static uint32_t
+get_membytes_accessed(struct ud* u, unsigned int size)
+{
+    if(mvex[0] == 0) {
+        return size;
+    }
+
+    uint8_t conversion = MVEX_SSS(u->mvex[2]);
+
+    uint8_t bytesAccessed;
+    if(b32) {
+        bytesAccessed = {64, 4, 16, 32, 16, 16, 32, 32}[conversion];
+    } else {
+        bytesAccessed = {64, 8, 32}[conversion];
+    }
+
+    switch(u->mnemonic) {
+        // 4 to 16
+        case UD_Ivbroadcastf32x4:
+        case UD_Ivbroadcasti32x4:
+            return bytesAccessed / 4;
+
+        // 1 to 16 or single element
+        case UD_Ivbroadcastss:
+        case UD_Ivpbroadcastd:
+        case UD_Ivpackstorehd:
+        case UD_Ivpackstorehps:
+        case UD_Ivpackstoreld:
+        case UD_Ivpackstorelps:
+        case UD_Ivloadunpackhd:
+        case UD_Ivloadunpackhps:
+        case UD_Ivloadunpackld:
+        case UD_Ivloadunpacklps:
+            return bytesAccessed / 16;
+
+        // 4 to 8
+        case UD_Ivbroadcastf64x4:
+        case UD_Ivbroadcasti64x4:
+            return bytesAccessed / 2;
+
+        // 1 to 8 or single element
+        case UD_Ivbroadcastsd:
+        case UD_Ivpbroadcastq:
+        case UD_Ivpackstorehpd:
+        case UD_Ivpackstorehq:
+        case UD_Ivpackstorelpd:
+        case UD_Ivpackstorelq:
+        case UD_Ivloadunpackhpd:
+        case UD_Ivloadunpackhq:
+        case UD_Ivloadunpacklpd:
+        case UD_Ivloadunpacklq:
+            return bytesAccessed / 8;
+
+        default:
+            return bytesAccessed;
+    }
+}
+
 /* -----------------------------------------------------------------------------
  * decode_modrm_rm() - Decodes ModRM.r/m
  * -----------------------------------------------------------------------------

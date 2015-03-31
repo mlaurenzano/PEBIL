@@ -158,7 +158,7 @@ struct ud_operand
   } lval;
   enum ud_type		base;
   enum ud_type		index;
-  uint8_t		offset;
+  uint8_t		offset; // offset size in bits
   uint8_t		scale;	
 };
 

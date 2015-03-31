@@ -65,8 +65,26 @@ uint32_t X86Instruction::countElementsUnalignedLoadStore(bool low, bool is64b, b
     } else {
         size = 4;
     }
-    addr = memLoc->getValue();
+    // absolute address
+    if(op->GET(type) == UD_OP_IMM) {
+        addr = memLoc->getValue();
 
+    // instruction-relative addresses
+    } else if(op->isRelative()) {
+        addr = getRelativeValue() + getBaseAddress() + getSizeInBytes();
+
+    // stack addresses
+    } else if(op->GET(base) == UD_R_RSP) {
+        addr = 0; // FIXME
+
+    // other
+    } else {
+        addr = 0;
+        fprintf(stderr, "Don't know address for other operand type\n");
+        memLoc->print();
+    }
+
+    fprintf(stderr, "figuring address 0x%llx\n", addr);
     if(low) {
         uint32_t removedElements = (addr % 64) / size;
         newMask = (vectorInfo.kval.value >> removedElements) << removedElements;
@@ -1291,6 +1309,7 @@ uint32_t X86Instruction::getDstSizeInBytes(){
         return 0;
 }
 
+/* Get value of literal */
 int64_t OperandX86::getValue(){
     int64_t value;
     if (getBytesUsed() == 0){
