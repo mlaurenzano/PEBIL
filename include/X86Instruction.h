@@ -291,6 +291,7 @@ struct ud_compact
     //uint8_t           pfx_avx;
     //uint8_t           avx_vex[2];
     enum ud_type        vector_mask_register;
+    uint8_t             conversion;
     //uint8_t		default64;
     //uint8_t		opr_mode;
     uint8_t		adr_mode;

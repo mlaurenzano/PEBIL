@@ -43,9 +43,15 @@ gen_operand(struct ud* u, struct ud_operand* op)
 		if (u->pfx_seg)
 			mkasm(u, "%%%s:", ud_reg_tab[u->pfx_seg - UD_R_AL]);
 		if (op->offset == 8) {
+                    if(u->mvex[0] == 0) {
 			if (op->lval.sbyte < 0)
 				mkasm(u, "-0x%x", (-op->lval.sbyte) & 0xff);
 			else	mkasm(u, "0x%x", op->lval.sbyte);
+                    } else {
+                        if (op->lval.sword < 0)
+                                mkasm(u, "-0x%x", (-op->lval.sword) & 0xffff);
+                        else    mkasm(u, "0x%x", (op->lval.sword));
+                    }
 		} 
 		else if (op->offset == 16) 
 			mkasm(u, "0x%x", op->lval.uword);
