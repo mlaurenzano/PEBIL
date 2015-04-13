@@ -1031,6 +1031,9 @@ get_membytes_accessed(struct ud* u, unsigned int size)
         case UD_Ivloadunpacklpd:
         case UD_Ivloadunpacklq:
             return bytesAccessed / 8;
+
+        default:
+            return bytesAccessed;
     }
 }
 
