@@ -52,7 +52,7 @@ void FunctionTimer::declare(){
     InstrumentationTool::declare();
 
     // declare any shared library that will contain instrumentation functions
-    declareLibrary(INST_LIB_NAME);
+//    declareLibrary(INST_LIB_NAME);
 
     // declare any instrumentation functions that will be used
     programEntry = declareFunction("tool_image_init");
