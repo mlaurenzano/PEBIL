@@ -94,10 +94,10 @@ extern "C"
         assert(counters->functionTimerLast != NULL);
         if(counters->inFunction[funcIndex] == 0){
             counters->functionTimerLast[funcIndex] = read_timestamp_counter();
+						PAPI_start_counters(counters->events, counters->num);				
         }
         ++counters->inFunction[funcIndex];
 
-				PAPI_start_counters(counters->events, counters->num);				
 
         return 0;
     }
@@ -107,24 +107,23 @@ extern "C"
         thread_key_t tid = pthread_self();
         FunctionPAPI* counters = AllData->GetData(*key, pthread_self());
 
-				PAPI_stop_counters(counters->tmpValues[funcIndex], counters->num);
-
         uint32_t recDepth = counters->inFunction[funcIndex];
         --recDepth;
         if(recDepth == 0) {
+						PAPI_stop_counters(counters->tmpValues[funcIndex], counters->num);
             uint64_t last = counters->functionTimerLast[funcIndex];
             uint64_t now = read_timestamp_counter();
             counters->functionTimerAccum[funcIndex] += now - last;
             counters->functionTimerLast[funcIndex] = now;
+						for(int i = 0; i < counters->num; i++)
+						{
+							counters->accumValues[funcIndex][i] += counters->tmpValues[funcIndex][i];
+						}
         } else if(recDepth < 0) {
             recDepth = 0;
         }
         counters->inFunction[funcIndex] = recDepth;
 
-				for(int i = 0; i < counters->num; i++)
-				{
-					counters->accumValues[funcIndex][i] += counters->tmpValues[funcIndex][i];
-				}
 
         return 0;
     }
