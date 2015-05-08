@@ -36,8 +36,8 @@ typedef struct {
     uint64_t id;
     uint64_t data;
 } ThreadData;
-#define ThreadHashShift (15)
-#define ThreadHashMod   (0x3ffff)
+#define ThreadHashShift (17)
+#define ThreadHashMod   (0xffff)
 
 struct DynamicInstInternal {
     InstrumentationPoint* Point;
