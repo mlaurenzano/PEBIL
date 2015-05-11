@@ -4,45 +4,43 @@ FC          = @FC@
 MPICC       = @MPICC@
 
 BINDIR      = ../../src
-EXECBIN     = bin
+EXECDIR     = bin
 
 OBJS        = foo.o bar.o dum.o main.o
 OBJSCPP	    = classes.o
 EXTRA_INC   = -I../../instcode
 EXTRA_LIBS  = -lm
 
-TARGETS  = cTest cppTest fTest dynTest sgTest
+TARGETS  = createDir $(EXECDIR)/cTest $(EXECDIR)/cppTest $(EXECDIR)/fTest $(EXECDIR)/dynTest $(EXECDIR)/sgTest
 
 all: $(TARGETS) 
-	echo $(IDETGT)
+	echo $(TARGETS)
 %.o: %.c
 	$(CC) -g -c -o $@ $< 
 
 %.o: %.C
 	$(CXX) -g -c -o $@ $< 
 
-cTest: $(OBJS)
+$(EXECDIR)/cTest: $(OBJS)
 	$(CC) -g -o $@ $(OBJS)
-	cp $@ $(EXECBIN)/$@
 
-cppTest: $(OBJSCPP)
+$(EXECDIR)/cppTest: $(OBJSCPP)
 	$(CXX) -g -o $@ $(OBJSCPP)
-	cp $@ $(EXECBIN)/$@
 
-fTest:
+$(EXECDIR)/fTest:
 	$(FC) -g -o $@ fTest.f
-	cp $@ $(EXECBIN)/$@
 
-dynTest:
+$(EXECDIR)/dynTest:
 	$(CC) -g -o $@ dynTest.c
-	cp $@ $(EXECBIN)/$@
 
-sgTest:
+$(EXECDIR)/sgTest:
 	$(CC) -g -o $@ sgTest.c $(EXTRA_INC) $(EXTRA_LIBS)
-	cp $@ $(EXECBIN)/$@
+
+createDir:
+	mkdir -p $(EXECDIR)
 
 check: $(TARGETS)
 NULL_FILE = /dev/null
 
 clean: 
-	rm -f *.o $(TARGETS) $(EXECBIN)/*
+	rm -f *.o $(TARGETS)

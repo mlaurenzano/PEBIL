@@ -5,50 +5,29 @@ MPICC       = @MPICC@
 
 BINDIR      = ../src
 
-OBJS        = foo.o bar.o dum.o main.o
-OBJSCPP	    = classes.o
-EXTRA_INC   = -I../instcode
-EXTRA_LIBS  = -lm
+TOYS		= toys/bin
 
-TARGETS  = #cTest cppTest fTest dynTest sgTest
+TARGETS = $(TOYS)/cTest $(TOYS)/cppTest $(TOYS)/fTest $(TOYS)/dynTest $(TOYS)/sgTest
 IDETGT = $(subst Test,Test.ideinst,$(TARGETS))
 JBBTGT = $(subst Test,Test.jbbinst,$(TARGETS))
 SIMTGT = $(subst Test,Test.siminst,$(TARGETS))
-THRTGT = $(subst Test,Test.thrinst,$(TARGETS))
+THRTGT = $(subst Test,Test.lpiinst,$(TARGETS))
 DISTGT = $(subst Test,Test.disasm,$(TARGETS))
 
-all: $(TARGETS) 
-	echo $(IDETGT)
-%.o: %.c
-	$(CC) -g -c -o $@ $< 
+all: makeTargets
 
-%.o: %.C
-	$(CXX) -g -c -o $@ $< 
-
-cTest: $(OBJS)
-	$(CC) -g -o $@ $(OBJS)
-
-cppTest: $(OBJSCPP)
-	$(CXX) -g -o $@ $(OBJSCPP)
-
-fTest:
-	$(FC) -g -o $@ fTest.f
-
-dynTest:
-	$(CC) -g -o $@ dynTest.c
-
-sgTest:
-	$(CC) -g -o $@ sgTest.c $(EXTRA_INC) $(EXTRA_LIBS)
+makeTargets:
+	$(MAKE) -C toys
 
 showme:
 	which pebil
 	ldd `which pebil`
 
-check: showme $(IDETGT) $(JBBTGT) $(SIMTGT) $(THRTGT) $(DISTGT)
+check: makeTargets showme $(IDETGT) $(JBBTGT) $(SIMTGT) $(THRTGT) $(DISTGT)
 PEBIL_COMMAND = pebil --silent
 PEBIL_COMMAND_I = $(PEBIL_COMMAND) --typ
 PEBIL_COMMAND_T = $(PEBIL_COMMAND) --tool
-FILTER_PEBIL_MSGS = grep -v "\-\["
+FILTER_PEBIL_MSGS = grep -v "\[Metasim\-r"
 LOOPS_FILE = all.loops
 CREATE_LOOPS_FILE = echo "*:*:0" > $(LOOPS_FILE)
 OUT = outp
@@ -74,16 +53,17 @@ NULL_FILE = /dev/null
 	./$< > $<.$(OUT)
 	$(DIFF) $<.$(OUT) $@.$(OUT)
 
-%.thrinst: %
+%.lpiinst: %
 	$(CREATE_LOOPS_FILE)
-	$(PEBIL_COMMAND_T) LoopIntercept --app $< --inp $(LOOPS_FILE) --lnc libpfreq.so
+	$(PEBIL_COMMAND_T) LoopIntercept --app $< --inp $(LOOPS_FILE) --lnc liblooptimer.so
 	rm -f $(LOOPS_FILE)
 	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
 	./$< > $<.$(OUT)
 	$(DIFF) $<.$(OUT) $@.$(OUT)
 
 %.disasm: %
-	check_disasm.py --file $<
+	echo "check_disasm.py script not currently runnable"
+	#check_disasm.py --file $<
 
 clean: 
-	rm -f *.o $(TARGETS) *.jbbinst *.loopcnt *.siminst *.ideinst *.static *.$(OUT)
+	rm -f *.o $(TARGETS) *.jbbinst *.lpiinst *.siminst *.ideinst *.static *.$(OUT)
