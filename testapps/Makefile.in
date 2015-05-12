@@ -5,65 +5,22 @@ MPICC       = @MPICC@
 
 BINDIR      = ../src
 
-TOYS		= toys/bin
-
-TARGETS = $(TOYS)/cTest $(TOYS)/cppTest $(TOYS)/fTest $(TOYS)/dynTest $(TOYS)/sgTest
-IDETGT = $(subst Test,Test.ideinst,$(TARGETS))
-JBBTGT = $(subst Test,Test.jbbinst,$(TARGETS))
-SIMTGT = $(subst Test,Test.siminst,$(TARGETS))
-THRTGT = $(subst Test,Test.lpiinst,$(TARGETS))
-DISTGT = $(subst Test,Test.disasm,$(TARGETS))
-
 all: makeTargets
 
 makeTargets:
 	$(MAKE) -C toys
+	$(MAKE) -C apps
 
 showme:
 	which pebil
 	ldd `which pebil`
 
-check: makeTargets showme $(IDETGT) $(JBBTGT) $(SIMTGT) $(THRTGT) $(DISTGT)
-PEBIL_COMMAND = pebil --silent
-PEBIL_COMMAND_I = $(PEBIL_COMMAND) --typ
-PEBIL_COMMAND_T = $(PEBIL_COMMAND) --tool
-FILTER_PEBIL_MSGS = grep -v "\[Metasim\-r"
-LOOPS_FILE = all.loops
-CREATE_LOOPS_FILE = echo "*:*:0" > $(LOOPS_FILE)
-OUT = outp
-DIFF = diff
-NULL_FILE = /dev/null
+check: makeTargets showme checkAppBinary
 
-%.ideinst: %
-	$(PEBIL_COMMAND_I) ide --app $<
-	$(DIFF) $< $@
-	./$@ > $@.$(OUT)
-	./$< > $<.$(OUT)
-	$(DIFF) $<.$(OUT) $@.$(OUT)
-
-%.jbbinst: %
-	$(PEBIL_COMMAND_T) BasicBlockCounter --app $<
-	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
-	./$< > $<.$(OUT)
-	$(DIFF) $<.$(OUT) $@.$(OUT)
-
-%.siminst: %
-	$(PEBIL_COMMAND_T) CacheSimulation --app $< --inp $(NULL_FILE)
-	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
-	./$< > $<.$(OUT)
-	$(DIFF) $<.$(OUT) $@.$(OUT)
-
-%.lpiinst: %
-	$(CREATE_LOOPS_FILE)
-	$(PEBIL_COMMAND_T) LoopIntercept --app $< --inp $(LOOPS_FILE) --lnc liblooptimer.so
-	rm -f $(LOOPS_FILE)
-	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
-	./$< > $<.$(OUT)
-	$(DIFF) $<.$(OUT) $@.$(OUT)
-
-%.disasm: %
-	echo "check_disasm.py script not currently runnable"
-	#check_disasm.py --file $<
+checkAppBinary:
+	$(MAKE) checkAppBinary -C toys
 
 clean: 
 	rm -f *.o $(TARGETS) *.jbbinst *.lpiinst *.siminst *.ideinst *.static *.$(OUT)
+	$(MAKE) clean -C toys
+	$(MAKE) clean -C apps

@@ -114,6 +114,7 @@ AC_CONFIG_FILES([Makefile
                  src/Makefile
                  tools/Makefile
                  testapps/Makefile
+                 testapps/apps/Makefile
                  testapps/toys/Makefile
                  instcode/Makefile
                  scripts/blacklist.sh

@@ -1,0 +1,39 @@
+CC          = @CC@
+CXX         = @CXX@
+FC          = @FC@
+MPICC       = @MPICC@
+
+BINDIR      = ../../src
+
+NPB_SER_APPS  = cg mg ep
+NPB_SER_CLASSES = S
+NPB_OMP_APPS  = cg mg ep
+NPB_OMP_CLASSES = S
+
+all: make_NPB_SER make_NPB_OMP
+
+check: make_NPB_SER
+
+make_NPB_SER:
+	cp NPB3.3-SER/config/make.def.epanalytics NPB3.3-SER/config/make.def
+	sed -i 's/EPA_FC/'$(FC)'/g' NPB3.3-SER/config/make.def
+	sed -i 's/EPA_CC/'$(CC)'/g' NPB3.3-SER/config/make.def
+	for app in $(NPB_SER_APPS) ; do \
+		for class in $(NPB_SER_CLASSES) ; do \
+			make $$app CLASS=$$class -C NPB3.3-SER ; \
+	done done
+
+make_NPB_OMP:
+	cp NPB3.3-OMP/config/make.def.epanalytics NPB3.3-OMP/config/make.def
+	sed -i 's/EPA_FC/'$(FC)'/g' NPB3.3-OMP/config/make.def
+	sed -i 's/EPA_CC/'$(CC)'/g' NPB3.3-OMP/config/make.def
+	sed -i 's/EPA_FFLAGS/\-fopenmp/g' NPB3.3-OMP/config/make.def
+	sed -i 's/EPA_CFLAGS/\-fopenmp/g' NPB3.3-OMP/config/make.def
+	for app in $(NPB_OMP_APPS) ; do \
+		for class in $(NPB_OMP_CLASSES) ; do \
+			make $$app CLASS=$$class -C NPB3.3-OMP ; \
+	done done
+
+clean: 
+	make clean -C NPB3.3-SER
+	make clean -C NPB3.3-OMP

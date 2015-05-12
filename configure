@@ -7557,7 +7557,7 @@ fi
 done
 
 
-ac_config_files="$ac_config_files Makefile src/Makefile tools/Makefile testapps/Makefile testapps/toys/Makefile instcode/Makefile scripts/blacklist.sh cshrc bashrc"
+ac_config_files="$ac_config_files Makefile src/Makefile tools/Makefile testapps/Makefile testapps/apps/Makefile testapps/toys/Makefile instcode/Makefile scripts/blacklist.sh cshrc bashrc"
 
 ac_aux_dir=
 for ac_dir in "$srcdir" "$srcdir/.." "$srcdir/../.."; do
@@ -8208,6 +8208,7 @@ do
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "tools/Makefile") CONFIG_FILES="$CONFIG_FILES tools/Makefile" ;;
     "testapps/Makefile") CONFIG_FILES="$CONFIG_FILES testapps/Makefile" ;;
+    "testapps/apps/Makefile") CONFIG_FILES="$CONFIG_FILES testapps/apps/Makefile" ;;
     "testapps/toys/Makefile") CONFIG_FILES="$CONFIG_FILES testapps/toys/Makefile" ;;
     "instcode/Makefile") CONFIG_FILES="$CONFIG_FILES instcode/Makefile" ;;
     "scripts/blacklist.sh") CONFIG_FILES="$CONFIG_FILES scripts/blacklist.sh" ;;

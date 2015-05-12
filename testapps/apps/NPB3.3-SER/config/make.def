@@ -29,8 +29,11 @@
 #---------------------------------------------------------------------------
 # This is the fortran compiler used for Fortran programs
 #---------------------------------------------------------------------------
-F77 = @FC@
+F77 = mpif90
+
+#---------------------------------------------------------------------------
 # This links fortran programs; usually the same as ${F77}
+#---------------------------------------------------------------------------
 FLINK	= $(F77)
 
 #---------------------------------------------------------------------------
@@ -46,13 +49,13 @@ F_INC =
 #---------------------------------------------------------------------------
 # Global *compile time* flags for Fortran programs
 #---------------------------------------------------------------------------
-FFLAGS	= -O @FFLAGS@
+FFLAGS	= -O
 
 #---------------------------------------------------------------------------
 # Global *link time* flags. Flags for increasing maximum executable 
 # size usually go here. 
 #---------------------------------------------------------------------------
-FLINKFLAGS = -O @FFLAGS@
+FLINKFLAGS = -O
 
 
 #---------------------------------------------------------------------------
@@ -75,14 +78,17 @@ FLINKFLAGS = -O @FFLAGS@
 #---------------------------------------------------------------------------
 # This is the C compiler used for C programs
 #---------------------------------------------------------------------------
-CC = @CC@
+CC = gcc
+
+#---------------------------------------------------------------------------
 # This links C programs; usually the same as ${CC}
+#---------------------------------------------------------------------------
 CLINK	= $(CC)
 
 #---------------------------------------------------------------------------
 # These macros are passed to the linker 
 #---------------------------------------------------------------------------
-C_LIB  = -lm
+C_LIB  =
 
 #---------------------------------------------------------------------------
 # These macros are passed to the compiler 
@@ -104,13 +110,13 @@ C_INC =
 # _LARGEFILE64_SOURCE - are standard compiler flags which allow to work with 
 # files larger than 2GB.
 #---------------------------------------------------------------------------
-CFLAGS	= -O @CFLAGS@
+CFLAGS	= -O
 
 #---------------------------------------------------------------------------
 # Global *link time* flags. Flags for increasing maximum executable 
 # size usually go here. 
 #---------------------------------------------------------------------------
-CLINKFLAGS = -O @CFLAGS@
+CLINKFLAGS = -O
 
 
 #---------------------------------------------------------------------------
@@ -150,7 +156,7 @@ WTIME  = wtime.c
 
 
 #---------------------------------------------------------------------------
-# Enable if either Cray (not Cray-X1) or IBM: 
+# Enable if either Cray or IBM: 
 # (no such flag for most machines: see common/wtime.h)
 # This is used by the C compiler to pass the machine name to common/wtime.h,
 # where the C/Fortran binding interface format is determined

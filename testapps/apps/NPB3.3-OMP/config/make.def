@@ -29,7 +29,7 @@
 #---------------------------------------------------------------------------
 # This is the fortran compiler used for Fortran programs
 #---------------------------------------------------------------------------
-F77 = f95
+F77 = mpif90
 # This links fortran programs; usually the same as ${F77}
 FLINK	= $(F77)
 
