@@ -57,6 +57,9 @@ libtimer.so : TimerFunctions.O
 libtimer.a : TimerFunctions.o $(COMMON_OBJS) 
 	$(AR) $@ TimerFunctions.o $(COMMON_OBJS)
 
+libpapifunc.so : PAPIFunc.O
+	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS)
+
 libclassifier.so : ClassifierFunctions.o $(COMMON_OBJS)
 	$(MPICC) $(SHARED_LIB) -o $@ ClassifierFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS) $(CFLAGS)
 libclassifier.a : ClassifierFunctions.o

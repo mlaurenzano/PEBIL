@@ -1,0 +1,48 @@
+CC          = @CC@
+CXX         = @CXX@
+FC          = @FC@
+MPICC       = @MPICC@
+
+BINDIR      = ../../src
+EXECBIN     = bin
+
+OBJS        = foo.o bar.o dum.o main.o
+OBJSCPP	    = classes.o
+EXTRA_INC   = -I../../instcode
+EXTRA_LIBS  = -lm
+
+TARGETS  = cTest cppTest fTest dynTest sgTest
+
+all: $(TARGETS) 
+	echo $(IDETGT)
+%.o: %.c
+	$(CC) -g -c -o $@ $< 
+
+%.o: %.C
+	$(CXX) -g -c -o $@ $< 
+
+cTest: $(OBJS)
+	$(CC) -g -o $@ $(OBJS)
+	cp $@ $(EXECBIN)/$@
+
+cppTest: $(OBJSCPP)
+	$(CXX) -g -o $@ $(OBJSCPP)
+	cp $@ $(EXECBIN)/$@
+
+fTest:
+	$(FC) -g -o $@ fTest.f
+	cp $@ $(EXECBIN)/$@
+
+dynTest:
+	$(CC) -g -o $@ dynTest.c
+	cp $@ $(EXECBIN)/$@
+
+sgTest:
+	$(CC) -g -o $@ sgTest.c $(EXTRA_INC) $(EXTRA_LIBS)
+	cp $@ $(EXECBIN)/$@
+
+check: $(TARGETS)
+NULL_FILE = /dev/null
+
+clean: 
+	rm -f *.o $(TARGETS) $(EXECBIN)/*
