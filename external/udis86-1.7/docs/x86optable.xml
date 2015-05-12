@@ -295,13 +295,11 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="crc32">
     <opcode> ; ; ; ; </opcode>
   </instruction>
-  <instruction mnemonic="popcnt">
-    <opcode> ; ; ; ; </opcode>
-  </instruction>
   <instruction mnemonic="lzcnt">
     <opcode> ; ; ; ; </opcode>
   </instruction>
 -->
+
 
   <instruction mnemonic="aesimc">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 db ; V W ; ; </opcode>
@@ -4715,6 +4713,8 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="popcnt">
+    <opcode> rexr rexx rexb rexw ; ssef3 0f B8 ; Gd Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; ssef3 0f B8 ; Gq Eq ; ; </opcode>
     <opcode> rexr rexx rexb rexw ; vex ssef3 0f B8 /W=0 ; Gd Ed ; ; </opcode>
     <opcode> rexr rexx rexb rexw ; vex ssef3 0f B8 /W=1 ; Gq Eq ; ; </opcode>
   </instruction>
