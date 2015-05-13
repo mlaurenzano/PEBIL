@@ -10,10 +10,36 @@ NPB_SER_CLASSES = S
 NPB_OMP_APPS  = cg mg ep
 NPB_OMP_CLASSES = S
 
+
+NPB_SER_EXEC			= NPB3.3-SER/bin
+NPB_SER_TARGETS   = $(foreach serApp,$(NPB_SER_APPS),$(foreach class,$(NPB_SER_CLASSES),$(NPB_SER_EXEC)/$(serApp).$(class)))
+NPB_SER_IDETGT    = $(foreach target,$(NPB_SER_TARGETS),$(target).ideinst)
+NPB_SER_JBBTGT    = $(foreach target,$(NPB_SER_TARGETS),$(target).jbbinst)
+NPB_SER_SIMTGT    = $(foreach target,$(NPB_SER_TARGETS),$(target).siminst)
+NPB_SER_THRTGT    = $(foreach target,$(NPB_SER_TARGETS),$(target).lpiinst)
+
+NPB_OMP_EXEC			= NPB3.3-OMP/bin
+NPB_OMP_TARGETS   = $(foreach ompApp,$(NPB_OMP_APPS),$(foreach class,$(NPB_OMP_CLASSES),$(NPB_OMP_EXEC)/$(ompApp).$(class)))
+NPB_OMP_IDETGT    = $(foreach target,$(NPB_OMP_TARGETS),$(target).ideinst)
+NPB_OMP_JBBTGT    = $(foreach target,$(NPB_OMP_TARGETS),$(target).jbbinst)
+NPB_OMP_SIMTGT    = $(foreach target,$(NPB_OMP_TARGETS),$(target).siminst)
+NPB_OMP_THRTGT    = $(foreach target,$(NPB_OMP_TARGETS),$(target).lpiinst)
+
+FILTER_NPB_SUCCESS	=	grep "Verification"
+
+PEBIL_COMMAND     = pebil --silent
+PEBIL_COMMAND_I   = $(PEBIL_COMMAND) --typ
+PEBIL_COMMAND_T   = $(PEBIL_COMMAND) --tool
+FILTER_PEBIL_MSGS = grep -v "\[Metasim\-r"
+LOOPS_FILE        = all.loops
+CREATE_LOOPS_FILE = echo "*:*:0" > $(LOOPS_FILE)
+OUT               = outp
+DIFF              = diff
+NULL_FILE = /dev/null
+
 all: make_NPB_SER make_NPB_OMP
 
-check: make_NPB_SER
-
+### Make Targets
 make_NPB_SER:
 	cp NPB3.3-SER/config/make.def.epanalytics NPB3.3-SER/config/make.def
 	sed -i 's/EPA_FC/'$(FC)'/g' NPB3.3-SER/config/make.def
@@ -34,6 +60,75 @@ make_NPB_OMP:
 			make $$app CLASS=$$class -C NPB3.3-OMP ; \
 	done done
 
+### PEBIL Checks
+
+check: make_NPB_SER checkAppBinary
+
+checkAppBinary: checkAppBinary_NPB_SER checkAppBinary_NPB_OMP
+
+checkAppBinary_NPB_SER: $(NPB_SER_TARGETS) $(NPB_SER_IDETGT) $(NPB_SER_JBBTGT) $(NPB_SER_SIMTGT) $(NPB_SER_THRTGT)
+
+checkAppBinary_NPB_OMP: $(NPB_OMP_TARGETS) $(NPB_OMP_IDETGT) $(NPB_OMP_JBBTGT) $(NPB_OMP_SIMTGT) $(NPB_OMP_THRTGT)
+
+$(NPB_SER_EXEC)/%.ideinst: $(NPB_SER_EXEC)/%
+	$(PEBIL_COMMAND_I) ide --app $<
+	$(DIFF) $< $@
+	./$@ | $(FILTER_NPB_SUCESS) > $@.$(OUT)
+	./$< | $(FILTER_NPB_SUCESS) > $<.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
+
+$(NPB_SER_EXEC)/%.jbbinst: $(NPB_SER_EXEC)/%
+	$(PEBIL_COMMAND_T) BasicBlockCounter --app $<
+	./$@ | $(FILTER_PEBIL_MSGS) | $(FILTER_NPB_SUCESS) > $@.$(OUT)
+	./$<  | $(FILTER_NPB_SUCESS)> $<.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
+
+$(NPB_SER_EXEC)/%.siminst: $(NPB_SER_EXEC)/%
+	$(PEBIL_COMMAND_T) CacheSimulation --app $< --inp $(NULL_FILE)
+	./$@ | $(FILTER_PEBIL_MSGS)  | $(FILTER_NPB_SUCESS)> $@.$(OUT)
+	./$<  | $(FILTER_NPB_SUCESS)> $<.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
+
+$(NPB_SER_EXEC)/%.lpiinst: $(NPB_SER_EXEC)/%
+	$(CREATE_LOOPS_FILE)
+	$(PEBIL_COMMAND_T) LoopIntercept --app $< --inp $(LOOPS_FILE) --lnc liblooptimer.so
+	rm -f $(LOOPS_FILE)
+	./$@ | $(FILTER_PEBIL_MSGS)  | $(FILTER_NPB_SUCESS)> $@.$(OUT)
+	./$<  | $(FILTER_NPB_SUCESS)> $<.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
+
+	
+$(NPB_OMP_EXEC)/%.ideinst: $(NPB_OMP_EXEC)/%
+	$(PEBIL_COMMAND_I) ide --app $<
+	$(DIFF) $< $@
+	./$@ | $(FILTER_NPB_SUCESS) > $@.$(OUT)
+	./$< | $(FILTER_NPB_SUCESS) > $<.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
+
+$(NPB_OMP_EXEC)/%.jbbinst: $(NPB_OMP_EXEC)/%
+	$(PEBIL_COMMAND_T) BasicBlockCounter --threaded --app $<
+	./$@ | $(FILTER_PEBIL_MSGS) | $(FILTER_NPB_SUCESS) > $@.$(OUT)
+	./$<  | $(FILTER_NPB_SUCESS)> $<.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
+
+$(NPB_OMP_EXEC)/%.siminst: $(NPB_OMP_EXEC)/%
+	$(PEBIL_COMMAND_T) CacheSimulation --threaded --app $< --inp $(NULL_FILE)
+	./$@ | $(FILTER_PEBIL_MSGS)  | $(FILTER_NPB_SUCESS)> $@.$(OUT)
+	./$<  | $(FILTER_NPB_SUCESS)> $<.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
+
+$(NPB_OMP_EXEC)/%.lpiinst: $(NPB_OMP_EXEC)/%
+	$(CREATE_LOOPS_FILE)
+	$(PEBIL_COMMAND_T) LoopIntercept --app $< --inp $(LOOPS_FILE) --lnc liblooptimer.so
+	rm -f $(LOOPS_FILE)
+	./$@ | $(FILTER_PEBIL_MSGS)  | $(FILTER_NPB_SUCESS)> $@.$(OUT)
+	./$<  | $(FILTER_NPB_SUCESS)> $<.$(OUT)
+	$(DIFF) $<.$(OUT) $@.$(OUT)
+
+
 clean: 
 	make clean -C NPB3.3-SER
 	make clean -C NPB3.3-OMP
+	rm $(NPB_SER_EXEC)/*
+	rm $(NPB_OMP_EXEC)/*
+	
