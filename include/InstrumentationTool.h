@@ -36,7 +36,7 @@ typedef struct {
     uint64_t id;
     uint64_t data;
 } ThreadData;
-#define ThreadHashShift (17)
+#define ThreadHashShift (16)
 #define ThreadHashMod   (0xffff)
 
 struct DynamicInstInternal {
