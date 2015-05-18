@@ -158,7 +158,7 @@ struct ud_operand
   } lval;
   enum ud_type		base;
   enum ud_type		index;
-  uint8_t		offset;
+  uint8_t		offset; // offset size in bits
   uint8_t		scale;	
 };
 
@@ -202,6 +202,7 @@ struct ud
   uint8_t               avx_vex[2];
   uint8_t               mvex[3];
   enum ud_type          vector_mask_register;
+  uint8_t               conversion;
   uint8_t		default64;
   uint8_t		opr_mode;
   uint8_t		adr_mode;

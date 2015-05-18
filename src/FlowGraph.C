@@ -154,6 +154,7 @@ static RuntimeValue getValueOfOperand(OperandX86* src, RegisterStatePrediction* 
 // to statically predict the values of registers
 void FlowGraph::computeVectorMasks(){
 
+    //fprintf(stderr, "Computing vector masks for function %s\n", function->getName());
     std::pebil_map_type<X86Instruction*, struct RegisterStatePrediction*> instruction_states;
 
     // build maps of addresses -> instructions/blocks
@@ -230,7 +231,6 @@ void FlowGraph::computeVectorMasks(){
         if(dest && dest->getType() == UD_OP_REG) {
             RuntimeValue value;
 
-            // TODO figure out more ways registers are written
             // Moves
             if(ins->isMoveOperation() && ins->getFirstSourceOperand() != NULL) {
                 OperandX86* src = ins->getFirstSourceOperand();
@@ -238,20 +238,47 @@ void FlowGraph::computeVectorMasks(){
 
             // Stack pops
             } else if(ins->isStackPop()) {
-                //ins->print();
                 if(!nextItem->stack.empty()) {
                     value = nextItem->stack.top();
                     nextItem->stack.pop();
-                    //fprintf(stderr, "Popped value off stack: %d, %d\n", value.confidence, value.value);
                 } else {
                     value = {Unknown, 0};
-                    //fprintf(stderr, "unknown value\n");
                 }
-            }
 
+            }
             // vcmppd, kandn
             else {
-                value = {Unknown, 0};
+                switch(ins->GET(mnemonic)) {
+                case UD_Iinc:
+                {
+                    RuntimeValue oldval = nextItem->state[getRegId(dest->GET(base))];
+                    //fprintf(stderr, "Updating with inc: %d, %d\n", oldval.value, oldval.confidence);
+                    if(oldval.confidence == Definitely) {
+                        value = {Definitely, oldval.value + 1};
+                    }
+                    break;
+                }
+                case UD_Ixor:
+                {
+                    OperandX86* src = ins->getFirstSourceOperand();
+                    //fprintf(stderr, "Updating with xor\n");
+                    if(src->getType() == UD_OP_REG && dest->GET(base) == src->GET(base)) {
+                        value = {Definitely, 0};
+                    } else {
+                        RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                        RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                        if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                            value = {Definitely, srcVal.value ^ oldVal.value};
+                        } else {
+                            value = {Unknown, 0};
+                        }
+                    }
+                    break;
+                }
+                default:
+                    value = {Unknown, 0};
+                    break;
+                }
             }
 
             //fprintf(stderr, "Writing %d, %d to register: %d\n", value.confidence, value.value, getRegId(dest->GET(base)));

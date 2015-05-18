@@ -65,7 +65,31 @@ uint32_t X86Instruction::countElementsUnalignedLoadStore(bool low, bool is64b, b
     } else {
         size = 4;
     }
-    addr = memLoc->getValue();
+    // absolute address
+    if(memLoc->GET(type) == UD_OP_IMM) {
+        addr = memLoc->getValue();
+        fprintf(stderr, "got absolute address 0x%llx\n", addr);
+
+    // instruction-relative addresses
+    } else if(memLoc->isRelative()) {
+        addr = getRelativeValue() + getBaseAddress() + getSizeInBytes();
+        fprintf(stderr, "got relative address 0x%llx\n", addr);
+
+    // stack addresses, assume aligned stack pointer?
+    // other
+    } else {
+        addr = 0;
+    }
+
+    // handle unknown addresses
+    if(addr == 0) {
+        // low load/stores always do at least 1 item
+        if(low == 1 && vectorInfo.kval.value == 1) {
+            vectorInfo.nElements = 1;
+        } else {
+            vectorInfo.kval.confidence = Maybe;
+        }
+    }
 
     if(low) {
         uint32_t removedElements = (addr % 64) / size;
@@ -75,9 +99,9 @@ uint32_t X86Instruction::countElementsUnalignedLoadStore(bool low, bool is64b, b
         newMask = vectorInfo.kval.value & ((1 << maxElements) - 1);
     }
     if(is64b) {
-        return countBitsSet(0x00FF & newMask);
+        vectorInfo.nElements = countBitsSet(0x00FF & newMask);
     } else {
-        return countBitsSet(newMask);
+        vectorInfo.nElements = countBitsSet(newMask);
     }
 }
 
@@ -107,29 +131,37 @@ struct VectorInfo X86Instruction::getVectorInfo()
                 // Low load/stores
                 // low, 64bit, load
                 case UD_Ivloadunpacklpd:
-                case UD_Ivloadunpacklq: vectorInfo.nElements = nelems(true, true, true); break;
+                case UD_Ivloadunpacklq:
+                    nelems(true, true, true); break;
 
                 case UD_Ivpackstorelpd:
-                case UD_Ivpackstorelq: vectorInfo.nElements = nelems(true, true, false); break;
+                case UD_Ivpackstorelq:
+                    nelems(true, true, false); break;
 
                 case UD_Ivloadunpacklps:
-                case UD_Ivloadunpackld: vectorInfo.nElements = nelems(true, false, true); break;
+                case UD_Ivloadunpackld:
+                    nelems(true, false, true); break;
 
                 case UD_Ivpackstorelps:
-                case UD_Ivpackstoreld: vectorInfo.nElements = nelems(true, false, false); break;
+                case UD_Ivpackstoreld:
+                    nelems(true, false, false); break;
 
                 // High load/stores
                 case UD_Ivloadunpackhpd:
-                case UD_Ivloadunpackhq: vectorInfo.nElements = nelems(false, true, true); break;
+                case UD_Ivloadunpackhq:
+                    nelems(false, true, true); break;
 
                 case UD_Ivpackstorehpd:
-                case UD_Ivpackstorehq: vectorInfo.nElements = nelems(false, true, false); break;
+                case UD_Ivpackstorehq:
+                    nelems(false, true, false); break;
 
                 case UD_Ivloadunpackhps:
-                case UD_Ivloadunpackhd: vectorInfo.nElements = nelems(false, false, true); break;
+                case UD_Ivloadunpackhd:
+                    nelems(false, false, true); break;
 
                 case UD_Ivpackstorehd:
-                case UD_Ivpackstorehps: vectorInfo.nElements = nelems(false, false, false); break;
+                case UD_Ivpackstorehps:
+                    nelems(false, false, false); break;
 
                 default:
                     // doubles use only lower half of mask
@@ -323,6 +355,7 @@ void copy_ud_to_compact(struct ud_compact* comp, struct ud* reg){
     comp->pfx_seg = reg->pfx_seg;
     comp->pfx_rep = reg->pfx_rep;
     comp->vector_mask_register = reg->vector_mask_register;
+    comp->conversion = reg->conversion;
     comp->adr_mode = reg->adr_mode;
     comp->flags_use = reg->flags_use;
     comp->flags_def = reg->flags_def;
@@ -1270,6 +1303,8 @@ bool X86Instruction::isFloatPOperation(){
     return false;
 }
 
+
+
 uint32_t OperandX86::getBitsUsed(){
     if (GET(type) == UD_OP_MEM){
         return GET(offset);
@@ -1291,6 +1326,7 @@ uint32_t X86Instruction::getDstSizeInBytes(){
         return 0;
 }
 
+/* Get value of literal */
 int64_t OperandX86::getValue(){
     int64_t value;
     if (getBytesUsed() == 0){
