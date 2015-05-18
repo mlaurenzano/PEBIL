@@ -642,6 +642,7 @@ ac_subst_vars='LTLIBOBJS
 subdirs
 LIBOBJS
 CPUFREQ_FLAGS
+PEBIL_MIC_LIBS_BUILD
 THROTTLER_FLAGS
 EGREP
 GREP
@@ -710,6 +711,7 @@ enable_mpi
 enable_static
 enable_mpiinit_check
 with_throttler_headers
+enable_mic_libs
 '
       ac_precious_vars='build_alias
 host_alias
@@ -729,7 +731,8 @@ MPICC
 MPIFC
 MPICXX'
 ac_subdirs_all='external/udis86-1.7
-external/ReuseDistance'
+external/ReuseDistance
+external/ReuseDistanceForMIC'
 
 # Initialize some variables set by options.
 ac_init_help=
@@ -1357,6 +1360,7 @@ Optional Features:
                           addition to a dynamically-linked executable yes
   --enable-mpiinit-check  Disable output file printing in inst libraries
                           unless mpi_init is executed no
+  --enable-mic-libs       Create mic runtime libraries yes
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -5958,6 +5962,19 @@ fi
 
 
 
+# Check whether --enable-mic_libs was given.
+if test "${enable_mic_libs+set}" = set; then
+  enableval=$enable_mic_libs; mic_libs_ok=$enableval
+fi
+
+if test "$mic_libs_ok" = "yes"; then
+  PEBIL_MIC_LIBS_BUILD="yes"
+else
+  PEBIL_MIC_LIBS_BUILD="no"
+fi
+
+
+
 # Checks for header files.
 
 
@@ -7596,6 +7613,8 @@ subdirs="$subdirs external/udis86-1.7"
 
 subdirs="$subdirs external/ReuseDistance"
 
+subdirs="$subdirs external/ReuseDistanceForMIC"
+ # Probably only wanna do if MIC
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
 # tests run on this system so they can be shared between configure

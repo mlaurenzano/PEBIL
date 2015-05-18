@@ -1,0 +1,7 @@
+#!/usr/bin/env csh
+                                                                                            
+setenv REUSEDISTANCE_ROOT @abs_top_builddir@
+setenv REUSEDISTANCE_INCLUDE "-I${REUSEDISTANCE_ROOT}"
+setenv REUSEDISTANCE_LINK "-L${REUSEDISTANCE_ROOT} -l@PACKAGE@"
+setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${REUSEDISTANCE_ROOT}
+setenv MANPATH ${MANPATH}:${REUSEDISTANCE_ROOT}/docs/man

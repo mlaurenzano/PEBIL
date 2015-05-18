@@ -1,0 +1,203 @@
+\hypertarget{class_reuse_stats}{
+\section{ReuseStats Class Reference}
+\label{class_reuse_stats}\index{ReuseStats@{ReuseStats}}
+}
+
+
+{\ttfamily \#include $<$ReuseDistance.hpp$>$}
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{class_reuse_stats_a8e2f08c38fb9d1df602c97832d796f3b}{ReuseStats} (uint64\_\-t idx, uint64\_\-t bin, uint64\_\-t num, uint64\_\-t inv)
+\item 
+\hyperlink{class_reuse_stats_a21f8a5cab3976edba08c2562c3ed8d45}{$\sim$ReuseStats} ()
+\item 
+void \hyperlink{class_reuse_stats_a5383136c63ed260d9aad44a8d048a2ed}{Update} (uint64\_\-t dist)
+\item 
+void \hyperlink{class_reuse_stats_a3d963a3b6c2c0b37b23d4e0723a70831}{Miss} ()
+\item 
+virtual uint64\_\-t \hyperlink{class_reuse_stats_aeff4f3fe0f2253e1aed432b18ec85d85}{GetMissCount} ()
+\item 
+virtual void \hyperlink{class_reuse_stats_a6df6fca111e9ba009af2e3a37824d854}{Print} (std::ostream \&f, bool annotate=false)
+\item 
+void \hyperlink{class_reuse_stats_adcb657e303c090ac5ef210f6c4506986}{GetSortedDistances} (std::vector$<$ uint64\_\-t $>$ \&dists)
+\item 
+uint64\_\-t \hyperlink{class_reuse_stats_ac70175a532ea2dc608e0fd2f04e4fcbb}{GetMaximumDistance} ()
+\item 
+uint64\_\-t \hyperlink{class_reuse_stats_abdb92b77ec7191be80e77a34f894e11b}{CountDistance} (uint64\_\-t dist)
+\item 
+uint64\_\-t \hyperlink{class_reuse_stats_a48935d131ce635b1b37b2a43f0c52217}{GetAccessCount} ()
+\end{DoxyCompactItemize}
+\subsection*{Static Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+static void \hyperlink{class_reuse_stats_aca96e50e202d9de9d35d5637ce542a3c}{PrintFormat} (std::ostream \&f)
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+\hyperlink{class_reuse_stats}{ReuseStats} holds count of observed reuse distances. 
+
+Definition at line 270 of file ReuseDistance.hpp.
+
+
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{class_reuse_stats_a8e2f08c38fb9d1df602c97832d796f3b}{
+\index{ReuseStats@{ReuseStats}!ReuseStats@{ReuseStats}}
+\index{ReuseStats@{ReuseStats}!ReuseStats@{ReuseStats}}
+\subsubsection[{ReuseStats}]{\setlength{\rightskip}{0pt plus 5cm}ReuseStats::ReuseStats (uint64\_\-t {\em idx}, \/  uint64\_\-t {\em bin}, \/  uint64\_\-t {\em num}, \/  uint64\_\-t {\em inv})\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}
+\label{class_reuse_stats_a8e2f08c38fb9d1df602c97832d796f3b}
+Contructs a \hyperlink{class_reuse_stats}{ReuseStats} object.
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em idx}]The unique id for this \hyperlink{class_reuse_stats}{ReuseStats} \item[{\em bin}]Stop collecting individual bins above this value \item[{\em num}]Any value above this is considered a miss \item[{\em inv}]The value which represents a miss \end{DoxyParams}
+
+
+Definition at line 292 of file ReuseDistance.hpp.
+
+\hypertarget{class_reuse_stats_a21f8a5cab3976edba08c2562c3ed8d45}{
+\index{ReuseStats@{ReuseStats}!$\sim$ReuseStats@{$\sim$ReuseStats}}
+\index{$\sim$ReuseStats@{$\sim$ReuseStats}!ReuseStats@{ReuseStats}}
+\subsubsection[{$\sim$ReuseStats}]{\setlength{\rightskip}{0pt plus 5cm}ReuseStats::$\sim$ReuseStats ()\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}
+\label{class_reuse_stats_a21f8a5cab3976edba08c2562c3ed8d45}
+Destroys a \hyperlink{class_reuse_stats}{ReuseStats} object. 
+
+Definition at line 298 of file ReuseDistance.hpp.
+
+
+
+\subsection{Member Function Documentation}
+\hypertarget{class_reuse_stats_abdb92b77ec7191be80e77a34f894e11b}{
+\index{ReuseStats@{ReuseStats}!CountDistance@{CountDistance}}
+\index{CountDistance@{CountDistance}!ReuseStats@{ReuseStats}}
+\subsubsection[{CountDistance}]{\setlength{\rightskip}{0pt plus 5cm}uint64\_\-t ReuseStats::CountDistance (uint64\_\-t {\em dist})}}
+\label{class_reuse_stats_abdb92b77ec7191be80e77a34f894e11b}
+Count the number of times some distance has been observed.
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em dist}]The distance to count.\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+The number of times d has been observed. 
+\end{DoxyReturn}
+
+
+Definition at line 324 of file ReuseDistance.cpp.
+
+\hypertarget{class_reuse_stats_a48935d131ce635b1b37b2a43f0c52217}{
+\index{ReuseStats@{ReuseStats}!GetAccessCount@{GetAccessCount}}
+\index{GetAccessCount@{GetAccessCount}!ReuseStats@{ReuseStats}}
+\subsubsection[{GetAccessCount}]{\setlength{\rightskip}{0pt plus 5cm}uint64\_\-t ReuseStats::GetAccessCount ()}}
+\label{class_reuse_stats_a48935d131ce635b1b37b2a43f0c52217}
+Count the total number of distances observed.
+
+\begin{DoxyReturn}{Returns}
+The total number of distances observed. 
+\end{DoxyReturn}
+
+
+Definition at line 304 of file ReuseDistance.cpp.
+
+\hypertarget{class_reuse_stats_ac70175a532ea2dc608e0fd2f04e4fcbb}{
+\index{ReuseStats@{ReuseStats}!GetMaximumDistance@{GetMaximumDistance}}
+\index{GetMaximumDistance@{GetMaximumDistance}!ReuseStats@{ReuseStats}}
+\subsubsection[{GetMaximumDistance}]{\setlength{\rightskip}{0pt plus 5cm}uint64\_\-t ReuseStats::GetMaximumDistance ()}}
+\label{class_reuse_stats_ac70175a532ea2dc608e0fd2f04e4fcbb}
+Get the maximum distance observed.
+
+\begin{DoxyReturn}{Returns}
+The maximum distance observed. 
+\end{DoxyReturn}
+
+
+Definition at line 308 of file ReuseDistance.cpp.
+
+\hypertarget{class_reuse_stats_aeff4f3fe0f2253e1aed432b18ec85d85}{
+\index{ReuseStats@{ReuseStats}!GetMissCount@{GetMissCount}}
+\index{GetMissCount@{GetMissCount}!ReuseStats@{ReuseStats}}
+\subsubsection[{GetMissCount}]{\setlength{\rightskip}{0pt plus 5cm}uint64\_\-t ReuseStats::GetMissCount ()\hspace{0.3cm}{\ttfamily  \mbox{[}virtual\mbox{]}}}}
+\label{class_reuse_stats_aeff4f3fe0f2253e1aed432b18ec85d85}
+Get the number of misses. This is equal to the number of times Update(ReuseDistance::Infinity) is called.
+
+\begin{DoxyReturn}{Returns}
+The number of misses to this \hyperlink{class_reuse_distance}{ReuseDistance} object 
+\end{DoxyReturn}
+
+
+Definition at line 78 of file ReuseDistance.cpp.
+
+\hypertarget{class_reuse_stats_adcb657e303c090ac5ef210f6c4506986}{
+\index{ReuseStats@{ReuseStats}!GetSortedDistances@{GetSortedDistances}}
+\index{GetSortedDistances@{GetSortedDistances}!ReuseStats@{ReuseStats}}
+\subsubsection[{GetSortedDistances}]{\setlength{\rightskip}{0pt plus 5cm}void ReuseStats::GetSortedDistances (std::vector$<$ uint64\_\-t $>$ \& {\em dists})}}
+\label{class_reuse_stats_adcb657e303c090ac5ef210f6c4506986}
+Get a std::vector containing the distances observed, sorted in ascending order.
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em dists}]The vector which will hold the sorted distance values. It is an error for dists to be passed in non-\/empty (that is, dists.size() == 0 is enforced).\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+none 
+\end{DoxyReturn}
+\hypertarget{class_reuse_stats_a3d963a3b6c2c0b37b23d4e0723a70831}{
+\index{ReuseStats@{ReuseStats}!Miss@{Miss}}
+\index{Miss@{Miss}!ReuseStats@{ReuseStats}}
+\subsubsection[{Miss}]{\setlength{\rightskip}{0pt plus 5cm}void ReuseStats::Miss ()}}
+\label{class_reuse_stats_a3d963a3b6c2c0b37b23d4e0723a70831}
+Increment the number of misses. That is, addresses which were not found inside the active address window. This is equivalent Update(0), but is faster.
+
+\begin{DoxyReturn}{Returns}
+none 
+\end{DoxyReturn}
+\hypertarget{class_reuse_stats_a6df6fca111e9ba009af2e3a37824d854}{
+\index{ReuseStats@{ReuseStats}!Print@{Print}}
+\index{Print@{Print}!ReuseStats@{ReuseStats}}
+\subsubsection[{Print}]{\setlength{\rightskip}{0pt plus 5cm}virtual void ReuseStats::Print (std::ostream \& {\em f}, \/  bool {\em annotate} = {\ttfamily false})\hspace{0.3cm}{\ttfamily  \mbox{[}virtual\mbox{]}}}}
+\label{class_reuse_stats_a6df6fca111e9ba009af2e3a37824d854}
+Print a summary of the current reuse distances and counts for some id.
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em f}]The stream to receive the output. \item[{\em annotate}]Also print annotations describing the meaning of output fields, preceded by a '\#'.\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+none 
+\end{DoxyReturn}
+\hypertarget{class_reuse_stats_aca96e50e202d9de9d35d5637ce542a3c}{
+\index{ReuseStats@{ReuseStats}!PrintFormat@{PrintFormat}}
+\index{PrintFormat@{PrintFormat}!ReuseStats@{ReuseStats}}
+\subsubsection[{PrintFormat}]{\setlength{\rightskip}{0pt plus 5cm}static void ReuseStats::PrintFormat (std::ostream \& {\em f})\hspace{0.3cm}{\ttfamily  \mbox{[}static\mbox{]}}}}
+\label{class_reuse_stats_aca96e50e202d9de9d35d5637ce542a3c}
+Print information about the output format of \hyperlink{class_reuse_stats}{ReuseStats}
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em f}]The stream to receive the output.\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+none 
+\end{DoxyReturn}
+\hypertarget{class_reuse_stats_a5383136c63ed260d9aad44a8d048a2ed}{
+\index{ReuseStats@{ReuseStats}!Update@{Update}}
+\index{Update@{Update}!ReuseStats@{ReuseStats}}
+\subsubsection[{Update}]{\setlength{\rightskip}{0pt plus 5cm}void ReuseStats::Update (uint64\_\-t {\em dist})}}
+\label{class_reuse_stats_a5383136c63ed260d9aad44a8d048a2ed}
+Increment the counter for some distance.
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em dist}]A reuse distance observed in the memory address stream.\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+none 
+\end{DoxyReturn}
+
+
+Definition at line 319 of file ReuseDistance.cpp.
+
+
+
+The documentation for this class was generated from the following files:\begin{DoxyCompactItemize}
+\item 
+/home/michaell/software/ReuseDistance/\hyperlink{_reuse_distance_8hpp}{ReuseDistance.hpp}\item 
+/home/michaell/software/ReuseDistance/\hyperlink{_reuse_distance_8cpp}{ReuseDistance.cpp}\end{DoxyCompactItemize}

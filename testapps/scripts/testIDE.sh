@@ -18,6 +18,11 @@ then
   TEST_CHECK="CHECK_BIN_OUTPUT"
 fi
 
+if [ -z "${USING_MIC}" ]
+then
+  USING_MIC="no"      # only "yes" will trigger this variable
+fi
+
 # PROGRAM_SUCCESS is a string that can be grepped for to check if the
 # program worked as intended. For example, NPBs output times, MFLOP/s
 # and other data that changes from run to run. If instead, we grep 
@@ -32,6 +37,11 @@ UNINST_OUTFILE="${PROGRAM}.outp"
 INST_OUTFILE="${INST_PROGRAM}.outp"
 UNINST_TEMPFILE="${PROGRAM}.tmp"
 INST_TEMPFILE="${INST_PROGRAM}.tmp"
+CALLED_DIR=`pwd`
+MIC_LIB_DIR="/ssd/allysonc/Repos/PEBIL/miclib"
+INTEL_MIC_LIB="/ssd/apps/intel/lib/mic"
+MIC_LD_LIB_PATH="${MIC_LIB_DIR}:${INTEL_MIC_LIB}"
+CALL_MIC="ssh mic0"
 
 #####################################################################
 ###########################Testing Functions#########################
@@ -85,10 +95,20 @@ instrument_and_run()
   echo "Instrumenting ${PROGRAM} normally"
   pebil --silent --typ ide --app ${PROGRAM}
 
-  echo "Running ${INST_PROGRAM}"
-  ./${INST_PROGRAM} &> ${INST_OUTFILE}
-  echo "Running ${PROGRAM}"
-  ./${PROGRAM} &> ${UNINST_OUTFILE}
+  CURR_DIR=`pwd`
+
+  if [ "${USING_MIC}" == "yes" ]
+  then
+    echo "Running ${INST_PROGRAM}"
+    ${CALL_MIC} "cd ${CURR_DIR}; LD_LIBRARY_PATH=${MIC_LD_LIB_PATH} ./${INST_PROGRAM} &> ${INST_OUTFILE}"
+    echo "Running ${PROGRAM}"
+    ${CALL_MIC} "cd ${CURR_DIR}; LD_LIBRARY_PATH=${MIC_LD_LIB_PATH} ./${PROGRAM} &> ${UNINST_OUTFILE}"
+  else
+    echo "Running ${INST_PROGRAM}"
+    ./${INST_PROGRAM} &> ${INST_OUTFILE}
+    echo "Running ${PROGRAM}"
+    ./${PROGRAM} &> ${UNINST_OUTFILE}
+  fi
 
   set +e
 }
@@ -98,7 +118,6 @@ instrument_and_run()
 ############################Main Program#############################
 #####################################################################
 
-CALLED_DIR=`pwd`
 
 echo "Called from ${CALLED_DIR} and changing to ${CD_DIR}"
 cd ${CD_DIR}

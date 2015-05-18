@@ -1,0 +1,81 @@
+.TH "/home/michaell/software/ReuseDistance/tree234.h" 3 "21 Oct 2012" "Version 0.01" "ReuseDistance" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+/home/michaell/software/ReuseDistance/tree234.h \- 
+.SH SYNOPSIS
+.br
+.PP
+.SS "Typedefs"
+
+.in +1c
+.ti -1c
+.RI "typedef struct \fBtree234_Tag\fP \fBtree234\fP"
+.br
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBtree234\fP * \fBnewtree234\fP ()"
+.br
+.ti -1c
+.RI "void \fBfreetree234\fP (\fBtree234\fP *t)"
+.br
+.ti -1c
+.RI "\fBReuseEntry\fP * \fBadd234\fP (\fBtree234\fP *t, \fBReuseEntry\fP *e)"
+.br
+.ti -1c
+.RI "\fBReuseEntry\fP * \fBaddpos234\fP (\fBtree234\fP *t, \fBReuseEntry\fP *e, int index)"
+.br
+.ti -1c
+.RI "\fBReuseEntry\fP * \fBindex234\fP (\fBtree234\fP *t, int index)"
+.br
+.ti -1c
+.RI "\fBReuseEntry\fP * \fBfindrelpos234\fP (\fBtree234\fP *t, \fBReuseEntry\fP *e, int *index)"
+.br
+.ti -1c
+.RI "\fBReuseEntry\fP * \fBdel234\fP (\fBtree234\fP *t, \fBReuseEntry\fP *e)"
+.br
+.ti -1c
+.RI "\fBReuseEntry\fP * \fBdelpos234\fP (\fBtree234\fP *t, int index)"
+.br
+.ti -1c
+.RI "int \fBcount234\fP (\fBtree234\fP *t)"
+.br
+.in -1c
+.SH "Typedef Documentation"
+.PP 
+.SS "typedef struct \fBtree234_Tag\fP \fBtree234\fP"
+.PP
+Definition at line 36 of file tree234.h.
+.SH "Function Documentation"
+.PP 
+.SS "\fBReuseEntry\fP* add234 (\fBtree234\fP * t, \fBReuseEntry\fP * e)"
+.PP
+Definition at line 394 of file tree234.c.
+.SS "\fBReuseEntry\fP* addpos234 (\fBtree234\fP * t, \fBReuseEntry\fP * e, int index)"
+.SS "int count234 (\fBtree234\fP * t)"
+.PP
+Definition at line 111 of file tree234.c.
+.SS "\fBReuseEntry\fP* del234 (\fBtree234\fP * t, \fBReuseEntry\fP * e)"
+.PP
+Definition at line 836 of file tree234.c.
+.SS "\fBReuseEntry\fP* delpos234 (\fBtree234\fP * t, int index)"
+.PP
+Definition at line 830 of file tree234.c.
+.SS "\fBReuseEntry\fP* findrelpos234 (\fBtree234\fP * t, \fBReuseEntry\fP * e, int * index)"
+.PP
+Definition at line 441 of file tree234.c.
+.SS "void freetree234 (\fBtree234\fP * t)"
+.PP
+Definition at line 87 of file tree234.c.
+.SS "\fBReuseEntry\fP* index234 (\fBtree234\fP * t, int index)"
+.PP
+Definition at line 402 of file tree234.c.
+.SS "\fBtree234\fP* newtree234 ()"
+.PP
+Definition at line 68 of file tree234.c.
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for ReuseDistance from the source code.
