@@ -5,6 +5,11 @@ MPICC       = @MPICC@
 
 BINDIR      = ../../src
 EXECDIR     = bin
+SCRIPT_DIR	=	../scripts
+
+IDE_SCRIPT	=	$(SCRIPT_DIR)/testIDE.sh
+JBB_SCRIPT	=	$(SCRIPT_DIR)/testJBB.sh
+SIM_SCRIPT	=	$(SCRIPT_DIR)/testSIM.sh
 
 OBJS        = foo.o bar.o dum.o main.o
 OBJSCPP	    = classes.o
@@ -12,19 +17,9 @@ EXTRA_INC   = -I../../instcode
 EXTRA_LIBS  = -lm
 
 TARGETS  	= $(EXECDIR)/cTest $(EXECDIR)/cppTest $(EXECDIR)/fTest $(EXECDIR)/dynTest $(EXECDIR)/sgTest
-IDETGT		= $(foreach target,$(TARGETS),$(target).ideinst)
-JBBTGT		= $(foreach target,$(TARGETS),$(target).jbbinst)
-SIMTGT		= $(foreach target,$(TARGETS),$(target).siminst)
-THRTGT		= $(foreach target,$(TARGETS),$(target).lpiinst)
 
-PEBIL_COMMAND			=	pebil --silent
-PEBIL_COMMAND_I		=	$(PEBIL_COMMAND) --typ
-PEBIL_COMMAND_T		=	$(PEBIL_COMMAND) --tool
-FILTER_PEBIL_MSGS	=	grep -v "\[Metasim\-r"
 LOOPS_FILE				=	all.loops
 CREATE_LOOPS_FILE	= echo "*:*:0" > $(LOOPS_FILE)
-OUT								=	outp
-DIFF							= diff
 NULL_FILE = /dev/null
 
 all: createDir $(TARGETS) 
@@ -59,34 +54,43 @@ createDir:
 
 check: createDir $(TARGETS) checkAppBinary
 
-checkAppBinary: createDir $(TARGETS) $(IDETGT) $(JBBTGT) $(SIMTGT) $(LPITGT)
+checkAppBinary: createDir $(TARGETS) checkIDE_Binary checkJBB_Binary checkSIM_Binary
 
-%.ideinst: %
-	$(PEBIL_COMMAND_I) ide --app $<
-	$(DIFF) $< $@
-	./$@ > $@.$(OUT)
-	./$< > $<.$(OUT)
-	$(DIFF) $<.$(OUT) $@.$(OUT)
+checkIDE_Binary: $(TARGETS)
+	set -e; \
+	$(foreach target,$(TARGETS), \
+		TEST_CHECK=INST_AND_RUN $(IDE_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT $(IDE_SCRIPT) $(notdir $(target)) $(dir $(target));)
 
-%.jbbinst: %
-	$(PEBIL_COMMAND_T) BasicBlockCounter --app $<
-	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
-	./$< > $<.$(OUT)
-	$(DIFF) $<.$(OUT) $@.$(OUT)
-
-%.siminst: %
-	$(PEBIL_COMMAND_T) CacheSimulation --app $< --inp $(NULL_FILE)
-	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
-	./$< > $<.$(OUT)
-	$(DIFF) $<.$(OUT) $@.$(OUT)
-
-%.lpiinst: %
-	$(CREATE_LOOPS_FILE)
-	$(PEBIL_COMMAND_T) LoopIntercept --app $< --inp $(LOOPS_FILE) --lnc liblooptimer.so
-	rm -f $(LOOPS_FILE)
-	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
-	./$< > $<.$(OUT)
-	$(DIFF) $<.$(OUT) $@.$(OUT)
+checkJBB_Binary: $(TARGETS)
+	set -e; \
+	$(foreach target,$(TARGETS), \
+		TEST_CHECK=INST_AND_RUN $(JBB_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT $(JBB_SCRIPT) $(notdir $(target)) $(dir $(target));)
+	
+checkSIM_Binary: $(TARGETS)
+	set -e; \
+	$(foreach target,$(TARGETS), \
+		TEST_CHECK=INST_AND_RUN INPUT_DEV_NULL=1 \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT $(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=INST_AND_RUN \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT $(SIM_SCRIPT) $(notdir $(target)) $(dir $(target));)
+	
+#%.siminst: %
+#	$(PEBIL_COMMAND_T) CacheSimulation --app $< --inp $(NULL_FILE)
+#	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
+#	./$< > $<.$(OUT)
+#	$(DIFF) $<.$(OUT) $@.$(OUT)
+#
+#%.lpiinst: %
+#	$(CREATE_LOOPS_FILE)
+#	$(PEBIL_COMMAND_T) LoopIntercept --app $< --inp $(LOOPS_FILE) --lnc liblooptimer.so
+#	rm -f $(LOOPS_FILE)
+#	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
+#	./$< > $<.$(OUT)
+#	$(DIFF) $<.$(OUT) $@.$(OUT)
 
 clean: 
-	rm -f *.o $(TARGETS) *.jbbinst $(EXECDIR)/*.lpiinst $(EXECDIR)/*.siminst $(EXECDIR)/*.ideinst $(EXECDIR)/*.static $(EXECDIR)/*.$(OUT)
+	rm -f *.o $(TARGETS) *.jbbinst $(EXECDIR)/*.lpiinst $(EXECDIR)/*.siminst $(EXECDIR)/*.ideinst $(EXECDIR)/*.static $(EXECDIR)/*.outp $(EXECDIR)/*.tmp $(EXECDIR)/*.jbbinst

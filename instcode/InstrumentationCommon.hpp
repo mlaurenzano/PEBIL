@@ -543,7 +543,7 @@ private:
         if (actual != h){
             warn << "Collision placing thread-specific data: slot " << dec << h << " already taken" << ENDL;
         }
-        //assert(actual == h);
+        assert(actual == h);
         return td[actual].data;
     }
     void RemoveThreadData(image_key_t iid, thread_key_t tid){
