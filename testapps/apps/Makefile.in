@@ -25,7 +25,7 @@ LOOPS_FILE        = all.loops
 CREATE_LOOPS_FILE = echo "*:*:0" > $(LOOPS_FILE)
 NULL_FILE = /dev/null
 
-all: make_NPB_SER make_NPB_OMP
+all: createDirs make_NPB_SER make_NPB_OMP
 
 ### Make Targets
 make_NPB_SER:
@@ -52,9 +52,13 @@ make_NPB_OMP:
 			make $$app CLASS=$$class -C NPB3.3-OMP ; \
 	done done
 
+createDirs:
+	mkdir -p $(NPB_SER_EXEC)
+	mkdir -p $(NPB_OMP_EXEC)
+
 ### PEBIL Checks
 
-check: make_NPB_SER make_NPB_OMP checkAppBinary
+check: createDirs make_NPB_SER make_NPB_OMP checkAppBinary
 
 checkAppBinary: checkAppBinary_NPB_OMP checkAppBinary_NPB_SER
 
@@ -119,25 +123,6 @@ checkSIM_Binary_NPB_OMP: $(NPB_OMP_TARGETS)
 		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
 			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); )
 
-
-#$(NPB_SER_EXEC)/%.ideinst: $(NPB_SER_EXEC)/%
-#	$(PEBIL_COMMAND_I) ide --app $<
-#	$(DIFF) $< $@
-#	./$@ | $(FILTER_NPB_SUCCESS) > $@.$(OUT)
-#	./$< | $(FILTER_NPB_SUCCESS) > $<.$(OUT)
-#	$(DIFF) $<.$(OUT) $@.$(OUT)
-#
-#$(NPB_SER_EXEC)/%.jbbinst: $(NPB_SER_EXEC)/%
-#	$(PEBIL_COMMAND_T) BasicBlockCounter --app $<
-#	./$@ | $(FILTER_PEBIL_MSGS) | $(FILTER_NPB_SUCCESS) > $@.$(OUT)
-#	./$<  | $(FILTER_NPB_SUCCESS)> $<.$(OUT)
-#	$(DIFF) $<.$(OUT) $@.$(OUT)
-#
-#$(NPB_SER_EXEC)/%.siminst: $(NPB_SER_EXEC)/%
-#	$(PEBIL_COMMAND_T) CacheSimulation --app $< --inp $(NULL_FILE)
-#	./$@ | $(FILTER_PEBIL_MSGS)  | $(FILTER_NPB_SUCCESS)> $@.$(OUT)
-#	./$<  | $(FILTER_NPB_SUCCESS)> $<.$(OUT)
-#	$(DIFF) $<.$(OUT) $@.$(OUT)
 #
 #$(NPB_SER_EXEC)/%.lpiinst: $(NPB_SER_EXEC)/%
 #	$(CREATE_LOOPS_FILE)
@@ -148,32 +133,6 @@ checkSIM_Binary_NPB_OMP: $(NPB_OMP_TARGETS)
 #	$(DIFF) $<.$(OUT) $@.$(OUT)
 #
 #	
-#$(NPB_OMP_EXEC)/%.ideinst: $(NPB_OMP_EXEC)/%
-#	$(PEBIL_COMMAND_I) ide --app $<
-#	$(DIFF) $< $@
-#	./$@ | $(FILTER_NPB_SUCCESS) > $@.$(OUT)
-#	./$< | $(FILTER_NPB_SUCCESS) > $<.$(OUT)
-#	$(DIFF) $<.$(OUT) $@.$(OUT)
-#
-#$(NPB_OMP_EXEC)/%.jbbinst: $(NPB_OMP_EXEC)/%
-#	$(PEBIL_COMMAND_T) BasicBlockCounter --threaded --app $<
-#	./$@  | $(FILTER_PEBIL_MSGS) | $(FILTER_NPB_SUCCESS) > $@.$(OUT)
-#	./$<  | $(FILTER_NPB_SUCCESS)> $<.$(OUT)
-#	$(DIFF) $<.$(OUT) $@.$(OUT)
-#
-#$(NPB_OMP_EXEC)/%.siminst: $(NPB_OMP_EXEC)/%
-#	$(PEBIL_COMMAND_T) CacheSimulation --threaded --app $< --inp $(NULL_FILE)
-#	./$@ | $(FILTER_PEBIL_MSGS)  | $(FILTER_NPB_SUCCESS)> $@.$(OUT)
-#	./$<  | $(FILTER_NPB_SUCCESS)> $<.$(OUT)
-#	$(DIFF) $<.$(OUT) $@.$(OUT)
-#
-#$(NPB_OMP_EXEC)/%.lpiinst: $(NPB_OMP_EXEC)/%
-#	$(CREATE_LOOPS_FILE)
-#	$(PEBIL_COMMAND_T) LoopIntercept --app $< --inp $(LOOPS_FILE) --lnc liblooptimer.so
-#	rm -f $(LOOPS_FILE)
-#	./$@ | $(FILTER_PEBIL_MSGS)  | $(FILTER_NPB_SUCCESS)> $@.$(OUT)
-#	./$<  | $(FILTER_NPB_SUCCESS)> $<.$(OUT)
-#	$(DIFF) $<.$(OUT) $@.$(OUT)
 
 
 clean: 
