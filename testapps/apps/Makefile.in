@@ -138,6 +138,6 @@ checkSIM_Binary_NPB_OMP: $(NPB_OMP_TARGETS)
 clean: 
 	make clean -C NPB3.3-SER
 	make clean -C NPB3.3-OMP
-	rm $(NPB_SER_EXEC)/*
-	rm $(NPB_OMP_EXEC)/*
+	rm -f $(NPB_SER_EXEC)/*
+	rm -f $(NPB_OMP_EXEC)/*
 	

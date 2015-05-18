@@ -89,6 +89,15 @@ AC_ARG_WITH(throttler_headers,
             [throttler_headers=no])
 AC_SUBST(THROTTLER_FLAGS)
 
+AC_ARG_ENABLE(mic_libs, AC_HELP_STRING([--enable-mic-libs], [Create mic runtime libraries [yes]]), mic_libs_ok=$enableval)
+if test "$mic_libs_ok" = "yes"; then
+  PEBIL_MIC_LIBS_BUILD="yes"
+else
+  PEBIL_MIC_LIBS_BUILD="no"
+fi
+AC_SUBST(PEBIL_MIC_LIBS_BUILD)
+
+
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h stdlib.h string.h strings.h unistd.h])
 AC_CHECK_HEADERS([cpufreq.h],
