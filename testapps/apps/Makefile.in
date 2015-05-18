@@ -25,7 +25,7 @@ LOOPS_FILE        = all.loops
 CREATE_LOOPS_FILE = echo "*:*:0" > $(LOOPS_FILE)
 NULL_FILE = /dev/null
 
-all: createDirs make_NPB_SER make_NPB_OMP
+all: createDirs make_NPB_SER
 
 ### Make Targets
 make_NPB_SER:
@@ -58,9 +58,9 @@ createDirs:
 
 ### PEBIL Checks
 
-check: createDirs make_NPB_SER make_NPB_OMP checkAppBinary
+check: createDirs make_NPB_SER checkAppBinary
 
-checkAppBinary: checkAppBinary_NPB_OMP checkAppBinary_NPB_SER
+checkAppBinary: checkAppBinary_NPB_SER
 
 checkAppBinary_NPB_SER: $(NPB_SER_TARGETS) checkIDE_Binary_NPB_SER checkJBB_Binary_NPB_SER checkSIM_Binary_NPB_SER
 
