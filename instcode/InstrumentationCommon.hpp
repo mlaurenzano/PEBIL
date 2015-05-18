@@ -135,7 +135,7 @@ typedef struct {
     uint64_t id;
     uint64_t data;
 } ThreadData;
-#define ThreadHashShift (17)
+#define ThreadHashShift (16)
 #define ThreadHashMod   (0xffff)
 
 
@@ -507,7 +507,9 @@ private:
 
     // initialize threaddata hashtable for this image/thread
     uint64_t SetThreadData(image_key_t iid, thread_key_t tid, uint32_t typ){
-        uint32_t h = HashThread(tid);
+        uint32_t h = 0;
+        //if (typ != ImageType)
+          h = HashThread(tid);
 
         // image must have already been added
         // thread must have already been added
@@ -533,7 +535,7 @@ private:
         }
         cout
             << " setting up thread data at index "
-            << dec << actual << TAB << (uint64_t)td
+            << dec << actual << TAB << (uint64_t)td << "(" << GetThreadSequence(tid) << ")"
             << " -> " << hex << td[actual].data
             << endl;
 

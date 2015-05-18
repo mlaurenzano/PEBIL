@@ -1,48 +1,96 @@
-CC          = @CC@
+CC          = @CC@	
 CXX         = @CXX@
 FC          = @FC@
 MPICC       = @MPICC@
 
 BINDIR      = ../../src
-EXECBIN     = bin
+EXECDIR     = bin
+SCRIPT_DIR	=	../scripts
+
+IDE_SCRIPT	=	$(SCRIPT_DIR)/testIDE.sh
+JBB_SCRIPT	=	$(SCRIPT_DIR)/testJBB.sh
+SIM_SCRIPT	=	$(SCRIPT_DIR)/testSIM.sh
 
 OBJS        = foo.o bar.o dum.o main.o
 OBJSCPP	    = classes.o
 EXTRA_INC   = -I../../instcode
 EXTRA_LIBS  = -lm
 
-TARGETS  = cTest cppTest fTest dynTest sgTest
+TARGETS  	= $(EXECDIR)/cTest $(EXECDIR)/cppTest $(EXECDIR)/fTest $(EXECDIR)/dynTest $(EXECDIR)/sgTest
 
-all: $(TARGETS) 
-	echo $(IDETGT)
+LOOPS_FILE				=	all.loops
+CREATE_LOOPS_FILE	= echo "*:*:0" > $(LOOPS_FILE)
+NULL_FILE = /dev/null
+
+all: createDir $(TARGETS) 
+	echo $(TARGETS)
+
+### Make Targets
 %.o: %.c
 	$(CC) -g -c -o $@ $< 
 
 %.o: %.C
 	$(CXX) -g -c -o $@ $< 
 
-cTest: $(OBJS)
+$(EXECDIR)/cTest: $(OBJS)
 	$(CC) -g -o $@ $(OBJS)
-	cp $@ $(EXECBIN)/$@
 
-cppTest: $(OBJSCPP)
+$(EXECDIR)/cppTest: $(OBJSCPP)
 	$(CXX) -g -o $@ $(OBJSCPP)
-	cp $@ $(EXECBIN)/$@
 
-fTest:
+$(EXECDIR)/fTest:
 	$(FC) -g -o $@ fTest.f
-	cp $@ $(EXECBIN)/$@
 
-dynTest:
+$(EXECDIR)/dynTest:
 	$(CC) -g -o $@ dynTest.c
-	cp $@ $(EXECBIN)/$@
 
-sgTest:
+$(EXECDIR)/sgTest:
 	$(CC) -g -o $@ sgTest.c $(EXTRA_INC) $(EXTRA_LIBS)
-	cp $@ $(EXECBIN)/$@
 
-check: $(TARGETS)
-NULL_FILE = /dev/null
+createDir:
+	mkdir -p $(EXECDIR)
+
+### PEBIL Checks
+
+check: createDir $(TARGETS) checkAppBinary
+
+checkAppBinary: createDir $(TARGETS) checkIDE_Binary checkJBB_Binary checkSIM_Binary
+
+checkIDE_Binary: $(TARGETS)
+	set -e; \
+	$(foreach target,$(TARGETS), \
+		TEST_CHECK=INST_AND_RUN $(IDE_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT $(IDE_SCRIPT) $(notdir $(target)) $(dir $(target));)
+
+checkJBB_Binary: $(TARGETS)
+	set -e; \
+	$(foreach target,$(TARGETS), \
+		TEST_CHECK=INST_AND_RUN $(JBB_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT $(JBB_SCRIPT) $(notdir $(target)) $(dir $(target));)
+	
+checkSIM_Binary: $(TARGETS)
+	set -e; \
+	$(foreach target,$(TARGETS), \
+		TEST_CHECK=INST_AND_RUN INPUT_DEV_NULL=1 \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT $(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=INST_AND_RUN \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT $(SIM_SCRIPT) $(notdir $(target)) $(dir $(target));)
+	
+#%.siminst: %
+#	$(PEBIL_COMMAND_T) CacheSimulation --app $< --inp $(NULL_FILE)
+#	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
+#	./$< > $<.$(OUT)
+#	$(DIFF) $<.$(OUT) $@.$(OUT)
+#
+#%.lpiinst: %
+#	$(CREATE_LOOPS_FILE)
+#	$(PEBIL_COMMAND_T) LoopIntercept --app $< --inp $(LOOPS_FILE) --lnc liblooptimer.so
+#	rm -f $(LOOPS_FILE)
+#	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
+#	./$< > $<.$(OUT)
+#	$(DIFF) $<.$(OUT) $@.$(OUT)
 
 clean: 
-	rm -f *.o $(TARGETS) $(EXECBIN)/*
+	rm -f *.o $(TARGETS) *.jbbinst $(EXECDIR)/*.lpiinst $(EXECDIR)/*.siminst $(EXECDIR)/*.ideinst $(EXECDIR)/*.static $(EXECDIR)/*.outp $(EXECDIR)/*.tmp $(EXECDIR)/*.jbbinst
