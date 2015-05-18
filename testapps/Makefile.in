@@ -10,7 +10,7 @@ OBJSCPP	    = classes.o
 EXTRA_INC   = -I../instcode
 EXTRA_LIBS  = -lm
 
-TARGETS  = cTest cppTest fTest dynTest sgTest
+TARGETS  = #cTest cppTest fTest dynTest sgTest
 IDETGT = $(subst Test,Test.ideinst,$(TARGETS))
 JBBTGT = $(subst Test,Test.jbbinst,$(TARGETS))
 SIMTGT = $(subst Test,Test.siminst,$(TARGETS))
