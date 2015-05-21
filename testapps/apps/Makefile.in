@@ -45,7 +45,7 @@ else
 	CHECK_MIC_BINS_NPB_OMP =
 endif
 
-all: createDirs $(MAKE_MIC_APPS) make_NPB_SER make_NPB_OMP
+all: createDirs $(MAKE_MIC_APPS) make_NPB_SER
 
 ### Make Targets -- NOTE: Make MIC NPBs FIRST
 make_NPB_SER:
@@ -117,7 +117,7 @@ createDirs:
 
 check: createDirs make_NPB_SER checkAppBinary
 
-checkAppBinary: checkAppBinary_NPB_SER checkAppBinary_NPB_OMP
+checkAppBinary: checkAppBinary_NPB_SER
 
 checkAppBinary_NPB_SER: $(NPB_SER_TARGETS) checkIDE_Binary_NPB_SER checkJBB_Binary_NPB_SER checkSIM_Binary_NPB_SER $(CHECK_MIC_BINS_SER)
 
