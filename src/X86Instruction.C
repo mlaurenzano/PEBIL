@@ -48,7 +48,7 @@ void X86Instruction::setKRegister(RuntimeValue val)
     vectorInfo.kval = val;
 }
 
-uint32_t X86Instruction::countElementsUnalignedLoadStore(bool low, bool is64b, bool load)
+void X86Instruction::countElementsUnalignedLoadStore(bool low, bool is64b, bool load)
 {
     OperandX86* memLoc;
     uint64_t addr;
@@ -56,7 +56,7 @@ uint32_t X86Instruction::countElementsUnalignedLoadStore(bool low, bool is64b, b
     uint8_t size;
 
     if(load) {
-        memLoc = getFirstSourceOperand();
+        memLoc = getSourceOperand(0);
     } else {
         memLoc = getDestOperand();
     }
@@ -87,10 +87,19 @@ uint32_t X86Instruction::countElementsUnalignedLoadStore(bool low, bool is64b, b
         if(low == 1 && vectorInfo.kval.value == 1) {
             vectorInfo.nElements = 1;
         } else {
-            vectorInfo.kval.confidence = Maybe;
+
+            // Guess half of the vector mask is used
+            //vectorInfo.kval.confidence = Maybe;
+            if(is64b) {
+                vectorInfo.nElements =  countBitsSet(0x00FF & vectorInfo.kval.value) / 2;
+            } else {
+                vectorInfo.nElements = countBitsSet(vectorInfo.kval.value) / 2;
+            }
         }
+        return;
     }
 
+    // figure a new effective mask based on address alignment
     if(low) {
         uint32_t removedElements = (addr % 64) / size;
         newMask = (vectorInfo.kval.value >> removedElements) << removedElements;
@@ -98,6 +107,8 @@ uint32_t X86Instruction::countElementsUnalignedLoadStore(bool low, bool is64b, b
         uint32_t maxElements = (addr % 64) / size;
         newMask = vectorInfo.kval.value & ((1 << maxElements) - 1);
     }
+
+    // Update nElements based on effective mask
     if(is64b) {
         vectorInfo.nElements = countBitsSet(0x00FF & newMask);
     } else {
@@ -109,7 +120,7 @@ struct VectorInfo X86Instruction::getVectorInfo()
 {
     vectorInfo.elementSize = X86InstructionClassifier::getInstructionElemSize(this);
 
-    OperandX86* src = getFirstSourceOperand();
+    OperandX86* src = getSourceOperand(0);
     OperandX86* dest = getDestOperand();
 
     uint32_t bytesInReg = 0;
@@ -938,12 +949,12 @@ OperandX86* X86Instruction::getDestOperand(){
     return operands[DEST_OPERAND];
 }
 
-OperandX86* X86Instruction::getFirstSourceOperand(){
-  if(countValidNonimm() < 3 && !isMoveOperation()) {
-    return operands[0];
-  } else {
-    return operands[1];
-  }
+OperandX86* X86Instruction::getSourceOperand(uint32_t index){
+    // if the first operand is only used for a destination
+    if(countValidNonimm() > 2 || isMoveOperation()) {
+        ++index;
+    }
+    return operands[index];
 }
 
 Vector<OperandX86*>* X86Instruction::getSourceOperands(){
@@ -974,6 +985,10 @@ Vector<OperandX86*>* X86Instruction::getSourceOperands(){
         }        
     }
     return ops;
+}
+
+SwizzleOperation X86Instruction::getSwizzleOperation() {
+    return (SwizzleOperation)GET(conversion);
 }
 
 Vector<OperandX86*>* X86Instruction::getOperands(){
@@ -1058,10 +1073,10 @@ bool X86Instruction::isConditionCompare(){
         (m == UD_Ipfcmpgt) ||
         (m == UD_Iptest) ||
         (m == UD_Itest) ||
-        (m == UD_Ivcmppd) ||
-        (m == UD_Ivcmpps) ||
-        (m == UD_Ivcmpsd) ||
-        (m == UD_Ivcmpss) ||
+        //(m == UD_Ivcmppd) || FIXME these break getDestOperand because it assumes compares don't have dest registers
+        //(m == UD_Ivcmpps) ||
+        //(m == UD_Ivcmpsd) ||
+        //(m == UD_Ivcmpss) ||
         (m == UD_Ivpcmpeqb) ||
         (m == UD_Ivpcmpeqd) ||
         (m == UD_Ivpcmpeqq) ||

@@ -196,6 +196,17 @@ enum Confidence {
   Unknown, Maybe, Definitely
 };
 
+enum SwizzleOperation {
+  None,
+  SwapInnerPairs,
+  SwapWithTwoAway,
+  CrossProduct,
+  BroadcastA,
+  BroadcastB,
+  BroadcastC,
+  BroadcastD
+};
+
 struct RuntimeValue {
     Confidence confidence;
     uint64_t value;
@@ -461,7 +472,7 @@ private:
 
     struct VectorInfo vectorInfo;
 
-    uint32_t countElementsUnalignedLoadStore(bool, bool, bool);
+    void countElementsUnalignedLoadStore(bool, bool, bool);
 public:
 
     static X86Instruction* disassemble(char* buff);
@@ -472,10 +483,12 @@ public:
     uint64_t cacheBaseAddress;
 
     OperandX86* getDestOperand();
-    OperandX86* getFirstSourceOperand();
+    OperandX86* getSourceOperand(uint32_t index);
     Vector<OperandX86*>* getSourceOperands();
     Vector<OperandX86*>* getOperands();
     std::map<uint32_t, uint32_t>* getOperandLengthCounts();
+
+    SwizzleOperation getSwizzleOperation();
 
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 

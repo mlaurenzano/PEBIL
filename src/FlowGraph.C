@@ -185,6 +185,7 @@ void FlowGraph::computeVectorMasks(){
     struct RegisterStatePrediction* first = new RegisterStatePrediction();
     first->ins = firstIns;
     first->idx = 0;
+    first->state[getRegId(UD_R_K0)] = {Definitely, 0xFFFF};
     worklist.insert(first, 0);
 
     // Initialize worklist with first instruction
@@ -232,8 +233,8 @@ void FlowGraph::computeVectorMasks(){
             RuntimeValue value;
 
             // Moves
-            if(ins->isMoveOperation() && ins->getFirstSourceOperand() != NULL) {
-                OperandX86* src = ins->getFirstSourceOperand();
+            if(ins->isMoveOperation() && ins->getSourceOperand(0) != NULL) {
+                OperandX86* src = ins->getSourceOperand(0);
                 value = getValueOfOperand(src, nextItem);
 
             // Stack pops
@@ -246,7 +247,7 @@ void FlowGraph::computeVectorMasks(){
                 }
 
             }
-            // vcmppd, kandn
+            // Other instructions
             else {
                 switch(ins->GET(mnemonic)) {
                 case UD_Iinc:
@@ -258,10 +259,85 @@ void FlowGraph::computeVectorMasks(){
                     }
                     break;
                 }
+                case UD_Ikand: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, srcVal.value & oldVal.value};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                case UD_Ikandn: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, srcVal.value & (~oldVal.value)};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                case UD_Ikandnr: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, (~srcVal.value) & oldVal.value};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                //case UD_Ikconcath:
+                //case UD_Ikconcatl:
+                //case UD_Ikextract:
+                //case UD_Ikmerge2l1h:
+                //case UD_Ikmerge2l1l:
+                case UD_Iknot: {
+                    OperandX86* src = ins->getSourceOperand(1); // FIXME pretending to have two source operands
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    fprintf(stderr, "Doing knot with src val %d %d\n", srcVal.confidence, srcVal.value);
+                    src->print();
+                    dest->print();
+                    if(srcVal.confidence == Definitely){
+                        value = {Definitely, ~srcVal.value};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                case UD_Ikor: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, srcVal.value | oldVal.value };
+                    } else {
+                        value = {Unknown, 0};
+                    }
+
+                }
+                //case UD_Ikortest:
+                case UD_Ikxnor: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, ~(srcVal.value ^ oldVal.value) };
+                    } else if(src->GET(base) == dest->GET(base)){
+                        value = {Definitely, 0xFFFF};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                }
+                case UD_Ikxor:
                 case UD_Ixor:
                 {
-                    OperandX86* src = ins->getFirstSourceOperand();
-                    //fprintf(stderr, "Updating with xor\n");
+                    OperandX86* src = ins->getSourceOperand(1);
                     if(src->getType() == UD_OP_REG && dest->GET(base) == src->GET(base)) {
                         value = {Definitely, 0};
                     } else {
@@ -272,6 +348,40 @@ void FlowGraph::computeVectorMasks(){
                         } else {
                             value = {Unknown, 0};
                         }
+                    }
+                    break;
+                }
+                case UD_Ivcmppd:
+                case UD_Ivcmpps:
+                {
+                    // Check for equality comparisons between the same register
+                    Vector<OperandX86*>* sources = ins->getSourceOperands();
+                    SwizzleOperation swiz = ins->getSwizzleOperation();
+                    if( swiz == 0 && 
+                       (*sources)[0]->getType() == UD_OP_REG &&
+                       (*sources)[1]->getType() == UD_OP_REG ) {
+
+                        uint8_t cmpOp = (*sources)[2]->getValue();
+
+                        switch(cmpOp) {
+
+                        // eq, le, nlt
+                        case 0:
+                        case 2:
+                        case 5: value = {Definitely, 0xFF}; break;
+
+                        // lt, ne, nle
+                        case 1:
+                        case 4:
+                        case 6: value = {Definitely, 0}; break;
+
+                        case 3: // FIXME Unord
+                        case 7: // ord
+                        default:
+                            value = {Unknown, 0};
+                        }
+                    } else {
+                        value = {Unknown, 0};
                     }
                     break;
                 }
@@ -288,7 +398,7 @@ void FlowGraph::computeVectorMasks(){
         } else if(ins->isStackPush()) {
             //ins->print();
             RuntimeValue value;
-            OperandX86* src = ins->getFirstSourceOperand();
+            OperandX86* src = ins->getSourceOperand(0);
             if(src == NULL) {
                 value = {Unknown, 0};
                 //fprintf(stderr, "Pushing unknown onto stack\n");
