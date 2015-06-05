@@ -253,7 +253,6 @@ void FlowGraph::computeVectorMasks(){
                 case UD_Iinc:
                 {
                     RuntimeValue oldval = nextItem->state[getRegId(dest->GET(base))];
-                    //fprintf(stderr, "Updating with inc: %d, %d\n", oldval.value, oldval.confidence);
                     if(oldval.confidence == Definitely) {
                         value = {Definitely, oldval.value + 1};
                     }
@@ -300,9 +299,6 @@ void FlowGraph::computeVectorMasks(){
                 case UD_Iknot: {
                     OperandX86* src = ins->getSourceOperand(1); // FIXME pretending to have two source operands
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
-                    fprintf(stderr, "Doing knot with src val %d %d\n", srcVal.confidence, srcVal.value);
-                    src->print();
-                    dest->print();
                     if(srcVal.confidence == Definitely){
                         value = {Definitely, ~srcVal.value};
                     } else {
