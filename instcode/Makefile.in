@@ -1,4 +1,5 @@
-STATIC_INST_LIB  = @STATIC_INST_LIB@
+STATIC_INST_LIB  = @PEBIL_STATIC_BUILD@
+PEBIL_MIC_LIBS_BUILD = @PEBIL_MIC_LIBS_BUILD@
 PEBIL_LIBS = 
 ifeq ($(STATIC_INST_LIB),yes)
 	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  libcounter.a  libsimulator.a
@@ -6,11 +7,25 @@ else
 	PEBIL_LIBS = libtimer.so libclassifier.so libpfreq.so libtautrace.so liblooptimer.so libcounter.so libsimulator.so
 endif
 
-LIB_TARGETS = $(PEBIL_LIBS)
+LIBDIR      = ../lib
+MICLIBDIR      = ../miclib
+BINDIR      = ../bin
+
+LIB_TARGETS = $(foreach pebil_lib,$(PEBIL_LIBS),$(LIBDIR)/$(pebil_lib))
+MICLIB_TARGETS = $(foreach pebil_lib,$(PEBIL_LIBS),$(MICLIBDIR)/$(pebil_lib))
 MPICC       = @MPICC@
 MPICXX      = @MPICXX@
+MPICC_MIC       = mpiicc
+MPICXX_MIC      = mpiicpc
 CFLAGS      = @CFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -w
 CXXFLAGS    = @MPI_CXXFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -w
+MICFLAGS		=	-mmic
+
+ifeq ($(PEBIL_MIC_LIBS_BUILD),yes)
+	ALL_TARGETS = $(LIB_TARGETS) $(MICLIB_TARGETS)
+else
+	ALL_TARGETS	=	$(LIB_TARGETS)
+endif
 
 SHARED_OPT  = -fPIC
 EXTRA_FLAGS = $(SHARED_OPT)
@@ -18,66 +33,102 @@ SHARED_LIB  = -shared -ldl -lpthread
 AR          = ar rcs
 
 REUSE_LIBS  = -L../external/ReuseDistance -lReuseDistance
+REUSE_MIC_LIBS  = -L../external/ReuseDistanceForMIC -lReuseDistance
 EXTRA_LIBS  =
 EXTRA_INC   = -I../instcode -I../external/ReuseDistance
 
-LIBDIR      = ../lib
-BINDIR      = ../bin
+COMMON_OBJS = $(LIBDIR)/InstrumentationCommon.o
+COMMON_OBJS_MIC = $(MICLIBDIR)/InstrumentationCommon.o
 
-COMMON_OBJS = InstrumentationCommon.o
+all: $(ALL_TARGETS)
 
-all: $(LIB_TARGETS)
-
-%.o: %.c
+$(LIBDIR)/%.o: %.c
 	$(MPICC) $(CFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
-%.O: %.cpp
+$(LIBDIR)/%.O: %.cpp
 	$(MPICXX) $(CXXFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
+$(MICLIBDIR)/%.o: %.c
+	$(MPICC_MIC) $(CFLAGS) $(MICFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
+$(MICLIBDIR)/%.O: %.cpp
+	$(MPICXX_MIC) $(CXXFLAGS) $(MICFLAGS) $(EXTRA_FLAGS) $(EXTRA_DEF) $(EXTRA_INC) -c -o $@ $< $(SHARED_OPT)
 
-libcounter.so : CounterFunctions.O
+$(LIBDIR)/libcounter.so : $(LIBDIR)/CounterFunctions.O
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS)
-libcounter.a : CounterFunctions.o $(COMMON_OBJS)
-	$(AR) $@ CounterFunctions.o $(COMMON_OBJS)
+$(LIBDIR)/libcounter.a : $(LIBDIR)/CounterFunctions.o $(COMMON_OBJS)
+	$(AR) $@ $(LIBDIR)/CounterFunctions.o $(COMMON_OBJS)
+$(MICLIBDIR)/libcounter.so : $(MICLIBDIR)/CounterFunctions.O
+	$(MPICXX_MIC) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS) $(MICFLAGS)
+$(MICLIBDIR)/libcounter.a : $(MICLIBDIR)/CounterFunctions.o $(COMMON_OBJS_MIC)
+	$(AR) $@ $(MICLIBDIR)/CounterFunctions.o $(COMMON_OBJS_MIC)
 
-libsimulator.so : Simulation.O
+$(LIBDIR)/libsimulator.so : $(LIBDIR)/Simulation.O
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(REUSE_LIBS) $(CXXFLAGS)
-libsimulator.a : Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
-	$(AR) $@ Simulation.o CacheSimulationCommon.o $(COMMON_OBJS)
+$(LIBDIR)/libsimulator.a : $(LIBDIR)/Simulation.o $(LIBDIR)/CacheSimulationCommon.o $(COMMON_OBJS)
+	$(AR) $@ $(LIBDIR)/Simulation.o $(LIBDIR)/CacheSimulationCommon.o $(COMMON_OBJS)
+$(MICLIBDIR)/libsimulator.so : $(MICLIBDIR)/Simulation.O
+	$(MPICXX_MIC) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(REUSE_MIC_LIBS) $(CXXFLAGS) $(MICFLAGS)
+$(MICLIBDIR)/libsimulator.a : $(MICLIBDIR)/Simulation.o $(MICLIBDIR)/CacheSimulationCommon.o $(COMMON_OBJS_MIC)
+	$(AR) $@ $(MICLIBDIR)/Simulation.o $(MICLIBDIR)/CacheSimulationCommon.o $(COMMON_OBJS_MIC)
 
-liblooptimer.so : LoopTimer.O
+$(LIBDIR)/liblooptimer.so : $(LIBDIR)/LoopTimer.O
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS)
+$(MICLIBDIR)/liblooptimer.so : $(MICLIBDIR)/LoopTimer.O
+	$(MPICXX_MIC) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS) $(MICFLAGS)
 
-libfrequencyconfig.so : FrequencyConfig.O
+$(LIBDIR)/libfrequencyconfig.so : $(LIBDIR)/FrequencyConfig.O
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS)
+$(MICLIBDIR)/libfrequencyconfig.so : $(MICLIBDIR)/FrequencyConfig.O
+	$(MPICXX_MIC) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS) $(MICFLAGS)
 
-libpapiinst.so : PAPIInst.O
+$(LIBDIR)/libpapiinst.so : $(LIBDIR)/PAPIInst.O
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS)
+$(MICLIBDIR)/libpapiinst.so : $(MICLIBDIR)/PAPIInst.O
+	$(MPICXX_MIC) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS) $(MICFLAGS)
 
-libtimer.so : TimerFunctions.O
+$(LIBDIR)/libtimer.so : $(LIBDIR)/TimerFunctions.O
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS)
-libtimer.a : TimerFunctions.o $(COMMON_OBJS) 
-	$(AR) $@ TimerFunctions.o $(COMMON_OBJS)
+$(LIBDIR)/libtimer.a : $(LIBDIR)/TimerFunctions.o $(COMMON_OBJS) 
+	$(AR) $@ $(LIBDIR)/TimerFunctions.o $(COMMON_OBJS)
+$(MICLIBDIR)/libtimer.so : $(MICLIBDIR)/TimerFunctions.O
+	$(MPICXX_MIC) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS) $(MICFLAGS)
+$(MICLIBDIR)/libtimer.a : $(MICLIBDIR)/TimerFunctions.o $(COMMON_OBJS_MIC) 
+	$(AR) $@ $(MICLIBDIR)/TimerFunctions.o $(COMMON_OBJS_MIC)
 
-libpapifunc.so : PAPIFunc.O
+$(LIBDIR)/libpapifunc.so : $(LIBDIR)/PAPIFunc.O
 	$(MPICXX) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS)
+$(MICLIBDIR)/libpapifunc.so : $(MICLIBDIR)/PAPIFunc.O
+	$(MPICXX_MIC) $(SHARED_LIB) -o $@ $^ $(EXTRA_LIBS) $(CXXFLAGS) $(MICFLAGS)
 
-libclassifier.so : ClassifierFunctions.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ ClassifierFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS) $(CFLAGS)
-libclassifier.a : ClassifierFunctions.o
-	$(AR) $@ ClassifierFunctions.o
+$(LIBDIR)/libclassifier.so : $(LIBDIR)/ClassifierFunctions.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ $(LIBDIR)/ClassifierFunctions.o $(COMMON_OBJS) $(EXTRA_LIBS) $(CFLAGS)
+$(LIBDIR)/libclassifier.a : $(LIBDIR)/ClassifierFunctions.o
+	$(AR) $@ $(LIBDIR)/ClassifierFunctions.o
+$(MICLIBDIR)/libclassifier.so : $(MICLIBDIR)/ClassifierFunctions.o $(COMMON_OBJS_MIC)
+	$(MPICC_MIC) $(SHARED_LIB) -o $@ $(MICLIBDIR)/ClassifierFunctions.o $(COMMON_OBJS_MIC) $(EXTRA_LIBS) $(CFLAGS) $(MICFLAGS)
+$(MICLIBDIR)/libclassifier.a : $(MICLIBDIR)/ClassifierFunctions.o
+	$(AR) $@ $(MICLIBDIR)/ClassifierFunctions.o
 
-libpfreq.so : Frequency.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ Frequency.o $(COMMON_OBJS) $(EXTRA_LIBS) $(CFLAGS)
-libpfreq.a : Frequency.o
-	$(AR) $@ Frequency.o
+$(LIBDIR)/libpfreq.so : $(LIBDIR)/Frequency.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ $(LIBDIR)/Frequency.o $(COMMON_OBJS) $(EXTRA_LIBS) $(CFLAGS)
+$(LIBDIR)/libpfreq.a : $(LIBDIR)/Frequency.o
+	$(AR) $@ $(LIBDIR)/Frequency.o
+$(MICLIBDIR)/libpfreq.so : $(MICLIBDIR)/Frequency.o $(COMMON_OBJS_MIC)
+	$(MPICC_MIC) $(SHARED_LIB) -o $@ $(MICLIBDIR)/Frequency.o $(COMMON_OBJS_MIC) $(EXTRA_LIBS) $(CFLAGS) $(MICFLAGS)
+$(MICLIBDIR)/libpfreq.a : $(MICLIBDIR)/Frequency.o
+	$(AR) $@ $(MICLIBDIR)/Frequency.o
 
-libtautrace.so : tautrace.o $(COMMON_OBJS)
-	$(MPICC) $(SHARED_LIB) -o $@ tautrace.o $(COMMON_OBJS) $(EXTRA_LIBS) $(CFLAGS)
-libtautrace.a : tautrace.o
-	$(AR) $@ tautrace.o
+$(LIBDIR)/libtautrace.so : $(LIBDIR)/tautrace.o $(COMMON_OBJS)
+	$(MPICC) $(SHARED_LIB) -o $@ $(LIBDIR)/tautrace.o $(COMMON_OBJS) $(EXTRA_LIBS) $(CFLAGS)
+$(LIBDIR)/libtautrace.a : $(LIBDIR)/tautrace.o
+	$(AR) $@ $(LIBDIR)/tautrace.o
+$(MICLIBDIR)/libtautrace.so : $(MICLIBDIR)/tautrace.o $(COMMON_OBJS_MIC)
+	$(MPICC_MIC) $(SHARED_LIB) -o $@ $(MICLIBDIR)/tautrace.o $(COMMON_OBJS_MIC) $(EXTRA_LIBS) $(CFLAGS) $(MICFLAGS)
+$(MICLIBDIR)/libtautrace.a : $(MICLIBDIR)/tautrace.o
+	$(AR) $@ $(MICLIBDIR)/tautrace.o
 
 clean: 
-	rm -f *.o *.O *.i *.s *.ii $(LIB_TARGETS)
+	rm -f $(LIBDIR)/*.o $(LIBDIR)/*.O $(LIBDIR)/*.i $(LIBDIR)/*.s $(LIBDIR)/*.ii $(MICLIBDIR)/*.o $(MICLIBDIR)/*.O $(MICLIBDIR)/*.i $(MICLIBDIR)/*.s $(MICLIBDIR)/*.ii $(ALL_TARGETS)
 
 install:
-	cp $(LIB_TARGETS) $(LIBDIR)
+	echo "Nothing to install in instcode"
+	#cp $(LIB_TARGETS) $(LIBDIR)
 

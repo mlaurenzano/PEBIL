@@ -2,9 +2,15 @@ CC          = @CC@
 CXX         = @CXX@
 FC          = @FC@
 MPICC       = @MPICC@
+PEBIL_MIC_LIBS_BUILD = @PEBIL_MIC_LIBS_BUILD@
+CC_MIC			=	icc
+CXX_MIC			=	icpc
+FC_MIC			= ifort
+MICFLAGS		= -mmic
 
 BINDIR      = ../../src
 EXECDIR     = bin
+MICDIR			= micbin
 SCRIPT_DIR	=	../scripts
 
 IDE_SCRIPT	=	$(SCRIPT_DIR)/testIDE.sh
@@ -13,10 +19,26 @@ SIM_SCRIPT	=	$(SCRIPT_DIR)/testSIM.sh
 
 OBJS        = foo.o bar.o dum.o main.o
 OBJSCPP	    = classes.o
+HST_OBJS		=	$(foreach obj,$(OBJS),host.$(obj))
+HST_OBJSCPP		=	$(foreach obj,$(OBJSCPP),host.$(obj))
+MIC_OBJS		=	$(foreach obj,$(OBJS),mic.$(obj))
+MIC_OBJSCPP		=	$(foreach obj,$(OBJSCPP),mic.$(obj))
 EXTRA_INC   = -I../../instcode
 EXTRA_LIBS  = -lm
 
-TARGETS  	= $(EXECDIR)/cTest $(EXECDIR)/cppTest $(EXECDIR)/fTest $(EXECDIR)/dynTest $(EXECDIR)/sgTest
+BINARY_CHECKS	= checkIDE_Binary checkJBB_Binary checkSIM_Binary
+
+
+HST_TARGETS  	= $(EXECDIR)/cTest $(EXECDIR)/cppTest $(EXECDIR)/fTest $(EXECDIR)/dynTest $(EXECDIR)/sgTest
+MIC_TARGETS  	= $(MICDIR)/cTest $(MICDIR)/cppTest $(MICDIR)/fTest $(MICDIR)/dynTest $(MICDIR)/sgTest
+
+ifeq ($(PEBIL_MIC_LIBS_BUILD),yes)
+	TARGETS	=	$(HST_TARGETS) $(MIC_TARGETS)
+	MIC_BINARY_CHECKS	= $(foreach bin_check, $(BINARY_CHECKS), MIC_$(bin_check))
+else
+	TARGETS	= $(HST_TARGETS)
+	MIC_BINARY_CHECKS	=	
+endif
 
 LOOPS_FILE				=	all.loops
 CREATE_LOOPS_FILE	= echo "*:*:0" > $(LOOPS_FILE)
@@ -26,64 +48,92 @@ all: createDir $(TARGETS)
 	echo $(TARGETS)
 
 ### Make Targets
-%.o: %.c
+host.%.o: %.c
 	$(CC) -g -c -o $@ $< 
+mic.%.o: %.c
+	$(CC_MIC) -g -c $(MICFLAGS) -o $@ $< 
 
-%.o: %.C
+host.%.o: %.C
 	$(CXX) -g -c -o $@ $< 
+mic.%.o: %.C
+	$(CXX_MIC) -g -c $(MICFLAGS) -o $@ $< 
 
-$(EXECDIR)/cTest: $(OBJS)
-	$(CC) -g -o $@ $(OBJS)
+$(EXECDIR)/cTest: $(HST_OBJS)
+	$(CC) -g -o $@ $(HST_OBJS)
+$(MICDIR)/cTest: $(MIC_OBJS)
+	$(CC_MIC) -g $(MICFLAGS) -o $@ $(MIC_OBJS)
 
-$(EXECDIR)/cppTest: $(OBJSCPP)
-	$(CXX) -g -o $@ $(OBJSCPP)
+$(EXECDIR)/cppTest: $(HST_OBJSCPP)
+	$(CXX) -g -o $@ $(HST_OBJSCPP)
+$(MICDIR)/cppTest: $(MIC_OBJSCPP)
+	$(CXX_MIC) -g $(MICFLAGS) -o $@ $(MIC_OBJSCPP)
 
 $(EXECDIR)/fTest:
 	$(FC) -g -o $@ fTest.f
+$(MICDIR)/fTest:
+	$(FC_MIC) -g $(MICFLAGS) -o $@ fTest.f
 
 $(EXECDIR)/dynTest:
 	$(CC) -g -o $@ dynTest.c
+$(MICDIR)/dynTest:
+	$(CC_MIC) -g $(MICFLAGS) -o $@ dynTest.c
 
 $(EXECDIR)/sgTest:
 	$(CC) -g -o $@ sgTest.c $(EXTRA_INC) $(EXTRA_LIBS)
+$(MICDIR)/sgTest:
+	$(CC_MIC) -g $(MICFLAGS) -o $@ sgTest.c $(EXTRA_INC) $(EXTRA_LIBS)
 
 createDir:
 	mkdir -p $(EXECDIR)
+	mkdir -p $(MICDIR)
 
 ### PEBIL Checks
 
 check: createDir $(TARGETS) checkAppBinary
 
-checkAppBinary: createDir $(TARGETS) checkIDE_Binary checkJBB_Binary checkSIM_Binary
+checkAppBinary: createDir $(TARGETS) $(BINARY_CHECKS) $(MIC_BINARY_CHECKS)
 
-checkIDE_Binary: $(TARGETS)
+checkIDE_Binary: $(HST_TARGETS)
 	set -e; \
-	$(foreach target,$(TARGETS), \
+	$(foreach target,$(HST_TARGETS), \
 		TEST_CHECK=INST_AND_RUN $(IDE_SCRIPT) $(notdir $(target)) $(dir $(target)); \
 		TEST_CHECK=CHECK_BIN_OUTPUT $(IDE_SCRIPT) $(notdir $(target)) $(dir $(target));)
-
-checkJBB_Binary: $(TARGETS)
+MIC_checkIDE_Binary: $(MIC_TARGETS)
 	set -e; \
-	$(foreach target,$(TARGETS), \
+	$(foreach target,$(MIC_TARGETS), \
+		TEST_CHECK=INST_AND_RUN USING_MIC="yes" $(IDE_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT $(IDE_SCRIPT) $(notdir $(target)) $(dir $(target));)
+
+checkJBB_Binary: $(HST_TARGETS)
+	set -e; \
+	$(foreach target,$(HST_TARGETS), \
 		TEST_CHECK=INST_AND_RUN $(JBB_SCRIPT) $(notdir $(target)) $(dir $(target)); \
 		TEST_CHECK=CHECK_BIN_OUTPUT $(JBB_SCRIPT) $(notdir $(target)) $(dir $(target));)
-	
-checkSIM_Binary: $(TARGETS)
+MIC_checkJBB_Binary: $(MIC_TARGETS)
 	set -e; \
-	$(foreach target,$(TARGETS), \
+	$(foreach target,$(MIC_TARGETS), \
+		TEST_CHECK=INST_AND_RUN USING_MIC="yes" $(JBB_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT $(JBB_SCRIPT) $(notdir $(target)) $(dir $(target));)
+	
+checkSIM_Binary: $(HST_TARGETS)
+	set -e; \
+	$(foreach target,$(HST_TARGETS), \
 		TEST_CHECK=INST_AND_RUN INPUT_DEV_NULL=1 \
 			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
 		TEST_CHECK=CHECK_BIN_OUTPUT $(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
 		TEST_CHECK=INST_AND_RUN \
 			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
 		TEST_CHECK=CHECK_BIN_OUTPUT $(SIM_SCRIPT) $(notdir $(target)) $(dir $(target));)
+MIC_checkSIM_Binary: $(MIC_TARGETS)
+	set -e; \
+	$(foreach target,$(MIC_TARGETS), \
+		TEST_CHECK=INST_AND_RUN USING_MIC="yes" INPUT_DEV_NULL=1 \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT $(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=INST_AND_RUN USING_MIC="yes" \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT $(SIM_SCRIPT) $(notdir $(target)) $(dir $(target));)
 	
-#%.siminst: %
-#	$(PEBIL_COMMAND_T) CacheSimulation --app $< --inp $(NULL_FILE)
-#	./$@ | $(FILTER_PEBIL_MSGS) > $@.$(OUT)
-#	./$< > $<.$(OUT)
-#	$(DIFF) $<.$(OUT) $@.$(OUT)
-#
 #%.lpiinst: %
 #	$(CREATE_LOOPS_FILE)
 #	$(PEBIL_COMMAND_T) LoopIntercept --app $< --inp $(LOOPS_FILE) --lnc liblooptimer.so
@@ -93,4 +143,4 @@ checkSIM_Binary: $(TARGETS)
 #	$(DIFF) $<.$(OUT) $@.$(OUT)
 
 clean: 
-	rm -f *.o $(TARGETS) *.jbbinst $(EXECDIR)/*.lpiinst $(EXECDIR)/*.siminst $(EXECDIR)/*.ideinst $(EXECDIR)/*.static $(EXECDIR)/*.outp $(EXECDIR)/*.tmp $(EXECDIR)/*.jbbinst
+	rm -f *.o $(TARGETS) *.jbbinst $(EXECDIR)/*.lpiinst $(EXECDIR)/*.siminst $(EXECDIR)/*.ideinst $(EXECDIR)/*.static $(EXECDIR)/*.outp $(EXECDIR)/*.tmp $(EXECDIR)/*.jbbinst $(MICDIR)/*.lpiinst $(MICDIR)/*.siminst $(MICDIR)/*.ideinst $(MICDIR)/*.static $(MICDIR)/*.outp $(MICDIR)/*.tmp $(MICDIR)/*.jbbinst

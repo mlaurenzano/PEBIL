@@ -2,6 +2,12 @@ CC          = @CC@
 CXX         = @CXX@
 FC          = @FC@
 MPICC       = @MPICC@
+PEBIL_MIC_LIBS_BUILD	=	@PEBIL_MIC_LIBS_BUILD@
+CC_MIC			=	icc
+CXX_MIC			=	icpc
+FC_MIC			=	ifort
+MICFLAGS		= -mmic
+
 
 BINDIR      = ../../src
 SCRIPT_DIR	= ../scripts
@@ -16,28 +22,65 @@ JBB_SCRIPT	= $(SCRIPT_DIR)/testJBB.sh
 SIM_SCRIPT	= $(SCRIPT_DIR)/testSIM.sh
 
 NPB_SER_EXEC			= NPB3.3-SER/bin
+NPB_SER_EXEC_MIC	= NPB3.3-SER/micbin
 NPB_SER_TARGETS   = $(foreach serApp,$(NPB_SER_APPS),$(foreach class,$(NPB_SER_CLASSES),$(NPB_SER_EXEC)/$(serApp).$(class)))
+NPB_SER_TARGETS_MIC   = $(foreach serApp,$(NPB_SER_APPS),$(foreach class,$(NPB_SER_CLASSES),$(NPB_SER_EXEC_MIC)/$(serApp).$(class)))
 
 NPB_OMP_EXEC			= NPB3.3-OMP/bin
+NPB_OMP_EXEC_MIC	= NPB3.3-SER/micbin
 NPB_OMP_TARGETS   = $(foreach ompApp,$(NPB_OMP_APPS),$(foreach class,$(NPB_OMP_CLASSES),$(NPB_OMP_EXEC)/$(ompApp).$(class)))
+NPB_OMP_TARGETS_MIC   = $(foreach ompApp,$(NPB_OMP_APPS),$(foreach class,$(NPB_OMP_CLASSES),$(NPB_OMP_EXEC_MIC)/$(ompApp).$(class)))
 
 LOOPS_FILE        = all.loops
 CREATE_LOOPS_FILE = echo "*:*:0" > $(LOOPS_FILE)
 NULL_FILE = /dev/null
 
-all: createDirs make_NPB_SER
+ifeq ($(PEBIL_MIC_LIBS_BUILD),yes)
+	MAKE_MIC_APPS	=	make_NPB_SER_MIC make_NPB_OMP_MIC
+	CHECK_MIC_BINS_NPB_SER = MIC_checkIDE_Binary_NPB_SER MIC_checkJBB_Binary_NPB_SER MIC_checkSIM_Binary_NPB_SER
+	CHECK_MIC_BINS_NPB_OMP = MIC_checkIDE_Binary_NPB_OMP MIC_checkJBB_Binary_NPB_OMP MIC_checkSIM_Binary_NPB_OMP
+else
+	MAKE_MIC_APPS =
+	CHECK_MIC_BINS_NPB_SER =
+	CHECK_MIC_BINS_NPB_OMP =
+endif
 
-### Make Targets
+all: createDirs $(MAKE_MIC_APPS) make_NPB_SER
+
+### Make Targets -- NOTE: Make MIC NPBs FIRST
 make_NPB_SER:
+	$(MAKE) clean -C NPB3.3-SER
+ifeq ($(PEBIL_MIC_LIBS_BUILD),yes)
+	$(MAKE) veryclean -C NPB3.3-SER
+endif
 	cp NPB3.3-SER/config/make.def.epanalytics NPB3.3-SER/config/make.def
 	sed -i 's/EPA_FC/'$(FC)'/g' NPB3.3-SER/config/make.def
 	sed -i 's/EPA_CC/'$(CC)'/g' NPB3.3-SER/config/make.def
+	sed -i 's/EPA_FFLAGS//g' NPB3.3-SER/config/make.def
+	sed -i 's/EPA_CFLAGS//g' NPB3.3-SER/config/make.def
 	for app in $(NPB_SER_APPS) ; do \
 		for class in $(NPB_SER_CLASSES) ; do \
 			make $$app CLASS=$$class -C NPB3.3-SER ; \
 	done done
+make_NPB_SER_MIC:
+	$(MAKE) clean -C NPB3.3-SER
+	$(MAKE) veryclean -C NPB3.3-SER
+	cp NPB3.3-SER/config/make.def.epanalytics NPB3.3-SER/config/make.def
+	sed -i 's/EPA_FC/'$(FC_MIC)'/g' NPB3.3-SER/config/make.def
+	sed -i 's/EPA_CC/'$(CC_MIC)'/g' NPB3.3-SER/config/make.def
+	sed -i 's/EPA_FFLAGS/\-mmic/g' NPB3.3-SER/config/make.def
+	sed -i 's/EPA_CFLAGS/\-mmic/g' NPB3.3-SER/config/make.def
+	for app in $(NPB_SER_APPS) ; do \
+		for class in $(NPB_SER_CLASSES) ; do \
+			make $$app CLASS=$$class -C NPB3.3-SER ; \
+	done done
+	mv $(NPB_SER_EXEC)/* $(NPB_SER_EXEC_MIC)
 
 make_NPB_OMP:
+	$(MAKE) clean -C NPB3.3-OMP
+ifeq ($(PEBIL_MIC_LIBS_BUILD),yes)
+	$(MAKE) veryclean -C NPB3.3-OMP
+endif
 	cp NPB3.3-OMP/config/make.def.epanalytics NPB3.3-OMP/config/make.def
 	#sed -i 's/EPA_FC/'$(FC)'/g' NPB3.3-OMP/config/make.def
 	#sed -i 's/EPA_CC/'$(CC)'/g' NPB3.3-OMP/config/make.def
@@ -51,10 +94,24 @@ make_NPB_OMP:
 		for class in $(NPB_OMP_CLASSES) ; do \
 			make $$app CLASS=$$class -C NPB3.3-OMP ; \
 	done done
+make_NPB_OMP_MIC:
+	$(MAKE) clean -C NPB3.3-OMP
+	$(MAKE) veryclean -C NPB3.3-OMP
+	cp NPB3.3-OMP/config/make.def.epanalytics NPB3.3-OMP/config/make.def
+	sed -i 's/EPA_FC/'$(FC_MIC)'/g' NPB3.3-OMP/config/make.def
+	sed -i 's/EPA_CC/'$(CC_MIC)'/g' NPB3.3-OMP/config/make.def
+	sed -i 's/EPA_FFLAGS/\-openmp \-mmic/g' NPB3.3-OMP/config/make.def
+	sed -i 's/EPA_CFLAGS/\-openmp \-mmic/g' NPB3.3-OMP/config/make.def
+	for app in $(NPB_OMP_APPS) ; do \
+		for class in $(NPB_OMP_CLASSES) ; do \
+			make $$app CLASS=$$class -C NPB3.3-OMP ; \
+	done done
 
 createDirs:
 	mkdir -p $(NPB_SER_EXEC)
 	mkdir -p $(NPB_OMP_EXEC)
+	mkdir -p $(NPB_SER_EXEC_MIC)
+	mkdir -p $(NPB_OMP_EXEC_MIC)
 
 ### PEBIL Checks
 
@@ -62,9 +119,9 @@ check: createDirs make_NPB_SER checkAppBinary
 
 checkAppBinary: checkAppBinary_NPB_SER
 
-checkAppBinary_NPB_SER: $(NPB_SER_TARGETS) checkIDE_Binary_NPB_SER checkJBB_Binary_NPB_SER checkSIM_Binary_NPB_SER
+checkAppBinary_NPB_SER: $(NPB_SER_TARGETS) checkIDE_Binary_NPB_SER checkJBB_Binary_NPB_SER checkSIM_Binary_NPB_SER $(CHECK_MIC_BINS_SER)
 
-checkAppBinary_NPB_OMP: $(NPB_OMP_TARGETS) checkIDE_Binary_NPB_OMP checkJBB_Binary_NPB_OMP checkSIM_Binary_NPB_OMP
+checkAppBinary_NPB_OMP: $(NPB_OMP_TARGETS) checkIDE_Binary_NPB_OMP checkJBB_Binary_NPB_OMP checkSIM_Binary_NPB_OMP $(CHECK_MIC_BINS_OMP)
 
 
 checkIDE_Binary_NPB_SER: $(NPB_SER_TARGETS)
@@ -74,11 +131,25 @@ checkIDE_Binary_NPB_SER: $(NPB_SER_TARGETS)
 			$(IDE_SCRIPT) $(notdir $(target)) $(dir $(target)); \
 		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
 			$(IDE_SCRIPT) $(notdir $(target)) $(dir $(target)); )
+MIC_checkIDE_Binary_NPB_SER: $(NPB_SER_TARGETS_MIC)
+	set -e; \
+	$(foreach target,$(NPB_SER_TARGETS_MIC), \
+		TEST_CHECK=INST_AND_RUN USING_MIC="yes" \
+			$(IDE_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
+			$(IDE_SCRIPT) $(notdir $(target)) $(dir $(target)); )
 
 checkJBB_Binary_NPB_SER: $(NPB_SER_TARGETS)
 	set -e; \
 	$(foreach target,$(NPB_SER_TARGETS), \
 		TEST_CHECK=INST_AND_RUN \
+			$(JBB_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
+			$(JBB_SCRIPT) $(notdir $(target)) $(dir $(target)); )
+MIC_checkJBB_Binary_NPB_SER: $(NPB_SER_TARGETS_MIC)
+	set -e; \
+	$(foreach target,$(NPB_SER_TARGETS_MIC), \
+		TEST_CHECK=INST_AND_RUN USING_MIC="yes" \
 			$(JBB_SCRIPT) $(notdir $(target)) $(dir $(target)); \
 		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
 			$(JBB_SCRIPT) $(notdir $(target)) $(dir $(target)); )
@@ -94,6 +165,17 @@ checkSIM_Binary_NPB_SER: $(NPB_SER_TARGETS)
 			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
 		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
 			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); )
+MIC_checkSIM_Binary_NPB_SER: $(NPB_SER_TARGETS_MIC)
+	set -e; \
+	$(foreach target,$(NPB_SER_TARGETS_MIC), \
+		TEST_CHECK=INST_AND_RUN USING_MIC="yes" INPUT_DEV_NULL=1 \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=INST_AND_RUN USING_MIC="yes" \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); )
 
 checkIDE_Binary_NPB_OMP: $(NPB_OMP_TARGETS)
 	set -e; \
@@ -102,11 +184,25 @@ checkIDE_Binary_NPB_OMP: $(NPB_OMP_TARGETS)
 			$(IDE_SCRIPT) $(notdir $(target)) $(dir $(target)); \
 		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
 			$(IDE_SCRIPT) $(notdir $(target)) $(dir $(target)); )
+MIC_checkIDE_Binary_NPB_OMP: $(NPB_OMP_TARGETS_MIC)
+	set -e; \
+	$(foreach target,$(NPB_OMP_TARGETS_MIC), \
+		TEST_CHECK=INST_AND_RUN USING_MIC="yes" \
+			$(IDE_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
+			$(IDE_SCRIPT) $(notdir $(target)) $(dir $(target)); )
 
 checkJBB_Binary_NPB_OMP: $(NPB_OMP_TARGETS)
 	set -e; \
 	$(foreach target,$(NPB_OMP_TARGETS), \
 		TEST_CHECK=INST_AND_RUN USING_OMP=1 \
+			$(JBB_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
+			$(JBB_SCRIPT) $(notdir $(target)) $(dir $(target)); )
+MIC_checkJBB_Binary_NPB_OMP: $(NPB_OMP_TARGETS_MIC)
+	set -e; \
+	$(foreach target,$(NPB_OMP_TARGETS_MIC), \
+		TEST_CHECK=INST_AND_RUN USING_MIC="yes" USING_OMP=1 \
 			$(JBB_SCRIPT) $(notdir $(target)) $(dir $(target)); \
 		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
 			$(JBB_SCRIPT) $(notdir $(target)) $(dir $(target)); )
@@ -119,6 +215,17 @@ checkSIM_Binary_NPB_OMP: $(NPB_OMP_TARGETS)
 		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
 			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
 		TEST_CHECK=INST_AND_RUN USING_OMP=1 \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); )
+MIC_checkSIM_Binary_NPB_OMP: $(NPB_OMP_TARGETS_MIC)
+	set -e; \
+	$(foreach target,$(NPB_OMP_TARGETS_MIC), \
+		TEST_CHECK=INST_AND_RUN USING_MIC="yes" INPUT_DEV_NULL=1 USING_OMP=1 \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
+			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
+		TEST_CHECK=INST_AND_RUN USING_MIC="yes" USING_OMP=1 \
 			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); \
 		TEST_CHECK=CHECK_BIN_OUTPUT PROGRAM_SUCCESS="Verification" \
 			$(SIM_SCRIPT) $(notdir $(target)) $(dir $(target)); )
@@ -138,6 +245,8 @@ checkSIM_Binary_NPB_OMP: $(NPB_OMP_TARGETS)
 clean: 
 	make clean -C NPB3.3-SER
 	make clean -C NPB3.3-OMP
-	rm $(NPB_SER_EXEC)/*
-	rm $(NPB_OMP_EXEC)/*
+	rm -f $(NPB_SER_EXEC)/*
+	rm -f $(NPB_OMP_EXEC)/*
+	rm -f $(NPB_SER_EXEC_MIC)/*
+	rm -f $(NPB_OMP_EXEC_MIC)/*
 	
