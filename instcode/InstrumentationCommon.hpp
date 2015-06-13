@@ -135,7 +135,7 @@ typedef struct {
     uint64_t id;
     uint64_t data;
 } ThreadData;
-#define ThreadHashShift (16)
+#define ThreadHashShift (17)
 #define ThreadHashMod   (0xffff)
 
 
@@ -564,6 +564,15 @@ private:
     }
 
 public:
+
+    typedef typename DataMap<thread_key_t, T>::iterator iterator;
+
+    iterator begin(image_key_t img) {
+        return datamap[img].begin();
+    }
+    iterator end(image_key_t img) {
+        return datamap[img].end();
+    }
 
     set<thread_key_t> allthreads;
     set<thread_key_t> donethreads;

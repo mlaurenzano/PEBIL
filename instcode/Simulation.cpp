@@ -593,13 +593,15 @@ extern "C" {
             TryOpen(ReuseDistFile, fileName);
 
             for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
-                for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
-                        ReuseDistFile << "IMAGE" << TAB << hex << (*iit) << TAB << "THREAD" << TAB << dec << AllData->GetThreadSequence((*it)) << ENDL;
+                for(DataManager<SimulationStats*>::iterator it = AllData->begin(*iit); it != AllData->end(*iit); ++it) {
+                        thread_key_t thread = it->first;
+                        SimulationStats* s = it->second;
+
+                        ReuseDistFile << "IMAGE" << TAB << hex << (*iit) << TAB << "THREAD" << TAB << dec << AllData->GetThreadSequence(thread) << ENDL;
             
-		        SimulationStats* s = (SimulationStats*)AllData->GetData((*iit), (*it));
 		    	ReuseDistance* rd = s->RHandlers[ReuseHandlerIndex];
 		    	assert(rd);
-                    	inform << "Reuse distance bins for " << hex << s->Application << " Thread " << AllData->GetThreadSequence((*it)) << ENDL;
+                    	inform << "Reuse distance bins for " << hex << s->Application << " Thread " << AllData->GetThreadSequence(thread) << ENDL;
   		    	rd->Print();
   		    	rd->Print(ReuseDistFile);
                 }
@@ -616,13 +618,15 @@ extern "C" {
             TryOpen(SpatialDistFile, fileName);
 
             for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
-                for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
-                        SpatialDistFile << "IMAGE" << TAB << hex << (*iit) << TAB << "THREAD" << TAB << dec << AllData->GetThreadSequence(*it) << ENDL;
+                for(DataManager<SimulationStats*>::iterator it = AllData->begin(*iit); it != AllData->end(*iit); ++it) {
+                        thread_key_t thread = it->first;
+                        SimulationStats* s = it->second;
 
-                    	SimulationStats* s = (SimulationStats*)AllData->GetData((*iit), (*it));
+                        SpatialDistFile << "IMAGE" << TAB << hex << (*iit) << TAB << "THREAD" << TAB << dec << AllData->GetThreadSequence(thread) << ENDL;
+
 		    	ReuseDistance* sd = s->RHandlers[SpatialHandlerIndex];
 		    	assert(sd);
-                    	inform << "Spatial locality bins for " << hex << s->Application << " Thread " << AllData->GetThreadSequence((*it)) << ENDL;
+                    	inform << "Spatial locality bins for " << hex << s->Application << " Thread " << AllData->GetThreadSequence(thread) << ENDL;
   		    	sd->Print();
   		    	sd->Print(SpatialDistFile);
                 }
@@ -661,8 +665,10 @@ extern "C" {
         uint64_t sampledCount = 0;
         uint64_t totalMemop = 0;
         for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
-            for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
-                SimulationStats* s = (SimulationStats*)AllData->GetData((*iit), (*it));
+            for(DataManager<SimulationStats*>::iterator it = AllData->begin(*iit); it != AllData->end(*iit); ++it) {
+                thread_key_t thread = it->first;
+                SimulationStats* s = it->second;
+
                 if(AddressRangeEnable)
                 {
 		        RangeStats* r = (RangeStats*)s->Stats[RangeHandlerIndex];
@@ -681,7 +687,7 @@ extern "C" {
                     }
                     totalMemop += (s->Counters[idx] * s->MemopsPerBlock[idx]);
                 }
-                //inform << "Total memop: " << dec << totalMemop << TAB << "after " << hex << (*iit) << TAB << (*it) << ENDL;
+                //inform << "Total memop: " << dec << totalMemop << TAB << "after " << hex << (*iit) << TAB << thread << ENDL;
             }
         }
 
@@ -771,14 +777,16 @@ extern "C" {
 		for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
 		    for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
 		        bool first = true;
-		        for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
-		            SimulationStats* s = AllData->GetData((*iit), (*it));
+                        for(DataManager<SimulationStats*>::iterator it = AllData->begin(*iit); it != AllData->end(*iit); ++it) {
+		            SimulationStats* s = it->second;
+                            thread_key_t thread = it->first;
+
 		            assert(s);
 
 		            CacheStats* c = (CacheStats*)s->Stats[sys];
 		            assert(c->Capacity == s->InstructionCount);
 		            if(!c->Verify()) {
-		                warn << "Cache structure failed verification for  system " << c->SysId << ", image " << hex << *iit << ", thread " << hex << *it << ENDL;
+		                warn << "Cache structure failed verification for  system " << c->SysId << ", image " << hex << *iit << ", thread " << hex << thread << ENDL;
 		            }
 
 		            if (first){
@@ -786,7 +794,7 @@ extern "C" {
 		                first = false;
 		            }
 
-		            MemFile << "#" << TAB << dec << AllData->GetThreadSequence((*it)) << " ";
+		            MemFile << "#" << TAB << dec << AllData->GetThreadSequence(thread) << " ";
 		            for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
 		                uint64_t h = c->GetHits(lvl);
 		                uint64_t m = c->GetMisses(lvl);
@@ -821,9 +829,9 @@ extern "C" {
         }
 
         for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
-            for (set<thread_key_t>::iterator it = AllData->allthreads.begin(); it != AllData->allthreads.end(); it++){
+            for(DataManager<SimulationStats*>::iterator it = AllData->begin(*iit); it != AllData->end(*iit); ++it) {
 
-                SimulationStats* st = AllData->GetData((*iit), (*it));
+                SimulationStats* st = it->second;
                 assert(st);
 		CacheStats** aggstats;
 		RangeStats* aggrange;
