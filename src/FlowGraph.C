@@ -253,7 +253,6 @@ void FlowGraph::computeVectorMasks(){
                 case UD_Iinc:
                 {
                     RuntimeValue oldval = nextItem->state[getRegId(dest->GET(base))];
-                    //fprintf(stderr, "Updating with inc: %d, %d\n", oldval.value, oldval.confidence);
                     if(oldval.confidence == Definitely) {
                         value = {Definitely, oldval.value + 1};
                     }
@@ -300,9 +299,6 @@ void FlowGraph::computeVectorMasks(){
                 case UD_Iknot: {
                     OperandX86* src = ins->getSourceOperand(1); // FIXME pretending to have two source operands
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
-                    fprintf(stderr, "Doing knot with src val %d %d\n", srcVal.confidence, srcVal.value);
-                    src->print();
-                    dest->print();
                     if(srcVal.confidence == Definitely){
                         value = {Definitely, ~srcVal.value};
                     } else {
@@ -902,6 +898,7 @@ Loop* FlowGraph::getOuterMostLoopForLoop(uint32_t idx){
     return input;
 }
 
+// Gets any outer loop of loop idx
 Loop* FlowGraph::getOuterLoop(uint32_t idx){
     Loop* input = loops[idx];
     for (uint32_t i = 0; i < loops.size(); i++){
@@ -1251,6 +1248,7 @@ void FlowGraph::printLoops(){
         PRINT_INFOR("Flowgraph @ %#llx has %d loops", basicBlocks[0]->getBaseAddress(), loops.size());
     }
     for (uint32_t i = 0; i < loops.size(); i++){
+        //loops[i]->printLiveness();
         loops[i]->print();
     }
 }
@@ -1289,7 +1287,9 @@ BasicBlock** FlowGraph::getAllBlocks(){
 
 uint32_t FlowGraph::buildLoops(){
 
-    ASSERT(!loops.size());
+    if(loops.size())
+        return loops.size();
+
     PRINT_DEBUG_LOOP("Considering flowgraph for function %d -- has %d blocks", function->getIndex(),  basicBlocks.size());
 
     BasicBlock** allBlocks = new BasicBlock*[basicBlocks.size()]; 
@@ -1299,6 +1299,7 @@ uint32_t FlowGraph::buildLoops(){
     BitSet <BasicBlock*>* visitedBitSet = newBitSet();
     BitSet <BasicBlock*>* completedBitSet = newBitSet();
 
+    // find back edges in control flow graph
     depthFirstSearch(allBlocks[0], visitedBitSet, true, completedBitSet, &backEdges);
 
     delete[] allBlocks;
@@ -1323,6 +1324,7 @@ uint32_t FlowGraph::buildLoops(){
         BasicBlock* to = backEdges.shift();
         ASSERT(from && to && "Fatal: Backedge end points are invalid");
 
+        // Loops are backedges where head dominates the backedge
         if(from->isDominatedBy(to)){
             /* for each back edge found, perform natural loop finding algorithm 
                from pg. 604 of the Aho/Sethi/Ullman (Dragon) compiler book */
@@ -1332,6 +1334,7 @@ uint32_t FlowGraph::buildLoops(){
 
             numberOfLoops++;
 
+            // determine which blocks are in the loop
             loopStack.clear();
             inLoop->clear();
 
@@ -1370,6 +1373,7 @@ uint32_t FlowGraph::buildLoops(){
 
     PRINT_DEBUG_LOOP("\t%d Contains %d loops (back edges) from %d", getIndex(),numberOfLoops,basicBlocks.size());
 
+    // Sort loops by loop head
     if (numberOfLoops){
         uint32_t i = 0;
         while (!loopList.empty()){
@@ -1495,6 +1499,8 @@ void FlowGraph::setImmDominatorBlocks(BasicBlock* root){
     //delete[] allBlocks;
 }
 
+// Does a depth first search from root, marking blocks in visitedSet (unmarking if visitedMarkOnSet is false)
+// inserts back edges as pairs of nodes
 void FlowGraph::depthFirstSearch(BasicBlock* root, BitSet<BasicBlock*>* visitedSet, bool visitedMarkOnSet,
                                  BitSet<BasicBlock*>* completedSet, LinkedList<BasicBlock*>* backEdges)
 {
@@ -1505,6 +1511,7 @@ void FlowGraph::depthFirstSearch(BasicBlock* root, BitSet<BasicBlock*>* visitedS
         visitedSet->remove(root->getIndex());
     }
 
+    // Recurse until target has already been visited
     uint32_t numberOfTargets = root->getNumberOfTargets();
     for(uint32_t i=0;i<numberOfTargets;i++){
         BasicBlock* target = root->getTargetBlock(i);
@@ -1519,6 +1526,7 @@ void FlowGraph::depthFirstSearch(BasicBlock* root, BitSet<BasicBlock*>* visitedS
         }
     }
 
+    // paths from here are searched, if this is a future target, it won't be a backedge
     if(completedSet){
         if(visitedMarkOnSet){
             completedSet->insert(root->getIndex());
