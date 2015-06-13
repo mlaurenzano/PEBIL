@@ -435,6 +435,7 @@ void InstrumentationTool::instrument(){
     imageKey = reserveDataOffset(sizeof(image_key_t));
     initializeReservedData(getInstDataAddress() + imageKey, sizeof(image_key_t), &tmpi);
 
+    // this is a table of thread data {id, data_ptr}
     threadHash = reserveDataOffset(sizeof(ThreadData) * (ThreadHashMod + 1));
 
     dynamicSize = reserveDataOffset(sizeof(uint64_t));
@@ -526,6 +527,7 @@ Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, 
 }
 
 // Looks up thread data in thread data table
+// puts ThreadData address into dest
 Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, uint32_t dest, bool storeToStack, uint32_t stackPatch){
     ASSERT(scratch < X86_64BIT_GPRS);
     ASSERT(dest < X86_64BIT_GPRS);
@@ -538,11 +540,11 @@ Vector<X86Instruction*>* InstrumentationTool::storeThreadData(uint32_t scratch, 
     insns->append(X86InstructionFactory64::emitShiftRightLogical(ThreadHashShift, dest));
     // and ThreadHashMod,%d
     insns->append(X86InstructionFactory64::emitImmAndReg(ThreadHashMod, dest));
-    // mov $TData,%sr
+    // lea $ThreadTable,%sr ; scratch = ThreadTable
     insns->append(linkInstructionToData(X86InstructionFactory64::emitLoadRipImmReg(0, scratch), getInstDataAddress() + threadHash, false));
-    // sll $4,%d
+    // sll $4,%d ; dest = threadIndex
     insns->append(X86InstructionFactory64::emitShiftLeftLogical(4, dest));
-    // lea [$0x08+$offset](0,%d,%sr),%d
+    // lea [$0x08+$offset](0,%d,%sr),%d ; dest = ThreadTable[threadIndex].data
     insns->append(X86InstructionFactory64::emitLoadEffectiveAddress(scratch, dest, 0, 0x08, dest, true, true));
 
     if (storeToStack){
