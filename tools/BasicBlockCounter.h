@@ -28,9 +28,6 @@ protected:
     InstrumentationFunction* entryFunc;
     InstrumentationFunction* exitFunc;
 
-    InstrumentationFunction* loopEntry;
-    InstrumentationFunction* loopExit;
-
     bool loopCount;
 public:
     BasicBlockCounter(ElfFile* elf);

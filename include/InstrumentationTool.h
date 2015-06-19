@@ -36,7 +36,7 @@ typedef struct {
     uint64_t id;
     uint64_t data;
 } ThreadData;
-#define ThreadHashShift (12)
+#define ThreadHashShift (16)
 #define ThreadHashMod   (0xffff)
 
 struct DynamicInstInternal {
@@ -54,9 +54,14 @@ struct DynamicInstInternal {
 class InstrumentationTool : public ElfFileInst {
 private:
     char* extension;
+    bool isMaster;
+
     bool singleArgCheck(void* arg, uint32_t mask, const char* name);
     bool hasThreadEvidence();
 
+    InstrumentationTool* (*maker)(ElfFile*);
+
+    void instrumentEmbeddedElf();
 protected:
     uint64_t imageKey;
     uint64_t threadHash;
@@ -115,6 +120,7 @@ public:
 
     void init(char* ext);
     void initToolArgs(bool lpi, bool dtl, bool doi, uint32_t phase, char* inp, char* dfp, char* trk);
+    void setMaker(InstrumentationTool* (*maker)(ElfFile*)) { this->maker = maker; };
 
     virtual void declare();
     virtual void instrument();
@@ -129,6 +135,8 @@ public:
     bool verifyArgs();
     virtual uint32_t allowsArgs() { return PEBIL_OPT_ALL; }
     virtual uint32_t requiresArgs() { return PEBIL_OPT_NON; }
+    bool isMasterImage();
+    void setMasterImage(bool isMaster);
 };
 
 

@@ -134,6 +134,7 @@ public:
 
     uint32_t getNumberOfTextObjects() { return sortedTextObjects.size(); }
     TextObject* getTextObject(uint32_t idx) { return sortedTextObjects[idx]; }
+    TextObject* getObjectWithAddress(uint64_t addr);
 
     uint32_t getNumberOfBasicBlocks();
     uint32_t getNumberOfMemoryOps();

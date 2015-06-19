@@ -48,6 +48,7 @@ public:
     void setBaseAddress(uint64_t newBaseAddress);
     void computeLiveness();
     void computeDefUseDist();
+    void computeVectorMasks();
 
     uint32_t getNumberOfInstructions();
     TextSection* getTextSection();

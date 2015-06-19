@@ -162,6 +162,7 @@ void LoopIntercept::instrument(){
         lineInfoFinder = getLineInfoFinder();
     }
 
+    // Set indices for each loop
     std::map<uint64_t, uint32_t> loops;
     uint32_t numLoops = 0;
     for (uint32_t i = 0; i < loopList->size(); i++){
@@ -175,106 +176,98 @@ void LoopIntercept::instrument(){
         BasicBlock* bb = getExposedBasicBlock(i);
         uint64_t hash = bb->getHashCode().getValue();
 
-        if (bb->isInLoop() && loops.count(hash) > 0){
-            Function* f = bb->getFunction();
-            FlowGraph* fg = bb->getFlowGraph();
-            ASSERT(f && fg);
+        // skip blocks that aren't in our list of loop heads
+        if (!(bb->isInLoop() && loops.count(hash) > 0))
+            continue;
 
-            /*
-            PRINT_INFOR("Going for loop %llx", hash);
-            f->print();
-            for (uint32_t i = 0; i < f->getNumberOfBasicBlocks(); i++){
-                f->getBasicBlock(i)->print();
-            }
-            */
+        // We should not have found this block before
+        assert(loopsFound.count(hash) == 0);
+        assert(loopsRejected.count(hash) == 0);
 
-            Loop* innerMost = fg->getInnermostLoopForBlock(bb->getIndex());
+        Function* f = bb->getFunction();
+        FlowGraph* fg = bb->getFlowGraph();
+        ASSERT(f && fg);
+
+        Loop* innerMost = fg->getInnermostLoopForBlock(bb->getIndex());
+        ASSERT(innerMost);
+
+        // find inner most loop whose head matches this blocks hashcode
+        while (hash != innerMost->getHead()->getHashCode().getValue() && 
+               innerMost->getIndex() != fg->getParentLoop(innerMost->getIndex())->getIndex()){
+            innerMost = fg->getParentLoop(innerMost->getIndex());
             ASSERT(innerMost);
+        }
+        // Assert fail if we couldn't find the loop
+        if (hash != innerMost->getHead()->getHashCode().getValue()){
+            PRINT_INFOR("function %s/%s: %llx != %llx", f->getName(), innerMost->getHead()->getFunction()->getName(), hash, innerMost->getHead()->getHashCode().getValue());
+        }
+        ASSERT(hash == innerMost->getHead()->getHashCode().getValue());
 
-            //innerMost->print();
-            while (hash != innerMost->getHead()->getHashCode().getValue() && 
-                   innerMost->getIndex() != fg->getParentLoop(innerMost->getIndex())->getIndex()){
-                innerMost = fg->getParentLoop(innerMost->getIndex());
-                //innerMost->print();
-                ASSERT(innerMost);
+
+        bool badLoop = false;
+
+        // Check for shared loop heads
+        for (uint32_t i = 0; i < fg->getNumberOfLoops(); i++){
+            Loop* other = fg->getLoop(i);
+            if (innerMost->hasSharedHeader(other) && !innerMost->isIdenticalLoop(other)){
+                PRINT_WARN(20, "Head of loop %lld in %s is shared with other loop(s). skipping!", hash, f->getName());
+                badLoop = true;
+                loopsRejected[hash] = innerMost;
             }
-            if (hash != innerMost->getHead()->getHashCode().getValue()){
-                PRINT_INFOR("function %s/%s: %llx != %llx", f->getName(), innerMost->getHead()->getFunction()->getName(), hash, innerMost->getHead()->getHashCode().getValue());
-            }
-            ASSERT(hash == innerMost->getHead()->getHashCode().getValue());
-            
-            if (loopsFound.count(hash) == 0){
+        }
 
-                if (loopsRejected.count(hash) > 0){
-                    continue;
-                }
-
-                bool badLoop = false;
-                // see if the loop shares its head with another loop, throw a warning if so
-                for (uint32_t i = 0; i < fg->getNumberOfLoops(); i++){
-                    Loop* other = fg->getLoop(i);
-                    if (innerMost->hasSharedHeader(other) && !innerMost->isIdenticalLoop(other)){
-                        PRINT_WARN(20, "Head of loop %lld in %s is shared with other loop(s). skipping!", hash, f->getName());
-                        badLoop = true;
-                        loopsRejected[hash] = innerMost;
-                    }
-                }
-
-                // see if the loop has an exit point that exits a parent loop also. this is likely the result of a goto in an inner loop, which we cannot abide
-                BasicBlock** allLoopBlocks = new BasicBlock*[innerMost->getNumberOfBlocks()];
-                innerMost->getAllBlocks(allLoopBlocks);
-                for (uint32_t k = 0; k < innerMost->getNumberOfBlocks() && !badLoop; k++){
-                    Vector<BasicBlock*> exitInterpositions;
-                    BasicBlock* bb = allLoopBlocks[k];
-                    for (uint32_t m = 0; m < bb->getNumberOfTargets() && !badLoop; m++){
-                        BasicBlock* target = bb->getTargetBlock(m);
-                        
-                        // target is outside the loop
-                        if (!innerMost->isBlockIn(target->getIndex())){
-                            Loop* parent = innerMost;
-                            while (parent != fg->getParentLoop(parent->getIndex())){
-                                parent = fg->getParentLoop(parent->getIndex());
-                                uint64_t phash = parent->getHead()->getHashCode().getValue();
-                                if (!parent->isBlockIn(target->getIndex())){
-                                    if (loops.count(hash) && loops.count(phash)){
-                                        /*
-                                          PRINT_INFOR("Printing debug info....");
-                                          PRINT_INFOR("inner loop:");
-                                          innerMost->print();
-                                          PRINT_INFOR("parent loop:");
-                                          parent->print();
-                                          PRINT_INFOR("offending block");
-                                          bb->print();
-                                          PRINT_INFOR("offending target");
-                                          target->print();
-                                        */
-                                        PRINT_WARN(20, "Loops %lld/%lld in %s have a shared exit point (eg. a goto/return statement). skipping!", hash, phash, f->getName());
-                                        badLoop = true;
-                                        loopsRejected[hash] = innerMost;
-                                        loopsRejected[phash] = parent;
-                                    }
-                                }
+        // Check for shared loop exists
+        // see if the loop has an exit point that exits a parent loop also. this is likely the result of a goto in an inner loop, which we cannot abide
+        BasicBlock** allLoopBlocks = new BasicBlock*[innerMost->getNumberOfBlocks()];
+        innerMost->getAllBlocks(allLoopBlocks);
+        for (uint32_t k = 0; k < innerMost->getNumberOfBlocks() && !badLoop; k++){
+            Vector<BasicBlock*> exitInterpositions;
+            BasicBlock* bb = allLoopBlocks[k];
+            for (uint32_t m = 0; m < bb->getNumberOfTargets() && !badLoop; m++){
+                BasicBlock* target = bb->getTargetBlock(m);
+                
+                // target is outside the loop
+                if (!innerMost->isBlockIn(target->getIndex())){
+                    Loop* parent = innerMost;
+                    while (parent != fg->getParentLoop(parent->getIndex())){
+                        parent = fg->getParentLoop(parent->getIndex());
+                        uint64_t phash = parent->getHead()->getHashCode().getValue();
+                        if (!parent->isBlockIn(target->getIndex())){
+                            if (loops.count(hash) && loops.count(phash)){
+                                PRINT_WARN(20, "Loops %lld/%lld in %s have a shared exit point (eg. a goto/return statement). skipping!", hash, phash, f->getName());
+                                badLoop = true;
+                                loopsRejected[hash] = innerMost;
+                                loopsRejected[phash] = parent;
                             }
                         }
                     }
                 }
-
-                // see if loop contains an indirect branch. if so reject it
-                for (uint32_t k = 0; k < innerMost->getNumberOfBlocks() && !badLoop; k++){
-                    BasicBlock* bb = allLoopBlocks[k];
-                    if (bb->getExitInstruction()->isIndirectBranch()){
-                        PRINT_WARN(20, "Loop %lld is %s contains an indirect branch so we can't guarantee that all exits will be found. skipping!", hash, f->getName());
-                        badLoop = true;
-                        loopsRejected[hash] = innerMost;
-                    }
-                }
-                delete[] allLoopBlocks;
-
-                if (!badLoop){
-                    loopsFound[hash] = innerMost;
-                }
             }
         }
+
+        // Check for indirect branches
+        for (uint32_t k = 0; k < innerMost->getNumberOfBlocks() && !badLoop; k++){
+            BasicBlock* bb = allLoopBlocks[k];
+            if (bb->getExitInstruction()->isIndirectBranch()){
+                PRINT_WARN(20, "Loop %lld is %s contains an indirect branch so we can't guarantee that all exits will be found. skipping!", hash, f->getName());
+                PRINT_WARN(20, "Exit instruction:");
+                bb->getExitInstruction()->print();
+                badLoop = true;
+                loopsRejected[hash] = innerMost;
+            }
+        }
+        delete[] allLoopBlocks;
+
+        // Record the loop if it passes all our tests
+        if (!badLoop){
+            loopsFound[hash] = innerMost;
+        }
+    }
+
+    // Recreate indices from loopsFound
+    numLoops = 0;
+    for (uint32_t i = 0; i < loopsFound.size(); i++){
+        loops[getLoopHash(i)] = numLoops++;
     }
 
     // Create input struct
@@ -294,9 +287,9 @@ void LoopIntercept::instrument(){
     initializeReservedPointer(ext, loopInfoStruct + offsetof(LoopTimers, extension));
     initializeReservedData(getInstDataAddress() + ext, strlen(extName) + 1, (void*)extName);
 
-    loopInfo.loopCount = loopsFound.size();
+    loopInfo.loopCount = numLoops;
 
-    uint64_t loopHashes = reserveDataOffset(loopsFound.size() * sizeof(uint64_t));
+    uint64_t loopHashes = reserveDataOffset(numLoops * sizeof(uint64_t));
     initializeReservedPointer(loopHashes, loopInfoStruct + offsetof(LoopTimers, loopHashes));
 
     loopInfo.loopTimerAccum = NULL;
@@ -336,6 +329,8 @@ void LoopIntercept::instrument(){
         InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), programExit, InstrumentationMode_tramp);
         ASSERT(p);
     }
+
+
     Vector<Base*>* allBlocks = new Vector<Base*>();
     Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allLineInfos = new Vector<LineInfo*>();
@@ -375,6 +370,8 @@ void LoopIntercept::instrument(){
 
                 // source block falls through into loop
                 if (source->getBaseAddress() + source->getNumberOfBytes() == head->getBaseAddress()){
+
+                    // INSTRUMENTATION: add loop Entry for a fall-through loop entry
                     InstrumentationPoint* pt = addInstrumentationPoint(source->getExitInstruction(), loopEntry, InstrumentationMode_trampinline, InstLocation_after);
                     assignStoragePrior(pt, site, loopEntryIndexRegister);
 
@@ -387,46 +384,54 @@ void LoopIntercept::instrument(){
             }
         }
 
+        // Find all exit points for loop
         BasicBlock** allLoopBlocks = new BasicBlock*[loop->getNumberOfBlocks()];
         loop->getAllBlocks(allLoopBlocks);
         for (uint32_t k = 0; k < loop->getNumberOfBlocks(); k++){
             Vector<BasicBlock*> exitInterpositions;
             BasicBlock* bb = allLoopBlocks[k];
+
+            // procedure returns
             if (bb->endsWithReturn()){
+                // INSTRUMENTATION
                 InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, InstLocation_prior);
                 assignStoragePrior(pt, site, loopExitIndexRegister);
                 
                 PRINT_INFOR("\tEXIT-FNRETURN(%d)\tBLK:%#llx --> ?", site, bb->getBaseAddress());
-
                 continue;
             }
 
+            // branches or fall-throughs
             for (uint32_t m = 0; m < bb->getNumberOfTargets(); m++){
                 BasicBlock* target = bb->getTargetBlock(m);
 
-                // target is outside the loop
-                if (!loop->isBlockIn(target->getIndex())){
+                // Skip if the target is inside this loop
+                if(loop->isBlockIn(target->getIndex()))
+                    continue;
 
-                    // target is adjacent to bb 
-                    if (target->getBaseAddress() == bb->getBaseAddress() + bb->getNumberOfBytes()){
-                       InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, InstLocation_after);
-                       assignStoragePrior(pt, site, loopExitIndexRegister);
+                // target is adjacent to bb 
+                if (target->getBaseAddress() == bb->getBaseAddress() + bb->getNumberOfBytes()){
+                   // INSTRUMENTATION: loop exit via fallthrough
+                   InstrumentationPoint* pt = addInstrumentationPoint(bb->getExitInstruction(), loopExit, InstrumentationMode_trampinline, InstLocation_after);
+                   assignStoragePrior(pt, site, loopExitIndexRegister);
 
-                        PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx", site, bb->getBaseAddress(), target->getBaseAddress());
+                    PRINT_INFOR("\tEXIT-FALLTHRU(%d)\tBLK:%#llx --> BLK:%#llx", site, bb->getBaseAddress(), target->getBaseAddress());
 
-                    // target needs an interposition
-                    } else {
-                        // interpose a block between head of loop and target and instrument the interposed block
-                        exitInterpositions.append(target);
-                    }
+                // target needs an interposition
+                } else {
+                    // interpose a block between head of loop and target and instrument the interposed block
+                    exitInterpositions.append(target);
                 }
             }
 
+/*
             FlagsProtectionMethods prot = FLAGS_METHOD;
             if (bb->getExitInstruction()->allFlagsDeadOut()){
                 prot = FlagsProtectionMethod_none;
             }
-            
+*/
+          
+            // Add loop exits for all the interpositions we recorded
             for (uint32_t m = 0; m < exitInterpositions.size(); m++){
                 BasicBlock* interb = exitInterpositions[m];
                 bool linkFound = false;
@@ -450,11 +455,13 @@ void LoopIntercept::instrument(){
         }
         delete[] allLoopBlocks;
 
+        // Setup interpositions for each loop entry point
+/*
         FlagsProtectionMethods prot = FLAGS_METHOD;
         if (head->getLeader()->allFlagsDeadIn()){
             prot = FlagsProtectionMethod_none;
         }
-
+*/
         for (uint32_t j = 0; j < entryInterpositions.size(); j++){
             BasicBlock* interb = entryInterpositions[j];
             bool linkFound = false;

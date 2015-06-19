@@ -34,6 +34,7 @@
 
 #include <set>
 #include <vector>
+#include <stack>
 
 using namespace std;
 
@@ -42,6 +43,433 @@ void FlowGraph::wedge(uint32_t shamt){
         blocks[i]->setBaseAddress(blocks[i]->getBaseAddress() + shamt);
     }
 }
+
+static uint32_t getRegId(enum ud_type reg) {
+    if(IS_16BIT_GPR(reg)) {
+        return reg + 32;
+    } else if(IS_32BIT_GPR(reg)) {
+        return reg + 16;
+    }
+
+    return reg;
+}
+
+struct RegisterStatePrediction {
+    // current instruction and index in block
+    X86Instruction* ins;
+    uint32_t idx;
+
+    // Register state
+    std::pebil_map_type<uint32_t, RuntimeValue> state;
+
+    std::stack<RuntimeValue> stack;
+
+    // copy constructor
+    RegisterStatePrediction(RegisterStatePrediction& other) {
+        // copy register state
+        state = other.state;
+        stack = other.stack;
+    }
+
+    RegisterStatePrediction() {}
+};
+
+// Merge possible value states from newState into oldState
+// Return true if changes were made
+static bool mergeStates(struct RegisterStatePrediction* oldState, struct RegisterStatePrediction* newState) {
+    if(oldState->ins != newState->ins) {
+        printf("ERROR? Trying to merge states for different instructions! 0x%llx 0x%llx\n", newState->ins, oldState->ins);
+        newState->ins->print();
+        oldState->ins->print();
+    }
+    assert(oldState->ins == newState->ins);
+    assert(oldState->idx == newState->idx);
+
+    bool changesMade = false;
+
+    // Update old register states
+    for(std::pebil_map_type<uint32_t, RuntimeValue>::iterator it = oldState->state.begin(); it != oldState->state.end(); ++it) {
+        uint32_t reg = it->first;
+        RuntimeValue v = it->second;
+
+        // If the confidence is already Maybe, it will always be Maybe
+        if(v.confidence == Maybe) {
+            newState->state.erase(reg);
+            continue;
+        }
+
+        // Since, it must be Definitely, check against value in new state
+        // Drop the confidence if newState has a different value or lower/missing confidence
+        std::pebil_map_type<uint32_t, RuntimeValue>::iterator newVit = newState->state.find(reg);
+        if(newVit != newState->state.end()) {
+            RuntimeValue newV = newVit->second;
+            if(newV.confidence == Definitely && v.value == newV.value) {
+                // Do nothing
+            } else {
+                v.confidence = Maybe;
+            }
+            newState->state.erase(newVit);
+        } else {
+            v.confidence = Maybe;
+        }
+
+        // If the confidence changed, update it
+        if(v.confidence == Maybe) {
+            changesMade = true;
+            oldState->state[reg] = v;
+        }
+    }
+
+    // Merge any new register states
+    for(std::pebil_map_type<uint32_t, RuntimeValue>::iterator it = newState->state.begin(); it != newState->state.end(); ++it) {
+        uint32_t reg = it->first;
+        RuntimeValue v = it->second;
+
+        // since this value wasn't removed, it must be new to old state and confidence must be Maybe
+        assert(oldState->state.count(reg) == 0);
+        changesMade = true;
+        v.confidence = Maybe;
+        oldState->state[reg] = v;
+    }
+
+    // Merge stack states FIXME assume no change for now
+    return changesMade;
+}
+
+static RuntimeValue getValueOfOperand(OperandX86* src, RegisterStatePrediction* item) {
+    if(src->getType() == UD_OP_IMM)
+        return {Definitely, src->getValue()};
+    else if(src->getType() == UD_OP_REG) {
+        if(item->state.find(getRegId(src->GET(base))) != item->state.end()) {
+            RuntimeValue val = item->state[getRegId(src->GET(base))];
+            return val;
+        }
+    }
+
+    return {Unknown, 0};
+}
+
+// Determine the values of vector mask registers for all instructions
+// This is a forward moving worklist algorithm using constant value propogation
+// to statically predict the values of registers
+void FlowGraph::computeVectorMasks(){
+
+    //fprintf(stderr, "Computing vector masks for function %s\n", function->getName());
+    std::pebil_map_type<X86Instruction*, struct RegisterStatePrediction*> instruction_states;
+
+    // build maps of addresses -> instructions/blocks
+    std::pebil_map_type<uint64_t, X86Instruction*> imap;
+    std::pebil_map_type<uint64_t, BasicBlock*> bmap;
+    for (uint32_t i = 0; i < basicBlocks.size(); i++){
+        BasicBlock* bb = basicBlocks[i];
+        for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
+            X86Instruction* x = bb->getInstruction(j);
+            for (uint32_t k = 0; k < x->getSizeInBytes(); k++){
+                ASSERT(imap.count(x->getBaseAddress() + k) == 0);
+                ASSERT(bmap.count(x->getBaseAddress() + k) == 0);
+                imap[x->getBaseAddress() + k] = x;
+                bmap[x->getBaseAddress() + k] = bb;
+            }
+        }
+    }
+
+    // The worklist is a queue
+    // priorities are unused, should be all 0
+    PriorityQueue<RegisterStatePrediction*, int> worklist = PriorityQueue<struct RegisterStatePrediction*, int>();
+
+    // get first instruction
+    X86Instruction* firstIns = basicBlocks[0]->getInstruction(0);
+    assert(firstIns != NULL);
+
+    // make an initial register state
+    struct RegisterStatePrediction* first = new RegisterStatePrediction();
+    first->ins = firstIns;
+    first->idx = 0;
+    first->state[getRegId(UD_R_K0)] = {Definitely, 0xFFFF};
+    worklist.insert(first, 0);
+
+    // Initialize worklist with first instruction
+    // while worklist has items:
+    //   remove i from worklist
+    //   i.vectorInfo.k1val = Predict(i, k1)
+    //   add targets of i to worklist
+    while(!worklist.isEmpty()) {
+        int unused;
+
+        // Get input register state
+        struct RegisterStatePrediction* item = worklist.deleteMin(&unused);
+        X86Instruction* ins = item->ins;
+
+        // Check if there is an existing state and end this path if states are the same
+        if(instruction_states.count(ins) > 0) {
+            struct RegisterStatePrediction* oldState = instruction_states[ins];
+            assert(ins == oldState->ins);
+            bool different = mergeStates(oldState, item);
+            delete item;
+            if(!different) {
+                continue;
+            }
+            item = oldState;
+        }
+        instruction_states[ins] = item;
+        assert(item->ins == ins);
+
+        // Set the mask register value
+        // if mask register is k0, hardwired to 0xffff
+        if(ins->GET(vector_mask_register) == UD_R_K0) {
+            ins->setKRegister({Definitely, 0xffff});
+
+        // otherwise search in input state
+        } else if(ins->GET(vector_mask_register) != 0) {
+            ins->setKRegister(item->state[ins->GET(vector_mask_register)]);
+        }
+
+        // Update state
+        RegisterStatePrediction* nextItem = new RegisterStatePrediction(*item);
+
+        // update to registers
+        OperandX86* dest = ins->getDestOperand();
+        if(dest && dest->getType() == UD_OP_REG) {
+            RuntimeValue value;
+
+            // Moves
+            if(ins->isMoveOperation() && ins->getSourceOperand(0) != NULL) {
+                OperandX86* src = ins->getSourceOperand(0);
+                value = getValueOfOperand(src, nextItem);
+
+            // Stack pops
+            } else if(ins->isStackPop()) {
+                if(!nextItem->stack.empty()) {
+                    value = nextItem->stack.top();
+                    nextItem->stack.pop();
+                } else {
+                    value = {Unknown, 0};
+                }
+
+            }
+            // Other instructions
+            else {
+                switch(ins->GET(mnemonic)) {
+                case UD_Iinc:
+                {
+                    RuntimeValue oldval = nextItem->state[getRegId(dest->GET(base))];
+                    if(oldval.confidence == Definitely) {
+                        value = {Definitely, oldval.value + 1};
+                    }
+                    break;
+                }
+                case UD_Ikand: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, srcVal.value & oldVal.value};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                case UD_Ikandn: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, srcVal.value & (~oldVal.value)};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                case UD_Ikandnr: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, (~srcVal.value) & oldVal.value};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                //case UD_Ikconcath:
+                //case UD_Ikconcatl:
+                //case UD_Ikextract:
+                //case UD_Ikmerge2l1h:
+                //case UD_Ikmerge2l1l:
+                case UD_Iknot: {
+                    OperandX86* src = ins->getSourceOperand(1); // FIXME pretending to have two source operands
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    if(srcVal.confidence == Definitely){
+                        value = {Definitely, ~srcVal.value};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                case UD_Ikor: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, srcVal.value | oldVal.value };
+                    } else {
+                        value = {Unknown, 0};
+                    }
+
+                }
+                //case UD_Ikortest:
+                case UD_Ikxnor: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, ~(srcVal.value ^ oldVal.value) };
+                    } else if(src->GET(base) == dest->GET(base)){
+                        value = {Definitely, 0xFFFF};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                }
+                case UD_Ikxor:
+                case UD_Ixor:
+                {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    if(src->getType() == UD_OP_REG && dest->GET(base) == src->GET(base)) {
+                        value = {Definitely, 0};
+                    } else {
+                        RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                        RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                        if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                            value = {Definitely, srcVal.value ^ oldVal.value};
+                        } else {
+                            value = {Unknown, 0};
+                        }
+                    }
+                    break;
+                }
+                case UD_Ivcmppd:
+                case UD_Ivcmpps:
+                {
+                    // Check for equality comparisons between the same register
+                    Vector<OperandX86*>* sources = ins->getSourceOperands();
+                    SwizzleOperation swiz = ins->getSwizzleOperation();
+                    if( swiz == 0 && 
+                       (*sources)[0]->getType() == UD_OP_REG &&
+                       (*sources)[1]->getType() == UD_OP_REG ) {
+
+                        uint8_t cmpOp = (*sources)[2]->getValue();
+
+                        switch(cmpOp) {
+
+                        // eq, le, nlt
+                        case 0:
+                        case 2:
+                        case 5: value = {Definitely, 0xFF}; break;
+
+                        // lt, ne, nle
+                        case 1:
+                        case 4:
+                        case 6: value = {Definitely, 0}; break;
+
+                        case 3: // FIXME Unord
+                        case 7: // ord
+                        default:
+                            value = {Unknown, 0};
+                        }
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                default:
+                    value = {Unknown, 0};
+                    break;
+                }
+            }
+
+            //fprintf(stderr, "Writing %d, %d to register: %d\n", value.confidence, value.value, getRegId(dest->GET(base)));
+            nextItem->state[getRegId(dest->GET(base))] = value;
+
+        // Updates to stack
+        } else if(ins->isStackPush()) {
+            //ins->print();
+            RuntimeValue value;
+            OperandX86* src = ins->getSourceOperand(0);
+            if(src == NULL) {
+                value = {Unknown, 0};
+                //fprintf(stderr, "Pushing unknown onto stack\n");
+            } else {
+                value = getValueOfOperand(src, nextItem);
+            }
+            nextItem->stack.push(value);
+
+        }
+
+        // Implicit writes to mask register
+        if(ins->GET(mnemonic) >= UD_Ivgatherdpd && ins->GET(mnemonic) <= UD_Ivgatherpf1dps ||
+           ins->GET(mnemonic) >= UD_Ivscatterdpd && ins->GET(mnemonic) <= UD_Ivscatterpf1dps ||
+           ins->GET(mnemonic) == UD_Ivpscatterdd || ins->GET(mnemonic) == UD_Ivpscatterdq ||
+           ins->GET(mnemonic) == UD_Ivpgatherdd || ins->GET(mnemonic) == UD_Ivpgatherdq) {
+            nextItem->state[ins->GET(vector_mask_register)].confidence = Maybe;
+        }
+
+        // add targets of i to worklist
+        bool passed = false;
+
+        // fallthrough targets
+        if(ins->controlFallsThrough()) {
+            BasicBlock* tgtBlock = bmap[ins->getBaseAddress() + ins->getSizeInBytes()];
+            if(tgtBlock) {
+                X86Instruction* ftTarget = imap[ins->getBaseAddress() + ins->getSizeInBytes()];
+                if(ftTarget) {
+                    // fall through to new block
+                    if(ftTarget->isLeader()) {
+                            nextItem->ins = ftTarget;
+                            nextItem->idx = 0;
+                            worklist.insert(nextItem, 0);
+                            passed = true;
+                    // fall through to next instruction
+                    } else {
+                        nextItem->ins = ftTarget;
+                        nextItem->idx = 0;
+                        worklist.insert(nextItem, 0);
+                        passed = true;
+                    }
+                }
+            }
+        }
+
+        // targets of branches/calls within this function
+        if(ins->usesControlTarget() && bmap.count(ins->getTargetAddress()) > 0) {
+            BasicBlock* tgtBlock = bmap[ins->getTargetAddress()];
+            if(tgtBlock) {
+                if(!passed) {
+                    // pass this item and avoid copying state
+                    nextItem->ins = tgtBlock->getLeader();
+                    nextItem->idx = 0;
+                    worklist.insert(nextItem, 0);
+                    passed = true;
+                } else {
+                    // copy state
+                    nextItem = new RegisterStatePrediction(*nextItem);
+                    nextItem->ins = tgtBlock->getLeader();
+                    nextItem->idx = 0;
+                    worklist.insert(nextItem, 0);
+                    passed = true;
+                }
+            }
+        }
+
+        if(!passed) {
+            delete nextItem;
+        }
+    }
+
+    for(std::pebil_map_type<X86Instruction*, struct RegisterStatePrediction*>::iterator it = instruction_states.begin(); it != instruction_states.end(); ++it) {
+        delete it->second;
+    }
+}
+
 
 uint32_t loopXDefUseDist(uint32_t currDist, uint32_t funcSize){
     return currDist + funcSize;
@@ -149,8 +577,8 @@ bool flowsInDefUseScope(BasicBlock* tgt, Loop* loop){
 }
 
 inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loop* loop,
-                         std::pebil_map_type<uint64_t, X86Instruction*>& ipebil_map_type,
-                         std::pebil_map_type<uint64_t, BasicBlock*>& bpebil_map_type,
+                         std::pebil_map_type<uint64_t, X86Instruction*>& imap,
+                         std::pebil_map_type<uint64_t, BasicBlock*>& bmap,
                          std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& alliuses,
                          std::pebil_map_type<uint64_t, LinkedList<X86Instruction::ReachingDefinition*>*>& allidefs,
                          int k, uint64_t loopLeader, uint32_t fcnt){
@@ -237,7 +665,7 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
         // end of block that is a branch
         if (cand->usesControlTarget() && !cand->isCall()){
-            BasicBlock* tgtBlock = bpebil_map_type[cand->getTargetAddress()];
+            BasicBlock* tgtBlock = bmap[cand->getTargetAddress()];
             if (tgtBlock && !blockTouched[tgtBlock->getIndex()] && flowsInDefUseScope(tgtBlock, loop)){
                 blockTouched[tgtBlock->getIndex()] = true;
                 if (tgtBlock->getBaseAddress() == loopLeader){
@@ -250,9 +678,9 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
 
         // non-branching control
         if (cand->controlFallsThrough()){
-            BasicBlock* tgtBlock = bpebil_map_type[cand->getBaseAddress() + cand->getSizeInBytes()];
+            BasicBlock* tgtBlock = bmap[cand->getBaseAddress() + cand->getSizeInBytes()];
             if (tgtBlock && flowsInDefUseScope(tgtBlock, loop)){
-                X86Instruction* ftTarget = ipebil_map_type[cand->getBaseAddress() + cand->getSizeInBytes()];
+                X86Instruction* ftTarget = imap[cand->getBaseAddress() + cand->getSizeInBytes()];
                 if (ftTarget){
                     if (ftTarget->isLeader()){
                         if (!blockTouched[tgtBlock->getIndex()]){
@@ -285,6 +713,7 @@ inline void singleDefUse(FlowGraph* fg, X86Instruction* ins, BasicBlock* bb, Loo
         delete *it;
     }
 }
+
 
 void FlowGraph::computeDefUseDist(){
     uint32_t fcnt = function->getNumberOfInstructions();
@@ -469,6 +898,7 @@ Loop* FlowGraph::getOuterMostLoopForLoop(uint32_t idx){
     return input;
 }
 
+// Gets any outer loop of loop idx
 Loop* FlowGraph::getOuterLoop(uint32_t idx){
     Loop* input = loops[idx];
     for (uint32_t i = 0; i < loops.size(); i++){
@@ -818,6 +1248,7 @@ void FlowGraph::printLoops(){
         PRINT_INFOR("Flowgraph @ %#llx has %d loops", basicBlocks[0]->getBaseAddress(), loops.size());
     }
     for (uint32_t i = 0; i < loops.size(); i++){
+        //loops[i]->printLiveness();
         loops[i]->print();
     }
 }
@@ -856,7 +1287,9 @@ BasicBlock** FlowGraph::getAllBlocks(){
 
 uint32_t FlowGraph::buildLoops(){
 
-    ASSERT(!loops.size());
+    if(loops.size())
+        return loops.size();
+
     PRINT_DEBUG_LOOP("Considering flowgraph for function %d -- has %d blocks", function->getIndex(),  basicBlocks.size());
 
     BasicBlock** allBlocks = new BasicBlock*[basicBlocks.size()]; 
@@ -866,6 +1299,7 @@ uint32_t FlowGraph::buildLoops(){
     BitSet <BasicBlock*>* visitedBitSet = newBitSet();
     BitSet <BasicBlock*>* completedBitSet = newBitSet();
 
+    // find back edges in control flow graph
     depthFirstSearch(allBlocks[0], visitedBitSet, true, completedBitSet, &backEdges);
 
     delete[] allBlocks;
@@ -890,6 +1324,7 @@ uint32_t FlowGraph::buildLoops(){
         BasicBlock* to = backEdges.shift();
         ASSERT(from && to && "Fatal: Backedge end points are invalid");
 
+        // Loops are backedges where head dominates the backedge
         if(from->isDominatedBy(to)){
             /* for each back edge found, perform natural loop finding algorithm 
                from pg. 604 of the Aho/Sethi/Ullman (Dragon) compiler book */
@@ -899,6 +1334,7 @@ uint32_t FlowGraph::buildLoops(){
 
             numberOfLoops++;
 
+            // determine which blocks are in the loop
             loopStack.clear();
             inLoop->clear();
 
@@ -937,6 +1373,7 @@ uint32_t FlowGraph::buildLoops(){
 
     PRINT_DEBUG_LOOP("\t%d Contains %d loops (back edges) from %d", getIndex(),numberOfLoops,basicBlocks.size());
 
+    // Sort loops by loop head
     if (numberOfLoops){
         uint32_t i = 0;
         while (!loopList.empty()){
@@ -1062,6 +1499,8 @@ void FlowGraph::setImmDominatorBlocks(BasicBlock* root){
     //delete[] allBlocks;
 }
 
+// Does a depth first search from root, marking blocks in visitedSet (unmarking if visitedMarkOnSet is false)
+// inserts back edges as pairs of nodes
 void FlowGraph::depthFirstSearch(BasicBlock* root, BitSet<BasicBlock*>* visitedSet, bool visitedMarkOnSet,
                                  BitSet<BasicBlock*>* completedSet, LinkedList<BasicBlock*>* backEdges)
 {
@@ -1072,6 +1511,7 @@ void FlowGraph::depthFirstSearch(BasicBlock* root, BitSet<BasicBlock*>* visitedS
         visitedSet->remove(root->getIndex());
     }
 
+    // Recurse until target has already been visited
     uint32_t numberOfTargets = root->getNumberOfTargets();
     for(uint32_t i=0;i<numberOfTargets;i++){
         BasicBlock* target = root->getTargetBlock(i);
@@ -1086,6 +1526,7 @@ void FlowGraph::depthFirstSearch(BasicBlock* root, BitSet<BasicBlock*>* visitedS
         }
     }
 
+    // paths from here are searched, if this is a future target, it won't be a backedge
     if(completedSet){
         if(visitedMarkOnSet){
             completedSet->insert(root->getIndex());

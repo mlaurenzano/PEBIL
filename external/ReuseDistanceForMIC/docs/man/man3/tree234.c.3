@@ -1,0 +1,146 @@
+.TH "/home/michaell/software/ReuseDistance/tree234.c" 3 "21 Oct 2012" "Version 0.01" "ReuseDistance" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+/home/michaell/software/ReuseDistance/tree234.c \- 
+.SH SYNOPSIS
+.br
+.PP
+\fC#include <stdio.h>\fP
+.br
+\fC#include <stdlib.h>\fP
+.br
+\fC#include <assert.h>\fP
+.br
+\fC#include 'tree234.h'\fP
+.br
+\fC#include <tree234.h>\fP
+.br
+\fC#include <algorithm>\fP
+.br
+\fC#include <iostream>\fP
+.br
+\fC#include <ostream>\fP
+.br
+\fC#include <list>\fP
+.br
+\fC#include <map>\fP
+.br
+\fC#include <vector>\fP
+.br
+
+.SS "Classes"
+
+.in +1c
+.ti -1c
+.RI "struct \fBtree234_Tag\fP"
+.br
+.ti -1c
+.RI "struct \fBnode234_Tag\fP"
+.br
+.in -1c
+.SS "Defines"
+
+.in +1c
+.ti -1c
+.RI "#define \fBsmalloc\fP   malloc"
+.br
+.ti -1c
+.RI "#define \fBsfree\fP   free"
+.br
+.ti -1c
+.RI "#define \fBmknew\fP(typ)   ( (typ *) smalloc (sizeof (typ)) )"
+.br
+.ti -1c
+.RI "#define \fBLOG\fP(x)"
+.br
+.ti -1c
+.RI "#define \fBreusecmp\fP(va, vb)   (va->__seq - vb->__seq)"
+.br
+.in -1c
+.SS "Typedefs"
+
+.in +1c
+.ti -1c
+.RI "typedef struct \fBnode234_Tag\fP \fBnode234\fP"
+.br
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBtree234\fP * \fBnewtree234\fP ()"
+.br
+.ti -1c
+.RI "void \fBfreetree234\fP (\fBtree234\fP *t)"
+.br
+.ti -1c
+.RI "int \fBcount234\fP (\fBtree234\fP *t)"
+.br
+.ti -1c
+.RI "\fBReuseEntry\fP * \fBadd234\fP (\fBtree234\fP *t, \fBReuseEntry\fP *e)"
+.br
+.ti -1c
+.RI "\fBReuseEntry\fP * \fBindex234\fP (\fBtree234\fP *t, int index)"
+.br
+.ti -1c
+.RI "\fBReuseEntry\fP * \fBfindrelpos234\fP (\fBtree234\fP *t, \fBReuseEntry\fP *e, int *index)"
+.br
+.ti -1c
+.RI "\fBReuseEntry\fP * \fBdelpos234\fP (\fBtree234\fP *t, int index)"
+.br
+.ti -1c
+.RI "\fBReuseEntry\fP * \fBdel234\fP (\fBtree234\fP *t, \fBReuseEntry\fP *e)"
+.br
+.in -1c
+.SH "Define Documentation"
+.PP 
+.SS "#define LOG(x)"
+.PP
+Definition at line 47 of file tree234.c.
+.SS "#define mknew(typ)   ( (typ *) smalloc (sizeof (typ)) )"
+.PP
+Definition at line 42 of file tree234.c.
+.SS "#define reusecmp(va, vb)   (va->__seq - vb->__seq)"
+.PP
+Definition at line 50 of file tree234.c.
+.SS "#define sfree   free"
+.PP
+Definition at line 40 of file tree234.c.
+.SS "#define smalloc   malloc"
+.PP
+Definition at line 39 of file tree234.c.
+.SH "Typedef Documentation"
+.PP 
+.SS "typedef struct \fBnode234_Tag\fP \fBnode234\fP"
+.PP
+Definition at line 52 of file tree234.c.
+.SH "Function Documentation"
+.PP 
+.SS "\fBReuseEntry\fP* add234 (\fBtree234\fP * t, \fBReuseEntry\fP * e)"
+.PP
+Definition at line 394 of file tree234.c.
+.SS "int count234 (\fBtree234\fP * t)"
+.PP
+Definition at line 111 of file tree234.c.
+.SS "\fBReuseEntry\fP* del234 (\fBtree234\fP * t, \fBReuseEntry\fP * e)"
+.PP
+Definition at line 836 of file tree234.c.
+.SS "\fBReuseEntry\fP* delpos234 (\fBtree234\fP * t, int index)"
+.PP
+Definition at line 830 of file tree234.c.
+.SS "\fBReuseEntry\fP* findrelpos234 (\fBtree234\fP * t, \fBReuseEntry\fP * e, int * index)"
+.PP
+Definition at line 441 of file tree234.c.
+.SS "void freetree234 (\fBtree234\fP * t)"
+.PP
+Definition at line 87 of file tree234.c.
+.SS "\fBReuseEntry\fP* index234 (\fBtree234\fP * t, int index)"
+.PP
+Definition at line 402 of file tree234.c.
+.SS "\fBtree234\fP* newtree234 ()"
+.PP
+Definition at line 68 of file tree234.c.
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for ReuseDistance from the source code.

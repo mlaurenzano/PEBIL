@@ -20,6 +20,7 @@
 
 #include <Base.h>
 #include <InstrumentationTool.h>
+#include <HybridPhiElfFile.h>
 #include <Vector.h>
 #include <getopt.h>
 
@@ -199,6 +200,7 @@ static char* ToolNames[Total_InstrumentationType] = {
     "CacheSimulation"
 };
 
+
 int main(int argc,char* argv[]){
 
 #define DEFINE_FLAG(__name) int __name ## _flag = 0
@@ -211,6 +213,7 @@ int main(int argc,char* argv[]){
     DEFINE_FLAG(dtl);
     DEFINE_FLAG(doi);
     DEFINE_FLAG(threaded);
+    DEFINE_FLAG(hybrid);
     DEFINE_FLAG(images);
     DEFINE_FLAG(perinsn);
 
@@ -237,7 +240,7 @@ int main(int argc,char* argv[]){
         /* These options set a flag. */
         FLAG_OPTION(help, 'h'), FLAG_OPTION(allowstatic, 'w'), FLAG_OPTION(silent, 's'), FLAG_OPTION(dry, 'r'),
         FLAG_OPTION(version, 'V'), FLAG_OPTION(lpi, 'p'), FLAG_OPTION(dtl, 'd'), FLAG_OPTION(doi, 'i'), FLAG_OPTION(threaded, 'P'),
-        FLAG_OPTION(images, 'M'), FLAG_OPTION(perinsn, 'I'),
+        FLAG_OPTION(images, 'M'), FLAG_OPTION(perinsn, 'I'), FLAG_OPTION(hybrid, 'H'),
 
         /* These options take an argument
            We distinguish them by their indices. */
@@ -413,9 +416,9 @@ int main(int argc,char* argv[]){
     }
     sprintf(toolConstructor, "%sMaker", tool_arg);
 
-#ifdef STATIC_BUILD
     InstrumentationTool* (*maker)(ElfFile*);
 
+#ifdef STATIC_BUILD
 #define GENERATE_MAKER(__class) if (!strcmp(#__class, tool_arg)){ maker = __class ## Maker; }
     GENERATE_MAKER(TauFunctionTrace);
     GENERATE_MAKER(BasicBlockCounter);
@@ -434,7 +437,6 @@ int main(int argc,char* argv[]){
     }
 
 #else // STATIC_BUILD
-    void* maker = NULL;
     void* libHandle = NULL;    
     PRINT_INFOR("Using library %s and generator %s for dynamic class loading", toolLibName, toolConstructor);
 
@@ -451,7 +453,7 @@ int main(int argc,char* argv[]){
             PRINT_ERROR("cannot open tool library %s, it needs to be in your LD_LIBRARY_PATH", toolLibName);
             return 1;
         }
-        maker = dlsym(libHandle, toolConstructor);
+        maker = reinterpret_cast<InstrumentationTool*(*)(ElfFile*)>(dlsym(libHandle, toolConstructor));
         dlErr = dlerror();
         if (dlErr){
             PRINT_ERROR("Error from dlsym: %s", dlErr);
@@ -481,67 +483,71 @@ int main(int argc,char* argv[]){
         }
         sprintf(appName, "%s\0", execName + startApp);
         
-        ElfFile elfFile(execName, appName);
+
+        /********************* Create elf file object *************************/
+        ElfFile* elfFile;
+
+        if (hybrid_flag){
+            elfFile = new HybridPhiElfFile(execName, appName);
+        } else {
+            elfFile = new ElfFile(execName, appName);
+        }
+
         instrumented.insert(execName);
 
         TIMER(t1 = timer(); tapp = t1);
-        elfFile.parse();
-        elfFile.initSectionFilePointers();
+        elfFile->parse();
+        elfFile->initSectionFilePointers();
         TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Parse  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
-        
-        elfFile.generateCFGs();
+
+        elfFile->generateCFGs();
         TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Disasm/cfg : %.2f seconds",++stepNumber,t2-t1);t1=t2);    
         
-        elfFile.findLoops();
+        elfFile->findLoops();
         TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Loop    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
         
         PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
             
         if (inf_arg){
-            elfFile.print(printCodes);
+            elfFile->print(printCodes);
+
             TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
         }
         
-        elfFile.verify();
+        elfFile->verify();
         TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Verify  : %.2f seconds",++stepNumber,t2-t1);t1=t2);
 
-        elfFile.anchorProgramElements();
+        elfFile->anchorProgramElements();
 
         // if space is needed in front of the binary's elf control, try to shift all binary contents out of the way
-        if (elfFile.getProgramBaseAddress() < WEDGE_SHAMT){
-            if (!elfFile.isSharedLib()){
+        if (elfFile->getProgramBaseAddress() < WEDGE_SHAMT){
+            if (!elfFile->isSharedLib()){
                 PRINT_WARN(20, "The base address of this binary is too small, but the binary is an executable.");
                 PRINT_WARN(20, "Will attempt to shift all program addresses, which will probably fail because executables usually contain position-dependent code/data.");
             }
             PRINT_INFOR("Shifting virtual address of all program contents by %#lx", WEDGE_SHAMT);
-            elfFile.wedge(WEDGE_SHAMT);
+            elfFile->wedge(WEDGE_SHAMT);
 
             TIMER(t2 = timer();PRINT_INFOR("___timer: Step %d Wedge   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
         }
 
+	/****************** Either instrument or dump original file **********/
         if (instType == identical_inst_type){
             if (out_arg){
-                elfFile.dump(out_arg, false);
+                elfFile->dump(out_arg, false);
             } else {
-                elfFile.dump(ext_arg);
+                elfFile->dump(ext_arg);
             }
             PRINT_INFOR("Dumping identical binary from stored executable information");
             printSuccess();
         } else {
             ASSERT(maker);
 
-#ifdef STATIC_BUILD
-            InstrumentationTool* instTool = maker(&elfFile);
-#else 
-            InstrumentationTool* instTool = reinterpret_cast<InstrumentationTool*(*)(ElfFile*)>(maker)(&elfFile);
-#endif
+/******************** Begin application instrumentation ***********************/
+
+            InstrumentationTool* instTool = maker(elfFile);
 
             ASSERT(!strcmp(tool_arg, instTool->briefName()) && "name yielded by briefName does not match tool name");
-
-            instTool->initToolArgs(lpi_flag == 0 ? false : true,
-                                   dtl_flag == 0 ? false : true,
-                                   doi_flag == 0 ? false : true,
-                                   0, inp_arg, dfp_arg, trk_arg);
 
             char ext[__MAX_STRING_SIZE];
             if (ext_arg){
@@ -565,6 +571,15 @@ int main(int argc,char* argv[]){
             }
             ASSERT(phaseNo == 0 || phaseNo == 1);
 
+            instTool->init(ext_arg);
+            instTool->initToolArgs(lpi_flag == 0 ? false : true,
+                                   dtl_flag == 0 ? false : true,
+                                   doi_flag == 0 ? false : true,
+                                   phaseNo, inp_arg, dfp_arg, trk_arg);
+            if (!instTool->verifyArgs()){
+                printUsage("argument missing/incorrect");
+            }
+
             if (lnc_arg){
                 instTool->setLibraryList(lnc_arg);
             }
@@ -580,6 +595,11 @@ int main(int argc,char* argv[]){
                 instTool->setThreadedMode();
             }
 
+            if (hybrid_flag){
+                instTool->setHybridOffloadMode();
+                instTool->setMaker(maker);
+            }
+
             if (images_flag){
                 instTool->setMultipleImages();
             }
@@ -588,27 +608,20 @@ int main(int argc,char* argv[]){
                 instTool->setPerInstruction();
             }
             
-            instTool->init(ext_arg);
-            instTool->initToolArgs(lpi_flag == 0 ? false : true,
-                                   dtl_flag == 0 ? false : true,
-                                   doi_flag == 0 ? false : true,
-                                   phaseNo, inp_arg, dfp_arg, trk_arg);
-            if (!instTool->verifyArgs()){
-                printUsage("argument missing/incorrect");
-            }
-            
             ASSERT(instTool);
             instTool->phasedInstrumentation();
             PRINT_MEMTRACK_STATS(__LINE__, __FILE__, __FUNCTION__);
             instTool->print(Print_Code_Instrumentation);
             TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Instr   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
-            
-            elfFile.printDynamicLibraries();
+           
+/**************************** Print any extra information *********************/
+            elfFile->printDynamicLibraries();
             if (inf_arg){
                 instTool->print(printCodes);
                 TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
             }
             
+/************************ Dump instrumented binary ****************************/
             // the ludicrous way extensions are handled is to keep faith with the way pmacinst treated them
             if (out_arg){
                 instTool->dump(out_arg, false);
@@ -616,11 +629,8 @@ int main(int argc,char* argv[]){
                 instTool->dump(ext);
             }
             TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Dump    : %.2f seconds",++stepNumber,t2-t1);t1=t2);
-            if (inf_arg){
-                instTool->print(printCodes);
-                TIMER(t2 = timer();PRINT_INFOR("___timer: Instrumentation Step %d Print   : %.2f seconds",++stepNumber,t2-t1);t1=t2);
-            }
             
+
             printSuccess();
             TIMER(t2 = timer();PRINT_INFOR("___timer: Application %s Total : %.2f seconds", execName, t2-tapp););
             
@@ -628,6 +638,7 @@ int main(int argc,char* argv[]){
         }
 
         delete[] appName;
+        delete elfFile;
     }
 
     TIMER(t2 = timer();PRINT_INFOR("___timer: Total Execution Time          : %.2f seconds",t2-tt););

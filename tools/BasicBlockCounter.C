@@ -33,10 +33,6 @@
 #include <CacheSimulationCommon.hpp>
 #include <CounterFunctions.hpp>
 
-#define LOOP_EXT "loopcnt"
-#define ENTRY_LOOP_COUNT "initloop"
-#define EXIT_LOOP_COUNT "loopcounter"
-
 #define ENTRY_FUNCTION "tool_image_init"
 #define EXIT_FUNCTION "tool_image_fini"
 #define INST_LIB_NAME "libcounter.so"
@@ -56,9 +52,6 @@ BasicBlockCounter::BasicBlockCounter(ElfFile* elf)
     entryFunc = NULL;
     exitFunc = NULL;
 
-    loopEntry = NULL;
-    loopExit = NULL;
-
     loopCount = true;
 }
 
@@ -77,12 +70,6 @@ void BasicBlockCounter::declare()
     entryFunc = declareFunction(ENTRY_FUNCTION);
     ASSERT(entryFunc && "Cannot find entry function, are you sure it was declared?");
 
-    loopExit = declareFunction(EXIT_LOOP_COUNT);
-    ASSERT(loopExit && "Cannot find exit function, are you sure it was declared?");
-
-    loopEntry = declareFunction(ENTRY_LOOP_COUNT);
-    ASSERT(loopEntry && "Cannot find entry function, are you sure it was declared?");
-
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed"); 
 }
 
@@ -98,13 +85,13 @@ void BasicBlockCounter::instrument()
         lineInfoFinder = getLineInfoFinder();
     }
 
+    // Search for loops -- no instrumentation
     Vector<Loop*> loopsFound;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
 
         if (bb->isInLoop()){
             FlowGraph* fg = bb->getFlowGraph();
-            //Loop* outerMost = fg->getOuterMostLoopForLoop(fg->getInnermostLoopForBlock(bb->getIndex())->getIndex());
             Loop* outerMost = fg->getInnermostLoopForBlock(bb->getIndex());
 
             bool loopAlreadyInstrumented = false;
@@ -134,7 +121,7 @@ void BasicBlockCounter::instrument()
 
     ctrs.Initialized = true;
     ctrs.PerInstruction = isPerInstruction();
-    ctrs.Master = getElfFile()->isExecutable();
+    ctrs.Master = isMasterImage();
 
 #define INIT_CTR_ELEMENT(__typ, __nam)\
     ctrs.__nam = (__typ*)reserveDataOffset(numberOfPoints * sizeof(__typ));\
@@ -161,6 +148,7 @@ void BasicBlockCounter::instrument()
 
     initializeReservedData(getInstDataAddress() + counterStruct, sizeof(CounterArray), (void*)(&ctrs));
 
+    // Instrument exit block for image
     exitFunc->addArgument(imageKey);
     InstrumentationPoint* p = addInstrumentationPoint(getProgramExitBlock(), exitFunc, InstrumentationMode_tramp, InstLocation_prior);
     if (!p->getInstBaseAddress()){
@@ -171,7 +159,7 @@ void BasicBlockCounter::instrument()
     entryFunc->addArgument(imageKey);
     entryFunc->addArgument(threadHash);
 
-    // ALL_FUNC_ENTER
+    // Instrument entry points for image
     if (isMultiImage()){
         for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){
             Function* f = getExposedFunction(i);
@@ -216,6 +204,9 @@ void BasicBlockCounter::instrument()
         functionThreading = threadReadyCode(functionsToInst);
     }
 
+    // iteratate over each block/instruction
+    // block mode inserts a counter at each block
+    // instruction mode inserts a counter at each block and initializes a leader reference for each instruction
     uint64_t currentLeader = 0;
     for (uint32_t i = 0; i < numberOfBlocks; i++){
 
@@ -287,6 +278,8 @@ void BasicBlockCounter::instrument()
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Addresses + i*sizeof(uint64_t), sizeof(uint64_t), &addr);
         
         CounterTypes tmpct;
+
+        // Initialize counter data for non-leader instruction counters
         if (isPerInstruction()){
             // only keep a bb counter for one instruction in the block (the leader). all other instructions' counters hold the ID of the active counter
             // in their block
@@ -301,6 +294,7 @@ void BasicBlockCounter::instrument()
             }
         }
 
+        // other wise, for leader instructions
         currentLeader = i;
 
         tmpct = CounterType_basicblock;
@@ -321,7 +315,6 @@ void BasicBlockCounter::instrument()
     }
 
     PRINT_INFOR("Instrumenting %d loops for counting", loopsFound.size());
-
     for (uint32_t i = numberOfBlocks; i < numberOfPoints; i++){
         Loop* loop = loopsFound[i - numberOfBlocks];
         BasicBlock* head = loop->getHead();

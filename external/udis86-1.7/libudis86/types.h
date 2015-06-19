@@ -107,6 +107,24 @@ enum ud_type
   UD_R_YMM8,	UD_R_YMM9,	UD_R_YMM10,	UD_R_YMM11,
   UD_R_YMM12,	UD_R_YMM13,	UD_R_YMM14,	UD_R_YMM15,
 
+  /* 512-bit AVX registers */
+  /* 155 - 186 */
+  UD_R_ZMM0,	UD_R_ZMM1,	UD_R_ZMM2,	UD_R_ZMM3,
+  UD_R_ZMM4,	UD_R_ZMM5,	UD_R_ZMM6,	UD_R_ZMM7,
+  UD_R_ZMM8,	UD_R_ZMM9,	UD_R_ZMM10,	UD_R_ZMM11,
+  UD_R_ZMM12,	UD_R_ZMM13,	UD_R_ZMM14,	UD_R_ZMM15,
+
+  UD_R_ZMM16,	UD_R_ZMM17,	UD_R_ZMM18,	UD_R_ZMM19,
+  UD_R_ZMM20,	UD_R_ZMM21,	UD_R_ZMM22,	UD_R_ZMM23,
+  UD_R_ZMM24,	UD_R_ZMM25,	UD_R_ZMM26,	UD_R_ZMM27,
+  UD_R_ZMM28,	UD_R_ZMM29,	UD_R_ZMM30,	UD_R_ZMM31,
+
+  /* 16-bit K registers */
+  /* 187 - 194 */
+  UD_R_K0,	UD_R_K1,	UD_R_K2,	UD_R_K3,
+  UD_R_K4,	UD_R_K5,	UD_R_K6,	UD_R_K7,
+
+  /* 195 */
   UD_R_RIP,
 
   /* Operand Types */
@@ -140,7 +158,7 @@ struct ud_operand
   } lval;
   enum ud_type		base;
   enum ud_type		index;
-  uint8_t		offset;
+  uint8_t		offset; // offset size in bits
   uint8_t		scale;	
 };
 
@@ -182,6 +200,9 @@ struct ud
   uint8_t 		pfx_insn;
   uint8_t               pfx_avx;
   uint8_t               avx_vex[2];
+  uint8_t               mvex[3];
+  enum ud_type          vector_mask_register;
+  uint8_t               conversion;
   uint8_t		default64;
   uint8_t		opr_mode;
   uint8_t		adr_mode;

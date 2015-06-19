@@ -73,12 +73,15 @@ class TextObject;
 #define IS_X87_REG(__reg) ((__reg >= UD_R_ST0) && (__reg <= UD_R_ST7))
 #define IS_XMM_REG(__reg) ((__reg >= UD_R_XMM0) && (__reg <= UD_R_XMM15))
 #define IS_YMM_REG(__reg) ((__reg >= UD_R_YMM0) && (__reg <= UD_R_YMM15))
+#define IS_ZMM_REG(__reg) ((__reg >= UD_R_ZMM0) && (__reg <= UD_R_ZMM31))
+#define IS_K_REG(__reg) ((__reg >= UD_R_K0) && (__reg <= UD_R_K7))
 #define IS_PC_REG(__reg) (__reg == UD_R_RIP)
 #define IS_OPERAND_TYPE(__opr) ((__opr >= UD_OP_REG) && (__opr <= UD_OP_CONST))
 
 #define IS_GPR(__reg) (IS_8BIT_GPR(__reg) || IS_16BIT_GPR(__reg) || IS_32BIT_GPR(__reg) || IS_64BIT_GPR(__reg))
 #define IS_REG(__reg) (IS_GPR(__reg) || IS_SEGMENT_REG(__reg) || IS_CONTROL_REG(__reg) || IS_DEBUG_REG(__reg) || \
-                       IS_MMX_REG(__reg) || IS_X87_REG(__reg) || IS_XMM_REG(__reg) || IS_YMM_REG(__reg) || IS_PC_REG(__reg))
+                       IS_MMX_REG(__reg) || IS_X87_REG(__reg) || IS_XMM_REG(__reg) || IS_YMM_REG(__reg) || \
+                       IS_ZMM_REG(__reg) || IS_K_REG(__reg) || IS_PC_REG(__reg))
 #define IS_ALU_REG(__reg) (IS_GPR(__reg) || IS_XMM_REG(__reg))
 
 #define IS_LOADADDR(__mne) (__mne == UD_Ilea)
@@ -188,6 +191,33 @@ const static char* alu_name_map[X86_ALU_REGS] = { "ax", "cx", "dx", "bx", "sp", 
                                                   "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
                                                   "st0", "st1", "st2", "st3", "st4", "st5", "st6", "st7" };
 
+    
+enum Confidence {
+  Unknown, Maybe, Definitely
+};
+
+enum SwizzleOperation {
+  None,
+  SwapInnerPairs,
+  SwapWithTwoAway,
+  CrossProduct,
+  BroadcastA,
+  BroadcastB,
+  BroadcastC,
+  BroadcastD
+};
+
+struct RuntimeValue {
+    Confidence confidence;
+    uint64_t value;
+};
+
+struct VectorInfo {
+    uint8_t nElements;
+    uint8_t elementSize;
+    struct RuntimeValue kval;
+};
+
 class RegisterSet {
 public:
     RegisterSet();
@@ -271,6 +301,8 @@ struct ud_compact
     //uint8_t 		pfx_insn;
     //uint8_t           pfx_avx;
     //uint8_t           avx_vex[2];
+    enum ud_type        vector_mask_register;
+    uint8_t             conversion;
     //uint8_t		default64;
     //uint8_t		opr_mode;
     uint8_t		adr_mode;
@@ -300,8 +332,9 @@ enum X86InstructionType {
     X86InstructionType_move,
     X86InstructionType_float,
     X86InstructionType_string,
-    X86InstructionType_simd,
-    X86InstructionType_avx,
+    X86InstructionType_simdFloat,
+    X86InstructionType_simdInt,
+    X86InstructionType_simdMove,
     X86InstructionType_aes,
     X86InstructionType_io,
     X86InstructionType_prefetch,
@@ -334,6 +367,7 @@ enum X86InstructionBin {
     X86InstructionBin_binv,          // Binary
     X86InstructionBin_int,           // Integer
     X86InstructionBin_intv,          // Integer
+    X86InstructionBin_ints,
     X86InstructionBin_float,         // Floating
     X86InstructionBin_floatv,        // Floating
     X86InstructionBin_floats,        // Floating
@@ -368,6 +402,8 @@ typedef enum {
     RegType_X87,
     RegType_XMM,
     RegType_YMM,
+    RegType_ZMM,
+    RegType_K,
     RegType_PC,
     RegType_Total_Types
 } RegTypes;
@@ -434,6 +470,9 @@ private:
 
     uint32_t countValidNonimm();
 
+    struct VectorInfo vectorInfo;
+
+    void countElementsUnalignedLoadStore(bool, bool, bool);
 public:
 
     static X86Instruction* disassemble(char* buff);
@@ -444,9 +483,12 @@ public:
     uint64_t cacheBaseAddress;
 
     OperandX86* getDestOperand();
+    OperandX86* getSourceOperand(uint32_t index);
     Vector<OperandX86*>* getSourceOperands();
     Vector<OperandX86*>* getOperands();
     std::map<uint32_t, uint32_t>* getOperandLengthCounts();
+
+    SwizzleOperation getSwizzleOperation();
 
     INSTRUCTION_MACROS_CLASS("For the get_X/set_X field macros check the defines directory");
 
@@ -484,6 +526,9 @@ public:
     bool implicitlyUsesReg(uint32_t alu);
     bool implicitlyDefinesReg(uint32_t alu);
 
+    struct VectorInfo getVectorInfo();
+    struct RuntimeValue getRegisterValue(enum ud_type reg);
+    void setKRegister(RuntimeValue val);
 
     struct DefLocation {
         enum ud_type type;
@@ -546,7 +591,6 @@ public:
     bool isCall() { return isSystemCall() || isFunctionCall(); }
     bool isHalt() { return (getInstructionType() == X86InstructionType_halt); }
     bool isNop() { return (getInstructionType() == X86InstructionType_nop); }
-    bool isAvx() { return (getInstructionType() == X86InstructionType_avx); }
     bool isConditionCompare();
     bool isStackPush();
     bool isStackPop();
@@ -555,7 +599,9 @@ public:
     bool isSpecialRegOp();
     bool isLogicOp();
     bool isConditionalMove();
- 
+    bool isScatterGatherOp();
+    bool isVectorMaskOp();
+
     bool isBinUnknown();
     bool isBinInvalid();
     bool isBinCond();
@@ -564,6 +610,7 @@ public:
     bool isBinBinv();
     bool isBinInt();
     bool isBinIntv();
+    bool isBinInts();
     bool isBinFloat();
     bool isBinFloatv();
     bool isBinFloats();
@@ -643,6 +690,7 @@ private:
 
 public:
     static bool verify();
+    static void generateTable();
 
     static X86InstructionBin getInstructionBin(X86Instruction* x);
     static uint8_t getInstructionMemLocation(X86Instruction* x);

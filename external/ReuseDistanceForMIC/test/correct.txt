@@ -1,0 +1,1675 @@
+STRIDE-1 TEST
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# REUSESTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	REUSEID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+REUSESTATS	0	32	0	1	1000	100
+	REUSEID	0	1000	100
+		65	128	900
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	200	32	200	1	1000	100
+	REUSEID	0	1000	100
+		65	128	900
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	50	32	50	1	1000	1000
+	REUSEID	0	1000	1000
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# SPATIALSTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	SPATIALID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+SPATIALSTATS	1024	200	0	1	1000	1
+	SPATIALID	0	1000	1
+		0	0	900
+		1	1	99
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	64	1	32	1	1000	10
+	SPATIALID	0	1000	10
+		1	1	990
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	128	50	0	1	1000	1
+	SPATIALID	0	1000	1
+		0	0	900
+		1	1	99
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+LRGRANGE TEST
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# REUSESTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	REUSEID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+REUSESTATS	0	32	0	1	2000	200
+	REUSEID	0	2000	200
+		129	256	1800
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	200	32	200	1	2000	200
+	REUSEID	0	2000	200
+		129	256	1800
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	50	32	50	1	2000	2000
+	REUSEID	0	2000	2000
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# SPATIALSTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	SPATIALID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+SPATIALSTATS	1024	200	0	1	2000	1
+	SPATIALID	0	2000	1
+		0	0	1800
+		1	1	199
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	64	1	32	1	2000	10
+	SPATIALID	0	2000	10
+		1	1	1990
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	128	50	0	1	2000	1
+	SPATIALID	0	2000	1
+		1	1	1990
+		65	128	9
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+STRIDE-4 TEST
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# REUSESTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	REUSEID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+REUSESTATS	0	32	0	1	250	25
+	REUSEID	0	250	25
+		25	25	225
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	200	32	200	1	250	25
+	REUSEID	0	250	25
+		25	25	225
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	50	32	50	1	250	25
+	REUSEID	0	250	25
+		25	25	225
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# SPATIALSTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	SPATIALID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+SPATIALSTATS	1024	200	0	1	250	1
+	SPATIALID	0	250	1
+		0	0	225
+		4	4	24
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	64	1	32	1	250	1
+	SPATIALID	0	250	1
+		0	0	225
+		3	4	24
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	128	50	0	1	250	1
+	SPATIALID	0	250	1
+		0	0	225
+		4	4	24
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+TRIANGLE TEST
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# REUSESTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	REUSEID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+REUSESTATS	0	32	0	1	4950	99
+	REUSEID	0	4950	99
+		1	1	1
+		2	2	2
+		3	3	3
+		4	4	4
+		5	5	5
+		6	6	6
+		7	7	7
+		8	8	8
+		9	9	9
+		10	10	10
+		11	11	11
+		12	12	12
+		13	13	13
+		14	14	14
+		15	15	15
+		16	16	16
+		17	17	17
+		18	18	18
+		19	19	19
+		20	20	20
+		21	21	21
+		22	22	22
+		23	23	23
+		24	24	24
+		25	25	25
+		26	26	26
+		27	27	27
+		28	28	28
+		29	29	29
+		30	30	30
+		31	31	31
+		32	32	32
+		33	64	1552
+		65	128	2771
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	200	32	200	1	4950	99
+	REUSEID	0	4950	99
+		1	1	1
+		2	2	2
+		3	3	3
+		4	4	4
+		5	5	5
+		6	6	6
+		7	7	7
+		8	8	8
+		9	9	9
+		10	10	10
+		11	11	11
+		12	12	12
+		13	13	13
+		14	14	14
+		15	15	15
+		16	16	16
+		17	17	17
+		18	18	18
+		19	19	19
+		20	20	20
+		21	21	21
+		22	22	22
+		23	23	23
+		24	24	24
+		25	25	25
+		26	26	26
+		27	27	27
+		28	28	28
+		29	29	29
+		30	30	30
+		31	31	31
+		32	32	32
+		33	64	1552
+		65	128	2771
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	50	32	50	1	4950	3675
+	REUSEID	0	4950	3675
+		1	1	1
+		2	2	2
+		3	3	3
+		4	4	4
+		5	5	5
+		6	6	6
+		7	7	7
+		8	8	8
+		9	9	9
+		10	10	10
+		11	11	11
+		12	12	12
+		13	13	13
+		14	14	14
+		15	15	15
+		16	16	16
+		17	17	17
+		18	18	18
+		19	19	19
+		20	20	20
+		21	21	21
+		22	22	22
+		23	23	23
+		24	24	24
+		25	25	25
+		26	26	26
+		27	27	27
+		28	28	28
+		29	29	29
+		30	30	30
+		31	31	31
+		32	32	32
+		33	64	747
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# SPATIALSTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	SPATIALID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+SPATIALSTATS	1024	200	0	1	4950	1
+	SPATIALID	0	4950	1
+		0	0	4851
+		1	1	98
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	64	1	32	1	4950	2
+	SPATIALID	0	4950	2
+		0	0	2145
+		1	1	2772
+		2	2	1
+		3	4	2
+		5	8	4
+		9	16	8
+		17	32	16
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	128	50	0	1	4950	1
+	SPATIALID	0	4950	1
+		0	0	4851
+		1	1	98
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+IDDIFFER TEST
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# REUSESTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	REUSEID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+REUSESTATS	0	32	0	100	1000	100
+	REUSEID	0	10	1
+		65	128	9
+	REUSEID	1	10	1
+		65	128	9
+	REUSEID	2	10	1
+		65	128	9
+	REUSEID	3	10	1
+		65	128	9
+	REUSEID	4	10	1
+		65	128	9
+	REUSEID	5	10	1
+		65	128	9
+	REUSEID	6	10	1
+		65	128	9
+	REUSEID	7	10	1
+		65	128	9
+	REUSEID	8	10	1
+		65	128	9
+	REUSEID	9	10	1
+		65	128	9
+	REUSEID	10	10	1
+		65	128	9
+	REUSEID	11	10	1
+		65	128	9
+	REUSEID	12	10	1
+		65	128	9
+	REUSEID	13	10	1
+		65	128	9
+	REUSEID	14	10	1
+		65	128	9
+	REUSEID	15	10	1
+		65	128	9
+	REUSEID	16	10	1
+		65	128	9
+	REUSEID	17	10	1
+		65	128	9
+	REUSEID	18	10	1
+		65	128	9
+	REUSEID	19	10	1
+		65	128	9
+	REUSEID	20	10	1
+		65	128	9
+	REUSEID	21	10	1
+		65	128	9
+	REUSEID	22	10	1
+		65	128	9
+	REUSEID	23	10	1
+		65	128	9
+	REUSEID	24	10	1
+		65	128	9
+	REUSEID	25	10	1
+		65	128	9
+	REUSEID	26	10	1
+		65	128	9
+	REUSEID	27	10	1
+		65	128	9
+	REUSEID	28	10	1
+		65	128	9
+	REUSEID	29	10	1
+		65	128	9
+	REUSEID	30	10	1
+		65	128	9
+	REUSEID	31	10	1
+		65	128	9
+	REUSEID	32	10	1
+		65	128	9
+	REUSEID	33	10	1
+		65	128	9
+	REUSEID	34	10	1
+		65	128	9
+	REUSEID	35	10	1
+		65	128	9
+	REUSEID	36	10	1
+		65	128	9
+	REUSEID	37	10	1
+		65	128	9
+	REUSEID	38	10	1
+		65	128	9
+	REUSEID	39	10	1
+		65	128	9
+	REUSEID	40	10	1
+		65	128	9
+	REUSEID	41	10	1
+		65	128	9
+	REUSEID	42	10	1
+		65	128	9
+	REUSEID	43	10	1
+		65	128	9
+	REUSEID	44	10	1
+		65	128	9
+	REUSEID	45	10	1
+		65	128	9
+	REUSEID	46	10	1
+		65	128	9
+	REUSEID	47	10	1
+		65	128	9
+	REUSEID	48	10	1
+		65	128	9
+	REUSEID	49	10	1
+		65	128	9
+	REUSEID	50	10	1
+		65	128	9
+	REUSEID	51	10	1
+		65	128	9
+	REUSEID	52	10	1
+		65	128	9
+	REUSEID	53	10	1
+		65	128	9
+	REUSEID	54	10	1
+		65	128	9
+	REUSEID	55	10	1
+		65	128	9
+	REUSEID	56	10	1
+		65	128	9
+	REUSEID	57	10	1
+		65	128	9
+	REUSEID	58	10	1
+		65	128	9
+	REUSEID	59	10	1
+		65	128	9
+	REUSEID	60	10	1
+		65	128	9
+	REUSEID	61	10	1
+		65	128	9
+	REUSEID	62	10	1
+		65	128	9
+	REUSEID	63	10	1
+		65	128	9
+	REUSEID	64	10	1
+		65	128	9
+	REUSEID	65	10	1
+		65	128	9
+	REUSEID	66	10	1
+		65	128	9
+	REUSEID	67	10	1
+		65	128	9
+	REUSEID	68	10	1
+		65	128	9
+	REUSEID	69	10	1
+		65	128	9
+	REUSEID	70	10	1
+		65	128	9
+	REUSEID	71	10	1
+		65	128	9
+	REUSEID	72	10	1
+		65	128	9
+	REUSEID	73	10	1
+		65	128	9
+	REUSEID	74	10	1
+		65	128	9
+	REUSEID	75	10	1
+		65	128	9
+	REUSEID	76	10	1
+		65	128	9
+	REUSEID	77	10	1
+		65	128	9
+	REUSEID	78	10	1
+		65	128	9
+	REUSEID	79	10	1
+		65	128	9
+	REUSEID	80	10	1
+		65	128	9
+	REUSEID	81	10	1
+		65	128	9
+	REUSEID	82	10	1
+		65	128	9
+	REUSEID	83	10	1
+		65	128	9
+	REUSEID	84	10	1
+		65	128	9
+	REUSEID	85	10	1
+		65	128	9
+	REUSEID	86	10	1
+		65	128	9
+	REUSEID	87	10	1
+		65	128	9
+	REUSEID	88	10	1
+		65	128	9
+	REUSEID	89	10	1
+		65	128	9
+	REUSEID	90	10	1
+		65	128	9
+	REUSEID	91	10	1
+		65	128	9
+	REUSEID	92	10	1
+		65	128	9
+	REUSEID	93	10	1
+		65	128	9
+	REUSEID	94	10	1
+		65	128	9
+	REUSEID	95	10	1
+		65	128	9
+	REUSEID	96	10	1
+		65	128	9
+	REUSEID	97	10	1
+		65	128	9
+	REUSEID	98	10	1
+		65	128	9
+	REUSEID	99	10	1
+		65	128	9
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	200	32	200	100	1000	100
+	REUSEID	0	10	1
+		65	128	9
+	REUSEID	1	10	1
+		65	128	9
+	REUSEID	2	10	1
+		65	128	9
+	REUSEID	3	10	1
+		65	128	9
+	REUSEID	4	10	1
+		65	128	9
+	REUSEID	5	10	1
+		65	128	9
+	REUSEID	6	10	1
+		65	128	9
+	REUSEID	7	10	1
+		65	128	9
+	REUSEID	8	10	1
+		65	128	9
+	REUSEID	9	10	1
+		65	128	9
+	REUSEID	10	10	1
+		65	128	9
+	REUSEID	11	10	1
+		65	128	9
+	REUSEID	12	10	1
+		65	128	9
+	REUSEID	13	10	1
+		65	128	9
+	REUSEID	14	10	1
+		65	128	9
+	REUSEID	15	10	1
+		65	128	9
+	REUSEID	16	10	1
+		65	128	9
+	REUSEID	17	10	1
+		65	128	9
+	REUSEID	18	10	1
+		65	128	9
+	REUSEID	19	10	1
+		65	128	9
+	REUSEID	20	10	1
+		65	128	9
+	REUSEID	21	10	1
+		65	128	9
+	REUSEID	22	10	1
+		65	128	9
+	REUSEID	23	10	1
+		65	128	9
+	REUSEID	24	10	1
+		65	128	9
+	REUSEID	25	10	1
+		65	128	9
+	REUSEID	26	10	1
+		65	128	9
+	REUSEID	27	10	1
+		65	128	9
+	REUSEID	28	10	1
+		65	128	9
+	REUSEID	29	10	1
+		65	128	9
+	REUSEID	30	10	1
+		65	128	9
+	REUSEID	31	10	1
+		65	128	9
+	REUSEID	32	10	1
+		65	128	9
+	REUSEID	33	10	1
+		65	128	9
+	REUSEID	34	10	1
+		65	128	9
+	REUSEID	35	10	1
+		65	128	9
+	REUSEID	36	10	1
+		65	128	9
+	REUSEID	37	10	1
+		65	128	9
+	REUSEID	38	10	1
+		65	128	9
+	REUSEID	39	10	1
+		65	128	9
+	REUSEID	40	10	1
+		65	128	9
+	REUSEID	41	10	1
+		65	128	9
+	REUSEID	42	10	1
+		65	128	9
+	REUSEID	43	10	1
+		65	128	9
+	REUSEID	44	10	1
+		65	128	9
+	REUSEID	45	10	1
+		65	128	9
+	REUSEID	46	10	1
+		65	128	9
+	REUSEID	47	10	1
+		65	128	9
+	REUSEID	48	10	1
+		65	128	9
+	REUSEID	49	10	1
+		65	128	9
+	REUSEID	50	10	1
+		65	128	9
+	REUSEID	51	10	1
+		65	128	9
+	REUSEID	52	10	1
+		65	128	9
+	REUSEID	53	10	1
+		65	128	9
+	REUSEID	54	10	1
+		65	128	9
+	REUSEID	55	10	1
+		65	128	9
+	REUSEID	56	10	1
+		65	128	9
+	REUSEID	57	10	1
+		65	128	9
+	REUSEID	58	10	1
+		65	128	9
+	REUSEID	59	10	1
+		65	128	9
+	REUSEID	60	10	1
+		65	128	9
+	REUSEID	61	10	1
+		65	128	9
+	REUSEID	62	10	1
+		65	128	9
+	REUSEID	63	10	1
+		65	128	9
+	REUSEID	64	10	1
+		65	128	9
+	REUSEID	65	10	1
+		65	128	9
+	REUSEID	66	10	1
+		65	128	9
+	REUSEID	67	10	1
+		65	128	9
+	REUSEID	68	10	1
+		65	128	9
+	REUSEID	69	10	1
+		65	128	9
+	REUSEID	70	10	1
+		65	128	9
+	REUSEID	71	10	1
+		65	128	9
+	REUSEID	72	10	1
+		65	128	9
+	REUSEID	73	10	1
+		65	128	9
+	REUSEID	74	10	1
+		65	128	9
+	REUSEID	75	10	1
+		65	128	9
+	REUSEID	76	10	1
+		65	128	9
+	REUSEID	77	10	1
+		65	128	9
+	REUSEID	78	10	1
+		65	128	9
+	REUSEID	79	10	1
+		65	128	9
+	REUSEID	80	10	1
+		65	128	9
+	REUSEID	81	10	1
+		65	128	9
+	REUSEID	82	10	1
+		65	128	9
+	REUSEID	83	10	1
+		65	128	9
+	REUSEID	84	10	1
+		65	128	9
+	REUSEID	85	10	1
+		65	128	9
+	REUSEID	86	10	1
+		65	128	9
+	REUSEID	87	10	1
+		65	128	9
+	REUSEID	88	10	1
+		65	128	9
+	REUSEID	89	10	1
+		65	128	9
+	REUSEID	90	10	1
+		65	128	9
+	REUSEID	91	10	1
+		65	128	9
+	REUSEID	92	10	1
+		65	128	9
+	REUSEID	93	10	1
+		65	128	9
+	REUSEID	94	10	1
+		65	128	9
+	REUSEID	95	10	1
+		65	128	9
+	REUSEID	96	10	1
+		65	128	9
+	REUSEID	97	10	1
+		65	128	9
+	REUSEID	98	10	1
+		65	128	9
+	REUSEID	99	10	1
+		65	128	9
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	50	32	50	100	1000	1000
+	REUSEID	0	10	10
+	REUSEID	1	10	10
+	REUSEID	2	10	10
+	REUSEID	3	10	10
+	REUSEID	4	10	10
+	REUSEID	5	10	10
+	REUSEID	6	10	10
+	REUSEID	7	10	10
+	REUSEID	8	10	10
+	REUSEID	9	10	10
+	REUSEID	10	10	10
+	REUSEID	11	10	10
+	REUSEID	12	10	10
+	REUSEID	13	10	10
+	REUSEID	14	10	10
+	REUSEID	15	10	10
+	REUSEID	16	10	10
+	REUSEID	17	10	10
+	REUSEID	18	10	10
+	REUSEID	19	10	10
+	REUSEID	20	10	10
+	REUSEID	21	10	10
+	REUSEID	22	10	10
+	REUSEID	23	10	10
+	REUSEID	24	10	10
+	REUSEID	25	10	10
+	REUSEID	26	10	10
+	REUSEID	27	10	10
+	REUSEID	28	10	10
+	REUSEID	29	10	10
+	REUSEID	30	10	10
+	REUSEID	31	10	10
+	REUSEID	32	10	10
+	REUSEID	33	10	10
+	REUSEID	34	10	10
+	REUSEID	35	10	10
+	REUSEID	36	10	10
+	REUSEID	37	10	10
+	REUSEID	38	10	10
+	REUSEID	39	10	10
+	REUSEID	40	10	10
+	REUSEID	41	10	10
+	REUSEID	42	10	10
+	REUSEID	43	10	10
+	REUSEID	44	10	10
+	REUSEID	45	10	10
+	REUSEID	46	10	10
+	REUSEID	47	10	10
+	REUSEID	48	10	10
+	REUSEID	49	10	10
+	REUSEID	50	10	10
+	REUSEID	51	10	10
+	REUSEID	52	10	10
+	REUSEID	53	10	10
+	REUSEID	54	10	10
+	REUSEID	55	10	10
+	REUSEID	56	10	10
+	REUSEID	57	10	10
+	REUSEID	58	10	10
+	REUSEID	59	10	10
+	REUSEID	60	10	10
+	REUSEID	61	10	10
+	REUSEID	62	10	10
+	REUSEID	63	10	10
+	REUSEID	64	10	10
+	REUSEID	65	10	10
+	REUSEID	66	10	10
+	REUSEID	67	10	10
+	REUSEID	68	10	10
+	REUSEID	69	10	10
+	REUSEID	70	10	10
+	REUSEID	71	10	10
+	REUSEID	72	10	10
+	REUSEID	73	10	10
+	REUSEID	74	10	10
+	REUSEID	75	10	10
+	REUSEID	76	10	10
+	REUSEID	77	10	10
+	REUSEID	78	10	10
+	REUSEID	79	10	10
+	REUSEID	80	10	10
+	REUSEID	81	10	10
+	REUSEID	82	10	10
+	REUSEID	83	10	10
+	REUSEID	84	10	10
+	REUSEID	85	10	10
+	REUSEID	86	10	10
+	REUSEID	87	10	10
+	REUSEID	88	10	10
+	REUSEID	89	10	10
+	REUSEID	90	10	10
+	REUSEID	91	10	10
+	REUSEID	92	10	10
+	REUSEID	93	10	10
+	REUSEID	94	10	10
+	REUSEID	95	10	10
+	REUSEID	96	10	10
+	REUSEID	97	10	10
+	REUSEID	98	10	10
+	REUSEID	99	10	10
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# SPATIALSTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	SPATIALID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+SPATIALSTATS	1024	200	0	100	1000	1
+	SPATIALID	0	10	1
+		0	0	9
+	SPATIALID	1	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	2	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	3	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	4	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	5	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	6	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	7	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	8	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	9	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	10	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	11	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	12	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	13	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	14	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	15	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	16	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	17	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	18	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	19	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	20	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	21	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	22	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	23	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	24	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	25	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	26	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	27	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	28	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	29	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	30	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	31	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	32	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	33	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	34	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	35	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	36	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	37	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	38	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	39	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	40	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	41	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	42	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	43	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	44	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	45	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	46	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	47	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	48	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	49	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	50	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	51	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	52	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	53	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	54	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	55	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	56	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	57	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	58	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	59	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	60	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	61	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	62	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	63	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	64	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	65	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	66	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	67	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	68	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	69	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	70	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	71	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	72	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	73	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	74	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	75	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	76	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	77	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	78	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	79	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	80	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	81	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	82	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	83	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	84	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	85	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	86	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	87	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	88	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	89	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	90	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	91	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	92	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	93	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	94	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	95	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	96	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	97	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	98	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	99	10	0
+		0	0	9
+		1	1	1
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	64	1	32	100	1000	10
+	SPATIALID	0	10	10
+	SPATIALID	1	10	0
+		1	1	10
+	SPATIALID	2	10	0
+		1	1	10
+	SPATIALID	3	10	0
+		1	1	10
+	SPATIALID	4	10	0
+		1	1	10
+	SPATIALID	5	10	0
+		1	1	10
+	SPATIALID	6	10	0
+		1	1	10
+	SPATIALID	7	10	0
+		1	1	10
+	SPATIALID	8	10	0
+		1	1	10
+	SPATIALID	9	10	0
+		1	1	10
+	SPATIALID	10	10	0
+		1	1	10
+	SPATIALID	11	10	0
+		1	1	10
+	SPATIALID	12	10	0
+		1	1	10
+	SPATIALID	13	10	0
+		1	1	10
+	SPATIALID	14	10	0
+		1	1	10
+	SPATIALID	15	10	0
+		1	1	10
+	SPATIALID	16	10	0
+		1	1	10
+	SPATIALID	17	10	0
+		1	1	10
+	SPATIALID	18	10	0
+		1	1	10
+	SPATIALID	19	10	0
+		1	1	10
+	SPATIALID	20	10	0
+		1	1	10
+	SPATIALID	21	10	0
+		1	1	10
+	SPATIALID	22	10	0
+		1	1	10
+	SPATIALID	23	10	0
+		1	1	10
+	SPATIALID	24	10	0
+		1	1	10
+	SPATIALID	25	10	0
+		1	1	10
+	SPATIALID	26	10	0
+		1	1	10
+	SPATIALID	27	10	0
+		1	1	10
+	SPATIALID	28	10	0
+		1	1	10
+	SPATIALID	29	10	0
+		1	1	10
+	SPATIALID	30	10	0
+		1	1	10
+	SPATIALID	31	10	0
+		1	1	10
+	SPATIALID	32	10	0
+		1	1	10
+	SPATIALID	33	10	0
+		1	1	10
+	SPATIALID	34	10	0
+		1	1	10
+	SPATIALID	35	10	0
+		1	1	10
+	SPATIALID	36	10	0
+		1	1	10
+	SPATIALID	37	10	0
+		1	1	10
+	SPATIALID	38	10	0
+		1	1	10
+	SPATIALID	39	10	0
+		1	1	10
+	SPATIALID	40	10	0
+		1	1	10
+	SPATIALID	41	10	0
+		1	1	10
+	SPATIALID	42	10	0
+		1	1	10
+	SPATIALID	43	10	0
+		1	1	10
+	SPATIALID	44	10	0
+		1	1	10
+	SPATIALID	45	10	0
+		1	1	10
+	SPATIALID	46	10	0
+		1	1	10
+	SPATIALID	47	10	0
+		1	1	10
+	SPATIALID	48	10	0
+		1	1	10
+	SPATIALID	49	10	0
+		1	1	10
+	SPATIALID	50	10	0
+		1	1	10
+	SPATIALID	51	10	0
+		1	1	10
+	SPATIALID	52	10	0
+		1	1	10
+	SPATIALID	53	10	0
+		1	1	10
+	SPATIALID	54	10	0
+		1	1	10
+	SPATIALID	55	10	0
+		1	1	10
+	SPATIALID	56	10	0
+		1	1	10
+	SPATIALID	57	10	0
+		1	1	10
+	SPATIALID	58	10	0
+		1	1	10
+	SPATIALID	59	10	0
+		1	1	10
+	SPATIALID	60	10	0
+		1	1	10
+	SPATIALID	61	10	0
+		1	1	10
+	SPATIALID	62	10	0
+		1	1	10
+	SPATIALID	63	10	0
+		1	1	10
+	SPATIALID	64	10	0
+		1	1	10
+	SPATIALID	65	10	0
+		1	1	10
+	SPATIALID	66	10	0
+		1	1	10
+	SPATIALID	67	10	0
+		1	1	10
+	SPATIALID	68	10	0
+		1	1	10
+	SPATIALID	69	10	0
+		1	1	10
+	SPATIALID	70	10	0
+		1	1	10
+	SPATIALID	71	10	0
+		1	1	10
+	SPATIALID	72	10	0
+		1	1	10
+	SPATIALID	73	10	0
+		1	1	10
+	SPATIALID	74	10	0
+		1	1	10
+	SPATIALID	75	10	0
+		1	1	10
+	SPATIALID	76	10	0
+		1	1	10
+	SPATIALID	77	10	0
+		1	1	10
+	SPATIALID	78	10	0
+		1	1	10
+	SPATIALID	79	10	0
+		1	1	10
+	SPATIALID	80	10	0
+		1	1	10
+	SPATIALID	81	10	0
+		1	1	10
+	SPATIALID	82	10	0
+		1	1	10
+	SPATIALID	83	10	0
+		1	1	10
+	SPATIALID	84	10	0
+		1	1	10
+	SPATIALID	85	10	0
+		1	1	10
+	SPATIALID	86	10	0
+		1	1	10
+	SPATIALID	87	10	0
+		1	1	10
+	SPATIALID	88	10	0
+		1	1	10
+	SPATIALID	89	10	0
+		1	1	10
+	SPATIALID	90	10	0
+		1	1	10
+	SPATIALID	91	10	0
+		1	1	10
+	SPATIALID	92	10	0
+		1	1	10
+	SPATIALID	93	10	0
+		1	1	10
+	SPATIALID	94	10	0
+		1	1	10
+	SPATIALID	95	10	0
+		1	1	10
+	SPATIALID	96	10	0
+		1	1	10
+	SPATIALID	97	10	0
+		1	1	10
+	SPATIALID	98	10	0
+		1	1	10
+	SPATIALID	99	10	0
+		1	1	10
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	128	50	0	100	1000	1
+	SPATIALID	0	10	1
+		0	0	9
+	SPATIALID	1	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	2	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	3	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	4	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	5	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	6	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	7	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	8	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	9	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	10	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	11	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	12	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	13	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	14	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	15	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	16	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	17	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	18	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	19	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	20	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	21	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	22	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	23	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	24	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	25	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	26	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	27	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	28	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	29	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	30	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	31	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	32	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	33	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	34	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	35	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	36	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	37	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	38	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	39	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	40	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	41	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	42	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	43	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	44	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	45	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	46	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	47	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	48	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	49	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	50	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	51	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	52	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	53	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	54	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	55	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	56	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	57	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	58	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	59	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	60	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	61	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	62	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	63	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	64	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	65	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	66	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	67	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	68	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	69	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	70	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	71	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	72	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	73	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	74	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	75	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	76	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	77	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	78	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	79	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	80	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	81	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	82	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	83	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	84	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	85	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	86	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	87	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	88	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	89	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	90	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	91	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	92	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	93	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	94	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	95	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	96	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	97	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	98	10	0
+		0	0	9
+		1	1	1
+	SPATIALID	99	10	0
+		0	0	9
+		1	1	1
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+MEDTIMER TEST
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# REUSESTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	REUSEID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+REUSESTATS	0	32	0	1	1333332	444444
+	REUSEID	0	1333332	444444
+		262145	524288	888888
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	888888	32	888888	1	1333332	444444
+	REUSEID	0	1333332	444444
+		262145	524288	888888
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	222222	32	222222	1	1333332	1333332
+	REUSEID	0	1333332	1333332
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# SPATIALSTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	SPATIALID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+SPATIALSTATS	1024	888888	0	1	1333332	1
+	SPATIALID	0	1333332	1
+		1	1	1333329
+		443419	443419	2
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	64	1	32	1	1333332	3
+	SPATIALID	0	1333332	3
+		1	1	1333329
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	128	222222	0	1	1333332	1
+	SPATIALID	0	1333332	1
+		1	1	1333329
+		262145	524288	2
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+LRGTIMER TEST
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# REUSESTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	REUSEID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+REUSESTATS	0	32	0	1	9999999	3333333
+	REUSEID	0	9999999	3333333
+		2097153	4194304	6666666
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	6666666	32	6666666	1	9999999	3333333
+	REUSEID	0	9999999	3333333
+		2097153	4194304	6666666
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	1666666	32	1666666	1	9999999	9999999
+	REUSEID	0	9999999	9999999
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# SPATIALSTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	SPATIALID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+SPATIALSTATS	1024	6666666	0	1	9999999	1
+	SPATIALID	0	9999999	1
+		1	1	9999996
+		3332308	3332308	2
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	64	1	32	1	9999999	3
+	SPATIALID	0	9999999	3
+		1	1	9999996
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	128	1666666	0	1	9999999	1
+	SPATIALID	0	9999999	1
+		1	1	9999996
+		2097153	4194304	2
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SHIFTRNG TEST
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# REUSESTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	REUSEID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+REUSESTATS	0	32	0	1	21	10
+	REUSEID	0	21	10
+		1	1	1
+		2	2	1
+		3	3	3
+		5	5	1
+		6	6	5
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	12	32	12	1	21	10
+	REUSEID	0	21	10
+		1	1	1
+		2	2	1
+		3	3	3
+		5	5	1
+		6	6	5
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+REUSESTATS	3	32	3	1	21	16
+	REUSEID	0	21	16
+		1	1	1
+		2	2	1
+		3	3	3
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# SPATIALSTATS	<window_size>	<bin_indiv>	<max_track>	<id_count>	<tot_access>	<tot_miss>
+# 	SPATIALID	<id>	<id_access>	<id_miss>
+# 		<bin_lower_bound>	<bin_upper_bound>	<bin_count>
+SPATIALSTATS	1024	12	0	1	21	1
+	SPATIALID	0	21	1
+		0	0	11
+		1	1	9
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	64	1	32	1	21	1
+	SPATIALID	0	21	1
+		0	0	11
+		1	1	9
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+SPATIALSTATS	128	3	0	1	21	1
+	SPATIALID	0	21	1
+		0	0	11
+		1	1	9
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

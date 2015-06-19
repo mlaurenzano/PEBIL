@@ -1,0 +1,182 @@
+\hypertarget{class_spatial_locality}{
+\section{SpatialLocality Class Reference}
+\label{class_spatial_locality}\index{SpatialLocality@{SpatialLocality}}
+}
+
+
+{\ttfamily \#include $<$ReuseDistance.hpp$>$}
+
+Inheritance diagram for SpatialLocality:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=2cm]{class_spatial_locality}
+\end{center}
+\end{figure}
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{class_spatial_locality_aff3106d38ff5ba3e6ecaec0c7214eaea}{SpatialLocality} (uint64\_\-t w, uint64\_\-t b, uint64\_\-t n)
+\item 
+\hyperlink{class_spatial_locality_a908469b7cd8a92c22a8bae4e2d4c5ade}{SpatialLocality} (uint64\_\-t w, uint64\_\-t b)
+\item 
+\hyperlink{class_spatial_locality_a63d45541023cfc370b079f1011cab5b8}{SpatialLocality} (uint64\_\-t w)
+\item 
+\hyperlink{class_spatial_locality_a449d21fbe63121ea92aaf5c1e0b8cb9c}{SpatialLocality} ()
+\item 
+virtual \hyperlink{class_spatial_locality_abfdaf3722786c5ad9ea65f885cbbebc6}{$\sim$SpatialLocality} ()
+\item 
+virtual void \hyperlink{class_spatial_locality_afef7ecfce7f238dbef37499e08edfb98}{GetActiveAddresses} (std::vector$<$ uint64\_\-t $>$ \&addrs)
+\item 
+virtual void \hyperlink{class_spatial_locality_a72a96a67e1791851927dbf3e5ceb206f}{Process} (\hyperlink{struct_reuse_entry}{ReuseEntry} \&addr)
+\item 
+virtual void \hyperlink{class_spatial_locality_acdfe7e6ac7891c4673cb7023af7227e0}{SkipAddresses} (uint64\_\-t amount)
+\end{DoxyCompactItemize}
+\subsection*{Static Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+static const uint64\_\-t \hyperlink{class_spatial_locality_a563aa890ea539ae76c942fd1827a3095}{DefaultWindowSize} = 64
+\end{DoxyCompactItemize}
+
+
+\subsection{Detailed Description}
+Finds and tracks spatial locality within a memory address stream. Spatial locality is defined as the minimum distance between the current address and any of the previous N addresses, as in \href{http://www.sdsc.edu/~allans/sc05_locality.pdf.}{\tt http://www.sdsc.edu/$\sim$allans/sc05\_\-locality.pdf.} This class allows that window size N to be customized. For basic usage, see the documentation at \href{http://bit.ly/ScqZVj}{\tt http://bit.ly/ScqZVj} for the constructors, the Process methods and the Print methods. Also see the simple test file test/test.cpp included in this source package. 
+
+Definition at line 388 of file ReuseDistance.hpp.
+
+
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{class_spatial_locality_aff3106d38ff5ba3e6ecaec0c7214eaea}{
+\index{SpatialLocality@{SpatialLocality}!SpatialLocality@{SpatialLocality}}
+\index{SpatialLocality@{SpatialLocality}!SpatialLocality@{SpatialLocality}}
+\subsubsection[{SpatialLocality}]{\setlength{\rightskip}{0pt plus 5cm}SpatialLocality::SpatialLocality (uint64\_\-t {\em w}, \/  uint64\_\-t {\em b}, \/  uint64\_\-t {\em n})\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}
+\label{class_spatial_locality_aff3106d38ff5ba3e6ecaec0c7214eaea}
+Contructs a \hyperlink{class_reuse_distance}{ReuseDistance} object.
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em w}]The maximum window size, which is the maximum number of addresses that will be searched for spatial locality. w != \hyperlink{class_reuse_distance_a59f7f0ac6ad014472537619394ac7375}{ReuseDistance::Infinity} is enforced at runtime. \item[{\em b}]All distances not greater than b will be tracked individually. All distances are tracked individually if b == \hyperlink{class_reuse_distance_a59f7f0ac6ad014472537619394ac7375}{ReuseDistance::Infinity}. Beyond individual tracking, distances are tracked in bins whose boundaries are the powers of two greater than b and not greater than n. \item[{\em n}]All distances greater than n will be counted as infinite. Use n == \hyperlink{class_reuse_distance_a59f7f0ac6ad014472537619394ac7375}{ReuseDistance::Infinity} for no limit. n $>$= b is enforced at runtime. \end{DoxyParams}
+
+
+Definition at line 420 of file ReuseDistance.hpp.
+
+\hypertarget{class_spatial_locality_a908469b7cd8a92c22a8bae4e2d4c5ade}{
+\index{SpatialLocality@{SpatialLocality}!SpatialLocality@{SpatialLocality}}
+\index{SpatialLocality@{SpatialLocality}!SpatialLocality@{SpatialLocality}}
+\subsubsection[{SpatialLocality}]{\setlength{\rightskip}{0pt plus 5cm}SpatialLocality::SpatialLocality (uint64\_\-t {\em w}, \/  uint64\_\-t {\em b})\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}
+\label{class_spatial_locality_a908469b7cd8a92c22a8bae4e2d4c5ade}
+Constructs a \hyperlink{class_spatial_locality}{SpatialLocality} object. Equivalent to calling the other 3-\/argument constructor with n == \hyperlink{class_reuse_distance_a59f7f0ac6ad014472537619394ac7375}{ReuseDistance::Infinity} 
+
+Definition at line 426 of file ReuseDistance.hpp.
+
+\hypertarget{class_spatial_locality_a63d45541023cfc370b079f1011cab5b8}{
+\index{SpatialLocality@{SpatialLocality}!SpatialLocality@{SpatialLocality}}
+\index{SpatialLocality@{SpatialLocality}!SpatialLocality@{SpatialLocality}}
+\subsubsection[{SpatialLocality}]{\setlength{\rightskip}{0pt plus 5cm}SpatialLocality::SpatialLocality (uint64\_\-t {\em w})\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}
+\label{class_spatial_locality_a63d45541023cfc370b079f1011cab5b8}
+Constructs a \hyperlink{class_spatial_locality}{SpatialLocality} object. Equivalent to calling the other 3-\/argument constructor with w == b and n == \hyperlink{class_reuse_distance_a59f7f0ac6ad014472537619394ac7375}{ReuseDistance::Infinity} 
+
+Definition at line 432 of file ReuseDistance.hpp.
+
+\hypertarget{class_spatial_locality_a449d21fbe63121ea92aaf5c1e0b8cb9c}{
+\index{SpatialLocality@{SpatialLocality}!SpatialLocality@{SpatialLocality}}
+\index{SpatialLocality@{SpatialLocality}!SpatialLocality@{SpatialLocality}}
+\subsubsection[{SpatialLocality}]{\setlength{\rightskip}{0pt plus 5cm}SpatialLocality::SpatialLocality ()\hspace{0.3cm}{\ttfamily  \mbox{[}inline\mbox{]}}}}
+\label{class_spatial_locality_a449d21fbe63121ea92aaf5c1e0b8cb9c}
+Constructs a \hyperlink{class_spatial_locality}{SpatialLocality} object. Equivalent to calling the other 3-\/argument constructor with w == b == \hyperlink{class_spatial_locality_a563aa890ea539ae76c942fd1827a3095}{SpatialLocality::DefaultWindowSize} and n == \hyperlink{class_reuse_distance_a59f7f0ac6ad014472537619394ac7375}{ReuseDistance::Infinity} 
+
+Definition at line 438 of file ReuseDistance.hpp.
+
+\hypertarget{class_spatial_locality_abfdaf3722786c5ad9ea65f885cbbebc6}{
+\index{SpatialLocality@{SpatialLocality}!$\sim$SpatialLocality@{$\sim$SpatialLocality}}
+\index{$\sim$SpatialLocality@{$\sim$SpatialLocality}!SpatialLocality@{SpatialLocality}}
+\subsubsection[{$\sim$SpatialLocality}]{\setlength{\rightskip}{0pt plus 5cm}virtual SpatialLocality::$\sim$SpatialLocality ()\hspace{0.3cm}{\ttfamily  \mbox{[}inline, virtual\mbox{]}}}}
+\label{class_spatial_locality_abfdaf3722786c5ad9ea65f885cbbebc6}
+Destroys a \hyperlink{class_spatial_locality}{SpatialLocality} object. 
+
+Definition at line 443 of file ReuseDistance.hpp.
+
+
+
+\subsection{Member Function Documentation}
+\hypertarget{class_spatial_locality_afef7ecfce7f238dbef37499e08edfb98}{
+\index{SpatialLocality@{SpatialLocality}!GetActiveAddresses@{GetActiveAddresses}}
+\index{GetActiveAddresses@{GetActiveAddresses}!SpatialLocality@{SpatialLocality}}
+\subsubsection[{GetActiveAddresses}]{\setlength{\rightskip}{0pt plus 5cm}void SpatialLocality::GetActiveAddresses (std::vector$<$ uint64\_\-t $>$ \& {\em addrs})\hspace{0.3cm}{\ttfamily  \mbox{[}virtual\mbox{]}}}}
+\label{class_spatial_locality_afef7ecfce7f238dbef37499e08edfb98}
+Get a std::vector containing all of the addresses currently in this \hyperlink{class_spatial_locality}{SpatialLocality} object's active window.
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em addrs}]A std::vector which will contain the addresses. It is an error to pass this vector non-\/empty (that is addrs.size() == 0 is enforced at runtime).\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+none 
+\end{DoxyReturn}
+
+
+Reimplemented from \hyperlink{class_reuse_distance_acc4885040a8a518fc10b5aa4da7d777a}{ReuseDistance}.
+
+
+
+Definition at line 460 of file ReuseDistance.cpp.
+
+\hypertarget{class_spatial_locality_a72a96a67e1791851927dbf3e5ceb206f}{
+\index{SpatialLocality@{SpatialLocality}!Process@{Process}}
+\index{Process@{Process}!SpatialLocality@{SpatialLocality}}
+\subsubsection[{Process}]{\setlength{\rightskip}{0pt plus 5cm}void SpatialLocality::Process ({\bf ReuseEntry} \& {\em addr})\hspace{0.3cm}{\ttfamily  \mbox{[}virtual\mbox{]}}}}
+\label{class_spatial_locality_a72a96a67e1791851927dbf3e5ceb206f}
+Process a single memory address.
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em addr}]The structure describing the memory address to process.\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+none 
+\end{DoxyReturn}
+
+
+Reimplemented from \hyperlink{class_reuse_distance_a4ff6b77022ce62e0fdefa5cc297b932a}{ReuseDistance}.
+
+
+
+Definition at line 389 of file ReuseDistance.cpp.
+
+\hypertarget{class_spatial_locality_acdfe7e6ac7891c4673cb7023af7227e0}{
+\index{SpatialLocality@{SpatialLocality}!SkipAddresses@{SkipAddresses}}
+\index{SkipAddresses@{SkipAddresses}!SpatialLocality@{SpatialLocality}}
+\subsubsection[{SkipAddresses}]{\setlength{\rightskip}{0pt plus 5cm}void SpatialLocality::SkipAddresses (uint64\_\-t {\em amount})\hspace{0.3cm}{\ttfamily  \mbox{[}virtual\mbox{]}}}}
+\label{class_spatial_locality_acdfe7e6ac7891c4673cb7023af7227e0}
+Pretend that some number of addresses in the stream were skipped. Useful for intervel-\/based sampling. This has the effect of flushing the entire window.
+
+
+\begin{DoxyParams}{Parameters}
+\item[{\em amount}]The number of addresses to skip.\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+none 
+\end{DoxyReturn}
+
+
+Reimplemented from \hyperlink{class_reuse_distance_a0763528236db14a9e0234465e72da3b6}{ReuseDistance}.
+
+
+
+Definition at line 441 of file ReuseDistance.cpp.
+
+
+
+\subsection{Member Data Documentation}
+\hypertarget{class_spatial_locality_a563aa890ea539ae76c942fd1827a3095}{
+\index{SpatialLocality@{SpatialLocality}!DefaultWindowSize@{DefaultWindowSize}}
+\index{DefaultWindowSize@{DefaultWindowSize}!SpatialLocality@{SpatialLocality}}
+\subsubsection[{DefaultWindowSize}]{\setlength{\rightskip}{0pt plus 5cm}const uint64\_\-t {\bf SpatialLocality::DefaultWindowSize} = 64\hspace{0.3cm}{\ttfamily  \mbox{[}static\mbox{]}}}}
+\label{class_spatial_locality_a563aa890ea539ae76c942fd1827a3095}
+
+
+Definition at line 407 of file ReuseDistance.hpp.
+
+
+
+The documentation for this class was generated from the following files:\begin{DoxyCompactItemize}
+\item 
+/home/michaell/software/ReuseDistance/\hyperlink{_reuse_distance_8hpp}{ReuseDistance.hpp}\item 
+/home/michaell/software/ReuseDistance/\hyperlink{_reuse_distance_8cpp}{ReuseDistance.cpp}\end{DoxyCompactItemize}
