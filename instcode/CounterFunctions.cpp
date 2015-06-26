@@ -108,6 +108,10 @@ CounterArray* GenerateCounterArray(CounterArray* ctrs, uint32_t typ, image_key_t
     }
 
     assert(typ == AllData->ThreadType);
+    /*if(!isThreadedMode())
+    {
+        return NULL;
+    }*/
 
     c = (CounterArray*)malloc(sizeof(CounterArray));
     assert(c);
@@ -140,15 +144,14 @@ void DeleteCounterArray(CounterArray* ctrs){
 }
 
 void* tool_thread_init(thread_key_t tid){
-    //inform << "Entering tool_thread_init" << ENDL;
     SAVE_STREAM_FLAGS(cout);
     if (AllData){
-        AllData->AddThread(tid);
+        if(isThreadedMode())
+            AllData->AddThread(tid);
     } else {
         ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
     }
     RESTORE_STREAM_FLAGS(cout);
-    //inform << "Leaving tool_thread_init" << ENDL;
     return NULL;
 }
 
@@ -158,13 +161,11 @@ void* tool_thread_fini(thread_key_t tid){
 
 extern "C"
 {
-    void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
-        //inform << "Entered tool_dynamic_init" << ENDL;
+    void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn,bool* isThreadedModeFlag){
         SAVE_STREAM_FLAGS(cout);
-        InitializeDynamicInstrumentation(count, dyn);
+        InitializeDynamicInstrumentation(count, dyn,isThreadedModeFlag);
 
         RESTORE_STREAM_FLAGS(cout);
-        //inform << "Leaving tool_dynamic_init" << ENDL;
         return NULL;
     }
 
@@ -187,7 +188,7 @@ extern "C"
     static pthread_mutex_t image_init_mutex = PTHREAD_MUTEX_INITIALIZER;
     void* tool_image_init(void* s, uint64_t* key, ThreadData* td){
         //inform << "Entered tool_image_init" << ENDL;
-        SAVE_STREAM_FLAGS(cout);
+        //SAVE_STREAM_FLAGS(cout);
 
         CounterArray* ctrs = (CounterArray*)s;
         assert(ctrs->Initialized == true);
@@ -221,7 +222,7 @@ extern "C"
 
         pthread_mutex_unlock(&image_init_mutex);
 
-        RESTORE_STREAM_FLAGS(cout);
+        //RESTORE_STREAM_FLAGS(cout);
         //inform << "Leaving tool_image_init" << ENDL;
         return NULL;
     }

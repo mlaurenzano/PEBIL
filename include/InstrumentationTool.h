@@ -113,6 +113,7 @@ protected:
 
     uint64_t dynamicPointArray;
     uint64_t dynamicSize;
+    bool isThreadedModeFlag;
 
 public:
     InstrumentationTool(ElfFile* elf);

@@ -62,6 +62,7 @@
 using namespace std;
 
 static pebil_map_type < uint64_t, vector < DynamicInst* > > * Dynamics = NULL;
+static bool ThreadedModeFlag;
 
 static void PrintDynamicPoint(DynamicInst* d){
     std::cout
@@ -74,11 +75,12 @@ static void PrintDynamicPoint(DynamicInst* d){
         << "\n";
 }
 
-static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn){
+static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn,bool* isThreadedModeFlag){
     if (Dynamics == NULL){
         Dynamics = new pebil_map_type < uint64_t, vector < DynamicInst* > > ();
     }
     assert(Dynamics != NULL);
+    ThreadedModeFlag=(*isThreadedModeFlag);
 
     DynamicInst* dd = *dyn;
     for (uint32_t i = 0; i < *count; i++){
@@ -130,6 +132,12 @@ static void SetDynamicPoints(std::set<uint64_t>& keys, bool state){
     debug(std::cout << "Thread " << std::hex << pthread_self() << " switched " << std::dec << count << " to " << (state? "on" : "off") << std::endl);
 }
 
+//Mostly needs to be static value?
+static bool isThreadedMode()
+{
+    return ThreadedModeFlag;
+}
+
 // thread id support
 typedef struct {
     uint64_t id;
@@ -142,7 +150,7 @@ typedef struct {
 // handling of different initialization/finalization events
 // analysis libraries define these differently
 extern "C" {
-    extern void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn);
+    extern void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn,bool* isThreadedModeFlag);
 
     extern void* tool_mpi_init();
 
@@ -646,12 +654,13 @@ public:
     // Adds tid to threads to be tracked
     // If there are images initialized, creates initial data for each
     // No pre-conditions
+    //void AddThread(thread_key_t tid,bool fromAddImage=false){
     void AddThread(thread_key_t tid){
         Lock();
-
+        
         // If it's been initialized before, just return
         if(allthreads.count(tid) > 0) {
-            UnLock();
+            UnLock(); 
             return;
         }
 
@@ -659,6 +668,7 @@ public:
             threadseq[tid] = currentthreadseq++;
         }
 
+        //bool isThreadInitialized=false;
         // Setup data for any previously initialized images
         for (set<image_key_t>::iterator iit = allimages.begin(); iit != allimages.end(); iit++){
 
@@ -673,9 +683,10 @@ public:
 
             // Generate thread data for this image using some other thread's data as a template
             datamap[*iit][tid] = datagen(datamap[*iit][*tit], ThreadType, *iit, tid, firstimage);
-
             // initialize the thread hashtable data for this image
             SetThreadData((*iit), tid, ThreadType);
+
+
         }
         allthreads.insert(tid);
         UnLock();
@@ -881,9 +892,9 @@ public:
         Lock();
         uint32_t tid_index = alldata->GetThreadSequence(tid);
         uint32_t newsize = tid_index+1 > threadcount ? tid_index+1 : threadcount;
-
         // Grow stats and copy old data if necessary
         // Also initialize stats for any other threads which are implied to exist
+        cout<<"\t AddThread called by tid "<<tid<<endl;
         if(newsize > threadcount) {
             T** tmp = new T*[newsize];
             for (uint32_t i = 0; i < threadcount; ++i){
@@ -937,7 +948,6 @@ public:
         debug(assert(imagecount > 0));
         debug(assert(threadcount > 0));
         debug(assert(num <= capacity));
-
         uint32_t threadseq = alldata->GetThreadSequence(tid);
         if(threadseq >= threadcount) {
             AddThread(tid);

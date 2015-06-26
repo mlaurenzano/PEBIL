@@ -440,9 +440,14 @@ void InstrumentationTool::instrument(){
 
     dynamicSize = reserveDataOffset(sizeof(uint64_t));
     dynamicPointArray = reserveDataOffset(sizeof(DynamicInst*));
+    isThreadedModeFlag = reserveDataOffset(sizeof(bool));
+    bool isThreadedModeFlag_Val = isThreadedMode();
+
+    initializeReservedData(getInstDataAddress() + isThreadedModeFlag, sizeof(bool), &isThreadedModeFlag_Val);
     dynamicInit->addArgument(dynamicSize);
     dynamicInit->addArgument(dynamicPointArray);
-
+    dynamicInit->addArgument(isThreadedModeFlag);
+    
     // ALL_FUNC_ENTER
     if (isMultiImage()){
         for (uint32_t i = 0; i < getNumberOfExposedFunctions(); i++){

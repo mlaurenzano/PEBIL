@@ -125,9 +125,9 @@ void GetBufferIds(BufferEntry* b, image_key_t* i){
 
 extern "C" {
     // Called at just before image initialization
-    void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
+    void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn,bool* isThreadedModeFlag){
         SAVE_STREAM_FLAGS(cout);
-        InitializeDynamicInstrumentation(count, dyn);
+        InitializeDynamicInstrumentation(count, dyn,isThreadedModeFlag);
         RESTORE_STREAM_FLAGS(cout);
         return NULL;
     }
@@ -139,11 +139,13 @@ extern "C" {
     void* tool_thread_init(thread_key_t tid){
         SAVE_STREAM_FLAGS(cout);
         if (AllData){
-            AllData->AddThread(tid);
+            if(isThreadedMode())
+                AllData->AddThread(tid);
             InitializeSuspendHandler();
 
             assert(FastStats);
-            FastStats->AddThread(tid);
+            if(isThreadedMode())
+                FastStats->AddThread(tid);
         } else {
             ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
         }
@@ -648,19 +650,19 @@ extern "C" {
 	
 	if(CacheSimulation)
         {
-		SimulationFileName(stats, oFile);
-		fileName = oFile.c_str();
-	
-		inform << "Printing cache simulation results to " << fileName << ENDL;
-		TryOpen(MemFile, fileName);
+    		SimulationFileName(stats, oFile);
+    		fileName = oFile.c_str();
+    	
+    		inform << "Printing cache simulation results to " << fileName << ENDL;
+    		TryOpen(MemFile, fileName);
         }
         if(AddressRangeEnable)
         {
-		RangeFileName(stats,oFile);
-		fileName=oFile.c_str();
-		inform << "Printing address range results to " << fileName << ENDL;
-		TryOpen(RangeFile,fileName);
-	}
+    		RangeFileName(stats,oFile);
+    		fileName=oFile.c_str();
+    		inform << "Printing address range results to " << fileName << ENDL;
+    		TryOpen(RangeFile,fileName);
+	    }
 	        
         uint64_t sampledCount = 0;
         uint64_t totalMemop = 0;
@@ -668,16 +670,15 @@ extern "C" {
             for(DataManager<SimulationStats*>::iterator it = AllData->begin(*iit); it != AllData->end(*iit); ++it) {
                 thread_key_t thread = it->first;
                 SimulationStats* s = it->second;
-
+                
                 if(AddressRangeEnable)
                 {
-		        RangeStats* r = (RangeStats*)s->Stats[RangeHandlerIndex];
-		        assert(r);
-
-		        for (uint32_t i = 0; i < r->Capacity; i++){
-		            sampledCount += r->Counts[i];
+    		        RangeStats* r = (RangeStats*)s->Stats[RangeHandlerIndex];
+    		        assert(r);
+    		        for (uint32_t i = 0; i < r->Capacity; i++){
+    		            sampledCount += r->Counts[i];
+    		        }
 		        }
-		}
                 for (uint32_t i = 0; i < s->BlockCount; i++){
                     uint32_t idx;
                     if (s->Types[i] == CounterType_basicblock){
@@ -814,32 +815,35 @@ extern "C" {
             << TAB << "ThreadId"<< TAB << "BlockCounter" << TAB << "InstructionSimulated" << TAB 
             << "MinAddress" << TAB << "MaxAddress" << TAB << "AddrRange " << ENDL;	
 	}
-        else if(CacheSimulation)
-        {
+    
+    else if(CacheSimulation)
+    {
         MemFile 
             << "# " << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "ThreadId " << ENDL;        
         MemFile
             << "# " << TAB << "SysId" << TAB << "Level" << TAB << "HitCount" << TAB << "MissCount" << ENDL;
 	}	
-        if(AddressRangeEnable)
-        {
+    if(AddressRangeEnable)
+    {
              RangeFile << "# " << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageSequence" 
             << TAB << "ThreadId"<< TAB << "BlockCounter" << TAB << "InstructionSimulated" << TAB 
             << "MinAddress" << TAB << "MaxAddress" << TAB << "AddrRange " << ENDL;
-        }
+    }
 
-        for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
-            for(DataManager<SimulationStats*>::iterator it = AllData->begin(*iit); it != AllData->end(*iit); ++it) {
+    for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+        for(DataManager<SimulationStats*>::iterator it = AllData->begin(*iit); it != AllData->end(*iit); ++it) {
 
-                SimulationStats* st = it->second;
-                assert(st);
+        SimulationStats* st = it->second;
+        assert(st);
 		CacheStats** aggstats;
 		RangeStats* aggrange;
                 // compile per-instruction stats into blocks
-                if(AddressRangeEnable)
-                {
+        if(AddressRangeEnable)
+        {
 		        //RangeStats* aggrange = new RangeStats(st->InstructionCount);
 		        aggrange = new RangeStats(st->InstructionCount);
+                assert(aggrange!=NULL);
+                
 		        for (uint32_t memid = 0; memid < st->InstructionCount; memid++){
 		            uint32_t bbid;
 		            RangeStats* r = (RangeStats*)st->Stats[RangeHandlerIndex];
@@ -848,13 +852,12 @@ extern "C" {
 		            } else {
 		                bbid = st->BlockIds[memid];
 		            }
-
-		            aggrange->Update(bbid, r->GetMinimum(memid), 0);
+		            aggrange->Update(bbid, r->GetMinimum(memid), 0);                    
 		            aggrange->Update(bbid, r->GetMaximum(memid), r->GetAccessCount(memid));
 		        }
 		}
 		if(CacheSimulation)
-                {
+        {
 		        //CacheStats** aggstats = new CacheStats*[CountCacheStructures];
 		        aggstats = new CacheStats*[CountCacheStructures];
 		        for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
@@ -2106,6 +2109,11 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
     // allocate Counters contiguously with SimulationStats. Since the address of SimulationStats is the
     // address of the thread data, this allows us to avoid an extra memory ref on Counter updates
     if (typ == AllData->ThreadType){
+
+        /*if(!isThreadedMode())
+        {
+            return NULL;
+        }*/
         SimulationStats* s = stats;
         stats = (SimulationStats*)malloc(sizeof(SimulationStats) + (sizeof(uint64_t) * stats->BlockCount));
         assert(stats);
@@ -2129,7 +2137,7 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
 	    }
 	    if(AddressRangeEnable)
 	    {
-		stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
+		  stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
 	    }
     }
     if (typ == AllData->ThreadType || (iid == firstimage))
