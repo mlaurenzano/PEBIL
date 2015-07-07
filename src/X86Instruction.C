@@ -32,6 +32,12 @@
 #include <SectionHeader.h>
 #include <TextSection.h>
 
+
+X86Instruction* X86Instruction::getFallthroughInstruction() {
+    uint32_t taddr = getBaseAddress() + getSizeInBytes();
+    return container->getInstructionAtAddress(taddr);
+}
+
 // FIXME this can be done better
 static uint8_t countBitsSet(uint16_t v)
 {
@@ -1435,6 +1441,8 @@ uint64_t X86Instruction::getTargetAddress(){
         }
     }
     else if (getInstructionType() == X86InstructionType_syscall){
+        tgtAddress = 0;
+    } else if (getInstructionType() == X86InstructionType_return){
         tgtAddress = 0;
     } else {
         tgtAddress = getBaseAddress() + getSizeInBytes();

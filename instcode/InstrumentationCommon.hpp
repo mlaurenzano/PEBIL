@@ -498,7 +498,7 @@ private:
 
     image_key_t firstimage;
 
-    // stores data in a ThreadData[] which can be more easily accessed by tools.
+    // map from image keys to each image's threaddata hashtable
     DataMap <image_key_t, ThreadData*> threaddata;
 
     uint32_t HashThread(thread_key_t tid){
@@ -535,7 +535,8 @@ private:
         }
         cout
             << " setting up thread data at index "
-            << dec << actual << TAB << (uint64_t)td << "(" << GetThreadSequence(tid) << ")"
+            << dec << actual << TAB
+            << hex << td << "(" << GetThreadSequence(tid) << ")"
             << " -> " << hex << td[actual].data
             << endl;
 

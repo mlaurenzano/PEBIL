@@ -199,7 +199,7 @@ void BasicBlockCounter::instrument()
         usePIC = true;
     }
 
-    std::map<uint64_t, uint32_t>* functionThreading;
+    std::map<uint64_t, ThreadRegisterMap*>* functionThreading;
     if (usePIC){
         functionThreading = threadReadyCode(functionsToInst);
     }
@@ -308,7 +308,8 @@ void BasicBlockCounter::instrument()
 
         if (usePIC){
             counterOffset -= (uint64_t)ctrs.Counters;
-            threadReg = (*functionThreading)[f->getBaseAddress()];
+            ThreadRegisterMap* threadMap = (*functionThreading)[f->getBaseAddress()];
+            threadReg = threadMap->getThreadRegister(bb);
         }
 
         InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
@@ -348,7 +349,8 @@ void BasicBlockCounter::instrument()
 
         if (usePIC){
             counterOffset -= (uint64_t)ctrs.Counters;
-            threadReg = (*functionThreading)[f->getBaseAddress()];            
+            ThreadRegisterMap* threadMap = (*functionThreading)[f->getBaseAddress()];
+            threadReg = threadMap->getThreadRegister(head);
         }
 
         uint64_t hashValue = head->getHashCode().getValue();

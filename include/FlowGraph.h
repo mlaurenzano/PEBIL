@@ -25,6 +25,7 @@
 #include <Function.h>
 #include <LinkedList.h>
 #include <Vector.h>
+#include <map>
 
 class BasicBlock;
 class Block;
@@ -41,6 +42,7 @@ protected:
     Vector<Loop*> loops;
 
     Vector<BasicBlock**> blockCopies;
+    std::map<uint32_t, std::map<uint32_t, BasicBlock*>* > interposedBlocks;
 public:
     FlowGraph(Function* f) : function(f) {}
     ~FlowGraph();
@@ -98,6 +100,7 @@ public:
     
     void setImmDominatorBlocks(BasicBlock* root=NULL);
     void interposeBlock(BasicBlock* bb);
+    BasicBlock* getInterposedBlock(uint32_t srcidx, uint32_t tgtidx, bool& created);
 
     bool verify();
     void wedge(uint32_t shamt);

@@ -36,7 +36,7 @@ typedef struct {
     uint64_t id;
     uint64_t data;
 } ThreadData;
-#define ThreadHashShift (16)
+#define ThreadHashShift (17)
 #define ThreadHashMod   (0xffff)
 
 struct DynamicInstInternal {
@@ -49,6 +49,24 @@ struct DynamicInstInternal {
         Key = 0;
         IsEnabled = true;
     }
+};
+
+enum ThreadRegisterMapType {
+  ThreadRegisterMapType_None,
+  ThreadRegisterMapType_Func,
+  ThreadRegisterMapType_Loop
+};
+
+class ThreadRegisterMap {
+public:
+    ThreadRegisterMap();
+    ThreadRegisterMap(uint32_t reg);
+    uint32_t getThreadRegister(BasicBlock* bb);
+    void setThreadRegister(Loop* l, uint32_t reg);
+private:
+    ThreadRegisterMapType type;
+    uint32_t reg;
+    std::map<Loop*, uint32_t> loopRegisters;
 };
 
 class InstrumentationTool : public ElfFileInst {
@@ -83,8 +101,9 @@ protected:
     Vector<X86Instruction*>* storeThreadData(uint32_t scratch, uint32_t dest, bool storeToStack, uint32_t stackPatch);
     void threadAllEntryPoints(Function* f, uint32_t threadReg);
 
-    std::map<uint64_t, uint32_t>* threadReadyCode(std::set<Base*>& objectsToInst);
-    uint32_t instrumentForThreading(Function* func);
+    std::map<uint64_t, ThreadRegisterMap*>* threadReadyCode(std::set<Base*>& objectsToInst);
+    void setThreadingRegister(uint32_t d, X86Instruction* ins, InstLocations loc, bool borrow=false);
+    ThreadRegisterMap* instrumentForThreading(Function* func);
 
     InstrumentationFunction* imageInit;
     InstrumentationFunction* initWrapperC;

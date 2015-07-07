@@ -475,6 +475,8 @@ private:
     void countElementsUnalignedLoadStore(bool, bool, bool);
 public:
 
+    X86Instruction* getFallthroughInstruction();
+
     static X86Instruction* disassemble(char* buff);
 
     void setDefXIter() { defXIter = true; }
@@ -562,6 +564,8 @@ public:
 
     void setLiveIns(RegisterSet* live);
     void setLiveOuts(RegisterSet* live);
+    RegisterSet* getLiveIns() {return liveIns;}
+    RegisterSet* getLiveOuts() {return liveOuts;}
 
     void setBaseAddress(uint64_t addr) { baseAddress = addr; cacheBaseAddress = addr; }
     uint32_t getSizeInBytes() { return sizeInBytes; }
