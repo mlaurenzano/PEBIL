@@ -955,7 +955,7 @@ uint32_t CodeBlock::getNumberOfBytes(){
     return numberOfBytes;
 }
 
-bool BasicBlock::inRange(uint64_t addr){
+bool CodeBlock::inRange(uint64_t addr){
     uint64_t b = getBaseAddress();
     if (addr < b){
         return false;

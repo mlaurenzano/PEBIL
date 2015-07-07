@@ -52,10 +52,12 @@ public:
     bool isInnerLoopOf(Loop* loop);
     bool isIdenticalLoop(Loop* loop);
     void print();
+    void printLiveness();
     void setIndex(uint32_t idx) { index = idx; }
     uint32_t getIndex() { return index; }
     FlowGraph* getFlowGraph() { return flowGraph; }
     bool containsCall();
+    uint32_t getAllInstructions(X86Instruction** instructions, uint32_t nexti);
 };
 
 #endif // _Loop_h_

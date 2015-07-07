@@ -206,7 +206,7 @@ void CacheSimulation::instrument(){
     Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allBlockLineInfos = new Vector<LineInfo*>();
 
-    std::map<uint64_t, uint32_t>* functionThreading;
+    std::map<uint64_t, ThreadRegisterMap*>* functionThreading;
     if (usePIC){
         functionThreading = threadReadyCode(functionsToInst);
     }
@@ -335,7 +335,8 @@ void CacheSimulation::instrument(){
 
         uint32_t threadReg = X86_REG_INVALID;
         if (usePIC){
-            threadReg = (*functionThreading)[f->getBaseAddress()];
+            ThreadRegisterMap* threadMap = (*functionThreading)[f->getBaseAddress()];
+            threadReg = threadMap->getThreadRegister(bb);
         }
 
         // Check if we should skip this block

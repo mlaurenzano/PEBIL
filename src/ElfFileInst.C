@@ -76,11 +76,22 @@ void ElfFileInst::computeVectorMasks()
 
 // only make modifications to the new/interposed block, the modifications to the source/target block will be made later
 BasicBlock* ElfFileInst::initInterposeBlock(FlowGraph* fg, uint32_t bbsrcidx, uint32_t bbtgtidx){
-    BasicBlock* bb = new BasicBlock(fg->getNumberOfBasicBlocks(), fg);
+    bool created; // outparam
+    BasicBlock* bb = fg->getInterposedBlock(bbsrcidx, bbtgtidx, created);
+    if(!created) {
+        return bb;
+    }
+
     interposedBlocks.append(bb);
 
     X86Instruction* jumpToTarget = X86InstructionFactory::emitJumpRelative(0,0);
     bb->addInstruction(jumpToTarget);
+
+    BasicBlock* src = fg->getBasicBlock(bbsrcidx);
+    BasicBlock* tgt = fg->getBasicBlock(bbtgtidx);
+
+    jumpToTarget->setLiveIns(new RegisterSet(*tgt->getLeader()->getLiveIns()));
+    jumpToTarget->setLiveOuts(new RegisterSet(*tgt->getLeader()->getLiveIns()));
 
     bb->addSourceBlock(fg->getBasicBlock(bbsrcidx));
     bb->addTargetBlock(fg->getBasicBlock(bbtgtidx));
@@ -898,7 +909,6 @@ uint64_t ElfFileInst::functionRelocateAndTransform(uint32_t offset){
     uint64_t codeOffset = offset;
     uint32_t numberOfFunctions = exposedFunctions.size();
 
-    // What is block interposition?
     for (uint32_t i = 0; i < interposedBlocks.size(); i++){
         BasicBlock* bb = interposedBlocks[i];
         bb->getFlowGraph()->getFunction()->interposeBlock(bb);

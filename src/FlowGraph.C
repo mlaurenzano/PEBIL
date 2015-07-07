@@ -812,6 +812,31 @@ void FlowGraph::computeDefUseDist(){
     ASSERT(allidefs.size() == 0);
 }
 
+// Get a block that will be interposed, its' not necessarily actually interposed yet
+BasicBlock* FlowGraph::getInterposedBlock(uint32_t srcidx, uint32_t tgtidx, bool& created)
+{
+    map<uint32_t, map<uint32_t, BasicBlock*>* >::iterator it1 = interposedBlocks.find(srcidx);
+    map<uint32_t, BasicBlock*>* tgtmap;
+    if(it1 == interposedBlocks.end()) {
+        tgtmap = new map<uint32_t, BasicBlock*>();
+        interposedBlocks[srcidx] = tgtmap;
+    } else {
+        tgtmap = it1->second;
+    }
+
+    map<uint32_t, BasicBlock*>::iterator it2 = tgtmap->find(tgtidx);
+    BasicBlock* bb;
+    if(it2 == tgtmap->end()) {
+        bb = new BasicBlock(getNumberOfBasicBlocks(), this);
+        (*tgtmap)[tgtidx] = bb;
+        created = true;
+    } else {
+        bb = it2->second;
+        created = false;
+    }
+    return bb;
+}
+
 void FlowGraph::interposeBlock(BasicBlock* bb){
     ASSERT(bb->getNumberOfSources() == 1 && bb->getNumberOfTargets() == 1);
     BasicBlock* sourceBlock = bb->getSourceBlock(0);
@@ -837,6 +862,9 @@ void FlowGraph::interposeBlock(BasicBlock* bb){
 
     ASSERT(linkFound && "There should be a source -> target block relationship between the blocks passed to this function");
 
+    if(sourceBlock->getBaseAddress() + sourceBlock->getNumberOfBytes() == targetBlock->getBaseAddress()) {
+        fprintf(stderr, "Failing assertion block 0x%llx to 0x%llx size %d\n", sourceBlock->getBaseAddress(), targetBlock->getBaseAddress(), sourceBlock->getNumberOfBytes());
+    }
     ASSERT(sourceBlock->getBaseAddress() + sourceBlock->getNumberOfBytes() != targetBlock->getBaseAddress() && "Source shouldn't fall through to target");
 
     bb->setBaseAddress(blocks.back()->getBaseAddress() + blocks.back()->getNumberOfBytes());
@@ -1477,6 +1505,9 @@ FlowGraph::~FlowGraph(){
     }
     for (uint32_t i = 0; i < blocks.size(); i++){
         delete blocks[i];
+    }
+    for(map<uint32_t, map<uint32_t, BasicBlock*>*>::iterator it = interposedBlocks.begin(); it != interposedBlocks.end(); ++it) {
+        delete it->second;
     }
 }
 
