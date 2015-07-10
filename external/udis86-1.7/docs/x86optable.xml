@@ -19,96 +19,102 @@
   <!-- TODO: document specific sizes for V, W in SSE/AVX where known
     -->
 
+  <instruction mnemonic="undocumented">
+    <opcode> ; FF /7 ; ; ; </opcode>
+  </instruction>
+
   <!-- MAL SSE 4.1 -->
   <instruction mnemonic="mpsadbw">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 42; V W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 42; V X W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 42; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="phminposuw"> 
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 41; V W ; ; </opcode>
-   <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 41; V X W ; ; </opcode>
+   <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 41; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pmuldq"> 
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 28; V W ; ; </opcode>
-   <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 28; V X W ; ; </opcode>
+   <opcode> aso oso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 28; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pmulhrsw">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 0b ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 0b ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 0b ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 0b ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="dpps">
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 40; V W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 40; V X W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 40; Vx Wx Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 40; Vx X Wx Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="dppd">
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 41; V W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 41; V X W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 41; Vx Wx Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 41; Vx X Wx Ib ; ; </opcode>
   </instruction>
 
   <!-- TODO it isn't clear to me whether the 1-byte (c5) form of these is valid (they have WIG but how to encode the long sse prefixes?) -->
   <instruction mnemonic="pblendvb"> 
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 10; V W ; ; u:mm0 </opcode>
-   <opcode> aso oso rexr rexx rexb vexix vexlz ; avxC4 sse66 0f /3byte=38 10; V X W Ib ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="pblendw">
-    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0e; V W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 0e; V X W Ib ; ; </opcode>
+   <opcode> aso oso rexr rexx rexb ; avxC4 sse66 0f /3byte=3A 4C; V X W Ib; ; </opcode>
   </instruction>
 
-  <instruction mnemonic="blendvpd"> 
-   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 15; V W ; ; u:mm0 </opcode>
-   <opcode> aso oso rexr rexx rexb vexix ; avxC4 sse66 0f /3byte=38 15; V X W Ib ; ; </opcode>
-  </instruction>
-  <instruction mnemonic="blendvps"> 
-   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 14; V W ; ; u:mm0 </opcode>
-   <opcode> aso oso rexr rexx rexb vexix ; avxC4 sse66 0f /3byte=38 14; V X W Ib ; ; </opcode>
+  <instruction mnemonic="pblendw">
+    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0e; V W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 0e; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="blendpd">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0d; V W Ib ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 0d; V X W Ib ; ; </opcode>
   </instruction>
+
   <instruction mnemonic="blendps">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0c; V W Ib ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 0c; V X W Ib ; ; </opcode>
   </instruction>
 
+  <instruction mnemonic="blendvpd"> 
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 15; V W ; ; u:mm0 </opcode>
+   <opcode> aso oso rexr rexx rexb vexix ; avxC4 sse66 0f /3byte=3A 4B /W=0; V X W Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="blendvps"> 
+   <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 14; V W ; ; u:mm0 </opcode>
+   <opcode> aso oso rexr rexx rexb vexix ; avxC4 sse66 0f /3byte=3A 4A /W=0; V X W Ib ; ; </opcode>
+  </instruction>
   <instruction mnemonic="pminsb">
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 38; Vx Wx ; ; </opcode>
-   <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 38; V X W ; ; </opcode>
+   <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 38; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pminsd"> 
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 39; Vx Wx ; ; </opcode>
-   <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 39; V X W ; ; </opcode>
+   <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 39; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pminuw">
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3a; V W ; ; </opcode>
-   <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 3a; V X W ; ; </opcode>
+   <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 3a; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pminud">
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3b; V W ; ; </opcode>
-   <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 3b; V X W ; ; </opcode>
+   <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 3b; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmaxsb">
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3c; V W ; ; </opcode>
-   <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 3c; V X W ; ; </opcode>
+   <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 3c; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmaxsd">
    <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3d; Vx Wx ; ; </opcode>
-   <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 3d; V X W ; ; </opcode>
+   <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 3d; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmaxud">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3f; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 3f; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 3f; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmaxuw">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 3e; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 3e; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 3e; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="roundps">
@@ -121,142 +127,142 @@
   </instruction>
   <instruction mnemonic="roundss">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0a; Vd Wd Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 0a; V X W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 0a; V X W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="roundsd">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0b; Vq Wq Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 0b; V X W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 0b; V X W Ib ; ; </opcode>
   </instruction>
 
   <!-- TODO: these + pextrw show a good example of specific operand sizing -->
   <instruction mnemonic="pextrb">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 14 ; V W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 14 ; V W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 14 ; V W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="pextrd">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 16 ; V W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 16 ; V W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 16 ; V W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="pextrq">
     <opcode> aso oso rexw rexr rexx rexb ; sse66 0f /3byte=3a 16 ; V W Ib ; ; </opcode>
-    <opcode> aso oso rexw rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 16 ; V W Ib ; ; </opcode>
+    <opcode> aso oso rexw rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 16 ; V W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="extractps">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 17; V W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 17; V W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 17; V W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="pinsrb">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 20; V W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 20; V X W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 20; V X W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="pinsrd">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 22; V W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 22; V X W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 22; V X W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="pinsrq">
     <opcode> aso oso rexw rexr rexx rexb ; sse66 0f /3byte=3a 22; V W Ib ; ; </opcode>
-    <opcode> aso oso rexw rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 22; V X W Ib ; ; </opcode>
+    <opcode> aso oso rexw rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 22; V X W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="insertps">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 21; V W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 21; V X W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 21; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pmovsxbw">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 20 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 20 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 20 ; V W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmovsxbd">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 21 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 21 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 21 ; V W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmovsxbq">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 22 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 22 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 22 ; V W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmovsxwd">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 23 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 23 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 23 ; V W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmovsxwq">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 24 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz; avxC4 sse66 0f /3byte=38 24 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig; avxC4 sse66 0f /3byte=38 24 ; V W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmovsxdq">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 25 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 25 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 25 ; V W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmovzxbw">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 30 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 30 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 30 ; V W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmovzxbd">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 31 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 31 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 31 ; V W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmovzxbq">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 32 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 32 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 32 ; V W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmovzxwd">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 33 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 33 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 33 ; V W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmovzxwq">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 34 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 34 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 34 ; V W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmovzxdq">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 35 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 35 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 35 ; V W ; ; </opcode>
   </instruction>
 
   <!-- not sure I did the avx version correctly... FIXME -->
   <instruction mnemonic="ptest">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 17 ; V W ; d:alu ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 17 ; V W ; d:alu ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 17 ; V W ; d:alu ; </opcode>
   </instruction>
 
   <instruction mnemonic="pcmpeqq">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 29 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 29 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 29 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="packusdw">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 2b ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 2b ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 2b ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movntdqa">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 2a ; V M ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 2a ; V M ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 2a ; V M ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pcmpestrm">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=3a 60 ; V W Ib ; d:alu ; d:mm0 </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 60 ; V W Ib ; d:alu ; d:mm0 </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 60 ; V W Ib ; d:alu ; d:mm0 </opcode>
   </instruction>
   <instruction mnemonic="pcmpestri">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=3a 61 ; V W Ib ; d:alu ; d:cx </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 61 ; V W Ib ; d:alu ; d:cx </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 61 ; V W Ib ; d:alu ; d:cx </opcode>
   </instruction>
   <instruction mnemonic="pcmpistrm">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=3a 62 ; V W Ib ; d:alu ; d:mm0 </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 62 ; V W Ib ; d:alu ; d:mm0 </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 62 ; V W Ib ; d:alu ; d:mm0 </opcode>
   </instruction>
   <instruction mnemonic="pcmpistri">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=3a 63 ; V W Ib ; d:alu ; d:cx </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 63 ; V W Ib ; d:alu ; d:cx </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 63 ; V W Ib ; d:alu ; d:cx </opcode>
   </instruction>
 
   <instruction mnemonic="pcmpgtq">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 37 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 37 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 37 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pclmulqdq">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=3a 44 ; V W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 44 ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 44 ; V X W Ib ; ; </opcode>
   </instruction>
 
   <!-- MAL SSE 4a -->
@@ -289,108 +295,106 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="crc32">
     <opcode> ; ; ; ; </opcode>
   </instruction>
-  <instruction mnemonic="popcnt">
-    <opcode> ; ; ; ; </opcode>
-  </instruction>
   <instruction mnemonic="lzcnt">
     <opcode> ; ; ; ; </opcode>
   </instruction>
 -->
 
+
   <instruction mnemonic="aesimc">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 db ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 db ; V W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 db ; V W ; ; </opcode>
   </instruction>
   <instruction mnemonic="aesenc">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 dc ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 dc ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 dc ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="aesenclast">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 dd ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 dd ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 dd ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="aesdec">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 de ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 de ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 de ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="aesdeclast">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 df ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 df ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 df ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="aeskeygenassist">
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a df ; V W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a df ; V W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a df ; V W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pabsb">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 1c ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 1c ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 1c ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 1c ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pabsd">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 1e ; Pq Qq ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 1e ; Vx Wx ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 1e ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 1e ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pabsw">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 1d ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 1d ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 1d ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 1d ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="psignb">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 08 ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 08 ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 08 ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 08 ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="psignd">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 0a ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 0a ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 0a ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 0a ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="psignw">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 09 ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 09 ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 09 ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 09 ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="palignr">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=3a 0f ; P Q Ib ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 0f ; V W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 0f ; V X W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 0f ; V X W Ib ; ; </opcode>
   </instruction>
   <instruction mnemonic="phaddd">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 02 ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 02 ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 02 ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 02 ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="phaddw">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 01 ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 01 ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 01 ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 01 ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="phaddsw">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 03 ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 03 ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 03 ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 03 ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="phsubd">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 06 ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 06 ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 06 ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 06 ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="phsubw">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 05 ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 05 ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 05 ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 05 ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="phsubsw">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 07 ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 07 ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 07 ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 07 ; V X W ; ; </opcode>
   </instruction>
   <instruction mnemonic="pmaddusbw">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 04 ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 04 ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 04; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 04; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="3dnow">
@@ -441,38 +445,32 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="addpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 58 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 58 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 58 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 58 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="addps">
     <opcode> aso rexr rexx rexb ; 0f 58 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 0f 58 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 58 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 58 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="addsd">
     <opcode> aso rexr rexx rexb ; ssef2 0f 58 ; Vq Wq ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 58 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 58 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 58 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="addss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 58 ; Vd Wd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 58 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 58 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 58 ; V X Wd ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="addsubpd">
     <opcode> aso rexr rexx rexb ; sse66 0f d0 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f d0 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f d0 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="addsubps">
     <opcode> aso rexr rexx rexb ; ssef2 0f d0 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 ssef2 0f d0 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef2 0f d0 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="and">
@@ -491,25 +489,21 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="andpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 54 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 54 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 54 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="andps">
     <opcode> aso rexr rexx rexb ; 0f 54 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 54 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 54 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="andnpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 55 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 55 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 55 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="andnps">
     <opcode> aso rexr rexx rexb ; 0f 55 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 55 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 55 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="arpl">
@@ -572,11 +566,32 @@ MAL MISSING PRE SSE?
     <opcode mode="inv64"> oso ; 9a ; Ap ; ; u:ax u:sp u:di u:si u:dx u:cx u:8 u:9 u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7 d:ax d:dx d:mm0 d:st0 </opcode>
   </instruction>
 -->
+
+<!--- Old use defs
+      u:bx u:bp u:12 u:13 u:14 u:15 u:ax u:sp u:di u:si u:dx u:cx u:8 u:9 u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7
+      d:ax d:dx d:mm0 d:st0 d:bx d:bp d:12 d:13 d:14 d:15
+-->
+
   <instruction mnemonic="call">
-    <opcode mode="def64" cast="1"> aso oso rexw rexr rexx rexb ; FF /2 ; Ev ; ; u:bx u:bp u:12 u:13 u:14 u:15 u:ax u:sp u:di u:si u:dx u:cx u:8 u:9 u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7 d:ax d:dx d:mm0 d:st0 d:bx d:bp d:12 d:13 d:14 d:15 </opcode>
-    <opcode cast="1"> aso oso rexw rexr rexx rexb ; FF /3 ; Ep ; ; u:bx u:bp u:12 u:13 u:14 u:15 u:ax u:sp u:di u:si u:dx u:cx u:8 u:9 u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7 d:ax d:dx d:mm0 d:st0 d:bx d:bp d:12 d:13 d:14 d:15 </opcode>
-    <opcode mode="def64"> oso ; e8 ; Jz ; ; u:bx u:bp u:12 u:13 u:14 u:15 u:ax u:sp u:di u:si u:dx u:cx u:8 u:9 u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7 d:ax d:dx d:mm0 d:st0 d:bx d:bp d:12 d:13 d:14 d:15 </opcode>
-    <opcode mode="inv64"> oso ; 9a ; Ap ; ; u:bx u:bp u:12 u:13 u:14 u:15 u:ax u:sp u:di u:si u:dx u:cx u:8 u:9 u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7 d:ax d:dx d:mm0 d:st0 d:bx d:bp d:12 d:13 d:14 d:15 </opcode>
+    <opcode mode="def64" cast="1"> aso oso rexw rexr rexx rexb ; FF /2 ; Ev ; ;
+      u:ax u:bx u:cx u:dx u:sp u:bp u:si u:di u:8 u:9 u:10      u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7
+      d:ax d:cx d:dx d:si d:di                d:8 d:9 d:10 d:11 d:mm0 d:mm1 d:mm2 d:mm3 d:mm4 d:mm5 d:mm6 d:mm7 d:st0
+    </opcode>
+
+    <opcode cast="1"> aso oso rexw rexr rexx rexb ; FF /3 ; Ep ; ;
+      u:ax u:bx u:cx u:dx u:sp u:bp u:si u:di u:8 u:9 u:10      u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7
+      d:ax d:cx d:dx d:si d:di                d:8 d:9 d:10 d:11 d:mm0 d:mm1 d:mm2 d:mm3 d:mm4 d:mm5 d:mm6 d:mm7 d:st0
+    </opcode>
+
+    <opcode mode="def64"> oso ; e8 ; Jz ; ;
+      u:ax u:bx u:cx u:dx u:sp u:bp u:si u:di u:8 u:9 u:10      u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7
+      d:ax d:cx d:dx d:si d:di                d:8 d:9 d:10 d:11 d:mm0 d:mm1 d:mm2 d:mm3 d:mm4 d:mm5 d:mm6 d:mm7 d:st0
+    </opcode>
+
+    <opcode mode="inv64"> oso ; 9a ; Ap ; ;
+      u:ax u:bx u:cx u:dx u:sp u:bp u:si u:di u:8 u:9 u:10      u:mm0 u:mm1 u:mm2 u:mm3 u:mm4 u:mm5 u:mm6 u:mm7
+      d:ax d:cx d:dx d:si d:di                d:8 d:9 d:10 d:11 d:mm0 d:mm1 d:mm2 d:mm3 d:mm4 d:mm5 d:mm6 d:mm7 d:st0
+    </opcode>
   </instruction>
 
   <instruction mnemonic="cbw">
@@ -700,13 +715,11 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="cmppd">
     <opcode> aso rexr rexx rexb ; sse66 0f c2 ; Vx Wx Ib ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f c2 ; V X W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f c2 ; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cmpps">
     <opcode> aso rexr rexx rexb ; 0f c2 ; V W Ib ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f c2 ; V X W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f c2 ; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cmpsb">
@@ -720,8 +733,7 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="cmpsd">
     <opcode> oso rexw ; a7 /O32 ; ; u:df d:alu ; u:si u:di d:si d:di </opcode>
     <opcode> aso rexr rexx rexb ; ssef2 0f c2 ; Vx Wx Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f c2 ; V X W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f c2 ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f c2 ; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cmpsq">
@@ -730,8 +742,7 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="cmpss">
     <opcode> aso rexr rexx rexb ; ssef3 0f c2 ; V W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f c2 ; V X W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f c2 ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f c2 ; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cmpxchg">
@@ -745,14 +756,12 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="comisd">
     <opcode> aso rexr rexx rexb ; sse66 0f 2f ; Vx Wx ; d:alu ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 2f ; V W ; d:alu ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 2f ; V W ; d:alu ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 2f ; V W ; d:alu ; </opcode>
   </instruction>
 
   <instruction mnemonic="comiss">
     <opcode> aso rexr rexx rexb ; 0f 2f ; Vd Wd ; d:alu ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f 2f ; V W ; d:alu ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 0f 2f ; V W ; d:alu ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 0f 2f ; V W ; d:alu ; </opcode>
   </instruction>
 
   <instruction mnemonic="cpuid">
@@ -762,19 +771,16 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="cvtdq2pd">
     <opcode> aso rexr rexx rexb ; ssef3 0f e6 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 ssef3 0f e6 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef3 0f e6 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtdq2ps">
     <opcode> aso rexr rexx rexb ; 0f 5b ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 5b ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 5b ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtpd2dq">
     <opcode> aso rexr rexx rexb ; ssef2 0f e6 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 ssef2 0f e6 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef2 0f e6 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtpd2pi">
@@ -784,7 +790,6 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="cvtpd2ps">
     <opcode> aso rexr rexx rexb ; sse66 0f 5a ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 5a ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 5a ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtpi2ps">
@@ -798,7 +803,6 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="cvtps2dq">
     <opcode> aso rexr rexx rexb ; sse66 0f 5b ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 5b ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 5b ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtps2pi">
@@ -808,37 +812,31 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="cvtps2pd">
     <opcode> aso rexr rexx rexb ; 0f 5a ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 5a ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 5a ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtsd2si">
     <opcode cast="1"> aso rexw rexr rexx rexb ; ssef2 0f 2d ; Gvw Wq ; ; </opcode>
-    <opcode cast="1"> aso rexw rexr rexx rexb vexlz ; avxC4 ssef2 0f 2d ; Gvw W ; ; </opcode>
-    <opcode cast="1"> aso rexw rexr rexx rexb vexlz ; avxC5 ssef2 0f 2d ; Gvw W ; ; </opcode>
+    <opcode cast="1"> aso rexw rexr rexx rexb vexlig ; avxC4 ssef2 0f 2d ; Gvw W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtsd2ss">
     <opcode> aso rexr rexx rexb ; ssef2 0f 5a ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 5a ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 5a ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 5a ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtsi2ss">
     <opcode cast="2"> aso rexw rexr rexx rexb ; ssef3 0f 2a ; V Ex ; ; </opcode>
-    <opcode cast="2"> aso rexw rexr rexx rexb vexlz ; avxC4 ssef3 0f 2a ; V X Ex ; ; </opcode>
-    <opcode cast="2"> aso rexw rexr rexx rexb vexlz ; avxC5 ssef3 0f 2a ; V X Ex ; ; </opcode>
+    <opcode cast="2"> aso rexw rexr rexx rexb vexlig ; avxC4 ssef3 0f 2a ; V X Ex ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtss2si">
-    <opcode cast="1"> aso rexw rexr rexx rexb vexlz ; ssef3 0f 2d ; Gvw W ; ; </opcode>
-    <opcode cast="1"> aso rexw rexr rexx rexb vexlz ; avxC4 ssef3 0f 2d ; Gvw W ; ; </opcode>
-    <opcode cast="1"> aso rexw rexr rexx rexb vexlz ; avxC5 ssef3 0f 2d ; Gvw W ; ; </opcode>
+    <opcode cast="1"> aso rexw rexr rexx rexb ; ssef3 0f 2d ; Gvw W ; ; </opcode>
+    <opcode cast="1"> aso rexw rexr rexx rexb vexlig ; avxC4 ssef3 0f 2d ; Gvw W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtss2sd">
     <opcode> aso rexr rexx rexb ; ssef3 0f 5a ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 5a ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 5a ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 5a ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvttpd2pi">
@@ -848,13 +846,11 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="cvttpd2dq">
     <opcode> ; sse66 0f e6 ; Vx Wx ; ; </opcode>
     <opcode> ; avxC4 sse66 0f e6 ; V W ; ; </opcode>
-    <opcode> ; avxC5 sse66 0f e6 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvttps2dq">
     <opcode> aso rexr rexx rexb ; ssef3 0f 5b ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 ssef3 0f 5b ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef3 0f 5b ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvttps2pi">
@@ -863,20 +859,17 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="cvttsd2si">
     <opcode cast="1"> aso rexw rexr rexx rexb ; ssef2 0f 2c ; Gvw Wq ; ; </opcode>
-    <opcode cast="1"> aso rexw rexr rexx rexb vexlz ; avxC4 ssef2 0f 2c ; Gvw W ; ; </opcode>
-    <opcode cast="1"> aso rexw rexr rexx rexb vexlz ; avxC5 ssef2 0f 2c ; Gvw W ; ; </opcode>
+    <opcode cast="1"> aso rexw rexr rexx rexb vexlig ; avxC4 ssef2 0f 2c ; Gvw W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtsi2sd">
     <opcode cast="2"> aso rexw rexr rexx rexb ; ssef2 0f 2a ; Vx Ex ; ; </opcode>
-    <opcode cast="2"> aso rexw rexr rexx rexb vexlz ; avxC4 ssef2 0f 2a ; V X Ex ; ; </opcode>
-    <opcode cast="2"> aso rexw rexr rexx rexb vexlz ; avxC5 ssef2 0f 2a ; V X Ex ; ; </opcode>
+    <opcode cast="2"> aso rexw rexr rexx rexb vexlig ; avxC4 ssef2 0f 2a ; V X Ex ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvttss2si">
     <opcode cast="1"> aso rexw rexr rexx rexb ; ssef3 0f 2c ; Gvw W ; ; </opcode>
-    <opcode cast="1"> aso rexw rexr rexx rexb vexlz ; avxC4 ssef3 0f 2c ; Gvw W ; ; </opcode>
-    <opcode cast="1"> aso rexw rexr rexx rexb vexlz ; avxC5 ssef3 0f 2c ; Gvw W ; ; </opcode>
+    <opcode cast="1"> aso rexw rexr rexx rexb vexlig ; avxC4 ssef3 0f 2c ; Gvw W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cwd">
@@ -920,25 +913,21 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="divpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 5e ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 5e ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 5e ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="divps">
     <opcode> aso rexr rexx rexb ; 0f 5e ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 5e ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 5e ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="divsd">
     <opcode> aso rexr rexx rexb ; ssef2 0f 5e ; Vq Wq ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 5e ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 5e ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 5e ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="divss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 5e ; Vd Wd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 5e ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 5e ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 5e ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="emms">
@@ -1830,13 +1819,11 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="haddpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 7c ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 7c ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 7c ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="haddps">
     <opcode> aso rexr rexx rexb ; ssef2 0f 7c ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 ssef2 0f 7c ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef2 0f 7c ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="hlt">
@@ -1846,13 +1833,11 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="hsubpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 7d ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 7d ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 7d ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="hsubps">
     <opcode> aso rexr rexx rexb ; ssef2 0f 7d ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 ssef2 0f 7d ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef2 0f 7d ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="idiv">
@@ -2041,6 +2026,7 @@ MAL MISSING PRE SSE?
     <opcode> ; eb ; Jb ; ; </opcode>
   </instruction>
 
+
   <instruction mnemonic="lahf">
     <opcode> ; 9f ; ; d:sf d:zf d:af d:pf d:cf ; d:ax </opcode>
   </instruction>
@@ -2052,13 +2038,11 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="lddqu">
     <opcode> aso rexr rexx rexb ; ssef2 0f f0 ; V M ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 ssef2 0f f0 ; V M ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef2 0f f0 ; V M ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="ldmxcsr">
     <opcode> aso rexw rexr rexx rexb ; 0F AE /2 ; Md ; ; </opcode>
     <opcode> aso rexw rexr rexx rexb vexlz ; avxC4 0F AE /2 ; Md ; ; </opcode>
-    <opcode> aso rexw rexr rexx rexb vexlz ; avxC5 0F AE /2 ; Md ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="lds">
@@ -2163,32 +2147,27 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="maskmovdqu">
     <opcode> aso rexr rexx rexb ; sse66 0f f7 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f f7 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f f7 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f f7 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="maxpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 5f ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 5f ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 5f ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="maxps">
     <opcode> aso rexr rexx rexb ; 0f 5f ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 5f ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 5f ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="maxsd">
     <opcode> aso rexr rexx rexb ; ssef2 0f 5f ; Vq Wq ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 5f ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 5f ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 5f ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="maxss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 5f ; Vd Wd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 5f ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 5f ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 5f ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="mfence">
@@ -2205,25 +2184,21 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="minpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 5d ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 5d ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 5d ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="minps">
     <opcode> aso rexr rexx rexb ; 0f 5d ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 5d ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 5d ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="minsd">
     <opcode> aso rexr rexx rexb ; ssef2 0f 5d ; Vq Wq ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 5d ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 5d ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 5d ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="minss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 5d ; Vd Wd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 5d ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 5d ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 5d ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="monitor">
@@ -2268,54 +2243,43 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="movapd">
     <opcode> aso rexr rexx rexb ; sse66 0f 28 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 28 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 28 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 29 ; Wx Vx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 29 ; W V ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 29 ; W V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movaps">
     <opcode> aso rexr rexx rexb ; 0f 28 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 28 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 28 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f 29 ; Wx Vx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 29 ; W V ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 29 ; W V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movd">
     <opcode cast="2"> aso rexw rexr rexx rexb ; sse66 0f 6e ; V Ex ; ; </opcode>
-    <opcode cast="2"> aso rexw rexr rexx rexb vexlz ; avxC4 sse66 0f 6e ; V Ex ; ; </opcode>
-    <opcode cast="2"> aso rexw rexr rexx rexb vexlz ; avxC5 sse66 0f 6e ; V Ex ; ; </opcode>
+    <opcode cast="2"> aso rexw rexr rexx rexb vexlig ; avxC4 sse66 0f 6e ; V Ex ; ; </opcode>
     <opcode cast="2"> aso rexr rexx rexb ; 0f 6e ; P Ex ; ; </opcode>
     <opcode cast="1"> aso rexw rexr rexx rexb ; sse66 0f 7e ; Ex V ; ; </opcode>
-    <opcode cast="1"> aso rexw rexr rexx rexb vexlz ; avxC4 sse66 0f 7e ; Ex V ; ; </opcode>
-    <opcode cast="1"> aso rexw rexr rexx rexb vexlz ; avxC5 sse66 0f 7e ; Ex V ; ; </opcode>
+    <opcode cast="1"> aso rexw rexr rexx rexb vexlig ; avxC4 sse66 0f 7e ; Ex V ; ; </opcode>
     <opcode cast="1"> aso rexr rexx rexb ; 0f 7e ; Ex P ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movddup">
     <opcode> aso rexr rexx rexb ; ssef2 0f 12 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 ssef2 0f 12 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef2 0f 12 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movdqa">
     <opcode> aso rexr rexx rexb ; sse66 0f 6f ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 6f ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 6f ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 7f ; Wx Vx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 7f ; W V ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 7f ; W V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movdqu">
     <opcode> aso rexr rexx rexb ; ssef3 0f 6f ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 ssef3 0f 6f ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef3 0f 6f ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; ssef3 0f 7f ; Wx Vx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 ssef3 0f 7f ; W V ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef3 0f 7f ; W V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movdq2q">
@@ -2324,20 +2288,16 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="movhpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 16 ; Vq Mq ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 16 ; V X M ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 16 ; V X M ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 16 ; V X M ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 17 ; Mq Vq ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 17 ; M V ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 17 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 17 ; M V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movhps">
     <opcode> aso rexr rexx rexb ; 0f 16 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f 16 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 0f 16 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 0f 16 ; V X W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f 17 ; M V ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f 17 ; M V ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 0f 17 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 0f 17 ; M V ; ; </opcode>
   </instruction>
 
   <!-- TODO: in the intel docs, this is indistinguishable from movhps -->
@@ -2345,20 +2305,16 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="movlpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 12 ; V M ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 12 ; V X M ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 12 ; V X M ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 12 ; V X M ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 13 ; M V ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 13 ; M V ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 13 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 13 ; M V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movlps">
     <opcode> aso rexr rexx rexb ; 0f 12 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f 12 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 0f 12 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 0f 12 ; V X W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f 13 ; M V ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f 13 ; M V ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 0f 13 ; M V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 0f 13 ; M V ; ; </opcode>
   </instruction>
 
   <!-- TODO: in the intel docs, this is indistinguishable from movlps -->
@@ -2367,19 +2323,16 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="movmskpd">
     <opcode> oso rexr rexb ; sse66 0f 50 ; Gd VR ; ; </opcode>
     <opcode> oso rexr rexb ; avxC4 sse66 0f 50 ; Gd VR ; ; </opcode>
-    <opcode> oso rexr rexb ; avxC5 sse66 0f 50 ; Gd VR ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movmskps">
     <opcode> oso rexr rexb ; 0f 50 ; Gd VR ; ; </opcode>
     <opcode> oso rexr rexb ; avxC4 0f 50 ; Gd VR ; ; </opcode>
-    <opcode> oso rexr rexb ; avxC5 0f 50 ; Gd VR ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movntdq">
     <opcode> aso rexr rexx rexb ; sse66 0f e7 ; M V ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f e7 ; M V ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f e7 ; M V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movnti">
@@ -2389,13 +2342,11 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="movntpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 2b ; M V ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 2b ; M V ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 2b ; M V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movntps">
     <opcode> aso rexr rexx rexb ; 0f 2b ; M V ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 2b ; M V ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 2b ; M V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movntq">
@@ -2406,11 +2357,9 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="movq">
     <opcode> aso rexr rexx rexb ; 0f 6f ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f d6 ; W V ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f d6 ; W V ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f d6 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f d6 ; W V ; ; </opcode>
     <opcode> aso rexr rexx rexb ; ssef3 0f 7e ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 7e ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 7e ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 7e ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f 7f ; Q P ; ; </opcode>
   </instruction>
 
@@ -2432,11 +2381,9 @@ MAL MISSING PRE SSE?
 
     <!-- TODO: the AVX instructions introduce another form that is seemingly 
          indistinguishable from this one in the opcode (same with ss) -->
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 10 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 10 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 10 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb       ;       ssef2 0f 11 ; Wq Vq ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 11 ; W V ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 11 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 11 ; W V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movsq">
@@ -2446,22 +2393,21 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="movsldup">
     <opcode> aso rexr rexx rexb ; ssef3 0f 12 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 ssef3 0f 12 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef3 0f 12 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movshdup">
     <opcode> aso rexr rexx rexb ; ssef3 0f 16 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 ssef3 0f 16 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef3 0f 16 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 10 ; Vd Wd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 10 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 10 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 10 /mod=!11 ; Vd Wd ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 10 /mod=11 ; Vd X Wd ; ; </opcode>
+
     <opcode> aso rexr rexx rexb ; ssef3 0f 11 ; Wd Vd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 11 ; W V ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 11 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 11 /mod=!11 ; Wd Vd ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 11 /mod=11 ; Wd X Vd ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movsx">
@@ -2472,19 +2418,15 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="movupd">
     <opcode> aso rexr rexx rexb ; sse66 0f 10 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 10 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 10 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 11 ; Wx Vx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 11 ; W V ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 11 ; W V ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movups">
     <opcode> aso rexr rexx rexb ; 0f 10 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 0f 10 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 10 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 10 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f 11 ; Wx Vx ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 0f 11 ; W V ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 11 ; W V ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 11 ; Wx Vx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="movzx">
@@ -2499,26 +2441,22 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="mulpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 59 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 59 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 59 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 59 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="mulps">
     <opcode> aso rexr rexx rexb ; 0f 59 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 0f 59 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 59 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 59 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="mulsd">
     <opcode> aso rexr rexx rexb ; ssef2 0f 59 ; Vq Wq ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 59 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 59 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 59 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="mulss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 59 ; Vd Wd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 59 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 59 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 59 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="mwait">
@@ -2562,13 +2500,11 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="orpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 56 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 56 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 56 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="orps">
     <opcode> aso rexr rexx rexb ; 0f 56 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 56 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 56 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="out">
@@ -2597,93 +2533,80 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="packsswb">
     <opcode> aso rexr rexx rexb ; 0f 63 ; P Q ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; sse66 0f 63 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 63 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 63 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; sse66 0f 63 ; Vx Wx ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 63 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="packssdw">
     <opcode> aso rexr rexx rexb ; 0f 6b ; P Q ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; sse66 0f 6b ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 6b ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 6b ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; sse66 0f 6b ; Vx Wx ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 6b ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="packuswb">
     <opcode> aso rexr rexx rexb ; 0f 67 ; P Q ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; sse66 0f 67 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 67 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 67 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; sse66 0f 67 ; Vx Wx ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 67 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="paddb">
     <opcode> aso rexr rexx rexb ; 0f fc ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f fc ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f fc ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f fc ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f fc ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="paddd">
     <opcode> aso rexr rexx rexb ; 0f fe ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f fe ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f fe ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f fe ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f fe ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="paddw">
     <opcode> aso rexr rexx rexb ; 0f fd ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f fd ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f fd ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f fd ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f fd ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="paddq">
     <opcode> aso rexr rexx rexb ; 0f d4 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f d4 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f d4 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f d4 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f d4 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="paddsb">
     <opcode> aso rexr rexx rexb ; 0f ec ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f ec ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f ec ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f ec ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f ec ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="paddsw">
     <opcode> aso rexr rexx rexb ; 0f ed ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f ed ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f ed ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f ed ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f ed ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="paddusb">
     <opcode> aso rexr rexx rexb ; 0f dc ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f dc ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f dc ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f dc ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f dc ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="paddusw">
     <opcode> aso rexr rexx rexb ; 0f dd ; P Q ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; sse66 0f dd ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f dd ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f dd ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; sse66 0f dd ; Vx Wx ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f dd ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pand">
     <opcode> aso rexr rexx rexb ; 0f db ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f db ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f db ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f db ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f db ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pandn">
     <opcode> aso rexr rexx rexb ; 0f df ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f df ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f df ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f df ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f df ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pause">
@@ -2693,149 +2616,129 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="pavgb">
     <opcode> aso rexr rexx rexb ; 0f e0 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f e0 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f e0 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f e0 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f e0 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pavgw">
     <opcode> aso rexr rexx rexb ; 0f e3 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f e3 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f e3 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f e3 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f e3 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pcmpeqb">
     <opcode> aso rexr rexx rexb ; 0f 74 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 74 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 74 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 74 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 74 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pcmpeqw">
     <opcode> aso rexr rexx rexb ; 0f 75 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 75 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 75 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 75 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 75 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pcmpeqd">
     <opcode> aso rexr rexx rexb ; 0f 76 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 76 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 76 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 76 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 76 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pcmpgtb">
     <opcode> aso rexr rexx rexb ; 0f 64 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 64 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 64 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 64 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 64 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pcmpgtw">
     <opcode> aso rexr rexx rexb ; 0f 65 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 65 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 65 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 65 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 65 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pcmpgtd">
     <opcode> aso rexr rexx rexb ; 0f 66 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 66 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 66 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 66 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 66 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pextrw">
     <opcode> aso oso rexw rexr rexx rexb ; 0f c5 ; Gd PR Ib ; ; </opcode>
     <opcode> aso rexr rexb ; sse66 0f c5 ; Gd PR Ib ; ; </opcode>
-    <opcode> aso rexr rexb vexlz ; avxC4 sse66 0f c5 ; Gd PR Ib ; ; </opcode>
-    <opcode> aso rexr rexb vexlz ; avxC5 sse66 0f c5 ; Gd PR Ib ; ; </opcode>
+    <opcode> aso rexr rexb vexlig ; avxC4 sse66 0f c5 ; Gd PR Ib ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=3a 15; Ew W Ib ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=3a 15; Ew W Ib ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=3a 15; Ew W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pinsrw">
     <opcode> aso oso rexw rexr rexx rexb ; 0f c4 ; P Ew Ib ; ; </opcode>
     <opcode> aso rexw rexr rexx rexb ; sse66 0f c4 ; P Ew Ib ; ; </opcode>
-    <opcode> aso rexw rexr rexx rexb vexlz; avxC4 sse66 0f c4 ; P X Ew Ib ; ; </opcode>
-    <opcode> aso rexw rexr rexx rexb vexlz; avxC5 sse66 0f c4 ; P X Ew Ib ; ; </opcode>
+    <opcode> aso rexw rexr rexx rexb vexlig; avxC4 sse66 0f c4 ; P X Ew Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pmaddwd">
     <opcode> aso rexr rexx rexb ; 0f f5 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f f5 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz; avxC4 sse66 0f f5 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz; avxC5 sse66 0f f5 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig; avxC4 sse66 0f f5 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pmaxsw">
     <opcode> aso rexr rexx rexb ; 0f ee ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f ee ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f ee ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f ee ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f ee ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pmaxub">
     <opcode> aso rexr rexx rexb ; 0f de ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f de ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f de ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f de ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f de ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pminsw">
     <opcode> aso rexr rexx rexb ; 0f ea ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f ea ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f ea ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f ea ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f ea ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pminub">
     <opcode> aso rexr rexx rexb ; 0f da ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f da ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f da ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f da ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f da ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pmovmskb">
     <opcode> oso rexr rexb ; 0f d7 ; Gd PR ; ; </opcode>
     <opcode> rexr rexb ; sse66 0f d7 ; Gd VR ; ; </opcode>
-    <opcode> rexr rexb vexlz ; avxC4 sse66 0f d7 ; Gd VR ; ; </opcode>
-    <opcode> rexr rexb vexlz ; avxC5 sse66 0f d7 ; Gd VR ; ; </opcode>
+    <opcode> rexr rexb vexlig ; avxC4 sse66 0f d7 ; Gd VR ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pmulhuw">
     <opcode> aso rexr rexx rexb ; 0f e4 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f e4 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f e4 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f e4 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f e4 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pmulhw">
     <opcode> aso rexr rexx rexb ; 0f e5 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f e5 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f e5 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f e5 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f e5 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pmulld">
     <opcode> aso rexr rexx rexb ; sse66 0f /3byte=38 40 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 40 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 40 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pmullw">
     <opcode> aso rexr rexx rexb ; 0f d5 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f d5 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f d5 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f d5 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f d5 ; V X W ; ; </opcode>
   </instruction>
  
   <!-- not accurate - reads from lower registers. writes to whole registers FIXME-->
   <instruction mnemonic="pmuludq">
     <opcode> aso rexr rexx rexb ; 0f f4 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f f4 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f f4 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f f4 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f f4 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pop">
@@ -2880,8 +2783,7 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="por">
     <opcode> aso rexr rexx rexb ; 0f eb ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f eb ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f eb ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f eb ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f eb ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="prefetch">
@@ -2914,32 +2816,28 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="psadbw">
     <opcode> aso rexr rexx rexb ; 0f f6 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f f6 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f f6 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f f6 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f f6 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pshufb">
     <opcode> aso oso rexr rexx rexb ; 0f /3byte=38 00 ; P Q ; ; </opcode>
     <opcode> aso oso rexr rexx rexb ; sse66 0f /3byte=38 00 ; V W ; ; </opcode>
-    <opcode> aso oso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 00 ; V X W ; ; </opcode>
+    <opcode> aso oso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 00 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pshufd">
     <opcode> aso rexr rexx rexb ; sse66 0f 70 ; Vx Wx Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 70 ; V W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 70 ; V W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 70 ; V W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pshufhw">
     <opcode> aso rexr rexx rexb ; ssef3 0f 70 ; V W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 70 ; V W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 70 ; V W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 70 ; V W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pshuflw">
     <opcode> aso rexr rexx rexb ; ssef2 0f 70 ; V W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 70 ; V W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 70 ; V W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 70 ; V W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pshufw">
@@ -2948,211 +2846,177 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="pslldq">
     <opcode> rexb ; sse66 0F 73 /7 ; VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC4 sse66 0F 73 /7 ; X VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC5 sse66 0F 73 /7 ; X VR Ib ; ; </opcode>
+    <opcode> rexb vexlig ; avxC4 sse66 0F 73 /7 ; X VR Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psllw">
     <opcode> aso rexr rexx rexb ; 0f f1 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f f1 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f f1 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f f1 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f f1 ; V X W ; ; </opcode>
     <opcode> ; 0F 71 /6 ; PR Ib ; ; </opcode>
     <opcode> rexb ; sse66 0F 71 /6 ; VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC4 sse66 0F 71 /6 ; X VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC5 sse66 0F 71 /6 ; X VR Ib ; ; </opcode>
+    <opcode> rexb vexlig ; avxC4 sse66 0F 71 /6 ; X VR Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pslld">
     <opcode> aso rexr rexx rexb ; 0f f2 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f f2 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f f2 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f f2 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f f2 ; V X W ; ; </opcode>
     <opcode> ; 0F 72 /6 ; PRq Ib ; ; </opcode>
     <opcode> rexb ; sse66 0F 72 /6 ; VRx Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC4 sse66 0F 72 /6 ; X VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC5 sse66 0F 72 /6 ; X VR Ib ; ; </opcode>
+    <opcode> rexb vexlig ; avxC4 sse66 0F 72 /6 ; X VR Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psllq">
     <opcode> aso rexr rexx rexb ; 0f f3 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f f3 ; Vx Wx ; ; </opcode>    
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f f3 ; V X W ; ; </opcode>    
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f f3 ; V X W ; ; </opcode>    
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f f3 ; V X W ; ; </opcode>    
     <opcode> ; 0F 73 /6 ; PRq Ib ; ; </opcode>
     <opcode> rexb ; sse66 0F 73 /6 ; VRx Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC4 sse66 0F 73 /6 ; X VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC5 sse66 0F 73 /6 ; X VR Ib ; ; </opcode>
+    <opcode> rexb vexlig ; avxC4 sse66 0F 73 /6 ; X VR Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psraw">
     <opcode> aso rexr rexx rexb ; 0f e1 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f e1 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f e1 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f e1 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f e1 ; V X W ; ; </opcode>
     <opcode> ; 0F 71 /4 ; PRq Ib ; ; </opcode>
     <opcode> rexb ; sse66 0F 71 /4 ; VRx Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC4 sse66 0F 71 /4 ; X VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC5 sse66 0F 71 /4 ; X VR Ib ; ; </opcode>
+    <opcode> rexb vexlig ; avxC4 sse66 0F 71 /4 ; X VR Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psrad">
     <opcode> ; 0F 72 /4 ; PRq Ib ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f e2 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f e2 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f e2 ; V X W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f e2 ; Pq Qq ; ; </opcode>
     <opcode> rexb ; sse66 0F 72 /4 ; VRx Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC4 sse66 0F 72 /4 ; X VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC5 sse66 0F 72 /4 ; X VR Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f e2 ; Vx X Wx ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0F 72 /4 ; X VR Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psrlw">
     <opcode> ; 0F 71 /2 ; PR Ib ; ; </opcode>
     <opcode> rexb ; sse66 0F 71 /2 ; VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC4 sse66 0F 71 /2 ; X VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC5 sse66 0F 71 /2 ; X VR Ib ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f d1 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f d1 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f d1 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f d1 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb  ; avxC4 sse66 0F 71 /2 ; X VR Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f d1 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psrld">
     <opcode> ; 0F 72 /2 ; PRq Ib ; ; </opcode>
     <opcode> rexb ; sse66 0F 72 /2 ; VRx Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC4 sse66 0F 72 /2 ; X VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC5 sse66 0F 72 /2 ; X VR Ib ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f d2 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f d2 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f d2 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f d2 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0F 72 /2 ; X VR Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f d2 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psrlq">
     <opcode> ; 0F 73 /2 ; PRq Ib ; ; </opcode>
     <opcode> rexb ; sse66 0F 73 /2 ; VRx Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC4 sse66 0F 73 /2 ; X VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC5 sse66 0F 73 /2 ; X VR Ib ; ; </opcode>
+    <opcode> rexb vexlig ; avxC4 sse66 0F 73 /2 ; X VR Ib ; ; </opcode>
     <opcode> aso rexr rexx rexb ; 0f d3 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f d3 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f d3 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f d3 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f d3 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psrldq">
     <opcode> rexb ; sse66 0F 73 /3 ; VRx Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC4 sse66 0F 73 /3 ; X VR Ib ; ; </opcode>
-    <opcode> rexb vexlz ; avxC5 sse66 0F 73 /3 ; X VR Ib ; ; </opcode>
+    <opcode> rexr rexx rexb ; avxC4 sse66 0F 73 /3 ; X VRx Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psubb">
     <opcode> aso rexr rexx rexb ; 0f f8 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f f8 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f f8 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f f8 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f f8 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psubw">
     <opcode> aso rexr rexx rexb ; 0f f9 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f f9 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f f9 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f f9 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f f9 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psubd">
     <opcode> aso rexr rexx rexb ; 0f fa ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f fa ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f fa ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f fa ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f fa ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psubq">
     <opcode> aso rexr rexx rexb ; 0f fb ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f fb ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f fb ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f fb ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f fb ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psubsb">
     <opcode> aso rexr rexx rexb ; 0f e8 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f e8 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f e8 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f e8 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f e8 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psubsw">
     <opcode> aso rexr rexx rexb ; 0f e9 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f e9 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f e9 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f e9 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f e9 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psubusb">
     <opcode> aso rexr rexx rexb ; 0f d8 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f d8 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f d8 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f d8 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f d8 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="psubusw">
     <opcode> aso rexr rexx rexb ; 0f d9 ; Pq Qq ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f d9 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f d9 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f d9 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f d9 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="punpckhbw">
     <opcode> aso rexr rexx rexb ; 0f 68 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 68 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 68 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 68 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 68 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="punpckhwd">
     <opcode> aso rexr rexx rexb ; 0f 69 ; P Q ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 69 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 69 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 69 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="punpckhdq">
     <opcode> aso rexr rexx rexb ; 0f 6a ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 6a ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 6a ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 6a ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 6a ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="punpckhqdq">
     <opcode> aso rexr rexx rexb ; sse66 0f 6d ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 6d ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 6d ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 6d ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="punpcklbw">
     <opcode> aso rexr rexx rexb ; 0f 60 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 60 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 60 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 60 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 60 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="punpcklwd">
     <opcode> aso rexr rexx rexb ; 0f 61 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 61 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 61 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 61 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 61 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="punpckldq">
     <opcode> aso rexr rexx rexb ; 0f 62 ; P Q ; ; </opcode>
     <opcode> aso rexr rexx rexb ; sse66 0f 62 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 62 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 62 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 62 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="punpcklqdq">
     <opcode> aso rexr rexx rexb ; sse66 0f 6c ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 6c ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 6c ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 6c ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="pi2fw">
@@ -3295,8 +3159,7 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="pxor">
     <opcode> aso rexr rexx rexb ; 0f ef ; Pq Qq ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f ef ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f ef ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f ef ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="rcl">
@@ -3337,14 +3200,12 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="rcpps">
     <opcode> aso rexr rexx rexb ; 0f 53 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 0f 53 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 53 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 53 ; Vx Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="rcpss">
-    <opcode> aso rexr rexx rexb ; ssef3 0f 53 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 ssef3 0f 53 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 ssef3 0f 53 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; ssef3 0f 53 ; V Wd ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 53 ; V X Wd ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="rdmsr">
@@ -3372,11 +3233,22 @@ MAL MISSING PRE SSE?
     <opcode> ; f3 ; ; ; u:cx d:cx </opcode>
   </instruction>
 
+<!-- old ret uses
+      u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 u:8 u:9 u:di u:si u:dx u:cx
+-->
+ 
   <instruction mnemonic="ret">
-    <opcode> ; c2 ; Iw ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 u:8 u:9 u:di u:si u:dx u:cx </opcode>
-    <opcode> ; c3 ; ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 u:8 u:9 u:di u:si u:dx u:cx </opcode> 
+    <opcode> ; c2 ; Iw ; ;
+      u:ax u:bx u:dx u:sp u:bp u:12 u:13 u:14 u:15 u:mm0 u:mm1 u:st0 u:st1
+    </opcode>
+    <opcode> ; c3 ; ; ;
+      u:ax u:bx u:dx u:sp u:bp u:12 u:13 u:14 u:15 u:mm0 u:mm1 u:st0 u:st1
+    </opcode> 
   </instruction>
-
+<!-- old retf uses
+    <opcode> ; ca ; Iw ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 u:8 u:9 u:di u:si u:dx u:cx </opcode>
+-->
+ 
   <instruction mnemonic="retf">
     <opcode> ; ca ; Iw ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 u:8 u:9 u:di u:si u:dx u:cx </opcode>
     <opcode> ; cb ; ; ; u:ax u:dx u:mm0 u:st0 u:bx u:bp u:sp u:12 u:13 u:14 u:15 u:8 u:9 u:di u:si u:dx u:cx </opcode>
@@ -3389,13 +3261,11 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="rsqrtps">
     <opcode> aso rexr rexx rexb ; 0f 52 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 52 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 52 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="rsqrtss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 52 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 52 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 52 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 52 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="sahf">
@@ -3570,13 +3440,11 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="shufpd">
     <opcode> aso rexr rexx rexb ; sse66 0f c6 ; Vx Wx Ib ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f c6 ; V X W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f c6 ; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="shufps">
     <opcode> aso rexr rexx rexb ; 0f c6 ; V W Ib ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f c6 ; V X W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f c6 ; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="sidt">
@@ -3594,25 +3462,21 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="sqrtps">
     <opcode> aso rexr rexx rexb ; 0f 51 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 0f 51 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 51 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="sqrtpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 51 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 51 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 51 ; V W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="sqrtsd">
     <opcode> aso rexr rexx rexb ; ssef2 0f 51 ; Vq Wq ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 51 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 51 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 51 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="sqrtss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 51 ; Vd Wd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 51 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 51 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 51 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="stc">
@@ -3640,7 +3504,6 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="stmxcsr">
     <opcode> aso rexw rexr rexx rexb ; 0F AE /3 ; Md ; ; </opcode>
     <opcode> aso rexw rexr rexx rexb vexlz ; avxC4 0F AE /3 ; Md ; ; </opcode>
-    <opcode> aso rexw rexr rexx rexb vexlz ; avxC5 0F AE /3 ; Md ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="stosb">
@@ -3679,25 +3542,21 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="subpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 5c ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 5c ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 5c ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="subps">
     <opcode> aso rexr rexx rexb ; 0f 5c ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 0f 5c ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 5c ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 5c ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="subsd">
     <opcode> aso rexr rexx rexb ; ssef2 0f 5c ; Vq Wq ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f 5c ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef2 0f 5c ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef2 0f 5c ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="subss">
     <opcode> aso rexr rexx rexb ; ssef3 0f 5c ; Vd Wd ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f 5c ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 ssef3 0f 5c ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 ssef3 0f 5c ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="swapgs">
@@ -3735,14 +3594,12 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="ucomisd">
     <opcode> aso rexr rexx rexb ; sse66 0f 2e ; Vq Wq ; d:alu ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f 2e ; V W ; d:alu ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 sse66 0f 2e ; V W ; d:alu ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f 2e ; V W ; d:alu ; </opcode>
   </instruction>
 
   <instruction mnemonic="ucomiss">
     <opcode> aso rexr rexx rexb ; 0f 2e ; Vd Wd ; d:alu ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f 2e ; V W ; d:alu ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC5 0f 2e ; V W ; d:alu ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 0f 2e ; V W ; d:alu ; </opcode>
   </instruction>
 
   <instruction mnemonic="ud2">
@@ -3752,36 +3609,114 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="unpckhpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 15 ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 15 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 15 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="unpckhps">
     <opcode> aso rexr rexx rexb ; 0f 15 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 0f 15 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 15 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 15 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="unpcklps">
     <opcode> aso rexr rexx rexb ; 0f 14 ; Vq Wq ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 0f 14 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 14 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 14 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="unpcklpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 14 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 14 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 14 ; V X W ; ; </opcode>
   </instruction>
 
   <!-- pure AVX -->
+
   <instruction mnemonic="bextr">
-    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 f7 ; V W X ; ; </opcode> <!--FIXME check accuracy -->
+    <opcode> aso rexr rexx rexb vexlz; avxC4 sse66 0f /3byte=38 f7 ; V W X ; ; </opcode>
   </instruction>
 
+  <!-- These are incomplete and need correcting FIXME
+  <instruction mnemonic="andn">
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f /3byte=38 f2 ; V X W ; ; </opcode>
+  </instruction>
+
+
+
+  <instruction mnemonic="blsi">
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f /3byte=38 f3 ; X W ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="blsmsk">
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f /3byte=38 f3 ; X W ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="blsr">
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f /3byte=38 f3 ; X W ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="bzhi">
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f /3byte=38 f3 ; X W ; ; </opcode>
+  </instruction>
+
+
+
+  <instruction mnemonic="pext">
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f /3byte=38 f5 /r ; X W ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="rorx">
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 0f /3byte=3A f0 /r ; X W ; ; </opcode>
+  </instruction>
+
+  -->
+
+  <instruction mnemonic="mulx">
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f /3byte=38 f6 /W=0 ; Gd GVd Ed ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f /3byte=38 f6 /W=1 ; Gq GVq Eq ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="pdep">
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f /3byte=38 f5 /W=0 ; Gd GVd Ed ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f /3byte=38 f5 /W=1 ; Gq GVq Eq ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="sarx">
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f /3byte=38 f7 /W=0 ; Gd Ed GVd ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef3 0f /3byte=38 f7 /W=1 ; Gd Ed GVd ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="shlx">
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 f7 /W=0 ; Gd Ed GVd ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 f7 /W=1 ; Gd Ed GVd ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="shrx">
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f /3byte=38 f7 /W=0 ; Gd Ed GVd ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlz ; avxC4 ssef2 0f /3byte=38 f7 /W=1 ; Gd Ed GVd ; ; </opcode>
+  </instruction>
+
+
   <instruction mnemonic="broadcast">
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 18 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexl ; avxC4 sse66 0f /3byte=38 19 ; V W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexl ; avxC4 sse66 0f /3byte=38 1a ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 18 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 19 ; V W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 1a ; V W ; ; </opcode>
+  </instruction>
+ 
+  <instruction mnemonic="pbroadcastb">
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 78 ; V W ; ; </opcode>
+  </instruction>
+ 
+  <instruction mnemonic="pbroadcastw">
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 79 ; V W ; ; </opcode>
+  </instruction>
+ 
+  <instruction mnemonic="pbroadcastd">
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 58 ; V W ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="pbroadcastq">
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 59 ; V W ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="broadcasti128">
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 5a ; V M ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="cvtph2ps">
@@ -3793,19 +3728,19 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="extractf128">
-    <opcode> aso rexr rexx rexb vexl ; avxC4 sse66 0f /3byte=3a 19 ; V W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 19 ; V W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="extracti128">
-    <opcode> aso rexr rexx rexb vexl ; avxC4 sse66 0f /3byte=3a 39 ; V W Ib ; ; </opcode> <!--FIXME check accuracy -->
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 39 ; V W Ib ; ; </opcode> <!--FIXME check accuracy -->
   </instruction>
 
   <instruction mnemonic="insertf128">
-    <opcode> aso rexr rexx rexb vexl ; avxC4 sse66 0f /3byte=3a 18 ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 18 ; V X W Ib ; ; </opcode>
   </instruction>
 
    <instruction mnemonic="inserti128">
-    <opcode> aso rexr rexx rexb vexl ; avxC4 sse66 0f /3byte=3a 38 ; V X W Ib ; ; </opcode> <!--FIXME check accuracy -->
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 38 ; V X W Ib ; ; </opcode> <!--FIXME check accuracy -->
   </instruction>
 
   <instruction mnemonic="maskmov">
@@ -3817,16 +3752,20 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="permilpd">
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 0d ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 05 ; V W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=3A 05 ; V W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="permilps">
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 0c ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 04 ; V W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 04 ; V W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="permf128">
-    <opcode> aso rexr rexx rexb vexl ; avxC4 sse66 0f /3byte=3a 06 ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 06 ; V X W Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="permpd">
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=3a 01 /W=1 ; V W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="testpd">
@@ -3841,16 +3780,16 @@ MAL MISSING PRE SSE?
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 98 ; V X W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 a8 ; V X W ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 b8 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexix ; avxC4 sse66 0f /3byte=3a 69 ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexix ; avxC4 sse66 0f /3byte=3a 69 ; V X W Ib ; ; </opcode> <!-- Can't find docs for these FIXME -->
     <opcode> aso rexr rexx rexb vexix ; avxC4 sse66 0f /3byte=3a 68 ; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="fmadds">
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 99 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 a9 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 b9 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexix vexlz ; avxC4 sse66 0f /3byte=3a 6b ; V X W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexix vexlz ; avxC4 sse66 0f /3byte=3a 6a ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 99 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 a9 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 b9 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexix vexlig ; avxC4 sse66 0f /3byte=3a 6b ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexix vexlig ; avxC4 sse66 0f /3byte=3a 6a ; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="fmaddsubp">
@@ -3878,11 +3817,11 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="fmsubs">
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 9b ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 ab ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 bb ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexix vexlz ; avxC4 sse66 0f /3byte=3a 6f ; V X W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexix vexlz ; avxC4 sse66 0f /3byte=3a 6e ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 9b ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 ab ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 bb ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexix vexlig ; avxC4 sse66 0f /3byte=3a 6f ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexix vexlig ; avxC4 sse66 0f /3byte=3a 6e ; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="fnmaddp">
@@ -3894,11 +3833,11 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="fnmadds">
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 9d ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 ad ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 bd ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexix vexlz ; avxC4 sse66 0f /3byte=3a 7b ; V X W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexix vexlz ; avxC4 sse66 0f /3byte=3a 7a ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 9d ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 ad ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 bd ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexix vexlig ; avxC4 sse66 0f /3byte=3a 7b ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexix vexlig ; avxC4 sse66 0f /3byte=3a 7a ; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="fnmsubp">
@@ -3910,21 +3849,24 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="fnmsubs">
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 9f ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 af ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexlz ; avxC4 sse66 0f /3byte=38 bf ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexix vexlz ; avxC4 sse66 0f /3byte=3a 7f ; V X W Ib ; ; </opcode>
-    <opcode> aso rexr rexx rexb vexix vexlz ; avxC4 sse66 0f /3byte=3a 7e ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 9f ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 af ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f /3byte=38 bf ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexix vexlig ; avxC4 sse66 0f /3byte=3a 7f ; V X W Ib ; ; </opcode>
+    <opcode> aso rexr rexx rexb vexix vexlig ; avxC4 sse66 0f /3byte=3a 7e ; V X W Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="gatherdpd">
-    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 92 ; V X W; ; </opcode> <!--FIXME check accuracy -->
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 92 ; V W X; ; </opcode> <!--FIXME operands incorrect -->
+  </instruction>
+
+  <instruction mnemonic="gatherqpd">
+    <opcode> aso rexr rexx rexb ; avxC4 sse66 0f /3byte=38 93 ; V W X ; ; </opcode>
   </instruction>
 
   <!-- TODO: also is zeroupper -->
   <instruction mnemonic="zeroall">
     <opcode> aso rexr rexx rexb ; avxC4 0f 77 ; ; ; d:mm0 d:mm1 d:mm2 d:mm3 d:mm4 d:mm5 d:mm6 d:mm7 d:mm8 d:mm9 d:mm10 d:mm11 d:mm12 d:mm13 d:mm14 d:mm15 </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 77 ; ; ; d:mm0 d:mm1 d:mm2 d:mm3 d:mm4 d:mm5 d:mm6 d:mm7 d:mm8 d:mm9 d:mm10 d:mm11 d:mm12 d:mm13 d:mm14 d:mm15 </opcode>
   </instruction>
  <!-- end pure AVX -->
 
@@ -4052,15 +3994,822 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="xorpd">
     <opcode> aso rexr rexx rexb ; sse66 0f 57 ; Vx Wx ; ; </opcode>
     <opcode> aso rexr rexx rexb ; avxC4 sse66 0f 57 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 sse66 0f 57 ; V X W ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="xorps">
     <opcode> aso rexr rexx rexb ; 0f 57 ; Vx Wx ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC4 0f 57 ; V X W ; ; </opcode>
-    <opcode> aso rexr rexx rexb ; avxC5 0f 57 ; V X W ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; avxC4 0f 57 ; Vx X Wx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="db"></instruction>
+
+  <!-- MVEX -->
+
+  <!-- MVEX vector mask instructions FIXME check k encodings -->
+
+  <instruction mnemonic="jknzd">
+    <opcode> rexr rexx rexb rexw ; vex 0f 85 /W=0 ; KV Jz ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 75 /W=0 ; KV Jb ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="jkzd">
+    <opcode> rexr rexx rexb rexw ; vex 0f 84 /W=0 ; KV Jz ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 74 /W=0 ; KV Jb ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kand">
+    <opcode> rexr rexx rexb rexw ; vex 0f 41 /W=0 ; KR KRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kandn">
+    <opcode> rexr rexx rexb rexw ; vex 0f 42 /W=0 ; KR KRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kandnr">
+    <opcode> rexr rexx rexb rexw ; vex 0f 43 /W=0 ; KR KRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kconcath">
+    <opcode> rexr rexx rexb rexw ; vex 0f 95 /W=0 ; Gq KV KRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kconcatl">
+    <opcode> rexr rexx rexb rexw ; vex 0f 97 /W=0 ; Gq KV KRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kextract">
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 3E /W=0 ; KR Gq Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kmerge2l1h">
+    <opcode> rexr rexx rexb rexw ; vex 0f 48 /W=0 ; KR KRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kmerge2l1l">
+    <opcode> rexr rexx rexb rexw ; vex 0f 49 /W=0 ; KR KRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kmov">
+    <opcode> rexr rexx rexb rexw ; vex 0f 90 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 92 /W=0 ; KR Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 93 /W=0 ; Gd KRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="knot">
+    <opcode> rexr rexx rexb rexw ; vex 0f 44 /W=0 ; KR KRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kor">
+    <opcode> rexr rexx rexb rexw ; vex 0f 45 /W=0 ; KR KRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kortest">
+    <opcode> rexr rexx rexb rexw ; vex 0f 98 /W=0 ; KR KRM ; d:alu ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kxnor">
+    <opcode> rexr rexx rexb rexw ; vex 0f 46 /W=0 ; KR KRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="kxor">
+    <opcode> rexr rexx rexb rexw ; vex 0f 47 /W=0 ; KR KRM ; ; </opcode>
+  </instruction>
+
+  <!-- MVEX vector instructions -->
+  <instruction mnemonic="vaddnpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 50 /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vaddnps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 50 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vaddpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 58 /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vaddps">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 58 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vaddsetsps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 CC /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="valignd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 03 /W=0 ; ZR ZV ZRM Ib ; ; </opcode> <!-- Ib is an offset, check correct FIXME -->
+  </instruction>
+
+  <instruction mnemonic="vblendmpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 65 /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vblendmps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 65 /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vbroadcastf32x4">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 1A /W=0 ; ZR ZM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vbroadcastf64x4">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 1B /W=1 ; ZR ZM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vbroadcasti32x4">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 5A /W=0 ; ZR ZM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vbroadcasti64x4">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 5B /W=1 ; ZR ZM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vbroadcastsd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 19 /W=1 ; ZR ZM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vbroadcastss">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 18 /W=0 ; ZR ZM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vcmppd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f C2 /W=1 ; KR ZV ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vcmpps">
+    <opcode> rexr rexx rexb rexw ; mvex 0f C2 /W=0 ; KR ZV ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vcvtdq2pd">
+    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f E6 /W=0 ; ZR ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vcvtfxpntdq2ps">
+    <opcode> rexr rexx rexb rexw ; mvex 0f /3byte=3A CB /W=0 ; ZR ZRM Ib; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vcvtfxpntpd2dq">
+    <opcode> rexr rexx rexb rexw ; mvex ssef2 0f /3byte=3A E6 /W=1 ; ZR ZRM Ib; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vcvtfxpntpd2udq">
+    <opcode> rexr rexx rexb rexw ; mvex ssef2 0f /3byte=3A CA /W=1 ; ZR ZRM Ib; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vcvtfxpntps2dq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A CB /W=0 ; ZR ZRM Ib; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vcvtfxpntps2udq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A CB /W=0 ; ZR ZRM Ib; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vcvtfxpntudq2ps">
+    <opcode> rexr rexx rexb rexw ; mvex 0f /3byte=3A CA /W=0 ; ZR ZRM Ib; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vcvtpd2ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 5A /W=1 ; ZR ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vcvtps2pd">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 5A /W=0 ; ZR ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vcvtudq2pd">
+    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 7A /W=0 ; ZR ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vexp223ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C8 /W=0 ; ZR ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfixupnanpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 55 /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfixupnanps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 55 /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmadd132pd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 98 /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmadd132ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 98 /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmadd213pd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A8 /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmadd213ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A8 /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmadd231pd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 B8 /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmadd231ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 B8 /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmadd233ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A4 /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmsub132pd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 9A /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmsub132ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 9A /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmsub213pd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 AA /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmsub213ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 AA /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmsub231pd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 BA /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfmsub231ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 BA /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfnmadd132pd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 9C /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfnmadd132ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 9C /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfnmadd213pd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 AC /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfnmadd213ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 AC /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfnmadd231pd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 BC /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfnmadd231ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 BC /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfnmsub132pd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 9E /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfnmsub132ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 9E /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfnmsub213pd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 AE /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfnmsub213ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 AE /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfnmsub231pd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 BE /W=1 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vfnmsub231ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 BE /W=0 ; ZR ZV ZRM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgatherdpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 92 /W=1 ; ZR ZM; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgatherdps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 92 /W=0 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgatherpf0dps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /1 ; ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgatherpf0hintdpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=1 /0 ; ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgatherpf0hintdps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /0 ; ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgatherpf1dps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /2 ; ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgetexppd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 42 /W=1 ; ZR ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgetexpps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 42 /W=0 ; ZR ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgetmantpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 26 /W=1 ; ZR ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgetmantps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 26 /W=0 ; ZR ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgmaxabsps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 51 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgmaxpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 53 /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgmaxps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 53 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgminpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 52 /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vgminps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 52 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vloadunpackhd">
+    <opcode> rexr rexx rexb rexw ; mvex 0f /3byte=38 D4 /W=0 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vloadunpackhpd">
+    <opcode> rexr rexx rexb rexw ; mvex 0f /3byte=38 D5 /W=1 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vloadunpackhps">
+    <opcode> rexr rexx rexb rexw ; mvex 0f /3byte=38 D5 /W=0 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vloadunpackhq">
+    <opcode> rexr rexx rexb rexw ; mvex 0f /3byte=38 D4 /W=1 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vloadunpackld">
+    <opcode> rexr rexx rexb rexw ; mvex 0f /3byte=38 D0 /W=0 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vloadunpacklpd">
+    <opcode> rexr rexx rexb rexw ; mvex 0f /3byte=38 D1 /W=1 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vloadunpacklps">
+    <opcode> rexr rexx rexb rexw ; mvex 0f /3byte=38 D1 /W=0 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vloadunpacklq">
+    <opcode> rexr rexx rexb rexw ; mvex 0f /3byte=38 D0 /W=1 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vlog2ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C9 /W=0 ; ZR ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vmovapd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 28 /W=1 ; ZR ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 29 /W=1 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vmovaps">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 28 /W=0 ; ZR ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex 0f 29 /W=0 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vmovdqa32">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 6F /W=0 ; ZR ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 7F /W=0 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vmovdqa64">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 6F /W=1 ; ZR ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 7F /W=1 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vmovnrapd">
+    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 29 /W=1 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vmovnraps">
+    <opcode> rexr rexx rexb rexw ; mvex ssef2 0f 29 /W=0 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vmovnrngoapd">
+    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 29 /W=1 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vmovnrngoaps">
+    <opcode> rexr rexx rexb rexw ; mvex ssef2 0f 29 /W=0 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vmulpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 59 /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vmulps">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 59 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpackstorehd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 D4 /W=0 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpackstorehpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 D5 /W=1 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpackstorehps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 D5 /W=0 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpackstorehq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 D4 /W=1 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpackstoreld">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 D0 /W=0 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpackstorelpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 D1 /W=1 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpackstorelps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 D1 /W=0 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpackstorelq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 D0 /W=1 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpadcd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 5C /W=0 ; ZR KV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpaddd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f FE /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpaddsetcd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 5D /W=0 ; ZR KV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpaddsetsd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 CD /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpandd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f DB /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpandnd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f DF /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpandnq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f DF /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpandq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f DB /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpblendmd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 64 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpblendmq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 64 /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpbroadcastd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 58 /W=0 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpbroadcastq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 59 /W=1 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpcmpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 1F /W=0 ; KR ZV ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpcmpeqd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 76 /W=0 ; KR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpcmpgtd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 66 /W=0 ; KR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpcmpltd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 74 /W=0 ; KR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpcmpud">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 1E /W=0 ; KR ZV ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpermd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 36 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpermf32x4">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 07 /W=0 ; ZR ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpgatherdd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 90 /W=0 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpgatherdq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 90 /W=1 ; ZR ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpmadd231d">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 B5 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpmadd233d">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 B4 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpmaxsd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 3D /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpmaxud">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 3F /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpminsd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 39 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpminud">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 3B /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpmulhd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 87 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpmulhud">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 86 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpmulld">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 40 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpord">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f EB /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vporq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f EB /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpsbbd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 5E /W=0 ; ZR KV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpsbbrd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 6E /W=0 ; ZR KV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpscatterdd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A0 /W=0 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpscatterdq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A0 /W=1 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpshufd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 70 /W=0 ; ZR ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpslld">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 72 /W=0 /6 ; ZR ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpsllvd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 47 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpsrad">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 72 /W=0 /4 ; ZR ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpsravd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 46 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpsrld">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 72 /W=0 /2 ; ZR ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpsrlvd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 45 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpsubd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f FA /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpsubrd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 6C /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpsubrsetbd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 6F /W=0 ; ZR KV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpsubsetbd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 5F /W=0 ; ZR KV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vptestmd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 27 /W=0 ; KR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpxord">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f EF /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpxorq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f EF /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vrcp23ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 CA /W=0 ; ZR ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vrndfxpntpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 52 /W=1 ; ZR ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vrndfxpntps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 52 /W=0 ; ZR ZRM Ib ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vrsqrt23ps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 CB /W=0 ; ZR ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vscaleps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 84 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vscatterdpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A2 /W=1 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vscatterdpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A2 /W=0 ; ZM ZR ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vscatterpf0dps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /5 ; ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vscatterpf0hintdpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=1 /4 ; ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vscatterpf0hintdps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /4 ; ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vscatterpf1dps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /6 ; ZM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vsubpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f 5C /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vsubps">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 5C /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vsubrpd">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 6D /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vsubrps">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 6D /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <!-- MVEX Scalar Instructions -->
+
+  <instruction mnemonic="clevict0">
+    <opcode> rexr rexx rexb rexw ; mvex ssef2 0f AE /7 ; M ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="clevict1">
+    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f AE /7 ; M ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="delay">
+    <opcode> rexr rexx rexb rexw ; vex ssef3 0f AE /6 /W=0 ; Gd ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex ssef3 0f AE /6 /W=1 ; Gq ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="lzcnt">
+    <opcode> rexr rexx rexb rexw ; vex ssef3 0f BD /W=0 ; Gd Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex ssef3 0f BD /W=1 ; Gq Eq ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="popcnt">
+    <opcode> rexr rexx rexb rexw ; ssef3 0f B8 ; Gd Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; ssef3 0f B8 ; Gq Eq ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex ssef3 0f B8 /W=0 ; Gd Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex ssef3 0f B8 /W=1 ; Gq Eq ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="spflt">
+    <opcode> rexr rexx rexb rexw ; vex ssef2 0f AE /6 /W=0 ; Gd ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex ssef2 0f AE /6 /W=1 ; Gq ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="tzcnt">
+    <opcode> rexr rexx rexb rexw ; vex ssef3 0f BC /W=0 ; Gd Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex ssef3 0f BC /W=1 ; Gq Eq ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="tzcnti">
+    <opcode> rexr rexx rexb rexw ; vex ssef2 0f BC /W=0 ; Gd Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex ssef2 0f BC /W=1 ; Gq Eq ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vprefetch0">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 18 /1 ; M ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 18 /1 ; M ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vprefetch1">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 18 /2 ; M ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 18 /2 ; M ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vprefetch2">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 18 /3 ; M ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 18 /3 ; M ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vprefetche0">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 18 /5 ; M ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 18 /5 ; M ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vprefetche1">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 18 /6 ; M ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 18 /6 ; M ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vprefetche2">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 18 /7 ; M ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 18 /7 ; M ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vprefetchenta">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 18 /4 ; M ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 18 /4 ; M ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vprefetchnta">
+    <opcode> rexr rexx rexb rexw ; mvex 0f 18 /0 ; M ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 18 /0 ; M ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vundefined">
+    <opcode> rexr rexx rexb rexw ; mvex 0f /3byte=3A d1 ; ZR Ib; ; </opcode>
+  </instruction>
+
+
 
 </x86optable>

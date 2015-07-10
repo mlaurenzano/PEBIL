@@ -71,6 +71,7 @@ public:
     X86Instruction* getInstructionAtAddress(uint64_t addr);
 
     uint64_t getProgramAddress();
+    bool inRange(uint64_t addr);
 
     uint32_t getAllInstructions(X86Instruction** allinsts, uint32_t nexti);
     uint32_t getNumberOfInstructions() { return instructions.size(); }
@@ -125,8 +126,6 @@ public:
     X86Instruction* findBestInstPoint(InstLocations* loc, BitSet<uint32_t>* unusableRegs, BitSet<uint32_t>* useRegs, bool attendFlags);
     uint32_t bloat(Vector<InstrumentationPoint*>* instPoints);
 
-    uint32_t searchForArgsPrep(bool is64Bit);
-
     bool containsOnlyControl();
     bool containsCallToRange(uint64_t lowAddr, uint64_t highAddr);
 
@@ -155,6 +154,8 @@ public:
     uint32_t getNumberOfSyscalls();
     uint32_t getNumberOfSpecialRegOps();
     uint32_t getNumberOfLogicOps();
+    uint32_t getNumberOfScatterGatherOps();
+    uint32_t getNumberOfVectorMaskOps();
 
     uint32_t getNumberOfBinMem();
     uint32_t getNumberOfBinSystem();
@@ -163,6 +164,7 @@ public:
     uint32_t getNumberOfBinFloat();
     uint32_t getNumberOfBinIntv();
     uint32_t getNumberOfBinInt();
+    uint32_t getNumberOfBinInts();
     uint32_t getNumberOfBinBin();
     uint32_t getNumberOfBinBinv();
     uint32_t getNumberOfBinUncond();
@@ -194,7 +196,6 @@ public:
     bool findExitInstruction();
 
     uint64_t findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc);
-    bool inRange(uint64_t addr);
 
     bool verify();
     Function* getFunction() { ASSERT(flowGraph); return flowGraph->getFunction(); }

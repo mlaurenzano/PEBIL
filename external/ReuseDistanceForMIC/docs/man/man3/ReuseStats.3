@@ -1,0 +1,192 @@
+.TH "ReuseStats" 3 "21 Oct 2012" "Version 0.01" "ReuseDistance" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+ReuseStats \- 
+.SH SYNOPSIS
+.br
+.PP
+.PP
+\fC#include <ReuseDistance.hpp>\fP
+.SS "Public Member Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBReuseStats\fP (uint64_t idx, uint64_t bin, uint64_t num, uint64_t inv)"
+.br
+.ti -1c
+.RI "\fB~ReuseStats\fP ()"
+.br
+.ti -1c
+.RI "void \fBUpdate\fP (uint64_t dist)"
+.br
+.ti -1c
+.RI "void \fBMiss\fP ()"
+.br
+.ti -1c
+.RI "virtual uint64_t \fBGetMissCount\fP ()"
+.br
+.ti -1c
+.RI "virtual void \fBPrint\fP (std::ostream &f, bool annotate=false)"
+.br
+.ti -1c
+.RI "void \fBGetSortedDistances\fP (std::vector< uint64_t > &dists)"
+.br
+.ti -1c
+.RI "uint64_t \fBGetMaximumDistance\fP ()"
+.br
+.ti -1c
+.RI "uint64_t \fBCountDistance\fP (uint64_t dist)"
+.br
+.ti -1c
+.RI "uint64_t \fBGetAccessCount\fP ()"
+.br
+.in -1c
+.SS "Static Public Member Functions"
+
+.in +1c
+.ti -1c
+.RI "static void \fBPrintFormat\fP (std::ostream &f)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+\fBReuseStats\fP holds count of observed reuse distances. 
+.PP
+Definition at line 270 of file ReuseDistance.hpp.
+.SH "Constructor & Destructor Documentation"
+.PP 
+.SS "ReuseStats::ReuseStats (uint64_t idx, uint64_t bin, uint64_t num, uint64_t inv)\fC [inline]\fP"Contructs a \fBReuseStats\fP object.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIidx\fP The unique id for this \fBReuseStats\fP 
+.br
+\fIbin\fP Stop collecting individual bins above this value 
+.br
+\fInum\fP Any value above this is considered a miss 
+.br
+\fIinv\fP The value which represents a miss 
+.RE
+.PP
+
+.PP
+Definition at line 292 of file ReuseDistance.hpp.
+.SS "ReuseStats::~ReuseStats ()\fC [inline]\fP"Destroys a \fBReuseStats\fP object. 
+.PP
+Definition at line 298 of file ReuseDistance.hpp.
+.SH "Member Function Documentation"
+.PP 
+.SS "uint64_t ReuseStats::CountDistance (uint64_t dist)"Count the number of times some distance has been observed.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIdist\fP The distance to count.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+The number of times d has been observed. 
+.RE
+.PP
+
+.PP
+Definition at line 324 of file ReuseDistance.cpp.
+.SS "uint64_t ReuseStats::GetAccessCount ()"Count the total number of distances observed.
+.PP
+\fBReturns:\fP
+.RS 4
+The total number of distances observed. 
+.RE
+.PP
+
+.PP
+Definition at line 304 of file ReuseDistance.cpp.
+.SS "uint64_t ReuseStats::GetMaximumDistance ()"Get the maximum distance observed.
+.PP
+\fBReturns:\fP
+.RS 4
+The maximum distance observed. 
+.RE
+.PP
+
+.PP
+Definition at line 308 of file ReuseDistance.cpp.
+.SS "uint64_t ReuseStats::GetMissCount ()\fC [virtual]\fP"Get the number of misses. This is equal to the number of times Update(ReuseDistance::Infinity) is called.
+.PP
+\fBReturns:\fP
+.RS 4
+The number of misses to this \fBReuseDistance\fP object 
+.RE
+.PP
+
+.PP
+Definition at line 78 of file ReuseDistance.cpp.
+.SS "void ReuseStats::GetSortedDistances (std::vector< uint64_t > & dists)"Get a std::vector containing the distances observed, sorted in ascending order.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIdists\fP The vector which will hold the sorted distance values. It is an error for dists to be passed in non-empty (that is, dists.size() == 0 is enforced).
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.SS "void ReuseStats::Miss ()"Increment the number of misses. That is, addresses which were not found inside the active address window. This is equivalent Update(0), but is faster.
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.SS "virtual void ReuseStats::Print (std::ostream & f, bool annotate = \fCfalse\fP)\fC [virtual]\fP"Print a summary of the current reuse distances and counts for some id.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIf\fP The stream to receive the output. 
+.br
+\fIannotate\fP Also print annotations describing the meaning of output fields, preceded by a '#'.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.SS "static void ReuseStats::PrintFormat (std::ostream & f)\fC [static]\fP"Print information about the output format of \fBReuseStats\fP
+.PP
+\fBParameters:\fP
+.RS 4
+\fIf\fP The stream to receive the output.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.SS "void ReuseStats::Update (uint64_t dist)"Increment the counter for some distance.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIdist\fP A reuse distance observed in the memory address stream.
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+none 
+.RE
+.PP
+
+.PP
+Definition at line 319 of file ReuseDistance.cpp.
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for ReuseDistance from the source code.

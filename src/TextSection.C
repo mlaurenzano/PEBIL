@@ -79,6 +79,20 @@ void FreeText::printDisassembly(bool instructionDetail){
     }
 }
 
+X86Instruction* FreeText::getInstructionAtAddress(uint32_t addr)
+{
+    for(uint32_t i = 0; i < blocks.size(); ++i) {
+        if(blocks[i]->getType() == PebilClassType_BasicBlock ||
+           blocks[i]->getType() == PebilClassType_CodeBlock) {
+            CodeBlock* bb = (CodeBlock*)blocks[i];
+            if(bb->inRange(addr)) {
+                return bb->getInstructionAtAddress(addr);
+            }
+        }
+    }
+    return NULL;
+}
+
 uint32_t FreeText::getAllInstructions(X86Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
 
@@ -94,6 +108,15 @@ uint32_t FreeText::getAllInstructions(X86Instruction** allinsts, uint32_t nexti)
         }
     }
     return instructionCount;
+}
+
+TextObject* TextSection::getObjectWithAddress(uint64_t addr){
+    for (uint32_t i = 0; i < sortedTextObjects.size(); i++){
+        if(sortedTextObjects[i]->inRange(addr)) {
+            return sortedTextObjects[i];
+        }
+    }
+    return NULL;
 }
 
 uint32_t TextSection::getAllInstructions(X86Instruction** allinsts, uint32_t nexti){
@@ -375,7 +398,15 @@ uint32_t TextSection::disassemble(BinaryInputFile* binaryInputFile){
                 fprintf(stdout, "pebil_function_list %s\n", ((Function*)sortedTextObjects.back())->getName());
 #endif
             } else if (textSymbols[i]->isTextObjectSymbol(this)){
-                sortedTextObjects.append(new FreeText(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size, false));
+                bool hasInstructions = false;
+                // FIXME How can we reliably discern between code and data in non-typed sections?
+                //if(textSymbols[i]->getSymbolType() == STT_NOTYPE &&
+                //  (textSymbols[i]->getSymbolBinding() == STB_LOCAL || textSymbols[i]->getSymbolBinding() == STB_GLOBAL)) {
+                //    hasInstructions = true;
+                //} else {
+                //    hasInstructions = false;
+                //}
+                sortedTextObjects.append(new FreeText(this, i, textSymbols[i], textSymbols[i]->GET(st_value), size, hasInstructions));
                 ASSERT(!sortedTextObjects.back()->isFunction());
             } else {
                 PRINT_ERROR("Unknown symbol type found to be associated with text section");
@@ -534,7 +565,7 @@ bool TextSection::verify(){
                 sortedTextObjects[i]->print();
                 sectionHeader->print();
                 PRINT_INFOR("Section range [0x%016llx,0x%016llx]", sectionHeader->GET(sh_addr), sectionHeader->GET(sh_addr) + sectionHeader->GET(sh_size));
-                PRINT_ERROR("The function exit address 0x%016llx is not in the range of section %d", exitAddr, sectionHeader->getIndex());
+                PRINT_INFOR("The function exit address 0x%016llx is not in the range of section %d", exitAddr, sectionHeader->getIndex());
                 return false;
             }
         }
@@ -555,8 +586,8 @@ bool TextSection::verify(){
             
             // check that the first function is at the section beginning
             if (sortedTextObjects[0]->getBaseAddress() != sectionHeader->GET(sh_addr)){
-                PRINT_ERROR("First function in section %d should be at the beginning of the section", getSectionIndex());
-                return false;
+                //PRINT_ERROR("First function in section %d should be at the beginning of the section", getSectionIndex());
+                //FIXME return false;
             }
         }
     }

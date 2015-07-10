@@ -90,12 +90,7 @@ private:
     uint16_t textSegmentIdx;
     uint16_t dataSegmentIdx;
 
-    uint32_t numberOfFunctions;
-    uint32_t numberOfBlocks;
-    uint32_t numberOfMemoryOps;
-    uint32_t numberOfFloatPOps;
-
-    BinaryInputFile   binaryInputFile;
+    BinaryInputFile*   binaryInputFile;
 
     void readFileHeader();
 
@@ -129,6 +124,7 @@ public:
     void addAddressAnchor(AddressAnchor* adr);
 
     ElfFile(char* f, char* a);
+    ElfFile(void* buffer, uint64_t size, char* name);
     ~ElfFile();
 
    
@@ -136,6 +132,7 @@ public:
     char* getSHA1Sum();
     uint64_t getProgramBaseAddress();
 
+    bool isMicBinary();
     bool is64Bit() { return is64BitFlag; }
     bool isStaticLinked() { return staticLinked; }
     void setStaticLinked(bool val) { staticLinked = val; }
@@ -158,7 +155,7 @@ public:
     void parse();
     void initSectionFilePointers();
     void dump(char* extension, bool isext=true);
-    void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset);
+    void dump(BinaryOutputFile* binaryOutputFile);
     void generateCFGs();
 
     void briefPrint();

@@ -110,6 +110,56 @@ void Loop::print(){
     }
 }
 
+void Loop::printLiveness(){
+    PRINT_INFOR("Loop %d of function %s: Head %d (base %#llx), tail %d among %d blocks", 
+                getIndex(), flowGraph->getFunction()->getName(), head->getIndex(),
+                head->getBaseAddress(), tail->getIndex(), flowGraph->getNumberOfBasicBlocks());
+
+    BitSet<uint32_t>* deadRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
+    BitSet<uint32_t>* unusedRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
+    deadRegs->setall();
+    unusedRegs->setall();
+
+    for(uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); ++i) {
+        if(blocks->contains(i)) {
+            BasicBlock* bb = flowGraph->getBasicBlock(i);
+            for(uint32_t j = 0; j < bb->getNumberOfInstructions(); ++j) {
+                X86Instruction* ins = bb->getInstruction(j);
+                RegisterSet* used = ins->getRegistersUsed();
+                for(uint32_t r = 0; r < X86_64BIT_GPRS; ++r) {
+                    if(!ins->isRegDeadIn(r) || !ins->isRegDeadOut(r)) {
+                        deadRegs->remove(r);
+                    }
+
+                    if(used->containsRegister(r)) {
+                        unusedRegs->remove(r);
+                    }
+                }
+                delete used;
+                if(deadRegs->empty() && unusedRegs->empty())
+                    break;
+            }
+        }
+    }
+    if(deadRegs->empty()) {
+        PRINT_INFOR("  No Dead Registers\n");
+    }
+    if(unusedRegs->empty()) {
+        PRINT_INFOR("  No Unused Registers\n");
+    }
+    for(uint32_t r = 0; r < X86_64BIT_GPRS; ++r) {
+        if(deadRegs->contains(r)) {
+            PRINT_INFOR("  Dead Register %d\n", r);
+        }
+        if(unusedRegs->contains(r)) {
+            PRINT_INFOR("  Unused Register %d\n", r);
+        }
+    }
+    delete deadRegs;
+    delete unusedRegs;
+
+}
+
 uint32_t Loop::getAllBlocks(BasicBlock** arr){
     ASSERT(arr != NULL);
     uint32_t arrIdx = 0;
@@ -152,3 +202,13 @@ bool Loop::isIdenticalLoop(Loop* loop){
     return true;
 }
 
+uint32_t Loop::getAllInstructions(X86Instruction** allinsts, uint32_t nexti) {
+    uint32_t instructionCount = 0;
+    for (uint32_t i = 0; i < flowGraph->getNumberOfBasicBlocks(); i++){
+        if(blocks->contains(i)) {
+            instructionCount += flowGraph->getBasicBlock(i)->getAllInstructions(allinsts, instructionCount + nexti);
+        }
+    }
+    ASSERT(instructionCount == getNumberOfInstructions());
+    return instructionCount;
+}

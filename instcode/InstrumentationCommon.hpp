@@ -43,6 +43,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <execinfo.h>
 
 #ifdef HAVE_UNORDERED_MAP
 #include <tr1/unordered_map>
@@ -53,6 +54,10 @@
 #endif
 
 #include <Metasim.hpp>
+
+#define ENV_OUTPUT_PREFIX "PEBIL_OUTPUT_PREFIX"
+#define PROCESS getpid() << "/" << getppid()
+#define THREAD pthread_self()
 
 using namespace std;
 
@@ -73,6 +78,7 @@ static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn)
     if (Dynamics == NULL){
         Dynamics = new pebil_map_type < uint64_t, vector < DynamicInst* > > ();
     }
+    assert(Dynamics != NULL);
 
     DynamicInst* dd = *dyn;
     for (uint32_t i = 0; i < *count; i++){
@@ -129,17 +135,31 @@ typedef struct {
     uint64_t id;
     uint64_t data;
 } ThreadData;
-#define ThreadHashShift (12)
+#define ThreadHashShift (17)
 #define ThreadHashMod   (0xffff)
 
 
 // handling of different initialization/finalization events
 // analysis libraries define these differently
 extern "C" {
+    extern void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn);
+
     extern void* tool_mpi_init();
+
+    // Entry function when a thread is created by pthread_create
+    // However, there may already be threads in existence if this library was loaded late
     extern void* tool_thread_init(pthread_t args);
+
+    // Called just after a thread is joined
     extern void* tool_thread_fini(pthread_t args);
+
+    // Placed at entry points to image
+    // In an executable, this is the entry block for the program
+    // In a shared library, this is every function
+    // These points are killed after this function is called
     extern void* tool_image_init(void* s, image_key_t* key, ThreadData* td);
+
+    // Called when the image is unloaded
     extern void* tool_image_fini(image_key_t* key);
 };
 
@@ -210,6 +230,7 @@ enum MetasimErrors {
     MetasimError_FileOp,
     MetasimError_Env,
     MetasimError_NoImage,
+    MetaSimError_ExternalLib,
     MetasimError_Total,
 };
 
@@ -306,71 +327,28 @@ extern "C" {
 
     typedef struct {
         void* args;
-        int (*fcn)(void*);
+        void* (*fcn)(void*);
     } thread_passthrough_args;
 
-    int thread_started(void* args){
+    void* thread_started(void* args){
         thread_passthrough_args* pt_args = (thread_passthrough_args*)args;
         tool_thread_init(pthread_self());
         
         return pt_args->fcn(pt_args->args);
     }
 
-    static int __give_pebil_name(clone)(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
-        va_list ap;
-        va_start(ap, arg);
-        pid_t* ptid = va_arg(ap, pid_t*);
-        struct user_desc* tls = va_arg(ap, struct user_desc*);
-        pid_t* ctid = va_arg(ap, pid_t*);
-        va_end(ap);
-        /*
-        printf("Entry function: 0x%llx\n", fn);
-        printf("Stack location: 0x%llx\n", child_stack);
-        printf("Flags: %d\n", flags);
-        printf("Function args: 0x%llx\n", arg);
-        printf("ptid address: 0x%llx\n", ptid);
-        printf("tls address: 0x%llx\n", tls);
-        printf("ctid address: 0x%llx\n", ctid);
-        */    
-        static int (*clone_ptr)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid)
-            = (int (*)(int (*fn)(void*), void* child_stack, int flags, void* arg, pid_t *ptid, struct user_desc *tls, pid_t *ctid))dlsym(RTLD_NEXT, "clone");
+    int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+        void *(*start_routine) (void*), void *arg){
+
+        static int (*pthread_create_ptr)(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void*), void*arg)
+          = (int (*)(pthread_t *thread, const pthread_attr_t* attr, void *(*start_routine)(void*), void*))dlsym(RTLD_NEXT, "pthread_create");
 
         // TODO: keep this somewhere and destroy it. it currently is a mem leak
         thread_passthrough_args* pt_args = (thread_passthrough_args*)malloc(sizeof(thread_passthrough_args));
-        pt_args->fcn = fn;
+        pt_args->fcn = start_routine;
         pt_args->args = arg;
 
-        return clone_ptr(thread_started, child_stack, flags, (void*)pt_args, ptid, tls, ctid);
-    }
-
-    int __clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
-        va_list ap;
-        va_start(ap, arg);
-        pid_t* ptid = va_arg(ap, pid_t*);
-        struct user_desc* tls = va_arg(ap, struct user_desc*);
-        pid_t* ctid = va_arg(ap, pid_t*);
-        va_end(ap);
-        return __give_pebil_name(clone)(fn, child_stack, flags, arg, ptid, tls, ctid);
-    }
-
-    int clone(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
-        va_list ap;
-        va_start(ap, arg);
-        pid_t* ptid = va_arg(ap, pid_t*);
-        struct user_desc* tls = va_arg(ap, struct user_desc*);
-        pid_t* ctid = va_arg(ap, pid_t*);
-        va_end(ap);
-        return __give_pebil_name(clone)(fn, child_stack, flags, arg, ptid, tls, ctid);
-    }
-
-    int __clone2(int (*fn)(void*), void* child_stack, int flags, void* arg, ...){
-        va_list ap;
-        va_start(ap, arg);
-        pid_t* ptid = va_arg(ap, pid_t*);
-        struct user_desc* tls = va_arg(ap, struct user_desc*);
-        pid_t* ctid = va_arg(ap, pid_t*);
-        va_end(ap);
-        return __give_pebil_name(clone)(fn, child_stack, flags, arg, ptid, tls, ctid);
+        return pthread_create_ptr(thread, attr, thread_started, pt_args);
     }
 
     int pthread_join(pthread_t thread, void **value_ptr){
@@ -382,6 +360,88 @@ extern "C" {
         tool_thread_fini(jthread);
         return ret;
     }
+
+
+    // Debugging signal handlers
+    static void illegal_instruction_handler(int signo, siginfo_t* siginf, void* context)
+    {
+        char err[8] = "deadbee";
+        switch(siginf->si_code){
+            case ILL_ILLOPC:
+                strcpy(err, "OPC"); break;
+            case ILL_ILLOPN:
+                strcpy(err, "OPN"); break;
+            case ILL_ILLADR:
+                strcpy(err, "ADR"); break;
+            case ILL_ILLTRP:
+                strcpy(err, "TRP"); break;
+            case ILL_PRVOPC:
+                strcpy(err, "PRVOPC"); break;
+            case ILL_PRVREG:
+                strcpy(err, "PRVREG"); break;
+            case ILL_COPROC:
+                strcpy(err, "COPROC"); break;
+            case ILL_BADSTK:
+                strcpy(err, "BADTSK"); break;
+        }
+        fprintf(stderr, "Recieved signal %d SIGILL? with code %s, %d at address 0x%llx\n", signo, err, siginf->si_code, siginf->si_addr);
+        char* ops = (char*)siginf->si_addr;
+        fprintf(stderr, "%hhx %hhx %hhx %hhx\n", ops[0], ops[1], ops[2], ops[3]);
+    }
+
+    static void print_backtrace() {
+        int BT_SIZE = 10;
+
+        void* bt[BT_SIZE];
+
+        int n = backtrace(bt, BT_SIZE);
+        for(int i = 0; i < n; ++i) {
+            fprintf(stderr, "0x%llx\n", bt[i]);
+        }
+
+        char** symbols = backtrace_symbols(bt, n);
+        for(int i = 0; i < n; ++i) {
+            fprintf(stderr, "%s\n", symbols[i]);
+        }
+        
+    }
+    
+    static void segfault_handler(int signo, siginfo_t* siginf, void* context)
+    {
+        fprintf(stderr, "Received signal %d SIGSEGV\n", signo);
+        fprintf(stderr, "At address 0x%llx\n", siginf->si_addr);
+
+        print_backtrace();
+
+        char err[8] = "deadbee";
+        switch(siginf->si_code){
+            case SEGV_MAPERR: strcpy(err, "MAPERR"); break;
+            case SEGV_ACCERR: strcpy(err, "ACCERR"); break;
+        }
+        fprintf(stderr, "Code %d: %s\n", siginf->si_code, err);
+
+        exit(1);
+        //char* ops = (char*)siginf->si_addr;
+        //fprintf(stderr, "%hhx %hhx %hhx %hhx\n", ops[0], ops[1], ops[2], ops[3]);
+
+    }
+    
+    void init_signal_handlers()
+    {
+    
+        struct sigaction illAction;
+        illAction.sa_sigaction = illegal_instruction_handler;
+        illAction.sa_flags = SA_SIGINFO | SA_NODEFER;
+        sigaction(SIGILL, &illAction, NULL);
+    
+        struct sigaction segAction;
+        segAction.sa_sigaction = segfault_handler;
+        segAction.sa_flags = SA_SIGINFO | SA_NODEFER;
+        sigaction(SIGSEGV, &segAction, NULL);
+        //fprintf(stderr, "Initialized signal handlers\n");
+    }
+
+
 };
 
 
@@ -416,9 +476,14 @@ static void AppendTasksString(string& str){
 
 template <class T> class DataManager {
 private:
+    // Used to monitorize this class
     pthread_mutex_t mutex;
+    pthread_mutexattr_t mutex_attr;
 
+    // image_key_t -> thread_key_t -> T
     DataMap <image_key_t, DataMap<thread_key_t, T> > datamap;
+
+    // Used to generate a new data from a template T
     T (*datagen)(T, uint32_t, image_key_t, thread_key_t, image_key_t);
     void (*datadel)(T);
     uint64_t (*dataref)(T);
@@ -433,16 +498,21 @@ private:
 
     image_key_t firstimage;
 
-    // stores data in a ThreadData[] which can be more easily accessed by tools.
+    // map from image keys to each image's threaddata hashtable
     DataMap <image_key_t, ThreadData*> threaddata;
 
     uint32_t HashThread(thread_key_t tid){
         return (tid >> ThreadHashShift) & ThreadHashMod;
     }
 
+    // initialize threaddata hashtable for this image/thread
     uint64_t SetThreadData(image_key_t iid, thread_key_t tid, uint32_t typ){
-        uint32_t h = HashThread(tid);
+        uint32_t h = 0;
+        //if (typ != ImageType)
+          h = HashThread(tid);
 
+        // image must have already been added
+        // thread must have already been added
         assert(threaddata.count(iid) == 1);
         assert(datamap.count(iid) == 1);
         assert(datamap[iid].count(tid) == 1);
@@ -465,7 +535,8 @@ private:
         }
         cout
             << " setting up thread data at index "
-            << dec << actual << TAB << (uint64_t)td
+            << dec << actual << TAB
+            << hex << td << "(" << GetThreadSequence(tid) << ")"
             << " -> " << hex << td[actual].data
             << endl;
 
@@ -495,6 +566,15 @@ private:
 
 public:
 
+    typedef typename DataMap<thread_key_t, T>::iterator iterator;
+
+    iterator begin(image_key_t img) {
+        return datamap[img].begin();
+    }
+    iterator end(image_key_t img) {
+        return datamap[img].end();
+    }
+
     set<thread_key_t> allthreads;
     set<thread_key_t> donethreads;
     set<image_key_t> allimages;
@@ -507,7 +587,10 @@ public:
         datadel = d;
         dataref = r;
 
-        pthread_mutex_init(&mutex, NULL);
+        pthread_mutexattr_init(&mutex_attr);
+        pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+        pthread_mutex_init(&mutex, &mutex_attr);
+
         currentthreadseq = 0;
         threadseq[GenerateThreadKey()] = currentthreadseq++;
 
@@ -561,36 +644,38 @@ public:
         return true;
     }
 
+    // Adds tid to threads to be tracked
+    // If there are images initialized, creates initial data for each
+    // No pre-conditions
     void AddThread(thread_key_t tid){
-        Lock(); // FIXME necessary?
-        assert(allthreads.count(tid) == 0);
-        assert(threadseq.count(tid) == 0);
-        assert(firstimage != 0);
+        Lock();
 
-        threadseq[tid] = currentthreadseq++;
+        // If it's been initialized before, just return
+        if(allthreads.count(tid) > 0) {
+            UnLock();
+            return;
+        }
 
+        if(threadseq.count(tid) == 0) {
+            threadseq[tid] = currentthreadseq++;
+        }
+
+        // Setup data for any previously initialized images
         for (set<image_key_t>::iterator iit = allimages.begin(); iit != allimages.end(); iit++){
+
+            // This image must have been initialized
+            // The thread must have not
+            // There must have been some other thread that initialized this image
             assert(datamap[(*iit)].size() > 0);
             assert(datamap[(*iit)].count(tid) == 0);
+            assert(allthreads.size() > 0);
 
-            if(allthreads.size() > 0) {
-                set<thread_key_t>::iterator tit = allthreads.begin();
-                assert(tit != allthreads.end());
-                datamap[*iit][tid] = datagen(datamap[*iit][*tit], ThreadType, *iit, tid, firstimage);
-                assert(NULL != datamap[*iit][tid]);
-            }
-            /*
-             * tit = allthreads.begin()
-             * datamap[image][new_thread] = datagen(datamap[image][old_thread], ThreadType, image, new_thread, firstimage)
-             * assert(wasn't null);
-            for (set<thread_key_t>::iterator tit = allthreads.begin(); tit != allthreads.end(); tit++){
-	        datamap[(*iit)][tid] = datagen(datamap[(*iit)][(*tit)], ThreadType, (*iit), tid, firstimage);
-                assert(datamap[(*iit)][tid]);
-                break;
-            }
-            */
+            set<thread_key_t>::iterator tit = allthreads.begin();
 
-            assert(threaddata.count(*iit) == 1);
+            // Generate thread data for this image using some other thread's data as a template
+            datamap[*iit][tid] = datagen(datamap[*iit][*tit], ThreadType, *iit, tid, firstimage);
+
+            // initialize the thread hashtable data for this image
             SetThreadData((*iit), tid, ThreadType);
         }
         allthreads.insert(tid);
@@ -642,39 +727,53 @@ public:
         return t;
     }
 
+    // Add an image
+    // The calling thread may or not have been initialized
+    // This image must not have been added before
     image_key_t AddImage(T data, ThreadData* t, image_key_t iid){
-        Lock(); // FIXME necessary?
-        thread_key_t tid = pthread_self();
+        Lock();
 
         assert(allimages.count(iid) == 0);
+
+        // First initialize the thread
+        thread_key_t tid = pthread_self();
+        AddThread(tid);
+
+        // Initialize basic image data
         imageseq[iid] = currentimageseq++;
-
-        // insert data for this thread
-        allthreads.insert(tid);
         allimages.insert(iid);
-
         datamap[iid] = DataMap<thread_key_t, T>();
-        assert(datamap.count(iid) == 1);
-        datamap[iid][tid] = data;
+        if (firstimage == 0)
+            firstimage = iid;
 
+        // create data for every thread
+        for (set<thread_key_t>::iterator it = allthreads.begin(); it != allthreads.end(); it++){
+            if(*it == tid)
+                datamap[iid][(*it)] = datagen(data, ImageType, iid, (*it), firstimage);
+            else
+                datamap[iid][(*it)] = datagen(data, ThreadType, iid, (*it), firstimage);
+
+        }
+
+        // Connect thread data to thread hashtable
         threaddata[iid] = t;
         uint64_t dataloc = SetThreadData(iid, tid, ImageType);
+
+        // FIXME
+        // This is dubious, gives all threads the same buffer to work with
+        // Prevents segfaults when threads aren't initialized properly
+        // i.e. a thread exists before this library is loaded and
+        // then finds its way into instrumented code.
+        // Instrumented code assumes threads have been initialized.
+        // This means the first thread created will get data for
+        // any other threads that escape initialization
+        // Also could create race conditions with multiple threads using the same buffer?
         if (allthreads.size() == 1){
             for (uint32_t i = 0; i < ThreadHashMod + 1; i++){
                 t[i].data = dataloc;
             }
         }
 
-        if (firstimage == 0){
-            firstimage = iid;
-        }
-
-        // create/insert data every thread
-        assert(datamap.count(iid) == 1);
-        for (set<thread_key_t>::iterator it = allthreads.begin(); it != allthreads.end(); it++){
-            datamap[iid][(*it)] = datagen(data, ImageType, iid, (*it), firstimage);
-            assert(datamap[iid].count((*it)) == 1);
-        }
         UnLock();
         return iid;
     }
@@ -691,14 +790,19 @@ public:
         return GetData(*iit, tid);
     }
 
+    // Lookup data
+    // The image must have been initialized
+    // The thread might have escaped initialization if it was created before this library was loaded
     T GetData(image_key_t iid, thread_key_t tid){
         if (datamap.count(iid) != 1){
             inform << "About to fail iid check with " << dec << datamap.count(iid) << ENDL;
         }
         assert(datamap.count(iid) == 1);
-        assert(datamap[iid].count(tid) == 1);
-        T t = datamap[iid][tid];
-        return t;
+
+        if(datamap[iid].count(tid) != 1)
+            AddThread(tid);
+
+        return datamap[iid][tid];
     }
 
     uint32_t CountThreads(){
@@ -709,17 +813,32 @@ public:
     }
 };
 
+// Premise: There is a buffer V and data T
+//   T is managed by a DataManager
+//   Each element in buffer V is associated with a T
+//   Client code might want to access T for all elements in a buffer, e.g.
+//   for item in Buffer:
+//     DataManager->GetData(image_key(item), tid)
+//   which involves many map lookups via GetData
+//
+// This class attempts to access all the data that will be needed for a filled
+// buffer in the most efficient way possible by recognizing that many of the
+// image_keys for sequential items will be the same, collecting all the items
+// at once and storing them in an array.
+//    T stats[tid][buffer index]
+//
+// AddThread: increases size of stats to hold new threads data
+// AddImage: increments image count... not really important
+// Refresh: updates stats[tid] with data for input buffer
+// GetBufferStats: returns current stats[tid]
+//
 template <class T, class V> class FastData {
 private:
-    uint32_t threadcount;
-    uint32_t imagecount;
-    uint32_t capacity;
     DataManager<T>* alldata;
     void (*dataid)(V, image_key_t*);
-
-    // [i][j]
-    // i == thread id
-    // j == buffer index
+    uint32_t capacity;
+    uint32_t threadcount;
+    uint32_t imagecount;
     T** stats;
     pthread_mutex_t lock;
 
@@ -727,15 +846,12 @@ private:
     void UnLock(){ pthread_mutex_unlock(&lock); }
 
 public:
-    FastData(void (*di)(V, image_key_t*), DataManager<T>* all, uint32_t cap){
-        dataid = di;
+    // Must be called while allData has been initialized with only a single image and thread
+    // @param di(buffer, id): sets id appropriately for the current dereference of buffer
+    // @param cap: maximum size of a V
+    FastData(void (*di)(V, image_key_t*), DataManager<T>* all, uint32_t cap)
+        : alldata(all), dataid(di), capacity(cap), threadcount(1), imagecount(0) {
 
-        threadcount = 1;
-        imagecount = 0;
-
-        capacity = cap;
-
-        alldata = all;
         assert(alldata->CountThreads() == 1);
         assert(alldata->CountImages() == 1);
         assert(alldata->GetThreadSequence(pthread_self()) == 0);
@@ -760,47 +876,49 @@ public:
     }
 
     // tid must have already been added to alldata
-    // copy data from old stats and initialize new thread data
+    // Expands stats to hold new thread data
+    // If this is the only image, it also pulls data from allData
     void AddThread(thread_key_t tid){
         Lock();
         uint32_t tid_index = alldata->GetThreadSequence(tid);
         uint32_t newsize = tid_index+1 > threadcount ? tid_index+1 : threadcount;
 
-//        inform << "Adding new thread with index " << tid_index << " and new size will be " << newsize << ENDL;
-//        inform << "Old size was " << threadcount << ENDL;
+        // Grow stats and copy old data if necessary
+        // Also initialize stats for any other threads which are implied to exist
+        if(newsize > threadcount) {
+            T** tmp = new T*[newsize];
+            for (uint32_t i = 0; i < threadcount; ++i){
+                tmp[i] = stats[i];
+            }
+            delete[] stats;
+            stats = tmp;
 
-        // copy old data
-        T** tmp = new T*[newsize];
-        for (uint32_t i = 0; i < threadcount; ++i){
-            tmp[i] = stats[i];
-        }
-//        inform << "Copied old data" << ENDL;
+            // initialize any new data, zeroing out any new data not for this thread
+            for(uint32_t i = threadcount; i < newsize; ++i){
+                stats[i] = new T[capacity];
+                if(i != tid_index)
+                    memset(stats[i], 0, sizeof(T) * capacity);
+            }
 
-        // initialize new data
-        for(uint32_t i = threadcount; i < newsize; ++i){
-            tmp[i] = new T[capacity];
-            if(i != tid_index)
-                memset(tmp[i], 0, sizeof(T) * capacity);
+            threadcount = newsize;
         }
-//        inform << "Initialized new data" << ENDL;
+
 
         // if only one image, can't count on it being refreshed later
         if(imagecount == 1) {
             T dat = alldata->GetData(tid);
             for(uint32_t j = 0; j < capacity; ++j){
-                tmp[tid_index][j] = dat;
+                stats[tid_index][j] = dat;
             }
         }
-//        inform << "Initialized this threads data" << ENDL;
 
-        delete[] stats;
-        stats = tmp;
-        threadcount = newsize;
-
-//        inform << "Finished adding new thread" << ENDL;
         UnLock();
     }
 
+    // image must have already been added to allData
+    // Increments image count
+    // If first image, initializes stats
+    // FIXME, this method can probably be gotten rid of
     void AddImage(){
         Lock();
         imagecount++;
@@ -815,24 +933,31 @@ public:
         UnLock();
     }
 
-    // updates stats to hold the correct image data for the
-    // entries in buffer
+    // synchronize this threads entry in stats with first num ids taken from buffer using dataid
     void Refresh(V buffer, uint32_t num, thread_key_t tid){
         debug(assert(imagecount > 0));
         debug(assert(threadcount > 0));
         debug(assert(num <= capacity));
 
+        uint32_t threadseq = alldata->GetThreadSequence(tid);
+        if(threadseq >= threadcount) {
+            AddThread(tid);
+        }
+        assert(threadseq < threadcount);
+
+        // If there's only one image, stats must already hold correct data
         if (imagecount == 1){
             return;
         }
-
-        uint32_t threadseq = alldata->GetThreadSequence(tid);
-        assert(threadseq < threadcount);
 
         image_key_t i;
         image_key_t ci = 0;
         T di = NULL;
 
+        // j = bufferidx
+        // i = dataid at bufferidx
+        // ci = current valid i
+        // di = SimulationStats* for current thread,image
         for (uint32_t j = 0; j < num; j++, buffer++){
 
             dataid(buffer, &i);
@@ -844,6 +969,7 @@ public:
                 assert(false && "the only way blank buffer entries should exist is when threads get signal-interrupted mid-block");
             }
 
+            // If not the same image as last entry, look up the data
             if (i != ci){
                 ci = i;
                 di = alldata->GetData(i, tid);
@@ -860,7 +986,6 @@ public:
 
         uint32_t threadseq = alldata->GetThreadSequence(tid);
         assert(threadseq < threadcount);
-        //inform << "Getting buffer stats for thread " << dec << threadseq << ENDL;
 
         return stats[threadseq];
     }
@@ -871,20 +996,26 @@ static bool MpiValid = false;
 static bool IsMpiValid() { return MpiValid; }
 
 extern "C" {
-#ifdef HAVE_MPI
 // C init wrapper
 #ifdef USES_PSINSTRACER
 int __give_pebil_name(MPI_Init)(int* argc, char*** argv){
     int retval = 0;
 #else
 int __wrapper_name(MPI_Init)(int* argc, char*** argv){
+
+#ifdef HAVE_MPI
     int retval = PMPI_Init(argc, argv);
+#else
+    int retval = 0;
+#endif
 #endif // USES_PSINSTRACER
 
+#ifdef HAVE_MPI
     PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
     PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
 
     MpiValid = true;
+#endif
 
     fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
     tool_mpi_init();
@@ -892,24 +1023,29 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     return retval;
 }
 
+#ifdef HAVE_MPI
 extern void pmpi_init_(int*);
+#endif
 
 #ifdef USES_PSINSTRACER
 void __give_pebil_name(mpi_init_)(int* ierr){
 #else
 void __wrapper_name(mpi_init_)(int* ierr){
+#ifdef HAVE_MPI
     pmpi_init_(ierr);
+#endif
 #endif // USES_PSINSTRACER
 
+#ifdef HAVE_MPI
     PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
     PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
 
     MpiValid = true;
+#endif
 
     fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks);
     tool_mpi_init();
 }
-#endif // HAVE_MPI
 };
 
 #endif //_InstrumentationCommon_hpp_

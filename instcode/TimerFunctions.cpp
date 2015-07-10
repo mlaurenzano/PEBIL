@@ -21,8 +21,11 @@
 
 DataManager<FunctionTimers*>* AllData = NULL;
 
+// Clark
+#define CLOCK_RATE_HZ 2600079000
+
 //#define CLOCK_RATE_HZ 2800000000
-#define CLOCK_RATE_HZ 3326000000
+//#define CLOCK_RATE_HZ 3326000000
 inline uint64_t read_timestamp_counter(){
     unsigned low, high;
     __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));

@@ -1,0 +1,122 @@
+\hypertarget{tree234_8h}{
+\section{/home/michaell/software/ReuseDistance/tree234.h File Reference}
+\label{tree234_8h}\index{/home/michaell/software/ReuseDistance/tree234.h@{/home/michaell/software/ReuseDistance/tree234.h}}
+}
+\subsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+typedef struct \hyperlink{structtree234___tag}{tree234\_\-Tag} \hyperlink{tree234_8h_ac74d1aa8f2a6305539cda73718a367fa}{tree234}
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{structtree234___tag}{tree234} $\ast$ \hyperlink{tree234_8h_ae664a1e477b5e7f8393066ff3b285d29}{newtree234} ()
+\item 
+void \hyperlink{tree234_8h_a122e9c343f78e9962779515d45b25519}{freetree234} (\hyperlink{structtree234___tag}{tree234} $\ast$t)
+\item 
+\hyperlink{struct_reuse_entry}{ReuseEntry} $\ast$ \hyperlink{tree234_8h_a1140d7d14c9b9b2baed0242ff0f270f8}{add234} (\hyperlink{structtree234___tag}{tree234} $\ast$t, \hyperlink{struct_reuse_entry}{ReuseEntry} $\ast$e)
+\item 
+\hyperlink{struct_reuse_entry}{ReuseEntry} $\ast$ \hyperlink{tree234_8h_abb942f2e8c39594c87e6bd4284ecd51a}{addpos234} (\hyperlink{structtree234___tag}{tree234} $\ast$t, \hyperlink{struct_reuse_entry}{ReuseEntry} $\ast$e, int index)
+\item 
+\hyperlink{struct_reuse_entry}{ReuseEntry} $\ast$ \hyperlink{tree234_8h_ace1d0830e7caf3f0300165175e6223a5}{index234} (\hyperlink{structtree234___tag}{tree234} $\ast$t, int index)
+\item 
+\hyperlink{struct_reuse_entry}{ReuseEntry} $\ast$ \hyperlink{tree234_8h_aa0f45120b68ef1f1e29ce95d91c6fa9f}{findrelpos234} (\hyperlink{structtree234___tag}{tree234} $\ast$t, \hyperlink{struct_reuse_entry}{ReuseEntry} $\ast$e, int $\ast$index)
+\item 
+\hyperlink{struct_reuse_entry}{ReuseEntry} $\ast$ \hyperlink{tree234_8h_a0d1b312731d003e68a8ebdfa9350641c}{del234} (\hyperlink{structtree234___tag}{tree234} $\ast$t, \hyperlink{struct_reuse_entry}{ReuseEntry} $\ast$e)
+\item 
+\hyperlink{struct_reuse_entry}{ReuseEntry} $\ast$ \hyperlink{tree234_8h_a00ed8a6a79cee600be3a197d14f3a9c5}{delpos234} (\hyperlink{structtree234___tag}{tree234} $\ast$t, int index)
+\item 
+int \hyperlink{tree234_8h_ae895b57010fce40245e400b5ca0a863d}{count234} (\hyperlink{structtree234___tag}{tree234} $\ast$t)
+\end{DoxyCompactItemize}
+
+
+\subsection{Typedef Documentation}
+\hypertarget{tree234_8h_ac74d1aa8f2a6305539cda73718a367fa}{
+\index{tree234.h@{tree234.h}!tree234@{tree234}}
+\index{tree234@{tree234}!tree234.h@{tree234.h}}
+\subsubsection[{tree234}]{\setlength{\rightskip}{0pt plus 5cm}typedef struct {\bf tree234\_\-Tag} {\bf tree234}}}
+\label{tree234_8h_ac74d1aa8f2a6305539cda73718a367fa}
+
+
+Definition at line 36 of file tree234.h.
+
+
+
+\subsection{Function Documentation}
+\hypertarget{tree234_8h_a1140d7d14c9b9b2baed0242ff0f270f8}{
+\index{tree234.h@{tree234.h}!add234@{add234}}
+\index{add234@{add234}!tree234.h@{tree234.h}}
+\subsubsection[{add234}]{\setlength{\rightskip}{0pt plus 5cm}{\bf ReuseEntry}$\ast$ add234 ({\bf tree234} $\ast$ {\em t}, \/  {\bf ReuseEntry} $\ast$ {\em e})}}
+\label{tree234_8h_a1140d7d14c9b9b2baed0242ff0f270f8}
+
+
+Definition at line 394 of file tree234.c.
+
+\hypertarget{tree234_8h_abb942f2e8c39594c87e6bd4284ecd51a}{
+\index{tree234.h@{tree234.h}!addpos234@{addpos234}}
+\index{addpos234@{addpos234}!tree234.h@{tree234.h}}
+\subsubsection[{addpos234}]{\setlength{\rightskip}{0pt plus 5cm}{\bf ReuseEntry}$\ast$ addpos234 ({\bf tree234} $\ast$ {\em t}, \/  {\bf ReuseEntry} $\ast$ {\em e}, \/  int {\em index})}}
+\label{tree234_8h_abb942f2e8c39594c87e6bd4284ecd51a}
+\hypertarget{tree234_8h_ae895b57010fce40245e400b5ca0a863d}{
+\index{tree234.h@{tree234.h}!count234@{count234}}
+\index{count234@{count234}!tree234.h@{tree234.h}}
+\subsubsection[{count234}]{\setlength{\rightskip}{0pt plus 5cm}int count234 ({\bf tree234} $\ast$ {\em t})}}
+\label{tree234_8h_ae895b57010fce40245e400b5ca0a863d}
+
+
+Definition at line 111 of file tree234.c.
+
+\hypertarget{tree234_8h_a0d1b312731d003e68a8ebdfa9350641c}{
+\index{tree234.h@{tree234.h}!del234@{del234}}
+\index{del234@{del234}!tree234.h@{tree234.h}}
+\subsubsection[{del234}]{\setlength{\rightskip}{0pt plus 5cm}{\bf ReuseEntry}$\ast$ del234 ({\bf tree234} $\ast$ {\em t}, \/  {\bf ReuseEntry} $\ast$ {\em e})}}
+\label{tree234_8h_a0d1b312731d003e68a8ebdfa9350641c}
+
+
+Definition at line 836 of file tree234.c.
+
+\hypertarget{tree234_8h_a00ed8a6a79cee600be3a197d14f3a9c5}{
+\index{tree234.h@{tree234.h}!delpos234@{delpos234}}
+\index{delpos234@{delpos234}!tree234.h@{tree234.h}}
+\subsubsection[{delpos234}]{\setlength{\rightskip}{0pt plus 5cm}{\bf ReuseEntry}$\ast$ delpos234 ({\bf tree234} $\ast$ {\em t}, \/  int {\em index})}}
+\label{tree234_8h_a00ed8a6a79cee600be3a197d14f3a9c5}
+
+
+Definition at line 830 of file tree234.c.
+
+\hypertarget{tree234_8h_aa0f45120b68ef1f1e29ce95d91c6fa9f}{
+\index{tree234.h@{tree234.h}!findrelpos234@{findrelpos234}}
+\index{findrelpos234@{findrelpos234}!tree234.h@{tree234.h}}
+\subsubsection[{findrelpos234}]{\setlength{\rightskip}{0pt plus 5cm}{\bf ReuseEntry}$\ast$ findrelpos234 ({\bf tree234} $\ast$ {\em t}, \/  {\bf ReuseEntry} $\ast$ {\em e}, \/  int $\ast$ {\em index})}}
+\label{tree234_8h_aa0f45120b68ef1f1e29ce95d91c6fa9f}
+
+
+Definition at line 441 of file tree234.c.
+
+\hypertarget{tree234_8h_a122e9c343f78e9962779515d45b25519}{
+\index{tree234.h@{tree234.h}!freetree234@{freetree234}}
+\index{freetree234@{freetree234}!tree234.h@{tree234.h}}
+\subsubsection[{freetree234}]{\setlength{\rightskip}{0pt plus 5cm}void freetree234 ({\bf tree234} $\ast$ {\em t})}}
+\label{tree234_8h_a122e9c343f78e9962779515d45b25519}
+
+
+Definition at line 87 of file tree234.c.
+
+\hypertarget{tree234_8h_ace1d0830e7caf3f0300165175e6223a5}{
+\index{tree234.h@{tree234.h}!index234@{index234}}
+\index{index234@{index234}!tree234.h@{tree234.h}}
+\subsubsection[{index234}]{\setlength{\rightskip}{0pt plus 5cm}{\bf ReuseEntry}$\ast$ index234 ({\bf tree234} $\ast$ {\em t}, \/  int {\em index})}}
+\label{tree234_8h_ace1d0830e7caf3f0300165175e6223a5}
+
+
+Definition at line 402 of file tree234.c.
+
+\hypertarget{tree234_8h_ae664a1e477b5e7f8393066ff3b285d29}{
+\index{tree234.h@{tree234.h}!newtree234@{newtree234}}
+\index{newtree234@{newtree234}!tree234.h@{tree234.h}}
+\subsubsection[{newtree234}]{\setlength{\rightskip}{0pt plus 5cm}{\bf tree234}$\ast$ newtree234 ()}}
+\label{tree234_8h_ae664a1e477b5e7f8393066ff3b285d29}
+
+
+Definition at line 68 of file tree234.c.
+

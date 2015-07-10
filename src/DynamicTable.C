@@ -649,6 +649,7 @@ uint8_t Dynamic::getValueType(){
     MAP_TAG_TO_TYPE(DT_PLTRELSZ, DynamicValueType_value)
     MAP_TAG_TO_TYPE(DT_SONAME, DynamicValueType_value)
     MAP_TAG_TO_TYPE(DT_RPATH, DynamicValueType_value)
+    MAP_TAG_TO_TYPE(DT_RUNPATH, DynamicValueType_value)
     MAP_TAG_TO_TYPE(DT_RELSZ, DynamicValueType_value)
     MAP_TAG_TO_TYPE(DT_RELENT, DynamicValueType_value)
     MAP_TAG_TO_TYPE(DT_PLTREL, DynamicValueType_value)

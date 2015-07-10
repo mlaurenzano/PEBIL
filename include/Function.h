@@ -73,6 +73,7 @@ public:
 
     void computeDefUse();
     bool doneDefUse() { return defUse; }
+    void computeVectorMasks();
 
     bool isRecursiveDisasm()          { return (flags & recursivedisasmMask); }
     bool isInstrumentationFunction()  { return (flags & instrumentationfuncMask); }
