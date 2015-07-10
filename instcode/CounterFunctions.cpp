@@ -108,10 +108,6 @@ CounterArray* GenerateCounterArray(CounterArray* ctrs, uint32_t typ, image_key_t
     }
 
     assert(typ == AllData->ThreadType);
-    /*if(!isThreadedMode())
-    {
-        return NULL;
-    }*/
 
     c = (CounterArray*)malloc(sizeof(CounterArray));
     assert(c);
@@ -187,12 +183,10 @@ extern "C"
      */
     static pthread_mutex_t image_init_mutex = PTHREAD_MUTEX_INITIALIZER;
     void* tool_image_init(void* s, uint64_t* key, ThreadData* td){
-        //inform << "Entered tool_image_init" << ENDL;
-        //SAVE_STREAM_FLAGS(cout);
+        SAVE_STREAM_FLAGS(cout);
 
         CounterArray* ctrs = (CounterArray*)s;
         assert(ctrs->Initialized == true);
-
 
         pthread_mutex_lock(&image_init_mutex);
         // on first visit create data manager - once per address space
@@ -222,8 +216,7 @@ extern "C"
 
         pthread_mutex_unlock(&image_init_mutex);
 
-        //RESTORE_STREAM_FLAGS(cout);
-        //inform << "Leaving tool_image_init" << ENDL;
+        RESTORE_STREAM_FLAGS(cout);
         return NULL;
     }
 
@@ -237,7 +230,6 @@ extern "C"
      */
     void  image_fini_master();
     void* tool_image_fini(uint64_t* key){
-        //inform << "Entering tool_image_fini" << ENDL;
         AllData->SetTimer(*key, 1);
         SAVE_STREAM_FLAGS(cout);
 

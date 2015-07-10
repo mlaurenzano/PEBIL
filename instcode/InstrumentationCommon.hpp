@@ -654,7 +654,6 @@ public:
     // Adds tid to threads to be tracked
     // If there are images initialized, creates initial data for each
     // No pre-conditions
-    //void AddThread(thread_key_t tid,bool fromAddImage=false){
     void AddThread(thread_key_t tid){
         Lock();
         
@@ -683,10 +682,9 @@ public:
 
             // Generate thread data for this image using some other thread's data as a template
             datamap[*iit][tid] = datagen(datamap[*iit][*tit], ThreadType, *iit, tid, firstimage);
+
             // initialize the thread hashtable data for this image
             SetThreadData((*iit), tid, ThreadType);
-
-
         }
         allthreads.insert(tid);
         UnLock();
@@ -892,9 +890,9 @@ public:
         Lock();
         uint32_t tid_index = alldata->GetThreadSequence(tid);
         uint32_t newsize = tid_index+1 > threadcount ? tid_index+1 : threadcount;
+
         // Grow stats and copy old data if necessary
         // Also initialize stats for any other threads which are implied to exist
-        cout<<"\t AddThread called by tid "<<tid<<endl;
         if(newsize > threadcount) {
             T** tmp = new T*[newsize];
             for (uint32_t i = 0; i < threadcount; ++i){
@@ -948,6 +946,7 @@ public:
         debug(assert(imagecount > 0));
         debug(assert(threadcount > 0));
         debug(assert(num <= capacity));
+        
         uint32_t threadseq = alldata->GetThreadSequence(tid);
         if(threadseq >= threadcount) {
             AddThread(tid);

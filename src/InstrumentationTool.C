@@ -442,7 +442,6 @@ void InstrumentationTool::instrument(){
     dynamicPointArray = reserveDataOffset(sizeof(DynamicInst*));
     isThreadedModeFlag = reserveDataOffset(sizeof(bool));
     bool isThreadedModeFlag_Val = isThreadedMode();
-
     initializeReservedData(getInstDataAddress() + isThreadedModeFlag, sizeof(bool), &isThreadedModeFlag_Val);
     dynamicInit->addArgument(dynamicSize);
     dynamicInit->addArgument(dynamicPointArray);
