@@ -62,6 +62,7 @@
 using namespace std;
 
 static pebil_map_type < uint64_t, vector < DynamicInst* > > * Dynamics = NULL;
+static bool ThreadedModeFlag;
 
 static void PrintDynamicPoint(DynamicInst* d){
     std::cout
@@ -74,11 +75,12 @@ static void PrintDynamicPoint(DynamicInst* d){
         << "\n";
 }
 
-static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn){
+static void InitializeDynamicInstrumentation(uint64_t* count, DynamicInst** dyn,bool* isThreadedModeFlag){
     if (Dynamics == NULL){
         Dynamics = new pebil_map_type < uint64_t, vector < DynamicInst* > > ();
     }
     assert(Dynamics != NULL);
+    ThreadedModeFlag=(*isThreadedModeFlag);
 
     DynamicInst* dd = *dyn;
     for (uint32_t i = 0; i < *count; i++){
@@ -130,6 +132,12 @@ static void SetDynamicPoints(std::set<uint64_t>& keys, bool state){
     debug(std::cout << "Thread " << std::hex << pthread_self() << " switched " << std::dec << count << " to " << (state? "on" : "off") << std::endl);
 }
 
+//Mostly needs to be static value?
+static bool isThreadedMode()
+{
+    return ThreadedModeFlag;
+}
+
 // thread id support
 typedef struct {
     uint64_t id;
@@ -142,7 +150,7 @@ typedef struct {
 // handling of different initialization/finalization events
 // analysis libraries define these differently
 extern "C" {
-    extern void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn);
+    extern void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn,bool* isThreadedModeFlag);
 
     extern void* tool_mpi_init();
 
@@ -535,8 +543,7 @@ private:
         }
         cout
             << " setting up thread data at index "
-            << dec << actual << TAB
-            << hex << td << "(" << GetThreadSequence(tid) << ")"
+            << dec << actual << TAB << hex << td << "(" << GetThreadSequence(tid) << ")"
             << " -> " << hex << td[actual].data
             << endl;
 
