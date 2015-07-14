@@ -50,7 +50,6 @@ void ReuseDistance::Init(uint64_t w, uint64_t b){
    // mwindow.clear(); //CAUTION: Dangerous practice!! :(
     LRUDistanceAnalyzer::Init(); // Does this need a protection mechanism?
     assert(ReuseDistance::Infinity == NULL && "NULL is non-zero!?");
-   // cout<<"\n\t Reuse Distance's Init!! \n";
 }
 
 ReuseDistance::ReuseDistance(uint64_t w, uint64_t b){
@@ -78,8 +77,6 @@ ReuseDistance::~ReuseDistance(){
         current--;
     }
     freetree234(window); //CAUTION: Dangerous practice!! :( 
-         
-    cout<<"\n\t Illi!! \n";
 }
 
 uint64_t ReuseStats::GetMissCount(){
@@ -227,7 +224,6 @@ void ReuseStats::PrintFormat(ostream& f){
 }
 
 void SpatialLocality::Print(ostream& f, bool annotate){
-cout<<"\n\t Spatial Locality's Print!! \n";
     reuse_map_type<uint64_t,uint64_t> BinTotal;
      
     vector<uint64_t> keys;
@@ -294,7 +290,6 @@ cout<<"\n\t Spatial Locality's Print!! \n";
 
 
 void ReuseDistance::Print(ostream& f, bool annotate){
-   // cout<<"\n\t Calling OutputResults!--! \n";
     LRUDistanceAnalyzer::OutputResults();
     uint64_t total=0;
     uint64_t BinStats[BIN_SIZE];
@@ -403,7 +398,7 @@ inline uint64_t ShaveBitsPwr2(uint64_t val){
             r |= S[i];
         }
     }
-    return (2 << r);
+    return ( (uint64_t) 2 << r);
 }
 
 uint64_t ReuseStats::GetBin(uint64_t value){
@@ -464,9 +459,6 @@ void ReuseStats::GetSortedDistances(vector<uint64_t>& dkeys){
 }
 
 void ReuseStats::Print(ostream& f, reuse_map_type<uint64_t,uint64_t>& BinTotal,bool annotate){
-//cout<<"\n\t Reuse Stat's Print!! \n";
-   //cout<<"\n\t Calling Print 123!!! \n";   
-   //return;
     vector<uint64_t> keys;
     GetSortedDistances(keys);
 
@@ -554,9 +546,8 @@ void SpatialLocality::Process(ReuseEntry& r){
                 break;
             }
         }
+        stats->Update(bestdiff);
     }
-
-    stats->Update(bestdiff);
 
     // remove the oldest address in the window
     if (swindow.size() > capacity){
