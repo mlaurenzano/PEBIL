@@ -632,8 +632,7 @@ extern "C" {
             double t = (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0)); 
             inform<<"CXXX Total Execution time for instrumented application: " << t << ENDL;
         }    
-        else if(CacheSimulation||AddressRangeEnable)
-        {
+        else if(CacheSimulation||AddressRangeEnable){
         // dump cache simulation results
             bool BothRangeAndSimulation = (AddressRangeEnable&&CacheSimulation); 
             bool AtleastSimulation= ( CacheSimulation || BothRangeAndSimulation);
@@ -837,8 +836,7 @@ extern "C" {
                             aggrange->Update(bbid, r->GetMaximum(memid), r->GetAccessCount(memid));
                         }
                     }
-                    if(CacheSimulation)
-                    {
+                    if(CacheSimulation){
                         //CacheStats** aggstats = new CacheStats*[CountCacheStructures];
                         aggstats = new CacheStats*[CountCacheStructures];
                         for (uint32_t sys = 0; sys < CountCacheStructures; sys++){
@@ -868,8 +866,7 @@ extern "C" {
                     }
                     uint32_t MaxCapacity;
                     CacheStats* root;
-                    if(CacheSimulation)
-                    {
+                    if(CacheSimulation){
                         root= aggstats[0];
                         MaxCapacity=root->Capacity;
                     }
@@ -967,18 +964,17 @@ extern "C" {
                 }
                 }
             }
-
             if(CacheSimulation)
                 MemFile.close();
             if(AddressRangeEnable)
                 RangeFile.close();
             
-                double t = (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0));
-                inform << "CXXX Total Execution time for instrumented application: " << t << ENDL;
-                double m = (double)(CountCacheStructures * Sampler->AccessCount);
-                inform << "CXXX Memops simulated (includes only sampled memops in cache structures) per second: " << (m/t) << ENDL;
-            }
-            if (NonmaxKeys){
+            double t = (AllData->GetTimer(*key, 1) - AllData->GetTimer(*key, 0));
+            inform << "CXXX Total Execution time for instrumented application: " << t << ENDL;
+            double m = (double)(CountCacheStructures * Sampler->AccessCount);
+            inform << "CXXX Memops simulated (includes only sampled memops in cache structures) per second: " << (m/t) << ENDL;
+            //}
+            if(NonmaxKeys){
                 delete NonmaxKeys;
             }
 

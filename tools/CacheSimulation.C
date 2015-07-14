@@ -97,12 +97,12 @@ void CacheSimulation::filterBBs(){
                 blocksToInst.insert(bb->getHashCode().getValue(), bb);
 
                 // also include any block that is in this loop (including child loops)
-                uint64_t TopLoopBBID;
+                uint64_t topLoopBBID;
                 if (loopIncl){
                     if (bb->isInLoop()){
 
                         // For now use the BB-ID of top-most loop as hash-key of the group. Should change this by generating a new hash.
-                        SimpleHash<Loop*> LoopsToCheck;
+                        SimpleHash<Loop*> loopsToCheck;
                         Vector<Loop*> LoopsVec;
                         Vector<uint64_t> BB_LoopsVec;
 
@@ -114,16 +114,15 @@ void CacheSimulation::filterBBs(){
                         BasicBlock* HeadBB=lp->getHead();
                         BasicBlock* TailBB=lp->getTail();
 
-                        TopLoopBBID=HeadBB->getHashCode().getValue();
+                        topLoopBBID=HeadBB->getHashCode().getValue();
 
 
                         printf ("\t\t BB->HashCode(): 0x%012llx Head-loop: 0x%012llx TailLoop: 0x%012llx \n",bb->getHashCode(),HeadBB->getHashCode(),TailBB->getHashCode());
-                        if(!LoopsToCheck.exists(TopLoopBBID,lp))
-                        {    
-                            LoopsToCheck.insert(TopLoopBBID,lp);
+                        if(!loopsToCheck.exists(topLoopBBID,lp)){    
+                            loopsToCheck.insert(topLoopBBID,lp);
                             int Size= ( LoopsVec.size() < 1 ) ? LoopsVec.size() : (LoopsVec.size()-1);
                             LoopsVec.insert(lp, Size ) ;
-                            BB_LoopsVec.insert(TopLoopBBID,Size);                            
+                            BB_LoopsVec.insert(topLoopBBID,Size);                            
                         }
 
                         for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
@@ -138,9 +137,9 @@ void CacheSimulation::filterBBs(){
 
                             printf ("\t\t\t BB->HashCode(): 0x%012llx Head-loop: 0x%012llx TailLoop: 0x%012llx \n",allBlocks[k]->getHashCode(),HeadBB->getHashCode(),TailBB->getHashCode());    
 
-                            if(!LoopsToCheck.exists(HeadBB->getHashCode().getValue(),LpInner))
+                            if(!loopsToCheck.exists(HeadBB->getHashCode().getValue(),LpInner))
                             {
-                                LoopsToCheck.insert(HeadBB->getHashCode().getValue(),LpInner);
+                                loopsToCheck.insert(HeadBB->getHashCode().getValue(),LpInner);
                                 int Size= ( LoopsVec.size() < 1 ) ? LoopsVec.size() : (LoopsVec.size()-1);
                                 LoopsVec.insert(LpInner, Size ) ;
                                 BB_LoopsVec.insert(HeadBB->getHashCode().getValue(),Size);
@@ -149,14 +148,12 @@ void CacheSimulation::filterBBs(){
                             blocksToInst.insert(code, allBlocks[k]);
                         }
                         
-                        printf("\t #Loops in the hash table is %d and LoopsVec.Size(): %d BB_LoopsVec.Size(): %d \n",LoopsToCheck.size(),LoopsVec.size(),BB_LoopsVec.size());
+                        printf("\t #Loops in the hash table is %d and LoopsVec.Size(): %d BB_LoopsVec.Size(): %d \n",loopsToCheck.size(),LoopsVec.size(),BB_LoopsVec.size());
                         Vector<Vector<Loop*>*> BBStruct;
                         //Vector<Loop*>* MainNode=new Vector<Loop*>; // Should keep tab on "top-most loop if its not added to LL" //MainNode->insert(lp,0); //BBStruct.insert(MainNode);
                         Vector<Loop*>* FirstLevelNode=new Vector<Loop*>; // Could this cause a memory leak?                     
 
-                        if(BB_LoopsVec.size()>1)
-                        {
-                            
+                        if(BB_LoopsVec.size()>1){
                             for(uint32_t i=0;i<(LoopsVec.size()-1);i++) 
                             {
                                 FirstLevelNode->insert(LoopsVec[i],i);
@@ -168,8 +165,7 @@ void CacheSimulation::filterBBs(){
 
                         // else if(BB_LoopsVec.size()==1) // Not a fatal case since its possible to have only one loop. Should skip "searching for next-level BBs"                      
                         
-                        for(uint32_t BBStructIdx=0; BBStructIdx<BBStruct.size();BBStructIdx++)
-                        {
+                        for(uint32_t BBStructIdx=0; BBStructIdx<BBStruct.size();BBStructIdx++){
                             printf("\n Entering next iteration and size of BBStruct is: %d \n",BBStruct.size());
                             Vector<Loop*>* currLoopVec=BBStruct[BBStructIdx];
                             Vector<Loop*>* nextLoopVec=new Vector<Loop*>;
@@ -212,7 +208,6 @@ void CacheSimulation::filterBBs(){
                             printf("\n Entering next iteration and size of BBStruct is: %d and nextLoopVec's size is: %d \n",BBStruct.size(),nextLoopVec->size());
                         }
 
-                        //printf("\n MainNode: 0x%012llx and my address is: %llx sizeof(FirstLevelNode): %ld \n",(*MainNode)[0],MainNode,sizeof(FirstLevelNode));
                         // TODO: Should I delete the hashes/vectors used for book keeping of figuring out loop structure ?
                         delete[] allBlocks; 
                        // delete MainNode;
@@ -322,7 +317,7 @@ void CacheSimulation::instrument(){
     Vector<uint32_t>* allBlockIds = new Vector<uint32_t>();
     Vector<LineInfo*>* allBlockLineInfos = new Vector<LineInfo*>();
 
-    std::map<uint64_t, uint32_t>* functionThreading;
+    std::map<uint64_t, ThreadRegisterMap*>* functionThreading;
     if (usePIC){
         functionThreading = threadReadyCode(functionsToInst);
     }
@@ -451,7 +446,8 @@ void CacheSimulation::instrument(){
 
         uint32_t threadReg = X86_REG_INVALID;
         if (usePIC){
-            threadReg = (*functionThreading)[f->getBaseAddress()];
+            ThreadRegisterMap* threadMap = (*functionThreading)[f->getBaseAddress()];
+            threadReg = threadMap->getThreadRegister(bb);
         }
 
         // Check if we should skip this block
