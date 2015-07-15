@@ -59,8 +59,6 @@ void CacheSimulation::filterBBs(){
     } else {
 
         initializeFileList(inputFile, fileLines);
-        
-        // SimpleHash<Loop*> groupIDForBB; // TODO: Only commented for debugging.
 
         for (uint32_t i = 0; i < (*fileLines).size(); i++){
             char* ptr = strchr((*fileLines)[i],'#');
@@ -97,14 +95,14 @@ void CacheSimulation::filterBBs(){
                 blocksToInst.insert(bb->getHashCode().getValue(), bb);
 
                 // also include any block that is in this loop (including child loops)
-                uint64_t topLoopBBID;
+                uint64_t topLoopID;
                 if (loopIncl){
                     if (bb->isInLoop()){
 
                         // For now use the BB-ID of top-most loop as hash-key of the group. Should change this by generating a new hash.
                         SimpleHash<Loop*> loopsToCheck;
-                        Vector<Loop*> LoopsVec;
-                        Vector<uint64_t> BB_LoopsVec;
+                        Vector<Loop*> loopsVec;
+                        Vector<uint64_t> BB_NestedLoop;
 
                         FlowGraph* fg = bb->getFlowGraph();
                         Loop* lp = fg->getInnermostLoopForBlock(bb->getIndex());
@@ -114,20 +112,18 @@ void CacheSimulation::filterBBs(){
                         BasicBlock* HeadBB=lp->getHead();
                         BasicBlock* TailBB=lp->getTail();
 
-                        topLoopBBID=HeadBB->getHashCode().getValue();
-
+                        topLoopID=HeadBB->getHashCode().getValue();
 
                         printf ("\t\t BB->HashCode(): 0x%012llx Head-loop: 0x%012llx TailLoop: 0x%012llx \n",bb->getHashCode(),HeadBB->getHashCode(),TailBB->getHashCode());
-                        if(!loopsToCheck.exists(topLoopBBID,lp)){    
-                            loopsToCheck.insert(topLoopBBID,lp);
-                            int Size= ( LoopsVec.size() < 1 ) ? LoopsVec.size() : (LoopsVec.size()-1);
-                            LoopsVec.insert(lp, Size ) ;
-                            BB_LoopsVec.insert(topLoopBBID,Size);                            
+                        if(!loopsToCheck.exists(topLoopID,lp)){    
+                            loopsToCheck.insert(topLoopID,lp);
+                            int Size= ( loopsVec.size() < 1 ) ? loopsVec.size() : (loopsVec.size()-1);
+                            loopsVec.insert(lp, Size ) ;
                         }
 
                         for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
                             uint64_t code = allBlocks[k]->getHashCode().getValue();
-
+                            BB_NestedLoop.insert(allBlocks[k]->getHashCode().getValue(),k);
                             FlowGraph* FgInner = allBlocks[k]->getFlowGraph();
                             Loop* LpInner = FgInner->getInnermostLoopForBlock(allBlocks[k]->getIndex());
                             //BasicBlock** AllBlocksInner = new BasicBlock*[LpInner->getNumberOfBlocks()]; LpInner->getAllBlocks(allBlocks);
@@ -140,77 +136,126 @@ void CacheSimulation::filterBBs(){
                             if(!loopsToCheck.exists(HeadBB->getHashCode().getValue(),LpInner))
                             {
                                 loopsToCheck.insert(HeadBB->getHashCode().getValue(),LpInner);
-                                int Size= ( LoopsVec.size() < 1 ) ? LoopsVec.size() : (LoopsVec.size()-1);
-                                LoopsVec.insert(LpInner, Size ) ;
-                                BB_LoopsVec.insert(HeadBB->getHashCode().getValue(),Size);
+                                int Size= ( loopsVec.size() < 1 ) ? loopsVec.size() : (loopsVec.size()-1);
+                                loopsVec.insert(LpInner, Size ) ;
                             }
 
                             blocksToInst.insert(code, allBlocks[k]);
                         }
                         
-                        printf("\t #Loops in the hash table is %d and LoopsVec.Size(): %d BB_LoopsVec.Size(): %d \n",loopsToCheck.size(),LoopsVec.size(),BB_LoopsVec.size());
+                        printf("\t #Loops in the hash table is %d and loopsVec.Size(): %d BB_NestedLoop.Size(): %d \n",loopsToCheck.size(),loopsVec.size(),BB_NestedLoop.size());
                         Vector<Vector<Loop*>*> BBStruct;
                         //Vector<Loop*>* MainNode=new Vector<Loop*>; // Should keep tab on "top-most loop if its not added to LL" //MainNode->insert(lp,0); //BBStruct.insert(MainNode);
                         Vector<Loop*>* FirstLevelNode=new Vector<Loop*>; // Could this cause a memory leak?                     
-
-                        if(BB_LoopsVec.size()>1){
-                            for(uint32_t i=0;i<(LoopsVec.size()-1);i++) 
+                        Vector<uint64_t>* innermostBasicBlocksForGroup; 
+                        innermostBasicBlocksForGroup=new Vector<uint64_t>;
+                        if(loopsVec.size()>1){
+                            for(uint32_t i=0;i<(loopsVec.size()-1);i++) 
                             {
-                                FirstLevelNode->insert(LoopsVec[i],i);
+                                FirstLevelNode->insert(loopsVec[i],i);
                                 printf(" i: %d Node-BB: 0x%012llx \n",i,(*FirstLevelNode)[i]->getHead()->getHashCode().getValue());
                             }
-                        }
-                        BBStruct.insert(FirstLevelNode,0);
-                        printf("\t Size of BBStruct is: %d \n",BBStruct.size());
 
-                        // else if(BB_LoopsVec.size()==1) // Not a fatal case since its possible to have only one loop. Should skip "searching for next-level BBs"                      
-                        
-                        for(uint32_t BBStructIdx=0; BBStructIdx<BBStruct.size();BBStructIdx++){
-                            printf("\n Entering next iteration and size of BBStruct is: %d \n",BBStruct.size());
-                            Vector<Loop*>* currLoopVec=BBStruct[BBStructIdx];
-                            Vector<Loop*>* nextLoopVec=new Vector<Loop*>;
-                            uint32_t numLoopsNextLevel=0; 
+                            BBStruct.insert(FirstLevelNode,0);
+                            printf("\t Size of BBStruct is: %d \n",BBStruct.size());
 
-                            for(uint32_t i=0;i<currLoopVec->size();i++)
-                            {
-                                printf("\t CurrLoop is 0x%012llx \n",(*currLoopVec)[i]->getHead()->getHashCode().getValue());
-                            }
+                            
+                            for(uint32_t BBStructIdx=0; BBStructIdx<BBStruct.size();BBStructIdx++){
+                                printf("\n Entering next iteration and size of BBStruct is: %d \n",BBStruct.size());
+                                Vector<Loop*>* currLoopVec=BBStruct[BBStructIdx];
+                                Vector<Loop*>* nextLoopVec=new Vector<Loop*>;
+                                uint32_t numLoopsNextLevel=0; 
 
-                            for(uint32_t i=0;i<currLoopVec->size();i++)
-                            {
-                                printf("\t CurrOuterLoop is 0x%012llx \n",(*currLoopVec)[i]->getHead()->getHashCode().getValue());
-                                for(uint32_t j=0;j<currLoopVec->size();j++)
-                                {
-                                    printf("\t\t CurrInnerLoop is 0x%012llx \n",(*currLoopVec)[j]->getHead()->getHashCode().getValue());
-                                    if( (*currLoopVec)[j]->isInnerLoopOf((*currLoopVec)[i]) )
-                                    {
-                                        if(! ( (*currLoopVec)[j]->isIdenticalLoop( (*currLoopVec)[i] ) ) ) // else do nothing since its the same loop.
-                                        {
-                                            printf("\t\t\t  Loop 0x%012llx is inner loop of 0x%012llx \n",(*currLoopVec)[j]->getHead()->getHashCode().getValue(),(*currLoopVec)[i]->getHead()->getHashCode().getValue() );
-                                            /*if(nextLoopVec==NULL)
-                                            {
-                                                nextLoopVec= new Vector<Loop*>;
-                                            }*/
-                                            nextLoopVec->insert((*currLoopVec)[j],numLoopsNextLevel);
-                                            numLoopsNextLevel++;
-                                            currLoopVec->remove(j);
+                                for(uint32_t i=0;i<currLoopVec->size();i++){
+                                    printf("\t CurrLoop is 0x%012llx \n",(*currLoopVec)[i]->getHead()->getHashCode().getValue());
+                                }
+
+                                for(uint32_t i=0;i<currLoopVec->size();i++){
+                                    printf("\t CurrOuterLoop is 0x%012llx \n",(*currLoopVec)[i]->getHead()->getHashCode().getValue());
+                                    for(uint32_t j=0;j<currLoopVec->size();j++){
+                                        printf("\t\t CurrInnerLoop is 0x%012llx \n",(*currLoopVec)[j]->getHead()->getHashCode().getValue());
+                                        if( (*currLoopVec)[j]->isInnerLoopOf((*currLoopVec)[i]) ){
+                                            if(! ( (*currLoopVec)[j]->isIdenticalLoop( (*currLoopVec)[i] ) ) ){
+                                                
+                                                printf("\t\t\t  Loop 0x%012llx is inner loop of 0x%012llx \n",(*currLoopVec)[j]->getHead()->getHashCode().getValue(),(*currLoopVec)[i]->getHead()->getHashCode().getValue() );
+                                                /*if(nextLoopVec==NULL)
+                                                {
+                                                    nextLoopVec= new Vector<Loop*>;
+                                                }*/
+                                                nextLoopVec->insert((*currLoopVec)[j],numLoopsNextLevel);
+                                                numLoopsNextLevel++;
+                                                currLoopVec->remove(j);
+                                            } // else do nothing since its the same loop.
                                         }
-                                        
                                     }
                                 }
+
+                                if( nextLoopVec->size() > 0 ){ 
+                                    BBStruct.insert(nextLoopVec,BBStructIdx+1);
+                                    printf(" Boo yeah added new node-since nextLoopVec->size() is : %d and BBStruct-size: %d \n",nextLoopVec->size(),BBStruct.size());
+                                }
+                                printf("\n Entering next iteration and size of BBStruct is: %d and nextLoopVec's size is: %d \n",BBStruct.size(),nextLoopVec->size());
                             }
 
-                            if( nextLoopVec->size() > 0 )
-                            { 
-                                BBStruct.insert(nextLoopVec,BBStructIdx+1);
-                                printf(" Boo yeah added new node-since nextLoopVec->size() is : %d and BBStruct-size: %d \n",nextLoopVec->size(),BBStruct.size());
+                            for(uint32_t BBStructIdx=( BBStruct.size()-1); BBStructIdx< BBStruct.size(); BBStructIdx++){
+                                int Size;
+                                for(uint32_t i=0;i< (*BBStruct[BBStructIdx]).size(); i++){
+                                    Loop* lp = (*BBStruct[BBStructIdx])[i];
+                                    printf("\t --#-- Current loop's ID is: 0x%012llx \n",lp->getHead()->getHashCode().getValue());
+                                        
+                                    BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
+                                    lp->getAllBlocks(allBlocks);    
+                                    for(uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
+                                        uint64_t code = allBlocks[k]->getHashCode().getValue();
+                                        Size= ( innermostBasicBlocksForGroup->size() < 1 ) ? innermostBasicBlocksForGroup->size() : (innermostBasicBlocksForGroup->size()-1);
+                                        printf("\t\t Code is: 0x%012llx\n", code); 
+                                        innermostBasicBlocksForGroup->insert(code,Size);
+                                    }
+                                }                                
                             }
-                            printf("\n Entering next iteration and size of BBStruct is: %d and nextLoopVec's size is: %d \n",BBStruct.size(),nextLoopVec->size());
+                        }
+                        else if(loopsVec.size()==1){ // since its possible to have only one loop. Should skip "searching for next-level BBs"                      
+                            printf("\t Boo yeah here at loopsVec.size==1 \n ");
+                            Loop* lp=loopsVec[0];
+                            int Size;
+                            printf("\t --#-- Current loop's ID is: 0x%012llx \n",lp->getHead()->getHashCode().getValue());
+                                        
+                            BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
+                            lp->getAllBlocks(allBlocks);    
+                            for(uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
+                                uint64_t code = allBlocks[k]->getHashCode().getValue();
+                                Size= ( innermostBasicBlocksForGroup->size() < 1 ) ? innermostBasicBlocksForGroup->size() : (innermostBasicBlocksForGroup->size()-1);
+                                printf("\t\t Code is: 0x%012llx\n", code); 
+                                innermostBasicBlocksForGroup->insert(code,Size);
+                            }
+                        }                            
+
+                        printf("\n\t So the inner most BBs for this Group < Yo find me a Group-ID, cant live without a hash forever!! > \n");
+                        for(uint32_t i=0;i<innermostBasicBlocksForGroup->size();i++){
+                            printf("\t\t 0x%012llx \n",(*innermostBasicBlocksForGroup)[i]);
+                        }
+
+                        NestedLoopStats* currLoopStats = new NestedLoopStats(topLoopID,innermostBasicBlocksForGroup);
+                        nestedLoopGrouping.insert(topLoopID,currLoopStats);
+
+                        for(uint32_t i=0; i < BB_NestedLoop.size(); i++){
+                            printf("\t Added 0x%012llx to mapBB hashing! \n",BB_NestedLoop[i]);
+                            mapBBToGroupID.insert(BB_NestedLoop[i],topLoopID);
                         }
 
                         // TODO: Should I delete the hashes/vectors used for book keeping of figuring out loop structure ?
                         delete[] allBlocks; 
                        // delete MainNode;
+                    }else{
+                        Vector<uint64_t>* innermostBasicBlocksForGroup;
+                        innermostBasicBlocksForGroup=new Vector<uint64_t>;  
+                        innermostBasicBlocksForGroup->insert( bb->getHashCode().getValue(),0);                      
+                        NestedLoopStats* currLoopStats = new NestedLoopStats( bb->getHashCode().getValue(),innermostBasicBlocksForGroup); 
+                        printf("\n\t ***** Muhaha just now added a BB to the hash for nestedloop-group..... \n");
+                        nestedLoopGrouping.insert(bb->getHashCode().getValue(),currLoopStats);
+
+                        mapBBToGroupID.insert(bb->getHashCode().getValue(),bb->getHashCode().getValue());
+
                     }
                 }
             }
@@ -308,6 +353,30 @@ void CacheSimulation::instrument(){
         }
     }
 
+    Vector<uint64_t> groupIDsVec; // TODO: Mostly only being used for testing.
+    SimpleHash<uint64_t> groupsInitialized;
+    for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
+        BasicBlock* bb = getExposedBasicBlock(i);
+        if( blocksToInst.get(bb->getHashCode().getValue()) ){
+
+            uint64_t myGroupID,myGroupStatsSize;
+            if( mapBBToGroupID.get(bb->getHashCode().getValue()) ){
+                myGroupID= mapBBToGroupID.getVal(bb->getHashCode().getValue());
+                NestedLoopStats* myNestedLoopStats= ( nestedLoopGrouping.getVal(myGroupID ) );
+                myGroupStatsSize = sizeof( *(myNestedLoopStats) );
+                printf("\t For BB: 0x%012llx the groupID is 0x%012llx and its size is: %ld and my last-level has %d blocks \n",bb->getHashCode().getValue(),myGroupID,myGroupStatsSize,myNestedLoopStats->getNumBlks());
+
+                if(!groupsInitialized.exists(myGroupID,myGroupID)){
+                    groupsInitialized.insert(myGroupID,myGroupID);
+                    int Size= ( groupIDsVec.size() < 1 ) ? groupIDsVec.size() : (groupIDsVec.size()-1);
+                    groupIDsVec.insert(myGroupID,Size);
+                    printf("\t\t Adding GroupID 0x%012llx to vec",myGroupID);
+                }
+
+            }
+        }
+    }
+
     uint64_t noData = reserveDataOffset(strlen(NOSTRING) + 1);
     char* nostring = new char[strlen(NOSTRING) + 1];
     sprintf(nostring, "%s\0", NOSTRING);
@@ -384,6 +453,11 @@ void CacheSimulation::instrument(){
     uint64_t ext = reserveDataOffset(strlen(extName) + 1);
     initializeReservedPointer(ext, simulationStruct + offsetof(SimulationStats, Extension));
     initializeReservedData(getInstDataAddress() + ext, strlen(extName) + 1, (void*)extName);
+
+    uint64_t testPtr = reserveDataOffset(sizeof(uint64_t));
+    uint64_t ipTestData = groupIDsVec.size();
+    //initializeReservedPointer(testPtr,simulationStruct +offsetof(SimulationStats,TestData));
+    initializeReservedData(getInstDataAddress()+ testPtr, sizeof(uint64_t),(void*)(&ipTestData));
 
     initializeReservedData(getInstDataAddress() + simulationStruct, sizeof(SimulationStats), (void*)(&stats));
 

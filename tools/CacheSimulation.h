@@ -24,6 +24,25 @@
 #include <InstrumentationTool.h>
 #include <SimpleHash.h>
 
+// Temporary struct declaration. Should move it to either instcode/InstrumentaitonCommon.hpp or instcode/Metasim.hpp 
+class NestedLoopStats{ // Not bound in same namespace!! 
+private:    // Not sure whether I need it to be private. Also by default it'd be private :-/
+    uint64_t GroupID; // for now, same as BB-ID/ Top-most loop of 
+    //uint64_t* InnerLevelBasicBlocks; // Since there can be >1 
+    Vector<uint64_t>*  InnerLevelBasicBlocks ; // Since there can be >1 . Might have to make this uint64_t* 
+    bool isNestedLoop; // Since for BBs it'd be referring to itself, 
+                       // this is probably needed so that it's count can be aptly provided. Probably not needed, can remove later
+    
+public: 
+    NestedLoopStats(uint64_t ipGroupID,Vector<uint64_t>* ipInnerLevelBasicBlocks){
+        GroupID=ipGroupID;
+        InnerLevelBasicBlocks=ipInnerLevelBasicBlocks;
+        printf("\t ---------------- A nested loop with groupID 0x%012llx has been initialized with %d inner most level basic blocks. \n",GroupID,InnerLevelBasicBlocks->size());
+    } 
+    uint32_t getNumBlks(){ return InnerLevelBasicBlocks->size(); }   
+};
+
+
 class CacheSimulation : public InstrumentationTool {
 private:
     InstrumentationFunction* simFunc;
@@ -31,6 +50,8 @@ private:
     InstrumentationFunction* entryFunc;
 
     SimpleHash<BasicBlock*> blocksToInst;
+    SimpleHash<NestedLoopStats*> nestedLoopGrouping;
+    SimpleHash<uint64_t> mapBBToGroupID;
 
     void filterBBs();
 
