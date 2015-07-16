@@ -199,7 +199,6 @@ extern "C" {
                 FastStats = new FastData<SimulationStats*, BufferEntry*>(GetBufferIds, AllData, BUFFER_CAPACITY(stats));
             }
             assert(FastStats);
-
             FastStats->AddImage();
             stats->threadid = AllData->GenerateThreadKey();
             stats->imageid = *key;
@@ -240,6 +239,10 @@ extern "C" {
             debug(inform << "Removing init points for image " << hex << (*key) << ENDL);
             SetDynamicPoints(inits, false); 
 
+            inform<<"\t Boo yeahhh the test data is: "<<((stats->NestedLoopCount))<<ENDL;
+            for(uint32_t i=0;i<(stats->NestedLoopCount);i++){
+                inform<<"\t i: "<<i<<"\t TestArray[i]: "<<hex<<stats->TestArray[i]<<ENDL;
+            }
 
         }
 
