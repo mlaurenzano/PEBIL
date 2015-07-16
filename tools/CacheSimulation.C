@@ -117,8 +117,7 @@ void CacheSimulation::filterBBs(){
                         printf ("\t\t BB->HashCode(): 0x%012llx Head-loop: 0x%012llx TailLoop: 0x%012llx \n",bb->getHashCode(),HeadBB->getHashCode(),TailBB->getHashCode());
                         if(!loopsToCheck.exists(topLoopID,lp)){    
                             loopsToCheck.insert(topLoopID,lp);
-                            int Size= ( loopsVec.size() < 1 ) ? loopsVec.size() : (loopsVec.size()-1);
-                            loopsVec.insert(lp, Size ) ;
+                            loopsVec.insert(lp, loopsVec.size() ) ;
                         }
 
                         for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
@@ -136,8 +135,7 @@ void CacheSimulation::filterBBs(){
                             if(!loopsToCheck.exists(HeadBB->getHashCode().getValue(),LpInner))
                             {
                                 loopsToCheck.insert(HeadBB->getHashCode().getValue(),LpInner);
-                                int Size= ( loopsVec.size() < 1 ) ? loopsVec.size() : (loopsVec.size()-1);
-                                loopsVec.insert(LpInner, Size ) ;
+                                loopsVec.insert(LpInner, loopsVec.size() ) ;
                             }
 
                             blocksToInst.insert(code, allBlocks[k]);
@@ -198,7 +196,6 @@ void CacheSimulation::filterBBs(){
                             }
 
                             for(uint32_t BBStructIdx=( BBStruct.size()-1); BBStructIdx< BBStruct.size(); BBStructIdx++){
-                                int Size;
                                 for(uint32_t i=0;i< (*BBStruct[BBStructIdx]).size(); i++){
                                     Loop* lp = (*BBStruct[BBStructIdx])[i];
                                     printf("\t --#-- Current loop's ID is: 0x%012llx \n",lp->getHead()->getHashCode().getValue());
@@ -207,9 +204,8 @@ void CacheSimulation::filterBBs(){
                                     lp->getAllBlocks(allBlocks);    
                                     for(uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
                                         uint64_t code = allBlocks[k]->getHashCode().getValue();
-                                        Size= ( tmpInnermostBasicBlocksForGroup->size() < 1 ) ? tmpInnermostBasicBlocksForGroup->size() : (tmpInnermostBasicBlocksForGroup->size()-1);
                                         printf("\t\t Code is: 0x%012llx\n", code); 
-                                        tmpInnermostBasicBlocksForGroup->insert(code,Size);
+                                        tmpInnermostBasicBlocksForGroup->insert(code,tmpInnermostBasicBlocksForGroup->size());
                                     }
                                 }                                
                             }
@@ -217,16 +213,14 @@ void CacheSimulation::filterBBs(){
                         else if(loopsVec.size()==1){ // since its possible to have only one loop. Should skip "searching for next-level BBs"                      
                             printf("\t Boo yeah here at loopsVec.size==1 \n ");
                             Loop* lp=loopsVec[0];
-                            int Size;
                             printf("\t --#-- Current loop's ID is: 0x%012llx \n",lp->getHead()->getHashCode().getValue());
                                         
                             BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
                             lp->getAllBlocks(allBlocks);    
                             for(uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
                                 uint64_t code = allBlocks[k]->getHashCode().getValue();
-                                Size= ( tmpInnermostBasicBlocksForGroup->size() < 1 ) ? tmpInnermostBasicBlocksForGroup->size() : (tmpInnermostBasicBlocksForGroup->size()-1);
                                 printf("\t\t Code is: 0x%012llx\n", code); 
-                                tmpInnermostBasicBlocksForGroup->insert(code,Size);
+                                tmpInnermostBasicBlocksForGroup->insert(code,tmpInnermostBasicBlocksForGroup->size());
                             }
                         }                            
 
@@ -238,12 +232,16 @@ void CacheSimulation::filterBBs(){
                             innermostBasicBlocksForGroup[i] = (*tmpInnermostBasicBlocksForGroup)[i];
                         }
 
-                        NestedLoopStats* currLoopStats = new NestedLoopStats(topLoopID,innermostBasicBlocksForGroup,tmpInnermostBasicBlocksForGroup->size());
+                        NestedLoopStruct* currLoopStats = new NestedLoopStruct;
+                        currLoopStats->GroupId = topLoopID;
+                        currLoopStats->InnerLevelSize = tmpInnermostBasicBlocksForGroup->size();
+                        currLoopStats->GroupCount = 0;
+                        currLoopStats->InnerLevelBasicBlocks = innermostBasicBlocksForGroup;
                         nestedLoopGrouping.insert(topLoopID,currLoopStats);
 
                         for(uint32_t i=0; i < BB_NestedLoop.size(); i++){
                             printf("\t Added 0x%012llx to mapBB hashing! \n",BB_NestedLoop[i]);
-                            mapBBToGroupID.insert(BB_NestedLoop[i],topLoopID);
+                            mapBBToGroupId.insert(BB_NestedLoop[i],topLoopID);
                         }
 
                         // TODO: Should I delete the hashes/vectors used for book keeping of figuring out loop structure ?
@@ -253,15 +251,19 @@ void CacheSimulation::filterBBs(){
                         uint64_t* innermostBasicBlocksForGroup;
                         innermostBasicBlocksForGroup=new uint64_t;  
                         *innermostBasicBlocksForGroup=(bb->getHashCode().getValue()); // Since we know this is only a BB, just adding this BB.
-                        NestedLoopStats* currLoopStats = new NestedLoopStats( bb->getHashCode().getValue(),innermostBasicBlocksForGroup,1); 
+                        NestedLoopStruct* currLoopStats = new NestedLoopStruct;
+                        currLoopStats->GroupId = (bb->getHashCode().getValue());
+                        currLoopStats->InnerLevelSize = 1;
+                        currLoopStats->GroupCount = 0;
+                        currLoopStats->InnerLevelBasicBlocks = innermostBasicBlocksForGroup;
                         printf("\n\t ***** Muhaha just now added a BB to the hash for nestedloop-group..... \n");
                         nestedLoopGrouping.insert(bb->getHashCode().getValue(),currLoopStats); // Only 1 BB, so third term is 1.
-                        mapBBToGroupID.insert(bb->getHashCode().getValue(),bb->getHashCode().getValue()); 
+                        mapBBToGroupId.insert(bb->getHashCode().getValue(),bb->getHashCode().getValue()); 
                     }
                 }
             }
 
-            // Should add groupID in either of the cases where BB is included in a loop/not.
+            // Should add GroupId in either of the cases where BB is included in a loop/not.
         }
         for (uint32_t i = 0; i < (*fileLines).size(); i++){
             delete[] (*fileLines)[i];
@@ -354,24 +356,24 @@ void CacheSimulation::instrument(){
         }
     }
 
-    Vector<uint64_t> groupIDsVec; // TODO: Mostly only being used for testing.
+    Vector<uint64_t> GroupIdsVec; // TODO: Mostly only being used for testing.
     SimpleHash<uint64_t> groupsInitialized;
+    SimpleHash<uint64_t> mapBBToIdxOfGroup;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
         if( blocksToInst.get(bb->getHashCode().getValue()) ){
-            uint64_t myGroupID,myGroupStatsSize;
-            if( mapBBToGroupID.get(bb->getHashCode().getValue()) ){
-                myGroupID= mapBBToGroupID.getVal(bb->getHashCode().getValue());
-                NestedLoopStats* myNestedLoopStats= ( nestedLoopGrouping.getVal(myGroupID ) );
-                myGroupStatsSize = sizeof( *(myNestedLoopStats) );
-                printf("\t For BB: 0x%012llx the groupID is 0x%012llx and its size is: %ld and my last-level has %d blocks \n",bb->getHashCode().getValue(),myGroupID,myGroupStatsSize,myNestedLoopStats->getNumBlks());
+            uint64_t myGroupId,myGroupStatsSize;
+            if( mapBBToGroupId.get(bb->getHashCode().getValue()) ){
+                myGroupId= mapBBToGroupId.getVal(bb->getHashCode().getValue());
+                NestedLoopStruct* myNestedLoopStruct= ( nestedLoopGrouping.getVal(myGroupId ) );
+                printf("\t For BB: 0x%012llx the GroupId is 0x%012llx and my last-level has %d blocks \n",bb->getHashCode().getValue(),myGroupId,myNestedLoopStruct->InnerLevelSize);
 
-                if(!groupsInitialized.exists(myGroupID,myGroupID)){
-                    groupsInitialized.insert(myGroupID,myGroupID);
-                    int Size= ( groupIDsVec.size() < 1 ) ? groupIDsVec.size() : (groupIDsVec.size()-1);
-                    groupIDsVec.insert(myGroupID,Size);
-                    printf("\t\t Adding GroupID 0x%012llx to vec",myGroupID);
+                if(!groupsInitialized.exists(myGroupId,myGroupId)){
+                    groupsInitialized.insert(myGroupId,myGroupId);    
+                    GroupIdsVec.insert(myGroupId,GroupIdsVec.size());
+                    printf("\t\t Adding GroupId 0x%012llx to vec",myGroupId);
                 }
+                mapBBToIdxOfGroup.insert(bb->getHashCode().getValue(),(GroupIdsVec.size()-1));
             }
         }
     }
@@ -409,7 +411,7 @@ void CacheSimulation::instrument(){
         stats.PerInstruction = false;
         stats.BlockCount = blockSeq;
     }
-    stats.NestedLoopCount = groupIDsVec.size(); // Amogha edits.
+    stats.NestedLoopCount = GroupIdsVec.size(); // Amogha edits.
 
     // allocate Counters and SimulationStats contiguously to avoid an extra memory ref in counter updates
     uint64_t simulationStruct = reserveDataOffset(sizeof(SimulationStats) + (sizeof(uint64_t) * stats.BlockCount));
@@ -441,6 +443,7 @@ void CacheSimulation::instrument(){
     INIT_BLOCK_ELEMENT(uint32_t, Lines);
     INIT_BLOCK_ELEMENT(char*, Files);
     INIT_BLOCK_ELEMENT(char*, Functions);
+    INIT_BLOCK_ELEMENT(uint64_t, GroupIds);
 
     char* appName = getElfFile()->getAppName();
     uint64_t app = reserveDataOffset(strlen(appName) + 1);
@@ -456,7 +459,7 @@ void CacheSimulation::instrument(){
     stats.TestArray = (uint64_t*) reserveDataOffset(stats.NestedLoopCount * sizeof(uint64_t));
     initializeReservedPointer((uint64_t)stats.TestArray, simulationStruct + offsetof(SimulationStats,TestArray));
 
-    stats.NLStats = (NestedLoopStats**) reserveDataOffset(stats.NestedLoopCount * sizeof(NestedLoopStats*));
+    stats.NLStats = (NestedLoopStruct*) reserveDataOffset(stats.NestedLoopCount * sizeof(NestedLoopStruct));
     initializeReservedPointer((uint64_t)stats.NLStats, simulationStruct + offsetof(SimulationStats,NLStats));    
 
 /*
@@ -464,43 +467,48 @@ void CacheSimulation::instrument(){
             initializeReservedPointer(funcname, (uint64_t)stats.Functions + blockSeq*sizeof(char*));
             initializeReservedData(getInstDataAddress() + funcname, strlen(f->getName()) + 1, (void*)f->getName());
 */
-
-    for(uint32_t i=0;i < groupIDsVec.size() ; i++){
-        uint64_t myGroupID = groupIDsVec[i];
-
-        //stats.NLStats+ = (NestedLoopStats**) reserveDataOffset(stats.NestedLoopCount * sizeof(NestedLoopStats));
-        NestedLoopStats* myNestedLoopStats = ( nestedLoopGrouping.getVal(myGroupID ) );
-        printf("\t\t Initializing GroupID 0x%012llx in TestArray and it's actual instance has %d blocks at lower level while instance's size is %d \n",myGroupID,myNestedLoopStats->getNumBlks(),myNestedLoopStats->SizeInBytes());
-        //uint64_t currNestLoopStatsInstance = ( NestedLoopStats* ) reserveDataOffset(sizeof(NestedLoopStats)); //myNestedLoopStats->SizeInBytes());
+    /*for(uint32_t i=0;i < GroupIdsVec.size() ; i++){
         NestedLoopStats* tmpNestedLoopStatsPtr;
         tmpNestedLoopStatsPtr = ( NestedLoopStats* ) reserveDataOffset(sizeof(NestedLoopStats));
         uint64_t currNestLoopStatsInstance = ( (uint64_t) stats.NLStats + i * sizeof(NestedLoopStats*) ); 
-        initializeReservedPointer( (uint64_t)tmpNestedLoopStatsPtr , (uint64_t)stats.NLStats + i * sizeof(NestedLoopStats*) );
+        initializeReservedPointer( (uint64_t)tmpNestedLoopStatsPtr , currNestLoopStatsInstance); //(uint64_t)stats.NLStats + i * sizeof(NestedLoopStats*) );       
+    }*/
+    SimpleHash<uint32_t> mapBBToArrayIdx;
+    for(uint32_t i=0;i < GroupIdsVec.size() ; i++){
+        uint64_t myGroupId = GroupIdsVec[i];
+
+        NestedLoopStruct* myNestedLoopStruct = ( nestedLoopGrouping.getVal(myGroupId ) );
+        printf("\t\t Initializing GroupId 0x%012llx in TestArray and it's actual instance has %d blocks at lower level while instance's size is %d \n",myGroupId,myNestedLoopStruct->InnerLevelSize);
+        uint64_t currNestLoopStatsInstance = ( (uint64_t) stats.NLStats + ( i * sizeof(NestedLoopStruct) ) ) ; 
         
-        uint64_t groupIDPtr = reserveDataOffset(sizeof(uint64_t));
-        uint64_t currGroupID = myNestedLoopStats->getGroupID(); // Mostly dont need this since groupIDs are already stored!! 
-        initializeReservedPointer( groupIDPtr , currNestLoopStatsInstance + offsetof(NestedLoopStruct,GroupID) );
-        initializeReservedData( getInstDataAddress() + groupIDPtr , sizeof(uint64_t) , (void*) ( &currGroupID) );
+        //uint64_t GroupIdPtr = reserveDataOffset(sizeof(uint64_t));
+        uint64_t currGroupId = myNestedLoopStruct->GroupId; // Mostly dont need this since GroupIds are already stored!! 
+        //initializeReservedPointer( GroupIdPtr , currNestLoopStatsInstance + offsetof(NestedLoopStruct,GroupId) );
+        //initializeReservedData( getInstDataAddress() + GroupIdPtr , sizeof(uint64_t) , (void*) ( &currGroupId) );
+        initializeReservedData( getInstDataAddress() + currNestLoopStatsInstance + offsetof(NestedLoopStruct,GroupId) , sizeof(uint64_t) , (void*) ( &currGroupId) );
+        uint64_t temp= getInstDataAddress() + currNestLoopStatsInstance ;
+        printf("\n\t\t ---- currGroupId is 0x%012llx and address of NLStats[i]: 0x%012llx NLStats[i].GroupID: 0x%012llx NLStats[i].InnerLevelSize: 0x%012llx NLStats[i].InnerLevelBasicBlocks: 0x%012llx \n ",myGroupId,temp,(temp + offsetof(NestedLoopStruct,GroupId)),(temp + offsetof(NestedLoopStruct,InnerLevelSize)),(temp + offsetof(NestedLoopStruct,InnerLevelBasicBlocks)));
 
-        uint64_t innerLevelSizePtr = reserveDataOffset(sizeof(uint32_t));
-        uint64_t currInnerLevelSize = myNestedLoopStats->getInnerLevelSize(); // Mostly dont need this since groupIDs are already stored!! 
-        initializeReservedPointer( innerLevelSizePtr , currNestLoopStatsInstance + offsetof(NestedLoopStruct,InnerLevelSize) );
-        initializeReservedData( getInstDataAddress() + innerLevelSizePtr , sizeof(uint32_t) , (void*) ( &currInnerLevelSize) );        
+        uint64_t tmpCount=0;
+        initializeReservedData( getInstDataAddress() + currNestLoopStatsInstance + offsetof(NestedLoopStruct,GroupCount) , sizeof(uint64_t) , (void*) ( &tmpCount) );
+        //uint64_t innerLevelSizePtr = reserveDataOffset(sizeof(uint32_t));
+        
+        //initializeReservedPointer( innerLevelSizePtr , currNestLoopStatsInstance + offsetof(NestedLoopStruct,InnerLevelSize) );        //initializeReservedData( getInstDataAddress() + innerLevelSizePtr , sizeof(uint32_t) , (void*) ( &currInnerLevelSize) );        
+        uint64_t currInnerLevelSize = myNestedLoopStruct->InnerLevelSize; // Mostly dont need this since GroupIds are already stored!! 
+        initializeReservedData( getInstDataAddress() + currNestLoopStatsInstance + offsetof(NestedLoopStruct,InnerLevelSize) , sizeof(uint32_t) , (void*) ( &currInnerLevelSize) );        
 
-         uint64_t* tmpInnerLevelBasicBlocksPtr;
-        tmpInnerLevelBasicBlocksPtr = (uint64_t*) reserveDataOffset( myNestedLoopStats->getNumBlks() * sizeof(uint64_t) );
+        /*uint64_t* tmpInnerLevelBasicBlocksPtr;
+        tmpInnerLevelBasicBlocksPtr = (uint64_t*) reserveDataOffset( myNestedLoopStruct->InnerLevelSize * sizeof(uint64_t) );
         initializeReservedPointer( (uint64_t)tmpInnerLevelBasicBlocksPtr, currNestLoopStatsInstance + offsetof(NestedLoopStruct,InnerLevelBasicBlocks) );
-        uint64_t addrCurrInnerLevelBasicBlocks =  currNestLoopStatsInstance + offsetof(NestedLoopStruct,InnerLevelBasicBlocks); // assuming already all data is in uint64_t.
-        uint64_t* currInnerLevelBasicBlocks = myNestedLoopStats->getInnerLevelBasicBlocks();
-        for(uint32_t j=0; j < myNestedLoopStats->getNumBlks(); j++){
+        uint64_t addrCurrInnerLevelBasicBlocks =  (uint64_t)tmpInnerLevelBasicBlocksPtr; //currNestLoopStatsInstance + offsetof(NestedLoopStruct,InnerLevelBasicBlocks); // assuming already all data is in uint64_t.
+        uint64_t* currInnerLevelBasicBlocks = myNestedLoopStruct->InnerLevelBasicBlocks;
+        for(uint32_t j=0; j < myNestedLoopStruct->InnerLevelSize; j++){
             uint64_t tempBlkId = currInnerLevelBasicBlocks[j];
             initializeReservedData(  getInstDataAddress() + addrCurrInnerLevelBasicBlocks + ( j * sizeof(uint64_t)) , sizeof(uint64_t) , (void*) ( & tempBlkId) );
-        }  
+            printf("\t j: %d reserving data(BB-ID) 0x%012llx and it should be at address: 0x%012llx which is offseted from: 0x%012llx \n",j,currInnerLevelBasicBlocks[j],(getInstDataAddress()+addrCurrInnerLevelBasicBlocks+( j * sizeof(uint64_t))),(currNestLoopStatsInstance));
+        }  */
 
-          //currNestedLoopStatsInstance;
-        //initializeReservedData(getInstDataAddress() + (uint64_t)stats.NLStats + i * sizeof(NestedLoopStats*), myNestedLoopStats->SizeInBytes(),(void*)(myNestedLoopStats));        
-
-        initializeReservedData(getInstDataAddress() + (uint64_t)stats.TestArray + i * sizeof(uint64_t), sizeof(uint64_t),(void*)(&myGroupID));        
+        initializeReservedData(getInstDataAddress() + (uint64_t)stats.TestArray + i * sizeof(uint64_t), sizeof(uint64_t),(void*)(&myGroupId));        
     }
  // Done this for now! 
     //initializeReservedPointer((uint64_t) stats.TestArray,simulationStruct +offsetof(SimulationStats,TestArray));
@@ -558,6 +566,7 @@ void CacheSimulation::instrument(){
     blockSeq = 0;
     memopSeq = 0;
     uint32_t currentLeader = 0;
+    uint32_t countBBInstrumented = 0;
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
         Function* f = (Function*)bb->getLeader()->getContainer();
@@ -601,9 +610,12 @@ void CacheSimulation::instrument(){
 
             uint64_t hashValue = bb->getHashCode().getValue();
             uint64_t addr = bb->getProgramAddress();        
+            uint64_t groupId = mapBBToIdxOfGroup.getVal(hashValue);
+            mapBBToArrayIdx.insert(hashValue,countBBInstrumented);
 
             initializeReservedData(getInstDataAddress() + (uint64_t)stats.Hashes + blockSeq*sizeof(uint64_t), sizeof(uint64_t), &hashValue);
             initializeReservedData(getInstDataAddress() + (uint64_t)stats.Addresses + blockSeq*sizeof(uint64_t), sizeof(uint64_t), &addr);
+            initializeReservedData(getInstDataAddress() + (uint64_t)stats.GroupIds + blockSeq*sizeof(uint64_t),sizeof(uint64_t), (void*) &groupId);
 
             CounterTypes tmpct = CounterType_basicblock;
             initializeReservedData(getInstDataAddress() + (uint64_t)stats.Types + blockSeq*sizeof(CounterTypes), sizeof(CounterTypes), &tmpct);
@@ -613,6 +625,7 @@ void CacheSimulation::instrument(){
 
             temp32 = bb->getNumberOfMemoryOps();
             initializeReservedData(getInstDataAddress() + (uint64_t)stats.MemopsPerBlock + blockSeq*sizeof(uint32_t), sizeof(uint32_t), &temp32);
+            countBBInstrumented+=1;
         }
 
         uint32_t memopIdInBlock = 0;
@@ -909,6 +922,27 @@ void CacheSimulation::instrument(){
             }
         }
         blockSeq++;
+    }
+
+    for(uint32_t i=0;i < GroupIdsVec.size() ; i++){
+        uint64_t myGroupId = GroupIdsVec[i];
+
+        NestedLoopStruct* myNestedLoopStruct = ( nestedLoopGrouping.getVal(myGroupId ) );
+        printf("\t\t Initializing GroupId 0x%012llx in TestArray and it's actual instance has %d blocks at lower level. \n",myGroupId,myNestedLoopStruct->InnerLevelSize);
+
+        uint64_t* tmpInnerLevelBasicBlocksPtr;
+        tmpInnerLevelBasicBlocksPtr = (uint64_t*) reserveDataOffset( myNestedLoopStruct->InnerLevelSize * sizeof(uint64_t) );
+        initializeReservedPointer( (uint64_t)tmpInnerLevelBasicBlocksPtr, ( (uint64_t) stats.NLStats + ( i * sizeof(NestedLoopStruct) ) ) + offsetof(NestedLoopStruct,InnerLevelBasicBlocks) );
+        uint64_t addrCurrInnerLevelBasicBlocks =  (uint64_t)tmpInnerLevelBasicBlocksPtr; //currNestLoopStatsInstance + offsetof(NestedLoopStruct,InnerLevelBasicBlocks); // assuming already all data is in uint64_t.
+
+        uint64_t* currInnerLevelBasicBlocks = myNestedLoopStruct->InnerLevelBasicBlocks;
+        for(uint32_t j=0; j < myNestedLoopStruct->InnerLevelSize; j++){
+            uint64_t tempBlkId = (uint64_t) mapBBToArrayIdx.getVal(currInnerLevelBasicBlocks[j]);
+            initializeReservedData(  getInstDataAddress() + addrCurrInnerLevelBasicBlocks + ( j * sizeof(uint64_t)) , sizeof(uint64_t) , (void*) ( & tempBlkId) );
+            printf("\t j: %d mapping hash 0x%012llx to index %ld and it should be at address: 0x%012llx \n",j,currInnerLevelBasicBlocks[j],tempBlkId,(getInstDataAddress()+addrCurrInnerLevelBasicBlocks+( j * sizeof(uint64_t))));
+        }  
+
+        initializeReservedData(getInstDataAddress() + (uint64_t)stats.TestArray + i * sizeof(uint64_t), sizeof(uint64_t),(void*)(&myGroupId));        
     }
 
     char* extension = new char[__MAX_STRING_SIZE];

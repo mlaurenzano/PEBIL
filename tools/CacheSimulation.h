@@ -32,8 +32,8 @@ private:
     InstrumentationFunction* entryFunc;
 
     SimpleHash<BasicBlock*> blocksToInst;
-    SimpleHash<NestedLoopStats*> nestedLoopGrouping;
-    SimpleHash<uint64_t> mapBBToGroupID;
+    SimpleHash<NestedLoopStruct*> nestedLoopGrouping;
+    SimpleHash<uint64_t> mapBBToGroupId;
 
     void filterBBs();
 

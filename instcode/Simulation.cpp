@@ -244,6 +244,15 @@ extern "C" {
                 inform<<"\t i: "<<i<<"\t TestArray[i]: "<<hex<<stats->TestArray[i]<<ENDL;
             }
 
+            for(uint32_t i=0;i<(stats->NestedLoopCount);i++){
+                inform<<"\t i: "<<i<<"\t GroupId: "<<hex<<(stats->NLStats[i].GroupId)<<"\t InnerLevelSize: "<<hex<<stats->NLStats[i].InnerLevelSize<<ENDL;   
+            }
+
+            inform<<"\t Block counts: "<<(stats->BlockCount)<<ENDL;
+            for(uint32_t i=0;i<(stats->BlockCount);i++){
+                inform<<"\t i: "<<i<<"\t GroupId: "<<hex<<(stats->GroupIds[i])<<"\t Hash-Id: "<<(stats->Hashes[i])<<ENDL;
+            }
+
         }
 
         pthread_mutex_unlock(&image_init_mutex);
@@ -268,8 +277,7 @@ extern "C" {
     }
 */
   //  void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, ReuseDistance* rd, ReuseDistance* sd, uint32_t numElements, image_key_t iid, thread_key_t tid)
-    static void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m,uint32_t numElements, image_key_t iid, thread_key_t tid)
-    {
+    static void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m,uint32_t numElements, image_key_t iid, thread_key_t tid){
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
 
@@ -302,8 +310,7 @@ extern "C" {
         //assert(faststats[0]->Stats[HandlerIdx]->Verify());
     }
 
-    static void ProcessReuseBuffer(ReuseDistance* rd,uint32_t numElements, image_key_t iid, thread_key_t tid)
-    {
+    static void ProcessReuseBuffer(ReuseDistance* rd,uint32_t numElements, image_key_t iid, thread_key_t tid){
 
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
@@ -335,8 +342,7 @@ extern "C" {
 	// assert(faststats[0]->Stats[HandlerIdx]->Verify());
     }
 
-    static void ProcessSpatialBuffer( ReuseDistance* sd,uint32_t numElements, image_key_t iid, thread_key_t tid)
-    {
+    static void ProcessSpatialBuffer( ReuseDistance* sd,uint32_t numElements, image_key_t iid, thread_key_t tid){
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
 
@@ -364,7 +370,7 @@ extern "C" {
             sd->Process(entry);
             numProcessed++;
         }
-	// assert(faststats[0]->Stats[HandlerIdx]->Verify());
+    // assert(faststats[0]->Stats[HandlerIdx]->Verify());
     }
 
 
@@ -436,6 +442,16 @@ extern "C" {
                     sd = stats->RHandlers[SpatialHandlerIndex];
                     ProcessSpatialBuffer(sd, numElements, iid, tid);
                 }
+
+                for(uint32_t i=0;i<(stats->NestedLoopCount);i++){
+                    //inform<<"\t i: "<<i<<"\t GroupId "<<hex<<(stats->NLStats[i].GroupId)<<"\t InnerLevelSize: "<<hex<<stats->NLStats[i].InnerLevelSize<<ENDL;   
+                    uint64_t* currInnerLevelBasicBlocks = stats->NLStats[i].InnerLevelBasicBlocks; 
+                    for(uint32_t j=0;j<stats->NLStats[i].InnerLevelSize;j++){
+                        if( stats->NLStats[i].GroupCount < stats->Counters[ currInnerLevelBasicBlocks[j] ] )
+                            stats->NLStats[i].GroupCount = stats->Counters[ currInnerLevelBasicBlocks[j] ];
+                       // inform<<"\t Idx: "<<(currInnerLevelBasicBlocks[j])<<"\t count: "<<(stats->Counters[ currInnerLevelBasicBlocks[j] ])<<"\t NLStats[i].GroupCount "<<(stats->NLStats[i].GroupCount)<<ENDL;
+                    }
+                }               
             } 
         }
 
@@ -452,6 +468,7 @@ extern "C" {
                     // if max block count is reached, disable all buffer-related points related to this block
                     uint32_t idx = bbid;
                     uint32_t midx = bbid;
+
                     if (s->Types[bbid] == CounterType_instruction){
                         idx = s->Counters[bbid];
                     }
@@ -465,8 +482,8 @@ extern "C" {
                           << TAB << "Counter " << s->Counters[bbid]
                           << TAB << "Real " << s->Counters[idx]
                           << ENDL);
-
-                    if (Sampler->ExceedsAccessLimit(s->Counters[idx])){
+                    uint64_t groupidx = stats->GroupIds[bbid] ;// This could be fatal if s->PerInstruction is not handled! 
+                    if (Sampler->ExceedsAccessLimit(s->Counters[idx]) || (Sampler->ExceedsAccessLimit( stats->NLStats[groupidx].GroupCount )) ){
 
                         uint64_t k1 = GENERATE_KEY(midx, PointType_buffercheck);
                         uint64_t k2 = GENERATE_KEY(midx, PointType_bufferinc);
@@ -494,7 +511,7 @@ extern "C" {
                         }
                     }
                 }
-
+               // exit(-1);
                 if (MemsRemoved.size()){
                     assert(MemsRemoved.size() % 3 == 0);
                     debug(inform << "REMOVING " << dec << (MemsRemoved.size() / 3) << " blocks" << ENDL);
@@ -887,15 +904,13 @@ extern "C" {
                         // this isn't necessarily true since this tool can suspend threads at any point,
                         // potentially shutting off instrumention in a block while a thread is midway through
                         if (AllData->CountThreads() == 1){
-                             if(CacheSimulation)                   
-                            {
+                            if(CacheSimulation){
                                 if (root->GetAccessCount(bbid) % st->MemopsPerBlock[bbid] != 0){
                                     inform << "bbid " << dec << bbid << " image " << hex << (*iit) << " accesses " << dec << root->GetAccessCount(bbid) << " memops " << st->MemopsPerBlock[bbid] << ENDL;
                                 }
                                 assert(root->GetAccessCount(bbid) % st->MemopsPerBlock[bbid] == 0);
                             }
-                            else if(AddressRangeEnable)
-                            {
+                            else if(AddressRangeEnable){
                                 if (aggrange->GetAccessCount(bbid) % st->MemopsPerBlock[bbid] != 0){
                                     inform << "bbid " << dec << bbid << " image " << hex << (*iit) << " accesses " << dec << aggrange->GetAccessCount(bbid) << " memops " << st->MemopsPerBlock[bbid] << ENDL;
                                 }
@@ -922,7 +937,7 @@ extern "C" {
                             << TAB << hex << aggrange->GetMinimum(bbid)
                             << TAB << hex << aggrange->GetMaximum(bbid)
                             << TAB << hex << (aggrange->GetMaximum(bbid) - aggrange->GetMinimum(bbid));
-                            //<< ENDL;
+                            // << ENDL;
                         }
                         if(AddressRangeEnable){
                             RangeFile  << "BLK" 

@@ -64,31 +64,33 @@ class MemoryStreamHandler;
 class ReuseDistance;
 
 typedef struct{
-    uint64_t GroupID; // for now, same as BB-ID/ Top-most loop of 
+    uint64_t GroupId; // for now, same as BB-ID/ Top-most loop of 
     uint32_t InnerLevelSize;
+    uint64_t GroupCount;
     uint64_t* InnerLevelBasicBlocks; // Since there can be >1 
 } NestedLoopStruct;
 
 // Temporary struct declaration. Should move it to either instcode/InstrumentaitonCommon.hpp or instcode/Metasim.hpp 
 class NestedLoopStats{ // Not bound in same namespace!! 
-private:    // Not sure whether I need it to be private. Also by default it'd be private :-/
+//private:    // Not sure whether I need it to be private. Also by default it'd be private :-/
+public:
     NestedLoopStruct myNestedLoopStruct;
     //Vector<uint64_t>*  InnerLevelBasicBlocks ; // Since there can be >1 . Might have to make this uint64_t* 
     bool isNestedLoop; // Since for BBs it'd be referring to itself, 
                        // this is probably needed so that it's count can be aptly provided. Probably not needed, can remove later 
 public: 
-    NestedLoopStats(uint64_t ipGroupID,uint64_t* ipInnerLevelBasicBlocks,uint32_t ipInnerLevelSize){
-        myNestedLoopStruct.GroupID=ipGroupID;
+    NestedLoopStats(uint64_t ipGroupId,uint64_t* ipInnerLevelBasicBlocks,uint32_t ipInnerLevelSize){
+        myNestedLoopStruct.GroupId=ipGroupId;
         myNestedLoopStruct.InnerLevelBasicBlocks=ipInnerLevelBasicBlocks;
         myNestedLoopStruct.InnerLevelSize= ipInnerLevelSize ;
-        printf("\t ---------------- A nested loop with groupID 0x%012llx has been initialized with %d inner most level basic blocks. \n",myNestedLoopStruct.GroupID,myNestedLoopStruct.InnerLevelSize);
+        printf("\t ---------------- A nested loop with GroupId 0x%012llx has been initialized with %d inner most level basic blocks. \n",myNestedLoopStruct.GroupId,myNestedLoopStruct.InnerLevelSize);
     } 
     inline uint32_t getNumBlks(){ return myNestedLoopStruct.InnerLevelSize; } // now this and getInnerLevelSize are indeed same. Remove one of them!   
-    inline uint32_t SizeInBytes(){ return ( sizeof(myNestedLoopStruct.GroupID) + ( myNestedLoopStruct.InnerLevelSize * sizeof(uint64_t) ) + sizeof(myNestedLoopStruct.InnerLevelSize) );  } // Is it a problem to force size to be uint32_t ?
-    inline uint64_t getGroupID() { return myNestedLoopStruct.GroupID;}    
-    inline uint64_t* getInnerLevelBasicBlocks() { return myNestedLoopStruct.InnerLevelBasicBlocks ;}
+    inline uint32_t SizeInBytes(){ return ( sizeof(myNestedLoopStruct.GroupId) + ( myNestedLoopStruct.InnerLevelSize * sizeof(uint64_t) ) + sizeof(myNestedLoopStruct.InnerLevelSize) );  } // Is it a problem to force size to be uint32_t ?
+    inline uint64_t getGroupId() { return myNestedLoopStruct.GroupId;}    
+    inline uint64_t* getInnerLevelBasicBlocks() { return myNestedLoopStruct.InnerLevelBasicBlocks;}
     inline uint32_t getInnerLevelSize() { return myNestedLoopStruct.InnerLevelSize ; }
-};
+}; 
 
 typedef struct {
     // memory buffer
@@ -119,6 +121,7 @@ typedef struct {
     char** Functions;
     uint64_t* Hashes;
     uint64_t* Addresses;
+    uint64_t* GroupIds; // Amogha edits!
     StreamStats** Stats; // indexed by handler
     MemoryStreamHandler** Handlers;
     //MITESH EDITS:  additions for Reuse distance 
@@ -128,7 +131,7 @@ typedef struct {
     uint64_t NestedLoopCount;
     uint64_t* TestArray;
 
-    NestedLoopStats** NLStats; // array of pointers, for now?
+    NestedLoopStruct* NLStats; 
 
 } SimulationStats;
 
