@@ -239,19 +239,6 @@ extern "C" {
             debug(inform << "Removing init points for image " << hex << (*key) << ENDL);
             SetDynamicPoints(inits, false); 
 
-            inform<<"\t Boo yeahhh the test data is: "<<((stats->NestedLoopCount))<<ENDL;
-            for(uint32_t i=0;i<(stats->NestedLoopCount);i++){
-                inform<<"\t i: "<<i<<"\t TestArray[i]: "<<hex<<stats->TestArray[i]<<ENDL;
-            }
-
-            for(uint32_t i=0;i<(stats->NestedLoopCount);i++){
-                inform<<"\t i: "<<i<<"\t GroupId: "<<hex<<(stats->NLStats[i].GroupId)<<"\t InnerLevelSize: "<<hex<<stats->NLStats[i].InnerLevelSize<<ENDL;   
-            }
-
-            inform<<"\t Block counts: "<<(stats->BlockCount)<<ENDL;
-            for(uint32_t i=0;i<(stats->BlockCount);i++){
-                inform<<"\t i: "<<i<<"\t GroupId: "<<hex<<(stats->GroupIds[i])<<"\t Hash-Id: "<<(stats->Hashes[i])<<ENDL;
-            }
 
         }
 
@@ -444,12 +431,10 @@ extern "C" {
                 }
 
                 for(uint32_t i=0;i<(stats->NestedLoopCount);i++){
-                    //inform<<"\t i: "<<i<<"\t GroupId "<<hex<<(stats->NLStats[i].GroupId)<<"\t InnerLevelSize: "<<hex<<stats->NLStats[i].InnerLevelSize<<ENDL;   
                     uint64_t* currInnerLevelBasicBlocks = stats->NLStats[i].InnerLevelBasicBlocks; 
                     for(uint32_t j=0;j<stats->NLStats[i].InnerLevelSize;j++){
                         if( stats->NLStats[i].GroupCount < stats->Counters[ currInnerLevelBasicBlocks[j] ] )
                             stats->NLStats[i].GroupCount = stats->Counters[ currInnerLevelBasicBlocks[j] ];
-                       // inform<<"\t Idx: "<<(currInnerLevelBasicBlocks[j])<<"\t count: "<<(stats->Counters[ currInnerLevelBasicBlocks[j] ])<<"\t NLStats[i].GroupCount "<<(stats->NLStats[i].GroupCount)<<ENDL;
                     }
                 }               
             } 
