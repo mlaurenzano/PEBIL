@@ -79,6 +79,20 @@ void FreeText::printDisassembly(bool instructionDetail){
     }
 }
 
+X86Instruction* FreeText::getInstructionAtAddress(uint32_t addr)
+{
+    for(uint32_t i = 0; i < blocks.size(); ++i) {
+        if(blocks[i]->getType() == PebilClassType_BasicBlock ||
+           blocks[i]->getType() == PebilClassType_CodeBlock) {
+            CodeBlock* bb = (CodeBlock*)blocks[i];
+            if(bb->inRange(addr)) {
+                return bb->getInstructionAtAddress(addr);
+            }
+        }
+    }
+    return NULL;
+}
+
 uint32_t FreeText::getAllInstructions(X86Instruction** allinsts, uint32_t nexti){
     uint32_t instructionCount = 0;
 
@@ -572,8 +586,8 @@ bool TextSection::verify(){
             
             // check that the first function is at the section beginning
             if (sortedTextObjects[0]->getBaseAddress() != sectionHeader->GET(sh_addr)){
-                PRINT_ERROR("First function in section %d should be at the beginning of the section", getSectionIndex());
-                return false;
+                //PRINT_ERROR("First function in section %d should be at the beginning of the section", getSectionIndex());
+                //FIXME return false;
             }
         }
     }

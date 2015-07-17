@@ -185,6 +185,7 @@ void FlowGraph::computeVectorMasks(){
     struct RegisterStatePrediction* first = new RegisterStatePrediction();
     first->ins = firstIns;
     first->idx = 0;
+    first->state[getRegId(UD_R_K0)] = {Definitely, 0xFFFF};
     worklist.insert(first, 0);
 
     // Initialize worklist with first instruction
@@ -232,8 +233,8 @@ void FlowGraph::computeVectorMasks(){
             RuntimeValue value;
 
             // Moves
-            if(ins->isMoveOperation() && ins->getFirstSourceOperand() != NULL) {
-                OperandX86* src = ins->getFirstSourceOperand();
+            if(ins->isMoveOperation() && ins->getSourceOperand(0) != NULL) {
+                OperandX86* src = ins->getSourceOperand(0);
                 value = getValueOfOperand(src, nextItem);
 
             // Stack pops
@@ -246,22 +247,93 @@ void FlowGraph::computeVectorMasks(){
                 }
 
             }
-            // vcmppd, kandn
+            // Other instructions
             else {
                 switch(ins->GET(mnemonic)) {
                 case UD_Iinc:
                 {
                     RuntimeValue oldval = nextItem->state[getRegId(dest->GET(base))];
-                    //fprintf(stderr, "Updating with inc: %d, %d\n", oldval.value, oldval.confidence);
                     if(oldval.confidence == Definitely) {
                         value = {Definitely, oldval.value + 1};
                     }
                     break;
                 }
+                case UD_Ikand: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, srcVal.value & oldVal.value};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                case UD_Ikandn: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, srcVal.value & (~oldVal.value)};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                case UD_Ikandnr: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, (~srcVal.value) & oldVal.value};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                //case UD_Ikconcath:
+                //case UD_Ikconcatl:
+                //case UD_Ikextract:
+                //case UD_Ikmerge2l1h:
+                //case UD_Ikmerge2l1l:
+                case UD_Iknot: {
+                    OperandX86* src = ins->getSourceOperand(1); // FIXME pretending to have two source operands
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    if(srcVal.confidence == Definitely){
+                        value = {Definitely, ~srcVal.value};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                    break;
+                }
+                case UD_Ikor: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, srcVal.value | oldVal.value };
+                    } else {
+                        value = {Unknown, 0};
+                    }
+
+                }
+                //case UD_Ikortest:
+                case UD_Ikxnor: {
+                    OperandX86* src = ins->getSourceOperand(1);
+                    RuntimeValue srcVal = getValueOfOperand(src, nextItem);
+                    RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
+                    if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
+                        value = {Definitely, ~(srcVal.value ^ oldVal.value) };
+                    } else if(src->GET(base) == dest->GET(base)){
+                        value = {Definitely, 0xFFFF};
+                    } else {
+                        value = {Unknown, 0};
+                    }
+                }
+                case UD_Ikxor:
                 case UD_Ixor:
                 {
-                    OperandX86* src = ins->getFirstSourceOperand();
-                    //fprintf(stderr, "Updating with xor\n");
+                    OperandX86* src = ins->getSourceOperand(1);
                     if(src->getType() == UD_OP_REG && dest->GET(base) == src->GET(base)) {
                         value = {Definitely, 0};
                     } else {
@@ -272,6 +344,40 @@ void FlowGraph::computeVectorMasks(){
                         } else {
                             value = {Unknown, 0};
                         }
+                    }
+                    break;
+                }
+                case UD_Ivcmppd:
+                case UD_Ivcmpps:
+                {
+                    // Check for equality comparisons between the same register
+                    Vector<OperandX86*>* sources = ins->getSourceOperands();
+                    SwizzleOperation swiz = ins->getSwizzleOperation();
+                    if( swiz == 0 && 
+                       (*sources)[0]->getType() == UD_OP_REG &&
+                       (*sources)[1]->getType() == UD_OP_REG ) {
+
+                        uint8_t cmpOp = (*sources)[2]->getValue();
+
+                        switch(cmpOp) {
+
+                        // eq, le, nlt
+                        case 0:
+                        case 2:
+                        case 5: value = {Definitely, 0xFF}; break;
+
+                        // lt, ne, nle
+                        case 1:
+                        case 4:
+                        case 6: value = {Definitely, 0}; break;
+
+                        case 3: // FIXME Unord
+                        case 7: // ord
+                        default:
+                            value = {Unknown, 0};
+                        }
+                    } else {
+                        value = {Unknown, 0};
                     }
                     break;
                 }
@@ -288,7 +394,7 @@ void FlowGraph::computeVectorMasks(){
         } else if(ins->isStackPush()) {
             //ins->print();
             RuntimeValue value;
-            OperandX86* src = ins->getFirstSourceOperand();
+            OperandX86* src = ins->getSourceOperand(0);
             if(src == NULL) {
                 value = {Unknown, 0};
                 //fprintf(stderr, "Pushing unknown onto stack\n");
@@ -706,6 +812,31 @@ void FlowGraph::computeDefUseDist(){
     ASSERT(allidefs.size() == 0);
 }
 
+// Get a block that will be interposed, its' not necessarily actually interposed yet
+BasicBlock* FlowGraph::getInterposedBlock(uint32_t srcidx, uint32_t tgtidx, bool& created)
+{
+    map<uint32_t, map<uint32_t, BasicBlock*>* >::iterator it1 = interposedBlocks.find(srcidx);
+    map<uint32_t, BasicBlock*>* tgtmap;
+    if(it1 == interposedBlocks.end()) {
+        tgtmap = new map<uint32_t, BasicBlock*>();
+        interposedBlocks[srcidx] = tgtmap;
+    } else {
+        tgtmap = it1->second;
+    }
+
+    map<uint32_t, BasicBlock*>::iterator it2 = tgtmap->find(tgtidx);
+    BasicBlock* bb;
+    if(it2 == tgtmap->end()) {
+        bb = new BasicBlock(getNumberOfBasicBlocks(), this);
+        (*tgtmap)[tgtidx] = bb;
+        created = true;
+    } else {
+        bb = it2->second;
+        created = false;
+    }
+    return bb;
+}
+
 void FlowGraph::interposeBlock(BasicBlock* bb){
     ASSERT(bb->getNumberOfSources() == 1 && bb->getNumberOfTargets() == 1);
     BasicBlock* sourceBlock = bb->getSourceBlock(0);
@@ -731,6 +862,9 @@ void FlowGraph::interposeBlock(BasicBlock* bb){
 
     ASSERT(linkFound && "There should be a source -> target block relationship between the blocks passed to this function");
 
+    if(sourceBlock->getBaseAddress() + sourceBlock->getNumberOfBytes() == targetBlock->getBaseAddress()) {
+        fprintf(stderr, "Failing assertion block 0x%llx to 0x%llx size %d\n", sourceBlock->getBaseAddress(), targetBlock->getBaseAddress(), sourceBlock->getNumberOfBytes());
+    }
     ASSERT(sourceBlock->getBaseAddress() + sourceBlock->getNumberOfBytes() != targetBlock->getBaseAddress() && "Source shouldn't fall through to target");
 
     bb->setBaseAddress(blocks.back()->getBaseAddress() + blocks.back()->getNumberOfBytes());
@@ -792,6 +926,7 @@ Loop* FlowGraph::getOuterMostLoopForLoop(uint32_t idx){
     return input;
 }
 
+// Gets any outer loop of loop idx
 Loop* FlowGraph::getOuterLoop(uint32_t idx){
     Loop* input = loops[idx];
     for (uint32_t i = 0; i < loops.size(); i++){
@@ -1141,6 +1276,7 @@ void FlowGraph::printLoops(){
         PRINT_INFOR("Flowgraph @ %#llx has %d loops", basicBlocks[0]->getBaseAddress(), loops.size());
     }
     for (uint32_t i = 0; i < loops.size(); i++){
+        //loops[i]->printLiveness();
         loops[i]->print();
     }
 }
@@ -1179,7 +1315,9 @@ BasicBlock** FlowGraph::getAllBlocks(){
 
 uint32_t FlowGraph::buildLoops(){
 
-    ASSERT(!loops.size());
+    if(loops.size())
+        return loops.size();
+
     PRINT_DEBUG_LOOP("Considering flowgraph for function %d -- has %d blocks", function->getIndex(),  basicBlocks.size());
 
     BasicBlock** allBlocks = new BasicBlock*[basicBlocks.size()]; 
@@ -1189,6 +1327,7 @@ uint32_t FlowGraph::buildLoops(){
     BitSet <BasicBlock*>* visitedBitSet = newBitSet();
     BitSet <BasicBlock*>* completedBitSet = newBitSet();
 
+    // find back edges in control flow graph
     depthFirstSearch(allBlocks[0], visitedBitSet, true, completedBitSet, &backEdges);
 
     delete[] allBlocks;
@@ -1213,6 +1352,7 @@ uint32_t FlowGraph::buildLoops(){
         BasicBlock* to = backEdges.shift();
         ASSERT(from && to && "Fatal: Backedge end points are invalid");
 
+        // Loops are backedges where head dominates the backedge
         if(from->isDominatedBy(to)){
             /* for each back edge found, perform natural loop finding algorithm 
                from pg. 604 of the Aho/Sethi/Ullman (Dragon) compiler book */
@@ -1222,6 +1362,7 @@ uint32_t FlowGraph::buildLoops(){
 
             numberOfLoops++;
 
+            // determine which blocks are in the loop
             loopStack.clear();
             inLoop->clear();
 
@@ -1260,6 +1401,7 @@ uint32_t FlowGraph::buildLoops(){
 
     PRINT_DEBUG_LOOP("\t%d Contains %d loops (back edges) from %d", getIndex(),numberOfLoops,basicBlocks.size());
 
+    // Sort loops by loop head
     if (numberOfLoops){
         uint32_t i = 0;
         while (!loopList.empty()){
@@ -1364,6 +1506,9 @@ FlowGraph::~FlowGraph(){
     for (uint32_t i = 0; i < blocks.size(); i++){
         delete blocks[i];
     }
+    for(map<uint32_t, map<uint32_t, BasicBlock*>*>::iterator it = interposedBlocks.begin(); it != interposedBlocks.end(); ++it) {
+        delete it->second;
+    }
 }
 
 void FlowGraph::setImmDominatorBlocks(BasicBlock* root){
@@ -1385,6 +1530,8 @@ void FlowGraph::setImmDominatorBlocks(BasicBlock* root){
     //delete[] allBlocks;
 }
 
+// Does a depth first search from root, marking blocks in visitedSet (unmarking if visitedMarkOnSet is false)
+// inserts back edges as pairs of nodes
 void FlowGraph::depthFirstSearch(BasicBlock* root, BitSet<BasicBlock*>* visitedSet, bool visitedMarkOnSet,
                                  BitSet<BasicBlock*>* completedSet, LinkedList<BasicBlock*>* backEdges)
 {
@@ -1395,6 +1542,7 @@ void FlowGraph::depthFirstSearch(BasicBlock* root, BitSet<BasicBlock*>* visitedS
         visitedSet->remove(root->getIndex());
     }
 
+    // Recurse until target has already been visited
     uint32_t numberOfTargets = root->getNumberOfTargets();
     for(uint32_t i=0;i<numberOfTargets;i++){
         BasicBlock* target = root->getTargetBlock(i);
@@ -1409,6 +1557,7 @@ void FlowGraph::depthFirstSearch(BasicBlock* root, BitSet<BasicBlock*>* visitedS
         }
     }
 
+    // paths from here are searched, if this is a future target, it won't be a backedge
     if(completedSet){
         if(visitedMarkOnSet){
             completedSet->insert(root->getIndex());

@@ -199,12 +199,14 @@ void BasicBlockCounter::instrument()
         usePIC = true;
     }
 
-    std::map<uint64_t, uint32_t>* functionThreading;
+    std::map<uint64_t, ThreadRegisterMap*>* functionThreading;
     if (usePIC){
         functionThreading = threadReadyCode(functionsToInst);
     }
 
-    // Inserts a counter at each block/instruction
+    // iteratate over each block/instruction
+    // block mode inserts a counter at each block
+    // instruction mode inserts a counter at each block and initializes a leader reference for each instruction
     uint64_t currentLeader = 0;
     for (uint32_t i = 0; i < numberOfBlocks; i++){
 
@@ -276,6 +278,8 @@ void BasicBlockCounter::instrument()
         initializeReservedData(getInstDataAddress() + (uint64_t)ctrs.Addresses + i*sizeof(uint64_t), sizeof(uint64_t), &addr);
         
         CounterTypes tmpct;
+
+        // Initialize counter data for non-leader instruction counters
         if (isPerInstruction()){
             // only keep a bb counter for one instruction in the block (the leader). all other instructions' counters hold the ID of the active counter
             // in their block
@@ -290,6 +294,7 @@ void BasicBlockCounter::instrument()
             }
         }
 
+        // other wise, for leader instructions
         currentLeader = i;
 
         tmpct = CounterType_basicblock;
@@ -303,7 +308,8 @@ void BasicBlockCounter::instrument()
 
         if (usePIC){
             counterOffset -= (uint64_t)ctrs.Counters;
-            threadReg = (*functionThreading)[f->getBaseAddress()];
+            ThreadRegisterMap* threadMap = (*functionThreading)[f->getBaseAddress()];
+            threadReg = threadMap->getThreadRegister(bb);
         }
 
         InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
@@ -343,7 +349,8 @@ void BasicBlockCounter::instrument()
 
         if (usePIC){
             counterOffset -= (uint64_t)ctrs.Counters;
-            threadReg = (*functionThreading)[f->getBaseAddress()];            
+            ThreadRegisterMap* threadMap = (*functionThreading)[f->getBaseAddress()];
+            threadReg = threadMap->getThreadRegister(head);
         }
 
         uint64_t hashValue = head->getHashCode().getValue();

@@ -142,6 +142,7 @@ void DeleteCounterArray(CounterArray* ctrs){
 void* tool_thread_init(thread_key_t tid){
     //inform << "Entering tool_thread_init" << ENDL;
     SAVE_STREAM_FLAGS(cout);
+    //init_signal_handlers();
     if (AllData){
         AllData->AddThread(tid);
     } else {
@@ -368,8 +369,12 @@ extern "C"
             << "# LPP" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "AllCounter" << TAB << "# File:Line" << TAB << "Function" << TAB << "Address" << ENDL
             << "#" << TAB << "ThreadId" << TAB << "ThreadCounter" << ENDL 
             << ENDL;
-    
+
+        // For each image
         for (set<image_key_t>::iterator iit = AllData->allimages.begin(); iit != AllData->allimages.end(); iit++){
+            uint32_t imgseq = AllData->GetImageSequence(*iit);
+
+            // For each counter
             CounterArray* c = (CounterArray*)AllData->GetData((*iit), pthread_self());
             for (uint32_t i = 0; i < c->Size; i++){
                 uint32_t idx;
@@ -383,17 +388,17 @@ extern "C"
 
                 // Sum Counts from each thread
                 uint32_t counter = 0;
-                for (set<thread_key_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
-                    CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));
+                for(DataManager<CounterArray*>::iterator it = AllData->begin(*iit); it != AllData->end(*iit); ++it) {
+                    CounterArray* tc = it->second;
                     counter += tc->Counters[idx];
                 }
-    
+
                 if (counter >= PRINT_MINIMUM){
                     if (c->Types[i] == CounterType_loop){
                         BlockFile
                             << "LPP"
                             << TAB << hex << c->Hashes[i]
-                            << TAB << dec << AllData->GetImageSequence((*iit))
+                            << TAB << dec << imgseq
                             << TAB << dec << counter
                             << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
                             << TAB << c->Functions[i]
@@ -404,19 +409,20 @@ extern "C"
                             << "BLK"
                             << TAB << dec << i
                             << TAB << hex << c->Hashes[i]
-                            << TAB << dec << AllData->GetImageSequence((*iit))
+                            << TAB << dec << imgseq
                             << TAB << dec << counter
                             << TAB << "# " << c->Files[i] << ":" << dec << c->Lines[i]
                             << TAB << c->Functions[i]
                             << TAB << hex << c->Addresses[i]
                             << ENDL;
                     }
-    
-                    for (set<thread_key_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); tit++){
-                        CounterArray* tc = (CounterArray*)AllData->GetData((*iit), (*tit));
-                        if (tc->Counters[idx] >= PRINT_MINIMUM){
+
+                    for(DataManager<CounterArray*>::iterator it = AllData->begin(*iit); it != AllData->end(*iit); ++it) {
+                        thread_key_t tid = it->first;
+                        CounterArray* tc = it->second;
+                        if( tc->Counters[idx] >= PRINT_MINIMUM) {
                             BlockFile
-                                << TAB << dec << AllData->GetThreadSequence((*tit))
+                                << TAB << dec << AllData->GetThreadSequence(tid)
                                 << TAB << dec << tc->Counters[idx]
                                 << ENDL;
                         }

@@ -71,6 +71,7 @@ public:
     X86Instruction* getInstructionAtAddress(uint64_t addr);
 
     uint64_t getProgramAddress();
+    bool inRange(uint64_t addr);
 
     uint32_t getAllInstructions(X86Instruction** allinsts, uint32_t nexti);
     uint32_t getNumberOfInstructions() { return instructions.size(); }
@@ -195,7 +196,6 @@ public:
     bool findExitInstruction();
 
     uint64_t findInstrumentationPoint(uint64_t addr, uint32_t size, InstLocations loc);
-    bool inRange(uint64_t addr);
 
     bool verify();
     Function* getFunction() { ASSERT(flowGraph); return flowGraph->getFunction(); }

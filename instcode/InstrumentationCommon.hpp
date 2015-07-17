@@ -135,7 +135,7 @@ typedef struct {
     uint64_t id;
     uint64_t data;
 } ThreadData;
-#define ThreadHashShift (16)
+#define ThreadHashShift (17)
 #define ThreadHashMod   (0xffff)
 
 
@@ -498,7 +498,7 @@ private:
 
     image_key_t firstimage;
 
-    // stores data in a ThreadData[] which can be more easily accessed by tools.
+    // map from image keys to each image's threaddata hashtable
     DataMap <image_key_t, ThreadData*> threaddata;
 
     uint32_t HashThread(thread_key_t tid){
@@ -535,7 +535,8 @@ private:
         }
         cout
             << " setting up thread data at index "
-            << dec << actual << TAB << (uint64_t)td << "(" << GetThreadSequence(tid) << ")"
+            << dec << actual << TAB
+            << hex << td << "(" << GetThreadSequence(tid) << ")"
             << " -> " << hex << td[actual].data
             << endl;
 
@@ -564,6 +565,15 @@ private:
     }
 
 public:
+
+    typedef typename DataMap<thread_key_t, T>::iterator iterator;
+
+    iterator begin(image_key_t img) {
+        return datamap[img].begin();
+    }
+    iterator end(image_key_t img) {
+        return datamap[img].end();
+    }
 
     set<thread_key_t> allthreads;
     set<thread_key_t> donethreads;

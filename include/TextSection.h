@@ -58,7 +58,8 @@ public:
     uint64_t getSymbolValue() { return symbol->GET(st_value); }
 
     virtual uint32_t getAllInstructions(X86Instruction** allinsts, uint32_t nexti) { __SHOULD_NOT_ARRIVE; }
-
+    virtual X86Instruction* getInstructionAtAddress(uint64_t addr) { __SHOULD_NOT_ARRIVE; }
+ 
     virtual void dump(BinaryOutputFile* binaryOutputFile, uint32_t offset) { __SHOULD_NOT_ARRIVE; }
     virtual char* getName();
     virtual uint32_t digest(Vector<AddressAnchor*>* addressAnchors) { __SHOULD_NOT_ARRIVE; }
@@ -82,6 +83,7 @@ public:
     uint32_t digest(Vector<AddressAnchor*>* addressAnchors);
 
     uint32_t getAllInstructions(X86Instruction** allinsts, uint32_t nexti);
+    X86Instruction* getInstructionAtAddress(uint32_t addr);
 
     Block* getBlock(uint32_t idx) { return blocks[idx]; }
     uint32_t getNumberOfInstructions();

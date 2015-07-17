@@ -31,6 +31,14 @@ void InstrumentationPoint::setFlagsProtectionMethod(FlagsProtectionMethods p){
     protectionMethod = p;
 }
 
+void InstrumentationPoint::borrowRegister(uint32_t reg)
+{
+    if(borrowedRegs == NULL)
+        borrowedRegs = new BitSet<uint32_t>(X86_64BIT_GPRS);
+
+    borrowedRegs->insert(reg);
+}
+
 uint32_t map64BitArgToReg(uint32_t idx){
     uint32_t argumentRegister;
     ASSERT(idx <= Num__64_bit_StackArgs);
@@ -969,7 +977,7 @@ Vector<X86Instruction*>* InstrumentationPoint::swapInstructionsAtPoint(Vector<X8
     return func->swapInstructions(getInstSourceAddress(), replacements);
 }
 
-BitSet<uint32_t>* getProtectedRegs(InstLocations loc, X86Instruction* xins, Vector<X86Instruction*>* insert){
+BitSet<uint32_t>* getProtectedRegs(InstLocations loc, X86Instruction* xins, Vector<X86Instruction*>* insert, BitSet<uint32_t>* borrowedRegs){
     BitSet<uint32_t>* n = new BitSet<uint32_t>(X86_ALU_REGS);
 
     InstLocations proxyLoc = InstLocation_prior;
@@ -977,14 +985,25 @@ BitSet<uint32_t>* getProtectedRegs(InstLocations loc, X86Instruction* xins, Vect
         proxyLoc = InstLocation_after;
     }
 
+    X86Instruction* fallthroughIns = xins->getFallthroughInstruction();
+
     for (uint32_t i = 0; i < insert->size(); i++){
         X86Instruction* ins = (*insert)[i];
         RegisterSet* defs = ins->getRegistersDefined();
         for (uint32_t j = 0; j < X86_ALU_REGS; j++){
+            if(borrowedRegs != NULL && borrowedRegs->contains(j)) {
+                continue;
+            }
+
             if (proxyLoc == InstLocation_prior && !xins->isRegDeadIn(j) && defs->containsRegister(j)){
                 n->insert(j);
             }
-            if (proxyLoc == InstLocation_after && !xins->isRegDeadOut(j) && defs->containsRegister(j)){
+
+            // if instrumentation is after the instruction, protect regsiters that are:
+            //   - defined by the instrumentation AND
+            //   - live in the fallthrough target
+            //if(proxyLoc == InstLocation_after && defs->containsRegister(j) && !xins->isRegDeadOut(j)) {
+            if (proxyLoc == InstLocation_after && defs->containsRegister(j) && !fallthroughIns->isRegDeadIn(j)){
                 n->insert(j);
             }
         }
@@ -1008,7 +1027,7 @@ BitSet<uint32_t>* InstrumentationPoint::getProtectedRegisters(){
         insns->append(getPostcursorInstruction(i));
     }
 
-    BitSet<uint32_t>* p = getProtectedRegs(getInstLocation(), point, insns);
+    BitSet<uint32_t>* p = getProtectedRegs(getInstLocation(), point, insns, borrowedRegs);
     delete insns;
 
     return p;
@@ -1137,7 +1156,7 @@ uint32_t InstrumentationPoint::sizeNeeded(){
 }
 
 InstrumentationPoint::InstrumentationPoint(Base* pt, Instrumentation* inst, InstrumentationModes instMode, InstLocations loc)
-    : Base(PebilClassType_InstrumentationPoint)
+    : Base(PebilClassType_InstrumentationPoint), borrowedRegs(NULL)
 {
 
     if (pt->getType() == PebilClassType_X86Instruction){
@@ -1291,6 +1310,9 @@ InstrumentationPoint::~InstrumentationPoint(){
     }
     if (deadRegs){
         delete deadRegs;
+    }
+    if (borrowedRegs){
+        delete borrowedRegs;
     }
 }
 

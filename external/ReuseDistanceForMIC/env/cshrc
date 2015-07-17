@@ -1,7 +1,0 @@
-#!/usr/bin/env csh
-                                                                                            
-setenv REUSEDISTANCE_ROOT /ssd/allysonc/Repos/PEBIL/external/ReuseDistanceForMIC
-setenv REUSEDISTANCE_INCLUDE "-I${REUSEDISTANCE_ROOT}"
-setenv REUSEDISTANCE_LINK "-L${REUSEDISTANCE_ROOT} -lReuseDistance"
-setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${REUSEDISTANCE_ROOT}
-setenv MANPATH ${MANPATH}:${REUSEDISTANCE_ROOT}/docs/man
