@@ -171,7 +171,7 @@ extern "C" {
     // case that multiple threads exist before this image is initialized
     // It should be unnecessary if only a single thread exists because
     // this function kills initialization points
-    static pthread_mutex_t image_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+     static pthread_mutex_t image_init_mutex = PTHREAD_MUTEX_INITIALIZER;
     void* tool_image_init(void* s, image_key_t* key, ThreadData* td){
         SAVE_STREAM_FLAGS(cout);
         SimulationStats* stats = (SimulationStats*)s;
@@ -238,7 +238,6 @@ extern "C" {
             inits.insert(*key);
             debug(inform << "Removing init points for image " << hex << (*key) << ENDL);
             SetDynamicPoints(inits, false); 
-
 
         }
 
@@ -468,7 +467,7 @@ extern "C" {
                           << TAB << "Real " << s->Counters[idx]
                           << ENDL);
                     uint64_t groupidx = stats->GroupIds[bbid] ;// This could be fatal if s->PerInstruction is not handled! 
-                    if (Sampler->ExceedsAccessLimit(s->Counters[idx]) || (Sampler->ExceedsAccessLimit( stats->NLStats[groupidx].GroupCount )) ){
+                    if (Sampler->ExceedsAccessLimit(s->Counters[idx])){ //|| (Sampler->ExceedsAccessLimit( stats->NLStats[groupidx].GroupCount )) ){
 
                         uint64_t k1 = GENERATE_KEY(midx, PointType_buffercheck);
                         uint64_t k2 = GENERATE_KEY(midx, PointType_bufferinc);
@@ -653,12 +652,12 @@ extern "C" {
                 inform << "Printing address range results to " << fileName << ENDL;
                 TryOpen(RangeFile,fileName);
             }
-            if(AddressRangeEnable){
+            /*if(AddressRangeEnable){
                 RangeFileName(stats,oFile);
                 fileName=oFile.c_str();
                 inform << "Printing address range results to " << fileName << ENDL;
                 TryOpen(RangeFile,fileName);
-            }
+            }*/
 
             uint64_t sampledCount = 0;
             uint64_t totalMemop = 0;

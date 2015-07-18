@@ -111,7 +111,6 @@ void CacheSimulation::filterBBs(){
                         BasicBlock* TailBB=lp->getTail();
 
                         topLoopID=HeadBB->getHashCode().getValue();
-
                         if(!loopsToCheck.exists(topLoopID,lp)){    
                             loopsToCheck.insert(topLoopID,lp);
                             loopsVec.insert(lp, loopsVec.size() ) ;
@@ -126,8 +125,7 @@ void CacheSimulation::filterBBs(){
                             BasicBlock* HeadBB=LpInner->getHead();
                             BasicBlock* TailBB=LpInner->getTail();
 
-                            if(!loopsToCheck.exists(HeadBB->getHashCode().getValue(),LpInner))
-                            {
+                            if(!loopsToCheck.exists(HeadBB->getHashCode().getValue(),LpInner)){
                                 loopsToCheck.insert(HeadBB->getHashCode().getValue(),LpInner);
                                 loopsVec.insert(LpInner, loopsVec.size() ) ;
                             }
@@ -140,12 +138,11 @@ void CacheSimulation::filterBBs(){
                         Vector<uint64_t>* tmpInnermostBasicBlocksForGroup; 
                         tmpInnermostBasicBlocksForGroup=new Vector<uint64_t>;
                         if(loopsVec.size()>1){
-                            for(uint32_t i=0;i<(loopsVec.size()-1);i++) 
-                            {
+                            for(uint32_t i=0;i<=(loopsVec.size()-1);i++){
                                 FirstLevelNode->insert(loopsVec[i],i);
                             }
                             BBStruct.insert(FirstLevelNode,0);
-
+                            
                             for(uint32_t BBStructIdx=0; BBStructIdx<BBStruct.size();BBStructIdx++){
                                 Vector<Loop*>* currLoopVec=BBStruct[BBStructIdx];
                                 Vector<Loop*>* nextLoopVec=new Vector<Loop*>;
@@ -158,6 +155,7 @@ void CacheSimulation::filterBBs(){
                                                 nextLoopVec->insert((*currLoopVec)[j],numLoopsNextLevel);
                                                 numLoopsNextLevel++;
                                                 currLoopVec->remove(j);
+                                                j-=1;
                                             } // else do nothing since its the same loop.
                                         }
                                     }
@@ -182,7 +180,7 @@ void CacheSimulation::filterBBs(){
                             }
                         }
                         else if(loopsVec.size()==1){ // since its possible to have only one loop. Should skip "searching for next-level BBs"                      
-                            Loop* lp=loopsVec[0];                                        
+                            Loop* lp=loopsVec[0];
                             BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
                             lp->getAllBlocks(allBlocks);    
                             for(uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
@@ -202,10 +200,12 @@ void CacheSimulation::filterBBs(){
                         currLoopStats->InnerLevelSize = tmpInnermostBasicBlocksForGroup->size();
                         currLoopStats->GroupCount = 0;
                         currLoopStats->InnerLevelBasicBlocks = innermostBasicBlocksForGroup;
-                        nestedLoopGrouping.insert(topLoopID,currLoopStats);
+                        if(!nestedLoopGrouping.get(topLoopID))
+                            nestedLoopGrouping.insert(topLoopID,currLoopStats);
 
                         for(uint32_t i=0; i < BB_NestedLoop.size(); i++){
-                            mapBBToGroupId.insert(BB_NestedLoop[i],topLoopID);
+                            if( !(mapBBToGroupId.get(BB_NestedLoop[i])) )
+                                mapBBToGroupId.insert(BB_NestedLoop[i],topLoopID);
                         }
 
                         // TODO: Should I delete the hashes/vectors used for book keeping of figuring out loop structure ?
@@ -221,7 +221,8 @@ void CacheSimulation::filterBBs(){
                         currLoopStats->GroupCount = 0;
                         currLoopStats->InnerLevelBasicBlocks = innermostBasicBlocksForGroup;
                         nestedLoopGrouping.insert(bb->getHashCode().getValue(),currLoopStats); // Only 1 BB, so third term is 1.
-                        mapBBToGroupId.insert(bb->getHashCode().getValue(),bb->getHashCode().getValue()); 
+                        if( !(mapBBToGroupId.get(bb->getHashCode().getValue())) )
+                            mapBBToGroupId.insert(bb->getHashCode().getValue(),bb->getHashCode().getValue()); 
                     }
                 }
             }
@@ -233,8 +234,7 @@ void CacheSimulation::filterBBs(){
         }
         delete fileLines;
     }
-
-    if (!blocksToInst.size()){
+        if (!blocksToInst.size()){
         // for executables, instrument everything
         if (getElfFile()->isExecutable()){
             for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
@@ -249,6 +249,7 @@ void CacheSimulation::filterBBs(){
         }
     }
 }
+
 
 CacheSimulation::CacheSimulation(ElfFile* elf)
     : InstrumentationTool(elf)
@@ -322,6 +323,7 @@ void CacheSimulation::instrument(){
     Vector<uint64_t> GroupIdsVec; // TODO: Mostly only being used for testing.
     SimpleHash<uint64_t> groupsInitialized;
     SimpleHash<uint64_t> mapBBToIdxOfGroup;
+    printf("\n");
     for (uint32_t i = 0; i < getNumberOfExposedBasicBlocks(); i++){
         BasicBlock* bb = getExposedBasicBlock(i);
         if( blocksToInst.get(bb->getHashCode().getValue()) ){
@@ -329,11 +331,13 @@ void CacheSimulation::instrument(){
             if( mapBBToGroupId.get(bb->getHashCode().getValue()) ){
                 myGroupId= mapBBToGroupId.getVal(bb->getHashCode().getValue());
                 NestedLoopStruct* myNestedLoopStruct= ( nestedLoopGrouping.getVal(myGroupId ) );
+
                 if(!groupsInitialized.exists(myGroupId,myGroupId)){
                     groupsInitialized.insert(myGroupId,myGroupId);    
                     GroupIdsVec.insert(myGroupId,GroupIdsVec.size());
                 }
-                mapBBToIdxOfGroup.insert(bb->getHashCode().getValue(),(GroupIdsVec.size()-1));
+                if(!mapBBToIdxOfGroup.get(bb->getHashCode().getValue()))
+                    mapBBToIdxOfGroup.insert(bb->getHashCode().getValue(),(GroupIdsVec.size()-1));
             }
         }
     }
