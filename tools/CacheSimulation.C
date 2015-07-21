@@ -333,15 +333,16 @@ void CacheSimulation::instrument(){
         BasicBlock* bb = getExposedBasicBlock(i);
         Function* f = (Function*)bb->getLeader()->getContainer();
 
+        // Check if we should skip this block
+        if (!blocksToInst.get(bb->getHashCode().getValue()))
+            continue;
+
         uint32_t threadReg = X86_REG_INVALID;
         if (usePIC){
             ThreadRegisterMap* threadMap = (*functionThreading)[f->getBaseAddress()];
             threadReg = threadMap->getThreadRegister(bb);
         }
 
-        // Check if we should skip this block
-        if (!blocksToInst.get(bb->getHashCode().getValue()))
-            continue;
 
         if (!isPerInstruction()){
             LineInfo* li = NULL;
