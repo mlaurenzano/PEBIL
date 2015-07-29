@@ -107,19 +107,19 @@ void CacheSimulation::filterBBs(){
                         BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
                         lp->getAllBlocks(allBlocks);
                         
-                        BasicBlock* HeadBB=lp->getHead();
+                        BasicBlock* HeadBB=lp->getHead(); 
                         BasicBlock* TailBB=lp->getTail();
 
                         topLoopID=HeadBB->getHashCode().getValue();
-                        if(!loopsToCheck.exists(topLoopID,lp)){    
+                        /*if(!loopsToCheck.exists(topLoopID,lp)){    // NOTE:Not needed, since most accessed block can be any of the ones nested in this loop.
                             loopsToCheck.insert(topLoopID,lp);
                             loopsVec.insert(lp, loopsVec.size() ) ;
-                        }
+                        }*/
 
                         for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
                             uint64_t code = allBlocks[k]->getHashCode().getValue();
                             BB_NestedLoop.insert(allBlocks[k]->getHashCode().getValue(),k);
-                            FlowGraph* FgInner = allBlocks[k]->getFlowGraph();
+                            /*FlowGraph* FgInner = allBlocks[k]->getFlowGraph(); // NOTE:Not needed, since most accessed block can be any of the ones nested in this loop.
                             Loop* LpInner = FgInner->getInnermostLoopForBlock(allBlocks[k]->getIndex());
 
                             BasicBlock* HeadBB=LpInner->getHead();
@@ -128,12 +128,12 @@ void CacheSimulation::filterBBs(){
                             if(!loopsToCheck.exists(HeadBB->getHashCode().getValue(),LpInner)){
                                 loopsToCheck.insert(HeadBB->getHashCode().getValue(),LpInner);
                                 loopsVec.insert(LpInner, loopsVec.size() ) ;
-                            }
+                            }*/
 
                             blocksToInst.insert(code, allBlocks[k]);
                         }
                         
-                        Vector<Vector<Loop*>*> BBStruct;
+                        /*Vector<Vector<Loop*>*> BBStruct; // NOTE:Not needed, since most accessed block can be any of the ones nested in this loop.
                         Vector<Loop*>* FirstLevelNode=new Vector<Loop*>; // Could this cause a memory leak?                     
                         Vector<uint64_t>* tmpInnermostBasicBlocksForGroup; 
                         tmpInnermostBasicBlocksForGroup=new Vector<uint64_t>;
@@ -187,29 +187,44 @@ void CacheSimulation::filterBBs(){
                                 uint64_t code = allBlocks[k]->getHashCode().getValue();
                                 tmpInnermostBasicBlocksForGroup->insert(code,tmpInnermostBasicBlocksForGroup->size());
                             }
-                        }                            
+                        }     */                       
+
+                        
+                        Vector<uint64_t>* tmpInnermostBasicBlocksForGroup; 
+                        tmpInnermostBasicBlocksForGroup=new Vector<uint64_t>;
+
+                        /*[tmpInnermostBasicBlocksForGroup->size()];
+                        for(uint32_t i=0;i<tmpInnermostBasicBlocksForGroup->size();i++){
+                            innermostBasicBlocksForGroup[i] = (*tmpInnermostBasicBlocksForGroup)[i];
+                        }*/
+
+                        uint32_t CountNumBBAdded=0;
+                        for(uint32_t i=0; i < BB_NestedLoop.size(); i++){
+                            if( !(mapBBToGroupId.get(BB_NestedLoop[i])) ){
+                                mapBBToGroupId.insert(BB_NestedLoop[i],topLoopID);
+                                //innermostBasicBlocksForGroup[i] = BB_NestedLoop[i];    
+                                tmpInnermostBasicBlocksForGroup->insert(BB_NestedLoop[i],tmpInnermostBasicBlocksForGroup->size());
+                                CountNumBBAdded++;
+                            }  
+                        }
 
                         uint64_t* innermostBasicBlocksForGroup;
-                        innermostBasicBlocksForGroup= new uint64_t[tmpInnermostBasicBlocksForGroup->size()];
+                        innermostBasicBlocksForGroup = new uint64_t[tmpInnermostBasicBlocksForGroup->size()];
                         for(uint32_t i=0;i<tmpInnermostBasicBlocksForGroup->size();i++){
                             innermostBasicBlocksForGroup[i] = (*tmpInnermostBasicBlocksForGroup)[i];
                         }
 
                         NestedLoopStruct* currLoopStats = new NestedLoopStruct;
                         currLoopStats->GroupId = topLoopID;
-                        currLoopStats->InnerLevelSize = tmpInnermostBasicBlocksForGroup->size();
+                        currLoopStats->InnerLevelSize = CountNumBBAdded; //tmpInnermostBasicBlocksForGroup->size();
                         currLoopStats->GroupCount = 0;
                         currLoopStats->InnerLevelBasicBlocks = innermostBasicBlocksForGroup;
                         if(!nestedLoopGrouping.get(topLoopID))
                             nestedLoopGrouping.insert(topLoopID,currLoopStats);
 
-                        for(uint32_t i=0; i < BB_NestedLoop.size(); i++){
-                            if( !(mapBBToGroupId.get(BB_NestedLoop[i])) )
-                                mapBBToGroupId.insert(BB_NestedLoop[i],topLoopID);
-                        }
-
                         // TODO: Should I delete the hashes/vectors used for book keeping of figuring out loop structure ?
                         delete[] allBlocks; 
+                        delete tmpInnermostBasicBlocksForGroup;
                        // delete MainNode;
                     }else{
                         uint64_t* innermostBasicBlocksForGroup;
