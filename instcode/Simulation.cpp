@@ -464,7 +464,7 @@ extern "C" {
                           << TAB << "Real " << s->Counters[idx]
                           << ENDL);
                     uint64_t groupidx = stats->GroupIds[bbid] ;// This could be fatal if s->PerInstruction is not handled! 
-                    if (Sampler->ExceedsAccessLimit(s->Counters[idx])){ //|| (Sampler->ExceedsAccessLimit( stats->NLStats[groupidx].GroupCount )) ){
+                    if (Sampler->ExceedsAccessLimit(s->Counters[idx]) || (Sampler->ExceedsAccessLimit( stats->NLStats[groupidx].GroupCount )) ){
 
                         uint64_t k1 = GENERATE_KEY(midx, PointType_buffercheck);
                         uint64_t k2 = GENERATE_KEY(midx, PointType_bufferinc);
