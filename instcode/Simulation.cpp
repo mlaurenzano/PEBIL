@@ -403,7 +403,6 @@ extern "C" {
                 DONE_WITH_BUFFER();
             }
         }
-
         synchronize(AllData){
             if (isSampling){
                 BufferEntry* buffer = &(stats->Buffer[1]);
@@ -660,16 +659,19 @@ extern "C" {
                             sampledCount += r->Counts[i];
                         }
                     }
-                    for (uint32_t i = 0; i < s->BlockCount; i++){
-                        uint32_t idx;
-                        if (s->Types[i] == CounterType_basicblock){
-                            idx = i;
-                        } else if (s->Types[i] == CounterType_instruction){
-                            idx = s->Counters[i];
-                        }
-                        totalMemop += (s->Counters[idx]);// * s->MemopsPerBlock[idx]);
-                    }
-                    inform << "Total memop: " << dec << totalMemop << TAB << " sampledCount "<<sampledCount<< ENDL;
+		    if(CacheSimulation)	
+                    {
+			for (uint32_t i = 0; i < s->BlockCount; i++){
+                        	uint32_t idx;
+	                        if (s->Types[i] == CounterType_basicblock){
+        	                    idx = i;
+                	        } else if (s->Types[i] == CounterType_instruction){
+                        	    idx = s->Counters[i];
+                        	}
+	                        totalMemop += (s->Counters[idx] * s->MemopsPerBlock[idx]);
+         	           }
+                   	 inform << "Total memop: " << dec << totalMemop << TAB << " sampledCount "<<sampledCount<< ENDL;
+		   }
                 }
             }
 
@@ -760,7 +762,7 @@ extern "C" {
                             thread_key_t thread = it->first;
                             assert(s);
                             CacheStats* c = (CacheStats*)s->Stats[sys];
-                            assert(c->Capacity == s->InstructionCount);
+                            assert(c->Capacity == s->AllocCount);//assert(c->Capacity == s->InstructionCount);
                             if(!c->Verify()) {
                                 warn << "Cache structure failed verification for  system " << c->SysId << ", image " << hex << *iit << ", thread " << hex << thread << ENDL;
                             }
@@ -811,7 +813,8 @@ extern "C" {
                     // compile per-instruction stats into blocks
                     if(EitherAddressRangeOrSimulation){
                         //RangeStats* aggrange = new RangeStats(st->InstructionCount);
-                        aggrange = new RangeStats(st->InstructionCount);
+                        aggrange = new RangeStats(st->AllocCount);//RangeStats(st->InstructionCount);
+
                         for (uint32_t memid = 0; memid < st->InstructionCount; memid++){
                             uint32_t bbid;
                             RangeStats* r = (RangeStats*)st->Stats[RangeHandlerIndex];
@@ -2075,18 +2078,23 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
     stats->threadid = tid;
     stats->imageid = iid;
     // every thread and image gets its own statistics
+    if(stats->InstructionCount > stats->BlockCount)
+	stats->AllocCount = stats->InstructionCount;
+    else
+        stats->AllocCount = stats->BlockCount;
+
     if(EitherAddressRangeOrSimulation){
         stats->Stats = new StreamStats*[CountMemoryHandlers];
         bzero(stats->Stats, sizeof(StreamStats*) * CountMemoryHandlers);    
         
         if(CacheSimulation)
         for (uint32_t i = 0; i < CountCacheStructures; i++){
-        CacheStructureHandler* c = (CacheStructureHandler*)MemoryHandlers[i];
-        stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->InstructionCount);
-        }
+            CacheStructureHandler* c = (CacheStructureHandler*)MemoryHandlers[i];
+            stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->AllocCount); //stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->InstructionCount);
+       }
 
-        if(EitherAddressRangeOrSimulation){
-        stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
+        if(EitherAddressRangeOrSimulation){	       
+            stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);// stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
         }
     }
     if (typ == AllData->ThreadType || (iid == firstimage)){
@@ -2194,8 +2202,7 @@ void ReadSettings(){
         ErrorExit("cannot open cache descriptions file: " << cachedf, MetasimError_FileOp);
     }
     
-    if(CacheSimulation)
-    {
+    if(CacheSimulation){
         string line;
         vector<CacheStructureHandler*> caches;
         while (getline(CacheFile, line)){

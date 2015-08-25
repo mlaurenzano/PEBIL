@@ -83,6 +83,7 @@ typedef struct {
     uint32_t Phase;
     uint32_t InstructionCount;
     uint32_t BlockCount;
+    uint32_t AllocCount;
     char* Application;
     char* Extension;
 
