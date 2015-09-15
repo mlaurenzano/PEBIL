@@ -108,8 +108,6 @@ typedef struct {
 
     //Amogha edits! 
     uint64_t NestedLoopCount;
-    uint64_t* TestArray;
-
     NestedLoopStruct* NLStats; 
 
 } SimulationStats;

@@ -111,98 +111,20 @@ void CacheSimulation::filterBBs(){
                         BasicBlock* TailBB=lp->getTail();
 
                         topLoopID=HeadBB->getHashCode().getValue();
-                        /*if(!loopsToCheck.exists(topLoopID,lp)){    // NOTE:Not needed, since most accessed block can be any of the ones nested in this loop.
-                            loopsToCheck.insert(topLoopID,lp);
-                            loopsVec.insert(lp, loopsVec.size() ) ;
-                        }*/
 
                         for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
                             uint64_t code = allBlocks[k]->getHashCode().getValue();
                             BB_NestedLoop.insert(allBlocks[k]->getHashCode().getValue(),k);
-                            /*FlowGraph* FgInner = allBlocks[k]->getFlowGraph(); // NOTE:Not needed, since most accessed block can be any of the ones nested in this loop.
-                            Loop* LpInner = FgInner->getInnermostLoopForBlock(allBlocks[k]->getIndex());
-
-                            BasicBlock* HeadBB=LpInner->getHead();
-                            BasicBlock* TailBB=LpInner->getTail();
-
-                            if(!loopsToCheck.exists(HeadBB->getHashCode().getValue(),LpInner)){
-                                loopsToCheck.insert(HeadBB->getHashCode().getValue(),LpInner);
-                                loopsVec.insert(LpInner, loopsVec.size() ) ;
-                            }*/
-
                             blocksToInst.insert(code, allBlocks[k]);
-                        }
-                        
-                        /*Vector<Vector<Loop*>*> BBStruct; // NOTE:Not needed, since most accessed block can be any of the ones nested in this loop.
-                        Vector<Loop*>* FirstLevelNode=new Vector<Loop*>; // Could this cause a memory leak?                     
-                        Vector<uint64_t>* tmpInnermostBasicBlocksForGroup; 
-                        tmpInnermostBasicBlocksForGroup=new Vector<uint64_t>;
-                        if(loopsVec.size()>1){
-                            for(uint32_t i=0;i<=(loopsVec.size()-1);i++){
-                                FirstLevelNode->insert(loopsVec[i],i);
-                            }
-                            BBStruct.insert(FirstLevelNode,0);
-                            
-                            for(uint32_t BBStructIdx=0; BBStructIdx<BBStruct.size();BBStructIdx++){
-                                Vector<Loop*>* currLoopVec=BBStruct[BBStructIdx];
-                                Vector<Loop*>* nextLoopVec=new Vector<Loop*>;
-                                uint32_t numLoopsNextLevel=0; 
-
-                                for(uint32_t i=0;i<currLoopVec->size();i++){
-                                    for(uint32_t j=0;j<currLoopVec->size();j++){
-                                        if( (*currLoopVec)[j]->isInnerLoopOf((*currLoopVec)[i]) ){
-                                            if(! ( (*currLoopVec)[j]->isIdenticalLoop( (*currLoopVec)[i] ) ) ){
-                                                nextLoopVec->insert((*currLoopVec)[j],numLoopsNextLevel);
-                                                numLoopsNextLevel++;
-                                                currLoopVec->remove(j);
-                                                j-=1;
-                                            } // else do nothing since its the same loop.
-                                        }
-                                    }
-                                }
-
-                                if( nextLoopVec->size() > 0 ){ 
-                                    BBStruct.insert(nextLoopVec,BBStructIdx+1);
-                                }
-                            }
-
-                            for(uint32_t BBStructIdx=( BBStruct.size()-1); BBStructIdx< BBStruct.size(); BBStructIdx++){
-                                for(uint32_t i=0;i< (*BBStruct[BBStructIdx]).size(); i++){
-                                    Loop* lp = (*BBStruct[BBStructIdx])[i];
-                                        
-                                    BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
-                                    lp->getAllBlocks(allBlocks);    
-                                    for(uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
-                                        uint64_t code = allBlocks[k]->getHashCode().getValue();
-                                        tmpInnermostBasicBlocksForGroup->insert(code,tmpInnermostBasicBlocksForGroup->size());
-                                    }
-                                }                                
-                            }
-                        }
-                        else if(loopsVec.size()==1){ // since its possible to have only one loop. Should skip "searching for next-level BBs"                      
-                            Loop* lp=loopsVec[0];
-                            BasicBlock** allBlocks = new BasicBlock*[lp->getNumberOfBlocks()];
-                            lp->getAllBlocks(allBlocks);    
-                            for(uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
-                                uint64_t code = allBlocks[k]->getHashCode().getValue();
-                                tmpInnermostBasicBlocksForGroup->insert(code,tmpInnermostBasicBlocksForGroup->size());
-                            }
-                        }     */                       
-
+                        }                      
                         
                         Vector<uint64_t>* tmpInnermostBasicBlocksForGroup; 
                         tmpInnermostBasicBlocksForGroup=new Vector<uint64_t>;
-
-                        /*[tmpInnermostBasicBlocksForGroup->size()];
-                        for(uint32_t i=0;i<tmpInnermostBasicBlocksForGroup->size();i++){
-                            innermostBasicBlocksForGroup[i] = (*tmpInnermostBasicBlocksForGroup)[i];
-                        }*/
 
                         uint32_t CountNumBBAdded=0;
                         for(uint32_t i=0; i < BB_NestedLoop.size(); i++){
                             if( !(mapBBToGroupId.get(BB_NestedLoop[i])) ){
-                                mapBBToGroupId.insert(BB_NestedLoop[i],topLoopID);
-                                //innermostBasicBlocksForGroup[i] = BB_NestedLoop[i];    
+                                mapBBToGroupId.insert(BB_NestedLoop[i],topLoopID); 
                                 tmpInnermostBasicBlocksForGroup->insert(BB_NestedLoop[i],tmpInnermostBasicBlocksForGroup->size());
                                 CountNumBBAdded++;
                             }  
@@ -435,9 +357,6 @@ void CacheSimulation::instrument(){
     initializeReservedPointer(ext, simulationStruct + offsetof(SimulationStats, Extension));
     initializeReservedData(getInstDataAddress() + ext, strlen(extName) + 1, (void*)extName);
 
-    stats.TestArray = (uint64_t*) reserveDataOffset(stats.NestedLoopCount * sizeof(uint64_t));
-    initializeReservedPointer((uint64_t)stats.TestArray, simulationStruct + offsetof(SimulationStats,TestArray));
-
     stats.NLStats = (NestedLoopStruct*) reserveDataOffset(stats.NestedLoopCount * sizeof(NestedLoopStruct));
     initializeReservedPointer((uint64_t)stats.NLStats, simulationStruct + offsetof(SimulationStats,NLStats));    
 
@@ -455,8 +374,7 @@ void CacheSimulation::instrument(){
         initializeReservedData( getInstDataAddress() + currNestLoopStatsInstance + offsetof(NestedLoopStruct,GroupCount) , sizeof(uint64_t) , (void*) ( &tmpCount) );
         
         uint64_t currInnerLevelSize = myNestedLoopStruct->InnerLevelSize; // Mostly dont need this since GroupIds are already stored!! 
-        initializeReservedData( getInstDataAddress() + currNestLoopStatsInstance + offsetof(NestedLoopStruct,InnerLevelSize) , sizeof(uint32_t) , (void*) ( &currInnerLevelSize) );        
-        initializeReservedData(getInstDataAddress() + (uint64_t)stats.TestArray + i * sizeof(uint64_t), sizeof(uint64_t),(void*)(&myGroupId));        
+        initializeReservedData( getInstDataAddress() + currNestLoopStatsInstance + offsetof(NestedLoopStruct,InnerLevelSize) , sizeof(uint32_t) , (void*) ( &currInnerLevelSize) );         
     }
     initializeReservedData(getInstDataAddress() + simulationStruct, sizeof(SimulationStats), (void*)(&stats));
 
@@ -466,9 +384,7 @@ void CacheSimulation::instrument(){
     entryFunc->addArgument(threadHash);
 
     simFunc->addArgument(imageKey);
-
     exitFunc->addArgument(imageKey);
-
 
     InstrumentationPoint* p;
 
@@ -884,8 +800,7 @@ void CacheSimulation::instrument(){
             uint64_t tempBlkId = (uint64_t) mapBBToArrayIdx.getVal(currInnerLevelBasicBlocks[j]);
             initializeReservedData(  getInstDataAddress() + addrCurrInnerLevelBasicBlocks + ( j * sizeof(uint64_t)) , sizeof(uint64_t) , (void*) ( & tempBlkId) );
         }  
-
-        initializeReservedData(getInstDataAddress() + (uint64_t)stats.TestArray + i * sizeof(uint64_t), sizeof(uint64_t),(void*)(&myGroupId));        
+        
     }
 
     char* extension = new char[__MAX_STRING_SIZE];
