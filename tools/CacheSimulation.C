@@ -29,8 +29,6 @@
 #include <Loop.h>
 #include <TextSection.h>
 
- #include <LinkedList.h>
-
 #define ENTRY_FUNCTION "tool_image_init"
 #define SIM_FUNCTION "process_buffer"
 #define EXIT_FUNCTION "tool_image_fini"
@@ -108,8 +106,6 @@ void CacheSimulation::filterBBs(){
                         lp->getAllBlocks(allBlocks);
                         
                         BasicBlock* HeadBB=lp->getHead(); 
-                        BasicBlock* TailBB=lp->getTail();
-
                         topLoopID=HeadBB->getHashCode().getValue();
 
                         for (uint32_t k = 0; k < lp->getNumberOfBlocks(); k++){
@@ -186,7 +182,6 @@ void CacheSimulation::filterBBs(){
         }
     }
 }
-
 
 CacheSimulation::CacheSimulation(ElfFile* elf)
     : InstrumentationTool(elf)

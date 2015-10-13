@@ -58,13 +58,12 @@ ElfFile* HybridPhiElfFile::getEmbeddedElf(){
     char embedded_file[__MAX_STRING_SIZE];
     uint32_t len;
     assert(strlen(getFileName()) + 8 < __MAX_STRING_SIZE);
+
     strncpy(embedded_file, getFileName(), __MAX_STRING_SIZE);
     strcat(embedded_file, ".offload");
-    fprintf(stderr, "Naming embededded elf file %s\n", embedded_file);
-    len = strlen(embedded_file);
+    len = strlen(embedded_file)+1;
     char* name = new char[len];
     strncpy(name, embedded_file, len);
-
 
     ElfFile* elfFile = new ElfFile(off_target_img, img_size, name);
 

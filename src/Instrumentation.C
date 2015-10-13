@@ -1003,7 +1003,7 @@ BitSet<uint32_t>* getProtectedRegs(InstLocations loc, X86Instruction* xins, Vect
             //   - defined by the instrumentation AND
             //   - live in the fallthrough target
             //if(proxyLoc == InstLocation_after && defs->containsRegister(j) && !xins->isRegDeadOut(j)) {
-            if (proxyLoc == InstLocation_after && defs->containsRegister(j) && !fallthroughIns->isRegDeadIn(j)){
+            if (proxyLoc == InstLocation_after && defs->containsRegister(j) && fallthroughIns != NULL && !fallthroughIns->isRegDeadIn(j)){
                 n->insert(j);
             }
         }

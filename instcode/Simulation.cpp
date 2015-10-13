@@ -172,7 +172,7 @@ extern "C" {
     // case that multiple threads exist before this image is initialized
     // It should be unnecessary if only a single thread exists because
     // this function kills initialization points
-     static pthread_mutex_t image_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+    static pthread_mutex_t image_init_mutex = PTHREAD_MUTEX_INITIALIZER;
     void* tool_image_init(void* s, image_key_t* key, ThreadData* td){
         SAVE_STREAM_FLAGS(cout);
         SimulationStats* stats = (SimulationStats*)s;
@@ -324,8 +324,8 @@ extern "C" {
             entry.address=reference->address ;
             rd->Process(entry);
             numProcessed++;
-	    }
-	// assert(faststats[0]->Stats[HandlerIdx]->Verify());
+        }
+    // assert(faststats[0]->Stats[HandlerIdx]->Verify());
     }
 
     static void ProcessSpatialBuffer( ReuseDistance* sd,uint32_t numElements, image_key_t iid, thread_key_t tid){
@@ -491,7 +491,6 @@ extern "C" {
                         }
                     }
                 }
-               // exit(-1);
                 if (MemsRemoved.size()){
                     assert(MemsRemoved.size() % 3 == 0);
                     debug(inform << "REMOVING " << dec << (MemsRemoved.size() / 3) << " blocks" << ENDL);
@@ -515,14 +514,14 @@ extern "C" {
 
                 // reuse distance handler needs to know that we passed over some addresses
                 if (ReuseWindow || SpatialWindow){
-		            if(ReuseWindow) {	
-                    	ReuseDistance* r = stats->RHandlers[ReuseHandlerIndex];
-                    	r->SkipAddresses(numElements);
-		            }
-		            if(SpatialWindow) {
-                    	ReuseDistance* s = stats->RHandlers[SpatialHandlerIndex];
-                    	s->SkipAddresses(numElements);
-		            }
+                    if(ReuseWindow) {    
+                        ReuseDistance* r = stats->RHandlers[ReuseHandlerIndex];
+                        r->SkipAddresses(numElements);
+                    }
+                    if(SpatialWindow) {
+                        ReuseDistance* s = stats->RHandlers[SpatialHandlerIndex];
+                        s->SkipAddresses(numElements);
+                    }
                 }
             }
 
@@ -617,6 +616,7 @@ extern "C" {
                 for(DataManager<SimulationStats*>::iterator it = AllData->begin(*iit); it != AllData->end(*iit); ++it){
                     thread_key_t thread = it->first;
                     SimulationStats* s = it->second;
+
                     SpatialDistFile << "IMAGE" << TAB << hex << (*iit) << TAB << "THREAD" << TAB << dec << AllData->GetThreadSequence(thread) << ENDL;
 
                     ReuseDistance* sd = s->RHandlers[SpatialHandlerIndex];
@@ -659,19 +659,19 @@ extern "C" {
                             sampledCount += r->Counts[i];
                         }
                     }
-		    if(CacheSimulation)	
+            if(CacheSimulation)    
                     {
-			for (uint32_t i = 0; i < s->BlockCount; i++){
-                        	uint32_t idx;
-	                        if (s->Types[i] == CounterType_basicblock){
-        	                    idx = i;
-                	        } else if (s->Types[i] == CounterType_instruction){
-                        	    idx = s->Counters[i];
-                        	}
-	                        totalMemop += (s->Counters[idx] * s->MemopsPerBlock[idx]);
-         	           }
-                   	 inform << "Total memop: " << dec << totalMemop << TAB << " sampledCount "<<sampledCount<< ENDL;
-		   }
+            for (uint32_t i = 0; i < s->BlockCount; i++){
+                            uint32_t idx;
+                            if (s->Types[i] == CounterType_basicblock){
+                                idx = i;
+                            } else if (s->Types[i] == CounterType_instruction){
+                                idx = s->Counters[i];
+                            }
+                            totalMemop += (s->Counters[idx] * s->MemopsPerBlock[idx]);
+                        }
+                        inform << "Total memop: " << dec << totalMemop << TAB << " sampledCount "<<sampledCount<< ENDL;
+           }
                 }
             }
 
@@ -761,6 +761,7 @@ extern "C" {
                             SimulationStats* s = it->second;
                             thread_key_t thread = it->first;
                             assert(s);
+
                             CacheStats* c = (CacheStats*)s->Stats[sys];
                             assert(c->Capacity == s->AllocCount);//assert(c->Capacity == s->InstructionCount);
                             if(!c->Verify()) {
@@ -2079,7 +2080,7 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
     stats->imageid = iid;
     // every thread and image gets its own statistics
     if(stats->InstructionCount > stats->BlockCount)
-	stats->AllocCount = stats->InstructionCount;
+    stats->AllocCount = stats->InstructionCount;
     else
         stats->AllocCount = stats->BlockCount;
 
@@ -2093,7 +2094,7 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
             stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->AllocCount); //stats->Stats[i] = new CacheStats(c->levelCount, c->sysId, stats->InstructionCount);
        }
 
-        if(EitherAddressRangeOrSimulation){	       
+        if(EitherAddressRangeOrSimulation){           
             stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);// stats->Stats[RangeHandlerIndex] = new RangeStats(s->InstructionCount);
         }
     }
