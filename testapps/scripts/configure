@@ -1,0 +1,154 @@
+#!/bin/bash
+# This script is going to do everything I need until 
+# a) the directory is ready to be used by other people and 
+# b) I figure out how PEBIL's make and configure scripts work
+
+##### THINGS MAKEFILES MIGHT NEED #####
+CC=gcc
+FC=f95
+FOMP="-fopenmp"
+MPI_LIB_LOC="\/usr\/lib64"
+MPI_INC_LOC="\/usr\/include\/mpi"
+
+#### THINGS THAT I MIGHT NEED #####
+TEST_SUITE_LOC="/home/allysonc/Repos/PEBIL/tests"
+WORKING_DIR="${TEST_SUITE_LOC}/temp"
+REF_DIR="${TEST_SUITE_LOC}/refs"
+NPB_LOC="${TEST_SUITE_LOC}/apps/NPB3.3"
+NPB_SERIAL_LOC="${NPB_LOC}/NPB3.3-SER"
+NPB_OMP_LOC="${NPB_LOC}/NPB3.3-OMP"
+NPB_MPI_LOC="${NPB_LOC}/NPB3.3-MPI"
+NPB_APPS="cg"
+NPB_CLASSES="S"
+NPB_MPI_PROCS="1"
+
+clear_working_dir()
+{
+	set -e
+	echo "Clearing ${WORKING_DIR}"
+	rm -f "${WORKING_DIR}/"*
+	set +e
+}
+
+make_NPB_Serial()
+{
+	set -e
+	# First, we need a make.def that has the correct parameters
+	echo "Making Serial NPBs with ${CC} and ${FC}"
+	makeDef="${NPB_SERIAL_LOC}/config/make.def"
+	cp "${NPB_SERIAL_LOC}/config/make.def.epanalytics" ${makeDef}
+	sed -i 's/@FC@/'${FC}'/g' ${makeDef}
+	sed -i 's/@CC@/'${CC}'/g' ${makeDef}
+	
+	# Then make the NPBs
+	echo "Serial NPBs: ${NPB_APPS}"
+	echo "Serial NPB sizes: ${NPB_CLASSES}"
+	for npbApp in ${NPB_APPS}
+	do
+		for npbClass in ${NPB_CLASSES}
+		do
+			make -C ${NPB_SERIAL_LOC} ${npbApp} CLASS=${npbClass} || { echo "***ERROR: Failed to make serial NPB ${npbApp} with class ${npbClass}. Exiting."; exit 1; }
+		done
+	done
+
+	echo "Successfully made serial NPBs."
+	set +e
+}
+
+make_NPB_OMP()
+{
+	set -e
+	# First, we need a make.def that has the correct parameters
+	npbFlags="${FOMP}"
+	echo "Making OMP NPBs with ${CC}, ${FC}, and ${npbFlags}"
+	makeDef="${NPB_OMP_LOC}/config/make.def"
+	cp "${NPB_OMP_LOC}/config/make.def.epanalytics" ${makeDef}
+	sed -i 's/@FC@/'${FC}'/g' ${makeDef}
+	sed -i 's/@CC@/'${CC}'/g' ${makeDef}
+	sed -i 's/@FFLAGS@/'${npbFlags}'/g' ${makeDef}
+	sed -i 's/@CFLAGS@/'${npbFlags}'/g' ${makeDef}
+	
+	# Then make the NPBs
+	echo "OMP NPBs: ${NPB_APPS}"
+	echo "OMP NPB sizes: ${NPB_CLASSES}"
+	for npbApp in ${NPB_APPS}
+	do
+		for npbClass in ${NPB_CLASSES}
+		do
+			make -C ${NPB_OMP_LOC} ${npbApp} CLASS=${npbClass} || { echo "***ERROR: Failed to make OMP NPB ${npbApp} with class ${npbClass}. Exiting."; exit 1; }
+		done
+	done
+
+	echo "Successfully made OMP NPBs."
+	set +e
+}
+
+make_NPB_MPI()
+{
+	set -e
+	# First, we need a make.def that has the correct parameters
+	echo "Making OMP NPBs with ${CC}, and ${FC}"
+	makeDef="${NPB_MPI_LOC}/config/make.def"
+	cp "${NPB_MPI_LOC}/config/make.def.epanalytics" ${makeDef}
+	sed -i 's/@FC@/'${FC}'/g' ${makeDef}
+	sed -i 's/@CC@/'${CC}'/g' ${makeDef}
+	sed -i 's/@MPI_LIB_LOC@/'${MPI_LIB_LOC}'/g' ${makeDef}
+	sed -i 's/@MPI_INC_LOC@/'${MPI_INC_LOC}'/g' ${makeDef}
+	
+	# Then make the NPBs
+	echo "MPI NPBs: ${NPB_APPS}"
+	echo "MPI NPB sizes: ${NPB_CLASSES}"
+	echo "MPI NPB processes: ${NPB_MPI_PROCS}"
+	for npbApp in ${NPB_APPS}
+	do
+		for npbClass in ${NPB_CLASSES}
+		do
+			for npbProc in ${NPB_MPI_PROCS}
+			do
+				make -C ${NPB_MPI_LOC} ${npbApp} CLASS=${npbClass} NPROCS=${npbProc} || { echo "***ERROR: Failed to make MPI NPB ${npbApp} with class ${npbClass} and ${npbProc} processes. Exiting."; exit 1; }
+			done
+		done
+	done
+
+	echo "Successfully made MPI NPBs."
+	set +e
+}
+
+test_NPB_Serial()
+{
+	
+	set -e
+	# For each test:
+	#		Clear working directory
+	#		Copy binary to working directory
+	for npbApp in ${NPB_APPS}
+	do
+		for npbClass in ${NPB_CLASSES}
+		do
+			clear_working_dir
+			npbBin="${npbApp}.${npbClass}"
+			cp "${NPB_SERIAL_LOC}/bin/${npbBin}" "${WORKING_DIR}"
+			cd ${WORKING_DIR}
+
+			# Generate PEBIL static files
+			echo "${npbBin}: Generating static file"
+			pebil --tool BasicBlockCounter --app ${npbBin}
+	
+			echo "${npbBin}: Checking static file against reference:"
+			diff "${npbBin}.jbbinst.static" "${REF_DIR}/NPB3.3/NPB3.3-SER/${npbBin}/${npbBin}.jbbinst.static"
+
+			echo "${npbBin}: Running jbbinst"
+			./"${npbBin}.jbbinst"
+
+			echo "${npbBin}: Checking jbbinst files against reference:"
+			diff "${npbBin}.r00000000.t00000001.jbbinst" "${REF_DIR}/NPB3.3/NPB3.3-SER/${npbBin}/${npbBin}.r00000000.t00000001.jbbinst"
+			
+		done
+	done
+	set +e
+}
+
+make_NPB_Serial
+#make_NPB_OMP
+#make_NPB_MPI
+test_NPB_Serial

@@ -88,7 +88,8 @@ bool FileHeader::verify(){
     uint32_t machine_typ = GET(e_machine);
     if (machine_typ != EM_386 && 
         machine_typ != EM_860 && 
-        machine_typ != EM_X86_64){
+        machine_typ != EM_X86_64 &&
+        machine_typ != EM_K10M){
         PRINT_ERROR("Machine type must be intel or amd x86");
         return false;
     }

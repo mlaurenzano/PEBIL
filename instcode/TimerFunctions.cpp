@@ -21,8 +21,11 @@
 
 DataManager<FunctionTimers*>* AllData = NULL;
 
+// Clark
+#define CLOCK_RATE_HZ 2600079000
+
 //#define CLOCK_RATE_HZ 2800000000
-#define CLOCK_RATE_HZ 3326000000
+//#define CLOCK_RATE_HZ 3326000000
 inline uint64_t read_timestamp_counter(){
     unsigned low, high;
     __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));
@@ -110,8 +113,8 @@ extern "C"
     }
 
     // initialize dynamic instrumentation
-    void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn) {
-        InitializeDynamicInstrumentation(count, dyn);
+    void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn,bool* isThreadedModeFlag) {
+        InitializeDynamicInstrumentation(count, dyn,isThreadedModeFlag);
         return NULL;
     }
 
@@ -123,7 +126,8 @@ extern "C"
     // Entry function for threads
     void* tool_thread_init(thread_key_t tid) {
         if (AllData){
-            AllData->AddThread(tid);
+            if(isThreadedMode())
+                AllData->AddThread(tid);
         } else {
         ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
         }

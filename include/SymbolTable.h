@@ -125,6 +125,7 @@ public:
     void setStringTable();
 
     Symbol* getSymbol(uint32_t index) { return symbols[index]; }
+    Symbol* getSymbol(char* name);
     char* getSymbolName(uint32_t index);
 
     uint32_t getIndex() { return index; }

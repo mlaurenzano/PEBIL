@@ -255,6 +255,8 @@ typedef struct
    chances of collision with official or non-GNU unofficial values.  */
 
 #define EM_ALPHA	0x9026
+#define EM_L10M         180
+#define EM_K10M         181
 
 /* Legal values for e_version (version).  */
 

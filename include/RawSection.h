@@ -50,6 +50,7 @@ public:
     void initializeAnchor(Base* link);
     AddressAnchor* getAddressAnchor() { return addressAnchor; }
     uint64_t getData() { return data; }
+    RawSection* getSection() { return rawSection; }
 
     bool is64Bit() { return is64bit; }
 

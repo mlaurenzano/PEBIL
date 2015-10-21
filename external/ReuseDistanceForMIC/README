@@ -1,0 +1,100 @@
+This file contains basic installation/usage information for the
+ReuseDistance package. The source code for this
+project is available at https://github.com/mlaurenzano/ReuseDistance/
+
+Online documentation for the main ReuseDistance class can be found at
+http://bit.ly/ScqZVj. Also see the SpatialLocality class for tracking
+spatial locality statistics.
+
+Useful source code upgrades/fixes are always welcome.
+
+I also enjoy feedback, even when negative, and I enjoy hearing about 
+interesting uses of my software. Send any of that stuff to 
+michaell@sdsc.edu.
+
+
+===========================================================================
+I. About
+===========================================================================
+
+The ReuseDistance package contains several class and struct definitions
+which facilitate tracking reuse distances for a memory address stream. 
+This package also contains a class SpatialLocality which calculates and
+tracks statistics for spatial locality for an address stream. The
+interface to SpatialLocality is largely the same as the interface to the
+ReuseDistance class. The basic way you interact with ReuseDistance is to 
+construct an instance of the class ReuseDistance then send addresses to 
+that instance's Process method(s). Addresses are passed via the struct 
+ReuseEntry, which contains two fields -- id and address.
+
+address is simply the memory address being examined. id is an identifier to
+associate with that address, which might be the address, line number,
+thread id or other index of the structure that generated the address. A
+ReuseDistance object aggregates stats seperately for each value of id it
+encounters.
+
+Due to space complexity considerations, distances are tracked individually
+up to a certain point (you can customize where that point is, including
+tracking all addresses individually, via the ReuseDistance constructor.
+Beyond that point, distances are kept in bins whose boundaries are powers
+of 2.
+
+The last important concept is that a ReuseDistance can be constructed to
+keep a window of a finite number of addresses in the history of addresses
+when trying to find when some address was last used. You can also choose
+to use an infinite window (pass ReuseDistance::Infinity to the 
+ReuseDistance constructor), though you take on the risk of running out of
+memory.
+
+See the documentation in the docs/ subdirectory for complete details about
+the ReuseDistance API. Inside there are 3 versions of the API documentation
+available: html (point your browser docs/html/index.html or 
+http://bit.ly/ScqZVj), pdf (point a pdf reader at docs/ReuseDistance.pdf)
+or man (run `man docs/man/man3/ReuseDistance.hpp.3').
+
+Finally, a simple example of the ReuseDistance class put into use can
+be viewed at test/test.cpp
+
+
+===========================================================================
+II. Building
+===========================================================================
+
+This package uses the standard configure/make series of tools. You can
+largely ignore the details of how configure works, except to pay attention
+to any messages/warning pertaining to the lack of the std::unordered_map 
+feature or c++0x support (implying a lack of built-in support for 
+unordered_map). In cases where std::unordered_map is not supported, the
+class std::map will be used. A correctly-functioning ReuseDistance package
+can be built but it will run more slowly than it otherwise might, 
+particularly when a large number of unique addresses are used.
+
+For these reasons, it is recommended that you find a compiler or upgrade
+your compiler to one that has c++0x/unordered_map support when building
+this tool.
+
+To get started, run
+$ ./configure [--prefix=/path/to/install/dir]
+$ make
+
+[Optional] To verify that the build functions the way it is intended to,
+you can run the following command, paying attention to the output
+$ make check 
+
+[Optional] There is also an option to build a static archive in addition
+to the normal shared library build. To do this, run
+$ make static
+
+
+===========================================================================
+II. Installation/Environment
+===========================================================================
+
+If you want to install the files to the location given to configure's
+--prefix option, run
+$ make install
+
+If you want to simply run things out of the build directory then you need 
+to set up your environment to correctly find the include file and libraries.
+On Linux you can use the files env/bashrc and env/cshrc (which one you use
+depends on the shell you are using) to help set up your environment.

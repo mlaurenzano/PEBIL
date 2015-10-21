@@ -1,7 +1,15 @@
 ## change the following variables to fit your system:
 DOXYGEN = doxygen
 
-SUBDIRS = external/udis86-1.7 external/ReuseDistance instcode testapps src tools
+PEBIL_MIC_LIBS_BUILD = @PEBIL_MIC_LIBS_BUILD@
+ifeq ($(PEBIL_MIC_LIBS_BUILD),yes)
+	SUBDIRS = external/udis86-1.7 external/ReuseDistance external/ReuseDistanceForMIC instcode testapps src tools
+	COPY_LIBS = cp external/ReuseDistance/libReuseDistance.so lib; cp external/ReuseDistanceForMIC/libReuseDistance.so miclib
+else
+	SUBDIRS = external/udis86-1.7 external/ReuseDistance instcode testapps src tools
+	COPY_LIBS = cp external/ReuseDistance/libReuseDistance.so lib
+endif
+
 BLACKLIST = scripts/inputlist/autogen-system.func
 
 include VERSION
@@ -13,7 +21,11 @@ DISTDIR = PEBIL-$(PEBIL_FULL_VER)
 PREREQ = .CLEAN .DEPEND
 
 # specify some explicit dependencies to order operations
+ifeq ($(PEBIL_MIC_LIBS_BUILD),yes)
+tools: src external/udis86-1.7 external/ReuseDistance external/ReuseDistanceForMIC
+else
 tools: src external/udis86-1.7 external/ReuseDistance
+endif
 install: instcode tools blacklist
 check: install
 
@@ -31,6 +43,7 @@ endif
 clean:
 	$(MAKE) -C external/udis86-1.7 clean
 	$(MAKE) -C external/ReuseDistance clean
+	$(MAKE) -C external/ReuseDistanceForMIC clean
 	$(MAKE) -C src clean
 	$(MAKE) -C testapps clean
 	$(MAKE) -C instcode clean
@@ -43,6 +56,8 @@ depend: .CLEAN
 
 all: $(PREREQ) subdirs blacklist
 subdirs: $(SUBDIRS)
+	echo "************* SUBDIRS *****************"
+	echo $(SUBDIRS)
 
 $(SUBDIRS): $(PREREQ)
 	$(MAKE) -C $@ 
@@ -51,6 +66,7 @@ install: $(PREREQ)
 	$(MAKE) -C src install
 	$(MAKE) -C tools install
 	$(MAKE) -C instcode install
+	$(COPY_LIBS)
 
 check: $(PREREQ)
 	$(MAKE) -C testapps check

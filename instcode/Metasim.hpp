@@ -63,6 +63,13 @@ class MemoryStreamHandler;
 //MITESH EDITS:  additions for Reuse distance 
 class ReuseDistance;
 
+typedef struct{
+    uint64_t GroupId; // for now, same as BB-ID/ Top-most loop of 
+    uint32_t InnerLevelSize;
+    uint64_t GroupCount;
+    uint64_t* InnerLevelBasicBlocks; // Since there can be >1 
+} NestedLoopStruct;
+
 typedef struct {
     // memory buffer
     BufferEntry* Buffer;
@@ -76,6 +83,7 @@ typedef struct {
     uint32_t Phase;
     uint32_t InstructionCount;
     uint32_t BlockCount;
+    uint32_t AllocCount;
     char* Application;
     char* Extension;
 
@@ -92,11 +100,18 @@ typedef struct {
     char** Functions;
     uint64_t* Hashes;
     uint64_t* Addresses;
+    uint64_t* GroupIds; // Amogha edits!
     StreamStats** Stats; // indexed by handler
     MemoryStreamHandler** Handlers;
     //MITESH EDITS:  additions for Reuse distance 
     ReuseDistance** RHandlers;
+
+    //Amogha edits! 
+    uint64_t NestedLoopCount;
+    NestedLoopStruct* NLStats; 
+
 } SimulationStats;
+
 #define BUFFER_ENTRY(__stats, __n) (&(__stats->Buffer[__n+1]))
 #define BUFFER_CAPACITY(__stats) (__stats->Buffer[0].__buf_capacity)
 #define BUFFER_CURRENT(__stats) (__stats->Buffer[0].__buf_current)

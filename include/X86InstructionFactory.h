@@ -91,6 +91,10 @@ public:
 
     static X86Instruction* emitExchangeAdd(uint8_t src, uint8_t dest, bool lock);
 
+    static X86Instruction* emitMoveKToReg(uint8_t kreg, uint8_t gpr);
+    static X86Instruction* emitMoveRegToK(uint8_t gpr, uint8_t kreg);
+    static X86Instruction* emitMoveAlignedStackToZmmx(uint8_t reg, uint8_t disp);
+    static X86Instruction* emitMoveZmmxToAlignedStack(uint8_t reg, uint8_t disp);
     static X86Instruction* emitFxSave(uint64_t addr);
     static X86Instruction* emitFxRstor(uint64_t addr);
     static X86Instruction* emitFxSaveReg(uint8_t reg);
