@@ -226,8 +226,8 @@ extern "C"
     }
 
     // initialize dynamic instrumentation
-    void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn) {
-        InitializeDynamicInstrumentation(count, dyn);
+    void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn,bool* isThreadedModeFlag) {
+        InitializeDynamicInstrumentation(count, dyn,isThreadedModeFlag);
         return NULL;
     }
 
@@ -242,7 +242,8 @@ extern "C"
     // Entry function for threads
     void* tool_thread_init(thread_key_t tid) {
         if (AllData){
-            AllData->AddThread(tid);
+            if(isThreadedMode())
+              AllData->AddThread(tid);
         } else {
         ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
         }
