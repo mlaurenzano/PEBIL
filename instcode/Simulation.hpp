@@ -73,6 +73,8 @@ struct EvictionInfo {
 struct LevelStats {
     uint64_t hitCount;
     uint64_t missCount;
+    uint64_t loadCount; 
+    uint64_t storeCount;    
 };
 
 static uint32_t RandomInt();
@@ -113,6 +115,7 @@ public:
     uint32_t LevelCount;
     uint32_t SysId;
     LevelStats** Stats; // indexed by [memid][level]
+    LevelStats* HybridMemStats; // indexed by [memid] // Not yet supported.
     uint32_t Capacity;
 
     CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity);
@@ -123,16 +126,52 @@ public:
     void NewMem(uint32_t memid);
 
     void Hit(uint32_t memid, uint32_t lvl);
+    void HybridHit(uint32_t memid);
+
     void Miss(uint32_t memid, uint32_t lvl);
+    void HybridMiss(uint32_t memid);
+
     void Hit(uint32_t memid, uint32_t lvl, uint32_t cnt);
+    void HybridHit(uint32_t memid, uint32_t cnt);
+
     void Miss(uint32_t memid, uint32_t lvl, uint32_t cnt);
+    void HybridMiss(uint32_t memid,uint32_t cnt);
+
+    void Load(uint32_t memid,uint32_t lvl);
+    void Load(uint32_t memid, uint32_t lvl, uint32_t cnt);
+    void HybridLoad(uint32_t memid);
+    void HybridLoad(uint32_t memid,uint32_t cnt); //  void HybridLoads(uint32_t memid, uint32_t cnt);
+   
+    void Store(uint32_t memid,uint32_t lvl);
+    void Store(uint32_t memid, uint32_t lvl, uint32_t cnt);
+    void HybridStore(uint32_t memid);
+    void HybridStore(uint32_t memid,uint32_t cnt);//    void HybridStores(uint32_t memid, uint32_t cnt);
+ 
+    uint64_t GetLoads(uint32_t memid, uint32_t lvl);
+    uint64_t GetLoads(uint32_t lvl);
+    uint64_t GetHybridLoads(uint32_t memid);
+    uint64_t GetHybridLoads();
+    
+    uint64_t GetStores(uint32_t memid, uint32_t lvl);
+    uint64_t GetStores(uint32_t lvl);    
+    uint64_t GetHybridStores(uint32_t memid);
+    uint64_t GetHybridStores();    
 
     static float GetHitRate(LevelStats* stats);
     static float GetHitRate(uint64_t hits, uint64_t misses);
+
     uint64_t GetHits(uint32_t memid, uint32_t lvl);
-    uint64_t GetMisses(uint32_t memid, uint32_t lvl);
+    uint64_t GetHybridHits(uint32_t memid);
+
     uint64_t GetHits(uint32_t lvl);
+    uint64_t GetHybridHits();
+    
+    uint64_t GetMisses(uint32_t memid, uint32_t lvl);
+    uint64_t GetHybridMisses(uint32_t memid);
+
     uint64_t GetMisses(uint32_t lvl);
+    uint64_t GetHybridMisses();
+
     LevelStats* GetLevelStats(uint32_t memid, uint32_t lvl);
     uint64_t GetAccessCount(uint32_t memid);
     float GetHitRate(uint32_t memid, uint32_t lvl);
@@ -245,7 +284,7 @@ public:
     virtual uint64_t Replace(uint64_t addr, uint32_t setid, uint32_t lineid);
 
     // re-implemented by Exclusive/InclusiveCacheLevel
-    virtual uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info);
+    virtual uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,void* info);
     virtual const char* TypeString() = 0;
     virtual void Init (CacheLevel_Init_Interface);
 };
@@ -267,7 +306,7 @@ public:
     uint32_t LastExclusive;
 
     ExclusiveCacheLevel() {}
-    uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info);
+    uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,void* info);
     virtual void Init (CacheLevel_Init_Interface, uint32_t firstExcl, uint32_t lastExcl){
         CacheLevel::Init(CacheLevel_Init_Arguments);
         type = CacheLevelType_ExclusiveLowassoc;

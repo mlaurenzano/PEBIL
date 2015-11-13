@@ -1277,24 +1277,128 @@ void CacheStats::NewMem(uint32_t memid){
     Stats[memid] = mem;
 }
 
+void CacheStats::Load(uint32_t memid, uint32_t lvl){
+    Load(memid, lvl, 1);
+}
+
+void CacheStats::Load(uint32_t memid, uint32_t lvl, uint32_t cnt){
+    Stats[memid][lvl].loadCount += cnt;
+}
+
+void CacheStats::HybridLoad(uint32_t memid){
+    HybridLoad(memid, 1);
+}
+
+void CacheStats::HybridLoad(uint32_t memid, uint32_t cnt){
+    HybridMemStats[memid].loadCount += cnt;
+}
+
+
+void CacheStats::Store(uint32_t memid, uint32_t lvl){
+    Store(memid, lvl, 1);
+}
+
+void CacheStats::Store(uint32_t memid, uint32_t lvl, uint32_t cnt){
+    Stats[memid][lvl].storeCount += cnt;
+}
+
+void CacheStats::HybridStore(uint32_t memid){
+    HybridStore(memid, 1);
+}
+
+void CacheStats::HybridStore(uint32_t memid, uint32_t cnt){
+    HybridMemStats[memid].storeCount += cnt;
+}
+
+
+uint64_t CacheStats::GetLoads(uint32_t memid, uint32_t lvl){
+    return Stats[memid][lvl].loadCount;
+}
+
+uint64_t CacheStats::GetLoads(uint32_t lvl){
+    uint64_t loads = 0;
+    for (uint32_t i = 0; i < Capacity; i++){
+        loads += Stats[i][lvl].loadCount;
+    }
+    return loads;
+}
+
+uint64_t CacheStats::GetHybridLoads(uint32_t memid){
+    return HybridMemStats[memid].loadCount;
+}
+
+
+uint64_t CacheStats::GetHybridLoads(){
+    uint64_t loads = 0;
+    for (uint32_t i = 0; i < Capacity; i++){
+        loads += HybridMemStats[i].loadCount;
+    }
+    return loads;
+}
+
+
+uint64_t CacheStats::GetStores(uint32_t memid, uint32_t lvl){
+    return Stats[memid][lvl].storeCount;
+}
+
+uint64_t CacheStats::GetStores(uint32_t lvl){
+    uint64_t stores = 0;
+    for (uint32_t i = 0; i < Capacity; i++){
+        stores += Stats[i][lvl].storeCount;
+    }
+    return stores;
+}
+
+uint64_t CacheStats::GetHybridStores(uint32_t memid){
+    return HybridMemStats[memid].storeCount;
+}
+
+uint64_t CacheStats::GetHybridStores(){
+    uint64_t stores = 0;
+    for (uint32_t i = 0; i < Capacity; i++){
+        stores += HybridMemStats[i].storeCount;
+    }
+    return stores;
+}
+
 void CacheStats::Hit(uint32_t memid, uint32_t lvl){
     Hit(memid, lvl, 1);
+}
+
+void CacheStats::HybridHit(uint32_t memid){
+    HybridHit(memid, 1);
 }
 
 void CacheStats::Miss(uint32_t memid, uint32_t lvl){
     Miss(memid, lvl, 1);
 }
 
+void CacheStats::HybridMiss(uint32_t memid){
+    HybridMiss(memid, 1);
+}
+
 void CacheStats::Hit(uint32_t memid, uint32_t lvl, uint32_t cnt){
     Stats[memid][lvl].hitCount += cnt;
+}
+
+void CacheStats::HybridHit(uint32_t memid, uint32_t cnt){
+    HybridMemStats[memid].hitCount += cnt;
 }
 
 void CacheStats::Miss(uint32_t memid, uint32_t lvl, uint32_t cnt){
     Stats[memid][lvl].missCount += cnt;
 }
 
+void CacheStats::HybridMiss(uint32_t memid, uint32_t cnt){
+    HybridMemStats[memid].missCount += cnt;
+}
+
 uint64_t CacheStats::GetHits(uint32_t memid, uint32_t lvl){
     return Stats[memid][lvl].hitCount;
+}
+
+uint64_t CacheStats::GetHybridHits(uint32_t memid){
+    return HybridMemStats[memid].hitCount;
 }
 
 uint64_t CacheStats::GetHits(uint32_t lvl){
@@ -1305,8 +1409,20 @@ uint64_t CacheStats::GetHits(uint32_t lvl){
     return hits;
 }
 
+uint64_t CacheStats::GetHybridHits(){
+    uint64_t hits = 0;
+    for (uint32_t i = 0; i < Capacity; i++){
+        hits += HybridMemStats[i].hitCount;
+    }
+    return hits;
+}
+
 uint64_t CacheStats::GetMisses(uint32_t memid, uint32_t lvl){
     return Stats[memid][lvl].missCount;
+}
+
+uint64_t CacheStats::GetHybridMisses(uint32_t memid){
+    return HybridMemStats[memid].missCount;
 }
 
 uint64_t CacheStats::GetMisses(uint32_t lvl){
@@ -1315,6 +1431,14 @@ uint64_t CacheStats::GetMisses(uint32_t lvl){
         hits += Stats[i][lvl].missCount;
     }
     return hits;
+}
+
+uint64_t CacheStats::GetHybridMisses(){
+    uint64_t misses = 0;
+    for (uint32_t i = 0; i < Capacity; i++){
+        misses += HybridMemStats[i].missCount;
+    }
+    return misses;
 }
 
 bool CacheStats::HasMemId(uint32_t memid){
@@ -1744,7 +1868,7 @@ bool CacheLevel::MultipleLines(uint64_t addr, uint32_t width){
     return false;
 }
 
-uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info){
+uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr,uint64_t loadstoreflag, void* info){ // FuncChanged.
     uint32_t set = 0, lineInSet = 0;
     uint64_t store = GetStorage(addr);
 
@@ -1754,17 +1878,28 @@ uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, v
     // hit
     if (Search(store, &set, &lineInSet)){
         stats->Stats[memid][level].hitCount++;
+        if(loadstoreflag){
+            stats->Stats[memid][level].loadCount++;
+        }else{
+            stats->Stats[memid][level].storeCount++;
+            //SetDirty(set,lineInSet,store);
+        }        
         MarkUsed(set, lineInSet);
         return INVALID_CACHE_LEVEL;
     }
 
     // miss
     stats->Stats[memid][level].missCount++;
+    if(loadstoreflag){
+            stats->Stats[memid][level].loadCount++;
+    }else{
+            stats->Stats[memid][level].storeCount++;
+    }         
     Replace(store, set, LineToReplace(set));
     return level + 1;
 }
 
-uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr, void* info){
+uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr,uint64_t loadstoreflag, void* info){
     uint32_t set = 0;
     uint32_t lineInSet = 0;
 
@@ -1796,6 +1931,12 @@ uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
     // hit
     if (Search(store, &set, &lineInSet)){
         stats->Stats[memid][level].hitCount++;
+        if(loadstoreflag){
+            stats->Stats[memid][level].loadCount++;
+        }else{
+            stats->Stats[memid][level].storeCount++;
+            //SetDirty(set,lineInSet,store);
+        }           
         MarkUsed(set, lineInSet);
 
         e->level = level;
@@ -2056,8 +2197,9 @@ void CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
 
     EvictionInfo evictInfo;
     evictInfo.level = INVALID_CACHE_LEVEL;
+    uint64_t loadstoreflag= access->loadstoreflag;
     while (next < levelCount){
-        next = levels[next]->Process(stats, access->memseq, victim, (void*)(&evictInfo));
+        next = levels[next]->Process(stats, access->memseq, victim, loadstoreflag,(void*)(&evictInfo));
     }
 }
 
