@@ -67,6 +67,7 @@ static uint32_t CacheSimulation=0;
 // METASIM_ADDRESS_RANGE to something other than 0.
 static uint32_t AddressRangeEnable=0;
 static uint32_t EitherAddressRangeOrSimulation=0;
+static uint32_t LoadStoreLogging = 0;
 
 // global data
 static uint32_t CountMemoryHandlers = 0;
@@ -781,6 +782,19 @@ extern "C" {
                                 uint64_t t = h + m;
                                 MemFile << "l" << dec << lvl << "[" << h << "/" << t << "(" << CacheStats::GetHitRate(h, m) << ")] ";
                             }
+                            if(LoadStoreLogging){
+                                MemFile<<"\n Load Store Stats ";
+                                for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
+                                    uint64_t l = c->GetLoads(lvl);
+                                    uint64_t s = c->GetStores(lvl);
+                                    uint64_t t = l + s;
+                                    double ratio=0.0f;
+                                    if(t!=0)
+                                      ratio=l/t;
+                                    MemFile << " l" << dec << lvl << "[" << l << "/" << t << "(" << (ratio)<<")] ";
+                                }                                   
+                            }
+                             
                             MemFile << ENDL;
                         }
                     }
@@ -798,6 +812,8 @@ extern "C" {
                 << "# " << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageSequence" << TAB << "ThreadId " << ENDL;        
                 MemFile
                 << "# " << TAB << "SysId" << TAB << "Level" << TAB << "HitCount" << TAB << "MissCount" << ENDL;
+                if(LoadStoreLogging)
+                MemFile<< "# " << TAB << "SysId" << TAB << "Level" << TAB << "HitCount" << TAB << "MissCount" << TAB << "LoadCount" << TAB << "StoreCount" << ENDL;                
             }   
             if(EitherAddressRangeOrSimulation){
                 RangeFile << "# " << "BLK" << TAB << "Sequence" << TAB << "Hashcode" << TAB << "ImageSequence" 
@@ -851,6 +867,10 @@ extern "C" {
                                     }
                                     c->Hit(bbid, lvl, s->GetHits(memid, lvl));
                                     c->Miss(bbid, lvl, s->GetMisses(memid, lvl));
+                                    if(LoadStoreLogging){
+                                        c->Load(bbid, lvl, s->GetLoads(memid, lvl));
+                                        c->Store(bbid, lvl, s->GetStores(memid, lvl));                                    
+                                    }
                                 }
                             }
                             if(!c->Verify()) {
@@ -934,13 +954,23 @@ extern "C" {
                                 }
 
                                 for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
-
-                                    MemFile
-                                      << TAB << dec << c->SysId
-                                      << TAB << dec << (lvl+1)
-                                      << TAB << dec << c->GetHits(bbid, lvl)
-                                      << TAB << dec << c->GetMisses(bbid, lvl)
-                                      << ENDL;
+                                     if(LoadStoreLogging){
+                                          MemFile
+                                          << TAB << dec << c->SysId
+                                          << TAB << dec << (lvl+1)
+                                          << TAB << dec << c->GetHits(bbid, lvl)
+                                          << TAB << dec << c->GetMisses(bbid, lvl)
+                                          << TAB << dec << c->GetLoads(bbid,lvl)
+                                          << TAB << dec << c->GetStores(bbid,lvl)
+                                          << ENDL;  
+                                     }else{
+                                          MemFile
+                                          << TAB << dec << c->SysId
+                                          << TAB << dec << (lvl+1)
+                                          << TAB << dec << c->GetHits(bbid, lvl)
+                                          << TAB << dec << c->GetMisses(bbid, lvl)
+                                          << ENDL;                                                                                
+                                     }
                                 }
                             }
                         }
@@ -1875,26 +1905,24 @@ uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr,ui
     debug(assert(stats));
     debug(assert(stats->Stats));
     debug(assert(stats->Stats[memid]));
+  
+    if(LoadStoreLogging){
+        if(loadstoreflag){
+                stats->Stats[memid][level].loadCount++;
+        }else{
+                stats->Stats[memid][level].storeCount++;//SetDirty(set,lineInSet,store);
+        }         
+    }    
     // hit
     if (Search(store, &set, &lineInSet)){
-        stats->Stats[memid][level].hitCount++;
-        if(loadstoreflag){
-            stats->Stats[memid][level].loadCount++;
-        }else{
-            stats->Stats[memid][level].storeCount++;
-            //SetDirty(set,lineInSet,store);
-        }        
+        stats->Stats[memid][level].hitCount++;    
         MarkUsed(set, lineInSet);
         return INVALID_CACHE_LEVEL;
     }
 
     // miss
     stats->Stats[memid][level].missCount++;
-    if(loadstoreflag){
-            stats->Stats[memid][level].loadCount++;
-    }else{
-            stats->Stats[memid][level].storeCount++;
-    }         
+
     Replace(store, set, LineToReplace(set));
     return level + 1;
 }
@@ -1931,12 +1959,14 @@ uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
     // hit
     if (Search(store, &set, &lineInSet)){
         stats->Stats[memid][level].hitCount++;
-        if(loadstoreflag){
-            stats->Stats[memid][level].loadCount++;
-        }else{
-            stats->Stats[memid][level].storeCount++;
-            //SetDirty(set,lineInSet,store);
-        }           
+        if(LoadStoreLogging){
+            if(loadstoreflag){
+                stats->Stats[memid][level].loadCount++;
+            }else{
+                stats->Stats[memid][level].storeCount++;
+                //SetDirty(set,lineInSet,store);
+            }            
+        }
         MarkUsed(set, lineInSet);
 
         e->level = level;
@@ -2334,7 +2364,10 @@ void ReadSettings(){
     }
     if (!ReadEnvUint32("METASIM_ADDRESS_RANGE", &AddressRangeEnable)){
        AddressRangeEnable = 0;
-    }   
+    } 
+    if(!ReadEnvUint32("METASIM_LOAD_LOG",&LoadStoreLogging)){
+        LoadStoreLogging = 0;
+    } 
     EitherAddressRangeOrSimulation= (CacheSimulation || AddressRangeEnable); 
     inform<<" Cache Simulation "<<CacheSimulation<<" AddressRangeEnable "<<AddressRangeEnable<<" EitherAddressRangeOrSimulation "<<EitherAddressRangeOrSimulation<<endl;
 
