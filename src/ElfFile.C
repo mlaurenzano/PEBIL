@@ -1726,7 +1726,6 @@ uint32_t ElfFile::anchorProgramElements(){
                         continue;
                     }
 
-                    PRINT_DEBUG_ANCHOR("Found inst -> inst link: %#llx -> %#llx", currentInstruction->getBaseAddress(), relativeAddress);
                     PRINT_DEBUG_ANCHOR("instruction at %#lx uses instruction address as imm value %#lx", currentInstruction->getProgramAddress(), immAddress);
                     // create a link between these instructions
                     currentInstruction->initializeAnchor(linkedInstruction, true);

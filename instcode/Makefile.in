@@ -29,12 +29,12 @@ endif
 
 SHARED_OPT  = -fPIC
 EXTRA_FLAGS = $(SHARED_OPT)
-SHARED_LIB  = -shared -ldl -lpthread
+SHARED_LIB  = -shared
 AR          = ar rcs
 
 REUSE_LIBS  = -L../external/ReuseDistance -lReuseDistance
 REUSE_MIC_LIBS  = -L../external/ReuseDistanceForMIC -lReuseDistance
-EXTRA_LIBS  =
+EXTRA_LIBS  = -ldl -lpthread
 EXTRA_INC   = -I../instcode -I../external/ReuseDistance
 
 COMMON_OBJS = $(LIBDIR)/InstrumentationCommon.o
