@@ -52,6 +52,21 @@ public:
         }
     }
 
+    T getVal(uint64_t key,T* value=NULL){
+        uint64_t bucketIdx = key % BUCKET_COUNT;
+        entry_t* current = buckets[bucketIdx];
+
+        for(;current;current=current->next){
+            if(current->key == key){
+                if(value){
+                    *value = current->value;
+                }
+                break;
+            }
+        }
+        return (current->value); // Should have called get b4 using this function!
+    }
+
     bool get(uint64_t key,T* value=NULL){
         uint64_t bucketIdx = key % BUCKET_COUNT;
         entry_t* current = buckets[bucketIdx];

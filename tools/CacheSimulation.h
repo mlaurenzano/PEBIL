@@ -24,6 +24,7 @@
 #include <InstrumentationTool.h>
 #include <SimpleHash.h>
 
+
 class CacheSimulation : public InstrumentationTool {
 private:
     InstrumentationFunction* simFunc;
@@ -31,6 +32,8 @@ private:
     InstrumentationFunction* entryFunc;
 
     SimpleHash<BasicBlock*> blocksToInst;
+    SimpleHash<NestedLoopStruct*> nestedLoopGrouping;
+    SimpleHash<uint64_t> mapBBToGroupId;
 
     void filterBBs();
 

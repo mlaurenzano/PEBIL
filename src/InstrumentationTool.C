@@ -269,7 +269,7 @@ ThreadRegisterMap* InstrumentationTool::instrumentForThreading(Function* func){
     uint32_t d = func->getDeadGPR(0);
     if (d < X86_64BIT_GPRS){
         //PRINT_INFOR("Function %s has dead reg %d", func->getName(), d);
-        // Initialize thread data register at function entry and after function calls
+        // Initialize thread data register at function entry and after function calls and after any writes to the register
         uint32_t numberOfInstructions = func->getNumberOfInstructions();
         X86Instruction** allInstructions = new X86Instruction*[numberOfInstructions];
         func->getAllInstructions(allInstructions,0);
@@ -291,6 +291,11 @@ ThreadRegisterMap* InstrumentationTool::instrumentForThreading(Function* func){
                         else loc = InstLocation_prior;
                         setThreadingRegister(d, tgt, loc, false);
                     }
+                }
+            } else {
+                RegisterSet* defined = entry->getRegistersDefined();
+                if(defined->containsRegister(d)) {
+                    setThreadingRegister(d, entry, InstLocation_after, false);
                 }
             }
         }
@@ -741,8 +746,12 @@ void InstrumentationTool::instrument(){
 
     dynamicSize = reserveDataOffset(sizeof(uint64_t));
     dynamicPointArray = reserveDataOffset(sizeof(DynamicInst*));
+    isThreadedModeFlag = reserveDataOffset(sizeof(bool));
+    bool isThreadedModeFlag_Val = isThreadedMode();
+    initializeReservedData(getInstDataAddress() + isThreadedModeFlag, sizeof(bool), &isThreadedModeFlag_Val);
     dynamicInit->addArgument(dynamicSize);
     dynamicInit->addArgument(dynamicPointArray);
+    dynamicInit->addArgument(isThreadedModeFlag);
 
     // ALL_FUNC_ENTER
     if (isMultiImage()){

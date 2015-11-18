@@ -144,7 +144,8 @@ void* tool_thread_init(thread_key_t tid){
     SAVE_STREAM_FLAGS(cout);
     //init_signal_handlers();
     if (AllData){
-        AllData->AddThread(tid);
+        if(isThreadedMode())
+            AllData->AddThread(tid);
     } else {
         ErrorExit("Calling PEBIL thread initialization library for thread " << hex << tid << " but no images have been initialized.", MetasimError_NoThread);
     }
@@ -159,10 +160,9 @@ void* tool_thread_fini(thread_key_t tid){
 
 extern "C"
 {
-    void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn){
-        //inform << "Entered tool_dynamic_init" << ENDL;
+    void* tool_dynamic_init(uint64_t* count, DynamicInst** dyn,bool* isThreadedModeFlag){
         SAVE_STREAM_FLAGS(cout);
-        InitializeDynamicInstrumentation(count, dyn);
+        InitializeDynamicInstrumentation(count, dyn,isThreadedModeFlag);
 
         RESTORE_STREAM_FLAGS(cout);
         //inform << "Leaving tool_dynamic_init" << ENDL;
@@ -193,7 +193,6 @@ extern "C"
         CounterArray* ctrs = (CounterArray*)s;
         assert(ctrs->Initialized == true);
 
-
         pthread_mutex_lock(&image_init_mutex);
         // on first visit create data manager - once per address space
         if (AllData == NULL){
@@ -216,7 +215,6 @@ extern "C"
             ctrs->imageid = *key;
 
             AllData->SetTimer(*key, 0);
-
         }
         assert(AllData->allimages.count(*key) == 1);
 
