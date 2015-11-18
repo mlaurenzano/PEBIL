@@ -1469,7 +1469,8 @@ uint32_t X86Instruction::bytesUsedForTarget(){
 uint32_t X86Instruction::convertTo4ByteTargetOperand(){
     ASSERT(isControl());
 
-    if( operands[JUMP_TARGET_OPERAND]->getType() != UD_OP_JIMM ){
+    if( operands[JUMP_TARGET_OPERAND]->getType() != UD_OP_JIMM
+        && GET(mnemonic) != UD_Ijknzd && GET(mnemonic) != UD_Ijkzd){
         return sizeInBytes;
     }
     PRINT_DEBUG_INST("Before mod");
