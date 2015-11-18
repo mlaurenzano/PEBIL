@@ -1469,6 +1469,9 @@ uint32_t X86Instruction::bytesUsedForTarget(){
 uint32_t X86Instruction::convertTo4ByteTargetOperand(){
     ASSERT(isControl());
 
+    if( operands[JUMP_TARGET_OPERAND]->getType() != UD_OP_JIMM ){
+        return sizeInBytes;
+    }
     PRINT_DEBUG_INST("Before mod");
     DEBUG_INST(print();)
 
