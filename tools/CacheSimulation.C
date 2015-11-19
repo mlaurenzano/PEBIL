@@ -188,8 +188,8 @@ CacheSimulation::CacheSimulation(ElfFile* elf)
     exitFunc = NULL;
     entryFunc = NULL;
 
-    ASSERT(isPowerOfTwo(sizeof(BufferEntry)));
-	// PRINT_WARN(20,"\n\t WARNING: sizeof(BufferEntry) is not checked for being power of two!!! ");
+   // ASSERT(isPowerOfTwo(sizeof(BufferEntry)));
+    PRINT_WARN(20,"\n\t WARNING: sizeof(BufferEntry) is not checked for being power of two!!! ");
 }
 
 
@@ -693,8 +693,9 @@ void CacheSimulation::instrument(){
                     }
                     // sr3 = ((BufferEntry*)sr2)->__buf_current;
                     snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegaddrImmToReg(sr2, offsetof(BufferEntry, __buf_current), sr3));
-                    // sr3 = shl 5 sr3 
-                    snip->addSnippetInstruction(X86InstructionFactory64::emitShiftLeftLogical(logBase2(sizeof(BufferEntry)), sr3));
+                    // sr3 =  sr3 + sizeof(BuffestEntry) 
+                    snip->addSnippetInstruction(X86InstructionFactory64::emitRegImmMultReg(sr3, sizeof(BufferEntry), sr3)); 
+                    //snip->addSnippetInstruction(X86InstructionFactory64::emitShiftLeftLogical(logBase2(sizeof(BufferEntry)), sr3)); //sr3 = shl 5 sr3 
 
                     // sr1 holds the thread data addr (which points to SimulationStats)
                     // sr2 holds the base address of the buffer 
