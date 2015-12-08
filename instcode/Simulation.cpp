@@ -68,6 +68,7 @@ static uint32_t CacheSimulation=0;
 static uint32_t AddressRangeEnable=0;
 static uint32_t EitherAddressRangeOrSimulation=0;
 static uint32_t LoadStoreLogging = 0;
+static uint32_t DirtyCacheHandling = 0; 
 
 // global data
 static uint32_t CountMemoryHandlers = 0;
@@ -2357,7 +2358,7 @@ void CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
         next = levels[next]->Process(stats, access->memseq, victim, loadstoreflag,&anyEvict,(void*)(&evictInfo));
     }
 
-    if(anyEvict){
+    if(DirtyCacheHandling&&anyEvict){
         while( (tmpNext<levelCount) ){
             if(levels[tmpNext]->GetEvictStatus()){
                 levels[tmpNext]->EvictDirty(stats, levels,access->memseq,(void*)(&evictInfo));
@@ -2502,6 +2503,16 @@ void ReadSettings(){
     if(!ReadEnvUint32("METASIM_LOAD_LOG",&LoadStoreLogging)){
         LoadStoreLogging = 0;
     } 
+    if(!ReadEnvUint32("METASIM_DIRTY_CACHE",&DirtyCacheHandling)){
+        DirtyCacheHandling = 0;
+    }
+
+    if(DirtyCacheHandling){
+        if(!LoadStoreLogging){
+            ErrorExit(" DirtyCacheHandling is enabled without LoadStoreLogging ",MetasimError_FileOp);
+        }
+    }
+    
     EitherAddressRangeOrSimulation= (CacheSimulation || AddressRangeEnable); 
     inform<<" Cache Simulation "<<CacheSimulation<<" AddressRangeEnable "<<AddressRangeEnable<<" EitherAddressRangeOrSimulation "<<EitherAddressRangeOrSimulation<<endl;
 
