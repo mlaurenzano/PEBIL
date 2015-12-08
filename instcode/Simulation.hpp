@@ -74,7 +74,7 @@ struct LevelStats {
     uint64_t hitCount;
     uint64_t missCount;
     uint64_t loadCount; 
-    uint64_t storeCount;    
+    uint64_t storeCount;
 };
 
 static uint32_t RandomInt();
@@ -115,10 +115,10 @@ public:
     uint32_t LevelCount;
     uint32_t SysId;
     LevelStats** Stats; // indexed by [memid][level]
-    LevelStats* HybridMemStats; // indexed by [memid] // Not yet supported.
+    LevelStats* HybridMemStats; // indexed by [memid]
     uint32_t Capacity;
-
-    CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity);
+    uint32_t hybridCache;
+    CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity,uint32_t hybridCache);
     ~CacheStats();
 
     bool HasMemId(uint32_t memid);
@@ -278,12 +278,14 @@ public:
     uint64_t CountColdMisses();
 
     uint64_t GetStorage(uint64_t addr);
+    uint64_t GetAddress(uint64_t store);
     uint32_t GetSet(uint64_t addr);
     uint32_t LineToReplace(uint32_t setid);
     bool MultipleLines(uint64_t addr, uint32_t width);
 
     void MarkUsed(uint32_t setid, uint32_t lineid,uint64_t loadstoreflag);
     void Print(ofstream& f, uint32_t sysid);
+    vector<uint64_t>* passEvictAddresses() { return toEvictAddresses;}
 
     // re-implemented by HighlyAssociativeCacheLevel
     virtual bool Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet);
@@ -321,7 +323,7 @@ public:
     uint32_t LastExclusive;
 
     ExclusiveCacheLevel() {}
-    uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,bool* anyEvict,void* info);
+    uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr,uint64_t loadstoreflag,bool* anyEvict,void* info);
     virtual void Init (CacheLevel_Init_Interface, uint32_t firstExcl, uint32_t lastExcl){
         CacheLevel::Init(CacheLevel_Init_Arguments);
         type = CacheLevelType_ExclusiveLowassoc;
@@ -411,10 +413,21 @@ class CacheStructureHandler : public MemoryStreamHandler {
 public:
     uint32_t sysId;
     uint32_t levelCount;
+    uint32_t hybridCache;
+
+    uint64_t* RamAddressStart;
+    uint64_t* RamAddressEnd;    
 
     CacheLevel** levels;
     string description;
 
+protected: 
+      uint64_t hits;
+      uint64_t misses;
+      uint64_t AddressRangesCount;
+      vector<uint64_t>* toEvictAddresses;
+
+public:      
     // note that this doesn't contain any stats gathering code. that is done at the
     // thread level and is therefore done in ThreadData
 
@@ -426,6 +439,12 @@ public:
     void Print(ofstream& f);
     void Process(void* stats, BufferEntry* access);
     bool Verify();
+
+    uint64_t GetHits(){return hits;}
+    uint64_t GetMisses(){ return misses;} 
+
+    bool CheckRange(CacheStats* stats,uint64_t addr,uint64_t loadstoreflag,uint32_t memid); //, uint32_t* set, uint32_t* lineInSet);    
+    void ExtractAddresses();
 };
 
 
