@@ -244,6 +244,7 @@ protected:
     CacheLevelType type;
 
     uint32_t level;
+    uint32_t levelCount;
     uint32_t size;
     uint32_t associativity;
     uint32_t linesize;
@@ -253,15 +254,20 @@ protected:
     uint32_t linesizeBits;
 
     uint64_t** contents;
+    bool**  dirtystatus;
     uint32_t* recentlyUsed;
     history** historyUsed;
+    bool toEvict;
 
 public:
+    vector<uint64_t>* toEvictAddresses;
     CacheLevel();
     ~CacheLevel();
 
     bool IsExclusive() { return (type == CacheLevelType_ExclusiveLowassoc || type == CacheLevelType_ExclusiveHighassoc); }
 
+    uint32_t GetLevelCount() { return levelCount;}
+    uint32_t SetLevelCount(uint32_t InpLevelCount) { return levelCount=InpLevelCount; }
     CacheLevelType GetType() { return type; }
     ReplacementPolicy GetReplacementPolicy() { return replpolicy; }
     uint32_t GetLevel() { return level; }
@@ -276,17 +282,26 @@ public:
     uint32_t LineToReplace(uint32_t setid);
     bool MultipleLines(uint64_t addr, uint32_t width);
 
-    void MarkUsed(uint32_t setid, uint32_t lineid);
+    void MarkUsed(uint32_t setid, uint32_t lineid,uint64_t loadstoreflag);
     void Print(ofstream& f, uint32_t sysid);
 
     // re-implemented by HighlyAssociativeCacheLevel
     virtual bool Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet);
-    virtual uint64_t Replace(uint64_t addr, uint32_t setid, uint32_t lineid);
+    virtual uint64_t Replace(uint64_t addr, uint32_t setid, uint32_t lineid,uint64_t loadstoreflag);
 
     // re-implemented by Exclusive/InclusiveCacheLevel
-    virtual uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,void* info);
+    virtual uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,bool* anyEvict,void* info);
+    virtual uint32_t EvictProcess(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,void* info);    
     virtual const char* TypeString() = 0;
     virtual void Init (CacheLevel_Init_Interface);
+    
+   // Both store and lineid is being sent since while calling these methods we do not make distinction as whether the object belongs to CacheLevel or HighlyAssociateCacheLevel
+    virtual void SetDirty(uint32_t setid, uint32_t lineid,uint64_t store);
+    virtual void ResetDirty(uint32_t setid, uint32_t lineid,uint64_t store);
+    virtual bool GetDirtyStatus(uint32_t setid, uint32_t lineid,uint64_t store);
+    virtual void EvictDirty(CacheStats* stats,CacheLevel** levels,uint32_t memid,void* info); // void* info is needed since eventually 'Process' needs to be called! 
+    virtual bool GetEvictStatus();
+
 };
 
 class InclusiveCacheLevel : public virtual CacheLevel {
@@ -306,7 +321,7 @@ public:
     uint32_t LastExclusive;
 
     ExclusiveCacheLevel() {}
-    uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,void* info);
+    uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,bool* anyEvict,void* info);
     virtual void Init (CacheLevel_Init_Interface, uint32_t firstExcl, uint32_t lastExcl){
         CacheLevel::Init(CacheLevel_Init_Arguments);
         type = CacheLevelType_ExclusiveLowassoc;
@@ -319,14 +334,19 @@ public:
 class HighlyAssociativeCacheLevel : public virtual CacheLevel {
 protected:
     pebil_map_type <uint64_t, uint32_t>** fastcontents;
-
+    pebil_map_type <uint64_t, bool>** fastcontentsdirty;
 public:
     HighlyAssociativeCacheLevel() {}
     ~HighlyAssociativeCacheLevel();
 
     bool Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet);
-    uint64_t Replace(uint64_t addr, uint32_t setid, uint32_t lineid);
+    uint64_t Replace(uint64_t addr, uint32_t setid, uint32_t lineid,uint64_t loadstoreflag);
     virtual void Init (CacheLevel_Init_Interface);
+
+   // Both store and lineid is being sent since while calling these methods we do not make distinction as whether the object belongs to CacheLevel or HighlyAssociateCacheLevel
+   void SetDirty(uint32_t setid, uint32_t lineid,uint64_t store);
+   void ResetDirty(uint32_t setid, uint32_t lineid,uint64_t store);
+   bool GetDirtyStatus(uint32_t setid, uint32_t lineid,uint64_t store);  
 };
 
 class HighlyAssociativeInclusiveCacheLevel : public InclusiveCacheLevel, public HighlyAssociativeCacheLevel {

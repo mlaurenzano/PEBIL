@@ -790,7 +790,7 @@ extern "C" {
                                     uint64_t t = l + s;
                                     double ratio=0.0f;
                                     if(t!=0)
-                                      ratio=l/t;
+                                      ratio= (double) l/t;
                                     MemFile << " l" << dec << lvl << "[" << l << "/" << t << "(" << (ratio)<<")] ";
                                 }                                   
                             }
@@ -1697,6 +1697,8 @@ void CacheLevel::Init(CacheLevel_Init_Interface){
     associativity = assoc;
     linesize = lineSz;
     replpolicy = pol;
+    toEvict=false;
+    toEvictAddresses=new vector<uint64_t>;
 
     countsets = size / (linesize * associativity);
 
@@ -1706,11 +1708,14 @@ void CacheLevel::Init(CacheLevel_Init_Interface){
         lineSz = (lineSz >> 1);
     }
     linesizeBits--;
-
     contents = new uint64_t*[countsets];
+    dirtystatus= new bool*[countsets];
     for (uint32_t i = 0; i < countsets; i++){
         contents[i] = new uint64_t[associativity];
         memset(contents[i], 0, sizeof(uint64_t) * associativity);
+
+        dirtystatus[i]=new bool[associativity];
+        memset(dirtystatus[i],0, sizeof(bool) * associativity );   // initialized to false i.e. cacheline is not dirty.
     }
 
     recentlyUsed = NULL;
@@ -1735,14 +1740,18 @@ void CacheLevel::Init(CacheLevel_Init_Interface){
     }
 }
 
-void HighlyAssociativeCacheLevel::Init(CacheLevel_Init_Interface)
-{
+void HighlyAssociativeCacheLevel::Init(CacheLevel_Init_Interface){
     assert(associativity >= MinimumHighAssociativity);
     fastcontents = new pebil_map_type<uint64_t, uint32_t>*[countsets];
+    fastcontentsdirty = new pebil_map_type<uint64_t, bool>*[countsets];
     for (uint32_t i = 0; i < countsets; i++){
         fastcontents[i] = new pebil_map_type<uint64_t, uint32_t>();
         fastcontents[i]->clear();
+
+        fastcontentsdirty[i] = new pebil_map_type<uint64_t, bool>();
+        fastcontentsdirty[i]->clear(); // initialized to false i.e. cacheline is not dirty.
     }
+
 }
 
 HighlyAssociativeCacheLevel::~HighlyAssociativeCacheLevel(){
@@ -1754,6 +1763,14 @@ HighlyAssociativeCacheLevel::~HighlyAssociativeCacheLevel(){
         }
         delete[] fastcontents;
     }
+    if (fastcontentsdirty){
+        for (uint32_t i = 0; i < countsets; i++){
+            if (fastcontentsdirty[i]){
+                delete fastcontentsdirty[i];
+            }
+        }
+        delete[] fastcontentsdirty;
+    }    
 }
 
 CacheLevel::~CacheLevel(){
@@ -1813,7 +1830,44 @@ uint32_t CacheLevel::LineToReplace(uint32_t setid){
     return 0;
 }
 
-uint64_t HighlyAssociativeCacheLevel::Replace(uint64_t store, uint32_t setid, uint32_t lineid){
+bool HighlyAssociativeCacheLevel::GetDirtyStatus(uint32_t setid,uint32_t lineid,uint64_t store){
+    {
+        if( fastcontentsdirty[setid]->count(store) > 0 )
+            return (*(fastcontentsdirty[setid]))[store]; //.second; 
+        else
+            return false; // Since it is a miss, it cannot be dirty!
+    }        
+}
+
+void HighlyAssociativeCacheLevel::SetDirty(uint32_t setid,uint32_t lineid,uint64_t store){
+    (*(fastcontentsdirty[setid]))[lineid]=true;
+}
+
+void HighlyAssociativeCacheLevel::ResetDirty(uint32_t setid,uint32_t lineid,uint64_t store){
+    (*(fastcontentsdirty[setid]))[lineid]=false;
+}
+
+uint64_t CacheLevel::Replace(uint64_t store, uint32_t setid, uint32_t lineid,uint64_t loadstoreflag){
+    uint64_t prev = contents[setid][lineid];
+ 
+    if(GetDirtyStatus(setid,lineid,prev)){
+        toEvict=true;
+        toEvictAddresses->push_back(prev);
+     }
+    // Since the new address 'store' has been loaded just now and is not touched yet, we can reset the dirty flag if it is indeed dirty!
+    contents[setid][lineid] = store;
+    if(LoadStoreLogging){
+        if(loadstoreflag)
+            ResetDirty(setid,lineid,store);
+        else
+            SetDirty(setid,lineid,store);
+    }
+    
+    MarkUsed(setid, lineid,loadstoreflag);  
+    return prev;
+}
+
+uint64_t HighlyAssociativeCacheLevel::Replace(uint64_t store, uint32_t setid, uint32_t lineid,uint64_t loadstoreflag){
     uint64_t prev = contents[setid][lineid];
     contents[setid][lineid] = store;
 
@@ -1822,20 +1876,28 @@ uint64_t HighlyAssociativeCacheLevel::Replace(uint64_t store, uint32_t setid, ui
         //assert((*fastset)[prev] == lineid);
         fastset->erase(prev);
     }
-    (*fastset)[store] = lineid;
+    (*fastset)[store] = lineid; //(*fastset)[store].first = lineid;
+ 
+     if(GetDirtyStatus(setid,lineid,store)){
+        toEvict=true;
+        toEvictAddresses->push_back(prev);
+    }
+   
+    if(LoadStoreLogging){
+        if(loadstoreflag)
+            ResetDirty(setid,lineid,store);
+        else
+            SetDirty(setid,lineid,store);
+    }
 
-    MarkUsed(setid, lineid);
+    MarkUsed(setid, lineid,loadstoreflag);
     return prev;
 }
-
-uint64_t CacheLevel::Replace(uint64_t store, uint32_t setid, uint32_t lineid){
-    uint64_t prev = contents[setid][lineid];
-    contents[setid][lineid] = store;
-    MarkUsed(setid, lineid);
-    return prev;
-}
-
-inline void CacheLevel::MarkUsed(uint32_t setid, uint32_t lineid){
+inline void CacheLevel::MarkUsed(uint32_t setid, uint32_t lineid,uint64_t loadstoreflag){
+    if(LoadStoreLogging){
+        if(!(loadstoreflag))
+            SetDirty(setid,lineid,contents[setid][lineid]);
+    }
     if (USES_MARKERS(replpolicy)){
         debug(inform << "level " << dec << level << " USING set " << dec << setid << " line " << lineid << ENDL << flush);
         recentlyUsed[setid] = lineid;
@@ -1898,36 +1960,67 @@ bool CacheLevel::MultipleLines(uint64_t addr, uint32_t width){
     return false;
 }
 
-uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr,uint64_t loadstoreflag, void* info){ // FuncChanged.
+void CacheLevel::SetDirty(uint32_t setid, uint32_t lineid,uint64_t store){
+    dirtystatus[setid][lineid]=true;
+}
+
+void CacheLevel::ResetDirty(uint32_t setid, uint32_t lineid,uint64_t store){
+    dirtystatus[setid][lineid]=false;
+}
+
+bool CacheLevel::GetDirtyStatus(uint32_t setid, uint32_t lineid,uint64_t store){
+    return dirtystatus[setid][lineid];
+}
+
+uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr,uint64_t loadstoreflag,bool* anyEvict,void* info){ // FuncChanged.
     uint32_t set = 0, lineInSet = 0;
     uint64_t store = GetStorage(addr);
 
     debug(assert(stats));
     debug(assert(stats->Stats));
     debug(assert(stats->Stats[memid]));
-  
+
+
     if(LoadStoreLogging){
         if(loadstoreflag){
                 stats->Stats[memid][level].loadCount++;
         }else{
-                stats->Stats[memid][level].storeCount++;//SetDirty(set,lineInSet,store);
+                stats->Stats[memid][level].storeCount++;
         }         
     }    
+
     // hit
     if (Search(store, &set, &lineInSet)){
         stats->Stats[memid][level].hitCount++;    
-        MarkUsed(set, lineInSet);
+        MarkUsed(set, lineInSet,loadstoreflag);
         return INVALID_CACHE_LEVEL;
     }
 
     // miss
     stats->Stats[memid][level].missCount++;
+    Replace(store, set, LineToReplace(set),loadstoreflag);
+    (*anyEvict)|=toEvict;
 
-    Replace(store, set, LineToReplace(set));
     return level + 1;
 }
 
-uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr,uint64_t loadstoreflag, void* info){
+uint32_t CacheLevel::EvictProcess(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,void* info){
+    uint32_t set = 0, lineInSet = 0;
+    uint64_t store = addr;
+    debug(assert(stats));
+    debug(assert(stats->Stats));
+    debug(assert(stats->Stats[memid]));
+
+    if (Search(store, &set, &lineInSet)){
+        stats->Stats[memid][level].storeCount++;
+        MarkUsed(set, lineInSet,loadstoreflag);
+        return INVALID_CACHE_LEVEL;
+    }
+        
+    return level + 1;
+}
+
+uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr,uint64_t loadstoreflag,bool* anyEvict, void* info){
     uint32_t set = 0;
     uint32_t lineInSet = 0;
 
@@ -1935,8 +2028,7 @@ uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
 
     // handle victimizing
     EvictionInfo* e = (EvictionInfo*)info; 
-    if (e->level != INVALID_CACHE_LEVEL){
-
+    if (e->level != INVALID_CACHE_LEVEL){ 
         set = GetSet(e->addr);
         lineInSet = LineToReplace(set);
 
@@ -1947,49 +2039,78 @@ uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_
             }
         }
 
-        e->addr = Replace(e->addr, set, lineInSet);
+        loadstoreflag = ( 1 & *(anyEvict) );
+        *(anyEvict) = GetDirtyStatus(set,lineInSet,e->addr);
+        e->addr = Replace(e->addr,set,lineInSet,loadstoreflag);
+        toEvict = false;
 
         if (level == e->level){
+            *(anyEvict) = false;
             return INVALID_CACHE_LEVEL;
         } else {
             return level + 1;
         }
     }
 
+    if(LoadStoreLogging){
+        if(loadstoreflag){
+            stats->Stats[memid][level].loadCount++;
+        }else{
+            stats->Stats[memid][level].storeCount++;
+        }            
+    }
+
     // hit
     if (Search(store, &set, &lineInSet)){
         stats->Stats[memid][level].hitCount++;
-        if(LoadStoreLogging){
-            if(loadstoreflag){
-                stats->Stats[memid][level].loadCount++;
-            }else{
-                stats->Stats[memid][level].storeCount++;
-                //SetDirty(set,lineInSet,store);
-            }            
-        }
-        MarkUsed(set, lineInSet);
 
         e->level = level;
         e->addr = store;
         e->setid = set;
         e->lineid = lineInSet;
 
+        toEvict = false;
         if (level == FirstExclusive){
+            MarkUsed(set, lineInSet,loadstoreflag);
             return INVALID_CACHE_LEVEL;
         }
+        MarkUsed(set, lineInSet,GetDirtyStatus(set,lineInSet,store));
+        *(anyEvict) = ( 1 & loadstoreflag);
         return FirstExclusive;
     }
 
     // miss
     stats->Stats[memid][level].missCount++;
-
+    toEvict = false;
     if (level == LastExclusive){
         e->level = LastExclusive + 1;
         e->addr = store;
 
+        *(anyEvict) = ( 1 & loadstoreflag);
         return FirstExclusive;
     }
+    *(anyEvict) = false;
     return level + 1;
+}
+
+void CacheLevel::EvictDirty(CacheStats* stats,CacheLevel** levels,uint32_t memid,void* info){
+    // Should be only called by InclusiveCache.
+    uint64_t victim;
+    victim=toEvictAddresses->back();    // vector "toEvictAddresses" will be empty by the end of this. Vector was designed to handle 
+    toEvictAddresses->pop_back();
+    uint32_t next=level+1;
+    uint64_t loadstoreflag=0;
+   
+    next=levels[next]->EvictProcess(stats,memid,victim,loadstoreflag,(void*)info);   
+    
+    assert( next == INVALID_CACHE_LEVEL); // If assert fails, implies the memory address which was to be evicted was not found which is violation in an inclusive cache.
+    assert(toEvictAddresses->size()==0); // INFO:Should be removed before merging to dev branch, altho this checks a legal case but is it needed?
+    toEvict=false;
+    return;
+}
+
+bool CacheLevel::GetEvictStatus(){
+    return toEvict;
 }
 
 MemoryStreamHandler::MemoryStreamHandler(){
@@ -2035,6 +2156,7 @@ CacheStructureHandler::CacheStructureHandler(CacheStructureHandler& h){
             ExclusiveCacheLevel* p = dynamic_cast<ExclusiveCacheLevel*>(h.levels[i]);
             assert(p->GetType() == CacheLevelType_ExclusiveLowassoc);
             l->Init(Extract_Level_Args(i), p->FirstExclusive, p->LastExclusive);
+            inform<<"\t p->LastExclusive "<<p->LastExclusive<<ENDL;
             levels[i] = l;
         } else if (LVLF(i, Type()) == CacheLevelType_ExclusiveHighassoc){
             HighlyAssociativeExclusiveCacheLevel* l = new HighlyAssociativeExclusiveCacheLevel();
@@ -2133,12 +2255,12 @@ bool CacheStructureHandler::Init(string desc){
         }
 
         int32_t idx = (whichTok - 2) % 4;
+        //inform<<"\t idx "<<idx<<"\t whichTok "<<whichTok<<"\t cacheValues[idx] "<<cacheValues[idx]<<ENDL;
         // the first 3 numbers for a cache value
         if (idx < 3){
             if (!ParsePositiveInt32(token, &cacheValues[idx])){
                 return false;
             }
-
             // the last token for a cache (replacement policy)
         } else {
 
@@ -2154,7 +2276,7 @@ bool CacheStructureHandler::Init(string desc){
             } else {
                 return false;
             }
-
+            
             int32_t levelId = (whichTok - 2) / 4;
 
             // look for victim cache
@@ -2180,6 +2302,7 @@ bool CacheStructureHandler::Init(string desc){
             if (assoc >= MinimumHighAssociativity){
                 if (firstExcl != INVALID_CACHE_LEVEL){
                     HighlyAssociativeExclusiveCacheLevel* l = new HighlyAssociativeExclusiveCacheLevel();
+                    inform<<"\t Boo-yeah level is HIGHLY exclusive "<<ENDL;
                     l->Init(levelId, sizeInBytes, assoc, lineSize, repl, firstExcl, levelCount - 1);
                     levels[levelId] = (CacheLevel*)l;
                 } else {
@@ -2189,6 +2312,7 @@ bool CacheStructureHandler::Init(string desc){
                 }
             } else {
                 if (firstExcl != INVALID_CACHE_LEVEL){
+                    inform<<"\t Boo-yeah level is exclusive "<<ENDL;
                     ExclusiveCacheLevel* l = new ExclusiveCacheLevel();
                     l->Init(levelId, sizeInBytes, assoc, lineSize, repl, firstExcl, levelCount - 1);
                     levels[levelId] = l;
@@ -2220,7 +2344,7 @@ CacheStructureHandler::~CacheStructureHandler(){
 }
 
 void CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
-    uint32_t next = 0;
+    uint32_t next = 0,tmpNext = 0;
     uint64_t victim = access->address;
 
     CacheStats* stats = (CacheStats*)stats_in;
@@ -2228,9 +2352,19 @@ void CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
     EvictionInfo evictInfo;
     evictInfo.level = INVALID_CACHE_LEVEL;
     uint64_t loadstoreflag= access->loadstoreflag;
+    bool anyEvict = false;
     while (next < levelCount){
-        next = levels[next]->Process(stats, access->memseq, victim, loadstoreflag,(void*)(&evictInfo));
+        next = levels[next]->Process(stats, access->memseq, victim, loadstoreflag,&anyEvict,(void*)(&evictInfo));
     }
+
+    if(anyEvict){
+        while( (tmpNext<levelCount) ){
+            if(levels[tmpNext]->GetEvictStatus()){
+                levels[tmpNext]->EvictDirty(stats, levels,access->memseq,(void*)(&evictInfo));
+            }
+            tmpNext++;
+        }
+    } 
 }
 
 // called for every new image and thread
