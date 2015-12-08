@@ -2102,10 +2102,21 @@ void CacheLevel::EvictDirty(CacheStats* stats,CacheLevel** levels,uint32_t memid
     uint32_t next=level+1;
     uint64_t loadstoreflag=0;
    
-    next=levels[next]->EvictProcess(stats,memid,victim,loadstoreflag,(void*)info);   
-    
+    /* next=levels[next]->EvictProcess(stats,memid,victim,loadstoreflag,(void*)info);   
     assert( next == INVALID_CACHE_LEVEL); // If assert fails, implies the memory address which was to be evicted was not found which is violation in an inclusive cache.
-    assert(toEvictAddresses->size()==0); // INFO:Should be removed before merging to dev branch, altho this checks a legal case but is it needed?
+    assert(toEvictAddresses->size()==0); // INFO:Should be removed before merging to dev branch, altho this checks a legal case but is it needed?\ */
+
+    while(toEvictAddresses->size()){ // To handle cases where an address from Ln is missing in Ln+1 (e.g  missing in L2, found in L1). 
+        victim=toEvictAddresses->back();
+        toEvictAddresses->pop_back();
+        next=level+1;
+        loadstoreflag=0;
+        if(next<levelCount) next=levels[next]->EvictProcess(stats,memid,victim,loadstoreflag,(void*)info);   
+        if(next<levelCount){
+            inform<<"\t Cannot retire victim "<<victim<<" to level "<<(level+1)<<" since  it has already been evicted "<<ENDL;
+        }
+    }
+
     toEvict=false;
     return;
 }
@@ -2512,7 +2523,7 @@ void ReadSettings(){
             ErrorExit(" DirtyCacheHandling is enabled without LoadStoreLogging ",MetasimError_FileOp);
         }
     }
-    
+
     EitherAddressRangeOrSimulation= (CacheSimulation || AddressRangeEnable); 
     inform<<" Cache Simulation "<<CacheSimulation<<" AddressRangeEnable "<<AddressRangeEnable<<" EitherAddressRangeOrSimulation "<<EitherAddressRangeOrSimulation<<endl;
 
