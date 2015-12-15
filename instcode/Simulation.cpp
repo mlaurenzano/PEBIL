@@ -36,8 +36,12 @@
 #include <algorithm>
 #include <string.h>
 #include <assert.h>
+//#include <adm.h>
+//extern "C" void adm_events_v(const adm_event_t* tempAdmEvents,const uint32_t numElements);
 
-
+extern "C"{
+    #include <adm.h>
+}
 // Can tinker with this at runtime using the environment variable
 // METASIM_LIMIT_HIGH_ASSOC if desired.
 static uint32_t MinimumHighAssociativity = 256;
@@ -198,6 +202,7 @@ extern "C" {
             // Once per address space, initialize FastStats
             // This must be done after AllData has exactly one image, thread initialized
             if (FastStats == NULL){
+		//inform<<"\t FastStats wasnt initialized so far!! "<<ENDL;
                 FastStats = new FastData<SimulationStats*, BufferEntry*>(GetBufferIds, AllData, BUFFER_CAPACITY(stats));
             }
             assert(FastStats);
@@ -265,14 +270,17 @@ extern "C" {
         }
     }
 */
+
   //  void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, ReuseDistance* rd, ReuseDistance* sd, uint32_t numElements, image_key_t iid, thread_key_t tid)
     static void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m,uint32_t numElements, image_key_t iid, thread_key_t tid){
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
+        uint32_t* resCacheProcess = new uint32_t[numElements];
+        adm_event_t* tempAdmEvents = new adm_event_t[numElements];
 
         SimulationStats** faststats = FastStats->GetBufferStats(tid);
         //assert(faststats[0]->Stats[HandlerIdx]->Verify());
-        uint32_t bufcur = 0;
+        uint32_t bufcur = 0; uint32_t resCur = 0;
         for (bufcur = 0; bufcur < numElements; bufcur++){
             debug(assert(faststats[bufcur]));
             debug(assert(faststats[bufcur]->Stats));
@@ -293,9 +301,53 @@ extern "C" {
                 continue;
             }
 
-            m->Process((void*)ss, reference);
+            resCur=m->Process((void*)ss, reference);
+            resCacheProcess[bufcur] = resCur;
             numProcessed++;
         }
+
+        uint64_t source =0;
+        for(bufcur = 0; bufcur < numElements; bufcur++){
+            debug(assert(faststats[bufcur]));
+            debug(assert(faststats[bufcur]->Stats));
+            SimulationStats* stats = faststats[bufcur];
+            StreamStats* ss = stats->Stats[HandlerIdx];
+            BufferEntry* reference = BUFFER_ENTRY(stats, bufcur);
+
+            if (reference->imageid == 0){
+                debug(assert(AllData->CountThreads() > 1));
+                continue;
+            }
+            // This happens when uninitialized threads make their way into instrumented code.  // See the FIXME in DataManager::AddImage  // skip processing the reference for now
+            if (reference->threadid != tid){
+                continue;
+            }
+            source =0;
+            if(reference->loadstoreflag)
+                source |= PERF_MEM_OP_LOAD;
+            else
+                source |= PERF_MEM_OP_STORE;
+
+            source |= PERF_MEM_LVL_HIT  << PERF_MEM_LVL_SHIFT;
+            if(resCacheProcess[bufcur]==0)  
+                source |= PERF_MEM_LVL_L1 << PERF_MEM_LVL_SHIFT;
+            else if(resCacheProcess[bufcur]==1)
+                source |= PERF_MEM_LVL_L2 << PERF_MEM_LVL_SHIFT;
+            else if(resCacheProcess[bufcur]==2){
+                source |= PERF_MEM_LVL_L3 << PERF_MEM_LVL_SHIFT;
+            }
+            else 
+                source |= PERF_MEM_LVL_LOC_RAM << PERF_MEM_LVL_SHIFT;
+
+            tempAdmEvents[bufcur].ip= reference->programAddress;
+            tempAdmEvents[bufcur].tid= reference->threadid;
+            tempAdmEvents[bufcur].source= source; 
+            tempAdmEvents[bufcur].address = reference->address;
+        }
+         adm_events_v(tempAdmEvents, numElements);
+
+         delete[] tempAdmEvents;
+         delete[] resCacheProcess;
         //assert(faststats[0]->Stats[HandlerIdx]->Verify());
     }
 
@@ -465,7 +517,7 @@ extern "C" {
                           << TAB << "Counter " << s->Counters[bbid]
                           << TAB << "Real " << s->Counters[idx]
                           << ENDL);
-                    uint64_t groupidx = stats->GroupIds[bbid] ;// This could be fatal if s->PerInstruction is not handled! 
+                    uint64_t groupidx = stats->GroupIds[bbid] ;
                     if (Sampler->ExceedsAccessLimit(s->Counters[idx]) || (Sampler->ExceedsAccessLimit( stats->NLStats[groupidx].GroupCount )) ){
 
                         uint64_t k1 = GENERATE_KEY(midx, PointType_buffercheck);
@@ -793,7 +845,6 @@ extern "C" {
                                     MemFile << " l" << dec << lvl << "[" << l << "/" << t << "(" << (ratio)<<")] ";
                                 }                                   
                             }
-                            inform<<"\t c->hybridCache "<<c->hybridCache<<ENDL;
                             if(c->hybridCache){    
                                 uint64_t h=c->GetHybridHits();
                                 uint64_t m=c->GetHybridMisses();
@@ -1309,11 +1360,12 @@ void AddressRangeHandler::Print(ofstream& f){
     f << "AddressRangeHandler" << ENDL;
 }
 
-void AddressRangeHandler::Process(void* stats, BufferEntry* access){
+uint32_t AddressRangeHandler::Process(void* stats, BufferEntry* access){
     uint32_t memid = (uint32_t)access->memseq;
     uint64_t addr = access->address;
     RangeStats* rs = (RangeStats*)stats;
     rs->Update(memid, addr);
+     return 0; // Nonsensical to return anything, but to keep it compatbile with base class method which should return when used by CacheHandler.  
 }
 
 CacheStats::CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity,uint32_t hybridcache){
@@ -2263,6 +2315,7 @@ void CacheStructureHandler::ExtractAddresses(){
         if(Start[AddCopy]<=End[AddCopy]){
             RamAddressStart[AddCopy]=Start[AddCopy];
             RamAddressEnd[AddCopy]=End[AddCopy];
+            //inform<<"\t Range: start "<<RamAddressStart[AddCopy]<<"\t end "<<RamAddressEnd[AddCopy]<<ENDL;
         }
         else{
             ErrorExit("\n\t Address range with start: "<<Start[AddCopy]<<" end: "<<End[AddCopy]<<" is illegal, starting address is smaller than ending address ",MetasimError_StringParse);
@@ -2517,7 +2570,7 @@ CacheStructureHandler::~CacheStructureHandler(){
     }
 }
 
-void CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
+uint32_t CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
     uint32_t next = 0,tmpNext = 0;
     uint64_t victim = access->address;
 
@@ -2560,7 +2613,7 @@ void CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
         }
         resLevel = levelCount+1;
     } 
-    return ; //return resLevel;
+    return resLevel;
 }
 
 // called for every new image and thread
@@ -2609,7 +2662,7 @@ SimulationStats* GenerateCacheStats(SimulationStats* stats, uint32_t typ, image_
             for (uint32_t i = 0; i < CountCacheStructures; i++){
                 CacheStructureHandler* p = (CacheStructureHandler*)MemoryHandlers[i];
                 CacheStructureHandler* c = new CacheStructureHandler(*p);
-                if(p->hybridCache) c->ExtractAddresses();
+                if(p->hybridCache) c->ExtractAddresses();    
                 stats->Handlers[i] = c;
             }
         }
