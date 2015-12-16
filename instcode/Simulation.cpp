@@ -36,12 +36,12 @@
 #include <algorithm>
 #include <string.h>
 #include <assert.h>
-//#include <adm.h>
-//extern "C" void adm_events_v(const adm_event_t* tempAdmEvents,const uint32_t numElements);
 
+#ifdef HAVE_ADAMANT
 extern "C"{
-    #include <adm.h>
+    #include <adm.h> 
 }
+#endif
 // Can tinker with this at runtime using the environment variable
 // METASIM_LIMIT_HIGH_ASSOC if desired.
 static uint32_t MinimumHighAssociativity = 256;
@@ -73,6 +73,7 @@ static uint32_t AddressRangeEnable=0;
 static uint32_t EitherAddressRangeOrSimulation=0;
 static uint32_t LoadStoreLogging = 0;
 static uint32_t DirtyCacheHandling = 0; 
+static uint32_t AdamantLogging = 0;
 
 // global data
 static uint32_t CountMemoryHandlers = 0;
@@ -276,7 +277,6 @@ extern "C" {
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
         uint32_t* resCacheProcess = new uint32_t[numElements];
-        adm_event_t* tempAdmEvents = new adm_event_t[numElements];
 
         SimulationStats** faststats = FastStats->GetBufferStats(tid);
         //assert(faststats[0]->Stats[HandlerIdx]->Verify());
@@ -306,48 +306,53 @@ extern "C" {
             numProcessed++;
         }
 
-        uint64_t source =0;
-        for(bufcur = 0; bufcur < numElements; bufcur++){
-            debug(assert(faststats[bufcur]));
-            debug(assert(faststats[bufcur]->Stats));
-            SimulationStats* stats = faststats[bufcur];
-            StreamStats* ss = stats->Stats[HandlerIdx];
-            BufferEntry* reference = BUFFER_ENTRY(stats, bufcur);
+        #ifdef HAVE_ADAMANT
+            if(AdamantLogging){
+                adm_event_t* tempAdmEvents = new adm_event_t[numElements];
+                uint64_t source =0;
+                for(bufcur = 0; bufcur < numElements; bufcur++){
+                    debug(assert(faststats[bufcur]));
+                    debug(assert(faststats[bufcur]->Stats));
+                    SimulationStats* stats = faststats[bufcur];
+                    StreamStats* ss = stats->Stats[HandlerIdx];
+                    BufferEntry* reference = BUFFER_ENTRY(stats, bufcur);
 
-            if (reference->imageid == 0){
-                debug(assert(AllData->CountThreads() > 1));
-                continue;
+                    if (reference->imageid == 0){
+                        debug(assert(AllData->CountThreads() > 1));
+                        continue;
+                    }
+                    // This happens when uninitialized threads make their way into instrumented code.  // See the FIXME in DataManager::AddImage  // skip processing the reference for now
+                    if (reference->threadid != tid){
+                        continue;
+                    }
+                    source =0;
+                    if(reference->loadstoreflag)
+                        source |= PERF_MEM_OP_LOAD;
+                    else
+                        source |= PERF_MEM_OP_STORE;
+
+                    source |= PERF_MEM_LVL_HIT  << PERF_MEM_LVL_SHIFT;
+                    if(resCacheProcess[bufcur]==0)  
+                        source |= PERF_MEM_LVL_L1 << PERF_MEM_LVL_SHIFT;
+                    else if(resCacheProcess[bufcur]==1)
+                        source |= PERF_MEM_LVL_L2 << PERF_MEM_LVL_SHIFT;
+                    else if(resCacheProcess[bufcur]==2){
+                        source |= PERF_MEM_LVL_L3 << PERF_MEM_LVL_SHIFT;
+                    }
+                    else 
+                        source |= PERF_MEM_LVL_LOC_RAM << PERF_MEM_LVL_SHIFT;
+
+                    tempAdmEvents[bufcur].ip= reference->programAddress;
+                    tempAdmEvents[bufcur].tid= reference->threadid;
+                    tempAdmEvents[bufcur].source= source; 
+                    tempAdmEvents[bufcur].address = reference->address;
+                }
+                 adm_events_v(tempAdmEvents, numElements);
+
+                 delete[] tempAdmEvents;
             }
-            // This happens when uninitialized threads make their way into instrumented code.  // See the FIXME in DataManager::AddImage  // skip processing the reference for now
-            if (reference->threadid != tid){
-                continue;
-            }
-            source =0;
-            if(reference->loadstoreflag)
-                source |= PERF_MEM_OP_LOAD;
-            else
-                source |= PERF_MEM_OP_STORE;
-
-            source |= PERF_MEM_LVL_HIT  << PERF_MEM_LVL_SHIFT;
-            if(resCacheProcess[bufcur]==0)  
-                source |= PERF_MEM_LVL_L1 << PERF_MEM_LVL_SHIFT;
-            else if(resCacheProcess[bufcur]==1)
-                source |= PERF_MEM_LVL_L2 << PERF_MEM_LVL_SHIFT;
-            else if(resCacheProcess[bufcur]==2){
-                source |= PERF_MEM_LVL_L3 << PERF_MEM_LVL_SHIFT;
-            }
-            else 
-                source |= PERF_MEM_LVL_LOC_RAM << PERF_MEM_LVL_SHIFT;
-
-            tempAdmEvents[bufcur].ip= reference->programAddress;
-            tempAdmEvents[bufcur].tid= reference->threadid;
-            tempAdmEvents[bufcur].source= source; 
-            tempAdmEvents[bufcur].address = reference->address;
-        }
-         adm_events_v(tempAdmEvents, numElements);
-
-         delete[] tempAdmEvents;
-         delete[] resCacheProcess;
+         #endif
+        delete[] resCacheProcess;
         //assert(faststats[0]->Stats[HandlerIdx]->Verify());
     }
 
@@ -2755,6 +2760,9 @@ void ReadSettings(){
     if(!ReadEnvUint32("METASIM_DIRTY_CACHE",&DirtyCacheHandling)){
         DirtyCacheHandling = 0;
     }
+    if(!ReadEnvUint32("METASIM_ADAMANT_LOG",&AdamantLogging)){
+        AdamantLogging = 0;
+    }    
 
     if(DirtyCacheHandling){
         if(!LoadStoreLogging){
@@ -2764,7 +2772,7 @@ void ReadSettings(){
 
     EitherAddressRangeOrSimulation= (CacheSimulation || AddressRangeEnable); 
     inform<<" Cache Simulation "<<CacheSimulation<<" AddressRangeEnable "<<AddressRangeEnable<<" EitherAddressRangeOrSimulation "<<EitherAddressRangeOrSimulation<<endl;
-    inform<<" LoadStoreLogging "<<LoadStoreLogging<<" DirtyCacheHandling "<<DirtyCacheHandling<<ENDL;
+    inform<<" LoadStoreLogging "<<LoadStoreLogging<<" DirtyCacheHandling "<<DirtyCacheHandling<<" AdamantLogging "<<AdamantLogging<<ENDL;
 
     // read caches to simulate
     string cachedf = GetCacheDescriptionFile();

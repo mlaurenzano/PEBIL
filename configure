@@ -642,6 +642,8 @@ ac_subst_vars='LTLIBOBJS
 subdirs
 LIBOBJS
 CPUFREQ_FLAGS
+ADAMANT_FLAGS
+ADAMANT_LIBS_BUILD
 PEBIL_MIC_LIBS_BUILD
 THROTTLER_FLAGS
 EGREP
@@ -4047,7 +4049,7 @@ fi
 CC="$acx_mpi_save_CC"
 
 
-
+echo "\t MPILIBS $MPILIBS"
 # Finally, execute ACTION-IF-FOUND/ACTION-IF-NOT-FOUND:
 if test x = x"$MPILIBS"; then
 
@@ -4388,7 +4390,7 @@ fi
 
 
 
-
+echo "\t MPILIBS $MPILIBS"
 # Finally, execute ACTION-IF-FOUND/ACTION-IF-NOT-FOUND:
 if test x = x"$MPILIBS"; then
 
@@ -4756,7 +4758,7 @@ fi
 CXX="$acx_mpi_save_CXX"
 
 
-
+echo "\t MPILIBS $MPILIBS x: "
 # Finally, execute ACTION-IF-FOUND/ACTION-IF-NOT-FOUND:
 if test x = x"$MPILIBS"; then
 
@@ -6279,6 +6281,19 @@ as_val=`eval 'as_val=${'$as_ac_Header'}
 _ACEOF
  CPUFREQ_FLAGS="-DHAVE_CPUFREQ_H"
 fi
+
+as_val=`eval 'as_val=${'$as_ac_Header'}
+     $as_echo "$as_val"'`
+   if test "x$as_val" = x""yes; then
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+ ADAMANT_FLAGS="-DHAVE_ADAMANT"
+ ADAMANT_LIBS_BUILD="yes"
+else
+  ADAMANT_LIBS_BUILD="no"
+fi
+
 
 done
 
@@ -8284,7 +8299,8 @@ $debug ||
 if test -n "$CONFIG_FILES"; then
 
 
-ac_cr=''
+ac_cr='
+'
 ac_cs_awk_cr=`$AWK 'BEGIN { print "a\rb" }' </dev/null 2>/dev/null`
 if test "$ac_cs_awk_cr" = "a${ac_cr}b"; then
   ac_cs_awk_cr='\\r'

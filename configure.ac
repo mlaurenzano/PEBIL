@@ -103,6 +103,10 @@ AC_CHECK_HEADERS([stdint.h stdlib.h string.h strings.h unistd.h])
 AC_CHECK_HEADERS([cpufreq.h],
         CPUFREQ_FLAGS="-DHAVE_CPUFREQ_H")
 AC_SUBST(CPUFREQ_FLAGS)
+AC_CHECK_HEADERS([adm.h],
+        ADAMANT_FLAGS="-DHAVE_ADAMANT_H")
+AC_SUBST(ADAMANT_FLAGS)
+AC_SUBST(ADAMANT_LIBS_BUILD)
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
