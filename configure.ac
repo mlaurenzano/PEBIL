@@ -72,6 +72,22 @@ else
 fi
 AC_SUBST(PEBIL_STATIC_BUILD)
 
+AC_ARG_ENABLE(adamant, AC_HELP_STRING([--enable-adamant], [enable adamant [yes]]), adamant_ok=$enableval)
+AC_CHECK_HEADERS([adm.h],
+  [
+    if test "$adamant_ok" == "yes"; 
+    then 
+      ADAMANT_HEADER_FLAGS="-DHAVE_ADAMANT"
+      ADAMANT_LIBS_BUILD="yes"
+    else
+       ADAMANT_LIBS_BUILD="no"
+    fi
+  ],
+  ADAMANT_LIBS_BUILD="no")
+
+AC_SUBST(ADAMANT_HEADER_FLAGS)
+AC_SUBST(ADAMANT_LIBS_BUILD)  
+
 AC_ARG_ENABLE(mpiinit_check, AC_HELP_STRING([--enable-mpiinit-check], [Disable output file printing in inst libraries unless mpi_init is executed [no]]), mpiinit_check_ok=$enableval)
 if test "$mpiinit_check_ok" = "yes"; then
    MPI_FLAGS="$MPI_FLAGS -DMPI_INIT_REQUIRED"
@@ -102,11 +118,6 @@ AC_CHECK_HEADERS([stdint.h stdlib.h string.h strings.h unistd.h])
 AC_CHECK_HEADERS([cpufreq.h],
         CPUFREQ_FLAGS="-DHAVE_CPUFREQ_H")
 AC_SUBST(CPUFREQ_FLAGS)
-
-AC_CHECK_HEADERS([adm.h],
-        [ADAMANT_FLAGS="-DHAVE_ADAMANT";ADAMANT_LIBS_BUILD="yes"],ADAMANT_LIBS_BUILD="no")
-AC_SUBST(ADAMANT_FLAGS)
-AC_SUBST(ADAMANT_LIBS_BUILD)
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
