@@ -189,7 +189,7 @@ CacheSimulation::CacheSimulation(ElfFile* elf)
     entryFunc = NULL;
 
    // ASSERT(isPowerOfTwo(sizeof(BufferEntry)));
-    PRINT_WARN(20,"\n\t WARNING: sizeof(BufferEntry) is not checked for being power of two!!! ");
+   // PRINT_WARN(20,"\n\t WARNING: sizeof(BufferEntry) is not checked for being power of two!!! ");
 }
 
 

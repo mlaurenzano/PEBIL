@@ -839,7 +839,7 @@ extern "C" {
                                 MemFile << "l" << dec << lvl << "[" << h << "/" << t << "(" << CacheStats::GetHitRate(h, m) << ")] ";
                             }
                             if(LoadStoreLogging){
-                                MemFile<<"\n Load store stats ";
+                                MemFile<<"\n#Load store stats ";
                                 for (uint32_t lvl = 0; lvl < c->LevelCount; lvl++){
                                     uint64_t l = c->GetLoads(lvl);
                                     uint64_t s = c->GetStores(lvl);
@@ -858,7 +858,7 @@ extern "C" {
                                  if(t_hm!=0)
                                     ratio_hm= (double) h/t_hm;
                                 MemFile << ENDL ;     
-                                MemFile<<" Hybrid cache stats\tHits " << "[" << h << "/" << t_hm << "(" << (ratio_hm)<< ")]";
+                                MemFile<<"#Hybrid cache stats\tHits " << "[" << h << "/" << t_hm << "(" << (ratio_hm)<< ")]";
 
                                 if(LoadStoreLogging){
                                     uint64_t l=c->GetHybridLoads();
@@ -2320,7 +2320,6 @@ void CacheStructureHandler::ExtractAddresses(){
         if(Start[AddCopy]<=End[AddCopy]){
             RamAddressStart[AddCopy]=Start[AddCopy];
             RamAddressEnd[AddCopy]=End[AddCopy];
-            //inform<<"\t Range: start "<<RamAddressStart[AddCopy]<<"\t end "<<RamAddressEnd[AddCopy]<<ENDL;
         }
         else{
             ErrorExit("\n\t Address range with start: "<<Start[AddCopy]<<" end: "<<End[AddCopy]<<" is illegal, starting address is smaller than ending address ",MetasimError_StringParse);
@@ -2756,7 +2755,7 @@ void ReadSettings(){
     } 
     if(!ReadEnvUint32("METASIM_LOAD_LOG",&LoadStoreLogging)){
         LoadStoreLogging = 0;
-    } 
+    }
     if(!ReadEnvUint32("METASIM_DIRTY_CACHE",&DirtyCacheHandling)){
         DirtyCacheHandling = 0;
     }
