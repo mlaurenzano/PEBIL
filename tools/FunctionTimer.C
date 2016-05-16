@@ -171,9 +171,6 @@ void FunctionTimer::instrument(){
         BasicBlock* bb = f->getFlowGraph()->getEntryBlock();
         Vector<BasicBlock*>* exitBlocks = f->getFlowGraph()->getExitBlocks();
 
-        if(strcmp(f->getName(), "fluadta6_") == 0) {
-            PRINT_INFOR("%s\n", f->getFlowGraph()->toDot());
-        }
         // Instrument the entry block
         //FlagsProtectionMethods prot = FlagsProtectionMethod_full;
         //X86Instruction* bestinst = bb->getExitInstruction();

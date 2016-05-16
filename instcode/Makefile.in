@@ -1,5 +1,6 @@
 STATIC_INST_LIB  = @PEBIL_STATIC_BUILD@
 PEBIL_MIC_LIBS_BUILD = @PEBIL_MIC_LIBS_BUILD@
+ADAMANT_LIBS_BUILD = @ADAMANT_LIBS_BUILD@
 PEBIL_LIBS = 
 ifeq ($(STATIC_INST_LIB),yes)
 	PEBIL_LIBS = libtimer.a  libclassifier.a  libpfreq.a  libtautrace.a  libcounter.a  libsimulator.a
@@ -17,8 +18,8 @@ MPICC       = @MPICC@
 MPICXX      = @MPICXX@
 MPICC_MIC       = mpiicc
 MPICXX_MIC      = mpiicpc
-CFLAGS      = @CFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -w
-CXXFLAGS    = @MPI_CXXFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @THROTTLER_FLAGS@ -w
+CFLAGS      = @CFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @ADAMANT_HEADER_FLAGS@  @THROTTLER_FLAGS@ -w
+CXXFLAGS    = @MPI_CXXFLAGS@ @MPI_FLAGS@ @CPUFREQ_FLAGS@ @ADAMANT_HEADER_FLAGS@  @THROTTLER_FLAGS@ -w
 MICFLAGS		=	-mmic
 
 ifeq ($(PEBIL_MIC_LIBS_BUILD),yes)
@@ -34,11 +35,16 @@ AR          = ar rcs
 
 REUSE_LIBS  = -L../external/ReuseDistance -lReuseDistance
 REUSE_MIC_LIBS  = -L../external/ReuseDistanceForMIC -lReuseDistance
-EXTRA_LIBS  = -ldl -lpthread
 EXTRA_INC   = -I../instcode -I../external/ReuseDistance
 
 COMMON_OBJS = $(LIBDIR)/InstrumentationCommon.o
 COMMON_OBJS_MIC = $(MICLIBDIR)/InstrumentationCommon.o
+
+ifeq ($(ADAMANT_LIBS_BUILD),yes)
+	EXTRA_LIBS = -ldl -lpthread -ladm
+else
+	EXTRA_LIBS = -ldl -lpthread
+endif
 
 all: $(ALL_TARGETS)
 
