@@ -43,9 +43,12 @@ ud_disassemble(struct ud* u)
  
   u->insn_buffer[0] = u->insn_hexcode[0] = 0;
 
- 
+  //printf("AC: decoding instruction...\n"); 
   if (ud_decode(u) == 0)
+  {
 	return 0;
+  }
+  //printf("AC: decoded as %s\n", ud_lookup_mnemonic(u->mnemonic)); 
   if (u->translator)
 	u->translator(u);
   return ud_insn_len(u);

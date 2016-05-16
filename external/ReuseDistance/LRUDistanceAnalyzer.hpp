@@ -32,6 +32,7 @@ END_LEGAL */
  *  This file contains an ISA-portable PIN tool for tracing memory accesses.
  */
 
+#include <stdint.h>
 
 namespace LRUDistanceAnalyzer
 {

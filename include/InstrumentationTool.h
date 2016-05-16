@@ -36,8 +36,8 @@ typedef struct {
     uint64_t id;
     uint64_t data;
 } ThreadData;
-#define ThreadHashShift (17)
-#define ThreadHashMod   (0xffff)
+#define ThreadHashShift (12)
+#define ThreadHashMod   (0x3ffff)
 
 struct DynamicInstInternal {
     InstrumentationPoint* Point;
@@ -108,6 +108,8 @@ protected:
     InstrumentationFunction* imageInit;
     InstrumentationFunction* initWrapperC;
     InstrumentationFunction* initWrapperF;
+    InstrumentationFunction* initTWrapperC;
+    InstrumentationFunction* initTWrapperF;
 
     uint32_t phaseNo;
     bool loopIncl;

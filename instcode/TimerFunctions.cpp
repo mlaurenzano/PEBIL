@@ -21,8 +21,10 @@
 
 DataManager<FunctionTimers*>* AllData = NULL;
 
+// Gordon
+#define CLOCK_RATE_HZ 2300000000
 // Clark
-#define CLOCK_RATE_HZ 2600079000
+//#define CLOCK_RATE_HZ 2 600 079 000
 
 //#define CLOCK_RATE_HZ 2800000000
 //#define CLOCK_RATE_HZ 3326000000
@@ -30,6 +32,21 @@ inline uint64_t read_timestamp_counter(){
     unsigned low, high;
     __asm__ volatile ("rdtsc" : "=a" (low), "=d"(high));
     return ((unsigned long long)low | (((unsigned long long)high) << 32));
+}
+
+static double diffTime(struct timeval t1, struct timeval t2)
+{
+    struct timeval diff;
+    if(t2.tv_usec < t1.tv_usec) {
+        diff.tv_usec = 1000000 + t2.tv_usec - t1.tv_usec;
+        diff.tv_sec = t2.tv_sec - t1.tv_sec - 1;
+    } else {
+        diff.tv_usec = t2.tv_usec - t1.tv_usec;
+        diff.tv_sec = t2.tv_sec - t1.tv_sec;
+    }
+
+    double time = (double)diff.tv_sec + (diff.tv_usec / 1000000.0);
+    return time;
 }
 
 /*
@@ -62,6 +79,8 @@ FunctionTimers* GenerateFunctionTimers(FunctionTimers* timers, uint32_t typ, ima
     memset(retval->functionTimerLast, 0, sizeof(*retval->functionTimerLast) * retval->functionCount);
     memset(retval->inFunction, 0, sizeof(*retval->inFunction) * retval->functionCount);
 
+    retval->appTimeStart = timers->appTimeStart;
+    retval->appTimeOfDayStart = timers->appTimeOfDayStart;
     return retval;
 }
 
@@ -85,10 +104,20 @@ extern "C"
         FunctionTimers* timers = AllData->GetData(*key, pthread_self());
         assert(timers != NULL);
         assert(timers->functionTimerLast != NULL);
+
         if(timers->inFunction[funcIndex] == 0){
             timers->functionTimerLast[funcIndex] = read_timestamp_counter();
+
+            if(GetTaskId() == 0) {
+                //warn << "Thread " << AllData->GetThreadSequence(tid) << " Entering function " << funcIndex << ":" << timers->functionNames[funcIndex] << ENDL;
+                //print_backtrace();
+            }
+
+        } else if(GetTaskId() == 0) {
+            //warn << "Thread " << AllData->GetThreadSequence(tid) << " Re-entering function " << timers->functionNames[funcIndex] << ENDL;
         }
         ++timers->inFunction[funcIndex];
+
         return 0;
     }
 
@@ -97,15 +126,31 @@ extern "C"
         thread_key_t tid = pthread_self();
         FunctionTimers* timers = AllData->GetData(*key, pthread_self());
 
-        uint32_t recDepth = timers->inFunction[funcIndex];
+        int32_t recDepth = timers->inFunction[funcIndex];
+        if(recDepth == 0) {
+            if(GetTaskId() == 0) {
+                warn << "Thread " << AllData->GetThreadSequence(tid) << " Leaving never entered function " << funcIndex << ":" << timers->functionNames[funcIndex] << ENDL;
+                print_backtrace();
+            }
+            timers->inFunction[funcIndex] = 0;
+            return 0; 
+
+        } else if(recDepth < 0) {
+            if(GetTaskId() == 0) warn << "Negative call depth for " << timers->functionNames[funcIndex] << ENDL;
+            timers->inFunction[funcIndex] = 0;
+            return 0;
+        }
+
         --recDepth;
         if(recDepth == 0) {
             uint64_t last = timers->functionTimerLast[funcIndex];
             uint64_t now = read_timestamp_counter();
             timers->functionTimerAccum[funcIndex] += now - last;
             timers->functionTimerLast[funcIndex] = now;
-        } else if(recDepth < 0) {
-            recDepth = 0;
+
+            if(GetTaskId() == 0) {
+                //warn << "Leaving function " << timers->functionNames[funcIndex] << ENDL;
+            }
         }
         timers->inFunction[funcIndex] = recDepth;
 
@@ -144,6 +189,11 @@ extern "C"
 
         FunctionTimers* timers = (FunctionTimers*)args;
 
+        // image time
+        timers->appTimeStart = read_timestamp_counter();
+        gettimeofday(&timers->appTimeOfDayStart, NULL);
+
+
         // Remove this instrumentation
         set<uint64_t> inits;
         inits.insert(*key);
@@ -180,6 +230,10 @@ extern "C"
             return NULL;
         }
 
+        uint64_t appTimeEnd = read_timestamp_counter();
+        struct timeval tvEnd;
+        gettimeofday(&tvEnd, NULL);
+
         char outFileName[1024];
         sprintf(outFileName, "%s.meta_%0d.%s", timers->application, GetTaskId(), timers->extension);
         FILE* outFile = fopen(outFileName, "w");
@@ -189,6 +243,8 @@ extern "C"
         }
 
 
+        fprintf(outFile, "App timestamp time: %lld %lld %f\n", timers->appTimeStart, appTimeEnd, (double)(appTimeEnd - timers->appTimeStart) / CLOCK_RATE_HZ);
+        fprintf(outFile, "App timeofday time: %lld %lld %f\n", timers->appTimeOfDayStart.tv_sec, tvEnd.tv_sec, diffTime(timers->appTimeOfDayStart, tvEnd));
         // for each image
         //   for each function
         //     for each thread

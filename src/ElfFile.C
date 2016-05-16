@@ -1529,6 +1529,7 @@ void ElfFile::displaySymbols(){
 
 
 void ElfFile::generateCFGs(){
+
     for (uint32_t i = 0; i < getNumberOfTextSections(); i++){
         textSections[i]->generateCFGs(addressAnchors);
     }

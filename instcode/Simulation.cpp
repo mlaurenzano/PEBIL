@@ -1512,6 +1512,7 @@ bool SamplingMethod::CurrentlySampling(){
 
 bool SamplingMethod::CurrentlySampling(uint64_t count){
     uint32_t PeriodLength = SampleOn + SampleOff;
+    return true;
     bool res = false;
     if (SampleOn == 0){
         return res;
@@ -1528,6 +1529,7 @@ bool SamplingMethod::CurrentlySampling(uint64_t count){
 
 bool SamplingMethod::ExceedsAccessLimit(uint64_t count){
     bool res = false;
+    return false;
     if (AccessLimit > 0 && count > AccessLimit){
         res = true;
     }

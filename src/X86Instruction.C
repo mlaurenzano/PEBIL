@@ -137,6 +137,26 @@ struct VectorInfo X86Instruction::getVectorInfo()
         bytesInReg = dest->getBytesUsed();
     }
 
+    switch(GET(mnemonic)) {
+      case UD_Imovhlps:
+      case UD_Imovhpd:
+      case UD_Imovhps:
+      case UD_Imovlhps:
+      case UD_Imovlpd:
+      case UD_Imovlps:
+
+      case UD_Ivmovhpd:
+      case UD_Ivmovhps:
+      case UD_Ivmovlpd:
+      case UD_Ivmovlps:
+
+
+
+        bytesInReg = bytesInReg / 2;
+      default:
+          break;
+    }
+
     // FIXME -- currently all 512 bit operations use vector masks
     if(bytesInReg == 64) {
         if(vectorInfo.kval.confidence == Unknown) {

@@ -42,6 +42,9 @@ public:
     const char* defaultExtension() { return "ftminst"; }
     uint32_t allowsArgs() { return PEBIL_OPT_NON; }
     uint32_t requiresArgs() { return PEBIL_OPT_NON; }
+
+private:
+    void instrumentEntry(BasicBlock* bb, uint32_t functionIndexRegister, uint32_t i);
 };
 
 class ExternalFunctionTimer : public FunctionTimer {

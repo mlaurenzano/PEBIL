@@ -25,6 +25,7 @@
 #include <BitSet.h>
 #include <FlowGraph.h>
 #include <Vector.h>
+#include <string>
 
 class Function;
 class X86Instruction;
@@ -132,6 +133,7 @@ public:
     void print();
     void printSourceBlocks();
     void printTargetBlocks();
+    std::string toDot();
 
     uint32_t addSourceBlock(BasicBlock* srcBlock);
     uint32_t addTargetBlock(BasicBlock* tgtBlock);
