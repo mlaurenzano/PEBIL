@@ -37,9 +37,18 @@
 #define MPI_INIT_WRAPPER_CBIND   "MPI_Init_pebil_wrapper"
 #define MPI_INIT_LIST_CBIND_PREF "PMPI_Init"
 #define MPI_INIT_LIST_CBIND      "MPI_Init"
+
 #define MPI_INIT_WRAPPER_FBIND   "mpi_init__pebil_wrapper"
 #define MPI_INIT_LIST_FBIND_PREF "pmpi_init_"
 #define MPI_INIT_LIST_FBIND      "mpi_init_:MPI_INIT"
+
+#define MPI_INIT_THREAD_WRAPPER_CBIND   "MPI_Init_thread_pebil_wrapper"
+#define MPI_INIT_THREAD_LIST_CBIND_PREF "PMPI_Init_thread"
+#define MPI_INIT_THREAD_LIST_CBIND      "MPI_Init_thread"
+
+#define MPI_INIT_THREAD_WRAPPER_FBIND   "mpi_init_thread__pebil_wrapper"
+#define MPI_INIT_THREAD_LIST_FBIND_PREF "pmpi_init_"
+#define MPI_INIT_THREAD_LIST_FBIND      "mpi_init_thread:MPI_INIT_THREAD"
 
 #define DYNAMIC_INST_INIT "tool_dynamic_init"
 
@@ -620,6 +629,8 @@ void InstrumentationTool::declare(){
 #ifdef HAVE_MPI
     initWrapperC = declareFunction(MPI_INIT_WRAPPER_CBIND);
     initWrapperF = declareFunction(MPI_INIT_WRAPPER_FBIND);
+    initTWrapperC = declareFunction(MPI_INIT_THREAD_WRAPPER_CBIND);
+    initTWrapperF = declareFunction(MPI_INIT_THREAD_WRAPPER_FBIND);
     ASSERT(initWrapperC && "Cannot find MPI_Init function, are you sure it was declared?");
     ASSERT(initWrapperF && "Cannot find MPI_Init function, are you sure it was declared?");
 #endif //HAVE_MPI
@@ -801,6 +812,30 @@ void InstrumentationTool::instrument(){
         initFound++;
     }
     delete mpiInitCalls;
+
+    // wrap any call to MPI_Init_thread
+    mpiInitCalls = findAllCalls(MPI_INIT_THREAD_LIST_CBIND_PREF);
+    initTWrapperC->setSkipWrapper();
+    for (uint32_t i = 0; i < (*mpiInitCalls).size(); i++){
+        ASSERT((*mpiInitCalls)[i]->isFunctionCall());
+        ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
+        PRINT_INFOR("Adding MPI_Init_thread wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initTWrapperC, InstrumentationMode_tramp, InstLocation_replace);
+        initFound++;
+    }
+    delete mpiInitCalls;
+
+    mpiInitCalls = findAllCalls(MPI_INIT_THREAD_LIST_FBIND_PREF);
+    initWrapperF->setSkipWrapper();
+    for (uint32_t i = 0; i < (*mpiInitCalls).size(); i++){
+        ASSERT((*mpiInitCalls)[i]->isFunctionCall());
+        ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
+        PRINT_INFOR("Adding mpi_init_thread_ wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initTWrapperF, InstrumentationMode_tramp, InstLocation_replace);
+        initFound++;
+    }
+    delete mpiInitCalls;
+
     if (initFound){
         PRINT_INFOR("MPI Profile library calls found, skipping regular...");
         return;
@@ -825,6 +860,28 @@ void InstrumentationTool::instrument(){
         ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
         PRINT_INFOR("Adding mpi_init_ wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
         InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initWrapperF, InstrumentationMode_tramp, InstLocation_replace);
+        initFound++;
+    }
+    delete mpiInitCalls;
+
+    mpiInitCalls = findAllCalls(MPI_INIT_THREAD_LIST_CBIND);
+    initTWrapperC->setSkipWrapper();
+    for (uint32_t i = 0; i < (*mpiInitCalls).size(); i++){
+        ASSERT((*mpiInitCalls)[i]->isFunctionCall());
+        ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
+        PRINT_INFOR("Adding MPI_Init_thread wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initTWrapperC, InstrumentationMode_tramp, InstLocation_replace);
+        initFound++;
+    }
+    delete mpiInitCalls;
+
+    mpiInitCalls = findAllCalls(MPI_INIT_THREAD_LIST_FBIND);
+    initTWrapperF->setSkipWrapper();
+    for (uint32_t i = 0; i < (*mpiInitCalls).size(); i++){
+        ASSERT((*mpiInitCalls)[i]->isFunctionCall());
+        ASSERT((*mpiInitCalls)[i]->getSizeInBytes() == Size__uncond_jump);
+        PRINT_INFOR("Adding mpi_init_ wrapper @ %#llx", (*mpiInitCalls)[i]->getBaseAddress());
+        InstrumentationPoint* pt = addInstrumentationPoint((*mpiInitCalls)[i], initTWrapperF, InstrumentationMode_tramp, InstLocation_replace);
         initFound++;
     }
     delete mpiInitCalls;

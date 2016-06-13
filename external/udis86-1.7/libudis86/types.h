@@ -200,6 +200,7 @@ struct ud
   uint8_t 		pfx_insn;
   uint8_t               pfx_avx;
   uint8_t               avx_vex[2];
+  uint8_t               pfx_size;
   uint8_t               mvex[3];
   enum ud_type          vector_mask_register;
   uint8_t               conversion;

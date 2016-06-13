@@ -26,6 +26,7 @@
 #include <LinkedList.h>
 #include <Vector.h>
 #include <map>
+#include <string>
 
 class BasicBlock;
 class Block;
@@ -55,6 +56,7 @@ public:
     uint32_t getNumberOfInstructions();
     TextSection* getTextSection();
     void print();
+    std::string toDot();
     uint32_t getIndex();
     Function* getFunction() { return function; }
     void connectGraph(BasicBlock* entry);

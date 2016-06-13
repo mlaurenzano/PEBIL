@@ -137,8 +137,10 @@ static bool mergeStates(struct RegisterStatePrediction* oldState, struct Registe
 }
 
 static RuntimeValue getValueOfOperand(OperandX86* src, RegisterStatePrediction* item) {
+	RuntimeValue tmpValue;
     if(src->getType() == UD_OP_IMM)
-        return {Definitely, src->getValue()};
+        //return {Definitely, src->getValue()};
+        return tmpValue;
     else if(src->getType() == UD_OP_REG) {
         if(item->state.find(getRegId(src->GET(base))) != item->state.end()) {
             RuntimeValue val = item->state[getRegId(src->GET(base))];
@@ -146,7 +148,8 @@ static RuntimeValue getValueOfOperand(OperandX86* src, RegisterStatePrediction* 
         }
     }
 
-    return {Unknown, 0};
+    //return {Unknown, 0};
+    return tmpValue;
 }
 
 // Determine the values of vector mask registers for all instructions
@@ -185,7 +188,7 @@ void FlowGraph::computeVectorMasks(){
     struct RegisterStatePrediction* first = new RegisterStatePrediction();
     first->ins = firstIns;
     first->idx = 0;
-    first->state[getRegId(UD_R_K0)] = {Definitely, 0xFFFF};
+    //first->state[getRegId(UD_R_K0)] = {Definitely, 0xFFFF};
     worklist.insert(first, 0);
 
     // Initialize worklist with first instruction
@@ -217,7 +220,7 @@ void FlowGraph::computeVectorMasks(){
         // Set the mask register value
         // if mask register is k0, hardwired to 0xffff
         if(ins->GET(vector_mask_register) == UD_R_K0) {
-            ins->setKRegister({Definitely, 0xffff});
+            //ins->setKRegister({Definitely, 0xffff});
 
         // otherwise search in input state
         } else if(ins->GET(vector_mask_register) != 0) {
@@ -243,7 +246,7 @@ void FlowGraph::computeVectorMasks(){
                     value = nextItem->stack.top();
                     nextItem->stack.pop();
                 } else {
-                    value = {Unknown, 0};
+                    //value = {Unknown, 0};
                 }
 
             }
@@ -254,7 +257,7 @@ void FlowGraph::computeVectorMasks(){
                 {
                     RuntimeValue oldval = nextItem->state[getRegId(dest->GET(base))];
                     if(oldval.confidence == Definitely) {
-                        value = {Definitely, oldval.value + 1};
+                        //value = {Definitely, oldval.value + 1};
                     }
                     break;
                 }
@@ -263,9 +266,9 @@ void FlowGraph::computeVectorMasks(){
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                     RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
                     if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
-                        value = {Definitely, srcVal.value & oldVal.value};
+                        //value = {Definitely, srcVal.value & oldVal.value};
                     } else {
-                        value = {Unknown, 0};
+                        //value = {Unknown, 0};
                     }
                     break;
                 }
@@ -274,9 +277,9 @@ void FlowGraph::computeVectorMasks(){
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                     RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
                     if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
-                        value = {Definitely, srcVal.value & (~oldVal.value)};
+                        //value = {Definitely, srcVal.value & (~oldVal.value)};
                     } else {
-                        value = {Unknown, 0};
+                        //value = {Unknown, 0};
                     }
                     break;
                 }
@@ -285,9 +288,9 @@ void FlowGraph::computeVectorMasks(){
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                     RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
                     if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
-                        value = {Definitely, (~srcVal.value) & oldVal.value};
+                        //value = {Definitely, (~srcVal.value) & oldVal.value};
                     } else {
-                        value = {Unknown, 0};
+                        //value = {Unknown, 0};
                     }
                     break;
                 }
@@ -300,9 +303,9 @@ void FlowGraph::computeVectorMasks(){
                     OperandX86* src = ins->getSourceOperand(1); // FIXME pretending to have two source operands
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                     if(srcVal.confidence == Definitely){
-                        value = {Definitely, ~srcVal.value};
+                        //value = {Definitely, ~srcVal.value};
                     } else {
-                        value = {Unknown, 0};
+                        //value = {Unknown, 0};
                     }
                     break;
                 }
@@ -311,9 +314,9 @@ void FlowGraph::computeVectorMasks(){
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                     RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
                     if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
-                        value = {Definitely, srcVal.value | oldVal.value };
+                        //value = {Definitely, srcVal.value | oldVal.value };
                     } else {
-                        value = {Unknown, 0};
+                        //value = {Unknown, 0};
                     }
 
                 }
@@ -323,11 +326,11 @@ void FlowGraph::computeVectorMasks(){
                     RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                     RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
                     if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
-                        value = {Definitely, ~(srcVal.value ^ oldVal.value) };
+                        //value = {Definitely, ~(srcVal.value ^ oldVal.value) };
                     } else if(src->GET(base) == dest->GET(base)){
-                        value = {Definitely, 0xFFFF};
+                        //value = {Definitely, 0xFFFF};
                     } else {
-                        value = {Unknown, 0};
+                        //value = {Unknown, 0};
                     }
                 }
                 case UD_Ikxor:
@@ -335,14 +338,14 @@ void FlowGraph::computeVectorMasks(){
                 {
                     OperandX86* src = ins->getSourceOperand(1);
                     if(src->getType() == UD_OP_REG && dest->GET(base) == src->GET(base)) {
-                        value = {Definitely, 0};
+                        //value = {Definitely, 0};
                     } else {
                         RuntimeValue srcVal = getValueOfOperand(src, nextItem);
                         RuntimeValue oldVal = nextItem->state[getRegId(dest->GET(base))];
                         if(srcVal.confidence == Definitely && oldVal.confidence == Definitely){
-                            value = {Definitely, srcVal.value ^ oldVal.value};
+                          //  value = {Definitely, srcVal.value ^ oldVal.value};
                         } else {
-                            value = {Unknown, 0};
+                            //value = {Unknown, 0};
                         }
                     }
                     break;
@@ -359,30 +362,30 @@ void FlowGraph::computeVectorMasks(){
 
                         uint8_t cmpOp = (*sources)[2]->getValue();
 
-                        switch(cmpOp) {
+                       // switch(cmpOp) {
 
-                        // eq, le, nlt
-                        case 0:
-                        case 2:
-                        case 5: value = {Definitely, 0xFF}; break;
+                       // // eq, le, nlt
+                       // case 0:
+                       // case 2:
+                       // case 5: //value = {Definitely, 0xFF}; break;
 
-                        // lt, ne, nle
-                        case 1:
-                        case 4:
-                        case 6: value = {Definitely, 0}; break;
+                       // // lt, ne, nle
+                       // case 1:
+                       // case 4:
+                       // case 6: //value = {Definitely, 0}; break;
 
-                        case 3: // FIXME Unord
-                        case 7: // ord
-                        default:
-                            value = {Unknown, 0};
-                        }
+                       // case 3: // FIXME Unord
+                       // case 7: // ord
+                       // default:
+                       //     //value = {Unknown, 0};
+                       // }
                     } else {
-                        value = {Unknown, 0};
+                        //value = {Unknown, 0};
                     }
                     break;
                 }
                 default:
-                    value = {Unknown, 0};
+                    //value = {Unknown, 0};
                     break;
                 }
             }
@@ -396,7 +399,7 @@ void FlowGraph::computeVectorMasks(){
             RuntimeValue value;
             OperandX86* src = ins->getSourceOperand(0);
             if(src == NULL) {
-                value = {Unknown, 0};
+                //value = {Unknown, 0};
                 //fprintf(stderr, "Pushing unknown onto stack\n");
             } else {
                 value = getValueOfOperand(src, nextItem);
@@ -1484,6 +1487,20 @@ void FlowGraph::print(){
     for (uint32_t i = 0; i < loops.size(); i++){
         //        loops[i]->print();
     }
+}
+
+std::string FlowGraph::toDot() {
+    string retval;
+    retval = "digraph " + string(function->getName()) + " {\n";
+    for(uint32_t i = 0; i < basicBlocks.size(); ++i) {
+        BasicBlock* b = basicBlocks[i];
+        for(uint32_t j = 0; j < b->getNumberOfTargets(); ++j) {
+            BasicBlock* bt = b->getTargetBlock(j);
+            retval += b->toDot() + " -> " + bt->toDot() + ";\n";
+        }
+    }
+    retval += "}\n";
+    return retval;
 }
 
 BitSet<BasicBlock*>* FlowGraph::newBitSet() { 

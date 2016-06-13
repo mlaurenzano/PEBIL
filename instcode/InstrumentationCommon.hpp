@@ -144,8 +144,8 @@ typedef struct {
     uint64_t id;
     uint64_t data;
 } ThreadData;
-#define ThreadHashShift (17)
-#define ThreadHashMod   (0xffff)
+#define ThreadHashShift (12)
+#define ThreadHashMod   (0x3ffff)
 
 
 // handling of different initialization/finalization events
@@ -538,19 +538,19 @@ private:
         td[actual].data = (uint64_t)dataref(d);
 
         if (typ == ImageType){
-            inform << "Image " << hex << iid << " thread " << tid;
+            warn << "Image " << hex << iid << " thread " << tid;
         } else {
-            inform << "Thread " << hex << tid << " image " << iid;
+            warn << "Thread " << hex << tid << " image " << iid;
         }
-        cout
-            << " setting up thread data at index "
+        warn
+            << " setting up thread data for " << tid << " at index "
             << dec << actual << TAB << hex << td << "(" << GetThreadSequence(tid) << ")"
             << " -> " << hex << td[actual].data
             << endl;
 
         // just fail if there was a collision. it makes writing tools much easier so we see how well this works for now
         if (actual != h){
-            warn << "Collision placing thread-specific data: slot " << dec << h << " already taken" << ENDL;
+            warn << "Collision placing thread-specific data for " << tid << ": slot " << dec << h << " already taken" << ENDL;
         }
         assert(actual == h);
         return td[actual].data;
@@ -1038,8 +1038,61 @@ extern void pmpi_init_(int*);
 void __give_pebil_name(mpi_init_)(int* ierr){
 #else
 void __wrapper_name(mpi_init_)(int* ierr){
+  fprintf(stderr, "PEBIL calling pmpi_init\n");
 #ifdef HAVE_MPI
     pmpi_init_(ierr);
+#endif
+#endif // USES_PSINSTRACER
+  fprintf(stderr, "PEBIL called pmpi_init\n");
+
+#ifdef HAVE_MPI
+    PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
+    PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
+
+    MpiValid = true;
+#endif
+
+    fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks);
+    tool_mpi_init();
+}
+
+// C init wrapper
+#ifdef USES_PSINSTRACER
+int __give_pebil_name(MPI_Init_thread)(int* argc, char*** argv, int required, int* provided){
+    int retval = 0;
+#else
+int __wrapper_name(MPI_Init_thread)(int* argc, char*** argv, int required, int* provided){
+
+#ifdef HAVE_MPI
+    int retval = PMPI_Init_thread(argc, argv, required, provided);
+#else
+    int retval = 0;
+#endif
+#endif // USES_PSINSTRACER
+
+#ifdef HAVE_MPI
+    PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
+    PMPI_Comm_size(MPI_COMM_WORLD, &__ntasks);
+
+    MpiValid = true;
+#endif
+
+    fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
+    tool_mpi_init();
+
+    return retval;
+}
+
+#ifdef HAVE_MPI
+extern void pmpi_init_thread_(int*, int*, int*);
+#endif
+
+#ifdef USES_PSINSTRACER
+void __give_pebil_name(mpi_init_thread_)(int* required, int* provided, int* ierr){
+#else
+void __wrapper_name(mpi_init_thread_)(int* required, int* provided, int* ierr){
+#ifdef HAVE_MPI
+    pmpi_init_thread_(required, provided, ierr);
 #endif
 #endif // USES_PSINSTRACER
 
@@ -1053,7 +1106,7 @@ void __wrapper_name(mpi_init_)(int* ierr){
     fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks);
     tool_mpi_init();
 }
-};
+}; // END extern C
 
 #endif //_InstrumentationCommon_hpp_
 

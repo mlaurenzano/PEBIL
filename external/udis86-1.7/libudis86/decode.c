@@ -143,11 +143,13 @@ static void decode_vex(struct ud* u)
         uint8_t v2 = u->avx_vex[1];
         u->pfx_rex = VEX_REX_DEF(VEX_REXB(v2), VEX_REXX(v2), VEX_REXR(v2), VEX_REXW(vex));
         PEBIL_DEBUG("vex C4 rex prefix %#hhx(b), %#hhx(x), %#hhx(r), %#hhx(w), full %hhu", VEX_REXB(v2), VEX_REXX(v2), VEX_REXR(v2), VEX_REXW(vex), u->pfx_rex);
+        u->pfx_size = VEX_L(vex);
 
         /* 1-byte form */
     } else if (u->pfx_insn == 0xC5){
         u->pfx_rex = VEX_REX_DEF(0, 0, VEX_REXR(vex), 0);
         PEBIL_DEBUG("vex C5 rex prefix %#hhx(b), %#hhx(x), %#hhx(r), %#hhx(w), full %hhu", 0, 0, VEX_REXR(vex), 0, u->pfx_rex);
+        u->pfx_size = VEX_L(vex);
     }
 }
 
@@ -569,6 +571,8 @@ static int search_itab( struct ud * u )
             }
         } else {
             PEBIL_DEBUG("VEX.MMMMM field is %hhx", VEX_M5(u->avx_vex[1]));
+                    //gen_hex(u);
+                    //PEBIL_WARN(" hex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3]);
 
             switch((VEX_M5(u->avx_vex[1]) << 8) | (u->pfx_avx)) {
                 /* */
@@ -584,7 +588,9 @@ static int search_itab( struct ud * u )
                 case 0x0266: tableid = ITAB__AVX__PFX_SSE66__0F__OP_0F__3BYTE_38__REG; break;
                 case 0x02F2: tableid = ITAB__AVX__PFX_SSEF2__0F__OP_0F__3BYTE_38__REG; break;
                 case 0x02F3: tableid = ITAB__AVX__PFX_SSEF3__0F__OP_0F__3BYTE_38__REG; break;
-                case 0x0200: assert(0);//tableid = ITAB__AVX_C4__0F__OP_0F__3BYTE_38__REG;
+                //case 0x0200: assert(0);//tableid = ITAB__AVX_C4__0F__OP_0F__3BYTE_38__REG;
+                //case 0x0200: tableid = ITAB__AVX_C4__0F__OP_0F__3BYTE_38__REG;
+                case 0x0200: tableid = ITAB__AVX__0F__OP___3BYTE_38__REG;
                     break;
 
                 /* 0F 3A */
@@ -614,6 +620,8 @@ static int search_itab( struct ud * u )
             PEBIL_DEBUG("avx mnemonic found %s", ud_mnemonics_str[ud_itab_list[ tableid ][ curr ].mnemonic]);
             table = tableid;
             u->pfx_opr = 0;
+	    gen_hex(u);
+            PEBIL_DEBUG(" AChex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3]);
         } else {
             PEBIL_WARN("found invalid avx: %d, %d\n", tableid, curr);
             gen_hex(u);
@@ -635,7 +643,7 @@ static int search_itab( struct ud * u )
 
         int tableid = 0xdeadbeef;
         switch((MVEX_M4(u->mvex[0]) << 8) | (u->pfx_avx)) {
-            case 0x0000: assert(0); // scalar mask instructions
+            case 0x0000: gen_hex(u); PEBIL_DEBUG(" AChex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3]); assert(0); // scalar mask instructions
 
             // 0F
             case 0x0166: tableid = ITAB__MVEX__PFX_SSE66__0F; break;
@@ -823,6 +831,10 @@ static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
         if(u->mnemonic != UD_Ifnop &&
            u->mnemonic != UD_Inop) {
             //fprintf(stderr, "Unknown operand size of instruction %s\n", ud_lookup_mnemonic(u->mnemonic));
+        }
+        if(u->avx_vex[0]) {
+            if(u->pfx_size) return 256;
+            else return 128;
         }
         return s;
     case SZ_V:

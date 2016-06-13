@@ -27,6 +27,8 @@
 #include <X86InstructionFactory.h>
 #include <Instrumentation.h>
 
+#include <sstream>
+
 static const char* bytes_not_instructions = "<_pebil_unreachable_text>";
 
 X86Instruction* BasicBlock::findBestInstPoint(InstLocations* loc, BitSet<uint32_t>* validRegs, BitSet<uint32_t>* useRegs, bool attendFlags){
@@ -287,7 +289,11 @@ uint32_t BasicBlock::getNumberOfStringOps(){
 uint32_t BasicBlock::getNumberOfMemoryOps(){
     uint32_t memCount = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){
-        if (instructions[i]->isMemoryOperation()){
+       // if (instructions[i]->isMemoryOperation()){
+        if(instructions[i]->isLoad()){
+            memCount++;
+        }
+        if(instructions[i]->isStore()){
             memCount++;
         }
     }
@@ -1064,6 +1070,31 @@ void BasicBlock::print(){
         PRINT_OUT("\n");
     }
     //    printInstructions();
+}
+
+std::string BasicBlock::toDot()
+{
+    std::stringstream ss;
+    ss << std::hex << getBaseAddress();
+
+    std::string name = "x" + ss.str();
+
+    std::string retval = name + ";";
+    if(getExitInstruction()->isReturn()) {
+        retval += name + " [shape=box];";
+    }
+    for(uint32_t i = 0; i < instructions.size(); ++i) {
+        if(instructions[i]->isCall()) {
+            if(getFunction()->inRange(instructions[i]->getTargetAddress())) {
+                retval += name + " [color=red];";
+                break;
+            } else {
+                retval += name + " [color=green];";
+            }
+        }
+    }
+    retval += name;
+    return retval;
 }
 
 bool BasicBlock::verify(){

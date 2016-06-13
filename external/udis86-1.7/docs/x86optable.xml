@@ -3632,11 +3632,11 @@ MAL MISSING PRE SSE?
     <opcode> aso rexr rexx rexb vexlz; avxC4 sse66 0f /3byte=38 f7 ; V W X ; ; </opcode>
   </instruction>
 
-  <!-- These are incomplete and need correcting FIXME
   <instruction mnemonic="andn">
     <opcode> aso rexr rexx rexb vexlz ; avxC4 0f /3byte=38 f2 ; V X W ; ; </opcode>
   </instruction>
 
+  <!-- These are incomplete and need correcting FIXME
 
 
   <instruction mnemonic="blsi">
@@ -4533,14 +4533,25 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vpermd">
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 36 /W=0 ; Vx X Wx ; ; </opcode>
     <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 36 /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpermq">
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=3A 00 /W=1 ; Vx Wx Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpermf32x4">
     <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 07 /W=0 ; ZR ZRM Ib ; ; </opcode>
   </instruction>
 
+  <instruction mnemonic="vperm2i128">
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=3A 46 /W=0 ; Vx X Wx Ib ; ; </opcode>
+  </instruction>
+
   <instruction mnemonic="vpgatherdd">
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 90 /W=0 ; V W X ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 91 /W=0 ; V W X ; ; </opcode>
     <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 90 /W=0 ; ZR ZM ; ; </opcode>
   </instruction>
 
@@ -4558,6 +4569,11 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="vpmaxsd">
     <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 3D /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpmaskmovd">
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 8C /W=0 ; Vx X Wx ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 8E /W=0 ; Wx X Vx ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpmaxud">

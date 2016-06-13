@@ -191,7 +191,7 @@ void RelocationTable::setSymbolTable(){
     
     RawSection* sy = elfFile->getRawSection(sh->GET(sh_link));
 
-    ASSERT(sy->getType() == PebilClassType_SymbolTable);
+   // ASSERT(sy->getType() == PebilClassType_SymbolTable);
     symbolTable = (SymbolTable*)sy;
 }
 

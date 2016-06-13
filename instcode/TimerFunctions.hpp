@@ -1,6 +1,7 @@
 
 #ifndef _TimerFunctions_hpp_
 #define _TimerFunctions_hpp_
+#include <sys/time.h>
 
 typedef struct {
     bool master;
@@ -11,6 +12,8 @@ typedef struct {
     uint64_t* functionTimerAccum;
     uint64_t* functionTimerLast;
     uint32_t* inFunction;
+    uint64_t appTimeStart;
+    struct timeval appTimeOfDayStart;
 } FunctionTimers;
 
 #endif
