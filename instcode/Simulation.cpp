@@ -424,8 +424,9 @@ extern "C" {
 
 #define DONE_WITH_BUFFER(...)                   \
         BUFFER_CURRENT(stats) = 0;                                      \
-        bzero(BUFFER_ENTRY(stats, 0), sizeof(BufferEntry) * BUFFER_CAPACITY(stats)); \
         return NULL;
+        //bzero(BUFFER_ENTRY(stats, 0), sizeof(BufferEntry) * BUFFER_CAPACITY(stats)); \
+        //return NULL;
 
         assert(iid);
         if (AllData == NULL){
@@ -502,7 +503,11 @@ extern "C" {
                 for (uint32_t j = 0; j < numElements; j++){
                     SimulationStats* s = faststats[j];
                     BufferEntry* reference = BUFFER_ENTRY(s, j);
-                    debug(inform << "Memseq " << dec << reference->memseq << " has " << s->Stats[0]->GetAccessCount(reference->memseq) << ENDL);
+
+                    debug(inform << "Memseq " << dec << reference->memseq
+                          << " has " << s->Stats[0]->GetAccessCount(reference->memseq)
+                          << ENDL);
+
                     uint32_t bbid = s->BlockIds[reference->memseq];
 
                     // if max block count is reached, disable all buffer-related points related to this block
@@ -522,8 +527,10 @@ extern "C" {
                           << TAB << "Counter " << s->Counters[bbid]
                           << TAB << "Real " << s->Counters[idx]
                           << ENDL);
-                    uint64_t groupidx = stats->GroupIds[bbid] ;
-                    if (Sampler->ExceedsAccessLimit(s->Counters[idx]) || (Sampler->ExceedsAccessLimit( stats->NLStats[groupidx].GroupCount )) ){
+
+                    uint64_t groupidx = stats->GroupIds[bbid];
+                    if (Sampler->ExceedsAccessLimit(s->Counters[idx])
+                    || (Sampler->ExceedsAccessLimit(stats->NLStats[groupidx].GroupCount)) ){
 
                         uint64_t k1 = GENERATE_KEY(midx, PointType_buffercheck);
                         uint64_t k2 = GENERATE_KEY(midx, PointType_bufferinc);
@@ -1943,6 +1950,8 @@ uint64_t CacheLevel::GetStorage(uint64_t addr){
 }
 
 uint32_t CacheLevel::GetSet(uint64_t store){
+    //if(size == 32768) return store % 64;
+    //else if(size == 262144) return store % 512; // FIXME
     return (store % countsets);
 }
 

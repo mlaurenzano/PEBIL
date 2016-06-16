@@ -277,6 +277,19 @@ public:
     uint32_t GetLineSize() { return linesize; }
     uint64_t CountColdMisses();
 
+    void Print(ofstream& f, uint32_t sysid);
+
+    // re-implemented by Exclusive/InclusiveCacheLevel
+    virtual uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,bool* anyEvict,void* info);
+    virtual uint32_t EvictProcess(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,void* info);    
+
+    virtual void EvictDirty(CacheStats* stats,CacheLevel** levels,uint32_t memid,void* info); // void* info is needed since eventually 'Process' needs to be called! 
+    virtual bool GetEvictStatus();
+
+    vector<uint64_t>* passEvictAddresses() { return toEvictAddresses;}
+
+protected:
+
     uint64_t GetStorage(uint64_t addr);
     uint64_t GetAddress(uint64_t store);
     uint32_t GetSet(uint64_t addr);
@@ -284,16 +297,11 @@ public:
     bool MultipleLines(uint64_t addr, uint32_t width);
 
     void MarkUsed(uint32_t setid, uint32_t lineid,uint64_t loadstoreflag);
-    void Print(ofstream& f, uint32_t sysid);
-    vector<uint64_t>* passEvictAddresses() { return toEvictAddresses;}
 
     // re-implemented by HighlyAssociativeCacheLevel
     virtual bool Search(uint64_t addr, uint32_t* set, uint32_t* lineInSet);
     virtual uint64_t Replace(uint64_t addr, uint32_t setid, uint32_t lineid,uint64_t loadstoreflag);
 
-    // re-implemented by Exclusive/InclusiveCacheLevel
-    virtual uint32_t Process(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,bool* anyEvict,void* info);
-    virtual uint32_t EvictProcess(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,void* info);    
     virtual const char* TypeString() = 0;
     virtual void Init (CacheLevel_Init_Interface);
     
@@ -301,9 +309,6 @@ public:
     virtual void SetDirty(uint32_t setid, uint32_t lineid,uint64_t store);
     virtual void ResetDirty(uint32_t setid, uint32_t lineid,uint64_t store);
     virtual bool GetDirtyStatus(uint32_t setid, uint32_t lineid,uint64_t store);
-    virtual void EvictDirty(CacheStats* stats,CacheLevel** levels,uint32_t memid,void* info); // void* info is needed since eventually 'Process' needs to be called! 
-    virtual bool GetEvictStatus();
-
 };
 
 class InclusiveCacheLevel : public virtual CacheLevel {
