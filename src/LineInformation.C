@@ -105,9 +105,9 @@ LineInfo* LineInfoFinder::lookupLineInfo(uint64_t addr){
     if (!sortedLineInfos.size()){
         return NULL;
     }
-    void* res = bsearch(&addr,&sortedLineInfos,sortedLineInfos.size(),sizeof(LineInfo*),searchLineInfoAddress);
+    void* res = bsearch(&addr,sortedLineInfos.array(),sortedLineInfos.size(),sizeof(LineInfo*),searchLineInfoAddress);
     if (res){
-        uint32_t ridx = (((char*)res)-((char*)&sortedLineInfos))/sizeof(LineInfo*);
+        uint32_t ridx = (((char*)res)-((char*)(sortedLineInfos.array())))/sizeof(LineInfo*);
         return sortedLineInfos[ridx];
     }
     return NULL;
@@ -163,7 +163,7 @@ LineInfoFinder::LineInfoFinder(DwarfLineInfoSection* dwarf){
     }
 
     PRINT_DEBUG_LINEINFO("Using %d lineinfos", sortedLineInfos.size());
-    qsort(&sortedLineInfos,sortedLineInfos.size(),sizeof(LineInfo*),compareLineInfoAddress);    
+    qsort(sortedLineInfos.array(),sortedLineInfos.size(),sizeof(LineInfo*),compareLineInfoAddress);    
 
     for (uint32_t i = 0; i < sortedLineInfos.size()-1; i++){
         sortedLineInfos[i]->setAddressSpan(sortedLineInfos[i+1]->GET(lr_address)-sortedLineInfos[i]->GET(lr_address));

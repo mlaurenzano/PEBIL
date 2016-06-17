@@ -372,8 +372,7 @@ bool ElfFileInst::isDisabledFunction(Function* func){
     return false ^ white;
 }
 
-uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, void* data){
-    char* bytes = (char*)data;
+uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, const void* data){
 
     if (address + size > getInstDataAddress() + usableDataOffset ||
         address < getInstDataAddress()){
@@ -383,7 +382,7 @@ uint32_t ElfFileInst::initializeReservedData(uint64_t address, uint32_t size, vo
     ASSERT(address + size <= getInstDataAddress() + usableDataOffset && address >= getInstDataAddress() &&
            "Data initialization address out of range, you should reserve the data first");
 
-    memcpy(instrumentationData + address - getInstDataAddress(), bytes, size);
+    memcpy(instrumentationData + address - getInstDataAddress(), data, size);
 
     return size;
 }
@@ -1211,7 +1210,7 @@ void ElfFileInst::phasedInstrumentation(){
 
     // creates space for extra elf control info (symbols, dynamic table entries, hash entries, etc)
     extendTextSection(TEXT_EXTENSION_INC, INSTHDR_RESERVE_AMT);
-
+ 
     ASSERT(currentPhase == ElfInstPhase_extend_space && "Instrumentation phase order must be observed");
     currentPhase++;
     ASSERT(currentPhase == ElfInstPhase_user_declare && "Instrumentation phase order must be observed");

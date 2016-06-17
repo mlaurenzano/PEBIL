@@ -422,7 +422,7 @@ Vector<X86Instruction*>* Function::digestRecursive(){
     while (!unprocessed.empty() && !getBadInstruction()){
         currentAddress = unprocessed.pop();
 
-        void* inst = bsearch(&currentAddress, &(*allInstructions), (*allInstructions).size(), sizeof(X86Instruction*), searchBaseAddress);
+        void* inst = bsearch(&currentAddress, allInstructions->array(), allInstructions->size(), sizeof(X86Instruction*), searchBaseAddress);
         if (inst){
             X86Instruction* tgtInstruction = *(X86Instruction**)inst;
             ASSERT(tgtInstruction->getBaseAddress() == currentAddress && "Problem in disassembly -- found instruction that enters the middle of another instruction");
@@ -441,12 +441,12 @@ Vector<X86Instruction*>* Function::digestRecursive(){
             setBadInstruction(currentInstruction->getBaseAddress());
         }
 
-        (*allInstructions).insertSorted(currentInstruction,compareBaseAddress);
+        allInstructions->insertSorted(currentInstruction,compareBaseAddress);
 
         // make sure the targets of this branch have not been processed yet
         uint64_t fallThroughAddr = currentInstruction->getBaseAddress() + currentInstruction->getSizeInBytes();
         PRINT_DEBUG_CFG("\tChecking FTaddr %#llx", fallThroughAddr);
-        void* fallThrough = bsearch(&fallThroughAddr,&(*allInstructions),(*allInstructions).size(),sizeof(X86Instruction*),searchBaseAddress);
+        void* fallThrough = bsearch(&fallThroughAddr, allInstructions->array(), allInstructions->size(),sizeof(X86Instruction*),searchBaseAddress);
         if (!fallThrough){
             if (currentInstruction->controlFallsThrough()){
                 PRINT_DEBUG_CFG("\t\tpushing %#llx", fallThroughAddr);
@@ -482,7 +482,7 @@ Vector<X86Instruction*>* Function::digestRecursive(){
         for (uint32_t i = 0; i < (*controlTargetAddrs).size(); i++){
             uint64_t controlTargetAddr = (*controlTargetAddrs)[i];
             PRINT_DEBUG_CFG("\tChecking CTaddr %#llx", controlTargetAddr);
-            void* controlTarget = bsearch(&controlTargetAddr,&(*allInstructions),(*allInstructions).size(),sizeof(X86Instruction*),searchBaseAddress);
+            void* controlTarget = bsearch(&controlTargetAddr, allInstructions->array(),allInstructions->size(),sizeof(X86Instruction*),searchBaseAddress);
             if (!controlTarget){
                 if (inRange(controlTargetAddr)                 // target address is in this functions also
                     && controlTargetAddr != fallThroughAddr){  // target and fall through are the same, meaning the address is already pushed above
@@ -500,10 +500,10 @@ Vector<X86Instruction*>* Function::digestRecursive(){
         delete controlStorageAddrs;
     }
 
-    qsort(&(*allInstructions), (*allInstructions).size(), sizeof(X86Instruction*), compareBaseAddress);
+    qsort(allInstructions->array(), allInstructions->size(), sizeof(X86Instruction*), compareBaseAddress);
     //    ASSERT((*allInstructions).isSorted(compareBaseAddress));
 
-    for (uint32_t i = 0; i < (*allInstructions).size() - 1; i++){
+    for (uint32_t i = 0; i < allInstructions->size() - 1; i++){
         if ((*allInstructions)[i]->getBaseAddress() + (*allInstructions)[i]->getSizeInBytes() >
             (*allInstructions)[i+1]->getBaseAddress()){
             setBadInstruction((*allInstructions)[i+1]->getBaseAddress());
@@ -511,7 +511,7 @@ Vector<X86Instruction*>* Function::digestRecursive(){
     }
 
     if (getBadInstruction()){
-        for (uint32_t i = 0; i < (*allInstructions).size(); i++){
+        for (uint32_t i = 0; i < allInstructions->size(); i++){
             delete (*allInstructions)[i];
         }
         delete allInstructions;
@@ -521,7 +521,7 @@ Vector<X86Instruction*>* Function::digestRecursive(){
         // in case the disassembler found an instruction that exceeds the function boundary, we will
         // reduce the size of the last instruction accordingly so that the extra bytes will not be
         // used. This can happen when data is stored at the end of function code
-        X86Instruction* tail = (*allInstructions).back();
+        X86Instruction* tail = allInstructions->back();
         uint32_t currByte = tail->getBaseAddress() + tail->getSizeInBytes() - getBaseAddress();
         if ( currByte > sizeInBytes){
             uint32_t extraBytes = currByte - sizeInBytes;
@@ -547,11 +547,11 @@ uint32_t Function::generateCFG(Vector<X86Instruction*>* instructions, Vector<Add
     BasicBlock* entryBlock = NULL;
     uint32_t numberOfBasicBlocks = 0;
 
-    ASSERT((*instructions).size());
+    ASSERT(instructions->size());
 
     flowGraph = new FlowGraph(this);
 
-    PRINT_DEBUG_CFG("Building CFG for function %s -- have %d instructions", getName(), (*instructions).size());
+    PRINT_DEBUG_CFG("Building CFG for function %s -- have %d instructions", getName(), instructions->size());
 
     // find the block leaders
     (*instructions)[0]->setLeader(true);
@@ -559,7 +559,7 @@ uint32_t Function::generateCFG(Vector<X86Instruction*>* instructions, Vector<Add
     Vector<uint64_t> anchorAddrs;
     Vector<uint64_t> anchorInstrs;
     
-    for (uint32_t i = 0; i < (*instructions).size(); i++){
+    for (uint32_t i = 0; i < instructions->size(); i++){
         Vector<uint64_t>* controlTargetAddrs = new Vector<uint64_t>();
         Vector<uint64_t>* controlStorageAddrs = new Vector<uint64_t>();
         if ((*instructions)[i]->isJumpTableBase()){
@@ -607,7 +607,7 @@ uint32_t Function::generateCFG(Vector<X86Instruction*>* instructions, Vector<Add
 
     for (uint32_t i = 0; i < leaderAddrs.size(); i++){
         uint64_t tgtAddr = leaderAddrs[i];
-        void* inst = bsearch(&tgtAddr,&(*instructions),(*instructions).size(),sizeof(X86Instruction*),searchBaseAddress);
+        void* inst = bsearch(&tgtAddr,instructions->array(),instructions->size(),sizeof(X86Instruction*),searchBaseAddress);
         PRINT_DEBUG_CFG("Looking for leader addr %#llx", tgtAddr);
         if (inst){
             PRINT_DEBUG_CFG("\tFound it");
@@ -621,7 +621,7 @@ uint32_t Function::generateCFG(Vector<X86Instruction*>* instructions, Vector<Add
         }
     }
 
-    for (uint32_t i = 0; i < (*instructions).size(); i++){
+    for (uint32_t i = 0; i < instructions->size(); i++){
         if ((*instructions)[i]->isLeader()){
             currentBlock = new BasicBlock(numberOfBasicBlocks++,flowGraph);
             currentBlock->setBaseAddress((*instructions)[i]->getBaseAddress());

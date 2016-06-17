@@ -1313,7 +1313,7 @@ int compareLoopHeaderVaddr(const void* arg1,const void* arg2){
 }
 
 BasicBlock** FlowGraph::getAllBlocks(){
-    return &basicBlocks;
+    return basicBlocks.array();
 }
 
 uint32_t FlowGraph::buildLoops(){
@@ -1410,7 +1410,7 @@ uint32_t FlowGraph::buildLoops(){
         while (!loopList.empty()){
             loops.append(loopList.shift());
         }
-        qsort(&loops,loops.size(),sizeof(Loop*),compareLoopEntry);
+        qsort(loops.array(),loops.size(),sizeof(Loop*),compareLoopEntry);
         for (i=0; i < loops.size(); i++){
             loops[i]->setIndex(i);
         }
@@ -1483,10 +1483,6 @@ void FlowGraph::print(){
     }
 
     PRINT_INFOR("]");
-
-    for (uint32_t i = 0; i < loops.size(); i++){
-        //        loops[i]->print();
-    }
 }
 
 std::string FlowGraph::toDot() {

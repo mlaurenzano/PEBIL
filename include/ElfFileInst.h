@@ -234,7 +234,7 @@ public:
 
     uint64_t reserveDataOffset(uint64_t size);
     uint64_t reserveDataAddress(uint64_t size);
-    uint32_t initializeReservedData(uint64_t address, uint32_t size, void* data);
+    uint32_t initializeReservedData(uint64_t address, uint32_t size, const void* data);
     uint32_t initializeReservedPointer(uint64_t addr, uint64_t ptr);
 
     void functionSelect();

@@ -596,7 +596,7 @@ void InstrumentationTool::init(char* ext){
 }
 
 void InstrumentationTool::initToolArgs(bool lpi, bool dtl, bool doi, uint32_t phase, char* inp, char* dfp, char* trk){
-    loopIncl = true;
+    loopIncl = false;
     printDetail = true;
     doIntro = doi;
     phaseNo = phase;

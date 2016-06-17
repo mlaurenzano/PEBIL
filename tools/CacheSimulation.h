@@ -35,8 +35,22 @@ private:
     SimpleHash<NestedLoopStruct*> nestedLoopGrouping;
     SimpleHash<uint64_t> mapBBToGroupId;
 
-    void filterBBs();
+    Vector<Base*> allBlocks;
+    Vector<uint32_t> allBlockIds;
+    Vector<LineInfo*> allBlockLineInfos;
 
+    void filterBBs();
+    void includeLoopBlocks(BasicBlock*);
+    void instrumentEntryPoint();
+    void instrumentExitPoint();
+    void insertBlockCounterAndBufferClear(BasicBlock*,X86Instruction*,uint64_t,uint32_t,SimulationStats&,
+        uint64_t, uint64_t);
+    void instrumentMemop(Function*,BasicBlock*,X86Instruction*,uint64_t,uint64_t,uint32_t,SimulationStats&,
+        uint32_t, uint32_t,uint32_t,uint64_t,uint32_t,uint64_t);
+    void initializeLineInfo(SimulationStats&, Function*, BasicBlock*, uint32_t, uint64_t);
+    void writeStaticFile();
+
+    inline bool usePIC() { return isThreadedMode() || isMultiImage(); }
 public:
     CacheSimulation(ElfFile* elf);
     ~CacheSimulation();

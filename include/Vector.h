@@ -110,7 +110,7 @@ public:
         return x;
     }
 
-    inline T* operator&(){ return elements; }
+    inline T* array() { return elements; }
     uint32_t getCapacity() { return capacity; }
     uint32_t size() { return numberOfElements; }
     bool empty(){ return (numberOfElements == 0); }

@@ -1566,7 +1566,7 @@ Vector<AddressAnchor*>* ElfFile::searchAddressAnchors(uint64_t addr){
         (*addressAnchors).sort(compareLinkBaseAddress);
         anchorsAreSorted = true;
     }
-    AddressAnchor** allAnchors = &(*addressAnchors);
+    AddressAnchor** allAnchors = addressAnchors->array();
 
     PRINT_DEBUG_ANCHOR("Array is:");
     for (uint32_t i = 0; i < (*addressAnchors).size(); i++){

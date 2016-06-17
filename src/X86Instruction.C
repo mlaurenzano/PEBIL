@@ -1816,7 +1816,7 @@ uint64_t X86Instruction::findJumpTableBaseAddress(Vector<X86Instruction*>* funct
             for (uint32_t i = 0; i < (*functionInstructions).size(); i++){
                 allInstructions[i] = (*functionInstructions)[i];
             }
-            qsort(allInstructions,(*functionInstructions).size(),sizeof(X86Instruction*),compareBaseAddress);
+            qsort(allInstructions,functionInstructions->size(),sizeof(X86Instruction*),compareBaseAddress);
 
             // search backwards through instructions to find jump table base
             uint64_t prevAddr = baseAddress-1;
@@ -2376,7 +2376,8 @@ bool X86Instruction::verify(){
             }
         }
         if (op.index){
-            if (!IS_GPR(op.index)){
+            if (!IS_GPR(op.index) && !IS_ZMM_REG(op.index)){
+                print();
                 PRINT_ERROR("Found operand with nonsensical index %d", op.index);
                 return false;
             }
