@@ -108,7 +108,7 @@ void PrintReference(uint32_t id, BufferEntry* ref){
         << TAB << hex << ref->address
         << TAB << dec << ref->memseq
         << TAB << hex << ref->imageid
-        << TAB << hex << ref->threadid
+        //<< TAB << hex << ref->threadid
         << ENDL;
     cout.flush();
 }
@@ -272,8 +272,12 @@ extern "C" {
     }
 */
 
-  //  void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m, ReuseDistance* rd, ReuseDistance* sd, uint32_t numElements, image_key_t iid, thread_key_t tid)
-    static void ProcessBuffer(uint32_t HandlerIdx, MemoryStreamHandler* m,uint32_t numElements, image_key_t iid, thread_key_t tid){
+    static void ProcessBuffer(uint32_t HandlerIdx,
+                              MemoryStreamHandler* handler,
+                              uint32_t numElements,
+                              image_key_t iid,
+                              thread_key_t tid){
+
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
         uint32_t* resCacheProcess = new uint32_t[numElements];
@@ -297,11 +301,12 @@ extern "C" {
             // This happens when uninitialized threads make their way into instrumented code.
             // See the FIXME in DataManager::AddImage
             // skip processing the reference for now
-            if (reference->threadid != tid){
-                continue;
-            }
+            //if (reference->threadid != tid){
+            //    assert(0);
+            //    continue;
+            //}
 
-            resCur=m->Process((void*)ss, reference);
+            resCur = handler->Process((void*)ss, reference);
             resCacheProcess[bufcur] = resCur;
             numProcessed++;
         }
@@ -321,7 +326,9 @@ extern "C" {
                         debug(assert(AllData->CountThreads() > 1));
                         continue;
                     }
-                    // This happens when uninitialized threads make their way into instrumented code.  // See the FIXME in DataManager::AddImage  // skip processing the reference for now
+                    // This happens when uninitialized threads make their way into instrumented code.
+                    // See the FIXME in DataManager::AddImage
+                    // skip processing the reference for now
                     if (reference->threadid != tid){
                         continue;
                     }
@@ -353,23 +360,20 @@ extern "C" {
             }
          #endif
         delete[] resCacheProcess;
-        //assert(faststats[0]->Stats[HandlerIdx]->Verify());
     }
 
-    static void ProcessReuseBuffer(ReuseDistance* rd,uint32_t numElements, image_key_t iid, thread_key_t tid){
+    static void ProcessReuseBuffer(ReuseDistance* rd, uint32_t numElements, image_key_t iid, thread_key_t tid){
 
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
         uint32_t numProcessed = 0;
 
         SimulationStats** faststats = FastStats->GetBufferStats(tid);
-        //assert(faststats[0]->Stats[HandlerIdx]->Verify());
         uint32_t bufcur = 0;
         for (bufcur = 0; bufcur < numElements; bufcur++){
             debug(assert(faststats[bufcur]));
             debug(assert(faststats[bufcur]->Stats));
 
             SimulationStats* stats = faststats[bufcur];
-            //StreamStats* ss = stats->Stats[HandlerIdx];
 
             BufferEntry* reference = BUFFER_ENTRY(stats, bufcur);
 
@@ -377,46 +381,42 @@ extern "C" {
                 debug(assert(AllData->CountThreads() > 1));
                 continue;
             }
-            assert(reference->threadid == tid);
 
             ReuseEntry entry = ReuseEntry();
-            entry.id = stats->Hashes[stats->BlockIds[reference->memseq]]; // This is to track by BBID to track by memseq change to entry.id=reference->memseq;
+            entry.id = stats->Hashes[stats->BlockIds[reference->memseq]];
             entry.address=reference->address ;
             rd->Process(entry);
             numProcessed++;
         }
-    // assert(faststats[0]->Stats[HandlerIdx]->Verify());
     }
 
-    static void ProcessSpatialBuffer( ReuseDistance* sd,uint32_t numElements, image_key_t iid, thread_key_t tid){
-        uint32_t threadSeq = AllData->GetThreadSequence(tid);
-        uint32_t numProcessed = 0;
+    static void ProcessSpatialBuffer(ReuseDistance* sd, uint32_t numElements, image_key_t iid, thread_key_t tid){
+        ProcessReuseBuffer(sd, numElements, iid, tid);
 
-        SimulationStats** faststats = FastStats->GetBufferStats(tid);
-        //assert(faststats[0]->Stats[HandlerIdx]->Verify());
-        uint32_t bufcur = 0;
-        for (bufcur = 0; bufcur < numElements; bufcur++){
-            debug(assert(faststats[bufcur]));
-            debug(assert(faststats[bufcur]->Stats));
-
-            SimulationStats* stats = faststats[bufcur];
-            //StreamStats* ss = stats->Stats[HandlerIdx];
-
-            BufferEntry* reference = BUFFER_ENTRY(stats, bufcur);
-
-            if (reference->imageid == 0){
-                debug(assert(AllData->CountThreads() > 1));
-                continue;
-            }
-            assert(reference->threadid == tid);
-
-            ReuseEntry entry = ReuseEntry();
-            entry.id = stats->Hashes[stats->BlockIds[reference->memseq]]; // This is to track by BBID to track by memseq change to entry.id=reference->memseq;
-            entry.address=reference->address ;
-            sd->Process(entry);
-            numProcessed++;
-        }
-    // assert(faststats[0]->Stats[HandlerIdx]->Verify());
+//        uint32_t threadSeq = AllData->GetThreadSequence(tid);
+//        uint32_t numProcessed = 0;
+//
+//        SimulationStats** faststats = FastStats->GetBufferStats(tid);
+//        uint32_t bufcur = 0;
+//        for (bufcur = 0; bufcur < numElements; bufcur++){
+//            debug(assert(faststats[bufcur]));
+//            debug(assert(faststats[bufcur]->Stats));
+//
+//            SimulationStats* stats = faststats[bufcur];
+//
+//            BufferEntry* reference = BUFFER_ENTRY(stats, bufcur);
+//
+//            if (reference->imageid == 0){
+//                debug(assert(AllData->CountThreads() > 1));
+//                continue;
+//            }
+//
+//            ReuseEntry entry = ReuseEntry();
+//            entry.id = stats->Hashes[stats->BlockIds[reference->memseq]];
+//            entry.address=reference->address ;
+//            sd->Process(entry);
+//            numProcessed++;
+//        }
     }
 
 
@@ -442,7 +442,6 @@ extern "C" {
             return NULL;
         }
 
-
         uint64_t numElements = BUFFER_CURRENT(stats);
         uint64_t capacity = BUFFER_CAPACITY(stats);
         uint32_t threadSeq = AllData->GetThreadSequence(tid);
@@ -455,7 +454,6 @@ extern "C" {
             << TAB << "Total " << dec << Sampler->AccessCount
               << ENDL);
 
-
         bool isSampling;
         synchronize(AllData){
             isSampling = Sampler->CurrentlySampling();
@@ -464,6 +462,7 @@ extern "C" {
                 DONE_WITH_BUFFER();
             }
         }
+
         synchronize(AllData){
             if (isSampling){
                 BufferEntry* buffer = &(stats->Buffer[1]);
@@ -474,7 +473,7 @@ extern "C" {
                         MemoryStreamHandler* m = stats->Handlers[i];
                         ProcessBuffer(i, m, numElements, iid, tid);
                     }
-                }            
+                }
                 if(ReuseWindow){
                     ReuseDistance* rd=NULL;
                     rd = stats->RHandlers[ReuseHandlerIndex];
@@ -486,11 +485,11 @@ extern "C" {
                     ProcessSpatialBuffer(sd, numElements, iid, tid);
                 }
 
-                for(uint32_t i=0;i<(stats->NestedLoopCount);i++){
+                for(uint32_t i = 0; i < (stats->NestedLoopCount); i++){
                     uint64_t* currInnerLevelBasicBlocks = stats->NLStats[i].InnerLevelBasicBlocks; 
-                    for(uint32_t j=0;j<stats->NLStats[i].InnerLevelSize;j++){
-                        if( stats->NLStats[i].GroupCount < stats->Counters[ currInnerLevelBasicBlocks[j] ] )
-                            stats->NLStats[i].GroupCount = stats->Counters[ currInnerLevelBasicBlocks[j] ];
+                    for(uint32_t j = 0; j < stats->NLStats[i].InnerLevelSize; j++){
+                        if(stats->NLStats[i].GroupCount < stats->Counters[currInnerLevelBasicBlocks[j]] )
+                           stats->NLStats[i].GroupCount = stats->Counters[currInnerLevelBasicBlocks[j]];
                     }
                 }               
             } 
@@ -1994,7 +1993,8 @@ uint64_t CacheLevel::Replace(uint64_t store, uint32_t setid, uint32_t lineid,uin
         toEvict=true;
         toEvictAddresses->push_back(prev);
      }
-    // Since the new address 'store' has been loaded just now and is not touched yet, we can reset the dirty flag if it is indeed dirty!
+    // Since the new address 'store' has been loaded just now and is not
+    // touched yet, we can reset the dirty flag if it is indeed dirty!
     contents[setid][lineid] = store;
     if(LoadStoreLogging){
         if(loadstoreflag)
@@ -2003,7 +2003,7 @@ uint64_t CacheLevel::Replace(uint64_t store, uint32_t setid, uint32_t lineid,uin
             SetDirty(setid,lineid,store);
     }
     
-    MarkUsed(setid, lineid,loadstoreflag);  
+    MarkUsed(setid, lineid, loadstoreflag);  
     return prev;
 }
 
@@ -2104,15 +2104,21 @@ void CacheLevel::SetDirty(uint32_t setid, uint32_t lineid,uint64_t store){
     dirtystatus[setid][lineid]=true;
 }
 
-void CacheLevel::ResetDirty(uint32_t setid, uint32_t lineid,uint64_t store){
+void CacheLevel::ResetDirty(uint32_t setid, uint32_t lineid, uint64_t store){
     dirtystatus[setid][lineid]=false;
 }
 
-bool CacheLevel::GetDirtyStatus(uint32_t setid, uint32_t lineid,uint64_t store){
+bool CacheLevel::GetDirtyStatus(uint32_t setid, uint32_t lineid, uint64_t store){
     return dirtystatus[setid][lineid];
 }
 
-uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr,uint64_t loadstoreflag,bool* anyEvict,void* info){ // FuncChanged.
+uint32_t CacheLevel::Process(CacheStats* stats,
+                             uint32_t memid,
+                             uint64_t addr,
+                             uint64_t loadstoreflag,
+                             bool* anyEvict,
+                             void* info) {
+
     uint32_t set = 0, lineInSet = 0;
     uint64_t store = GetStorage(addr);
 
@@ -2123,9 +2129,9 @@ uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr,ui
 
     if(LoadStoreLogging){
         if(loadstoreflag){
-                stats->Stats[memid][level].loadCount++;
-        }else{
-                stats->Stats[memid][level].storeCount++;
+            stats->Stats[memid][level].loadCount++;
+        } else{
+            stats->Stats[memid][level].storeCount++;
         }         
     }    
 
@@ -2144,7 +2150,12 @@ uint32_t CacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr,ui
     return level + 1;
 }
 
-uint32_t CacheLevel::EvictProcess(CacheStats* stats, uint32_t memid, uint64_t addr, uint64_t loadstoreflag,void* info){
+uint32_t CacheLevel::EvictProcess(CacheStats* stats,
+                                  uint32_t memid,
+                                  uint64_t addr,
+                                  uint64_t loadstoreflag,
+                                  void* info){
+
     uint32_t set = 0, lineInSet = 0;
     uint64_t store = addr;
     debug(assert(stats));
@@ -2160,7 +2171,12 @@ uint32_t CacheLevel::EvictProcess(CacheStats* stats, uint32_t memid, uint64_t ad
     return level + 1;
 }
 
-uint32_t ExclusiveCacheLevel::Process(CacheStats* stats, uint32_t memid, uint64_t addr,uint64_t loadstoreflag,bool* anyEvict, void* info){
+uint32_t ExclusiveCacheLevel::Process(CacheStats* stats,
+                                      uint32_t memid,
+                                      uint64_t addr,
+                                      uint64_t loadstoreflag,
+                                      bool* anyEvict,
+                                      void* info){
     uint32_t set = 0;
     uint32_t lineInSet = 0;
 

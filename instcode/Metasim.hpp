@@ -49,20 +49,51 @@ static const char* CounterTypeNames[CounterType_total] = {
     "function"
 };
 
+enum EntryType: uint8_t {
+  MEMENRY = 0
+};
+  
+//typedef struct {
+//    enum EntryType type;
+//    char entry[];
+//} BufferEntry;
+
+typedef struct MemEntry {
+    uint64_t address;
+    uint64_t memseq;
+} MemEntry;
+
+typedef struct ImageMemEntry : MemEntry {
+    uint64_t imageid;
+} ImageMemEntry;
+
+typedef struct PrefetchEntry : MemEntry {} PrefetchEntry;
+typedef struct ImagePrefetchEntry : ImageMemEntry {} ImagePrefetchEntry;
+
+typedef struct VectorMemEntry {
+    uint32_t indexVector[16];
+    uint64_t base;
+    uint8_t  scale;
+    uint64_t memseq;
+} VectorCacheEntry;
+
+typedef struct ImageVectorMemEntry : VectorMemEntry {
+    uint64_t imageid;
+} ImageVectorMemEntry;
+
 typedef struct {
-    uint64_t    address;
-    uint64_t    memseq;
-    uint64_t    imageid;
-    uint64_t    threadid;
-    uint64_t    loadstoreflag; 
-    uint64_t programAddress;
+    uint64_t    loadstoreflag;   // Dirty Caching
+    uint64_t    imageid;         // Multi-image
+    uint64_t    memseq;          // identifies memop in image
+    uint64_t    address;         // value simulated
+//    uint64_t    threadid;        // Error-checking
+//    uint64_t    programAddress;  // only used for adamant
 } BufferEntry;
 #define __buf_current  address
 #define __buf_capacity memseq
 
 class StreamStats;
 class MemoryStreamHandler;
-//MITESH EDITS:  additions for Reuse distance 
 class ReuseDistance;
 
 typedef struct{
@@ -102,13 +133,12 @@ typedef struct {
     char** Functions;
     uint64_t* Hashes;
     uint64_t* Addresses;
-    uint64_t* GroupIds; // Amogha edits!
+    uint64_t* GroupIds;
     StreamStats** Stats; // indexed by handler
     MemoryStreamHandler** Handlers;
-    //MITESH EDITS:  additions for Reuse distance 
     ReuseDistance** RHandlers;
 
-    //Amogha edits! 
+
     uint64_t NestedLoopCount;
     NestedLoopStruct* NLStats; 
 
