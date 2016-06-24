@@ -174,17 +174,63 @@ uint32_t BinaryInputFile::bytesLeftInBuffer(){
     return (uint32_t)(last-inBufferPointer);
 }
 
-void BinaryOutputFile::copyBytes(char* buffer,uint32_t size,uint32_t offset) {
-    //    PRINT_INFOR("Writing %d bytes to offset %x in file", size, offset);
-    int32_t error_code = fseek(outFile,offset,SEEK_SET);
-    if(error_code){
+BinaryOutputFile::BinaryOutputFile()
+    : outFile(NULL), fileName(NULL)
+{
+    buffer = new char[BUFFER_SIZE];
+    buffer_start = 0;
+    written_size = 0;
+}
+
+void BinaryOutputFile::flushBuffer()
+{
+    if(written_size == 0)
+        return;
+
+    int32_t error_code = fseek(outFile, buffer_start, SEEK_SET);
+    if(error_code) {
         PRINT_ERROR("Error seeking to the output file");
     }
-    error_code = fwrite(buffer,sizeof(char),size,outFile);
-    if((uint32_t)error_code != size){
-        PRINT_ERROR("Error writing to the output file");
+    error_code = fwrite(buffer, sizeof(char), written_size, outFile);
+    if((uint32_t)error_code != written_size) {
+        PRINT_ERROR("Error writing to output file");
     }
+    written_size = 0;
 }
+
+void BinaryOutputFile::copyBytes(char* bytes, uint32_t size, uint32_t offset) {
+
+    // check if we need to flush buffer
+    if(offset != buffer_start+written_size ||
+       written_size+size > BUFFER_SIZE) {
+        flushBuffer();
+        buffer_start = offset;
+    }
+    // write these bytes to buffer
+    do {
+        uint32_t toWrite = size < BUFFER_SIZE ? size : BUFFER_SIZE;
+        memcpy(buffer+written_size, bytes, toWrite);
+        written_size += toWrite;
+        size -= toWrite;
+        if(size > 0) {
+            flushBuffer();
+            buffer_start += toWrite;
+            bytes += toWrite;
+        }
+    } while(size > 0);
+}
+
+//void BinaryOutputFile::copyBytes(char* buffer,uint32_t size,uint32_t offset) {
+//    //    PRINT_INFOR("Writing %d bytes to offset %x in file", size, offset);
+//    int32_t error_code = fseek(outFile,offset,SEEK_SET);
+//    if(error_code){
+//        PRINT_ERROR("Error seeking to the output file");
+//    }
+//    error_code = fwrite(buffer,sizeof(char),size,outFile);
+//    if((uint32_t)error_code != size){
+//        PRINT_ERROR("Error writing to the output file");
+//    }
+//}
 
 void BinaryOutputFile::open(char* filenm) { 
     uint32_t namelen = strlen(filenm);
@@ -198,6 +244,7 @@ void BinaryOutputFile::open(char* filenm) {
 bool BinaryOutputFile::operator!() { return !outFile; }
 
 void BinaryOutputFile::close() { 
+    flushBuffer();
     fclose(outFile);     
     if (fileName){
         chmod(fileName,0750);
@@ -205,9 +252,11 @@ void BinaryOutputFile::close() {
 }
 
 BinaryOutputFile::~BinaryOutputFile(){
+    flushBuffer();
     if (fileName){
         delete[] fileName;
     }
+    delete[] buffer;
 }
 
 /********************* EmbeddedBinaryOutputFile *****************************/
