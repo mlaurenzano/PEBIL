@@ -299,6 +299,16 @@ uint32_t BasicBlock::getNumberOfMemoryOps(){
     return memCount;
 }
 
+uint32_t BasicBlock::getNumberOfSWPrefetches(){
+    uint32_t prefetchCount = 0;
+    for (uint32_t i = 0; i < instructions.size(); i++){
+        if(instructions[i]->isSoftwarePrefetch()){
+            prefetchCount++;
+        }
+    }
+    return prefetchCount;
+}
+
 uint32_t BasicBlock::getNumberOfFloatOps(){
     uint32_t fpCount = 0;
     for (uint32_t i = 0; i < instructions.size(); i++){

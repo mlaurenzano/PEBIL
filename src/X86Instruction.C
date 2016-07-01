@@ -1296,6 +1296,14 @@ bool X86Instruction::isImplicitMemoryOperation(){
     return false;
 }
 
+bool X86Instruction::isSoftwarePrefetch(){
+    if (IS_PREFETCH(GET(mnemonic))){
+        return true;
+    }
+    return false;
+}
+
+
 bool X86Instruction::isExplicitMemoryOperation(){
     uint32_t memCount = 0;
     for (uint32_t i = 0; i < MAX_OPERANDS; i++){
