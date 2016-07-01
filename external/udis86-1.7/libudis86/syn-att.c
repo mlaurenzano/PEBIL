@@ -219,4 +219,8 @@ ud_translate_att(struct ud *u)
 
   if (u->operand[0].type != UD_NONE)
 	gen_operand(u, &u->operand[0]);
+
+  if(u->mvex[0] != 0) {
+	mkasm(u, " {%s}", ud_reg_tab[u->vector_mask_register]);
+  }
 }

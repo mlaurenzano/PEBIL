@@ -1263,6 +1263,7 @@ void InstrumentationPoint64::insertStateProtection(){
         // count the number of bytes the tool wants
         if (instrumentation->getType() == PebilClassType_InstrumentationSnippet){
             InstrumentationSnippet* snippet = (InstrumentationSnippet*)instrumentation;
+            assert(snippet->getNumberOfCoreInstructions() > 0);
             for (uint32_t i = 0; i < snippet->getNumberOfCoreInstructions(); i++){
                 numberOfBytes += snippet->getCoreInstruction(i)->getSizeInBytes();
             }

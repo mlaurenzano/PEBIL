@@ -4293,27 +4293,27 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vgatherdpd">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 92 /W=1 ; ZR ZM; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 92 /W=1 ; ZR ZVM; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vgatherdps">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 92 /W=0 ; ZR ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 92 /W=0 ; ZR ZVM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vgatherpf0dps">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /1 ; ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /1 ; ZVM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vgatherpf0hintdpd">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=1 /0 ; ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=1 /0 ; ZVM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vgatherpf0hintdps">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /0 ; ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /0 ; ZVM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vgatherpf1dps">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /2 ; ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /2 ; ZVM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vgetexppd">
@@ -4552,11 +4552,11 @@ MAL MISSING PRE SSE?
   <instruction mnemonic="vpgatherdd">
     <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 90 /W=0 ; V W X ; ; </opcode>
     <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 91 /W=0 ; V W X ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 90 /W=0 ; ZR ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 90 /W=0 ; ZR ZVM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpgatherdq">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 90 /W=1 ; ZR ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 90 /W=1 ; ZR ZVM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpmadd231d">
@@ -4617,11 +4617,11 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vpscatterdd">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A0 /W=0 ; ZM ZR ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A0 /W=0 ; ZVM ZR ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpscatterdq">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A0 /W=1 ; ZM ZR ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A0 /W=1 ; ZVM ZR ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpshufd">
@@ -4701,27 +4701,27 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vscatterdpd">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A2 /W=1 ; ZM ZR ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A2 /W=1 ; ZVM ZR ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vscatterdpd">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A2 /W=0 ; ZM ZR ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 A2 /W=0 ; ZVM ZR ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vscatterpf0dps">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /5 ; ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /5 ; ZVM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vscatterpf0hintdpd">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=1 /4 ; ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=1 /4 ; ZVM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vscatterpf0hintdps">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /4 ; ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /4 ; ZVM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vscatterpf1dps">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /6 ; ZM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 C6 /W=0 /6 ; ZVM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vsubpd">
