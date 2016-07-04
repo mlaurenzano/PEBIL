@@ -496,7 +496,6 @@ void CacheSimulation::instrumentMemop(
 
     ASSERT(memopIdInBlock < bb->getNumberOfMemoryOps());
     setupBufferEntry(snip, 1+memopIdInBlock-bb->getNumberOfMemoryOps(), sr1, sr2, sr3, stats);
-
     writeBufferBase(snip, sr2, sr3, MEM_ENTRY, loadstoreflag, memopSeq);
 
     // set address
@@ -739,7 +738,7 @@ void CacheSimulation::setupBufferEntry(
 void CacheSimulation::bufferVectorEntry(
         X86Instruction* instRefPoint,
         InstLocations   loc,
-        X86Instruction* vectorOp,
+        X86Instruction* vectorIns,
         uint32_t        threadReg,
         SimulationStats& stats,
         uint32_t blockSeq,
@@ -769,15 +768,66 @@ void CacheSimulation::bufferVectorEntry(
 
     setupBufferEntry(snip, 0, sr1, sr2, sr3, stats);
     int8_t loadstoreflag;
-    if(vectorOp->isLoad())
+    if(vectorIns->isLoad())
         loadstoreflag = LOAD;
-    else if(vectorOp->isStore())
+    else if(vectorIns->isStore())
         loadstoreflag = STORE;
     else
         assert(0);
     writeBufferBase(snip, sr2, sr3, VECTOR_ENTRY, loadstoreflag, memseq);
 
-    // fill in address data
+    OperandX86* vectorOp = NULL;
+    // vgatherdps (%r14,%zmm0,8), %zmm2 {k4}
+    if(vectorIns->isLoad()) {
+        Vector<OperandX86*>* ops = vectorIns->getSourceOperands();
+        assert(ops->size() == 1);
+        vectorOp = (*ops)[0];
+        delete ops;
+    } else if(vectorIns->isStore()) {
+        vectorOp = vectorIns->getDestOperand();
+        assert(vectorOp);
+    } else assert(0);
+    assert(vectorOp->getType() == UD_OP_MEM);
+
+    uint32_t zmmReg  = vectorOp->getIndexRegister();
+    uint32_t baseReg = vectorOp->getBaseRegister();
+    uint8_t scale   = vectorOp->GET(scale);
+    uint32_t kreg    = vectorIns->getVectorMaskRegister();
+
+    // write base
+    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(
+        baseReg,
+        sr2,
+        offsetof(BufferEntry, vectorAddress) + offsetof(VectorAddress, base),
+        true));
+
+    // write scale
+    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(
+        scale,
+        sr2,
+        offsetof(BufferEntry, vectorAddress) + offsetof(VectorAddress, scale)));
+
+    // write mask
+    //   kmov k, sr3
+    //   store sr3
+    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveKToReg(kreg, sr3));
+    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(
+        sr3,
+        sr2,
+        offsetof(BufferEntry, vectorAddress) + offsetof(VectorAddress, mask),
+        true));
+
+    // write index vector
+    Vector<X86Instruction*>* insns = X86InstructionFactory64::emitUnalignedPackstoreRegaddrImm(
+        zmmReg,
+        kreg,
+        sr2,
+        offsetof(BufferEntry, vectorAddress) + offsetof(VectorAddress, indexVector));
+
+    for(int idx = 0; idx < insns->size(); ++idx) {
+        snip->addSnippetInstruction((*insns)[idx]);
+    }
+    delete insns;
 
 }
 
