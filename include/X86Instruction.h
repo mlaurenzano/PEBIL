@@ -177,15 +177,48 @@ const static char* flag_name_map[X86_FLAG_BITS] = { "carry", __flag_reserved, "p
 #define X86_FPREG_XMM15 (15 + X86_64BIT_GPRS)
 #define X86_XMM_REGS 16
 
-#define X87_REG_ST0 (0 + X86_64BIT_GPRS + X86_XMM_REGS)
-#define X87_REG_ST1 (1 + X86_64BIT_GPRS + X86_XMM_REGS)
-#define X87_REG_ST2 (2 + X86_64BIT_GPRS + X86_XMM_REGS)
-#define X87_REG_ST3 (3 + X86_64BIT_GPRS + X86_XMM_REGS)
-#define X87_REG_ST4 (4 + X86_64BIT_GPRS + X86_XMM_REGS)
-#define X87_REG_ST5 (5 + X86_64BIT_GPRS + X86_XMM_REGS)
-#define X87_REG_ST6 (6 + X86_64BIT_GPRS + X86_XMM_REGS)
-#define X87_REG_ST7 (7 + X86_64BIT_GPRS + X86_XMM_REGS)
+// YMM and ZMM regs are same as XMM
+#define X86_FPREG_YMM0 X86_FPREG_XMM0
+// FIXME fill in copies for rest of regs?
+#define X86_FPREG_ZMM0 X86_FPREG_XMM0
+// FIXME
+#define X86_FPREG_ZMM16 (16 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM17 (17 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM18 (18 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM19 (19 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM20 (20 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM21 (21 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM22 (22 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM23 (23 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM24 (24 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM25 (25 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM26 (26 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM27 (27 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM28 (28 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM29 (29 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM30 (30 + X86_64BIT_GPRS)
+#define X86_FPREG_ZMM31 (31 + X86_64BIT_GPRS)
+#define X86_ZMM_REGS 31
+
+
+#define X87_REG_ST0 (0 + X86_64BIT_GPRS + X86_ZMM_REGS)
+#define X87_REG_ST1 (1 + X86_64BIT_GPRS + X86_ZMM_REGS)
+#define X87_REG_ST2 (2 + X86_64BIT_GPRS + X86_ZMM_REGS)
+#define X87_REG_ST3 (3 + X86_64BIT_GPRS + X86_ZMM_REGS)
+#define X87_REG_ST4 (4 + X86_64BIT_GPRS + X86_ZMM_REGS)
+#define X87_REG_ST5 (5 + X86_64BIT_GPRS + X86_ZMM_REGS)
+#define X87_REG_ST6 (6 + X86_64BIT_GPRS + X86_ZMM_REGS)
+#define X87_REG_ST7 (7 + X86_64BIT_GPRS + X86_ZMM_REGS)
 #define X87_REGS 8
+
+#define X86_REG_K0 (0 + X87_REG_ST7 + 1)
+#define X86_REG_K1 (1 + X86_REG_K0)
+#define X86_REG_K2 (2 + X86_REG_K0)
+#define X86_REG_K3 (3 + X86_REG_K0)
+#define X86_REG_K4 (4 + X86_REG_K0)
+#define X86_REG_K5 (5 + X86_REG_K0)
+#define X86_REG_K6 (6 + X86_REG_K0)
+#define X86_REG_K7 (7 + X86_REG_K0)
 
 #define X86_ALU_REGS (X86_64BIT_GPRS + X86_XMM_REGS + X87_REGS)
 const static char* alu_name_map[X86_ALU_REGS] = { "ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
@@ -491,6 +524,7 @@ public:
     Vector<OperandX86*>* getSourceOperands();
     Vector<OperandX86*>* getOperands();
     std::map<uint32_t, uint32_t>* getOperandLengthCounts();
+    uint32_t getVectorMaskRegister();
 
     SwizzleOperation getSwizzleOperation();
 

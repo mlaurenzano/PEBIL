@@ -221,6 +221,6 @@ ud_translate_att(struct ud *u)
 	gen_operand(u, &u->operand[0]);
 
   if(u->mvex[0] != 0) {
-	mkasm(u, " {%s}", ud_reg_tab[u->vector_mask_register]);
+	mkasm(u, " {%s}", ud_reg_tab[u->vector_mask_register - UD_R_AL]);
   }
 }

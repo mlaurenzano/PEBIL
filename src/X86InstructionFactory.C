@@ -273,8 +273,13 @@ X86Instruction* X86InstructionFactory64::emitMoveImmToMem(uint64_t imm, uint64_t
 }
 
 // kmov %kreg, %gpr
-X86Instruction* X86InstructionFactory64::emitMoveKToReg(uint8_t kreg, uint8_t gpr)
+X86Instruction* X86InstructionFactory64::emitMoveKToReg(uint32_t kreg_in, uint32_t gpr_in)
 {
+    assert(gpr_in >= X86_REG_AX && gpr_in <= X86_REG_R15);
+    assert(kreg_in >= X86_REG_K0 && kreg_in <= X86_REG_K7);
+    uint8_t gpr = gpr_in - X86_REG_AX;
+    uint8_t kreg = kreg_in - X86_REG_K0;
+
     uint8_t len = 4;
     char* buff = new char[len];
 
@@ -283,16 +288,21 @@ X86Instruction* X86InstructionFactory64::emitMoveKToReg(uint8_t kreg, uint8_t gp
     uint8_t rm = kreg;
     uint8_t modrm = mod | reg | rm;
 
-    buff[0] = 0xc5;
-    buff[1] = 0xf8;
-    buff[2] = 0x93;
+    buff[0] = 0xc5; // prefix
+    buff[1] = 0xf8; // R vvvv L pp
+    buff[2] = 0x93; // opcode
     buff[3] = modrm;
 
     return emitInstructionBase(len, buff);
 }
 
-X86Instruction* X86InstructionFactory64::emitMoveRegToK(uint8_t gpr, uint8_t kreg)
+X86Instruction* X86InstructionFactory64::emitMoveRegToK(uint32_t gpr_in, uint32_t kreg_in)
 {
+    assert(gpr_in >= X86_REG_AX && gpr_in <= X86_REG_R15);
+    assert(kreg_in >= X86_REG_K0 && kreg_in <= X86_REG_K7);
+    uint8_t gpr = gpr_in - X86_REG_AX;
+    uint8_t kreg = kreg_in - X86_REG_K0;
+
     uint8_t len = 4;
     char* buff = new char[len];
 
@@ -390,6 +400,124 @@ X86Instruction* X86InstructionFactory64::emitMoveZmmxToAlignedStack(uint8_t zmm,
     return emitInstructionBase(len, buff);
 }
 
+
+// vpackstore zmm1, mem {k}
+Vector<X86Instruction*>* X86InstructionFactory64::emitUnalignedPackstoreRegaddrImm(
+        uint32_t zmm_in,
+        uint32_t kreg_in,
+        uint32_t base_in,
+        uint32_t disp)
+{
+    assert(zmm_in >= X86_FPREG_ZMM0 && zmm_in <= X86_FPREG_ZMM31);
+    assert(kreg_in >= X86_REG_K0 && kreg_in <= X86_REG_K7);
+    assert(base_in >= X86_REG_AX && base_in <= X86_REG_R15);
+
+    uint8_t zmm = zmm_in - X86_FPREG_ZMM0;
+    uint8_t kreg = kreg_in - X86_REG_K0;
+    uint8_t base = base_in - X86_REG_AX;
+     
+    // mmmm = 0010
+    // zmm is encoded in R:r:reg
+    // kreg is encoded in aaa
+    //
+    // addressing mode is [base]+disp32
+    //   mod = 10
+    // base is encoded in ~X:~B:rm
+
+    uint8_t R = (~zmm & 0x10) << 3;
+    uint8_t XB = 0x60;
+    uint8_t r = (~zmm & 0x08) << 1;
+    uint8_t mmmm = 1 << 1;
+    uint8_t RXBrmmmm =  R | XB | r | mmmm;
+
+    uint8_t mod = 1 << 7;
+    uint8_t reg = (zmm & 0x07) << 3;
+    uint8_t rm = base;
+    uint8_t modrm = mod | reg | rm;
+
+    uint8_t W = 0;
+    uint8_t vvvv = 0xf << 3;
+    uint8_t pp = 1;
+    uint8_t Wvvvvpp = W | vvvv | pp;
+
+    uint8_t E = 0;
+    uint8_t SSS = 0;
+    uint8_t vp = 1 << 8;
+    uint8_t ESSSvpaaa = E | SSS | vp | kreg;
+
+    uint8_t opcode = 0xD4;
+    int len = 10;
+    char* buff = new char[len];
+    buff[0] = 0x62;
+    buff[1] = RXBrmmmm;
+    buff[2] = Wvvvvpp;
+    buff[3] = ESSSvpaaa;
+    buff[4] = opcode;
+    buff[5] = modrm;
+    memcpy(buff+6, &disp, sizeof(disp));
+
+    char* buff2 = new char[len];
+    memcpy(buff2, buff, len);
+    opcode = 0xD0;
+    buff2[4] = opcode;
+
+    Vector<X86Instruction*>* retval = new Vector<X86Instruction*>();
+    retval->append(emitInstructionBase(len, buff));
+    retval->append(emitInstructionBase(len, buff2));
+    return retval;
+}
+/*
+ * vmovdqa32 zmm1, mem {k}
+ */
+// | 62 |R X B R' mmmm|W vvvv 0  pp |E SSS  v' aaa |
+X86Instruction* X86InstructionFactory64::emitMoveZmmToAlignedRegaddrImm(
+        uint32_t zmm_in,
+        uint32_t kreg_in,
+        uint32_t base_in,
+        uint32_t disp)
+{
+    assert(zmm_in >= X86_FPREG_ZMM0 && zmm_in <= X86_FPREG_ZMM31);
+    assert(kreg_in >= X86_REG_K0 && kreg_in <= X86_REG_K7);
+    assert(base_in >= X86_REG_AX && base_in <= X86_REG_R15);
+
+    uint8_t zmm = zmm_in - X86_FPREG_ZMM0;
+    uint8_t kreg = kreg_in - X86_REG_K0;
+    uint8_t base = base_in - X86_REG_AX;
+
+    uint32_t len = 10;
+    char* buff = new char[len];
+
+    // mmmm = 0001
+    // zmm is encoded in R:r:reg
+    // kreg is encoded in aaa
+    //
+    // addressing mode is [base]+disp32
+    //   mod = 10
+    // base is encoded in ~X:~B:rm
+
+    uint8_t R = (~zmm & 0x10) << 3;
+    uint8_t XB = 0x60;
+    uint8_t r = (~zmm & 0x08) << 1;
+    uint8_t mmmm = 1;
+    uint8_t RXBrmmmm =  R | XB | r | mmmm;
+
+    uint8_t mod = 1 << 7;
+    uint8_t reg = (zmm & 0x07) << 3;
+    uint8_t rm = base;
+    uint8_t modrm = mod | reg | rm;
+
+    buff[0] = 0x62;
+    buff[1] = RXBrmmmm;
+    buff[2] = 0x79;        // 0 1111 0 01
+    buff[3] = 0x08 | kreg; // 0 000 1 kreg
+
+    buff[4] = 0x7F;        // opcode
+
+    buff[5] = modrm;
+    memcpy(buff+6, &disp, sizeof(disp));
+
+    return emitInstructionBase(len, buff);
+}
 X86Instruction* X86InstructionFactory64::emitFxSave(uint64_t addr){
     uint32_t len = 7;
     char* buff = new char[len];
