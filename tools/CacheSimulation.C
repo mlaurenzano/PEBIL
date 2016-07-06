@@ -453,19 +453,14 @@ void CacheSimulation::writeBufferBase(
 
 // Fills a buffer entry for memop
 void CacheSimulation::instrumentMemop(
-        Function* func,
         BasicBlock* bb,
         X86Instruction* memop,
-        uint64_t loadstoreflag,
+        uint8_t loadstoreflag,
         uint64_t blockSeq,
         uint32_t threadReg,
         SimulationStats& stats,
         uint32_t memopIdInBlock,
-        uint32_t memopSeq,
-        uint32_t instructionIdx,
-        uint64_t noData,
-        uint32_t leader,
-        uint64_t simulationStruct){
+        uint32_t memopSeq){
 
     // First we build the actual instrumentation point
     InstrumentationSnippet* snip = addInstrumentationSnippet();
@@ -514,7 +509,23 @@ void CacheSimulation::instrumentMemop(
     // Only for debugging
     //snip->addSnippetInstruction(X86InstructionFactory64::emitMoveThreadIdToReg(sr3));
     //snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr3, sr2, offsetof(BufferEntry, threadid), true));
+}
 
+void CacheSimulation::initializeInstructionInfo(
+        X86Instruction* memop,
+        uint32_t instructionIdx,
+        SimulationStats& stats,
+        Function* func,
+        BasicBlock* bb,
+        uint32_t memopSeq,
+        uint32_t memopIdInBlock,
+        uint32_t leader,
+        uint32_t threadReg,
+        uint64_t noData,
+        uint64_t simulationStruct,
+        uint64_t blockSeq
+        )
+{
     if (isPerInstruction()){
         allBlocks.append(memop);
         allBlockIds.append(instructionIdx);
@@ -587,11 +598,12 @@ void CacheSimulation::instrumentMemop(
             sizeof(uint64_t),
             &temp64);
 
-        temp64 = memopIdInBlock;
-        initializeReservedData(
-            getInstDataAddress() + (uint64_t)stats.MemopIds + memopSeq*sizeof(uint64_t),
-            sizeof(uint64_t),
-            &temp64);
+        //temp64 = memopIdInBlock;
+        //initializeReservedData(
+        //    getInstDataAddress() + (uint64_t)stats.MemopIds + memopSeq*sizeof(uint64_t),
+        //    sizeof(uint64_t),
+        //    &temp64);
+
     }
 }
 
@@ -820,7 +832,7 @@ void CacheSimulation::bufferVectorEntry(
     // write index vector
     Vector<X86Instruction*>* insns = X86InstructionFactory64::emitUnalignedPackstoreRegaddrImm(
         zmmReg,
-        kreg,
+        X86_REG_K0,
         sr2,
         offsetof(BufferEntry, vectorAddress) + offsetof(VectorAddress, indexVector));
 
@@ -835,11 +847,16 @@ void CacheSimulation::instrumentScatterGather(Loop* lp,
         uint32_t blockSeq,
         uint32_t memseq,
         uint32_t threadReg,
-        SimulationStats& stats)
+        SimulationStats& stats,
+        Function* func,
+        uint64_t noData,
+        uint64_t simulationStruct)
 {
     // instrument every source path to loop
     BasicBlock* head = lp->getHead();
     X86Instruction* vectorMemOp = head->getInstruction(0);
+    initializeInstructionInfo(vectorMemOp, 0, stats, func, head,
+        memseq, 0, 0, threadReg, noData, simulationStruct, blockSeq);
 
     Vector<BasicBlock*> entryInterpositions;
     uint32_t nsources = head->getNumberOfSources();
@@ -1093,7 +1110,7 @@ void CacheSimulation::instrument(){
             // instrument outside of loop
             FlowGraph* fg = bb->getFlowGraph();
             Loop* lp = fg->getInnermostLoopForBlock(bb->getIndex());
-            instrumentScatterGather(lp, blockSeq, memopSeq, threadReg, stats);
+            instrumentScatterGather(lp, blockSeq, memopSeq, threadReg, stats, func, noData, simulationStruct);
             ++memopSeq; // FIXME move inside call if we instrument more than one scatter-gather
 
             // advance blocks to end of loop
@@ -1103,8 +1120,8 @@ void CacheSimulation::instrument(){
 
             uint32_t memopIdInBlock = 0;
             uint32_t leader = 0;
-            for (uint32_t j = 0; j < bb->getNumberOfInstructions(); j++){
-                X86Instruction* memop = bb->getInstruction(j);
+            for (uint32_t insIndex = 0; insIndex < bb->getNumberOfInstructions(); insIndex++){
+                X86Instruction* memop = bb->getInstruction(insIndex);
 
 
                 if (memop->isMemoryOperation()){
@@ -1124,15 +1141,22 @@ void CacheSimulation::instrument(){
                     }
 
                     if(memop->isLoad()) {
-                        instrumentMemop(func, bb, memop, LOAD, blockSeq, threadReg, stats, memopIdInBlock, memopSeq,
-                            j, noData, leader, simulationStruct);
+                        instrumentMemop(bb, memop, LOAD, blockSeq, threadReg, stats, memopIdInBlock, memopSeq);
+
+                        initializeInstructionInfo(memop, insIndex, stats, func, bb, memopSeq, memopIdInBlock,
+                            leader, threadReg, noData, simulationStruct, blockSeq);
+
                         ++memopIdInBlock;
                         ++memopSeq;
                     }
 
                     if(memop->isStore()) {
-                        instrumentMemop(func, bb, memop, STORE, blockSeq, threadReg, stats, memopIdInBlock, memopSeq,
-                            j, noData, leader, simulationStruct);
+                        instrumentMemop(bb, memop, STORE, blockSeq, threadReg, stats, memopIdInBlock, memopSeq);
+
+                        initializeInstructionInfo(memop, insIndex, stats, func, bb, memopSeq, memopIdInBlock,
+                            leader, threadReg, noData, simulationStruct, blockSeq);
+
+
                         ++memopIdInBlock;
                         ++memopSeq;
                     }
