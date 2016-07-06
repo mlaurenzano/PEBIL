@@ -679,7 +679,7 @@ Vector<X86Instruction*>* X86InstructionFactory64::emitAddressComputation(X86Inst
     Vector<X86Instruction*>* compInstructions = new Vector<X86Instruction*>();
     OperandX86* op = NULL;
 
-    if (instruction->isExplicitMemoryOperation()){
+    if (instruction->isExplicitMemoryOperation() || instruction->isSoftwarePrefetch()){
 
         op = instruction->getMemoryOperand();
 

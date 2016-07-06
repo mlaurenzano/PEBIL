@@ -1380,6 +1380,21 @@ uint32_t AddressRangeHandler::Process(void* stats, BufferEntry* access){
         return 0;
     } else if(access->type == VECTOR_ENTRY) {
         // FIXME
+        // Unsure how the mask and index vector are being set up. For now,
+        // I'm assuming that the last significant bit of the mask corresponds
+        // to the first index (indexVector[0]
+        uint64_t currAddr;
+        uint16_t mask = (access->vectorAddress).mask;
+        uint32_t memid = (uint32_t)access->memseq;
+        RangeStats* rs = (RangeStats*)stats;
+        for (int i = 0; i < 16; i++) {
+          if(mask % 2 == 1)
+          {
+            currAddr = (access->vectorAddress).base + (access->vectorAddress).indexVector[i] * (access->vectorAddress).scale;
+            rs->Update(memid, currAddr);
+          }
+          mask >> 1;
+        }
         return 0;
     }
 }
@@ -2659,8 +2674,29 @@ uint32_t CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
         return processAddress(stats_in, access->address, access->memseq, access->loadstoreflag);
     } else if(access->type == VECTOR_ENTRY) {
         // FIXME
-        return 0;
-    }
+        // Unsure how the mask and index vector are being set up. For now,
+        // I'm assuming that the last significant bit of the mask corresponds
+        // to the first index (indexVector[0]
+        // for each index i in indexVector:
+        //    load/store base + indexVector[i] * scale
+        uint32_t lastReturn = 0;
+        uint64_t currAddr;
+        uint16_t mask = (access->vectorAddress).mask;
+        for (int i = 0; i < 16; i++) {
+          if(mask % 2 == 1)
+          {
+            currAddr = (access->vectorAddress).base + (access->vectorAddress).indexVector[i] * (access->vectorAddress).scale;
+            lastReturn = processAddress(stats_in, currAddr, access->memseq, access->loadstoreflag);
+          }
+          mask = (mask >> 1);
+        }
+        // Unsure what this return value is used for
+        // (Seems to be related to adamant). Just returning last value from
+        // processAddress
+        return lastReturn;
+    } else if(access->type == PREFETCH_ENTRY) {
+      return processAddress(stats_in, access->address, access->memseq, access->loadstoreflag);
+   }
 }
 
 // called for every new image and thread
