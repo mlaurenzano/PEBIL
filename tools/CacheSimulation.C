@@ -434,12 +434,20 @@ void CacheSimulation::writeBufferBase(
         uint32_t memseq) {
 
     // set entry type
-    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToReg(type, sr3));
-    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr3, sr2, offsetof(BufferEntry, type), true));
+    //snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToReg(type, sr3));
+    //snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr3, sr2, offsetof(BufferEntry, type), true));
+    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(
+        type,
+        sr2,
+        offsetof(BufferEntry, type)));
 
     // set Load-store flag
-    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToReg(loadstoreflag, sr3));
-    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr3, sr2, offsetof(BufferEntry, loadstoreflag), true));
+    //snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToReg(loadstoreflag, sr3));
+    //snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr3, sr2, offsetof(BufferEntry, loadstoreflag), true));
+    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(
+        loadstoreflag,
+        sr2,
+        offsetof(BufferEntry, loadstoreflag)));
 
     // set imageid
     uint64_t imageHash = getElfFile()->getUniqueId();
@@ -447,8 +455,13 @@ void CacheSimulation::writeBufferBase(
     snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr3, sr2, offsetof(BufferEntry, imageid), true));
 
     // set memseq
-    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToReg(memseq, sr3));
-    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr3, sr2, offsetof(BufferEntry, memseq), true));
+    //snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToReg(memseq, sr3));
+    //snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr3, sr2, offsetof(BufferEntry, memseq), true));
+    //
+    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(
+        memseq,
+        sr2,
+        offsetof(BufferEntry, memseq)));
 }
 
 // Fills a buffer entry for memop
@@ -804,14 +817,29 @@ void CacheSimulation::bufferVectorEntry(
     uint32_t zmmReg  = vectorOp->getIndexRegister();
     uint32_t baseReg = vectorOp->getBaseRegister();
     uint8_t scale   = vectorOp->GET(scale);
+    if(scale == 0) scale = 1;
     uint32_t kreg    = vectorIns->getVectorMaskRegister();
+    uint32_t offset = vectorOp->getValue();
 
-    // write base
-    snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(
-        baseReg,
-        sr2,
-        offsetof(BufferEntry, vectorAddress) + offsetof(VectorAddress, base),
-        true));
+    // write base and/or offset
+    if(baseReg != X86_REG_INVALID) {
+        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(
+            baseReg,
+            sr2,
+            offsetof(BufferEntry, vectorAddress) + offsetof(VectorAddress, base),
+            true));
+        if(offset) {
+            snip->addSnippetInstruction(X86InstructionFactory64::emitAddImmToRegaddrImm(
+                offset,
+                sr2,
+                offsetof(BufferEntry, vectorAddress) + offsetof(VectorAddress, base)));
+        }
+    } else {
+        snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(
+            offset,
+            sr2,
+            offsetof(BufferEntry, vectorAddress) + offsetof(VectorAddress, base)));
+    }
 
     // write scale
     snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(

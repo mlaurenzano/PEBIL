@@ -1149,7 +1149,10 @@ uint32_t X86Instruction::getVectorMaskRegister(){
     return convertUdKReg(GET(vector_mask_register));
 }
 
-uint32_t OperandX86::getBaseRegister(){
+int32_t OperandX86::getBaseRegister(){
+    if(!(GET(base))) {
+        return X86_REG_INVALID;
+    }
     ASSERT(GET(base));
     if (IS_GPR(GET(base))){
         return convertUdGPReg(GET(base));
@@ -1160,8 +1163,6 @@ uint32_t OperandX86::getBaseRegister(){
     } else if (IS_ZMM_REG(GET(base))){
         return convertUdZMMReg(GET(base));
     }
-    __SHOULD_NOT_ARRIVE;
-    return 0;
 }
 uint32_t OperandX86::getIndexRegister(){
     ASSERT(GET(index));

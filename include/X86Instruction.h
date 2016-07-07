@@ -471,7 +471,7 @@ public:
     uint32_t getBitsUsed(); 
     uint32_t getBytesUsed();
     uint32_t getBytePosition();
-    uint32_t getBaseRegister();
+    int32_t getBaseRegister();
     uint32_t getIndexRegister();
 
     void touchedRegisters(BitSet<uint32_t>* regs);
