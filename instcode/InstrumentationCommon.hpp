@@ -396,6 +396,7 @@ extern "C" {
         fprintf(stderr, "Recieved signal %d SIGILL? with code %s, %d at address 0x%llx\n", signo, err, siginf->si_code, siginf->si_addr);
         char* ops = (char*)siginf->si_addr;
         fprintf(stderr, "%hhx %hhx %hhx %hhx\n", ops[0], ops[1], ops[2], ops[3]);
+        exit(1);
     }
 
     static void print_backtrace() {

@@ -442,7 +442,7 @@ Vector<X86Instruction*>* X86InstructionFactory64::emitUnalignedPackstoreRegaddrI
 
     uint8_t E = 0;
     uint8_t SSS = 0;
-    uint8_t vp = 1 << 8;
+    uint8_t vp = 1 << 3;
     uint8_t ESSSvpaaa = E | SSS | vp | kreg;
 
     uint8_t opcode = 0xD4;
