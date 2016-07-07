@@ -144,6 +144,7 @@ public:
 
     uint32_t getNumberOfSources() { return sourceBlocks.size(); }
     uint32_t getNumberOfTargets() { return targetBlocks.size(); }
+    uint32_t getNumberOfSWPrefetches();
     uint32_t getNumberOfMemoryOps();
     uint32_t getNumberOfMemoryBytes();
     uint32_t getNumberOfFloatOps();

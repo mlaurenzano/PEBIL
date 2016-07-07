@@ -86,7 +86,9 @@ class TextObject;
 
 #define IS_LOADADDR(__mne) (__mne == UD_Ilea)
 #define IS_PREFETCH(__mne) (__mne == UD_Iprefetch || __mne == UD_Iprefetchnta || __mne == UD_Iprefetcht0 || \
-                            __mne == UD_Iprefetcht1 || __mne == UD_Iprefetcht2)
+                            __mne == UD_Iprefetcht1 || __mne == UD_Iprefetcht2 || __mne == UD_Ivprefetchnta || \
+                            __mne == UD_Ivprefetch0 || __mne == UD_Ivprefetch1 || __mne == UD_Ivprefetch2 || \
+                            __mne == UD_Ivprefetchenta || __mne == UD_Ivprefetche0 || __mne == UD_Ivprefetche1 || __mne == UD_Ivprefetche2 )
 
 
 #define __reg_use 0
@@ -632,6 +634,7 @@ public:
     bool isConditionCompare();
     bool isStackPush();
     bool isStackPop();
+    bool isSoftwarePrefetch();
     bool isLoad();
     bool isStore();
     bool isSpecialRegOp();

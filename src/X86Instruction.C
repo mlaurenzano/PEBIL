@@ -417,6 +417,9 @@ bool X86Instruction::isLoad(){
     if (CHECK_IMPLICIT_LOAD){
         return true;
     }
+    if (isSoftwarePrefetch()){
+        return true;
+    }
     if (isExplicitMemoryOperation()){
         OperandX86* mem = getMemoryOperand();
         ASSERT(mem);
@@ -1303,7 +1306,7 @@ bool X86Instruction::isConditionalMove(){
 }
 
 bool X86Instruction::isMemoryOperation(){
-    return (isImplicitMemoryOperation() || isExplicitMemoryOperation());
+    return (isImplicitMemoryOperation() || isExplicitMemoryOperation() || isSoftwarePrefetch());
 }
 
 bool X86Instruction::isImplicitMemoryOperation(){
@@ -1312,6 +1315,14 @@ bool X86Instruction::isImplicitMemoryOperation(){
     }
     return false;
 }
+
+bool X86Instruction::isSoftwarePrefetch(){
+    if (IS_PREFETCH(GET(mnemonic))){
+        return true;
+    }
+    return false;
+}
+
 
 bool X86Instruction::isExplicitMemoryOperation(){
     uint32_t memCount = 0;
