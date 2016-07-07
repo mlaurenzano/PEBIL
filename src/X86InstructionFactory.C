@@ -401,7 +401,10 @@ X86Instruction* X86InstructionFactory64::emitMoveZmmxToAlignedStack(uint8_t zmm,
 }
 
 
-// vpackstore zmm1, mem {k}
+// vector store zmm1, mem {k}
+//
+// vpackstoreld zmm1, (addr) {k}
+// vpackstorehd zmm1, (addr+64) {k}
 Vector<X86Instruction*>* X86InstructionFactory64::emitUnalignedPackstoreRegaddrImm(
         uint32_t zmm_in,
         uint32_t kreg_in,
@@ -445,7 +448,7 @@ Vector<X86Instruction*>* X86InstructionFactory64::emitUnalignedPackstoreRegaddrI
     uint8_t vp = 1 << 3;
     uint8_t ESSSvpaaa = E | SSS | vp | kreg;
 
-    uint8_t opcode = 0xD4;
+    uint8_t opcode = 0xD0;
     int len = 10;
     char* buff = new char[len];
     buff[0] = 0x62;
@@ -458,8 +461,10 @@ Vector<X86Instruction*>* X86InstructionFactory64::emitUnalignedPackstoreRegaddrI
 
     char* buff2 = new char[len];
     memcpy(buff2, buff, len);
-    opcode = 0xD0;
+    opcode = 0xD4;
     buff2[4] = opcode;
+    disp += 64;
+    memcpy(buff2+6, &disp, sizeof(disp));
 
     Vector<X86Instruction*>* retval = new Vector<X86Instruction*>();
     retval->append(emitInstructionBase(len, buff));
