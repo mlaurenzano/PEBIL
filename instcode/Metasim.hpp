@@ -59,7 +59,7 @@ struct VectorAddress {
     uint32_t indexVector[16];
     uint64_t base;
     uint8_t  scale;
-    uint16_t mask;
+    uint64_t mask;
 };
 
 typedef struct {

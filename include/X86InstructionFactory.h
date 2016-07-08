@@ -91,6 +91,7 @@ public:
 
     static X86Instruction* emitExchangeAdd(uint8_t src, uint8_t dest, bool lock);
 
+    static X86Instruction* emitMoveRegToRegaddrImm2Byte(int32_t src, int32_t base, uint32_t off);
     static X86Instruction* emitMoveKToReg(uint32_t kreg, uint32_t gpr);
     static X86Instruction* emitMoveRegToK(uint32_t gpr, uint32_t kreg);
     static Vector<X86Instruction*>* emitUnalignedPackstoreRegaddrImm(uint32_t,uint32_t,uint32_t,uint32_t);
@@ -120,6 +121,7 @@ public:
     static X86Instruction* emitMoveRegToRegaddr(uint32_t idxsrc, uint32_t idxdest);
     static X86Instruction* emitAddImmByteToRegaddrImm(uint8_t byte, uint8_t reg, uint32_t imm);
     static X86Instruction* emitAddImmToRegaddrImm(uint32_t b, uint8_t reg, uint32_t imm);
+    static X86Instruction* emitMoveImmToRegaddrImm(uint64_t, uint8_t, int32_t, uint32_t);
     static X86Instruction* emitMoveImmToRegaddrImm(uint64_t, uint32_t, uint64_t);
 
     static X86Instruction* emitMoveRegToMem(uint32_t idx, uint64_t addr);

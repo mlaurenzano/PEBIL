@@ -438,6 +438,7 @@ void CacheSimulation::writeBufferBase(
     //snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr3, sr2, offsetof(BufferEntry, type), true));
     snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(
         type,
+        sizeof(type),
         sr2,
         offsetof(BufferEntry, type)));
 
@@ -446,6 +447,7 @@ void CacheSimulation::writeBufferBase(
     //snip->addSnippetInstruction(X86InstructionFactory64::emitMoveRegToRegaddrImm(sr3, sr2, offsetof(BufferEntry, loadstoreflag), true));
     snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(
         loadstoreflag,
+        sizeof(loadstoreflag),
         sr2,
         offsetof(BufferEntry, loadstoreflag)));
 
@@ -844,6 +846,7 @@ void CacheSimulation::bufferVectorEntry(
     // write scale
     snip->addSnippetInstruction(X86InstructionFactory64::emitMoveImmToRegaddrImm(
         scale,
+        sizeof(scale),
         sr2,
         offsetof(BufferEntry, vectorAddress) + offsetof(VectorAddress, scale)));
 

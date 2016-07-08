@@ -1694,6 +1694,44 @@ X86Instruction* X86InstructionFactory::emitMoveImmToRegaddrImm(uint64_t immval, 
     return emitInstructionBase(len,buff);
 }
 
+// mov imm, (base+off)
+X86Instruction* X86InstructionFactory64::emitMoveImmToRegaddrImm(
+    uint64_t imm,
+    uint8_t  mem_size,
+    int32_t  base,
+    uint32_t off)
+{
+    ASSERT(base >= X86_REG_AX && base <= X86_REG_R15);
+    ASSERT(mem_size <= sizeof(imm));
+
+    // REX.W : operand size = 64
+    // REX.R : ModRm.reg
+    // REX.X : SIB.index
+    // REX.B : ModRm.rm
+
+    uint8_t W = mem_size == 8 ? 1 << 3 : 0;
+    uint8_t R = 0;
+    uint8_t X = 0;
+    uint8_t B = (base & 0x8) >> 3;
+    uint8_t rex = 0x40 | W | R | X | B;
+    uint8_t opcode = mem_size == 1 ? 0xC6 : 0xC7;
+    uint8_t mod = 0x80;
+    uint8_t reg = 0;
+    uint8_t rm = base & 0x7;
+    uint8_t modrm = mod | reg | rm;
+
+    int len = 4 + sizeof(off) + mem_size;
+    char* buff = new char[len];
+    buff[0] = 0x67;
+    buff[1] = rex;
+    buff[2] = opcode;
+    buff[3] = modrm;
+    memcpy(buff+4, &off, sizeof(off));
+    char* immptr = (char*)&imm;
+    memcpy(buff+4+sizeof(off), immptr, mem_size);
+    return emitInstructionBase(len, buff);
+}
+
 X86Instruction* X86InstructionFactory64::emitMoveImmToRegaddrImm(uint64_t val, uint32_t idx, uint64_t off){
     ASSERT(idx < X86_64BIT_GPRS && "Illegal register index given");
     uint32_t len = 12;
@@ -1703,19 +1741,21 @@ X86Instruction* X86InstructionFactory64::emitMoveImmToRegaddrImm(uint64_t val, u
         immoff++;
     }
     char* buff = new char[len];
-
     // set opcode
-    buff[0] = 0x67;
-    buff[1] = 0x48;
+    buff[0] = 0x67; // address override prefix
+    buff[1] = 0x48; // rex prefix 0x4WRXB
     if (idx >= X86_32BIT_GPRS){
         buff[1]++;
     }
-    buff[2] = 0xc7;
-    buff[3] = 0x80 + (char)(idx % X86_32BIT_GPRS);
-    buff[4] = 0x24;
+    buff[2] = 0xc7; // opcode
+    buff[3] = 0x80 + (char)(idx % X86_32BIT_GPRS); // modrm?
+
+
+    buff[4] = 0x24; // N/A?
 
     uint32_t off32 = (uint32_t)off;
     ASSERT(off32 == (uint32_t)off && "Cannot use more than 32 bits for the immediate");
+
     uint32_t val32 = (uint32_t)val;
     ASSERT(val32 == (uint32_t)val && "Cannot use more than 32 bits for the immediate");
 
@@ -2341,6 +2381,32 @@ X86Instruction* X86InstructionFactory64::emitMoveRegToRegaddrImm(uint32_t idxsrc
     memcpy(buff+immoff,&imm32,sizeof(uint32_t));
 
     return emitInstructionBase(len,buff);
+}
+
+X86Instruction* X86InstructionFactory64::emitMoveRegToRegaddrImm2Byte(int32_t src, int32_t base, uint32_t off)
+{
+    ASSERT(src >= X86_REG_AX && src <= X86_REG_R15);
+    ASSERT(base >= X86_REG_AX && base <= X86_REG_R15);
+
+    uint8_t W = 0;
+    uint8_t R = (src & 0x8) >> 1;
+    uint8_t X = 0;
+    uint8_t B = (base & 0x8) >> 3;
+    uint8_t rex = 0x40 | W | R | X | B;
+    uint8_t opcode = 0x89;
+    uint8_t mod = 0x80;
+    uint8_t reg = src & 0x7;
+    uint8_t rm = base & 0x7;
+    uint8_t modrm = mod | reg | rm;
+
+    int len = 4 + sizeof(off);
+    char* buff = new char[len];
+    buff[0] = 0x66;
+    buff[1] = rex;
+    buff[2] = opcode;
+    buff[3] = modrm;
+    memcpy(buff+3, &off, sizeof(off));
+    return emitInstructionBase(len, buff);
 }
 
 X86Instruction* X86InstructionFactory64::emitMoveRegToRegaddrImm1Byte(uint32_t idxsrc, uint32_t idxdest, uint64_t imm){
