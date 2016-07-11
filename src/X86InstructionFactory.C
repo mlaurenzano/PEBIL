@@ -1720,15 +1720,25 @@ X86Instruction* X86InstructionFactory64::emitMoveImmToRegaddrImm(
     uint8_t rm = base & 0x7;
     uint8_t modrm = mod | reg | rm;
 
-    int len = 4 + sizeof(off) + mem_size;
+    int len = 5 + sizeof(off) + mem_size;
     char* buff = new char[len];
     buff[0] = 0x67;
     buff[1] = rex;
     buff[2] = opcode;
     buff[3] = modrm;
-    memcpy(buff+4, &off, sizeof(off));
+
+    char* offStart = NULL;
+    if(base % X86_32BIT_GPRS == X86_REG_SP) {
+        buff[4] = 0x24; // SIB byte
+        offStart = buff+5;
+    } else {
+        --len;
+        offStart = buff+4;
+    }
+
+    memcpy(offStart, &off, sizeof(off));
     char* immptr = (char*)&imm;
-    memcpy(buff+4+sizeof(off), immptr, mem_size);
+    memcpy(offStart+sizeof(off), immptr, mem_size);
     return emitInstructionBase(len, buff);
 }
 
