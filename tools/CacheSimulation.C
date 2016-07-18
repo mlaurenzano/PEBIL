@@ -1228,7 +1228,7 @@ void CacheSimulation::instrument(){
     if (usePIC()){
         delete functionThreading;
     }
-
+    writeStaticFile();
     ASSERT(currentPhase == ElfInstPhase_user_reserve && "Instrumentation phase order must be observed"); 
 }
 

@@ -959,9 +959,9 @@ extern "C" {
                                             c->Store(bbid, lvl, s->GetStores(memid, lvl));                                    
                                         }
                                 }
-                                if(!c->Verify()) {
-                                    warn << "Failed check on aggregated cache stats" << ENDL;
-                                }
+                            }
+                            if(!c->Verify()) {
+                                warn << "Failed check on aggregated cache stats" << ENDL;
                             }
                             if(c->hybridCache){
                                 for (uint32_t memid = 0; memid < st->AllocCount; memid++){
@@ -1393,7 +1393,7 @@ uint32_t AddressRangeHandler::Process(void* stats, BufferEntry* access){
             currAddr = (access->vectorAddress).base + (access->vectorAddress).indexVector[i] * (access->vectorAddress).scale;
             rs->Update(memid, currAddr);
           }
-          mask >> 1;
+          mask = (mask >> 1);
         }
         return 0;
     }
