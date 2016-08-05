@@ -37,6 +37,7 @@
 #define NOSTRING "__pebil_no_string__"
 #define BUFFER_ENTRIES 0x10000
 
+#define PREFETCH 2
 #define LOAD 1
 #define STORE 0
 
@@ -504,9 +505,14 @@ void CacheSimulation::instrumentMemop(
         delete tdata;
     }
 
-    ASSERT(memopIdInBlock < bb->getNumberOfMemoryOps());
-    setupBufferEntry(snip, 1+memopIdInBlock-bb->getNumberOfMemoryOps(), sr1, sr2, sr3, stats);
-    writeBufferBase(snip, sr2, sr3, MEM_ENTRY, loadstoreflag, memopSeq);
+    ASSERT(memopIdInBlock < bb->getNumberOfMemoryOps() + bb->getNumberOfSWPrefetches()
+);
+    setupBufferEntry(snip, 1+memopIdInBlock-(bb->getNumberOfMemoryOps() + bb->getNumberOfSWPrefetches()), sr1, sr2, sr3, stats);
+    if (loadstoreflag == PREFETCH) {
+      writeBufferBase(snip, sr2, sr3, PREFETCH_ENTRY, LOAD, memopSeq);
+    } else {
+      writeBufferBase(snip, sr2, sr3, MEM_ENTRY, loadstoreflag, memopSeq);
+    }
 
     // set address
     Vector<X86Instruction*>* addrStore = X86InstructionFactory64::emitAddressComputation(memop, sr3);
@@ -668,7 +674,7 @@ void CacheSimulation::initializeBlockInfo(BasicBlock* bb,
         sizeof(uint64_t),
         &temp64);
 
-    uint32_t temp32 = bb->getNumberOfMemoryOps();
+    uint32_t temp32 = bb->getNumberOfMemoryOps() + bb->getNumberOfSWPrefetches();
     initializeReservedData(
         getInstDataAddress() + (uint64_t)stats.MemopsPerBlock + blockSeq*sizeof(uint32_t),
         sizeof(uint32_t),
@@ -946,6 +952,9 @@ void CacheSimulation::instrument(){
                 if (memop->isStore()){
                     memopSeq++;
                 }
+                if (memop->isSoftwarePrefetch()){
+                    memopSeq++;
+                }
             }
         }
     }
@@ -1154,8 +1163,7 @@ void CacheSimulation::instrument(){
             for (uint32_t insIndex = 0; insIndex < bb->getNumberOfInstructions(); insIndex++){
                 X86Instruction* memop = bb->getInstruction(insIndex);
 
-
-                if (memop->isMemoryOperation()){
+                if (memop->isMemoryOperation() || memop->isSoftwarePrefetch()){
 
                     if (memopIdInBlock == 0){
 
@@ -1165,32 +1173,42 @@ void CacheSimulation::instrument(){
                             InstrumentationTool::insertBlockCounter(counterOffset, bb, true, threadReg);
                         }
 
-                        insertBufferClear(bb->getNumberOfMemoryOps(), memop, InstLocation_prior, blockSeq, threadReg,
-                            stats);
+                        insertBufferClear(bb->getNumberOfMemoryOps() + bb->getNumberOfSWPrefetches(), memop, InstLocation_prior, blockSeq, threadReg, stats);
 
                         leader = memopSeq;
                     }
 
+                }
+                if (memop->isMemoryOperation()) {
+
                     if(memop->isLoad()) {
                         instrumentMemop(bb, memop, LOAD, blockSeq, threadReg, stats, memopIdInBlock, memopSeq);
-
+  
                         initializeInstructionInfo(memop, insIndex, stats, func, bb, memopSeq, memopIdInBlock,
                             leader, threadReg, noData, simulationStruct, blockSeq);
-
+  
                         ++memopIdInBlock;
                         ++memopSeq;
                     }
-
+  
                     if(memop->isStore()) {
                         instrumentMemop(bb, memop, STORE, blockSeq, threadReg, stats, memopIdInBlock, memopSeq);
-
+  
                         initializeInstructionInfo(memop, insIndex, stats, func, bb, memopSeq, memopIdInBlock,
                             leader, threadReg, noData, simulationStruct, blockSeq);
-
-
+  
+  
                         ++memopIdInBlock;
                         ++memopSeq;
-                    }
+                    } //store
+                } //memop
+                else if(memop->isSoftwarePrefetch()) {
+                    instrumentMemop(bb, memop, PREFETCH, blockSeq, threadReg, stats, memopIdInBlock, memopSeq);
+
+                    initializeInstructionInfo(memop, insIndex, stats, func, bb, memopSeq, memopIdInBlock,
+                        leader, threadReg, noData, simulationStruct, blockSeq);
+                        ++memopIdInBlock;
+                        ++memopSeq;
                 }
             }
         }

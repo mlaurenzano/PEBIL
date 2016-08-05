@@ -417,9 +417,6 @@ bool X86Instruction::isLoad(){
     if (CHECK_IMPLICIT_LOAD){
         return true;
     }
-    if (isSoftwarePrefetch()){
-        return true;
-    }
     if (isExplicitMemoryOperation()){
         OperandX86* mem = getMemoryOperand();
         ASSERT(mem);
@@ -1240,7 +1237,7 @@ void X86Instruction::touchedRegisters(BitSet<uint32_t>* regs){
 }
 
 OperandX86* X86Instruction::getMemoryOperand(){
-    ASSERT(isMemoryOperation());
+    ASSERT(isMemoryOperation() || isSoftwarePrefetch());
     if (isExplicitMemoryOperation()){
         for (uint32_t i = 0; i < MAX_OPERANDS; i++){
             if (operands[i] && operands[i]->GET(type) == UD_OP_MEM){
@@ -1307,7 +1304,7 @@ bool X86Instruction::isConditionalMove(){
 }
 
 bool X86Instruction::isMemoryOperation(){
-    return (isImplicitMemoryOperation() || isExplicitMemoryOperation() || isSoftwarePrefetch());
+    return (isImplicitMemoryOperation() || isExplicitMemoryOperation());
 }
 
 bool X86Instruction::isImplicitMemoryOperation(){

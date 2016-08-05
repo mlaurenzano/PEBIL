@@ -674,7 +674,7 @@ X86Instruction* X86InstructionFactory32::emitMoveSegmentRegToReg(uint32_t src, u
 
 Vector<X86Instruction*>* X86InstructionFactory64::emitAddressComputation(X86Instruction* instruction, uint32_t dest){
     ASSERT(dest < X86_64BIT_GPRS && "Illegal register index given");
-    ASSERT(instruction->isMemoryOperation());
+    ASSERT(instruction->isMemoryOperation() || instruction->isSoftwarePrefetch());
 
     DEBUG_LOADADDR(
     instruction->print();

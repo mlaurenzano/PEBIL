@@ -82,6 +82,7 @@ static uint32_t CountCacheStructures = 0;
 static uint32_t RangeHandlerIndex = 0;
 static int32_t ReuseHandlerIndex = 0;
 static int32_t SpatialHandlerIndex = 0;
+static bool ExecuteSoftwarePrefetches = true;
 
 static SamplingMethod* Sampler = NULL;
 static DataManager<SimulationStats*>* AllData = NULL;
@@ -1396,7 +1397,15 @@ uint32_t AddressRangeHandler::Process(void* stats, BufferEntry* access){
           mask = (mask >> 1);
         }
         return 0;
-    }
+    } else if(access->type == PREFETCH_ENTRY) {
+        uint32_t memid = (uint32_t)access->memseq;
+        uint64_t addr = access->address;
+        if (ExecuteSoftwarePrefetches) {
+          RangeStats* rs = (RangeStats*)stats;
+          rs->Update(memid, addr);
+        }
+        return 0;
+   }
 }
 
 CacheStats::CacheStats(uint32_t lvl, uint32_t sysid, uint32_t capacity,uint32_t hybridcache){
@@ -2695,7 +2704,12 @@ uint32_t CacheStructureHandler::Process(void* stats_in, BufferEntry* access){
         // processAddress
         return lastReturn;
     } else if(access->type == PREFETCH_ENTRY) {
-      return processAddress(stats_in, access->address, access->memseq, access->loadstoreflag);
+      if (ExecuteSoftwarePrefetches) {
+        return processAddress(stats_in, access->address, access->memseq, access->loadstoreflag);
+      }
+      else {
+        return 0;
+      }
    }
 }
 
