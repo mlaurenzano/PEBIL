@@ -445,6 +445,7 @@ private:
 public:
 
     inline uint64_t getValue(){ return entry.bits; }
+    inline uint64_t getBlockCode() { return entry.bits & 0xffffffffffffff00; }
 
     inline HashCode() { entry.bits = INVALID_FIELD; }
     inline HashCode(uint64_t a) { entry.bits = a; }
@@ -464,6 +465,7 @@ public:
     inline uint32_t getFunction()    { return (hasFunction() ? (entry.fields.function - 1) : INVALID_FIELD); }
     inline uint32_t getBlock()       { return (hasBlock() ? (entry.fields.block - 1) : INVALID_FIELD); }
     inline uint32_t getInstruction() { return (hasInstruction() ? (entry.fields.instruction - 1) : INVALID_FIELD); }
+
 };
 
 extern bool allSpace(char* str);

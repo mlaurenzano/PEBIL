@@ -171,19 +171,6 @@ void FunctionTimer::instrument(){
         BasicBlock* bb = f->getFlowGraph()->getEntryBlock();
         Vector<BasicBlock*>* exitBlocks = f->getFlowGraph()->getExitBlocks();
 
-        // Instrument the entry block
-        //FlagsProtectionMethods prot = FlagsProtectionMethod_full;
-        //X86Instruction* bestinst = bb->getExitInstruction();
-        //InstLocations loc = InstLocation_prior;
-        //for (int32_t j = bb->getNumberOfInstructions() - 1; j >= 0; j--){
-        //    if (bb->getInstruction(j)->allFlagsDeadIn()){
-        //        bestinst = bb->getInstruction(j);
-        //        prot = FlagsProtectionMethod_none;
-        //        break;
-        //    }
-        //}
-        //InstrumentationPoint* p = addInstrumentationPoint(bestinst, functionEntry, InstrumentationMode_tramp, loc);
-        //assignStoragePrior(p, i, functionEntryIndexRegister);
         instrumentEntry(bb, functionEntryIndexRegister, i);
 
         // Instrument entry blocks of sub-functions

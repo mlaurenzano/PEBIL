@@ -63,7 +63,9 @@ LoopIntercept::LoopIntercept(ElfFile* elf)
 uint64_t LoopIntercept::getLoopHash(uint32_t idx){
     ASSERT(idx < (*loopList).size());
     uint64_t hash = strtol((*loopList)[idx], NULL, 0);
-    return hash;
+    HashCode hashc(hash);
+    uint64_t blockhash = hashc.getBlockCode();
+    return blockhash;
 }
 
 void LoopIntercept::declare(){
@@ -262,6 +264,11 @@ void LoopIntercept::instrument(){
         if (!badLoop){
             loopsFound[hash] = innerMost;
         }
+    }
+
+    // Check for loops not found
+    if (loops.size() != loopsFound.size() + loopsRejected.size()) {
+        PRINT_WARN(20, "Only found %d of %d loops\n", loopsFound.size()+loopsRejected.size(), loops.size());
     }
 
     // Recreate indices from loopsFound
