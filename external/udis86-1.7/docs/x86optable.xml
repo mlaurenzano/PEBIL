@@ -5080,8 +5080,27 @@ MAL MISSING PRE SSE?
     <opcode> rexr rexx rexb rexw ; mvex sse66 0f EA ; ZR ZV ZRM ; ; </opcode>
   </instruction>
 
+  <instruction mnemonic="vpminub">
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f DA ; V X W ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f DA ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
   <instruction mnemonic="vpminud">
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 3B ; V X W ; ; </opcode>
     <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 3B /W=0 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpminuq">
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 3B /W=1 ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpminuw">
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 3A ; V X W ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 3A ; ZR ZV ZRM ; ; </opcode>
+  </instruction>
+
+  <instruction mnemonic="vpmovm2b">
+    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f /3byte=38 28 /W=0 ; ZR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpmulhd">
