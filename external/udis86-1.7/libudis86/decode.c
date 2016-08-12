@@ -153,6 +153,42 @@ static void decode_vex(struct ud* u)
     }
 }
 
+/* EVEX prefix
+ *
+*
+ * |7..0|7 6 5 4  32 10|7 6543 2 10|7 6 5 4 3  210|
+ * | 62 |R X B R' 00 mm|W vvvv 1 pp|z L'L b v' aaa|
+ *
+ * z: zeroing/mergine
+ * L'L: vector length
+ * b: broadcast/rc/sae context
+ */
+
+static void decode_evex(struct ud* u)
+{
+    // Decode PP
+    uint8_t ext;
+    switch(EVEX_pp(u->evex)) {
+        case 0:
+          ext = 0x00;
+          break;
+        case 1:
+          ext = 0x66;
+          break;
+        case 2:
+          ext = 0xF3;
+          break;
+        case 3:
+          ext = 0xF2;
+          break;
+        default:
+          assert(0);
+    }
+    u->pfx_avx = ext;
+    u->pfx_rex = EVEX_REX(u->evex);
+    u->vector_mask_register = resolve_reg(u, T_K, EVEX_aaa(u->evex));
+}
+ 
 /*
  * MVEX prefixes are 4 bytes long
  *
@@ -412,7 +448,12 @@ static int get_prefixes( struct ud* u )
                 u->mvex[1] = inp_curr(u);
                 inp_next(u);
                 u->mvex[2] = inp_curr(u);
-                decode_mvex(u);
+
+                if IS_EVEX(u->mvex) {
+                    decode_evex(u);
+                } else {
+                    decode_mvex(u);
+                }
 
                 inp_next(u); // will be rewound
                 have_pfx = 0; // end of prefixes
@@ -849,6 +890,16 @@ static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
         return ( u->dis_mode == 64 ) ? 64 : 32;
     case SZ_X:
         return VEX_L(u->avx_vex[0]) && (!P_VEXLIG(u->itab_entry->prefix)) ? SZ_Y : SZ_X;
+    case SZ_XZ:
+        if(IS_EVEX(u->evex)) {
+            char size = EVEX_LL(u->evex);
+            if(size == 0) return 128;
+            else if(size == 1) return 256;
+            else if(size == 2) return 512;
+            else assert(0);
+        } else {
+            return s;
+        }
     default:
         return s;
     }
@@ -1004,11 +1055,40 @@ static void decode_vex_vvvv(struct ud* u,
     op->position = u->pfx_insn == 0xC4 ? 2 : 1;
 }
 
+static void decode_evex_vvvv(
+        struct ud* u,
+        struct ud_operand* op,
+        unsigned int size,
+        unsigned char type)
+{
+    if(type == T_ZMM) {
+        int lencontrol = EVEX_LL(u->evex);
+        if(lencontrol == 0) {
+            type = T_XMM;
+            size = 128;
+        } else if(lencontrol == 1) {
+            type = T_YMM;
+            size = 256;
+        } else if(lencontrol == 2) {
+            type = T_ZMM;
+            size = 512;
+        } else assert(0);
+    }
+    enum ud_type reg = resolve_reg(u, type, EVEX_vp(u->evex) << 4 | EVEX_vvvv(u->evex));
+    op->type = UD_OP_REG;
+    op->base = reg;
+    op->size = size;
+    op->position = 2;
+}
 static void decode_mvex_vvvv(struct ud* u,
         struct ud_operand* op,
         unsigned int size,
         unsigned char type)
 {
+    if(IS_EVEX(u->evex)) {
+        decode_evex_vvvv(u, op, size, type);
+        return;
+    }
     enum ud_type reg = resolve_reg(u, type, (MVEX_VP(u->mvex[2]) << 4) | MVEX_VVVV(u->mvex[1]));
 
     op->type = UD_OP_REG;
@@ -1439,7 +1519,6 @@ static int disasm_operand(register struct ud* u,
 
     case OP_ZR:
       decode_modrm_reg(u, modrm, operand, size, T_ZMM);
-      assert(operand->size == SZ_XZ);
       break;
 
     case OP_ZM:
@@ -1449,12 +1528,10 @@ static int disasm_operand(register struct ud* u,
           fprintf(stderr, "WARNING: POSSIBLE INCORRECT DECODING of ZM operand\n");
       }
       decode_modrm_rm(u, modrm, operand, size, T_ZMM);
-      assert(operand->size == SZ_XZ);
       break;
 
     case OP_ZRM:
       decode_modrm_rm(u, modrm, operand, size, T_ZMM);
-      assert(operand->size == SZ_XZ);
       break;
 
     case OP_ZV:
