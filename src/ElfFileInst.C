@@ -1108,7 +1108,8 @@ void ElfFileInst::functionSelect(){
                 }
             } else {
                 if (!isDisabledFunction(f)){
-                    PRINT_DEBUG_FUNC_RELOC("\thidden: %s\ta%d b%d c%#llx d%d e%d f%d g%d h%d i%d j%d", f->getName(), 
+                    //PRINT_DEBUG_FUNC_RELOC(
+                    PRINT_INFOR("\thidden: %s\ta%d b%d c%#llx d%d e%d f%d g%d h%d i%d j%d", f->getName(), 
                                 /*a*/f->hasCompleteDisassembly(), 
                                 /*b*/isEligibleFunction(f), 
                                 /*c*/f->getBadInstruction(), 
