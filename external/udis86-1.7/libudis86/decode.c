@@ -1535,7 +1535,6 @@ static int disasm_operand(register struct ud* u,
       break;
 
     case OP_ZV:
-      assert(P_MVEX(u->pfx_insn));
       decode_mvex_vvvv(u, operand, size, T_ZMM);
       break;
 

@@ -582,7 +582,7 @@ for node in tlNode.childNodes:
             mktab(table_name, table_size)
 
         m = mnemonic
-        if table_avxdone > 0:
+        if table_avxdone > 0 and not m.startswith('v'):
             m = 'v' + m
         insert_mnm(m)
 
