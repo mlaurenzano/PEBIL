@@ -3,7 +3,7 @@ TNAME=@PACKAGE@
 TLIB = lib$(TNAME).so
 
 INCLUDE = -I..
-LINK = -L.. -l$(TNAME)
+LINK = -dynamic -L.. -l$(TNAME)
 
 ANSWER = answer.txt
 CORRECT = correct.txt
