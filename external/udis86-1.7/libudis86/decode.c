@@ -64,6 +64,7 @@ const char * ud_lookup_mnemonic( enum ud_mnemonic_code c )
 static enum ud_type 
 resolve_reg(struct ud* u, unsigned int type, unsigned char i)
 {
+  PEBIL_DEBUG("resolve_reg: type = %d, %u\n", type, i);
   switch (type) {
     case T_MMX :    return UD_R_MM0  + (i & 7);
     case T_XMM :    return UD_R_XMM0 + i;
@@ -525,6 +526,7 @@ static int search_itab( struct ud * u )
     if ( u->error ) 
         return -1;
     curr = inp_curr(u); 
+    PEBIL_DEBUG("\t1st byte opcode: %hhx", curr);
 
     /* resolve xchg, nop, pause crazyness */
     if ( !P_MVEX(u->pfx_insn) && !P_AVX(u->pfx_insn) && 0x90 == curr ) {
@@ -680,6 +682,8 @@ static int search_itab( struct ud * u )
 
     // MVEX tables
     } else if(P_MVEX(u->pfx_insn)) {
+ 
+        PEBIL_DEBUG("\tMVEX Table.");
         if( u->error ) return -1;
 
         int tableid = 0xdeadbeef;
@@ -723,15 +727,16 @@ static int search_itab( struct ud * u )
 
 search:
 
-    /*
-    if(ud_itab_list[table][index].mnemonic == UD_Iinvalid) {
-        gen_hex(u);
-        PEBIL_WARN("Found invalid instruction\n");
-        PEBIL_WARN("  hex: %hhx %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3], u->insn_bytes[4]);
-        PEBIL_WARN("  opcode: %hhx\n", curr);
-        PEBIL_WARN("  table prefix: 0x%x\n", (MVEX_M4(u->mvex[0]) << 8) | (u->pfx_avx));
-    }
-*/
+    PEBIL_DEBUG("\t\t Looking up table: %d  with index %d\n", table, index);
+ //   if(ud_itab_list[table][index].mnemonic == UD_Iinvalid) {
+ //       gen_hex(u);
+ //       PEBIL_WARN("Found invalid instruction\n");
+ //       PEBIL_WARN("  hex: %hhx %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3], u->insn_bytes[4]);
+ //       PEBIL_WARN("  opcode: %hhx\n", curr);
+ //       PEBIL_WARN("  table prefix: 0x%x\n", (MVEX_M4(u->mvex[0]) << 8) | (u->pfx_avx));
+ //       PEBIL_WARN("  index= %d\n", index);
+ //   }
+
     e = & ud_itab_list[ table ][ index ];
 
     /* if mnemonic constant is a standard instruction constant
@@ -753,12 +758,14 @@ search:
     switch ( e->mnemonic )
     {
     case UD_Igrp_reg:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_reg\n");
         peek     = inp_peek( u );
         did_peek = 1;
         index    = MODRM_REG( peek );
         break;
 
     case UD_Igrp_mod:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_mod\n");
         peek     = inp_peek( u );
         did_peek = 1;
         index    = MODRM_MOD( peek );
@@ -769,6 +776,7 @@ search:
         break;
 
     case UD_Igrp_rm:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_rm\n");
         curr     = inp_next( u );
         did_peek = 0;
         if ( u->error )
@@ -777,6 +785,7 @@ search:
         break;
 
     case UD_Igrp_x87:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_x87\n");
         curr     = inp_next( u );
         did_peek = 0;
         if ( u->error )
@@ -785,6 +794,7 @@ search:
         break;
 
     case UD_Igrp_osize:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_osize\n");
         if ( u->opr_mode == 64 ) 
             index = ITAB__MODE_INDX__64;
         else if ( u->opr_mode == 32 ) 
@@ -794,6 +804,7 @@ search:
         break;
  
     case UD_Igrp_asize:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_asize\n");
         if ( u->adr_mode == 64 ) 
             index = ITAB__MODE_INDX__64;
         else if ( u->adr_mode == 32 ) 
@@ -803,6 +814,7 @@ search:
         break;               
 
     case UD_Igrp_mode:
+        PEBIL_DEBUG("\t\tmnemonic = UD_Igrp_mode\n");
         if ( u->dis_mode == 64 ) 
             index = ITAB__MODE_INDX__64;
         else if ( u->dis_mode == 32 ) 
@@ -892,6 +904,11 @@ static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
         return VEX_L(u->avx_vex[0]) && (!P_VEXLIG(u->itab_entry->prefix)) ? SZ_Y : SZ_X;
     case SZ_XZ:
         if(IS_EVEX(u->evex)) {
+           // if(EVEX_B(u->evex) == 1)
+           // {
+           //     PEBIL_WARN("SAE bit set for %s. Assuming 512 bit vector length.\n", ud_lookup_mnemonic(u->mnemonic));
+           //     return 512;
+           // }
             char size = EVEX_LL(u->evex);
             if(size == 0) return 128;
             else if(size == 1) return 256;
@@ -1063,6 +1080,12 @@ static void decode_evex_vvvv(
 {
     if(type == T_ZMM) {
         int lencontrol = EVEX_LL(u->evex);
+        //if(EVEX_B(u->evex) == 1)
+        //{
+            //PEBIL_WARN("SAE bit set for %s. Assuming 512 bit vector length.\n", ud_lookup_mnemonic(u->mnemonic));
+        //    type = T_ZMM;
+        //    size = 512;
+        //} else 
         if(lencontrol == 0) {
             type = T_XMM;
             size = 128;
