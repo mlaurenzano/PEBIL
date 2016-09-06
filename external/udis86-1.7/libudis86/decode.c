@@ -14,8 +14,8 @@
 #include "input.h"
 #include "decode.h"
 
-//#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
-#define PEBIL_DEBUG(...)
+#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
+//#define PEBIL_DEBUG(...)
 #define PEBIL_WARN(...) fprintf(stderr, __VA_ARGS__)
 
 /* The max number of prefixes to an instruction */
@@ -64,7 +64,7 @@ const char * ud_lookup_mnemonic( enum ud_mnemonic_code c )
 static enum ud_type 
 resolve_reg(struct ud* u, unsigned int type, unsigned char i)
 {
-  PEBIL_DEBUG("resolve_reg: type = %d, %u\n", type, i);
+  PEBIL_DEBUG("resolve_reg: type = %d, %u", type, i);
   switch (type) {
     case T_MMX :    return UD_R_MM0  + (i & 7);
     case T_XMM :    return UD_R_XMM0 + i;
@@ -727,7 +727,7 @@ static int search_itab( struct ud * u )
 
 search:
 
-    PEBIL_DEBUG("\t\t Looking up table: %d  with index %d\n", table, index);
+    PEBIL_DEBUG("\t\t Looking up table: %d  with index %d", table, index);
  //   if(ud_itab_list[table][index].mnemonic == UD_Iinvalid) {
  //       gen_hex(u);
  //       PEBIL_WARN("Found invalid instruction\n");
@@ -870,9 +870,11 @@ found_entry:
 
 static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
 {
+    //PEBIL_DEBUG("\t\tresolve_operand_size: s = %d", s);
     switch ( s ) 
     {
     case SZ_NA:
+        //PEBIL_DEBUG("\t\tresolve_operand_size: s = SZ_NA");
         if(u->mnemonic == UD_Ilea){ // instructions that use O_M and get operand from adr_mode -- move this elsewhere when instructions are complete
             return u->adr_mode; // FIXME
         }
@@ -885,12 +887,15 @@ static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
            u->mnemonic != UD_Inop) {
             //fprintf(stderr, "Unknown operand size of instruction %s\n", ud_lookup_mnemonic(u->mnemonic));
         }
+        //PEBIL_DEBUG("\t\tresolve_operand_size: u->avx_vex[0] = %d", u->avx_vex[0]);
         if(u->avx_vex[0]) {
+           // PEBIL_DEBUG("\t\tresolve_operand_size: u->pfx_size = %d", u->pfx_size);
             if(u->pfx_size) return 256;
             else return 128;
         }
         return s;
     case SZ_V:
+        //PEBIL_DEBUG("\t\tresolve_operand_size: s = SZ_V");
         return ( u->opr_mode );
     case SZ_Z:  
         return ( u->opr_mode == 16 ) ? 16 : 32;
@@ -901,6 +906,8 @@ static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
     case SZ_RDQ:
         return ( u->dis_mode == 64 ) ? 64 : 32;
     case SZ_X:
+        //PEBIL_DEBUG("\t\tresolve_operand_size: s = SZ_X");
+        //PEBIL_DEBUG("\t\tresolve_operand_size: u->avx_vex[0] = %u, prefix = %u,  VEXLIG = %u, VEX_L = %u, return = %u", u->avx_vex[0], u->itab_entry->prefix, P_VEXLIG(u->itab_entry->prefix), VEX_L(u->avx_vex[0]), VEX_L(u->avx_vex[0]) && (!P_VEXLIG(u->itab_entry->prefix)));
         return VEX_L(u->avx_vex[0]) && (!P_VEXLIG(u->itab_entry->prefix)) ? SZ_Y : SZ_X;
     case SZ_XZ:
         if(IS_EVEX(u->evex)) {
@@ -1054,6 +1061,7 @@ static void decode_vex_vvvv(struct ud* u,
         unsigned char type)
 {
     uint8_t vex = u->avx_vex[0];
+    PEBIL_DEBUG("\tdecode_vex_vvvv: size = %d, type = %u", size, type);
 
     if(type == T_XMM && VEX_L(vex)) {
         type = T_YMM;
@@ -1170,6 +1178,7 @@ decode_modrm_rm(struct ud* u,
   op->position = modrm->position;
 
   unsigned char mod, rm;
+  PEBIL_DEBUG("\tdecode_modrm_rm: size = %d, type = %u, modrm_byte = %u", size, type, modrm_byte);
 
 
   /* get mod, r/m and reg fields */
@@ -1329,11 +1338,13 @@ decode_modrm_reg(struct ud* u,
 
   unsigned char reg;
 
+  PEBIL_DEBUG("\tdecode_modrm_reg: reg_size = %d, reg_type = %u, modrm_byte = %u", reg_size, reg_type, modrm_byte);
   reg = (REX_R(u->pfx_rex) << 3) | MODRM_REG(modrm_byte);
   if(P_MVEX(u->pfx_insn)) {
     reg |= MVEX_RP(u->mvex[0]) << 4;
   }
 
+  PEBIL_DEBUG("\tdecode_modrm_reg: reg = %u", reg);
   op->type = UD_OP_REG;
   op->size = resolve_operand_size(u, reg_size);
 
@@ -1499,10 +1510,12 @@ static int disasm_operand(register struct ud* u,
       break;
 
     case OP_V:
+      PEBIL_DEBUG("\tOperand is type OP_V");
       decode_modrm_reg(u, modrm, operand, size, T_XMM);
       break;
 
     case OP_W:
+      PEBIL_DEBUG("\tOperand is type OP_W");
       decode_modrm_rm(u, modrm, operand, size, T_XMM);
       break;
 
@@ -1537,10 +1550,12 @@ static int disasm_operand(register struct ud* u,
       break;
 
     case OP_X:
+      PEBIL_DEBUG("\tOperand is type OP_X");
       decode_vex_vvvv(u, operand, size, T_XMM);
       break;
 
     case OP_ZR:
+      PEBIL_DEBUG("\tOperand is type OP_ZR");
       decode_modrm_reg(u, modrm, operand, size, T_ZMM);
       break;
 
@@ -1554,10 +1569,12 @@ static int disasm_operand(register struct ud* u,
       break;
 
     case OP_ZRM:
+      PEBIL_DEBUG("\tOperand is type OP_ZRM");
       decode_modrm_rm(u, modrm, operand, size, T_ZMM);
       break;
 
     case OP_ZV:
+      PEBIL_DEBUG("\tOperand is type OP_ZV");
       decode_mvex_vvvv(u, operand, size, T_ZMM);
       break;
 
@@ -1595,6 +1612,8 @@ static int disasm_operands(register struct ud* u)
   assert(!u->error);
   struct modrm modrm;
   clear_modrm(&modrm);
+
+  PEBIL_DEBUG("Disassemble Operands");
 
   u->operand[0].type = UD_NONE;
   u->operand[1].type = UD_NONE;
