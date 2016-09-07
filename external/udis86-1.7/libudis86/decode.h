@@ -228,6 +228,10 @@
 
 #define EVEX_REX(evex) VEX_REX_DEF(EVEX_B(evex), EVEX_X(evex), EVEX_R(evex), EVEX_W(evex))
 
+// SAE context (EVEX.b)
+#define B_ER    0
+#define B_SAE   1
+
 /* operand type constants -- order is important! */
 
 enum ud_operand_code {
@@ -267,7 +271,7 @@ enum ud_operand_code {
 
     OP_R,      OP_C,  OP_D,       OP_VR,  OP_PR,
     OP_X,
-    OP_ZR,     OP_ZM, OP_ZRM, OP_ZV, OP_ZVM,
+    OP_ZR,     OP_ZM, OP_ZRM, OP_ZRMER, OP_ZV, OP_ZVM,
     OP_KR, OP_KRM, OP_KV
 };
 
@@ -432,6 +436,7 @@ enum ud_operand_size {
 #define O_ZR      { OP_ZR,       SZ_XZ    }
 #define O_ZM      { OP_ZM,       SZ_XZ    }
 #define O_ZRM     { OP_ZRM,      SZ_XZ    }
+#define O_ZRMER   { OP_ZRMER,    SZ_XZ    }
 #define O_ZV      { OP_ZV,       SZ_XZ    }
 #define O_ZVM     { OP_ZVM,      SZ_XZ    }
 

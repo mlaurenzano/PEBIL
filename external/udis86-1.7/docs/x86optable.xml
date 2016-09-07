@@ -4751,7 +4751,7 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="vfmadd231pd">
     <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 B8 /W=1 ; V X W ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 B8 /W=1 ; ZR ZV ZRM; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 B8 /W=1 ; ZR ZV ZRMER ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vfmadd231ps">

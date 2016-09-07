@@ -183,6 +183,7 @@ operand_dict = {
     "ZR"       : [    "OP_ZR"       , "SZ_XZ"     ], # zmm in R':R:reg
     "ZM"       : [    "OP_ZM"       , "SZ_XZ"     ], # Mem in ModRm.rm
     "ZRM"      : [    "OP_ZRM"      , "SZ_XZ"     ], # zmm/m in X:B:ModRm.rm
+    "ZRMER"    : [    "OP_ZRMER"    , "SZ_XZ"     ], # zmm/m{er} in X:B:ModRm.rm
     "ZV"       : [    "OP_ZV"       , "SZ_XZ"     ], # zmm in V'vvvv
     "ZVM"      : [    "OP_ZVM"      , "SZ_XZ"     ], # Vector memory addresses
 

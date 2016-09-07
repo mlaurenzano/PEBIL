@@ -1111,6 +1111,7 @@ static void decode_evex_vvvv(
     op->size = size;
     op->position = 2;
 }
+
 static void decode_mvex_vvvv(struct ud* u,
         struct ud_operand* op,
         unsigned int size,
@@ -1128,6 +1129,83 @@ static void decode_mvex_vvvv(struct ud* u,
     op->position = 2;
 }
 
+/* -----------------------------------------------------------------------------
+ * decode_modrm_sae() - decode operand in context of EVEX.b
+ * -----------------------------------------------------------------------------
+ */
+static void decode_modrm_sae(
+        struct ud* u,
+        struct modrm* modrm,
+        struct ud_operand* op,
+        unsigned int size,
+        unsigned char type,
+        unsigned char context)
+{
+  unsigned char modrm_byte = get_modrm(u, modrm);
+  op->position = modrm->position;
+
+  unsigned char mod, rm;
+  /* get mod, r/m and reg fields */
+  mod = MODRM_MOD(modrm_byte);
+  rm  = (REX_B(u->pfx_rex) << 3) | MODRM_RM(modrm_byte);
+
+  // Context only matters if SAE bit is high
+  if(EVEX_B(u->evex) == 1)
+  {
+    /* if mod is 11b, then the UD_R_m specifies a gpr/mmx/sse/control/debug */
+    if (mod == 3) {
+      if(context == B_ER)
+      {
+        // Vector length is 512
+        op->size = 512;
+        op->type = UD_OP_REG;
+        if (type ==  T_GPR)
+            op->base = decode_gpr(u, op->size, rm);
+        else
+            op->base = resolve_reg(u, op->size, (REX_B(u->pfx_rex) << 3) | (rm&7));
+
+        // Need to redo size of previous operands
+      }
+      else
+      {
+        PEBIL_WARN("decode_modrm_sae: No context");
+      }
+    } 
+    /* else its memory addressing */  
+    else {
+      decode_modrm_rm(u, modrm, operand, size, T_ZMM);
+    }
+        
+  }
+  else
+  {
+    decode_modrm_rm(u, modrm, operand, size, T_ZMM);
+  }
+//    if(type == T_ZMM) {
+//        int lencontrol = EVEX_LL(u->evex);
+//        //if(EVEX_B(u->evex) == 1)
+//        //{
+//            //PEBIL_WARN("SAE bit set for %s. Assuming 512 bit vector length.\n", ud_lookup_mnemonic(u->mnemonic));
+//        //    type = T_ZMM;
+//        //    size = 512;
+//        //} else 
+//        if(lencontrol == 0) {
+//            type = T_XMM;
+//            size = 128;
+//        } else if(lencontrol == 1) {
+//            type = T_YMM;
+//            size = 256;
+//        } else if(lencontrol == 2) {
+//            type = T_ZMM;
+//            size = 512;
+//        } else assert(0);
+//    }
+//    enum ud_type reg = resolve_reg(u, type, EVEX_vp(u->evex) << 4 | EVEX_vvvv(u->evex));
+//    op->type = UD_OP_REG;
+//    op->base = reg;
+//    op->size = size;
+//    op->position = 2;
+}
 
 /* -----------------------------------------------------------------------------
  * clear_operand() - clear operand pointer 
@@ -1193,7 +1271,7 @@ decode_modrm_rm(struct ud* u,
     if (type ==  T_GPR)
         op->base = decode_gpr(u, op->size, rm);
     else
-        op->base = resolve_reg(u, type, (REX_B(u->pfx_rex) << 3) | (rm&7));
+        op->base = resolve_reg(u, op->size, (REX_B(u->pfx_rex) << 3) | (rm&7));
   } 
   /* else its memory addressing */  
   else {
@@ -1351,7 +1429,7 @@ decode_modrm_reg(struct ud* u,
   if (reg_type == T_GPR) 
       op->base = decode_gpr(u, op->size, reg);
   else
-      op->base = resolve_reg(u, reg_type, reg);
+      op->base = resolve_reg(u, op->size, reg);
 
 }
 
@@ -1572,6 +1650,12 @@ static int disasm_operand(register struct ud* u,
       PEBIL_DEBUG("\tOperand is type OP_ZRM");
       decode_modrm_rm(u, modrm, operand, size, T_ZMM);
       break;
+
+    case OP_ZRMER:
+      PEBIL_DEBUG("\tOperand is type OP_ZRMER");
+      decode_modrm_sae(u, modrm, operand, size, T_ZMM);
+      break;
+
 
     case OP_ZV:
       PEBIL_DEBUG("\tOperand is type OP_ZV");
