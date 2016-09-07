@@ -2371,7 +2371,7 @@ bool X86Instruction::verify(){
         if (op.base){
             if (!IS_REG(op.base)){
                 print();
-                PRINT_ERROR("Found operand %d with nonsensical base %d", i, op.base);
+                PRINT_ERROR("Found operand %d with nonsensical base %d for instruction at 0x%llx", i, op.base, getBaseAddress());
                 return false;
             }
         }

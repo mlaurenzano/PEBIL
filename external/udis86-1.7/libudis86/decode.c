@@ -907,7 +907,7 @@ static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
         return ( u->dis_mode == 64 ) ? 64 : 32;
     case SZ_X:
         //PEBIL_DEBUG("\t\tresolve_operand_size: s = SZ_X");
-        //PEBIL_DEBUG("\t\tresolve_operand_size: u->avx_vex[0] = %u, prefix = %u,  VEXLIG = %u, VEX_L = %u, return = %u", u->avx_vex[0], u->itab_entry->prefix, P_VEXLIG(u->itab_entry->prefix), VEX_L(u->avx_vex[0]), VEX_L(u->avx_vex[0]) && (!P_VEXLIG(u->itab_entry->prefix)));
+        PEBIL_DEBUG("\t\tresolve_operand_size: u->avx_vex[0] = %u, prefix = %u,  VEXLIG = %u, VEX_L = %u, return = %u", u->avx_vex[0], u->itab_entry->prefix, P_VEXLIG(u->itab_entry->prefix), VEX_L(u->avx_vex[0]), VEX_L(u->avx_vex[0]) && (!P_VEXLIG(u->itab_entry->prefix)));
         return VEX_L(u->avx_vex[0]) && (!P_VEXLIG(u->itab_entry->prefix)) ? SZ_Y : SZ_X;
     case SZ_XZ:
         if(IS_EVEX(u->evex)) {
@@ -1167,6 +1167,7 @@ decode_imm(struct ud* u, unsigned int s, struct ud_operand *op)
  * decode_modrm_rm() - Decodes ModRM.r/m
  * -----------------------------------------------------------------------------
  */
+// Decodes modrm for vector memory operands (i.e. gather-scatter)
 static void
 decode_vector_modrm_rm(struct ud* u,
         struct modrm* modrm,
@@ -1261,8 +1262,9 @@ decode_modrm_rm(struct ud* u,
     op->type = UD_OP_REG;
     if (type ==  T_GPR)
         op->base = decode_gpr(u, op->size, rm);
-    else
-        op->base = resolve_reg(u, type, (REX_B(u->pfx_rex) << 3) | (rm&7));
+    else {
+        op->base = resolve_reg(u, type, (REX_X(u->pfx_rex) << 4) | (REX_B(u->pfx_rex) << 3) | (rm & 7));
+    }
   } 
   /* else its memory addressing */  
   else {
@@ -1409,11 +1411,15 @@ decode_modrm_reg(struct ud* u,
 
   PEBIL_DEBUG("\tdecode_modrm_reg: reg_size = %d, reg_type = %u, modrm_byte = %u", reg_size, reg_type, modrm_byte);
   reg = (REX_R(u->pfx_rex) << 3) | MODRM_REG(modrm_byte);
+
   if(P_MVEX(u->pfx_insn)) {
-    reg |= MVEX_RP(u->mvex[0]) << 4;
+    if(IS_EVEX(u->mvex)) {
+        reg |= EVEX_RP(u->evex) << 4;
+    } else {
+        reg |= MVEX_RP(u->mvex[0]) << 4;
+    }
   }
 
-  PEBIL_DEBUG("\tdecode_modrm_reg: reg = %u", reg);
   op->type = UD_OP_REG;
   op->size = resolve_operand_size(u, reg_size);
 
@@ -1422,6 +1428,7 @@ decode_modrm_reg(struct ud* u,
   else
       op->base = resolve_reg(u, reg_type, reg);
 
+  PEBIL_DEBUG("\tdecode_modrm_reg: reg = %u, size = %u", reg, op->size);
 }
 
 
