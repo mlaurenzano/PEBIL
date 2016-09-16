@@ -3159,6 +3159,7 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="pxor">
     <opcode> aso rexr rexx rexb ; 0f ef ; Pq Qq ; ; </opcode>
+    <opcode> aso rexr rexx rexb ; 66 0f ef ; V W ; ; </opcode>
     <opcode> aso rexr rexx rexb vexlig ; avxC4 sse66 0f ef ; V X W ; ; </opcode>
   </instruction>
 

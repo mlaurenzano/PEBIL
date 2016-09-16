@@ -1644,7 +1644,7 @@ static struct ud_itab_entry itab__0f[256] = {
   /* EC */  { UD_Ipaddsb,      O_Pq,    O_Qq,    O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* ED */  { UD_Ipaddsw,      O_Pq,    O_Qq,    O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* EE */  { UD_Ipmaxsw,      O_Pq,    O_Qq,    O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
-  /* EF */  { UD_Ipxor,        O_Pq,    O_Qq,    O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
+  /* EF */  { UD_Ipxor,        O_V,     O_W,     O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* F0 */  { UD_Iinvalid,     O_NONE, O_NONE, O_NONE, O_NONE, F_none, F_none, R_none, R_none, P_none },
   /* F1 */  { UD_Ipsllw,       O_Pq,    O_Qq,    O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },
   /* F2 */  { UD_Ipslld,       O_Pq,    O_Qq,    O_NONE,  O_NONE, F_none, F_none, R_none, R_none, P_aso|P_rexr|P_rexx|P_rexb },

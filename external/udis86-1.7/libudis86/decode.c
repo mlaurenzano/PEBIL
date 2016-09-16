@@ -1314,6 +1314,16 @@ decode_modrm_rm(struct ud* u,
       else
         type = T_YMM;
     }
+    // TODO Broadcasts don't always have the same operand sizes
+    if ( u->mnemonic == UD_Ivbroadcastsd || u->mnemonic == UD_Ivbroadcastss || 
+         u->mnemonic == UD_Ivbroadcastf32x2 ||
+         u->mnemonic == UD_Ivpbroadcastb || u->mnemonic == UD_Ivpbroadcastq ||
+         u->mnemonic == UD_Ivpbroadcastw || u->mnemonic == UD_Ivpbroadcastd ||
+         u->mnemonic == UD_Ivbroadcasti32x2 ) 
+    {
+      if ( type == T_XMM || type == T_YMM || type == T_ZMM )
+        type = T_XMM;
+    }
 
     if (type ==  T_GPR)
         op->base = decode_gpr(u, op->size, rm);
