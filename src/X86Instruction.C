@@ -2376,7 +2376,11 @@ bool X86Instruction::verify(){
             }
         }
         if (op.index){
-            if (!IS_GPR(op.index) && !IS_ZMM_REG(op.index)){
+            //if (!IS_GPR(op.index) && !IS_ZMM_REG(op.index)){
+            // Some instructions can have XMM or YMM index:
+            // example: vgatherdpd
+            if (!IS_GPR(op.index) && !IS_ZMM_REG(op.index) && 
+                !IS_YMM_REG(op.index) && !(IS_XMM_REG(op.index))){
                 print();
                 PRINT_ERROR("Found operand with nonsensical index %d", op.index);
                 return false;
