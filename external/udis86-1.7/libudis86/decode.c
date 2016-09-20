@@ -642,7 +642,8 @@ static int search_itab( struct ud * u )
 
                 /* 0F 3A */
                 case 0x0366: tableid = ITAB__AVX__PFX_SSE66__0F__OP_0F__3BYTE_3A__REG; break;
-                case 0x03F2: assert(0);//tableid = ITAB__AVX_C4__PFX_SSEF2__0F__OP_0F__3BYTE_3A__REG;
+                case 0x03F2: tableid = ITAB__AVX__PFX_SSEF2__0F__OP_0F__3BYTE_3A__REG; break;
+                //case 0x03F2: assert(0);//tableid = ITAB__AVX_C4__PFX_SSEF2__0F__OP_0F__3BYTE_3A__REG;
                 case 0x03F3: assert(0);//tableid = ITAB__AVX_C4__PFX_SSEF3__0F__OP_0F__3BYTE_3A__REG;
                 case 0x0300: assert(0);//tableid = ITAB__AVX_C4__0F__OP_0F__3BYTE_3A__REG;
                     break;

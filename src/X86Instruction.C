@@ -3968,6 +3968,7 @@ void X86InstructionClassifier::generateTable(){
     mkclass(     vrndscaleps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(     vrndscalesd,      float,  floatv,    0,    VRSZ,    0,    64)
     mkclass(     vrndscaless,      float,  floatv,    0,    VRSZ,    0,    32)
+    mkclass(           vrorx,        int,     bin,    0,    VRSZ,    0,    0)
     mkclass(        vroundpd,  simdFloat,  floatv,    0,    VRSZ,    0,    64)
     mkclass(        vroundps,  simdFloat,  floatv,    0,    VRSZ,    0,    32)
     mkclass(        vroundsd,      float,  floats,    0,      64,    0,    64)
