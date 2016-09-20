@@ -14,8 +14,8 @@
 #include "input.h"
 #include "decode.h"
 
-//#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
-#define PEBIL_DEBUG(...)
+#define PEBIL_DEBUG(...) fprintf(stdout, "PEBIL_DEBUG: "); fprintf(stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout);
+//#define PEBIL_DEBUG(...)
 #define PEBIL_WARN(...) fprintf(stderr, __VA_ARGS__)
 
 /* The max number of prefixes to an instruction */
@@ -451,8 +451,10 @@ static int get_prefixes( struct ud* u )
                 u->mvex[2] = inp_curr(u);
 
                 if IS_EVEX(u->mvex) {
+                    PEBIL_DEBUG("\t\tEVEX prefix found %hhx", curr);
                     decode_evex(u);
                 } else {
+                    PEBIL_DEBUG("\t\tMVEX prefix found %hhx", curr);
                     decode_mvex(u);
                 }
 
@@ -699,7 +701,7 @@ static int search_itab( struct ud * u )
             // 0F 38
             case 0x0266: tableid = ITAB__MVEX__PFX_SSE66__0F__OP_0F__3BYTE_38__REG; break;
             case 0x02F2: assert(0); break;
-            case 0x02F3: assert(0); break;
+            case 0x02F3: tableid = ITAB__MVEX__PFX_SSEF3__0F__OP_0F__3BYTE_38__REG; break; //assert(0); break;
             case 0x0200: tableid = ITAB__MVEX__0F__OP___3BYTE_38__REG; break;
 
             // 0F 3A
@@ -885,7 +887,7 @@ static unsigned int resolve_operand_size( const struct ud * u, unsigned int s )
 
         if(u->mnemonic != UD_Ifnop &&
            u->mnemonic != UD_Inop) {
-            fprintf(stderr, "Unknown operand size of instruction %s\n", ud_lookup_mnemonic(u->mnemonic));
+            //fprintf(stderr, "Unknown operand size of instruction %s\n", ud_lookup_mnemonic(u->mnemonic));
         }
         PEBIL_DEBUG("\t\tresolve_operand_size: u->avx_vex[0] = %d", u->avx_vex[0]);
         if(u->avx_vex[0]) {
@@ -1307,12 +1309,15 @@ decode_modrm_rm(struct ud* u,
          u->mnemonic == UD_Ivcvttps2uqq || u->mnemonic == UD_Ivcvtudq2pd ||
          u->mnemonic == UD_Ivcvtps2ph ) 
     {
-      if(op->size == SZ_X)
-        type = T_XMM;
-      else if (op->size == SZ_Y)
-        type = T_XMM;
-      else
-        type = T_YMM;
+      if ( type == T_XMM || type == T_YMM || type == T_ZMM )
+      {
+        if(op->size == SZ_X)
+          type = T_XMM;
+        else if (op->size == SZ_Y)
+          type = T_XMM;
+        else
+          type = T_YMM;
+      }
     }
     // TODO Broadcasts don't always have the same operand sizes
     if ( u->mnemonic == UD_Ivbroadcastsd || u->mnemonic == UD_Ivbroadcastss || 
@@ -1508,12 +1513,15 @@ decode_modrm_reg(struct ud* u,
        u->mnemonic == UD_Ivcvttpd2dq || u->mnemonic == UD_Ivcvttpd2udq ||
        u->mnemonic == UD_Ivcvtuqq2ps ) 
   {
-    if(op->size == SZ_X)
-      reg_type = T_XMM;
-    else if (op->size == SZ_Y)
-      reg_type = T_XMM;
-    else
-      reg_type = T_YMM;
+    if ( reg_type == T_XMM || reg_type == T_YMM || reg_type == T_ZMM )
+    {
+      if(op->size == SZ_X)
+        reg_type = T_XMM;
+      else if (op->size == SZ_Y)
+        reg_type = T_XMM;
+      else
+        reg_type = T_YMM;
+    }
   }
 
   if (reg_type == T_GPR) 
