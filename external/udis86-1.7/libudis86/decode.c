@@ -530,6 +530,8 @@ static int search_itab( struct ud * u )
     curr = inp_curr(u); 
     PEBIL_DEBUG("\t1st byte opcode: %hhx", curr);
 
+    gen_hex(u); PEBIL_DEBUG("\tAChex: %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3]);
+
     /* resolve xchg, nop, pause crazyness */
     if ( !P_MVEX(u->pfx_insn) && !P_AVX(u->pfx_insn) && 0x90 == curr ) {
         if ( !( u->dis_mode == 64 && REX_B( u->pfx_rex ) ) ) {
@@ -1307,7 +1309,14 @@ decode_modrm_rm(struct ud* u,
          u->mnemonic == UD_Ivcvtps2qq || u->mnemonic == UD_Ivcvtps2uqq ||
          u->mnemonic == UD_Ivcvtps2pd || u->mnemonic == UD_Ivcvttps2qq ||
          u->mnemonic == UD_Ivcvttps2uqq || u->mnemonic == UD_Ivcvtudq2pd ||
-         u->mnemonic == UD_Ivcvtps2ph ) 
+         u->mnemonic == UD_Ivcvtps2ph ||
+         u->mnemonic == UD_Ivpmovqd || u->mnemonic == UD_Ivpmovsqd ||
+         u->mnemonic == UD_Ivpmovusqd || u->mnemonic == UD_Ivpmovdw ||
+         u->mnemonic == UD_Ivpmovsdw || u->mnemonic == UD_Ivpmovusdw ||
+         u->mnemonic == UD_Ivpmovwb || u->mnemonic == UD_Ivpmovswb ||
+         u->mnemonic == UD_Ivpmovuswb || u->mnemonic == UD_Ivpmovsxwd ||
+         u->mnemonic == UD_Ivpmovsxdq || u->mnemonic == UD_Ivpmovzxwd ||
+         u->mnemonic == UD_Ivpmovzxdq )
     {
       if ( type == T_XMM || type == T_YMM || type == T_ZMM )
       {
@@ -1320,11 +1329,21 @@ decode_modrm_rm(struct ud* u,
       }
     }
     // TODO Broadcasts don't always have the same operand sizes
+    // TODO: Neither do vpmov*
     if ( u->mnemonic == UD_Ivbroadcastsd || u->mnemonic == UD_Ivbroadcastss || 
          u->mnemonic == UD_Ivbroadcastf32x2 ||
          u->mnemonic == UD_Ivpbroadcastb || u->mnemonic == UD_Ivpbroadcastq ||
          u->mnemonic == UD_Ivpbroadcastw || u->mnemonic == UD_Ivpbroadcastd ||
-         u->mnemonic == UD_Ivbroadcasti32x2 ) 
+         u->mnemonic == UD_Ivbroadcasti32x2 ||
+         u->mnemonic == UD_Ivpmovqb || u->mnemonic == UD_Ivpmovsqb ||
+         u->mnemonic == UD_Ivpmovusqb || u->mnemonic == UD_Ivpmovqw ||
+         u->mnemonic == UD_Ivpmovsqw || u->mnemonic == UD_Ivpmovusqw ||
+         u->mnemonic == UD_Ivpmovdb || u->mnemonic == UD_Ivpmovsdb ||
+         u->mnemonic == UD_Ivpmovusdb || u->mnemonic == UD_Ivpmovsxbd ||
+         u->mnemonic == UD_Ivpmovsxbq || u->mnemonic == UD_Ivpmovsxwq ||
+         u->mnemonic == UD_Ivpmovzxbd || u->mnemonic == UD_Ivpmovzxbq ||
+         u->mnemonic == UD_Ivpmovzxwq )
+     
     {
       if ( type == T_XMM || type == T_YMM || type == T_ZMM )
         type = T_XMM;
@@ -1339,6 +1358,8 @@ decode_modrm_rm(struct ud* u,
   /* else its memory addressing */  
   else {
     op->type = UD_OP_MEM;
+    PEBIL_DEBUG("\tdecode_modrm_rm: adr_mode = %d", u->adr_mode);
+    PEBIL_DEBUG("\tdecode_modrm_rm: error: %d", u->error);
 
     /* 64bit addressing */
     if (u->adr_mode == 64) {
@@ -1365,6 +1386,8 @@ decode_modrm_rm(struct ud* u,
 
             /* special conditions for base reference */
             if (op->index == UD_R_RSP) {
+                PEBIL_DEBUG("\t\tSpecial condition for base reference");
+                PEBIL_DEBUG("\t\tdecode_modrm_rm: error: %d", u->error);
                 op->index = UD_NONE;
                 op->scale = UD_NONE;
             }
@@ -1459,7 +1482,6 @@ decode_modrm_rm(struct ud* u,
     case 64: op->lval.uqword = inp_uint64(u); break;
     default: break;
   }
-
 
 }
 
@@ -1659,10 +1681,12 @@ static int disasm_operand(register struct ud* u,
       }
       // fallthrough
     case OP_E:
+      PEBIL_DEBUG("\tOperand is type OP_E");
       decode_modrm_rm(u, modrm, operand, size, T_GPR);
       break;
 
     case OP_G:
+      PEBIL_DEBUG("\tOperand is type OP_G");
       decode_modrm_reg(u, modrm, operand, size, T_GPR); 
       break;
 
@@ -1888,15 +1912,19 @@ static int disasm_operands(register struct ud* u)
   int retval = 0;
 
   if (u->itab_entry->operand1.type == UD_NONE) return retval;
+  PEBIL_DEBUG("Operand 1:");
   retval |= disasm_operand(u, &modrm, &u->operand[0], u->itab_entry->operand1.type, u->itab_entry->operand1.size);
 
   if( u->itab_entry->operand2.type == UD_NONE) return retval;
+  PEBIL_DEBUG("Operand 2:");
   retval |= disasm_operand(u, &modrm, &u->operand[1], u->itab_entry->operand2.type, u->itab_entry->operand2.size);
 
   if( u->itab_entry->operand3.type == UD_NONE) return retval;
+  PEBIL_DEBUG("Operand 3:");
   retval |= disasm_operand(u, &modrm, &u->operand[2], u->itab_entry->operand3.type, u->itab_entry->operand3.size);
 
   if( u->itab_entry->operand4.type == UD_NONE) return retval;;
+  PEBIL_DEBUG("Operand 4:");
   retval |= disasm_operand(u, &modrm, &u->operand[3], u->itab_entry->operand4.type, u->itab_entry->operand4.size);
 
   return retval;
