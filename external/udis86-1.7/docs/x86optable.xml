@@ -5193,7 +5193,7 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vinserti64x4">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 1A /W=1 ; ZR ZV ZRM Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=3A 3A /W=1 ; ZR ZV ZRM Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vinsertps">
@@ -6158,33 +6158,33 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vpmovzxbw">
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef3 0f /3byte=38 30 ; V W ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f /3byte=38 30 ; ZR ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 30 ; V W ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 30 ; ZR ZRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpmovzxbd">
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef3 0f /3byte=38 31 ; V W ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f /3byte=38 31 ; ZR ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 31 ; V W ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 31 ; ZR ZRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpmovzxbq">
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef3 0f /3byte=38 32 ; V W ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f /3byte=38 32 ; ZR ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 32 ; V W ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 32 ; ZR ZRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpmovzxwd">
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef3 0f /3byte=38 33 ; V W ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f /3byte=38 33 ; ZR ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 33 ; V W ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 33 ; ZR ZRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpmovzxwq">
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef3 0f /3byte=38 34 ; V W ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f /3byte=38 34 ; ZR ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 34 ; V W ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 34 ; ZR ZRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpmovzxdq">
-    <opcode> rexr rexx rexb rexw ; avxC4 ssef3 0f /3byte=38 35 ; V W ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f /3byte=38 35 ; ZR ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f /3byte=38 35 ; V W ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 35 ; ZR ZRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpmuldq">
@@ -6813,8 +6813,8 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vshufps">
-    <opcode> rexr rexx rexb rexw ; avxC4 sse66 0f C6 ; V X W Ib ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f C6 /W=0 ; ZR ZV ZRM Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; avxC4 0f C6 ; V X W Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex 0f C6 /W=0 ; ZR ZV ZRM Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vsqrtpd">

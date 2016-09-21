@@ -1317,7 +1317,10 @@ decode_modrm_rm(struct ud* u,
          u->mnemonic == UD_Ivpmovwb || u->mnemonic == UD_Ivpmovswb ||
          u->mnemonic == UD_Ivpmovuswb || u->mnemonic == UD_Ivpmovsxwd ||
          u->mnemonic == UD_Ivpmovsxdq || u->mnemonic == UD_Ivpmovzxwd ||
-         u->mnemonic == UD_Ivpmovzxdq )
+         u->mnemonic == UD_Ivpmovzxdq ||
+         u->mnemonic == UD_Ivinserti128 || u->mnemonic == UD_Ivinserti32x8 ||
+         u->mnemonic == UD_Ivinserti64x4 || u->mnemonic == UD_Ivinsertf128 ||
+         u->mnemonic == UD_Ivinsertf32x8 || u->mnemonic == UD_Ivinsertf64x4 )
     {
       if ( type == T_XMM || type == T_YMM || type == T_ZMM )
       {
@@ -1343,7 +1346,9 @@ decode_modrm_rm(struct ud* u,
          u->mnemonic == UD_Ivpmovusdb || u->mnemonic == UD_Ivpmovsxbd ||
          u->mnemonic == UD_Ivpmovsxbq || u->mnemonic == UD_Ivpmovsxwq ||
          u->mnemonic == UD_Ivpmovzxbd || u->mnemonic == UD_Ivpmovzxbq ||
-         u->mnemonic == UD_Ivpmovzxwq )
+         u->mnemonic == UD_Ivpmovzxwq ||
+         u->mnemonic == UD_Ivinserti32x4 || u->mnemonic == UD_Ivinserti64x2 ||
+         u->mnemonic == UD_Ivinsertf32x4 || u->mnemonic == UD_Ivinsertf64x2 )
      
     {
       if ( type == T_XMM || type == T_YMM || type == T_ZMM )

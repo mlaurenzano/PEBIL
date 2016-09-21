@@ -291,6 +291,7 @@ enum ud_itab_index {
   ITAB__MVEX__0F__OP_79__W,
   ITAB__MVEX__0F__OP_7A__W,
   ITAB__MVEX__0F__OP_C2__W,
+  ITAB__MVEX__0F__OP_C6__W,
   ITAB__MVEX__0F__OP___3BYTE_38__REG,
   ITAB__MVEX__0F__OP___3BYTE_38__REG__OP_D0__W,
   ITAB__MVEX__0F__OP___3BYTE_38__REG__OP_D1__W,
