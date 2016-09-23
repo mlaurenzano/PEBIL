@@ -10868,8 +10868,8 @@ static struct ud_itab_entry itab__mvex__pfx_ssef2__0f__op_29__w[2] = {
 };
 
 static struct ud_itab_entry itab__mvex__pfx_ssef2__0f__op_2a__w[2] = {
-  /* 00 */  { UD_Ivcvtsi2sd,   O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw|P_vexlig },
-  /* 01 */  { UD_Ivcvtsi2sd,   O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw|P_vexlig },
+  /* 00 */  { UD_Ivcvtsi2sd,   O_Vx,    O_X,     O_Ed,    O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw|P_vexlig },
+  /* 01 */  { UD_Ivcvtsi2sd,   O_Vx,    O_X,     O_Eq,    O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw|P_vexlig },
 };
 
 static struct ud_itab_entry itab__mvex__pfx_ssef2__0f__op_2c__w[2] = {
@@ -10944,7 +10944,7 @@ static struct ud_itab_entry itab__mvex__pfx_ssef2__0f__op_7a__w[2] = {
 
 static struct ud_itab_entry itab__mvex__pfx_ssef2__0f__op_7b__w[2] = {
   /* 00 */  { UD_Ivcvtusi2sd,  O_V,     O_X,     O_Ed,    O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
-  /* 01 */  { UD_Ivcvtusi2sd,  O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 01 */  { UD_Ivcvtusi2sd,  O_V,     O_X,     O_Eq,    O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
 };
 
 static struct ud_itab_entry itab__mvex__pfx_ssef2__0f__op_7f__w[2] = {
@@ -11906,8 +11906,8 @@ static struct ud_itab_entry itab__mvex__pfx_ssef3__0f__op_29__w[2] = {
 };
 
 static struct ud_itab_entry itab__mvex__pfx_ssef3__0f__op_2a__w[2] = {
-  /* 00 */  { UD_Ivcvtsi2ss,   O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
-  /* 01 */  { UD_Ivcvtsi2ss,   O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 00 */  { UD_Ivcvtsi2ss,   O_V,     O_X,     O_Ed,    O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 01 */  { UD_Ivcvtsi2ss,   O_V,     O_X,     O_Eq,    O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
 };
 
 static struct ud_itab_entry itab__mvex__pfx_ssef3__0f__op_2c__w[2] = {
@@ -11986,8 +11986,8 @@ static struct ud_itab_entry itab__mvex__pfx_ssef3__0f__op_7a__w[2] = {
 };
 
 static struct ud_itab_entry itab__mvex__pfx_ssef3__0f__op_7b__w[2] = {
-  /* 00 */  { UD_Ivcvtusi2ss,  O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
-  /* 01 */  { UD_Ivcvtusi2ss,  O_ZR,    O_ZV,    O_ZRM,   O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 00 */  { UD_Ivcvtusi2ss,  O_V,     O_X,     O_Ed,    O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
+  /* 01 */  { UD_Ivcvtusi2ss,  O_V,     O_X,     O_Eq,    O_NONE, F_none, F_none, R_none, R_none, P_rexr|P_rexx|P_rexb|P_rexw },
 };
 
 static struct ud_itab_entry itab__mvex__pfx_ssef3__0f__op_7e__w[2] = {

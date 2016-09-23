@@ -4534,13 +4534,13 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vcvtsi2sd">
-    <opcode> rexr rexx rexb rexw vexlig ; mvex ssef2 0f 2A /W=0 ; ZR ZV ZRM ; ; </opcode>
-    <opcode> rexr rexx rexb rexw vexlig ; mvex ssef2 0f 2A /W=1 ; ZR ZV ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw vexlig ; mvex ssef2 0f 2A /W=0 ; Vx X Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw vexlig ; mvex ssef2 0f 2A /W=1 ; Vx X Eq ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vcvtsi2ss">
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 2A /W=0 ; ZR ZV ZRM ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 2A /W=1 ; ZR ZV ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 2A /W=0 ; V X Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 2A /W=1 ; V X Eq ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vcvtss2sd">
@@ -4627,12 +4627,12 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="vcvtusi2sd">
     <opcode> rexr rexx rexb rexw ; mvex ssef2 0f 7B /W=0 ; V X Ed ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef2 0f 7B /W=1 ; ZR ZV ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex ssef2 0f 7B /W=1 ; V X Eq ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vcvtusi2ss">
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 7B /W=0 ; ZR ZV ZRM ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 7B /W=1 ; ZR ZV ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 7B /W=0 ; V X Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex ssef3 0f 7B /W=1 ; V X Eq ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vdbpsadbw">
