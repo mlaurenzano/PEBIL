@@ -70,8 +70,11 @@ void FunctionTimer::declare(){
 
 void FunctionTimer::instrumentEntry(BasicBlock* bb, uint32_t functionEntryIndexRegister, uint32_t functionIndex) {
         // Instrument the entry block
+       
         FlagsProtectionMethods prot = FlagsProtectionMethod_full;
         X86Instruction* bestinst = bb->getExitInstruction();
+
+	//PRINT_INFOR("Instrumenting exit block for %s at 0x%llx\n", f->getName(), (*exitBlocks)[j]->getBaseAddress());
         InstLocations loc = InstLocation_prior;
         for (int32_t j = bb->getNumberOfInstructions() - 1; j >= 0; j--){
             if (bb->getInstruction(j)->allFlagsDeadIn()){
@@ -81,6 +84,7 @@ void FunctionTimer::instrumentEntry(BasicBlock* bb, uint32_t functionEntryIndexR
             }
         }
         InstrumentationPoint* p = addInstrumentationPoint(bestinst, functionEntry, InstrumentationMode_tramp, loc);
+	dynamicPoint(p, GENERATE_KEY(functionIndex, PointType_functionEntry), true);
         assignStoragePrior(p, functionIndex, functionEntryIndexRegister);
 }
 
@@ -184,6 +188,7 @@ void FunctionTimer::instrument(){
         //}
         //InstrumentationPoint* p = addInstrumentationPoint(bestinst, functionEntry, InstrumentationMode_tramp, loc);
         //assignStoragePrior(p, i, functionEntryIndexRegister);
+	//PRINT_INFOR("Instrumenting entry block for %s at 0x%llx\n", f->getName(), (*exitBlocks)[j]->getBaseAddress());
         instrumentEntry(bb, functionEntryIndexRegister, i);
 
         // Instrument entry blocks of sub-functions
@@ -223,6 +228,8 @@ void FunctionTimer::instrument(){
                 }
             }
             InstrumentationPoint* p = addInstrumentationPoint(bestinst, functionExit, InstrumentationMode_tramp, loc);
+	    dynamicPoint(p, GENERATE_KEY(i, PointType_functionExit), true);
+
             assignStoragePrior(p, i, functionExitIndexRegister);
         }
         if (!(*exitBlocks).size()){

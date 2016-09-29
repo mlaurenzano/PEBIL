@@ -15,11 +15,34 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
+#include <strings.h>
 
+#include <vector>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <string>
+
 
 
 DataManager<FunctionTimers*>* AllData = NULL;
+
+// by default, do not shut off function timing instrumentation.
+// please set FTIMER_SHUTOFF to something other than zero to enable
+//  function timer shutoff.
+static uint32_t shutoffFunctionTimers=0;
+// by default, the function timer tool allows 100 invocations of the
+//  function and then averages the time per visit to determine 
+//  whether to shut off timing measurement. please set FTIMER_ITERS
+//  to control the number of iterations.
+static uint32_t shutoffIters=100;
+// by default, the function timer shuts of the timing for function if
+//  the per visit time is less than 5000 microseconds.
+// please set FTIMER_THRESHOLD env variable to control the number of
+// milliseconds per visit.
+static uint32_t timingThreshold=5000;
+
 
 // Gordon
 #define CLOCK_RATE_HZ 2300000000
@@ -74,13 +97,39 @@ FunctionTimers* GenerateFunctionTimers(FunctionTimers* timers, uint32_t typ, ima
     retval->functionTimerAccum = new uint64_t[retval->functionCount];
     retval->functionTimerLast = new uint64_t[retval->functionCount];
     retval->inFunction = new uint32_t[retval->functionCount];
+    retval->functionEntryCounts = new uint64_t[retval->functionCount];
+    retval->functionShutoff = new uint32_t[retval->functionCount];
+    
 
     memset(retval->functionTimerAccum, 0, sizeof(*retval->functionTimerAccum) * retval->functionCount);
     memset(retval->functionTimerLast, 0, sizeof(*retval->functionTimerLast) * retval->functionCount);
     memset(retval->inFunction, 0, sizeof(*retval->inFunction) * retval->functionCount);
+    memset(retval->functionEntryCounts, 0, sizeof(*retval->functionEntryCounts) * retval->functionCount);
+    memset(retval->functionShutoff, 0, sizeof(*retval->functionShutoff) * retval->functionCount);
 
     retval->appTimeStart = timers->appTimeStart;
     retval->appTimeOfDayStart = timers->appTimeOfDayStart;
+
+    // read in key environment variables
+    if (!ReadEnvUint32("FTIMER_SHUTOFF", &shutoffFunctionTimers)){
+      shutoffFunctionTimers=0;
+    }
+
+    if(shutoffFunctionTimers) {
+      if (!ReadEnvUint32("FTIMER_ITERS", &shutoffIters)){
+	shutoffIters=100;
+      }
+      
+      if (!ReadEnvUint32("FTIMER_THRESHOLD", &timingThreshold)){
+	timingThreshold=5000;
+      }
+
+      warn << "Dynamic Turning off of Function Timers is enabled." << ENDL;
+      warn << "Number of iterations to consider before averaging time per visit: " << shutoffIters << ENDL;
+      warn << "Timer per visit threshold is at: " << timingThreshold << " micro-seconds. " << ENDL;
+
+    }
+
     return retval;
 }
 
@@ -88,6 +137,8 @@ void DeleteFunctionTimers(FunctionTimers* timers){
     delete timers->functionTimerAccum;
     delete timers->functionTimerLast;
     delete timers->inFunction;
+    delete timers->functionEntryCounts;
+    delete timers->functionShutoff;
 }
 
 uint64_t ReferenceFunctionTimers(FunctionTimers* timers){
@@ -106,7 +157,8 @@ extern "C"
         assert(timers->functionTimerLast != NULL);
 
         if(timers->inFunction[funcIndex] == 0){
-            timers->functionTimerLast[funcIndex] = read_timestamp_counter();
+	  timers->functionEntryCounts[funcIndex]++;
+	  timers->functionTimerLast[funcIndex] = read_timestamp_counter();
 
             if(GetTaskId() == 0) {
                 //warn << "Thread " << AllData->GetThreadSequence(tid) << " Entering function " << funcIndex << ":" << timers->functionNames[funcIndex] << ENDL;
@@ -124,6 +176,7 @@ extern "C"
     // end timer
     int32_t function_exit(uint32_t funcIndex, image_key_t* key) {
         thread_key_t tid = pthread_self();
+	uint64_t last, now;
         FunctionTimers* timers = AllData->GetData(*key, pthread_self());
 
         int32_t recDepth = timers->inFunction[funcIndex];
@@ -143,8 +196,8 @@ extern "C"
 
         --recDepth;
         if(recDepth == 0) {
-            uint64_t last = timers->functionTimerLast[funcIndex];
-            uint64_t now = read_timestamp_counter();
+            last = timers->functionTimerLast[funcIndex];
+            now = read_timestamp_counter();
             timers->functionTimerAccum[funcIndex] += now - last;
             timers->functionTimerLast[funcIndex] = now;
 
@@ -154,6 +207,24 @@ extern "C"
         }
         timers->inFunction[funcIndex] = recDepth;
 
+	if(shutoffFunctionTimers) {
+	  if (timers->functionEntryCounts[funcIndex] % shutoffIters == 0) {
+	    double timePerVisit=((double)timers->functionTimerAccum[funcIndex])/((double)timers->functionEntryCounts[funcIndex])/CLOCK_RATE_HZ;
+	    
+	    if(timePerVisit < (((double)timingThreshold)/1000000.0)) {
+	      uint64_t this_key=GENERATE_KEY(funcIndex, PointType_functionExit);
+	      uint64_t corresponding_entry_key=GENERATE_KEY(funcIndex, PointType_functionEntry);
+	      
+	      warn << "Shutting off timing for function " << timers->functionNames[funcIndex] << "; time per visit averaged over " << timers->functionEntryCounts[funcIndex] << " entries is " << timePerVisit << "s; specified cut-off threshold is " << (((double)timingThreshold)/1000000.0) << "s." << ENDL;
+	      set<uint64_t> inits;
+	      inits.insert(this_key);
+	      inits.insert(corresponding_entry_key);
+	      SetDynamicPoints(inits, false); 
+	      timers->functionShutoff[funcIndex]=1;
+
+	    }
+	  }
+	}
         return 0;
     }
 
@@ -236,6 +307,7 @@ extern "C"
 
         char outFileName[1024];
         sprintf(outFileName, "%s.meta_%0d.%s", timers->application, GetTaskId(), timers->extension);
+
         FILE* outFile = fopen(outFileName, "w");
         if (!outFile){
             cerr << "error: cannot open output file %s" << outFileName << ENDL;
@@ -260,7 +332,13 @@ extern "C"
                 fprintf(outFile, "\n%s:\t", fname);
                 for (set<thread_key_t>::iterator tit = AllData->allthreads.begin(); tit != AllData->allthreads.end(); ++tit) {
                     FunctionTimers* timers = AllData->GetData(*iit, *tit);
-                    fprintf(outFile, "\tThread: 0x%llx\tTime: %f\t", *tit, (double)(timers->functionTimerAccum[funcIndex]) / CLOCK_RATE_HZ);
+		    
+		    if(timers->functionShutoff[funcIndex]==1) {
+		      fprintf(outFile, "\tThread: 0x%llx\tTime: %f\tEntries: %lld\t*\t", *tit, (double)(timers->functionTimerAccum[funcIndex]) / CLOCK_RATE_HZ, timers->functionEntryCounts[funcIndex]);
+		    } else {
+		      fprintf(outFile, "\tThread: 0x%llx\tTime: %f\tEntries: %lld\t", *tit, (double)(timers->functionTimerAccum[funcIndex]) / CLOCK_RATE_HZ, timers->functionEntryCounts[funcIndex]);
+		    }
+		    
                 }
             }
         }
@@ -269,4 +347,105 @@ extern "C"
         return NULL;
     }
 };
+
+// helpers borrowed from Simulation.cpp
+
+bool ParsePositiveInt32(string token, uint32_t* value){
+    return ParseInt32(token, value, 1);
+}
+                
+// returns true on success... allows things to continue on failure if desired
+bool ParseInt32(string token, uint32_t* value, uint32_t min){
+    int32_t val;
+    uint32_t mult = 1;
+    bool ErrorFree = true;
+  
+    istringstream stream(token);
+    if (stream >> val){
+        if (!stream.eof()){
+            char c;
+            stream.get(c);
+
+            c = ToLowerCase(c);
+            if (c == 'k'){
+                mult = KILO;
+            } else if (c == 'm'){
+                mult = MEGA;
+            } else if (c == 'g'){
+                mult = GIGA;
+            } else {
+                ErrorFree = false;
+            }
+
+            if (!stream.eof()){
+                stream.get(c);
+
+                c = ToLowerCase(c);
+                if (c != 'b'){
+                    ErrorFree = false;
+                }
+            }
+        }
+    }
+
+    if (val < min){
+        ErrorFree = false;
+    }
+
+    (*value) = (val * mult);
+    return ErrorFree;
+}
+
+// returns true on success... allows things to continue on failure if desired
+bool ParsePositiveInt32Hex(string token, uint32_t* value){
+    int32_t val;
+    bool ErrorFree = true;
+   
+    istringstream stream(token);
+
+    char c1, c2;
+    stream.get(c1);
+    if (!stream.eof()){
+        stream.get(c2);
+    }
+
+    if (c1 != '0' || c2 != 'x'){
+        stream.putback(c1);
+        stream.putback(c2);        
+    }
+
+    stringstream ss;
+    ss << hex << token;
+    if (ss >> val){
+    }
+
+    if (val <= 0){
+        ErrorFree = false;
+    }
+
+    (*value) = val;
+    return ErrorFree;
+}
+
+
+char ToLowerCase(char c){
+    if (c < 'a'){
+        c += ('a' - 'A');
+    }
+    return c;
+}
+
+bool ReadEnvUint32(string name, uint32_t* var){
+    char* e = getenv(name.c_str());
+    if (e == NULL){
+        return false;
+        inform << "unable to find " << name << " in environment" << ENDL;
+    }
+    string s (e);
+    if (!ParseInt32(s, var, 0)){
+        return false;
+        inform << "unable to parse " << name << " in environment" << ENDL;
+    }
+    return true;
+}
 

@@ -154,6 +154,8 @@ typedef enum {
     PointType_buffercheck,
     PointType_bufferinc,
     PointType_bufferfill,
+    PointType_functionEntry,
+    PointType_functionExit,
     PointType_total
 } PointTypes;
 
