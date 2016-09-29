@@ -124,9 +124,9 @@ FunctionTimers* GenerateFunctionTimers(FunctionTimers* timers, uint32_t typ, ima
 	timingThreshold=5000;
       }
 
-      warn << "Dynamic Turning off of Function Timers is enabled." << ENDL;
-      warn << "Number of iterations to consider before averaging time per visit: " << shutoffIters << ENDL;
-      warn << "Timer per visit threshold is at: " << timingThreshold << " micro-seconds. " << ENDL;
+      //warn << "Dynamic Turning off of Function Timers is enabled." << ENDL;
+      //warn << "Number of iterations to consider before averaging time per visit: " << shutoffIters << ENDL;
+      //warn << "Timer per visit threshold is at: " << timingThreshold << " micro-seconds. " << ENDL;
 
     }
 
@@ -215,7 +215,7 @@ extern "C"
 	      uint64_t this_key=GENERATE_KEY(funcIndex, PointType_functionExit);
 	      uint64_t corresponding_entry_key=GENERATE_KEY(funcIndex, PointType_functionEntry);
 	      
-	      warn << "Shutting off timing for function " << timers->functionNames[funcIndex] << "; time per visit averaged over " << timers->functionEntryCounts[funcIndex] << " entries is " << timePerVisit << "s; specified cut-off threshold is " << (((double)timingThreshold)/1000000.0) << "s." << ENDL;
+	      //warn << "Shutting off timing for function " << timers->functionNames[funcIndex] << "; time per visit averaged over " << timers->functionEntryCounts[funcIndex] << " entries is " << timePerVisit << "s; specified cut-off threshold is " << (((double)timingThreshold)/1000000.0) << "s." << ENDL;
 	      set<uint64_t> inits;
 	      inits.insert(this_key);
 	      inits.insert(corresponding_entry_key);
