@@ -49,9 +49,9 @@ static const char* CounterTypeNames[CounterType_total] = {
     "function"
 };
 
-enum EntryType: uint8_t {
-  MEMENRY = 0
-};
+//enum EntryType : uint8_t {
+//    MEMENRY = 0
+//};
   
 //typedef struct {
 //    enum EntryType type;
@@ -154,6 +154,8 @@ typedef enum {
     PointType_buffercheck,
     PointType_bufferinc,
     PointType_bufferfill,
+    PointType_functionEntry,
+    PointType_functionExit,
     PointType_total
 } PointTypes;
 

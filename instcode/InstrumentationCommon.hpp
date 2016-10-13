@@ -536,7 +536,7 @@ private:
         T d = datamap[iid][tid];
         td[actual].id = (uint64_t)tid;
         td[actual].data = (uint64_t)dataref(d);
-
+	/*
         if (typ == ImageType){
             warn << "Image " << hex << iid << " thread " << tid;
         } else {
@@ -547,7 +547,7 @@ private:
             << dec << actual << TAB << hex << td << "(" << GetThreadSequence(tid) << ")"
             << " -> " << hex << td[actual].data
             << endl;
-
+	*/
         // just fail if there was a collision. it makes writing tools much easier so we see how well this works for now
         if (actual != h){
             warn << "Collision placing thread-specific data for " << tid << ": slot " << dec << h << " already taken" << ENDL;
@@ -1024,7 +1024,7 @@ int __wrapper_name(MPI_Init)(int* argc, char*** argv){
     MpiValid = true;
 #endif
 
-    fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
+    //fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
     tool_mpi_init();
 
     return retval;
@@ -1038,12 +1038,12 @@ extern void pmpi_init_(int*);
 void __give_pebil_name(mpi_init_)(int* ierr){
 #else
 void __wrapper_name(mpi_init_)(int* ierr){
-  fprintf(stderr, "PEBIL calling pmpi_init\n");
+  //fprintf(stderr, "PEBIL calling pmpi_init\n");
 #ifdef HAVE_MPI
     pmpi_init_(ierr);
 #endif
 #endif // USES_PSINSTRACER
-  fprintf(stderr, "PEBIL called pmpi_init\n");
+    //fprintf(stderr, "PEBIL called pmpi_init\n");
 
 #ifdef HAVE_MPI
     PMPI_Comm_rank(MPI_COMM_WORLD, &__taskid);
@@ -1052,7 +1052,7 @@ void __wrapper_name(mpi_init_)(int* ierr){
     MpiValid = true;
 #endif
 
-    fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks);
+    //fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks);
     tool_mpi_init();
 }
 
@@ -1077,7 +1077,7 @@ int __wrapper_name(MPI_Init_thread)(int* argc, char*** argv, int required, int* 
     MpiValid = true;
 #endif
 
-    fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
+    //fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in MPI_Init wrapper\n", getpid(), __taskid, __ntasks);
     tool_mpi_init();
 
     return retval;
@@ -1103,7 +1103,7 @@ void __wrapper_name(mpi_init_thread_)(int* required, int* provided, int* ierr){
     MpiValid = true;
 #endif
 
-    fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks);
+    //fprintf(stdout, "-[p%d]- Mapping pid to taskid %d/%d in mpi_init_ wrapper\n", getpid(), __taskid, __ntasks);
     tool_mpi_init();
 }
 }; // END extern C
