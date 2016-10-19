@@ -125,7 +125,6 @@ void X86Instruction::countElementsUnalignedLoadStore(bool low, bool is64b, bool 
 struct VectorInfo X86Instruction::getVectorInfo()
 {
     vectorInfo.elementSize = X86InstructionClassifier::getInstructionElemSize(this);
-
     OperandX86* src = getSourceOperand(0);
     OperandX86* dest = getDestOperand();
 
@@ -158,6 +157,7 @@ struct VectorInfo X86Instruction::getVectorInfo()
     }
 
     // FIXME -- currently all 512 bit operations use vector masks
+    // As long as computeVectorMasks is called, this should be fine
     if(bytesInReg == 64) {
         if(vectorInfo.kval.confidence == Unknown) {
             vectorInfo.nElements = 0;
@@ -209,7 +209,7 @@ struct VectorInfo X86Instruction::getVectorInfo()
                     }
             }
             #undef nelems
-        }
+      }
     } else if(vectorInfo.elementSize > 0) {
         vectorInfo.nElements = bytesInReg / vectorInfo.elementSize;
         vectorInfo.kval.confidence = Definitely;

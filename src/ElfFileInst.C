@@ -65,7 +65,8 @@ X86Instruction* ElfFileInst::linkInstructionToData(X86Instruction* ins, uint64_t
 
 void ElfFileInst::computeVectorMasks()
 {
-    if(elfFile->getFileHeader()->GET(e_machine) != EM_K10M)
+    uint16_t e_machine = elfFile->getFileHeader()->GET(e_machine);
+    if(e_machine != EM_K10M && e_machine != EM_X86_64)
         return;
 
     for(uint32_t i = 0; i < getNumberOfExposedFunctions(); ++i) {
