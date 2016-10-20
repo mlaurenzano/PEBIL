@@ -458,6 +458,7 @@ bool X86Instruction::isScatterGatherOp(){
     switch(GET(mnemonic)){
         case UD_Ivgatherdpd:
         case UD_Ivgatherdps:
+        case UD_Ivgatherqps:
         case UD_Ivgatherpf0dps:
         case UD_Ivgatherpf0hintdpd:
         case UD_Ivgatherpf0hintdps:
@@ -466,6 +467,8 @@ bool X86Instruction::isScatterGatherOp(){
         case UD_Ivpgatherdq:
 
         case UD_Ivscatterdpd:
+        case UD_Ivscatterdps:
+        case UD_Ivscatterqps:
         case UD_Ivscatterpf0dps:
         case UD_Ivscatterpf0hintdpd:
         case UD_Ivscatterpf0hintdps:
