@@ -855,6 +855,22 @@ search:
             assert(0);
         }
         break;
+    case UD_Igrp_l:
+        //if(P_MVEX(u->pfx_insn)) {
+        //    index    =  MVEX_L(u->mvex[1]);
+        //} else if(u->pfx_insn == 0xC4) {
+        if(u->pfx_insn == 0xC4) {
+            index = VEX_L(u->avx_vex[0]);
+        } else if(u->pfx_insn == 0xC5) {
+            index = VEX_L(u->avx_vex[0]);
+        } else {
+        gen_hex(u);
+        fprintf(stderr, "Unknown prefix using L group\n");
+        fprintf(stderr, "  hex: %hhx %hhx %hhx %hhx %hhx ...\n", u->insn_bytes[0], u->insn_bytes[1], u->insn_bytes[2], u->insn_bytes[3], u->insn_bytes[4]);
+ 
+            assert(0);
+        }
+        break;
 
 
     default:

@@ -27,6 +27,7 @@ spl_mnm_types = [   'totaltypes', \
                     'grp_asize',  \
                     'grp_mod',    \
                     'grp_w',      \
+                    'grp_l',      \
                     'none'        \
                 ]
 
@@ -555,6 +556,14 @@ for node in tlNode.childNodes:
                 tables[table_name][table_index] = { \
                     'type' : 'grp_w', \
                     'name' : "%s__op_%s__w" % (table_name, table_index) \
+                }
+                table_name = tables[table_name][table_index]['name']
+                table_index = "%02X" % int(op[3:4])
+                table_size = 2
+            elif op[0:3] == "/L=": # L=0 or 1 for now
+                tables[table_name][table_index] = { \
+                    'type' : 'grp_l', \
+                    'name' : "%s__op_%s__l" % (table_name, table_index) \
                 }
                 table_name = tables[table_name][table_index]['name']
                 table_index = "%02X" % int(op[3:4])

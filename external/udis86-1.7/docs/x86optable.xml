@@ -4028,261 +4028,261 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="kaddb">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 4A /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 4A /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kaddd">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 4A /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 4A /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kaddq">
-    <opcode> rexr rexx rexb rexw ; vex 0f 4A /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 4A /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kaddw">
-    <opcode> rexr rexx rexb rexw ; vex 0f 4A /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 4A /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kand">
-    <opcode> rexr rexx rexb rexw ; vex 0f 41 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 41 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kandb">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 41 /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 41 /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kandd">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 41 /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 41 /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kandq">
-    <opcode> rexr rexx rexb rexw ; vex 0f 41 /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 41 /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kandw">
-    <opcode> rexr rexx rexb rexw ; vex 0f 41 /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 41 /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kandn">
-    <opcode> rexr rexx rexb rexw ; vex 0f 42 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 42 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kandnb">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 42 /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 42 /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kandnd">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 42 /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 42 /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kandnq">
-    <opcode> rexr rexx rexb rexw ; vex 0f 42 /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 42 /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kandnw">
-    <opcode> rexr rexx rexb rexw ; vex 0f 42 /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 42 /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kandnr">
-    <opcode> rexr rexx rexb rexw ; vex 0f 43 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 43 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kconcath">
-    <opcode> rexr rexx rexb rexw ; vex 0f 95 /W=0 ; Gq KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 95 /L=0 /W=0 ; Gq KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kconcatl">
-    <opcode> rexr rexx rexb rexw ; vex 0f 97 /W=0 ; Gq KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 97 /L=0 /W=0 ; Gq KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kextract">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 3E /W=0 ; KR Gq Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 3E /L=0 /W=0 ; KR Gq Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kmerge2l1h">
-    <opcode> rexr rexx rexb rexw ; vex 0f 48 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 48 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kmerge2l1l">
-    <opcode> rexr rexx rexb rexw ; vex 0f 49 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 49 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kmov">
-    <opcode> rexr rexx rexb rexw ; vex 0f 90 /W=0 ; KR KRM ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex 0f 92 /W=0 ; KR Ed ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex 0f 93 /W=0 ; Gd KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 90 /L=0 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 92 /L=0 /W=0 ; KR Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 93 /L=0 /W=0 ; Gd KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kmovb">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 90 /W=0 ; KR KRM ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 91 /W=0 ; Eb KR ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 92 /W=0 ; KR Eq ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 93 /W=0 ; Gb KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f /L=0 90 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 91 /L=0 /W=0 ; Eb KR ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 92 /L=0 /W=0 ; KR Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 93 /L=0 /W=0 ; Gd KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kmovd">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 90 /W=1 ; KR KRM ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 91 /W=1 ; Ed KR ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 92 /W=1 ; KR Eq ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 93 /W=1 ; Gd KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 90 /L=0 /W=1 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 91 /L=0 /W=1 ; Ed KR ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 92 /L=0 /W=1 ; KR Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 93 /L=0 /W=1 ; Gd KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kmovq">
-    <opcode> rexr rexx rexb rexw ; vex 0f 90 /W=1 ; KR KRM ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex 0f 91 /W=1 ; Eq KR ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex 0f 92 /W=1 ; KR Eq ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex 0f 93 /W=1 ; Gq KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 90 /L=0 /W=1 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 91 /L=0 /W=1 ; Eq KR ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 92 /L=0 /W=1 ; KR Eq ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 93 /L=0 /W=1 ; Gq KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kmovw">
-    <opcode> rexr rexx rexb rexw ; vex 0f 90 /W=0 ; KR KRM ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex 0f 91 /W=0 ; Ew KR ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex 0f 92 /W=0 ; KR Eq ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; vex 0f 93 /W=0 ; Gw KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 90 /L=0 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 91 /L=0 /W=0 ; Ew KR ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 92 /L=0 /W=0 ; KR Ed ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 93 /L=0 /W=0 ; Gd KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="knot">
-    <opcode> rexr rexx rexb rexw ; vex 0f 44 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 44 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="knotb">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 44 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 44 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="knotd">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 44 /W=1 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 44 /L=0 /W=1 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="knotq">
-    <opcode> rexr rexx rexb rexw ; vex 0f 44 /W=1 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 44 /L=0 /W=1 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="knotw">
-    <opcode> rexr rexx rexb rexw ; vex 0f 44 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 44 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kor">
-    <opcode> rexr rexx rexb rexw ; vex 0f 45 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 45 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="korb">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 45 /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 45 /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kord">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 45 /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 45 /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="korq">
-    <opcode> rexr rexx rexb rexw ; vex 0f 45 /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 45 /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="korw">
-    <opcode> rexr rexx rexb rexw ; vex 0f 45 /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 45 /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kortest">
-    <opcode> rexr rexx rexb rexw ; vex 0f 98 /W=0 ; KR KRM ; d:alu ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 98 /L=0 /W=0 ; KR KRM ; d:alu ; </opcode>
   </instruction>
 
   <instruction mnemonic="kortestb">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 98 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 98 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kortestd">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 98 /W=1 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 98 /L=0 /W=1 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kortestq">
-    <opcode> rexr rexx rexb rexw ; vex 0f 98 /W=1 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 98 /L=0 /W=1 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kortestw">
-    <opcode> rexr rexx rexb rexw ; vex 0f 98 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 98 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kshiftlb">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 32 /W=0 ; KR KRM Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 32 /L=0 /W=0 ; KR KRM Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kshiftld">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 33 /W=0 ; KR KRM Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 33 /L=0 /W=0 ; KR KRM Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kshiftlq">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 33 /W=1 ; KR KRM Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 33 /L=0 /W=1 ; KR KRM Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kshiftlw">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 32 /W=1 ; KR KRM Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 32 /L=0 /W=1 ; KR KRM Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kshiftrb">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 30 /W=0 ; KR KRM Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 30 /L=0 /W=0 ; KR KRM Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kshiftrd">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 31 /W=0 ; KR KRM Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 31 /L=0 /W=0 ; KR KRM Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kshiftrq">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 31 /W=1 ; KR KRM Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 31 /L=0 /W=1 ; KR KRM Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kshiftrw">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 30 /W=1 ; KR KRM Ib ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f /3byte=3A 30 /L=0 /W=1 ; KR KRM Ib ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kunpckbw">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 4B /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 4B /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kunpckdq">
-    <opcode> rexr rexx rexb rexw ; vex 0f 4B /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 4B /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kunpckwd">
-    <opcode> rexr rexx rexb rexw ; vex 0f 4B /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 4B /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kxnor">
-    <opcode> rexr rexx rexb rexw ; vex 0f 46 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 46 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kxnorb">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 46 /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 46 /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kxnord">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 46 /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 46 /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kxnorq">
-    <opcode> rexr rexx rexb rexw ; vex 0f 46 /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 46 /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kxnorw">
-    <opcode> rexr rexx rexb rexw ; vex 0f 46 /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 46 /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kxor">
-    <opcode> rexr rexx rexb rexw ; vex 0f 47 /W=0 ; KR KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 47 /L=0 /W=0 ; KR KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kxorb">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 47 /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 47 /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kxord">
-    <opcode> rexr rexx rexb rexw ; vex sse66 0f 47 /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex sse66 0f 47 /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kxorq">
-    <opcode> rexr rexx rexb rexw ; vex 0f 47 /W=1 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 47 /L=1 /W=1 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="kxorw">
-    <opcode> rexr rexx rexb rexw ; vex 0f 47 /W=0 ; KR KV KRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; vex 0f 47 /L=1 /W=0 ; KR KV KRM ; ; </opcode>
   </instruction>
 
   <!-- MVEX vector instructions -->
@@ -5065,7 +5065,7 @@ MAL MISSING PRE SSE?
   </instruction>
 
   <instruction mnemonic="vgatherqps">
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 92 /W=0 ; ZR ZVM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f /3byte=38 93 /W=0 ; ZR ZVM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vgatherqpd">
@@ -6284,7 +6284,7 @@ MAL MISSING PRE SSE?
 
   <instruction mnemonic="vpsadbw">
     <opcode> rexr rexx rexb rexw ; vex sse66 0f F6 ; V X W ; ; </opcode>
-    <opcode> rexr rexx rexb rexw ; mvex sse66 0f EB /W=1 ; ZR ZV ZRM ; ; </opcode>
+    <opcode> rexr rexx rexb rexw ; mvex sse66 0f F6 ; ZR ZV ZRM ; ; </opcode>
   </instruction>
 
   <instruction mnemonic="vpsbbd">

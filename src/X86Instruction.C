@@ -125,6 +125,7 @@ void X86Instruction::countElementsUnalignedLoadStore(bool low, bool is64b, bool 
 struct VectorInfo X86Instruction::getVectorInfo()
 {
     vectorInfo.elementSize = X86InstructionClassifier::getInstructionElemSize(this);
+
     OperandX86* src = getSourceOperand(0);
     OperandX86* dest = getDestOperand();
 
@@ -157,7 +158,6 @@ struct VectorInfo X86Instruction::getVectorInfo()
     }
 
     // FIXME -- currently all 512 bit operations use vector masks
-    // As long as computeVectorMasks is called, this should be fine
     if(bytesInReg == 64) {
         if(vectorInfo.kval.confidence == Unknown) {
             vectorInfo.nElements = 0;
@@ -209,7 +209,7 @@ struct VectorInfo X86Instruction::getVectorInfo()
                     }
             }
             #undef nelems
-      }
+        }
     } else if(vectorInfo.elementSize > 0) {
         vectorInfo.nElements = bytesInReg / vectorInfo.elementSize;
         vectorInfo.kval.confidence = Definitely;
@@ -458,23 +458,41 @@ bool X86Instruction::isScatterGatherOp(){
     switch(GET(mnemonic)){
         case UD_Ivgatherdpd:
         case UD_Ivgatherdps:
+        case UD_Ivgatherqpd:
         case UD_Ivgatherqps:
         case UD_Ivgatherpf0dps:
+        case UD_Ivgatherpf0qps:
+        case UD_Ivgatherpf0dpd:
+        case UD_Ivgatherpf0qpd:
         case UD_Ivgatherpf0hintdpd:
         case UD_Ivgatherpf0hintdps:
         case UD_Ivgatherpf1dps:
+        case UD_Ivgatherpf1qps:
+        case UD_Ivgatherpf1dpd:
+        case UD_Ivgatherpf1qpd:
         case UD_Ivpgatherdd:
         case UD_Ivpgatherdq:
+        case UD_Ivpgatherqd:
+        case UD_Ivpgatherqq:
 
         case UD_Ivscatterdpd:
         case UD_Ivscatterdps:
+        case UD_Ivscatterqpd:
         case UD_Ivscatterqps:
         case UD_Ivscatterpf0dps:
+        case UD_Ivscatterpf0qps:
+        case UD_Ivscatterpf0dpd:
+        case UD_Ivscatterpf0qpd:
         case UD_Ivscatterpf0hintdpd:
         case UD_Ivscatterpf0hintdps:
         case UD_Ivscatterpf1dps:
+        case UD_Ivscatterpf1qps:
+        case UD_Ivscatterpf1dpd:
+        case UD_Ivscatterpf1qpd:
         case UD_Ivpscatterdd:
         case UD_Ivpscatterdq:
+        case UD_Ivpscatterqd:
+        case UD_Ivpscatterqq:
             return true;
      }
      return false;
@@ -484,8 +502,20 @@ bool X86Instruction::isVectorMaskOp(){
     switch(GET(mnemonic)){
         case UD_Ijknzd:
         case UD_Ijkzd:
+        case UD_Ikaddw:
+        case UD_Ikaddb:
+        case UD_Ikaddq:
+        case UD_Ikaddd:
         case UD_Ikand:
+        case UD_Ikandw:
+        case UD_Ikandb:
+        case UD_Ikandq:
+        case UD_Ikandd:
         case UD_Ikandn:
+        case UD_Ikandnw:
+        case UD_Ikandnb:
+        case UD_Ikandnq:
+        case UD_Ikandnd:
         case UD_Ikandnr:
         case UD_Ikconcath:
         case UD_Ikconcatl:
@@ -493,11 +523,46 @@ bool X86Instruction::isVectorMaskOp(){
         case UD_Ikmerge2l1h:
         case UD_Ikmerge2l1l:
         case UD_Ikmov:
+        case UD_Ikmovw:
+        case UD_Ikmovb:
+        case UD_Ikmovq:
+        case UD_Ikmovd:
         case UD_Iknot:
+        case UD_Iknotw:
+        case UD_Iknotb:
+        case UD_Iknotq:
+        case UD_Iknotd:
         case UD_Ikor:
+        case UD_Ikorw:
+        case UD_Ikorb:
+        case UD_Ikorq:
+        case UD_Ikord:
         case UD_Ikortest:
+        case UD_Ikortestw:
+        case UD_Ikortestb:
+        case UD_Ikortestq:
+        case UD_Ikortestd:
+        case UD_Ikshiftlw:
+        case UD_Ikshiftlb:
+        case UD_Ikshiftlq:
+        case UD_Ikshiftld:
+        case UD_Ikshiftrw:
+        case UD_Ikshiftrb:
+        case UD_Ikshiftrq:
+        case UD_Ikshiftrd:
+        case UD_Ikunpckbw:
+        case UD_Ikunpckwd:
+        case UD_Ikunpckdq:
         case UD_Ikxnor:
+        case UD_Ikxnorw:
+        case UD_Ikxnorb:
+        case UD_Ikxnorq:
+        case UD_Ikxnord:
         case UD_Ikxor:
+        case UD_Ikxorw:
+        case UD_Ikxorb:
+        case UD_Ikxorq:
+        case UD_Ikxord:
             return true;
     }
     return false;
