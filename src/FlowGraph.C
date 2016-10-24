@@ -267,7 +267,7 @@ void FlowGraph::computeVectorMasks(){
                 case UD_Ikaddq:
                 case UD_Ikaddd: {
                     OperandX86* src1 = ins->getSourceOperand(1);
-                    OperandX86* src2 = ins->getSourceOperand(2);
+                    OperandX86* src2 = ins->getSourceOperand(0);
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                     
@@ -304,7 +304,7 @@ void FlowGraph::computeVectorMasks(){
                 case UD_Ikandq:
                 case UD_Ikandd: {
                     OperandX86* src1 = ins->getSourceOperand(1);
-                    OperandX86* src2 = ins->getSourceOperand(2);
+                    OperandX86* src2 = ins->getSourceOperand(0);
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                     
@@ -341,7 +341,7 @@ void FlowGraph::computeVectorMasks(){
                 case UD_Ikandnq:
                 case UD_Ikandnd: {
                     OperandX86* src1 = ins->getSourceOperand(1);
-                    OperandX86* src2 = ins->getSourceOperand(2);
+                    OperandX86* src2 = ins->getSourceOperand(0);
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                     
@@ -429,7 +429,7 @@ void FlowGraph::computeVectorMasks(){
                 case UD_Ikorq:
                 case UD_Ikord: {
                     OperandX86* src1 = ins->getSourceOperand(1);
-                    OperandX86* src2 = ins->getSourceOperand(2);
+                    OperandX86* src2 = ins->getSourceOperand(0);
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                     
@@ -460,7 +460,7 @@ void FlowGraph::computeVectorMasks(){
                 case UD_Ikshiftlq:
                 case UD_Ikshiftld: {
                     OperandX86* src1 = ins->getSourceOperand(1);
-                    OperandX86* src2 = ins->getSourceOperand(2);
+                    OperandX86* src2 = ins->getSourceOperand(0);
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                     
@@ -486,7 +486,7 @@ void FlowGraph::computeVectorMasks(){
                 case UD_Ikshiftrq:
                 case UD_Ikshiftrd: {
                     OperandX86* src1 = ins->getSourceOperand(1);
-                    OperandX86* src2 = ins->getSourceOperand(2);
+                    OperandX86* src2 = ins->getSourceOperand(0);
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
                     
@@ -529,9 +529,12 @@ void FlowGraph::computeVectorMasks(){
                 case UD_Ikxnorq:
                 case UD_Ikxnord: {
                     OperandX86* src1 = ins->getSourceOperand(1);
-                    OperandX86* src2 = ins->getSourceOperand(2);
+                    OperandX86* src2 = ins->getSourceOperand(0);
                     RuntimeValue src1Val = getValueOfOperand(src1, nextItem);
                     RuntimeValue src2Val = getValueOfOperand(src2, nextItem);
+            
+                    //printf("\t\tSRC 1: %d - %d, %d \n", getRegId(src1->GET(base))-UD_R_K0, src1Val.confidence, src1Val.value);
+                    //printf("\t\tSRC 0: %d - %d, %d \n", getRegId(src2->GET(base))-UD_R_K0, src2Val.confidence, src2Val.value);
                     
                     uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikxnorw)
@@ -574,7 +577,7 @@ void FlowGraph::computeVectorMasks(){
                 case UD_Ikxorq:
                 case UD_Ikxord: {
                     OperandX86* src1 = ins->getSourceOperand(1);
-                    OperandX86* src2 = ins->getSourceOperand(2);
+                    OperandX86* src2 = ins->getSourceOperand(0);
                     
                     uint64_t maskSize = 64;
                     if(ins->GET(mnemonic) == UD_Ikxorw)
@@ -641,7 +644,7 @@ void FlowGraph::computeVectorMasks(){
             }
 
             //fprintf(stderr, "Writing %d, %d to register: %d\n", value.confidence, value.value, getRegId(dest->GET(base)));
-            //printf("Writing %d, %d to register: %d\n", value.confidence, value.value, getRegId(dest->GET(base))-UD_R_K0);
+            //printf("\t\tWriting %d, %d to register: %d\n", value.confidence, value.value, getRegId(dest->GET(base))-UD_R_K0);
             nextItem->state[getRegId(dest->GET(base))] = value;
 
         // Updates to stack
